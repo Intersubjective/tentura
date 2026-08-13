@@ -25,6 +25,7 @@ import 'forward_attribution_dialog.dart';
 import 'forward_band_strip.dart';
 import 'forward_bottom_composer.dart';
 import 'forward_input_decoration.dart';
+import '../model/forward_recipient_row_host.dart';
 import 'forward_recipient_row.dart';
 import 'forward_scope_links.dart';
 import 'forward_search_overlay.dart';
@@ -588,6 +589,7 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
         for (var i = 0; i < lineage.length; i++) ...[
           if (i > 0) const TenturaHairlineDivider(),
           ForwardRecipientRow(
+            host: ForwardRecipientRowHost.pickerLineage,
             candidate: lineage[i],
             requiredCapabilitySlugs: beacon?.needs ?? const {},
             isSelected: state.selectedIds.contains(lineage[i].id),
@@ -618,6 +620,7 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
       }
       children.add(
         ForwardRecipientRow(
+          host: ForwardRecipientRowHost.pickerStandard,
           candidate: visible[i],
           requiredCapabilitySlugs: beacon?.needs ?? const {},
           isSelected: state.selectedIds.contains(visible[i].id),

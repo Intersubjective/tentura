@@ -6,6 +6,7 @@ import 'package:tentura/ui/utils/ui_utils.dart';
 
 import '../bloc/forward_cubit.dart';
 import '../../domain/entity/forward_candidate.dart';
+import '../model/forward_recipient_row_host.dart';
 import 'forward_recipient_row.dart';
 import 'per_recipient_note_input.dart';
 
@@ -152,6 +153,7 @@ class _ForwardSearchOverlayState extends State<ForwardSearchOverlay> {
                   ? null
                   : () => onCandidateFocused(filtered[i].id),
               child: ForwardRecipientRow(
+                host: ForwardRecipientRowHost.pickerSearch,
                 candidate: filtered[i],
                 requiredCapabilitySlugs: state.beacon?.needs ?? const {},
                 isSelected: state.selectedIds.contains(filtered[i].id),
@@ -229,6 +231,7 @@ class _ForwardSearchOverlayState extends State<ForwardSearchOverlay> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           ForwardRecipientRow(
+            host: ForwardRecipientRowHost.pickerSearch,
             candidate: candidate,
             requiredCapabilitySlugs: state.beacon?.needs ?? const {},
             isSelected: isSelected,

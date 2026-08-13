@@ -1,6 +1,7 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 
 import 'package:tentura/domain/entity/profile.dart';
+import 'package:tentura/domain/util/availability_presets.dart';
 
 import 'candidate_involvement.dart';
 import 'lineage_suggestion_group.dart';
@@ -32,13 +33,16 @@ abstract class ForwardCandidate with _$ForwardCandidate {
 
   double get mrScore => profile.score;
 
-  bool get canForwardTo =>
+  bool canForwardToOn(DateTime todayUtc) =>
       isReachable &&
+      !profile.availability.blocksNewRequestsOn(todayUtc) &&
       involvement != CandidateInvolvement.forwardedByMe &&
       involvement != CandidateInvolvement.author &&
       involvement != CandidateInvolvement.declined &&
       involvement != CandidateInvolvement.helpOffered &&
       involvement != CandidateInvolvement.withdrawn;
+
+  bool get canForwardTo => canForwardToOn(availabilityTodayUtc());
 
   bool get isUnseen => involvement == CandidateInvolvement.unseen;
 }

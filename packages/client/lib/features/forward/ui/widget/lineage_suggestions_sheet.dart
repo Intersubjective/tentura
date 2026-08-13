@@ -8,6 +8,7 @@ import 'package:tentura/ui/l10n/l10n.dart';
 import '../../domain/entity/forward_candidate.dart';
 import '../bloc/lineage_suggestions_preview_cubit.dart';
 import '../bloc/lineage_suggestions_preview_state.dart';
+import '../model/forward_recipient_row_host.dart';
 import 'forward_recipient_row.dart';
 
 Future<void> showLineageSuggestionsPreviewSheet(
@@ -136,6 +137,7 @@ class _PreviewBody extends StatelessWidget {
       itemBuilder: (context, i) {
         final row = state.rows[i];
         return ForwardRecipientRow(
+          host: ForwardRecipientRowHost.lineagePreview,
           candidate: ForwardCandidate(
             profile: row.profile,
             lineageGroup: row.group,

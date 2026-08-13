@@ -10,6 +10,7 @@ import 'package:tentura/features/forward/domain/entity/forward_candidate.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
 import 'forward_recipient_row.dart';
+import '../model/forward_recipient_row_host.dart';
 
 /// Contextual evidence band above the MR-ordered forward list (architecture §8).
 class ForwardBandStrip extends StatelessWidget {
@@ -116,6 +117,7 @@ class ForwardBandStrip extends StatelessWidget {
           : tierEvidenceCopy(l10n, row.rowTier!, row.labels);
       children.add(
         ForwardRecipientRow(
+          host: ForwardRecipientRowHost.pickerBand,
           candidate: candidate,
           requiredCapabilitySlugs: needs,
           isSelected: selectedIds.contains(candidate.id),

@@ -5,10 +5,10 @@ import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/capability/capability_tag.dart';
 import 'package:tentura/domain/capability/capability_group.dart';
 import 'package:tentura/domain/contacts/contact_name_overlay.dart';
+import 'package:tentura/domain/util/availability_presets.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/test_ids.dart';
-import 'package:tentura/ui/utils/profile_presence_line.dart';
 import 'package:tentura/ui/widget/self_aware_profile_avatar.dart';
 import 'package:tentura/ui/widget/self_user_highlight.dart';
 import 'package:tentura/ui/widget/show_more_text.dart';
@@ -16,11 +16,13 @@ import 'package:tentura/ui/widget/show_more_text.dart';
 import '../../domain/entity/candidate_involvement.dart';
 import '../../domain/entity/forward_candidate.dart';
 import '../../domain/entity/lineage_suggestion_group.dart';
+import '../model/forward_recipient_row_host.dart';
 import 'lineage_forward_section.dart';
 
 class ForwardRecipientRow extends StatelessWidget {
   const ForwardRecipientRow({
     required this.candidate,
+    required this.host,
     required this.isSelected,
     required this.onToggle,
     this.personalizedNoteEditorOpen = false,
@@ -33,10 +35,12 @@ class ForwardRecipientRow extends StatelessWidget {
     this.tierEvidenceTone,
     this.showPresenceLine = true,
     this.requiredCapabilitySlugs = const {},
+    this.todayUtc,
     super.key,
   });
 
   final ForwardCandidate candidate;
+  final ForwardRecipientRowHost host;
   final bool isSelected;
   final VoidCallback? onToggle;
   final bool personalizedNoteEditorOpen;
@@ -66,71 +70,33 @@ class ForwardRecipientRow extends StatelessWidget {
   /// Beacon [`Beacon.needs`] slugs; chips that match are emphasized.
   final Set<String> requiredCapabilitySlugs;
 
-  /// Involvement / forward path line (independent of scope tab filter).
-  String _relationLabel(L10n l10n) {
-    if (candidate.involvement != CandidateInvolvement.declined &&
-        candidate.involvement != CandidateInvolvement.author &&
-        !candidate.isReachable) {
-      return l10n.notReachable;
-    }
-    return switch (candidate.involvement) {
-      CandidateInvolvement.declined => l10n.forwardDeclined,
-      CandidateInvolvement.author => l10n.forwardAuthor,
-      CandidateInvolvement.forwardedByMe =>
-        candidate.myForwardNote != null && candidate.myForwardNote!.isNotEmpty
-            ? l10n.forwardedByMeWithNote(candidate.myForwardNote!)
-            : l10n.forwardedByMe,
-      CandidateInvolvement.forwarded => l10n.forwardAlreadyForwarded,
-      CandidateInvolvement.watching => l10n.forwardWatching,
-      CandidateInvolvement.helpOffered => l10n.forwardHelpOffered,
-      CandidateInvolvement.withdrawn => l10n.forwardWithdrawn,
-      CandidateInvolvement.unseen => l10n.forwardFilterUnseen,
-    };
-  }
-
-  TenturaTone _relationTone() {
-    if (candidate.involvement != CandidateInvolvement.declined &&
-        candidate.involvement != CandidateInvolvement.author &&
-        !candidate.isReachable) {
-      return TenturaTone.neutral;
-    }
-    if (candidate.involvement == CandidateInvolvement.declined ||
-        candidate.involvement == CandidateInvolvement.author) {
-      return TenturaTone.warn;
-    }
-    if (candidate.involvement == CandidateInvolvement.unseen) {
-      return candidate.canForwardTo ? TenturaTone.good : TenturaTone.neutral;
-    }
-    return TenturaTone.warn;
-  }
-
-  Color _relationStatusColor(TenturaTokens tt) => switch (_relationTone()) {
-    TenturaTone.neutral => tt.textMuted,
-    TenturaTone.info => tt.info,
-    TenturaTone.good => tt.good,
-    TenturaTone.warn => tt.warn,
-    TenturaTone.danger => tt.danger,
-  };
+  /// UTC calendar date for availability; defaults to [availabilityTodayUtc].
+  final DateTime? todayUtc;
 
   @override
   Widget build(BuildContext context) {
     final tt = context.tt;
     final l10n = L10n.of(context)!;
     final theme = Theme.of(context);
-    final canSelect = candidate.canForwardTo;
-    final relationLabel = _relationLabel(l10n);
-    final forwardedByMeWithNote =
-        candidate.involvement == CandidateInvolvement.forwardedByMe &&
-        candidate.myForwardNote != null &&
-        candidate.myForwardNote!.isNotEmpty;
-    final presence = profilePresenceDisplayLine(
+    final effectiveTodayUtc = todayUtc ?? availabilityTodayUtc();
+    final canSelectNew = candidate.canForwardToOn(effectiveTodayUtc);
+    final checkboxEnabled = forwardRecipientCheckboxEnabled(
+      candidate: candidate,
+      todayUtc: effectiveTodayUtc,
+      isSelected: isSelected,
+    );
+    final line2 = computeForwardRecipientLine2(
+      candidate: candidate,
+      host: host,
+      todayUtc: effectiveTodayUtc,
       l10n: l10n,
       locale: Localizations.localeOf(context),
-      status: candidate.profile.presenceStatus,
-      lastSeenAt: candidate.profile.presenceLastSeenAt,
+      tierEvidenceLabel: tierEvidenceLabel,
+      tierEvidenceTone: tierEvidenceTone,
+      showPresenceLine: showPresenceLine,
     );
     final nameBaseStyle = TenturaText.titleSmall(
-      canSelect ? tt.text : tt.textMuted,
+      canSelectNew ? tt.text : tt.textMuted,
     );
     final requiredSet = {
       for (final s in requiredCapabilitySlugs)
@@ -139,10 +105,10 @@ class ForwardRecipientRow extends StatelessWidget {
 
     return Semantics(
       identifier: TestIds.forwardRecipient(candidate.id),
-      button: canSelect,
+      button: canSelectNew,
       child: InkWell(
         key: TestIds.key(TestIds.forwardRecipient(candidate.id)),
-        onTap: canSelect ? onToggle : null,
+        onTap: checkboxEnabled ? onToggle : null,
         child: Padding(
           padding: EdgeInsets.symmetric(
             vertical: tt.rowGap,
@@ -185,51 +151,14 @@ class ForwardRecipientRow extends StatelessWidget {
                         );
                       },
                     ),
-                    // Tight before presence / relation (do not use rowGap: a 44px-tall
-                    // name+checkbox row was forcing extra empty space under one-line names).
                     SizedBox(height: tt.tightGap),
-                    if (tierEvidenceLabel != null)
-                      TenturaStatusText(
-                        tierEvidenceLabel!,
-                        tone: tierEvidenceTone ?? TenturaTone.info,
-                      )
-                    else if (showPresenceLine)
-                      Wrap(
-                        spacing: tt.iconTextGap,
-                        runSpacing: tt.tightGap,
-                        crossAxisAlignment: WrapCrossAlignment.center,
-                        children: [
-                          if (presence.isNotEmpty)
-                            Text(
-                              presence,
-                              style: TenturaText.bodySmall(tt.textMuted),
-                            ),
-                          if (forwardedByMeWithNote)
-                            ShowMoreText(
-                              l10n.forwardedByMeWithNote(
-                                candidate.myForwardNote!,
-                              ),
-                              style: TenturaText.status(
-                                _relationStatusColor(tt),
-                              ),
-                              colorClickableText: theme.colorScheme.primary,
-                              trimLines: 1,
-                              trimCollapsedText: l10n.forwardMyNoteViewMore,
-                              trimExpandedText: l10n.forwardMyNoteShowLess,
-                            )
-                          else
-                            TenturaStatusText(
-                              relationLabel,
-                              tone: _relationTone(),
-                            ),
-                          if (candidate.involvement ==
-                              CandidateInvolvement.forwardedByMe)
-                            _ForwardReadReceipt(
-                              readAt: candidate.recipientReadAt,
-                              l10n: l10n,
-                              tt: tt,
-                            ),
-                        ],
+                    if (!line2.suppressed)
+                      _Line2Content(
+                        line2: line2,
+                        candidate: candidate,
+                        l10n: l10n,
+                        tt: tt,
+                        theme: theme,
                       ),
                     if (showPresenceLine &&
                         candidate.topCapabilities.isNotEmpty) ...[
@@ -300,16 +229,18 @@ class ForwardRecipientRow extends StatelessWidget {
                     minHeight: 44,
                   ),
                   tooltip: l10n.forwardCancelAction,
+                  style: IconButton.styleFrom(
+                    foregroundColor: tt.warn,
+                  ),
                   icon: Icon(
                     Icons.cancel_outlined,
                     size: tt.iconSize,
-                    color: tt.warn,
                   ),
                   onPressed: onCancelForward,
                 ),
                 SizedBox(width: tt.iconTextGap),
               ],
-              if (isSelected && canSelect && onEditReasons != null) ...[
+              if (isSelected && canSelectNew && onEditReasons != null) ...[
                 IconButton(
                   padding: EdgeInsets.zero,
                   constraints: const BoxConstraints(
@@ -327,7 +258,7 @@ class ForwardRecipientRow extends StatelessWidget {
                 SizedBox(width: tt.iconTextGap),
               ],
               if (isSelected &&
-                  canSelect &&
+                  canSelectNew &&
                   onTogglePersonalizedNoteEditor != null) ...[
                 IconButton(
                   padding: EdgeInsets.zero,
@@ -351,13 +282,89 @@ class ForwardRecipientRow extends StatelessWidget {
               ],
               _ForwardRowCheckbox(
                 isSelected: isSelected,
-                enabled: canSelect,
+                enabled: checkboxEnabled,
                 onTap: onToggle,
               ),
             ],
           ),
         ),
       ),
+    );
+  }
+}
+
+class _Line2Content extends StatelessWidget {
+  const _Line2Content({
+    required this.line2,
+    required this.candidate,
+    required this.l10n,
+    required this.tt,
+    required this.theme,
+  });
+
+  final ForwardRecipientLine2 line2;
+  final ForwardCandidate candidate;
+  final L10n l10n;
+  final TenturaTokens tt;
+  final ThemeData theme;
+
+  Color _toneColor(TenturaTone tone) => switch (tone) {
+    TenturaTone.neutral => tt.textMuted,
+    TenturaTone.info => tt.info,
+    TenturaTone.good => tt.good,
+    TenturaTone.warn => tt.warn,
+    TenturaTone.danger => tt.danger,
+  };
+
+  @override
+  Widget build(BuildContext context) {
+    if (line2.tierEvidenceLabel != null) {
+      return TenturaStatusText(
+        line2.tierEvidenceLabel!,
+        tone: line2.tierEvidenceTone ?? TenturaTone.info,
+      );
+    }
+
+    return Wrap(
+      spacing: tt.iconTextGap,
+      runSpacing: tt.tightGap,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      children: [
+        if (line2.presenceOrAvailabilityLine != null)
+          if (line2.presenceOrAvailabilityUsesStatusText)
+            TenturaStatusText(
+              line2.presenceOrAvailabilityLine!,
+              tone: line2.presenceOrAvailabilityTone ?? TenturaTone.neutral,
+            )
+          else
+            Text(
+              line2.presenceOrAvailabilityLine!,
+              style: TenturaText.bodySmall(tt.textMuted),
+            ),
+        if (line2.relationLabel != null)
+          if (line2.forwardedByMeWithNote)
+            ShowMoreText(
+              line2.relationLabel!,
+              style: TenturaText.status(
+                _toneColor(line2.relationTone ?? TenturaTone.neutral),
+              ),
+              colorClickableText: theme.colorScheme.primary,
+              trimLines: 1,
+              trimCollapsedText: l10n.forwardMyNoteViewMore,
+              trimExpandedText: l10n.forwardMyNoteShowLess,
+            )
+          else
+            TenturaStatusText(
+              line2.relationLabel!,
+              tone: line2.relationTone ?? TenturaTone.neutral,
+            ),
+        if (candidate.involvement == CandidateInvolvement.forwardedByMe)
+          _ForwardReadReceipt(
+            readAt: candidate.recipientReadAt,
+            l10n: l10n,
+            tt: tt,
+          ),
+      ],
     );
   }
 }
@@ -419,7 +426,6 @@ class _CapabilityHintChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final swatch = context.capabilityColors.swatchFor(group);
-    // Match highlight stays semantic (tt.good); non-match uses group tint.
     final fg = matchesNeed ? tt.good : swatch.onContainer;
     final row = Row(
       mainAxisSize: MainAxisSize.min,

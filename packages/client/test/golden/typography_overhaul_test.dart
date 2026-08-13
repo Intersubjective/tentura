@@ -8,6 +8,7 @@ import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/beacon/ui/widget/coordination_ui.dart';
 import 'package:tentura/features/forward/domain/entity/forward_candidate.dart';
 import 'package:tentura/features/forward/ui/widget/forward_bottom_composer.dart';
+import 'package:tentura/features/forward/ui/model/forward_recipient_row_host.dart';
 import 'package:tentura/features/forward/ui/widget/forward_recipient_row.dart';
 import 'package:tentura/features/my_work/ui/widget/my_work_status_line.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
@@ -356,6 +357,7 @@ class _ForwardRecipientGoldenBody extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           ForwardRecipientRow(
+            host: ForwardRecipientRowHost.pickerStandard,
             candidate: const ForwardCandidate(
               profile: Profile(
                 id: 'u1',

@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:tentura/domain/entity/profile.dart';
+import 'package:tentura/domain/entity/availability.dart';
 import 'package:tentura/features/forward/domain/entity/candidate_involvement.dart';
 import 'package:tentura/features/forward/domain/entity/forward_candidate.dart';
 import 'package:tentura/features/forward/domain/entity/lineage_suggestion_group.dart';
@@ -9,6 +10,33 @@ import 'package:tentura/features/forward/ui/bloc/forward_state.dart';
 void main() {
   test('defaults to unseen scope', () {
     expect(const ForwardState().activeFilter, ForwardFilter.unseen);
+  });
+
+  test('scopeCounts unseen includes paused unseen rows', () {
+    const open = ForwardCandidate(
+      profile: Profile(
+        id: 'open',
+        displayName: 'Open',
+        rScore: 1,
+        score: 50,
+      ),
+    );
+    final paused = ForwardCandidate(
+      profile: Profile(
+        id: 'paused',
+        displayName: 'Paused',
+        rScore: 1,
+        score: 80,
+        availability: Availability(resumeOn: DateTime.utc(2026, 8, 18)),
+      ),
+    );
+
+    final state = ForwardState(candidates: [open, paused]);
+
+    expect(state.scopeCounts.unseen, 2);
+    expect(state.visibleRecipients.map((c) => c.id).toList(), ['paused', 'open']);
+    expect(paused.canForwardToOn(DateTime.utc(2026, 8, 14)), isFalse);
+    expect(open.canForwardToOn(DateTime.utc(2026, 8, 14)), isTrue);
   });
 
   test('scopeCounts and visibleRecipients for unseen (MR order)', () {

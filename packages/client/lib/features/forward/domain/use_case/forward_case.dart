@@ -6,6 +6,7 @@ import 'package:tentura/domain/contacts/contact_name_overlay.dart';
 import 'package:tentura/domain/entity/beacon_fact_card.dart';
 import 'package:tentura/domain/entity/beacon_fact_card_consts.dart';
 import 'package:tentura/domain/entity/profile.dart';
+import 'package:tentura/domain/util/availability_presets.dart';
 import 'package:tentura/domain/port/capability_repository_port.dart';
 import 'package:tentura/domain/use_case/use_case_base.dart';
 import 'package:tentura/features/auth/domain/port/auth_local_repository_port.dart';
@@ -194,6 +195,18 @@ final class ForwardCase extends UseCaseBase {
       );
     } catch (_) {
       // Non-critical: contextual band is best-effort enhancement.
+    }
+
+    if (band.isNotEmpty) {
+      final todayUtc = availabilityTodayUtc();
+      final candidateById = {for (final c in candidates) c.id: c};
+      band = band
+          .where((row) {
+            final matched = candidateById[row.userId];
+            return matched == null ||
+                !matched.profile.availability.blocksNewRequestsOn(todayUtc);
+          })
+          .toList();
     }
 
     return ForwardLoad(
