@@ -7028,3 +7028,111 @@ locally; no signal exposes an identifiable user pair"):
   "does not log band conversion when provenance is omitted" test. MET.
 
 G1a accepted. Proceeding to G1b (mute rate + seed renewal telemetry).
+
+## G1b — mute rate per tag — complete — 2026-08-13
+
+COMMITS: `1c0beb983` (mute-rate slice — see final G1b entry)
+
+TESTS:
+
+```bash
+cd packages/server && dart test -x pg test/domain/use_case/capability_telemetry_case_test.dart
+→ +3 (mute-rate cases among the three G1b use-case tests)
+
+cd packages/server && dart test -t pg test/data/repository/capability_read_ports_pg_test.dart
+→ muteCountsByTag pg test (when Postgres available)
+```
+
+FILES:
+
+- `packages/server/lib/domain/port/routing_mute_port.dart` — `muteCountsByTag()`
+- `packages/server/lib/data/repository/routing_mute_repository.dart` — aggregate query
+- `packages/server/lib/domain/use_case/capability_telemetry_case.dart` — `capability_mute_rate` log line
+- `packages/server/test/domain/use_case/capability_telemetry_case_test.dart`
+- `packages/server/test/data/repository/capability_read_ports_pg_test.dart` — `muteCountsByTag` pg test
+- `packages/server/test/domain/use_case/capability_routing_case_mocks.mocks.dart` — Mockito regen for port
+- `packages/server/test/domain/use_case/capability_projection_case_mocks.mocks.dart` — Mockito regen for port
+
+FINDINGS:
+
+- `capability_routing_mute` is keyed `(user_id, tag_slug)` where `user_id` is the ego muting a tag on their routing screen; population-wide mute rate is `COUNT(*)` grouped by `tag_slug`.
+- Log format: `capability_mute_rate <slug>=<n> ...` with slugs sorted lexicographically; tags with zero mutes omitted; empty population logs `capability_mute_rate` alone.
+
+REMAINING: seed renewal signal + TaskWorker wiring + journal final entry.
+
+## G1b — seed renewal rate — complete — 2026-08-13
+
+COMMITS: `05fdc9abc` (seed-renewal slice — see final G1b entry)
+
+TESTS:
+
+```bash
+cd packages/server && dart test -x pg test/domain/use_case/capability_telemetry_case_test.dart
+→ seed-renewal cases in the same three-test file
+
+cd packages/server && dart test -t pg test/data/repository/capability_read_ports_pg_test.dart
+→ countSeedRenewal pg tests (when Postgres available)
+```
+
+FILES:
+
+- `packages/server/lib/domain/port/capability_telemetry_port.dart` (new)
+- `packages/server/lib/data/repository/capability_telemetry_repository.dart` (new)
+- `packages/server/lib/domain/use_case/capability_telemetry_case.dart` — `capability_seed_renewal` log line
+- `packages/server/test/data/repository/capability_read_ports_pg_test.dart` — seed renewal pg tests
+
+FINDINGS:
+
+- **Seed-channel definition (documented choice):** architecture D5 states private labels are *never* seeds and cells accumulate only `forwardReason`, `closeAcknowledgement`, and `seedRoutingAttestation` (§4.1). G1b counts seed triples from ledger `source_type IN (1, 4)` — `forwardReason` and `seedRoutingAttestation` — **excluding `privateLabel(0)`**, despite the implementation prompt's summary listing 0. This matches cell rebuild semantics and `CapabilityOwnEvidenceRepository`'s channel map (1/4 → seed; 0 not classified there).
+- **Renewal definition:** for each seed triple, `earliest_seed_at` = MIN(`created_at`) over active seed-channel rows; "renewed" when an active `forwardReason` (1) row exists with `created_at > earliest_seed_at` and (`next_expiry_at` IS NULL OR `created_at < next_expiry_at`) on the matching `capability_evidence_edge` row (LEFT JOIN — missing cell treated as not yet expired).
+- Log format: `capability_seed_renewal seed_triples=<n> renewed=<n>` — population counts only.
+
+REMAINING: TaskWorker periodic wiring + DI regen + journal final entry.
+
+## G1b — complete — 2026-08-13
+
+COMMITS:
+
+- `1c0beb983` feat(server): add routing mute aggregate query for telemetry (G1b)
+- `05fdc9abc` feat(server): add seed renewal telemetry query and capability case (G1b)
+- `24fb07a2a` feat(server): wire capability telemetry into TaskWorker sweep (G1b)
+- `<hash4>` docs: journal checkpoint for G1b telemetry (mute rate + seed renewal)
+
+TESTS:
+
+```bash
+cd packages/server && dart analyze <changed paths>
+→ zero new errors on changed files
+
+cd packages/server && dart test -x pg test/domain/use_case/capability_telemetry_case_test.dart
+→ +3, all passed, identical 3x
+
+cd packages/server && dart test -x pg
+→ +1445 (+3 vs G1a baseline +1442), all passed, identical 3x
+
+bash scripts/check-user-facing-terminology.sh → ok
+./scripts/check-custom-lints.sh packages/server → total: 0 (baseline: 0)
+git diff --check → clean
+```
+
+FILES:
+
+- `packages/server/lib/domain/port/routing_mute_port.dart`
+- `packages/server/lib/domain/port/capability_telemetry_port.dart` (new)
+- `packages/server/lib/data/repository/routing_mute_repository.dart`
+- `packages/server/lib/data/repository/capability_telemetry_repository.dart` (new)
+- `packages/server/lib/domain/use_case/capability_telemetry_case.dart` (new)
+- `packages/server/lib/domain/use_case/task_worker_case.dart` — 45-minute sweep interval
+- `packages/server/test/domain/use_case/capability_telemetry_case_test.dart` (new)
+- `packages/server/test/data/repository/capability_read_ports_pg_test.dart`
+- `packages/server/test/domain/use_case/capability_routing_case_mocks.mocks.dart`
+- `packages/server/test/domain/use_case/capability_projection_case_mocks.mocks.dart`
+- `docs/plans/subjective-help-tag-evidence-implementation-journal.md`
+
+FINDINGS:
+
+- TaskWorker interval **45 minutes** — between the 15-minute cell-expiry sweep and hourly witness-window GC; mute rate and seed renewal are slow-moving population gauges, not per-request signals, so a longer cadence limits aggregate-query load without sacrificing observability in dev logs.
+- DI: `CapabilityTelemetryCase` `@Singleton(order: 2)`; `CapabilityTelemetryRepository` `@Injectable(as: CapabilityTelemetryPort, env: [dev, prod], order: 1)`; `dart run build_runner build -d` updates `di.config.dart` (gitignored).
+
+REMAINING: none for G1b. Next plan units: G1c (window coverage, floor margin, eligible-witness coverage), G1d (acknowledgement reciprocity), then G2/G3.
+
