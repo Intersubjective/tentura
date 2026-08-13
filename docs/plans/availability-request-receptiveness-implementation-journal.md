@@ -136,7 +136,7 @@ Units are sequential. Check off only after the unit's focused commit and verific
   `feat(server): expose availability in public users`
 - [x] **UNIT 05 — Three V2 availability mutations** — depends: 03 — commit:
   `feat(server): add availability mutations`
-- [ ] **UNIT 06 — Transactional forward gate and typed result** — depends: 03 — commit:
+- [x] **UNIT 06 — Transactional forward gate and typed result** — depends: 03 — commit:
   `feat(server): enforce availability on forwards`
 - [ ] **UNIT 07 — Server PostgreSQL/concurrency/API proof** — depends: 04–06 — commit:
   `test(server): prove availability invariants`
@@ -457,3 +457,49 @@ FINDINGS: accepted after one targeted remediation. The focused schema executes a
 server DI dependencies. The test fake is now local to this unit, and a null Boolean variable is
 proved to be rejected before a repository call. Protected independent UI work remains unmodified.
 REMAINING: UNIT 06 is dependency-ready. UNIT 07 still owns PostgreSQL/API invariant proof.
+
+## UNIT 06 — complete — 2026-08-13
+
+COMMITS: `bc6a183a1` feat(server): enforce availability on forwards
+TESTS:
+- `(cd packages/server && dart run build_runner build -d)` → exit 0
+- `(cd packages/server && dart test test/domain/use_case/forward_case_test.dart test/domain/use_case/forward_case_auth_test.dart)` → 50 passed
+- `./scripts/check-custom-lints.sh packages/server` → pass (custom-rule total 0)
+- `git diff --check` → clean
+FILES:
+- `packages/server/lib/domain/entity/forward_batch_create_result.dart`
+- `packages/server/lib/domain/entity/forward_delivery_result.dart`
+- `packages/server/lib/domain/port/forward_edge_repository_port.dart`
+- `packages/server/lib/data/repository/forward_edge_repository.dart`
+- `packages/server/lib/domain/use_case/forward_case.dart`
+- `packages/server/lib/api/controllers/graphql/custom_types.dart`
+- `packages/server/lib/api/controllers/graphql/mutation/mutation_forward.dart`
+- `packages/server/test/domain/use_case/forward_case_test.dart`
+- `packages/server/test/domain/use_case/forward_case_auth_test.dart`
+- `packages/server/test/domain/use_case/forward_case_mocks.mocks.dart`
+- `packages/server/test/domain/use_case/help_offer_case_mocks.mocks.dart`
+- `packages/server/test/data/repository/forward_edge_repository_create_batch_dedup_test.dart`
+- `packages/server/test/domain/evaluation/evaluation_graph_test_repos.dart`
+- `packages/server/test/support/build_test_invitation_case.dart`
+FINDINGS: `createBatch` dedupe, sorted advisory locks, and conditional
+`INSERT … SELECT … WHERE` availability predicate live in
+`ForwardEdgeRepository` inside `withMutatingUser`; active-edge dedup remains
+silent (not counted as availability skip). Freezed `*.freezed.dart` outputs
+are gitignored and produced by build_runner. Mockito mock regeneration for the
+port signature was required and committed. Three mechanical port-signature stub
+updates outside the primary owned list were included so `dart analyze` stays
+green.
+REMAINING: UNIT 07 owns PostgreSQL two-connection linearization proof,
+`forward_delivery_result_test.dart`, and read-path parity tests; client units
+08–16 unchanged.
+
+## UNIT 06 final evidence — 2026-08-13
+
+COMMITS: `bc6a183a1c` feat(server): enforce availability on forwards
+TESTS: `(cd packages/server && dart run build_runner build -d)` → exit 0;
+`(cd packages/server && dart test test/domain/use_case/forward_case_test.dart test/domain/use_case/forward_case_auth_test.dart)` → 50 passed;
+`./scripts/check-custom-lints.sh packages/server` → pass (custom-rule total 0);
+`git diff --check` → clean after implementation commit
+FILES: UNIT 06 source/test paths listed above
+FINDINGS: none beyond UNIT 06 entry
+REMAINING: none for UNIT 06; UNIT 07 is next
