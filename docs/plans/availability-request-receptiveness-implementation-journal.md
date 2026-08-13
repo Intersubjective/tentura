@@ -144,7 +144,7 @@ Units are sequential. Check off only after the unit's focused commit and verific
   `feat(client): map availability data`
 - [x] **UNIT 09 — Client availability command repository and Cubit** — depends: 05, 08 — commit:
   `feat(client): wire availability commands`
-- [ ] **UNIT 10 — Calendar presets, formatting, localization** — depends: 08 — commit:
+- [x] **UNIT 10 — Calendar presets, formatting, localization** — depends: 08 — commit:
   `feat(client): add availability copy and dates`
 - [ ] **UNIT 11 — Own-profile control and status** — depends: 09–10 — commit:
   `feat(client): add availability profile control`
@@ -1118,3 +1118,45 @@ FINDINGS:
 - `userAvailabilityPause` wire arg is `String!` (`YYYY-MM-DD`); repository rejects non-UTC
   midnight `resumeOn` locally via `_utcCalendarDateWire`.
 REMAINING: manager acceptance of UNIT 09; UNIT 10 (`feat(client): add availability copy and dates`).
+
+## UNIT 10 — complete — 2026-08-14
+
+COMMITS: `ee9eaa988` feat(client): add availability copy and dates; `094dab138` docs: record UNIT 10 availability copy and dates evidence
+TESTS:
+- `(cd packages/client && flutter gen-l10n)` → exit 0
+- `(cd packages/client && flutter test test/domain/util/availability_presets_test.dart test/ui/utils/calendar_day_display_test.dart test/l10n/availability_localization_test.dart)` → 25 passed
+- `./scripts/check-custom-lints.sh packages/client` → pass (custom-rule total 106, baseline 111)
+- `bash scripts/check-user-facing-terminology.sh` → pass
+- `git diff --check` → clean
+FILES:
+- `packages/client/lib/domain/util/availability_presets.dart`
+- `packages/client/lib/ui/utils/calendar_day_display.dart`
+- `packages/client/lib/ui/utils/availability_line.dart`
+- `packages/client/lib/ui/utils/beacon_card_deadline.dart`
+- `packages/client/l10n/app_en.arb`
+- `packages/client/l10n/app_ru.arb`
+- `packages/client/test/domain/util/availability_presets_test.dart`
+- `packages/client/test/ui/utils/calendar_day_display_test.dart`
+- `packages/client/test/l10n/availability_localization_test.dart`
+- `docs/plans/availability-request-receptiveness-implementation-journal.md`
+L10N KEYS (25, architecture §10 + UNIT 11/14/15 sheet/delivery):
+`availabilityLimitedTitle`, `availabilityPausedUntil`, `availabilitySelfOpen`,
+`availabilitySelfLimited`, `availabilitySelfPausedUntil`, `availabilitySelfThenLimited`,
+`availabilityResumeEcho`, `availabilityPersonPaused`, `availabilityUnaffectedNote`,
+`availabilityResumeNow`, `availabilityDeliveredPartial`, `availabilityDeliveredPartialMany`,
+`availabilitySheetTitle`, `availabilityLimitedSwitchTitle`,
+`availabilityLimitedSwitchDescription`, `availabilityPauseSectionTitle`,
+`availabilityPauseSectionDescription`, `availabilityPresetTomorrow`,
+`availabilityPresetThisWeekend`, `availabilityPresetOneWeek`, `availabilityPresetOneMonth`,
+`availabilityPresetPickDate`, `availabilityPauseAction`, `availabilityChangeAction`,
+`availabilityDatePickerTitle`.
+HUMAN REVIEW: EN/RU ARB diffs reviewed in-session for Request/Chat terminology, Russian
+second-person self vs third-person others, and absence of gendered predicative adjectives
+(`открыт/открыта/закрыт/недоступен` etc.).
+FINDINGS:
+- `formatFutureCalendarDayLabel` formats via y/m/d component midnight, never `toLocal()` on
+  UTC calendar dates; beacon deadlines keep instant `toLocal()` for overdue/today/tomorrow
+  and delegate only the future third-day+ branch to the shared formatter.
+- `beacon_card_deadline_test.dart` is outside UNIT 10 ownership; ≥7-day beacon regression
+  remains for a later touch (calendar_day_display tests cover the shared branch).
+REMAINING: none for UNIT 10; UNIT 11 (`feat(client): add availability profile control`) is next.
