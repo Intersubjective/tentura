@@ -1572,6 +1572,9 @@
   "@realtimeUpdatesPausedBanner": {
     "context": "RealtimeStatus"
   },
+  "routingMuteScreenTitle": "Как до вас доходят запросы",
+  "routingMuteScreenDescription": "Выберите, какие виды запросов могут доходить до вас от других. Отключение тега приватно и обратимо.",
+  "settingsRoutingMute": "Как до вас доходят запросы",
   "notificationSettings": "Настройки уведомлений",
   "notificationSettingsPush": "Push-уведомления",
   "notificationSettingsEmail": "Уведомления по эл. почте",

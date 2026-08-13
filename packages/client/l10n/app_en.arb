@@ -1572,6 +1572,18 @@
   "@realtimeUpdatesPausedBanner": {
     "context": "RealtimeStatus"
   },
+  "routingMuteScreenTitle": "How requests reach you",
+  "@routingMuteScreenTitle": {
+    "description": "Title for the routing-mute settings screen (architecture §12.2)."
+  },
+  "routingMuteScreenDescription": "Choose which kinds of requests can reach you from others. Muting a tag is private and reversible.",
+  "@routingMuteScreenDescription": {
+    "description": "Intro copy on the routing-mute settings screen."
+  },
+  "settingsRoutingMute": "How requests reach you",
+  "@settingsRoutingMute": {
+    "description": "Settings menu entry for the routing-mute screen."
+  },
   "notificationSettings": "Notification settings",
   "notificationSettingsPush": "Push notifications",
   "notificationSettingsEmail": "Email notifications",

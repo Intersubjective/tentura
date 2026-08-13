@@ -143,6 +143,11 @@ class _SettingsCommandList extends StatelessWidget {
                   context.router.push(const NotificationSettingsRoute()),
             ),
             TenturaCommandButton(
+              label: l10n.settingsRoutingMute,
+              icon: const Icon(Icons.alt_route_outlined),
+              onPressed: () => context.router.push(const RoutingMuteRoute()),
+            ),
+            TenturaCommandButton(
               label: l10n.settingsDebug,
               icon: const Icon(Icons.bug_report_outlined),
               onPressed: () => context.router.push(const DebugSettingsRoute()),
