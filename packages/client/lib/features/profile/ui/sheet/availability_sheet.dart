@@ -59,6 +59,9 @@ class AvailabilitySheetBody extends StatefulWidget {
 
 class _AvailabilitySheetBodyState extends State<AvailabilitySheetBody> {
   DateTime? _selectedResumeOn;
+  bool _localLimitedInFlight = false;
+  bool _localPauseInFlight = false;
+  bool _localResumeInFlight = false;
 
   ProfileCubit get _cubit => widget.profileCubit;
 
@@ -69,7 +72,13 @@ class _AvailabilitySheetBodyState extends State<AvailabilitySheetBody> {
       AvailabilityView.paused;
 
   Future<void> _onLimitedChanged(bool value) async {
-    await _cubit.setAvailabilityLimited(value);
+    if (_localLimitedInFlight || _cubit.isAvailabilityLimitedInFlight) return;
+    setState(() => _localLimitedInFlight = true);
+    try {
+      await _cubit.setAvailabilityLimited(value);
+    } finally {
+      if (mounted) setState(() => _localLimitedInFlight = false);
+    }
   }
 
   void _selectPreset(DateTime resumeOn) {
@@ -77,7 +86,7 @@ class _AvailabilitySheetBodyState extends State<AvailabilitySheetBody> {
   }
 
   Future<void> _pickDate() async {
-    if (_cubit.isAvailabilityPauseInFlight) return;
+    if (_localPauseInFlight || _cubit.isAvailabilityPauseInFlight) return;
     final l10n = L10n.of(context)!;
     final tomorrowUtc = availabilityTomorrowPreset(_todayUtc);
     final maxUtc = availabilityMaxResumeOn(_todayUtc);
@@ -96,23 +105,38 @@ class _AvailabilitySheetBodyState extends State<AvailabilitySheetBody> {
 
   Future<void> _onPausePressed() async {
     final resumeOn = _selectedResumeOn;
-    if (resumeOn == null || _cubit.isAvailabilityPauseInFlight) return;
-    await _cubit.pauseAvailability(resumeOn);
-    if (!mounted) return;
-    final profile = _cubit.state.profile;
-    if (profile.availability.effectiveOn(_todayUtc) == AvailabilityView.paused &&
-        profile.availability.resumeOn == resumeOn) {
-      Navigator.of(context).pop();
+    if (resumeOn == null ||
+        _localPauseInFlight ||
+        _cubit.isAvailabilityPauseInFlight) {
+      return;
+    }
+    setState(() => _localPauseInFlight = true);
+    try {
+      await _cubit.pauseAvailability(resumeOn);
+      if (!mounted) return;
+      final profile = _cubit.state.profile;
+      if (profile.availability.effectiveOn(_todayUtc) ==
+              AvailabilityView.paused &&
+          profile.availability.resumeOn == resumeOn) {
+        Navigator.of(context).pop();
+      }
+    } finally {
+      if (mounted) setState(() => _localPauseInFlight = false);
     }
   }
 
   Future<void> _onResumePressed() async {
-    if (_cubit.isAvailabilityResumeInFlight) return;
-    await _cubit.resumeAvailability();
-    if (!mounted) return;
-    if (_cubit.state.profile.availability.effectiveOn(_todayUtc) !=
-        AvailabilityView.paused) {
-      Navigator.of(context).pop();
+    if (_localResumeInFlight || _cubit.isAvailabilityResumeInFlight) return;
+    setState(() => _localResumeInFlight = true);
+    try {
+      await _cubit.resumeAvailability();
+      if (!mounted) return;
+      if (_cubit.state.profile.availability.effectiveOn(_todayUtc) !=
+          AvailabilityView.paused) {
+        Navigator.of(context).pop();
+      }
+    } finally {
+      if (mounted) setState(() => _localResumeInFlight = false);
     }
   }
 
@@ -127,9 +151,12 @@ class _AvailabilitySheetBodyState extends State<AvailabilitySheetBody> {
       bloc: _cubit,
       builder: (context, state) {
         final availability = state.profile.availability;
-        final limitedInFlight = _cubit.isAvailabilityLimitedInFlight;
-        final pauseInFlight = _cubit.isAvailabilityPauseInFlight;
-        final resumeInFlight = _cubit.isAvailabilityResumeInFlight;
+        final limitedInFlight =
+            _localLimitedInFlight || _cubit.isAvailabilityLimitedInFlight;
+        final pauseInFlight =
+            _localPauseInFlight || _cubit.isAvailabilityPauseInFlight;
+        final resumeInFlight =
+            _localResumeInFlight || _cubit.isAvailabilityResumeInFlight;
         final selectedResumeOn = _selectedResumeOn;
         final echoWhen = selectedResumeOn == null
             ? null

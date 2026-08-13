@@ -213,6 +213,184 @@ void main() {
       );
     });
 
+    group('dynamic in-flight via completer-backed commands', () {
+      testWidgets('limited command disables only limited switch until complete',
+          (tester) async {
+        final limitedCompleter = Completer<void>();
+        final cubit = _TestProfileCubit(
+          profile: const Profile(id: 'U-me', displayName: 'Me'),
+        )..limitedCommandCompleter = limitedCompleter;
+        addTearDown(cubit.close);
+
+        await pumpAvailabilitySheet(tester, cubit: cubit, clock: clock);
+
+        await tester.tap(find.byKey(const Key('availability_limited_switch')));
+        await tester.pump();
+
+        expect(
+          tester.widget<SwitchListTile>(
+            find.byKey(const Key('availability_limited_switch')),
+          ).onChanged,
+          isNull,
+        );
+        expect(
+          tester.widget<OutlinedButton>(
+            find.descendant(
+              of: find.byKey(const Key('availability_preset_tomorrow')),
+              matching: find.byType(OutlinedButton),
+            ),
+          ).onPressed,
+          isNotNull,
+        );
+        expect(cubit.setLimitedCalls, 1);
+
+        limitedCompleter.complete();
+        await tester.pumpAndSettle();
+
+        expect(
+          tester.widget<SwitchListTile>(
+            find.byKey(const Key('availability_limited_switch')),
+          ).onChanged,
+          isNotNull,
+        );
+        expect(
+          tester.widget<SwitchListTile>(
+            find.byKey(const Key('availability_limited_switch')),
+          ).value,
+          isTrue,
+        );
+      });
+
+      testWidgets('pause command disables only pause controls until complete',
+          (tester) async {
+        final pauseCompleter = Completer<void>();
+        final cubit = _TestProfileCubit(
+          profile: const Profile(id: 'U-me', displayName: 'Me'),
+        )..pauseCommandCompleter = pauseCompleter;
+        addTearDown(cubit.close);
+
+        await pumpAvailabilitySheet(tester, cubit: cubit, clock: clock);
+
+        await tester.tap(find.byKey(const Key('availability_preset_tomorrow')));
+        await tester.pumpAndSettle();
+        await tester.tap(find.byKey(const Key('availability_pause_button')));
+        await tester.pump();
+
+        expect(
+          tester.widget<SwitchListTile>(
+            find.byKey(const Key('availability_limited_switch')),
+          ).onChanged,
+          isNotNull,
+        );
+        expect(
+          tester.widget<FilledButton>(
+            find.byKey(const Key('availability_pause_button')),
+          ).onPressed,
+          isNull,
+        );
+        expect(
+          tester.widget<OutlinedButton>(
+            find.descendant(
+              of: find.byKey(const Key('availability_preset_tomorrow')),
+              matching: find.byType(OutlinedButton),
+            ),
+          ).onPressed,
+          isNull,
+        );
+        expect(cubit.pauseCalls, 1);
+
+        pauseCompleter.complete();
+        await tester.pumpAndSettle();
+
+        expect(find.byType(AvailabilitySheetBody), findsNothing);
+        expect(find.text('Open sheet'), findsOneWidget);
+      });
+
+      testWidgets('resume command disables only resume action until complete',
+          (tester) async {
+        final resumeCompleter = Completer<void>();
+        final cubit = _TestProfileCubit(
+          profile: Profile(
+            id: 'U-me',
+            displayName: 'Me',
+            availability: Availability(resumeOn: DateTime.utc(2026, 8, 20)),
+          ),
+        )..resumeCommandCompleter = resumeCompleter;
+        addTearDown(cubit.close);
+
+        await pumpAvailabilitySheet(tester, cubit: cubit, clock: clock);
+
+        await tester.tap(find.byKey(const Key('availability_resume_now')));
+        await tester.pump();
+
+        expect(
+          tester.widget<SwitchListTile>(
+            find.byKey(const Key('availability_limited_switch')),
+          ).onChanged,
+          isNotNull,
+        );
+        expect(
+          tester.widget<TextButton>(
+            find.descendant(
+              of: find.byKey(const Key('availability_resume_now')),
+              matching: find.byType(TextButton),
+            ),
+          ).onPressed,
+          isNull,
+        );
+        expect(cubit.resumeCalls, 1);
+
+        resumeCompleter.complete();
+        await tester.pumpAndSettle();
+
+        expect(find.byType(AvailabilitySheetBody), findsNothing);
+        expect(find.text('Open sheet'), findsOneWidget);
+      });
+
+      testWidgets('failed pause command re-enables pause controls and keeps sheet',
+          (tester) async {
+        final pauseCompleter = Completer<void>();
+        final cubit = _TestProfileCubit(
+          profile: const Profile(id: 'U-me', displayName: 'Me'),
+        )
+          ..pauseCommandCompleter = pauseCompleter
+          ..pauseError = Exception('offline');
+        addTearDown(cubit.close);
+
+        await pumpAvailabilitySheet(tester, cubit: cubit, clock: clock);
+
+        await tester.tap(find.byKey(const Key('availability_preset_tomorrow')));
+        await tester.pumpAndSettle();
+        await tester.tap(find.byKey(const Key('availability_pause_button')));
+        await tester.pump();
+
+        expect(
+          tester.widget<FilledButton>(
+            find.byKey(const Key('availability_pause_button')),
+          ).onPressed,
+          isNull,
+        );
+
+        pauseCompleter.complete();
+        await tester.pumpAndSettle();
+
+        expect(find.byType(AvailabilitySheetBody), findsOneWidget);
+        expect(cubit.effects.emitted.whereType<ShowError>(), hasLength(1));
+        expect(
+          tester.widget<FilledButton>(
+            find.byKey(const Key('availability_pause_button')),
+          ).onPressed,
+          isNotNull,
+        );
+        expect(
+          tester.widget<SwitchListTile>(
+            find.byKey(const Key('availability_limited_switch')),
+          ).onChanged,
+          isNotNull,
+        );
+      });
+    });
+
     testWidgets('pause failure retains sheet and emits one ShowError',
         (tester) async {
       final cubit = _TestProfileCubit(
@@ -382,6 +560,10 @@ final class _TestProfileCubit extends Cubit<ProfileState> implements ProfileCubi
   bool resumeInFlight = false;
   Object? pauseError;
 
+  Completer<void>? limitedCommandCompleter;
+  Completer<void>? pauseCommandCompleter;
+  Completer<void>? resumeCommandCompleter;
+
   int setLimitedCalls = 0;
   int pauseCalls = 0;
   int resumeCalls = 0;
@@ -402,6 +584,11 @@ final class _TestProfileCubit extends Cubit<ProfileState> implements ProfileCubi
     setLimitedCalls++;
     lastSetLimitedValue = isLimited;
     limitedInFlight = true;
+    final completer = limitedCommandCompleter;
+    if (completer != null) {
+      await completer.future;
+    }
+    limitedInFlight = false;
     emit(
       state.copyWith(
         profile: state.profile.copyWith(
@@ -409,7 +596,6 @@ final class _TestProfileCubit extends Cubit<ProfileState> implements ProfileCubi
         ),
       ),
     );
-    limitedInFlight = false;
   }
 
   @override
@@ -417,9 +603,13 @@ final class _TestProfileCubit extends Cubit<ProfileState> implements ProfileCubi
     pauseCalls++;
     lastPauseResumeOn = resumeOn;
     pauseInFlight = true;
+    final completer = pauseCommandCompleter;
+    if (completer != null) {
+      await completer.future;
+    }
     final failure = pauseError;
+    pauseInFlight = false;
     if (failure != null) {
-      pauseInFlight = false;
       effects.emit(ShowError(failure));
       return;
     }
@@ -433,13 +623,17 @@ final class _TestProfileCubit extends Cubit<ProfileState> implements ProfileCubi
         ),
       ),
     );
-    pauseInFlight = false;
   }
 
   @override
   Future<void> resumeAvailability() async {
     resumeCalls++;
     resumeInFlight = true;
+    final completer = resumeCommandCompleter;
+    if (completer != null) {
+      await completer.future;
+    }
+    resumeInFlight = false;
     emit(
       state.copyWith(
         profile: state.profile.copyWith(
@@ -447,7 +641,6 @@ final class _TestProfileCubit extends Cubit<ProfileState> implements ProfileCubi
         ),
       ),
     );
-    resumeInFlight = false;
   }
 
   @override
