@@ -8382,3 +8382,121 @@ Next: whole-plan integration and closure (re-read plan + journal from
 the start, check cross-unit wiring, run the full verification matrix,
 confirm nothing is left uncommitted).
 
+## Whole-plan integration and closure — 2026-08-13
+
+Per the overseer skill's closure step: re-read the plan's unit manifest
+against the journal, checked cross-unit contracts and migration wiring,
+ran the plan's full verification matrix, found and fixed one real
+regression the matrix surfaced, then reran everything clean.
+
+**Unit manifest cross-check**: every `## UNIT` heading in the plan
+(A0–A3, B1–B3, C1–C5, D0–D4, E1, F1–F6, G1–G3, 27 top-level units, several
+split into lettered sub-units by the journal) has a corresponding
+`### Manager verdict: ACCEPTED` entry in the journal. The one
+`REJECTED` verdict (B2a, seed-attestation pair-replacement race) was
+followed by a fix and a later `ACCEPTED` verdict — visible both in the
+journal and in the commit history (`20c6ca11` reject → `c3e81896` fix →
+`8f5f0a4c` accept). F3 (Profile projection UI) was inadvertently missing
+from this session's own task-tracker list but is fully present and
+accepted in the journal (line ~6121) — a tracking omission, not an
+implementation gap.
+
+**Migration chain**: `packages/server/lib/data/database/migration/`
+runs m0001 through m0147 with no gaps, all registered as `part`
+declarations in `_migrations.dart`, confirmed via direct file listing
+and grep. Additive-only, matching the plan's §5 rollback table.
+
+**Full verification matrix — first pass**:
+```
+cd packages/server && dart test -x pg        → 1454/1454 pass
+cd packages/server && dart test -t pg        → 363/375 pass, 12 failures
+cd packages/client && flutter test           → 2032 pass, 18 skipped, 0 fail
+bash scripts/check-doc-drift.sh              → no legacy terms or rule/doc drift found
+bash scripts/check-user-facing-terminology.sh → ok
+./scripts/check-custom-lints.sh packages/server → total 0 (baseline 0)
+./scripts/check-custom-lints.sh packages/client → total 106 (baseline 111)
+git diff --check                             → clean
+```
+
+**The 12 pg-suite failures were a real, plan-caused regression, not
+flakiness.** Reran the pg suite alone (not concurrent with the client
+suite) to rule out resource contention first — same 12 failures,
+reproducible. All 12 were in two PRE-EXISTING files unrelated to this
+plan's own feature surface:
+`test/data/database/beacon_cover_migration_test.dart` (1 failure) and
+`test/data/database/realtime_notification_migration_test.dart` (11
+failures) — errors like `column "primary_need_slug" does not exist` and
+`relation "public.user_trust_source_edge" does not exist`, i.e. columns
+and tables created by migrations from **before** this plan even started
+(m0122, m0130) appearing to vanish.
+
+**Root cause** (confirmed by reading `migrant`'s actual source, not
+guessed): both files prove "does `migrateDbSchema` correctly re-apply
+migration N from a realistic prior-version starting point" by manually
+rolling back the *last several* migrations (deleting their
+`schema_version` rows plus undoing their DDL) before calling
+`migrateDbSchema` again. `migrant`'s `Database.upgrade()` gates purely
+on `SELECT version FROM schema_version ORDER BY version DESC LIMIT 1`
+(`migrant_db_postgresql-0.3.0/lib/migrant_db_postgresql.dart:13-14`) —
+a single MAX-version scalar, not a per-migration applied set — so it
+only ever asks "is there a migration higher than the highest recorded
+one," never "is migration X specifically missing." Both test files'
+own comments already document this exact hazard and correctly unwound
+migrations "above" their rollback target — for whatever was the latest
+migration when they were written (m0140). This plan added m0141–m0147
+above that. Since those seven rows stayed recorded, the highest
+recorded version stayed at `0147` even after the tests deleted rows
+for m0114–m0140, so every subsequent `migrateDbSchema()` call in these
+two files became a silent no-op — the physically-dropped rows never
+came back, and unrelated-looking tables/columns from throughout the
+whole rolled-back range appeared to have vanished.
+
+**Fix** (`878f9d68f`): added `_rollBackM0141ForTest` through
+`_rollBackM0147ForTest` to both files (called before the existing
+m0140-and-below chain), each undoing exactly what its migration added:
+m0141's ledger provenance columns/indexes, m0142's five derived
+capability tables (function redefinitions left alone — safe to replay,
+`CREATE OR REPLACE`), m0145's ack-tag table, m0146's invite-seed-prompt
+table, m0147's sweep-lease columns; m0143/m0144 (function-only
+migrations) just drop their `schema_version` row, nothing physical to
+undo. Verified no other file has the same latent hazard: this plan's
+*own* three new migration-specific test files
+(`m0141_person_capability_event_ledger_test.dart`,
+`m0142_derived_tables_migration_test.dart`,
+`m0143_capability_evidence_sql_test.dart`) each roll back only their
+own single migration and then reapply via the file's *own*
+`migration.statements` loop directly — never a second `migrateDbSchema`
+call — sidestepping this exact hazard by construction (following the
+pre-existing m0114 raw-reapply precedent). That is why they were never
+affected and why the fix is scoped to exactly the two files that broke.
+
+**Full verification matrix — after fix**:
+```
+cd packages/server && dart test -t pg test/data/database/beacon_cover_migration_test.dart test/data/database/realtime_notification_migration_test.dart
+  → both files pass in isolation (2 + 20 tests)
+cd packages/server && dart test -t pg        → 375/375 pass, 2 skipped, 0 fail
+cd packages/server && dart test -x pg        → 1454/1454 pass (rerun, unchanged)
+./scripts/check-custom-lints.sh packages/server → total 0 (baseline 0)
+bash scripts/check-user-facing-terminology.sh → ok
+git diff --check                             → clean
+```
+
+**Working tree**: `git status` shows only one pre-existing, unrelated
+modification present since before this session began
+(`packages/server/test/api/controllers/websocket/websocket_realtime_protocol_test.mocks.dart`)
+— left untouched, per the overseer skill's preservation rule. All
+orchestrator-owned changes for this plan are committed.
+
+### PLAN COMPLETE — 2026-08-13
+
+Every unit in `docs/plans/subjective-help-tag-evidence-implementation-plan.md`
+(A0–A3, B1–B3, C1–C5, D0–D4, E1, F1–F6, G1–G3) is implemented, reviewed,
+and accepted, with one plan-caused regression in pre-existing migration
+test infrastructure found during closure and fixed
+(`878f9d68f`). Final state: server non-pg suite 1454/1454, server
+pg-tagged suite 375/375 (2 skipped), client suite 2032/2032 (18
+skipped), server lints 0/0, client lints 106/111 (improved, not
+lowered), terminology/doc-drift checks clean, migration chain m0001–
+m0147 contiguous and fully registered, `git diff --check` clean. No
+further remediation or units remain.
+
