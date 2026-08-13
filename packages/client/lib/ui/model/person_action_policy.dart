@@ -23,6 +23,35 @@ class PersonActionPolicy {
     Profile profile, {
     required bool isSelf,
     required bool isBlocked,
+    DateTime? todayUtc,
+  }) {
+    final effectiveTodayUtc = todayUtc ?? _defaultTodayUtc();
+    final base = _baseFrom(profile, isSelf: isSelf, isBlocked: isBlocked);
+    if (isSelf ||
+        isBlocked ||
+        !profile.availability.blocksNewRequestsOn(effectiveTodayUtc)) {
+      return base;
+    }
+    return PersonActionPolicy._(
+      viewerExplicitlyTrustsSubject: base.viewerExplicitlyTrustsSubject,
+      subjectExplicitlyTrustsViewer: base.subjectExplicitlyTrustsViewer,
+      viewerCanSeeSubject: base.viewerCanSeeSubject,
+      subjectCanSeeViewer: base.subjectCanSeeViewer,
+      visibilityState: base.visibilityState,
+      isMutuallyVisible: base.isMutuallyVisible,
+      canDirectSendRequest: false,
+      primaryAction: base.primaryAction == PersonPrimaryAction.sendRequest
+          ? PersonPrimaryAction.none
+          : base.primaryAction,
+      showSecondaryTrust: base.showSecondaryTrust,
+      showRequestOptions: false,
+    );
+  }
+
+  static PersonActionPolicy _baseFrom(
+    Profile profile, {
+    required bool isSelf,
+    required bool isBlocked,
   }) {
     final viewerExplicitlyTrustsSubject = profile.viewerExplicitlyTrustsSubject;
     final subjectExplicitlyTrustsViewer = profile.subjectExplicitlyTrustsViewer;
@@ -120,4 +149,10 @@ class PersonActionPolicy {
     }
     return PersonVisibilityState.neither;
   }
+}
+
+/// UTC calendar date for "today" per plan §0.6.
+DateTime _defaultTodayUtc() {
+  final now = DateTime.now();
+  return DateTime.utc(now.toUtc().year, now.toUtc().month, now.toUtc().day);
 }

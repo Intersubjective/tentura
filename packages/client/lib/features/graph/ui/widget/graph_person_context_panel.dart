@@ -4,10 +4,12 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:tentura/design_system/components/tentura_avatar.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/profile.dart';
+import 'package:tentura/features/profile/ui/sheet/availability_sheet.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/model/person_action_policy.dart';
 import 'package:tentura/ui/test_ids.dart';
+import 'package:tentura/ui/utils/availability_line.dart';
 
 import '../../domain/entity/node_details.dart';
 import '../bloc/graph_cubit.dart';
@@ -35,10 +37,12 @@ class GraphPersonContextPanel extends StatelessWidget {
     final graphCubit = context.read<GraphCubit>();
     final contextCubit = context.read<GraphPersonContextCubit>();
     final contextState = context.watch<GraphPersonContextCubit>().state;
+    final todayUtc = availabilityTodayUtc();
     final policy = PersonActionPolicy.from(
       profile,
       isSelf: false,
       isBlocked: false,
+      todayUtc: todayUtc,
     );
     final hiddenCount = graphState.hiddenNeighborCounts[focusedNode.id] ?? 0;
     final canShowMore =
@@ -90,6 +94,10 @@ class GraphPersonContextPanel extends StatelessWidget {
                   ],
                 ),
                 SizedBox(height: tt.rowGap),
+                _OtherProfileAvailabilityLine(
+                  profile: profile,
+                  todayUtc: todayUtc,
+                ),
                 _VisibilitySection(
                   l10n: l10n,
                   profile: profile,
@@ -244,6 +252,37 @@ class GraphPersonContextPanel extends StatelessWidget {
     }
 
     return children;
+  }
+}
+
+class _OtherProfileAvailabilityLine extends StatelessWidget {
+  const _OtherProfileAvailabilityLine({
+    required this.profile,
+    required this.todayUtc,
+  });
+
+  final Profile profile;
+  final DateTime todayUtc;
+
+  @override
+  Widget build(BuildContext context) {
+    final line = otherAvailabilityStatusLine(
+      L10n.of(context)!,
+      profile.availability,
+      todayUtc,
+    );
+    if (line == null) {
+      return const SizedBox.shrink();
+    }
+    return Padding(
+      padding: EdgeInsets.only(bottom: context.tt.rowGap),
+      child: TenturaStatusText(
+        line,
+        tone: TenturaTone.neutral,
+        maxLines: null,
+        softWrap: true,
+      ),
+    );
   }
 }
 

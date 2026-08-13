@@ -6,6 +6,7 @@ import 'package:force_directed_graphview/force_directed_graphview.dart';
 
 import 'package:tentura/consts.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
+import 'package:tentura/domain/entity/availability.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/graph/domain/entity/edge_details.dart';
 import 'package:tentura/features/graph/domain/entity/graph_mode.dart';
@@ -13,6 +14,7 @@ import 'package:tentura/features/graph/domain/entity/node_details.dart';
 import 'package:tentura/features/graph/ui/bloc/graph_cubit.dart';
 import 'package:tentura/features/graph/ui/bloc/graph_person_context_cubit.dart';
 import 'package:tentura/features/graph/ui/widget/graph_person_context_panel.dart';
+import 'package:tentura/features/profile/ui/sheet/availability_sheet.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/effect/ui_effect.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
@@ -584,5 +586,138 @@ void main() {
         );
       },
     );
+
+    testWidgets('limited shows neutral status line and keeps Send primary', (
+      tester,
+    ) async {
+      const profile = Profile(
+        id: 'U-peer',
+        displayName: 'Peer',
+        score: 1,
+        rScore: 1,
+        availability: Availability(isLimited: true),
+      );
+      final graphCubit = _StubGraphCubit(
+        initial: const GraphState(
+          me: Profile(id: 'U-me', displayName: 'Me'),
+          focus: 'U-peer',
+        ),
+      );
+      await _pumpPanel(
+        tester,
+        profile: profile,
+        graphState: graphCubit.state,
+        graphCubit: graphCubit,
+      );
+
+      final l10n = lookupL10n(const Locale('en'));
+      expect(find.text(l10n.availabilityLimitedTitle), findsOneWidget);
+      expect(find.text(l10n.profileSendRequestTo), findsOneWidget);
+      expect(find.text(l10n.profileRequestOptions), findsNothing);
+    });
+
+    testWidgets(
+      'paused mutual MR removes send doors but keeps secondary Trust',
+      (tester) async {
+        final todayUtc = availabilityTodayUtc();
+        final profile = Profile(
+          id: 'U-peer',
+          displayName: 'Peer',
+          score: 1,
+          rScore: 1,
+          availability: Availability(
+            resumeOn: todayUtc.add(const Duration(days: 3)),
+          ),
+        );
+        final graphCubit = _StubGraphCubit(
+          initial: const GraphState(
+            me: Profile(id: 'U-me', displayName: 'Me'),
+            focus: 'U-peer',
+          ),
+        );
+        await _pumpPanel(
+          tester,
+          profile: profile,
+          graphState: graphCubit.state,
+          graphCubit: graphCubit,
+        );
+
+        final l10n = lookupL10n(const Locale('en'));
+        expect(find.textContaining('Not taking new requests until'), findsOneWidget);
+        expect(find.text(l10n.profileSendRequestTo), findsNothing);
+        expect(find.text(l10n.profileRequestOptions), findsNothing);
+        expect(find.text(l10n.profileRequestUnavailable), findsNothing);
+        expect(find.text(l10n.trustThisUser), findsOneWidget);
+        expect(find.byType(FilledButton), findsNothing);
+      },
+    );
+
+    testWidgets(
+      'paused viewer-only removes unavailable copy and request options',
+      (tester) async {
+        final todayUtc = availabilityTodayUtc();
+        final profile = Profile(
+          id: 'U-peer',
+          displayName: 'Peer',
+          myVote: 1,
+          score: 1,
+          availability: Availability(
+            resumeOn: todayUtc.add(const Duration(days: 3)),
+          ),
+        );
+        final graphCubit = _StubGraphCubit(
+          initial: const GraphState(
+            me: Profile(id: 'U-me', displayName: 'Me'),
+            focus: 'U-peer',
+          ),
+        );
+        await _pumpPanel(
+          tester,
+          profile: profile,
+          graphState: graphCubit.state,
+          graphCubit: graphCubit,
+        );
+
+        final l10n = lookupL10n(const Locale('en'));
+        expect(find.textContaining('Not taking new requests until'), findsOneWidget);
+        expect(find.text(l10n.profileRequestUnavailable), findsNothing);
+        expect(find.text(l10n.profileRequestOptions), findsNothing);
+        expect(find.text(l10n.profileSendRequestTo), findsNothing);
+        expect(find.text(l10n.trustThisUser), findsNothing);
+        expect(find.byType(FilledButton), findsNothing);
+      },
+    );
+
+    testWidgets('paused subject-only keeps Trust primary without request options', (
+      tester,
+    ) async {
+      final todayUtc = availabilityTodayUtc();
+      final profile = Profile(
+        id: 'U-peer',
+        displayName: 'Peer',
+        rScore: 1,
+        availability: Availability(
+          resumeOn: todayUtc.add(const Duration(days: 3)),
+        ),
+      );
+      final graphCubit = _StubGraphCubit(
+        initial: const GraphState(
+          me: Profile(id: 'U-me', displayName: 'Me'),
+          focus: 'U-peer',
+        ),
+      );
+      await _pumpPanel(
+        tester,
+        profile: profile,
+        graphState: graphCubit.state,
+        graphCubit: graphCubit,
+      );
+
+      final l10n = lookupL10n(const Locale('en'));
+      expect(find.byType(FilledButton), findsOneWidget);
+      expect(find.text(l10n.trustThisUser), findsOneWidget);
+      expect(find.text(l10n.profileRequestOptions), findsNothing);
+      expect(find.text(l10n.profileSendRequestTo), findsNothing);
+    });
   });
 }

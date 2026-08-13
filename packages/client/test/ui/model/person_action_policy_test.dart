@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:tentura/domain/entity/availability.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/ui/model/person_action_policy.dart';
 
@@ -8,6 +9,7 @@ Profile _profile({
   double score = 0,
   bool subjectExplicitlyTrustsViewer = false,
   double rScore = 0,
+  Availability availability = const Availability(),
 }) => Profile(
   id: 'peer',
   displayName: 'Peer',
@@ -15,6 +17,7 @@ Profile _profile({
   score: score,
   subjectExplicitlyTrustsViewer: subjectExplicitlyTrustsViewer,
   rScore: rScore,
+  availability: availability,
 );
 
 PersonVisibilityState _expectedVisibility(Profile profile) {
@@ -38,6 +41,11 @@ PersonPrimaryAction _expectedPrimary(
   if (!profile.viewerExplicitlyTrustsSubject) return PersonPrimaryAction.trust;
   return PersonPrimaryAction.none;
 }
+
+final _todayUtc = DateTime.utc(2026, 8, 14);
+final _futureResumeOn = DateTime.utc(2026, 8, 20);
+final _limitedAvailability = const Availability(isLimited: true);
+final _pausedAvailability = Availability(resumeOn: _futureResumeOn);
 
 void main() {
   group('PersonActionPolicy — sixteen trust/MR mechanism rows', () {
@@ -69,7 +77,7 @@ void main() {
         ];
 
     for (final c in cases) {
-      test('T→=${c.tOut} MR→=${c.mrOut} T←=${c.tIn} MR←=${c.mrIn}', () {
+      test('open T→=${c.tOut} MR→=${c.mrOut} T←=${c.tIn} MR←=${c.mrIn}', () {
         final profile = _profile(
           myVote: c.tOut ? 1 : 0,
           score: c.mrOut ? 1 : 0,
@@ -80,6 +88,7 @@ void main() {
           profile,
           isSelf: false,
           isBlocked: false,
+          todayUtc: _todayUtc,
         );
 
         expect(policy.viewerExplicitlyTrustsSubject, c.tOut);
@@ -102,6 +111,69 @@ void main() {
         );
         expect(policy.showRequestOptions, !profile.isMutuallyVisible);
       });
+
+      test('limited T→=${c.tOut} MR→=${c.mrOut} T←=${c.tIn} MR←=${c.mrIn}', () {
+        final profile = _profile(
+          myVote: c.tOut ? 1 : 0,
+          score: c.mrOut ? 1 : 0,
+          subjectExplicitlyTrustsViewer: c.tIn,
+          rScore: c.mrIn ? 1 : 0,
+          availability: _limitedAvailability,
+        );
+        final policy = PersonActionPolicy.from(
+          profile,
+          isSelf: false,
+          isBlocked: false,
+          todayUtc: _todayUtc,
+        );
+
+        expect(
+          policy.primaryAction,
+          _expectedPrimary(profile, isSelf: false, isBlocked: false),
+        );
+        expect(
+          policy.showSecondaryTrust,
+          profile.isMutuallyVisible && !profile.viewerExplicitlyTrustsSubject,
+        );
+        expect(policy.showRequestOptions, !profile.isMutuallyVisible);
+        expect(
+          policy.canDirectSendRequest,
+          profile.isMutuallyVisible,
+        );
+      });
+
+      test('paused T→=${c.tOut} MR→=${c.mrOut} T←=${c.tIn} MR←=${c.mrIn}', () {
+        final profile = _profile(
+          myVote: c.tOut ? 1 : 0,
+          score: c.mrOut ? 1 : 0,
+          subjectExplicitlyTrustsViewer: c.tIn,
+          rScore: c.mrIn ? 1 : 0,
+          availability: _pausedAvailability,
+        );
+        final policy = PersonActionPolicy.from(
+          profile,
+          isSelf: false,
+          isBlocked: false,
+          todayUtc: _todayUtc,
+        );
+
+        expect(policy.canDirectSendRequest, isFalse);
+        expect(policy.showRequestOptions, isFalse);
+
+        final basePrimary = _expectedPrimary(
+          profile,
+          isSelf: false,
+          isBlocked: false,
+        );
+        final expectedPrimary = basePrimary == PersonPrimaryAction.sendRequest
+            ? PersonPrimaryAction.none
+            : basePrimary;
+        expect(policy.primaryAction, expectedPrimary);
+        expect(
+          policy.showSecondaryTrust,
+          profile.isMutuallyVisible && !profile.viewerExplicitlyTrustsSubject,
+        );
+      });
     }
   });
 
@@ -112,6 +184,7 @@ void main() {
         profile,
         isSelf: true,
         isBlocked: false,
+        todayUtc: _todayUtc,
       );
 
       expect(policy.primaryAction, PersonPrimaryAction.none);
@@ -126,6 +199,7 @@ void main() {
         profile,
         isSelf: false,
         isBlocked: true,
+        todayUtc: _todayUtc,
       );
 
       expect(policy.primaryAction, PersonPrimaryAction.none);
@@ -142,6 +216,7 @@ void main() {
         before,
         isSelf: false,
         isBlocked: false,
+        todayUtc: _todayUtc,
       );
       expect(beforePolicy.visibilityState, PersonVisibilityState.subjectOnly);
       expect(beforePolicy.primaryAction, PersonPrimaryAction.trust);
@@ -151,6 +226,7 @@ void main() {
         after,
         isSelf: false,
         isBlocked: false,
+        todayUtc: _todayUtc,
       );
       expect(afterPolicy.visibilityState, PersonVisibilityState.mutual);
       expect(afterPolicy.primaryAction, PersonPrimaryAction.sendRequest);
@@ -163,6 +239,7 @@ void main() {
         before,
         isSelf: false,
         isBlocked: false,
+        todayUtc: _todayUtc,
       );
       expect(beforePolicy.visibilityState, PersonVisibilityState.neither);
       expect(beforePolicy.primaryAction, PersonPrimaryAction.trust);
@@ -172,6 +249,7 @@ void main() {
         after,
         isSelf: false,
         isBlocked: false,
+        todayUtc: _todayUtc,
       );
       expect(afterPolicy.visibilityState, PersonVisibilityState.viewerOnly);
       expect(afterPolicy.primaryAction, PersonPrimaryAction.none);
@@ -187,6 +265,7 @@ void main() {
           profile,
           isSelf: false,
           isBlocked: false,
+          todayUtc: _todayUtc,
         );
 
         expect(policy.visibilityState, PersonVisibilityState.viewerOnly);
@@ -204,6 +283,7 @@ void main() {
           profile,
           isSelf: false,
           isBlocked: false,
+          todayUtc: _todayUtc,
         );
 
         expect(policy.isMutuallyVisible, isTrue);
@@ -222,12 +302,88 @@ void main() {
         profile,
         isSelf: false,
         isBlocked: false,
+        todayUtc: _todayUtc,
       );
 
       expect(policy.viewerExplicitlyTrustsSubject, isFalse);
       expect(policy.subjectExplicitlyTrustsViewer, isFalse);
       expect(policy.isMutuallyVisible, isTrue);
       expect(policy.canDirectSendRequest, isTrue);
+    });
+  });
+
+  group('PersonActionPolicy — availability resume-day equality', () {
+    test('resume day restores send and request options for mutual MR', () {
+      final profile = _profile(
+        score: 1,
+        rScore: 1,
+        availability: Availability(resumeOn: _todayUtc),
+      );
+      final policy = PersonActionPolicy.from(
+        profile,
+        isSelf: false,
+        isBlocked: false,
+        todayUtc: _todayUtc,
+      );
+
+      expect(profile.availability.blocksNewRequestsOn(_todayUtc), isFalse);
+      expect(policy.primaryAction, PersonPrimaryAction.sendRequest);
+      expect(policy.canDirectSendRequest, isTrue);
+      expect(policy.showRequestOptions, isFalse);
+    });
+
+    test('day before resume blocks send for mutual MR', () {
+      final resumeOn = _todayUtc.add(const Duration(days: 1));
+      final profile = _profile(
+        score: 1,
+        rScore: 1,
+        availability: Availability(resumeOn: resumeOn),
+      );
+      final policy = PersonActionPolicy.from(
+        profile,
+        isSelf: false,
+        isBlocked: false,
+        todayUtc: _todayUtc,
+      );
+
+      expect(policy.primaryAction, PersonPrimaryAction.none);
+      expect(policy.canDirectSendRequest, isFalse);
+      expect(policy.showRequestOptions, isFalse);
+      expect(policy.showSecondaryTrust, isTrue);
+    });
+
+    test('paused preserves trust primary for subject-only visibility', () {
+      final profile = _profile(
+        rScore: 1,
+        availability: _pausedAvailability,
+      );
+      final policy = PersonActionPolicy.from(
+        profile,
+        isSelf: false,
+        isBlocked: false,
+        todayUtc: _todayUtc,
+      );
+
+      expect(policy.primaryAction, PersonPrimaryAction.trust);
+      expect(policy.showRequestOptions, isFalse);
+    });
+
+    test('paused viewer-only with outgoing trust removes request doors', () {
+      final profile = _profile(
+        myVote: 1,
+        score: 1,
+        availability: _pausedAvailability,
+      );
+      final policy = PersonActionPolicy.from(
+        profile,
+        isSelf: false,
+        isBlocked: false,
+        todayUtc: _todayUtc,
+      );
+
+      expect(policy.primaryAction, PersonPrimaryAction.none);
+      expect(policy.showRequestOptions, isFalse);
+      expect(policy.showSecondaryTrust, isFalse);
     });
   });
 }

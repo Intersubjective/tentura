@@ -6,7 +6,9 @@ import 'package:tentura/domain/capability/tag_projection.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/features/profile/ui/sheet/availability_sheet.dart';
 import 'package:tentura/ui/model/person_action_policy.dart';
+import 'package:tentura/ui/utils/availability_line.dart';
 import 'package:tentura/ui/utils/profile_presence_line.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura/design_system/components/tentura_avatar.dart';
@@ -39,10 +41,12 @@ class ProfileViewBody extends StatelessWidget {
           selector: (s) => s.profile.id,
           builder: (context, myId) {
             final isSelf = profile.id.isNotEmpty && profile.id == myId;
+            final todayUtc = availabilityTodayUtc();
             final policy = PersonActionPolicy.from(
               profile,
               isSelf: isSelf,
               isBlocked: false,
+              todayUtc: todayUtc,
             );
 
             return Column(
@@ -80,6 +84,10 @@ class ProfileViewBody extends StatelessWidget {
                   },
                 ),
                 if (!isSelf && profile.id.isNotEmpty) ...[
+                  _OtherProfileAvailabilityLine(
+                    profile: profile,
+                    todayUtc: todayUtc,
+                  ),
                   _ProfileTrustRelationLine(l10n: l10n, profile: profile),
                   _ProfileVisibilitySection(
                     l10n: l10n,
@@ -138,6 +146,37 @@ class ProfileViewBody extends StatelessWidget {
             );
           },
         ),
+      ),
+    );
+  }
+}
+
+class _OtherProfileAvailabilityLine extends StatelessWidget {
+  const _OtherProfileAvailabilityLine({
+    required this.profile,
+    required this.todayUtc,
+  });
+
+  final Profile profile;
+  final DateTime todayUtc;
+
+  @override
+  Widget build(BuildContext context) {
+    final line = otherAvailabilityStatusLine(
+      L10n.of(context)!,
+      profile.availability,
+      todayUtc,
+    );
+    if (line == null) {
+      return const SizedBox.shrink();
+    }
+    return Padding(
+      padding: kPaddingSmallT,
+      child: TenturaStatusText(
+        line,
+        tone: TenturaTone.neutral,
+        maxLines: null,
+        softWrap: true,
       ),
     );
   }

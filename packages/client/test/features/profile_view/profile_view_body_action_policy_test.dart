@@ -10,6 +10,7 @@ import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/capability/person_capability_cues.dart';
 import 'package:tentura/domain/capability/tag_projection.dart';
 import 'package:tentura/domain/contacts/contact_name_store.dart';
+import 'package:tentura/domain/entity/availability.dart';
 import 'package:tentura/domain/entity/likable.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/domain/entity/repository_event.dart';
@@ -22,6 +23,7 @@ import 'package:tentura/features/contacts/domain/use_case/contacts_case.dart';
 import 'package:tentura/features/like/data/repository/like_remote_repository.dart';
 import 'package:tentura/features/profile/domain/port/profile_repository_port.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
+import 'package:tentura/features/profile/ui/sheet/availability_sheet.dart';
 import 'package:tentura/features/profile_view/domain/use_case/profile_view_case.dart';
 import 'package:tentura/features/profile_view/ui/bloc/profile_view_cubit.dart';
 import 'package:tentura/features/profile_view/ui/widget/profile_view_body.dart';
@@ -249,6 +251,97 @@ void main() {
         effects.emitted.whereType<NavigatePush>().map((e) => e.path).toList(),
         ['$kPathForwardPerson/U-peer'],
       );
+    });
+
+    testWidgets('limited shows neutral status line and keeps Send primary', (
+      tester,
+    ) async {
+      const viewer = Profile(id: 'U-viewer', displayName: 'Viewer');
+      const subject = Profile(
+        id: 'U-peer',
+        displayName: 'Peer',
+        score: 1,
+        rScore: 1,
+        availability: Availability(isLimited: true),
+      );
+      await pumpBody(tester, subject: subject, viewer: viewer);
+
+      final l10n = lookupL10n(const Locale('en'));
+      expect(find.text(l10n.availabilityLimitedTitle), findsOneWidget);
+      expect(find.text(l10n.profileSendRequestTo), findsOneWidget);
+      expect(find.text(l10n.profileRequestOptions), findsNothing);
+    });
+
+    testWidgets(
+      'paused mutual MR removes send doors but keeps secondary Trust',
+      (tester) async {
+        final todayUtc = availabilityTodayUtc();
+        const viewer = Profile(id: 'U-viewer', displayName: 'Viewer');
+        final subject = Profile(
+          id: 'U-peer',
+          displayName: 'Peer',
+          score: 1,
+          rScore: 1,
+          availability: Availability(
+            resumeOn: todayUtc.add(const Duration(days: 3)),
+          ),
+        );
+        await pumpBody(tester, subject: subject, viewer: viewer);
+
+        final l10n = lookupL10n(const Locale('en'));
+        expect(find.textContaining('Not taking new requests until'), findsOneWidget);
+        expect(find.text(l10n.profileSendRequestTo), findsNothing);
+        expect(find.text(l10n.profileRequestOptions), findsNothing);
+        expect(find.text(l10n.profileRequestUnavailable), findsNothing);
+        expect(find.text(l10n.trustThisUser), findsOneWidget);
+      },
+    );
+
+    testWidgets(
+      'paused viewer-only removes unavailable copy and request options',
+      (tester) async {
+        final todayUtc = availabilityTodayUtc();
+        const viewer = Profile(id: 'U-viewer', displayName: 'Viewer');
+        final subject = Profile(
+          id: 'U-peer',
+          displayName: 'Peer',
+          myVote: 1,
+          score: 1,
+          availability: Availability(
+            resumeOn: todayUtc.add(const Duration(days: 3)),
+          ),
+        );
+        await pumpBody(tester, subject: subject, viewer: viewer);
+
+        final l10n = lookupL10n(const Locale('en'));
+        expect(find.textContaining('Not taking new requests until'), findsOneWidget);
+        expect(find.text(l10n.profileRequestUnavailable), findsNothing);
+        expect(find.text(l10n.profileRequestOptions), findsNothing);
+        expect(find.text(l10n.profileSendRequestTo), findsNothing);
+        expect(find.text(l10n.trustThisUser), findsNothing);
+        expect(countFilledButtons(tester), 0);
+      },
+    );
+
+    testWidgets('paused subject-only keeps Trust primary without request options', (
+      tester,
+    ) async {
+      final todayUtc = availabilityTodayUtc();
+      const viewer = Profile(id: 'U-viewer', displayName: 'Viewer');
+      final subject = Profile(
+        id: 'U-peer',
+        displayName: 'Peer',
+        rScore: 1,
+        availability: Availability(
+          resumeOn: todayUtc.add(const Duration(days: 3)),
+        ),
+      );
+      await pumpBody(tester, subject: subject, viewer: viewer);
+
+      final l10n = lookupL10n(const Locale('en'));
+      expect(find.text(l10n.trustThisUser), findsOneWidget);
+      expect(find.text(l10n.profileRequestOptions), findsNothing);
+      expect(find.text(l10n.profileSendRequestTo), findsNothing);
     });
   });
 }
