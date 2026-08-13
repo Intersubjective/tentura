@@ -423,3 +423,21 @@ FINDINGS: full `graphqlSchema.parseAndExecute` requires the entire DI graph (e.g
 `MutationAvailability().all`, which is the same registered field definitions spread into
 `mutationsAll`. No server codegen/DI diff was required.
 REMAINING: none for UNIT 05; UNIT 06 (`feat(server): enforce availability on forwards`) is next
+
+## UNIT 05 remediation — complete — 2026-08-13
+
+COMMITS: `694176029` test(server): isolate availability mutation fake
+TESTS:
+- `(cd packages/server && dart test test/api/controllers/graphql/mutation_availability_test.dart)` → 18 passed
+- `./scripts/check-custom-lints.sh packages/server` → pass (custom-rule total 0)
+- `git diff --check` → clean
+FILES:
+- `packages/server/test/api/controllers/graphql/mutation_availability_test.dart`
+FINDINGS: manager review defect — GraphQL mutation test imported
+`InMemoryUserAvailabilityRepository` from `user_availability_case_test.dart` (UNIT 03).
+Replaced with local `_FakeUserAvailabilityRepository` implementing
+`UserAvailabilityRepositoryPort` with only the call-tracking/state semantics needed by
+mutation tests. Added schema-path regression proving `null` for `isLimited: Boolean!`
+throws `GraphQLException` before any `setLimited` repository write; existing missing
+required `isLimited` test preserved.
+REMAINING: none for UNIT 05 remediation; UNIT 06 is next
