@@ -266,3 +266,11 @@ FINDINGS: Freezed `@Default(Availability.open())` is not a valid const default; 
 `@Default(Availability())`, equivalent to `Availability.open()`. Generated `*.freezed.dart` files
 were produced by build_runner but not staged.
 REMAINING: none for UNIT 01; UNIT 02 (`feat(server): add user availability storage`) is next
+
+## Manager review — UNIT 01 accepted — 2026-08-13
+
+COMMITS: `61428bc4a` feat: add availability domain model; `623f04b41` docs: record UNIT 01 availability domain model evidence
+TESTS: independent `dart test test/domain/availability_test.dart` → 11 passed; `(cd packages/client && flutter test test/domain/entity/availability_test.dart)` → 9 passed; `(cd packages/server && dart test test/domain/entity/user_availability_entity_test.dart)` → 9 passed; independent `(cd packages/server && dart run build_runner build -d)` → exit 0; `git diff 83260ac45..HEAD --check` → clean
+FILES: the eight UNIT 01 source/test paths plus this journal
+FINDINGS: accepted. The literal `@Default(Availability.open())` is not legal Freezed syntax because a factory call is not const; the equivalent const `@Default(Availability())` is necessary and recorded. The server build emits pre-existing injectable warnings, but exits successfully and no generated file was committed.
+REMAINING: UNIT 02 is dependency-ready.
