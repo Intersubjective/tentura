@@ -11,6 +11,7 @@ import 'package:tentura_server/data/database/migration/_migrations.dart';
 import 'package:tentura_server/data/database/tentura_db.dart'
     hide isNotNull, isNull;
 import 'package:tentura_server/data/repository/capability_own_evidence_repository.dart';
+import 'package:tentura_server/data/repository/capability_telemetry_repository.dart';
 import 'package:tentura_server/data/repository/pair_block_query_repository.dart';
 import 'package:tentura_server/data/repository/routing_mute_repository.dart';
 import 'package:tentura_server/domain/capability/capability_evidence_models.dart';
@@ -36,6 +37,7 @@ Future<void> main() async {
   late TenturaDb database;
   late CapabilityOwnEvidenceRepository ownEvidenceRepo;
   late RoutingMuteRepository muteRepo;
+  late CapabilityTelemetryRepository telemetryRepo;
   late PairBlockQueryRepository blockRepo;
 
   if (skipReason == false) {
@@ -50,6 +52,7 @@ Future<void> main() async {
       database = TenturaDb(target.databaseEnv);
       ownEvidenceRepo = CapabilityOwnEvidenceRepository(database);
       muteRepo = RoutingMuteRepository(database);
+      telemetryRepo = CapabilityTelemetryRepository(database);
       blockRepo = PairBlockQueryRepository(database);
     });
 
@@ -310,6 +313,147 @@ Future<void> main() async {
       },
       skip: skipReason,
     );
+
+    test(
+      'muteCountsByTag returns per-tag population counts only',
+      () async {
+        await muteRepo.setMute(userId: _sub1, tagSlug: 'pets', muted: true);
+        await muteRepo.setMute(userId: _sub2, tagSlug: 'pets', muted: true);
+        await muteRepo.setMute(userId: _sub1, tagSlug: 'transport', muted: true);
+
+        final counts = await muteRepo.muteCountsByTag();
+
+        expect(counts, {'pets': 2, 'transport': 1});
+      },
+      skip: skipReason,
+    );
+  });
+
+  group('CapabilityTelemetryRepository', () {
+    test(
+      'countSeedRenewal counts forward-reason renewal before cell expiry',
+      () async {
+        await _insertCapabilityEvent(
+          database,
+          id: 'CEb2cseed1',
+          observerId: _ego,
+          subjectId: _sub1,
+          tagSlug: 'pets',
+          sourceType: 4,
+          createdAt: '2026-01-01T00:00:00Z',
+        );
+        await _insertCapabilityEvent(
+          database,
+          id: 'CEb2cseed2',
+          observerId: _ego,
+          subjectId: _sub1,
+          tagSlug: 'pets',
+          sourceType: 1,
+          createdAt: '2026-02-01T00:00:00Z',
+        );
+        await _insertCapabilityEdge(
+          database,
+          observerId: _ego,
+          subjectId: _sub1,
+          tagSlug: 'pets',
+          nextExpiryAt: '2026-06-01T00:00:00Z',
+        );
+
+        final counts = await telemetryRepo.countSeedRenewal();
+
+        expect(counts.seedTriples, 1);
+        expect(counts.renewed, 1);
+      },
+      skip: skipReason,
+    );
+
+    test(
+      'countSeedRenewal ignores renewal after next_expiry_at',
+      () async {
+        await _insertCapabilityEvent(
+          database,
+          id: 'CEb2cseed3',
+          observerId: _ego,
+          subjectId: _sub1,
+          tagSlug: 'transport',
+          sourceType: 4,
+          createdAt: '2026-01-01T00:00:00Z',
+        );
+        await _insertCapabilityEvent(
+          database,
+          id: 'CEb2cseed4',
+          observerId: _ego,
+          subjectId: _sub1,
+          tagSlug: 'transport',
+          sourceType: 1,
+          createdAt: '2026-07-01T00:00:00Z',
+        );
+        await _insertCapabilityEdge(
+          database,
+          observerId: _ego,
+          subjectId: _sub1,
+          tagSlug: 'transport',
+          nextExpiryAt: '2026-06-01T00:00:00Z',
+        );
+
+        final counts = await telemetryRepo.countSeedRenewal();
+
+        expect(counts.seedTriples, 1);
+        expect(counts.renewed, 0);
+      },
+      skip: skipReason,
+    );
+
+    test(
+      'countSeedRenewal treats null next_expiry_at as not yet expired',
+      () async {
+        await _insertCapabilityEvent(
+          database,
+          id: 'CEb2cseed5',
+          observerId: _ego,
+          subjectId: _sub2,
+          tagSlug: 'pets',
+          sourceType: 4,
+          createdAt: '2026-01-01T00:00:00Z',
+        );
+        await _insertCapabilityEvent(
+          database,
+          id: 'CEb2cseed6',
+          observerId: _ego,
+          subjectId: _sub2,
+          tagSlug: 'pets',
+          sourceType: 1,
+          createdAt: '2026-08-01T00:00:00Z',
+        );
+
+        final counts = await telemetryRepo.countSeedRenewal();
+
+        expect(counts.seedTriples, 1);
+        expect(counts.renewed, 1);
+      },
+      skip: skipReason,
+    );
+
+    test(
+      'countSeedRenewal excludes privateLabel-only triples',
+      () async {
+        await _insertCapabilityEvent(
+          database,
+          id: 'CEb2cseed7',
+          observerId: _ego,
+          subjectId: _sub1,
+          tagSlug: 'pets',
+          sourceType: 0,
+          createdAt: '2026-01-01T00:00:00Z',
+        );
+
+        final counts = await telemetryRepo.countSeedRenewal();
+
+        expect(counts.seedTriples, 0);
+        expect(counts.renewed, 0);
+      },
+      skip: skipReason,
+    );
   });
 
   group('PairBlockQueryRepository', () {
@@ -372,14 +516,32 @@ Future<void> _insertCapabilityEvent(
   required int sourceType,
   bool isNegative = false,
   bool deleted = false,
+  String createdAt = '2026-01-01T00:00:00Z',
 }) => db.customStatement('''
 INSERT INTO public.person_capability_event (
   id, subject_user_id, observer_user_id, tag_slug, source_type,
-  visibility, is_negative, deleted_at
+  visibility, is_negative, deleted_at, created_at
 ) VALUES (
   '$id', '$subjectId', '$observerId', '$tagSlug', $sourceType,
-  0, $isNegative, ${deleted ? "'2026-01-01T00:00:00Z'" : 'NULL'}
+  0, $isNegative, ${deleted ? "'2026-01-01T00:00:00Z'" : 'NULL'}, '$createdAt'
 )
+''');
+
+Future<void> _insertCapabilityEdge(
+  TenturaDb db, {
+  required String observerId,
+  required String subjectId,
+  required String tagSlug,
+  String? nextExpiryAt,
+}) => db.customStatement('''
+INSERT INTO public.capability_evidence_edge (
+  observer_user_id, subject_user_id, tag_slug, next_expiry_at
+) VALUES (
+  '$observerId', '$subjectId', '$tagSlug',
+  ${nextExpiryAt == null ? 'NULL' : "'$nextExpiryAt'"}
+)
+ON CONFLICT (observer_user_id, subject_user_id, tag_slug) DO UPDATE
+SET next_expiry_at = EXCLUDED.next_expiry_at
 ''');
 
 Future<void> _insertBlock(
@@ -394,6 +556,10 @@ ON CONFLICT DO NOTHING
 
 Future<void> _cleanup(TenturaDb db) async {
   final idList = _allIds.map((id) => "'$id'").join(', ');
+  await db.customStatement(
+    'DELETE FROM public.capability_evidence_edge '
+    'WHERE observer_user_id IN ($idList) OR subject_user_id IN ($idList)',
+  );
   await db.customStatement(
     'DELETE FROM public.person_capability_event '
     'WHERE observer_user_id IN ($idList) OR subject_user_id IN ($idList)',

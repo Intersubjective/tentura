@@ -89,4 +89,25 @@ WHERE user_id = $1 AND tag_slug = $2
       [userId, tagSlug],
     );
   }
+
+  @override
+  Future<Map<String, int>> muteCountsByTag() async {
+    final rows = await _database
+        .customSelect(
+          r'''
+SELECT tag_slug, COUNT(*)::int AS cnt
+FROM public.capability_routing_mute
+GROUP BY tag_slug
+HAVING COUNT(*) > 0
+ORDER BY tag_slug
+''',
+          readsFrom: {_database.capabilityRoutingMutes},
+        )
+        .get();
+
+    return {
+      for (final row in rows)
+        row.read<String>('tag_slug'): row.read<int>('cnt'),
+    };
+  }
 }

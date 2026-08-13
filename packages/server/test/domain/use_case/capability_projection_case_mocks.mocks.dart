@@ -310,6 +310,14 @@ class MockRoutingMutePort extends _i1.Mock implements _i8.RoutingMutePort {
             returnValueForMissingStub: _i5.Future<void>.value(),
           )
           as _i5.Future<void>);
+
+  @override
+  _i5.Future<Map<String, int>> muteCountsByTag() =>
+      (super.noSuchMethod(
+            Invocation.method(#muteCountsByTag, []),
+            returnValue: _i5.Future<Map<String, int>>.value(<String, int>{}),
+          )
+          as _i5.Future<Map<String, int>>);
 }
 
 /// A class which mocks [PairBlockQueryPort].
