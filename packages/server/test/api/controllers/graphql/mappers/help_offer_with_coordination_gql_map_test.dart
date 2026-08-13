@@ -11,6 +11,7 @@ void main() {
       id: 'U1',
       displayName: 't',
       description: '',
+      userAvailability: null,
     );
     final row = HelpOfferWithCoordinationRow(
       beaconId: 'B1',
@@ -33,6 +34,7 @@ void main() {
       id: 'U1',
       displayName: 't',
       description: '',
+      userAvailability: null,
     );
     final row = HelpOfferWithCoordinationRow(
       beaconId: 'B1',
@@ -53,6 +55,7 @@ void main() {
       id: 'U1',
       displayName: 't',
       description: '',
+      userAvailability: null,
     );
     final row = HelpOfferWithCoordinationRow(
       beaconId: 'B1',
@@ -73,6 +76,7 @@ void main() {
       id: 'U1',
       displayName: 't',
       description: '',
+      userAvailability: null,
     );
     final row = HelpOfferWithCoordinationRow(
       beaconId: 'B1',

@@ -634,6 +634,7 @@ final class StubUserProfileBatchLookup implements UserProfileBatchLookup {
         displayName: _displayName,
         description: '',
         isMutualFriend: reciprocalPeerIds.contains(id),
+        userAvailability: null,
       ),
   };
 }

@@ -1,6 +1,7 @@
 import 'package:tentura_server/data/mapper/user_availability_mapper.dart';
 import 'package:tentura_server/domain/entity/gql_public/mutual_score_record.dart';
 import 'package:tentura_server/domain/entity/gql_public/user_availability_record.dart';
+import 'package:tentura_server/domain/entity/user_availability_entity.dart';
 import 'package:tentura_server/domain/port/merit_score_lookup_port.dart';
 import 'package:tentura_server/domain/port/vote_user_friendship_lookup_port.dart';
 import 'package:tentura_server/domain/use_case/invite_genealogy_case.dart';
@@ -231,7 +232,8 @@ final class QueryInviteGenealogy extends GqlNodeBase {
     final candidateIds = userIds
         .where((id) => id.isNotEmpty && id != viewerId)
         .toSet();
-    if (candidateIds.isEmpty) {
+    final availabilityUserIds = userIds.where((id) => id.isNotEmpty).toSet();
+    if (candidateIds.isEmpty && availabilityUserIds.isEmpty) {
       return (
         scores: const <String, MutualScoreRecord>{},
         mutualFriends: const <String>{},
@@ -239,22 +241,28 @@ final class QueryInviteGenealogy extends GqlNodeBase {
         availabilityByUserId: const <String, UserAvailabilityRecord?>{},
       );
     }
-    final scores = await _meritScoreLookup.reciprocalScoresForViewer(
-      viewerId: viewerId,
-      context: context,
-    );
-    final directional = await _voteUserFriendshipLookup
-        .directionalPositiveTrustPeerIds(
-          viewerId: viewerId,
-          peerIds: candidateIds,
-        );
+    final scores = candidateIds.isEmpty
+        ? const <String, MutualScoreRecord>{}
+        : await _meritScoreLookup.reciprocalScoresForViewer(
+            viewerId: viewerId,
+            context: context,
+          );
+    final directional = candidateIds.isEmpty
+        ? (
+            viewerTrusts: const <String>{},
+            trustsViewer: const <String>{},
+          )
+        : await _voteUserFriendshipLookup.directionalPositiveTrustPeerIds(
+            viewerId: viewerId,
+            peerIds: candidateIds,
+          );
     final mutualFriends = directional.viewerTrusts.intersection(
       directional.trustsViewer,
     );
     final todayUtc = _userAvailabilityCase.todayUtcFrom(DateTime.timestamp());
-    final availabilityEntities = await _userAvailabilityCase.fetchByUserIds(
-      candidateIds,
-    );
+    final availabilityEntities = availabilityUserIds.isEmpty
+        ? const <String, UserAvailabilityEntity>{}
+        : await _userAvailabilityCase.fetchByUserIds(availabilityUserIds);
     final availabilityByUserId = {
       for (final entry in availabilityEntities.entries)
         entry.key: userAvailabilityEntityToPublicRecord(

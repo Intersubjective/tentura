@@ -34,6 +34,7 @@ void main() {
           displayName: 'Carol',
           description: '',
           isMutualFriend: true,
+          userAvailability: null,
         ),
       ];
       when(

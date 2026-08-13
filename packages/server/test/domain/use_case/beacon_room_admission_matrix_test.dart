@@ -755,6 +755,7 @@ void main() {
           id: _helperId,
           displayName: 'helper',
           description: '',
+          userAvailability: null,
         );
         final rows = [
           HelpOfferWithCoordinationRow(

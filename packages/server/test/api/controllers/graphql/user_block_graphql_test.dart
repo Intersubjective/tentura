@@ -198,6 +198,7 @@ const _profileU2 = UserPublicRecord(
   id: 'U2',
   displayName: 'Blocked User',
   description: '',
+  userAvailability: null,
 );
 
 void main() {
@@ -349,6 +350,7 @@ void main() {
             id: 'U3',
             displayName: 'Inherited',
             description: '',
+            userAvailability: null,
           ),
         });
         final query = QueryUserBlock(

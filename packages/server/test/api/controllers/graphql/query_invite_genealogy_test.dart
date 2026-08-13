@@ -6,10 +6,14 @@ import 'package:tentura_server/api/controllers/graphql/query/query_invite_geneal
 import 'package:tentura_server/domain/entity/gql_public/mutual_score_record.dart';
 import 'package:tentura_server/domain/entity/invite_genealogy_graph_entity.dart';
 import 'package:tentura_server/domain/entity/jwt_entity.dart';
+import 'package:tentura_server/domain/entity/user_availability_entity.dart';
+import 'package:tentura_server/domain/entity/user_entity.dart';
 import 'package:tentura_server/domain/port/invite_genealogy_repository_port.dart';
 import 'package:tentura_server/domain/port/merit_score_lookup_port.dart';
+import 'package:tentura_server/domain/port/user_availability_repository_port.dart';
 import 'package:tentura_server/domain/port/vote_user_friendship_lookup_port.dart';
 import 'package:tentura_server/domain/use_case/invite_genealogy_case.dart';
+import 'package:tentura_server/domain/use_case/user_availability_case.dart';
 import 'package:tentura_server/env.dart';
 
 class _FakeInviteGenealogyRepository implements InviteGenealogyRepositoryPort {
@@ -95,10 +99,105 @@ class _FakeVoteUserFriendshipLookup implements VoteUserFriendshipLookupPort {
   }) async => false;
 }
 
+class _ViewerOnlyLineageRepository implements InviteGenealogyRepositoryPort {
+  @override
+  Future<void> recordSignupEdge({
+    required String ancestorUserId,
+    required DateTime ancestorUserCreatedAt,
+    required String descendantUserId,
+    required DateTime descendantUserCreatedAt,
+    required String invitationId,
+  }) async {}
+
+  @override
+  Future<String?> inviterOf(String userId) async => null;
+
+  @override
+  Future<InviteGenealogyGraphEntity> fetchLineage({
+    required String userId,
+  }) async => InviteGenealogyGraphEntity(
+    viewerNodeKey: 'Gviewer',
+    nodes: [
+      InviteGenealogyNodeEntity(
+        nodeKey: 'Gviewer',
+        user: UserEntity(
+          id: userId,
+          displayName: 'Viewer',
+          description: 'self',
+        ),
+      ),
+    ],
+    edges: [],
+  );
+
+  @override
+  Future<InviteGenealogyGraphEntity> fetchLineageBetween({
+    required String viewerId,
+    required String targetId,
+  }) async => fetchLineage(userId: viewerId);
+
+  @override
+  Future<InviteGenealogyChildrenPageEntity> fetchChildren({
+    required String viewerId,
+    required String nodeKey,
+    required int limit,
+    DateTime? afterCreatedAt,
+    String? afterNodeKey,
+  }) async => const InviteGenealogyChildrenPageEntity(nodes: [], edges: []);
+
+  @override
+  Future<Map<String, int>> fetchChildCounts({
+    required List<String> nodeKeys,
+  }) async => {for (final nodeKey in nodeKeys) nodeKey: 0};
+}
+
+class _TrackingUserAvailabilityRepository
+    implements UserAvailabilityRepositoryPort {
+  _TrackingUserAvailabilityRepository(this._byUserId);
+
+  final Map<String, UserAvailabilityEntity> _byUserId;
+  Set<String>? lastFetchedUserIds;
+
+  @override
+  Future<Map<String, UserAvailabilityEntity>> fetchByUserIds(
+    Set<String> userIds,
+  ) async {
+    lastFetchedUserIds = userIds;
+    return {
+      for (final id in userIds)
+        if (_byUserId.containsKey(id)) id: _byUserId[id]!,
+    };
+  }
+
+  @override
+  Future<void> cleanupExpired(DateTime todayUtc) async {}
+
+  @override
+  Future<void> pause({
+    required String userId,
+    required DateTime resumeOn,
+  }) async {}
+
+  @override
+  Future<void> resume({required String userId}) async {}
+
+  @override
+  Future<void> setLimited({
+    required String userId,
+    required bool isLimited,
+  }) async {}
+}
+
 void main() {
   late QueryInviteGenealogy query;
+  late UserAvailabilityCase availabilityCase;
 
   setUp(() {
+    availabilityCase = UserAvailabilityCase(
+      _TrackingUserAvailabilityRepository(const {}),
+      env: Env(environment: Environment.test),
+      logger: Logger('QueryInviteGenealogyTestAvailability'),
+    );
     query = QueryInviteGenealogy(
       inviteGenealogyCase: InviteGenealogyCase(
         _FakeInviteGenealogyRepository(),
@@ -107,6 +206,7 @@ void main() {
       ),
       meritScoreLookup: _FakeMeritScoreLookup(),
       voteUserFriendshipLookup: _FakeVoteUserFriendshipLookup(),
+      userAvailabilityCase: availabilityCase,
     );
   });
 
@@ -183,6 +283,50 @@ void main() {
         {'node_key': 'G${'a' * 43}', 'total_children': 0},
         {'node_key': 'G${'b' * 43}', 'total_children': 0},
       ]);
+    },
+  );
+
+  test(
+    'inviteGenealogy batch-fetches availability for the viewer node user id',
+    () async {
+      const viewerId = 'Uviewer';
+      final availabilityRepo = _TrackingUserAvailabilityRepository({
+        viewerId: const UserAvailabilityEntity(
+          userId: viewerId,
+          isLimited: true,
+        ),
+      });
+      final availabilityCase = UserAvailabilityCase(
+        availabilityRepo,
+        env: Env(environment: Environment.test),
+        logger: Logger('QueryInviteGenealogyAvailabilityTest'),
+      );
+      final viewerOnlyQuery = QueryInviteGenealogy(
+        inviteGenealogyCase: InviteGenealogyCase(
+          _ViewerOnlyLineageRepository(),
+          env: Env(environment: Environment.test),
+          logger: Logger('QueryInviteGenealogyTest'),
+        ),
+        meritScoreLookup: _FakeMeritScoreLookup(),
+        voteUserFriendshipLookup: _FakeVoteUserFriendshipLookup(),
+        userAvailabilityCase: availabilityCase,
+      );
+      final field = viewerOnlyQuery.all.singleWhere(
+        (field) => field.name == 'inviteGenealogy',
+      );
+      final result = await field.resolve!(null, {
+        kContextJwtKey: const JwtEntity(sub: viewerId),
+      }) as Map<String, dynamic>;
+
+      expect(availabilityRepo.lastFetchedUserIds, {viewerId});
+      final nodes = result['nodes']! as List<dynamic>;
+      expect(nodes, hasLength(1));
+      final user = (nodes.first as Map<String, dynamic>)['user']!
+          as Map<String, dynamic>;
+      expect(user['user_availability'], {
+        'is_limited': true,
+        'resume_on': null,
+      });
     },
   );
 }
