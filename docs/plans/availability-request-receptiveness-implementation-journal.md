@@ -547,3 +547,14 @@ INDEPENDENT VERIFICATION:
 - `git diff --check f298bd966..HEAD` -> clean
 REMAINING: UNIT 07; no inference of its barrier-based pause/forward,
 GraphQL-row parity, or broader read-permission evidence from UNIT 06.
+
+## UNIT 07 first worker attempt — rejected by manager — 2026-08-13
+
+STATUS: stopped without commits; its three untracked draft test files were
+removed before any test or commit. The worker proposed mutating the shared
+Postgres database for a Hasura diagnostic and SQL simulations in place of
+required real GraphQL-path tests. Both violate UNIT 07's isolated-database and
+causal-evidence constraints. No partial test claim is retained.
+RECOVERY: split UNIT 07 into fresh, sequential subunits. Start with the
+isolated `UserAvailabilityRepository` transition/concurrency proof only; keep
+forward linearization and GraphQL/Hasura work for later fresh workers.
