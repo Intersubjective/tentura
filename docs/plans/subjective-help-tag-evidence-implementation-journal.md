@@ -7460,3 +7460,138 @@ No defects found. Accepted as-is. Resuming G1c (window coverage, floor
 margin, eligible-witness coverage) — this signal will now measure a
 pipeline that actually runs, rather than one that would trivially
 report 100% empty forever.
+
+## G1c — window coverage + floor per-request — complete — 2026-08-13
+
+COMMITS: `91355f3b4` feat(server): log witness window coverage and floor on cache miss (G1c signal 1)
+
+TESTS:
+
+```bash
+cd packages/server && dart test -x pg test/domain/use_case/capability_projection_case_test.dart
+→ +14 (+3 G1c telemetry cases), all passed, identical 3x
+```
+
+FILES:
+
+- `packages/server/lib/domain/use_case/capability_projection_case.dart` — `_loadWitnessWindow()` cache-miss path logs `witness_window_computed` and `witness_floor`
+- `packages/server/test/domain/use_case/capability_projection_case_test.dart` — G1c signal 1 group (3 tests)
+
+FINDINGS:
+
+- **Scoping choice (documented):** `witness_window_computed` and `witness_floor` emit only on the cache-miss/compute path inside `_loadWitnessWindow()`, not on cached hits. The fast path never recomputes `trustedScores`, so `vote_list_empty` cannot be reported cheaply there; measuring the compute subpopulation is still a valid rate over real projection traffic.
+- **Signal decomposition:** `ego_window_empty` = `computeWitnessWeights(facts)` returned `[]`; `vote_list_empty` = `facts.trustedScores.isEmpty` (same condition as `computeFloor` returning null). These booleans are logged independently per architecture §21.
+- **Floor half:** `witness_floor floor=<value>` or `floor=null` logged on the same compute path, one data point per real window computation for log-aggregated histograms (no in-process histogram — matches G1a/G1b convention).
+- No user ids in either log line; tests assert fixture ids absent.
+
+REMAINING: signals 2–3 (population sweeps via `CapabilityTelemetryCase`).
+
+## G1c — floor margin population gauge — complete — 2026-08-13
+
+COMMITS: `483b58228` feat(server): add two-hop sponsored MR percentile telemetry sweep (G1c signal 2)
+
+TESTS:
+
+```bash
+cd packages/server && dart test -x pg test/domain/use_case/capability_telemetry_case_test.dart
+→ +6 (+3 G1c cases among six total), all passed, identical 3x
+
+cd packages/server && dart test -t pg test/data/repository/capability_read_ports_pg_test.dart
+→ twoHopSponsoredForwardMrPercentiles pg cases (when Postgres available)
+```
+
+FILES:
+
+- `packages/server/lib/domain/port/capability_telemetry_port.dart` — `twoHopSponsoredForwardMrPercentiles()`
+- `packages/server/lib/data/repository/capability_telemetry_repository.dart` — invite-tree depth-2 query + `person_visibility_peers` join
+- `packages/server/lib/domain/use_case/capability_telemetry_case.dart` — `witness_two_hop_sponsored_mr` log line in 45-minute sweep
+
+FINDINGS:
+
+- **"2-hop-sponsored nodes" interpretation (documented choice):** users at invite-genealogy depth exactly 2 from a sampled ego — i.e. `invite_genealogy` rows where the intermediate node (`hop1`) is a direct invitee of the ego and the measured user is a direct invitee of `hop1`. This matches the architecture's sponsorship language and is directly supported by `InviteGenealogyRepositoryPort.fetchChildren`/`fetchLineage` semantics without inventing a separate sponsorship table.
+- **Score read:** for each `(ego, depth-2-user)` pair, `forward_mr` is read via `person_visibility_peers(ego, '')` — same blank-context projection surface as witness-window computation (`witness_window_repository.dart`).
+- **Sampling:** up to 50 egos sampled from distinct `person_capability_event.observer_user_id` (recent-activity proxy); up to 500 distinct `(ego, sponsored_user)` score rows capped before percentile aggregation. Empty population logs `witness_two_hop_sponsored_mr n=0`.
+- **Log format:** `witness_two_hop_sponsored_mr n=<n> p33=<v> p50=<v> p75=<v>` — p33 included deliberately because floor(A) uses the 33rd percentile (`kCapFloorPercentile`), so overlap between `witness_floor` per-request histogram and this population band is directly observable in logs.
+- **Limitation:** percentiles describe the depth-2 sponsored band only; per-request `witness_floor` lines (signal 1) must be compared offline — no single combined histogram is emitted.
+
+REMAINING: signal 3 (eligible-witness coverage).
+
+## G1c — eligible-witness coverage — complete — 2026-08-13
+
+COMMITS: `483b58228` (eligible-witness query + sweep log, bundled with signal 2 infrastructure); `852b0c7df` test(server): add pg coverage for G1c population telemetry queries
+
+TESTS:
+
+```bash
+cd packages/server && dart test -x pg test/domain/use_case/capability_telemetry_case_test.dart
+→ eligible-witness coverage case among six total, identical 3x
+
+cd packages/server && dart test -t pg test/data/repository/capability_read_ports_pg_test.dart
+→ countEligibleWitnessCoverage pg cases (when Postgres available), identical 3x
+```
+
+FILES:
+
+- `packages/server/lib/domain/port/capability_telemetry_port.dart` — `countEligibleWitnessCoverage()`
+- `packages/server/lib/data/repository/capability_telemetry_repository.dart` — sampled triple aggregation using `computeWitnessWeights()` (domain policy, not SQL duplicate)
+- `packages/server/lib/domain/use_case/capability_telemetry_case.dart` — `capability_eligible_witness_coverage` log line
+- `packages/server/test/data/repository/capability_read_ports_pg_test.dart` — eligible vs ineligible-only pg proofs
+
+FINDINGS:
+
+- **Operational definition (documented choice):** for a bounded sample of `(ego, subject, tag)` triples (≤30 egos × ≤50 active `(subject,tag)` pairs with non-zero cell accumulators, capped at 200 triples), classify each triple where at least one witness cell exists:
+  - **eligible-clearing:** `Σ m·e_out ≥ θ_out` OR `Σ m·e_seed ≥ θ_seed` summing only witnesses with `admitted=true` in that ego's witness window (blank context, `computeWitnessWeights` over `person_visibility_peers` facts — same admission policy as live projection).
+  - **ineligible-only:** NOT eligible-clearing, but the same sums with **no admission filter** (all in-window witnesses with cells weighted by `m`) still clear θ.
+- This directly measures D15's safety cost: evidence that exists and would clear θ if ineligible witnesses counted, but is discarded because admission gates the cell fetch in `CapabilityProjectionCase.project()`.
+- **Not measured:** pairs where evidence exists only from observers outside the ego's top-K peer window (no `m` defined); block/mute filtering (projection applies those after cell fetch — adding them here would conflate admission with post-fetch suppression). Documented limitation: this is an honest lower bound on D15 discard, not a full counterfactual of every possible witness.
+- **Log format:** `capability_eligible_witness_coverage eligible_clearing=<n> ineligible_only=<n>` — counts only, no triple ids.
+
+REMAINING: G1c final entry + full verification sweep.
+
+## G1c — complete — 2026-08-13
+
+COMMITS:
+
+- `91355f3b4` feat(server): log witness window coverage and floor on cache miss (G1c signal 1)
+- `483b58228` feat(server): add two-hop sponsored MR percentile telemetry sweep (G1c signal 2)
+- `852b0c7df` test(server): add pg coverage for G1c population telemetry queries
+
+TESTS:
+
+```bash
+cd packages/server && dart analyze <changed paths>
+→ zero new errors on changed files
+
+cd packages/server && dart test -x pg test/domain/use_case/capability_projection_case_test.dart test/domain/use_case/capability_telemetry_case_test.dart
+→ +20 (+3 projection, +3 telemetry G1c cases), all passed, identical 3x
+
+cd packages/server && dart test -x pg
+→ +1452 (+6 vs witness-window-fix baseline +1446), all passed
+
+cd packages/server && dart test -t pg test/data/repository/capability_read_ports_pg_test.dart
+→ +19 (+4 G1c pg cases), all passed, identical 3x
+
+bash scripts/check-user-facing-terminology.sh → ok
+./scripts/check-custom-lints.sh packages/server → total: 0 (baseline: 0)
+git diff --check → clean
+```
+
+FILES:
+
+- `packages/server/lib/domain/use_case/capability_projection_case.dart`
+- `packages/server/lib/domain/port/capability_telemetry_port.dart`
+- `packages/server/lib/data/repository/capability_telemetry_repository.dart`
+- `packages/server/lib/domain/use_case/capability_telemetry_case.dart`
+- `packages/server/test/domain/use_case/capability_projection_case_test.dart`
+- `packages/server/test/domain/use_case/capability_telemetry_case_test.dart`
+- `packages/server/test/data/repository/capability_read_ports_pg_test.dart`
+- `docs/plans/subjective-help-tag-evidence-implementation-journal.md`
+
+FINDINGS:
+
+- All three G1c signals follow established G1a/G1b conventions: `logger.info('event_name key=value ...')`, counts/buckets/values only, observable via server stdout/`docker compose logs`, no metrics library.
+- Signal 1 instruments the read-through fix call site (`_loadWitnessWindow()`), not a periodic sweep — per CRITICAL FINDING entry, context is per-request and not enumerable.
+- Signals 2–3 reuse the existing 45-minute `CapabilityTelemetryCase` / `TaskWorker` sweep from G1b (no new interval or worker registration).
+- Commit `483b58228` bundles signal 2 repository/case wiring with signal 3's `countEligibleWitnessCoverage()` because both extend the same port/repository/case surface; pg tests landed separately in `852b0c7df`.
+
+REMAINING: G1d (acknowledgement reciprocity), then G2/G3.
