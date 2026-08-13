@@ -423,6 +423,14 @@ class ForwardCubit extends Cubit<ForwardState> {
         }
       }
       final composedNote = state.note.trim();
+      final bandByUserId = {
+        for (final row in state.band) row.userId: row,
+      };
+      final recipientBandProvenance = <String, ({String? tier, bool isExploration})>{
+        for (final id in recipientIds)
+          if (bandByUserId[id] case final row?)
+            id: (tier: row.rowTier?.name, isExploration: row.isExploration),
+      };
       await forwardCase.forwardBeacon(
         beaconId: state.beaconId,
         recipientIds: recipientIds,
@@ -433,6 +441,9 @@ class ForwardCubit extends Cubit<ForwardState> {
             ? null
             : state.recipientReasons,
         attributionParentEdgeIds: attributionParentEdgeIds,
+        recipientBandProvenance: recipientBandProvenance.isEmpty
+            ? null
+            : recipientBandProvenance,
       );
       final outcome = ForwardDeliveryOutcome(
         deliveredRecipientIds: recipientIds,

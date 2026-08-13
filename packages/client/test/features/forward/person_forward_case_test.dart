@@ -85,6 +85,8 @@ class _FakeForwardRepository implements ForwardRepository {
     String? context,
     String? parentEdgeId,
     List<String>? attributionParentEdgeIds,
+    Map<String, ({String? tier, bool isExploration})>?
+    recipientBandProvenance,
   }) async {
     sent.add((beaconId: beaconId, recipientIds: recipientIds, note: note));
     _forwardChanges.add(beaconId);

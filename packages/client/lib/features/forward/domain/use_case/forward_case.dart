@@ -291,6 +291,8 @@ final class ForwardCase extends UseCaseBase {
     String? context,
     String? parentEdgeId,
     List<String>? attributionParentEdgeIds,
+    Map<String, ({String? tier, bool isExploration})>?
+    recipientBandProvenance,
   }) => _forwardRepository.forwardBeacon(
     beaconId: beaconId,
     recipientIds: recipientIds,
@@ -300,6 +302,7 @@ final class ForwardCase extends UseCaseBase {
     context: context,
     parentEdgeId: parentEdgeId,
     attributionParentEdgeIds: attributionParentEdgeIds,
+    recipientBandProvenance: recipientBandProvenance,
   );
 
   Future<List<ForwardInboundSource>> fetchInboundForwardSources({

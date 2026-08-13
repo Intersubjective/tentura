@@ -24,7 +24,7 @@ import '../gql/_g/beacon_help_offerer_forward_path.req.gql.dart';
 import '../gql/_g/forward_beacon.req.gql.dart';
 import '../gql/_g/forward_inbound_sources.req.gql.dart';
 import 'package:tentura/data/gql/_g/schema.schema.gql.dart'
-    show Gv2_ForwardRecipientReasonInput;
+    show Gv2_ForwardRecipientBandProvenanceInput, Gv2_ForwardRecipientReasonInput;
 import '../gql/_g/forward_cancel.req.gql.dart';
 import '../gql/_g/forward_update.req.gql.dart';
 import '../gql/_g/forward_candidates_fetch.req.gql.dart';
@@ -117,6 +117,8 @@ class ForwardRepository {
     String? context,
     String? parentEdgeId,
     List<String>? attributionParentEdgeIds,
+    Map<String, ({String? tier, bool isExploration})>?
+    recipientBandProvenance,
   }) => _remoteApiService
       .request(
         GForwardBeaconReq(
@@ -145,6 +147,18 @@ class ForwardRepository {
                         slugs: BuiltList<String>.from(e.value),
                       ),
                     ),
+              );
+            }
+            if (recipientBandProvenance != null &&
+                recipientBandProvenance.isNotEmpty) {
+              r.vars.recipientBandProvenance.addAll(
+                recipientBandProvenance.entries.map(
+                  (e) => Gv2_ForwardRecipientBandProvenanceInput.create(
+                    recipientId: e.key,
+                    tier: e.value.tier,
+                    isExploration: e.value.isExploration,
+                  ),
+                ),
               );
             }
           },

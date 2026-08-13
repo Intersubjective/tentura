@@ -3351,7 +3351,7 @@ type mutation_root {
   beaconDeleteById(id: String!): Boolean!
   beaconExtendReview(id: String!): v2_BeaconExtendReviewResult!
   beaconFork(id: String!): v2_Beacon!
-  beaconForward(attributionParentEdgeIds: [String!], context: String, id: String!, note: String, parentEdgeId: String, perRecipientNotes: String, reasons: [String!], recipientIds: [String!], recipientReasons: [v2_ForwardRecipientReasonInput]): String!
+  beaconForward(attributionParentEdgeIds: [String!], context: String, id: String!, note: String, parentEdgeId: String, perRecipientNotes: String, reasons: [String!], recipientBandProvenance: [v2_ForwardRecipientBandProvenanceInput], recipientIds: [String!], recipientReasons: [v2_ForwardRecipientReasonInput]): String!
   beaconForwardCancel(id: String!): Boolean!
   beaconForwardUpdate(id: String!, note: String, reasons: [String!]): Boolean!
   beaconMuteClear(beaconId: String!): Boolean!
@@ -7004,6 +7004,12 @@ type v2_ForwardBandRow {
   rank: Int!
   rowTier: String
   userId: String!
+}
+
+input v2_ForwardRecipientBandProvenanceInput {
+  isExploration: Boolean
+  recipientId: String!
+  tier: String
 }
 
 input v2_ForwardRecipientReasonInput {
