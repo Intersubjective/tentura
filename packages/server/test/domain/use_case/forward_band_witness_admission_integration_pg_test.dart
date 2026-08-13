@@ -11,12 +11,30 @@ import 'package:test/test.dart';
 import 'package:tentura_server/data/database/migration/_migrations.dart';
 import 'package:tentura_server/data/database/tentura_db.dart'
     hide isNotNull, isNull;
+import 'package:tentura_server/data/repository/band_candidate_repository.dart';
+import 'package:tentura_server/data/repository/beacon_access_repository.dart';
+import 'package:tentura_server/data/repository/beacon_repository.dart';
+import 'package:tentura_server/data/repository/capability_cell_repository.dart';
 import 'package:tentura_server/data/repository/capability_evidence_repository.dart';
+import 'package:tentura_server/data/repository/capability_own_evidence_repository.dart';
 import 'package:tentura_server/data/repository/evaluation_repository.dart';
+import 'package:tentura_server/data/repository/forward_edge_repository.dart';
+import 'package:tentura_server/data/repository/help_offer_repository.dart';
+import 'package:tentura_server/data/repository/inbox_repository.dart';
 import 'package:tentura_server/data/repository/meritrank_repository.dart';
 import 'package:tentura_server/data/repository/mutating_unit_of_work.dart';
+import 'package:tentura_server/data/repository/pair_block_query_repository.dart';
+import 'package:tentura_server/data/repository/person_visibility_repository.dart';
+import 'package:tentura_server/data/repository/routing_mute_repository.dart';
+import 'package:tentura_server/data/repository/user_block_repository.dart';
+import 'package:tentura_server/data/repository/witness_window_repository.dart';
+import 'package:tentura_server/domain/capability/capability_consts.dart';
+import 'package:tentura_server/domain/capability/capability_evidence_models.dart';
+import 'package:tentura_server/domain/capability/witness_window_policy.dart';
 import 'package:tentura_server/domain/evaluation/beacon_evaluation_value.dart';
 import 'package:tentura_server/domain/evaluation/evaluation_participant_role.dart';
+import 'package:tentura_server/domain/use_case/capability_projection_case.dart';
+import 'package:tentura_server/domain/use_case/forward_band_case.dart';
 import 'package:tentura_server/domain/use_case/evaluation/review_finalization_case.dart';
 import 'package:tentura_server/env.dart';
 
@@ -45,6 +63,10 @@ Future<void> main() async {
     late Env env;
     late Logger logger;
     late MeritrankRepository meritRank;
+    late WitnessWindowRepository witnessWindowRepo;
+    late BandCandidateRepository bandCandidateRepo;
+    late RoutingMuteRepository routingMuteRepo;
+    late ForwardBandCase forwardBandCase;
     late ReviewFinalizationCase finalizationCase;
     late EvaluationRepository evalRepo;
 
@@ -63,6 +85,49 @@ Future<void> main() async {
       database = TenturaDb(env);
 
       meritRank = MeritrankRepository(database);
+      witnessWindowRepo = WitnessWindowRepository(database);
+      final cellRepo = CapabilityCellRepository(database);
+      final ownEvidenceRepo = CapabilityOwnEvidenceRepository(database);
+      routingMuteRepo = RoutingMuteRepository(database);
+      final pairBlockRepo = PairBlockQueryRepository(database);
+      final personVisibilityRepo = PersonVisibilityRepository(database);
+      final userBlockRepo = UserBlockRepository(
+        env,
+        database,
+        witnessWindow: witnessWindowRepo,
+      );
+      final forwardEdgeRepo = ForwardEdgeRepository(database);
+      final helpOfferRepo = HelpOfferRepository(database);
+      final inboxRepo = InboxRepository(database);
+      bandCandidateRepo = BandCandidateRepository(
+        database,
+        forwardEdgeRepo,
+        helpOfferRepo,
+        inboxRepo,
+      );
+      final beaconRepo = BeaconRepository(database);
+      final beaconAccess = BeaconAccessRepository(database);
+
+      final projectionCase = CapabilityProjectionCase(
+        witnessWindowRepo,
+        cellRepo,
+        ownEvidenceRepo,
+        routingMuteRepo,
+        pairBlockRepo,
+        personVisibilityRepo,
+        userBlockRepo,
+        env: env,
+        logger: logger,
+      );
+
+      forwardBandCase = ForwardBandCase(
+        bandCandidateRepo,
+        beaconRepo,
+        projectionCase,
+        beaconAccess,
+        env: env,
+        logger: logger,
+      );
 
       evalRepo = EvaluationRepository(database);
       final capEvidenceRepo = CapabilityEvidenceRepository(database);
@@ -96,7 +161,7 @@ Future<void> main() async {
     });
 
     test(
-      'outcome evidence fixture closes beacon and emits ledger rows',
+      'witness admission gates Tier B network-outcome band rows per ego',
       () async {
         await evalRepo.submitEvaluationAtomic(
           beaconId: _beaconId,
@@ -114,19 +179,126 @@ Future<void> main() async {
         );
         expect(closeResult.didClose, isTrue);
 
-        final ledgerRows = await writer.execute(
-          "SELECT count(*)::int FROM public.person_capability_event "
-          "WHERE observer_user_id = '$_bob' "
-          "AND subject_user_id = '$_carol' "
-          "AND tag_slug = '$_tag' "
-          'AND source_type = 3 '
-          'AND deleted_at IS NULL',
+        final aliceCandidates = await bandCandidateRepo.candidatesFor(
+          egoId: _alice,
+          beaconId: _beaconId,
+          normalizedContext: _ctx,
         );
-        expect(ledgerRows.single.single! as int, greaterThan(0));
+        final eveCandidates = await bandCandidateRepo.candidatesFor(
+          egoId: _eve,
+          beaconId: _beaconId,
+          normalizedContext: _ctx,
+        );
+        final aliceCarol = aliceCandidates
+            .where((candidate) => candidate.userId == _carol)
+            .toList();
+        final eveCarol =
+            eveCandidates.where((candidate) => candidate.userId == _carol);
+        expect(aliceCarol, hasLength(1));
+        expect(eveCarol, hasLength(1));
+        expect(aliceCarol.single.canForwardTo, isTrue);
+        expect(eveCarol.single.canForwardTo, isTrue);
+        expect(aliceCarol.single.forwardMr, greaterThan(0));
+        expect(eveCarol.single.forwardMr, greaterThan(0));
+
+        final aliceWindow = await _loadWitnessWindow(witnessWindowRepo, _alice);
+        final eveWindow = await _loadWitnessWindow(witnessWindowRepo, _eve);
+        final aliceBob = aliceWindow
+            .where((weight) => weight.witnessUserId == _bob)
+            .toList();
+        final eveBob =
+            eveWindow.where((weight) => weight.witnessUserId == _bob).toList();
+        expect(aliceBob, hasLength(1));
+        expect(aliceBob.single.admitted, isTrue);
+        expect(
+          eveBob.isEmpty || !eveBob.single.admitted,
+          isTrue,
+          reason: 'Eve must not admit Bob as witness',
+        );
+
+        final aliceBand = await forwardBandCase.composeBand(
+          egoId: _alice,
+          beaconId: _beaconId,
+          normalizedContext: _ctx,
+        );
+        final aliceCarolRow = aliceBand
+            .where((row) => row.userId == _carol && !row.isExploration)
+            .toList();
+        expect(aliceCarolRow, hasLength(1));
+        expect(aliceCarolRow.single.rowTier, ProjectionTier.networkOutcome);
+        expect(
+          aliceCarolRow.single.labels.any(
+            (label) =>
+                label.tagSlug == _tag &&
+                label.tier == ProjectionTier.networkOutcome,
+          ),
+          isTrue,
+        );
+
+        final eveBand = await forwardBandCase.composeBand(
+          egoId: _eve,
+          beaconId: _beaconId,
+          normalizedContext: _ctx,
+        );
+        expect(
+          eveBand.any(
+            (row) =>
+                row.userId == _carol &&
+                row.rowTier == ProjectionTier.networkOutcome,
+          ),
+          isFalse,
+        );
+
+        await routingMuteRepo.setMute(
+          userId: _carol,
+          tagSlug: _tag,
+          muted: true,
+        );
+
+        final aliceBandAfterMute = await forwardBandCase.composeBand(
+          egoId: _alice,
+          beaconId: _beaconId,
+          normalizedContext: _ctx,
+        );
+        expect(
+          aliceBandAfterMute.any(
+            (row) =>
+                row.userId == _carol &&
+                row.rowTier == ProjectionTier.networkOutcome &&
+                row.labels.any((label) => label.tagSlug == _tag),
+          ),
+          isFalse,
+        );
       },
       skip: skipReason,
     );
   });
+}
+
+Future<List<WitnessWeight>> _loadWitnessWindow(
+  WitnessWindowRepository repo,
+  String egoId,
+) async {
+  final cached = await repo.cachedWindow(
+    egoId: egoId,
+    normalizedContext: _ctx,
+  );
+  if (cached.isNotEmpty) {
+    return cached;
+  }
+
+  final facts = await repo.rawWindowFacts(
+    egoId: egoId,
+    normalizedContext: _ctx,
+    topK: kCapWitnessWindowK,
+  );
+  final weights = computeWitnessWeights(facts);
+  await repo.storeWindow(
+    egoId: egoId,
+    normalizedContext: _ctx,
+    weights: weights,
+  );
+  return weights;
 }
 
 Future<void> _seedTrustGraph(
