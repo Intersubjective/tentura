@@ -601,3 +601,24 @@ FINDINGS:
   this proof and left unchanged per narrow remediation scope.
 REMAINING: UNIT 07 forward linearization, GraphQL/Hasura read parity, and
 concurrency proof; manager acceptance not recorded here.
+
+## UNIT 07A cleanupExpired remediation — complete — 2026-08-13
+
+COMMITS: `2b4de380d` fix(server): bind cleanupExpired calendar dates
+TESTS:
+- `(cd packages/server && dart test -t pg test/data/repository/user_availability_repository_pg_test.dart)` → 5 passed
+- `./scripts/check-custom-lints.sh packages/server` → pass (custom-rule total 0)
+- `git diff --check` → clean
+FILES:
+- `packages/server/lib/data/repository/user_availability_repository.dart`
+- `packages/server/test/data/repository/user_availability_repository_pg_test.dart`
+FINDINGS:
+- `cleanupExpired` still passed `PgDate` to Drift Postgres `customStatement`,
+  reproducing the same unsupported-bind failure as the prior `pause` defect.
+- Fixed by binding strict UTC `YYYY-MM-DD` strings with `$1::date`, matching
+  `pause` and retaining the asserted UTC calendar-date contract.
+- Disposable-PG regression proves expiry cleanup deletes pause-only rows with
+  `resume_on <= today` and clears expired `resume_on` on limited rows while
+  leaving future pause-only rows intact.
+REMAINING: UNIT 07 forward linearization, GraphQL/Hasura read parity, and
+concurrency proof; manager acceptance not recorded here.
