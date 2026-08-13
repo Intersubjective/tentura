@@ -7240,3 +7240,81 @@ observable locally; no signal exposes an identifiable user pair."
 No defects found requiring remediation. G1b accepted as-is. Proceeding
 to G1c (window coverage, floor margin, eligible-witness coverage).
 
+## CRITICAL FINDING during G1c prep — witness window never populated in production — 2026-08-13
+
+Before writing a G1c telemetry prompt, I grounded myself in
+`witness_window_repository.dart`/`capability_projection_case.dart` to
+scope the "window coverage" signal precisely. That investigation
+surfaced a production-functionality gap unrelated to telemetry:
+
+**`WitnessWindowPort.storeWindow()` — the only method that writes rows
+into `ego_witness_window` — has zero callers anywhere in
+`packages/server/lib`.** Verified via `grep -rn "storeWindow" ...`
+across the whole server lib tree: the only occurrences are the method's
+own definition/interface. `task_worker_case.dart` wires
+`gcStaleWindows()` (deletes stale rows) and `bumpMrEpoch()`/
+`invalidateFor()` are called from `meritrank_case.dart`,
+`trust_maintenance_case.dart`, `user_block_case.dart`, and
+`user_trust_edge_case.dart` — but every one of these is a
+deletion/invalidation call, never a compute-and-store call.
+
+Consequence, traced through `CapabilityProjectionCase.project()`
+(`capability_projection_case.dart:52`): `cachedWindow()` is a pure read
+against `ego_witness_window` with no fallback. Since nothing ever
+writes to that table, `cachedWindow()` always returns `[]`,
+`admittedWitnesses`/`eligibleWitnesses` are always `[]`, and
+`_cellPort.fetchCells(..., admittedWitnesses: eligibleWitnesses)` is
+therefore always called with an empty witness list — D15's "eligibility
+gates the summation itself" means this yields **zero network-derived
+cells for every ego, always**. Tier B (network-outcome, "Seen helping
+with") and Tier C (network-seed, "Suggested for") can never render for
+anyone in production. Only Tier A (own evidence) works. This affects
+already-accepted units D1, D2, D3, E1a, and the whole F1-F6 client
+surface, none of which are individually wrong — the gap is a missing
+piece none of them owned.
+
+**Root-caused the correct fix** by rereading architecture §15 (Caching
+and invalidation): the `ego_witness_window` row lists TTL "15 min +
+epoch" and invalidation triggers, and the section's closing paragraph
+states "Evidence writes bust nothing but their own cell, because
+projection is computed on demand... the only genuinely cached artifact
+is the witness window" — read-through is the stated design, matching
+the Cells row's explicit "read-through rebuild on stale generation or
+expiry." A *periodic population sweep* (which I first assumed, by
+analogy to D3's cell-expiry sweep) is actually the WRONG shape here:
+`ego_witness_window`'s primary key includes `context`, an arbitrary
+per-request string (beacon-need-scoped), not a fixed enumerable
+dimension like "all users" — there is no way to usefully "sweep all
+(ego, context) pairs" since contexts aren't known in advance. The
+correct fix is a **read-through compute-on-miss** inside
+`CapabilityProjectionCase.project()` itself: when `cachedWindow()`
+returns empty, call `rawWindowFacts()` + the already-pure
+`computeWitnessWeights()` policy function + `storeWindow()`, then use
+the freshly computed weights for the current request. No new port
+dependency is needed — `CapabilityProjectionCase` already depends on
+the full `WitnessWindowPort` interface and currently only calls one of
+its five methods.
+
+**Known edge case to flag for the remediation worker:** a genuinely
+windowless ego (zero visible peers) would call `storeWindow` with an
+empty weights list, insert zero rows, and therefore look identical to
+"never computed" on the next request — triggering live recomputation
+every request forever for that ego, unless a "computed but empty"
+marker is added. Given invite-only signup guarantees every organic ego
+a vouch (per architecture §5.2.1), this should be a rare case in
+practice; left to the remediation worker's judgment whether to add a
+sentinel marker or accept the (rare-case) inefficiency, with the choice
+documented.
+
+**Escalated to the user** rather than silently fixing or silently
+noting as out-of-scope debt, given the severity (core feature
+non-functional for the network-evidence half) and that fixing it means
+creating a new unit not in the plan's manifest. User's explicit choice
+(via AskUserQuestion): **"New remediation unit now"** — pause G1c,
+build the missing read-through pipeline first, resume G1c/G1d/G2/G3
+afterward.
+
+STATUS: dispatching a fresh unit for this fix now (unlettered — not
+part of the original plan manifest, tracked as a plan amendment). Will
+resume G1c once accepted.
+
