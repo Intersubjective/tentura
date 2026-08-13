@@ -17,5 +17,9 @@ query MutualFriendsFetch($id: String!) {
       status
       last_seen_at
     }
+    user_availability {
+      is_limited
+      resume_on
+    }
   }
 }

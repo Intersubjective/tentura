@@ -34,6 +34,10 @@ query HelpOffersWithCoordination($beaconId: String!) {
         last_seen_at
         status
       }
+      user_availability {
+        is_limited
+        resume_on
+      }
     }
   }
 }

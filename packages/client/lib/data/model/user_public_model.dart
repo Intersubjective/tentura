@@ -1,9 +1,11 @@
 import 'package:tentura/domain/contacts/contact_name_overlay.dart';
+import 'package:tentura/domain/entity/availability.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura_root/domain/enums.dart';
 
 import '../gql/_g/user_public_model.data.gql.dart';
 import 'image_model_v2.dart';
+import 'user_model.dart';
 
 extension type const UserPublicModel(GUserPublicModel i)
     implements GUserPublicModel {
@@ -15,6 +17,7 @@ extension type const UserPublicModel(GUserPublicModel i)
       presenceStatus = _userPresenceStatusFromSmallint(p.status);
       presenceLastSeenAt = DateTime.tryParse(p.last_seen_at);
     }
+    final availabilityWire = i.user_availability;
     return Profile(
       id: i.id,
       displayName: i.displayName,
@@ -29,6 +32,12 @@ extension type const UserPublicModel(GUserPublicModel i)
       rScore: i.scores?.firstOrNull?.src_score ?? 0,
       presenceStatus: presenceStatus,
       presenceLastSeenAt: presenceLastSeenAt,
+      availability: availabilityWire == null
+          ? Availability.open()
+          : availabilityFromV2Wire(
+              isLimited: availabilityWire.is_limited,
+              resumeOn: availabilityWire.resume_on,
+            ),
     );
   }
 }

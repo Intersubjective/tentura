@@ -1,8 +1,10 @@
 import 'package:injectable/injectable.dart';
 
 import 'package:tentura/data/model/image_model_v2.dart';
+import 'package:tentura/data/model/user_model.dart';
 import 'package:tentura/data/service/remote_api_service.dart';
 import 'package:tentura/domain/contacts/contact_name_overlay.dart';
+import 'package:tentura/domain/entity/availability.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 import 'package:tentura_root/domain/enums.dart';
@@ -256,6 +258,12 @@ Profile _profileFromHelpOfferUser(
     isMutualFriend: user.is_mutual_friend,
     presenceStatus: presenceStatus,
     presenceLastSeenAt: presenceLastSeenAt,
+    availability: user.user_availability == null
+        ? Availability.open()
+        : availabilityFromV2Wire(
+            isLimited: user.user_availability!.is_limited,
+            resumeOn: user.user_availability!.resume_on,
+          ),
   );
 }
 

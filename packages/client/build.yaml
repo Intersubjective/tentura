@@ -34,6 +34,9 @@ targets:
           output_dir: "_g"
 
           type_overrides:
+            date:
+              name: DateTime
+
             Date:
               name: DateTime
 
@@ -66,6 +69,9 @@ targets:
           output_dir: "_g"
 
           type_overrides:
+            date:
+              name: DateTime
+
             Date:
               name: DateTime
 
@@ -103,3 +109,6 @@ targets:
 
             - import: "package:tentura/data/gql/smallint_serializer.dart"
               name: SmallintSerializer
+
+            - import: "package:tentura/data/gql/calendar_date_serializer.dart"
+              name: CalendarDateSerializer

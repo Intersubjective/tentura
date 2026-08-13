@@ -20,4 +20,8 @@ fragment UserPublicModel on v2_user {
     last_seen_at
     status
   }
+  user_availability {
+    is_limited
+    resume_on
+  }
 }

@@ -1,7 +1,9 @@
 import 'package:injectable/injectable.dart';
 
+import 'package:tentura/data/model/user_model.dart';
 import 'package:tentura/data/service/remote_api_service.dart';
 import 'package:tentura/domain/contacts/contact_name_overlay.dart';
+import 'package:tentura/domain/entity/availability.dart';
 import 'package:tentura/domain/entity/image_entity.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura_root/domain/enums.dart';
@@ -59,6 +61,12 @@ class MutualFriendsRepository {
               isMutualFriend: e.is_mutual_friend,
               presenceStatus: presenceStatus,
               presenceLastSeenAt: presenceLastSeenAt,
+              availability: e.user_availability == null
+                  ? Availability.open()
+                  : availabilityFromV2Wire(
+                      isLimited: e.user_availability!.is_limited,
+                      resumeOn: e.user_availability!.resume_on,
+                    ),
             );
           },
         ).toList();

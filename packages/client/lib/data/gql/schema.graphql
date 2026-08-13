@@ -2684,6 +2684,23 @@ enum cursor_ordering {
   DESC
 }
 
+scalar date
+
+"""
+Boolean expression to compare columns of type "date". All fields are combined with logical 'AND'.
+"""
+input date_comparison_exp {
+  _eq: date
+  _gt: date
+  _gte: date
+  _in: [date!]
+  _is_null: Boolean
+  _lt: date
+  _lte: date
+  _neq: date
+  _nin: [date!]
+}
+
 """
 columns and relationships of "edge"
 """
@@ -3351,7 +3368,7 @@ type mutation_root {
   beaconDeleteById(id: String!): Boolean!
   beaconExtendReview(id: String!): v2_BeaconExtendReviewResult!
   beaconFork(id: String!): v2_Beacon!
-  beaconForward(attributionParentEdgeIds: [String!], context: String, id: String!, note: String, parentEdgeId: String, perRecipientNotes: String, reasons: [String!], recipientBandProvenance: [v2_ForwardRecipientBandProvenanceInput], recipientIds: [String!], recipientReasons: [v2_ForwardRecipientReasonInput]): String!
+  beaconForward(attributionParentEdgeIds: [String!], context: String, id: String!, note: String, parentEdgeId: String, perRecipientNotes: String, reasons: [String!], recipientBandProvenance: [v2_ForwardRecipientBandProvenanceInput], recipientIds: [String!], recipientReasons: [v2_ForwardRecipientReasonInput]): v2_ForwardDeliveryResult!
   beaconForwardCancel(id: String!): Boolean!
   beaconForwardUpdate(id: String!, note: String, reasons: [String!]): Boolean!
   beaconMuteClear(beaconId: String!): Boolean!
@@ -3371,11 +3388,6 @@ type mutation_root {
   cancelPromise(itemId: String!, reason: String): v2_CoordinationItemRow!
   capabilityPrivateLabelSet(slugs: [String!], subjectUserId: String!): Boolean!
   capabilitySetViewerVisible(slugs: [String!], subjectUserId: String!): Boolean!
-  inviteSeedPromptAnswer(subjectId: String!, slugs: [String!]): Boolean!
-  inviteSeedPromptSkip(subjectId: String!): Boolean!
-  revokeAcknowledgement(beaconId: String!, subjectId: String!, slug: String!): Boolean!
-  seedRoutingAttestation(subjectId: String!, slugs: [String!]): Boolean!
-  setRoutingMute(slug: String!, muted: Boolean!): Boolean!
   complaintCreate(details: String!, email: String!, id: String!, type: String!): Boolean!
   contactDelete(subjectUserId: String!): Boolean!
   contactSet(contactName: String!, subjectUserId: String!): Boolean!
@@ -3572,6 +3584,8 @@ type mutation_root {
   invitationCreate(addresseeName: String!, beaconId: String): v2_Invitation!
   invitationDelete(id: String!): Boolean!
   invitationUpdate(addresseeName: String!, id: String!): v2_Invitation!
+  inviteSeedPromptAnswer(slugs: [String!], subjectId: String!): Boolean!
+  inviteSeedPromptSkip(subjectId: String!): Boolean!
   markAsk(beaconId: String!, body: String, linkedMessageId: String, staleAfterDays: Int, targetPersonId: String!, title: String!): v2_CoordinationItemRow!
   markBeaconItemsSeen(beaconId: String!): v2_BeaconItemsSeenResult!
   markBlocker(beaconId: String!, body: String, linkedMessageId: String, staleAfterDays: Int, targetPersonId: String, title: String!): v2_CoordinationItemRow!
@@ -3591,8 +3605,11 @@ type mutation_root {
   resolveBlocker(itemId: String!, note: String): v2_CoordinationItemRow!
   resolvePlanStep(itemId: String!): v2_CoordinationItemRow!
   resolvePromise(itemId: String!, note: String): v2_CoordinationItemRow!
+  revokeAcknowledgement(beaconId: String!, slug: String!, subjectId: String!): Boolean!
+  seedRoutingAttestation(slugs: [String!], subjectId: String!): Boolean!
   setBeaconStatus(id: String!, status: Int!): v2_BeaconStatusResult!
   setCoordinationResponse(id: String!, inviteToRoom: Boolean! = false, offerUserId: String!, removeFromRoom: Boolean! = false, responseType: Int!): v2_BeaconStatusResult!
+  setRoutingMute(muted: Boolean!, slug: String!): Boolean!
   signIn(authRequestToken: String!): v2_AuthResponse!
   signOut: Boolean!
   signUp(authRequestToken: String!, displayName: String!, handle: String): v2_AuthResponse!
@@ -3705,6 +3722,9 @@ type mutation_root {
     """updates to execute, in order"""
     updates: [vote_beacon_updates!]!
   ): [vote_beacon_mutation_response]
+  userAvailabilityPause(resumeOn: String!): Boolean!
+  userAvailabilityResume: Boolean!
+  userAvailabilitySetLimited(isLimited: Boolean!): Boolean!
   userBlock(cascadeMode: Int, objectId: String!): Boolean!
   userBlockPromote(objectId: String!): Boolean!
   userDelete: Boolean!
@@ -4263,7 +4283,6 @@ type query_root {
   beaconEligibleInboundForwards(id: String!): [v2_ForwardInboundEdge!]
   beaconForwardGraph(id: String!): v2_ForwardGraphResult!
   beaconHelpOffererForwardPath(helpOffererId: String!, id: String!): v2_ForwardGraphResult!
-  forwardContext(beaconId: String!, context: String): [v2_ForwardBandRow!]
   beaconInvolvement(id: String!): v2_BeaconInvolvement!
   beaconLineageForwardSuggestions(id: String!): v2_BeaconLineageForwardSuggestions!
 
@@ -4558,6 +4577,7 @@ type query_root {
   evaluationReceived(id: String!): v2_EvaluationReceived!
   evaluationSummary(id: String!): v2_EvaluationSummary!
   evaluationsWrittenAboutMeBy(id: String!): [v2_EvaluationsWrittenAboutViewerRow!]
+  forwardContext(beaconId: String!, context: String): [v2_v2_ForwardBandRow!]
   forwardReasonsByBeacon(id: String!): [v2_v2_ForwardReasonRow!]
 
   """
@@ -4704,7 +4724,7 @@ type query_root {
   inviteGenealogyBetween(target_id: String!): v2_InviteGenealogy
   inviteGenealogyChildCounts(node_keys: [String!]): [v2_InviteGenealogyChildCount!]!
   inviteGenealogyChildren(after_created_at: String, after_node_key: String, limit: Int, node_key: String!): v2_InviteGenealogyChildrenPage
-  inviteSeedPromptState(subjectId: String!): v2_InviteSeedPromptState!
+  inviteSeedPromptState(subjectId: String!): v2_v2_InviteSeedPromptState!
   mutualFriends(id: String!): [v2_user!]
 
   """
@@ -4786,8 +4806,6 @@ type query_root {
   personCapabilityCues(subjectUserId: String!): v2_v2_PersonCapabilityCuesPayload!
   personFriendContextBatch(subjectUserIds: [String!]): [v2_v2_PersonFriendContext!]
   personTopCapabilitiesBatch(limit: Int, prioritizeSlugs: [String!], subjectUserIds: [String!]): [v2_v2_PersonTopCapabilities!]
-  subjectiveTags(targetId: String!): [v2_TagProjection!]
-  tagExplanation(targetId: String!, slug: String!): String
 
   """
   fetch data from the table: "polling"
@@ -4885,6 +4903,8 @@ type query_root {
   reviewWindowStatus(id: String!): v2_ReviewWindowStatus!
   reviewWindowStatuses(beaconIds: [String!]): [v2_ReviewWindowStatus!]
   roomMessageTarget(beaconId: String!, messageId: String!): v2_RoomMessageRow
+  subjectiveTags(targetId: String!): [v2_v2_TagProjection!]
+  tagExplanation(slug: String!, targetId: String!): String
 
   """
   fetch data from the table: "user"
@@ -4905,6 +4925,31 @@ type query_root {
     """filter the rows returned"""
     where: user_bool_exp
   ): [user!]!
+
+  """
+  fetch data from the table: "user_availability"
+  """
+  user_availability(
+    """distinct select on columns"""
+    distinct_on: [user_availability_select_column!]
+
+    """limit the number of rows returned"""
+    limit: Int
+
+    """skip the first n rows. Use only with order_by"""
+    offset: Int
+
+    """sort the rows by one or more columns"""
+    order_by: [user_availability_order_by!]
+
+    """filter the rows returned"""
+    where: user_availability_bool_exp
+  ): [user_availability!]!
+
+  """
+  fetch data from the table: "user_availability" using primary key columns
+  """
+  user_availability_by_pk(user_id: String!): user_availability
 
   """fetch data from the table: "user" using primary key columns"""
   user_by_pk(id: String!): user
@@ -5982,6 +6027,45 @@ type subscription_root {
     where: user_bool_exp
   ): [user!]!
 
+  """
+  fetch data from the table: "user_availability"
+  """
+  user_availability(
+    """distinct select on columns"""
+    distinct_on: [user_availability_select_column!]
+
+    """limit the number of rows returned"""
+    limit: Int
+
+    """skip the first n rows. Use only with order_by"""
+    offset: Int
+
+    """sort the rows by one or more columns"""
+    order_by: [user_availability_order_by!]
+
+    """filter the rows returned"""
+    where: user_availability_bool_exp
+  ): [user_availability!]!
+
+  """
+  fetch data from the table: "user_availability" using primary key columns
+  """
+  user_availability_by_pk(user_id: String!): user_availability
+
+  """
+  fetch data from the table in a streaming manner: "user_availability"
+  """
+  user_availability_stream(
+    """maximum number of rows returned in a single batch"""
+    batch_size: Int!
+
+    """cursor to stream the results returned by the query"""
+    cursor: [user_availability_stream_cursor_input]!
+
+    """filter the rows returned"""
+    where: user_availability_bool_exp
+  ): [user_availability!]!
+
   """fetch data from the table: "user" using primary key columns"""
   user_by_pk(id: String!): user
 
@@ -6275,6 +6359,9 @@ type user {
   updated_at: timestamptz!
 
   """An object relationship"""
+  user_availability: user_availability
+
+  """An object relationship"""
   user_presence: user_presence
 
   """An array relationship"""
@@ -6333,6 +6420,77 @@ type user {
 }
 
 """
+columns and relationships of "user_availability"
+"""
+type user_availability {
+  """
+  A computed field, executes function "user_availability_hidden_for_viewer"
+  """
+  hidden_for_viewer: Boolean
+  is_limited: Boolean!
+  resume_on: date
+
+  """An object relationship"""
+  user: user!
+  user_id: String!
+}
+
+"""
+Boolean expression to filter rows from the table "user_availability". All fields are combined with a logical 'AND'.
+"""
+input user_availability_bool_exp {
+  _and: [user_availability_bool_exp!]
+  _not: user_availability_bool_exp
+  _or: [user_availability_bool_exp!]
+  hidden_for_viewer: Boolean_comparison_exp
+  is_limited: Boolean_comparison_exp
+  resume_on: date_comparison_exp
+  user: user_bool_exp
+  user_id: String_comparison_exp
+}
+
+"""Ordering options when selecting data from "user_availability"."""
+input user_availability_order_by {
+  hidden_for_viewer: order_by
+  is_limited: order_by
+  resume_on: order_by
+  user: user_order_by
+  user_id: order_by
+}
+
+"""
+select columns of table "user_availability"
+"""
+enum user_availability_select_column {
+  """column name"""
+  is_limited
+
+  """column name"""
+  resume_on
+
+  """column name"""
+  user_id
+}
+
+"""
+Streaming cursor of the table "user_availability"
+"""
+input user_availability_stream_cursor_input {
+  """Stream column input with initial value"""
+  initial_value: user_availability_stream_cursor_value_input!
+
+  """cursor ordering"""
+  ordering: cursor_ordering
+}
+
+"""Initial value of the column from where the streaming should start"""
+input user_availability_stream_cursor_value_input {
+  is_limited: Boolean
+  resume_on: date
+  user_id: String
+}
+
+"""
 Boolean expression to filter rows from the table "user". All fields are combined with a logical 'AND'.
 """
 input user_bool_exp {
@@ -6356,6 +6514,7 @@ input user_bool_exp {
   scores: mutual_score_bool_exp
   trusts_viewer: Boolean_comparison_exp
   updated_at: timestamptz_comparison_exp
+  user_availability: user_availability_bool_exp
   user_presence: user_presence_bool_exp
   voteUsersBySubject: vote_user_bool_exp
   vote_beacons: vote_beacon_bool_exp
@@ -6479,6 +6638,7 @@ input user_order_by {
   scores_aggregate: mutual_score_aggregate_order_by
   trusts_viewer: order_by
   updated_at: order_by
+  user_availability: user_availability_order_by
   user_presence: user_presence_order_by
   voteUsersBySubject_aggregate: vote_user_aggregate_order_by
   vote_beacons_aggregate: vote_beacon_aggregate_order_by
@@ -6973,6 +7133,12 @@ type v2_FcmTestSendResult {
   sent: Int!
 }
 
+type v2_ForwardDeliveryResult {
+  availabilitySkippedRecipientIds: [String!]!
+  batchId: String!
+  deliveredRecipientIds: [String!]!
+}
+
 type v2_ForwardGraphEdge {
   batchId: String
   beaconId: String!
@@ -6996,14 +7162,6 @@ type v2_ForwardInboundEdge {
   isSuggestedSource: Boolean!
   senderId: String!
   senderName: String!
-}
-
-type v2_ForwardBandRow {
-  isExploration: Boolean!
-  labels: [v2_TagProjection!]!
-  rank: Int!
-  rowTier: String
-  userId: String!
 }
 
 input v2_ForwardRecipientBandProvenanceInput {
@@ -7110,12 +7268,6 @@ type v2_InviteGenealogyNode {
   node_key: String!
   user: v2_user
   user_created_at: String
-}
-
-type v2_InviteSeedPromptState {
-  inviterUserId: String!
-  inviteeUserId: String!
-  state: String!
 }
 
 type v2_mutual_score {
@@ -7237,12 +7389,18 @@ type v2_user {
   my_vote: Int
   scores: [v2_mutual_score!]
   trusts_viewer: Boolean!
+  user_availability: v2_user_availability
   user_presence: v2_user_presence
 }
 
 type v2_User {
   handle: String
   id: String!
+}
+
+type v2_user_availability {
+  is_limited: Boolean!
+  resume_on: String
 }
 
 type v2_user_presence {
@@ -7268,10 +7426,24 @@ type v2_v2_CapabilityForViewer {
   slug: String!
 }
 
+type v2_v2_ForwardBandRow {
+  isExploration: Boolean!
+  labels: [v2_v2_TagProjection!]!
+  rank: Int!
+  rowTier: String
+  userId: String!
+}
+
 type v2_v2_ForwardReasonRow {
   recipientId: String!
   senderId: String!
   slugs: [String!]
+}
+
+type v2_v2_InviteSeedPromptState {
+  inviteeUserId: String!
+  inviterUserId: String!
+  state: String!
 }
 
 type v2_v2_PersonCapabilityCuesPayload {
@@ -7294,12 +7466,6 @@ type v2_v2_PersonTopCapabilities {
   subjectId: String!
 }
 
-type v2_TagProjection {
-  subjectUserId: String!
-  tagSlug: String!
-  tier: String!
-}
-
 type v2_v2_TagBeaconRef {
   beaconId: String!
   beaconTitle: String!
@@ -7311,6 +7477,12 @@ type v2_v2_TagCount {
   count: Int!
   lastSeenAt: String!
   slug: String!
+}
+
+type v2_v2_TagProjection {
+  subjectUserId: String!
+  tagSlug: String!
+  tier: String!
 }
 
 """

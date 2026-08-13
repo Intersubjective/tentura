@@ -1,4 +1,5 @@
 import 'package:tentura/domain/contacts/contact_name_overlay.dart';
+import 'package:tentura/domain/entity/availability.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura_root/domain/enums.dart';
 
@@ -28,8 +29,51 @@ extension type const UserModel(GUserModel i) implements GUserModel {
       rScore: i.scores?.firstOrNull?.src_score ?? 0,
       presenceStatus: presenceStatus,
       presenceLastSeenAt: presenceLastSeenAt,
+      availability: availabilityFromHasuraRelationship(i.user_availability),
     );
   }
+}
+
+Availability availabilityFromHasuraRelationship(
+  GUserModel_user_availability? relationship,
+) {
+  if (relationship == null) {
+    return Availability.open();
+  }
+  return Availability(
+    isLimited: relationship.is_limited,
+    resumeOn: relationship.resume_on,
+  );
+}
+
+Availability availabilityFromV2Wire({
+  required bool? isLimited,
+  String? resumeOn,
+}) {
+  if (isLimited == null) {
+    return Availability.open();
+  }
+  return Availability(
+    isLimited: isLimited,
+    resumeOn: parseStrictUtcCalendarDateString(resumeOn),
+  );
+}
+
+DateTime? parseStrictUtcCalendarDateString(String? wire) {
+  if (wire == null) {
+    return null;
+  }
+  final match = RegExp(r'^(?<y>\d{4})-(?<m>\d{2})-(?<d>\d{2})$').firstMatch(wire);
+  if (match == null) {
+    throw FormatException(
+      'parseStrictUtcCalendarDateString: expected YYYY-MM-DD, got $wire',
+    );
+  }
+  return DateTime.utc(
+    int.parse(match.namedGroup('y')!),
+    int.parse(match.namedGroup('m')!),
+    int.parse(match.namedGroup('d')!),
+  );
 }
 
 UserPresenceStatus _userPresenceStatusFromSmallint(int value) =>

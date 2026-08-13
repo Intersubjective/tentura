@@ -21,5 +21,9 @@ mutation ForwardBeacon(
     reasons: $reasons,
     recipientReasons: $recipientReasons,
     recipientBandProvenance: $recipientBandProvenance
-  )
+  ) {
+    batchId
+    deliveredRecipientIds
+    availabilitySkippedRecipientIds
+  }
 }

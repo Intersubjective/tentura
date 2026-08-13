@@ -166,7 +166,7 @@ class ForwardRepository {
       )
       .firstWhere((e) => e.dataSource == DataSource.Link)
       .then((r) {
-        final id = r.dataOrThrow(label: _label).beaconForward;
+        final id = r.dataOrThrow(label: _label).beaconForward!.batchId;
         if (!_forwardChangesController.isClosed) {
           _forwardChangesController.add(beaconId);
         }
