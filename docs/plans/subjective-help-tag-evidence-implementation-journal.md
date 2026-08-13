@@ -7318,3 +7318,52 @@ STATUS: dispatching a fresh unit for this fix now (unlettered — not
 part of the original plan manifest, tracked as a plan amendment). Will
 resume G1c once accepted.
 
+## Witness window read-through fix — checkpoint — 2026-08-13
+
+STATUS: core read-through implemented in `CapabilityProjectionCase._loadWitnessWindow()`; end-to-end cache-miss test added; mock fallout fixed in `model_world.dart` and `query_capability_projection_test.dart`.
+
+COMMITS: (pending — see final entry)
+
+TESTS:
+- `cd packages/server && dart analyze lib/domain/use_case/capability_projection_case.dart test/domain/use_case/capability_projection_case_test.dart` → 0 errors (info only)
+- `cd packages/server && dart test -x pg test/domain/use_case/capability_projection_case_test.dart` (×3) → 11/11 pass each run (includes new read-through test)
+- `cd packages/server && dart test -x pg` → 1446/1446 pass after `model_world`/`query_capability_projection` stub updates
+
+FILES:
+- `packages/server/lib/domain/use_case/capability_projection_case.dart`
+- `packages/server/test/domain/use_case/capability_projection_case_test.dart`
+- `packages/server/test/domain/capability/model_world.dart`
+- `packages/server/test/api/controllers/graphql/query_capability_projection_test.dart`
+
+FINDINGS:
+- Re-verified bug: `grep storeWindow packages/server/lib` → only port + repository definitions; `cachedWindow` caller is `CapabilityProjectionCase` only.
+- Edge-case resolution **(b)**: accept per-request recomputation when an ego genuinely has zero visible peers (`storeWindow([])` inserts no rows; next request still sees cache miss). Chosen over a sentinel/marker because architecture §5.2.1 invite-only signup guarantees organic egos a vouch from their inviter, making zero-peer windows rare (bootstrap/admin/seed only); no schema migration warranted.
+- `capability_projection_case_test.dart` had no tests stubbing `cachedWindow` to `const []` (Sybil/D15 tests use non-empty windows with `admitted: false`, so fast path unchanged); fallout was in shared fixtures (`model_world.dart`, GraphQL resolver test setUp) instead.
+
+REMAINING: journal final entry + focused commits; resume G1c telemetry unit.
+
+## Witness window read-through fix — complete — 2026-08-13
+
+COMMITS: fix(server): read-through witness window on cache miss in projection (`444895150`); test(server): stub witness window read-through in shared test fixtures (`86c47ee59`); docs: witness window read-through remediation journal (`pending`)
+
+TESTS:
+- `cd packages/server && dart analyze` on changed paths → 0 new errors
+- `cd packages/server && dart test -x pg test/domain/use_case/capability_projection_case_test.dart` (×3) → 11/11 pass each run
+- `cd packages/server && dart test -x pg` → 1446/1446 pass
+- `bash scripts/check-user-facing-terminology.sh` → ok
+- `./scripts/check-custom-lints.sh packages/server` → total 0 (baseline 0)
+- `git diff --check` → clean
+
+FILES:
+- `packages/server/lib/domain/use_case/capability_projection_case.dart` — `_loadWitnessWindow()` read-through: `cachedWindow` → on miss `rawWindowFacts` + `computeWitnessWeights` + `storeWindow`
+- `packages/server/test/domain/use_case/capability_projection_case_test.dart` — cache-miss end-to-end test proving Tier B projection on first request
+- `packages/server/test/domain/capability/model_world.dart` — stub `rawWindowFacts`/`storeWindow` for empty-cache model scenarios
+- `packages/server/test/api/controllers/graphql/query_capability_projection_test.dart` — setUp stubs for read-through miss path
+- `docs/plans/subjective-help-tag-evidence-implementation-journal.md` — this entry
+
+FINDINGS:
+- Production gap closed: network-derived (Tier B/C) evidence now renders on first projection for any ego/context pair; previously `ego_witness_window` was never written so `cachedWindow` always returned `[]`.
+- Edge case **(b)** documented above: zero-peer egos recompute every request within TTL; acceptable given invite-only vouch invariant.
+- No port/signature changes; no periodic sweep (context is per-request, not enumerable — see CRITICAL FINDING entry).
+
+REMAINING: resume G1c telemetry unit (window/floor/eligible-witness coverage).
