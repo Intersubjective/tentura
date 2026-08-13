@@ -30,19 +30,7 @@ void main() {
       expect(myWorkDetailFitsOpsRoom(560, tight: true), isTrue);
     });
 
-    test('fitsFour is false at ~840 viewport body budget (~535px)', () {
-      expect(myWorkFitsFourColumns(535, expanded), isFalse);
-    });
-
-    test('fitsFour needs master + separators + comfortable ops|room pair', () {
-      final master = deskMasterPaneWidth(1329, expanded);
-      final detail = deskDetailBudget(1329, expanded);
-      expect(master, 560);
-      expect(detail, 720);
-      expect(myWorkFitsFourColumns(1329, expanded), isTrue);
-    });
-
-    test('collapsed list at ~1024 viewport body (~720px) fits tight ops|room', () {
+    test('full-width My Work detail at ~1024 viewport fits tight ops|room', () {
       expect(myWorkDetailFitsOpsRoom(720, tight: true), isTrue);
     });
   });

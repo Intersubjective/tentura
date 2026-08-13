@@ -109,7 +109,7 @@ double beaconViewRoomSplitPaneWidth(
   double? availableWidth,
   double minPaneWidth = 360.0,
 }) {
-  const maxPaneWidth = 560.0;
+  const maxPaneWidth = 640.0;
   var effectiveMaxPaneWidth = maxPaneWidth;
   if (availableWidth != null && availableWidth.isFinite) {
     final minOperationalWidth = math.max(
@@ -499,7 +499,7 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
     if (!widget.embeddedAllowRoomSplit) return false;
     if (widget.embeddedRoomCoVisible) {
       if (detailWidth == null) return true;
-      return myWorkDetailFitsOpsRoom(detailWidth, tight: false);
+      return myWorkDetailFitsOpsRoom(detailWidth, tight: true);
     }
     if (!_embeddedRoomOpen) return false;
     if (detailWidth == null) return true;

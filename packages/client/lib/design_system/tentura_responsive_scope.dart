@@ -91,17 +91,17 @@ class TenturaChatColumn extends StatelessWidget {
   }
 }
 
-/// Master list width for expanded master–detail shells (Inbox, My Work).
+/// Master list width for expanded master–detail shells (Inbox).
 double deskMasterPaneWidth(double maxWidth, TenturaTokens tt) =>
     (tt.contentMaxWidth ?? maxWidth / 2).clamp(420.0, 560.0);
 
 /// Minimum usable width for an expanded master–detail detail pane.
 const double kDeskDetailMinWidth = 360.0;
 
-/// Comfortable ops + room pair (standalone / four-column detail).
+/// Comfortable ops + room pair (standalone beacon view split).
 const double kDeskOpsRoomMinPair = 720.0;
 
-/// Tight ops + room pair when My Work list is collapsed (embedded).
+/// Tight ops + room pair for embedded My Work detail (full body width).
 const double kDeskOpsRoomMinPairTight = 560.0;
 
 /// Horizontal chrome between expanded master list and detail pane.
@@ -121,12 +121,6 @@ double deskDetailBudget(double bodyWidth, TenturaTokens tt) {
 /// Whether [bodyWidth] can show master list and detail side by side.
 bool deskFitsMasterDetail(double bodyWidth, TenturaTokens tt) =>
     deskDetailBudget(bodyWidth, tt) >= kDeskDetailMinWidth;
-
-/// Whether list + ops + room fit beside the rail at [bodyWidth].
-bool myWorkFitsFourColumns(double bodyWidth, TenturaTokens tt) {
-  final detail = deskDetailBudget(bodyWidth, tt);
-  return myWorkDetailFitsOpsRoom(detail, tight: false);
-}
 
 /// Whether a detail pane can show ops and room side by side.
 bool myWorkDetailFitsOpsRoom(double detailWidth, {required bool tight}) =>

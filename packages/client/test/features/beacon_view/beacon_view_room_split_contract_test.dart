@@ -50,7 +50,7 @@ void main() {
         WindowClass.expanded,
       );
 
-      expect(beaconViewRoomSplitPaneWidth(expanded), 560);
+      expect(beaconViewRoomSplitPaneWidth(expanded), 640);
     });
 
     test('keeps split room pane at a usable floor', () {
