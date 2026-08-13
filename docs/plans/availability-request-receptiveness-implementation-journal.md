@@ -128,7 +128,7 @@ Units are sequential. Check off only after the unit's focused commit and verific
   `docs: start availability implementation journal`
 - [x] **UNIT 01 — Shared calendar/view model and entities** — depends: 00 — commit:
   `feat: add availability domain model`
-- [ ] **UNIT 02 — `m0148`, Drift table, Hasura visibility** — depends: 01 — commit:
+- [x] **UNIT 02 — `m0148`, Drift table, Hasura visibility** — depends: 01 — commit:
   `feat(server): add user availability storage`
 - [ ] **UNIT 03 — Atomic availability repository, use case, janitor** — depends: 02 — commit:
   `feat(server): add availability commands`
@@ -274,3 +274,26 @@ TESTS: independent `dart test test/domain/availability_test.dart` → 11 passed;
 FILES: the eight UNIT 01 source/test paths plus this journal
 FINDINGS: accepted. The literal `@Default(Availability.open())` is not legal Freezed syntax because a factory call is not const; the equivalent const `@Default(Availability())` is necessary and recorded. The server build emits pre-existing injectable warnings, but exits successfully and no generated file was committed.
 REMAINING: UNIT 02 is dependency-ready.
+
+## UNIT 02 — complete — 2026-08-13
+
+COMMITS: `9d42cd20e` feat(server): add user availability storage
+TESTS:
+- `(cd packages/server && dart run build_runner build -d)` → exit 0
+- `(cd packages/server && dart test -t pg test/data/database/m0148_user_availability_migration_test.dart)` → 8 passed
+- `(cd packages/server && dart test -t pg test/data/database/beacon_cover_migration_test.dart)` → 2 passed
+- `./scripts/check-custom-lints.sh packages/server` → pass
+FILES:
+- `packages/server/lib/data/database/migration/m0148.dart`
+- `packages/server/lib/data/database/migration/_migrations.dart`
+- `packages/server/lib/data/database/table/user_availability.dart`
+- `packages/server/lib/data/database/tentura_db.dart`
+- `packages/server/test/data/database/m0148_user_availability_migration_test.dart`
+- `packages/server/test/data/database/beacon_cover_migration_test.dart`
+- `hasura/metadata.json`
+FINDINGS: `relpersistence` from `pg_class` returns `UndecodedBytes` in the postgres
+package; migration tests cast to `::text`. Isolated PG tests use
+`TENTURA_USER_AVAILABILITY_MIGRATION_TEST_DB` (default `tentura_test_uavail_<pid>_<ts>`).
+Local disposable Postgres connection `TimeZone` was `UTC`, satisfying Hasura `now()` parity
+with `(CURRENT_TIMESTAMP AT TIME ZONE 'UTC')::date`.
+REMAINING: none for UNIT 02; UNIT 03 (`feat(server): add availability commands`) is next
