@@ -5,6 +5,7 @@ import 'package:tentura/consts.dart';
 import 'package:tentura/domain/util/display_name_prompt.dart';
 import 'package:tentura_root/domain/enums.dart';
 
+import 'availability.dart';
 import 'image_entity.dart';
 import 'likable.dart';
 import 'scorable.dart';
@@ -33,6 +34,7 @@ abstract class Profile with _$Profile implements Likable, Scorable {
     ImageEntity? image,
     UserPresenceStatus? presenceStatus,
     DateTime? presenceLastSeenAt,
+    @Default(Availability()) Availability availability,
   }) = _Profile;
 
   const Profile._();

@@ -16,3 +16,11 @@ enum ComplaintType {
   violatesPlatformRules,
   accountDeletionRequest,
 }
+
+/// Derived availability view for request-receptiveness. Never stored or used as a
+/// wire/database ordinal.
+enum AvailabilityView {
+  open,
+  limited,
+  paused,
+}
