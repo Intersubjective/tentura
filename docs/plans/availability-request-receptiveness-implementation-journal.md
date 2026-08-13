@@ -385,3 +385,22 @@ FINDINGS: confirmed defect — `_viewerRelativeOverlay` reused the trust/score
 change that status.
 REMAINING: manager acceptance of UNIT 04; UNIT 07 `availability_read_parity_test.dart`
 PostgreSQL/API proof for read-path invariants; UNIT 05+ downstream work unchanged
+
+## Manager review — UNIT 04 accepted — 2026-08-13
+
+COMMITS: `6d6970ac5` feat(server): expose availability in public users; `0f7d02a6c`
+UNIT 04 evidence; `6cf0d7d09` viewer-availability remediation; `5fc7c389e` remediation
+evidence; `4bfece7bc` block-projection assertion.
+TESTS: independent focused suite covering genealogy, public maps, help-offer maps, block GraphQL,
+room admission, and mutual friends → 52 passed; independent server build runner → exit 0 with no
+tracked generated diff; `git diff --check` → clean. The first manager run mistakenly treated the
+non-test support fixture `evaluation_graph_test_repos.dart` as a test file; the actual consuming
+suite compiles it and passed.
+FILES: UNIT 04 source/tests plus the remedial query/fixture paths above and this journal.
+FINDINGS: rejected the worker's first result because it left required-constructor fixtures dirty
+and omitted the viewer from the genealogy availability batch. Remediation added a regression path
+through the actual query and committed every constructor fixture. Manager verification then found
+the `myBlocks` expected map missing its now-required `user_availability: null` field; the focused
+`4bfece7bc` assertion commit fixes it. Protected unrelated work remains untouched.
+REMAINING: UNIT 05 is dependency-ready. UNIT 07 still owns the isolated PostgreSQL/API parity
+proof; no acceptance here substitutes for it.
