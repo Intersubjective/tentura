@@ -219,10 +219,18 @@ owned coherent verified steps locally.
 
 ## UNIT 00 — complete — 2026-08-13
 
-COMMITS: (pending — journal commit follows this entry)
+COMMITS: `77a017913` docs: start availability implementation journal
 TESTS: baseline inspection — `git rev-parse HEAD` → `9c9bcf518e85668023b9afb2e8ce490a6a266c1c`;
 `git branch --show-current` → `main`; migration tail `m0147` (no `m0148`); client `5.12.1`; web
 `flutter_bootstrap.js?v=5.12.1`; `kDefaultMinClientVersion = '5.6.38'` — all match plan §1
 FILES: `docs/plans/availability-request-receptiveness-implementation-journal.md`
 FINDINGS: none — live baseline matches plan §1; no stop-condition triggers
 REMAINING: none for UNIT 00; UNIT 01 is next
+
+## UNIT 00 final evidence — 2026-08-13
+
+COMMITS: `77a017913c60dbb2c2f17f45e9b8d56214e1b033` docs: start availability implementation journal
+TESTS: `git diff --check` → clean (no conflict markers); baseline reconfirmed after commit
+FILES: `docs/plans/availability-request-receptiveness-implementation-journal.md`
+FINDINGS: none
+REMAINING: none — UNIT 01 (`feat: add availability domain model`) is next
