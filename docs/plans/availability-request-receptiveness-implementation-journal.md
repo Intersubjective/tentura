@@ -506,7 +506,7 @@ REMAINING: none for UNIT 06; UNIT 07 is next
 
 ## UNIT 06 remediation — complete — 2026-08-13
 
-COMMITS: `<pending>` fix(server): restore forward active-edge conflict no-throw semantics
+COMMITS: `6b11793fc` fix(server): restore forward active-edge conflict no-throw semantics
 TESTS:
 - `(cd packages/server && dart test test/domain/use_case/forward_case_test.dart test/domain/use_case/forward_case_auth_test.dart)` → 50 passed
 - `(cd packages/server && dart test -t pg test/data/repository/forward_edge_repository_create_batch_dedup_test.dart)` → 2 passed, 1 skipped (shared Postgres lacks `user_availability`)
