@@ -1059,3 +1059,37 @@ FINDINGS:
 - Command-local in-flight flags live on `ProfileCubit` getters; success profile updates
   arrive only via repository `RepositoryEventUpdate` after mutation + own-profile refetch.
 REMAINING: manager acceptance of UNIT 09; UNIT 10 (`feat(client): add availability copy and dates`).
+
+## UNIT 09 final evidence — 2026-08-14
+
+COMMITS: `df00c40a33099474d72fe4208db18329ed13e6dc` feat(client): wire availability
+commands; `54474e78c3fe796f20ac4b8d52a332b83831ae4a` docs: record UNIT 09 client
+availability command evidence
+TESTS:
+- `(cd packages/client && dart run build_runner build -d)` → exit 0
+- `(cd packages/client && flutter test test/data/service/remote_api_client/direct_operation_routing_test.dart test/features/profile/profile_availability_cubit_test.dart test/features/profile/profile_cubit_realtime_test.dart)` → 14 passed
+- `./scripts/check-custom-lints.sh packages/client` → pass (custom-rule total 106, baseline 111)
+- `git diff --check` → clean
+FILES (nominal UNIT 09 ownership):
+- `packages/client/lib/features/profile/data/gql/availability_set_limited.graphql`
+- `packages/client/lib/features/profile/data/gql/availability_pause.graphql`
+- `packages/client/lib/features/profile/data/gql/availability_resume.graphql`
+- `packages/client/lib/data/service/remote_api_client/build_client.dart`
+- `packages/client/lib/features/profile/domain/port/profile_repository_port.dart`
+- `packages/client/lib/features/profile/data/repository/profile_repository.dart`
+- `packages/client/lib/features/profile/ui/bloc/profile_cubit.dart`
+- `packages/client/test/features/profile/profile_availability_cubit_test.dart`
+- `packages/client/test/data/service/remote_api_client/direct_operation_routing_test.dart`
+- `packages/client/test/features/profile/profile_cubit_realtime_test.dart`
+FINDINGS:
+- Incorporated user-authorized candidate work from an independent UI agent after live
+  review; contracts match plan §UNIT 09 (V2 routing, self-only mutations, refetch +
+  `RepositoryEventUpdate`, cubit command-local in-flight/error, no optimistic availability).
+- `df00c40a3` also stages seven compile-only `ProfileRepositoryPort` test fakes outside
+  nominal ownership (`account_case_recover_test.dart`, `graph_person_context_cubit_test.dart`,
+  four `profile_view_*` tests) required after port extension; not claimed as UNIT 09 feature
+  work.
+- `ProfileRepositoryMock` needed no annotation change; Mockito satisfies the extended port.
+- `userAvailabilityPause` wire arg is `String!` (`YYYY-MM-DD`); repository rejects non-UTC
+  midnight `resumeOn` locally via `_utcCalendarDateWire`.
+REMAINING: manager acceptance of UNIT 09; UNIT 10 (`feat(client): add availability copy and dates`).
