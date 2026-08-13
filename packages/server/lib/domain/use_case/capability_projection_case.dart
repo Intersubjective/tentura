@@ -218,7 +218,16 @@ final class CapabilityProjectionCase extends UseCaseBase {
       normalizedContext: normalizedContext,
       topK: kCapWitnessWindowK,
     );
+    final voteListEmpty = facts.trustedScores.isEmpty;
+    final floor = computeFloor(facts.trustedScores);
     final computed = computeWitnessWeights(facts);
+    logger.info(
+      'witness_window_computed ego_window_empty=${computed.isEmpty} '
+      'vote_list_empty=$voteListEmpty',
+    );
+    logger.info(
+      floor == null ? 'witness_floor floor=null' : 'witness_floor floor=$floor',
+    );
     await _witnessWindow.storeWindow(
       egoId: egoId,
       normalizedContext: normalizedContext,

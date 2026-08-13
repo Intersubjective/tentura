@@ -6,6 +6,7 @@ import 'package:test/test.dart';
 import 'package:tentura_server/env.dart';
 import 'package:tentura_server/domain/capability/capability_consts.dart';
 import 'package:tentura_server/domain/capability/capability_evidence_models.dart';
+import 'package:tentura_server/domain/capability/witness_window_policy.dart';
 import 'package:tentura_server/domain/use_case/capability_projection_case.dart';
 
 import 'capability_projection_case_mocks.mocks.dart';
@@ -265,6 +266,188 @@ void main() {
       ).called(1);
     },
   );
+
+  group('witness window telemetry (G1c signal 1)', () {
+    test(
+      'cache miss logs window coverage and floor without user ids',
+      () async {
+        const bob = 'bob';
+        final records = <LogRecord>[];
+        Logger('CapabilityProjectionCaseTest').onRecord.listen(records.add);
+
+        when(
+          witnessWindow.cachedWindow(egoId: ego, normalizedContext: ctx),
+        ).thenAnswer((_) async => const []);
+        when(
+          witnessWindow.rawWindowFacts(
+            egoId: ego,
+            normalizedContext: ctx,
+            topK: kCapWitnessWindowK,
+          ),
+        ).thenAnswer(
+          (_) async => const RawWindowFacts(
+            topPeers: [
+              RawPeerFact(
+                peerId: bob,
+                forwardMr: 1.0,
+                explicitlyTrusted: true,
+              ),
+            ],
+            trustedScores: [1.0],
+          ),
+        );
+        when(
+          witnessWindow.storeWindow(
+            egoId: ego,
+            normalizedContext: ctx,
+            weights: anyNamed('weights'),
+          ),
+        ).thenAnswer((_) async {});
+        when(
+          cellPort.fetchCells(
+            subjectIds: anyNamed('subjectIds'),
+            tagSlugs: anyNamed('tagSlugs'),
+            admittedWitnesses: anyNamed('admittedWitnesses'),
+          ),
+        ).thenAnswer((_) async => const []);
+
+        await case_.project(
+          egoId: ego,
+          subjectIds: [carol],
+          tagSlugs: ['transport'],
+          normalizedContext: ctx,
+          surface: ProjectionSurface.forwardBand,
+        );
+
+        final computed = records
+            .where((r) => r.message.startsWith('witness_window_computed'))
+            .toList();
+        expect(computed, hasLength(1));
+        expect(
+          computed.single.message,
+          'witness_window_computed ego_window_empty=false vote_list_empty=false',
+        );
+        expect(computed.single.message, isNot(contains(ego)));
+        expect(computed.single.message, isNot(contains(bob)));
+
+        final floor = records
+            .where((r) => r.message.startsWith('witness_floor'))
+            .toList();
+        expect(floor, hasLength(1));
+        expect(
+          floor.single.message,
+          'witness_floor floor=${computeFloor([1.0])}',
+        );
+      },
+    );
+
+    test('cache miss with empty trusted list logs vote_list_empty=true', () async {
+      const bob = 'bob';
+      final records = <LogRecord>[];
+      Logger('CapabilityProjectionCaseTest').onRecord.listen(records.add);
+
+      when(
+        witnessWindow.cachedWindow(egoId: ego, normalizedContext: ctx),
+      ).thenAnswer((_) async => const []);
+      when(
+        witnessWindow.rawWindowFacts(
+          egoId: ego,
+          normalizedContext: ctx,
+          topK: kCapWitnessWindowK,
+        ),
+      ).thenAnswer(
+        (_) async => const RawWindowFacts(
+          topPeers: [
+            RawPeerFact(
+              peerId: bob,
+              forwardMr: 0.5,
+              explicitlyTrusted: false,
+            ),
+          ],
+          trustedScores: [],
+        ),
+      );
+      when(
+        witnessWindow.storeWindow(
+          egoId: ego,
+          normalizedContext: ctx,
+          weights: anyNamed('weights'),
+        ),
+      ).thenAnswer((_) async {});
+      when(
+        cellPort.fetchCells(
+          subjectIds: anyNamed('subjectIds'),
+          tagSlugs: anyNamed('tagSlugs'),
+          admittedWitnesses: anyNamed('admittedWitnesses'),
+        ),
+      ).thenAnswer((_) async => const []);
+
+      await case_.project(
+        egoId: ego,
+        subjectIds: [carol],
+        tagSlugs: ['transport'],
+        normalizedContext: ctx,
+        surface: ProjectionSurface.forwardBand,
+      );
+
+      final computed = records
+          .where((r) => r.message.startsWith('witness_window_computed'))
+          .toList();
+      expect(computed, hasLength(1));
+      expect(
+        computed.single.message,
+        contains('vote_list_empty=true'),
+      );
+      expect(
+        records.where((r) => r.message.startsWith('witness_floor')).single.message,
+        'witness_floor floor=null',
+      );
+    });
+
+    test('cache hit does not log witness window telemetry', () async {
+      final records = <LogRecord>[];
+      Logger('CapabilityProjectionCaseTest').onRecord.listen(records.add);
+
+      when(
+        witnessWindow.cachedWindow(egoId: ego, normalizedContext: ctx),
+      ).thenAnswer(
+        (_) async => [
+          const WitnessWeight(witnessUserId: 'bob', m: 1.0, admitted: true),
+        ],
+      );
+      when(
+        cellPort.fetchCells(
+          subjectIds: anyNamed('subjectIds'),
+          tagSlugs: anyNamed('tagSlugs'),
+          admittedWitnesses: anyNamed('admittedWitnesses'),
+        ),
+      ).thenAnswer((_) async => const []);
+
+      await case_.project(
+        egoId: ego,
+        subjectIds: [carol],
+        tagSlugs: ['transport'],
+        normalizedContext: ctx,
+        surface: ProjectionSurface.forwardBand,
+      );
+
+      expect(
+        records.where((r) => r.message.startsWith('witness_window_computed')),
+        isEmpty,
+      );
+      expect(
+        records.where((r) => r.message.startsWith('witness_floor')),
+        isEmpty,
+      );
+      verifyNever(
+        witnessWindow.rawWindowFacts(
+          egoId: anyNamed('egoId'),
+          normalizedContext: anyNamed('normalizedContext'),
+          topK: anyNamed('topK'),
+        ),
+      );
+    });
+  });
 
   test('§13.2 Sybil farm — no admitted witnesses yields no row', () async {
     when(
