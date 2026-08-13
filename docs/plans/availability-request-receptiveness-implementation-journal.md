@@ -1240,3 +1240,28 @@ TESTS:
 FILES: UNIT 11 owned paths listed above (12 golden PNGs under `test/features/profile/goldens/`)
 FINDINGS: none beyond UNIT 11 entry
 REMAINING: manager acceptance of UNIT 11; UNIT 12 is next
+
+## UNIT 11 remediation — in-flight UI rebuild — 2026-08-14
+
+COMMITS: `b60724611` fix(client): rebuild availability sheet during command in-flight
+TESTS:
+- `(cd packages/client && flutter test test/features/profile/availability_sheet_test.dart test/features/profile/profile_availability_golden_test.dart)` → 30 passed
+- `./scripts/check-custom-lints.sh packages/client` → pass (custom-rule total 106, baseline 111)
+- `git diff --check` → clean after remediation commit
+FILES:
+- `packages/client/lib/features/profile/ui/sheet/availability_sheet.dart`
+- `packages/client/test/features/profile/availability_sheet_test.dart`
+FINDINGS:
+- Defect: `AvailabilitySheetBody` read `ProfileCubit.isAvailability*InFlight` in
+  `build`, but production cubit toggles those private flags without `emit`, so the
+  sheet did not rebuild while a repository command awaited.
+- Repair: command-local `_local*InFlight` flags set via `setState` at command start
+  and cleared in `finally`; combined with cubit getters via OR for belt-and-suspenders.
+  Limited toggle still keeps sheet open on confirmed profile; pause/resume still close
+  only after cubit-confirmed profile state; failures keep sheet open and rely on cubit
+  `ShowError` only.
+- Tests: four completer-backed dynamic widget tests prove per-command disable while
+  awaiting, independent controls stay enabled, failed pause re-enables and keeps sheet,
+  successful pause/resume still close per existing contract. Static cubit-getter
+  in-flight tests retained for OR path.
+REMAINING: manager re-acceptance of UNIT 11; UNIT 12 is next
