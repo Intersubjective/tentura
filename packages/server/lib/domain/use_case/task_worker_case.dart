@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:typed_data';
+import 'package:get_it/get_it.dart';
 import 'package:image/image.dart' as img;
 import 'package:injectable/injectable.dart';
 import 'package:blurhash_dart/blurhash_dart.dart';
@@ -35,7 +36,6 @@ final class TaskWorkerCase extends UseCaseBase {
     Logger logger,
     ImageRepositoryPort imageRepository,
     ImageObjectGcPort imageObjectGc,
-    BeaconCase beaconCase,
     TaskRepositoryPort tasksRepository,
     EmailDigestCase emailDigestCase,
     NotificationOutboxRepositoryPort notificationOutbox,
@@ -55,7 +55,10 @@ final class TaskWorkerCase extends UseCaseBase {
       emailDigestCase,
       notificationOutbox,
       imageObjectGc: imageObjectGc,
-      beaconCase: beaconCase,
+      // BeaconCase is an async-preResolved singleton (see AccountProfileController's
+      // UserCase comment): constructor injection here makes generated DI call
+      // `getAsync` on an already-resolved sync singleton, which throws at runtime.
+      beaconCase: GetIt.I<BeaconCase>(),
       attentionExpirySweep: attentionExpirySweep,
       attentionChannelDelivery: attentionChannelDelivery,
       trustMaintenance: trustMaintenance,
