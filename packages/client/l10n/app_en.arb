@@ -5108,4 +5108,149 @@
   ,"@errorBlockedByUser": {
     "description": "Generic error when an action is rejected because of a block."
   }
+  ,"availabilityLimitedTitle": "Only important requests"
+  ,"@availabilityLimitedTitle": {
+    "description": "Neutral availability label when another person accepts only important requests."
+  }
+  ,"availabilityPausedUntil": "Not taking new requests until {when}"
+  ,"@availabilityPausedUntil": {
+    "description": "Neutral availability label when another person is paused until a calendar date.",
+    "placeholders": {
+      "when": {
+        "type": "String"
+      }
+    }
+  }
+  ,"availabilitySelfOpen": "Open to requests"
+  ,"@availabilitySelfOpen": {
+    "description": "Own-profile availability status when open to new requests."
+  }
+  ,"availabilitySelfLimited": "Only important requests"
+  ,"@availabilitySelfLimited": {
+    "description": "Own-profile availability status when limited to important requests."
+  }
+  ,"availabilitySelfPausedUntil": "Not taking new requests · until {when}"
+  ,"@availabilitySelfPausedUntil": {
+    "description": "Own-profile availability status when paused until a calendar date.",
+    "placeholders": {
+      "when": {
+        "type": "String"
+      }
+    }
+  }
+  ,"availabilitySelfThenLimited": "Then: only important requests"
+  ,"@availabilitySelfThenLimited": {
+    "description": "Own-profile secondary line when paused with limited resume target."
+  }
+  ,"availabilityResumeEcho": "You'll receive requests again on {when}"
+  ,"@availabilityResumeEcho": {
+    "description": "Sheet echo of the resolved pause resume calendar date before committing.",
+    "placeholders": {
+      "when": {
+        "type": "String"
+      }
+    }
+  }
+  ,"availabilityPersonPaused": "{name} isn't taking new requests until {when}."
+  ,"@availabilityPersonPaused": {
+    "description": "Person-forward and other-profile paused explanation.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "when": {
+        "type": "String"
+      }
+    }
+  }
+  ,"availabilityUnaffectedNote": "Requests and chats you're already in aren't affected."
+  ,"@availabilityUnaffectedNote": {
+    "description": "Reassurance that pause does not withdraw existing requests or chats."
+  }
+  ,"availabilityResumeNow": "Resume now"
+  ,"@availabilityResumeNow": {
+    "description": "Own-profile action to clear an active pause immediately."
+  }
+  ,"availabilityDeliveredPartial": "Delivered to {n} of {m} — {name} isn't taking new requests right now."
+  ,"@availabilityDeliveredPartial": {
+    "description": "Forward delivery snackbar when one recipient was skipped for availability.",
+    "placeholders": {
+      "n": {
+        "type": "int"
+      },
+      "m": {
+        "type": "int"
+      },
+      "name": {
+        "type": "String"
+      }
+    }
+  }
+  ,"availabilityDeliveredPartialMany": "Delivered to {n} of {m} — {count} people aren't taking new requests right now."
+  ,"@availabilityDeliveredPartialMany": {
+    "description": "Forward delivery snackbar when two or more recipients were skipped for availability.",
+    "placeholders": {
+      "n": {
+        "type": "int"
+      },
+      "m": {
+        "type": "int"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  }
+  ,"availabilitySheetTitle": "Request availability"
+  ,"@availabilitySheetTitle": {
+    "description": "Title of the own-profile availability sheet."
+  }
+  ,"availabilityLimitedSwitchTitle": "Only important requests"
+  ,"@availabilityLimitedSwitchTitle": {
+    "description": "Limited toggle title on the availability sheet."
+  }
+  ,"availabilityLimitedSwitchDescription": "People still see you; they'll see a note asking them to be selective."
+  ,"@availabilityLimitedSwitchDescription": {
+    "description": "Limited toggle description on the availability sheet."
+  }
+  ,"availabilityPauseSectionTitle": "Not taking new requests"
+  ,"@availabilityPauseSectionTitle": {
+    "description": "Pause section title on the availability sheet."
+  }
+  ,"availabilityPauseSectionDescription": "You won't be offered when people pick recipients. Requests and chats you're already in aren't affected."
+  ,"@availabilityPauseSectionDescription": {
+    "description": "Pause section description on the availability sheet."
+  }
+  ,"availabilityPresetTomorrow": "Tomorrow"
+  ,"@availabilityPresetTomorrow": {
+    "description": "Pause preset button for tomorrow."
+  }
+  ,"availabilityPresetThisWeekend": "This weekend"
+  ,"@availabilityPresetThisWeekend": {
+    "description": "Pause preset button for the next Monday."
+  }
+  ,"availabilityPresetOneWeek": "One week"
+  ,"@availabilityPresetOneWeek": {
+    "description": "Pause preset button for one week ahead."
+  }
+  ,"availabilityPresetOneMonth": "One month"
+  ,"@availabilityPresetOneMonth": {
+    "description": "Pause preset button for one calendar month ahead."
+  }
+  ,"availabilityPresetPickDate": "Pick a date…"
+  ,"@availabilityPresetPickDate": {
+    "description": "Pause preset button that opens the date picker."
+  }
+  ,"availabilityPauseAction": "Pause"
+  ,"@availabilityPauseAction": {
+    "description": "Commits the selected pause resume date."
+  }
+  ,"availabilityChangeAction": "Change"
+  ,"@availabilityChangeAction": {
+    "description": "Own-profile text action that opens the availability sheet."
+  }
+  ,"availabilityDatePickerTitle": "Resume on"
+  ,"@availabilityDatePickerTitle": {
+    "description": "Title for the pause resume date picker."
+  }
 }

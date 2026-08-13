@@ -4870,4 +4870,149 @@
   ,"@errorBlockedByUser": {
     "description": "Generic error when an action is rejected because of a block."
   }
+  ,"availabilityLimitedTitle": "Только важные запросы"
+  ,"@availabilityLimitedTitle": {
+    "description": "Neutral availability label when another person accepts only important requests."
+  }
+  ,"availabilityPausedUntil": "Не принимает новые запросы до {when}"
+  ,"@availabilityPausedUntil": {
+    "description": "Neutral availability label when another person is paused until a calendar date.",
+    "placeholders": {
+      "when": {
+        "type": "String"
+      }
+    }
+  }
+  ,"availabilitySelfOpen": "Вы принимаете запросы"
+  ,"@availabilitySelfOpen": {
+    "description": "Own-profile availability status when open to new requests."
+  }
+  ,"availabilitySelfLimited": "Вы принимаете только важные запросы"
+  ,"@availabilitySelfLimited": {
+    "description": "Own-profile availability status when limited to important requests."
+  }
+  ,"availabilitySelfPausedUntil": "Вы не принимаете новые запросы · до {when}"
+  ,"@availabilitySelfPausedUntil": {
+    "description": "Own-profile availability status when paused until a calendar date.",
+    "placeholders": {
+      "when": {
+        "type": "String"
+      }
+    }
+  }
+  ,"availabilitySelfThenLimited": "Затем: только важные запросы"
+  ,"@availabilitySelfThenLimited": {
+    "description": "Own-profile secondary line when paused with limited resume target."
+  }
+  ,"availabilityResumeEcho": "Вы снова начнёте получать запросы {when}"
+  ,"@availabilityResumeEcho": {
+    "description": "Sheet echo of the resolved pause resume calendar date before committing.",
+    "placeholders": {
+      "when": {
+        "type": "String"
+      }
+    }
+  }
+  ,"availabilityPersonPaused": "{name} не принимает новые запросы до {when}."
+  ,"@availabilityPersonPaused": {
+    "description": "Person-forward and other-profile paused explanation.",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "when": {
+        "type": "String"
+      }
+    }
+  }
+  ,"availabilityUnaffectedNote": "Уже начатые запросы и чаты это не затрагивает."
+  ,"@availabilityUnaffectedNote": {
+    "description": "Reassurance that pause does not withdraw existing requests or chats."
+  }
+  ,"availabilityResumeNow": "Возобновить сейчас"
+  ,"@availabilityResumeNow": {
+    "description": "Own-profile action to clear an active pause immediately."
+  }
+  ,"availabilityDeliveredPartial": "Отправлено {n} из {m} — {name} сейчас не принимает новые запросы."
+  ,"@availabilityDeliveredPartial": {
+    "description": "Forward delivery snackbar when one recipient was skipped for availability.",
+    "placeholders": {
+      "n": {
+        "type": "int"
+      },
+      "m": {
+        "type": "int"
+      },
+      "name": {
+        "type": "String"
+      }
+    }
+  }
+  ,"availabilityDeliveredPartialMany": "Отправлено {n} из {m} — {count} получателей сейчас не принимают новые запросы."
+  ,"@availabilityDeliveredPartialMany": {
+    "description": "Forward delivery snackbar when two or more recipients were skipped for availability.",
+    "placeholders": {
+      "n": {
+        "type": "int"
+      },
+      "m": {
+        "type": "int"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  }
+  ,"availabilitySheetTitle": "Приём запросов"
+  ,"@availabilitySheetTitle": {
+    "description": "Title of the own-profile availability sheet."
+  }
+  ,"availabilityLimitedSwitchTitle": "Только важные запросы"
+  ,"@availabilityLimitedSwitchTitle": {
+    "description": "Limited toggle title on the availability sheet."
+  }
+  ,"availabilityLimitedSwitchDescription": "Вас по-прежнему видно; другие увидят пометку просить обращаться избирательно."
+  ,"@availabilityLimitedSwitchDescription": {
+    "description": "Limited toggle description on the availability sheet."
+  }
+  ,"availabilityPauseSectionTitle": "Не принимать новые запросы"
+  ,"@availabilityPauseSectionTitle": {
+    "description": "Pause section title on the availability sheet."
+  }
+  ,"availabilityPauseSectionDescription": "Вас не будут предлагать при выборе получателей. Уже начатые запросы и чаты это не затрагивает."
+  ,"@availabilityPauseSectionDescription": {
+    "description": "Pause section description on the availability sheet."
+  }
+  ,"availabilityPresetTomorrow": "Завтра"
+  ,"@availabilityPresetTomorrow": {
+    "description": "Pause preset button for tomorrow."
+  }
+  ,"availabilityPresetThisWeekend": "В эти выходные"
+  ,"@availabilityPresetThisWeekend": {
+    "description": "Pause preset button for the next Monday."
+  }
+  ,"availabilityPresetOneWeek": "Через неделю"
+  ,"@availabilityPresetOneWeek": {
+    "description": "Pause preset button for one week ahead."
+  }
+  ,"availabilityPresetOneMonth": "Через месяц"
+  ,"@availabilityPresetOneMonth": {
+    "description": "Pause preset button for one calendar month ahead."
+  }
+  ,"availabilityPresetPickDate": "Выбрать дату…"
+  ,"@availabilityPresetPickDate": {
+    "description": "Pause preset button that opens the date picker."
+  }
+  ,"availabilityPauseAction": "Приостановить"
+  ,"@availabilityPauseAction": {
+    "description": "Commits the selected pause resume date."
+  }
+  ,"availabilityChangeAction": "Изменить"
+  ,"@availabilityChangeAction": {
+    "description": "Own-profile text action that opens the availability sheet."
+  }
+  ,"availabilityDatePickerTitle": "Возобновить"
+  ,"@availabilityDatePickerTitle": {
+    "description": "Title for the pause resume date picker."
+  }
 }

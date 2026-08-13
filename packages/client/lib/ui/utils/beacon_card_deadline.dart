@@ -1,6 +1,5 @@
-import 'package:intl/intl.dart';
-
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/utils/calendar_day_display.dart';
 
 bool _sameCalendarDay(DateTime a, DateTime b) =>
     a.year == b.year && a.month == b.month && a.day == b.day;
@@ -31,8 +30,14 @@ bool _sameCalendarDay(DateTime a, DateTime b) =>
   if (_sameCalendarDay(endLocal, tomorrow)) {
     return (text: l10n.myWorkStatusDueTomorrow, overdue: false);
   }
-  final weekday = DateFormat('EEE', l10n.localeName).format(endLocal);
-  return (text: l10n.myWorkStatusDueWeekday(weekday), overdue: false);
+  final endDay = DateTime(endLocal.year, endLocal.month, endLocal.day);
+  final todayDay = DateTime(nowLocal.year, nowLocal.month, nowLocal.day);
+  final label = formatFutureCalendarDayLabel(l10n, endDay, todayDay);
+  final daysAhead = calendarDaysBetween(todayDay, endDay);
+  if (daysAhead < 7) {
+    return (text: l10n.myWorkStatusDueWeekday(label), overdue: false);
+  }
+  return (text: label, overdue: false);
 }
 
 /// Remaining time line for inbox / My Work beacon cards (deadline [endAt]).
