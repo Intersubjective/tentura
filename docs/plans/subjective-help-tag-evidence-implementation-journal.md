@@ -7595,3 +7595,95 @@ FINDINGS:
 - Commit `483b58228` bundles signal 2 repository/case wiring with signal 3's `countEligibleWitnessCoverage()` because both extend the same port/repository/case surface; pg tests landed separately in `852b0c7df`.
 
 REMAINING: G1d (acknowledgement reciprocity), then G2/G3.
+
+## G1c — Manager verdict: ACCEPTED — 2026-08-13
+
+This worker completed on its first dispatch (no kill, exit code 0).
+Full independent review performed given this unit's two genuinely
+ambiguous signals required real interpretive judgment, not just code
+review:
+
+- **Signal 1** (`_loadWitnessWindow()` diff): minimal, correctly placed
+  only on the cache-miss branch (never the fast path, as scoped).
+  `ego_window_empty`/`vote_list_empty` derived directly from
+  `computed.isEmpty`/`facts.trustedScores.isEmpty` — no
+  re-derivation drift risk. Read all 3 new tests in full: non-empty
+  case, empty-trusted-list case, and — importantly — a third test
+  proving the cache-*hit* path emits neither log line and never calls
+  `rawWindowFacts` (`verifyNever`), which is the test that actually
+  enforces the documented scoping decision rather than merely
+  asserting it in prose.
+- **Signal 2** (two-hop sponsored MR percentiles): verified the
+  worker's chosen definition — invite-genealogy depth exactly 2 from a
+  sampled ego (`hop1`/`hop2` CTEs joining `invite_genealogy` twice) —
+  is a reasonable, directly-supported reading of "2-hop-sponsored,"
+  and confirmed it reuses `person_visibility_peers()`, the *same* SQL
+  function the real witness-window computation uses, so the score
+  source is consistent with what `floor(A)` is actually compared
+  against in production, not an approximation. Traced the SQL by hand:
+  `hop1` = ego's direct invitees, `hop2` = invitees of `hop1` — correct
+  "depth 2" construction, no off-by-one.
+- **Signal 3** (eligible-witness coverage) got the most scrutiny, as
+  the highest-risk piece of SQL in this unit:
+  - Confirmed `cap_strength(s, k, anchor_at, half_life_seconds)`'s
+    actual parameter order in its definition (`m0143.dart`:
+    `_s, _k, _anchor, _half_life_seconds`) matches the call site's
+    argument order exactly (`c.s_out, kCapKOut, c.anchor_at, hlOut`) —
+    this is exactly the kind of positional-SQL-argument mismatch that
+    silently produces wrong-but-plausible numbers, and it's correct.
+  - Confirmed the classification logic reuses the real
+    `computeWitnessWeights()` **domain policy function** to determine
+    admission, rather than reimplementing the admission rule in SQL —
+    this is the right call: it structurally cannot drift from the
+    admission logic actually used by live `project()` calls, unlike a
+    hand-rolled SQL equivalent of `computeAdmitted` would risk.
+  - Read both new pg tests in full and hand-traced the fixture logic:
+    the "ineligible-only" test creates a witness with `forward_mr=0.9`
+    but *no* explicit trust edge and *no* other trusted peers (so
+    `floor` is `null`), making `computeAdmitted` correctly return
+    `false` for that witness — yet the witness's cell (`sOut=2.0`)
+    still clears `θ_out` when counted unconditionally. The
+    "eligible-clearing" test is identical except it adds an explicit
+    trust edge, flipping `admitted` to `true` via the
+    `explicitlyTrusted` branch of `computeAdmitted`. This is a real,
+    meaningful discrimination between the two code paths through
+    actual fixture data and the real SQL/domain logic — not a
+    tautological assertion.
+  - Confirmed the disclosed limitation ("Not measured: pairs where
+    evidence exists only from observers outside the ego's top-K peer
+    window... block/mute filtering") is accurate: the implementation
+    only sums over witnesses present in the `computeWitnessWeights`
+    result (i.e., within the top-K window), silently skipping cells
+    from observers outside it — exactly as documented, not silently
+    miscounted.
+- **Independently reran everything**, not just the worker's claimed
+  numbers:
+  ```bash
+  cd packages/server && dart test -x pg \
+    test/domain/use_case/capability_projection_case_test.dart \
+    test/domain/use_case/capability_telemetry_case_test.dart  (×3)
+  → +20, all passed, identical every run
+
+  cd packages/server && dart test -x pg
+  → +1452, all passed (+6 over witness-window-fix baseline +1446)
+
+  cd packages/server && dart test -t pg \
+    test/data/repository/capability_read_ports_pg_test.dart  (×3, against
+    the live local postgres-tentura container)
+  → +19 (+4 new G1c cases: 2× twoHopSponsored, 2× countEligibleWitnessCoverage),
+    all passed, identical every run
+
+  bash scripts/check-user-facing-terminology.sh → ok
+  ./scripts/check-custom-lints.sh packages/server → total: 0 (baseline: 0)
+  git diff --check → clean
+  ```
+- **Cost/performance sanity check**: signal 3's query is bounded
+  (≤30 egos × ≤50 pairs, capped at 200 triples) and batches its cell
+  and window-facts lookups into two bulk queries rather than
+  per-triple round-trips (`_fetchWindowFactsByEgo` fetches all sampled
+  egos' facts in one query using `unnest($1::text[])`); reasonable to
+  run on the existing 45-minute sweep without a dedicated cost review.
+
+No defects found. Accepted as-is. G1 (Telemetry) is now fully complete
+(G1a, G1b, G1c) except G1d (acknowledgement reciprocity). Proceeding to
+G1d.
