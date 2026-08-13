@@ -1,6 +1,7 @@
 @Tags(['pg'])
 library;
 
+import 'dart:async';
 import 'dart:io';
 
 import 'package:injectable/injectable.dart' show Environment;
@@ -150,6 +151,95 @@ WHERE user_id = @userId
     );
 
     test(
+      'concurrent first setLimited(true) and pause serialize on the advisory lock',
+      () async {
+        final blockerDb = TenturaDb(target.databaseEnv);
+        final limitedDb = TenturaDb(target.databaseEnv);
+        final pauseDb = TenturaDb(target.databaseEnv);
+        final limitedRepo = UserAvailabilityRepository(limitedDb);
+        final pauseRepo = UserAvailabilityRepository(pauseDb);
+
+        final blockerReady = Completer<void>();
+        final releaseBlocker = Completer<void>();
+        final limitedDone = Completer<void>();
+        final pauseDone = Completer<void>();
+        Object? limitedError;
+        Object? pauseError;
+
+        try {
+          unawaited(
+            blockerDb.transaction(() async {
+              await blockerDb.customStatement(
+                r"SELECT pg_advisory_xact_lock(hashtextextended('user_availability:' || $1, 4242))",
+                [userId],
+              );
+              blockerReady.complete();
+              await releaseBlocker.future;
+            }),
+          );
+          await blockerReady.future;
+
+          unawaited(
+            limitedRepo
+                .setLimited(userId: userId, isLimited: true)
+                .then((_) => limitedDone.complete())
+                .catchError((Object e, StackTrace _) {
+                  limitedError = e;
+                  limitedDone.complete();
+                }),
+          );
+
+          await _waitUntil(
+            () async =>
+                await _ungrantedAvailabilityLockCount(writer, userId) >= 1,
+            timeout: const Duration(seconds: 5),
+          );
+
+          unawaited(
+            pauseRepo
+                .pause(userId: userId, resumeOn: resumeOn)
+                .then((_) => pauseDone.complete())
+                .catchError((Object e, StackTrace _) {
+                  pauseError = e;
+                  pauseDone.complete();
+                }),
+          );
+
+          await _waitUntil(
+            () async =>
+                await _ungrantedAvailabilityLockCount(writer, userId) == 2,
+            timeout: const Duration(seconds: 5),
+          );
+          expect(
+            await _ungrantedAvailabilityLockCount(writer, userId),
+            2,
+          );
+
+          releaseBlocker.complete();
+          await limitedDone.future.timeout(const Duration(seconds: 5));
+          await pauseDone.future.timeout(const Duration(seconds: 5));
+
+          expect(limitedError, isNull);
+          expect(pauseError, isNull);
+          expect(await readRow(), (isLimited: true, resumeOn: resumeOn));
+
+          final typed = await limitedRepo.fetchByUserIds({userId});
+          expect(typed, hasLength(1));
+          expect(typed[userId]!.isLimited, isTrue);
+          expect(typed[userId]!.resumeOn, resumeOn);
+        } finally {
+          if (!releaseBlocker.isCompleted) {
+            releaseBlocker.complete();
+          }
+          await blockerDb.close();
+          await limitedDb.close();
+          await pauseDb.close();
+        }
+      },
+      skip: skipReason,
+    );
+
+    test(
       'resume removes pause and drops row only when not limited',
       () async {
         await repo.pause(userId: userId, resumeOn: resumeOn);
@@ -235,6 +325,42 @@ WHERE user_id = @userId
       skip: skipReason,
     );
   });
+}
+
+Future<int> _ungrantedAvailabilityLockCount(
+  Connection writer,
+  String userId,
+) async {
+  final rows = await writer.execute(
+    Sql.named(r'''
+WITH lock_key AS (
+  SELECT hashtextextended('user_availability:' || @userId, 4242) AS key
+)
+SELECT count(*)::int
+FROM pg_locks l
+CROSS JOIN lock_key k
+WHERE l.locktype = 'advisory'
+  AND l.granted = false
+  AND ((l.classid::bigint << 32) | (l.objid::bigint & 4294967295)) = k.key
+'''),
+    parameters: {'userId': userId},
+  );
+  return rows.single.single! as int;
+}
+
+Future<void> _waitUntil(
+  Future<bool> Function() predicate, {
+  required Duration timeout,
+  Duration interval = const Duration(milliseconds: 25),
+}) async {
+  final deadline = DateTime.now().add(timeout);
+  while (DateTime.now().isBefore(deadline)) {
+    if (await predicate()) {
+      return;
+    }
+    await Future<void>.delayed(interval);
+  }
+  throw TimeoutException('predicate not satisfied', timeout);
 }
 
 Future<bool> _canConnect(Env env) async {
