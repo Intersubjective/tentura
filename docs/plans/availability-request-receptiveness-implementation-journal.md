@@ -1265,3 +1265,25 @@ FINDINGS:
   successful pause/resume still close per existing contract. Static cubit-getter
   in-flight tests retained for OR path.
 REMAINING: manager re-acceptance of UNIT 11; UNIT 12 is next
+
+## UNIT 11 manager acceptance — 2026-08-14
+
+VERDICT: accepted: `fcf1d344c`, `87a24dabb`, `b60724611`, and `870eab6ae`.
+REVIEW: The own profile renders a status directly after its description, with
+the required neutral/info/warn tones and a second info line only for
+limited-plus-paused. Change opens the two-control sheet; date bounds use local
+calendar components and return a UTC calendar date. A manager review found and
+remediated a production loading defect: Cubit getter changes alone do not emit
+state, so sheet-local transient flags now make each command's disabled state
+observable while preserving independent controls. Pause/resume only close after
+their confirmed Cubit profile state; failure retains the sheet and relies on
+the single Cubit effect. The visual artifacts show expected compact/expanded
+geometry and the 1.3 text-scale cases without clipping (Flutter's Ahem test
+font displays glyphs as blocks in the raw PNGs).
+INDEPENDENT VERIFICATION:
+- `(cd packages/client && flutter test test/features/profile/availability_sheet_test.dart test/features/profile/profile_availability_golden_test.dart)` -> 30 passed
+- `git diff --check 896492400..HEAD` -> clean
+FINDINGS: The initial golden set was retained after the loading repair because
+the control's resting rendering did not change. Manager visual inspection
+covered open compact, paused expanded, and limited+paused compact at 1.3 scale.
+REMAINING: UNIT 12 is dependency-ready.
