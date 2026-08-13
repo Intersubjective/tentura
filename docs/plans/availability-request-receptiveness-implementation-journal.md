@@ -661,3 +661,21 @@ FINDINGS:
   `UserAvailabilityEntity`.
 REMAINING: UNIT 07 forward linearization, GraphQL/Hasura read parity, and
 read-permission evidence; manager acceptance not recorded here.
+
+## UNIT 07A manager acceptance — 2026-08-13
+
+VERDICT: accepted: `3d8ebc241` and `4b14ecef9`.
+REVIEW: The test uses the identical transaction advisory-lock expression as
+`UserAvailabilityRepository._acquireLock`, three distinct `TenturaDb` instances,
+and the disposable migrated target. It does not infer concurrency from timing:
+before release the independent writer observes precisely two waiting advisory
+lock requests whose reconstructed `pg_locks` key equals the production hash.
+After release it proves both mutation effects merge into the only valid row and
+the typed repository read agrees. The Drift multiple-database debug warnings are
+expected for deliberately independent pools; the test target is isolated.
+INDEPENDENT VERIFICATION:
+- `(cd packages/server && dart test -t pg test/data/repository/user_availability_repository_pg_test.dart)` -> 6 passed
+- `./scripts/check-custom-lints.sh packages/server` -> pass, custom-rule total 0
+- `git diff --check 79112d3e5..HEAD` -> clean
+REMAINING: UNIT 07 forward/pause linearization, typed GraphQL delivery parity,
+read-permission parity, and the recorded Hasura candidate-limit diagnostic.
