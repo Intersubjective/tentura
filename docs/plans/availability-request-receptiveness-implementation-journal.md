@@ -134,7 +134,7 @@ Units are sequential. Check off only after the unit's focused commit and verific
   `feat(server): add availability commands`
 - [x] **UNIT 04 — Server public-user read parity** — depends: 03 — commit:
   `feat(server): expose availability in public users`
-- [ ] **UNIT 05 — Three V2 availability mutations** — depends: 03 — commit:
+- [x] **UNIT 05 — Three V2 availability mutations** — depends: 03 — commit:
   `feat(server): add availability mutations`
 - [ ] **UNIT 06 — Transactional forward gate and typed result** — depends: 03 — commit:
   `feat(server): enforce availability on forwards`
@@ -404,3 +404,22 @@ the `myBlocks` expected map missing its now-required `user_availability: null` f
 `4bfece7bc` assertion commit fixes it. Protected unrelated work remains untouched.
 REMAINING: UNIT 05 is dependency-ready. UNIT 07 still owns the isolated PostgreSQL/API parity
 proof; no acceptance here substitutes for it.
+
+## UNIT 05 — complete — 2026-08-13
+
+COMMITS: `7c7d6d748` feat(server): add availability mutations
+TESTS:
+- `(cd packages/server && dart test test/api/controllers/graphql/mutation_availability_test.dart)` → 17 passed
+- `./scripts/check-custom-lints.sh packages/server` → pass (custom-rule total 0)
+- `git diff --check` → clean
+FILES:
+- `packages/server/lib/api/controllers/graphql/input/input_field_calendar_date.dart`
+- `packages/server/lib/api/controllers/graphql/input/_input_types.dart`
+- `packages/server/lib/api/controllers/graphql/mutation/mutation_availability.dart`
+- `packages/server/lib/api/controllers/graphql/mutation/_mutations_all.dart`
+- `packages/server/test/api/controllers/graphql/mutation_availability_test.dart`
+FINDINGS: full `graphqlSchema.parseAndExecute` requires the entire DI graph (e.g.
+`AttentionQueryPort`); document-path tests use a focused `GraphQL` schema built from
+`MutationAvailability().all`, which is the same registered field definitions spread into
+`mutationsAll`. No server codegen/DI diff was required.
+REMAINING: none for UNIT 05; UNIT 06 (`feat(server): enforce availability on forwards`) is next
