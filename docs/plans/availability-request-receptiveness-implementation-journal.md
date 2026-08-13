@@ -771,3 +771,47 @@ INDEPENDENT VERIFICATION:
 - `git diff --check 57f38b9e2..HEAD` -> clean
 REMAINING: UNIT 07 Hasura/read-permission parity and the candidate-limit
 diagnostic.
+
+## UNIT 07D availability read-permission parity proof — complete — 2026-08-13
+
+COMMITS: `eea7692eb`
+TESTS:
+- `(cd packages/server && dart test -t pg test/api/controllers/graphql/availability_read_parity_test.dart)` → 10 passed
+- `./scripts/check-custom-lints.sh packages/server` → pass (custom-rule total 0)
+- `git diff --check` → clean
+FILES:
+- `packages/server/test/api/controllers/graphql/availability_read_parity_test.dart`
+FINDINGS:
+- Builds on manager-accepted UNIT 07C baseline `38ce66e7e`.
+- Disposable migrated PostgreSQL database exercises the committed
+  `user_availability_hidden_for_viewer` function and the Hasura select filter
+  `(NOT hidden_for_viewer) AND (is_limited OR resume_on > now())` with distinct
+  viewer `Uavailrdview01` and target fixtures; no direct Hasura GraphQL execution
+  or resolver fakes.
+- Blocked pair: `user_block(viewer → target)` hides the target via
+  `hidden_for_viewer`; expired pause-only rows drop out of the read predicate;
+  limited rows with past `resume_on` remain visible; future pause rows remain
+  visible.
+- Repository/public-path parity: `UserAvailabilityRepository.fetchByUserIds`
+  plus `userAvailabilityEntityToGqlMap`/`userAvailabilityEntityToPublicRecord`
+  match the Hasura-visible effective state for non-blocked targets and never emit
+  `updated_at`.
+- Static metadata regression parses committed `hasura/metadata.json`:
+  `user_availability` select columns are exactly `user_id`, `is_limited`,
+  `resume_on`; computed field `hidden_for_viewer` is required; no mutation
+  permissions; `user` select permission still declares `limit: 10` (metadata
+  only, not live runtime proof).
+- Hasura candidate-limit diagnostic (non-mutating, read-only):
+  - `curl -sS http://127.0.0.1:8080/healthz` → `OK` (HTTP 200)
+  - `curl -sS http://127.0.0.1:8080/v1/version` → `{"server_type":"ce","version":"v2.48.14"}`
+  - `curl -sS http://127.0.0.1:8080/v1/metadata -H "X-Hasura-Admin-Secret: password"` → live metadata has **no** tracked `user` table and **no** tracked `mutually_visible_users` function (committed metadata not applied to this service)
+  - `curl -sS http://127.0.0.1:8080/v1/graphql` introspection → `mutually_visible_users` absent from query root (46 remote-schema fields only)
+  - Shared `postgres` database (docker `postgres:5432/postgres`) has SQL function
+    `mutually_visible_users` and 1008 users, but a spot check
+    `SELECT count(*) FROM public.mutually_visible_users('', '{"x-hasura-user-id":"Ua6432bd9e599"}'::json)`
+    returned `1`; no isolated >10 mutually visible sample was established without
+    seeding or a full-table scan (aborted after timeout risk).
+  - **PENDING/BLOCKED:** whether Hasura applies the committed `user` select
+    `limit: 10` to `mutually_visible_users` at runtime remains unobserved; only
+    the static metadata assertion above is recorded.
+REMAINING: manager acceptance of UNIT 07D; UNIT 07 complete pending acceptance.
