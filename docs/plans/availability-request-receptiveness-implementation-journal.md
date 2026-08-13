@@ -638,3 +638,26 @@ FINDINGS:
   leaving future pause-only rows intact.
 REMAINING: UNIT 07 forward linearization, GraphQL/Hasura read parity, and
 concurrency proof; manager acceptance not recorded here.
+
+## UNIT 07A concurrency proof — complete — 2026-08-13
+
+COMMITS: `3d8ebc241` test(server): prove availability concurrent first-write serialization
+TESTS:
+- `(cd packages/server && dart test -t pg test/data/repository/user_availability_repository_pg_test.dart)` → 6 passed
+- `./scripts/check-custom-lints.sh packages/server` → pass (custom-rule total 0)
+- `git diff --check` → clean
+FILES:
+- `packages/server/test/data/repository/user_availability_repository_pg_test.dart`
+FINDINGS:
+- Builds on manager-accepted remediation baseline `79112d3e5` (`31ba3b77e`–`2b4de380d`).
+- Two independent `TenturaDb`/`UserAvailabilityRepository` pools plus a third
+  transaction hold the production
+  `pg_advisory_xact_lock(hashtextextended('user_availability:' || userId, 4242))`
+  while `setLimited(true)` and `pause(resumeOn)` start; before release the writer
+  connection observes exactly two ungranted `pg_locks` rows whose recomposed
+  `(classid, objid)` match that key.
+- After release both operations complete without error, the table holds one
+  `(is_limited=true, resume_on)` row, and `fetchByUserIds` returns the matching
+  `UserAvailabilityEntity`.
+REMAINING: UNIT 07 forward linearization, GraphQL/Hasura read parity, and
+read-permission evidence; manager acceptance not recorded here.
