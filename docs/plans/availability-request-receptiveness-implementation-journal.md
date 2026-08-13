@@ -900,3 +900,26 @@ FINDINGS:
   tracked for nested availability GraphQL probes.
 REMAINING: manager acceptance of UNIT 07E and overall UNIT 07; UNIT 08 remains
 blocked until accepted.
+
+## UNIT 07E manager acceptance / UNIT 07 closeout — 2026-08-14
+
+VERDICT: accepted: `dcda4fbbd`.
+REVIEW: The live Hasura probe is causally sufficient for the formerly blocked
+candidate-limit gate. It seeded 12 distinct, mutually visible people for one
+viewer, established all 12 in the underlying SQL function, then observed the
+real `/v1/graphql` function under `x-hasura-role: user` and the same viewer
+identity return exactly 10. The absent last two fixture IDs distinguish a
+runtime permission limit from a static-metadata inference. The use of the
+local admin secret merely permits the otherwise hidden dev schema; the explicit
+user role/identity is what makes the returned limit evidence meaningful.
+INDEPENDENT VERIFICATION:
+- `SELECT count(*) FROM public."user" WHERE id LIKE 'U07hlimit%'` -> 0
+- `SELECT count(*) FROM public.vote_user WHERE subject LIKE 'U07hlimit%' OR object LIKE 'U07hlimit%'` -> 0
+- live metadata export -> no `user_availability` table (pre-existing state),
+  tracked `mutually_visible_users`, and user-role limit `[10]`
+- `git diff --check 78a4404dc..HEAD` -> clean
+FINDING: The committed availability metadata cannot load into this local shared
+PostgreSQL volume because it predates m0148. That does not weaken the accepted
+candidate-limit observation; UNIT 07D already proved availability read
+visibility in an isolated migrated database.
+REMAINING: UNIT 07 is accepted and UNIT 08 is dependency-ready.
