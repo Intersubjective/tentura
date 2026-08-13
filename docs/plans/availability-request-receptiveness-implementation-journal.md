@@ -297,3 +297,11 @@ package; migration tests cast to `::text`. Isolated PG tests use
 Local disposable Postgres connection `TimeZone` was `UTC`, satisfying Hasura `now()` parity
 with `(CURRENT_TIMESTAMP AT TIME ZONE 'UTC')::date`.
 REMAINING: none for UNIT 02; UNIT 03 (`feat(server): add availability commands`) is next
+
+## Manager review — UNIT 02 accepted — 2026-08-13
+
+COMMITS: `9d42cd20e` feat(server): add user availability storage; `38221746f` docs: record UNIT 02 user availability storage evidence
+TESTS: independent `(cd packages/server && dart test -t pg test/data/database/m0148_user_availability_migration_test.dart)` → 8 passed in a disposable `tentura_test_*` database; independent beacon-cover rollback test → 2 passed; metadata assertion confirmed the exact four public fields and `hidden_for_viewer = false AND (is_limited = true OR resume_on > now())`; codegen exited 0; `git diff 611a89da2..HEAD --check` → clean
+FILES: all seven UNIT 02 source/test/metadata paths plus this journal
+FINDINGS: accepted. The table is logged/sparse, with no trigger/backfill and no public `updated_at`; the UTC connection check turns timezone drift into a test failure.
+REMAINING: UNIT 03 is blocked before editing: `packages/server/lib/domain/use_case/task_worker_case.dart`, an owned file, has unrelated uncommitted GetIt/BeaconCase changes that appeared after UNIT 01. Do not stage, overwrite, or incorporate them without their owner resolving the boundary.
