@@ -8204,3 +8204,181 @@ reported as such rather than overclaiming a catch that didn't happen.
 No defects found. Accepted as-is. Proceeding to G3b (browser e2e
 proof) — the last unit before whole-plan integration and closure.
 
+## G3b — complete — 2026-08-13
+
+STATUS: complete. This unit was driven directly by the manager (me),
+not a Cursor worker — it is a single, tightly-coupled browser
+integration test where each fix depended on ground truth discovered by
+running the actual test against the actual app, so dispatching fresh
+workers per iteration would have discarded exactly the context needed
+to make progress.
+
+Unlike G3a (server-side, no UI), this unit proves the CLIENT correctly
+**renders** what G3a already proved the server correctly **computes**:
+does "Seen helping with Transport" actually appear in the right
+person's browser and not the wrong person's, and does muting actually
+make it disappear from the screen.
+
+COMMITS:
+- `d3784ecef` feat(server): add QA witness-admission fixture endpoint (G3b)
+- `b48d0453d` test(client): add G3b browser e2e proof for witness-admission band gating
+
+DESIGN DECISIONS (per the worker-prompt's request to state reasoning):
+
+- **QA endpoint, not raw SQL**: G3a used raw SQL because it's a
+  Dart-only pg test with direct DB access; a browser integration test
+  has no equivalent — it must go through the app's real QA HTTP
+  surface like every other file in `integration_test/`. Added
+  `QaIntegrationController.witnessFixture` (new endpoint, existing
+  `bootstrap()` untouched in contract) rather than extending
+  `bootstrap()` itself, since `bootstrap()`'s two-role shape is
+  depended on by other existing integration tests.
+  `_ensureFriendship` was generalized from
+  `(author, helper, runId)` to `(a, b, addresseeName)` — a
+  compatible refactor, not a behavior change, since the old call site
+  now passes the same derived `addresseeName` it used to construct
+  internally.
+- **Real UI for everything the plan called "the thing being tested"**:
+  request creation, help-offer, acceptance, close, review (trust +
+  ack tags), finalization, band viewing, and the F5 mute screen are
+  all driven through real widget interaction — none of these are QA
+  shortcuts. Only the four-user fixture's trust/friendship graph setup
+  is seeded via the QA endpoint, matching the existing
+  `bootstrapFixture()` convention used by every other file in this
+  directory.
+- **No existing close/evaluate UI-driving helper covered "author closes
+  and reviews"** as a single reusable step — `closeRequestAndOpenReview`
+  and `reviewParticipant` already existed (used by
+  `request_lifecycle_close_review_test.dart`) and were reused as-is
+  for Bob's side; they did not need extension for that part. They
+  *did* need extension for `trustOption`/`ackTags` (this test is the
+  first to drive a non-`zero` trust value with a required reason tag
+  through the UI) and for the discovery below.
+
+FINDINGS (the real content of this unit — a chain of four wrong
+assumptions found only by running the real app against real Postgres,
+each corrected before the next was visible):
+
+1. **Bob→Carol forward-recipient visibility requires mutual
+   friendship**, not just the witness-admission trust/MR graph alone.
+   Confirmed via a temporary diagnostic test
+   (`zzz_diag_recipients_test.dart`, built, used, then deleted — not
+   committed) since `debugPrint` does not reach the web-target test
+   runner's captured stdout; a `fail()`-embedded dump was the only way
+   to get ground truth. Fixed by adding a Bob↔Carol mutual friendship
+   to the fixture, then re-verified via direct SQL against the live
+   Postgres container that this addition does not compromise Eve's
+   correct non-admission of Bob (her `forward_mr(Bob)` rose from
+   ~0.121 to ~0.187, still below her ~0.286–0.302 floor).
+2. **`CapabilityChipSet` collapses its groups into an accordion** by
+   default whenever no search `query` is active — true for both the
+   beacon-create Requirements sheet and the evaluation ack-tags
+   section (unlike the help-offer flow's capability field, which has a
+   search box and was the only place this had been exercised before).
+   Fixed with a "try direct chip find; if not visible, tap the group
+   header text first" fallback, added to both
+   `_createRequestToRecipientsTab` and `reviewParticipant`.
+3. **The evaluation/review trust-selection UI is two-stage**: `pos1`/
+   `pos2`/`neg1`/`neg2` are not top-level buttons — you tap
+   `increasePending`/`decreasePending` first, then
+   `evaluationTrustIntensityLittle`/`...Lot`. `pos1` is the only value
+   that does not require a reason tag. `reviewParticipant` was
+   extended to drive this correctly.
+4. **The load-bearing discovery**: `EvaluationCubit.finalize()` →
+   server `evaluationFinalize` only ever marks the *calling user's
+   own* `beacon_review_status.status` to 2 (finished) — confirmed via
+   direct inspection of `evaluation_case.dart:1235-1265`. Separately,
+   `evaluation_case.dart`'s `_canCloseNow` (lines 546-562) requires
+   **every** participant with role `author` or `committer` to
+   independently have status `2` (finished) *or* `3` (skipped) before
+   `closeNow` is allowed — checked via `listParticipants` +
+   `listReviewStatusesForBeacon`, not just the author's own status.
+   This directly falsifies a claim recorded in this session's own
+   notes before this unit started ("`_canCloseNow` ... satisfied once
+   Bob's own review is done") — that earlier claim was an unverified
+   assumption, not a checked fact, and the first full test run
+   (below) caught it empirically: the My Work card never showed
+   "Close request" and the HUD dump showed `Closes Aug 20, 2026`
+   (the untouched 7-day full-window fallback) with the beacon still
+   `Waiting for reviews`. Root-caused by reading the source, not by
+   guessing again. **Fix**: Carol (the committer) must also reach a
+   terminal review status before Bob can close. Rather than have her
+   evaluate Bob (irrelevant to what this test proves and would need
+   its own reason-tag handling), the test drives her through the real
+   "Skip for now" affordance
+   (`l10n.evaluationSkipForNow`/`cubit.skip()`) — reached via her own
+   My Work card's real "Review" quick action (`showReviewCta`, gated
+   on `beacon.status == reviewOpen`) — before switching back to Bob
+   (`closeNow` is author-only, enforced server-side) to trigger
+   `beaconCloseNow` from the My Work list's "Close request" CTA
+   (`TestIds.myWorkCloseNow`/`vm.showCloseNowCta`, populated by a
+   separate `loadReviewWindows` call inside the normal My Work
+   `fetch()` — this part of the original plan-note assumption was
+   correct: the CTA needs no extra trigger beyond navigating to
+   `/home/work`, once `canCloseNow` is actually true).
+   `_hudAction('closeNow')`-based navigation was abandoned earlier in
+   this unit (see prior session notes) as unreliable under this test
+   harness, independent of this finding — the My Work quick-action
+   path sidesteps that navigation issue entirely and was correct on
+   its own terms.
+
+TEST RUN (real, timed, both attempts reported — not just the final
+pass):
+
+- **First full run** (before finding #4's fix):
+  `timeout 480 ./scripts/run_client_integration_web_local.sh
+  integration_test/witness_admission_forward_band_test.dart` — FAIL.
+  `TimeoutException` waiting for `find.text('Close request')` on
+  `/home/work`; HUD dump showed `Waiting for reviews | Closes Aug 20,
+  2026`, confirming finding #4 empirically (not by inspection alone).
+  Runtime: infra reuse + web build ~6 min, then test execution to
+  failure ~8 min (hit the 480s script-level timeout mid-run, but the
+  flutter-side test framework's own `TimeoutException` had already
+  fired and was captured in the JSON result before the process was
+  reaped).
+- **Second full run** (after the Carol-skip fix, 900s budget):
+  `result {"result":"true","failureDetails":[]}` /
+  `All tests passed.` / `[integration] PASS:
+  integration_test/witness_admission_forward_band_test.dart` /
+  `[integration] all 1 integration test file(s) passed`. All six
+  plan-ordered steps executed and asserted: fixture seeded, request
+  lifecycle completed (author → help offer → accept → close → review
+  with pos1 + ack tag → Bob finalize → Carol skip → Bob closeNow),
+  Alice's band showed `"Seen helping with Transport"` for Carol, Eve's
+  band did not show it, Carol muting `transport` via the real F5
+  screen removed it from Alice's band on a fresh request. No test-side
+  retries or flakiness observed on this run.
+
+VERIFICATION:
+```
+cd packages/server && dart analyze lib/api/controllers/qa_integration_controller.dart lib/api/root_router.dart → No issues found!
+cd packages/client && flutter analyze integration_test/witness_admission_forward_band_test.dart integration_test/support/e2e_test_helpers.dart → 0 errors (6 pre-existing infos in e2e_test_helpers.dart, none in the new file)
+./scripts/run_client_integration_web_local.sh integration_test/witness_admission_forward_band_test.dart → PASS (see TEST RUN above)
+bash scripts/check-user-facing-terminology.sh → ok
+./scripts/check-custom-lints.sh packages/server → total 0 (baseline 0)
+./scripts/check-custom-lints.sh packages/client → total 106 (baseline 111, improved — not lowered, unrelated pre-existing drift)
+git diff --check → clean
+```
+
+No dedicated server-side unit/pg test was added for `witnessFixture`:
+it is a thin composition of already-tested pieces
+(`_ensureQaUser`/`_ensureFriendship`, both pre-existing and exercised
+by every `bootstrap()`-based integration test; `UserTrustEdgeCase
+.setUserVote`, an existing, independently-tested use case) with no
+novel logic of its own — the same judgment already implicitly applied
+to the pre-existing, likewise-untested `bootstrap()` endpoint it sits
+beside. The real proof of correctness is the passing browser test
+itself, which exercises every code path `witnessFixture` touches.
+
+FILES:
+- `packages/server/lib/api/controllers/qa_integration_controller.dart` — new `witnessFixture` endpoint; `_ensureFriendship` generalized
+- `packages/server/lib/api/root_router.dart` — route registration
+- `packages/client/integration_test/support/e2e_test_helpers.dart` — shared `_createRequestToRecipientsTab` prefix, new `createRequestReachRecipientsTab`, `capabilitySlug` on `offerHelpFromInbox`, `trustOption`/`ackTags` on `reviewParticipant`, new `toggleRoutingMute`
+- `packages/client/integration_test/witness_admission_forward_band_test.dart` — new test file
+- `docs/plans/subjective-help-tag-evidence-implementation-journal.md` — this entry
+
+REMAINING: none for G3b. This was the last individual plan unit.
+Next: whole-plan integration and closure (re-read plan + journal from
+the start, check cross-unit wiring, run the full verification matrix,
+confirm nothing is left uncommitted).
+
