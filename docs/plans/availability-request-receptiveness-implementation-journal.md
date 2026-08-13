@@ -1343,3 +1343,27 @@ FINDINGS:
 - `PersonActionPolicy` retains its local `_defaultTodayUtc` (no feature/UI import).
 - No golden update; resting UI unchanged.
 REMAINING: manager acceptance of UNIT 12; UNIT 13 is next.
+
+## UNIT 12 manager acceptance — 2026-08-14
+
+VERDICT: accepted: `c1585421f`, `018198c37`, `06cdebe25`, `23d82a924`, and
+`5c1e8645a`.
+REVIEW: Availability is a post-base-policy override only: a pause removes every
+profile/graph send door while preserving Trust and its pre-existing secondary
+state; limited leaves mechanisms intact. Other-person availability uses the
+dedicated neutral status line and is placed between presence/header and the
+trust/visibility material. The initial candidate's import of a profile UI sheet
+from profile-view and graph was rejected and repaired by moving the UTC-date
+clock seam to the shared domain availability utility. The final manager repair
+makes the policy default consume that same utility and proves an explicit
+UTC-offset midnight boundary.
+INDEPENDENT VERIFICATION:
+- `(cd packages/client && flutter test test/ui/model/person_action_policy_test.dart test/features/profile_view/profile_view_body_action_policy_test.dart test/features/graph/graph_person_context_panel_test.dart test/domain/util/availability_presets_test.dart test/features/profile/availability_sheet_test.dart test/features/profile/profile_availability_golden_test.dart)` -> 132 passed
+- `./scripts/check-custom-lints.sh packages/client` -> pass (custom-rule total 106, baseline 111)
+- `bash scripts/check-user-facing-terminology.sh` -> pass
+- `rg -n "features/profile/ui/sheet/availability_sheet.dart" packages/client/lib/features/profile_view packages/client/lib/features/graph` -> no matches
+- `git diff --check b6361d514..HEAD` -> clean
+FINDINGS: The explicit `2026-08-14T00:15:00+02:00` test now proves that the
+clock derives `2026-08-13` UTC, rather than merely proving a same-date local
+conversion. Existing goldens remain valid because visual output did not change.
+REMAINING: UNIT 13 is dependency-ready.
