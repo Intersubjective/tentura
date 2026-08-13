@@ -578,6 +578,22 @@ unsupported bind error. Tests used only a unique disposable migrated database.
 RECOVERY: assign a fresh narrow source remediation for
 `UserAvailabilityRepository`, then recreate this proof in a fresh worker.
 
+## UserAvailabilityRepository defect remediation — manager acceptance — 2026-08-13
+
+VERDICT: accepted: `31ba3b77e`, `fdef75d6e`, `2b4de380d`, and `1b03c5489`.
+REVIEW: the limited-clear and resume statements no longer construct the
+forbidden `(false, NULL)` row; their mutually exclusive CTE branches preserve
+a live pause while deleting only open rows. All three date-bearing
+`customStatement` paths now pass the asserted UTC calendar date as an ISO
+string with an explicit `::date` cast, avoiding the unsupported PgDate bind.
+INDEPENDENT VERIFICATION:
+- `(cd packages/server && dart test -t pg test/data/repository/user_availability_repository_pg_test.dart)` -> 5 passed on a disposable migrated Postgres database
+- `(cd packages/server && dart test test/domain/use_case/user_availability_case_test.dart test/domain/entity/user_availability_entity_test.dart)` -> 25 passed
+- `git diff --check f298bd966..HEAD` -> clean
+REMAINING: fresh UNIT 07A concurrency proof must add the two-independent-pool,
+exact-advisory-lock barrier case; all forward/GraphQL/read-parity UNIT 07 work
+remains open.
+
 ## UNIT 07A repository remediation — complete — 2026-08-13
 
 COMMITS: `31ba3b77e` fix(server): avoid empty availability rows and bind pause dates
