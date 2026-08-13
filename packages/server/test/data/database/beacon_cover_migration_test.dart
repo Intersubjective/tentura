@@ -117,6 +117,17 @@ ORDER BY indexname
     test(
       'populated m0129 fixture backfills primary, cover, dense positions',
       () async {
+        // Migrant only applies versions above the highest recorded one, so
+        // every migration appended after this test was written (currently
+        // m0141-m0147) must be unwound here too, or the re-application below
+        // is a silent no-op and the m0130/m0131 columns never come back.
+        await _rollBackM0147ForTest(writer);
+        await _rollBackM0146ForTest(writer);
+        await _rollBackM0145ForTest(writer);
+        await _rollBackM0144ForTest(writer);
+        await _rollBackM0143ForTest(writer);
+        await _rollBackM0142ForTest(writer);
+        await _rollBackM0141ForTest(writer);
         await _rollBackM0140ForTest(writer);
         await _rollBackM0139ForTest(writer);
         await _rollBackM0138ForTest(writer);
@@ -425,6 +436,85 @@ Future<void> _rollBackM0132ForTest(Connection connection) async {
   for (final statement in const [
     'ALTER TABLE public.beacon DROP COLUMN IF EXISTS cover_thumb_image_id',
     "DELETE FROM public.schema_version WHERE version = '0132'",
+  ]) {
+    await connection.execute(statement);
+  }
+}
+
+Future<void> _rollBackM0147ForTest(Connection connection) async {
+  for (final statement in const [
+    '''
+ALTER TABLE public.capability_evidence_edge
+  DROP COLUMN IF EXISTS sweep_lease_owner,
+  DROP COLUMN IF EXISTS sweep_lease_until
+''',
+    "DELETE FROM public.schema_version WHERE version = '0147'",
+  ]) {
+    await connection.execute(statement);
+  }
+}
+
+Future<void> _rollBackM0146ForTest(Connection connection) async {
+  for (final statement in const [
+    'DROP TABLE IF EXISTS public.invite_seed_prompt_state',
+    "DELETE FROM public.schema_version WHERE version = '0146'",
+  ]) {
+    await connection.execute(statement);
+  }
+}
+
+Future<void> _rollBackM0145ForTest(Connection connection) async {
+  for (final statement in const [
+    'DROP TABLE IF EXISTS public.beacon_evaluation_ack_tag',
+    "DELETE FROM public.schema_version WHERE version = '0145'",
+  ]) {
+    await connection.execute(statement);
+  }
+}
+
+Future<void> _rollBackM0144ForTest(Connection connection) async {
+  // m0144 only replaces functions (CREATE OR REPLACE); nothing to physically
+  // undo, but its schema_version row must still go so migrant's
+  // highest-recorded-version gate does not block re-applying migrations
+  // below it.
+  await connection.execute(
+    "DELETE FROM public.schema_version WHERE version = '0144'",
+  );
+}
+
+Future<void> _rollBackM0143ForTest(Connection connection) async {
+  // Same rationale as m0144 above — CREATE OR REPLACE FUNCTION only.
+  await connection.execute(
+    "DELETE FROM public.schema_version WHERE version = '0143'",
+  );
+}
+
+Future<void> _rollBackM0142ForTest(Connection connection) async {
+  for (final statement in const [
+    'DROP TABLE IF EXISTS public.mr_publish_epoch',
+    'DROP TABLE IF EXISTS public.capability_routing_mute',
+    'DROP TABLE IF EXISTS public.ego_witness_window',
+    'DROP TABLE IF EXISTS public.capability_evidence_generation',
+    'DROP TABLE IF EXISTS public.capability_evidence_edge',
+    "DELETE FROM public.schema_version WHERE version = '0142'",
+  ]) {
+    await connection.execute(statement);
+  }
+}
+
+Future<void> _rollBackM0141ForTest(Connection connection) async {
+  for (final statement in const [
+    'DROP INDEX IF EXISTS public.pce_aggregation_idx',
+    'DROP INDEX IF EXISTS public.pce_close_ack_uq',
+    'DROP INDEX IF EXISTS public.pce_forward_reason_uq',
+    'DROP INDEX IF EXISTS public.pce_seed_attestation_uq',
+    '''
+ALTER TABLE public.person_capability_event
+  DROP CONSTRAINT IF EXISTS pce_source_type_ck,
+  DROP COLUMN IF EXISTS invitation_id,
+  DROP COLUMN IF EXISTS forward_edge_id
+''',
+    "DELETE FROM public.schema_version WHERE version = '0141'",
   ]) {
     await connection.execute(statement);
   }
