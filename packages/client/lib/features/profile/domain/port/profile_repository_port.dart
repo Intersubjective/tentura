@@ -26,4 +26,16 @@ abstract class ProfileRepositoryPort {
   });
 
   Future<void> delete(String id);
+
+  Future<void> setAvailabilityLimited({
+    required String profileId,
+    required bool isLimited,
+  });
+
+  Future<void> pauseAvailability({
+    required String profileId,
+    required DateTime resumeOn,
+  });
+
+  Future<void> resumeAvailability({required String profileId});
 }

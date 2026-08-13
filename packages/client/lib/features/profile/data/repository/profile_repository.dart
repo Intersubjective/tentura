@@ -10,6 +10,9 @@ import 'package:tentura/domain/entity/repository_event.dart';
 
 import '../../domain/exception.dart';
 import '../../domain/port/profile_repository_port.dart';
+import '../gql/_g/availability_pause.req.gql.dart';
+import '../gql/_g/availability_resume.req.gql.dart';
+import '../gql/_g/availability_set_limited.req.gql.dart';
 import '../gql/_g/profile_delete.req.gql.dart';
 import '../gql/_g/profile_update.req.gql.dart';
 import '../gql/_g/user_fetch_by_id.req.gql.dart';
@@ -107,6 +110,76 @@ class ProfileRepository implements ProfileRepositoryPort {
     } else {
       throw ProfileDeleteException(id);
     }
+  }
+
+  @override
+  Future<void> setAvailabilityLimited({
+    required String profileId,
+    required bool isLimited,
+  }) async {
+    await _remoteApiService
+        .request(
+          GUserAvailabilitySetLimitedReq(
+            (b) => b
+              ..fetchPolicy = FetchPolicy.NoCache
+              ..vars.isLimited = isLimited,
+          ),
+        )
+        .firstWhere((e) => e.dataSource == DataSource.Link)
+        .then((r) => r.dataOrThrow(label: _label).userAvailabilitySetLimited);
+
+    _controller.add(RepositoryEventUpdate(await fetchById(profileId)));
+  }
+
+  @override
+  Future<void> pauseAvailability({
+    required String profileId,
+    required DateTime resumeOn,
+  }) async {
+    final resumeOnWire = _utcCalendarDateWire(resumeOn);
+    await _remoteApiService
+        .request(
+          GUserAvailabilityPauseReq(
+            (b) => b
+              ..fetchPolicy = FetchPolicy.NoCache
+              ..vars.resumeOn = resumeOnWire,
+          ),
+        )
+        .firstWhere((e) => e.dataSource == DataSource.Link)
+        .then((r) => r.dataOrThrow(label: _label).userAvailabilityPause);
+
+    _controller.add(RepositoryEventUpdate(await fetchById(profileId)));
+  }
+
+  @override
+  Future<void> resumeAvailability({required String profileId}) async {
+    await _remoteApiService
+        .request(
+          GUserAvailabilityResumeReq(
+            (b) => b.fetchPolicy = FetchPolicy.NoCache,
+          ),
+        )
+        .firstWhere((e) => e.dataSource == DataSource.Link)
+        .then((r) => r.dataOrThrow(label: _label).userAvailabilityResume);
+
+    _controller.add(RepositoryEventUpdate(await fetchById(profileId)));
+  }
+
+  static String _utcCalendarDateWire(DateTime resumeOn) {
+    if (!resumeOn.isUtc ||
+        resumeOn.hour != 0 ||
+        resumeOn.minute != 0 ||
+        resumeOn.second != 0 ||
+        resumeOn.millisecond != 0 ||
+        resumeOn.microsecond != 0) {
+      throw FormatException(
+        'pauseAvailability resumeOn must be UTC midnight, got $resumeOn',
+      );
+    }
+    final y = resumeOn.year.toString().padLeft(4, '0');
+    final m = resumeOn.month.toString().padLeft(2, '0');
+    final d = resumeOn.day.toString().padLeft(2, '0');
+    return '$y-$m-$d';
   }
 
   static const _label = 'Profile';

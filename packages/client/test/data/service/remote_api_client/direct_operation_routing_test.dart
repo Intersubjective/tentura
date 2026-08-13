@@ -32,5 +32,16 @@ void main() {
         expect(isTenturaDirectOperation(name), isTrue, reason: name);
       }
     });
+
+    test('availability profile commands route to Tentura V2', () {
+      const operationNames = [
+        'UserAvailabilitySetLimited',
+        'UserAvailabilityPause',
+        'UserAvailabilityResume',
+      ];
+      for (final name in operationNames) {
+        expect(isTenturaDirectOperation(name), isTrue, reason: name);
+      }
+    });
   });
 }

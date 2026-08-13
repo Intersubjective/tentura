@@ -1,0 +1,3 @@
+mutation UserAvailabilityPause($resumeOn: String!) {
+  userAvailabilityPause(resumeOn: $resumeOn)
+}

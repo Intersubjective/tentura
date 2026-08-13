@@ -252,6 +252,21 @@ class RecoverFakeProfileRepository implements ProfileRepositoryPort {
 
   @override
   Future<void> delete(String id) async {}
+
+  @override
+  Future<void> setAvailabilityLimited({
+    required String profileId,
+    required bool isLimited,
+  }) async {}
+
+  @override
+  Future<void> pauseAvailability({
+    required String profileId,
+    required DateTime resumeOn,
+  }) async {}
+
+  @override
+  Future<void> resumeAvailability({required String profileId}) async {}
 }
 
 class RecoverFakePlatform implements PlatformRepositoryPort {

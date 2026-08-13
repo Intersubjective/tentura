@@ -1,0 +1,3 @@
+mutation UserAvailabilitySetLimited($isLimited: Boolean!) {
+  userAvailabilitySetLimited(isLimited: $isLimited)
+}

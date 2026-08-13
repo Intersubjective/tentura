@@ -70,6 +70,16 @@ class ProfileCubit extends Cubit<ProfileState> {
   int _fetchSequence = 0;
   int _accountSequence = 0;
 
+  bool _availabilityLimitedInFlight = false;
+  bool _availabilityPauseInFlight = false;
+  bool _availabilityResumeInFlight = false;
+
+  bool get isAvailabilityLimitedInFlight => _availabilityLimitedInFlight;
+
+  bool get isAvailabilityPauseInFlight => _availabilityPauseInFlight;
+
+  bool get isAvailabilityResumeInFlight => _availabilityResumeInFlight;
+
   //
   //
   @disposeMethod
@@ -124,6 +134,51 @@ class ProfileCubit extends Cubit<ProfileState> {
     } catch (e) {
       _effects.emit(ShowError(e));
       emit(state.copyWith(status: const StateIsSuccess()));
+    }
+  }
+
+  Future<void> setAvailabilityLimited(bool isLimited) async {
+    final profileId = state.profile.id;
+    if (profileId.isEmpty || _availabilityLimitedInFlight) return;
+    _availabilityLimitedInFlight = true;
+    try {
+      await _profileRepository.setAvailabilityLimited(
+        profileId: profileId,
+        isLimited: isLimited,
+      );
+    } catch (e) {
+      _effects.emit(ShowError(e));
+    } finally {
+      _availabilityLimitedInFlight = false;
+    }
+  }
+
+  Future<void> pauseAvailability(DateTime resumeOn) async {
+    final profileId = state.profile.id;
+    if (profileId.isEmpty || _availabilityPauseInFlight) return;
+    _availabilityPauseInFlight = true;
+    try {
+      await _profileRepository.pauseAvailability(
+        profileId: profileId,
+        resumeOn: resumeOn,
+      );
+    } catch (e) {
+      _effects.emit(ShowError(e));
+    } finally {
+      _availabilityPauseInFlight = false;
+    }
+  }
+
+  Future<void> resumeAvailability() async {
+    final profileId = state.profile.id;
+    if (profileId.isEmpty || _availabilityResumeInFlight) return;
+    _availabilityResumeInFlight = true;
+    try {
+      await _profileRepository.resumeAvailability(profileId: profileId);
+    } catch (e) {
+      _effects.emit(ShowError(e));
+    } finally {
+      _availabilityResumeInFlight = false;
     }
   }
 
