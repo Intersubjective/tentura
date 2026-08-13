@@ -926,7 +926,7 @@ REMAINING: UNIT 07 is accepted and UNIT 08 is dependency-ready.
 
 ## UNIT 08 — complete — 2026-08-14
 
-COMMITS: `7a2646216` feat(client): map availability data; `430f0ec73`
+COMMITS: `7a2646216` feat(client): map availability data; `0c25d9155`
 docs: record UNIT 08 client availability data evidence
 TESTS:
 - Temporary local schema fetch: applied m0148 to shared `postgres`, started
