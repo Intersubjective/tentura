@@ -441,3 +441,19 @@ mutation tests. Added schema-path regression proving `null` for `isLimited: Bool
 throws `GraphQLException` before any `setLimited` repository write; existing missing
 required `isLimited` test preserved.
 REMAINING: none for UNIT 05 remediation; UNIT 06 is next
+
+## Manager review — UNIT 05 accepted — 2026-08-13
+
+COMMITS: `7c7d6d748` feat(server): add availability mutations; `0b7ff7f72` UNIT 05
+evidence; `694176029` isolated mutation fake; `d9ae8a59b` remediation evidence
+TESTS: independent `(cd packages/server && dart test
+test/api/controllers/graphql/mutation_availability_test.dart)` → 18 passed; manager source
+review confirmed the canonical UTC parser rejects non-calendar/timestamp/rollover inputs, all
+three fields are self-only non-null mutations, and horizon validation remains in
+`UserAvailabilityCase`; `git diff --check 36257f97a..HEAD` → clean
+FILES: UNIT 05 source/test paths and this journal
+FINDINGS: accepted after one targeted remediation. The focused schema executes actual
+`MutationAvailability` GraphQL fields through document parsing without constructing unrelated
+server DI dependencies. The test fake is now local to this unit, and a null Boolean variable is
+proved to be rejected before a repository call. Protected independent UI work remains unmodified.
+REMAINING: UNIT 06 is dependency-ready. UNIT 07 still owns PostgreSQL/API invariant proof.
