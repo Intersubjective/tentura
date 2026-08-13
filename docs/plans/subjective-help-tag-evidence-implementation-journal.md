@@ -7367,3 +7367,96 @@ FINDINGS:
 - No port/signature changes; no periodic sweep (context is per-request, not enumerable — see CRITICAL FINDING entry).
 
 REMAINING: resume G1c telemetry unit (window/floor/eligible-witness coverage).
+
+## Witness window read-through fix — Manager verdict: ACCEPTED — 2026-08-13
+
+This worker completed on its first dispatch (no kill, exit code 0).
+Full independent review performed given this is a production
+correctness fix, not just telemetry:
+
+- **Read the core diff in full**
+  (`capability_projection_case.dart`): `project()` now calls a new
+  private `_loadWitnessWindow()` instead of `_witnessWindow.cachedWindow()`
+  directly. The new method calls `cachedWindow` first; if non-empty,
+  returns it unchanged (fast path byte-for-byte identical to the old
+  code — verified by inspection, no behavior change for any ego that
+  already has a fresh cache row). If empty, calls `rawWindowFacts` +
+  the pre-existing pure `computeWitnessWeights()` policy function +
+  `storeWindow`, then returns the freshly computed weights for
+  immediate use. No new constructor dependency, no port signature
+  change — exactly the shape agreed with the user.
+- **Verified the new end-to-end test's arithmetic by hand**, not just
+  that it passes: one witness with `forwardMr=1.0, explicitlyTrusted:
+  true` → `computeM` gives `m = min(1, 1.0/R_ego)`; with a single
+  peer `R_ego = forwardMr = 1.0` (per `computeREgo`'s <3-peer branch,
+  which I independently reviewed in an earlier unit this session), so
+  `m = 1.0`. Cell `eOut = 0.321` → `S_out = 1.0 × 0.321 = 0.321 ≥
+  θ_out (0.30)` → Tier `networkOutcome`, score `0.321`. The test's
+  `expect(rows.single.tier, ProjectionTier.networkOutcome)` and
+  `expect(rows.single.score, closeTo(0.321, 1e-9))` are therefore
+  correct, not just internally self-consistent — this is a real,
+  hand-verified proof that a never-before-cached ego now gets genuine
+  Tier B evidence on the very first request, which was impossible
+  before this fix.
+- **Gave the `model_world.dart` diff extra scrutiny** (per this
+  session's standing practice whenever a worker touches
+  already-accepted D4 invariant-suite infrastructure): traced through
+  `_windowFor(egoId)` — the pre-existing `window` fixture is *already*
+  derived from `_peerFactsByEgo[egoId]` via `computeWitnessWeights`
+  (with test-specific overrides applied after). The new
+  `rawWindowFacts`/`storeWindow` stubs pull from that exact same
+  `_peerFactsByEgo` source. Consequence: the new fallback path in
+  `_loadWitnessWindow` only ever fires in this fixture when `window`
+  was *already* empty (no facts, no overrides), and in that exact case
+  the new stub reproduces `[]` too — so every one of the 37 D4
+  invariant tests is byte-for-byte unaffected; the new stubs are
+  reachable only in the one case where old and new code paths agree
+  the answer is empty. Confirmed by rerunning `test/domain/capability/`
+  3x myself: `+82` identical every time.
+- **Confirmed edge-case resolution (b)** (accept per-request
+  recomputation for genuinely zero-peer egos, rather than a sentinel
+  row) is reasoned and documented, not skipped — matches the latitude
+  I gave in the dispatch prompt, and the reasoning (invite-only signup
+  guarantees a vouch, so zero-peer is a rare bootstrap/admin case) is
+  sound and independently checkable against architecture §5.2.1.
+- **Independently reran everything**, not just the worker's claimed
+  numbers:
+  ```bash
+  cd packages/server && dart test -x pg test/domain/capability/ \
+    test/domain/use_case/capability_projection_case_test.dart \
+    test/domain/use_case/forward_band_case_test.dart \
+    test/api/controllers/graphql/query_capability_projection_test.dart
+  → +108, all passed
+
+  cd packages/server && dart test -x pg test/domain/capability/  (×3)
+  → +82 identical every run — the D4 invariant suite, unaffected
+
+  cd packages/server && dart test -x pg
+  → +1446, all passed (+1 over G1b's +1445 baseline)
+
+  # The underlying primitives this fix wires together already have
+  # real-Postgres coverage from an earlier unit — reran it to confirm
+  # rawWindowFacts/storeWindow/cachedWindow actually work against a
+  # live database, not just against mocks:
+  cd packages/server && dart test -t pg \
+    test/data/repository/witness_window_repository_pg_test.dart \
+    test/data/database/m0144_mr_publish_epoch_pg_test.dart
+  → +13, all passed
+
+  bash scripts/check-user-facing-terminology.sh → ok
+  ./scripts/check-custom-lints.sh packages/server → total: 0 (baseline: 0)
+  git diff --check → clean
+  ```
+
+ACCEPTANCE: the fix closes exactly the gap described in the CRITICAL
+FINDING entry — network-derived (Tier B/C) evidence now renders for
+any ego/context pair on first projection, proven end-to-end by a real
+test (not merely "the code compiles and old tests still pass"). No
+port/signature changes, no periodic sweep (correctly avoided, per the
+architecture §15 read-through design). No regression in the D4
+invariant suite, ForwardBandCase, or the GraphQL projection resolver.
+
+No defects found. Accepted as-is. Resuming G1c (window coverage, floor
+margin, eligible-witness coverage) — this signal will now measure a
+pipeline that actually runs, rather than one that would trivially
+report 100% empty forever.
