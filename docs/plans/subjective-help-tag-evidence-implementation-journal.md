@@ -7344,7 +7344,7 @@ REMAINING: journal final entry + focused commits; resume G1c telemetry unit.
 
 ## Witness window read-through fix — complete — 2026-08-13
 
-COMMITS: fix(server): read-through witness window on cache miss in projection (`444895150`); test(server): stub witness window read-through in shared test fixtures (`86c47ee59`); docs: witness window read-through remediation journal (`pending`)
+COMMITS: fix(server): read-through witness window on cache miss in projection (`444895150`); test(server): stub witness window read-through in shared test fixtures (`86c47ee59`); docs: witness window read-through remediation journal (`b08675b`)
 
 TESTS:
 - `cd packages/server && dart analyze` on changed paths → 0 new errors
