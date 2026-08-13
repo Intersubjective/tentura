@@ -74,6 +74,11 @@ void main() {
       final clock = () => DateTime(2026, 8, 14, 23, 45);
       expect(availabilityTodayUtc(clock), DateTime.utc(2026, 8, 14));
     });
+
+    test('uses the preceding UTC date across an explicit offset midnight', () {
+      final clock = () => DateTime.parse('2026-08-14T00:15:00+02:00');
+      expect(availabilityTodayUtc(clock), DateTime.utc(2026, 8, 13));
+    });
   });
 
   group('utcCalendarDateFromLocalPicker', () {

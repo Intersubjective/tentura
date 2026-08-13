@@ -1,4 +1,5 @@
 import 'package:tentura/domain/entity/profile.dart';
+import 'package:tentura/domain/util/availability_presets.dart';
 
 enum PersonPrimaryAction { none, trust, sendRequest }
 
@@ -25,7 +26,7 @@ class PersonActionPolicy {
     required bool isBlocked,
     DateTime? todayUtc,
   }) {
-    final effectiveTodayUtc = todayUtc ?? _defaultTodayUtc();
+    final effectiveTodayUtc = todayUtc ?? availabilityTodayUtc();
     final base = _baseFrom(profile, isSelf: isSelf, isBlocked: isBlocked);
     if (isSelf ||
         isBlocked ||
@@ -149,10 +150,4 @@ class PersonActionPolicy {
     }
     return PersonVisibilityState.neither;
   }
-}
-
-/// UTC calendar date for "today" per plan §0.6.
-DateTime _defaultTodayUtc() {
-  final now = DateTime.now();
-  return DateTime.utc(now.toUtc().year, now.toUtc().month, now.toUtc().day);
 }
