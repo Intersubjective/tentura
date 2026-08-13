@@ -126,7 +126,7 @@ Units are sequential. Check off only after the unit's focused commit and verific
 
 - [x] **UNIT 00 — Journal and immutable baseline** — depends: — — commit:
   `docs: start availability implementation journal`
-- [ ] **UNIT 01 — Shared calendar/view model and entities** — depends: 00 — commit:
+- [x] **UNIT 01 — Shared calendar/view model and entities** — depends: 00 — commit:
   `feat: add availability domain model`
 - [ ] **UNIT 02 — `m0148`, Drift table, Hasura visibility** — depends: 01 — commit:
   `feat(server): add user availability storage`
@@ -242,3 +242,27 @@ TESTS: independent inspection of both commits; `git diff 9c9bcf518..HEAD --check
 FILES: `docs/plans/availability-request-receptiveness-implementation-journal.md`
 FINDINGS: accepted. The worker made two narrowly scoped documentation commits because the final evidence needed the first commit hash; both are intentional and preserve the protected worktree exactly.
 REMAINING: UNIT 01 is dependency-ready.
+
+## UNIT 01 — complete — 2026-08-13
+
+COMMITS: `61428bc4a` feat: add availability domain model
+TESTS:
+- `dart test test/domain/availability_test.dart` → 11 passed
+- `(cd packages/client && dart run build_runner build -d && flutter test test/domain/entity/availability_test.dart)` → 9 passed
+- `(cd packages/server && dart run build_runner build -d && dart test test/domain/entity/user_availability_entity_test.dart)` → 9 passed
+- `./scripts/check-custom-lints.sh packages/client` → pass
+- `./scripts/check-custom-lints.sh packages/server` → pass
+- `git diff --check` → clean
+FILES:
+- `lib/domain/enums.dart`
+- `lib/domain/availability.dart`
+- `test/domain/availability_test.dart`
+- `packages/client/lib/domain/entity/availability.dart`
+- `packages/client/lib/domain/entity/profile.dart`
+- `packages/client/test/domain/entity/availability_test.dart`
+- `packages/server/lib/domain/entity/user_availability_entity.dart`
+- `packages/server/test/domain/entity/user_availability_entity_test.dart`
+FINDINGS: Freezed `@Default(Availability.open())` is not a valid const default; `Profile` uses
+`@Default(Availability())`, equivalent to `Availability.open()`. Generated `*.freezed.dart` files
+were produced by build_runner but not staged.
+REMAINING: none for UNIT 01; UNIT 02 (`feat(server): add user availability storage`) is next
