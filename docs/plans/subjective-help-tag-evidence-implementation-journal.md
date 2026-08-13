@@ -8125,3 +8125,82 @@ FINDINGS:
 
 REMAINING: none for G3a. Next plan unit: **G3b** (browser e2e proof).
 
+## G3a — Manager verdict: ACCEPTED — 2026-08-13
+
+This is the largest, most novel unit reviewed this session — the first
+real-Postgres wiring anywhere in the codebase of the full
+`ForwardBandCase → CapabilityProjectionCase` read chain — so I read the
+entire 582-line file, not a diff summary.
+
+- **DI wiring**: traced every one of the ~11 repository constructions
+  in `setUpAll` (`MeritrankRepository`, `WitnessWindowRepository`,
+  `CapabilityCellRepository`, `CapabilityOwnEvidenceRepository`,
+  `RoutingMuteRepository`, `PairBlockQueryRepository`,
+  `PersonVisibilityRepository`, `UserBlockRepository`,
+  `BandCandidateRepository` (with its 3 sub-repo deps),
+  `BeaconRepository`, `BeaconAccessRepository`) against
+  `CapabilityProjectionCase`'s and `ForwardBandCase`'s actual
+  constructor parameter lists — every argument in the right position,
+  no mismatched or missing dependency.
+- **Verified the discovered correction independently**: the checkpoint
+  claimed "mutual trust + bidirectional MR required for Carol to
+  appear in `candidatesFor` — one-way MR alone is insufficient." Read
+  `_seedTrustGraph()` and confirmed it does exactly that
+  (`_trustBothWays` + two `_mrEdge` calls per direction for both
+  Alice↔Carol and Eve↔Carol) — while correctly keeping Alice→Bob
+  **strictly one-directional** (`_trustEdge` once, `_mrEdge` once, no
+  reverse edge, and Eve gets *no* Bob-related edges at all). This is
+  exactly right: the only variable the test is allowed to vary between
+  the two egos is Alice→Bob admission, and it does not accidentally
+  smuggle in a second difference through the visibility fixture.
+- **Read every one of the 6 plan-ordered assertion blocks** and
+  confirm they check what they claim to, not something weaker:
+  candidate visibility asserts both `canForwardTo: true` AND
+  `forwardMr > 0` for both egos before touching the window; the
+  window assertion checks `aliceBob.single.admitted == true` and
+  `eveBob.isEmpty || !eveBob.single.admitted` (correctly permissive —
+  Eve legitimately has no edge to Bob at all rather than an
+  explicit-but-unadmitted one, and the test allows for either shape);
+  the band assertions check the actual `ProjectionTier.networkOutcome`
+  enum value and the specific tag-matching label, not just "some row
+  exists"; the post-mute assertion re-checks the SAME predicate
+  (tier + tag match) rather than a weaker "band changed somehow" check.
+- **Read the cleanup/fixture SQL** (`_seedBeaconFixture`, `_cleanup`)
+  against the schema used by the established
+  `review_finalization_outcome_evidence_pg_test.dart` template — table
+  names, column names, and enum `dbValue` usage
+  (`EvaluationParticipantRole.author.dbValue`/`.committer.dbValue`)
+  all consistent; cleanup order respects FK dependency direction
+  (evaluation/ack-tag/participant/visibility/review-status rows before
+  the beacon row; capability ledger/cell/window rows before users;
+  users last).
+- **Independently reran the actual test against the live local
+  Postgres container** (not just trusted the worker's reported
+  numbers): 3x, ~9s each, stable, `+1` pass every time. Reran the full
+  non-pg suite (`+1454`, unchanged from the G1d baseline — correct,
+  this unit added no non-pg tests). Reran terminology, server lints
+  (0/0), and `git diff --check` (clean) myself.
+- **Checked for leftover disposable databases** after my 3 reruns
+  (`tentura_test_*` naming) — none created by this test remained,
+  confirming `tearDownAll`'s `target.drop()` teardown is sound (the
+  handful of `tentura_test_*` databases present are older debris from
+  earlier units this session, unrelated to G3a).
+- No production code changes were made or needed — confirmed by
+  `git diff --check`/`git status` showing only the one new test file
+  and the journal.
+
+ACCEPTANCE: every element of the plan's own G3a spec is satisfied —
+four distinct users, one-way Alice→Bob admission as the sole
+controlled variable, candidate-visibility precondition asserted before
+the band (catching exactly the "Eve's negative result could be caused
+by visibility, not admission" failure mode the plan called out),
+witness-window precondition asserted before the band (proving *why*
+the two egos differ, not just *that* they do), Alice's band showing
+Tier B evidence for Carol, Eve's band not showing it, and muting
+removing it from Alice's band. Precondition assertions passed cleanly
+on the final fixture (no bug they caught in this run) — appropriately
+reported as such rather than overclaiming a catch that didn't happen.
+
+No defects found. Accepted as-is. Proceeding to G3b (browser e2e
+proof) — the last unit before whole-plan integration and closure.
+
