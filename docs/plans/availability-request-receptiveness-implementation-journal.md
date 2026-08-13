@@ -150,7 +150,7 @@ Units are sequential. Check off only after the unit's focused commit and verific
   `feat(client): add availability profile control`
 - [x] **UNIT 12 — Other-profile and graph policy/rendering** — depends: 10 — commit:
   `feat(client): gate person request actions`
-- [ ] **UNIT 13 — Picker host policy, row precedence, band exclusion** — depends: 08, 10 —
+- [x] **UNIT 13 — Picker host policy, row precedence, band exclusion** — depends: 08, 10 —
   commit: `feat(client): show availability in recipient picker`
 - [ ] **UNIT 14 — Picker preselection, expiry refresh, typed delivery UX** — depends: 06, 08,
   10, 13 — commit: `feat(client): report actual forward delivery`
@@ -1367,3 +1367,34 @@ FINDINGS: The explicit `2026-08-14T00:15:00+02:00` test now proves that the
 clock derives `2026-08-13` UTC, rather than merely proving a same-date local
 conversion. Existing goldens remain valid because visual output did not change.
 REMAINING: UNIT 13 is dependency-ready.
+
+## UNIT 13 — complete — 2026-08-14
+
+COMMITS: `eb08fc0bb` feat(client): show availability in recipient picker
+TESTS:
+- `(cd packages/client && flutter test test/features/forward/forward_recipient_host_policy_test.dart test/features/forward/forward_state_scope_test.dart test/features/forward/ui/widget/forward_band_strip_test.dart test/golden/typography_overhaul_test.dart)` → 36 passed, 7 skipped (golden)
+- `(cd packages/client && flutter test test/features/forward/forward_recipient_picker_test.dart)` → 6 passed
+- `./scripts/check-custom-lints.sh packages/client` → pass (custom-rule total 106, baseline 111)
+- `bash scripts/check-user-facing-terminology.sh` → pass
+- `git diff --check` → clean
+- `rg "ForwardRecipientRow\\(" packages/client --glob "*.dart"` → all 8 call sites pass explicit `host:` (constructor definition + 7 invocations)
+FILES:
+- `packages/client/lib/features/forward/ui/model/forward_recipient_row_host.dart`
+- `packages/client/lib/features/forward/domain/entity/forward_candidate.dart`
+- `packages/client/lib/features/forward/domain/use_case/forward_case.dart`
+- `packages/client/lib/features/forward/ui/widget/forward_recipient_row.dart`
+- `packages/client/lib/features/forward/ui/widget/forward_recipient_picker.dart`
+- `packages/client/lib/features/forward/ui/widget/forward_band_strip.dart`
+- `packages/client/lib/features/forward/ui/widget/forward_search_overlay.dart`
+- `packages/client/lib/features/forward/ui/widget/lineage_suggestions_sheet.dart`
+- `packages/client/test/features/forward/forward_state_scope_test.dart`
+- `packages/client/test/features/forward/forward_recipient_host_policy_test.dart`
+- `packages/client/test/golden/typography_overhaul_test.dart`
+FINDINGS:
+- `ForwardState` needed no edits: unseen scope already lists `isUnseen` rows (including paused)
+  and `scopeCounts.unseen` counts them; `canForwardToOn` gates selection only.
+- Row policy lives in `forward_recipient_row_host.dart` as pure `computeForwardRecipientLine2`
+  plus `forwardRecipientCheckboxEnabled` for widget + unit tests.
+- Band pause exclusion runs in `ForwardCase.loadForwardCandidates` after fetch using
+  `availabilityTodayUtc()`; rows without a matched candidate survive (`ghost` regression).
+REMAINING: none for UNIT 13; UNIT 14 (`feat(client): report actual forward delivery`) is next.
