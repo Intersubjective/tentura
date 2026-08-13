@@ -18,6 +18,7 @@ import 'package:tentura_server/domain/use_case/attention_channel_delivery_case.d
 import 'package:tentura_server/domain/use_case/block_cascade_case.dart';
 import 'package:tentura_server/domain/use_case/block_release_sweep_case.dart';
 import 'package:tentura_server/domain/use_case/capability_cell_expiry_sweep_case.dart';
+import 'package:tentura_server/domain/use_case/capability_telemetry_case.dart';
 import 'package:tentura_server/domain/use_case/trust_maintenance_case.dart';
 import 'package:tentura_server/domain/port/trust_maintenance_port.dart';
 import 'package:tentura_server/domain/port/witness_window_port.dart';
@@ -44,6 +45,7 @@ final class TaskWorkerCase extends UseCaseBase {
     BlockCascadeCase blockCascade,
     BlockReleaseSweepCase blockReleaseSweep,
     CapabilityCellExpirySweepCase capabilityCellExpirySweep,
+    CapabilityTelemetryCase capabilityTelemetry,
     WitnessWindowPort witnessWindow,
     CapabilityCellPort capabilityCellPort,
   ) => Future.value(
@@ -60,6 +62,7 @@ final class TaskWorkerCase extends UseCaseBase {
       blockCascade: blockCascade,
       blockReleaseSweep: blockReleaseSweep,
       capabilityCellExpirySweep: capabilityCellExpirySweep,
+      capabilityTelemetry: capabilityTelemetry,
       witnessWindow: witnessWindow,
       capabilityCellPort: capabilityCellPort,
       env: env,
@@ -80,6 +83,7 @@ final class TaskWorkerCase extends UseCaseBase {
     BlockCascadeCase? blockCascade,
     BlockReleaseSweepCase? blockReleaseSweep,
     CapabilityCellExpirySweepCase? capabilityCellExpirySweep,
+    CapabilityTelemetryCase? capabilityTelemetry,
     WitnessWindowPort? witnessWindow,
     CapabilityCellPort? capabilityCellPort,
     required super.env,
@@ -92,6 +96,7 @@ final class TaskWorkerCase extends UseCaseBase {
        _blockCascade = blockCascade,
        _blockReleaseSweep = blockReleaseSweep,
        _capabilityCellExpirySweep = capabilityCellExpirySweep,
+       _capabilityTelemetry = capabilityTelemetry,
        _witnessWindow = witnessWindow,
        _capabilityCellPort = capabilityCellPort;
 
@@ -111,6 +116,7 @@ final class TaskWorkerCase extends UseCaseBase {
   final BlockCascadeCase? _blockCascade;
   final BlockReleaseSweepCase? _blockReleaseSweep;
   final CapabilityCellExpirySweepCase? _capabilityCellExpirySweep;
+  final CapabilityTelemetryCase? _capabilityTelemetry;
   final WitnessWindowPort? _witnessWindow;
   final CapabilityCellPort? _capabilityCellPort;
 
@@ -131,6 +137,7 @@ final class TaskWorkerCase extends UseCaseBase {
   var _lastImageGcSweep = DateTime.fromMillisecondsSinceEpoch(0);
   var _lastStageExpirySweep = DateTime.fromMillisecondsSinceEpoch(0);
   var _lastCapCellSweep = DateTime.fromMillisecondsSinceEpoch(0);
+  var _lastCapTelemetrySweep = DateTime.fromMillisecondsSinceEpoch(0);
   var _lastEwwGcSweep = DateTime.fromMillisecondsSinceEpoch(0);
   var _lastCapGenGcSweep = DateTime.fromMillisecondsSinceEpoch(0);
 
@@ -277,6 +284,15 @@ final class TaskWorkerCase extends UseCaseBase {
       }
       _lastCapCellSweep = now;
       await _capabilityCellExpirySweep?.runDue(now: now);
+    },
+    // Capability telemetry (G1b): population-wide mute rate + seed renewal gauges.
+    () async {
+      final now = DateTime.timestamp();
+      if (now.difference(_lastCapTelemetrySweep) < const Duration(minutes: 45)) {
+        return;
+      }
+      _lastCapTelemetrySweep = now;
+      await _capabilityTelemetry?.runDue(now: now);
     },
     // Witness-window cache GC: rows past read-time TTL (storage only).
     () async {
