@@ -6476,3 +6476,92 @@ FINDINGS:
   token args only — no F4a-style literal `0` in `fromLTRB`.
 
 REMAINING: F5 (Routing mute screen), F6 (Client release checks).
+
+### Manager verdict: ACCEPTED — 2026-08-13
+
+**Acceptance mapping** (F4b's own share: "withdrawing clears the
+attestation"):
+
+- Present and precisely tested: `withdraw calls seedRoutingAttestation
+  with empty slugs` asserts both the correct subject id and an empty
+  slug list reach the port call — the exact mechanism confirmed to map
+  to the server's `withdraw()` case (empty `slugs` → the resolver's own
+  branch, not `replaceAttestation`).
+
+**The pending-state judgment call was resolved well, and independently
+re-derived, not just trusted**: restricting this section to
+`answered`/`skipped` (never `pending`) is correct — `seedRoutingAttestation`
+deliberately never touches prompt state (confirmed again directly against
+the server resolver, `mutation_capability_routing.dart`), so surfacing a
+first-time seed opportunity here would let an inviter attest while F4a's
+Updates-feed card still shows the unanswered prompt, producing two
+live, disagreeing UI surfaces for the same underlying fact — exactly the
+kind of "two mechanisms, one truth" bug this whole plan's architecture
+doc (§11) was written to prevent for prompt-state tracking specifically.
+Good instinct to flag this as a real decision rather than default blindly.
+
+**Independent verification performed by the manager:**
+
+```bash
+# Read the full section widget, the profile_view_body.dart integration
+# diff, both l10n diffs, and the test file before running anything.
+
+# Confirmed the "avoid F4a's EdgeInsets mistake" instruction was followed:
+grep -n "EdgeInsets\." packages/client/lib/features/profile_view/ui/widget/edit_seed_suggestion_section.dart
+→ EdgeInsets.only(left: tt.screenHPadding, right: tt.screenHPadding,
+  top: tt.tightGap, bottom: tt.cardPadding.bottom) -- all four arguments
+  are design tokens, zero raw literals.
+
+# sqlite3 overlay applied temporarily, then reverted.
+
+cd packages/client && flutter test test/features/profile_view/edit_seed_suggestion_section_test.dart
+→ run 1/2/3: 00:00 +5: All tests passed!
+
+cd packages/client && flutter test
+→ 01:49 +2026 ~18: All tests passed! (+5 vs F4a's 2021; same 18
+  pre-existing skips; F3's _SeenHelpingWithSection and the rest of
+  profile_view_body.dart's existing tests all still pass unchanged)
+
+bash scripts/check-user-facing-terminology.sh
+→ check-user-facing-terminology: ok
+
+./scripts/check-custom-lints.sh packages/client
+→ total: 106 (baseline: 111) -- flat, matching every unit except F4a's
+  pre-fix state; confirms the worker genuinely internalized and avoided
+  the specific mistake flagged in its own dispatch prompt, not just
+  coincidentally
+
+git diff --check
+→ no whitespace errors (sqlite3 overlay reverted)
+```
+
+FINDINGS (manager, beyond what the worker reported):
+
+- `_showWithdraw`'s logic (`state == answered || _hasSavedAttestation`)
+  is correct and traced through both paths: an originally-`skipped`
+  inviter who saves a fresh selection in this session immediately gains a
+  Withdraw button (there is now something to withdraw), while a
+  `skipped` inviter who hasn't saved anything yet correctly sees no
+  Withdraw button (nothing exists server-side to withdraw) — verified
+  this distinction is exactly what the test suite's "skipped state shows
+  add prompt without withdraw" case pins.
+- The pre-fill gap (no client API exposes an inviter's previously-saved
+  seed slugs, so the edit picker always starts empty) is a genuine,
+  honestly-documented product limitation, not a bug — `replaceAttestation`
+  is set-replacement semantics server-side, so an inviter editing an
+  existing suggestion must currently re-select their full intended set
+  rather than adjust a pre-filled one. Not blocking for this unit (no
+  such read API exists anywhere to consume), but worth a note for a
+  future follow-up if this friction turns out to matter in practice.
+- Journal's own checkpoint listed a placeholder commit hash
+  (`2d7d8964`) for its own final journal-write commit that does not match
+  the actual resulting hash (`42277c97`, per `git log`) — a harmless
+  self-reference slip (the same class of thing seen in D3's journal,
+  fixed the same way there), not corrected in-place per this journal's
+  established practice of leaving prior entries as the historical record
+  and noting the discrepancy here instead.
+
+**F4b is accepted. All of F4 (Invite seeding prompt) is now complete.**
+Per document order, F5 (Routing mute screen) is next — the last
+independent F2–F5 unit — after which F6 (Client release checks) is the
+final client-side unit.
