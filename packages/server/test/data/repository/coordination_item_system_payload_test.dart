@@ -34,6 +34,39 @@ void main() {
     });
   });
 
+  group('CoordinationItemRepository.roomBodyForStandaloneCreatedItem', () {
+    test('root plan standalone uses empty body', () {
+      expect(
+        CoordinationItemRepository.roomBodyForStandaloneCreatedItem(
+          kind: 1,
+          title: 'Ship by Friday',
+        ),
+        '',
+      );
+    });
+
+    test('plan step standalone keeps title body', () {
+      expect(
+        CoordinationItemRepository.roomBodyForStandaloneCreatedItem(
+          kind: 1,
+          title: 'Step one',
+          linkedParentItemId: 'parent-1',
+        ),
+        'Step one',
+      );
+    });
+
+    test('ask standalone keeps title body', () {
+      expect(
+        CoordinationItemRepository.roomBodyForStandaloneCreatedItem(
+          kind: 2,
+          title: 'Need info',
+        ),
+        'Need info',
+      );
+    });
+  });
+
   group('CoordinationItemRepository.mergeSystemPayload', () {
     test('preserves existing keys when patching lastStatusEvent', () {
       final merged = CoordinationItemRepository.mergeSystemPayload(

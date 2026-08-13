@@ -78,6 +78,7 @@ class CoordinationItemRepository implements CoordinationItemRepositoryPort {
             kind: kind,
             creatorId: creatorId,
             linkedMessageId: linkedMessageId,
+            linkedParentItemId: linkedParentItemId,
             targetPersonId: targetPersonId,
             title: title,
             body: body,
@@ -233,25 +234,32 @@ class CoordinationItemRepository implements CoordinationItemRepositoryPort {
     final anchorId = existing.linkedMessageId?.trim();
     final hasAnchor = anchorId != null && anchorId.isNotEmpty;
     final nowIso = DateTime.timestamp().toUtc().toIso8601String();
+    final skipPlanSupersededRoomRow =
+        existing.kind == coordinationItemKindPlan &&
+        eventKind == coordinationEventKindSuperseded;
 
-    final roomMsgId = generateId('R');
-    await _db.managers.beaconRoomMessages.createReturning((o) => o(
-          id: roomMsgId,
-          beaconId: existing.beaconId,
-          authorId: actorId,
-          body: const Value(''),
-          semanticMarker: const Value(null),
-          linkedNextMoveId: const Value(null),
-          linkedFactCardId: const Value(null),
-          linkedPollingId: const Value(null),
-          linkedItemId: Value(existing.id),
-          linkedEventKind: Value(eventKind),
-          systemPayload: hasAnchor
-              ? Value(<String, Object?>{'sourceMessageId': anchorId})
-              : const Value(null),
-          mentions: const Value([]),
-          createdAt: const Value.absent(),
-        ));
+    String? roomMsgId;
+    if (!skipPlanSupersededRoomRow) {
+      final newRoomMsgId = generateId('R');
+      roomMsgId = newRoomMsgId;
+      await _db.managers.beaconRoomMessages.createReturning((o) => o(
+            id: newRoomMsgId,
+            beaconId: existing.beaconId,
+            authorId: actorId,
+            body: const Value(''),
+            semanticMarker: const Value(null),
+            linkedNextMoveId: const Value(null),
+            linkedFactCardId: const Value(null),
+            linkedPollingId: const Value(null),
+            linkedItemId: Value(existing.id),
+            linkedEventKind: Value(eventKind),
+            systemPayload: hasAnchor
+                ? Value(<String, Object?>{'sourceMessageId': anchorId})
+                : const Value(null),
+            mentions: const Value([]),
+            createdAt: const Value.absent(),
+          ));
+    }
 
     if (hasAnchor) {
       await _mergeSourceMessageLastStatusEvent(
@@ -270,7 +278,7 @@ class CoordinationItemRepository implements CoordinationItemRepositoryPort {
         type: _activityEventTypeForKind(existing.kind, eventKind),
         actorId: Value(actorId),
         targetUserId: Value(targetUserId ?? existing.targetPersonId),
-        sourceMessageId: Value(roomMsgId),
+        sourceMessageId: Value(roomMsgId ?? anchorId),
         coordinationItemId: Value(existing.id),
         diff: _activityEventDiff(title: existing.title, body: existing.body),
         createdAt: const Value.absent(),
@@ -413,6 +421,7 @@ class CoordinationItemRepository implements CoordinationItemRepositoryPort {
             kind: updated.kind,
             creatorId: actorId,
             linkedMessageId: updated.linkedMessageId,
+            linkedParentItemId: updated.linkedParentItemId,
             targetPersonId: targetPersonId,
             title: updated.title,
             body: updated.body,
@@ -654,6 +663,7 @@ class CoordinationItemRepository implements CoordinationItemRepositoryPort {
             kind: updated.kind,
             creatorId: actorId,
             linkedMessageId: updated.linkedMessageId,
+            linkedParentItemId: updated.linkedParentItemId,
             title: updated.title,
             body: updated.body,
           );
@@ -1031,6 +1041,28 @@ class CoordinationItemRepository implements CoordinationItemRepositoryPort {
     return '$t\n$b';
   }
 
+  /// Standalone room row body: root plans use an empty body so the client
+  /// renders a plan-announce bar (title comes from linked item snapshot).
+  @visibleForTesting
+  static String roomBodyForStandaloneCreatedItem({
+    required int kind,
+    required String title,
+    String body = '',
+    String? linkedMessageId,
+    String? linkedParentItemId,
+  }) {
+    final trimmedLinkedMessageId = linkedMessageId?.trim();
+    if (trimmedLinkedMessageId != null && trimmedLinkedMessageId.isNotEmpty) {
+      return '';
+    }
+    final trimmedParentId = linkedParentItemId?.trim();
+    if (kind == coordinationItemKindPlan &&
+        (trimmedParentId == null || trimmedParentId.isEmpty)) {
+      return '';
+    }
+    return roomBodyForCreatedItem(title: title, body: body);
+  }
+
   /// Room notify row for item creation (linked source or standalone).
   /// Returns the id used as activity `sourceMessageId`.
   Future<String> _emitCreatedRoomNotify({
@@ -1041,6 +1073,7 @@ class CoordinationItemRepository implements CoordinationItemRepositoryPort {
     required String title,
     String body = '',
     String? linkedMessageId,
+    String? linkedParentItemId,
     String? targetPersonId,
   }) async {
     final trimmedLinkedMessageId = linkedMessageId?.trim();
@@ -1088,7 +1121,13 @@ class CoordinationItemRepository implements CoordinationItemRepositoryPort {
     }
 
     final roomMsgId = generateId('R');
-    final standaloneBody = roomBodyForCreatedItem(title: title, body: body);
+    final standaloneBody = roomBodyForStandaloneCreatedItem(
+      kind: kind,
+      title: title,
+      body: body,
+      linkedMessageId: linkedMessageId,
+      linkedParentItemId: linkedParentItemId,
+    );
     await _db.managers.beaconRoomMessages.createReturning((o) => o(
           id: roomMsgId,
           beaconId: beaconId,

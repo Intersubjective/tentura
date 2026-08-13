@@ -509,7 +509,6 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
                                 context,
                                 cubit,
                                 l10n,
-                                viewer,
                                 message,
                               ),
                             );
@@ -970,24 +969,33 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
     BuildContext context,
     RoomCubit cubit,
     L10n l10n,
-    Profile viewer,
     RoomMessage message,
   ) async {
-    final fields = await _showPromoteFieldsDialog(
+    final body = message.body.trim();
+    if (body.isEmpty) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(l10n.beaconRoomPinFactDisabledEmpty)),
+      );
+      return;
+    }
+    final initialText = body.length > kBeaconRoomCurrentLineMaxLength
+        ? body.substring(0, kBeaconRoomCurrentLineMaxLength)
+        : body;
+    final plan = await showTenturaAdaptiveSheet<String>(
       context: context,
-      l10n: l10n,
-      viewer: viewer,
-      cubit: cubit,
-      dialogTitle: l10n.beaconRoomActionUpdatePlan,
-      messageBody: message.body.trim(),
+      useRootNavigator: true,
+      enableDrag: false,
+      builder: (ctx) => _BeaconRoomTextBottomSheet(
+        title: l10n.beaconRoomActionUpdatePlan,
+        hintText: l10n.beaconRoomStripCurrentLineLabel,
+        initialText: initialText,
+        maxLength: kBeaconRoomCurrentLineMaxLength,
+      ),
     );
-    if (fields == null || !context.mounted) return;
-    await cubit.updatePlan(
-      fields.title,
-      body: fields.body,
-      targetPersonId: fields.targetUserId,
-      linkedMessageId: message.id,
-    );
+    if (plan == null || plan.isEmpty || !context.mounted) return;
+    await cubit.updatePlan(plan, linkedMessageId: message.id);
+    widget.onCoordinationSaved?.call();
   }
 
   String _needInfoTargetLabel(L10n l10n, Profile viewer, BeaconParticipant p) {

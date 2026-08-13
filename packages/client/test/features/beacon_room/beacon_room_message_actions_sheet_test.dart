@@ -24,6 +24,9 @@ class _MockRoomCubit extends Mock implements RoomCubit {
 
   final RoomState _state;
 
+  String? lastUpdatePlanLine;
+  String? lastUpdatePlanLinkedMessageId;
+
   @override
   RoomState get state => _state;
 
@@ -32,6 +35,17 @@ class _MockRoomCubit extends Mock implements RoomCubit {
 
   @override
   Future<void> markReadToBottom() async {}
+
+  @override
+  Future<void> updatePlan(
+    String currentLine, {
+    String body = '',
+    String? targetPersonId,
+    String? linkedMessageId,
+  }) async {
+    lastUpdatePlanLine = currentLine;
+    lastUpdatePlanLinkedMessageId = linkedMessageId;
+  }
 }
 
 class _MockProfileCubit extends Mock implements ProfileCubit {
@@ -69,7 +83,7 @@ void main() {
     await getIt.reset();
   });
 
-  Future<void> pumpRoom(
+  Future<_MockRoomCubit> pumpRoom(
     WidgetTester tester, {
     required double width,
     List<RoomMessage>? messages,
@@ -127,6 +141,7 @@ void main() {
       ),
     );
     await tester.pumpAndSettle();
+    return roomCubit;
   }
 
   Future<double> openMessageActionsSheetWidth(WidgetTester tester) async {
@@ -200,5 +215,41 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text(l10n.beaconRoomActionReply), findsNothing);
+  });
+
+  testWidgets(
+    'update plan from message opens NOW sheet without target picker',
+    (tester) async {
+      final l10n = lookupL10n(const Locale('en'));
+      await pumpRoom(tester, width: 700);
+
+      await tester.longPress(find.byType(RoomMessageTextBody));
+      await tester.pumpAndSettle();
+
+      await tester.tap(find.text(l10n.beaconRoomActionUpdatePlanFromMessage));
+      await tester.pumpAndSettle();
+
+      expect(find.text(l10n.beaconRoomActionUpdatePlan), findsOneWidget);
+      expect(find.text(l10n.beaconRoomNeedInfoPickTarget), findsNothing);
+      expect(find.text('Hello room'), findsOneWidget);
+    },
+  );
+
+  testWidgets('update plan from message saves via updatePlan with message id', (
+    tester,
+  ) async {
+    final l10n = lookupL10n(const Locale('en'));
+    final roomCubit = await pumpRoom(tester, width: 700);
+
+    await tester.longPress(find.byType(RoomMessageTextBody));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text(l10n.beaconRoomActionUpdatePlanFromMessage));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.widgetWithText(FilledButton, 'Save'));
+    await tester.pumpAndSettle();
+
+    expect(roomCubit.lastUpdatePlanLine, 'Hello room');
+    expect(roomCubit.lastUpdatePlanLinkedMessageId, 'm1');
   });
 }
