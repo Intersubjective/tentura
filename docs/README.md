@@ -31,7 +31,7 @@ Short pointers for agents — read only what your task needs.
 |-----|-----------|
 | [`features/beacon_room.md`](features/beacon_room.md) | Room admission, help offers, Items/People/Log, coordination |
 | [`features/new-stuff-indicators.md`](features/new-stuff-indicators.md) | Inbox/My Work “new since last visit” dots and pills |
-| [`features/trust_edges.md`](features/trust_edges.md) | User→user trust weights (MeritRank input) |
+| [`features/trust_edges.md`](features/trust_edges.md) | Per-context trust source edges, effective projection, MeritRank publish |
 | [`features/mutual-friends.md`](features/mutual-friends.md) | Mutual-friends query on profiles / invite accept |
 
 ## Active plans
@@ -83,6 +83,8 @@ Short pointers for agents — read only what your task needs.
 | [`adr/0008-beacon-visibility-and-invite-sharing.md`](adr/0008-beacon-visibility-and-invite-sharing.md) | Relationship-scoped visibility, beacon invites |
 | [`adr/0009-landing-sentry-observability.md`](adr/0009-landing-sentry-observability.md) | Landing funnel Sentry |
 | [`adr/0010-attention-receipt-extension.md`](adr/0010-attention-receipt-extension.md) | Attention receipts / Updates outbox extension |
+| [`adr/0011-attention-durable-topology.md`](adr/0011-attention-durable-topology.md) | Durable attention topology (T-20) |
+| [`adr/0012-subjective-help-tag-evidence.md`](adr/0012-subjective-help-tag-evidence.md) | Subjective help-tag evidence (D1–D24, plan §3 deviations) |
 
 **Root vocabulary:** [`../CONTEXT.md`](../CONTEXT.md) · **Agent entry:** [`../AGENTS.md`](../AGENTS.md) · **Dev conventions:** [`../DEV_GUIDELINES.md`](../DEV_GUIDELINES.md)
 
