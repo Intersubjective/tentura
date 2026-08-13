@@ -969,3 +969,41 @@ FINDINGS:
   until UNIT 14 maps the typed forward result entity.
 REMAINING: UNIT 09 (`feat(client): wire availability commands`); UNIT 14 owns
 full `ForwardDeliveryResult` repository/use-case mapping and delivery UX.
+
+## UNIT 08 — remediation — 2026-08-14
+
+Manager review rejected prior UNIT 08 evidence for two concrete gaps:
+(1) `CalendarDateSerializer.deserialize` and `parseStrictUtcCalendarDateString`
+accepted calendar overflows (`2026-02-31` normalized to March) instead of using
+one strict parser; (2) the Chrome timezone proof skipped offset assertion on
+web and relied on process `TZ` only.
+
+Remediation:
+- Canonical `parseStrictUtcCalendarDateString` in
+  `calendar_date_serializer.dart` validates month/day ranges, rejects overflow,
+  and is shared by Ferry `deserialize` (non-string wire → `FormatException`) and
+  `availabilityFromV2Wire` via `user_model.dart`.
+- Serializer/parity tests reject `2026-02-31` for scalar and V2 paths.
+- Non-UTC proof is opt-in via
+  `--dart-define=availability_expect_non_utc=true`; when set, VM and Chrome
+  tests assert `DateTime.now().timeZoneOffset != Duration.zero` (no `dart:io`
+  on web). Default UTC suites omit the offset assertion.
+
+COMMITS: (see remediation commits below; baseline preserved:
+`7a2646216`, `0c25d9155`, `90bd82718`)
+TESTS:
+- `TZ=America/New_York flutter test --dart-define=availability_expect_non_utc=true test/data/gql/calendar_date_serializer_test.dart test/data/model/availability_read_parity_test.dart` → 12 passed
+- `TZ=America/New_York flutter test --platform chrome --dart-define=availability_expect_non_utc=true test/data/gql/calendar_date_serializer_test.dart` → 6 passed
+- `flutter test test/data/gql/calendar_date_serializer_test.dart test/data/model/availability_read_parity_test.dart` (default UTC, no dart-define) → 12 passed
+- `./scripts/check-custom-lints.sh packages/client` → pass
+- `git diff --check` → clean
+FILES:
+- `packages/client/lib/data/gql/calendar_date_serializer.dart`
+- `packages/client/lib/data/model/user_model.dart`
+- `packages/client/test/data/gql/calendar_date_serializer_test.dart`
+- `packages/client/test/data/model/availability_read_parity_test.dart`
+FINDINGS: `DateTime.utc(y,m,d)` alone is insufficient for strict calendar
+dates; month/day bounds plus post-parse component equality close the overflow
+hole without `toLocal()`.
+REMAINING: manager re-review of UNIT 08 remediation evidence; UNIT 09 onward
+unchanged.
