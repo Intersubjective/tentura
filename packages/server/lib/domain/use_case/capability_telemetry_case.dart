@@ -20,6 +20,8 @@ final class CapabilityTelemetryCase extends UseCaseBase {
   Future<void> runDue({required DateTime now}) async {
     await _logMuteRates();
     await _logSeedRenewal();
+    await _logTwoHopSponsoredMr();
+    await _logEligibleWitnessCoverage();
   }
 
   Future<void> _logMuteRates() async {
@@ -37,6 +39,27 @@ final class CapabilityTelemetryCase extends UseCaseBase {
     logger.info(
       'capability_seed_renewal seed_triples=${counts.seedTriples} '
       'renewed=${counts.renewed}',
+    );
+  }
+
+  Future<void> _logTwoHopSponsoredMr() async {
+    final summary = await _telemetry.twoHopSponsoredForwardMrPercentiles();
+    if (summary.n == 0) {
+      logger.info('witness_two_hop_sponsored_mr n=0');
+      return;
+    }
+    logger.info(
+      'witness_two_hop_sponsored_mr n=${summary.n} '
+      'p33=${summary.p33} p50=${summary.p50} p75=${summary.p75}',
+    );
+  }
+
+  Future<void> _logEligibleWitnessCoverage() async {
+    final counts = await _telemetry.countEligibleWitnessCoverage();
+    logger.info(
+      'capability_eligible_witness_coverage '
+      'eligible_clearing=${counts.eligibleClearing} '
+      'ineligible_only=${counts.ineligibleOnly}',
     );
   }
 }
