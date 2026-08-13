@@ -527,3 +527,23 @@ pause/forward linearization and GraphQL typed-result proof remain UNIT 07.
 REMAINING: manager acceptance of UNIT 06 remediation; UNIT 07 PostgreSQL/API
 invariant suite (`forward_edge_availability_pg_test.dart`,
 `forward_delivery_result_test.dart`, etc.).
+
+## UNIT 06 manager acceptance — 2026-08-13
+
+VERDICT: accepted after remediation commits `6b11793fc` and `2e23b290c`.
+REVIEW: Confirmed the conditional availability insert now preserves the partial
+active-edge index's no-throw deduplication through its matching `ON CONFLICT`
+target. Confirmed `createBatch` determines delivery from the current
+transaction's generated edge id, so an existing edge stays neither delivered
+nor availability-skipped while a paused recipient remains skipped. Each
+`TenturaDb` in the disposable test owns a distinct Postgres pool, so the
+same-edge smoke test uses independent database connections; its missing
+barrier is not accepted as the plan's linearization proof, which remains
+explicitly owned by UNIT 07.
+INDEPENDENT VERIFICATION:
+- `(cd packages/server && dart test test/domain/use_case/forward_case_test.dart test/domain/use_case/forward_case_auth_test.dart)` -> 50 passed
+- `(cd packages/server && dart test -t pg test/data/repository/forward_edge_repository_create_batch_dedup_test.dart)` -> 2 passed, 1 skipped because shared Postgres lacks m0148/user_availability; the two executed cases use a freshly migrated disposable database
+- `./scripts/check-custom-lints.sh packages/server` -> pass, custom-rule total 0
+- `git diff --check f298bd966..HEAD` -> clean
+REMAINING: UNIT 07; no inference of its barrier-based pause/forward,
+GraphQL-row parity, or broader read-permission evidence from UNIT 06.
