@@ -332,6 +332,7 @@ void main() {
             'image': null,
             'scores': <Map<String, dynamic>>[],
             'user_presence': null,
+            'user_availability': null,
           },
           'cascadeMode': 1,
           'inheritedCount': 3,
