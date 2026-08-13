@@ -7136,3 +7136,107 @@ FINDINGS:
 
 REMAINING: none for G1b. Next plan units: G1c (window coverage, floor margin, eligible-witness coverage), G1d (acknowledgement reciprocity), then G2/G3.
 
+## G1b — Manager verdict: ACCEPTED — 2026-08-13
+
+This worker completed on its first dispatch (no kill, exit code 0) — a
+change from F6/G1a's environment instability. Full independent review
+performed before acceptance:
+
+- **Verified the worker's headline judgment call independently, not by
+  trusting the journal entry.** The worker deviated from my own
+  dispatch prompt (which had suggested source_type {0,1,4} for the
+  seed-triple population) by excluding `privateLabel(0)`, citing
+  architecture "D5". I re-read the architecture doc myself: line 42 —
+  "**D5** | **Two seed paths:** the `invite_accepted` Update prompt
+  (newcomers) and `forwardReason` on a forward edge... Private labels
+  are **never** seeds" — and §4.2: "The cell is built from
+  `forwardReason`, `closeAcknowledgement` and `seedRoutingAttestation`
+  rows only. `privateLabel` and `commitRole` never reach a cell." Both
+  confirm the worker's correction was right and my prompt's guess was
+  wrong. Good outcome: the worker prioritized the authoritative
+  architecture doc over my own (hedged) instruction, exactly as the
+  overseer contract asks of it.
+- **Read every changed/new file in full**:
+  `capability_telemetry_case.dart` (thin `runDue()` calling both
+  sub-loggers — clean), `capability_telemetry_port.dart` (one-method
+  interface, well-documented), `capability_telemetry_repository.dart`
+  (the seed-renewal CTE — traced through manually: `seed_triples` CTE
+  groups by triple over source_type IN (forwardReason=1,
+  seedRoutingAttestation=4) taking MIN(created_at); `renewed` CTE
+  EXISTS-checks for a later `forwardReason` row before
+  `next_expiry_at` (or unconditionally if the cell doesn't exist yet).
+  The `_seedSourceTypes.join(',')` string interpolation is safe — it's
+  built from a static list of enum `.dbValue` constants, never from
+  request input, so there is no injection surface despite not using a
+  parameterized `IN` list.
+- **Noted one interpretive nuance worth recording (not a defect):**
+  because `forwardReason` is itself a full seed-evidence source under
+  D5 (not merely a "renewal signal" for attestation-sourced seeds), a
+  triple with two separate forward-reason events for the same
+  (observer, subject, tag) — e.g. two distinct forwards to the same
+  recipient — counts as "renewed" even without any invite-seed
+  attestation ever existing. This is a defensible reading of an
+  inherently ambiguous architecture phrase ("renewed by a forward
+  reason"), and the worker documented its exact definition explicitly
+  in the journal rather than picking one silently, which is what I
+  asked for given the acknowledged ambiguity.
+- **`routing_mute_repository.dart`'s `muteCountsByTag()`**: correct
+  `GROUP BY tag_slug` aggregate; the `HAVING COUNT(*) > 0` clause is
+  redundant (a GROUP BY can't produce a zero-count group) but harmless,
+  not worth a remediation round for a no-op clause.
+- **`task_worker_case.dart` wiring**: diffed against the pre-existing
+  `CapabilityCellExpirySweepCase` wiring line-by-line — reproduces the
+  exact same constructor-param (both call sites)/field/interval-guard
+  pattern with no deviation. 45-minute interval reasoning (between the
+  15-minute cell sweep and hourly window GC) is sound for a
+  slow-moving population gauge.
+- **Read `capability_telemetry_case_test.dart` in full** — three tests,
+  each asserting both the exact log line content AND that fixture user
+  ids do not appear in it, matching G1a's established pattern exactly.
+- **Read the four new pg tests in `capability_read_ports_pg_test.dart`
+  in full**, and specifically checked for a state-leakage risk I
+  suspected on first read: three of the four tests reuse overlapping
+  fixture identifiers (`_ego`/`_sub1`) with the same `tagSlug='pets'`
+  across tests within one file. Confirmed this is NOT a bug — the file
+  has `setUp`/`tearDown` hooks that both call `_cleanup(database)`
+  before and after every single test, so there is no cross-test
+  contamination; each test's assertions are against genuinely isolated
+  state.
+- **Ran the real Postgres-backed tests myself** (not just the fakes in
+  the unit test) against the locally running `postgres-tentura`
+  container — this is the only place the actual SQL text gets
+  exercised, and I do not consider raw-SQL work verified until it has
+  run against a real Postgres at least once:
+  ```bash
+  cd packages/server && dart test -t pg test/data/repository/capability_read_ports_pg_test.dart
+  → +15 (5 new: muteCountsByTag, 4x countSeedRenewal cases), all passed,
+    identical across 3 independent reruns.
+  ```
+- **Reran the full non-pg suite myself**: `dart test -x pg` → +1445,
+  all passed — exactly the worker's claimed +3 over G1a's +1442
+  baseline, no regressions.
+- **Reran terminology, server lints, and diff-check myself**:
+  ```bash
+  bash scripts/check-user-facing-terminology.sh → ok
+  ./scripts/check-custom-lints.sh packages/server → total: 0 (baseline: 0)
+  dart analyze (whole packages/server) → 0 errors, only pre-existing info-level lints
+  git diff --check → clean
+  ```
+
+ACCEPTANCE (plan/architecture wording): "each signal is emitted and
+observable locally; no signal exposes an identifiable user pair."
+
+- **Mute rate per tag** — emits `capability_mute_rate <slug>=<n> ...`
+  (or bare `capability_mute_rate` when empty), aggregated across the
+  whole user population, no user ids possible by construction. MET.
+- **Seed renewal rate** — emits `capability_seed_renewal
+  seed_triples=<n> renewed=<n>`, population counts only, verified
+  against real Postgres including edge-of-expiry and null-expiry
+  boundary cases. MET.
+- **Observable locally** — both via `logger.info`, visible in server
+  stdout/`docker compose logs`, on a 45-minute TaskWorker sweep — no
+  new pipeline, matching the repository's only precedent. MET.
+
+No defects found requiring remediation. G1b accepted as-is. Proceeding
+to G1c (window coverage, floor margin, eligible-witness coverage).
+
