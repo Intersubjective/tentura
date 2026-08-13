@@ -7814,3 +7814,127 @@ complete — G1a, G1b, G1c, G1d all accepted**, plus the unplanned but
 necessary witness-window read-through fix discovered and resolved
 along the way. Proceeding to G2 (Docs and ADR).
 
+## G2 — TASK 1 — rewrite trust_edges.md — checkpoint — 2026-08-13
+
+STATUS: `docs/features/trust_edges.md` rewritten for m0122+ architecture after reading m0122 (full), m0137 (block publish gate), m0144 (MR epoch bump on publish), and tracing Dart callers (`trust_evidence_repository.dart`, `user_trust_edge_repository.dart`, `trust_maintenance_case.dart`, `user_trust_edge_case.dart`, `user_block_repository.dart`, GraphQL vote/MR mutations).
+
+COMMITS: (pending — see task commits)
+
+TESTS:
+
+```bash
+# cross-check: every SQL function name in trust_edges.md exists in current migrations
+rg 'CREATE OR REPLACE FUNCTION public\.trust_' packages/server/lib/data/database/migration/m01*.dart
+→ trust_apply_source_evidence, trust_rebuild_effective_edge, trust_rebuild_effective_batch,
+  trust_resync_source, trust_pair_lock, trust_edge_on_effective_delete (m0122/m0137/m0144);
+  dropped names only appear in m0122 DROP statements / historical m0088/m0114
+
+bash scripts/check-doc-drift.sh → no legacy terms or rule/doc drift found
+bash scripts/check-user-facing-terminology.sh → ok
+git diff --check → clean
+```
+
+FILES:
+
+- `docs/features/trust_edges.md`
+
+FINDINGS (old claim → corrected claim):
+
+- Single-table model (`user_trust_edge` stores inflated evidence) → **split storage**: `user_trust_source_edge` (per-context inflated accumulators), `trust_evidence_event` (ledger), `user_trust_edge` (deflated effective projection).
+- Config from server env `TRUST_EDGE_HALF_LIFE_DAYS` / `TRUST_EDGE_EPSILON` → **`trust_policy` singleton** is canonical; env vars removed from server; maintenance uses `TRUST_SWEEP_*` only.
+- `trust_apply_evidence` is the normal evidence path → **`trust_apply_source_evidence` + `trust_rebuild_effective_edge`** via `TrustEvidenceRepository.record()`.
+- `meritrank_sweep(H, ε)` scheduled decay → **`TrustMaintenanceCase.runDue()` → `trust_rebuild_effective_batch`** (TaskWorker).
+- `trust_recompute_all` as step 1 of full refresh → **dropped**; `trustForceRefreshAll` runs bounded batch sweep with `epsilon_override = -1` (no separate recompute-only function).
+- `trust_resync_source(subject, half_life_seconds)` → **`trust_resync_source(subject)`**; half-life read from `trust_policy` inside SQL.
+- “All defined in migration m0088” → **m0122** defines apply/rebuild/batch/resync; **m0137** block-aware publish; **m0144** epoch bump; **`trust_edge_weight` / `meritrank_init` remain from m0088**.
+- Dart passes half-life/epsilon from `Env` → Dart passes **context, bin, count only**; SQL reads `trust_policy`.
+- `user_trust_edge.s_*` are inflated accumulators → **inflated on `user_trust_source_edge`**; `user_trust_edge` holds **deflated projected sums** with rebuild-time `anchor_at`.
+- Full realign recipe `trust_recompute_all → mr_reset → meritrank_init` → **`trustForceRefreshAll`** (sweep + tombstone drain); `mr_reset` is not part of that GraphQL path.
+- Missing tables/context → documented **`trust_context_config`**, **`meritrank_edge_tombstone`**, trust contexts (`personal`/`commitment`/`forward`/`legacy`), forward multiplier 0.20.
+
+REMAINING: TASK 2 ADR, TASK 3 README, TASK 4 final verification + commits.
+
+## G2 — TASK 2 — ADR 0012 — checkpoint — 2026-08-13
+
+STATUS: added `docs/adr/0012-subjective-help-tag-evidence.md` recording architecture D1–D22, withdrawn D23 (full mechanical + conceptual reasoning), D24, implementation plan §3 deviations (3.1–3.5) as a separate category, and brief witness-window read-through remediation note.
+
+COMMITS: (pending)
+
+TESTS:
+
+```bash
+bash scripts/check-doc-drift.sh → no legacy terms or rule/doc drift found
+bash scripts/check-user-facing-terminology.sh → ok
+git diff --check → clean
+```
+
+FILES:
+
+- `docs/adr/0012-subjective-help-tag-evidence.md`
+
+FINDINGS:
+
+- Next ADR number is **0012** (`ls docs/adr/` highest was 0011).
+- README index had ADR 0011 missing pre-G2; added 0011 + 0012 together in TASK 3 (pre-existing index gap, not introduced by ADR content).
+
+REMAINING: TASK 3 README, TASK 4 final pass, journal complete entry, commits.
+
+## G2 — TASK 3 — README update — checkpoint — 2026-08-13
+
+STATUS: updated `docs/README.md` feature-spec one-liner for `trust_edges.md`; indexed ADR 0012 (and 0011, which was absent from the index).
+
+COMMITS: (pending)
+
+TESTS:
+
+```bash
+bash scripts/check-doc-drift.sh → no legacy terms or rule/doc drift found
+bash scripts/check-user-facing-terminology.sh → ok
+git diff --check → clean
+```
+
+FILES:
+
+- `docs/README.md`
+
+FINDINGS:
+
+- No new `docs/features/*.md` for subjective help-tag evidence (architecture/plan under `docs/plans/` remain authoritative; out of G2 scope per plan).
+
+REMAINING: TASK 4 final verification, focused commits, G2 complete entry.
+
+## G2 — complete — 2026-08-13
+
+STATUS: UNIT G2 (Docs and ADR) complete. `trust_edges.md` matches m0122+ schema and call graph; ADR 0012 records D1–D24 (D23 withdrawn), plan §3 deviations, and witness-window remediation context; README indexed.
+
+COMMITS:
+
+- (pending — four focused commits: trust_edges.md; ADR; README; journal)
+
+TESTS:
+
+```bash
+bash scripts/check-doc-drift.sh → no legacy terms or rule/doc drift found
+bash scripts/check-user-facing-terminology.sh → ok
+git diff --check → clean
+# SQL name cross-check (trust_edges.md functions vs migrations m0122/m0137/m0144/m0088 meritrank_init)
+rg 'CREATE OR REPLACE FUNCTION public\.(trust_|meritrank_init)' packages/server/lib/data/database/migration/m0*.dart
+→ all live function names in doc present; dropped m0088 functions only cited as dropped
+```
+
+FILES:
+
+- `docs/features/trust_edges.md`
+- `docs/adr/0012-subjective-help-tag-evidence.md`
+- `docs/README.md`
+- `docs/plans/subjective-help-tag-evidence-implementation-journal.md`
+
+FINDINGS:
+
+- See TASK 1 checkpoint for full trust_edges.md correction list (old → new).
+- ADR separates architecture D-decisions from implementation §3 deviations and documents D23 withdrawal reasoning (non-monotone corroboration + wrong-quantity critique).
+- Witness-window gap recorded as remediation (design correct, `storeWindow` never called until `_loadWitnessWindow` read-through fix).
+- Pre-existing: `docs/README.md` lacked ADR 0011 before this unit; added alongside 0012.
+
+REMAINING: none for G2. Next plan unit: **G3** (integration tests).
+
