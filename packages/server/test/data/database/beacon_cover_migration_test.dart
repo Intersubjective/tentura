@@ -119,8 +119,9 @@ ORDER BY indexname
       () async {
         // Migrant only applies versions above the highest recorded one, so
         // every migration appended after this test was written (currently
-        // m0141-m0147) must be unwound here too, or the re-application below
+        // m0141-m0148) must be unwound here too, or the re-application below
         // is a silent no-op and the m0130/m0131 columns never come back.
+        await _rollBackM0148ForTest(writer);
         await _rollBackM0147ForTest(writer);
         await _rollBackM0146ForTest(writer);
         await _rollBackM0145ForTest(writer);
@@ -436,6 +437,17 @@ Future<void> _rollBackM0132ForTest(Connection connection) async {
   for (final statement in const [
     'ALTER TABLE public.beacon DROP COLUMN IF EXISTS cover_thumb_image_id',
     "DELETE FROM public.schema_version WHERE version = '0132'",
+  ]) {
+    await connection.execute(statement);
+  }
+}
+
+Future<void> _rollBackM0148ForTest(Connection connection) async {
+  for (final statement in const [
+    'DROP FUNCTION IF EXISTS public.user_availability_hidden_for_viewer(public.user_availability, json)',
+    'DROP INDEX IF EXISTS public.user_availability_resume_on_idx',
+    'DROP TABLE IF EXISTS public.user_availability',
+    "DELETE FROM public.schema_version WHERE version = '0148'",
   ]) {
     await connection.execute(statement);
   }

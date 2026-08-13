@@ -1,5 +1,5 @@
 {
-  "resource_version": 54,
+  "resource_version": 55,
   "metadata": {
     "version": 3,
     "sources": [
@@ -822,6 +822,18 @@
                     }
                   }
                 }
+              },
+              {
+                "name": "user_availability",
+                "using": {
+                  "foreign_key_constraint_on": {
+                    "column": "user_id",
+                    "table": {
+                      "name": "user_availability",
+                      "schema": "public"
+                    }
+                  }
+                }
               }
             ],
             "array_relationships": [
@@ -1026,6 +1038,72 @@
                     "hidden_for_viewer": {
                       "_eq": false
                     }
+                  }
+                },
+                "comment": ""
+              }
+            ]
+          },
+          {
+            "table": {
+              "name": "user_availability",
+              "schema": "public"
+            },
+            "object_relationships": [
+              {
+                "name": "user",
+                "using": {
+                  "foreign_key_constraint_on": "user_id"
+                }
+              }
+            ],
+            "computed_fields": [
+              {
+                "name": "hidden_for_viewer",
+                "definition": {
+                  "function": {
+                    "name": "user_availability_hidden_for_viewer",
+                    "schema": "public"
+                  },
+                  "session_argument": "hasura_session",
+                  "table_argument": "user_availability_row"
+                }
+              }
+            ],
+            "select_permissions": [
+              {
+                "role": "user",
+                "permission": {
+                  "columns": [
+                    "is_limited",
+                    "resume_on",
+                    "user_id"
+                  ],
+                  "computed_fields": [
+                    "hidden_for_viewer"
+                  ],
+                  "filter": {
+                    "_and": [
+                      {
+                        "hidden_for_viewer": {
+                          "_eq": false
+                        }
+                      },
+                      {
+                        "_or": [
+                          {
+                            "is_limited": {
+                              "_eq": true
+                            }
+                          },
+                          {
+                            "resume_on": {
+                              "_gt": "now()"
+                            }
+                          }
+                        ]
+                      }
+                    ]
                   }
                 },
                 "comment": ""

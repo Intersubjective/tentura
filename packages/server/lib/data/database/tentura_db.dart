@@ -70,6 +70,7 @@ import 'table/person_capability_events.dart';
 import 'table/user_block_intents.dart';
 import 'table/user_blocks.dart';
 import 'table/user_contacts.dart';
+import 'table/user_availability.dart';
 import 'table/user_presence.dart';
 import 'table/users.dart';
 import 'table/forward_decision_attributions.dart';
@@ -141,6 +142,7 @@ part 'tentura_db.g.dart';
     UserBlockIntents,
     UserBlocks,
     UserContacts,
+    UserAvailability,
     UserPresence,
     UserTrustEdges,
     UserTrustSourceEdges,
