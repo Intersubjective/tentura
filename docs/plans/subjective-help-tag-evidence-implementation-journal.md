@@ -7731,3 +7731,86 @@ FINDINGS:
 
 REMAINING: G1 (Telemetry) fully complete (G1a–G1d). Next plan units: G2 (Docs and ADR), G3a/G3b (Integration tests).
 
+## G1d — Manager verdict: ACCEPTED — 2026-08-13
+
+This worker completed on its first dispatch (no kill, exit code 0).
+Given this is the strictest privacy constraint in the whole plan
+(pair-shaped data is identifying by construction — a single wrong log
+line here deanonymizes two specific people), I hand-traced the SQL
+line by line rather than reviewing at a summary level:
+
+- **`mutual_pairs` CTE**: `ack_edges` self-joined against its own
+  reverse (`e1.observer=e2.subject AND e1.subject=e2.observer`),
+  normalized via `LEAST`/`GREATEST` into an unordered `(user_a,
+  user_b)` and deduplicated with `DISTINCT`. Confirmed by hand that a
+  genuinely mutual pair produces exactly one row after dedup (the
+  self-join matches from both traversal directions, `DISTINCT`
+  collapses them) — no double-counting risk.
+- **`isolated_mutual_pairs` CTE**: four `NOT EXISTS` clauses, one per
+  (user, role) combination — `user_a` as observer, `user_a` as
+  subject, `user_b` as observer, `user_b` as subject — each checking
+  for any edge involving that user with a THIRD party. This is a
+  correct, complete implementation of "full graph isolation": a pair
+  survives only if neither member has any active acknowledgement
+  relationship, in either direction, with anyone but their partner.
+  Matches the documented definition exactly, not an approximation of
+  it.
+- **Privacy boundary, verified structurally, not just by policy**: the
+  entire pair-detection-and-aggregation pipeline (mutual → isolated →
+  tag-span histogram → final `COUNT(*)`/`FILTER` aggregates) lives
+  inside ONE `customSelect` call. `getSingle()` reads back exactly 4
+  integers (`pair_count`, `tags_1`, `tags_2`, `tags_3plus`) — there is
+  no code path in `capability_telemetry_repository.dart` where a
+  user id, an `(observer, subject)` tuple, or any row-level pair data
+  ever reaches a Dart variable. This isn't a "we were careful not to
+  log it" guarantee, which would be fragile — it's a "the identifying
+  data structurally never leaves Postgres" guarantee, which is what I
+  asked for and the stronger property.
+- **Read every G1d test.** The three repository-level pg tests
+  correctly discriminate the real cases: empty population → all
+  zeros; a genuine isolated mutual pair (both directions, one tag) →
+  `count=1, tags_1=1`; the same pair PLUS one extra edge from A to an
+  unrelated third party on a different tag → `count=0` (correctly
+  excluded — proves the isolation half of the definition actually
+  filters, not just the mutuality half). The fourth pg test
+  (`runDue logs reciprocal ring count without leaking pair user ids`)
+  is exactly the strong test I asked for: it runs the complete
+  `runDue()` sweep (all five telemetry signals, not just this one) and
+  asserts the fixture pair's ids and the third party's id appear in
+  **zero** of the captured log records — not just the reciprocity
+  line. This is the right level of proof for this specific signal.
+- **Independently reran everything against real Postgres myself**, not
+  just the worker's claimed numbers:
+  ```bash
+  cd packages/server && dart test -t pg \
+    test/data/repository/capability_read_ports_pg_test.dart  (×2, ~2.5 min
+    each against the live postgres-tentura container — full file, all
+    23 cases including 4 new G1d cases)
+  → +23, all passed, identical both runs
+
+  cd packages/server && dart test -x pg \
+    test/domain/use_case/capability_telemetry_case_test.dart  (×3)
+  → +8, all passed, identical every run
+
+  cd packages/server && dart test -x pg
+  → +1454, all passed (+2 over G1c baseline +1452)
+
+  bash scripts/check-user-facing-terminology.sh → ok
+  ./scripts/check-custom-lints.sh packages/server → total: 0 (baseline: 0)
+  git diff --check → clean
+  ```
+- Both documented scope decisions (any-tag mutuality; full-graph
+  isolation over "no *common* third party") are reasoned, and the
+  reasoning holds up: any-tag mutuality is the more conservative/safer
+  choice (catches more of the actual §13.3 attack shape, since a pair
+  farming across several tags is not less suspicious than farming one),
+  and full-graph isolation is the stricter, more defensible reading of
+  "isolated... ring" versus the looser common-third-party
+  interpretation, which the worker correctly identified as weaker for
+  catching the specific two-person-ring pattern §13.3 describes.
+
+No defects found. Accepted as-is. **G1 (Telemetry) is now fully
+complete — G1a, G1b, G1c, G1d all accepted**, plus the unplanned but
+necessary witness-window read-through fix discovered and resolved
+along the way. Proceeding to G2 (Docs and ADR).
+
