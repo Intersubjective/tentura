@@ -6846,3 +6846,185 @@ REMAINING: none for F6. All client-side units (F1a, F1b, F2, F3, F4a,
 F4b, F5, F6) are now complete and accepted. Per the plan's unit
 manifest, G1a/G1b (Telemetry), G2 (Docs and ADR), G3a/G3b (Integration
 tests) remain.
+
+## G1 — split into G1a/G1b/G1c/G1d — 2026-08-13
+
+The plan's UNIT G1 ("Telemetry") lists 8 required signals (architecture
+§21) in one undivided unit. Before dispatching, I ran an Explore agent
+to ground exactly where each signal's underlying data lives and whether
+a production call site already computes it. Findings: 3 signals are
+cheap instrumentation on existing per-request paths (band fill/slot
+occupancy — trivial; mute rate — needs a new aggregate query but no
+cross-cutting risk), 1 needs real client+server plumbing (band
+conversion — the only signal touching the mutation surface), and the
+remaining signals need brand-new aggregate queries with no existing
+production call site (seed renewal, window coverage, floor margin,
+eligible-witness coverage, acknowledgement reciprocity). This is not a
+single-turn job. Split by producer territory, not by an arbitrary
+producers-vs-analysis line:
+
+- **G1a**: `forward_band_case.dart` + `forward_case.dart` — signals 1
+  (band fill/slot occupancy) + 2 (band conversion by tier/exploration
+  slot). The only sub-unit touching the client/mutation surface.
+- **G1b**: `capability_routing_case.dart` + `invite_seed_attestation_case.dart`
+  — signals 5 (mute rate per tag) + 3 (seed renewal rate).
+- **G1c**: `witness_window_repository.dart`/`witness_window_policy.dart`
+  + `capability_projection_case.dart` — signals 6 (window coverage), 7
+  (floor margin), 8 (eligible-witness coverage).
+- **G1d**: acknowledgement reciprocity (signal 4, §13.3 collusion
+  detector) alone — isolated because of its explicit "counts/histograms
+  only, never user ids" constraint, which deserves separate scrutiny.
+
+## G1a — manager takeover — 2026-08-13
+
+Two fresh Cursor workers were dispatched for G1a in sequence, both
+killed by the same environment-level issue that hit F6 (the
+`run_cursor_worker.sh` wrapper process died — not the task):
+
+- **Attempt 1** (`g1a-worker.log`): killed with an EMPTY log (0 bytes —
+  not even the init frame reached disk). Confirmed via `git log`/`git
+  status`: zero commits, zero uncommitted changes. Nothing to recover.
+- **Attempt 2** (`g1a-worker-2.log`): killed with an EMPTY log as well
+  (this time the runner's own stdout showed only "Starting fresh Cursor
+  worker..." before dying — the underlying `cursor-agent` process never
+  even started, per `pgrep -af cursor-agent` returning nothing).
+
+This was the third and fourth kill in the same session (after F6's two),
+with two of four producing zero progress and one of four (F6 attempt 2)
+producing a small correct partial edit. Given a well-grounded prompt
+already existed (from the Explore agent's research plus my own
+spot-checks of every file/pattern the prompt cites — `forward_band_case.dart`,
+`capability_cell_expiry_sweep_case.dart:56-64`, `forward_case.dart:326-328`,
+`input_field_forward_recipient_reason.dart`, `mutation_forward.dart`,
+`forward_state.dart`'s `band`/`bandMemberIds`), I took over and
+implemented G1a directly rather than risk a third/fourth dispatch,
+per the skill's "stop blind retries, understand why, then act" guidance.
+
+**Signal 1 — band fill rate and slot occupancy by tier**
+(`packages/server/lib/domain/use_case/forward_band_case.dart`):
+
+Added `_logBandComposed()`, logging `forward_band_composed
+beacon=<id> filled=<bool> total=<n> ownOutcome=<n> networkOutcome=<n>
+ownRouting=<n> networkSeed=<n> exploration=<n>` — counts only, no
+candidate/recipient user ids. Found and fixed a bug in my own first
+pass before writing any test: `composeBand()` has THREE early-return
+points (no needs, no candidates, no evidence) before the final success
+path, so a log call placed only at the end never fires for the "no
+evidence" case — exactly the case a fresh "no band when no candidate
+has evidence" test would exercise. Refactored into a thin `composeBand()`
+wrapper over a new `_composeBandRows()` so every path funnels through
+one log call. Caught this myself via a failing test
+(`logs filled=false when the band is empty`), not by luck.
+
+**Signal 2 — band conversion by tier/exploration slot**
+(server: `forward_case.dart`, `mutation_forward.dart`,
+`input_field_forward_recipient_band_provenance.dart`, `_input_types.dart`;
+client: `schema.graphql`, `forward_beacon.graphql`, `forward_repository.dart`,
+`forward_case.dart`, `forward_cubit.dart`):
+
+This one requires real plumbing, not just instrumentation — knowing
+*which* recipients came from the band and at what tier/slot only exists
+at forward-send time on the client. Added
+`ForwardRecipientBandProvenanceInput` (`recipientId`, `tier`,
+`isExploration`) modeled exactly on the pre-existing
+`ForwardRecipientReasonInput`/`InputFieldForwardRecipientReasons`
+pattern; wired as a new optional `beaconForward` mutation argument
+(never required — old clients omitting it are unaffected).
+`ForwardCase.forward()` gained an optional `perRecipientBandProvenance`
+param and logs `forward_band_conversion beacon=<id> main_list=<n>
+<tier>=<n>... exploration=<n>` — counts only, never recipient ids —
+only when the map is supplied. Client-side: `ForwardCubit.forward()`
+cross-references the final `recipientIds` against the already-loaded
+`state.band` (from F2) to build the provenance map at send time — no
+new state, no new UI, just a lookup against data already in hand.
+
+Ran `dart run build_runner build -d` after the schema/gql-doc change
+(sqlite3 overlay applied and reverted per the established convention).
+Four pre-existing test fakes (`forward_cubit_attribution_test.dart`,
+`forward_cubit_live_sync_test.dart`, `person_forward_cubit_test.dart`,
+`person_forward_case_test.dart`) directly `implements ForwardRepository`
+and override `forwardBeacon`; Dart requires an override to accept every
+named parameter of the method it overrides, so all four needed the new
+optional parameter added (compile error, not a logic problem — caught
+immediately by `flutter test` failing to *load* those files).
+
+TESTS:
+
+```bash
+# Server (3x rerun for stability)
+cd packages/server && dart test -x pg test/domain/use_case/forward_band_case_test.dart \
+  test/domain/use_case/forward_case_test.dart test/domain/use_case/forward_case_auth_test.dart
+→ +54 (3 new: 2 band-fill-telemetry tests in forward_band_case_test.dart,
+  2 band-conversion-telemetry tests in forward_case_test.dart), all passed,
+  identical 3x.
+cd packages/server && dart test -x pg
+→ +1442, all passed (full non-pg suite, no regressions)
+
+# Client
+cd packages/client && flutter test test/features/forward/
+→ +91, all passed
+cd packages/client && flutter test test/features/forward/forward_cubit_band_provenance_test.dart
+→ 3x rerun, stable, 1/1 passed each time
+cd packages/client && flutter test
+→ +2032 (baseline was +2031 after F5/F6), all passed — exactly +1 for
+  the new band-provenance cubit test, no regressions
+
+bash scripts/check-user-facing-terminology.sh → ok
+./scripts/check-custom-lints.sh packages/server → total: 0 (baseline: 0)
+./scripts/check-custom-lints.sh packages/client → total: 106 (baseline: 111), flat
+git diff --check → clean
+```
+
+FILES:
+- `packages/server/lib/domain/use_case/forward_band_case.dart`
+- `packages/server/lib/domain/use_case/forward_case.dart`
+- `packages/server/lib/api/controllers/graphql/mutation/mutation_forward.dart`
+- `packages/server/lib/api/controllers/graphql/input/input_field_forward_recipient_band_provenance.dart` (new)
+- `packages/server/lib/api/controllers/graphql/input/_input_types.dart`
+- `packages/server/test/domain/use_case/forward_band_case_test.dart`
+- `packages/server/test/domain/use_case/forward_case_test.dart`
+- `packages/client/lib/data/gql/schema.graphql`
+- `packages/client/lib/features/forward/data/gql/forward_beacon.graphql`
+- `packages/client/lib/features/forward/data/repository/forward_repository.dart`
+- `packages/client/lib/features/forward/domain/use_case/forward_case.dart`
+- `packages/client/lib/features/forward/ui/bloc/forward_cubit.dart`
+- `packages/client/test/features/forward/forward_cubit_attribution_test.dart`
+- `packages/client/test/features/forward/forward_cubit_live_sync_test.dart`
+- `packages/client/test/features/forward/person_forward_cubit_test.dart`
+- `packages/client/test/features/forward/person_forward_case_test.dart`
+- `packages/client/test/features/forward/forward_cubit_band_provenance_test.dart` (new)
+
+COMMITS:
+- `32d533bbb` feat(server): log band fill rate and slot occupancy by tier (G1a signal 1)
+- `242a7b2c7` feat(server): log band conversion by tier/exploration slot (G1a signal 2)
+- `ad03e3b4e` feat(client): capture and send forward band provenance (G1a signal 2)
+
+Note: commit `32d533bbb` was authored directly by me (the manager, not a
+Cursor worker) but mistakenly carries a `Co-authored-by: Cursor` trailer
+copied by habit from the worker-commit template — factually wrong
+attribution for that one commit. Corrected for all subsequent
+manager-authored commits in this session (no trailer). Recorded here
+for the audit trail since the commit itself was not amended.
+
+ACCEPTANCE (plan wording: "each signal is emitted and observable
+locally; no signal exposes an identifiable user pair"):
+
+- Both signals emit via `logger.info` (`forward_band_composed`,
+  `forward_band_conversion`), observable via server stdout/`docker
+  compose logs`, matching the repository's only existing telemetry
+  precedent (`CapabilityCellExpirySweepCase`'s sweep-lateness line) —
+  no new pipeline invented. MET.
+- Every log line and every test asserting on it explicitly checks that
+  no candidate/recipient user id appears in the message — counts and
+  tier/slot buckets only. MET.
+- Band fill/occupancy fires on every `composeBand()` path, including
+  all three early-empty cases (verified by a test that would have
+  caught my own first-draft bug). MET.
+- Band conversion is additive/optional end-to-end: omitting the new
+  mutation argument (every pre-existing caller) produces no log line
+  and no behavior change — verified by existing test suites passing
+  unmodified in logic (only fake-override signatures needed widening,
+  a compile-level formality, not a behavior change) and by an explicit
+  "does not log band conversion when provenance is omitted" test. MET.
+
+G1a accepted. Proceeding to G1b (mute rate + seed renewal telemetry).
