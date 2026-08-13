@@ -292,6 +292,62 @@ void main() {
       expect(repository.fetchMineCalls, callsBefore + 1);
       expect(store.all, {'u4': 'Once'});
     });
+
+    test(
+      'rename survives stale refresh after invite acceptance sync',
+      () async {
+        repository.cachedByAccount['acc-1'] = {
+          'u-new-friend': 'Invite Addressee',
+        };
+        repository.fetchMineResult = {
+          'u-new-friend': 'Invite Addressee',
+        };
+
+        await switchAccount('acc-1');
+        expect(case_.nameOf('u-new-friend'), 'Invite Addressee');
+
+        final staleFetch = Completer<void>();
+        repository.fetchMineHandler = () async {
+          await staleFetch.future;
+          return {'u-new-friend': 'Invite Addressee'};
+        };
+
+        final refreshFuture = case_.refresh();
+        await case_.rename(
+          subjectId: 'u-new-friend',
+          contactName: 'My Local Name',
+        );
+
+        expect(case_.nameOf('u-new-friend'), 'My Local Name');
+
+        staleFetch.complete();
+        await refreshFuture;
+        await Future<void>.delayed(Duration.zero);
+
+        expect(case_.nameOf('u-new-friend'), 'My Local Name');
+      },
+    );
+
+    test('failed rename rolls back write guard so refresh can apply', () async {
+      await switchAccount('acc-1');
+      store.set('u1', 'Before');
+      repository.setContactError = StateError('network');
+
+      await expectLater(
+        case_.rename(subjectId: 'u1', contactName: 'After'),
+        throwsA(isA<StateError>()),
+      );
+      expect(case_.nameOf('u1'), 'Before');
+
+      repository.setContactError = null;
+      repository.fetchMineResult = {'u1': 'Server'};
+      final syncReady = repository.nextSync();
+      await case_.refresh();
+      await syncReady;
+      await Future<void>.delayed(Duration.zero);
+
+      expect(case_.nameOf('u1'), 'Server');
+    });
   });
 }
 
@@ -336,6 +392,7 @@ class FakeContactsRepository implements ContactsRepository {
   Map<String, Map<String, String>> cachedByAccount = {};
   Map<String, String> fetchMineResult = {};
   Object? fetchMineError;
+  Object? setContactError;
   Future<Map<String, String>> Function()? fetchMineHandler;
   int fetchMineCalls = 0;
 
@@ -406,6 +463,9 @@ class FakeContactsRepository implements ContactsRepository {
     required String subjectId,
     required String contactName,
   }) async {
+    if (setContactError != null) {
+      throw setContactError!;
+    }
     lastSetContact = (subjectId: subjectId, contactName: contactName);
   }
 

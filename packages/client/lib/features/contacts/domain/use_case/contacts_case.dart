@@ -54,6 +54,10 @@ final class ContactsCase extends UseCaseBase {
 
   String _accountId = '';
 
+  /// Bumped on every local rename/reset so an in-flight server refresh cannot
+  /// overwrite a just-saved subjective profile name with stale data.
+  int _localWriteSeq = 0;
+
   /// Emits whenever any contact name changes (rename, reset, sync, switch).
   Stream<void> get changes => _store.changes;
 
@@ -70,6 +74,7 @@ final class ContactsCase extends UseCaseBase {
 
   Future<void> _onAccountChanged(String accountId) async {
     _accountId = accountId;
+    _localWriteSeq = 0;
     _activeRefresh = null;
     _refreshPending = false;
     if (accountId.isEmpty) {
@@ -119,11 +124,14 @@ final class ContactsCase extends UseCaseBase {
 
   Future<void> _refreshOnce(String accountId) async {
     if (_disposed || accountId.isEmpty) return;
+    final writeSeqAtStart = _localWriteSeq;
     try {
       final names = await _repository.fetchMine();
       if (_disposed || accountId != _accountId) return;
+      if (writeSeqAtStart != _localWriteSeq) return;
       await _repository.replaceCache(accountId: accountId, names: names);
       if (_disposed || accountId != _accountId) return;
+      if (writeSeqAtStart != _localWriteSeq) return;
       _store.replaceAll(names);
     } catch (e) {
       if (!_disposed && accountId == _accountId) {
@@ -138,22 +146,34 @@ final class ContactsCase extends UseCaseBase {
     required String contactName,
   }) async {
     final name = contactName.trim();
-    await _repository.setContact(subjectId: subjectId, contactName: name);
-    await _repository.putCached(
-      accountId: _accountId,
-      subjectId: subjectId,
-      contactName: name,
-    );
-    _store.set(subjectId, name);
+    _localWriteSeq++;
+    try {
+      await _repository.setContact(subjectId: subjectId, contactName: name);
+      await _repository.putCached(
+        accountId: _accountId,
+        subjectId: subjectId,
+        contactName: name,
+      );
+      _store.set(subjectId, name);
+    } catch (e) {
+      _localWriteSeq--;
+      rethrow;
+    }
   }
 
   /// Removes the contact entry — the subject's self-chosen name shows again.
   Future<void> reset({required String subjectId}) async {
-    await _repository.deleteContact(subjectId: subjectId);
-    await _repository.removeCached(
-      accountId: _accountId,
-      subjectId: subjectId,
-    );
-    _store.remove(subjectId);
+    _localWriteSeq++;
+    try {
+      await _repository.deleteContact(subjectId: subjectId);
+      await _repository.removeCached(
+        accountId: _accountId,
+        subjectId: subjectId,
+      );
+      _store.remove(subjectId);
+    } catch (e) {
+      _localWriteSeq--;
+      rethrow;
+    }
   }
 }

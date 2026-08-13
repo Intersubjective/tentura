@@ -2,6 +2,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
 
+import 'package:tentura_root/domain/entity/localizable.dart';
+
 import 'package:tentura/consts.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
@@ -55,7 +57,13 @@ class _RenameContactDialogState extends State<RenameContactDialog>
     } catch (e) {
       if (mounted) {
         setState(() => _busy = false);
-        showSnackBar(context, text: e.toString(), isError: true, error: e);
+        final localeName = L10n.of(context)?.localeName;
+        showSnackBar(
+          context,
+          text: e is Localizable ? e.toL10n(localeName) : e.toString(),
+          isError: true,
+          error: e,
+        );
       }
     }
   }
