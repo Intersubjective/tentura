@@ -6818,7 +6818,8 @@ the two file diffs are exactly the expected one-line changes each.
 STATUS: complete (manager-completed after two environment-level worker
 deaths; see takeover entry above for full reasoning)
 
-COMMITS: (pending — see next commit on main)
+COMMITS:
+- `fc05d9c0a` chore(client): release 5.12.0 — subjective help-tag evidence client surface (F6)
 
 FILES:
 - `packages/client/pubspec.yaml` — `version: 5.11.0` → `5.12.0`
