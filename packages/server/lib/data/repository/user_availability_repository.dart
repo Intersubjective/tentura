@@ -65,18 +65,17 @@ ON CONFLICT (user_id) DO UPDATE SET
 
         await _database.customStatement(
           r'''
-WITH upd AS (
+WITH limited_clear AS (
   UPDATE public.user_availability
      SET is_limited = false,
          updated_at = now()
    WHERE user_id = $1
-  RETURNING *
+     AND resume_on IS NOT NULL
+  RETURNING user_id
 )
 DELETE FROM public.user_availability
  WHERE user_id = $1
-   AND EXISTS (
-     SELECT 1 FROM upd WHERE NOT is_limited AND resume_on IS NULL
-   )
+   AND resume_on IS NULL
 ''',
           [userId],
         );
@@ -89,7 +88,7 @@ DELETE FROM public.user_availability
   }) =>
       _database.withMutatingUser(userId, () async {
         await _acquireLock(userId);
-        final resumeDate = PgDate.fromDateTime(resumeOn);
+        final resumeDateIso = _isoUtcCalendarDate(resumeOn);
         await _database.customStatement(
           r'''
 INSERT INTO public.user_availability (user_id, resume_on, updated_at)
@@ -98,7 +97,7 @@ ON CONFLICT (user_id) DO UPDATE SET
   resume_on = EXCLUDED.resume_on,
   updated_at = now()
 ''',
-          [userId, resumeDate],
+          [userId, resumeDateIso],
         );
       });
 
@@ -108,18 +107,18 @@ ON CONFLICT (user_id) DO UPDATE SET
         await _acquireLock(userId);
         await _database.customStatement(
           r'''
-WITH upd AS (
+WITH pause_clear AS (
   UPDATE public.user_availability
      SET resume_on = NULL,
          updated_at = now()
    WHERE user_id = $1
-  RETURNING *
+     AND is_limited
+  RETURNING user_id
 )
 DELETE FROM public.user_availability
  WHERE user_id = $1
-   AND EXISTS (
-     SELECT 1 FROM upd WHERE NOT is_limited AND resume_on IS NULL
-   )
+   AND NOT is_limited
+   AND resume_on IS NOT NULL
 ''',
           [userId],
         );
@@ -165,4 +164,20 @@ UPDATE public.user_availability
     r"SELECT pg_advisory_xact_lock(hashtextextended('user_availability:' || $1, 4242))",
     [userId],
   );
+}
+
+String _isoUtcCalendarDate(DateTime value) {
+  assert(() {
+    if (!isUtcCalendarDate(value)) {
+      throw ArgumentError.value(
+        value,
+        'value',
+        'must be a UTC calendar date',
+      );
+    }
+    return true;
+  }());
+  return '${value.year.toString().padLeft(4, '0')}-'
+      '${value.month.toString().padLeft(2, '0')}-'
+      '${value.day.toString().padLeft(2, '0')}';
 }
