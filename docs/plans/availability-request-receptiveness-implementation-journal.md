@@ -132,7 +132,7 @@ Units are sequential. Check off only after the unit's focused commit and verific
   `feat(server): add user availability storage`
 - [x] **UNIT 03 — Atomic availability repository, use case, janitor** — depends: 02 — commit:
   `feat(server): add availability commands`
-- [ ] **UNIT 04 — Server public-user read parity** — depends: 03 — commit:
+- [x] **UNIT 04 — Server public-user read parity** — depends: 03 — commit:
   `feat(server): expose availability in public users`
 - [ ] **UNIT 05 — Three V2 availability mutations** — depends: 03 — commit:
   `feat(server): add availability mutations`
@@ -331,3 +331,31 @@ TESTS: independent focused case/task-worker suite → 25 passed; independent ser
 FILES: UNIT 03-owned paths plus `packages/server/lib/data/mapper/user_availability_mapper.dart`
 FINDINGS: accepted. The mapper is a necessary narrow data-layer addition ensuring the repository returns the domain entity rather than a Drift row; it normalizes `PgDate` to UTC midnight. PostgreSQL race/linearization proof remains required in UNIT 07.
 REMAINING: UNIT 04 is dependency-ready.
+
+## UNIT 04 — complete — 2026-08-13
+
+COMMITS: `6d6970ac5` feat(server): expose availability in public users
+TESTS:
+- `(cd packages/server && dart run build_runner build -d)` → exit 0
+- `(cd packages/server && dart test test/api/controllers/graphql/mappers/gql_public_user_maps_test.dart)` → 12 passed
+- `./scripts/check-custom-lints.sh packages/server` → pass (custom-rule total 0)
+- `rg "UserPublicRecord\\(" packages/server/lib` → 3 construction sites (+ constructor definition) all pass `userAvailability:` explicitly
+FILES:
+- `packages/server/lib/domain/entity/gql_public/user_availability_record.dart`
+- `packages/server/lib/domain/entity/gql_public/user_public_record.dart`
+- `packages/server/lib/data/mapper/user_availability_mapper.dart`
+- `packages/server/lib/data/repository/user_profile_batch_lookup.dart`
+- `packages/server/lib/data/repository/mutual_friends_repository.dart`
+- `packages/server/lib/api/controllers/graphql/mappers/invite_genealogy_gql_maps.dart`
+- `packages/server/lib/api/controllers/graphql/mappers/gql_public_user_maps.dart`
+- `packages/server/lib/api/controllers/graphql/query/query_invite_genealogy.dart`
+- `packages/server/lib/api/controllers/graphql/query/query_invitation.dart`
+- `packages/server/lib/api/controllers/graphql/custom_types.dart`
+- `packages/server/test/api/controllers/graphql/mappers/gql_public_user_maps_test.dart`
+FINDINGS: `userAvailabilityEntityToPublicRecord` and wire date helpers live in
+`user_availability_mapper.dart` so data repositories avoid importing GraphQL mappers.
+Injectable DI for `DriftUserProfileBatchLookup` / `MutualFriendsRepository` did not
+require a new `di.config.dart` diff (bindings already present). Other server tests
+using `UserPublicRecord` need `userAvailability: null` for compilation; fixed
+locally but not staged per boundary rules.
+REMAINING: none for UNIT 04; UNIT 05 (`feat(server): add availability mutations`) is next
