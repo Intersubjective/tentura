@@ -558,3 +558,22 @@ causal-evidence constraints. No partial test claim is retained.
 RECOVERY: split UNIT 07 into fresh, sequential subunits. Start with the
 isolated `UserAvailabilityRepository` transition/concurrency proof only; keep
 forward linearization and GraphQL/Hasura work for later fresh workers.
+
+## UNIT 07A repository proof attempt — source defect found — 2026-08-13
+
+STATUS: stopped without commits; the untracked test draft was removed after
+its first focused run. The disposable, fully migrated PostgreSQL test exposed
+two independently actionable source defects:
+- `setLimited(true)` then `setLimited(false)` attempts to persist
+  `(is_limited=false, resume_on=NULL)`, violating
+  `user_availability_not_empty`, instead of deleting the open row.
+- `pause` passes `PgDate` to Drift Postgres `customStatement`; installed
+  drift_postgres 1.3.1 accepts only `TypedValue`, primitive values, and null
+  there, so the call fails before SQL with `Unsupported type: Instance of
+  'PgDate'`.
+EVIDENCE: `(cd packages/server && dart test -t pg
+test/data/repository/user_availability_repository_pg_test.dart)` failed its
+clear-limited case with PostgreSQL 23514 and both pause cases with the
+unsupported bind error. Tests used only a unique disposable migrated database.
+RECOVERY: assign a fresh narrow source remediation for
+`UserAvailabilityRepository`, then recreate this proof in a fresh worker.
