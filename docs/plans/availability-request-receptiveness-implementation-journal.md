@@ -142,7 +142,7 @@ Units are sequential. Check off only after the unit's focused commit and verific
   `test(server): prove availability invariants`
 - [x] **UNIT 08 — Client schema, date scalar, entities, read parity** — depends: 04–06 — commit:
   `feat(client): map availability data`
-- [ ] **UNIT 09 — Client availability command repository and Cubit** — depends: 05, 08 — commit:
+- [x] **UNIT 09 — Client availability command repository and Cubit** — depends: 05, 08 — commit:
   `feat(client): wire availability commands`
 - [ ] **UNIT 10 — Calendar presets, formatting, localization** — depends: 08 — commit:
   `feat(client): add availability copy and dates`
@@ -1031,3 +1031,31 @@ INDEPENDENT VERIFICATION:
   matches `/tmp/tentura-unit08/hasura_metadata_pre.json`.
 
 REMAINING: UNIT 08 is accepted. UNIT 09 is dependency-ready.
+
+## UNIT 09 — complete — 2026-08-14
+
+COMMITS: `df00c40a3` feat(client): wire availability commands
+TESTS:
+- `(cd packages/client && dart run build_runner build -d)` → exit 0
+- `(cd packages/client && flutter test test/features/profile/profile_availability_cubit_test.dart test/data/service/remote_api_client/direct_operation_routing_test.dart)` → 10 passed
+- `./scripts/check-custom-lints.sh packages/client` → pass (custom-rule total 106, baseline 111)
+- `git diff --check` → clean
+FILES:
+- `packages/client/lib/features/profile/data/gql/availability_set_limited.graphql`
+- `packages/client/lib/features/profile/data/gql/availability_pause.graphql`
+- `packages/client/lib/features/profile/data/gql/availability_resume.graphql`
+- `packages/client/lib/data/service/remote_api_client/build_client.dart`
+- `packages/client/lib/features/profile/domain/port/profile_repository_port.dart`
+- `packages/client/lib/features/profile/data/repository/profile_repository.dart`
+- `packages/client/lib/features/profile/ui/bloc/profile_cubit.dart`
+- `packages/client/test/features/profile/profile_availability_cubit_test.dart`
+- `packages/client/test/data/service/remote_api_client/direct_operation_routing_test.dart`
+- `packages/client/test/features/profile/profile_cubit_realtime_test.dart` (compile-only port stubs)
+- seven `ProfileRepositoryPort` test fakes outside nominal ownership (compile-only port stubs)
+FINDINGS:
+- `ProfileRepositoryMock` required no source change; Mockito covers the extended port.
+- `pauseAvailability` formats `resumeOn` as strict UTC `YYYY-MM-DD` wire text in the
+  repository (mutation arg is `String!`, not the Ferry `date` scalar).
+- Command-local in-flight flags live on `ProfileCubit` getters; success profile updates
+  arrive only via repository `RepositoryEventUpdate` after mutation + own-profile refetch.
+REMAINING: manager acceptance of UNIT 09; UNIT 10 (`feat(client): add availability copy and dates`).
