@@ -1180,3 +1180,23 @@ FINDINGS:
   `myWorkStatusDueWeekday('Mon')`; existing instant/local overdue/today/tomorrow/5-day
   weekday assertions unchanged.
 REMAINING: none for UNIT 10 remediation; UNIT 11 is next.
+
+## UNIT 10 manager acceptance — 2026-08-14
+
+VERDICT: accepted: `ee9eaa988`, `422689382`, `1051c301e`, and `ef88d4473`.
+REVIEW: Presets use calendar arithmetic over checked UTC date-only inputs,
+including the Monday-to-following-Monday rule, month-end clamp, and 90-day
+horizon. The pure day formatter carries y/m/d components into the locale
+formatter without converting an availability instant to local time. Its 6/7-day
+split is now proven both directly and through `beaconCardCalendarDeadlineStatus`;
+that adapter preserves its distinct instant/local behavior for overdue, today,
+and tomorrow. EN/RU availability copy is present, terminology-safe, and the
+Russian forms distinguish self from other-person copy without gendered
+predicative adjectives.
+INDEPENDENT VERIFICATION:
+- `(cd packages/client && flutter test test/ui/utils/beacon_card_deadline_test.dart test/ui/utils/calendar_day_display_test.dart test/domain/util/availability_presets_test.dart test/l10n/availability_localization_test.dart)` -> 39 passed
+- `git diff --check 2c7f1869d..HEAD` -> clean
+FINDINGS: Manager review required the separate 7-day beacon-deadline integration
+test because testing the shared formatter alone did not prove the adapted branch
+was wired. The remediation adds no production behavior.
+REMAINING: UNIT 11 is dependency-ready.
