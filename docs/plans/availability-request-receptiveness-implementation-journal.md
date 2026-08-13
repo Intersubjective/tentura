@@ -130,7 +130,7 @@ Units are sequential. Check off only after the unit's focused commit and verific
   `feat: add availability domain model`
 - [x] **UNIT 02 — `m0148`, Drift table, Hasura visibility** — depends: 01 — commit:
   `feat(server): add user availability storage`
-- [ ] **UNIT 03 — Atomic availability repository, use case, janitor** — depends: 02 — commit:
+- [x] **UNIT 03 — Atomic availability repository, use case, janitor** — depends: 02 — commit:
   `feat(server): add availability commands`
 - [ ] **UNIT 04 — Server public-user read parity** — depends: 03 — commit:
   `feat(server): expose availability in public users`
@@ -305,3 +305,21 @@ TESTS: independent `(cd packages/server && dart test -t pg test/data/database/m0
 FILES: all seven UNIT 02 source/test/metadata paths plus this journal
 FINDINGS: accepted. The table is logged/sparse, with no trigger/backfill and no public `updated_at`; the UTC connection check turns timezone drift into a test failure.
 REMAINING: UNIT 03 is blocked before editing: `packages/server/lib/domain/use_case/task_worker_case.dart`, an owned file, has unrelated uncommitted GetIt/BeaconCase changes that appeared after UNIT 01. Do not stage, overwrite, or incorporate them without their owner resolving the boundary.
+
+## UNIT 03 — complete — 2026-08-13
+
+COMMITS: `4f776360a` feat(server): add availability commands
+TESTS:
+- `(cd packages/server && dart run build_runner build -d)` → exit 0
+- `(cd packages/server && dart test test/domain/use_case/user_availability_case_test.dart test/domain/use_case/task_worker_case_test.dart)` → 25 passed
+- `./scripts/check-custom-lints.sh packages/server` → pass
+FILES:
+- `packages/server/lib/domain/port/user_availability_repository_port.dart`
+- `packages/server/lib/data/repository/user_availability_repository.dart`
+- `packages/server/lib/data/mapper/user_availability_mapper.dart`
+- `packages/server/lib/domain/use_case/user_availability_case.dart`
+- `packages/server/lib/domain/use_case/task_worker_case.dart`
+- `packages/server/test/domain/use_case/user_availability_case_test.dart`
+- `packages/server/test/domain/use_case/task_worker_case_test.dart`
+FINDINGS: baseline already included committed `0dbdb1ae5` TaskWorkerCase GetIt/BeaconCase bootstrap fix; preserved unchanged. `fetchByUserIds` returns `Map<String, UserAvailabilityEntity>` (absent users omitted). In-memory fake repo in case tests covers idempotency/independence semantics; PostgreSQL concurrency proof deferred to UNIT 07.
+REMAINING: none for UNIT 03; UNIT 04 (`feat(server): expose availability in public users`) is next
