@@ -456,6 +456,31 @@ final class ModelWorld {
     ).thenAnswer((_) async => window);
 
     when(
+      _witnessWindow.rawWindowFacts(
+        egoId: egoId,
+        normalizedContext: normalizedContext,
+        topK: anyNamed('topK'),
+      ),
+    ).thenAnswer((_) async {
+      final facts = _peerFactsByEgo[egoId] ?? [];
+      return RawWindowFacts(
+        topPeers: facts,
+        trustedScores: [
+          for (final peer in facts)
+            if (peer.explicitlyTrusted && peer.forwardMr > 0) peer.forwardMr,
+        ],
+      );
+    });
+
+    when(
+      _witnessWindow.storeWindow(
+        egoId: egoId,
+        normalizedContext: normalizedContext,
+        weights: anyNamed('weights'),
+      ),
+    ).thenAnswer((_) async {});
+
+    when(
       _cellPort.fetchCells(
         subjectIds: anyNamed('subjectIds'),
         tagSlugs: anyNamed('tagSlugs'),

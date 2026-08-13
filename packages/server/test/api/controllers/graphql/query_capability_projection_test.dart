@@ -110,6 +110,22 @@ void main() {
       ),
     ).thenAnswer((_) async => const []);
     when(
+      witnessWindow.rawWindowFacts(
+        egoId: anyNamed('egoId'),
+        normalizedContext: anyNamed('normalizedContext'),
+        topK: anyNamed('topK'),
+      ),
+    ).thenAnswer(
+      (_) async => const RawWindowFacts(topPeers: [], trustedScores: []),
+    );
+    when(
+      witnessWindow.storeWindow(
+        egoId: anyNamed('egoId'),
+        normalizedContext: anyNamed('normalizedContext'),
+        weights: anyNamed('weights'),
+      ),
+    ).thenAnswer((_) async {});
+    when(
       cellPort.fetchCells(
         subjectIds: anyNamed('subjectIds'),
         tagSlugs: anyNamed('tagSlugs'),
