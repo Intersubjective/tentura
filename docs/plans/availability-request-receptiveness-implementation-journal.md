@@ -138,7 +138,7 @@ Units are sequential. Check off only after the unit's focused commit and verific
   `feat(server): add availability mutations`
 - [x] **UNIT 06 — Transactional forward gate and typed result** — depends: 03 — commit:
   `feat(server): enforce availability on forwards`
-- [ ] **UNIT 07 — Server PostgreSQL/concurrency/API proof** — depends: 04–06 — commit:
+- [x] **UNIT 07 — Server PostgreSQL/concurrency/API proof** — depends: 04–06 — commit:
   `test(server): prove availability invariants`
 - [ ] **UNIT 08 — Client schema, date scalar, entities, read parity** — depends: 04–06 — commit:
   `feat(client): map availability data`
@@ -839,3 +839,64 @@ REMAINING: UNIT 07 is not complete: retain the live Hasura >10 candidate-limit
 observation as an explicit blocked acceptance gate. UNIT 08 must not start until
 the plan owner accepts that remaining blocked gate or supplies an isolated
 Hasura fixture.
+
+## UNIT 07E — live Hasura candidate-limit observation — complete — 2026-08-14
+
+COMMITS: `209845dd1` docs: record UNIT 07E live Hasura candidate-limit observation
+TESTS:
+- Pre-observation metadata export:
+  `curl -sS http://127.0.0.1:8080/v1/metadata -H "X-Hasura-Admin-Secret: password" -H "Content-Type: application/json" -d '{"type":"export_metadata","args":{}}'`
+  → saved to `/tmp/tentura-unit07e/hasura_metadata_pre.json`; live postgres source
+  already tracks `user` (`select_permissions.user.limit: 10`) and
+  `mutually_visible_users` (26 tables, 5 functions).
+- Committed metadata apply attempt (blocked on shared DB schema):
+  `./scripts/hasura_apply_metadata.sh` → HTTP 400 inconsistent metadata because
+  committed `hasura/metadata.json` tracks `user_availability` but shared
+  `postgres` has no `public.user_availability` (`to_regclass` false; m0148 not
+  migrated locally). Observation proceeded on the unchanged live metadata
+  snapshot above (no metadata mutation during the probe).
+- Fixture seed (13 users, 12 bidirectional trust edges, causal prefix
+  `U07hlimit*`):
+  `docker exec -i postgres psql -U postgres -d postgres -v ON_ERROR_STOP=1`
+  with `INSERT` into `public."user"` for viewer `U07hlimitview1` and peers
+  `U07hlimitpeer01`…`U07hlimitpeer12`, plus paired `vote_user` rows
+  `(amount=1)` for mutual trust.
+- SQL eligibility (direct function, same session identity):
+  `SELECT count(*) FROM public.mutually_visible_users('', '{"x-hasura-user-id":"U07hlimitview1"}'::json)`
+  → **12** (`U07hlimitpeer01`…`U07hlimitpeer12`).
+- Live Hasura GraphQL under role `user` (viewer impersonation +
+  dev admin-secret gate for schema access on this instance):
+  `POST http://127.0.0.1:8080/v1/graphql` headers
+  `x-hasura-role: user`, `x-hasura-user-id: U07hlimitview1`,
+  `x-hasura-admin-secret: password`, body
+  `query ForwardCandidatesLimitProbe($context: String = "") { mutually_visible_users(args: {context: $context}) { id } }`
+  with `variables: {"context": ""}` → **10** rows
+  (`U07hlimitpeer01`…`U07hlimitpeer10` only; `peer11`/`peer12` present in SQL
+  but truncated at runtime). Without the admin secret the same query returns
+  validation error `field 'mutually_visible_users' not found in type: 'query_root'`
+  on this dev instance — documented, not used as the limit proof.
+- Nested availability visibility: **not exercised** on this stack — shared
+  postgres lacks `public.user_availability` and live metadata does not track
+  that table; committed metadata apply remains blocked until m0148 is migrated
+  locally.
+- Cleanup + metadata restore (finally-equivalent):
+  `DELETE FROM public.vote_user WHERE subject LIKE 'U07hlimit%' OR object LIKE 'U07hlimit%'` → 24;
+  `DELETE FROM public."user" WHERE id LIKE 'U07hlimit%'` → 13;
+  post-check `SELECT count(*) … WHERE id LIKE 'U07hlimit%'` → 0;
+  `replace_metadata` from `/tmp/tentura-unit07e/hasura_metadata_pre.json` → HTTP
+  200, `is_consistent: true`; post-restore export still shows 26 tables,
+  `user` limit 10, tracked `mutually_visible_users`.
+FILES: `docs/plans/availability-request-receptiveness-implementation-journal.md`
+FINDINGS:
+- Runtime proof: Hasura applies the tracked `user` role select permission
+  `limit: 10` to `mutually_visible_users` SETOF results — 12 SQL-eligible peers,
+  exactly 10 GraphQL rows, deterministic truncation of the last two IDs in sort
+  order returned by the function on this fixture.
+- Confirms UNIT 07D static metadata assertion and closes the previously blocked
+  acceptance gate; v1 accepts the capped pool Hasura returns before client-side
+  availability filtering (plan §UNIT 07).
+- `./scripts/hasura_apply_metadata.sh` against committed metadata still requires
+  local m0148 on the shared postgres volume before `user_availability` can be
+  tracked for nested availability GraphQL probes.
+REMAINING: manager acceptance of UNIT 07E and overall UNIT 07; UNIT 08 remains
+blocked until accepted.
