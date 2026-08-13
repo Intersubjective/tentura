@@ -3,6 +3,7 @@ import 'package:injectable/injectable.dart';
 import 'package:tentura_server/domain/capability/capability_consts.dart';
 import 'package:tentura_server/domain/capability/capability_evidence_models.dart';
 import 'package:tentura_server/domain/capability/capability_tag.dart';
+import 'package:tentura_server/domain/capability/witness_window_policy.dart';
 import 'package:tentura_server/domain/port/capability_cell_port.dart';
 import 'package:tentura_server/domain/port/capability_own_evidence_port.dart';
 import 'package:tentura_server/domain/port/pair_block_query_port.dart';
@@ -49,7 +50,7 @@ final class CapabilityProjectionCase extends UseCaseBase {
       return const [];
     }
 
-    final window = await _witnessWindow.cachedWindow(
+    final window = await _loadWitnessWindow(
       egoId: egoId,
       normalizedContext: normalizedContext,
     );
@@ -195,6 +196,35 @@ final class CapabilityProjectionCase extends UseCaseBase {
       return null;
     }
     return scored.first.tier.name;
+  }
+
+  /// Read-through witness window (architecture §15): use cached rows when
+  /// present; otherwise compute from raw facts, persist, and use for this
+  /// request.
+  Future<List<WitnessWeight>> _loadWitnessWindow({
+    required String egoId,
+    required String normalizedContext,
+  }) async {
+    final cached = await _witnessWindow.cachedWindow(
+      egoId: egoId,
+      normalizedContext: normalizedContext,
+    );
+    if (cached.isNotEmpty) {
+      return cached;
+    }
+
+    final facts = await _witnessWindow.rawWindowFacts(
+      egoId: egoId,
+      normalizedContext: normalizedContext,
+      topK: kCapWitnessWindowK,
+    );
+    final computed = computeWitnessWeights(facts);
+    await _witnessWindow.storeWindow(
+      egoId: egoId,
+      normalizedContext: normalizedContext,
+      weights: computed,
+    );
+    return computed;
   }
 
   Future<bool> _canViewSubject({

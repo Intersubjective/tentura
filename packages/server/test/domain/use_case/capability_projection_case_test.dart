@@ -186,6 +186,86 @@ void main() {
     });
   });
 
+  test(
+    'cache miss read-through computes window, stores it, and yields '
+    'network-derived projection',
+    () async {
+      const bob = 'bob';
+      when(
+        witnessWindow.cachedWindow(egoId: ego, normalizedContext: ctx),
+      ).thenAnswer((_) async => const []);
+      when(
+        witnessWindow.rawWindowFacts(
+          egoId: ego,
+          normalizedContext: ctx,
+          topK: kCapWitnessWindowK,
+        ),
+      ).thenAnswer(
+        (_) async => const RawWindowFacts(
+          topPeers: [
+            RawPeerFact(
+              peerId: bob,
+              forwardMr: 1.0,
+              explicitlyTrusted: true,
+            ),
+          ],
+          trustedScores: [1.0],
+        ),
+      );
+      when(
+        witnessWindow.storeWindow(
+          egoId: ego,
+          normalizedContext: ctx,
+          weights: anyNamed('weights'),
+        ),
+      ).thenAnswer((invocation) async {
+        final weights =
+            invocation.namedArguments[#weights] as List<WitnessWeight>;
+        expect(weights, hasLength(1));
+        expect(weights.single.witnessUserId, bob);
+        expect(weights.single.m, closeTo(1.0, 1e-9));
+        expect(weights.single.admitted, isTrue);
+      });
+      when(
+        cellPort.fetchCells(
+          subjectIds: anyNamed('subjectIds'),
+          tagSlugs: anyNamed('tagSlugs'),
+          admittedWitnesses: anyNamed('admittedWitnesses'),
+        ),
+      ).thenAnswer(
+        (_) async => [
+          const WitnessCellRow(
+            observerUserId: bob,
+            subjectUserId: carol,
+            tagSlug: 'transport',
+            eOut: 0.321,
+            eSeed: 0,
+            m: 1.0,
+          ),
+        ],
+      );
+
+      final rows = await case_.project(
+        egoId: ego,
+        subjectIds: [carol],
+        tagSlugs: ['transport'],
+        normalizedContext: ctx,
+        surface: ProjectionSurface.forwardBand,
+      );
+
+      expect(rows, hasLength(1));
+      expect(rows.single.tier, ProjectionTier.networkOutcome);
+      expect(rows.single.score, closeTo(0.321, 1e-9));
+      verify(
+        witnessWindow.storeWindow(
+          egoId: ego,
+          normalizedContext: ctx,
+          weights: anyNamed('weights'),
+        ),
+      ).called(1);
+    },
+  );
+
   test('§13.2 Sybil farm — no admitted witnesses yields no row', () async {
     when(
       witnessWindow.cachedWindow(egoId: ego, normalizedContext: ctx),
