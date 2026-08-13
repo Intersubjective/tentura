@@ -148,7 +148,7 @@ Units are sequential. Check off only after the unit's focused commit and verific
   `feat(client): add availability copy and dates`
 - [x] **UNIT 11 — Own-profile control and status** — depends: 09–10 — commit:
   `feat(client): add availability profile control`
-- [ ] **UNIT 12 — Other-profile and graph policy/rendering** — depends: 10 — commit:
+- [x] **UNIT 12 — Other-profile and graph policy/rendering** — depends: 10 — commit:
   `feat(client): gate person request actions`
 - [ ] **UNIT 13 — Picker host policy, row precedence, band exclusion** — depends: 08, 10 —
   commit: `feat(client): show availability in recipient picker`
@@ -1287,3 +1287,32 @@ FINDINGS: The initial golden set was retained after the loading repair because
 the control's resting rendering did not change. Manager visual inspection
 covered open compact, paused expanded, and limited+paused compact at 1.3 scale.
 REMAINING: UNIT 12 is dependency-ready.
+
+## UNIT 12 — complete — 2026-08-14
+
+COMMITS: `c1585421f` feat(client): gate person request actions
+TESTS:
+- `(cd packages/client && flutter test test/ui/model/person_action_policy_test.dart test/features/profile_view/profile_view_body_action_policy_test.dart test/features/graph/graph_person_context_panel_test.dart)` → 88 passed
+- `./scripts/check-custom-lints.sh packages/client` → pass (custom-rule total 106, baseline 111)
+- `bash scripts/check-user-facing-terminology.sh` → pass
+- `git diff --check` → clean
+FILES:
+- `packages/client/lib/ui/model/person_action_policy.dart`
+- `packages/client/lib/features/profile_view/ui/widget/profile_view_body.dart`
+- `packages/client/lib/features/graph/ui/widget/graph_person_context_panel.dart`
+- `packages/client/test/ui/model/person_action_policy_test.dart`
+- `packages/client/test/features/profile_view/profile_view_body_action_policy_test.dart`
+- `packages/client/test/features/graph/graph_person_context_panel_test.dart`
+FINDINGS:
+- `PersonActionPolicy.from` applies pause as a post-`_baseFrom` override using
+  `profile.availability.blocksNewRequestsOn(todayUtc)`; limited leaves policy unchanged.
+- Default `todayUtc` uses the same UTC y/m/d rule as plan §0.6 via a local helper in
+  `person_action_policy.dart` (avoids `ui/model` → `features/profile` import).
+- Other-profile/graph surfaces render `otherAvailabilityStatusLine` with neutral
+  `TenturaStatusText` after presence (profile) or header (graph) and before trust/visibility;
+  paused path sets `showRequestOptions: false` so `profileRequestUnavailable` never opens a
+  request door.
+- Widget tests exercise paused mutual MR, paused viewer-only, paused subject-only, and limited
+  on both profile and graph; policy tests cover all 16 trust/MR rows × open/limited/paused plus
+  resume-day equality.
+REMAINING: manager acceptance of UNIT 12; UNIT 13 (`feat(client): show availability in recipient picker`) is next.
