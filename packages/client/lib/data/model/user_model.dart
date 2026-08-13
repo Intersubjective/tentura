@@ -4,6 +4,7 @@ import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura_root/domain/enums.dart';
 
 import '../gql/_g/user_model.data.gql.dart';
+import '../gql/calendar_date_serializer.dart';
 import 'image_model.dart';
 
 extension type const UserModel(GUserModel i) implements GUserModel {
@@ -55,24 +56,7 @@ Availability availabilityFromV2Wire({
   }
   return Availability(
     isLimited: isLimited,
-    resumeOn: parseStrictUtcCalendarDateString(resumeOn),
-  );
-}
-
-DateTime? parseStrictUtcCalendarDateString(String? wire) {
-  if (wire == null) {
-    return null;
-  }
-  final match = RegExp(r'^(?<y>\d{4})-(?<m>\d{2})-(?<d>\d{2})$').firstMatch(wire);
-  if (match == null) {
-    throw FormatException(
-      'parseStrictUtcCalendarDateString: expected YYYY-MM-DD, got $wire',
-    );
-  }
-  return DateTime.utc(
-    int.parse(match.namedGroup('y')!),
-    int.parse(match.namedGroup('m')!),
-    int.parse(match.namedGroup('d')!),
+    resumeOn: resumeOn == null ? null : parseStrictUtcCalendarDateString(resumeOn),
   );
 }
 

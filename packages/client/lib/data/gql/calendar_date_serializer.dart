@@ -12,16 +12,12 @@ class CalendarDateSerializer implements PrimitiveSerializer<DateTime> {
     Object serialized, {
     FullType specifiedType = FullType.unspecified,
   }) {
-    final match = _wirePattern.firstMatch(serialized as String);
-    if (match == null) {
+    if (serialized is! String) {
       throw FormatException(
-        'CalendarDateSerializer: expected YYYY-MM-DD, got $serialized',
+        'CalendarDateSerializer: expected YYYY-MM-DD string, got $serialized',
       );
     }
-    final year = int.parse(match.namedGroup('y')!);
-    final month = int.parse(match.namedGroup('m')!);
-    final day = int.parse(match.namedGroup('d')!);
-    return DateTime.utc(year, month, day);
+    return parseStrictUtcCalendarDateString(serialized);
   }
 
   @override
@@ -51,4 +47,54 @@ class CalendarDateSerializer implements PrimitiveSerializer<DateTime> {
 
   @override
   String get wireName => 'date';
+}
+
+/// Parses [wire] as a strict UTC calendar date (`YYYY-MM-DD` at midnight).
+///
+/// Rejects malformed strings, non-calendar month/day values, overflow dates
+/// (e.g. `2026-02-31`), and any value that would normalize to a different
+/// calendar day.
+DateTime parseStrictUtcCalendarDateString(String wire) {
+  final match = CalendarDateSerializer._wirePattern.firstMatch(wire);
+  if (match == null) {
+    throw FormatException(
+      'parseStrictUtcCalendarDateString: expected YYYY-MM-DD, got $wire',
+    );
+  }
+  final year = int.parse(match.namedGroup('y')!);
+  final month = int.parse(match.namedGroup('m')!);
+  final day = int.parse(match.namedGroup('d')!);
+  if (month < 1 || month > 12) {
+    throw FormatException(
+      'parseStrictUtcCalendarDateString: invalid month $month in $wire',
+    );
+  }
+  final maxDay = _daysInMonth(year, month);
+  if (day < 1 || day > maxDay) {
+    throw FormatException(
+      'parseStrictUtcCalendarDateString: invalid day $day in $wire',
+    );
+  }
+  final parsed = DateTime.utc(year, month, day);
+  if (parsed.year != year || parsed.month != month || parsed.day != day) {
+    throw FormatException(
+      'parseStrictUtcCalendarDateString: calendar overflow in $wire',
+    );
+  }
+  return parsed;
+}
+
+int _daysInMonth(int year, int month) {
+  switch (month) {
+    case 2:
+      final leap = (year % 4 == 0 && year % 100 != 0) || (year % 400 == 0);
+      return leap ? 29 : 28;
+    case 4:
+    case 6:
+    case 9:
+    case 11:
+      return 30;
+    default:
+      return 31;
+  }
 }

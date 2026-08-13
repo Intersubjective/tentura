@@ -1,6 +1,8 @@
 import 'dart:io';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:tentura/data/gql/calendar_date_serializer.dart';
+import 'package:tentura/data/model/user_model.dart';
 
 void main() {
   group('availability read parity — V2 Profile adapters', () {
@@ -23,6 +25,17 @@ void main() {
       final source = File('lib/data/model/user_model.dart').readAsStringSync();
       expect(source, contains('availabilityFromHasuraRelationship'));
       expect(source, contains('user_availability'));
+    });
+
+    test('availabilityFromV2Wire rejects calendar overflow resume_on', () {
+      expect(
+        () => availabilityFromV2Wire(isLimited: true, resumeOn: '2026-02-31'),
+        throwsFormatException,
+      );
+      expect(
+        () => parseStrictUtcCalendarDateString('2026-02-31'),
+        throwsFormatException,
+      );
     });
 
     test('calendar mapper files never call toLocal()', () {
