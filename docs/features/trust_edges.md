@@ -4,98 +4,107 @@
 
 ## Engineering
 
-User→user MeritRank weights are derived from a 5-bin Dirichlet model stored in
-`user_trust_edge`. Evidence (votes, finalized reviews) inflates accumulators
-`s_*` against a fixed per-edge `anchor_at`; decay is applied lazily (VSIDS-style:
-inflate the bump, not the whole star).
+User→user MeritRank weights are derived from a 5-bin Dirichlet model. Since migration **m0122**, storage is split:
 
-**Math lives in SQL only** (`trust_edge_weight`). Dart passes bin keys, evidence
-magnitude, and config from `Env`.
+| Table | Role |
+|-------|------|
+| `user_trust_source_edge` | Per-context **source accumulators** (`trust_context`, `subject`, `object`, `s_*`, fixed `anchor_at`). Evidence inflates the relevant bin (VSIDS-style: inflate the bump, not the whole star). Contexts: `personal`, `commitment`, `forward`, plus `legacy` (migration copy only — not writable at runtime). |
+| `trust_context_config` | Per-context `evidence_multiplier` applied when projecting into the effective edge (defaults: `legacy`/`personal`/`commitment` = 1.0, `forward` = 0.20). |
+| `trust_evidence_event` | Append-only **evidence ledger** (source type, request id, bin, count, metadata). Idempotent inserts; drives accumulator updates. |
+| `user_trust_edge` | **Effective projection** for MeritRank: deflated bin sums for one `(subject, object)` pair, `anchor_at` reset on each rebuild, `prev_sent_weight` for epsilon-gated MR publish. |
+| `trust_policy` | Singleton row (`half_life_seconds`, `epsilon`) — sole canonical decay/publish policy. |
+| `meritrank_edge_tombstone` | Deferred `mr_delete_edge` failures when an effective row is removed. |
 
-## Config (server env)
+**Math lives in SQL only** (`trust_edge_weight` for the posterior mean; projection/rebuild in `trust_rebuild_effective_edge`). Dart passes bin keys, evidence magnitude, and trust context; it does **not** pass half-life or epsilon (SQL reads `trust_policy`).
+
+**Dropped in m0122 (do not reference):** `trust_apply_evidence`, `meritrank_sweep`, `trust_recompute_all`, and the old two-argument `trust_resync_source(subject, half_life_seconds)`.
+
+### Dart call graph (production)
+
+| Path | SQL / effect |
+|------|----------------|
+| `TrustEvidenceRepository.record()` | Insert `trust_evidence_event` → `trust_apply_source_evidence` per item → `trust_rebuild_effective_edge` per affected pair. Used by votes (`UserTrustEdgeRepository`), review finalization (`ReviewFinalizationCase`), invite signup trust seeding (`UserRepository`), etc. |
+| `UserTrustEdgeRepository.setVoteAmount*` | Updates `vote_user`, then `TrustEvidenceRepository.record()` with `TrustContext.personal` / `TrustSourceType.userVote`. |
+| `UserTrustEdgeRepository.forceRefreshStar()` | `trust_resync_source(sourceUserId)` — rebuilds every outgoing pair for one star, epsilon bypass (`-1`). |
+| `TrustMaintenanceCase.runDue()` | `trust_rebuild_effective_batch` in time/batch-bounded loops (scheduled decay drift + tombstone drain). Registered on `TaskWorkerCase`. |
+| `UserTrustEdgeCase.forceRefreshAll()` | `TrustMaintenanceCase.forceRefreshAll()` — full bounded sweep with `epsilon_override = -1`. |
+| `UserBlockRepository` (block/unblock paths) | `trust_rebuild_effective_edge(subject, object, epsilon)` — m0137 publishes weight `0` when `user_block` exists. |
+| GraphQL `userVote` / `userSubscribe` / `userUnsubscribe` | `UserTrustEdgeCase` → repository chain above. |
+| GraphQL `trustForceRefreshStar` / `trustForceRefreshAll` | `UserTrustEdgeCase` (requires `mrInit` privilege or admin). |
+| GraphQL `meritrankInit` | `MeritrankCase.init()` — cold-load MR from `user_trust_edge.prev_sent_weight` via `meritrank_init()`; does not write trust rows. |
+| App startup | `UserTrustEdgeCase.cutoverBackfillIfNeeded()` — one-time vote→ledger backfill if `user_trust_source_edge` is empty. |
+
+## Config
+
+### Database policy (`trust_policy` singleton)
+
+| Column | Default (m0122 seed) | Meaning |
+|--------|----------------------|---------|
+| `half_life_seconds` | `15724800` (182 days) | Evidence decay half-life |
+| `epsilon` | `0.1` | Min \|Δw\| before pushing to MeritRank |
+
+SQL functions read this table directly. There is **no** `TRUST_EDGE_HALF_LIFE_DAYS` / `TRUST_EDGE_EPSILON` env override in current server code; changing policy requires a audited migration that updates `trust_policy` and rebuilds effective edges.
+
+### Server env (maintenance sweep only)
 
 | Variable | Default | Meaning |
 |----------|---------|---------|
-| `TRUST_EDGE_HALF_LIFE_DAYS` | `182` | Half-life for evidence decay |
-| `TRUST_EDGE_EPSILON` | `0.1` | Min \|Δw\| before pushing to MeritRank |
-
-Half-life in seconds for SQL: `182 * 24 * 60 * 60` → **`15724800`**.
+| `TRUST_SWEEP_INTERVAL_HOURS` | `24` | Minimum interval between successful `TrustMaintenanceCase` sweeps |
+| `TRUST_SWEEP_RETRY_MINUTES` | `15` | Retry interval after a failed sweep |
+| `TRUST_SWEEP_BATCH_SIZE` | `200` | Pairs per `trust_rebuild_effective_batch` call |
+| `TRUST_SWEEP_TIME_BUDGET_MINUTES` | `5` | Max wall time per `runDue()` sweep |
 
 ## SQL functions
 
-All defined in migration `m0088` (mirrored in `sql/triggers.sql`).
+Core trust pipeline: **m0122** (structure), **m0137** (block-aware publish target), **m0144** (`mr_bump_publish_epoch` on successful publish). `trust_edge_weight` remains from **m0088**.
 
-### `trust_apply_evidence(subject, object, bin, count, half_life_seconds, epsilon)`
+### `trust_apply_source_evidence(context, subject, object, bin, count)`
 
-Single-edge update (votes, reviews). Inflates bump, epsilon-gates, calls
-`mr_put_edge` in-process, updates `prev_sent_weight`. Called from the Dart
-junction on every evidence event.
+Inflates the matching bin on `user_trust_source_edge` for one context (VSIDS inflate using `trust_policy.half_life_seconds`). Rejects `legacy`. Called from `TrustEvidenceRepository` after a new ledger row is inserted.
 
-### `meritrank_sweep(half_life_seconds, epsilon)` — **scheduled decay drift**
+### `trust_rebuild_effective_edge(subject, object, epsilon_override DEFAULT NULL)`
 
-Proactive maintenance: for each edge, recompute decayed `w`; if
-`|w - prev_sent_weight| > epsilon`, push to MeritRank and update
-`prev_sent_weight`. Does **not** change `anchor_at` or `s_*`.
+Locks the pair, deflates and sums all source contexts (respecting `trust_context_config.evidence_multiplier`), writes the effective row in `user_trust_edge`, computes `w = trust_edge_weight(...)`, and epsilon-gates `mr_put_edge`. Uses `trust_policy.epsilon` unless `epsilon_override` is set (`-1` forces publish). m0137/m0144: published weight is `0` when the subject blocks the object; successful publish bumps MR epoch (m0144).
 
-**Usage:** schedule periodically (cron / pg_cron). Not run on server startup.
+### `trust_rebuild_effective_batch(after_subject, after_object, limit, epsilon_override DEFAULT NULL)`
 
-```sql
-SELECT meritrank_sweep(15724800, 0.1);
--- returns: number of edges pushed
-```
+Batched pair iteration for maintenance sweeps. Returns `(last_subject, last_object, processed)`. Called from `TrustMaintenanceCase`.
 
-### `trust_resync_source(subject, half_life_seconds)` — **one star, admin**
+### `trust_resync_source(subject)` — **one star, admin**
 
-All outgoing edges of one user: recompute `w`, **push every edge** (epsilon
-bypassed), update `prev_sent_weight`. GraphQL: `trustForceRefreshStar`.
+All distinct outgoing objects for `subject` in `user_trust_source_edge`: `trust_rebuild_effective_edge(..., -1)` for each (epsilon bypassed). GraphQL: `trustForceRefreshStar`.
 
 ```sql
-SELECT trust_resync_source('U…', 15724800);
+SELECT trust_resync_source('U…');
+-- returns: number of pairs rebuilt
 ```
 
-### `trust_recompute_all(half_life_seconds)` — **full DB refresh (step 1 of 3)**
+### `trust_pair_lock(subject, object)`
 
-All edges: recompute decayed `w` and write **`prev_sent_weight` only**. No
-`mr_put_edge`. Does not touch `s_*` or `anchor_at`.
+Transaction-scoped advisory lock for a subject→object pair (used by apply/rebuild).
 
-**Usage:** admin full reload — always followed by MeritRank reset + init (see
-below). GraphQL: `trustForceRefreshAll` runs all three steps.
+### `trust_edge_on_effective_delete()` (trigger)
 
-```sql
-SELECT trust_recompute_all(15724800);
--- returns: number of rows updated
-```
-
-Then reload MeritRank:
-
-```sql
-SELECT mr_reset();
-SELECT meritrank_init();
-```
-
-Or use the V2 mutation `trustForceRefreshAll` (requires `mrInit` privilege).
+On `DELETE` from `user_trust_edge` when `prev_sent_weight <> 0`: calls `mr_delete_edge`, tombstones on failure.
 
 ### `meritrank_init()` — **cold start seed (read-only on trust table)**
 
-Bulk-loads MeritRank from `user_trust_edge.prev_sent_weight` (plus polling
-edges). **Does not write** trust rows. After deploy, decay drift is corrected by
-`meritrank_sweep`, not by init.
+Bulk-loads MeritRank from `user_trust_edge.prev_sent_weight` (plus polling edges). **Does not write** trust rows. After deploy, decay drift is corrected by `TrustMaintenanceCase` sweeps (`trust_rebuild_effective_batch`), not by re-running init.
 
 ## When to use which
 
 | Goal | What to run |
 |------|-------------|
-| Normal evidence (vote / review) | Automatic via app → `trust_apply_evidence` |
-| Periodic decay → MeritRank | `meritrank_sweep(H, ε)` on a schedule |
+| Normal evidence (vote / finalized review / forward attribution) | Automatic via app → `TrustEvidenceRepository.record()` |
+| Periodic decay → MeritRank | `TrustMaintenanceCase.runDue()` (TaskWorker; `trust_rebuild_effective_batch`) |
 | Debug / fix one user's star in MR | `trust_resync_source` or GraphQL `trustForceRefreshStar` |
-| Full realign DB + MR graph | `trust_recompute_all` → `mr_reset` → `meritrank_init` or GraphQL `trustForceRefreshAll` |
-| Server cold start | `meritrank_init()` only if MR graph empty (app startup) |
+| Full realign all pairs + MR | GraphQL `trustForceRefreshAll` (`epsilon_override = -1` sweep + tombstone drain) |
+| Server cold start | `meritrankInit` / `meritrank_init()` only if MR graph empty |
 
 ## Notes
 
-- `user_trust_edge.s_*` are **inflated** accumulators; effective counts are
-  deflated at read time using `anchor_at`.
-- Overflow of inflation factors is accepted (~510 years at default half-life);
-  no rescale guard.
-- Hasura clients cannot write `vote_user`; votes go through V2
-  `userSubscribe` / `userUnsubscribe` / `userVote`.
+- `user_trust_source_edge.s_*` are **inflated** accumulators with a **fixed** per-row `anchor_at`; effective counts are deflated at rebuild time using that anchor and `trust_policy.half_life_seconds`.
+- `user_trust_edge` stores the **projected** deflated sums; its `anchor_at` is set to the rebuild timestamp (not the source anchors).
+- Overflow of inflation factors is accepted (~510 years at default half-life); no rescale guard.
+- Hasura clients cannot write `vote_user`; votes go through V2 `userSubscribe` / `userUnsubscribe` / `userVote`.
+- Subjective help-tag evidence reuses the **source-edge accumulator pattern** in `capability_evidence_edge`; see [`../adr/0012-subjective-help-tag-evidence.md`](../adr/0012-subjective-help-tag-evidence.md).
