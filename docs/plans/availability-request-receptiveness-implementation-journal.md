@@ -1316,3 +1316,30 @@ FINDINGS:
   on both profile and graph; policy tests cover all 16 trust/MR rows × open/limited/paused plus
   resume-day equality.
 REMAINING: manager acceptance of UNIT 12; UNIT 13 (`feat(client): show availability in recipient picker`) is next.
+
+## UNIT 12 remediation — complete — 2026-08-14
+
+STATUS: complete
+COMMITS: `06cdebe25` fix(client): share availabilityTodayUtc in domain util
+TESTS:
+- `(cd packages/client && flutter test test/ui/model/person_action_policy_test.dart test/features/profile_view/profile_view_body_action_policy_test.dart test/features/graph/graph_person_context_panel_test.dart test/domain/util/availability_presets_test.dart test/features/profile/availability_sheet_test.dart test/features/profile/profile_availability_golden_test.dart)` → 131 passed
+- `./scripts/check-custom-lints.sh packages/client` → pass (custom-rule total 106, baseline 111)
+- `bash scripts/check-user-facing-terminology.sh` → pass
+- `git diff --check` → clean
+- `rg 'features/profile/ui/sheet/availability_sheet.dart' packages/client/lib/features/profile_view packages/client/lib/features/graph` → 0 matches
+FILES:
+- `packages/client/lib/domain/util/availability_presets.dart`
+- `packages/client/lib/features/profile/ui/sheet/availability_sheet.dart`
+- `packages/client/lib/features/profile/ui/widget/profile_body.dart`
+- `packages/client/lib/features/profile_view/ui/widget/profile_view_body.dart`
+- `packages/client/lib/features/graph/ui/widget/graph_person_context_panel.dart`
+- `packages/client/test/domain/util/availability_presets_test.dart`
+- `packages/client/test/features/profile/profile_availability_golden_test.dart`
+- `packages/client/test/features/profile_view/profile_view_body_action_policy_test.dart`
+- `packages/client/test/features/graph/graph_person_context_panel_test.dart`
+FINDINGS:
+- `availabilityTodayUtc` is the single authoritative UTC y/m/d helper in
+  `domain/util/availability_presets.dart`; profile sheet and profile_body import it from there.
+- `PersonActionPolicy` retains its local `_defaultTodayUtc` (no feature/UI import).
+- No golden update; resting UI unchanged.
+REMAINING: manager acceptance of UNIT 12; UNIT 13 is next.
