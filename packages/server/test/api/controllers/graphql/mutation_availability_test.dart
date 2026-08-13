@@ -8,12 +8,11 @@ import 'package:tentura_root/domain/enums.dart';
 import 'package:tentura_server/api/controllers/graphql/input/_input_types.dart';
 import 'package:tentura_server/api/controllers/graphql/mutation/mutation_availability.dart';
 import 'package:tentura_server/domain/entity/jwt_entity.dart';
+import 'package:tentura_server/domain/entity/user_availability_entity.dart';
 import 'package:tentura_server/domain/exception.dart';
+import 'package:tentura_server/domain/port/user_availability_repository_port.dart';
 import 'package:tentura_server/domain/use_case/user_availability_case.dart';
 import 'package:tentura_server/env.dart';
-
-import '../../../domain/use_case/user_availability_case_test.dart'
-    show InMemoryUserAvailabilityRepository;
 
 /// Unwraps `nonNullable()`/list wrappers to the innermost named type.
 String _baseTypeName(GraphQLType type) {
@@ -64,17 +63,106 @@ Future<Map<String, dynamic>> _executeDocument({
   return result as Map<String, dynamic>;
 }
 
+/// UNIT 05 test-only fake; mirrors repository semantics needed by mutation tests.
+final class _FakeUserAvailabilityRepository
+    implements UserAvailabilityRepositoryPort {
+  final _rows = <String, UserAvailabilityEntity>{};
+  final setLimitedCalls = <({String userId, bool isLimited})>[];
+  final pauseCalls = <({String userId, DateTime resumeOn})>[];
+  final resumeCalls = <String>[];
+
+  UserAvailabilityEntity? rowFor(String userId) => _rows[userId];
+
+  @override
+  Future<Map<String, UserAvailabilityEntity>> fetchByUserIds(
+    Set<String> userIds,
+  ) async {
+    return {
+      for (final id in userIds)
+        if (_rows.containsKey(id)) id: _rows[id]!,
+    };
+  }
+
+  @override
+  Future<void> setLimited({
+    required String userId,
+    required bool isLimited,
+  }) async {
+    setLimitedCalls.add((userId: userId, isLimited: isLimited));
+    if (isLimited) {
+      final existing = _rows[userId];
+      _rows[userId] = UserAvailabilityEntity(
+        userId: userId,
+        isLimited: true,
+        resumeOn: existing?.resumeOn,
+      );
+      return;
+    }
+
+    final existing = _rows[userId];
+    if (existing == null) {
+      return;
+    }
+    final updated = UserAvailabilityEntity(
+      userId: userId,
+      isLimited: false,
+      resumeOn: existing.resumeOn,
+    );
+    if (!updated.isLimited && updated.resumeOn == null) {
+      _rows.remove(userId);
+    } else {
+      _rows[userId] = updated;
+    }
+  }
+
+  @override
+  Future<void> pause({
+    required String userId,
+    required DateTime resumeOn,
+  }) async {
+    pauseCalls.add((userId: userId, resumeOn: resumeOn));
+    final existing = _rows[userId];
+    _rows[userId] = UserAvailabilityEntity(
+      userId: userId,
+      isLimited: existing?.isLimited ?? false,
+      resumeOn: resumeOn,
+    );
+  }
+
+  @override
+  Future<void> resume({required String userId}) async {
+    resumeCalls.add(userId);
+    final existing = _rows[userId];
+    if (existing == null) {
+      return;
+    }
+    final updated = UserAvailabilityEntity(
+      userId: userId,
+      isLimited: existing.isLimited,
+      resumeOn: null,
+    );
+    if (!updated.isLimited && updated.resumeOn == null) {
+      _rows.remove(userId);
+    } else {
+      _rows[userId] = updated;
+    }
+  }
+
+  @override
+  Future<void> cleanupExpired(DateTime todayUtc) async {}
+}
+
 void main() {
   const actor = 'Uavail-self';
   const auth = JwtEntity(sub: actor);
 
-  late InMemoryUserAvailabilityRepository repo;
+  late _FakeUserAvailabilityRepository repo;
   late UserAvailabilityCase availabilityCase;
   late MutationAvailability mutation;
   late GraphQL graphQL;
 
   setUp(() {
-    repo = InMemoryUserAvailabilityRepository();
+    repo = _FakeUserAvailabilityRepository();
     availabilityCase = UserAvailabilityCase(
       repo,
       env: Env(environment: Environment.test),
@@ -263,6 +351,24 @@ void main() {
         ),
         throwsA(isA<GraphQLException>()),
       );
+    });
+
+    test('null isLimited variable is rejected by the schema', () async {
+      await expectLater(
+        _executeDocument(
+          graphQL: graphQL,
+          document: r'''
+            mutation SetLimited($isLimited: Boolean!) {
+              userAvailabilitySetLimited(isLimited: $isLimited)
+            }
+          ''',
+          variables: const {'isLimited': null},
+          jwt: auth,
+          operationName: 'SetLimited',
+        ),
+        throwsA(isA<GraphQLException>()),
+      );
+      expect(repo.setLimitedCalls, isEmpty);
     });
 
     test('null resumeOn variable is rejected by the schema', () async {
