@@ -4,6 +4,7 @@ library;
 import 'dart:io';
 
 import 'package:injectable/injectable.dart' show Environment;
+import 'package:logging/logging.dart';
 import 'package:postgres/postgres.dart';
 import 'package:test/test.dart';
 
@@ -17,6 +18,7 @@ import 'package:tentura_server/data/repository/pair_block_query_repository.dart'
 import 'package:tentura_server/data/repository/routing_mute_repository.dart';
 import 'package:tentura_server/domain/capability/capability_evidence_models.dart';
 import 'package:tentura_server/domain/invite_genealogy/invite_genealogy_node_key.dart';
+import 'package:tentura_server/domain/use_case/capability_telemetry_case.dart';
 import 'package:tentura_server/env.dart';
 
 const _ego = 'Ucapb2cego01';
@@ -28,8 +30,23 @@ const _userC = 'Ucapb2cusrC1';
 const _hop1 = 'Ucapg1chop101';
 const _hop2 = 'Ucapg1chop201';
 const _g1cInviteId = 'InvG1cTelemetry01';
+const _g1dPairA = 'Ug1dtestpairA';
+const _g1dPairB = 'Ug1dtestpairB';
+const _g1dThird = 'Ug1dtestthird';
 
-const _allIds = [_ego, _sub1, _sub2, _userA, _userB, _userC, _hop1, _hop2];
+const _allIds = [
+  _ego,
+  _sub1,
+  _sub2,
+  _userA,
+  _userB,
+  _userC,
+  _hop1,
+  _hop2,
+  _g1dPairA,
+  _g1dPairB,
+  _g1dThird,
+];
 
 Future<void> main() async {
   final target = _DisposablePgTarget.fromEnvironment();
@@ -567,6 +584,134 @@ Future<void> main() async {
 
         expect(counts.eligibleClearing, greaterThanOrEqualTo(1));
         expect(counts.ineligibleOnly, 0);
+      },
+      skip: skipReason,
+    );
+
+    test(
+      'countReciprocalIsolatedAcknowledgementPairs returns zero on empty',
+      () async {
+        final counts =
+            await telemetryRepo.countReciprocalIsolatedAcknowledgementPairs();
+
+        expect(counts.count, 0);
+        expect(counts.tags1, 0);
+        expect(counts.tags2, 0);
+        expect(counts.tags3plus, 0);
+      },
+      skip: skipReason,
+    );
+
+    test(
+      'countReciprocalIsolatedAcknowledgementPairs counts isolated mutual pair',
+      () async {
+        await _insertCapabilityEvent(
+          database,
+          id: 'CEg1dring1',
+          observerId: _g1dPairA,
+          subjectId: _g1dPairB,
+          tagSlug: 'pets',
+          sourceType: 3,
+        );
+        await _insertCapabilityEvent(
+          database,
+          id: 'CEg1dring2',
+          observerId: _g1dPairB,
+          subjectId: _g1dPairA,
+          tagSlug: 'pets',
+          sourceType: 3,
+        );
+
+        final counts =
+            await telemetryRepo.countReciprocalIsolatedAcknowledgementPairs();
+
+        expect(counts.count, 1);
+        expect(counts.tags1, 1);
+        expect(counts.tags2, 0);
+        expect(counts.tags3plus, 0);
+      },
+      skip: skipReason,
+    );
+
+    test(
+      'countReciprocalIsolatedAcknowledgementPairs excludes pair with third-party ack',
+      () async {
+        await _insertCapabilityEvent(
+          database,
+          id: 'CEg1dring3',
+          observerId: _g1dPairA,
+          subjectId: _g1dPairB,
+          tagSlug: 'pets',
+          sourceType: 3,
+        );
+        await _insertCapabilityEvent(
+          database,
+          id: 'CEg1dring4',
+          observerId: _g1dPairB,
+          subjectId: _g1dPairA,
+          tagSlug: 'pets',
+          sourceType: 3,
+        );
+        await _insertCapabilityEvent(
+          database,
+          id: 'CEg1dring5',
+          observerId: _g1dPairA,
+          subjectId: _g1dThird,
+          tagSlug: 'transport',
+          sourceType: 3,
+        );
+
+        final counts =
+            await telemetryRepo.countReciprocalIsolatedAcknowledgementPairs();
+
+        expect(counts.count, 0);
+      },
+      skip: skipReason,
+    );
+
+    test(
+      'runDue logs reciprocal ring count without leaking pair user ids',
+      () async {
+        final records = <LogRecord>[];
+        Logger('CapabilityTelemetryPgTest').onRecord.listen(records.add);
+
+        await _insertCapabilityEvent(
+          database,
+          id: 'CEg1dring6',
+          observerId: _g1dPairA,
+          subjectId: _g1dPairB,
+          tagSlug: 'pets',
+          sourceType: 3,
+        );
+        await _insertCapabilityEvent(
+          database,
+          id: 'CEg1dring7',
+          observerId: _g1dPairB,
+          subjectId: _g1dPairA,
+          tagSlug: 'pets',
+          sourceType: 3,
+        );
+
+        final case_ = CapabilityTelemetryCase(
+          muteRepo,
+          telemetryRepo,
+          env: Env(environment: Environment.test),
+          logger: Logger('CapabilityTelemetryPgTest'),
+        );
+
+        await case_.runDue(now: DateTime.utc(2026, 8, 13));
+
+        final ringLines = records
+            .where((r) => r.message.startsWith('capability_reciprocal_ring_pairs'))
+            .toList();
+        expect(ringLines, hasLength(1));
+        expect(ringLines.single.message, contains('count=1'));
+        expect(ringLines.single.message, contains('tags_1=1'));
+        for (final record in records) {
+          expect(record.message, isNot(contains(_g1dPairA)));
+          expect(record.message, isNot(contains(_g1dPairB)));
+          expect(record.message, isNot(contains(_g1dThird)));
+        }
       },
       skip: skipReason,
     );

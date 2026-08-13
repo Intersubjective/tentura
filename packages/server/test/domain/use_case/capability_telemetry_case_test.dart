@@ -23,6 +23,8 @@ class _FakeCapabilityTelemetryPort implements CapabilityTelemetryPort {
       (n: 0, p33: null, p50: null, p75: null);
   ({int eligibleClearing, int ineligibleOnly}) coverage =
       (eligibleClearing: 0, ineligibleOnly: 0);
+  ({int count, int tags1, int tags2, int tags3plus}) reciprocalRings =
+      (count: 0, tags1: 0, tags2: 0, tags3plus: 0);
 
   @override
   Future<({int seedTriples, int renewed})> countSeedRenewal() async => counts;
@@ -36,6 +38,10 @@ class _FakeCapabilityTelemetryPort implements CapabilityTelemetryPort {
   countEligibleWitnessCoverage() async => coverage;
 
   @override
+  Future<({int count, int tags1, int tags2, int tags3plus})>
+  countReciprocalIsolatedAcknowledgementPairs() async => reciprocalRings;
+
+  @override
   dynamic noSuchMethod(Invocation invocation) => throw UnimplementedError('$invocation');
 }
 
@@ -46,6 +52,8 @@ void main() {
 
   const fixtureUserA = 'UcapG1bFixtureAlice01';
   const fixtureUserB = 'UcapG1bFixtureBob01';
+  const fixturePairA = 'Ug1dtestpairA';
+  const fixturePairB = 'Ug1dtestpairB';
 
   setUp(() {
     routingMute = _FakeRoutingMutePort();
@@ -174,6 +182,44 @@ void main() {
       expect(message, contains('ineligible_only=2'));
       expect(message, isNot(contains(fixtureUserA)));
       expect(message, isNot(contains(fixtureUserB)));
+    });
+
+    test('runDue logs reciprocal ring pair counts without user ids', () async {
+      final records = <LogRecord>[];
+      Logger('CapabilityTelemetryCaseTest').onRecord.listen(records.add);
+
+      telemetry.reciprocalRings = (count: 2, tags1: 1, tags2: 1, tags3plus: 0);
+
+      await case_.runDue(now: DateTime.utc(2026, 8, 13));
+
+      final lines = records
+          .where((r) => r.message.startsWith('capability_reciprocal_ring_pairs'))
+          .toList();
+      expect(lines, hasLength(1));
+      final message = lines.single.message;
+      expect(message, contains('count=2'));
+      expect(message, contains('tags_1=1'));
+      expect(message, contains('tags_2=1'));
+      expect(message, contains('tags_3plus=0'));
+      for (final record in records) {
+        expect(record.message, isNot(contains(fixturePairA)));
+        expect(record.message, isNot(contains(fixturePairB)));
+      }
+    });
+
+    test('runDue logs empty reciprocal ring line when count=0', () async {
+      final records = <LogRecord>[];
+      Logger('CapabilityTelemetryCaseTest').onRecord.listen(records.add);
+
+      telemetry.reciprocalRings = (count: 0, tags1: 0, tags2: 0, tags3plus: 0);
+
+      await case_.runDue(now: DateTime.utc(2026, 8, 13));
+
+      final lines = records
+          .where((r) => r.message.startsWith('capability_reciprocal_ring_pairs'))
+          .toList();
+      expect(lines, hasLength(1));
+      expect(lines.single.message, 'capability_reciprocal_ring_pairs count=0');
     });
   });
 }

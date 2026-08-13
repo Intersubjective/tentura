@@ -318,6 +318,94 @@ INNER JOIN public.capability_evidence_edge c
     return (eligibleClearing: eligibleClearing, ineligibleOnly: ineligibleOnly);
   }
 
+  @override
+  Future<({int count, int tags1, int tags2, int tags3plus})>
+  countReciprocalIsolatedAcknowledgementPairs() async {
+    final closeAck = CapabilityEventSource.closeAcknowledgement.dbValue;
+    final row = await _database
+        .customSelect(
+          '''
+WITH active_acks AS (
+  SELECT observer_user_id, subject_user_id, tag_slug
+  FROM public.person_capability_event
+  WHERE deleted_at IS NULL
+    AND is_negative = false
+    AND source_type = $closeAck
+),
+ack_edges AS (
+  SELECT DISTINCT observer_user_id, subject_user_id
+  FROM active_acks
+),
+mutual_pairs AS (
+  SELECT DISTINCT
+    LEAST(e1.observer_user_id, e1.subject_user_id) AS user_a,
+    GREATEST(e1.observer_user_id, e1.subject_user_id) AS user_b
+  FROM ack_edges e1
+  INNER JOIN ack_edges e2
+    ON e1.observer_user_id = e2.subject_user_id
+   AND e1.subject_user_id = e2.observer_user_id
+  WHERE e1.observer_user_id <> e1.subject_user_id
+),
+isolated_mutual_pairs AS (
+  SELECT mp.user_a, mp.user_b
+  FROM mutual_pairs mp
+  WHERE NOT EXISTS (
+    SELECT 1
+    FROM ack_edges ae
+    WHERE ae.observer_user_id = mp.user_a
+      AND ae.subject_user_id <> mp.user_b
+  )
+  AND NOT EXISTS (
+    SELECT 1
+    FROM ack_edges ae
+    WHERE ae.subject_user_id = mp.user_a
+      AND ae.observer_user_id <> mp.user_b
+  )
+  AND NOT EXISTS (
+    SELECT 1
+    FROM ack_edges ae
+    WHERE ae.observer_user_id = mp.user_b
+      AND ae.subject_user_id <> mp.user_a
+  )
+  AND NOT EXISTS (
+    SELECT 1
+    FROM ack_edges ae
+    WHERE ae.subject_user_id = mp.user_b
+      AND ae.observer_user_id <> mp.user_a
+  )
+),
+pair_tag_span AS (
+  SELECT
+    imp.user_a,
+    imp.user_b,
+    COUNT(DISTINCT aa.tag_slug)::int AS distinct_tags
+  FROM isolated_mutual_pairs imp
+  INNER JOIN active_acks aa
+    ON (
+      (aa.observer_user_id = imp.user_a AND aa.subject_user_id = imp.user_b)
+      OR (aa.observer_user_id = imp.user_b AND aa.subject_user_id = imp.user_a)
+    )
+  GROUP BY imp.user_a, imp.user_b
+)
+SELECT
+  COUNT(*)::int AS pair_count,
+  COUNT(*) FILTER (WHERE distinct_tags = 1)::int AS tags_1,
+  COUNT(*) FILTER (WHERE distinct_tags = 2)::int AS tags_2,
+  COUNT(*) FILTER (WHERE distinct_tags >= 3)::int AS tags_3plus
+FROM pair_tag_span
+''',
+          readsFrom: {_database.personCapabilityEvents},
+        )
+        .getSingle();
+
+    return (
+      count: row.read<int>('pair_count'),
+      tags1: row.read<int>('tags_1'),
+      tags2: row.read<int>('tags_2'),
+      tags3plus: row.read<int>('tags_3plus'),
+    );
+  }
+
   Future<Map<String, RawWindowFacts>> _fetchWindowFactsByEgo(
     List<String> egoIds,
   ) async {

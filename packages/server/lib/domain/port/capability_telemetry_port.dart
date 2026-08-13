@@ -13,4 +13,10 @@ abstract interface class CapabilityTelemetryPort {
   /// eligible witnesses only vs clearing only when ineligible witnesses count.
   Future<({int eligibleClearing, int ineligibleOnly})>
   countEligibleWitnessCoverage();
+
+  /// Population count of unordered observer/subject pairs with mutual active
+  /// close acknowledgements and no acknowledgement relationships outside the
+  /// pair. Returns counts only — never pair-shaped row data.
+  Future<({int count, int tags1, int tags2, int tags3plus})>
+  countReciprocalIsolatedAcknowledgementPairs();
 }

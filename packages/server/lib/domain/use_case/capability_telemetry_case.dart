@@ -22,6 +22,7 @@ final class CapabilityTelemetryCase extends UseCaseBase {
     await _logSeedRenewal();
     await _logTwoHopSponsoredMr();
     await _logEligibleWitnessCoverage();
+    await _logReciprocalAcknowledgementRings();
   }
 
   Future<void> _logMuteRates() async {
@@ -60,6 +61,19 @@ final class CapabilityTelemetryCase extends UseCaseBase {
       'capability_eligible_witness_coverage '
       'eligible_clearing=${counts.eligibleClearing} '
       'ineligible_only=${counts.ineligibleOnly}',
+    );
+  }
+
+  Future<void> _logReciprocalAcknowledgementRings() async {
+    final counts = await _telemetry.countReciprocalIsolatedAcknowledgementPairs();
+    if (counts.count == 0) {
+      logger.info('capability_reciprocal_ring_pairs count=0');
+      return;
+    }
+    logger.info(
+      'capability_reciprocal_ring_pairs count=${counts.count} '
+      'tags_1=${counts.tags1} tags_2=${counts.tags2} '
+      'tags_3plus=${counts.tags3plus}',
     );
   }
 }
