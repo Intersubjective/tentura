@@ -705,3 +705,21 @@ FINDINGS:
 REMAINING: UNIT 07 GraphQL typed-result proof (`forward_delivery_result_test.dart`),
 read-permission parity (`availability_read_parity_test.dart`), and Hasura candidate-limit
 diagnostic; manager acceptance not recorded here.
+
+## UNIT 07B manager acceptance — 2026-08-13
+
+VERDICT: accepted: `cb730570e` and `8ad4d1cb0`.
+REVIEW: The new test runs only against a fresh disposable migrated database and
+calls the actual availability and forward repositories through separate pools.
+Both orderings hold the precise production recipient advisory key, observe two
+ungranted matching `pg_locks` rows before release, and assert the actual table
+and `ForwardBatchCreateResult` effects after the first queued operation wins.
+It also proves requested-order reporting, silent deduplication, and that
+limited-only recipients are deliverable. The plan's pre-read wording is stale:
+live `createBatch` correctly locks before evaluating availability.
+INDEPENDENT VERIFICATION:
+- `(cd packages/server && dart test -t pg test/data/repository/forward_edge_availability_pg_test.dart)` -> 5 passed
+- `./scripts/check-custom-lints.sh packages/server` -> pass, custom-rule total 0
+- `git diff --check be9f92532..HEAD` -> clean
+REMAINING: UNIT 07 real GraphQL delivery-result parity, Hasura/read-permission
+parity, and the candidate-limit diagnostic.
