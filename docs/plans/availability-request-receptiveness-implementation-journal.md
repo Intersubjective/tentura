@@ -815,3 +815,27 @@ FINDINGS:
     `limit: 10` to `mutually_visible_users` at runtime remains unobserved; only
     the static metadata assertion above is recorded.
 REMAINING: manager acceptance of UNIT 07D; UNIT 07 complete pending acceptance.
+
+## UNIT 07D manager acceptance — 2026-08-13
+
+VERDICT: accepted: `eea7692eb` and `9b7935c5e`.
+REVIEW: The test creates a unique disposable migrated PostgreSQL database, uses
+the migration-provided `user_availability_hidden_for_viewer` function with a
+distinct viewer/blocked target pair, and evaluates the exact committed Hasura
+select predicate separately. It proves the expired-pause, limited-with-past-date,
+and future-pause rows independently. It also parses the committed metadata for
+the exact visibility columns, computed field, absence of mutation permissions,
+and the static user limit. The test does not claim that its SQL predicate proves
+live Hasura GraphQL behavior.
+INDEPENDENT VERIFICATION:
+- `(cd packages/server && dart test -t pg test/api/controllers/graphql/availability_read_parity_test.dart)` -> 10 passed
+- `./scripts/check-custom-lints.sh packages/server` -> pass, custom-rule total 0
+- `git diff --check 38ce66e7e..HEAD` -> clean
+FINDING: The live Hasura candidate-limit behavior remains pending/blocked: its
+metadata does not track the committed `user`/`mutually_visible_users` sources,
+and no already-existing isolated fixture has more than ten visible peers. The
+metadata assertion is static only; it is not a runtime observation.
+REMAINING: UNIT 07 is not complete: retain the live Hasura >10 candidate-limit
+observation as an explicit blocked acceptance gate. UNIT 08 must not start until
+the plan owner accepts that remaining blocked gate or supplies an isolated
+Hasura fixture.
