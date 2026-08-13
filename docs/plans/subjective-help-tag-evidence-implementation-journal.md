@@ -7909,7 +7909,10 @@ STATUS: UNIT G2 (Docs and ADR) complete. `trust_edges.md` matches m0122+ schema 
 
 COMMITS:
 
-- (pending — four focused commits: trust_edges.md; ADR; README; journal)
+- `257e0fa16` docs: rewrite trust_edges.md for m0122 source/projection architecture (G2)
+- `2fb07b8ca` docs: add ADR 0012 for subjective help-tag evidence decisions (G2)
+- `99996f22b` docs: index trust_edges rewrite and ADR 0012 in README (G2)
+- `5d4678db5` docs: journal checkpoints for G2 docs and ADR unit
 
 TESTS:
 
