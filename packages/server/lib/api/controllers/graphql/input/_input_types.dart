@@ -22,6 +22,7 @@ part 'input_field_recipient_ids.dart';
 part 'input_field_forward_recipient_reason.dart';
 part 'input_field_forward_recipient_band_provenance.dart';
 part 'input_field_attribution_parent_edge_ids.dart';
+part 'input_field_calendar_date.dart';
 
 const kGlobalInputQueryContext = 'queryContext';
 const kGlobalInputQueryFile = 'queryFile';
