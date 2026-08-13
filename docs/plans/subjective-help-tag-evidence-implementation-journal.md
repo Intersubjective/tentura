@@ -6727,3 +6727,121 @@ No defects found. F5 accepted as-is, no remediation required.
 STATUS: F2, F3, F4a, F4b, F5 all now accepted — every independently
 orderable client UI unit is complete. Proceeding to F6 (Client release
 checks), the final client-side unit.
+
+## F6 — manager takeover — 2026-08-13
+
+Two fresh Cursor workers were dispatched for F6 in sequence. Both were
+killed by the surrounding environment (the `run_cursor_worker.sh`
+wrapper process died) before completing, unrelated to the task itself:
+
+- **Attempt 1** (`f6-worker.log`, session `9b4b4c66`): killed almost
+  immediately; its log captured only the init + user-message frames, no
+  assistant/tool-call output was ever flushed. Process inspection found
+  several orphaned `cursorsandbox` child processes (reparented to the
+  user's systemd session) still finishing already-started read-only
+  investigation commands (grepping `capability_slugs.dart`,
+  `help_offer_entity.dart`, `schema.graphql`, `m0106.dart`,
+  `attention_policy.dart` for `invite_accepted`) — real investigative
+  work was happening, but nothing was ever written to disk. Confirmed
+  zero diff, zero commits from this attempt. Discarded, nothing to
+  recover.
+- **Attempt 2** (`f6-worker-2.log`, session `c018cab6`): ran a full
+  investigation-and-edit sequence (~27 tool calls across several turns:
+  reading versioning.mdc, DEV_GUIDELINES.md, env.dart, the journal, and
+  editing `packages/client/pubspec.yaml`) before the same wrapper-death
+  killed it mid-session. Its last completed action was bumping
+  `packages/client/pubspec.yaml` from `5.11.0` to `5.12.0` — correct,
+  matching the minor-bump reasoning (new backward-compatible screen/
+  sections/UI, nothing removed). It had not yet touched
+  `web/index.html`, made any journal entry, or committed anything.
+
+Given a real, correct, independently-verifiable partial step existed
+(the version bump) and the task's two remaining actions were small and
+mechanical, I took over directly per the skill's "stop dispatching
+blind retries, understand why, then act" guidance (two consecutive
+environment-level worker deaths, not a task-correctness problem) rather
+than risk a third dispatch:
+
+1. **Semver bump** — kept the worker's `5.11.0` → `5.12.0` edit in
+   `packages/client/pubspec.yaml` after independently re-reading
+   `.cursor/rules/versioning.mdc` myself and confirming minor is correct
+   (new backward-compatible user-visible features across F2–F5; nothing
+   removed or made incompatible).
+2. **Web cache-buster sync** — applied the sqlite3 code-assets root
+   `pubspec.yaml` overlay, ran `flutter build web
+   --no-web-resources-cdn` from `packages/client` (81.8s compile,
+   succeeded), confirmed via `git diff packages/client/web/index.html`
+   that the `hook/build.dart` build hook rewrote
+   `flutter_bootstrap.js?v=5.11.0` → `?v=5.12.0` automatically (no
+   hand-edit needed), then reverted the root `pubspec.yaml` overlay
+   (`git checkout -- pubspec.yaml`) — confirmed clean via `git diff
+   pubspec.yaml` afterward.
+3. **Minimum-client-version decision** — independently verified (not
+   just trusting my own prior worker-prompt assumption) by inspecting
+   the actual E1a/E1b commits: `git show --stat 1a270858f` (E1b wiring)
+   shows 204 insertions / 1 deletion across
+   `custom_types.dart`/`_mutations_all.dart`/
+   `mutation_capability_routing.dart`/`_queries_all.dart`/
+   `query_capability_projection.dart`/`query_invite_seed_prompt.dart`;
+   the single deletion is a constructor-default line replaced by a
+   two-line expansion (adding a second injected dependency), not a
+   removed or renamed field. `query_capability_projection.dart`'s +27
+   lines extend an existing resolver additively (new fields on an
+   existing type). No pre-existing GraphQL query, mutation, or field
+   was removed, renamed, or given a new required argument by this
+   plan's server-side units. Per `DEV_GUIDELINES.md` § Client version
+   gate's decision table, a minor bump only requires raising
+   `kDefaultMinClientVersion` "when the old client cannot work with the
+   new server" — that condition does not hold here: old ≥5.6.38 clients
+   continue to work unmodified against the new server, they simply
+   won't render the new UI (no new-UI-required server behavior exists).
+   **Decision: do not raise `kDefaultMinClientVersion`** (stays at
+   `5.6.38` in `packages/server/lib/env.dart`); no `.env.example` change
+   needed.
+
+VERIFICATION:
+
+```bash
+git diff packages/client/pubspec.yaml    # 5.11.0 -> 5.12.0, only change
+git diff packages/client/web/index.html  # ?v=5.11.0 -> ?v=5.12.0, only change
+git diff pubspec.yaml (repo root)        # empty — sqlite3 overlay reverted
+bash scripts/check-user-facing-terminology.sh
+→ check-user-facing-terminology: ok
+```
+
+No code, tests, or behavior changed in this unit — pure release
+metadata — so no functional test rerun was required beyond confirming
+the two file diffs are exactly the expected one-line changes each.
+
+## F6 — complete — 2026-08-13
+
+STATUS: complete (manager-completed after two environment-level worker
+deaths; see takeover entry above for full reasoning)
+
+COMMITS: (pending — see next commit on main)
+
+FILES:
+- `packages/client/pubspec.yaml` — `version: 5.11.0` → `5.12.0`
+- `packages/client/web/index.html` — `flutter_bootstrap.js?v=5.11.0` →
+  `?v=5.12.0`
+- `docs/plans/subjective-help-tag-evidence-implementation-journal.md`
+
+FINDINGS:
+- **No `kDefaultMinClientVersion` raise** — this plan's server-side
+  surface (E1a/E1b) is purely additive; old clients are unaffected.
+  Recorded explicitly above so the decision is auditable, per the plan's
+  own instruction ("decide/record the minimum-client-version
+  implication").
+- **Build hook confirmed working** — `flutter build web` correctly
+  rewrote the cache-buster automatically; no hand-edit of `index.html`
+  was needed, only verification.
+- **Two consecutive worker deaths were environment-level, not
+  task-level** — both killed sessions' logs and orphaned processes show
+  genuine, correct, on-task work in progress at time of death (grepping
+  the right files, editing the right field to the right value). Not a
+  defect in the worker's understanding of F6.
+
+REMAINING: none for F6. All client-side units (F1a, F1b, F2, F3, F4a,
+F4b, F5, F6) are now complete and accepted. Per the plan's unit
+manifest, G1a/G1b (Telemetry), G2 (Docs and ADR), G3a/G3b (Integration
+tests) remain.
