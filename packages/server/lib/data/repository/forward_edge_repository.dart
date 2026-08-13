@@ -132,7 +132,7 @@ class ForwardEdgeRepository implements ForwardEdgeRepositoryPort {
     for (final recipientId in orderedUniqueRecipients) {
       final edgeId = ForwardEdgeEntity.newId;
       final note = noteForRecipient(recipientId);
-      final didInsert = await _insertActiveEdgeIfAvailable(
+      await _insertActiveEdgeIfAvailable(
         edgeId: edgeId,
         beaconId: beaconId,
         senderId: senderId,
@@ -142,18 +142,17 @@ class ForwardEdgeRepository implements ForwardEdgeRepositoryPort {
         parentEdgeId: parentEdgeId,
         batchId: batchId,
       );
-      if (didInsert) {
-        inserted.add(
-          ForwardEdgeCreated(edgeId: edgeId, recipientId: recipientId),
-        );
-        continue;
-      }
-
       final existing = await findActiveEdge(
         beaconId: beaconId,
         senderId: senderId,
         recipientId: recipientId,
       );
+      if (existing?.id == edgeId) {
+        inserted.add(
+          ForwardEdgeCreated(edgeId: edgeId, recipientId: recipientId),
+        );
+        continue;
+      }
       if (existing == null) {
         availabilitySkipped.add(recipientId);
       }
@@ -398,7 +397,7 @@ WHERE sender_id = $1
     return rows.map((r) => r.read<String>('recipient_id')).toSet();
   }
 
-  Future<bool> _insertActiveEdgeIfAvailable({
+  Future<void> _insertActiveEdgeIfAvailable({
     required String edgeId,
     required String beaconId,
     required String senderId,
@@ -408,7 +407,7 @@ WHERE sender_id = $1
     String? parentEdgeId,
     String? batchId,
   }) async {
-    final inserted = await _database.customInsert(
+    await _database.customInsert(
       r'''
 INSERT INTO public.beacon_forward_edge (
   id,
@@ -443,6 +442,8 @@ AND NOT EXISTS (
   WHERE ua.user_id = $4
     AND ua.resume_on > (CURRENT_TIMESTAMP AT TIME ZONE 'UTC')::date
 )
+ON CONFLICT (beacon_id, sender_id, recipient_id) WHERE cancelled_at IS NULL
+DO NOTHING
 ''',
       variables: [
         Variable.withString(edgeId),
@@ -456,7 +457,6 @@ AND NOT EXISTS (
       ],
       updates: {_database.beaconForwardEdges},
     );
-    return inserted > 0;
   }
 
   Future<void> _acquireAvailabilityLock(String userId) =>

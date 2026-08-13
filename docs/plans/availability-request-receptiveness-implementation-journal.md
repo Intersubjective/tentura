@@ -503,3 +503,27 @@ TESTS: `(cd packages/server && dart run build_runner build -d)` → exit 0;
 FILES: UNIT 06 source/test paths listed above
 FINDINGS: none beyond UNIT 06 entry
 REMAINING: none for UNIT 06; UNIT 07 is next
+
+## UNIT 06 remediation — complete — 2026-08-13
+
+COMMITS: `<pending>` fix(server): restore forward active-edge conflict no-throw semantics
+TESTS:
+- `(cd packages/server && dart test test/domain/use_case/forward_case_test.dart test/domain/use_case/forward_case_auth_test.dart)` → 50 passed
+- `(cd packages/server && dart test -t pg test/data/repository/forward_edge_repository_create_batch_dedup_test.dart)` → 2 passed, 1 skipped (shared Postgres lacks `user_availability`)
+- `./scripts/check-custom-lints.sh packages/server` → pass (custom-rule total 0)
+- `git diff --check` → clean
+FILES:
+- `packages/server/lib/data/repository/forward_edge_repository.dart`
+- `packages/server/test/data/repository/forward_edge_repository_create_batch_dedup_test.dart`
+FINDINGS: `_insertActiveEdgeIfAvailable` needed `ON CONFLICT (beacon_id, sender_id,
+recipient_id) WHERE cancelled_at IS NULL DO NOTHING` on the conditional insert to
+preserve pre-UNIT-06 no-throw dedup under `bfe_active_unique` races. Drift
+`customInsert` also reports `0` affected rows for successful `INSERT … SELECT …
+ON CONFLICT`, so `createBatch` must classify outcomes via post-insert
+`findActiveEdge` + `existing?.id == edgeId` (restoring pre-UNIT-06 semantics),
+not via the insert row count. Disposable-Postgres proof covers concurrent same-edge
+`createBatch` (one edge, no availability skip) and paused-recipient skip; full
+pause/forward linearization and GraphQL typed-result proof remain UNIT 07.
+REMAINING: manager acceptance of UNIT 06 remediation; UNIT 07 PostgreSQL/API
+invariant suite (`forward_edge_availability_pg_test.dart`,
+`forward_delivery_result_test.dart`, etc.).
