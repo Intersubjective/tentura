@@ -9,6 +9,8 @@ import 'package:web/web.dart' as web;
 
 import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/consts.dart';
+import 'package:tentura/domain/capability/capability_group.dart';
+import 'package:tentura/domain/capability/capability_tag.dart';
 import 'package:tentura/features/auth/domain/use_case/auth_case.dart';
 import 'package:tentura/features/auth/ui/bloc/auth_cubit.dart';
 import 'package:tentura/features/coordination_item/ui/widget/coordination_item_overflow_menu.dart';
@@ -67,6 +69,54 @@ Future<IntegrationFixture> bootstrapFixture({
     authorUserId: result['authorUserId']! as String,
     helperEmail: result['helperEmail']! as String,
     helperUserId: result['helperUserId']! as String,
+  );
+}
+
+/// Four-role witness-admission fixture (G3b): Alice/Eve are separate egos
+/// who each mutually befriend Carol; Alice alone casts a one-way explicit
+/// vouch for Bob (Bob does not vouch back). See
+/// `QaIntegrationController.witnessFixture` for the exact server-side
+/// construction.
+class IntegrationWitnessFixture {
+  const IntegrationWitnessFixture({
+    required this.aliceEmail,
+    required this.aliceUserId,
+    required this.bobEmail,
+    required this.bobUserId,
+    required this.carolEmail,
+    required this.carolUserId,
+    required this.eveEmail,
+    required this.eveUserId,
+  });
+
+  final String aliceEmail;
+  final String aliceUserId;
+  final String bobEmail;
+  final String bobUserId;
+  final String carolEmail;
+  final String carolUserId;
+  final String eveEmail;
+  final String eveUserId;
+}
+
+Future<IntegrationWitnessFixture> bootstrapWitnessFixture({
+  required String runId,
+}) async {
+  final result = await _postJson(
+    '/_qa/integration/witness-fixture',
+    {'runId': runId},
+    includeCredentials: false,
+    extraHeaders: _qaHeaders,
+  );
+  return IntegrationWitnessFixture(
+    aliceEmail: result['aliceEmail']! as String,
+    aliceUserId: result['aliceUserId']! as String,
+    bobEmail: result['bobEmail']! as String,
+    bobUserId: result['bobUserId']! as String,
+    carolEmail: result['carolEmail']! as String,
+    carolUserId: result['carolUserId']! as String,
+    eveEmail: result['eveEmail']! as String,
+    eveUserId: result['eveUserId']! as String,
   );
 }
 
@@ -189,6 +239,26 @@ Future<void> tapAndSettle(WidgetTester tester, Finder finder) async {
   debugPrint('[e2e] tapAndSettle(${finder.description}): done');
 }
 
+/// English group-header text (this suite hardcodes English strings
+/// throughout rather than resolving l10n — see the pre-existing `'OK'`/
+/// `'Resolve'` finders below) for the accordion section a capability slug's
+/// chip lives under in `CapabilityChipSet` (Requirements sheet, evaluation
+/// ack-tags — both instantiate it with no search `query`, so sections start
+/// collapsed and must be expanded by tapping the header first).
+String _capabilityGroupLabelFor(String slug) {
+  final group = CapabilityTag.fromSlug(slug)?.group;
+  return switch (group) {
+    CapabilityGroup.logistics => 'Logistics',
+    CapabilityGroup.communication => 'Communication',
+    CapabilityGroup.knowledge => 'Knowledge',
+    CapabilityGroup.care => 'Care & support',
+    CapabilityGroup.resources => 'Resources',
+    CapabilityGroup.technical => 'Technical',
+    CapabilityGroup.special => 'Other',
+    null => throw ArgumentError('unknown capability slug: $slug'),
+  };
+}
+
 Future<void> dismissOkDialogIfPresent(WidgetTester tester) async {
   final okFinder = find.text('OK');
   if (okFinder.evaluate().isNotEmpty) {
@@ -197,12 +267,19 @@ Future<void> dismissOkDialogIfPresent(WidgetTester tester) async {
   }
 }
 
-Future<String> createAndForwardRequest(
+/// Logs in as [authorEmail], fills title/description, optionally adds
+/// [needSlug] as a request "need" via the Requirements sheet, and lands on
+/// the Recipients tab (which requires an already-persisted beaconId — the
+/// create flow auto-saves a draft once the title/description are entered).
+/// Shared prefix for [createAndForwardRequest] and
+/// [createRequestReachRecipientsTab].
+Future<void> _createRequestToRecipientsTab(
   WidgetTester tester, {
-  required IntegrationFixture fixture,
+  required String authorEmail,
   required String title,
+  String? needSlug,
 }) async {
-  await loginAs(tester, fixture.authorEmail);
+  await loginAs(tester, authorEmail);
   await goToPath(tester, kPathBeaconNew);
 
   final titleField = find.byKey(TestIds.key(TestIds.requestTitle));
@@ -215,9 +292,66 @@ Future<String> createAndForwardRequest(
   );
   await tester.pumpAndSettle();
 
+  if (needSlug != null) {
+    await tapAndSettle(tester, find.text('Requirements').first);
+    // CapabilityChipSet groups tags into collapsed accordion sections when
+    // no search query is active (the Requirements sheet has no search
+    // field) — the group header must be expanded before its chips exist.
+    final chipFinder = find.byKey(TestIds.key(TestIds.capabilityChip(needSlug)));
+    if (!await tryPumpUntilVisible(tester, chipFinder)) {
+      await tapAndSettle(
+        tester,
+        find.text(_capabilityGroupLabelFor(needSlug)).first,
+      );
+      await pumpUntilVisible(tester, chipFinder);
+    }
+    await tapAndSettle(tester, chipFinder.first);
+    await tapAndSettle(tester, find.text('Save').first);
+  }
+
   await tapAndSettle(
     tester,
     find.byKey(TestIds.key(TestIds.requestRecipientsTab)),
+  );
+}
+
+/// Creates a request as [viewerEmail] and stops on the Recipients tab
+/// without forwarding to anyone — used to observe the forward band
+/// (`ForwardBandStrip`, same widget used here and on the standalone Forward
+/// screen — see `recipients_tab.dart`/`forward_beacon_screen.dart`) as a
+/// read-only probe of what evidence that ego currently sees, without
+/// completing an actual forward.
+Future<String> createRequestReachRecipientsTab(
+  WidgetTester tester, {
+  required String viewerEmail,
+  required String title,
+  required String needSlug,
+}) async {
+  await _createRequestToRecipientsTab(
+    tester,
+    authorEmail: viewerEmail,
+    title: title,
+    needSlug: needSlug,
+  );
+  return title;
+}
+
+Future<String> createAndForwardRequest(
+  WidgetTester tester, {
+  required IntegrationFixture fixture,
+  required String title,
+  // Capability slug to add as a request "need" via the Requirements sheet.
+  // Left unselected (null) preserves prior behavior for existing callers —
+  // D8's outcome-tag candidate set is beacon.needs ∪ activeHelpOffer(subject)
+  // .helpTypes, so a request with no explicit needs can still surface
+  // capability evidence purely through the helper's own offered help type.
+  String? needSlug,
+}) async {
+  await _createRequestToRecipientsTab(
+    tester,
+    authorEmail: fixture.authorEmail,
+    title: title,
+    needSlug: needSlug,
   );
 
   await tapAndSettle(
@@ -239,6 +373,7 @@ Future<void> offerHelpFromInbox(
   WidgetTester tester, {
   required IntegrationFixture fixture,
   required String requestTitle,
+  String capabilitySlug = 'software',
 }) async {
   await loginAs(tester, fixture.helperEmail);
   await goToPath(tester, kPathInbox);
@@ -249,7 +384,7 @@ Future<void> offerHelpFromInbox(
   );
   await tester.enterText(
     find.byKey(TestIds.key(TestIds.helpOfferMessage)),
-    'I can help with software',
+    'I can help with $capabilitySlug',
   );
   await tester.pumpAndSettle();
   await tapAndSettle(
@@ -258,12 +393,12 @@ Future<void> offerHelpFromInbox(
   );
   await tester.enterText(
     find.byKey(TestIds.key(TestIds.helpOfferSearch)),
-    'software',
+    capabilitySlug,
   );
   await tester.pumpAndSettle();
   await tapAndSettle(
     tester,
-    find.byKey(TestIds.key(TestIds.capabilityChip('software'))).first,
+    find.byKey(TestIds.key(TestIds.capabilityChip(capabilitySlug))).first,
   );
   await tapAndSettle(
     tester,
@@ -488,23 +623,94 @@ Future<void> reviewParticipant(
   String userId, {
   // EvaluationTrustSelection.name of the category to pick; `zero` needs no
   // intensity step and no reason tag, so Save succeeds right away.
+  // `pos1`/`pos2`/`neg1`/`neg2` are not top-level buttons — they are reached
+  // via `increasePending`/`decreasePending` then an intensity tile (little =
+  // pos1/neg1, lot = pos2/neg2). `pos1` alone needs no reason tag
+  // (EvaluationValue.requiresReasonTag is false only for pos1); this helper
+  // does not select a reason tag for any option, so only `zero`/`pos1` (and
+  // any other no-reason-required selection) will save successfully as-is.
   String trustOption = 'zero',
+  // Capability slugs to select in the always-visible, optional
+  // "acknowledge who helped" chip set (source_type=closeAcknowledgement,
+  // D16 — emitted only when finalization resolves this evaluation as pos1/
+  // pos2).
+  List<String> ackTags = const [],
 }) async {
   final tile = find.byKey(TestIds.key(TestIds.evaluationParticipant(userId)));
   if (tile.evaluate().isEmpty) {
     return;
   }
   await tapAndSettle(tester, tile.first);
-  // The trust control validates on Save: a completed selection is required
-  // before the sheet closes.
-  await tapAndSettle(
-    tester,
-    find.byKey(TestIds.key(TestIds.evaluationTrustOption(trustOption))),
-  );
+
+  const intensityOptions = {'pos1', 'pos2', 'neg1', 'neg2'};
+  if (intensityOptions.contains(trustOption)) {
+    final isIncrease = trustOption == 'pos1' || trustOption == 'pos2';
+    await tapAndSettle(
+      tester,
+      find.byKey(
+        TestIds.key(
+          TestIds.evaluationTrustOption(
+            isIncrease ? 'increasePending' : 'decreasePending',
+          ),
+        ),
+      ),
+    );
+    final isLittle = trustOption == 'pos1' || trustOption == 'neg1';
+    await tapAndSettle(
+      tester,
+      find.byKey(
+        TestIds.key(
+          isLittle
+              ? TestIds.evaluationTrustIntensityLittle
+              : TestIds.evaluationTrustIntensityLot,
+        ),
+      ),
+    );
+  } else {
+    // The trust control validates on Save: a completed selection is
+    // required before the sheet closes.
+    await tapAndSettle(
+      tester,
+      find.byKey(TestIds.key(TestIds.evaluationTrustOption(trustOption))),
+    );
+  }
+
+  for (final slug in ackTags) {
+    // Same collapsed-accordion CapabilityChipSet shape as the Requirements
+    // sheet (no search query here either) — expand the group first.
+    final chipFinder = find.byKey(TestIds.key(TestIds.capabilityChip(slug)));
+    if (!await tryPumpUntilVisible(tester, chipFinder)) {
+      await tapAndSettle(
+        tester,
+        find.text(_capabilityGroupLabelFor(slug)).first,
+      );
+      await pumpUntilVisible(tester, chipFinder);
+    }
+    await tapAndSettle(tester, chipFinder.first);
+  }
+
   final saveButton = find.byKey(TestIds.key(TestIds.evaluationSave));
   await tapAndSettle(tester, saveButton);
   // The sheet pops only when the save round-trip succeeded.
   await pumpUntil(tester, () => saveButton.evaluate().isEmpty);
+}
+
+/// Toggles the routing mute switch for [capabilityLabel] (the tag's
+/// rendered display label, e.g. "Transport") on the real F5 settings
+/// screen. [groupLabel] is the accordion section header text to expand if
+/// the switch is not already visible (mobile viewports start collapsed).
+Future<void> toggleRoutingMute(
+  WidgetTester tester, {
+  required String capabilityLabel,
+  required String groupLabel,
+}) async {
+  await goToPath(tester, kPathRoutingMute);
+  final switchFinder = find.widgetWithText(SwitchListTile, capabilityLabel);
+  if (!await tryPumpUntilVisible(tester, switchFinder)) {
+    await tapAndSettle(tester, find.text(groupLabel).first);
+    await pumpUntilVisible(tester, switchFinder);
+  }
+  await tapAndSettle(tester, switchFinder.first);
 }
 
 /// Bounded pumps for screens with repeating animations (e.g. the trust graph).
