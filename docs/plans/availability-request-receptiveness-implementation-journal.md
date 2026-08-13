@@ -723,3 +723,33 @@ INDEPENDENT VERIFICATION:
 - `git diff --check be9f92532..HEAD` -> clean
 REMAINING: UNIT 07 real GraphQL delivery-result parity, Hasura/read-permission
 parity, and the candidate-limit diagnostic.
+
+## UNIT 07C GraphQL ForwardDeliveryResult parity proof — complete — 2026-08-13
+
+COMMITS: `9d389ae23`
+TESTS:
+- `(cd packages/server && dart test test/api/controllers/graphql/forward_delivery_result_test.dart)` → 2 passed
+- `./scripts/check-custom-lints.sh packages/server` → pass (custom-rule total 0)
+- `git diff --check` → clean
+FILES:
+- `packages/server/test/api/controllers/graphql/forward_delivery_result_test.dart`
+FINDINGS:
+- Builds on manager-accepted UNIT 07B baseline `57f38b9e2`.
+- Schema proof registers `beaconForward` as non-null `ForwardDeliveryResult` with
+  three non-null fields (`batchId`, `deliveredRecipientIds`,
+  `availabilitySkippedRecipientIds`).
+- Document execution runs `beaconForward` through `MutationForward` /
+  `graphql_server2` with JWT context, real `ForwardEdgeRepository` on a disposable
+  migrated PostgreSQL database, and minimal in-memory ports for the remaining
+  `ForwardCase` collaborators.
+- Mixed batch preserves requested order for delivered and availability-skipped
+  IDs; GraphQL lists match the actual `beacon_forward_edge` rows for the
+  returned `batchId` and paused recipients receive no edge while limited-only
+  recipients are delivered.
+- Pre-existing active-edge dedup is silent: the duplicate recipient appears in
+  neither delivered nor availability-skipped lists.
+- `TestAttentionHarness` records a single `relayReceived` intent whose recipient
+  ids match only the newly delivered recipients from the real `ForwardCase`
+  invocation.
+REMAINING: UNIT 07 read-permission parity (`availability_read_parity_test.dart`)
+and Hasura candidate-limit diagnostic; manager acceptance not recorded here.
