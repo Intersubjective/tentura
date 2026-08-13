@@ -21,6 +21,7 @@ import 'package:tentura_server/domain/use_case/block_release_sweep_case.dart';
 import 'package:tentura_server/domain/use_case/capability_cell_expiry_sweep_case.dart';
 import 'package:tentura_server/domain/use_case/capability_telemetry_case.dart';
 import 'package:tentura_server/domain/use_case/trust_maintenance_case.dart';
+import 'package:tentura_server/domain/use_case/user_availability_case.dart';
 import 'package:tentura_server/domain/port/trust_maintenance_port.dart';
 import 'package:tentura_server/domain/port/witness_window_port.dart';
 import 'package:tentura_server/utils/id.dart';
@@ -48,6 +49,7 @@ final class TaskWorkerCase extends UseCaseBase {
     CapabilityTelemetryCase capabilityTelemetry,
     WitnessWindowPort witnessWindow,
     CapabilityCellPort capabilityCellPort,
+    UserAvailabilityCase userAvailabilityCase,
   ) => Future.value(
     TaskWorkerCase(
       imageRepository,
@@ -68,6 +70,7 @@ final class TaskWorkerCase extends UseCaseBase {
       capabilityTelemetry: capabilityTelemetry,
       witnessWindow: witnessWindow,
       capabilityCellPort: capabilityCellPort,
+      userAvailabilityCase: userAvailabilityCase,
       env: env,
       logger: logger,
     ),
@@ -89,6 +92,7 @@ final class TaskWorkerCase extends UseCaseBase {
     CapabilityTelemetryCase? capabilityTelemetry,
     WitnessWindowPort? witnessWindow,
     CapabilityCellPort? capabilityCellPort,
+    UserAvailabilityCase? userAvailabilityCase,
     required super.env,
     required super.logger,
   }) : _imageObjectGc = imageObjectGc,
@@ -101,7 +105,8 @@ final class TaskWorkerCase extends UseCaseBase {
        _capabilityCellExpirySweep = capabilityCellExpirySweep,
        _capabilityTelemetry = capabilityTelemetry,
        _witnessWindow = witnessWindow,
-       _capabilityCellPort = capabilityCellPort;
+       _capabilityCellPort = capabilityCellPort,
+       _userAvailabilityCase = userAvailabilityCase;
 
   final ImageRepositoryPort _imageRepository;
 
@@ -122,6 +127,7 @@ final class TaskWorkerCase extends UseCaseBase {
   final CapabilityTelemetryCase? _capabilityTelemetry;
   final WitnessWindowPort? _witnessWindow;
   final CapabilityCellPort? _capabilityCellPort;
+  final UserAvailabilityCase? _userAvailabilityCase;
 
   /// Per-process identity for `image_object_gc` lease ownership (§3.4).
   final _gcLeaseOwner = generateId('W');
@@ -143,6 +149,7 @@ final class TaskWorkerCase extends UseCaseBase {
   var _lastCapTelemetrySweep = DateTime.fromMillisecondsSinceEpoch(0);
   var _lastEwwGcSweep = DateTime.fromMillisecondsSinceEpoch(0);
   var _lastCapGenGcSweep = DateTime.fromMillisecondsSinceEpoch(0);
+  var _lastAvailabilityCleanupSweep = DateTime.fromMillisecondsSinceEpoch(0);
 
   late final _tasks = <Future<void> Function()>[
     () async {
@@ -314,6 +321,16 @@ final class TaskWorkerCase extends UseCaseBase {
       }
       _lastCapGenGcSweep = now;
       await _capabilityCellPort?.gcOrphanGenerations();
+    },
+    // Availability stale-row janitor (hygiene only; reads stay correct without it).
+    () async {
+      final now = DateTime.timestamp();
+      if (now.difference(_lastAvailabilityCleanupSweep) <
+          const Duration(hours: 6)) {
+        return;
+      }
+      _lastAvailabilityCleanupSweep = now;
+      await _userAvailabilityCase?.cleanupExpired(now: now);
     },
   ];
 

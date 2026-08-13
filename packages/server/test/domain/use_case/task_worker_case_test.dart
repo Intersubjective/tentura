@@ -13,9 +13,11 @@ import 'package:tentura_server/domain/port/image_repository_port.dart';
 import 'package:tentura_server/domain/port/notification_outbox_repository_port.dart';
 import 'package:tentura_server/domain/port/notification_preference_repository_port.dart';
 import 'package:tentura_server/domain/port/task_repository_port.dart';
+import 'package:tentura_server/domain/port/user_availability_repository_port.dart';
 import 'package:tentura_server/domain/port/verified_contact_repository_port.dart';
 import 'package:tentura_server/domain/use_case/email_digest_case.dart';
 import 'package:tentura_server/domain/use_case/task_worker_case.dart';
+import 'package:tentura_server/domain/use_case/user_availability_case.dart';
 import 'package:tentura_server/env.dart';
 
 import '../../support/fake_beacon_access_guard.dart';
@@ -116,6 +118,25 @@ class _NoopEmail implements EmailSenderPort {
   dynamic noSuchMethod(Invocation i) => throw UnimplementedError('$i');
 }
 
+class _CountingAvailabilityRepo implements UserAvailabilityRepositoryPort {
+  int cleanupCalls = 0;
+
+  @override
+  Future<void> cleanupExpired(DateTime todayUtc) async {
+    cleanupCalls++;
+  }
+
+  @override
+  dynamic noSuchMethod(Invocation i) => throw UnimplementedError('$i');
+}
+
+UserAvailabilityCase _availabilityCase(_CountingAvailabilityRepo repo) =>
+    UserAvailabilityCase(
+      repo,
+      env: _testEnv(),
+      logger: Logger('test'),
+    );
+
 EmailDigestCase _digestCase(_CountingOutbox outbox) => EmailDigestCase(
       _NoopPrefs(),
       outbox,
@@ -132,6 +153,7 @@ TaskWorkerCase _worker({
   required ImageRepositoryPort images,
   required EmailDigestCase digest,
   required NotificationOutboxRepositoryPort outbox,
+  UserAvailabilityCase? userAvailabilityCase,
   Env? env,
 }) =>
     TaskWorkerCase(
@@ -139,6 +161,7 @@ TaskWorkerCase _worker({
       tasks,
       digest,
       outbox,
+      userAvailabilityCase: userAvailabilityCase,
       env: env ?? _testEnv(),
       logger: Logger('test'),
     );
@@ -246,6 +269,21 @@ void main() {
 
       expect(outbox.accountsWithPendingCalls, 1);
       expect(outbox.deleteSettledCalls, 1);
+    });
+
+    test('throttles availability cleanup to once per worker burst', () async {
+      final availabilityRepo = _CountingAvailabilityRepo();
+      final worker = _worker(
+        tasks: _FakeTaskRepo(),
+        images: _FakeImageRepo(),
+        digest: _digestCase(_CountingOutbox()),
+        outbox: _CountingOutbox(),
+        userAvailabilityCase: _availabilityCase(availabilityRepo),
+      );
+
+      await _runBriefly(worker);
+
+      expect(availabilityRepo.cleanupCalls, 1);
     });
 
     test('dispose stops the worker loop', () async {
