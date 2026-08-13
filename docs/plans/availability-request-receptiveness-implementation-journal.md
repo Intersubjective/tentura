@@ -323,3 +323,11 @@ FILES:
 - `packages/server/test/domain/use_case/task_worker_case_test.dart`
 FINDINGS: baseline already included committed `0dbdb1ae5` TaskWorkerCase GetIt/BeaconCase bootstrap fix; preserved unchanged. `fetchByUserIds` returns `Map<String, UserAvailabilityEntity>` (absent users omitted). In-memory fake repo in case tests covers idempotency/independence semantics; PostgreSQL concurrency proof deferred to UNIT 07.
 REMAINING: none for UNIT 03; UNIT 04 (`feat(server): expose availability in public users`) is next
+
+## Manager review — UNIT 03 accepted — 2026-08-13
+
+COMMITS: `4f776360a` feat(server): add availability commands; `0ac8e7468` docs: record UNIT 03 availability commands evidence
+TESTS: independent focused case/task-worker suite → 25 passed; independent server codegen → exit 0; source inspection confirmed shared transaction advisory locks, writable CTE clear/resume operations, six-hour throttle, and preservation of `0dbdb1ae5`
+FILES: UNIT 03-owned paths plus `packages/server/lib/data/mapper/user_availability_mapper.dart`
+FINDINGS: accepted. The mapper is a necessary narrow data-layer addition ensuring the repository returns the domain entity rather than a Drift row; it normalizes `PgDate` to UTC midnight. PostgreSQL race/linearization proof remains required in UNIT 07.
+REMAINING: UNIT 04 is dependency-ready.
