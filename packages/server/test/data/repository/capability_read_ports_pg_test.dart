@@ -12,9 +12,11 @@ import 'package:tentura_server/data/database/tentura_db.dart'
     hide isNotNull, isNull;
 import 'package:tentura_server/data/repository/capability_own_evidence_repository.dart';
 import 'package:tentura_server/data/repository/capability_telemetry_repository.dart';
+import 'package:tentura_server/data/repository/meritrank_repository.dart';
 import 'package:tentura_server/data/repository/pair_block_query_repository.dart';
 import 'package:tentura_server/data/repository/routing_mute_repository.dart';
 import 'package:tentura_server/domain/capability/capability_evidence_models.dart';
+import 'package:tentura_server/domain/invite_genealogy/invite_genealogy_node_key.dart';
 import 'package:tentura_server/env.dart';
 
 const _ego = 'Ucapb2cego01';
@@ -23,8 +25,11 @@ const _sub2 = 'Ucapb2csub02';
 const _userA = 'Ucapb2cusrA1';
 const _userB = 'Ucapb2cusrB1';
 const _userC = 'Ucapb2cusrC1';
+const _hop1 = 'Ucapg1chop101';
+const _hop2 = 'Ucapg1chop201';
+const _g1cInviteId = 'InvG1cTelemetry01';
 
-const _allIds = [_ego, _sub1, _sub2, _userA, _userB, _userC];
+const _allIds = [_ego, _sub1, _sub2, _userA, _userB, _userC, _hop1, _hop2];
 
 Future<void> main() async {
   final target = _DisposablePgTarget.fromEnvironment();
@@ -39,6 +44,8 @@ Future<void> main() async {
   late RoutingMuteRepository muteRepo;
   late CapabilityTelemetryRepository telemetryRepo;
   late PairBlockQueryRepository blockRepo;
+  late MeritrankRepository meritRank;
+  late Env testEnv;
 
   if (skipReason == false) {
     setUpAll(() async {
@@ -48,12 +55,15 @@ Future<void> main() async {
         settings: target.databaseEnv.pgEndpointSettings,
       );
       await writer.execute('SET check_function_bodies = false');
+      await writer.execute('CREATE EXTENSION IF NOT EXISTS pgmer2');
       await migrateDbSchema(writer);
+      testEnv = target.databaseEnv;
       database = TenturaDb(target.databaseEnv);
       ownEvidenceRepo = CapabilityOwnEvidenceRepository(database);
       muteRepo = RoutingMuteRepository(database);
       telemetryRepo = CapabilityTelemetryRepository(database);
       blockRepo = PairBlockQueryRepository(database);
+      meritRank = MeritrankRepository(database);
     });
 
     setUp(() async {
@@ -454,6 +464,112 @@ Future<void> main() async {
       },
       skip: skipReason,
     );
+
+    test(
+      'twoHopSponsoredForwardMrPercentiles returns n=0 without invite tree',
+      () async {
+        final summary = await telemetryRepo.twoHopSponsoredForwardMrPercentiles();
+        expect(summary.n, 0);
+        expect(summary.p33, isNull);
+        expect(summary.p50, isNull);
+        expect(summary.p75, isNull);
+      },
+      skip: skipReason,
+    );
+
+    test(
+      'twoHopSponsoredForwardMrPercentiles reads forward_mr for depth-2 invitees',
+      () async {
+        await _insertCapabilityEvent(
+          database,
+          id: 'CEg1cact01',
+          observerId: _ego,
+          subjectId: _sub1,
+          tagSlug: 'pets',
+          sourceType: 1,
+        );
+        await _insertInviteGenealogyEdge(
+          database,
+          env: testEnv,
+          ancestorId: _ego,
+          descendantId: _hop1,
+          ancestorCreated: '2026-01-01T00:00:00Z',
+          descendantCreated: '2026-02-01T00:00:00Z',
+        );
+        await _insertInviteGenealogyEdge(
+          database,
+          env: testEnv,
+          ancestorId: _hop1,
+          descendantId: _hop2,
+          ancestorCreated: '2026-02-01T00:00:00Z',
+          descendantCreated: '2026-03-01T00:00:00Z',
+        );
+        await _mrEdge(meritRank, _ego, _hop2, 0.9);
+
+        final summary = await telemetryRepo.twoHopSponsoredForwardMrPercentiles();
+
+        expect(summary.n, greaterThanOrEqualTo(1));
+        expect(summary.p50, greaterThan(0));
+      },
+      skip: skipReason,
+    );
+
+    test(
+      'countEligibleWitnessCoverage classifies ineligible-only θ-clearing',
+      () async {
+        await _insertCapabilityEvent(
+          database,
+          id: 'CEg1ccov01',
+          observerId: _ego,
+          subjectId: _sub1,
+          tagSlug: 'pets',
+          sourceType: 1,
+        );
+        await _mrEdge(meritRank, _ego, _userA, 0.9);
+        await _insertCapabilityEdgeWithStrength(
+          database,
+          observerId: _userA,
+          subjectId: _sub1,
+          tagSlug: 'pets',
+          sOut: 2.0,
+        );
+
+        final counts = await telemetryRepo.countEligibleWitnessCoverage();
+
+        expect(counts.eligibleClearing, 0);
+        expect(counts.ineligibleOnly, greaterThanOrEqualTo(1));
+      },
+      skip: skipReason,
+    );
+
+    test(
+      'countEligibleWitnessCoverage counts eligible-clearing triples',
+      () async {
+        await _insertCapabilityEvent(
+          database,
+          id: 'CEg1ccov02',
+          observerId: _ego,
+          subjectId: _sub1,
+          tagSlug: 'pets',
+          sourceType: 1,
+        );
+        await _mrEdge(meritRank, _ego, _userA, 0.9);
+        await _trustEdge(database, _ego, _userA);
+        await _insertCapabilityEdgeWithStrength(
+          database,
+          observerId: _userA,
+          subjectId: _sub1,
+          tagSlug: 'pets',
+          sOut: 2.0,
+        );
+
+        final counts = await telemetryRepo.countEligibleWitnessCoverage();
+
+        expect(counts.eligibleClearing, greaterThanOrEqualTo(1));
+        expect(counts.ineligibleOnly, 0);
+      },
+      skip: skipReason,
+    );
   });
 
   group('PairBlockQueryRepository', () {
@@ -544,6 +660,77 @@ ON CONFLICT (observer_user_id, subject_user_id, tag_slug) DO UPDATE
 SET next_expiry_at = EXCLUDED.next_expiry_at
 ''');
 
+Future<void> _insertCapabilityEdgeWithStrength(
+  TenturaDb db, {
+  required String observerId,
+  required String subjectId,
+  required String tagSlug,
+  required double sOut,
+  double sSeed = 0,
+}) => db.customStatement('''
+INSERT INTO public.capability_evidence_edge (
+  observer_user_id, subject_user_id, tag_slug, s_out, s_seed
+) VALUES (
+  '$observerId', '$subjectId', '$tagSlug', $sOut, $sSeed
+)
+ON CONFLICT (observer_user_id, subject_user_id, tag_slug) DO UPDATE
+SET s_out = EXCLUDED.s_out, s_seed = EXCLUDED.s_seed
+''');
+
+Future<void> _trustEdge(TenturaDb db, String subject, String object) =>
+    db.customStatement('''
+INSERT INTO public.vote_user (subject, object, amount, created_at, updated_at)
+VALUES ('$subject', '$object', 1, '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z')
+ON CONFLICT (subject, object) DO UPDATE SET amount = EXCLUDED.amount
+''');
+
+Future<void> _mrEdge(
+  MeritrankRepository meritRank,
+  String subject,
+  String object,
+  double weight,
+) => meritRank.putEdge(nodeA: subject, nodeB: object, weight: weight);
+
+Future<void> _insertInviteGenealogyEdge(
+  TenturaDb db, {
+  required Env env,
+  required String ancestorId,
+  required String descendantId,
+  required String ancestorCreated,
+  required String descendantCreated,
+}) async {
+  final ancestorKey = InviteGenealogyNodeKey.derive(userId: ancestorId, env: env);
+  final descendantKey =
+      InviteGenealogyNodeKey.derive(userId: descendantId, env: env);
+  await db.customStatement('''
+INSERT INTO public.invitation (id, user_id, addressee_name, created_at)
+VALUES ('$_g1cInviteId-$descendantId', '$ancestorId', 'Invitee', '$ancestorCreated')
+ON CONFLICT (id) DO NOTHING
+''');
+  await db.customStatement('''
+INSERT INTO public.invite_genealogy (
+  descendant_node_key,
+  ancestor_node_key,
+  descendant_user_id,
+  ancestor_user_id,
+  invitation_id,
+  ancestor_user_created_at,
+  descendant_user_created_at,
+  created_at
+) VALUES (
+  '$descendantKey',
+  '$ancestorKey',
+  '$descendantId',
+  '$ancestorId',
+  '$_g1cInviteId-$descendantId',
+  '$ancestorCreated',
+  '$descendantCreated',
+  '$descendantCreated'
+)
+ON CONFLICT (descendant_node_key) DO NOTHING
+''');
+}
+
 Future<void> _insertBlock(
   TenturaDb db, {
   required String blockerId,
@@ -571,6 +758,36 @@ Future<void> _cleanup(TenturaDb db) async {
     'DELETE FROM public.user_block '
     'WHERE blocker_id IN ($idList) OR blocked_id IN ($idList)',
   );
+  await db.customStatement(
+    'DELETE FROM public.invite_genealogy '
+    'WHERE descendant_user_id IN ($idList) OR ancestor_user_id IN ($idList)',
+  );
+  await db.customStatement(
+    'DELETE FROM public.invitation WHERE user_id IN ($idList)',
+  );
+  await db.customStatement(
+    'DELETE FROM public.vote_user '
+    'WHERE subject IN ($idList) OR object IN ($idList)',
+  );
+  for (final id in _allIds) {
+    if (id == _ego) {
+      for (final peer in _allIds.where((p) => p != _ego)) {
+        await db.customStatement(
+          "SELECT mr_put_edge('$_ego', '$peer', 0::double precision, ''::text, 0)",
+        );
+        await db.customStatement(
+          "SELECT mr_put_edge('$peer', '$_ego', 0::double precision, ''::text, 0)",
+        );
+      }
+      continue;
+    }
+    await db.customStatement(
+      "SELECT mr_put_edge('$_ego', '$id', 0::double precision, ''::text, 0)",
+    );
+    await db.customStatement(
+      "SELECT mr_put_edge('$id', '$_ego', 0::double precision, ''::text, 0)",
+    );
+  }
   await db.customStatement(
     'DELETE FROM public."user" WHERE id IN ($idList)',
   );
