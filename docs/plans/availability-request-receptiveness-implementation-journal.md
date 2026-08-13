@@ -1121,7 +1121,7 @@ REMAINING: manager acceptance of UNIT 09; UNIT 10 (`feat(client): add availabili
 
 ## UNIT 10 — complete — 2026-08-14
 
-COMMITS: `ee9eaa988` feat(client): add availability copy and dates; `094dab138` docs: record UNIT 10 availability copy and dates evidence
+COMMITS: `ee9eaa988` feat(client): add availability copy and dates; `422689382` docs: record UNIT 10 availability copy and dates evidence
 TESTS:
 - `(cd packages/client && flutter gen-l10n)` → exit 0
 - `(cd packages/client && flutter test test/domain/util/availability_presets_test.dart test/ui/utils/calendar_day_display_test.dart test/l10n/availability_localization_test.dart)` → 25 passed
@@ -1160,3 +1160,23 @@ FINDINGS:
 - `beacon_card_deadline_test.dart` is outside UNIT 10 ownership; ≥7-day beacon regression
   remains for a later touch (calendar_day_display tests cover the shared branch).
 REMAINING: none for UNIT 10; UNIT 11 (`feat(client): add availability profile control`) is next.
+
+## UNIT 10 remediation — complete — 2026-08-14
+
+Manager review found `beacon_card_deadline_test.dart` asserted a 5-day weekday label but
+did not prove the ≥7-calendar-day branch returns `formatFutureCalendarDayLabel` output
+without the `myWorkStatusDueWeekday` wrapper.
+
+COMMITS: `1051c301e` test(client): prove beacon ≥7-day deadline uses shared long date
+TESTS:
+- `(cd packages/client && flutter test test/ui/utils/beacon_card_deadline_test.dart test/ui/utils/calendar_day_display_test.dart)` → 23 passed
+- `./scripts/check-custom-lints.sh packages/client` → pass (custom-rule total 106, baseline 111)
+- `git diff --check` → clean
+FILES:
+- `packages/client/test/ui/utils/beacon_card_deadline_test.dart`
+FINDINGS:
+- Injected `now = 2026-06-22 12:00` with `endAt = 2026-06-29 18:00` (exactly 7 calendar
+  days) yields `formatFutureCalendarDayLabel` long date (`Jun 29, 2026` in EN) and is not
+  `myWorkStatusDueWeekday('Mon')`; existing instant/local overdue/today/tomorrow/5-day
+  weekday assertions unchanged.
+REMAINING: none for UNIT 10 remediation; UNIT 11 is next.
