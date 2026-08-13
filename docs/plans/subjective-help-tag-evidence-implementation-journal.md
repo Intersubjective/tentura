@@ -7096,7 +7096,7 @@ COMMITS:
 - `1c0beb983` feat(server): add routing mute aggregate query for telemetry (G1b)
 - `05fdc9abc` feat(server): add seed renewal telemetry query and capability case (G1b)
 - `24fb07a2a` feat(server): wire capability telemetry into TaskWorker sweep (G1b)
-- `<hash4>` docs: journal checkpoint for G1b telemetry (mute rate + seed renewal)
+- `d8c5e852e` docs: journal checkpoint for G1b telemetry (mute rate + seed renewal)
 
 TESTS:
 
