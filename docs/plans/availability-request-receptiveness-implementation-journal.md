@@ -1008,3 +1008,26 @@ dates; month/day bounds plus post-parse component equality close the overflow
 hole without `toLocal()`.
 REMAINING: manager re-review of UNIT 08 remediation evidence; UNIT 09 onward
 unchanged.
+
+## UNIT 08 manager acceptance — 2026-08-14
+
+VERDICT: accepted after remediation commits `b7574fc04`, `9b10d22bd`, and
+`efdc23833` (implementation baseline `7a2646216`).
+
+REVIEW: the scalar and V2 adapters now use one strict calendar parser. It rejects
+malformed/non-string values and impossible dates before `DateTime.utc` can
+normalize them; `Availability.open()` remains the null relationship default.
+The explicit browser proof flag asserts the actual observed browser offset is
+non-UTC, so the successful Chrome run is no longer inferred from process `TZ`.
+The narrow `.batchId` bridge is necessary compatibility wiring for the typed
+GraphQL result and leaves full result mapping to UNIT 14 as planned.
+
+INDEPENDENT VERIFICATION:
+- `TZ=America/New_York flutter test --dart-define=availability_expect_non_utc=true test/data/gql/calendar_date_serializer_test.dart test/data/model/availability_read_parity_test.dart` -> 12 passed
+- `TZ=America/New_York flutter test --platform chrome --dart-define=availability_expect_non_utc=true test/data/gql/calendar_date_serializer_test.dart` -> 6 passed
+- `git diff --check 48ccb567f..HEAD` -> clean
+- Temporary local schema-fetch state independently restored: `user_availability`
+  table absent, schema-version `0148` absent, and Hasura metadata export exactly
+  matches `/tmp/tentura-unit08/hasura_metadata_pre.json`.
+
+REMAINING: UNIT 08 is accepted. UNIT 09 is dependency-ready.
