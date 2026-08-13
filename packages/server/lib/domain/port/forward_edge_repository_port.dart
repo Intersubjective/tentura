@@ -1,4 +1,4 @@
-import 'package:tentura_server/domain/entity/forward_edge_created.dart';
+import 'package:tentura_server/domain/entity/forward_batch_create_result.dart';
 import 'package:tentura_server/domain/entity/forward_edge_entity.dart';
 
 abstract class ForwardEdgeRepositoryPort {
@@ -22,8 +22,8 @@ abstract class ForwardEdgeRepositoryPort {
     String? batchId,
   });
 
-  /// Returns edge/recipient pairs for which a new active edge was inserted.
-  Future<List<ForwardEdgeCreated>> createBatch({
+  /// Returns created edges and availability-skipped recipient ids for this batch.
+  Future<ForwardBatchCreateResult> createBatch({
     required String beaconId,
     required String senderId,
     required List<String> recipientIds,

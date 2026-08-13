@@ -2,6 +2,7 @@ import 'package:drift/drift.dart';
 import 'package:drift_postgres/drift_postgres.dart';
 import 'package:injectable/injectable.dart';
 
+import 'package:tentura_server/domain/entity/forward_batch_create_result.dart';
 import 'package:tentura_server/domain/entity/forward_edge_created.dart';
 import 'package:tentura_server/domain/entity/forward_edge_entity.dart';
 import 'package:tentura_server/domain/port/forward_edge_repository_port.dart';
@@ -93,12 +94,16 @@ class ForwardEdgeRepository implements ForwardEdgeRepositoryPort {
 
   /// Inserts one batch of forward edges atomically.
   ///
+  /// Recipient ids are deduplicated in first-request order. Per-recipient
+  /// availability advisory locks are taken in sorted id order before inserts.
+  /// Each insert is conditional on the recipient not being availability-paused
+  /// (`resume_on` strictly after today's UTC calendar date). Active-edge dedup
+  /// is separate and is not reported as an availability skip.
+  ///
   /// [onAfterEdgesInserted] runs inside the same transaction when at least one
   /// edge is inserted (e.g. sender inbox → watching when not committed).
-  ///
-  /// Returns edge/recipient pairs for which a new active edge was inserted.
   @override
-  Future<List<ForwardEdgeCreated>> createBatch({
+  Future<ForwardBatchCreateResult> createBatch({
     required String beaconId,
     required String senderId,
     required List<String> recipientIds,
@@ -108,42 +113,59 @@ class ForwardEdgeRepository implements ForwardEdgeRepositoryPort {
     String? parentEdgeId,
     Future<void> Function()? onAfterEdgesInserted,
   }) => _database.withMutatingUser(senderId, () async {
-    final inserted = <ForwardEdgeCreated>[];
+    final seen = <String>{};
+    final orderedUniqueRecipients = <String>[];
     for (final recipientId in recipientIds) {
-      if (await findActiveEdge(
-            beaconId: beaconId,
-            senderId: senderId,
-            recipientId: recipientId,
-          ) !=
-          null) {
-        continue;
+      if (seen.add(recipientId)) {
+        orderedUniqueRecipients.add(recipientId);
       }
+    }
+
+    final lockOrder = orderedUniqueRecipients.toList()..sort();
+    for (final recipientId in lockOrder) {
+      await _acquireAvailabilityLock(recipientId);
+    }
+
+    final inserted = <ForwardEdgeCreated>[];
+    final availabilitySkipped = <String>[];
+
+    for (final recipientId in orderedUniqueRecipients) {
       final edgeId = ForwardEdgeEntity.newId;
-      await _insertActiveEdge(
+      final note = noteForRecipient(recipientId);
+      final didInsert = await _insertActiveEdgeIfAvailable(
         edgeId: edgeId,
         beaconId: beaconId,
         senderId: senderId,
         recipientId: recipientId,
-        note: noteForRecipient(recipientId),
+        note: note,
         context: context,
         parentEdgeId: parentEdgeId,
         batchId: batchId,
       );
-      final edge = await findActiveEdge(
+      if (didInsert) {
+        inserted.add(
+          ForwardEdgeCreated(edgeId: edgeId, recipientId: recipientId),
+        );
+        continue;
+      }
+
+      final existing = await findActiveEdge(
         beaconId: beaconId,
         senderId: senderId,
         recipientId: recipientId,
       );
-      if (edge?.id == edgeId && edge?.batchId == batchId) {
-        inserted.add(
-          ForwardEdgeCreated(edgeId: edgeId, recipientId: recipientId),
-        );
+      if (existing == null) {
+        availabilitySkipped.add(recipientId);
       }
     }
+
     if (inserted.isNotEmpty) {
       await onAfterEdgesInserted?.call();
     }
-    return inserted;
+    return ForwardBatchCreateResult(
+      createdEdges: inserted,
+      availabilitySkippedRecipientIds: availabilitySkipped,
+    );
   });
 
   @override
@@ -375,6 +397,73 @@ WHERE sender_id = $1
         .get();
     return rows.map((r) => r.read<String>('recipient_id')).toSet();
   }
+
+  Future<bool> _insertActiveEdgeIfAvailable({
+    required String edgeId,
+    required String beaconId,
+    required String senderId,
+    required String recipientId,
+    required String note,
+    String? context,
+    String? parentEdgeId,
+    String? batchId,
+  }) async {
+    final inserted = await _database.customInsert(
+      r'''
+INSERT INTO public.beacon_forward_edge (
+  id,
+  beacon_id,
+  sender_id,
+  recipient_id,
+  note,
+  context,
+  parent_edge_id,
+  batch_id
+)
+SELECT
+  $1,
+  $2,
+  $3,
+  $4,
+  $5,
+  $6,
+  $7,
+  $8
+WHERE NOT EXISTS (
+  SELECT 1
+  FROM public.beacon_forward_edge e
+  WHERE e.beacon_id = $2
+    AND e.sender_id = $3
+    AND e.recipient_id = $4
+    AND e.cancelled_at IS NULL
+)
+AND NOT EXISTS (
+  SELECT 1
+  FROM public.user_availability ua
+  WHERE ua.user_id = $4
+    AND ua.resume_on > (CURRENT_TIMESTAMP AT TIME ZONE 'UTC')::date
+)
+''',
+      variables: [
+        Variable.withString(edgeId),
+        Variable.withString(beaconId),
+        Variable.withString(senderId),
+        Variable.withString(recipientId),
+        Variable.withString(note),
+        Variable(context),
+        Variable(parentEdgeId),
+        Variable(batchId),
+      ],
+      updates: {_database.beaconForwardEdges},
+    );
+    return inserted > 0;
+  }
+
+  Future<void> _acquireAvailabilityLock(String userId) =>
+      _database.customStatement(
+        r"SELECT pg_advisory_xact_lock(hashtextextended('user_availability:' || $1, 4242))",
+        [userId],
+      );
 
   Future<void> _insertActiveEdge({
     String? edgeId,

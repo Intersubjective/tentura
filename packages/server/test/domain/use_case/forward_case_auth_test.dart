@@ -4,6 +4,13 @@ import 'package:mockito/mockito.dart';
 import 'package:test/test.dart';
 
 import 'package:tentura_server/env.dart';
+import 'package:graphql_schema2/graphql_schema2.dart';
+import 'package:test/test.dart';
+
+import 'package:tentura_server/api/controllers/graphql/custom_types.dart';
+import 'package:tentura_server/api/controllers/graphql/mutation/mutation_forward.dart';
+import 'package:tentura_server/domain/entity/forward_batch_create_result.dart';
+import 'package:tentura_server/domain/entity/forward_delivery_result.dart';
 import 'package:tentura_server/domain/entity/forward_edge_created.dart';
 import 'package:tentura_server/domain/entity/beacon_entity.dart';
 import 'package:tentura_server/domain/entity/user_entity.dart';
@@ -115,13 +122,16 @@ void main() {
     ).thenAnswer((invocation) async {
       final recipientIds =
           invocation.namedArguments[#recipientIds] as List<String>;
-      return [
-        for (var i = 0; i < recipientIds.length; i++)
-          ForwardEdgeCreated(
-            edgeId: 'E${i + 1}',
-            recipientId: recipientIds[i],
-          ),
-      ];
+      return ForwardBatchCreateResult(
+        createdEdges: [
+          for (var i = 0; i < recipientIds.length; i++)
+            ForwardEdgeCreated(
+              edgeId: 'E${i + 1}',
+              recipientId: recipientIds[i],
+            ),
+        ],
+        availabilitySkippedRecipientIds: const [],
+      );
     });
     when(
       personVisibilityRepo.mutuallyVisiblePeerIds(
@@ -482,5 +492,30 @@ void main() {
         ).called(1);
       },
     );
+  });
+
+  group('beaconForward GraphQL signature', () {
+    test('returns non-null ForwardDeliveryResult with three list fields', () {
+      final field = MutationForward(forwardCase: case_).forward;
+      expect(field.name, 'beaconForward');
+      expect(field.type, isA<GraphQLNonNullableType>());
+      final resultType =
+          (field.type as GraphQLNonNullableType).ofType as GraphQLObjectType;
+      expect(resultType.name, 'ForwardDeliveryResult');
+      expect(resultType, same(gqlTypeForwardDeliveryResult));
+
+      final fieldNames = resultType.fields.map((f) => f.name).toSet();
+      expect(
+        fieldNames,
+        {
+          'batchId',
+          'deliveredRecipientIds',
+          'availabilitySkippedRecipientIds',
+        },
+      );
+      for (final graphField in resultType.fields) {
+        expect(graphField.type, isA<GraphQLNonNullableType>());
+      }
+    });
   });
 }

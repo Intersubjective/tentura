@@ -1,7 +1,9 @@
 import 'dart:convert' show json;
 
+import 'package:tentura_server/domain/entity/forward_delivery_result.dart';
 import 'package:tentura_server/domain/use_case/forward_case.dart';
 
+import '../custom_types.dart';
 import '../gql_nodel_base.dart';
 import '../input/_input_types.dart';
 
@@ -63,7 +65,7 @@ final class MutationForward extends GqlNodeBase {
 
   GraphQLObjectField<dynamic, dynamic> get forward => GraphQLObjectField(
     'beaconForward',
-    graphQLString.nonNullable(),
+    gqlTypeForwardDeliveryResult.nonNullable(),
     arguments: [
       InputFieldId.field,
       InputFieldRecipientIds.field,
@@ -98,7 +100,8 @@ final class MutationForward extends GqlNodeBase {
                       isExploration: p.isExploration,
                     ),
                 };
-      return _forwardCase.forward(
+      return _forwardCase
+          .forward(
         senderId: getCredentials(args).sub,
         beaconId: InputFieldId.fromArgsNonNullable(args),
         recipientIds: InputFieldRecipientIds.fromArgs(args),
@@ -118,7 +121,16 @@ final class MutationForward extends GqlNodeBase {
           ),
           _ => null,
         },
-      );
+      )
+          .then(_forwardDeliveryResultToGqlMap);
     },
   );
 }
+
+Map<String, dynamic> _forwardDeliveryResultToGqlMap(
+  ForwardDeliveryResult result,
+) => {
+  'batchId': result.batchId,
+  'deliveredRecipientIds': result.deliveredRecipientIds,
+  'availabilitySkippedRecipientIds': result.availabilitySkippedRecipientIds,
+};

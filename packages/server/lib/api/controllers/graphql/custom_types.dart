@@ -19,6 +19,7 @@ List<GraphQLType<dynamic, dynamic>> get customTypes => [
   gqlTypeBeaconImageStaged,
   gqlTypeMyForwardRecipient,
   gqlTypeBeaconInvolvement,
+  gqlTypeForwardDeliveryResult,
   gqlTypeForwardGraphEdge,
   gqlTypeForwardGraphResult,
   gqlTypeMutualScore,
@@ -390,6 +391,21 @@ final gqlTypeBeaconInvolvement = GraphQLObjectType('BeaconInvolvement', null)
       GraphQLListType(gqlTypeMyForwardRecipient.nonNullable()),
     ),
   ]);
+
+/// Result of `beaconForward`.
+final gqlTypeForwardDeliveryResult =
+    GraphQLObjectType('ForwardDeliveryResult', null)
+      ..fields.addAll([
+        field('batchId', graphQLString.nonNullable()),
+        field(
+          'deliveredRecipientIds',
+          GraphQLListType(graphQLString.nonNullable()).nonNullable(),
+        ),
+        field(
+          'availabilitySkippedRecipientIds',
+          GraphQLListType(graphQLString.nonNullable()).nonNullable(),
+        ),
+      ]);
 
 /// One forward edge for the forwards-graph view (V2 `beaconForwardGraph`).
 final gqlTypeForwardGraphEdge = GraphQLObjectType('ForwardGraphEdge', null)

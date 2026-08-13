@@ -1,6 +1,7 @@
 import 'package:injectable/injectable.dart';
 import 'package:tentura_server/domain/coordination/resolve_forward_parent_edge.dart';
 import 'package:tentura_server/domain/entity/forward_attribution_method.dart';
+import 'package:tentura_server/domain/entity/forward_delivery_result.dart';
 import 'package:tentura_server/domain/entity/forward_edge_created.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/forward/forward_constants.dart';
@@ -153,8 +154,8 @@ final class ForwardCase extends UseCaseBase {
   /// (keyed by recipientId). Omitting reasons (`null`) leaves each new edge's
   /// reason set untouched; an explicit empty list clears it.
   ///
-  /// Returns the batch_id used for this forward action.
-  Future<String> forward({
+  /// Returns delivery outcome for this forward action.
+  Future<ForwardDeliveryResult> forward({
     required String senderId,
     required String beaconId,
     required List<String> recipientIds,
@@ -248,7 +249,7 @@ final class ForwardCase extends UseCaseBase {
     return _attention!.runAction(
       actorUserId: senderId,
       action: (transaction) async {
-        final createdEdges = await _forwardEdgeRepository.createBatch(
+        final batchResult = await _forwardEdgeRepository.createBatch(
           beaconId: beaconId,
           senderId: senderId,
           recipientIds: recipients,
@@ -269,6 +270,7 @@ final class ForwardCase extends UseCaseBase {
             );
           },
         );
+        final createdEdges = batchResult.createdEdges;
 
         for (final created in createdEdges) {
           final slugs =
@@ -316,7 +318,14 @@ final class ForwardCase extends UseCaseBase {
             ),
           );
         }
-        return batchId;
+        return ForwardDeliveryResult(
+          batchId: batchId,
+          deliveredRecipientIds: [
+            for (final edge in createdEdges) edge.recipientId,
+          ],
+          availabilitySkippedRecipientIds:
+              batchResult.availabilitySkippedRecipientIds,
+        );
       },
     );
   }

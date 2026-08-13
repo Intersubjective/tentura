@@ -9,6 +9,7 @@ import 'package:test/test.dart';
 import 'package:tentura_server/data/database/tentura_db.dart'
     hide isNotNull, isNull;
 import 'package:tentura_server/data/repository/forward_edge_repository.dart';
+import 'package:tentura_server/domain/entity/forward_batch_create_result.dart';
 import 'package:tentura_server/domain/entity/forward_edge_created.dart';
 import 'package:tentura_server/env.dart';
 
@@ -118,8 +119,8 @@ WHERE beacon_id = 'Bfwdedup01'
         batchId: 'batch-fwdedup-1',
         noteForRecipient: (_) => 'first note',
       );
-      expect(firstInserted.length, 1);
-      expect(firstInserted.single.recipientId, recipient);
+      expect(firstInserted.createdEdges.length, 1);
+      expect(firstInserted.createdEdges.single.recipientId, recipient);
 
       final firstEdge = await repo.findActiveEdge(
         beaconId: beaconId,
@@ -138,7 +139,13 @@ WHERE beacon_id = 'Bfwdedup01'
         batchId: 'batch-fwdedup-2',
         noteForRecipient: (_) => 'would-be duplicate',
       );
-      expect(secondInserted, isEmpty);
+      expect(
+        secondInserted,
+        const ForwardBatchCreateResult(
+          createdEdges: [],
+          availabilitySkippedRecipientIds: [],
+        ),
+      );
       expect(await countActiveEdges(senderId: sender1, recipientId: recipient), 1);
 
       final unchangedEdge = await repo.findActiveEdge(
@@ -157,8 +164,8 @@ WHERE beacon_id = 'Bfwdedup01'
         batchId: 'batch-fwdedup-3',
         noteForRecipient: (_) => 'from sender two',
       );
-      expect(thirdPartyInserted.length, 1);
-      expect(thirdPartyInserted.single.recipientId, recipient);
+      expect(thirdPartyInserted.createdEdges.length, 1);
+      expect(thirdPartyInserted.createdEdges.single.recipientId, recipient);
       expect(await countActiveEdges(senderId: sender2, recipientId: recipient), 1);
     },
     skip: skipReason,

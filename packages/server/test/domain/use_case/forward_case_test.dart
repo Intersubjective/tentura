@@ -6,6 +6,8 @@ import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import 'package:tentura_server/env.dart';
 import 'package:tentura_server/domain/entity/beacon_entity.dart';
+import 'package:tentura_server/domain/entity/forward_batch_create_result.dart';
+import 'package:tentura_server/domain/entity/forward_delivery_result.dart';
 import 'package:tentura_server/domain/entity/forward_edge_created.dart';
 import 'package:tentura_server/domain/entity/forward_edge_entity.dart';
 import 'package:tentura_server/domain/entity/user_entity.dart';
@@ -160,13 +162,16 @@ void main() {
           invocation.namedArguments[#onAfterEdgesInserted]
               as Future<void> Function()?;
       await onAfter?.call();
-      return [
-        for (var i = 0; i < recipientIds.length; i++)
-          ForwardEdgeCreated(
-            edgeId: 'E${i + 1}',
-            recipientId: recipientIds[i],
-          ),
-      ];
+      return ForwardBatchCreateResult(
+        createdEdges: [
+          for (var i = 0; i < recipientIds.length; i++)
+            ForwardEdgeCreated(
+              edgeId: 'E${i + 1}',
+              recipientId: recipientIds[i],
+            ),
+        ],
+        availabilitySkippedRecipientIds: const [],
+      );
     });
 
     when(
@@ -330,7 +335,10 @@ void main() {
             parentEdgeId: anyNamed('parentEdgeId'),
             onAfterEdgesInserted: anyNamed('onAfterEdgesInserted'),
           ),
-        ).thenAnswer((_) async => []);
+        ).thenAnswer((_) async => const ForwardBatchCreateResult(
+          createdEdges: [],
+          availabilitySkippedRecipientIds: [],
+        ));
 
         await case_.forward(
           senderId: 'U1',
@@ -907,6 +915,206 @@ void main() {
         records.where((r) => r.message.startsWith('forward_band_conversion')),
         isEmpty,
       );
+    });
+  });
+
+  group('forward — availability delivery result', () {
+    test('returns typed result with batch id and delivery lists', () async {
+      when(
+        forwardEdgeRepo.createBatch(
+          beaconId: anyNamed('beaconId'),
+          senderId: anyNamed('senderId'),
+          recipientIds: anyNamed('recipientIds'),
+          batchId: captureAnyNamed('batchId'),
+          noteForRecipient: anyNamed('noteForRecipient'),
+          context: anyNamed('context'),
+          parentEdgeId: anyNamed('parentEdgeId'),
+          onAfterEdgesInserted: anyNamed('onAfterEdgesInserted'),
+        ),
+      ).thenAnswer((invocation) async {
+        final recipientIds =
+            invocation.namedArguments[#recipientIds] as List<String>;
+        return ForwardBatchCreateResult(
+          createdEdges: [
+            ForwardEdgeCreated(edgeId: 'E1', recipientId: recipientIds.first),
+          ],
+          availabilitySkippedRecipientIds: [recipientIds.last],
+        );
+      });
+
+      final result = await case_.forward(
+        senderId: 'U1',
+        beaconId: 'B1',
+        recipientIds: ['R1', 'R2'],
+      );
+
+      final batchId =
+          verify(
+                forwardEdgeRepo.createBatch(
+                  beaconId: anyNamed('beaconId'),
+                  senderId: anyNamed('senderId'),
+                  recipientIds: anyNamed('recipientIds'),
+                  batchId: captureAnyNamed('batchId'),
+                  noteForRecipient: anyNamed('noteForRecipient'),
+                  context: anyNamed('context'),
+                  parentEdgeId: anyNamed('parentEdgeId'),
+                  onAfterEdgesInserted: anyNamed('onAfterEdgesInserted'),
+                ),
+              ).captured.single
+              as String;
+      expect(
+        result,
+        ForwardDeliveryResult(
+          batchId: batchId,
+          deliveredRecipientIds: ['R1'],
+          availabilitySkippedRecipientIds: ['R2'],
+        ),
+      );
+    });
+
+    test('preserves repository delivery and skip order in typed result', () async {
+      when(
+        forwardEdgeRepo.createBatch(
+          beaconId: anyNamed('beaconId'),
+          senderId: anyNamed('senderId'),
+          recipientIds: anyNamed('recipientIds'),
+          batchId: anyNamed('batchId'),
+          noteForRecipient: anyNamed('noteForRecipient'),
+          context: anyNamed('context'),
+          parentEdgeId: anyNamed('parentEdgeId'),
+          onAfterEdgesInserted: anyNamed('onAfterEdgesInserted'),
+        ),
+      ).thenAnswer(
+        (_) async => const ForwardBatchCreateResult(
+          createdEdges: [
+            ForwardEdgeCreated(edgeId: 'E1', recipientId: 'R1'),
+            ForwardEdgeCreated(edgeId: 'E3', recipientId: 'R3'),
+          ],
+          availabilitySkippedRecipientIds: ['R2', 'R4'],
+        ),
+      );
+
+      final result = await case_.forward(
+        senderId: 'U1',
+        beaconId: 'B1',
+        recipientIds: ['R1', 'R2', 'R3', 'R4'],
+      );
+
+      expect(result.deliveredRecipientIds, ['R1', 'R3']);
+      expect(result.availabilitySkippedRecipientIds, ['R2', 'R4']);
+    });
+
+    test('downstream effects only include delivered recipient ids', () async {
+      when(
+        forwardEdgeRepo.createBatch(
+          beaconId: anyNamed('beaconId'),
+          senderId: anyNamed('senderId'),
+          recipientIds: anyNamed('recipientIds'),
+          batchId: anyNamed('batchId'),
+          noteForRecipient: anyNamed('noteForRecipient'),
+          context: anyNamed('context'),
+          parentEdgeId: anyNamed('parentEdgeId'),
+          onAfterEdgesInserted: anyNamed('onAfterEdgesInserted'),
+        ),
+      ).thenAnswer(
+        (_) async => const ForwardBatchCreateResult(
+          createdEdges: [
+            ForwardEdgeCreated(edgeId: 'E1', recipientId: 'Rdelivered'),
+          ],
+          availabilitySkippedRecipientIds: ['Rskipped'],
+        ),
+      );
+
+      await case_.forward(
+        senderId: 'U1',
+        beaconId: 'B1',
+        recipientIds: ['Rdelivered', 'Rskipped'],
+        sharedReasonSlugs: ['transport'],
+      );
+
+      verify(
+        capabilityEvidence.reconcileForwardReasons(
+          forwardEdgeId: 'E1',
+          observerId: 'U1',
+          subjectId: 'Rdelivered',
+          slugs: ['transport'],
+        ),
+      ).called(1);
+      verifyNever(
+        capabilityEvidence.reconcileForwardReasons(
+          forwardEdgeId: anyNamed('forwardEdgeId'),
+          observerId: anyNamed('observerId'),
+          subjectId: 'Rskipped',
+          slugs: anyNamed('slugs'),
+        ),
+      );
+
+      final intent = attention.recorded.single;
+      expect(
+        intent.recipients.map((recipient) => recipient.recipientId),
+        ['Rdelivered'],
+      );
+    });
+
+    test('active-edge duplicate is not reported as availability skipped', () async {
+      when(
+        forwardEdgeRepo.createBatch(
+          beaconId: anyNamed('beaconId'),
+          senderId: anyNamed('senderId'),
+          recipientIds: anyNamed('recipientIds'),
+          batchId: anyNamed('batchId'),
+          noteForRecipient: anyNamed('noteForRecipient'),
+          context: anyNamed('context'),
+          parentEdgeId: anyNamed('parentEdgeId'),
+          onAfterEdgesInserted: anyNamed('onAfterEdgesInserted'),
+        ),
+      ).thenAnswer(
+        (_) async => const ForwardBatchCreateResult(
+          createdEdges: [],
+          availabilitySkippedRecipientIds: [],
+        ),
+      );
+
+      final result = await case_.forward(
+        senderId: 'U1',
+        beaconId: 'B1',
+        recipientIds: ['Rdup'],
+      );
+
+      expect(result.deliveredRecipientIds, isEmpty);
+      expect(result.availabilitySkippedRecipientIds, isEmpty);
+      expect(attention.recorded, isEmpty);
+    });
+
+    test('limited-only skip list stays empty when edge is delivered', () async {
+      when(
+        forwardEdgeRepo.createBatch(
+          beaconId: anyNamed('beaconId'),
+          senderId: anyNamed('senderId'),
+          recipientIds: anyNamed('recipientIds'),
+          batchId: anyNamed('batchId'),
+          noteForRecipient: anyNamed('noteForRecipient'),
+          context: anyNamed('context'),
+          parentEdgeId: anyNamed('parentEdgeId'),
+          onAfterEdgesInserted: anyNamed('onAfterEdgesInserted'),
+        ),
+      ).thenAnswer(
+        (_) async => const ForwardBatchCreateResult(
+          createdEdges: [
+            ForwardEdgeCreated(edgeId: 'E1', recipientId: 'Rlimited'),
+          ],
+          availabilitySkippedRecipientIds: [],
+        ),
+      );
+
+      final result = await case_.forward(
+        senderId: 'U1',
+        beaconId: 'B1',
+        recipientIds: ['Rlimited'],
+      );
+
+      expect(result.deliveredRecipientIds, ['Rlimited']);
+      expect(result.availabilitySkippedRecipientIds, isEmpty);
     });
   });
 }
