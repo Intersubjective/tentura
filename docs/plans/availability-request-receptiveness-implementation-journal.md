@@ -1060,6 +1060,31 @@ FINDINGS:
   arrive only via repository `RepositoryEventUpdate` after mutation + own-profile refetch.
 REMAINING: manager acceptance of UNIT 09; UNIT 10 (`feat(client): add availability copy and dates`).
 
+## UNIT 09 manager acceptance — 2026-08-14
+
+VERDICT: accepted: `df00c40a3`, `54474e78c`, and `08785ef5d`.
+REVIEW: The three operation names are V2-routed, and their documents contain
+only self-only inputs: `isLimited`, `resumeOn`, or none. Each repository command
+performs its one mutation, then refetches the supplied own-profile identity and
+publishes `RepositoryEventUpdate`; it does not synthesize local availability.
+The Cubit still has one repository port, no data-service import, separate
+re-entrancy guards, preserves its profile on an exception, and emits one
+`ShowError`. The `resumeOn` wire adapter refuses any non-UTC-midnight value
+before producing `YYYY-MM-DD`. The added test-double methods in seven existing
+tests are mechanical interface conformance necessitated by the port extension;
+they do not broaden behavior.
+INDEPENDENT VERIFICATION:
+- `(cd packages/client && flutter test test/data/service/remote_api_client/direct_operation_routing_test.dart test/features/profile/profile_availability_cubit_test.dart test/features/profile/profile_cubit_realtime_test.dart)` -> 14 passed
+- `./scripts/check-custom-lints.sh packages/client` -> pass; custom-rule total
+  106, baseline 111
+- `git diff --check cf20f1db4..HEAD` -> clean
+FINDINGS: `df00c40a3` was committed concurrently by the user-authorized
+independent UI agent. It includes the necessary compile-only port stubs, and
+the user explicitly authorized incorporating this UI work. The plan's nominal
+ownership list did not enumerate every concrete fake implementing the extended
+port.
+REMAINING: UNIT 10 is dependency-ready.
+
 ## UNIT 09 final evidence — 2026-08-14
 
 COMMITS: `df00c40a33099474d72fe4208db18329ed13e6dc` feat(client): wire availability
