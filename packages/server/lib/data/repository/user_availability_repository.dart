@@ -1,4 +1,3 @@
-import 'package:drift_postgres/drift_postgres.dart';
 import 'package:injectable/injectable.dart';
 
 import 'package:tentura_root/domain/availability.dart';
@@ -137,7 +136,7 @@ DELETE FROM public.user_availability
       return true;
     }());
 
-    final today = PgDate.fromDateTime(todayUtc);
+    final todayIso = _isoUtcCalendarDate(todayUtc);
     return _database.withMutatingSystem(() async {
       await _database.customStatement(
         r'''
@@ -145,7 +144,7 @@ DELETE FROM public.user_availability
  WHERE resume_on <= $1::date
    AND NOT is_limited
 ''',
-        [today],
+        [todayIso],
       );
       await _database.customStatement(
         r'''
@@ -155,7 +154,7 @@ UPDATE public.user_availability
  WHERE resume_on <= $1::date
    AND is_limited
 ''',
-        [today],
+        [todayIso],
       );
     });
   }

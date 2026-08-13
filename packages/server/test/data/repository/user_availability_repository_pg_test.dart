@@ -167,6 +167,73 @@ WHERE user_id = @userId
       },
       skip: skipReason,
     );
+
+    test(
+      'cleanupExpired deletes pause-only rows and clears expired pause on limited rows',
+      () async {
+        const limitedUserId = 'Uuavailrepo02';
+        const pauseOnlyUserId = 'Uuavailrepo03';
+        final expiredResumeOn = DateTime.utc(2026, 8, 10);
+        final futureResumeOn = DateTime.utc(2026, 9, 15);
+        final todayUtc = DateTime.utc(2026, 8, 13);
+
+        for (final entry in [
+          (userId: limitedUserId, slot: 2),
+          (userId: pauseOnlyUserId, slot: 3),
+        ]) {
+          final extraUserId = entry.userId;
+          await writer.execute(
+            "DELETE FROM public.user_availability WHERE user_id = '$extraUserId'",
+          );
+          await writer.execute(
+            "DELETE FROM public.\"user\" WHERE id = '$extraUserId'",
+          );
+          await writer.execute(
+            Sql.named(r'''
+INSERT INTO public."user" (id, display_name, public_key, created_at, updated_at)
+VALUES (@userId, 'Availability repo', @publicKey, '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z')
+ON CONFLICT (id) DO NOTHING
+'''),
+            parameters: {
+              'userId': extraUserId,
+              'publicKey': pgTestPublicKey('uavailrepo', entry.slot),
+            },
+          );
+        }
+
+        await repo.setLimited(userId: limitedUserId, isLimited: true);
+        await repo.pause(userId: limitedUserId, resumeOn: expiredResumeOn);
+        await repo.pause(userId: pauseOnlyUserId, resumeOn: expiredResumeOn);
+        await repo.pause(userId: userId, resumeOn: futureResumeOn);
+
+        await repo.cleanupExpired(todayUtc);
+
+        final limitedRows = await writer.execute(
+          Sql.named('''
+SELECT is_limited, resume_on
+FROM public.user_availability
+WHERE user_id = @userId
+'''),
+          parameters: {'userId': limitedUserId},
+        );
+        expect(limitedRows, hasLength(1));
+        expect(limitedRows.single[0], isTrue);
+        expect(limitedRows.single[1], isNull);
+
+        final pauseOnlyRows = await writer.execute(
+          Sql.named('''
+SELECT 1
+FROM public.user_availability
+WHERE user_id = @userId
+'''),
+          parameters: {'userId': pauseOnlyUserId},
+        );
+        expect(pauseOnlyRows, isEmpty);
+
+        expect(await readRow(), (isLimited: false, resumeOn: futureResumeOn));
+      },
+      skip: skipReason,
+    );
   });
 }
 
