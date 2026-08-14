@@ -5,7 +5,9 @@ import 'package:logging/logging.dart';
 import 'package:mockito/mockito.dart';
 import 'package:test/test.dart';
 
+import 'package:tentura_server/consts/coordination_item_consts.dart';
 import 'package:tentura_server/data/database/tentura_db.dart';
+import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/port/beacon_fact_card_repository_port.dart';
 import 'package:tentura_server/domain/port/beacon_room_repository_port.dart';
 import 'package:tentura_server/domain/port/polling_repository_port.dart';
@@ -18,9 +20,15 @@ import 'package:tentura_server/domain/port/task_repository_port.dart';
 import 'package:tentura_server/domain/use_case/beacon_room_case.dart';
 import 'package:tentura_server/env.dart';
 
+import '../../support/coordination_item_record_fixtures.dart';
 import '../../support/fake_user_block_repository.dart';
 
 class _StubItems extends Fake implements CoordinationItemRepositoryPort {
+  CoordinationItemRecord? itemById;
+
+  @override
+  Future<CoordinationItemRecord?> getById(String id) async => itemById;
+
   @override
   Future<List<CoordinationItemWithCounts>> listByBeacon(
     String beaconId, {
@@ -38,8 +46,10 @@ class _StubItems extends Fake implements CoordinationItemRepositoryPort {
 class _MarkSeenStubRoom extends Fake implements BeaconRoomRepositoryPort {
   DateTime? existingSeen;
   DateTime? latestMessageAt;
-  DateTime? persistedAt;
+  DateTime? storedWatermark;
   String? persistedBeaconId;
+  String? persistedThreadItemId;
+  DateTime? persistedAt;
 
   @override
   Future<bool> isBeaconAuthor({
@@ -63,7 +73,8 @@ class _MarkSeenStubRoom extends Fake implements BeaconRoomRepositoryPort {
       null;
 
   @override
-  Future<BeaconRoomStateRecord?> getBeaconRoomState(String beaconId) async => null;
+  Future<BeaconRoomStateRecord?> getBeaconRoomState(String beaconId) async =>
+      null;
 
   @override
   Future<DateTime?> latestMainRoomMessageCreatedAt(String beaconId) async =>
@@ -77,14 +88,19 @@ class _MarkSeenStubRoom extends Fake implements BeaconRoomRepositoryPort {
       existingSeen;
 
   @override
-  Future<void> markBeaconRoomSeen({
+  Future<DateTime> markBeaconRoomSeen({
     required String userId,
     required String beaconId,
     required String? threadItemId,
     required DateTime at,
   }) async {
     persistedBeaconId = beaconId;
+    persistedThreadItemId = threadItemId;
     persistedAt = at;
+    final prior = storedWatermark;
+    final persisted = prior != null && prior.isAfter(at) ? prior : at;
+    storedWatermark = persisted;
+    return persisted;
   }
 
   @override
@@ -98,16 +114,41 @@ class _MarkSeenStubRoom extends Fake implements BeaconRoomRepositoryPort {
 
 void main() {
   late _MarkSeenStubRoom room;
+  late _StubItems items;
   late BeaconRoomCase sut;
 
   const beaconId = 'Baaaaaaaaaaaa';
   const userId = 'Uaaaaaaaaaaaa';
+  const askItemId = 'CIaskaaaaaaaa';
+  const planItemId = 'CIplanaaaaaaa';
+
+  CoordinationItemRecord sampleItem({
+    required String id,
+    required int kind,
+  }) {
+    final now = DateTime.utc(2026, 5);
+    return testCoordinationItem(
+      id: id,
+      beaconId: beaconId,
+      kind: kind,
+      status: coordinationItemStatusOpen,
+      title: 't',
+      body: '',
+      creatorId: userId,
+      source: coordinationItemSourceDefault,
+      published: true,
+      createdAt: now,
+      updatedAt: now,
+      ordering: 0,
+    );
+  }
 
   setUp(() {
     room = _MarkSeenStubRoom();
+    items = _StubItems();
     sut = BeaconRoomCase(
       room,
-      _StubItems(),
+      items,
       FakeBeaconFactCardRepository(),
       FakeImageRepositoryPort(),
       FakeTaskRepositoryPort(),
@@ -120,23 +161,26 @@ void main() {
     );
   });
 
-  test('markBeaconRoomSeen returns persisted seenAt and clamps to latest message',
-      () async {
-    final readThrough = DateTime.utc(2026, 5, 1, 12);
-    final latest = DateTime.utc(2026, 5, 1, 14);
-    room.latestMessageAt = latest;
+  test(
+    'markBeaconRoomSeen returns persisted seenAt and clamps to latest message',
+    () async {
+      final readThrough = DateTime.utc(2026, 5, 1, 12);
+      final latest = DateTime.utc(2026, 5, 1, 14);
+      room.latestMessageAt = latest;
 
-    final out = await sut.markBeaconRoomSeen(
-      beaconId: beaconId,
-      userId: userId,
-      readThroughAtIso: readThrough.toIso8601String(),
-    );
+      final out = await sut.markBeaconRoomSeen(
+        beaconId: beaconId,
+        userId: userId,
+        readThroughAtIso: readThrough.toIso8601String(),
+      );
 
-    expect(out['beaconId'], beaconId);
-    expect(out['threadItemId'], null);
-    expect(out['seenAt'], latest.toUtc().toIso8601String());
-    expect(room.persistedAt, latest);
-  });
+      expect(out['beaconId'], beaconId);
+      expect(out['threadItemId'], null);
+      expect(out['seenAt'], latest.toUtc().toIso8601String());
+      expect(room.persistedAt, latest);
+      expect(room.persistedThreadItemId, null);
+    },
+  );
 
   test('markBeaconRoomSeen never regresses below existing seen watermark', () async {
     final existing = DateTime.utc(2026, 5, 1, 16);
@@ -152,6 +196,75 @@ void main() {
 
     expect(out['seenAt'], existing.toUtc().toIso8601String());
     expect(room.persistedAt, existing);
+  });
+
+  test('markThreadSeen general sentinel reaches repository as null threadItemId',
+      () async {
+    final out = await sut.markThreadSeen(
+      beaconId: beaconId,
+      userId: userId,
+      threadId: 'general',
+    );
+
+    expect(out['threadItemId'], null);
+    expect(room.persistedThreadItemId, null);
+    expect(room.persistedThreadItemId, isNot('general'));
+  });
+
+  test('markThreadSeen passes real item id unchanged', () async {
+    items.itemById = sampleItem(id: askItemId, kind: coordinationItemKindAsk);
+
+    final out = await sut.markThreadSeen(
+      beaconId: beaconId,
+      userId: userId,
+      threadId: askItemId,
+    );
+
+    expect(out['threadItemId'], askItemId);
+    expect(room.persistedThreadItemId, askItemId);
+  });
+
+  test('markThreadSeen semantic path does not clamp or floor readThrough', () async {
+    final readThrough = DateTime.utc(2026, 5, 1, 10);
+    final latest = DateTime.utc(2026, 5, 1, 14);
+    final existing = DateTime.utc(2026, 5, 1, 16);
+    room.latestMessageAt = latest;
+    room.existingSeen = existing;
+    items.itemById = sampleItem(id: askItemId, kind: coordinationItemKindAsk);
+
+    final out = await sut.markThreadSeen(
+      beaconId: beaconId,
+      userId: userId,
+      threadId: askItemId,
+      readThroughAtIso: readThrough.toIso8601String(),
+    );
+
+    expect(room.persistedAt, readThrough);
+    expect(out['seenAt'], readThrough.toUtc().toIso8601String());
+  });
+
+  test('markThreadSeen rejects plan item thread', () async {
+    items.itemById = sampleItem(id: planItemId, kind: coordinationItemKindPlan);
+
+    expect(
+      () => sut.markThreadSeen(
+        beaconId: beaconId,
+        userId: userId,
+        threadId: planItemId,
+      ),
+      throwsA(isA<IdWrongException>()),
+    );
+  });
+
+  test('markThreadSeen rejects empty threadId after trim', () async {
+    expect(
+      () => sut.markThreadSeen(
+        beaconId: beaconId,
+        userId: userId,
+        threadId: '   ',
+      ),
+      throwsA(isA<ArgumentError>()),
+    );
   });
 
   test('inboxRoomContextBatch includes lastSeenAt for room members', () async {
@@ -176,7 +289,6 @@ class FakeBeaconFactCardRepository extends Fake
   @override
   Future<String> latestPublicFactSnippet(String beaconId) async => '';
 }
-
 
 class FakeImageRepositoryPort extends Fake implements ImageRepositoryPort {}
 

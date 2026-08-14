@@ -81,6 +81,11 @@ class _FakePersonCapabilityCuesRow_4 extends _i1.SmartFake
     : super(parent, parentInvocation);
 }
 
+class _FakeDateTime_5 extends _i1.SmartFake implements DateTime {
+  _FakeDateTime_5(Object parent, Invocation parentInvocation)
+    : super(parent, parentInvocation);
+}
+
 /// A class which mocks [BeaconRepositoryPort].
 ///
 /// See the documentation for Mockito's code generation for more information.
@@ -1980,7 +1985,7 @@ class MockBeaconRoomRepositoryPort extends _i1.Mock
           as _i3.Future<Map<String, DateTime>>);
 
   @override
-  _i3.Future<void> markBeaconRoomSeen({
+  _i3.Future<DateTime> markBeaconRoomSeen({
     required String? userId,
     required String? beaconId,
     required String? threadItemId,
@@ -1993,10 +1998,19 @@ class MockBeaconRoomRepositoryPort extends _i1.Mock
               #threadItemId: threadItemId,
               #at: at,
             }),
-            returnValue: _i3.Future<void>.value(),
-            returnValueForMissingStub: _i3.Future<void>.value(),
+            returnValue: _i3.Future<DateTime>.value(
+              _FakeDateTime_5(
+                this,
+                Invocation.method(#markBeaconRoomSeen, [], {
+                  #userId: userId,
+                  #beaconId: beaconId,
+                  #threadItemId: threadItemId,
+                  #at: at,
+                }),
+              ),
+            ),
           )
-          as _i3.Future<void>);
+          as _i3.Future<DateTime>);
 
   @override
   _i3.Future<void> markRoomMessageSemanticDone({
