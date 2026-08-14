@@ -13,6 +13,7 @@ import 'package:tentura/features/beacon_threads/ui/widget/room_file_attachment_o
 import 'package:tentura/features/beacon_view/ui/util/beacon_fact_actions.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/widget/url_link_annotations.dart';
+import 'package:tentura/ui/widget/tentura_selection_area.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/room_message_trailing_meta_layout.dart';
 
 const double _kFactStripCardWidth = 160;
@@ -457,6 +458,18 @@ class _FactStripCompositeCard extends StatelessWidget {
     final files = _fileAttachments(fact);
     final hasText = fact.factText.trim().isNotEmpty;
     final corrected = fact.status == BeaconFactCardStatusBits.corrected;
+    final desktopSelection = tenturaDesktopSelectionEnabledFor(Theme.of(context));
+
+    void openFactActions() => unawaited(
+      showBeaconFactActions(
+        context,
+        beaconId: beaconId,
+        fact: fact,
+      ),
+    );
+
+    final touchTapEnabled =
+        !desktopSelection && (hasText || images.isEmpty && files.isEmpty);
 
     return SizedBox(
       width: cardWidth,
@@ -469,22 +482,9 @@ class _FactStripCompositeCard extends StatelessWidget {
         ),
         clipBehavior: Clip.hardEdge,
         child: InkWell(
-          onLongPress: () => unawaited(
-            showBeaconFactActions(
-              context,
-              beaconId: beaconId,
-              fact: fact,
-            ),
-          ),
-          onTap: hasText || images.isEmpty && files.isEmpty
-              ? () => unawaited(
-                    showBeaconFactActions(
-                      context,
-                      beaconId: beaconId,
-                      fact: fact,
-                    ),
-                  )
-              : null,
+          onLongPress: openFactActions,
+          onTap: touchTapEnabled ? openFactActions : null,
+          onSecondaryTap: desktopSelection ? openFactActions : null,
           child: Padding(
             padding: tt.cardPadding,
             child: Column(
@@ -509,16 +509,18 @@ class _FactStripCompositeCard extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
                         if (hasText)
-                          Text.rich(
-                            buildRoomMessageAnnotatedBodySpan(
-                              data: fact.factText,
-                              textStyle:
-                                  TenturaText.bodyMedium(scheme.onSurface),
-                              annotations:
-                                  buildUrlAnnotations(linkColor: tt.info),
+                          TenturaSelectionArea(
+                            child: Text.rich(
+                              buildRoomMessageAnnotatedBodySpan(
+                                data: fact.factText,
+                                textStyle:
+                                    TenturaText.bodyMedium(scheme.onSurface),
+                                annotations:
+                                    buildUrlAnnotations(linkColor: tt.info),
+                              ),
+                              maxLines: 2,
+                              overflow: TextOverflow.ellipsis,
                             ),
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
                           ),
                         if (hasText && (files.isNotEmpty || corrected))
                           SizedBox(height: tt.rowGap),

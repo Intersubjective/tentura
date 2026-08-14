@@ -42,6 +42,7 @@ import 'package:tentura/features/beacon_threads/ui/widget/room_message_reply_quo
 import 'package:tentura/features/beacon_threads/ui/widget/room_message_text_body.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/room_message_trailing_meta_layout.dart';
 import 'package:tentura/ui/widget/show_more_text.dart';
+import 'package:tentura/ui/widget/tentura_selection_area.dart';
 import 'package:tentura/ui/widget/url_link_annotations.dart';
 
 VoidCallback? _linkedCoordinationItemOnTap(
@@ -801,12 +802,14 @@ class RoomMessageTile extends StatelessWidget {
                     metrics: trailingMetrics,
                     mentionAnnotations: mentionAnnotations,
                   )
-                : ShowMoreText(
-                    display,
-                    style: bodyStyle,
-                    colorClickableText: scheme.primary,
-                    annotations: mentionAnnotations,
-                    textAlign: TextAlign.start,
+                : TenturaSelectionArea(
+                    child: ShowMoreText(
+                      display,
+                      style: bodyStyle,
+                      colorClickableText: scheme.primary,
+                      annotations: mentionAnnotations,
+                      textAlign: TextAlign.start,
+                    ),
                   ),
           ),
         if (imageAttachments.isNotEmpty)
