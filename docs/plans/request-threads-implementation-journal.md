@@ -55,8 +55,8 @@ None of the above overlap any UNIT 01–14 file list except the noted `docs/READ
 | 04 | `markThreadSeen` + persisted-watermark fix | accepted | 4f212fbe4, 6092a70f1, 7bf09b117, a596ebb53, fc0456e69, cfee6c9bc, 557ebbe3b |
 | 05 | Client thread contract/mapping/repo/case (unused) | accepted (+1 manager fix) | 686d307c7, 6c7731926, ed9278341, 0fe1dd2f9, ed67aa65c, 8313eac9e, ce03b2c6a |
 | 06 | Thread-keyed watermark store + client `markThreadSeen` | accepted (3 sessions, 2 killed) | 81824ba22, 36a99f6ac, 3abef3470, 37ccd5a42, 19bb6c2a4, 52d57d49c, 22ec62ac3, 6e0de9147 |
-| 07 | Extract ticker, move `ItemCard` (no behavior change) | complete | 4cdb76ae9, ea4cf7bf5 |
-| 08 | `ThreadsCubit` latest-wins state | complete | 74bb22aa4, 7a04e6385, 38bb78161 |
+| 07 | Extract ticker, move `ItemCard` (no behavior change) | accepted | 4cdb76ae9, ea4cf7bf5, 33ea2b509 |
+| 08 | `ThreadsCubit` latest-wins state | accepted | 74bb22aa4, 7a04e6385, 38bb78161, 5ec9eec02 |
 | 09 | Boxed Threads list + evolved `ItemCard` (unused) | pending | |
 | 10 | Shared thread host, awaited cubit handoff | pending | |
 | 11 | Nested route host + real thread detail page (unused) | pending | |
