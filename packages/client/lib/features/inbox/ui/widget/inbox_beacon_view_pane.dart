@@ -13,10 +13,12 @@ import 'package:tentura/ui/utils/ui_utils.dart';
 class InboxBeaconViewPane extends StatelessWidget {
   const InboxBeaconViewPane({
     required this.beaconId,
+    this.onRequestThreadRoute,
     super.key,
   });
 
   final String beaconId;
+  final void Function(String threadId, String? messageId)? onRequestThreadRoute;
 
   @override
   Widget build(BuildContext context) {
@@ -48,6 +50,7 @@ class InboxBeaconViewPane extends StatelessWidget {
               id: beaconId,
               entry: kBeaconEntryInbox,
               embedded: true,
+              onRequestThreadRoute: onRequestThreadRoute,
             ),
           );
         },

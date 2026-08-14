@@ -173,7 +173,7 @@ Future<void> beaconViewRunAuthorCloseSheet({
   required BeaconViewCubit cubit,
   required L10n l10n,
   required void Function() onOpenPeopleTab,
-  required void Function([CoordinationItem? focusItem]) onEnterRoomSurface,
+  required void Function() onOpenGeneralThread,
 }) async {
   if (!context.mounted) return;
   if (!closeReviewWindowExpectationKnown(cubit.state)) return;
@@ -194,7 +194,7 @@ Future<void> beaconViewRunAuthorCloseSheet({
         onCloseBeacon: attemptClose,
         onOpenPeople: onOpenPeopleTab,
         onResolveRoom: cubit.state.canNavigateBeaconRoom
-            ? () => onEnterRoomSurface()
+            ? onOpenGeneralThread
             : null,
       );
     }
@@ -208,7 +208,7 @@ Future<void> beaconViewRunAuthorCloseSheet({
     onCloseBeacon: attemptClose,
     onOpenPeople: onOpenPeopleTab,
     onResolveRoom: cubit.state.canNavigateBeaconRoom
-        ? () => onEnterRoomSurface()
+        ? onOpenGeneralThread
         : null,
   );
 }
@@ -222,7 +222,7 @@ Future<void> beaconViewHandleAuthorHudAction({
   required void Function() onActivatePeopleAttention,
   required void Function(CoordinationItem item) onFocusCoordinationItem,
   required void Function() onOpenItemsTab,
-  required void Function([CoordinationItem? focusItem]) onEnterRoomSurface,
+  required void Function() onOpenGeneralThread,
 }) async {
   if (!context.mounted || cubit.state.isLoading) return;
   final expected = deriveBeaconHudAuthorAction(cubit.state);
@@ -258,7 +258,7 @@ Future<void> beaconViewHandleAuthorHudAction({
         cubit: cubit,
         l10n: l10n,
         onOpenPeopleTab: onOpenPeopleTab,
-        onEnterRoomSurface: onEnterRoomSurface,
+        onOpenGeneralThread: onOpenGeneralThread,
       );
     case BeaconHudAuthorAction.reviewContributions:
       final beaconId = cubit.state.beacon.id;

@@ -15,10 +15,7 @@ class MyWorkBeaconViewPane extends StatelessWidget {
     required this.beaconId,
     this.viewTab,
     this.peopleTabAttention,
-    this.embeddedRoomCoVisible = false,
-    this.suppressEmbeddedRoomBack = false,
-    this.embeddedRoomCloseNonce = 0,
-    this.onEmbeddedRoomOpenChanged,
+    this.onRequestThreadRoute,
     this.onEmbeddedLeave,
     super.key,
   });
@@ -26,10 +23,7 @@ class MyWorkBeaconViewPane extends StatelessWidget {
   final String beaconId;
   final String? viewTab;
   final String? peopleTabAttention;
-  final bool embeddedRoomCoVisible;
-  final bool suppressEmbeddedRoomBack;
-  final int embeddedRoomCloseNonce;
-  final ValueChanged<bool>? onEmbeddedRoomOpenChanged;
+  final void Function(String threadId, String? messageId)? onRequestThreadRoute;
   final VoidCallback? onEmbeddedLeave;
 
   @override
@@ -64,11 +58,7 @@ class MyWorkBeaconViewPane extends StatelessWidget {
               viewTab: viewTab,
               peopleTabAttention: peopleTabAttention,
               embedded: true,
-              embeddedAllowRoomSplit: true,
-              embeddedRoomCoVisible: embeddedRoomCoVisible,
-              suppressEmbeddedRoomBack: suppressEmbeddedRoomBack,
-              embeddedRoomCloseNonce: embeddedRoomCloseNonce,
-              onEmbeddedRoomOpenChanged: onEmbeddedRoomOpenChanged,
+              onRequestThreadRoute: onRequestThreadRoute,
               onEmbeddedLeave: onEmbeddedLeave,
             ),
           );

@@ -21,7 +21,7 @@ Future<void> showBeaconViewUpdateStatusSheet(
   BeaconViewState state,
   BeaconViewCubit beaconViewCubit, {
   VoidCallback? onOpenPeopleTab,
-  void Function([CoordinationItem? focusItem])? onEnterRoomSurface,
+  VoidCallback? onOpenGeneralThread,
 }) async {
   final lifecycle = state.beacon.status;
   if (lifecycle == BeaconStatus.deleted) return;
@@ -100,7 +100,7 @@ Future<void> showBeaconViewUpdateStatusSheet(
                               cubit: beaconViewCubit,
                               l10n: l10n,
                               onOpenPeopleTab: onOpenPeopleTab,
-                              onEnterRoomSurface: onEnterRoomSurface,
+                              onOpenGeneralThread: onOpenGeneralThread,
                             ),
                           )
                         : null,
@@ -117,7 +117,7 @@ Future<void> showBeaconViewUpdateStatusSheet(
                               cubit: beaconViewCubit,
                               l10n: l10n,
                               onOpenPeopleTab: onOpenPeopleTab,
-                              onEnterRoomSurface: onEnterRoomSurface,
+                              onOpenGeneralThread: onOpenGeneralThread,
                             ),
                           )
                         : null,
@@ -226,7 +226,7 @@ Future<void> _dispatchStatusMenuAction(
   required BeaconViewCubit cubit,
   required L10n l10n,
   VoidCallback? onOpenPeopleTab,
-  void Function([CoordinationItem? focusItem])? onEnterRoomSurface,
+  VoidCallback? onOpenGeneralThread,
 }) async {
   switch (action) {
     case BeaconStatusMenuAction.none:
@@ -277,7 +277,7 @@ Future<void> _dispatchStatusMenuAction(
         cubit: cubit,
         expectedRequiresReviewWindow: true,
         onOpenPeopleTab: onOpenPeopleTab,
-        onEnterRoomSurface: onEnterRoomSurface,
+        onOpenGeneralThread: onOpenGeneralThread,
       );
     case BeaconStatusMenuAction.closeDirect:
       if (!context.mounted) return;
@@ -286,7 +286,7 @@ Future<void> _dispatchStatusMenuAction(
         cubit: cubit,
         expectedRequiresReviewWindow: false,
         onOpenPeopleTab: onOpenPeopleTab,
-        onEnterRoomSurface: onEnterRoomSurface,
+        onOpenGeneralThread: onOpenGeneralThread,
       );
     case BeaconStatusMenuAction.closeNow:
       await cubit.closeBeaconNow();
@@ -347,7 +347,7 @@ Future<void> _runCloseFlow(
   required BeaconViewCubit cubit,
   required bool expectedRequiresReviewWindow,
   VoidCallback? onOpenPeopleTab,
-  void Function([CoordinationItem? focusItem])? onEnterRoomSurface,
+  VoidCallback? onOpenGeneralThread,
 }) async {
   if (!closeReviewWindowExpectationKnown(cubit.state)) return;
   var summary = buildClosureConfirmationSummary(cubit.state);
@@ -367,7 +367,7 @@ Future<void> _runCloseFlow(
         onCloseBeacon: attemptClose,
         onOpenPeople: onOpenPeopleTab ?? () {},
         onResolveRoom: cubit.state.canNavigateBeaconRoom
-            ? () => onEnterRoomSurface?.call()
+            ? onOpenGeneralThread
             : null,
       );
     }
@@ -381,7 +381,7 @@ Future<void> _runCloseFlow(
     onCloseBeacon: attemptClose,
     onOpenPeople: onOpenPeopleTab ?? () {},
     onResolveRoom: cubit.state.canNavigateBeaconRoom
-        ? () => onEnterRoomSurface?.call()
+        ? onOpenGeneralThread
         : null,
   );
 }

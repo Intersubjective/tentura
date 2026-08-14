@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import 'package:tentura/app/router/root_router.dart';
+import 'package:tentura/consts.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/features/auth/ui/bloc/auth_cubit.dart';
 import 'package:tentura/features/home/ui/bloc/home_tab_reselect_cubit.dart';
@@ -516,7 +517,23 @@ class _MyWorkExpandedPreview extends StatelessWidget {
       beaconId: selectedCard.beaconId,
       viewTab: viewTab,
       peopleTabAttention: peopleTabAttention,
-      embeddedRoomCoVisible: true,
+      onRequestThreadRoute: (threadId, messageId) {
+        context.router.push(
+          BeaconViewRoute(
+            id: selectedCard.beaconId,
+            viewTab: kBeaconViewTabThreads,
+            threadId: threadId,
+            messageId: messageId,
+            entry: kBeaconEntryMyWork,
+            children: [
+              ThreadDetailRoute(
+                threadId: threadId,
+                messageId: messageId,
+              ),
+            ],
+          ),
+        );
+      },
       onEmbeddedLeave: onEmbeddedLeave,
     );
   }

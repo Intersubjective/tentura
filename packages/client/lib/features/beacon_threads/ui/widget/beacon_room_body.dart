@@ -356,7 +356,7 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
         // sheet is dismissed the Web platform's hit-test / gesture-delivery
         // machinery stops forwarding taps to the AppBar back button, making
         // _exitRoomSurface unreachable even though the room UI is still
-        // visible and the URL still contains ?tab=room.
+        // visible and the URL still contains the threads tab query.
         //
         // Opening the sheet under the root Navigator places it above the
         // PopScope's scope, decoupling its lifecycle from the sentinel and

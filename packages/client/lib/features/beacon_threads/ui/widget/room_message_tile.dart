@@ -58,13 +58,15 @@ VoidCallback? _linkedCoordinationItemOnTap(
       );
     };
   }
-  return () => context.router.push(
-    ItemDiscussionRoute(
-      beaconId: item.beaconId,
-      itemId: item.id,
-      item: item,
-    ),
-  );
+  return () {
+    final router = context.router;
+    final route = ThreadDetailRoute(threadId: item.id);
+    if (router.currentChild?.name == ThreadDetailRoute.name) {
+      unawaited(router.replace(route));
+    } else {
+      unawaited(router.push(route));
+    }
+  };
 }
 
 class RoomMessageTile extends StatelessWidget {

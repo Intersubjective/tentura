@@ -6,6 +6,7 @@ import 'package:get_it/get_it.dart';
 
 import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/consts.dart';
+import 'package:tentura/consts.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
@@ -428,6 +429,23 @@ class _InboxExpandedPreview extends StatelessWidget {
         return InboxBeaconViewPane(
           key: ValueKey('inbox-bv-pane-${selected.beaconId}'),
           beaconId: selected.beaconId,
+          onRequestThreadRoute: (threadId, messageId) {
+            context.router.push(
+              BeaconViewRoute(
+                id: selected.beaconId,
+                viewTab: kBeaconViewTabThreads,
+                threadId: threadId,
+                messageId: messageId,
+                entry: kBeaconEntryInbox,
+                children: [
+                  ThreadDetailRoute(
+                    threadId: threadId,
+                    messageId: messageId,
+                  ),
+                ],
+              ),
+            );
+          },
         );
       },
     );
