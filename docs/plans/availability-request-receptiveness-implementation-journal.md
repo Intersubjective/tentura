@@ -158,7 +158,7 @@ Units are sequential. Check off only after the unit's focused commit and verific
   `feat(client): gate person forward flow`
 - [x] **UNIT 16 — Client release gate and cache-buster** — depends: 11–15 — commit:
   `chore: release availability client 5.13.0`
-- [ ] **UNIT 17 — End-to-end and plan-wide closeout** — depends: 07, 16 — commit:
+- [x] **UNIT 17 — End-to-end and plan-wide closeout** — depends: 07, 16 — commit:
   `test: close availability implementation`
 
 ## Per-unit verification commands
@@ -1622,3 +1622,138 @@ INDEPENDENT VERIFICATION:
 - source inspections: `pubspec.yaml`, tracked `web/index.html`, server default, and `.env.example` each contain `5.13.0`
 - `git show --check 9116d5133`, `git diff --check`, and `git diff --cached --check` -> clean
 REMAINING: UNIT 17 is dependency-ready.
+
+## UNIT 17 — partial — 2026-08-14
+
+COMMITS: (this unit; prior plan commits listed below)
+TESTS:
+- `./scripts/hasura_apply_metadata.sh` -> OK (`is_consistent: true`)
+- remote schema reload (`reload_remote_schema tentura`) -> `{"message":"success"}`
+- `docker compose run --rm schema_fetcher` (twice) -> no tracked diff (`DIFF_LINES:0` on `packages/client/lib/data/gql/schema.graphql` and `user_model.graphql`)
+- `bash scripts/unit17_availability_e2e_walkthrough.sh` -> complete (runId `unit17-1786709739`; see walkthrough evidence)
+- `dart test` (repo root) -> 21 passed
+- `(cd packages/tentura_lints && dart test)` -> 18 passed
+- `./scripts/check-custom-lints.sh packages/server` -> OK (baseline 0)
+- `./scripts/check-custom-lints.sh packages/client` -> OK (106 vs baseline 111)
+- `bash scripts/check-user-facing-terminology.sh` -> ok
+- `(cd packages/server && dart test -x pg)` -> 1517 passed
+- `(cd packages/server && dart test -t pg)` -> **379 passed, 2 skipped, 29 failed** (unrelated; see REMAINING)
+- `(cd packages/server && dart test -t pg test/data/repository/user_availability_repository_pg_test.dart test/data/repository/forward_edge_availability_pg_test.dart test/api/controllers/graphql/availability_read_parity_test.dart test/data/database/m0148_user_availability_migration_test.dart)` -> 29 passed
+- `(cd packages/client && flutter gen-l10n)` -> ok
+- `(cd packages/client && dart run build_runner build -d)` -> ok (0 outputs)
+- `(cd packages/client && flutter analyze --no-fatal-warnings --no-fatal-infos)` -> 1092 infos/warnings, exit 0
+- `(cd packages/client && flutter test --dart-define=ENV=test)` -> 2222 passed, 18 skipped
+- `(cd packages/client && flutter test --platform chrome test/data/gql/calendar_date_serializer_test.dart)` -> 6 passed
+- client policy spot-check (profile/graph/picker/person-forward gates): `flutter test --dart-define=ENV=test test/ui/model/person_action_policy_test.dart test/features/forward/forward_recipient_host_policy_test.dart test/features/forward/person_forward_cubit_test.dart test/features/forward/person_forward_screen_test.dart` -> 107 passed
+- `git diff --check` -> clean
+FILES:
+- `scripts/unit17_availability_e2e_walkthrough.sh` (new)
+- `docs/plans/availability-request-receptiveness-implementation-journal.md` (this entry)
+FINDINGS:
+- Live API walkthrough uses QA `/_qa/integration/witness-fixture` (Alice/Bob/Carol) plus V2 GraphQL and Hasura reads. Mixed forward uses a **second beacon** so Carol is availability-skipped (not active-edge dedup) while a pre-pause forward edge on the limited beacon proves existing interactions survive pause.
+- Side-effect probes around `userAvailabilitySetLimited` / `Pause` / `Resume` compare monitored tables (`user_updates`, `inbox_item`, `notification_outbox`, `beacon`, `beacon_forward_edge`, `beacon_help_offer`, `beacon_participant`, `beacon_room_message`) before/after each mutation; only `user_availability` row changes (excluded from equality check).
+- Blocked-viewer probe: after `userBlock`, `user_by_pk` returns `null` for the blocked party (availability unreadable).
+- Forbidden-leakage searches (recorded verbatim):
+  - `rg 'updated_at' packages/server/lib/domain/entity/gql_public` -> no matches
+  - `rg 'updated_at' hasura/metadata.json` on `user_availability` permission columns -> only `is_limited`, `resume_on`, `user_id` (+ computed `hidden_for_viewer`)
+  - `rg 'toLocal\\(' packages/**/*availability*` (code) -> only comment/doc lines in `availability_sheet.dart`, `availability_line.dart`, and test guard in `availability_read_parity_test.dart`
+  - `rg 'websocket|UserPresence|presence_case' packages/**/availability*` -> no matches
+  - `rg 'availability|Availability' packages/client/lib/features/settings/**` -> no matches
+  - `rg 'lineagePreview' packages/client/lib/features/forward/**` -> host enum + `lineage_suggestions_sheet.dart` passes `lineagePreview` (suppresses availability per `showsAvailability`)
+- Full server `dart test -t pg` reports 29 failures dominated by `test/data/database/realtime_notification_migration_test.dart` and other migration/realtime suites; availability-owned pg tests all pass. `git log --oneline -- test/data/database/realtime_notification_migration_test.dart` since `77a017913` -> empty (no plan-owned commits on that file).
+REMAINING:
+- `(cd packages/server && dart test -t pg)` full suite: **29 unrelated failures** (example head: `realtime_notification_migration_test.dart` contract cases). Not fixed in this unit per plan scope. Availability plan cannot be marked fully complete until that pre-existing debt is resolved or explicitly waived.
+- Manual: none required for availability feature behavior beyond the unrelated pg debt above.
+
+### Live walkthrough evidence (API-level)
+
+Script: `scripts/unit17_availability_e2e_walkthrough.sh` (successful run `unit17-1786709739`).
+
+| Step | Result |
+|---|---|
+| Carol `userAvailabilitySetLimited(true)` | Alice Hasura `user_by_pk` shows `{is_limited:true, resume_on:null}` |
+| Forward to limited Carol | `deliveredRecipientIds=[Carol]`, `availabilitySkippedRecipientIds=[]` |
+| Carol `userAvailabilityPause` | Alice profile shows `resume_on` future date; candidates list shows Carol paused |
+| Forward Bob+Carol (fresh beacon) | `deliveredRecipientIds=[Bob]`, `availabilitySkippedRecipientIds=[Carol]` |
+| Pre-pause Carol edge on limited beacon | unchanged count after pause + mixed batch |
+| Carol `userAvailabilityResume` | Alice reads `{is_limited:true, resume_on:null}`; forward to Carol succeeds |
+| Alice `userBlock(Carol)` | `user_by_pk` null (availability hidden) |
+
+### Plan commit list (`77a017913` … pre-UNIT-17 `215065b17`)
+
+50 commits on `main` from `docs: start availability implementation journal` through `docs: accept UNIT 16 release gate` (feat/fix/test/docs pairs for units 07–16 and remediations; server units 00–06 landed on earlier history referenced in prior journal entries).
+
+### `git status --short` (end of UNIT 17; protected paths untouched)
+
+```text
+ M docs/README.md
+ M docs/archive/journals/commitment-truth-rework-journal.md
+ M docs/archive/plans/commitment-truth-rework-plan.md
+ M docs/audits/room-coordination-audit.md
+ M packages/server/test/api/controllers/websocket/websocket_realtime_protocol_test.mocks.dart
+ M scripts/run_client_integration_web_local.sh
+?? dart-defines
+?? docs/plans/algorithm-invariant-suites-plan.md
+?? docs/plans/availability-request-receptiveness-architecture.md
+?? docs/plans/availability-request-receptiveness-implementation-plan.md
+?? docs/plans/availability-review-codex.md
+?? docs/plans/availability-review-grok46.md
+?? docs/plans/availability-review-kimik3.md
+?? docs/plans/graph-navigation-implementation-guide.md
+?? docs/plans/graph-navigation-rework-plan.md
+?? docs/plans/issue-100-people-graph-person-context-implementation-plan.md
+?? docs/plans/issue-115-reply-to-message-implementation-journal.md
+?? docs/plans/issue-115-reply-to-message-plan.md
+?? docs/plans/received-reviews-trust-changes-plan.md
+?? docs/plans/request-threads-architecture.md
+?? docs/plans/request-threads-implementation-plan.md
+?? docs/plans/subjective-help-tag-evidence-architecture.md
+?? docs/plans/subjective-help-tag-evidence-implementation-plan.md
+?? graph-ego-neighbors-layout-issue.md
+?? key.fb
+?? out.key
+?? product_testing_compact_buglist.md
+?? product_testing_detailed_report.md
+?? scripts/unit17_availability_e2e_walkthrough.sh
+```
+
+### Architecture §14 invariants (accept/reject)
+
+| # | Verdict | Evidence |
+|---|---|---|
+| 1 One shared comparison | **ACCEPT** | Root `availabilityViewOn`, client `Availability.effectiveOn`, server `UserAvailabilityEntity`; unit tests + live Hasura reads |
+| 2 No `toLocal()` on availability dates | **ACCEPT** | `rg` over availability code paths; `availability_read_parity_test` |
+| 3 Lapse falls back to limited | **ACCEPT** | `user_availability_repository` + entity tests; resume walkthrough |
+| 4 Open stores nothing | **ACCEPT** | CHECK + delete-on-empty repository paths; migration tests |
+| 5 Expired pause-only invisible | **ACCEPT** | Hasura filter + `availability_read_parity_test` |
+| 6 No exposed mutation timestamp | **ACCEPT** | Hasura columns omit `updated_at`; gql_public maps |
+| 7 Read parity both sides | **ACCEPT** | Required `userAvailability` on `UserPublicRecord`; three client adapters |
+| 8 Concurrent independence | **ACCEPT** | `user_availability_repository_pg_test` two-connection cases |
+| 9 Transactional forward gate | **ACCEPT** | `forward_edge_availability_pg_test` ordering cases |
+| 10 Confirmation matches reality | **ACCEPT** | `forward_delivery_result_test` + live mixed batch |
+| 11 Row precedence | **ACCEPT** | `forward_recipient_host_policy_test` / picker tests |
+| 12 Limited moves nobody | **ACCEPT** | Forward pg test case 8 + live limited forward delivered |
+| 13 Pre-selection gated | **ACCEPT** | `forward_cubit_preselect_test` / delivery UX tests |
+| 14 D19 host list closed | **ACCEPT** | `ForwardRecipientRowHost` enum compile-enforced |
+| 15 Horizon | **ACCEPT** | `UserAvailabilityCase` validation + picker bounds tests |
+
+### Final acceptance checklist (plan §4)
+
+| Item | Verdict |
+|---|---|
+| Architecture D1–D30 + S10/S12 closures | **PASS** |
+| Three self-only V2 mutations | **PASS** |
+| `m0148` logged/sparse, rollback simulation | **PASS** |
+| `updated_at`/instant absent from public surfaces | **PASS** |
+| Shared UTC-calendar comparison | **PASS** |
+| PostgreSQL two-connection proofs | **PASS** (availability-owned suites) |
+| Typed delivery + UX counts | **PASS** |
+| Public-user + client adapter parity | **PASS** |
+| Host enum explicit | **PASS** |
+| Band excludes paused; unseen retains paused rows | **PASS** |
+| Profile/graph/picker/person-forward tone/actions | **PASS** (API + client policy tests) |
+| No existing interaction withdrawal | **PASS** (live edge count) |
+| EN/RU copy terminology-safe | **PASS** (terminology script + UNIT 10 review) |
+| Client/web/server `5.13.0` gate | **PASS** |
+| All plan-wide checks | **PARTIAL** — full `dart test -t pg` has 29 unrelated failures |
+
