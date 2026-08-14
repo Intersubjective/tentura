@@ -8,6 +8,7 @@ import 'package:logging/logging.dart';
 import 'package:mockito/mockito.dart';
 import 'package:intl/date_symbol_data_local.dart';
 
+import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/design_system/tentura_theme.dart';
 import 'package:tentura/domain/capability/forward_band_row.dart';
 import 'package:tentura/domain/capability/projection_tier.dart';
@@ -28,6 +29,7 @@ import 'package:tentura/features/forward/ui/widget/forward_recipient_row.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/features/profile/domain/port/profile_repository_port.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/test_ids.dart';
 import 'package:tentura_root/domain/enums.dart';
 
 import 'package:tentura/features/forward/domain/entity/candidate_involvement.dart';
@@ -47,6 +49,7 @@ class _MockProfileCubit extends Mock implements ProfileCubit {
 
 final _todayUtc = DateTime.utc(2026, 8, 14);
 final _resumeOn = DateTime.utc(2026, 8, 18);
+final _resumeBoundary = DateTime.utc(2026, 8, 14);
 
 ForwardCandidate _candidate({
   required String id,
@@ -75,17 +78,58 @@ ForwardRecipientLine2 _line({
   ForwardRecipientRowHost host = ForwardRecipientRowHost.pickerStandard,
   String? tierEvidenceLabel,
   bool showPresenceLine = true,
+  DateTime? todayUtc,
 }) {
   final l10n = lookupL10n(const Locale('en'));
   return computeForwardRecipientLine2(
     candidate: candidate,
     host: host,
-    todayUtc: _todayUtc,
+    todayUtc: todayUtc ?? _todayUtc,
     l10n: l10n,
     locale: const Locale('en'),
     tierEvidenceLabel: tierEvidenceLabel,
     showPresenceLine: showPresenceLine,
   );
+}
+
+Future<void> _pumpRecipientRow(
+  WidgetTester tester, {
+  required ForwardCandidate candidate,
+  required bool isSelected,
+  required VoidCallback? onToggle,
+  DateTime? todayUtc,
+}) async {
+  await tester.pumpWidget(
+    MaterialApp(
+      locale: const Locale('en'),
+      localizationsDelegates: L10n.localizationsDelegates,
+      supportedLocales: L10n.supportedLocales,
+      theme: TenturaTheme.light(),
+      home: BlocProvider<ProfileCubit>.value(
+        value: _MockProfileCubit(),
+        child: Scaffold(
+          body: ForwardRecipientRow(
+            host: ForwardRecipientRowHost.pickerStandard,
+            candidate: candidate,
+            isSelected: isSelected,
+            onToggle: onToggle,
+            todayUtc: todayUtc ?? _todayUtc,
+          ),
+        ),
+      ),
+    ),
+  );
+  await tester.pumpAndSettle();
+}
+
+Future<void> _tapRowCheckbox(
+  WidgetTester tester,
+  String candidateId,
+) async {
+  final rowBox = tester.getRect(
+    find.byKey(TestIds.key(TestIds.forwardRecipient(candidateId))),
+  );
+  await tester.tapAt(Offset(rowBox.right - 22, rowBox.center.dy));
 }
 
 void main() {
@@ -301,6 +345,141 @@ void main() {
         ),
         isTrue,
       );
+    });
+  });
+
+  group('UTC resume boundary', () {
+    final boundaryCandidate = _candidate(
+      id: 'boundary',
+      availability: Availability(resumeOn: _resumeBoundary),
+    );
+    final dayBeforeResume = DateTime.utc(2026, 8, 13);
+
+    test('relation tone uses injected todayUtc on resume boundary', () {
+      expect(
+        forwardRecipientRelationTone(
+          boundaryCandidate,
+          todayUtc: dayBeforeResume,
+        ),
+        TenturaTone.neutral,
+      );
+      expect(
+        forwardRecipientRelationTone(
+          boundaryCandidate,
+          todayUtc: _resumeBoundary,
+        ),
+        TenturaTone.good,
+      );
+    });
+
+    test('checkbox policy flips on resume day without using process clock', () {
+      expect(
+        forwardRecipientCheckboxEnabled(
+          candidate: boundaryCandidate,
+          todayUtc: dayBeforeResume,
+          isSelected: false,
+        ),
+        isFalse,
+      );
+      expect(
+        forwardRecipientCheckboxEnabled(
+          candidate: boundaryCandidate,
+          todayUtc: _resumeBoundary,
+          isSelected: false,
+        ),
+        isTrue,
+      );
+    });
+
+    test('line policy shows pause before resume day and relation after', () {
+      final pausedLine = _line(
+        candidate: boundaryCandidate,
+        todayUtc: dayBeforeResume,
+      );
+      expect(
+        pausedLine.presenceOrAvailabilityLine,
+        contains('Not taking new requests until'),
+      );
+      expect(pausedLine.relationLabel, isNull);
+
+      final resumedLine = _line(
+        candidate: boundaryCandidate,
+        todayUtc: _resumeBoundary,
+      );
+      expect(
+        resumedLine.presenceOrAvailabilityLine,
+        isNot(contains('Not taking new requests until')),
+      );
+      expect(resumedLine.relationLabel, isNotNull);
+      expect(resumedLine.relationTone, TenturaTone.good);
+    });
+  });
+
+  group('paused row interaction', () {
+    const pausedId = 'paused-user';
+
+    testWidgets('selected paused row tap invokes onToggle exactly once', (
+      tester,
+    ) async {
+      var taps = 0;
+      await _pumpRecipientRow(
+        tester,
+        candidate: _candidate(
+          id: pausedId,
+          availability: Availability(resumeOn: _resumeOn),
+        ),
+        isSelected: true,
+        onToggle: () => taps++,
+      );
+
+      await tester.tap(
+        find.byKey(TestIds.key(TestIds.forwardRecipient(pausedId))),
+      );
+      await tester.pump();
+
+      expect(taps, 1);
+    });
+
+    testWidgets('unselected paused row tap invokes no callback', (
+      tester,
+    ) async {
+      var taps = 0;
+      await _pumpRecipientRow(
+        tester,
+        candidate: _candidate(
+          id: pausedId,
+          availability: Availability(resumeOn: _resumeOn),
+        ),
+        isSelected: false,
+        onToggle: () => taps++,
+      );
+
+      await tester.tap(
+        find.byKey(TestIds.key(TestIds.forwardRecipient(pausedId))),
+      );
+      await tester.pump();
+
+      expect(taps, 0);
+    });
+
+    testWidgets('unselected paused checkbox tap invokes no callback', (
+      tester,
+    ) async {
+      var taps = 0;
+      await _pumpRecipientRow(
+        tester,
+        candidate: _candidate(
+          id: pausedId,
+          availability: Availability(resumeOn: _resumeOn),
+        ),
+        isSelected: false,
+        onToggle: () => taps++,
+      );
+
+      await _tapRowCheckbox(tester, pausedId);
+      await tester.pump();
+
+      expect(taps, 0);
     });
   });
 

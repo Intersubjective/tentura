@@ -80,7 +80,10 @@ String forwardRecipientRelationLabel(L10n l10n, ForwardCandidate candidate) {
   };
 }
 
-TenturaTone forwardRecipientRelationTone(ForwardCandidate candidate) {
+TenturaTone forwardRecipientRelationTone(
+  ForwardCandidate candidate, {
+  required DateTime todayUtc,
+}) {
   if (candidate.involvement != CandidateInvolvement.declined &&
       candidate.involvement != CandidateInvolvement.author &&
       !candidate.isReachable) {
@@ -91,7 +94,9 @@ TenturaTone forwardRecipientRelationTone(ForwardCandidate candidate) {
     return TenturaTone.warn;
   }
   if (candidate.involvement == CandidateInvolvement.unseen) {
-    return candidate.canForwardTo ? TenturaTone.good : TenturaTone.neutral;
+    return candidate.canForwardToOn(todayUtc)
+        ? TenturaTone.good
+        : TenturaTone.neutral;
   }
   return TenturaTone.warn;
 }
@@ -126,7 +131,10 @@ ForwardRecipientLine2 computeForwardRecipientLine2({
   final presenceHidden = presence.isEmpty;
 
   final relationLabel = forwardRecipientRelationLabel(l10n, candidate);
-  final relationTone = forwardRecipientRelationTone(candidate);
+  final relationTone = forwardRecipientRelationTone(
+    candidate,
+    todayUtc: todayUtc,
+  );
   final forwardedByMeWithNote =
       candidate.involvement == CandidateInvolvement.forwardedByMe &&
       candidate.myForwardNote != null &&
