@@ -1,3 +1,0 @@
-mutation BeaconRoomAdmit($beaconId: String!, $participantUserId: String!) {
-  BeaconRoomAdmit(beaconId: $beaconId, participantUserId: $participantUserId)
-}

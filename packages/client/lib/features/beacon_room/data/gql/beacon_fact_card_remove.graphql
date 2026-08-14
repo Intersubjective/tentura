@@ -1,3 +1,0 @@
-mutation BeaconFactCardRemove($beaconId: String!, $factCardId: String!) {
-  BeaconFactCardRemove(beaconId: $beaconId, factCardId: $factCardId)
-}
