@@ -58,7 +58,7 @@ None of the above overlap any UNIT 01–14 file list except the noted `docs/READ
 | 07 | Extract ticker, move `ItemCard` (no behavior change) | accepted | 4cdb76ae9, ea4cf7bf5, 33ea2b509 |
 | 08 | `ThreadsCubit` latest-wins state | accepted | 74bb22aa4, 7a04e6385, 38bb78161, 5ec9eec02 |
 | 09 | Boxed Threads list + evolved `ItemCard` (unused) | accepted (+1 manager fix) | c5543c633, 815762981, 022feb731, 20754c690, ec171c43a, 42b27c9bd, 72933af66 |
-| 10 | Shared thread host, awaited cubit handoff | pending | |
+| 10 | Shared thread host, awaited cubit handoff | complete | 6b9e6cb53, 9024be979, 5e3cd9965, a18f142cd |
 | 11 | Nested route host + real thread detail page (unused) | pending | |
 | 12 | Atomic Threads activation + legacy removal | pending | |
 | 13 | D28 copy/glossary/docs sweep | pending | |
@@ -417,3 +417,26 @@ None yet.
   `scripts/custom-lint-baseline.txt` from 106 to 103 myself (`72933af66`), matching this repo's own
   established convention (UNIT 01 did the same for the server baseline). Proceeding to UNIT 10 (shared
   thread host with awaited `RoomCubit` handoff — still not wired into production).
+
+- 2026-08-14 — UNIT 10: `6b9e6cb53` added `ThreadHostState` (`openThreadId`, `switching`,
+  `selectionGeneration`).
+
+- 2026-08-14 — UNIT 10: `9024be979` added `ThreadHostCubit` with `_switchTail` serialized queue,
+  `select()`/`clear()` generation guards, and `close()` that invalidates generation then awaits tail +
+  owned cubit.
+
+- 2026-08-14 — UNIT 10: `5e3cd9965` added `ThreadHost` widget (`BlocBuilder` + `BlocProvider.value`,
+  adaptive progress while switching).
+
+- 2026-08-14 — UNIT 10: `a18f142cd` added `thread_host_cubit_test.dart` (6 tests: close-before-create
+  ordering, rapid A→B→C coalescing, General `threadItemId: null`, semantic item id, host `close()`
+  awaits flush, `clear()`).
+
+- 2026-08-14 — **UNIT 10 complete.** Verify: `flutter test
+  test/features/beacon_threads/thread_host_cubit_test.dart` (6 passed),
+  `./scripts/check-custom-lints.sh packages/client` (103/103), `rg` awaited-close present in
+  `thread_host_cubit.dart` (3 sites), forbidden `create:.*RoomCubit`/`key:.*openThread` absent from
+  `thread_host.dart`, full `flutter test` (2272 passed, 18 skipped). `RoomCubit` constructor matches
+  plan factory typedef exactly (`beaconId`, `threadItemId`, `initialUnreadAnchorAt`); no adjustment
+  needed. `ThreadHost`/`ThreadHostCubit` not wired into production screens (UNIT 11/12). Ready for
+  UNIT 11.
