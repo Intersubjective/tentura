@@ -92,7 +92,7 @@ None triggered.
 - [x] **00** Journal and baseline — complete
 - [x] **01** Pure coverage / note / cancel helpers
 - [x] **02** Server `cancelForward` honours `recipientRejected`
-- [ ] **03** `MyForwardRecipient` hasOnwardChild + recipientRejected
+- [x] **03** `MyForwardRecipient` hasOnwardChild + recipientRejected
 - [ ] **04** Map flags onto `ForwardCandidate` / `ForwardLoad`
 - [ ] **05** `ForwardCubit` session: skip, wire, stay, force-reload
 - [ ] **06** Picker: skip, sheet, controllers, D14 chrome
@@ -171,6 +171,16 @@ frozen contract, stop that unit with `BLOCKED` instead of improvising.
   (`feat: add forward draft policy helpers`). Independent re-run:
   `flutter test test/features/forward/forward_draft_policy_test.dart` →
   14 passed. No Flutter import. Frozen signatures match. UNIT 02 authorized.
+- 2026-08-14 manager: **UNIT 02 accepted**. Commit `e80268198`
+  (`fix(server): refuse cancel after recipient decline`). Independent re-run:
+  `dart test test/domain/use_case/forward_case_test.dart --name "cancelForward"`
+  → 8 passed, including `returns false when recipientRejected`. Guard sits
+  after `recipientReadAt` and before `existsWithParent`. UNIT 03 authorized.
+- 2026-08-14 worker: **UNIT 03 complete**. Commits `9efb6902c`
+  (`feat(server): add hasOnwardChild and recipientRejected to MyForwardRecipient`),
+  `fa8c2b950` (`feat(client): map involvement cancel flags`). Server:
+  `childParentIds` computed in-memory from fetched edges; client typedef extended
+  with two `Map<String, bool>` fields. UNIT 04 authorized.
 
 ## Unit entries
 
@@ -212,3 +222,27 @@ FILES:
 - `docs/plans/issue-110-forward-explicit-implementation-journal.md`
 FINDINGS: none — `ForwardEdgeEntity.recipientRejected` already present with `@Default(false)`
 REMAINING: none — UNIT 03 may start
+
+## UNIT 03 — complete — 2026-08-14
+COMMITS:
+- `9efb6902c` feat(server): add hasOnwardChild and recipientRejected to MyForwardRecipient
+- `fa8c2b950` feat(client): map involvement cancel flags
+TESTS:
+- `cd packages/server && dart test test/domain/use_case/beacon_involvement_case_test.dart` → 7 passed
+- `./scripts/check-custom-lints.sh packages/server` → exit 0
+- `cd packages/client && flutter test test/features/forward/forward_repository_involvement_test.dart` → 9 passed
+- `./scripts/check-custom-lints.sh packages/client` → exit 0
+FILES:
+- `packages/server/lib/domain/entity/gql_public/beacon_involvement_result.dart`
+- `packages/server/lib/domain/use_case/beacon_involvement_case.dart`
+- `packages/server/lib/api/controllers/graphql/custom_types.dart`
+- `packages/server/lib/api/controllers/graphql/mappers/gql_v2_dto_maps.dart`
+- `packages/server/test/domain/use_case/beacon_involvement_case_test.dart`
+- `packages/client/lib/data/gql/schema.graphql`
+- `packages/client/lib/features/forward/data/gql/beacon_involvement_data.graphql`
+- `packages/client/lib/features/forward/data/repository/forward_repository.dart`
+- `packages/client/test/features/forward/forward_repository_involvement_test.dart`
+- `packages/client/test/features/forward/*` (12 fixture files updated for typedef compile)
+- `docs/plans/issue-110-forward-explicit-implementation-journal.md`
+FINDINGS: none — frozen contract matched architecture rev 3 D14
+REMAINING: none — UNIT 04 may start
