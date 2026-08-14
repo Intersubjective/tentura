@@ -18,6 +18,7 @@ import '../../data/repository/beacon_fact_card_repository.dart';
 import '../../data/repository/beacon_room_hints_repository.dart';
 import '../../data/repository/beacon_threads_repository.dart';
 import '../entity/beacon_room_invalidation.dart';
+import '../entity/request_thread.dart';
 import '../entity/room_seen_outcome.dart';
 import '../entity/room_unread_snapshot.dart';
 import '../room_read_watermark_store.dart';
@@ -110,6 +111,9 @@ final class BeaconThreadsCase extends UseCaseBase {
   }
 
   Stream<String> get beaconRoomRefresh => _room.beaconRoomRefresh;
+
+  Future<List<RequestThread>> listThreads(String beaconId) =>
+      _room.fetchThreads(beaconId);
 
   Future<List<RoomMessage>> fetchMessages({
     required String beaconId,

@@ -8,6 +8,7 @@ import 'package:tentura/consts.dart';
 import 'package:tentura/data/gql/tentura_v2_upload.dart';
 import 'package:tentura/domain/contacts/contact_name_overlay.dart';
 import 'package:tentura/features/beacon_threads/domain/entity/beacon_room_invalidation.dart';
+import 'package:tentura/features/beacon_threads/domain/entity/request_thread.dart';
 import 'package:tentura/data/service/remote_api_service.dart';
 import 'package:tentura/domain/entity/beacon_participant.dart';
 import 'package:tentura/domain/entity/beacon_room_state.dart';
@@ -19,6 +20,7 @@ import 'package:tentura/domain/entity/room_pending_upload.dart';
 import 'package:tentura/domain/port/realtime_sync_port.dart';
 
 import '../gql/_g/beacon_participant_list.req.gql.dart';
+import '../gql/_g/beacon_threads_list.req.gql.dart';
 import '../gql/_g/beacon_participant_room_seen.req.gql.dart';
 import '../gql/_g/mark_beacon_room_seen.req.gql.dart';
 import '../gql/_g/room_message_mark_semantic_done.req.gql.dart';
@@ -35,6 +37,8 @@ import '../gql/_g/room_message_reaction_toggle.req.gql.dart';
 import '../gql/_g/room_message_target.req.gql.dart';
 import '../gql/_g/room_message_target.data.gql.dart';
 import '../gql/_g/room_poll_create.req.gql.dart';
+
+import '../model/request_thread_model.dart';
 
 @Singleton(env: [Environment.dev, Environment.prod])
 class BeaconThreadsRepository {
@@ -466,6 +470,17 @@ class BeaconThreadsRepository {
           (r) => r.dataOrThrow(label: _label).RoomMessageMarkSemanticDone,
         );
     return ok;
+  }
+
+  Future<List<RequestThread>> fetchThreads(String beaconId) async {
+    final r = await _remoteApiService
+        .request(
+          GBeaconThreadsListReq((b) => b.vars.beaconId = beaconId),
+        )
+        .firstWhere((e) => e.dataSource == DataSource.Link);
+    final rows =
+        r.dataOrThrow(label: _label).beaconThreads?.toList() ?? const [];
+    return rows.map((row) => RequestThreadRowModel(row).toEntity()).toList();
   }
 
   Future<List<BeaconParticipant>> fetchParticipants(String beaconId) async {
