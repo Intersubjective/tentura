@@ -7,8 +7,9 @@ import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/commitment_stake_state.dart';
 import 'package:tentura/domain/entity/coordination_response_type.dart';
 import 'package:tentura/features/my_work/domain/entity/my_work_card_view_model.dart';
-import 'package:tentura/features/my_work/ui/widget/my_work_offer_response_row.dart';
+import 'package:tentura/features/my_work/ui/widget/my_work_card_metadata_row.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/widget/beacon_hud_row_lead.dart';
 
 MyWorkCardViewModel _helpOfferedVm({
   required BeaconStatus status,
@@ -30,7 +31,7 @@ MyWorkCardViewModel _helpOfferedVm({
   );
 }
 
-Future<void> _pumpRow(
+Future<void> _pumpMetadataRow(
   WidgetTester tester, {
   required MyWorkCardViewModel viewModel,
 }) async {
@@ -40,8 +41,20 @@ Future<void> _pumpRow(
       localizationsDelegates: L10n.localizationsDelegates,
       supportedLocales: L10n.supportedLocales,
       locale: const Locale('en'),
-      home: Scaffold(
-        body: MyWorkOfferResponseRow(viewModel: viewModel),
+      home: MediaQuery(
+        data: const MediaQueryData(size: Size(360, 800)),
+        child: Scaffold(
+          body: Center(
+            child: SizedBox(
+              width: 360,
+              child: MyWorkCardMetadataRow(
+                beacon: viewModel.beacon,
+                viewModel: viewModel,
+                currentUserId: 'viewer',
+              ),
+            ),
+          ),
+        ),
       ),
     ),
   );
@@ -55,19 +68,23 @@ void main() {
     l10n = lookupL10n(const Locale('en'));
   });
 
-  testWidgets('renders awaiting author copy', (tester) async {
-    await _pumpRow(
+  testWidgets('renders awaiting author copy in YOU row', (tester) async {
+    await _pumpMetadataRow(
       tester,
       viewModel: _helpOfferedVm(
         status: BeaconStatus.open,
         stakeState: CommitmentStakeState.offered,
       ),
     );
-    expect(find.text(l10n.myWorkOfferAwaitingAuthor), findsOneWidget);
+    expect(find.byIcon(BeaconHudRowIcons.you), findsOneWidget);
+    expect(find.text(l10n.beaconYouOfferSent), findsOneWidget);
+    expect(find.text(l10n.myWorkOfferAwaitingAuthor), findsNothing);
   });
 
-  testWidgets('renders accepted copy', (tester) async {
-    await _pumpRow(
+  testWidgets('accepted does not render standing accepted copy in YOU', (
+    tester,
+  ) async {
+    await _pumpMetadataRow(
       tester,
       viewModel: _helpOfferedVm(
         status: BeaconStatus.open,
@@ -75,11 +92,11 @@ void main() {
         authorResponseType: CoordinationResponseType.useful,
       ),
     );
-    expect(find.text(l10n.myWorkOfferAccepted), findsOneWidget);
+    expect(find.text(l10n.myWorkOfferAccepted), findsNothing);
   });
 
-  testWidgets('renders declined copy', (tester) async {
-    await _pumpRow(
+  testWidgets('renders declined copy in YOU row', (tester) async {
+    await _pumpMetadataRow(
       tester,
       viewModel: _helpOfferedVm(
         status: BeaconStatus.open,
@@ -90,8 +107,8 @@ void main() {
     expect(find.text(l10n.myWorkOfferDeclined), findsOneWidget);
   });
 
-  testWidgets('renders softened copy', (tester) async {
-    await _pumpRow(
+  testWidgets('renders softened copy in YOU row', (tester) async {
+    await _pumpMetadataRow(
       tester,
       viewModel: _helpOfferedVm(
         status: BeaconStatus.open,
@@ -101,8 +118,8 @@ void main() {
     expect(find.text(l10n.myWorkOfferSoftened), findsOneWidget);
   });
 
-  testWidgets('renders participation ended copy', (tester) async {
-    await _pumpRow(
+  testWidgets('renders participation ended copy in YOU row', (tester) async {
+    await _pumpMetadataRow(
       tester,
       viewModel: _helpOfferedVm(
         status: BeaconStatus.open,
@@ -113,8 +130,8 @@ void main() {
     expect(find.text(l10n.myWorkOfferParticipationEnded), findsOneWidget);
   });
 
-  testWidgets('renders exited copy', (tester) async {
-    await _pumpRow(
+  testWidgets('renders exited copy in YOU row', (tester) async {
+    await _pumpMetadataRow(
       tester,
       viewModel: _helpOfferedVm(
         status: BeaconStatus.open,
@@ -124,8 +141,8 @@ void main() {
     expect(find.text(l10n.myWorkOfferExited), findsOneWidget);
   });
 
-  testWidgets('renders closed without response copy', (tester) async {
-    await _pumpRow(
+  testWidgets('renders closed without response copy in YOU row', (tester) async {
+    await _pumpMetadataRow(
       tester,
       viewModel: _helpOfferedVm(
         status: BeaconStatus.reviewOpen,
@@ -135,21 +152,19 @@ void main() {
     expect(find.text(l10n.myWorkOfferClosedWithoutResponse), findsOneWidget);
   });
 
-  testWidgets('hides row for authored cards', (tester) async {
-    final beacon = Beacon.empty.copyWith(
-      id: 'a1',
-      status: BeaconStatus.open,
-    );
-    await _pumpRow(
+  testWidgets('finished help-offered terminal shows YOU only', (tester) async {
+    await _pumpMetadataRow(
       tester,
-      viewModel: MyWorkCardViewModel(
-        beaconId: beacon.id,
-        role: MyWorkCardRole.authored,
-        kind: MyWorkCardKind.authoredActive,
-        beacon: beacon,
+      viewModel: _helpOfferedVm(
+        status: BeaconStatus.closed,
+        stakeState: CommitmentStakeState.offered,
+        authorResponseType: CoordinationResponseType.notSuitable,
+        kind: MyWorkCardKind.helpOfferedFinished,
       ),
     );
-    expect(find.byType(MyWorkOfferResponseRow), findsOneWidget);
-    expect(find.text(l10n.myWorkOfferAwaitingAuthor), findsNothing);
+    expect(find.byIcon(BeaconHudRowIcons.now), findsNothing);
+    expect(find.byIcon(BeaconHudRowIcons.lastEvent), findsNothing);
+    expect(find.byIcon(BeaconHudRowIcons.you), findsOneWidget);
+    expect(find.text(l10n.myWorkOfferDeclined), findsOneWidget);
   });
 }

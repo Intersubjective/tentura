@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import 'package:tentura/domain/coordination/beacon_you_situation.dart';
+import 'package:tentura/domain/coordination/helper_offer_response_state.dart';
 
 BeaconYouSituationInput _input({
   BeaconStatus lifecycle = BeaconStatus.open,
@@ -12,6 +13,7 @@ BeaconYouSituationInput _input({
   bool isAwaitingAuthorReview = false,
   int authorUnreviewedHelpOfferCount = 0,
   bool viewerBlocked = false,
+  HelperOfferResponseState? helperOfferState,
 }) {
   return BeaconYouSituationInput(
     lifecycle: lifecycle,
@@ -22,12 +24,13 @@ BeaconYouSituationInput _input({
     isAwaitingAuthorReview: isAwaitingAuthorReview,
     authorUnreviewedHelpOfferCount: authorUnreviewedHelpOfferCount,
     viewerBlocked: viewerBlocked,
+    helperOfferState: helperOfferState,
   );
 }
 
 void main() {
   group('deriveBeaconYouEmptyFallback', () {
-    test('closed wins over other states', () {
+    test('closed without helper terminal offer stays closed', () {
       final fallback = deriveBeaconYouEmptyFallback(
         _input(
           lifecycle: BeaconStatus.closed,
@@ -38,6 +41,16 @@ void main() {
         ),
       );
       expect(fallback, BeaconYouEmptyFallback.closed);
+    });
+
+    test('closed with helper terminal offer uses offer fallback', () {
+      final fallback = deriveBeaconYouEmptyFallback(
+        _input(
+          lifecycle: BeaconStatus.closed,
+          helperOfferState: HelperOfferResponseState.closedWithoutResponse,
+        ),
+      );
+      expect(fallback, BeaconYouEmptyFallback.offerClosedWithoutResponse);
     });
 
     test('author review wins before waitingOnOthers', () {
@@ -59,6 +72,25 @@ void main() {
         ),
       );
       expect(fallback, BeaconYouEmptyFallback.awaitingAuthorReview);
+    });
+
+    test('helper declined beats waitingOnOthers', () {
+      final fallback = deriveBeaconYouEmptyFallback(
+        _input(
+          othersOpenCount: 4,
+          helperOfferState: HelperOfferResponseState.declined,
+        ),
+      );
+      expect(fallback, BeaconYouEmptyFallback.offerDeclined);
+    });
+
+    test('accepted does not select awaitingAuthorReview', () {
+      final fallback = deriveBeaconYouEmptyFallback(
+        _input(
+          helperOfferState: HelperOfferResponseState.accepted,
+        ),
+      );
+      expect(fallback, isNot(BeaconYouEmptyFallback.awaitingAuthorReview));
     });
 
     test('compact with no personal obligation is hidden', () {

@@ -1,135 +1,135 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 
+import 'package:tentura/domain/coordination/helper_offer_response_state.dart';
 import 'package:tentura/domain/entity/commitment_stake_state.dart';
 import 'package:tentura/domain/entity/coordination_response_type.dart';
-import 'package:tentura/features/my_work/domain/derive_offer_response_state.dart';
 
 void main() {
-  group('deriveMyWorkOfferResponseState', () {
+  group('deriveHelperOfferResponseState', () {
     test('awaitingAuthor when stake offered and beacon open', () {
       expect(
-        deriveMyWorkOfferResponseState(
+        deriveHelperOfferResponseState(
           stakeState: CommitmentStakeState.offered,
           authorResponseType: null,
           beaconStatus: BeaconStatus.open,
         ),
-        MyWorkOfferResponseState.awaitingAuthor,
+        HelperOfferResponseState.awaitingAuthor,
       );
     });
 
     test('awaitingAuthor when stake none and beacon open', () {
       expect(
-        deriveMyWorkOfferResponseState(
+        deriveHelperOfferResponseState(
           stakeState: CommitmentStakeState.none,
           authorResponseType: null,
           beaconStatus: BeaconStatus.enoughHelp,
         ),
-        MyWorkOfferResponseState.awaitingAuthor,
+        HelperOfferResponseState.awaitingAuthor,
       );
     });
 
     test('accepted when stake acknowledged', () {
       expect(
-        deriveMyWorkOfferResponseState(
+        deriveHelperOfferResponseState(
           stakeState: CommitmentStakeState.acknowledged,
           authorResponseType: CoordinationResponseType.useful,
           beaconStatus: BeaconStatus.open,
         ),
-        MyWorkOfferResponseState.accepted,
+        HelperOfferResponseState.accepted,
       );
     });
 
     test('declined when author response is not acknowledging', () {
       expect(
-        deriveMyWorkOfferResponseState(
+        deriveHelperOfferResponseState(
           stakeState: CommitmentStakeState.offered,
           authorResponseType: CoordinationResponseType.notSuitable,
           beaconStatus: BeaconStatus.open,
         ),
-        MyWorkOfferResponseState.declined,
+        HelperOfferResponseState.declined,
       );
     });
 
     test('softened when stake softened', () {
       expect(
-        deriveMyWorkOfferResponseState(
+        deriveHelperOfferResponseState(
           stakeState: CommitmentStakeState.softened,
           authorResponseType: CoordinationResponseType.useful,
           beaconStatus: BeaconStatus.open,
         ),
-        MyWorkOfferResponseState.softened,
+        HelperOfferResponseState.softened,
       );
     });
 
     test('participationEnded when stake released', () {
       expect(
-        deriveMyWorkOfferResponseState(
+        deriveHelperOfferResponseState(
           stakeState: CommitmentStakeState.released,
           authorResponseType: CoordinationResponseType.useful,
           beaconStatus: BeaconStatus.open,
         ),
-        MyWorkOfferResponseState.participationEnded,
+        HelperOfferResponseState.participationEnded,
       );
     });
 
     test('exited when stake exited', () {
       expect(
-        deriveMyWorkOfferResponseState(
+        deriveHelperOfferResponseState(
           stakeState: CommitmentStakeState.exited,
           authorResponseType: CoordinationResponseType.useful,
           beaconStatus: BeaconStatus.open,
         ),
-        MyWorkOfferResponseState.exited,
+        HelperOfferResponseState.exited,
       );
     });
 
     test('closedWithoutResponse when reviewOpen without author response', () {
       expect(
-        deriveMyWorkOfferResponseState(
+        deriveHelperOfferResponseState(
           stakeState: CommitmentStakeState.offered,
           authorResponseType: null,
           beaconStatus: BeaconStatus.reviewOpen,
         ),
-        MyWorkOfferResponseState.closedWithoutResponse,
+        HelperOfferResponseState.closedWithoutResponse,
       );
     });
 
     test('released beats stale useful author response (not accepted)', () {
       expect(
-        deriveMyWorkOfferResponseState(
+        deriveHelperOfferResponseState(
           stakeState: CommitmentStakeState.released,
           authorResponseType: CoordinationResponseType.useful,
           beaconStatus: BeaconStatus.closed,
         ),
-        isNot(MyWorkOfferResponseState.accepted),
+        isNot(HelperOfferResponseState.accepted),
       );
       expect(
-        deriveMyWorkOfferResponseState(
+        deriveHelperOfferResponseState(
           stakeState: CommitmentStakeState.released,
           authorResponseType: CoordinationResponseType.useful,
           beaconStatus: BeaconStatus.closed,
         ),
-        MyWorkOfferResponseState.participationEnded,
+        HelperOfferResponseState.participationEnded,
       );
     });
 
     test('exited beats stale useful author response (not accepted)', () {
       expect(
-        deriveMyWorkOfferResponseState(
+        deriveHelperOfferResponseState(
           stakeState: CommitmentStakeState.exited,
           authorResponseType: CoordinationResponseType.useful,
           beaconStatus: BeaconStatus.open,
         ),
-        isNot(MyWorkOfferResponseState.accepted),
+        isNot(HelperOfferResponseState.accepted),
       );
       expect(
-        deriveMyWorkOfferResponseState(
+        deriveHelperOfferResponseState(
           stakeState: CommitmentStakeState.exited,
           authorResponseType: CoordinationResponseType.useful,
           beaconStatus: BeaconStatus.open,
         ),
-        MyWorkOfferResponseState.exited,
+        HelperOfferResponseState.exited,
       );
     });
   });

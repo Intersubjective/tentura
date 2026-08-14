@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/coordination/derive_beacon_coordination_phase.dart';
+import 'package:tentura/domain/coordination/helper_offer_response_state.dart';
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/beacon_coordination_phase.dart';
 import 'package:tentura/domain/entity/beacon_schedule.dart';
@@ -32,6 +33,19 @@ List<BeaconHudMetadataEntry> buildMyWorkHudMetadataEntries(
   final tt = context.tt;
   final entries = <BeaconHudMetadataEntry>[];
   final hideCoordinationHud = beacon.status.isFinished;
+  final isHelpOffered = viewModel.role == MyWorkCardRole.helpOffered;
+  final isAuthorOrSteward = beacon.author.id == currentUserId;
+  final helperOfferState = isHelpOffered
+      ? deriveHelperOfferResponseState(
+          stakeState: viewModel.stakeState,
+          authorResponseType: viewModel.authorResponseType,
+          beaconStatus: beacon.status,
+        )
+      : null;
+  final isAwaitingAuthorReview =
+      helperOfferState == HelperOfferResponseState.awaitingAuthor;
+  final helperHasStandingMessage = helperOfferState != null &&
+      helperOfferResponseStateHasStandingMessage(helperOfferState);
 
   if (BeaconCompactMetadataStrip.hasVisibleContent(
     beacon: beacon,
@@ -74,73 +88,70 @@ List<BeaconHudMetadataEntry> buildMyWorkHudMetadataEntries(
         ),
       ),
     );
+  }
 
-    final isHelpOffered = viewModel.role == MyWorkCardRole.helpOffered;
-    final isAuthorOrSteward = beacon.author.id == currentUserId;
-    final isAwaitingAuthorReview = viewerAwaitingAuthorHelpOfferReview(
-      isAuthorOrSteward: isAuthorOrSteward,
-      viewerHasActiveHelpOffer: isHelpOffered,
-      viewerOfferAuthorResponse: viewModel.authorResponseType,
-    );
-    final responsibility =
-        viewModel.youResponsibility ??
-        (isAwaitingAuthorReview ||
-                (isAuthorOrSteward && beacon.unansweredHelpOfferCount > 0)
-            ? CoordinationResponsibility(beaconId: beacon.id)
-            : null);
-    if (responsibility != null) {
-      final phaseInput = beaconPhaseInputFromMyWorkCard(viewModel);
-      final phaseResult = deriveBeaconCoordinationPhase(phaseInput);
-      final compactSurface = beaconYouCompactSurface(context, rowWidth);
-      final situationInput = buildMyWorkYouSituation(
-        beacon: beacon,
-        viewModel: viewModel,
-        responsibility: responsibility,
-        isAuthorOrSteward: isAuthorOrSteward,
-        compactSurface: compactSurface,
-        isAwaitingAuthorReview: isAwaitingAuthorReview,
-        phaseResult: phaseResult,
-        viewerUserId: currentUserId,
-      );
-      if (isBeaconYouRowVisible(input: situationInput)) {
-        entries.add(
-          BeaconHudMetadataEntry(
-            icon: BeaconHudRowIcons.you,
-            semanticsLabel: l10n.beaconHudYouLabel,
-            body: BeaconYouResponsibilityLine(
-              beacon: beacon,
-              responsibility: responsibility,
-              isAuthorOrSteward: isAuthorOrSteward,
-              tableRowWidth: rowWidth,
-              viewerUserId: currentUserId,
-              openBlocker: viewModel.roomOpenBlocker,
-              phaseResult: phaseResult,
-              isAwaitingAuthorReview: isAwaitingAuthorReview,
-              authorUnreviewedHelpOfferCount: isAuthorOrSteward
-                  ? beacon.unansweredHelpOfferCount
-                  : 0,
-            ),
-          ),
-        );
-      }
-    }
-
-    if (myWorkLastEventMetadataVisible(
+  final responsibility =
+      viewModel.youResponsibility ??
+      (isAwaitingAuthorReview ||
+              (isAuthorOrSteward && beacon.unansweredHelpOfferCount > 0) ||
+              helperHasStandingMessage
+          ? CoordinationResponsibility(beaconId: beacon.id)
+          : null);
+  if (responsibility != null && (!hideCoordinationHud || helperHasStandingMessage)) {
+    final phaseInput = beaconPhaseInputFromMyWorkCard(viewModel);
+    final phaseResult = deriveBeaconCoordinationPhase(phaseInput);
+    final compactSurface = beaconYouCompactSurface(context, rowWidth);
+    final situationInput = buildMyWorkYouSituation(
       beacon: beacon,
       viewModel: viewModel,
-    )) {
+      responsibility: responsibility,
+      isAuthorOrSteward: isAuthorOrSteward,
+      compactSurface: compactSurface,
+      isAwaitingAuthorReview: isAwaitingAuthorReview,
+      phaseResult: phaseResult,
+      viewerUserId: currentUserId,
+      helperOfferState: helperOfferState,
+    );
+    if (isBeaconYouRowVisible(input: situationInput)) {
       entries.add(
         BeaconHudMetadataEntry(
-          icon: BeaconHudRowIcons.lastEvent,
-          semanticsLabel: l10n.beaconHudLastEventRowSemantics,
-          body: MyWorkLastEventBody(
+          icon: BeaconHudRowIcons.you,
+          semanticsLabel: l10n.beaconHudYouLabel,
+          body: BeaconYouResponsibilityLine(
             beacon: beacon,
-            viewModel: viewModel,
-            currentUserId: currentUserId,
+            responsibility: responsibility,
+            isAuthorOrSteward: isAuthorOrSteward,
+            tableRowWidth: rowWidth,
+            viewerUserId: currentUserId,
+            openBlocker: viewModel.roomOpenBlocker,
+            phaseResult: phaseResult,
+            isAwaitingAuthorReview: isAwaitingAuthorReview,
+            authorUnreviewedHelpOfferCount: isAuthorOrSteward
+                ? beacon.unansweredHelpOfferCount
+                : 0,
+            helperOfferState: helperOfferState,
           ),
         ),
       );
     }
+  }
+
+  if (!hideCoordinationHud &&
+      myWorkLastEventMetadataVisible(
+        beacon: beacon,
+        viewModel: viewModel,
+      )) {
+    entries.add(
+      BeaconHudMetadataEntry(
+        icon: BeaconHudRowIcons.lastEvent,
+        semanticsLabel: l10n.beaconHudLastEventRowSemantics,
+        body: MyWorkLastEventBody(
+          beacon: beacon,
+          viewModel: viewModel,
+          currentUserId: currentUserId,
+        ),
+      ),
+    );
   }
 
   return entries;
@@ -318,6 +329,7 @@ BeaconYouSituationInput buildMyWorkYouSituation({
   required bool isAwaitingAuthorReview,
   required BeaconCoordinationPhaseResult phaseResult,
   required String viewerUserId,
+  HelperOfferResponseState? helperOfferState,
 }) {
   final isViewerBlocked = shouldShowBlockedYouSegment(
     phaseResult: phaseResult,
@@ -337,5 +349,6 @@ BeaconYouSituationInput buildMyWorkYouSituation({
     viewerBlocked: isViewerBlocked,
     isAwaitingAuthorReview: isAwaitingAuthorReview,
     rowHarmony: phaseResult.rowHarmony,
+    helperOfferState: helperOfferState,
   );
 }
