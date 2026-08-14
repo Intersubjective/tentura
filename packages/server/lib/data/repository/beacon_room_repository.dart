@@ -1099,35 +1099,57 @@ class BeaconRoomRepository implements BeaconRoomRepositoryPort {
               .getSingleOrNull())
           ?.toRecord();
 
-  Future<void> markBeaconRoomSeen({
+  @override
+  Future<DateTime> markBeaconRoomSeen({
     required String userId,
     required String beaconId,
     required String? threadItemId,
     required DateTime at,
   }) => _db.withMutatingUser(userId, () async {
-    // customStatement accepts strings/nums only — bind timestamptz as ISO text.
+    // customSelect binds timestamptz as ISO text via ::timestamptz cast.
     final seenAtIso = at.toUtc().toIso8601String();
+    final QueryRow row;
     if (threadItemId == null) {
-      await _db.customStatement(
-        'INSERT INTO beacon_room_seen (user_id, beacon_id, thread_item_id, last_seen_at) '
-        r'VALUES ($1, $2, NULL, $3::timestamptz) '
-        'ON CONFLICT (user_id, beacon_id) WHERE thread_item_id IS NULL '
-        '''DO UPDATE SET last_seen_at = GREATEST(
-              beacon_room_seen.last_seen_at, EXCLUDED.last_seen_at
-            )''',
-        [userId, beaconId, seenAtIso],
-      );
+      row = await _db
+          .customSelect(
+            r'''
+INSERT INTO beacon_room_seen (user_id, beacon_id, thread_item_id, last_seen_at)
+VALUES ($1, $2, NULL, $3::timestamptz)
+ON CONFLICT (user_id, beacon_id) WHERE thread_item_id IS NULL
+DO UPDATE SET last_seen_at = GREATEST(
+  beacon_room_seen.last_seen_at, EXCLUDED.last_seen_at
+)
+RETURNING last_seen_at
+''',
+            variables: [
+              Variable<String>(userId),
+              Variable<String>(beaconId),
+              Variable<String>(seenAtIso),
+            ],
+          )
+          .getSingle();
     } else {
-      await _db.customStatement(
-        'INSERT INTO beacon_room_seen (user_id, beacon_id, thread_item_id, last_seen_at) '
-        r'VALUES ($1, $2, $3, $4::timestamptz) '
-        'ON CONFLICT (user_id, beacon_id, thread_item_id) WHERE thread_item_id IS NOT NULL '
-        '''DO UPDATE SET last_seen_at = GREATEST(
-              beacon_room_seen.last_seen_at, EXCLUDED.last_seen_at
-            )''',
-        [userId, beaconId, threadItemId, seenAtIso],
-      );
+      row = await _db
+          .customSelect(
+            r'''
+INSERT INTO beacon_room_seen (user_id, beacon_id, thread_item_id, last_seen_at)
+VALUES ($1, $2, $3, $4::timestamptz)
+ON CONFLICT (user_id, beacon_id, thread_item_id) WHERE thread_item_id IS NOT NULL
+DO UPDATE SET last_seen_at = GREATEST(
+  beacon_room_seen.last_seen_at, EXCLUDED.last_seen_at
+)
+RETURNING last_seen_at
+''',
+            variables: [
+              Variable<String>(userId),
+              Variable<String>(beaconId),
+              Variable<String>(threadItemId),
+              Variable<String>(seenAtIso),
+            ],
+          )
+          .getSingle();
     }
+    return DateTime.parse(row.read<String>('last_seen_at')).toUtc();
   });
 
   /// Newest main-room message timestamp, or null when the room has no messages.

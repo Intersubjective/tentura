@@ -159,7 +159,7 @@ abstract class BeaconRoomRepositoryPort {
     required List<String> userIds,
   });
 
-  Future<void> markBeaconRoomSeen({
+  Future<DateTime> markBeaconRoomSeen({
     required String userId,
     required String beaconId,
     required String? threadItemId,
