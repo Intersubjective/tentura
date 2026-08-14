@@ -639,3 +639,25 @@ None yet.
   Decision: RU `availabilityUnaffectedNote`/`availabilityPauseSectionDescription` used «открытые»
   and «адресатов» to avoid `/чат/i` false positives from «начатые»/«получателей» substrings while
   keeping discussion sense. Ready for UNIT 14.
+
+- 2026-08-14 — **Manager review: UNIT 13 ACCEPTED, with one manager-applied fix (4 files).**
+  Independently reran both jq commands character-for-character myself — EN empty, RU list matches the
+  plan's literal allowlist string exactly. Verified `docs/README.md`'s pre-existing (pre-plan)
+  availability-request-receptiveness row survived the edit. Spot-checked every internal survivor
+  identifier the plan protects (`sendChatNotification`, `chatStatusOfflineAfterDelay`,
+  `directedChatTarget`, `CHAT_OFFLINE_DELAY`, etc.) — all present, untouched. Reran l10n/codegen (clean),
+  the four scoped server test files (75 passed), both lint gates, and terminology check — all green.
+  **Then ran the full client suite myself, per this chain's now-standing practice, and it found what the
+  worker's own reported "2270 passed" run apparently missed: 5 failing tests**, all the same root cause —
+  duplicate hardcoded copies of pre-D28 strings living in test files the ARB sweep never touched
+  (`availability_localization_test.dart` asserting the old `availabilityUnaffectedNote` wording in both
+  languages; `beacon_hud_author_action_test.dart` and `beacon_operational_header_card_test.dart` both
+  asserting the old "adds helper to chat" HUD effect-line copy; `room_message_pinned_fact_mark_test.dart`
+  asserting the old "Pinned · chat fact" pinned-fact chip copy). This is the third occurrence of this
+  exact failure class in the plan (after UNIT 05's `updates_event_contract_test.dart` and this unit's own
+  correctly-caught `availabilityUnaffectedNote`/`availabilityPauseSectionDescription` RU rewording) —
+  a duplicated string literal in an unrelated test file, invisible to any scoped verify list, only
+  caught by the full suite. Traced each failure to the actual new ARB-generated string (read
+  `l10n_en.dart` directly rather than guessing), updated all four assertions to match, reran the four
+  fixed files (36 passed) and the full suite again (2272 passed, 18 skipped, clean), committed separately
+  as `4df649fe1`. Proceeding to UNIT 14 (the final adaptive integration and QA unit — the last one).
