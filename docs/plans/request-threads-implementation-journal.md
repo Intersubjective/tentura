@@ -54,7 +54,7 @@ None of the above overlap any UNIT 01–14 file list except the noted `docs/READ
 | 03 | Server `beaconThreads` query + preview contract | accepted | 3e261f62d, 633bd3af2, fb699a834, 675d2a019, c175728e0, 5c9587abc |
 | 04 | `markThreadSeen` + persisted-watermark fix | accepted | 4f212fbe4, 6092a70f1, 7bf09b117, a596ebb53, fc0456e69, cfee6c9bc, 557ebbe3b |
 | 05 | Client thread contract/mapping/repo/case (unused) | accepted (+1 manager fix) | 686d307c7, 6c7731926, ed9278341, 0fe1dd2f9, ed67aa65c, 8313eac9e, ce03b2c6a |
-| 06 | Thread-keyed watermark store + client `markThreadSeen` | accepted | 81824ba22, 36a99f6ac, 3abef3470, 37ccd5a42, 19bb6c2a4, 52d57d49c, 22ec62ac3 |
+| 06 | Thread-keyed watermark store + client `markThreadSeen` | accepted (3 sessions, 2 killed) | 81824ba22, 36a99f6ac, 3abef3470, 37ccd5a42, 19bb6c2a4, 52d57d49c, 22ec62ac3, 6e0de9147 |
 | 07 | Extract ticker, move `ItemCard` (no behavior change) | pending | |
 | 08 | `ThreadsCubit` latest-wins state | pending | |
 | 09 | Boxed Threads list + evolved `ItemCard` (unused) | pending | |
@@ -281,3 +281,28 @@ None yet.
   18 skipped). `room_cubit.dart:65` `threadItemId == null` is the legitimate General-only item-sync
   subscription — not an `observeReadThrough` guard. `kDefaultMinClientVersion` unchanged. Ready for
   UNIT 07.
+
+- 2026-08-14 — **Process note: UNIT 06 took three Cursor sessions, the first two killed mid-work by an
+  apparent external cause (this is the user's live desktop machine, not an isolated CI box — Firefox,
+  Cursor IDE, Chrome, Telegram, etc. all run alongside these background jobs; no OOM evidence was
+  visible in `dmesg`/`free` but the pattern — both kills within ~1-2 minutes of launch, mid tool-call,
+  no error output — is consistent with external memory pressure rather than a task defect).** Both
+  killed sessions left real, correct, uncommitted progress on disk each time (not corruption); the
+  manager verified each with `dart analyze`/diff inspection and committed it directly (`81824ba22` was
+  already committed by session 1 before its kill; `36a99f6ac` was verified and committed by the manager
+  after session 2's kill) rather than discarding it, then relaunched a fresh session each time with an
+  explicit "here is exactly what's done, here is exactly what remains" prompt — never resuming a killed
+  session. Session 3 used a frequent-commit strategy (commit after every small step, not just at unit
+  boundaries) specifically to bound loss if interrupted again, and completed the remaining scope
+  cleanly. **Manager review: UNIT 06 ACCEPTED.** Independently re-verified beyond the worker's own
+  report: read the actual repository `markThreadSeen` method (single mutation, returns
+  `DateTime.parse(row.seenAt).toUtc()`) and the case's `markRoomSeenIfAllowed` (derives `threadId =
+  threadItemId ?? RequestThread.generalId`, calls the repository, confirms the thread-keyed store with
+  the *persisted* `persistedAt` the repository call returns, never a local timestamp — matches UNIT 04's
+  fix pattern exactly); confirmed the client's `MarkThreadSeen` GraphQL field name (`'MarkThreadSeen'`,
+  PascalCase) against the actual server field registration in `mutation_beacon_room.dart:287`, not the
+  plan's illustrative camelCase guess my own worker prompt had assumed — the worker correctly verified
+  live code instead of trusting the prompt; independently reran codegen (clean), all four scoped test
+  files (49 passed), lints (106/106), the forbidden/required `rg` gates, version/cache-buster strings
+  (`6.0.1` in both files), and the full client suite (2241 passed, 18 skipped, zero regressions).
+  Proceeding to UNIT 07 (extract stale-deadline ticker, move `ItemCard` — no behavior change).
