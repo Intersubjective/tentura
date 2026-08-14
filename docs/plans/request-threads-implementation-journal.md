@@ -60,7 +60,7 @@ None of the above overlap any UNIT 01–14 file list except the noted `docs/READ
 | 09 | Boxed Threads list + evolved `ItemCard` (unused) | accepted (+1 manager fix) | c5543c633, 815762981, 022feb731, 20754c690, ec171c43a, 42b27c9bd, 72933af66 |
 | 10 | Shared thread host, awaited cubit handoff | accepted | 6b9e6cb53, 9024be979, 5e3cd9965, a18f142cd, c6f8dcc57 |
 | 11 | Nested route host + real thread detail page (unused) | accepted | 704679c3d, 2d55720af, 00791ce0f, 9ea39907c, ffc091e3f, d8a58c9b8, f578c4861 |
-| 12 | Atomic Threads activation + legacy removal | complete | 12d822607, 6f6c47461, 4557d3ac9, b1f2b4023, b23227ae2, fb10fc3e9, 1174a4016 |
+| 12 | Atomic Threads activation + legacy removal | accepted | 12d822607, 6f6c47461, 4557d3ac9, b1f2b4023, b23227ae2, fb10fc3e9, 1174a4016, ac3f0096e |
 | 13 | D28 copy/glossary/docs sweep | pending | |
 | 14 | Final adaptive integration + QA | pending | |
 
@@ -579,3 +579,37 @@ None yet.
   `dest=room` (not `deep_link`) — preserved in `home_tab_branch_routing_test`; plan step
   20 pane-width embedded widget tests and some expanded co-visibility widget tests deferred
   to UNIT 14 where integration harness exercises real layout. Ready for UNIT 13 (D28 copy).
+
+- 2026-08-14 — **Manager review: UNIT 12 ACCEPTED.** This was the single riskiest unit in the plan (a
+  2138-line rewrite of `beacon_view_screen.dart` alone, ~10 file deletions, ~15 producer repoints), so
+  I did the deepest review of the whole plan rather than sampling: (1) verified every plan-§13-listed
+  file is actually gone (`test ! -e` on all ten) with no extras left behind; (2) ran both
+  forbidden-symbol `rg` gates across the whole tree (`ItemDiscussionRoute`/`BeaconRoomRoute`/
+  `kPathBeaconRoom`/`tab=room`/`surface=room` and the legacy state-machine field names) — both clean;
+  (3) confirmed the legacy `viewTab` alias case labels (`'helpOffers'`/`'activity'`/`'timeline'`/
+  `'details'`/`'forwards'`/`'overview'`) present in the pre-plan baseline `beacon_view_screen.dart` are
+  gone from the live file; (4) read the server GraphQL mutation diff — only
+  `beaconParticipantRoomSeen`/`markBeaconRoomSeen` resolver fields deleted, `markThreadSeen` and the
+  internal case method backing both untouched; (5) **read the window-class transition implementation in
+  full on both sides** — `beacon_view_screen.dart`'s `didChangeDependencies` (expanded→compact: reads
+  `ThreadHostCubit`'s `openThreadId`, schedules a guarded push of `ThreadDetailRoute` only if not
+  already on it) and `thread_detail_screen.dart`'s new `didChangeDependencies` (compact→expanded:
+  schedules `_allowPop = true` then `router.pop()`, deliberately **not** calling `host.clear()`, which
+  would tear down the very cubit the split reuses) — both correctly route through the new
+  `ThreadHostCubit.scheduleWindowClassTransition` generation guard (verified: bumped and cancelled
+  inside both `select()` and `clear()`, so a real selection change always supersedes a pending
+  resize-triggered navigation, and the two transition directions share one counter so rapid resizing
+  cannot double-push/pop); (6) read `_usesExpandedThreadSplit`/`_openThread` and confirmed the embedded
+  path genuinely branches on the pane's own `LayoutBuilder` `constraints.maxWidth`
+  (`myWorkDetailFitsOpsRoom(detailWidth, tight: true)`), not `context.windowClass`, and calls the new
+  `onRequestThreadRoute` callback below threshold instead of stacking a pane-local detail — applied
+  identically to both `MyWorkBeaconViewPane` and `InboxBeaconViewPane`; (7) read the e2e helper diff and
+  confirmed the old "composer already visible → skip General entry" shortcut was correctly removed from
+  `enterGeneralIfNeeded` and moved into `sendRoomMessage` (send-in-current-thread-first, enter General
+  only when no composer is visible at all), and both `createCoordinationItem`/`sendRoomMessage` now
+  return the created `RequestThread`/`RoomMessage` as specified. Independently reran codegen for both
+  packages (clean), the full server suite (1509 passed), the full client suite (2272 passed, 18
+  skipped, zero regressions), both lint gates (server 0/0, client 93/93 — baseline correctly lowered and
+  committed by the worker itself this time, learning from the UNIT 09 gap I had to fix manually), and
+  `check-user-facing-terminology.sh` (ok). No defects found. Proceeding to UNIT 13 (the D28 "Chat" →
+  General/Threads/discussion copy sweep).
