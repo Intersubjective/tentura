@@ -56,7 +56,7 @@ None of the above overlap any UNIT 01–14 file list except the noted `docs/READ
 | 05 | Client thread contract/mapping/repo/case (unused) | accepted (+1 manager fix) | 686d307c7, 6c7731926, ed9278341, 0fe1dd2f9, ed67aa65c, 8313eac9e, ce03b2c6a |
 | 06 | Thread-keyed watermark store + client `markThreadSeen` | accepted (3 sessions, 2 killed) | 81824ba22, 36a99f6ac, 3abef3470, 37ccd5a42, 19bb6c2a4, 52d57d49c, 22ec62ac3, 6e0de9147 |
 | 07 | Extract ticker, move `ItemCard` (no behavior change) | complete | 4cdb76ae9, ea4cf7bf5 |
-| 08 | `ThreadsCubit` latest-wins state | pending | |
+| 08 | `ThreadsCubit` latest-wins state | complete | 74bb22aa4, 7a04e6385, 38bb78161 |
 | 09 | Boxed Threads list + evolved `ItemCard` (unused) | pending | |
 | 10 | Shared thread host, awaited cubit handoff | pending | |
 | 11 | Nested route host + real thread detail page (unused) | pending | |
@@ -333,3 +333,25 @@ None yet.
   (106/106), and the full client suite (2241 passed, 18 skipped, zero regressions). No behavioral
   deviation found. Proceeding to UNIT 08 (`ThreadsCubit`/`ThreadsState` latest-wins presentation state,
   not yet wired to any screen).
+
+- 2026-08-14 — UNIT 08: `74bb22aa4` added `ThreadsState` with grouping getters
+  (`general`/`active`/`closed`/`drafts`/`firstAccessible`) and
+  `resolvedUnreadByThreadId` + `threadsTabUnreadCount` (General + active only).
+
+- 2026-08-14 — UNIT 08: `7a04e6385` added `ThreadsCubit` — single `listThreads`
+  fetch, `_fetchGeneration` latest-wins guard, debounced non-`roomSeen`
+  invalidations (immediate `roomSeen`), `threadReadWatermarkChanges` local unread
+  recompute, lifecycle actions ported from `ItemsTabCubit`.
+
+- 2026-08-14 — UNIT 08: `38bb78161` added `threads_cubit_test.dart` (12 tests:
+  out-of-order success/error discard, burst coalescing, immediate `roomSeen`,
+  grouping/drafts, no plan fetch, badge math, watermark optimistic suppression).
+
+- 2026-08-14 — **UNIT 08 complete.** Verify: `flutter test
+  test/features/beacon_threads/threads_cubit_test.dart` (12 passed),
+  `./scripts/check-custom-lints.sh packages/client` (106/106), forbidden `rg`
+  empty (`currentCoordinationPlan`/`fetchCurrentRootPlan`), required `rg` present
+  (`roomSeen`, `_fetchGeneration`), full `flutter test` (2253 passed, 18
+  skipped). Added `myUserId` + `resolvedUnreadByThreadId` to state (not in plan
+  field list but required for `activeForMeOnly` filter and mandatory unread
+  resolution step). Ready for UNIT 09.
