@@ -58,7 +58,7 @@ None of the above overlap any UNIT 01–14 file list except the noted `docs/READ
 | 07 | Extract ticker, move `ItemCard` (no behavior change) | accepted | 4cdb76ae9, ea4cf7bf5, 33ea2b509 |
 | 08 | `ThreadsCubit` latest-wins state | accepted | 74bb22aa4, 7a04e6385, 38bb78161, 5ec9eec02 |
 | 09 | Boxed Threads list + evolved `ItemCard` (unused) | accepted (+1 manager fix) | c5543c633, 815762981, 022feb731, 20754c690, ec171c43a, 42b27c9bd, 72933af66 |
-| 10 | Shared thread host, awaited cubit handoff | complete | 6b9e6cb53, 9024be979, 5e3cd9965, a18f142cd |
+| 10 | Shared thread host, awaited cubit handoff | accepted | 6b9e6cb53, 9024be979, 5e3cd9965, a18f142cd, c6f8dcc57 |
 | 11 | Nested route host + real thread detail page (unused) | pending | |
 | 12 | Atomic Threads activation + legacy removal | pending | |
 | 13 | D28 copy/glossary/docs sweep | pending | |
@@ -440,3 +440,30 @@ None yet.
   plan factory typedef exactly (`beaconId`, `threadItemId`, `initialUnreadAnchorAt`); no adjustment
   needed. `ThreadHost`/`ThreadHostCubit` not wired into production screens (UNIT 11/12). Ready for
   UNIT 11.
+
+- 2026-08-14 — **Manager review: UNIT 10 ACCEPTED.** This is the most concurrency-delicate unit in the
+  plan, so I read `thread_host_cubit.dart` line by line and traced through the exact race the
+  architecture doc's §8.4 warns about by hand: two selects issued back-to-back both chain onto the
+  *same* `_switchTail` future, so the second's body cannot begin executing — and therefore cannot read
+  `_roomCubit` — until the first's chained callback (including its `await old.close()`) has fully
+  resolved; a truly concurrent `select()` issued while an earlier one is mid-`await old.close()` is
+  provably blocked the same way, since it chains onto the tail that earlier call already reassigned.
+  This means no caller can ever observe `_roomCubit == null` concurrently with another call's teardown
+  in flight — exactly the guarantee D23 requires, and exactly why a keyed `BlocProvider` (which cannot
+  await `dispose`) cannot do this job. Confirmed the two generation checks correctly bracket the
+  awaited close (before starting it and after it returns), so a call that goes stale while waiting on
+  the tail still bails out without touching state. Confirmed `close()` invalidates the generation via
+  its own `emit` before awaiting `_switchTail` then the owned cubit, matching the plan's specified
+  teardown order. Read `thread_host_state.dart` and `thread_host.dart` — both are minimal and correct:
+  the widget uses `BlocProvider.value` (never `create:`), never a keyed provider, and shows the
+  adaptive spinner while `switching`. Read the test file in detail and confirmed it genuinely proves
+  ordering rather than just asserting eventual state: "does not construct next cubit until previous
+  close completes" checks `recorder.created` has length 1 *before* completing the first close and only
+  advances after; "host close awaits owned cubit close flush" awaits a zero-duration delay mid-`close()`
+  and asserts the host's own close has *not* yet resolved while the owned cubit's `closeCallCount == 1`,
+  which is a real blocking-order proof, not a race-prone eventual check. Independently reran codegen
+  (clean), the scoped test (6 passed), lints (103/103, correctly matching the UNIT-09-lowered baseline
+  with no new debt), both `rg` gates, and the full client suite (2272 passed, 18 skipped, zero
+  regressions). Proceeding to UNIT 11 (nested beacon-view route host + real thread detail page — the
+  actual wiring point for everything built in UNITs 05–10, still not activated for navigation until
+  UNIT 12).
