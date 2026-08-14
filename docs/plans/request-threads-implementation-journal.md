@@ -57,7 +57,7 @@ None of the above overlap any UNIT 01–14 file list except the noted `docs/READ
 | 06 | Thread-keyed watermark store + client `markThreadSeen` | accepted (3 sessions, 2 killed) | 81824ba22, 36a99f6ac, 3abef3470, 37ccd5a42, 19bb6c2a4, 52d57d49c, 22ec62ac3, 6e0de9147 |
 | 07 | Extract ticker, move `ItemCard` (no behavior change) | accepted | 4cdb76ae9, ea4cf7bf5, 33ea2b509 |
 | 08 | `ThreadsCubit` latest-wins state | accepted | 74bb22aa4, 7a04e6385, 38bb78161, 5ec9eec02 |
-| 09 | Boxed Threads list + evolved `ItemCard` (unused) | pending | |
+| 09 | Boxed Threads list + evolved `ItemCard` (unused) | accepted | c5543c633, 815762981, 022feb731, 20754c690, ec171c43a |
 | 10 | Shared thread host, awaited cubit handoff | pending | |
 | 11 | Nested route host + real thread detail page (unused) | pending | |
 | 12 | Atomic Threads activation + legacy removal | pending | |
@@ -375,3 +375,25 @@ None yet.
   12, likely a setUp/tearDown line counted differently, not a discrepancy in coverage), lints (106/106),
   both `rg` gates, and the full client suite (2253 passed, 18 skipped, zero regressions). Proceeding to
   UNIT 09 (boxed Threads list + evolved `ItemCard`, still not activated in production).
+
+- 2026-08-14 — **UNIT 09 worker checkpoints:**
+  - `c5543c633` — `RelativeTimestampTicker`, `thread_accordion_sections.dart`,
+    `thread_message_preview_presenter.dart` (exhaustive preview kinds 0–9).
+  - `815762981` — evolved `ItemCard` for `RequestThread` + `ItemCard.semantic`
+    adapter for `items_tab.dart`.
+  - `022feb731` — boxed `ThreadsList` (General → Active → Closed → Drafts).
+  - `20754c690` — l10n keys, `TestIds.requestThread`, client `6.0.2` +
+    cache-buster.
+  - `ec171c43a` — `threads_list_test.dart` (9 cases) + four ItemCard goldens.
+
+- 2026-08-14 — **UNIT 09 complete.** Verify: `flutter test
+  test/features/beacon_threads/threads_list_test.dart` (9 passed), `flutter test
+  test/features/beacon_threads/item_card_golden_test.dart` (4 passed),
+  `./scripts/check-custom-lints.sh packages/client` (103/103, down from 106 —
+  item_card token cleanup), `! rg SliverList|ListView threads_list.dart` (empty),
+  version/cache-buster `6.0.2` in `pubspec.yaml` + `web/index.html`, full
+  `flutter test` (2266 passed, 18 skipped). Visual golden inspection: collapsed
+  light/dark show General + semantic rows with readable hierarchy, badges, and
+  preview lines; expanded light/dark show full semantic body + show-more toggle
+  with no clipping. `ThreadsList`/`ItemCard` are not wired into production
+  screens yet (UNIT 11/12). Ready for UNIT 10.
