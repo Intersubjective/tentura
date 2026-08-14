@@ -5,6 +5,7 @@ import 'package:get_it/get_it.dart';
 import 'package:logging/logging.dart';
 
 import 'package:tentura/domain/contacts/contact_name_store.dart';
+import 'package:tentura/domain/entity/availability.dart';
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/env.dart';
@@ -25,28 +26,15 @@ import '../../ui/effect/fake_ui_effect_port.dart';
 import '../../support/test_realtime_sync.dart';
 import '../block/support/controllable_block_case.dart';
 
-/// Simulates route pop disposing the cubit when [NavigateBack] fires.
-class _NavigateBackClosesCubitPort extends FakeUiEffectPort {
-  _NavigateBackClosesCubitPort(this._cubitProvider);
-
-  final ForwardCubit Function() _cubitProvider;
-
-  @override
-  void emit(UiEffect effect) {
-    super.emit(effect);
-    if (effect is NavigateBack) {
-      unawaited(_cubitProvider().close());
-    }
-  }
-}
-
 class _LiveSyncForwardRepository implements ForwardRepository {
   _LiveSyncForwardRepository({
     this.candidates = const [],
   });
 
-  final List<Profile> candidates;
+  List<Profile> candidates;
   int fetchForwardCandidatesCalls = 0;
+  int forwardBeaconCalls = 0;
+  Map<String, String>? lastPerRecipientNotes;
 
   final _forwardChanges = StreamController<String>.broadcast();
 
@@ -94,6 +82,8 @@ class _LiveSyncForwardRepository implements ForwardRepository {
     Map<String, ({String? tier, bool isExploration})>?
     recipientBandProvenance,
   }) async {
+    forwardBeaconCalls++;
+    lastPerRecipientNotes = perRecipientNotes;
     if (!_forwardChanges.isClosed) {
       emitForwardCompleted(beaconId);
     }
@@ -253,7 +243,7 @@ void main() {
     );
 
     test(
-      'forward navigates back without surfacing cubit-close errors',
+      'forward stays on screen after send with delivery',
       () async {
         final harness = await _buildForwardCaseHarness();
         addTearDown(() async {
@@ -265,9 +255,8 @@ void main() {
           await harness.store.dispose();
         });
 
-        late ForwardCubit cubit;
-        final effects = _NavigateBackClosesCubitPort(() => cubit);
-        cubit = ForwardCubit(
+        final effects = FakeUiEffectPort();
+        final cubit = ForwardCubit(
           beaconId: 'b1',
           forwardCase: harness.forwardCase,
           effects: effects,
@@ -275,9 +264,11 @@ void main() {
         addTearDown(cubit.close);
 
         await cubit.stream.firstWhere((s) => s.candidates.isNotEmpty);
+        final filterBefore = cubit.state.activeFilter;
         cubit.emit(
           cubit.state.copyWith(
             selectedIds: {'u-bob'},
+            perRecipientNotes: {'u-bob': 'personal'},
             beacon:
                 cubit.state.beacon ??
                 Beacon.empty.copyWith(id: 'b1', status: BeaconStatus.open),
@@ -290,8 +281,109 @@ void main() {
         final showMessage = effects.emitted.whereType<ShowMessage>().single;
         expect(showMessage.message, isA<ForwardSentMessage>());
         expect((showMessage.message as ForwardSentMessage).count, 1);
-        expect(effects.emitted.whereType<NavigateBack>(), hasLength(1));
+        expect(effects.emitted.whereType<NavigateBack>(), isEmpty);
         expect(effects.emitted.whereType<ShowError>(), isEmpty);
+        expect(cubit.state.activeFilter, ForwardFilter.alreadyInvolved);
+        expect(cubit.state.activeFilter, isNot(filterBefore));
+        expect(cubit.state.lastDeliveredRecipientIds, ['u-bob']);
+        expect(cubit.state.selectedIds, isEmpty);
+        expect(cubit.state.perRecipientNotes, isEmpty);
+        expect(cubit.state.skippedPersonalNoteIds, isEmpty);
+        expect(cubit.state.note, isEmpty);
+      },
+    );
+
+    test(
+      'all-paused early return emits no NavigateBack and keeps activeFilter',
+      () async {
+        final pausedUntil = DateTime.utc(2026, 8, 20);
+        final harness = await _buildForwardCaseHarness();
+        harness.forwardRepo.candidates = [
+          Profile(
+            id: 'u-paused',
+            displayName: 'Paused',
+            rScore: 1,
+            score: 1,
+            availability: Availability(resumeOn: pausedUntil),
+          ),
+        ];
+        addTearDown(() async {
+          await harness.forwardRepo.dispose();
+          await harness.contactsCase.dispose();
+          if (GetIt.I.isRegistered<ContactNameStore>()) {
+            await GetIt.I.unregister<ContactNameStore>();
+          }
+          await harness.store.dispose();
+        });
+
+        final effects = FakeUiEffectPort();
+        final cubit = ForwardCubit(
+          beaconId: 'b1',
+          forwardCase: harness.forwardCase,
+          effects: effects,
+          clock: () => DateTime.utc(2026, 8, 14),
+          initialSelectedIds: {'u-paused'},
+        );
+        addTearDown(cubit.close);
+
+        await cubit.stream.firstWhere((s) => s.candidates.isNotEmpty);
+        final filterBefore = cubit.state.activeFilter;
+        cubit.emit(
+          cubit.state.copyWith(
+            selectedIds: {'u-paused'},
+            perRecipientNotes: {'u-paused': 'note'},
+            beacon:
+                cubit.state.beacon ??
+                Beacon.empty.copyWith(id: 'b1', status: BeaconStatus.open),
+          ),
+        );
+
+        final ok = await cubit.forward();
+
+        expect(ok, isTrue);
+        expect(harness.forwardRepo.forwardBeaconCalls, 0);
+        expect(effects.emitted.whereType<NavigateBack>(), isEmpty);
+        expect(cubit.state.activeFilter, filterBefore);
+        expect(cubit.state.lastDeliveredRecipientIds, isEmpty);
+      },
+    );
+
+    test(
+      'skipped personal note id is omitted from forwardBeacon perRecipientNotes',
+      () async {
+        final harness = await _buildForwardCaseHarness();
+        addTearDown(() async {
+          await harness.forwardRepo.dispose();
+          await harness.contactsCase.dispose();
+          if (GetIt.I.isRegistered<ContactNameStore>()) {
+            await GetIt.I.unregister<ContactNameStore>();
+          }
+          await harness.store.dispose();
+        });
+
+        final cubit = ForwardCubit(
+          beaconId: 'b1',
+          forwardCase: harness.forwardCase,
+          effects: FakeUiEffectPort(),
+        );
+        addTearDown(cubit.close);
+
+        await cubit.stream.firstWhere((s) => s.candidates.isNotEmpty);
+        cubit.emit(
+          cubit.state.copyWith(
+            selectedIds: {'u-bob'},
+            perRecipientNotes: {'u-bob': 'leftover typed note'},
+            beacon:
+                cubit.state.beacon ??
+                Beacon.empty.copyWith(id: 'b1', status: BeaconStatus.open),
+          ),
+        );
+        cubit.skipPersonalNote('u-bob');
+
+        await cubit.forward();
+
+        expect(harness.forwardRepo.forwardBeaconCalls, 1);
+        expect(harness.forwardRepo.lastPerRecipientNotes, isNull);
       },
     );
 

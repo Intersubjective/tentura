@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/widgets.dart';
-import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import 'package:get_it/get_it.dart';
 
@@ -12,6 +11,7 @@ import 'package:tentura/ui/effect/ui_effect_port.dart';
 
 import '../../domain/entity/forward_delivery_result.dart';
 import '../../domain/entity/forward_inbound_source.dart';
+import '../../domain/forward_draft_policy.dart';
 import '../../domain/use_case/forward_case.dart';
 import '../../domain/entity/forward_candidate.dart';
 import '../../domain/exception.dart';
@@ -539,6 +539,18 @@ class ForwardCubit extends Cubit<ForwardState> {
     emit(state.copyWith(perRecipientNotes: next));
   }
 
+  void skipPersonalNote(String userId) {
+    if (state.skippedPersonalNoteIds.contains(userId)) return;
+    final next = Set<String>.from(state.skippedPersonalNoteIds)..add(userId);
+    emit(state.copyWith(skippedPersonalNoteIds: next));
+  }
+
+  void restorePersonalNote(String userId) {
+    if (!state.skippedPersonalNoteIds.contains(userId)) return;
+    final next = Set<String>.from(state.skippedPersonalNoteIds)..remove(userId);
+    emit(state.copyWith(skippedPersonalNoteIds: next));
+  }
+
   void startEditForward(String recipientId) {
     final candidate = _findCandidate(recipientId);
     if (candidate == null) return;
@@ -574,7 +586,7 @@ class ForwardCubit extends Cubit<ForwardState> {
         reasonSlugs: state.editReasons,
       );
       emit(state.copyWith(editingRecipientId: null));
-      await _loadCandidates();
+      await reloadCandidates(forceReload: true);
     } catch (e) {
       _emitSnackError(e);
     }
@@ -597,7 +609,7 @@ class ForwardCubit extends Cubit<ForwardState> {
         );
         return;
       }
-      await _loadCandidates();
+      await reloadCandidates(forceReload: true);
     } catch (e) {
       _emitSnackError(e);
     }
@@ -618,11 +630,13 @@ class ForwardCubit extends Cubit<ForwardState> {
       return false;
     }
     final beacon = state.beacon;
-    if (beacon == null || beacon.status != BeaconStatus.open) {
-      _emitSnackError(
-        Exception('Forwarding is only available while the request is open'),
-      );
-      return false;
+    if (!embedded) {
+      if (beacon == null || !beacon.allowsForward) {
+        _emitSnackError(
+          Exception('Forwarding is only available while the request is open'),
+        );
+        return false;
+      }
     }
 
     final todayUtc = _todayUtc();
@@ -659,6 +673,14 @@ class ForwardCubit extends Cubit<ForwardState> {
       return false;
     }
 
+    if (uncoveredRecipientIds(
+      selectedIds: state.selectedIds,
+      perRecipientNotes: state.perRecipientNotes,
+      skippedPersonalNoteIds: state.skippedPersonalNoteIds,
+    ).isNotEmpty) {
+      return false;
+    }
+
     final localAvailabilitySkipped = <String>[];
     final recipientIdsToSend = <String>[];
     for (final id in requestedRecipientIds) {
@@ -692,13 +714,15 @@ class ForwardCubit extends Cubit<ForwardState> {
         }
         if (!embedded) {
           _emitDeliveryMessage(outcome);
-          _emitNavigateBack(result: true);
         }
         return true;
       }
 
       final perNotes = <String, String>{};
       for (final id in recipientIdsToSend) {
+        if (state.skippedPersonalNoteIds.contains(id)) {
+          continue;
+        }
         final personal = state.perRecipientNotes[id];
         if (personal != null && personal.trim().isNotEmpty) {
           perNotes[id] = personal.trim();
@@ -749,7 +773,21 @@ class ForwardCubit extends Cubit<ForwardState> {
       }
       if (!embedded) {
         _emitDeliveryMessage(outcome);
-        _emitNavigateBack(result: true);
+      }
+      if (outcome.deliveredRecipientIds.isNotEmpty) {
+        await reloadCandidates(forceReload: true);
+        if (!isClosed) {
+          emit(
+            state.copyWith(
+              activeFilter: ForwardFilter.alreadyInvolved,
+              lastDeliveredRecipientIds: outcome.deliveredRecipientIds,
+              selectedIds: {},
+              perRecipientNotes: {},
+              skippedPersonalNoteIds: {},
+              note: '',
+            ),
+          );
+        }
       }
       return true;
     } catch (e) {

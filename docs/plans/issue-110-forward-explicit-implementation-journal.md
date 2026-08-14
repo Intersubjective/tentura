@@ -94,7 +94,7 @@ None triggered.
 - [x] **02** Server `cancelForward` honours `recipientRejected`
 - [x] **03** `MyForwardRecipient` hasOnwardChild + recipientRejected
 - [x] **04** Map flags onto `ForwardCandidate` / `ForwardLoad`
-- [ ] **05** `ForwardCubit` session: skip, wire, stay, force-reload
+- [x] **05** `ForwardCubit` session: skip, wire, stay, force-reload
 - [ ] **06** Picker: skip, sheet, controllers, D14 chrome
 - [ ] **07** Location toast + Watching intent on `HomeTabReselectCubit`
 - [ ] **08** Inbox consumes Watching intent; D15
@@ -181,12 +181,16 @@ frozen contract, stop that unit with `BLOCKED` instead of improvising.
   Independent: server involvement 7 passed; client map 9 passed.
   `hasOnwardChild`/`recipientRejected` are non-null on GQL + schema.
   No migration. UNIT 04 authorized.
+- 2026-08-14 manager: **UNIT 04 accepted**. Commit `ea8d64f41`
+  (`feat: plumb forward cancel and toast flags`). Independent 28 tests passed.
+  Candidate mapping and ForwardLoad viewer flags match D14/D9 plumbing.
+  UNIT 05 authorized.
 - 2026-08-14 worker: **UNIT 03 complete**. Commits `9efb6902c`
   (`feat(server): add hasOnwardChild and recipientRejected to MyForwardRecipient`),
   `fa8c2b950` (`feat(client): map involvement cancel flags`). Server:
   `childParentIds` computed in-memory from fetched edges; client typedef extended
   with two `Map<String, bool>` fields. UNIT 04 authorized.
-- 2026-08-14 worker: **UNIT 04 complete**. Commit `48e12886d`
+- 2026-08-14 worker: **UNIT 04 complete**. See `git log -1`
   (`feat: plumb forward cancel and toast flags`).
 
 ## Unit entries
@@ -267,3 +271,16 @@ FILES:
 - `docs/plans/issue-110-forward-explicit-implementation-journal.md`
 FINDINGS: none — frozen contract matched architecture rev 3 D14 cancel/toast plumbing
 REMAINING: none — UNIT 05 may start
+
+## UNIT 05 — complete — 2026-08-14
+COMMITS: feat: keep forward screen after send (see `git log -1`)
+TESTS:
+- `cd packages/client && flutter test test/features/forward/forward_cubit_live_sync_test.dart test/features/forward/forward_cubit_candidates_load_test.dart test/features/forward/forward_cubit_edit_reasons_test.dart` → 14 passed
+- `./scripts/check-custom-lints.sh packages/client` → exit 0
+FILES:
+- `packages/client/lib/features/forward/ui/bloc/forward_state.dart`
+- `packages/client/lib/features/forward/ui/bloc/forward_cubit.dart`
+- `packages/client/test/features/forward/forward_cubit_live_sync_test.dart`
+- `docs/plans/issue-110-forward-explicit-implementation-journal.md`
+FINDINGS: none — D4/D7 stay-on-send, skip wire, and force-reload on cancel/edit match architecture rev 3
+REMAINING: none — UNIT 06 may start
