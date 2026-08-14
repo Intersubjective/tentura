@@ -29,12 +29,68 @@ import '../gql/_g/coordination_item_update_draft_blocker.data.gql.dart';
 import '../gql/_g/coordination_item_update.data.gql.dart';
 import '../gql/_g/coordination_item_remind.data.gql.dart';
 
+CoordinationItem coordinationItemFromFields({
+  required String id,
+  required String beaconId,
+  required int kind,
+  required int status,
+  required int source,
+  required bool published,
+  required String title,
+  required String body,
+  required String creatorId,
+  String? targetPersonId,
+  String? acceptedById,
+  String? targetItemId,
+  String? targetMessageId,
+  String? linkedMessageId,
+  String? linkedParentItemId,
+  required String createdAt,
+  required String updatedAt,
+  String? resolvedAt,
+  String? cancelledAt,
+  String? staleAt,
+  String? lastRemindedAt,
+  int? staleAfterDays,
+  int messageCount = 0,
+  int unreadCount = 0,
+  String? lastSeenAt,
+}) =>
+    CoordinationItem(
+      id: id,
+      beaconId: beaconId,
+      kind: CoordinationItemKind.fromInt(kind),
+      status: CoordinationItemStatus.fromInt(status),
+      source: source,
+      published: published,
+      title: title,
+      body: body,
+      creatorId: creatorId,
+      targetPersonId: targetPersonId,
+      acceptedById: acceptedById,
+      targetItemId: targetItemId,
+      targetMessageId: targetMessageId,
+      linkedMessageId: linkedMessageId,
+      linkedParentItemId: linkedParentItemId,
+      createdAt: DateTime.parse(createdAt),
+      updatedAt: DateTime.parse(updatedAt),
+      resolvedAt: resolvedAt == null ? null : DateTime.parse(resolvedAt),
+      cancelledAt: cancelledAt == null ? null : DateTime.parse(cancelledAt),
+      staleAt: staleAt == null ? null : DateTime.parse(staleAt),
+      lastRemindedAt:
+          lastRemindedAt == null ? null : DateTime.parse(lastRemindedAt),
+      staleAfterDays: staleAfterDays,
+      messageCount: messageCount,
+      unreadCount: unreadCount,
+      lastSeenAt: lastSeenAt == null ? null : DateTime.parse(lastSeenAt),
+    );
+
 extension type const CoordinationItemListModel(GCoordinationItemListData_coordinationItemsByBeacon i) implements GCoordinationItemListData_coordinationItemsByBeacon {
-  CoordinationItem toEntity() => CoordinationItem(
+  CoordinationItem toEntity() => coordinationItemFromFields(
         id: i.id,
         beaconId: i.beaconId,
-        kind: CoordinationItemKind.fromInt(i.kind),
-        status: CoordinationItemStatus.fromInt(i.status),
+        kind: i.kind,
+        status: i.status,
         source: i.source,
         published: i.published,
         title: i.title,
@@ -46,20 +102,16 @@ extension type const CoordinationItemListModel(GCoordinationItemListData_coordin
         targetMessageId: i.targetMessageId,
         linkedMessageId: i.linkedMessageId,
         linkedParentItemId: i.linkedParentItemId,
-        createdAt: DateTime.parse(i.createdAt),
-        updatedAt: DateTime.parse(i.updatedAt),
-        resolvedAt: i.resolvedAt == null ? null : DateTime.parse(i.resolvedAt!),
-        cancelledAt:
-            i.cancelledAt == null ? null : DateTime.parse(i.cancelledAt!),
-        staleAt: i.staleAt == null ? null : DateTime.parse(i.staleAt!),
-        lastRemindedAt: i.lastRemindedAt == null
-            ? null
-            : DateTime.parse(i.lastRemindedAt!),
+        createdAt: i.createdAt,
+        updatedAt: i.updatedAt,
+        resolvedAt: i.resolvedAt,
+        cancelledAt: i.cancelledAt,
+        staleAt: i.staleAt,
+        lastRemindedAt: i.lastRemindedAt,
         staleAfterDays: i.staleAfterDays,
         messageCount: i.messageCount,
         unreadCount: i.unreadCount,
-        lastSeenAt:
-            i.lastSeenAt == null ? null : DateTime.parse(i.lastSeenAt!),
+        lastSeenAt: i.lastSeenAt,
       );
 }
 
