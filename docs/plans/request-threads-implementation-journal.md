@@ -52,8 +52,8 @@ None of the above overlap any UNIT 01–14 file list except the noted `docs/READ
 | 01 | Remove resolution feature (D27), migration m0149, My Work reviews segment | accepted | 1b1a9ba69, 14e602b29, 7507dae82, 6b4e88c56, 03acdcf50, 9e3f07f10 |
 | 02 | Pure `beacon_room` → `beacon_threads` rename | accepted | 919c0dd43, 73e734710, d0aa5c736, fd1ce76d1 |
 | 03 | Server `beaconThreads` query + preview contract | accepted | 3e261f62d, 633bd3af2, fb699a834, 675d2a019, c175728e0, 5c9587abc |
-| 04 | `markThreadSeen` + persisted-watermark fix | complete (awaiting manager) | 4f212fbe4, 6092a70f1, 7bf09b117, a596ebb53, fc0456e69, cfee6c9bc |
-| 05 | Client thread contract/mapping/repo/case (unused) | pending | |
+| 04 | `markThreadSeen` + persisted-watermark fix | accepted | 4f212fbe4, 6092a70f1, 7bf09b117, a596ebb53, fc0456e69, cfee6c9bc, 557ebbe3b |
+| 05 | Client thread contract/mapping/repo/case (unused) | complete (awaiting manager) | 686d307c7, 6c7731926, ed9278341, 0fe1dd2f9, ed67aa65c |
 | 06 | Thread-keyed watermark store + client `markThreadSeen` | pending | |
 | 07 | Extract ticker, move `ItemCard` (no behavior change) | pending | |
 | 08 | `ThreadsCubit` latest-wins state | pending | |
@@ -192,3 +192,41 @@ None yet.
   `./scripts/check-custom-lints.sh packages/server` (0/0), `rg RETURNING last_seen_at` (2 hits in
   `beacon_room_repository.dart`), both `ON CONFLICT` partial-index predicate `rg` gates present.
   Ready for manager review / UNIT 05.
+
+- 2026-08-14 — **Manager review: UNIT 04 ACCEPTED.** Read the actual repository diff line by line: both
+  `GREATEST` expressions and both `ON CONFLICT (...) WHERE thread_item_id IS [NOT] NULL` inference
+  predicates are byte-identical to before, only `RETURNING last_seen_at` was appended and the read
+  switched from `customStatement`/`Future<void>` to `customSelect().getSingle()`/`Future<DateTime>`
+  (`DateTime.parse(row.read<String>('last_seen_at'))`, matching an existing precedent elsewhere in the
+  server for reading `RETURNING timestamptz` via Drift). Read the case-layer diff: `markBeaconRoomSeen`'s
+  existing General clamp/floor and semantic `_rejectPlanItemThread`/`_canAccessThread` branches are
+  completely untouched — only the final returned value changed from the submitted `at` to the
+  repository's `persistedAt`; the new `markThreadSeen` wrapper does the `'general'` → `null` translation
+  in exactly one place and then delegates to the unchanged method, so the literal string `'general'`
+  provably never reaches `_canAccessThread` or `_rejectPlanItemThread`. Confirmed both legacy GraphQL
+  fields (`beaconParticipantRoomSeen`, `markBeaconRoomSeen`) remain registered alongside the new
+  `markThreadSeen` — nothing was prematurely removed (that's UNIT 12's job). Independently reran (not
+  just trusted the worker): the mark-seen domain test (8 passed, including the new sentinel-translation
+  and asymmetry-preservation cases), the PG upsert test against the locally reachable Postgres (3
+  passed, including the specific stale-write-returns-newer-stored-value regression this unit exists to
+  fix), the full server suite (1509 passed), `check-custom-lints.sh packages/server` (0/0), and confirmed
+  both `ON CONFLICT` predicates and both `RETURNING last_seen_at` occurrences directly in the file (one
+  of my own verification `rg -U` multiline-flag invocations produced a false negative on this recheck —
+  a quirk of combining `-U` with `\s+` in my own ad hoc command, not a defect in the worker's code; a
+  plain non-multiline `rg` immediately confirmed both predicates present and unchanged). `docs/contracts/*.json`
+  correctly left untouched this time. Proceeding to UNIT 05 (client thread contract/mapping/repo/case,
+  not yet wired to any screen).
+
+- 2026-08-14 — UNIT 05 worker: mirrored live UNIT 03 server contract — V2 query field `beaconThreads`
+  (camelCase, not PascalCase like `RoomMessageList`), schema types `v2_BeaconThreadRow` /
+  `v2_ThreadMessagePreview`, embedded `item` uses existing `v2_CoordinationItemRow` field list.
+  Extracted `coordinationItemFromFields` from `CoordinationItemListModel.toEntity()` so embedded thread
+  items cannot drift. Repository returns `List<RequestThread>` via `RequestThreadRowModel`; case adds
+  thin `listThreads` only (no `fetchCurrentRootPlan`). `BeaconThreadsList` registered in
+  `_tenturaDirectOperationNames`.
+
+- 2026-08-14 — UNIT 05 complete. Five commits on `main`. Verify: `request_thread_test.dart` (10
+  passed), `beacon_threads_repository_test.dart` (2 passed), `build_client_test.dart` (3 passed incl.
+  routing), `./scripts/check-custom-lints.sh packages/client` (106/106), forbidden
+  `GraphQLUnionType`/`__typename` rg empty under `beacon_threads` + `schema.graphql`, `'BeaconThreadsList'`
+  present in `build_client.dart`. Ready for manager review / UNIT 06.
