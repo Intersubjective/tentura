@@ -51,7 +51,7 @@ Duration? _parseEnvDuration(String? raw) {
 /// was released, hitting `closeBranchConflict` on every close attempt. P3.11
 /// fixes the client to read the server-provided counter instead, so this gate
 /// must exclude clients built before that fix shipped.
-const kDefaultMinClientVersion = '5.6.38';
+const kDefaultMinClientVersion = '5.13.0';
 
 class Env {
   Env({
