@@ -106,26 +106,30 @@ Future<Client> buildClient({
   );
 }
 
-/// Uploads stream large multipart bodies over potentially slow connections
-/// and must not be capped here — [V2UploadMultipartLink] already carries
-/// them unbounded today; this link must not change that. Every other
-/// operation must complete or fail within [timeout] instead of hanging the
-/// caller (and therefore the UI's loading state) forever.
+/// Operations that stream large multipart bodies over potentially slow
+/// connections and must not be capped by a fixed request timeout —
+/// [V2UploadMultipartLink] already carries them unbounded today. Shared by
+/// [_TimeoutLink] and the outer request timeout in `RemoteApiClient.request`
+/// so both caps agree on which operations are allowed to run long.
+const kUnboundedGraphQLOperationNames = {
+  'BeaconAddImage',
+  'BeaconStageImage',
+  'BeaconSetMedia',
+};
+
+/// Every other operation must complete or fail within [timeout] instead of
+/// hanging the caller (and therefore the UI's loading state) forever.
 class _TimeoutLink extends Link {
   _TimeoutLink(this.timeout);
 
   final Duration timeout;
 
-  static const _unboundedOperationNames = {
-    'BeaconAddImage',
-    'BeaconStageImage',
-    'BeaconSetMedia',
-  };
-
   @override
   Stream<Response> request(Request request, [NextLink? forward]) {
     final stream = forward!(request);
-    if (_unboundedOperationNames.contains(request.operation.operationName)) {
+    if (kUnboundedGraphQLOperationNames.contains(
+      request.operation.operationName,
+    )) {
       return stream;
     }
     return stream.timeout(

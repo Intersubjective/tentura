@@ -4,6 +4,7 @@ import 'package:ferry/ferry.dart'
     show Client, OperationRequest, OperationResponse;
 
 import 'auth_box.dart';
+import 'auth_loss_classifier.dart';
 import 'build_client.dart';
 import 'exception.dart';
 import 'remote_api_client_base.dart';
@@ -84,7 +85,29 @@ abstract base class RemoteApiClient extends RemoteApiClientBase {
       OperationRequest<TData, TVars>,
     )?
     forward,
-  ]) =>
-      _gqlClient?.request(request) ??
-      (throw const AuthenticationNoKeyException());
+  ]) {
+    final client = _gqlClient;
+    if (client == null) {
+      throw const AuthenticationNoKeyException();
+    }
+    final stream = client.request(request);
+    if (kUnboundedGraphQLOperationNames.contains(
+      request.operation.operationName,
+    )) {
+      return stream;
+    }
+    // Ferry's own typed-link stack (RequestControllerTypedLink et al.) sits
+    // *above* our custom `link` chain, so an operation can in rare cases
+    // never reach it — leaving [_TimeoutLink]'s cap unarmed and the caller
+    // waiting forever. Bound every request here too, at the true outer edge,
+    // so a stalled operation always fails instead of hanging indefinitely.
+    return stream.timeout(
+      requestTimeout,
+      onTimeout: (sink) => sink.addError(
+        mapRemoteFailure(
+          TimeoutException('GraphQL request timed out', requestTimeout),
+        ),
+      ),
+    );
+  }
 }
