@@ -11,13 +11,11 @@ class TrailingMetaMetrics {
   const TrailingMetaMetrics({
     required this.reserveWidth,
     required this.reserveHeight,
-    required this.bodyLineHeight,
     required this.trailingGap,
   });
 
   final double reserveWidth;
   final double reserveHeight;
-  final double bodyLineHeight;
   final double trailingGap;
 }
 
@@ -36,7 +34,6 @@ bool shouldHugBubbleWidth({
 TrailingMetaMetrics computeTrailingMetaMetrics({
   required String dateLine,
   required TextStyle metaStyle,
-  required TextStyle bodyStyle,
   required double trailingGap,
   required TextDirection textDirection,
   required TextScaler textScaler,
@@ -48,20 +45,12 @@ TrailingMetaMetrics computeTrailingMetaMetrics({
     maxLines: 1,
   )..layout();
 
-  final bodyPainter = TextPainter(
-    text: TextSpan(text: 'Mg', style: bodyStyle),
-    textDirection: textDirection,
-    textScaler: textScaler,
-    maxLines: 1,
-  )..layout();
-
   final metadataStripWidth = metaPainter.width;
   final reserveWidth = trailingGap + metadataStripWidth;
 
   return TrailingMetaMetrics(
     reserveWidth: reserveWidth,
     reserveHeight: metaPainter.height,
-    bodyLineHeight: bodyPainter.height,
     trailingGap: trailingGap,
   );
 }
@@ -194,21 +183,15 @@ TextSpan buildRoomMessageAnnotatedBodySpan({
 }
 
 InlineSpan buildTrailingMetaWidgetSpan({
-  required String dateLine,
-  required TextStyle metaStyle,
   required TrailingMetaMetrics metrics,
 }) {
   return WidgetSpan(
-    alignment: PlaceholderAlignment.baseline,
-    baseline: TextBaseline.alphabetic,
-    child: SizedBox(
-      width: metrics.reserveWidth,
-      height: metrics.bodyLineHeight,
-      child: Align(
-        alignment: Alignment.bottomRight,
-        child: Padding(
-          padding: EdgeInsetsDirectional.only(start: metrics.trailingGap),
-          child: Text(dateLine, style: metaStyle),
+    alignment: PlaceholderAlignment.bottom,
+    child: ExcludeSemantics(
+      child: IgnorePointer(
+        child: SizedBox(
+          width: metrics.reserveWidth,
+          height: metrics.reserveHeight,
         ),
       ),
     ),
@@ -219,8 +202,6 @@ TextSpan buildMessageTextSpanWithTrailingMeta({
   required String display,
   required TextStyle bodyStyle,
   required List<Annotation>? mentionAnnotations,
-  required String dateLine,
-  required TextStyle metaStyle,
   required TrailingMetaMetrics metrics,
 }) {
   final body = buildRoomMessageAnnotatedBodySpan(
@@ -232,11 +213,7 @@ TextSpan buildMessageTextSpanWithTrailingMeta({
     style: bodyStyle,
     children: [
       body,
-      buildTrailingMetaWidgetSpan(
-        dateLine: dateLine,
-        metaStyle: metaStyle,
-        metrics: metrics,
-      ),
+      buildTrailingMetaWidgetSpan(metrics: metrics),
     ],
   );
 }

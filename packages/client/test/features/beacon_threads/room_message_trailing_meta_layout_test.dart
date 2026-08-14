@@ -9,6 +9,25 @@ import 'package:tentura/ui/widget/url_link_annotations.dart';
 ({String text, Color? color, bool hasRecognizer}) _leaf(TextSpan s) =>
     (text: s.text!, color: s.style?.color, hasRecognizer: s.recognizer != null);
 
+SizedBox? _findSizedBoxDeep(Widget widget) {
+  if (widget is SizedBox) {
+    return widget;
+  }
+  if (widget is ExcludeSemantics) {
+    final child = widget.child;
+    if (child != null) {
+      return _findSizedBoxDeep(child);
+    }
+  }
+  if (widget is IgnorePointer) {
+    final child = widget.child;
+    if (child != null) {
+      return _findSizedBoxDeep(child);
+    }
+  }
+  return null;
+}
+
 List<({String text, Color? color, bool hasRecognizer})> _flattenLeaves(
   InlineSpan span,
 ) {
@@ -109,14 +128,12 @@ void main() {
       final m = computeTrailingMetaMetrics(
         dateLine: '12:34',
         metaStyle: metaStyle,
-        bodyStyle: bodyStyle,
         trailingGap: 4,
         textDirection: textDirection,
         textScaler: textScaler,
       );
       expect(m.reserveWidth, greaterThan(0));
       expect(m.reserveHeight, greaterThan(0));
-      expect(m.bodyLineHeight, greaterThan(0));
       expect(m.trailingGap, 4.0);
     });
 
@@ -124,7 +141,6 @@ void main() {
       final bare = computeTrailingMetaMetrics(
         dateLine: '12:34',
         metaStyle: metaStyle,
-        bodyStyle: bodyStyle,
         trailingGap: 4,
         textDirection: textDirection,
         textScaler: textScaler,
@@ -132,12 +148,42 @@ void main() {
       final edited = computeTrailingMetaMetrics(
         dateLine: '12:34 · edited',
         metaStyle: metaStyle,
-        bodyStyle: bodyStyle,
         trailingGap: 4,
         textDirection: textDirection,
         textScaler: textScaler,
       );
       expect(edited.reserveWidth, greaterThan(bare.reserveWidth));
+    });
+  });
+
+  group('buildTrailingMetaWidgetSpan', () {
+    test('skip span reserves date height without visible text', () {
+      final metrics = computeTrailingMetaMetrics(
+        dateLine: '12:34',
+        metaStyle: metaStyle,
+        trailingGap: 4,
+        textDirection: textDirection,
+        textScaler: textScaler,
+      );
+      final span = buildTrailingMetaWidgetSpan(metrics: metrics);
+      expect(span, isA<WidgetSpan>());
+
+      final widgetSpan = span as WidgetSpan;
+      expect(widgetSpan.alignment, PlaceholderAlignment.bottom);
+
+      final sizedBox = _findSizedBoxDeep(widgetSpan.child);
+      expect(sizedBox, isNotNull);
+      expect(sizedBox!.width, metrics.reserveWidth);
+      expect(sizedBox.height, metrics.reserveHeight);
+
+      final fullSpan = buildMessageTextSpanWithTrailingMeta(
+        display: 'Hi',
+        bodyStyle: bodyStyle,
+        mentionAnnotations: null,
+        metrics: metrics,
+      );
+      final leaves = _flattenLeaves(fullSpan);
+      expect(leaves.any((leaf) => leaf.text.contains('12:34')), isFalse);
     });
   });
 
@@ -149,7 +195,6 @@ void main() {
       final metrics = computeTrailingMetaMetrics(
         dateLine: dateLine,
         metaStyle: metaStyle,
-        bodyStyle: bodyStyle,
         trailingGap: trailingGap,
         textDirection: textDirection,
         textScaler: textScaler,
@@ -187,7 +232,6 @@ void main() {
       final metrics = computeTrailingMetaMetrics(
         dateLine: dateLine,
         metaStyle: metaStyle,
-        bodyStyle: bodyStyle,
         trailingGap: 4,
         textDirection: textDirection,
         textScaler: textScaler,
@@ -397,7 +441,6 @@ void main() {
       final metrics = computeTrailingMetaMetrics(
         dateLine: '12:34',
         metaStyle: metaStyle,
-        bodyStyle: bodyStyle,
         trailingGap: 4,
         textDirection: textDirection,
         textScaler: textScaler,

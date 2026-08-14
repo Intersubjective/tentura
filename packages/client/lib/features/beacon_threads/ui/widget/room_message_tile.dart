@@ -676,7 +676,9 @@ class RoomMessageTile extends StatelessWidget {
         mediaContentWidth = attachment.width.toDouble();
       }
     }
-    final bodyStyle = ShowMoreText.buildTextStyle(context);
+    final bodyStyle = ShowMoreText.buildTextStyle(context).copyWith(
+      height: theme.textTheme.bodyMedium?.height,
+    );
     final metaStyle = theme.textTheme.labelSmall ?? const TextStyle();
     final trailingGap = tt.iconTextGap / 2;
     final textDirection = Directionality.of(context);
@@ -685,7 +687,6 @@ class RoomMessageTile extends StatelessWidget {
         ? computeTrailingMetaMetrics(
             dateLine: dateLine,
             metaStyle: metaStyle,
-            bodyStyle: bodyStyle,
             trailingGap: trailingGap,
             textDirection: textDirection,
             textScaler: textScaler,

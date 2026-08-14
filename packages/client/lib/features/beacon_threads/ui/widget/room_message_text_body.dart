@@ -36,18 +36,32 @@ class RoomMessageTextBody extends StatelessWidget {
       display: display,
       bodyStyle: bodyStyle,
       mentionAnnotations: mentionAnnotations,
-      dateLine: dateLine,
-      metaStyle: metaStyle,
       metrics: metrics,
     );
 
-    return Text.rich(
-      span,
-      textAlign: textAlign,
-      textDirection: textDirection,
-      softWrap: true,
-      textScaler: textScaler,
-      locale: locale,
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        Text.rich(
+          span,
+          textAlign: textAlign,
+          textDirection: textDirection,
+          softWrap: true,
+          textScaler: textScaler,
+          locale: locale,
+        ),
+        PositionedDirectional(
+          end: 0,
+          bottom: 0,
+          child: Text(
+            dateLine,
+            style: metaStyle,
+            textDirection: textDirection,
+            textScaler: textScaler,
+            locale: locale,
+          ),
+        ),
+      ],
     );
   }
 }
