@@ -61,7 +61,7 @@ None of the above overlap any UNIT 01–14 file list except the noted `docs/READ
 | 10 | Shared thread host, awaited cubit handoff | accepted | 6b9e6cb53, 9024be979, 5e3cd9965, a18f142cd, c6f8dcc57 |
 | 11 | Nested route host + real thread detail page (unused) | accepted | 704679c3d, 2d55720af, 00791ce0f, 9ea39907c, ffc091e3f, d8a58c9b8, f578c4861 |
 | 12 | Atomic Threads activation + legacy removal | accepted | 12d822607, 6f6c47461, 4557d3ac9, b1f2b4023, b23227ae2, fb10fc3e9, 1174a4016, ac3f0096e |
-| 13 | D28 copy/glossary/docs sweep | pending | |
+| 13 | D28 copy/glossary/docs sweep | accepted | 899b3cbe4, a28c70006, 56163038b, 0eeedc870, 04b3b24bd |
 | 14 | Final adaptive integration + QA | pending | |
 
 ## Acceptance / verification commands
@@ -613,3 +613,29 @@ None yet.
   committed by the worker itself this time, learning from the UNIT 09 gap I had to fix manually), and
   `check-user-facing-terminology.sh` (ok). No defects found. Proceeding to UNIT 13 (the D28 "Chat" →
   General/Threads/discussion copy sweep).
+
+- 2026-08-14 — UNIT 13: `899b3cbe4` glossary — terminology.mdc, AGENTS.md, CONTEXT.md
+  (discussion workspace; thread/General outside table).
+
+- 2026-08-14 — UNIT 13: `a28c70006` ARB three-sense sweep (~60 EN keys); delete
+  `labelBeaconTabRoom`/`labelBeaconTabItems`/`coordinationItemDiscussionTitle`; reword
+  discussion→thread keys; Dart call sites (`threadTitleFallback`, `labelBeaconTabThreads`).
+
+- 2026-08-14 — UNIT 13: `56163038b` server notification/error copy (discussion vs thread
+  senses); message mutation test name alignment.
+
+- 2026-08-14 — UNIT 13: `0eeedc870` normative `beacon_room.md` Threads spec; README
+  pointers; landing onboarding discussion copy (preserved availability plan row).
+
+- 2026-08-14 — UNIT 13: `04b3b24bd` client `6.1.1` + web cache-buster; `kDefaultMinClientVersion`
+  unchanged.
+
+- 2026-08-14 — **UNIT 13 complete.** Verify: server scoped tests (75 passed across four files);
+  EN jq Chat matcher empty; RU jq allowlist =
+  `availabilityDeliveredPartialMany,availabilityResumeEcho,beaconCloseSheetReadyReviewBody,beaconForwardPersonUnreachable,beaconItemsActiveForMeFilterSemantics,beaconNeedsHelper,beaconRecipients,beaconRecipientsBlockedBannerBody,beaconRecipientsPreselectDropped,beaconSendRequestBlockedRecipients,buttonStart,coordinationComposerNoTargetWillSaveDraft,coordinationComposerTargetGuidance,coordinationComposerTargetNone,forwardOverlaySearchHint,notificationQuietHoursEnable,selectRecipients`;
+  docs/landing/server-notification `rg` gates clean; `notificationCatUnblocksMe` survivors intact;
+  `6.1.1` pubspec + cache-buster; `check-user-facing-terminology.sh` ok; custom lints client 93/93
+  server 0/0; full `flutter test` (exit 0); server `dart test --exclude-tags pg` (1509 passed).
+  Decision: RU `availabilityUnaffectedNote`/`availabilityPauseSectionDescription` used «открытые»
+  and «адресатов» to avoid `/чат/i` false positives from «начатые»/«получателей» substrings while
+  keeping discussion sense. Ready for UNIT 14.
