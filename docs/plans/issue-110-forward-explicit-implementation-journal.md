@@ -96,7 +96,7 @@ None triggered.
 - [x] **04** Map flags onto `ForwardCandidate` / `ForwardLoad`
 - [x] **05** `ForwardCubit` session: skip, wire, stay, force-reload
 - [x] **06** Picker: skip, sheet, controllers, D14 chrome
-- [ ] **07** Location toast + Watching intent on `HomeTabReselectCubit`
+- [x] **07** Location toast + Watching intent on `HomeTabReselectCubit`
 - [ ] **08** Inbox consumes Watching intent; D15
 - [ ] **09** D13 offer-help snapshot on Inbox + BeaconView
 - [ ] **10** CTA inventory (`allowsForward`)
@@ -190,6 +190,11 @@ frozen contract, stop that unit with `BLOCKED` instead of improvising.
   No `NavigateBack` from `forward()`; unused `_emitNavigateBack` remains
   (delete in UNIT 07 when touching the cubit). Embedded skips `allowsForward`
   refuse. Skip omits keys. Force-reload on cancel/edit. UNIT 06 authorized.
+- 2026-08-14 manager: **UNIT 06 accepted**. Commit `d69eb0afb`
+  (`feat: explicit personal-note skip on forward`). Independent 39 widget tests
+  passed. Skip/restore, uncovered sheet (empty shared primary disabled),
+  D14 cancel chrome, D8 composer hide wired (plan line ~355 was lineage/band,
+  not composer — live fix). UNIT 07 authorized.
   (`feat(server): add hasOnwardChild and recipientRejected to MyForwardRecipient`),
   `fa8c2b950` (`feat(client): map involvement cancel flags`). Server:
   `childParentIds` computed in-memory from fetched edges; client typedef extended
@@ -305,3 +310,63 @@ FILES:
 - `docs/plans/issue-110-forward-explicit-implementation-journal.md`
 FINDINGS: D8 composer hide was not yet wired in picker (only lineage/band used `alreadyInvolved`); added `if (activeFilter != alreadyInvolved)` around `ForwardBottomComposer`. Uncovered sheet resolves coverage by adding ids to `skippedPersonalNoteIds` before send (shared-note primary path also calls `setNote`).
 REMAINING: none — UNIT 07 may start
+
+## UNIT 07 — complete — 2026-08-14
+COMMITS: `cd2501f90` feat: forward location toast opens Inbox Watching
+TESTS:
+- `cd packages/client && dart run build_runner build -d` → exit 0
+- `cd packages/client && flutter test test/features/forward/forward_messages_test.dart test/features/home/home_tab_reselect_cubit_test.dart test/features/forward/forward_delivery_result_test.dart test/features/forward/forward_cubit_live_sync_test.dart` → 27 passed
+- `./scripts/check-custom-lints.sh packages/client` → exit 0
+FILES:
+- `packages/client/lib/features/forward/ui/message/forward_messages.dart`
+- `packages/client/lib/features/forward/ui/bloc/forward_cubit.dart`
+- `packages/client/lib/features/forward/ui/bloc/forward_state.dart`
+- `packages/client/lib/features/home/ui/bloc/home_tab_reselect_state.dart`
+- `packages/client/lib/features/home/ui/bloc/home_tab_reselect_cubit.dart`
+- `packages/client/test/features/forward/forward_messages_test.dart`
+- `packages/client/test/features/home/home_tab_reselect_cubit_test.dart`
+- `packages/client/test/features/forward/forward_delivery_result_test.dart`
+- `packages/client/test/features/forward/forward_cubit_live_sync_test.dart`
+- `docs/plans/issue-110-forward-explicit-implementation-journal.md`
+FINDINGS: `forward_delivery_result_test` cubit sends needed `skippedPersonalNoteIds` after UNIT 06 uncovered guard (tests were not in UNIT 05 verify scope). Live-sync harness auth id `viewer` ≠ beacon author → Watching toast (not My Work).
+REMAINING: none — UNIT 08 may start
+
+## UNIT 07 — complete — 2026-08-14
+COMMITS: `cd2501f90` feat: forward location toast opens Inbox Watching
+TESTS:
+- `cd packages/client && dart run build_runner build -d` → exit 0
+- `cd packages/client && flutter test test/features/forward/forward_messages_test.dart test/features/home/home_tab_reselect_cubit_test.dart test/features/forward/forward_delivery_result_test.dart test/features/forward/forward_cubit_live_sync_test.dart` → 27 passed
+- `./scripts/check-custom-lints.sh packages/client` → exit 0
+FILES:
+- `packages/client/lib/features/forward/ui/message/forward_messages.dart`
+- `packages/client/lib/features/forward/ui/bloc/forward_cubit.dart`
+- `packages/client/lib/features/forward/ui/bloc/forward_state.dart`
+- `packages/client/lib/features/home/ui/bloc/home_tab_reselect_state.dart`
+- `packages/client/lib/features/home/ui/bloc/home_tab_reselect_cubit.dart`
+- `packages/client/test/features/forward/forward_messages_test.dart`
+- `packages/client/test/features/home/home_tab_reselect_cubit_test.dart`
+- `packages/client/test/features/forward/forward_delivery_result_test.dart`
+- `packages/client/test/features/forward/forward_cubit_live_sync_test.dart`
+- `docs/plans/issue-110-forward-explicit-implementation-journal.md`
+FINDINGS: `forward_delivery_result_test` cubit sends needed `skippedPersonalNoteIds` after UNIT 06 uncovered guard (tests were not in UNIT 05 verify scope). Live-sync harness auth id `viewer` ≠ beacon author → Watching toast (not My Work).
+REMAINING: none — UNIT 08 may start
+
+## UNIT 07 — complete — 2026-08-14
+COMMITS: feat: forward location toast opens Inbox Watching (see `git log -1`)
+TESTS:
+- `cd packages/client && dart run build_runner build -d` → exit 0
+- `cd packages/client && flutter test test/features/forward/forward_messages_test.dart test/features/home/home_tab_reselect_cubit_test.dart test/features/forward/forward_delivery_result_test.dart test/features/forward/forward_cubit_live_sync_test.dart` → 27 passed
+- `./scripts/check-custom-lints.sh packages/client` → exit 0
+FILES:
+- `packages/client/lib/features/forward/ui/message/forward_messages.dart`
+- `packages/client/lib/features/forward/ui/bloc/forward_cubit.dart`
+- `packages/client/lib/features/forward/ui/bloc/forward_state.dart`
+- `packages/client/lib/features/home/ui/bloc/home_tab_reselect_state.dart`
+- `packages/client/lib/features/home/ui/bloc/home_tab_reselect_cubit.dart`
+- `packages/client/test/features/forward/forward_messages_test.dart`
+- `packages/client/test/features/home/home_tab_reselect_cubit_test.dart`
+- `packages/client/test/features/forward/forward_delivery_result_test.dart`
+- `packages/client/test/features/forward/forward_cubit_live_sync_test.dart`
+- `docs/plans/issue-110-forward-explicit-implementation-journal.md`
+FINDINGS: `forward_delivery_result_test` cubit sends needed `skippedPersonalNoteIds` after UNIT 06 uncovered guard (tests were not in UNIT 05 verify scope). Live-sync harness auth id `viewer` ≠ beacon author → Watching toast (not My Work).
+REMAINING: none — UNIT 08 may start

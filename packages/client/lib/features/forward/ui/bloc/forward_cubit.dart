@@ -151,13 +151,6 @@ class ForwardCubit extends Cubit<ForwardState> {
       ? const ForwardCandidatesEmpty()
       : const ForwardCandidatesReady();
 
-  void _emitNavigateBack({Object? result}) {
-    _effects.emit(NavigateBack(result: result));
-    if (!isClosed) {
-      emit(state.copyWith(status: const StateIsSuccess()));
-    }
-  }
-
   String? _loadMemoKey;
 
   Future<void> reloadCandidates({bool forceReload = true}) =>
@@ -337,6 +330,8 @@ class ForwardCubit extends Cubit<ForwardState> {
           droppedPreselectedIds: droppedPreselected,
           note: load.suggestedNote,
           hasMyOutgoingForward: load.hasMyOutgoingForward,
+          viewerIsAuthor: load.viewerIsAuthor,
+          viewerHasActiveHelpOffer: load.viewerHasActiveHelpOffer,
           band: load.band,
           candidatesLoad: _candidatesLoadFor(
             candidates: load.candidates,
@@ -418,6 +413,15 @@ class ForwardCubit extends Cubit<ForwardState> {
     failed: failed,
   );
 
+  String _availabilitySkippedDisplayName(String skippedId) {
+    final candidate = _findCandidate(skippedId);
+    final shownName = candidate?.profile.shownName.trim();
+    if (shownName != null && shownName.isNotEmpty) {
+      return shownName;
+    }
+    return skippedId;
+  }
+
   void _emitDeliveryMessage(ForwardDeliveryOutcome outcome) {
     if (outcome.failed) {
       return;
@@ -425,36 +429,57 @@ class ForwardCubit extends Cubit<ForwardState> {
     final delivered = outcome.deliveredCount;
     final requested = outcome.requestedCount;
     final skipped = outcome.availabilitySkippedCount;
-    if (skipped == 0) {
-      _effects.emit(ShowMessage(ForwardSentMessage(delivered)));
-      return;
-    }
-    if (skipped == 1) {
-      final skippedId = outcome.availabilitySkippedRecipientIds.single;
-      final candidate = _findCandidate(skippedId);
-      final skippedName = candidate?.profile.shownName.trim().isNotEmpty == true
-          ? candidate!.profile.shownName
-          : skippedId;
-      _effects.emit(
-        ShowMessage(
-          ForwardPartialDeliveryMessage(
-            deliveredCount: delivered,
-            requestedCount: requested,
-            skippedName: skippedName,
+    if (delivered == 0) {
+      if (skipped == 1) {
+        final skippedId = outcome.availabilitySkippedRecipientIds.single;
+        _effects.emit(
+          ShowMessage(
+            ForwardPartialDeliveryMessage(
+              deliveredCount: delivered,
+              requestedCount: requested,
+              skippedName: _availabilitySkippedDisplayName(skippedId),
+            ),
           ),
-        ),
-      );
+        );
+        return;
+      }
+      if (skipped > 1) {
+        _effects.emit(
+          ShowMessage(
+            ForwardPartialDeliveryManyMessage(
+              deliveredCount: delivered,
+              requestedCount: requested,
+              skippedCount: skipped,
+            ),
+          ),
+        );
+      }
       return;
     }
-    _effects.emit(
-      ShowMessage(
-        ForwardPartialDeliveryManyMessage(
-          deliveredCount: delivered,
-          requestedCount: requested,
-          skippedCount: skipped,
-        ),
-      ),
-    );
+
+    String? skippedName;
+    int? skippedCount;
+    if (skipped == 1) {
+      skippedName = _availabilitySkippedDisplayName(
+        outcome.availabilitySkippedRecipientIds.single,
+      );
+    } else if (skipped > 1) {
+      skippedCount = skipped;
+    }
+
+    final inWatching =
+        !state.viewerIsAuthor && !state.viewerHasActiveHelpOffer;
+    final message = inWatching
+        ? ForwardLocationMessage(
+            beaconId: state.beaconId,
+            skippedName: skippedName,
+            skippedCount: skippedCount,
+          )
+        : ForwardLocationMyWorkMessage(
+            skippedName: skippedName,
+            skippedCount: skippedCount,
+          );
+    _effects.emit(ShowMessage(message));
   }
 
   @override

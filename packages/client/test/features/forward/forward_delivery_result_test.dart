@@ -328,6 +328,7 @@ void main() {
     cubit.emit(
       cubit.state.copyWith(
         selectedIds: {'U-paused'},
+        skippedPersonalNoteIds: {'U-paused'},
         beacon: _openBeacon(),
       ),
     );
@@ -346,7 +347,7 @@ void main() {
     );
   });
 
-  test('server availability skip is merged in requested order', () async {
+  test('mixed delivery emits single location message with pause clause', () async {
     final effects = FakeUiEffectPort();
     final harness = await _buildHarness(
       involvement: _involvement(_openBeacon()),
@@ -374,6 +375,7 @@ void main() {
     cubit.emit(
       cubit.state.copyWith(
         selectedIds: {'U-alice', 'U-bob', 'U-carol'},
+        skippedPersonalNoteIds: {'U-alice', 'U-bob', 'U-carol'},
         beacon: _openBeacon(),
       ),
     );
@@ -389,9 +391,16 @@ void main() {
       cubit.state.lastDeliveryOutcome?.availabilitySkippedRecipientIds,
       ['U-carol'],
     );
+    expect(effects.emitted.whereType<ShowMessage>(), hasLength(1));
     expect(
       effects.emitted.whereType<ShowMessage>().single.message,
-      isA<ForwardPartialDeliveryMessage>(),
+      isA<ForwardLocationMyWorkMessage>(),
+    );
+    expect(
+      (effects.emitted.whereType<ShowMessage>().single.message
+              as ForwardLocationMyWorkMessage)
+          .toEn,
+      'Request forwarded. It\'s in My Work. — Carol isn\'t taking new requests right now.',
     );
   });
 
@@ -427,6 +436,7 @@ void main() {
     cubit.emit(
       cubit.state.copyWith(
         selectedIds: {'U-alice', 'U-server'},
+        skippedPersonalNoteIds: {'U-alice', 'U-server'},
         beacon: _openBeacon(),
       ),
     );
@@ -444,7 +454,7 @@ void main() {
     );
   });
 
-  test('full delivery keeps success copy and uses delivered count', () async {
+  test('full delivery keeps location copy for author', () async {
     final effects = FakeUiEffectPort();
     final harness = await _buildHarness(
       involvement: _involvement(_openBeacon()),
@@ -466,6 +476,7 @@ void main() {
     cubit.emit(
       cubit.state.copyWith(
         selectedIds: {'U-alice', 'U-bob'},
+        skippedPersonalNoteIds: {'U-alice', 'U-bob'},
         beacon: _openBeacon(),
       ),
     );
@@ -473,12 +484,99 @@ void main() {
     await cubit.forward();
 
     final message = effects.emitted.whereType<ShowMessage>().single.message;
-    expect(message, isA<ForwardSentMessage>());
-    expect((message as ForwardSentMessage).count, 2);
+    expect(message, isA<ForwardLocationMyWorkMessage>());
+    expect(
+      (message as ForwardLocationMyWorkMessage).toEn,
+      'Request forwarded. It\'s in My Work.',
+    );
     expect(cubit.state.lastDeliveryOutcome?.deliveredCount, 2);
   });
 
-  test('many skipped uses count copy not joined names', () async {
+  test('full delivery uses watching location when viewer is not author', () async {
+    final effects = FakeUiEffectPort();
+    final otherAuthorBeacon = Beacon.empty.copyWith(
+      id: 'B1',
+      status: BeaconStatus.open,
+      author: const Profile(id: 'U-other'),
+    );
+    final harness = await _buildHarness(
+      involvement: _involvement(otherAuthorBeacon),
+      candidates: [_profile(id: 'U-alice', name: 'Alice')],
+    );
+    addTearDown(() => _disposeHarness(harness));
+
+    final cubit = _cubit(
+      forwardCase: harness.forwardCase,
+      effects: effects,
+      clock: clock,
+    );
+    addTearDown(cubit.close);
+    await _waitReady(cubit);
+
+    cubit.emit(
+      cubit.state.copyWith(
+        selectedIds: {'U-alice'},
+        skippedPersonalNoteIds: {'U-alice'},
+        beacon: otherAuthorBeacon,
+      ),
+    );
+
+    await cubit.forward();
+
+    final message = effects.emitted.whereType<ShowMessage>().single.message;
+    expect(message, isA<ForwardLocationMessage>());
+    expect(
+      (message as ForwardLocationMessage).toEn,
+      'Request forwarded. It\'s in Watching.',
+    );
+  });
+
+  test('help offer uses my work location without action', () async {
+    final effects = FakeUiEffectPort();
+    final beacon = _openBeacon();
+    final harness = await _buildHarness(
+      involvement: (
+        beacon: beacon,
+        forwardedToIds: <String>{},
+        helpOfferedIds: <String>{'U-me'},
+        withdrawnIds: <String>{},
+        rejectedIds: <String>{},
+        watchingIds: <String>{},
+        onwardForwarderIds: <String>{},
+        myForwardedRecipientNotes: <String, String>{},
+        myForwardedRecipientEdgeIds: <String, String>{},
+        myForwardedRecipientReadAts: <String, DateTime?>{},
+        myForwardedRecipientHasOnwardChild: <String, bool>{},
+        myForwardedRecipientRejected: <String, bool>{},
+      ),
+      candidates: [_profile(id: 'U-alice', name: 'Alice')],
+    );
+    addTearDown(() => _disposeHarness(harness));
+
+    final cubit = _cubit(
+      forwardCase: harness.forwardCase,
+      effects: effects,
+      clock: clock,
+    );
+    addTearDown(cubit.close);
+    await _waitReady(cubit);
+
+    cubit.emit(
+      cubit.state.copyWith(
+        selectedIds: {'U-alice'},
+        skippedPersonalNoteIds: {'U-alice'},
+        beacon: beacon,
+      ),
+    );
+
+    await cubit.forward();
+
+    final message = effects.emitted.whereType<ShowMessage>().single.message;
+    expect(message, isA<ForwardLocationMyWorkMessage>());
+    expect(message, isNot(isA<ForwardLocationMessage>()));
+  });
+
+  test('many skipped with one delivered uses location pause count copy', () async {
     final effects = FakeUiEffectPort();
     final harness = await _buildHarness(
       involvement: _involvement(_openBeacon()),
@@ -510,6 +608,7 @@ void main() {
     cubit.emit(
       cubit.state.copyWith(
         selectedIds: {'U-alice'},
+        skippedPersonalNoteIds: {'U-alice'},
         beacon: _openBeacon(),
       ),
     );
@@ -518,7 +617,13 @@ void main() {
 
     expect(
       effects.emitted.whereType<ShowMessage>().single.message,
-      isA<ForwardPartialDeliveryManyMessage>(),
+      isA<ForwardLocationMyWorkMessage>(),
+    );
+    expect(
+      (effects.emitted.whereType<ShowMessage>().single.message
+              as ForwardLocationMyWorkMessage)
+          .toEn,
+      'Request forwarded. It\'s in My Work. — 2 people aren\'t taking new requests right now.',
     );
     expect(harness.forwardRepo.lastRecipientIds, ['U-alice']);
   });

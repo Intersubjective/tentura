@@ -8,6 +8,8 @@ abstract class HomeTabReselectState extends StateBase with _$HomeTabReselectStat
     @Default(StateIsSuccess()) StateStatus status,
     @Default(0) int inboxReselectCount,
     @Default(0) int myWorkReselectCount,
+    @Default(0) int inboxWatchingOpenCount,
+    String? inboxWatchingBeaconId,
   }) = _HomeTabReselectState;
 
   const HomeTabReselectState._();

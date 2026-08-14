@@ -279,8 +279,11 @@ void main() {
 
         expect(effects.emitted.whereType<ShowMessage>(), hasLength(1));
         final showMessage = effects.emitted.whereType<ShowMessage>().single;
-        expect(showMessage.message, isA<ForwardSentMessage>());
-        expect((showMessage.message as ForwardSentMessage).count, 1);
+        expect(showMessage.message, isA<ForwardLocationMessage>());
+        expect(
+          (showMessage.message as ForwardLocationMessage).toEn,
+          'Request forwarded. It\'s in Watching.',
+        );
         expect(effects.emitted.whereType<NavigateBack>(), isEmpty);
         expect(effects.emitted.whereType<ShowError>(), isEmpty);
         expect(cubit.state.activeFilter, ForwardFilter.alreadyInvolved);

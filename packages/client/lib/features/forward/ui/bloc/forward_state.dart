@@ -123,6 +123,8 @@ abstract class ForwardState extends StateBase with _$ForwardState {
     List<String>? editReasons,
     ForwardDeliveryOutcome? lastDeliveryOutcome,
     @Default(false) bool hasMyOutgoingForward,
+    @Default(false) bool viewerIsAuthor,
+    @Default(false) bool viewerHasActiveHelpOffer,
     @Default([]) List<ForwardBandRow> band,
   }) = _ForwardState;
 

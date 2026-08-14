@@ -20,4 +20,13 @@ class HomeTabReselectCubit extends Cubit<HomeTabReselectState> {
     ),
     HomeTab.updates || HomeTab.network || HomeTab.me => null,
   };
+
+  void requestInboxWatching(String beaconId) {
+    emit(
+      state.copyWith(
+        inboxWatchingBeaconId: beaconId,
+        inboxWatchingOpenCount: state.inboxWatchingOpenCount + 1,
+      ),
+    );
+  }
 }
