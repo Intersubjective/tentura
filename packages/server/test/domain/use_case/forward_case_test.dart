@@ -30,6 +30,7 @@ ForwardEdgeEntity _forwardEdge({
   String recipientId = 'R1',
   DateTime? cancelledAt,
   DateTime? recipientReadAt,
+  bool recipientRejected = false,
   DateTime? createdAt,
 }) => ForwardEdgeEntity(
   id: id,
@@ -39,6 +40,7 @@ ForwardEdgeEntity _forwardEdge({
   createdAt: createdAt ?? DateTime.utc(2025),
   cancelledAt: cancelledAt,
   recipientReadAt: recipientReadAt,
+  recipientRejected: recipientRejected,
 );
 
 Matcher _unauthorizedWithDescription(String description) => throwsA(
@@ -536,6 +538,21 @@ void main() {
         (_) async => _forwardEdge(
           id: 'E1',
           recipientReadAt: DateTime.utc(2025, 6, 1),
+        ),
+      );
+
+      expect(
+        await case_.cancelForward(edgeId: 'E1', senderId: 'U1'),
+        isFalse,
+      );
+      verifyNever(forwardEdgeRepo.cancel(any, any));
+    });
+
+    test('returns false when recipientRejected', () async {
+      when(forwardEdgeRepo.fetchById('E1')).thenAnswer(
+        (_) async => _forwardEdge(
+          id: 'E1',
+          recipientRejected: true,
         ),
       );
 

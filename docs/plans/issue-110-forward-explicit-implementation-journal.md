@@ -91,7 +91,7 @@ None triggered.
 
 - [x] **00** Journal and baseline — complete
 - [x] **01** Pure coverage / note / cancel helpers
-- [ ] **02** Server `cancelForward` honours `recipientRejected`
+- [x] **02** Server `cancelForward` honours `recipientRejected`
 - [ ] **03** `MyForwardRecipient` hasOnwardChild + recipientRejected
 - [ ] **04** Map flags onto `ForwardCandidate` / `ForwardLoad`
 - [ ] **05** `ForwardCubit` session: skip, wire, stay, force-reload
@@ -167,6 +167,10 @@ frozen contract, stop that unit with `BLOCKED` instead of improvising.
   (`docs: start issue 110 implementation journal`). Journal-only; protected
   worktree unchanged. Worker used local `--amend` to stabilize the COMMITS
   line (unpushed, docs-only). UNIT 01 authorized.
+- 2026-08-14 manager: **UNIT 01 accepted**. Commit `a25b58acb`
+  (`feat: add forward draft policy helpers`). Independent re-run:
+  `flutter test test/features/forward/forward_draft_policy_test.dart` →
+  14 passed. No Flutter import. Frozen signatures match. UNIT 02 authorized.
 
 ## Unit entries
 
@@ -196,3 +200,15 @@ FILES:
 - `docs/plans/issue-110-forward-explicit-implementation-journal.md`
 FINDINGS: none — frozen contracts matched architecture rev 3 §Domain functions
 REMAINING: none — UNIT 02 may start
+
+## UNIT 02 — complete — 2026-08-14
+COMMITS: fix(server): refuse cancel after recipient decline (see `git log -1`)
+TESTS:
+- `cd packages/server && dart test test/domain/use_case/forward_case_test.dart --name "cancelForward"` → 8 passed
+- `./scripts/check-custom-lints.sh packages/server` → exit 0
+FILES:
+- `packages/server/lib/domain/use_case/forward_case.dart`
+- `packages/server/test/domain/use_case/forward_case_test.dart`
+- `docs/plans/issue-110-forward-explicit-implementation-journal.md`
+FINDINGS: none — `ForwardEdgeEntity.recipientRejected` already present with `@Default(false)`
+REMAINING: none — UNIT 03 may start

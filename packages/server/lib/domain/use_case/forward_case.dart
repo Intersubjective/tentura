@@ -70,7 +70,8 @@ final class ForwardCase extends UseCaseBase {
   ///
   /// Returns false if the edge does not exist, does not belong to [senderId],
   /// has already been cancelled, has been read by the recipient, has been
-  /// forwarded onward, or if the recipient has an active help offer.
+  /// declined by the recipient, has been forwarded onward, or if the recipient
+  /// has an active help offer.
   Future<bool> cancelForward({
     required String edgeId,
     required String senderId,
@@ -79,6 +80,7 @@ final class ForwardCase extends UseCaseBase {
     if (edge == null || edge.senderId != senderId) return false;
     if (edge.cancelledAt != null) return false;
     if (edge.recipientReadAt != null) return false;
+    if (edge.recipientRejected) return false;
 
     final hasChain = await _forwardEdgeRepository.existsWithParent(edgeId);
     if (hasChain) return false;
