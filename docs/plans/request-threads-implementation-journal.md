@@ -52,7 +52,7 @@ None of the above overlap any UNIT 01–14 file list except the noted `docs/READ
 | 01 | Remove resolution feature (D27), migration m0149, My Work reviews segment | accepted | 1b1a9ba69, 14e602b29, 7507dae82, 6b4e88c56, 03acdcf50, 9e3f07f10 |
 | 02 | Pure `beacon_room` → `beacon_threads` rename | accepted | 919c0dd43, 73e734710, d0aa5c736, fd1ce76d1 |
 | 03 | Server `beaconThreads` query + preview contract | accepted | 3e261f62d, 633bd3af2, fb699a834, 675d2a019, c175728e0, 5c9587abc |
-| 04 | `markThreadSeen` + persisted-watermark fix | complete (awaiting manager) | 4f212fbe4, 6092a70f1, 7bf09b117, a596ebb53, fc0456e69 |
+| 04 | `markThreadSeen` + persisted-watermark fix | complete (awaiting manager) | 4f212fbe4, 6092a70f1, 7bf09b117, a596ebb53, fc0456e69, cfee6c9bc |
 | 05 | Client thread contract/mapping/repo/case (unused) | pending | |
 | 06 | Thread-keyed watermark store + client `markThreadSeen` | pending | |
 | 07 | Extract ticker, move `ItemCard` (no behavior change) | pending | |
