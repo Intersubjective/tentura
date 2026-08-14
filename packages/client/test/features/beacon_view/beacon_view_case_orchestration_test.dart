@@ -3,8 +3,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/realtime/realtime_entity_change.dart';
 import 'package:tentura/domain/entity/repository_event.dart';
-import 'package:tentura/features/beacon_room/domain/entity/beacon_room_invalidation.dart';
-import 'package:tentura/features/beacon_room/domain/room_read_watermark_store.dart';
+import 'package:tentura/features/beacon_threads/domain/entity/beacon_room_invalidation.dart';
+import 'package:tentura/features/beacon_threads/domain/room_read_watermark_store.dart';
 import 'package:tentura/features/forward/domain/entity/help_offer_event.dart';
 
 import '../../support/test_realtime_sync.dart';

@@ -11,13 +11,13 @@ import 'package:tentura/domain/entity/repository_event.dart';
 import 'package:tentura/env.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/beacon/data/repository/beacon_repository.dart';
-import 'package:tentura/features/beacon_room/data/repository/beacon_activity_event_repository.dart';
-import 'package:tentura/features/beacon_room/data/repository/beacon_fact_card_repository.dart';
-import 'package:tentura/features/beacon_room/data/repository/beacon_room_hints_repository.dart';
-import 'package:tentura/features/beacon_room/data/repository/beacon_room_repository.dart';
-import 'package:tentura/features/beacon_room/domain/entity/beacon_room_invalidation.dart';
-import 'package:tentura/features/beacon_room/domain/room_read_watermark_store.dart';
-import 'package:tentura/features/beacon_room/domain/use_case/beacon_room_case.dart';
+import 'package:tentura/features/beacon_threads/data/repository/beacon_activity_event_repository.dart';
+import 'package:tentura/features/beacon_threads/data/repository/beacon_fact_card_repository.dart';
+import 'package:tentura/features/beacon_threads/data/repository/beacon_room_hints_repository.dart';
+import 'package:tentura/features/beacon_threads/data/repository/beacon_threads_repository.dart';
+import 'package:tentura/features/beacon_threads/domain/entity/beacon_room_invalidation.dart';
+import 'package:tentura/features/beacon_threads/domain/room_read_watermark_store.dart';
+import 'package:tentura/features/beacon_threads/domain/use_case/beacon_threads_case.dart';
 import 'package:tentura/features/beacon_view/data/repository/coordination_repository.dart';
 import 'package:tentura/features/beacon_view/data/repository/beacon_display_repository.dart';
 import 'package:tentura/domain/entity/beacon_display_status_dto.dart';
@@ -350,7 +350,7 @@ class FakeBeaconViewFactCardRepository implements BeaconFactCardRepository {
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
-class FakeBeaconViewRoomRepository implements BeaconRoomRepository {
+class FakeBeaconViewRoomRepository implements BeaconThreadsRepository {
   FakeBeaconViewRoomRepository({
     this.enrichmentDelay = Duration.zero,
     this.participants = const [],
@@ -403,10 +403,10 @@ class FakeBeaconViewCoordinationItemRepository
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
-BeaconRoomCase buildTestBeaconRoomCaseForView(
+BeaconThreadsCase buildTestBeaconThreadsCaseForView(
   RoomReadWatermarkStore watermark, {
   FakeBeaconViewRoomRepository? room,
-}) => BeaconRoomCase(
+}) => BeaconThreadsCase(
   room ?? FakeBeaconViewRoomRepository(),
   FakeBeaconViewFactCardRepository(),
   FakeBeaconViewPollingRepository(),
@@ -450,7 +450,7 @@ BeaconViewCase buildTestBeaconViewCase({
     display,
     FakeBeaconViewInboxRepository(),
     factCards,
-    buildTestBeaconRoomCaseForView(watermark, room: roomRepo),
+    buildTestBeaconThreadsCaseForView(watermark, room: roomRepo),
     activityEvents,
     realtimeSyncCase ?? buildTestRealtimeSync().case_,
     env: const Env(),

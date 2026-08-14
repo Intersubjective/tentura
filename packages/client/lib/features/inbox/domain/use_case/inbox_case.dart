@@ -7,7 +7,7 @@ import 'package:tentura/data/service/bookkeeping_refresh_signal.dart';
 import 'package:tentura/domain/entity/realtime/realtime_entity_change.dart';
 import 'package:tentura/domain/use_case/realtime_sync_case.dart';
 import 'package:tentura/domain/use_case/use_case_base.dart';
-import 'package:tentura/features/beacon_room/domain/use_case/beacon_room_case.dart';
+import 'package:tentura/features/beacon_threads/domain/use_case/beacon_threads_case.dart';
 import 'package:tentura/features/block/domain/use_case/block_case.dart';
 import 'package:tentura/features/forward/data/repository/forward_repository.dart';
 import 'package:tentura/features/forward/domain/entity/help_offer_event.dart';
@@ -31,7 +31,7 @@ final class InboxCase extends UseCaseBase {
 
   final InboxRepository _repository;
 
-  final BeaconRoomCase _beaconRoomCase;
+  final BeaconThreadsCase _beaconRoomCase;
   final ForwardRepository _forwardRepository;
   final RealtimeSyncCase _realtimeSyncCase;
 

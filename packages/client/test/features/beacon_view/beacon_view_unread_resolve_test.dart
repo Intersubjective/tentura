@@ -1,6 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:tentura/features/beacon_room/domain/room_read_watermark_store.dart';
+import 'package:tentura/features/beacon_threads/domain/room_read_watermark_store.dart';
 
 void main() {
   group('shell badge derives from watermark', () {

@@ -5,8 +5,8 @@ import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/domain/entity/repository_event.dart';
 import 'package:tentura/domain/use_case/realtime_sync_case.dart';
-import 'package:tentura/features/beacon_room/domain/entity/beacon_room_invalidation.dart';
-import 'package:tentura/features/beacon_room/domain/room_read_watermark_store.dart';
+import 'package:tentura/features/beacon_threads/domain/entity/beacon_room_invalidation.dart';
+import 'package:tentura/features/beacon_threads/domain/room_read_watermark_store.dart';
 import 'package:tentura/features/forward/domain/entity/help_offer_event.dart';
 import 'package:tentura/features/my_work/domain/entity/my_work_card_view_model.dart';
 import 'package:tentura/features/my_work/domain/use_case/my_work_case.dart';
@@ -20,13 +20,13 @@ void main() {
     late FakeBeaconRepository beaconRepo;
     late FakeForwardRepository forwardRepo;
     late RoomReadWatermarkStore watermarkStore;
-    late FakeBeaconRoomRepository roomRepo;
+    late FakeBeaconThreadsRepository roomRepo;
 
     setUp(() {
       beaconRepo = FakeBeaconRepository();
       forwardRepo = FakeForwardRepository();
       watermarkStore = RoomReadWatermarkStore.testing();
-      roomRepo = FakeBeaconRoomRepository();
+      roomRepo = FakeBeaconThreadsRepository();
     });
 
     tearDown(() async {
@@ -144,7 +144,7 @@ void main() {
     late FakeBeaconRepository beaconRepo;
     late FakeForwardRepository forwardRepo;
     late RoomReadWatermarkStore watermarkStore;
-    late FakeBeaconRoomRepository roomRepo;
+    late FakeBeaconThreadsRepository roomRepo;
     late FakeMyWorkRepository repo;
     late TestRealtimeSyncPort realtimePort;
     late RealtimeSyncCase realtimeSyncCase;
@@ -153,7 +153,7 @@ void main() {
       beaconRepo = FakeBeaconRepository();
       forwardRepo = FakeForwardRepository();
       watermarkStore = RoomReadWatermarkStore.testing();
-      roomRepo = FakeBeaconRoomRepository();
+      roomRepo = FakeBeaconThreadsRepository();
       final realtime = buildTestRealtimeSync();
       realtimePort = realtime.port;
       realtimeSyncCase = realtime.case_;

@@ -1,0 +1,3 @@
+mutation BeaconStewardPromote($beaconId: String!, $stewardUserId: String!) {
+  BeaconStewardPromote(beaconId: $beaconId, stewardUserId: $stewardUserId)
+}

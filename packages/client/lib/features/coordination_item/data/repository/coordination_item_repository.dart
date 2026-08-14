@@ -3,7 +3,7 @@ import 'package:injectable/injectable.dart';
 import 'package:tentura/data/service/remote_api_service.dart';
 import 'package:tentura/domain/entity/coordination_item.dart';
 import 'package:tentura/domain/entity/coordination_responsibility.dart';
-import 'package:tentura/features/beacon_room/domain/coordination_item_room_sync.dart';
+import 'package:tentura/features/beacon_threads/domain/coordination_item_room_sync.dart';
 import '../gql/_g/coordination_item_list.req.gql.dart';
 import '../gql/_g/coordination_item_mark_blocker.req.gql.dart';
 import '../gql/_g/coordination_item_resolve_blocker.req.gql.dart';

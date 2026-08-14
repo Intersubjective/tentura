@@ -9,7 +9,7 @@ import 'package:tentura/features/forward/domain/entity/help_offer_event.dart';
 import 'package:tentura/ui/effect/ui_effect.dart';
 
 import '../../ui/effect/fake_ui_effect_port.dart';
-import '../beacon_room/fake_coordination_item_case.dart';
+import '../beacon_threads/fake_coordination_item_case.dart';
 import 'beacon_view_case_test_support.dart';
 import 'beacon_view_initial_load_test.dart';
 

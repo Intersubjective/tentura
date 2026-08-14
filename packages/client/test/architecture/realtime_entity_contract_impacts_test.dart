@@ -14,22 +14,22 @@ const impactSubscribers = <String, List<String>>{
     'packages/client/lib/features/profile/ui/bloc/profile_cubit.dart',
   ],
   'chat': [
-    'packages/client/lib/features/beacon_room/ui/bloc/room_cubit.dart',
+    'packages/client/lib/features/beacon_threads/ui/bloc/room_cubit.dart',
   ],
   'chat_access': [
     'packages/client/lib/features/beacon_view/ui/bloc/beacon_view_cubit.dart',
   ],
   'chat_poll_results': [
-    'packages/client/lib/features/beacon_room/ui/bloc/room_cubit.dart',
+    'packages/client/lib/features/beacon_threads/ui/bloc/room_cubit.dart',
   ],
   'chat_reactions': [
-    'packages/client/lib/features/beacon_room/ui/bloc/room_cubit.dart',
+    'packages/client/lib/features/beacon_threads/ui/bloc/room_cubit.dart',
   ],
   'chat_thread': [
-    'packages/client/lib/features/beacon_room/ui/bloc/room_cubit.dart',
+    'packages/client/lib/features/beacon_threads/ui/bloc/room_cubit.dart',
   ],
   'chat_watermark': [
-    'packages/client/lib/features/beacon_room/domain/use_case/beacon_room_case.dart',
+    'packages/client/lib/features/beacon_threads/domain/use_case/beacon_threads_case.dart',
   ],
   'contact_name_overlays': [
     'packages/client/lib/features/contacts/domain/use_case/contacts_case.dart',
@@ -75,7 +75,7 @@ const impactSubscribers = <String, List<String>>{
     'packages/client/lib/features/friends/domain/use_case/friends_case.dart',
   ],
   'presence': [
-    'packages/client/lib/features/beacon_room/ui/bloc/room_cubit.dart',
+    'packages/client/lib/features/beacon_threads/ui/bloc/room_cubit.dart',
     'packages/client/lib/features/friends/domain/use_case/friends_case.dart',
   ],
   'profile': [

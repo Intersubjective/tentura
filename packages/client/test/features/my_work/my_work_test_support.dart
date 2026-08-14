@@ -6,13 +6,13 @@ import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/repository_event.dart';
 import 'package:tentura/env.dart';
 import 'package:tentura/features/beacon/data/repository/beacon_repository.dart';
-import 'package:tentura/features/beacon_room/data/repository/beacon_fact_card_repository.dart';
-import 'package:tentura/features/beacon_room/data/repository/beacon_room_hints_repository.dart';
-import 'package:tentura/features/beacon_room/data/repository/beacon_room_repository.dart';
-import 'package:tentura/features/beacon_room/domain/entity/beacon_room_invalidation.dart';
+import 'package:tentura/features/beacon_threads/data/repository/beacon_fact_card_repository.dart';
+import 'package:tentura/features/beacon_threads/data/repository/beacon_room_hints_repository.dart';
+import 'package:tentura/features/beacon_threads/data/repository/beacon_threads_repository.dart';
+import 'package:tentura/features/beacon_threads/domain/entity/beacon_room_invalidation.dart';
 import 'package:tentura/data/service/bookkeeping_refresh_signal.dart';
-import 'package:tentura/features/beacon_room/domain/room_read_watermark_store.dart';
-import 'package:tentura/features/beacon_room/domain/use_case/beacon_room_case.dart';
+import 'package:tentura/features/beacon_threads/domain/room_read_watermark_store.dart';
+import 'package:tentura/features/beacon_threads/domain/use_case/beacon_threads_case.dart';
 import 'package:tentura/domain/entity/coordination_responsibility.dart';
 import 'package:tentura/features/coordination_item/data/repository/coordination_item_repository.dart';
 import 'package:tentura/features/coordination_item/domain/use_case/coordination_item_case.dart';
@@ -197,8 +197,8 @@ class FakeRoomHints implements BeaconRoomHintsRepository {
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
-class FakeBeaconRoomRepository implements BeaconRoomRepository {
-  FakeBeaconRoomRepository()
+class FakeBeaconThreadsRepository implements BeaconThreadsRepository {
+  FakeBeaconThreadsRepository()
     : _roomInvalidations = StreamController<BeaconRoomInvalidation>.broadcast();
 
   final StreamController<BeaconRoomInvalidation> _roomInvalidations;
@@ -232,13 +232,13 @@ class FakePollingRepository implements PollingRepository {
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
-BeaconRoomCase buildTestBeaconRoomCase(
+BeaconThreadsCase buildTestBeaconThreadsCase(
   FakeRoomHints hints, {
   RoomReadWatermarkStore? watermarkStore,
-  FakeBeaconRoomRepository? roomRepo,
+  FakeBeaconThreadsRepository? roomRepo,
 }) {
-  return BeaconRoomCase(
-    roomRepo ?? FakeBeaconRoomRepository(),
+  return BeaconThreadsCase(
+    roomRepo ?? FakeBeaconThreadsRepository(),
     FakeFactCardRepository(),
     FakePollingRepository(),
     hints,
@@ -273,7 +273,7 @@ MyWorkCase buildTestMyWorkCase({
   FakeBeaconDisplayRepository? displayRepo,
   FakeEvaluationRepository? evaluationRepo,
   RoomReadWatermarkStore? watermarkStore,
-  FakeBeaconRoomRepository? roomRepo,
+  FakeBeaconThreadsRepository? roomRepo,
   BookkeepingRefreshSignal? bookkeepingRefreshSignal,
   RealtimeSyncCase? realtimeSyncCase,
 }) {
@@ -290,7 +290,7 @@ MyWorkCase buildTestMyWorkCase({
     forward,
     beacon,
     CoordinationItemCase(coordination),
-    buildTestBeaconRoomCase(
+    buildTestBeaconThreadsCase(
       hints,
       watermarkStore: watermark,
       roomRepo: roomRepo,

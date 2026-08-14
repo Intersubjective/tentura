@@ -3,7 +3,7 @@ import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import 'package:get_it/get_it.dart';
 
-import 'package:tentura/features/beacon_room/domain/entity/beacon_room_invalidation.dart';
+import 'package:tentura/features/beacon_threads/domain/entity/beacon_room_invalidation.dart';
 import 'package:tentura/features/coordination_item/domain/use_case/coordination_item_case.dart';
 import 'package:tentura/domain/entity/beacon_activity_event.dart';
 import 'package:tentura/domain/entity/beacon.dart';
@@ -28,7 +28,7 @@ import 'package:tentura/features/beacon/ui/util/beacon_delete_ui.dart';
 import 'package:tentura/ui/effect/ui_effect.dart';
 import 'package:tentura/ui/effect/ui_effect_port.dart';
 
-import 'package:tentura/features/beacon_room/domain/entity/room_unread_snapshot.dart';
+import 'package:tentura/features/beacon_threads/domain/entity/room_unread_snapshot.dart';
 import 'package:tentura/features/inbox/domain/entity/inbox_provenance.dart';
 import 'package:tentura/features/inbox/domain/enum.dart';
 

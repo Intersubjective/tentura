@@ -11,10 +11,10 @@ import 'package:tentura/features/beacon/ui/util/beacon_lifecycle_ui.dart';
 import 'package:tentura/features/my_work/ui/bloc/my_work_cubit.dart';
 import 'package:tentura/features/beacon/ui/util/beacon_lineage_overflow_actions.dart';
 import 'package:tentura/features/beacon/ui/widget/beacon_overflow_menu.dart';
-import 'package:tentura/features/beacon_room/ui/bloc/room_cubit.dart';
-import 'package:tentura/features/beacon_room/ui/widget/beacon_room_body.dart'
+import 'package:tentura/features/beacon_threads/ui/bloc/room_cubit.dart';
+import 'package:tentura/features/beacon_threads/ui/widget/beacon_room_body.dart'
     show showBeaconRoomUpdatePlanSheet;
-import 'package:tentura/features/beacon_room/ui/widget/beacon_room_poll_sheet.dart';
+import 'package:tentura/features/beacon_threads/ui/widget/beacon_room_poll_sheet.dart';
 import 'package:tentura/features/beacon_view/ui/widget/coordination_item_composer_sheet.dart';
 import 'package:tentura/features/beacon_view/ui/widget/coordination_target_candidates.dart';
 import 'package:tentura/features/beacon_view/ui/presenter/beacon_hud_author_action.dart';

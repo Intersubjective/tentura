@@ -9,7 +9,7 @@ import 'package:tentura/domain/attention/entity/attention_summary.dart';
 import 'package:tentura/domain/attention/port/attention_account_port.dart';
 import 'package:tentura/domain/attention/port/attention_repository_port.dart';
 import 'package:tentura/domain/entity/realtime/realtime_entity_change.dart';
-import 'package:tentura/features/beacon_room/domain/entity/beacon_room_invalidation.dart';
+import 'package:tentura/features/beacon_threads/domain/entity/beacon_room_invalidation.dart';
 import 'package:tentura/features/updates/ui/bloc/updates_feed_cubit.dart';
 import 'package:tentura/ui/bloc/state_base.dart';
 
@@ -86,7 +86,7 @@ void main() {
 
   group('My Work surface', () {
     test('deskRelevantInvalidations includes coordination_item', () async {
-      final roomRepo = FakeBeaconRoomRepository();
+      final roomRepo = FakeBeaconThreadsRepository();
       addTearDown(roomRepo.dispose);
       final case_ = buildTestMyWorkCase(roomRepo: roomRepo);
       final ids = <BeaconRoomInvalidation>[];

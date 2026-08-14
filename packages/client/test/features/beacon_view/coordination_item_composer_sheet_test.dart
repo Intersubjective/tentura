@@ -14,7 +14,7 @@ import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/l10n/l10n_en.dart';
 import 'package:tentura/ui/test_ids.dart';
 
-import '../beacon_room/fake_coordination_item_case.dart';
+import '../beacon_threads/fake_coordination_item_case.dart';
 
 const _myUserId = 'Ume0000000001';
 const _otherUserId = 'Uother0000001';

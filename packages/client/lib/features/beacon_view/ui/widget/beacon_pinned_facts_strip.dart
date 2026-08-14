@@ -7,13 +7,13 @@ import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon_fact_card.dart';
 import 'package:tentura/domain/entity/beacon_fact_card_consts.dart';
 import 'package:tentura/domain/entity/room_message_attachment.dart';
-import 'package:tentura/features/beacon_room/ui/widget/room_pinned_fact_visibility_mark.dart';
-import 'package:tentura/features/beacon_room/ui/widget/room_attachment_widgets.dart';
-import 'package:tentura/features/beacon_room/ui/widget/room_file_attachment_open.dart';
+import 'package:tentura/features/beacon_threads/ui/widget/room_pinned_fact_visibility_mark.dart';
+import 'package:tentura/features/beacon_threads/ui/widget/room_attachment_widgets.dart';
+import 'package:tentura/features/beacon_threads/ui/widget/room_file_attachment_open.dart';
 import 'package:tentura/features/beacon_view/ui/util/beacon_fact_actions.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/widget/url_link_annotations.dart';
-import 'package:tentura/features/beacon_room/ui/widget/room_message_trailing_meta_layout.dart';
+import 'package:tentura/features/beacon_threads/ui/widget/room_message_trailing_meta_layout.dart';
 
 const double _kFactStripCardWidth = 160;
 

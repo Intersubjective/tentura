@@ -7,7 +7,7 @@ import 'package:tentura/features/beacon_view/ui/widget/beacon_current_line_sheet
 import 'package:tentura/features/coordination_item/domain/use_case/coordination_item_case.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
-import '../beacon_room/fake_coordination_item_case.dart';
+import '../beacon_threads/fake_coordination_item_case.dart';
 
 Future<void> _pumpSheet(
   WidgetTester tester, {

@@ -9,9 +9,9 @@ import 'package:tentura/domain/entity/repository_event.dart';
 import 'package:tentura/domain/use_case/realtime_sync_case.dart';
 import 'package:tentura/domain/use_case/use_case_base.dart';
 import 'package:tentura/features/beacon/data/repository/beacon_repository.dart';
-import 'package:tentura/features/beacon_room/data/repository/beacon_room_hints_repository.dart';
-import 'package:tentura/features/beacon_room/domain/entity/beacon_room_invalidation.dart';
-import 'package:tentura/features/beacon_room/domain/use_case/beacon_room_case.dart';
+import 'package:tentura/features/beacon_threads/data/repository/beacon_room_hints_repository.dart';
+import 'package:tentura/features/beacon_threads/domain/entity/beacon_room_invalidation.dart';
+import 'package:tentura/features/beacon_threads/domain/use_case/beacon_threads_case.dart';
 import 'package:tentura/features/coordination_item/domain/use_case/coordination_item_case.dart';
 import 'package:tentura/features/forward/data/repository/forward_repository.dart';
 import 'package:tentura/features/forward/domain/entity/help_offer_event.dart';
@@ -56,7 +56,7 @@ final class MyWorkCase extends UseCaseBase {
 
   final CoordinationItemCase _coordinationItemCase;
 
-  final BeaconRoomCase _beaconRoomCase;
+  final BeaconThreadsCase _beaconRoomCase;
 
   final BeaconRoomHintsRepository _roomHints;
 

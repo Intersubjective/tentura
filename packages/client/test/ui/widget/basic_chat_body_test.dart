@@ -18,8 +18,8 @@ import 'package:tentura/domain/entity/room_poll_data.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/bloc/presence_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
-import 'package:tentura/features/beacon_room/ui/widget/room_message_tile.dart';
-import 'package:tentura/features/beacon_room/ui/widget/room_unread_divider.dart';
+import 'package:tentura/features/beacon_threads/ui/widget/room_message_tile.dart';
+import 'package:tentura/features/beacon_threads/ui/widget/room_unread_divider.dart';
 import 'package:tentura/ui/widget/basic_chat_body.dart';
 
 class _FakeImageRepository extends Fake implements ImageRepository {

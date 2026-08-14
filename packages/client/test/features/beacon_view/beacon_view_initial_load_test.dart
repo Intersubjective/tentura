@@ -15,7 +15,7 @@ import 'package:tentura/ui/bloc/state_base.dart';
 import 'package:tentura/ui/effect/ui_effect.dart';
 
 import '../../ui/effect/fake_ui_effect_port.dart';
-import '../beacon_room/fake_coordination_item_case.dart';
+import '../beacon_threads/fake_coordination_item_case.dart';
 import '../../support/test_realtime_sync.dart';
 import 'beacon_view_case_test_support.dart';
 

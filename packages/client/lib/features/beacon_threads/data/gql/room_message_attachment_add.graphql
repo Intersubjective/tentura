@@ -1,0 +1,11 @@
+mutation RoomMessageAttachmentAdd(
+  $beaconId: String!
+  $messageId: String!
+  $file: v2_Upload!
+) {
+  RoomMessageAttachmentAdd(
+    beaconId: $beaconId
+    messageId: $messageId
+    file: $file
+  )
+}

@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon.dart';
-import 'package:tentura/features/beacon_room/ui/widget/room_message_trailing_meta_layout.dart';
+import 'package:tentura/features/beacon_threads/ui/widget/room_message_trailing_meta_layout.dart';
 import 'package:tentura/features/capability/ui/widget/capability_requirement_tags.dart';
 import 'package:tentura/ui/widget/beacon_image.dart';
 import 'package:tentura/ui/widget/beacon_image_gallery.dart';

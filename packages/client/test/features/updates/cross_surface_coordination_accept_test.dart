@@ -14,11 +14,11 @@ import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/coordination_responsibility.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/domain/entity/realtime/realtime_entity_change.dart';
-import 'package:tentura/features/beacon_room/domain/entity/beacon_room_invalidation.dart';
+import 'package:tentura/features/beacon_threads/domain/entity/beacon_room_invalidation.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_cubit.dart';
 import 'package:tentura/features/my_work/ui/bloc/my_work_cubit.dart';
 
-import '../beacon_room/fake_coordination_item_case.dart';
+import '../beacon_threads/fake_coordination_item_case.dart';
 import '../beacon_view/beacon_view_case_test_support.dart';
 import '../beacon_view/beacon_view_initial_load_test.dart';
 import '../beacon_view/beacon_view_you_responsibility_test.dart';
@@ -63,7 +63,7 @@ void main() {
         await accounts.close();
       });
 
-      final roomRepo = FakeBeaconRoomRepository();
+      final roomRepo = FakeBeaconThreadsRepository();
       addTearDown(roomRepo.dispose);
       final myWorkRepo = FakeMyWorkRepository()
         ..initResult = (

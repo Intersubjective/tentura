@@ -4,18 +4,18 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:logging/logging.dart';
 
 import 'package:tentura/env.dart';
-import 'package:tentura/features/beacon_room/domain/entity/beacon_room_invalidation.dart';
-import 'package:tentura/features/beacon_room/data/repository/beacon_fact_card_repository.dart';
-import 'package:tentura/features/beacon_room/data/repository/beacon_room_hints_repository.dart';
-import 'package:tentura/features/beacon_room/data/repository/beacon_room_repository.dart';
-import 'package:tentura/features/beacon_room/domain/room_read_watermark_store.dart';
+import 'package:tentura/features/beacon_threads/domain/entity/beacon_room_invalidation.dart';
+import 'package:tentura/features/beacon_threads/data/repository/beacon_fact_card_repository.dart';
+import 'package:tentura/features/beacon_threads/data/repository/beacon_room_hints_repository.dart';
+import 'package:tentura/features/beacon_threads/data/repository/beacon_threads_repository.dart';
+import 'package:tentura/features/beacon_threads/domain/room_read_watermark_store.dart';
 import 'package:tentura/data/service/bookkeeping_refresh_signal.dart';
 import 'package:tentura/domain/entity/realtime/realtime_catch_up.dart';
 import 'package:tentura/domain/entity/realtime/realtime_connection_status.dart';
 import 'package:tentura/domain/entity/realtime/realtime_entity_change.dart';
 import 'package:tentura/domain/port/realtime_sync_port.dart';
 import 'package:tentura/domain/use_case/realtime_sync_case.dart';
-import 'package:tentura/features/beacon_room/domain/use_case/beacon_room_case.dart';
+import 'package:tentura/features/beacon_threads/domain/use_case/beacon_threads_case.dart';
 import 'package:tentura/features/coordination_item/data/repository/coordination_item_repository.dart';
 import 'package:tentura/features/coordination_item/domain/use_case/coordination_item_case.dart';
 import 'package:tentura/features/forward/data/repository/forward_repository.dart';
@@ -35,8 +35,8 @@ import '../block/support/controllable_block_case.dart';
 
 void main() {
   late FakeInboxRepository repo;
-  late BeaconRoomCase beaconRoom;
-  late _FakeBeaconRoomRepository roomRepo;
+  late BeaconThreadsCase beaconRoom;
+  late _FakeBeaconThreadsRepository roomRepo;
   late _FakeForwardRepository forwardRepo;
   late _TestRealtimeSyncPort realtimePort;
   late RealtimeSyncCase realtimeSyncCase;
@@ -44,11 +44,11 @@ void main() {
 
   setUp(() {
     repo = FakeInboxRepository();
-    roomRepo = _FakeBeaconRoomRepository();
+    roomRepo = _FakeBeaconThreadsRepository();
     forwardRepo = _FakeForwardRepository();
     realtimePort = _TestRealtimeSyncPort();
     realtimeSyncCase = RealtimeSyncCase(realtimePort);
-    beaconRoom = _buildTestBeaconRoomCase(roomRepo: roomRepo);
+    beaconRoom = _buildTestBeaconThreadsCase(roomRepo: roomRepo);
     case_ = buildTestInboxCase(
       repo,
       beaconRoom,
@@ -114,7 +114,7 @@ void main() {
   });
 
   group('InboxCase.resolveRoomUnread', () {
-    test('delegates to BeaconRoomCase watermark resolution', () {
+    test('delegates to BeaconThreadsCase watermark resolution', () {
       final serverSeenAt = DateTime.utc(2026);
       beaconRoom.observeReadThrough('b1', DateTime.utc(2026, 1, 5));
 
@@ -396,7 +396,7 @@ InboxItem _item({
 
 InboxCase buildTestInboxCase(
   FakeInboxRepository repo,
-  BeaconRoomCase beaconRoom, {
+  BeaconThreadsCase beaconRoom, {
   ForwardRepository? forwardRepository,
   RealtimeSyncCase? realtimeSyncCase,
   BookkeepingRefreshSignal? bookkeepingRefreshSignal,
@@ -412,10 +412,10 @@ InboxCase buildTestInboxCase(
   logger: Logger('test'),
 );
 
-BeaconRoomCase _buildTestBeaconRoomCase({
-  _FakeBeaconRoomRepository? roomRepo,
-}) => BeaconRoomCase(
-  roomRepo ?? _FakeBeaconRoomRepository(),
+BeaconThreadsCase _buildTestBeaconThreadsCase({
+  _FakeBeaconThreadsRepository? roomRepo,
+}) => BeaconThreadsCase(
+  roomRepo ?? _FakeBeaconThreadsRepository(),
   _FakeFactCardRepository(),
   _FakePollingRepository(),
   _FakeRoomHints(),
@@ -436,7 +436,7 @@ class _FakeRoomHints implements BeaconRoomHintsRepository {
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
-class _FakeBeaconRoomRepository implements BeaconRoomRepository {
+class _FakeBeaconThreadsRepository implements BeaconThreadsRepository {
   final _roomInvalidations =
       StreamController<BeaconRoomInvalidation>.broadcast();
 

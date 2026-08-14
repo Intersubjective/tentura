@@ -13,7 +13,7 @@ import '../gql/_g/inbox_item_status_for_beacon.req.gql.dart';
 import '../gql/_g/inbox_set_status.req.gql.dart';
 import '../gql/_g/inbox_tombstone_dismiss.req.gql.dart';
 
-import 'package:tentura/features/beacon_room/data/repository/beacon_room_hints_repository.dart';
+import 'package:tentura/features/beacon_threads/data/repository/beacon_room_hints_repository.dart';
 
 @Singleton(env: [Environment.dev, Environment.prod])
 class InboxRepository {

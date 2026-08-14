@@ -5,8 +5,8 @@ import 'package:tentura/ui/bloc/state_base.dart';
 import 'package:tentura/ui/effect/ui_effect.dart';
 import 'package:tentura/ui/effect/ui_effect_port.dart';
 import 'package:tentura/domain/entity/coordination_item.dart';
-import 'package:tentura/features/beacon_room/domain/entity/beacon_room_invalidation.dart';
-import 'package:tentura/features/beacon_room/domain/use_case/beacon_room_case.dart';
+import 'package:tentura/features/beacon_threads/domain/entity/beacon_room_invalidation.dart';
+import 'package:tentura/features/beacon_threads/domain/use_case/beacon_threads_case.dart';
 import 'package:tentura/features/coordination_item/domain/use_case/coordination_item_case.dart';
 
 import 'item_actions_state.dart';
@@ -17,11 +17,11 @@ class ItemActionsCubit extends Cubit<ItemActionsState> {
   ItemActionsCubit({
     required CoordinationItem item,
     CoordinationItemCase? coordinationItemCase,
-    BeaconRoomCase? beaconRoomCase,
+    BeaconThreadsCase? beaconRoomCase,
     UiEffectPort? effects,
     bool listenToInvalidation = true,
   }) : _case = coordinationItemCase ?? GetIt.I<CoordinationItemCase>(),
-       _beaconRoomCase = beaconRoomCase ?? GetIt.I<BeaconRoomCase>(),
+       _beaconRoomCase = beaconRoomCase ?? GetIt.I<BeaconThreadsCase>(),
        _effects = effects ?? GetIt.I<UiEffectPort>(),
        super(ItemActionsState(item: item)) {
     if (listenToInvalidation) {
@@ -37,7 +37,7 @@ class ItemActionsCubit extends Cubit<ItemActionsState> {
   }
 
   final CoordinationItemCase _case;
-  final BeaconRoomCase _beaconRoomCase;
+  final BeaconThreadsCase _beaconRoomCase;
   final UiEffectPort _effects;
   StreamSubscription<BeaconRoomInvalidation>? _invalidationSub;
 

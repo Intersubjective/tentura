@@ -1,0 +1,39 @@
+mutation RoomPollCreate(
+  $beaconId: String!,
+  $question: String!,
+  $variants: [String!]!,
+  $pollType: String,
+  $isAnonymous: Boolean,
+  $allowRevote: Boolean
+) {
+  RoomPollCreate(
+    beaconId: $beaconId,
+    question: $question,
+    variants: $variants,
+    pollType: $pollType,
+    isAnonymous: $isAnonymous,
+    allowRevote: $allowRevote
+  ) {
+    id
+    beaconId
+    authorId
+    body
+    createdAt
+    editedAt
+    semanticMarker
+    linkedBlockerId
+    linkedFactCardId
+    linkedPollingId
+    pollDataJson
+    systemPayloadJson
+    authorTitle
+    authorHasPicture
+    authorPicHeight
+    authorPicWidth
+    authorBlurHash
+    authorImageId
+    reactionsJson
+    myReaction
+    attachmentsJson
+  }
+}

@@ -7,7 +7,7 @@ import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_cubit.dart';
 
 import '../../ui/effect/fake_ui_effect_port.dart';
-import '../beacon_room/fake_coordination_item_case.dart';
+import '../beacon_threads/fake_coordination_item_case.dart';
 import 'beacon_view_case_test_support.dart';
 import 'beacon_view_initial_load_test.dart';
 
