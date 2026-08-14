@@ -59,7 +59,7 @@ None of the above overlap any UNIT 01–14 file list except the noted `docs/READ
 | 08 | `ThreadsCubit` latest-wins state | accepted | 74bb22aa4, 7a04e6385, 38bb78161, 5ec9eec02 |
 | 09 | Boxed Threads list + evolved `ItemCard` (unused) | accepted (+1 manager fix) | c5543c633, 815762981, 022feb731, 20754c690, ec171c43a, 42b27c9bd, 72933af66 |
 | 10 | Shared thread host, awaited cubit handoff | accepted | 6b9e6cb53, 9024be979, 5e3cd9965, a18f142cd, c6f8dcc57 |
-| 11 | Nested route host + real thread detail page (unused) | accepted | 704679c3d, 2d55720af, 00791ce0f, 9ea39907c, ffc091e3f, d8a58c9b8 |
+| 11 | Nested route host + real thread detail page (unused) | accepted | 704679c3d, 2d55720af, 00791ce0f, 9ea39907c, ffc091e3f, d8a58c9b8, f578c4861 |
 | 12 | Atomic Threads activation + legacy removal | pending | |
 | 13 | D28 copy/glossary/docs sweep | pending | |
 | 14 | Final adaptive integration + QA | pending | |
@@ -507,3 +507,35 @@ None yet.
   routing pop test pops the nested `StackRouter` under `BeaconViewRoute`, not the work branch stack.
   Legacy `ItemDiscussionRoute` / `ItemDiscussionPane` unchanged; row navigation not activated (UNIT
   12). Ready for UNIT 12.
+
+- 2026-08-14 — **Manager review: UNIT 11 ACCEPTED.** This was router surgery — one of the two hardest
+  units in the plan — so I read every piece by hand rather than trusting the summary. `BeaconViewHostScreen`
+  correctly owns `@RoutePage(name: 'BeaconViewRoute')`, creates `BeaconViewCubit` then a
+  `MultiBlocProvider` with one `ThreadsCubit(..fetch())` and one `ThreadHostCubit` wrapping `AutoRouter()`
+  — a real shared ancestor for both nested pages, exactly the fix architecture §8.2/§8.3 require (not
+  "alongside `BeaconViewCubit`" on the old leaf, which would not have been an ancestor of a sibling
+  route). Read `root_router.dart`'s diff: the redirect guard now reads `resolver.route.children
+  ?.firstOrNull` and threads a `matchedThreadId` through `beaconViewChildRoutesFromQuery`, which
+  correctly builds either `[ThreadDetailRoute(...)]` or `[BeaconViewOperationalRoute(...with every
+  query param copied down...)]` — losing this was the exact hazard the plan warned about (a cold detail
+  URL silently landing on the list), and it's covered by a dedicated test. Read `ThreadDetailScreen`'s
+  close/pop implementation line by line: `_allowPop`/`_exitInProgress` are the only local state fields
+  (never `openThreadId`), `PopScope(canPop: _allowPop)`, and both the explicit back button and
+  `onPopInvokedWithResult` call the same `_closeThenPop` — `await host.clear()`, `setState(_allowPop =
+  true)`, pop once in a post-frame callback — matching UNIT 10's own award-before-teardown discipline.
+  **Investigated one non-obvious risk myself, via a forked Explore agent, before accepting**: ~15
+  call sites elsewhere in the app (`my_work_cards.dart`, `inbox_screen.dart`, `item_discussion_screen.dart`,
+  `accept_invite_messages.dart`, etc.) push `BeaconViewRoute(id:, entry:, viewTab:)` as objects with no
+  explicit `children:`, now that `BeaconViewRoute` is a parent route — a real question of whether those
+  query params still reach the rendered screen or get silently dropped. Confirmed via source-level
+  inspection of the `auto_route` package (`route_matcher.dart` `_matchByRoute`, called for object-based
+  `.push()`) that it explicitly re-injects the parent route's own `rawQueryParams` when resolving an
+  unspecified default child — so `entry`/`viewTab`/`coordinationItemId`/etc. do reach
+  `BeaconViewOperationalRoute` for every one of those call sites, not just the URL-driven redirect-guard
+  path the worker's own tests exercised. This is **not a regression** — confirmed by framework source,
+  not assumption — though it did surface a genuine **pre-existing** test gap (no test pushes
+  `BeaconViewRoute` as an object end-to-end and asserts the child receives those params); not a UNIT 11
+  defect and not worth a remediation unit, noted here for future reference only. Independently reran
+  codegen (clean), all three scoped test files (18 passed total), lints (103/103), both router `rg`
+  gates, and the full client suite (2281 passed, 18 skipped, zero regressions). Proceeding to UNIT 12
+  (the atomic Threads activation and legacy-surface deletion — the other hardest unit in the plan).
