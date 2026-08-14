@@ -52,7 +52,7 @@ None of the above overlap any UNIT 01–14 file list except the noted `docs/READ
 | 01 | Remove resolution feature (D27), migration m0149, My Work reviews segment | accepted | 1b1a9ba69, 14e602b29, 7507dae82, 6b4e88c56, 03acdcf50, 9e3f07f10 |
 | 02 | Pure `beacon_room` → `beacon_threads` rename | accepted | 919c0dd43, 73e734710, d0aa5c736, fd1ce76d1 |
 | 03 | Server `beaconThreads` query + preview contract | accepted | 3e261f62d, 633bd3af2, fb699a834, 675d2a019, c175728e0, 5c9587abc |
-| 04 | `markThreadSeen` + persisted-watermark fix | complete (awaiting manager) | |
+| 04 | `markThreadSeen` + persisted-watermark fix | complete (awaiting manager) | 4f212fbe4, 6092a70f1, 7bf09b117, a596ebb53, fc0456e69 |
 | 05 | Client thread contract/mapping/repo/case (unused) | pending | |
 | 06 | Thread-keyed watermark store + client `markThreadSeen` | pending | |
 | 07 | Extract ticker, move `ItemCard` (no behavior change) | pending | |
@@ -185,3 +185,10 @@ None yet.
   `'general'` → `null` translation; GraphQL `markThreadSeen` field; domain + PG regression tests.
   Regenerated `help_offer_case_mocks.mocks.dart` for port signature change. Did not touch
   `docs/contracts/*.json`.
+
+- 2026-08-14 — UNIT 04 complete. Five commits on `main`. Verify: `beacon_room_case_mark_seen_test.dart`
+  (8 passed), `beacon_room_seen_upsert_pg_test.dart` (3 passed, disposable
+  `tentura_test_broomseen_*`), `dart test --exclude-tags pg` (1509 passed),
+  `./scripts/check-custom-lints.sh packages/server` (0/0), `rg RETURNING last_seen_at` (2 hits in
+  `beacon_room_repository.dart`), both `ON CONFLICT` partial-index predicate `rg` gates present.
+  Ready for manager review / UNIT 05.
