@@ -1,11 +1,16 @@
 import 'dart:async';
+
+import 'package:flutter/foundation.dart';
+import 'package:flutter/widgets.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import 'package:get_it/get_it.dart';
 
+import 'package:tentura/domain/util/availability_presets.dart';
 import 'package:tentura/ui/effect/ui_effect.dart';
 import 'package:tentura/ui/effect/ui_effect_port.dart';
 
+import '../../domain/entity/forward_delivery_result.dart';
 import '../../domain/entity/forward_inbound_source.dart';
 import '../../domain/use_case/forward_case.dart';
 import '../../domain/entity/forward_candidate.dart';
@@ -17,6 +22,12 @@ export 'package:flutter_bloc/flutter_bloc.dart';
 
 export 'forward_state.dart';
 
+typedef ForwardTimerFactory =
+    Timer Function(Duration duration, void Function() onFire);
+
+typedef ForwardLifecycleListenerFactory =
+    AppLifecycleListener Function({VoidCallback? onResume});
+
 class ForwardCubit extends Cubit<ForwardState> {
   ForwardCubit({
     required String beaconId,
@@ -27,15 +38,25 @@ class ForwardCubit extends Cubit<ForwardState> {
     this.preselectLineageSuggestions = false,
     this.initialSelectedIds = const {},
     this.embedded = false,
+    DateTime Function()? clock,
+    ForwardTimerFactory? timerFactory,
+    ForwardLifecycleListenerFactory? lifecycleListenerFactory,
   }) : _forwardCase =
            forwardCase ??
            (debugSkipInitialLoad ? null : GetIt.I<ForwardCase>()),
        _effects = effects ?? GetIt.I<UiEffectPort>(),
+       _clock = clock ?? DateTime.now,
+       _timerFactory = timerFactory ?? Timer.new,
+       _lifecycleListenerFactory =
+           lifecycleListenerFactory ??
+           (({VoidCallback? onResume}) =>
+               AppLifecycleListener(onResume: onResume)),
        super(ForwardState(beaconId: beaconId, context: context)) {
     if (!debugSkipInitialLoad) {
       unawaited(_loadCandidates());
     }
     _subscribeLiveUpdates();
+    _maybeAttachLifecycleListener();
   }
 
   /// When true, first candidate load pre-checks lineage auto-select rows.
@@ -51,14 +72,34 @@ class ForwardCubit extends Cubit<ForwardState> {
 
   final UiEffectPort _effects;
 
+  final DateTime Function() _clock;
+
+  final ForwardTimerFactory _timerFactory;
+
+  final ForwardLifecycleListenerFactory _lifecycleListenerFactory;
+
   bool _appliedInitialLineagePreselect = false;
   bool _appliedInitialUserPreselect = false;
+  bool _suppressForwardChangeReload = false;
 
   StreamSubscription<String>? _forwardChangesSub;
 
   StreamSubscription<void>? _contactChangesSub;
 
   StreamSubscription<void>? _blockChangesSub;
+
+  Timer? _availabilityExpiryTimer;
+
+  AppLifecycleListener? _lifecycleListener;
+
+  DateTime _todayUtc() => availabilityTodayUtc(_clock);
+
+  void _maybeAttachLifecycleListener() {
+    if (BindingBase.debugBindingType() == null) {
+      return;
+    }
+    _lifecycleListener = _lifecycleListenerFactory(onResume: _onAppResume);
+  }
 
   void _subscribeLiveUpdates() {
     final forwardCase = _forwardCase;
@@ -68,7 +109,7 @@ class ForwardCubit extends Cubit<ForwardState> {
     _forwardChangesSub = forwardCase.forwardChanges
         .where((id) => id == state.beaconId)
         .listen((_) {
-          if (!isClosed) {
+          if (!isClosed && !_suppressForwardChangeReload) {
             unawaited(_loadCandidates(forceReload: true));
           }
         });
@@ -125,6 +166,66 @@ class ForwardCubit extends Cubit<ForwardState> {
   /// Retry after [ForwardCandidatesError] without clearing draft selections.
   Future<void> retryLoadCandidates() => reloadCandidates();
 
+  Set<String> _selectableIdsOn(
+    DateTime todayUtc, {
+    required List<ForwardCandidate> candidates,
+    required List<ForwardCandidate> lineageSuggestions,
+  }) => {
+    for (final c in candidates)
+      if (c.canForwardToOn(todayUtc)) c.id,
+    for (final c in lineageSuggestions)
+      if (c.canForwardToOn(todayUtc)) c.id,
+  };
+
+  void _cancelAvailabilityExpiryTimer() {
+    _availabilityExpiryTimer?.cancel();
+    _availabilityExpiryTimer = null;
+  }
+
+  void _scheduleAvailabilityExpiryTimer() {
+    _cancelAvailabilityExpiryTimer();
+    final todayUtc = _todayUtc();
+    DateTime? earliestResumeOn;
+    for (final candidate in [
+      ...state.candidates,
+      ...state.lineageSuggestions,
+    ]) {
+      final resumeOn = candidate.profile.availability.resumeOn;
+      if (resumeOn == null || !todayUtc.isBefore(resumeOn)) {
+        continue;
+      }
+      if (earliestResumeOn == null || resumeOn.isBefore(earliestResumeOn)) {
+        earliestResumeOn = resumeOn;
+      }
+    }
+    if (earliestResumeOn == null) {
+      return;
+    }
+    final delay = earliestResumeOn.difference(_clock().toUtc());
+    if (delay.isNegative) {
+      unawaited(_onAvailabilityBoundary());
+      return;
+    }
+    _availabilityExpiryTimer = _timerFactory(delay, _onAvailabilityBoundary);
+  }
+
+  void _onAppResume() {
+    if (isClosed) {
+      return;
+    }
+    unawaited(_onAvailabilityBoundary());
+  }
+
+  Future<void> _onAvailabilityBoundary() async {
+    if (isClosed) {
+      return;
+    }
+    await _loadCandidates(forceReload: true);
+    if (!isClosed) {
+      _scheduleAvailabilityExpiryTimer();
+    }
+  }
+
   Future<void> _loadCandidates({bool forceReload = false}) async {
     final forwardCase = _forwardCase;
     if (forwardCase == null || isClosed) {
@@ -161,23 +262,19 @@ class ForwardCubit extends Cubit<ForwardState> {
       }
       _loadMemoKey = memoKey;
 
-      // Do not pre-select server-suggested recipients by default: forwarding is
-      // an explicit send action, and auto-checking suggested people risks
-      // mis-forwarding (QA Jun-26). The only opt-ins are lineage fork rows and
-      // user-explicit profile actions passed through [initialSelectedIds].
-      // Preserve the user's own selection across live reloads, pruning anyone no
-      // longer present in the candidate or lineage lists.
-      final availableIds = {
-        for (final c in load.candidates) c.id,
-        for (final c in load.lineageSuggestions) c.id,
-      };
-      final preservedSelection = state.selectedIds.intersection(availableIds);
+      final todayUtc = _todayUtc();
+      final selectableIds = _selectableIdsOn(
+        todayUtc,
+        candidates: load.candidates,
+        lineageSuggestions: load.lineageSuggestions,
+      );
+      final preservedSelection = state.selectedIds.intersection(selectableIds);
       final shouldLineagePreselect =
           preselectLineageSuggestions &&
           !_appliedInitialLineagePreselect &&
           preservedSelection.isEmpty;
       final lineagePreselect = shouldLineagePreselect
-          ? load.autoSelectIds.intersection(availableIds)
+          ? load.autoSelectIds.intersection(selectableIds)
           : const <String>{};
       if (preselectLineageSuggestions && !_appliedInitialLineagePreselect) {
         _appliedInitialLineagePreselect = true;
@@ -188,10 +285,10 @@ class ForwardCubit extends Cubit<ForwardState> {
           !_appliedInitialUserPreselect &&
           preservedSelection.isEmpty;
       final userPreselect = shouldUserPreselect
-          ? initialSelectedIds.intersection(availableIds)
+          ? initialSelectedIds.intersection(selectableIds)
           : const <String>{};
       final droppedPreselected = shouldUserPreselect
-          ? initialSelectedIds.difference(availableIds)
+          ? initialSelectedIds.difference(selectableIds)
           : state.droppedPreselectedIds;
       if (initialSelectedIds.isNotEmpty && !_appliedInitialUserPreselect) {
         _appliedInitialUserPreselect = true;
@@ -216,6 +313,7 @@ class ForwardCubit extends Cubit<ForwardState> {
           status: const StateIsSuccess(),
         ),
       );
+      _scheduleAvailabilityExpiryTimer();
     } catch (e) {
       if (isInitialLoad) {
         if (!isClosed) {
@@ -232,8 +330,105 @@ class ForwardCubit extends Cubit<ForwardState> {
     }
   }
 
+  List<String> _stableRequestedRecipientOrder({
+    required Set<String> droppedPreselectedIds,
+    required Set<String> selectedIds,
+    required List<ForwardCandidate> candidates,
+    required List<ForwardCandidate> lineageSuggestions,
+  }) {
+    final seen = <String>{};
+    final ordered = <String>[];
+
+    void addId(String id) {
+      if (seen.add(id)) {
+        ordered.add(id);
+      }
+    }
+
+    for (final candidate in candidates) {
+      if (droppedPreselectedIds.contains(candidate.id)) {
+        addId(candidate.id);
+      }
+    }
+    for (final candidate in lineageSuggestions) {
+      if (droppedPreselectedIds.contains(candidate.id)) {
+        addId(candidate.id);
+      }
+    }
+    for (final id in droppedPreselectedIds) {
+      addId(id);
+    }
+    for (final candidate in candidates) {
+      if (selectedIds.contains(candidate.id)) {
+        addId(candidate.id);
+      }
+    }
+    for (final candidate in lineageSuggestions) {
+      if (selectedIds.contains(candidate.id)) {
+        addId(candidate.id);
+      }
+    }
+    for (final id in selectedIds) {
+      addId(id);
+    }
+    return ordered;
+  }
+
+  ForwardDeliveryOutcome _buildDeliveryOutcome({
+    required List<String> requestedRecipientIds,
+    required List<String> deliveredRecipientIds,
+    required List<String> availabilitySkippedRecipientIds,
+    bool failed = false,
+  }) => ForwardDeliveryOutcome(
+    requestedRecipientIds: requestedRecipientIds,
+    deliveredRecipientIds: deliveredRecipientIds,
+    availabilitySkippedRecipientIds: availabilitySkippedRecipientIds,
+    failed: failed,
+  );
+
+  void _emitDeliveryMessage(ForwardDeliveryOutcome outcome) {
+    if (outcome.failed) {
+      return;
+    }
+    final delivered = outcome.deliveredCount;
+    final requested = outcome.requestedCount;
+    final skipped = outcome.availabilitySkippedCount;
+    if (skipped == 0) {
+      _effects.emit(ShowMessage(ForwardSentMessage(delivered)));
+      return;
+    }
+    if (skipped == 1) {
+      final skippedId = outcome.availabilitySkippedRecipientIds.single;
+      final candidate = _findCandidate(skippedId);
+      final skippedName = candidate?.profile.shownName.trim().isNotEmpty == true
+          ? candidate!.profile.shownName
+          : skippedId;
+      _effects.emit(
+        ShowMessage(
+          ForwardPartialDeliveryMessage(
+            deliveredCount: delivered,
+            requestedCount: requested,
+            skippedName: skippedName,
+          ),
+        ),
+      );
+      return;
+    }
+    _effects.emit(
+      ShowMessage(
+        ForwardPartialDeliveryManyMessage(
+          deliveredCount: delivered,
+          requestedCount: requested,
+          skippedCount: skipped,
+        ),
+      ),
+    );
+  }
+
   @override
   Future<void> close() async {
+    _cancelAvailabilityExpiryTimer();
+    _lifecycleListener?.dispose();
     await _forwardChangesSub?.cancel();
     await _contactChangesSub?.cancel();
     await _blockChangesSub?.cancel();
@@ -387,7 +582,9 @@ class ForwardCubit extends Cubit<ForwardState> {
     if (forwardCase == null) {
       return false;
     }
-    if (state.selectedIds.isEmpty) return false;
+    if (state.selectedIds.isEmpty && state.droppedPreselectedIds.isEmpty) {
+      return false;
+    }
     final beacon = state.beacon;
     if (beacon == null || beacon.status != BeaconStatus.open) {
       _emitSnackError(
@@ -396,27 +593,72 @@ class ForwardCubit extends Cubit<ForwardState> {
       return false;
     }
 
+    final todayUtc = _todayUtc();
     final allCandidates = [
       ...state.candidates,
       ...state.lineageSuggestions,
     ];
-    final selectedCandidates = allCandidates
-        .where((c) => state.selectedIds.contains(c.id))
-        .toList();
+    final candidateById = {for (final c in allCandidates) c.id: c};
+    final requestedRecipientIds = _stableRequestedRecipientOrder(
+      droppedPreselectedIds: state.droppedPreselectedIds,
+      selectedIds: state.selectedIds,
+      candidates: state.candidates,
+      lineageSuggestions: state.lineageSuggestions,
+    );
 
-    final ineligible = selectedCandidates
-        .where((c) => !c.canForwardTo)
+    final localAvailabilitySkipped = <String>[];
+    final recipientIdsToSend = <String>[];
+    for (final id in requestedRecipientIds) {
+      final candidate = candidateById[id];
+      if (candidate == null ||
+          candidate.profile.availability.blocksNewRequestsOn(todayUtc)) {
+        localAvailabilitySkipped.add(id);
+        continue;
+      }
+      recipientIdsToSend.add(id);
+    }
+
+    final ineligibleSelected = state.selectedIds
+        .where(
+          (id) {
+            final candidate = candidateById[id];
+            return candidate != null &&
+                !candidate.profile.availability.blocksNewRequestsOn(todayUtc) &&
+                !candidate.canForwardToOn(todayUtc);
+          },
+        )
         .toList();
-    if (ineligible.isNotEmpty) {
+    if (ineligibleSelected.isNotEmpty) {
       _emitSnackError(const IneligibleRecipientsException());
       return false;
     }
 
     emit(state.copyWith(status: StateStatus.isLoading));
+    _suppressForwardChangeReload = true;
     try {
-      final recipientIds = state.selectedIds.toList();
+      if (recipientIdsToSend.isEmpty) {
+        final outcome = _buildDeliveryOutcome(
+          requestedRecipientIds: requestedRecipientIds,
+          deliveredRecipientIds: const [],
+          availabilitySkippedRecipientIds: requestedRecipientIds,
+        );
+        if (!isClosed) {
+          emit(
+            state.copyWith(
+              lastDeliveryOutcome: outcome,
+              status: const StateIsSuccess(),
+            ),
+          );
+        }
+        if (!embedded) {
+          _emitDeliveryMessage(outcome);
+          _emitNavigateBack(result: true);
+        }
+        return true;
+      }
+
       final perNotes = <String, String>{};
-      for (final id in state.selectedIds) {
+      for (final id in recipientIdsToSend) {
         final personal = state.perRecipientNotes[id];
         if (personal != null && personal.trim().isNotEmpty) {
           perNotes[id] = personal.trim();
@@ -427,13 +669,13 @@ class ForwardCubit extends Cubit<ForwardState> {
         for (final row in state.band) row.userId: row,
       };
       final recipientBandProvenance = <String, ({String? tier, bool isExploration})>{
-        for (final id in recipientIds)
+        for (final id in recipientIdsToSend)
           if (bandByUserId[id] case final row?)
             id: (tier: row.rowTier?.name, isExploration: row.isExploration),
       };
-      await forwardCase.forwardBeacon(
+      final result = await forwardCase.forwardBeacon(
         beaconId: state.beaconId,
-        recipientIds: recipientIds,
+        recipientIds: recipientIdsToSend,
         note: composedNote.isEmpty ? null : composedNote,
         perRecipientNotes: perNotes.isEmpty ? null : perNotes,
         context: state.context.isEmpty ? null : state.context,
@@ -445,8 +687,17 @@ class ForwardCubit extends Cubit<ForwardState> {
             ? null
             : recipientBandProvenance,
       );
-      final outcome = ForwardDeliveryOutcome(
-        deliveredRecipientIds: recipientIds,
+      final availabilitySkippedRecipientIds = requestedRecipientIds
+          .where(
+            (id) =>
+                localAvailabilitySkipped.contains(id) ||
+                result.availabilitySkippedRecipientIds.contains(id),
+          )
+          .toList();
+      final outcome = _buildDeliveryOutcome(
+        requestedRecipientIds: requestedRecipientIds,
+        deliveredRecipientIds: result.deliveredRecipientIds,
+        availabilitySkippedRecipientIds: availabilitySkippedRecipientIds,
       );
       if (!isClosed) {
         emit(
@@ -457,7 +708,7 @@ class ForwardCubit extends Cubit<ForwardState> {
         );
       }
       if (!embedded) {
-        _effects.emit(ShowMessage(ForwardSentMessage(recipientIds.length)));
+        _emitDeliveryMessage(outcome);
         _emitNavigateBack(result: true);
       }
       return true;
@@ -465,8 +716,10 @@ class ForwardCubit extends Cubit<ForwardState> {
       if (embedded && !isClosed) {
         emit(
           state.copyWith(
-            lastDeliveryOutcome: const ForwardDeliveryOutcome(
-              deliveredRecipientIds: [],
+            lastDeliveryOutcome: _buildDeliveryOutcome(
+              requestedRecipientIds: requestedRecipientIds,
+              deliveredRecipientIds: const [],
+              availabilitySkippedRecipientIds: const [],
               failed: true,
             ),
             status: const StateIsSuccess(),
@@ -475,6 +728,8 @@ class ForwardCubit extends Cubit<ForwardState> {
       }
       _emitSnackError(e);
       return false;
+    } finally {
+      _suppressForwardChangeReload = false;
     }
   }
 }
