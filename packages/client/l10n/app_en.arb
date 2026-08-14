@@ -1054,7 +1054,7 @@
   "@introPage2Title": {
     "context": "Intro"
   },
-  "introPage2Text": "Describe what you need — that's a request. Friends forward it to someone who can help, and you coordinate in the request's chat until it's done.",
+  "introPage2Text": "Describe what you need — that's a request. Friends forward it to someone who can help, and you coordinate in the request's discussion until it's done.",
   "@introPage2Text": {
     "context": "Intro"
   },
@@ -1592,7 +1592,7 @@
   "notificationCatUnblocksMe": "Resolutions",
   "notificationCatUnblocksMeDesc": "Updates that let you move forward",
   "notificationCatCoordination": "Coordination",
-  "notificationCatCoordinationDesc": "Activity in request chats you're part of, including @mentions",
+  "notificationCatCoordinationDesc": "Activity in request discussions you're part of, including @mentions",
   "notificationCatConnections": "Connections",
   "notificationCatConnectionsDesc": "Invitations and connection activity",
   "notificationCatAmbient": "Ambient",
@@ -2875,7 +2875,7 @@
   "@beaconViewErrorGoBack": {
     "context": "BeaconViewScreen"
   },
-  "beaconViewRoomAccessUnavailableBanner": "Chat isn’t available for this request.",
+  "beaconViewRoomAccessUnavailableBanner": "Discussion isn't available for this request.",
   "@beaconViewRoomAccessUnavailableBanner": {
     "context": "BeaconViewScreen"
   },
@@ -3455,11 +3455,11 @@
   "coordinationNeedDifferentSkill": "Need different skill",
   "coordinationNeedCoordination": "Need coordination",
   "coordinationNotSuitable": "Not suitable",
-  "coordinationResponseRoomAdmits": "Admits to chat",
-  "coordinationResponseRoomNoAdmission": "No chat admission",
-  "coordinationInviteToRoomRow": "Admit to chat",
+  "coordinationResponseRoomAdmits": "Admitted to the discussion",
+  "coordinationResponseRoomNoAdmission": "No discussion admission",
+  "coordinationInviteToRoomRow": "Admit to the discussion",
   "beaconRoomWaitingForApproval": "Waiting for approval",
-  "beaconRoomNoAdmission": "No chat admission",
+  "beaconRoomNoAdmission": "No discussion admission",
   "withdrawCantDoIt": "Cannot do it anymore",
   "withdrawTimingChanged": "Timing no longer works",
   "withdrawWrongFit": "Wrong fit",
@@ -3480,8 +3480,6 @@
   "labelBeaconTabStatus": "Status",
   "labelBeaconTabActivity": "Timeline",
   "labelBeaconTabLog": "Log",
-  "labelBeaconTabRoom": "Chat",
-  "labelBeaconTabItems": "Items",
   "labelBeaconTabThreads": "Threads",
   "threadGeneralTitle": "General",
   "threadClosedFoldTitle": "Closed ({count})",
@@ -3586,9 +3584,9 @@
   "beaconSituationCurrentLineLabel": "What's next?",
   "beaconSituationBlockerLabel": "Blocker",
   "beaconSituationLastChangeLabel": "Last",
-  "beaconSituationOpenRoom": "Open Chat",
+  "beaconSituationOpenRoom": "Open General",
   "beaconBlockersPanelTitle": "Blockers / Questions",
-  "beaconBlockersPanelAskInRoom": "Ask in Chat",
+  "beaconBlockersPanelAskInRoom": "Ask in General",
   "beaconHudYourRolePanelTitle": "Your role",
   "beaconHudYouAuthorReview": "Review {count} commitment(s)",
   "@beaconHudYouAuthorReview": {
@@ -3691,7 +3689,7 @@
   "beaconCloseSheetActionKeepActive": "Keep active",
   "beaconCloseSheetActionOpenPeople": "Open People",
   "beaconCloseAnswerFirst": "Answer first",
-  "beaconCloseSheetActionResolveRoom": "Open chat",
+  "beaconCloseSheetActionResolveRoom": "Open General",
   "beaconCloseSheetActionNotNow": "Not now",
   "beaconCloseSheetBlockedForceHint": "Closing despite blockers is disabled.",
   "beaconCloseSheetReadyReviewTitle": "Close and wrap up?",
@@ -3747,13 +3745,13 @@
   "beaconClosurePanelTitlePremature": "Closure not ready",
   "beaconClosurePanelTitleBlocked": "Resolve before closing",
   "beaconClosurePanelBodyReady": "The request looks ready to close from coordination signals.",
-  "beaconClosurePanelBodyReview": "Closure may be plausible — check commitments and chat state first.",
+  "beaconClosurePanelBodyReview": "Closure may be plausible — check commitments and discussion state first.",
   "beaconClosurePanelBodyPremature": "There is not enough completion evidence yet.",
   "beaconClosurePanelBodyBlocked": "Closure is blocked until unresolved coordination clears.",
   "beaconClosurePanelEvidenceHeading": "Signals",
   "beaconPeopleLensAuthorHeading": "Author",
   "beaconPeopleLensStewardsHeading": "Steward",
-  "beaconPeopleLensRoomMembersHeading": "Chat members",
+  "beaconPeopleLensRoomMembersHeading": "Discussion participants",
   "beaconPeopleLensActiveHelpersHeading": "Active helpers",
   "beaconPeopleLensWillingToHelpHeading": "Willing to help",
   "beaconPeopleLensNotFittingHeading": "Not fitting",
@@ -3764,22 +3762,22 @@
   "beaconHudActWrapUpForReview": "Wrap up for review",
   "beaconHudActReviewContributions": "Review contributions",
   "beaconHudActEffectResolveBlocker": "Opens Items to clear the blocker",
-  "beaconHudActEffectReviewOffers": "Opens People; accept adds helper to chat",
+  "beaconHudActEffectReviewOffers": "Opens People; accept adds helper to the discussion",
   "beaconHudActEffectMarkEnoughHelp": "Signals helpers; request stays open",
   "beaconHudActEffectWrapUpForReview": "Starts review window; helpers can acknowledge",
   "beaconHudActEffectReviewContributions": "Opens your review checklist",
   "beaconHudActEffectCloseNow": "Closes request when all reviews are in",
-  "beaconHudActEffectForward": "Shares request; does not change chat access",
+  "beaconHudActEffectForward": "Shares request; does not change discussion access",
   "beaconHudYouChangeStatusInOverflow": "Change request state in ⋮ menu",
   "beaconHudConfirmMarkEnoughHelpTitle": "Mark enough help?",
   "beaconHudConfirmMarkEnoughHelpBody": "Helpers see that help is sufficient. The request stays open until you wrap up or close.",
   "beaconHudConfirmMarkEnoughHelpAction": "Mark enough help",
   "beaconHudConfirmCloseNowTitle": "Close request now?",
-  "beaconHudConfirmCloseNowBody": "Closes the request immediately. Chat stays read-only.",
+  "beaconHudConfirmCloseNowBody": "Closes the request immediately. Discussion stays read-only.",
   "beaconHudConfirmCloseNowBlockedBody": "Close now is available when every required reviewer has finished or skipped.",
   "beaconHudConfirmCloseNowAction": "Close now",
   "beaconHudConfirmChangeLaterInStatus": "Change later in Request status",
-  "helpOfferAdmissionAcceptHint": "Adds {name} to chat",
+  "helpOfferAdmissionAcceptHint": "Adds {name} to the discussion",
   "@helpOfferAdmissionAcceptHint": {
     "placeholders": {
       "name": {
@@ -3787,14 +3785,14 @@
       }
     }
   },
-  "helpOfferAdmissionDeclineHint": "Declines offer; no chat access",
+  "helpOfferAdmissionDeclineHint": "Declines offer; no discussion access",
   "beaconStatusSheetAdvancedHint": "Advanced changes; most authors follow the button above.",
   "beaconStatusRowOutcomeDraft": "Save as draft until you publish",
   "beaconStatusRowOutcomeOpen": "Request accepts new offers",
   "beaconStatusRowOutcomeMoreHelp": "Asks network for more responses",
   "beaconStatusRowOutcomeEnoughHelp": "Signals sufficient help; stays open",
   "beaconStatusRowOutcomeWrappingUp": "Review window for contributors",
-  "beaconStatusRowOutcomeClosed": "Request is closed; chat is read-only",
+  "beaconStatusRowOutcomeClosed": "Request is closed; discussion is read-only",
   "beaconStatusRowOutcomeCancelled": "Request is cancelled; no further coordination",
   "timelineRequestStatusChanged": "{author} marked the request as {status}",
   "@timelineRequestStatusChanged": {
@@ -3880,7 +3878,7 @@
       }
     }
   },
-  "beaconHeaderRoomCount": "Chat · {count}",
+  "beaconHeaderRoomCount": "Discussion · {count}",
   "@beaconHeaderRoomCount": {
     "placeholders": {
       "count": {
@@ -3920,7 +3918,7 @@
   "beaconNeedCardTitle": "Need",
   "beaconDefinitionSectionTitle": "Definition",
   "beaconDefinitionLastPublicChangeLabel": "Last update",
-  "beaconDefinitionLastRoomChangeLabel": "Last in chat",
+  "beaconDefinitionLastRoomChangeLabel": "Last in General",
   "beaconNeedAndContextTitle": "Need & context",
   "beaconContextAttachmentsTitle": "Context & attachments",
   "beaconNeedBriefPrefix": "Need:",
@@ -3954,9 +3952,9 @@
   "helpOffersTabNoAuthorLabelYet": "author review required",
   "helpOfferAdmissionAccept": "Accept",
   "helpOfferAdmissionDecline": "Decline",
-  "helpOfferAdmissionRemove": "Remove from chat",
+  "helpOfferAdmissionRemove": "Remove from the discussion",
   "helpOfferAdmittedLabel": "Admitted",
-  "helpOfferCanReadChat": "Can read this chat",
+  "helpOfferCanReadChat": "Can read this discussion",
   "helpOfferAdmittedAutomaticallyLabel": "Admitted automatically",
   "helpOfferAdmittedAutomaticallyHint": "You forwarded this request to them directly",
   "helpOfferDirectForwardChip": "Forwarded by you",
@@ -3973,9 +3971,9 @@
   },
   "helpOfferDeclineDialogTitle": "Decline this offer",
   "helpOfferDeclineDialogHint": "Let them know why. This is required",
-  "helpOfferRemoveDialogTitle": "Remove from chat",
+  "helpOfferRemoveDialogTitle": "Remove from the discussion",
   "helpOfferRemoveDialogHint": "Let them know why. This is required",
-  "helpOfferRemoveKeepsParticipationNote": "Chat access only — participation stays recorded.",
+  "helpOfferRemoveKeepsParticipationNote": "Discussion access only — participation stays recorded.",
   "@helpOfferRemoveKeepsParticipationNote": {
     "description": "Explains that removing from chat does not end recorded participation"
   },
@@ -4007,7 +4005,7 @@
       }
     }
   },
-  "helpOfferRemovedWithReason": "Removed from chat: {reason}",
+  "helpOfferRemovedWithReason": "Removed from the discussion: {reason}",
   "@helpOfferRemovedWithReason": {
     "placeholders": {
       "reason": {
@@ -4058,10 +4056,10 @@
     }
   },
   "beaconRelationNoTrail": "No forward chain recorded for you.",
-  "beaconRoomTitle": "Chat",
+  "beaconRoomTitle": "General",
   "beaconRoomMessageHint": "Write a message…",
-  "beaconRoomOpen": "Chat",
-  "beaconRoomBackToChat": "Back to chat",
+  "beaconRoomOpen": "General",
+  "beaconRoomBackToChat": "Back to Threads",
   "@beaconRoomBackToChat": {
     "context": "BeaconViewScreen",
     "description": "Returns from a nested item thread to the main room chat column."
@@ -4069,21 +4067,21 @@
   "beaconFactsSheetTitle": "Pinned facts",
   "beaconFactsSheetEmpty": "No pinned facts yet.",
   "beaconRoomPinFactTitle": "Pin as fact",
-  "beaconRoomPinFactPublic": "Public — visible beyond the chat",
-  "beaconRoomPinFactRoomOnly": "Chat only",
+  "beaconRoomPinFactPublic": "Public — visible beyond the discussion",
+  "beaconRoomPinFactRoomOnly": "Discussion only",
   "beaconRoomPinFactDisabledEmpty": "Add text or an attachment before pinning.",
   "beaconRoomPinFactAttachmentBodyFallback": "Attachment",
   "beaconRoomActionViewPinnedFact": "View pinned fact",
   "beaconRoomSemanticPlan": "Plan",
   "beaconRoomSemanticPublicFact": "Public fact",
-  "beaconRoomSemanticRoomFact": "Chat fact",
+  "beaconRoomSemanticRoomFact": "Discussion fact",
   "beaconRoomSemanticParticipantStatus": "Status",
   "beaconRoomSemanticBlocker": "Blocker",
   "beaconRoomSemanticNeedInfo": "Need info",
   "beaconRoomSemanticDone": "Done",
   "beaconRoomSemanticPoll": "Poll",
   "beaconRoomSemanticSystem": "System",
-  "beaconRoomSemanticParticipantJoined": "Joined chat",
+  "beaconRoomSemanticParticipantJoined": "Joined the discussion",
   "beaconRoomMemberCount": "{count, plural, =1{1 person} other{{count} people}}",
   "@beaconRoomMemberCount": {
     "placeholders": {
@@ -4092,7 +4090,7 @@
       }
     }
   },
-  "beaconRoomParticipantJoinedAutoAdmit": "{joinedName} joined the chat because the author forwarded this request to them",
+  "beaconRoomParticipantJoinedAutoAdmit": "{joinedName} joined the discussion because the author forwarded this request to them",
   "@beaconRoomParticipantJoinedAutoAdmit": {
     "placeholders": {
       "joinedName": {
@@ -4100,7 +4098,7 @@
       }
     }
   },
-  "beaconRoomParticipantJoinedByActor": "{joinedName} was admitted to the chat by {actorName}",
+  "beaconRoomParticipantJoinedByActor": "{joinedName} was admitted to the discussion by {actorName}",
   "@beaconRoomParticipantJoinedByActor": {
     "placeholders": {
       "joinedName": {
@@ -4114,19 +4112,19 @@
   "beaconRoomDateToday": "Today",
   "beaconRoomDateYesterday": "Yesterday",
   "beaconRoomMessagePinnedFactChipPublic": "Pinned · public fact",
-  "beaconRoomMessagePinnedFactChipPrivate": "Pinned · chat fact",
+  "beaconRoomMessagePinnedFactChipPrivate": "Pinned · discussion fact",
   "beaconRoomFactCardVisibilityPublic": "Public",
-  "beaconRoomFactCardVisibilityChat": "Chat",
+  "beaconRoomFactCardVisibilityChat": "Discussion",
   "beaconRoomFactCardActionEdit": "Edit text",
   "beaconRoomFactCardActionRemove": "Unpin",
   "beaconRoomFactCardActionJumpToSource": "Jump to message",
   "beaconRoomFactCardActionCopy": "Copy text",
   "beaconRoomFactCardActionMakePublic": "Make public",
-  "beaconRoomFactCardActionMakePrivate": "Chat only",
+  "beaconRoomFactCardActionMakePrivate": "Discussion only",
   "beaconRoomFactCardEditTitle": "Edit fact",
   "beaconRoomFactCardEditHint": "Fact text",
   "beaconRoomFactCardRemoveConfirmTitle": "Unpin this fact?",
-  "beaconRoomFactCardRemoveConfirmBody": "The fact card will no longer be pinned on this request. Messages in the chat stay as they are.",
+  "beaconRoomFactCardRemoveConfirmBody": "The fact card will no longer be pinned on this request. Messages in the discussion stay as they are.",
   "beaconRoomFactCardRemoveConfirmAction": "Unpin",
   "beaconRoomFactCardCorrectedBadge": "Edited",
   "beaconRoomFactCardPinnedByLabel": "Pinned by {name}",
@@ -4168,12 +4166,12 @@
     }
   },
   "beaconRoomStripMeaningfulChangeLabel": "Latest change",
-  "beaconRoomStripOpenBlockerHint": "A blocker is open in the chat (details in chat).",
+  "beaconRoomStripOpenBlockerHint": "A blocker is open in General (details in the thread).",
   "coordinationCreatePromiseAction": "Make a promise…",
   "coordinationCreatePromiseSheetPrompt": "What do you promise to do?",
   "coordinationCreatePromiseFromMessage": "Promise from message",
   "coordinationPromiseTargetPickerLabel": "Who is this promise to?",
-  "coordinationCreatePromiseNoTargets": "No one is available to receive a promise on this request yet. Admit a helper to the chat or wait for a help offer first.",
+  "coordinationCreatePromiseNoTargets": "No one is available to receive a promise on this request yet. Admit a helper to the discussion or wait for a help offer first.",
   "coordinationDeleteDraftTitle": "Delete this draft?",
   "coordinationDeleteDraftBody": "This cannot be undone.",
   "coordinationAskFromMessagePreview": "From message",
@@ -4230,9 +4228,9 @@
   "@beaconActivityLifecycleReviewExpired": {
     "description": "Activity log: review window expired and beacon closed"
   },
-  "beaconActivityParticipantRemoved": "Participant removed from chat",
-  "beaconActivityParticipantJoined": "Participant joined the chat",
-  "beaconActivityCoordinationFallback": "Chat update",
+  "beaconActivityParticipantRemoved": "Participant removed from the discussion",
+  "beaconActivityParticipantJoined": "Participant joined the discussion",
+  "beaconActivityCoordinationFallback": "Discussion update",
   "beaconRoomMessageActionsTitle": "Message actions",
   "beaconRoomReactionAddTooltip": "Add reaction",
   "@beaconRoomReactionAddTooltip": {
@@ -4321,7 +4319,7 @@
   "beaconPeopleStatusHelpOffered": "Help Offered",
   "beaconPeopleStatusHelpOfferedUseful": "Help Offered · marked useful",
   "beaconPeopleStatusHelpOfferedNeedCoordination": "Help Offered · needs coordination",
-  "beaconPeopleStatusRemovedFromChat": "Removed from chat",
+  "beaconPeopleStatusRemovedFromChat": "Removed from the discussion",
   "beaconPeopleStatusNeedsInfo": "Needs info",
   "beaconPeopleStatusBlocked": "Blocked",
   "beaconPeopleStatusDone": "Done",
@@ -4334,7 +4332,7 @@
       }
     }
   },
-  "inboxCardRoomUnread": "{count, plural, =0{Chat up to date} one{1 unread in Chat} other{{count} unread in Chat}}",
+  "inboxCardRoomUnread": "{count, plural, =0{General up to date} one{1 unread in General} other{{count} unread in General}}",
   "@inboxCardRoomUnread": {
     "placeholders": {
       "count": {
@@ -4342,7 +4340,7 @@
       }
     }
   },
-  "inboxCardRoomCurrentLine": "What's next in chat: {text}",
+  "inboxCardRoomCurrentLine": "What's next in General: {text}",
   "@inboxCardRoomCurrentLine": {
     "placeholders": {
       "text": {
@@ -4358,7 +4356,7 @@
       }
     }
   },
-  "inboxCardRoomLastChange": "Latest in Chat: {text}",
+  "inboxCardRoomLastChange": "Latest in General: {text}",
   "@inboxCardRoomLastChange": {
     "placeholders": {
       "text": {
@@ -4606,8 +4604,7 @@
   "coordinationBlockerActionResolve": "Resolve",
   "coordinationBlockerActionCancel": "Cancel",
   "coordinationBlockerActionDiscuss": "Discuss",
-  "coordinationItemDiscussionTitle": "Discussion",
-  "coordinationItemDiscussionComposerHint": "Add to discussion…",
+  "coordinationItemDiscussionComposerHint": "Write in the thread…",
   "coordinationItemStatusOpen": "Open",
   "coordinationItemStatusAccepted": "Accepted",
   "coordinationItemStatusResolved": "Resolved",
@@ -4923,14 +4920,14 @@
   "updatesFallbackBodyRelayReceived": "Someone forwarded a request to you.",
   "updatesFallbackTitleHelpOfferSubmitted": "Help offered",
   "updatesFallbackBodyHelpOfferSubmitted": "Someone offered help on a request.",
-  "updatesFallbackTitleOfferAccepted": "Chat access granted",
-  "updatesFallbackBodyOfferAccepted": "You were added to a request chat.",
+  "updatesFallbackTitleOfferAccepted": "Discussion access granted",
+  "updatesFallbackBodyOfferAccepted": "You were added to a request discussion.",
   "updatesFallbackTitleOfferDeclined": "Offer declined",
   "updatesFallbackBodyOfferDeclined": "Your offer was declined.",
-  "updatesFallbackTitleOfferRemoved": "Removed from chat",
-  "updatesFallbackBodyOfferRemoved": "You were removed from a request chat.",
-  "updatesFallbackTitleRoomMessagePosted": "New chat message",
-  "updatesFallbackBodyRoomMessagePosted": "New activity in a request chat.",
+  "updatesFallbackTitleOfferRemoved": "Removed from the discussion",
+  "updatesFallbackBodyOfferRemoved": "You were removed from a request discussion.",
+  "updatesFallbackTitleRoomMessagePosted": "New thread message",
+  "updatesFallbackBodyRoomMessagePosted": "New activity in a request thread.",
   "updatesFallbackTitleRequestStatusChanged": "Request status changed",
   "updatesFallbackBodyRequestStatusChanged": "A request status changed.",
   "updatesFallbackTitleReviewOpened": "Close the loop",
@@ -4981,7 +4978,7 @@
   "updatesFallbackTitleCoordinationChanged": "Plan updated",
   "updatesFallbackBodyCoordinationChanged": "Coordination changed on a request.",
   "updatesFallbackTitleStaleReminder": "Still needs attention",
-  "updatesFallbackBodyStaleReminder": "Something in a request chat needs attention.",
+  "updatesFallbackBodyStaleReminder": "Something in a request thread needs attention.",
   "updatesFallbackTitleCommitmentAccepted": "Commitment accepted",
   "updatesFallbackBodyCommitmentAccepted": "Someone accepted a commitment on a request.",
   "updatesFallbackTitleCommitmentResolved": "Commitment resolved",
@@ -4989,174 +4986,174 @@
   "updatesFallbackTitleCommitmentCancelled": "Commitment cancelled",
   "updatesFallbackBodyCommitmentCancelled": "A commitment was cancelled on a request.",
   "updatesFallbackTitleCommitmentRedirected": "Reassigned to you",
-  "updatesFallbackBodyCommitmentRedirected": "Open the request chat to see your assignment.",
+  "updatesFallbackBodyCommitmentRedirected": "Open General to see your assignment.",
   "updatesFallbackTitleTrustGivenChanged": "Trust update",
   "updatesFallbackBodyTrustGivenChanged": "Your trust in someone changed after a request closed.",
   "updatesFallbackTitleTrustReceivedChanged": "Trust update",
-  "updatesFallbackBodyTrustReceivedChanged": "Someone's trust in you changed after a request closed."
-  ,"notificationSettingsInApp": "In app"
-  ,"notificationSettingsInAppMandatory": "Safety and obligation updates always remain visible."
-  ,"notificationSettingsInAppCoordination": "Coordination activity"
-  ,"notificationSettingsInAppCoordinationDesc": "Show routine Chat and coordination updates."
-  ,"notificationSettingsInAppRequestProgress": "Request progress"
-  ,"notificationSettingsInAppRequestProgressDesc": "Show routine Request status updates."
-  ,"blockUserTitle": "Block {name}?"
-  ,"@blockUserTitle": {
+  "updatesFallbackBodyTrustReceivedChanged": "Someone's trust in you changed after a request closed.",
+  "notificationSettingsInApp": "In app",
+  "notificationSettingsInAppMandatory": "Safety and obligation updates always remain visible.",
+  "notificationSettingsInAppCoordination": "Coordination activity",
+  "notificationSettingsInAppCoordinationDesc": "Show routine Threads and coordination updates.",
+  "notificationSettingsInAppRequestProgress": "Request progress",
+  "notificationSettingsInAppRequestProgressDesc": "Show routine Request status updates.",
+  "blockUserTitle": "Block {name}?",
+  "@blockUserTitle": {
     "description": "Title on the block confirmation sheet.",
     "placeholders": {
       "name": {
         "type": "String"
       }
     }
-  }
-  ,"blockUserExplainer": "You will no longer see each other's content, and neither of you will be able to contact the other."
-  ,"@blockUserExplainer": {
+  },
+  "blockUserExplainer": "You will no longer see each other's content, and neither of you will be able to contact the other.",
+  "@blockUserExplainer": {
     "description": "Body copy on the block confirmation sheet."
-  }
-  ,"blockCascadeToggle": "Also hide people they invited"
-  ,"@blockCascadeToggle": {
+  },
+  "blockCascadeToggle": "Also hide people they invited",
+  "@blockCascadeToggle": {
     "description": "Cascade switch title on the block sheet."
-  }
-  ,"blockCascadeToggleSubtitle": "Extends the block to people in their invite network who lack independent standing."
-  ,"@blockCascadeToggleSubtitle": {
+  },
+  "blockCascadeToggleSubtitle": "Extends the block to people in their invite network who lack independent standing.",
+  "@blockCascadeToggleSubtitle": {
     "description": "Cascade switch subtitle on the block sheet."
-  }
-  ,"blockWithdrawNotice": "Blocking also stops your vouch for this person in the trust graph. Unblocking restores it."
-  ,"@blockWithdrawNotice": {
+  },
+  "blockWithdrawNotice": "Blocking also stops your vouch for this person in the trust graph. Unblocking restores it.",
+  "@blockWithdrawNotice": {
     "description": "Informational notice when blocking will withdraw a published trust edge."
-  }
-  ,"blockPreviewCascade": "{count, plural, =0{No additional people would be hidden} =1{1 additional person would be hidden} other{{count} additional people would be hidden}}"
-  ,"@blockPreviewCascade": {
+  },
+  "blockPreviewCascade": "{count, plural, =0{No additional people would be hidden} =1{1 additional person would be hidden} other{{count} additional people would be hidden}}",
+  "@blockPreviewCascade": {
     "description": "Impact preview for cascade candidate count.",
     "placeholders": {
       "count": {
         "type": "int"
       }
     }
-  }
-  ,"blockPreviewCascadeCapped": "At least {count} additional people would be hidden"
-  ,"@blockPreviewCascadeCapped": {
+  },
+  "blockPreviewCascadeCapped": "At least {count} additional people would be hidden",
+  "@blockPreviewCascadeCapped": {
     "description": "Impact preview when the cascade candidate count hit the server's cap (block_cascade_candidates / blockCascadeMaxRows) — the real number may be higher than shown.",
     "placeholders": {
       "count": {
         "type": "int"
       }
     }
-  }
-  ,"blockPreviewOpenCommitments": "You have open commitments with this person that blocking does not cancel."
-  ,"@blockPreviewOpenCommitments": {
+  },
+  "blockPreviewOpenCommitments": "You have open commitments with this person that blocking does not cancel.",
+  "@blockPreviewOpenCommitments": {
     "description": "Warning when block preview reports open commitments."
-  }
-  ,"blockConfirmButton": "Block"
-  ,"@blockConfirmButton": {
+  },
+  "blockConfirmButton": "Block",
+  "@blockConfirmButton": {
     "description": "Destructive confirm action on the block sheet."
-  }
-  ,"blockConfirmedMessage": "Person blocked"
-  ,"@blockConfirmedMessage": {
+  },
+  "blockConfirmedMessage": "Person blocked",
+  "@blockConfirmedMessage": {
     "description": "Snackbar confirmation after a successful block."
-  }
-  ,"blockManageAction": "Manage"
-  ,"@blockManageAction": {
+  },
+  "blockManageAction": "Manage",
+  "@blockManageAction": {
     "description": "Snackbar action linking to the Blocked Users management screen."
-  }
-  ,"blockedUsersTitle": "Blocked users"
-  ,"@blockedUsersTitle": {
+  },
+  "blockedUsersTitle": "Blocked users",
+  "@blockedUsersTitle": {
     "description": "App bar title for the blocked-users list screen."
-  }
-  ,"blockedUsersEmpty": "You have not blocked anyone."
-  ,"@blockedUsersEmpty": {
+  },
+  "blockedUsersEmpty": "You have not blocked anyone.",
+  "@blockedUsersEmpty": {
     "description": "Empty state on the blocked-users list screen."
-  }
-  ,"blockedHiddenViaInvites": "Also hiding {count} via their invites"
-  ,"@blockedHiddenViaInvites": {
+  },
+  "blockedHiddenViaInvites": "Also hiding {count} via their invites",
+  "@blockedHiddenViaInvites": {
     "description": "Subtitle on a direct block row when cascade materialization has hidden additional people.",
     "placeholders": {
       "count": {
         "type": "int"
       }
     }
-  }
-  ,"blockedInheritedPending": "Still hiding people…"
-  ,"@blockedInheritedPending": {
+  },
+  "blockedInheritedPending": "Still hiding people…",
+  "@blockedInheritedPending": {
     "description": "Shown while cascade materialization is still running for a block."
-  }
-  ,"blockUnhideOne": "Unhide"
-  ,"@blockUnhideOne": {
+  },
+  "blockUnhideOne": "Unhide",
+  "@blockUnhideOne": {
     "description": "Action on an inherited block row; releases the entire cascade under this origin."
-  }
-  ,"blockPromoteToDirect": "Block directly"
-  ,"@blockPromoteToDirect": {
+  },
+  "blockPromoteToDirect": "Block directly",
+  "@blockPromoteToDirect": {
     "description": "Promote an inherited block to a direct block for that person only."
-  }
-  ,"blockUnhideOriginTitle": "Unhide everyone hidden by this block?"
-  ,"@blockUnhideOriginTitle": {
+  },
+  "blockUnhideOriginTitle": "Unhide everyone hidden by this block?",
+  "@blockUnhideOriginTitle": {
     "description": "Confirmation title when unhiding from an inherited row."
-  }
-  ,"blockUnhideOriginWarning": "This will un-hide everyone hidden because of this block, not only this person."
-  ,"@blockUnhideOriginWarning": {
+  },
+  "blockUnhideOriginWarning": "This will un-hide everyone hidden because of this block, not only this person.",
+  "@blockUnhideOriginWarning": {
     "description": "Confirmation body when unhiding from an inherited row."
-  }
-  ,"blockUserMenuItem": "Block"
-  ,"@blockUserMenuItem": {
+  },
+  "blockUserMenuItem": "Block",
+  "@blockUserMenuItem": {
     "description": "Block action label on another user's profile menu."
-  }
-  ,"unblockUserMenuItem": "Unblock"
-  ,"@unblockUserMenuItem": {
+  },
+  "unblockUserMenuItem": "Unblock",
+  "@unblockUserMenuItem": {
     "description": "Unblock action label on profile menu and blocked-users list."
-  }
-  ,"blockErrorRateLimited": "You have blocked too many people recently. Try again later."
-  ,"@blockErrorRateLimited": {
+  },
+  "blockErrorRateLimited": "You have blocked too many people recently. Try again later.",
+  "@blockErrorRateLimited": {
     "description": "Shown when the server rejects a block for rate limiting."
-  }
-  ,"errorBlockedByUser": "This person is not available."
-  ,"@errorBlockedByUser": {
+  },
+  "errorBlockedByUser": "This person is not available.",
+  "@errorBlockedByUser": {
     "description": "Generic error when an action is rejected because of a block."
-  }
-  ,"availabilityLimitedTitle": "Only important requests"
-  ,"@availabilityLimitedTitle": {
+  },
+  "availabilityLimitedTitle": "Only important requests",
+  "@availabilityLimitedTitle": {
     "description": "Neutral availability label when another person accepts only important requests."
-  }
-  ,"availabilityPausedUntil": "Not taking new requests until {when}"
-  ,"@availabilityPausedUntil": {
+  },
+  "availabilityPausedUntil": "Not taking new requests until {when}",
+  "@availabilityPausedUntil": {
     "description": "Neutral availability label when another person is paused until a calendar date.",
     "placeholders": {
       "when": {
         "type": "String"
       }
     }
-  }
-  ,"availabilitySelfOpen": "Open to requests"
-  ,"@availabilitySelfOpen": {
+  },
+  "availabilitySelfOpen": "Open to requests",
+  "@availabilitySelfOpen": {
     "description": "Own-profile availability status when open to new requests."
-  }
-  ,"availabilitySelfLimited": "Only important requests"
-  ,"@availabilitySelfLimited": {
+  },
+  "availabilitySelfLimited": "Only important requests",
+  "@availabilitySelfLimited": {
     "description": "Own-profile availability status when limited to important requests."
-  }
-  ,"availabilitySelfPausedUntil": "Not taking new requests · until {when}"
-  ,"@availabilitySelfPausedUntil": {
+  },
+  "availabilitySelfPausedUntil": "Not taking new requests · until {when}",
+  "@availabilitySelfPausedUntil": {
     "description": "Own-profile availability status when paused until a calendar date.",
     "placeholders": {
       "when": {
         "type": "String"
       }
     }
-  }
-  ,"availabilitySelfThenLimited": "Then: only important requests"
-  ,"@availabilitySelfThenLimited": {
+  },
+  "availabilitySelfThenLimited": "Then: only important requests",
+  "@availabilitySelfThenLimited": {
     "description": "Own-profile secondary line when paused with limited resume target."
-  }
-  ,"availabilityResumeEcho": "You'll receive requests again on {when}"
-  ,"@availabilityResumeEcho": {
+  },
+  "availabilityResumeEcho": "You'll receive requests again on {when}",
+  "@availabilityResumeEcho": {
     "description": "Sheet echo of the resolved pause resume calendar date before committing.",
     "placeholders": {
       "when": {
         "type": "String"
       }
     }
-  }
-  ,"availabilityPersonPaused": "{name} isn't taking new requests until {when}."
-  ,"@availabilityPersonPaused": {
+  },
+  "availabilityPersonPaused": "{name} isn't taking new requests until {when}.",
+  "@availabilityPersonPaused": {
     "description": "Person-forward and other-profile paused explanation.",
     "placeholders": {
       "name": {
@@ -5166,17 +5163,17 @@
         "type": "String"
       }
     }
-  }
-  ,"availabilityUnaffectedNote": "Requests and chats you're already in aren't affected."
-  ,"@availabilityUnaffectedNote": {
+  },
+  "availabilityUnaffectedNote": "Requests and discussions you're already in aren't affected.",
+  "@availabilityUnaffectedNote": {
     "description": "Reassurance that pause does not withdraw existing requests or chats."
-  }
-  ,"availabilityResumeNow": "Resume now"
-  ,"@availabilityResumeNow": {
+  },
+  "availabilityResumeNow": "Resume now",
+  "@availabilityResumeNow": {
     "description": "Own-profile action to clear an active pause immediately."
-  }
-  ,"availabilityDeliveredPartial": "Delivered to {n} of {m} — {name} isn't taking new requests right now."
-  ,"@availabilityDeliveredPartial": {
+  },
+  "availabilityDeliveredPartial": "Delivered to {n} of {m} — {name} isn't taking new requests right now.",
+  "@availabilityDeliveredPartial": {
     "description": "Forward delivery snackbar when one recipient was skipped for availability.",
     "placeholders": {
       "n": {
@@ -5189,9 +5186,9 @@
         "type": "String"
       }
     }
-  }
-  ,"availabilityDeliveredPartialMany": "Delivered to {n} of {m} — {count} people aren't taking new requests right now."
-  ,"@availabilityDeliveredPartialMany": {
+  },
+  "availabilityDeliveredPartialMany": "Delivered to {n} of {m} — {count} people aren't taking new requests right now.",
+  "@availabilityDeliveredPartialMany": {
     "description": "Forward delivery snackbar when two or more recipients were skipped for availability.",
     "placeholders": {
       "n": {
@@ -5204,57 +5201,57 @@
         "type": "int"
       }
     }
-  }
-  ,"availabilitySheetTitle": "Request availability"
-  ,"@availabilitySheetTitle": {
+  },
+  "availabilitySheetTitle": "Request availability",
+  "@availabilitySheetTitle": {
     "description": "Title of the own-profile availability sheet."
-  }
-  ,"availabilityLimitedSwitchTitle": "Only important requests"
-  ,"@availabilityLimitedSwitchTitle": {
+  },
+  "availabilityLimitedSwitchTitle": "Only important requests",
+  "@availabilityLimitedSwitchTitle": {
     "description": "Limited toggle title on the availability sheet."
-  }
-  ,"availabilityLimitedSwitchDescription": "People still see you; they'll see a note asking them to be selective."
-  ,"@availabilityLimitedSwitchDescription": {
+  },
+  "availabilityLimitedSwitchDescription": "People still see you; they'll see a note asking them to be selective.",
+  "@availabilityLimitedSwitchDescription": {
     "description": "Limited toggle description on the availability sheet."
-  }
-  ,"availabilityPauseSectionTitle": "Not taking new requests"
-  ,"@availabilityPauseSectionTitle": {
+  },
+  "availabilityPauseSectionTitle": "Not taking new requests",
+  "@availabilityPauseSectionTitle": {
     "description": "Pause section title on the availability sheet."
-  }
-  ,"availabilityPauseSectionDescription": "You won't be offered when people pick recipients. Requests and chats you're already in aren't affected."
-  ,"@availabilityPauseSectionDescription": {
+  },
+  "availabilityPauseSectionDescription": "You won't be offered when people pick recipients. Requests and discussions you're already in aren't affected.",
+  "@availabilityPauseSectionDescription": {
     "description": "Pause section description on the availability sheet."
-  }
-  ,"availabilityPresetTomorrow": "Tomorrow"
-  ,"@availabilityPresetTomorrow": {
+  },
+  "availabilityPresetTomorrow": "Tomorrow",
+  "@availabilityPresetTomorrow": {
     "description": "Pause preset button for tomorrow."
-  }
-  ,"availabilityPresetThisWeekend": "This weekend"
-  ,"@availabilityPresetThisWeekend": {
+  },
+  "availabilityPresetThisWeekend": "This weekend",
+  "@availabilityPresetThisWeekend": {
     "description": "Pause preset button for the next Monday."
-  }
-  ,"availabilityPresetOneWeek": "One week"
-  ,"@availabilityPresetOneWeek": {
+  },
+  "availabilityPresetOneWeek": "One week",
+  "@availabilityPresetOneWeek": {
     "description": "Pause preset button for one week ahead."
-  }
-  ,"availabilityPresetOneMonth": "One month"
-  ,"@availabilityPresetOneMonth": {
+  },
+  "availabilityPresetOneMonth": "One month",
+  "@availabilityPresetOneMonth": {
     "description": "Pause preset button for one calendar month ahead."
-  }
-  ,"availabilityPresetPickDate": "Pick a date…"
-  ,"@availabilityPresetPickDate": {
+  },
+  "availabilityPresetPickDate": "Pick a date…",
+  "@availabilityPresetPickDate": {
     "description": "Pause preset button that opens the date picker."
-  }
-  ,"availabilityPauseAction": "Pause"
-  ,"@availabilityPauseAction": {
+  },
+  "availabilityPauseAction": "Pause",
+  "@availabilityPauseAction": {
     "description": "Commits the selected pause resume date."
-  }
-  ,"availabilityChangeAction": "Change"
-  ,"@availabilityChangeAction": {
+  },
+  "availabilityChangeAction": "Change",
+  "@availabilityChangeAction": {
     "description": "Own-profile text action that opens the availability sheet."
-  }
-  ,"availabilityDatePickerTitle": "Resume on"
-  ,"@availabilityDatePickerTitle": {
+  },
+  "availabilityDatePickerTitle": "Resume on",
+  "@availabilityDatePickerTitle": {
     "description": "Title for the pause resume date picker."
   }
 }

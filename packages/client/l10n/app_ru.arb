@@ -1054,7 +1054,7 @@
   "@introPage2Title": {
     "context": "Intro"
   },
-  "introPage2Text": "Опишите, что вам нужно, — это запрос. Друзья перешлют его тому, кто может помочь, а вы договоритесь обо всём в чате запроса.",
+  "introPage2Text": "Опишите, что вам нужно, — это запрос. Друзья перешлют его тому, кто может помочь, а вы договоритесь обо всём в обсуждении запроса.",
   "@introPage2Text": {
     "context": "Intro"
   },
@@ -1583,7 +1583,7 @@
   "notificationCatUnblocksMe": "Разблокировки",
   "notificationCatUnblocksMeDesc": "Обновления, позволяющие двигаться дальше",
   "notificationCatCoordination": "Координация",
-  "notificationCatCoordinationDesc": "Активность в чатах запросов, где вы участвуете, включая @упоминания",
+  "notificationCatCoordinationDesc": "Активность в обсуждениях запросов, где вы участвуете, включая @упоминания",
   "notificationCatConnections": "Связи",
   "notificationCatConnectionsDesc": "Приглашения и активность связей",
   "notificationCatAmbient": "Фоновые",
@@ -2862,7 +2862,7 @@
   "@beaconViewErrorGoBack": {
     "context": "BeaconViewScreen"
   },
-  "beaconViewRoomAccessUnavailableBanner": "Чат для этого запроса недоступна.",
+  "beaconViewRoomAccessUnavailableBanner": "Обсуждение для этого запроса недоступно.",
   "@beaconViewRoomAccessUnavailableBanner": {
     "context": "BeaconViewScreen"
   },
@@ -3442,11 +3442,11 @@
   "coordinationNeedDifferentSkill": "Нужен другой навык",
   "coordinationNeedCoordination": "Нужна координация",
   "coordinationNotSuitable": "Не подходит",
-  "coordinationResponseRoomAdmits": "Чат будет доступна",
-  "coordinationResponseRoomNoAdmission": "Чат недоступна",
-  "coordinationInviteToRoomRow": "Допустить в чат",
+  "coordinationResponseRoomAdmits": "Доступ к обсуждению",
+  "coordinationResponseRoomNoAdmission": "Нет доступа к обсуждению",
+  "coordinationInviteToRoomRow": "Допустить в обсуждение",
   "beaconRoomWaitingForApproval": "Ожидает решения",
-  "beaconRoomNoAdmission": "Чат недоступна",
+  "beaconRoomNoAdmission": "Нет доступа к обсуждению",
   "withdrawCantDoIt": "Больше не могу",
   "withdrawTimingChanged": "Не сходится по времени",
   "withdrawWrongFit": "Не мой формат",
@@ -3467,8 +3467,6 @@
   "labelBeaconTabStatus": "Статус",
   "labelBeaconTabActivity": "Хронология",
   "labelBeaconTabLog": "Журнал",
-  "labelBeaconTabRoom": "Чат",
-  "labelBeaconTabItems": "Элементы",
   "labelBeaconTabThreads": "Темы",
   "threadGeneralTitle": "Общее",
   "threadClosedFoldTitle": "Закрытые ({count})",
@@ -3545,9 +3543,9 @@
   "beaconSituationCurrentLineLabel": "Что дальше?",
   "beaconSituationBlockerLabel": "Блокер",
   "beaconSituationLastChangeLabel": "Последнее",
-  "beaconSituationOpenRoom": "Открыть чат",
+  "beaconSituationOpenRoom": "Открыть Общее",
   "beaconBlockersPanelTitle": "Блокеры / Вопросы",
-  "beaconBlockersPanelAskInRoom": "Спросить в чате",
+  "beaconBlockersPanelAskInRoom": "Спросить в Общем",
   "beaconHudYourRolePanelTitle": "Ваша роль",
   "beaconHudYouAuthorReview": "Проверить {count} участие(й)",
   "@beaconHudYouAuthorReview": {
@@ -3650,7 +3648,7 @@
   "beaconCloseSheetActionKeepActive": "Оставить активным",
   "beaconCloseSheetActionOpenPeople": "Открыть людей",
   "beaconCloseAnswerFirst": "Сначала ответить",
-  "beaconCloseSheetActionResolveRoom": "Открыть чат",
+  "beaconCloseSheetActionResolveRoom": "Открыть Общее",
   "beaconCloseSheetActionNotNow": "Не сейчас",
   "beaconCloseSheetBlockedForceHint": "Закрытие несмотря на блокеры отключено.",
   "beaconCloseSheetReadyReviewTitle": "Закрыть и завершить?",
@@ -3710,13 +3708,13 @@
   "beaconClosurePanelTitlePremature": "Закрытие ещё не готово",
   "beaconClosurePanelTitleBlocked": "Сначала снимите блокеры",
   "beaconClosurePanelBodyReady": "По сигналам координации запрос выглядит готовым к закрытию.",
-  "beaconClosurePanelBodyReview": "Закрытие возможно — сначала проверьте участия и чат.",
+  "beaconClosurePanelBodyReview": "Закрытие возможно — сначала проверьте участия и обсуждение.",
   "beaconClosurePanelBodyPremature": "Недостаточно явных сигналов завершения.",
   "beaconClosurePanelBodyBlocked": "Закрытие заблокировано незавершённой координацией.",
   "beaconClosurePanelEvidenceHeading": "Сигналы",
   "beaconPeopleLensAuthorHeading": "Автор",
   "beaconPeopleLensStewardsHeading": "Стюард",
-  "beaconPeopleLensRoomMembersHeading": "Участники чаты",
+  "beaconPeopleLensRoomMembersHeading": "Участники обсуждения",
   "beaconPeopleLensActiveHelpersHeading": "Активные помощники",
   "beaconPeopleLensWillingToHelpHeading": "Готовы помочь",
   "beaconPeopleLensNotFittingHeading": "Не подходят",
@@ -3727,22 +3725,22 @@
   "beaconHudActWrapUpForReview": "Завершить для отзыва",
   "beaconHudActReviewContributions": "Проверить вклад",
   "beaconHudActEffectResolveBlocker": "Открывает «Элементы» для снятия блокера",
-  "beaconHudActEffectReviewOffers": "Открывает «Люди»; принятие добавляет помощника в чат",
+  "beaconHudActEffectReviewOffers": "Открывает «Люди»; принятие добавляет помощника в обсуждение",
   "beaconHudActEffectMarkEnoughHelp": "Сигнал помощникам; запрос остаётся открытым",
   "beaconHudActEffectWrapUpForReview": "Запускает окно отзыва; помощники могут подтвердить",
   "beaconHudActEffectReviewContributions": "Открывает ваш чек-лист отзыва",
   "beaconHudActEffectCloseNow": "Закрывает запрос, когда все отзывы получены",
-  "beaconHudActEffectForward": "Делится запросом; доступ в чат не меняется",
+  "beaconHudActEffectForward": "Делится запросом; доступ к обсуждению не меняется",
   "beaconHudYouChangeStatusInOverflow": "Измените статус запроса в меню ⋮",
   "beaconHudConfirmMarkEnoughHelpTitle": "Отметить достаточно помощи?",
   "beaconHudConfirmMarkEnoughHelpBody": "Помощники увидят, что помощи достаточно. Запрос остаётся открытым, пока вы не завершите или не закроете его.",
   "beaconHudConfirmMarkEnoughHelpAction": "Помощи достаточно",
   "beaconHudConfirmCloseNowTitle": "Закрыть запрос сейчас?",
-  "beaconHudConfirmCloseNowBody": "Закрывает запрос немедленно. Чат остаётся только для чтения.",
+  "beaconHudConfirmCloseNowBody": "Закрывает запрос немедленно. Обсуждение остаётся только для чтения.",
   "beaconHudConfirmCloseNowBlockedBody": "Закрытие доступно, когда все обязательные рецензенты завершили или пропустили отзыв.",
   "beaconHudConfirmCloseNowAction": "Закрыть сейчас",
   "beaconHudConfirmChangeLaterInStatus": "Изменить позже в «Статус запроса»",
-  "helpOfferAdmissionAcceptHint": "Добавляет {name} в чат",
+  "helpOfferAdmissionAcceptHint": "Добавляет {name} в обсуждение",
   "@helpOfferAdmissionAcceptHint": {
     "placeholders": {
       "name": {
@@ -3750,14 +3748,14 @@
       }
     }
   },
-  "helpOfferAdmissionDeclineHint": "Отклоняет предложение; без доступа в чат",
+  "helpOfferAdmissionDeclineHint": "Отклоняет предложение; без доступа к обсуждению",
   "beaconStatusSheetAdvancedHint": "Расширенные изменения; большинству авторов достаточно кнопки выше.",
   "beaconStatusRowOutcomeDraft": "Черновик до публикации",
   "beaconStatusRowOutcomeOpen": "Запрос принимает новые предложения",
   "beaconStatusRowOutcomeMoreHelp": "Просит сеть о дополнительных откликах",
   "beaconStatusRowOutcomeEnoughHelp": "Сигнал достаточной помощи; запрос открыт",
   "beaconStatusRowOutcomeWrappingUp": "Окно отзыва для участников",
-  "beaconStatusRowOutcomeClosed": "Запрос закрыт; чат только для чтения",
+  "beaconStatusRowOutcomeClosed": "Запрос закрыт; обсуждение только для чтения",
   "beaconStatusRowOutcomeCancelled": "Запрос отменён; координация прекращена",
   "timelineRequestStatusChanged": "{author} отметил(а) запрос как {status}",
   "@timelineRequestStatusChanged": {
@@ -3843,7 +3841,7 @@
       }
     }
   },
-  "beaconHeaderRoomCount": "Чат · {count}",
+  "beaconHeaderRoomCount": "Обсуждение · {count}",
   "@beaconHeaderRoomCount": {
     "placeholders": {
       "count": {
@@ -3883,7 +3881,7 @@
   "beaconNeedCardTitle": "Что нужно",
   "beaconDefinitionSectionTitle": "Описание",
   "beaconDefinitionLastPublicChangeLabel": "Последнее обновление",
-  "beaconDefinitionLastRoomChangeLabel": "Последнее в чате",
+  "beaconDefinitionLastRoomChangeLabel": "Последнее в Общем",
   "beaconNeedAndContextTitle": "Запрос и контекст",
   "beaconContextAttachmentsTitle": "Контекст и вложения",
   "beaconNeedBriefPrefix": "Запрос:",
@@ -3917,9 +3915,9 @@
   "helpOffersTabNoAuthorLabelYet": "требуется оценка автора",
   "helpOfferAdmissionAccept": "Принять",
   "helpOfferAdmissionDecline": "Отклонить",
-  "helpOfferAdmissionRemove": "Убрать из чата",
+  "helpOfferAdmissionRemove": "Убрать из обсуждения",
   "helpOfferAdmittedLabel": "Допущен(а)",
-  "helpOfferCanReadChat": "Может читать этот чат",
+  "helpOfferCanReadChat": "Может читать это обсуждение",
   "helpOfferAdmittedAutomaticallyLabel": "Допущен(а) автоматически",
   "helpOfferAdmittedAutomaticallyHint": "Вы переслали этот запрос напрямую",
   "helpOfferDirectForwardChip": "Вы переслали лично",
@@ -3936,9 +3934,9 @@
   },
   "helpOfferDeclineDialogTitle": "Отклонить предложение",
   "helpOfferDeclineDialogHint": "Напишите причину. Это обязательно",
-  "helpOfferRemoveDialogTitle": "Убрать из чата",
+  "helpOfferRemoveDialogTitle": "Убрать из обсуждения",
   "helpOfferRemoveDialogHint": "Напишите причину. Это обязательно",
-  "helpOfferRemoveKeepsParticipationNote": "Только доступ к чату — участие сохраняется.",
+  "helpOfferRemoveKeepsParticipationNote": "Только доступ к обсуждению — участие сохраняется.",
   "@helpOfferRemoveKeepsParticipationNote": {
     "description": "Пояснение: убрать из чата не завершает участие"
   },
@@ -3970,7 +3968,7 @@
       }
     }
   },
-  "helpOfferRemovedWithReason": "Убрано из чата: {reason}",
+  "helpOfferRemovedWithReason": "Убрано из обсуждения: {reason}",
   "@helpOfferRemovedWithReason": {
     "placeholders": {
       "reason": {
@@ -3986,7 +3984,7 @@
       }
     }
   },
-  "helpOfferPreviousRemoveContext": "Вы раньше убрали из чата: \"{reason}\"",
+  "helpOfferPreviousRemoveContext": "Вы раньше убрали из обсуждения: \"{reason}\"",
   "@helpOfferPreviousRemoveContext": {
     "placeholders": {
       "reason": {
@@ -4021,10 +4019,10 @@
     }
   },
   "beaconRelationNoTrail": "Для вас нет записанной цепочки пересылок.",
-  "beaconRoomTitle": "Чат",
+  "beaconRoomTitle": "Общее",
   "beaconRoomMessageHint": "Напишите сообщение…",
-  "beaconRoomOpen": "Чат",
-  "beaconRoomBackToChat": "К чату",
+  "beaconRoomOpen": "Общее",
+  "beaconRoomBackToChat": "К темам",
   "@beaconRoomBackToChat": {
     "context": "BeaconViewScreen",
     "description": "Возврат из вложенного обсуждения элемента в основной чат."
@@ -4032,21 +4030,21 @@
   "beaconFactsSheetTitle": "Закреплённые факты",
   "beaconFactsSheetEmpty": "Пока нет закреплённых фактов.",
   "beaconRoomPinFactTitle": "Закрепить как факт",
-  "beaconRoomPinFactPublic": "Публично — видно за пределами чаты",
-  "beaconRoomPinFactRoomOnly": "Только чат",
+  "beaconRoomPinFactPublic": "Публично — видно за пределами обсуждения",
+  "beaconRoomPinFactRoomOnly": "Только обсуждение",
   "beaconRoomPinFactDisabledEmpty": "Добавьте текст или вложение перед закреплением.",
   "beaconRoomPinFactAttachmentBodyFallback": "Вложение",
   "beaconRoomActionViewPinnedFact": "Открыть закреплённый факт",
   "beaconRoomSemanticPlan": "План",
   "beaconRoomSemanticPublicFact": "Публичный факт",
-  "beaconRoomSemanticRoomFact": "Факт чаты",
+  "beaconRoomSemanticRoomFact": "Факт обсуждения",
   "beaconRoomSemanticParticipantStatus": "Статус",
   "beaconRoomSemanticBlocker": "Блокер",
   "beaconRoomSemanticNeedInfo": "Нужна информация",
   "beaconRoomSemanticDone": "Готово",
   "beaconRoomSemanticPoll": "Опрос",
   "beaconRoomSemanticSystem": "Системное",
-  "beaconRoomSemanticParticipantJoined": "Вступил(а) в чат",
+  "beaconRoomSemanticParticipantJoined": "Вступил(а) в обсуждение",
   "beaconRoomMemberCount": "{count, plural, one{{count} участник} few{{count} участника} many{{count} участников} other{{count} участника}}",
   "@beaconRoomMemberCount": {
     "placeholders": {
@@ -4055,7 +4053,7 @@
       }
     }
   },
-  "beaconRoomParticipantJoinedAutoAdmit": "{joinedName} вступил(а) в чат, потому что автор переслал этот запрос напрямую",
+  "beaconRoomParticipantJoinedAutoAdmit": "{joinedName} вступил(а) в обсуждение, потому что автор переслал этот запрос напрямую",
   "@beaconRoomParticipantJoinedAutoAdmit": {
     "placeholders": {
       "joinedName": {
@@ -4063,7 +4061,7 @@
       }
     }
   },
-  "beaconRoomParticipantJoinedByActor": "{joinedName} допущен(а) в чат пользователем {actorName}",
+  "beaconRoomParticipantJoinedByActor": "{joinedName} допущен(а) в обсуждение пользователем {actorName}",
   "@beaconRoomParticipantJoinedByActor": {
     "placeholders": {
       "joinedName": {
@@ -4077,19 +4075,19 @@
   "beaconRoomDateToday": "Сегодня",
   "beaconRoomDateYesterday": "Вчера",
   "beaconRoomMessagePinnedFactChipPublic": "Закреплено · публичный факт",
-  "beaconRoomMessagePinnedFactChipPrivate": "Закреплено · факт чаты",
+  "beaconRoomMessagePinnedFactChipPrivate": "Закреплено · факт обсуждения",
   "beaconRoomFactCardVisibilityPublic": "Публичный",
-  "beaconRoomFactCardVisibilityChat": "Чат",
+  "beaconRoomFactCardVisibilityChat": "Обсуждение",
   "beaconRoomFactCardActionEdit": "Изменить текст",
   "beaconRoomFactCardActionRemove": "Открепить",
   "beaconRoomFactCardActionJumpToSource": "К сообщению",
   "beaconRoomFactCardActionCopy": "Копировать текст",
   "beaconRoomFactCardActionMakePublic": "Сделать публичным",
-  "beaconRoomFactCardActionMakePrivate": "Только чат",
+  "beaconRoomFactCardActionMakePrivate": "Только обсуждение",
   "beaconRoomFactCardEditTitle": "Редактировать факт",
   "beaconRoomFactCardEditHint": "Текст факта",
   "beaconRoomFactCardRemoveConfirmTitle": "Открепить факт?",
-  "beaconRoomFactCardRemoveConfirmBody": "Карточка перестанет быть закреплённой на запросе. Сообщения в чате не удаляются.",
+  "beaconRoomFactCardRemoveConfirmBody": "Карточка перестанет быть закреплённой на запросе. Сообщения в обсуждении не удаляются.",
   "beaconRoomFactCardRemoveConfirmAction": "Открепить",
   "beaconRoomFactCardCorrectedBadge": "Изменён",
   "beaconRoomFactCardPinnedByLabel": "Закрепил(а) {name}",
@@ -4131,12 +4129,12 @@
     }
   },
   "beaconRoomStripMeaningfulChangeLabel": "Последнее изменение",
-  "beaconRoomStripOpenBlockerHint": "Открыт блокер (подробности в чате чаты).",
+  "beaconRoomStripOpenBlockerHint": "Открыт блокер в Общем (подробности в теме).",
   "coordinationCreatePromiseAction": "Дать обещание…",
   "coordinationCreatePromiseSheetPrompt": "Что вы обещаете сделать?",
   "coordinationCreatePromiseFromMessage": "Обещание из сообщения",
   "coordinationPromiseTargetPickerLabel": "Кому это обещание?",
-  "coordinationCreatePromiseNoTargets": "Пока некому дать обещание по этому запросу. Примите помощника в чат или дождитесь предложения помощи.",
+  "coordinationCreatePromiseNoTargets": "Пока некому дать обещание по этому запросу. Примите помощника в обсуждение или дождитесь предложения помощи.",
   "coordinationDeleteDraftTitle": "Удалить черновик?",
   "coordinationDeleteDraftBody": "Это действие нельзя отменить.",
   "coordinationAskFromMessagePreview": "Из сообщения",
@@ -4178,9 +4176,9 @@
   "beaconActivityLifecycleClosedAfterReview": "Закрыто после обзора",
   "beaconActivityLifecycleReopened": "Снова открыто",
   "beaconActivityLifecycleReviewExpired": "Срок обзора истёк",
-  "beaconActivityParticipantRemoved": "Участник убран из чата",
-  "beaconActivityParticipantJoined": "Участник вступил в чат",
-  "beaconActivityCoordinationFallback": "Обновление чаты",
+  "beaconActivityParticipantRemoved": "Участник убран из обсуждения",
+  "beaconActivityParticipantJoined": "Участник вступил в обсуждение",
+  "beaconActivityCoordinationFallback": "Обновление обсуждения",
   "beaconRoomMessageActionsTitle": "Действия с сообщением",
   "beaconRoomReactionAddTooltip": "Добавить реакцию",
   "beaconRoomReactionPickerSemantic": "Выбор реакции",
@@ -4196,7 +4194,7 @@
   "beaconRoomActionPinFact": "Закрепить как факт",
   "beaconRoomActionMarkBlocker": "Пометить блокер…",
   "beaconRoomActionTurnInto": "Преобразовать в…",
-  "beaconRoomActionOpenThread": "Открыть обсуждение",
+  "beaconRoomActionOpenThread": "Открыть тему",
   "beaconRoomActionJumpToPlan": "Перейти к плану",
   "beaconRoomActionResolveBlocker": "Снять этот блокер",
   "beaconRoomActionCopyText": "Скопировать текст",
@@ -4232,7 +4230,7 @@
   "beaconPeopleStatusHelpOffered": "Предложил помощь",
   "beaconPeopleStatusHelpOfferedUseful": "Предложил помощь · полезно",
   "beaconPeopleStatusHelpOfferedNeedCoordination": "Предложил помощь · нужна координация",
-  "beaconPeopleStatusRemovedFromChat": "Убран(а) из чата",
+  "beaconPeopleStatusRemovedFromChat": "Убран(а) из обсуждения",
   "beaconPeopleStatusNeedsInfo": "Нужна информация",
   "beaconPeopleStatusBlocked": "Заблокирован",
   "beaconPeopleStatusDone": "Готово",
@@ -4245,7 +4243,7 @@
       }
     }
   },
-  "inboxCardRoomUnread": "{count, plural, =0{Чат без новых сообщений} one{1 непрочитанное в чате} few{{count} непрочитанных в чате} many{{count} непрочитанных в чате} other{{count} непрочитанных в чате}}",
+  "inboxCardRoomUnread": "{count, plural, =0{Общее без новых сообщений} one{1 непрочитанное в Общем} few{{count} непрочитанных в Общем} many{{count} непрочитанных в Общем} other{{count} непрочитанных в Общем}}",
   "@inboxCardRoomUnread": {
     "placeholders": {
       "count": {
@@ -4253,7 +4251,7 @@
       }
     }
   },
-  "inboxCardRoomCurrentLine": "Что дальше в чате: {text}",
+  "inboxCardRoomCurrentLine": "Что дальше в Общем: {text}",
   "@inboxCardRoomCurrentLine": {
     "placeholders": {
       "text": {
@@ -4269,7 +4267,7 @@
       }
     }
   },
-  "inboxCardRoomLastChange": "Последнее в чате: {text}",
+  "inboxCardRoomLastChange": "Последнее в Общем: {text}",
   "@inboxCardRoomLastChange": {
     "placeholders": {
       "text": {
@@ -4517,8 +4515,7 @@
   "coordinationBlockerActionResolve": "Решить",
   "coordinationBlockerActionCancel": "Отменить",
   "coordinationBlockerActionDiscuss": "Обсудить",
-  "coordinationItemDiscussionTitle": "Обсуждение",
-  "coordinationItemDiscussionComposerHint": "Добавить в обсуждение…",
+  "coordinationItemDiscussionComposerHint": "Написать в тему…",
   "coordinationItemStatusOpen": "Открыт",
   "coordinationItemStatusAccepted": "Принят",
   "coordinationItemStatusResolved": "Решён",
@@ -4692,14 +4689,14 @@
   "updatesFallbackBodyRelayReceived": "Кто-то переслал вам запрос.",
   "updatesFallbackTitleHelpOfferSubmitted": "Предложена помощь",
   "updatesFallbackBodyHelpOfferSubmitted": "Кто-то предложил помощь по запросу.",
-  "updatesFallbackTitleOfferAccepted": "Доступ к чату",
-  "updatesFallbackBodyOfferAccepted": "Вы добавлены в чат запроса.",
+  "updatesFallbackTitleOfferAccepted": "Доступ к обсуждению",
+  "updatesFallbackBodyOfferAccepted": "Вы добавлены в обсуждение запроса.",
   "updatesFallbackTitleOfferDeclined": "Предложение отклонено",
   "updatesFallbackBodyOfferDeclined": "Ваше предложение отклонено.",
-  "updatesFallbackTitleOfferRemoved": "Удаление из чата",
-  "updatesFallbackBodyOfferRemoved": "Вы удалены из чата запроса.",
-  "updatesFallbackTitleRoomMessagePosted": "Новое сообщение в чате",
-  "updatesFallbackBodyRoomMessagePosted": "Новая активность в чате запроса.",
+  "updatesFallbackTitleOfferRemoved": "Удаление из обсуждения",
+  "updatesFallbackBodyOfferRemoved": "Вы удалены из обсуждения запроса.",
+  "updatesFallbackTitleRoomMessagePosted": "Новое сообщение в теме",
+  "updatesFallbackBodyRoomMessagePosted": "Новая активность в теме запроса.",
   "updatesFallbackTitleRequestStatusChanged": "Статус запроса изменился",
   "updatesFallbackBodyRequestStatusChanged": "Изменился статус запроса.",
   "updatesFallbackTitleReviewOpened": "Закройте цикл",
@@ -4750,7 +4747,7 @@
   "updatesFallbackTitleCoordinationChanged": "План обновлён",
   "updatesFallbackBodyCoordinationChanged": "Изменилась координация по запросу.",
   "updatesFallbackTitleStaleReminder": "Всё ещё ждёт внимания",
-  "updatesFallbackBodyStaleReminder": "В чате запроса нужно внимание.",
+  "updatesFallbackBodyStaleReminder": "В теме запроса нужно внимание.",
   "updatesFallbackTitleCommitmentAccepted": "Обязательство принято",
   "updatesFallbackBodyCommitmentAccepted": "Кто-то принял обязательство по запросу.",
   "updatesFallbackTitleCommitmentResolved": "Обязательство закрыто",
@@ -4758,174 +4755,174 @@
   "updatesFallbackTitleCommitmentCancelled": "Обязательство отменено",
   "updatesFallbackBodyCommitmentCancelled": "Обязательство по запросу отменено.",
   "updatesFallbackTitleCommitmentRedirected": "Переназначено на вас",
-  "updatesFallbackBodyCommitmentRedirected": "Откройте чат запроса, чтобы увидеть назначение.",
+  "updatesFallbackBodyCommitmentRedirected": "Откройте Общее, чтобы увидеть назначение.",
   "updatesFallbackTitleTrustGivenChanged": "Изменение доверия",
   "updatesFallbackBodyTrustGivenChanged": "Ваше доверие к кому-то изменилось после закрытия запроса.",
   "updatesFallbackTitleTrustReceivedChanged": "Изменение доверия",
-  "updatesFallbackBodyTrustReceivedChanged": "Кто-то по-другому оценил вас после закрытия запроса."
-  ,"notificationSettingsInApp": "В приложении"
-  ,"notificationSettingsInAppMandatory": "Обновления о безопасности и обязательствах всегда остаются видимыми."
-  ,"notificationSettingsInAppCoordination": "Активность координации"
-  ,"notificationSettingsInAppCoordinationDesc": "Показывать обычные обновления Чата и координации."
-  ,"notificationSettingsInAppRequestProgress": "Ход запроса"
-  ,"notificationSettingsInAppRequestProgressDesc": "Показывать обычные обновления статуса запроса."
-  ,"blockUserTitle": "Заблокировать {name}?"
-  ,"@blockUserTitle": {
+  "updatesFallbackBodyTrustReceivedChanged": "Кто-то по-другому оценил вас после закрытия запроса.",
+  "notificationSettingsInApp": "В приложении",
+  "notificationSettingsInAppMandatory": "Обновления о безопасности и обязательствах всегда остаются видимыми.",
+  "notificationSettingsInAppCoordination": "Активность координации",
+  "notificationSettingsInAppCoordinationDesc": "Показывать обычные обновления тем и координации.",
+  "notificationSettingsInAppRequestProgress": "Ход запроса",
+  "notificationSettingsInAppRequestProgressDesc": "Показывать обычные обновления статуса запроса.",
+  "blockUserTitle": "Заблокировать {name}?",
+  "@blockUserTitle": {
     "description": "Title on the block confirmation sheet.",
     "placeholders": {
       "name": {
         "type": "String"
       }
     }
-  }
-  ,"blockUserExplainer": "Вы больше не будете видеть контент друг друга и не сможете связаться друг с другом."
-  ,"@blockUserExplainer": {
+  },
+  "blockUserExplainer": "Вы больше не будете видеть контент друг друга и не сможете связаться друг с другом.",
+  "@blockUserExplainer": {
     "description": "Body copy on the block confirmation sheet."
-  }
-  ,"blockCascadeToggle": "Также скрыть приглашённых ими людей"
-  ,"@blockCascadeToggle": {
+  },
+  "blockCascadeToggle": "Также скрыть приглашённых ими людей",
+  "@blockCascadeToggle": {
     "description": "Cascade switch title on the block sheet."
-  }
-  ,"blockCascadeToggleSubtitle": "Расширяет блок на людей из их сети приглашений без самостоятельного статуса."
-  ,"@blockCascadeToggleSubtitle": {
+  },
+  "blockCascadeToggleSubtitle": "Расширяет блок на людей из их сети приглашений без самостоятельного статуса.",
+  "@blockCascadeToggleSubtitle": {
     "description": "Cascade switch subtitle on the block sheet."
-  }
-  ,"blockWithdrawNotice": "Блокировка также прекращает ваше поручительство за этого человека в графе доверия. Разблокировка восстанавливает его."
-  ,"@blockWithdrawNotice": {
+  },
+  "blockWithdrawNotice": "Блокировка также прекращает ваше поручительство за этого человека в графе доверия. Разблокировка восстанавливает его.",
+  "@blockWithdrawNotice": {
     "description": "Informational notice when blocking will withdraw a published trust edge."
-  }
-  ,"blockPreviewCascade": "{count, plural, =0{Дополнительно никто не будет скрыт} one{Будет скрыт ещё {count} человек} few{Будут скрыты ещё {count} человека} many{Будут скрыты ещё {count} человек} other{Будут скрыты ещё {count} человек}}"
-  ,"@blockPreviewCascade": {
+  },
+  "blockPreviewCascade": "{count, plural, =0{Дополнительно никто не будет скрыт} one{Будет скрыт ещё {count} человек} few{Будут скрыты ещё {count} человека} many{Будут скрыты ещё {count} человек} other{Будут скрыты ещё {count} человек}}",
+  "@blockPreviewCascade": {
     "description": "Impact preview for cascade candidate count.",
     "placeholders": {
       "count": {
         "type": "int"
       }
     }
-  }
-  ,"blockPreviewCascadeCapped": "{count, plural, =0{Дополнительно никто не будет скрыт} one{Будет скрыт не менее {count} человека} few{Будут скрыты не менее {count} человек} many{Будут скрыты не менее {count} человек} other{Будут скрыты не менее {count} человек}}"
-  ,"@blockPreviewCascadeCapped": {
+  },
+  "blockPreviewCascadeCapped": "{count, plural, =0{Дополнительно никто не будет скрыт} one{Будет скрыт не менее {count} человека} few{Будут скрыты не менее {count} человек} many{Будут скрыты не менее {count} человек} other{Будут скрыты не менее {count} человек}}",
+  "@blockPreviewCascadeCapped": {
     "description": "Impact preview when the cascade candidate count hit the server's cap (block_cascade_candidates / blockCascadeMaxRows) — the real number may be higher than shown.",
     "placeholders": {
       "count": {
         "type": "int"
       }
     }
-  }
-  ,"blockPreviewOpenCommitments": "У вас есть открытые обязательства с этим человеком, которые блокировка не отменяет."
-  ,"@blockPreviewOpenCommitments": {
+  },
+  "blockPreviewOpenCommitments": "У вас есть открытые обязательства с этим человеком, которые блокировка не отменяет.",
+  "@blockPreviewOpenCommitments": {
     "description": "Warning when block preview reports open commitments."
-  }
-  ,"blockConfirmButton": "Заблокировать"
-  ,"@blockConfirmButton": {
+  },
+  "blockConfirmButton": "Заблокировать",
+  "@blockConfirmButton": {
     "description": "Destructive confirm action on the block sheet."
-  }
-  ,"blockConfirmedMessage": "Пользователь заблокирован"
-  ,"@blockConfirmedMessage": {
+  },
+  "blockConfirmedMessage": "Пользователь заблокирован",
+  "@blockConfirmedMessage": {
     "description": "Snackbar confirmation after a successful block."
-  }
-  ,"blockManageAction": "Управление"
-  ,"@blockManageAction": {
+  },
+  "blockManageAction": "Управление",
+  "@blockManageAction": {
     "description": "Snackbar action linking to the Blocked Users management screen."
-  }
-  ,"blockedUsersTitle": "Заблокированные"
-  ,"@blockedUsersTitle": {
+  },
+  "blockedUsersTitle": "Заблокированные",
+  "@blockedUsersTitle": {
     "description": "App bar title for the blocked-users list screen."
-  }
-  ,"blockedUsersEmpty": "Вы никого не блокировали."
-  ,"@blockedUsersEmpty": {
+  },
+  "blockedUsersEmpty": "Вы никого не блокировали.",
+  "@blockedUsersEmpty": {
     "description": "Empty state on the blocked-users list screen."
-  }
-  ,"blockedHiddenViaInvites": "Ещё скрыто {count} через их приглашения"
-  ,"@blockedHiddenViaInvites": {
+  },
+  "blockedHiddenViaInvites": "Ещё скрыто {count} через их приглашения",
+  "@blockedHiddenViaInvites": {
     "description": "Subtitle on a direct block row when cascade materialization has hidden additional people.",
     "placeholders": {
       "count": {
         "type": "int"
       }
     }
-  }
-  ,"blockedInheritedPending": "Ещё скрываем людей…"
-  ,"@blockedInheritedPending": {
+  },
+  "blockedInheritedPending": "Ещё скрываем людей…",
+  "@blockedInheritedPending": {
     "description": "Shown while cascade materialization is still running for a block."
-  }
-  ,"blockUnhideOne": "Показать"
-  ,"@blockUnhideOne": {
+  },
+  "blockUnhideOne": "Показать",
+  "@blockUnhideOne": {
     "description": "Action on an inherited block row; releases the entire cascade under this origin."
-  }
-  ,"blockPromoteToDirect": "Заблокировать напрямую"
-  ,"@blockPromoteToDirect": {
+  },
+  "blockPromoteToDirect": "Заблокировать напрямую",
+  "@blockPromoteToDirect": {
     "description": "Promote an inherited block to a direct block for that person only."
-  }
-  ,"blockUnhideOriginTitle": "Показать всех, скрытых этой блокировкой?"
-  ,"@blockUnhideOriginTitle": {
+  },
+  "blockUnhideOriginTitle": "Показать всех, скрытых этой блокировкой?",
+  "@blockUnhideOriginTitle": {
     "description": "Confirmation title when unhiding from an inherited row."
-  }
-  ,"blockUnhideOriginWarning": "Это покажет всех, кого скрыла эта блокировка, а не только этого человека."
-  ,"@blockUnhideOriginWarning": {
+  },
+  "blockUnhideOriginWarning": "Это покажет всех, кого скрыла эта блокировка, а не только этого человека.",
+  "@blockUnhideOriginWarning": {
     "description": "Confirmation body when unhiding from an inherited row."
-  }
-  ,"blockUserMenuItem": "Заблокировать"
-  ,"@blockUserMenuItem": {
+  },
+  "blockUserMenuItem": "Заблокировать",
+  "@blockUserMenuItem": {
     "description": "Block action label on another user's profile menu."
-  }
-  ,"unblockUserMenuItem": "Разблокировать"
-  ,"@unblockUserMenuItem": {
+  },
+  "unblockUserMenuItem": "Разблокировать",
+  "@unblockUserMenuItem": {
     "description": "Unblock action label on profile menu and blocked-users list."
-  }
-  ,"blockErrorRateLimited": "Вы недавно заблокировали слишком много людей. Попробуйте позже."
-  ,"@blockErrorRateLimited": {
+  },
+  "blockErrorRateLimited": "Вы недавно заблокировали слишком много людей. Попробуйте позже.",
+  "@blockErrorRateLimited": {
     "description": "Shown when the server rejects a block for rate limiting."
-  }
-  ,"errorBlockedByUser": "Этот человек недоступен."
-  ,"@errorBlockedByUser": {
+  },
+  "errorBlockedByUser": "Этот человек недоступен.",
+  "@errorBlockedByUser": {
     "description": "Generic error when an action is rejected because of a block."
-  }
-  ,"availabilityLimitedTitle": "Только важные запросы"
-  ,"@availabilityLimitedTitle": {
+  },
+  "availabilityLimitedTitle": "Только важные запросы",
+  "@availabilityLimitedTitle": {
     "description": "Neutral availability label when another person accepts only important requests."
-  }
-  ,"availabilityPausedUntil": "Не принимает новые запросы до {when}"
-  ,"@availabilityPausedUntil": {
+  },
+  "availabilityPausedUntil": "Не принимает новые запросы до {when}",
+  "@availabilityPausedUntil": {
     "description": "Neutral availability label when another person is paused until a calendar date.",
     "placeholders": {
       "when": {
         "type": "String"
       }
     }
-  }
-  ,"availabilitySelfOpen": "Вы принимаете запросы"
-  ,"@availabilitySelfOpen": {
+  },
+  "availabilitySelfOpen": "Вы принимаете запросы",
+  "@availabilitySelfOpen": {
     "description": "Own-profile availability status when open to new requests."
-  }
-  ,"availabilitySelfLimited": "Вы принимаете только важные запросы"
-  ,"@availabilitySelfLimited": {
+  },
+  "availabilitySelfLimited": "Вы принимаете только важные запросы",
+  "@availabilitySelfLimited": {
     "description": "Own-profile availability status when limited to important requests."
-  }
-  ,"availabilitySelfPausedUntil": "Вы не принимаете новые запросы · до {when}"
-  ,"@availabilitySelfPausedUntil": {
+  },
+  "availabilitySelfPausedUntil": "Вы не принимаете новые запросы · до {when}",
+  "@availabilitySelfPausedUntil": {
     "description": "Own-profile availability status when paused until a calendar date.",
     "placeholders": {
       "when": {
         "type": "String"
       }
     }
-  }
-  ,"availabilitySelfThenLimited": "Затем: только важные запросы"
-  ,"@availabilitySelfThenLimited": {
+  },
+  "availabilitySelfThenLimited": "Затем: только важные запросы",
+  "@availabilitySelfThenLimited": {
     "description": "Own-profile secondary line when paused with limited resume target."
-  }
-  ,"availabilityResumeEcho": "Вы снова начнёте получать запросы {when}"
-  ,"@availabilityResumeEcho": {
+  },
+  "availabilityResumeEcho": "Вы снова начнёте получать запросы {when}",
+  "@availabilityResumeEcho": {
     "description": "Sheet echo of the resolved pause resume calendar date before committing.",
     "placeholders": {
       "when": {
         "type": "String"
       }
     }
-  }
-  ,"availabilityPersonPaused": "{name} не принимает новые запросы до {when}."
-  ,"@availabilityPersonPaused": {
+  },
+  "availabilityPersonPaused": "{name} не принимает новые запросы до {when}.",
+  "@availabilityPersonPaused": {
     "description": "Person-forward and other-profile paused explanation.",
     "placeholders": {
       "name": {
@@ -4935,17 +4932,17 @@
         "type": "String"
       }
     }
-  }
-  ,"availabilityUnaffectedNote": "Уже начатые запросы и чаты это не затрагивает."
-  ,"@availabilityUnaffectedNote": {
+  },
+  "availabilityUnaffectedNote": "Уже открытые запросы и обсуждения это не затрагивает.",
+  "@availabilityUnaffectedNote": {
     "description": "Reassurance that pause does not withdraw existing requests or chats."
-  }
-  ,"availabilityResumeNow": "Возобновить сейчас"
-  ,"@availabilityResumeNow": {
+  },
+  "availabilityResumeNow": "Возобновить сейчас",
+  "@availabilityResumeNow": {
     "description": "Own-profile action to clear an active pause immediately."
-  }
-  ,"availabilityDeliveredPartial": "Отправлено {n} из {m} — {name} сейчас не принимает новые запросы."
-  ,"@availabilityDeliveredPartial": {
+  },
+  "availabilityDeliveredPartial": "Отправлено {n} из {m} — {name} сейчас не принимает новые запросы.",
+  "@availabilityDeliveredPartial": {
     "description": "Forward delivery snackbar when one recipient was skipped for availability.",
     "placeholders": {
       "n": {
@@ -4958,9 +4955,9 @@
         "type": "String"
       }
     }
-  }
-  ,"availabilityDeliveredPartialMany": "Отправлено {n} из {m} — {count} получателей сейчас не принимают новые запросы."
-  ,"@availabilityDeliveredPartialMany": {
+  },
+  "availabilityDeliveredPartialMany": "Отправлено {n} из {m} — {count} получателей сейчас не принимают новые запросы.",
+  "@availabilityDeliveredPartialMany": {
     "description": "Forward delivery snackbar when two or more recipients were skipped for availability.",
     "placeholders": {
       "n": {
@@ -4973,57 +4970,57 @@
         "type": "int"
       }
     }
-  }
-  ,"availabilitySheetTitle": "Приём запросов"
-  ,"@availabilitySheetTitle": {
+  },
+  "availabilitySheetTitle": "Приём запросов",
+  "@availabilitySheetTitle": {
     "description": "Title of the own-profile availability sheet."
-  }
-  ,"availabilityLimitedSwitchTitle": "Только важные запросы"
-  ,"@availabilityLimitedSwitchTitle": {
+  },
+  "availabilityLimitedSwitchTitle": "Только важные запросы",
+  "@availabilityLimitedSwitchTitle": {
     "description": "Limited toggle title on the availability sheet."
-  }
-  ,"availabilityLimitedSwitchDescription": "Вас по-прежнему видно; другие увидят пометку просить обращаться избирательно."
-  ,"@availabilityLimitedSwitchDescription": {
+  },
+  "availabilityLimitedSwitchDescription": "Вас по-прежнему видно; другие увидят пометку просить обращаться избирательно.",
+  "@availabilityLimitedSwitchDescription": {
     "description": "Limited toggle description on the availability sheet."
-  }
-  ,"availabilityPauseSectionTitle": "Не принимать новые запросы"
-  ,"@availabilityPauseSectionTitle": {
+  },
+  "availabilityPauseSectionTitle": "Не принимать новые запросы",
+  "@availabilityPauseSectionTitle": {
     "description": "Pause section title on the availability sheet."
-  }
-  ,"availabilityPauseSectionDescription": "Вас не будут предлагать при выборе получателей. Уже начатые запросы и чаты это не затрагивает."
-  ,"@availabilityPauseSectionDescription": {
+  },
+  "availabilityPauseSectionDescription": "Вас не будут предлагать при выборе адресатов. Уже открытые запросы и обсуждения это не затрагивает.",
+  "@availabilityPauseSectionDescription": {
     "description": "Pause section description on the availability sheet."
-  }
-  ,"availabilityPresetTomorrow": "Завтра"
-  ,"@availabilityPresetTomorrow": {
+  },
+  "availabilityPresetTomorrow": "Завтра",
+  "@availabilityPresetTomorrow": {
     "description": "Pause preset button for tomorrow."
-  }
-  ,"availabilityPresetThisWeekend": "В эти выходные"
-  ,"@availabilityPresetThisWeekend": {
+  },
+  "availabilityPresetThisWeekend": "В эти выходные",
+  "@availabilityPresetThisWeekend": {
     "description": "Pause preset button for the next Monday."
-  }
-  ,"availabilityPresetOneWeek": "Через неделю"
-  ,"@availabilityPresetOneWeek": {
+  },
+  "availabilityPresetOneWeek": "Через неделю",
+  "@availabilityPresetOneWeek": {
     "description": "Pause preset button for one week ahead."
-  }
-  ,"availabilityPresetOneMonth": "Через месяц"
-  ,"@availabilityPresetOneMonth": {
+  },
+  "availabilityPresetOneMonth": "Через месяц",
+  "@availabilityPresetOneMonth": {
     "description": "Pause preset button for one calendar month ahead."
-  }
-  ,"availabilityPresetPickDate": "Выбрать дату…"
-  ,"@availabilityPresetPickDate": {
+  },
+  "availabilityPresetPickDate": "Выбрать дату…",
+  "@availabilityPresetPickDate": {
     "description": "Pause preset button that opens the date picker."
-  }
-  ,"availabilityPauseAction": "Приостановить"
-  ,"@availabilityPauseAction": {
+  },
+  "availabilityPauseAction": "Приостановить",
+  "@availabilityPauseAction": {
     "description": "Commits the selected pause resume date."
-  }
-  ,"availabilityChangeAction": "Изменить"
-  ,"@availabilityChangeAction": {
+  },
+  "availabilityChangeAction": "Изменить",
+  "@availabilityChangeAction": {
     "description": "Own-profile text action that opens the availability sheet."
-  }
-  ,"availabilityDatePickerTitle": "Возобновить"
-  ,"@availabilityDatePickerTitle": {
+  },
+  "availabilityDatePickerTitle": "Возобновить",
+  "@availabilityDatePickerTitle": {
     "description": "Title for the pause resume date picker."
   }
 }

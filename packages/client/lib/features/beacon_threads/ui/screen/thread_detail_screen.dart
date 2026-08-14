@@ -181,7 +181,7 @@ class _ThreadDetailScreenState extends State<ThreadDetailScreen> {
                 ? (beacon.title.isEmpty
                       ? l10n.beaconViewTitle
                       : beacon.title)
-                : l10n.coordinationItemDiscussionTitle;
+                : threadTitleFallback(l10n, thread);
 
             final detail = ThreadDetail(
               thread: thread,

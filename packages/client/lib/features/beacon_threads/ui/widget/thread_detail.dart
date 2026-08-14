@@ -15,6 +15,23 @@ import 'package:tentura/features/coordination_item/ui/bloc/item_actions_cubit.da
 import 'package:tentura/features/coordination_item/ui/bloc/item_actions_state.dart';
 import 'package:tentura/features/coordination_item/ui/widget/coordination_item_overflow_menu.dart';
 
+/// User-facing title when a semantic thread row has no item title yet.
+String threadTitleFallback(L10n l10n, RequestThread thread) {
+  if (thread.isGeneral) {
+    return l10n.threadGeneralTitle;
+  }
+  final item = thread.item;
+  if (item != null && item.title.trim().isNotEmpty) {
+    return item.title.trim();
+  }
+  return switch (thread.kind) {
+    RequestThreadKind.ask => l10n.coordinationAskCardLabel,
+    RequestThreadKind.promise => l10n.coordinationPromiseCardLabel,
+    RequestThreadKind.blocker => l10n.coordinationBlockerCardLabel,
+    RequestThreadKind.general => l10n.threadGeneralTitle,
+  };
+}
+
 /// Thread body (optional semantic header + messages) without a [Scaffold].
 class ThreadDetail extends StatelessWidget {
   const ThreadDetail({
@@ -58,10 +75,12 @@ class ThreadDetail extends StatelessWidget {
 class ThreadDetailColumnChrome extends StatelessWidget {
   const ThreadDetailColumnChrome({
     required this.onBack,
+    required this.titleFallback,
     super.key,
   });
 
   final VoidCallback onBack;
+  final String titleFallback;
 
   @override
   Widget build(BuildContext context) {
@@ -96,7 +115,7 @@ class ThreadDetailColumnChrome extends StatelessWidget {
               ),
               Expanded(
                 child: ThreadDetailTitle(
-                  fallback: l10n.coordinationItemDiscussionTitle,
+                  fallback: titleFallback,
                 ),
               ),
               const ThreadDetailOverflowAction(),

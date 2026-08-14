@@ -700,6 +700,7 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
         children: [
           ThreadDetailColumnChrome(
             onBack: () => unawaited(_closeSplitThread()),
+            titleFallback: threadTitleFallback(l10n, thread),
           ),
           paneBody,
         ],

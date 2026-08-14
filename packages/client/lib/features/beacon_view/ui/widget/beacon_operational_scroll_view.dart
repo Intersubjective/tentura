@@ -313,7 +313,7 @@ class BeaconOperationalScrollView extends StatelessWidget {
                                 : null;
                             return TenturaUnderlineTabs(
                               tabs: [
-                                l10n.labelBeaconTabItems,
+                                l10n.labelBeaconTabThreads,
                                 l10n.labelBeaconTabPeople,
                                 l10n.labelBeaconTabLog,
                               ],
