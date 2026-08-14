@@ -1,5 +1,6 @@
 import 'dart:typed_data';
 import 'package:tentura_server/domain/entity/beacon_room_record.dart';
+import 'package:tentura_server/domain/entity/beacon_thread_record.dart';
 import 'package:tentura_server/domain/entity/coordination_item_record.dart';
 
 import 'package:injectable/injectable.dart';
@@ -331,6 +332,26 @@ final class BeaconRoomCase extends UseCaseBase {
       actorUserId: userId,
       action: persist,
     );
+  }
+
+  Future<List<BeaconThreadRecord>> listThreads({
+    required String beaconId,
+    required String userId,
+  }) async {
+    final roomMember = await _canUseRoom(beaconId: beaconId, userId: userId);
+    final rows = await _items.listThreads(
+      beaconId: beaconId,
+      viewerUserId: userId,
+      includeGeneral: roomMember,
+      itemParticipantsOnly: !roomMember,
+      excerptCharacters: 140,
+    );
+    if (!roomMember && rows.isEmpty) {
+      throw const UnauthorizedException(
+        description: 'Room or item thread access required',
+      );
+    }
+    return rows;
   }
 
   Future<List<Map<String, Object?>>> listMessages({
