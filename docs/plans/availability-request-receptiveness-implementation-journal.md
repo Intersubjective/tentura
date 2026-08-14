@@ -1480,3 +1480,22 @@ FINDINGS:
 - `AppLifecycleListener` attaches only when `BindingBase.debugBindingType()` is non-null so VM unit tests avoid `WidgetsFlutterBinding.ensureInitialized()` unless exercising resume.
 - `ForwardDeliveredOfMessage` (owned `forward_messages.dart`) supplies embedded confirmation N-of-M copy without new ARB keys.
 REMAINING: manager acceptance of UNIT 14; UNIT 15 (`feat(client): gate person forward flow`) is next.
+
+## UNIT 14 — remediation — 2026-08-14
+
+COMMITS: (this remediation batch)
+TESTS:
+- `(cd packages/client && flutter test test/features/forward/forward_cubit_preselect_test.dart test/features/forward/forward_cubit_candidates_load_test.dart test/features/forward/forward_cubit_live_sync_test.dart test/features/forward/forward_cubit_attribution_test.dart test/features/forward/forward_cubit_band_provenance_test.dart test/features/forward/forward_delivery_result_test.dart test/features/forward/person_forward_case_test.dart test/features/beacon_create/beacon_send_confirmation_dialog_test.dart test/features/forward/forward_recipient_picker_test.dart)` → 43 passed
+- `./scripts/check-custom-lints.sh packages/client` → pass (custom-rule total 106, baseline 111)
+- `bash scripts/check-user-facing-terminology.sh` → pass
+- `git diff --check` → clean
+FILES:
+- `packages/client/lib/features/forward/ui/bloc/forward_cubit.dart`
+- `packages/client/test/features/forward/forward_cubit_preselect_test.dart`
+- `packages/client/test/features/forward/forward_delivery_result_test.dart`
+- `packages/client/test/features/forward/person_forward_cubit_test.dart` (compile-only `ForwardDeliveryResult` stub)
+FINDINGS:
+- Manager rejection: `droppedPreselectedIds` used `initialSelectedIds.difference(selectableIds)`, so missing/non-availability ineligible ids were mislabeled as availability skips at send. Fixed by `_availabilityDroppedPreselectedIds` (loaded candidate + `blocksNewRequestsOn` only) and hard-validation path for missing/other-ineligible ids before local availability strip.
+- Missing initial preselect no longer enters `droppedPreselectedIds` or availability delivery denominator; send guard returns false with no mutation/outcome when nothing is selected or availability-dropped.
+- Disappeared selected recipient at send emits `IneligibleRecipientsException` (no partial-delivery copy/outcome).
+REMAINING: manager re-review of UNIT 14 remediation; UNIT 15 unchanged.
