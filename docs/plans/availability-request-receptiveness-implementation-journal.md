@@ -1803,3 +1803,14 @@ trust-write-path rework, unrelated to availability) — waive it and treat the
 availability feature as shippable, or open a separate fix effort. No
 availability-scoped work remains.
 
+## Plan closure — 2026-08-14
+
+DECISION: user waived the pre-existing 29-failure `dart test -t pg` debt
+(`realtime_notification_migration_test.dart` and related stale trust-write-path
+suites). It remains open as separately tracked, unrelated technical debt — not
+part of this plan's scope and not fixed by it.
+STATUS: the availability / request-receptiveness plan (units 00–17) is
+**complete and shippable**. All 15 architecture §14 invariants ACCEPT; all 15
+final-checklist rows PASS (the plan-wide-checks row is PASS-with-documented-
+waiver rather than blocked). No further work is owned by this plan.
+
