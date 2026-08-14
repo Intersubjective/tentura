@@ -43,6 +43,7 @@ class _ThreadDetailScreenState extends State<ThreadDetailScreen> {
   bool _exitInProgress = false;
   RequestThread? _selectedThread;
   var _selectionStarted = false;
+  WindowClass? _lastWindowClass;
 
   @override
   void initState() {
@@ -50,6 +51,22 @@ class _ThreadDetailScreenState extends State<ThreadDetailScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       unawaited(_ensureSelection());
     });
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final wc = context.windowClass;
+    final previous = _lastWindowClass;
+    _lastWindowClass = wc;
+    if (previous == null) return;
+    if (previous != WindowClass.expanded && wc == WindowClass.expanded) {
+      context.read<ThreadHostCubit>().scheduleWindowClassTransition(() {
+        if (!mounted) return;
+        setState(() => _allowPop = true);
+        context.router.pop();
+      });
+    }
   }
 
   Future<void> _ensureSelection() async {

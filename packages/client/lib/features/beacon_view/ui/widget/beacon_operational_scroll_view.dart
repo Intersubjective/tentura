@@ -2,27 +2,30 @@ import 'dart:async';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon_activity_event.dart';
 import 'package:tentura/domain/entity/coordination_item.dart';
 import 'package:tentura/features/beacon/ui/widget/beacon_lineage_parent_link.dart';
+import 'package:tentura/features/beacon_threads/domain/entity/request_thread.dart';
+import 'package:tentura/features/beacon_threads/ui/bloc/threads_cubit.dart';
+import 'package:tentura/features/beacon_threads/ui/bloc/threads_state.dart';
+import 'package:tentura/features/beacon_threads/ui/widget/threads_list.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_cubit.dart';
-import 'package:tentura/features/beacon_view/ui/bloc/items_tab_cubit.dart';
-import 'package:tentura/features/beacon_view/ui/bloc/items_tab_state.dart';
 import 'package:tentura/features/beacon_view/ui/widget/activity_list.dart';
 import 'package:tentura/features/beacon_view/ui/widget/beacon_operational_header_card.dart';
 import 'package:tentura/features/beacon_view/ui/widget/beacon_view_app_bar_overflow.dart';
 import 'package:tentura/features/beacon_view/ui/widget/beacon_pinned_facts_strip.dart';
 import 'package:tentura/features/beacon_view/ui/widget/beacon_current_line_sheet.dart';
 import 'package:tentura/features/beacon_view/ui/widget/beacon_people_tab_body.dart';
-import 'package:tentura/features/beacon_view/ui/widget/items_tab.dart';
 import 'package:tentura/features/inbox/domain/enum.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
+import 'package:tentura/ui/bloc/state_base.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/test_ids.dart';
 
 import 'beacon_view_constants.dart';
-import 'beacon_view_app_bar_overflow.dart';
 import '../util/pinned_facts.dart';
 
 class BeaconOperationalScrollView extends StatelessWidget {
@@ -35,12 +38,15 @@ class BeaconOperationalScrollView extends StatelessWidget {
     required this.onPeopleTabAttentionCleared,
     required this.onActivatePeopleTabAttention,
     required this.onFocusCoordinationItem,
-    required this.focusItemId,
+    required this.focusThreadId,
     required this.focusUserId,
     required this.onOperationalFocusCleared,
     required this.onTapCoordinationLogEvent,
-    required this.onEnterRoomSurface,
-    required this.onOpenItemDiscussion,
+    required this.onOpenThread,
+    required this.onOpenGeneralThread,
+    required this.onThreadsTabRefresh,
+    required this.beaconState,
+    this.selectedThreadId,
     super.key,
   });
 
@@ -55,15 +61,18 @@ class BeaconOperationalScrollView extends StatelessWidget {
   final VoidCallback onActivatePeopleTabAttention;
   final void Function(CoordinationItem item) onFocusCoordinationItem;
 
-  /// Coordination item / participant to focus + flash (Log row tap-to-focus).
-  final String? focusItemId;
+  /// Thread / participant to focus + flash (Log row tap-to-focus).
+  final String? focusThreadId;
   final String? focusUserId;
   final VoidCallback onOperationalFocusCleared;
   final void Function(BeaconActivityEvent event) onTapCoordinationLogEvent;
 
-  final void Function([CoordinationItem? focusItem]) onEnterRoomSurface;
+  final void Function(RequestThread thread) onOpenThread;
+  final VoidCallback onOpenGeneralThread;
+  final VoidCallback onThreadsTabRefresh;
 
-  final void Function(CoordinationItem item) onOpenItemDiscussion;
+  final BeaconViewState beaconState;
+  final String? selectedThreadId;
 
   void _setTab(int i) {
     if (tabIndex == i) {
@@ -74,7 +83,7 @@ class BeaconOperationalScrollView extends StatelessWidget {
   }
 
   void _onPointerDown(PointerDownEvent _) {
-    if (focusItemId != null || focusUserId != null) {
+    if (focusThreadId != null || focusUserId != null) {
       onOperationalFocusCleared();
     }
   }
@@ -96,7 +105,6 @@ class BeaconOperationalScrollView extends StatelessWidget {
       bloc: beaconViewCubit,
       buildWhen: (p, c) =>
           p.beacon != c.beacon ||
-          p.beacon.status != c.beacon.status ||
           p.beacon.status != c.beacon.status ||
           p.timeline != c.timeline ||
           p.roomActivityEvents != c.roomActivityEvents ||
@@ -138,10 +146,11 @@ class BeaconOperationalScrollView extends StatelessWidget {
         final pinnedFacts = pinnedFactsForStrip(state.factCards);
 
         final tabBody = switch (idx) {
-          kBeaconTabItems => ItemsTab(
-            state: state,
-            onOpenItemThread: onOpenItemDiscussion,
-            focusItemId: focusItemId,
+          kBeaconTabThreads => ThreadsList(
+            beaconState: beaconState,
+            onOpenThread: onOpenThread,
+            focusThreadId: focusThreadId,
+            selectedThreadId: selectedThreadId,
           ),
           kBeaconTabPeople => BeaconPeopleTabBody(
             state: state,
@@ -172,7 +181,7 @@ class BeaconOperationalScrollView extends StatelessWidget {
                 tt.screenHPadding,
                 tt.cardPadding.bottom,
               )
-            : EdgeInsets.all(tt.screenHPadding);
+            : EdgeInsets.zero;
 
         final peopleTabBadge =
             state.isBeaconMine && state.unansweredHelpOffersCount > 0
@@ -183,9 +192,6 @@ class BeaconOperationalScrollView extends StatelessWidget {
             ? state.needCoordinationHelpOffersCount
             : null;
 
-        // Single CustomScrollView (no NestedScrollView) so the scroll position
-        // is unified: there is no outer/inner coordinator that can let the
-        // body scroll past its end when the tab content fits the viewport.
         return Listener(
           behavior: HitTestBehavior.translucent,
           onPointerDown: _onPointerDown,
@@ -220,8 +226,8 @@ class BeaconOperationalScrollView extends StatelessWidget {
                               onActivatePeopleAttention:
                                   onActivatePeopleTabAttention,
                               onFocusCoordinationItem: onFocusCoordinationItem,
-                              onOpenItemsTab: () => _setTab(kBeaconTabItems),
-                              onEnterRoomSurface: onEnterRoomSurface,
+                              onOpenItemsTab: () => _setTab(kBeaconTabThreads),
+                              onOpenGeneralThread: onOpenGeneralThread,
                             ),
                           )
                         : null,
@@ -295,15 +301,15 @@ class BeaconOperationalScrollView extends StatelessWidget {
                     child: Align(
                       child: SizedBox(
                         width: double.infinity,
-                        child: BlocBuilder<ItemsTabCubit, ItemsTabState>(
+                        child: BlocBuilder<ThreadsCubit, ThreadsState>(
                           buildWhen: (p, c) =>
-                              p.openItems != c.openItems ||
-                              p.unreadDiscussionCount !=
-                                  c.unreadDiscussionCount,
-                          builder: (context, itemsTabState) {
-                            final itemsTabBadge =
-                                itemsTabState.unreadDiscussionCount > 0
-                                ? itemsTabState.unreadDiscussionCount
+                              p.threads != c.threads ||
+                              p.resolvedUnreadByThreadId !=
+                                  c.resolvedUnreadByThreadId,
+                          builder: (context, threadsState) {
+                            final threadsTabBadge =
+                                threadsState.threadsTabUnreadCount > 0
+                                ? threadsState.threadsTabUnreadCount
                                 : null;
                             return TenturaUnderlineTabs(
                               tabs: [
@@ -311,15 +317,15 @@ class BeaconOperationalScrollView extends StatelessWidget {
                                 l10n.labelBeaconTabPeople,
                                 l10n.labelBeaconTabLog,
                               ],
-                              tabIds: const [
-                                TestIds.beaconTabItems,
+                              tabIds: [
+                                TestIds.beaconTabThreads,
                                 TestIds.beaconTabPeople,
                                 TestIds.beaconTabLog,
                               ],
                               selectedIndex: idx,
                               onChanged: _setTab,
                               badges: [
-                                itemsTabBadge,
+                                threadsTabBadge,
                                 peopleTabBadge,
                                 null,
                               ],
@@ -348,8 +354,6 @@ class BeaconOperationalScrollView extends StatelessWidget {
                 padding: tabPadding,
                 sliver: SliverToBoxAdapter(child: tabBody),
               ),
-              // Pads any remaining viewport so short tab content cannot be
-              // scrolled out of view; collapses to zero when content overflows.
               const SliverFillRemaining(
                 hasScrollBody: false,
                 child: SizedBox.shrink(),

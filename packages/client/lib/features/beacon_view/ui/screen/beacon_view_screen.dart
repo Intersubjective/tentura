@@ -2,35 +2,34 @@ import 'dart:async';
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/consts.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon_activity_event.dart';
 import 'package:tentura/domain/entity/coordination_item.dart';
-import 'package:tentura/features/beacon_threads/ui/bloc/room_cubit.dart';
+import 'package:tentura/features/beacon_threads/domain/entity/request_thread.dart';
+import 'package:tentura/features/beacon_threads/ui/bloc/thread_host_cubit.dart';
+import 'package:tentura/features/beacon_threads/ui/bloc/thread_host_state.dart';
+import 'package:tentura/features/beacon_threads/ui/bloc/threads_cubit.dart';
+import 'package:tentura/features/beacon_threads/ui/bloc/threads_state.dart';
 import 'package:tentura/features/beacon_threads/ui/coordination_room_navigation.dart';
-import 'package:tentura/features/beacon_view/domain/beacon_view_entry_source.dart';
-import 'package:tentura/features/beacon_view/ui/bloc/items_tab_cubit.dart';
-import 'package:tentura/features/beacon_threads/ui/util/admitted_chat_members.dart';
-import 'package:tentura/features/beacon_view/ui/widget/beacon_room_surface.dart';
-import 'package:tentura/features/beacon_view/ui/widget/beacon_view_app_bar_title.dart';
-import 'package:tentura/features/coordination_item/ui/widget/item_discussion_pane.dart';
+import 'package:tentura/features/beacon_threads/ui/widget/thread_detail.dart';
+import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_cubit.dart';
 import 'package:tentura/features/coordination_item/ui/bloc/item_actions_cubit.dart';
-import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/presenter/beacon_phase_presenter.dart';
 import 'package:tentura/ui/widget/auto_leading_with_fallback.dart';
 
-import '../bloc/beacon_view_cubit.dart';
 import '../widget/beacon_anchor_status.dart';
 import '../widget/beacon_operational_scroll_view.dart';
 import '../widget/beacon_view_app_bar_overflow.dart';
+import '../widget/beacon_view_app_bar_title.dart';
 import '../widget/beacon_view_forward_app_bar_button.dart';
 import '../widget/beacon_view_status_bottom_sheet.dart';
 import '../widget/beacon_view_constants.dart';
-import '../widget/beacon_view_room_app_bar_button.dart';
 
 bool _beaconPeopleTabAttentionQueryTruthy(String? v) {
   if (v == null || v.isEmpty) return false;
@@ -38,70 +37,28 @@ bool _beaconPeopleTabAttentionQueryTruthy(String? v) {
   return s == '1' || s == 'true' || s == 'yes';
 }
 
-/// Operational tab indices: items(0), people(1), log(2). Room is a separate surface.
-
-/// Query [kQueryBeaconViewTab]: `items` | `people` | `log` (+ legacy aliases).
-/// Room opens via `tab=room` or [kQueryBeaconSurface]=room, not as a segment tab.
+/// Query [kQueryBeaconViewTab]: `threads` | `people` | `log`.
 int _beaconViewTabIndex(String? viewTab) {
   switch (viewTab) {
-    case 'items':
-      return kBeaconTabItems;
     case 'people':
-    case 'helpOffers':
-    case 'help_offers':
       return kBeaconTabPeople;
     case 'log':
-    case 'activity':
-    case 'timeline':
       return kBeaconTabLog;
-    case 'details':
-    case 'forwards':
-    case 'overview':
+    case 'threads':
     default:
-      return kBeaconTabItems;
+      return kBeaconTabThreads;
   }
 }
 
-bool beaconViewUsesExpandedRoomSplit({
+/// Expanded thread split when the list has rows — not gated on room navigation.
+bool beaconViewUsesExpandedThreadSplit({
   required WindowClass windowClass,
   required bool showBeaconContent,
-  required bool canNavigateBeaconRoom,
+  required bool hasThreadRows,
 }) =>
     windowClass == WindowClass.expanded &&
     showBeaconContent &&
-    canNavigateBeaconRoom;
-
-/// Single source of truth for "does the current route say room is open".
-/// Derived fresh from route params every time — no stored flag mirrors it.
-/// Legacy (compact/regular) room-surface visibility and the split focus/URL
-/// side effects both read this instead of tracking their own copy.
-bool beaconViewRoomRequestedByRoute({
-  required String? surface,
-  required String? viewTab,
-  required String? isDeepLink,
-  required String? entry,
-}) {
-  final legacySurface = surface?.trim().toLowerCase();
-  return legacySurface == kBeaconSurfaceRoomQueryValue ||
-      viewTab == 'room' ||
-      normalizeBeaconViewEntry(
-            isDeepLink: isDeepLink,
-            rawFromQuery: BeaconViewEntrySourceWire.parseQuery(entry),
-          ) ==
-          BeaconViewEntrySource.roomNotification;
-}
-
-/// Compact/regular room-surface visibility: the route must request room
-/// *and* access must currently be allowed. Folding [canNavigateBeaconRoom] in
-/// here (rather than re-checking it at each call site) keeps app-bar chrome,
-/// `PopScope`, and body selection consistent — previously a denied-mid-flight
-/// room could show a "room" title/back-button while the body had already
-/// fallen back to operational.
-bool beaconViewShowsLegacyRoomSurface({
-  required bool isSplit,
-  required bool roomRequestedByRoute,
-  required bool canNavigateBeaconRoom,
-}) => !isSplit && roomRequestedByRoute && canNavigateBeaconRoom;
+    hasThreadRows;
 
 double beaconViewRoomSplitPaneWidth(
   TenturaTokens tt, {
@@ -129,17 +86,12 @@ class BeaconViewScreen extends StatefulWidget {
     this.isDeepLink,
     this.viewTab,
     this.peopleTabAttention,
-    this.surface,
     this.entry,
-    this.coordinationItemId,
+    this.threadId,
     this.messageId,
     this.embedded = false,
-    this.embeddedAllowRoomSplit = false,
-    this.embeddedRoomCoVisible = false,
-    this.suppressEmbeddedRoomBack = false,
-    this.embeddedRoomCloseNonce = 0,
-    this.onEmbeddedRoomOpenChanged,
     this.onEmbeddedLeave,
+    this.onRequestThreadRoute,
     super.key,
   });
 
@@ -147,46 +99,30 @@ class BeaconViewScreen extends StatefulWidget {
 
   final String? isDeepLink;
 
-  /// `items` | `people` | `log` (+ legacy aliases). Room: `tab=room` or [surface]=room.
+  /// `threads` | `people` | `log`.
   final String? viewTab;
 
   /// With [viewTab]=`people`, truthy values pulse/highlight the People tab until interaction.
   final String? peopleTabAttention;
 
-  /// `room` opens full-screen room; `status` is the default operational view.
-  final String? surface;
-
   /// Entry provenance ([kQueryBeaconEntry]).
   final String? entry;
 
-  /// Open room focused on this coordination item (notification deep link).
-  final String? coordinationItemId;
+  /// Expanded split / deep-link thread selection (`general` or item id).
+  final String? threadId;
 
-  /// Exact Chat message target from an Updates receipt. This is intentionally
-  /// distinct from [coordinationItemId], which identifies an item thread.
+  /// Exact Chat message target from an Updates receipt.
   final String? messageId;
 
   /// Hosted inside another screen (e.g. Inbox master–detail). Skips Scaffold /
-  /// TenturaTopBar / route URL room lifecycle; room is pane-local.
+  /// TenturaTopBar / route URL thread lifecycle; thread detail is pane-local.
   final bool embedded;
-
-  /// When [embedded], allow ops|room split if pane width permits (My Work).
-  final bool embeddedAllowRoomSplit;
-
-  /// When [embedded] and true, room stays co-visible (four-column band).
-  final bool embeddedRoomCoVisible;
-
-  /// When [embedded], hide pane-header back — host owns "back to list".
-  final bool suppressEmbeddedRoomBack;
-
-  /// Increment to request pane-local room exit from the host (back to list).
-  final int embeddedRoomCloseNonce;
-
-  /// Notifies host when embedded room focus/swap changes (list collapse).
-  final ValueChanged<bool>? onEmbeddedRoomOpenChanged;
 
   /// Called from embedded error "go back" — host may clear selection.
   final VoidCallback? onEmbeddedLeave;
+
+  /// Embedded narrow pane: host pushes canonical thread detail URL.
+  final void Function(String threadId, String? messageId)? onRequestThreadRoute;
 
   @override
   State<BeaconViewScreen> createState() => _BeaconViewScreenState();
@@ -196,38 +132,13 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
   late int _tabIndex;
   late bool _peopleTabAttentionActive;
 
-  /// Coordination item / participant to scroll-to + flash after a Log row tap.
-  String? _focusItemId;
+  /// Thread row to scroll-to + flash after a Log row tap.
+  String? _focusThreadId;
   String? _focusUserId;
 
-  RoomCubit? _roomCubit;
-  ItemsTabCubit? _itemsTabCubit;
-  bool _didApplyFetchResolution = false;
+  bool _didApplyThreadsResolution = false;
   String? _bannerMessage;
-
-  /// Pane-local room open when [BeaconViewScreen.embedded] (no URL sync).
-  var _embeddedRoomOpen = false;
-
-  /// Nested item thread replacing the main room chat column (not a route).
-  CoordinationItem? _activeThreadItem;
-
-  /// Reentrancy guard: [_exitRoomSurface] can be invoked from `PopScope` more
-  /// than once in quick succession (e.g. a rapid double-tap on the app-bar
-  /// back button before the first pop attempt resolves); not derivable from
-  /// route/window state (it's about an in-flight *action*, not "what is
-  /// currently displayed").
-  bool _roomExitInProgress = false;
-
-  /// Ensures mark-seen on the previous visit finishes before re-open refresh;
-  /// an in-flight async handle, not something route/window state can derive.
-  Future<void>? _pendingRoomExit;
-  bool _splitRoomRouteSyncScheduled = false;
-  bool _splitRoomRouteFocusPostFrameScheduled = false;
-  String? _splitRoomRouteFocusKey;
-
-  void _unfocusForRouteChange() {
-    FocusManager.instance.primaryFocus?.unfocus();
-  }
+  WindowClass? _lastWindowClass;
 
   void _leaveBeaconView(BuildContext context) {
     if (widget.embedded) {
@@ -236,17 +147,9 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
     }
     final router = context.router;
     if (router.canPop()) {
-      // Not `back()`: on web that's `window.history.back()`, an async
-      // browser-level round-trip — see [_exitRoomSurface]. `maybePop` drives
-      // the StackRouter's own page list directly and synchronously.
       unawaited(router.maybePop());
       return;
     }
-    // Nothing below this page in *this* tab branch (e.g. a cold-loaded deep
-    // link) — replace on root with the absolute path. Not `router.replacePath`
-    // (this branch's own nested StackRouter): an absolute, leading-slash path
-    // never matches this branch's own relative registrations, so scope
-    // resolution falls through unpredictably — see [_stripRoomFromUrl].
     unawaited(router.root.replacePath(kPathMyWork));
   }
 
@@ -303,71 +206,20 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
     );
   }
 
-  bool _roomFromRouteParams(BeaconViewScreen w) =>
-      beaconViewRoomRequestedByRoute(
-        surface: w.surface,
-        viewTab: w.viewTab,
-        isDeepLink: w.isDeepLink,
-        entry: w.entry,
-      );
-
-  /// Room requested via route (standalone) or pane-local flag (embedded).
-  bool _roomSurfaceRequested([BeaconViewScreen? w]) {
-    if (widget.embedded) return _embeddedRoomOpen;
-    return _roomFromRouteParams(w ?? widget);
-  }
-
-  /// Whether the router stack shows another page for *this same beacon*
-  /// directly beneath the current (room) page — i.e. room was entered by
-  /// [_enterRoomSurface] pushing an overlay onto an already-open operational
-  /// page, as opposed to a cold/deep-link load that baked `?tab=room` into
-  /// the only page for this beacon. Exit must pop in the former case
-  /// (`StackRouter.back`) and strip the query in place in the latter
-  /// (`replacePath` would otherwise leave a duplicate beacon-view page and
-  /// force two pops to leave the beacon).
-  ///
-  /// Deliberately *not* a stored per-State flag: `_enterRoomSurface` would
-  /// have to set it on the *operational* instance right before pushing, but
-  /// the *new* State created for the pushed room page starts with its own,
-  /// unset copy of any such flag — so a stored flag can never be read back
-  /// correctly by the page that actually needs to act on it on exit. The
-  /// stack is owned by the (single, shared) StackRouter, not by either
-  /// page's State, so it survives the push intact.
-  bool _hasOperationalBeaconPageBeneath() {
-    final stack = context.router.stack;
-    if (stack.length < 2) return false;
-    final below = stack[stack.length - 2];
-    return below.name == BeaconViewRoute.name &&
-        below.routeData.pathParams.optString('id') == widget.id;
-  }
-
-  /// [relativeToTabBranch]: drop the leading `/` so the path matches the
-  /// *nested* `beacon/view/:id` registration under this tab branch
-  /// (`browseDetailChildren()` in home_tab_branches.dart) directly, scoped to
-  /// `context.router` (this branch's own StackRouter) rather than falling
-  /// through to root's standalone `/beacon/view/:id` redirect-target entry —
-  /// segment-matching requires an exact leading-slash match, so a leading `/`
-  /// fails against the branch's own (slash-less) registered pattern and the
-  /// scope search falls through to root instead. See [_stripRoomFromUrl].
   String _beaconViewPath({
     String? viewTab,
-    bool stripRoomEntry = false,
+    String? threadId,
     bool relativeToTabBranch = false,
   }) {
     final q = <String, String>{};
     if (viewTab != null && viewTab.isNotEmpty) {
       q[kQueryBeaconViewTab] = viewTab;
     }
+    if (threadId != null && threadId.isNotEmpty) {
+      q[kQueryThreadId] = threadId;
+    }
     final entry = widget.entry?.trim();
-    final entryOpensRoom =
-        normalizeBeaconViewEntry(
-          isDeepLink: widget.isDeepLink,
-          rawFromQuery: BeaconViewEntrySourceWire.parseQuery(widget.entry),
-        ) ==
-        BeaconViewEntrySource.roomNotification;
-    if (entry != null &&
-        entry.isNotEmpty &&
-        !(stripRoomEntry && entryOpensRoom)) {
+    if (entry != null && entry.isNotEmpty) {
       q[kQueryBeaconEntry] = entry;
     }
     final pathPrefix = relativeToTabBranch
@@ -376,6 +228,200 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
     final base = '$pathPrefix/${widget.id}';
     if (q.isEmpty) return base;
     return '$base?${Uri(queryParameters: q).query}';
+  }
+
+  Future<void> _syncExpandedThreadQuery(String? threadId) {
+    if (widget.embedded) return Future<void>.value();
+    return context.router.replacePath(
+      _beaconViewPath(
+        viewTab: kBeaconViewTabThreads,
+        threadId: threadId,
+        relativeToTabBranch: true,
+      ),
+    );
+  }
+
+  bool _hasThreadDetailChild() {
+    if (widget.embedded) return false;
+    return context.router.currentChild?.name == ThreadDetailRoute.name;
+  }
+
+  bool _usesExpandedThreadSplit({
+    required bool showBeaconContent,
+    required ThreadsState threadsState,
+    required double? detailWidth,
+  }) {
+    final hasThreadRows =
+        threadsState.isSuccess && threadsState.threads.isNotEmpty;
+    if (!showBeaconContent || !hasThreadRows) return false;
+    if (widget.embedded) {
+      if (detailWidth == null) return false;
+      return myWorkDetailFitsOpsRoom(detailWidth, tight: true);
+    }
+    return beaconViewUsesExpandedThreadSplit(
+      windowClass: context.windowClass,
+      showBeaconContent: showBeaconContent,
+      hasThreadRows: hasThreadRows,
+    );
+  }
+
+  RequestThread? _resolveThreadRow(ThreadsState state, String threadId) {
+    for (final thread in state.threads) {
+      if (thread.threadId == threadId) {
+        return thread;
+      }
+    }
+    return null;
+  }
+
+  RequestThread? _resolveAccessibleRow(ThreadsState state, String? threadId) {
+    final explicit = threadId?.trim();
+    if (explicit != null && explicit.isNotEmpty) {
+      final row = _resolveThreadRow(state, explicit);
+      if (row != null) return row;
+    }
+    return state.firstAccessible;
+  }
+
+  RequestThread? _selectedThread(
+    ThreadsState threadsState,
+    ThreadHostState hostState,
+  ) {
+    final openId = hostState.openThreadId;
+    if (openId == null) return null;
+    return _resolveThreadRow(threadsState, openId);
+  }
+
+  Future<void> _applyThreadsResolution({
+    required ThreadsState threadsState,
+    required bool isSplit,
+  }) async {
+    if (!threadsState.isSuccess || _didApplyThreadsResolution) return;
+    _didApplyThreadsResolution = true;
+    if (!isSplit) return;
+
+    final host = context.read<ThreadHostCubit>();
+    if (host.state.openThreadId != null) return;
+
+    final row = _resolveAccessibleRow(threadsState, widget.threadId);
+    if (row == null) return;
+
+    await host.select(row);
+    if (!mounted) return;
+
+    final messageId = widget.messageId?.trim();
+    if (messageId != null && messageId.isNotEmpty) {
+      host.roomCubit?.prepareThreadScroll(
+        messageId: messageId,
+        coordinationItemId: row.item?.id,
+      );
+    }
+    if (!widget.embedded) {
+      unawaited(_syncExpandedThreadQuery(row.threadId));
+    }
+  }
+
+  Future<void> _openThread(
+    RequestThread thread, {
+    required bool isSplit,
+    String? messageId,
+  }) async {
+    if (!isSplit) {
+      if (widget.embedded) {
+        widget.onRequestThreadRoute?.call(thread.threadId, messageId);
+        return;
+      }
+      unawaited(
+        context.router.push(
+          ThreadDetailRoute(
+            threadId: thread.threadId,
+            messageId: messageId,
+          ),
+        ),
+      );
+      return;
+    }
+
+    final host = context.read<ThreadHostCubit>();
+    await host.select(thread);
+    if (!mounted) return;
+
+    final scrollMessageId = messageId?.trim();
+    if (scrollMessageId != null && scrollMessageId.isNotEmpty) {
+      host.roomCubit?.prepareThreadScroll(
+        messageId: scrollMessageId,
+        coordinationItemId: thread.item?.id,
+      );
+    }
+    if (!widget.embedded) {
+      unawaited(_syncExpandedThreadQuery(thread.threadId));
+    }
+  }
+
+  Future<void> _openGeneralThread({
+    String? messageId,
+    String? coordinationItemId,
+  }) async {
+    final threadsState = context.read<ThreadsCubit>().state;
+    final row = threadsState.general ?? threadsState.firstAccessible;
+    if (row == null) return;
+
+    final isSplit = _usesExpandedThreadSplit(
+      showBeaconContent: context.read<BeaconViewCubit>().state.beaconContentLoaded &&
+          !context.read<BeaconViewCubit>().state.beaconUnavailable,
+      threadsState: threadsState,
+      detailWidth: null,
+    );
+
+    await _openThread(row, messageId: messageId, isSplit: isSplit);
+    if (!mounted) return;
+
+    final host = context.read<ThreadHostCubit>();
+    final scrollMessageId = messageId?.trim();
+    final itemId = coordinationItemId?.trim();
+    if ((scrollMessageId != null && scrollMessageId.isNotEmpty) ||
+        (itemId != null && itemId.isNotEmpty)) {
+      host.roomCubit?.prepareThreadScroll(
+        messageId: scrollMessageId,
+        coordinationItemId: itemId,
+      );
+    }
+  }
+
+  void _onOpenCoordinationItemFromThread(CoordinationItem item) {
+    if (planItemSuppressesItemDiscussion(item)) {
+      context.read<ThreadHostCubit>().roomCubit?.prepareThreadScroll(
+        messageId: item.threadAnchorMessageId,
+        coordinationItemId: item.id,
+      );
+      return;
+    }
+    final row = _resolveThreadRow(
+      context.read<ThreadsCubit>().state,
+      item.id,
+    );
+    if (row == null) return;
+    final threadsState = context.read<ThreadsCubit>().state;
+    final isSplit = _usesExpandedThreadSplit(
+      showBeaconContent:
+          context.read<BeaconViewCubit>().state.beaconContentLoaded &&
+          !context.read<BeaconViewCubit>().state.beaconUnavailable,
+      threadsState: threadsState,
+      detailWidth: null,
+    );
+    unawaited(_openThread(row, isSplit: isSplit));
+  }
+
+  Future<void> _closeSplitThread() async {
+    await context.read<ThreadHostCubit>().clear();
+    if (!mounted) return;
+    if (!widget.embedded) {
+      unawaited(_syncExpandedThreadQuery(null));
+    }
+  }
+
+  void _refreshThreadsTab() {
+    unawaited(context.read<ThreadsCubit>().fetch());
   }
 
   @override
@@ -391,603 +437,48 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
   }
 
   @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    _releaseRoomCubitIfNoLongerNeeded();
-  }
-
-  /// Drops the embedded room cubit after [RoomCubit.close] flushes mark-seen.
-  Future<void> _releaseEmbeddedRoomCubit() async {
-    final c = _roomCubit;
-    if (c == null) return;
-    _roomCubit = null;
-    if (!c.isClosed) {
-      await c.close();
-    }
-  }
-
-  @override
   void didUpdateWidget(BeaconViewScreen oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.id != widget.id) {
-      _roomExitInProgress = false;
-      _splitRoomRouteFocusKey = null;
-      _embeddedRoomOpen = false;
-      _activeThreadItem = null;
-      _didApplyFetchResolution = false;
+      _didApplyThreadsResolution = false;
+      _focusThreadId = null;
+      _focusUserId = null;
     }
-    if (widget.embedded &&
-        widget.embeddedRoomCloseNonce != oldWidget.embeddedRoomCloseNonce) {
-      _exitRoomSurface();
+    if (oldWidget.viewTab != widget.viewTab) {
+      _tabIndex = _beaconViewTabIndex(widget.viewTab).clamp(
+        0,
+        kBeaconTabCount - 1,
+      );
     }
-    final wasRoom = _roomFromRouteParams(oldWidget);
-    final isRoom = _roomFromRouteParams(widget);
-    if (isRoom &&
-        _usesExpandedRoomSplitForState(
-          context.read<BeaconViewCubit>().state,
-        )) {
-      _activateExpandedRoomSplit(fromRoute: true);
-      return;
-    }
-    if (wasRoom && !isRoom) {
-      // Route dropped room (e.g. our own `_stripRoomFromUrl` landed, or a
-      // browser/forward-back sync) — reconcile the cubit; idempotent if
-      // something else already released it.
-      _exitRoomSurface(fromRouteSync: true);
-    } else if (!wasRoom && isRoom) {
-      // URL moved to ?tab=room while room was closed — treat this as an entry
-      // signal and clear any stale exit-in-progress flag for the same reason
-      // as in _enterRoomSurface above. Idempotent if room is already showing.
-      _roomExitInProgress = false;
-      _applyRoomSurfaceState(open: true);
-    }
-  }
-
-  void _refreshItemsTab() {
-    _itemsTabCubit ??= ItemsTabCubit(beaconId: widget.id);
-    unawaited(_itemsTabCubit!.fetch());
   }
 
   @override
-  void dispose() {
-    unawaited(_releaseEmbeddedRoomCubit());
-    unawaited(_itemsTabCubit?.close());
-    super.dispose();
-  }
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (widget.embedded) return;
 
-  bool get _hasLiveRoomCubit {
-    final c = _roomCubit;
-    return c != null && !c.isClosed;
-  }
+    final windowClass = context.windowClass;
+    final previous = _lastWindowClass;
+    _lastWindowClass = windowClass;
 
-  bool _usesExpandedRoomSplitForState(
-    BeaconViewState s, {
-    bool? showBeaconContent,
-    double? detailWidth,
-  }) {
-    final content =
-        showBeaconContent ?? (s.beaconContentLoaded && !s.beaconUnavailable);
-    if (!beaconViewUsesExpandedRoomSplit(
-      windowClass: context.windowClass,
-      showBeaconContent: content,
-      canNavigateBeaconRoom: s.canNavigateBeaconRoom,
-    )) {
-      return false;
-    }
-    if (!widget.embedded) return true;
-    if (!widget.embeddedAllowRoomSplit) return false;
-    if (widget.embeddedRoomCoVisible) {
-      if (detailWidth == null) return true;
-      return myWorkDetailFitsOpsRoom(detailWidth, tight: true);
-    }
-    if (!_embeddedRoomOpen) return false;
-    if (detailWidth == null) return true;
-    return myWorkDetailFitsOpsRoom(detailWidth, tight: true);
-  }
-
-  void _notifyEmbeddedRoomOpen(bool open) {
-    widget.onEmbeddedRoomOpenChanged?.call(open);
-  }
-
-  /// Releases the embedded room cubit once neither the expanded split nor a
-  /// route-level room request still needs it — e.g. after shrinking out of
-  /// the split with no `?tab=room` left on the URL. Runs on every dependency
-  /// change (window-class/resize is the main trigger). Comparing *current*
-  /// need against *current* liveness is idempotent by construction, so no
-  /// "was split last build" transition flag is required: if the route still
-  /// asks for room, legacy rendering picks it up directly
-  /// ([beaconViewShowsLegacyRoomSurface]) instead of forcing a release.
-  void _releaseRoomCubitIfNoLongerNeeded() {
-    if (!_hasLiveRoomCubit) return;
-    if (widget.embedded) {
-      if (_embeddedRoomOpen) return;
-      final state = context.read<BeaconViewCubit>().state;
-      if (widget.embeddedAllowRoomSplit &&
-          widget.embeddedRoomCoVisible &&
-          _usesExpandedRoomSplitForState(state)) {
-        return;
-      }
-      if (_usesExpandedRoomSplitForState(state)) return;
-      _roomExitInProgress = false;
-      _pendingRoomExit = _exitRoomAndSyncUnread();
-      unawaited(_pendingRoomExit);
-      return;
-    }
-    final state = context.read<BeaconViewCubit>().state;
-    if (_usesExpandedRoomSplitForState(state)) return;
-    if (_roomFromRouteParams(widget) && state.canNavigateBeaconRoom) return;
-
-    _roomExitInProgress = false;
-    _pendingRoomExit = _exitRoomAndSyncUnread();
-    unawaited(_pendingRoomExit);
-  }
-
-  void _prepareRoomPaneScroll([CoordinationItem? focusItem]) {
-    final c = _roomCubit;
-    if (c == null || c.isClosed) return;
-    if (focusItem != null && focusItem.id.isNotEmpty) {
-      c.prepareThreadScroll(
-        messageId: focusItem.threadAnchorMessageId,
-        coordinationItemId: focusItem.id,
-      );
-      return;
-    }
-    final messageId = widget.messageId?.trim();
-    if (messageId != null && messageId.isNotEmpty) {
-      c.prepareThreadScroll(messageId: messageId);
-      return;
-    }
-    final itemId = widget.coordinationItemId?.trim();
-    if (itemId != null && itemId.isNotEmpty) {
-      c.prepareThreadScroll(coordinationItemId: itemId);
-      return;
-    }
-    c.prepareThreadScroll();
-  }
-
-  void _scheduleExpandedRoomPaneRouteFocusIfNeeded() {
-    if (_splitRoomRouteFocusPostFrameScheduled) return;
-    _splitRoomRouteFocusPostFrameScheduled = true;
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _splitRoomRouteFocusPostFrameScheduled = false;
-      if (!mounted) return;
-      _focusExpandedRoomPaneFromRouteIfNeeded();
-    });
-  }
-
-  void _focusExpandedRoomPaneFromRouteIfNeeded() {
-    if (!_roomFromRouteParams(widget) && !_urlIndicatesRoom()) return;
-    final focusKey = [
-      widget.id,
-      widget.viewTab ?? '',
-      widget.surface ?? '',
-      widget.entry ?? '',
-      widget.coordinationItemId ?? '',
-      widget.messageId ?? '',
-    ].join('|');
-    if (_splitRoomRouteFocusKey == focusKey) return;
-    _splitRoomRouteFocusKey = focusKey;
-    _prepareRoomPaneScroll();
-    _scheduleExpandedRoomRouteSync(
-      popPushedRoom: _hasOperationalBeaconPageBeneath(),
-    );
-  }
-
-  void _scheduleExpandedRoomRouteSync({bool popPushedRoom = false}) {
-    if (_splitRoomRouteSyncScheduled) return;
-    _splitRoomRouteSyncScheduled = true;
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) {
-        _splitRoomRouteSyncScheduled = false;
-        return;
-      }
-      _unfocusForRouteChange();
-      if (popPushedRoom && context.router.canPop()) {
-        // Not `StackRouter.back()`: on web that's `NavigationHistoryImpl`'s
-        // literal `window.history.back()` — an async, browser-level
-        // popstate round-trip whose reconciliation was observed to rewrite
-        // *this* (top) page's own route data in place instead of removing
-        // it, leaving a duplicate `BeaconViewRoute` in the stack. `maybePop`
-        // drives the StackRouter's own page list directly (same mechanism
-        // `AutoLeadingButton` uses), synchronously removing this page and
-        // revealing the operational page beneath it.
-        unawaited(context.router.maybePop());
-        _splitRoomRouteSyncScheduled = false;
-        return;
-      }
-      // Not `.whenComplete()`: `StackRouter.replacePath`'s returned Future
-      // follows `push`'s "resolves when the pushed page is later popped"
-      // contract, not "resolves when this navigation settles" — it would
-      // never fire here, leaving this guard stuck forever. The actual
-      // route/URL update already happens synchronously inside
-      // `replacePath` (its guard chain is empty for this route), so it's
-      // safe to clear the guard right after the call.
-      unawaited(_stripRoomFromUrl(stripRoomEntry: true));
-      _splitRoomRouteSyncScheduled = false;
-    });
-  }
-
-  void _activateExpandedRoomSplit({
-    CoordinationItem? focusItem,
-    bool fromRoute = false,
-    bool focusRoom = false,
-  }) {
-    final popPushedRoom = _hasOperationalBeaconPageBeneath();
-    _roomExitInProgress = false;
-    _ensureEmbeddedRoomCubit();
-    if (focusRoom || fromRoute || focusItem != null) {
-      _prepareRoomPaneScroll(focusItem);
-    }
-    if (fromRoute) {
-      _scheduleExpandedRoomRouteSync(popPushedRoom: popPushedRoom);
-    }
-  }
-
-  void _applyFetchResolution(BeaconViewState s) {
-    if (!s.isSuccess || _didApplyFetchResolution) return;
-
-    final roomRequested = _roomSurfaceRequested();
-    final roomDenied =
-        (roomRequested || _hasLiveRoomCubit) && !s.canNavigateBeaconRoom;
-    if (roomDenied && (!s.beaconContextLoaded || s.myProfile.id.isEmpty)) {
-      return;
-    }
-
-    setState(() {
-      if (roomDenied) {
-        // Rendering already falls back to operational once
-        // `canNavigateBeaconRoom` is false (see
-        // [beaconViewShowsLegacyRoomSurface]) — no local flag to clear here.
-        if (widget.embedded) {
-          _embeddedRoomOpen = false;
-        }
-        if (s.showsRoomAccessUnavailableBanner) {
-          _bannerMessage = L10n.of(
-            context,
-          )!.beaconViewRoomAccessUnavailableBanner;
-        } else if (!widget.embedded) {
-          unawaited(_stripRoomFromUrl());
-        }
-      }
-      _didApplyFetchResolution = true;
-      if (_usesExpandedRoomSplitForState(s)) {
-        _activateExpandedRoomSplit(fromRoute: roomRequested);
-      } else if (roomRequested && s.canNavigateBeaconRoom) {
-        _ensureEmbeddedRoomCubit();
-        _prepareRoomPaneScroll();
-      }
-    });
-  }
-
-  void _applyRoomSurfaceState({required bool open}) {
-    if (open) {
-      setState(_ensureEmbeddedRoomCubit);
-      unawaited(_onRoomSurfaceOpened());
-    } else {
-      if (!_hasLiveRoomCubit) return;
-      setState(() {});
-      _pendingRoomExit = _exitRoomAndSyncUnread();
-      unawaited(_pendingRoomExit);
-    }
-  }
-
-  void _ensureEmbeddedRoomCubit() {
-    if (_roomCubit != null && !_roomCubit!.isClosed) return;
-    final initialAnchor = context.read<BeaconViewCubit>().roomReadThrough(
-      widget.id,
-    );
-    _roomCubit = RoomCubit(
-      beaconId: widget.id,
-      initialUnreadAnchorAt: initialAnchor,
-    );
-  }
-
-  /// In-room UI uses live [RoomCubit] unread; beacon shell uses server batch count.
-  int _effectiveRoomUnreadCount(
-    BeaconViewState beaconState, {
-    required bool useLiveRoomCubit,
-  }) {
-    final rc = _roomCubit;
-    if (useLiveRoomCubit && rc != null && !rc.isClosed) {
-      return rc.state.unreadCount;
-    }
-    return beaconState.roomUnreadCount;
-  }
-
-  Future<void> _onRoomSurfaceOpened() async {
-    final pending = _pendingRoomExit;
-    if (pending != null) {
-      await pending;
-    }
-    if (!mounted) return;
-    if (mounted) setState(() {});
-  }
-
-  Future<void> _exitRoomAndSyncUnread() async {
-    await _releaseEmbeddedRoomCubit();
-    _pendingRoomExit = null;
-    if (mounted) setState(() {});
-  }
-
-  bool _urlIndicatesRoom() {
-    final url = context.router.currentUrl;
-    return url.contains('$kQueryBeaconViewTab=room') ||
-        url.contains('$kQueryBeaconSurface=room');
-  }
-
-  Future<void> _stripRoomFromUrl({bool stripRoomEntry = false}) {
-    if (widget.embedded) {
-      if (_embeddedRoomOpen) {
-        setState(() => _embeddedRoomOpen = false);
-      }
-      return Future<void>.value();
-    }
-    // Replace on *this tab branch's own* StackRouter (`context.router`, the
-    // same one `_enterRoomSurface`'s `pushPath` already targets) with a path
-    // relative to it (no leading `/`) — not `context.router.root.replacePath`
-    // with the full `/home/<tab>/...` URL, and not a leading-slash path on
-    // `context.router` either. `auto_route`'s segment matcher requires an
-    // exact match: a leading `/` never matches this branch's own (slash-less)
-    // `beacon/view/:id` registration, so scope resolution falls through to
-    // root's *standalone* `/beacon/view/:id` redirect-target entry — whose
-    // guard (`_forwardIntoHomeBranch` in root_router.dart) pushes a *second*
-    // beacon-view page and/or rebuilds `HomeRoute` from scratch. The latter
-    // forces `AutoTabsRouter`'s `TabsRouter.setupRoutes` to re-run with only
-    // this one branch's children — and `setupRoutes` only consumes its
-    // `pendingChildren` once, so the branch silently stops updating (URL and
-    // body freeze while chrome briefly flashes the collapsed/no-detail
-    // state). Same underlying fragility as `_shellSubtreeKey`'s comment in
-    // home_screen.dart, triggered from a different call site. A relative path
-    // matches this branch's own registration directly, keeping the replace a
-    // single-level pop+push on this branch's own stack.
-    return context.router.replacePath(
-      _beaconViewPath(
-        stripRoomEntry: stripRoomEntry,
-        relativeToTabBranch: true,
-      ),
-    );
-  }
-
-  void _enterRoomSurface([CoordinationItem? focusItem]) {
-    // Reset the exit-in-progress flag unconditionally on any user-initiated
-    // entry.  The flag is set synchronously by _exitRoomSurface but cleared
-    // only inside an async whenComplete callback (_stripRoomFromUrl).  If the
-    // user re-enters before that callback fires (e.g. by quickly tapping the
-    // chat icon after backing out), the flag stays true and the very next call
-    // to _exitRoomSurface returns early, stranding the room open.
-    _roomExitInProgress = false;
-    if (!context.read<BeaconViewCubit>().state.canNavigateBeaconRoom) {
-      return;
-    }
-    if (widget.embedded) {
-      if (_usesExpandedRoomSplitForState(
-        context.read<BeaconViewCubit>().state,
-      )) {
-        setState(() {
-          _activateExpandedRoomSplit(focusItem: focusItem, focusRoom: true);
-        });
-        if (!widget.embeddedRoomCoVisible) {
-          _embeddedRoomOpen = true;
-          _notifyEmbeddedRoomOpen(true);
-        }
-        return;
-      }
-      setState(() {
-        _embeddedRoomOpen = true;
-        _ensureEmbeddedRoomCubit();
-      });
-      _notifyEmbeddedRoomOpen(true);
-      final c = _roomCubit;
-      if (c == null || c.isClosed) return;
-      if (focusItem == null || focusItem.id.isEmpty) {
-        c.prepareThreadScroll();
-      } else {
-        c.prepareThreadScroll(
-          messageId: focusItem.threadAnchorMessageId,
-          coordinationItemId: focusItem.id,
-        );
-      }
-      return;
-    }
-    if (_usesExpandedRoomSplitForState(context.read<BeaconViewCubit>().state)) {
-      setState(() {
-        _activateExpandedRoomSplit(focusItem: focusItem, focusRoom: true);
-      });
-      return;
-    }
-    // Push a dedicated `?tab=room` route instead of also embedding room on the
-    // route below — otherwise back pops the top route but leaves a live
-    // [RoomCubit] on the underlying beacon view.
-    if (!_roomFromRouteParams(widget)) {
-      final roomPath = _beaconViewPath(viewTab: 'room');
-      // Push so browser history retains the operational beacon URL; exit via
-      // [StackRouter.back] (not replacePath) to avoid duplicate beacon entries.
-      _unfocusForRouteChange();
-      unawaited(context.router.pushPath(roomPath));
-      return;
-    }
-    _applyRoomSurfaceState(open: true);
-    final c = _roomCubit;
-    if (c == null || c.isClosed) return;
-    if (focusItem == null || focusItem.id.isEmpty) {
-      c.prepareThreadScroll();
-    } else {
-      c.prepareThreadScroll(
-        messageId: focusItem.threadAnchorMessageId,
-        coordinationItemId: focusItem.id,
-      );
-    }
-  }
-
-  void _openItemDiscussion(CoordinationItem item) {
-    if (item.kind == CoordinationItemKind.plan) {
-      _enterRoomSurface(item);
-      return;
-    }
-
-    final state = context.read<BeaconViewCubit>().state;
-    final isSplit = _usesExpandedRoomSplitForState(state);
-    final showLegacyRoomSurface = beaconViewShowsLegacyRoomSurface(
-      isSplit: isSplit,
-      roomRequestedByRoute: _roomSurfaceRequested(),
-      canNavigateBeaconRoom: state.canNavigateBeaconRoom,
-    );
-    final canNest = canNestItemDiscussionInRoomPane(
-      isSplit: isSplit,
-      showLegacyRoomSurface: showLegacyRoomSurface,
-      embedded: widget.embedded,
-      embeddedRoomOpen: _embeddedRoomOpen,
-    );
-
-    if (widget.embedded && !canNest) {
-      setState(() {
-        _activeThreadItem = item;
-        _embeddedRoomOpen = true;
-        _ensureEmbeddedRoomCubit();
-      });
-      _notifyEmbeddedRoomOpen(true);
-      return;
-    }
-
-    if (canNest) {
-      setState(() => _activeThreadItem = item);
-      return;
-    }
-
-    unawaited(
-      openCoordinationItemFromRoom(
-        context,
-        item: item,
-        roomCubit: _roomCubit,
-      ),
-    );
-  }
-
-  Future<void> _closeActiveThread() async {
-    if (_activeThreadItem == null) return;
-    setState(() => _activeThreadItem = null);
-    final cubit = _roomCubit;
-    if (cubit == null || cubit.isClosed) return;
-    await cubit.reloadMessages(silent: true);
-  }
-
-  void _syncActiveThreadHost({
-    required bool isSplit,
-    required bool showLegacyRoomSurface,
-  }) {
-    if (_activeThreadItem == null) return;
-    final canNest = canNestItemDiscussionInRoomPane(
-      isSplit: isSplit,
-      showLegacyRoomSurface: showLegacyRoomSurface,
-      embedded: widget.embedded,
-      embeddedRoomOpen: _embeddedRoomOpen,
-    );
-    if (!canNest) {
-      setState(() => _activeThreadItem = null);
-    }
-  }
-
-  void _exitRoomSurface({bool fromRouteSync = false}) {
-    if (_roomExitInProgress) return;
-    if (_activeThreadItem != null) {
-      unawaited(_closeActiveThread());
-      if (!fromRouteSync) return;
-    }
-
-    if (widget.embedded) {
-      _roomExitInProgress = true;
-      if (_usesExpandedRoomSplitForState(
-        context.read<BeaconViewCubit>().state,
-      )) {
-        if (!widget.embeddedRoomCoVisible) {
-          if (_hasLiveRoomCubit) {
-            _applyRoomSurfaceState(open: false);
+    if (previous == null) return;
+    if (previous == WindowClass.expanded && windowClass != WindowClass.expanded) {
+      final openThreadId = context.read<ThreadHostCubit>().state.openThreadId;
+      if (openThreadId != null) {
+        final host = context.read<ThreadHostCubit>();
+        host.scheduleWindowClassTransition(() {
+          if (!mounted) return;
+          if (context.router.currentChild?.name == ThreadDetailRoute.name) {
+            return;
           }
-          setState(() => _embeddedRoomOpen = false);
-          _notifyEmbeddedRoomOpen(false);
-        }
-        _roomExitInProgress = false;
-        return;
+          unawaited(
+            context.router.push(
+              ThreadDetailRoute(threadId: openThreadId),
+            ),
+          );
+        });
       }
-      setState(() => _embeddedRoomOpen = false);
-      _notifyEmbeddedRoomOpen(false);
-      if (_hasLiveRoomCubit) {
-        _applyRoomSurfaceState(open: false);
-      }
-      _roomExitInProgress = false;
-      return;
     }
-
-    if (_usesExpandedRoomSplitForState(context.read<BeaconViewCubit>().state)) {
-      _roomExitInProgress = false;
-      if (_urlIndicatesRoom() || _roomFromRouteParams(widget)) {
-        _scheduleExpandedRoomRouteSync();
-      }
-      return;
-    }
-
-    if (fromRouteSync) {
-      if (_hasLiveRoomCubit) {
-        _applyRoomSurfaceState(open: false);
-      }
-      return;
-    }
-
-    _roomExitInProgress = true;
-    if (_hasLiveRoomCubit) {
-      _applyRoomSurfaceState(open: false);
-    }
-
-    // Room opened via pushPath: pop the `?tab=room` history entry. Using
-    // replacePath here duplicates `/beacon/view/:id` in the stack/history.
-    //
-    // Not `StackRouter.back()`: on web that's `NavigationHistoryImpl`'s
-    // literal `window.history.back()` — an async, browser-level popstate
-    // round-trip whose reconciliation was observed to rewrite *this* (top)
-    // page's own route data in place instead of removing it, leaving a
-    // duplicate `BeaconViewRoute` in the stack (the URL looked right — room
-    // query stripped — but the page beneath was never actually revealed, so
-    // a *second* back tap was needed to really leave).
-    //
-    // Not `maybePop()` either: we're here *because* this page's own
-    // `PopScope.canPop` is false (that's what routed the system/AppBar back
-    // gesture into this method instead of a plain pop), and `maybePop()`
-    // consults that same `canPop` — it would just refuse, silently doing
-    // nothing. `pop()` forces the StackRouter's own page list to drop this
-    // page regardless of PopScope, synchronously revealing the operational
-    // page beneath it.
-    if (_hasOperationalBeaconPageBeneath()) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted) {
-          _roomExitInProgress = false;
-          return;
-        }
-        _unfocusForRouteChange();
-        context.router.pop();
-        _roomExitInProgress = false;
-      });
-      return;
-    }
-
-    // Deep link / notification entry at `?tab=room` — strip query in place.
-    final needsUrlSync = _urlIndicatesRoom() || _roomFromRouteParams(widget);
-    if (!needsUrlSync) {
-      _roomExitInProgress = false;
-      return;
-    }
-
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) {
-        _roomExitInProgress = false;
-        return;
-      }
-      _unfocusForRouteChange();
-      // Not `.whenComplete()`: see the comment on the sibling call in
-      // `_scheduleExpandedRoomRouteSync` — `replacePath`'s Future resolves on
-      // pop, not on navigation settling, so it would never fire here.
-      unawaited(_stripRoomFromUrl());
-      _roomExitInProgress = false;
-    });
   }
 
   void _switchToTab(int tab) {
@@ -998,7 +489,7 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
       }
       _tabIndex = tab;
       _bannerMessage = null;
-      _focusItemId = null;
+      _focusThreadId = null;
       _focusUserId = null;
     });
   }
@@ -1008,41 +499,64 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
       _tabIndex = kBeaconTabPeople;
       _peopleTabAttentionActive = true;
       _bannerMessage = null;
-      _focusItemId = null;
+      _focusThreadId = null;
       _focusUserId = null;
     });
   }
 
-  void _focusCoordinationItem(CoordinationItem item) {
+  void _focusThreadByItemId(String itemId) {
     setState(() {
-      _tabIndex = kBeaconTabItems;
-      _focusItemId = item.id;
+      _tabIndex = kBeaconTabThreads;
+      _focusThreadId = itemId;
       _focusUserId = null;
       _bannerMessage = null;
       _peopleTabAttentionActive = false;
     });
   }
 
-  /// Log row tap → jump to the linked coordination item (Items tab) or, when the
-  /// event has no item, to the related participant (People tab).
   void _onTapCoordinationLogEvent(BeaconActivityEvent e) {
+    final kind = e.coordinationKind;
     final itemId = e.coordinationItemId?.trim();
-    if (itemId != null && itemId.isNotEmpty) {
+
+    if (kind == CoordinationItemKind.ask ||
+        kind == CoordinationItemKind.promise ||
+        kind == CoordinationItemKind.blocker) {
+      if (itemId != null && itemId.isNotEmpty) {
+        setState(() {
+          _tabIndex = kBeaconTabThreads;
+          _focusThreadId = itemId;
+          _focusUserId = null;
+          _bannerMessage = null;
+          _peopleTabAttentionActive = false;
+        });
+      }
+      return;
+    }
+
+    if (kind == CoordinationItemKind.plan) {
       setState(() {
-        _tabIndex = kBeaconTabItems;
-        _focusItemId = itemId;
+        _tabIndex = kBeaconTabThreads;
+        _focusThreadId = null;
         _focusUserId = null;
         _bannerMessage = null;
         _peopleTabAttentionActive = false;
       });
+      final messageId = e.sourceMessageId?.trim();
+      unawaited(
+        _openGeneralThread(
+          messageId: messageId,
+          coordinationItemId: itemId,
+        ),
+      );
       return;
     }
+
     final userId = (e.targetUserId ?? e.actorId)?.trim();
     if (userId != null && userId.isNotEmpty) {
       setState(() {
         _tabIndex = kBeaconTabPeople;
         _focusUserId = userId;
-        _focusItemId = null;
+        _focusThreadId = null;
         _bannerMessage = null;
         _peopleTabAttentionActive = false;
       });
@@ -1050,9 +564,9 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
   }
 
   void _clearOperationalFocus() {
-    if (_focusItemId == null && _focusUserId == null) return;
+    if (_focusThreadId == null && _focusUserId == null) return;
     setState(() {
-      _focusItemId = null;
+      _focusThreadId = null;
       _focusUserId = null;
     });
   }
@@ -1060,95 +574,154 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
   Widget _buildOperationalBody({
     required BeaconViewCubit beaconViewCubit,
     required ScreenCubit screenCubit,
+    required BeaconViewState beaconState,
+    required bool isSplit,
+    required void Function(RequestThread thread) onOpenThread,
   }) {
-    if (_itemsTabCubit == null) {
-      _itemsTabCubit = ItemsTabCubit(beaconId: widget.id);
-      unawaited(_itemsTabCubit!.fetch());
-    }
     return TenturaContentColumn(
-      child: BlocProvider.value(
-        value: _itemsTabCubit!,
-        child: BeaconOperationalScrollView(
-          beaconViewCubit: beaconViewCubit,
-          screenCubit: screenCubit,
-          tabIndex: _tabIndex,
-          onTabChanged: _switchToTab,
-          peopleTabAttentionActive: _peopleTabAttentionActive,
-          onPeopleTabAttentionCleared: () => setState(() {
-            _peopleTabAttentionActive = false;
-          }),
-          onActivatePeopleTabAttention: _activatePeopleTabAttention,
-          onFocusCoordinationItem: _focusCoordinationItem,
-          focusItemId: _focusItemId,
-          focusUserId: _focusUserId,
-          onOperationalFocusCleared: _clearOperationalFocus,
-          onTapCoordinationLogEvent: _onTapCoordinationLogEvent,
-          onEnterRoomSurface: _enterRoomSurface,
-          onOpenItemDiscussion: _openItemDiscussion,
+      child: BeaconOperationalScrollView(
+        beaconViewCubit: beaconViewCubit,
+        screenCubit: screenCubit,
+        tabIndex: _tabIndex,
+        onTabChanged: _switchToTab,
+        peopleTabAttentionActive: _peopleTabAttentionActive,
+        onPeopleTabAttentionCleared: () => setState(() {
+          _peopleTabAttentionActive = false;
+        }),
+        onActivatePeopleTabAttention: _activatePeopleTabAttention,
+        onFocusCoordinationItem: (item) => _focusThreadByItemId(item.id),
+        focusThreadId: _focusThreadId,
+        focusUserId: _focusUserId,
+        onOperationalFocusCleared: _clearOperationalFocus,
+        onTapCoordinationLogEvent: _onTapCoordinationLogEvent,
+        onOpenThread: onOpenThread,
+        onOpenGeneralThread: () => unawaited(_openGeneralThread()),
+        onThreadsTabRefresh: _refreshThreadsTab,
+        selectedThreadId: isSplit
+            ? context.watch<ThreadHostCubit>().state.openThreadId
+            : null,
+        beaconState: beaconState,
+      ),
+    );
+  }
+
+  Widget _buildGeneralSplitChrome({
+    required BeaconViewState state,
+    required L10n l10n,
+    required VoidCallback onBack,
+  }) {
+    final tt = context.tt;
+    final scheme = Theme.of(context).colorScheme;
+    final title = state.beacon.title.isEmpty
+        ? l10n.beaconViewTitle
+        : state.beacon.title;
+
+    return Material(
+      color: scheme.surface,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          border: Border(
+            bottom: BorderSide(color: scheme.outlineVariant),
+          ),
+        ),
+        child: Padding(
+          padding: EdgeInsets.symmetric(
+            horizontal: tt.tightGap,
+            vertical: tt.tightGap,
+          ),
+          child: Row(
+            children: [
+              Semantics(
+                label: l10n.beaconRoomBackToChat,
+                button: true,
+                child: IconButton(
+                  tooltip: l10n.beaconRoomBackToChat,
+                  onPressed: onBack,
+                  icon: const Icon(Icons.arrow_back),
+                ),
+              ),
+              Expanded(
+                child: Text(
+                  title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildRoomPane(
-    BeaconViewState state, {
-    required bool isSplit,
+  Widget _buildThreadDetailPane({
+    required BeaconViewState beaconState,
+    required ThreadsState threadsState,
+    required ThreadHostState hostState,
+    required L10n l10n,
   }) {
-    final threadItem = _activeThreadItem;
-    if (threadItem != null) {
-      return itemDiscussionProviders(
-        item: threadItem,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            if (isSplit)
-              ItemDiscussionColumnChrome(
-                onBack: () => unawaited(_closeActiveThread()),
-              ),
-            Expanded(
-              child: ItemDiscussionPane(
-                key: ValueKey('item-discussion-pane-${threadItem.id}'),
-                onOpenCoordinationItem: _openItemDiscussion,
-              ),
-            ),
-          ],
-        ),
+    if (hostState.switching) {
+      return const Center(child: CircularProgressIndicator.adaptive());
+    }
+
+    final thread = _selectedThread(threadsState, hostState);
+    if (thread == null) {
+      return const Center(child: CircularProgressIndicator.adaptive());
+    }
+
+    final detail = ThreadDetail(
+      thread: thread,
+      beaconAuthorId: beaconState.beacon.author.id,
+      onCoordinationSaved: _refreshThreadsTab,
+      onOpenCoordinationItem: _onOpenCoordinationItemFromThread,
+    );
+
+    final paneBody = Expanded(child: detail);
+
+    if (thread.item == null) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          _buildGeneralSplitChrome(
+            state: beaconState,
+            l10n: l10n,
+            onBack: () => unawaited(_closeSplitThread()),
+          ),
+          paneBody,
+        ],
       );
     }
 
-    final roomCubit = _roomCubit;
-    return roomCubit == null || roomCubit.isClosed
-        ? const Center(child: CircularProgressIndicator.adaptive())
-        : BlocProvider.value(
-            value: roomCubit,
-            child: BlocListener<RoomCubit, RoomState>(
-              listenWhen: (p, c) =>
-                  p.unreadCount != c.unreadCount ||
-                  p.participants.length != c.participants.length,
-              listener: (ctx, roomState) {
-                if (mounted) setState(() {});
-              },
-              child: BeaconRoomSurface(
-                beaconAuthorId: state.beacon.author.id,
-                beacon: state.beacon,
-                onCoordinationSaved: _refreshItemsTab,
-                onOpenCoordinationItem: _openItemDiscussion,
-              ),
-            ),
-          );
+    return BlocProvider(
+      key: ValueKey('item-actions-${thread.threadId}'),
+      create: (_) => ItemActionsCubit(item: thread.item!),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          ThreadDetailColumnChrome(
+            onBack: () => unawaited(_closeSplitThread()),
+          ),
+          paneBody,
+        ],
+      ),
+    );
   }
 
   Widget _buildExpandedSplitBody({
-    required BeaconViewState state,
+    required BeaconViewState beaconState,
     required BeaconViewCubit beaconViewCubit,
     required ScreenCubit screenCubit,
+    required ThreadsState threadsState,
+    required ThreadHostState hostState,
     required TenturaTokens tt,
+    required void Function(RequestThread thread) onOpenThread,
     bool useTightPaneWidths = false,
   }) {
     final minPane = useTightPaneWidths ? 280.0 : 360.0;
+    final l10n = L10n.of(context)!;
     return LayoutBuilder(
       builder: (context, constraints) {
-        final roomPaneWidth = beaconViewRoomSplitPaneWidth(
+        final threadPaneWidth = beaconViewRoomSplitPaneWidth(
           tt,
           availableWidth: constraints.maxWidth,
           minPaneWidth: minPane,
@@ -1160,445 +733,24 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
               child: _buildOperationalBody(
                 beaconViewCubit: beaconViewCubit,
                 screenCubit: screenCubit,
+                beaconState: beaconState,
+                isSplit: true,
+                onOpenThread: onOpenThread,
               ),
             ),
             const TenturaVerticalHairline(),
             SizedBox(
-              width: roomPaneWidth,
-              child: _buildRoomPane(state, isSplit: true),
+              width: threadPaneWidth,
+              child: _buildThreadDetailPane(
+                beaconState: beaconState,
+                threadsState: threadsState,
+                hostState: hostState,
+                l10n: l10n,
+              ),
             ),
           ],
         );
       },
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final screenCubit = context.read<ScreenCubit>();
-    final beaconViewCubit = context.read<BeaconViewCubit>();
-    final l10n = L10n.of(context)!;
-    return BlocListener<BeaconViewCubit, BeaconViewState>(
-      listenWhen: (p, c) =>
-          (!p.isSuccess && c.isSuccess) ||
-          (_roomSurfaceRequested() &&
-              !p.canNavigateBeaconRoom &&
-              c.canNavigateBeaconRoom) ||
-          ((_roomSurfaceRequested() || _hasLiveRoomCubit) &&
-              p.canNavigateBeaconRoom &&
-              !c.canNavigateBeaconRoom),
-      listener: (ctx, s) {
-        if (!s.isSuccess) return;
-        if (!ctx.mounted) return;
-        if ((_roomSurfaceRequested() || _hasLiveRoomCubit) &&
-            !s.canNavigateBeaconRoom) {
-          if (!s.beaconContextLoaded) return;
-          if (s.myProfile.id.isEmpty) return;
-          unawaited(_releaseEmbeddedRoomCubit());
-          setState(() {
-            // Rendering already falls back to operational once
-            // `canNavigateBeaconRoom` is false — no local flag to clear here.
-            if (widget.embedded) {
-              _embeddedRoomOpen = false;
-              _notifyEmbeddedRoomOpen(false);
-            }
-            if (s.showsRoomAccessUnavailableBanner) {
-              _bannerMessage = L10n.of(
-                ctx,
-              )!.beaconViewRoomAccessUnavailableBanner;
-            } else if (!widget.embedded) {
-              unawaited(_stripRoomFromUrl());
-            }
-          });
-          return;
-        }
-        _applyFetchResolution(s);
-      },
-      child: BlocBuilder<BeaconViewCubit, BeaconViewState>(
-        bloc: beaconViewCubit,
-        buildWhen: (p, c) =>
-            c.isSuccess ||
-            c.isLoading ||
-            c.hasError ||
-            p.beaconContentLoaded != c.beaconContentLoaded ||
-            p.beaconContextLoaded != c.beaconContextLoaded ||
-            p.beaconUnavailable != c.beaconUnavailable ||
-            p.beacon != c.beacon ||
-            p.helpOffers != c.helpOffers ||
-            p.roomUnreadCount != c.roomUnreadCount ||
-            p.canNavigateBeaconRoom != c.canNavigateBeaconRoom ||
-            p.isRoomAdmissionBlocked != c.isRoomAdmissionBlocked ||
-            p.coordinationDeniesRoomAdmission !=
-                c.coordinationDeniesRoomAdmission,
-        builder: (context, state) {
-          final theme = Theme.of(context);
-          final scheme = theme.colorScheme;
-          final tt = context.tt;
-          final showInitialLoading =
-              state.isLoading &&
-              !state.beaconContentLoaded &&
-              state.timeline.isEmpty &&
-              state.helpOffers.isEmpty;
-          final showInitialUnavailable = state.beaconUnavailable;
-          final showInitialError =
-              state.hasError &&
-              !showInitialUnavailable &&
-              state.timeline.isEmpty &&
-              state.helpOffers.isEmpty;
-          final showBeaconContent =
-              state.beaconContentLoaded && !state.beaconUnavailable;
-
-          return LayoutBuilder(
-            builder: (context, constraints) {
-              final detailWidth = constraints.maxWidth;
-              final isSplit = _usesExpandedRoomSplitForState(
-                state,
-                showBeaconContent: showBeaconContent,
-                detailWidth: detailWidth,
-              );
-              final useTightPaneWidths =
-                  widget.embedded &&
-                  widget.embeddedAllowRoomSplit &&
-                  !widget.embeddedRoomCoVisible;
-              if (isSplit) {
-                _ensureEmbeddedRoomCubit();
-                _scheduleExpandedRoomPaneRouteFocusIfNeeded();
-              }
-              final showLegacyRoomSurface = beaconViewShowsLegacyRoomSurface(
-                isSplit: isSplit,
-                roomRequestedByRoute: _roomSurfaceRequested(),
-                canNavigateBeaconRoom: state.canNavigateBeaconRoom,
-              );
-              WidgetsBinding.instance.addPostFrameCallback((_) {
-                _syncActiveThreadHost(
-                  isSplit: isSplit,
-                  showLegacyRoomSurface: showLegacyRoomSurface,
-                );
-              });
-              final threadActive = _activeThreadItem != null;
-          final roomUnread = _effectiveRoomUnreadCount(
-            state,
-            useLiveRoomCubit: showLegacyRoomSurface || isSplit,
-          );
-          final roomMemberCount = showLegacyRoomSurface
-              ? admittedChatMembers(
-                  participants: _roomCubit?.state.participants ?? const [],
-                  beaconAuthorId: state.beacon.author.id,
-                ).length
-              : 0;
-          final statusSlots = beaconViewStatusSlots(l10n, state);
-          final appBarPhaseStatus = showLegacyRoomSurface
-              ? beaconViewRoomAppBarPhaseStatus(
-                  l10n,
-                  memberCount: roomMemberCount,
-                )
-              : statusSlots.presentation;
-
-          Widget body;
-          if (showInitialLoading) {
-            body = const Center(
-              child: CircularProgressIndicator.adaptive(),
-            );
-          } else if (showInitialUnavailable) {
-            body = _beaconViewErrorBody(
-              theme: theme,
-              scheme: scheme,
-              tt: tt,
-              title: l10n.beaconHudBeaconUnavailable,
-              body: l10n.beaconViewUnavailableBody,
-              retryLabel: l10n.myWorkRetry,
-              goBackLabel: l10n.beaconViewErrorGoBack,
-              onRetry: () => unawaited(beaconViewCubit.retryInitialLoad()),
-              onGoBack: () => _leaveBeaconView(context),
-            );
-          } else if (showInitialError) {
-            body = _beaconViewErrorBody(
-              theme: theme,
-              scheme: scheme,
-              tt: tt,
-              title: l10n.beaconHudBeaconUnavailable,
-              body: l10n.beaconViewLoadErrorBody,
-              retryLabel: l10n.myWorkRetry,
-              goBackLabel: l10n.beaconViewErrorGoBack,
-              onRetry: () => unawaited(beaconViewCubit.retryInitialLoad()),
-              onGoBack: () => _leaveBeaconView(context),
-            );
-          } else if (isSplit) {
-            body = _buildExpandedSplitBody(
-              state: state,
-              beaconViewCubit: beaconViewCubit,
-              screenCubit: screenCubit,
-              tt: tt,
-              useTightPaneWidths: useTightPaneWidths,
-            );
-          } else if (showLegacyRoomSurface) {
-            body = _buildRoomPane(state, isSplit: false);
-          } else {
-            body = _buildOperationalBody(
-              beaconViewCubit: beaconViewCubit,
-              screenCubit: screenCubit,
-            );
-          }
-
-          final contentColumn = Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              if (_bannerMessage != null)
-                MaterialBanner(
-                  content: Text(_bannerMessage!),
-                  actions: [
-                    TextButton(
-                      onPressed: () => setState(() => _bannerMessage = null),
-                      child: Text(l10n.beaconViewBannerDismiss),
-                    ),
-                  ],
-                ),
-              Expanded(child: body),
-            ],
-          );
-
-          if (widget.embedded) {
-            final embedded = Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                _buildEmbeddedPaneHeader(
-                  context: context,
-                  state: state,
-                  beaconViewCubit: beaconViewCubit,
-                  screenCubit: screenCubit,
-                  l10n: l10n,
-                  showBeaconContent: showBeaconContent,
-                  showInitialLoading: showInitialLoading,
-                  showLegacyRoomSurface: showLegacyRoomSurface,
-                  isSplit: isSplit,
-                  threadActive: threadActive,
-                  appBarPhaseStatus: appBarPhaseStatus,
-                ),
-                if (state.isLoading)
-                  LinearProgressIndicator(
-                    minHeight: 2,
-                    backgroundColor: scheme.surfaceContainerHighest,
-                  ),
-                Expanded(child: contentColumn),
-              ],
-            );
-            if (threadActive && !isSplit) {
-              return itemDiscussionProviders(
-                item: _activeThreadItem!,
-                child: embedded,
-              );
-            }
-            return embedded;
-          }
-
-          final standalone = PopScope(
-            canPop:
-                _activeThreadItem == null &&
-                (isSplit || !showLegacyRoomSurface),
-            onPopInvokedWithResult: (didPop, _) {
-              if (didPop) return;
-              if (_activeThreadItem != null) {
-                unawaited(_closeActiveThread());
-                return;
-              }
-              // Browser/system back: URL sync only — do not maybePop (see
-              // [_exitRoomSurface]).
-              _exitRoomSurface();
-            },
-            child: Scaffold(
-              appBar: TenturaTopBar.of(
-                context,
-                alignment: isSplit
-                    ? TenturaTopBarAlignment.fullWidth
-                    : TenturaTopBarAlignment.content,
-                leading: isSplit
-                    ? null
-                    : showLegacyRoomSurface
-                    ? BackButton(
-                        onPressed: () {
-                          if (_activeThreadItem != null) {
-                            unawaited(_closeActiveThread());
-                          } else {
-                            _exitRoomSurface();
-                          }
-                        },
-                      )
-                    : AutoLeadingWithFallback(
-                        fallbackPath: kPathMyWork,
-                        onFallback: () => _leaveBeaconView(context),
-                      ),
-                title: isSplit
-                    ? const SizedBox.shrink()
-                    : threadActive && showLegacyRoomSurface
-                    ? ItemDiscussionTitle(
-                        fallback: l10n.coordinationItemDiscussionTitle,
-                      )
-                    : BeaconViewAppBarTitle(
-                        beacon: state.beacon,
-                        showBeaconContent: showBeaconContent,
-                        phaseStatus: appBarPhaseStatus,
-                        l10n: l10n,
-                      ),
-                actions: isSplit
-                    ? null
-                    : threadActive && showLegacyRoomSurface
-                    ? [
-                        const ItemDiscussionOverflowAction(),
-                      ]
-                    : [
-                        if (showBeaconContent &&
-                            !showInitialLoading &&
-                            !showLegacyRoomSurface &&
-                            state.canNavigateBeaconRoom)
-                          BeaconViewRoomAppBarButton(
-                            state: state,
-                            onPressed: _enterRoomSurface,
-                          ),
-                        if (beaconViewShowsForwardAppBarAction(
-                              state: state,
-                              showBeaconContent: showBeaconContent,
-                              showInitialLoading: showInitialLoading,
-                            ) &&
-                            !threadActive)
-                          BeaconViewForwardAppBarButton(
-                            onPressed: () => unawaited(
-                              beaconViewOpenForwardThenMaybeNudgeOfferHelp(
-                                context,
-                                beaconViewCubit,
-                                l10n,
-                              ),
-                            ),
-                          ),
-                        if (showBeaconContent)
-                          beaconViewAppBarOverflow(
-                            context: context,
-                            state: state,
-                            cubit: beaconViewCubit,
-                            screenCubit: screenCubit,
-                            l10n: l10n,
-                            inRoomSurface: showLegacyRoomSurface,
-                            roomCubit: showLegacyRoomSurface
-                                ? _roomCubit
-                                : null,
-                            onItemsTabRefresh: _refreshItemsTab,
-                            onAuthorManageStatus: () async {
-                              await beaconViewCubit.refreshReviewWindowInfo();
-                              if (!context.mounted) return;
-                              await showBeaconViewUpdateStatusSheet(
-                                context,
-                                beaconViewCubit.state,
-                                beaconViewCubit,
-                                onOpenPeopleTab: () =>
-                                    _switchToTab(kBeaconTabPeople),
-                                onEnterRoomSurface: _enterRoomSurface,
-                              );
-                            },
-                          ),
-                      ],
-                row: isSplit
-                    ? LayoutBuilder(
-                        builder: (context, constraints) {
-                          final roomPaneWidth = beaconViewRoomSplitPaneWidth(
-                            tt,
-                            availableWidth: constraints.maxWidth,
-                          );
-                          final overflow = showBeaconContent && !threadActive
-                              ? beaconViewAppBarOverflow(
-                                  context: context,
-                                  state: state,
-                                  cubit: beaconViewCubit,
-                                  screenCubit: screenCubit,
-                                  l10n: l10n,
-                                  inRoomSurface: false,
-                                  roomCubit: null,
-                                  onItemsTabRefresh: _refreshItemsTab,
-                                  onAuthorManageStatus: () async {
-                                    await beaconViewCubit
-                                        .refreshReviewWindowInfo();
-                                    if (!context.mounted) return;
-                                    await showBeaconViewUpdateStatusSheet(
-                                      context,
-                                      beaconViewCubit.state,
-                                      beaconViewCubit,
-                                      onOpenPeopleTab: () =>
-                                          _switchToTab(kBeaconTabPeople),
-                                      onEnterRoomSurface: _enterRoomSurface,
-                                    );
-                                  },
-                                )
-                              : const SizedBox.shrink();
-                          final showSplitForward = !threadActive &&
-                              beaconViewShowsForwardAppBarAction(
-                                state: state,
-                                showBeaconContent: showBeaconContent,
-                                showInitialLoading: showInitialLoading,
-                              );
-                          return Row(
-                            children: [
-                              Expanded(
-                                child: TenturaContentColumn(
-                                  child: Row(
-                                    children: [
-                                      AutoLeadingWithFallback(
-                                        fallbackPath: kPathMyWork,
-                                        onFallback: () =>
-                                            _leaveBeaconView(context),
-                                      ),
-                                      Expanded(
-                                        child: BeaconViewAppBarTitle(
-                                          beacon: state.beacon,
-                                          showBeaconContent: showBeaconContent,
-                                          phaseStatus: appBarPhaseStatus,
-                                          l10n: l10n,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                              SizedBox(
-                                width: roomPaneWidth,
-                                child: Align(
-                                  alignment: Alignment.centerRight,
-                                  child: Row(
-                                    mainAxisSize: MainAxisSize.min,
-                                    children: [
-                                      if (showSplitForward)
-                                        BeaconViewForwardAppBarButton(
-                                          onPressed: () => unawaited(
-                                            beaconViewOpenForwardThenMaybeNudgeOfferHelp(
-                                              context,
-                                              beaconViewCubit,
-                                              l10n,
-                                            ),
-                                          ),
-                                        ),
-                                      overflow,
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ],
-                          );
-                        },
-                      )
-                    : null,
-                progress: TenturaTopBar.loadingBar(context, state.isLoading),
-              ),
-              body: SafeArea(child: contentColumn),
-            ),
-          );
-          if (threadActive && !isSplit) {
-            return itemDiscussionProviders(
-              item: _activeThreadItem!,
-              child: standalone,
-            );
-          }
-          return standalone;
-            },
-          );
-        },
-      ),
     );
   }
 
@@ -1610,9 +762,6 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
     required L10n l10n,
     required bool showBeaconContent,
     required bool showInitialLoading,
-    required bool showLegacyRoomSurface,
-    required bool isSplit,
-    required bool threadActive,
     required BeaconPhaseStatusPresentation appBarPhaseStatus,
   }) {
     final tt = context.tt;
@@ -1625,84 +774,449 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
         ),
         child: Row(
           children: [
-            if ((showLegacyRoomSurface || threadActive) && !isSplit)
-              IconButton(
-                tooltip: threadActive
-                    ? l10n.beaconRoomBackToChat
-                    : MaterialLocalizations.of(context).backButtonTooltip,
-                onPressed: () {
-                  if (threadActive) {
-                    unawaited(_closeActiveThread());
-                  } else {
-                    _exitRoomSurface();
-                  }
-                },
-                icon: const Icon(Icons.arrow_back),
-              ),
             Expanded(
-              child: threadActive && !isSplit
-                  ? ItemDiscussionTitle(
-                      fallback: l10n.coordinationItemDiscussionTitle,
-                    )
-                  : BeaconViewAppBarTitle(
-                      beacon: state.beacon,
-                      showBeaconContent: showBeaconContent,
-                      phaseStatus: appBarPhaseStatus,
-                      l10n: l10n,
-                    ),
+              child: BeaconViewAppBarTitle(
+                beacon: state.beacon,
+                showBeaconContent: showBeaconContent,
+                phaseStatus: appBarPhaseStatus,
+                l10n: l10n,
+              ),
             ),
-            if (threadActive && !isSplit)
-              const ItemDiscussionOverflowAction()
-            else ...[
-              if (showBeaconContent &&
-                  !showInitialLoading &&
-                  !showLegacyRoomSurface &&
-                  !isSplit &&
-                  state.canNavigateBeaconRoom)
-                BeaconViewRoomAppBarButton(
+            if (beaconViewShowsForwardAppBarAction(
                   state: state,
-                  onPressed: _enterRoomSurface,
-                ),
-              if (beaconViewShowsForwardAppBarAction(
-                    state: state,
-                    showBeaconContent: showBeaconContent,
-                    showInitialLoading: showInitialLoading,
-                  ) &&
-                  !threadActive)
-                BeaconViewForwardAppBarButton(
-                  onPressed: () => unawaited(
-                    beaconViewOpenForwardThenMaybeNudgeOfferHelp(
-                      context,
-                      beaconViewCubit,
-                      l10n,
-                    ),
+                  showBeaconContent: showBeaconContent,
+                  showInitialLoading: showInitialLoading,
+                ))
+              BeaconViewForwardAppBarButton(
+                onPressed: () => unawaited(
+                  beaconViewOpenForwardThenMaybeNudgeOfferHelp(
+                    context,
+                    beaconViewCubit,
+                    l10n,
                   ),
                 ),
-              if (showBeaconContent)
-                beaconViewAppBarOverflow(
-                  context: context,
-                  state: state,
-                  cubit: beaconViewCubit,
-                  screenCubit: screenCubit,
-                  l10n: l10n,
-                  inRoomSurface: showLegacyRoomSurface,
-                  roomCubit: showLegacyRoomSurface ? _roomCubit : null,
-                  onItemsTabRefresh: _refreshItemsTab,
-                  onAuthorManageStatus: () async {
-                    await beaconViewCubit.refreshReviewWindowInfo();
-                    if (!context.mounted) return;
-                    await showBeaconViewUpdateStatusSheet(
-                      context,
-                      beaconViewCubit.state,
-                      beaconViewCubit,
-                      onOpenPeopleTab: () => _switchToTab(kBeaconTabPeople),
-                      onEnterRoomSurface: _enterRoomSurface,
-                    );
-                  },
-                ),
-            ],
+              ),
+            if (showBeaconContent)
+              beaconViewAppBarOverflow(
+                context: context,
+                state: state,
+                cubit: beaconViewCubit,
+                screenCubit: screenCubit,
+                l10n: l10n,
+                inRoomSurface: false,
+                roomCubit: null,
+                onItemsTabRefresh: _refreshThreadsTab,
+                onAuthorManageStatus: () async {
+                  await beaconViewCubit.refreshReviewWindowInfo();
+                  if (!context.mounted) return;
+                  await showBeaconViewUpdateStatusSheet(
+                    context,
+                    beaconViewCubit.state,
+                    beaconViewCubit,
+                    onOpenPeopleTab: () => _switchToTab(kBeaconTabPeople),
+                    onOpenGeneralThread: () => unawaited(_openGeneralThread()),
+                  );
+                },
+              ),
           ],
         ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final screenCubit = context.read<ScreenCubit>();
+    final beaconViewCubit = context.read<BeaconViewCubit>();
+    final l10n = L10n.of(context)!;
+
+    return MultiBlocListener(
+      listeners: [
+        BlocListener<ThreadsCubit, ThreadsState>(
+          listenWhen: (p, c) => !p.isSuccess && c.isSuccess,
+          listener: (context, threadsState) {
+            final beaconState = beaconViewCubit.state;
+            final showBeaconContent =
+                beaconState.beaconContentLoaded &&
+                !beaconState.beaconUnavailable;
+            final detailWidth = widget.embedded
+                ? MediaQuery.sizeOf(context).width
+                : null;
+            final isSplit = _usesExpandedThreadSplit(
+              showBeaconContent: showBeaconContent,
+              threadsState: threadsState,
+              detailWidth: detailWidth,
+            );
+            unawaited(
+              _applyThreadsResolution(
+                threadsState: threadsState,
+                isSplit: isSplit,
+              ),
+            );
+          },
+        ),
+      ],
+      child: BlocBuilder<BeaconViewCubit, BeaconViewState>(
+        bloc: beaconViewCubit,
+        buildWhen: (p, c) =>
+            c.isSuccess ||
+            c.isLoading ||
+            c.hasError ||
+            p.beaconContentLoaded != c.beaconContentLoaded ||
+            p.beaconContextLoaded != c.beaconContextLoaded ||
+            p.beaconUnavailable != c.beaconUnavailable ||
+            p.beacon != c.beacon ||
+            p.helpOffers != c.helpOffers ||
+            p.isRoomAdmissionBlocked != c.isRoomAdmissionBlocked ||
+            p.coordinationDeniesRoomAdmission != c.coordinationDeniesRoomAdmission,
+        builder: (context, state) {
+          return BlocBuilder<ThreadsCubit, ThreadsState>(
+            buildWhen: (p, c) =>
+                p.status != c.status || p.threads != c.threads,
+            builder: (context, threadsState) {
+              return BlocBuilder<ThreadHostCubit, ThreadHostState>(
+                buildWhen: (p, c) =>
+                    p.openThreadId != c.openThreadId ||
+                    p.switching != c.switching,
+                builder: (context, hostState) {
+                  final theme = Theme.of(context);
+                  final scheme = theme.colorScheme;
+                  final tt = context.tt;
+                  final showInitialLoading =
+                      state.isLoading &&
+                      !state.beaconContentLoaded &&
+                      state.timeline.isEmpty &&
+                      state.helpOffers.isEmpty;
+                  final showInitialUnavailable = state.beaconUnavailable;
+                  final showInitialError =
+                      state.hasError &&
+                      !showInitialUnavailable &&
+                      state.timeline.isEmpty &&
+                      state.helpOffers.isEmpty;
+                  final showBeaconContent =
+                      state.beaconContentLoaded && !state.beaconUnavailable;
+
+                  void onOpenThread(RequestThread thread) {
+                    unawaited(() async {
+                      final width = widget.embedded
+                          ? MediaQuery.sizeOf(context).width
+                          : null;
+                      final isSplit = _usesExpandedThreadSplit(
+                        showBeaconContent: showBeaconContent,
+                        threadsState: threadsState,
+                        detailWidth: width,
+                      );
+                      await _openThread(thread, isSplit: isSplit);
+                    }());
+                  }
+
+                  return LayoutBuilder(
+                    builder: (context, constraints) {
+                      final detailWidth = constraints.maxWidth;
+                      final isSplit = _usesExpandedThreadSplit(
+                        showBeaconContent: showBeaconContent,
+                        threadsState: threadsState,
+                        detailWidth: detailWidth,
+                      );
+
+                      if (threadsState.isSuccess && isSplit) {
+                        WidgetsBinding.instance.addPostFrameCallback((_) {
+                          if (!mounted) return;
+                          unawaited(
+                            _applyThreadsResolution(
+                              threadsState: threadsState,
+                              isSplit: true,
+                            ),
+                          );
+                        });
+                      }
+
+                      final statusSlots = beaconViewStatusSlots(l10n, state);
+                      final appBarPhaseStatus = statusSlots.presentation;
+                      final useTightPaneWidths = widget.embedded;
+
+                      Widget body;
+                      if (showInitialLoading) {
+                        body = const Center(
+                          child: CircularProgressIndicator.adaptive(),
+                        );
+                      } else if (showInitialUnavailable) {
+                        body = _beaconViewErrorBody(
+                          theme: theme,
+                          scheme: scheme,
+                          tt: tt,
+                          title: l10n.beaconHudBeaconUnavailable,
+                          body: l10n.beaconViewUnavailableBody,
+                          retryLabel: l10n.myWorkRetry,
+                          goBackLabel: l10n.beaconViewErrorGoBack,
+                          onRetry: () =>
+                              unawaited(beaconViewCubit.retryInitialLoad()),
+                          onGoBack: () => _leaveBeaconView(context),
+                        );
+                      } else if (showInitialError) {
+                        body = _beaconViewErrorBody(
+                          theme: theme,
+                          scheme: scheme,
+                          tt: tt,
+                          title: l10n.beaconHudBeaconUnavailable,
+                          body: l10n.beaconViewLoadErrorBody,
+                          retryLabel: l10n.myWorkRetry,
+                          goBackLabel: l10n.beaconViewErrorGoBack,
+                          onRetry: () =>
+                              unawaited(beaconViewCubit.retryInitialLoad()),
+                          onGoBack: () => _leaveBeaconView(context),
+                        );
+                      } else if (isSplit) {
+                        body = _buildExpandedSplitBody(
+                          beaconState: state,
+                          beaconViewCubit: beaconViewCubit,
+                          screenCubit: screenCubit,
+                          threadsState: threadsState,
+                          hostState: hostState,
+                          tt: tt,
+                          onOpenThread: onOpenThread,
+                          useTightPaneWidths: useTightPaneWidths,
+                        );
+                      } else {
+                        body = _buildOperationalBody(
+                          beaconViewCubit: beaconViewCubit,
+                          screenCubit: screenCubit,
+                          beaconState: state,
+                          isSplit: false,
+                          onOpenThread: onOpenThread,
+                        );
+                      }
+
+                      final contentColumn = Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          if (_bannerMessage != null)
+                            MaterialBanner(
+                              content: Text(_bannerMessage!),
+                              actions: [
+                                TextButton(
+                                  onPressed: () =>
+                                      setState(() => _bannerMessage = null),
+                                  child: Text(l10n.beaconViewBannerDismiss),
+                                ),
+                              ],
+                            ),
+                          Expanded(child: body),
+                        ],
+                      );
+
+                      if (widget.embedded) {
+                        return Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            _buildEmbeddedPaneHeader(
+                              context: context,
+                              state: state,
+                              beaconViewCubit: beaconViewCubit,
+                              screenCubit: screenCubit,
+                              l10n: l10n,
+                              showBeaconContent: showBeaconContent,
+                              showInitialLoading: showInitialLoading,
+                              appBarPhaseStatus: appBarPhaseStatus,
+                            ),
+                            if (state.isLoading)
+                              LinearProgressIndicator(
+                                minHeight: 2,
+                                backgroundColor:
+                                    scheme.surfaceContainerHighest,
+                              ),
+                            Expanded(child: contentColumn),
+                          ],
+                        );
+                      }
+
+                      final onDetailChild = _hasThreadDetailChild();
+                      return PopScope(
+                        canPop: !onDetailChild,
+                        child: Scaffold(
+                          appBar: TenturaTopBar.of(
+                            context,
+                            alignment: isSplit
+                                ? TenturaTopBarAlignment.fullWidth
+                                : TenturaTopBarAlignment.content,
+                            leading: isSplit
+                                ? null
+                                : AutoLeadingWithFallback(
+                                    fallbackPath: kPathMyWork,
+                                    onFallback: () =>
+                                        _leaveBeaconView(context),
+                                  ),
+                            title: isSplit
+                                ? const SizedBox.shrink()
+                                : BeaconViewAppBarTitle(
+                                    beacon: state.beacon,
+                                    showBeaconContent: showBeaconContent,
+                                    phaseStatus: appBarPhaseStatus,
+                                    l10n: l10n,
+                                  ),
+                            actions: isSplit
+                                ? null
+                                : [
+                                    if (beaconViewShowsForwardAppBarAction(
+                                          state: state,
+                                          showBeaconContent:
+                                              showBeaconContent,
+                                          showInitialLoading:
+                                              showInitialLoading,
+                                        ))
+                                      BeaconViewForwardAppBarButton(
+                                        onPressed: () => unawaited(
+                                          beaconViewOpenForwardThenMaybeNudgeOfferHelp(
+                                            context,
+                                            beaconViewCubit,
+                                            l10n,
+                                          ),
+                                        ),
+                                      ),
+                                    if (showBeaconContent)
+                                      beaconViewAppBarOverflow(
+                                        context: context,
+                                        state: state,
+                                        cubit: beaconViewCubit,
+                                        screenCubit: screenCubit,
+                                        l10n: l10n,
+                                        inRoomSurface: false,
+                                        roomCubit: null,
+                                        onItemsTabRefresh: _refreshThreadsTab,
+                                        onAuthorManageStatus: () async {
+                                          await beaconViewCubit
+                                              .refreshReviewWindowInfo();
+                                          if (!context.mounted) return;
+                                          await showBeaconViewUpdateStatusSheet(
+                                            context,
+                                            beaconViewCubit.state,
+                                            beaconViewCubit,
+                                            onOpenPeopleTab: () => _switchToTab(
+                                              kBeaconTabPeople,
+                                            ),
+                                            onOpenGeneralThread: () =>
+                                                unawaited(_openGeneralThread()),
+                                          );
+                                        },
+                                      ),
+                                  ],
+                            row: isSplit
+                                ? LayoutBuilder(
+                                    builder: (context, constraints) {
+                                      final threadPaneWidth =
+                                          beaconViewRoomSplitPaneWidth(
+                                        tt,
+                                        availableWidth: constraints.maxWidth,
+                                      );
+                                      final overflow = showBeaconContent
+                                          ? beaconViewAppBarOverflow(
+                                              context: context,
+                                              state: state,
+                                              cubit: beaconViewCubit,
+                                              screenCubit: screenCubit,
+                                              l10n: l10n,
+                                              inRoomSurface: false,
+                                              roomCubit: null,
+                                              onItemsTabRefresh:
+                                                  _refreshThreadsTab,
+                                              onAuthorManageStatus: () async {
+                                                await beaconViewCubit
+                                                    .refreshReviewWindowInfo();
+                                                if (!context.mounted) return;
+                                                await showBeaconViewUpdateStatusSheet(
+                                                  context,
+                                                  beaconViewCubit.state,
+                                                  beaconViewCubit,
+                                                  onOpenPeopleTab: () =>
+                                                      _switchToTab(
+                                                    kBeaconTabPeople,
+                                                  ),
+                                                  onOpenGeneralThread: () =>
+                                                      unawaited(
+                                                    _openGeneralThread(),
+                                                  ),
+                                                );
+                                              },
+                                            )
+                                          : const SizedBox.shrink();
+                                      final showSplitForward =
+                                          beaconViewShowsForwardAppBarAction(
+                                            state: state,
+                                            showBeaconContent:
+                                                showBeaconContent,
+                                            showInitialLoading:
+                                                showInitialLoading,
+                                          );
+                                      return Row(
+                                        children: [
+                                          Expanded(
+                                            child: TenturaContentColumn(
+                                              child: Row(
+                                                children: [
+                                                  AutoLeadingWithFallback(
+                                                    fallbackPath: kPathMyWork,
+                                                    onFallback: () =>
+                                                        _leaveBeaconView(
+                                                      context,
+                                                    ),
+                                                  ),
+                                                  Expanded(
+                                                    child: BeaconViewAppBarTitle(
+                                                      beacon: state.beacon,
+                                                      showBeaconContent:
+                                                          showBeaconContent,
+                                                      phaseStatus:
+                                                          appBarPhaseStatus,
+                                                      l10n: l10n,
+                                                    ),
+                                                  ),
+                                                ],
+                                              ),
+                                            ),
+                                          ),
+                                          SizedBox(
+                                            width: threadPaneWidth,
+                                            child: Align(
+                                              alignment: Alignment.centerRight,
+                                              child: Row(
+                                                mainAxisSize: MainAxisSize.min,
+                                                children: [
+                                                  if (showSplitForward)
+                                                    BeaconViewForwardAppBarButton(
+                                                      onPressed: () =>
+                                                          unawaited(
+                                                        beaconViewOpenForwardThenMaybeNudgeOfferHelp(
+                                                          context,
+                                                          beaconViewCubit,
+                                                          l10n,
+                                                        ),
+                                                      ),
+                                                    ),
+                                                  overflow,
+                                                ],
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      );
+                                    },
+                                  )
+                                : null,
+                            progress: TenturaTopBar.loadingBar(
+                              context,
+                              state.isLoading,
+                            ),
+                          ),
+                          body: SafeArea(child: contentColumn),
+                        ),
+                      );
+                    },
+                  );
+                },
+              );
+            },
+          );
+        },
       ),
     );
   }

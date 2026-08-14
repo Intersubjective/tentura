@@ -112,52 +112,6 @@ class ItemCard extends StatefulWidget {
   final VoidCallback? onEdit;
   final VoidCallback? onRemind;
 
-  /// Temporary adapter for unmigrated [items_tab.dart]; deleted in UNIT 12.
-  factory ItemCard.semantic({
-    required CoordinationItem item,
-    BeaconParticipant? creatorParticipant,
-    BeaconParticipant? targetParticipant,
-    BeaconParticipant? responsibleParticipant,
-    Profile? viewerProfile,
-    List<BeaconParticipant> participants = const [],
-    String? viewerId,
-    void Function(CoordinationItem item)? onOpenItemThread,
-    VoidCallback? onResolve,
-    VoidCallback? onCancel,
-    VoidCallback? onAccept,
-    VoidCallback? onReject,
-    VoidCallback? onEdit,
-    VoidCallback? onRemind,
-    Key? key,
-  }) {
-    final profile = viewerProfile ?? Profile(id: viewerId ?? '');
-    return ItemCard(
-      key: key,
-      thread: RequestThread(
-        threadId: item.id,
-        kind: threadKindForItem(item),
-        unreadCount: item.unreadCount,
-        messageCount: item.messageCount,
-        lastSeenAt: item.lastSeenAt,
-        item: item,
-      ),
-      viewerProfile: profile,
-      participants: participants,
-      creatorParticipant: creatorParticipant,
-      targetParticipant: targetParticipant,
-      responsibleParticipant: responsibleParticipant,
-      onOpenThread: onOpenItemThread == null
-          ? null
-          : (thread) => onOpenItemThread(item),
-      onResolve: onResolve,
-      onCancel: onCancel,
-      onAccept: onAccept,
-      onReject: onReject,
-      onEdit: onEdit,
-      onRemind: onRemind,
-    );
-  }
-
   @override
   State<ItemCard> createState() => _ItemCardState();
 }

@@ -1,3 +1,5 @@
+import 'package:flutter/scheduler.dart';
+
 import 'package:tentura/features/beacon_threads/domain/entity/request_thread.dart';
 
 import 'room_cubit.dart';
@@ -24,10 +26,26 @@ class ThreadHostCubit extends Cubit<ThreadHostState> {
 
   RoomCubit? _roomCubit;
   Future<void> _switchTail = Future<void>.value();
+  int _windowClassTransitionGeneration = 0;
 
   RoomCubit? get roomCubit => _roomCubit;
 
+  void _cancelWindowClassTransition() {
+    _windowClassTransitionGeneration++;
+  }
+
+  /// Schedules [action] once after the next frame. Superseded when a newer
+  /// transition is scheduled or when [select]/[clear] runs.
+  void scheduleWindowClassTransition(void Function() action) {
+    final generation = ++_windowClassTransitionGeneration;
+    SchedulerBinding.instance.scheduleFrameCallback((_) {
+      if (isClosed || generation != _windowClassTransitionGeneration) return;
+      action();
+    });
+  }
+
   Future<void> select(RequestThread thread) async {
+    _cancelWindowClassTransition();
     final generation = state.selectionGeneration + 1;
     emit(state.copyWith(switching: true, selectionGeneration: generation));
     final operation = _switchTail.then((_) async {
@@ -59,6 +77,7 @@ class ThreadHostCubit extends Cubit<ThreadHostState> {
   }
 
   Future<void> clear() async {
+    _cancelWindowClassTransition();
     final generation = state.selectionGeneration + 1;
     emit(state.copyWith(switching: true, selectionGeneration: generation));
     final operation = _switchTail.then((_) async {

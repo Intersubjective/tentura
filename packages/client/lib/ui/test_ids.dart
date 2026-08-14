@@ -40,9 +40,7 @@ abstract final class TestIds {
   static const roomMessageBubblePressScale = 'room.message.bubble_press_scale';
   static String roomMentionSuggestion(String handle) =>
       'room.mention.suggestion.${handle.trim().toLowerCase()}';
-  static const beaconRoomOpen = 'beacon.room.open';
   static const beaconForward = 'beacon.forward';
-  static const beaconTabItems = 'beacon.tab.items';
   static const beaconTabThreads = 'beacon.tab.threads';
   static const beaconTabPeople = 'beacon.tab.people';
   static const beaconTabLog = 'beacon.tab.log';
