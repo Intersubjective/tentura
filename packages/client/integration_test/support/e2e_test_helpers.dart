@@ -13,6 +13,10 @@ import 'package:tentura/domain/capability/capability_group.dart';
 import 'package:tentura/domain/capability/capability_tag.dart';
 import 'package:tentura/features/auth/domain/use_case/auth_case.dart';
 import 'package:tentura/features/auth/ui/bloc/auth_cubit.dart';
+import 'package:tentura/domain/entity/room_message.dart';
+import 'package:tentura/features/beacon_threads/domain/entity/request_thread.dart';
+import 'package:tentura/features/beacon_threads/ui/widget/item_card.dart';
+import 'package:tentura/features/beacon_threads/ui/widget/room_message_tile.dart';
 import 'package:tentura/features/coordination_item/ui/widget/coordination_item_overflow_menu.dart';
 import 'package:tentura/features/graph/domain/entity/node_details.dart';
 import 'package:tentura/features/graph/ui/bloc/graph_cubit.dart';
@@ -489,21 +493,23 @@ Future<void> removeHelperFromChat(
   );
 }
 
-Future<void> enterChatIfNeeded(WidgetTester tester) async {
-  final messageInput = find.byKey(TestIds.key(TestIds.roomMessageInput));
-  if (messageInput.evaluate().isNotEmpty) {
-    return;
+Future<void> enterGeneralIfNeeded(WidgetTester tester) async {
+  final threadsTab = find.byKey(TestIds.key(TestIds.beaconTabThreads));
+  if (threadsTab.evaluate().isEmpty) {
+    throw StateError('Threads tab not found');
   }
-  final chatTab = find.byKey(TestIds.key(TestIds.beaconRoomOpen));
-  if (chatTab.evaluate().isEmpty) {
-    throw StateError('Room entry control not found');
-  }
-  await tapAndSettle(tester, chatTab.first);
-  await pumpUntilVisible(tester, messageInput);
+  await tapAndSettle(tester, threadsTab.first);
+  final generalRow = find.byKey(
+    TestIds.key(TestIds.requestThread(RequestThread.generalId)),
+  );
+  await tapAndSettle(tester, generalRow);
 }
 
-Future<void> sendRoomMessage(WidgetTester tester, String text) async {
-  await enterChatIfNeeded(tester);
+Future<RoomMessage> sendRoomMessage(WidgetTester tester, String text) async {
+  final messageInput = find.byKey(TestIds.key(TestIds.roomMessageInput));
+  if (messageInput.evaluate().isEmpty) {
+    await enterGeneralIfNeeded(tester);
+  }
   await tester.enterText(
     find.byKey(TestIds.key(TestIds.roomMessageInput)),
     text,
@@ -512,28 +518,39 @@ Future<void> sendRoomMessage(WidgetTester tester, String text) async {
     tester,
     find.byKey(TestIds.key(TestIds.roomMessageSend)),
   );
+  await pumpUntilVisible(tester, find.text(text));
+  return tester
+      .widget<RoomMessageTile>(
+        find
+            .ancestor(
+              of: find.text(text),
+              matching: find.byType(RoomMessageTile),
+            )
+            .first,
+      )
+      .message;
 }
 
-Future<void> enterItemsIfNeeded(WidgetTester tester) async {
+Future<void> enterThreadsIfNeeded(WidgetTester tester) async {
   final askButton = find.byKey(TestIds.key(TestIds.coordinationAskCreate));
   if (askButton.evaluate().isNotEmpty) {
     return;
   }
-  final itemsTab = find.byKey(TestIds.key(TestIds.beaconTabItems));
-  if (itemsTab.evaluate().isEmpty) {
-    throw StateError('Items tab not found');
+  final threadsTab = find.byKey(TestIds.key(TestIds.beaconTabThreads));
+  if (threadsTab.evaluate().isEmpty) {
+    throw StateError('Threads tab not found');
   }
-  await tapAndSettle(tester, itemsTab.first);
+  await tapAndSettle(tester, threadsTab.first);
   await pumpUntilVisible(tester, askButton);
 }
 
-Future<void> createCoordinationItem(
+Future<RequestThread> createCoordinationItem(
   WidgetTester tester, {
   required String launcherId,
   required String title,
   required String body,
 }) async {
-  await enterItemsIfNeeded(tester);
+  await enterThreadsIfNeeded(tester);
   await tapAndSettle(tester, find.byKey(TestIds.key(launcherId)));
   await pumpUntilVisible(
     tester,
@@ -554,10 +571,18 @@ Future<void> createCoordinationItem(
     tester,
     find.byKey(TestIds.key(TestIds.coordinationComposerSubmit)),
   );
+  await pumpUntilVisible(tester, find.text(title));
+  return tester
+      .widget<ItemCard>(
+        find
+            .ancestor(of: find.text(title), matching: find.byType(ItemCard))
+            .first,
+      )
+      .thread;
 }
 
 Future<void> resolveFirstCoordinationItem(WidgetTester tester) async {
-  await enterItemsIfNeeded(tester);
+  await enterThreadsIfNeeded(tester);
   final menu = find
       .byType(
         PopupMenuButton<CoordinationItemCardMenuAction>,
