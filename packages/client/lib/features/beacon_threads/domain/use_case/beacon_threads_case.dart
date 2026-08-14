@@ -365,13 +365,14 @@ final class BeaconThreadsCase extends UseCaseBase {
     required DateTime readThroughAt,
     String? threadItemId,
   }) async {
+    final threadId = threadItemId ?? RequestThread.generalId;
     try {
-      final persistedAt = await _room.markRoomSeen(
+      final persistedAt = await _room.markThreadSeen(
         beaconId: beaconId,
-        threadItemId: threadItemId,
+        threadId: threadId,
         readThroughAt: readThroughAt,
       );
-      _watermark.confirmSynced(beaconId, persistedAt);
+      _watermark.confirmSynced(beaconId, persistedAt, threadId: threadId);
       return RoomSeenSucceeded(persistedAt);
     } on Object catch (e) {
       return RoomSeenFailed(e);
