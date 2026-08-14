@@ -177,6 +177,30 @@ class ForwardCubit extends Cubit<ForwardState> {
       if (c.canForwardToOn(todayUtc)) c.id,
   };
 
+  Map<String, ForwardCandidate> _candidateById({
+    required List<ForwardCandidate> candidates,
+    required List<ForwardCandidate> lineageSuggestions,
+  }) => {
+    for (final c in candidates) c.id: c,
+    for (final c in lineageSuggestions) c.id: c,
+  };
+
+  /// Initial preselect ids dropped only because availability blocks new requests
+  /// on [todayUtc] for a loaded candidate row (not missing or other ineligibility).
+  Set<String> _availabilityDroppedPreselectedIds({
+    required Set<String> initialIds,
+    required Map<String, ForwardCandidate> candidateById,
+    required DateTime todayUtc,
+  }) => initialIds
+      .where(
+        (id) {
+          final candidate = candidateById[id];
+          return candidate != null &&
+              candidate.profile.availability.blocksNewRequestsOn(todayUtc);
+        },
+      )
+      .toSet();
+
   void _cancelAvailabilityExpiryTimer() {
     _availabilityExpiryTimer?.cancel();
     _availabilityExpiryTimer = null;
@@ -263,6 +287,10 @@ class ForwardCubit extends Cubit<ForwardState> {
       _loadMemoKey = memoKey;
 
       final todayUtc = _todayUtc();
+      final candidateById = _candidateById(
+        candidates: load.candidates,
+        lineageSuggestions: load.lineageSuggestions,
+      );
       final selectableIds = _selectableIdsOn(
         todayUtc,
         candidates: load.candidates,
@@ -288,7 +316,11 @@ class ForwardCubit extends Cubit<ForwardState> {
           ? initialSelectedIds.intersection(selectableIds)
           : const <String>{};
       final droppedPreselected = shouldUserPreselect
-          ? initialSelectedIds.difference(selectableIds)
+          ? _availabilityDroppedPreselectedIds(
+              initialIds: initialSelectedIds,
+              candidateById: candidateById,
+              todayUtc: todayUtc,
+            )
           : state.droppedPreselectedIds;
       if (initialSelectedIds.isNotEmpty && !_appliedInitialUserPreselect) {
         _appliedInitialUserPreselect = true;
@@ -594,11 +626,10 @@ class ForwardCubit extends Cubit<ForwardState> {
     }
 
     final todayUtc = _todayUtc();
-    final allCandidates = [
-      ...state.candidates,
-      ...state.lineageSuggestions,
-    ];
-    final candidateById = {for (final c in allCandidates) c.id: c};
+    final candidateById = _candidateById(
+      candidates: state.candidates,
+      lineageSuggestions: state.lineageSuggestions,
+    );
     final requestedRecipientIds = _stableRequestedRecipientOrder(
       droppedPreselectedIds: state.droppedPreselectedIds,
       selectedIds: state.selectedIds,
@@ -606,31 +637,40 @@ class ForwardCubit extends Cubit<ForwardState> {
       lineageSuggestions: state.lineageSuggestions,
     );
 
+    final hardInvalidRecipientIds = <String>[];
+    for (final id in state.selectedIds) {
+      final candidate = candidateById[id];
+      if (candidate == null) {
+        hardInvalidRecipientIds.add(id);
+        continue;
+      }
+      if (!candidate.profile.availability.blocksNewRequestsOn(todayUtc) &&
+          !candidate.canForwardToOn(todayUtc)) {
+        hardInvalidRecipientIds.add(id);
+      }
+    }
+    for (final id in state.droppedPreselectedIds) {
+      if (candidateById[id] == null) {
+        hardInvalidRecipientIds.add(id);
+      }
+    }
+    if (hardInvalidRecipientIds.isNotEmpty) {
+      _emitSnackError(const IneligibleRecipientsException());
+      return false;
+    }
+
     final localAvailabilitySkipped = <String>[];
     final recipientIdsToSend = <String>[];
     for (final id in requestedRecipientIds) {
       final candidate = candidateById[id];
-      if (candidate == null ||
+      if (candidate != null &&
           candidate.profile.availability.blocksNewRequestsOn(todayUtc)) {
         localAvailabilitySkipped.add(id);
         continue;
       }
-      recipientIdsToSend.add(id);
-    }
-
-    final ineligibleSelected = state.selectedIds
-        .where(
-          (id) {
-            final candidate = candidateById[id];
-            return candidate != null &&
-                !candidate.profile.availability.blocksNewRequestsOn(todayUtc) &&
-                !candidate.canForwardToOn(todayUtc);
-          },
-        )
-        .toList();
-    if (ineligibleSelected.isNotEmpty) {
-      _emitSnackError(const IneligibleRecipientsException());
-      return false;
+      if (candidate != null) {
+        recipientIdsToSend.add(id);
+      }
     }
 
     emit(state.copyWith(status: StateStatus.isLoading));

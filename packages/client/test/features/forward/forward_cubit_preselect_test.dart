@@ -287,7 +287,7 @@ void main() {
   );
 
   test(
-    'unavailable initialSelectedIds surface as droppedPreselectedIds',
+    'missing initialSelectedIds are not availability-dropped preselects',
     () async {
       final harness = await _buildHarness(involvement: _involvement(_beacon()));
       addTearDown(() => _disposeHarness(harness));
@@ -301,11 +301,11 @@ void main() {
       addTearDown(cubit.close);
 
       await cubit.stream.firstWhere(
-        (s) => s.droppedPreselectedIds.contains('U-missing'),
+        (s) => s.candidatesLoad is ForwardCandidatesEmpty,
       );
 
       expect(cubit.state.selectedIds, isEmpty);
-      expect(cubit.state.droppedPreselectedIds, {'U-missing'});
+      expect(cubit.state.droppedPreselectedIds, isEmpty);
     },
   );
 

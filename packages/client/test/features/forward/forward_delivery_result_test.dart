@@ -240,6 +240,66 @@ void main() {
 
   DateTime clock() => clockNow;
 
+  test('missing dropped preselect does not emit availability delivery outcome', () async {
+    final effects = FakeUiEffectPort();
+    final harness = await _buildHarness(
+      involvement: _involvement(_openBeacon()),
+    );
+    addTearDown(() => _disposeHarness(harness));
+
+    final cubit = _cubit(
+      forwardCase: harness.forwardCase,
+      effects: effects,
+      clock: clock,
+      initialSelectedIds: {'U-missing'},
+    );
+    addTearDown(cubit.close);
+    await cubit.stream.firstWhere(
+      (s) => s.candidatesLoad is ForwardCandidatesEmpty,
+    );
+
+    final ok = await cubit.forward();
+    expect(ok, isFalse);
+    expect(harness.forwardRepo.forwardBeaconCalls, 0);
+    expect(cubit.state.lastDeliveryOutcome, isNull);
+    expect(effects.emitted.whereType<ShowMessage>(), isEmpty);
+    expect(effects.emitted.whereType<ShowError>(), isEmpty);
+  });
+
+  test(
+    'disappeared selected recipient hits hard validation not availability skip',
+    () async {
+      final effects = FakeUiEffectPort();
+      final harness = await _buildHarness(
+        involvement: _involvement(_openBeacon()),
+        candidates: [_profile(id: 'U-alice', name: 'Alice')],
+      );
+      addTearDown(() => _disposeHarness(harness));
+
+      final cubit = _cubit(
+        forwardCase: harness.forwardCase,
+        effects: effects,
+        clock: clock,
+      );
+      addTearDown(cubit.close);
+      await _waitReady(cubit);
+
+      cubit.emit(
+        cubit.state.copyWith(
+          selectedIds: {'U-alice', 'U-disappeared'},
+          beacon: _openBeacon(),
+        ),
+      );
+
+      final ok = await cubit.forward();
+      expect(ok, isFalse);
+      expect(harness.forwardRepo.forwardBeaconCalls, 0);
+      expect(cubit.state.lastDeliveryOutcome, isNull);
+      expect(effects.emitted.whereType<ShowMessage>(), isEmpty);
+      expect(effects.emitted.whereType<ShowError>(), hasLength(1));
+    },
+  );
+
   test('local availability strip avoids mutation and reports all skipped', () async {
     final effects = FakeUiEffectPort();
     final harness = await _buildHarness(
