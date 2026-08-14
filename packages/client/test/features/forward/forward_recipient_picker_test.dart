@@ -16,6 +16,8 @@ import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/effect/ui_effect_port.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
+import 'package:tentura/ui/test_ids.dart';
+
 import '../../ui/effect/fake_ui_effect_port.dart';
 
 class _MockProfileCubit extends Mock implements ProfileCubit {
@@ -89,7 +91,12 @@ void main() {
         beacon: Beacon.empty.copyWith(id: 'draft-1', title: 'Draft'),
         candidates: const [
           ForwardCandidate(
-            profile: Profile(id: 'u1', displayName: 'Alex'),
+            profile: Profile(
+              id: 'u1',
+              displayName: 'Alex',
+              score: 10,
+              rScore: 1,
+            ),
           ),
         ],
         selectedIds: {'u1'},
@@ -172,8 +179,9 @@ void main() {
       await tester.pumpAndSettle();
 
       expect(find.text('Forward to 1'), findsOneWidget);
+      cubit.skipPersonalNote('u1');
       await tester.tap(find.text('Forward to 1'));
-      await tester.pump();
+      await tester.pumpAndSettle();
       expect(sendPressed, isTrue);
     },
   );
@@ -372,4 +380,168 @@ void main() {
       expect(find.text("Couldn't load"), findsNothing);
     },
   );
+
+  Future<void> pumpPicker(
+    WidgetTester tester, {
+    required ForwardCubit cubit,
+    bool embedded = false,
+    VoidCallback? onSendPressed,
+    bool sendEnabled = false,
+  }) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        locale: const Locale('en'),
+        localizationsDelegates: L10n.localizationsDelegates,
+        supportedLocales: L10n.supportedLocales,
+        theme: TenturaTheme.light(),
+        home: MultiBlocProvider(
+          providers: [
+            BlocProvider<ForwardCubit>.value(value: cubit),
+            BlocProvider<ProfileCubit>.value(value: _MockProfileCubit()),
+          ],
+          child: Scaffold(
+            body: ForwardRecipientPicker(
+              beaconId: 'draft-1',
+              embedded: embedded,
+              onSendPressed: onSendPressed,
+              sendEnabled: sendEnabled,
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+  }
+
+  testWidgets('skipping personal note marks recipient in cubit skip set', (
+    tester,
+  ) async {
+    final cubit = ForwardCubit(
+      beaconId: 'draft-1',
+      debugSkipInitialLoad: true,
+      embedded: true,
+      effects: FakeUiEffectPort(),
+    );
+    cubit.emit(
+      ForwardState(
+        beaconId: 'draft-1',
+        beacon: Beacon.empty.copyWith(id: 'draft-1', title: 'Draft'),
+        candidates: const [
+          ForwardCandidate(
+            profile: Profile(
+              id: 'u1',
+              displayName: 'Alex',
+              score: 10,
+              rScore: 1,
+            ),
+          ),
+        ],
+        selectedIds: {'u1'},
+        candidatesLoad: const ForwardCandidatesReady(),
+      ),
+    );
+
+    await pumpPicker(tester, cubit: cubit, embedded: true);
+
+    final addNote = find.byTooltip('add personalized note');
+    expect(addNote, findsOneWidget);
+    await tester.tap(addNote);
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byTooltip('Skip personal note'));
+    await tester.pumpAndSettle();
+
+    expect(cubit.state.skippedPersonalNoteIds, {'u1'});
+    expect(find.byTooltip('Add a personal note'), findsOneWidget);
+  });
+
+  testWidgets('submit after skip proceeds without uncovered sheet', (
+    tester,
+  ) async {
+    final cubit = ForwardCubit(
+      beaconId: 'draft-1',
+      debugSkipInitialLoad: true,
+      embedded: true,
+      effects: FakeUiEffectPort(),
+    );
+    cubit.emit(
+      ForwardState(
+        beaconId: 'draft-1',
+        beacon: Beacon.empty.copyWith(id: 'draft-1', title: 'Draft'),
+        candidates: const [
+          ForwardCandidate(
+            profile: Profile(
+              id: 'u1',
+              displayName: 'Alex',
+              score: 10,
+              rScore: 1,
+            ),
+          ),
+        ],
+        selectedIds: {'u1'},
+        skippedPersonalNoteIds: {'u1'},
+        perRecipientNotes: {'u1': 'leftover typed note'},
+        candidatesLoad: const ForwardCandidatesReady(),
+      ),
+    );
+    var sendPressed = false;
+
+    await pumpPicker(
+      tester,
+      cubit: cubit,
+      embedded: true,
+      onSendPressed: () => sendPressed = true,
+      sendEnabled: true,
+    );
+
+    await tester.tap(find.text('Forward to 1'));
+    await tester.pumpAndSettle();
+
+    expect(sendPressed, isTrue);
+    expect(find.text('No personal note yet'), findsNothing);
+    expect(cubit.state.skippedPersonalNoteIds, {'u1'});
+  });
+
+  testWidgets('submit with uncovered recipients shows shared-note sheet', (
+    tester,
+  ) async {
+    final cubit = ForwardCubit(
+      beaconId: 'draft-1',
+      debugSkipInitialLoad: true,
+      effects: FakeUiEffectPort(),
+    );
+    cubit.emit(
+      ForwardState(
+        beaconId: 'draft-1',
+        beacon: Beacon.empty.copyWith(id: 'b1', title: 'Open request'),
+        candidates: const [
+          ForwardCandidate(
+            profile: Profile(
+              id: 'u1',
+              displayName: 'Alex',
+              score: 10,
+              rScore: 1,
+            ),
+          ),
+          ForwardCandidate(
+            profile: Profile(
+              id: 'u2',
+              displayName: 'Blake',
+              score: 10,
+              rScore: 1,
+            ),
+          ),
+        ],
+        selectedIds: {'u1', 'u2'},
+        candidatesLoad: const ForwardCandidatesReady(),
+      ),
+    );
+
+    await pumpPicker(tester, cubit: cubit);
+    await tester.tap(find.text('Forward to 2'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('No personal note yet'), findsOneWidget);
+    expect(find.text('Send without a shared note'), findsOneWidget);
+  });
 }

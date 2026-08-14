@@ -2257,6 +2257,26 @@
   "@forwardCancelAction": {
     "context": "ForwardBeaconScreen recipient row"
   },
+  "forwardSkipPersonalNote": "Без личной заметки",
+  "@forwardSkipPersonalNote": {
+    "context": "ForwardBeaconScreen per-recipient note"
+  },
+  "forwardRestorePersonalNote": "Добавить личную заметку",
+  "@forwardRestorePersonalNote": {
+    "context": "ForwardBeaconScreen per-recipient note"
+  },
+  "forwardUncoveredRecipientsTitle": "Нет личной заметки",
+  "@forwardUncoveredRecipientsTitle": {
+    "context": "ForwardBeaconScreen uncovered recipients sheet"
+  },
+  "forwardUncoveredSharedNoteInfo": "Общая заметка отправляется всем, у кого ещё нет личной заметки.",
+  "@forwardUncoveredSharedNoteInfo": {
+    "context": "ForwardBeaconScreen uncovered recipients sheet"
+  },
+  "forwardSendWithoutSharedNote": "Отправить без общей заметки",
+  "@forwardSendWithoutSharedNote": {
+    "context": "ForwardBeaconScreen uncovered recipients sheet"
+  },
   "forwardMrSortShort": "MR сорт.",
   "@forwardMrSortShort": {
     "context": "ForwardBeaconScreen"

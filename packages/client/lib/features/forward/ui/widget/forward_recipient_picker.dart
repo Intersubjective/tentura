@@ -11,12 +11,14 @@ import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/port/capability_repository_port.dart';
 import 'package:tentura/features/capability/ui/widget/capability_chip_set.dart';
 import 'package:tentura/features/forward/domain/entity/forward_candidate.dart';
+import 'package:tentura/features/forward/domain/forward_draft_policy.dart';
 import 'package:tentura/features/invitation/ui/bloc/invitation_cubit.dart';
 import 'package:tentura/features/invitation/ui/dialog/invitation_addressee_dialog.dart';
 import 'package:tentura/ui/dialog/share_code_dialog.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura/ui/widget/screen_load_error_panel.dart';
+import 'package:tentura/ui/widget/tentura_info_hint_button.dart';
 import 'package:tentura/ui/widget/unfocus_sheet_body.dart';
 
 import '../bloc/forward_cubit.dart';
@@ -92,11 +94,102 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
       }
     }
     for (final id in selected) {
-      _recipientNoteControllers.putIfAbsent(
-        id,
-        () => TextEditingController(text: state.perRecipientNotes[id] ?? ''),
-      );
+      final noteText = state.perRecipientNotes[id] ?? '';
+      final existing = _recipientNoteControllers[id];
+      if (existing == null) {
+        _recipientNoteControllers[id] = TextEditingController(text: noteText);
+      } else if (existing.text != noteText) {
+        existing.text = noteText;
+      }
     }
+
+    final draftCleared =
+        state.selectedIds.isEmpty &&
+        state.perRecipientNotes.isEmpty &&
+        state.skippedPersonalNoteIds.isEmpty &&
+        state.note.isEmpty;
+    if (draftCleared) {
+      _sharedNoteController.text = '';
+    } else if (_sharedNoteController.text != state.note) {
+      _sharedNoteController.text = state.note;
+    }
+  }
+
+  bool _forwardEdgeActionsEnabled(ForwardCandidate candidate) {
+    return candidate.forwardEdgeId != null &&
+        forwardEdgeIsCancellable(
+          recipientReadAt: candidate.recipientReadAt,
+          hasOnwardChild: candidate.hasOnwardChild,
+          recipientHasActiveHelpOffer: candidate.recipientHasActiveHelpOffer,
+          recipientDeclined: candidate.recipientDeclined,
+        );
+  }
+
+  Future<void> _handleForwardPressed(BuildContext context) async {
+    final cubit = context.read<ForwardCubit>();
+    final uncovered = uncoveredRecipientIds(
+      selectedIds: cubit.state.selectedIds,
+      perRecipientNotes: cubit.state.perRecipientNotes,
+      skippedPersonalNoteIds: cubit.state.skippedPersonalNoteIds,
+    );
+    if (uncovered.isNotEmpty) {
+      final sent = await _showUncoveredRecipientsSheet(
+        context: context,
+        cubit: cubit,
+        uncoveredIds: uncovered,
+      );
+      if (!sent || !context.mounted) return;
+    }
+    if (widget.onSendPressed != null) {
+      widget.onSendPressed!();
+    } else {
+      await _submitForward(context);
+    }
+  }
+
+  Future<bool> _showUncoveredRecipientsSheet({
+    required BuildContext context,
+    required ForwardCubit cubit,
+    required Set<String> uncoveredIds,
+  }) async {
+    final l10n = L10n.of(context)!;
+    final names = <String>[];
+    for (final id in uncoveredIds) {
+      ForwardCandidate? match;
+      for (final c in [
+        ...cubit.state.candidates,
+        ...cubit.state.lineageSuggestions,
+      ]) {
+        if (c.id == id) {
+          match = c;
+          break;
+        }
+      }
+      names.add(match?.displayName ?? id);
+    }
+
+    final result = await showTenturaAdaptiveSheet<_UncoveredSheetResult>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: true,
+      useRootNavigator: true,
+      builder: (ctx) => _UncoveredRecipientsSheet(
+        recipientNames: names,
+        uncoveredIds: uncoveredIds,
+        onSendWithSharedNote: (sharedNote) {
+          cubit.setNote(sharedNote);
+          for (final id in uncoveredIds) {
+            cubit.skipPersonalNote(id);
+          }
+        },
+        onSendWithoutSharedNote: () {
+          for (final id in uncoveredIds) {
+            cubit.skipPersonalNote(id);
+          }
+        },
+      ),
+    );
+    return result == _UncoveredSheetResult.sent;
   }
 
   void _prunePersonalizedNoteEditors(ForwardState state) {
@@ -519,25 +612,29 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
                                   ],
                                 ),
                         ),
-                        ForwardBottomComposer(
-                          selectedIds: state.selectedIds,
-                          noteExpanded: _noteExpanded,
-                          onToggleNoteExpanded: _toggleNote,
-                          sharedNoteController: _sharedNoteController,
-                          onSharedNoteChanged: cubit.setNote,
-                          showSuggestedNoteHelper:
-                              state.lineageSuggestions.isNotEmpty &&
-                              state.note.trim().isNotEmpty &&
-                              _noteExpanded,
-                          onForward: widget.onSendPressed != null
-                              ? (widget.sendEnabled ? widget.onSendPressed : null)
-                              : (!widget.embedded && state.selectedCount > 0
-                                    ? () => unawaited(_submitForward(context))
-                                    : null),
-                          onInvite: widget.beaconId.isNotEmpty
-                              ? () => unawaited(_inviteNewPerson(context))
-                              : null,
-                        ),
+                        if (state.activeFilter != ForwardFilter.alreadyInvolved)
+                          ForwardBottomComposer(
+                            selectedIds: state.selectedIds,
+                            noteExpanded: _noteExpanded,
+                            onToggleNoteExpanded: _toggleNote,
+                            sharedNoteController: _sharedNoteController,
+                            onSharedNoteChanged: cubit.setNote,
+                            showSuggestedNoteHelper:
+                                state.lineageSuggestions.isNotEmpty &&
+                                state.note.trim().isNotEmpty &&
+                                _noteExpanded,
+                            onForward: widget.onSendPressed != null
+                                ? (widget.sendEnabled
+                                      ? () => unawaited(_handleForwardPressed(context))
+                                      : null)
+                                : (!widget.embedded && state.selectedCount > 0
+                                      ? () =>
+                                            unawaited(_handleForwardPressed(context))
+                                      : null),
+                            onInvite: widget.beaconId.isNotEmpty
+                                ? () => unawaited(_inviteNewPerson(context))
+                                : null,
+                          ),
                       ],
                     ),
                   ),
@@ -639,13 +736,13 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
               state.recipientReasons[visible[i].id] ?? const [],
             ),
           ),
-          onEditForward: visible[i].forwardEdgeId != null
+          onEditForward: _forwardEdgeActionsEnabled(visible[i])
               ? () {
                   _editNoteController.text = visible[i].myForwardNote ?? '';
                   cubit.startEditForward(visible[i].id);
                 }
               : null,
-          onCancelForward: visible[i].forwardEdgeId != null
+          onCancelForward: _forwardEdgeActionsEnabled(visible[i])
               ? () => unawaited(cubit.cancelForward(visible[i].id))
               : null,
         ),
@@ -671,6 +768,9 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
               profile: visible[i].profile,
               controller: _recipientNoteControllers[visible[i].id]!,
               onChanged: (text) => cubit.setRecipientNote(visible[i].id, text),
+              isSkipped: state.skippedPersonalNoteIds.contains(visible[i].id),
+              onSkip: () => cubit.skipPersonalNote(visible[i].id),
+              onRestore: () => cubit.restorePersonalNote(visible[i].id),
             ),
           ),
         );
@@ -732,6 +832,127 @@ class ForwardEditPanel extends StatelessWidget {
             ],
           ),
         ],
+      ),
+    );
+  }
+}
+
+enum _UncoveredSheetResult { sent, dismissed }
+
+class _UncoveredRecipientsSheet extends StatefulWidget {
+  const _UncoveredRecipientsSheet({
+    required this.recipientNames,
+    required this.uncoveredIds,
+    required this.onSendWithSharedNote,
+    required this.onSendWithoutSharedNote,
+  });
+
+  final List<String> recipientNames;
+  final Set<String> uncoveredIds;
+  final void Function(String sharedNote) onSendWithSharedNote;
+  final VoidCallback onSendWithoutSharedNote;
+
+  @override
+  State<_UncoveredRecipientsSheet> createState() =>
+      _UncoveredRecipientsSheetState();
+}
+
+class _UncoveredRecipientsSheetState extends State<_UncoveredRecipientsSheet> {
+  final _sharedNoteController = TextEditingController();
+
+  @override
+  void dispose() {
+    _sharedNoteController.dispose();
+    super.dispose();
+  }
+
+  bool get _isDirty => _sharedNoteController.text.trim().isNotEmpty;
+
+  bool get _canSendWithSharedNote =>
+      _sharedNoteController.text.trim().isNotEmpty;
+
+  void _sendWithSharedNote() {
+    if (!_canSendWithSharedNote) return;
+    widget.onSendWithSharedNote(_sharedNoteController.text.trim());
+    Navigator.of(context).pop(_UncoveredSheetResult.sent);
+  }
+
+  void _sendWithoutSharedNote() {
+    widget.onSendWithoutSharedNote();
+    Navigator.of(context).pop(_UncoveredSheetResult.sent);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = L10n.of(context)!;
+    final tt = context.tt;
+    final bottom = MediaQuery.viewInsetsOf(context).bottom;
+
+    return UnfocusSheetBody(
+      child: TenturaSheetDismissGuard(
+        isDirty: _isDirty,
+        useRootNavigator: true,
+        child: Padding(
+          padding: EdgeInsets.only(
+            left: tt.screenHPadding,
+            right: tt.screenHPadding,
+            top: tt.sectionGap,
+            bottom: bottom + tt.sectionGap,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      l10n.forwardUncoveredRecipientsTitle,
+                      style: TenturaText.title(tt.text),
+                    ),
+                  ),
+                  TenturaInfoHintButton(
+                    fullText: l10n.forwardUncoveredSharedNoteInfo,
+                    semanticsLabel: l10n.forwardUncoveredSharedNoteInfo,
+                  ),
+                ],
+              ),
+              SizedBox(height: tt.rowGap),
+              for (final name in widget.recipientNames)
+                Padding(
+                  padding: EdgeInsets.only(bottom: tt.tightGap),
+                  child: Text(
+                    name,
+                    style: TenturaText.body(tt.text),
+                  ),
+                ),
+              SizedBox(height: tt.rowGap),
+              TextField(
+                controller: _sharedNoteController,
+                onChanged: (_) => setState(() {}),
+                minLines: 2,
+                maxLines: 4,
+                decoration: forwardNoteInputDecoration(
+                  context,
+                  hintText: l10n.forwardSharedNoteHint,
+                ),
+              ),
+              SizedBox(height: tt.rowGap),
+              SizedBox(
+                height: tt.buttonHeight,
+                child: FilledButton(
+                  onPressed: _canSendWithSharedNote ? _sendWithSharedNote : null,
+                  child: Text(l10n.forwardToCount(widget.uncoveredIds.length)),
+                ),
+              ),
+              SizedBox(height: tt.rowGap),
+              TextButton(
+                onPressed: _sendWithoutSharedNote,
+                child: Text(l10n.forwardSendWithoutSharedNote),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

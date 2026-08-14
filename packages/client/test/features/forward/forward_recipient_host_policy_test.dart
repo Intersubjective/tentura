@@ -24,6 +24,7 @@ import 'package:tentura/features/forward/data/repository/forward_repository.dart
 import 'package:tentura/features/forward/domain/entity/lineage_suggestion_group.dart';
 import 'package:tentura/features/forward/domain/use_case/forward_case.dart';
 import 'package:tentura/features/forward/domain/entity/forward_candidate.dart';
+import 'package:tentura/features/forward/domain/forward_draft_policy.dart';
 import 'package:tentura/features/forward/ui/model/forward_recipient_row_host.dart';
 import 'package:tentura/features/forward/ui/widget/forward_recipient_row.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
@@ -592,6 +593,139 @@ void main() {
 
       expect(load.band.map((r) => r.userId).toList(), ['open', 'ghost']);
       expect(load.band.map((r) => r.rank).toList(), [0, 2]);
+    });
+  });
+
+  group('D14 cancel chrome', () {
+    ForwardCandidate _forwardedCandidate({
+      bool hasOnwardChild = false,
+      bool recipientDeclined = false,
+    }) => ForwardCandidate(
+      profile: const Profile(id: 'sent-user', displayName: 'Sent User'),
+      involvement: CandidateInvolvement.forwardedByMe,
+      forwardEdgeId: 'edge-1',
+      hasOnwardChild: hasOnwardChild,
+      recipientDeclined: recipientDeclined,
+    );
+
+    testWidgets('cancel icon shown when forward edge is cancellable', (
+      tester,
+    ) async {
+      final candidate = _forwardedCandidate();
+      expect(
+        forwardEdgeIsCancellable(
+          recipientReadAt: candidate.recipientReadAt,
+          hasOnwardChild: candidate.hasOnwardChild,
+          recipientHasActiveHelpOffer: candidate.recipientHasActiveHelpOffer,
+          recipientDeclined: candidate.recipientDeclined,
+        ),
+        isTrue,
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          locale: const Locale('en'),
+          localizationsDelegates: L10n.localizationsDelegates,
+          supportedLocales: L10n.supportedLocales,
+          theme: TenturaTheme.light(),
+          home: BlocProvider<ProfileCubit>.value(
+            value: _MockProfileCubit(),
+            child: Scaffold(
+              body: ForwardRecipientRow(
+                host: ForwardRecipientRowHost.pickerStandard,
+                candidate: candidate,
+                isSelected: false,
+                onToggle: () {},
+                onCancelForward: () {},
+                todayUtc: _todayUtc,
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.byTooltip('Cancel forward'), findsOneWidget);
+    });
+
+    testWidgets('cancel icon hidden when hasOnwardChild blocks cancel', (
+      tester,
+    ) async {
+      final candidate = _forwardedCandidate(hasOnwardChild: true);
+      expect(
+        forwardEdgeIsCancellable(
+          recipientReadAt: candidate.recipientReadAt,
+          hasOnwardChild: candidate.hasOnwardChild,
+          recipientHasActiveHelpOffer: candidate.recipientHasActiveHelpOffer,
+          recipientDeclined: candidate.recipientDeclined,
+        ),
+        isFalse,
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          locale: const Locale('en'),
+          localizationsDelegates: L10n.localizationsDelegates,
+          supportedLocales: L10n.supportedLocales,
+          theme: TenturaTheme.light(),
+          home: BlocProvider<ProfileCubit>.value(
+            value: _MockProfileCubit(),
+            child: Scaffold(
+              body: ForwardRecipientRow(
+                host: ForwardRecipientRowHost.pickerStandard,
+                candidate: candidate,
+                isSelected: false,
+                onToggle: () {},
+                onCancelForward: null,
+                todayUtc: _todayUtc,
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.byTooltip('Cancel forward'), findsNothing);
+    });
+
+    testWidgets('cancel icon hidden when recipientDeclined blocks cancel', (
+      tester,
+    ) async {
+      final candidate = _forwardedCandidate(recipientDeclined: true);
+      expect(
+        forwardEdgeIsCancellable(
+          recipientReadAt: candidate.recipientReadAt,
+          hasOnwardChild: candidate.hasOnwardChild,
+          recipientHasActiveHelpOffer: candidate.recipientHasActiveHelpOffer,
+          recipientDeclined: candidate.recipientDeclined,
+        ),
+        isFalse,
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          locale: const Locale('en'),
+          localizationsDelegates: L10n.localizationsDelegates,
+          supportedLocales: L10n.supportedLocales,
+          theme: TenturaTheme.light(),
+          home: BlocProvider<ProfileCubit>.value(
+            value: _MockProfileCubit(),
+            child: Scaffold(
+              body: ForwardRecipientRow(
+                host: ForwardRecipientRowHost.pickerStandard,
+                candidate: candidate,
+                isSelected: false,
+                onToggle: () {},
+                onCancelForward: null,
+                todayUtc: _todayUtc,
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.byTooltip('Cancel forward'), findsNothing);
     });
   });
 }

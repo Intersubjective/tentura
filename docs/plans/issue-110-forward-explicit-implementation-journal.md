@@ -95,7 +95,7 @@ None triggered.
 - [x] **03** `MyForwardRecipient` hasOnwardChild + recipientRejected
 - [x] **04** Map flags onto `ForwardCandidate` / `ForwardLoad`
 - [x] **05** `ForwardCubit` session: skip, wire, stay, force-reload
-- [ ] **06** Picker: skip, sheet, controllers, D14 chrome
+- [x] **06** Picker: skip, sheet, controllers, D14 chrome
 - [ ] **07** Location toast + Watching intent on `HomeTabReselectCubit`
 - [ ] **08** Inbox consumes Watching intent; D15
 - [ ] **09** D13 offer-help snapshot on Inbox + BeaconView
@@ -185,7 +185,11 @@ frozen contract, stop that unit with `BLOCKED` instead of improvising.
   (`feat: plumb forward cancel and toast flags`). Independent 28 tests passed.
   Candidate mapping and ForwardLoad viewer flags match D14/D9 plumbing.
   UNIT 05 authorized.
-- 2026-08-14 worker: **UNIT 03 complete**. Commits `9efb6902c`
+- 2026-08-14 manager: **UNIT 05 accepted**. Commit `88aaba671`
+  (`feat: keep forward screen after send`). Independent 14 cubit tests passed.
+  No `NavigateBack` from `forward()`; unused `_emitNavigateBack` remains
+  (delete in UNIT 07 when touching the cubit). Embedded skips `allowsForward`
+  refuse. Skip omits keys. Force-reload on cancel/edit. UNIT 06 authorized.
   (`feat(server): add hasOnwardChild and recipientRejected to MyForwardRecipient`),
   `fa8c2b950` (`feat(client): map involvement cancel flags`). Server:
   `childParentIds` computed in-memory from fetched edges; client typedef extended
@@ -284,3 +288,20 @@ FILES:
 - `docs/plans/issue-110-forward-explicit-implementation-journal.md`
 FINDINGS: none — D4/D7 stay-on-send, skip wire, and force-reload on cancel/edit match architecture rev 3
 REMAINING: none — UNIT 06 may start
+
+## UNIT 06 — complete — 2026-08-14
+COMMITS: feat: explicit personal-note skip on forward (see `git log -1`)
+TESTS:
+- `cd packages/client && flutter gen-l10n && flutter test test/features/forward/forward_recipient_picker_test.dart test/features/forward/forward_recipient_host_policy_test.dart` → 39 passed
+- `./scripts/check-custom-lints.sh packages/client` → exit 0
+- `bash scripts/check-user-facing-terminology.sh` → ok
+FILES:
+- `packages/client/lib/features/forward/ui/widget/forward_recipient_picker.dart`
+- `packages/client/lib/features/forward/ui/widget/per_recipient_note_input.dart`
+- `packages/client/l10n/app_en.arb`
+- `packages/client/l10n/app_ru.arb`
+- `packages/client/test/features/forward/forward_recipient_picker_test.dart`
+- `packages/client/test/features/forward/forward_recipient_host_policy_test.dart`
+- `docs/plans/issue-110-forward-explicit-implementation-journal.md`
+FINDINGS: D8 composer hide was not yet wired in picker (only lineage/band used `alreadyInvolved`); added `if (activeFilter != alreadyInvolved)` around `ForwardBottomComposer`. Uncovered sheet resolves coverage by adding ids to `skippedPersonalNoteIds` before send (shared-note primary path also calls `setNote`).
+REMAINING: none — UNIT 07 may start

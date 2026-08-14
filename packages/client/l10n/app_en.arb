@@ -2266,6 +2266,26 @@
   "@forwardCancelAction": {
     "context": "ForwardBeaconScreen recipient row"
   },
+  "forwardSkipPersonalNote": "Skip personal note",
+  "@forwardSkipPersonalNote": {
+    "context": "ForwardBeaconScreen per-recipient note"
+  },
+  "forwardRestorePersonalNote": "Add a personal note",
+  "@forwardRestorePersonalNote": {
+    "context": "ForwardBeaconScreen per-recipient note"
+  },
+  "forwardUncoveredRecipientsTitle": "No personal note yet",
+  "@forwardUncoveredRecipientsTitle": {
+    "context": "ForwardBeaconScreen uncovered recipients sheet"
+  },
+  "forwardUncoveredSharedNoteInfo": "A shared note is sent to everyone who still has no personal note.",
+  "@forwardUncoveredSharedNoteInfo": {
+    "context": "ForwardBeaconScreen uncovered recipients sheet"
+  },
+  "forwardSendWithoutSharedNote": "Send without a shared note",
+  "@forwardSendWithoutSharedNote": {
+    "context": "ForwardBeaconScreen uncovered recipients sheet"
+  },
   "forwardMrSortShort": "MR sort",
   "@forwardMrSortShort": {
     "context": "ForwardBeaconScreen"
