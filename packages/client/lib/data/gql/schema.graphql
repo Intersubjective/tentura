@@ -3341,10 +3341,9 @@ type mutation_root {
   BeaconFactCardRemove(beaconId: String!, factCardId: String!): Boolean!
   BeaconFactCardSetVisibility(beaconId: String!, factCardId: String!, visibility: Int!): Boolean!
   BeaconParticipantOfferHelp(beaconId: String!, body: String!): Boolean!
-  BeaconParticipantRoomSeen(beaconId: String!, readThroughAt: String): v2_BeaconRoomSeenResult!
   BeaconRoomAdmit(beaconId: String!, participantUserId: String!): Boolean!
   BeaconStewardPromote(beaconId: String!, stewardUserId: String!): Boolean!
-  MarkBeaconRoomSeen(beaconId: String!, readThroughAt: String, threadItemId: String): v2_BeaconRoomSeenResult!
+  MarkThreadSeen(beaconId: String!, readThroughAt: String, threadId: String!): v2_BeaconRoomSeenResult!
   RoomMessageAttachmentAdd(beaconId: String!, file: v2_Upload = {}, messageId: String!): Boolean!
   RoomMessageCreate(beaconId: String!, body: String!, file: v2_Upload, replyToMessageId: String, threadItemId: String): v2_RoomMessageCreatePayload!
   RoomMessageDelete(beaconId: String!, messageId: String!): Boolean!

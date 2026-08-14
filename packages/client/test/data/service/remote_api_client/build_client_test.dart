@@ -220,5 +220,9 @@ void main() {
     test('BeaconThreadsList routes to Tentura V2', () {
       expect(isTenturaDirectOperation('BeaconThreadsList'), isTrue);
     });
+
+    test('MarkThreadSeen routes to Tentura V2', () {
+      expect(isTenturaDirectOperation('MarkThreadSeen'), isTrue);
+    });
   });
 }

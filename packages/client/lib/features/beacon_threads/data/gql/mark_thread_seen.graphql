@@ -1,11 +1,11 @@
-mutation MarkBeaconRoomSeen(
+mutation MarkThreadSeen(
   $beaconId: String!
-  $threadItemId: String
+  $threadId: String!
   $readThroughAt: String
 ) {
-  MarkBeaconRoomSeen(
+  MarkThreadSeen(
     beaconId: $beaconId
-    threadItemId: $threadItemId
+    threadId: $threadId
     readThroughAt: $readThroughAt
   ) {
     beaconId
