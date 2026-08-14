@@ -79,23 +79,41 @@ final class BeaconThreadsCase extends UseCaseBase {
   Stream<String> get deskRelevantChanges =>
       deskRelevantInvalidations.map((inv) => inv.beaconId);
 
-  DateTime? readThrough(String beaconId) => _watermark.readThrough(beaconId);
+  Stream<RoomReadWatermarkKey> get threadReadWatermarkChanges =>
+      _watermark.threadChanges;
 
-  bool observeReadThrough(String beaconId, DateTime at) =>
-      _watermark.observeReadThrough(beaconId, at);
+  DateTime? readThrough(
+    String beaconId, {
+    String threadId = RequestThread.generalId,
+  }) =>
+      _watermark.readThrough(beaconId, threadId: threadId);
 
-  void observeServerReadThrough(String beaconId, DateTime at) =>
-      _watermark.confirmSynced(beaconId, at);
+  bool observeReadThrough(
+    String beaconId,
+    DateTime at, {
+    String threadId = RequestThread.generalId,
+  }) =>
+      _watermark.observeReadThrough(beaconId, at, threadId: threadId);
+
+  void observeServerReadThrough(
+    String beaconId,
+    DateTime at, {
+    String threadId = RequestThread.generalId,
+  }) =>
+      _watermark.confirmSynced(beaconId, at, threadId: threadId);
 
   int resolveUnread({
     required String beaconId,
     required int serverCount,
     required DateTime? serverSeenAt,
-  }) => _watermark.resolveUnread(
-    beaconId: beaconId,
-    serverCount: serverCount,
-    serverSeenAt: serverSeenAt,
-  );
+    String threadId = RequestThread.generalId,
+  }) =>
+      _watermark.resolveUnread(
+        beaconId: beaconId,
+        serverCount: serverCount,
+        serverSeenAt: serverSeenAt,
+        threadId: threadId,
+      );
 
   Future<RoomUnreadSnapshot> fetchRoomUnreadSnapshot(String beaconId) async {
     try {

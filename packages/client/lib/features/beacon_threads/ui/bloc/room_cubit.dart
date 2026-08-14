@@ -18,6 +18,7 @@ import 'package:tentura/ui/effect/ui_effect_port.dart';
 
 import '../../domain/coordination_item_room_sync.dart';
 import '../../domain/entity/beacon_room_invalidation.dart';
+import '../../domain/entity/request_thread.dart';
 import '../../domain/entity/room_seen_outcome.dart';
 import '../../domain/exception/beacon_fact_already_pinned_exception.dart';
 import '../../domain/use_case/beacon_threads_case.dart';
@@ -411,9 +412,11 @@ class RoomCubit extends Cubit<RoomState> {
     if (anchor == null || latest.isAfter(anchor)) {
       emit(state.copyWith(unreadAnchorAt: latest));
     }
-    if (state.threadItemId == null) {
-      _case.observeReadThrough(state.beaconId, latest);
-    }
+    _case.observeReadThrough(
+      state.beaconId,
+      latest,
+      threadId: state.threadItemId ?? RequestThread.generalId,
+    );
   }
 
   /// Advances the read watermark to the newest loaded message and flushes seen
