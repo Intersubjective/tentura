@@ -229,7 +229,7 @@ final class BeaconRoomCase extends UseCaseBase {
           repliedMessage.beaconId != beaconId ||
           repliedMessage.threadItemId != (inThread ? tid : null)) {
         throw const IdWrongException(
-          description: 'Reply must reference a message in the same chat scope',
+          description: 'Reply must reference a message in the same thread scope',
         );
       }
     }
@@ -401,7 +401,7 @@ final class BeaconRoomCase extends UseCaseBase {
     if (message == null || message.beaconId != beaconId) {
       throw IdNotFoundException(
         id: messageId,
-        description: 'Chat message not on this request',
+        description: 'Message is not on this request',
       );
     }
     final threadItemId = message.threadItemId?.trim();
@@ -571,7 +571,7 @@ final class BeaconRoomCase extends UseCaseBase {
     if (msg == null || msg.beaconId != beaconId) {
       throw IdNotFoundException(
         id: messageId,
-        description: 'Chat message not on this request',
+        description: 'Message is not on this request',
       );
     }
     await _room.markRoomMessageSemanticDone(

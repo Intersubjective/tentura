@@ -550,8 +550,8 @@ class AttentionIntentCase {
     sourceEventKey: sourceEventKey,
     threadItemId: threadItemId,
     kind: NotificationKind.roomActivityLowPriority,
-    emptyTitle: 'New chat message',
-    emptyBody: 'New chat message',
+    emptyTitle: 'New thread message',
+    emptyBody: 'New thread message',
   );
 
   /// Personal `@handle` mention — same Updates event as [roomMessagePosted],

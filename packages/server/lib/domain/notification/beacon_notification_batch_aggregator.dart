@@ -57,7 +57,7 @@ class BeaconNotificationBatchAggregator {
       NotificationKind.newRelay => '$n requests forwarded to you$suffix',
       NotificationKind.commitmentEvent => '$n commitment updates$suffix',
       NotificationKind.commitmentDeclined => '$n declined offers$suffix',
-      NotificationKind.commitmentRemoved => '$n chat removals$suffix',
+      NotificationKind.commitmentRemoved => '$n discussion removals$suffix',
       NotificationKind.commitmentReleased => '$n participation endings$suffix',
       NotificationKind.reviewReady => '$n requests ready to review$suffix',
       NotificationKind.staleRemind => '$n items need attention$suffix',

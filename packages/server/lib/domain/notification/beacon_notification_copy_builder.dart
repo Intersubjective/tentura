@@ -37,7 +37,7 @@ class BeaconNotificationCopyBuilder {
         _bodyWithRequest(
           beaconTitle: beaconTitle,
           excerpt: excerpt,
-          fallback: 'Action needed in the request chat',
+          fallback: 'Action needed in the request discussion',
         ),
       ),
       NotificationKind.promiseMade =>
@@ -55,7 +55,7 @@ class BeaconNotificationCopyBuilder {
                 _bodyWithRequest(
                   beaconTitle: beaconTitle,
                   excerpt: excerpt,
-                  fallback: 'New promise in the request chat',
+                  fallback: 'New promise in the request discussion',
                 ),
               ),
       NotificationKind.coordinationChanged => (
@@ -83,10 +83,10 @@ class BeaconNotificationCopyBuilder {
         ),
       ),
       NotificationKind.roomAccess => (
-        'Chat access',
+        'Discussion access',
         excerpt.isNotEmpty
             ? excerpt
-            : 'You were added to this request\'s shared chat. '
+            : 'You were added to this request\'s discussion. '
                 'Everyone admitted can read messages, including earlier history.',
       ),
       NotificationKind.commitmentDeclined => (
@@ -98,11 +98,11 @@ class BeaconNotificationCopyBuilder {
         ),
       ),
       NotificationKind.commitmentRemoved => (
-        'Removed from chat',
+        'Removed from the discussion',
         _bodyWithRequest(
           beaconTitle: beaconTitle,
           excerpt: excerpt,
-          fallback: 'You were removed from the request chat',
+          fallback: 'You were removed from the request discussion',
         ),
       ),
       NotificationKind.commitmentReleased => (
@@ -147,7 +147,7 @@ class BeaconNotificationCopyBuilder {
         _bodyWithRequest(
           beaconTitle: '',
           excerpt: excerpt,
-          fallback: 'New chat update',
+          fallback: 'New thread update',
         ),
       ),
       NotificationKind.roomMention => (
@@ -159,7 +159,7 @@ class BeaconNotificationCopyBuilder {
         _bodyWithRequest(
           beaconTitle: beaconTitle,
           excerpt: excerpt,
-          fallback: 'Something in the request chat needs attention',
+          fallback: 'Something in the request thread needs attention',
         ),
       ),
       NotificationKind.inviteAccepted => (
@@ -195,7 +195,7 @@ class BeaconNotificationCopyBuilder {
         _bodyWithRequest(
           beaconTitle: beaconTitle,
           excerpt: excerpt,
-          fallback: 'Open the request chat to see your new assignment',
+          fallback: 'Open General to see your new assignment',
         ),
       ),
     };
@@ -222,7 +222,7 @@ class BeaconNotificationCopyBuilder {
       ),
       NotificationCategory.coordination => (
         'Tentura',
-        'New activity in a request chat',
+        'New activity in a request thread',
       ),
       NotificationCategory.connections => (
         'Tentura',

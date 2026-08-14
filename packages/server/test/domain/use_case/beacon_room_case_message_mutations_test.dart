@@ -230,7 +230,7 @@ void main() {
       expect(attention.recorded, isEmpty);
     });
 
-    test('ordinary Chat message creates no Updates receipt', () async {
+    test('ordinary thread message creates no Updates receipt', () async {
       await sut.createMessage(
         beaconId: _beaconId,
         userId: _userId,
