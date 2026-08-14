@@ -55,7 +55,7 @@ None of the above overlap any UNIT 01–14 file list except the noted `docs/READ
 | 04 | `markThreadSeen` + persisted-watermark fix | accepted | 4f212fbe4, 6092a70f1, 7bf09b117, a596ebb53, fc0456e69, cfee6c9bc, 557ebbe3b |
 | 05 | Client thread contract/mapping/repo/case (unused) | accepted (+1 manager fix) | 686d307c7, 6c7731926, ed9278341, 0fe1dd2f9, ed67aa65c, 8313eac9e, ce03b2c6a |
 | 06 | Thread-keyed watermark store + client `markThreadSeen` | accepted (3 sessions, 2 killed) | 81824ba22, 36a99f6ac, 3abef3470, 37ccd5a42, 19bb6c2a4, 52d57d49c, 22ec62ac3, 6e0de9147 |
-| 07 | Extract ticker, move `ItemCard` (no behavior change) | pending | |
+| 07 | Extract ticker, move `ItemCard` (no behavior change) | complete | 4cdb76ae9, ea4cf7bf5 |
 | 08 | `ThreadsCubit` latest-wins state | pending | |
 | 09 | Boxed Threads list + evolved `ItemCard` (unused) | pending | |
 | 10 | Shared thread host, awaited cubit handoff | pending | |
@@ -306,3 +306,21 @@ None yet.
   files (49 passed), lints (106/106), the forbidden/required `rg` gates, version/cache-buster strings
   (`6.0.1` in both files), and the full client suite (2241 passed, 18 skipped, zero regressions).
   Proceeding to UNIT 07 (extract stale-deadline ticker, move `ItemCard` — no behavior change).
+
+- 2026-08-14 — UNIT 07 (session 1): `4cdb76ae9` extracted `_StaleDeadlineTicker` from
+  `items_tab.dart` into public `StaleDeadlineTicker` at
+  `beacon_threads/ui/widget/stale_deadline_ticker.dart` (private `_StaleDeadlineTickerState` per
+  `ItemCard` convention); updated the one call site.
+
+- 2026-08-14 — UNIT 07 (session 1): `ea4cf7bf5` moved `item_card.dart` byte-for-byte from
+  `coordination_item/ui/widget/` to `beacon_threads/ui/widget/`; only import edits — package import for
+  `coordination_item_overflow_menu.dart` (relative path no longer valid) and `items_tab.dart` import
+  path. Three `ItemCard(` constructor invocations and all other `items_tab.dart` body lines unchanged.
+
+- 2026-08-14 — **UNIT 07 complete.** Verify: `test ! -e .../coordination_item/.../item_card.dart` (OK),
+  `class StaleDeadlineTicker` present in `stale_deadline_ticker.dart`, private widget class
+  `_StaleDeadlineTicker extends` absent (note: plan's bare `class _StaleDeadlineTicker` rg also matches
+  the retained private `_StaleDeadlineTickerState` — used the stricter `extends` pattern),
+  `./scripts/check-custom-lints.sh packages/client` (106/106), scoped accordion test (2 passed), full
+  `flutter test` (2241 passed, 18 skipped — zero regressions vs UNIT 06). `git diff --find-renames`
+  shows rename + ticker extraction with import/identifier edits only. Ready for UNIT 08.
