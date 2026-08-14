@@ -78,7 +78,7 @@ const _expectedEventTypes = <Map<String, String>>[
   },
   {
     'eventType': 'roomMessagePosted',
-    'producer': 'BeaconThreadsCase.createMessage',
+    'producer': 'BeaconRoomCase.createMessage',
     'recipientCategory': 'directed_chat_target',
     'destinationFamily': 'beacon_room_message',
     'muteability': 'standard',
