@@ -639,7 +639,7 @@ final class BeaconRoomCase extends UseCaseBase {
         at = existing;
       }
     }
-    await _room.markBeaconRoomSeen(
+    final persistedAt = await _room.markBeaconRoomSeen(
       userId: userId,
       beaconId: beaconId,
       threadItemId: inThread ? tid : null,
@@ -648,8 +648,26 @@ final class BeaconRoomCase extends UseCaseBase {
     return {
       'beaconId': beaconId,
       'threadItemId': inThread ? tid : null,
-      'seenAt': at.toUtc().toIso8601String(),
+      'seenAt': persistedAt.toUtc().toIso8601String(),
     };
+  }
+
+  Future<Map<String, Object?>> markThreadSeen({
+    required String beaconId,
+    required String userId,
+    required String threadId,
+    String? readThroughAtIso,
+  }) {
+    final normalized = threadId.trim();
+    if (normalized.isEmpty) {
+      throw ArgumentError.value(threadId, 'threadId', 'must not be empty');
+    }
+    return markBeaconRoomSeen(
+      beaconId: beaconId,
+      userId: userId,
+      threadItemId: normalized == 'general' ? null : normalized,
+      readThroughAtIso: readThroughAtIso,
+    );
   }
 
   Future<Map<String, Object?>> beaconParticipantRoomSeen({
