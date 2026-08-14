@@ -152,7 +152,7 @@ Units are sequential. Check off only after the unit's focused commit and verific
   `feat(client): gate person request actions`
 - [x] **UNIT 13 — Picker host policy, row precedence, band exclusion** — depends: 08, 10 —
   commit: `feat(client): show availability in recipient picker`
-- [ ] **UNIT 14 — Picker preselection, expiry refresh, typed delivery UX** — depends: 06, 08,
+- [x] **UNIT 14 — Picker preselection, expiry refresh, typed delivery UX** — depends: 06, 08,
   10, 13 — commit: `feat(client): report actual forward delivery`
 - [ ] **UNIT 15 — Deep-link person-forward gate** — depends: 06, 08, 10, 12 — commit:
   `feat(client): gate person forward flow`
@@ -1451,3 +1451,32 @@ exercise the nested checkbox event boundary, because the inner InkWell is not
 separately findable below the outer-row key. The test proves the actual rendered
 target, not only the helper policy.
 REMAINING: UNIT 14 is dependency-ready.
+
+## UNIT 14 — complete — 2026-08-14
+
+COMMITS: `ecfd84c39` feat(client): map typed forward delivery result from beaconForward; `2e4806166` feat(client): forward delivery UX with availability preselect and expiry; `fd8a2bffa` test(client): prove forward typed delivery and confirmation contracts
+TESTS:
+- `(cd packages/client && flutter test test/features/forward/forward_cubit_preselect_test.dart test/features/forward/forward_cubit_candidates_load_test.dart test/features/forward/forward_cubit_live_sync_test.dart test/features/forward/forward_cubit_attribution_test.dart test/features/forward/forward_cubit_band_provenance_test.dart test/features/forward/forward_delivery_result_test.dart test/features/forward/person_forward_case_test.dart test/features/beacon_create/beacon_send_confirmation_dialog_test.dart test/features/forward/forward_recipient_picker_test.dart)` → 41 passed
+- `./scripts/check-custom-lints.sh packages/client` → pass (custom-rule total 106, baseline 111)
+- `bash scripts/check-user-facing-terminology.sh` → pass
+- `git diff --check` → clean
+FILES:
+- `packages/client/lib/features/forward/data/repository/forward_repository.dart`
+- `packages/client/lib/features/forward/domain/use_case/forward_case.dart`
+- `packages/client/lib/features/forward/ui/bloc/forward_cubit.dart`
+- `packages/client/lib/features/forward/ui/bloc/forward_state.dart`
+- `packages/client/lib/features/forward/ui/message/forward_messages.dart`
+- `packages/client/lib/features/beacon_create/ui/dialog/beacon_send_confirmation_dialog.dart`
+- `packages/client/test/features/forward/forward_cubit_preselect_test.dart`
+- `packages/client/test/features/forward/forward_cubit_candidates_load_test.dart`
+- `packages/client/test/features/forward/forward_cubit_live_sync_test.dart`
+- `packages/client/test/features/forward/forward_cubit_attribution_test.dart`
+- `packages/client/test/features/forward/forward_cubit_band_provenance_test.dart`
+- `packages/client/test/features/forward/forward_delivery_result_test.dart`
+- `packages/client/test/features/forward/person_forward_case_test.dart`
+- `packages/client/test/features/beacon_create/beacon_send_confirmation_dialog_test.dart`
+FINDINGS:
+- `ForwardRepository.forwardBeacon` signature change requires a compile-only stub update in UNIT 15-owned `person_forward_cubit_test.dart` (left unstaged in this worktree so `check-custom-lints.sh` stays green locally).
+- `AppLifecycleListener` attaches only when `BindingBase.debugBindingType()` is non-null so VM unit tests avoid `WidgetsFlutterBinding.ensureInitialized()` unless exercising resume.
+- `ForwardDeliveredOfMessage` (owned `forward_messages.dart`) supplies embedded confirmation N-of-M copy without new ARB keys.
+REMAINING: manager acceptance of UNIT 14; UNIT 15 (`feat(client): gate person forward flow`) is next.
