@@ -28,7 +28,6 @@ import 'package:tentura/features/beacon_threads/ui/bloc/thread_host_cubit.dart';
 import 'package:tentura/features/beacon_threads/ui/bloc/threads_cubit.dart';
 import 'package:tentura/features/beacon_threads/ui/bloc/threads_state.dart';
 import 'package:tentura/features/beacon_threads/ui/screen/thread_detail_screen.dart';
-import 'package:tentura/features/beacon_threads/ui/widget/beacon_room_body.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/item_card.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/thread_detail.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_cubit.dart';
@@ -56,7 +55,6 @@ final _kNow = DateTime.utc(2026, 8, 14, 12);
 const _kCompact = Size(390, 844);
 const _kRegular = Size(720, 900);
 const _kExpanded = Size(1280, 900);
-const _kEmbeddedSplit = Size(720, 900);
 const _kEmbeddedStack = Size(559, 900);
 
 class _MockRouteData extends Mock implements RouteData {
@@ -71,6 +69,7 @@ class _HarnessRouter extends Mock implements StackRouter {
   int popCount = 0;
   PageRouteInfo? lastPush;
   final List<String> replacedPaths = [];
+  @override
   RouteData? currentChild;
 
   @override
@@ -87,8 +86,8 @@ class _HarnessRouter extends Mock implements StackRouter {
   @override
   Future<T?> replacePath<T extends Object?>(
     String path, {
-    bool includeAncestors = false,
     bool includePrefixMatches = true,
+    OnNavigationFailure? onFailure,
   }) async {
     replacedPaths.add(path);
     return null;
