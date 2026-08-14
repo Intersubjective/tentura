@@ -9,8 +9,8 @@
     "packages/client/test/architecture/realtime_entity_contract_impacts_test.dart",
     "packages/client/test/architecture/cross_surface_subscription_test.dart",
     "packages/client/test/data/service/invalidation_service_test.dart",
-    "packages/client/test/features/beacon_room/beacon_room_case_test.dart",
-    "packages/client/test/features/beacon_room/room_cubit_unread_test.dart",
+    "packages/client/test/features/beacon_threads/beacon_threads_case_test.dart",
+    "packages/client/test/features/beacon_threads/room_cubit_unread_test.dart",
     "packages/server/test/api/controllers/websocket/websocket_realtime_protocol_test.dart"
   ],
   "kinds": [
@@ -62,7 +62,7 @@
         "paintEvents": ["insert"]
       },
       "impacts": ["chat", "request_activity", "unread", "inbox", "my_work"],
-      "tests": ["packages/client/test/features/beacon_room/room_cubit_unread_test.dart"]
+      "tests": ["packages/client/test/features/beacon_threads/room_cubit_unread_test.dart"]
     },
     {
       "wireKind": "room_reaction",
@@ -71,7 +71,7 @@
       "genericTriggerArgs": ["room_reaction"],
       "specializedPublishers": [],
       "impacts": ["chat_reactions"],
-      "tests": ["packages/client/test/features/beacon_room/room_cubit_unread_test.dart"]
+      "tests": ["packages/client/test/features/beacon_threads/room_cubit_unread_test.dart"]
     },
     {
       "wireKind": "room_poll",
@@ -80,7 +80,7 @@
       "genericTriggerArgs": ["room_poll", "room_poll_act"],
       "specializedPublishers": [],
       "impacts": ["chat_poll_results"],
-      "tests": ["packages/client/test/features/beacon_room/room_cubit_unread_test.dart"]
+      "tests": ["packages/client/test/features/beacon_threads/room_cubit_unread_test.dart"]
     },
     {
       "wireKind": "participant",
@@ -89,7 +89,7 @@
       "genericTriggerArgs": ["participant"],
       "specializedPublishers": [],
       "impacts": ["chat_access", "request_people", "presence", "request_detail", "inbox", "my_work"],
-      "tests": ["packages/client/test/features/beacon_room/room_cubit_unread_test.dart"]
+      "tests": ["packages/client/test/features/beacon_threads/room_cubit_unread_test.dart"]
     },
     {
       "wireKind": "fact_card",
@@ -143,7 +143,7 @@
       "genericTriggerArgs": ["room_seen"],
       "specializedPublishers": [],
       "impacts": ["chat_watermark", "inbox_unread", "my_work_unread", "shell_counters"],
-      "tests": ["packages/client/test/features/beacon_room/beacon_room_case_test.dart"]
+      "tests": ["packages/client/test/features/beacon_threads/beacon_threads_case_test.dart"]
     },
     {
       "wireKind": "relationship",

@@ -40,7 +40,7 @@ const _targets = {'AppBar', 'SliverAppBar'};
 const _allowedFiles = {
   '/ui/widget/beacon_gallery_viewer.dart',
   '/ui/widget/tentura_fullscreen_image_viewer.dart',
-  '/features/beacon_room/ui/widget/room_attachment_widgets.dart',
+  '/features/beacon_threads/ui/widget/room_attachment_widgets.dart',
   '/features/geo/ui/dialog/choose_location_dialog.dart',
   '/ui/dialog/qr_scan_dialog.dart',
 };
