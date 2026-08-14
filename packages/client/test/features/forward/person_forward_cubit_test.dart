@@ -14,6 +14,7 @@ import 'package:tentura/features/beacon/data/repository/beacon_repository.dart';
 import 'package:tentura/features/contacts/domain/use_case/contacts_case.dart';
 import 'package:tentura/features/forward/data/repository/forward_repository.dart';
 import 'package:tentura/features/forward/domain/entity/person_forward_row.dart';
+import 'package:tentura/features/forward/domain/entity/forward_delivery_result.dart';
 import 'package:tentura/features/forward/domain/use_case/person_forward_case.dart';
 import 'package:tentura/features/forward/ui/bloc/person_forward_cubit.dart';
 import 'package:tentura/features/profile/domain/port/profile_repository_port.dart';
@@ -53,7 +54,7 @@ class _FakeForwardRepository implements ForwardRepository {
       );
 
   @override
-  Future<String> forwardBeacon({
+  Future<ForwardDeliveryResult> forwardBeacon({
     required String beaconId,
     required List<String> recipientIds,
     String? note,
@@ -66,7 +67,11 @@ class _FakeForwardRepository implements ForwardRepository {
     recipientBandProvenance,
   }) async {
     sent.add((beaconId: beaconId, recipientIds: recipientIds, note: note));
-    return 'edge-1';
+    return ForwardDeliveryResult(
+      batchId: 'edge-1',
+      deliveredRecipientIds: recipientIds,
+      availabilitySkippedRecipientIds: const [],
+    );
   }
 
   @override
