@@ -12,6 +12,7 @@ export 'components/tentura_sheet_dismiss_guard.dart';
 export 'components/tentura_count_badge.dart';
 export 'components/tentura_hairline_divider.dart';
 export 'components/tentura_vertical_hairline.dart';
+export 'components/tentura_vertical_resize_handle.dart';
 export 'components/tentura_presence_dot.dart';
 export 'components/tentura_meta_text.dart';
 export 'components/tentura_status_text.dart';

@@ -60,10 +60,16 @@ bool beaconViewUsesExpandedThreadSplit({
     showBeaconContent &&
     hasThreadRows;
 
+/// Ideal / clamped width for the room (3rd) pane in an ops|room split.
+///
+/// Pass [preferredWidth] to honor a user drag override; otherwise uses
+/// [TenturaTokens.chatColumnMaxWidth]. Always clamped to a usable floor and
+/// an available-width-aware ceiling so ops stays readable.
 double beaconViewRoomSplitPaneWidth(
   TenturaTokens tt, {
   double? availableWidth,
   double minPaneWidth = 360.0,
+  double? preferredWidth,
 }) {
   const maxPaneWidth = 640.0;
   var effectiveMaxPaneWidth = maxPaneWidth;
@@ -77,7 +83,8 @@ double beaconViewRoomSplitPaneWidth(
       math.min(maxPaneWidth, availableWidth - minOperationalWidth),
     );
   }
-  return tt.chatColumnMaxWidth.clamp(minPaneWidth, effectiveMaxPaneWidth);
+  final ideal = preferredWidth ?? tt.chatColumnMaxWidth;
+  return ideal.clamp(minPaneWidth, effectiveMaxPaneWidth);
 }
 
 class BeaconViewScreen extends StatefulWidget {
@@ -139,6 +146,9 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
   bool _didApplyThreadsResolution = false;
   String? _bannerMessage;
   WindowClass? _lastWindowClass;
+
+  /// User drag override for the room pane width; null = token default.
+  double? _roomPaneWidthOverride;
 
   void _leaveBeaconView(BuildContext context) {
     if (widget.embedded) {
@@ -446,6 +456,7 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
       _didApplyThreadsResolution = false;
       _focusThreadId = null;
       _focusUserId = null;
+      _roomPaneWidthOverride = null;
     }
     if (oldWidget.viewTab != widget.viewTab) {
       _tabIndex = _beaconViewTabIndex(widget.viewTab).clamp(
@@ -725,10 +736,12 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
     final l10n = L10n.of(context)!;
     return LayoutBuilder(
       builder: (context, constraints) {
+        const handleWidth = TenturaSpacing.row;
         final threadPaneWidth = beaconViewRoomSplitPaneWidth(
           tt,
-          availableWidth: constraints.maxWidth,
+          availableWidth: constraints.maxWidth - handleWidth,
           minPaneWidth: minPane,
+          preferredWidth: _roomPaneWidthOverride,
         );
         return Row(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -742,7 +755,19 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
                 onOpenThread: onOpenThread,
               ),
             ),
-            const TenturaVerticalHairline(),
+            TenturaVerticalResizeHandle(
+              onDragDelta: (dx) {
+                // Room pane is on the right: drag left (negative dx) widens it.
+                setState(() {
+                  _roomPaneWidthOverride = beaconViewRoomSplitPaneWidth(
+                    tt,
+                    availableWidth: constraints.maxWidth - handleWidth,
+                    minPaneWidth: minPane,
+                    preferredWidth: threadPaneWidth - dx,
+                  );
+                });
+              },
+            ),
             SizedBox(
               width: threadPaneWidth,
               child: _buildThreadDetailPane(
@@ -1107,10 +1132,13 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
                             row: isSplit
                                 ? LayoutBuilder(
                                     builder: (context, constraints) {
+                                      const handleWidth = TenturaSpacing.row;
                                       final threadPaneWidth =
                                           beaconViewRoomSplitPaneWidth(
                                         tt,
-                                        availableWidth: constraints.maxWidth,
+                                        availableWidth:
+                                            constraints.maxWidth - handleWidth,
+                                        preferredWidth: _roomPaneWidthOverride,
                                       );
                                       final overflow = showBeaconContent
                                           ? beaconViewAppBarOverflow(
@@ -1178,6 +1206,7 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
                                               ),
                                             ),
                                           ),
+                                          const SizedBox(width: handleWidth),
                                           SizedBox(
                                             width: threadPaneWidth,
                                             child: Align(

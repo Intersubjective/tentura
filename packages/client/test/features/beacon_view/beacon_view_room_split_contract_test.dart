@@ -74,5 +74,36 @@ void main() {
         280,
       );
     });
+
+    test('honors preferred width within clamp bounds', () {
+      final expanded = TenturaTokens.light.applyWindowClass(
+        WindowClass.expanded,
+      );
+
+      expect(
+        beaconViewRoomSplitPaneWidth(
+          expanded,
+          availableWidth: 1200,
+          preferredWidth: 480,
+        ),
+        480,
+      );
+      expect(
+        beaconViewRoomSplitPaneWidth(
+          expanded,
+          availableWidth: 1200,
+          preferredWidth: 900,
+        ),
+        640,
+      );
+      expect(
+        beaconViewRoomSplitPaneWidth(
+          expanded,
+          availableWidth: 1200,
+          preferredWidth: 100,
+        ),
+        360,
+      );
+    });
   });
 }
