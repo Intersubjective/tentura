@@ -154,7 +154,7 @@ Units are sequential. Check off only after the unit's focused commit and verific
   commit: `feat(client): show availability in recipient picker`
 - [x] **UNIT 14 — Picker preselection, expiry refresh, typed delivery UX** — depends: 06, 08,
   10, 13 — commit: `feat(client): report actual forward delivery`
-- [ ] **UNIT 15 — Deep-link person-forward gate** — depends: 06, 08, 10, 12 — commit:
+- [x] **UNIT 15 — Deep-link person-forward gate** — depends: 06, 08, 10, 12 — commit:
   `feat(client): gate person forward flow`
 - [x] **UNIT 16 — Client release gate and cache-buster** — depends: 11–15 — commit:
   `chore: release availability client 5.13.0`
@@ -1605,3 +1605,20 @@ FINDINGS:
 - Unit implementation diff contains precisely the four owned source paths; did not
   edit or stage skip-worktree `packages/client/web/manifest.json`.
 REMAINING: manager acceptance of UNIT 16; UNIT 17 end-to-end closeout is next.
+
+## UNIT 16 manager acceptance — 2026-08-14
+
+VERDICT: accepted: `9116d5133` and `3a9642b00`.
+REVIEW: The authorized independent `5.12.2` client release was reconciled
+without weakening the intended `5.13.0` compatibility gate. The four owned
+sources agree on `5.13.0`; `.env.example` remains documentation only, and the
+tracked source cache-buster is aligned. The skipped `web/manifest.json` remains
+unstaged. The initial checker failure was from stale build artifacts, not a
+source mismatch; regenerating the documented WASM release artifact sequence
+proved all deployed cache/version entries agree.
+INDEPENDENT VERIFICATION:
+- `(cd packages/client && flutter build web --wasm)` -> passed
+- `(cd packages/client && dart run tool/trim_web_deploy_artifact.dart && dart run tool/generate_wasm_preload_artifacts.dart && dart run tool/verify_web_version_consistency.dart)` -> passed; index, manifest, wasm preload manifest, and service-worker cache all `5.13.0`
+- source inspections: `pubspec.yaml`, tracked `web/index.html`, server default, and `.env.example` each contain `5.13.0`
+- `git show --check 9116d5133`, `git diff --check`, and `git diff --cached --check` -> clean
+REMAINING: UNIT 17 is dependency-ready.
