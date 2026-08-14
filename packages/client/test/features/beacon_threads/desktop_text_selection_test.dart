@@ -42,7 +42,6 @@ void main() {
     testWidgets('wraps body in SelectionArea on macOS', (tester) async {
       final metrics = computeTrailingMetaMetrics(
         dateLine: '14:02',
-        bodyStyle: bodyStyle,
         metaStyle: metaStyle,
         trailingGap: 4,
         textDirection: TextDirection.ltr,
@@ -75,7 +74,6 @@ void main() {
       const display = 'Meet at Hauptstraße 12 Berlin';
       final metrics = computeTrailingMetaMetrics(
         dateLine: '14:02 · Edited',
-        bodyStyle: bodyStyle,
         metaStyle: metaStyle,
         trailingGap: 4,
         textDirection: TextDirection.ltr,
