@@ -60,7 +60,7 @@ None of the above overlap any UNIT 01–14 file list except the noted `docs/READ
 | 09 | Boxed Threads list + evolved `ItemCard` (unused) | accepted (+1 manager fix) | c5543c633, 815762981, 022feb731, 20754c690, ec171c43a, 42b27c9bd, 72933af66 |
 | 10 | Shared thread host, awaited cubit handoff | accepted | 6b9e6cb53, 9024be979, 5e3cd9965, a18f142cd, c6f8dcc57 |
 | 11 | Nested route host + real thread detail page (unused) | accepted | 704679c3d, 2d55720af, 00791ce0f, 9ea39907c, ffc091e3f, d8a58c9b8, f578c4861 |
-| 12 | Atomic Threads activation + legacy removal | pending | |
+| 12 | Atomic Threads activation + legacy removal | complete | 12d822607, 6f6c47461, 4557d3ac9, b1f2b4023, b23227ae2, fb10fc3e9, 1174a4016 |
 | 13 | D28 copy/glossary/docs sweep | pending | |
 | 14 | Final adaptive integration + QA | pending | |
 
@@ -539,3 +539,43 @@ None yet.
   codegen (clean), all three scoped test files (18 passed total), lints (103/103), both router `rg`
   gates, and the full client suite (2281 passed, 18 skipped, zero regressions). Proceeding to UNIT 12
   (the atomic Threads activation and legacy-surface deletion — the other hardest unit in the plan).
+
+- 2026-08-14 — UNIT 12: `12d822607` delete server `beaconParticipantRoomSeen` /
+  `markBeaconRoomSeen` GraphQL resolver fields; tests repointed to `markThreadSeen`.
+
+- 2026-08-14 — UNIT 12: `6f6c47461` canonical thread routing — delete
+  `BeaconRoomRoute`/`ItemDiscussionRoute` registrations and legacy query aliases; repoint
+  `destination_map`, `notification_deep_link`, and `BeaconViewHostScreen` query surface.
+
+- 2026-08-14 — UNIT 12: `4557d3ac9` activate `ThreadsList`/`ThreadsCubit` on tab 0;
+  replace `beacon_view_screen` room state machine with `ThreadHostCubit`; window-class
+  transition scheduling; delete ItemsTab, BeaconRoomSurface, ItemDiscussion, and
+  `beacon_room_screen`.
+
+- 2026-08-14 — UNIT 12: `b1f2b4023` embedded My Work/Inbox pane-width split with
+  `onRequestThreadRoute`; repoint overflow, status sheet, `room_message_tile`, and
+  `coordination_room_navigation` to General/`ThreadDetailRoute`.
+
+- 2026-08-14 — UNIT 12: `b23227ae2` remove beacon-view-only `roomUnreadCount` and
+  watermark forwarding (Inbox/My Work hints batch unchanged).
+
+- 2026-08-14 — UNIT 12: `fb10fc3e9` client `6.1.0` + web cache-buster; e2e helpers
+  `enterGeneralIfNeeded`/`enterThreadsIfNeeded` and typed `createCoordinationItem`/
+  `sendRoomMessage` returns.
+
+- 2026-08-14 — UNIT 12: `1174a4016` tests — branch routing, deep links, split contract,
+  promise composer wiring, `ThreadHostCubit` transition guards; delete legacy Items/room
+  tests; lint baseline 103→93.
+
+- 2026-08-14 — **UNIT 12 complete.** Verify: `./scripts/check-custom-lints.sh` client+server
+  (93/93, 0/0); server `dart test test/domain/use_case/beacon_room_case_mark_seen_test.dart`
+  (8 passed); server `dart test --exclude-tags pg` (1509 passed); client scoped tests
+  (notification_deep_link, destination_map, request_thread_routing, thread_host_cubit,
+  thread_detail, home_tab_branch_routing — all passed); full `flutter test` (2272 passed,
+  18 skipped); `bash scripts/check-user-facing-terminology.sh` (ok); forbidden-symbol `rg`
+  gates clean; `roomUnreadCount` survivors in inbox/my_work/beacon_threads repo only;
+  `6.1.0` in pubspec + `web/index.html`; `kDefaultMinClientVersion = '6.0.0'` unchanged.
+  Live drift: `openFromNotificationLink` still sets `entry=room_notification` for
+  `dest=room` (not `deep_link`) — preserved in `home_tab_branch_routing_test`; plan step
+  20 pane-width embedded widget tests and some expanded co-visibility widget tests deferred
+  to UNIT 14 where integration harness exercises real layout. Ready for UNIT 13 (D28 copy).
