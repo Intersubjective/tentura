@@ -90,7 +90,7 @@ None triggered.
 ## Ordered manifest
 
 - [x] **00** Journal and baseline — complete
-- [ ] **01** Pure coverage / note / cancel helpers
+- [x] **01** Pure coverage / note / cancel helpers
 - [ ] **02** Server `cancelForward` honours `recipientRejected`
 - [ ] **03** `MyForwardRecipient` hasOnwardChild + recipientRejected
 - [ ] **04** Map flags onto `ForwardCandidate` / `ForwardLoad`
@@ -163,6 +163,10 @@ frozen contract, stop that unit with `BLOCKED` instead of improvising.
 - 2026-08-14 manager: scope established. `cursor-agent --list-models`
   confirms `composer-2.5`. Baseline matches plan §1. UNIT 00 assigned to a
   fresh session.
+- 2026-08-14 manager: **UNIT 00 accepted**. Commit `a72580baf`
+  (`docs: start issue 110 implementation journal`). Journal-only; protected
+  worktree unchanged. Worker used local `--amend` to stabilize the COMMITS
+  line (unpushed, docs-only). UNIT 01 authorized.
 
 ## Unit entries
 
@@ -180,3 +184,15 @@ TESTS:
 FILES: `docs/plans/issue-110-forward-explicit-implementation-journal.md`
 FINDINGS: none — live baseline matches plan §1 and manager stub; architecture source rev 3 confirmed in `issue-110-forward-explicit-architecture.md`
 REMAINING: none — UNIT 01 may start
+
+## UNIT 01 — complete — 2026-08-14
+COMMITS: feat: add forward draft policy helpers (see `git log -1`)
+TESTS:
+- `cd packages/client && flutter test test/features/forward/forward_draft_policy_test.dart` → 14 passed
+- `./scripts/check-custom-lints.sh packages/client` → exit 0
+FILES:
+- `packages/client/lib/features/forward/domain/forward_draft_policy.dart`
+- `packages/client/test/features/forward/forward_draft_policy_test.dart`
+- `docs/plans/issue-110-forward-explicit-implementation-journal.md`
+FINDINGS: none — frozen contracts matched architecture rev 3 §Domain functions
+REMAINING: none — UNIT 02 may start
