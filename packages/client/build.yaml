@@ -34,8 +34,12 @@ targets:
           output_dir: "_g"
 
           type_overrides:
+            # Hasura's raw Postgres `date` scalar (used only for
+            # user_availability.resume_on) is deliberately kept as the wire
+            # String, not DateTime — see the serializer_builder note below on
+            # why it can't share DateTime with `timestamptz`.
             date:
-              name: DateTime
+              name: String
 
             Date:
               name: DateTime
@@ -69,8 +73,16 @@ targets:
           output_dir: "_g"
 
           type_overrides:
+            # `date` maps to String, not DateTime: built_value's Serializers
+            # registry keys custom PrimitiveSerializers by Dart *type*, not
+            # by GraphQL scalar name, so a second PrimitiveSerializer<DateTime>
+            # (CalendarDateSerializer, below) would silently replace
+            # TimestamptzSerializer for every `timestamptz` field in the app.
+            # Callers that need the strict YYYY-MM-DD parse call
+            # parseStrictUtcCalendarDateString on the raw wire string
+            # themselves instead of relying on automatic deserialization.
             date:
-              name: DateTime
+              name: String
 
             Date:
               name: DateTime
@@ -109,6 +121,3 @@ targets:
 
             - import: "package:tentura/data/gql/smallint_serializer.dart"
               name: SmallintSerializer
-
-            - import: "package:tentura/data/gql/calendar_date_serializer.dart"
-              name: CalendarDateSerializer

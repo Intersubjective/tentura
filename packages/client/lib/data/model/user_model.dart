@@ -43,7 +43,9 @@ Availability availabilityFromHasuraRelationship(
   }
   return Availability(
     isLimited: relationship.is_limited,
-    resumeOn: relationship.resume_on,
+    resumeOn: relationship.resume_on == null
+        ? null
+        : parseStrictUtcCalendarDateString(relationship.resume_on!),
   );
 }
 
@@ -56,7 +58,9 @@ Availability availabilityFromV2Wire({
   }
   return Availability(
     isLimited: isLimited,
-    resumeOn: resumeOn == null ? null : parseStrictUtcCalendarDateString(resumeOn),
+    resumeOn: resumeOn == null
+        ? null
+        : parseStrictUtcCalendarDateString(resumeOn),
   );
 }
 
