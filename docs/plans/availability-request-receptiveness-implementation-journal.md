@@ -1541,3 +1541,23 @@ FINDINGS:
 - Screen send gating reads `canSendOn(cubit.todayUtc)` rather than `canSend` so injectable UTC clocks stay aligned in widget tests.
 - `personForwardBodyForTest` avoids AutoRouter in screen tests while preserving the production body layout.
 REMAINING: manager acceptance of UNIT 15; UNIT 16 release gate (`5.13.0`) is next.
+
+## UNIT 15 manager acceptance — 2026-08-14
+
+VERDICT: accepted: `d514deb0e` and `c8f10d85c`.
+REVIEW: Availability is an additive UTC-date gate over the established
+`PersonForwardBlock` and lifecycle checks. The screen derives its date from the
+same injectable cubit clock as the send guard, displays a neutral paused banner
+in the existing unreachable-banner layout, and disables both existing-request
+Send and New request creation while paused. Limited remains informational.
+The send boundary rechecks immediately before mutation and treats a typed server
+availability skip as non-success: it emits availability copy and never emits the
+sent message or navigation. A result containing neither target set is an error.
+`PersonForwardCase.send` now surfaces the existing typed repository result; this
+minimal outward change is necessary for the cubit to enforce the result contract.
+INDEPENDENT VERIFICATION:
+- `(cd packages/client && flutter test test/features/forward/person_forward_cubit_test.dart test/features/forward/person_forward_screen_test.dart test/features/forward/forward_delivery_result_test.dart)` -> 32 passed
+- `./scripts/check-custom-lints.sh packages/client` -> pass (custom-rule total 106, baseline 111)
+- `bash scripts/check-user-facing-terminology.sh` -> pass
+- `git diff --check` and `git diff --cached --check` -> clean
+REMAINING: UNIT 16 is dependency-ready.
