@@ -5,15 +5,15 @@ import 'package:tentura/design_system/tentura_radii.dart';
 import 'package:tentura/design_system/tentura_tokens.dart';
 import 'package:tentura/features/beacon_threads/ui/util/room_reply_excerpt.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/widget/tentura_selection_area.dart';
 
 /// Accent bar width for reply quote blocks (composer banner uses the same value).
 const double kRoomReplyQuoteAccentWidth = 3.0;
 
-/// Touch/stylus/mouse devices the quote jump tap listens on.
-const Set<PointerDeviceKind> kRoomReplyQuoteTapDevices = {
+/// Touch/stylus devices the quote jump tap listens on with eager acceptance.
+const Set<PointerDeviceKind> kRoomReplyQuoteEagerTapDevices = {
   PointerDeviceKind.touch,
   PointerDeviceKind.stylus,
-  PointerDeviceKind.mouse,
 };
 
 /// Accepts on [handleTapDown] so a single tap wins over the bubble's
@@ -95,6 +95,38 @@ class RoomMessageReplyQuote extends StatelessWidget {
   final String? replyToMessageId;
   final void Function(String messageId)? onJumpToReply;
 
+  Widget _buildExcerpt({
+    required BuildContext context,
+    required TextStyle? excerptStyle,
+    required VoidCallback? onJump,
+  }) {
+    Widget excerptText = Text(
+      excerpt,
+      style: excerptStyle,
+      maxLines: 2,
+      overflow: TextOverflow.ellipsis,
+    );
+
+    final desktopSelection = tenturaDesktopSelectionEnabledFor(Theme.of(context));
+
+    if (desktopSelection && onJump != null) {
+      excerptText = MouseRegion(
+        cursor: SystemMouseCursors.click,
+        child: GestureDetector(
+          behavior: HitTestBehavior.translucent,
+          onTap: onJump,
+          child: excerptText,
+        ),
+      );
+    }
+
+    if (desktopSelection) {
+      excerptText = TenturaSelectionArea(child: excerptText);
+    }
+
+    return excerptText;
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = L10n.of(context)!;
@@ -108,6 +140,12 @@ class RoomMessageReplyQuote extends StatelessWidget {
     final excerptStyle = theme.textTheme.bodySmall?.copyWith(
       color: unavailable ? scheme.onSurfaceVariant : null,
     );
+
+    final id = replyToMessageId?.trim() ?? '';
+    final onJump = onJumpToReply;
+    final jumpEnabled =
+        !unavailable && id.isNotEmpty && onJump != null;
+    final onJumpCallback = jumpEnabled ? () => onJump!(id) : null;
 
     final inset = DecoratedBox(
       decoration: BoxDecoration(
@@ -129,11 +167,10 @@ class RoomMessageReplyQuote extends StatelessWidget {
               ),
               SizedBox(height: tt.iconTextGap / 2),
             ],
-            Text(
-              excerpt,
-              style: excerptStyle,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
+            _buildExcerpt(
+              context: context,
+              excerptStyle: excerptStyle,
+              onJump: onJumpCallback,
             ),
           ],
         ),
@@ -141,32 +178,38 @@ class RoomMessageReplyQuote extends StatelessWidget {
     );
 
     Widget quoteBody = inset;
-    if (!unavailable) {
-      final id = replyToMessageId?.trim() ?? '';
-      final onJump = onJumpToReply;
-      if (id.isNotEmpty && onJump != null) {
-        quoteBody = Semantics(
-          button: true,
-          label: l10n.beaconRoomReplyQuoteA11yLabel(authorName),
-          child: RawGestureDetector(
-            behavior: HitTestBehavior.opaque,
-            gestures: <Type, GestureRecognizerFactory>{
-              _EagerTapGestureRecognizer:
-                  GestureRecognizerFactoryWithHandlers<
-                      _EagerTapGestureRecognizer>(
-                    () => _EagerTapGestureRecognizer(
-                      supportedDevices: kRoomReplyQuoteTapDevices,
-                    ),
-                    (recognizer) => recognizer.onTap = () => onJump(id),
-                  ),
-            },
-            child: MouseRegion(
-              cursor: SystemMouseCursors.click,
-              child: ExcludeSemantics(child: inset),
+    if (jumpEnabled && !tenturaDesktopSelectionEnabledFor(Theme.of(context))) {
+      quoteBody = Semantics(
+        button: true,
+        label: l10n.beaconRoomReplyQuoteA11yLabel(authorName),
+        child: Stack(
+          children: [
+            ExcludeSemantics(child: inset),
+            Positioned.fill(
+              child: RawGestureDetector(
+                behavior: HitTestBehavior.translucent,
+                gestures: <Type, GestureRecognizerFactory>{
+                  _EagerTapGestureRecognizer:
+                      GestureRecognizerFactoryWithHandlers<
+                          _EagerTapGestureRecognizer>(
+                        () => _EagerTapGestureRecognizer(
+                          supportedDevices: kRoomReplyQuoteEagerTapDevices,
+                        ),
+                        (recognizer) =>
+                            recognizer.onTap = onJumpCallback,
+                      ),
+                },
+              ),
             ),
-          ),
-        );
-      }
+          ],
+        ),
+      );
+    } else if (jumpEnabled) {
+      quoteBody = Semantics(
+        button: true,
+        label: l10n.beaconRoomReplyQuoteA11yLabel(authorName),
+        child: inset,
+      );
     }
 
     return IntrinsicHeight(

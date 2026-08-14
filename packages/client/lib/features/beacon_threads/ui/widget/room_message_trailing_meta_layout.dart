@@ -208,7 +208,9 @@ InlineSpan buildTrailingMetaWidgetSpan({
         alignment: Alignment.bottomRight,
         child: Padding(
           padding: EdgeInsetsDirectional.only(start: metrics.trailingGap),
-          child: Text(dateLine, style: metaStyle),
+          child: SelectionContainer.disabled(
+            child: Text(dateLine, style: metaStyle),
+          ),
         ),
       ),
     ),
