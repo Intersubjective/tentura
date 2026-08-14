@@ -1561,3 +1561,23 @@ INDEPENDENT VERIFICATION:
 - `bash scripts/check-user-facing-terminology.sh` -> pass
 - `git diff --check` and `git diff --cached --check` -> clean
 REMAINING: UNIT 16 is dependency-ready.
+
+## UNIT 16 — blocked — 2026-08-14
+
+COMMITS: none.
+TESTS: live baseline inspection only.
+FILES:
+- `packages/client/pubspec.yaml`
+- `packages/client/web/index.html`
+- `packages/server/lib/env.dart`
+- `.env.example`
+FINDINGS:
+- The plan's immutable baseline requires client `5.12.1` and cache-buster
+  `5.12.1`, but committed independent UI work `e363153095` has already set both
+  to `5.12.2`. `packages/server/lib/env.dart` and `.env.example` still declare
+  `5.6.38`.
+- Plan §1 explicitly names a changed client version as a stop condition, and
+  §2.4 requires recording the contradiction and stopping the affected unit.
+REMAINING: user decision whether to rebase the release unit on the already
+released `5.12.2` baseline and set this plan's target/minimum/cache-buster to
+`5.13.0`, or to use a different target version.
