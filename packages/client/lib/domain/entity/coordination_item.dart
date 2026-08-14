@@ -6,7 +6,6 @@ enum CoordinationItemKind {
   plan(1),
   ask(2),
   blocker(3),
-  resolution(4),
   promise(5);
 
   const CoordinationItemKind(this.value);
@@ -25,7 +24,6 @@ enum CoordinationItemKind {
         1 => plan,
         2 => ask,
         3 => blocker,
-        4 => resolution,
         5 => promise,
         _ => throw ArgumentError.value(v, 'kind'),
       };
@@ -236,8 +234,7 @@ abstract class CoordinationItem with _$CoordinationItem {
   bool directInvolvementAsSourceOrTarget(String userId) {
     final uid = userId.trim();
     if (uid.isEmpty) return false;
-    if (kind == CoordinationItemKind.plan ||
-        kind == CoordinationItemKind.resolution) {
+    if (kind == CoordinationItemKind.plan) {
       return false;
     }
     if (creatorId.trim() == uid) return true;
@@ -245,30 +242,9 @@ abstract class CoordinationItem with _$CoordinationItem {
     return target != null && target.isNotEmpty && target == uid;
   }
 
-  /// Active-fold "for me" filter — source/target on ask/promise/blocker, plus
-  /// resolutions linked to a directly involved parent (one hop).
-  bool involvesUserAsSourceOrTarget(
-    String userId, {
-    CoordinationItem? resolutionParent,
-  }) {
-    final uid = userId.trim();
-    if (uid.isEmpty) return false;
-
-    if (kind == CoordinationItemKind.plan) return false;
-
-    if (kind == CoordinationItemKind.resolution) {
-      if (creatorId.trim() == uid) return true;
-      final target = targetPersonId?.trim();
-      if (target != null && target.isNotEmpty && target == uid) return true;
-      final parentId = targetItemId?.trim();
-      if (parentId == null || parentId.isEmpty) return false;
-      final parent = resolutionParent;
-      if (parent == null || parent.id != parentId) return false;
-      return parent.directInvolvementAsSourceOrTarget(uid);
-    }
-
-    return directInvolvementAsSourceOrTarget(uid);
-  }
+  /// Active-fold "for me" filter — source/target on ask/promise/blocker.
+  bool involvesUserAsSourceOrTarget(String userId) =>
+      directInvolvementAsSourceOrTarget(userId);
 
   static final empty = CoordinationItem(
     id: '',
@@ -284,28 +260,17 @@ abstract class CoordinationItem with _$CoordinationItem {
 /// Filters active open items to those involving [userId] as source or target.
 List<CoordinationItem> filterActiveItemsForUser({
   required List<CoordinationItem> openItems,
-  required Iterable<CoordinationItem> lookupItems,
   required String userId,
   required bool forMeOnly,
   String? alwaysIncludeItemId,
 }) {
   if (!forMeOnly) return openItems;
 
-  final byId = <String, CoordinationItem>{
-    for (final item in lookupItems)
-      if (item.kind != CoordinationItemKind.plan) item.id: item,
-  };
-
   final focusId = alwaysIncludeItemId?.trim();
   final hasFocusBypass = focusId != null && focusId.isNotEmpty;
 
   return openItems.where((item) {
     if (hasFocusBypass && item.id == focusId) return true;
-    return item.involvesUserAsSourceOrTarget(
-      userId,
-      resolutionParent: item.targetItemId != null
-          ? byId[item.targetItemId]
-          : null,
-    );
+    return item.involvesUserAsSourceOrTarget(userId);
   }).toList();
 }

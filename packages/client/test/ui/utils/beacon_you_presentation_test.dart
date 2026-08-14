@@ -281,4 +281,39 @@ void main() {
       );
     });
   });
+
+  group('offer review segment icons', () {
+    test('authorReview and helperAwaitingAuthor keep non-null review icons', () {
+      const responsibility = CoordinationResponsibility(
+        beaconId: 'b1',
+        askOpen: 1,
+      );
+      final authorPresentation = buildBeaconYouPresentation(
+        l10n,
+        responsibility,
+        collapse: false,
+        situationInput: _input(
+          isAuthorOrSteward: true,
+          hasRoomObligations: true,
+          authorUnreviewedHelpOfferCount: 2,
+        ),
+        emptyFallback: BeaconYouEmptyFallback.noOpenItems,
+        showNewBadges: false,
+      );
+      expect(authorPresentation.segments.first.icon, Icons.rate_review_outlined);
+
+      final helperPresentation = buildBeaconYouPresentation(
+        l10n,
+        responsibility,
+        collapse: false,
+        situationInput: _input(
+          hasRoomObligations: true,
+          isAwaitingAuthorReview: true,
+        ),
+        emptyFallback: BeaconYouEmptyFallback.noOpenItems,
+        showNewBadges: false,
+      );
+      expect(helperPresentation.segments.first.icon, Icons.rate_review_outlined);
+    });
+  });
 }

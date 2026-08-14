@@ -16,51 +16,6 @@ void main() {
     case_ = CoordinationItemCase(repository);
   });
 
-  group('fetchPendingResolutionForItem', () {
-    test('returns open resolution matching targetItemId', () async {
-      final match = _item(
-        id: 'res-1',
-        kind: CoordinationItemKind.resolution,
-        targetItemId: 'ask-1',
-      );
-      repository.listByBeaconResult = [
-        _item(
-          id: 'res-other',
-          kind: CoordinationItemKind.resolution,
-          targetItemId: 'ask-2',
-        ),
-        match,
-      ];
-
-      final result = await case_.fetchPendingResolutionForItem(
-        beaconId: beaconId,
-        targetItemId: 'ask-1',
-      );
-
-      expect(result, match);
-      expect(repository.lastListBeaconId, beaconId);
-      expect(repository.lastListStatus, CoordinationItemStatus.open.value);
-      expect(repository.lastListKind, CoordinationItemKind.resolution.value);
-    });
-
-    test('returns null when no resolution targets the item', () async {
-      repository.listByBeaconResult = [
-        _item(
-          id: 'res-other',
-          kind: CoordinationItemKind.resolution,
-          targetItemId: 'ask-2',
-        ),
-      ];
-
-      final result = await case_.fetchPendingResolutionForItem(
-        beaconId: beaconId,
-        targetItemId: 'ask-1',
-      );
-
-      expect(result, isNull);
-    });
-  });
-
   group('fetchOpenBlocker', () {
     test('returns first open blocker from repository list', () async {
       final blocker = _item(id: 'block-1', kind: CoordinationItemKind.blocker);

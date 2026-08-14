@@ -25,9 +25,6 @@ _ItemHeaderTier _itemHeaderTier(CoordinationItem item) {
   if (item.kind == CoordinationItemKind.promise && item.isOpen) {
     return _ItemHeaderTier.high;
   }
-  if (item.kind == CoordinationItemKind.resolution && item.isOpen) {
-    return _ItemHeaderTier.medium;
-  }
   if (item.kind == CoordinationItemKind.ask && item.isAccepted) {
     return _ItemHeaderTier.medium;
   }
@@ -128,7 +125,6 @@ class _ItemCardState extends State<ItemCard> {
       CoordinationItemKind.plan => item.isPlanStep
           ? l10n.coordinationPlanStepCardLabel
           : l10n.coordinationPlanCardLabel,
-      CoordinationItemKind.resolution => l10n.coordinationResolutionCardLabel,
     };
 
     final menuEntries = coordinationItemCardMenuEntries(

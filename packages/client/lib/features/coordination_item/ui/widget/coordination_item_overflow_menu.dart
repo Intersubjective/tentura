@@ -15,7 +15,6 @@ import '../bloc/item_actions_cubit.dart';
 /// Menu action ids for [CoordinationItemDiscussionOverflowMenu].
 enum CoordinationItemDiscussionMenuAction {
   remind,
-  proposeResolution,
   accept,
   resolve,
   cancel,
@@ -45,16 +44,8 @@ coordinationItemDiscussionMenuEntries({
   required L10n l10n,
   required CoordinationItem item,
   required String viewerId,
-  required bool hasPendingResolution,
 }) {
   if (!item.isActive) return const [];
-  if (item.kind == CoordinationItemKind.resolution) return const [];
-
-  final canProposeResolution =
-      !hasPendingResolution &&
-      (item.kind == CoordinationItemKind.blocker ||
-          item.kind == CoordinationItemKind.ask ||
-          item.kind == CoordinationItemKind.promise);
 
   final remindLabel = item.canRemind(viewerId)
       ? l10n.remindAction(
@@ -95,12 +86,6 @@ coordinationItemDiscussionMenuEntries({
         l10n.coordinationBlockerActionCancel,
       ),
     ]);
-    if (canProposeResolution) {
-      entries.add((
-        CoordinationItemDiscussionMenuAction.proposeResolution,
-        l10n.beaconRoomActionCreateResolution,
-      ));
-    }
     return entries;
   }
 
@@ -122,12 +107,6 @@ coordinationItemDiscussionMenuEntries({
         l10n.coordinationBlockerActionCancel,
       ),
     ]);
-    if (canProposeResolution) {
-      entries.add((
-        CoordinationItemDiscussionMenuAction.proposeResolution,
-        l10n.beaconRoomActionCreateResolution,
-      ));
-    }
     return entries;
   }
 
@@ -142,12 +121,6 @@ coordinationItemDiscussionMenuEntries({
       l10n.coordinationBlockerActionCancel,
     ),
   ]);
-  if (canProposeResolution) {
-    entries.add((
-      CoordinationItemDiscussionMenuAction.proposeResolution,
-      l10n.beaconRoomActionCreateResolution,
-    ));
-  }
   return entries;
 }
 
@@ -191,21 +164,6 @@ List<(CoordinationItemCardMenuAction, String)> coordinationItemCardMenuEntries({
       entries.add((
         CoordinationItemCardMenuAction.cancel,
         l10n.coordinationBlockerActionCancel,
-      ));
-    }
-    return entries;
-  }
-  if (item.kind == CoordinationItemKind.resolution && item.isOpen) {
-    if (canAccept) {
-      entries.add((
-        CoordinationItemCardMenuAction.accept,
-        l10n.coordinationResolutionAcceptLabel,
-      ));
-    }
-    if (canReject || canCancel) {
-      entries.add((
-        CoordinationItemCardMenuAction.reject,
-        l10n.coordinationResolutionRejectLabel,
       ));
     }
     return entries;
@@ -271,24 +229,17 @@ List<(CoordinationItemCardMenuAction, String)> coordinationItemCardMenuEntries({
 class CoordinationItemDiscussionOverflowMenu extends StatelessWidget {
   const CoordinationItemDiscussionOverflowMenu({
     required this.item,
-    required this.hasPendingResolution,
     required this.isLoading,
-    required this.onProposeResolution,
     super.key,
   });
 
   final CoordinationItem item;
-  final bool hasPendingResolution;
   final bool isLoading;
-  final Future<void> Function() onProposeResolution;
 
   @override
   Widget build(BuildContext context) {
     final l10n = L10n.of(context)!;
     if (!item.isActive) return const SizedBox.shrink();
-    if (item.kind == CoordinationItemKind.resolution) {
-      return const SizedBox.shrink();
-    }
     if (isLoading) {
       return SizedBox(
         width: 48,
@@ -312,7 +263,6 @@ class CoordinationItemDiscussionOverflowMenu extends StatelessWidget {
       l10n: l10n,
       item: item,
       viewerId: viewerId,
-      hasPendingResolution: hasPendingResolution,
     );
     if (entries.isEmpty) return const SizedBox.shrink();
 
@@ -324,8 +274,6 @@ class CoordinationItemDiscussionOverflowMenu extends StatelessWidget {
         switch (action) {
           case CoordinationItemDiscussionMenuAction.remind:
             unawaited(actionsCubit.remindItem());
-          case CoordinationItemDiscussionMenuAction.proposeResolution:
-            unawaited(onProposeResolution());
           case CoordinationItemDiscussionMenuAction.accept:
             if (item.kind == CoordinationItemKind.ask) {
               unawaited(actionsCubit.acceptAsk());

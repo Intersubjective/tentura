@@ -236,32 +236,6 @@ class FakeCoordinationItemCaseForRoom implements CoordinationItemCase {
   Future<CoordinationItem?> fetchOpenBlocker(String beaconId) async => null;
 
   @override
-  Future<CoordinationItem> createResolution({
-    required String beaconId,
-    required String title,
-    String? body,
-    String? targetItemId,
-    String? targetMessageId,
-    String? linkedMessageId,
-  }) => throw UnimplementedError();
-
-  @override
-  Future<CoordinationItem> acceptResolution({required String itemId}) =>
-      throw UnimplementedError();
-
-  @override
-  Future<CoordinationItem> rejectResolution({
-    required String itemId,
-    String? reason,
-  }) => throw UnimplementedError();
-
-  @override
-  Future<CoordinationItem?> fetchPendingResolutionForItem({
-    required String beaconId,
-    required String targetItemId,
-  }) async => null;
-
-  @override
   Future<Map<String, CoordinationResponsibility>> fetchResponsibilityBatch(
     List<String> beaconIds,
   ) async => {};

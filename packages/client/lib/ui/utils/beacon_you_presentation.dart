@@ -266,7 +266,7 @@ List<BeaconYouSegmentPresentation> _buildOfferReviewSegmentPresentations(
       switch (segment) {
         BeaconYouOfferReviewSegmentKind.authorReview =>
           BeaconYouSegmentPresentation(
-            icon: coordinationKindIcon(CoordinationItemKind.resolution),
+            icon: Icons.rate_review_outlined,
             count: situationInput.authorUnreviewedHelpOfferCount,
             label: collapse
                 ? null
@@ -277,7 +277,7 @@ List<BeaconYouSegmentPresentation> _buildOfferReviewSegmentPresentations(
           ),
         BeaconYouOfferReviewSegmentKind.helperAwaitingAuthor =>
           BeaconYouSegmentPresentation(
-            icon: coordinationKindIcon(CoordinationItemKind.resolution),
+            icon: Icons.rate_review_outlined,
             count: 0,
             label: l10n.beaconYouOfferSent,
             tone: toneForOfferReviewSegment(segment),
@@ -318,7 +318,6 @@ TenturaTone? toneForCoordinationKind(CoordinationItemKind kind) =>
       CoordinationItemKind.ask => null,
       CoordinationItemKind.promise => null,
       CoordinationItemKind.blocker => TenturaTone.warn,
-      CoordinationItemKind.resolution => TenturaTone.info,
       CoordinationItemKind.plan => TenturaTone.neutral,
     };
 
@@ -334,7 +333,6 @@ String _kindLabel(L10n l10n, CoordinationItemKind kind, int count) =>
       CoordinationItemKind.ask => l10n.beaconYouAskCount(count),
       CoordinationItemKind.promise => l10n.beaconYouPromiseCount(count),
       CoordinationItemKind.blocker => l10n.beaconYouBlockerCount(count),
-      CoordinationItemKind.resolution => l10n.beaconYouReviewCount(count),
       CoordinationItemKind.plan => '',
     };
 

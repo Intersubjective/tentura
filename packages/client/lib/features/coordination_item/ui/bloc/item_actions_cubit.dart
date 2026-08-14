@@ -97,38 +97,16 @@ class ItemActionsCubit extends Cubit<ItemActionsState> {
           .where((i) => i.id == state.item.id)
           .cast<CoordinationItem?>()
           .firstOrNull;
-      final pending = await _case.fetchPendingResolutionForItem(
-        beaconId: state.item.beaconId,
-        targetItemId: state.item.id,
-      );
       if (isClosed) return;
       emit(
         state.copyWith(
           item: updated ?? state.item,
-          pendingResolution: pending,
           status: const StateIsSuccess(),
         ),
       );
     } on Object catch (e) {
       if (!isClosed) _emitSnackError(e);
     }
-  }
-
-  Future<void> promoteResolution({
-    required String title,
-    String body = '',
-  }) async {
-    await _runVoidMutation(() async {
-      final resolution = await _case.createResolution(
-        beaconId: state.item.beaconId,
-        title: title,
-        body: body,
-        targetItemId: state.item.id,
-      );
-      if (!isClosed) {
-        emit(state.copyWith(pendingResolution: resolution));
-      }
-    });
   }
 
   Future<void> resolveBlocker() async =>
@@ -157,38 +135,6 @@ class ItemActionsCubit extends Cubit<ItemActionsState> {
 
   Future<void> remindItem() async =>
       _runItemMutation(() => _case.remindItem(itemId: state.item.id));
-
-  Future<void> acceptResolution() async {
-    final resolutionId = state.pendingResolution?.id;
-    if (resolutionId == null) {
-      return;
-    }
-    if (isClosed) {
-      return;
-    }
-    emit(state.copyWith(status: const StateIsLoading()));
-    try {
-      await _case.acceptResolution(itemId: resolutionId);
-      await _refreshItem();
-    } on Object catch (e) {
-      if (!isClosed) {
-        _emitSnackError(e);
-      }
-    }
-  }
-
-  Future<void> rejectResolution() async {
-    final resolutionId = state.pendingResolution?.id;
-    if (resolutionId == null) {
-      return;
-    }
-    await _runVoidMutation(() async {
-      await _case.rejectResolution(itemId: resolutionId);
-      if (!isClosed) {
-        emit(state.copyWith(pendingResolution: null));
-      }
-    });
-  }
 
   @override
   Future<void> close() async {

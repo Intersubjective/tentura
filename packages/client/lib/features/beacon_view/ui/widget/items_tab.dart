@@ -153,10 +153,6 @@ class ItemsTab extends StatelessWidget {
         final openItems = _itemsTabVisibleItems(tabState.openItems);
         final closedItems = _itemsTabVisibleItems(tabState.closedItems);
         final myUserId = state.myProfile.id;
-        final lookupItems = _itemsTabVisibleItems([
-          ...tabState.openItems,
-          ...tabState.closedItems,
-        ]);
         final myDrafts = _myDraftItems(tabState, myUserId);
         final focusId = focusItemId?.trim();
         final hasFocus = focusId != null && focusId.isNotEmpty;
@@ -165,7 +161,6 @@ class ItemsTab extends StatelessWidget {
         final focusInDrafts = hasFocus && myDrafts.any((d) => d.id == focusId);
         final displayedOpenItems = filterActiveItemsForUser(
           openItems: openItems,
-          lookupItems: lookupItems,
           userId: myUserId,
           forMeOnly: tabState.activeForMeOnly,
           alwaysIncludeItemId: hasFocus && openItems.any((i) => i.id == focusId)
@@ -364,19 +359,9 @@ class ItemsTab extends StatelessWidget {
                                                       .read<ItemsTabCubit>()
                                                       .acceptPromise(item.id)
                                                 : null,
-                                          CoordinationItemKind.resolution =>
-                                            () => context
-                                                .read<ItemsTabCubit>()
-                                                .acceptResolution(item.id),
                                           _ => null,
                                         },
-                                        rejectAction:
-                                            item.kind ==
-                                                CoordinationItemKind.resolution
-                                            ? () => context
-                                                  .read<ItemsTabCubit>()
-                                                  .rejectResolution(item.id)
-                                            : null,
+                                        rejectAction: null,
                                         remindAction: () => context
                                             .read<ItemsTabCubit>()
                                             .remindItem(item.id),

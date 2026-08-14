@@ -293,10 +293,9 @@ class RoomMessageTile extends StatelessWidget {
         CoordinationItemKind.plan => l10n.coordinationPlanCardLabel,
         CoordinationItemKind.ask => l10n.coordinationAskCardLabel,
         CoordinationItemKind.promise => l10n.coordinationPromiseCardLabel,
-        CoordinationItemKind.blocker => l10n.coordinationBlockerCardLabel,
-        CoordinationItemKind.resolution => l10n.coordinationResolutionCardLabel,
-        null => l10n.coordinationItemCardTitle,
-      };
+      CoordinationItemKind.blocker => l10n.coordinationBlockerCardLabel,
+      null => l10n.coordinationItemCardTitle,
+    };
 
   static bool _isLinkedCoordSemantic(RoomMessage m) =>
       m.linkedItemId != null && m.linkedItemId!.trim().isNotEmpty;

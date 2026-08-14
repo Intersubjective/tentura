@@ -12,15 +12,14 @@ void main() {
       expect(r.orderedEntries, isEmpty);
     });
 
-    test('orderedEntries follow ask → promise → blocker → review', () {
+    test('orderedEntries follow ask → promise → blocker', () {
       const r = CoordinationResponsibility(
         beaconId: 'b1',
         askOpen: 2,
         promiseOpen: 1,
         blockerOpen: 3,
-        reviewOpen: 1,
         askNew: 1,
-        reviewNew: 2,
+        blockerNew: 2,
       );
       expect(
         r.orderedEntries.map((e) => e.kind).toList(),
@@ -28,7 +27,6 @@ void main() {
           CoordinationItemKind.ask,
           CoordinationItemKind.promise,
           CoordinationItemKind.blocker,
-          CoordinationItemKind.resolution,
         ],
       );
       expect(r.orderedEntries.first.newCount, 1);

@@ -3536,14 +3536,6 @@
       }
     }
   },
-  "beaconYouReviewCount": "{count, plural, one{1 review} other{{count} reviews}}",
-  "@beaconYouReviewCount": {
-    "placeholders": {
-      "count": {
-        "type": "int"
-      }
-    }
-  },
   "beaconYouNewCount": "+{count} new",
   "@beaconYouNewCount": {
     "placeholders": {
@@ -4629,14 +4621,6 @@
   "coordinationSemanticPlanSuperseded": "Plan superseded",
   "coordinationSemanticPlanStepResolved": "Plan step done",
   "beaconRoomActionUpdatePlanFromMessage": "Update plan from message…",
-  "coordinationResolutionCardLabel": "Resolution",
-  "coordinationResolutionAcceptLabel": "Accept",
-  "coordinationResolutionRejectLabel": "Reject",
-  "beaconRoomActionCreateResolution": "Propose resolution…",
-  "coordinationMarkResolutionHint": "What is resolved or proposed as done?",
-  "coordinationSemanticResolutionOpened": "Resolution proposed",
-  "coordinationSemanticResolutionResolved": "Resolution accepted",
-  "coordinationSemanticResolutionCancelled": "Resolution rejected",
   "beaconRoomPromotePinLine": "{author} marked a message · {kind}",
   "@beaconRoomPromotePinLine": {
     "description": "Compact pin-style bar when a room chat message is promoted to a coordination item (tap goes to source message).",

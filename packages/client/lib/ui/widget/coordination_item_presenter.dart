@@ -35,7 +35,6 @@ Color coordinationItemColor(
       status == CoordinationItemStatus.accepted ? tt.info : tt.warn,
     CoordinationItemKind.promise =>
       status == CoordinationItemStatus.accepted ? tt.info : tt.warn,
-    CoordinationItemKind.resolution => tt.info,
     CoordinationItemKind.plan => tt.info,
   };
 }
@@ -71,7 +70,6 @@ IconData coordinationKindIcon(
       CoordinationItemKind.promise => Icons.front_hand_outlined,
       CoordinationItemKind.plan =>
         isPlanStep ? Icons.checklist : Icons.edit_note,
-      CoordinationItemKind.resolution => Icons.handshake_outlined,
     };
 
 /// Slot 2: state-change glyph for a current status; `null` for `open`
@@ -213,15 +211,6 @@ String coordinationEventTimelineLabel(
         CoordinationItemEventKind.cancelled =>
           l10n.coordinationSemanticBlockerCancelled,
         _ => l10n.coordinationBlockerCardLabel,
-      },
-    CoordinationItemKind.resolution => switch (eventKind) {
-        CoordinationItemEventKind.created =>
-          l10n.coordinationSemanticResolutionOpened,
-        CoordinationItemEventKind.resolved =>
-          l10n.coordinationSemanticResolutionResolved,
-        CoordinationItemEventKind.cancelled =>
-          l10n.coordinationSemanticResolutionCancelled,
-        _ => l10n.coordinationResolutionCardLabel,
       },
     CoordinationItemKind.plan => switch (eventKind) {
         CoordinationItemEventKind.created ||

@@ -16,8 +16,6 @@ extension type const CoordinationResponsibilityBatchRowModel(
         promiseNew: i.promiseNew,
         blockerOpen: i.blockerOpen,
         blockerNew: i.blockerNew,
-        reviewOpen: i.reviewOpen,
-        reviewNew: i.reviewNew,
         othersOpenCount: i.othersOpenCount,
       );
 }

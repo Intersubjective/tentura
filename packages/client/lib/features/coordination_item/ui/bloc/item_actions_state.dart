@@ -8,7 +8,6 @@ abstract class ItemActionsState extends StateBase with _$ItemActionsState {
   const factory ItemActionsState({
     required CoordinationItem item,
     @Default(StateIsSuccess()) StateStatus status,
-    CoordinationItem? pendingResolution,
   }) = _ItemActionsState;
 
   const ItemActionsState._();

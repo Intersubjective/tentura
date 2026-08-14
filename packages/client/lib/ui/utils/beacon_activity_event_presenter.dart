@@ -181,28 +181,6 @@ Color _coordinationSemanticAccentColor(TenturaTokens tt, int type) {
         CoordinationItemStatus.open,
       ),
     },
-    4 => switch (ev) {
-      1 => coordinationItemColor(
-        tt,
-        CoordinationItemKind.resolution,
-        CoordinationItemStatus.open,
-      ),
-      3 => coordinationItemColor(
-        tt,
-        CoordinationItemKind.resolution,
-        CoordinationItemStatus.resolved,
-      ),
-      4 => coordinationItemColor(
-        tt,
-        CoordinationItemKind.resolution,
-        CoordinationItemStatus.cancelled,
-      ),
-      _ => coordinationItemColor(
-        tt,
-        CoordinationItemKind.resolution,
-        CoordinationItemStatus.open,
-      ),
-    },
     _ => tt.textMuted,
   };
 }
@@ -276,12 +254,6 @@ String beaconActivityEventLabel(L10n l10n, BeaconActivityEvent e) {
         3 => l10n.coordinationSemanticBlockerResolved,
         4 => l10n.coordinationSemanticBlockerCancelled,
         _ => l10n.coordinationBlockerCardLabel,
-      },
-      4 => switch (ev) {
-        1 => l10n.coordinationSemanticResolutionOpened,
-        3 => l10n.coordinationSemanticResolutionResolved,
-        4 => l10n.coordinationSemanticResolutionCancelled,
-        _ => l10n.coordinationResolutionCardLabel,
       },
       _ => l10n.beaconActivityCoordinationFallback,
     };

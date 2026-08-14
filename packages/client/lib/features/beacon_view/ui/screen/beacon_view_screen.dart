@@ -1464,14 +1464,7 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
                     ? null
                     : threadActive && showLegacyRoomSurface
                     ? [
-                        ItemDiscussionOverflowAction(
-                          onProposeResolution: () =>
-                              showItemDiscussionProposeResolutionSheet(
-                                context,
-                                context.read<ItemActionsCubit>(),
-                                l10n,
-                              ),
-                        ),
+                        const ItemDiscussionOverflowAction(),
                       ]
                     : [
                         if (showBeaconContent &&
@@ -1680,13 +1673,7 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
                     ),
             ),
             if (threadActive && !isSplit)
-              ItemDiscussionOverflowAction(
-                onProposeResolution: () => showItemDiscussionProposeResolutionSheet(
-                  context,
-                  context.read<ItemActionsCubit>(),
-                  l10n,
-                ),
-              )
+              const ItemDiscussionOverflowAction()
             else ...[
               if (showBeaconContent &&
                   !showInitialLoading &&

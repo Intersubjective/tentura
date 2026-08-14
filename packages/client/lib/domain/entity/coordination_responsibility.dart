@@ -29,19 +29,16 @@ abstract class CoordinationResponsibility with _$CoordinationResponsibility {
     @Default(0) int promiseNew,
     @Default(0) int blockerOpen,
     @Default(0) int blockerNew,
-    @Default(0) int reviewOpen,
-    @Default(0) int reviewNew,
     @Default(0) int othersOpenCount,
   }) = _CoordinationResponsibility;
 
   const CoordinationResponsibility._();
 
-  bool get hasAny =>
-      askOpen + promiseOpen + blockerOpen + reviewOpen > 0;
+  bool get hasAny => askOpen + promiseOpen + blockerOpen > 0;
 
-  int get totalNew => askNew + promiseNew + blockerNew + reviewNew;
+  int get totalNew => askNew + promiseNew + blockerNew;
 
-  /// Fixed display order: asks, promises, blockers, reviews.
+  /// Fixed display order: asks, promises, blockers.
   List<CoordinationResponsibilityKindCounts> get orderedEntries {
     final out = <CoordinationResponsibilityKindCounts>[];
     if (askOpen > 0) {
@@ -65,13 +62,6 @@ abstract class CoordinationResponsibility with _$CoordinationResponsibility {
         newCount: blockerNew,
       ));
     }
-    if (reviewOpen > 0) {
-      out.add(CoordinationResponsibilityKindCounts(
-        kind: CoordinationItemKind.resolution,
-        open: reviewOpen,
-        newCount: reviewNew,
-      ));
-    }
     return out;
   }
 
@@ -79,6 +69,5 @@ abstract class CoordinationResponsibility with _$CoordinationResponsibility {
         askNew: 0,
         promiseNew: 0,
         blockerNew: 0,
-        reviewNew: 0,
       );
 }

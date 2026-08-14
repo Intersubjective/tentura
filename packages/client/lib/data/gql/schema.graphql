@@ -3355,7 +3355,6 @@ type mutation_root {
   acceptAsk(itemId: String!): v2_CoordinationItemRow!
   acceptHelpOffer(id: String!, offerUserId: String!): v2_BeaconStatusResult!
   acceptPromise(itemId: String!): v2_CoordinationItemRow!
-  acceptResolution(itemId: String!): v2_CoordinationItemRow!
   addPlanStep(body: String, parentItemId: String!, title: String!): v2_CoordinationItemRow!
   attentionMarkAllSeen: Int!
   attentionMarkSeen(ids: [String!]): Int!
@@ -3395,7 +3394,6 @@ type mutation_root {
   createDraftBlocker(beaconId: String!, body: String, staleAfterDays: Int, targetPersonId: String, title: String!): v2_CoordinationItemRow!
   createDraftPromise(beaconId: String!, body: String, linkedMessageId: String, staleAfterDays: Int, targetPersonId: String, title: String!): v2_CoordinationItemRow!
   createPromise(beaconId: String!, body: String, linkedMessageId: String, staleAfterDays: Int, targetPersonId: String!, title: String!): v2_CoordinationItemRow!
-  createResolution(beaconId: String!, body: String, linkedMessageId: String, targetItemId: String, targetMessageId: String, title: String!): v2_CoordinationItemRow!
   declineHelpOffer(id: String!, offerUserId: String!, reason: String!): v2_BeaconStatusResult!
   deleteDraftAsk(itemId: String!): Boolean!
   deleteDraftBlocker(itemId: String!): Boolean!
@@ -3597,7 +3595,6 @@ type mutation_root {
   publishPromise(itemId: String!, staleAfterDays: Int, targetPersonId: String!): v2_CoordinationItemRow!
   redirectAsk(itemId: String!, newTargetPersonId: String!): v2_CoordinationItemRow!
   redirectPromise(itemId: String!, newTargetPersonId: String!): v2_CoordinationItemRow!
-  rejectResolution(itemId: String!, reason: String): v2_CoordinationItemRow!
   releaseCommitment(id: String!, offerUserId: String!, reason: String!): v2_BeaconStatusResult!
   remindCoordinationItem(itemId: String!): v2_CoordinationItemRow!
   removeFromRoom(id: String!, offerUserId: String!, reason: String!): v2_BeaconStatusResult!
@@ -7047,8 +7044,7 @@ type v2_CoordinationResponsibilityBatchRow {
   othersOpenCount: Int!
   promiseNew: Int!
   promiseOpen: Int!
-  reviewNew: Int!
-  reviewOpen: Int!
+  othersOpenCount: Int!
 }
 
 """An ISO-8601 Date."""

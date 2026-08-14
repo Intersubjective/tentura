@@ -7,8 +7,6 @@ query CoordinationResponsibilityBatch($beaconIds: [String!]!) {
     promiseNew
     blockerOpen
     blockerNew
-    reviewOpen
-    reviewNew
     othersOpenCount
   }
 }

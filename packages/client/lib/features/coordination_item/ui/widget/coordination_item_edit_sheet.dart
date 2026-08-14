@@ -14,7 +14,6 @@ String _editSheetTitle(L10n l10n, CoordinationItem item) => switch (item.kind) {
     item.isPlanStep
         ? l10n.coordinationPlanStepCardLabel
         : l10n.coordinationPlanCardLabel,
-  CoordinationItemKind.resolution => l10n.coordinationResolutionCardLabel,
 };
 
 /// In-place edit for a published coordination item (open or accepted).

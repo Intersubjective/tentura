@@ -71,13 +71,7 @@ class ItemDiscussionScreen extends StatelessWidget implements AutoRouteWrapper {
           fallback: l10n.coordinationItemDiscussionTitle,
         ),
         actions: [
-          ItemDiscussionOverflowAction(
-            onProposeResolution: () => showItemDiscussionProposeResolutionSheet(
-              context,
-              context.read<ItemActionsCubit>(),
-              l10n,
-            ),
-          ),
+          const ItemDiscussionOverflowAction(),
         ],
       ),
       body: const ItemDiscussionPane(),
