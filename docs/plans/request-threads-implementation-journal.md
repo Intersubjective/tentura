@@ -54,7 +54,7 @@ None of the above overlap any UNIT 01–14 file list except the noted `docs/READ
 | 03 | Server `beaconThreads` query + preview contract | accepted | 3e261f62d, 633bd3af2, fb699a834, 675d2a019, c175728e0, 5c9587abc |
 | 04 | `markThreadSeen` + persisted-watermark fix | accepted | 4f212fbe4, 6092a70f1, 7bf09b117, a596ebb53, fc0456e69, cfee6c9bc, 557ebbe3b |
 | 05 | Client thread contract/mapping/repo/case (unused) | accepted (+1 manager fix) | 686d307c7, 6c7731926, ed9278341, 0fe1dd2f9, ed67aa65c, 8313eac9e, ce03b2c6a |
-| 06 | Thread-keyed watermark store + client `markThreadSeen` | pending | |
+| 06 | Thread-keyed watermark store + client `markThreadSeen` | accepted | 81824ba22, 36a99f6ac, 3abef3470, 37ccd5a42, 19bb6c2a4, 52d57d49c, 22ec62ac3 |
 | 07 | Extract ticker, move `ItemCard` (no behavior change) | pending | |
 | 08 | `ThreadsCubit` latest-wins state | pending | |
 | 09 | Boxed Threads list + evolved `ItemCard` (unused) | pending | |
@@ -257,3 +257,27 @@ None yet.
   cross-package drift introduced by an earlier unit and only surfaced once a later unit changes the
   other side of a duplicated invariant — running the full suite (both packages) at least once per
   accepted unit going forward, not only the unit's own listed verify commands.
+
+- 2026-08-14 — UNIT 06 (session 1): `81824ba22` thread-keyed `RoomReadWatermarkStore`
+  (`RoomReadWatermarkKey`, `threadChanges`, General-only legacy `changes` projection).
+
+- 2026-08-14 — UNIT 06 (session 2): `36a99f6ac` case watermark wrappers forward `threadId`;
+  `RoomCubit._advanceReadAnchorToLatestLoaded` no longer gates `observeReadThrough` to General.
+
+- 2026-08-14 — UNIT 06 (session 3): `3abef3470` added `mark_thread_seen.graphql`, removed legacy
+  client seen mutations from schema/docs, registered `MarkThreadSeen` in V2 direct routing; codegen run.
+
+- 2026-08-14 — UNIT 06 (session 3): `37ccd5a42` repository unified on `markThreadSeen`; `19bb6c2a4`
+  case derives `threadId` and confirms keyed watermark from persisted `seenAt`; `52d57d49c` client
+  `6.0.1` + web cache-buster.
+
+- 2026-08-14 — UNIT 06 (session 3): `22ec62ac3` extended watermark store, case, and room cubit
+  unread tests for per-thread isolation, semantic optimistic observation, persisted-response
+  confirmation, stale-response non-regression, and General `threadItemId: null` boundary.
+
+- 2026-08-14 — **UNIT 06 complete.** Verify: scoped tests (49 passed),
+  `./scripts/check-custom-lints.sh packages/client` (106/106), forbidden legacy-mutation `rg` empty,
+  `MarkThreadSeen` present, `pubspec.yaml`/`index.html` at `6.0.1`, full `flutter test` (2241 passed,
+  18 skipped). `room_cubit.dart:65` `threadItemId == null` is the legitimate General-only item-sync
+  subscription — not an `observeReadThrough` guard. `kDefaultMinClientVersion` unchanged. Ready for
+  UNIT 07.
