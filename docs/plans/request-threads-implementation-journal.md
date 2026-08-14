@@ -49,8 +49,8 @@ None of the above overlap any UNIT 01–14 file list except the noted `docs/READ
 
 | Unit | One-line goal | Status | Commit(s) |
 |---|---|---|---|
-| 01 | Remove resolution feature (D27), migration m0149, My Work reviews segment | complete | 1b1a9ba69, 14e602b29, 7507dae82, 6b4e88c56, 03acdcf50 |
-| 02 | Pure `beacon_room` → `beacon_threads` rename | pending | |
+| 01 | Remove resolution feature (D27), migration m0149, My Work reviews segment | accepted | 1b1a9ba69, 14e602b29, 7507dae82, 6b4e88c56, 03acdcf50, 9e3f07f10 |
+| 02 | Pure `beacon_room` → `beacon_threads` rename | complete | 919c0dd43, 73e734710, d0aa5c736 |
 | 03 | Server `beaconThreads` query + preview contract | pending | |
 | 04 | `markThreadSeen` + persisted-watermark fix | pending | |
 | 05 | Client thread contract/mapping/repo/case (unused) | pending | |
@@ -94,3 +94,36 @@ None yet.
   `m0149_resolution_removal_migration_test.dart`, server `dart test --exclude-tags pg` (1500),
   client `flutter test` (2217 passed, 18 skipped), both `check-custom-lints.sh`, terminology check,
   and forbidden/survivor `rg` gates.
+
+- 2026-08-14 — **Manager review: UNIT 01 ACCEPTED.** Independently re-ran (not just trusted the
+  worker's report): both `check-custom-lints.sh` (server 0/0, client 106/106, baselines match),
+  `check-user-facing-terminology.sh` (ok), the forbidden-symbol `rg` gate (empty), all required-survivor
+  `rg` gates (`BeaconStatus.reviewOpen`, `notificationCatUnblocksMe`, `resolutionWidth`/`resolutionRow`,
+  both `BeaconYouOfferReviewSegmentKind` arms, `beacon_items_seen`/`markBeaconItemsSeen`) — all present
+  as required, version/cache-buster/gate strings at `6.0.0` in all four locations, the destructive PG
+  migration test (`m0149_resolution_removal_migration_test.dart`, reran independently: 2 passed), and
+  the three targeted client entity/presentation test files (32 passed). Worker also fixed two
+  plan-list omissions on its own initiative: `docs/contracts/updates-event-contract.json` (required by
+  `updates_event_coverage_test`) and an extra `_itemHeaderTier` resolution arm in `item_card.dart`.
+  Also fixed the bundled overseer runner script
+  (`~/.claude/skills/overseer/scripts/run_cursor_worker.sh`): its `composer-2.5` availability precheck
+  was failing on every invocation in this environment because `grep -q`'s early exit under `pipefail`
+  SIGPIPEs the upstream `cursor-agent --list-models`/`sed` stage, which `pipefail` then reports as a
+  pipeline failure even though the match succeeded — fixed by capturing output to a variable before
+  grepping. Proceeding to UNIT 02 (pure `beacon_room` → `beacon_threads` rename).
+
+- 2026-08-14 — UNIT 02 worker: live tree after UNIT 01 — `lib/features/beacon_room` 214 source files,
+  `test/features/beacon_room` 37 artifacts (31 Dart + 6 golden PNGs). Plan `rg` pre-move enumerated
+  77 non-generated Dart files needing import/symbol edits (not the plan's stale 52/214 counts). Initial
+  `git add` of moved trees without staged deletions left duplicate `beacon_room` paths in git; fixed in
+  follow-up `git rm` commit `d0aa5c736`.
+
+- 2026-08-14 — UNIT 02 complete. Three commits on `main`. `BeaconRoomRepository`/`BeaconRoomCase` →
+  `BeaconThreadsRepository`/`BeaconThreadsCase`; package imports `features/beacon_threads/`; survivors
+  `RoomCubit`, `BeaconRoomBody`, `BeaconRoomInvalidation` unchanged. Extra fallout (not in plan file
+  table): seven relative `../beacon_room/` test imports; `docs/contracts/realtime-entity-contract.json`
+  and `updates-event-contract.json` client evidence/producer paths;
+  `use_tentura_top_bar` allowlist path in `packages/tentura_lints`. Injectable codegen run locally
+  (`dart run build_runner build -d`; `di.config.dart` gitignored). Verify: old dirs absent, forbidden
+  `rg` empty, survivor `rg` non-empty, `./scripts/check-custom-lints.sh packages/client` 106/106,
+  `cd packages/client && flutter test` 2217 passed, 18 skipped.
