@@ -60,26 +60,23 @@ class _CoordinationItemEditSheetBody extends StatefulWidget {
 class _CoordinationItemEditSheetBodyState
     extends State<_CoordinationItemEditSheetBody> {
   late final TextEditingController _titleController;
-  late final TextEditingController _bodyController;
+  late final String _initialTitle;
   var _submitting = false;
 
   @override
   void initState() {
     super.initState();
+    _initialTitle = widget.item.title.trim();
     _titleController = TextEditingController(text: widget.item.title);
-    _bodyController = TextEditingController(text: widget.item.body);
   }
 
   @override
   void dispose() {
     _titleController.dispose();
-    _bodyController.dispose();
     super.dispose();
   }
 
-  bool get _isDirty =>
-      _titleController.text.trim() != widget.item.title.trim() ||
-      _bodyController.text.trim() != widget.item.body.trim();
+  bool get _isDirty => _titleController.text.trim() != _initialTitle;
 
   @override
   Widget build(BuildContext context) {
@@ -108,19 +105,12 @@ class _CoordinationItemEditSheetBodyState
           TextField(
             controller: _titleController,
             onChanged: (_) => setState(() {}),
-            maxLines: 2,
-            minLines: 1,
-            textInputAction: TextInputAction.next,
-            enabled: !_submitting,
-            autofocus: true,
-          ),
-          SizedBox(height: tt.rowGap),
-          TextField(
-            controller: _bodyController,
-            onChanged: (_) => setState(() {}),
             maxLines: 6,
             minLines: 3,
+            decoration: InputDecoration(labelText: widget.l10n.labelTitle),
+            textInputAction: TextInputAction.newline,
             enabled: !_submitting,
+            autofocus: true,
           ),
           SizedBox(height: tt.sectionGap),
           FilledButton(
@@ -132,7 +122,7 @@ class _CoordinationItemEditSheetBodyState
                       await widget.coordinationCase.updateItem(
                         itemId: widget.item.id,
                         title: _titleController.text.trim(),
-                        body: _bodyController.text.trim(),
+                        body: '',
                       );
                       if (context.mounted) {
                         Navigator.of(context).pop(true);

@@ -40,12 +40,10 @@ final class CreatePromiseCase extends UseCaseBase {
     String? linkedMessageId,
     int? staleAfterDays,
   }) async {
-    if (body.trim().isEmpty) {
-      throw const BeaconCreateException(
-        description: 'Promise body is required',
-      );
-    }
     final trimmed = title.trim();
+    if (trimmed.isEmpty) {
+      throw const BeaconCreateException(description: 'Promise title is required');
+    }
     final target = targetPersonId.trim();
     if (target.isEmpty) {
       throw const BeaconCreateException(
@@ -74,7 +72,7 @@ final class CreatePromiseCase extends UseCaseBase {
           kind: coordinationItemKindPromise,
           creatorId: userId,
           title: trimmed,
-          body: body.trim(),
+          body: '',
           targetPersonId: target,
           linkedMessageId: linkedMessageId,
           staleAfterDays: staleAfterDays,
@@ -83,7 +81,7 @@ final class CreatePromiseCase extends UseCaseBase {
           await _attentionIntents!.promiseChanged(
             beaconId: beaconId,
             actorUserId: userId,
-            excerpt: trimmed.isNotEmpty ? trimmed : body.trim(),
+            excerpt: trimmed,
             targetPersonId: target,
             coordinationItemId: item.id,
             beaconTitle: beacon.title,

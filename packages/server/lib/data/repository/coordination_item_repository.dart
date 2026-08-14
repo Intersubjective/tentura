@@ -1165,13 +1165,8 @@ ORDER BY (tb.thread_id = 'general') DESC,
   static String roomBodyForCreatedItem({
     required String title,
     String body = '',
-  }) {
-    final t = title.trim();
-    final b = body.trim();
-    if (t.isEmpty) return b;
-    if (b.isEmpty) return t;
-    return '$t\n$b';
-  }
+  }) =>
+      title.trim();
 
   /// Standalone room row body: root plans use an empty body so the client
   /// renders a plan-announce bar (title comes from linked item snapshot).

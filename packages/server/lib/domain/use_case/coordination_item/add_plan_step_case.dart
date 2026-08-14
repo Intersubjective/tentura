@@ -48,7 +48,7 @@ final class AddPlanStepCase extends UseCaseBase {
           parentItemId: parentItemId,
           creatorId: userId,
           title: trimmed,
-          body: body.trim(),
+          body: '',
         );
         await transaction.record(
           await _attentionIntents!.coordinationChanged(

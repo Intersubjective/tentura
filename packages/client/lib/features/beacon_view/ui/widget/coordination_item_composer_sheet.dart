@@ -149,9 +149,7 @@ class _CoordinationItemComposerBody extends StatefulWidget {
 class _CoordinationItemComposerBodyState
     extends State<_CoordinationItemComposerBody> {
   late final TextEditingController _titleController;
-  late final TextEditingController _bodyController;
   late final String _initialTitle;
-  late final String _initialBody;
   String? _selectedTargetId;
   late int _selectedStaleDays;
   bool _submitting = false;
@@ -163,9 +161,6 @@ class _CoordinationItemComposerBodyState
 
   String? get _messagePreview => widget.seed?.messagePreview;
 
-  bool get _isAskOrPromise =>
-      widget.kind == CoordinationItemKind.ask ||
-      widget.kind == CoordinationItemKind.promise;
 
   bool get _needsTargetPicker =>
       widget.kind == CoordinationItemKind.ask ||
@@ -219,9 +214,7 @@ class _CoordinationItemComposerBodyState
     _participantsSub = widget.participantsUpdates.listen(_onParticipantsUpdated);
     final seed = widget.seed;
     _initialTitle = (seed?.initialTitle ?? '').trim();
-    _initialBody = (seed?.initialBody ?? '').trim();
     _titleController = TextEditingController(text: seed?.initialTitle ?? '');
-    _bodyController = TextEditingController(text: seed?.initialBody ?? '');
     final existingTarget = widget.existingDraft?.targetPersonId?.trim();
     if (existingTarget != null && existingTarget.isNotEmpty) {
       _selectedTargetId = _isValidTarget(existingTarget)
@@ -262,14 +255,11 @@ class _CoordinationItemComposerBodyState
   void dispose() {
     unawaited(_participantsSub?.cancel());
     _titleController.dispose();
-    _bodyController.dispose();
     super.dispose();
   }
 
   bool get _isDirty =>
-      !_submitting &&
-      (_titleController.text.trim() != _initialTitle ||
-          _bodyController.text.trim() != _initialBody);
+      !_submitting && _titleController.text.trim() != _initialTitle;
 
   Future<void> _requestClose() => TenturaSheetDismissGuard.requestClose(
     context,
@@ -277,18 +267,8 @@ class _CoordinationItemComposerBodyState
     useRootNavigator: widget.useRootNavigator,
   );
 
-  bool get _canSubmitContent {
-    if (_submitting) return false;
-    if (_isAskOrPromise) {
-      return AskComposerFields.canSubmit(_bodyController, false);
-    }
-    final title = _titleController.text.trim();
-    if (title.isNotEmpty) return true;
-    return _linkedMessageId != null && _bodyController.text.trim().isNotEmpty;
-  }
-
-  String _effectiveTitle(String title, String body) =>
-      title.isNotEmpty ? title : body;
+  bool get _canSubmitContent =>
+      AskComposerFields.canSubmit(_titleController, _submitting);
 
   Future<void> _onSubmit() async {
     if (!_canSubmitContent) return;
@@ -307,8 +287,7 @@ class _CoordinationItemComposerBodyState
   }
 
   Future<void> _persist() async {
-    final body = _bodyController.text.trim();
-    final title = _effectiveTitle(_titleController.text.trim(), body);
+    final title = _titleController.text.trim();
     final target = _willPublish ? _selectedTargetId : null;
     final existing = widget.existingDraft;
     final c = widget.coordinationCase;
@@ -321,7 +300,7 @@ class _CoordinationItemComposerBodyState
             beaconId: widget.beaconId,
             title: title,
             targetPersonId: target!,
-            body: body,
+            body: '',
             linkedMessageId: _linkedMessageId,
             staleAfterDays: staleDays,
           );
@@ -329,7 +308,7 @@ class _CoordinationItemComposerBodyState
           await c.createDraftAsk(
             beaconId: widget.beaconId,
             title: title,
-            body: body,
+            body: '',
             linkedMessageId: _linkedMessageId,
             targetPersonId: target,
             staleAfterDays: staleDays,
@@ -338,7 +317,7 @@ class _CoordinationItemComposerBodyState
           await c.updateDraftAsk(
             itemId: existing.id,
             title: title,
-            body: body,
+            body: '',
             targetPersonId: target,
             omitTargetPersonId: !_willPublish,
             staleAfterDays: staleDays,
@@ -357,7 +336,7 @@ class _CoordinationItemComposerBodyState
             beaconId: widget.beaconId,
             title: title,
             targetPersonId: target!,
-            body: body,
+            body: '',
             linkedMessageId: _linkedMessageId,
             staleAfterDays: staleDays,
           );
@@ -365,7 +344,7 @@ class _CoordinationItemComposerBodyState
           await c.createDraftPromise(
             beaconId: widget.beaconId,
             title: title,
-            body: body,
+            body: '',
             linkedMessageId: _linkedMessageId,
             targetPersonId: target,
             staleAfterDays: staleDays,
@@ -374,7 +353,7 @@ class _CoordinationItemComposerBodyState
           await c.updateDraftPromise(
             itemId: existing.id,
             title: title,
-            body: body,
+            body: '',
             targetPersonId: target,
             omitTargetPersonId: !_willPublish,
             staleAfterDays: staleDays,
@@ -392,7 +371,7 @@ class _CoordinationItemComposerBodyState
           await c.markBlocker(
             beaconId: widget.beaconId,
             title: title,
-            body: body.isEmpty ? null : body,
+            body: null,
             targetPersonId: target,
             linkedMessageId: _linkedMessageId,
             staleAfterDays: staleDays,
@@ -401,7 +380,7 @@ class _CoordinationItemComposerBodyState
           await c.createDraftBlocker(
             beaconId: widget.beaconId,
             title: title,
-            body: body.isEmpty ? null : body,
+            body: null,
             targetPersonId: target,
             staleAfterDays: staleDays,
           );
@@ -409,7 +388,7 @@ class _CoordinationItemComposerBodyState
           await c.updateDraftBlocker(
             itemId: existing.id,
             title: title,
-            body: body,
+            body: '',
             targetPersonId: target,
             omitTargetPersonId: !_willPublish,
             staleAfterDays: staleDays,
@@ -458,37 +437,13 @@ class _CoordinationItemComposerBodyState
                 style: Theme.of(context).textTheme.titleMedium,
               ),
               SizedBox(height: tt.rowGap),
-              if (_isAskOrPromise)
-                AskComposerFields(
-                  l10n: l10n,
-                  titleController: _titleController,
-                  bodyController: _bodyController,
-                  submitting: _submitting,
-                  messagePreview: _messagePreview,
-                  onChanged: () => setState(() {}),
-                )
-              else ...[
-                TextField(
-                  key: TestIds.key(TestIds.coordinationComposerTitle),
-                  controller: _titleController,
-                  onChanged: (_) => setState(() {}),
-                  maxLines: 2,
-                  minLines: 1,
-                  decoration: InputDecoration(labelText: l10n.labelTitle),
-                  textInputAction: TextInputAction.next,
-                  enabled: !_submitting,
-                ),
-                SizedBox(height: tt.rowGap),
-                TextField(
-                  key: TestIds.key(TestIds.coordinationComposerBody),
-                  controller: _bodyController,
-                  onChanged: (_) => setState(() {}),
-                  maxLines: 4,
-                  minLines: 2,
-                  decoration: InputDecoration(labelText: l10n.labelBody),
-                  enabled: !_submitting,
-                ),
-              ],
+              AskComposerFields(
+                l10n: l10n,
+                titleController: _titleController,
+                submitting: _submitting,
+                messagePreview: _messagePreview,
+                onChanged: () => setState(() {}),
+              ),
               if (_needsTargetPicker) ...[
                 SizedBox(height: tt.rowGap),
                 Text(

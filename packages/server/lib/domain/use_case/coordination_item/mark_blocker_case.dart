@@ -57,7 +57,7 @@ final class MarkBlockerCase extends UseCaseBase {
           kind: coordinationItemKindBlocker,
           creatorId: userId,
           title: trimmed,
-          body: body.trim(),
+          body: '',
           targetPersonId: targetPersonId,
           linkedMessageId: linkedMessageId,
           staleAfterDays: staleAfterDays,

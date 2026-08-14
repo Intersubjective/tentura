@@ -23,6 +23,7 @@ import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_state.dart';
 import 'package:tentura/ui/bloc/state_base.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/test_ids.dart';
+import 'package:tentura/ui/widget/beacon_involved_people_face_pile.dart';
 
 import 'fake_coordination_item_case.dart';
 
@@ -92,7 +93,7 @@ CoordinationItem _item({
   String creatorId = _kAuthorId,
   String? targetPersonId = _kOtherId,
   int unreadCount = 0,
-  String body = 'Item body',
+  String title = 'Item body',
 }) =>
     CoordinationItem(
       id: id,
@@ -104,7 +105,7 @@ CoordinationItem _item({
       updatedAt: _kNow,
       published: published,
       targetPersonId: targetPersonId,
-      body: body,
+      title: title,
       unreadCount: unreadCount,
     );
 
@@ -168,6 +169,7 @@ Widget _wrapThreadsList({
   required ThreadsCubit threadsCubit,
   required BeaconViewState beaconState,
   required void Function(RequestThread thread) onOpenThread,
+  VoidCallback? onSwitchToPeopleTab,
   Size size = const Size(400, 900),
 }) {
   return MaterialApp(
@@ -188,6 +190,7 @@ Widget _wrapThreadsList({
           child: ThreadsList(
             beaconState: beaconState,
             onOpenThread: onOpenThread,
+            onSwitchToPeopleTab: onSwitchToPeopleTab,
           ),
         ),
       ),
@@ -228,17 +231,52 @@ void main() {
     expect(opened.single.isGeneral, isTrue);
   });
 
+  testWidgets('General face pile tap does not open thread', (tester) async {
+    final threadsState = ThreadsState(
+      threads: [_generalThread()],
+      myUserId: _kMyId,
+      status: const StateIsSuccess(),
+    );
+    final opened = <RequestThread>[];
+    var peopleTabTaps = 0;
+    final beaconState = _beaconViewState().copyWith(
+      helpOffers: [
+        TimelineHelpOffer(
+          user: const Profile(id: _kOtherId, displayName: 'Helper'),
+          message: 'help',
+          createdAt: _kNow,
+          updatedAt: _kNow,
+        ),
+      ],
+    );
+    await tester.pumpWidget(
+      _wrapThreadsList(
+        threadsCubit: _MockThreadsCubit(threadsState),
+        beaconState: beaconState,
+        onOpenThread: opened.add,
+        onSwitchToPeopleTab: () => peopleTabTaps++,
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byType(BeaconInvolvedPeopleFacePile), findsOneWidget);
+    await tester.tap(find.byType(BeaconInvolvedPeopleFacePile));
+    await tester.pumpAndSettle();
+    expect(peopleTabTaps, 1);
+    expect(opened, isEmpty);
+  });
+
   testWidgets('groups active, closed, and drafts in order', (tester) async {
-    final active = _item(id: 'active-1', body: 'Active unique body');
+    final active = _item(id: 'active-1', title: 'Active unique body');
     final closed = _item(
       id: 'closed-1',
       status: CoordinationItemStatus.resolved,
-      body: 'Closed unique body',
+      title: 'Closed unique body',
     );
     final draft = _item(
       id: 'draft-1',
       published: false,
-      body: 'Draft unique body',
+      title: 'Draft unique body',
     );
     final threadsState = ThreadsState(
       threads: [
@@ -325,7 +363,7 @@ void main() {
     final draft = _item(
       id: 'draft-tap',
       published: false,
-      body: 'Draft tap body',
+      title: 'Draft tap body',
     );
     final threadsState = ThreadsState(
       threads: [_generalThread(), _semanticThread(item: draft)],
@@ -426,13 +464,13 @@ void main() {
       id: 'mine',
       creatorId: _kMyId,
       targetPersonId: _kOtherId,
-      body: 'Mine body',
+      title: 'Mine body',
     );
     final other = _item(
       id: 'other',
       creatorId: _kOtherId,
       targetPersonId: 'third',
-      body: 'Other body',
+      title: 'Other body',
     );
     final threadsState = ThreadsState(
       threads: [

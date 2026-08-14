@@ -141,14 +141,13 @@ void main() {
     expect(items.lastKind, null);
   });
 
-  test('rejects empty body', () async {
+  test('rejects empty title', () async {
     await expectLater(
       () => sut.call(
         userId: creatorId,
         beaconId: beaconId,
-        title: 't',
+        title: '  ',
         targetPersonId: targetId,
-        body: '  ',
       ),
       throwsA(isA<BeaconCreateException>()),
     );

@@ -207,7 +207,7 @@ void main() {
       await tester.pump(const Duration(milliseconds: 100));
 
       expect(
-        find.byKey(TestIds.key(TestIds.coordinationComposerBody)),
+        find.byKey(TestIds.key(TestIds.coordinationComposerTitle)),
         findsOneWidget,
       );
       expect(find.byType(DropdownButtonFormField<String?>), findsNothing);
@@ -222,7 +222,7 @@ void main() {
       expect(find.text('Helper Name'), findsWidgets);
 
       await tester.enterText(
-        find.byKey(TestIds.key(TestIds.coordinationComposerBody)),
+        find.byKey(TestIds.key(TestIds.coordinationComposerTitle)),
         'I will ship it',
       );
       await tester.pump();

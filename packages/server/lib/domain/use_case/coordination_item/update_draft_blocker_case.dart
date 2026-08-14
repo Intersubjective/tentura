@@ -57,7 +57,7 @@ final class UpdateDraftBlockerCase extends UseCaseBase {
       id: itemId,
       actorId: userId,
       title: trimmed,
-      body: body.trim(),
+      body: '',
       updateTargetPersonId: updateTargetPersonId,
       targetPersonId: targetPersonId,
       updateStaleAfterDays: updateStaleAfterDays,

@@ -548,24 +548,18 @@ Future<RequestThread> createCoordinationItem(
   WidgetTester tester, {
   required String launcherId,
   required String title,
-  required String body,
+  String? body,
 }) async {
   await enterThreadsIfNeeded(tester);
   await tapAndSettle(tester, find.byKey(TestIds.key(launcherId)));
   await pumpUntilVisible(
     tester,
-    find.byKey(TestIds.key(TestIds.coordinationComposerBody)),
+    find.byKey(TestIds.key(TestIds.coordinationComposerTitle)),
   );
 
-  final titleFinder = find.byKey(
-    TestIds.key(TestIds.coordinationComposerTitle),
-  );
-  if (titleFinder.evaluate().isNotEmpty) {
-    await tester.enterText(titleFinder, title);
-  }
   await tester.enterText(
-    find.byKey(TestIds.key(TestIds.coordinationComposerBody)),
-    body,
+    find.byKey(TestIds.key(TestIds.coordinationComposerTitle)),
+    title,
   );
   await tapAndSettle(
     tester,

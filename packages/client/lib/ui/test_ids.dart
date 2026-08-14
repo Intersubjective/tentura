@@ -49,7 +49,6 @@ abstract final class TestIds {
   static const coordinationPromiseCreate = 'coordination.promise.create';
   static const coordinationBlockerCreate = 'coordination.blocker.create';
   static const coordinationComposerTitle = 'coordination.composer.title';
-  static const coordinationComposerBody = 'coordination.composer.body';
   static const coordinationComposerSubmit = 'coordination.composer.submit';
 
   static String coordinationItemMenu(String itemId) =>

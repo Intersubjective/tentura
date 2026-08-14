@@ -83,9 +83,7 @@ final class RemindCoordinationItemCase extends UseCaseBase {
           );
         }
 
-        final excerpt = claimed.title.trim().isNotEmpty
-            ? claimed.title.trim()
-            : claimed.body.trim();
+        final excerpt = claimed.title.trim();
         await transaction.record(
           await _attentionIntents!.staleReminder(
             beaconId: claimed.beaconId,

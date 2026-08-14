@@ -128,15 +128,14 @@ class RoomCubitFactoryRecorder {
   }
 }
 
-CoordinationItem _item(String id, {String body = 'Ask body preview'}) =>
+CoordinationItem _item(String id, {String title = 'Ask title preview'}) =>
     CoordinationItem(
       id: id,
       beaconId: _kBeaconId,
       kind: CoordinationItemKind.ask,
       status: CoordinationItemStatus.open,
       creatorId: 'creator',
-      title: 'Ask title',
-      body: body,
+      title: title,
       createdAt: DateTime.utc(2026, 1, 1),
       updatedAt: DateTime.utc(2026, 1, 2),
       published: true,
@@ -384,7 +383,7 @@ void main() {
       await tester.pump(const Duration(milliseconds: 50));
 
       expect(find.byType(ExpansionTile), findsOneWidget);
-      expect(find.textContaining('Ask body preview'), findsWidgets);
+      expect(find.textContaining('Ask title preview'), findsWidgets);
     });
   });
 

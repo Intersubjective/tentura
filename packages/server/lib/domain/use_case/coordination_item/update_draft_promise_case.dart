@@ -30,10 +30,10 @@ final class UpdateDraftPromiseCase extends UseCaseBase {
     bool updateStaleAfterDays = false,
     int? staleAfterDays,
   }) async {
-    if (body.trim().isEmpty) {
-      throw const BeaconCreateException(description: 'Promise body is required');
-    }
     final trimmed = title.trim();
+    if (trimmed.isEmpty) {
+      throw const BeaconCreateException(description: 'Promise title is required');
+    }
     final existing = await _itemRepository.getById(itemId);
     if (existing == null) {
       throw const BeaconCreateException(description: 'Promise not found');
@@ -63,7 +63,7 @@ final class UpdateDraftPromiseCase extends UseCaseBase {
       id: itemId,
       actorId: userId,
       title: trimmed,
-      body: body.trim(),
+      body: '',
       updateTargetPersonId: updateTargetPersonId,
       targetPersonId: targetPersonId,
       updateStaleAfterDays: updateStaleAfterDays,

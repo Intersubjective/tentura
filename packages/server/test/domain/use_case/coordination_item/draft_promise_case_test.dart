@@ -255,13 +255,12 @@ void main() {
       );
     });
 
-    test('empty body rejected', () async {
+    test('empty title rejected', () async {
       expect(
         () => sut.call(
           userId: ownerId,
           beaconId: beaconId,
-          title: 'Will deliver',
-          body: '  ',
+          title: '  ',
         ),
         throwsA(isA<BeaconCreateException>()),
       );
@@ -398,25 +397,23 @@ void main() {
       );
     });
 
-    test('creator can update title and body', () async {
+    test('creator can update title', () async {
       final out = await sut.call(
         userId: ownerId,
         itemId: itemId,
         title: 'Updated title',
-        body: 'Updated body',
       );
       expect(out.title, 'Updated title');
-      expect(out.body, 'Updated body');
+      expect(out.body, '');
       expect(items.lastUpdateId, itemId);
     });
 
-    test('empty body rejected', () async {
+    test('empty title rejected', () async {
       expect(
         () => sut.call(
           userId: ownerId,
           itemId: itemId,
-          title: 'Updated title',
-          body: '  ',
+          title: '  ',
         ),
         throwsA(isA<BeaconCreateException>()),
       );
