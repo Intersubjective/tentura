@@ -224,6 +224,7 @@ void main() {
 
     await cubit.stream.firstWhere((s) => s.candidates.isNotEmpty);
     cubit.toggleSelection('U-target');
+    cubit.skipPersonalNote('U-target');
 
     const attributionIds = ['F-parent-1', 'F-parent-2'];
     final ok = await cubit.forward(attributionParentEdgeIds: attributionIds);
@@ -253,6 +254,7 @@ void main() {
 
     await cubit.stream.firstWhere((s) => s.candidates.isNotEmpty);
     cubit.toggleSelection('U-target');
+    cubit.skipPersonalNote('U-target');
 
     final ok = await cubit.forward();
     expect(ok, isTrue);
