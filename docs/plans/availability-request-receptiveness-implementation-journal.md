@@ -1757,3 +1757,49 @@ Script: `scripts/unit17_availability_e2e_walkthrough.sh` (successful run `unit17
 | Client/web/server `5.13.0` gate | **PASS** |
 | All plan-wide checks | **PARTIAL** — full `dart test -t pg` has 29 unrelated failures |
 
+## UNIT 17 manager acceptance — 2026-08-14
+
+VERDICT: accepted: `a65a8ad90` and `74643efaa`. The availability feature itself
+is complete; the plan stays formally PARTIAL solely on pre-existing, out-of-scope
+pg debt, per plan §3 UNIT 17 step 5 ("record unrelated failures ... and do not
+claim the plan complete").
+REVIEW: Both commits stay within proof/journal footprint — one new standalone
+script, one journal-only append; no production or test-suite source touched.
+The live API walkthrough exercises the full S7/S7b/D28 contract end to end
+(limited-then-forwardable, pause-blocks-new-forward-but-not-existing-edges,
+mixed-batch delivered/skipped, resume-to-limited-not-open, blocked-viewer
+unreadable) against the actual local server/Hasura/Postgres stack rather than
+against mocks. Side-effect probes diff the exact non-owned tables named in
+architecture §9/§14 before and after each mutation and show zero drift outside
+`user_availability`. The forbidden-leakage searches are recorded verbatim and
+cover every item named in plan UNIT 17 step 4. All 15 architecture §14
+invariants and 14 of 15 final-checklist rows are PASS with cited evidence.
+INDEPENDENT VERIFICATION (manager, not worker-reported):
+- Reran `(cd packages/server && dart test -t pg test/data/database/realtime_notification_migration_test.dart)`
+  directly: 7 passed, 11 failed. Failure causes are `relation "public.user_trust_source_edge"
+  does not exist` and `function public.trust_apply_source_evidence(...) does not exist` —
+  names retired by the pre-existing MeritRank trust-write-path rework (`trust_apply_evidence`
+  / `user_trust_edge`, migration `m0088`, long before this plan's `m0148`) — plus a stale
+  generic-trigger-publisher set assertion that predates `beacon`/`forward`/`notification`
+  publishers added by later, unrelated migrations. The test's own scope label
+  ("m0114-m0120 realtime notification contract") confirms it is pinned to a migration
+  range far below `m0148` and was never updated for the intervening trust rework.
+  This corroborates, independently of the worker's `git log` check, that these 29
+  failures are genuine pre-existing debt and not a regression from this plan's migration
+  or schema changes.
+- `git diff --check` -> clean (manager rerun).
+- `./scripts/check-custom-lints.sh packages/server` -> pass (custom-rule total 0, baseline 0;
+  manager rerun).
+- `git status --short` -> identical protected-file set to the UNIT 00 baseline plus the two
+  unrelated untracked docs files that appeared mid-plan from concurrent work
+  (`docs/plans/request-threads-architecture.md`, `docs/plans/request-threads-implementation-plan.md`);
+  neither touched by any plan commit.
+- Read the full plan, architecture §14, and journal top-to-bottom; confirmed units 00–17 each
+  carry an unambiguous manager-accepted (or, for 16, superseded-and-accepted) verdict with no
+  open remediation loops.
+REMAINING: user decision on the pre-existing 29-failure `dart test -t pg` debt
+(dominated by `realtime_notification_migration_test.dart`, stale since the
+trust-write-path rework, unrelated to availability) — waive it and treat the
+availability feature as shippable, or open a separate fix effort. No
+availability-scoped work remains.
+
