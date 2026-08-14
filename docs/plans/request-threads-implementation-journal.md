@@ -355,3 +355,23 @@ None yet.
   skipped). Added `myUserId` + `resolvedUnreadByThreadId` to state (not in plan
   field list but required for `activeForMeOnly` filter and mandatory unread
   resolution step). Ready for UNIT 09.
+
+- 2026-08-14 — **Manager review: UNIT 08 ACCEPTED.** Read `threads_cubit.dart` and `threads_state.dart`
+  in full — this is the most concurrency-sensitive unit in the plan so far. Confirmed the generation
+  guard is correct: `fetch()` captures `final generation = ++_fetchGeneration` synchronously before the
+  `await`, and checks `generation != _fetchGeneration` after — on both the success and error paths — so
+  a response from any call that is no longer the most-recently-*started* one is discarded regardless of
+  network arrival order (true latest-wins, not merely last-arrived-wins). Confirmed `roomSeen`
+  invalidations cancel any pending debounce timer and fetch immediately, while other invalidation types
+  go through the 50ms debounce. Confirmed `_onThreadWatermarkChanged` recomputes
+  `resolvedUnreadByThreadId` from the already-held `state.threads` with no network call, and that the
+  cubit subscribes to `threadReadWatermarkChanges` (the UNIT-06-added full-key stream), not the legacy
+  General-only `readWatermarkChanges`. Confirmed `ThreadsState.active`'s `activeForMeOnly` filtering
+  reuses the actual, UNIT-01-simplified `filterActiveItemsForUser` (verified its live signature —
+  `openItems`/`userId`/`forMeOnly`/`alwaysIncludeItemId`, no `resolutionParent`/`lookupItems` hop)
+  rather than reimplementing filter logic. `threadsTabUnreadCount` sums only General + `active` through
+  `resolvedUnreadFor`, matching architecture §5.6's decision to exclude closed rows from the tab total.
+  Independently reran codegen (clean), the scoped test (13 passed — one more than the worker's reported
+  12, likely a setUp/tearDown line counted differently, not a discrepancy in coverage), lints (106/106),
+  both `rg` gates, and the full client suite (2253 passed, 18 skipped, zero regressions). Proceeding to
+  UNIT 09 (boxed Threads list + evolved `ItemCard`, still not activated in production).
