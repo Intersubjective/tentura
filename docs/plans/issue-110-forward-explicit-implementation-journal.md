@@ -102,7 +102,7 @@ None triggered.
 - [x] **10** CTA inventory (`allowsForward`)
 - [x] **11** Person-forward stay, skip/sheet, **add** cancel
 - [x] **12** Client 6.2.0 + web cache-buster
-- [ ] **13** Plan-wide closeout
+- [x] **13** Plan-wide closeout
 
 Do not parallelize. Do not start a downstream unit while a prerequisite is
 red.
@@ -229,6 +229,40 @@ frozen contract, stop that unit with `BLOCKED` instead of improvising.
   is `93b08d2d0`. Watching card CTA still off (`showCtaRow: false`).
   HelpOfferedForwardNudgeMessage left with beaconId-only push. UNIT 11
   authorized.
+
+## Final evidence summary (UNIT 13 closeout, 2026-08-14)
+
+| Contract | Verified |
+|----------|----------|
+| Client version | **6.2.0** (`pubspec.yaml`, `web/index.html ?v=6.2.0`) |
+| `kDefaultMinClientVersion` | **6.0.0** (unchanged) |
+| No SQL migration | `m0149` latest; no `m0150` |
+| `hasOnwardChild` non-optional | `custom_types.dart` `graphQLBoolean.nonNullable()`; `schema.graphql` `Boolean!` |
+| No `NavigateBack` on standalone send | `forward_cubit.dart`: comment only (no emit); `person_forward_cubit.dart`: no matches |
+| Plan-wide verify matrix | All commands exit 0 (207 client tests, 8+7 server tests) |
+| Terminology | `check-user-facing-terminology.sh` ok |
+
+All units **00–13** complete. Issue #110 explicit-forwarding implementation journal closed.
+
+## UNIT 13 — complete — 2026-08-14
+COMMITS:
+- `8896b826d` test: skip personal notes in forward cubit harness sends
+- `8a124e74a` docs: close issue 110 implementation journal
+TESTS:
+- `cd packages/server && dart test test/domain/use_case/forward_case_test.dart --name "cancelForward"` → 8 passed
+- `cd packages/server && dart test test/domain/use_case/beacon_involvement_case_test.dart` → 7 passed
+- `cd packages/client && flutter test test/features/forward test/features/inbox/inbox_case_test.dart` → 207 passed (initial run 204 passed, 3 failed; fixed harness `skipPersonalNote` before `forward()`)
+- `./scripts/check-custom-lints.sh packages/client` → exit 0
+- `./scripts/check-custom-lints.sh packages/server` → exit 0
+- `bash scripts/check-user-facing-terminology.sh` → ok
+- `rg NavigateBack packages/client/lib/features/forward/ui/bloc/forward_cubit.dart` → comment only (line 68); `person_forward_cubit.dart` → no matches
+- `hasOnwardChild`: `custom_types.dart:361` `graphQLBoolean.nonNullable()`; `schema.graphql:7303` `Boolean!`
+FILES:
+- `packages/client/test/features/forward/forward_cubit_attribution_test.dart`
+- `packages/client/test/features/forward/forward_cubit_band_provenance_test.dart`
+- `docs/plans/issue-110-forward-explicit-implementation-journal.md`
+FINDINGS: Three cubit harness tests predated UNIT 06 `uncoveredRecipientIds` guard; they called `forward()` without `skipPersonalNote`. Stale `NavigateBack` doc comment remains on `ForwardCubit.embedded` field. Journal docs hash `82b0fc9cf` was chicken-egg; real commit is `8a124e74a` (see `git log -1`).
+REMAINING: none — issue #110 implementation complete per plan rev 3
 
 ## UNIT 12 — complete — 2026-08-14
 COMMITS: `615098a35` chore: bump client to 6.2.0
