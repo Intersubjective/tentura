@@ -7,7 +7,7 @@ import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/widget/coordination_item_card_chrome.dart';
 import 'package:tentura/ui/widget/coordination_item_presenter.dart';
 
-import 'coordination_item_overflow_menu.dart';
+import 'package:tentura/features/coordination_item/ui/widget/coordination_item_overflow_menu.dart';
 
 enum _ItemHeaderTier { high, medium, low }
 

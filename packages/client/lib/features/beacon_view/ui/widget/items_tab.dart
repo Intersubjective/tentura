@@ -15,7 +15,7 @@ import 'package:tentura/ui/widget/coordination_item_presenter.dart';
 import 'package:tentura/ui/widget/focus_flash_highlight.dart';
 
 import 'package:tentura/features/beacon_threads/ui/widget/stale_deadline_ticker.dart';
-import 'package:tentura/features/coordination_item/ui/widget/item_card.dart';
+import 'package:tentura/features/beacon_threads/ui/widget/item_card.dart';
 
 import '../bloc/beacon_view_cubit.dart';
 import '../bloc/beacon_view_state.dart';
