@@ -1,4 +1,5 @@
 import 'package:tentura/consts.dart';
+import 'package:tentura/features/beacon_threads/domain/entity/request_thread.dart';
 
 /// Maps `/shared/view?id=…&dest=…` notification links to in-app routes.
 Uri transformBeaconAppLink(Uri uri, String beaconId) {
@@ -12,16 +13,19 @@ Uri transformBeaconAppLink(Uri uri, String beaconId) {
   }
   final qp = <String, String>{kQueryIsDeepLink: 'true'};
   if (dest == 'room') {
-    qp[kQueryBeaconViewTab] = 'room';
+    qp[kQueryBeaconViewTab] = kBeaconViewTabThreads;
     qp[kQueryBeaconEntry] = kBeaconEntryDeepLink;
     if (item != null && item.isNotEmpty) {
-      qp[kQueryCoordinationItemId] = item;
+      qp[kQueryThreadId] = item;
+    } else {
+      qp[kQueryThreadId] = RequestThread.generalId;
     }
   } else if (dest == 'people') {
     qp[kQueryBeaconViewTab] = 'people';
     qp[kQueryBeaconEntry] = kBeaconEntryDeepLink;
   } else if (item != null && item.isNotEmpty) {
-    qp[kQueryCoordinationItemId] = item;
+    qp[kQueryBeaconViewTab] = kBeaconViewTabThreads;
+    qp[kQueryThreadId] = item;
   }
   return uri.replace(
     path: '$kPathBeaconView/$beaconId',

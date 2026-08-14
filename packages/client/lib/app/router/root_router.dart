@@ -33,9 +33,8 @@ PageRouteInfo beaconViewOperationalChildFromQuery(Parameters qp) =>
       isDeepLink: qp.optString(kQueryIsDeepLink),
       viewTab: qp.optString(kQueryBeaconViewTab),
       peopleTabAttention: qp.optString(kQueryBeaconPeopleTabAttention),
-      surface: qp.optString(kQueryBeaconSurface),
       entry: qp.optString(kQueryBeaconEntry),
-      coordinationItemId: qp.optString(kQueryCoordinationItemId),
+      threadId: qp.optString(kQueryThreadId),
       messageId: qp.optString(kQueryMessageId),
     );
 
@@ -442,27 +441,6 @@ class RootRouter extends RootStackRouter {
       path: kPathBeaconNew,
     ),
 
-    // Item discussion (more specific than beacon view — register first, same
-    // reason as `browseDetailChildren()`'s ordering). Root registration only
-    // exists as a redirect target — see the BeaconViewRoute comment below.
-    AutoRoute(
-      usesPathAsKey: true,
-      page: ItemDiscussionRoute.page,
-      path: '$kPathBeaconView/:beaconId/discussion/:itemId',
-      guards: [
-        AutoRouteGuard.simple(
-          (resolver, _) => _forwardIntoHomeBranch(
-            resolver,
-            owner: HomeTab.work,
-            route: ItemDiscussionRoute(
-              beaconId: resolver.route.params.getString('beaconId'),
-              itemId: resolver.route.params.getString('itemId'),
-            ),
-          ),
-        ),
-      ],
-    ),
-
     // Beacon View — root registration only exists as a redirect target: the
     // real (rendered) registration is nested under each tab branch via
     // `browseDetailChildren()` above, so a full branch URL resolves there
@@ -500,9 +478,7 @@ class RootRouter extends RootStackRouter {
               peopleTabAttention: qp.optString(
                 kQueryBeaconPeopleTabAttention,
               ),
-              surface: qp.optString(kQueryBeaconSurface),
               entry: qp.optString(kQueryBeaconEntry),
-              coordinationItemId: qp.optString(kQueryCoordinationItemId),
               threadId: qp.optString(kQueryThreadId),
               messageId: qp.optString(kQueryMessageId),
               children: beaconViewChildRoutesFromQuery(
@@ -510,31 +486,6 @@ class RootRouter extends RootStackRouter {
                 matchedThreadId: threadChildId,
               ),
             ),
-          );
-        }),
-      ],
-    ),
-
-    // Beacon coordination room (V2 chat) — legacy path redirects into unified view.
-    AutoRoute(
-      usesPathAsKey: true,
-      page: BeaconRoomRoute.page,
-      path: '$kPathBeaconRoom/:id',
-      guards: [
-        AutoRouteGuard.redirect((resolver) {
-          final id = resolver.route.params.getString('id');
-          return BeaconViewRoute(
-            id: id,
-            isDeepLink: 'true',
-            viewTab: 'room',
-            entry: kBeaconEntryDeepLink,
-            children: [
-              BeaconViewOperationalRoute(
-                isDeepLink: 'true',
-                viewTab: 'room',
-                entry: kBeaconEntryDeepLink,
-              ),
-            ],
           );
         }),
       ],

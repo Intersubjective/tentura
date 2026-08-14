@@ -1,4 +1,5 @@
 import 'package:tentura/consts.dart';
+import 'package:tentura/features/beacon_threads/domain/entity/request_thread.dart';
 
 import 'entity/attention_receipt.dart';
 
@@ -16,11 +17,17 @@ Uri attentionDestination(AttentionReceipt receipt) {
     ),
     'beacon_room' when beaconId != null => Uri(
       path: '$kPathBeaconView/$beaconId',
-      queryParameters: {kQueryBeaconViewTab: 'room'},
+      queryParameters: {
+        kQueryBeaconViewTab: kBeaconViewTabThreads,
+        kQueryThreadId: RequestThread.generalId,
+      },
     ),
     'beacon_room_message' when beaconId != null => Uri(
       path: '$kPathBeaconView/$beaconId',
-      queryParameters: {kQueryBeaconViewTab: 'room', kQueryMessageId: target},
+      queryParameters: {
+        kQueryBeaconViewTab: kBeaconViewTabThreads,
+        kQueryMessageId: target,
+      },
     ),
     'review' => Uri(path: '$kPathReviewContributions/$target'),
     'profile' => Uri(path: '$kPathProfileView/$target'),

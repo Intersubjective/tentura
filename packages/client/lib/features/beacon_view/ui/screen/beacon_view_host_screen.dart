@@ -35,9 +35,7 @@ class BeaconViewHostScreen extends StatelessWidget implements AutoRouteWrapper {
     @QueryParam(kQueryIsDeepLink) this.isDeepLink,
     @QueryParam(kQueryBeaconViewTab) this.viewTab,
     @QueryParam(kQueryBeaconPeopleTabAttention) this.peopleTabAttention,
-    @QueryParam(kQueryBeaconSurface) this.surface,
     @QueryParam(kQueryBeaconEntry) this.entry,
-    @QueryParam(kQueryCoordinationItemId) this.coordinationItemId,
     @QueryParam(kQueryThreadId) this.threadId,
     @QueryParam(kQueryMessageId) this.messageId,
     super.key,
@@ -47,9 +45,7 @@ class BeaconViewHostScreen extends StatelessWidget implements AutoRouteWrapper {
   final String? isDeepLink;
   final String? viewTab;
   final String? peopleTabAttention;
-  final String? surface;
   final String? entry;
-  final String? coordinationItemId;
   final String? threadId;
   final String? messageId;
 
@@ -162,9 +158,8 @@ class BeaconViewOperationalScreen extends StatelessWidget {
     @QueryParam(kQueryIsDeepLink) this.isDeepLink,
     @QueryParam(kQueryBeaconViewTab) this.viewTab,
     @QueryParam(kQueryBeaconPeopleTabAttention) this.peopleTabAttention,
-    @QueryParam(kQueryBeaconSurface) this.surface,
     @QueryParam(kQueryBeaconEntry) this.entry,
-    @QueryParam(kQueryCoordinationItemId) this.coordinationItemId,
+    @QueryParam(kQueryThreadId) this.threadId,
     @QueryParam(kQueryMessageId) this.messageId,
     super.key,
   });
@@ -173,9 +168,8 @@ class BeaconViewOperationalScreen extends StatelessWidget {
   final String? isDeepLink;
   final String? viewTab;
   final String? peopleTabAttention;
-  final String? surface;
   final String? entry;
-  final String? coordinationItemId;
+  final String? threadId;
   final String? messageId;
 
   @override
@@ -185,9 +179,8 @@ class BeaconViewOperationalScreen extends StatelessWidget {
       isDeepLink: isDeepLink,
       viewTab: viewTab,
       peopleTabAttention: peopleTabAttention,
-      surface: surface,
       entry: entry,
-      coordinationItemId: coordinationItemId,
+      threadId: threadId,
       messageId: messageId,
     );
   }

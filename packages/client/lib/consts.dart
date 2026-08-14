@@ -48,7 +48,6 @@ const kPathBeaconNew = '/beacon/new';
 const kPathBeaconView = '/beacon/view';
 const kPathBeaconViewAll = '/beacon/all';
 const kPathBeaconInvolvedAll = '/beacon/involved';
-const kPathBeaconRoom = '/beacon/room';
 const kPathReviewContributions = '/beacon/review';
 const kPathReceivedReviews = '/beacon/reviews-received';
 const kPathForwardBeacon = '/forward';
@@ -76,8 +75,7 @@ const kQueryBeaconForwardTo = 'forward_to';
 /// Query param for opening the beacon edit screen for an open (published) beacon.
 const kQueryBeaconEditId = 'edit_id';
 
-/// Optional initial operational tab: `items`, `people`, `log` (+ legacy aliases).
-/// Room: use `tab=room` or [kQueryBeaconSurface]=`room` (not a segment tab).
+/// Optional initial operational tab: `threads`, `people`, `log`.
 const kQueryBeaconViewTab = 'tab';
 
 /// [kQueryBeaconViewTab] value — open the Threads tab (expanded split selection).
@@ -89,25 +87,12 @@ const kQueryThreadId = 'thread';
 /// When truthy with [kQueryBeaconViewTab]=`help_offers`, pulse/highlight the People tab until interaction.
 const kQueryBeaconPeopleTabAttention = 'people_tab_attention';
 
-/// Full-screen room vs operational beacon view: `status` (default) | `room`.
-/// Same effect as `?tab=room` on [kQueryBeaconViewTab].
-const kQueryBeaconSurface = 'surface';
-
-/// Entry provenance for beacon view resolution (`my_work`, `inbox`, …).
-const kQueryBeaconEntry = 'entry';
-
-/// [kQueryBeaconSurface] value for Room mode.
-const kBeaconSurfaceRoomQueryValue = 'room';
-
-/// [kQueryBeaconSurface] value for Status mode.
-const kBeaconSurfaceStatusQueryValue = 'status';
-
-/// Coordination item to focus when opening room from a notification deep link.
-const kQueryCoordinationItemId = 'item';
-
 /// Exact directed Chat message to hydrate and scroll to from an Updates receipt.
 /// This must never be used as a coordination-item identifier.
 const kQueryMessageId = 'message';
+
+/// Entry provenance for beacon view resolution (`my_work`, `inbox`, …).
+const kQueryBeaconEntry = 'entry';
 
 /// [kQueryBeaconEntry] string values (snake_case).
 const kBeaconEntryMyWork = 'my_work';

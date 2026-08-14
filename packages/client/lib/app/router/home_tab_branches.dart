@@ -100,13 +100,6 @@ final class HomeTabSpec {
 List<AutoRoute> browseDetailChildren({
   required bool Function(String id) checkIfIsMe,
 }) => [
-  // Item discussion (more specific than beacon view — register first, same
-  // reason as the root registration in `root_router.dart`).
-  AutoRoute(
-    usesPathAsKey: true,
-    page: ItemDiscussionRoute.page,
-    path: 'beacon/view/:beaconId/discussion/:itemId',
-  ),
   AutoRoute(
     usesPathAsKey: true,
     page: BeaconViewRoute.page,
