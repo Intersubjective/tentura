@@ -9,6 +9,9 @@ import 'package:web/web.dart' as web;
 
 import 'support/e2e_test_helpers.dart';
 
+const _kCompact = Size(390, 844);
+const _kExpanded = Size(1280, 900);
+
 String _beaconIdFromUrl(String url) {
   final match = RegExp(r'/beacon/view/([^/?]+)').firstMatch(url);
   if (match == null) {
@@ -17,12 +20,41 @@ String _beaconIdFromUrl(String url) {
   return match.group(1)!;
 }
 
+bool _urlShowsThread(String url, String threadId) =>
+    url.contains('/thread/$threadId') || url.contains('thread=$threadId');
+
+bool _urlShowsGeneral(String url) =>
+    url.contains('/thread/${RequestThread.generalId}') ||
+    url.contains('thread=${RequestThread.generalId}');
+
+Future<void> _setViewport(WidgetTester tester, Size size) async {
+  await tester.binding.setSurfaceSize(size);
+  await tester.pump();
+}
+
+Future<void> _popToThreadsList(WidgetTester tester) async {
+  final back = find.byType(BackButton);
+  if (back.evaluate().isEmpty) {
+    return;
+  }
+  await tester.tap(back.first);
+  await pumpUntil(
+    tester,
+    () => find
+        .byKey(TestIds.key(TestIds.coordinationAskCreate))
+        .evaluate()
+        .isNotEmpty,
+    timeout: const Duration(seconds: 30),
+  );
+}
+
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
   testWidgets('request threads navigation and deep links', (tester) async {
     await launchApp(app.main);
-    await tester.pumpAndSettle();
+    await _setViewport(tester, _kCompact);
+    await tester.pump(const Duration(seconds: 2));
 
     final fixture = await bootstrapFixture(
       runId: uniqueRunId('request-threads-nav'),
@@ -54,6 +86,13 @@ void main() {
       title: 'Nav blocker',
       body: 'Blocker thread for navigation test',
     );
+    final otherThread = await createCoordinationItem(
+      tester,
+      launcherId: TestIds.coordinationBlockerCreate,
+      title: 'Second blocker',
+      body: 'Switch target thread',
+    );
+
     await tapAndSettle(
       tester,
       find.byKey(TestIds.key(TestIds.requestThread(thread.threadId))),
@@ -84,18 +123,13 @@ void main() {
       tester,
       () {
         final url = currentAppUrl();
-        return url.contains('thread=${thread.threadId}') &&
-            !url.contains('thread=${RequestThread.generalId}');
+        return _urlShowsThread(url, thread.threadId) &&
+            !_urlShowsGeneral(url);
       },
       timeout: const Duration(seconds: 30),
     );
 
-    final otherThread = await createCoordinationItem(
-      tester,
-      launcherId: TestIds.coordinationBlockerCreate,
-      title: 'Second blocker',
-      body: 'Switch target thread',
-    );
+    await _popToThreadsList(tester);
     await tapAndSettle(
       tester,
       find.byKey(TestIds.key(TestIds.requestThread(otherThread.threadId))),
@@ -104,9 +138,9 @@ void main() {
       tester,
       find.byKey(TestIds.key(TestIds.roomMessageInput)),
     );
-    expect(currentAppUrl(), contains(otherThread.threadId));
+    expect(_urlShowsThread(currentAppUrl(), otherThread.threadId), isTrue);
 
-    await tapAndSettle(tester, find.byType(BackButton).first);
+    await _popToThreadsList(tester);
     await pumpUntilVisible(
       tester,
       find.byKey(TestIds.key(TestIds.requestThread(otherThread.threadId))),
@@ -126,6 +160,7 @@ void main() {
       timeout: const Duration(seconds: 15),
     );
 
+    await _setViewport(tester, _kExpanded);
     await goToPath(tester, kPathMyWork);
     await tapAndSettle(tester, find.text(title).first);
     await pumpUntilVisible(
