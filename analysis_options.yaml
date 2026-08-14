@@ -22,7 +22,14 @@ plugins:
 analyzer:
   exclude:
     - ".pub-cache/**"
+    - ".claude/**"
+    - ".dart_tool/**"
+    - ".local/**"
+    - ".serena/**"
+    - "chroma_db/**"
     - "packages/widgetbook/**"
+    - "rag_env/**"
+    - "scripts/**"
     - "temp/**"
     - build/**
     - android/**
