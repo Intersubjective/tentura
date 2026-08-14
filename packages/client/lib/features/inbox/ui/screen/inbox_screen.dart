@@ -39,6 +39,30 @@ class _InboxScreenState extends State<InboxScreen> {
   String? _selectedNeedsBeaconId;
   String? _selectedWatchingBeaconId;
   var _fitsMasterDetail = true;
+  var _lastHandledWatchingOpenCount = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      final reselect = context.read<HomeTabReselectCubit>().state;
+      if (reselect.inboxWatchingOpenCount <= _lastHandledWatchingOpenCount) {
+        return;
+      }
+      _lastHandledWatchingOpenCount = reselect.inboxWatchingOpenCount;
+      _applyInboxWatchingIntent(reselect.inboxWatchingBeaconId);
+    });
+  }
+
+  void _applyInboxWatchingIntent(String? beaconId) {
+    if (beaconId == null || beaconId.isEmpty) return;
+    DefaultTabController.of(context).animateTo(1);
+    if (context.windowClass != WindowClass.expanded) return;
+    final inboxState = context.read<InboxCubit>().state;
+    if (!inboxState.watching.any((e) => e.beaconId == beaconId)) return;
+    setState(() => _selectedWatchingBeaconId = beaconId);
+  }
 
   void _selectNeedsItem(InboxItem item) {
     setState(() => _selectedNeedsBeaconId = item.beaconId);
@@ -84,7 +108,14 @@ class _InboxScreenState extends State<InboxScreen> {
             inboxCubit.setSort(InboxSort.recent);
             DefaultTabController.of(context).animateTo(0);
           },
-          child: BlocListener<InboxCubit, InboxState>(
+          child: BlocListener<HomeTabReselectCubit, HomeTabReselectState>(
+            listenWhen: (prev, curr) =>
+                prev.inboxWatchingOpenCount != curr.inboxWatchingOpenCount,
+            listener: (context, state) {
+              _lastHandledWatchingOpenCount = state.inboxWatchingOpenCount;
+              _applyInboxWatchingIntent(state.inboxWatchingBeaconId);
+            },
+            child: BlocListener<InboxCubit, InboxState>(
             listenWhen: (prev, curr) =>
                 curr.pendingMovedNudge != null &&
                 prev.pendingMovedNudge != curr.pendingMovedNudge,
@@ -302,6 +333,7 @@ class _InboxScreenState extends State<InboxScreen> {
               },
             ),
           ),
+        ),
         ),
       ),
     );

@@ -254,7 +254,8 @@ void main() {
       },
     );
 
-    test('local forward command alone may create movement nudge', () async {
+    test('local forward command to watching stays silent (no movement nudge)',
+        () async {
       repo.fetchResult = [_item(status: InboxItemStatus.needsMe)];
       final cubit = InboxCubit(
         userId: 'u1',
@@ -267,11 +268,7 @@ void main() {
       forwardRepo.emitForwardCommandCompleted('b-forward');
       await Future<void>.delayed(const Duration(milliseconds: 10));
 
-      expect(cubit.state.pendingMovedNudge?.beaconId, 'b-forward');
-      expect(
-        cubit.state.pendingMovedNudge?.toStatus,
-        InboxItemStatus.watching,
-      );
+      expect(cubit.state.pendingMovedNudge, isNull);
       await cubit.close();
     });
 

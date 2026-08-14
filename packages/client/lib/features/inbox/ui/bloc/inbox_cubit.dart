@@ -139,8 +139,12 @@ class InboxCubit extends Cubit<InboxState> {
     final newStatus = state.items[newIdx].status;
 
     if (previousStatus == newStatus) return;
-    if (newStatus != InboxItemStatus.watching &&
-        newStatus != InboxItemStatus.rejected) {
+    if (newStatus == InboxItemStatus.watching) {
+      // D9 location toast already explains Needs me → Watching after this
+      // process's own forwardCommandCompleted. A second snackbar here duplicates it.
+      return;
+    }
+    if (newStatus != InboxItemStatus.rejected) {
       return;
     }
 
