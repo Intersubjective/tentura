@@ -215,4 +215,10 @@ void main() {
       },
     );
   });
+
+  group('V2 direct routing', () {
+    test('BeaconThreadsList routes to Tentura V2', () {
+      expect(isTenturaDirectOperation('BeaconThreadsList'), isTrue);
+    });
+  });
 }
