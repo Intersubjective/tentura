@@ -59,7 +59,7 @@ None of the above overlap any UNIT 01–14 file list except the noted `docs/READ
 | 08 | `ThreadsCubit` latest-wins state | accepted | 74bb22aa4, 7a04e6385, 38bb78161, 5ec9eec02 |
 | 09 | Boxed Threads list + evolved `ItemCard` (unused) | accepted (+1 manager fix) | c5543c633, 815762981, 022feb731, 20754c690, ec171c43a, 42b27c9bd, 72933af66 |
 | 10 | Shared thread host, awaited cubit handoff | accepted | 6b9e6cb53, 9024be979, 5e3cd9965, a18f142cd, c6f8dcc57 |
-| 11 | Nested route host + real thread detail page (unused) | pending | |
+| 11 | Nested route host + real thread detail page (unused) | accepted | 704679c3d, 2d55720af, 00791ce0f, 9ea39907c, ffc091e3f, d8a58c9b8 |
 | 12 | Atomic Threads activation + legacy removal | pending | |
 | 13 | D28 copy/glossary/docs sweep | pending | |
 | 14 | Final adaptive integration + QA | pending | |
@@ -467,3 +467,43 @@ None yet.
   regressions). Proceeding to UNIT 11 (nested beacon-view route host + real thread detail page — the
   actual wiring point for everything built in UNITs 05–10, still not activated for navigation until
   UNIT 12).
+
+- 2026-08-14 — UNIT 11: `704679c3d` split `BeaconViewRoute` onto `BeaconViewHostScreen`
+  (`AutoRouter` shell + `wrappedRoute` siblings: `BeaconViewCubit`, `ThreadsCubit..fetch()`,
+  `ThreadHostCubit`); demoted `BeaconViewScreen` to embeddable operational widget; added
+  `BeaconViewOperationalScreen` and `kQueryThreadId` / `kBeaconViewTabThreads` constants; exported
+  `resolveCanonicalThreadIdForMessage()` for message-only URL canonicalization tests.
+
+- 2026-08-14 — UNIT 11: `2d55720af` nested `BeaconViewOperationalRoute` + `ThreadDetailRoute` under
+  branch and root redirect registrations; redirect guard preserves matched `thread/:threadId` child and
+  forwards query params onto the operational child (fixes branch URL serialization for `entry`/`tab`/
+  `message` after nested cutover).
+
+- 2026-08-14 — UNIT 11: `00791ce0f` added `ThreadDetail` / `ThreadDetailTitle` /
+  `ThreadDetailOverflowAction` / `ThreadDetailColumnChrome` extracted from live post-D27
+  `ItemDiscussionPane` (legacy pane file untouched).
+
+- 2026-08-14 — UNIT 11: `9ea39907c` added `ThreadDetailScreen` with `PopScope` + shared
+  `_closeThenPop` (`await host.clear()` then single `router.pop()`), admission placeholder, semantic
+  `ItemActionsCubit`, and sibling `replace` for coordination links.
+
+- 2026-08-14 — UNIT 11: `ffc091e3f` wired `ThreadsCubit` + `ThreadHostCubit` above My Work / Inbox
+  embedded `BeaconViewScreen` panes (no `openThreadId` in pane state).
+
+- 2026-08-14 — UNIT 11: `d8a58c9b8` added `request_thread_routing_test.dart` (nested registration,
+  redirect-guard child preservation, nested pop, message-target canonicalization) and
+  `thread_detail_test.dart` (General vs semantic header, unconditional composer, completer-gated
+  close-before-pop).
+
+- 2026-08-14 — **UNIT 11 complete.** Verify: `flutter test
+  test/app/router/request_thread_routing_test.dart` (5 passed), `flutter test
+  test/features/beacon_threads/thread_detail_test.dart` (4 passed), `flutter test
+  test/features/beacon_view/beacon_view_room_split_contract_test.dart` (9 passed),
+  `./scripts/check-custom-lints.sh packages/client` (103/103), `rg` gates (`children:` +
+  `ThreadDetailRoute` + `BeaconViewOperationalRoute` in router registrations; `openThreadId` absent
+  from `beacon_view_screen.dart` state), full `flutter test` (2281 passed, 18 skipped). Live drift:
+  `BeaconViewScreen` constructor is plain fields (operational screen passes params explicitly); redirect
+  guard needed operational-child query forwarding for `home_tab_branch_routing_test` URL expectations;
+  routing pop test pops the nested `StackRouter` under `BeaconViewRoute`, not the work branch stack.
+  Legacy `ItemDiscussionRoute` / `ItemDiscussionPane` unchanged; row navigation not activated (UNIT
+  12). Ready for UNIT 12.
