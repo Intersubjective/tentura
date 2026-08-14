@@ -44,12 +44,12 @@ void main() {
       );
     });
 
-    test('caps split room pane below the chat column cap', () {
+    test('without availableWidth uses chat column cap as default', () {
       final expanded = TenturaTokens.light.applyWindowClass(
         WindowClass.expanded,
       );
 
-      expect(beaconViewRoomSplitPaneWidth(expanded), 640);
+      expect(beaconViewRoomSplitPaneWidth(expanded), 720);
     });
 
     test('keeps split room pane at a usable floor', () {
@@ -75,6 +75,20 @@ void main() {
       );
     });
 
+    test('defaults to 42% of available pane width below chat cap', () {
+      final expanded = TenturaTokens.light.applyWindowClass(
+        WindowClass.expanded,
+      );
+
+      expect(
+        beaconViewRoomSplitPaneWidth(
+          expanded,
+          availableWidth: 1200,
+        ),
+        504,
+      );
+    });
+
     test('honors preferred width within clamp bounds', () {
       final expanded = TenturaTokens.light.applyWindowClass(
         WindowClass.expanded,
@@ -94,7 +108,7 @@ void main() {
           availableWidth: 1200,
           preferredWidth: 900,
         ),
-        640,
+        840,
       );
       expect(
         beaconViewRoomSplitPaneWidth(

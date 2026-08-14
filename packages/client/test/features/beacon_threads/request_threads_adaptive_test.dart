@@ -836,6 +836,7 @@ void main() {
 
       expect(host.state.openThreadId, RequestThread.generalId);
       expect(find.byType(ThreadDetail), findsOneWidget);
+      expect(find.byType(ThreadDetailColumnChrome), findsNothing);
       expect(_itemCardSelected(tester, RequestThread.generalId), isTrue);
 
       await tester.tap(find.byKey(TestIds.key(TestIds.beaconTabPeople)));
@@ -1417,6 +1418,7 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 100));
       expect(find.byType(ThreadDetail), findsOneWidget);
+      expect(find.byType(ThreadDetailColumnChrome), findsNothing);
 
       await tester.tap(find.byKey(TestIds.key(TestIds.beaconTabLog)));
       await tester.pump();
