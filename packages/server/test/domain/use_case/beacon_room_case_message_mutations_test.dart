@@ -240,7 +240,7 @@ void main() {
       expect(attention.recorded, isEmpty);
     });
 
-    test('reply targets the original author in the same chat scope', () async {
+    test('reply targets the original author in the same thread scope', () async {
       room.replyMessage = BeaconRoomMessageRecord(
         id: _replyMessageId,
         beaconId: _beaconId,
@@ -347,7 +347,7 @@ void main() {
       expect(attention.recorded, isEmpty);
     });
 
-    test('rejects a reply that crosses beacon chat scope', () async {
+    test('rejects a reply that crosses beacon thread scope', () async {
       room.replyMessage = BeaconRoomMessageRecord(
         id: _replyMessageId,
         beaconId: 'Bother',
