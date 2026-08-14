@@ -101,7 +101,7 @@ None triggered.
 - [x] **09** D13 offer-help snapshot on Inbox + BeaconView
 - [x] **10** CTA inventory (`allowsForward`)
 - [x] **11** Person-forward stay, skip/sheet, **add** cancel
-- [ ] **12** Client 6.2.0 + web cache-buster
+- [x] **12** Client 6.2.0 + web cache-buster
 - [ ] **13** Plan-wide closeout
 
 Do not parallelize. Do not start a downstream unit while a prerequisite is
@@ -229,6 +229,20 @@ frozen contract, stop that unit with `BLOCKED` instead of improvising.
   is `93b08d2d0`. Watching card CTA still off (`showCtaRow: false`).
   HelpOfferedForwardNudgeMessage left with beaconId-only push. UNIT 11
   authorized.
+
+## UNIT 12 — complete — 2026-08-14
+COMMITS: (see `git log -1` after commit)
+TESTS:
+- `grep ^version: packages/client/pubspec.yaml` → `6.2.0`
+- `grep flutter_bootstrap.js packages/client/web/index.html` → `?v=6.2.0`
+- `grep kDefaultMinClientVersion packages/server/lib/env.dart` → `'6.0.0'` (unchanged)
+- `cd packages/client && dart run tool/verify_web_version_consistency.dart` → exit 1 (stale `build/web` at `5.13.0`; source pubspec/index.html match; CI regenerates `build/web` on deploy)
+FILES:
+- `packages/client/pubspec.yaml`
+- `packages/client/web/index.html`
+- `docs/plans/issue-110-forward-explicit-implementation-journal.md`
+FINDINGS: Live start was **6.1.3** (not plan baseline 6.1.1); bumped minor to **6.2.0** per user brief. `verify_web_version_consistency.dart` checks `build/web/` artifacts, not source `web/` — local `build/web` predates bump; prior version commits (`d698aee25`, `d023b23d1`) also only touched pubspec + index.html.
+REMAINING: none — UNIT 13 may start
 
 ## UNIT 11 — complete — 2026-08-14
 COMMITS: `595811831` feat: keep person-forward screen after send
