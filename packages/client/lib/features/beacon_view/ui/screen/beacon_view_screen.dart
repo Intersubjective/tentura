@@ -297,8 +297,11 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
     required bool isSplit,
   }) async {
     if (!threadsState.isSuccess || _didApplyThreadsResolution) return;
-    _didApplyThreadsResolution = true;
+    // Wait until the ops|room split is actually shown. Threads can succeed
+    // before beacon content loads; burning the flag then leaves the 3rd
+    // column spinning forever when split turns on later.
     if (!isSplit) return;
+    _didApplyThreadsResolution = true;
 
     final host = context.read<ThreadHostCubit>();
     if (host.state.openThreadId != null) return;

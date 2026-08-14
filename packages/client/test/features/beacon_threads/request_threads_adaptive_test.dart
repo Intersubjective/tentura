@@ -121,17 +121,31 @@ class _MockProfileCubit extends Mock implements ProfileCubit {
 }
 
 class _HarnessBeaconViewCubit extends Mock implements BeaconViewCubit {
-  _HarnessBeaconViewCubit(this._state);
+  _HarnessBeaconViewCubit(this._state) {
+    _controller = StreamController<BeaconViewState>.broadcast();
+    _controller.add(_state);
+  }
 
   BeaconViewState _state;
+  late final StreamController<BeaconViewState> _controller;
 
   void setState(BeaconViewState value) => _state = value;
+
+  void emitState(BeaconViewState value) {
+    _state = value;
+    _controller.add(_state);
+  }
 
   @override
   BeaconViewState get state => _state;
 
   @override
-  Stream<BeaconViewState> get stream => Stream.value(_state);
+  Stream<BeaconViewState> get stream => _controller.stream;
+
+  @override
+  Future<void> close() async {
+    await _controller.close();
+  }
 }
 
 class _HarnessThreadsCubit extends Mock implements ThreadsCubit {
@@ -763,6 +777,37 @@ void main() {
   });
 
   group('expanded adaptive', () {
+    testWidgets(
+      'preselects General after threads succeed before beacon content',
+      (tester) async {
+        final threads = _threadsState(
+          threads: [
+            _generalThread(),
+            _semanticThread(item: _item(id: 'ask-race-a')),
+          ],
+        );
+        final recorder = RoomCubitFactoryRecorder();
+        final host = _host(recorder: recorder);
+        final harness = await _pumpHarness(
+          tester,
+          size: _kExpanded,
+          beaconState: _authorBeaconState(beaconContentLoaded: false),
+          threadsState: threads,
+          host: host,
+          recorder: recorder,
+        );
+
+        expect(host.state.openThreadId, isNull);
+
+        harness.beaconCubit.emitState(_authorBeaconState());
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 100));
+
+        expect(host.state.openThreadId, RequestThread.generalId);
+        expect(find.byType(ThreadDetail), findsOneWidget);
+      },
+    );
+
     testWidgets('preselects first row; pane persists across People/Log', (
       tester,
     ) async {
