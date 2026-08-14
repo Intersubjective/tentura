@@ -53,7 +53,7 @@ None of the above overlap any UNIT 01–14 file list except the noted `docs/READ
 | 02 | Pure `beacon_room` → `beacon_threads` rename | accepted | 919c0dd43, 73e734710, d0aa5c736, fd1ce76d1 |
 | 03 | Server `beaconThreads` query + preview contract | accepted | 3e261f62d, 633bd3af2, fb699a834, 675d2a019, c175728e0, 5c9587abc |
 | 04 | `markThreadSeen` + persisted-watermark fix | accepted | 4f212fbe4, 6092a70f1, 7bf09b117, a596ebb53, fc0456e69, cfee6c9bc, 557ebbe3b |
-| 05 | Client thread contract/mapping/repo/case (unused) | complete (awaiting manager) | 686d307c7, 6c7731926, ed9278341, 0fe1dd2f9, ed67aa65c |
+| 05 | Client thread contract/mapping/repo/case (unused) | accepted (+1 manager fix) | 686d307c7, 6c7731926, ed9278341, 0fe1dd2f9, ed67aa65c, 8313eac9e, ce03b2c6a |
 | 06 | Thread-keyed watermark store + client `markThreadSeen` | pending | |
 | 07 | Extract ticker, move `ItemCard` (no behavior change) | pending | |
 | 08 | `ThreadsCubit` latest-wins state | pending | |
@@ -230,3 +230,30 @@ None yet.
   routing), `./scripts/check-custom-lints.sh packages/client` (106/106), forbidden
   `GraphQLUnionType`/`__typename` rg empty under `beacon_threads` + `schema.graphql`, `'BeaconThreadsList'`
   present in `build_client.dart`. Ready for manager review / UNIT 06.
+
+- 2026-08-14 — **Manager review: UNIT 05 ACCEPTED, with one manager-applied fix.** Read the actual
+  entity/mapper/query files against the real (not plan-illustrative) UNIT 03 server GraphQL types —
+  field names, `ThreadMessagePreviewKind` codes, and the General/item-null invariant all match exactly.
+  Confirmed the `coordinationItemFromFields` extraction is genuinely shared (both
+  `CoordinationItemListModel.toEntity()` and the new thread mapper call the same function) rather than
+  duplicated. Independently reran codegen (`dart run build_runner build -d`, clean) and the three scoped
+  test files (16 passed) plus lints (106/106) plus the forbidden/required `rg` gates. **As an extra
+  safety check beyond the unit's own scoped verify list, ran the full client `flutter test` — this
+  surfaced a real regression the plan's own UNIT 05 (and UNIT 03) verify commands could not have caught:
+  `test/architecture/updates_event_contract_test.dart` failed, expecting a hardcoded
+  `'BeaconThreadsCase.createMessage'` where the actual value is `'BeaconRoomCase.createMessage'`.** Root
+  cause: UNIT 02's rename sweep incorrectly edited this test's own hardcoded duplicate of the contract's
+  `roomMessagePosted.producer` field (which names the *server's* `BeaconRoomCase`, a class UNIT 02 was
+  never supposed to touch — the same category of mistake UNIT 03 already fixed once in the actual JSON
+  contract file, per the earlier checkpoint above). The test coincidentally still passed right after
+  UNIT 02 (both the JSON and this test's copy were wrong in the same way), and only started failing once
+  UNIT 03's otherwise-correct JSON fix desynced it from this leftover client-test literal — which is why
+  neither UNIT 02's nor UNIT 03's own scoped verification caught it (UNIT 02 didn't run this specific
+  test path in my review; UNIT 03 is server-only and correctly never touches client tests). Fixed
+  directly (small, local, unambiguous, per the remediation guidance): changed line 81 of
+  `updates_event_contract_test.dart` back to `'BeaconRoomCase.createMessage'`, reran that test (pass),
+  then the full client suite (2230 passed, 18 skipped — clean), committed separately as `ce03b2c6a`.
+  **Process note for remaining units:** scoped per-unit verify commands are not sufficient to catch
+  cross-package drift introduced by an earlier unit and only surfaced once a later unit changes the
+  other side of a duplicated invariant — running the full suite (both packages) at least once per
+  accepted unit going forward, not only the unit's own listed verify commands.
