@@ -1,11 +1,5 @@
-// Closes a coverage gap left after issue #103 Unit 4/5: the composer
-// sheet's live-participant-stream reaction was proven in isolation
-// (coordination_item_composer_sheet_test.dart, hand-built StreamController),
-// and the cubit's roomParticipantsLoaded timing was proven in isolation
-// (beacon_view_initial_load_test.dart) — but nothing exercised the actual
-// production wiring in items_tab.dart that connects a real BeaconViewCubit's
-// stream to a sheet opened via a real Promise CTA tap. This test drives
-// that end to end: real BeaconViewCubit, real ItemsTab, real CTA tap.
+// Closes a coverage gap: proves production wiring from BeaconViewCubit
+// participant stream into the coordination composer opened via ThreadsList CTA.
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -21,11 +15,12 @@ import 'package:tentura/domain/entity/beacon_participant.dart';
 import 'package:tentura/domain/entity/beacon_room_consts.dart';
 import 'package:tentura/domain/entity/coordination_item.dart';
 import 'package:tentura/domain/entity/profile.dart';
+import 'package:tentura/features/beacon_threads/ui/bloc/threads_cubit.dart';
+import 'package:tentura/features/beacon_threads/ui/bloc/threads_state.dart';
+import 'package:tentura/features/beacon_threads/ui/widget/threads_list.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_cubit.dart';
-import 'package:tentura/features/beacon_view/ui/bloc/items_tab_cubit.dart';
-import 'package:tentura/features/beacon_view/ui/bloc/items_tab_state.dart';
-import 'package:tentura/features/beacon_view/ui/widget/items_tab.dart';
 import 'package:tentura/features/coordination_item/domain/use_case/coordination_item_case.dart';
+import 'package:tentura/ui/bloc/state_base.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/test_ids.dart';
 
@@ -33,30 +28,21 @@ import '../../ui/effect/fake_ui_effect_port.dart';
 import '../beacon_threads/fake_coordination_item_case.dart';
 import 'beacon_view_case_test_support.dart';
 
-class _MockItemsTabCubit extends Mock implements ItemsTabCubit {
-  _MockItemsTabCubit(this._state);
+class _MockThreadsCubit extends Mock implements ThreadsCubit {
+  _MockThreadsCubit(this._state);
 
-  final ItemsTabState _state;
-
-  @override
-  ItemsTabState get state => _state;
+  final ThreadsState _state;
 
   @override
-  Stream<ItemsTabState> get stream => Stream<ItemsTabState>.value(_state);
+  ThreadsState get state => _state;
+
+  @override
+  Stream<ThreadsState> get stream => Stream<ThreadsState>.value(_state);
 
   @override
   Future<void> fetch({bool silent = false}) async {}
 }
 
-/// Gates [fetchParticipants] on [release] instead of a real-time delay.
-///
-/// `testWidgets` runs on a controlled clock: a real `Future.delayed` timer
-/// (as used by the plain `enrichmentDelay` constructor param on
-/// [FakeBeaconViewRoomRepository]) never fires unless `tester.pump(duration)`
-/// explicitly advances it, and even `Stream.timeout`'s own bail-out Timer is
-/// subject to the same freeze — so awaiting it directly hangs the test
-/// indefinitely rather than timing out. A [Completer], resolved via the
-/// microtask queue, has no such dependency on wall-clock time.
 class _DelayedRoomRepository extends FakeBeaconViewRoomRepository {
   _DelayedRoomRepository({required this.release, required super.participants});
 
@@ -96,12 +82,6 @@ class _TrackingPromiseCase extends FakeCoordinationItemCaseForRoom {
   }
 }
 
-/// Polls [condition] across bounded widget-test pumps instead of awaiting a
-/// real `Stream`/`Timer`-based wait — see [_DelayedRoomRepository]'s doc
-/// comment for why real timers are unsafe to await directly inside
-/// `testWidgets`. Throws if [condition] never becomes true within
-/// [maxPumps] iterations, so a genuine wiring break fails fast instead of
-/// hanging.
 Future<void> _pumpUntil(
   WidgetTester tester,
   bool Function() condition, {
@@ -156,9 +136,7 @@ void main() {
   });
 
   testWidgets(
-    'real BeaconViewCubit feeds live participants into the sheet opened by '
-    'tapping the actual Promise CTA (production wiring, not a hand-built '
-    'stream)',
+    'real BeaconViewCubit feeds live participants into composer from ThreadsList CTA',
     (tester) async {
       final trackingCase = _TrackingPromiseCase();
       GetIt.I.registerSingleton<CoordinationItemCase>(trackingCase);
@@ -186,7 +164,9 @@ void main() {
       );
       addTearDown(cubit.close);
 
-      final itemsTabCubit = _MockItemsTabCubit(const ItemsTabState());
+      final threadsCubit = _MockThreadsCubit(
+        const ThreadsState(status: StateIsSuccess()),
+      );
 
       await tester.pumpWidget(
         MaterialApp(
@@ -197,14 +177,14 @@ void main() {
           home: MultiBlocProvider(
             providers: [
               BlocProvider<BeaconViewCubit>.value(value: cubit),
-              BlocProvider<ItemsTabCubit>.value(value: itemsTabCubit),
+              BlocProvider<ThreadsCubit>.value(value: threadsCubit),
             ],
             child: Scaffold(
               body: BlocBuilder<BeaconViewCubit, BeaconViewState>(
                 bloc: cubit,
-                builder: (context, state) => ItemsTab(
-                  state: state,
-                  onOpenItemThread: (_) {},
+                builder: (context, state) => ThreadsList(
+                  beaconState: state,
+                  onOpenThread: (_) {},
                 ),
               ),
             ),
@@ -212,8 +192,6 @@ void main() {
         ),
       );
 
-      // Phase 1 only: content loaded, author CTA already visible, but the
-      // real cubit's participants fetch is still gated on `release`.
       await _pumpUntil(tester, () => cubit.state.beaconContentLoaded);
       await tester.pump();
 
@@ -228,8 +206,6 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 100));
 
-      // Sheet is open, but the real cubit hasn't delivered participants yet:
-      // the picker area must show its loading state, not a dropdown.
       expect(
         find.byKey(TestIds.key(TestIds.coordinationComposerBody)),
         findsOneWidget,
@@ -237,9 +213,6 @@ void main() {
       expect(find.byType(DropdownButtonFormField<String?>), findsNothing);
       expect(find.text('Helper Name'), findsNothing);
 
-      // Let the real cubit's phase-2 fetch resolve. If items_tab.dart's
-      // `beaconViewCubit.stream.map(...)` wiring into the already-open sheet
-      // is correct, the picker updates in place with no reopen.
       release.complete();
       await _pumpUntil(tester, () => cubit.state.roomParticipantsLoaded);
       await tester.pump();

@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:tentura/consts.dart';
 import 'package:tentura/domain/attention/destination_map.dart';
 import 'package:tentura/domain/attention/entity/attention_receipt.dart';
+import 'package:tentura/features/beacon_threads/domain/entity/request_thread.dart';
 
 void main() {
   AttentionReceipt receipt({
@@ -25,7 +26,24 @@ void main() {
     targetEntityId: targetEntityId,
   );
 
-  test('directed room target keeps message separate from item', () {
+  test('beacon_room opens General on threads tab', () {
+    final uri = attentionDestination(
+      receipt(
+        destinationKind: 'beacon_room',
+        targetEntityId: 'ignored',
+        beaconId: 'B1',
+      ),
+    );
+
+    expect(uri.path, '$kPathBeaconView/B1');
+    expect(uri.queryParameters[kQueryBeaconViewTab], kBeaconViewTabThreads);
+    expect(
+      uri.queryParameters[kQueryThreadId],
+      RequestThread.generalId,
+    );
+  });
+
+  test('directed room message keeps message only for host canonicalization', () {
     final uri = attentionDestination(
       receipt(
         destinationKind: 'beacon_room_message',
@@ -35,9 +53,9 @@ void main() {
     );
 
     expect(uri.path, '$kPathBeaconView/B1');
-    expect(uri.queryParameters[kQueryBeaconViewTab], 'room');
+    expect(uri.queryParameters[kQueryBeaconViewTab], kBeaconViewTabThreads);
     expect(uri.queryParameters[kQueryMessageId], 'M1');
-    expect(uri.queryParameters.containsKey(kQueryCoordinationItemId), isFalse);
+    expect(uri.queryParameters.containsKey(kQueryThreadId), isFalse);
   });
 
   test('received reviews destination uses beacon id path', () {

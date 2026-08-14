@@ -143,11 +143,12 @@ void main() {
   late final PageInfo realFriendsPage;
   late final PageInfo realProfilePage;
   late final PageInfo realBeaconViewPage;
+  late final PageInfo realBeaconViewOperationalPage;
   late final PageInfo realAuthLoginPage;
   late final PageInfo realGraphPage;
   late final PageInfo realProfileViewPage;
   late final PageInfo realReviewContributionsPage;
-  late final PageInfo realItemDiscussionPage;
+  late final PageInfo realThreadDetailPage;
   late final PageInfo realInboxRejectedPage;
   late final PageInfo realBlockedUsersPage;
 
@@ -159,11 +160,12 @@ void main() {
     realFriendsPage = FriendsRoute.page;
     realProfilePage = ProfileRoute.page;
     realBeaconViewPage = BeaconViewRoute.page;
+    realBeaconViewOperationalPage = BeaconViewOperationalRoute.page;
     realAuthLoginPage = AuthLoginRoute.page;
     realGraphPage = GraphRoute.page;
     realProfileViewPage = ProfileViewRoute.page;
     realReviewContributionsPage = ReviewContributionsRoute.page;
-    realItemDiscussionPage = ItemDiscussionRoute.page;
+    realThreadDetailPage = ThreadDetailRoute.page;
     realInboxRejectedPage = InboxRejectedRoute.page;
     realBlockedUsersPage = BlockedUsersRoute.page;
 
@@ -177,15 +179,33 @@ void main() {
     FriendsRoute.page = _labelPage(FriendsRoute.name, 'friends-root');
     ProfileRoute.page = _labelPage(ProfileRoute.name, 'profile-root');
     AuthLoginRoute.page = _labelPage(AuthLoginRoute.name, 'auth-login');
+    BeaconViewOperationalRoute.page = PageInfo(
+      BeaconViewOperationalRoute.name,
+      builder: (data) {
+        final id = data.inheritedPathParams.getString('id', '');
+        final entry = data.queryParams.optString('entry') ?? '';
+        final viewTab = data.queryParams.optString('tab') ?? '';
+        return Text(
+          'beacon-operational:$id:$entry:$viewTab',
+          textDirection: TextDirection.ltr,
+        );
+      },
+    );
     BeaconViewRoute.page = PageInfo(
       BeaconViewRoute.name,
       builder: (data) {
         final id = data.inheritedPathParams.getString('id', '');
         final entry = data.queryParams.optString('entry') ?? '';
         final viewTab = data.queryParams.optString('tab') ?? '';
-        return Text(
-          'beacon-view:$id:$entry:$viewTab',
-          textDirection: TextDirection.ltr,
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'beacon-view:$id:$entry:$viewTab',
+              textDirection: TextDirection.ltr,
+            ),
+            const Expanded(child: AutoRouter()),
+          ],
         );
       },
     );
@@ -207,13 +227,13 @@ void main() {
       ReviewContributionsRoute.name,
       'review-contributions',
     );
-    ItemDiscussionRoute.page = PageInfo(
-      ItemDiscussionRoute.name,
+    ThreadDetailRoute.page = PageInfo(
+      ThreadDetailRoute.name,
       builder: (data) {
-        final beaconId = data.inheritedPathParams.getString('beaconId', '');
-        final itemId = data.inheritedPathParams.getString('itemId', '');
+        final id = data.inheritedPathParams.getString('id', '');
+        final threadId = data.pathParams.getString('threadId', '');
         return Text(
-          'item-discussion:$beaconId:$itemId',
+          'thread-detail:$id:$threadId',
           textDirection: TextDirection.ltr,
         );
       },
@@ -244,11 +264,12 @@ void main() {
     FriendsRoute.page = realFriendsPage;
     ProfileRoute.page = realProfilePage;
     BeaconViewRoute.page = realBeaconViewPage;
+    BeaconViewOperationalRoute.page = realBeaconViewOperationalPage;
     AuthLoginRoute.page = realAuthLoginPage;
     GraphRoute.page = realGraphPage;
     ProfileViewRoute.page = realProfileViewPage;
     ReviewContributionsRoute.page = realReviewContributionsPage;
-    ItemDiscussionRoute.page = realItemDiscussionPage;
+    ThreadDetailRoute.page = realThreadDetailPage;
     InboxRejectedRoute.page = realInboxRejectedPage;
     BlockedUsersRoute.page = realBlockedUsersPage;
   });
@@ -520,14 +541,15 @@ void main() {
     );
 
     testWidgets(
-      'legacy /beacon/room/:id still resolves to beacon view in room mode',
+      'legacy /beacon/room/:id is not registered and follows unknown-route behavior',
       (tester) async {
         await pumpRouter(tester, initialPath: '/home');
 
         await router.navigatePath('/beacon/room/B123');
         await tester.pumpAndSettle();
 
-        expect(find.text('beacon-view:B123:deep_link:room'), findsOneWidget);
+        expect(find.textContaining('beacon-view:B123'), findsNothing);
+        expect(currentUrl(), kPathMyWork);
       },
     );
 
@@ -630,28 +652,28 @@ void main() {
     );
 
     testWidgets(
-      'ItemDiscussionRoute matches before BeaconViewRoute inside a branch',
+      'ThreadDetailRoute nests under BeaconViewRoute inside a branch',
       (tester) async {
         await pumpRouter(
           tester,
-          initialPath: '/home/work/beacon/view/B1/discussion/I1',
+          initialPath: '/home/work/beacon/view/B1/thread/I1',
         );
 
-        expect(find.text('item-discussion:B1:I1'), findsOneWidget);
-        expect(currentUrl(), '/home/work/beacon/view/B1/discussion/I1');
+        expect(find.text('thread-detail:B1:I1'), findsOneWidget);
+        expect(currentUrl(), '/home/work/beacon/view/B1/thread/I1');
       },
     );
 
     testWidgets(
-      'pushPath of legacy item-discussion path lands in the active tab branch',
+      'pushPath of thread detail lands in the active tab branch',
       (tester) async {
         await pumpRouter(tester, initialPath: '/home');
 
-        await router.pushPath('/beacon/view/B1/discussion/I1');
+        await router.pushPath('/beacon/view/B1/thread/I1');
         await tester.pumpAndSettle();
 
-        expect(find.text('item-discussion:B1:I1'), findsOneWidget);
-        expect(currentUrl(), '/home/work/beacon/view/B1/discussion/I1');
+        expect(find.text('thread-detail:B1:I1'), findsOneWidget);
+        expect(currentUrl(), '/home/work/beacon/view/B1/thread/I1');
       },
     );
 
@@ -761,9 +783,9 @@ void main() {
         );
         expect(
           (await router.deepLinkTransformer(
-            Uri.parse('/beacon/view/B9?tab=room'),
+            Uri.parse('/beacon/view/B9?tab=threads&thread=general'),
           )).toString(),
-          '/home/network/beacon/view/B9?tab=room',
+          '/home/network/beacon/view/B9?tab=threads&thread=general',
         );
         // Non-browse paths pass through untouched.
         for (final path in ['/settings', '/sign/in', '/beacon/new', '/home']) {
@@ -776,13 +798,10 @@ void main() {
     );
 
     testWidgets(
-      'notification dest=room link keeps the room entry through the '
-      'branch-prefixed pipeline',
+      'notification dest=room link opens threads tab through the branch pipeline',
       (tester) async {
         await pumpRouter(tester, initialPath: '/home');
 
-        // Not awaited: the underlying push future completes only when the
-        // pushed page pops.
         unawaited(
           router.openFromNotificationLink(
             'https://app.example/#/shared/view?id=B7&dest=room',
@@ -791,6 +810,8 @@ void main() {
         await tester.pumpAndSettle();
 
         expect(currentUrl(), contains('/home/work/beacon/view/B7'));
+        expect(currentUrl(), contains('tab=threads'));
+        expect(currentUrl(), contains('thread=general'));
         expect(currentUrl(), contains('entry=room_notification'));
       },
     );
@@ -802,7 +823,7 @@ void main() {
 
         unawaited(
           router.openFromNotificationLink(
-            '/beacon/view/B2?tab=room&message=M1&item=I1',
+            '/beacon/view/B2?tab=threads&thread=I1&message=M1',
             preferUpdatesBranch: true,
           ),
         );
@@ -810,7 +831,7 @@ void main() {
 
         expect(
           currentUrl(),
-          '/home/updates/beacon/view/B2?tab=room&item=I1&message=M1',
+          '/home/updates/beacon/view/B2?tab=threads&thread=I1&message=M1',
         );
       },
     );

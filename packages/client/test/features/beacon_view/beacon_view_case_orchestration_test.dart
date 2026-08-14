@@ -128,24 +128,6 @@ void main() {
 
       expect(events, [inv]);
     });
-
-    test(
-      'readWatermarkChanges forwards beacon room watermark stream',
-      () async {
-        final watermark = RoomReadWatermarkStore.testing();
-        addTearDown(watermark.dispose);
-        final case_ = buildTestBeaconViewCase(watermarkStore: watermark);
-
-        final ids = <String>[];
-        final sub = case_.readWatermarkChanges.listen(ids.add);
-        addTearDown(sub.cancel);
-
-        watermark.observeReadThrough('B4', DateTime.utc(2026));
-        await Future<void>.delayed(Duration.zero);
-
-        expect(ids, ['B4']);
-      },
-    );
   });
 
   group('BeaconViewCase refetch after lifecycle mutations', () {

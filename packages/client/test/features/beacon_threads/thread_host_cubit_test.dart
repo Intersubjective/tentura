@@ -247,5 +247,32 @@ void main() {
 
       await host.close();
     });
+
+    testWidgets(
+      'scheduleWindowClassTransition runs only the latest scheduled action',
+      (tester) async {
+        final host = _host();
+        var runs = 0;
+        host.scheduleWindowClassTransition(() => runs++);
+        host.scheduleWindowClassTransition(() => runs++);
+        await tester.pump();
+        expect(runs, 1);
+        await host.close();
+      },
+    );
+
+    testWidgets('select cancels a pending window-class transition', (
+      tester,
+    ) async {
+      final recorder = RoomCubitFactoryRecorder();
+      final host = _host(recorder: recorder);
+      var ran = false;
+      host.scheduleWindowClassTransition(() => ran = true);
+      await host.select(_generalThread());
+      recorder.created.single.closeCompleter.complete();
+      await tester.pump();
+      expect(ran, isFalse);
+      await host.close();
+    });
   });
 }
