@@ -57,7 +57,7 @@ None of the above overlap any UNIT 01–14 file list except the noted `docs/READ
 | 06 | Thread-keyed watermark store + client `markThreadSeen` | accepted (3 sessions, 2 killed) | 81824ba22, 36a99f6ac, 3abef3470, 37ccd5a42, 19bb6c2a4, 52d57d49c, 22ec62ac3, 6e0de9147 |
 | 07 | Extract ticker, move `ItemCard` (no behavior change) | accepted | 4cdb76ae9, ea4cf7bf5, 33ea2b509 |
 | 08 | `ThreadsCubit` latest-wins state | accepted | 74bb22aa4, 7a04e6385, 38bb78161, 5ec9eec02 |
-| 09 | Boxed Threads list + evolved `ItemCard` (unused) | accepted | c5543c633, 815762981, 022feb731, 20754c690, ec171c43a |
+| 09 | Boxed Threads list + evolved `ItemCard` (unused) | accepted (+1 manager fix) | c5543c633, 815762981, 022feb731, 20754c690, ec171c43a, 42b27c9bd, 72933af66 |
 | 10 | Shared thread host, awaited cubit handoff | pending | |
 | 11 | Nested route host + real thread detail page (unused) | pending | |
 | 12 | Atomic Threads activation + legacy removal | pending | |
@@ -397,3 +397,23 @@ None yet.
   preview lines; expanded light/dark show full semantic body + show-more toggle
   with no clipping. `ThreadsList`/`ItemCard` are not wired into production
   screens yet (UNIT 11/12). Ready for UNIT 10.
+
+- 2026-08-14 — **Manager review: UNIT 09 ACCEPTED, with one manager-applied fix.** Independently
+  opened and visually inspected all four golden PNGs myself (not just the worker's description): clean
+  layout, correct light/dark contrast, no clipping, General row (blue leading icon) visually distinct
+  from the semantic row (kind-colored leading icon) in both collapsed and expanded states — confirms
+  the worker's own visual-inspection note. Confirmed `ItemCard`'s General/semantic branch is on
+  `thread.item` presence and that all ten preview kinds are handled exhaustively in
+  `thread_message_preview_presenter.dart`. Independently reran the scoped tests (13 passed across both
+  files), the boxed-Column gate (`SliverList`/`ListView` absent from `threads_list.dart`), version/
+  cache-buster (`6.0.2` confirmed in both files), l10n keys (all six new keys present with the exact
+  planned EN/RU strings, including the Q1 `Commitment`/«Обязательство» relabel with wire identifier
+  `promise` untouched), `check-user-facing-terminology.sh` (ok), and the full client suite (2266
+  passed, 18 skipped, zero regressions). **Fix applied:** the worker's own lint command showed
+  `total: 103 (baseline: 106)` with the script's own suggestion to lower the baseline to lock in the
+  improvement — this was not done, and the worker's self-report ("103/103 OK") misquoted the actual
+  output. Verified the improvement is real (71+26+4+2=103, matches the live per-rule breakdown, none of
+  the 103 remaining violations are in this unit's own new/edited files) and lowered
+  `scripts/custom-lint-baseline.txt` from 106 to 103 myself (`72933af66`), matching this repo's own
+  established convention (UNIT 01 did the same for the server baseline). Proceeding to UNIT 10 (shared
+  thread host with awaited `RoomCubit` handoff — still not wired into production).
