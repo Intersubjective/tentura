@@ -80,6 +80,12 @@ const kQueryBeaconEditId = 'edit_id';
 /// Room: use `tab=room` or [kQueryBeaconSurface]=`room` (not a segment tab).
 const kQueryBeaconViewTab = 'tab';
 
+/// [kQueryBeaconViewTab] value — open the Threads tab (expanded split selection).
+const kBeaconViewTabThreads = 'threads';
+
+/// Expanded split / deep-link thread selection (`general` or item id).
+const kQueryThreadId = 'thread';
+
 /// When truthy with [kQueryBeaconViewTab]=`help_offers`, pulse/highlight the People tab until interaction.
 const kQueryBeaconPeopleTabAttention = 'people_tab_attention';
 

@@ -21,7 +21,6 @@ import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/presenter/beacon_phase_presenter.dart';
-import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura/ui/widget/auto_leading_with_fallback.dart';
 
 import '../bloc/beacon_view_cubit.dart';
@@ -124,17 +123,16 @@ double beaconViewRoomSplitPaneWidth(
   return tt.chatColumnMaxWidth.clamp(minPaneWidth, effectiveMaxPaneWidth);
 }
 
-@RoutePage()
-class BeaconViewScreen extends StatefulWidget implements AutoRouteWrapper {
+class BeaconViewScreen extends StatefulWidget {
   const BeaconViewScreen({
-    @PathParam('id') this.id = '',
-    @QueryParam(kQueryIsDeepLink) this.isDeepLink,
-    @QueryParam(kQueryBeaconViewTab) this.viewTab,
-    @QueryParam(kQueryBeaconPeopleTabAttention) this.peopleTabAttention,
-    @QueryParam(kQueryBeaconSurface) this.surface,
-    @QueryParam(kQueryBeaconEntry) this.entry,
-    @QueryParam(kQueryCoordinationItemId) this.coordinationItemId,
-    @QueryParam(kQueryMessageId) this.messageId,
+    this.id = '',
+    this.isDeepLink,
+    this.viewTab,
+    this.peopleTabAttention,
+    this.surface,
+    this.entry,
+    this.coordinationItemId,
+    this.messageId,
     this.embedded = false,
     this.embeddedAllowRoomSplit = false,
     this.embeddedRoomCoVisible = false,
@@ -189,25 +187,6 @@ class BeaconViewScreen extends StatefulWidget implements AutoRouteWrapper {
 
   /// Called from embedded error "go back" — host may clear selection.
   final VoidCallback? onEmbeddedLeave;
-
-  @override
-  Widget wrappedRoute(_) => localScreenCubitScope(
-    child: BlocBuilder<ProfileCubit, ProfileState>(
-      buildWhen: (previous, current) =>
-          previous.profile.id != current.profile.id,
-      builder: (context, profileState) {
-        final myProfile = profileState.profile;
-        return BlocProvider(
-          key: ValueKey('BeaconViewCubit:$id:${myProfile.id}'),
-          create: (_) => BeaconViewCubit(
-            myProfile: myProfile,
-            id: id,
-          ),
-          child: this,
-        );
-      },
-    ),
-  );
 
   @override
   State<BeaconViewScreen> createState() => _BeaconViewScreenState();
