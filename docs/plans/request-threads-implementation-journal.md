@@ -51,8 +51,8 @@ None of the above overlap any UNIT 01–14 file list except the noted `docs/READ
 |---|---|---|---|
 | 01 | Remove resolution feature (D27), migration m0149, My Work reviews segment | accepted | 1b1a9ba69, 14e602b29, 7507dae82, 6b4e88c56, 03acdcf50, 9e3f07f10 |
 | 02 | Pure `beacon_room` → `beacon_threads` rename | accepted | 919c0dd43, 73e734710, d0aa5c736, fd1ce76d1 |
-| 03 | Server `beaconThreads` query + preview contract | complete (awaiting manager) | 3e261f62d, 633bd3af2, fb699a834, 675d2a019, c175728e0 |
-| 04 | `markThreadSeen` + persisted-watermark fix | pending | |
+| 03 | Server `beaconThreads` query + preview contract | accepted | 3e261f62d, 633bd3af2, fb699a834, 675d2a019, c175728e0, 5c9587abc |
+| 04 | `markThreadSeen` + persisted-watermark fix | complete (awaiting manager) | |
 | 05 | Client thread contract/mapping/repo/case (unused) | pending | |
 | 06 | Thread-keyed watermark store + client `markThreadSeen` | pending | |
 | 07 | Extract ticker, move `ItemCard` (no behavior change) | pending | |
@@ -151,3 +151,37 @@ None yet.
   `dart test --exclude-tags pg` (1504 passed), `./scripts/check-custom-lints.sh packages/server` (0/0),
   forbidden `GraphQLUnionType`/`__typename` rg empty, skeleton `thread_base`/`eligible_item`/`UNION ALL`
   rg present, `LEFT JOIN beacon_items_seen` survivor present. Ready for manager review / UNIT 04.
+
+- 2026-08-14 — **Manager review: UNIT 03 ACCEPTED.** Read the actual SQL (lines ~904-1031 of
+  `coordination_item_repository.dart`) and the preview-mapping function end to end, not just the gates:
+  confirmed the `eligible_item`/`thread_base UNION ALL` shape matches architecture §4.5 exactly, `IS NOT
+  DISTINCT FROM` used correctly for the nullable `thread_item_id` join (General's NULL matches), the
+  per-item unread predicate's plan-exclusion clause is correctly scoped to `tb.item_id IS NULL OR ...`
+  so it does not suppress General's plan messages, the coordination-lifecycle-with-null-marker case is
+  checked before the ordinary-marker switch (matching the "ordinary text" trap called out in the
+  architecture doc), and `BeaconRoomCase.listThreads`'s authorization matches the union rule verbatim
+  (`roomMember` via `_canUseRoom`, `includeGeneral`/`itemParticipantsOnly` wiring, throw only when a
+  non-member's result is empty). Independently reran (not just trusted the worker): case test (4
+  passed), PG repository test against the locally reachable Postgres on `127.0.0.1:5432` (12 passed),
+  full server suite `dart test --exclude-tags pg` (1504 passed), `check-custom-lints.sh packages/server`
+  (0/0), and the forbidden/required `rg` gates — all clean. Also independently confirmed the worker's
+  self-reported UNIT-02 contract-file fix is correct: `packages/server/lib/domain/use_case/
+  beacon_room_case.dart` still declares `class BeaconRoomCase` with `createMessage`, so restoring
+  `updates-event-contract.json`'s producer to `BeaconRoomCase.createMessage` was right (the client-side
+  UNIT 02 rename to `BeaconThreadsCase` should never have touched this server-side contract entry — a
+  real bug in UNIT 02 that UNIT 03 caught and fixed correctly). One minor, non-blocking finding of my
+  own: `_truncateExcerpt` (line ~1781) truncates using Dart `String.length`/`.substring`, i.e. UTF-16
+  code units, rather than the plan's suggested SQL `LEFT(body, $5)` (Postgres counts characters). This
+  can only misbehave if the 140-character boundary lands inside an astral-plane character (rare emoji),
+  producing a stray surrogate at the excerpt edge — functionally equivalent for virtually all real
+  content, and still strictly server-side truncation (never on the client, satisfying the actual
+  invariant). Not worth a remediation unit; noted here in case it ever surfaces as a rendering glitch.
+  Proceeding to UNIT 04 (`markThreadSeen` + persisted-watermark fix).
+
+- 2026-08-14 — UNIT 04 worker: `markBeaconRoomSeen` upserts now `RETURNING last_seen_at` via
+  `customSelect` (both partial-index conflict targets unchanged). Drift cannot `read<PgDateTime>` on
+  `customSelect` RETURNING timestamptz — used `DateTime.parse(row.read<String>(...))` per
+  `attention_dispatch_repository.dart` precedent. Added `BeaconRoomCase.markThreadSeen` with sole
+  `'general'` → `null` translation; GraphQL `markThreadSeen` field; domain + PG regression tests.
+  Regenerated `help_offer_case_mocks.mocks.dart` for port signature change. Did not touch
+  `docs/contracts/*.json`.
