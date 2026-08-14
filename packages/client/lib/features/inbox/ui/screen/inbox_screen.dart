@@ -16,6 +16,7 @@ import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura/features/beacon_view/ui/dialog/help_offer_message_dialog.dart';
 import 'package:tentura/features/beacon_view/ui/message/help_offer_messages.dart';
 import 'package:tentura/features/forward/data/repository/forward_repository.dart';
+import 'package:tentura/features/forward/domain/forward_draft_policy.dart';
 import 'package:tentura/features/home/ui/bloc/home_tab_reselect_cubit.dart';
 import 'package:tentura/features/home/ui/bloc/home_attention_cubit.dart';
 
@@ -1118,18 +1119,34 @@ Future<void> _inboxOfferHelp(BuildContext context, Beacon beacon) async {
 }
 
 Future<void> _onForwardItem(BuildContext context, InboxItem item) async {
-  final didForward = await context.router.push<bool>(
-    ForwardBeaconRoute(beaconId: item.beaconId),
-  );
-  if (!context.mounted || didForward != true) return;
-  if (!_inboxCardAllowsOfferHelp(item)) return;
+  final hadOutgoingEdgeBefore = item.isForwardedByMe;
+  await context.router.push(ForwardBeaconRoute(beaconId: item.beaconId));
+  if (!context.mounted) return;
+  final cubit = context.read<InboxCubit>();
+  InboxItem? afterItem;
+  for (final e in cubit.state.items) {
+    if (e.beaconId == item.beaconId) {
+      afterItem = e;
+      break;
+    }
+  }
+  final hasOutgoingEdgeAfter = afterItem?.isForwardedByMe ?? false;
+  final offerHelpAllowed =
+      afterItem != null && _inboxCardAllowsOfferHelp(afterItem);
+  if (!shouldNudgeOfferHelpAfterForwardVisit(
+    hadOutgoingEdgeBefore: hadOutgoingEdgeBefore,
+    hasOutgoingEdgeAfter: hasOutgoingEdgeAfter,
+    offerHelpAllowed: offerHelpAllowed,
+  )) {
+    return;
+  }
   final l10n = L10n.of(context)!;
   showSnackBar(
     context,
     text: l10n.nudgeOfferHelpAfterForward,
     action: SnackBarAction(
       label: l10n.labelOfferHelp,
-      onPressed: () => unawaited(_inboxOfferHelp(context, item.beacon!)),
+      onPressed: () => unawaited(_inboxOfferHelp(context, afterItem!.beacon!)),
     ),
   );
 }

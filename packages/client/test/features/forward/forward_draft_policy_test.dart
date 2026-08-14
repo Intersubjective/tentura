@@ -172,4 +172,50 @@ void main() {
       });
     }
   });
+
+  group('shouldNudgeOfferHelpAfterForwardVisit', () {
+    test('no new edge after visit does not nudge', () {
+      expect(
+        shouldNudgeOfferHelpAfterForwardVisit(
+          hadOutgoingEdgeBefore: false,
+          hasOutgoingEdgeAfter: false,
+          offerHelpAllowed: true,
+        ),
+        isFalse,
+      );
+    });
+
+    test('already had edge before visit does not nudge', () {
+      expect(
+        shouldNudgeOfferHelpAfterForwardVisit(
+          hadOutgoingEdgeBefore: true,
+          hasOutgoingEdgeAfter: true,
+          offerHelpAllowed: true,
+        ),
+        isFalse,
+      );
+    });
+
+    test('false to true edge transition nudges when offer help allowed', () {
+      expect(
+        shouldNudgeOfferHelpAfterForwardVisit(
+          hadOutgoingEdgeBefore: false,
+          hasOutgoingEdgeAfter: true,
+          offerHelpAllowed: true,
+        ),
+        isTrue,
+      );
+    });
+
+    test('false to true edge does not nudge when offer help not allowed', () {
+      expect(
+        shouldNudgeOfferHelpAfterForwardVisit(
+          hadOutgoingEdgeBefore: false,
+          hasOutgoingEdgeAfter: true,
+          offerHelpAllowed: false,
+        ),
+        isFalse,
+      );
+    });
+  });
 }

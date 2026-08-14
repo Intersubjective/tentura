@@ -98,7 +98,7 @@ None triggered.
 - [x] **06** Picker: skip, sheet, controllers, D14 chrome
 - [x] **07** Location toast + Watching intent on `HomeTabReselectCubit`
 - [x] **08** Inbox consumes Watching intent; D15
-- [ ] **09** D13 offer-help snapshot on Inbox + BeaconView
+- [x] **09** D13 offer-help snapshot on Inbox + BeaconView
 - [ ] **10** CTA inventory (`allowsForward`)
 - [ ] **11** Person-forward stay, skip/sheet, **add** cancel
 - [ ] **12** Client 6.2.0 + web cache-buster
@@ -212,8 +212,15 @@ frozen contract, stop that unit with `BLOCKED` instead of improvising.
   **above** the controller — that throws. Manager fix: `_InboxWatchingIntentBinder`
   under the controller; listener passes its own context. Compact still
   does not set `_selectedWatchingBeaconId`. Do not use MCP `analyze_files`
-  (freezes). Unrelated intervening commit `d698aee25` bumped client to
+  (freezes).   Unrelated intervening commit `d698aee25` bumped client to
   **6.1.2**; UNIT 12 still ships **6.2.0**. UNIT 09 authorized.
+- 2026-08-14 manager: **UNIT 09 accepted**. Commit `fix: snapshot offer-help
+  nudge across Forward visit`. Independent:
+  `flutter test test/features/inbox/inbox_case_test.dart
+  test/features/beacon_view/beacon_view_offer_help_test.dart
+  test/features/forward/forward_draft_policy_test.dart` → 35 passed.
+  D13 snapshot helper extracted; both openers no longer gate on pop bool.
+  UNIT 10 authorized.
 
 ## Unit entries
 
@@ -365,3 +372,16 @@ FILES:
 - `docs/plans/issue-110-forward-explicit-implementation-journal.md`
 FINDINGS: `_InboxWatchingIntentBinder` runs first-frame consume with a descendant context. Count listener still uses listener context. Unrelated `d698aee25` set client version to 6.1.2.
 REMAINING: none — UNIT 09 may start
+
+## UNIT 09 — complete — 2026-08-14
+COMMITS: fix: snapshot offer-help nudge across Forward visit (see `git log -1`)
+TESTS:
+- `cd packages/client && flutter test test/features/inbox/inbox_case_test.dart test/features/beacon_view/beacon_view_offer_help_test.dart test/features/forward/forward_draft_policy_test.dart` → 35 passed
+FILES:
+- `packages/client/lib/features/forward/domain/forward_draft_policy.dart`
+- `packages/client/lib/features/inbox/ui/screen/inbox_screen.dart`
+- `packages/client/lib/features/beacon_view/ui/widget/beacon_view_app_bar_overflow.dart`
+- `packages/client/test/features/forward/forward_draft_policy_test.dart`
+- `docs/plans/issue-110-forward-explicit-implementation-journal.md`
+FINDINGS: none — `isForwardedByMe` and `hasForwardedThisBeaconOnce` are the live edge-presence snapshots; `_inboxCardAllowsOfferHelp` unchanged for eligibility
+REMAINING: none — UNIT 10 may start

@@ -19,6 +19,7 @@ import 'package:tentura/features/beacon_view/ui/widget/coordination_item_compose
 import 'package:tentura/features/beacon_view/ui/widget/coordination_target_candidates.dart';
 import 'package:tentura/features/beacon_view/ui/presenter/beacon_hud_author_action.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_cubit.dart';
+import 'package:tentura/features/forward/domain/forward_draft_policy.dart';
 import 'package:tentura/features/beacon_view/ui/dialog/help_offer_message_dialog.dart';
 import 'package:tentura/features/beacon_view/ui/util/beacon_closure_readiness.dart';
 import 'package:tentura/features/beacon_view/ui/util/help_offer_types_wire.dart';
@@ -94,16 +95,20 @@ Future<void> beaconViewOpenForwardThenMaybeNudgeOfferHelp(
   BeaconViewCubit cubit,
   L10n l10n,
 ) async {
+  final hadOutgoingEdgeBefore = cubit.state.hasForwardedThisBeaconOnce;
   final id = cubit.state.beacon.id;
-  final didForward = await context.router.push<bool>(
-    ForwardBeaconRoute(beaconId: id),
-  );
-  if (!context.mounted || didForward != true) return;
+  await context.router.push(ForwardBeaconRoute(beaconId: id));
+  if (!context.mounted) return;
   final s = cubit.state;
-  if (s.isHelpOffered ||
-      s.isBeaconMine ||
-      !s.beacon.allowsNewHelpOfferAsNonAuthor ||
-      s.beacon.status != BeaconStatus.open) {
+  final offerHelpAllowed = !s.isHelpOffered &&
+      !s.isBeaconMine &&
+      s.beacon.allowsNewHelpOfferAsNonAuthor &&
+      s.beacon.status == BeaconStatus.open;
+  if (!shouldNudgeOfferHelpAfterForwardVisit(
+    hadOutgoingEdgeBefore: hadOutgoingEdgeBefore,
+    hasOutgoingEdgeAfter: s.hasForwardedThisBeaconOnce,
+    offerHelpAllowed: offerHelpAllowed,
+  )) {
     return;
   }
   showSnackBar(

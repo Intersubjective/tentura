@@ -35,3 +35,10 @@ bool forwardEdgeIsCancellable({
       !recipientHasActiveHelpOffer &&
       !recipientDeclined;
 }
+
+bool shouldNudgeOfferHelpAfterForwardVisit({
+  required bool hadOutgoingEdgeBefore,
+  required bool hasOutgoingEdgeAfter,
+  required bool offerHelpAllowed,
+}) =>
+    !hadOutgoingEdgeBefore && hasOutgoingEdgeAfter && offerHelpAllowed;
