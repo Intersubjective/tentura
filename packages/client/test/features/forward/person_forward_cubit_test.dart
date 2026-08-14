@@ -6,6 +6,7 @@ import 'package:logging/logging.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import 'package:tentura/domain/contacts/contact_name_store.dart';
+import 'package:tentura/domain/entity/availability.dart';
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/domain/entity/repository_event.dart';
@@ -17,6 +18,7 @@ import 'package:tentura/features/forward/domain/entity/person_forward_row.dart';
 import 'package:tentura/features/forward/domain/entity/forward_delivery_result.dart';
 import 'package:tentura/features/forward/domain/use_case/person_forward_case.dart';
 import 'package:tentura/features/forward/ui/bloc/person_forward_cubit.dart';
+import 'package:tentura/features/forward/ui/message/person_forward_messages.dart';
 import 'package:tentura/features/profile/domain/port/profile_repository_port.dart';
 import 'package:tentura/ui/effect/ui_effect.dart';
 
@@ -29,6 +31,7 @@ class _FakeForwardRepository implements ForwardRepository {
   final _forwardChanges = StreamController<String>.broadcast();
   final involvementByBeaconId = <String, BeaconInvolvementData>{};
   final sent = <({String beaconId, List<String> recipientIds, String? note})>[];
+  ForwardDeliveryResult? nextResult;
 
   @override
   Stream<String> get forwardChanges => _forwardChanges.stream;
@@ -67,11 +70,12 @@ class _FakeForwardRepository implements ForwardRepository {
     recipientBandProvenance,
   }) async {
     sent.add((beaconId: beaconId, recipientIds: recipientIds, note: note));
-    return ForwardDeliveryResult(
-      batchId: 'edge-1',
-      deliveredRecipientIds: recipientIds,
-      availabilitySkippedRecipientIds: const [],
-    );
+    return nextResult ??
+        ForwardDeliveryResult(
+          batchId: 'edge-1',
+          deliveredRecipientIds: recipientIds,
+          availabilitySkippedRecipientIds: const [],
+        );
   }
 
   @override
@@ -184,6 +188,8 @@ Beacon _beacon(String id, {BeaconStatus status = BeaconStatus.open}) =>
       status: status,
       author: const Profile(id: 'U-me'),
     );
+
+DateTime Function() _fixedClock(DateTime instant) => () => instant;
 
 void main() {
   tearDown(() async {
@@ -403,6 +409,225 @@ void main() {
         (s) => s.rows.isNotEmpty && harness.beaconRepo.fetchCalls == 2,
       );
       expect(harness.beaconRepo.fetchCalls, 2);
+    });
+
+    test('paused person disables canSend without changing row blocks', () async {
+      final todayUtc = DateTime.utc(2026, 8, 14);
+      final harness = await _buildHarness(
+        person: Profile(
+          id: 'U-target',
+          displayName: 'Target',
+          score: 1,
+          rScore: 1,
+          availability: Availability(resumeOn: DateTime.utc(2026, 8, 20)),
+        ),
+        beacons: [_beacon('B-open')],
+      );
+      addTearDown(() async {
+        await harness.forwardRepo.dispose();
+        await harness.contactsCase.dispose();
+        await harness.store.dispose();
+      });
+      final cubit = PersonForwardCubit(
+        personId: 'U-target',
+        personForwardCase: harness.case_,
+        effects: FakeUiEffectPort(),
+        clock: _fixedClock(DateTime.utc(2026, 8, 14, 12)),
+      );
+      addTearDown(cubit.close);
+      await cubit.stream.firstWhere((s) => s.rows.isNotEmpty);
+
+      cubit.selectBeacon('B-open');
+      expect(cubit.state.rows.single.block, PersonForwardBlock.none);
+      expect(cubit.state.canSendOn(todayUtc), isFalse);
+      expect(cubit.state.canSend, isFalse);
+      await cubit.send();
+      expect(harness.forwardRepo.sent, isEmpty);
+    });
+
+    test('limited person keeps canSend when row is eligible', () async {
+      final todayUtc = DateTime.utc(2026, 8, 14);
+      final harness = await _buildHarness(
+        person: const Profile(
+          id: 'U-target',
+          displayName: 'Target',
+          score: 1,
+          rScore: 1,
+          availability: Availability(isLimited: true),
+        ),
+        beacons: [_beacon('B-open')],
+      );
+      addTearDown(() async {
+        await harness.forwardRepo.dispose();
+        await harness.contactsCase.dispose();
+        await harness.store.dispose();
+      });
+      final cubit = PersonForwardCubit(
+        personId: 'U-target',
+        personForwardCase: harness.case_,
+        effects: FakeUiEffectPort(),
+        clock: _fixedClock(DateTime.utc(2026, 8, 14, 12)),
+      );
+      addTearDown(cubit.close);
+      await cubit.stream.firstWhere((s) => s.rows.isNotEmpty);
+
+      cubit.selectBeacon('B-open');
+      expect(cubit.state.canSendOn(todayUtc), isTrue);
+    });
+
+    test('resume-day equality enables canSend', () async {
+      final todayUtc = DateTime.utc(2026, 8, 20);
+      final harness = await _buildHarness(
+        person: Profile(
+          id: 'U-target',
+          displayName: 'Target',
+          score: 1,
+          rScore: 1,
+          availability: Availability(resumeOn: DateTime.utc(2026, 8, 20)),
+        ),
+        beacons: [_beacon('B-open')],
+      );
+      addTearDown(() async {
+        await harness.forwardRepo.dispose();
+        await harness.contactsCase.dispose();
+        await harness.store.dispose();
+      });
+      final cubit = PersonForwardCubit(
+        personId: 'U-target',
+        personForwardCase: harness.case_,
+        effects: FakeUiEffectPort(),
+        clock: _fixedClock(DateTime.utc(2026, 8, 20, 12)),
+      );
+      addTearDown(cubit.close);
+      await cubit.stream.firstWhere((s) => s.rows.isNotEmpty);
+
+      cubit.selectBeacon('B-open');
+      expect(cubit.state.canSendOn(todayUtc), isTrue);
+    });
+
+    test('server availability skip shows copy and never reports sent', () async {
+      final harness = await _buildHarness(beacons: [_beacon('B-open')]);
+      harness.forwardRepo.nextResult = const ForwardDeliveryResult(
+        batchId: 'batch-1',
+        deliveredRecipientIds: [],
+        availabilitySkippedRecipientIds: ['U-target'],
+      );
+      addTearDown(() async {
+        await harness.forwardRepo.dispose();
+        await harness.contactsCase.dispose();
+        await harness.store.dispose();
+      });
+      final effects = FakeUiEffectPort();
+      final cubit = PersonForwardCubit(
+        personId: 'U-target',
+        personForwardCase: harness.case_,
+        effects: effects,
+      );
+      addTearDown(cubit.close);
+      await cubit.stream.firstWhere((s) => s.rows.isNotEmpty);
+
+      cubit.selectBeacon('B-open');
+      await cubit.send();
+
+      expect(harness.forwardRepo.sent, hasLength(1));
+      expect(effects.emitted.whereType<ShowMessage>().single.message,
+          isA<PersonForwardAvailabilitySkippedMessage>());
+      expect(effects.emitted.whereType<NavigateBack>(), isEmpty);
+      expect(effects.emitted.whereType<ShowError>(), isEmpty);
+    });
+
+    test('neither delivered nor skipped is treated as error', () async {
+      final harness = await _buildHarness(beacons: [_beacon('B-open')]);
+      harness.forwardRepo.nextResult = const ForwardDeliveryResult(
+        batchId: 'batch-1',
+        deliveredRecipientIds: [],
+        availabilitySkippedRecipientIds: [],
+      );
+      addTearDown(() async {
+        await harness.forwardRepo.dispose();
+        await harness.contactsCase.dispose();
+        await harness.store.dispose();
+      });
+      final effects = FakeUiEffectPort();
+      final cubit = PersonForwardCubit(
+        personId: 'U-target',
+        personForwardCase: harness.case_,
+        effects: effects,
+      );
+      addTearDown(cubit.close);
+      await cubit.stream.firstWhere((s) => s.rows.isNotEmpty);
+
+      cubit.selectBeacon('B-open');
+      await cubit.send();
+
+      expect(effects.emitted.whereType<ShowError>(), hasLength(1));
+      expect(effects.emitted.whereType<NavigateBack>(), isEmpty);
+      expect(effects.emitted.whereType<ShowMessage>(), isEmpty);
+    });
+
+    test('pause race after load skips mutation before send', () async {
+      final harness = await _buildHarness(beacons: [_beacon('B-open')]);
+      addTearDown(() async {
+        await harness.forwardRepo.dispose();
+        await harness.contactsCase.dispose();
+        await harness.store.dispose();
+      });
+      final effects = FakeUiEffectPort();
+      final cubit = PersonForwardCubit(
+        personId: 'U-target',
+        personForwardCase: harness.case_,
+        effects: effects,
+        clock: _fixedClock(DateTime.utc(2026, 8, 14, 12)),
+      );
+      addTearDown(cubit.close);
+      await cubit.stream.firstWhere((s) => s.rows.isNotEmpty);
+
+      cubit.selectBeacon('B-open');
+      cubit.emit(
+        cubit.state.copyWith(
+          person: cubit.state.person!.copyWith(
+            availability: Availability(
+              resumeOn: DateTime.utc(2026, 8, 20),
+            ),
+          ),
+        ),
+      );
+      await cubit.send();
+
+      expect(harness.forwardRepo.sent, isEmpty);
+      expect(effects.emitted.whereType<ShowMessage>().single.message,
+          isA<PersonForwardAvailabilitySkippedMessage>());
+      expect(effects.emitted.whereType<NavigateBack>(), isEmpty);
+    });
+
+    test('already-sent block still prevents send after selection', () async {
+      final harness = await _buildHarness(beacons: [_beacon('B-open')]);
+      addTearDown(() async {
+        await harness.forwardRepo.dispose();
+        await harness.contactsCase.dispose();
+        await harness.store.dispose();
+      });
+      final cubit = PersonForwardCubit(
+        personId: 'U-target',
+        personForwardCase: harness.case_,
+        effects: FakeUiEffectPort(),
+      );
+      addTearDown(cubit.close);
+      await cubit.stream.firstWhere((s) => s.rows.isNotEmpty);
+
+      cubit.emit(
+        cubit.state.copyWith(
+          rows: [
+            cubit.state.rows.single.copyWith(
+              block: PersonForwardBlock.alreadySent,
+            ),
+          ],
+          selectedBeaconId: 'B-open',
+        ),
+      );
+      expect(cubit.state.canSend, isFalse);
+      await cubit.send();
+      expect(harness.forwardRepo.sent, isEmpty);
     });
   });
 }

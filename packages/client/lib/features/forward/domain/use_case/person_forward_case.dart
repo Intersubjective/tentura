@@ -12,6 +12,7 @@ import 'package:tentura/features/profile/domain/port/profile_repository_port.dar
 
 import '../../data/repository/forward_repository.dart';
 import '../entity/candidate_involvement.dart';
+import '../entity/forward_delivery_result.dart';
 import '../entity/person_forward_row.dart';
 import 'forward_case.dart';
 
@@ -97,7 +98,7 @@ final class PersonForwardCase extends UseCaseBase {
     );
   }
 
-  Future<void> send({
+  Future<ForwardDeliveryResult> send({
     required String beaconId,
     required String personId,
     String? note,

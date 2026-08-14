@@ -1,4 +1,5 @@
 import 'package:tentura/domain/entity/profile.dart';
+import 'package:tentura/domain/util/availability_presets.dart';
 import 'package:tentura/ui/bloc/state_base.dart';
 
 import '../../domain/entity/person_forward_row.dart';
@@ -25,6 +26,10 @@ abstract class PersonForwardState extends StateBase with _$PersonForwardState {
       ? null
       : rows.where((r) => r.beacon.id == selectedBeaconId).firstOrNull;
 
-  bool get canSend =>
-      person?.isMutuallyVisible == true && (selectedRow?.isEligible ?? false);
+  bool canSendOn(DateTime todayUtc) =>
+      person?.isMutuallyVisible == true &&
+      (selectedRow?.isEligible ?? false) &&
+      !(person?.availability.blocksNewRequestsOn(todayUtc) ?? false);
+
+  bool get canSend => canSendOn(availabilityTodayUtc());
 }

@@ -1,6 +1,7 @@
 import 'dart:async' show unawaited;
 
 import 'package:flutter/material.dart';
+import 'package:meta/meta.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import 'package:tentura/app/router/root_router.dart';
@@ -9,6 +10,7 @@ import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/features/profile_view/ui/widget/mutual_friends_button.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/utils/availability_line.dart';
 
 import '../../domain/entity/person_forward_row.dart';
 import '../bloc/person_forward_cubit.dart';
@@ -57,7 +59,7 @@ class PersonForwardPage extends StatelessWidget {
           ),
           body: SafeArea(
             child: TenturaContentColumn(
-              child: _PersonForwardBody(state: state),
+              child: personForwardBodyForTest(state: state),
             ),
           ),
         );
@@ -65,6 +67,10 @@ class PersonForwardPage extends StatelessWidget {
     );
   }
 }
+
+@visibleForTesting
+Widget personForwardBodyForTest({required PersonForwardState state}) =>
+    _PersonForwardBody(state: state);
 
 class _PersonForwardBody extends StatelessWidget {
   const _PersonForwardBody({required this.state});
@@ -95,6 +101,18 @@ class _PersonForwardBody extends StatelessWidget {
       return const SizedBox.shrink();
     }
 
+    final l10n = L10n.of(context)!;
+    final todayUtc = context.select<PersonForwardCubit, DateTime>(
+      (cubit) => cubit.todayUtc,
+    );
+    final availability = person.availability;
+    final isPaused = availability.blocksNewRequestsOn(todayUtc);
+    final limitedLine = otherAvailabilityStatusLine(
+      l10n,
+      availability,
+      todayUtc,
+    );
+
     return ListView(
       padding: EdgeInsets.fromLTRB(
         tt.screenHPadding,
@@ -107,8 +125,29 @@ class _PersonForwardBody extends StatelessWidget {
           _UnreachableBanner(personName: person.shownName, personId: person.id),
           SizedBox(height: tt.sectionGap),
         ],
+        if (isPaused && person.isMutuallyVisible) ...[
+          _AvailabilityPausedBanner(
+            personName: person.shownName,
+            resumeOn: availability.resumeOn!,
+            todayUtc: todayUtc,
+          ),
+          SizedBox(height: tt.sectionGap),
+        ],
+        if (limitedLine != null && !isPaused) ...[
+          TenturaStatusText(
+            limitedLine,
+            tone: TenturaTone.neutral,
+            maxLines: null,
+            softWrap: true,
+          ),
+          SizedBox(height: tt.sectionGap),
+        ],
         if (state.rows.isEmpty)
-          _EmptyRequests(personName: person.shownName, personId: person.id)
+          _EmptyRequests(
+            personName: person.shownName,
+            personId: person.id,
+            canCreateRequest: !isPaused,
+          )
         else ...[
           for (final row in state.rows)
             Padding(
@@ -118,7 +157,11 @@ class _PersonForwardBody extends StatelessWidget {
           SizedBox(height: tt.rowGap),
           _NoteAndSend(state: state),
           SizedBox(height: tt.rowGap),
-          _NewRequestButton(personName: person.shownName, personId: person.id),
+          _NewRequestButton(
+            personName: person.shownName,
+            personId: person.id,
+            enabled: !isPaused,
+          ),
         ],
       ],
     );
@@ -153,6 +196,40 @@ class _UnreachableBanner extends StatelessWidget {
             SizedBox(height: tt.tightGap),
             MutualFriendsButton(userId: personId),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _AvailabilityPausedBanner extends StatelessWidget {
+  const _AvailabilityPausedBanner({
+    required this.personName,
+    required this.resumeOn,
+    required this.todayUtc,
+  });
+
+  final String personName;
+  final DateTime resumeOn;
+  final DateTime todayUtc;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = L10n.of(context)!;
+    final tt = context.tt;
+    return Material(
+      color: Theme.of(context).colorScheme.surfaceContainerHighest,
+      borderRadius: BorderRadius.circular(tt.cardRadius),
+      child: Padding(
+        padding: tt.cardPadding,
+        child: Text(
+          personForwardPausedBanner(
+            l10n,
+            name: personName,
+            resumeOn: resumeOn,
+            todayUtc: todayUtc,
+          ),
+          style: TenturaText.bodySmall(tt.textMuted),
         ),
       ),
     );
@@ -253,11 +330,15 @@ class _NoteAndSend extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = L10n.of(context)!;
     final tt = context.tt;
+    final todayUtc = context.select<PersonForwardCubit, DateTime>(
+      (cubit) => cubit.todayUtc,
+    );
+    final canSend = state.canSendOn(todayUtc);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         TextField(
-          enabled: state.canSend,
+          enabled: canSend,
           onChanged: context.read<PersonForwardCubit>().setNote,
           decoration: InputDecoration(
             hintText: l10n.beaconForwardPersonNoteHint,
@@ -267,7 +348,7 @@ class _NoteAndSend extends StatelessWidget {
         ),
         SizedBox(height: tt.rowGap),
         FilledButton(
-          onPressed: state.canSend && !state.isLoading
+          onPressed: canSend && !state.isLoading
               ? () => unawaited(context.read<PersonForwardCubit>().send())
               : null,
           child: Text(l10n.beaconForwardPersonSend),
@@ -281,10 +362,12 @@ class _EmptyRequests extends StatelessWidget {
   const _EmptyRequests({
     required this.personName,
     required this.personId,
+    required this.canCreateRequest,
   });
 
   final String personName;
   final String personId;
+  final bool canCreateRequest;
 
   @override
   Widget build(BuildContext context) {
@@ -299,7 +382,11 @@ class _EmptyRequests extends StatelessWidget {
           textAlign: TextAlign.center,
         ),
         SizedBox(height: tt.rowGap),
-        _NewRequestButton(personName: personName, personId: personId),
+        _NewRequestButton(
+          personName: personName,
+          personId: personId,
+          enabled: canCreateRequest,
+        ),
       ],
     );
   }
@@ -309,19 +396,21 @@ class _NewRequestButton extends StatelessWidget {
   const _NewRequestButton({
     required this.personName,
     required this.personId,
+    required this.enabled,
   });
 
   final String personName;
   final String personId;
+  final bool enabled;
 
   @override
   Widget build(BuildContext context) {
     final l10n = L10n.of(context)!;
-    final person = context.select<PersonForwardCubit, bool>(
+    final reachable = context.select<PersonForwardCubit, bool>(
       (c) => c.state.person?.isMutuallyVisible ?? false,
     );
     return TextButton.icon(
-      onPressed: person
+      onPressed: reachable && enabled
           ? () => context.read<ScreenCubit>().showBeaconCreateFor(personId)
           : null,
       icon: const Icon(Icons.add),

@@ -11,3 +11,15 @@ final class PersonForwardSentMessage extends LocalizableMessage {
   @override
   String get toRu => 'Запрос отправлен: $name';
 }
+
+final class PersonForwardAvailabilitySkippedMessage extends LocalizableMessage {
+  const PersonForwardAvailabilitySkippedMessage(this.name);
+
+  final String name;
+
+  @override
+  String get toEn => '$name isn\'t taking new requests right now.';
+
+  @override
+  String get toRu => '$name сейчас не принимает новые запросы.';
+}
