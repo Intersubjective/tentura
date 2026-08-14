@@ -324,3 +324,12 @@ None yet.
   `./scripts/check-custom-lints.sh packages/client` (106/106), scoped accordion test (2 passed), full
   `flutter test` (2241 passed, 18 skipped — zero regressions vs UNIT 06). `git diff --find-renames`
   shows rename + ticker extraction with import/identifier edits only. Ready for UNIT 08.
+
+- 2026-08-14 — **Manager review: UNIT 07 ACCEPTED.** Confirmed `item_card.dart` is a 99% git rename
+  (`git diff --find-renames --summary`) and read `stale_deadline_ticker.dart` in full: the extracted
+  logic is byte-for-byte equivalent to the original private `_StaleDeadlineTicker`, correctly public
+  with a conventionally-private `_StaleDeadlineTickerState`, matching the `ItemCard`/`_ItemCardState`
+  naming pattern the worker cited. Independently reran the scoped accordion test (2 passed), lints
+  (106/106), and the full client suite (2241 passed, 18 skipped, zero regressions). No behavioral
+  deviation found. Proceeding to UNIT 08 (`ThreadsCubit`/`ThreadsState` latest-wins presentation state,
+  not yet wired to any screen).
