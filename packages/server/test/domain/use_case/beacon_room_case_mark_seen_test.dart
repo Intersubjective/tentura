@@ -162,15 +162,16 @@ void main() {
   });
 
   test(
-    'markBeaconRoomSeen returns persisted seenAt and clamps to latest message',
+    'markThreadSeen general returns persisted seenAt and clamps to latest message',
     () async {
       final readThrough = DateTime.utc(2026, 5, 1, 12);
       final latest = DateTime.utc(2026, 5, 1, 14);
       room.latestMessageAt = latest;
 
-      final out = await sut.markBeaconRoomSeen(
+      final out = await sut.markThreadSeen(
         beaconId: beaconId,
         userId: userId,
+        threadId: 'general',
         readThroughAtIso: readThrough.toIso8601String(),
       );
 
@@ -182,15 +183,17 @@ void main() {
     },
   );
 
-  test('markBeaconRoomSeen never regresses below existing seen watermark', () async {
+  test('markThreadSeen general never regresses below existing seen watermark',
+      () async {
     final existing = DateTime.utc(2026, 5, 1, 16);
     final readThrough = DateTime.utc(2026, 5, 1, 12);
     room.existingSeen = existing;
     room.latestMessageAt = DateTime.utc(2026, 5, 1, 14);
 
-    final out = await sut.markBeaconRoomSeen(
+    final out = await sut.markThreadSeen(
       beaconId: beaconId,
       userId: userId,
+      threadId: 'general',
       readThroughAtIso: readThrough.toIso8601String(),
     );
 

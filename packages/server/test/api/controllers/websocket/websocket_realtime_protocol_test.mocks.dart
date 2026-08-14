@@ -708,6 +708,30 @@ class MockVoteUserFriendshipLookupPort extends _i1.Mock
           as _i6.Future<Set<String>>);
 
   @override
+  _i6.Future<({Set<String> trustsViewer, Set<String> viewerTrusts})>
+  directionalPositiveTrustPeerIds({
+    required String? viewerId,
+    required Iterable<String>? peerIds,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#directionalPositiveTrustPeerIds, [], {
+              #viewerId: viewerId,
+              #peerIds: peerIds,
+            }),
+            returnValue:
+                _i6.Future<
+                  ({Set<String> trustsViewer, Set<String> viewerTrusts})
+                >.value((trustsViewer: <String>{}, viewerTrusts: <String>{})),
+            returnValueForMissingStub:
+                _i6.Future<
+                  ({Set<String> trustsViewer, Set<String> viewerTrusts})
+                >.value((trustsViewer: <String>{}, viewerTrusts: <String>{})),
+          )
+          as _i6.Future<
+            ({Set<String> trustsViewer, Set<String> viewerTrusts})
+          >);
+
+  @override
   _i6.Future<bool> isReciprocalSubscribe({
     required String? viewerId,
     required String? peerId,

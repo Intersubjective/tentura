@@ -165,14 +165,14 @@ void main() {
     );
   });
 
-  test('markBeaconRoomSeen rejects plan item thread', () async {
+  test('markThreadSeen rejects plan item thread', () async {
     items.itemById = sampleItem(id: planItemId, kind: coordinationItemKindPlan);
 
     expect(
-      () => sut.markBeaconRoomSeen(
+      () => sut.markThreadSeen(
         beaconId: beaconId,
         userId: userId,
-        threadItemId: planItemId,
+        threadId: planItemId,
       ),
       throwsA(isA<IdWrongException>()),
     );

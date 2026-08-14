@@ -670,16 +670,6 @@ final class BeaconRoomCase extends UseCaseBase {
     );
   }
 
-  Future<Map<String, Object?>> beaconParticipantRoomSeen({
-    required String beaconId,
-    required String userId,
-    String? readThroughAtIso,
-  }) => markBeaconRoomSeen(
-    beaconId: beaconId,
-    userId: userId,
-    readThroughAtIso: readThroughAtIso,
-  );
-
   /// Room members (same visibility envelope as chat): author, steward, or
   /// admitted participants.
   Future<List<Map<String, Object?>>> listParticipants({
