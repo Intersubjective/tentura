@@ -24,6 +24,13 @@ analyzer:
     - ".pub-cache/**"
     - "packages/widgetbook/**"
     - "temp/**"
+    - build/**
+    - android/**
+    - ios/**
+    - web/**
+    - windows/**
+    - macos/**
+    - linux/**
 
 linter:
   rules:
