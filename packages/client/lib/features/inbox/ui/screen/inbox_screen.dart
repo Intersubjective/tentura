@@ -41,25 +41,20 @@ class _InboxScreenState extends State<InboxScreen> {
   var _fitsMasterDetail = true;
   var _lastHandledWatchingOpenCount = 0;
 
-  @override
-  void initState() {
-    super.initState();
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      final reselect = context.read<HomeTabReselectCubit>().state;
-      if (reselect.inboxWatchingOpenCount <= _lastHandledWatchingOpenCount) {
-        return;
-      }
-      _lastHandledWatchingOpenCount = reselect.inboxWatchingOpenCount;
-      _applyInboxWatchingIntent(reselect.inboxWatchingBeaconId);
-    });
+  void _consumeWatchingIntentIfNeeded(BuildContext tabContext) {
+    final reselect = tabContext.read<HomeTabReselectCubit>().state;
+    if (reselect.inboxWatchingOpenCount <= _lastHandledWatchingOpenCount) {
+      return;
+    }
+    _lastHandledWatchingOpenCount = reselect.inboxWatchingOpenCount;
+    _applyInboxWatchingIntent(tabContext, reselect.inboxWatchingBeaconId);
   }
 
-  void _applyInboxWatchingIntent(String? beaconId) {
+  void _applyInboxWatchingIntent(BuildContext tabContext, String? beaconId) {
     if (beaconId == null || beaconId.isEmpty) return;
-    DefaultTabController.of(context).animateTo(1);
-    if (context.windowClass != WindowClass.expanded) return;
-    final inboxState = context.read<InboxCubit>().state;
+    DefaultTabController.of(tabContext).animateTo(1);
+    if (tabContext.windowClass != WindowClass.expanded) return;
+    final inboxState = tabContext.read<InboxCubit>().state;
     if (!inboxState.watching.any((e) => e.beaconId == beaconId)) return;
     setState(() => _selectedWatchingBeaconId = beaconId);
   }
@@ -100,245 +95,291 @@ class _InboxScreenState extends State<InboxScreen> {
 
     final screen = DefaultTabController(
       length: 2,
-      child: _InboxMovedSnackBarDismisser(
-        child: BlocListener<HomeTabReselectCubit, HomeTabReselectState>(
-          listenWhen: (prev, curr) =>
-              prev.inboxReselectCount != curr.inboxReselectCount,
-          listener: (context, _) {
-            inboxCubit.setSort(InboxSort.recent);
-            DefaultTabController.of(context).animateTo(0);
-          },
+      child: _InboxWatchingIntentBinder(
+        onFirstFrame: _consumeWatchingIntentIfNeeded,
+        child: _InboxMovedSnackBarDismisser(
           child: BlocListener<HomeTabReselectCubit, HomeTabReselectState>(
             listenWhen: (prev, curr) =>
-                prev.inboxWatchingOpenCount != curr.inboxWatchingOpenCount,
-            listener: (context, state) {
-              _lastHandledWatchingOpenCount = state.inboxWatchingOpenCount;
-              _applyInboxWatchingIntent(state.inboxWatchingBeaconId);
+                prev.inboxReselectCount != curr.inboxReselectCount,
+            listener: (context, _) {
+              inboxCubit.setSort(InboxSort.recent);
+              DefaultTabController.of(context).animateTo(0);
             },
-            child: BlocListener<InboxCubit, InboxState>(
-            listenWhen: (prev, curr) =>
-                curr.pendingMovedNudge != null &&
-                prev.pendingMovedNudge != curr.pendingMovedNudge,
-            listener: (context, state) {
-              final msg = state.pendingMovedNudge;
-              if (msg == null) return;
-              final l10n = L10n.of(context)!;
-              showSnackBar(
-                context,
-                text: msg.toL10n(l10n.localeName),
-                action: SnackBarAction(
-                  label: l10n.inboxViewInTab,
-                  onPressed: () {
-                    if (msg.navigatesToRejectedArchive) {
-                      unawaited(openInboxRejectedArchive(context));
-                    } else {
-                      DefaultTabController.of(context).animateTo(msg.tabIndex);
-                    }
-                  },
-                ),
-              );
-              context.read<InboxCubit>().clearPendingMovedNudge();
-            },
-            child: BlocBuilder<InboxCubit, InboxState>(
-              buildWhen: (_, c) => c.isSuccess || c.isLoading,
-              builder: (_, state) {
-                final theme = Theme.of(context);
-                final scheme = theme.colorScheme;
-                final l10n = L10n.of(context)!;
-                final useExpandedPane =
-                    context.windowClass == WindowClass.expanded;
+            child: BlocListener<HomeTabReselectCubit, HomeTabReselectState>(
+              listenWhen: (prev, curr) =>
+                  prev.inboxWatchingOpenCount != curr.inboxWatchingOpenCount,
+              listener: (context, state) {
+                _lastHandledWatchingOpenCount = state.inboxWatchingOpenCount;
+                _applyInboxWatchingIntent(context, state.inboxWatchingBeaconId);
+              },
+              child: BlocListener<InboxCubit, InboxState>(
+                listenWhen: (prev, curr) =>
+                    curr.pendingMovedNudge != null &&
+                    prev.pendingMovedNudge != curr.pendingMovedNudge,
+                listener: (context, state) {
+                  final msg = state.pendingMovedNudge;
+                  if (msg == null) return;
+                  final l10n = L10n.of(context)!;
+                  showSnackBar(
+                    context,
+                    text: msg.toL10n(l10n.localeName),
+                    action: SnackBarAction(
+                      label: l10n.inboxViewInTab,
+                      onPressed: () {
+                        if (msg.navigatesToRejectedArchive) {
+                          unawaited(openInboxRejectedArchive(context));
+                        } else {
+                          DefaultTabController.of(
+                            context,
+                          ).animateTo(msg.tabIndex);
+                        }
+                      },
+                    ),
+                  );
+                  context.read<InboxCubit>().clearPendingMovedNudge();
+                },
+                child: BlocBuilder<InboxCubit, InboxState>(
+                  buildWhen: (_, c) => c.isSuccess || c.isLoading,
+                  builder: (_, state) {
+                    final theme = Theme.of(context);
+                    final scheme = theme.colorScheme;
+                    final l10n = L10n.of(context)!;
+                    final useExpandedPane =
+                        context.windowClass == WindowClass.expanded;
 
-                late final Widget body;
-                // Full-screen spinner only until the first projection lands.
-                // In-flight silent refreshes must not hide an empty placeholder.
-                if (state.isLoading && !state.projectionLoaded) {
-                  body = const Center(
-                    child: CircularProgressIndicator.adaptive(),
-                  );
-                } else if (state.items.isEmpty) {
-                  body = TabBarView(
-                    children: [
-                      _InboxTabKeepAlive(
-                        storageKey: 'inbox-tab-needs-global-empty',
-                        child: _inboxGlobalEmpty(
-                          theme: theme,
-                          l10n: l10n,
-                          onOpenMyWork: () =>
-                              AutoTabsRouter.of(context).setActiveIndex(0),
-                        ),
-                      ),
-                      _InboxTabKeepAlive(
-                        storageKey: 'inbox-tab-watching-global-empty',
-                        child: _watchingQuietEmpty(theme: theme, l10n: l10n),
-                      ),
-                    ],
-                  );
-                } else {
-                  body = BlocBuilder<HomeAttentionCubit, HomeAttentionState>(
-                    builder: (context, _) {
-                      final attentionMarkerIds = context
-                          .read<HomeAttentionCubit>()
-                          .state
-                          .inboxMarkerIds;
-                      return TabBarView(
+                    late final Widget body;
+                    // Full-screen spinner only until the first projection lands.
+                    // In-flight silent refreshes must not hide an empty placeholder.
+                    if (state.isLoading && !state.projectionLoaded) {
+                      body = const Center(
+                        child: CircularProgressIndicator.adaptive(),
+                      );
+                    } else if (state.items.isEmpty) {
+                      body = TabBarView(
                         children: [
                           _InboxTabKeepAlive(
-                            storageKey: 'inbox-tab-needs',
-                            child: _needsMeTabBody(
-                              context,
-                              inboxCubit,
-                              state,
-                              l10n,
-                              attentionMarkerIds,
-                              onSelectItem: useExpandedPane
-                                  ? _selectNeedsItem
-                                  : null,
-                              selectedBeaconId: useExpandedPane
-                                  ? _selectedNeedsBeaconId
-                                  : null,
+                            storageKey: 'inbox-tab-needs-global-empty',
+                            child: _inboxGlobalEmpty(
+                              theme: theme,
+                              l10n: l10n,
+                              onOpenMyWork: () =>
+                                  AutoTabsRouter.of(context).setActiveIndex(0),
                             ),
                           ),
                           _InboxTabKeepAlive(
-                            storageKey: 'inbox-tab-watching',
-                            child: _watchingTabBody(
-                              context,
-                              inboxCubit,
-                              state.watching,
-                              l10n,
-                              attentionMarkerIds,
-                              onSelectItem: useExpandedPane
-                                  ? _selectWatchingItem
-                                  : null,
-                              selectedBeaconId: useExpandedPane
-                                  ? _selectedWatchingBeaconId
-                                  : null,
+                            storageKey: 'inbox-tab-watching-global-empty',
+                            child: _watchingQuietEmpty(
+                              theme: theme,
+                              l10n: l10n,
                             ),
                           ),
                         ],
                       );
-                    },
-                  );
-                }
-
-                final tt = context.tt;
-
-                return Scaffold(
-                  backgroundColor: scheme.surface,
-                  appBar: TenturaTopBar.of(
-                    context,
-                    tone: TenturaTopBarTone.primary,
-                    alignment: useExpandedPane
-                        ? TenturaTopBarAlignment.fullWidth
-                        : TenturaTopBarAlignment.content,
-                    title: useExpandedPane
-                        ? const SizedBox.shrink()
-                        : const Row(
-                            children: [
-                              Expanded(child: _InboxTabStrip()),
-                              _InboxSortButton(),
-                            ],
-                          ),
-                    actions: useExpandedPane
-                        ? null
-                        : [
-                            const _InboxOverflowMenu(),
-                          ],
-                    row: useExpandedPane
-                        ? LayoutBuilder(
-                            builder: (context, constraints) {
-                              final masterWidth = deskMasterPaneWidth(
-                                constraints.maxWidth,
-                                context.tt,
-                              );
-                              final tabController =
-                                  DefaultTabController.of(context);
-                              return AnimatedBuilder(
-                                animation: tabController,
-                                builder: (context, _) {
-                                  final tabIndex = tabController.index;
-                                  final showList = _showListForTab(tabIndex);
-                                  final useMasterWidth =
-                                      showList && _fitsMasterDetail;
-                                  return Row(
-                                    children: [
-                                      if (showList)
-                                        useMasterWidth
-                                            ? SizedBox(
-                                                width: masterWidth,
-                                                child: const Row(
-                                                  children: [
-                                                    Expanded(
-                                                      child: _InboxTabStrip(),
-                                                    ),
-                                                    _InboxSortButton(),
-                                                  ],
-                                                ),
-                                              )
-                                            : const Expanded(
-                                                child: Row(
-                                                  children: [
-                                                    Expanded(
-                                                      child: _InboxTabStrip(),
-                                                    ),
-                                                    _InboxSortButton(),
-                                                  ],
-                                                ),
-                                              )
-                                      else
-                                        Semantics(
-                                          label: l10n.myWorkBackToList,
-                                          button: true,
-                                          child: IconButton(
-                                            tooltip: l10n.myWorkBackToList,
-                                            onPressed: () =>
-                                                _backToListForTab(tabIndex),
-                                            icon: const Icon(Icons.arrow_back),
-                                          ),
-                                        ),
-                                      const Expanded(
-                                        child: Align(
-                                          alignment: Alignment.centerRight,
-                                          child: Row(
-                                            mainAxisSize: MainAxisSize.min,
-                                            children: [
-                                              _InboxOverflowMenu(),
-                                            ],
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  );
-                                },
+                    } else {
+                      body =
+                          BlocBuilder<HomeAttentionCubit, HomeAttentionState>(
+                            builder: (context, _) {
+                              final attentionMarkerIds = context
+                                  .read<HomeAttentionCubit>()
+                                  .state
+                                  .inboxMarkerIds;
+                              return TabBarView(
+                                children: [
+                                  _InboxTabKeepAlive(
+                                    storageKey: 'inbox-tab-needs',
+                                    child: _needsMeTabBody(
+                                      context,
+                                      inboxCubit,
+                                      state,
+                                      l10n,
+                                      attentionMarkerIds,
+                                      onSelectItem: useExpandedPane
+                                          ? _selectNeedsItem
+                                          : null,
+                                      selectedBeaconId: useExpandedPane
+                                          ? _selectedNeedsBeaconId
+                                          : null,
+                                    ),
+                                  ),
+                                  _InboxTabKeepAlive(
+                                    storageKey: 'inbox-tab-watching',
+                                    child: _watchingTabBody(
+                                      context,
+                                      inboxCubit,
+                                      state.watching,
+                                      l10n,
+                                      attentionMarkerIds,
+                                      onSelectItem: useExpandedPane
+                                          ? _selectWatchingItem
+                                          : null,
+                                      selectedBeaconId: useExpandedPane
+                                          ? _selectedWatchingBeaconId
+                                          : null,
+                                    ),
+                                  ),
+                                ],
                               );
                             },
-                          )
-                        : null,
-                  ),
-                  body: SafeArea(
-                    minimum: EdgeInsets.symmetric(
-                      horizontal: tt.screenHPadding,
-                    ),
-                    child: useExpandedPane
-                        ? _InboxExpandedBody(
-                            tabView: body,
-                            state: state,
-                            selectedNeedsBeaconId: _selectedNeedsBeaconId,
-                            selectedWatchingBeaconId: _selectedWatchingBeaconId,
-                            allowDefaultToFirst: _fitsMasterDetail,
-                            onLayoutMetrics: _onLayoutMetrics,
-                          )
-                        : TenturaContentColumn(child: body),
-                  ),
-                );
-              },
+                          );
+                    }
+
+                    final tt = context.tt;
+
+                    return Scaffold(
+                      backgroundColor: scheme.surface,
+                      appBar: TenturaTopBar.of(
+                        context,
+                        tone: TenturaTopBarTone.primary,
+                        alignment: useExpandedPane
+                            ? TenturaTopBarAlignment.fullWidth
+                            : TenturaTopBarAlignment.content,
+                        title: useExpandedPane
+                            ? const SizedBox.shrink()
+                            : const Row(
+                                children: [
+                                  Expanded(child: _InboxTabStrip()),
+                                  _InboxSortButton(),
+                                ],
+                              ),
+                        actions: useExpandedPane
+                            ? null
+                            : [
+                                const _InboxOverflowMenu(),
+                              ],
+                        row: useExpandedPane
+                            ? LayoutBuilder(
+                                builder: (context, constraints) {
+                                  final masterWidth = deskMasterPaneWidth(
+                                    constraints.maxWidth,
+                                    context.tt,
+                                  );
+                                  final tabController = DefaultTabController.of(
+                                    context,
+                                  );
+                                  return AnimatedBuilder(
+                                    animation: tabController,
+                                    builder: (context, _) {
+                                      final tabIndex = tabController.index;
+                                      final showList = _showListForTab(
+                                        tabIndex,
+                                      );
+                                      final useMasterWidth =
+                                          showList && _fitsMasterDetail;
+                                      return Row(
+                                        children: [
+                                          if (showList)
+                                            useMasterWidth
+                                                ? SizedBox(
+                                                    width: masterWidth,
+                                                    child: const Row(
+                                                      children: [
+                                                        Expanded(
+                                                          child:
+                                                              _InboxTabStrip(),
+                                                        ),
+                                                        _InboxSortButton(),
+                                                      ],
+                                                    ),
+                                                  )
+                                                : const Expanded(
+                                                    child: Row(
+                                                      children: [
+                                                        Expanded(
+                                                          child:
+                                                              _InboxTabStrip(),
+                                                        ),
+                                                        _InboxSortButton(),
+                                                      ],
+                                                    ),
+                                                  )
+                                          else
+                                            Semantics(
+                                              label: l10n.myWorkBackToList,
+                                              button: true,
+                                              child: IconButton(
+                                                tooltip: l10n.myWorkBackToList,
+                                                onPressed: () =>
+                                                    _backToListForTab(tabIndex),
+                                                icon: const Icon(
+                                                  Icons.arrow_back,
+                                                ),
+                                              ),
+                                            ),
+                                          const Expanded(
+                                            child: Align(
+                                              alignment: Alignment.centerRight,
+                                              child: Row(
+                                                mainAxisSize: MainAxisSize.min,
+                                                children: [
+                                                  _InboxOverflowMenu(),
+                                                ],
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      );
+                                    },
+                                  );
+                                },
+                              )
+                            : null,
+                      ),
+                      body: SafeArea(
+                        minimum: EdgeInsets.symmetric(
+                          horizontal: tt.screenHPadding,
+                        ),
+                        child: useExpandedPane
+                            ? _InboxExpandedBody(
+                                tabView: body,
+                                state: state,
+                                selectedNeedsBeaconId: _selectedNeedsBeaconId,
+                                selectedWatchingBeaconId:
+                                    _selectedWatchingBeaconId,
+                                allowDefaultToFirst: _fitsMasterDetail,
+                                onLayoutMetrics: _onLayoutMetrics,
+                              )
+                            : TenturaContentColumn(child: body),
+                      ),
+                    );
+                  },
+                ),
+              ),
             ),
           ),
-        ),
         ),
       ),
     );
     return screen;
   }
+}
+
+class _InboxWatchingIntentBinder extends StatefulWidget {
+  const _InboxWatchingIntentBinder({
+    required this.onFirstFrame,
+    required this.child,
+  });
+
+  final void Function(BuildContext tabContext) onFirstFrame;
+  final Widget child;
+
+  @override
+  State<_InboxWatchingIntentBinder> createState() =>
+      _InboxWatchingIntentBinderState();
+}
+
+class _InboxWatchingIntentBinderState
+    extends State<_InboxWatchingIntentBinder> {
+  @override
+  void initState() {
+    super.initState();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      widget.onFirstFrame(context);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) => widget.child;
 }
 
 class _InboxExpandedBody extends StatelessWidget {
@@ -1003,8 +1044,7 @@ Widget _watchingTabBody(
           key: ValueKey(item.beaconId),
           item: item,
           attentionMarked: attentionMarkerIds.contains(item.beaconId),
-          isSelected:
-              onSelectItem != null && item.beaconId == selectedBeaconId,
+          isSelected: onSelectItem != null && item.beaconId == selectedBeaconId,
           onOpenBeacon: onSelectItem == null
               ? () => context.router.push(
                   BeaconViewRoute(id: item.beaconId, entry: kBeaconEntryInbox),

@@ -204,11 +204,16 @@ frozen contract, stop that unit with `BLOCKED` instead of improvising.
   deleted. Journal   UNIT 07 block was duplicated three times (hash chicken-egg);
   collapsed to one entry with real hash `efda65f9a` (not `cd2501f90`).
   UNIT 08 authorized.
-- 2026-08-14 manager: **UNIT 08 accepted**. Commit pending worker handoff.
-  `InboxScreen` consumes `inboxWatchingOpenCount` via initState post-frame +
-  separate `BlocListener`; expanded selects watching card; compact list-only.
-  D15: `_fetchAndNotifyIfMoved` silent for watching; test inverted. UNIT 09
-  authorized.
+- 2026-08-14 manager: **UNIT 08 accepted** with a follow-up fix. Worker
+  commit `64b217b4d` (`feat: land Open-in-Watching on the Watching tab`).
+  Independent: `flutter test test/features/inbox/inbox_case_test.dart` →
+  15 passed (D15 watching silent). Defect: worker `initState` called
+  `DefaultTabController.of(this.context)` from `InboxScreen`, which is
+  **above** the controller — that throws. Manager fix: `_InboxWatchingIntentBinder`
+  under the controller; listener passes its own context. Compact still
+  does not set `_selectedWatchingBeaconId`. Do not use MCP `analyze_files`
+  (freezes). Unrelated intervening commit `d698aee25` bumped client to
+  **6.1.2**; UNIT 12 still ships **6.2.0**. UNIT 09 authorized.
 
 ## Unit entries
 
@@ -341,14 +346,22 @@ FINDINGS: Worker first wrote `cd2501f90` (pre-commit hash chicken-egg). Real com
 REMAINING: none — UNIT 08 may start
 
 ## UNIT 08 — complete — 2026-08-14
-COMMITS: feat: land Open-in-Watching on the Watching tab (see `git log -1`)
+COMMITS: `64b217b4d` feat: land Open-in-Watching on the Watching tab
 TESTS:
-- `cd packages/client && flutter test test/features/inbox/inbox_case_test.dart` → 15 passed
-- `./scripts/check-custom-lints.sh packages/client` → exit 0
+- `cd packages/client && flutter test test/features/inbox/inbox_case_test.dart` → 15 passed (independent manager re-run)
 FILES:
 - `packages/client/lib/features/inbox/ui/screen/inbox_screen.dart`
 - `packages/client/lib/features/inbox/ui/bloc/inbox_cubit.dart`
 - `packages/client/test/features/inbox/inbox_case_test.dart`
 - `docs/plans/issue-110-forward-explicit-implementation-journal.md`
-FINDINGS: none — `InboxState.watching` getter filters by status; `_lastHandledWatchingOpenCount` dedupes initState vs listener after `replaceAll` rebuild
+FINDINGS: Worker `initState` used `InboxScreen` context, which cannot see `DefaultTabController`. Compact/expanded gating and D15 were otherwise correct.
+REMAINING: manager context fix (UNIT 08b)
+
+## UNIT 08b — complete — 2026-08-14
+COMMITS: fix: land Watching intent under DefaultTabController (see `git log -1`)
+TESTS: format-only syntax check (`dart format`); cubit tests already green. No MCP `analyze_files`.
+FILES:
+- `packages/client/lib/features/inbox/ui/screen/inbox_screen.dart`
+- `docs/plans/issue-110-forward-explicit-implementation-journal.md`
+FINDINGS: `_InboxWatchingIntentBinder` runs first-frame consume with a descendant context. Count listener still uses listener context. Unrelated `d698aee25` set client version to 6.1.2.
 REMAINING: none — UNIT 09 may start
