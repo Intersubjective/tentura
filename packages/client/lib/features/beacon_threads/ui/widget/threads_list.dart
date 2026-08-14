@@ -203,14 +203,16 @@ class ThreadsList extends StatelessWidget {
             myDraftCount > 0;
 
         final canCoordinate = beaconState.canCoordinateInBeaconRoom;
-        final inRoom =
-            beaconState.canNavigateBeaconRoom || canCoordinate;
         final showCoordinationCtas = canCoordinate;
-        final showActiveFold =
-            inRoom && (canCoordinate || activeThreads.isNotEmpty);
-        final showClosedFold = inRoom && closedThreads.isNotEmpty;
-        final showDrafts = inRoom && myDraftCount > 0;
-        final showGeneral = inRoom && general != null;
+        // Row/fold visibility follows the server's authorization union
+        // (ThreadsState.threads), never the narrower client-side
+        // canNavigateBeaconRoom/canCoordinateInBeaconRoom predicates — an
+        // item-only participant who lacks room admission must still see
+        // their own thread (architecture.md §4.4).
+        final showActiveFold = canCoordinate || activeThreads.isNotEmpty;
+        final showClosedFold = closedThreads.isNotEmpty;
+        final showDrafts = myDraftCount > 0;
+        final showGeneral = general != null;
         final requestedSectionId = threadsTabAccordionSectionId(
           focusInDrafts: focusInDrafts,
           focusInClosed: focusInClosed,
