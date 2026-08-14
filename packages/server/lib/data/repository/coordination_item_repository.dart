@@ -1,12 +1,15 @@
 import 'dart:convert';
 
+import 'package:drift/drift.dart' show QueryRow;
 import 'package:injectable/injectable.dart';
 import 'package:meta/meta.dart';
 import 'package:drift_postgres/drift_postgres.dart';
 
+import 'package:tentura_server/consts/beacon_room_consts.dart';
 import 'package:tentura_server/consts/coordination_item_consts.dart';
 import 'package:tentura_server/domain/coordination_stale_rules.dart';
 import 'package:tentura_server/domain/entity/beacon_activity_event_entity.dart';
+import 'package:tentura_server/domain/entity/beacon_thread_record.dart';
 import 'package:tentura_server/domain/entity/coordination_responsibility_counts.dart';
 import 'package:tentura_server/domain/entity/coordination_item_record.dart';
 import 'package:tentura_server/domain/entity/coordination_item_with_counts.dart';
@@ -899,6 +902,135 @@ class CoordinationItemRepository implements CoordinationItemRepositoryPort {
   }
 
   @override
+  Future<List<BeaconThreadRecord>> listThreads({
+    required String beaconId,
+    required String viewerUserId,
+    required bool includeGeneral,
+    required bool itemParticipantsOnly,
+    required int excerptCharacters,
+  }) async {
+    final rows = await _db.customSelect(
+      r'''
+WITH eligible_item AS (
+  SELECT ci.*
+  FROM coordination_item ci
+  WHERE ci.beacon_id = $1
+    AND ci.kind IN (2, 3, 5)
+    AND (
+      ($3::boolean = false AND (ci.published = true OR ci.creator_id = $2))
+      OR
+      ($3::boolean = true AND ci.published = true AND
+        (ci.creator_id = $2 OR ci.target_person_id = $2 OR ci.accepted_by_id = $2))
+    )
+), thread_base AS (
+  -- General row (synthetic) when includeGeneral is true.
+  SELECT 'general'::text AS thread_id, 'general'::text AS thread_kind,
+         NULL::text AS item_id, NULL::int AS item_kind,
+         NULL::timestamptz AS item_updated_at
+  WHERE $4::boolean
+  UNION ALL
+  SELECT ci.id,
+         CASE ci.kind WHEN 2 THEN 'ask' WHEN 3 THEN 'blocker' WHEN 5 THEN 'promise' END,
+         ci.id, ci.kind, ci.updated_at
+  FROM eligible_item ci
+)
+SELECT
+  tb.thread_id,
+  tb.thread_kind,
+  counts.message_count,
+  counts.unread_count,
+  floor(extract(epoch from s.last_seen_at) * 1000)::bigint AS thread_last_seen_at_ms,
+  floor(extract(epoch from counts.last_message_at) * 1000)::bigint AS last_message_at_ms,
+  lm.author_id AS last_message_author_id,
+  lm.body AS lm_body,
+  lm.semantic_marker AS lm_semantic_marker,
+  lm.linked_item_id AS lm_linked_item_id,
+  lm.linked_event_kind AS lm_linked_event_kind,
+  lm.system_payload::text AS lm_system_payload_json,
+  COALESCE(att.has_attachment, false) AS lm_has_attachment,
+  linked_ci.kind AS lm_linked_item_kind,
+  linked_ci.title AS lm_linked_item_title,
+  pol.question AS lm_poll_title,
+  bfc.fact_text AS lm_fact_title,
+  bfc.visibility AS lm_fact_visibility,
+  ci.id AS ci_id,
+  ci.beacon_id AS ci_beacon_id,
+  ci.kind AS ci_kind,
+  ci.status AS ci_status,
+  ci.title AS ci_title,
+  ci.body AS ci_body,
+  ci.creator_id AS ci_creator_id,
+  ci.target_person_id AS ci_target_person_id,
+  ci.accepted_by_id AS ci_accepted_by_id,
+  ci.target_item_id AS ci_target_item_id,
+  ci.target_message_id AS ci_target_message_id,
+  ci.linked_message_id AS ci_linked_message_id,
+  ci.linked_parent_item_id AS ci_linked_parent_item_id,
+  ci.ordering AS ci_ordering,
+  ci.source AS ci_source,
+  ci.published AS ci_published,
+  floor(extract(epoch from ci.created_at) * 1000)::bigint AS ci_created_at_ms,
+  floor(extract(epoch from ci.updated_at) * 1000)::bigint AS ci_updated_at_ms,
+  floor(extract(epoch from ci.published_at) * 1000)::bigint AS ci_published_at_ms,
+  floor(extract(epoch from ci.resolved_at) * 1000)::bigint AS ci_resolved_at_ms,
+  floor(extract(epoch from ci.cancelled_at) * 1000)::bigint AS ci_cancelled_at_ms,
+  floor(extract(epoch from ci.stale_at) * 1000)::bigint AS ci_stale_at_ms,
+  floor(extract(epoch from ci.last_reminded_at) * 1000)::bigint AS ci_last_reminded_at_ms,
+  ci.stale_after_days AS ci_stale_after_days
+FROM thread_base tb
+LEFT JOIN eligible_item ci ON ci.id = tb.item_id
+LEFT JOIN beacon_room_seen s
+  ON s.user_id = $2 AND s.beacon_id = $1
+ AND s.thread_item_id IS NOT DISTINCT FROM tb.item_id
+LEFT JOIN LATERAL (
+  SELECT
+    COUNT(*)::int AS message_count,
+    COUNT(*) FILTER (WHERE
+      m.author_id <> $2
+      AND (s.last_seen_at IS NULL OR m.created_at > s.last_seen_at)
+      AND (tb.item_id IS NULL OR tb.item_kind <> $6)
+    )::int AS unread_count,
+    MAX(m.created_at) AS last_message_at
+  FROM beacon_room_message m
+  WHERE m.beacon_id = $1
+    AND m.thread_item_id IS NOT DISTINCT FROM tb.item_id
+    AND (tb.item_id IS NULL OR tb.item_kind <> $6)
+) counts ON true
+LEFT JOIN LATERAL (
+  SELECT m.*
+  FROM beacon_room_message m
+  WHERE m.beacon_id = $1
+    AND m.thread_item_id IS NOT DISTINCT FROM tb.item_id
+  ORDER BY m.created_at DESC, m.id DESC
+  LIMIT 1
+) lm ON true
+LEFT JOIN LATERAL (
+  SELECT EXISTS(
+    SELECT 1 FROM beacon_room_message_attachment a
+    WHERE a.message_id = lm.id
+  ) AS has_attachment
+) att ON lm.id IS NOT NULL
+LEFT JOIN coordination_item linked_ci ON linked_ci.id = lm.linked_item_id
+LEFT JOIN polling pol ON pol.id = lm.linked_polling_id
+LEFT JOIN beacon_fact_card bfc ON bfc.id = lm.linked_fact_card_id
+ORDER BY (tb.thread_id = 'general') DESC,
+         COALESCE(counts.last_message_at, tb.item_updated_at) DESC,
+         tb.thread_id ASC
+''',
+      variables: [
+        Variable<String>(beaconId),
+        Variable<String>(viewerUserId),
+        Variable<bool>(itemParticipantsOnly),
+        Variable<bool>(includeGeneral),
+        Variable<int>(excerptCharacters),
+        const Variable<int>(coordinationItemKindPlan),
+      ],
+    ).get();
+
+    return [for (final row in rows) _mapBeaconThreadRow(row, excerptCharacters)];
+  }
+
+  @override
   Future<Map<String, DateTime>> lastCoordinationItemMessageAtByBeaconIds({
     required List<String> beaconIds,
     required String viewerUserId,
@@ -1473,4 +1605,204 @@ WHERE ci.beacon_id = $2
       return persisted ?? at;
     });
   }
+}
+
+BeaconThreadRecord _mapBeaconThreadRow(
+  QueryRow row,
+  int excerptCharacters,
+) {
+  final messageCount = row.read<int>('message_count');
+  final unreadCount = row.read<int>('unread_count');
+  final lastSeenAt = _readOptionalEpochMs(row, 'thread_last_seen_at_ms');
+  final lastMessageAt = _readOptionalEpochMs(row, 'last_message_at_ms');
+  final lastMessageAuthorId = row.readNullable<String>('last_message_author_id');
+
+  final preview = lastMessageAuthorId != null
+      ? _mapThreadMessagePreview(
+          body: row.readNullable<String>('lm_body'),
+          semanticMarker: row.readNullable<int>('lm_semantic_marker'),
+          linkedItemId: row.readNullable<String>('lm_linked_item_id'),
+          linkedEventKind: row.readNullable<int>('lm_linked_event_kind'),
+          hasAttachment: row.read<bool>('lm_has_attachment'),
+          systemPayloadJson: row.readNullable<String>('lm_system_payload_json'),
+          linkedItemKind: row.readNullable<int>('lm_linked_item_kind'),
+          linkedItemTitle: row.readNullable<String>('lm_linked_item_title'),
+          pollTitle: row.readNullable<String>('lm_poll_title'),
+          factTitle: row.readNullable<String>('lm_fact_title'),
+          factVisibility: row.readNullable<int>('lm_fact_visibility'),
+          excerptCharacters: excerptCharacters,
+        )
+      : null;
+
+  final itemId = row.readNullable<String>('ci_id');
+  CoordinationItemWithCounts? item;
+  if (itemId != null) {
+    item = CoordinationItemWithCounts(
+      item: CoordinationItemRecord(
+        id: itemId,
+        beaconId: row.read<String>('ci_beacon_id'),
+        kind: row.read<int>('ci_kind'),
+        status: row.read<int>('ci_status'),
+        title: row.read<String>('ci_title'),
+        body: row.read<String>('ci_body'),
+        creatorId: row.read<String>('ci_creator_id'),
+        targetPersonId: row.readNullable<String>('ci_target_person_id'),
+        acceptedById: row.readNullable<String>('ci_accepted_by_id'),
+        targetItemId: row.readNullable<String>('ci_target_item_id'),
+        targetMessageId: row.readNullable<String>('ci_target_message_id'),
+        linkedMessageId: row.readNullable<String>('ci_linked_message_id'),
+        linkedParentItemId: row.readNullable<String>('ci_linked_parent_item_id'),
+        ordering: row.read<int>('ci_ordering'),
+        source: row.read<int>('ci_source'),
+        published: row.read<bool>('ci_published'),
+        createdAt: _readEpochMs(row, 'ci_created_at_ms'),
+        updatedAt: _readEpochMs(row, 'ci_updated_at_ms'),
+        publishedAt: _readOptionalEpochMs(row, 'ci_published_at_ms'),
+        resolvedAt: _readOptionalEpochMs(row, 'ci_resolved_at_ms'),
+        cancelledAt: _readOptionalEpochMs(row, 'ci_cancelled_at_ms'),
+        staleAt: _readOptionalEpochMs(row, 'ci_stale_at_ms'),
+        lastRemindedAt: _readOptionalEpochMs(row, 'ci_last_reminded_at_ms'),
+        staleAfterDays: row.readNullable<int>('ci_stale_after_days'),
+      ),
+      messageCount: messageCount,
+      unreadCount: unreadCount,
+      lastSeenAt: lastSeenAt,
+    );
+  }
+
+  return BeaconThreadRecord(
+    threadId: row.read<String>('thread_id'),
+    threadKind: row.read<String>('thread_kind'),
+    unreadCount: unreadCount,
+    messageCount: messageCount,
+    lastSeenAt: lastSeenAt,
+    lastMessageAt: lastMessageAt,
+    lastMessageAuthorId: lastMessageAuthorId,
+    lastMessagePreview: preview,
+    item: item,
+  );
+}
+
+ThreadMessagePreviewRecord _mapThreadMessagePreview({
+  required String? body,
+  required int? semanticMarker,
+  required String? linkedItemId,
+  required int? linkedEventKind,
+  required bool hasAttachment,
+  required String? systemPayloadJson,
+  required int? linkedItemKind,
+  required String? linkedItemTitle,
+  required String? pollTitle,
+  required String? factTitle,
+  required int? factVisibility,
+  required int excerptCharacters,
+}) {
+  final payload = _readSystemPayload(systemPayloadJson);
+  final joinedUserId = payload?['joinedUserId'] as String?;
+  final admissionReason = payload?['admissionReason'] as String?;
+
+  if (semanticMarker == null &&
+      linkedItemId != null &&
+      linkedItemId.isNotEmpty &&
+      linkedEventKind != null) {
+    return ThreadMessagePreviewRecord(
+      kind: ThreadMessagePreviewKind.coordination,
+      hasAttachment: hasAttachment,
+      linkedItemId: linkedItemId,
+      linkedEventKind: linkedEventKind,
+      itemKind: linkedItemKind,
+      itemTitle: linkedItemTitle,
+    );
+  }
+
+  if (semanticMarker != null) {
+    final kind = _previewKindForSemanticMarker(semanticMarker);
+    return ThreadMessagePreviewRecord(
+      kind: kind,
+      hasAttachment: hasAttachment,
+      joinedUserId: kind == ThreadMessagePreviewKind.join ? joinedUserId : null,
+      admissionReason:
+          kind == ThreadMessagePreviewKind.join ? admissionReason : null,
+      linkedItemId: kind == ThreadMessagePreviewKind.coordination
+          ? linkedItemId
+          : null,
+      linkedEventKind: kind == ThreadMessagePreviewKind.coordination
+          ? linkedEventKind
+          : null,
+      itemKind: _itemKindForPreview(kind, linkedItemKind),
+      itemTitle: _itemTitleForPreview(kind, linkedItemTitle),
+      pollTitle: kind == ThreadMessagePreviewKind.poll ? pollTitle : null,
+      factTitle: kind == ThreadMessagePreviewKind.factPinned ? factTitle : null,
+      factVisibility:
+          kind == ThreadMessagePreviewKind.factPinned ? factVisibility : null,
+    );
+  }
+
+  final trimmedBody = body?.trim() ?? '';
+  if (trimmedBody.isNotEmpty) {
+    return ThreadMessagePreviewRecord(
+      kind: ThreadMessagePreviewKind.text,
+      excerpt: _truncateExcerpt(trimmedBody, excerptCharacters),
+      hasAttachment: hasAttachment,
+    );
+  }
+
+  if (hasAttachment) {
+    return const ThreadMessagePreviewRecord(
+      kind: ThreadMessagePreviewKind.attachment,
+      hasAttachment: true,
+    );
+  }
+
+  throw StateError('Unmapped last-message preview family');
+}
+
+int _previewKindForSemanticMarker(int marker) => switch (marker) {
+      BeaconRoomSemanticMarker.updatePlan => ThreadMessagePreviewKind.planUpdated,
+      BeaconRoomSemanticMarker.pinFactPublic ||
+      BeaconRoomSemanticMarker.pinFactPrivate =>
+        ThreadMessagePreviewKind.factPinned,
+      BeaconRoomSemanticMarker.participantStatusChanged =>
+        ThreadMessagePreviewKind.participantStatus,
+      BeaconRoomSemanticMarker.blocker => ThreadMessagePreviewKind.coordination,
+      BeaconRoomSemanticMarker.needInfo => ThreadMessagePreviewKind.needInfo,
+      BeaconRoomSemanticMarker.done => ThreadMessagePreviewKind.done,
+      BeaconRoomSemanticMarker.poll => ThreadMessagePreviewKind.poll,
+      BeaconRoomSemanticMarker.participantJoined => ThreadMessagePreviewKind.join,
+      _ => throw StateError('Unknown semantic marker: $marker'),
+    };
+
+int? _itemKindForPreview(int kind, int? linkedItemKind) =>
+    kind == ThreadMessagePreviewKind.coordination ? linkedItemKind : null;
+
+String? _itemTitleForPreview(int kind, String? linkedItemTitle) =>
+    kind == ThreadMessagePreviewKind.coordination ? linkedItemTitle : null;
+
+String _truncateExcerpt(String body, int excerptCharacters) {
+  if (body.length <= excerptCharacters) {
+    return body;
+  }
+  return body.substring(0, excerptCharacters);
+}
+
+DateTime _readEpochMs(QueryRow row, String name) =>
+    DateTime.fromMillisecondsSinceEpoch(row.read<int>(name), isUtc: true);
+
+DateTime? _readOptionalEpochMs(QueryRow row, String name) {
+  final value = row.readNullable<int>(name);
+  if (value == null) {
+    return null;
+  }
+  return DateTime.fromMillisecondsSinceEpoch(value, isUtc: true);
+}
+
+Map<String, Object?>? _readSystemPayload(String? raw) {
+  if (raw == null || raw.isEmpty || raw == 'null') {
+    return null;
+  }
+  final decoded = jsonDecode(raw);
+  if (decoded is Map) {
+    return Map<String, Object?>.from(decoded);
+  }
+  return null;
 }
