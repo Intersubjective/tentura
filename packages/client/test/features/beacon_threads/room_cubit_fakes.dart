@@ -129,10 +129,10 @@ class FakeBeaconThreadsRepository extends Fake implements BeaconThreadsRepositor
       BeaconRoomState(beaconId: beaconId, updatedAt: DateTime.utc(2026));
 
   @override
-  Future<DateTime> markRoomSeen({
+  Future<DateTime> markThreadSeen({
     required String beaconId,
+    required String threadId,
     required DateTime readThroughAt,
-    String? threadItemId,
   }) async => readThroughAt;
 
   @override
