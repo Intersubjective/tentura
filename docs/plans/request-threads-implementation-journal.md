@@ -49,7 +49,7 @@ None of the above overlap any UNIT 01–14 file list except the noted `docs/READ
 
 | Unit | One-line goal | Status | Commit(s) |
 |---|---|---|---|
-| 01 | Remove resolution feature (D27), migration m0149, My Work reviews segment | pending | |
+| 01 | Remove resolution feature (D27), migration m0149, My Work reviews segment | complete | 1b1a9ba69, 14e602b29, 7507dae82, 6b4e88c56 |
 | 02 | Pure `beacon_room` → `beacon_threads` rename | pending | |
 | 03 | Server `beaconThreads` query + preview contract | pending | |
 | 04 | `markThreadSeen` + persisted-watermark fix | pending | |
@@ -83,3 +83,14 @@ None yet.
   (2) run all 14 units end-to-end autonomously, only stopping for a genuine blocker. Verified
   `cursor-agent` auth + `composer-2.5` availability. Recorded pre-existing worktree diffs above. About
   to launch UNIT 01.
+
+- 2026-08-14 — UNIT 01 worker: live code matched plan decisions; removed three resolution entries from
+  `docs/contracts/updates-event-contract.json` (required by `updates_event_coverage_test`, not listed in
+  UNIT 01 file table). `item_card.dart` had an extra `_itemHeaderTier` resolution arm beyond plan cites.
+  PG migration test passed against reachable local Postgres (no docker-compose.yml at repo root in this
+  environment).
+
+- 2026-08-14 — UNIT 01 complete. Four commits on `main`. All verify commands green including PG
+  `m0149_resolution_removal_migration_test.dart`, server `dart test --exclude-tags pg` (1500),
+  client `flutter test` (2217 passed, 18 skipped), both `check-custom-lints.sh`, terminology check,
+  and forbidden/survivor `rg` gates.
