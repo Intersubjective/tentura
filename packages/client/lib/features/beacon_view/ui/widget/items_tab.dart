@@ -391,7 +391,7 @@ class ItemsTab extends StatelessWidget {
                               padding: const EdgeInsets.only(bottom: 10),
                               child: FocusFlashHighlight(
                                 active: hasFocus && item.id == focusId,
-                                child: ItemCard(
+                                child: ItemCard.semantic(
                                   item: item,
                                   creatorParticipant: _participantForUser(
                                     state.roomParticipants,
@@ -573,7 +573,7 @@ class _ItemCardAnimatedRowState extends State<_ItemCardAnimatedRow> {
         opacity: _visible && _entered ? 1.0 : 0.0,
         duration: const Duration(milliseconds: 150),
         child: _visible
-            ? ItemCard(
+            ? ItemCard.semantic(
                 item: widget.item,
                 viewerId: widget.viewerId,
                 creatorParticipant: widget.creatorParticipant,
@@ -638,7 +638,7 @@ class _MyDraftItemRow extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        ItemCard(
+        ItemCard.semantic(
           item: draft,
           creatorParticipant: _participantForUser(
             participants,

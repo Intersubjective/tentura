@@ -2,8 +2,14 @@ import 'package:flutter/material.dart';
 
 import 'package:tentura/domain/entity/beacon_participant.dart';
 import 'package:tentura/domain/entity/coordination_item.dart';
+import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
+import 'package:tentura/features/beacon_threads/domain/entity/request_thread.dart';
+import 'package:tentura/features/beacon_threads/ui/widget/relative_timestamp_ticker.dart';
+import 'package:tentura/features/beacon_threads/ui/widget/thread_message_preview_presenter.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/test_ids.dart';
+import 'package:tentura/ui/utils/relative_time.dart';
 import 'package:tentura/ui/widget/coordination_item_card_chrome.dart';
 import 'package:tentura/ui/widget/coordination_item_presenter.dart';
 
@@ -64,12 +70,15 @@ String? _formatStaleOverdue(CoordinationItem item, L10n l10n) {
 
 class ItemCard extends StatefulWidget {
   const ItemCard({
-    required this.item,
+    required this.thread,
+    required this.viewerProfile,
+    this.participants = const [],
+    this.resolvedUnreadCount,
     this.creatorParticipant,
     this.targetParticipant,
     this.responsibleParticipant,
-    this.viewerId,
-    this.onOpenItemThread,
+    this.isSelected = false,
+    this.onOpenThread,
     this.onResolve,
     this.onCancel,
     this.onAccept,
@@ -79,7 +88,10 @@ class ItemCard extends StatefulWidget {
     super.key,
   });
 
-  final CoordinationItem item;
+  final RequestThread thread;
+  final Profile viewerProfile;
+  final List<BeaconParticipant> participants;
+  final int? resolvedUnreadCount;
 
   /// Source/target participants for the header avatar trail ([coordinationItemCardAvatarTrail]).
   final BeaconParticipant? creatorParticipant;
@@ -88,17 +100,63 @@ class ItemCard extends StatefulWidget {
   /// Person who would receive a remind push — may differ from [targetParticipant].
   final BeaconParticipant? responsibleParticipant;
 
-  /// Current viewer — gates remind when equal to [CoordinationItem.responsibleUserId].
-  final String? viewerId;
+  /// Selected-row indicator — only set while an expanded split shows this thread.
+  final bool isSelected;
 
-  /// Primary card tap — opens the beacon room scrolled to this item’s thread.
-  final void Function(CoordinationItem item)? onOpenItemThread;
+  /// Primary card tap — opens the thread.
+  final void Function(RequestThread thread)? onOpenThread;
   final VoidCallback? onResolve;
   final VoidCallback? onCancel;
   final VoidCallback? onAccept;
   final VoidCallback? onReject;
   final VoidCallback? onEdit;
   final VoidCallback? onRemind;
+
+  /// Temporary adapter for unmigrated [items_tab.dart]; deleted in UNIT 12.
+  factory ItemCard.semantic({
+    required CoordinationItem item,
+    BeaconParticipant? creatorParticipant,
+    BeaconParticipant? targetParticipant,
+    BeaconParticipant? responsibleParticipant,
+    Profile? viewerProfile,
+    List<BeaconParticipant> participants = const [],
+    String? viewerId,
+    void Function(CoordinationItem item)? onOpenItemThread,
+    VoidCallback? onResolve,
+    VoidCallback? onCancel,
+    VoidCallback? onAccept,
+    VoidCallback? onReject,
+    VoidCallback? onEdit,
+    VoidCallback? onRemind,
+    Key? key,
+  }) {
+    final profile = viewerProfile ?? Profile(id: viewerId ?? '');
+    return ItemCard(
+      key: key,
+      thread: RequestThread(
+        threadId: item.id,
+        kind: threadKindForItem(item),
+        unreadCount: item.unreadCount,
+        messageCount: item.messageCount,
+        lastSeenAt: item.lastSeenAt,
+        item: item,
+      ),
+      viewerProfile: profile,
+      participants: participants,
+      creatorParticipant: creatorParticipant,
+      targetParticipant: targetParticipant,
+      responsibleParticipant: responsibleParticipant,
+      onOpenThread: onOpenItemThread == null
+          ? null
+          : (thread) => onOpenItemThread(item),
+      onResolve: onResolve,
+      onCancel: onCancel,
+      onAccept: onAccept,
+      onReject: onReject,
+      onEdit: onEdit,
+      onRemind: onRemind,
+    );
+  }
 
   @override
   State<ItemCard> createState() => _ItemCardState();
@@ -107,17 +165,139 @@ class ItemCard extends StatefulWidget {
 class _ItemCardState extends State<ItemCard> {
   bool _expanded = false;
 
+  int get _displayUnreadCount =>
+      widget.resolvedUnreadCount ?? widget.thread.unreadCount;
+
   @override
   Widget build(BuildContext context) {
-    final item = widget.item;
+    final thread = widget.thread;
+    final item = thread.item;
+    final isGeneral = item == null;
     final l10n = L10n.of(context)!;
     final theme = Theme.of(context);
     final tt = context.tt;
     final textTheme = theme.textTheme;
     final colorScheme = theme.colorScheme;
 
-    final statusColor = coordinationItemColor(tt, item.kind, item.status);
+    return RelativeTimestampTicker(
+      child: Card(
+        clipBehavior: Clip.antiAlias,
+        shape: widget.isSelected
+            ? RoundedRectangleBorder(
+                side: BorderSide(color: tt.attentionHighlight, width: 2),
+                borderRadius: BorderRadius.circular(tt.cardRadius),
+              )
+            : null,
+        child: InkWell(
+          onTap: widget.onOpenThread == null
+              ? (thread.isDraft ? widget.onEdit : null)
+              : () => widget.onOpenThread!(thread),
+          child: Padding(
+            padding: EdgeInsets.fromLTRB(
+              tt.cardPadding.left,
+              tt.rowGap,
+              tt.cardPadding.right,
+              tt.rowGap,
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                if (isGeneral)
+                  _buildGeneralHeader(context, l10n, textTheme, colorScheme, tt)
+                else
+                  _buildSemanticHeader(
+                    context,
+                    item,
+                    l10n,
+                    textTheme,
+                    colorScheme,
+                    tt,
+                  ),
+                if (thread.isDraft) ...[
+                  SizedBox(height: tt.tightGap),
+                  Text(
+                    l10n.threadDraftBadge,
+                    style: TenturaText.bodySmall(tt.warn),
+                  ),
+                ],
+                if (!isGeneral && item.title.trim().isNotEmpty) ...[
+                  SizedBox(height: tt.tightGap),
+                  Text(
+                    item.title.trim(),
+                    style: textTheme.titleSmall,
+                    maxLines: _expanded ? null : 1,
+                    overflow: _expanded ? null : TextOverflow.ellipsis,
+                  ),
+                ],
+                if (!isGeneral) ...[
+                  ..._buildSemanticBody(item, l10n, textTheme, tt),
+                ],
+                ..._buildLastMessageRow(context, thread, l10n, textTheme, tt),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 
+  Widget _buildGeneralHeader(
+    BuildContext context,
+    L10n l10n,
+    TextTheme textTheme,
+    ColorScheme colorScheme,
+    TenturaTokens tt,
+  ) {
+    final thread = widget.thread;
+    final unread = _displayUnreadCount;
+    return Row(
+      children: [
+        Icon(Icons.forum_outlined, color: tt.info, size: tt.iconSize),
+        SizedBox(width: tt.iconTextGap),
+        Expanded(
+          child: Text(
+            l10n.threadGeneralTitle,
+            style: textTheme.titleSmall,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+        if (thread.messageCount > 0) ...[
+          SizedBox(width: tt.iconTextGap),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.chat_bubble_outline,
+                size: 14,
+                color: colorScheme.onSurfaceVariant,
+              ),
+              SizedBox(width: tt.tightGap * 2),
+              TenturaCountBadge(
+                count: thread.messageCount,
+                backgroundColor: colorScheme.surfaceContainerHighest,
+              ),
+            ],
+          ),
+        ],
+        if (unread > 0) ...[
+          SizedBox(width: tt.iconTextGap),
+          TenturaCountBadge(count: unread, backgroundColor: tt.info),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildSemanticHeader(
+    BuildContext context,
+    CoordinationItem item,
+    L10n l10n,
+    TextTheme textTheme,
+    ColorScheme colorScheme,
+    TenturaTokens tt,
+  ) {
+    final statusColor = coordinationItemColor(tt, item.kind, item.status);
     final kindLabel = switch (item.kind) {
       CoordinationItemKind.blocker => l10n.coordinationBlockerCardLabel,
       CoordinationItemKind.ask => l10n.coordinationAskCardLabel,
@@ -126,11 +306,10 @@ class _ItemCardState extends State<ItemCard> {
           ? l10n.coordinationPlanStepCardLabel
           : l10n.coordinationPlanCardLabel,
     };
-
     final menuEntries = coordinationItemCardMenuEntries(
       l10n: l10n,
       item: item,
-      viewerId: widget.viewerId,
+      viewerId: widget.viewerProfile.id,
       responsibleParticipant: widget.responsibleParticipant,
       includeEdit: widget.onEdit != null,
       includeRemind: widget.onRemind != null,
@@ -156,164 +335,212 @@ class _ItemCardState extends State<ItemCard> {
             widget.targetParticipant != null);
     final staleCountdown = _formatStaleRemaining(item);
     final staleOverdueLabel = _formatStaleOverdue(item, l10n);
-    final contentPreview = item.contentPreview;
-    final showBodyToggle = contentPreview.length > _bodyPreviewThreshold;
+    final unread = _displayUnreadCount;
 
-    return Card(
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: widget.onOpenItemThread == null
-            ? null
-            : () => widget.onOpenItemThread!(item),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            mainAxisSize: MainAxisSize.min,
+    return Row(
+      children: [
+        eventIcon,
+        SizedBox(width: tt.iconTextGap),
+        Expanded(
+          child: Row(
             children: [
-              Row(
-                children: [
-                  eventIcon,
-                  const SizedBox(width: 6),
-                  Expanded(
-                    child: Row(
-                      children: [
-                        Flexible(
-                          child: Text(
-                            kindLabel,
-                            style: textTheme.bodySmall?.copyWith(
-                              color: statusColor,
-                              fontWeight: headerTier == _ItemHeaderTier.high
-                                  ? FontWeight.w600
-                                  : null,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                        if (staleOverdueLabel != null)
-                          Flexible(
-                            child: Row(
-                              mainAxisSize: MainAxisSize.min,
-                              children: [
-                                const SizedBox(width: 6),
-                                Icon(
-                                  Icons.notification_important_outlined,
-                                  size: 14,
-                                  color: tt.warn,
-                                ),
-                                const SizedBox(width: 4),
-                                Flexible(
-                                  child: Text(
-                                    staleOverdueLabel,
-                                    style: textTheme.labelSmall?.copyWith(
-                                      color: tt.warn,
-                                    ),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          )
-                        else if (staleCountdown != null)
-                          Flexible(
-                            child: Padding(
-                              padding: const EdgeInsets.only(left: 6),
-                              child: Text(
-                                staleCountdown,
-                                style: textTheme.labelSmall?.copyWith(
-                                  color: colorScheme.onSurfaceVariant,
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                          ),
-                      ],
-                    ),
+              Flexible(
+                child: Text(
+                  kindLabel,
+                  style: textTheme.bodySmall?.copyWith(
+                    color: statusColor,
+                    fontWeight: headerTier == _ItemHeaderTier.high
+                        ? FontWeight.w600
+                        : null,
                   ),
-                  if (item.messageCount > 0) ...[
-                    const SizedBox(width: 6),
-                    Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Icon(
-                          Icons.chat_bubble_outline,
-                          size: 14,
-                          color: colorScheme.onSurfaceVariant,
-                        ),
-                        const SizedBox(width: 4),
-                        TenturaCountBadge(
-                          count: item.messageCount,
-                          backgroundColor: colorScheme.surfaceContainerHighest,
-                        ),
-                      ],
-                    ),
-                  ],
-                  if (item.unreadCount > 0 &&
-                      item.isActive &&
-                      item.kind != CoordinationItemKind.plan) ...[
-                    const SizedBox(width: 6),
-                    TenturaCountBadge(
-                      count: item.unreadCount,
-                      backgroundColor: tt.info,
-                    ),
-                  ],
-                  if (hasAvatarTrail) avatarTrail,
-                  if (hasAvatarTrail && showMenu) const SizedBox(width: 8),
-                  if (showMenu)
-                    CoordinationItemCardOverflowMenu(
-                      item: item,
-                      menuEntries: menuEntries,
-                      onSelected: (action) => switch (action) {
-                        CoordinationItemCardMenuAction.edit =>
-                          widget.onEdit?.call(),
-                        CoordinationItemCardMenuAction.remind =>
-                          widget.onRemind?.call(),
-                        CoordinationItemCardMenuAction.accept =>
-                          widget.onAccept?.call(),
-                        CoordinationItemCardMenuAction.resolve =>
-                          widget.onResolve?.call(),
-                        CoordinationItemCardMenuAction.cancel =>
-                          widget.onCancel?.call(),
-                        CoordinationItemCardMenuAction.reject =>
-                          (widget.onReject ?? widget.onCancel)?.call(),
-                      },
-                    ),
-                ],
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
-              if (contentPreview.isNotEmpty) ...[
-                const SizedBox(height: 4),
-                Text(
-                  contentPreview,
-                  style: textTheme.bodyMedium,
-                  maxLines: _expanded ? null : 1,
-                  overflow:
-                      _expanded ? null : TextOverflow.ellipsis,
-                ),
-              ],
-              if (showBodyToggle) ...[
-                const SizedBox(height: 4),
-                Align(
-                  alignment: Alignment.centerRight,
-                  child: TextButton(
-                    style: TextButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(horizontal: 8),
-                      minimumSize: const Size(44, 36),
-                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                    ),
-                    onPressed: () => setState(() => _expanded = !_expanded),
+              if (staleOverdueLabel != null)
+                Flexible(
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      SizedBox(width: tt.iconTextGap),
+                      Icon(
+                        Icons.notification_important_outlined,
+                        size: 14,
+                        color: tt.warn,
+                      ),
+                      SizedBox(width: tt.tightGap * 2),
+                      Flexible(
+                        child: Text(
+                          staleOverdueLabel,
+                          style: textTheme.labelSmall?.copyWith(
+                            color: tt.warn,
+                          ),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                )
+              else if (staleCountdown != null)
+                Flexible(
+                  child: Padding(
+                    padding: EdgeInsets.only(left: tt.iconTextGap),
                     child: Text(
-                      _expanded ? l10n.itemShowLess : l10n.itemShowMore,
+                      staleCountdown,
+                      style: textTheme.labelSmall?.copyWith(
+                        color: colorScheme.onSurfaceVariant,
+                      ),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                     ),
                   ),
                 ),
-              ],
             ],
           ),
         ),
-      ),
+        if (widget.thread.messageCount > 0) ...[
+          SizedBox(width: tt.iconTextGap),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.chat_bubble_outline,
+                size: 14,
+                color: colorScheme.onSurfaceVariant,
+              ),
+              SizedBox(width: tt.tightGap * 2),
+              TenturaCountBadge(
+                count: widget.thread.messageCount,
+                backgroundColor: colorScheme.surfaceContainerHighest,
+              ),
+            ],
+          ),
+        ],
+        if (unread > 0 &&
+            item.isActive &&
+            item.kind != CoordinationItemKind.plan) ...[
+          SizedBox(width: tt.iconTextGap),
+          TenturaCountBadge(count: unread, backgroundColor: tt.info),
+        ],
+        if (hasAvatarTrail) avatarTrail,
+        if (hasAvatarTrail && showMenu) SizedBox(width: tt.rowGap),
+        if (showMenu)
+          CoordinationItemCardOverflowMenu(
+            item: item,
+            menuEntries: menuEntries,
+            onSelected: (action) => switch (action) {
+              CoordinationItemCardMenuAction.edit => widget.onEdit?.call(),
+              CoordinationItemCardMenuAction.remind => widget.onRemind?.call(),
+              CoordinationItemCardMenuAction.accept => widget.onAccept?.call(),
+              CoordinationItemCardMenuAction.resolve =>
+                widget.onResolve?.call(),
+              CoordinationItemCardMenuAction.cancel => widget.onCancel?.call(),
+              CoordinationItemCardMenuAction.reject =>
+                (widget.onReject ?? widget.onCancel)?.call(),
+            },
+          ),
+      ],
     );
   }
+
+  List<Widget> _buildSemanticBody(
+    CoordinationItem item,
+    L10n l10n,
+    TextTheme textTheme,
+    TenturaTokens tt,
+  ) {
+    final contentPreview = item.contentPreview;
+    final showBodyToggle = contentPreview.length > _bodyPreviewThreshold;
+    if (contentPreview.isEmpty) return const [];
+
+    return [
+      SizedBox(height: tt.tightGap),
+      Text(
+        contentPreview,
+        style: textTheme.bodyMedium,
+        maxLines: _expanded ? null : 1,
+        overflow: _expanded ? null : TextOverflow.ellipsis,
+      ),
+      if (showBodyToggle) ...[
+        SizedBox(height: tt.tightGap),
+        Align(
+          alignment: Alignment.centerRight,
+          child: TextButton(
+            style: TextButton.styleFrom(
+              padding: EdgeInsets.symmetric(horizontal: tt.rowGap),
+              minimumSize: Size(tt.buttonHeight, tt.buttonHeight * 0.82),
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            ),
+            onPressed: () => setState(() => _expanded = !_expanded),
+            child: Text(_expanded ? l10n.itemShowLess : l10n.itemShowMore),
+          ),
+        ),
+      ],
+    ];
+  }
+
+  List<Widget> _buildLastMessageRow(
+    BuildContext context,
+    RequestThread thread,
+    L10n l10n,
+    TextTheme textTheme,
+    TenturaTokens tt,
+  ) {
+    final preview = thread.lastMessagePreview;
+    final at = thread.lastMessageAt;
+    if (preview == null && at == null) return const [];
+
+    final previewText = preview == null
+        ? ''
+        : threadMessagePreviewText(
+            preview: preview,
+            l10n: l10n,
+            participants: widget.participants,
+            viewerProfile: widget.viewerProfile,
+          );
+    final authorPrefix = threadMessageAuthorPrefix(
+      authorId: thread.lastMessageAuthorId,
+      l10n: l10n,
+      participants: widget.participants,
+      viewerProfile: widget.viewerProfile,
+    );
+    final relativeLabel = at == null
+        ? null
+        : compactRelativeTimeAgo(
+            when: at,
+            now: DateTime.now(),
+            l10n: l10n,
+          );
+
+    if (previewText.isEmpty && relativeLabel == null) return const [];
+
+    return [
+      SizedBox(height: tt.iconTextGap),
+      Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child: Text(
+              '${authorPrefix ?? ''}$previewText',
+              style: textTheme.bodySmall?.copyWith(color: tt.textMuted),
+              maxLines: 2,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          if (relativeLabel != null) ...[
+            SizedBox(width: tt.iconTextGap),
+            Text(
+              relativeLabel,
+              style: textTheme.labelSmall?.copyWith(color: tt.textFaint),
+            ),
+          ],
+        ],
+      ),
+    ];
+  }
 }
+
+/// Keys a thread row for integration tests.
+Key threadRowKey(RequestThread thread) =>
+    TestIds.key(TestIds.requestThread(thread.threadId));
