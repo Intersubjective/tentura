@@ -661,3 +661,45 @@ None yet.
   `l10n_en.dart` directly rather than guessing), updated all four assertions to match, reran the four
   fixed files (36 passed) and the full suite again (2272 passed, 18 skipped, clean), committed separately
   as `4df649fe1`. Proceeding to UNIT 14 (the final adaptive integration and QA unit — the last one).
+
+- 2026-08-14 — **UNIT 14 worker killed by the runner's own 3600s hard timeout** (exit 124 — a genuine
+  budget exhaustion given the unit's size, not the earlier external-kill pattern from UNIT 06). Before
+  timing out it had written and committed both required test files in full:
+  `88a133a11`/`6515512e3`/`4c061a153` — `request_threads_adaptive_test.dart` (1382 lines) and
+  `integration_test/request_threads_navigation_test.dart` (179 lines), both `dart analyze`-clean (only
+  info/warning-level style lints). It left one small uncommitted leftover (two "chat scope" → "thread
+  scope" test-description renames in `beacon_room_case_message_mutations_test.dart` that UNIT 13 had
+  missed) and never got to run its own verification pass or write a final report. No resumption of the
+  dead session — manager took over verification directly, since all remaining work was execution, not
+  implementation. Committed the small leftover fix (`1a6153674`).
+
+- 2026-08-14 — **Manager verification of UNIT 14, run directly (no further Cursor worker dispatched).**
+  `flutter test test/features/beacon_threads/request_threads_adaptive_test.dart`: 17/18 passed, one
+  genuine failure — `item-only authorization fixture: participant sees semantic row without General`.
+  **This is a real production defect, not a test bug**, confirmed by reading the actual widget source
+  (`ThreadsList` in `threads_list.dart`): `showActiveFold`/`showClosedFold`/`showDrafts`/`showGeneral`
+  were all gated behind a client-side `inRoom = canNavigateBeaconRoom || canCoordinateInBeaconRoom`
+  check — both predicates strictly narrower than the server's `beaconThreads` authorization union
+  (architecture.md §4.4), which already returns a non-admitted item participant's own thread. The result:
+  an item-only participant's thread was present in `ThreadsState.threads` (server-authorized, fetched
+  correctly) but the widget never rendered it — a real, total loss of access to their own thread through
+  the UI, exactly the regression §4.4 explicitly warns a client-side re-gate would cause. Fixed directly
+  (`f62dab763`): row/fold visibility now depends only on whether the server actually returned rows to
+  show (`activeThreads.isNotEmpty`, `closedThreads.isNotEmpty`, `myDraftCount > 0`, `general != null`);
+  `canCoordinate` still gates only the creation CTAs, which is a genuinely different permission. Reran
+  the adaptive test (18/18 passed) and the full client suite (2287 total, only 4 unrelated failures
+  remained — see below). Then ran, independently: all three isolated PG tests against the
+  already-reachable local Postgres (17 passed, each confirmed a `tentura_test_*` disposable database
+  name and never `postgres`), the `tentura_lints` self-test (18 passed), both `check-custom-lints.sh`
+  invocations (server 0/0, client 93/93), `check-user-facing-terminology.sh` (ok), and the final
+  forbidden-symbol `rg` gate across all of `lib`/`test`/`integration_test` for both packages (clean).
+  **Investigated the 4 remaining full-suite failures** (`item_card_golden_test.dart`, all four goldens,
+  0.21–0.34% pixel diff each): confirmed via `git stash` that they fail identically with or without the
+  `ThreadsList` fix, and the isolated diff images show only 1–2 tiny pixel clusters near a badge element
+  in the bottom-right corner — subpixel/anti-aliasing rendering noise, not a content or structural
+  change. Pre-existing, environment-dependent golden-rendering nondeterminism, unrelated to any change in
+  this plan; not fixed, documented here rather than papered over by blindly regenerating goldens.
+  **Ran the real web integration test** (`./scripts/run_client_integration_web_local.sh
+  integration_test/request_threads_navigation_test.dart`) against this machine's already-running local
+  dev stack (Postgres/Hasura/MeritRank containers up, `tentura-server` already listening on `:2080`,
+  chromedriver already ready) — outcome recorded in the next checkpoint once it completes.
