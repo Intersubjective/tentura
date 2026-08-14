@@ -13,6 +13,7 @@ import 'package:tentura/domain/entity/realtime/realtime_entity_change.dart';
 import 'package:tentura/domain/port/realtime_sync_port.dart';
 import 'package:tentura/features/beacon/data/repository/beacon_repository.dart';
 
+import '../../domain/entity/forward_delivery_result.dart';
 import '../../domain/entity/help_offer_event.dart';
 import '../../domain/entity/forward_edge.dart';
 import '../../domain/entity/forward_graph.dart';
@@ -108,7 +109,7 @@ class ForwardRepository {
     await _forwardCommandCompletedController.close();
   }
 
-  Future<String> forwardBeacon({
+  Future<ForwardDeliveryResult> forwardBeacon({
     required String beaconId,
     required List<String> recipientIds,
     String? note,
@@ -166,14 +167,20 @@ class ForwardRepository {
       )
       .firstWhere((e) => e.dataSource == DataSource.Link)
       .then((r) {
-        final id = r.dataOrThrow(label: _label).beaconForward!.batchId;
+        final payload = r.dataOrThrow(label: _label).beaconForward!;
+        final result = ForwardDeliveryResult(
+          batchId: payload.batchId,
+          deliveredRecipientIds: payload.deliveredRecipientIds.toList(),
+          availabilitySkippedRecipientIds:
+              payload.availabilitySkippedRecipientIds.toList(),
+        );
         if (!_forwardChangesController.isClosed) {
           _forwardChangesController.add(beaconId);
         }
         if (!_forwardCommandCompletedController.isClosed) {
           _forwardCommandCompletedController.add(beaconId);
         }
-        return id;
+        return result;
       });
 
   Future<List<ForwardInboundSource>> fetchInboundForwardSources({

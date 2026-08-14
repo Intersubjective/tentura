@@ -37,16 +37,26 @@ class ForwardCandidatesError extends ForwardCandidatesLoad {
   final Object error;
 }
 
-/// Result of the most recent forward call in the embedded create flow.
+/// Result of the most recent forward call (embedded create + non-embedded send).
 @immutable
 class ForwardDeliveryOutcome {
   const ForwardDeliveryOutcome({
+    required this.requestedRecipientIds,
     required this.deliveredRecipientIds,
+    required this.availabilitySkippedRecipientIds,
     this.failed = false,
   });
 
+  final List<String> requestedRecipientIds;
   final List<String> deliveredRecipientIds;
+  final List<String> availabilitySkippedRecipientIds;
   final bool failed;
+
+  int get requestedCount => requestedRecipientIds.length;
+
+  int get deliveredCount => deliveredRecipientIds.length;
+
+  int get availabilitySkippedCount => availabilitySkippedRecipientIds.length;
 }
 
 /// Counts for compact scope links (full candidate list; scope only).
