@@ -49,6 +49,8 @@ typedef BeaconInvolvementData = ({
   Map<String, String> myForwardedRecipientNotes,
   Map<String, String> myForwardedRecipientEdgeIds,
   Map<String, DateTime?> myForwardedRecipientReadAts,
+  Map<String, bool> myForwardedRecipientHasOnwardChild,
+  Map<String, bool> myForwardedRecipientRejected,
 });
 
 @Singleton(env: [Environment.dev, Environment.prod])
@@ -267,6 +269,8 @@ class ForwardRepository {
     final myForwardedRecipientNotes = <String, String>{};
     final myForwardedRecipientEdgeIds = <String, String>{};
     final myForwardedRecipientReadAts = <String, DateTime?>{};
+    final myForwardedRecipientHasOnwardChild = <String, bool>{};
+    final myForwardedRecipientRejected = <String, bool>{};
     if (inv.myForwardedRecipients != null) {
       for (final r in inv.myForwardedRecipients!) {
         myForwardedRecipientNotes[r.recipientId] = r.note;
@@ -274,6 +278,8 @@ class ForwardRepository {
         myForwardedRecipientReadAts[r.recipientId] = r.readAt != null
             ? DateTime.parse(r.readAt!)
             : null;
+        myForwardedRecipientHasOnwardChild[r.recipientId] = r.hasOnwardChild;
+        myForwardedRecipientRejected[r.recipientId] = r.recipientRejected;
       }
     }
 
@@ -288,6 +294,8 @@ class ForwardRepository {
       myForwardedRecipientNotes: myForwardedRecipientNotes,
       myForwardedRecipientEdgeIds: myForwardedRecipientEdgeIds,
       myForwardedRecipientReadAts: myForwardedRecipientReadAts,
+      myForwardedRecipientHasOnwardChild: myForwardedRecipientHasOnwardChild,
+      myForwardedRecipientRejected: myForwardedRecipientRejected,
     );
   }
 

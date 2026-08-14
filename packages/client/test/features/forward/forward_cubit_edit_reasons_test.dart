@@ -190,6 +190,8 @@ BeaconInvolvementData _involvementWithForward({
   myForwardedRecipientNotes: <String, String>{},
   myForwardedRecipientEdgeIds: {recipientId: edgeId},
   myForwardedRecipientReadAts: <String, DateTime?>{},
+  myForwardedRecipientHasOnwardChild: <String, bool>{},
+  myForwardedRecipientRejected: <String, bool>{},
 );
 
 Future<ForwardCubit> _openEditCubit({

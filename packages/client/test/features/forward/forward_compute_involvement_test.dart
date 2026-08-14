@@ -27,6 +27,8 @@ BeaconInvolvementData _involvement({
       myForwardedRecipientNotes: myForwardedRecipientNotes,
       myForwardedRecipientEdgeIds: const {},
       myForwardedRecipientReadAts: const {},
+      myForwardedRecipientHasOnwardChild: const {},
+      myForwardedRecipientRejected: const {},
     );
 
 void main() {

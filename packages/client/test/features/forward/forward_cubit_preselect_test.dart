@@ -182,6 +182,8 @@ BeaconInvolvementData _involvement(Beacon beacon) => (
   myForwardedRecipientNotes: <String, String>{},
   myForwardedRecipientEdgeIds: <String, String>{},
   myForwardedRecipientReadAts: <String, DateTime?>{},
+  myForwardedRecipientHasOnwardChild: <String, bool>{},
+  myForwardedRecipientRejected: <String, bool>{},
 );
 
 Future<void> _disposeHarness(

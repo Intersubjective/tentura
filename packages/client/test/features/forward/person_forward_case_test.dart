@@ -57,6 +57,8 @@ class _FakeForwardRepository implements ForwardRepository {
           myForwardedRecipientNotes: <String, String>{},
           myForwardedRecipientEdgeIds: <String, String>{},
           myForwardedRecipientReadAts: <String, DateTime?>{},
+          myForwardedRecipientHasOnwardChild: <String, bool>{},
+          myForwardedRecipientRejected: <String, bool>{},
         );
   }
 
@@ -74,6 +76,8 @@ class _FakeForwardRepository implements ForwardRepository {
     myForwardedRecipientNotes: <String, String>{},
     myForwardedRecipientEdgeIds: <String, String>{},
     myForwardedRecipientReadAts: <String, DateTime?>{},
+    myForwardedRecipientHasOnwardChild: <String, bool>{},
+    myForwardedRecipientRejected: <String, bool>{},
   );
 
   @override
@@ -257,6 +261,8 @@ void main() {
           myForwardedRecipientNotes: <String, String>{'U-target': 'sent'},
           myForwardedRecipientEdgeIds: <String, String>{'U-target': 'edge-1'},
           myForwardedRecipientReadAts: <String, DateTime?>{},
+          myForwardedRecipientHasOnwardChild: <String, bool>{},
+          myForwardedRecipientRejected: <String, bool>{},
         );
 
         final load = await harness.personForwardCase.load('U-target');

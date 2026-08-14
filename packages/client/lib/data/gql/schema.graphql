@@ -7300,9 +7300,11 @@ type v2_mutual_score {
 
 type v2_MyForwardRecipient {
   edgeId: String!
+  hasOnwardChild: Boolean!
   note: String!
   readAt: String
   recipientId: String!
+  recipientRejected: Boolean!
 }
 
 type v2_MyWorkBeaconCoordinationActivityRow {

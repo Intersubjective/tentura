@@ -77,6 +77,8 @@ class _LiveSyncForwardRepository implements ForwardRepository {
     myForwardedRecipientNotes: <String, String>{},
     myForwardedRecipientEdgeIds: <String, String>{},
     myForwardedRecipientReadAts: <String, DateTime?>{},
+    myForwardedRecipientHasOnwardChild: <String, bool>{},
+    myForwardedRecipientRejected: <String, bool>{},
   );
 
   @override

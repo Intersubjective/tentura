@@ -30,7 +30,8 @@ GBeaconInvolvementDataData_beaconInvolvement _gqlInvolvement(
 
 void main() {
   group('ForwardRepository.mapBeaconInvolvement', () {
-    test('maps myForwardedRecipients to notes, edge ids, and readAt', () {
+    test('maps myForwardedRecipients to notes, edge ids, readAt, and cancel flags',
+        () {
       final gql = _gqlInvolvement(
         (b) => b
           ..myForwardedRecipients = ListBuilder([
@@ -39,7 +40,9 @@ void main() {
                 ..recipientId = 'recipient-1'
                 ..edgeId = 'edge-abc'
                 ..note = 'Please help'
-                ..readAt = '2025-06-01T12:00:00.000Z',
+                ..readAt = '2025-06-01T12:00:00.000Z'
+                ..hasOnwardChild = true
+                ..recipientRejected = true,
             ),
           ]),
       );
@@ -61,6 +64,14 @@ void main() {
         involvement.myForwardedRecipientReadAts['recipient-1'],
         DateTime.utc(2025, 6, 1, 12),
       );
+      expect(
+        involvement.myForwardedRecipientHasOnwardChild,
+        {'recipient-1': true},
+      );
+      expect(
+        involvement.myForwardedRecipientRejected,
+        {'recipient-1': true},
+      );
     });
 
     test('null GraphQL lists become empty sets', () {
@@ -76,6 +87,8 @@ void main() {
       expect(involvement.watchingIds, isEmpty);
       expect(involvement.onwardForwarderIds, isEmpty);
       expect(involvement.myForwardedRecipientNotes, isEmpty);
+      expect(involvement.myForwardedRecipientHasOnwardChild, isEmpty);
+      expect(involvement.myForwardedRecipientRejected, isEmpty);
     });
 
     test('maps involvement id sets from GraphQL', () {
@@ -111,7 +124,9 @@ void main() {
               (r) => r
                 ..recipientId = 'recipient-1'
                 ..edgeId = 'edge-1'
-                ..note = 'Check this beacon',
+                ..note = 'Check this beacon'
+                ..hasOnwardChild = false
+                ..recipientRejected = false,
             ),
           ]),
       );
@@ -179,7 +194,9 @@ void main() {
               (r) => r
                 ..recipientId = 'u1'
                 ..edgeId = 'edge-me'
-                ..note = 'From me',
+                ..note = 'From me'
+                ..hasOnwardChild = false
+                ..recipientRejected = false,
             ),
           ]),
       );
@@ -202,7 +219,9 @@ void main() {
               (r) => r
                 ..recipientId = 'watcher'
                 ..edgeId = 'edge-w'
-                ..note = 'Watching note',
+                ..note = 'Watching note'
+                ..hasOnwardChild = false
+                ..recipientRejected = false,
             ),
           ]),
       );
