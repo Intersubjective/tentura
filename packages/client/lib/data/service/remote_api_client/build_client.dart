@@ -280,6 +280,7 @@ class _V2RoutingLink extends Link {
     'BeaconStewardPromote',
     'RoomMessageReactionToggle',
     'BeaconRoomStateGet',
+    'BeaconThreadsList',
     'BeaconActivityEventList',
     'InboxRoomContextBatch',
     'RoomMessageEdit',

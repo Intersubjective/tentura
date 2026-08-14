@@ -1,0 +1,53 @@
+query BeaconThreadsList($beaconId: String!) {
+  beaconThreads(beaconId: $beaconId) {
+    threadId
+    threadKind
+    unreadCount
+    messageCount
+    lastSeenAt
+    lastMessageAt
+    lastMessageAuthorId
+    lastMessagePreview {
+      kind
+      excerpt
+      hasAttachment
+      joinedUserId
+      admissionReason
+      linkedItemId
+      linkedEventKind
+      itemKind
+      itemTitle
+      pollTitle
+      factTitle
+      factVisibility
+    }
+    item {
+      id
+      beaconId
+      kind
+      status
+      source
+      published
+      title
+      body
+      creatorId
+      targetPersonId
+      acceptedById
+      targetItemId
+      targetMessageId
+      linkedMessageId
+      linkedParentItemId
+      ordering
+      createdAt
+      updatedAt
+      resolvedAt
+      cancelledAt
+      staleAt
+      lastRemindedAt
+      staleAfterDays
+      messageCount
+      unreadCount
+      lastSeenAt
+    }
+  }
+}

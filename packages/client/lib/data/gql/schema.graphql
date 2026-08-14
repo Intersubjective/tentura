@@ -4252,6 +4252,7 @@ type query_root {
   BeaconFactCardList(beaconId: String!): [v2_BeaconFactCardRow!]
   BeaconParticipantList(beaconId: String!): [v2_BeaconParticipantRow!]
   BeaconRoomStateGet(beaconId: String!): v2_BeaconRoomStateRow!
+  beaconThreads(beaconId: String!): [v2_BeaconThreadRow!]
   InboxRoomContextBatch(beaconIds: [String!]): [v2_InboxRoomContextRow!]
   RoomMessageList(beaconId: String!, beforeIso: String, threadItemId: String): [v2_RoomMessageRow!]
   attentionFeed(cursor: String, limit: Int, search: String, view: String!): v2_AttentionFeed!
@@ -6978,6 +6979,33 @@ type v2_BeaconRoomStateRow {
   openBlockerTitle: String
   updatedAt: String!
   updatedBy: String
+}
+
+type v2_BeaconThreadRow {
+  item: v2_CoordinationItemRow
+  lastMessageAt: String
+  lastMessageAuthorId: String
+  lastMessagePreview: v2_ThreadMessagePreview
+  lastSeenAt: String
+  messageCount: Int!
+  threadId: String!
+  threadKind: String!
+  unreadCount: Int!
+}
+
+type v2_ThreadMessagePreview {
+  admissionReason: String
+  excerpt: String
+  factTitle: String
+  factVisibility: Int
+  hasAttachment: Boolean!
+  itemKind: Int
+  itemTitle: String
+  joinedUserId: String
+  kind: Int!
+  linkedEventKind: Int
+  linkedItemId: String
+  pollTitle: String
 }
 
 type v2_BeaconStatusResult {
