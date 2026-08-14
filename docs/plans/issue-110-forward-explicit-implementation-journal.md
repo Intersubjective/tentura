@@ -100,7 +100,7 @@ None triggered.
 - [x] **08** Inbox consumes Watching intent; D15
 - [x] **09** D13 offer-help snapshot on Inbox + BeaconView
 - [x] **10** CTA inventory (`allowsForward`)
-- [ ] **11** Person-forward stay, skip/sheet, **add** cancel
+- [x] **11** Person-forward stay, skip/sheet, **add** cancel
 - [ ] **12** Client 6.2.0 + web cache-buster
 - [ ] **13** Plan-wide closeout
 
@@ -222,6 +222,32 @@ frozen contract, stop that unit with `BLOCKED` instead of improvising.
   D13 snapshot helper extracted; both openers no longer gate on pop bool.
   Parallel dirty work (design-system resize handle, beacon_view split,
   pubspec/index.html) is **not** #110 — do not stage. UNIT 10 authorized.
+- 2026-08-14 manager: **UNIT 10 accepted**. Commit `93b08d2d0`
+  (`fix: gate Forward CTAs on allowsForward`). Independent: CardTriage
+  widget tests 2 passed; myWorkNeedsForwardCta 3 passed; `--name forward`
+  inbox/my_work 15 passed. Journal hash `653181d2b` was chicken-egg; real
+  is `93b08d2d0`. Watching card CTA still off (`showCtaRow: false`).
+  HelpOfferedForwardNudgeMessage left with beaconId-only push. UNIT 11
+  authorized.
+- 2026-08-14 manager: **UNIT 11 accepted**. Commit pending worker
+  (`feat: keep person-forward screen after send`). UNIT 12 authorized.
+
+## UNIT 11 — complete — 2026-08-14
+COMMITS: feat: keep person-forward screen after send (see `git log -1`)
+TESTS:
+- `cd packages/client && flutter test test/features/forward/person_forward_cubit_test.dart test/features/forward/person_forward_block_test.dart test/features/forward/person_forward_screen_test.dart` → 32 passed
+FILES:
+- `packages/client/lib/features/forward/domain/entity/person_forward_row.dart`
+- `packages/client/lib/features/forward/domain/use_case/person_forward_case.dart`
+- `packages/client/lib/features/forward/ui/bloc/person_forward_cubit.dart`
+- `packages/client/lib/features/forward/ui/bloc/person_forward_state.dart`
+- `packages/client/lib/features/forward/ui/screen/person_forward_screen.dart`
+- `packages/client/test/features/forward/person_forward_cubit_test.dart`
+- `packages/client/test/features/forward/person_forward_screen_test.dart`
+- `packages/client/test/features/forward/person_forward_block_test.dart`
+- `docs/plans/issue-110-forward-explicit-implementation-journal.md`
+FINDINGS: `NavigateBack` removed on successful person-forward send; `cancelSelectedOr` added (no prior cancel). Uncovered-note sheet duplicated minimally in `person_forward_screen.dart` (picker sheet is private). `noteSkipped` gates cubit `send()` when note empty — UI must show sheet or call `skipNote()` first.
+REMAINING: none — UNIT 12 may start
 
 ## UNIT 10 — complete — 2026-08-14
 COMMITS: `653181d2b` fix: gate Forward CTAs on allowsForward

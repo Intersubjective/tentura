@@ -309,5 +309,60 @@ void main() {
         isNull,
       );
     });
+
+    testWidgets('already-sent cancellable row shows cancel and edit actions',
+        (tester) async {
+      final cubit = PersonForwardCubit(
+        personId: 'U-target',
+        debugSkipInitialLoad: true,
+        effects: FakeUiEffectPort(),
+      );
+      addTearDown(cubit.close);
+      cubit.emit(
+        PersonForwardState(
+          personId: 'U-target',
+          person: _reachablePerson(),
+          rows: [
+            _eligibleRow().copyWith(
+              block: PersonForwardBlock.alreadySent,
+              forwardEdgeId: 'edge-1',
+            ),
+          ],
+          status: const StateIsSuccess(),
+        ),
+      );
+
+      await _pumpPersonForwardPage(tester, cubit: cubit);
+      final l10n = lookupL10n(const Locale('en'));
+
+      expect(find.byTooltip(l10n.forwardCancelAction), findsOneWidget);
+      expect(find.byTooltip(l10n.forwardEditAction), findsOneWidget);
+    });
+
+    testWidgets('empty note send shows uncovered sheet', (tester) async {
+      final cubit = PersonForwardCubit(
+        personId: 'U-target',
+        debugSkipInitialLoad: true,
+        effects: FakeUiEffectPort(),
+      );
+      addTearDown(cubit.close);
+      cubit.emit(
+        PersonForwardState(
+          personId: 'U-target',
+          person: _reachablePerson(),
+          rows: [_eligibleRow()],
+          selectedBeaconId: 'B-open',
+          status: const StateIsSuccess(),
+        ),
+      );
+
+      await _pumpPersonForwardPage(tester, cubit: cubit);
+
+      await tester.tap(find.byType(FilledButton));
+      await tester.pumpAndSettle();
+
+      expect(find.text('No personal note yet'), findsOneWidget);
+      expect(find.text('Send without a shared note'), findsOneWidget);
+    });
   });
 }

@@ -75,6 +75,14 @@ final class PersonForwardCase extends UseCaseBase {
             beacon: beacon,
             involvement: involvement,
             block: PersonForwardRow.blockFor(involvement, beacon.status),
+            forwardEdgeId: inv.myForwardedRecipientEdgeIds[personId],
+            recipientReadAt: inv.myForwardedRecipientReadAts[personId],
+            hasOnwardChild:
+                inv.myForwardedRecipientHasOnwardChild[personId] ?? false,
+            recipientDeclined:
+                inv.rejectedIds.contains(personId) ||
+                (inv.myForwardedRecipientRejected[personId] ?? false),
+            recipientHasActiveHelpOffer: inv.helpOfferedIds.contains(personId),
           );
         } catch (e) {
           logger.warning(
@@ -107,6 +115,9 @@ final class PersonForwardCase extends UseCaseBase {
     recipientIds: [personId],
     note: note?.trim().isEmpty ?? true ? null : note!.trim(),
   );
+
+  Future<bool> cancelForward(String edgeId) =>
+      _forwardRepository.cancelForward(edgeId);
 
   static int _compareRows(PersonForwardRow a, PersonForwardRow b) {
     final byBlock = _blockRank(a.block).compareTo(_blockRank(b.block));

@@ -118,7 +118,57 @@ class PersonForwardCubit extends Cubit<PersonForwardState> {
     emit(state.copyWith(selectedBeaconId: beaconId));
   }
 
-  void setNote(String note) => emit(state.copyWith(note: note));
+  void setNote(String note) {
+    final trimmed = note.trim();
+    emit(
+      state.copyWith(
+        note: note,
+        noteSkipped: trimmed.isEmpty ? state.noteSkipped : false,
+      ),
+    );
+  }
+
+  void skipNote() {
+    if (state.noteSkipped) return;
+    emit(state.copyWith(noteSkipped: true));
+  }
+
+  void restoreNote() {
+    if (!state.noteSkipped) return;
+    emit(state.copyWith(noteSkipped: false));
+  }
+
+  Future<void> cancelSelectedOr(String beaconId) async {
+    final case_ = _case;
+    if (case_ == null || isClosed) return;
+    final row = state.rows.where((r) => r.beacon.id == beaconId).firstOrNull;
+    final edgeId = row?.forwardEdgeId;
+    if (edgeId == null || row == null || !row.isForwardEdgeCancellable) return;
+
+    emit(state.copyWith(status: StateStatus.isLoading));
+    try {
+      final ok = await case_.cancelForward(edgeId);
+      if (!ok) {
+        _effects.emit(
+          ShowError(
+            Exception(
+              'Forward cannot be cancelled: already read or forwarded onward',
+            ),
+          ),
+        );
+        if (!isClosed) {
+          emit(state.copyWith(status: const StateIsSuccess()));
+        }
+        return;
+      }
+      await load();
+    } catch (e) {
+      _effects.emit(ShowError(e));
+      if (!isClosed) {
+        emit(state.copyWith(status: const StateIsSuccess()));
+      }
+    }
+  }
 
   Future<void> send() async {
     final case_ = _case;
@@ -136,16 +186,31 @@ class PersonForwardCubit extends Cubit<PersonForwardState> {
       return;
     }
 
+    final trimmedNote = state.note.trim();
+    if (trimmedNote.isEmpty && !state.noteSkipped) {
+      return;
+    }
+
     emit(state.copyWith(status: StateStatus.isLoading));
     try {
       final result = await case_.send(
         beaconId: row.beacon.id,
         personId: person.id,
-        note: state.note,
+        note: state.noteSkipped ? null : trimmedNote,
       );
       if (result.deliveredRecipientIds.contains(person.id)) {
         _effects.emit(ShowMessage(PersonForwardSentMessage(person.shownName)));
-        _effects.emit(const NavigateBack());
+        await load();
+        if (!isClosed) {
+          emit(
+            state.copyWith(
+              lastDeliveredBeaconId: row.beacon.id,
+              note: '',
+              noteSkipped: false,
+              status: const StateIsSuccess(),
+            ),
+          );
+        }
       } else if (result.availabilitySkippedRecipientIds.contains(person.id)) {
         _effects.emit(
           ShowMessage(

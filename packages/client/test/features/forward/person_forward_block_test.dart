@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 
+import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/features/forward/domain/entity/candidate_involvement.dart';
 import 'package:tentura/features/forward/domain/entity/person_forward_row.dart';
 
@@ -56,6 +57,29 @@ void main() {
           entry.value,
         );
       }
+    });
+  });
+
+  group('PersonForwardRow.isForwardEdgeCancellable', () {
+    test('true when edge is cancellable', () {
+      final row = PersonForwardRow(
+        beacon: Beacon.empty,
+        involvement: CandidateInvolvement.forwardedByMe,
+        block: PersonForwardBlock.alreadySent,
+        forwardEdgeId: 'edge-1',
+      );
+      expect(row.isForwardEdgeCancellable, isTrue);
+    });
+
+    test('false when recipient read', () {
+      final row = PersonForwardRow(
+        beacon: Beacon.empty,
+        involvement: CandidateInvolvement.forwardedByMe,
+        block: PersonForwardBlock.alreadySent,
+        forwardEdgeId: 'edge-1',
+        recipientReadAt: DateTime.utc(2026, 1, 1),
+      );
+      expect(row.isForwardEdgeCancellable, isFalse);
     });
   });
 }

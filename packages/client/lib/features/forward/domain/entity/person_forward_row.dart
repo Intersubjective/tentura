@@ -3,6 +3,7 @@ import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import 'package:tentura/domain/entity/beacon.dart';
 
+import '../forward_draft_policy.dart';
 import 'candidate_involvement.dart';
 
 part 'person_forward_row.freezed.dart';
@@ -23,11 +24,25 @@ abstract class PersonForwardRow with _$PersonForwardRow {
     required Beacon beacon,
     required CandidateInvolvement involvement,
     @Default(PersonForwardBlock.none) PersonForwardBlock block,
+    String? forwardEdgeId,
+    DateTime? recipientReadAt,
+    @Default(false) bool hasOnwardChild,
+    @Default(false) bool recipientDeclined,
+    @Default(false) bool recipientHasActiveHelpOffer,
   }) = _PersonForwardRow;
 
   const PersonForwardRow._();
 
   bool get isEligible => block == PersonForwardBlock.none;
+
+  bool get isForwardEdgeCancellable =>
+      forwardEdgeId != null &&
+      forwardEdgeIsCancellable(
+        recipientReadAt: recipientReadAt,
+        hasOnwardChild: hasOnwardChild,
+        recipientHasActiveHelpOffer: recipientHasActiveHelpOffer,
+        recipientDeclined: recipientDeclined,
+      );
 
   static PersonForwardBlock blockFor(
     CandidateInvolvement involvement,

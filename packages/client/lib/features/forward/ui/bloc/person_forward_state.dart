@@ -16,6 +16,8 @@ abstract class PersonForwardState extends StateBase with _$PersonForwardState {
     @Default([]) List<PersonForwardRow> rows,
     String? selectedBeaconId,
     @Default('') String note,
+    @Default(false) bool noteSkipped,
+    String? lastDeliveredBeaconId,
     @Default(StateIsLoading()) StateStatus status,
     Object? loadError,
   }) = _PersonForwardState;

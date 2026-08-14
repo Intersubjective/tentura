@@ -31,7 +31,9 @@ class _FakeForwardRepository implements ForwardRepository {
   final _forwardChanges = StreamController<String>.broadcast();
   final involvementByBeaconId = <String, BeaconInvolvementData>{};
   final sent = <({String beaconId, List<String> recipientIds, String? note})>[];
+  final cancelledEdgeIds = <String>[];
   ForwardDeliveryResult? nextResult;
+  bool nextCancelResult = true;
 
   @override
   Stream<String> get forwardChanges => _forwardChanges.stream;
@@ -57,6 +59,12 @@ class _FakeForwardRepository implements ForwardRepository {
         myForwardedRecipientHasOnwardChild: <String, bool>{},
         myForwardedRecipientRejected: <String, bool>{},
       );
+
+  @override
+  Future<bool> cancelForward(String edgeId) async {
+    cancelledEdgeIds.add(edgeId);
+    return nextCancelResult;
+  }
 
   @override
   Future<ForwardDeliveryResult> forwardBeacon({
@@ -328,10 +336,13 @@ void main() {
       expect(cubit.state.canSend, isFalse);
       cubit.selectBeacon('B-open');
       expect(cubit.state.canSend, isTrue);
+      cubit.skipNote();
       await cubit.send();
 
       expect(harness.forwardRepo.sent.single.recipientIds, ['U-target']);
-      expect(effects.emitted.whereType<NavigateBack>(), hasLength(1));
+      expect(effects.emitted.whereType<NavigateBack>(), isEmpty);
+      expect(cubit.state.lastDeliveredBeaconId, 'B-open');
+      expect(cubit.state.note, isEmpty);
     });
 
     test('mixed trust and MR enables successful send', () async {
@@ -358,12 +369,13 @@ void main() {
       await cubit.stream.firstWhere((s) => s.rows.isNotEmpty);
 
       cubit.selectBeacon('B-open');
+      cubit.skipNote();
       await cubit.send();
 
       expect(harness.forwardRepo.sent.single.recipientIds, ['U-target']);
     });
 
-    test('successful send shows confirmation and navigates back', () async {
+    test('successful send shows confirmation and stays on screen', () async {
       final harness = await _buildHarness(beacons: [_beacon('B-open')]);
       addTearDown(() async {
         await harness.forwardRepo.dispose();
@@ -386,7 +398,9 @@ void main() {
       expect(harness.forwardRepo.sent.single.recipientIds, ['U-target']);
       expect(harness.forwardRepo.sent.single.note, 'please');
       expect(effects.emitted.whereType<ShowMessage>(), hasLength(1));
-      expect(effects.emitted.whereType<NavigateBack>(), hasLength(1));
+      expect(effects.emitted.whereType<NavigateBack>(), isEmpty);
+      expect(cubit.state.lastDeliveredBeaconId, 'B-open');
+      expect(cubit.state.note, isEmpty);
     });
 
     test('forwardChanges for a listed beacon reloads rows', () async {
@@ -529,6 +543,7 @@ void main() {
       await cubit.stream.firstWhere((s) => s.rows.isNotEmpty);
 
       cubit.selectBeacon('B-open');
+      cubit.skipNote();
       await cubit.send();
 
       expect(harness.forwardRepo.sent, hasLength(1));
@@ -560,6 +575,7 @@ void main() {
       await cubit.stream.firstWhere((s) => s.rows.isNotEmpty);
 
       cubit.selectBeacon('B-open');
+      cubit.skipNote();
       await cubit.send();
 
       expect(effects.emitted.whereType<ShowError>(), hasLength(1));
@@ -600,6 +616,65 @@ void main() {
       expect(effects.emitted.whereType<ShowMessage>().single.message,
           isA<PersonForwardAvailabilitySkippedMessage>());
       expect(effects.emitted.whereType<NavigateBack>(), isEmpty);
+    });
+
+    test('skip note sends null and stays on screen', () async {
+      final harness = await _buildHarness(beacons: [_beacon('B-open')]);
+      addTearDown(() async {
+        await harness.forwardRepo.dispose();
+        await harness.contactsCase.dispose();
+        await harness.store.dispose();
+      });
+      final cubit = PersonForwardCubit(
+        personId: 'U-target',
+        personForwardCase: harness.case_,
+        effects: FakeUiEffectPort(),
+      );
+      addTearDown(cubit.close);
+      await cubit.stream.firstWhere((s) => s.rows.isNotEmpty);
+
+      cubit.selectBeacon('B-open');
+      cubit.skipNote();
+      await cubit.send();
+
+      expect(harness.forwardRepo.sent.single.note, isNull);
+      expect(cubit.state.lastDeliveredBeaconId, 'B-open');
+    });
+
+    test('cancelSelectedOr cancels edge and reloads rows', () async {
+      final harness = await _buildHarness(beacons: [_beacon('B-open')]);
+      harness.forwardRepo.involvementByBeaconId['B-open'] = (
+        beacon: _beacon('B-open'),
+        forwardedToIds: <String>{},
+        helpOfferedIds: <String>{},
+        withdrawnIds: <String>{},
+        rejectedIds: <String>{},
+        watchingIds: <String>{},
+        onwardForwarderIds: <String>{},
+        myForwardedRecipientNotes: <String, String>{'U-target': 'sent'},
+        myForwardedRecipientEdgeIds: <String, String>{'U-target': 'edge-1'},
+        myForwardedRecipientReadAts: <String, DateTime?>{},
+        myForwardedRecipientHasOnwardChild: <String, bool>{},
+        myForwardedRecipientRejected: <String, bool>{},
+      );
+      addTearDown(() async {
+        await harness.forwardRepo.dispose();
+        await harness.contactsCase.dispose();
+        await harness.store.dispose();
+      });
+      final cubit = PersonForwardCubit(
+        personId: 'U-target',
+        personForwardCase: harness.case_,
+        effects: FakeUiEffectPort(),
+      );
+      addTearDown(cubit.close);
+      await cubit.stream.firstWhere((s) => s.rows.isNotEmpty);
+
+      await cubit.cancelSelectedOr('B-open');
+
+      expect(harness.forwardRepo.cancelledEdgeIds, ['edge-1']);
+      expect(harness.beaconRepo.fetchCalls, 2);
+      expect(cubit.state.rows.single.block, PersonForwardBlock.alreadySent);
     });
 
     test('already-sent block still prevents send after selection', () async {
