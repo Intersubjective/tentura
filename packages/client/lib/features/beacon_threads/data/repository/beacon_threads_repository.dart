@@ -21,8 +21,7 @@ import 'package:tentura/domain/port/realtime_sync_port.dart';
 
 import '../gql/_g/beacon_participant_list.req.gql.dart';
 import '../gql/_g/beacon_threads_list.req.gql.dart';
-import '../gql/_g/beacon_participant_room_seen.req.gql.dart';
-import '../gql/_g/mark_beacon_room_seen.req.gql.dart';
+import '../gql/_g/mark_thread_seen.req.gql.dart';
 import '../gql/_g/room_message_mark_semantic_done.req.gql.dart';
 import '../gql/_g/beacon_participant_offer_help.req.gql.dart';
 import '../gql/_g/beacon_room_admit.req.gql.dart';
@@ -420,36 +419,23 @@ class BeaconThreadsRepository {
     );
   }
 
-  Future<DateTime> markRoomSeen({
+  Future<DateTime> markThreadSeen({
     required String beaconId,
+    required String threadId,
     required DateTime readThroughAt,
-    String? threadItemId,
   }) async {
     final readThroughIso = readThroughAt.toUtc().toIso8601String();
-    if (threadItemId == null) {
-      final row = await _remoteApiService
-          .request(
-            GBeaconParticipantRoomSeenReq(
-              (b) => b.vars
-                ..beaconId = beaconId
-                ..readThroughAt = readThroughIso,
-            ),
-          )
-          .firstWhere((e) => e.dataSource == DataSource.Link)
-          .then((r) => r.dataOrThrow(label: _label).BeaconParticipantRoomSeen);
-      return DateTime.parse(row.seenAt).toUtc();
-    }
     final row = await _remoteApiService
         .request(
-          GMarkBeaconRoomSeenReq(
+          GMarkThreadSeenReq(
             (b) => b.vars
               ..beaconId = beaconId
-              ..threadItemId = threadItemId
+              ..threadId = threadId
               ..readThroughAt = readThroughIso,
           ),
         )
         .firstWhere((e) => e.dataSource == DataSource.Link)
-        .then((r) => r.dataOrThrow(label: _label).MarkBeaconRoomSeen);
+        .then((r) => r.dataOrThrow(label: _label).MarkThreadSeen);
     return DateTime.parse(row.seenAt).toUtc();
   }
 
