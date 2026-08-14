@@ -156,7 +156,7 @@ Units are sequential. Check off only after the unit's focused commit and verific
   10, 13 — commit: `feat(client): report actual forward delivery`
 - [ ] **UNIT 15 — Deep-link person-forward gate** — depends: 06, 08, 10, 12 — commit:
   `feat(client): gate person forward flow`
-- [ ] **UNIT 16 — Client release gate and cache-buster** — depends: 11–15 — commit:
+- [x] **UNIT 16 — Client release gate and cache-buster** — depends: 11–15 — commit:
   `chore: release availability client 5.13.0`
 - [ ] **UNIT 17 — End-to-end and plan-wide closeout** — depends: 07, 16 — commit:
   `test: close availability implementation`
@@ -1581,3 +1581,27 @@ FINDINGS:
 REMAINING: user decision whether to rebase the release unit on the already
 released `5.12.2` baseline and set this plan's target/minimum/cache-buster to
 `5.13.0`, or to use a different target version.
+
+## UNIT 16 — complete — 2026-08-14
+
+COMMITS: `9116d5133` chore: release availability client 5.13.0
+TESTS:
+- source pubspec `5.13.0` == `web/index.html` `flutter_bootstrap.js?v=5.13.0` → OK
+- `resolveWebBuildVersion()` via build hook → `5.13.0`
+- `./scripts/check-custom-lints.sh packages/server` → pass (custom-rule total 0, baseline 0)
+- `git diff --check` → clean
+- `(cd packages/client && dart run tool/verify_web_version_consistency.dart)` → FAILED on stale
+  local `build/web` artifacts only (`5.11.0` / `5.12.0` / `4.0.0`); source tracked
+  files match pubspec; no `build/web` edits in this unit
+FILES:
+- `packages/client/pubspec.yaml` → `5.13.0`
+- `packages/client/web/index.html` → `flutter_bootstrap.js?v=5.13.0`
+- `packages/server/lib/env.dart` → `kDefaultMinClientVersion = '5.13.0'`
+- `.env.example` → commented `MIN_CLIENT_VERSION=5.13.0` synced
+FINDINGS:
+- Rebased release step on authorized independent UI baseline `5.12.2` (`e363153095`);
+  plan target remains `5.13.0` as specified. Prior §1 stop on `5.12.1` baseline
+  superseded by manager authorization recorded above.
+- Unit implementation diff contains precisely the four owned source paths; did not
+  edit or stage skip-worktree `packages/client/web/manifest.json`.
+REMAINING: manager acceptance of UNIT 16; UNIT 17 end-to-end closeout is next.
