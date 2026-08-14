@@ -1,9 +1,11 @@
 import 'package:tentura_server/domain/entity/beacon_activity_event_record.dart';
+import 'package:tentura_server/domain/entity/beacon_thread_record.dart';
 import 'package:tentura_server/domain/use_case/beacon_room_case.dart';
 
 import '../custom_types.dart';
 import '../gql_nodel_base.dart';
 import '../input/_input_types.dart';
+import 'query_coordination_item.dart';
 
 final class QueryBeaconRoom extends GqlNodeBase {
   QueryBeaconRoom({BeaconRoomCase? beaconRoomCase})
@@ -25,6 +27,7 @@ final class QueryBeaconRoom extends GqlNodeBase {
     beaconActivityEventList,
     inboxRoomContextBatch,
     myWorkLastActivityEvent,
+    beaconThreads,
   ];
 
   GraphQLObjectField<dynamic, dynamic> get roomMessageList =>
@@ -121,6 +124,51 @@ final class QueryBeaconRoom extends GqlNodeBase {
           return rows.map(_myWorkLastActivityEventToMap).toList();
         },
       );
+
+  GraphQLObjectField<dynamic, dynamic> get beaconThreads => GraphQLObjectField(
+        'beaconThreads',
+        GraphQLListType(gqlTypeBeaconThreadRow.nonNullable()),
+        arguments: [_beaconIdStr.field],
+        resolve: (_, args) async {
+          final rows = await _case.listThreads(
+            beaconId: _beaconIdStr.fromArgsNonNullable(args),
+            userId: getCredentials(args).sub,
+          );
+          return rows.map(beaconThreadRecordToMap).toList();
+        },
+      );
+}
+
+Map<String, Object?> beaconThreadRecordToMap(BeaconThreadRecord row) {
+  final preview = row.lastMessagePreview;
+  return {
+    'threadId': row.threadId,
+    'threadKind': row.threadKind,
+    'unreadCount': row.unreadCount,
+    'messageCount': row.messageCount,
+    'lastSeenAt': row.lastSeenAt?.toUtc().toIso8601String(),
+    'lastMessageAt': row.lastMessageAt?.toUtc().toIso8601String(),
+    'lastMessageAuthorId': row.lastMessageAuthorId,
+    'lastMessagePreview': preview == null
+        ? null
+        : {
+            'kind': preview.kind,
+            'excerpt': preview.excerpt,
+            'hasAttachment': preview.hasAttachment,
+            'joinedUserId': preview.joinedUserId,
+            'admissionReason': preview.admissionReason,
+            'linkedItemId': preview.linkedItemId,
+            'linkedEventKind': preview.linkedEventKind,
+            'itemKind': preview.itemKind,
+            'itemTitle': preview.itemTitle,
+            'pollTitle': preview.pollTitle,
+            'factTitle': preview.factTitle,
+            'factVisibility': preview.factVisibility,
+          },
+    'item': row.item == null
+        ? null
+        : coordinationItemWithCountsToMap(row.item!),
+  };
 }
 
 Map<String, Object?> _myWorkLastActivityEventToMap(

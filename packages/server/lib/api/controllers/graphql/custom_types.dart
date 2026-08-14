@@ -64,6 +64,8 @@ List<GraphQLType<dynamic, dynamic>> get customTypes => [
   gqlTypeBeaconItemsSeenResult,
   gqlTypeMyWorkBeaconCoordinationActivityRow,
   gqlTypeMyWorkLastActivityEventRow,
+  gqlTypeThreadMessagePreview,
+  gqlTypeBeaconThreadRow,
   gqlTypeBeaconLineageSuggestion,
   gqlTypeBeaconLineageForwardSuggestions,
   gqlTypeNotificationPreferences,
@@ -994,6 +996,38 @@ final gqlTypeMyWorkBeaconCoordinationActivityRow =
         field('beaconId', graphQLString.nonNullable()),
         field('lastCoordinationItemMessageAt', graphQLString),
       ]);
+
+/// Last-message preview for a thread list row (single object, never a union).
+final gqlTypeThreadMessagePreview =
+    GraphQLObjectType('ThreadMessagePreview', null)
+      ..fields.addAll([
+        field('kind', graphQLInt.nonNullable()),
+        field('excerpt', graphQLString),
+        field('hasAttachment', graphQLBoolean.nonNullable()),
+        field('joinedUserId', graphQLString),
+        field('admissionReason', graphQLString),
+        field('linkedItemId', graphQLString),
+        field('linkedEventKind', graphQLInt),
+        field('itemKind', graphQLInt),
+        field('itemTitle', graphQLString),
+        field('pollTitle', graphQLString),
+        field('factTitle', graphQLString),
+        field('factVisibility', graphQLInt),
+      ]);
+
+/// One row in the beacon thread list (General or item thread).
+final gqlTypeBeaconThreadRow = GraphQLObjectType('BeaconThreadRow', null)
+  ..fields.addAll([
+    field('threadId', graphQLString.nonNullable()),
+    field('threadKind', graphQLString.nonNullable()),
+    field('unreadCount', graphQLInt.nonNullable()),
+    field('messageCount', graphQLInt.nonNullable()),
+    field('lastSeenAt', graphQLString),
+    field('lastMessageAt', graphQLString),
+    field('lastMessageAuthorId', graphQLString),
+    field('lastMessagePreview', gqlTypeThreadMessagePreview),
+    field('item', gqlTypeCoordinationItemRow),
+  ]);
 
 final gqlTypeMyWorkLastActivityEventRow =
     GraphQLObjectType('MyWorkLastActivityEventRow', null)
