@@ -111,6 +111,17 @@ List<AutoRoute> browseDetailChildren({
     usesPathAsKey: true,
     page: BeaconViewRoute.page,
     path: 'beacon/view/:id',
+    children: [
+      AutoRoute(
+        page: BeaconViewOperationalRoute.page,
+        path: '',
+        initial: true,
+      ),
+      AutoRoute(
+        page: ThreadDetailRoute.page,
+        path: 'thread/:threadId',
+      ),
+    ],
   ),
   // Beacon View All
   AutoRoute(

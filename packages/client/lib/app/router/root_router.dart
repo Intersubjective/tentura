@@ -1,7 +1,9 @@
 import 'dart:async';
-import 'package:logging/logging.dart';
+
+import 'package:collection/collection.dart';
 import 'package:auto_route/auto_route.dart';
 import 'package:injectable/injectable.dart';
+import 'package:logging/logging.dart';
 
 import 'package:tentura/consts.dart';
 import 'package:tentura/domain/attention/destination_map.dart';
@@ -25,6 +27,32 @@ export 'package:auto_route/auto_route.dart';
 
 export 'home_tab_branches.dart';
 export 'root_router.gr.dart';
+
+PageRouteInfo beaconViewOperationalChildFromQuery(Parameters qp) =>
+    BeaconViewOperationalRoute(
+      isDeepLink: qp.optString(kQueryIsDeepLink),
+      viewTab: qp.optString(kQueryBeaconViewTab),
+      peopleTabAttention: qp.optString(kQueryBeaconPeopleTabAttention),
+      surface: qp.optString(kQueryBeaconSurface),
+      entry: qp.optString(kQueryBeaconEntry),
+      coordinationItemId: qp.optString(kQueryCoordinationItemId),
+      messageId: qp.optString(kQueryMessageId),
+    );
+
+List<PageRouteInfo> beaconViewChildRoutesFromQuery(
+  Parameters qp, {
+  String? matchedThreadId,
+}) {
+  if (matchedThreadId != null) {
+    return [
+      ThreadDetailRoute(
+        threadId: matchedThreadId,
+        messageId: qp.optString(kQueryMessageId),
+      ),
+    ];
+  }
+  return [beaconViewOperationalChildFromQuery(qp)];
+}
 
 @singleton
 @AutoRouterConfig()
@@ -446,9 +474,22 @@ class RootRouter extends RootStackRouter {
       usesPathAsKey: true,
       page: BeaconViewRoute.page,
       path: '$kPathBeaconView/:id',
+      children: [
+        AutoRoute(
+          page: BeaconViewOperationalRoute.page,
+          path: '',
+          initial: true,
+        ),
+        AutoRoute(
+          page: ThreadDetailRoute.page,
+          path: 'thread/:threadId',
+        ),
+      ],
       guards: [
         AutoRouteGuard.simple((resolver, _) {
           final qp = resolver.route.queryParams;
+          final matchedChild = resolver.route.children?.firstOrNull;
+          final threadChildId = matchedChild?.params.optString('threadId');
           _forwardIntoHomeBranch(
             resolver,
             owner: HomeTab.work,
@@ -462,7 +503,12 @@ class RootRouter extends RootStackRouter {
               surface: qp.optString(kQueryBeaconSurface),
               entry: qp.optString(kQueryBeaconEntry),
               coordinationItemId: qp.optString(kQueryCoordinationItemId),
+              threadId: qp.optString(kQueryThreadId),
               messageId: qp.optString(kQueryMessageId),
+              children: beaconViewChildRoutesFromQuery(
+                qp,
+                matchedThreadId: threadChildId,
+              ),
             ),
           );
         }),
@@ -482,6 +528,13 @@ class RootRouter extends RootStackRouter {
             isDeepLink: 'true',
             viewTab: 'room',
             entry: kBeaconEntryDeepLink,
+            children: [
+              BeaconViewOperationalRoute(
+                isDeepLink: 'true',
+                viewTab: 'room',
+                entry: kBeaconEntryDeepLink,
+              ),
+            ],
           );
         }),
       ],
@@ -590,6 +643,12 @@ class RootRouter extends RootStackRouter {
             id: id,
             isDeepLink: 'true',
             entry: kBeaconEntryDeepLink,
+            children: [
+              BeaconViewOperationalRoute(
+                isDeepLink: 'true',
+                entry: kBeaconEntryDeepLink,
+              ),
+            ],
           );
         }),
       ],
