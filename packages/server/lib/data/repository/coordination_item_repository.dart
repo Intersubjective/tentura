@@ -1245,17 +1245,6 @@ class CoordinationItemRepository implements CoordinationItemRepositoryPort {
       (ci.kind = 2 AND ci.target_person_id = $1)
       OR (ci.kind = 5 AND ci.creator_id = $1)
       OR (ci.kind = 3 AND ci.target_person_id = $1)
-      OR (
-        ci.kind = 4 AND EXISTS (
-          SELECT 1 FROM coordination_item tgt
-          WHERE tgt.id = ci.target_item_id
-            AND (
-              (tgt.kind = 2 AND tgt.target_person_id = $1)
-              OR (tgt.kind = 5 AND tgt.creator_id = $1)
-              OR (tgt.kind = 3 AND tgt.target_person_id = $1)
-            )
-        )
-      )
     )
   ''';
 
@@ -1285,26 +1274,7 @@ SELECT ci.beacon_id AS beacon_id,
   COUNT(*) FILTER (WHERE $_sqlActivePublished AND ci.kind = 3 AND ci.target_person_id = \$1)::int AS blocker_open,
   COUNT(*) FILTER (WHERE $_sqlActivePublished AND ci.kind = 3 AND ci.target_person_id = \$1
     AND COALESCE(ci.published_at, ci.created_at) > COALESCE(bis.last_seen_at, '-infinity'::timestamptz))::int AS blocker_new,
-  COUNT(*) FILTER (WHERE $_sqlActivePublished AND ci.kind = 4 AND EXISTS (
-      SELECT 1 FROM coordination_item tgt
-      WHERE tgt.id = ci.target_item_id
-        AND (
-          (tgt.kind = 2 AND tgt.target_person_id = \$1)
-          OR (tgt.kind = 5 AND tgt.creator_id = \$1)
-          OR (tgt.kind = 3 AND tgt.target_person_id = \$1)
-        )
-    ))::int AS review_open,
-  COUNT(*) FILTER (WHERE $_sqlActivePublished AND ci.kind = 4 AND EXISTS (
-      SELECT 1 FROM coordination_item tgt
-      WHERE tgt.id = ci.target_item_id
-        AND (
-          (tgt.kind = 2 AND tgt.target_person_id = \$1)
-          OR (tgt.kind = 5 AND tgt.creator_id = \$1)
-          OR (tgt.kind = 3 AND tgt.target_person_id = \$1)
-        )
-    )
-    AND COALESCE(ci.published_at, ci.created_at) > COALESCE(bis.last_seen_at, '-infinity'::timestamptz))::int AS review_new,
-  COUNT(*) FILTER (WHERE $_sqlActivePublished AND ci.kind IN (2, 3, 4, 5) AND NOT ($_sqlMyResponsibilityOnCi))::int AS others_open
+  COUNT(*) FILTER (WHERE $_sqlActivePublished AND ci.kind IN (2, 3, 5) AND NOT ($_sqlMyResponsibilityOnCi))::int AS others_open
 FROM coordination_item ci
 LEFT JOIN beacon_items_seen bis
   ON bis.user_id = \$1 AND bis.beacon_id = ci.beacon_id
@@ -1327,8 +1297,6 @@ GROUP BY ci.beacon_id
           promiseNew: row.read<int>('promise_new'),
           blockerOpen: row.read<int>('blocker_open'),
           blockerNew: row.read<int>('blocker_new'),
-          reviewOpen: row.read<int>('review_open'),
-          reviewNew: row.read<int>('review_new'),
           othersOpenCount: row.read<int>('others_open'),
         ),
     };
@@ -1351,22 +1319,11 @@ SELECT ci.id AS id
 FROM coordination_item ci
 WHERE ci.beacon_id = $2
   AND ci.published = true
-  AND ci.status IN ($7, $8)
+  AND ci.status IN ($6, $7)
   AND (
     (ci.kind = $3 AND ci.target_person_id = $1)
     OR (ci.kind = $4 AND ci.creator_id = $1)
     OR (ci.kind = $5 AND ci.target_person_id = $1)
-    OR (
-      ci.kind = $6 AND EXISTS (
-        SELECT 1 FROM coordination_item tgt
-        WHERE tgt.id = ci.target_item_id
-          AND (
-            (tgt.kind = $3 AND tgt.target_person_id = $1)
-            OR (tgt.kind = $4 AND tgt.creator_id = $1)
-            OR (tgt.kind = $5 AND tgt.target_person_id = $1)
-          )
-      )
-    )
   )
 ORDER BY ci.kind, ci.created_at DESC
 ''',
@@ -1376,7 +1333,6 @@ ORDER BY ci.kind, ci.created_at DESC
         const Variable<int>(coordinationItemKindAsk),
         const Variable<int>(coordinationItemKindPromise),
         const Variable<int>(coordinationItemKindBlocker),
-        const Variable<int>(coordinationItemKindResolution),
         const Variable<int>(coordinationItemStatusOpen),
         const Variable<int>(coordinationItemStatusAccepted),
       ],
@@ -1472,22 +1428,11 @@ SELECT floor(extract(epoch from max(COALESCE(ci.published_at, ci.created_at))) *
 FROM coordination_item ci
 WHERE ci.beacon_id = $2
   AND ci.published = true
-  AND ci.status IN ($7, $8)
+  AND ci.status IN ($6, $7)
   AND (
     (ci.kind = $3 AND ci.target_person_id = $1)
     OR (ci.kind = $4 AND ci.creator_id = $1)
     OR (ci.kind = $5 AND ci.target_person_id = $1)
-    OR (
-      ci.kind = $6 AND EXISTS (
-        SELECT 1 FROM coordination_item tgt
-        WHERE tgt.id = ci.target_item_id
-          AND (
-            (tgt.kind = $3 AND tgt.target_person_id = $1)
-            OR (tgt.kind = $4 AND tgt.creator_id = $1)
-            OR (tgt.kind = $5 AND tgt.target_person_id = $1)
-          )
-      )
-    )
   )
 ''',
         variables: [
@@ -1496,7 +1441,6 @@ WHERE ci.beacon_id = $2
           const Variable<int>(coordinationItemKindAsk),
           const Variable<int>(coordinationItemKindPromise),
           const Variable<int>(coordinationItemKindBlocker),
-          const Variable<int>(coordinationItemKindResolution),
           const Variable<int>(coordinationItemStatusOpen),
           const Variable<int>(coordinationItemStatusAccepted),
         ],

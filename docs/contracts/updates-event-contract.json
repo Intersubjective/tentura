@@ -165,14 +165,6 @@
       "coveringTest": "packages/server/test/domain/use_case/coordination_item/accept_promise_case_test.dart"
     },
     {
-      "useCase": "packages/server/lib/domain/use_case/coordination_item/accept_resolution_case.dart",
-      "eventType": "commitmentResolved",
-      "recipientCategory": "resolution_creator_and_target_owner",
-      "destinationFamily": "beacon_room",
-      "muteability": "standard",
-      "coveringTest": "packages/server/test/domain/use_case/coordination_item/resolution_case_test.dart"
-    },
-    {
       "useCase": "packages/server/lib/domain/use_case/coordination_item/add_plan_step_case.dart",
       "eventType": "coordinationChanged",
       "recipientCategory": "admitted_room_members",
@@ -234,14 +226,6 @@
       "destinationFamily": "beacon_room",
       "muteability": "standard",
       "coveringTest": "packages/server/test/domain/use_case/coordination_item/create_promise_case_test.dart"
-    },
-    {
-      "useCase": "packages/server/lib/domain/use_case/coordination_item/create_resolution_case.dart",
-      "eventType": "needsMe",
-      "recipientCategory": "target_item_owner_or_beacon_author",
-      "destinationFamily": "beacon_room",
-      "muteability": "mandatory",
-      "coveringTest": "packages/server/test/domain/use_case/coordination_item/resolution_case_test.dart"
     },
     {
       "useCase": "packages/server/lib/domain/use_case/coordination_item/delete_draft_ask_case.dart",
@@ -316,14 +300,6 @@
       "destinationFamily": "beacon_room",
       "muteability": "mandatory",
       "coveringTest": "packages/server/test/domain/use_case/coordination_item/redirect_promise_case_test.dart"
-    },
-    {
-      "useCase": "packages/server/lib/domain/use_case/coordination_item/reject_resolution_case.dart",
-      "eventType": "commitmentCancelled",
-      "recipientCategory": "resolution_creator",
-      "destinationFamily": "beacon_room",
-      "muteability": "standard",
-      "coveringTest": "packages/server/test/domain/use_case/coordination_item/resolution_case_test.dart"
     },
     {
       "useCase": "packages/server/lib/domain/use_case/coordination_item/remind_coordination_item_case.dart",

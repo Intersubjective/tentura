@@ -125,8 +125,6 @@ final class QueryCoordinationItem extends GqlNodeBase {
                   'promiseNew': r.promiseNew,
                   'blockerOpen': r.blockerOpen,
                   'blockerNew': r.blockerNew,
-                  'reviewOpen': r.reviewOpen,
-                  'reviewNew': r.reviewNew,
                   'othersOpenCount': r.othersOpenCount,
                 },
               )

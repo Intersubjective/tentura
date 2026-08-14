@@ -97,8 +97,6 @@ INSERT INTO public.coordination_item (
    '2026-01-02T00:00:00Z', '2026-01-02T00:00:00Z', '2026-01-04T00:00:00Z', 0, 0),
   ('Iresptestblk01', 'Bresptestbcn1', 3, 0, 'Blocker', '', 'Uresptestauth1', 'Uresptestview1', NULL, true,
    '2026-01-03T00:00:00Z', '2026-01-03T00:00:00Z', '2026-01-03T00:00:00Z', 0, 0),
-  ('Iresptestrev01', 'Bresptestbcn1', 4, 0, 'Review', '', 'Uresptestauth1', NULL, 'Iresptestask01', true,
-   '2026-01-04T00:00:00Z', '2026-01-04T00:00:00Z', '2026-01-04T00:00:00Z', 0, 0),
   ('Iresptestoth01', 'Bresptestbcn1', 2, 0, 'Ask author', '', 'Uresptestview1', 'Uresptestauth1', NULL, true,
    '2026-01-05T00:00:00Z', '2026-01-05T00:00:00Z', '2026-01-05T00:00:00Z', 0, 0),
   ('Iresptestdrft1', 'Bresptestbcn1', 2, 0, 'Draft', '', 'Uresptestauth1', 'Uresptestview1', NULL, false,
@@ -111,7 +109,7 @@ ON CONFLICT (id) DO NOTHING
   }
 
   int personalOpenTotal(CoordinationResponsibilityCounts row) =>
-      row.askOpen + row.promiseOpen + row.blockerOpen + row.reviewOpen;
+      row.askOpen + row.promiseOpen + row.blockerOpen;
 
   test(
     'batch open/new counts match myResponsibilityItemsByBeacon per kind',
@@ -133,7 +131,6 @@ ON CONFLICT (id) DO NOTHING
       expect(row.askOpen, 1);
       expect(row.promiseOpen, 1);
       expect(row.blockerOpen, 1);
-      expect(row.reviewOpen, 1);
       expect(row.othersOpenCount, 1);
 
       expect(
@@ -147,10 +144,6 @@ ON CONFLICT (id) DO NOTHING
       expect(
         items.where((e) => e.item.kind == coordinationItemKindBlocker).length,
         row.blockerOpen,
-      );
-      expect(
-        items.where((e) => e.item.kind == coordinationItemKindResolution).length,
-        row.reviewOpen,
       );
       expect(items, hasLength(personalOpenTotal(row)));
     },
@@ -195,7 +188,6 @@ ON CONFLICT (id) DO NOTHING
       expect(row.askOpen, baseline.askOpen);
       expect(row.promiseOpen, baseline.promiseOpen);
       expect(row.blockerOpen, baseline.blockerOpen);
-      expect(row.reviewOpen, baseline.reviewOpen);
       expect(row.othersOpenCount, baseline.othersOpenCount);
     },
     skip: skipReason,
@@ -252,55 +244,7 @@ ON CONFLICT (id) DO NOTHING
       expect(row.askOpen, 1);
       expect(row.promiseOpen, 0);
       expect(row.blockerOpen, 0);
-      expect(row.reviewOpen, 0);
-      expect(row.othersOpenCount, 4);
-    },
-    skip: skipReason,
-  );
-
-  test(
-    'review counts when viewer owns targeted ask promise or blocker',
-    () async {
-      await seedFixture();
-      const viewerId = 'Uresptestview1';
-      const beaconId = 'Bresptestbcn1';
-
-      await db.customStatement(
-        '''
-INSERT INTO public.coordination_item (
-  id, beacon_id, kind, status, title, body, creator_id, target_person_id,
-  target_item_id, published, created_at, updated_at, published_at, source, ordering
-) VALUES
-  ('Iresptestprmp2', 'Bresptestbcn1', 5, 0, 'Second promise', '', 'Uresptestview1', 'Uresptestauth1', NULL, true,
-   '2026-01-08T00:00:00Z', '2026-01-08T00:00:00Z', '2026-01-08T00:00:00Z', 0, 0),
-  ('Iresptestblk2', 'Bresptestbcn1', 3, 0, 'Second blocker', '', 'Uresptestauth1', 'Uresptestview1', NULL, true,
-   '2026-01-08T00:00:00Z', '2026-01-08T00:00:00Z', '2026-01-08T00:00:00Z', 0, 0),
-  ('Iresptestrevp2', 'Bresptestbcn1', 4, 0, 'Review promise', '', 'Uresptestauth1', NULL, 'Iresptestprmp2', true,
-   '2026-01-08T00:00:00Z', '2026-01-08T00:00:00Z', '2026-01-08T00:00:00Z', 0, 0),
-  ('Iresptestrevb2', 'Bresptestbcn1', 4, 0, 'Review blocker', '', 'Uresptestauth1', NULL, 'Iresptestblk2', true,
-   '2026-01-08T00:00:00Z', '2026-01-08T00:00:00Z', '2026-01-08T00:00:00Z', 0, 0),
-  ('Iresptestrevx1', 'Bresptestbcn1', 4, 0, 'Review unrelated', '', 'Uresptestauth1', NULL, 'Iresptestoth01', true,
-   '2026-01-08T00:00:00Z', '2026-01-08T00:00:00Z', '2026-01-08T00:00:00Z', 0, 0)
-ON CONFLICT (id) DO NOTHING
-''',
-      );
-
-      final counts = await repo.responsibilityCountsByBeaconIds(
-        viewerUserId: viewerId,
-        beaconIds: [beaconId],
-      );
-      final items = await repo.myResponsibilityItemsByBeacon(
-        viewerUserId: viewerId,
-        beaconId: beaconId,
-      );
-      final row = counts.single;
-
-      expect(row.reviewOpen, 3);
-      expect(
-        items.where((e) => e.item.kind == coordinationItemKindResolution).length,
-        row.reviewOpen,
-      );
-      expect(items.any((e) => e.item.id == 'Iresptestrevx1'), isFalse);
+      expect(row.othersOpenCount, 3);
     },
     skip: skipReason,
   );
@@ -389,7 +333,6 @@ ON CONFLICT (user_id, beacon_id) DO UPDATE SET last_seen_at = EXCLUDED.last_seen
       expect(row.askNew, 0);
       expect(row.blockerNew, 0);
       expect(row.promiseNew, 1);
-      expect(row.reviewNew, 1);
     },
     skip: skipReason,
   );

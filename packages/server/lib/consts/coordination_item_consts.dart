@@ -5,7 +5,6 @@ const int coordinationItemSourceDefault = 0;
 const int coordinationItemKindPlan = 1;
 const int coordinationItemKindAsk = 2;
 const int coordinationItemKindBlocker = 3;
-const int coordinationItemKindResolution = 4;
 const int coordinationItemKindPromise = 5;
 
 // Coordination item status values.

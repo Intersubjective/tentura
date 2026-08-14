@@ -27,9 +27,6 @@ import 'package:tentura_server/domain/use_case/coordination_item/delete_draft_bl
 import 'package:tentura_server/domain/use_case/coordination_item/update_plan_case.dart';
 import 'package:tentura_server/domain/use_case/coordination_item/add_plan_step_case.dart';
 import 'package:tentura_server/domain/use_case/coordination_item/resolve_plan_step_case.dart';
-import 'package:tentura_server/domain/use_case/coordination_item/create_resolution_case.dart';
-import 'package:tentura_server/domain/use_case/coordination_item/accept_resolution_case.dart';
-import 'package:tentura_server/domain/use_case/coordination_item/reject_resolution_case.dart';
 import 'package:tentura_server/domain/use_case/coordination_item/update_coordination_item_case.dart';
 import 'package:tentura_server/domain/use_case/coordination_item/remind_coordination_item_case.dart';
 import 'package:tentura_server/domain/use_case/coordination_item/coordination_responsibility_case.dart';
@@ -60,9 +57,6 @@ final class MutationCoordinationItem extends GqlNodeBase {
     UpdatePlanCase? updatePlanCase,
     AddPlanStepCase? addPlanStepCase,
     ResolvePlanStepCase? resolvePlanStepCase,
-    CreateResolutionCase? createResolutionCase,
-    AcceptResolutionCase? acceptResolutionCase,
-    RejectResolutionCase? rejectResolutionCase,
     CreateDraftAskCase? createDraftAskCase,
     PublishDraftAskCase? publishDraftAskCase,
     UpdateDraftAskCase? updateDraftAskCase,
@@ -105,12 +99,6 @@ final class MutationCoordinationItem extends GqlNodeBase {
        _addPlanStepCase = addPlanStepCase ?? GetIt.I<AddPlanStepCase>(),
        _resolvePlanStepCase =
            resolvePlanStepCase ?? GetIt.I<ResolvePlanStepCase>(),
-       _createResolutionCase =
-           createResolutionCase ?? GetIt.I<CreateResolutionCase>(),
-       _acceptResolutionCase =
-           acceptResolutionCase ?? GetIt.I<AcceptResolutionCase>(),
-       _rejectResolutionCase =
-           rejectResolutionCase ?? GetIt.I<RejectResolutionCase>(),
        _createDraftAskCase =
            createDraftAskCase ?? GetIt.I<CreateDraftAskCase>(),
        _publishDraftAskCase =
@@ -154,9 +142,6 @@ final class MutationCoordinationItem extends GqlNodeBase {
   final UpdatePlanCase _updatePlanCase;
   final AddPlanStepCase _addPlanStepCase;
   final ResolvePlanStepCase _resolvePlanStepCase;
-  final CreateResolutionCase _createResolutionCase;
-  final AcceptResolutionCase _acceptResolutionCase;
-  final RejectResolutionCase _rejectResolutionCase;
   final CreateDraftAskCase _createDraftAskCase;
   final PublishDraftAskCase _publishDraftAskCase;
   final UpdateDraftAskCase _updateDraftAskCase;
@@ -212,9 +197,6 @@ final class MutationCoordinationItem extends GqlNodeBase {
         updateCoordinationPlan,
         addPlanStep,
         resolvePlanStep,
-        createResolution,
-        acceptResolution,
-        rejectResolution,
         updateCoordinationItem,
         remindCoordinationItem,
         markBeaconItemsSeen,
@@ -834,69 +816,6 @@ final class MutationCoordinationItem extends GqlNodeBase {
           final item = await _resolvePlanStepCase.call(
             userId: userId,
             itemId: _itemId.fromArgsNonNullable(args),
-          );
-          return _coordinationItemToMap(item);
-        },
-      );
-
-  GraphQLObjectField<dynamic, dynamic> get createResolution =>
-      GraphQLObjectField(
-        'createResolution',
-        gqlTypeCoordinationItemRow.nonNullable(),
-        arguments: [
-          _beaconId.field,
-          _title.field,
-          _body.fieldNullable,
-          _targetItemId.fieldNullable,
-          _targetMessageId.fieldNullable,
-          _linkedMessageId.fieldNullable,
-        ],
-        resolve: (_, args) async {
-          final userId = getCredentials(args).sub;
-          final item = await _createResolutionCase.call(
-            userId: userId,
-            beaconId: _beaconId.fromArgsNonNullable(args),
-            title: _title.fromArgsNonNullable(args),
-            body: _body.fromArgs(args) ?? '',
-            targetItemId: _targetItemId.fromArgs(args),
-            targetMessageId: _targetMessageId.fromArgs(args),
-            linkedMessageId: _linkedMessageId.fromArgs(args),
-          );
-          return _coordinationItemToMap(item);
-        },
-      );
-
-  GraphQLObjectField<dynamic, dynamic> get acceptResolution =>
-      GraphQLObjectField(
-        'acceptResolution',
-        gqlTypeCoordinationItemRow.nonNullable(),
-        arguments: [
-          _itemId.field,
-        ],
-        resolve: (_, args) async {
-          final userId = getCredentials(args).sub;
-          final item = await _acceptResolutionCase.call(
-            userId: userId,
-            itemId: _itemId.fromArgsNonNullable(args),
-          );
-          return _coordinationItemToMap(item);
-        },
-      );
-
-  GraphQLObjectField<dynamic, dynamic> get rejectResolution =>
-      GraphQLObjectField(
-        'rejectResolution',
-        gqlTypeCoordinationItemRow.nonNullable(),
-        arguments: [
-          _itemId.field,
-          _reason.fieldNullable,
-        ],
-        resolve: (_, args) async {
-          final userId = getCredentials(args).sub;
-          final item = await _rejectResolutionCase.call(
-            userId: userId,
-            itemId: _itemId.fromArgsNonNullable(args),
-            reason: _reason.fromArgs(args) ?? '',
           );
           return _coordinationItemToMap(item);
         },

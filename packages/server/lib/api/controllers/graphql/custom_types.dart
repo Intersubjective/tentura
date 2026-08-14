@@ -976,8 +976,6 @@ final gqlTypeCoordinationResponsibilityBatchRow =
         field('promiseNew', graphQLInt.nonNullable()),
         field('blockerOpen', graphQLInt.nonNullable()),
         field('blockerNew', graphQLInt.nonNullable()),
-        field('reviewOpen', graphQLInt.nonNullable()),
-        field('reviewNew', graphQLInt.nonNullable()),
         field('othersOpenCount', graphQLInt.nonNullable()),
       ]);
 

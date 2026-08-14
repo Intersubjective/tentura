@@ -99,18 +99,6 @@ void main() {
       'runAction(',
       '.commitmentChanged(',
     ],
-    'coordination_item/create_resolution_case.dart': [
-      'runAction(',
-      '.needsMe(',
-    ],
-    'coordination_item/accept_resolution_case.dart': [
-      'runAction(',
-      '.commitmentChanged(',
-    ],
-    'coordination_item/reject_resolution_case.dart': [
-      'runAction(',
-      '.commitmentChanged(',
-    ],
     'coordination_item/cancel_blocker_case.dart': [
       'runAction(',
       '.commitmentChanged(',
