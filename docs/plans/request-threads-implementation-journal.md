@@ -49,7 +49,7 @@ None of the above overlap any UNIT 01–14 file list except the noted `docs/READ
 
 | Unit | One-line goal | Status | Commit(s) |
 |---|---|---|---|
-| 01 | Remove resolution feature (D27), migration m0149, My Work reviews segment | complete | 1b1a9ba69, 14e602b29, 7507dae82, 6b4e88c56 |
+| 01 | Remove resolution feature (D27), migration m0149, My Work reviews segment | complete | 1b1a9ba69, 14e602b29, 7507dae82, 6b4e88c56, 03acdcf50 |
 | 02 | Pure `beacon_room` → `beacon_threads` rename | pending | |
 | 03 | Server `beaconThreads` query + preview contract | pending | |
 | 04 | `markThreadSeen` + persisted-watermark fix | pending | |
