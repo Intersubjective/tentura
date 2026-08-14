@@ -1424,3 +1424,30 @@ FINDINGS:
 - Large `ForwardCase` band-exclusion harness retained; still required for order/provenance
   proof after client-side pause filter.
 REMAINING: manager re-review of UNIT 13 remediation; UNIT 14 unchanged.
+
+## UNIT 13 manager acceptance — 2026-08-14
+
+VERDICT: accepted: `eb08fc0bb`, `675d7ede1`, `3cd703ac5`, and `d251eec80`.
+REVIEW: Recipient-row availability is controlled by the required five-value host
+inventory. Every picker host displays availability while the read-only lineage
+preview suppresses it. The precedence ordering preserves tier evidence, hidden
+presence, reachability, and ineligible-involvement states ahead of availability;
+limited remains informational and paused candidates cannot be newly selected.
+The remediation removes the last clock leak from the pure injected-date line
+policy: relation tone now calls `canForwardToOn(todayUtc)`, and the resume date
+boundary is independently exercised. The row event boundary now proves that a
+selected paused row remains deselectable and an unselected paused row cannot
+invoke the outer-row or trailing-checkbox callbacks. Band filtering retains
+unmatched rows and survivor order/provenance after excluding only matched paused
+candidates.
+INDEPENDENT VERIFICATION:
+- `(cd packages/client && flutter test test/features/forward/forward_recipient_host_policy_test.dart test/features/forward/forward_state_scope_test.dart test/features/forward/ui/widget/forward_band_strip_test.dart test/features/forward/forward_recipient_picker_test.dart test/golden/typography_overhaul_test.dart)` -> 48 passed, 7 skipped (golden)
+- `./scripts/check-custom-lints.sh packages/client` -> pass (custom-rule total 106, baseline 111)
+- `bash scripts/check-user-facing-terminology.sh` -> pass
+- `git diff --check` -> clean
+- host-call audit over all Dart `ForwardRecipientRow(` occurrences -> each invocation passes explicit `host:`
+FINDINGS: The focused test uses a 44dp trailing checkbox-centre coordinate to
+exercise the nested checkbox event boundary, because the inner InkWell is not
+separately findable below the outer-row key. The test proves the actual rendered
+target, not only the helper policy.
+REMAINING: UNIT 14 is dependency-ready.
