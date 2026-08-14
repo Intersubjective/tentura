@@ -3469,6 +3469,26 @@
   "labelBeaconTabLog": "Журнал",
   "labelBeaconTabRoom": "Чат",
   "labelBeaconTabItems": "Элементы",
+  "labelBeaconTabThreads": "Темы",
+  "threadGeneralTitle": "Общее",
+  "threadClosedFoldTitle": "Закрытые ({count})",
+  "@threadClosedFoldTitle": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "threadDraftsFoldTitle": "Черновики ({count})",
+  "@threadDraftsFoldTitle": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "threadDraftBadge": "Черновик — темы ещё нет",
+  "threadNoActiveItems": "Активных тем пока нет",
   "beaconItemsEmptyPlaceholder": "Элементов координации пока нет",
   "beaconItemsActiveFoldTitle": "Активные ({count})",
   "@beaconItemsActiveFoldTitle": {
@@ -4516,7 +4536,7 @@
   "coordinationSemanticAskOpened": "Просьба создана",
   "coordinationSemanticAskAccepted": "Просьба принята",
   "coordinationSemanticAskResolved": "Просьба выполнена",
-  "coordinationPromiseCardLabel": "Обещание",
+  "coordinationPromiseCardLabel": "Обязательство",
   "coordinationPromiseAcceptLabel": "Принять обещание",
   "coordinationSemanticPromiseOpened": "Обещание дано",
   "coordinationSemanticPromiseAccepted": "Обещание принято",

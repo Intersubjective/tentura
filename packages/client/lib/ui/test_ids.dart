@@ -43,6 +43,7 @@ abstract final class TestIds {
   static const beaconRoomOpen = 'beacon.room.open';
   static const beaconForward = 'beacon.forward';
   static const beaconTabItems = 'beacon.tab.items';
+  static const beaconTabThreads = 'beacon.tab.threads';
   static const beaconTabPeople = 'beacon.tab.people';
   static const beaconTabLog = 'beacon.tab.log';
 
@@ -57,6 +58,8 @@ abstract final class TestIds {
       'coordination.item.$itemId.menu';
   static String coordinationItemResolve(String itemId) =>
       'coordination.item.$itemId.resolve';
+
+  static String requestThread(String threadId) => 'request.thread.$threadId';
 
   static String helpOfferAccept(String userId) => 'help_offer.$userId.accept';
   static String helpOfferDecline(String userId) => 'help_offer.$userId.decline';

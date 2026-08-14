@@ -3482,6 +3482,26 @@
   "labelBeaconTabLog": "Log",
   "labelBeaconTabRoom": "Chat",
   "labelBeaconTabItems": "Items",
+  "labelBeaconTabThreads": "Threads",
+  "threadGeneralTitle": "General",
+  "threadClosedFoldTitle": "Closed ({count})",
+  "@threadClosedFoldTitle": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "threadDraftsFoldTitle": "Drafts ({count})",
+  "@threadDraftsFoldTitle": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "threadDraftBadge": "Draft — not a thread yet",
+  "threadNoActiveItems": "No active threads yet",
   "beaconItemsEmptyPlaceholder": "No coordination items yet",
   "beaconItemsActiveFoldTitle": "Active ({count})",
   "@beaconItemsActiveFoldTitle": {
@@ -4605,7 +4625,7 @@
   "coordinationSemanticAskOpened": "Ask raised",
   "coordinationSemanticAskAccepted": "Ask accepted",
   "coordinationSemanticAskResolved": "Ask done",
-  "coordinationPromiseCardLabel": "Promise",
+  "coordinationPromiseCardLabel": "Commitment",
   "coordinationPromiseAcceptLabel": "Accept promise",
   "coordinationSemanticPromiseOpened": "Promise made",
   "coordinationSemanticPromiseAccepted": "Promise accepted",
