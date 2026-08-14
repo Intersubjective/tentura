@@ -14,6 +14,7 @@ import 'package:tentura/ui/widget/accordion_expansion.dart';
 import 'package:tentura/ui/widget/coordination_item_presenter.dart';
 import 'package:tentura/ui/widget/focus_flash_highlight.dart';
 
+import 'package:tentura/features/beacon_threads/ui/widget/stale_deadline_ticker.dart';
 import 'package:tentura/features/coordination_item/ui/widget/item_card.dart';
 
 import '../bloc/beacon_view_cubit.dart';
@@ -282,7 +283,7 @@ class ItemsTab extends StatelessWidget {
                                 ),
                               ),
                             ),
-                          _StaleDeadlineTicker(
+                          StaleDeadlineTicker(
                             items: displayedOpenItems,
                             child: Column(
                               children: [
@@ -666,69 +667,4 @@ class _MyDraftItemRow extends StatelessWidget {
       ],
     );
   }
-}
-
-/// Rebuilds when the nearest active-item stale deadline or overdue label bucket
-/// changes so stale labels and remind actions update without leaving the Items tab.
-class _StaleDeadlineTicker extends StatefulWidget {
-  const _StaleDeadlineTicker({
-    required this.items,
-    required this.child,
-  });
-
-  final List<CoordinationItem> items;
-  final Widget child;
-
-  @override
-  State<_StaleDeadlineTicker> createState() => _StaleDeadlineTickerState();
-}
-
-class _StaleDeadlineTickerState extends State<_StaleDeadlineTicker> {
-  Timer? _timer;
-
-  @override
-  void initState() {
-    super.initState();
-    _schedule();
-  }
-
-  @override
-  void didUpdateWidget(covariant _StaleDeadlineTicker oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    _schedule();
-  }
-
-  void _schedule() {
-    _timer?.cancel();
-    final now = DateTime.now().toUtc();
-    DateTime? nearest;
-    for (final item in widget.items) {
-      if (!item.isActive) continue;
-      final next = item.nextStaleOverdueLabelChangeAt(now);
-      if (next == null) continue;
-      final utc = next.toUtc();
-      if (nearest == null || utc.isBefore(nearest)) {
-        nearest = utc;
-      }
-    }
-    if (nearest == null) return;
-    final delay = nearest.difference(now) + const Duration(milliseconds: 500);
-    _timer = Timer(
-      delay.isNegative ? Duration.zero : delay,
-      () {
-        if (!mounted) return;
-        setState(() {});
-        _schedule();
-      },
-    );
-  }
-
-  @override
-  void dispose() {
-    _timer?.cancel();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) => widget.child;
 }
