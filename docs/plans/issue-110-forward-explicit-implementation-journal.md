@@ -229,11 +229,9 @@ frozen contract, stop that unit with `BLOCKED` instead of improvising.
   is `93b08d2d0`. Watching card CTA still off (`showCtaRow: false`).
   HelpOfferedForwardNudgeMessage left with beaconId-only push. UNIT 11
   authorized.
-- 2026-08-14 manager: **UNIT 11 accepted**. Commit pending worker
-  (`feat: keep person-forward screen after send`). UNIT 12 authorized.
 
 ## UNIT 11 — complete — 2026-08-14
-COMMITS: feat: keep person-forward screen after send (see `git log -1`)
+COMMITS: `595811831` feat: keep person-forward screen after send
 TESTS:
 - `cd packages/client && flutter test test/features/forward/person_forward_cubit_test.dart test/features/forward/person_forward_block_test.dart test/features/forward/person_forward_screen_test.dart` → 32 passed
 FILES:
