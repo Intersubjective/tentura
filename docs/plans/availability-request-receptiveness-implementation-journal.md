@@ -1398,3 +1398,29 @@ FINDINGS:
 - Band pause exclusion runs in `ForwardCase.loadForwardCandidates` after fetch using
   `availabilityTodayUtc()`; rows without a matched candidate survive (`ghost` regression).
 REMAINING: none for UNIT 13; UNIT 14 (`feat(client): report actual forward delivery`) is next.
+
+## UNIT 13 remediation — complete — 2026-08-14
+
+COMMITS: `3cd703ac5` fix(client): inject todayUtc into forward recipient relation tone
+TESTS:
+- `(cd packages/client && flutter test test/features/forward/forward_recipient_host_policy_test.dart test/features/forward/forward_state_scope_test.dart test/features/forward/ui/widget/forward_band_strip_test.dart test/features/forward/forward_recipient_picker_test.dart test/golden/typography_overhaul_test.dart)` → 48 passed, 7 skipped (golden)
+- `./scripts/check-custom-lints.sh packages/client` → pass (custom-rule total 106, baseline 111)
+- `bash scripts/check-user-facing-terminology.sh` → pass
+- `git diff --check` → clean
+- `rg "ForwardRecipientRow\\(" packages/client --glob "*.dart"` → all call sites pass explicit `host:` (constructor definition + 7 production invocations + tests)
+FILES:
+- `packages/client/lib/features/forward/ui/model/forward_recipient_row_host.dart`
+- `packages/client/test/features/forward/forward_recipient_host_policy_test.dart`
+FINDINGS:
+- Defect A: `forwardRecipientRelationTone` used `candidate.canForwardTo` (process clock via
+  `availabilityTodayUtc()`); signature now requires `todayUtc` and calls
+  `candidate.canForwardToOn(todayUtc)`. UTC resume-boundary tests prove injected
+  `2026-08-13` vs `2026-08-14` flips relation tone, checkbox policy, and line precedence
+  without depending on the actual clock.
+- Defect B: added `ForwardRecipientRow` widget interaction tests — selected paused row tap
+  invokes `onToggle` once; unselected paused row and trailing checkbox taps invoke no
+  callback (checkbox targeted via trailing coordinate tap because nested InkWell is not
+  separately findable under the row key).
+- Large `ForwardCase` band-exclusion harness retained; still required for order/provenance
+  proof after client-side pause filter.
+REMAINING: manager re-review of UNIT 13 remediation; UNIT 14 unchanged.
