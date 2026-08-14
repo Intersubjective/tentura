@@ -231,7 +231,7 @@ frozen contract, stop that unit with `BLOCKED` instead of improvising.
   authorized.
 
 ## UNIT 12 — complete — 2026-08-14
-COMMITS: (see `git log -1` after commit)
+COMMITS: `615098a35` chore: bump client to 6.2.0
 TESTS:
 - `grep ^version: packages/client/pubspec.yaml` → `6.2.0`
 - `grep flutter_bootstrap.js packages/client/web/index.html` → `?v=6.2.0`
