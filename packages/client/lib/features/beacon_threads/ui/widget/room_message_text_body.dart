@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:readmore/readmore.dart';
 
 import 'package:tentura/features/beacon_threads/ui/widget/room_message_trailing_meta_layout.dart';
+import 'package:tentura/ui/widget/tentura_selection_area.dart';
 
 /// Message body with trailing inline metadata (timestamp) on the last line.
 ///
@@ -41,13 +42,15 @@ class RoomMessageTextBody extends StatelessWidget {
       metrics: metrics,
     );
 
-    return Text.rich(
-      span,
-      textAlign: textAlign,
-      textDirection: textDirection,
-      softWrap: true,
-      textScaler: textScaler,
-      locale: locale,
+    return TenturaSelectionArea(
+      child: Text.rich(
+        span,
+        textAlign: textAlign,
+        textDirection: textDirection,
+        softWrap: true,
+        textScaler: textScaler,
+        locale: locale,
+      ),
     );
   }
 }

@@ -224,4 +224,26 @@ void main() {
 
     expect(find.text('2/2'), findsOneWidget);
   });
+
+  testWidgets('macOS theme wraps fact text in SelectionArea', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: TenturaTheme.light().copyWith(platform: TargetPlatform.macOS),
+        localizationsDelegates: L10n.localizationsDelegates,
+        supportedLocales: L10n.supportedLocales,
+        locale: const Locale('en'),
+        home: Scaffold(
+          body: BeaconPinnedFactsStrip(
+            facts: [_fact(id: 'f1', text: 'Gate code is 4821')],
+            beaconId: 'b1',
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await _expandStrip(tester);
+
+    expect(find.byType(SelectableText), findsNothing);
+    expect(find.byType(SelectionArea), findsOneWidget);
+  });
 }

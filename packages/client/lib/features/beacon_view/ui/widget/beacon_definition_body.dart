@@ -7,6 +7,7 @@ import 'package:tentura/features/capability/ui/widget/capability_requirement_tag
 import 'package:tentura/ui/widget/beacon_image.dart';
 import 'package:tentura/ui/widget/beacon_image_gallery.dart';
 import 'package:tentura/ui/widget/url_link_annotations.dart';
+import 'package:tentura/ui/widget/tentura_selection_area.dart';
 
 /// Beacon definition content for the HUD fold (needs, media, description).
 class BeaconDefinitionBody extends StatelessWidget {
@@ -42,11 +43,13 @@ class BeaconDefinitionBody extends StatelessWidget {
         if (beacon.description.trim().isNotEmpty) ...[
           if (requirementTags.isNotEmpty || beacon.hasPicture)
             SizedBox(height: tt.rowGap),
-          Text.rich(
-            buildRoomMessageAnnotatedBodySpan(
-              data: beacon.description.trim(),
-              textStyle: textStyle,
-              annotations: buildUrlAnnotations(linkColor: tt.info),
+          TenturaSelectionArea(
+            child: Text.rich(
+              buildRoomMessageAnnotatedBodySpan(
+                data: beacon.description.trim(),
+                textStyle: textStyle,
+                annotations: buildUrlAnnotations(linkColor: tt.info),
+              ),
             ),
           ),
         ],
