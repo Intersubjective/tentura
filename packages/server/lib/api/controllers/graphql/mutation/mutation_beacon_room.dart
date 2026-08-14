@@ -19,6 +19,8 @@ final class MutationBeaconRoom extends GqlNodeBase {
 
   final _threadItemId = InputFieldString(fieldName: 'threadItemId');
 
+  final _threadId = InputFieldString(fieldName: 'threadId');
+
   final _participantUserId = InputFieldString(fieldName: 'participantUserId');
 
   final _stewardUserId = InputFieldString(fieldName: 'stewardUserId');
@@ -51,6 +53,7 @@ final class MutationBeaconRoom extends GqlNodeBase {
         roomMessageMarkSemanticDone,
         beaconParticipantRoomSeen,
         markBeaconRoomSeen,
+        markThreadSeen,
         roomPollCreate,
       ];
 
@@ -275,6 +278,23 @@ final class MutationBeaconRoom extends GqlNodeBase {
               beaconId: _beaconIdStr.fromArgsNonNullable(args),
               userId: getCredentials(args).sub,
               threadItemId: _threadItemId.fromArgs(args),
+              readThroughAtIso: _readThroughAt.fromArgs(args),
+            ),
+      );
+
+  GraphQLObjectField<dynamic, dynamic> get markThreadSeen =>
+      GraphQLObjectField(
+        'MarkThreadSeen',
+        gqlTypeBeaconRoomSeenResult.nonNullable(),
+        arguments: [
+          _beaconIdStr.field,
+          _threadId.field,
+          _readThroughAt.fieldNullable,
+        ],
+        resolve: (_, args) => _case.markThreadSeen(
+              beaconId: _beaconIdStr.fromArgsNonNullable(args),
+              userId: getCredentials(args).sub,
+              threadId: _threadId.fromArgsNonNullable(args),
               readThroughAtIso: _readThroughAt.fromArgs(args),
             ),
       );
