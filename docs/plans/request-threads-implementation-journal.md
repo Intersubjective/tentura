@@ -50,8 +50,8 @@ None of the above overlap any UNIT 01–14 file list except the noted `docs/READ
 | Unit | One-line goal | Status | Commit(s) |
 |---|---|---|---|
 | 01 | Remove resolution feature (D27), migration m0149, My Work reviews segment | accepted | 1b1a9ba69, 14e602b29, 7507dae82, 6b4e88c56, 03acdcf50, 9e3f07f10 |
-| 02 | Pure `beacon_room` → `beacon_threads` rename | complete | 919c0dd43, 73e734710, d0aa5c736 |
-| 03 | Server `beaconThreads` query + preview contract | pending | |
+| 02 | Pure `beacon_room` → `beacon_threads` rename | accepted | 919c0dd43, 73e734710, d0aa5c736, fd1ce76d1 |
+| 03 | Server `beaconThreads` query + preview contract | complete (awaiting manager) | 3e261f62d, 633bd3af2, fb699a834, 675d2a019, c175728e0 |
 | 04 | `markThreadSeen` + persisted-watermark fix | pending | |
 | 05 | Client thread contract/mapping/repo/case (unused) | pending | |
 | 06 | Thread-keyed watermark store + client `markThreadSeen` | pending | |
@@ -127,3 +127,27 @@ None yet.
   (`dart run build_runner build -d`; `di.config.dart` gitignored). Verify: old dirs absent, forbidden
   `rg` empty, survivor `rg` non-empty, `./scripts/check-custom-lints.sh packages/client` 106/106,
   `cd packages/client && flutter test` 2217 passed, 18 skipped.
+
+- 2026-08-14 — **Manager review: UNIT 02 ACCEPTED.** Independently verified: `git ls-files` shows zero
+  remaining `features/beacon_room/` paths and 96 tracked `features/beacon_threads/` paths (confirms the
+  worker's own `d0aa5c736` fix actually landed cleanly, not just claimed); `git diff --find-renames=40%`
+  detects all 96 as renames; forbidden-path/type `rg` gate empty; survivor `rg` gates non-empty for both
+  `BeaconThreads*` types and `RoomCubit`/`BeaconRoomBody`/`BeaconRoomInvalidation`; client custom lints
+  106/106 independently rerun; `flutter test test/features/beacon_threads/` independently rerun (191
+  passed, 10 skipped). Worktree status after the unit shows only the pre-existing unrelated diffs listed
+  above — no interference. Proceeding to UNIT 03 (server `beaconThreads` query).
+
+- 2026-08-14 — UNIT 03 worker: implemented item-driven `listThreads` SQL with `eligible_item` /
+  `thread_base` CTEs, authorization union in `BeaconRoomCase.listThreads`, GraphQL
+  `beaconThreads`/`BeaconThreadRow`/`ThreadMessagePreview` (single object, no union), and full case +
+  disposable-DB PG test matrix. Live-code drift: timestamps/jsonb read via epoch-ms and `::text` cast
+  (Drift `customSelect` cannot read `PgDateTime`/`jsonb` directly); message_count lateral uses plan
+  exclusion in `WHERE` not `COUNT FILTER` (Postgres aggregate error). Restored
+  `updates-event-contract.json` `roomMessagePosted` producer to `BeaconRoomCase.createMessage` (UNIT 02
+  client rename had incorrectly written `BeaconThreadsCase` while server case is still `BeaconRoomCase`).
+
+- 2026-08-14 — UNIT 03 complete. Five commits on `main`. Verify: `beacon_threads_case_test.dart` (4
+  passed), `beacon_threads_repository_pg_test.dart` (12 passed, disposable `tentura_test_bthreads_*`),
+  `dart test --exclude-tags pg` (1504 passed), `./scripts/check-custom-lints.sh packages/server` (0/0),
+  forbidden `GraphQLUnionType`/`__typename` rg empty, skeleton `thread_base`/`eligible_item`/`UNION ALL`
+  rg present, `LEFT JOIN beacon_items_seen` survivor present. Ready for manager review / UNIT 04.
