@@ -26,7 +26,7 @@ export const ONBOARDING_PAGES = [
     title: 'Post a request, friends pass it on',
     body:
       "Describe what you need — that's a request. Friends forward it to " +
-      "someone who can help, and you coordinate in the request's chat until " +
+      "someone who can help, and you coordinate in the request's discussion until " +
       "it's done.",
   },
   {

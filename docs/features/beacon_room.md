@@ -1,6 +1,6 @@
-# Request (internally: Beacon) & Chat — product spec (as shipped)
+# Request (internally: Beacon) & Threads — product spec (as shipped)
 
-User-facing behavior of a **Request** (internally: **Beacon**) and its optional **Chat** (internally: `beacon_room` coordination workspace). For product direction and philosophy, see [`../Tentura_current_status_quo.md`](../Tentura_current_status_quo.md).
+User-facing behavior of a **Request** (internally: **Beacon**) and its **discussion** workspace (internally: `beacon_room`). One conversation inside the discussion is a **thread** / **тема**; the built-in thread is **General** / **Общее**. For product direction and philosophy, see [`../Tentura_current_status_quo.md`](../Tentura_current_status_quo.md).
 
 ## What a Request is
 
@@ -34,66 +34,100 @@ Bottom navigation (default tab: **My Work**):
 
 **Not for me** is an **archive** (overflow menu), not a third inbox tab. Rejected items leave the active triage queue.
 
-## Beacon detail
+## Request detail
 
-Opening a beacon shows a **coordination header** (shared situation + personal obligation) and three tabs:
+Opening a request shows a **coordination header** (shared situation + personal obligation) and three tabs:
 
 | Tab | What the user sees |
 |-----|-------------------|
-| **Items** | Need, pinned facts, coordination items (plan, asks, blockers, promises, resolutions), and entry to the Room |
-| **People** | Author, helpers, forwarders, room membership |
-| **Log** | Public timeline of beacon-level changes |
+| **Threads** | **General** (row 0 when admitted) plus semantic threads for active published **Ask**, **Commitment**, and **Blocker** items; collapsed **Closed** fold; own **drafts** |
+| **People** | Author, helpers, forwarders, discussion participants |
+| **Log** | Public timeline of request-level changes |
 
-The header rows (**STATUS**, **NOW**, **YOU**, **ACT**) summarize phase and next action without turning the screen into a chat. Copy is shared for everyone in the same visibility tier; **YOU** and **ACT** are personal.
+The header rows (**STATUS**, **NOW**, **YOU**, **ACT**) summarize phase and next action. Copy is shared for everyone in the same visibility tier; **YOU** and **ACT** are personal.
 
 ### Lifecycle (user-visible)
 
-While **open**, the author may signal whether more help is needed or enough help is in motion. Helpers can **offer help** openly (with a note); the author may respond per offer about **fit and coverage** — this is coordination metadata, not approval of a person.
+While **open**, the author may signal whether more help is needed or enough help is in motion. Helpers can **offer help** openly (with a note); the author may respond per offer about **fit and coverage** — coordination metadata, not approval of a person.
 
 **Blockers** surface when work is stuck; clearing them is a shared coordination act.
 
 When the author **closes** successfully, eligible participants enter a **review window** to acknowledge contributions privately (see [`../beacon-evaluation-principles.md`](../beacon-evaluation-principles.md)).
 
-## Room
+There is **no resolution feature** — asks, commitments, and blockers resolve through direct resolve actions on the item, not a separate resolution item type.
 
-The **Room** is a separate full-screen workspace for people **admitted** to coordinate execution (author, admitted helpers, stewards as product rules allow).
+## Threads model
 
-In the Room the user can:
+### List scope and ordering
 
-- read and send **messages** tied to coordination (not a public forum),
-- work through **coordination items** — **plan** (steps), **ask**, **blocker**, **promise**, **resolution**,
-- open **item threads** for discussion on a specific ask/blocker/promise/resolution (plans use the plan surface instead),
-- pin or correct **facts** visible at the right visibility (beacon-wide vs room-only).
+The **Threads** tab shows:
 
-Room content stays **scoped**: people who are not in the Room do not see room-private messages or room-only facts on public beacon surfaces.
+1. **General** — pinned first for viewers with discussion admission (see below).
+2. **Active** published semantic items — Ask, Commitment, Blocker — as thread rows with last-message preview and per-thread unread.
+3. A collapsed **Closed (n)** fold for terminal semantic items (unread on closed rows appears only when the fold is expanded for display).
+4. The viewer's own unpublished **drafts** — rows marked as not yet a thread; tap opens the composer, never a route.
 
-**@mentions:** typing `@` in the chat composer opens completion-hints for admitted participants (filter by handle or display name; ↑/↓ / Enter / Tab / Esc). Sending a completed `@handle` delivers a **personal push** (coordination category, on by default) and marks the event for the **daily email digest** (also on by default). Only newly added mentionees on message edit are notified.
+**Plan** and plan-step coordination items are **not** list rows; plan work surfaces in General and the Log.
 
-**Reply:** a reply points at one message in the same Chat scope (main room or the same item thread). Sending a reply notifies the parent message author; inside an item thread it also notifies the item's target person, as any thread message does — never the whole Room. Someone who is both the parent author and `@`-mentioned receives a single notification. Deleting the original message clears the reply pointer and the quote disappears on the next read.
+### Thread kinds
 
-**Admission** is always **explicit** — offering help or receiving a direct forward does not automatically grant Chat access. When the author **directly forwarded** the request to someone and they offer help, the offer is marked (chip) and sorted **upward** in the People list, but the author must still **Accept** explicitly before admission.
+| Thread | Meaning |
+|--------|---------|
+| **General** | The main conversation on the request (`thread_item_id` null in storage) |
+| **Ask** | Discussion on one ask item |
+| **Commitment** | Discussion on one commitment (promise) item |
+| **Blocker** | Discussion on one blocker item |
 
-**Backup offers:** when the beacon signals **enough help**, additional help offers are allowed as **backup** offers — secondary coordination that does not trigger "offers awaiting author" pressure on the author. For an uninvolved viewer in this state, **"Offer as backup" becomes the primary action** (Forward remains available as a persistent secondary control in Request chrome). A backup offer appears in People as **"Available as backup"**, is always visible to the author, and generates a normal-priority notification ("X offered to help as backup") — never elevated urgency. The offering user sees a confirmation that their offer was sent and the author may reach out if more help is needed. Backup offers are never auto-activated; the author must move the beacon back to an open/needs-more-help state and contact a backup directly.
+### Authorization (union rule)
 
-**Remove from chat ≠ End participation:** removing someone from Chat revokes **room access only**; their participation record and committer stake remain until the author uses the separate **End participation** action (or the helper withdraws). **End participation** (`releaseCommitment`) drops **current stake** while keeping `everAcknowledged` — the person becomes a **former committer** (still in review composition; still blocks Cancel/Delete). The author may **Accept** again later to restore stake. The UI must not conflate remove-from-chat with ending participation.
+Who sees which rows is the **union** of:
+
+- **Discussion admission** — author, stewards, and helpers explicitly admitted to the discussion (`room_access`).
+- **Item participation** — creator, target, or accepter of a semantic item may see **that item's thread** even when not admitted to General.
+
+A non-admitted item participant sees their semantic row(s) and **no General row**. An admitted participant sees General exactly once plus every thread they are entitled to. Empty access shows the admission placeholder.
+
+### Navigation surfaces
+
+| Window class | Behavior |
+|--------------|----------|
+| **Compact** / **regular** | Threads tab 0; selecting a row pushes `/thread/<id>`; back returns to the list once |
+| **Expanded** | Left: header + tab bar + tab body; right: selected thread, **General preselected** when accessible; right pane persists across **People** and **Log** |
+| **Embedded** (My Work pane) | Split vs push follows **pane width**, not window class |
+
+URL: `?tab=threads&thread=general|<itemId>`. `message=` scrolls within the open thread. Draft rows are not addressable thread ids.
+
+### Per-thread unread
+
+Unread counts are **per thread**, keyed by `(beacon, thread)`. General unread and semantic-thread unread sum to the Threads tab badge. Own messages do not count as unread. Read-to-bottom suppresses row unread optimistically until sync completes.
+
+### Thread detail
+
+Each addressable thread hosts the shared message composer and history. Semantic threads show the item header (kind, status, body) above messages. **@mentions** in the composer notify admitted participants. **Replies** reference one parent message in the **same thread scope**; deleting the parent clears the quote on next read.
+
+## Discussion admission and membership
+
+**Admission** to the **discussion** is always **explicit** — offering help or receiving a direct forward does not automatically grant access. When the author **directly forwarded** the request to someone and they offer help, the offer is marked and sorted upward in People, but the author must still **Accept** explicitly before admission.
+
+**Backup offers:** when the request signals **enough help**, additional offers are allowed as **backup** — secondary coordination without "offers awaiting author" pressure. Backup offers are never auto-activated.
+
+**Remove from the discussion ≠ End participation:** removing someone revokes **discussion access only**; participation record and committer stake remain until **End participation** (or helper withdraws). **End participation** drops current stake while keeping historical acknowledgement. The UI must not conflate remove-from-discussion with ending participation.
+
+## Fact visibility
+
+Facts pinned on messages use **discussion-scoped** visibility boundaries — request-wide public vs **discussion only** — not per-thread isolation. Fact cards and visibility copy use **discussion** vocabulary; "thread only" would be wrong because facts are request-scoped.
 
 ## Forwarding
 
-Forwarding is **manual** and **targeted**. Each forward carries a personal note. Recipients see scoped involvement states on the forward screen (who offered help, declined, is watching, was already forwarded to, etc.).
+Forwarding passes the request along the trust graph. Each hop is visible to people on the path. Forwarding does not grant discussion access by itself.
 
-Forwarding alone does **not** create broad social visibility beyond the beacon path.
+## Copy vocabulary (user-facing)
 
-## What this feature is not
+| Level | EN | RU |
+|-------|----|----|
+| Request | Request | запрос |
+| Whole workspace | discussion | обсуждение |
+| One conversation | thread | тема |
+| Built-in thread | General | Общее |
 
-- Not a group chat replacement for the whole app (no global 1:1 chat product surface).
-- Not a ranked feed or comment thread under the beacon.
-- Not a public reputation or leaderboard surface.
-- Not a registry/group tab — lists are **Inbox** (push) and **My Work** (ownership).
-
-## Related guidance
-
-- [`../Tentura_current_status_quo.md`](../Tentura_current_status_quo.md) — relay model, inbox vs my work, MR scope
-- [`../watching-mechanism.md`](../watching-mechanism.md) — Watching vs triage
-- [`../beacon-status-line-rationale.md`](../beacon-status-line-rationale.md) — STATUS / NOW / YOU / ACT copy rules
-- [`../beacon-evaluation-principles.md`](../beacon-evaluation-principles.md) — post-close review
-- [`../before-response-terminal-tombstone.md`](../before-response-terminal-tombstone.md) — when the beacon ends before I acted
+Internal code, storage, GraphQL, and routes retain **beacon** / **room** identifiers — see [`../../CONTEXT.md`](../../CONTEXT.md) and [`.cursor/rules/terminology.mdc`](../../.cursor/rules/terminology.mdc).

@@ -29,7 +29,7 @@ Short pointers for agents — read only what your task needs.
 
 | Doc | Read when |
 |-----|-----------|
-| [`features/beacon_room.md`](features/beacon_room.md) | Room admission, help offers, Items/People/Log, coordination |
+| [`features/beacon_room.md`](features/beacon_room.md) | Threads tab, General/semantic threads, discussion admission, People/Log |
 | [`features/new-stuff-indicators.md`](features/new-stuff-indicators.md) | Inbox/My Work “new since last visit” dots and pills |
 | [`features/trust_edges.md`](features/trust_edges.md) | Per-context trust source edges, effective projection, MeritRank publish |
 | [`features/mutual-friends.md`](features/mutual-friends.md) | Mutual-friends query on profiles / invite accept |
@@ -38,6 +38,8 @@ Short pointers for agents — read only what your task needs.
 
 | Doc | Read when |
 |-----|-----------|
+| [`plans/availability-request-receptiveness-architecture.md`](plans/availability-request-receptiveness-architecture.md) | Availability / request-receptiveness signal (profile + Forward) — architecture rev 3, awaiting sign-off (reviews: [grok](plans/availability-review-grok46.md), [kimi](plans/availability-review-kimik3.md), [codex](plans/availability-review-codex.md)) |
+| [`plans/issue-110-forward-explicit-architecture.md`](plans/issue-110-forward-explicit-architecture.md) | Explicit forwarding UX (#110): note coverage, stay-on-send, Watching confirm, `allowsForward` gate — architecture rev 1 |
 | [`plans/beacon-cross-screen-invalidation-refactor.md`](plans/beacon-cross-screen-invalidation-refactor.md) | Sync My Work/Inbox after local room mutations |
 | [`plans/beacon-location-google-maps-plan.md`](plans/beacon-location-google-maps-plan.md) | Google Maps picker + external Maps hand-off |
 | [`plans/google-maps-server-proxy-plan.md`](plans/google-maps-server-proxy-plan.md) | Server-side Geocoding/Places proxy |
@@ -98,5 +100,5 @@ Done and superseded plans live under [`archive/plans/`](archive/plans/) (e.g. co
 - QA/analysis/review snapshots go in [`audits/`](audits/).
 - Prefer this index + status quo over grep hits for retired paths in old branches.
 - Legacy term drift check: `scripts/check-doc-drift.sh` (Registry tab, Overview tab, `coordination_status`, `beacon.state`, ChatNews, `beacon_blocker`).
-- User-facing terminology: `scripts/check-user-facing-terminology.sh` (Request/Chat vs internal Beacon/room).
-- After large UI refactors: refresh [`client-ui-inventory.md`](client-ui-inventory.md); verify home tab order (My Work default), beacon detail tabs (Items / People / Log).
+- User-facing terminology: `scripts/check-user-facing-terminology.sh` (Request/discussion vs internal Beacon/room).
+- After large UI refactors: refresh [`client-ui-inventory.md`](client-ui-inventory.md); verify home tab order (My Work default), request detail tabs (Threads / People / Log).
