@@ -1,3 +1,4 @@
+import 'package:tentura_server/domain/entity/beacon_thread_record.dart';
 import 'package:tentura_server/domain/entity/coordination_item_record.dart';
 
 import 'package:tentura_server/domain/entity/coordination_responsibility_counts.dart';
@@ -56,6 +57,14 @@ abstract class CoordinationItemRepositoryPort {
     String? targetPersonId,
     String? linkedParentItemId,
     bool rootOnly = false,
+  });
+
+  Future<List<BeaconThreadRecord>> listThreads({
+    required String beaconId,
+    required String viewerUserId,
+    required bool includeGeneral,
+    required bool itemParticipantsOnly,
+    required int excerptCharacters,
   });
 
   /// Latest item-discussion message time per beacon (active items only).
