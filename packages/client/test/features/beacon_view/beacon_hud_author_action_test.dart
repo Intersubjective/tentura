@@ -296,11 +296,11 @@ void main() {
       expect(spec?.filled, isTrue);
       expect(
         spec?.effectLine,
-        'Opens People; accept adds helper to chat',
+        'Opens People; accept adds helper to the discussion',
       );
       expect(
         spec?.semanticsLabel,
-        'Review offers. Opens People; accept adds helper to chat',
+        'Review offers. Opens People; accept adds helper to the discussion',
       );
     });
   });

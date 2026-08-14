@@ -93,7 +93,7 @@ void main() {
     expect(find.byIcon(Icons.public_outlined), findsOneWidget);
   });
 
-  testWidgets('chat-only pinned fact shows private mark on message', (tester) async {
+  testWidgets('discussion-only pinned fact shows private mark on message', (tester) async {
     await tester.pumpWidget(
       _harness(
         pinnedFact: _publicFact().copyWith(
@@ -103,7 +103,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.textContaining('Pinned · chat fact'), findsOneWidget);
+    expect(find.textContaining('Pinned · discussion fact'), findsOneWidget);
     expect(find.byIcon(Icons.push_pin_outlined), findsOneWidget);
   });
 }

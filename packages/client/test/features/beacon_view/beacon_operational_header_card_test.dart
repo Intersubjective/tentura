@@ -330,7 +330,7 @@ void main() {
 
       expect(find.text('Review offers'), findsOneWidget);
       expect(
-        find.text('Opens People; accept adds helper to chat'),
+        find.text('Opens People; accept adds helper to the discussion'),
         findsOneWidget,
       );
       expect(find.text('Update status'), findsNothing);
@@ -362,7 +362,7 @@ void main() {
       );
 
       expect(
-        find.text('Opens People; accept adds helper to chat'),
+        find.text('Opens People; accept adds helper to the discussion'),
         findsOneWidget,
       );
     });

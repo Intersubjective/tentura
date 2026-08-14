@@ -104,11 +104,11 @@ void main() {
 
     expect(
       en.availabilityUnaffectedNote,
-      "Requests and chats you're already in aren't affected.",
+      "Requests and discussions you're already in aren't affected.",
     );
     expect(
       ru.availabilityUnaffectedNote,
-      'Уже начатые запросы и чаты это не затрагивает.',
+      'Уже открытые запросы и обсуждения это не затрагивает.',
     );
 
     expect(en.availabilityResumeNow, 'Resume now');
