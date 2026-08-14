@@ -358,6 +358,8 @@ final gqlTypeMyForwardRecipient = GraphQLObjectType('MyForwardRecipient', null)
     field('recipientId', graphQLString.nonNullable()),
     field('note', graphQLString.nonNullable()),
     field('readAt', graphQLString),
+    field('hasOnwardChild', graphQLBoolean.nonNullable()),
+    field('recipientRejected', graphQLBoolean.nonNullable()),
   ]);
 
 /// V2-only: forward-screen involvement id sets (see `beaconInvolvement` query).

@@ -74,6 +74,11 @@ final class BeaconInvolvementCase extends UseCaseBase {
         .toSet()
         .toList();
 
+    final childParentIds = {
+      for (final e in edges)
+        if (e.parentEdgeId != null) e.parentEdgeId!,
+    };
+
     final myForwardedRecipients = <MyForwardRecipientResult>[];
     final edgesToMarkRead = <ForwardEdgeEntity>[];
     for (final edge in edges) {
@@ -83,6 +88,8 @@ final class BeaconInvolvementCase extends UseCaseBase {
             edgeId: edge.id,
             recipientId: edge.recipientId,
             note: edge.note,
+            hasOnwardChild: childParentIds.contains(edge.id),
+            recipientRejected: edge.recipientRejected,
             readAt: edge.recipientReadAt,
           ),
         );

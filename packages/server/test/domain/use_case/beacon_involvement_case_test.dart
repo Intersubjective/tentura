@@ -29,6 +29,8 @@ void main() {
     required String senderId,
     required String recipientId,
     String note = '',
+    String? parentEdgeId,
+    bool recipientRejected = false,
     DateTime? recipientReadAt,
   }) =>
       ForwardEdgeEntity(
@@ -38,6 +40,8 @@ void main() {
         recipientId: recipientId,
         createdAt: now,
         note: note,
+        parentEdgeId: parentEdgeId,
+        recipientRejected: recipientRejected,
         recipientReadAt: recipientReadAt,
       );
 
@@ -171,6 +175,47 @@ void main() {
       expect(r.myForwardedRecipients[1].edgeId, 'Fmine2');
       expect(r.myForwardedRecipients[1].recipientId, 'Ur2');
       expect(r.myForwardedRecipients[1].readAt, readAt);
+    });
+
+    test(
+        'myForwardedRecipients sets hasOnwardChild and recipientRejected from edges',
+        () async {
+      stubRepos(
+        edges: [
+          edge(
+            id: 'Fmine-with-child',
+            senderId: viewerId,
+            recipientId: 'Ur1',
+            recipientRejected: true,
+          ),
+          edge(
+            id: 'Fchild',
+            senderId: 'Ur1',
+            recipientId: 'Ur3',
+            parentEdgeId: 'Fmine-with-child',
+          ),
+          edge(
+            id: 'Fmine-no-child',
+            senderId: viewerId,
+            recipientId: 'Ur2',
+          ),
+          edge(id: 'Fother', senderId: authorId, recipientId: 'Ur4'),
+        ],
+      );
+
+      final r = await case_.asMap(beaconId: beaconId, currentUserId: viewerId);
+
+      expect(r.myForwardedRecipients, hasLength(2));
+      final withChild = r.myForwardedRecipients.firstWhere(
+        (row) => row.edgeId == 'Fmine-with-child',
+      );
+      final noChild = r.myForwardedRecipients.firstWhere(
+        (row) => row.edgeId == 'Fmine-no-child',
+      );
+      expect(withChild.hasOnwardChild, isTrue);
+      expect(withChild.recipientRejected, isTrue);
+      expect(noChild.hasOnwardChild, isFalse);
+      expect(noChild.recipientRejected, isFalse);
     });
 
     test('recipient view marks unread inbound edges as read', () async {

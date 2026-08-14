@@ -74,6 +74,8 @@ Map<String, dynamic> myForwardRecipientToGqlMap(MyForwardRecipientResult dto) =>
       'recipientId': dto.recipientId,
       'note': dto.note,
       'readAt': dto.readAt?.toIso8601String(),
+      'hasOnwardChild': dto.hasOnwardChild,
+      'recipientRejected': dto.recipientRejected,
     };
 
 Map<String, dynamic> beaconInvolvementResultToGqlMap(

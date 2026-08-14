@@ -8,12 +8,16 @@ class MyForwardRecipientResult {
     required this.edgeId,
     required this.recipientId,
     required this.note,
+    required this.hasOnwardChild,
+    required this.recipientRejected,
     this.readAt,
   });
 
   final String edgeId;
   final String recipientId;
   final String note;
+  final bool hasOnwardChild;
+  final bool recipientRejected;
   final DateTime? readAt;
 }
 
