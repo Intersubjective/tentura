@@ -18,6 +18,7 @@ import 'package:tentura/features/forward/domain/entity/candidate_involvement.dar
 import 'package:tentura/features/forward/domain/entity/person_forward_row.dart';
 import 'package:tentura/features/forward/domain/use_case/forward_case.dart';
 import 'package:tentura/features/forward/domain/use_case/person_forward_case.dart';
+import 'package:tentura/features/forward/domain/entity/forward_delivery_result.dart';
 import 'package:tentura/features/profile/domain/port/profile_repository_port.dart';
 
 import '../auth/auth_test_helpers.dart';
@@ -76,7 +77,7 @@ class _FakeForwardRepository implements ForwardRepository {
   );
 
   @override
-  Future<String> forwardBeacon({
+  Future<ForwardDeliveryResult> forwardBeacon({
     required String beaconId,
     required List<String> recipientIds,
     String? note,
@@ -90,7 +91,11 @@ class _FakeForwardRepository implements ForwardRepository {
   }) async {
     sent.add((beaconId: beaconId, recipientIds: recipientIds, note: note));
     _forwardChanges.add(beaconId);
-    return 'edge-1';
+    return ForwardDeliveryResult(
+      batchId: 'edge-1',
+      deliveredRecipientIds: recipientIds,
+      availabilitySkippedRecipientIds: const [],
+    );
   }
 
   @override

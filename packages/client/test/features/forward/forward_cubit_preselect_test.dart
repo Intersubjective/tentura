@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:get_it/get_it.dart';
 import 'package:logging/logging.dart';
 
+import 'package:tentura/domain/entity/availability.dart';
 import 'package:tentura/domain/contacts/contact_name_store.dart';
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/profile.dart';
@@ -346,5 +347,84 @@ void main() {
     await cubit.stream.firstWhere((s) => s.selectedIds.length == 2);
 
     expect(cubit.state.selectedIds, {'U-target', 'U-lineage'});
+  });
+
+  test('paused initialSelectedIds are dropped and not auto-selected', () async {
+    final pausedUntil = DateTime.utc(2026, 8, 20);
+    final harness = await _buildHarness(
+      involvement: _involvement(_beacon()),
+      candidates: [
+        Profile(
+          id: 'U-paused',
+          displayName: 'Paused',
+          score: 1,
+          rScore: 1,
+          availability: Availability(resumeOn: pausedUntil),
+        ),
+      ],
+    );
+    addTearDown(() => _disposeHarness(harness));
+
+    final cubit = ForwardCubit(
+      beaconId: 'B-draft',
+      forwardCase: harness.forwardCase,
+      effects: FakeUiEffectPort(),
+      initialSelectedIds: const {'U-paused'},
+      clock: () => DateTime.utc(2026, 8, 14, 12),
+    );
+    addTearDown(cubit.close);
+
+    await cubit.stream.firstWhere(
+      (s) => s.droppedPreselectedIds.contains('U-paused'),
+    );
+
+    expect(cubit.state.selectedIds, isEmpty);
+    expect(cubit.state.droppedPreselectedIds, {'U-paused'});
+  });
+
+  test('paused lineage auto-select rows are not preselected', () async {
+    final pausedUntil = DateTime.utc(2026, 8, 20);
+    final beacon = _beacon(lineageParentBeaconId: 'B-parent');
+    final harness = await _buildHarness(
+      involvement: _involvement(beacon),
+      profileExtras: [
+        Profile(
+          id: 'U-lineage',
+          displayName: 'Lineage',
+          score: 1,
+          rScore: 1,
+          availability: Availability(resumeOn: pausedUntil),
+        ),
+      ],
+      lineage: const LineageForwardSuggestions(
+        sourceBeaconId: 'B-draft',
+        rootBeaconId: 'B-parent',
+        suggestedNote: '',
+        suggestions: [
+          LineageForwardSuggestion(
+            userId: 'U-lineage',
+            group: LineageSuggestionGroup.involved,
+            reasonCode: 'involved',
+            autoSelect: true,
+          ),
+        ],
+      ),
+    );
+    addTearDown(() => _disposeHarness(harness));
+
+    final cubit = ForwardCubit(
+      beaconId: 'B-draft',
+      forwardCase: harness.forwardCase,
+      effects: FakeUiEffectPort(),
+      preselectLineageSuggestions: true,
+      clock: () => DateTime.utc(2026, 8, 14, 12),
+    );
+    addTearDown(cubit.close);
+
+    await cubit.stream.firstWhere(
+      (s) => s.candidatesLoad is ForwardCandidatesReady,
+    );
+
+    expect(cubit.state.selectedIds, isEmpty);
   });
 }

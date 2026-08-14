@@ -12,6 +12,7 @@ import 'package:tentura_root/domain/entity/beacon_status.dart';
 import 'package:tentura/features/beacon_room/data/repository/beacon_fact_card_repository.dart';
 import 'package:tentura/features/contacts/domain/use_case/contacts_case.dart';
 import 'package:tentura/features/forward/data/repository/forward_repository.dart';
+import 'package:tentura/features/forward/domain/entity/forward_delivery_result.dart';
 import 'package:tentura/features/forward/domain/use_case/forward_case.dart';
 import 'package:tentura/features/forward/ui/bloc/forward_cubit.dart';
 import 'package:tentura/features/forward/ui/message/forward_messages.dart';
@@ -79,7 +80,7 @@ class _LiveSyncForwardRepository implements ForwardRepository {
   );
 
   @override
-  Future<String> forwardBeacon({
+  Future<ForwardDeliveryResult> forwardBeacon({
     required String beaconId,
     required List<String> recipientIds,
     String? note,
@@ -94,7 +95,11 @@ class _LiveSyncForwardRepository implements ForwardRepository {
     if (!_forwardChanges.isClosed) {
       emitForwardCompleted(beaconId);
     }
-    return 'edge-1';
+    return ForwardDeliveryResult(
+      batchId: 'edge-1',
+      deliveredRecipientIds: recipientIds,
+      availabilitySkippedRecipientIds: const [],
+    );
   }
 
   @override

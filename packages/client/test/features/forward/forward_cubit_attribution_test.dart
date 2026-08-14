@@ -13,6 +13,7 @@ import 'package:tentura/features/beacon_room/data/repository/beacon_fact_card_re
 import 'package:tentura/features/contacts/domain/use_case/contacts_case.dart';
 import 'package:tentura/features/forward/data/repository/forward_repository.dart';
 import 'package:tentura/features/forward/domain/entity/lineage_suggestion_group.dart';
+import 'package:tentura/features/forward/domain/entity/forward_delivery_result.dart';
 import 'package:tentura/features/forward/domain/use_case/forward_case.dart';
 import 'package:tentura/features/forward/ui/bloc/forward_cubit.dart';
 import 'package:tentura/features/profile/domain/port/profile_repository_port.dart';
@@ -63,7 +64,7 @@ class _AttributionForwardRepository implements ForwardRepository {
       );
 
   @override
-  Future<String> forwardBeacon({
+  Future<ForwardDeliveryResult> forwardBeacon({
     required String beaconId,
     required List<String> recipientIds,
     String? note,
@@ -76,7 +77,11 @@ class _AttributionForwardRepository implements ForwardRepository {
     recipientBandProvenance,
   }) async {
     lastAttributionParentEdgeIds = attributionParentEdgeIds;
-    return 'batch-attribution';
+    return const ForwardDeliveryResult(
+      batchId: 'batch-attribution',
+      deliveredRecipientIds: [],
+      availabilitySkippedRecipientIds: [],
+    );
   }
 
   @override
