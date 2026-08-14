@@ -1519,3 +1519,25 @@ INDEPENDENT VERIFICATION:
 - `bash scripts/check-user-facing-terminology.sh` -> pass
 - `git diff --check` -> clean
 REMAINING: UNIT 15 is dependency-ready.
+
+## UNIT 15 — complete — 2026-08-14
+
+COMMITS: `d514deb0e` feat(client): gate person forward flow on availability
+TESTS:
+- `(cd packages/client && flutter test test/features/forward/person_forward_cubit_test.dart test/features/forward/person_forward_screen_test.dart test/features/forward/forward_delivery_result_test.dart)` → 32 passed
+- `./scripts/check-custom-lints.sh packages/client` → pass (custom-rule total 106, baseline 111)
+- `bash scripts/check-user-facing-terminology.sh` → pass
+- `git diff --check` → clean
+FILES:
+- `packages/client/lib/features/forward/ui/bloc/person_forward_state.dart`
+- `packages/client/lib/features/forward/ui/bloc/person_forward_cubit.dart`
+- `packages/client/lib/features/forward/ui/screen/person_forward_screen.dart`
+- `packages/client/lib/features/forward/ui/message/person_forward_messages.dart`
+- `packages/client/lib/features/forward/domain/use_case/person_forward_case.dart` (minimal `send` return type to surface typed delivery)
+- `packages/client/test/features/forward/person_forward_cubit_test.dart`
+- `packages/client/test/features/forward/person_forward_screen_test.dart`
+FINDINGS:
+- `PersonForwardCase.send` had to return `ForwardDeliveryResult` so the cubit can inspect server skips; one import/signature change outside the screen/bloc ownership list.
+- Screen send gating reads `canSendOn(cubit.todayUtc)` rather than `canSend` so injectable UTC clocks stay aligned in widget tests.
+- `personForwardBodyForTest` avoids AutoRouter in screen tests while preserving the production body layout.
+REMAINING: manager acceptance of UNIT 15; UNIT 16 release gate (`5.13.0`) is next.
