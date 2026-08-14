@@ -16,6 +16,7 @@ import 'package:tentura/consts.dart';
 import 'package:tentura/features/auth/ui/bloc/auth_cubit.dart';
 import 'package:tentura/features/home/ui/bloc/post_join_navigation_cubit.dart';
 import 'package:tentura/features/home/ui/screen/home_screen.dart';
+import 'package:tentura/features/home/ui/widget/home_shell_chrome_listenable.dart';
 import 'package:tentura/features/settings/ui/bloc/settings_cubit.dart';
 import 'package:tentura/ui/widget/auto_leading_with_fallback.dart';
 
@@ -56,7 +57,10 @@ class _FakeSettingsCubit extends Fake implements SettingsCubit {
 }
 
 /// Mirrors the [AutoTabsRouter] shell that `home_screen.dart` builds (same
-/// branch routes, no chrome) so branch routers exist for redirect guards.
+/// branch routes) so branch routers exist for redirect guards.
+///
+/// When [withCompactChrome] is true, mirrors HomeScreen's compact bottom-nav
+/// gate and the history + [HomeShellChromeListenable] rebuild sources.
 ///
 /// [wrapShell] reproduces the `HomeScreen.wrappedRoute` account-arrival
 /// reparenting: when the signed-in account id becomes known the home subtree
@@ -65,8 +69,11 @@ class _FakeSettingsCubit extends Fake implements SettingsCubit {
 /// `HomeScreen._shellSubtreeKey` — without it the tabs router is disposed on
 /// reparent and rebuilt from bare tab roots, dropping any pushed branch
 /// detail (the production bug this file pins down).
-class _TestHomeShell extends StatelessWidget {
-  const _TestHomeShell();
+class _TestHomeShell extends StatefulWidget {
+  const _TestHomeShell({this.withCompactChrome = false});
+
+  /// When true, render a stand-in bottom bar gated like HomeScreen compact.
+  final bool withCompactChrome;
 
   static final wrapShell = ValueNotifier<bool>(false);
 
@@ -75,16 +82,56 @@ class _TestHomeShell extends StatelessWidget {
   );
 
   @override
+  State<_TestHomeShell> createState() => _TestHomeShellState();
+}
+
+class _TestHomeShellState extends State<_TestHomeShell> {
+  final _chrome = HomeShellChromeListenable();
+
+  @override
+  void dispose() {
+    _chrome.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) => ValueListenableBuilder<bool>(
-    valueListenable: wrapShell,
+    valueListenable: _TestHomeShell.wrapShell,
     builder: (_, wrapped, _) {
       final tabs = KeyedSubtree(
-        key: _shellSubtreeKey,
+        key: _TestHomeShell._shellSubtreeKey,
         child: AutoTabsRouter(
           routes: [for (final spec in HomeTabSpec.all) spec.shell()],
           duration: Duration.zero,
           transitionBuilder: (_, child, _) => child,
-          builder: (_, child) => child,
+          navigatorObservers: () => [HomeShellNavObserver(_chrome)],
+          builder: (context, child) {
+            if (!widget.withCompactChrome) return child;
+            final tabsRouter = context.tabsRouter;
+            return ListenableBuilder(
+              listenable: Listenable.merge([
+                context.router.root.navigationHistory,
+                _chrome,
+              ]),
+              builder: (context, _) {
+                final activeBranch = tabsRouter.stackRouterOfIndex(
+                  tabsRouter.activeIndex,
+                );
+                final branchShowsDetail =
+                    (activeBranch?.stackData.length ?? 1) > 1;
+                return Scaffold(
+                  body: child,
+                  bottomNavigationBar: branchShowsDetail
+                      ? null
+                      : const SizedBox(
+                          key: ValueKey('test-bottom-nav'),
+                          height: 56,
+                          child: Center(child: Text('bottom-nav')),
+                        ),
+                );
+              },
+            );
+          },
         ),
       );
       return wrapped
@@ -589,6 +636,91 @@ void main() {
 
         expect(find.text('my-work-root'), findsOneWidget);
         expect(currentUrl(), '/home/work');
+      },
+    );
+
+    testWidgets(
+      'popped beacon page stays isRouteDataActive until rebuildUrl '
+      '(onPopPage gate)',
+      (tester) async {
+        await pumpRouter(tester, initialPath: '/home');
+        await router.pushPath('/beacon/view/B123');
+        await tester.pumpAndSettle();
+
+        final tabsRouter = router.innerRouterOf<TabsRouter>(HomeRoute.name);
+        final workBranch = tabsRouter?.stackRouterOfIndex(
+          HomeTabSpec.forTab(HomeTab.work).index,
+        );
+        final beaconPage = workBranch?.stack.last;
+        expect(beaconPage?.name, BeaconViewRoute.name);
+
+        // This is the exact predicate auto_route's StackRouter.onPopPage uses
+        // before calling navigationHistory.rebuildUrl(). If false, HomeScreen's
+        // ListenableBuilder never rebuilds and compact bottom nav stays hidden.
+        expect(
+          router.navigationHistory.isRouteDataActive(beaconPage!.routeData),
+          isTrue,
+          reason:
+              'BeaconView must count as active in urlState.segments or '
+              'in-app pop will not notify navigationHistory',
+        );
+      },
+    );
+
+    testWidgets(
+      'compact chrome shows bottom nav again after app-bar back from '
+      'pushed beacon view',
+      (tester) async {
+        final previousHome = HomeRoute.page;
+        final previousOperational = BeaconViewOperationalRoute.page;
+        HomeRoute.page = PageInfo(
+          HomeRoute.name,
+          builder: (_) => const _TestHomeShell(withCompactChrome: true),
+        );
+        BeaconViewOperationalRoute.page = PageInfo(
+          BeaconViewOperationalRoute.name,
+          builder: (data) {
+            final id = data.inheritedPathParams.getString('id', '');
+            // Mirrors BeaconViewScreen: PopScope + AutoLeadingWithFallback.
+            return PopScope(
+              canPop: true,
+              child: Scaffold(
+                appBar: AppBar(
+                  leading: const AutoLeadingWithFallback(
+                    fallbackPath: '/home',
+                  ),
+                  title: Text('beacon-op:$id'),
+                ),
+                body: Text('beacon-body:$id'),
+              ),
+            );
+          },
+        );
+        addTearDown(() {
+          HomeRoute.page = previousHome;
+          BeaconViewOperationalRoute.page = previousOperational;
+        });
+
+        await pumpRouter(tester, initialPath: '/home');
+        expect(find.byKey(const ValueKey('test-bottom-nav')), findsOneWidget);
+
+        await router.pushPath('/beacon/view/B123');
+        await tester.pumpAndSettle();
+        expect(find.byKey(const ValueKey('test-bottom-nav')), findsNothing);
+        expect(find.text('beacon-op:B123'), findsOneWidget);
+
+        await tester.tap(find.byType(BackButton));
+        await tester.pump(); // schedule observer post-frame tick
+        await tester.pump(); // apply chrome rebuild
+        await tester.pumpAndSettle();
+
+        expect(find.text('my-work-root'), findsOneWidget);
+        expect(
+          find.byKey(const ValueKey('test-bottom-nav')),
+          findsOneWidget,
+          reason:
+              'app-bar back must restore compact bottom nav (not only content)',
+        );
       },
     );
   });
