@@ -1499,3 +1499,23 @@ FINDINGS:
 - Missing initial preselect no longer enters `droppedPreselectedIds` or availability delivery denominator; send guard returns false with no mutation/outcome when nothing is selected or availability-dropped.
 - Disappeared selected recipient at send emits `IneligibleRecipientsException` (no partial-delivery copy/outcome).
 REMAINING: manager re-review of UNIT 14 remediation; UNIT 15 unchanged.
+
+## UNIT 14 manager acceptance — 2026-08-14
+
+VERDICT: accepted: `ecfd84c39`, `2e4806166`, `fd8a2bffa`, `56066e2a7`,
+`d1fe6715f`, `7ecb88190`, and `d504cc762`.
+REVIEW: `beaconForward` is now mapped end-to-end to the typed delivery result;
+all delivery presentation derives from delivered IDs, while requested IDs retain
+the denominator for partial/zero outcomes. Load- and send-time availability
+checks are deterministic through the injected UTC clock. The remediation
+strictly separates availability-dropped preselects from missing or other
+ineligible IDs, which now use the hard-validation path and cannot be reported
+as availability skips. Timer, lifecycle-resume, disposal, local/server race
+merge, no-mutation zero delivery, and embedded N-of-M delivery boundaries are
+covered. The public repository signature's remaining test stub is committed.
+INDEPENDENT VERIFICATION:
+- Unit 14 forward, picker, confirmation, and person-forward compatibility suite -> 50 passed
+- `./scripts/check-custom-lints.sh packages/client` -> pass (custom-rule total 106, baseline 111)
+- `bash scripts/check-user-facing-terminology.sh` -> pass
+- `git diff --check` -> clean
+REMAINING: UNIT 15 is dependency-ready.
