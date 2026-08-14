@@ -93,23 +93,6 @@ final class BeaconViewCase extends UseCaseBase {
   Stream<BeaconRoomInvalidation> get beaconRoomInvalidations =>
       _beaconRoomCase.beaconRoomInvalidations;
 
-  /// Emits beacon ids when session read-through or synced watermark changes.
-  Stream<String> get readWatermarkChanges =>
-      _beaconRoomCase.readWatermarkChanges;
-
-  DateTime? readThrough(String beaconId) =>
-      _beaconRoomCase.readThrough(beaconId);
-
-  int resolveRoomUnread({
-    required String beaconId,
-    required int serverCount,
-    required DateTime? serverSeenAt,
-  }) => _beaconRoomCase.resolveUnread(
-    beaconId: beaconId,
-    serverCount: serverCount,
-    serverSeenAt: serverSeenAt,
-  );
-
   Future<void> setInboxStatus({
     required String beaconId,
     required InboxItemStatus status,
@@ -329,10 +312,6 @@ final class BeaconViewCase extends UseCaseBase {
       return [];
     }
   }
-
-  /// Inbox/My Work style unread snapshot for beacon room (0 when not a room member).
-  Future<RoomUnreadSnapshot> fetchRoomUnreadSnapshot(String beaconId) =>
-      _beaconRoomCase.fetchRoomUnreadSnapshot(beaconId);
 
   Future<
     List<

@@ -76,10 +76,6 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
       _onRoomInvalidation,
       cancelOnError: false,
     );
-    _readWatermarkSub = _case.readWatermarkChanges.listen(
-      _onReadWatermarkChanged,
-      cancelOnError: false,
-    );
     _catchUpsSub = _case.catchUps.listen(
       (_) => _requestFullRefresh(),
       cancelOnError: false,
@@ -115,14 +111,9 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
 
   late final StreamSubscription<BeaconRoomInvalidation> _beaconRoomRefreshSub;
 
-  late final StreamSubscription<String> _readWatermarkSub;
-
   late final StreamSubscription<void> _catchUpsSub;
 
   late final StreamSubscription<RealtimeEntityChange> _peopleChangesSub;
-
-  int _serverUnreadCount = 0;
-  DateTime? _serverSeenAt;
 
   bool _fetchInProgress = false;
   bool _fetchPending = false;
@@ -135,7 +126,6 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
     await _helpOfferChangesSub.cancel();
     await _beaconChangesSub.cancel();
     await _beaconRoomRefreshSub.cancel();
-    await _readWatermarkSub.cancel();
     await _catchUpsSub.cancel();
     await _peopleChangesSub.cancel();
     return super.close();
@@ -161,28 +151,6 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
       _requestFullRefresh();
     }
   }
-
-  void _onReadWatermarkChanged(String beaconId) {
-    if (isClosed || beaconId != state.beacon.id) return;
-    _emitResolvedRoomUnread();
-  }
-
-  void _emitResolvedRoomUnread() {
-    final count = _case.resolveRoomUnread(
-      beaconId: state.beacon.id,
-      serverCount: _serverUnreadCount,
-      serverSeenAt: _serverSeenAt,
-    );
-    if (!isClosed && state.roomUnreadCount != count) {
-      emit(state.copyWith(roomUnreadCount: count));
-    }
-  }
-
-  /// Session read-through watermark for main room (survives route pushes).
-  DateTime? roomReadThrough(String beaconId) => _case.readThrough(beaconId);
-
-  /// Re-fetches server unread snapshot for the current beacon (e.g. after invalidation).
-  Future<void> refreshRoomUnreadCount() => _refreshRoomUnread(state.beacon.id);
 
   Future<void> moveToWatching() async {
     if (state.inboxStatus != InboxItemStatus.needsMe) return;
@@ -694,7 +662,6 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
   Future<void> _fetchForEntityTypes(Set<BeaconRoomEntityType> types) async {
     final beaconId = state.beacon.id;
     var needActivity = false;
-    var needUnread = false;
     var needParticipants = false;
     var needHelpOffers = false;
     var needRoomState = false;
@@ -703,9 +670,8 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
     for (final t in types) {
       if (t == BeaconRoomEntityType.roomMessage) {
         needActivity = true;
-        needUnread = true;
       } else if (t == BeaconRoomEntityType.roomSeen) {
-        needUnread = true;
+        // Threads list owns thread-keyed unread; beacon view no longer tracks batch count.
       } else if (t == BeaconRoomEntityType.activityEvent) {
         needActivity = true;
       } else if (t == BeaconRoomEntityType.participant) {
@@ -722,7 +688,6 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
     }
     await Future.wait([
       if (needActivity) _refreshRoomActivityEvents(beaconId),
-      if (needUnread) _refreshRoomUnread(beaconId),
       if (needParticipants) _refreshRoomParticipants(beaconId),
       if (needHelpOffers) _refreshHelpOffers(beaconId),
       if (needRoomState) _refreshBeaconRoomCue(beaconId),
@@ -777,15 +742,6 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
   Future<void> _refreshRoomActivityEvents(String beaconId) async {
     final events = await _case.fetchRoomActivityEvents(beaconId);
     if (!isClosed) emit(state.copyWith(roomActivityEvents: events));
-  }
-
-  Future<void> _refreshRoomUnread(String beaconId) async {
-    final snapshot = await _case.fetchRoomUnreadSnapshot(beaconId);
-    _serverUnreadCount = snapshot.count;
-    _serverSeenAt = snapshot.serverSeenAt;
-    if (!isClosed && beaconId == state.beacon.id) {
-      _emitResolvedRoomUnread();
-    }
   }
 
   Future<void> _refreshRoomParticipants(String beaconId) async {
@@ -949,7 +905,6 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
         _case.fetchRoomParticipants(beaconId),
         _case.fetchRoomStateIfAllowed(beaconId),
         _case.fetchRoomActivityEvents(beaconId),
-        _case.fetchRoomUnreadSnapshot(beaconId),
         _loadYouResponsibility(beaconId),
         _case.fetchDisplayStatus(beaconId),
       ]);
@@ -990,16 +945,8 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
       final roomParticipants = results[3]! as List<BeaconParticipant>;
       final beaconRoomCue = results[4] as BeaconRoomState?;
       final roomActivityEvents = results[5]! as List<BeaconActivityEvent>;
-      final roomUnreadSnapshot = results[6]! as RoomUnreadSnapshot;
-      final youResponsibility = results[7] as CoordinationResponsibility?;
-      final displayStatus = results[8] as BeaconDisplayStatusDto?;
-      _serverUnreadCount = roomUnreadSnapshot.count;
-      _serverSeenAt = roomUnreadSnapshot.serverSeenAt;
-      final roomUnreadCount = _case.resolveRoomUnread(
-        beaconId: beaconId,
-        serverCount: roomUnreadSnapshot.count,
-        serverSeenAt: roomUnreadSnapshot.serverSeenAt,
-      );
+      final youResponsibility = results[6] as CoordinationResponsibility?;
+      final displayStatus = results[7] as BeaconDisplayStatusDto?;
       final openCoordinationBlocker = beaconRoomCue != null
           ? await _case.fetchOpenCoordinationBlocker(beaconId)
           : null;
@@ -1089,7 +1036,6 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
           showDraftEvaluationCta: showDraftEvaluationCta,
           reviewWindowInfo: reviewWindowInfo,
           displayStatus: displayStatus,
-          roomUnreadCount: roomUnreadCount,
           youResponsibility: youResponsibility,
           forwardsLoaded: wasForwardsLoaded,
           beaconContentLoaded: true,
