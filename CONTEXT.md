@@ -1,15 +1,15 @@
 # Tentura
 
-Coordination product for **Requests** (internally: **Beacons**), **Chats** (internally: `beacon_room`), and helpers.
+Coordination product for **Requests** (internally: **Beacons**), request **discussions** (internally: `beacon_room`), and helpers.
 
 ## Terminology
 
 | Layer | Primary object | Coordination workspace |
 |-------|----------------|------------------------|
-| **User-facing** (UI, push, landing, l10n values) | **Request** / **Requests** | **Chat** |
+| **User-facing** (UI, push, landing, l10n values) | **Request** / **Requests** | **discussion** |
 | **Internal** (code, DB, GraphQL, routes, technical docs) | **Beacon** / `beacon` | room / `beacon_room` |
 
-**Request (internally: Beacon)** is a help need that can be forwarded, committed to, coordinated, and closed. **Chat (internally: room)** is the private coordination workspace on a request. **Ask** (coordination item / sub-thread in chat): user-facing **ask** (EN); Russian **просьба** / **просьбы** — distinct from Request → **запрос**.
+**Request (internally: Beacon)** is a help need that can be forwarded, committed to, coordinated, and closed. **Discussion (internally: room)** is the private coordination workspace on a request — the collective space you are admitted to. One conversation inside it is a **thread** / **тема**; the built-in thread is **General** / **Общее**. **Ask** (coordination item in a thread): user-facing **ask** (EN); Russian **просьба** / **просьбы** — distinct from Request → **запрос**.
 
 **Forbidden:** a parallel `Request` domain entity, table, or route. User-visible copy must not say "beacon" or "room" as product nouns — use l10n and `scripts/check-user-facing-terminology.sh`.
 
@@ -104,7 +104,7 @@ Beacon invites are tracked in the **Friends → Invitations** surface, split int
 ## Room coordination UI
 
 **Promoted message**:
-A room message that was turned into a coordination item (ask, blocker, promise, etc.). The message keeps a normal chat bubble; a **message lifecycle footer** shows promotion and, when terminal, resolution metadata. Tapping the footer opens the item thread.
+A room message that was turned into a coordination item (ask, blocker, promise, etc.). The message keeps a normal message bubble; a **message lifecycle footer** shows promotion and, when terminal, resolution metadata. Tapping the footer opens the item thread.
 
 **Coordination anchor event** (timeline notify row):
 A separate room message inserted when an item’s status changes (or on promote). Rendered as a centered system timeline bar, not an inline item card. `system_payload.sourceMessageId` points at the promoted source; tapping the bar scrolls to that message.
@@ -123,7 +123,7 @@ The author **calling the beacon off / retracting** it — an explicit abandon. A
 _Avoid_: deriving "cancelled" automatically from no committers; offering Cancel once a committer was ever acknowledged or during Wrapping up.
 
 **Committer**:
-A non-author user whose help offer the author has **acknowledged** (`useful` or `needCoordination`) and who **currently holds stake** — derived from append-only **commitment facts** (see **Commitment facts**), not from a mutable coordination row alone. Historical truth uses `everAcknowledged`: an acknowledgement counts unless the helper withdrew within the **24-hour grace period** with **no intervening commitment event** between acknowledgement and withdraw (any other event — e.g. author softened the response, removed from chat — closes the grace window, so a later withdraw still leaves a permanent committer record). A user with `everAcknowledged == true` but no current stake is a **Former committer**: still counts for Cancel/Delete gating and review participation, but does **not** block **Close now** and is not counted among current committers for open-family mechanics.
+A non-author user whose help offer the author has **acknowledged** (`useful` or `needCoordination`) and who **currently holds stake** — derived from append-only **commitment facts** (see **Commitment facts**), not from a mutable coordination row alone. Historical truth uses `everAcknowledged`: an acknowledgement counts unless the helper withdrew within the **24-hour grace period** with **no intervening commitment event** between acknowledgement and withdraw (any other event — e.g. author softened the response, removed from the discussion — closes the grace window, so a later withdraw still leaves a permanent committer record). A user with `everAcknowledged == true` but no current stake is a **Former committer**: still counts for Cancel/Delete gating and review participation, but does **not** block **Close now** and is not counted among current committers for open-family mechanics.
 _Assumption_: acknowledging response types = {`useful`, `needCoordination`}.
 _Avoid_: treating a withdrawn or released helper as if they were never acknowledged; counting unacknowledged/rejected offers as committers; inferring stake from `response_type` alone after exit/release.
 
@@ -152,7 +152,7 @@ Adds another 7 days to the countdown. Allowed at most **twice**. Additive and lo
 Returns the beacon to **Open**, discarding the review window and its scaffolding and reverting the inbox/activity tombstones the close fired. Strong confirmation ("returns to Open and discards current review progress"). Allowed **at most once** per review window (`kMaxReviewReopens = 1`).
 
 **Deleted** (removal state):
-A beacon removed via Delete — not an outcome. **Delete is gated by stakes:** a beacon that **ever had an acknowledged committer** can never be deleted (the author uses **Archive** to clear it from their own desk). There is **no** separate gate on "material work in the room" — admission invariant ensures non-stewards only work in chat after acknowledgement (see **Commitment facts**). A bare offer-then-withdraw with no author acknowledgment (including withdraw inside the 24-hour grace) does NOT lock Delete. Drafts are destroyed permanently (hard delete: row + images). A published beacon that **never** had an acknowledged committer becomes a soft-deleted tombstone (state 2) for people who saw it.
+A beacon removed via Delete — not an outcome. **Delete is gated by stakes:** a beacon that **ever had an acknowledged committer** can never be deleted (the author uses **Archive** to clear it from their own desk). There is **no** separate gate on "material work in the room" — admission invariant ensures non-stewards only work in the discussion after acknowledgement (see **Commitment facts**). A bare offer-then-withdraw with no author acknowledgment (including withdraw inside the 24-hour grace) does NOT lock Delete. Drafts are destroyed permanently (hard delete: row + images). A published beacon that **never** had an acknowledged committer becomes a soft-deleted tombstone (state 2) for people who saw it.
 _Avoid_: deleting a beacon that ever had an acknowledged committer; locking Delete on unacknowledged/rejected offers or grace-period exits; treating Delete as a universal escape hatch that bypasses committer stake.
 
 ## Commitment facts
@@ -161,11 +161,11 @@ Participation truth for help offers is stored in append-only **`beacon_commitmen
 
 | Axis | Meaning | Property |
 |------|---------|----------|
-| **A. Room access** | Whether the person may use Chat (`room_access`) | Reversible (remove/readmit) |
+| **A. Room access** | Whether the person may use the discussion (`room_access`) | Reversible (remove/readmit) |
 | **B. Current stake** | Who is actively in the work now | Reversible (withdraw, release, re-acknowledge) |
 | **C. Historical truth** | "The author acknowledged this person's contribution" | Append-only (`everAcknowledged`) |
 
-Pure predicates (`everAcknowledged`, `currentStakeState`, `hasCurrentStake`) derive gates and review composition from event history. Clients also read a denormalized **`stake_state`** projection on `beacon_help_offer` for display only — it is **never** an input for gates. **Admission invariant:** non-author, non-steward Chat access is granted only together with an acknowledging author response (`useful` / `needCoordination`); stewards are a deliberate exception with room access but no committer stake. Full event kinds, grace algorithm, and implementation phases: [`docs/plans/commitment-truth-rework-plan.md`](docs/plans/commitment-truth-rework-plan.md).
+Pure predicates (`everAcknowledged`, `currentStakeState`, `hasCurrentStake`) derive gates and review composition from event history. Clients also read a denormalized **`stake_state`** projection on `beacon_help_offer` for display only — it is **never** an input for gates. **Admission invariant:** non-author, non-steward discussion access is granted only together with an acknowledging author response (`useful` / `needCoordination`); stewards are a deliberate exception with room access but no committer stake. Full event kinds, grace algorithm, and implementation phases: [`docs/plans/commitment-truth-rework-plan.md`](docs/plans/commitment-truth-rework-plan.md).
 
 ## My desk (My Work)
 

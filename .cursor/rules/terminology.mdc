@@ -1,5 +1,5 @@
 ---
-description: User-facing Request/Chat vs internal Beacon/beacon_room terminology alias.
+description: User-facing Request/discussion vs internal Beacon/beacon_room terminology alias.
 alwaysApply: true
 ---
 
@@ -10,14 +10,16 @@ alwaysApply: true
 | Layer | Primary object | Coordination workspace |
 |-------|----------------|------------------------|
 | **Internal** (code, DB, GraphQL, routes, technical docs) | `Beacon`, `beacon`, `beacon_room` | room |
-| **User-facing** (l10n values, push, landing, snackbars) | **Request** / **Requests** | **Chat** |
+| **User-facing** (l10n values, push, landing, snackbars) | **Request** / **Requests** | **discussion** |
 
-Russian: **запрос** / **запросы**; workspace **чат**. Coordination **ask** (sub-thread item in chat): **просьба** / **просьбы** — not «запрос».
+Russian: **запрос** / **запросы**; workspace **обсуждение**. Coordination **ask** (sub-thread item in a thread): **просьба** / **просьбы** — not «запрос».
+
+One conversation inside the workspace is a **thread** / **тема**; the built-in thread is **General** / **Общее** (not a glossary-table column).
 
 ## Forbidden
 
 - `Request` domain entity, `request` table, `RequestRepository`, `/request/*` routes, `features/request_*` module.
-- User-facing copy containing product-noun **beacon** or workspace **room** (use l10n keys; values say request/chat).
+- User-facing copy containing product-noun **beacon** or workspace **room** (use l10n keys; values say request/discussion).
 - Renaming DB tables, API fields, routes, events, models, services, repos, or analytics IDs for this alias.
 
 ## Where copy lives
