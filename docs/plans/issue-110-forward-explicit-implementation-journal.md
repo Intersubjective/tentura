@@ -99,7 +99,7 @@ None triggered.
 - [x] **07** Location toast + Watching intent on `HomeTabReselectCubit`
 - [x] **08** Inbox consumes Watching intent; D15
 - [x] **09** D13 offer-help snapshot on Inbox + BeaconView
-- [ ] **10** CTA inventory (`allowsForward`)
+- [x] **10** CTA inventory (`allowsForward`)
 - [ ] **11** Person-forward stay, skip/sheet, **add** cancel
 - [ ] **12** Client 6.2.0 + web cache-buster
 - [ ] **13** Plan-wide closeout
@@ -214,13 +214,31 @@ frozen contract, stop that unit with `BLOCKED` instead of improvising.
   does not set `_selectedWatchingBeaconId`. Do not use MCP `analyze_files`
   (freezes).   Unrelated intervening commit `d698aee25` bumped client to
   **6.1.2**; UNIT 12 still ships **6.2.0**. UNIT 09 authorized.
-- 2026-08-14 manager: **UNIT 09 accepted**. Commit `fix: snapshot offer-help
-  nudge across Forward visit`. Independent:
+- 2026-08-14 manager: **UNIT 09 accepted**. Commit `e8462020b`
+  (`fix: snapshot offer-help nudge across Forward visit`). Independent:
   `flutter test test/features/inbox/inbox_case_test.dart
   test/features/beacon_view/beacon_view_offer_help_test.dart
   test/features/forward/forward_draft_policy_test.dart` → 35 passed.
   D13 snapshot helper extracted; both openers no longer gate on pop bool.
-  UNIT 10 authorized.
+  Parallel dirty work (design-system resize handle, beacon_view split,
+  pubspec/index.html) is **not** #110 — do not stage. UNIT 10 authorized.
+
+## UNIT 10 — complete — 2026-08-14
+COMMITS: `653181d2b` fix: gate Forward CTAs on allowsForward
+TESTS:
+- `cd packages/client && flutter test test/features/inbox test/features/my_work --name "forward"` → 15 passed
+- `cd packages/client && flutter test test/ui/widget/card_triage_action_row_test.dart` → 2 passed
+FILES:
+- `packages/client/lib/ui/widget/card_triage_action_row.dart`
+- `packages/client/lib/features/inbox/ui/widget/inbox_item_tile.dart`
+- `packages/client/lib/features/inbox/ui/screen/inbox_screen.dart`
+- `packages/client/lib/features/inbox/ui/screen/inbox_rejected_screen.dart`
+- `packages/client/lib/features/my_work/ui/widget/my_work_cards.dart`
+- `packages/client/test/ui/widget/card_triage_action_row_test.dart`
+- `packages/client/test/features/my_work/my_work_forward_cta_test.dart`
+- `docs/plans/issue-110-forward-explicit-implementation-journal.md`
+FINDINGS: `BeaconOverflowMenu` already gates `onForward` with `beacon.allowsForward`; Watching tab unchanged (`showCtaRow: false`). `HelpOfferedForwardNudgeMessage` left as-is (D6 read-only route). Extracted `myWorkNeedsForwardCta` for testability.
+REMAINING: none — UNIT 11 may start
 
 ## Unit entries
 

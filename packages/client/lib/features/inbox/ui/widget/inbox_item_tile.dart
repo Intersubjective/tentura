@@ -28,7 +28,7 @@ class InboxItemTile extends StatelessWidget {
   const InboxItemTile({
     required this.item,
     required this.onOpenBeacon,
-    required this.onTap,
+    this.onTap,
     this.onWatch,
     this.onStopWatching,
     this.onCantHelp,
@@ -44,7 +44,7 @@ class InboxItemTile extends StatelessWidget {
 
   final InboxItem item;
   final VoidCallback onOpenBeacon;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
   final VoidCallback? onWatch;
   final VoidCallback? onStopWatching;
   final Future<void> Function()? onCantHelp;

@@ -959,7 +959,9 @@ Widget _needsMeTabBody(
                         ),
                       )
                     : () => onSelectItem(item),
-                onTap: () => unawaited(_onForwardItem(context, item)),
+                onTap: item.beacon?.allowsForward == true
+                    ? () => unawaited(_onForwardItem(context, item))
+                    : null,
                 onWatch: () => inboxCubit.setWatching(item.beaconId),
                 onDismissFromInbox: () async {
                   final msg = await showInboxDismissDialog(context);

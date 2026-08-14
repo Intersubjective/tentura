@@ -13,7 +13,7 @@ const double _kCardTriageActionRowIconOnlyMaxWidth = 96;
 /// tertiary action on the right.
 class CardTriageActionRow extends StatelessWidget {
   const CardTriageActionRow({
-    required this.onForward,
+    this.onForward,
     this.onOfferHelp,
     this.secondaryLabel,
     this.secondaryIcon,
@@ -23,7 +23,7 @@ class CardTriageActionRow extends StatelessWidget {
   });
 
   final Future<void> Function()? onOfferHelp;
-  final VoidCallback onForward;
+  final VoidCallback? onForward;
   final String? secondaryLabel;
   final IconData? secondaryIcon;
 
@@ -40,11 +40,12 @@ class CardTriageActionRow extends StatelessWidget {
     final tt = context.tt;
     final actionLabelStyle = theme.textTheme.labelLarge!;
     final hasOfferHelp = onOfferHelp != null;
+    final hasForward = onForward != null;
     final hasSecondary =
         onSecondary != null &&
         (secondaryLabel != null || secondaryIcon != null);
 
-    final forwardBtn = Semantics(
+    final forwardBtn = hasForward ? Semantics(
       identifier: TestIds.inboxForward,
       button: true,
       child: Tooltip(
@@ -69,7 +70,7 @@ class CardTriageActionRow extends StatelessWidget {
           ),
         ),
       ),
-    );
+    ) : null;
 
     final offerHelpBtn = Semantics(
       identifier: TestIds.inboxOfferHelp,
@@ -164,9 +165,9 @@ class CardTriageActionRow extends StatelessWidget {
         children: [
           if (hasOfferHelp) ...[
             offerHelpBtn,
-            SizedBox(height: tt.tightGap),
+            if (hasForward) SizedBox(height: tt.tightGap),
           ],
-          forwardBtn,
+          if (hasForward) forwardBtn!,
           if (hasSecondary && tertiary != null) ...[
             SizedBox(height: tt.tightGap),
             Align(
@@ -183,10 +184,12 @@ class CardTriageActionRow extends StatelessWidget {
         children: [
           if (hasOfferHelp) ...[
             offerHelpBtn,
-            const SizedBox(width: kSpacingSmall),
-            forwardBtn,
-          ] else
-            forwardBtn,
+            if (hasForward) ...[
+              const SizedBox(width: kSpacingSmall),
+              forwardBtn!,
+            ],
+          ] else if (hasForward)
+            forwardBtn!,
           if (hasSecondary && tertiary != null) ...[
             const SizedBox(width: kSpacingSmall),
             tertiary,
@@ -233,14 +236,15 @@ class CardTriageActionRow extends StatelessWidget {
                 await onOfferHelp?.call();
               },
             ),
-            SizedBox(height: tt.tightGap),
+            if (hasForward) SizedBox(height: tt.tightGap),
           ],
-          iconButton(
-            icon: Icons.send,
-            tooltip: l10n.forwardActionTooltip,
-            color: tt.info,
-            onPressed: onForward,
-          ),
+          if (hasForward)
+            iconButton(
+              icon: Icons.send,
+              tooltip: l10n.forwardActionTooltip,
+              color: tt.info,
+              onPressed: onForward!,
+            ),
           if (hasSecondary && tertiary != null) ...[
             SizedBox(height: tt.tightGap),
             iconButton(

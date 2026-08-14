@@ -89,9 +89,11 @@ class InboxRejectedScreen extends StatelessWidget implements AutoRouteWrapper {
                           entry: kBeaconEntryInbox,
                         ),
                       ),
-                      onTap: () => context.router.push(
-                        ForwardBeaconRoute(beaconId: item.beaconId),
-                      ),
+                      onTap: item.beacon?.allowsForward == true
+                          ? () => context.router.push(
+                              ForwardBeaconRoute(beaconId: item.beaconId),
+                            )
+                          : null,
                       onMoveToInbox: () => inboxCubit.unreject(item.beaconId),
                       showCtaRow: false,
                       showProvenance: false,

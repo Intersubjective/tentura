@@ -33,6 +33,10 @@ import 'package:tentura/features/home/ui/widget/attention_marker.dart';
 bool myWorkCloseBeaconEnabled(MyWorkCardViewModel vm) =>
     vm.beacon.status == BeaconStatus.open && vm.displayStatus != null;
 
+/// Footer Forward CTA on authored My Work cards (D6: gated by [Beacon.allowsForward]).
+bool myWorkNeedsForwardCta(MyWorkCardViewModel vm) =>
+    !vm.authorHasForwardedOnce && vm.beacon.allowsForward;
+
 bool myWorkExpectedRequiresReviewWindow(MyWorkCardViewModel vm) =>
     (vm.displayStatus?.everAcknowledgedCommitterCount ?? 0) > 0;
 
@@ -271,17 +275,20 @@ class _AuthoredActiveCard extends StatelessWidget {
     );
 
     final hasReviewCta = vm.showReviewHelpOffersCta;
-    final needsForwardCta = !vm.authorHasForwardedOnce;
+    final needsForwardCta = myWorkNeedsForwardCta(vm);
     final showCloseNowCta = vm.showCloseNowCta;
     final phaseAction = myWorkEffectivePrimaryAction(
       vm: vm,
       viewerUserId: currentUserId,
     );
-    final phaseCtaLabel = myWorkPhasePrimaryCtaLabel(
-      l10n: l10n,
-      vm: vm,
-      viewerUserId: currentUserId,
-    );
+    final phaseCtaLabel =
+        phaseAction == BeaconPhasePrimaryAction.forward && !b.allowsForward
+        ? null
+        : myWorkPhasePrimaryCtaLabel(
+            l10n: l10n,
+            vm: vm,
+            viewerUserId: currentUserId,
+          );
 
     final Widget? footerActions;
     if (showCloseNowCta ||
@@ -330,9 +337,17 @@ class _AuthoredActiveCard extends StatelessWidget {
                 onPressed: () => switch (phaseAction) {
                   BeaconPhasePrimaryAction.reviewOffers =>
                     _openBeaconReviewHelpOffers(context, vm, onSelect: onSelect),
-                  BeaconPhasePrimaryAction.forward => unawaited(
-                    context.router.push(ForwardBeaconRoute(beaconId: b.id)),
-                  ),
+                  BeaconPhasePrimaryAction.forward => b.allowsForward
+                      ? unawaited(
+                          context.router.push(
+                            ForwardBeaconRoute(beaconId: b.id),
+                          ),
+                        )
+                      : _openBeaconOrSelect(
+                          context,
+                          vm,
+                          onSelect: onSelect,
+                        ),
                   BeaconPhasePrimaryAction.resolveBlocker => _openBeaconOrSelect(
                     context,
                     vm,
