@@ -11,6 +11,8 @@ class ForwardLoad {
     required this.autoSelectIds,
     required this.beacon,
     this.hasMyOutgoingForward = false,
+    this.viewerIsAuthor = false,
+    this.viewerHasActiveHelpOffer = false,
     this.band = const [],
   });
 
@@ -20,5 +22,7 @@ class ForwardLoad {
   final Set<String> autoSelectIds;
   final Beacon beacon;
   final bool hasMyOutgoingForward;
+  final bool viewerIsAuthor;
+  final bool viewerHasActiveHelpOffer;
   final List<ForwardBandRow> band;
 }

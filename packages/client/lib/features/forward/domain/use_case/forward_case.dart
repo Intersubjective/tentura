@@ -116,6 +116,14 @@ final class ForwardCase extends UseCaseBase {
                 myForwardNote: involvement.myForwardedRecipientNotes[p.id],
                 forwardEdgeId: involvement.myForwardedRecipientEdgeIds[p.id],
                 recipientReadAt: involvement.myForwardedRecipientReadAts[p.id],
+                hasOnwardChild:
+                    involvement.myForwardedRecipientHasOnwardChild[p.id] ??
+                    false,
+                recipientDeclined:
+                    involvement.rejectedIds.contains(p.id) ||
+                    (involvement.myForwardedRecipientRejected[p.id] ?? false),
+                recipientHasActiveHelpOffer:
+                    involvement.helpOfferedIds.contains(p.id),
               ),
             )
             .toList()
@@ -171,6 +179,14 @@ final class ForwardCase extends UseCaseBase {
         ForwardCandidate(
           profile: profile,
           involvement: computeInvolvement(s.userId, involvement),
+          hasOnwardChild:
+              involvement.myForwardedRecipientHasOnwardChild[s.userId] ??
+              false,
+          recipientDeclined:
+              involvement.rejectedIds.contains(s.userId) ||
+              (involvement.myForwardedRecipientRejected[s.userId] ?? false),
+          recipientHasActiveHelpOffer:
+              involvement.helpOfferedIds.contains(s.userId),
           lineageGroup: s.group,
           lineageReasonCode: s.reasonCode,
           lineageReasonArg: s.reasonArg,
@@ -217,6 +233,8 @@ final class ForwardCase extends UseCaseBase {
       autoSelectIds: autoSelectIds,
       beacon: involvement.beacon,
       hasMyOutgoingForward: involvement.myForwardedRecipientEdgeIds.isNotEmpty,
+      viewerIsAuthor: involvement.beacon.author.id == myId,
+      viewerHasActiveHelpOffer: involvement.helpOfferedIds.contains(myId),
       band: band,
     );
   }
