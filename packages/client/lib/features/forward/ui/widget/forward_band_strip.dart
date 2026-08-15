@@ -11,6 +11,7 @@ import 'package:tentura/ui/l10n/l10n.dart';
 
 import 'forward_recipient_row.dart';
 import '../model/forward_recipient_row_host.dart';
+import 'per_recipient_note_input.dart';
 
 /// Contextual evidence band above the MR-ordered forward list (architecture §8).
 class ForwardBandStrip extends StatelessWidget {
@@ -21,9 +22,12 @@ class ForwardBandStrip extends StatelessWidget {
     required this.onToggle,
     required this.onEditReasons,
     required this.recipientReasons,
+    required this.recipientNoteControllers,
+    required this.onRecipientNoteChanged,
+    required this.skippedPersonalNoteIds,
+    required this.onSkipPersonalNote,
+    required this.onRestorePersonalNote,
     this.beacon,
-    this.onTogglePersonalizedNoteEditor,
-    this.personalizedNoteEditorOpenIds = const {},
     super.key,
   });
 
@@ -33,9 +37,12 @@ class ForwardBandStrip extends StatelessWidget {
   final void Function(String userId) onToggle;
   final void Function(String userId) onEditReasons;
   final Map<String, List<String>> recipientReasons;
+  final Map<String, TextEditingController> recipientNoteControllers;
+  final void Function(String userId, String text) onRecipientNoteChanged;
+  final Set<String> skippedPersonalNoteIds;
+  final void Function(String userId) onSkipPersonalNote;
+  final void Function(String userId) onRestorePersonalNote;
   final Beacon? beacon;
-  final void Function(String userId)? onTogglePersonalizedNoteEditor;
-  final Set<String> personalizedNoteEditorOpenIds;
 
   static String tagSlugDisplayLabel(L10n l10n, String slug) {
     final tag = CapabilityTag.fromSlug(slug.trim());
@@ -112,6 +119,8 @@ class ForwardBandStrip extends StatelessWidget {
       if (candidate == null) {
         return;
       }
+      final isSelected = selectedIds.contains(candidate.id);
+      final isSkipped = skippedPersonalNoteIds.contains(candidate.id);
       final tierLabel = exploration || row.rowTier == null || row.labels.isEmpty
           ? null
           : tierEvidenceCopy(l10n, row.rowTier!, row.labels);
@@ -120,13 +129,11 @@ class ForwardBandStrip extends StatelessWidget {
           host: ForwardRecipientRowHost.pickerBand,
           candidate: candidate,
           requiredCapabilitySlugs: needs,
-          isSelected: selectedIds.contains(candidate.id),
+          isSelected: isSelected,
           onToggle: () => onToggle(candidate.id),
-          personalizedNoteEditorOpen:
-              personalizedNoteEditorOpenIds.contains(candidate.id),
-          onTogglePersonalizedNoteEditor: onTogglePersonalizedNoteEditor == null
-              ? null
-              : () => onTogglePersonalizedNoteEditor!(candidate.id),
+          isPersonalNoteSkipped: isSkipped,
+          onSkipPersonalNote: () => onSkipPersonalNote(candidate.id),
+          onRestorePersonalNote: () => onRestorePersonalNote(candidate.id),
           reasonSlugs: recipientReasons[candidate.id] ?? const [],
           onEditReasons: () => onEditReasons(candidate.id),
           tierEvidenceLabel: tierLabel,
@@ -136,6 +143,22 @@ class ForwardBandStrip extends StatelessWidget {
           showPresenceLine: !exploration,
         ),
       );
+      if (isSelected && !isSkipped) {
+        final controller = recipientNoteControllers[candidate.id];
+        if (controller != null) {
+          children.add(
+            Padding(
+              padding: EdgeInsets.symmetric(horizontal: tt.screenHPadding),
+              child: PerRecipientNoteInput(
+                profile: candidate.profile,
+                controller: controller,
+                onChanged: (text) =>
+                    onRecipientNoteChanged(candidate.id, text),
+              ),
+            ),
+          );
+        }
+      }
     }
 
     for (var i = 0; i < evidenceRows.length; i++) {

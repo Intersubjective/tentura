@@ -16,16 +16,12 @@ class ForwardSearchOverlay extends StatefulWidget {
     required this.onClose,
     required this.recipientNoteControllers,
     required this.onRecipientNoteChanged,
-    required this.personalizedNoteEditorOpenIds,
-    required this.onTogglePersonalizedNoteEditor,
     super.key,
   });
 
   final VoidCallback onClose;
   final Map<String, TextEditingController> recipientNoteControllers;
   final void Function(String userId, String text) onRecipientNoteChanged;
-  final Set<String> personalizedNoteEditorOpenIds;
-  final void Function(String userId) onTogglePersonalizedNoteEditor;
 
   @override
   State<ForwardSearchOverlay> createState() => _ForwardSearchOverlayState();
@@ -137,6 +133,8 @@ class _ForwardSearchOverlayState extends State<ForwardSearchOverlay> {
       );
     }
 
+    final cubit = context.read<ForwardCubit>();
+
     return ListView(
       padding: EdgeInsets.only(bottom: tt.rowGap / 2),
       children: [
@@ -159,18 +157,21 @@ class _ForwardSearchOverlayState extends State<ForwardSearchOverlay> {
                 isSelected: state.selectedIds.contains(filtered[i].id),
                 onToggle: () {
                   onCandidateFocused?.call(filtered[i].id);
-                  context.read<ForwardCubit>().toggleSelection(filtered[i].id);
+                  cubit.toggleSelection(filtered[i].id);
                 },
-                personalizedNoteEditorOpen: widget.personalizedNoteEditorOpenIds
-                    .contains(filtered[i].id),
-                onTogglePersonalizedNoteEditor: () =>
-                    widget.onTogglePersonalizedNoteEditor(filtered[i].id),
+                isPersonalNoteSkipped: state.skippedPersonalNoteIds.contains(
+                  filtered[i].id,
+                ),
+                onSkipPersonalNote: () =>
+                    cubit.skipPersonalNote(filtered[i].id),
+                onRestorePersonalNote: () =>
+                    cubit.restorePersonalNote(filtered[i].id),
               ),
             ),
           ),
           if (showInlineNotes &&
               state.selectedIds.contains(filtered[i].id) &&
-              widget.personalizedNoteEditorOpenIds.contains(filtered[i].id))
+              !state.skippedPersonalNoteIds.contains(filtered[i].id))
             Padding(
               padding: EdgeInsets.symmetric(horizontal: tt.screenHPadding),
               child: PerRecipientNoteInput(
@@ -221,9 +222,8 @@ class _ForwardSearchOverlayState extends State<ForwardSearchOverlay> {
 
     final candidate = filtered[candidateIndex];
     final isSelected = state.selectedIds.contains(candidate.id);
-    final noteEditorOpen = widget.personalizedNoteEditorOpenIds.contains(
-      candidate.id,
-    );
+    final isSkipped = state.skippedPersonalNoteIds.contains(candidate.id);
+    final cubit = context.read<ForwardCubit>();
 
     return SingleChildScrollView(
       padding: EdgeInsets.all(tt.screenHPadding),
@@ -235,13 +235,13 @@ class _ForwardSearchOverlayState extends State<ForwardSearchOverlay> {
             candidate: candidate,
             requiredCapabilitySlugs: state.beacon?.needs ?? const {},
             isSelected: isSelected,
-            onToggle: () =>
-                context.read<ForwardCubit>().toggleSelection(candidate.id),
-            personalizedNoteEditorOpen: noteEditorOpen,
-            onTogglePersonalizedNoteEditor: () =>
-                widget.onTogglePersonalizedNoteEditor(candidate.id),
+            onToggle: () => cubit.toggleSelection(candidate.id),
+            isPersonalNoteSkipped: isSkipped,
+            onSkipPersonalNote: () => cubit.skipPersonalNote(candidate.id),
+            onRestorePersonalNote: () =>
+                cubit.restorePersonalNote(candidate.id),
           ),
-          if (isSelected && noteEditorOpen) ...[
+          if (isSelected && !isSkipped) ...[
             SizedBox(height: tt.rowGap),
             PerRecipientNoteInput(
               profile: candidate.profile,

@@ -443,11 +443,10 @@ void main() {
 
     await pumpPicker(tester, cubit: cubit, embedded: true);
 
-    final addNote = find.byTooltip('add personalized note');
-    expect(addNote, findsOneWidget);
-    await tester.tap(addNote);
-    await tester.pumpAndSettle();
-
+    // Note field opens automatically on selection (no "add note" tap).
+    expect(find.byType(TextField), findsWidgets);
+    expect(find.byTooltip('add personalized note'), findsNothing);
+    expect(find.byTooltip('Skip personal note'), findsOneWidget);
     await tester.tap(find.byTooltip('Skip personal note'));
     await tester.pumpAndSettle();
 

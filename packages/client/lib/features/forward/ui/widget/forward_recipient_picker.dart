@@ -69,7 +69,6 @@ class ForwardRecipientPicker extends StatefulWidget {
 class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
   final _sharedNoteController = TextEditingController();
   final _recipientNoteControllers = <String, TextEditingController>{};
-  final _personalizedNoteEditorOpenIds = <String>{};
   final _invitationCubit = InvitationCubit();
   final _editNoteController = TextEditingController();
 
@@ -190,22 +189,6 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
       ),
     );
     return result == _UncoveredSheetResult.sent;
-  }
-
-  void _prunePersonalizedNoteEditors(ForwardState state) {
-    _personalizedNoteEditorOpenIds.removeWhere(
-      (id) => !state.selectedIds.contains(id),
-    );
-  }
-
-  void _togglePersonalizedNoteEditor(String userId) {
-    setState(() {
-      if (_personalizedNoteEditorOpenIds.contains(userId)) {
-        _personalizedNoteEditorOpenIds.remove(userId);
-      } else {
-        _personalizedNoteEditorOpenIds.add(userId);
-      }
-    });
   }
 
   Future<void> _submitForward(BuildContext context) async {
@@ -461,7 +444,6 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
                 state.candidatesLoad is ForwardCandidatesEmpty && listIsEmpty;
 
             _syncRecipientNoteControllers(state);
-            _prunePersonalizedNoteEditors(state);
 
             final actionLoading =
                 widget.externalActionLoading ||
@@ -559,11 +541,13 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
                             selectedIds: state.selectedIds,
                             beacon: beacon,
                             recipientReasons: state.recipientReasons,
-                            personalizedNoteEditorOpenIds:
-                                _personalizedNoteEditorOpenIds,
+                            recipientNoteControllers: _recipientNoteControllers,
+                            onRecipientNoteChanged: cubit.setRecipientNote,
+                            skippedPersonalNoteIds:
+                                state.skippedPersonalNoteIds,
+                            onSkipPersonalNote: cubit.skipPersonalNote,
+                            onRestorePersonalNote: cubit.restorePersonalNote,
                             onToggle: cubit.toggleSelection,
-                            onTogglePersonalizedNoteEditor:
-                                _togglePersonalizedNoteEditor,
                             onEditReasons: (userId) => unawaited(
                               _editReasons(
                                 context,
@@ -652,10 +636,6 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
                         },
                         recipientNoteControllers: _recipientNoteControllers,
                         onRecipientNoteChanged: cubit.setRecipientNote,
-                        personalizedNoteEditorOpenIds:
-                            _personalizedNoteEditorOpenIds,
-                        onTogglePersonalizedNoteEditor:
-                            _togglePersonalizedNoteEditor,
                       ),
                     ),
                 ],
@@ -691,11 +671,12 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
             requiredCapabilitySlugs: beacon?.needs ?? const {},
             isSelected: state.selectedIds.contains(lineage[i].id),
             onToggle: () => cubit.toggleSelection(lineage[i].id),
-            personalizedNoteEditorOpen: _personalizedNoteEditorOpenIds.contains(
+            isPersonalNoteSkipped: state.skippedPersonalNoteIds.contains(
               lineage[i].id,
             ),
-            onTogglePersonalizedNoteEditor: () =>
-                _togglePersonalizedNoteEditor(lineage[i].id),
+            onSkipPersonalNote: () => cubit.skipPersonalNote(lineage[i].id),
+            onRestorePersonalNote: () =>
+                cubit.restorePersonalNote(lineage[i].id),
             reasonSlugs: state.recipientReasons[lineage[i].id] ?? const [],
             onEditReasons: () => unawaited(
               _editReasons(
@@ -706,6 +687,19 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
               ),
             ),
           ),
+          if (state.selectedIds.contains(lineage[i].id) &&
+              !state.skippedPersonalNoteIds.contains(lineage[i].id))
+            Padding(
+              padding: EdgeInsets.symmetric(
+                horizontal: tt.screenHPadding,
+              ),
+              child: PerRecipientNoteInput(
+                profile: lineage[i].profile,
+                controller: _recipientNoteControllers[lineage[i].id]!,
+                onChanged: (text) =>
+                    cubit.setRecipientNote(lineage[i].id, text),
+              ),
+            ),
         ],
         const TenturaHairlineDivider(),
       ]);
@@ -722,11 +716,12 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
           requiredCapabilitySlugs: beacon?.needs ?? const {},
           isSelected: state.selectedIds.contains(visible[i].id),
           onToggle: () => cubit.toggleSelection(visible[i].id),
-          personalizedNoteEditorOpen: _personalizedNoteEditorOpenIds.contains(
+          isPersonalNoteSkipped: state.skippedPersonalNoteIds.contains(
             visible[i].id,
           ),
-          onTogglePersonalizedNoteEditor: () =>
-              _togglePersonalizedNoteEditor(visible[i].id),
+          onSkipPersonalNote: () => cubit.skipPersonalNote(visible[i].id),
+          onRestorePersonalNote: () =>
+              cubit.restorePersonalNote(visible[i].id),
           reasonSlugs: state.recipientReasons[visible[i].id] ?? const [],
           onEditReasons: () => unawaited(
             _editReasons(
@@ -758,7 +753,7 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
         );
       }
       if (state.selectedIds.contains(visible[i].id) &&
-          _personalizedNoteEditorOpenIds.contains(visible[i].id)) {
+          !state.skippedPersonalNoteIds.contains(visible[i].id)) {
         children.add(
           Padding(
             padding: EdgeInsets.symmetric(
@@ -768,9 +763,6 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
               profile: visible[i].profile,
               controller: _recipientNoteControllers[visible[i].id]!,
               onChanged: (text) => cubit.setRecipientNote(visible[i].id, text),
-              isSkipped: state.skippedPersonalNoteIds.contains(visible[i].id),
-              onSkip: () => cubit.skipPersonalNote(visible[i].id),
-              onRestore: () => cubit.restorePersonalNote(visible[i].id),
             ),
           ),
         );

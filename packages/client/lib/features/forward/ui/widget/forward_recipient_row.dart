@@ -25,8 +25,9 @@ class ForwardRecipientRow extends StatelessWidget {
     required this.host,
     required this.isSelected,
     required this.onToggle,
-    this.personalizedNoteEditorOpen = false,
-    this.onTogglePersonalizedNoteEditor,
+    this.isPersonalNoteSkipped = false,
+    this.onSkipPersonalNote,
+    this.onRestorePersonalNote,
     this.reasonSlugs = const [],
     this.onEditReasons,
     this.onEditForward,
@@ -43,8 +44,9 @@ class ForwardRecipientRow extends StatelessWidget {
   final ForwardRecipientRowHost host;
   final bool isSelected;
   final VoidCallback? onToggle;
-  final bool personalizedNoteEditorOpen;
-  final VoidCallback? onTogglePersonalizedNoteEditor;
+  final bool isPersonalNoteSkipped;
+  final VoidCallback? onSkipPersonalNote;
+  final VoidCallback? onRestorePersonalNote;
 
   /// Capability reason slugs currently selected for this recipient.
   final List<String> reasonSlugs;
@@ -259,24 +261,28 @@ class ForwardRecipientRow extends StatelessWidget {
               ],
               if (isSelected &&
                   canSelectNew &&
-                  onTogglePersonalizedNoteEditor != null) ...[
+                  (isPersonalNoteSkipped
+                      ? onRestorePersonalNote != null
+                      : onSkipPersonalNote != null)) ...[
                 IconButton(
                   padding: EdgeInsets.zero,
                   constraints: const BoxConstraints(
                     minWidth: 44,
                     minHeight: 44,
                   ),
-                  tooltip: personalizedNoteEditorOpen
-                      ? l10n.forwardHidePersonalizedNote
-                      : l10n.forwardAddPersonalizedNote,
+                  tooltip: isPersonalNoteSkipped
+                      ? l10n.forwardRestorePersonalNote
+                      : l10n.forwardSkipPersonalNote,
                   icon: Icon(
-                    personalizedNoteEditorOpen
-                        ? Icons.expand_less
-                        : Icons.add_comment_outlined,
+                    isPersonalNoteSkipped
+                        ? Icons.add_comment_outlined
+                        : Icons.do_not_disturb_on_outlined,
                     size: tt.iconSize,
-                    color: personalizedNoteEditorOpen ? tt.info : tt.textMuted,
+                    color: tt.textMuted,
                   ),
-                  onPressed: onTogglePersonalizedNoteEditor,
+                  onPressed: isPersonalNoteSkipped
+                      ? onRestorePersonalNote
+                      : onSkipPersonalNote,
                 ),
                 SizedBox(width: tt.iconTextGap),
               ],
