@@ -52,7 +52,15 @@ class _InvitationAddresseeDialogState extends State<InvitationAddresseeDialog>
   @override
   Widget build(BuildContext context) {
     final l10n = L10n.of(context)!;
+    final theme = Theme.of(context);
+    final tt = context.tt;
+    final muted = TenturaText.bodySmall(theme.colorScheme.onSurfaceVariant);
     return AlertDialog(
+      scrollable: true,
+      insetPadding: EdgeInsets.symmetric(
+        horizontal: tt.screenHPadding,
+        vertical: tt.sectionGap,
+      ),
       title: Text(
         widget.isEdit
             ? l10n.invitationAddresseeEditTitle
@@ -67,23 +75,29 @@ class _InvitationAddresseeDialogState extends State<InvitationAddresseeDialog>
             if (!widget.isEdit) ...[
               Text(
                 l10n.invitationDualPurposeBody,
-                style: Theme.of(context).textTheme.bodySmall,
+                style: muted,
               ),
-              SizedBox(height: context.tt.rowGap),
+              SizedBox(height: tt.rowGap),
               Text(
                 l10n.invitationSingleUseBody,
-                style: Theme.of(context).textTheme.bodySmall,
+                style: muted,
               ),
-              SizedBox(height: context.tt.rowGap),
+              SizedBox(height: tt.sectionGap),
             ],
+            Text(
+              l10n.invitationAddresseeFieldLabel,
+              style: theme.textTheme.bodyMedium,
+            ),
+            SizedBox(height: tt.tightGap),
+            Text(
+              l10n.invitationAddresseeHelper,
+              style: muted,
+            ),
+            SizedBox(height: tt.rowGap),
             TextFormField(
               controller: _controller,
               autofocus: true,
               maxLength: kTitleMaxLength,
-              decoration: InputDecoration(
-                labelText: l10n.invitationAddresseeFieldLabel,
-                helperText: l10n.invitationAddresseeHelper,
-              ),
               validator: (value) => displayNameValidator(l10n, value?.trim()),
               onFieldSubmitted: (_) => _submit(),
             ),

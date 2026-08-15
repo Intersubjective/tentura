@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
@@ -72,5 +73,49 @@ void main() {
     expect(find.text(fieldLabel), findsOneWidget);
     expect(find.text(helper), findsOneWidget);
     expect(find.text('Save'), findsOneWidget);
+  });
+
+  testWidgets('Russian create copy wraps on a narrow phone', (tester) async {
+    tester.view.physicalSize = const Size(360, 800);
+    tester.view.devicePixelRatio = 1;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        locale: const Locale('ru'),
+        localizationsDelegates: L10n.localizationsDelegates,
+        supportedLocales: L10n.supportedLocales,
+        theme: TenturaTheme.light(),
+        home: Builder(
+          builder: (context) => Scaffold(
+            body: Center(
+              child: FilledButton(
+                onPressed: () {
+                  unawaited(InvitationAddresseeDialog.show(context));
+                },
+                child: const Text('Open dialog'),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    await tester.tap(find.text('Open dialog'));
+    await tester.pumpAndSettle();
+
+    const label = 'Приватное имя для этого человека';
+    const helper = 'Видно только вам. Можно сменить позже.';
+    expect(find.text(label), findsOneWidget);
+    expect(find.text(helper), findsOneWidget);
+    expect(
+      tester.renderObject<RenderParagraph>(find.text(label)).didExceedMaxLines,
+      isFalse,
+    );
+    expect(
+      tester.renderObject<RenderParagraph>(find.text(helper)).didExceedMaxLines,
+      isFalse,
+    );
   });
 }

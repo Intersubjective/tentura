@@ -5,6 +5,7 @@ import 'package:get_it/get_it.dart';
 import 'package:tentura_root/domain/entity/localizable.dart';
 
 import 'package:tentura/consts.dart';
+import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/string_input_validator.dart';
@@ -84,7 +85,15 @@ class _RenameContactDialogState extends State<RenameContactDialog>
   @override
   Widget build(BuildContext context) {
     final l10n = L10n.of(context)!;
+    final theme = Theme.of(context);
+    final tt = context.tt;
+    final muted = TenturaText.bodySmall(theme.colorScheme.onSurfaceVariant);
     return AlertDialog(
+      scrollable: true,
+      insetPadding: EdgeInsets.symmetric(
+        horizontal: tt.screenHPadding,
+        vertical: tt.sectionGap,
+      ),
       title: Text(l10n.renameContactTitle),
       content: Form(
         key: _formKey,
@@ -97,17 +106,23 @@ class _RenameContactDialogState extends State<RenameContactDialog>
                   ? l10n.renameContactOriginalName(widget.profile.displayName)
                   : '${l10n.renameContactOriginalName(widget.profile.displayName)}'
                         ' @${widget.profile.handle}',
-              style: Theme.of(context).textTheme.bodySmall,
+              style: muted,
             ),
-            const SizedBox(height: 12),
+            SizedBox(height: tt.sectionGap),
+            Text(
+              l10n.renameContactFieldLabel,
+              style: theme.textTheme.bodyMedium,
+            ),
+            SizedBox(height: tt.tightGap),
+            Text(
+              l10n.renameContactHelper,
+              style: muted,
+            ),
+            SizedBox(height: tt.rowGap),
             TextFormField(
               controller: _controller,
               autofocus: true,
               maxLength: kTitleMaxLength,
-              decoration: InputDecoration(
-                labelText: l10n.renameContactFieldLabel,
-                helperText: l10n.renameContactHelper,
-              ),
               validator: (value) =>
                   displayNameValidator(l10n, value?.trim()),
               onFieldSubmitted: (_) => unawaited(_save()),
