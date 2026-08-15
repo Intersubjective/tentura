@@ -46,6 +46,8 @@ abstract final class TestIds {
   static const beaconTabLog = 'beacon.tab.log';
   static const beaconDetailsOpen = 'beacon.details.open';
   static const beaconFactsOpen = 'beacon.facts.open';
+  static const beaconFactsAdd = 'beacon.facts.add';
+  static const beaconFactsComposerSubmit = 'beacon.facts.composer.submit';
 
   static const coordinationAskCreate = 'coordination.ask.create';
   static const coordinationPromiseCreate = 'coordination.promise.create';

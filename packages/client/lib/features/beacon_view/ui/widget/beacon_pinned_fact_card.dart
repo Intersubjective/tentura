@@ -15,12 +15,13 @@ import 'package:tentura/ui/widget/url_link_annotations.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/room_message_trailing_meta_layout.dart';
 
 /// Full-width pinned-fact card for the facts sheet (intrinsic height).
-class BeaconPinnedFactCard extends StatelessWidget {
+class BeaconPinnedFactCard extends StatefulWidget {
   const BeaconPinnedFactCard({
     required this.fact,
     required this.l10n,
     this.isNew = false,
     this.onManage,
+    this.showPointerManage = false,
     super.key,
   });
 
@@ -29,8 +30,22 @@ class BeaconPinnedFactCard extends StatelessWidget {
   final bool isNew;
   final VoidCallback? onManage;
 
+  /// Hover ⋮ for coordinators on pointer devices. Long-press still uses
+  /// [onManage] for every viewer.
+  final bool showPointerManage;
+
+  @override
+  State<BeaconPinnedFactCard> createState() => _BeaconPinnedFactCardState();
+}
+
+class _BeaconPinnedFactCardState extends State<BeaconPinnedFactCard> {
+  var _hovering = false;
+
   @override
   Widget build(BuildContext context) {
+    final fact = widget.fact;
+    final l10n = widget.l10n;
+    final onManage = widget.onManage;
     final scheme = Theme.of(context).colorScheme;
     final tt = context.tt;
     final images = _imageAttachments(fact);
@@ -46,6 +61,9 @@ class BeaconPinnedFactCard extends StatelessWidget {
         !desktopSelection &&
         (hasText || images.isEmpty && files.isEmpty);
 
+    final showHoverToolbar =
+        _hovering && widget.showPointerManage && onManage != null;
+
     return Material(
       color: scheme.surfaceContainerHighest.withValues(alpha: 0.4),
       shape: RoundedRectangleBorder(
@@ -53,65 +71,89 @@ class BeaconPinnedFactCard extends StatelessWidget {
         side: BorderSide(color: scheme.outlineVariant),
       ),
       clipBehavior: Clip.hardEdge,
-      child: InkWell(
-        onLongPress: onManage,
-        onTap: touchTapEnabled ? onManage : null,
-        onSecondaryTap: desktopSelection ? onManage : null,
-        child: Padding(
-          padding: tt.cardPadding,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: RoomPinnedFactVisibilityMark(
-                      visibility: fact.visibility,
-                      compact: true,
+      child: MouseRegion(
+        onEnter: (_) {
+          if (!_hovering) setState(() => _hovering = true);
+        },
+        onExit: (_) {
+          if (_hovering) setState(() => _hovering = false);
+        },
+        child: Stack(
+          children: [
+            InkWell(
+              onLongPress: onManage,
+              onTap: touchTapEnabled ? onManage : null,
+              onSecondaryTap: desktopSelection ? onManage : null,
+              child: Padding(
+                padding: tt.cardPadding,
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: RoomPinnedFactVisibilityMark(
+                            visibility: fact.visibility,
+                            compact: true,
+                          ),
+                        ),
+                        if (widget.isNew)
+                          TenturaStatusText(
+                            l10n.beaconPinnedFactNewBadge,
+                            tone: TenturaTone.info,
+                          ),
+                      ],
                     ),
-                  ),
-                  if (isNew)
-                    TenturaStatusText(
-                      l10n.beaconPinnedFactNewBadge,
-                      tone: TenturaTone.info,
-                    ),
-                ],
+                    SizedBox(height: tt.rowGap / 2),
+                    if (images.isNotEmpty)
+                      _FactCardImageZone(images: images),
+                    if (images.isNotEmpty &&
+                        (hasText || files.isNotEmpty || corrected))
+                      SizedBox(height: tt.rowGap),
+                    if (hasText)
+                      TenturaSelectionArea(
+                        child: Text.rich(
+                          buildRoomMessageAnnotatedBodySpan(
+                            data: fact.factText,
+                            textStyle: TenturaText.bodyMedium(scheme.onSurface),
+                            annotations: buildUrlAnnotations(
+                              linkColor: tt.info,
+                            ),
+                          ),
+                          maxLines: 6,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    if (hasText && (files.isNotEmpty || corrected))
+                      SizedBox(height: tt.rowGap),
+                    for (var i = 0; i < files.length; i++) ...[
+                      if (i > 0) SizedBox(height: tt.rowGap / 2),
+                      _FactCardFileRow(attachment: files[i], l10n: l10n),
+                    ],
+                    if (files.isNotEmpty && corrected)
+                      SizedBox(height: tt.rowGap),
+                    if (corrected)
+                      Text(
+                        l10n.beaconRoomFactCardCorrectedBadge,
+                        style: TenturaText.status(scheme.tertiary),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                  ],
+                ),
               ),
-              SizedBox(height: tt.rowGap / 2),
-              if (images.isNotEmpty)
-                _FactCardImageZone(images: images),
-              if (images.isNotEmpty &&
-                  (hasText || files.isNotEmpty || corrected))
-                SizedBox(height: tt.rowGap),
-              if (hasText)
-                TenturaSelectionArea(
-                  child: Text.rich(
-                    buildRoomMessageAnnotatedBodySpan(
-                      data: fact.factText,
-                      textStyle: TenturaText.bodyMedium(scheme.onSurface),
-                      annotations: buildUrlAnnotations(linkColor: tt.info),
-                    ),
-                    maxLines: 6,
-                    overflow: TextOverflow.ellipsis,
-                  ),
+            ),
+            if (showHoverToolbar)
+              Positioned(
+                top: 0,
+                right: 0,
+                child: _FactHoverManageButton(
+                  tooltip: l10n.beaconRoomFactManageSheetTitle,
+                  onPressed: onManage,
                 ),
-              if (hasText && (files.isNotEmpty || corrected))
-                SizedBox(height: tt.rowGap),
-              for (var i = 0; i < files.length; i++) ...[
-                if (i > 0) SizedBox(height: tt.rowGap / 2),
-                _FactCardFileRow(attachment: files[i], l10n: l10n),
-              ],
-              if (files.isNotEmpty && corrected) SizedBox(height: tt.rowGap),
-              if (corrected)
-                Text(
-                  l10n.beaconRoomFactCardCorrectedBadge,
-                  style: TenturaText.status(scheme.tertiary),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-            ],
-          ),
+              ),
+          ],
         ),
       ),
     );
@@ -123,6 +165,33 @@ List<RoomMessageAttachment> _imageAttachments(BeaconFactCard fact) =>
 
 List<RoomMessageAttachment> _fileAttachments(BeaconFactCard fact) =>
     fact.attachments.where((a) => a.isFile).toList();
+
+class _FactHoverManageButton extends StatelessWidget {
+  const _FactHoverManageButton({
+    required this.tooltip,
+    required this.onPressed,
+  });
+
+  final String tooltip;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Material(
+      elevation: 2,
+      color: scheme.surfaceContainerHigh,
+      shape: const StadiumBorder(),
+      child: IconButton(
+        visualDensity: VisualDensity.compact,
+        iconSize: context.tt.iconSize,
+        tooltip: tooltip,
+        icon: const Icon(Icons.more_horiz),
+        onPressed: onPressed,
+      ),
+    );
+  }
+}
 
 class _FactCardImageZone extends StatefulWidget {
   const _FactCardImageZone({required this.images});
@@ -270,7 +339,6 @@ class _FactCardImageNavButton extends StatelessWidget {
     return Center(
       child: Material(
         color: scheme.surfaceContainerHighest.withValues(alpha: 0.88),
-        elevation: 0,
         shape: const CircleBorder(),
         clipBehavior: Clip.antiAlias,
         child: IconButton(

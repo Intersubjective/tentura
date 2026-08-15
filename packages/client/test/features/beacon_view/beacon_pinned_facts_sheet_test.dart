@@ -11,6 +11,7 @@ import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_cubit.dart';
 import 'package:tentura/features/beacon_view/ui/widget/beacon_pinned_fact_card.dart';
 import 'package:tentura/features/beacon_view/ui/widget/beacon_pinned_facts_sheet.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/test_ids.dart';
 
 import '../../ui/effect/fake_ui_effect_port.dart';
 import '../beacon_threads/fake_coordination_item_case.dart';
@@ -51,7 +52,9 @@ void main() {
   Future<BeaconViewCubit> loadedCubit({
     required List<BeaconFactCard> cards,
     DateTime? baselineFactsAt,
+    Profile? profile,
   }) async {
+    final me = profile ?? myProfile;
     final case_ = buildTestBeaconViewCase(
       beaconRepo: TrackingBeaconRepository()
         ..fetchByIdHandler = (_) async => readableBeacon(),
@@ -60,13 +63,13 @@ void main() {
     if (baselineFactsAt != null) {
       case_.baselinePinnedFactsIfNeeded(
         beaconId: beaconId,
-        userId: myProfile.id,
+        userId: me.id,
         facts: [fact(id: 'baseline', createdAt: baselineFactsAt)],
       );
     }
     final cubit = BeaconViewCubit(
       id: beaconId,
-      myProfile: myProfile,
+      myProfile: me,
       beaconViewCase: case_,
       coordinationItemCase: const FakeCoordinationItemCaseForRoom(),
       effects: FakeUiEffectPort(),
@@ -174,5 +177,127 @@ void main() {
     await tester.pump(const Duration(milliseconds: 400));
 
     expect(cubit.state.pinnedFactsSeenAt, t1);
+  });
+
+  Widget sheetHost(BeaconViewCubit cubit) {
+    return MaterialApp(
+      theme: TenturaTheme.light(),
+      localizationsDelegates: L10n.localizationsDelegates,
+      supportedLocales: L10n.supportedLocales,
+      locale: const Locale('en'),
+      home: TenturaResponsiveScope(
+        child: Scaffold(
+          body: Builder(
+            builder: (ctx) => TextButton(
+              onPressed: () => showBeaconPinnedFactsSheet(
+                ctx,
+                cubit: cubit,
+              ),
+              child: const Text('open'),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  testWidgets('Add fact is hidden without coordination', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(375, 812));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    final cubit = (await tester.runAsync(
+      () => loadedCubit(cards: [fact(id: 'f1', createdAt: t0)]),
+    ))!;
+    addTearDown(cubit.close);
+
+    await tester.pumpWidget(sheetHost(cubit));
+    await tester.tap(find.text('open'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+
+    final l10n = await L10n.delegate.load(const Locale('en'));
+    expect(find.text(l10n.beaconFactsAddFact), findsNothing);
+  });
+
+  testWidgets('Add fact opens composer for the author', (tester) async {
+    await tester.binding.setSurfaceSize(const Size(375, 812));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    const author = Profile(id: 'Uauthor', displayName: 'Author');
+    final cubit = (await tester.runAsync(
+      () => loadedCubit(
+        cards: [fact(id: 'f1', createdAt: t0)],
+        profile: author,
+      ),
+    ))!;
+    addTearDown(cubit.close);
+
+    await tester.pumpWidget(sheetHost(cubit));
+    await tester.tap(find.text('open'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+
+    final l10n = await L10n.delegate.load(const Locale('en'));
+    expect(find.text(l10n.beaconFactsAddFact), findsOneWidget);
+
+    await tester.tap(find.byKey(TestIds.key(TestIds.beaconFactsAdd)));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+
+    expect(find.text(l10n.beaconFactsComposerTitle), findsOneWidget);
+    expect(find.text(l10n.beaconFactsSheetTitle), findsOneWidget);
+  });
+
+  testWidgets('new fact appears without closing the facts sheet', (
+    tester,
+  ) async {
+    await tester.binding.setSurfaceSize(const Size(375, 812));
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    const author = Profile(id: 'Uauthor', displayName: 'Author');
+    final factsRepo = FakeBeaconViewFactCardRepository(
+      cards: [fact(id: 'f1', createdAt: t0)],
+    );
+    final cubit = (await tester.runAsync(() async {
+      final case_ = buildTestBeaconViewCase(
+        beaconRepo: TrackingBeaconRepository()
+          ..fetchByIdHandler = (_) async => readableBeacon(),
+        factCardsRepo: factsRepo,
+        roomRepo: FakeBeaconViewRoomRepository(),
+      );
+      final c = BeaconViewCubit(
+        id: beaconId,
+        myProfile: author,
+        beaconViewCase: case_,
+        coordinationItemCase: const FakeCoordinationItemCaseForRoom(),
+        effects: FakeUiEffectPort(),
+      );
+      await pumpUntil(c.stream, () => c.state.beaconContextLoaded);
+      return c;
+    }))!;
+    addTearDown(cubit.close);
+
+    await tester.pumpWidget(sheetHost(cubit));
+    await tester.tap(find.text('open'));
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+
+    factsRepo.cards = [
+      fact(id: 'f1', createdAt: t0),
+      fact(id: 'f2', createdAt: t1, pinnedBy: author.id),
+    ];
+    await tester.runAsync(
+      () => cubit.pinFactFromComposer(
+        messageBody: 'Fact f2',
+        factText: 'Fact f2',
+        visibility: BeaconFactCardVisibilityBits.public,
+      ),
+    );
+    await tester.pump();
+    await tester.pump(const Duration(milliseconds: 400));
+
+    final l10n = await L10n.delegate.load(const Locale('en'));
+    expect(find.text(l10n.beaconFactsSheetTitle), findsOneWidget);
+    expect(find.text('Fact f2'), findsOneWidget);
   });
 }

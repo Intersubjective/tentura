@@ -19,6 +19,7 @@ import 'package:tentura/ui/widget/basic_chat_body.dart';
 
 import 'package:tentura/ui/bloc/state_base.dart';
 
+import 'package:tentura/features/beacon_view/domain/pinned_facts.dart';
 import 'package:tentura/features/beacon_view/ui/util/beacon_hud_derivation.dart';
 import 'package:tentura/ui/widget/hud_labeled_multiline.dart';
 import 'package:tentura/ui/widget/beacon_hud_row_lead.dart';
@@ -66,28 +67,15 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
 
   /// Non-empty text for [BeaconFactCard]; attachments use names or [L10n.beaconRoomPinFactAttachmentBodyFallback].
   String _pinFactTextForMessage(RoomMessage message, L10n l10n) {
-    final body = message.body.trim();
-    if (body.isNotEmpty) {
-      return body;
-    }
-    if (message.attachments.isEmpty) {
-      return '';
-    }
-    final names = <String>[];
-    for (final a in message.attachments) {
-      final n = a.fileName.trim();
-      if (n.isNotEmpty) {
-        names.add(n);
-      }
-    }
-    if (names.isNotEmpty) {
-      const maxNames = 3;
-      if (names.length <= maxNames) {
-        return names.join(', ');
-      }
-      return '${names.take(maxNames).join(', ')}…';
-    }
-    return l10n.beaconRoomPinFactAttachmentBodyFallback;
+    return pinFactTextForPin(
+      body: message.body,
+      attachmentCount: message.attachments.length,
+      attachmentFileNames: [
+        for (final a in message.attachments)
+          if (a.fileName.trim().isNotEmpty) a.fileName.trim(),
+      ],
+      attachmentFallback: l10n.beaconRoomPinFactAttachmentBodyFallback,
+    );
   }
 
   @override

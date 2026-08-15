@@ -39,6 +39,18 @@ final class BeaconFactPinSuccessMessage extends LocalizableMessage {
   String get toRu => 'Факт закреплён.';
 }
 
+final class BeaconFactPinMessageKeptMessage extends LocalizableMessage {
+  const BeaconFactPinMessageKeptMessage();
+
+  @override
+  String get toEn =>
+      'Posted to the discussion, but the fact could not be pinned.';
+
+  @override
+  String get toRu =>
+      'Сообщение в обсуждении отправлено, но закрепить факт не удалось.';
+}
+
 final class BeaconFactRemoveSuccessMessage extends LocalizableMessage {
   const BeaconFactRemoveSuccessMessage();
 

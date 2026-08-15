@@ -1,3 +1,4 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -64,6 +65,8 @@ Widget _harness({
   required BeaconFactCard fact,
   bool isNew = false,
   TargetPlatform? platform,
+  VoidCallback? onManage,
+  bool showPointerManage = false,
 }) {
   return MaterialApp(
     theme: TenturaTheme.light().copyWith(
@@ -79,6 +82,8 @@ Widget _harness({
             fact: fact,
             l10n: L10n.of(context)!,
             isNew: isNew,
+            onManage: onManage,
+            showPointerManage: showPointerManage,
           ),
         ),
       ),
@@ -207,5 +212,66 @@ void main() {
 
     expect(find.byType(SelectableText), findsNothing);
     expect(find.byType(SelectionArea), findsOneWidget);
+  });
+
+  Future<void> hoverCard(WidgetTester tester) async {
+    final center = tester.getCenter(find.byType(BeaconPinnedFactCard));
+    final gesture = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    await gesture.addPointer(location: center);
+    addTearDown(gesture.removePointer);
+    await gesture.moveTo(center);
+    await tester.pumpAndSettle();
+  }
+
+  testWidgets('hover more is hidden until pointer hover', (tester) async {
+    final l10n = await L10n.delegate.load(const Locale('en'));
+    var manages = 0;
+    await tester.pumpWidget(
+      _harness(
+        fact: _fact(id: 'f1', text: 'Hover me'),
+        onManage: () => manages++,
+        showPointerManage: true,
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.byTooltip(l10n.beaconRoomFactManageSheetTitle), findsNothing);
+
+    await hoverCard(tester);
+
+    expect(find.byTooltip(l10n.beaconRoomFactManageSheetTitle), findsOneWidget);
+    await tester.tap(find.byTooltip(l10n.beaconRoomFactManageSheetTitle));
+    expect(manages, 1);
+  });
+
+  testWidgets('hover more stays hidden without showPointerManage', (
+    tester,
+  ) async {
+    final l10n = await L10n.delegate.load(const Locale('en'));
+    await tester.pumpWidget(
+      _harness(
+        fact: _fact(id: 'f1', text: 'Viewer fact'),
+        onManage: () {},
+      ),
+    );
+    await tester.pumpAndSettle();
+    await hoverCard(tester);
+
+    expect(find.byTooltip(l10n.beaconRoomFactManageSheetTitle), findsNothing);
+  });
+
+  testWidgets('long-press still manages without hover', (tester) async {
+    var manages = 0;
+    await tester.pumpWidget(
+      _harness(
+        fact: _fact(id: 'f1', text: 'Press me'),
+        onManage: () => manages++,
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.longPress(find.byType(BeaconPinnedFactCard));
+    await tester.pumpAndSettle();
+    expect(manages, 1);
   });
 }

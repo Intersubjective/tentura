@@ -10,6 +10,7 @@ import 'package:tentura/domain/entity/beacon_participant.dart';
 import 'package:tentura/domain/entity/repository_event.dart';
 import 'package:tentura/env.dart';
 import 'package:tentura/domain/entity/profile.dart';
+import 'package:tentura/domain/entity/room_pending_upload.dart';
 import 'package:tentura/features/beacon/data/repository/beacon_repository.dart';
 import 'package:tentura/features/beacon_threads/data/repository/beacon_activity_event_repository.dart';
 import 'package:tentura/features/beacon_threads/data/repository/beacon_fact_card_repository.dart';
@@ -349,6 +350,13 @@ class FakeBeaconViewFactCardRepository implements BeaconFactCardRepository {
   final removedIds = <String>[];
   final correctedIds = <String>[];
   final visibilityUpdates = <String, int>{};
+  final pins = <({
+    String beaconId,
+    String factText,
+    int visibility,
+    String? sourceMessageId,
+  })>[];
+  Object? pinError;
 
   @override
   Future<List<BeaconFactCard>> list({required String beaconId}) async {
@@ -386,6 +394,22 @@ class FakeBeaconViewFactCardRepository implements BeaconFactCardRepository {
   }
 
   @override
+  Future<void> pin({
+    required String beaconId,
+    required String factText,
+    required int visibility,
+    String? sourceMessageId,
+  }) async {
+    if (pinError != null) _throwTestError(pinError!);
+    pins.add((
+      beaconId: beaconId,
+      factText: factText,
+      visibility: visibility,
+      sourceMessageId: sourceMessageId,
+    ));
+  }
+
+  @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
@@ -397,6 +421,19 @@ class FakeBeaconViewRoomRepository implements BeaconThreadsRepository {
 
   Duration enrichmentDelay;
   List<BeaconParticipant> participants;
+  String nextMessageId = 'Mcreated01';
+  Object? createError;
+  final createdMessages = <({
+    String beaconId,
+    String body,
+    String? threadItemId,
+    RoomPendingUpload? firstAttachment,
+  })>[];
+  final addedAttachments = <({
+    String beaconId,
+    String messageId,
+    RoomPendingUpload upload,
+  })>[];
 
   final _roomInvalidations =
       StreamController<BeaconRoomInvalidation>.broadcast();
@@ -417,6 +454,37 @@ class FakeBeaconViewRoomRepository implements BeaconThreadsRepository {
   Future<List<BeaconParticipant>> fetchParticipants(String beaconId) async {
     await Future<void>.delayed(enrichmentDelay);
     return participants;
+  }
+
+  @override
+  Future<String> createMessage({
+    required String beaconId,
+    required String body,
+    String? replyToMessageId,
+    String? threadItemId,
+    RoomPendingUpload? firstAttachment,
+  }) async {
+    if (createError != null) _throwTestError(createError!);
+    createdMessages.add((
+      beaconId: beaconId,
+      body: body,
+      threadItemId: threadItemId,
+      firstAttachment: firstAttachment,
+    ));
+    return nextMessageId;
+  }
+
+  @override
+  Future<void> addMessageAttachment({
+    required String beaconId,
+    required String messageId,
+    required RoomPendingUpload upload,
+  }) async {
+    addedAttachments.add((
+      beaconId: beaconId,
+      messageId: messageId,
+      upload: upload,
+    ));
   }
 
   @override

@@ -12,6 +12,7 @@ class BeaconDetailsFactsAccessRow extends StatelessWidget {
     required this.factsNewCount,
     required this.onOpenDetails,
     required this.onOpenFacts,
+    this.canAddFacts = false,
     super.key,
   });
 
@@ -20,10 +21,12 @@ class BeaconDetailsFactsAccessRow extends StatelessWidget {
   final int factsNewCount;
   final VoidCallback? onOpenDetails;
   final VoidCallback? onOpenFacts;
+  final bool canAddFacts;
 
   @override
   Widget build(BuildContext context) {
-    final showFacts = factsCount > 0;
+    final showFacts =
+        (factsCount > 0 || canAddFacts) && onOpenFacts != null;
     if (!showDetails && !showFacts) {
       return const SizedBox.shrink();
     }
@@ -113,7 +116,7 @@ class BeaconDetailsFactsAccessRow extends StatelessWidget {
           label: l10n.beaconFactsRowLabel,
           icon: Icons.article_outlined,
           onTap: onOpenFacts,
-          count: factsCount,
+          count: factsCount > 0 ? factsCount : null,
           newCount: factsNewCount,
         );
 

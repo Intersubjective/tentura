@@ -101,6 +101,7 @@ class BeaconOperationalHeaderCard extends StatelessWidget {
               seenAt: state.pinnedFactsSeenAt,
               viewerUserId: state.myProfile.id,
             ),
+            canAddFacts: state.canCoordinateInBeaconRoom,
             onOpenDetails: () => unawaited(
               showBeaconViewDetailsSheet(context, beacon: state.beacon),
             ),

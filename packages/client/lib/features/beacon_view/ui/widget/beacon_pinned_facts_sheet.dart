@@ -7,8 +7,10 @@ import 'package:tentura/domain/entity/beacon_fact_card.dart';
 import 'package:tentura/features/beacon_view/domain/pinned_facts.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_cubit.dart';
 import 'package:tentura/features/beacon_view/ui/util/beacon_fact_actions.dart';
+import 'package:tentura/features/beacon_view/ui/widget/beacon_fact_composer_sheet.dart';
 import 'package:tentura/features/beacon_view/ui/widget/beacon_pinned_fact_card.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/test_ids.dart';
 
 const double _kFactsGridMinWidth = 520;
 const double _kFactsGridExtent = 280;
@@ -59,71 +61,90 @@ class _BeaconPinnedFactsSheetBody extends StatelessWidget {
             tt.screenHPadding,
             tt.rowGap,
           ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text(
-                l10n.beaconFactsSheetTitle,
-                style: Theme.of(context).textTheme.titleSmall,
-              ),
-              SizedBox(height: tt.rowGap),
-              Expanded(
-                child: BlocBuilder<BeaconViewCubit, BeaconViewState>(
-                  bloc: cubit,
-                  buildWhen: (p, c) => p.factCards != c.factCards,
-                  builder: (context, state) {
-                    final facts = activePinnedFacts(state.factCards);
-                    if (facts.isEmpty) {
-                      return Text(
-                        l10n.beaconFactsSheetEmpty,
-                        style: TenturaText.bodyMedium(tt.textMuted),
-                      );
-                    }
-                    final viewerId = state.myProfile.id;
-                    Widget cardFor(BeaconFactCard fact) => BeaconPinnedFactCard(
-                      fact: fact,
-                      l10n: l10n,
-                      isNew: pinnedFactIsNew(
-                        fact: fact,
-                        seenAt: newSince,
-                        viewerUserId: viewerId,
-                      ),
-                      onManage: () => unawaited(
-                        showBeaconFactActions(
+          child: BlocBuilder<BeaconViewCubit, BeaconViewState>(
+            bloc: cubit,
+            buildWhen: (p, c) =>
+                p.factCards != c.factCards ||
+                p.canCoordinateInBeaconRoom != c.canCoordinateInBeaconRoom,
+            builder: (context, state) {
+              final facts = activePinnedFacts(state.factCards);
+              final canAdd = state.canCoordinateInBeaconRoom;
+              final viewerId = state.myProfile.id;
+
+              Widget cardFor(BeaconFactCard fact) => BeaconPinnedFactCard(
+                fact: fact,
+                l10n: l10n,
+                isNew: pinnedFactIsNew(
+                  fact: fact,
+                  seenAt: newSince,
+                  viewerUserId: viewerId,
+                ),
+                showPointerManage: canAdd,
+                onManage: () => unawaited(
+                  showBeaconFactActions(
+                    pageContext,
+                    cubit: cubit,
+                    fact: fact,
+                  ),
+                ),
+              );
+
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  Text(
+                    l10n.beaconFactsSheetTitle,
+                    style: Theme.of(context).textTheme.titleSmall,
+                  ),
+                  SizedBox(height: tt.rowGap),
+                  Expanded(
+                    child: facts.isEmpty
+                        ? Text(
+                            l10n.beaconFactsSheetEmpty,
+                            style: TenturaText.bodyMedium(tt.textMuted),
+                          )
+                        : LayoutBuilder(
+                            builder: (context, constraints) {
+                              if (constraints.maxWidth < _kFactsGridMinWidth) {
+                                return ListView.separated(
+                                  itemCount: facts.length,
+                                  separatorBuilder: (_, _) =>
+                                      SizedBox(height: tt.rowGap),
+                                  itemBuilder: (_, index) =>
+                                      cardFor(facts[index]),
+                                );
+                              }
+                              return GridView.builder(
+                                gridDelegate:
+                                    SliverGridDelegateWithMaxCrossAxisExtent(
+                                      maxCrossAxisExtent: _kFactsGridExtent,
+                                      mainAxisSpacing: tt.rowGap,
+                                      crossAxisSpacing: tt.rowGap,
+                                      childAspectRatio: 0.72,
+                                    ),
+                                itemCount: facts.length,
+                                itemBuilder: (_, index) =>
+                                    cardFor(facts[index]),
+                              );
+                            },
+                          ),
+                  ),
+                  if (canAdd) ...[
+                    SizedBox(height: tt.rowGap),
+                    TenturaCommandButton(
+                      key: TestIds.key(TestIds.beaconFactsAdd),
+                      label: l10n.beaconFactsAddFact,
+                      onPressed: () => unawaited(
+                        showBeaconFactComposerSheet(
                           pageContext,
                           cubit: cubit,
-                          fact: fact,
                         ),
                       ),
-                    );
-
-                    return LayoutBuilder(
-                      builder: (context, constraints) {
-                        if (constraints.maxWidth < _kFactsGridMinWidth) {
-                          return ListView.separated(
-                            itemCount: facts.length,
-                            separatorBuilder: (_, _) =>
-                                SizedBox(height: tt.rowGap),
-                            itemBuilder: (_, index) => cardFor(facts[index]),
-                          );
-                        }
-                        return GridView.builder(
-                          gridDelegate:
-                              SliverGridDelegateWithMaxCrossAxisExtent(
-                                maxCrossAxisExtent: _kFactsGridExtent,
-                                mainAxisSpacing: tt.rowGap,
-                                crossAxisSpacing: tt.rowGap,
-                                childAspectRatio: 0.72,
-                              ),
-                          itemCount: facts.length,
-                          itemBuilder: (_, index) => cardFor(facts[index]),
-                        );
-                      },
-                    );
-                  },
-                ),
-              ),
-            ],
+                    ),
+                  ],
+                ],
+              );
+            },
           ),
         ),
       ),

@@ -99,4 +99,61 @@ void main() {
       0,
     );
   });
+
+  test('pinFactTextForPin uses body when present', () {
+    expect(
+      pinFactTextForPin(
+        body: '  hello  ',
+        attachmentCount: 2,
+        attachmentFileNames: ['a.png'],
+        attachmentFallback: 'Attachment',
+      ),
+      'hello',
+    );
+  });
+
+  test('pinFactTextForPin empty body and zero attachments is empty', () {
+    expect(
+      pinFactTextForPin(
+        body: '  ',
+        attachmentCount: 0,
+        attachmentFileNames: const [],
+        attachmentFallback: 'Attachment',
+      ),
+      '',
+    );
+  });
+
+  test('pinFactTextForPin joins up to three names', () {
+    expect(
+      pinFactTextForPin(
+        body: '',
+        attachmentCount: 2,
+        attachmentFileNames: ['a.png', 'b.pdf'],
+        attachmentFallback: 'Attachment',
+      ),
+      'a.png, b.pdf',
+    );
+    expect(
+      pinFactTextForPin(
+        body: '',
+        attachmentCount: 4,
+        attachmentFileNames: ['a', 'b', 'c', 'd'],
+        attachmentFallback: 'Attachment',
+      ),
+      'a, b, c…',
+    );
+  });
+
+  test('pinFactTextForPin unnamed attachments use fallback', () {
+    expect(
+      pinFactTextForPin(
+        body: '',
+        attachmentCount: 1,
+        attachmentFileNames: const ['  '],
+        attachmentFallback: 'Attachment',
+      ),
+      'Attachment',
+    );
+  });
 }

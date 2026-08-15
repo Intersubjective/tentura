@@ -118,13 +118,13 @@ class BeaconOperationalScrollView extends StatelessWidget {
           (p.roomParticipants
                   .map(
                     (e) =>
-                        '${e.userId}|${e.userTitle}|${e.nextMoveText}|${e.status}|${e.nextMoveStatus}',
+                        '${e.userId}|${e.userTitle}|${e.nextMoveText}|${e.status}|${e.nextMoveStatus}|${e.roomAccess}|${e.role}',
                   )
                   .join() !=
               c.roomParticipants
                   .map(
                     (e) =>
-                        '${e.userId}|${e.userTitle}|${e.nextMoveText}|${e.status}|${e.nextMoveStatus}',
+                        '${e.userId}|${e.userTitle}|${e.nextMoveText}|${e.status}|${e.nextMoveStatus}|${e.roomAccess}|${e.role}',
                   )
                   .join()) ||
           p.beaconRoomCue?.lastRoomMeaningfulChange !=

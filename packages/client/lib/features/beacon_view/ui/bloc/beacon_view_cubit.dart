@@ -17,6 +17,7 @@ import 'package:tentura/domain/entity/beacon_room_state.dart';
 import 'package:tentura/domain/entity/help_offer_admission_action.dart';
 import 'package:tentura/domain/entity/beacon_display_status_dto.dart';
 import 'package:tentura/domain/entity/profile.dart';
+import 'package:tentura/domain/entity/room_pending_upload.dart';
 import 'package:tentura/domain/entity/realtime/realtime_entity_change.dart';
 import 'package:tentura/domain/entity/repository_event.dart';
 import 'package:tentura/features/forward/data/repository/forward_repository.dart'
@@ -37,6 +38,7 @@ import 'package:tentura/features/evaluation/domain/entity/review_window_info.dar
 
 import '../../domain/use_case/beacon_view_case.dart';
 import 'package:tentura/features/beacon/domain/exception.dart';
+import 'package:tentura/features/beacon_threads/domain/exception/beacon_fact_pin_after_message_exception.dart';
 import 'package:tentura/features/beacon_threads/ui/message/beacon_room_fact_messages.dart';
 import '../message/help_offer_messages.dart';
 import 'beacon_view_state.dart';
@@ -938,6 +940,32 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
     } on Object catch (e) {
       _showSnackError(e);
     }
+  }
+
+  Future<bool> pinFactFromComposer({
+    required String messageBody,
+    required String factText,
+    required int visibility,
+    List<RoomPendingUpload> uploads = const [],
+  }) async {
+    try {
+      await _case.pinFactFromComposer(
+        beaconId: state.beacon.id,
+        messageBody: messageBody,
+        factText: factText,
+        visibility: visibility,
+        uploads: uploads,
+      );
+    } on BeaconFactPinAfterMessageException {
+      _effects.emit(const ShowMessage(BeaconFactPinMessageKeptMessage()));
+      return false;
+    } on Object catch (e) {
+      _showSnackError(e);
+      return false;
+    }
+    await _refreshFactCards(state.beacon.id);
+    _effects.emit(const ShowMessage(BeaconFactPinSuccessMessage()));
+    return true;
   }
 
   Future<void> _fetchBeaconByIdWithTimeline({bool background = false}) async {

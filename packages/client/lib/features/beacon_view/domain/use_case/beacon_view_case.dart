@@ -10,6 +10,8 @@ import 'package:tentura/domain/entity/beacon_participant.dart';
 import 'package:tentura/domain/entity/beacon_room_state.dart';
 import 'package:tentura/domain/entity/coordination_item.dart';
 import 'package:tentura/domain/entity/profile.dart';
+import 'package:tentura/domain/entity/room_pending_upload.dart';
+import 'package:tentura/features/beacon_threads/domain/exception/beacon_fact_pin_after_message_exception.dart';
 import 'package:tentura/domain/entity/realtime/realtime_entity_change.dart';
 import 'package:tentura/domain/entity/repository_event.dart';
 import 'package:tentura/domain/use_case/realtime_sync_case.dart';
@@ -304,6 +306,39 @@ final class BeaconViewCase extends UseCaseBase {
     factCardId: factCardId,
     visibility: visibility,
   );
+
+  /// Posts to General (`threadItemId: null`) then pins. [messageBody] is the
+  /// chat line; [factText] is the already-resolved fact card text.
+  Future<void> pinFactFromComposer({
+    required String beaconId,
+    required String messageBody,
+    required String factText,
+    required int visibility,
+    List<RoomPendingUpload> uploads = const [],
+  }) async {
+    final messageId = await _beaconRoomCase.createMessage(
+      beaconId: beaconId,
+      body: messageBody,
+      threadItemId: null,
+      uploads: uploads,
+    );
+    if (messageId == null) {
+      throw ArgumentError('messageBody');
+    }
+    try {
+      await _factCards.pin(
+        beaconId: beaconId,
+        factText: factText,
+        visibility: visibility,
+        sourceMessageId: messageId,
+      );
+    } on Object catch (e) {
+      throw BeaconFactPinAfterMessageException(
+        messageId: messageId,
+        cause: e,
+      );
+    }
+  }
 
   DateTime? pinnedFactsSeenAt(String beaconId, String userId) =>
       _pinnedFactsSeenAt[_pinnedFactsSeenKey(userId, beaconId)];

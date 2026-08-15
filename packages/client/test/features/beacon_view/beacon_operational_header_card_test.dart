@@ -302,6 +302,28 @@ void main() {
     expect(find.text(l10n.beaconFactsRowLabel), findsNothing);
   });
 
+  testWidgets('HUD Facts row shows for author with zero facts when openable', (
+    tester,
+  ) async {
+    final state = BeaconViewState(
+      beacon: _openAuthorBeacon(),
+      myProfile: authorProfile,
+      beaconContextLoaded: true,
+    );
+    var opens = 0;
+    await _pumpHeaderCard(
+      tester,
+      state: state,
+      onOpenPinnedFacts: () => opens++,
+    );
+
+    final l10n = await L10n.delegate.load(const Locale('en'));
+    expect(find.text(l10n.beaconFactsRowLabel), findsOneWidget);
+    await tester.tap(find.byKey(TestIds.key(TestIds.beaconFactsOpen)));
+    await tester.pumpAndSettle();
+    expect(opens, 1);
+  });
+
   testWidgets('NOW edit works and row body is not tappable', (tester) async {
     final beacon = Beacon(
       id: 'b-hud-tap',

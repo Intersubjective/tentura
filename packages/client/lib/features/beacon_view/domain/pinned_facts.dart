@@ -54,3 +54,24 @@ bool pinnedFactIsNew({
   if (fact.status == BeaconFactCardStatusBits.removed) return false;
   return factTimestamp(fact).isAfter(seenAt);
 }
+
+/// Text stored on a pinned fact. Empty body with zero attachments is `''`
+/// so the discussion pin path can refuse an empty message.
+String pinFactTextForPin({
+  required String body,
+  required int attachmentCount,
+  required List<String> attachmentFileNames,
+  required String attachmentFallback,
+}) {
+  final trimmed = body.trim();
+  if (trimmed.isNotEmpty) return trimmed;
+  if (attachmentCount == 0) return '';
+  final names = [
+    for (final n in attachmentFileNames)
+      if (n.trim().isNotEmpty) n.trim(),
+  ];
+  if (names.isEmpty) return attachmentFallback;
+  const maxNames = 3;
+  if (names.length <= maxNames) return names.join(', ');
+  return '${names.take(maxNames).join(', ')}…';
+}

@@ -7,9 +7,11 @@ import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/beacon_fact_card.dart';
 import 'package:tentura/domain/entity/beacon_fact_card_consts.dart';
 import 'package:tentura/domain/entity/profile.dart';
+import 'package:tentura/features/beacon_threads/ui/message/beacon_room_fact_messages.dart';
 import 'package:tentura/features/beacon_view/domain/pinned_facts.dart';
 import 'package:tentura/features/beacon_view/domain/use_case/beacon_view_case.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_cubit.dart';
+import 'package:tentura/ui/effect/ui_effect.dart';
 
 import '../../ui/effect/fake_ui_effect_port.dart';
 import '../beacon_threads/fake_coordination_item_case.dart';
@@ -180,5 +182,83 @@ void main() {
     await cubit.correctFact(factCardId: 'f1', newText: 'edited');
 
     expect(factsRepo.correctedIds, ['f1']);
+  });
+
+  test('pinFactFromComposer refreshes cards and returns true', () async {
+    final factsRepo = FakeBeaconViewFactCardRepository(
+      cards: [fact(id: 'f1', createdAt: t0)],
+    );
+    final room = FakeBeaconViewRoomRepository();
+    final effects = FakeUiEffectPort();
+    final case_ = buildTestBeaconViewCase(
+      beaconRepo: TrackingBeaconRepository()
+        ..fetchByIdHandler = (_) async => readableBeacon(),
+      factCardsRepo: factsRepo,
+      roomRepo: room,
+    );
+    final cubit = BeaconViewCubit(
+      id: beaconId,
+      myProfile: myProfile,
+      beaconViewCase: case_,
+      coordinationItemCase: const FakeCoordinationItemCaseForRoom(),
+      effects: effects,
+    );
+    addTearDown(cubit.close);
+    await pumpUntil(cubit.stream, () => cubit.state.beaconContextLoaded);
+
+    factsRepo.cards = [
+      fact(id: 'f1', createdAt: t0),
+      fact(id: 'f2', createdAt: t1, pinnedBy: myProfile.id),
+    ];
+
+    final ok = await cubit.pinFactFromComposer(
+      messageBody: 'note',
+      factText: 'note',
+      visibility: BeaconFactCardVisibilityBits.public,
+    );
+
+    expect(ok, isTrue);
+    expect(factsRepo.pins, hasLength(1));
+    expect(cubit.state.factCards.map((f) => f.id), ['f1', 'f2']);
+    expect(
+      effects.emitted.whereType<ShowMessage>().last.message,
+      isA<BeaconFactPinSuccessMessage>(),
+    );
+  });
+
+  test('pinFactFromComposer returns false when pin fails after post', () async {
+    final factsRepo = FakeBeaconViewFactCardRepository(
+      cards: [fact(id: 'f1', createdAt: t0)],
+    )..pinError = StateError('pin failed');
+    final room = FakeBeaconViewRoomRepository();
+    final effects = FakeUiEffectPort();
+    final case_ = buildTestBeaconViewCase(
+      beaconRepo: TrackingBeaconRepository()
+        ..fetchByIdHandler = (_) async => readableBeacon(),
+      factCardsRepo: factsRepo,
+      roomRepo: room,
+    );
+    final cubit = BeaconViewCubit(
+      id: beaconId,
+      myProfile: myProfile,
+      beaconViewCase: case_,
+      coordinationItemCase: const FakeCoordinationItemCaseForRoom(),
+      effects: effects,
+    );
+    addTearDown(cubit.close);
+    await pumpUntil(cubit.stream, () => cubit.state.beaconContextLoaded);
+
+    final ok = await cubit.pinFactFromComposer(
+      messageBody: 'note',
+      factText: 'note',
+      visibility: BeaconFactCardVisibilityBits.public,
+    );
+
+    expect(ok, isFalse);
+    expect(room.createdMessages, hasLength(1));
+    expect(
+      effects.emitted.whereType<ShowMessage>().last.message,
+      isA<BeaconFactPinMessageKeptMessage>(),
+    );
   });
 }
