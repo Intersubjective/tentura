@@ -8,7 +8,6 @@ import 'package:tentura/domain/entity/beacon_coordination_phase.dart';
 import 'package:tentura/domain/entity/coordination_responsibility.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_state.dart';
 import 'package:tentura/features/beacon_view/ui/util/beacon_hud_derivation.dart';
-import 'package:tentura/features/beacon_view/ui/widget/beacon_view_details_sheet.dart';
 import 'package:tentura/features/my_work/domain/entity/my_work_card_view_model.dart';
 import 'package:tentura/features/my_work/ui/widget/my_work_last_event_row.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
@@ -42,7 +41,8 @@ List<BeaconHudMetadataEntry> buildMyWorkHudMetadataEntries(
       : null;
   final isAwaitingAuthorReview =
       helperOfferState == HelperOfferResponseState.awaitingAuthor;
-  final helperHasStandingMessage = helperOfferState != null &&
+  final helperHasStandingMessage =
+      helperOfferState != null &&
       helperOfferResponseStateHasStandingMessage(helperOfferState);
 
   if (BeaconCompactMetadataStrip.hasVisibleContent(
@@ -95,7 +95,8 @@ List<BeaconHudMetadataEntry> buildMyWorkHudMetadataEntries(
               helperHasStandingMessage
           ? CoordinationResponsibility(beaconId: beacon.id)
           : null);
-  if (responsibility != null && (!hideCoordinationHud || helperHasStandingMessage)) {
+  if (responsibility != null &&
+      (!hideCoordinationHud || helperHasStandingMessage)) {
     final phaseInput = beaconPhaseInputFromMyWorkCard(viewModel);
     final phaseResult = deriveBeaconCoordinationPhase(phaseInput);
     final compactSurface = beaconYouCompactSurface(context, rowWidth);
@@ -243,27 +244,6 @@ List<BeaconHudMetadataEntry> buildBeaconViewHudMetadataEntries(
           phaseResult: phaseResult,
           isAwaitingAuthorReview: isAwaitingAuthorReview,
           authorUnreviewedHelpOfferCount: authorUnreviewedHelpOfferCount,
-        ),
-      ),
-    );
-  }
-
-  if (beaconViewHasDetailsContent(beacon)) {
-    entries.add(
-      BeaconHudMetadataEntry(
-        icon: Icons.info_outline,
-        semanticsLabel: l10n.beaconDetailsSection,
-        semanticsValue: l10n.beaconDetailsSection,
-        onTap: () => showBeaconViewDetailsSheet(context, beacon: beacon),
-        trailing: beaconViewDetailsHudTrailing(context),
-        body: HudLabeledMultiline(
-          leadingIcon: Icons.info_outline,
-          semanticsLabel: l10n.beaconDetailsSection,
-          text: l10n.beaconDetailsSection,
-          mutedColor: tt.textMuted,
-          includeLead: false,
-          primaryMaxLines: 1,
-          showTruncationHint: false,
         ),
       ),
     );

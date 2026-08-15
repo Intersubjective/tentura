@@ -37,6 +37,7 @@ import 'package:tentura/features/evaluation/domain/entity/review_window_info.dar
 
 import '../../domain/use_case/beacon_view_case.dart';
 import 'package:tentura/features/beacon/domain/exception.dart';
+import 'package:tentura/features/beacon_threads/ui/message/beacon_room_fact_messages.dart';
 import '../message/help_offer_messages.dart';
 import 'beacon_view_state.dart';
 
@@ -56,6 +57,10 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
            coordinationItemCase ?? GetIt.I<CoordinationItemCase>(),
        _effects = effects ?? GetIt.I<UiEffectPort>(),
        super(_idToState(id, myProfile)) {
+    final seen = _case.pinnedFactsSeenAt(id, myProfile.id);
+    if (seen != null) {
+      emit(state.copyWith(pinnedFactsSeenAt: seen));
+    }
     _forwardChangesSub = _case.forwardChanges.listen(
       _requestFullRefreshFor,
       cancelOnError: false,
@@ -850,7 +855,89 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
 
   Future<void> _refreshFactCards(String beaconId) async {
     final cards = await _case.fetchFactCards(beaconId);
-    if (!isClosed) emit(state.copyWith(factCards: cards));
+    if (isClosed) return;
+    _hydratePinnedFactsSeen(beaconId, cards);
+    emit(
+      state.copyWith(
+        factCards: cards,
+        pinnedFactsSeenAt: _case.pinnedFactsSeenAt(
+          beaconId,
+          state.myProfile.id,
+        ),
+      ),
+    );
+  }
+
+  void _hydratePinnedFactsSeen(String beaconId, List<BeaconFactCard> cards) {
+    _case.baselinePinnedFactsIfNeeded(
+      beaconId: beaconId,
+      userId: state.myProfile.id,
+      facts: cards,
+    );
+  }
+
+  void markPinnedFactsSeen() {
+    _case.markPinnedFactsSeen(
+      beaconId: state.beacon.id,
+      userId: state.myProfile.id,
+      facts: state.factCards,
+    );
+    if (isClosed) return;
+    emit(
+      state.copyWith(
+        pinnedFactsSeenAt: _case.pinnedFactsSeenAt(
+          state.beacon.id,
+          state.myProfile.id,
+        ),
+      ),
+    );
+  }
+
+  Future<void> correctFact({
+    required String factCardId,
+    required String newText,
+  }) async {
+    try {
+      await _case.correctFact(
+        beaconId: state.beacon.id,
+        factCardId: factCardId,
+        newText: newText,
+      );
+      await _refreshFactCards(state.beacon.id);
+      _effects.emit(const ShowMessage(BeaconFactEditSuccessMessage()));
+    } on Object catch (e) {
+      _showSnackError(e);
+    }
+  }
+
+  Future<void> removeFact({required String factCardId}) async {
+    try {
+      await _case.removeFact(
+        beaconId: state.beacon.id,
+        factCardId: factCardId,
+      );
+      await _refreshFactCards(state.beacon.id);
+      _effects.emit(const ShowMessage(BeaconFactRemoveSuccessMessage()));
+    } on Object catch (e) {
+      _showSnackError(e);
+    }
+  }
+
+  Future<void> setFactVisibility({
+    required String factCardId,
+    required int visibility,
+  }) async {
+    try {
+      await _case.setFactVisibility(
+        beaconId: state.beacon.id,
+        factCardId: factCardId,
+        visibility: visibility,
+      );
+      await _refreshFactCards(state.beacon.id);
+      _effects.emit(const ShowMessage(BeaconFactVisibilitySuccessMessage()));
+    } on Object catch (e) {
+      _showSnackError(e);
+    }
   }
 
   Future<void> _fetchBeaconByIdWithTimeline({bool background = false}) async {
@@ -1018,6 +1105,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
         }
       }
 
+      _hydratePinnedFactsSeen(beaconId, factCards);
       emit(
         state.copyWith(
           beacon: beacon,
@@ -1028,6 +1116,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
           forwardProvenance: inboxCtx.provenance,
           inboxLatestNotePreview: inboxCtx.latestNotePreview,
           factCards: factCards,
+          pinnedFactsSeenAt: _case.pinnedFactsSeenAt(beaconId, myUserId),
           roomParticipants: roomParticipants,
           roomParticipantsLoaded: true,
           beaconRoomCue: beaconRoomCue,

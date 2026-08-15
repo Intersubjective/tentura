@@ -17,8 +17,39 @@ Future<void> showFactActionsSheet(
   required RoomCubit cubit,
   required BeaconFactCard fact,
 }) {
+  return showFactActionsHostSheet(
+    context,
+    fact: fact,
+    onCorrect: ({required factCardId, required newText}) =>
+        cubit.correctFact(factCardId: factCardId, newText: newText),
+    onRemove: ({required factCardId}) => cubit.removeFact(factCardId: factCardId),
+    onSetVisibility: ({required factCardId, required visibility}) =>
+        cubit.setFactVisibility(
+          factCardId: factCardId,
+          visibility: visibility,
+        ),
+    onJumpToSource: cubit.requestScrollToMessage,
+  );
+}
+
+Future<void> showFactActionsHostSheet(
+  BuildContext context, {
+  required BeaconFactCard fact,
+  required Future<void> Function({
+    required String factCardId,
+    required String newText,
+  })
+  onCorrect,
+  required Future<void> Function({required String factCardId}) onRemove,
+  required Future<void> Function({
+    required String factCardId,
+    required int visibility,
+  })
+  onSetVisibility,
+  void Function(String messageId)? onJumpToSource,
+}) {
   final l10n = L10n.of(context)!;
-  final rootCtx = context;
+  final pageCtx = context;
 
   return showTenturaAdaptiveSheet<void>(
     context: context,
@@ -46,7 +77,7 @@ Future<void> showFactActionsSheet(
               title: Text(l10n.beaconRoomFactCardActionEdit),
               onTap: () {
                 Navigator.pop(ctx);
-                unawaited(_showEditFactSheet(rootCtx, cubit, fact));
+                unawaited(_showEditFactSheet(pageCtx, fact, onCorrect));
               },
             ),
             if (fact.visibility == BeaconFactCardVisibilityBits.room)
@@ -56,7 +87,7 @@ Future<void> showFactActionsSheet(
                 onTap: () {
                   Navigator.pop(ctx);
                   unawaited(
-                    cubit.setFactVisibility(
+                    onSetVisibility(
                       factCardId: fact.id,
                       visibility: BeaconFactCardVisibilityBits.public,
                     ),
@@ -70,7 +101,7 @@ Future<void> showFactActionsSheet(
                 onTap: () {
                   Navigator.pop(ctx);
                   unawaited(
-                    cubit.setFactVisibility(
+                    onSetVisibility(
                       factCardId: fact.id,
                       visibility: BeaconFactCardVisibilityBits.room,
                     ),
@@ -81,15 +112,18 @@ Future<void> showFactActionsSheet(
               leading: const Icon(Icons.message_outlined),
               title: Text(l10n.beaconRoomFactCardActionJumpToSource),
               enabled:
+                  onJumpToSource != null &&
                   fact.sourceMessageId != null &&
                   fact.sourceMessageId!.isNotEmpty,
               onTap:
-                  fact.sourceMessageId == null || fact.sourceMessageId!.isEmpty
+                  onJumpToSource == null ||
+                      fact.sourceMessageId == null ||
+                      fact.sourceMessageId!.isEmpty
                   ? null
                   : () {
                       final mid = fact.sourceMessageId!;
                       Navigator.pop(ctx);
-                      cubit.requestScrollToMessage(mid);
+                      onJumpToSource(mid);
                     },
             ),
             ListTile(
@@ -97,11 +131,11 @@ Future<void> showFactActionsSheet(
               title: Text(l10n.beaconRoomFactCardActionCopy),
               onTap: () async {
                 await Clipboard.setData(ClipboardData(text: fact.factText));
-                if (rootCtx.mounted) {
+                if (pageCtx.mounted) {
                   Navigator.pop(ctx);
-                  final locale = L10n.of(rootCtx)!.localeName;
+                  final locale = L10n.of(pageCtx)!.localeName;
                   showSnackBar(
-                    rootCtx,
+                    pageCtx,
                     text: const BeaconFactCopiedMessage().toL10n(locale),
                   );
                 }
@@ -118,7 +152,7 @@ Future<void> showFactActionsSheet(
               ),
               onTap: () {
                 Navigator.pop(ctx);
-                unawaited(_confirmRemoveFact(rootCtx, cubit, fact, l10n));
+                unawaited(_confirmRemoveFact(pageCtx, fact, l10n, onRemove));
               },
             ),
           ],
@@ -130,9 +164,9 @@ Future<void> showFactActionsSheet(
 
 Future<void> _confirmRemoveFact(
   BuildContext context,
-  RoomCubit cubit,
   BeaconFactCard fact,
   L10n l10n,
+  Future<void> Function({required String factCardId}) onRemove,
 ) async {
   final ok = await showDialog<bool>(
     context: context,
@@ -156,14 +190,18 @@ Future<void> _confirmRemoveFact(
     ),
   );
   if (ok == true && context.mounted) {
-    await cubit.removeFact(factCardId: fact.id);
+    await onRemove(factCardId: fact.id);
   }
 }
 
 Future<void> _showEditFactSheet(
   BuildContext context,
-  RoomCubit cubit,
   BeaconFactCard fact,
+  Future<void> Function({
+    required String factCardId,
+    required String newText,
+  })
+  onCorrect,
 ) async {
   final l10n = L10n.of(context)!;
   final newText = await showTenturaAdaptiveSheet<String>(
@@ -178,7 +216,7 @@ Future<void> _showEditFactSheet(
     ),
   );
   if (newText == null || !context.mounted) return;
-  await cubit.correctFact(factCardId: fact.id, newText: newText);
+  await onCorrect(factCardId: fact.id, newText: newText);
 }
 
 /// Keeps [TextEditingController] alive until the sheet route is torn down.

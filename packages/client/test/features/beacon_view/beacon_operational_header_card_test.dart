@@ -11,8 +11,11 @@ import 'package:tentura/domain/entity/coordination_response_type.dart';
 import 'package:tentura/domain/entity/coordinates.dart';
 import 'package:get_it/get_it.dart';
 import 'package:tentura/domain/port/platform_repository_port.dart';
+import 'package:tentura/domain/entity/beacon_fact_card.dart';
+import 'package:tentura/domain/entity/beacon_fact_card_consts.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_state.dart';
+import 'package:tentura/ui/test_ids.dart';
 import 'package:tentura/features/beacon_view/ui/presenter/beacon_hud_author_action.dart';
 import 'package:tentura/features/beacon_view/ui/widget/beacon_operational_header_card.dart';
 import 'package:tentura/features/evaluation/domain/entity/review_window_info.dart';
@@ -90,6 +93,7 @@ Future<void> _pumpHeaderCard(
   void Function(BeaconHudAuthorAction action)? onAuthorHudAction,
   VoidCallback? onOfferHelp,
   VoidCallback? onEditHelpOffer,
+  VoidCallback? onOpenPinnedFacts,
 }) async {
   await tester.pumpWidget(
     MaterialApp(
@@ -107,6 +111,7 @@ Future<void> _pumpHeaderCard(
               onAuthorHudAction: onAuthorHudAction,
               onOfferHelp: onOfferHelp,
               onEditHelpOffer: onEditHelpOffer,
+              onOpenPinnedFacts: onOpenPinnedFacts,
             ),
           ),
         ),
@@ -228,6 +233,73 @@ void main() {
     );
 
     await GetIt.I.reset();
+  });
+
+  testWidgets('HUD access row shows Details and Facts with +N', (tester) async {
+    var factsOpens = 0;
+    final beacon = Beacon(
+      id: 'b-hud-facts',
+      title: 'Beacon HUD',
+      author: const Profile(id: 'auth', displayName: 'Author'),
+      createdAt: t,
+      updatedAt: t,
+      startAt: DateTime.utc(2099, 6, 20, 12),
+    );
+    final state = BeaconViewState(
+      beacon: beacon,
+      myProfile: const Profile(id: 'viewer', displayName: 'Viewer'),
+      beaconContextLoaded: true,
+      pinnedFactsSeenAt: DateTime.utc(2025),
+      factCards: [
+        BeaconFactCard(
+          id: 'f1',
+          beaconId: beacon.id,
+          factText: 'Pinned',
+          visibility: BeaconFactCardVisibilityBits.public,
+          pinnedBy: 'other',
+          createdAt: DateTime.utc(2026, 6, 21),
+          status: BeaconFactCardStatusBits.active,
+        ),
+      ],
+    );
+
+    await _pumpHeaderCard(
+      tester,
+      state: state,
+      onOpenPinnedFacts: () => factsOpens++,
+    );
+
+    final l10n = await L10n.delegate.load(const Locale('en'));
+    expect(find.text(l10n.beaconDetailsSection), findsOneWidget);
+    expect(find.text(l10n.beaconFactsRowLabel), findsOneWidget);
+    expect(find.text(l10n.beaconYouNewCount(1)), findsOneWidget);
+
+    await tester.tap(find.byKey(TestIds.key(TestIds.beaconFactsOpen)));
+    await tester.pumpAndSettle();
+    expect(factsOpens, 1);
+  });
+
+  testWidgets('HUD access row hides when neither Details nor Facts apply', (
+    tester,
+  ) async {
+    final beacon = Beacon(
+      id: 'b-hud-empty-row',
+      title: 'Beacon HUD',
+      author: const Profile(id: 'auth', displayName: 'Author'),
+      createdAt: t,
+      updatedAt: t,
+    );
+    final state = BeaconViewState(
+      beacon: beacon,
+      myProfile: const Profile(id: 'viewer', displayName: 'Viewer'),
+      beaconContextLoaded: true,
+    );
+
+    await _pumpHeaderCard(tester, state: state);
+
+    final l10n = await L10n.delegate.load(const Locale('en'));
+    expect(find.text(l10n.beaconDetailsSection), findsNothing);
+    expect(find.text(l10n.beaconFactsRowLabel), findsNothing);
   });
 
   testWidgets('NOW edit works and row body is not tappable', (tester) async {

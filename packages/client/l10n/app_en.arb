@@ -2911,6 +2911,10 @@
   "@beaconDetailsSection": {
     "context": "BeaconViewScreen"
   },
+  "beaconFactsRowLabel": "Facts",
+  "@beaconFactsRowLabel": {
+    "context": "BeaconViewScreen"
+  },
   "labelHelpOffered": "Help Offered",
   "@labelHelpOffered": {
     "context": "BeaconViewScreen"
@@ -4086,6 +4090,7 @@
   },
   "beaconFactsSheetTitle": "Pinned facts",
   "beaconFactsSheetEmpty": "No pinned facts yet.",
+  "beaconPinnedFactNewBadge": "New",
   "beaconRoomPinFactTitle": "Pin as fact",
   "beaconRoomPinFactPublic": "Public — visible beyond the discussion",
   "beaconRoomPinFactRoomOnly": "Discussion only",
@@ -4163,28 +4168,6 @@
   "beaconRoomStripNowTitle": "Now",
   "beaconRoomStripCurrentLineLabel": "What's next?",
   "beaconRoomStripLastPrivateFactLabel": "Pinned facts",
-  "beaconPinnedFactCarouselSemanticLabel": "Pinned facts carousel",
-  "beaconPinnedFactCarouselPreviousTooltip": "Previous fact",
-  "beaconPinnedFactCarouselNextTooltip": "Next fact",
-  "beaconPinnedFactCarouselPositionLabel": "{current} of {total}",
-  "@beaconPinnedFactCarouselPositionLabel": {
-    "placeholders": {
-      "current": {
-        "type": "int"
-      },
-      "total": {
-        "type": "int"
-      }
-    }
-  },
-  "beaconPinnedFactCarouselDotSemanticLabel": "Go to fact {index}",
-  "@beaconPinnedFactCarouselDotSemanticLabel": {
-    "placeholders": {
-      "index": {
-        "type": "int"
-      }
-    }
-  },
   "beaconRoomStripMeaningfulChangeLabel": "Latest change",
   "beaconRoomStripOpenBlockerHint": "A blocker is open in General (details in the thread).",
   "coordinationCreatePromiseAction": "Make a promise…",

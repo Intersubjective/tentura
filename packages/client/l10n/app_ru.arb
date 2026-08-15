@@ -2898,6 +2898,10 @@
   "@beaconDetailsSection": {
     "context": "BeaconViewScreen"
   },
+  "beaconFactsRowLabel": "Факты",
+  "@beaconFactsRowLabel": {
+    "context": "BeaconViewScreen"
+  },
   "labelHelpOffered": "Помощь предложена",
   "@labelHelpOffered": {
     "context": "BeaconViewScreen"
@@ -4049,6 +4053,7 @@
   },
   "beaconFactsSheetTitle": "Закреплённые факты",
   "beaconFactsSheetEmpty": "Пока нет закреплённых фактов.",
+  "beaconPinnedFactNewBadge": "Новое",
   "beaconRoomPinFactTitle": "Закрепить как факт",
   "beaconRoomPinFactPublic": "Публично — видно за пределами обсуждения",
   "beaconRoomPinFactRoomOnly": "Только обсуждение",
@@ -4126,28 +4131,6 @@
   "beaconRoomStripNowTitle": "Сейчас",
   "beaconRoomStripCurrentLineLabel": "Что дальше?",
   "beaconRoomStripLastPrivateFactLabel": "Закреплённые факты",
-  "beaconPinnedFactCarouselSemanticLabel": "Карусель закреплённых фактов",
-  "beaconPinnedFactCarouselPreviousTooltip": "Предыдущий факт",
-  "beaconPinnedFactCarouselNextTooltip": "Следующий факт",
-  "beaconPinnedFactCarouselPositionLabel": "{current} из {total}",
-  "@beaconPinnedFactCarouselPositionLabel": {
-    "placeholders": {
-      "current": {
-        "type": "int"
-      },
-      "total": {
-        "type": "int"
-      }
-    }
-  },
-  "beaconPinnedFactCarouselDotSemanticLabel": "Перейти к факту {index}",
-  "@beaconPinnedFactCarouselDotSemanticLabel": {
-    "placeholders": {
-      "index": {
-        "type": "int"
-      }
-    }
-  },
   "beaconRoomStripMeaningfulChangeLabel": "Последнее изменение",
   "beaconRoomStripOpenBlockerHint": "Открыт блокер в Общем (подробности в теме).",
   "coordinationCreatePromiseAction": "Дать обещание…",

@@ -1,8 +1,6 @@
 import 'dart:async';
-import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon_activity_event.dart';
@@ -16,17 +14,15 @@ import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_cubit.dart';
 import 'package:tentura/features/beacon_view/ui/widget/activity_list.dart';
 import 'package:tentura/features/beacon_view/ui/widget/beacon_operational_header_card.dart';
 import 'package:tentura/features/beacon_view/ui/widget/beacon_view_app_bar_overflow.dart';
-import 'package:tentura/features/beacon_view/ui/widget/beacon_pinned_facts_strip.dart';
 import 'package:tentura/features/beacon_view/ui/widget/beacon_current_line_sheet.dart';
 import 'package:tentura/features/beacon_view/ui/widget/beacon_people_tab_body.dart';
+import 'package:tentura/features/beacon_view/ui/widget/beacon_pinned_facts_sheet.dart';
 import 'package:tentura/features/inbox/domain/enum.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
-import 'package:tentura/ui/bloc/state_base.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/test_ids.dart';
 
 import 'beacon_view_constants.dart';
-import '../util/pinned_facts.dart';
 
 class BeaconOperationalScrollView extends StatelessWidget {
   const BeaconOperationalScrollView({
@@ -117,6 +113,7 @@ class BeaconOperationalScrollView extends StatelessWidget {
           p.forwardsLoaded != c.forwardsLoaded ||
           p.forwardsLoading != c.forwardsLoading ||
           p.factCards != c.factCards ||
+          p.pinnedFactsSeenAt != c.pinnedFactsSeenAt ||
           p.roomParticipants.length != c.roomParticipants.length ||
           (p.roomParticipants
                   .map(
@@ -143,7 +140,6 @@ class BeaconOperationalScrollView extends StatelessWidget {
           p.beaconContextLoaded != c.beaconContextLoaded,
       builder: (context, state) {
         final beaconId = state.beacon.id;
-        final pinnedFacts = pinnedFactsForStrip(state.factCards);
 
         final tabBody = switch (idx) {
           kBeaconTabThreads => ThreadsList(
@@ -279,19 +275,15 @@ class BeaconOperationalScrollView extends StatelessWidget {
                             ),
                           )
                         : null,
-                  ),
-                ),
-              ),
-              if (pinnedFacts.isNotEmpty)
-                SliverToBoxAdapter(
-                  child: ColoredBox(
-                    color: scheme.surface,
-                    child: BeaconPinnedFactsStrip(
-                      facts: pinnedFacts,
-                      beaconId: beaconId,
+                    onOpenPinnedFacts: () => unawaited(
+                      showBeaconPinnedFactsSheet(
+                        context,
+                        cubit: beaconViewCubit,
+                      ),
                     ),
                   ),
                 ),
+              ),
               SliverPersistentHeader(
                 pinned: true,
                 delegate: BeaconPinnedSegmentBarDelegate(

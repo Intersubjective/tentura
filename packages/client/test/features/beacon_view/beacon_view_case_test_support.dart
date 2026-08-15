@@ -336,14 +336,53 @@ class FakeBeaconViewActivityEventRepository
 }
 
 class FakeBeaconViewFactCardRepository implements BeaconFactCardRepository {
-  FakeBeaconViewFactCardRepository({this.listError});
+  FakeBeaconViewFactCardRepository({
+    this.listError,
+    List<BeaconFactCard>? cards,
+    this.listHold,
+  }) : cards = cards ?? [];
 
   final Object? listError;
+  List<BeaconFactCard> cards;
+  Completer<void>? listHold;
+  int listCalls = 0;
+  final removedIds = <String>[];
+  final correctedIds = <String>[];
+  final visibilityUpdates = <String, int>{};
 
   @override
   Future<List<BeaconFactCard>> list({required String beaconId}) async {
+    listCalls++;
+    final hold = listHold;
+    if (hold != null) await hold.future;
     if (listError != null) _throwTestError(listError!);
-    return [];
+    return List<BeaconFactCard>.from(cards);
+  }
+
+  @override
+  Future<void> correct({
+    required String beaconId,
+    required String factCardId,
+    required String newText,
+  }) async {
+    correctedIds.add(factCardId);
+  }
+
+  @override
+  Future<void> remove({
+    required String beaconId,
+    required String factCardId,
+  }) async {
+    removedIds.add(factCardId);
+  }
+
+  @override
+  Future<void> setVisibility({
+    required String beaconId,
+    required String factCardId,
+    required int visibility,
+  }) async {
+    visibilityUpdates[factCardId] = visibility;
   }
 
   @override

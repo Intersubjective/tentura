@@ -134,13 +134,3 @@ Future<void> showBeaconViewDetailsSheet(
     },
   );
 }
-
-/// HUD metadata row trailing chevron for the Details affordance.
-Widget beaconViewDetailsHudTrailing(BuildContext context) {
-  final scheme = Theme.of(context).colorScheme;
-  return Icon(
-    Icons.chevron_right,
-    size: context.tt.iconSize,
-    color: scheme.onSurfaceVariant,
-  );
-}

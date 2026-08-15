@@ -239,6 +239,7 @@ abstract class BeaconViewState extends StateBase with _$BeaconViewState {
     @Default(false) bool forwardsLoading,
 
     @Default([]) List<BeaconFactCard> factCards,
+    DateTime? pinnedFactsSeenAt,
 
     /// From V2 room APIs when the viewer has room access (else empty / null).
     @Default([]) List<BeaconParticipant> roomParticipants,

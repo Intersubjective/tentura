@@ -34,6 +34,7 @@ import 'package:tentura/features/beacon_threads/domain/use_case/beacon_threads_c
 import '../../data/repository/coordination_repository.dart';
 import '../../data/repository/beacon_display_repository.dart';
 import 'package:tentura/domain/entity/beacon_display_status_dto.dart';
+import '../pinned_facts.dart';
 
 @singleton
 final class BeaconViewCase extends UseCaseBase {
@@ -74,6 +75,11 @@ final class BeaconViewCase extends UseCaseBase {
   final BeaconActivityEventRepository _activityEvents;
 
   final RealtimeSyncCase _realtimeSyncCase;
+
+  static final _epoch = DateTime.fromMillisecondsSinceEpoch(0, isUtc: true);
+
+  /// In-process seen cursors keyed by `userId\\tbeaconId`.
+  final Map<String, DateTime> _pinnedFactsSeenAt = {};
 
   Stream<RepositoryEvent<Beacon>> get beaconChanges =>
       _beaconRepository.changes;
@@ -273,6 +279,57 @@ final class BeaconViewCase extends UseCaseBase {
       return [];
     }
   }
+
+  Future<void> correctFact({
+    required String beaconId,
+    required String factCardId,
+    required String newText,
+  }) => _factCards.correct(
+    beaconId: beaconId,
+    factCardId: factCardId,
+    newText: newText,
+  );
+
+  Future<void> removeFact({
+    required String beaconId,
+    required String factCardId,
+  }) => _factCards.remove(beaconId: beaconId, factCardId: factCardId);
+
+  Future<void> setFactVisibility({
+    required String beaconId,
+    required String factCardId,
+    required int visibility,
+  }) => _factCards.setVisibility(
+    beaconId: beaconId,
+    factCardId: factCardId,
+    visibility: visibility,
+  );
+
+  DateTime? pinnedFactsSeenAt(String beaconId, String userId) =>
+      _pinnedFactsSeenAt[_pinnedFactsSeenKey(userId, beaconId)];
+
+  /// First observation this process: freeze the current max fact timestamp.
+  void baselinePinnedFactsIfNeeded({
+    required String beaconId,
+    required String userId,
+    required List<BeaconFactCard> facts,
+  }) {
+    final key = _pinnedFactsSeenKey(userId, beaconId);
+    if (_pinnedFactsSeenAt.containsKey(key)) return;
+    _pinnedFactsSeenAt[key] = activePinnedFactsMaxTimestamp(facts) ?? _epoch;
+  }
+
+  void markPinnedFactsSeen({
+    required String beaconId,
+    required String userId,
+    required List<BeaconFactCard> facts,
+  }) {
+    _pinnedFactsSeenAt[_pinnedFactsSeenKey(userId, beaconId)] =
+        activePinnedFactsMaxTimestamp(facts) ?? _epoch;
+  }
+
+  String _pinnedFactsSeenKey(String userId, String beaconId) =>
+      '$userId\t$beaconId';
 
   /// Room API; returns empty when caller is not allowed (e.g. no room access).
   Future<List<BeaconParticipant>> fetchRoomParticipants(String beaconId) async {

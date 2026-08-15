@@ -1,11 +1,16 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/coordination_item.dart';
+import 'package:tentura/features/beacon_view/domain/pinned_facts.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_state.dart';
 import 'package:tentura/features/beacon_view/ui/presenter/beacon_hud_author_action.dart';
+import 'package:tentura/features/beacon_view/ui/widget/beacon_details_facts_access_row.dart';
+import 'package:tentura/features/beacon_view/ui/widget/beacon_view_details_sheet.dart';
 import 'package:tentura/features/evaluation/ui/widget/review_window_banner_host.dart';
 import 'package:tentura/features/inbox/domain/enum.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
@@ -30,6 +35,7 @@ class BeaconOperationalHeaderCard extends StatelessWidget {
     this.onSwitchToPeopleTab,
     this.onEditNowLine,
     this.onOpenItemDiscussion,
+    this.onOpenPinnedFacts,
     super.key,
   });
 
@@ -51,6 +57,9 @@ class BeaconOperationalHeaderCard extends StatelessWidget {
 
   /// Opens an item discussion thread (YOU sheet Reply action).
   final void Function(CoordinationItem item)? onOpenItemDiscussion;
+
+  /// Opens the pinned facts sheet.
+  final VoidCallback? onOpenPinnedFacts;
 
   @override
   Widget build(BuildContext context) {
@@ -82,6 +91,20 @@ class BeaconOperationalHeaderCard extends StatelessWidget {
               state: state,
               onEditNowLine: onEditNowLine,
             ),
+          ),
+          const SizedBox(height: kBeaconHudRowGap),
+          BeaconDetailsFactsAccessRow(
+            showDetails: beaconViewHasDetailsContent(state.beacon),
+            factsCount: activePinnedFacts(state.factCards).length,
+            factsNewCount: pinnedFactsNewCount(
+              facts: state.factCards,
+              seenAt: state.pinnedFactsSeenAt,
+              viewerUserId: state.myProfile.id,
+            ),
+            onOpenDetails: () => unawaited(
+              showBeaconViewDetailsSheet(context, beacon: state.beacon),
+            ),
+            onOpenFacts: onOpenPinnedFacts,
           ),
           const SizedBox(height: kBeaconHudRowGap),
           if (state.beacon.status == BeaconStatus.reviewOpen) ...[
