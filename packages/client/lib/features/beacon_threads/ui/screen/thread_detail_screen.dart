@@ -18,6 +18,7 @@ import 'package:tentura/features/beacon_threads/ui/widget/thread_detail.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_cubit.dart';
 import 'package:tentura/features/beacon_view/ui/widget/closed_request_banner.dart';
 import 'package:tentura/features/coordination_item/ui/bloc/item_actions_cubit.dart';
+import 'package:tentura/features/coordination_item/ui/bloc/item_actions_state.dart';
 import 'package:tentura/ui/bloc/state_base.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
@@ -178,9 +179,7 @@ class _ThreadDetailScreenState extends State<ThreadDetailScreen> {
             final beaconState = context.watch<BeaconViewCubit>().state;
             final beacon = beaconState.beacon;
             final titleFallback = thread.isGeneral
-                ? (beacon.title.isEmpty
-                      ? l10n.beaconViewTitle
-                      : beacon.title)
+                ? threadGeneralAppBarTitle(l10n, beacon)
                 : threadTitleFallback(l10n, thread);
 
             final detail = ThreadDetail(
@@ -208,13 +207,26 @@ class _ThreadDetailScreenState extends State<ThreadDetailScreen> {
                 leading: BackButton(
                   onPressed: () => unawaited(_closeThenPop()),
                 ),
-                title: item == null
+                title: thread.isGeneral
+                    ? ThreadDetailGeneralTitle(
+                        title: titleFallback,
+                        beacon: beacon,
+                        involvedProfiles: beaconState.activeHelpOfferUsers,
+                        currentUserId: beaconState.myProfile.id,
+                      )
+                    : item == null
                     ? Text(
                         titleFallback,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                       )
-                    : ThreadDetailTitle(fallback: titleFallback),
+                    : BlocBuilder<ItemActionsCubit, ItemActionsState>(
+                        buildWhen: (p, c) => p.item != c.item,
+                        builder: (context, state) => ThreadDetailTitle(
+                          fallback: titleFallback,
+                          item: state.item,
+                        ),
+                      ),
                 actions: item == null
                     ? null
                     : const [ThreadDetailOverflowAction()],
