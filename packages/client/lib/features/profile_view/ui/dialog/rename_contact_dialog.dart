@@ -106,6 +106,7 @@ class _RenameContactDialogState extends State<RenameContactDialog>
               maxLength: kTitleMaxLength,
               decoration: InputDecoration(
                 labelText: l10n.renameContactFieldLabel,
+                helperText: l10n.renameContactHelper,
               ),
               validator: (value) =>
                   displayNameValidator(l10n, value?.trim()),

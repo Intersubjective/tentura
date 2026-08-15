@@ -132,8 +132,12 @@
       }
     }
   },
-  "renameContactFieldLabel": "Имя (видно только вам)",
+  "renameContactFieldLabel": "Приватное имя для этого человека",
   "@renameContactFieldLabel": {
+    "context": "Contacts"
+  },
+  "renameContactHelper": "Видно только вам. Можно сменить позже.",
+  "@renameContactHelper": {
     "context": "Contacts"
   },
   "renameContactReset": "Вернуть их имя",
@@ -144,9 +148,25 @@
   "@invitationAddresseeTitle": {
     "context": "Contacts"
   },
-  "invitationAddresseeFieldLabel": "Имя (видно только вам)",
+  "invitationAddresseeFieldLabel": "Приватное имя для этого человека",
   "@invitationAddresseeFieldLabel": {
     "context": "Contacts"
+  },
+  "invitationAddresseeHelper": "Видно только вам. Можно сменить позже.",
+  "@invitationAddresseeHelper": {
+    "context": "Contacts"
+  },
+  "invitationDualPurposeBody": "Ссылка сработает и для нового человека, и если у него уже есть аккаунт.",
+  "@invitationDualPurposeBody": {
+    "context": "Contacts"
+  },
+  "invitationSingleUseBody": "Этим приглашением можно воспользоваться только один раз.",
+  "@invitationSingleUseBody": {
+    "context": "Contacts"
+  },
+  "invitationPendingWaiting": "Ожидает",
+  "@invitationPendingWaiting": {
+    "context": "FriendsScreen"
   },
   "invitationAddresseeEditTitle": "Изменить имя в приглашении",
   "@invitationAddresseeEditTitle": {
@@ -332,10 +352,6 @@
   "@friendsInvitesEmptyTitle": {
     "context": "FriendsScreen"
   },
-  "friendsInvitesEmptyBody": "Создайте приглашение, чтобы поделиться им с человеком, который сможет присоединиться к Tentura.",
-  "@friendsInvitesEmptyBody": {
-    "context": "FriendsScreen"
-  },
   "friendsInvitesPeopleSection": "Люди",
   "@friendsInvitesPeopleSection": {
     "context": "FriendsScreen"
@@ -344,7 +360,7 @@
   "@friendsInvitesBeaconSection": {
     "context": "FriendsScreen"
   },
-  "confirmInvitationRemoval": "Вы уверены, что хотите отменить приглашение? После этого человек не сможет зарегистрироваться.",
+  "confirmInvitationRemoval": "Отменить приглашение? Ссылка перестанет работать.",
   "@confirmInvitationRemoval": {
     "context": "InvitationRemoveDialog"
   },
@@ -4712,6 +4728,14 @@
   "updatesFallbackBodyMutualConnectionFormed": "Вы теперь связаны в Tentura.",
   "updatesFallbackTitleInviteAccepted": "Приглашение принято",
   "updatesFallbackBodyInviteAccepted": "Кто-то присоединился по вашему приглашению.",
+  "updatesInviteAcceptedBodyNewAccount": "Создал(а) аккаунт по вашему приглашению. Теперь вы связаны.",
+  "@updatesInviteAcceptedBodyNewAccount": {
+    "context": "Updates"
+  },
+  "updatesInviteAcceptedBodyExistingAccount": "Уже был аккаунт в Tentura. Теперь вы связаны.",
+  "@updatesInviteAcceptedBodyExistingAccount": {
+    "context": "Updates"
+  },
   "inviteSeedPromptQuestion": "Какие запросы вам было бы комфортно отправлять {name}?",
   "@inviteSeedPromptQuestion": {
     "placeholders": {

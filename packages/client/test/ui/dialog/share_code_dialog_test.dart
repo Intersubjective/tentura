@@ -33,6 +33,34 @@ void main() {
     expect(find.text('Share Link'), findsOneWidget);
   });
 
+  testWidgets('optional caption renders under the QR and is not the link', (
+    tester,
+  ) async {
+    const link = 'https://tentura.example/invite/Iabc123';
+    const caption =
+        'This link works if they are new to Tentura or already have an account.';
+
+    await tester.pumpWidget(
+      MaterialApp(
+        locale: const Locale('en'),
+        localizationsDelegates: L10n.localizationsDelegates,
+        supportedLocales: L10n.supportedLocales,
+        theme: TenturaTheme.light(),
+        home: const Scaffold(
+          body: ShareCodeDialog(
+            header: 'Invitation Code',
+            link: link,
+            caption: caption,
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text(caption), findsOneWidget);
+    expect(find.text(link), findsOneWidget);
+  });
+
   testWidgets('share link tap does not throw when render box is ready', (
     tester,
   ) async {

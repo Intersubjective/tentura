@@ -16,22 +16,28 @@ class ShareCodeDialog extends StatelessWidget {
     required String header,
     // TBD: get id only, build link here
     required Uri link,
+    String? caption,
   }) => showAdaptiveDialog(
     context: context,
     builder: (_) => ShareCodeDialog(
       header: header,
       link: link.toString(),
+      caption: caption,
     ),
   );
 
   const ShareCodeDialog({
     required this.header,
     required this.link,
+    this.caption,
     super.key,
   });
 
   final String header;
   final String link;
+
+  /// Shown under the QR in the dialog only. Never included in [ShareParams].
+  final String? caption;
 
   Future<void> _copyLink(BuildContext context, L10n l10n) async {
     await Clipboard.setData(ClipboardData(text: link));
@@ -73,6 +79,14 @@ class ShareCodeDialog extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Center(child: QrCode(data: link)),
+            if (caption != null && caption!.isNotEmpty) ...[
+              SizedBox(height: tt.rowGap),
+              Text(
+                caption!,
+                style: theme.textTheme.bodySmall,
+                textAlign: TextAlign.center,
+              ),
+            ],
             const SizedBox(height: kSpacingSmall),
             SelectionArea(
               child: Text(

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'package:tentura/consts.dart';
+import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/string_input_validator.dart';
 
@@ -59,15 +60,34 @@ class _InvitationAddresseeDialogState extends State<InvitationAddresseeDialog>
       ),
       content: Form(
         key: _formKey,
-        child: TextFormField(
-          controller: _controller,
-          autofocus: true,
-          maxLength: kTitleMaxLength,
-          decoration: InputDecoration(
-            labelText: l10n.invitationAddresseeFieldLabel,
-          ),
-          validator: (value) => displayNameValidator(l10n, value?.trim()),
-          onFieldSubmitted: (_) => _submit(),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (!widget.isEdit) ...[
+              Text(
+                l10n.invitationDualPurposeBody,
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+              SizedBox(height: context.tt.rowGap),
+              Text(
+                l10n.invitationSingleUseBody,
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+              SizedBox(height: context.tt.rowGap),
+            ],
+            TextFormField(
+              controller: _controller,
+              autofocus: true,
+              maxLength: kTitleMaxLength,
+              decoration: InputDecoration(
+                labelText: l10n.invitationAddresseeFieldLabel,
+                helperText: l10n.invitationAddresseeHelper,
+              ),
+              validator: (value) => displayNameValidator(l10n, value?.trim()),
+              onFieldSubmitted: (_) => _submit(),
+            ),
+          ],
         ),
       ),
       actions: [

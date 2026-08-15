@@ -132,8 +132,12 @@
       }
     }
   },
-  "renameContactFieldLabel": "Name (visible only to you)",
+  "renameContactFieldLabel": "Private name for this person",
   "@renameContactFieldLabel": {
+    "context": "Contacts"
+  },
+  "renameContactHelper": "Only you can see this. You can change it later.",
+  "@renameContactHelper": {
     "context": "Contacts"
   },
   "renameContactReset": "Reset to their name",
@@ -144,9 +148,25 @@
   "@invitationAddresseeTitle": {
     "context": "Contacts"
   },
-  "invitationAddresseeFieldLabel": "Name (visible only to you)",
+  "invitationAddresseeFieldLabel": "Private name for this person",
   "@invitationAddresseeFieldLabel": {
     "context": "Contacts"
+  },
+  "invitationAddresseeHelper": "Only you can see this. You can change it later.",
+  "@invitationAddresseeHelper": {
+    "context": "Contacts"
+  },
+  "invitationDualPurposeBody": "This link works if they are new to Tentura or already have an account.",
+  "@invitationDualPurposeBody": {
+    "context": "Contacts"
+  },
+  "invitationSingleUseBody": "This invite can be used only once.",
+  "@invitationSingleUseBody": {
+    "context": "Contacts"
+  },
+  "invitationPendingWaiting": "Waiting",
+  "@invitationPendingWaiting": {
+    "context": "FriendsScreen"
   },
   "invitationAddresseeEditTitle": "Edit invite name",
   "@invitationAddresseeEditTitle": {
@@ -332,10 +352,6 @@
   "@friendsInvitesEmptyTitle": {
     "context": "FriendsScreen"
   },
-  "friendsInvitesEmptyBody": "Create an invite to share with someone so they can join Tentura.",
-  "@friendsInvitesEmptyBody": {
-    "context": "FriendsScreen"
-  },
   "friendsInvitesPeopleSection": "People",
   "@friendsInvitesPeopleSection": {
     "context": "FriendsScreen"
@@ -344,7 +360,7 @@
   "@friendsInvitesBeaconSection": {
     "context": "FriendsScreen"
   },
-  "confirmInvitationRemoval": "Are you sure you want to cancel this invite? They won’t be able to sign up after that.",
+  "confirmInvitationRemoval": "Are you sure you want to cancel this invite? The link will stop working.",
   "@confirmInvitationRemoval": {
     "context": "InvitationRemoveDialog"
   },
@@ -4943,6 +4959,14 @@
   "updatesFallbackBodyMutualConnectionFormed": "You are now connected on Tentura.",
   "updatesFallbackTitleInviteAccepted": "Invitation accepted",
   "updatesFallbackBodyInviteAccepted": "Someone joined via your invitation.",
+  "updatesInviteAcceptedBodyNewAccount": "Created an account via your invitation. You are now connected.",
+  "@updatesInviteAcceptedBodyNewAccount": {
+    "context": "Updates"
+  },
+  "updatesInviteAcceptedBodyExistingAccount": "Already had a Tentura account. You are now connected.",
+  "@updatesInviteAcceptedBodyExistingAccount": {
+    "context": "Updates"
+  },
   "inviteSeedPromptQuestion": "What kinds of requests would you feel comfortable sending {name}?",
   "@inviteSeedPromptQuestion": {
     "placeholders": {
