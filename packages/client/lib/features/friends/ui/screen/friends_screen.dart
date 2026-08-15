@@ -9,7 +9,6 @@ import 'package:tentura/consts.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/ui/dialog/share_code_dialog.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
-import 'package:tentura/ui/utils/relative_time.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 
 import 'package:tentura/features/auth/domain/use_case/auth_case.dart';
@@ -24,6 +23,7 @@ import 'package:tentura/domain/capability/friend_context.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 
 import '../bloc/friends_cubit.dart';
+import '../invite_pending_subtitle.dart';
 import '../widget/friends_app_bar_actions.dart';
 
 /// Semantic hook for blocked-people navigation from People.
@@ -141,6 +141,7 @@ class _FriendsScreenState extends State<FriendsScreen>
       context,
       header: l10n.labelInvitationCode,
       link: inviteShareUri(invitation.id),
+      caption: l10n.invitationDualPurposeBody,
     );
   }
 
@@ -376,7 +377,7 @@ class _InvitesTabBody extends StatelessWidget {
                             ),
                             SizedBox(height: tt.rowGap),
                             Text(
-                              l10n.friendsInvitesEmptyBody,
+                              l10n.invitationDualPurposeBody,
                               style: theme.textTheme.bodyMedium?.copyWith(
                                 color: onSurfaceVariant,
                               ),
@@ -495,10 +496,10 @@ class _InvitesTabBody extends StatelessWidget {
       key: ValueKey(invitation),
       emphasize: emphasize,
       title: name,
-      subtitle: compactRelativeTimeAgo(
+      subtitle: invitePendingSubtitle(
+        l10n: l10n,
         when: invitation.createdAt,
         now: DateTime.now(),
-        l10n: l10n,
       ),
       onEdit: () async {
         final newName = await InvitationAddresseeDialog.show(
@@ -521,6 +522,9 @@ class _InvitesTabBody extends StatelessWidget {
         context,
         header: l10n.labelInvitationCode,
         link: inviteShareUri(invitation.id),
+        caption: invitation.beaconId == null || invitation.beaconId!.isEmpty
+            ? l10n.invitationDualPurposeBody
+            : null,
       ),
     );
   }
@@ -548,9 +552,14 @@ class _InviteListTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = L10n.of(context)!;
     final scheme = Theme.of(context).colorScheme;
+    final tt = context.tt;
     const touchTarget = BoxConstraints(minWidth: 44, minHeight: 44);
 
     final tile = ListTile(
+      contentPadding: EdgeInsets.symmetric(
+        horizontal: tt.screenHPadding,
+        vertical: tt.sectionGap,
+      ),
       title: Text(title),
       subtitle: Text(subtitle),
       trailing: Row(
