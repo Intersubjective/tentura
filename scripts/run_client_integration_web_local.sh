@@ -89,15 +89,45 @@ if [[ ! -x "$CHROMEDRIVER_BIN" ]] || ! "$CHROMEDRIVER_BIN" --version | grep -q "
 fi
 log "chromedriver: $("$CHROMEDRIVER_BIN" --version | head -1)"
 
+CHROME_SCOPED_PATTERN='--user-data-dir=/tmp/\.org\.chromium\.Chromium\.scoped_dir'
+# Browsers alive before this run: cleanup must never touch someone else's.
+PREEXISTING_CHROME="$(pgrep -f -- "$CHROME_SCOPED_PATTERN" 2>/dev/null | sort -u || true)"
+
 STARTED_CHROMEDRIVER=""
+CHROMEDRIVER_PGID=""
 if ! curl -sf -m 2 "http://127.0.0.1:$CHROMEDRIVER_PORT/status" >/dev/null 2>&1; then
-  "$CHROMEDRIVER_BIN" --port="$CHROMEDRIVER_PORT" >/tmp/tentura-chromedriver.log 2>&1 &
+  # setsid: chromedriver and every Chrome it spawns share one process group, so
+  # cleanup can reap the whole tree at once (see cleanup() below).
+  setsid "$CHROMEDRIVER_BIN" --port="$CHROMEDRIVER_PORT" >/tmp/tentura-chromedriver.log 2>&1 &
   STARTED_CHROMEDRIVER=$!
+  CHROMEDRIVER_PGID="$(ps -o pgid= -p "$STARTED_CHROMEDRIVER" 2>/dev/null | tr -d ' ' || true)"
   sleep 2
 fi
 
+# `flutter drive` leaves its Chrome running whenever a target fails or times out,
+# and SIGTERM to chromedriver does not reap those sessions. Orphaned browsers get
+# reparented to init and survive indefinitely — each holding ~1 GiB of RSS plus a
+# ~500 MiB --user-data-dir under /tmp, which is tmpfs, i.e. RAM. Nine such
+# instances (oldest 6 days) once cost ~9 GiB on a dev box. Reap them explicitly.
+reap_leaked_browsers() {
+  local now leaked
+  now="$(pgrep -f -- "$CHROME_SCOPED_PATTERN" 2>/dev/null | sort -u || true)"
+  leaked="$(comm -13 <(printf '%s\n' "$PREEXISTING_CHROME") <(printf '%s\n' "$now") 2>/dev/null || true)"
+  [[ -z "${leaked//[[:space:]]/}" ]] && return 0
+  # shellcheck disable=SC2086
+  kill $leaked >/dev/null 2>&1 || true
+  sleep 2
+  # shellcheck disable=SC2086
+  kill -9 $leaked >/dev/null 2>&1 || true
+}
+
 cleanup() {
-  [[ -n "$STARTED_CHROMEDRIVER" ]] && kill "$STARTED_CHROMEDRIVER" >/dev/null 2>&1 || true
+  if [[ -n "$CHROMEDRIVER_PGID" ]]; then
+    kill -- "-$CHROMEDRIVER_PGID" >/dev/null 2>&1 || true
+  elif [[ -n "$STARTED_CHROMEDRIVER" ]]; then
+    kill "$STARTED_CHROMEDRIVER" >/dev/null 2>&1 || true
+  fi
+  reap_leaked_browsers
   [[ -n "$STARTED_SERVER" ]] && pkill -P "$STARTED_SERVER" >/dev/null 2>&1 || true
   [[ -n "$STARTED_SERVER" ]] && kill "$STARTED_SERVER" >/dev/null 2>&1 || true
 }
