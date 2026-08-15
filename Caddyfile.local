@@ -163,9 +163,30 @@
 		file_server
 	}
 
+	# Landing runtime config must revalidate — edited locally without redeploying main.js.
+	@landing_config path /config.js /config.local.js
+	handle @landing_config {
+		root * {$LOCAL_LANDING_ROOT:./packages/landing}
+		header Cache-Control "no-cache"
+		file_server
+	}
+	handle /invite/config.js {
+		root * {$LOCAL_LANDING_ROOT:./packages/landing}
+		header Cache-Control "no-cache"
+		rewrite * /config.js
+		file_server
+	}
+	handle /invite/config.local.js {
+		root * {$LOCAL_LANDING_ROOT:./packages/landing}
+		header Cache-Control "no-cache"
+		rewrite * /config.local.js
+		file_server
+	}
+
 	# Signed-out `/` serves landing index.html with relative *.js / *.css at site root.
 	@landing_static_file {
 		path *.js *.css
+		not path /config.js /config.local.js
 		file {
 			root {$LOCAL_LANDING_ROOT:./packages/landing}
 			try_files {path}

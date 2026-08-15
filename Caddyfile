@@ -157,9 +157,30 @@
 		header Access-Control-Allow-Origin "{$CORS:*}"
 	}
 
+	# Landing runtime config must revalidate — edited on VPS without redeploying main.js.
+	@landing_config path /config.js /config.local.js
+	handle @landing_config {
+		root * {$LANDING_ROOT:/srv/landing}
+		header Cache-Control "no-cache"
+		file_server
+	}
+	handle /invite/config.js {
+		root * {$LANDING_ROOT:/srv/landing}
+		header Cache-Control "no-cache"
+		rewrite * /config.js
+		file_server
+	}
+	handle /invite/config.local.js {
+		root * {$LANDING_ROOT:/srv/landing}
+		header Cache-Control "no-cache"
+		rewrite * /config.local.js
+		file_server
+	}
+
 	# Signed-out `/` serves landing index.html with relative *.js / *.css at site root.
 	@landing_static_file {
 		path *.js *.css
+		not path /config.js /config.local.js
 		file {
 			root {$LANDING_ROOT:/srv/landing}
 			try_files {path}

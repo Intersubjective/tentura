@@ -4,6 +4,8 @@
 //   googleEnabled  show Google OAuth CTA when true (requires server GOOGLE_CLIENT_ID)
 //   emailOnlyQa  hide Google in QA sessions that must exercise email auth
 //   qaTestLogin  show QA "Test login" button (non-prod deploys only; server must have QA_SIMPLE_LOGIN_MODE=true)
+//   Hiding the button needs qaTestLogin:false here (and no override in config.local.js).
+//   Disabling the API needs QA_SIMPLE_LOGIN_MODE=false on the server (.env), not this flag.
 //   sentryDsn '' = analytics disabled (no-op)
 //   sentryEnvironment / sentryRelease — Sentry env + release (CI sed at deploy)
 //
