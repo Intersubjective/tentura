@@ -111,6 +111,7 @@ class BeaconOverflowMenu extends StatelessWidget {
             'request_status' => TestIds.key(
               TestIds.beaconOverflowRequestStatus,
             ),
+            'forward' => TestIds.key(TestIds.beaconForward),
             _ => null,
           },
           value: value,

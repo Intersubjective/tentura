@@ -18,7 +18,6 @@ import 'package:tentura/features/beacon_view/ui/widget/beacon_operational_header
 import 'package:tentura/features/evaluation/domain/entity/review_window_info.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
-import 'package:tentura/ui/widget/beacon_compact_metadata_strip.dart';
 import 'package:tentura/ui/widget/beacon_hud_row_lead.dart';
 
 class _MockProfileCubit extends Mock implements ProfileCubit {
@@ -121,7 +120,9 @@ void main() {
   final t = DateTime.utc(2026, 6, 20);
   const authorProfile = Profile(id: 'uAuthor', displayName: 'Author');
 
-  testWidgets('HUD renders compact metadata strip before NOW row', (tester) async {
+  testWidgets('HUD omits people strip; NOW is first metadata row', (
+    tester,
+  ) async {
     final beacon = Beacon(
       id: 'b-hud',
       title: 'Beacon HUD',
@@ -144,37 +145,14 @@ void main() {
       beaconContextLoaded: true,
     );
 
-    await tester.pumpWidget(
-      MaterialApp(
-        theme: TenturaTheme.light(),
-        localizationsDelegates: L10n.localizationsDelegates,
-        supportedLocales: L10n.supportedLocales,
-        locale: const Locale('en'),
-        home: BlocProvider<ProfileCubit>.value(
-          value: _MockProfileCubit(const Profile(id: 'viewer', displayName: 'Viewer')),
-          child: TenturaResponsiveScope(
-            child: Scaffold(
-              body: BeaconOperationalHeaderCard(
-                state: state,
-                onAuthorTap: () {},
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-    await tester.pumpAndSettle();
+    await _pumpHeaderCard(tester, state: state);
 
-    expect(find.byType(BeaconCompactMetadataStrip), findsOneWidget);
+    expect(find.byIcon(BeaconHudRowIcons.people), findsNothing);
     expect(find.byIcon(BeaconHudRowIcons.now), findsOneWidget);
     expect(find.text('NOW'), findsNothing);
-
-    final stripY = tester.getTopLeft(find.byType(BeaconCompactMetadataStrip)).dy;
-    final nowY = tester.getTopLeft(find.byIcon(BeaconHudRowIcons.now)).dy;
-    expect(stripY, lessThan(nowY));
   });
 
-  testWidgets('HUD shows schedule and location rows outside compact strip', (
+  testWidgets('HUD Details affordance opens sheet with schedule and location', (
     tester,
   ) async {
     final beacon = Beacon(
@@ -191,33 +169,24 @@ void main() {
     final state = BeaconViewState(
       beacon: beacon,
       myProfile: const Profile(id: 'viewer', displayName: 'Viewer'),
-      helpOffers: [
-        TimelineHelpOffer(
-          user: const Profile(id: 'h1', displayName: 'Helper'),
-          message: 'help',
-          createdAt: t,
-          updatedAt: t,
-        ),
-      ],
       beaconContextLoaded: true,
     );
 
     await _pumpHeaderCard(tester, state: state);
 
-    expect(find.byType(BeaconCompactMetadataStrip), findsOneWidget);
+    final l10n = await L10n.delegate.load(const Locale('en'));
+    expect(find.text(l10n.beaconDetailsSection), findsOneWidget);
+    expect(find.byIcon(BeaconHudRowIcons.schedule), findsNothing);
+    expect(find.text('Museumplein 6, Amsterdam'), findsNothing);
+
+    await tester.tap(find.text(l10n.beaconDetailsSection));
+    await tester.pumpAndSettle();
+
     expect(find.byIcon(BeaconHudRowIcons.schedule), findsOneWidget);
-    expect(find.byIcon(BeaconHudRowIcons.location), findsOneWidget);
     expect(find.text('Museumplein 6, Amsterdam'), findsOneWidget);
-    expect(
-      find.descendant(
-        of: find.byType(BeaconCompactMetadataStrip),
-        matching: find.text('Museumplein 6, Amsterdam'),
-      ),
-      findsNothing,
-    );
   });
 
-  testWidgets('HUD location row opens actions and launches Maps URI', (
+  testWidgets('HUD Details sheet location opens Maps URI', (
     tester,
   ) async {
     await GetIt.I.reset();
@@ -240,6 +209,10 @@ void main() {
     );
 
     await _pumpHeaderCard(tester, state: state);
+
+    final l10n = await L10n.delegate.load(const Locale('en'));
+    await tester.tap(find.text(l10n.beaconDetailsSection));
+    await tester.pumpAndSettle();
 
     await tester.tap(find.text('Museumplein 6, Amsterdam'));
     await tester.pumpAndSettle();

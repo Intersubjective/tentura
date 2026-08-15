@@ -13,7 +13,6 @@ import 'package:tentura/ui/widget/beacon_hud_metadata_composer.dart';
 import 'package:tentura/ui/widget/beacon_hud_metadata_table.dart';
 import 'package:tentura/ui/widget/beacon_hud_row_lead.dart';
 
-import 'beacon_definition_hud_row.dart';
 import 'beacon_hud_action_button.dart';
 import 'beacon_hud_author_act_block.dart';
 import 'closed_request_banner.dart';
@@ -81,12 +80,10 @@ class BeaconOperationalHeaderCard extends StatelessWidget {
               context,
               rowWidth: rowWidth,
               state: state,
-              onFacePileTap: onSwitchToPeopleTab,
               onEditNowLine: onEditNowLine,
             ),
           ),
           const SizedBox(height: kBeaconHudRowGap),
-          BeaconDefinitionHudRow(beacon: state.beacon),
           if (state.beacon.status == BeaconStatus.reviewOpen) ...[
             ReviewWindowBannerHost(
               reviewWindowInfo: state.reviewWindowInfo,

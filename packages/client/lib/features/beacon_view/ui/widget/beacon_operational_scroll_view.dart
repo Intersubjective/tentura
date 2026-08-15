@@ -149,6 +149,7 @@ class BeaconOperationalScrollView extends StatelessWidget {
           kBeaconTabThreads => ThreadsList(
             beaconState: beaconState,
             onOpenThread: onOpenThread,
+            onSwitchToPeopleTab: () => _setTab(kBeaconTabPeople),
             focusThreadId: focusThreadId,
             selectedThreadId: selectedThreadId,
           ),
