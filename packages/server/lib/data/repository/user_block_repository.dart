@@ -34,15 +34,21 @@ class UserBlockRepository implements UserBlockRepositoryPort {
     required String blockedId,
     required int cascadeMode,
   }) => _db.transaction(() async {
+    // Mode 0 has nothing to materialize — store status=2 (done) so the
+    // cascade worker never claims these rows into a tight no-op loop.
     await _db.customStatement(
       r'''
 INSERT INTO public.user_block_intent (
   blocker_id, blocked_id, cascade_mode, cascade_status,
   cascade_snapshot_at, created_at, updated_at
-) VALUES ($1, $2, $3, 0, now(), now(), now())
+) VALUES (
+  $1, $2, $3,
+  CASE WHEN $3 > 0 THEN 0 ELSE 2 END,
+  now(), now(), now()
+)
 ON CONFLICT (blocker_id, blocked_id) DO UPDATE SET
   cascade_mode = EXCLUDED.cascade_mode,
-  cascade_status = 0,
+  cascade_status = CASE WHEN EXCLUDED.cascade_mode > 0 THEN 0 ELSE 2 END,
   cascade_snapshot_at = now(),
   updated_at = now()
 ''',
@@ -206,9 +212,10 @@ ON CONFLICT DO NOTHING
 INSERT INTO public.user_block_intent (
   blocker_id, blocked_id, cascade_mode, cascade_status,
   created_at, updated_at
-) VALUES ($1, $2, 0, 0, now(), now())
+) VALUES ($1, $2, 0, 2, now(), now())
 ON CONFLICT (blocker_id, blocked_id) DO UPDATE SET
   cascade_mode = 0,
+  cascade_status = 2,
   updated_at = now()
 ''',
       [blockerId, blockedId],
@@ -374,10 +381,13 @@ WHERE public.block_hides($1, peer)
   Future<List<UserBlockIntentEntity>> claimPendingCascades({
     required int limit,
   }) async {
+    // Only cascade_mode > 0 needs materialization. Mode-0 rows must not be
+    // claimed — returning them forever with materialize→0 spins the worker.
     final rows = await _db.managers.userBlockIntents
         .filter(
           (row) =>
-              row.cascadeStatus.equals(0) | row.cascadeStatus.equals(1),
+              (row.cascadeStatus.equals(0) | row.cascadeStatus.equals(1)) &
+              row.cascadeMode.isBiggerThan(0),
         )
         .get();
     rows.sort((a, b) {
@@ -408,8 +418,19 @@ WHERE public.block_hides($1, peer)
                 row.blockerId.id(blockerId) & row.blockedId.id(blockedId),
           )
           .getSingleOrNull();
-      if (intent == null || intent.cascadeMode <= 0) return 0;
+      if (intent == null) return 0;
       if (intent.cascadeStatus == 2 || intent.cascadeStatus == 3) return 0;
+      // Heal legacy mode-0 rows left at status 0/1 (pre-fix inserts).
+      if (intent.cascadeMode <= 0) {
+        await _finishCascadeIntent(
+          blockerId: blockerId,
+          blockedId: blockedId,
+          materializedDelta: 0,
+          capped: false,
+          done: true,
+        );
+        return 0;
+      }
 
       if (intent.cascadeStatus == 0) {
         await _db.customStatement(

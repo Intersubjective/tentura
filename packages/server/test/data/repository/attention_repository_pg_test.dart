@@ -970,6 +970,40 @@ WHERE id = '${retry.single.id}'
         expect(terminal.single, ['dead', true]);
       },
     );
+
+    test(
+      'claimDue with two pending jobs for one account leases only one '
+      '(no ON CONFLICT 21000)',
+      () async {
+        await unitOfWork.run(
+          actorUserId: _viewerId,
+          action: () async {
+            await dispatch.record(_dispatchIntent(sourceEventKey: 'dup-a'));
+            await dispatch.record(_dispatchIntent(sourceEventKey: 'dup-b'));
+          },
+        );
+        expect(await _deliveryCount(writer), 2);
+
+        final claimed = await delivery.claimDue(
+          workerId: 'worker-dedupe',
+          now: DateTime.timestamp().toUtc(),
+          limit: 10,
+        );
+        expect(claimed, hasLength(1));
+        expect(claimed.single.decision.recipientId, _otherId);
+
+        final statuses = await writer.execute('''
+SELECT status, count(*)::int
+FROM public.attention_channel_delivery
+GROUP BY status
+ORDER BY status
+''');
+        expect(
+          {for (final row in statuses) row[0] as String: row[1] as int},
+          {'leased': 1, 'pending': 1},
+        );
+      },
+    );
   }, skip: skipReason);
 }
 

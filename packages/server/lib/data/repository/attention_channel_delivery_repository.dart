@@ -26,20 +26,28 @@ class AttentionChannelDeliveryRepository
   }) async {
     final rows = await _database
         .customSelect(
-          r'''WITH due AS (
-  SELECT id FROM public.attention_channel_delivery
+          // `due` is at most one job per account so the throttle INSERT never
+          // proposes duplicate (account_id, channel) keys in one statement
+          // (Postgres 21000: ON CONFLICT DO UPDATE cannot affect a row twice)
+          // and we never hand off two immediate sends for the same account.
+          r'''WITH candidates AS (
+  SELECT id, account_id, available_at, created_at
+  FROM public.attention_channel_delivery
   WHERE (status = 'pending' AND available_at <= $1::timestamptz)
      OR (status = 'leased' AND lease_until <= $1::timestamptz)
   ORDER BY available_at, created_at, id
   FOR UPDATE SKIP LOCKED
   LIMIT $2
+), due AS (
+  SELECT DISTINCT ON (account_id) id, account_id
+  FROM candidates
+  ORDER BY account_id, available_at, created_at, id
 ), reserved AS (
   INSERT INTO public.attention_channel_throttle (
     account_id, channel, lease_until
   )
-  SELECT job.account_id, 'immediate', $1::timestamptz + interval '1 minute'
-  FROM public.attention_channel_delivery job
-  JOIN due ON due.id = job.id
+  SELECT account_id, 'immediate', $1::timestamptz + interval '1 minute'
+  FROM due
   ON CONFLICT (account_id, channel) DO UPDATE
     SET lease_until = EXCLUDED.lease_until
     WHERE attention_channel_throttle.lease_until <= $1::timestamptz
@@ -49,7 +57,7 @@ UPDATE public.attention_channel_delivery job
 SET status = 'leased', attempts = attempts + 1, lease_owner = $3,
     lease_until = $1::timestamptz + interval '2 minutes'
 FROM due, reserved
-WHERE job.id = due.id AND reserved.account_id = job.account_id
+WHERE job.id = due.id AND reserved.account_id = due.account_id
 RETURNING job.id, job.payload::text AS payload''',
           variables: [
             Variable(TypedValue(Type.timestampTz, now.toUtc())),

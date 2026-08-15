@@ -33,17 +33,35 @@ void main() {
     expect(repo.materializeCalls, 3);
     expect(repo.batchReturns, isEmpty);
   });
+
+  test('runDue stops when claimPendingCascades returns empty', () async {
+    final repo = _RecordingUserBlockRepository();
+    // Mimics production after mode-0 filter: nothing to claim.
+    final env = Env.test();
+    final job = BlockCascadeCase(
+      repo,
+      env: env,
+      logger: Logger('block_cascade_case_test'),
+    );
+
+    await job.runDue();
+
+    expect(repo.claimCalls, 1);
+    expect(repo.materializeCalls, 0);
+  });
 }
 
 final class _RecordingUserBlockRepository implements UserBlockRepositoryPort {
   final List<UserBlockIntentEntity> pendingIntents = [];
   final List<int> batchReturns = [];
   int materializeCalls = 0;
+  int claimCalls = 0;
 
   @override
   Future<List<UserBlockIntentEntity>> claimPendingCascades({
     required int limit,
   }) async {
+    claimCalls++;
     if (pendingIntents.isEmpty) return [];
     final claimed = pendingIntents.take(limit).toList(growable: false);
     pendingIntents.removeRange(0, claimed.length);
