@@ -7,6 +7,7 @@ import 'package:flutter/material.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon_participant.dart';
 import 'package:tentura/domain/entity/coordination_item.dart';
+import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/beacon_threads/domain/entity/request_thread.dart';
 import 'package:tentura/features/beacon_threads/ui/bloc/threads_cubit.dart';
 import 'package:tentura/features/beacon_threads/ui/bloc/threads_state.dart';
@@ -36,6 +37,11 @@ BeaconParticipant? _participantForUser(
   }
   return null;
 }
+
+List<Profile> _activeHelpOfferUsers(BeaconViewState state) => [
+  for (final offer in state.helpOffers)
+    if (!offer.isWithdrawn) offer.user,
+];
 
 List<RequestThread> _myDraftThreads(ThreadsState threadsState, String myUserId) =>
     threadsState.drafts
@@ -117,6 +123,7 @@ class ThreadsList extends StatelessWidget {
   const ThreadsList({
     required this.beaconState,
     required this.onOpenThread,
+    this.onSwitchToPeopleTab,
     this.focusThreadId,
     this.selectedThreadId,
     super.key,
@@ -124,6 +131,9 @@ class ThreadsList extends StatelessWidget {
 
   final BeaconViewState beaconState;
   final void Function(RequestThread thread) onOpenThread;
+
+  /// General card face pile tap — switches to People tab.
+  final VoidCallback? onSwitchToPeopleTab;
 
   /// When set, the matching thread row is highlighted (Log row tap-to-focus).
   final String? focusThreadId;
@@ -276,6 +286,9 @@ class ThreadsList extends StatelessWidget {
                         threadsState.resolvedUnreadFor(general),
                     isSelected: selectedThreadId == general.threadId,
                     onOpenThread: onOpenThread,
+                    generalBeacon: beaconState.beacon,
+                    generalInvolvedProfiles: _activeHelpOfferUsers(beaconState),
+                    onGeneralFacePileTap: onSwitchToPeopleTab,
                   ),
                 ),
               ],

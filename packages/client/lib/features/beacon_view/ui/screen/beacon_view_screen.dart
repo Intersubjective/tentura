@@ -741,8 +741,6 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
                   l10n: l10n,
                   inRoomSurface: false,
                   roomCubit: null,
-                  showBeaconContent: showBeaconContent,
-                  showInitialLoading: showInitialLoading,
                   onItemsTabRefresh: _refreshThreadsTab,
                   onAuthorManageStatus: () async {
                     await beaconViewCubit.refreshReviewWindowInfo();
@@ -1005,9 +1003,6 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
                                         l10n: l10n,
                                         inRoomSurface: false,
                                         roomCubit: null,
-                                        showBeaconContent: showBeaconContent,
-                                        showInitialLoading:
-                                            showInitialLoading,
                                         onItemsTabRefresh: _refreshThreadsTab,
                                         onAuthorManageStatus: () async {
                                           await beaconViewCubit
@@ -1046,10 +1041,6 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
                                               l10n: l10n,
                                               inRoomSurface: false,
                                               roomCubit: null,
-                                              showBeaconContent:
-                                                  showBeaconContent,
-                                              showInitialLoading:
-                                                  showInitialLoading,
                                               onItemsTabRefresh:
                                                   _refreshThreadsTab,
                                               onAuthorManageStatus: () async {
