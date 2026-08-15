@@ -53,4 +53,45 @@ void main() {
 
     expect(find.byKey(TestIds.key(TestIds.inboxForward)), findsOneWidget);
   });
+
+  testWidgets('compact layout puts dismiss on the Forward row', (tester) async {
+    const viewport = Size(375, 812);
+    await tester.binding.setSurfaceSize(viewport);
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+
+    await tester.pumpWidget(
+      MaterialApp(
+        locale: const Locale('en'),
+        theme: TenturaTheme.light(),
+        localizationsDelegates: L10n.localizationsDelegates,
+        supportedLocales: L10n.supportedLocales,
+        home: MediaQuery(
+          data: const MediaQueryData(size: viewport),
+          child: TenturaResponsiveScope(
+            child: Scaffold(
+              body: SizedBox(
+                width: viewport.width,
+                child: CardTriageActionRow(
+                  onForward: () {},
+                  onOfferHelp: () async {},
+                  secondaryIcon: Icons.close,
+                  secondaryTooltip: 'Remove from inbox',
+                  onSecondary: () async {},
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final offer = tester.getCenter(find.byKey(TestIds.key(TestIds.inboxOfferHelp)));
+    final forward = tester.getCenter(find.byKey(TestIds.key(TestIds.inboxForward)));
+    final dismiss = tester.getCenter(find.byKey(TestIds.key(TestIds.inboxDismiss)));
+
+    expect(offer.dy, lessThan(forward.dy));
+    expect((forward.dy - dismiss.dy).abs(), lessThan(4));
+    expect(dismiss.dx, greaterThan(forward.dx));
+  });
 }

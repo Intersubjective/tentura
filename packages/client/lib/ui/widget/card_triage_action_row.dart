@@ -159,21 +159,36 @@ class CardTriageActionRow extends StatelessWidget {
     }
 
     Widget compactLayout() {
+      final tertiaryButton = tertiary;
+
       return Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         mainAxisSize: MainAxisSize.min,
         children: [
           if (hasOfferHelp) ...[
             offerHelpBtn,
-            if (hasForward) SizedBox(height: tt.tightGap),
+            if (hasForward || hasSecondary) SizedBox(height: tt.tightGap),
           ],
-          if (hasForward) forwardBtn!,
-          if (hasSecondary && tertiary != null) ...[
-            SizedBox(height: tt.tightGap),
-            Align(
-              alignment: Alignment.centerLeft,
-              child: tertiary,
-            ),
+          if (hasForward &&
+              tertiaryButton != null &&
+              secondaryIcon != null &&
+              secondaryLabel == null)
+            Row(
+              children: [
+                Expanded(child: forwardBtn!),
+                SizedBox(width: tt.rowGap),
+                tertiaryButton,
+              ],
+            )
+          else ...[
+            if (hasForward) forwardBtn!,
+            if (tertiaryButton != null) ...[
+              if (hasForward) SizedBox(height: tt.tightGap),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: tertiaryButton,
+              ),
+            ],
           ],
         ],
       );

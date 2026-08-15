@@ -1,25 +1,22 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/coordination/derive_beacon_coordination_phase.dart';
-import 'package:tentura/domain/entity/image_entity.dart';
-import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/beacon/ui/widget/beacon_overflow_menu.dart';
+import 'package:tentura/features/beacon_view/ui/widget/beacon_details_facts_access_row.dart';
+import 'package:tentura/features/beacon_view/ui/widget/beacon_view_details_sheet.dart';
 import 'package:tentura/features/home/ui/widget/attention_marker.dart';
 import 'package:tentura/features/inbox/domain/entity/inbox_room_card_hints.dart';
-import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/presenter/beacon_phase_input_builders.dart';
 import 'package:tentura/ui/presenter/beacon_phase_presenter.dart';
-import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura/ui/widget/beacon_card_primitives.dart';
 import 'package:tentura/ui/widget/beacon_requirements_bar.dart';
-import 'package:tentura/ui/widget/self_user_highlight.dart';
-import 'package:tentura/ui/widget/show_more_text.dart';
 
 import '../../domain/entity/inbox_item.dart';
-import '../../domain/entity/inbox_provenance.dart';
 import '../../domain/enum.dart';
 import 'inbox_card_action_row.dart';
 import 'inbox_card_forwards_fold.dart';
@@ -118,11 +115,6 @@ class InboxItemTile extends StatelessWidget {
 
     final hasProvenance = showProvenance && item.provenance.senders.isNotEmpty;
     final showDeadlineOrForwardsRow = hasProvenance || beacon.endAt != null;
-    final updatedLine = beaconHasRealUpdate(beacon)
-        ? l10n.myWorkUpdatedLine(
-            '${dateFormatYMD(beacon.updatedAt)} ${timeFormatHm(beacon.updatedAt)}',
-          )
-        : null;
 
     final phaseInput = beaconPhaseInputFromInbox(
       beacon: beacon,
@@ -135,8 +127,7 @@ class InboxItemTile extends StatelessWidget {
       now: DateTime.now(),
     );
 
-    final description = beacon.description.trim();
-    final forwardNote = _primaryForwardNote(item.provenance);
+    final showDetails = beaconViewHasDetailsContent(beacon);
 
     return BeaconCardShell(
       onTap: onOpenBeacon,
@@ -186,25 +177,23 @@ class InboxItemTile extends StatelessWidget {
           SizedBox(height: tt.rowGap),
           BeaconCardMetadataLine(
             beacon: beacon,
-            updatedLine: updatedLine,
+            updatedLine: null,
           ),
-          if (description.isNotEmpty) ...[
+          if (showDetails) ...[
             SizedBox(height: tt.rowGap),
-            ShowMoreText(
-              description,
-              style: theme.textTheme.bodyMedium,
-              colorClickableText: scheme.primary,
-              trimCollapsedText: l10n.itemShowMore,
-              trimExpandedText: l10n.itemShowLess,
+            BeaconDetailsFactsAccessRow(
+              showDetails: true,
+              factsCount: 0,
+              factsNewCount: 0,
+              onOpenDetails: () => unawaited(
+                showBeaconViewDetailsSheet(context, beacon: beacon),
+              ),
+              onOpenFacts: null,
             ),
           ],
           if (beacon.needs.isNotEmpty) ...[
             SizedBox(height: tt.rowGap),
             BeaconRequirementsBar(needs: beacon.needs),
-          ],
-          if (forwardNote != null) ...[
-            SizedBox(height: tt.rowGap),
-            _InboxForwardNotePreview(sender: forwardNote),
           ],
           if (item.roomHints != null) ...[
             SizedBox(height: tt.rowGap),
@@ -217,6 +206,7 @@ class InboxItemTile extends StatelessWidget {
               deadlineEndAt: beacon.endAt,
               deadlineStartAt: beacon.startAt,
             ),
+            SizedBox(height: tt.sectionGap),
           ],
           if (item.status == InboxItemStatus.rejected &&
               item.rejectionMessage.isNotEmpty)
@@ -233,15 +223,6 @@ class InboxItemTile extends StatelessWidget {
         ],
       ),
     );
-  }
-
-  /// Highest-MR forwarder with a non-empty note (senders already ordered by MR).
-  InboxForwardSender? _primaryForwardNote(InboxProvenance provenance) {
-    if (!showProvenance) return null;
-    for (final sender in provenance.senders) {
-      if (sender.notePreview.trim().isNotEmpty) return sender;
-    }
-    return null;
   }
 
   List<Widget> _roomHintLines(
@@ -314,37 +295,5 @@ class InboxItemTile extends StatelessWidget {
       }
     }
     return out;
-  }
-}
-
-class _InboxForwardNotePreview extends StatelessWidget {
-  const _InboxForwardNotePreview({required this.sender});
-
-  final InboxForwardSender sender;
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = L10n.of(context)!;
-    final theme = Theme.of(context);
-    final scheme = theme.colorScheme;
-    final viewerId = context.watch<ProfileCubit>().state.profile.id;
-    final profile = Profile(
-      id: sender.id,
-      displayName: sender.displayName,
-      image: sender.imageId != null &&
-              sender.imageId!.isNotEmpty &&
-              sender.imageId != 'null'
-          ? ImageEntity(id: sender.imageId!, authorId: sender.id)
-          : null,
-    );
-    final name = SelfUserHighlight.displayName(l10n, profile, viewerId);
-    final note = sender.notePreview.trim();
-    return Text(
-      '${l10n.inboxForwardedByLabel} $name: $note',
-      style: theme.textTheme.bodySmall?.copyWith(
-        color: scheme.onSurfaceVariant,
-      ),
-      softWrap: true,
-    );
   }
 }

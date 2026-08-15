@@ -25,7 +25,7 @@ Profile _senderProfile(InboxForwardSender s) => Profile(
 
 const double _kInboxForwardFoldCompactHeaderWidth = 120;
 
-/// Collapsed: “Forwarded by” + mini avatars + chevron (no note text).
+/// Collapsed: “Forwarded to me” + mini avatars + chevron (no note text).
 /// Expanded: per-sender name + avatar, then note (right-aligned) + vertical bar under avatar (full-width rows).
 class InboxCardForwardsFold extends StatefulWidget {
   const InboxCardForwardsFold({

@@ -11,6 +11,7 @@ import 'package:tentura/features/inbox/domain/entity/inbox_provenance.dart';
 import 'package:tentura/features/inbox/ui/widget/inbox_item_tile.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/test_ids.dart';
 import 'package:tentura/ui/widget/show_more_text.dart';
 
 class _GoldenProfileCubit extends Mock implements ProfileCubit {
@@ -29,6 +30,7 @@ Future<void> _pumpTile(
   required Size logicalSize,
   bool isSelected = false,
   bool attentionMarked = false,
+  VoidCallback? onOpenBeacon,
 }) async {
   await tester.pumpWidget(
     BlocProvider<ProfileCubit>.value(
@@ -53,7 +55,7 @@ Future<void> _pumpTile(
                       item: item,
                       attentionMarked: attentionMarked,
                       isSelected: isSelected,
-                      onOpenBeacon: () {},
+                      onOpenBeacon: onOpenBeacon ?? () {},
                       onTap: () {},
                     ),
                   ),
@@ -142,7 +144,7 @@ void main() {
     );
   });
 
-  testWidgets('empty description omits ShowMoreText', (tester) async {
+  testWidgets('empty details content omits Details row', (tester) async {
     final beacon = Beacon(
       id: 'b-empty',
       title: 'No description',
@@ -162,12 +164,52 @@ void main() {
       logicalSize: const Size(360, 240),
     );
 
+    final l10n = await L10n.delegate.load(const Locale('en'));
     expect(find.byType(ShowMoreText), findsNothing);
+    expect(find.text(l10n.beaconDetailsSection), findsNothing);
+    expect(find.byKey(TestIds.key(TestIds.beaconDetailsOpen)), findsNothing);
   });
 
-  testWidgets('forward note preview is visible without expanding fold', (
+  testWidgets('description is replaced by Details and opens the sheet', (
     tester,
   ) async {
+    const description = 'Need two people tomorrow morning to help carry a piano.';
+    final beacon = Beacon(
+      id: 'b-details',
+      title: 'Help needed',
+      description: description,
+      author: const Profile(id: 'auth', displayName: 'Alex River'),
+      createdAt: at,
+      updatedAt: at.add(const Duration(hours: 3)),
+    );
+    final item = InboxItem(
+      beaconId: beacon.id,
+      latestForwardAt: at,
+      beacon: beacon,
+    );
+
+    var opened = 0;
+    await _pumpTile(
+      tester,
+      item: item,
+      logicalSize: const Size(360, 360),
+      onOpenBeacon: () => opened++,
+    );
+
+    final l10n = await L10n.delegate.load(const Locale('en'));
+    expect(find.byType(ShowMoreText), findsNothing);
+    expect(find.text(description), findsNothing);
+    expect(find.text(l10n.beaconDetailsSection), findsOneWidget);
+    expect(find.textContaining('updated'), findsNothing);
+
+    await tester.tap(find.text(l10n.beaconDetailsSection));
+    await tester.pumpAndSettle();
+
+    expect(find.text(description), findsOneWidget);
+    expect(opened, 0);
+  });
+
+  testWidgets('forward note is hidden until fold expands', (tester) async {
     final beacon = Beacon(
       id: 'b-note',
       title: 'With note',
@@ -199,7 +241,13 @@ void main() {
       logicalSize: const Size(360, 320),
     );
 
+    final l10n = await L10n.delegate.load(const Locale('en'));
+    expect(find.textContaining('Please check this week.'), findsNothing);
+    expect(find.text(l10n.inboxForwardedByLabel), findsOneWidget);
+
+    await tester.tap(find.text(l10n.inboxForwardedByLabel));
+    await tester.pumpAndSettle();
+
     expect(find.textContaining('Please check this week.'), findsOneWidget);
-    expect(find.textContaining('Forwarded by'), findsWidgets);
   });
 }

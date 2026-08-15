@@ -1880,7 +1880,7 @@
       }
     }
   },
-  "inboxForwardedByLabel": "Переслали",
+  "inboxForwardedByLabel": "Переслали мне",
   "@inboxForwardedByLabel": {
     "context": "InboxItemTile"
   },
