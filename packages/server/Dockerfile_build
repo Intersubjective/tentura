@@ -11,7 +11,8 @@ ARG SERVER_VERSION=0.0.0
 
 RUN rm -rf "$FLUTTER_HOME" \
  && git clone --depth 1 --branch "$FLUTTER_VERSION" https://github.com/flutter/flutter.git "$FLUTTER_HOME" \
- && flutter config --no-analytics
+ && flutter config --no-analytics \
+ && flutter precache
 
 WORKDIR /app
 
