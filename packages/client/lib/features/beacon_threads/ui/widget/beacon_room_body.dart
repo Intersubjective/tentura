@@ -265,16 +265,17 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
             clipboardImageRepository: GetIt.I<ClipboardImageRepository>(),
             jumpFabHeroTag: 'beacon_room_jump_latest',
             onScrollToPromoteSource: cubit.requestScrollToMessage,
-            onOpenCoordinationItem: widget.onOpenCoordinationItem ??
+            onOpenCoordinationItem:
+                widget.onOpenCoordinationItem ??
                 (isThreadMode
                     ? null
                     : (item) => unawaited(
-                          openCoordinationItemFromRoom(
-                            context,
-                            item: item,
-                            roomCubit: cubit,
-                          ),
-                        )),
+                        openCoordinationItemFromRoom(
+                          context,
+                          item: item,
+                          roomCubit: cubit,
+                        ),
+                      )),
             pinnedFactForMessage: state.factForRoomMessage,
             pendingJumpMessageId: state.scrollToMessageId,
           );
@@ -347,7 +348,7 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
         showDragHandle: true,
         // useRootNavigator: true is required on Web.
         //
-        // BeaconViewScreen wraps its room surface in PopScope(canPop: false)
+        // ThreadDetailScreen wraps the room surface in PopScope(canPop: false)
         // so that the browser back-button can be intercepted. Flutter Web
         // implements this by injecting a sentinel history entry via
         // SystemNavigator. When showModalBottomSheet opens under the *same*
@@ -355,8 +356,7 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
         // the sentinel and the modal's route lifecycle interact: after the
         // sheet is dismissed the Web platform's hit-test / gesture-delivery
         // machinery stops forwarding taps to the AppBar back button, making
-        // _exitRoomSurface unreachable even though the room UI is still
-        // visible and the URL still contains the threads tab query.
+        // exit unreachable even though the room UI is still visible.
         //
         // Opening the sheet under the root Navigator places it above the
         // PopScope's scope, decoupling its lifecycle from the sentinel and

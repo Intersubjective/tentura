@@ -112,7 +112,8 @@ void main() {
     );
     MyWorkRoute.page = PageInfo(
       MyWorkRoute.name,
-      builder: (_) => const Text('my-work-root', textDirection: TextDirection.ltr),
+      builder: (_) =>
+          const Text('my-work-root', textDirection: TextDirection.ltr),
     );
 
     BeaconViewOperationalRoute.page = PageInfo(
@@ -274,7 +275,47 @@ void main() {
         expect(currentUrl(), '/home/work/beacon/view/B1');
         expect(beaconNested.stack.length, 1);
         expect(beaconNested.stack.single.name, BeaconViewOperationalRoute.name);
-        expect(workBranch!.stack.where((r) => r.name == BeaconViewRoute.name), hasLength(1));
+        expect(
+          workBranch!.stack.where((r) => r.name == BeaconViewRoute.name),
+          hasLength(1),
+        );
+      },
+    );
+
+    testWidgets(
+      'second back after thread pop leaves beacon to My Work',
+      (tester) async {
+        await pumpRouter(
+          tester,
+          initialPath: '/home/work/beacon/view/B1/thread/T1',
+        );
+
+        final tabsRouter = router.innerRouterOf<TabsRouter>(HomeRoute.name);
+        final workBranch = tabsRouter?.stackRouterOfIndex(
+          HomeTabSpec.forTab(HomeTab.work).index,
+        );
+        final beaconNested = workBranch?.innerRouterOf<StackRouter>(
+          BeaconViewRoute.name,
+        );
+        expect(beaconNested, isNotNull);
+
+        // General chat → request
+        await beaconNested!.maybePop();
+        await tester.pumpAndSettle();
+        expect(find.text('beacon-operational:B1:'), findsOneWidget);
+        expect(workBranch!.stackData.length, greaterThan(1));
+
+        // Request → My Desk (app-bar back / maybePopTop)
+        expect(await router.maybePopTop(), isTrue);
+        await tester.pumpAndSettle();
+
+        expect(find.text('my-work-root'), findsOneWidget);
+        expect(currentUrl(), '/home/work');
+        expect(
+          workBranch.stackData.length,
+          1,
+          reason: 'second back must pop BeaconView off the work branch',
+        );
       },
     );
 
