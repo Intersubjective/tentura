@@ -839,6 +839,41 @@ class RootRouter extends RootStackRouter {
         preferUpdatesBranch: true,
       );
 
+  /// Activates Network and opens the Invitations tab on [FriendsRoute].
+  ///
+  /// Pops root overlays (beacon create / forward) first: `pushPath` of
+  /// `/home/network?tab=…` cannot switch a mounted tabs shell, and those
+  /// overlays use `keepHistory: false` so a naive push left Work (My Desk)
+  /// visible. Scoped [popUntilRouteWithName] does not clear nested tab stacks.
+  /// Cold-start (no mounted home tabs) builds
+  /// `HomeRoute → NetworkTabShell → FriendsRoute(tab=invitations)`.
+  Future<void> openInvitations() async {
+    popUntilRouteWithName(HomeRoute.name);
+    final tabs = innerRouterOf<TabsRouter>(HomeRoute.name);
+    if (tabs != null) {
+      final networkSpec = HomeTabSpec.forTab(HomeTab.network);
+      tabs.setActiveIndex(networkSpec.index);
+      final branch = tabs.stackRouterOfIndex(networkSpec.index);
+      if (branch != null) {
+        await branch.replaceAll([
+          FriendsRoute(initialTab: kHomeTabInvitations),
+        ]);
+        return;
+      }
+    }
+    await navigate(
+      HomeRoute(
+        children: [
+          networkTabShell(
+            children: [
+              FriendsRoute(initialTab: kHomeTabInvitations),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
   /// Activates Network, normalizes the branch to [FriendsRoute], then pushes
   /// [BlockedUsersRoute]. Cold-start (no mounted home tabs) builds
   /// `HomeRoute → NetworkTabShell → FriendsRoute → BlockedUsersRoute`.

@@ -356,11 +356,7 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
         text: l10n.forwardInviteCreatedHint,
         action: SnackBarAction(
           label: l10n.forwardViewInvitations,
-          onPressed: () => unawaited(
-            GetIt.I<RootRouter>().pushPath(
-              '$kPathNetwork?$kQueryHomeTab=$kHomeTabInvitations',
-            ),
-          ),
+          onPressed: () => unawaited(GetIt.I<RootRouter>().openInvitations()),
         ),
       );
     } finally {

@@ -198,6 +198,7 @@ void main() {
   late final PageInfo realThreadDetailPage;
   late final PageInfo realInboxRejectedPage;
   late final PageInfo realBlockedUsersPage;
+  late final PageInfo realBeaconCreatePage;
 
   setUpAll(() {
     realHomePage = HomeRoute.page;
@@ -215,6 +216,7 @@ void main() {
     realThreadDetailPage = ThreadDetailRoute.page;
     realInboxRejectedPage = InboxRejectedRoute.page;
     realBlockedUsersPage = BlockedUsersRoute.page;
+    realBeaconCreatePage = BeaconCreateRoute.page;
 
     HomeRoute.page = PageInfo(
       HomeRoute.name,
@@ -301,6 +303,7 @@ void main() {
         ),
       ),
     );
+    BeaconCreateRoute.page = _labelPage(BeaconCreateRoute.name, 'beacon-create');
   });
 
   tearDownAll(() {
@@ -319,6 +322,7 @@ void main() {
     ThreadDetailRoute.page = realThreadDetailPage;
     InboxRejectedRoute.page = realInboxRejectedPage;
     BlockedUsersRoute.page = realBlockedUsersPage;
+    BeaconCreateRoute.page = realBeaconCreatePage;
   });
 
   late RootRouter router;
@@ -1123,6 +1127,56 @@ void main() {
 
         expect(find.text('blocked-users'), findsNothing);
         expect(currentUrl(), kPathMyWork);
+      },
+    );
+  });
+
+  group('openInvitations', () {
+    testWidgets(
+      'openInvitations from Work activates Network with invitations tab',
+      (tester) async {
+        await pumpRouter(tester, initialPath: '/home/work');
+        expect(find.text('my-work-root'), findsOneWidget);
+
+        await router.openInvitations();
+        await tester.pumpAndSettle();
+
+        final tabsRouter = router.innerRouterOf<TabsRouter>(HomeRoute.name);
+        final networkSpec = HomeTabSpec.forTab(HomeTab.network);
+        final branch = tabsRouter?.stackRouterOfIndex(networkSpec.index);
+        expect(tabsRouter?.activeIndex, networkSpec.index);
+        expect(branch?.stack.map((r) => r.name).toList(), [FriendsRoute.name]);
+        expect(find.text('friends-root'), findsOneWidget);
+        expect(
+          currentUrl(),
+          '$kPathNetwork?$kQueryHomeTab=$kHomeTabInvitations',
+        );
+      },
+    );
+
+    testWidgets(
+      'openInvitations from BeaconCreate overlay pops create and opens '
+      'invitations',
+      (tester) async {
+        await pumpRouter(tester, initialPath: '/home/work');
+        expect(find.text('my-work-root'), findsOneWidget);
+
+        unawaited(router.pushPath(kPathBeaconNew));
+        await tester.pumpAndSettle();
+        expect(find.text('beacon-create'), findsOneWidget);
+
+        await router.openInvitations();
+        await tester.pumpAndSettle();
+
+        final tabsRouter = router.innerRouterOf<TabsRouter>(HomeRoute.name);
+        final networkSpec = HomeTabSpec.forTab(HomeTab.network);
+        expect(tabsRouter?.activeIndex, networkSpec.index);
+        expect(find.text('friends-root'), findsOneWidget);
+        expect(find.text('beacon-create'), findsNothing);
+        expect(
+          currentUrl(),
+          '$kPathNetwork?$kQueryHomeTab=$kHomeTabInvitations',
+        );
       },
     );
   });
