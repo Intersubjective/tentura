@@ -49,6 +49,31 @@ abstract class Profile with _$Profile implements Likable, Scorable {
   /// the user's self-chosen display name otherwise.
   String get shownName => contactName.isNotEmpty ? contactName : displayName;
 
+  /// Public identity join: non-empty [displayName] and `@handle`, separated
+  /// by ` · `. Empty when neither is set. No contact-name overlay.
+  String get canonicalPublicLabel {
+    final name = displayName.trim();
+    final h = handle.trim();
+    final parts = <String>[
+      if (name.isNotEmpty) name,
+      if (h.isNotEmpty) '@$h',
+    ];
+    return parts.join(' · ');
+  }
+
+  /// Secondary line under [shownName]: public parts with any part equal to
+  /// [shownName] dropped. Empty when nothing remains.
+  String get canonicalSecondaryLabel {
+    final primary = shownName.trim();
+    final name = displayName.trim();
+    final h = handle.trim();
+    final parts = <String>[
+      if (name.isNotEmpty && name != primary) name,
+      if (h.isNotEmpty && '@$h' != primary) '@$h',
+    ];
+    return parts.join(' · ');
+  }
+
   /// User-facing label: [shownName] → @handle → [unknownPersonLabel].
   /// Never returns [id].
   String displayLabel(String unknownPersonLabel) {
