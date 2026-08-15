@@ -34,6 +34,10 @@ Trust can affect:
 
 Trust does **not** by itself let you open another person’s requests. You need an involvement path (forwarded to you, help offered, room admitted, etc.).
 
+## After a relationship-forming invite accept
+
+A People invite that creates a connection (new signup or existing-account friendship) puts the person on **People** as **name → canonical public line → trust**. A private nickname never hides their public name/`@handle` on People or the other-person profile. The invite-accepted Updates card uses the local nickname as title when set, the same canonical second line, and a body that says whether they created an account or already had one. Beacon-only invite accepts do not emit that Updates card. See [`plans/issue-97-invite-identity-plan.md`](plans/issue-97-invite-identity-plan.md).
+
 ## Icons & graph legend
 
 Avatars, graph nodes, and People lists reuse the same contact-badge chrome. Three signals are easy to confuse — keep them separate:

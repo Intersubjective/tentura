@@ -40,6 +40,7 @@ Short pointers for agents — read only what your task needs.
 |-----|-----------|
 | [`plans/availability-request-receptiveness-architecture.md`](plans/availability-request-receptiveness-architecture.md) | Availability / request-receptiveness signal (profile + Forward) — architecture rev 3, awaiting sign-off (reviews: [grok](plans/availability-review-grok46.md), [kimi](plans/availability-review-kimik3.md), [codex](plans/availability-review-codex.md)) |
 | [`plans/issue-110-forward-explicit-architecture.md`](plans/issue-110-forward-explicit-architecture.md) | Explicit forwarding UX (#110): note coverage, stay-on-send, Watching confirm, `allowsForward` gate — architecture rev 1 |
+| [`plans/issue-97-invite-identity-plan.md`](plans/issue-97-invite-identity-plan.md) | Invite identity + canonical name (#97) — private nickname, dual-purpose People invite, Updates origin |
 | [`plans/beacon-cross-screen-invalidation-refactor.md`](plans/beacon-cross-screen-invalidation-refactor.md) | Sync My Work/Inbox after local room mutations |
 | [`plans/beacon-location-google-maps-plan.md`](plans/beacon-location-google-maps-plan.md) | Google Maps picker + external Maps hand-off |
 | [`plans/google-maps-server-proxy-plan.md`](plans/google-maps-server-proxy-plan.md) | Server-side Geocoding/Places proxy |
