@@ -346,6 +346,12 @@ abstract class BeaconViewState extends StateBase with _$BeaconViewState {
       myActiveHelpOffer?.coordinationResponse ==
       CoordinationResponseType.notSuitable;
 
+  /// Active (non-withdrawn) help-offerers on the General face pile.
+  List<Profile> get activeHelpOfferUsers => [
+        for (final offer in helpOffers)
+          if (!offer.isWithdrawn) offer.user,
+      ];
+
   /// Room access-unavailable banner applies unless the viewer is waiting on
   /// the author after offering help (Items tab shows waiting copy instead).
   bool get showsRoomAccessUnavailableBanner =>

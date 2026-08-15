@@ -2,12 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
+import 'package:tentura/domain/entity/beacon.dart';
+import 'package:tentura/domain/entity/beacon_participant.dart';
 import 'package:tentura/domain/entity/coordination_item.dart';
+import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/beacon_threads/domain/entity/request_thread.dart';
 import 'package:tentura/features/beacon_threads/ui/bloc/room_cubit.dart';
+import 'package:tentura/features/beacon_threads/ui/bloc/thread_host_cubit.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/beacon_room_body.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/thread_host.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/widget/beacon_involved_people_face_pile.dart';
 import 'package:tentura/ui/widget/coordination_item_presenter.dart';
 import 'package:tentura/ui/widget/coordination_item_card_chrome.dart';
 
@@ -32,7 +37,20 @@ String threadTitleFallback(L10n l10n, RequestThread thread) {
   };
 }
 
-/// Thread body (optional semantic header + messages) without a [Scaffold].
+String threadGeneralAppBarTitle(L10n l10n, Beacon beacon) =>
+    beacon.title.isEmpty ? l10n.beaconViewTitle : beacon.title;
+
+String _threadItemKindLabel(L10n l10n, CoordinationItem item) =>
+    switch (item.kind) {
+      CoordinationItemKind.blocker => l10n.coordinationBlockerCardLabel,
+      CoordinationItemKind.ask => l10n.coordinationAskCardLabel,
+      CoordinationItemKind.promise => l10n.coordinationPromiseCardLabel,
+      CoordinationItemKind.plan => item.isPlanStep
+          ? l10n.coordinationPlanStepCardLabel
+          : l10n.coordinationPlanCardLabel,
+    };
+
+/// Thread body (messages) without a [Scaffold].
 class ThreadDetail extends StatelessWidget {
   const ThreadDetail({
     required this.thread,
@@ -49,14 +67,12 @@ class ThreadDetail extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final item = thread.item;
     return ThreadHost(
       child: TenturaChatColumn(
         child: Column(
+          key: ValueKey(thread.threadId),
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            if (item != null)
-              _ThreadDetailSemanticHeader(item: item),
             Expanded(
               child: BeaconRoomBody(
                 beaconAuthorId: beaconAuthorId,
@@ -116,8 +132,12 @@ class ThreadDetailColumnChrome extends StatelessWidget {
                 ),
               ),
               Expanded(
-                child: ThreadDetailTitle(
-                  fallback: titleFallback,
+                child: BlocBuilder<ItemActionsCubit, ItemActionsState>(
+                  buildWhen: (p, c) => p.item != c.item,
+                  builder: (context, state) => ThreadDetailTitle(
+                    fallback: titleFallback,
+                    item: state.item,
+                  ),
                 ),
               ),
               const ThreadDetailOverflowAction(),
@@ -129,20 +149,185 @@ class ThreadDetailColumnChrome extends StatelessWidget {
   }
 }
 
-class ThreadDetailTitle extends StatelessWidget {
-  const ThreadDetailTitle({required this.fallback, super.key});
+/// Compact two-line app-bar title shared by General and semantic threads.
+class ThreadDetailAppBarTitle extends StatelessWidget {
+  const ThreadDetailAppBarTitle({
+    required this.title,
+    required this.subtitle,
+    super.key,
+  });
 
-  final String fallback;
+  final String title;
+  final Widget subtitle;
 
   @override
   Widget build(BuildContext context) {
-    return BlocBuilder<ItemActionsCubit, ItemActionsState>(
-      buildWhen: (p, c) => p.item != c.item,
-      builder: (context, state) => Text(
-        state.item.title.isEmpty ? fallback : state.item.title,
-        maxLines: 1,
-        overflow: TextOverflow.ellipsis,
+    final scheme = Theme.of(context).colorScheme;
+    return Row(
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Text(
+                title,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: TenturaText.titleSmall(scheme.onSurface),
+              ),
+              subtitle,
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// Two-row app-bar title for General: request title plus involved-people pile.
+class ThreadDetailGeneralTitle extends StatelessWidget {
+  const ThreadDetailGeneralTitle({
+    required this.title,
+    required this.beacon,
+    required this.involvedProfiles,
+    required this.currentUserId,
+    super.key,
+  });
+
+  final String title;
+  final Beacon beacon;
+  final List<Profile> involvedProfiles;
+  final String currentUserId;
+
+  @override
+  Widget build(BuildContext context) {
+    return ThreadDetailAppBarTitle(
+      title: title,
+      subtitle: ExcludeSemantics(
+        child: BeaconInvolvedPeopleFacePile(
+          beacon: beacon,
+          involvedProfiles: involvedProfiles,
+          currentUserId: currentUserId,
+        ),
       ),
+    );
+  }
+}
+
+/// Two-row app-bar title for a non-general thread: item title plus icon/meta.
+class ThreadDetailTitle extends StatelessWidget {
+  const ThreadDetailTitle({
+    required this.fallback,
+    required this.item,
+    super.key,
+  });
+
+  final String fallback;
+  final CoordinationItem item;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = L10n.of(context)!;
+    final title = item.title.trim().isEmpty ? fallback : item.title.trim();
+    final tt = context.tt;
+    final statusColor = coordinationItemColor(tt, item.kind, item.status);
+    final kindLabel = _threadItemKindLabel(l10n, item);
+    final statusLabel = coordinationItemStatusLabel(l10n, item.status);
+    final headerIcon = coordinationCompoundStatusIcon(
+      kind: item.kind,
+      status: item.status,
+      isPlanStep: item.isPlanStep,
+      tt: tt,
+      size: tt.iconSize,
+    );
+
+    return Semantics(
+      header: true,
+      label: '$title. $kindLabel. $statusLabel',
+      child: ExcludeSemantics(
+        child: ThreadDetailAppBarTitle(
+          title: title,
+          subtitle: _ThreadDetailTitleMetaRow(
+            item: item,
+            headerIcon: headerIcon,
+            kindLabel: kindLabel,
+            statusLabel: statusLabel,
+            statusColor: statusColor,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _ThreadDetailTitleMetaRow extends StatelessWidget {
+  const _ThreadDetailTitleMetaRow({
+    required this.item,
+    required this.headerIcon,
+    required this.kindLabel,
+    required this.statusLabel,
+    required this.statusColor,
+  });
+
+  final CoordinationItem item;
+  final Widget headerIcon;
+  final String kindLabel;
+  final String statusLabel;
+  final Color statusColor;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final tt = context.tt;
+    final metaStyle = theme.textTheme.labelSmall?.copyWith(color: statusColor);
+    final roomCubit = context.read<ThreadHostCubit>().roomCubit;
+
+    Widget row(List<BeaconParticipant> participants) {
+      final avatarTrail = item.kind.hasDirectedParties
+          ? coordinationDirectedAvatarTrailForItem(
+              creatorId: item.creatorId,
+              targetPersonId: item.targetPersonId,
+              participants: participants,
+              avatarSize: tt.avatarTinySize,
+            )
+          : null;
+      return Row(
+        children: [
+          if (avatarTrail != null) ...[
+            avatarTrail,
+            SizedBox(width: tt.rowGap),
+          ],
+          headerIcon,
+          SizedBox(width: tt.iconTextGap),
+          Flexible(
+            child: Text(
+              kindLabel,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: metaStyle,
+            ),
+          ),
+          SizedBox(width: tt.rowGap),
+          Flexible(
+            child: Text(
+              statusLabel,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: metaStyle,
+            ),
+          ),
+        ],
+      );
+    }
+
+    if (roomCubit == null) {
+      return row(const []);
+    }
+    return BlocBuilder<RoomCubit, RoomState>(
+      bloc: roomCubit,
+      buildWhen: (p, c) => p.participants != c.participants,
+      builder: (context, roomState) => row(roomState.participants),
     );
   }
 }
@@ -157,110 +342,6 @@ class ThreadDetailOverflowAction extends StatelessWidget {
       builder: (context, state) => CoordinationItemDiscussionOverflowMenu(
         item: state.item,
         isLoading: state.isLoading,
-      ),
-    );
-  }
-}
-
-class _ThreadDetailSemanticHeader extends StatelessWidget {
-  const _ThreadDetailSemanticHeader({required this.item});
-
-  final CoordinationItem item;
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = L10n.of(context)!;
-    final theme = Theme.of(context);
-    final preview = item.title.trim();
-    if (preview.isEmpty) {
-      return const SizedBox.shrink();
-    }
-
-    final tt = context.tt;
-    final statusColor = coordinationItemColor(tt, item.kind, item.status);
-    final kindLabel = switch (item.kind) {
-      CoordinationItemKind.blocker => l10n.coordinationBlockerCardLabel,
-      CoordinationItemKind.ask => l10n.coordinationAskCardLabel,
-      CoordinationItemKind.promise => l10n.coordinationPromiseCardLabel,
-      CoordinationItemKind.plan =>
-        item.isPlanStep
-            ? l10n.coordinationPlanStepCardLabel
-            : l10n.coordinationPlanCardLabel,
-    };
-    final headerIcon = coordinationCompoundStatusIcon(
-      kind: item.kind,
-      status: item.status,
-      isPlanStep: item.isPlanStep,
-      tt: tt,
-    );
-
-    return Material(
-      color: statusColor.withValues(alpha: 0.06),
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          border: Border(
-            bottom: BorderSide(
-              color: statusColor.withValues(alpha: 0.2),
-            ),
-          ),
-        ),
-        child: ExpansionTile(
-          leading: Container(width: 3, color: statusColor),
-          title: Text(
-            preview,
-            style: theme.textTheme.bodySmall,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-          ),
-          subtitle: BlocBuilder<RoomCubit, RoomState>(
-            buildWhen: (p, c) => p.participants != c.participants,
-            builder: (context, roomState) {
-              final avatarTrail = item.kind.hasDirectedParties
-                  ? coordinationDirectedAvatarTrailForItem(
-                      creatorId: item.creatorId,
-                      targetPersonId: item.targetPersonId,
-                      participants: roomState.participants,
-                    )
-                  : null;
-              return Row(
-                children: [
-                  if (avatarTrail != null) ...[
-                    avatarTrail,
-                    SizedBox(width: tt.rowGap),
-                  ],
-                  headerIcon,
-                  SizedBox(width: tt.iconTextGap),
-                  Text(
-                    kindLabel,
-                    style: theme.textTheme.labelSmall?.copyWith(
-                      color: statusColor,
-                    ),
-                  ),
-                  SizedBox(width: tt.rowGap),
-                  Text(
-                    coordinationItemStatusLabel(l10n, item.status),
-                    style: theme.textTheme.labelSmall?.copyWith(
-                      color: statusColor,
-                    ),
-                  ),
-                ],
-              );
-            },
-          ),
-          children: [
-            Padding(
-              padding: EdgeInsets.zero.copyWith(
-                left: tt.screenHPadding,
-                right: tt.screenHPadding,
-                bottom: tt.cardGap,
-              ),
-              child: Text(
-                preview,
-                style: theme.textTheme.bodySmall,
-              ),
-            ),
-          ],
-        ),
       ),
     );
   }

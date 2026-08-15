@@ -627,6 +627,49 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
     );
   }
 
+  Widget _splitThreadPaneAppBar({
+    required ThreadsState threadsState,
+    required ThreadHostState hostState,
+    required BeaconViewState beaconState,
+    required L10n l10n,
+    required Widget overflow,
+  }) {
+    final thread = _selectedThread(threadsState, hostState);
+    if (thread == null) {
+      return Align(
+        alignment: Alignment.centerRight,
+        child: overflow,
+      );
+    }
+
+    final Widget title;
+    if (thread.isGeneral) {
+      title = ThreadDetailGeneralTitle(
+        title: threadGeneralAppBarTitle(l10n, beaconState.beacon),
+        beacon: beaconState.beacon,
+        involvedProfiles: beaconState.activeHelpOfferUsers,
+        currentUserId: beaconState.myProfile.id,
+      );
+    } else if (thread.item != null) {
+      title = ThreadDetailTitle(
+        fallback: threadTitleFallback(l10n, thread),
+        item: thread.item!,
+      );
+    } else {
+      return Align(
+        alignment: Alignment.centerRight,
+        child: overflow,
+      );
+    }
+
+    return Row(
+      children: [
+        Expanded(child: title),
+        overflow,
+      ],
+    );
+  }
+
   Widget _buildExpandedSplitBody({
     required BeaconViewState beaconState,
     required BeaconViewCubit beaconViewCubit,
@@ -1091,9 +1134,12 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
                                         const SizedBox(width: handleWidth),
                                         SizedBox(
                                           width: threadPaneWidth,
-                                          child: Align(
-                                            alignment: Alignment.centerRight,
-                                            child: overflow,
+                                          child: _splitThreadPaneAppBar(
+                                            threadsState: threadsState,
+                                            hostState: hostState,
+                                            beaconState: state,
+                                            l10n: l10n,
+                                            overflow: overflow,
                                           ),
                                         ),
                                       ],

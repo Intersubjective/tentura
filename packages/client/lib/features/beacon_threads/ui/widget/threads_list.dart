@@ -7,7 +7,6 @@ import 'package:flutter/material.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon_participant.dart';
 import 'package:tentura/domain/entity/coordination_item.dart';
-import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/beacon_threads/domain/entity/request_thread.dart';
 import 'package:tentura/features/beacon_threads/ui/bloc/threads_cubit.dart';
 import 'package:tentura/features/beacon_threads/ui/bloc/threads_state.dart';
@@ -37,11 +36,6 @@ BeaconParticipant? _participantForUser(
   }
   return null;
 }
-
-List<Profile> _activeHelpOfferUsers(BeaconViewState state) => [
-  for (final offer in state.helpOffers)
-    if (!offer.isWithdrawn) offer.user,
-];
 
 List<RequestThread> _myDraftThreads(ThreadsState threadsState, String myUserId) =>
     threadsState.drafts
@@ -287,7 +281,7 @@ class ThreadsList extends StatelessWidget {
                     isSelected: selectedThreadId == general.threadId,
                     onOpenThread: onOpenThread,
                     generalBeacon: beaconState.beacon,
-                    generalInvolvedProfiles: _activeHelpOfferUsers(beaconState),
+                    generalInvolvedProfiles: beaconState.activeHelpOfferUsers,
                     onGeneralFacePileTap: onSwitchToPeopleTab,
                   ),
                 ),
