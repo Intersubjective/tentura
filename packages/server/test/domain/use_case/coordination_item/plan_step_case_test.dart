@@ -181,7 +181,8 @@ void main() {
       expect(items.lastAddPlanStep?.parentItemId, parentId);
       expect(items.lastAddPlanStep?.creatorId, userId);
       expect(items.lastAddPlanStep?.title, 'First step');
-      expect(items.lastAddPlanStep?.body, 'Details');
+      // Title-only model (m0150): body is cleared on write even when provided.
+      expect(items.lastAddPlanStep?.body, '');
     });
 
     test('records coordinationChanged with non-empty recipients', () async {
