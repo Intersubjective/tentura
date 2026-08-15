@@ -997,11 +997,11 @@ class _BeaconRoomComposerState extends State<BeaconRoomComposer> {
       );
       return;
     }
-    final result = await FilePicker.pickFiles();
-    if (!mounted || result == null || result.files.isEmpty) {
+    final files = await FilePicker.pickFiles();
+    if (!mounted || files.isEmpty) {
       return;
     }
-    for (final pf in result.files) {
+    for (final pf in files) {
       if (_remainingSlots <= 0) {
         break;
       }
