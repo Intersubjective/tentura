@@ -19,16 +19,15 @@ import 'package:tentura/features/beacon_view/ui/widget/coordination_item_compose
 import 'package:tentura/features/beacon_view/ui/widget/coordination_target_candidates.dart';
 import 'package:tentura/features/beacon_view/ui/presenter/beacon_hud_author_action.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_cubit.dart';
-import 'package:tentura/features/forward/domain/forward_draft_policy.dart';
 import 'package:tentura/features/beacon_view/ui/dialog/help_offer_message_dialog.dart';
 import 'package:tentura/features/beacon_view/ui/util/beacon_closure_readiness.dart';
 import 'package:tentura/features/beacon_view/ui/util/help_offer_types_wire.dart';
+import 'package:tentura/features/beacon_view/ui/widget/beacon_view_forward_overflow.dart';
 import 'package:tentura/features/inbox/domain/enum.dart';
 import 'package:tentura/features/inbox/ui/widget/rejection_dialog.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/presenter/beacon_phase_presenter.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
-import 'package:tentura/ui/utils/ui_utils.dart';
 
 import 'beacon_hud_author_confirm_sheets.dart';
 import 'beacon_view_status_bottom_sheet.dart';
@@ -88,39 +87,6 @@ Future<void> beaconViewRunEditHelpOfferDialog(
       helpTypes: normalizeOfferHelpTypesWire(outcome.helpTypesWire),
     );
   }
-}
-
-Future<void> beaconViewOpenForwardThenMaybeNudgeOfferHelp(
-  BuildContext context,
-  BeaconViewCubit cubit,
-  L10n l10n,
-) async {
-  final hadOutgoingEdgeBefore = cubit.state.hasForwardedThisBeaconOnce;
-  final id = cubit.state.beacon.id;
-  await context.router.push(ForwardBeaconRoute(beaconId: id));
-  if (!context.mounted) return;
-  final s = cubit.state;
-  final offerHelpAllowed = !s.isHelpOffered &&
-      !s.isBeaconMine &&
-      s.beacon.allowsNewHelpOfferAsNonAuthor &&
-      s.beacon.status == BeaconStatus.open;
-  if (!shouldNudgeOfferHelpAfterForwardVisit(
-    hadOutgoingEdgeBefore: hadOutgoingEdgeBefore,
-    hasOutgoingEdgeAfter: s.hasForwardedThisBeaconOnce,
-    offerHelpAllowed: offerHelpAllowed,
-  )) {
-    return;
-  }
-  showSnackBar(
-    context,
-    text: l10n.nudgeOfferHelpAfterForward,
-    action: SnackBarAction(
-      label: l10n.labelOfferHelp,
-      onPressed: () => unawaited(
-        beaconViewRunInitialHelpOfferDialog(context, cubit, l10n),
-      ),
-    ),
-  );
 }
 
 bool hideOfferHelpWithdrawFromOverflow(BeaconViewState state) {
@@ -405,6 +371,16 @@ Widget beaconViewAppBarOverflow({
     roomCubit: roomCubit,
     inRoomSurface: inRoomSurface,
   );
+  // Overflow is only mounted when request content is loaded (see call sites).
+  final onForward = beaconViewForwardOverflowAction(
+    context: context,
+    state: state,
+    cubit: cubit,
+    l10n: l10n,
+    showBeaconManagementOverflow: showBeaconManagementOverflow,
+    showBeaconContent: true,
+    showInitialLoading: false,
+  );
 
   if (state.isBeaconMine) {
     return BeaconOverflowMenu(
@@ -434,6 +410,7 @@ Widget beaconViewAppBarOverflow({
       onCreatePromise: onCreatePromise,
       onCreatePoll: onCreatePoll,
       onUpdatePlan: onUpdatePlan,
+      onForward: onForward,
       onForwardsGraph: showBeaconManagementOverflow
           ? () => screenCubit.showForwardsGraphFor(beaconId)
           : null,
@@ -481,6 +458,7 @@ Widget beaconViewAppBarOverflow({
     onCreatePromise: onCreatePromise,
     onCreatePoll: onCreatePoll,
     onUpdatePlan: onUpdatePlan,
+    onForward: onForward,
     onOfferHelp:
         !hideOfferHelpWithdraw &&
             !state.isHelpOffered &&
