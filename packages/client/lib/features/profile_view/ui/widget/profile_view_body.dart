@@ -546,7 +546,7 @@ Future<void> _showTrustInfoSheet(BuildContext context) =>
       builder: (ctx) {
         final l10n = L10n.of(ctx)!;
         final tt = ctx.tt;
-        return Padding(
+        return SingleChildScrollView(
           padding: EdgeInsets.fromLTRB(
             tt.screenHPadding,
             tt.rowGap,
