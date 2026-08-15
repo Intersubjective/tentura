@@ -420,6 +420,18 @@
   "@buttonSaveDraft": {
     "context": "BeaconCreateScreen"
   },
+  "buttonMakeLive": "Make live",
+  "@buttonMakeLive": {
+    "context": "BeaconCreateScreen"
+  },
+  "buttonMakeLiveBlockedHint": "Complete the highlighted fields to make this request live.",
+  "@buttonMakeLiveBlockedHint": {
+    "context": "BeaconCreateScreen"
+  },
+  "liveRequestTitle": "Live request",
+  "@liveRequestTitle": {
+    "context": "BeaconCreateScreen"
+  },
   "editDraftTitle": "Edit draft",
   "@editDraftTitle": {
     "context": "BeaconCreateScreen"

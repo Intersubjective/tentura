@@ -71,7 +71,10 @@ class BeaconRecipientsTab extends StatelessWidget {
             if (dropped.isEmpty) return (const <String>{}, null);
             final id = dropped.first;
             final byId = {
-              for (final c in [...state.candidates, ...state.lineageSuggestions])
+              for (final c in [
+                ...state.candidates,
+                ...state.lineageSuggestions,
+              ])
                 c.id: c,
             };
             return (dropped, byId[id]?.profile);
@@ -114,35 +117,38 @@ class BeaconRecipientsTab extends StatelessWidget {
           },
         ),
         Expanded(
-          child: BlocSelector<
-            BeaconCreateCubit,
-            BeaconCreateState,
-            ({bool canTryToPublish, bool isLoading})
-          >(
-            selector: (s) => (
-              canTryToPublish: s.canTryToPublish,
-              isLoading: s.isLoading,
-            ),
-            builder: (context, createState) {
-              return BlocSelector<ForwardCubit, ForwardState, bool>(
-                selector: (s) => s.selectedIds.isNotEmpty,
-                builder: (context, hasRecipients) {
-                  final sendEnabled =
-                      createState.canTryToPublish &&
-                      hasRecipients &&
-                      !createState.isLoading;
-                  return ForwardRecipientPicker(
-                    key: ValueKey(beaconId),
-                    beaconId: beaconId,
-                    embedded: true,
-                    onSendPressed: onSendRequest,
-                    sendEnabled: sendEnabled,
-                    externalActionLoading: createState.isLoading,
+          child:
+              BlocSelector<
+                BeaconCreateCubit,
+                BeaconCreateState,
+                ({bool canTryToPublish, bool isLoading, bool isLive})
+              >(
+                selector: (s) => (
+                  canTryToPublish: s.canTryToPublish,
+                  isLoading: s.isLoading,
+                  isLive: s.isLive,
+                ),
+                builder: (context, createState) {
+                  return BlocSelector<ForwardCubit, ForwardState, bool>(
+                    selector: (s) => s.selectedIds.isNotEmpty,
+                    builder: (context, hasRecipients) {
+                      final sendEnabled =
+                          createState.canTryToPublish &&
+                          hasRecipients &&
+                          !createState.isLoading;
+                      return ForwardRecipientPicker(
+                        key: ValueKey(beaconId),
+                        beaconId: beaconId,
+                        embedded: true,
+                        isLive: createState.isLive,
+                        onSendPressed: onSendRequest,
+                        sendEnabled: sendEnabled,
+                        externalActionLoading: createState.isLoading,
+                      );
+                    },
                   );
                 },
-              );
-            },
-          ),
+              ),
         ),
       ],
     );

@@ -160,6 +160,17 @@ class _BeaconCreateScreenState extends State<BeaconCreateScreen>
     return _forwardCubit;
   }
 
+  Future<void> _makeLive() async {
+    final contextName = context.read<ContextCubit>().state.selected;
+    await _beaconCreateCubit.makeLive(context: contextName);
+    if (!mounted || !_beaconCreateCubit.state.isLive) return;
+    final forwardCubit = _forwardCubitFor(
+      _beaconCreateCubit.state,
+      contextName,
+    );
+    await forwardCubit?.reloadCandidates();
+  }
+
   Future<void> _sendRequest() async {
     final contextName = context.read<ContextCubit>().state.selected;
     final forwardCubit = _forwardCubitFor(
@@ -204,14 +215,19 @@ class _BeaconCreateScreenState extends State<BeaconCreateScreen>
             BlocSelector<
               BeaconCreateCubit,
               BeaconCreateState,
-              ({bool isDraft, bool isEdit})
+              ({bool isDraft, bool isEdit, bool isLive})
             >(
               bloc: _beaconCreateCubit,
-              selector: (s) =>
-                  (isDraft: s.draftId != null, isEdit: s.isEditMode),
+              selector: (s) => (
+                isDraft: s.draftId != null,
+                isEdit: s.isEditMode,
+                isLive: s.isLive,
+              ),
               builder: (context, mode) => Text(
                 mode.isEdit
                     ? l10n.editBeaconTitle
+                    : mode.isLive
+                    ? l10n.liveRequestTitle
                     : mode.isDraft
                     ? l10n.editDraftTitle
                     : l10n.createNewBeacon,
@@ -221,7 +237,10 @@ class _BeaconCreateScreenState extends State<BeaconCreateScreen>
           BlocBuilder<BeaconCreateCubit, BeaconCreateState>(
             bloc: _beaconCreateCubit,
             buildWhen: (p, c) =>
-                p.isEditMode != c.isEditMode || p.isLoading != c.isLoading,
+                p.isEditMode != c.isEditMode ||
+                p.isLive != c.isLive ||
+                p.isLoading != c.isLoading ||
+                p.canTryToPublish != c.canTryToPublish,
             builder: (context, state) {
               if (state.isEditMode) {
                 return Tooltip(
@@ -240,24 +259,56 @@ class _BeaconCreateScreenState extends State<BeaconCreateScreen>
                   ),
                 );
               }
-              return BlocSelector<BeaconCreateCubit, BeaconCreateState, bool>(
-                key: const Key('BeaconCreate.SaveDraftButton'),
-                bloc: _beaconCreateCubit,
-                selector: (s) => s.isLoading,
-                builder: (context, isLoading) => Tooltip(
-                  message: l10n.buttonSaveDraft,
+              if (state.isLive) {
+                return Tooltip(
+                  message: l10n.buttonSaveChanges,
                   child: TextButton(
+                    key: const Key('BeaconCreate.SaveChangesButton'),
                     style: actionButtonStyle,
-                    onPressed: isLoading
+                    onPressed: state.isLoading
                         ? null
                         : () async {
-                            await _beaconCreateCubit.saveDraft(
+                            await _beaconCreateCubit.saveEdit(
                               context: contextName,
+                              navigateBack: false,
                             );
                           },
-                    child: Text(l10n.buttonSaveDraft),
+                    child: Text(l10n.buttonSaveChanges),
                   ),
-                ),
+                );
+              }
+              return Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Tooltip(
+                    message: l10n.buttonSaveDraft,
+                    child: TextButton(
+                      key: const Key('BeaconCreate.SaveDraftButton'),
+                      style: actionButtonStyle,
+                      onPressed: state.isLoading
+                          ? null
+                          : () async {
+                              await _beaconCreateCubit.saveDraft(
+                                context: contextName,
+                              );
+                            },
+                      child: Text(l10n.buttonSaveDraft),
+                    ),
+                  ),
+                  Tooltip(
+                    message: state.canTryToPublish
+                        ? l10n.buttonMakeLive
+                        : l10n.buttonMakeLiveBlockedHint,
+                    child: TextButton(
+                      key: TestIds.key(TestIds.requestMakeLive),
+                      style: actionButtonStyle,
+                      onPressed: state.isLoading || !state.canTryToPublish
+                          ? null
+                          : () => unawaited(_makeLive()),
+                      child: Text(l10n.buttonMakeLive),
+                    ),
+                  ),
+                ],
               );
             },
           ),

@@ -1,4 +1,4 @@
-import 'dart:async' show unawaited;
+import 'dart:async' show Completer, unawaited;
 
 import 'package:get_it/get_it.dart';
 import 'package:tentura_root/domain/capability/capability_slugs.dart';
@@ -14,7 +14,6 @@ import 'package:tentura/domain/entity/image_entity.dart';
 import 'package:tentura/domain/port/beacon_image_port.dart';
 import 'package:tentura/domain/use_case/beacon_create_case.dart';
 import 'package:tentura/features/forward/ui/bloc/forward_cubit.dart';
-import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/effect/ui_effect.dart';
 import 'package:tentura/ui/effect/ui_effect_port.dart';
 import 'package:tentura/ui/utils/string_input_validator.dart'
@@ -55,6 +54,8 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
   final BeaconCreateCase _case;
 
   final UiEffectPort _effects;
+
+  Completer<String?>? _draftCreateInFlight;
 
   void _emitSnackError(Object error) {
     _effects.emit(ShowError(error));
@@ -515,6 +516,12 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
     if (state.draftId != null && state.draftId!.isNotEmpty) {
       return state.draftId;
     }
+    final inFlight = _draftCreateInFlight;
+    if (inFlight != null) {
+      return inFlight.future;
+    }
+    final gate = Completer<String?>();
+    _draftCreateInFlight = gate;
     emit(state.copyWith(status: StateStatus.isLoading));
     try {
       final result = await _case.create(
@@ -531,13 +538,21 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
       if (showMessage) {
         _emitSnackMessage(const DraftSavedMessage());
       }
-      return result.beacon.id;
+      final id = result.beacon.id;
+      gate.complete(id);
+      return id;
     } on BeaconSaveFailure catch (e) {
+      gate.complete(null);
       _emitSaveFailure(e);
       return null;
     } catch (e) {
+      gate.complete(null);
       _emitSnackError(e);
       return null;
+    } finally {
+      if (identical(_draftCreateInFlight, gate)) {
+        _draftCreateInFlight = null;
+      }
     }
   }
 
@@ -547,6 +562,10 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
     required String context,
     bool showMessage = true,
   }) async {
+    if (state.isLive) {
+      await saveEdit(context: context, navigateBack: false);
+      return;
+    }
     final existing = state.draftId;
     if (existing == null || existing.isEmpty) {
       await ensureDraft(context: context, showMessage: showMessage);
@@ -570,6 +589,10 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
         _emitSnackMessage(const DraftSavedMessage());
       }
     } on BeaconSaveFailure catch (e) {
+      if (_isAlreadyPublished(e.cause)) {
+        emit(state.copyWith(isLive: true, status: const StateIsSuccess()));
+        return;
+      }
       _emitSaveFailure(e);
     } catch (e) {
       _emitSnackError(e);
@@ -587,17 +610,19 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
 
     emit(state.copyWith(status: StateStatus.isLoading));
     try {
-      final draftId =
-          state.draftId ??
-          await ensureDraft(context: context, showMessage: false);
-      if (draftId == null || draftId.isEmpty) {
-        return null;
-      }
+      if (state.isLive) {
+        await saveEdit(context: context, navigateBack: false);
+      } else {
+        final draftId =
+            state.draftId ??
+            await ensureDraft(context: context, showMessage: false);
+        if (draftId == null || draftId.isEmpty) {
+          return null;
+        }
 
-      await saveDraft(context: context, showMessage: false);
-      await _case.publishDraft(draftId);
-      // Embedded forward() skips allowsForward and the host pops after send;
-      // a full candidate reload here only stalls the spinner.
+        await saveDraft(context: context, showMessage: false);
+        await _case.publishDraft(draftId);
+      }
 
       await forwardCubit.forward();
       final outcome = forwardCubit.state.lastDeliveryOutcome;
@@ -614,13 +639,19 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
     }
   }
 
-  ///
   /// Persists edits to an open (published) beacon.
-  Future<void> saveEdit({required String context}) async {
+  Future<void> saveEdit({
+    required String context,
+    bool navigateBack = true,
+  }) async {
+    final id = state.editId ?? (state.isLive ? state.draftId : null);
+    if (id == null || id.isEmpty) {
+      return;
+    }
     emit(state.copyWith(status: StateStatus.isLoading));
     try {
       final result = await _case.saveEdit(
-        _command(context: context, id: state.editId!, draftSafeTitle: false),
+        _command(context: context, id: id, draftSafeTitle: false),
       );
       emit(
         _applyServerMedia(
@@ -630,7 +661,9 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
           coverThumb: result.coverThumb,
         ),
       );
-      _emitNavigateBack();
+      if (navigateBack) {
+        _emitNavigateBack();
+      }
     } on BeaconSaveFailure catch (e) {
       _emitSaveFailure(e);
     } catch (e) {
@@ -638,16 +671,20 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
     }
   }
 
-  ///
-  ///
-  Future<void> publish({required String context}) async {
+  Future<void> makeLive({required String context}) async {
+    if (state.isLive) {
+      return;
+    }
     emit(state.copyWith(status: StateStatus.isLoading));
     try {
-      final existing = state.draftId;
-      final String id;
-      if (existing != null && existing.isNotEmpty) {
+      final id = await ensureDraft(context: context, showMessage: false);
+      if (id == null || id.isEmpty) {
+        return;
+      }
+
+      try {
         final result = await _case.saveDraft(
-          _command(context: context, id: existing, draftSafeTitle: false),
+          _command(context: context, id: id, draftSafeTitle: false),
         );
         emit(
           _applyServerMedia(
@@ -657,42 +694,34 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
             coverThumb: result.coverThumb,
           ),
         );
-        id = existing;
-      } else {
-        // Created as a draft so media reconciles before anyone can read it.
-        final result = await _case.create(
-          _command(
-            context: context,
-            id: '',
-            draftSafeTitle: false,
-            draft: true,
-          ),
-        );
-        emit(
-          _applyServerMedia(
-            state.copyWith(draftId: result.beacon.id),
-            result.beacon,
-            result.images,
-            coverThumb: result.coverThumb,
-          ),
-        );
-        id = result.beacon.id;
+      } on BeaconSaveFailure catch (e) {
+        if (!_isAlreadyPublished(e.cause)) {
+          _emitSaveFailure(e);
+          return;
+        }
       }
 
       await _case.publishDraft(id);
-      emit(state.copyWith(status: const StateIsSuccess()));
-      _effects.emit(
-        ShowMessage(
-          BeaconCreatedMessage(
-            onPressed: () => GetIt.I<ScreenCubit>().showBeacon(id),
-          ),
+      emit(
+        state.copyWith(
+          draftId: id,
+          isLive: true,
+          status: const StateIsSuccess(),
         ),
       );
-      _emitNavigateBack();
+      _emitSnackMessage(const RequestMadeLiveMessage());
     } on BeaconSaveFailure catch (e) {
+      if (_isAlreadyPublished(e.cause)) {
+        emit(state.copyWith(isLive: true, status: const StateIsSuccess()));
+        _emitSnackMessage(const RequestMadeLiveMessage());
+        return;
+      }
       _emitSaveFailure(e);
     } catch (e) {
       _emitSnackError(e);
     }
   }
+
+  bool _isAlreadyPublished(Object cause) =>
+      cause.toString().contains('not an editable draft');
 }

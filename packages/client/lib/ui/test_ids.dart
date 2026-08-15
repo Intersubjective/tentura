@@ -4,6 +4,7 @@ abstract final class TestIds {
   static const requestTitle = 'request.title';
   static const requestDescription = 'request.description';
   static const requestPublish = 'request.publish';
+  static const requestMakeLive = 'request.make_live';
   static const requestRecipientsTab = 'request.tab.recipients';
 
   static const forwardInviteNewPerson = 'forward.invite_new_person';

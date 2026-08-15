@@ -244,7 +244,7 @@ class ForwardCubit extends Cubit<ForwardState> {
               ? preservedSelection
               : {...lineagePreselect, ...userPreselect},
           droppedPreselectedIds: droppedPreselected,
-          note: load.suggestedNote,
+          note: state.note.isNotEmpty ? state.note : load.suggestedNote,
           hasMyOutgoingForward: load.hasMyOutgoingForward,
           viewerIsAuthor: load.viewerIsAuthor,
           viewerHasActiveHelpOffer: load.viewerHasActiveHelpOffer,

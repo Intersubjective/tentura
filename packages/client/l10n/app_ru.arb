@@ -420,6 +420,18 @@
   "@buttonSaveDraft": {
     "context": "BeaconCreateScreen"
   },
+  "buttonMakeLive": "Запустить",
+  "@buttonMakeLive": {
+    "context": "BeaconCreateScreen"
+  },
+  "buttonMakeLiveBlockedHint": "Заполните выделенные поля, чтобы запустить запрос.",
+  "@buttonMakeLiveBlockedHint": {
+    "context": "BeaconCreateScreen"
+  },
+  "liveRequestTitle": "Открытый запрос",
+  "@liveRequestTitle": {
+    "context": "BeaconCreateScreen"
+  },
   "editDraftTitle": "Редактировать черновик",
   "@editDraftTitle": {
     "context": "BeaconCreateScreen"

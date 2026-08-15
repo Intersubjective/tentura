@@ -168,31 +168,33 @@ void main() {
       expect(cubit.state.candidates.single.profile.displayName, 'Alex');
     });
 
-    test('first load transitions loading to empty on genuine empty result',
-        () async {
-      final harness = await _buildHarness();
-      addTearDown(() async {
-        await harness.forwardRepo.dispose();
-        await harness.contactsCase.dispose();
-        if (GetIt.I.isRegistered<ContactNameStore>()) {
-          await GetIt.I.unregister<ContactNameStore>();
-        }
-        await harness.store.dispose();
-      });
+    test(
+      'first load transitions loading to empty on genuine empty result',
+      () async {
+        final harness = await _buildHarness();
+        addTearDown(() async {
+          await harness.forwardRepo.dispose();
+          await harness.contactsCase.dispose();
+          if (GetIt.I.isRegistered<ContactNameStore>()) {
+            await GetIt.I.unregister<ContactNameStore>();
+          }
+          await harness.store.dispose();
+        });
 
-      final cubit = ForwardCubit(
-        beaconId: 'b1',
-        forwardCase: harness.forwardCase,
-        effects: FakeUiEffectPort(),
-      );
-      addTearDown(cubit.close);
+        final cubit = ForwardCubit(
+          beaconId: 'b1',
+          forwardCase: harness.forwardCase,
+          effects: FakeUiEffectPort(),
+        );
+        addTearDown(cubit.close);
 
-      await cubit.stream.firstWhere(
-        (s) => s.candidatesLoad is ForwardCandidatesEmpty,
-      );
-      expect(cubit.state.candidates, isEmpty);
-      expect(cubit.state.lineageSuggestions, isEmpty);
-    });
+        await cubit.stream.firstWhere(
+          (s) => s.candidatesLoad is ForwardCandidatesEmpty,
+        );
+        expect(cubit.state.candidates, isEmpty);
+        expect(cubit.state.lineageSuggestions, isEmpty);
+      },
+    );
 
     test('first load failure surfaces error and retry succeeds', () async {
       final harness = await _buildHarness(
@@ -268,5 +270,37 @@ void main() {
         expect(effects.emitted.whereType<ShowError>(), hasLength(1));
       },
     );
+
+    test('reload preserves a typed shared composer note', () async {
+      final harness = await _buildHarness(
+        candidates: const [
+          Profile(id: 'u1', displayName: 'Alex', rScore: 1, score: 1),
+        ],
+      );
+      addTearDown(() async {
+        await harness.forwardRepo.dispose();
+        await harness.contactsCase.dispose();
+        if (GetIt.I.isRegistered<ContactNameStore>()) {
+          await GetIt.I.unregister<ContactNameStore>();
+        }
+        await harness.store.dispose();
+      });
+
+      final cubit = ForwardCubit(
+        beaconId: 'b1',
+        forwardCase: harness.forwardCase,
+        effects: FakeUiEffectPort(),
+      );
+      addTearDown(cubit.close);
+
+      await cubit.stream.firstWhere(
+        (s) => s.candidatesLoad is ForwardCandidatesReady,
+      );
+      cubit.setNote('please help this weekend');
+
+      await cubit.reloadCandidates(forceReload: true);
+
+      expect(cubit.state.note, 'please help this weekend');
+    });
   });
 }

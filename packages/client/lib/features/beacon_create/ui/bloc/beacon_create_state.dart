@@ -54,6 +54,9 @@ abstract class BeaconCreateState extends StateBase with _$BeaconCreateState {
     String? lineageParentBeaconId,
     @Default({}) Set<String> initialServerImageIds,
     @Default(false) bool canTryToPublish,
+
+    /// True after [BeaconCreateCubit.makeLive] in this create session.
+    @Default(false) bool isLive,
     @Default(StateIsSuccess()) StateStatus status,
   }) = _BeaconCreateState;
 

@@ -37,3 +37,13 @@ final class DraftSavedMessage extends LocalizableMessage {
   @override
   String get toRu => 'Черновик сохранён';
 }
+
+final class RequestMadeLiveMessage extends LocalizableMessage {
+  const RequestMadeLiveMessage();
+
+  @override
+  String get toEn => 'Request is live';
+
+  @override
+  String get toRu => 'Запрос запущен';
+}

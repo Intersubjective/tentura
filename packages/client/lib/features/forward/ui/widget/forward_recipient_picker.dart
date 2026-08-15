@@ -11,6 +11,7 @@ import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/port/capability_repository_port.dart';
 import 'package:tentura/features/capability/ui/widget/capability_chip_set.dart';
 import 'package:tentura/features/forward/domain/entity/forward_candidate.dart';
+import 'package:tentura/features/forward/domain/invite_new_person_enabled.dart';
 import 'package:tentura/features/forward/domain/forward_draft_policy.dart';
 import 'package:tentura/features/invitation/ui/bloc/invitation_cubit.dart';
 import 'package:tentura/features/invitation/ui/dialog/invitation_addressee_dialog.dart';
@@ -43,6 +44,7 @@ class ForwardRecipientPicker extends StatefulWidget {
     this.onSendPressed,
     this.sendEnabled = false,
     this.externalActionLoading = false,
+    this.isLive = false,
     super.key,
   });
 
@@ -61,6 +63,9 @@ class ForwardRecipientPicker extends StatefulWidget {
 
   /// Loading overlay while the host runs publish before forward.
   final bool externalActionLoading;
+
+  /// Create-session flag: the draft was made live in this screen.
+  final bool isLive;
 
   @override
   State<ForwardRecipientPicker> createState() => _ForwardRecipientPickerState();
@@ -432,8 +437,7 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
             final lineage = showLineageBlock
                 ? state.lineageSuggestions
                 : const <ForwardCandidate>[];
-            final showBandBlock =
-                showLineageBlock && state.band.isNotEmpty;
+            final showBandBlock = showLineageBlock && state.band.isNotEmpty;
             final counts = state.scopeCounts;
             final listIsEmpty =
                 state.activeFilter == ForwardFilter.alreadyInvolved
@@ -609,13 +613,22 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
                                 _noteExpanded,
                             onForward: widget.onSendPressed != null
                                 ? (widget.sendEnabled
-                                      ? () => unawaited(_handleForwardPressed(context))
+                                      ? () => unawaited(
+                                          _handleForwardPressed(context),
+                                        )
                                       : null)
                                 : (!widget.embedded && state.selectedCount > 0
-                                      ? () =>
-                                            unawaited(_handleForwardPressed(context))
+                                      ? () => unawaited(
+                                          _handleForwardPressed(context),
+                                        )
                                       : null),
-                            onInvite: widget.beaconId.isNotEmpty
+                            onInvite:
+                                inviteNewPersonEnabled(
+                                  beaconId: widget.beaconId,
+                                  allowsForward:
+                                      state.beacon?.allowsForward == true,
+                                  isLive: widget.isLive,
+                                )
                                 ? () => unawaited(_inviteNewPerson(context))
                                 : null,
                           ),
@@ -720,8 +733,7 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
             visible[i].id,
           ),
           onSkipPersonalNote: () => cubit.skipPersonalNote(visible[i].id),
-          onRestorePersonalNote: () =>
-              cubit.restorePersonalNote(visible[i].id),
+          onRestorePersonalNote: () => cubit.restorePersonalNote(visible[i].id),
           reasonSlugs: state.recipientReasons[visible[i].id] ?? const [],
           onEditReasons: () => unawaited(
             _editReasons(
@@ -933,7 +945,9 @@ class _UncoveredRecipientsSheetState extends State<_UncoveredRecipientsSheet> {
               SizedBox(
                 height: tt.buttonHeight,
                 child: FilledButton(
-                  onPressed: _canSendWithSharedNote ? _sendWithSharedNote : null,
+                  onPressed: _canSendWithSharedNote
+                      ? _sendWithSharedNote
+                      : null,
                   child: Text(l10n.forwardToCount(widget.uncoveredIds.length)),
                 ),
               ),

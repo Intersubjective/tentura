@@ -26,8 +26,7 @@ class _FakeInvitationRepository extends Fake implements InvitationRepository {
   Future<List<InvitationEntity>> fetchMine({
     int offset = 0,
     int limit = 0,
-  }) async =>
-      <InvitationEntity>[];
+  }) async => <InvitationEntity>[];
 
   @override
   Future<InvitationFetchByIdResult?> fetchById(String id) async => null;
@@ -36,8 +35,7 @@ class _FakeInvitationRepository extends Fake implements InvitationRepository {
   Future<InvitationEntity> create({
     required String addresseeName,
     String? beaconId,
-  }) =>
-      throw UnimplementedError();
+  }) => throw UnimplementedError();
 
   @override
   Future<void> deleteById(String id) async {}
@@ -183,6 +181,31 @@ void main() {
       expect(find.text('recipients-ready'), findsOneWidget);
       expect(createCubit.state.draftId, 'draft-1');
       expect(createCubit.state.publishBlocker, isNull);
+    },
+  );
+
+  testWidgets(
+    'makeLive keeps the recipients picker, not the edit stub',
+    (tester) async {
+      final write = FakeBeaconWritePort(beacon: _validDraftBeacon());
+      final createCubit = BeaconCreateCubit(
+        beaconCreateCase: fakeBeaconCreateCase(write: write),
+        draftBeaconIdToLoad: 'draft-1',
+        effects: FakeUiEffectPort(),
+      );
+      addTearDown(createCubit.close);
+
+      await _pumpGateProbe(tester, createCubit: createCubit);
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 50));
+
+      await createCubit.makeLive(context: '');
+      await tester.pump();
+
+      expect(createCubit.state.isLive, isTrue);
+      expect(createCubit.state.isEditMode, isFalse);
+      expect(find.text('edit-mode'), findsNothing);
+      expect(find.text('recipients-ready'), findsOneWidget);
     },
   );
 
