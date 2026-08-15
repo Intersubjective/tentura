@@ -172,6 +172,8 @@ final class CredentialAuthCase extends UseCaseBase {
                   accepterUserId: user.id,
                   accepterDisplayName: user.displayName,
                   actionUrl: '/#/shared/view?id=${user.id}',
+                  inviteOrigin: 'new_account',
+                  accepterHandle: user.handle,
                 ),
                 sourceEventKey: 'invitation:$inviteId:accepted',
               ),

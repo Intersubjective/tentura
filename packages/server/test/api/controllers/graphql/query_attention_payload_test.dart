@@ -16,6 +16,7 @@ void main() {
     'targetEntityId': 'target-1',
     'messageId': 'message-1',
     'beaconTitle': 'Garden cleanup',
+    'inviteOrigin': 'new_account',
   };
 
   test('maps payload with every allowed key including beaconTitle', () {

@@ -181,6 +181,8 @@ abstract class AttentionRecipientRoleFacts with _$AttentionRecipientRoleFacts {
     /// Mirrors receiver-facing trust tone naming without coupling to evaluation
     /// domain types. Null and unmapped values fall through to a neutral key.
     String? trustDirection,
+    /// Wire literal `'new_account'` or `'existing_account'` on inviteAccepted.
+    String? inviteOrigin,
   }) = _AttentionRecipientRoleFacts;
 }
 

@@ -487,5 +487,40 @@ void main() {
       expect(attention.recorded[1].recipients.single.recipientId, 'Ustranger');
       expect(attention.recorded[1].actorUserId, issuerId);
     });
+
+    test('beacon-only accept does not emit inviteAccepted', () async {
+      stubGetById(invitation(beaconId: 'Bbeacon'));
+      when(beaconRepo.getBeaconById(beaconId: 'Bbeacon')).thenAnswer(
+        (_) async => BeaconEntity(
+          id: 'Bbeacon',
+          title: 'Shared beacon',
+          author: const UserEntity(id: issuerId),
+          createdAt: now,
+          updatedAt: now,
+        ),
+      );
+      when(
+        userRepo.bindMutual(
+          invitationId: 'Iabc',
+          userId: 'Ustranger',
+          bindFriendship: false,
+        ),
+      ).thenAnswer((_) async => true);
+
+      final ok = await case_.acceptAsExisting(
+        code: 'Iabc',
+        userId: 'Ustranger',
+      );
+
+      expect(ok, isTrue);
+      expect(attention.recorded, isEmpty);
+      verify(
+        userRepo.bindMutual(
+          invitationId: 'Iabc',
+          userId: 'Ustranger',
+          bindFriendship: false,
+        ),
+      ).called(1);
+    });
   });
 }

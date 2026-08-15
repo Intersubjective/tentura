@@ -331,6 +331,7 @@ class AttentionPolicy {
       'beaconTitle': role.canReadBeaconContent
           ? _safeBeaconTitle(role.beaconTitle)
           : null,
+      'inviteOrigin': _safeInviteOrigin(role.inviteOrigin),
     };
     for (final MapEntry(:key, :value) in values.entries) {
       if (value != null) {
@@ -354,5 +355,13 @@ class AttentionPolicy {
       return null;
     }
     return trimmed;
+  }
+
+  String? _safeInviteOrigin(String? value) {
+    final trimmed = value?.trim();
+    if (trimmed == 'new_account' || trimmed == 'existing_account') {
+      return trimmed;
+    }
+    return null;
   }
 }

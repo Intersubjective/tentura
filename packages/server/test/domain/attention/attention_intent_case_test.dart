@@ -198,6 +198,7 @@ void main() {
               accepterUserId: actor,
               accepterDisplayName: 'Actor',
               actionUrl: '/#/shared/view?id=$actor',
+              inviteOrigin: 'existing_account',
             ),
             sourceEventKey: eventKey,
           ),
@@ -560,6 +561,7 @@ void main() {
           accepterUserId: actor,
           accepterDisplayName: 'Actor',
           actionUrl: '/#/shared/view?id=$actor',
+          inviteOrigin: 'existing_account',
         ),
         sourceEventKey: eventKey,
       );
@@ -582,6 +584,65 @@ void main() {
         final intent = await buildIntent(harness);
 
         expect(intent.recipients, isEmpty);
+      });
+
+      test('stores public canonical title and new-account body', () async {
+        final intent = await harness.intents.inviteAccepted(
+          notification: const InviteAcceptedNotificationIntent(
+            inviterUserId: author,
+            accepterUserId: actor,
+            accepterDisplayName: 'Alice',
+            accepterHandle: 'alice',
+            actionUrl: '/#/shared/view?id=$actor',
+            inviteOrigin: 'new_account',
+          ),
+          sourceEventKey: eventKey,
+        );
+
+        expect(intent.title, 'Alice · @alice');
+        expect(
+          intent.body,
+          'Created an account via your invitation. You are now connected.',
+        );
+        expect(
+          intent.recipients.single.role.inviteOrigin,
+          'new_account',
+        );
+      });
+
+      test('stores existing-account body and handle-only title', () async {
+        final intent = await harness.intents.inviteAccepted(
+          notification: const InviteAcceptedNotificationIntent(
+            inviterUserId: author,
+            accepterUserId: actor,
+            accepterDisplayName: '',
+            accepterHandle: 'alice',
+            actionUrl: '/#/shared/view?id=$actor',
+            inviteOrigin: 'existing_account',
+          ),
+          sourceEventKey: eventKey,
+        );
+
+        expect(intent.title, '@alice');
+        expect(
+          intent.body,
+          'Already had a Tentura account. You are now connected.',
+        );
+      });
+
+      test('stores Invitation accepted when public parts are empty', () async {
+        final intent = await harness.intents.inviteAccepted(
+          notification: const InviteAcceptedNotificationIntent(
+            inviterUserId: author,
+            accepterUserId: actor,
+            accepterDisplayName: '  ',
+            actionUrl: '/#/shared/view?id=$actor',
+            inviteOrigin: 'new_account',
+          ),
+          sourceEventKey: eventKey,
+        );
+
+        expect(intent.title, 'Invitation accepted');
       });
     });
   });

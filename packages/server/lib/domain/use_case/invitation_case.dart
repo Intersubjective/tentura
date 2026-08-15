@@ -288,6 +288,7 @@ final class InvitationCase extends UseCaseBase {
         return _acceptAndRecord(
           invitation: invitation,
           userId: userId,
+          emitInviteAccepted: false,
           mutation: () => _acceptBeaconInviteOnly(
             invitation: invitation,
             userId: userId,
@@ -304,6 +305,7 @@ final class InvitationCase extends UseCaseBase {
       return _acceptAndRecord(
         invitation: invitation,
         userId: userId,
+        emitInviteAccepted: false,
         mutation: () => _acceptBeaconInviteOnly(
           invitation: invitation,
           userId: userId,
@@ -319,23 +321,28 @@ final class InvitationCase extends UseCaseBase {
     required String userId,
     required Future<bool> Function() mutation,
     bool emitMutualConnection = false,
+    bool emitInviteAccepted = true,
   }) => _attention!.runAction(
     actorUserId: userId,
     action: (transaction) async {
       final accepted = await mutation();
       if (accepted) {
-        final accepter = await _userRepository.getById(userId);
-        await transaction.record(
-          await _attentionIntents!.inviteAccepted(
-            notification: InviteAcceptedNotificationIntent(
-              inviterUserId: invitation.issuer.id,
-              accepterUserId: userId,
-              accepterDisplayName: accepter.displayName,
-              actionUrl: '/#/shared/view?id=$userId',
+        if (emitInviteAccepted) {
+          final accepter = await _userRepository.getById(userId);
+          await transaction.record(
+            await _attentionIntents!.inviteAccepted(
+              notification: InviteAcceptedNotificationIntent(
+                inviterUserId: invitation.issuer.id,
+                accepterUserId: userId,
+                accepterDisplayName: accepter.displayName,
+                actionUrl: '/#/shared/view?id=$userId',
+                inviteOrigin: 'existing_account',
+                accepterHandle: accepter.handle,
+              ),
+              sourceEventKey: 'invitation:${invitation.id}:accepted',
             ),
-            sourceEventKey: 'invitation:${invitation.id}:accepted',
-          ),
-        );
+          );
+        }
         if (emitMutualConnection) {
           await transaction.record(
             await _attentionIntents!.mutualConnectionFormed(

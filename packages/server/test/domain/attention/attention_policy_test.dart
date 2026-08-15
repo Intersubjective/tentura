@@ -55,6 +55,7 @@ void main() {
               'targetEntityId',
               'messageId',
               'beaconTitle',
+              'inviteOrigin',
             }),
           ),
         );

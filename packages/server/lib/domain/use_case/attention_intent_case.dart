@@ -863,9 +863,21 @@ class AttentionIntentCase {
     required String sourceEventKey,
   }) async {
     final accepterName = notification.accepterDisplayName.trim();
-    final title = accepterName.isEmpty
+    final handle = notification.accepterHandle.trim();
+    final titleParts = <String>[
+      if (accepterName.isNotEmpty) accepterName,
+      if (handle.isNotEmpty) '@$handle',
+    ];
+    final title = titleParts.isEmpty
         ? 'Invitation accepted'
-        : '$accepterName joined via your invitation';
+        : titleParts.join(' · ');
+    final body = switch (notification.inviteOrigin) {
+      'new_account' =>
+        'Created an account via your invitation. You are now connected.',
+      'existing_account' =>
+        'Already had a Tentura account. You are now connected.',
+      _ => 'You are now connected on Tentura.',
+    };
     final blocked = await _userBlocks.isBlockedPair(
       a: notification.accepterUserId,
       b: notification.inviterUserId,
@@ -877,7 +889,7 @@ class AttentionIntentCase {
       priority: NotificationPriority.normal,
       kind: NotificationKind.inviteAccepted,
       title: title,
-      body: 'You are now connected on Tentura.',
+      body: body,
       actionUrl: notification.actionUrl,
       collapseKey: AttentionCollapseKey.none(sourceEventKey),
       recipients: blocked
@@ -889,6 +901,7 @@ class AttentionIntentCase {
                 role: AttentionRecipientRoleFacts(
                   targetEntityId: notification.accepterUserId,
                   actorUserId: notification.accepterUserId,
+                  inviteOrigin: notification.inviteOrigin,
                 ),
               ),
             ],

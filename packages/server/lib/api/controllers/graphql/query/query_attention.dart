@@ -144,6 +144,7 @@ final class QueryAttention extends GqlNodeBase {
     'targetEntityId',
     'messageId',
     'beaconTitle',
+    'inviteOrigin',
   };
 
   @visibleForTesting
