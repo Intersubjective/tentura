@@ -1,9 +1,17 @@
 # Build tentura server for CI. Context: repo root. Same approach as root Dockerfile.server.
 # Uses full workspace; Flutter image provides SDK for resolution.
-FROM ghcr.io/cirruslabs/flutter:stable AS build
+#
+# cirruslabs stopped publishing after Flutter 3.44.0 (May 2026). Overlay 3.47.0 so
+# workspace pub get can solve analyzer 13 + flutter_test (test_api 0.7.12).
+FROM ghcr.io/cirruslabs/flutter:3.44.0 AS build
 
+ARG FLUTTER_VERSION=3.47.0
 ARG GIT_SHA=unknown
 ARG SERVER_VERSION=0.0.0
+
+RUN rm -rf "$FLUTTER_HOME" \
+ && git clone --depth 1 --branch "$FLUTTER_VERSION" https://github.com/flutter/flutter.git "$FLUTTER_HOME" \
+ && flutter config --no-analytics
 
 WORKDIR /app
 
