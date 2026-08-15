@@ -2,7 +2,7 @@
 
 ## Objective
 
-Implement `docs/plans/commitment-truth-rework-plan.md` (revision 3) end to end:
+Implement `docs/archive/plans/commitment-truth-rework-plan.md` (revision 3) end to end:
 append-only `beacon_commitment_event` truth source replacing the mutable
 `beacon_help_offer_coordination` row as the record of participation facts,
 across phases P1–P10.
@@ -22,7 +22,7 @@ orchestrator (Claude) after each unit.
   touch/delete**): `dart-defines`, `docs/plans/graph-navigation-implementation-guide.md`,
   `docs/plans/graph-navigation-rework-plan.md`, `graph-ego-neighbors-layout-issue.md`,
   `key.fb`, `out.key`, `product_testing_compact_buglist.md`,
-  `product_testing_detailed_report.md`. `docs/plans/commitment-truth-rework-plan.md`
+  `product_testing_detailed_report.md`. `docs/archive/plans/commitment-truth-rework-plan.md`
   itself was also untracked at branch creation — it is the plan source, keep it,
   commit it with P1 if not already tracked.
 - Migrations currently end at `m0139` is new; last existing is `m0138`.

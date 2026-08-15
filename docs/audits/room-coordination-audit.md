@@ -9,6 +9,8 @@ Structured assessment of whether Tentura’s beacon **Room** implements coordina
 **Date:** 2025-06-24  
 **Scope:** Client + server code paths for Room, coordination items, activity log, access control, blockers, and next-move framing.
 
+> **Supersession (admission):** Auto-admit on direct author forward was **removed** by the commitment-truth rework (2026-08). Chat admission is always explicit Accept — see [`features/beacon_room.md`](../features/beacon_room.md). Historical mentions of auto-admit below are audit-time facts, not current product truth.
+
 ---
 
 ## Criteria (source)

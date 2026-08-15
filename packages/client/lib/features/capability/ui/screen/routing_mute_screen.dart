@@ -32,7 +32,11 @@ class RoutingMuteScreen extends StatelessWidget implements AutoRouteWrapper {
       appBar: TenturaTopBar.of(
         context,
         leading: const AutoLeadingButton(),
-        title: Text(l10n.routingMuteScreenTitle),
+        title: Text(
+          l10n.routingMuteScreenTitle,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+        ),
       ),
       body: BlocBuilder<RoutingMuteCubit, RoutingMuteState>(
         builder: (context, state) {
@@ -127,9 +131,9 @@ class _GroupSection extends StatelessWidget {
         for (final tag in tags)
           SwitchListTile(
             title: Text(tag.labelOf(l10n)),
-            value: mutedSlugs.contains(tag.slug),
-            onChanged: (muted) => unawaited(
-              onToggle(slug: tag.slug, muted: muted),
+            value: !mutedSlugs.contains(tag.slug),
+            onChanged: (enabled) => unawaited(
+              onToggle(slug: tag.slug, muted: !enabled),
             ),
           ),
       ],

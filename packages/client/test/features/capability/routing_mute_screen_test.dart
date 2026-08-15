@@ -43,23 +43,44 @@ class _FakeSettingsCubit extends Fake implements SettingsCubit {
 class _FakeCapabilityRepository implements CapabilityRepositoryPort {
   _FakeCapabilityRepository({this.mutedSlugs = const []});
 
-  final List<String> mutedSlugs;
+  List<String> mutedSlugs;
+  String? lastMuteSlug;
+  bool? lastMuteValue;
+  int setMuteCalls = 0;
 
   @override
   Future<List<String>> fetchMyRoutingTags() async =>
       List<String>.from(mutedSlugs);
 
   @override
+  Future<void> setRoutingMute({
+    required String slug,
+    required bool muted,
+  }) async {
+    setMuteCalls++;
+    lastMuteSlug = slug;
+    lastMuteValue = muted;
+    if (muted) {
+      if (!mutedSlugs.contains(slug)) {
+        mutedSlugs = [...mutedSlugs, slug];
+      }
+    } else {
+      mutedSlugs = mutedSlugs.where((s) => s != slug).toList();
+    }
+  }
+
+  @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
-Future<void> _pumpRoutingMuteScreen(
+Future<_FakeCapabilityRepository> _pumpRoutingMuteScreen(
   WidgetTester tester, {
   List<String> mutedSlugs = const [],
 }) async {
   final getIt = GetIt.I;
   final authCubit = _FakeAuthCubit();
   final settingsCubit = _FakeSettingsCubit();
+  final repository = _FakeCapabilityRepository(mutedSlugs: mutedSlugs);
   var registeredAuth = false;
   var registeredSettings = false;
   var registeredCapability = false;
@@ -74,9 +95,7 @@ Future<void> _pumpRoutingMuteScreen(
     registeredSettings = true;
   }
   if (!getIt.isRegistered<CapabilityRepositoryPort>()) {
-    getIt.registerSingleton<CapabilityRepositoryPort>(
-      _FakeCapabilityRepository(mutedSlugs: mutedSlugs),
-    );
+    getIt.registerSingleton<CapabilityRepositoryPort>(repository);
     registeredCapability = true;
   }
   if (!getIt.isRegistered<UiEffectPort>()) {
@@ -124,7 +143,11 @@ Future<void> _pumpRoutingMuteScreen(
     ),
   );
   await tester.pumpAndSettle();
+  return repository;
 }
+
+Finder _transportSwitch(L10n l10n) =>
+    find.widgetWithText(SwitchListTile, l10n.capabilityTagTransport);
 
 void main() {
   final l10n = lookupL10n(const Locale('en'));
@@ -135,6 +158,37 @@ void main() {
     await _pumpRoutingMuteScreen(tester);
 
     expect(find.text(l10n.routingMuteScreenTitle), findsOneWidget);
+    expect(find.text(l10n.routingMuteScreenDescription), findsOneWidget);
     expect(find.byType(SwitchListTile), findsNWidgets(CapabilityTag.values.length));
+    final tiles = tester.widgetList<SwitchListTile>(find.byType(SwitchListTile));
+    expect(tiles.every((tile) => tile.value), isTrue);
+  });
+
+  testWidgets('muted transport switch is off and the rest stay on', (
+    tester,
+  ) async {
+    await _pumpRoutingMuteScreen(tester, mutedSlugs: ['transport']);
+
+    expect(
+      tester.widget<SwitchListTile>(_transportSwitch(l10n)).value,
+      isFalse,
+    );
+    final tiles = tester.widgetList<SwitchListTile>(find.byType(SwitchListTile));
+    expect(tiles.where((tile) => tile.value).length, CapabilityTag.values.length - 1);
+  });
+
+  testWidgets('turning transport off persists a mute', (tester) async {
+    final repo = await _pumpRoutingMuteScreen(tester);
+
+    await tester.tap(_transportSwitch(l10n));
+    await tester.pumpAndSettle();
+
+    expect(repo.setMuteCalls, 1);
+    expect(repo.lastMuteSlug, 'transport');
+    expect(repo.lastMuteValue, isTrue);
+    expect(
+      tester.widget<SwitchListTile>(_transportSwitch(l10n)).value,
+      isFalse,
+    );
   });
 }
