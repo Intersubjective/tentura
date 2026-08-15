@@ -4,6 +4,7 @@ import 'package:blurhash_shader/blurhash_shader.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/profile.dart';
 
 /// A single image entry for [TenturaFullscreenImageViewer].
@@ -112,16 +113,20 @@ class _TenturaFullscreenImageViewerState
   @override
   Widget build(BuildContext context) {
     final images = widget.images;
+    final tt = context.tt;
+    final chromeBg = tt.bg;
+    final chromeFg = tt.text;
+    final chromeMuted = tt.textMuted;
 
     if (images.isEmpty) {
       return Scaffold(
-        backgroundColor: Colors.black,
+        backgroundColor: chromeBg,
         appBar: AppBar(
-          backgroundColor: Colors.black,
-          foregroundColor: Colors.white,
+          backgroundColor: chromeBg,
+          foregroundColor: chromeFg,
         ),
-        body: const Center(
-          child: Icon(Icons.photo_outlined, color: Colors.white38, size: 64),
+        body: Center(
+          child: Icon(Icons.photo_outlined, color: chromeMuted, size: 64),
         ),
       );
     }
@@ -131,14 +136,14 @@ class _TenturaFullscreenImageViewerState
       autofocus: true,
       onKeyEvent: _onKey,
       child: Scaffold(
-        backgroundColor: Colors.black,
+        backgroundColor: chromeBg,
         appBar: AppBar(
-          backgroundColor: Colors.black,
-          foregroundColor: Colors.white,
+          backgroundColor: chromeBg,
+          foregroundColor: chromeFg,
           title: images.length > 1
               ? Text(
                   '${_currentIndex + 1} / ${images.length}',
-                  style: const TextStyle(color: Colors.white),
+                  style: TenturaText.body(chromeFg),
                 )
               : null,
         ),
@@ -154,10 +159,10 @@ class _TenturaFullscreenImageViewerState
                 final networkImage = Image.network(
                   image.url,
                   fit: BoxFit.contain,
-                  errorBuilder: (_, _, _) => const Center(
+                  errorBuilder: (_, _, _) => Center(
                     child: Icon(
                       Icons.broken_image,
-                      color: Colors.white54,
+                      color: chromeMuted,
                       size: 64,
                     ),
                   ),
@@ -169,7 +174,7 @@ class _TenturaFullscreenImageViewerState
                             ? progress.cumulativeBytesLoaded /
                                 progress.expectedTotalBytes!
                             : null,
-                        color: Colors.white54,
+                        color: chromeMuted,
                       ),
                     );
                     if (image.blurHash.isNotEmpty) {
@@ -199,9 +204,9 @@ class _TenturaFullscreenImageViewerState
                 bottom: 0,
                 child: Center(
                   child: IconButton(
-                    icon: const Icon(
+                    icon: Icon(
                       Icons.chevron_left,
-                      color: Colors.white54,
+                      color: chromeMuted,
                       size: 40,
                     ),
                     onPressed: _currentIndex > 0
@@ -216,9 +221,9 @@ class _TenturaFullscreenImageViewerState
                 bottom: 0,
                 child: Center(
                   child: IconButton(
-                    icon: const Icon(
+                    icon: Icon(
                       Icons.chevron_right,
-                      color: Colors.white54,
+                      color: chromeMuted,
                       size: 40,
                     ),
                     onPressed: _currentIndex < images.length - 1
@@ -243,8 +248,8 @@ class _TenturaFullscreenImageViewerState
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
                           color: _currentIndex == index
-                              ? Colors.white
-                              : Colors.white38,
+                              ? chromeFg
+                              : chromeMuted,
                         ),
                       ),
                     ),

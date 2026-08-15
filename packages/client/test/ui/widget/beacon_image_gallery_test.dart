@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/image_entity.dart';
 import 'package:tentura/domain/entity/profile.dart';
@@ -23,6 +24,7 @@ void main() {
 
       await tester.pumpWidget(
         MaterialApp(
+          theme: TenturaTheme.light(),
           home: PageStorage(
             bucket: bucket,
             child: KeyedSubtree(
@@ -64,6 +66,7 @@ void main() {
 
     await tester.pumpWidget(
       MaterialApp(
+        theme: TenturaTheme.light(),
         home: Scaffold(
           body: BeaconImageGallery(beacon: beacon, maxHeight: 180),
         ),
@@ -94,6 +97,7 @@ void main() {
 
     await tester.pumpWidget(
       MaterialApp(
+        theme: TenturaTheme.light(),
         home: Scaffold(
           body: BeaconImageGallery(beacon: beacon, maxHeight: 180),
         ),

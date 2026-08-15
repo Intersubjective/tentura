@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/image_entity.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/ui/widget/tentura_fullscreen_image_viewer.dart';
@@ -14,8 +15,9 @@ void main() {
     );
 
     await tester.pumpWidget(
-      const MaterialApp(
-        home: TenturaFullscreenImageViewer(
+      MaterialApp(
+        theme: TenturaTheme.light(),
+        home: const TenturaFullscreenImageViewer(
           images: [image],
         ),
       ),
@@ -24,6 +26,24 @@ void main() {
     expect(tester.takeException(), isNull);
     expect(find.byType(InteractiveViewer), findsOneWidget);
     expect(find.byType(Image), findsOneWidget);
+  });
+
+  testWidgets('scaffold uses theme bg in dark mode', (tester) async {
+    const image = TenturaGalleryImage(
+      url: 'https://example.com/avatar.jpg',
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: TenturaTheme.dark(),
+        home: const TenturaFullscreenImageViewer(
+          images: [image],
+        ),
+      ),
+    );
+
+    final scaffold = tester.widget<Scaffold>(find.byType(Scaffold));
+    expect(scaffold.backgroundColor, TenturaPalette.bgDark);
   });
 
   testWidgets('openProfileAvatarFullscreen pushes viewer when profile has avatar',
@@ -35,6 +55,7 @@ void main() {
 
     await tester.pumpWidget(
       MaterialApp(
+        theme: TenturaTheme.light(),
         home: Builder(
           builder: (context) => Scaffold(
             body: TextButton(
@@ -59,6 +80,7 @@ void main() {
 
     await tester.pumpWidget(
       MaterialApp(
+        theme: TenturaTheme.light(),
         home: Builder(
           builder: (context) => Scaffold(
             body: TextButton(

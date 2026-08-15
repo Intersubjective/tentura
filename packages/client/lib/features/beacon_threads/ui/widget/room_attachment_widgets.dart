@@ -335,9 +335,9 @@ class _RoomAttachmentFullscreenGalleryState
   Widget build(BuildContext context) {
     final items = widget.attachments;
     final tt = context.tt;
-    final chromeBg = tt.text;
-    final chromeFg = tt.surface;
-    final chromeMuted = tt.textFaint;
+    final chromeBg = tt.bg;
+    final chromeFg = tt.text;
+    final chromeMuted = tt.textMuted;
     final materialL10n = MaterialLocalizations.of(context);
     return Scaffold(
       backgroundColor: chromeBg,
