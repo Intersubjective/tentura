@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'package:tentura/domain/capability/friend_context.dart';
 import 'package:tentura/domain/entity/profile.dart';
+import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
@@ -57,10 +58,14 @@ class NetworkPersonCard extends StatelessWidget {
     final screenCubit = context.read<ScreenCubit>();
     final l10n = L10n.of(context)!;
     final theme = Theme.of(context);
+    final tt = context.tt;
     return InkWell(
       onTap: () => screenCubit.showProfile(profile.id),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        padding: EdgeInsets.symmetric(
+          horizontal: tt.screenHPadding,
+          vertical: tt.cardGap,
+        ),
         child: Row(
           children: [
             PresenceAvatar.small(
@@ -68,7 +73,7 @@ class NetworkPersonCard extends StatelessWidget {
               userId: profile.id,
               withContactBadge: true,
             ),
-            const SizedBox(width: 16),
+            SizedBox(width: tt.screenHPadding),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -81,22 +86,37 @@ class NetworkPersonCard extends StatelessWidget {
                         profile,
                         state.profile.id,
                       );
+                      final primary = isSelf
+                          ? SelfUserHighlight.displayName(
+                              l10n,
+                              profile,
+                              state.profile.id,
+                            )
+                          : (profile.shownName.isEmpty
+                                ? l10n.noName
+                                : profile.shownName);
+                      final secondary = profile.canonicalSecondaryLabel;
                       return Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           Text(
-                            SelfUserHighlight.displayName(
-                              l10n,
-                              profile,
-                              state.profile.id,
-                            ),
+                            primary,
                             style: SelfUserHighlight.nameStyle(
                               theme,
                               theme.textTheme.bodyLarge,
                               isSelf,
                             ),
                           ),
+                          if (secondary.isNotEmpty)
+                            Text(
+                              secondary,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: theme.colorScheme.onSurfaceVariant,
+                              ),
+                            ),
                           if (!isSelf)
                             Text(
                               '${l10n.trustRelationPrefix} ${_trustReciprocityLabel(l10n)}',
