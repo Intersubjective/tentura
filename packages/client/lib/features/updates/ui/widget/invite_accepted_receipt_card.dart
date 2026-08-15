@@ -46,6 +46,7 @@ class _InviteAcceptedReceiptCardState extends State<InviteAcceptedReceiptCard> {
 
   _PromptLoadPhase _phase = _PromptLoadPhase.loading;
   InviteSeedPromptState? _promptState;
+  Profile? _inviteeProfile;
   String _inviteeDisplayName = '';
   Set<String> _selectedSlugs = {};
   bool _submitting = false;
@@ -68,9 +69,7 @@ class _InviteAcceptedReceiptCardState extends State<InviteAcceptedReceiptCard> {
 
     try {
       final results = await Future.wait<Object>([
-        GetIt.I<ProfileRepositoryPort>()
-            .fetchById(subjectId)
-            .catchError((_) => Profile(id: subjectId)),
+        GetIt.I<ProfileRepositoryPort>().fetchById(subjectId),
         GetIt.I<CapabilityRepositoryPort>().fetchInviteSeedPromptState(
           subjectId,
         ),
@@ -80,6 +79,7 @@ class _InviteAcceptedReceiptCardState extends State<InviteAcceptedReceiptCard> {
       final promptState = results[1] as InviteSeedPromptState;
       final l10n = L10n.of(context)!;
       setState(() {
+        _inviteeProfile = profile;
         _inviteeDisplayName = profile.displayLabel(l10n.unknownPerson);
         _promptState = promptState;
         _phase = _PromptLoadPhase.ready;
@@ -133,11 +133,13 @@ class _InviteAcceptedReceiptCardState extends State<InviteAcceptedReceiptCard> {
     final tt = context.tt;
     final colors = Theme.of(context).colorScheme;
     final isUnread = !receipt.isSeen;
-    final copy = resolveUpdatesReceiptDisplayCopy(
-      title: receipt.title,
-      body: receipt.body,
+    final copy = resolveInviteAcceptedDisplayCopy(
+      receiptTitle: receipt.title,
+      receiptBody: receipt.body,
+      presentationPayloadJson: receipt.presentationPayloadJson,
       presentationKey: receipt.presentationKey,
       l10n: l10n,
+      profile: _phase == _PromptLoadPhase.ready ? _inviteeProfile : null,
     );
     final localCreatedAt = receipt.createdAt.toLocal();
     final ageLabel = compactRelativeTimeAgo(
@@ -170,16 +172,31 @@ class _InviteAcceptedReceiptCardState extends State<InviteAcceptedReceiptCard> {
                 color: isUnread ? tt.info : tt.textMuted,
                 size: tt.iconSize,
               ),
-              title: Text(
-                copy.title,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style:
-                    TenturaText.title(
-                      isUnread ? colors.onSurface : tt.textMuted,
-                    ).copyWith(
-                      fontWeight: isUnread ? FontWeight.w700 : FontWeight.w400,
+              title: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Text(
+                    copy.title,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style:
+                        TenturaText.title(
+                          isUnread ? colors.onSurface : tt.textMuted,
+                        ).copyWith(
+                          fontWeight: isUnread
+                              ? FontWeight.w700
+                              : FontWeight.w400,
+                        ),
+                  ),
+                  if (copy.secondary.isNotEmpty)
+                    Text(
+                      copy.secondary,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TenturaText.bodySmall(tt.textMuted),
                     ),
+                ],
               ),
               subtitle: Text(
                 copy.body,

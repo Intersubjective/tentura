@@ -19,19 +19,22 @@ import 'package:tentura/ui/l10n/l10n_en.dart';
 AttentionReceipt _inviteReceipt({
   String actorUserId = 'invitee-1',
   String? targetEntityId = 'invitee-1',
+  String title = 'Carol joined via your invitation',
+  String body = 'Carol is now on Tentura.',
+  String presentationPayloadJson = '{}',
 }) {
   return AttentionReceipt(
     id: 'receipt-invite-1',
     category: 'connections',
     kind: 'inviteAccepted',
     priority: 'normal',
-    title: 'Carol joined via your invitation',
-    body: 'Carol is now on Tentura.',
+    title: title,
+    body: body,
     actionUrl: '/profile/view/invitee-1',
     createdAt: DateTime(2026, 8, 4, 14, 30),
     collapsedCount: 1,
     presentationKey: 'invite_accepted',
-    presentationPayloadJson: '{}',
+    presentationPayloadJson: presentationPayloadJson,
     actorUserId: actorUserId,
     targetEntityId: targetEntityId,
     seenAt: DateTime.utc(2026, 8, 4),
@@ -106,12 +109,24 @@ final class _FakeCapabilityRepository implements CapabilityRepositoryPort {
 }
 
 final class _FakeProfileRepository implements ProfileRepositoryPort {
-  _FakeProfileRepository(this.profile);
+  _FakeProfileRepository(
+    this.profile, {
+    this.error,
+    this.delay = Duration.zero,
+  });
 
   Profile profile;
+  Object? error;
+  Duration delay;
 
   @override
-  Future<Profile> fetchById(String id) async => profile;
+  Future<Profile> fetchById(String id) async {
+    if (delay > Duration.zero) {
+      await Future<void>.delayed(delay);
+    }
+    if (error != null) throw error!;
+    return profile;
+  }
 
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
@@ -167,6 +182,7 @@ void main() {
   Future<void> pumpCard(
     WidgetTester tester, {
     PromptStateValue state = PromptStateValue.pending,
+    AttentionReceipt? receipt,
   }) async {
     tester.view.physicalSize = const Size(800, 1200);
     tester.view.devicePixelRatio = 1.0;
@@ -179,7 +195,7 @@ void main() {
     await tester.pumpWidget(
       _wrap(
         InviteAcceptedReceiptCard(
-          receipt: _inviteReceipt(),
+          receipt: receipt ?? _inviteReceipt(),
           onTap: () {},
           onMarkSeen: () {},
           onSettle: () {},
@@ -210,7 +226,7 @@ void main() {
 
     expect(find.text(l10n.inviteSeedPromptQuestion('Carol')), findsNothing);
     expect(find.text(l10n.inviteSeedPromptSubmit), findsNothing);
-    expect(find.text('Carol joined via your invitation'), findsOneWidget);
+    expect(find.text('Carol'), findsOneWidget);
     await _disposeCard(tester);
   });
 
@@ -219,7 +235,7 @@ void main() {
 
     expect(find.text(l10n.inviteSeedPromptQuestion('Carol')), findsNothing);
     expect(find.text(l10n.inviteSeedPromptSkip), findsNothing);
-    expect(find.text('Carol joined via your invitation'), findsOneWidget);
+    expect(find.text('Carol'), findsOneWidget);
     await _disposeCard(tester);
   });
 
@@ -252,6 +268,66 @@ void main() {
 
     expect(capabilityRepo.lastSkipSubjectId, 'invitee-1');
     expect(find.text(l10n.inviteSeedPromptQuestion('Carol')), findsNothing);
+    await _disposeCard(tester);
+  });
+
+  testWidgets('nickname title, canonical line, and origin body after load', (
+    tester,
+  ) async {
+    profileRepo.profile = const Profile(
+      id: 'invitee-1',
+      contactName: 'Mom',
+      displayName: 'Alice',
+      handle: 'alice',
+    );
+    await pumpCard(
+      tester,
+      state: PromptStateValue.answered,
+      receipt: _inviteReceipt(
+        title: 'Alice · @alice',
+        body: 'Created an account via your invitation. You are now connected.',
+        presentationPayloadJson: '{"inviteOrigin":"new_account"}',
+      ),
+    );
+
+    expect(find.text('Mom'), findsOneWidget);
+    expect(find.text('Alice · @alice'), findsOneWidget);
+    expect(
+      find.text(l10n.updatesInviteAcceptedBodyNewAccount),
+      findsOneWidget,
+    );
+    await _disposeCard(tester);
+  });
+
+  testWidgets('loading keeps server title until profile is ready', (
+    tester,
+  ) async {
+    profileRepo.delay = const Duration(milliseconds: 50);
+    await pumpCard(
+      tester,
+      state: PromptStateValue.answered,
+      receipt: _inviteReceipt(title: 'Alice · @alice'),
+    );
+
+    expect(find.text('Alice · @alice'), findsOneWidget);
+    await tester.pump(const Duration(milliseconds: 60));
+    expect(find.text('Carol'), findsOneWidget);
+    await _disposeCard(tester);
+  });
+
+  testWidgets('profile fetch error keeps server title and body', (
+    tester,
+  ) async {
+    profileRepo.error = Exception('missing');
+    await pumpCard(
+      tester,
+      state: PromptStateValue.answered,
+      receipt: _inviteReceipt(),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Carol joined via your invitation'), findsOneWidget);
+    expect(find.text('Carol is now on Tentura.'), findsOneWidget);
     await _disposeCard(tester);
   });
 }

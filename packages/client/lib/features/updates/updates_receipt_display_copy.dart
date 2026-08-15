@@ -1,5 +1,6 @@
 import 'dart:convert';
 
+import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
 /// Trust-change presentation keys emitted by the server (direction-encoded).
@@ -77,6 +78,78 @@ String? beaconTitleFromPresentationPayload(String presentationPayloadJson) {
   } on Object {
     return null;
   }
+}
+
+/// Invite-accepted origin carried in server [presentationPayloadJson].
+String? inviteOriginFromPresentationPayload(String presentationPayloadJson) {
+  final trimmed = presentationPayloadJson.trim();
+  if (trimmed.isEmpty || trimmed == '{}') return null;
+  try {
+    final decoded = jsonDecode(trimmed);
+    if (decoded is! Map) return null;
+    final origin = decoded['inviteOrigin'];
+    if (origin is! String) return null;
+    final normalized = origin.trim();
+    if (normalized == 'new_account' || normalized == 'existing_account') {
+      return normalized;
+    }
+    return null;
+  } on Object {
+    return null;
+  }
+}
+
+class InviteAcceptedDisplayCopy {
+  const InviteAcceptedDisplayCopy({
+    required this.title,
+    required this.body,
+    this.secondary = '',
+  });
+
+  final String title;
+  final String body;
+  final String secondary;
+}
+
+/// In-app Updates composition for invite-accepted receipts.
+InviteAcceptedDisplayCopy resolveInviteAcceptedDisplayCopy({
+  required String receiptTitle,
+  required String receiptBody,
+  required String presentationPayloadJson,
+  required String? presentationKey,
+  required L10n l10n,
+  Profile? profile,
+}) {
+  final fallback = resolveUpdatesReceiptDisplayCopy(
+    title: receiptTitle,
+    body: receiptBody,
+    presentationKey: presentationKey,
+    l10n: l10n,
+  );
+  if (profile == null) {
+    return InviteAcceptedDisplayCopy(
+      title: fallback.title,
+      body: fallback.body,
+    );
+  }
+
+  final shown = profile.shownName.trim();
+  final public = profile.canonicalPublicLabel;
+  final title = shown.isNotEmpty
+      ? shown
+      : (public.isNotEmpty ? public : fallback.title);
+  final secondary = profile.canonicalSecondaryLabel;
+  final origin = inviteOriginFromPresentationPayload(presentationPayloadJson);
+  final originBody = switch (origin) {
+    'new_account' => l10n.updatesInviteAcceptedBodyNewAccount,
+    'existing_account' => l10n.updatesInviteAcceptedBodyExistingAccount,
+    _ => null,
+  };
+  return InviteAcceptedDisplayCopy(
+    title: title,
+    body: originBody ?? fallback.body,
+    secondary: secondary.isNotEmpty && secondary != title ? secondary : '',
+  );
 }
 
 String _fallbackTitle(String? presentationKey, L10n l10n) =>
