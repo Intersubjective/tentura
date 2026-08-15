@@ -12,7 +12,7 @@ final getIt = GetIt.instance;
 // non-null registrations with nullability intact, then reports false missing-
 // dependency warnings even though it emits the correct `gh<T>()` wiring. The
 // type-based ignore has the same nullability bug, so scope the workaround to
-// these two exact source imports.
+// the dependency type source libraries (matched on `package:$path` prefix).
 @InjectableInit(
   ignoreUnregisteredTypes: [Env, AttentionAckPort, AttentionQueryPort],
   ignoreUnregisteredTypesInPackages: [
@@ -21,6 +21,9 @@ final getIt = GetIt.instance;
     'tentura_server/domain/use_case/attention_expiry_sweep_case.dart',
     'tentura_server/domain/port/attention_query_port.dart',
     'tentura_server/domain/port/attention_ack_port.dart',
+    'tentura_server/domain/port/attention_dispatch_port.dart',
+    'tentura_server/domain/port/witness_window_port.dart',
+    'tentura_server/domain/port/review_finalization_port.dart',
   ],
 )
 Future<GetIt> configureDependencies(Env env) async {
