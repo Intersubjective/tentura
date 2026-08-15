@@ -32,6 +32,7 @@ import 'package:tentura/ui/bloc/state_base.dart';
 import 'package:tentura/ui/effect/ui_effect_port.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/test_ids.dart';
+import 'package:tentura/ui/widget/beacon_involved_people_face_pile.dart';
 
 import 'fake_coordination_item_case.dart';
 import 'room_cubit_fakes.dart';
@@ -352,7 +353,9 @@ void main() {
       expect(find.byType(BeaconRoomBody), findsOneWidget);
     });
 
-    testWidgets('semantic thread renders semantic header', (tester) async {
+    testWidgets('semantic thread renders body without pinned header', (
+      tester,
+    ) async {
       final host = _host();
       final thread = _semanticThread('ask-1');
       await host.select(thread);
@@ -396,8 +399,8 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 50));
 
-      expect(find.byType(ExpansionTile), findsOneWidget);
-      expect(find.textContaining('Ask title preview'), findsWidgets);
+      expect(find.byType(ExpansionTile), findsNothing);
+      expect(find.byType(BeaconRoomBody), findsOneWidget);
     });
   });
 
@@ -422,11 +425,17 @@ void main() {
         router: router,
       );
 
+      expect(find.byType(ThreadDetailGeneralTitle), findsOneWidget);
       expect(find.text('Request title'), findsOneWidget);
+      expect(find.byType(BeaconInvolvedPeopleFacePile), findsOneWidget);
       expect(
         find.byKey(TestIds.key(TestIds.roomMessageInput)),
         findsOneWidget,
       );
+
+      await tester.tap(find.text('Request title'));
+      await tester.pump();
+      expect(tester.takeException(), isNull);
     });
 
     testWidgets('ask thread AppBar title and overflow find ItemActionsCubit', (
@@ -453,7 +462,10 @@ void main() {
       expect(tester.takeException(), isNull);
       expect(find.byType(ThreadDetailTitle), findsOneWidget);
       expect(find.byType(ThreadDetailOverflowAction), findsOneWidget);
-      expect(find.text('Ask title preview'), findsWidgets);
+      expect(find.byType(ExpansionTile), findsNothing);
+      expect(find.text('Ask title preview'), findsOneWidget);
+      expect(find.text('Ask'), findsOneWidget);
+      expect(find.text('Open'), findsOneWidget);
     });
 
     testWidgets('close awaits host clear before route pop completes', (
