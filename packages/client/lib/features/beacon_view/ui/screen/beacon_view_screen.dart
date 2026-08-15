@@ -17,7 +17,6 @@ import 'package:tentura/features/beacon_threads/ui/bloc/threads_state.dart';
 import 'package:tentura/features/beacon_threads/ui/coordination_room_navigation.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/thread_detail.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_cubit.dart';
-import 'package:tentura/features/coordination_item/ui/bloc/item_actions_cubit.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/presenter/beacon_phase_presenter.dart';
@@ -27,7 +26,6 @@ import '../widget/beacon_anchor_status.dart';
 import '../widget/beacon_operational_scroll_view.dart';
 import '../widget/beacon_view_app_bar_overflow.dart';
 import '../widget/beacon_view_app_bar_title.dart';
-import '../widget/beacon_view_forward_app_bar_button.dart';
 import '../widget/beacon_view_status_bottom_sheet.dart';
 import '../widget/beacon_view_constants.dart';
 
@@ -63,28 +61,25 @@ bool beaconViewUsesExpandedThreadSplit({
 /// Ideal / clamped width for the room (3rd) pane in an ops|room split.
 ///
 /// Pass [preferredWidth] to honor a user drag override; otherwise uses
-/// [TenturaTokens.chatColumnMaxWidth]. Always clamped to a usable floor and
-/// an available-width-aware ceiling so ops stays readable.
+/// 42% of [availableWidth] capped by [TenturaTokens.chatColumnMaxWidth].
+/// Always clamped to a usable floor and pane-aware ceiling so ops stays readable.
 double beaconViewRoomSplitPaneWidth(
   TenturaTokens tt, {
   double? availableWidth,
   double minPaneWidth = 360.0,
   double? preferredWidth,
 }) {
-  const maxPaneWidth = 640.0;
-  var effectiveMaxPaneWidth = maxPaneWidth;
+  final minChat = minPaneWidth;
+  final minOps = minPaneWidth;
+  var effectiveMaxPaneWidth = math.max(minChat, tt.chatColumnMaxWidth);
   if (availableWidth != null && availableWidth.isFinite) {
-    final minOperationalWidth = math.max(
-      minPaneWidth,
-      (tt.contentMaxWidth ?? tt.chatColumnMaxWidth) / 2,
-    );
-    effectiveMaxPaneWidth = math.max(
-      minPaneWidth,
-      math.min(maxPaneWidth, availableWidth - minOperationalWidth),
-    );
+    effectiveMaxPaneWidth = math.max(minChat, availableWidth - minOps);
   }
-  final ideal = preferredWidth ?? tt.chatColumnMaxWidth;
-  return ideal.clamp(minPaneWidth, effectiveMaxPaneWidth);
+  final defaultWidth = availableWidth != null && availableWidth.isFinite
+      ? math.min(tt.chatColumnMaxWidth, availableWidth * 0.42)
+      : tt.chatColumnMaxWidth;
+  final ideal = preferredWidth ?? defaultWidth;
+  return ideal.clamp(minChat, effectiveMaxPaneWidth);
 }
 
 class BeaconViewScreen extends StatefulWidget {
@@ -149,6 +144,9 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
 
   /// User drag override for the room pane width; null = token default.
   double? _roomPaneWidthOverride;
+
+  /// Last pane width from [LayoutBuilder] for embedded split decisions.
+  double? _lastPaneWidth;
 
   void _leaveBeaconView(BuildContext context) {
     if (widget.embedded) {
@@ -379,11 +377,12 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
     final row = threadsState.general ?? threadsState.firstAccessible;
     if (row == null) return;
 
+    final detailWidth = widget.embedded ? _lastPaneWidth : null;
     final isSplit = _usesExpandedThreadSplit(
       showBeaconContent: context.read<BeaconViewCubit>().state.beaconContentLoaded &&
           !context.read<BeaconViewCubit>().state.beaconUnavailable,
       threadsState: threadsState,
-      detailWidth: null,
+      detailWidth: detailWidth,
     );
 
     await _openThread(row, messageId: messageId, isSplit: isSplit);
@@ -415,22 +414,15 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
     );
     if (row == null) return;
     final threadsState = context.read<ThreadsCubit>().state;
+    final detailWidth = widget.embedded ? _lastPaneWidth : null;
     final isSplit = _usesExpandedThreadSplit(
       showBeaconContent:
           context.read<BeaconViewCubit>().state.beaconContentLoaded &&
           !context.read<BeaconViewCubit>().state.beaconUnavailable,
       threadsState: threadsState,
-      detailWidth: null,
+      detailWidth: detailWidth,
     );
     unawaited(_openThread(row, isSplit: isSplit));
-  }
-
-  Future<void> _closeSplitThread() async {
-    await context.read<ThreadHostCubit>().clear();
-    if (!mounted) return;
-    if (!widget.embedded) {
-      unawaited(_syncExpandedThreadQuery(null));
-    }
   }
 
   void _refreshThreadsTab() {
@@ -619,60 +611,10 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
     );
   }
 
-  Widget _buildGeneralSplitChrome({
-    required BeaconViewState state,
-    required L10n l10n,
-    required VoidCallback onBack,
-  }) {
-    final tt = context.tt;
-    final scheme = Theme.of(context).colorScheme;
-    final title = state.beacon.title.isEmpty
-        ? l10n.beaconViewTitle
-        : state.beacon.title;
-
-    return Material(
-      color: scheme.surface,
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          border: Border(
-            bottom: BorderSide(color: scheme.outlineVariant),
-          ),
-        ),
-        child: Padding(
-          padding: EdgeInsets.symmetric(
-            horizontal: tt.tightGap,
-            vertical: tt.tightGap,
-          ),
-          child: Row(
-            children: [
-              Semantics(
-                label: l10n.beaconRoomBackToChat,
-                button: true,
-                child: IconButton(
-                  tooltip: l10n.beaconRoomBackToChat,
-                  onPressed: onBack,
-                  icon: const Icon(Icons.arrow_back),
-                ),
-              ),
-              Expanded(
-                child: Text(
-                  title,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
   Widget _buildThreadDetailPane({
     required BeaconViewState beaconState,
     required ThreadsState threadsState,
     required ThreadHostState hostState,
-    required L10n l10n,
   }) {
     if (hostState.switching) {
       return const Center(child: CircularProgressIndicator.adaptive());
@@ -683,42 +625,11 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
       return const Center(child: CircularProgressIndicator.adaptive());
     }
 
-    final detail = ThreadDetail(
+    return ThreadDetail(
       thread: thread,
       beaconAuthorId: beaconState.beacon.author.id,
       onCoordinationSaved: _refreshThreadsTab,
       onOpenCoordinationItem: _onOpenCoordinationItemFromThread,
-    );
-
-    final paneBody = Expanded(child: detail);
-
-    if (thread.item == null) {
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          _buildGeneralSplitChrome(
-            state: beaconState,
-            l10n: l10n,
-            onBack: () => unawaited(_closeSplitThread()),
-          ),
-          paneBody,
-        ],
-      );
-    }
-
-    return BlocProvider(
-      key: ValueKey('item-actions-${thread.threadId}'),
-      create: (_) => ItemActionsCubit(item: thread.item!),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          ThreadDetailColumnChrome(
-            onBack: () => unawaited(_closeSplitThread()),
-            titleFallback: threadTitleFallback(l10n, thread),
-          ),
-          paneBody,
-        ],
-      ),
     );
   }
 
@@ -733,7 +644,6 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
     bool useTightPaneWidths = false,
   }) {
     final minPane = useTightPaneWidths ? 280.0 : 360.0;
-    final l10n = L10n.of(context)!;
     return LayoutBuilder(
       builder: (context, constraints) {
         const handleWidth = TenturaSpacing.row;
@@ -774,7 +684,6 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
                 beaconState: beaconState,
                 threadsState: threadsState,
                 hostState: hostState,
-                l10n: l10n,
               ),
             ),
           ],
@@ -794,60 +703,61 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
     required BeaconPhaseStatusPresentation appBarPhaseStatus,
   }) {
     final tt = context.tt;
+    final scheme = Theme.of(context).colorScheme;
+    final showBack = widget.onEmbeddedLeave != null;
+
     return Material(
-      color: tt.surface,
-      child: Padding(
-        padding: EdgeInsets.symmetric(
-          horizontal: tt.tightGap,
-          vertical: tt.tightGap,
-        ),
-        child: Row(
-          children: [
-            Expanded(
-              child: BeaconViewAppBarTitle(
-                beacon: state.beacon,
-                showBeaconContent: showBeaconContent,
-                phaseStatus: appBarPhaseStatus,
-                l10n: l10n,
-              ),
-            ),
-            if (beaconViewShowsForwardAppBarAction(
-                  state: state,
-                  showBeaconContent: showBeaconContent,
-                  showInitialLoading: showInitialLoading,
-                ))
-              BeaconViewForwardAppBarButton(
-                onPressed: () => unawaited(
-                  beaconViewOpenForwardThenMaybeNudgeOfferHelp(
-                    context,
-                    beaconViewCubit,
-                    l10n,
+      color: scheme.surface,
+      child: SizedBox(
+        height: tt.appBarHeight,
+        child: Padding(
+          padding: EdgeInsets.symmetric(horizontal: tt.screenHPadding),
+          child: Row(
+            children: [
+              if (showBack)
+                Semantics(
+                  label: l10n.myWorkBackToList,
+                  button: true,
+                  child: IconButton(
+                    tooltip: l10n.myWorkBackToList,
+                    onPressed: () => _leaveBeaconView(context),
+                    icon: const Icon(Icons.arrow_back),
                   ),
                 ),
+              Expanded(
+                child: BeaconViewAppBarTitle(
+                  beacon: state.beacon,
+                  showBeaconContent: showBeaconContent,
+                  phaseStatus: appBarPhaseStatus,
+                  l10n: l10n,
+                ),
               ),
-            if (showBeaconContent)
-              beaconViewAppBarOverflow(
-                context: context,
-                state: state,
-                cubit: beaconViewCubit,
-                screenCubit: screenCubit,
-                l10n: l10n,
-                inRoomSurface: false,
-                roomCubit: null,
-                onItemsTabRefresh: _refreshThreadsTab,
-                onAuthorManageStatus: () async {
-                  await beaconViewCubit.refreshReviewWindowInfo();
-                  if (!context.mounted) return;
-                  await showBeaconViewUpdateStatusSheet(
-                    context,
-                    beaconViewCubit.state,
-                    beaconViewCubit,
-                    onOpenPeopleTab: () => _switchToTab(kBeaconTabPeople),
-                    onOpenGeneralThread: () => unawaited(_openGeneralThread()),
-                  );
-                },
-              ),
-          ],
+              if (showBeaconContent)
+                beaconViewAppBarOverflow(
+                  context: context,
+                  state: state,
+                  cubit: beaconViewCubit,
+                  screenCubit: screenCubit,
+                  l10n: l10n,
+                  inRoomSurface: false,
+                  roomCubit: null,
+                  showBeaconContent: showBeaconContent,
+                  showInitialLoading: showInitialLoading,
+                  onItemsTabRefresh: _refreshThreadsTab,
+                  onAuthorManageStatus: () async {
+                    await beaconViewCubit.refreshReviewWindowInfo();
+                    if (!context.mounted) return;
+                    await showBeaconViewUpdateStatusSheet(
+                      context,
+                      beaconViewCubit.state,
+                      beaconViewCubit,
+                      onOpenPeopleTab: () => _switchToTab(kBeaconTabPeople),
+                      onOpenGeneralThread: () => unawaited(_openGeneralThread()),
+                    );
+                  },
+                ),
+            ],
+          ),
         ),
       ),
     );
@@ -864,17 +774,17 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
         BlocListener<ThreadsCubit, ThreadsState>(
           listenWhen: (p, c) => !p.isSuccess && c.isSuccess,
           listener: (context, threadsState) {
+            if (widget.embedded) {
+              return;
+            }
             final beaconState = beaconViewCubit.state;
             final showBeaconContent =
                 beaconState.beaconContentLoaded &&
                 !beaconState.beaconUnavailable;
-            final detailWidth = widget.embedded
-                ? MediaQuery.sizeOf(context).width
-                : null;
             final isSplit = _usesExpandedThreadSplit(
               showBeaconContent: showBeaconContent,
               threadsState: threadsState,
-              detailWidth: detailWidth,
+              detailWidth: null,
             );
             unawaited(
               _applyThreadsResolution(
@@ -925,28 +835,28 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
                   final showBeaconContent =
                       state.beaconContentLoaded && !state.beaconUnavailable;
 
-                  void onOpenThread(RequestThread thread) {
-                    unawaited(() async {
-                      final width = widget.embedded
-                          ? MediaQuery.sizeOf(context).width
-                          : null;
-                      final isSplit = _usesExpandedThreadSplit(
-                        showBeaconContent: showBeaconContent,
-                        threadsState: threadsState,
-                        detailWidth: width,
-                      );
-                      await _openThread(thread, isSplit: isSplit);
-                    }());
-                  }
-
                   return LayoutBuilder(
                     builder: (context, constraints) {
                       final detailWidth = constraints.maxWidth;
+                      _lastPaneWidth = detailWidth;
                       final isSplit = _usesExpandedThreadSplit(
                         showBeaconContent: showBeaconContent,
                         threadsState: threadsState,
                         detailWidth: detailWidth,
                       );
+
+                      void onOpenThread(RequestThread thread) {
+                        unawaited(() async {
+                          await _openThread(
+                            thread,
+                            isSplit: _usesExpandedThreadSplit(
+                              showBeaconContent: showBeaconContent,
+                              threadsState: threadsState,
+                              detailWidth: detailWidth,
+                            ),
+                          );
+                        }());
+                      }
 
                       if (threadsState.isSuccess && isSplit) {
                         WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -1086,22 +996,6 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
                             actions: isSplit
                                 ? null
                                 : [
-                                    if (beaconViewShowsForwardAppBarAction(
-                                          state: state,
-                                          showBeaconContent:
-                                              showBeaconContent,
-                                          showInitialLoading:
-                                              showInitialLoading,
-                                        ))
-                                      BeaconViewForwardAppBarButton(
-                                        onPressed: () => unawaited(
-                                          beaconViewOpenForwardThenMaybeNudgeOfferHelp(
-                                            context,
-                                            beaconViewCubit,
-                                            l10n,
-                                          ),
-                                        ),
-                                      ),
                                     if (showBeaconContent)
                                       beaconViewAppBarOverflow(
                                         context: context,
@@ -1111,6 +1005,9 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
                                         l10n: l10n,
                                         inRoomSurface: false,
                                         roomCubit: null,
+                                        showBeaconContent: showBeaconContent,
+                                        showInitialLoading:
+                                            showInitialLoading,
                                         onItemsTabRefresh: _refreshThreadsTab,
                                         onAuthorManageStatus: () async {
                                           await beaconViewCubit
@@ -1149,6 +1046,10 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
                                               l10n: l10n,
                                               inRoomSurface: false,
                                               roomCubit: null,
+                                              showBeaconContent:
+                                                  showBeaconContent,
+                                              showInitialLoading:
+                                                  showInitialLoading,
                                               onItemsTabRefresh:
                                                   _refreshThreadsTab,
                                               onAuthorManageStatus: () async {
@@ -1171,14 +1072,6 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
                                               },
                                             )
                                           : const SizedBox.shrink();
-                                      final showSplitForward =
-                                          beaconViewShowsForwardAppBarAction(
-                                            state: state,
-                                            showBeaconContent:
-                                                showBeaconContent,
-                                            showInitialLoading:
-                                                showInitialLoading,
-                                          );
                                       return Row(
                                         children: [
                                           Expanded(
@@ -1211,23 +1104,7 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
                                             width: threadPaneWidth,
                                             child: Align(
                                               alignment: Alignment.centerRight,
-                                              child: Row(
-                                                mainAxisSize: MainAxisSize.min,
-                                                children: [
-                                                  if (showSplitForward)
-                                                    BeaconViewForwardAppBarButton(
-                                                      onPressed: () =>
-                                                          unawaited(
-                                                        beaconViewOpenForwardThenMaybeNudgeOfferHelp(
-                                                          context,
-                                                          beaconViewCubit,
-                                                          l10n,
-                                                        ),
-                                                      ),
-                                                    ),
-                                                  overflow,
-                                                ],
-                                              ),
+                                              child: overflow,
                                             ),
                                           ),
                                         ],

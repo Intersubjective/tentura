@@ -169,7 +169,7 @@ class _ThreadDetailSemanticHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = L10n.of(context)!;
     final theme = Theme.of(context);
-    final preview = item.contentPreview;
+    final preview = item.title.trim();
     if (preview.isEmpty) {
       return const SizedBox.shrink();
     }
@@ -191,8 +191,6 @@ class _ThreadDetailSemanticHeader extends StatelessWidget {
       isPlanStep: item.isPlanStep,
       tt: tt,
     );
-    final body = item.body.trim();
-    final title = item.title.trim();
 
     return Material(
       color: statusColor.withValues(alpha: 0.06),
@@ -254,24 +252,9 @@ class _ThreadDetailSemanticHeader extends StatelessWidget {
                 right: tt.screenHPadding,
                 bottom: tt.cardGap,
               ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  if (title.isNotEmpty && title != preview)
-                    Padding(
-                      padding: EdgeInsets.only(bottom: tt.tightGap * 2),
-                      child: Text(
-                        title,
-                        style: theme.textTheme.labelMedium?.copyWith(
-                          color: statusColor,
-                        ),
-                      ),
-                    ),
-                  if (body.isNotEmpty)
-                    Text(body, style: theme.textTheme.bodySmall)
-                  else if (title.isNotEmpty)
-                    Text(title, style: theme.textTheme.bodySmall),
-                ],
+              child: Text(
+                preview,
+                style: theme.textTheme.bodySmall,
               ),
             ),
           ],

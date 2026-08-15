@@ -3,6 +3,7 @@ import 'package:tentura_root/domain/entity/beacon_status.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:tentura/design_system/tentura_theme.dart';
+import 'package:tentura/design_system/tentura_icons.dart';
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/beacon_activity_event.dart';
 import 'package:tentura/domain/entity/beacon_activity_event_consts.dart';
@@ -285,64 +286,79 @@ void main() {
     expect(find.byType(BeaconHudMetadataTable), findsOneWidget);
   });
 
-  testWidgets('metadata row uses wrap layout on very narrow width', (
-    tester,
-  ) async {
-    final beacon = Beacon.empty.copyWith(
-      id: 'b2',
-      author: const Profile(id: 'a1', displayName: 'Alice'),
-      helpOfferCount: 1,
-      helpOfferUsers: const [Profile(id: 'h1', displayName: 'Bob')],
-      startAt: DateTime.utc(2099, 6, 20, 12),
-      endAt: DateTime(2026, 6, 25, 12),
-      coordinates: const Coordinates(lat: 52.52, long: 13.405),
-    );
+  testWidgets(
+    'metadata strip keeps schedule and location on one row when narrow',
+    (tester) async {
+      final beacon = Beacon.empty.copyWith(
+        id: 'b2',
+        author: const Profile(id: 'a1', displayName: 'Alice'),
+        helpOfferCount: 3,
+        helpOfferUsers: const [
+          Profile(id: 'h1', displayName: 'Bob'),
+          Profile(id: 'h2', displayName: 'Carol'),
+          Profile(id: 'h3', displayName: 'Dan'),
+        ],
+        startAt: DateTime.utc(2099, 5, 18, 12),
+        endAt: DateTime.utc(2099, 5, 20, 12),
+        coordinates: const Coordinates(lat: 52.52, long: 13.405),
+      );
 
-    await tester.pumpWidget(
-      MaterialApp(
-        theme: TenturaTheme.light(),
-        localizationsDelegates: L10n.localizationsDelegates,
-        supportedLocales: L10n.supportedLocales,
-        locale: const Locale('en'),
-        home: MediaQuery(
-          data: const MediaQueryData(size: Size(300, 800)),
-          child: Scaffold(
-            body: Center(
-              child: SizedBox(
-                width: 300,
-                child: MyWorkCardMetadataRow(
-                  beacon: beacon,
-                  viewModel: _viewModel(beacon),
-                  currentUserId: 'viewer',
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: TenturaTheme.light(),
+          localizationsDelegates: L10n.localizationsDelegates,
+          supportedLocales: L10n.supportedLocales,
+          locale: const Locale('en'),
+          home: MediaQuery(
+            data: const MediaQueryData(size: Size(300, 800)),
+            child: Scaffold(
+              body: Center(
+                child: SizedBox(
+                  width: 300,
+                  child: MyWorkCardMetadataRow(
+                    beacon: beacon,
+                    viewModel: _viewModel(beacon),
+                    currentUserId: 'viewer',
+                  ),
                 ),
               ),
             ),
           ),
         ),
-      ),
-    );
-    await tester.pumpAndSettle();
+      );
+      await tester.pumpAndSettle();
 
-    expect(find.byType(Wrap), findsOneWidget);
+      expect(find.byType(Wrap), findsNothing);
 
-    final strip = find.byType(BeaconCompactMetadataStrip);
-    final pileRect = tester.getRect(
-      find.descendant(
-        of: strip,
-        matching: find.byType(OverlappingPeopleAvatars),
-      ),
-    );
-    final scheduleX = tester
-        .getTopLeft(
-          find.descendant(
-            of: strip,
-            matching: find.byIcon(Icons.event_outlined),
-          ),
-        )
-        .dx;
-    expect(scheduleX, greaterThan(pileRect.right));
-  });
+      final strip = find.byType(BeaconCompactMetadataStrip);
+      final pileRect = tester.getRect(
+        find.descendant(
+          of: strip,
+          matching: find.byType(OverlappingPeopleAvatars),
+        ),
+      );
+      final scheduleRect = tester.getRect(
+        find.descendant(
+          of: strip,
+          matching: find.byIcon(Icons.event_outlined),
+        ),
+      );
+      final locationRect = tester.getRect(
+        find.descendant(
+          of: strip,
+          matching: find.byIcon(TenturaIcons.location),
+        ),
+      );
 
+      expect(scheduleRect.left, greaterThanOrEqualTo(pileRect.right));
+      expect(locationRect.center.dx, greaterThan(scheduleRect.center.dx));
+      // Same horizontal run — pin must not drop below the schedule line.
+      expect(
+        (locationRect.center.dy - scheduleRect.center.dy).abs(),
+        lessThan(8),
+      );
+    },
+  );
   testWidgets('finished beacon hides NOW, YOU, and last-event rows', (
     tester,
   ) async {

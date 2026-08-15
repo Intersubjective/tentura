@@ -351,13 +351,12 @@ void main() {
       );
     });
 
-    test('empty body rejected', () async {
+    test('empty title rejected', () async {
       expect(
         () => sut.call(
           userId: ownerId,
           beaconId: beaconId,
-          title: 'Need help',
-          body: '  ',
+          title: '  ',
         ),
         throwsA(isA<BeaconCreateException>()),
       );
@@ -838,13 +837,12 @@ void main() {
       expect(items.lastUpdateDraftTitle, 'Updated');
     });
 
-    test('empty body rejected', () async {
+    test('empty title rejected', () async {
       await expectLater(
         () => sut.call(
           userId: ownerId,
           itemId: itemId,
-          title: 'Updated',
-          body: '  ',
+          title: '  ',
         ),
         throwsA(isA<BeaconCreateException>()),
       );

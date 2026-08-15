@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/mockito.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
+import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/beacon_participant.dart';
 import 'package:tentura/domain/entity/coordination_item.dart';
 import 'package:tentura/domain/entity/profile.dart';
@@ -38,9 +39,8 @@ CoordinationItem _askItem() => CoordinationItem(
   targetPersonId: _kOtherId,
   createdAt: _kAt,
   updatedAt: _kAt,
-  title: 'Code review',
-  body:
-      'Can you review the migration script before Friday? '
+  title:
+      'Code review — Can you review the migration script before Friday? '
       'Focus on the thread preview mapper and the watermark store changes '
       'so we can ship the boxed list without nested scroll views.',
   published: true,
@@ -108,8 +108,16 @@ Future<void> _pumpGolden(
   required bool expandSemantic,
 }) async {
   final viewer = const Profile(id: _kAuthorId, displayName: 'Alex Author');
+  final helper = const Profile(id: _kOtherId, displayName: 'Sam Helper');
   final participants = _participants();
   final item = _askItem();
+  final beacon = Beacon(
+    id: _kBeaconId,
+    title: 'Golden beacon',
+    author: viewer,
+    createdAt: _kAt,
+    updatedAt: _kAt,
+  );
 
   await tester.pumpWidget(
     BlocProvider<ProfileCubit>.value(
@@ -139,6 +147,8 @@ Future<void> _pumpGolden(
                         participants: participants,
                         resolvedUnreadCount: 1,
                         onOpenThread: (_) {},
+                        generalBeacon: beacon,
+                        generalInvolvedProfiles: [helper],
                       ),
                       const SizedBox(height: 10),
                       ItemCard(

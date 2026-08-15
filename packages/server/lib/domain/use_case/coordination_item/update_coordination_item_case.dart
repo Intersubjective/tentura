@@ -40,7 +40,6 @@ final class UpdateCoordinationItemCase extends UseCaseBase {
     if (trimmed.isEmpty) {
       throw const BeaconCreateException(description: 'Title is required');
     }
-    final trimmedBody = body.trim();
     final existing = await _itemRepository.getById(itemId);
     if (existing == null) {
       throw const IdNotFoundException(description: 'Item not found');
@@ -68,8 +67,7 @@ final class UpdateCoordinationItemCase extends UseCaseBase {
         description: 'Not allowed to edit this item',
       );
     }
-    final contentChanged =
-        trimmed != existing.title.trim() || trimmedBody != existing.body.trim();
+    final contentChanged = trimmed != existing.title.trim();
     return _attention!.runAction(
       actorUserId: userId,
       action: (transaction) async {
@@ -77,7 +75,7 @@ final class UpdateCoordinationItemCase extends UseCaseBase {
           id: itemId,
           actorId: userId,
           title: trimmed,
-          body: trimmedBody,
+          body: '',
         );
         if (contentChanged) {
           await transaction.record(

@@ -1035,26 +1035,22 @@ class _PromoteFieldsSheet extends StatefulWidget {
 
 class _PromoteFieldsSheetState extends State<_PromoteFieldsSheet> {
   late final TextEditingController _titleController;
-  late final TextEditingController _bodyController;
   late String _targetUserId;
   late int _staleDays;
   late final String _initialTitle;
-  late final String _initialBody;
   late final String _initialTargetUserId;
   late final int _initialStaleDays;
 
   @override
   void initState() {
     super.initState();
-    _titleController = TextEditingController();
-    _bodyController = TextEditingController(text: widget.messageBody);
+    _titleController = TextEditingController(text: widget.messageBody.trim());
     _targetUserId = widget.viewer.id;
     if (!widget.admitted.any((p) => p.userId == _targetUserId)) {
       _targetUserId = widget.admitted.first.userId;
     }
     _staleDays = CoordinationItem.defaultStaleDays;
     _initialTitle = _titleController.text;
-    _initialBody = _bodyController.text;
     _initialTargetUserId = _targetUserId;
     _initialStaleDays = _staleDays;
   }
@@ -1062,24 +1058,20 @@ class _PromoteFieldsSheetState extends State<_PromoteFieldsSheet> {
   @override
   void dispose() {
     _titleController.dispose();
-    _bodyController.dispose();
     super.dispose();
   }
 
   bool get _isDirty =>
       _titleController.text != _initialTitle ||
-      _bodyController.text != _initialBody ||
       _targetUserId != _initialTargetUserId ||
       _staleDays != _initialStaleDays;
 
   void _submit() {
-    final body = _bodyController.text.trim();
-    if (body.isEmpty) return;
-    final titleRaw = _titleController.text.trim();
-    final title = titleRaw.isEmpty ? body : titleRaw;
+    final title = _titleController.text.trim();
+    if (title.isEmpty) return;
     Navigator.of(context).pop((
       title: title,
-      body: body,
+      body: '',
       targetUserId: _targetUserId,
       staleAfterDays: widget.includeStalenessPicker ? _staleDays : null,
     ));
@@ -1115,16 +1107,8 @@ class _PromoteFieldsSheetState extends State<_PromoteFieldsSheet> {
               TextField(
                 controller: _titleController,
                 decoration: InputDecoration(
+                  labelText: l10n.labelTitle,
                   hintText: l10n.coordinationPromoteTitleHint,
-                ),
-                textInputAction: TextInputAction.next,
-                onChanged: (_) => setState(() {}),
-              ),
-              SizedBox(height: tt.rowGap),
-              TextField(
-                controller: _bodyController,
-                decoration: InputDecoration(
-                  hintText: l10n.coordinationPromoteBodyHint,
                 ),
                 maxLines: 4,
                 autofocus: widget.messageBody.isEmpty,

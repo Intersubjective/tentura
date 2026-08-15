@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/beacon_participant.dart';
 import 'package:tentura/domain/entity/coordination_item.dart';
 import 'package:tentura/domain/entity/profile.dart';
@@ -10,6 +11,7 @@ import 'package:tentura/features/beacon_threads/ui/widget/thread_message_preview
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/test_ids.dart';
 import 'package:tentura/ui/utils/relative_time.dart';
+import 'package:tentura/ui/widget/beacon_involved_people_face_pile.dart';
 import 'package:tentura/ui/widget/coordination_item_card_chrome.dart';
 import 'package:tentura/ui/widget/coordination_item_presenter.dart';
 
@@ -85,6 +87,9 @@ class ItemCard extends StatefulWidget {
     this.onReject,
     this.onEdit,
     this.onRemind,
+    this.generalBeacon,
+    this.generalInvolvedProfiles,
+    this.onGeneralFacePileTap,
     super.key,
   });
 
@@ -92,6 +97,11 @@ class ItemCard extends StatefulWidget {
   final Profile viewerProfile;
   final List<BeaconParticipant> participants;
   final int? resolvedUnreadCount;
+
+  /// General card header: mini-avatars for author + active help-offerers.
+  final Beacon? generalBeacon;
+  final List<Profile>? generalInvolvedProfiles;
+  final VoidCallback? onGeneralFacePileTap;
 
   /// Source/target participants for the header avatar trail ([coordinationItemCardAvatarTrail]).
   final BeaconParticipant? creatorParticipant;
@@ -175,15 +185,6 @@ class _ItemCardState extends State<ItemCard> {
                     style: TenturaText.bodySmall(tt.warn),
                   ),
                 ],
-                if (!isGeneral && item.title.trim().isNotEmpty) ...[
-                  SizedBox(height: tt.tightGap),
-                  Text(
-                    item.title.trim(),
-                    style: textTheme.titleSmall,
-                    maxLines: _expanded ? null : 1,
-                    overflow: _expanded ? null : TextOverflow.ellipsis,
-                  ),
-                ],
                 if (!isGeneral) ...[
                   ..._buildSemanticBody(item, l10n, textTheme, tt),
                 ],
@@ -217,6 +218,20 @@ class _ItemCardState extends State<ItemCard> {
             overflow: TextOverflow.ellipsis,
           ),
         ),
+        if (widget.generalBeacon != null &&
+            widget.generalInvolvedProfiles != null &&
+            BeaconInvolvedPeopleFacePile.hasVisibleProfiles(
+              beacon: widget.generalBeacon!,
+              involvedProfiles: widget.generalInvolvedProfiles!,
+            )) ...[
+          SizedBox(width: tt.iconTextGap),
+          BeaconInvolvedPeopleFacePile(
+            beacon: widget.generalBeacon!,
+            involvedProfiles: widget.generalInvolvedProfiles!,
+            currentUserId: widget.viewerProfile.id,
+            onTap: widget.onGeneralFacePileTap,
+          ),
+        ],
         if (thread.messageCount > 0) ...[
           SizedBox(width: tt.iconTextGap),
           Row(

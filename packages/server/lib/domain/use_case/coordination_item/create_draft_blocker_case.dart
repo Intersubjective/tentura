@@ -49,7 +49,7 @@ final class CreateDraftBlockerCase extends UseCaseBase {
       beaconId: beaconId,
       creatorId: userId,
       title: trimmed,
-      body: body.trim(),
+      body: '',
       targetPersonId:
           target == null || target.isEmpty ? null : target,
       staleAfterDays: staleAfterDays,

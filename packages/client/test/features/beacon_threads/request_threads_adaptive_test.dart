@@ -278,7 +278,7 @@ CoordinationItem _item({
   String creatorId = _kAuthorId,
   String? targetPersonId = _kHelperId,
   int unreadCount = 0,
-  String body = 'Semantic body',
+  String title = 'Semantic body',
   String? linkedMessageId,
 }) =>
     CoordinationItem(
@@ -291,7 +291,7 @@ CoordinationItem _item({
       updatedAt: _kNow,
       published: published,
       targetPersonId: targetPersonId,
-      body: body,
+      title: title,
       unreadCount: unreadCount,
       linkedMessageId: linkedMessageId,
     );
@@ -717,7 +717,7 @@ void main() {
       final draft = _item(
         id: 'draft-compact',
         published: false,
-        body: 'Draft compact body',
+        title: 'Draft compact body',
       );
       final threads = _threadsState(
         threads: [_generalThread(), _semanticThread(item: draft)],
@@ -737,7 +737,7 @@ void main() {
 
       expect(harness.router.pushCount, 0);
       expect(
-        find.byKey(TestIds.key(TestIds.coordinationComposerBody)),
+        find.byKey(TestIds.key(TestIds.coordinationComposerTitle)),
         findsOneWidget,
       );
     });
@@ -812,7 +812,7 @@ void main() {
       tester,
     ) async {
       final semantic = _item(id: 'ask-expanded-a');
-      final other = _item(id: 'ask-expanded-b', body: 'Second body');
+      final other = _item(id: 'ask-expanded-b', title: 'Second body');
       final threads = _threadsState(
         threads: [
           _generalThread(),
@@ -836,6 +836,7 @@ void main() {
 
       expect(host.state.openThreadId, RequestThread.generalId);
       expect(find.byType(ThreadDetail), findsOneWidget);
+      expect(find.byType(ThreadDetailColumnChrome), findsNothing);
       expect(_itemCardSelected(tester, RequestThread.generalId), isTrue);
 
       await tester.tap(find.byKey(TestIds.key(TestIds.beaconTabPeople)));
@@ -861,7 +862,7 @@ void main() {
       tester,
     ) async {
       final first = _item(id: 'ask-switch-a');
-      final second = _item(id: 'ask-switch-b', body: 'Switch target');
+      final second = _item(id: 'ask-switch-b', title: 'Switch target');
       final threads = _threadsState(
         threads: [
           _generalThread(),
@@ -1211,7 +1212,7 @@ void main() {
       final closed = _item(
         id: 'unread-closed-fold',
         status: CoordinationItemStatus.resolved,
-        body: 'Closed unread body',
+        title: 'Closed unread body',
         unreadCount: 3,
       );
       final threads = _threadsState(
@@ -1417,6 +1418,7 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 100));
       expect(find.byType(ThreadDetail), findsOneWidget);
+      expect(find.byType(ThreadDetailColumnChrome), findsNothing);
 
       await tester.tap(find.byKey(TestIds.key(TestIds.beaconTabLog)));
       await tester.pump();

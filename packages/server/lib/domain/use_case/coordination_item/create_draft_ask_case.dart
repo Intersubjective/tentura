@@ -32,10 +32,10 @@ final class CreateDraftAskCase extends UseCaseBase {
     String? linkedMessageId,
     int? staleAfterDays,
   }) async {
-    if (body.trim().isEmpty) {
-      throw const BeaconCreateException(description: 'Ask body is required');
-    }
     final trimmed = title.trim();
+    if (trimmed.isEmpty) {
+      throw const BeaconCreateException(description: 'Ask title is required');
+    }
     final beacon = await _beaconRepository.getBeaconById(beaconId: beaconId);
     if (!beacon.allowsCoordination) {
       throw const BeaconCreateException(description: 'Request is not open');
@@ -55,7 +55,7 @@ final class CreateDraftAskCase extends UseCaseBase {
       beaconId: beaconId,
       creatorId: userId,
       title: trimmed,
-      body: body.trim(),
+      body: '',
       targetPersonId:
           target == null || target.isEmpty ? null : target,
       linkedMessageId: linkedMessageId,

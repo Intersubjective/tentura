@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/coordination/beacon_you_situation.dart'
     as you_situation;
+import 'package:tentura/domain/coordination/helper_offer_response_state.dart';
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/beacon_coordination_phase.dart';
 import 'package:tentura/domain/entity/coordination_item.dart';
@@ -54,6 +55,7 @@ BeaconYouSituationInput buildBeaconYouSituationInput({
   required bool viewerBlocked,
   bool isAwaitingAuthorReview = false,
   BeaconPhaseRowHarmony rowHarmony = BeaconPhaseRowHarmony.empty,
+  HelperOfferResponseState? helperOfferState,
 }) {
   return BeaconYouSituationInput(
     lifecycle: beacon.status,
@@ -65,6 +67,7 @@ BeaconYouSituationInput buildBeaconYouSituationInput({
     authorUnreviewedHelpOfferCount: authorUnreviewedHelpOfferCount,
     rowHarmony: rowHarmony,
     viewerBlocked: viewerBlocked,
+    helperOfferState: helperOfferState,
   );
 }
 
@@ -177,11 +180,13 @@ BeaconYouPresentation buildBeaconYouPresentation(
   final reviewSegments = offerReviewSegments(input: situationInput);
   if (blockedSegment != null &&
       !responsibility.hasAny &&
-      reviewSegments.isEmpty) {
+      reviewSegments.isEmpty &&
+      !you_situation.beaconYouEmptyFallbackForcesPersonalCopy(emptyFallback)) {
     return BeaconYouPresentation.blockedOnly(blockedSegment: blockedSegment);
   }
 
-  if (responsibility.hasAny) {
+  if (responsibility.hasAny &&
+      !you_situation.beaconYouEmptyFallbackForcesPersonalCopy(emptyFallback)) {
     final segments = <BeaconYouSegmentPresentation>[
       ..._buildOfferReviewSegmentPresentations(
         l10n,
@@ -252,6 +257,43 @@ BeaconYouPresentation buildBeaconYouPresentation(
         phase: phaseResult?.phase,
       ),
     ),
+    BeaconYouEmptyFallback.offerDeclined => BeaconYouPresentation.fallback(
+      fallbackText: l10n.myWorkOfferDeclined,
+      fallbackTone: toneForYouEmptyFallback(
+        emptyFallback,
+        phase: phaseResult?.phase,
+      ),
+    ),
+    BeaconYouEmptyFallback.offerSoftened => BeaconYouPresentation.fallback(
+      fallbackText: l10n.myWorkOfferSoftened,
+      fallbackTone: toneForYouEmptyFallback(
+        emptyFallback,
+        phase: phaseResult?.phase,
+      ),
+    ),
+    BeaconYouEmptyFallback.offerParticipationEnded =>
+      BeaconYouPresentation.fallback(
+        fallbackText: l10n.myWorkOfferParticipationEnded,
+        fallbackTone: toneForYouEmptyFallback(
+          emptyFallback,
+          phase: phaseResult?.phase,
+        ),
+      ),
+    BeaconYouEmptyFallback.offerExited => BeaconYouPresentation.fallback(
+      fallbackText: l10n.myWorkOfferExited,
+      fallbackTone: toneForYouEmptyFallback(
+        emptyFallback,
+        phase: phaseResult?.phase,
+      ),
+    ),
+    BeaconYouEmptyFallback.offerClosedWithoutResponse =>
+      BeaconYouPresentation.fallback(
+        fallbackText: l10n.myWorkOfferClosedWithoutResponse,
+        fallbackTone: toneForYouEmptyFallback(
+          emptyFallback,
+          phase: phaseResult?.phase,
+        ),
+      ),
   };
 }
 
@@ -298,6 +340,11 @@ TenturaTone toneForYouEmptyFallback(
     BeaconYouEmptyFallback.closed => TenturaTone.neutral,
     BeaconYouEmptyFallback.noOpenItems => _noOpenItemsTone(phase),
     BeaconYouEmptyFallback.hidden => TenturaTone.neutral,
+    BeaconYouEmptyFallback.offerDeclined => TenturaTone.neutral,
+    BeaconYouEmptyFallback.offerSoftened => TenturaTone.warn,
+    BeaconYouEmptyFallback.offerParticipationEnded => TenturaTone.warn,
+    BeaconYouEmptyFallback.offerExited => TenturaTone.neutral,
+    BeaconYouEmptyFallback.offerClosedWithoutResponse => TenturaTone.warn,
   };
 }
 

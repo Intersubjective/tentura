@@ -44,7 +44,7 @@ Opening a request shows a **coordination header** (shared situation + personal o
 | **People** | Author, helpers, forwarders, discussion participants |
 | **Log** | Public timeline of request-level changes |
 
-The header rows (**STATUS**, **NOW**, **YOU**, **ACT**) summarize phase and next action. Copy is shared for everyone in the same visibility tier; **YOU** and **ACT** are personal.
+The header rows (**NOW**, **YOU**, **Details** when schedule/location/definition exist, **ACT**) summarize phase and next action. Copy is shared for everyone in the same visibility tier; **YOU** and **ACT** are personal. Mini-avatars for involved people appear on the **General** thread card (not in the header).
 
 ### Lifecycle (user-visible)
 
@@ -103,7 +103,7 @@ Unread counts are **per thread**, keyed by `(beacon, thread)`. General unread an
 
 ### Thread detail
 
-Each addressable thread hosts the shared message composer and history. Semantic threads show the item header (kind, status, body) above messages. **@mentions** in the composer notify admitted participants. **Replies** reference one parent message in the **same thread scope**; deleting the parent clears the quote on next read.
+Each addressable thread hosts the shared message composer and history. Semantic threads show the item header (kind, status, title) above messages. **@mentions** in the composer notify admitted participants. **Replies** reference one parent message in the **same thread scope**; deleting the parent clears the quote on next read.
 
 ## Discussion admission and membership
 

@@ -178,7 +178,7 @@ void main() {
     expect(find.text('Alice'), findsWidgets);
 
     await tester.enterText(
-      find.byKey(TestIds.key(TestIds.coordinationComposerBody)),
+      find.byKey(TestIds.key(TestIds.coordinationComposerTitle)),
       'I will ship it',
     );
     await tester.pump();

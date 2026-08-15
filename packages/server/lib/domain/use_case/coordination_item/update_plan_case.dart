@@ -66,7 +66,7 @@ final class UpdatePlanCase extends UseCaseBase {
           beaconId: beaconId,
           creatorId: userId,
           title: trimmed,
-          body: body.trim(),
+          body: '',
           targetPersonId: targetPersonId,
           linkedMessageId: linkedMessageId,
           syncCurrentLineText: trimmed,

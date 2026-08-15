@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 
+import 'package:tentura/domain/coordination/helper_offer_response_state.dart';
 import 'package:tentura/domain/entity/coordination_responsibility.dart';
 import 'package:tentura/domain/entity/beacon_coordination_phase.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
@@ -17,6 +18,7 @@ BeaconYouSituationInput _input({
   bool isAwaitingAuthorReview = false,
   int authorUnreviewedHelpOfferCount = 0,
   bool viewerBlocked = false,
+  HelperOfferResponseState? helperOfferState,
 }) {
   return BeaconYouSituationInput(
     lifecycle: lifecycle,
@@ -27,6 +29,7 @@ BeaconYouSituationInput _input({
     isAwaitingAuthorReview: isAwaitingAuthorReview,
     authorUnreviewedHelpOfferCount: authorUnreviewedHelpOfferCount,
     viewerBlocked: viewerBlocked,
+    helperOfferState: helperOfferState,
   );
 }
 
@@ -218,6 +221,26 @@ void main() {
         ),
       );
       expect(presentation.fallbackTone, TenturaTone.good);
+    });
+
+    test('terminal offer fallback beats room inventory', () {
+      const responsibility = CoordinationResponsibility(
+        beaconId: 'b1',
+        askOpen: 2,
+      );
+      final presentation = buildBeaconYouPresentation(
+        l10n,
+        responsibility,
+        collapse: false,
+        situationInput: _input(
+          hasRoomObligations: true,
+          helperOfferState: HelperOfferResponseState.declined,
+        ),
+        emptyFallback: BeaconYouEmptyFallback.offerDeclined,
+        showNewBadges: false,
+      );
+      expect(presentation.fallbackText, l10n.myWorkOfferDeclined);
+      expect(presentation.segments, isEmpty);
     });
   });
 

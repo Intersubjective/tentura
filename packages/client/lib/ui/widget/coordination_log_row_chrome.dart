@@ -68,7 +68,7 @@ Widget coordinationLogTabLeadRow({
   );
 }
 
-/// Body snippet for log rows: `diffJson.body` / `diffJson.title`, else [fallback].
+/// Body snippet for log rows: `diffJson.title`, else [fallback].
 String coordinationLogEventBodySnippet({
   required BeaconActivityEvent event,
   required String fallback,
@@ -83,8 +83,6 @@ String? _bodyFromDiffJson(String? diffJson) {
   try {
     final decoded = jsonDecode(diffJson);
     if (decoded is! Map) return null;
-    final body = decoded['body'];
-    if (body is String && body.trim().isNotEmpty) return body.trim();
     final title = decoded['title'];
     if (title is String && title.trim().isNotEmpty) return title.trim();
   } on Object {

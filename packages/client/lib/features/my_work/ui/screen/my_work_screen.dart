@@ -75,6 +75,7 @@ class _MyWorkScreenState extends State<MyWorkScreen> {
     final scheme = Theme.of(context).colorScheme;
     final useExpandedPane = context.windowClass == WindowClass.expanded;
     final showList = _showList;
+    final hideShellChrome = useExpandedPane && !showList;
     final tt = context.tt;
 
     return BlocListener<HomeTabReselectCubit, HomeTabReselectState>(
@@ -88,23 +89,21 @@ class _MyWorkScreenState extends State<MyWorkScreen> {
       },
       child: Scaffold(
         backgroundColor: scheme.surface,
-        appBar: TenturaTopBar.of(
-          context,
-          tone: TenturaTopBarTone.primary,
-          alignment: useExpandedPane && !showList
-              ? TenturaTopBarAlignment.fullWidth
-              : TenturaTopBarAlignment.content,
-          title: useExpandedPane && !showList
-              ? const SizedBox.shrink()
-              : const Row(
+        appBar: hideShellChrome
+            ? null
+            : TenturaTopBar.of(
+                context,
+                tone: TenturaTopBarTone.primary,
+                alignment: useExpandedPane
+                    ? TenturaTopBarAlignment.fullWidth
+                    : TenturaTopBarAlignment.content,
+                title: const Row(
                   children: [
                     Expanded(child: _MyWorkFilterMenu()),
                     _MyWorkSortButton(),
                   ],
                 ),
-          actions: useExpandedPane && !showList
-              ? null
-              : [
+                actions: [
                   IconButton(
                     tooltip: l10n.newBeacon,
                     onPressed: () =>
@@ -113,43 +112,10 @@ class _MyWorkScreenState extends State<MyWorkScreen> {
                   ),
                   const _MyWorkOverflowMenu(),
                 ],
-          row: useExpandedPane && !showList
-              ? Row(
-                  children: [
-                    Semantics(
-                      label: l10n.myWorkBackToList,
-                      button: true,
-                      child: IconButton(
-                        tooltip: l10n.myWorkBackToList,
-                        onPressed: _clearSelection,
-                        icon: const Icon(Icons.arrow_back),
-                      ),
-                    ),
-                    Expanded(
-                      child: Align(
-                        alignment: Alignment.centerRight,
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            IconButton(
-                              tooltip: l10n.newBeacon,
-                              onPressed: () => context
-                                  .read<ScreenCubit>()
-                                  .showBeaconCreate(),
-                              icon: const Icon(Icons.add),
-                            ),
-                            const _MyWorkOverflowMenu(),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
-                )
-              : null,
-        ),
+              ),
         body: SafeArea(
           minimum: EdgeInsets.symmetric(
-            horizontal: tt.screenHPadding,
+            horizontal: hideShellChrome ? 0 : tt.screenHPadding,
           ),
           child: _MyWorkBody(
             useExpandedPane: useExpandedPane,

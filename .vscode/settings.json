@@ -1,22 +1,57 @@
 {
+  "dart.analysisExcludedFolders": [
+    ".pub-cache",
+    ".claude",
+    ".dart_tool",
+    "build",
+    "rag_env",
+    "chroma_db",
+    ".local",
+    ".serena",
+    "scripts"
+  ],
+  "dart.onlyAnalyzeProjectsWithOpenFiles": true,
   "files.exclude": {
     "**/_g": true,
     "**/*.g.dart": true,
     "**/*.gr.dart": true,
     "**/*.schema.dart": true,
     "**/*.freezed.dart": true,
-    "**/di.config.dart": true,
+    "**/di.config.dart": true
+  },
+  "files.watcherExclude": {
+    "**/.pub-cache/**": true,
+    "**/.claude/**": true,
+    "**/.dart_tool/**": true,
+    "**/build/**": true,
+    "**/rag_env/**": true,
+    "**/chroma_db/**": true,
+    "**/.local/**": true,
+    "**/.serena/**": true,
+    "**/scripts/**": true
+  },
+  "search.exclude": {
+    "**/.pub-cache": true,
+    "**/.dart_tool": true,
+    "**/build": true,
+    "**/rag_env": true,
+    "**/chroma_db": true,
+    "**/.claude": true,
+    "**/scripts": true,
+    "**/_g": true,
+    "**/*.g.dart": true,
+    "**/*.freezed.dart": true
   },
   "rest-client.environmentVariables": {
-      "$shared": {
-          "gql_path": "api/v1/graphql",
-          "gqlV2_path": "api/v2/graphql",
-      },
-      "local": {
-          "base_url": "http://localhost:2080",
-      },
-      "dev": {
-          "base_url": "https://dev.tentura.io",
-      }
+    "$shared": {
+      "gql_path": "api/v1/graphql",
+      "gqlV2_path": "api/v2/graphql"
+    },
+    "local": {
+      "base_url": "http://localhost:2080"
+    },
+    "dev": {
+      "base_url": "https://dev.tentura.io"
+    }
   }
 }

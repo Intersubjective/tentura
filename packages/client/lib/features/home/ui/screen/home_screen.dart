@@ -21,6 +21,7 @@ import '../widget/friends_navbar_item.dart';
 import '../widget/home_bottom_nav_listener.dart';
 import '../widget/home_bottom_navigation_bar.dart';
 import '../widget/home_post_join_listener.dart';
+import '../widget/home_shell_chrome_listenable.dart';
 import '../widget/inbox_navbar_item.dart';
 import '../widget/inbox_needs_me_reporter.dart';
 import '../widget/my_work_navbar_item.dart';
@@ -62,25 +63,6 @@ class HomeScreen extends StatelessWidget implements AutoRouteWrapper {
     ),
   );
 
-  void _onDestinationSelected(
-    BuildContext context,
-    TabsRouter tabsRouter,
-    int index,
-  ) {
-    final prev = tabsRouter.activeIndex;
-    tabsRouter.setActiveIndex(index);
-    if (index == prev) {
-      // Reselecting the already-active tab jumps straight back to its root
-      // page (e.g. the My Work list) instead of requiring repeated back-taps
-      // out of a pushed detail. A detail can itself be the branch stack root
-      // after a cold browser deep link, so `popUntilRoot` is insufficient.
-      final tab = HomeTabSpec.fromIndex(index);
-      if (tab == null) return;
-      unawaited(resetHomeTabBranchToRoot(tabsRouter, tab.tab));
-      context.read<HomeTabReselectCubit>().bump(tab.tab);
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     final l10n = L10n.of(context)!;
@@ -95,34 +77,100 @@ class HomeScreen extends StatelessWidget implements AutoRouteWrapper {
             : profileTitle;
         final windowClass = context.windowClass;
         final useSideNav = windowClass != WindowClass.compact;
-        return AutoTabsRouter(
-          routes: _homeTabRoutes,
-          // Instant tab switches: fade left the previous tab visible while URL
-          // and rail selection already pointed at the new tab (desync).
-          duration: Duration.zero,
-          transitionBuilder: (context, child, animation) => child,
-          builder: (context, child) {
-            final tabsRouter = context.tabsRouter;
-            final content = HomePostJoinListener(
-              tabsRouter: tabsRouter,
-              child: child,
-            );
-            return ListenableBuilder(
-              // Rebuild on every navigation: branch-internal pushes don't
-              // notify the TabsRouter, but chrome below derives from the
-              // active branch's stack depth.
-              listenable: context.router.root.navigationHistory,
-              builder: (context, _) => _buildChrome(
-                context,
-                l10n: l10n,
-                profileTooltipLabel: profileTooltipLabel,
-                windowClass: windowClass,
-                useSideNav: useSideNav,
-                tabsRouter: tabsRouter,
-                content: content,
-              ),
-            );
-          },
+        return _HomeShell(
+          l10n: l10n,
+          profileTooltipLabel: profileTooltipLabel,
+          windowClass: windowClass,
+          useSideNav: useSideNav,
+          homeTabRoutes: _homeTabRoutes,
+        );
+      },
+    );
+  }
+}
+
+void _onDestinationSelected(
+  BuildContext context,
+  TabsRouter tabsRouter,
+  int index,
+) {
+  final prev = tabsRouter.activeIndex;
+  tabsRouter.setActiveIndex(index);
+  if (index == prev) {
+    // Reselecting the already-active tab jumps straight back to its root
+    // page (e.g. the My Work list) instead of requiring repeated back-taps
+    // out of a pushed detail. A detail can itself be the branch stack root
+    // after a cold browser deep link, so `popUntilRoot` is insufficient.
+    final tab = HomeTabSpec.fromIndex(index);
+    if (tab == null) return;
+    unawaited(resetHomeTabBranchToRoot(tabsRouter, tab.tab));
+    context.read<HomeTabReselectCubit>().bump(tab.tab);
+  }
+}
+
+/// Owns the chrome rebuild tick + inherited [NavigatorObserver] so compact
+/// bottom-nav visibility tracks branch pops even when [NavigationHistory]
+/// stays silent (see [HomeShellChromeListenable]).
+class _HomeShell extends StatefulWidget {
+  const _HomeShell({
+    required this.l10n,
+    required this.profileTooltipLabel,
+    required this.windowClass,
+    required this.useSideNav,
+    required this.homeTabRoutes,
+  });
+
+  final L10n l10n;
+  final String profileTooltipLabel;
+  final WindowClass windowClass;
+  final bool useSideNav;
+  final List<PageRouteInfo> homeTabRoutes;
+
+  @override
+  State<_HomeShell> createState() => _HomeShellState();
+}
+
+class _HomeShellState extends State<_HomeShell> {
+  final _chrome = HomeShellChromeListenable();
+
+  @override
+  void dispose() {
+    _chrome.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return AutoTabsRouter(
+      routes: widget.homeTabRoutes,
+      // Instant tab switches: fade left the previous tab visible while URL
+      // and rail selection already pointed at the new tab (desync).
+      duration: Duration.zero,
+      transitionBuilder: (context, child, animation) => child,
+      // Inherited by each tab-branch NestedStackRouter navigator.
+      navigatorObservers: () => [HomeShellNavObserver(_chrome)],
+      builder: (context, child) {
+        final tabsRouter = context.tabsRouter;
+        final content = HomePostJoinListener(
+          tabsRouter: tabsRouter,
+          child: child,
+        );
+        return ListenableBuilder(
+          // History covers URL-driven nav; [_chrome] covers in-app pops that
+          // update the branch stack without notifying navigationHistory.
+          listenable: Listenable.merge([
+            context.router.root.navigationHistory,
+            _chrome,
+          ]),
+          builder: (context, _) => _buildChrome(
+            context,
+            l10n: widget.l10n,
+            profileTooltipLabel: widget.profileTooltipLabel,
+            windowClass: widget.windowClass,
+            useSideNav: widget.useSideNav,
+            tabsRouter: tabsRouter,
+            content: content,
+          ),
         );
       },
     );

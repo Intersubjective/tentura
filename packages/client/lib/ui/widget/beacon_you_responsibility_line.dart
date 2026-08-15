@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
+import 'package:tentura/domain/coordination/helper_offer_response_state.dart';
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/beacon_coordination_phase.dart';
 import 'package:tentura/domain/entity/coordination_responsibility.dart';
@@ -22,6 +23,7 @@ class BeaconYouResponsibilityLine extends StatelessWidget {
     this.openBlocker,
     this.phaseResult,
     this.isAwaitingAuthorReview = false,
+    this.helperOfferState,
     super.key,
   });
 
@@ -35,6 +37,7 @@ class BeaconYouResponsibilityLine extends StatelessWidget {
   final OpenBlockerCue? openBlocker;
   final BeaconCoordinationPhaseResult? phaseResult;
   final bool isAwaitingAuthorReview;
+  final HelperOfferResponseState? helperOfferState;
 
   @override
   Widget build(BuildContext context) {
@@ -60,6 +63,7 @@ class BeaconYouResponsibilityLine extends StatelessWidget {
       viewerBlocked: isViewerBlocked,
       isAwaitingAuthorReview: isAwaitingAuthorReview,
       rowHarmony: phaseResult?.rowHarmony ?? BeaconPhaseRowHarmony.empty,
+      helperOfferState: helperOfferState,
     );
     final blockedSegment = _buildBlockedSegment(context, l10n);
     final emptyFallback = deriveBeaconYouEmptyFallback(input: situationInput);
