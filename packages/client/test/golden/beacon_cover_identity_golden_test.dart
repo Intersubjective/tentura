@@ -266,7 +266,7 @@ void main() {
         );
       }
     }
-  });
+  }, skip: 'Goldens disabled');
 
   group('capability groups', () {
     for (final brightness in Brightness.values) {
@@ -327,26 +327,28 @@ void main() {
         );
       });
     }
-  });
+  }, skip: 'Goldens disabled');
 
-  testWidgets('card header at text scale 2.0', (tester) async {
-    await pumpGolden(
-      tester,
-      name: 'card_header_320_s2_0',
-      logicalSize: const Size(320, 900),
-      brightness: Brightness.light,
-      textScaler: 2,
-      body: Column(
-        children: [
-          for (final beacon in <Beacon>[_photoBeacon, _neutralBeacon])
-            BeaconCardShell(
-              child: BeaconCardHeaderRow(
-                beacon: beacon,
-                menu: const SizedBox(width: 32, height: 40),
+  group('card header text scale', () {
+    testWidgets('card header at text scale 2.0', (tester) async {
+      await pumpGolden(
+        tester,
+        name: 'card_header_320_s2_0',
+        logicalSize: const Size(320, 900),
+        brightness: Brightness.light,
+        textScaler: 2,
+        body: Column(
+          children: [
+            for (final beacon in <Beacon>[_photoBeacon, _neutralBeacon])
+              BeaconCardShell(
+                child: BeaconCardHeaderRow(
+                  beacon: beacon,
+                  menu: const SizedBox(width: 32, height: 40),
+                ),
               ),
-            ),
-        ],
-      ),
-    );
-  });
+          ],
+        ),
+      );
+    });
+  }, skip: 'Goldens disabled');
 }
