@@ -930,6 +930,15 @@ class _BeaconRoomComposerState extends State<BeaconRoomComposer> {
     }
   }
 
+  /// file_picker 12 dropped [PlatformFile.extension]; derive from [name].
+  String? _extensionFromFileName(String name) {
+    final dot = name.lastIndexOf('.');
+    if (dot <= 0 || dot == name.length - 1) {
+      return null;
+    }
+    return name.substring(dot + 1).trim();
+  }
+
   Future<void> _pickImages() async {
     if (_remainingSlots <= 0) {
       _snack(
@@ -1006,8 +1015,9 @@ class _BeaconRoomComposerState extends State<BeaconRoomComposer> {
         break;
       }
       final bytes = await pf.readAsBytes();
-      var mime = pf.extension != null && pf.extension!.trim().isNotEmpty
-          ? _mimeFromExtension(pf.extension!)
+      final ext = _extensionFromFileName(pf.name);
+      var mime = ext != null && ext.isNotEmpty
+          ? _mimeFromExtension(ext)
           : 'application/octet-stream';
       final sniffed = inferImageMimeFromLeadingBytes(bytes);
       if (sniffed != null) {
