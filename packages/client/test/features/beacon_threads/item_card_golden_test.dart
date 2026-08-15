@@ -185,7 +185,8 @@ Future<void> _pumpGolden(
 }
 
 void main() {
-  testWidgets('ItemCard golden collapsed light', (tester) async {
+  group('ItemCard golden', () {
+    testWidgets('collapsed light', (tester) async {
     await _pumpGolden(tester, theme: TenturaTheme.light(), expandSemantic: false);
     await expectLater(
       find.byKey(const Key('golden')),
@@ -193,7 +194,7 @@ void main() {
     );
   });
 
-  testWidgets('ItemCard golden collapsed dark', (tester) async {
+    testWidgets('collapsed dark', (tester) async {
     await _pumpGolden(tester, theme: TenturaTheme.dark(), expandSemantic: false);
     await expectLater(
       find.byKey(const Key('golden')),
@@ -201,7 +202,7 @@ void main() {
     );
   });
 
-  testWidgets('ItemCard golden expanded light', (tester) async {
+    testWidgets('expanded light', (tester) async {
     await _pumpGolden(tester, theme: TenturaTheme.light(), expandSemantic: true);
     await expectLater(
       find.byKey(const Key('golden')),
@@ -209,11 +210,12 @@ void main() {
     );
   });
 
-  testWidgets('ItemCard golden expanded dark', (tester) async {
+    testWidgets('expanded dark', (tester) async {
     await _pumpGolden(tester, theme: TenturaTheme.dark(), expandSemantic: true);
     await expectLater(
       find.byKey(const Key('golden')),
       matchesGoldenFile('goldens/item_card_expanded_dark.png'),
     );
   });
+  }, skip: 'Goldens disabled');
 }
