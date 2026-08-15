@@ -8,7 +8,8 @@ import 'package:injectable/injectable.dart' show Environment;
 import 'package:postgres/postgres.dart';
 import 'package:test/test.dart';
 
-import 'package:tentura_server/data/database/tentura_db.dart' hide isNotNull, isNull;
+import 'package:tentura_server/data/database/tentura_db.dart'
+    hide isNotNull, isNull;
 import 'package:tentura_server/env.dart';
 
 typedef _PeerSignals = ({
@@ -24,7 +25,15 @@ typedef _VisibilityExpectation = ({
   bool mutual,
 });
 
-/// Live Postgres + MeritRank proof of m0140 visibility functions.
+/// Live Postgres + MeritRank proof of person visibility functions.
+///
+/// Incoming-only MeritRank is not a visibility signal here.
+/// `mr_mutual_scores(viewer)` is ego-outbound, so a peer with only
+/// peer→viewer MR (including mixed explicit trustOut + mrIn) is omitted.
+/// We dropped `mr_edgelist` / per-peer `mr_node_score` discovery: first for
+/// speed, second for simplicity. Mutual visibility remains explicit
+/// `vote_user` and/or a `mr_mutual_scores` row (both directions in that
+/// row). Mixed `trustIn + mrOut` is unchanged.
 Future<void> main() async {
   final postgresReachable = await _canConnectPostgres();
   var skipReason = postgresReachable ? false : 'local Postgres not reachable';
@@ -80,6 +89,9 @@ SELECT
     ...scenarioPeers,
   ];
 
+  // m0151: incoming-only MR (mrIn without trust or mrOut) omits the row —
+  // first for speed, second for simplicity. Mixed trustOut+mrIn is outbound
+  // only, not mutual. Mixed trustIn+mrOut stays mutual.
   const truthTable = <_PeerSignals, _VisibilityExpectation>{
     (trustOut: false, trustIn: false, mrOut: false, mrIn: false): (
       visibleOut: false,
@@ -103,7 +115,7 @@ SELECT
     ),
     (trustOut: false, trustIn: false, mrOut: false, mrIn: true): (
       visibleOut: false,
-      visibleIn: true,
+      visibleIn: false,
       mutual: false,
     ),
     (trustOut: true, trustIn: true, mrOut: false, mrIn: false): (
@@ -118,8 +130,8 @@ SELECT
     ),
     (trustOut: true, trustIn: false, mrOut: false, mrIn: true): (
       visibleOut: true,
-      visibleIn: true,
-      mutual: true,
+      visibleIn: false,
+      mutual: false,
     ),
     (trustOut: false, trustIn: true, mrOut: true, mrIn: false): (
       visibleOut: true,
@@ -260,16 +272,15 @@ WHERE peer_id = \$3
         final row = await peerRow(peerId);
         final signals = entry.key;
         final expected = entry.value;
-        final allAbsent =
-            !signals.trustOut &&
-            !signals.trustIn &&
-            !signals.mrOut &&
-            !signals.mrIn;
-        if (allAbsent) {
+        final rowOmitted =
+            !signals.trustOut && !signals.trustIn && !signals.mrOut;
+        if (rowOmitted) {
           expect(
             row,
             isNull,
-            reason: 'no signals should omit peer row for $peerId',
+            reason:
+                'no outbound trust/MR (incoming-only MR omitted, m0151) '
+                'should omit peer row for $peerId',
           );
           expect(
             await isMutuallyVisible(peerId),
@@ -349,11 +360,12 @@ WHERE u.id = $2
   );
 
   test(
-    'mutually_visible_users includes explicit, MR, and mixed mutual cases',
+    'mutually_visible_users includes explicit, MR, and trustIn+mrOut mixed',
     () async {
       final explicitPeer = scenarioPeers[5];
       final mrPeer = scenarioPeers[6];
-      final mixedPeer = scenarioPeers[8];
+      final droppedTrustOutMrInPeer = scenarioPeers[8];
+      final keptTrustInMrOutPeer = scenarioPeers[9];
       final oneWayPeer = scenarioPeers[1];
 
       await applySignals(
@@ -364,9 +376,14 @@ WHERE u.id = $2
         mrPeer,
         (trustOut: false, trustIn: false, mrOut: true, mrIn: true),
       );
+      // Dropped in m0151 (speed, then simplicity): not mutual.
       await applySignals(
-        mixedPeer,
+        droppedTrustOutMrInPeer,
         (trustOut: true, trustIn: false, mrOut: false, mrIn: true),
+      );
+      await applySignals(
+        keptTrustInMrOutPeer,
+        (trustOut: false, trustIn: true, mrOut: true, mrIn: false),
       );
       await applySignals(
         oneWayPeer,
@@ -386,7 +403,11 @@ ORDER BY u.id
           .map((row) => row.read<String>('id'))
           .get();
 
-      expect(visibleIds, containsAll([explicitPeer, mrPeer, mixedPeer]));
+      expect(
+        visibleIds,
+        containsAll([explicitPeer, mrPeer, keptTrustInMrOutPeer]),
+      );
+      expect(visibleIds, isNot(contains(droppedTrustOutMrInPeer)));
       expect(visibleIds, isNot(contains(oneWayPeer)));
       expect(visibleIds, isNot(contains(viewerId)));
     },

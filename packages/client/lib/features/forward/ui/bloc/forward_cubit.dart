@@ -114,8 +114,7 @@ class ForwardCubit extends Cubit<ForwardState> {
   ForwardCandidatesLoad _candidatesLoadFor({
     required List<ForwardCandidate> candidates,
     required List<ForwardCandidate> lineageSuggestions,
-  }) =>
-      candidates.isEmpty && lineageSuggestions.isEmpty
+  }) => candidates.isEmpty && lineageSuggestions.isEmpty
       ? const ForwardCandidatesEmpty()
       : const ForwardCandidatesReady();
 
@@ -152,15 +151,13 @@ class ForwardCubit extends Cubit<ForwardState> {
     required Set<String> initialIds,
     required Map<String, ForwardCandidate> candidateById,
     required DateTime todayUtc,
-  }) => initialIds
-      .where(
-        (id) {
-          final candidate = candidateById[id];
-          return candidate != null &&
-              candidate.profile.availability.blocksNewRequestsOn(todayUtc);
-        },
-      )
-      .toSet();
+  }) => initialIds.where(
+    (id) {
+      final candidate = candidateById[id];
+      return candidate != null &&
+          candidate.profile.availability.blocksNewRequestsOn(todayUtc);
+    },
+  ).toSet();
 
   Future<void> _loadCandidates({bool forceReload = false}) async {
     final forwardCase = _forwardCase;
@@ -385,8 +382,7 @@ class ForwardCubit extends Cubit<ForwardState> {
       skippedCount = skipped;
     }
 
-    final inWatching =
-        !state.viewerIsAuthor && !state.viewerHasActiveHelpOffer;
+    final inWatching = !state.viewerIsAuthor && !state.viewerHasActiveHelpOffer;
     final message = inWatching
         ? ForwardLocationMessage(
             beaconId: state.beaconId,
@@ -673,11 +669,12 @@ class ForwardCubit extends Cubit<ForwardState> {
       final bandByUserId = {
         for (final row in state.band) row.userId: row,
       };
-      final recipientBandProvenance = <String, ({String? tier, bool isExploration})>{
-        for (final id in recipientIdsToSend)
-          if (bandByUserId[id] case final row?)
-            id: (tier: row.rowTier?.name, isExploration: row.isExploration),
-      };
+      final recipientBandProvenance =
+          <String, ({String? tier, bool isExploration})>{
+            for (final id in recipientIdsToSend)
+              if (bandByUserId[id] case final row?)
+                id: (tier: row.rowTier?.name, isExploration: row.isExploration),
+          };
       final result = await forwardCase.forwardBeacon(
         beaconId: state.beaconId,
         recipientIds: recipientIdsToSend,
@@ -715,7 +712,9 @@ class ForwardCubit extends Cubit<ForwardState> {
       if (!embedded) {
         _emitDeliveryMessage(outcome);
       }
-      if (outcome.deliveredRecipientIds.isNotEmpty) {
+      // Standalone D7: reload chain and switch to Involved. Embedded create
+      // pops immediately; skip the second full load.
+      if (!embedded && outcome.deliveredRecipientIds.isNotEmpty) {
         await reloadCandidates(forceReload: true);
         if (!isClosed) {
           emit(

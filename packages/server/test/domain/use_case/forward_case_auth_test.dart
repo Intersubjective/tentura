@@ -371,6 +371,8 @@ void main() {
       ).called(1);
     });
 
+    // Port is stubbed: this checks the gate, not SQL. m0151 no longer treats
+    // trustOut+mrIn as mutual; a stubbed-true id still authorizes.
     test('mixed trust and MR mechanisms authorize', () async {
       stubMutuallyVisible({'Rmixed'});
 

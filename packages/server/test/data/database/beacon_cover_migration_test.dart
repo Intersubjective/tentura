@@ -119,8 +119,11 @@ ORDER BY indexname
       () async {
         // Migrant only applies versions above the highest recorded one, so
         // every migration appended after this test was written (currently
-        // m0141-m0148) must be unwound here too, or the re-application below
+        // m0141-m0151) must be unwound here too, or the re-application below
         // is a silent no-op and the m0130/m0131 columns never come back.
+        await _rollBackM0151ForTest(writer);
+        await _rollBackM0150ForTest(writer);
+        await _rollBackM0149ForTest(writer);
         await _rollBackM0148ForTest(writer);
         await _rollBackM0147ForTest(writer);
         await _rollBackM0146ForTest(writer);
@@ -440,6 +443,24 @@ Future<void> _rollBackM0132ForTest(Connection connection) async {
   ]) {
     await connection.execute(statement);
   }
+}
+
+Future<void> _rollBackM0151ForTest(Connection connection) async {
+  await connection.execute(
+    "DELETE FROM public.schema_version WHERE version = '0151'",
+  );
+}
+
+Future<void> _rollBackM0150ForTest(Connection connection) async {
+  await connection.execute(
+    "DELETE FROM public.schema_version WHERE version = '0150'",
+  );
+}
+
+Future<void> _rollBackM0149ForTest(Connection connection) async {
+  await connection.execute(
+    "DELETE FROM public.schema_version WHERE version = '0149'",
+  );
 }
 
 Future<void> _rollBackM0148ForTest(Connection connection) async {

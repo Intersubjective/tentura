@@ -212,8 +212,9 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
       endAt: endAt,
       cachedEventStartAt: startAt ?? state.cachedEventStartAt,
       cachedEventEndAt: startAt != null ? endAt : state.cachedEventEndAt,
-      cachedDeadlineAt:
-          startAt == null && endAt != null ? endAt : state.cachedDeadlineAt,
+      cachedDeadlineAt: startAt == null && endAt != null
+          ? endAt
+          : state.cachedDeadlineAt,
     ),
   );
 
@@ -595,8 +596,9 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
 
       await saveDraft(context: context, showMessage: false);
       await _case.publishDraft(draftId);
+      // Embedded forward() skips allowsForward and the host pops after send;
+      // a full candidate reload here only stalls the spinner.
 
-      await forwardCubit.reloadCandidates(forceReload: true);
       await forwardCubit.forward();
       final outcome = forwardCubit.state.lastDeliveryOutcome;
 
@@ -659,7 +661,12 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
       } else {
         // Created as a draft so media reconciles before anyone can read it.
         final result = await _case.create(
-          _command(context: context, id: '', draftSafeTitle: false, draft: true),
+          _command(
+            context: context,
+            id: '',
+            draftSafeTitle: false,
+            draft: true,
+          ),
         );
         emit(
           _applyServerMedia(

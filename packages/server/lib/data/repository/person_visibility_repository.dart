@@ -6,6 +6,8 @@ import 'package:tentura_server/domain/port/person_visibility_repository_port.dar
 
 import '../database/tentura_db.dart';
 
+/// Mutual IDs from `person_visibility_peers`. Incoming-only MR is omitted
+/// (m0151: speed, then simplicity).
 @LazySingleton(as: PersonVisibilityRepositoryPort)
 class PersonVisibilityRepository implements PersonVisibilityRepositoryPort {
   PersonVisibilityRepository(this._database);

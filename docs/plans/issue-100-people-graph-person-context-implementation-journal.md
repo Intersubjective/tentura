@@ -53,6 +53,12 @@ Untracked:
 16. **WU15** — conditional AppBar cleanup after WU14 pass — **complete** (2026-08-09).
 17. **WU16** — version, compatibility, and full regression — **partial** (2026-08-09).
 
+## m0151 — drop incoming-only MR discovery — 2026-08-15
+
+Входящий-only MeritRank больше не сигнал видимости. `mr_mutual_scores(viewer)` смотрит outbound от ego, поэтому peer только с ребром peer→viewer (в том числе mixed `trustOut+mrIn`) не попадает в проекцию. Discovery через `mr_edgelist` и per-peer `mr_node_score` убрали: во-первых ради скорости, во-вторых ради простоты. Взаимность = явный `vote_user` и/или строка `mr_mutual_scores`. Mixed `trustIn+mrOut` без изменений.
+
+SQL: `packages/server/lib/data/database/migration/m0151.dart` replaces `person_visibility_peers` only. Finding WU1 (edgelist + `mr_node_score` supplement) is historical; do not restore it.
+
 ## Preflight evidence
 
 ### #86 ownership (re-run 2026-08-08)

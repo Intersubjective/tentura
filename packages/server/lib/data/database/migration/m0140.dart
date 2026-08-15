@@ -9,6 +9,7 @@ part of '_migrations.dart';
 ///
 /// One-way MeritRank edges discovered via `mr_edgelist` use `mr_node_score` for
 /// directional scores when `mr_mutual_scores` omits the peer row.
+/// Superseded by m0151: incoming-only MR discovery dropped (speed, then simplicity).
 final m0140 = Migration('0140', [
   r'''
 CREATE OR REPLACE FUNCTION public.person_visibility_peers(

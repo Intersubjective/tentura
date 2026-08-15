@@ -56,9 +56,13 @@ Future<void> main() async {
       await writer.execute('SET check_function_bodies = false');
       await migrateDbSchema(writer);
       // Migrant only applies versions above the highest recorded one, so every
-      // migration appended after this test was written (currently m0132–m0147)
+      // migration appended after this test was written (currently m0132–m0151)
       // must be unwound here as well — otherwise the re-application below is a
       // silent no-op and the m0115–m0120 columns never come back.
+      await _rollBackM0151ForTest(writer);
+      await _rollBackM0150ForTest(writer);
+      await _rollBackM0149ForTest(writer);
+      await _rollBackM0148ForTest(writer);
       await _rollBackM0147ForTest(writer);
       await _rollBackM0146ForTest(writer);
       await _rollBackM0145ForTest(writer);
@@ -1368,7 +1372,9 @@ INSERT INTO public.beacon_room_message (
           );
           await writer.execute(
             Sql.named('DELETE FROM public."user" WHERE id = ANY(@userIds)'),
-            parameters: {'userIds': [ownerId, authorId]},
+            parameters: {
+              'userIds': [ownerId, authorId],
+            },
           );
         });
 
@@ -1439,13 +1445,16 @@ INSERT INTO public.beacon_room_message_attachment (
 '''),
           parameters: {'id': attachmentId, 'messageId': messageId},
         );
-        List<Map<String, dynamic>> attachmentChanges() => _ofKind(
-          notifications,
-          'room_message',
-        ).where(
-          (message) =>
-              message['id'] == beaconId && message['event'] == 'update',
-        ).toList();
+        List<Map<String, dynamic>> attachmentChanges() =>
+            _ofKind(
+                  notifications,
+                  'room_message',
+                )
+                .where(
+                  (message) =>
+                      message['id'] == beaconId && message['event'] == 'update',
+                )
+                .toList();
         await _waitUntil(() => attachmentChanges().isNotEmpty);
         final attachmentUpdate = attachmentChanges().single;
         expect(attachmentUpdate['message_id'], messageId);
@@ -1809,6 +1818,35 @@ Future<bool> _canConnect(Env env) async {
     return true;
   } on Object {
     return false;
+  }
+}
+
+Future<void> _rollBackM0151ForTest(Connection connection) async {
+  await connection.execute(
+    "DELETE FROM public.schema_version WHERE version = '0151'",
+  );
+}
+
+Future<void> _rollBackM0150ForTest(Connection connection) async {
+  await connection.execute(
+    "DELETE FROM public.schema_version WHERE version = '0150'",
+  );
+}
+
+Future<void> _rollBackM0149ForTest(Connection connection) async {
+  await connection.execute(
+    "DELETE FROM public.schema_version WHERE version = '0149'",
+  );
+}
+
+Future<void> _rollBackM0148ForTest(Connection connection) async {
+  for (final statement in const [
+    'DROP FUNCTION IF EXISTS public.user_availability_hidden_for_viewer(public.user_availability, json)',
+    'DROP INDEX IF EXISTS public.user_availability_resume_on_idx',
+    'DROP TABLE IF EXISTS public.user_availability',
+    "DELETE FROM public.schema_version WHERE version = '0148'",
+  ]) {
+    await connection.execute(statement);
   }
 }
 
