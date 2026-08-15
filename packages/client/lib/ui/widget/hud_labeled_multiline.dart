@@ -109,10 +109,12 @@ class HudLabeledMultiline extends StatelessWidget {
             : Semantics(
                 button: true,
                 label: showDetailSemanticLabel ?? '$semanticsLabel $semanticsText',
-                child: InkWell(
-                  onTap: onShowDetail,
-                  borderRadius: BorderRadius.circular(8),
-                  child: iconRow,
+                child: ExcludeSemantics(
+                  child: InkWell(
+                    onTap: onShowDetail,
+                    borderRadius: BorderRadius.circular(8),
+                    child: iconRow,
+                  ),
                 ),
               );
 

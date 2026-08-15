@@ -123,12 +123,15 @@ class OverlappingPeopleAvatars extends StatelessWidget {
     return Semantics(
       container: true,
       label: label,
-      child: SizedBox(
-        width: width,
-        height: avatarSize,
-        child: Stack(
-          clipBehavior: Clip.none,
-          children: stackChildren,
+      // Avatars/Text still publish semantics; keep a single merged node on web.
+      child: ExcludeSemantics(
+        child: SizedBox(
+          width: width,
+          height: avatarSize,
+          child: Stack(
+            clipBehavior: Clip.none,
+            children: stackChildren,
+          ),
         ),
       ),
     );

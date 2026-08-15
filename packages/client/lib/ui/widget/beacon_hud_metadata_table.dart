@@ -134,17 +134,21 @@ class _MetadataTableRow extends StatelessWidget {
               child: Semantics(
                 button: true,
                 label: entry.semanticsValue ?? entry.semanticsLabel,
-                child: InkWell(
-                  onTap: entry.onTap,
-                  borderRadius: BorderRadius.circular(8),
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(minHeight: 44),
-                    child: Row(
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: [
-                        iconColumn,
-                        Expanded(child: bodyContent),
-                      ],
+                // Body Text/icons keep default semantics; exclude so the
+                // merged button label does not leave parentDataDirty on web.
+                child: ExcludeSemantics(
+                  child: InkWell(
+                    onTap: entry.onTap,
+                    borderRadius: BorderRadius.circular(8),
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(minHeight: 44),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          iconColumn,
+                          Expanded(child: bodyContent),
+                        ],
+                      ),
                     ),
                   ),
                 ),

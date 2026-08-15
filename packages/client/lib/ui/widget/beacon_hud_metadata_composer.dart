@@ -5,17 +5,15 @@ import 'package:tentura/domain/coordination/derive_beacon_coordination_phase.dar
 import 'package:tentura/domain/coordination/helper_offer_response_state.dart';
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/beacon_coordination_phase.dart';
-import 'package:tentura/domain/entity/beacon_schedule.dart';
 import 'package:tentura/domain/entity/coordination_responsibility.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_state.dart';
 import 'package:tentura/features/beacon_view/ui/util/beacon_hud_derivation.dart';
+import 'package:tentura/features/beacon_view/ui/widget/beacon_view_details_sheet.dart';
 import 'package:tentura/features/my_work/domain/entity/my_work_card_view_model.dart';
 import 'package:tentura/features/my_work/ui/widget/my_work_last_event_row.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/presenter/beacon_phase_input_builders.dart';
-import 'package:tentura/ui/utils/beacon_location_actions.dart';
 import 'package:tentura/ui/utils/beacon_you_presentation.dart';
-import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura/ui/widget/beacon_compact_metadata_strip.dart';
 import 'package:tentura/ui/widget/beacon_hud_metadata_table.dart';
 import 'package:tentura/ui/widget/beacon_hud_row_lead.dart';
@@ -161,7 +159,6 @@ List<BeaconHudMetadataEntry> buildBeaconViewHudMetadataEntries(
   BuildContext context, {
   required double rowWidth,
   required BeaconViewState state,
-  VoidCallback? onFacePileTap,
   VoidCallback? onEditNowLine,
 }) {
   final l10n = L10n.of(context)!;
@@ -169,31 +166,6 @@ List<BeaconHudMetadataEntry> buildBeaconViewHudMetadataEntries(
   final entries = <BeaconHudMetadataEntry>[];
   final beacon = state.beacon;
   final viewerId = state.myProfile.id;
-
-  final activeHelpUsers = [
-    for (final offer in state.helpOffers)
-      if (!offer.isWithdrawn) offer.user,
-  ];
-
-  if (BeaconCompactMetadataStrip.hasVisibleContent(
-    beacon: beacon,
-    involvedProfiles: activeHelpUsers,
-    includeScheduleAndLocation: false,
-  )) {
-    entries.add(
-      BeaconHudMetadataEntry(
-        icon: BeaconHudRowIcons.people,
-        semanticsLabel: l10n.beaconHudPeopleRowSemantics,
-        body: BeaconCompactMetadataStrip(
-          beacon: beacon,
-          involvedProfiles: activeHelpUsers,
-          currentUserId: viewerId,
-          onFacePileTap: onFacePileTap,
-          includeScheduleAndLocation: false,
-        ),
-      ),
-    );
-  }
 
   final nowDisplay = beaconHudNowDisplay(l10n, state);
 
@@ -276,38 +248,18 @@ List<BeaconHudMetadataEntry> buildBeaconViewHudMetadataEntries(
     );
   }
 
-  if (beacon.hasScheduleDates) {
-    final scheduleText =
-        '${dateFormatYMD(beacon.startAt)} - ${dateFormatYMD(beacon.endAt)}';
+  if (beaconViewHasDetailsContent(beacon)) {
     entries.add(
       BeaconHudMetadataEntry(
-        icon: BeaconHudRowIcons.schedule,
-        semanticsLabel: scheduleText,
+        icon: Icons.info_outline,
+        semanticsLabel: l10n.beaconDetailsSection,
+        semanticsValue: l10n.beaconDetailsSection,
+        onTap: () => showBeaconViewDetailsSheet(context, beacon: beacon),
+        trailing: beaconViewDetailsHudTrailing(context),
         body: HudLabeledMultiline(
-          leadingIcon: BeaconHudRowIcons.schedule,
-          semanticsLabel: scheduleText,
-          text: scheduleText,
-          mutedColor: tt.textMuted,
-          includeLead: false,
-          primaryMaxLines: 1,
-          showTruncationHint: false,
-        ),
-      ),
-    );
-  }
-
-  if (beacon.coordinates?.isNotEmpty ?? false) {
-    final locationText = beaconHudLocationDisplayLabel(beacon, l10n);
-    entries.add(
-      BeaconHudMetadataEntry(
-        icon: BeaconHudRowIcons.location,
-        semanticsLabel: l10n.beaconCardLocationSemantics(locationText),
-        semanticsValue: l10n.beaconCardLocationSemantics(locationText),
-        onTap: () => showBeaconLocationActions(context, beacon),
-        body: HudLabeledMultiline(
-          leadingIcon: BeaconHudRowIcons.location,
-          semanticsLabel: l10n.beaconCardLocationSemantics(locationText),
-          text: locationText,
+          leadingIcon: Icons.info_outline,
+          semanticsLabel: l10n.beaconDetailsSection,
+          text: l10n.beaconDetailsSection,
           mutedColor: tt.textMuted,
           includeLead: false,
           primaryMaxLines: 1,

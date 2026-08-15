@@ -219,19 +219,21 @@ class _ScheduleMetaState extends State<_ScheduleMeta> {
 
     return Semantics(
       label: presentation.semanticsLabel,
-      child: BeaconCardMetaItem(
-        icon: presentation.icon,
-        child: presentation.visibleText.isEmpty
-            ? const SizedBox.shrink()
-            : ConstrainedBox(
-                constraints: BoxConstraints(maxWidth: widget.maxTextWidth),
-                child: Text(
-                  presentation.visibleText,
-                  style: textStyle,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
+      child: ExcludeSemantics(
+        child: BeaconCardMetaItem(
+          icon: presentation.icon,
+          child: presentation.visibleText.isEmpty
+              ? const SizedBox.shrink()
+              : ConstrainedBox(
+                  constraints: BoxConstraints(maxWidth: widget.maxTextWidth),
+                  child: Text(
+                    presentation.visibleText,
+                    style: textStyle,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                  ),
                 ),
-              ),
+        ),
       ),
     );
   }
@@ -347,7 +349,7 @@ class _LocationMeta extends StatelessWidget {
     return Semantics(
       button: true,
       label: semanticsLabel,
-      child: child,
+      child: ExcludeSemantics(child: child),
     );
   }
 }

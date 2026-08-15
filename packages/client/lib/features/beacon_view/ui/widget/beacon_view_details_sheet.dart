@@ -80,20 +80,28 @@ Future<void> showBeaconViewDetailsSheet(
             padding: EdgeInsets.symmetric(horizontal: sheetTt.screenHPadding),
             child: Material(
               color: Colors.transparent,
-              child: InkWell(
-                onTap: () => showBeaconLocationActions(ctx, beacon),
-                borderRadius: BorderRadius.circular(TenturaRadii.cardDense),
-                child: BeaconHudIconRow(
-                  leadIcon: BeaconHudRowIcons.location,
-                  semanticsLabel: l10n.beaconCardLocationSemantics(locationText),
-                  body: HudLabeledMultiline(
-                    leadingIcon: BeaconHudRowIcons.location,
-                    semanticsLabel: l10n.beaconCardLocationSemantics(locationText),
-                    text: locationText,
-                    mutedColor: muted,
-                    includeLead: false,
-                    primaryMaxLines: 10,
-                    showTruncationHint: false,
+              child: Semantics(
+                button: true,
+                label: l10n.beaconCardLocationSemantics(locationText),
+                child: ExcludeSemantics(
+                  child: InkWell(
+                    onTap: () => showBeaconLocationActions(ctx, beacon),
+                    borderRadius: BorderRadius.circular(TenturaRadii.cardDense),
+                    child: BeaconHudIconRow(
+                      leadIcon: BeaconHudRowIcons.location,
+                      semanticsLabel:
+                          l10n.beaconCardLocationSemantics(locationText),
+                      body: HudLabeledMultiline(
+                        leadingIcon: BeaconHudRowIcons.location,
+                        semanticsLabel:
+                            l10n.beaconCardLocationSemantics(locationText),
+                        text: locationText,
+                        mutedColor: muted,
+                        includeLead: false,
+                        primaryMaxLines: 10,
+                        showTruncationHint: false,
+                      ),
+                    ),
                   ),
                 ),
               ),
