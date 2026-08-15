@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get_it/get_it.dart';
 import 'package:logging/logging.dart';
@@ -216,8 +215,6 @@ ForwardCubit _cubit({
   required ForwardCase forwardCase,
   required FakeUiEffectPort effects,
   DateTime Function()? clock,
-  ForwardTimerFactory? timerFactory,
-  ForwardLifecycleListenerFactory? lifecycleListenerFactory,
   Set<String> initialSelectedIds = const {},
   bool embedded = false,
 }) => ForwardCubit(
@@ -225,8 +222,6 @@ ForwardCubit _cubit({
   forwardCase: forwardCase,
   effects: effects,
   clock: clock,
-  timerFactory: timerFactory,
-  lifecycleListenerFactory: lifecycleListenerFactory,
   initialSelectedIds: initialSelectedIds,
   embedded: embedded,
 );
@@ -654,101 +649,5 @@ void main() {
     await Future<void>.delayed(Duration.zero);
 
     expect(harness.forwardRepo.fetchCandidatesCalls, callsBefore);
-  });
-
-  test('expiry timer reloads candidates at UTC resume boundary', () async {
-    clockNow = DateTime.utc(2026, 8, 19, 23, 30);
-    final resumeOn = DateTime.utc(2026, 8, 20);
-    Timer? scheduledTimer;
-    void Function()? timerCallback;
-    final harness = await _buildHarness(
-      involvement: _involvement(_openBeacon()),
-      candidates: [
-        _profile(
-          id: 'U-paused',
-          name: 'Carol',
-          availability: Availability(resumeOn: resumeOn),
-        ),
-      ],
-    );
-    addTearDown(() => _disposeHarness(harness));
-
-    final cubit = _cubit(
-      forwardCase: harness.forwardCase,
-      effects: FakeUiEffectPort(),
-      clock: clock,
-      timerFactory: (duration, onFire) {
-        timerCallback = onFire;
-        scheduledTimer = Timer(duration, onFire);
-        return scheduledTimer!;
-      },
-    );
-    addTearDown(cubit.close);
-    await _waitReady(cubit);
-
-    final callsBefore = harness.forwardRepo.fetchCandidatesCalls;
-    timerCallback!();
-    await cubit.stream.firstWhere(
-      (s) => harness.forwardRepo.fetchCandidatesCalls > callsBefore,
-    );
-    expect(harness.forwardRepo.fetchCandidatesCalls, callsBefore + 1);
-  });
-
-  test('app lifecycle resume triggers availability reevaluation', () async {
-    TestWidgetsFlutterBinding.ensureInitialized();
-    VoidCallback? resumeHandler;
-    final harness = await _buildHarness(
-      involvement: _involvement(_openBeacon()),
-      candidates: [_profile(id: 'U-alice', name: 'Alice')],
-    );
-    addTearDown(() => _disposeHarness(harness));
-
-    final cubit = _cubit(
-      forwardCase: harness.forwardCase,
-      effects: FakeUiEffectPort(),
-      clock: clock,
-      lifecycleListenerFactory: ({VoidCallback? onResume}) {
-        resumeHandler = onResume;
-        return AppLifecycleListener(onResume: onResume);
-      },
-    );
-    addTearDown(cubit.close);
-    await _waitReady(cubit);
-
-    final callsBefore = harness.forwardRepo.fetchCandidatesCalls;
-    resumeHandler!.call();
-    await cubit.stream.firstWhere(
-      (s) => harness.forwardRepo.fetchCandidatesCalls > callsBefore,
-    );
-    expect(harness.forwardRepo.fetchCandidatesCalls, callsBefore + 1);
-  });
-
-  test('close cancels expiry timer', () async {
-    Timer? scheduledTimer;
-    final harness = await _buildHarness(
-      involvement: _involvement(_openBeacon()),
-      candidates: [
-        _profile(
-          id: 'U-paused',
-          name: 'Carol',
-          availability: Availability(resumeOn: pausedUntil),
-        ),
-      ],
-    );
-    addTearDown(() => _disposeHarness(harness));
-
-    final cubit = _cubit(
-      forwardCase: harness.forwardCase,
-      effects: FakeUiEffectPort(),
-      clock: clock,
-      timerFactory: (duration, onFire) {
-        scheduledTimer = Timer(duration, onFire);
-        return scheduledTimer!;
-      },
-    );
-    await _waitReady(cubit);
-    await cubit.close();
-
-    expect(scheduledTimer!.isActive, isFalse);
   });
 }

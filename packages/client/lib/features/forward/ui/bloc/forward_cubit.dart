@@ -1,8 +1,5 @@
 import 'dart:async';
 
-import 'package:flutter/foundation.dart';
-import 'package:flutter/widgets.dart';
-
 import 'package:get_it/get_it.dart';
 
 import 'package:tentura/domain/util/availability_presets.dart';
@@ -22,12 +19,6 @@ export 'package:flutter_bloc/flutter_bloc.dart';
 
 export 'forward_state.dart';
 
-typedef ForwardTimerFactory =
-    Timer Function(Duration duration, void Function() onFire);
-
-typedef ForwardLifecycleListenerFactory =
-    AppLifecycleListener Function({VoidCallback? onResume});
-
 class ForwardCubit extends Cubit<ForwardState> {
   ForwardCubit({
     required String beaconId,
@@ -39,24 +30,16 @@ class ForwardCubit extends Cubit<ForwardState> {
     this.initialSelectedIds = const {},
     this.embedded = false,
     DateTime Function()? clock,
-    ForwardTimerFactory? timerFactory,
-    ForwardLifecycleListenerFactory? lifecycleListenerFactory,
   }) : _forwardCase =
            forwardCase ??
            (debugSkipInitialLoad ? null : GetIt.I<ForwardCase>()),
        _effects = effects ?? GetIt.I<UiEffectPort>(),
        _clock = clock ?? DateTime.now,
-       _timerFactory = timerFactory ?? Timer.new,
-       _lifecycleListenerFactory =
-           lifecycleListenerFactory ??
-           (({VoidCallback? onResume}) =>
-               AppLifecycleListener(onResume: onResume)),
        super(ForwardState(beaconId: beaconId, context: context)) {
     if (!debugSkipInitialLoad) {
       unawaited(_loadCandidates());
     }
     _subscribeLiveUpdates();
-    _maybeAttachLifecycleListener();
   }
 
   /// When true, first candidate load pre-checks lineage auto-select rows.
@@ -74,10 +57,6 @@ class ForwardCubit extends Cubit<ForwardState> {
 
   final DateTime Function() _clock;
 
-  final ForwardTimerFactory _timerFactory;
-
-  final ForwardLifecycleListenerFactory _lifecycleListenerFactory;
-
   bool _appliedInitialLineagePreselect = false;
   bool _appliedInitialUserPreselect = false;
   bool _suppressForwardChangeReload = false;
@@ -88,18 +67,7 @@ class ForwardCubit extends Cubit<ForwardState> {
 
   StreamSubscription<void>? _blockChangesSub;
 
-  Timer? _availabilityExpiryTimer;
-
-  AppLifecycleListener? _lifecycleListener;
-
   DateTime _todayUtc() => availabilityTodayUtc(_clock);
-
-  void _maybeAttachLifecycleListener() {
-    if (BindingBase.debugBindingType() == null) {
-      return;
-    }
-    _lifecycleListener = _lifecycleListenerFactory(onResume: _onAppResume);
-  }
 
   void _subscribeLiveUpdates() {
     final forwardCase = _forwardCase;
@@ -193,55 +161,6 @@ class ForwardCubit extends Cubit<ForwardState> {
         },
       )
       .toSet();
-
-  void _cancelAvailabilityExpiryTimer() {
-    _availabilityExpiryTimer?.cancel();
-    _availabilityExpiryTimer = null;
-  }
-
-  void _scheduleAvailabilityExpiryTimer() {
-    _cancelAvailabilityExpiryTimer();
-    final todayUtc = _todayUtc();
-    DateTime? earliestResumeOn;
-    for (final candidate in [
-      ...state.candidates,
-      ...state.lineageSuggestions,
-    ]) {
-      final resumeOn = candidate.profile.availability.resumeOn;
-      if (resumeOn == null || !todayUtc.isBefore(resumeOn)) {
-        continue;
-      }
-      if (earliestResumeOn == null || resumeOn.isBefore(earliestResumeOn)) {
-        earliestResumeOn = resumeOn;
-      }
-    }
-    if (earliestResumeOn == null) {
-      return;
-    }
-    final delay = earliestResumeOn.difference(_clock().toUtc());
-    if (delay.isNegative) {
-      unawaited(_onAvailabilityBoundary());
-      return;
-    }
-    _availabilityExpiryTimer = _timerFactory(delay, _onAvailabilityBoundary);
-  }
-
-  void _onAppResume() {
-    if (isClosed) {
-      return;
-    }
-    unawaited(_onAvailabilityBoundary());
-  }
-
-  Future<void> _onAvailabilityBoundary() async {
-    if (isClosed) {
-      return;
-    }
-    await _loadCandidates(forceReload: true);
-    if (!isClosed) {
-      _scheduleAvailabilityExpiryTimer();
-    }
-  }
 
   Future<void> _loadCandidates({bool forceReload = false}) async {
     final forwardCase = _forwardCase;
@@ -340,7 +259,6 @@ class ForwardCubit extends Cubit<ForwardState> {
           status: const StateIsSuccess(),
         ),
       );
-      _scheduleAvailabilityExpiryTimer();
     } catch (e) {
       if (isInitialLoad) {
         if (!isClosed) {
@@ -484,8 +402,6 @@ class ForwardCubit extends Cubit<ForwardState> {
 
   @override
   Future<void> close() async {
-    _cancelAvailabilityExpiryTimer();
-    _lifecycleListener?.dispose();
     await _forwardChangesSub?.cancel();
     await _contactChangesSub?.cancel();
     await _blockChangesSub?.cancel();
