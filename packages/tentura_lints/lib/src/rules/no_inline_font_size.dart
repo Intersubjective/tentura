@@ -46,13 +46,13 @@ final class _Visitor extends SimpleAstVisitor<void> {
     final typeName = node.constructorName.type.name.lexeme;
     if (typeName == 'TextStyle') {
       for (final arg in node.argumentList.arguments) {
-        if (arg is! NamedExpression) {
+        if (arg is! NamedArgument) {
           continue;
         }
-        if (arg.name.label.name != 'fontSize') {
+        if (arg.name.lexeme != 'fontSize') {
           continue;
         }
-        final e = arg.expression;
+        final e = arg.argumentExpression;
         if (e is IntegerLiteral || e is DoubleLiteral) {
           rule.reportAtNode(arg);
         }

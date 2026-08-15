@@ -73,9 +73,7 @@ final class _Visitor extends SimpleAstVisitor<void> {
 
   void _reportFirstNumericArg(ArgumentList argumentList) {
     for (final argument in argumentList.arguments) {
-      final value = argument is NamedExpression
-          ? argument.expression
-          : argument;
+      final value = argument.argumentExpression;
       if (value is IntegerLiteral || value is DoubleLiteral) {
         rule.reportAtNode(value);
         break;

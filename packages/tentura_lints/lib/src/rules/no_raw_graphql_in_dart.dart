@@ -132,10 +132,10 @@ final class _Visitor extends SimpleAstVisitor<void> {
 
   static Expression? _firstPositionalArg(ArgumentList list) {
     for (final a in list.arguments) {
-      if (a is NamedExpression) {
+      if (a is NamedArgument) {
         continue;
       }
-      return a;
+      return a.argumentExpression;
     }
     return null;
   }

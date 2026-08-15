@@ -1,8 +1,7 @@
-# lean_builder 0.1.10 bridges auto_route_generator 10.6 until analyzer 13 / lean_builder 1.2.
-# Use analyzer 12.0.0 (not 12.1.0): 0.1.10 caps _fe_analyzer_shared below 99.
+# lean_builder 1.2.x matches auto_route_generator 10.6 and analyzer 13 (Dart 3.13).
 dependency_overrides:
   cli_util: ^0.5.0
-  lean_builder: 0.1.10
+  lean_builder: 1.2.2
   ferry_generator:
     path: packages/ferry_generator
   # Vendored 0.6.2 + render guards: skip nodes/edges whose layout position

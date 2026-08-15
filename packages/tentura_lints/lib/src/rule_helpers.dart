@@ -7,9 +7,8 @@ bool filePathContains(RuleContext context, String pathFragment) {
 }
 
 /// Unwraps optional/default formal parameters to the inner parameter node.
-FormalParameter unwrapFormalParameter(FormalParameter parameter) {
-  if (parameter is DefaultFormalParameter) {
-    return parameter.parameter;
-  }
-  return parameter;
-}
+///
+/// Analyzer 13+ represents defaults via [FormalParameter.defaultClause] on the
+/// parameter itself (no wrapper [DefaultFormalParameter] node), so this is an
+/// identity for the current AST.
+FormalParameter unwrapFormalParameter(FormalParameter parameter) => parameter;

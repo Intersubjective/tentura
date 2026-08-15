@@ -53,4 +53,4 @@ dev_dependencies:
   very_good_analysis:
   injectable_generator:
 
-  mockito: ^5.6.4
+  mockito: ^5.6.5
