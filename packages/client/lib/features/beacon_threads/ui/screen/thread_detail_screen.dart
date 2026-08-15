@@ -196,16 +196,37 @@ class _ThreadDetailScreenState extends State<ThreadDetailScreen> {
               children: [
                 if (showClosedBanner && beacon.id.isNotEmpty)
                   ClosedRequestBanner(beacon: beacon),
-                Expanded(
-                  child: item == null
-                      ? detail
-                      : BlocProvider(
-                          create: (_) => ItemActionsCubit(item: item),
-                          child: detail,
-                        ),
-                ),
+                Expanded(child: detail),
               ],
             );
+
+            // AppBar title/overflow also read ItemActionsCubit — provider must
+            // wrap Scaffold, not only the body ThreadDetail.
+            Widget scaffold = Scaffold(
+              appBar: TenturaTopBar.of(
+                context,
+                leading: BackButton(
+                  onPressed: () => unawaited(_closeThenPop()),
+                ),
+                title: item == null
+                    ? Text(
+                        titleFallback,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                      )
+                    : ThreadDetailTitle(fallback: titleFallback),
+                actions: item == null
+                    ? null
+                    : const [ThreadDetailOverflowAction()],
+              ),
+              body: body,
+            );
+            if (item != null) {
+              scaffold = BlocProvider(
+                create: (_) => ItemActionsCubit(item: item),
+                child: scaffold,
+              );
+            }
 
             return PopScope(
               canPop: _allowPop,
@@ -213,25 +234,7 @@ class _ThreadDetailScreenState extends State<ThreadDetailScreen> {
                 if (didPop) return;
                 unawaited(_closeThenPop());
               },
-              child: Scaffold(
-                appBar: TenturaTopBar.of(
-                  context,
-                  leading: BackButton(
-                    onPressed: () => unawaited(_closeThenPop()),
-                  ),
-                  title: item == null
-                      ? Text(
-                          titleFallback,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        )
-                      : ThreadDetailTitle(fallback: titleFallback),
-                  actions: item == null
-                      ? null
-                      : const [ThreadDetailOverflowAction()],
-                ),
-                body: body,
-              ),
+              child: scaffold,
             );
           },
         );

@@ -1407,7 +1407,10 @@ class _CenteredTimelineBar extends StatelessWidget {
             ),
           );
           if (onTap == null) {
-            return Semantics(label: line, child: content);
+            return Semantics(
+              label: line,
+              child: ExcludeSemantics(child: content),
+            );
           }
           return Material(
             color: Colors.transparent,
@@ -1418,7 +1421,7 @@ class _CenteredTimelineBar extends StatelessWidget {
                 button: true,
                 label: line,
                 hint: accessibilityHint,
-                child: content,
+                child: ExcludeSemantics(child: content),
               ),
             ),
           );
@@ -1906,7 +1909,7 @@ class _MessageLifecycleFooter extends StatelessWidget {
           child: Semantics(
             button: true,
             label: label,
-            child: content,
+            child: ExcludeSemantics(child: content),
           ),
         ),
       ),

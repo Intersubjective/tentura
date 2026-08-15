@@ -14,6 +14,7 @@ import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/coordination_item.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/beacon_threads/domain/entity/request_thread.dart';
+import 'package:tentura/features/beacon_threads/domain/use_case/beacon_threads_case.dart';
 import 'package:tentura/features/beacon_threads/ui/bloc/room_cubit.dart';
 import 'package:tentura/features/beacon_threads/ui/bloc/room_state.dart';
 import 'package:tentura/features/beacon_threads/ui/bloc/thread_host_cubit.dart';
@@ -24,12 +25,17 @@ import 'package:tentura/features/beacon_threads/ui/widget/beacon_room_body.dart'
 import 'package:tentura/features/beacon_threads/ui/widget/thread_detail.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_cubit.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_state.dart';
+import 'package:tentura/features/coordination_item/domain/use_case/coordination_item_case.dart';
 import 'package:tentura/features/coordination_item/ui/bloc/item_actions_cubit.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/bloc/state_base.dart';
+import 'package:tentura/ui/effect/ui_effect_port.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/test_ids.dart';
 
+import 'fake_coordination_item_case.dart';
+import 'room_cubit_fakes.dart';
+import '../../ui/effect/fake_ui_effect_port.dart';
 const _kBeaconId = 'b-detail-test';
 const _kMyId = 'viewer-1';
 final _kSeenAt = DateTime.utc(2026, 8, 14, 10);
@@ -266,6 +272,7 @@ Future<void> _pumpThreadDetail(
         BlocProvider<BeaconViewCubit>.value(
           value: _MockBeaconViewCubit(beaconState),
         ),
+        BlocProvider<ProfileCubit>.value(value: _MockProfileCubit()),
       ],
       child: ThreadDetailScreen(
         beaconId: _kBeaconId,
@@ -284,6 +291,13 @@ Future<void> _setupGetIt() async {
   getIt.registerSingleton<ClipboardImageRepository>(
     ClipboardImageRepository(),
   );
+  getIt.registerSingleton<CoordinationItemCase>(
+    const FakeCoordinationItemCaseForRoom(),
+  );
+  getIt.registerSingleton<BeaconThreadsCase>(
+    roomCubitMakeCase(FakeBeaconThreadsRepository(userId: _kMyId)),
+  );
+  getIt.registerSingleton<UiEffectPort>(FakeUiEffectPort());
 }
 
 void main() {
@@ -413,6 +427,33 @@ void main() {
         find.byKey(TestIds.key(TestIds.roomMessageInput)),
         findsOneWidget,
       );
+    });
+
+    testWidgets('ask thread AppBar title and overflow find ItemActionsCubit', (
+      tester,
+    ) async {
+      final host = _host();
+      final ask = _semanticThread('ask-1');
+      final threadsState = ThreadsState(
+        threads: [ask],
+        myUserId: _kMyId,
+        status: const StateIsSuccess(),
+      );
+      final router = _PopTrackingStackRouter();
+
+      await _pumpThreadDetail(
+        tester,
+        host: host,
+        threadsState: threadsState,
+        beaconState: _beaconState(),
+        threadId: ask.threadId,
+        router: router,
+      );
+
+      expect(tester.takeException(), isNull);
+      expect(find.byType(ThreadDetailTitle), findsOneWidget);
+      expect(find.byType(ThreadDetailOverflowAction), findsOneWidget);
+      expect(find.text('Ask title preview'), findsWidgets);
     });
 
     testWidgets('close awaits host clear before route pop completes', (

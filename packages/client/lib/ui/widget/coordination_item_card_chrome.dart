@@ -76,17 +76,22 @@ Widget coordinationItemProfileAvatarTrail({
 
   final sourceName = source?.displayName.trim();
   final targetName = target?.displayName.trim();
+  // Merged label only: avatars/icons still publish semantics and leave
+  // parentDataDirty during flushSemantics on web (same class as HUD face pile).
   if (sourceName != null &&
       sourceName.isNotEmpty &&
       targetName != null &&
       targetName.isNotEmpty) {
     return Semantics(
       label: 'From $sourceName to $targetName',
-      child: trail,
+      child: ExcludeSemantics(child: trail),
     );
   }
   if (sourceName != null && sourceName.isNotEmpty) {
-    return Semantics(label: sourceName, child: trail);
+    return Semantics(
+      label: sourceName,
+      child: ExcludeSemantics(child: trail),
+    );
   }
   return trail;
 }

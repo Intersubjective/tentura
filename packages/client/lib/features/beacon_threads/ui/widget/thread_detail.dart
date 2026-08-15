@@ -107,10 +107,12 @@ class ThreadDetailColumnChrome extends StatelessWidget {
               Semantics(
                 label: l10n.beaconRoomBackToChat,
                 button: true,
-                child: IconButton(
-                  tooltip: l10n.beaconRoomBackToChat,
-                  onPressed: onBack,
-                  icon: const Icon(Icons.arrow_back),
+                child: ExcludeSemantics(
+                  child: IconButton(
+                    tooltip: l10n.beaconRoomBackToChat,
+                    onPressed: onBack,
+                    icon: const Icon(Icons.arrow_back),
+                  ),
                 ),
               ),
               Expanded(
