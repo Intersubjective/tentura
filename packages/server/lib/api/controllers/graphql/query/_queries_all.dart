@@ -12,6 +12,7 @@ import 'query_help_offerer_forward_path.dart';
 import 'query_coordination.dart';
 import 'query_evaluation.dart';
 import 'query_fact_card.dart';
+import 'query_forward_candidates.dart';
 import 'query_forward_graph.dart';
 import 'query_forward_inbound.dart';
 import 'query_forward_reasons.dart';
@@ -39,6 +40,7 @@ List<GraphQLObjectField<dynamic, dynamic>> get queriesAll => [
   ...QueryCoordination().all,
   ...QueryEvaluation().all,
   ...QueryFactCard().all,
+  ...QueryForwardCandidates().all,
   ...QueryForwardGraph().all,
   ...QueryForwardInbound().all,
   ...QueryForwardReasons().all,

@@ -43,5 +43,9 @@ void main() {
         expect(isTenturaDirectOperation(name), isTrue, reason: name);
       }
     });
+
+    test('ForwardCandidatesFetch routes to Tentura V2', () {
+      expect(isTenturaDirectOperation('ForwardCandidatesFetch'), isTrue);
+    });
   });
 }

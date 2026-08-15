@@ -2,6 +2,7 @@ import 'package:drift_postgres/drift_postgres.dart';
 import 'package:injectable/injectable.dart';
 
 import 'package:tentura_server/domain/entity/gql_public/image_public_record.dart';
+import 'package:tentura_server/domain/entity/gql_public/mutual_score_record.dart';
 import 'package:tentura_server/domain/entity/gql_public/user_availability_record.dart';
 import 'package:tentura_server/domain/entity/gql_public/user_presence_record.dart';
 import 'package:tentura_server/domain/entity/gql_public/user_public_record.dart';
@@ -45,6 +46,8 @@ class DriftUserProfileBatchLookup implements UserProfileBatchLookup {
     required Iterable<String> ids,
     required Set<String> reciprocalPeerIds,
     Set<String> trustsViewerPeerIds = const {},
+    Set<String> viewerTrustsPeerIds = const {},
+    Map<String, MutualScoreRecord> scoresByPeerId = const {},
   }) async {
     final idList = _distinctNonEmptyIds(ids);
     if (idList.isEmpty) {
@@ -65,6 +68,9 @@ class DriftUserProfileBatchLookup implements UserProfileBatchLookup {
       idList.toSet(),
     );
 
+    final overlayTrustAndScores =
+        viewerTrustsPeerIds.isNotEmpty || scoresByPeerId.isNotEmpty;
+
     return {
       for (final user in users)
         user.id: _userPublicRecord(
@@ -72,6 +78,12 @@ class DriftUserProfileBatchLookup implements UserProfileBatchLookup {
           image: user.imageId != null ? imageByUuid[user.imageId] : null,
           isMutualFriend: reciprocalPeerIds.contains(user.id),
           subjectExplicitlyTrustsViewer: trustsViewerPeerIds.contains(user.id),
+          myVote: overlayTrustAndScores
+              ? (viewerTrustsPeerIds.contains(user.id) ? 1 : 0)
+              : null,
+          scores: [
+            ?scoresByPeerId[user.id],
+          ],
           presence: presenceByUserId[user.id],
           userAvailability: userAvailabilityEntityToPublicRecord(
             entity: availabilityEntities[user.id],
@@ -119,6 +131,8 @@ class DriftUserProfileBatchLookup implements UserProfileBatchLookup {
     required Image? image,
     required bool isMutualFriend,
     required bool subjectExplicitlyTrustsViewer,
+    required int? myVote,
+    required List<MutualScoreRecord> scores,
     required UserPresenceRecord? presence,
     required UserAvailabilityRecord? userAvailability,
   }) {
@@ -139,9 +153,11 @@ class DriftUserProfileBatchLookup implements UserProfileBatchLookup {
       displayName: user.displayName,
       description: user.description,
       handle: (user.handle ?? '').trim().isEmpty ? null : user.handle!.trim(),
+      myVote: myVote,
       isMutualFriend: isMutualFriend,
       subjectExplicitlyTrustsViewer: subjectExplicitlyTrustsViewer,
       image: imageRecord,
+      scores: scores,
       userPresence: presence,
       userAvailability: userAvailability,
     );

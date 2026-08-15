@@ -121,7 +121,7 @@ class ForwardRecipientRow extends StatelessWidget {
             children: [
               SelfAwareAvatar.medium(
                 profile: candidate.profile,
-                withRating: true,
+                withContactBadge: true,
               ),
               SizedBox(width: tt.avatarTextGap),
               Expanded(

@@ -25,6 +25,10 @@ void main() {
     );
     expect(schema, contains('type v2_BeaconExtendReviewResult {'));
     expect(schema, contains('extensionsRemaining: Int!'));
+    expect(
+      schema,
+      contains('forwardCandidates(context: String!): [v2_user!]!'),
+    );
 
     final userStart = schema.indexOf('type user {');
     final userEnd = schema.indexOf('input user_bool_exp', userStart);

@@ -10,6 +10,7 @@ import 'package:test/test.dart';
 
 import 'package:tentura_server/data/database/tentura_db.dart'
     hide isNotNull, isNull;
+import 'package:tentura_server/data/repository/forward_candidates_sql.dart';
 import 'package:tentura_server/env.dart';
 
 typedef _PeerSignals = ({
@@ -516,6 +517,302 @@ WHERE u.id = $2
     },
     skip: skipReason,
   );
+
+  test(
+    'forwardCandidates wrap id-set matches mutually_visible_users',
+    () async {
+      final explicitPeer = scenarioPeers[5];
+      final mrPeer = scenarioPeers[6];
+      final droppedTrustOutMrInPeer = scenarioPeers[8];
+      final keptTrustInMrOutPeer = scenarioPeers[9];
+      final oneWayPeer = scenarioPeers[1];
+      final blockedPeer = scenarioPeers[7];
+
+      await applySignals(
+        explicitPeer,
+        (trustOut: true, trustIn: true, mrOut: false, mrIn: false),
+      );
+      await applySignals(
+        mrPeer,
+        (trustOut: false, trustIn: false, mrOut: true, mrIn: true),
+      );
+      await applySignals(
+        droppedTrustOutMrInPeer,
+        (trustOut: true, trustIn: false, mrOut: false, mrIn: true),
+      );
+      await applySignals(
+        keptTrustInMrOutPeer,
+        (trustOut: false, trustIn: true, mrOut: true, mrIn: false),
+      );
+      await applySignals(
+        oneWayPeer,
+        (trustOut: true, trustIn: false, mrOut: false, mrIn: false),
+      );
+      await applySignals(
+        blockedPeer,
+        (trustOut: true, trustIn: true, mrOut: false, mrIn: false),
+      );
+      await db.customStatement(
+        '''
+INSERT INTO public.user_block (blocker_id, blocked_id, origin_id)
+VALUES ('$viewerId', '$blockedPeer', '$blockedPeer')
+ON CONFLICT DO NOTHING
+''',
+      );
+
+      final wrapIds = await _wrapPeerIds(db, viewerId: viewerId);
+      final mvuIds = await _mvuIds(db, viewerId: viewerId);
+
+      expect(wrapIds.toSet(), mvuIds);
+      expect(wrapIds, containsAll([explicitPeer, mrPeer, keptTrustInMrOutPeer]));
+      expect(wrapIds, isNot(contains(droppedTrustOutMrInPeer)));
+      expect(wrapIds, isNot(contains(oneWayPeer)));
+      expect(wrapIds, isNot(contains(blockedPeer)));
+      expect(wrapIds, isNot(contains(viewerId)));
+    },
+    skip: skipReason,
+  );
+
+  test(
+    'forwardCandidates wrap keeps trust-only MR zeros and mixed trustIn+mrOut',
+    () async {
+      final trustOnly = scenarioPeers[5];
+      final mixed = scenarioPeers[9];
+      await applySignals(
+        trustOnly,
+        (trustOut: true, trustIn: true, mrOut: false, mrIn: false),
+      );
+      await applySignals(
+        mixed,
+        (trustOut: false, trustIn: true, mrOut: true, mrIn: false),
+      );
+
+      final rows = await db
+          .customSelect(
+            kForwardCandidatesWrapSql,
+            variables: [
+              Variable<String>(viewerId),
+              Variable<String>(''),
+            ],
+          )
+          .get();
+      final byId = {
+        for (final row in rows) row.read<String>('peer_id'): row,
+      };
+
+      expect(byId[trustOnly]!.read<bool>('viewer_explicitly_trusts_subject'), isTrue);
+      expect(byId[trustOnly]!.read<bool>('subject_explicitly_trusts_viewer'), isTrue);
+      expect(_asDouble(byId[trustOnly]!.data['forward_mr']), 0);
+      expect(_asDouble(byId[trustOnly]!.data['reverse_mr']), 0);
+
+      expect(byId[mixed]!.read<bool>('viewer_explicitly_trusts_subject'), isFalse);
+      expect(byId[mixed]!.read<bool>('subject_explicitly_trusts_viewer'), isTrue);
+      expect(_asDouble(byId[mixed]!.data['forward_mr']), greaterThan(0));
+    },
+    skip: skipReason,
+  );
+
+  test('forwardCandidates wrap excludes MR peers missing from user', () async {
+    const ghostId = 'Ufwghost0001';
+    await insertUser(ghostId);
+    await mrEdge(viewerId, ghostId);
+    await mrEdge(ghostId, viewerId);
+    addTearDown(() async {
+      await clearMrEdge(viewerId, ghostId);
+      await clearMrEdge(ghostId, viewerId);
+      await db.customStatement(
+        '''DELETE FROM public."user" WHERE id = '$ghostId' ''',
+      );
+    });
+
+    expect(await _wrapPeerIds(db, viewerId: viewerId), contains(ghostId));
+
+    await db.customStatement(
+      '''DELETE FROM public."user" WHERE id = '$ghostId' ''',
+    );
+
+    final rawPeers = await db
+        .customSelect(
+          r'''
+SELECT peer_id
+FROM public.person_visibility_peers($1, $2)
+WHERE peer_id = $3
+''',
+          variables: [
+            Variable<String>(viewerId),
+            Variable<String>(''),
+            Variable<String>(ghostId),
+          ],
+        )
+        .get();
+    expect(rawPeers, isNotEmpty);
+
+    final wrapIds = await _wrapPeerIds(db, viewerId: viewerId);
+    expect(wrapIds, isNot(contains(ghostId)));
+  }, skip: skipReason);
+
+  test(
+    'forwardCandidates wrap normalizes blank contexts like cap_normalize_context',
+    () async {
+      await applySignals(
+        ctxPeerId,
+        (trustOut: true, trustIn: true, mrOut: false, mrIn: false),
+      );
+      final empty = await _wrapPeerIds(db, viewerId: viewerId);
+      final short = await _wrapPeerIds(db, viewerId: viewerId, context: 'ab');
+      final padded = await _wrapPeerIds(db, viewerId: viewerId, context: '  ');
+      final nullCtx = await db
+          .customSelect(
+            kForwardCandidatesWrapSql,
+            variables: [
+              Variable<String>(viewerId),
+              const Variable<String>(null),
+            ],
+          )
+          .map((row) => row.read<String>('peer_id'))
+          .get();
+      expect(short.toSet(), empty.toSet());
+      expect(padded.toSet(), empty.toSet());
+      expect(nullCtx.toSet(), empty.toSet());
+      expect(empty, contains(ctxPeerId));
+    },
+    skip: skipReason,
+  );
+
+  test(
+    'forwardCandidates wrap orders by forward_mr then name and caps at 500',
+    () async {
+      final high = scenarioPeers[0];
+      final mid = scenarioPeers[1];
+      final ann = scenarioPeers[2];
+      final bob = scenarioPeers[3];
+      await applySignals(
+        high,
+        (trustOut: false, trustIn: false, mrOut: true, mrIn: true),
+      );
+      await db.customStatement(
+        "SELECT mr_put_edge('$viewerId', '$high', 0.9::double precision, ''::text, 0)",
+      );
+      await applySignals(
+        mid,
+        (trustOut: false, trustIn: false, mrOut: true, mrIn: true),
+      );
+      await db.customStatement(
+        "SELECT mr_put_edge('$viewerId', '$mid', 0.4::double precision, ''::text, 0)",
+      );
+      await applySignals(
+        ann,
+        (trustOut: true, trustIn: true, mrOut: false, mrIn: false),
+      );
+      await applySignals(
+        bob,
+        (trustOut: true, trustIn: true, mrOut: false, mrIn: false),
+      );
+      await db.customStatement(
+        "UPDATE public.\"user\" SET display_name = 'Zed' WHERE id = '$high'",
+      );
+      await db.customStatement(
+        "UPDATE public.\"user\" SET display_name = 'Mia' WHERE id = '$mid'",
+      );
+      await db.customStatement(
+        "UPDATE public.\"user\" SET display_name = 'Ann' WHERE id = '$ann'",
+      );
+      await db.customStatement(
+        "UPDATE public.\"user\" SET display_name = 'Bob' WHERE id = '$bob'",
+      );
+
+      final ordered = await _wrapPeerIds(db, viewerId: viewerId);
+      expect(ordered.take(4).toList(), [high, mid, ann, bob]);
+
+      await db.customStatement(r'''
+INSERT INTO public."user" (id, display_name, public_key, created_at, updated_at)
+SELECT
+  'Ufwlim' || lpad(g::text, 3, '0'),
+  'Ufwlim' || lpad(g::text, 3, '0'),
+  'pk-Ufwlim' || lpad(g::text, 3, '0'),
+  '2026-01-01T00:00:00Z',
+  '2026-01-01T00:00:00Z'
+FROM generate_series(1, 501) g
+ON CONFLICT (id) DO NOTHING
+''');
+      await db.customStatement('''
+INSERT INTO public.vote_user (subject, object, amount, created_at, updated_at)
+SELECT '$viewerId', 'Ufwlim' || lpad(g::text, 3, '0'), 1,
+  '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z'
+FROM generate_series(1, 501) g
+ON CONFLICT (subject, object) DO UPDATE SET amount = EXCLUDED.amount
+''');
+      await db.customStatement('''
+INSERT INTO public.vote_user (subject, object, amount, created_at, updated_at)
+SELECT 'Ufwlim' || lpad(g::text, 3, '0'), '$viewerId', 1,
+  '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z'
+FROM generate_series(1, 501) g
+ON CONFLICT (subject, object) DO UPDATE SET amount = EXCLUDED.amount
+''');
+      addTearDown(() async {
+        await db.customStatement(
+          "DELETE FROM public.vote_user WHERE subject LIKE 'Ufwlim%' "
+          "OR object LIKE 'Ufwlim%'",
+        );
+        await db.customStatement(
+          '''DELETE FROM public."user" WHERE id LIKE 'Ufwlim%' ''',
+        );
+      });
+
+      final capped = await _wrapPeerIds(db, viewerId: viewerId);
+      expect(capped, hasLength(500));
+      expect(capped, isNot(contains('Ufwlim501')));
+    },
+    skip: skipReason,
+  );
+}
+
+Future<List<String>> _wrapPeerIds(
+  TenturaDb db, {
+  required String viewerId,
+  String context = '',
+}) async {
+  final rows = await db
+      .customSelect(
+        kForwardCandidatesWrapSql,
+        variables: [
+          Variable<String>(viewerId),
+          Variable<String>(context),
+        ],
+      )
+      .get();
+  return [for (final row in rows) row.read<String>('peer_id')];
+}
+
+Future<Set<String>> _mvuIds(
+  TenturaDb db, {
+  required String viewerId,
+  String context = '',
+}) async {
+  final session = _sessionJson(viewerId);
+  final rows = await db
+      .customSelect(
+        r'''
+SELECT u.id
+FROM public.mutually_visible_users($1, $2::json) u
+''',
+        variables: [
+          Variable<String>(context),
+          Variable<String>(session),
+        ],
+      )
+      .get();
+  return {for (final row in rows) row.read<String>('id')};
+}
+
+double _asDouble(Object? value) {
+  if (value == null) {
+    return 0;
+  }
+  if (value is num) {
+    return value.toDouble();
+  }
+  throw StateError('Expected num, got ${value.runtimeType}');
 }
 
 Env _testEnv() => Env(

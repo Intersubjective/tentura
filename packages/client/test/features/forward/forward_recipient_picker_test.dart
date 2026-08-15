@@ -15,6 +15,7 @@ import 'package:tentura/features/invitation/data/repository/invitation_repositor
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/effect/ui_effect_port.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/widget/self_aware_profile_avatar.dart';
 
 import 'package:tentura/ui/test_ids.dart';
 
@@ -129,6 +130,66 @@ void main() {
     expect(find.text('Forward to 1'), findsNothing);
     expect(find.byIcon(Icons.close), findsNothing);
   });
+
+  testWidgets(
+    'recipient avatars hide value-score arcs and keep the contact badge',
+    (tester) async {
+      final cubit = ForwardCubit(
+        beaconId: 'draft-1',
+        debugSkipInitialLoad: true,
+        embedded: true,
+        effects: FakeUiEffectPort(),
+      );
+      cubit.emit(
+        ForwardState(
+          beaconId: 'draft-1',
+          beacon: Beacon.empty.copyWith(id: 'draft-1', title: 'Draft'),
+          candidates: const [
+            ForwardCandidate(
+              profile: Profile(
+                id: 'u1',
+                displayName: 'Alex',
+                score: 10,
+                rScore: 1,
+                myVote: 1,
+                subjectExplicitlyTrustsViewer: true,
+              ),
+            ),
+          ],
+          selectedIds: {'u1'},
+          candidatesLoad: const ForwardCandidatesReady(),
+        ),
+      );
+
+      await tester.pumpWidget(
+        MaterialApp(
+          locale: const Locale('en'),
+          localizationsDelegates: L10n.localizationsDelegates,
+          supportedLocales: L10n.supportedLocales,
+          theme: TenturaTheme.light(),
+          home: MultiBlocProvider(
+            providers: [
+              BlocProvider<ForwardCubit>.value(value: cubit),
+              BlocProvider<ProfileCubit>.value(value: _MockProfileCubit()),
+            ],
+            child: const Scaffold(
+              body: ForwardRecipientPicker(
+                beaconId: 'draft-1',
+                embedded: true,
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final avatar = tester.widget<SelfAwareAvatar>(
+        find.byType(SelfAwareAvatar),
+      );
+      expect(avatar.withRating, isFalse);
+      expect(avatar.withContactBadge, isTrue);
+    },
+  );
 
   testWidgets(
     'embedded ForwardRecipientPicker enables send when onSendPressed provided',

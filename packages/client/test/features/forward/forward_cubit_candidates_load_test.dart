@@ -11,6 +11,7 @@ import 'package:tentura/env.dart';
 import 'package:tentura/features/beacon_threads/data/repository/beacon_fact_card_repository.dart';
 import 'package:tentura/features/contacts/domain/use_case/contacts_case.dart';
 import 'package:tentura/features/forward/data/repository/forward_repository.dart';
+import 'package:tentura/features/forward/domain/entity/forward_candidate.dart';
 import 'package:tentura/features/forward/domain/use_case/forward_case.dart';
 import 'package:tentura/features/forward/ui/bloc/forward_cubit.dart';
 import 'package:tentura/features/profile/domain/port/profile_repository_port.dart';
@@ -301,6 +302,44 @@ void main() {
       await cubit.reloadCandidates(forceReload: true);
 
       expect(cubit.state.note, 'please help this weekend');
+    });
+
+    test('trust-only mutual with zero MR stays selectable', () async {
+      const trustOnly = Profile(
+        id: 'u-trust',
+        displayName: 'Trust Only',
+        score: 0,
+        rScore: 0,
+        myVote: 1,
+        subjectExplicitlyTrustsViewer: true,
+      );
+      expect(trustOnly.score, 0);
+      expect(trustOnly.myVote, 1);
+      expect(const ForwardCandidate(profile: trustOnly).canForwardTo, isTrue);
+
+      final harness = await _buildHarness(candidates: const [trustOnly]);
+      addTearDown(() async {
+        await harness.forwardRepo.dispose();
+        await harness.contactsCase.dispose();
+        if (GetIt.I.isRegistered<ContactNameStore>()) {
+          await GetIt.I.unregister<ContactNameStore>();
+        }
+        await harness.store.dispose();
+      });
+
+      final cubit = ForwardCubit(
+        beaconId: 'b1',
+        forwardCase: harness.forwardCase,
+        effects: FakeUiEffectPort(),
+      );
+      addTearDown(cubit.close);
+
+      await cubit.stream.firstWhere(
+        (s) => s.candidatesLoad is ForwardCandidatesReady,
+      );
+      expect(cubit.state.candidates.single.profile.score, 0);
+      expect(cubit.state.candidates.single.profile.myVote, 1);
+      expect(cubit.state.candidates.single.canForwardTo, isTrue);
     });
   });
 }

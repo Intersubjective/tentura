@@ -7,6 +7,7 @@ import 'package:tentura_server/api/controllers/graphql/mutation/mutation_user_bl
 import 'package:tentura_server/api/controllers/graphql/query/query_user_block.dart';
 import 'package:tentura_server/domain/entity/forward_edge_entity.dart';
 import 'package:tentura_server/domain/entity/help_offer_entity.dart';
+import 'package:tentura_server/domain/entity/gql_public/mutual_score_record.dart';
 import 'package:tentura_server/domain/entity/gql_public/user_public_record.dart';
 import 'package:tentura_server/domain/entity/jwt_entity.dart';
 import 'package:tentura_server/domain/entity/user_block_entity.dart';
@@ -185,6 +186,8 @@ class _FakeProfileLookup extends Fake implements UserProfileBatchLookup {
     required Iterable<String> ids,
     required Set<String> reciprocalPeerIds,
     Set<String> trustsViewerPeerIds = const {},
+    Set<String> viewerTrustsPeerIds = const {},
+    Map<String, MutualScoreRecord> scoresByPeerId = const {},
   }) async {
     lastIds = ids;
     return {

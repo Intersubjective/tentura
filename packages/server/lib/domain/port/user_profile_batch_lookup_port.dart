@@ -1,3 +1,4 @@
+import 'package:tentura_server/domain/entity/gql_public/mutual_score_record.dart';
 import 'package:tentura_server/domain/entity/gql_public/user_public_record.dart';
 import 'package:tentura_server/domain/entity/user_entity.dart';
 
@@ -9,5 +10,7 @@ abstract interface class UserProfileBatchLookup {
     required Iterable<String> ids,
     required Set<String> reciprocalPeerIds,
     Set<String> trustsViewerPeerIds = const {},
+    Set<String> viewerTrustsPeerIds = const {},
+    Map<String, MutualScoreRecord> scoresByPeerId = const {},
   });
 }

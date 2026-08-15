@@ -4574,6 +4574,7 @@ type query_root {
   evaluationReceived(id: String!): v2_EvaluationReceived!
   evaluationSummary(id: String!): v2_EvaluationSummary!
   evaluationsWrittenAboutMeBy(id: String!): [v2_EvaluationsWrittenAboutViewerRow!]
+  forwardCandidates(context: String!): [v2_user!]!
   forwardContext(beaconId: String!, context: String): [v2_v2_ForwardBandRow!]
   forwardReasonsByBeacon(id: String!): [v2_v2_ForwardReasonRow!]
 

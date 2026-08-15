@@ -6,6 +6,7 @@ import 'package:injectable/injectable.dart';
 import 'package:meta/meta.dart';
 
 import 'package:tentura/data/model/user_model.dart';
+import 'package:tentura/data/model/user_public_model.dart';
 import 'package:tentura/data/service/remote_api_service.dart';
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/profile.dart';
@@ -207,16 +208,16 @@ class ForwardRepository {
             .toList(),
       );
 
-  /// Users mutually visible to the viewer (Hasura `mutually_visible_users`).
+  /// Users mutually visible to the viewer (V2 `forwardCandidates`).
   Future<Iterable<Profile>> fetchForwardCandidates({String context = ''}) =>
       _remoteApiService
           .request(
             GForwardCandidatesFetchReq((r) => r..vars.context = context),
           )
           .firstWhere((e) => e.dataSource == DataSource.Link)
-          .then((r) => r.dataOrThrow(label: _label).mutually_visible_users)
+          .then((r) => r.dataOrThrow(label: _label).forwardCandidates)
           .then(
-            (rows) => rows.map((user) => (user as UserModel).toEntity()),
+            (rows) => rows.map((user) => (user as UserPublicModel).toEntity()),
           );
 
   /// Loads beacon header + forward-screen involvement in parallel.
