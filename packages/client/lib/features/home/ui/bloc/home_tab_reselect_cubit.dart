@@ -13,7 +13,10 @@ class HomeTabReselectCubit extends Cubit<HomeTabReselectState> {
 
   void bump(HomeTab tab) => switch (tab) {
     HomeTab.inbox => emit(
-      state.copyWith(inboxReselectCount: state.inboxReselectCount + 1),
+      state.copyWith(
+        inboxReselectCount: state.inboxReselectCount + 1,
+        inboxWatchingBeaconId: null,
+      ),
     ),
     HomeTab.work => emit(
       state.copyWith(myWorkReselectCount: state.myWorkReselectCount + 1),

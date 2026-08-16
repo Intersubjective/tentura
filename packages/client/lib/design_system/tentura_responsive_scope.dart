@@ -91,7 +91,8 @@ class TenturaChatColumn extends StatelessWidget {
   }
 }
 
-/// Master list width for expanded master–detail shells (Inbox).
+/// Master list width for expanded master–detail shells.
+/// Production Inbox/My Work no longer call this; packing tests keep the geometry.
 double deskMasterPaneWidth(double maxWidth, TenturaTokens tt) =>
     (tt.contentMaxWidth ?? maxWidth / 2).clamp(420.0, 560.0);
 
@@ -119,6 +120,7 @@ double deskDetailBudget(double bodyWidth, TenturaTokens tt) {
 }
 
 /// Whether [bodyWidth] can show master list and detail side by side.
+/// Legacy packing-test helper; Inbox no longer uses master–detail.
 bool deskFitsMasterDetail(double bodyWidth, TenturaTokens tt) =>
     deskDetailBudget(bodyWidth, tt) >= kDeskDetailMinWidth;
 

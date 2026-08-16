@@ -6,7 +6,6 @@ import 'package:get_it/get_it.dart';
 
 import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/consts.dart';
-import 'package:tentura/consts.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
@@ -32,6 +31,12 @@ import '../widget/rejection_dialog.dart';
 class InboxScreen extends StatefulWidget {
   const InboxScreen({super.key});
 
+  /// Test hook so chrome tests can skip GetIt / BeaconViewScreen.
+  /// Kept off the constructor so [InboxRoute] stays const.
+  @visibleForTesting
+  static Widget Function(String beaconId, VoidCallback onLeave)?
+  debugEmbeddedPaneBuilder;
+
   @override
   State<InboxScreen> createState() => _InboxScreenState();
 }
@@ -39,8 +44,27 @@ class InboxScreen extends StatefulWidget {
 class _InboxScreenState extends State<InboxScreen> {
   String? _selectedNeedsBeaconId;
   String? _selectedWatchingBeaconId;
-  var _fitsMasterDetail = true;
   var _lastHandledWatchingOpenCount = 0;
+
+  String? _selectedIdForTab(int tabIndex) =>
+      tabIndex == 1 ? _selectedWatchingBeaconId : _selectedNeedsBeaconId;
+
+  void _clearSelection() {
+    setState(() {
+      _selectedNeedsBeaconId = null;
+      _selectedWatchingBeaconId = null;
+    });
+  }
+
+  void _clearTabSelection(bool watching) {
+    setState(() {
+      if (watching) {
+        _selectedWatchingBeaconId = null;
+      } else {
+        _selectedNeedsBeaconId = null;
+      }
+    });
+  }
 
   void _consumeWatchingIntentIfNeeded(BuildContext tabContext) {
     final reselect = tabContext.read<HomeTabReselectCubit>().state;
@@ -68,26 +92,43 @@ class _InboxScreenState extends State<InboxScreen> {
     setState(() => _selectedWatchingBeaconId = item.beaconId);
   }
 
-  void _onLayoutMetrics(bool fitsMasterDetail) {
-    if (_fitsMasterDetail == fitsMasterDetail) return;
-    setState(() => _fitsMasterDetail = fitsMasterDetail);
-  }
+  Widget _buildEmbeddedPane({
+    required InboxItem selected,
+    required VoidCallback onLeave,
+  }) {
+    void onRequestThreadRoute(String threadId, String? messageId) {
+      unawaited(
+        context.router.push(
+          BeaconViewRoute(
+            id: selected.beaconId,
+            viewTab: kBeaconViewTabThreads,
+            threadId: threadId,
+            messageId: messageId,
+            entry: kBeaconEntryInbox,
+            children: [
+              ThreadDetailRoute(
+                threadId: threadId,
+                messageId: messageId,
+              ),
+            ],
+          ),
+        ),
+      );
+    }
 
-  void _backToListForTab(int tabIndex) {
-    setState(() {
-      if (tabIndex == 1) {
-        _selectedWatchingBeaconId = null;
-      } else {
-        _selectedNeedsBeaconId = null;
-      }
-    });
-  }
-
-  bool _showListForTab(int tabIndex) {
-    if (_fitsMasterDetail) return true;
-    return tabIndex == 1
-        ? _selectedWatchingBeaconId == null
-        : _selectedNeedsBeaconId == null;
+    final builder = InboxScreen.debugEmbeddedPaneBuilder;
+    if (builder != null) {
+      return KeyedSubtree(
+        key: ValueKey('inbox-bv-pane-${selected.beaconId}'),
+        child: builder(selected.beaconId, onLeave),
+      );
+    }
+    return InboxBeaconViewPane(
+      key: ValueKey('inbox-bv-pane-${selected.beaconId}'),
+      beaconId: selected.beaconId,
+      onRequestThreadRoute: onRequestThreadRoute,
+      onEmbeddedLeave: onLeave,
+    );
   }
 
   @override
@@ -103,6 +144,7 @@ class _InboxScreenState extends State<InboxScreen> {
             listenWhen: (prev, curr) =>
                 prev.inboxReselectCount != curr.inboxReselectCount,
             listener: (context, _) {
+              _clearSelection();
               inboxCubit.setSort(InboxSort.recent);
               DefaultTabController.of(context).animateTo(0);
             },
@@ -127,6 +169,7 @@ class _InboxScreenState extends State<InboxScreen> {
                     action: SnackBarAction(
                       label: l10n.inboxViewInTab,
                       onPressed: () {
+                        _clearSelection();
                         if (msg.navigatesToRejectedArchive) {
                           unawaited(openInboxRejectedArchive(context));
                         } else {
@@ -141,7 +184,7 @@ class _InboxScreenState extends State<InboxScreen> {
                 },
                 child: BlocBuilder<InboxCubit, InboxState>(
                   buildWhen: (_, c) => c.isSuccess || c.isLoading,
-                  builder: (_, state) {
+                  builder: (context, state) {
                     final theme = Theme.of(context);
                     final scheme = theme.colorScheme;
                     final l10n = L10n.of(context)!;
@@ -225,122 +268,70 @@ class _InboxScreenState extends State<InboxScreen> {
                     }
 
                     final tt = context.tt;
+                    final tabController = DefaultTabController.of(context);
 
-                    return Scaffold(
-                      backgroundColor: scheme.surface,
-                      appBar: TenturaTopBar.of(
-                        context,
-                        tone: TenturaTopBarTone.primary,
-                        alignment: useExpandedPane
-                            ? TenturaTopBarAlignment.fullWidth
-                            : TenturaTopBarAlignment.content,
-                        title: useExpandedPane
-                            ? const SizedBox.shrink()
-                            : const Row(
-                                children: [
-                                  Expanded(child: _InboxTabStrip()),
-                                  _InboxSortButton(),
-                                ],
-                              ),
-                        actions: useExpandedPane
-                            ? null
-                            : [
-                                const _InboxOverflowMenu(),
-                              ],
-                        row: useExpandedPane
-                            ? LayoutBuilder(
-                                builder: (context, constraints) {
-                                  final masterWidth = deskMasterPaneWidth(
-                                    constraints.maxWidth,
-                                    context.tt,
-                                  );
-                                  final tabController = DefaultTabController.of(
-                                    context,
-                                  );
-                                  return AnimatedBuilder(
-                                    animation: tabController,
-                                    builder: (context, _) {
-                                      final tabIndex = tabController.index;
-                                      final showList = _showListForTab(
-                                        tabIndex,
-                                      );
-                                      final useMasterWidth =
-                                          showList && _fitsMasterDetail;
-                                      return Row(
-                                        children: [
-                                          if (showList)
-                                            useMasterWidth
-                                                ? SizedBox(
-                                                    width: masterWidth,
-                                                    child: const Row(
-                                                      children: [
-                                                        Expanded(
-                                                          child:
-                                                              _InboxTabStrip(),
-                                                        ),
-                                                        _InboxSortButton(),
-                                                      ],
-                                                    ),
-                                                  )
-                                                : const Expanded(
-                                                    child: Row(
-                                                      children: [
-                                                        Expanded(
-                                                          child:
-                                                              _InboxTabStrip(),
-                                                        ),
-                                                        _InboxSortButton(),
-                                                      ],
-                                                    ),
-                                                  )
-                                          else
-                                            Semantics(
-                                              label: l10n.myWorkBackToList,
-                                              button: true,
-                                              child: IconButton(
-                                                tooltip: l10n.myWorkBackToList,
-                                                onPressed: () =>
-                                                    _backToListForTab(tabIndex),
-                                                icon: const Icon(
-                                                  Icons.arrow_back,
-                                                ),
-                                              ),
-                                            ),
-                                          const Expanded(
-                                            child: Align(
-                                              alignment: Alignment.centerRight,
-                                              child: Row(
-                                                mainAxisSize: MainAxisSize.min,
-                                                children: [
-                                                  _InboxOverflowMenu(),
-                                                ],
-                                              ),
-                                            ),
-                                          ),
-                                        ],
-                                      );
-                                    },
-                                  );
-                                },
+                    return AnimatedBuilder(
+                      animation: tabController,
+                      builder: (context, _) {
+                        final selectedId = _selectedIdForTab(
+                          tabController.index,
+                        );
+                        final watchingTab = tabController.index == 1;
+                        final selectedItem = watchingTab
+                            ? _selectedInboxItem(
+                                state.watching,
+                                selectedId,
+                                allowDefaultToFirst: false,
                               )
-                            : null,
-                      ),
-                      body: SafeArea(
-                        minimum: EdgeInsets.symmetric(
-                          horizontal: tt.screenHPadding,
-                        ),
-                        child: useExpandedPane
-                            ? _InboxExpandedBody(
-                                tabView: body,
-                                state: state,
-                                selectedNeedsBeaconId: _selectedNeedsBeaconId,
-                                selectedWatchingBeaconId:
-                                    _selectedWatchingBeaconId,
-                                allowDefaultToFirst: _fitsMasterDetail,
-                                onLayoutMetrics: _onLayoutMetrics,
-                              )
-                            : TenturaContentColumn(child: body),
-                      ),
+                            : _selectedNeedsItem(state, selectedId);
+                        if (useExpandedPane &&
+                            selectedId != null &&
+                            selectedItem == null) {
+                          WidgetsBinding.instance.addPostFrameCallback((_) {
+                            if (!mounted) return;
+                            _clearTabSelection(watchingTab);
+                          });
+                        }
+                        final showList = selectedItem == null;
+                        final hideShellChrome =
+                            useExpandedPane && !showList;
+
+                        return Scaffold(
+                          backgroundColor: scheme.surface,
+                          appBar: hideShellChrome
+                              ? null
+                              : TenturaTopBar.of(
+                                  context,
+                                  tone: TenturaTopBarTone.primary,
+                                  alignment: useExpandedPane
+                                      ? TenturaTopBarAlignment.fullWidth
+                                      : TenturaTopBarAlignment.content,
+                                  title: const Row(
+                                    children: [
+                                      Expanded(child: _InboxTabStrip()),
+                                      _InboxSortButton(),
+                                    ],
+                                  ),
+                                  actions: const [
+                                    _InboxOverflowMenu(),
+                                  ],
+                                ),
+                          body: SafeArea(
+                            minimum: EdgeInsets.symmetric(
+                              horizontal: hideShellChrome
+                                  ? 0
+                                  : tt.screenHPadding,
+                            ),
+                            child: hideShellChrome
+                                ? _buildEmbeddedPane(
+                                    selected: selectedItem,
+                                    onLeave: () =>
+                                        _clearTabSelection(watchingTab),
+                                  )
+                                : TenturaContentColumn(child: body),
+                          ),
+                        );
+                      },
                     );
                   },
                 ),
@@ -383,149 +374,6 @@ class _InboxWatchingIntentBinderState
   Widget build(BuildContext context) => widget.child;
 }
 
-class _InboxExpandedBody extends StatelessWidget {
-  const _InboxExpandedBody({
-    required this.tabView,
-    required this.state,
-    required this.selectedNeedsBeaconId,
-    required this.selectedWatchingBeaconId,
-    required this.allowDefaultToFirst,
-    required this.onLayoutMetrics,
-  });
-
-  final Widget tabView;
-  final InboxState state;
-  final String? selectedNeedsBeaconId;
-  final String? selectedWatchingBeaconId;
-  final bool allowDefaultToFirst;
-  final ValueChanged<bool> onLayoutMetrics;
-
-  @override
-  Widget build(BuildContext context) {
-    final tt = context.tt;
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final bodyWidth = constraints.maxWidth;
-        final fitsMasterDetail = deskFitsMasterDetail(bodyWidth, tt);
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          onLayoutMetrics(fitsMasterDetail);
-        });
-
-        if (!fitsMasterDetail) {
-          final tabController = DefaultTabController.of(context);
-          return AnimatedBuilder(
-            animation: tabController,
-            builder: (context, _) {
-              final watchingTab = tabController.index == 1;
-              final selectedId = watchingTab
-                  ? selectedWatchingBeaconId
-                  : selectedNeedsBeaconId;
-              if (selectedId == null) return tabView;
-              return _InboxExpandedPreview(
-                state: state,
-                selectedNeedsBeaconId: selectedNeedsBeaconId,
-                selectedWatchingBeaconId: selectedWatchingBeaconId,
-                allowDefaultToFirst: false,
-              );
-            },
-          );
-        }
-
-        final masterWidth = deskMasterPaneWidth(bodyWidth, tt);
-        return Row(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            SizedBox(width: masterWidth, child: tabView),
-            SizedBox(width: tt.screenHPadding),
-            const TenturaVerticalHairline(),
-            SizedBox(width: tt.screenHPadding),
-            Expanded(
-              child: _InboxExpandedPreview(
-                state: state,
-                selectedNeedsBeaconId: selectedNeedsBeaconId,
-                selectedWatchingBeaconId: selectedWatchingBeaconId,
-                allowDefaultToFirst: allowDefaultToFirst,
-              ),
-            ),
-          ],
-        );
-      },
-    );
-  }
-}
-
-class _InboxExpandedPreview extends StatelessWidget {
-  const _InboxExpandedPreview({
-    required this.state,
-    required this.selectedNeedsBeaconId,
-    required this.selectedWatchingBeaconId,
-    required this.allowDefaultToFirst,
-  });
-
-  final InboxState state;
-  final String? selectedNeedsBeaconId;
-  final String? selectedWatchingBeaconId;
-  final bool allowDefaultToFirst;
-
-  @override
-  Widget build(BuildContext context) {
-    final tabController = DefaultTabController.of(context);
-    return AnimatedBuilder(
-      animation: tabController,
-      builder: (context, _) {
-        final watchingTab = tabController.index == 1;
-        final items = watchingTab ? state.watching : state.needsMe;
-        final selectedId = watchingTab
-            ? selectedWatchingBeaconId
-            : selectedNeedsBeaconId;
-        final selected = _selectedInboxItem(
-          items,
-          selectedId,
-          allowDefaultToFirst: allowDefaultToFirst,
-        );
-        if (selected == null) {
-          final tt = context.tt;
-          final l10n = L10n.of(context)!;
-          return Center(
-            child: Padding(
-              padding: EdgeInsets.all(tt.screenHPadding),
-              child: Text(
-                watchingTab ? l10n.inboxWatchingEmptyCalm : l10n.inboxEmptyHint,
-                textAlign: TextAlign.center,
-                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                  color: Theme.of(context).colorScheme.onSurfaceVariant,
-                ),
-              ),
-            ),
-          );
-        }
-
-        return InboxBeaconViewPane(
-          key: ValueKey('inbox-bv-pane-${selected.beaconId}'),
-          beaconId: selected.beaconId,
-          onRequestThreadRoute: (threadId, messageId) {
-            context.router.push(
-              BeaconViewRoute(
-                id: selected.beaconId,
-                viewTab: kBeaconViewTabThreads,
-                threadId: threadId,
-                messageId: messageId,
-                entry: kBeaconEntryInbox,
-                children: [
-                  ThreadDetailRoute(
-                    threadId: threadId,
-                    messageId: messageId,
-                  ),
-                ],
-              ),
-            );
-          },
-        );
-      },
-    );
-  }
-}
-
 InboxItem? _selectedInboxItem(
   List<InboxItem> items,
   String? selectedId, {
@@ -541,6 +389,20 @@ InboxItem? _selectedInboxItem(
   }
   if (!allowDefaultToFirst) return null;
   return items.first;
+}
+
+InboxItem? _selectedNeedsItem(InboxState state, String? selectedId) {
+  final fromNeeds = _selectedInboxItem(
+    state.needsMe,
+    selectedId,
+    allowDefaultToFirst: false,
+  );
+  if (fromNeeds != null) return fromNeeds;
+  return _selectedInboxItem(
+    state.tombstonesLast24h,
+    selectedId,
+    allowDefaultToFirst: false,
+  );
 }
 
 /// Hides the "beacon moved" snack bar when the user switches Needs me ↔
@@ -930,9 +792,14 @@ Widget _needsMeTabBody(
               return InboxTombstoneCard(
                 key: ValueKey('tombstone-${item.beaconId}'),
                 item: item,
-                onOpen: () => context.router.push(
-                  BeaconViewRoute(id: item.beaconId, entry: kBeaconEntryInbox),
-                ),
+                onOpen: onSelectItem == null
+                    ? () => context.router.push(
+                        BeaconViewRoute(
+                          id: item.beaconId,
+                          entry: kBeaconEntryInbox,
+                        ),
+                      )
+                    : () => onSelectItem(item),
                 onDismiss: () => inboxCubit.dismissTombstone(item.beaconId),
               );
             },

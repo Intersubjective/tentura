@@ -14,11 +14,13 @@ class InboxBeaconViewPane extends StatelessWidget {
   const InboxBeaconViewPane({
     required this.beaconId,
     this.onRequestThreadRoute,
+    this.onEmbeddedLeave,
     super.key,
   });
 
   final String beaconId;
   final void Function(String threadId, String? messageId)? onRequestThreadRoute;
+  final VoidCallback? onEmbeddedLeave;
 
   @override
   Widget build(BuildContext context) {
@@ -51,6 +53,7 @@ class InboxBeaconViewPane extends StatelessWidget {
               entry: kBeaconEntryInbox,
               embedded: true,
               onRequestThreadRoute: onRequestThreadRoute,
+              onEmbeddedLeave: onEmbeddedLeave,
             ),
           );
         },
