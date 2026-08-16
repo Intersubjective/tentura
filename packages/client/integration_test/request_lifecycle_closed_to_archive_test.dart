@@ -81,13 +81,7 @@ void main() {
     await logout(tester);
 
     await loginAs(tester, fixture.authorEmail);
-    await goToPath(tester, kPathMyWork);
-    await pumpUntilVisible(tester, find.text(title));
-    await pumpUntilVisible(tester, find.text('Close request'));
-    await tapAndSettle(tester, find.text('Close request').first);
-
-    await pumpUntilVisible(tester, find.text('Archive'));
-    expect(find.text('Closed'), findsWidgets);
+    await triggerCloseNow(tester);
 
     await tapAndSettle(tester, find.text('Archive').first);
     await pumpUntil(tester, () => find.text(title).evaluate().isEmpty);

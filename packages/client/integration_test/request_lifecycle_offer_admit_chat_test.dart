@@ -46,7 +46,6 @@ void main() {
     // After offering help the request moves from Inbox to the helper's
     // My Work (involved) list.
     await openRequestFromMyWork(tester, requestTitle: title);
-    await sendRoomMessage(tester, 'Integration test room message');
 
     await createCoordinationItem(
       tester,
@@ -67,6 +66,8 @@ void main() {
       body: 'Need one missing detail',
     );
     await resolveFirstCoordinationItem(tester);
+
+    await sendRoomMessage(tester, 'Integration test room message');
 
     await logout(tester);
     await loginAs(tester, fixture.authorEmail);

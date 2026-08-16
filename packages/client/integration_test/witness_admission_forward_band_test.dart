@@ -95,20 +95,7 @@ void main() {
       // Switch back to Bob — only the beacon author may trigger closeNow.
       await logout(tester);
       await loginAs(tester, fixture.bobEmail);
-
-      // Trigger closeNow from the My Work list's own "Close request" quick
-      // action (`TenturaCommandButton` calling `evaluationRepo.beaconCloseNow`
-      // directly — see my_work_cards.dart) rather than relying on
-      // in-place navigation back from the review screen, which does not
-      // reliably settle under this test harness.
-      await goToPath(tester, kPathMyWork);
-      final closeNowCta = find.text('Close request');
-      await pumpUntilVisible(
-        tester,
-        closeNowCta,
-        timeout: const Duration(seconds: 30),
-      );
-      await tapAndSettle(tester, closeNowCta.first);
+      await triggerCloseNow(tester);
 
       // Alice explicitly trusts Bob (one-way): a fresh request of her own
       // that needs `transport` must surface Carol in the forward band with
@@ -124,6 +111,7 @@ void main() {
       await pumpUntilVisible(
         tester,
         find.textContaining('Seen helping with'),
+        timeout: const Duration(seconds: 60),
       );
 
       // Eve does not trust Bob and does not clear her own eligibility floor

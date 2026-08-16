@@ -168,11 +168,17 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
 
   ///
   ///
-  void setTitle(String value) => emit(state.copyWith(title: value));
+  void setTitle(String value) {
+    emit(state.copyWith(title: value));
+    validate();
+  }
 
   ///
   ///
-  void setDescription(String value) => emit(state.copyWith(description: value));
+  void setDescription(String value) {
+    emit(state.copyWith(description: value));
+    validate();
+  }
 
   void setNeeds(Set<String> value) {
     final needs = Set<String>.from(value);

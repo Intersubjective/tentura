@@ -118,6 +118,10 @@ class _BeaconCreateScreenState extends State<BeaconCreateScreen>
     if (_beaconCreateCubit.state.isEditMode || _recipientsDraftEnsuring) {
       return;
     }
+    _formKey.currentState?.save();
+    _beaconCreateCubit.validate(
+      _formKey.currentState?.validate() ?? false,
+    );
     // Don't attempt server draft creation until required fields are present.
     // This tab should be reachable without triggering a validation snackbar.
     if (_beaconCreateCubit.state.publishBlocker != null) {
@@ -173,6 +177,10 @@ class _BeaconCreateScreenState extends State<BeaconCreateScreen>
 
   Future<void> _sendRequest() async {
     final contextName = context.read<ContextCubit>().state.selected;
+    _formKey.currentState?.save();
+    _beaconCreateCubit.validate(
+      _formKey.currentState?.validate() ?? false,
+    );
     final forwardCubit = _forwardCubitFor(
       _beaconCreateCubit.state,
       contextName,

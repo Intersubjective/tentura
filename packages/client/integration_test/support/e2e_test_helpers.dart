@@ -4,6 +4,7 @@ import 'dart:js_interop';
 import 'dart:ui' show PlatformDispatcher;
 
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:web/web.dart' as web;
 
@@ -13,6 +14,7 @@ import 'package:tentura/domain/capability/capability_group.dart';
 import 'package:tentura/domain/capability/capability_tag.dart';
 import 'package:tentura/features/auth/domain/use_case/auth_case.dart';
 import 'package:tentura/features/auth/ui/bloc/auth_cubit.dart';
+import 'package:tentura/features/beacon_create/ui/bloc/beacon_create_cubit.dart';
 import 'package:tentura/domain/entity/room_message.dart';
 import 'package:tentura/features/beacon_threads/domain/entity/request_thread.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/item_card.dart';
@@ -277,22 +279,45 @@ Future<void> dismissOkDialogIfPresent(WidgetTester tester) async {
 /// create flow auto-saves a draft once the title/description are entered).
 /// Shared prefix for [createAndForwardRequest] and
 /// [createRequestReachRecipientsTab].
+/// Web integration tests often update [TextEditingController] text without
+/// firing [TextFormField.onChanged], leaving [BeaconCreateCubit] stale.
+void syncBeaconCreateDraftFields(
+  WidgetTester tester, {
+  required String title,
+  required String description,
+}) {
+  final cubit = tester
+      .element(find.byKey(const Key('BeaconCreate.FormBody')))
+      .read<BeaconCreateCubit>();
+  cubit
+    ..setTitle(title)
+    ..setDescription(description);
+}
+
 Future<void> _createRequestToRecipientsTab(
   WidgetTester tester, {
   required String authorEmail,
   required String title,
   String? needSlug,
 }) async {
+  final description = 'Integration test request for $title';
   await loginAs(tester, authorEmail);
   await goToPath(tester, kPathBeaconNew);
 
   final titleField = find.byKey(TestIds.key(TestIds.requestTitle));
   await pumpUntilVisible(tester, titleField);
   debugPrint('[e2e] create: entering title');
+  await tester.tap(titleField);
+  await tester.pumpAndSettle();
   await tester.enterText(titleField, title);
   await tester.enterText(
     find.byKey(TestIds.key(TestIds.requestDescription)),
-    'Integration test request for $title',
+    description,
+  );
+  syncBeaconCreateDraftFields(
+    tester,
+    title: title,
+    description: description,
   );
   await tester.pumpAndSettle();
 
@@ -340,6 +365,17 @@ Future<String> createRequestReachRecipientsTab(
   return title;
 }
 
+Future<void> confirmUncoveredForwardNoteIfPresent(WidgetTester tester) async {
+  final withoutNote = find.text('Send without a shared note');
+  if (await tryPumpUntilVisible(
+    tester,
+    withoutNote,
+    timeout: const Duration(seconds: 3),
+  )) {
+    await tapAndSettle(tester, withoutNote);
+  }
+}
+
 Future<String> createAndForwardRequest(
   WidgetTester tester, {
   required IntegrationFixture fixture,
@@ -362,10 +398,20 @@ Future<String> createAndForwardRequest(
     tester,
     find.byKey(TestIds.key(TestIds.forwardRecipient(fixture.helperUserId))),
   );
+  final forwardSubmit = find.byKey(TestIds.key(TestIds.forwardSubmit));
+  await pumpUntil(
+    tester,
+    () {
+      if (!finderHasMatch(forwardSubmit)) return false;
+      return tester.widget<OutlinedButton>(forwardSubmit).onPressed != null;
+    },
+    timeout: const Duration(seconds: 30),
+  );
   await tapAndSettle(
     tester,
-    find.byKey(TestIds.key(TestIds.forwardSubmit)),
+    forwardSubmit,
   );
+  await confirmUncoveredForwardNoteIfPresent(tester);
   await dismissOkDialogIfPresent(tester);
 
   await goToPath(tester, kPathMyWork);
@@ -531,17 +577,99 @@ Future<RoomMessage> sendRoomMessage(WidgetTester tester, String text) async {
       .message;
 }
 
-Future<void> enterThreadsIfNeeded(WidgetTester tester) async {
-  final askButton = find.byKey(TestIds.key(TestIds.coordinationAskCreate));
-  if (askButton.evaluate().isNotEmpty) {
+Future<void> showMyWorkList(WidgetTester tester) async {
+  await goToPath(tester, kPathMyWork);
+  if (finderHasMatch(find.text('Archive')) ||
+      finderHasMatch(find.textContaining('Drafts ('))) {
     return;
   }
-  final threadsTab = find.byKey(TestIds.key(TestIds.beaconTabThreads));
-  if (threadsTab.evaluate().isEmpty) {
-    throw StateError('Threads tab not found');
+  final backToList = find.byTooltip('Back to list');
+  if (finderHasMatch(backToList)) {
+    await tapAndSettle(tester, backToList.first);
   }
-  await tapAndSettle(tester, threadsTab.first);
-  await pumpUntilVisible(tester, askButton);
+}
+
+Future<void> popToThreadsListIfNeeded(WidgetTester tester) async {
+  final askButton = find.byKey(TestIds.key(TestIds.coordinationAskCreate));
+  final askLabel = find.text('Ask');
+  if (finderHasMatch(askButton) || finderHasMatch(askLabel)) {
+    return;
+  }
+  final messageInput = find.byKey(TestIds.key(TestIds.roomMessageInput));
+  if (finderHasMatch(messageInput)) {
+    final backToThreads = find.byTooltip('Back to Threads');
+    if (finderHasMatch(backToThreads)) {
+      await tapAndSettle(tester, backToThreads.first);
+      if (finderHasMatch(askButton) || finderHasMatch(askLabel)) {
+        return;
+      }
+    }
+    final detailsTab = find.byKey(TestIds.key(TestIds.beaconDetailsOpen));
+    final threadsTab = find.byKey(TestIds.key(TestIds.beaconTabThreads));
+    if (finderHasMatch(detailsTab) && finderHasMatch(threadsTab)) {
+      await tapAndSettle(tester, detailsTab.first);
+      await tapAndSettle(tester, threadsTab.first);
+      if (finderHasMatch(askButton) || finderHasMatch(askLabel)) {
+        return;
+      }
+    }
+  }
+  for (var attempt = 0; attempt < 3; attempt++) {
+    final back = find.byType(BackButton);
+    final arrowBack = find.byIcon(Icons.arrow_back);
+    if (finderHasMatch(back)) {
+      await tapAndSettle(tester, back.first);
+    } else if (finderHasMatch(arrowBack)) {
+      await tapAndSettle(tester, arrowBack.first);
+    } else {
+      final threadsTab = find.byKey(TestIds.key(TestIds.beaconTabThreads));
+      if (threadsTab.evaluate().isEmpty) {
+        throw StateError('Threads tab not found');
+      }
+      final detailsTab = find.byKey(TestIds.key(TestIds.beaconDetailsOpen));
+      if (finderHasMatch(detailsTab)) {
+        await tapAndSettle(tester, detailsTab.first);
+      }
+      await tapAndSettle(tester, threadsTab.first);
+    }
+    if (await tryPumpUntilVisible(
+      tester,
+      askButton,
+      timeout: const Duration(seconds: 3),
+    )) {
+      return;
+    }
+  }
+}
+
+Future<void> enterThreadsIfNeeded(WidgetTester tester) async {
+  final askButton = find.byKey(TestIds.key(TestIds.coordinationAskCreate));
+  final askLabel = find.text('Ask');
+  if (await tryPumpUntilVisible(
+        tester,
+        askButton,
+        timeout: const Duration(milliseconds: 500),
+      ) ||
+      await tryPumpUntilVisible(
+        tester,
+        askLabel,
+        timeout: const Duration(milliseconds: 500),
+      )) {
+    return;
+  }
+  await popToThreadsListIfNeeded(tester);
+  if (!finderHasMatch(askButton) && !finderHasMatch(askLabel)) {
+    final scrollables = find.byType(Scrollable);
+    if (scrollables.evaluate().isNotEmpty) {
+      await tester.drag(scrollables.first, const Offset(0, 320));
+      await tester.pumpAndSettle();
+    }
+  }
+  await pumpUntil(
+    tester,
+    () => finderHasMatch(askButton) || finderHasMatch(askLabel),
+    timeout: const Duration(seconds: 30),
+  );
 }
 
 Future<RequestThread> createCoordinationItem(
@@ -551,7 +679,20 @@ Future<RequestThread> createCoordinationItem(
   String? body,
 }) async {
   await enterThreadsIfNeeded(tester);
-  await tapAndSettle(tester, find.byKey(TestIds.key(launcherId)));
+  final launcher = find.byKey(TestIds.key(launcherId));
+  if (finderHasMatch(launcher)) {
+    await tapAndSettle(tester, launcher.first);
+  } else {
+    final fallbackLabel = switch (launcherId) {
+      TestIds.coordinationAskCreate => 'Ask',
+      TestIds.coordinationPromiseCreate => 'Commitment',
+      _ => null,
+    };
+    if (fallbackLabel == null) {
+      throw StateError('Coordination launcher not found: $launcherId');
+    }
+    await tapAndSettle(tester, find.text(fallbackLabel).first);
+  }
   await pumpUntilVisible(
     tester,
     find.byKey(TestIds.key(TestIds.coordinationComposerTitle)),
@@ -566,6 +707,7 @@ Future<RequestThread> createCoordinationItem(
     find.byKey(TestIds.key(TestIds.coordinationComposerSubmit)),
   );
   await pumpUntilVisible(tester, find.text(title));
+  await popToThreadsListIfNeeded(tester);
   return tester
       .widget<ItemCard>(
         find
@@ -634,6 +776,43 @@ Future<void> closeRequestAndOpenReview(WidgetTester tester) async {
   await pumpUntilVisible(
     tester,
     find.byKey(TestIds.key(TestIds.evaluationSubmit)),
+  );
+}
+
+/// After every required reviewer has finished or skipped, closes the request
+/// via My Work's "Close request" card CTA when visible, otherwise the beacon
+/// detail HUD `closeNow` action (and its confirm sheet).
+Future<void> triggerCloseNow(WidgetTester tester) async {
+  await goToPath(tester, kPathMyWork);
+  final myWorkClose = find.byWidgetPredicate(
+    (w) =>
+        w.key is ValueKey<String> &&
+        (w.key! as ValueKey<String>).value.startsWith('my_work.close_now.'),
+  );
+  final hudCloseNow = _hudAction('closeNow');
+  await pumpUntil(
+    tester,
+    () => finderHasMatch(myWorkClose) || finderHasMatch(hudCloseNow),
+    timeout: const Duration(seconds: 45),
+  );
+  if (finderHasMatch(myWorkClose)) {
+    await tapAndSettle(tester, myWorkClose.first);
+  } else {
+    await tapAndSettle(tester, hudCloseNow.first);
+    await pumpUntilVisible(
+      tester,
+      find.text('Close request now?'),
+      timeout: const Duration(seconds: 30),
+    );
+    // Sheet action shares the HUD label; prefer the last match (sheet button).
+    await tapAndSettle(tester, find.text('Close now').last);
+  }
+  // Close may leave the author on embedded beacon detail; Archive is on the list.
+  await showMyWorkList(tester);
+  await pumpUntilVisible(
+    tester,
+    find.text('Archive'),
+    timeout: const Duration(seconds: 30),
   );
 }
 

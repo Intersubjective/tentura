@@ -53,6 +53,11 @@ void main() {
       find.byKey(TestIds.key(TestIds.requestDescription)),
       'Integration test cover request for $title',
     );
+    syncBeaconCreateDraftFields(
+      tester,
+      title: title,
+      description: 'Integration test cover request for $title',
+    );
     await tester.pumpAndSettle();
 
     // Two capabilities: canonical order makes `transport` the primary and
@@ -100,6 +105,7 @@ void main() {
       find.byKey(TestIds.key(TestIds.forwardRecipient(fixture.helperUserId))),
     );
     await tapAndSettle(tester, find.byKey(TestIds.key(TestIds.forwardSubmit)));
+    await confirmUncoveredForwardNoteIfPresent(tester);
     await dismissOkDialogIfPresent(tester);
 
     await goToPath(tester, kPathMyWork);
