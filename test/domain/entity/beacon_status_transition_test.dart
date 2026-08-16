@@ -38,9 +38,7 @@ void main() {
       (BeaconStatus.needsMoreHelp, BeaconStatus.reviewOpen),
       (BeaconStatus.enoughHelp, BeaconStatus.reviewOpen),
       // Review window
-      (BeaconStatus.reviewOpen, BeaconStatus.open),
       (BeaconStatus.reviewOpen, BeaconStatus.needsMoreHelp),
-      (BeaconStatus.reviewOpen, BeaconStatus.enoughHelp),
       (BeaconStatus.reviewOpen, BeaconStatus.closed),
       // Delete
       (BeaconStatus.draft, BeaconStatus.deleted),
@@ -60,13 +58,15 @@ void main() {
       (BeaconStatus.cancelled, BeaconStatus.open),
       (BeaconStatus.draft, BeaconStatus.needsMoreHelp),
       (BeaconStatus.reviewOpen, BeaconStatus.draft),
+      (BeaconStatus.reviewOpen, BeaconStatus.open),
+      (BeaconStatus.reviewOpen, BeaconStatus.enoughHelp),
       (BeaconStatus.cancelled, BeaconStatus.closed),
       (BeaconStatus.closed, BeaconStatus.reviewOpen),
       (BeaconStatus.open, BeaconStatus.draft),
     };
 
     test('allowed transition matrix', () {
-      expect(allowedTransitions, hasLength(27));
+      expect(allowedTransitions, hasLength(25));
 
       for (final (from, to) in allowedTransitions) {
         final result = validateBeaconStatusTransition(from: from, to: to);

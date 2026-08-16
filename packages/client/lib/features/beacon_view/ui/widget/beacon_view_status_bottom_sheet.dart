@@ -43,6 +43,7 @@ Future<void> showBeaconViewUpdateStatusSheet(
             windowComplete: review.windowComplete,
             extensionsUsed: review.extensionsUsed,
             canCloseNow: review.canCloseNow,
+            canReopen: review.canReopen,
           ),
     serverCanCancel: state.displayStatus?.canCancel,
   );

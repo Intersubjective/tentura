@@ -294,6 +294,19 @@ void main() {
     );
   }
 
+  BeaconReviewWindowRecord closedWindow() {
+    final opened = now.subtract(const Duration(days: 8));
+    return BeaconReviewWindowRecord(
+      beaconId: beaconId,
+      openedAt: opened,
+      closesAt: opened.add(const Duration(days: 7)),
+      status: 1,
+      extensionsUsed: 0,
+      createdAt: opened,
+      updatedAt: now,
+    );
+  }
+
   late _TransactionBeaconRepo beaconRepo;
   late MockHelpOfferRepositoryPort helpOfferRepo;
   late MockCoordinationRepositoryPort coordinationRepo;
@@ -519,9 +532,36 @@ void main() {
     });
 
     test(
-      'throws when review window is not open on wrapping up revert',
+      'allows needsMoreHelp on wrapping up when review window row is missing',
       () async {
         evalRepo.reviewWindowResult = null;
+        stubTransaction(beacon(status: BeaconStatus.reviewOpen));
+
+        final result = await case_.setBeaconStatus(
+          beaconId: beaconId,
+          authorUserId: authorId,
+          status: BeaconStatus.needsMoreHelp.smallintValue,
+        );
+
+        expect(result.status, BeaconStatus.needsMoreHelp.smallintValue);
+        expect(evalRepo.downgradeSubmittedCalls, 0);
+        expect(evalRepo.deleteScaffoldingCalls, 0);
+        expect(beaconRepo.statusTransitions, [
+          _StatusTransitionCall(
+            beaconId: beaconId,
+            fromStatus: BeaconStatus.reviewOpen,
+            toStatus: BeaconStatus.needsMoreHelp,
+            reason: 'needsMoreHelp',
+            actorId: authorId,
+          ),
+        ]);
+      },
+    );
+
+    test(
+      'rejects needsMoreHelp on wrapping up when review episode is complete',
+      () async {
+        evalRepo.reviewWindowResult = closedWindow();
         stubTransaction(beacon(status: BeaconStatus.reviewOpen));
 
         await expectLater(
@@ -535,11 +575,15 @@ void main() {
               (e) => e.code.codeNumber,
               'codeNumber',
               const EvaluationExceptionCodes(
-                EvaluationExceptionCode.reviewWindowNotOpen,
+                EvaluationExceptionCode.reviewAlreadyClosed,
               ).codeNumber,
             ),
           ),
         );
+
+        expect(evalRepo.downgradeSubmittedCalls, 0);
+        expect(evalRepo.deleteScaffoldingCalls, 0);
+        expect(beaconRepo.statusTransitions, isEmpty);
       },
     );
   });
@@ -588,26 +632,28 @@ void main() {
       ]);
     });
 
-    test('from reviewOpen sets enoughHelp status', () async {
+    test('from reviewOpen rejects enoughHelp status', () async {
       stubTransaction(beacon(status: BeaconStatus.reviewOpen));
 
-      await case_.setBeaconStatus(
-        beaconId: beaconId,
-        authorUserId: authorId,
-        status: BeaconStatus.enoughHelp.smallintValue,
+      await expectLater(
+        case_.setBeaconStatus(
+          beaconId: beaconId,
+          authorUserId: authorId,
+          status: BeaconStatus.enoughHelp.smallintValue,
+        ),
+        throwsA(
+          isA<HelpOfferCoordinationException>().having(
+            (e) =>
+                (e.code as HelpOfferCoordinationExceptionCodes).exceptionCode,
+            'code',
+            HelpOfferCoordinationExceptionCode.invalidCoordinationStatus,
+          ),
+        ),
       );
 
       expect(evalRepo.downgradeSubmittedCalls, 0);
       expect(evalRepo.deleteScaffoldingCalls, 0);
-      expect(beaconRepo.statusTransitions, [
-        _StatusTransitionCall(
-          beaconId: beaconId,
-          fromStatus: BeaconStatus.reviewOpen,
-          toStatus: BeaconStatus.enoughHelp,
-          reason: 'enoughHelp',
-          actorId: authorId,
-        ),
-      ]);
+      expect(beaconRepo.statusTransitions, isEmpty);
     });
 
     test('noop when already enoughHelp', () async {
@@ -774,26 +820,28 @@ void main() {
       ]);
     });
 
-    test('from reviewOpen reopens to open', () async {
+    test('from reviewOpen rejects setBeaconStatus open', () async {
       stubTransaction(beacon(status: BeaconStatus.reviewOpen));
 
-      await case_.setBeaconStatus(
-        beaconId: beaconId,
-        authorUserId: authorId,
-        status: BeaconStatus.open.smallintValue,
+      await expectLater(
+        case_.setBeaconStatus(
+          beaconId: beaconId,
+          authorUserId: authorId,
+          status: BeaconStatus.open.smallintValue,
+        ),
+        throwsA(
+          isA<HelpOfferCoordinationException>().having(
+            (e) =>
+                (e.code as HelpOfferCoordinationExceptionCodes).exceptionCode,
+            'code',
+            HelpOfferCoordinationExceptionCode.invalidCoordinationStatus,
+          ),
+        ),
       );
 
       expect(evalRepo.downgradeSubmittedCalls, 0);
       expect(evalRepo.deleteScaffoldingCalls, 0);
-      expect(beaconRepo.statusTransitions, [
-        _StatusTransitionCall(
-          beaconId: beaconId,
-          fromStatus: BeaconStatus.reviewOpen,
-          toStatus: BeaconStatus.open,
-          reason: 'neutralOpen',
-          actorId: authorId,
-        ),
-      ]);
+      expect(beaconRepo.statusTransitions, isEmpty);
     });
 
     test('noop when already open', () async {

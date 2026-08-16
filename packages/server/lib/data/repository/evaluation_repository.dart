@@ -2,6 +2,7 @@ import 'package:drift/drift.dart';
 import 'package:drift_postgres/drift_postgres.dart';
 import 'package:injectable/injectable.dart';
 
+import 'package:tentura_root/domain/entity/beacon_status.dart';
 import 'package:tentura_server/consts/beacon_activity_event_consts.dart';
 import 'package:tentura_server/domain/capability/capability_consts.dart';
 import 'package:tentura_server/domain/evaluation/beacon_evaluation_row_status.dart';
@@ -530,6 +531,12 @@ ORDER BY e.updated_at DESC
           .filter((b) => b.id.equals(beaconId))
           .getSingleOrNull();
       if (beaconRow == null) {
+        return null;
+      }
+
+      if (beaconRow.status != BeaconStatus.reviewOpen.smallintValue) {
+        await downgradeSubmittedReviewsToDraft(beaconId);
+        await deleteReviewScaffoldingForBeacon(beaconId);
         return null;
       }
 

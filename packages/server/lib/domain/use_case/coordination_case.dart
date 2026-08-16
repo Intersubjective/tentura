@@ -604,20 +604,36 @@ final class CoordinationCase extends UseCaseBase {
       beaconId: beaconId,
       userId: authorUserId,
       fn: (beacon) async {
+        if (beacon.status == BeaconStatus.reviewOpen) {
+          if (target == BeaconStatus.enoughHelp ||
+              target == BeaconStatus.open) {
+            throw HelpOfferCoordinationException(
+              coordinationCode:
+                  HelpOfferCoordinationExceptionCode.invalidCoordinationStatus,
+            );
+          }
+        }
+
         if (target == BeaconStatus.needsMoreHelp &&
             beacon.status == BeaconStatus.reviewOpen) {
           final w = await _evaluationRepository.getReviewWindow(beaconId);
-          if (w == null || w.status != 0) {
-            throw EvaluationException(
-              evaluationCode: EvaluationExceptionCode.reviewWindowNotOpen,
-            );
+          if (w != null) {
+            if (w.status == 1) {
+              throw EvaluationException(
+                evaluationCode: EvaluationExceptionCode.reviewAlreadyClosed,
+                description:
+                    'Request review is closed and cannot be re-opened',
+              );
+            }
+            if (w.status == 0) {
+              await _evaluationRepository.downgradeSubmittedReviewsToDraft(
+                beaconId,
+              );
+              await _evaluationRepository.deleteReviewScaffoldingForBeacon(
+                beaconId,
+              );
+            }
           }
-          await _evaluationRepository.downgradeSubmittedReviewsToDraft(
-            beaconId,
-          );
-          await _evaluationRepository.deleteReviewScaffoldingForBeacon(
-            beaconId,
-          );
         }
 
         final reason = switch (target) {

@@ -566,12 +566,7 @@ final class EvaluationCase extends UseCaseBase {
     required String evaluatorId,
   }) async {
     await _ensureExpiredClosed();
-    final w = await _evaluationRepository.getReviewWindow(beaconId);
-    if (w == null || w.status != 0) {
-      throw EvaluationException(
-        evaluationCode: EvaluationExceptionCode.reviewWindowNotOpen,
-      );
-    }
+    await _requireLiveReview(beaconId);
     final status = await _evaluationRepository.getReviewUserStatus(
       beaconId,
       evaluatorId,
@@ -913,6 +908,11 @@ final class EvaluationCase extends UseCaseBase {
         w.status == 0 &&
         beacon.status == BeaconStatus.reviewOpen &&
         await _canCloseNow(beaconId: beaconId);
+    final reopenCount = await _beaconRepository.reviewReopenCount(beaconId);
+    final canReopen =
+        w.status == 0 &&
+        beacon.status == BeaconStatus.reviewOpen &&
+        reopenCount < kMaxReviewReopens;
     return ReviewWindowStatusResult(
       beaconId: beaconId,
       hasWindow: true,
@@ -925,7 +925,23 @@ final class EvaluationCase extends UseCaseBase {
       totalCount: vis.length,
       extensionsUsed: w.extensionsUsed,
       canCloseNow: canCloseNow,
+      canReopen: canReopen,
     );
+  }
+
+  Future<void> _requireLiveReview(String beaconId) async {
+    final beacon = await _beaconRepository.getBeaconById(beaconId: beaconId);
+    if (beacon.status != BeaconStatus.reviewOpen) {
+      throw EvaluationException(
+        evaluationCode: EvaluationExceptionCode.reviewWindowNotOpen,
+      );
+    }
+    final w = await _evaluationRepository.getReviewWindow(beaconId);
+    if (w == null || w.status != 0) {
+      throw EvaluationException(
+        evaluationCode: EvaluationExceptionCode.reviewWindowNotOpen,
+      );
+    }
   }
 
   Future<EvaluationReceivedResult> evaluationReceived({
@@ -1063,13 +1079,9 @@ final class EvaluationCase extends UseCaseBase {
     List<String>? acknowledgedHelpTags,
   }) async {
     await _ensureExpiredClosed();
+    await _requireLiveReview(beaconId);
     final w = await _evaluationRepository.getReviewWindow(beaconId);
-    if (w == null || w.status != 0) {
-      throw EvaluationException(
-        evaluationCode: EvaluationExceptionCode.reviewWindowExpired,
-      );
-    }
-    if (w.closesAt.isBefore(DateTime.timestamp())) {
+    if (w!.closesAt.isBefore(DateTime.timestamp())) {
       throw EvaluationException(
         evaluationCode: EvaluationExceptionCode.reviewWindowExpired,
       );
@@ -1237,12 +1249,7 @@ final class EvaluationCase extends UseCaseBase {
     required String userId,
   }) async {
     await _ensureExpiredClosed();
-    final w = await _evaluationRepository.getReviewWindow(beaconId);
-    if (w == null || w.status != 0) {
-      throw EvaluationException(
-        evaluationCode: EvaluationExceptionCode.reviewWindowExpired,
-      );
-    }
+    await _requireLiveReview(beaconId);
     final st = await _evaluationRepository.getReviewUserStatus(
       beaconId,
       userId,
@@ -1269,12 +1276,7 @@ final class EvaluationCase extends UseCaseBase {
     required String userId,
   }) async {
     await _ensureExpiredClosed();
-    final w = await _evaluationRepository.getReviewWindow(beaconId);
-    if (w == null || w.status != 0) {
-      throw EvaluationException(
-        evaluationCode: EvaluationExceptionCode.reviewWindowExpired,
-      );
-    }
+    await _requireLiveReview(beaconId);
     final st = await _evaluationRepository.getReviewUserStatus(
       beaconId,
       userId,

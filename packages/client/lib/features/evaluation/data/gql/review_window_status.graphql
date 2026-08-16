@@ -11,5 +11,6 @@ query ReviewWindowStatus($id: String!) {
     totalCount
     extensionsUsed
     canCloseNow
+    canReopen
   }
 }

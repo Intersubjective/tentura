@@ -7342,6 +7342,7 @@ type v2_ReviewWindowStatus {
   beaconId: String!
   beaconTitle: String!
   canCloseNow: Boolean
+  canReopen: Boolean
   closesAt: String
   extensionsUsed: Int
   hasWindow: Boolean!

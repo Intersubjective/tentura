@@ -43,6 +43,7 @@ enum BeaconStatusMenuDisabledReason {
   lifecycleAuthorOnly,
   terminalState,
   cancelHasCommitters,
+  reopenLimitReached,
 }
 
 class ReviewWindowMenuSnapshot {
@@ -52,6 +53,7 @@ class ReviewWindowMenuSnapshot {
     required this.windowComplete,
     required this.extensionsUsed,
     this.canCloseNow,
+    this.canReopen,
     this.maxExtensions = kMaxBeaconReviewExtensions,
   });
 
@@ -62,11 +64,14 @@ class ReviewWindowMenuSnapshot {
   final bool windowComplete;
   final int extensionsUsed;
   final bool? canCloseNow;
+  final bool? canReopen;
   final int maxExtensions;
 
   bool get canExtend => extensionsUsed < maxExtensions;
 
   bool get serverCanCloseNow => canCloseNow == true;
+
+  bool get serverCanReopen => canReopen != false;
 }
 
 class BeaconStatusMenuInput {
@@ -193,14 +198,21 @@ BeaconStatusMenuRow _openRow(BeaconStatusMenuInput input) {
   }
 
   if (lifecycle == BeaconStatus.reviewOpen) {
+    final canReopen =
+        input.canManageLifecycle && (input.reviewWindow?.serverCanReopen ?? true);
     return BeaconStatusMenuRow(
       id: BeaconStatusMenuRowId.open,
       action: BeaconStatusMenuAction.reopen,
       isSelected: false,
-      isEnabled: input.canManageLifecycle,
-      disabledReason: input.canManageLifecycle
-          ? BeaconStatusMenuDisabledReason.none
-          : BeaconStatusMenuDisabledReason.lifecycleAuthorOnly,
+      isEnabled: canReopen,
+      disabledReason: switch ((
+        input.canManageLifecycle,
+        input.reviewWindow?.serverCanReopen,
+      )) {
+        (false, _) => BeaconStatusMenuDisabledReason.lifecycleAuthorOnly,
+        (true, false) => BeaconStatusMenuDisabledReason.reopenLimitReached,
+        _ => BeaconStatusMenuDisabledReason.none,
+      },
     );
   }
 
@@ -271,13 +283,23 @@ BeaconStatusMenuRow _moreHelpRow(BeaconStatusMenuInput input) =>
       status: BeaconStatus.needsMoreHelp,
     );
 
-BeaconStatusMenuRow _enoughHelpRow(BeaconStatusMenuInput input) =>
-    _coordinationRow(
+BeaconStatusMenuRow _enoughHelpRow(BeaconStatusMenuInput input) {
+  if (input.beacon.status == BeaconStatus.reviewOpen) {
+    return BeaconStatusMenuRow(
       id: BeaconStatusMenuRowId.enoughHelp,
       action: BeaconStatusMenuAction.setCoordinationEnoughHelp,
-      input: input,
-      status: BeaconStatus.enoughHelp,
+      isSelected: false,
+      isEnabled: false,
+      disabledReason: BeaconStatusMenuDisabledReason.finishReviewFirst,
     );
+  }
+  return _coordinationRow(
+    id: BeaconStatusMenuRowId.enoughHelp,
+    action: BeaconStatusMenuAction.setCoordinationEnoughHelp,
+    input: input,
+    status: BeaconStatus.enoughHelp,
+  );
+}
 
 bool _closeBlocked(BeaconStatusMenuInput input) =>
     input.closureReadiness == BeaconClosureReadiness.blocked &&

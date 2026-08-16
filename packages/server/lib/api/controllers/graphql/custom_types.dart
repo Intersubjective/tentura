@@ -677,6 +677,7 @@ final gqlTypeReviewWindowStatus =
         field('totalCount', graphQLInt),
         field('extensionsUsed', graphQLInt),
         field('canCloseNow', graphQLBoolean),
+        field('canReopen', graphQLBoolean),
       ]);
 
 final gqlTypeEvaluationSummary =

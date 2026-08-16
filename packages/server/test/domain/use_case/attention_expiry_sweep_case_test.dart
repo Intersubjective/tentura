@@ -178,4 +178,24 @@ void main() {
       hasLength(1),
     );
   });
+
+  test(
+    'does not record status change when finalization abandons expired window',
+    () async {
+      final expiry = _ExpiryRepository()..due = const [beaconId];
+      final finalization = _ReviewFinalization()
+        ..result = const ReviewFinalizationResult(didClose: false);
+      final attention = TestAttentionHarness();
+      final case_ = AttentionExpirySweepCase(
+        expiry,
+        finalization,
+        attention.intents,
+        attention.transactional,
+      );
+
+      expect(await case_.runDue(now: DateTime.utc(2026)), 0);
+      expect(finalization.calls, hasLength(1));
+      expect(attention.recorded, isEmpty);
+    },
+  );
 }

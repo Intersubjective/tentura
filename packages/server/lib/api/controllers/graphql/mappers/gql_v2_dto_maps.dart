@@ -128,6 +128,7 @@ Map<String, dynamic> reviewWindowStatusToGqlMap(ReviewWindowStatusResult dto) =>
       'totalCount': dto.totalCount,
       'extensionsUsed': dto.extensionsUsed,
       'canCloseNow': dto.canCloseNow,
+      'canReopen': dto.canReopen,
     };
 
 Map<String, dynamic> evaluationSummaryToGqlMap(EvaluationSummaryResult dto) => {

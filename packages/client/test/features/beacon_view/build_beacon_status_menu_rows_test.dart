@@ -142,6 +142,38 @@ void main() {
     expect(moreHelp.action, BeaconStatusMenuAction.setCoordinationMoreHelp);
   });
 
+  test('review open disables enough help row', () {
+    final rows = buildBeaconStatusMenuRows(
+      _input(
+        beacon: _beacon(status: BeaconStatus.reviewOpen),
+        canSetCoordination: true,
+      ),
+    );
+    final enough = _row(rows, BeaconStatusMenuRowId.enoughHelp);
+    expect(enough.isEnabled, isFalse);
+    expect(enough.disabledReason, BeaconStatusMenuDisabledReason.finishReviewFirst);
+  });
+
+  test('review open disables reopen when cap exhausted', () {
+    final rows = buildBeaconStatusMenuRows(
+      _input(
+        beacon: _beacon(status: BeaconStatus.reviewOpen),
+        canManageLifecycle: true,
+        reviewWindow: const ReviewWindowMenuSnapshot(
+          reviewedCount: 0,
+          totalCount: 1,
+          windowComplete: false,
+          extensionsUsed: 0,
+          canReopen: false,
+        ),
+      ),
+    );
+    final open = _row(rows, BeaconStatusMenuRowId.open);
+    expect(open.action, BeaconStatusMenuAction.reopen);
+    expect(open.isEnabled, isFalse);
+    expect(open.disabledReason, BeaconStatusMenuDisabledReason.reopenLimitReached);
+  });
+
   test('closed terminal disables all rows', () {
     final rows = buildBeaconStatusMenuRows(
       _input(beacon: _beacon(status: BeaconStatus.closed)),

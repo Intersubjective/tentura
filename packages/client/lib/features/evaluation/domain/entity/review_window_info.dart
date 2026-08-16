@@ -16,6 +16,7 @@ abstract class ReviewWindowInfo with _$ReviewWindowInfo {
     @Default(0) int totalCount,
     @Default(0) int extensionsUsed,
     bool? canCloseNow,
+    bool? canReopen,
   }) = _ReviewWindowInfo;
 
   const ReviewWindowInfo._();

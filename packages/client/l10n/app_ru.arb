@@ -3915,6 +3915,7 @@
   "beaconStatusRowCancelled": "Отменён",
   "beaconStatusHintPublishFirst": "Сначала опубликуйте запрос",
   "beaconStatusHintFinishReviewFirst": "Сначала завершите период проверки",
+  "beaconStatusHintReopenLimitReached": "Повторное открытие уже использовано — закройте сейчас или дождитесь окончания проверки",
   "beaconStatusHintNoCommitters": "Пока нет участников для проверки",
   "beaconStatusHintCancelHasOffers": "Нельзя отменить после предложений помощи",
   "beaconStatusCancelHasCommitters": "Нельзя отменить: в запросе был участник — используйте «Закрыть»",

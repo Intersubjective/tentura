@@ -52,6 +52,8 @@ String beaconStatusMenuDisabledReasonLabel(
       BeaconStatusMenuDisabledReason.terminalState => '',
       BeaconStatusMenuDisabledReason.cancelHasCommitters =>
         l10n.beaconStatusCancelHasCommitters,
+      BeaconStatusMenuDisabledReason.reopenLimitReached =>
+        l10n.beaconStatusHintReopenLimitReached,
     };
 
 String beaconStatusMenuRowOutcomeLabel(L10n l10n, BeaconStatusMenuRowId id) =>

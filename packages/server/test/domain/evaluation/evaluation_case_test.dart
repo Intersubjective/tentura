@@ -517,6 +517,18 @@ void main() {
     );
   }
 
+  BeaconEntity defaultReviewBeacon({
+    BeaconStatus status = BeaconStatus.reviewOpen,
+  }) =>
+      BeaconEntity(
+        id: beaconId,
+        title: 't',
+        author: UserEntity(id: userId),
+        createdAt: DateTime.timestamp(),
+        updatedAt: DateTime.timestamp(),
+        status: status,
+      );
+
   setUp(() {
     evalRepo = _FakeEvaluationRepository();
     reviewFinalization = _FakeReviewFinalization();
@@ -539,7 +551,7 @@ void main() {
       userRepo,
     );
     evaluationCase = buildTestEvaluationCase(
-      beaconRepo: MockBeaconRepository(),
+      beaconRepo: _TransactionStubBeaconRepo(defaultReviewBeacon()),
       forwardRepo: forwardRepo,
       evalRepo: evalRepo,
       userProfileBatchLookup: userProfileBatchLookup,
@@ -647,7 +659,7 @@ void main() {
       );
     });
 
-    test('throws reviewWindowExpired when window is missing', () async {
+    test('throws reviewWindowNotOpen when window is missing', () async {
       evalRepo.reviewWindowResult = null;
 
       expect(
@@ -660,7 +672,7 @@ void main() {
             (e) => e.code.codeNumber,
             'codeNumber',
             const EvaluationExceptionCodes(
-              EvaluationExceptionCode.reviewWindowExpired,
+              EvaluationExceptionCode.reviewWindowNotOpen,
             ).codeNumber,
           ),
         ),
@@ -668,7 +680,7 @@ void main() {
     });
 
     test(
-      'throws reviewWindowExpired when window already closed (status 1)',
+      'throws reviewWindowNotOpen when window already closed (status 1)',
       () async {
         final now = DateTime.timestamp();
         evalRepo.reviewWindowResult = BeaconReviewWindowRecord(
@@ -691,7 +703,7 @@ void main() {
               (e) => e.code.codeNumber,
               'codeNumber',
               const EvaluationExceptionCodes(
-                EvaluationExceptionCode.reviewWindowExpired,
+                EvaluationExceptionCode.reviewWindowNotOpen,
               ).codeNumber,
             ),
           ),
@@ -896,6 +908,7 @@ void main() {
           author: UserEntity(id: evaluatedId, displayName: 'Author'),
           createdAt: DateTime.utc(2026),
           updatedAt: DateTime.utc(2026),
+          status: BeaconStatus.reviewOpen,
           needs: const {'transport'},
         ),
       );
@@ -974,6 +987,7 @@ void main() {
           author: UserEntity(id: evaluatedId, displayName: 'Author'),
           createdAt: DateTime.utc(2026),
           updatedAt: DateTime.utc(2026),
+          status: BeaconStatus.reviewOpen,
           needs: const {'transport'},
         ),
       );
@@ -1055,6 +1069,7 @@ void main() {
           author: UserEntity(id: evaluatedId, displayName: 'Author'),
           createdAt: DateTime.utc(2026),
           updatedAt: DateTime.utc(2026),
+          status: BeaconStatus.reviewOpen,
           needs: const {'transport', 'pets', 'manual_labour'},
         ),
       );
@@ -1117,6 +1132,89 @@ void main() {
             'codeNumber',
             const EvaluationExceptionCodes(
               EvaluationExceptionCode.ackTagCapExceeded,
+            ).codeNumber,
+          ),
+        ),
+      );
+    });
+  });
+
+  group('live review guard', () {
+    test('evaluationSubmit rejects when request is not wrapping up', () async {
+      const evaluatorId = 'eval1';
+      const evaluatedId = 'author1';
+      evalRepo
+        ..reviewWindowResult = openWindow()
+        ..visibilityResult = [
+          const BeaconEvaluationVisibilityRecord(
+            beaconId: beaconId,
+            evaluatorId: evaluatorId,
+            participantId: evaluatedId,
+          ),
+        ];
+
+      final localCase = buildTestEvaluationCase(
+        beaconRepo: _TransactionStubBeaconRepo(
+          defaultReviewBeacon(status: BeaconStatus.enoughHelp),
+        ),
+        forwardRepo: EmptyGraphForwardEdgeRepository(),
+        evalRepo: evalRepo,
+        userProfileBatchLookup: StubUserProfileBatchLookup('User'),
+        graphBuilder: EvaluationParticipantGraphBuilder(
+          NoOpCommitmentRepository(),
+          EmptyGraphHelpOfferRepository(),
+          EmptyGraphForwardEdgeRepository(),
+          StubUserRepository('User'),
+        ),
+        attention: attention,
+        expirySweep: expirySweep,
+      );
+
+      expect(
+        () => localCase.evaluationSubmit(
+          beaconId: beaconId,
+          evaluatorId: evaluatorId,
+          evaluatedUserId: evaluatedId,
+          value: BeaconEvaluationValue.zero,
+          reasonTags: const [],
+          note: '',
+        ),
+        throwsA(
+          isA<EvaluationException>().having(
+            (e) => e.code.codeNumber,
+            'codeNumber',
+            const EvaluationExceptionCodes(
+              EvaluationExceptionCode.reviewWindowNotOpen,
+            ).codeNumber,
+          ),
+        ),
+      );
+    });
+
+    test('evaluationFinalize rejects when review window is complete', () async {
+      evalRepo
+        ..reviewWindowResult = BeaconReviewWindowRecord(
+          beaconId: beaconId,
+          openedAt: DateTime.timestamp().subtract(const Duration(days: 8)),
+          closesAt: DateTime.timestamp().subtract(const Duration(days: 1)),
+          status: 1,
+          extensionsUsed: 0,
+          createdAt: DateTime.timestamp(),
+          updatedAt: DateTime.timestamp(),
+        )
+        ..reviewUserStatusResult = 0;
+
+      expect(
+        () => evaluationCase.evaluationFinalize(
+          beaconId: beaconId,
+          userId: userId,
+        ),
+        throwsA(
+          isA<EvaluationException>().having(
+            (e) => e.code.codeNumber,
+            'codeNumber',
+            const EvaluationExceptionCodes(
+              EvaluationExceptionCode.reviewWindowNotOpen,
             ).codeNumber,
           ),
         ),
@@ -1332,6 +1430,41 @@ void main() {
         expect(evalRepo.downgradeSubmittedCalls, 1);
         expect(evalRepo.deleteScaffoldingCalls, 1);
         expect(evalRepo.insertReviewWindowCalls, 1);
+      },
+    );
+
+    test(
+      'refuses wrap-up when completed review episode exists on open request',
+      () async {
+        final now = DateTime.utc(2025);
+        evalRepo.reviewWindowResult = BeaconReviewWindowRecord(
+          beaconId: beaconId,
+          openedAt: now.subtract(const Duration(days: 8)),
+          closesAt: now.subtract(const Duration(days: 1)),
+          status: 1,
+          extensionsUsed: 0,
+          createdAt: now.subtract(const Duration(days: 8)),
+          updatedAt: now,
+        );
+
+        await expectLater(
+          () => evaluationCase.beaconClose(
+            beaconId: beaconId,
+            userId: userId,
+            expectedRequiresReviewWindow: true,
+          ),
+          throwsA(
+            isA<EvaluationException>().having(
+              (e) => e.code.codeNumber,
+              'codeNumber',
+              const EvaluationExceptionCodes(
+                EvaluationExceptionCode.reviewAlreadyClosed,
+              ).codeNumber,
+            ),
+          ),
+        );
+
+        expect(evalRepo.insertReviewWindowCalls, 0);
       },
     );
   });
@@ -2302,6 +2435,35 @@ void main() {
       expect(rows, hasLength(1));
       expect(rows.single.beaconId, beaconId);
       expect(rows.single.canCloseNow, isTrue);
+    });
+
+    test('returns canReopen false when reopen cap exhausted', () async {
+      final localEvalRepo = _FakeEvaluationRepository()
+        ..reviewWindowResult = openWindow();
+      final localCase = buildTestEvaluationCase(
+        beaconRepo: _TransactionStubBeaconRepo(
+          defaultReviewBeacon(),
+          reviewReopenCount: 1,
+        ),
+        forwardRepo: EmptyGraphForwardEdgeRepository(),
+        evalRepo: localEvalRepo,
+        userProfileBatchLookup: StubUserProfileBatchLookup('User'),
+        graphBuilder: EvaluationParticipantGraphBuilder(
+          NoOpCommitmentRepository(),
+          EmptyGraphHelpOfferRepository(),
+          EmptyGraphForwardEdgeRepository(),
+          StubUserRepository('User'),
+        ),
+        attention: attention,
+        expirySweep: expirySweep,
+      );
+
+      final status = await localCase.reviewWindowStatus(
+        beaconId: beaconId,
+        userId: userId,
+      );
+
+      expect(status.canReopen, isFalse);
     });
   });
 

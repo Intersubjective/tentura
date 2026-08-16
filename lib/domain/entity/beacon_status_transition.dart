@@ -51,9 +51,7 @@ const _allowedTransitions = <(BeaconStatus, BeaconStatus)>{
   (BeaconStatus.needsMoreHelp, BeaconStatus.reviewOpen),
   (BeaconStatus.enoughHelp, BeaconStatus.reviewOpen),
   // Review window
-  (BeaconStatus.reviewOpen, BeaconStatus.open),
   (BeaconStatus.reviewOpen, BeaconStatus.needsMoreHelp),
-  (BeaconStatus.reviewOpen, BeaconStatus.enoughHelp),
   (BeaconStatus.reviewOpen, BeaconStatus.closed),
   // Delete
   (BeaconStatus.draft, BeaconStatus.deleted), // hard delete uses row removal

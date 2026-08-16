@@ -15,6 +15,7 @@ class ReviewWindowStatusResult {
     this.totalCount,
     this.extensionsUsed,
     this.canCloseNow,
+    this.canReopen,
   });
 
   final String beaconId;
@@ -28,4 +29,5 @@ class ReviewWindowStatusResult {
   final int? totalCount;
   final int? extensionsUsed;
   final bool? canCloseNow;
+  final bool? canReopen;
 }
