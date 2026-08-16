@@ -3,5 +3,6 @@ query InviteSeedPromptState($subjectId: String!) {
     inviterUserId
     inviteeUserId
     state
+    slugs
   }
 }

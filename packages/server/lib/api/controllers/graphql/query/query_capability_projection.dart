@@ -93,10 +93,11 @@ final class QueryCapabilityProjection extends GqlNodeBase {
         },
       );
 
-  static Map<String, dynamic> promptStateToGql(PromptState state) => {
+  static Map<String, dynamic> promptStateToGql(InviteSeedPromptView state) => {
         'inviterUserId': state.inviterUserId,
         'inviteeUserId': state.inviteeUserId,
         'state': state.state.name,
+        'slugs': List<String>.from(state.slugs),
       };
 
   static Map<String, dynamic> _tagProjectionToGql(TagProjection row) => {

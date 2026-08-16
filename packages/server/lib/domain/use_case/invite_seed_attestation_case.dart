@@ -2,6 +2,7 @@ import 'package:injectable/injectable.dart';
 
 import 'package:tentura_server/domain/capability/capability_evidence_models.dart';
 import 'package:tentura_server/domain/capability/capability_slug_validation.dart';
+import 'package:tentura_server/domain/capability/capability_tag.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/port/capability_evidence_port.dart';
 import 'package:tentura_server/domain/port/invite_genealogy_repository_port.dart';
@@ -29,14 +30,33 @@ final class InviteSeedAttestationCase extends UseCaseBase {
   final UserBlockRepositoryPort _userBlockRepository;
   final MutatingUnitOfWorkPort _unitOfWork;
 
-  Future<PromptState?> promptStateFor({
+  Future<InviteSeedPromptView> promptStateFor({
     required String actorId,
     required String subjectId,
   }) async {
-    await _authorizeInviter(actorId: actorId, subjectId: subjectId);
-    return _inviteSeedPrompt.stateFor(
-      inviterId: actorId,
-      inviteeId: subjectId,
+    final prompt = await _authorizeInviter(
+      actorId: actorId,
+      subjectId: subjectId,
+    );
+    Set<String> ledger;
+    try {
+      ledger = await _capabilityEvidence.activeSeedSlugs(
+        observerId: actorId,
+        subjectId: subjectId,
+      );
+    } on Object catch (e, st) {
+      logger.warning(
+        'activeSeedSlugs failed observer=$actorId subject=$subjectId: $e',
+        e,
+        st,
+      );
+      ledger = {};
+    }
+    return InviteSeedPromptView(
+      inviterUserId: prompt.inviterUserId,
+      inviteeUserId: prompt.inviteeUserId,
+      state: prompt.state,
+      slugs: kCapabilitySlugOrder.where(ledger.contains).toList(growable: false),
     );
   }
 
@@ -102,7 +122,7 @@ final class InviteSeedAttestationCase extends UseCaseBase {
     );
   }
 
-  Future<void> _authorizeInviter({
+  Future<PromptState> _authorizeInviter({
     required String actorId,
     required String subjectId,
   }) async {
@@ -131,5 +151,6 @@ final class InviteSeedAttestationCase extends UseCaseBase {
         description: 'No invite-seed prompt for this pair',
       );
     }
+    return prompt;
   }
 }

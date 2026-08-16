@@ -7469,6 +7469,7 @@ type v2_v2_ForwardReasonRow {
 type v2_v2_InviteSeedPromptState {
   inviteeUserId: String!
   inviterUserId: String!
+  slugs: [String!]!
   state: String!
 }
 

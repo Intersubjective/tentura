@@ -8,6 +8,7 @@ import 'package:tentura_server/domain/port/user_block_repository_port.dart';
 import 'package:tentura_server/domain/use_case/invite_seed_attestation_case.dart';
 import 'package:tentura_server/env.dart';
 
+import '../../../domain/use_case/capability_routing_case_mocks.mocks.dart';
 import 'invite_seed_resolver_mocks.mocks.dart';
 
 InviteSeedAttestationCase buildInviteSeedCase({
@@ -44,6 +45,9 @@ void stubAuthorizedInviter({
   required UserBlockRepositoryPort blockPort,
   required String actor,
   required String subject,
+  MockCapabilityEvidencePort? evidencePort,
+  Set<String> seedSlugs = const {},
+  PromptStateValue promptState = PromptStateValue.pending,
 }) {
   when(blockPort.isBlockedPair(a: actor, b: subject)).thenAnswer((_) async => false);
   when(genealogyPort.inviterOf(subject)).thenAnswer((_) async => actor);
@@ -53,7 +57,12 @@ void stubAuthorizedInviter({
     (_) async => PromptState(
       inviterUserId: actor,
       inviteeUserId: subject,
-      state: PromptStateValue.pending,
+      state: promptState,
     ),
   );
+  if (evidencePort != null) {
+    when(
+      evidencePort.activeSeedSlugs(observerId: actor, subjectId: subject),
+    ).thenAnswer((_) async => seedSlugs);
+  }
 }

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
+import 'package:tentura/domain/capability/capability_tag.dart';
 import 'package:tentura/domain/capability/invite_seed_prompt_state.dart';
 import 'package:tentura/domain/capability/prompt_state_value.dart';
 import 'package:tentura/domain/entity/profile.dart';
@@ -31,7 +32,6 @@ class _EditSeedSuggestionSectionState extends State<EditSeedSuggestionSection> {
   InviteSeedPromptState? _promptState;
   Set<String> _selectedSlugs = {};
   bool _submitting = false;
-  bool _hasSavedAttestation = false;
   bool _withdrawing = false;
 
   @override
@@ -52,6 +52,10 @@ class _EditSeedSuggestionSectionState extends State<EditSeedSuggestionSection> {
       };
       setState(() {
         _promptState = promptState;
+        _selectedSlugs = {
+          for (final slug in promptState.slugs)
+            if (CapabilityTag.fromSlug(slug) != null) slug,
+        };
         _phase = applicable ? _LoadPhase.ready : _LoadPhase.hidden;
       });
     } on Object {
@@ -59,10 +63,7 @@ class _EditSeedSuggestionSectionState extends State<EditSeedSuggestionSection> {
     }
   }
 
-  bool get _showWithdraw {
-    final state = _promptState?.state;
-    return state == PromptStateValue.answered || _hasSavedAttestation;
-  }
+  bool get _showWithdraw => _selectedSlugs.isNotEmpty;
 
   Future<void> _save() async {
     if (_selectedSlugs.isEmpty || _submitting) return;
@@ -73,10 +74,7 @@ class _EditSeedSuggestionSectionState extends State<EditSeedSuggestionSection> {
         slugs: _selectedSlugs.toList(),
       );
       if (!mounted) return;
-      setState(() {
-        _submitting = false;
-        _hasSavedAttestation = true;
-      });
+      setState(() => _submitting = false);
     } on Object {
       if (mounted) setState(() => _submitting = false);
     }
@@ -94,7 +92,6 @@ class _EditSeedSuggestionSectionState extends State<EditSeedSuggestionSection> {
       setState(() {
         _withdrawing = false;
         _selectedSlugs = {};
-        _hasSavedAttestation = false;
       });
     } on Object {
       if (mounted) setState(() => _withdrawing = false);
@@ -109,10 +106,12 @@ class _EditSeedSuggestionSectionState extends State<EditSeedSuggestionSection> {
     final tt = context.tt;
     final colors = Theme.of(context).colorScheme;
     final displayName = widget.profile.displayLabel(l10n.unknownPerson);
-    final promptCopy = switch (_promptState?.state) {
-      PromptStateValue.skipped => l10n.profileSeedSuggestionAddPrompt(displayName),
-      _ => l10n.profileSeedSuggestionEditPrompt(displayName),
-    };
+    final isAddCopy =
+        _promptState?.state == PromptStateValue.skipped &&
+        _selectedSlugs.isEmpty;
+    final promptCopy = isAddCopy
+        ? l10n.profileSeedSuggestionAddPrompt(displayName)
+        : l10n.profileSeedSuggestionEditPrompt(displayName);
 
     return Padding(
       padding: EdgeInsets.only(

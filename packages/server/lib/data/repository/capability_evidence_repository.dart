@@ -207,7 +207,7 @@ class CapabilityEvidenceRepository implements CapabilityEvidencePort {
     // before reading active rows; per-cell locks alone cannot guard disjoint sets.
     await _lockSeedAttestationPair(observerId, subjectId);
 
-    final currentSlugs = await _activeSeedSlugs(
+    final currentSlugs = await activeSeedSlugs(
       observerId: observerId,
       subjectId: subjectId,
     );
@@ -354,7 +354,8 @@ class CapabilityEvidenceRepository implements CapabilityEvidencePort {
     return rows.map((row) => row.read<String>('tag_slug')).toSet();
   }
 
-  Future<Set<String>> _activeSeedSlugs({
+  @override
+  Future<Set<String>> activeSeedSlugs({
     required String observerId,
     required String subjectId,
   }) async {
@@ -367,6 +368,8 @@ class CapabilityEvidenceRepository implements CapabilityEvidencePort {
             AND subject_user_id = $2
             AND source_type = $3
             AND deleted_at IS NULL
+            AND is_negative = false
+          ORDER BY tag_slug
           ''',
           variables: [
             Variable.withString(observerId),

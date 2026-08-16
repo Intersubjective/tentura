@@ -27,4 +27,11 @@ abstract interface class CapabilityEvidencePort {
     required String subjectId,
     required List<String> slugs,
   });
+
+  /// Active seed-routing slugs for one (observer, subject) pair.
+  /// Authz is the caller's job — [InviteSeedAttestationCase] only.
+  Future<Set<String>> activeSeedSlugs({
+    required String observerId,
+    required String subjectId,
+  });
 }

@@ -10,6 +10,7 @@ abstract class InviteSeedPromptState with _$InviteSeedPromptState {
     required String inviterUserId,
     required String inviteeUserId,
     required PromptStateValue state,
+    @Default([]) List<String> slugs,
   }) = _InviteSeedPromptState;
 
   const InviteSeedPromptState._();

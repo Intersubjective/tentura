@@ -133,6 +133,17 @@ abstract class PromptState with _$PromptState {
   }) = _PromptState;
 }
 
+/// Inviter-facing prompt FSM plus the standing seed-attestation slugs.
+@freezed
+abstract class InviteSeedPromptView with _$InviteSeedPromptView {
+  const factory InviteSeedPromptView({
+    required String inviterUserId,
+    required String inviteeUserId,
+    required PromptStateValue state,
+    @Default([]) List<String> slugs,
+  }) = _InviteSeedPromptView;
+}
+
 @freezed
 abstract class BandCandidate with _$BandCandidate {
   const factory BandCandidate({

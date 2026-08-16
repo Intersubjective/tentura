@@ -626,6 +626,20 @@ class MockCapabilityEvidencePort extends _i1.Mock
             returnValueForMissingStub: _i3.Future<void>.value(),
           )
           as _i3.Future<void>);
+
+  @override
+  _i3.Future<Set<String>> activeSeedSlugs({
+    required String? observerId,
+    required String? subjectId,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#activeSeedSlugs, [], {
+              #observerId: observerId,
+              #subjectId: subjectId,
+            }),
+            returnValue: _i3.Future<Set<String>>.value(<String>{}),
+          )
+          as _i3.Future<Set<String>>);
 }
 
 /// A class which mocks [ForwardAttributionRepositoryPort].

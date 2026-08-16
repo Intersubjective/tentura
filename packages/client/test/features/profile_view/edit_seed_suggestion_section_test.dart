@@ -13,6 +13,7 @@ import 'package:tentura/features/capability/ui/widget/capability_chip_set.dart';
 import 'package:tentura/features/profile_view/ui/widget/edit_seed_suggestion_section.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/l10n/l10n_en.dart';
+import 'package:tentura/ui/test_ids.dart';
 
 Widget _wrap(Widget child) => MaterialApp(
   theme: TenturaTheme.light(),
@@ -82,12 +83,15 @@ void main() {
 
   late _FakeCapabilityRepository capabilityRepo;
 
-  InviteSeedPromptState promptState(PromptStateValue state) =>
-      InviteSeedPromptState(
-        inviterUserId: 'inviter-1',
-        inviteeUserId: inviteeProfile.id,
-        state: state,
-      );
+  InviteSeedPromptState promptState(
+    PromptStateValue state, {
+    List<String> slugs = const [],
+  }) => InviteSeedPromptState(
+    inviterUserId: 'inviter-1',
+    inviteeUserId: inviteeProfile.id,
+    state: state,
+    slugs: slugs,
+  );
 
   setUp(() {
     capabilityRepo = _FakeCapabilityRepository(
@@ -105,6 +109,7 @@ void main() {
   Future<void> pumpSection(
     WidgetTester tester, {
     PromptStateValue state = PromptStateValue.answered,
+    List<String> slugs = const [],
     bool throwOnFetch = false,
   }) async {
     tester.view.physicalSize = const Size(800, 1200);
@@ -113,7 +118,7 @@ void main() {
     addTearDown(tester.view.resetDevicePixelRatio);
 
     capabilityRepo.throwOnFetch = throwOnFetch;
-    capabilityRepo.promptState = promptState(state);
+    capabilityRepo.promptState = promptState(state, slugs: slugs);
 
     await tester.pumpWidget(
       _wrap(EditSeedSuggestionSection(profile: inviteeProfile)),
@@ -137,6 +142,47 @@ void main() {
     expect(find.text(l10n.inviteSeedPromptQuestion('Carol')), findsNothing);
   });
 
+  testWidgets(
+    'answered with saved slugs hydrates selected chips without tapping',
+    (tester) async {
+      await pumpSection(
+        tester,
+        state: PromptStateValue.answered,
+        slugs: const ['transport'],
+      );
+      await tester.pumpAndSettle();
+
+      expect(
+        find.text(l10n.profileSeedSuggestionEditPrompt('Carol')),
+        findsOneWidget,
+      );
+      expect(find.text(l10n.profileSeedSuggestionWithdraw), findsOneWidget);
+
+      // Accordion mode keeps collapsed groups' chips out of the tree.
+      // Expand Logistics only — do not tap Transport — then read selected.
+      await _expandLogisticsGroup(tester);
+
+      final transportChip = find.byKey(
+        TestIds.key(TestIds.capabilityChip('transport')),
+      );
+      expect(transportChip, findsOneWidget);
+      expect(tester.widget<FilterChip>(transportChip).selected, isTrue);
+    },
+  );
+
+  testWidgets('answered with empty slugs shows edit copy without withdraw', (
+    tester,
+  ) async {
+    await pumpSection(tester, state: PromptStateValue.answered);
+
+    expect(
+      find.text(l10n.profileSeedSuggestionEditPrompt('Carol')),
+      findsOneWidget,
+    );
+    expect(find.text(l10n.profileSeedSuggestionWithdraw), findsNothing);
+    expect(find.byType(CapabilityChipSet), findsOneWidget);
+  });
+
   testWidgets('answered state shows editable picker and save calls seed', (
     tester,
   ) async {
@@ -147,9 +193,10 @@ void main() {
       findsOneWidget,
     );
     expect(find.byType(CapabilityChipSet), findsOneWidget);
-    expect(find.text(l10n.profileSeedSuggestionWithdraw), findsOneWidget);
+    expect(find.text(l10n.profileSeedSuggestionWithdraw), findsNothing);
 
     await _selectTransportChip(tester);
+    expect(find.text(l10n.profileSeedSuggestionWithdraw), findsOneWidget);
     final save = find.text(l10n.profileSeedSuggestionSave);
     await tester.ensureVisible(save);
     await tester.tap(save);
@@ -162,7 +209,12 @@ void main() {
   testWidgets('withdraw calls seedRoutingAttestation with empty slugs', (
     tester,
   ) async {
-    await pumpSection(tester, state: PromptStateValue.answered);
+    await pumpSection(
+      tester,
+      state: PromptStateValue.answered,
+      slugs: const ['transport'],
+    );
+    await tester.pumpAndSettle();
 
     final withdraw = find.text(l10n.profileSeedSuggestionWithdraw);
     await tester.ensureVisible(withdraw);
@@ -171,6 +223,26 @@ void main() {
 
     expect(capabilityRepo.lastSeedSubjectId, 'invitee-1');
     expect(capabilityRepo.lastSeedSlugs, isEmpty);
+    expect(find.text(l10n.profileSeedSuggestionWithdraw), findsNothing);
+    expect(
+      find.text(l10n.profileSeedSuggestionEditPrompt('Carol')),
+      findsOneWidget,
+    );
+  });
+
+  testWidgets('skipped with slugs shows edit copy and withdraw', (tester) async {
+    await pumpSection(
+      tester,
+      state: PromptStateValue.skipped,
+      slugs: const ['transport'],
+    );
+    await tester.pumpAndSettle();
+
+    expect(
+      find.text(l10n.profileSeedSuggestionEditPrompt('Carol')),
+      findsOneWidget,
+    );
+    expect(find.text(l10n.profileSeedSuggestionWithdraw), findsOneWidget);
   });
 
   testWidgets('skipped state shows add prompt without withdraw', (tester) async {

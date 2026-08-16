@@ -109,6 +109,7 @@ void main() {
       blockPort: blockPort,
       actor: actor,
       subject: subject,
+      evidencePort: capabilityEvidence,
     );
   });
 
@@ -142,11 +143,44 @@ void main() {
 
       verify(
         promptPort.stateFor(inviterId: actor, inviteeId: subject),
-      ).called(2);
+      ).called(1);
+      verify(
+        capabilityEvidence.activeSeedSlugs(
+          observerId: actor,
+          subjectId: subject,
+        ),
+      ).called(1);
       expect(result, {
         'inviterUserId': actor,
         'inviteeUserId': subject,
         'state': PromptStateValue.pending.name,
+        'slugs': <String>[],
+      });
+    });
+
+    test('includes sorted taxonomy slugs from the ledger', () async {
+      stubAuthorizedInviter(
+        genealogyPort: genealogyPort,
+        promptPort: promptPort,
+        blockPort: blockPort,
+        actor: actor,
+        subject: subject,
+        evidencePort: capabilityEvidence,
+        seedSlugs: {'pets', 'transport'},
+      );
+      final field =
+          inviteSeedQuery.all.singleWhere((f) => f.name == 'inviteSeedPromptState');
+
+      final result = await field.resolve!(null, {
+        kGlobalInputQueryJwt: const JwtEntity(sub: actor),
+        'subjectId': subject,
+      });
+
+      expect(result, {
+        'inviterUserId': actor,
+        'inviteeUserId': subject,
+        'state': PromptStateValue.pending.name,
+        'slugs': ['transport', 'pets'],
       });
     });
   });

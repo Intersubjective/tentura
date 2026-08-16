@@ -404,6 +404,7 @@ class CapabilityRepository implements CapabilityRepositoryPort {
     inviterUserId: row.inviterUserId,
     inviteeUserId: row.inviteeUserId,
     state: PromptStateValue.fromWire(row.state),
+    slugs: row.slugs.toList(),
   );
 
   static const _label = 'Capability';

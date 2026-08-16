@@ -869,6 +869,10 @@ final gqlTypeInviteSeedPromptState =
         field('inviterUserId', graphQLString.nonNullable()),
         field('inviteeUserId', graphQLString.nonNullable()),
         field('state', graphQLString.nonNullable()),
+        field(
+          'slugs',
+          GraphQLListType(graphQLString.nonNullable()).nonNullable(),
+        ),
       ]);
 
 /// Forward-reason slugs for one (sender, recipient) pair on a beacon.

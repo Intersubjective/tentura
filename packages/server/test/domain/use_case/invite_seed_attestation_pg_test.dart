@@ -212,7 +212,23 @@ WHERE observer_user_id = 'Ucapc4inv01'
         actorId: _inviterId,
         subjectId: _inviteeId,
       );
-      expect(prompt?.state, PromptStateValue.answered);
+      expect(prompt.state, PromptStateValue.answered);
+      expect(prompt.slugs, isEmpty);
+    }, skip: skipReason);
+
+    test('promptStateFor round-trips ledger slugs after answer', () async {
+      await case_.answer(
+        actorId: _inviterId,
+        subjectId: _inviteeId,
+        slugs: const ['transport'],
+      );
+
+      final prompt = await case_.promptStateFor(
+        actorId: _inviterId,
+        subjectId: _inviteeId,
+      );
+      expect(prompt.state, PromptStateValue.answered);
+      expect(prompt.slugs, ['transport']);
     }, skip: skipReason);
   });
 }

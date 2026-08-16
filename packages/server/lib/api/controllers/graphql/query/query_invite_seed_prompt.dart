@@ -31,7 +31,7 @@ final class QueryInviteSeedPrompt extends GqlNodeBase {
             actorId: jwt.sub,
             subjectId: _subjectId.fromArgsNonNullable(args),
           );
-          return QueryCapabilityProjection.promptStateToGql(state!);
+          return QueryCapabilityProjection.promptStateToGql(state);
         },
       );
 }
