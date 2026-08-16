@@ -1,11 +1,5 @@
 {
   "mcpServers": {
-    "dart": {
-      "type": "stdio",
-      "command": "dart mcp-server --experimental-mcp-server --force-roots-fallback",
-      "env": {},
-      "args": []
-    },
     "serena": {
       "type": "http",
       "url": "http://127.0.0.1:24601/mcp"

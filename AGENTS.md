@@ -49,8 +49,10 @@ cd packages/client && flutter test --update-goldens <path>               # regen
 
 > Do **not** use `flutter analyze` to check `tentura_lints` rules — it does not load analyzer
 > plugins and always reports them clean. Nor `dart analyze <subdir>`: plugin diagnostics only
-> surface when the target is the package root. `scripts/check-custom-lints.sh` invokes the
-> analyzer correctly and ratchets the count against `scripts/custom-lint-baseline.txt`.
+> surface when the target is the package root. Nor Dart MCP `analyze_files`: it spawns a
+> second language-server and can freeze the machine; use `ReadLints` plus
+> `scripts/check-custom-lints.sh`. That script invokes the analyzer correctly and ratchets
+> the count against `scripts/custom-lint-baseline.txt`.
 
 CI (`.github/workflows/pipeline.yml`) runs the lint tests, `scripts/check-custom-lints.sh` for
 both packages, `bash scripts/check-user-facing-terminology.sh`, and `flutter test` on every push
