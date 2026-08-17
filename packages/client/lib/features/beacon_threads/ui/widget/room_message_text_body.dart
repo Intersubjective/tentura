@@ -40,31 +40,43 @@ class RoomMessageTextBody extends StatelessWidget {
       metrics: metrics,
     );
 
-    return Stack(
-      clipBehavior: Clip.none,
-      children: [
-        TenturaSelectionArea(
-          child: Text.rich(
-            span,
-            textAlign: textAlign,
-            textDirection: textDirection,
-            softWrap: true,
-            textScaler: textScaler,
-            locale: locale,
+    // A single line of text reports only its own tight width, so force full
+    // width or the date anchors to the text's edge, not the bubble's.
+    return SizedBox(
+      width: double.infinity,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              TenturaSelectionArea(
+                child: Text.rich(
+                  span,
+                  textAlign: textAlign,
+                  textDirection: textDirection,
+                  softWrap: true,
+                  textScaler: textScaler,
+                  locale: locale,
+                ),
+              ),
+              SizedBox(height: metrics.verticalTuckGap),
+            ],
           ),
-        ),
-        PositionedDirectional(
-          end: 0,
-          bottom: 0,
-          child: Text(
-            dateLine,
-            style: metaStyle,
-            textDirection: textDirection,
-            textScaler: textScaler,
-            locale: locale,
+          PositionedDirectional(
+            end: 0,
+            bottom: 0,
+            child: Text(
+              dateLine,
+              style: metaStyle,
+              textDirection: textDirection,
+              textScaler: textScaler,
+              locale: locale,
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }

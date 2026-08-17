@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:tentura/features/beacon_threads/ui/widget/room_message_text_body.dart';
@@ -22,6 +23,23 @@ Rect _globalRect(WidgetTester tester, Finder finder) {
   final element = tester.element(finder.first);
   final box = element.renderObject! as RenderBox;
   return box.localToGlobal(Offset.zero) & box.size;
+}
+
+/// Glyph ink extent (not the paragraph box, which includes leading) of the
+/// first [length] characters, in global coordinates.
+({double top, double bottom}) _globalInkRange(
+  WidgetTester tester,
+  Finder finder,
+  int length,
+) {
+  final element = tester.element(finder.first);
+  final box = element.renderObject! as RenderBox;
+  final origin = box.localToGlobal(Offset.zero);
+  final paragraph = box as RenderParagraph;
+  final ink = paragraph.getBoxesForSelection(
+    TextSelection(baseOffset: 0, extentOffset: length),
+  );
+  return (top: origin.dy + ink.first.top, bottom: origin.dy + ink.first.bottom);
 }
 
 Widget _harness({
@@ -70,13 +88,6 @@ void main() {
     await tester.pumpAndSettle();
 
     final hostRect = _globalRect(tester, find.byType(RoomMessageTextBody));
-    final bodyRect = _globalRect(
-      tester,
-      find.descendant(
-        of: find.byType(Stack),
-        matching: find.byType(RichText),
-      ),
-    );
     final dateRect = _globalRect(
       tester,
       find.descendant(
@@ -88,8 +99,20 @@ void main() {
       ),
     );
 
+    final bodyRichText = find.descendant(
+      of: find.byType(Stack),
+      matching: find.byType(RichText),
+    );
+    final dateRichText = find.descendant(
+      of: find.byType(PositionedDirectional),
+      matching: find.byType(RichText),
+    );
+    final bodyInkBottom = _globalInkRange(tester, bodyRichText, display.length).bottom;
+    final dateInkTop = _globalInkRange(tester, dateRichText, dateLine.length).top;
+
     expect(dateRect.bottom, closeTo(hostRect.bottom, 1));
-    expect(dateRect.top, greaterThan(bodyRect.top));
+    // Real gap, not a fraction-of-a-pixel offset that still reads as glued.
+    expect(dateInkTop - bodyInkBottom, greaterThan(4));
   });
 
   testWidgets('wrapped skip keeps date on the right, not at line start',
@@ -127,4 +150,67 @@ void main() {
     expect(dateRect.center.dx, greaterThan(hostRect.center.dx));
     expect(dateRect.left, greaterThan(hostRect.left + hostRect.width * 0.45));
   });
+
+  testWidgets(
+    'bubble widened by a sibling (reply quote, footer, name) still anchors '
+    'the date to the bubble edge, not the short text',
+    (tester) async {
+      const display = 'Hi';
+      const dateLine = '12:34';
+      const bubbleWidth = 260.0;
+
+      // Mirrors room_message_tile's coreColumn: a Column with
+      // crossAxisAlignment.start (loose width per child) at a fixed outer
+      // width, with a sibling row wider than the message text alone.
+      await tester.pumpWidget(
+        MaterialApp(
+          home: Directionality(
+            textDirection: _textDirection,
+            child: MediaQuery(
+              data: const MediaQueryData(textScaler: _textScaler),
+              child: Align(
+                alignment: Alignment.topLeft,
+                child: SizedBox(
+                  key: const Key('bubble'),
+                  width: bubbleWidth,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const SizedBox(
+                        width: double.infinity,
+                        child: Text('A much wider sibling row above the text'),
+                      ),
+                      RoomMessageTextBody(
+                        display: display,
+                        dateLine: dateLine,
+                        bodyStyle: _bodyStyle,
+                        metaStyle: _metaStyle,
+                        metrics: _metricsFor(dateLine),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      final bubbleRight = tester.getTopRight(find.byKey(const Key('bubble'))).dx;
+      final dateRect = _globalRect(
+        tester,
+        find.descendant(
+          of: find.byType(RoomMessageTextBody),
+          matching: find.descendant(
+            of: find.byType(PositionedDirectional),
+            matching: find.text(dateLine),
+          ),
+        ),
+      );
+
+      expect(dateRect.right, closeTo(bubbleRight, 1));
+    },
+  );
 }

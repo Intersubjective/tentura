@@ -144,13 +144,17 @@ void main() {
     return roomCubit;
   }
 
+  // Center can land past the glyphs in the tucked-timestamp gap; use top-left.
+  Future<void> longPressMessageBody(WidgetTester tester, Finder finder) =>
+      tester.longPressAt(tester.getTopLeft(finder) + const Offset(8, 8));
+
   Future<double> openMessageActionsSheetWidth(WidgetTester tester) async {
     expect(find.byType(RoomMessageTile), findsOneWidget);
     final inlineBody = find.byType(RoomMessageTextBody);
     final body = inlineBody.evaluate().isNotEmpty
         ? inlineBody
         : find.byType(ShowMoreText);
-    await tester.longPress(body);
+    await longPressMessageBody(tester, body);
     await tester.pumpAndSettle();
 
     final sheet = find.byType(BottomSheet);
@@ -186,7 +190,7 @@ void main() {
     await pumpRoom(tester, width: 700);
     final l10n = lookupL10n(const Locale('en'));
 
-    await tester.longPress(find.byType(RoomMessageTextBody));
+    await longPressMessageBody(tester, find.byType(RoomMessageTextBody));
     await tester.pumpAndSettle();
 
     expect(find.text(l10n.beaconRoomActionReply), findsOneWidget);
@@ -211,7 +215,7 @@ void main() {
       ],
     );
 
-    await tester.longPress(find.byType(RoomMessageTextBody));
+    await longPressMessageBody(tester, find.byType(RoomMessageTextBody));
     await tester.pumpAndSettle();
 
     expect(find.text(l10n.beaconRoomActionReply), findsNothing);
@@ -223,7 +227,7 @@ void main() {
       final l10n = lookupL10n(const Locale('en'));
       await pumpRoom(tester, width: 700);
 
-      await tester.longPress(find.byType(RoomMessageTextBody));
+      await longPressMessageBody(tester, find.byType(RoomMessageTextBody));
       await tester.pumpAndSettle();
 
       await tester.tap(find.text(l10n.beaconRoomActionUpdatePlanFromMessage));
@@ -241,7 +245,7 @@ void main() {
     final l10n = lookupL10n(const Locale('en'));
     final roomCubit = await pumpRoom(tester, width: 700);
 
-    await tester.longPress(find.byType(RoomMessageTextBody));
+    await longPressMessageBody(tester, find.byType(RoomMessageTextBody));
     await tester.pumpAndSettle();
     await tester.tap(find.text(l10n.beaconRoomActionUpdatePlanFromMessage));
     await tester.pumpAndSettle();

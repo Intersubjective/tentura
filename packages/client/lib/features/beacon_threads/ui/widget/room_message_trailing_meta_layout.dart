@@ -12,11 +12,17 @@ class TrailingMetaMetrics {
     required this.reserveWidth,
     required this.reserveHeight,
     required this.trailingGap,
+    required this.verticalTuckGap,
   });
 
   final double reserveWidth;
   final double reserveHeight;
   final double trailingGap;
+
+  /// Space below the body text reserved for the date overlay; kept outside
+  /// the shared paragraph because stretching that line's height pushes body
+  /// glyphs and date down in lockstep, leaving their offset unchanged.
+  final double verticalTuckGap;
 }
 
 bool shouldUseInlineTrailingMeta({
@@ -52,6 +58,7 @@ TrailingMetaMetrics computeTrailingMetaMetrics({
     reserveWidth: reserveWidth,
     reserveHeight: metaPainter.height,
     trailingGap: trailingGap,
+    verticalTuckGap: trailingGap + metaPainter.height,
   );
 }
 
