@@ -11,13 +11,15 @@ class TrailingMetaMetrics {
   const TrailingMetaMetrics({
     required this.reserveWidth,
     required this.reserveHeight,
-    required this.trailingGap,
+    required this.trailingGapH,
+    required this.trailingGapV,
     required this.verticalTuckGap,
   });
 
   final double reserveWidth;
   final double reserveHeight;
-  final double trailingGap;
+  final double trailingGapH;
+  final double trailingGapV;
 
   /// Space below the body text reserved for the date overlay; kept outside
   /// the shared paragraph because stretching that line's height pushes body
@@ -40,7 +42,8 @@ bool shouldHugBubbleWidth({
 TrailingMetaMetrics computeTrailingMetaMetrics({
   required String dateLine,
   required TextStyle metaStyle,
-  required double trailingGap,
+  required double trailingGapH,
+  required double trailingGapV,
   required TextDirection textDirection,
   required TextScaler textScaler,
 }) {
@@ -51,14 +54,15 @@ TrailingMetaMetrics computeTrailingMetaMetrics({
     maxLines: 1,
   )..layout();
 
-  final metadataStripWidth = metaPainter.width;
-  final reserveWidth = trailingGap + metadataStripWidth;
+  final metadataStripWidth = metaPainter.width.ceilToDouble();
+  final reserveWidth = trailingGapH + metadataStripWidth;
 
   return TrailingMetaMetrics(
     reserveWidth: reserveWidth,
     reserveHeight: metaPainter.height,
-    trailingGap: trailingGap,
-    verticalTuckGap: trailingGap + metaPainter.height,
+    trailingGapH: trailingGapH,
+    trailingGapV: trailingGapV,
+    verticalTuckGap: trailingGapV + metaPainter.height,
   );
 }
 

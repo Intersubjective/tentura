@@ -96,7 +96,7 @@ double measureReactionTimeRowMinWidth({
   required TextStyle countStyle,
   required TextStyle timeStyle,
   required double chipSpacing,
-  required double trailingGap,
+  required double trailingGapH,
   required TextDirection textDirection,
   required TextScaler textScaler,
 }) {
@@ -124,7 +124,7 @@ double measureReactionTimeRowMinWidth({
       textScaler: textScaler,
       maxLines: 1,
     )..layout();
-    width += trailingGap + timePainter.width;
+    width += trailingGapH + timePainter.width;
   }
 
   return width;
@@ -144,7 +144,7 @@ double ensureHugWidthFitsReactionFooter({
   required TextStyle countStyle,
   required TextStyle timeStyle,
   required double chipSpacing,
-  required double trailingGap,
+  required double trailingGapH,
   required TextDirection textDirection,
   required TextScaler textScaler,
 }) {
@@ -160,7 +160,7 @@ double ensureHugWidthFitsReactionFooter({
     countStyle: countStyle,
     timeStyle: timeStyle,
     chipSpacing: chipSpacing,
-    trailingGap: trailingGap,
+    trailingGapH: trailingGapH,
     textDirection: textDirection,
     textScaler: textScaler,
   );
@@ -177,7 +177,7 @@ double ensureHugWidthFitsReactionFooter({
     textScaler: textScaler,
     maxLines: 1,
   )..layout();
-  final timeBand = (trailingGap + timePainter.width).ceilToDouble();
+  final timeBand = (trailingGapH + timePainter.width).ceilToDouble();
 
   var chipsWidth = 0.0;
   for (var i = 0; i < reactionEntries.length; i++) {

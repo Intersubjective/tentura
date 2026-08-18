@@ -128,27 +128,31 @@ void main() {
       final m = computeTrailingMetaMetrics(
         dateLine: '12:34',
         metaStyle: metaStyle,
-        trailingGap: 4,
+        trailingGapH: 12,
+        trailingGapV: 4,
         textDirection: textDirection,
         textScaler: textScaler,
       );
       expect(m.reserveWidth, greaterThan(0));
       expect(m.reserveHeight, greaterThan(0));
-      expect(m.trailingGap, 4.0);
+      expect(m.trailingGapH, 12.0);
+      expect(m.trailingGapV, 4.0);
     });
 
     test('edited suffix widens reserve', () {
       final bare = computeTrailingMetaMetrics(
         dateLine: '12:34',
         metaStyle: metaStyle,
-        trailingGap: 4,
+        trailingGapH: 12,
+        trailingGapV: 4,
         textDirection: textDirection,
         textScaler: textScaler,
       );
       final edited = computeTrailingMetaMetrics(
         dateLine: '12:34 · edited',
         metaStyle: metaStyle,
-        trailingGap: 4,
+        trailingGapH: 12,
+        trailingGapV: 4,
         textDirection: textDirection,
         textScaler: textScaler,
       );
@@ -161,7 +165,8 @@ void main() {
       final metrics = computeTrailingMetaMetrics(
         dateLine: '12:34',
         metaStyle: metaStyle,
-        trailingGap: 4,
+        trailingGapH: 12,
+        trailingGapV: 4,
         textDirection: textDirection,
         textScaler: textScaler,
       );
@@ -195,7 +200,8 @@ void main() {
       final metrics = computeTrailingMetaMetrics(
         dateLine: dateLine,
         metaStyle: metaStyle,
-        trailingGap: trailingGap,
+        trailingGapH: 12,
+        trailingGapV: trailingGap,
         textDirection: textDirection,
         textScaler: textScaler,
       );
@@ -232,7 +238,8 @@ void main() {
       final metrics = computeTrailingMetaMetrics(
         dateLine: dateLine,
         metaStyle: metaStyle,
-        trailingGap: 4,
+        trailingGapH: 12,
+        trailingGapV: 4,
         textDirection: textDirection,
         textScaler: textScaler,
       );
@@ -282,7 +289,7 @@ void main() {
         countStyle: countStyle,
         timeStyle: metaStyle,
         chipSpacing: 8,
-        trailingGap: 4,
+        trailingGapH: 12,
         textDirection: textDirection,
         textScaler: textScaler,
       );
@@ -353,7 +360,7 @@ void main() {
         countStyle: countStyle,
         timeStyle: metaStyle,
         chipSpacing: 8,
-        trailingGap: 4,
+        trailingGapH: 12,
         textDirection: textDirection,
         textScaler: textScaler,
       );
@@ -379,7 +386,7 @@ void main() {
         countStyle: countStyle,
         timeStyle: metaStyle,
         chipSpacing: 8,
-        trailingGap: 4,
+        trailingGapH: 12,
         textDirection: textDirection,
         textScaler: textScaler,
       );
@@ -426,7 +433,7 @@ void main() {
         countStyle: countStyle,
         timeStyle: metaStyle,
         chipSpacing: 8,
-        trailingGap: 4,
+        trailingGapH: 12,
         textDirection: textDirection,
         textScaler: textScaler,
       );
@@ -441,7 +448,8 @@ void main() {
       final metrics = computeTrailingMetaMetrics(
         dateLine: '12:34',
         metaStyle: metaStyle,
-        trailingGap: 4,
+        trailingGapH: 12,
+        trailingGapV: 4,
         textDirection: textDirection,
         textScaler: textScaler,
       );

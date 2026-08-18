@@ -37,6 +37,8 @@ class TenturaTokens extends ThemeExtension<TenturaTokens> {
     required this.chatWideWidth,
     required this.chatColumnMaxWidth,
     required this.bubbleMinWidth,
+    required this.bubbleRadiusLarge,
+    required this.bubbleRadiusSmall,
     required this.avatarGutter,
     required this.bubbleFarGutter,
     required this.mediaMaxWidth,
@@ -44,6 +46,7 @@ class TenturaTokens extends ThemeExtension<TenturaTokens> {
     required this.cardPadding,
     required this.cardGap,
     required this.screenHPadding,
+    required this.bubbleRowTop,
     required this.rowGap,
     required this.sectionGap,
     required this.iconTextGap,
@@ -96,13 +99,16 @@ class TenturaTokens extends ThemeExtension<TenturaTokens> {
   /// Minimum text/media content width for message bubbles.
   final double bubbleMinWidth;
 
+  final double bubbleRadiusLarge;
+  final double bubbleRadiusSmall;
+
   /// Incoming message avatar strip width, kept even when the avatar is hidden.
   final double avatarGutter;
 
   /// Far-side gutter for outgoing message bubbles.
   ///
-  /// Compact uses [TenturaSpacing.screenH] so bubbles hug the right edge;
-  /// regular/expanded keep the wider Telegram-style far margin (56).
+  /// Compact uses [TenturaSpacing.screenH] so outgoing bubbles hug the right edge;
+  /// regular/expanded keep the wider Telegram-style far margin (56) on the left side.
   final double bubbleFarGutter;
 
   /// Max content width for media and poll bubbles.
@@ -114,6 +120,11 @@ class TenturaTokens extends ThemeExtension<TenturaTokens> {
   final EdgeInsets cardPadding;
   final double cardGap;
   final double screenHPadding;
+  
+  /// Gap between disconnected bubbles in the same list.
+  final double bubbleRowTop;
+
+  /// Gap between bubble and avatar / metadata in the list.
   final double rowGap;
   final double sectionGap;
   final double iconTextGap;
@@ -155,6 +166,8 @@ class TenturaTokens extends ThemeExtension<TenturaTokens> {
     chatWideWidth: 840,
     chatColumnMaxWidth: 720,
     bubbleMinWidth: 160,
+    bubbleRadiusLarge: 16,
+    bubbleRadiusSmall: 6,
     avatarGutter: 40,
     bubbleFarGutter: 56,
     mediaMaxWidth: 520,
@@ -162,6 +175,7 @@ class TenturaTokens extends ThemeExtension<TenturaTokens> {
     cardPadding: TenturaSpacing.cardPaddingAll,
     cardGap: TenturaSpacing.cardGap,
     screenHPadding: TenturaSpacing.screenH,
+    bubbleRowTop: 6,
     rowGap: TenturaSpacing.row,
     sectionGap: TenturaSpacing.section,
     iconTextGap: TenturaSpacing.iconText,
@@ -198,6 +212,8 @@ class TenturaTokens extends ThemeExtension<TenturaTokens> {
     chatWideWidth: 840,
     chatColumnMaxWidth: 720,
     bubbleMinWidth: 160,
+    bubbleRadiusLarge: 16,
+    bubbleRadiusSmall: 6,
     avatarGutter: 40,
     bubbleFarGutter: 56,
     mediaMaxWidth: 520,
@@ -205,6 +221,7 @@ class TenturaTokens extends ThemeExtension<TenturaTokens> {
     cardPadding: TenturaSpacing.cardPaddingAll,
     cardGap: TenturaSpacing.cardGap,
     screenHPadding: TenturaSpacing.screenH,
+    bubbleRowTop: 6,
     rowGap: TenturaSpacing.row,
     sectionGap: TenturaSpacing.section,
     iconTextGap: TenturaSpacing.iconText,
@@ -236,6 +253,8 @@ class TenturaTokens extends ThemeExtension<TenturaTokens> {
           chatWideWidth: 840,
           chatColumnMaxWidth: 720,
           bubbleMinWidth: 160,
+          bubbleRadiusLarge: 16,
+          bubbleRadiusSmall: 6,
           avatarGutter: 40,
           // Match near-side padding so outgoing bubbles sit on the right edge
           // (desktop Telegram's 56 far gutter reads as centered on phones).
@@ -245,6 +264,7 @@ class TenturaTokens extends ThemeExtension<TenturaTokens> {
           cardPadding: TenturaSpacing.cardPaddingAll,
           cardGap: TenturaSpacing.cardGap,
           screenHPadding: TenturaSpacing.screenH,
+          bubbleRowTop: 6,
           rowGap: TenturaSpacing.row,
           sectionGap: TenturaSpacing.section,
           iconTextGap: TenturaSpacing.iconText,
@@ -265,15 +285,18 @@ class TenturaTokens extends ThemeExtension<TenturaTokens> {
           chatWideWidth: 840,
           chatColumnMaxWidth: 720,
           bubbleMinWidth: 160,
+          bubbleRadiusLarge: 16,
+          bubbleRadiusSmall: 6,
           avatarGutter: 40,
           bubbleFarGutter: 56,
           mediaMaxWidth: 520,
           albumGridGap: 4,
-          cardPadding: const EdgeInsets.all(14),
-          cardGap: 11,
-          screenHPadding: 20,
-          rowGap: 9,
-          sectionGap: 14,
+      cardPadding: const EdgeInsets.all(14),
+      cardGap: 11,
+      screenHPadding: 20,
+      bubbleRowTop: 6,
+      rowGap: 9,
+      sectionGap: 14,
           iconTextGap: 7,
           avatarTextGap: 13,
           tightGap: TenturaSpacing.tight,
@@ -292,15 +315,18 @@ class TenturaTokens extends ThemeExtension<TenturaTokens> {
           chatWideWidth: 840,
           chatColumnMaxWidth: 720,
           bubbleMinWidth: 160,
+          bubbleRadiusLarge: 16,
+          bubbleRadiusSmall: 6,
           avatarGutter: 40,
           bubbleFarGutter: 56,
           mediaMaxWidth: 640,
           albumGridGap: 4,
-          cardPadding: const EdgeInsets.all(16),
-          cardGap: 12,
-          screenHPadding: 24,
-          rowGap: 10,
-          sectionGap: 16,
+      cardPadding: const EdgeInsets.all(16),
+      cardGap: 12,
+      screenHPadding: 24,
+      bubbleRowTop: 6,
+      rowGap: 10,
+      sectionGap: 16,
           iconTextGap: 8,
           avatarTextGap: 14,
           tightGap: TenturaSpacing.tight,
@@ -337,6 +363,8 @@ class TenturaTokens extends ThemeExtension<TenturaTokens> {
     double? chatWideWidth,
     double? chatColumnMaxWidth,
     double? bubbleMinWidth,
+    double? bubbleRadiusLarge,
+    double? bubbleRadiusSmall,
     double? avatarGutter,
     double? bubbleFarGutter,
     double? mediaMaxWidth,
@@ -345,6 +373,7 @@ class TenturaTokens extends ThemeExtension<TenturaTokens> {
     EdgeInsets? cardPadding,
     double? cardGap,
     double? screenHPadding,
+    double? bubbleRowTop,
     double? rowGap,
     double? sectionGap,
     double? iconTextGap,
@@ -382,6 +411,8 @@ class TenturaTokens extends ThemeExtension<TenturaTokens> {
       chatWideWidth: chatWideWidth ?? this.chatWideWidth,
       chatColumnMaxWidth: chatColumnMaxWidth ?? this.chatColumnMaxWidth,
       bubbleMinWidth: bubbleMinWidth ?? this.bubbleMinWidth,
+      bubbleRadiusLarge: bubbleRadiusLarge ?? this.bubbleRadiusLarge,
+      bubbleRadiusSmall: bubbleRadiusSmall ?? this.bubbleRadiusSmall,
       avatarGutter: avatarGutter ?? this.avatarGutter,
       bubbleFarGutter: bubbleFarGutter ?? this.bubbleFarGutter,
       mediaMaxWidth: mediaMaxWidth ?? this.mediaMaxWidth,
@@ -389,6 +420,7 @@ class TenturaTokens extends ThemeExtension<TenturaTokens> {
       cardPadding: cardPadding ?? this.cardPadding,
       cardGap: cardGap ?? this.cardGap,
       screenHPadding: screenHPadding ?? this.screenHPadding,
+      bubbleRowTop: bubbleRowTop ?? this.bubbleRowTop,
       rowGap: rowGap ?? this.rowGap,
       sectionGap: sectionGap ?? this.sectionGap,
       iconTextGap: iconTextGap ?? this.iconTextGap,
@@ -451,6 +483,8 @@ class TenturaTokens extends ThemeExtension<TenturaTokens> {
         t,
       )!,
       bubbleMinWidth: lerpDouble(bubbleMinWidth, other.bubbleMinWidth, t)!,
+      bubbleRadiusLarge: lerpDouble(bubbleRadiusLarge, other.bubbleRadiusLarge, t)!,
+      bubbleRadiusSmall: lerpDouble(bubbleRadiusSmall, other.bubbleRadiusSmall, t)!,
       avatarGutter: lerpDouble(avatarGutter, other.avatarGutter, t)!,
       bubbleFarGutter: lerpDouble(
         bubbleFarGutter,
@@ -462,6 +496,7 @@ class TenturaTokens extends ThemeExtension<TenturaTokens> {
       cardPadding: EdgeInsets.lerp(cardPadding, other.cardPadding, t)!,
       cardGap: lerpDouble(cardGap, other.cardGap, t)!,
       screenHPadding: lerpDouble(screenHPadding, other.screenHPadding, t)!,
+      bubbleRowTop: lerpDouble(bubbleRowTop, other.bubbleRowTop, t)!,
       rowGap: lerpDouble(rowGap, other.rowGap, t)!,
       sectionGap: lerpDouble(sectionGap, other.sectionGap, t)!,
       iconTextGap: lerpDouble(iconTextGap, other.iconTextGap, t)!,

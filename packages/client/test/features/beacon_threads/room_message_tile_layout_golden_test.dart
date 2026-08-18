@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/mockito.dart';
 
+import 'package:tentura/design_system/components/room_message_bubble_shape.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon_room_consts.dart';
 import 'package:tentura/domain/entity/profile.dart';
@@ -422,10 +423,7 @@ void main() {
       final bubble = find.descendant(
         of: find.byType(RoomMessageTile),
         matching: find.byWidgetPredicate(
-          (w) =>
-              w is DecoratedBox &&
-              w.decoration is BoxDecoration &&
-              (w.decoration as BoxDecoration).border != null,
+          (w) => w is Material && w.shape is RoomMessageBubbleShape,
         ),
       );
       final rect = tester.getRect(bubble);
@@ -613,10 +611,7 @@ void main() {
       final bubble = find.descendant(
         of: find.byType(RoomMessageTile),
         matching: find.byWidgetPredicate(
-          (w) =>
-              w is DecoratedBox &&
-              w.decoration is BoxDecoration &&
-              (w.decoration as BoxDecoration).border != null,
+          (w) => w is Material && w.shape is RoomMessageBubbleShape,
         ),
       );
       final rect = tester.getRect(bubble);

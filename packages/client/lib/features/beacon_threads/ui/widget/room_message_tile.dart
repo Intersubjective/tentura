@@ -26,6 +26,7 @@ import 'package:tentura/features/beacon_threads/ui/widget/room_poll_card.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/reaction_senders_sheet.dart';
 import 'package:tentura/features/beacon/ui/widget/coordination_ui.dart';
 import 'package:tentura/design_system/components/tentura_avatar.dart';
+import 'package:tentura/design_system/components/room_message_bubble_shape.dart';
 import 'package:tentura/ui/widget/presence_avatar.dart';
 import 'package:tentura/features/beacon_threads/ui/coordination_room_navigation.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
@@ -308,8 +309,9 @@ class RoomMessageTile extends StatelessWidget {
     if (a == null || b == null) return true;
     if (a.authorId != b.authorId) return true;
     if (_isLinkedCoordSemantic(a) || _isLinkedCoordSemantic(b)) return true;
-    final diff = b.createdAt.difference(a.createdAt).inMinutes.abs();
-    return diff > 5;
+    final delta = b.createdAt.difference(a.createdAt).inSeconds;
+    if (delta < 0 || delta >= 900) return true;
+    return false;
   }
 
   String _semanticShortLabel(L10n l10n, int? marker) => switch (marker) {
@@ -409,8 +411,8 @@ class RoomMessageTile extends StatelessWidget {
         breakGroupAbove || _groupBreak(previousMessage, message);
     final isGroupEnd = _groupBreak(message, nextMessage);
 
-    final topPad = (isGroupStart ? tt.sectionGap : tt.rowGap / 2) / 2;
-    final bottomPad = (isGroupEnd ? tt.sectionGap : tt.rowGap / 2) / 2;
+    final topPad = isGroupStart ? tt.bubbleRowTop : 0.0;
+    final bottomPad = tt.tightGap;
     final showCoordinationFooter =
         !hideCoordinationLifecycleFooter && showCoordinationItemFooter(message);
     final showMarkDone = showMarkDoneFooter(message);
@@ -681,14 +683,16 @@ class RoomMessageTile extends StatelessWidget {
       height: theme.textTheme.bodyMedium?.height,
     );
     final metaStyle = theme.textTheme.labelSmall ?? const TextStyle();
-    final trailingGap = tt.iconTextGap / 2;
+    final trailingGapH = 12.0;
+    final trailingGapV = tt.iconTextGap / 2;
     final textDirection = Directionality.of(context);
     final textScaler = MediaQuery.textScalerOf(context);
     final trailingMetrics = useInlineMeta
         ? computeTrailingMetaMetrics(
             dateLine: dateLine,
             metaStyle: metaStyle,
-            trailingGap: trailingGap,
+            trailingGapH: trailingGapH,
+            trailingGapV: trailingGapV,
             textDirection: textDirection,
             textScaler: textScaler,
           )
@@ -882,18 +886,21 @@ class RoomMessageTile extends StatelessWidget {
       required Widget child,
       required Color background,
       required Color borderColor,
+      required bool attachPrev,
+      required bool attachNext,
     }) => Material(
-      color: Colors.transparent,
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          color: background,
-          borderRadius: BorderRadius.circular(tt.cardRadius),
-          border: Border.all(color: borderColor),
-        ),
-        child: Padding(
-          padding: tt.cardPadding,
-          child: child,
-        ),
+      color: background,
+      shape: RoomMessageBubbleShape(
+        topLeft: attachPrev ? tt.bubbleRadiusSmall : tt.bubbleRadiusLarge,
+        topRight: attachPrev ? tt.bubbleRadiusSmall : tt.bubbleRadiusLarge,
+        bottomLeft: attachNext ? tt.bubbleRadiusSmall : tt.bubbleRadiusLarge,
+        bottomRight: attachNext ? tt.bubbleRadiusSmall : tt.bubbleRadiusLarge,
+        side: BorderSide(color: borderColor),
+      ),
+      clipBehavior: Clip.antiAlias,
+      child: Padding(
+        padding: tt.cardPadding,
+        child: child,
       ),
     );
 
@@ -950,11 +957,16 @@ class RoomMessageTile extends StatelessWidget {
                 : const Duration(milliseconds: 180),
             curve: Curves.easeOut,
             decoration: active
-                ? BoxDecoration(
-                    borderRadius: BorderRadius.circular(tt.cardRadius),
-                    border: Border.all(
-                      color: tt.attentionHighlight,
-                      width: 2,
+                ? ShapeDecoration(
+                    shape: RoomMessageBubbleShape(
+                      topLeft: isGroupStart ? tt.bubbleRadiusLarge : tt.bubbleRadiusSmall,
+                      topRight: isGroupStart ? tt.bubbleRadiusLarge : tt.bubbleRadiusSmall,
+                      bottomLeft: isGroupEnd ? tt.bubbleRadiusLarge : tt.bubbleRadiusSmall,
+                      bottomRight: isGroupEnd ? tt.bubbleRadiusLarge : tt.bubbleRadiusSmall,
+                      side: BorderSide(
+                        color: tt.attentionHighlight,
+                        width: 2,
+                      ),
                     ),
                     color: tt.attentionHighlight.withValues(alpha: 0.08),
                   )
@@ -970,6 +982,8 @@ class RoomMessageTile extends StatelessWidget {
       bubbleShell(
         background: bubbleBg,
         borderColor: bubbleBorder,
+        attachPrev: !isGroupStart,
+        attachNext: !isGroupEnd,
         child: coreColumn(
           showNameHeader: !isMine && isGroupStart,
         ),
@@ -1212,7 +1226,7 @@ class RoomMessageTile extends StatelessWidget {
               countStyle: countStyle,
               timeStyle: metaStyle,
               chipSpacing: kSpacingSmall,
-              trailingGap: trailingGap,
+              trailingGapH: trailingGapH,
               textDirection: textDirection,
               textScaler: textScaler,
             );
@@ -1314,9 +1328,9 @@ class RoomMessageTile extends StatelessWidget {
 
     return Padding(
       padding: EdgeInsets.fromLTRB(
-        tt.screenHPadding,
-        topPad,
         isMine ? tt.bubbleFarGutter : tt.screenHPadding,
+        topPad,
+        isMine ? tt.screenHPadding : tt.screenHPadding,
         bottomPad,
       ),
       child: row,
