@@ -21,17 +21,5 @@ void main() {
       expect(deskFitsMasterDetail(719, expanded), isFalse);
       expect(deskFitsMasterDetail(969, expanded), isTrue);
     });
-
-    test('detailFitsOpsRoom respects comfortable and tight floors', () {
-      expect(myWorkDetailFitsOpsRoom(719, tight: false), isFalse);
-      expect(myWorkDetailFitsOpsRoom(720, tight: false), isTrue);
-
-      expect(myWorkDetailFitsOpsRoom(559, tight: true), isFalse);
-      expect(myWorkDetailFitsOpsRoom(560, tight: true), isTrue);
-    });
-
-    test('full-width My Work detail at ~1024 viewport fits tight ops|room', () {
-      expect(myWorkDetailFitsOpsRoom(720, tight: true), isTrue);
-    });
   });
 }

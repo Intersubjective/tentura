@@ -65,25 +65,15 @@ Future<void> _confirmAndDeleteMyWorkBeacon(
   }
 }
 
-typedef MyWorkCardSelect = void Function(
-  MyWorkCardViewModel vm, {
-  String? viewTab,
-  String? peopleTabAttention,
-});
-
 class MyWorkCardRouter extends StatelessWidget {
   const MyWorkCardRouter({
     required this.vm,
     this.attentionMarked = false,
-    this.isSelected = false,
-    this.onSelect,
     super.key,
   });
 
   final MyWorkCardViewModel vm;
   final bool attentionMarked;
-  final bool isSelected;
-  final MyWorkCardSelect? onSelect;
 
   @override
   Widget build(BuildContext context) {
@@ -98,43 +88,31 @@ class MyWorkCardRouter extends StatelessWidget {
         vm: vm,
         currentUserId: currentUserId,
         attentionMarked: attentionMarked,
-        isSelected: isSelected,
-        onSelect: onSelect,
       ),
       MyWorkCardKind.helpOfferedActive => _HelpOfferedActiveCard(
         vm: vm,
         currentUserId: currentUserId,
         attentionMarked: attentionMarked,
-        isSelected: isSelected,
-        onSelect: onSelect,
       ),
       MyWorkCardKind.authoredFinished => _FinishedAuthoredCard(
         vm: vm,
         currentUserId: currentUserId,
         attentionMarked: attentionMarked,
-        isSelected: isSelected,
-        onSelect: onSelect,
       ),
       MyWorkCardKind.helpOfferedFinished => _FinishedHelpOfferedCard(
         vm: vm,
         currentUserId: currentUserId,
         attentionMarked: attentionMarked,
-        isSelected: isSelected,
-        onSelect: onSelect,
       ),
       MyWorkCardKind.authoredArchived => _FinishedAuthoredCard(
         vm: vm,
         currentUserId: currentUserId,
         attentionMarked: attentionMarked,
-        isSelected: isSelected,
-        onSelect: onSelect,
       ),
       MyWorkCardKind.helpOfferedArchived => _FinishedHelpOfferedCard(
         vm: vm,
         currentUserId: currentUserId,
         attentionMarked: attentionMarked,
-        isSelected: isSelected,
-        onSelect: onSelect,
       ),
     };
   }
@@ -149,18 +127,9 @@ void _openBeacon(BuildContext context, String id) {
 void _openBeaconOrSelect(
   BuildContext context,
   MyWorkCardViewModel vm, {
-  MyWorkCardSelect? onSelect,
   String? viewTab,
   String? peopleTabAttention,
 }) {
-  if (onSelect != null) {
-    onSelect(
-      vm,
-      viewTab: viewTab,
-      peopleTabAttention: peopleTabAttention,
-    );
-    return;
-  }
   if (viewTab != null || peopleTabAttention != null) {
     unawaited(
       context.router.push(
@@ -179,13 +148,11 @@ void _openBeaconOrSelect(
 
 void _openBeaconReviewHelpOffers(
   BuildContext context,
-  MyWorkCardViewModel vm, {
-  MyWorkCardSelect? onSelect,
-}) {
+  MyWorkCardViewModel vm,
+) {
   _openBeaconOrSelect(
     context,
     vm,
-    onSelect: onSelect,
     viewTab: 'help_offers',
     peopleTabAttention: '1',
   );
@@ -250,15 +217,11 @@ class _AuthoredActiveCard extends StatelessWidget {
     required this.vm,
     required this.currentUserId,
     required this.attentionMarked,
-    this.isSelected = false,
-    this.onSelect,
   });
 
   final MyWorkCardViewModel vm;
   final String currentUserId;
   final bool attentionMarked;
-  final bool isSelected;
-  final MyWorkCardSelect? onSelect;
 
   @override
   Widget build(BuildContext context) {
@@ -335,24 +298,19 @@ class _AuthoredActiveCard extends StatelessWidget {
                 label: phaseCtaLabel,
                 onPressed: () => switch (phaseAction) {
                   BeaconPhasePrimaryAction.reviewOffers =>
-                    _openBeaconReviewHelpOffers(context, vm, onSelect: onSelect),
+                    _openBeaconReviewHelpOffers(context, vm),
                   BeaconPhasePrimaryAction.forward => b.allowsForward
                       ? unawaited(
                           context.router.push(
                             ForwardBeaconRoute(beaconId: b.id),
                           ),
                         )
-                      : _openBeaconOrSelect(
-                          context,
-                          vm,
-                          onSelect: onSelect,
-                        ),
+                      : _openBeaconOrSelect(context, vm),
                   BeaconPhasePrimaryAction.resolveBlocker => _openBeaconOrSelect(
                     context,
                     vm,
-                    onSelect: onSelect,
                   ),
-                  _ => _openBeaconOrSelect(context, vm, onSelect: onSelect),
+                  _ => _openBeaconOrSelect(context, vm),
                 },
               ),
             )
@@ -366,11 +324,8 @@ class _AuthoredActiveCard extends StatelessWidget {
                     alignment: Alignment.centerRight,
                     child: TenturaCommandButton(
                       label: l10n.myWorkReviewHelpOffersCta,
-                      onPressed: () => _openBeaconReviewHelpOffers(
-                        context,
-                        vm,
-                        onSelect: onSelect,
-                      ),
+                      onPressed: () =>
+                          _openBeaconReviewHelpOffers(context, vm),
                     ),
                   ),
                 if (hasReviewCta && needsForwardCta)
@@ -395,8 +350,7 @@ class _AuthoredActiveCard extends StatelessWidget {
     }
 
     return BeaconCardShell(
-      selected: isSelected,
-      onTap: () => _openBeaconOrSelect(context, vm, onSelect: onSelect),
+      onTap: () => _openBeaconOrSelect(context, vm),
       marker: attentionMarked ? const AttentionMarker() : null,
       footer: footerActions,
       child: Column(
@@ -497,15 +451,11 @@ class _HelpOfferedActiveCard extends StatelessWidget {
     required this.vm,
     required this.currentUserId,
     required this.attentionMarked,
-    this.isSelected = false,
-    this.onSelect,
   });
 
   final MyWorkCardViewModel vm;
   final String currentUserId;
   final bool attentionMarked;
-  final bool isSelected;
-  final MyWorkCardSelect? onSelect;
 
   @override
   Widget build(BuildContext context) {
@@ -518,8 +468,7 @@ class _HelpOfferedActiveCard extends StatelessWidget {
     );
 
     return BeaconCardShell(
-      selected: isSelected,
-      onTap: () => _openBeaconOrSelect(context, vm, onSelect: onSelect),
+      onTap: () => _openBeaconOrSelect(context, vm),
       marker: attentionMarked ? const AttentionMarker() : null,
       footer: vm.showReviewCta
           ? Align(
@@ -653,15 +602,11 @@ class _FinishedAuthoredCard extends StatelessWidget {
     required this.vm,
     required this.currentUserId,
     required this.attentionMarked,
-    this.isSelected = false,
-    this.onSelect,
   });
 
   final MyWorkCardViewModel vm;
   final String currentUserId;
   final bool attentionMarked;
-  final bool isSelected;
-  final MyWorkCardSelect? onSelect;
 
   @override
   Widget build(BuildContext context) {
@@ -676,8 +621,7 @@ class _FinishedAuthoredCard extends StatelessWidget {
     );
     return BeaconCardShell(
       muted: true,
-      selected: isSelected,
-      onTap: () => _openBeaconOrSelect(context, vm, onSelect: onSelect),
+      onTap: () => _openBeaconOrSelect(context, vm),
       marker: attentionMarked ? const AttentionMarker() : null,
       footer: _myWorkArchiveFooter(context, vm),
       child: Column(
@@ -778,15 +722,11 @@ class _FinishedHelpOfferedCard extends StatelessWidget {
     required this.vm,
     required this.currentUserId,
     required this.attentionMarked,
-    this.isSelected = false,
-    this.onSelect,
   });
 
   final MyWorkCardViewModel vm;
   final String currentUserId;
   final bool attentionMarked;
-  final bool isSelected;
-  final MyWorkCardSelect? onSelect;
 
   @override
   Widget build(BuildContext context) {
@@ -799,8 +739,7 @@ class _FinishedHelpOfferedCard extends StatelessWidget {
     );
     return BeaconCardShell(
       muted: true,
-      selected: isSelected,
-      onTap: () => _openBeaconOrSelect(context, vm, onSelect: onSelect),
+      onTap: () => _openBeaconOrSelect(context, vm),
       marker: attentionMarked ? const AttentionMarker() : null,
       footer: _myWorkArchiveFooter(context, vm),
       child: Column(

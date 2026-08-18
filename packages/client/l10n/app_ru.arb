@@ -2390,11 +2390,6 @@
   "@myWorkOverflowArchive": {
     "context": "MyWorkScreen"
   },
-  "myWorkBackToList": "К списку",
-  "@myWorkBackToList": {
-    "context": "MyWorkScreen",
-    "description": "Возврат из чата к списку карточек «Мои дела» на десктопе."
-  },
   "myWorkEmptyAll": "Пока нет созданных дел или предложений помощи",
   "@myWorkEmptyAll": {
     "context": "MyWorkScreen"

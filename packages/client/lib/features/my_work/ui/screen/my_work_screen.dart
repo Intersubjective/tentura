@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import 'package:tentura/app/router/root_router.dart';
-import 'package:tentura/consts.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/features/auth/ui/bloc/auth_cubit.dart';
 import 'package:tentura/features/home/ui/bloc/home_tab_reselect_cubit.dart';
@@ -17,8 +16,6 @@ import 'package:tentura/features/inbox/ui/bloc/inbox_operational_cubit.dart';
 import 'package:tentura/features/home/ui/bloc/home_attention_cubit.dart';
 
 import '../bloc/my_work_cubit.dart';
-import '../../domain/entity/my_work_card_view_model.dart';
-import '../widget/my_work_beacon_view_pane.dart';
 import '../widget/my_work_cards.dart';
 import '../widget/my_work_empty_body.dart';
 import '../widget/my_work_finished_status_row.dart';
@@ -35,9 +32,6 @@ class MyWorkScreen extends StatefulWidget implements AutoRouteWrapper {
 }
 
 class _MyWorkScreenState extends State<MyWorkScreen> {
-  String? _selectedBeaconId;
-  String? _selectedViewTab;
-  String? _selectedPeopleTabAttention;
   final ScrollController _listScrollController = ScrollController();
 
   @override
@@ -46,85 +40,49 @@ class _MyWorkScreenState extends State<MyWorkScreen> {
     super.dispose();
   }
 
-  void _selectCard(
-    MyWorkCardViewModel vm, {
-    String? viewTab,
-    String? peopleTabAttention,
-  }) {
-    if (vm.kind == MyWorkCardKind.authoredDraft) return;
-    setState(() {
-      _selectedBeaconId = vm.beaconId;
-      _selectedViewTab = viewTab;
-      _selectedPeopleTabAttention = peopleTabAttention;
-    });
-  }
-
-  void _clearSelection() {
-    setState(() {
-      _selectedBeaconId = null;
-      _selectedViewTab = null;
-      _selectedPeopleTabAttention = null;
-    });
-  }
-
-  bool get _showList => _selectedBeaconId == null;
-
   @override
   Widget build(BuildContext context) {
     final l10n = L10n.of(context)!;
     final scheme = Theme.of(context).colorScheme;
     final useExpandedPane = context.windowClass == WindowClass.expanded;
-    final showList = _showList;
-    final hideShellChrome = useExpandedPane && !showList;
     final tt = context.tt;
 
     return BlocListener<HomeTabReselectCubit, HomeTabReselectState>(
       listenWhen: (prev, curr) =>
           prev.myWorkReselectCount != curr.myWorkReselectCount,
       listener: (context, _) {
-        _clearSelection();
         context.read<MyWorkCubit>()
           ..setFilter(MyWorkFilter.active)
           ..setSort(MyWorkSort.recent);
       },
       child: Scaffold(
         backgroundColor: scheme.surface,
-        appBar: hideShellChrome
-            ? null
-            : TenturaTopBar.of(
-                context,
-                tone: TenturaTopBarTone.primary,
-                alignment: useExpandedPane
-                    ? TenturaTopBarAlignment.fullWidth
-                    : TenturaTopBarAlignment.content,
-                title: const Row(
-                  children: [
-                    Expanded(child: _MyWorkFilterMenu()),
-                    _MyWorkSortButton(),
-                  ],
-                ),
-                actions: [
-                  IconButton(
-                    tooltip: l10n.newBeacon,
-                    onPressed: () =>
-                        context.read<ScreenCubit>().showBeaconCreate(),
-                    icon: const Icon(Icons.add),
-                  ),
-                  const _MyWorkOverflowMenu(),
-                ],
-              ),
-        body: SafeArea(
-          minimum: EdgeInsets.symmetric(
-            horizontal: hideShellChrome ? 0 : tt.screenHPadding,
+        appBar: TenturaTopBar.of(
+          context,
+          tone: TenturaTopBarTone.primary,
+          alignment: useExpandedPane
+              ? TenturaTopBarAlignment.fullWidth
+              : TenturaTopBarAlignment.content,
+          title: const Row(
+            children: [
+              Expanded(child: _MyWorkFilterMenu()),
+              _MyWorkSortButton(),
+            ],
           ),
+          actions: [
+            IconButton(
+              tooltip: l10n.newBeacon,
+              onPressed: () =>
+                  context.read<ScreenCubit>().showBeaconCreate(),
+              icon: const Icon(Icons.add),
+            ),
+            const _MyWorkOverflowMenu(),
+          ],
+        ),
+        body: SafeArea(
+          minimum: EdgeInsets.symmetric(horizontal: tt.screenHPadding),
           child: _MyWorkBody(
-            useExpandedPane: useExpandedPane,
-            selectedBeaconId: _selectedBeaconId,
-            selectedViewTab: _selectedViewTab,
-            selectedPeopleTabAttention: _selectedPeopleTabAttention,
             listScrollController: _listScrollController,
-            onSelectCard: _selectCard,
-            onEmbeddedLeave: _clearSelection,
           ),
         ),
       ),
@@ -320,44 +278,12 @@ class _MyWorkSortButtonState extends State<_MyWorkSortButton> {
   }
 }
 
-MyWorkCardViewModel? _selectedMyWorkCard(
-  List<MyWorkCardViewModel> cards,
-  String? selectedId, {
-  bool allowDefaultToFirst = true,
-}) {
-  final viewable = cards
-      .where((c) => c.kind != MyWorkCardKind.authoredDraft)
-      .toList(growable: false);
-  if (viewable.isEmpty) return null;
-  if (selectedId != null) {
-    for (final card in viewable) {
-      if (card.beaconId == selectedId) {
-        return card;
-      }
-    }
-  }
-  if (!allowDefaultToFirst) return null;
-  return viewable.first;
-}
-
 class _MyWorkBody extends StatelessWidget {
   const _MyWorkBody({
-    required this.useExpandedPane,
-    required this.selectedBeaconId,
-    required this.selectedViewTab,
-    required this.selectedPeopleTabAttention,
     required this.listScrollController,
-    required this.onSelectCard,
-    required this.onEmbeddedLeave,
   });
 
-  final bool useExpandedPane;
-  final String? selectedBeaconId;
-  final String? selectedViewTab;
-  final String? selectedPeopleTabAttention;
   final ScrollController listScrollController;
-  final MyWorkCardSelect onSelectCard;
-  final VoidCallback onEmbeddedLeave;
 
   bool _shouldRebuild(MyWorkState p, MyWorkState c) {
     if (p.status != c.status ||
@@ -408,99 +334,11 @@ class _MyWorkBody extends StatelessWidget {
             cubit: cubit,
             l10n: l10n,
             tt: tt,
-            useExpandedPane: useExpandedPane,
-            selectedBeaconId: selectedBeaconId,
             scrollController: listScrollController,
-            onSelectCard: onSelectCard,
           );
-
-          if (!useExpandedPane) {
-            return TenturaContentColumn(child: listBody);
-          }
-
-          if (selectedBeaconId == null) {
-            return TenturaContentColumn(child: listBody);
-          }
-
-          final selected = _selectedMyWorkCard(
-            state.visibleCards,
-            selectedBeaconId,
-            allowDefaultToFirst: false,
-          );
-          return _MyWorkExpandedPreview(
-            selected: selected,
-            viewTab: selected?.beaconId == selectedBeaconId
-                ? selectedViewTab
-                : null,
-            peopleTabAttention: selected?.beaconId == selectedBeaconId
-                ? selectedPeopleTabAttention
-                : null,
-            onEmbeddedLeave: onEmbeddedLeave,
-          );
+          return TenturaContentColumn(child: listBody);
         },
       ),
-    );
-  }
-}
-
-class _MyWorkExpandedPreview extends StatelessWidget {
-  const _MyWorkExpandedPreview({
-    required this.selected,
-    required this.viewTab,
-    required this.peopleTabAttention,
-    required this.onEmbeddedLeave,
-  });
-
-  final MyWorkCardViewModel? selected;
-  final String? viewTab;
-  final String? peopleTabAttention;
-  final VoidCallback onEmbeddedLeave;
-
-  @override
-  Widget build(BuildContext context) {
-    final selectedCard = selected;
-    if (selectedCard == null) {
-      final tt = context.tt;
-      final l10n = L10n.of(context)!;
-      return Center(
-        child: Padding(
-          padding: EdgeInsets.all(tt.screenHPadding),
-          child: Text(
-            l10n.myWorkEmptyActive,
-            textAlign: TextAlign.center,
-            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-              color: Theme.of(context).colorScheme.onSurfaceVariant,
-            ),
-          ),
-        ),
-      );
-    }
-
-    return MyWorkBeaconViewPane(
-      key: ValueKey(
-        'my-work-bv-pane-${selectedCard.beaconId}:$viewTab:$peopleTabAttention',
-      ),
-      beaconId: selectedCard.beaconId,
-      viewTab: viewTab,
-      peopleTabAttention: peopleTabAttention,
-      onRequestThreadRoute: (threadId, messageId) {
-        context.router.push(
-          BeaconViewRoute(
-            id: selectedCard.beaconId,
-            viewTab: kBeaconViewTabThreads,
-            threadId: threadId,
-            messageId: messageId,
-            entry: kBeaconEntryMyWork,
-            children: [
-              ThreadDetailRoute(
-                threadId: threadId,
-                messageId: messageId,
-              ),
-            ],
-          ),
-        );
-      },
-      onEmbeddedLeave: onEmbeddedLeave,
     );
   }
 }
@@ -511,20 +349,14 @@ class _MyWorkListBody extends StatelessWidget {
     required this.cubit,
     required this.l10n,
     required this.tt,
-    required this.useExpandedPane,
-    required this.selectedBeaconId,
     required this.scrollController,
-    required this.onSelectCard,
   });
 
   final MyWorkState state;
   final MyWorkCubit cubit;
   final L10n l10n;
   final TenturaTokens tt;
-  final bool useExpandedPane;
-  final String? selectedBeaconId;
   final ScrollController scrollController;
-  final MyWorkCardSelect onSelectCard;
 
   @override
   Widget build(BuildContext context) {
@@ -597,7 +429,6 @@ class _MyWorkListBody extends StatelessWidget {
         },
       );
     }
-    final onSelect = useExpandedPane ? onSelectCard : null;
     return RefreshIndicator.adaptive(
       onRefresh: cubit.fetch,
       child: ListView.separated(
@@ -620,8 +451,6 @@ class _MyWorkListBody extends StatelessWidget {
               key: ValueKey('${vm.kind.name}-${vm.beaconId}'),
               vm: vm,
               attentionMarked: attentionMarked,
-              isSelected: onSelect != null && vm.beaconId == selectedBeaconId,
-              onSelect: onSelect,
             ),
           );
         },

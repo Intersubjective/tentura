@@ -5,6 +5,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:logging/logging.dart';
 import 'package:mockito/mockito.dart';
 
+import 'package:tentura/app/router/root_router.dart';
+import 'package:tentura/consts.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/attention/attention_case.dart';
 import 'package:tentura/domain/attention/entity/attention_feed.dart';
@@ -25,6 +27,21 @@ import 'package:tentura/ui/l10n/l10n.dart';
 
 import '../../support/test_realtime_sync.dart';
 import '../block/support/controllable_block_case.dart';
+
+class _HarnessRouter extends Mock implements StackRouter {
+  int pushCount = 0;
+  PageRouteInfo? lastPush;
+
+  @override
+  Future<T?> push<T extends Object?>(
+    PageRouteInfo route, {
+    OnNavigationFailure? onFailure,
+  }) async {
+    pushCount++;
+    lastPush = route;
+    return null;
+  }
+}
 
 class _TestInboxCubit extends Cubit<InboxState> implements InboxCubit {
   _TestInboxCubit(super.initial);
@@ -128,7 +145,7 @@ InboxItem _needsItem() {
 Future<void> _pumpInbox(
   WidgetTester tester, {
   required Size logicalSize,
-  Widget Function(String beaconId, VoidCallback onLeave)? embeddedPaneBuilder,
+  required _HarnessRouter router,
 }) async {
   tester.view.physicalSize = logicalSize;
   tester.view.devicePixelRatio = 1;
@@ -163,27 +180,28 @@ Future<void> _pumpInbox(
   );
   addTearDown(attention.close);
 
-  InboxScreen.debugEmbeddedPaneBuilder = embeddedPaneBuilder;
-  addTearDown(() => InboxScreen.debugEmbeddedPaneBuilder = null);
-
   await tester.pumpWidget(
-    MultiBlocProvider(
-      providers: [
-        BlocProvider<InboxCubit>.value(value: inboxCubit),
-        BlocProvider<HomeAttentionCubit>.value(value: attention),
-        BlocProvider(create: (_) => HomeTabReselectCubit()),
-        BlocProvider<ProfileCubit>.value(value: _TestProfileCubit()),
-        BlocProvider(create: (_) => ScreenCubit.local()),
-      ],
-      child: MaterialApp(
-        locale: const Locale('en'),
-        theme: TenturaTheme.light(),
-        localizationsDelegates: L10n.localizationsDelegates,
-        supportedLocales: L10n.supportedLocales,
-        home: MediaQuery(
-          data: MediaQueryData(size: logicalSize),
-          child: TenturaResponsiveScope(
-            child: const InboxScreen(),
+    StackRouterScope(
+      controller: router,
+      stateHash: 0,
+      child: MultiBlocProvider(
+        providers: [
+          BlocProvider<InboxCubit>.value(value: inboxCubit),
+          BlocProvider<HomeAttentionCubit>.value(value: attention),
+          BlocProvider(create: (_) => HomeTabReselectCubit()),
+          BlocProvider<ProfileCubit>.value(value: _TestProfileCubit()),
+          BlocProvider(create: (_) => ScreenCubit.local()),
+        ],
+        child: MaterialApp(
+          locale: const Locale('en'),
+          theme: TenturaTheme.light(),
+          localizationsDelegates: L10n.localizationsDelegates,
+          supportedLocales: L10n.supportedLocales,
+          home: MediaQuery(
+            data: MediaQueryData(size: logicalSize),
+            child: TenturaResponsiveScope(
+              child: const InboxScreen(),
+            ),
           ),
         ),
       ),
@@ -192,85 +210,51 @@ Future<void> _pumpInbox(
   await tester.pump();
 }
 
-Widget _stubPane(String beaconId, VoidCallback onLeave) {
-  return Column(
-    children: [
-      Text('stub-pane-$beaconId'),
-      IconButton(
-        key: const Key('inbox-stub-back'),
-        onPressed: onLeave,
-        icon: const Icon(Icons.arrow_back),
-      ),
-    ],
-  );
-}
-
 void main() {
-  test('expanded 1024 after extended rail still fits tight ops|room', () {
-    const viewport = 1024.0;
-    const extendedRail = 256.0;
-    expect(
-      myWorkDetailFitsOpsRoom(viewport - extendedRail, tight: true),
-      isTrue,
-    );
-  });
-
   testWidgets('expanded list shows host TopBar and tab strip', (tester) async {
     await _pumpInbox(
       tester,
       logicalSize: const Size(1024, 800),
-      embeddedPaneBuilder: _stubPane,
+      router: _HarnessRouter(),
     );
 
     expect(find.byType(TenturaTopBar), findsOneWidget);
     expect(find.byType(TenturaPrimaryTabBar), findsOneWidget);
     expect(find.text('Needs-me request'), findsOneWidget);
-    expect(find.text('stub-pane-b-needs'), findsNothing);
   });
 
-  testWidgets('expanded tap opens pane and hides host TopBar', (tester) async {
+  testWidgets('expanded tap pushes a routed BeaconViewRoute', (tester) async {
+    final router = _HarnessRouter();
     await _pumpInbox(
       tester,
       logicalSize: const Size(1024, 800),
-      embeddedPaneBuilder: _stubPane,
+      router: router,
     );
 
     await tester.tap(find.text('Needs-me request'));
     await tester.pump();
 
-    expect(find.text('stub-pane-b-needs'), findsOneWidget);
-    expect(find.byType(TenturaTopBar), findsNothing);
-    expect(find.byType(TenturaPrimaryTabBar), findsNothing);
-  });
-
-  testWidgets('embedded back returns to list chrome', (tester) async {
-    await _pumpInbox(
-      tester,
-      logicalSize: const Size(1024, 800),
-      embeddedPaneBuilder: _stubPane,
-    );
-
-    await tester.tap(find.text('Needs-me request'));
-    await tester.pump();
-    await tester.tap(find.byKey(const Key('inbox-stub-back')));
-    await tester.pump();
-
-    expect(find.text('stub-pane-b-needs'), findsNothing);
+    expect(router.pushCount, 1);
+    final push = router.lastPush;
+    expect(push, isA<BeaconViewRoute>());
+    final args = (push! as BeaconViewRoute).args!;
+    expect(args.id, 'b-needs');
+    expect(args.entry, kBeaconEntryInbox);
+    // The list stays mounted — the push is real routed navigation, not an
+    // in-place chrome swap, so the host TopBar/tab strip are unaffected here.
     expect(find.byType(TenturaTopBar), findsOneWidget);
     expect(find.byType(TenturaPrimaryTabBar), findsOneWidget);
-    expect(find.text('Needs-me request'), findsOneWidget);
   });
 
-  testWidgets('regular width keeps host TopBar and no pane', (tester) async {
+  testWidgets('regular width keeps host TopBar', (tester) async {
     await _pumpInbox(
       tester,
       logicalSize: const Size(800, 800),
-      embeddedPaneBuilder: _stubPane,
+      router: _HarnessRouter(),
     );
 
     expect(find.byType(TenturaTopBar), findsOneWidget);
     expect(find.byType(TenturaPrimaryTabBar), findsOneWidget);
     expect(find.text('Needs-me request'), findsOneWidget);
-    expect(find.text('stub-pane-b-needs'), findsNothing);
   });
 }

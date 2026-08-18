@@ -55,7 +55,6 @@ final _kNow = DateTime.utc(2026, 8, 14, 12);
 const _kCompact = Size(390, 844);
 const _kRegular = Size(720, 900);
 const _kExpanded = Size(1280, 900);
-const _kEmbeddedStack = Size(559, 900);
 
 class _MockRouteData extends Mock implements RouteData {
   _MockRouteData(this.name);
@@ -421,9 +420,6 @@ class _Harness {
     required this.recorder,
     required this.beaconState,
     required this.threadsState,
-    this.onRequestThreadRoute,
-    this.embedded = false,
-    this.embeddedWidth,
   });
 
   final _HarnessRouter router;
@@ -433,9 +429,6 @@ class _Harness {
   final RoomCubitFactoryRecorder recorder;
   final BeaconViewState beaconState;
   final ThreadsState threadsState;
-  final void Function(String threadId, String? messageId)? onRequestThreadRoute;
-  final bool embedded;
-  final double? embeddedWidth;
 }
 
 Future<_Harness> _pumpHarness(
@@ -446,9 +439,6 @@ Future<_Harness> _pumpHarness(
   ThreadHostCubit? host,
   RoomCubitFactoryRecorder? recorder,
   _HarnessRouter? router,
-  bool embedded = false,
-  double? embeddedWidth,
-  void Function(String threadId, String? messageId)? onRequestThreadRoute,
 }) async {
   final harnessRecorder = recorder ?? RoomCubitFactoryRecorder();
   final harnessHost = host ?? _host(recorder: harnessRecorder);
@@ -463,13 +453,9 @@ Future<_Harness> _pumpHarness(
   await tester.binding.setSurfaceSize(size);
   addTearDown(() => tester.binding.setSurfaceSize(null));
 
-  final screen = BeaconViewScreen(
-    id: _kBeaconId,
-    embedded: embedded,
-    onRequestThreadRoute: onRequestThreadRoute,
-  );
+  final screen = BeaconViewScreen(id: _kBeaconId);
 
-  Widget child = MultiBlocProvider(
+  final child = MultiBlocProvider(
     providers: [
       BlocProvider<ScreenCubit>(create: (_) => ScreenCubit.local()),
       BlocProvider<BeaconViewCubit>.value(value: beaconCubit),
@@ -482,16 +468,6 @@ Future<_Harness> _pumpHarness(
     child: Scaffold(body: screen),
   );
 
-  if (embeddedWidth != null) {
-    child = Center(
-      child: SizedBox(width: embeddedWidth, child: child),
-    );
-  }
-
-  final effectiveSize = embeddedWidth != null
-      ? Size(embeddedWidth, size.height)
-      : size;
-
   await tester.pumpWidget(
     StackRouterScope(
       controller: harnessRouter,
@@ -502,7 +478,7 @@ Future<_Harness> _pumpHarness(
         supportedLocales: L10n.supportedLocales,
         locale: const Locale('en'),
         home: MediaQuery(
-          data: MediaQueryData(size: effectiveSize),
+          data: MediaQueryData(size: size),
           child: TenturaResponsiveScope(child: child),
         ),
       ),
@@ -521,9 +497,6 @@ Future<_Harness> _pumpHarness(
     recorder: harnessRecorder,
     beaconState: beaconState,
     threadsState: threadsState,
-    onRequestThreadRoute: onRequestThreadRoute,
-    embedded: embedded,
-    embeddedWidth: embeddedWidth,
   );
 }
 
@@ -537,9 +510,6 @@ Future<void> _resizeHarness(WidgetTester tester, _Harness harness, Size size) as
     host: harness.host,
     recorder: harness.recorder,
     router: harness.router,
-    embedded: harness.embedded,
-    embeddedWidth: harness.embeddedWidth,
-    onRequestThreadRoute: harness.onRequestThreadRoute,
   );
 }
 
@@ -1357,73 +1327,6 @@ void main() {
       final roomCubit = recorder.created.last;
       expect(roomCubit.lastScrollMessageId, messageId);
       expect(roomCubit.lastScrollCoordinationItemId, planId);
-    });
-  });
-
-  group('My Work embedded adaptive', () {
-    testWidgets('below pane threshold routes via callback', (tester) async {
-      final semantic = _item(id: 'embedded-stack');
-      final threads = _threadsState(
-        threads: [_generalThread(), _semanticThread(item: semantic)],
-      );
-      String? routedThreadId;
-      await _pumpHarness(
-        tester,
-        size: _kExpanded,
-        embedded: true,
-        embeddedWidth: _kEmbeddedStack.width,
-        beaconState: _authorBeaconState(),
-        threadsState: threads,
-        onRequestThreadRoute: (threadId, _) => routedThreadId = threadId,
-      );
-
-      expect(find.byType(ThreadDetail), findsNothing);
-      await tester.tap(
-        find.byKey(TestIds.key(TestIds.requestThread(semantic.id))),
-      );
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 100));
-
-      expect(routedThreadId, semantic.id);
-    });
-
-    testWidgets('above pane threshold keeps split local across tabs', (
-      tester,
-    ) async {
-      final previousOnError = FlutterError.onError;
-      FlutterError.onError = (details) {
-        if (details.exceptionAsString().contains('overflowed')) {
-          return;
-        }
-        previousOnError?.call(details);
-      };
-      addTearDown(() => FlutterError.onError = previousOnError);
-
-      final semantic = _item(id: 'embedded-split');
-      final threads = _threadsState(
-        threads: [_generalThread(), _semanticThread(item: semantic)],
-      );
-      await _pumpHarness(
-        tester,
-        size: const Size(900, 900),
-        embedded: true,
-        embeddedWidth: 800,
-        beaconState: _authorBeaconState(),
-        threadsState: threads,
-      );
-
-      await tester.tap(
-        find.byKey(TestIds.key(TestIds.requestThread(semantic.id))),
-      );
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 100));
-      expect(find.byType(ThreadDetail), findsOneWidget);
-      expect(find.byType(ThreadDetailColumnChrome), findsNothing);
-
-      await tester.tap(find.byKey(TestIds.key(TestIds.beaconTabLog)));
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 50));
-      expect(find.byType(ThreadDetail), findsOneWidget);
     });
   });
 }

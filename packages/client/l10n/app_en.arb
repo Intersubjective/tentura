@@ -2399,11 +2399,6 @@
   "@myWorkOverflowArchive": {
     "context": "MyWorkScreen"
   },
-  "myWorkBackToList": "Back to list",
-  "@myWorkBackToList": {
-    "context": "MyWorkScreen",
-    "description": "Returns from collapsed chat to the My Work card list on desktop."
-  },
   "myWorkEmptyAll": "No authored or help-offered work yet",
   "@myWorkEmptyAll": {
     "context": "MyWorkScreen"

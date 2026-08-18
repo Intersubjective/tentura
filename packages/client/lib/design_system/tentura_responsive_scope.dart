@@ -99,12 +99,6 @@ double deskMasterPaneWidth(double maxWidth, TenturaTokens tt) =>
 /// Minimum usable width for an expanded master–detail detail pane.
 const double kDeskDetailMinWidth = 360.0;
 
-/// Comfortable ops + room pair (standalone beacon view split).
-const double kDeskOpsRoomMinPair = 720.0;
-
-/// Tight ops + room pair for embedded My Work detail (full body width).
-const double kDeskOpsRoomMinPairTight = 560.0;
-
 /// Horizontal chrome between expanded master list and detail pane.
 double deskMasterDetailSeparatorWidth(TenturaTokens tt) =>
     tt.screenHPadding * 2 + 1;
@@ -123,10 +117,6 @@ double deskDetailBudget(double bodyWidth, TenturaTokens tt) {
 /// Legacy packing-test helper; Inbox no longer uses master–detail.
 bool deskFitsMasterDetail(double bodyWidth, TenturaTokens tt) =>
     deskDetailBudget(bodyWidth, tt) >= kDeskDetailMinWidth;
-
-/// Whether a detail pane can show ops and room side by side.
-bool myWorkDetailFitsOpsRoom(double detailWidth, {required bool tight}) =>
-    detailWidth >= (tight ? kDeskOpsRoomMinPairTight : kDeskOpsRoomMinPair);
 
 /// Expands [child] to the full viewport width.
 ///
