@@ -43,7 +43,8 @@ void main() {
       final metrics = computeTrailingMetaMetrics(
         dateLine: '14:02',
         metaStyle: metaStyle,
-        trailingGap: 4,
+        trailingGapH: 4,
+        trailingGapV: 4,
         textDirection: TextDirection.ltr,
         textScaler: TextScaler.noScaling,
       );
@@ -75,7 +76,8 @@ void main() {
       final metrics = computeTrailingMetaMetrics(
         dateLine: '14:02 · Edited',
         metaStyle: metaStyle,
-        trailingGap: 4,
+        trailingGapH: 4,
+        trailingGapV: 4,
         textDirection: TextDirection.ltr,
         textScaler: TextScaler.noScaling,
       );

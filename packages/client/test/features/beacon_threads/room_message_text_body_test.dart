@@ -14,7 +14,8 @@ const _metaStyle = TextStyle(fontSize: 12, height: 1.2);
 TrailingMetaMetrics _metricsFor(String dateLine) => computeTrailingMetaMetrics(
   dateLine: dateLine,
   metaStyle: _metaStyle,
-  trailingGap: 4,
+        trailingGapH: 4,
+        trailingGapV: 4,
   textDirection: _textDirection,
   textScaler: _textScaler,
 );
