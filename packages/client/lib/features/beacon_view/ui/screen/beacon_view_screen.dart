@@ -151,11 +151,38 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
       return;
     }
     final router = context.router;
+
+    // In wide window sizes where list & detail panes are mounted side-by-side,
+    // the embedded flag isn't always true for deep-linked direct detail views
+    // yet we want the back button to clear the selection.
+    // This is handled via onEmbeddedLeave when embedded is true.
     if (router.canPop()) {
       unawaited(router.maybePop());
       return;
     }
-    unawaited(router.root.replacePath(kPathMyWork));
+
+    // In deep-linked direct detail views we still want the back button to go back.
+    // However, if we pop, we would pop out of the app.
+    // Since we are inside Inbox, let's navigate to Inbox Route instead.
+    final rootRouter = context.router.root;
+    final tab = rootRouter
+        .innerRouterOf<TabsRouter>(HomeRoute.name)
+        ?.activeIndex;
+    
+    // Only route to inbox if we are actually mounted inside the inbox tab.
+    // In deep link operations we could be in 'My Work' tab.
+    final isInboxTab = tab != null && tab == HomeTabSpec.forTab(HomeTab.inbox).index;
+    
+    // Similarly, we can navigate to other tabs by looking up the tab index.
+    final isUpdatesTab = tab != null && tab == HomeTabSpec.forTab(HomeTab.updates).index;
+    final isNetworkTab = tab != null && tab == HomeTabSpec.forTab(HomeTab.network).index;
+    
+    final path = isInboxTab ? kPathInbox : 
+                 isUpdatesTab ? kPathUpdates :
+                 isNetworkTab ? kPathNetwork : 
+                 kPathMyWork;
+                 
+    unawaited(router.root.replacePath(path));
   }
 
   Widget _beaconViewErrorBody({
