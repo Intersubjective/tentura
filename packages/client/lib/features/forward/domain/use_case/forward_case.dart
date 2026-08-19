@@ -34,7 +34,8 @@ final class ForwardCase extends UseCaseBase {
     this._blockCase, {
     required super.env,
     required super.logger,
-  });
+    DateTime Function()? clock,
+  }) : _clock = clock ?? DateTime.now;
 
   final ForwardRepository _forwardRepository;
 
@@ -47,6 +48,8 @@ final class ForwardCase extends UseCaseBase {
   final ContactsCase _contactsCase;
 
   final BlockCase _blockCase;
+
+  final DateTime Function() _clock;
 
   /// Emits beacon ids when a forward edge changes (debounced WS invalidation).
   Stream<String> get forwardChanges => _forwardRepository.forwardChanges;
@@ -215,7 +218,7 @@ final class ForwardCase extends UseCaseBase {
     }
 
     if (band.isNotEmpty) {
-      final todayUtc = availabilityTodayUtc();
+      final todayUtc = availabilityTodayUtc(_clock);
       final candidateById = {for (final c in candidates) c.id: c};
       band = band
           .where((row) {
