@@ -34,7 +34,7 @@ final class ForwardCase extends UseCaseBase {
     this._blockCase, {
     required super.env,
     required super.logger,
-    DateTime Function()? clock,
+    @ignoreParam DateTime Function()? clock,
   }) : _clock = clock ?? DateTime.now;
 
   final ForwardRepository _forwardRepository;
