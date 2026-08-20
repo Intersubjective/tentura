@@ -28,7 +28,9 @@ import 'forward_attribution_dialog.dart';
 import 'forward_band_strip.dart';
 import 'forward_bottom_composer.dart';
 import 'forward_input_decoration.dart';
+import 'forward_invite_bar.dart';
 import '../model/forward_recipient_row_host.dart';
+import 'forward_pinned_tab_bar_delegate.dart';
 import 'forward_recipient_row.dart';
 import 'forward_scope_links.dart';
 import 'forward_search_overlay.dart';
@@ -76,6 +78,7 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
   final _recipientNoteControllers = <String, TextEditingController>{};
   final _invitationCubit = InvitationCubit();
   final _editNoteController = TextEditingController();
+  final _scrollController = ScrollController();
 
   bool _noteExpanded = false;
   bool _searchOverlayOpen = false;
@@ -225,6 +228,7 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
     _recipientNoteControllers.clear();
     _sharedNoteController.dispose();
     _editNoteController.dispose();
+    _scrollController.dispose();
     unawaited(_invitationCubit.close());
     super.dispose();
   }
@@ -392,19 +396,31 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
 
     return BlocProvider.value(
       value: _invitationCubit,
-      child: BlocListener<ForwardCubit, ForwardState>(
-        listenWhen: (prev, next) =>
-            prev.note != next.note &&
-            next.lineageSuggestions.isNotEmpty &&
-            next.note.trim().isNotEmpty,
-        listener: (context, state) {
-          if (_sharedNoteController.text != state.note) {
-            _sharedNoteController.text = state.note;
-          }
-          if (!_noteExpanded) {
-            setState(() => _noteExpanded = true);
-          }
-        },
+      child: MultiBlocListener(
+        listeners: [
+          BlocListener<ForwardCubit, ForwardState>(
+            listenWhen: (prev, next) =>
+                prev.note != next.note &&
+                next.lineageSuggestions.isNotEmpty &&
+                next.note.trim().isNotEmpty,
+            listener: (context, state) {
+              if (_sharedNoteController.text != state.note) {
+                _sharedNoteController.text = state.note;
+              }
+              if (!_noteExpanded) {
+                setState(() => _noteExpanded = true);
+              }
+            },
+          ),
+          BlocListener<ForwardCubit, ForwardState>(
+            listenWhen: (prev, next) => prev.activeFilter != next.activeFilter,
+            listener: (context, state) {
+              if (_scrollController.hasClients) {
+                _scrollController.jumpTo(0);
+              }
+            },
+          ),
+        ],
         child: BlocBuilder<ForwardCubit, ForwardState>(
           builder: (_, state) {
             switch (state.candidatesLoad) {
@@ -534,67 +550,117 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
                           ),
                           SizedBox(height: tt.rowGap),
                         ],
-                        if (showBandBlock)
-                          ForwardBandStrip(
-                            band: state.band,
-                            candidates: state.candidates,
-                            selectedIds: state.selectedIds,
-                            beacon: beacon,
-                            recipientReasons: state.recipientReasons,
-                            recipientNoteControllers: _recipientNoteControllers,
-                            onRecipientNoteChanged: cubit.setRecipientNote,
-                            skippedPersonalNoteIds:
-                                state.skippedPersonalNoteIds,
-                            onSkipPersonalNote: cubit.skipPersonalNote,
-                            onRestorePersonalNote: cubit.restorePersonalNote,
-                            onToggle: cubit.toggleSelection,
-                            onEditReasons: (userId) => unawaited(
-                              _editReasons(
-                                context,
-                                cubit,
-                                userId,
-                                state.recipientReasons[userId] ?? const [],
-                              ),
-                            ),
-                          ),
-                        ForwardScopeLinks(
-                          activeFilter: state.activeFilter,
-                          counts: counts,
-                          onScopeChanged: cubit.setFilter,
-                        ),
                         Expanded(
-                          child: listIsEmpty
-                              ? Center(
-                                  child: Padding(
-                                    padding: EdgeInsets.symmetric(
-                                      horizontal: tt.screenHPadding,
-                                    ),
-                                    child: Text(
-                                      showGenuineEmptyMessage
-                                          ? l10n.noReachableContacts
-                                          : l10n.labelNothingHere,
-                                      textAlign: TextAlign.center,
-                                      style: TenturaText.bodySmall(
-                                        tt.textMuted,
+                          child: CustomScrollView(
+                            controller: _scrollController,
+                            slivers: [
+                              if (inviteNewPersonEnabled(
+                                beaconId: widget.beaconId,
+                                allowsForward:
+                                    state.beacon?.allowsForward == true,
+                                isLive: widget.isLive,
+                              ))
+                                SliverToBoxAdapter(
+                                  child: ForwardInviteBar(
+                                    onInvite: () =>
+                                        unawaited(_inviteNewPerson(context)),
+                                  ),
+                                ),
+                              if (showBandBlock)
+                                SliverToBoxAdapter(
+                                  child: ForwardBandStrip(
+                                    band: state.band,
+                                    candidates: state.candidates,
+                                    selectedIds: state.selectedIds,
+                                    beacon: beacon,
+                                    recipientReasons: state.recipientReasons,
+                                    recipientNoteControllers:
+                                        _recipientNoteControllers,
+                                    onRecipientNoteChanged:
+                                        cubit.setRecipientNote,
+                                    skippedPersonalNoteIds:
+                                        state.skippedPersonalNoteIds,
+                                    onSkipPersonalNote:
+                                        cubit.skipPersonalNote,
+                                    onRestorePersonalNote:
+                                        cubit.restorePersonalNote,
+                                    onToggle: cubit.toggleSelection,
+                                    onEditReasons: (userId) => unawaited(
+                                      _editReasons(
+                                        context,
+                                        cubit,
+                                        userId,
+                                        state.recipientReasons[userId] ??
+                                            const [],
                                       ),
                                     ),
                                   ),
-                                )
-                              : ListView(
-                                  padding: EdgeInsets.only(
-                                    bottom: tt.rowGap,
+                                ),
+                              SliverPersistentHeader(
+                                pinned: true,
+                                delegate: ForwardPinnedTabBarDelegate(
+                                  height: tt.buttonHeight + 4,
+                                  child: ForwardScopeLinks(
+                                    activeFilter: state.activeFilter,
+                                    counts: counts,
+                                    onScopeChanged: cubit.setFilter,
                                   ),
-                                  children: [
-                                    ..._buildRecipientList(
+                                ),
+                              ),
+                              if (lineage.isNotEmpty)
+                                SliverToBoxAdapter(
+                                  child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.stretch,
+                                    children: _buildLineageList(
                                       context: context,
                                       cubit: cubit,
                                       state: state,
                                       lineage: lineage,
+                                      beacon: beacon,
+                                    ),
+                                  ),
+                                ),
+                              if (listIsEmpty)
+                                SliverFillRemaining(
+                                  hasScrollBody: false,
+                                  child: Center(
+                                    child: Padding(
+                                      padding: EdgeInsets.symmetric(
+                                        horizontal: tt.screenHPadding,
+                                      ),
+                                      child: Text(
+                                        showGenuineEmptyMessage
+                                            ? l10n.noReachableContacts
+                                            : l10n.labelNothingHere,
+                                        textAlign: TextAlign.center,
+                                        style: TenturaText.bodySmall(
+                                          tt.textMuted,
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                )
+                              else ...[
+                                SliverPadding(
+                                  padding: EdgeInsets.only(bottom: tt.rowGap),
+                                  sliver: SliverList.list(
+                                    children: _buildVisibleRecipientList(
+                                      context: context,
+                                      cubit: cubit,
+                                      state: state,
                                       visible: visible,
                                       beacon: beacon,
                                     ),
-                                  ],
+                                  ),
                                 ),
+                                const SliverFillRemaining(
+                                  hasScrollBody: false,
+                                  child: SizedBox.shrink(),
+                                ),
+                              ],
+                            ],
+                          ),
                         ),
                         if (state.activeFilter != ForwardFilter.alreadyInvolved)
                           ForwardBottomComposer(
@@ -618,15 +684,6 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
                                           _handleForwardPressed(context),
                                         )
                                       : null),
-                            onInvite:
-                                inviteNewPersonEnabled(
-                                  beaconId: widget.beaconId,
-                                  allowsForward:
-                                      state.beacon?.allowsForward == true,
-                                  isLive: widget.isLive,
-                                )
-                                ? () => unawaited(_inviteNewPerson(context))
-                                : null,
                           ),
                       ],
                     ),
@@ -656,63 +713,70 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
     );
   }
 
-  List<Widget> _buildRecipientList({
+  List<Widget> _buildLineageList({
     required BuildContext context,
     required ForwardCubit cubit,
     required ForwardState state,
     required List<ForwardCandidate> lineage,
+    required Beacon? beacon,
+  }) {
+    final tt = context.tt;
+    final children = <Widget>[
+      LineageForwardSectionHeader(
+        onClear: cubit.clearLineageSuggestions,
+      ),
+      for (var i = 0; i < lineage.length; i++) ...[
+        if (i > 0) const TenturaHairlineDivider(),
+        ForwardRecipientRow(
+          host: ForwardRecipientRowHost.pickerLineage,
+          candidate: lineage[i],
+          requiredCapabilitySlugs: beacon?.needs ?? const {},
+          isSelected: state.selectedIds.contains(lineage[i].id),
+          onToggle: () => cubit.toggleSelection(lineage[i].id),
+          isPersonalNoteSkipped: state.skippedPersonalNoteIds.contains(
+            lineage[i].id,
+          ),
+          onSkipPersonalNote: () => cubit.skipPersonalNote(lineage[i].id),
+          onRestorePersonalNote: () =>
+              cubit.restorePersonalNote(lineage[i].id),
+          reasonSlugs: state.recipientReasons[lineage[i].id] ?? const [],
+          onEditReasons: () => unawaited(
+            _editReasons(
+              context,
+              cubit,
+              lineage[i].id,
+              state.recipientReasons[lineage[i].id] ?? const [],
+            ),
+          ),
+        ),
+        if (state.selectedIds.contains(lineage[i].id) &&
+            !state.skippedPersonalNoteIds.contains(lineage[i].id))
+          Padding(
+            padding: EdgeInsets.symmetric(
+              horizontal: tt.screenHPadding,
+            ),
+            child: PerRecipientNoteInput(
+              profile: lineage[i].profile,
+              controller: _recipientNoteControllers[lineage[i].id]!,
+              onChanged: (text) =>
+                  cubit.setRecipientNote(lineage[i].id, text),
+            ),
+          ),
+      ],
+      const TenturaHairlineDivider(),
+    ];
+    return children;
+  }
+
+  List<Widget> _buildVisibleRecipientList({
+    required BuildContext context,
+    required ForwardCubit cubit,
+    required ForwardState state,
     required List<ForwardCandidate> visible,
     required Beacon? beacon,
   }) {
     final tt = context.tt;
     final children = <Widget>[];
-
-    if (lineage.isNotEmpty) {
-      children.addAll([
-        LineageForwardSectionHeader(
-          onClear: cubit.clearLineageSuggestions,
-        ),
-        for (var i = 0; i < lineage.length; i++) ...[
-          if (i > 0) const TenturaHairlineDivider(),
-          ForwardRecipientRow(
-            host: ForwardRecipientRowHost.pickerLineage,
-            candidate: lineage[i],
-            requiredCapabilitySlugs: beacon?.needs ?? const {},
-            isSelected: state.selectedIds.contains(lineage[i].id),
-            onToggle: () => cubit.toggleSelection(lineage[i].id),
-            isPersonalNoteSkipped: state.skippedPersonalNoteIds.contains(
-              lineage[i].id,
-            ),
-            onSkipPersonalNote: () => cubit.skipPersonalNote(lineage[i].id),
-            onRestorePersonalNote: () =>
-                cubit.restorePersonalNote(lineage[i].id),
-            reasonSlugs: state.recipientReasons[lineage[i].id] ?? const [],
-            onEditReasons: () => unawaited(
-              _editReasons(
-                context,
-                cubit,
-                lineage[i].id,
-                state.recipientReasons[lineage[i].id] ?? const [],
-              ),
-            ),
-          ),
-          if (state.selectedIds.contains(lineage[i].id) &&
-              !state.skippedPersonalNoteIds.contains(lineage[i].id))
-            Padding(
-              padding: EdgeInsets.symmetric(
-                horizontal: tt.screenHPadding,
-              ),
-              child: PerRecipientNoteInput(
-                profile: lineage[i].profile,
-                controller: _recipientNoteControllers[lineage[i].id]!,
-                onChanged: (text) =>
-                    cubit.setRecipientNote(lineage[i].id, text),
-              ),
-            ),
-        ],
-        const TenturaHairlineDivider(),
-      ]);
-    }
 
     for (var i = 0; i < visible.length; i++) {
       if (i > 0) {

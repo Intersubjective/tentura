@@ -357,11 +357,11 @@ void main() {
     expect(find.byIcon(Icons.label_outline), findsOneWidget);
 
     // Scroll down past u0.
-    await tester.drag(find.byType(ListView), const Offset(0, -400));
+    await tester.drag(find.byType(CustomScrollView), const Offset(0, -400));
     await tester.pumpAndSettle();
 
     // Scroll back up.
-    await tester.drag(find.byType(ListView), const Offset(0, 400));
+    await tester.drag(find.byType(CustomScrollView), const Offset(0, 400));
     await tester.pumpAndSettle();
 
     // u0's label icon still present — cubit state preserved the reasons.
@@ -369,7 +369,9 @@ void main() {
     expect(cubit.state.recipientReasons['u0'], equals(['transport']));
   });
 
-  testWidgets('add shared note expands textarea', (tester) async {
+  testWidgets('collapsed composer has no proactive add-shared-note button', (
+    tester,
+  ) async {
     _registerInvitationRepository();
     _registerUiEffectPort();
 
@@ -401,12 +403,78 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('add shared note'), findsOneWidget);
-    await tester.tap(find.text('add shared note'));
-    await tester.pumpAndSettle();
-
-    expect(find.byType(TextField), findsWidgets);
+    // Removed: the reminder sheet shown on Forward-press already nudges
+    // the user to add a shared note, so there's no proactive affordance.
+    expect(find.text('add shared note'), findsNothing);
   });
+
+  testWidgets(
+    'invite-new-person bar shows on both scope tabs, above the tab content',
+    (tester) async {
+      _registerInvitationRepository();
+      _registerUiEffectPort();
+
+      final cubit = _forwardCubitWithBeacon();
+      addTearDown(cubit.close);
+
+      await _pumpForwardPage(tester, cubit: cubit);
+
+      expect(find.text('invite new person'), findsOneWidget);
+
+      await tester.tap(find.textContaining('Already involved'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('invite new person'), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'scrolling down carries the invite bar away with the rest of the top '
+    'sections; switching tabs resets the scroll back to the top',
+    (tester) async {
+      _registerInvitationRepository();
+      _registerUiEffectPort();
+
+      final candidates = List.generate(
+        10,
+        (i) => ForwardCandidate(
+          profile: Profile(
+            id: 'u$i',
+            displayName: 'User $i',
+            rScore: 1,
+            score: 50,
+          ),
+        ),
+      );
+
+      final cubit = _forwardCubitWithBeacon();
+      cubit.emit(cubit.state.copyWith(candidates: candidates));
+      addTearDown(cubit.close);
+
+      await _pumpForwardPage(
+        tester,
+        cubit: cubit,
+        size: const Size(360, 600),
+      );
+
+      expect(find.text('invite new person'), findsOneWidget);
+
+      // A single drag on the outer scroll view carries the invite bar off
+      // together with the band/tab content — proof they share one scroll
+      // region rather than the old fixed-header-plus-inner-list split.
+      await tester.drag(find.byType(CustomScrollView), const Offset(0, -600));
+      await tester.pumpAndSettle();
+
+      expect(find.text('invite new person'), findsNothing);
+
+      // The pinned tab bar stays reachable while scrolled away from the top;
+      // switching tabs resets the scroll position back to 0.
+      await tester.tap(find.textContaining('Already involved'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('invite new person'), findsOneWidget);
+    },
+  );
 
   testWidgets('compact hints replace inline explainer paragraphs', (
     tester,

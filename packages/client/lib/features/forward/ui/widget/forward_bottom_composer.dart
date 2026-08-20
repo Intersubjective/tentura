@@ -15,7 +15,6 @@ class ForwardBottomComposer extends StatelessWidget {
     required this.sharedNoteController,
     required this.onSharedNoteChanged,
     required this.onForward,
-    this.onInvite,
     this.showSuggestedNoteHelper = false,
     super.key,
   });
@@ -27,7 +26,6 @@ class ForwardBottomComposer extends StatelessWidget {
   final TextEditingController sharedNoteController;
   final ValueChanged<String> onSharedNoteChanged;
   final VoidCallback? onForward;
-  final VoidCallback? onInvite;
   final bool showSuggestedNoteHelper;
 
   @override
@@ -86,112 +84,70 @@ class ForwardBottomComposer extends StatelessWidget {
                   ),
                 ),
               ),
-            ] else
-              Material(
-                type: MaterialType.transparency,
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: InkWell(
-                        onTap: onToggleNoteExpanded,
-                        child: SizedBox(
-                          height: tt.buttonHeight,
-                          child: Row(
-                            children: [
-                              Icon(
-                                Icons.add_comment_outlined,
-                                size: tt.iconSize,
-                                color: tt.textMuted,
-                              ),
-                              SizedBox(width: tt.rowGap),
-                              Flexible(
-                                child: Text(
-                                  l10n.forwardAddSharedNoteCommand,
-                                  maxLines: 1,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: TenturaText.command(tt.textMuted),
-                                ),
-                              ),
-                            ],
+              SizedBox(height: tt.rowGap),
+            ],
+            Row(
+              children: [
+                Expanded(
+                  child: SizedBox(
+                    height: tt.buttonHeight,
+                    child: Semantics(
+                      identifier: TestIds.forwardSubmit,
+                      button: true,
+                      enabled: enabled,
+                      child: OutlinedButton(
+                        key: TestIds.key(TestIds.forwardSubmit),
+                        onPressed: onForward,
+                        style: OutlinedButton.styleFrom(
+                          minimumSize: Size(0, tt.buttonHeight),
+                          padding: EdgeInsets.symmetric(
+                            horizontal: tt.cardPadding.top,
                           ),
+                          side: BorderSide(
+                            color: enabled ? tt.skyBorder : tt.border,
+                          ),
+                          foregroundColor: enabled ? tt.info : tt.textMuted,
+                          disabledForegroundColor: tt.textMuted,
+                          disabledBackgroundColor: tt.surface,
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(
+                              tt.buttonRadius,
+                            ),
+                          ),
+                          backgroundColor: tt.surface,
+                        ),
+                        child: Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Icon(
+                              Icons.send,
+                              size: tt.iconSize,
+                              color: enabled ? tt.info : tt.textMuted,
+                            ),
+                            SizedBox(width: tt.rowGap),
+                            Text(
+                              enabled
+                                  ? l10n.forwardToCount(selectedIds.length)
+                                  : l10n.selectRecipients,
+                              style: TenturaText.command(
+                                enabled ? tt.info : tt.textMuted,
+                              ),
+                            ),
+                          ],
                         ),
                       ),
                     ),
-                    if (selectedIds.isEmpty)
-                      TenturaInfoHintButton(
-                        fullText: l10n.forwardReasonAheadHint,
-                        semanticsLabel: l10n.forwardReasonAheadHint,
-                      ),
-                  ],
-                ),
-              ),
-            SizedBox(height: tt.rowGap),
-            if (onInvite != null)
-              Semantics(
-                identifier: TestIds.forwardInviteNewPerson,
-                button: true,
-                child: TextButton.icon(
-                  key: TestIds.key(TestIds.forwardInviteNewPerson),
-                  onPressed: onInvite,
-                  icon: Icon(
-                    Icons.person_add_alt_1_outlined,
-                    size: tt.iconSize,
-                  ),
-                  label: Text(l10n.forwardInviteNewPerson),
-                  style: TextButton.styleFrom(
-                    foregroundColor: tt.textMuted,
-                    textStyle: TenturaText.command(tt.textMuted),
                   ),
                 ),
-              ),
-            SizedBox(height: tt.rowGap),
-            SizedBox(
-              height: tt.buttonHeight,
-              child: Semantics(
-                identifier: TestIds.forwardSubmit,
-                button: true,
-                enabled: enabled,
-                child: OutlinedButton(
-                  key: TestIds.key(TestIds.forwardSubmit),
-                  onPressed: onForward,
-                  style: OutlinedButton.styleFrom(
-                    minimumSize: Size(0, tt.buttonHeight),
-                    padding: EdgeInsets.symmetric(
-                      horizontal: tt.cardPadding.top,
-                    ),
-                    side: BorderSide(
-                      color: enabled ? tt.skyBorder : tt.border,
-                    ),
-                    foregroundColor: enabled ? tt.info : tt.textMuted,
-                    disabledForegroundColor: tt.textMuted,
-                    disabledBackgroundColor: tt.surface,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(tt.buttonRadius),
-                    ),
-                    backgroundColor: tt.surface,
+                if (selectedIds.isEmpty) ...[
+                  SizedBox(width: tt.rowGap),
+                  TenturaInfoHintButton(
+                    fullText: l10n.forwardReasonAheadHint,
+                    semanticsLabel: l10n.forwardReasonAheadHint,
                   ),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        Icons.send,
-                        size: tt.iconSize,
-                        color: enabled ? tt.info : tt.textMuted,
-                      ),
-                      SizedBox(width: tt.rowGap),
-                      Text(
-                        enabled
-                            ? l10n.forwardToCount(selectedIds.length)
-                            : l10n.selectRecipients,
-                        style: TenturaText.command(
-                          enabled ? tt.info : tt.textMuted,
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ),
+                ],
+              ],
             ),
           ],
         ),
