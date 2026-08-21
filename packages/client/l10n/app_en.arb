@@ -1994,7 +1994,7 @@
       }
     }
   },
-  "forwardBandTierOwnRouting": "You've routed {tag} here",
+  "forwardBandTierOwnRouting": "You've routed here:\n{tag}",
   "@forwardBandTierOwnRouting": {
     "context": "Forward band row copy for own-routing tier evidence",
     "placeholders": {

@@ -1985,7 +1985,7 @@
       }
     }
   },
-  "forwardBandTierOwnRouting": "Вы уже направляли сюда: {tag}",
+  "forwardBandTierOwnRouting": "Вы уже направляли сюда:\n{tag}",
   "@forwardBandTierOwnRouting": {
     "context": "Forward band row copy for own-routing tier evidence",
     "placeholders": {
