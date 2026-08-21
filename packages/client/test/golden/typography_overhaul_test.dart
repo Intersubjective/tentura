@@ -184,7 +184,7 @@ void main() {
       }
     });
 
-    testWidgets('forward composer collapsed with ahead hint', (tester) async {
+    testWidgets('forward composer collapsed', (tester) async {
       final controller = TextEditingController();
       addTearDown(controller.dispose);
       for (final s in sizes) {

@@ -1,12 +1,16 @@
 import 'package:flutter/material.dart';
 
-/// Pinned tab-bar sliver header.
+/// Generic pinned sliver header — used for both the scope tab bar and the
+/// invite/clear-selection bar above it.
 ///
 /// [height] is supplied by the caller (derived from live design tokens, not
 /// a hardcoded constant) so the reserved extent tracks the child's actual
 /// window-class-scaled content height instead of drifting out of sync.
-class ForwardPinnedTabBarDelegate extends SliverPersistentHeaderDelegate {
-  ForwardPinnedTabBarDelegate({required this.child, required this.height});
+class ForwardPinnedSliverHeaderDelegate extends SliverPersistentHeaderDelegate {
+  ForwardPinnedSliverHeaderDelegate({
+    required this.child,
+    required this.height,
+  });
 
   final Widget child;
   final double height;
@@ -35,7 +39,7 @@ class ForwardPinnedTabBarDelegate extends SliverPersistentHeaderDelegate {
   }
 
   @override
-  bool shouldRebuild(covariant ForwardPinnedTabBarDelegate oldDelegate) {
+  bool shouldRebuild(covariant ForwardPinnedSliverHeaderDelegate oldDelegate) {
     return child != oldDelegate.child || height != oldDelegate.height;
   }
 }

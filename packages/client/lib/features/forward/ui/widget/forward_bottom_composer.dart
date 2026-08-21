@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/test_ids.dart';
-import 'package:tentura/ui/widget/tentura_info_hint_button.dart';
 
 import 'forward_input_decoration.dart';
 
@@ -86,68 +85,53 @@ class ForwardBottomComposer extends StatelessWidget {
               ),
               SizedBox(height: tt.rowGap),
             ],
-            Row(
-              children: [
-                Expanded(
-                  child: SizedBox(
-                    height: tt.buttonHeight,
-                    child: Semantics(
-                      identifier: TestIds.forwardSubmit,
-                      button: true,
-                      enabled: enabled,
-                      child: OutlinedButton(
-                        key: TestIds.key(TestIds.forwardSubmit),
-                        onPressed: onForward,
-                        style: OutlinedButton.styleFrom(
-                          minimumSize: Size(0, tt.buttonHeight),
-                          padding: EdgeInsets.symmetric(
-                            horizontal: tt.cardPadding.top,
-                          ),
-                          side: BorderSide(
-                            color: enabled ? tt.skyBorder : tt.border,
-                          ),
-                          foregroundColor: enabled ? tt.info : tt.textMuted,
-                          disabledForegroundColor: tt.textMuted,
-                          disabledBackgroundColor: tt.surface,
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(
-                              tt.buttonRadius,
-                            ),
-                          ),
-                          backgroundColor: tt.surface,
-                        ),
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Icon(
-                              Icons.send,
-                              size: tt.iconSize,
-                              color: enabled ? tt.info : tt.textMuted,
-                            ),
-                            SizedBox(width: tt.rowGap),
-                            Text(
-                              enabled
-                                  ? l10n.forwardToCount(selectedIds.length)
-                                  : l10n.selectRecipients,
-                              style: TenturaText.command(
-                                enabled ? tt.info : tt.textMuted,
-                              ),
-                            ),
-                          ],
+            SizedBox(
+              height: tt.buttonHeight,
+              child: Semantics(
+                identifier: TestIds.forwardSubmit,
+                button: true,
+                enabled: enabled,
+                child: OutlinedButton(
+                  key: TestIds.key(TestIds.forwardSubmit),
+                  onPressed: onForward,
+                  style: OutlinedButton.styleFrom(
+                    minimumSize: Size(0, tt.buttonHeight),
+                    padding: EdgeInsets.symmetric(
+                      horizontal: tt.cardPadding.top,
+                    ),
+                    side: BorderSide(
+                      color: enabled ? tt.skyBorder : tt.border,
+                    ),
+                    foregroundColor: enabled ? tt.info : tt.textMuted,
+                    disabledForegroundColor: tt.textMuted,
+                    disabledBackgroundColor: tt.surface,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(tt.buttonRadius),
+                    ),
+                    backgroundColor: tt.surface,
+                  ),
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.send,
+                        size: tt.iconSize,
+                        color: enabled ? tt.info : tt.textMuted,
+                      ),
+                      SizedBox(width: tt.rowGap),
+                      Text(
+                        enabled
+                            ? l10n.forwardToCount(selectedIds.length)
+                            : l10n.selectRecipients,
+                        style: TenturaText.command(
+                          enabled ? tt.info : tt.textMuted,
                         ),
                       ),
-                    ),
+                    ],
                   ),
                 ),
-                if (selectedIds.isEmpty) ...[
-                  SizedBox(width: tt.rowGap),
-                  TenturaInfoHintButton(
-                    fullText: l10n.forwardReasonAheadHint,
-                    semanticsLabel: l10n.forwardReasonAheadHint,
-                  ),
-                ],
-              ],
+              ),
             ),
           ],
         ),

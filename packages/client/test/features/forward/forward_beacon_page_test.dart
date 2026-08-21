@@ -17,7 +17,6 @@ import 'package:tentura/features/invitation/data/repository/invitation_repositor
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/effect/ui_effect_port.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
-import 'package:tentura/ui/widget/tentura_info_hint_button.dart';
 
 import '../../ui/effect/fake_ui_effect_port.dart';
 
@@ -429,8 +428,8 @@ void main() {
   );
 
   testWidgets(
-    'scrolling down carries the invite bar away with the rest of the top '
-    'sections; switching tabs resets the scroll back to the top',
+    'invite bar stays pinned while the rest of the top sections scroll away; '
+    'switching tabs resets the scroll back to the top',
     (tester) async {
       _registerInvitationRepository();
       _registerUiEffectPort();
@@ -459,16 +458,16 @@ void main() {
 
       expect(find.text('invite new person'), findsOneWidget);
 
-      // A single drag on the outer scroll view carries the invite bar off
-      // together with the band/tab content — proof they share one scroll
-      // region rather than the old fixed-header-plus-inner-list split.
+      // A single drag on the outer scroll view carries recipient rows off
+      // while the invite bar — pinned like the scope tab bar below it —
+      // stays put, unlike the old fixed-header-plus-inner-list split.
       await tester.drag(find.byType(CustomScrollView), const Offset(0, -600));
       await tester.pumpAndSettle();
 
-      expect(find.text('invite new person'), findsNothing);
+      expect(find.text('invite new person'), findsOneWidget);
 
-      // The pinned tab bar stays reachable while scrolled away from the top;
-      // switching tabs resets the scroll position back to 0.
+      // Switching tabs resets the scroll position back to 0; the invite
+      // bar is still reachable there too.
       await tester.tap(find.textContaining('Already involved'));
       await tester.pumpAndSettle();
 
@@ -494,10 +493,11 @@ void main() {
 
     expect(find.text(reachExplainer), findsNothing);
     expect(find.text(aheadHint), findsNothing);
-    expect(find.byType(TenturaInfoHintButton), findsOneWidget);
   });
 
-  testWidgets('ahead hint icon hides after recipient selected', (tester) async {
+  testWidgets('invite bar swaps to clear-selection once a recipient is picked', (
+    tester,
+  ) async {
     _registerInvitationRepository();
     _registerUiEffectPort();
 
@@ -505,12 +505,21 @@ void main() {
     addTearDown(cubit.close);
 
     await _pumpForwardPage(tester, cubit: cubit);
-    expect(find.byType(TenturaInfoHintButton), findsOneWidget);
+    expect(find.text('invite new person'), findsOneWidget);
+    expect(find.text('clear selection'), findsNothing);
 
     cubit.toggleSelection('u1');
     await tester.pumpAndSettle();
 
-    expect(find.byType(TenturaInfoHintButton), findsNothing);
+    expect(find.text('invite new person'), findsNothing);
+    expect(find.text('clear selection'), findsOneWidget);
+
+    await tester.tap(find.text('clear selection'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('invite new person'), findsOneWidget);
+    expect(find.text('clear selection'), findsNothing);
+    expect(cubit.state.selectedIds, isEmpty);
   });
 
   testWidgets('forward page layout has no overflow at compact widths', (

@@ -2266,6 +2266,10 @@
   "@forwardInviteNewPerson": {
     "context": "ForwardBeaconScreen"
   },
+  "forwardClearSelection": "clear selection",
+  "@forwardClearSelection": {
+    "context": "ForwardBeaconScreen — replaces the invite affordance once at least one recipient is selected"
+  },
   "forwardInviteCreatedHint": "Invite saved — find it in the Invitations tab",
   "@forwardInviteCreatedHint": {
     "context": "ForwardBeaconScreen"

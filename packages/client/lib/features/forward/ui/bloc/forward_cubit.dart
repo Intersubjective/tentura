@@ -423,6 +423,21 @@ class ForwardCubit extends Cubit<ForwardState> {
     emit(state.copyWith(activeFilter: filter));
   }
 
+  /// Clears every selected recipient along with their per-recipient state,
+  /// mirroring the reset [forward] performs on a successful send.
+  void clearSelection() {
+    if (state.selectedIds.isEmpty) return;
+    emit(
+      state.copyWith(
+        selectedIds: {},
+        perRecipientNotes: {},
+        recipientReasons: {},
+        skippedPersonalNoteIds: {},
+        note: '',
+      ),
+    );
+  }
+
   void toggleSelection(String userId) {
     final selected = Set<String>.from(state.selectedIds);
     if (selected.contains(userId)) {

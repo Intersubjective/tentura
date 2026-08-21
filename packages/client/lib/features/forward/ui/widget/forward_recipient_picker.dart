@@ -554,10 +554,20 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
                                     state.beacon?.allowsForward == true,
                                 isLive: widget.isLive,
                               ))
-                                SliverToBoxAdapter(
-                                  child: ForwardInviteBar(
-                                    onInvite: () =>
-                                        unawaited(_inviteNewPerson(context)),
+                                SliverPersistentHeader(
+                                  pinned: true,
+                                  delegate: ForwardPinnedSliverHeaderDelegate(
+                                    height:
+                                        ForwardInviteBar.buttonHeight +
+                                        tt.rowGap * 2,
+                                    child: ForwardInviteBar(
+                                      hasSelection:
+                                          state.selectedIds.isNotEmpty,
+                                      onInvite: () => unawaited(
+                                        _inviteNewPerson(context),
+                                      ),
+                                      onClearSelection: cubit.clearSelection,
+                                    ),
                                   ),
                                 ),
                               if (showBandBlock)
@@ -592,7 +602,7 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
                                 ),
                               SliverPersistentHeader(
                                 pinned: true,
-                                delegate: ForwardPinnedTabBarDelegate(
+                                delegate: ForwardPinnedSliverHeaderDelegate(
                                   height: tt.buttonHeight + 4,
                                   child: ForwardScopeLinks(
                                     activeFilter: state.activeFilter,

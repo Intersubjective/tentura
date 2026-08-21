@@ -8,6 +8,7 @@ abstract final class TestIds {
   static const requestRecipientsTab = 'request.tab.recipients';
 
   static const forwardInviteNewPerson = 'forward.invite_new_person';
+  static const forwardClearSelection = 'forward.clear_selection';
   static const forwardNote = 'forward.note';
   static const forwardSubmit = 'forward.submit';
 

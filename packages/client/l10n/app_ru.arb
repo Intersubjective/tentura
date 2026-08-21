@@ -2257,6 +2257,10 @@
   "@forwardInviteNewPerson": {
     "context": "ForwardBeaconScreen"
   },
+  "forwardClearSelection": "снять выбор",
+  "@forwardClearSelection": {
+    "context": "ForwardBeaconScreen — replaces the invite affordance once at least one recipient is selected"
+  },
   "forwardInviteCreatedHint": "Приглашение создано — найдёте его во вкладке «Приглашения»",
   "@forwardInviteCreatedHint": {
     "context": "ForwardBeaconScreen"
