@@ -24,6 +24,7 @@ Future<void> initSentry({
         ..dsn = env.sentryDsn
         ..environment = env.environment
         ..sendDefaultPii = true
+        ..enableLogs = true
         ..tracesSampleRate = env.sentryTracesSampleRate
         ..debug = env.isDebugModeOn
         ..ignoreErrors = [

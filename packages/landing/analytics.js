@@ -58,6 +58,7 @@ export function initAnalytics() {
     environment: sentryEnvironment || undefined,
     release: sentryRelease || undefined,
     sendDefaultPii: false,
+    enableLogs: true,
     tracesSampleRate: 1.0,
     tracePropagationTargets: buildTracePropagationTargets(
       apiBase,
