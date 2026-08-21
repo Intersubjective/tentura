@@ -179,9 +179,9 @@ class _FactHoverManageButton extends StatelessWidget {
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
     return Material(
-      elevation: 2,
-      color: scheme.surfaceContainerHigh,
+      color: scheme.surfaceContainerHighest.withValues(alpha: 0.88),
       shape: const StadiumBorder(),
+      clipBehavior: Clip.antiAlias,
       child: IconButton(
         visualDensity: VisualDensity.compact,
         iconSize: context.tt.iconSize,

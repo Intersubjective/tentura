@@ -280,6 +280,7 @@ class _BeaconFactComposerBodyState extends State<_BeaconFactComposerBody> {
                   ),
                   trailing: IconButton(
                     icon: Icon(Icons.close, size: tt.iconSize),
+                    tooltip: l10n.buttonRemove,
                     onPressed: _submitting
                         ? null
                         : () => setState(() => _pending.removeAt(i)),

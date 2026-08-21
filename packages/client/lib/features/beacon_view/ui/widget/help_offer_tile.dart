@@ -103,13 +103,18 @@ class HelpOfferTile extends StatelessWidget {
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              GestureDetector(
-                onTap: isMine
-                    ? null
-                    : () => context.read<ScreenCubit>().showProfile(
-                        helpOffer.user.id,
-                      ),
-                child: avatarWidget,
+              Material(
+                color: Colors.transparent,
+                shape: const CircleBorder(),
+                clipBehavior: Clip.antiAlias,
+                child: InkWell(
+                  onTap: isMine
+                      ? null
+                      : () => context.read<ScreenCubit>().showProfile(
+                          helpOffer.user.id,
+                        ),
+                  child: avatarWidget,
+                ),
               ),
               const SizedBox(width: _contentGap),
               Expanded(
@@ -438,13 +443,13 @@ class _AuthorAdmissionFooter extends StatelessWidget {
                   SizedBox(height: tt.tightGap),
                   Text(
                     l10n.helpOfferAdmittedAutomaticallyHint,
-                    style: TenturaText.bodySmall(tt.textFaint),
+                    style: TenturaText.bodySmall(tt.textMuted),
                   ),
                 ] else ...[
                   SizedBox(height: tt.tightGap),
                   Text(
                     l10n.helpOfferCanReadChat,
-                    style: TenturaText.bodySmall(tt.textFaint),
+                    style: TenturaText.bodySmall(tt.textMuted),
                   ),
                 ],
               ],
@@ -611,12 +616,12 @@ class _CommitterAdmissionFooter extends StatelessWidget {
           SizedBox(height: tt.tightGap),
           Text(
             l10n.helpOfferAdmittedAutomaticallyHint,
-            style: TenturaText.bodySmall(tt.textFaint),
+            style: TenturaText.bodySmall(tt.textMuted),
           ),
           SizedBox(height: tt.tightGap),
           Text(
             l10n.helpOfferCanReadChat,
-            style: TenturaText.bodySmall(tt.textFaint),
+            style: TenturaText.bodySmall(tt.textMuted),
           ),
         ],
       );
@@ -632,7 +637,7 @@ class _CommitterAdmissionFooter extends StatelessWidget {
           SizedBox(height: tt.tightGap),
           Text(
             l10n.helpOfferCanReadChat,
-            style: TenturaText.bodySmall(tt.textFaint),
+            style: TenturaText.bodySmall(tt.textMuted),
           ),
         ],
       );

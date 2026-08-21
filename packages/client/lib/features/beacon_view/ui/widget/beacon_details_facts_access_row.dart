@@ -55,50 +55,63 @@ class BeaconDetailsFactsAccessRow extends StatelessWidget {
             child: InkWell(
               key: ValueKey(testId),
               onTap: onTap,
-              child: ConstrainedBox(
-                constraints: BoxConstraints(minHeight: tt.buttonHeight),
-                child: Row(
-                  children: [
-                    if (showIcons) ...[
+              borderRadius: BorderRadius.circular(tt.cardRadius),
+              child: Container(
+                decoration: BoxDecoration(
+                  border: Border.all(color: tt.borderSubtle),
+                  borderRadius: BorderRadius.circular(tt.cardRadius),
+                ),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 12,
+                  vertical: 8,
+                ),
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(minHeight: tt.buttonHeight),
+                  child: Row(
+                    children: [
+                      if (showIcons) ...[
+                        Icon(
+                          icon,
+                          size: tt.iconSize,
+                          color: scheme.onSurfaceVariant,
+                        ),
+                        SizedBox(width: tt.iconTextGap),
+                      ],
+                      Expanded(
+                        child: Text(
+                          label,
+                          style: TenturaText.bodySmall(
+                            scheme.onSurface,
+                          ).copyWith(fontWeight: FontWeight.w600),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      if (count != null) ...[
+                        SizedBox(width: tt.tightGap),
+                        Text(
+                          '$count',
+                          style: TenturaText.bodySmall(
+                            scheme.onSurfaceVariant,
+                          ),
+                        ),
+                      ],
+                      if (newCount > 0) ...[
+                        SizedBox(width: tt.tightGap),
+                        Text(
+                          l10n.beaconYouNewCount(newCount),
+                          style: TenturaText.bodySmall(tt.info).copyWith(
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
                       Icon(
-                        icon,
+                        Icons.chevron_right,
                         size: tt.iconSize,
                         color: scheme.onSurfaceVariant,
                       ),
-                      SizedBox(width: tt.iconTextGap),
                     ],
-                    Expanded(
-                      child: Text(
-                        label,
-                        style: TenturaText.bodySmall(scheme.onSurface).copyWith(
-                          fontWeight: FontWeight.w600,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                    if (count != null) ...[
-                      SizedBox(width: tt.tightGap),
-                      Text(
-                        '$count',
-                        style: TenturaText.bodySmall(scheme.onSurfaceVariant),
-                      ),
-                    ],
-                    if (newCount > 0) ...[
-                      SizedBox(width: tt.tightGap),
-                      Text(
-                        l10n.beaconYouNewCount(newCount),
-                        style: TenturaText.bodySmall(tt.info).copyWith(
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
-                    Icon(
-                      Icons.chevron_right,
-                      size: tt.iconSize,
-                      color: scheme.onSurfaceVariant,
-                    ),
-                  ],
+                  ),
                 ),
               ),
             ),
