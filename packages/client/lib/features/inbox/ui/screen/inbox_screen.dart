@@ -751,7 +751,9 @@ Widget _watchingTabBody(
           onOpenBeacon: () => context.router.push(
             BeaconViewRoute(id: item.beaconId, entry: kBeaconEntryInbox),
           ),
-          onTap: () => unawaited(_onForwardItem(context, item)),
+          onTap: item.beacon?.allowsForward == true
+              ? () => unawaited(_onForwardItem(context, item))
+              : null,
           onStopWatching: () => inboxCubit.stopWatching(item.beaconId),
           onDismissFromInbox: () async {
             final msg = await showInboxDismissDialog(context);

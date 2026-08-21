@@ -94,6 +94,7 @@ Future<void> _pumpHeaderCard(
   VoidCallback? onOfferHelp,
   VoidCallback? onEditHelpOffer,
   VoidCallback? onOpenPinnedFacts,
+  VoidCallback? onForward,
 }) async {
   await tester.pumpWidget(
     MaterialApp(
@@ -112,6 +113,7 @@ Future<void> _pumpHeaderCard(
               onOfferHelp: onOfferHelp,
               onEditHelpOffer: onEditHelpOffer,
               onOpenPinnedFacts: onOpenPinnedFacts,
+              onForward: onForward,
             ),
           ),
         ),
@@ -443,7 +445,7 @@ void main() {
       );
     });
 
-    testWidgets('idle open author has no HUD ACT (Forward lives in chrome)', (
+    testWidgets('idle open author has no HUD ACT when onForward is absent', (
       tester,
     ) async {
       final state = BeaconViewState(
@@ -460,6 +462,78 @@ void main() {
 
       expect(find.text('Forward'), findsNothing);
       expect(find.text('Update status'), findsNothing);
+    });
+
+    testWidgets('idle open author shows Forward as the sole filled CTA', (
+      tester,
+    ) async {
+      final state = BeaconViewState(
+        beacon: _openAuthorBeacon(),
+        myProfile: authorProfile,
+        beaconContextLoaded: true,
+      );
+
+      var forwardTaps = 0;
+      await _pumpHeaderCard(
+        tester,
+        state: state,
+        onAuthorHudAction: (_) {},
+        onForward: () => forwardTaps++,
+      );
+
+      final forwardBtn = find.widgetWithText(FilledButton, 'Forward');
+      expect(forwardBtn, findsOneWidget);
+
+      await tester.tap(forwardBtn);
+      expect(forwardTaps, 1);
+    });
+
+    testWidgets(
+      'Forward shows as a secondary CTA alongside the primary author action',
+      (tester) async {
+        final state = BeaconViewState(
+          beacon: _openAuthorBeacon(),
+          myProfile: authorProfile,
+          beaconContextLoaded: true,
+          helpOffers: [
+            TimelineHelpOffer(
+              user: const Profile(id: 'h1', displayName: 'Helper'),
+              message: 'help',
+              createdAt: t,
+              updatedAt: t,
+            ),
+          ],
+        );
+
+        await _pumpHeaderCard(
+          tester,
+          state: state,
+          onAuthorHudAction: (_) {},
+          onForward: () {},
+        );
+
+        expect(find.text('Review offers'), findsOneWidget);
+        expect(find.widgetWithText(OutlinedButton, 'Forward'), findsOneWidget);
+      },
+    );
+
+    testWidgets('Forward is hidden when the beacon does not allow forward', (
+      tester,
+    ) async {
+      final state = BeaconViewState(
+        beacon: _openAuthorBeacon(status: BeaconStatus.closed),
+        myProfile: authorProfile,
+        beaconContextLoaded: true,
+      );
+
+      await _pumpHeaderCard(
+        tester,
+        state: state,
+        onAuthorHudAction: (_) {},
+        onForward: () {},
+      );
+
+      expect(find.text('Forward'), findsNothing);
     });
 
     testWidgets('steward shows no author HUD actions', (tester) async {
@@ -525,6 +599,32 @@ void main() {
         await tester.tap(backupPrimary);
         await tester.pumpAndSettle();
         expect(offerHelpTaps, 1);
+      },
+    );
+
+    testWidgets(
+      'enoughHelp helper shows Forward alongside the backup offer primary '
+      'when onForward is provided',
+      (tester) async {
+        const viewer = Profile(id: 'uViewer', displayName: 'Viewer');
+        final state = BeaconViewState(
+          beacon: _openAuthorBeacon(status: BeaconStatus.enoughHelp),
+          myProfile: viewer,
+          beaconContextLoaded: true,
+        );
+
+        await _pumpHeaderCard(
+          tester,
+          state: state,
+          onOfferHelp: () {},
+          onForward: () {},
+        );
+
+        expect(
+          find.widgetWithText(FilledButton, 'Offer as backup'),
+          findsOneWidget,
+        );
+        expect(find.widgetWithText(OutlinedButton, 'Forward'), findsOneWidget);
       },
     );
   });

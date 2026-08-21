@@ -33,6 +33,7 @@ class InboxItemTile extends StatelessWidget {
     this.onMoveToInbox,
     this.onOfferHelp,
     this.showCtaRow = true,
+    this.showForwardCta = true,
     this.showProvenance = true,
     this.attentionMarked = false,
     this.isSelected = false,
@@ -53,9 +54,16 @@ class InboxItemTile extends StatelessWidget {
   /// Offer help for this beacon (same flow as beacon view); null hides the menu item.
   final Future<void> Function()? onOfferHelp;
 
-  /// When false (Watching / Rejected tabs), hide the bottom Forward / secondary
-  /// button row; actions remain in the overflow menu.
+  /// When false, hide the footer offer-help / secondary (dismiss, stop
+  /// watching, ...) buttons; those actions remain in the overflow menu.
+  /// Forward visibility is controlled separately by [showForwardCta].
   final bool showCtaRow;
+
+  /// When false (Rejected tab), hide the footer Forward button regardless of
+  /// [onTap]; Forward remains reachable from the overflow menu. Independent
+  /// of [showCtaRow] so Watching can show Forward while still hiding the
+  /// offer-help / secondary cluster.
+  final bool showForwardCta;
 
   /// When false (Watching / Rejected tabs), hide the whole forwarder block
   /// (avatars, expand, quotes).
@@ -128,22 +136,25 @@ class InboxItemTile extends StatelessWidget {
     );
 
     final showDetails = beaconViewHasDetailsContent(beacon);
+    final showForwardInFooter = showForwardCta && onTap != null;
+    final showFooter = showCtaRow || showForwardInFooter;
 
     return BeaconCardShell(
       onTap: onOpenBeacon,
       selected: isSelected,
       tapSemanticsLabel: beacon.title.isEmpty ? l10n.openBeacon : beacon.title,
       marker: attentionMarked ? const AttentionMarker() : null,
-      footer: showCtaRow
+      footer: showFooter
           ? InboxCardActionRow(
-              onOfferHelp: onOfferHelp,
-              onForward: onTap,
-              secondaryLabel: secondaryLabel,
-              secondaryIcon: secondaryIcon,
-              secondaryTooltip: _hasDismissAction
+              onOfferHelp: showCtaRow ? onOfferHelp : null,
+              onForward: showForwardInFooter ? onTap : null,
+              secondaryLabel: showCtaRow ? secondaryLabel : null,
+              secondaryIcon: showCtaRow ? secondaryIcon : null,
+              secondaryTooltip: showCtaRow && _hasDismissAction
                   ? l10n.inboxDismissTooltip
                   : null,
-              onSecondary: (secondaryLabel != null || secondaryIcon != null)
+              onSecondary:
+                  showCtaRow && (secondaryLabel != null || secondaryIcon != null)
                   ? _onSecondaryPressed
                   : null,
             )

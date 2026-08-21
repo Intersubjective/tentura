@@ -6,10 +6,7 @@ import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/my_work/domain/entity/my_work_card_view_model.dart';
 import 'package:tentura/features/my_work/ui/widget/my_work_cards.dart';
 
-MyWorkCardViewModel _vm({
-  required BeaconStatus status,
-  bool authorHasForwardedOnce = false,
-}) {
+MyWorkCardViewModel _vm({required BeaconStatus status}) {
   return MyWorkCardViewModel(
     beaconId: 'b1',
     role: MyWorkCardRole.authored,
@@ -19,25 +16,19 @@ MyWorkCardViewModel _vm({
       status: status,
       author: const Profile(id: 'auth', displayName: 'Author'),
     ),
-    authorHasForwardedOnce: authorHasForwardedOnce,
   );
 }
 
 void main() {
   group('myWorkNeedsForwardCta', () {
-    test('true when author has not forwarded and beacon allows forward', () {
+    test('true when beacon allows forward, regardless of prior forwards', () {
       expect(
         myWorkNeedsForwardCta(_vm(status: BeaconStatus.open)),
         isTrue,
       );
-    });
-
-    test('false when author already forwarded once', () {
       expect(
-        myWorkNeedsForwardCta(
-          _vm(status: BeaconStatus.open, authorHasForwardedOnce: true),
-        ),
-        isFalse,
+        myWorkNeedsForwardCta(_vm(status: BeaconStatus.enoughHelp)),
+        isTrue,
       );
     });
 
