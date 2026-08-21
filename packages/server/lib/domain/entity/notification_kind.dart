@@ -11,7 +11,7 @@ enum NotificationKind {
   reviewReady,
   roomActivityLowPriority,
 
-  /// Personal `@handle` mention in room chat (coordination; default-on push).
+  /// Personal participant mention in room chat (coordination; default-on push).
   roomMention,
   staleRemind,
   inviteAccepted,

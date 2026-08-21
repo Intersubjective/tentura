@@ -9,6 +9,7 @@ import 'package:tentura/domain/entity/beacon_participant.dart';
 import 'package:tentura/domain/entity/coordination_item.dart';
 import 'package:tentura/domain/entity/realtime/realtime_entity_change.dart';
 import 'package:tentura/domain/entity/room_message.dart';
+import 'package:tentura/domain/entity/room_message_mention_span.dart';
 import 'package:tentura/domain/entity/room_poll_data.dart';
 import 'package:tentura/domain/entity/room_pending_upload.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
@@ -18,6 +19,7 @@ import 'package:tentura/ui/effect/ui_effect_port.dart';
 
 import '../../domain/coordination_item_room_sync.dart';
 import '../../domain/entity/beacon_room_invalidation.dart';
+import '../../domain/entity/committed_mention.dart';
 import '../../domain/entity/request_thread.dart';
 import '../../domain/entity/room_seen_outcome.dart';
 import '../../domain/exception/beacon_fact_already_pinned_exception.dart';
@@ -577,8 +579,7 @@ class RoomCubit extends Cubit<RoomState> {
         beaconId: state.beaconId,
         threadItemId: state.threadItemId,
       );
-      final preservedCounts =
-          <String, ({int messageCount, int unreadCount})>{};
+      final preservedCounts = <String, ({int messageCount, int unreadCount})>{};
       for (final message in state.messages) {
         if (_pendingLocalMessageIds.contains(message.id)) {
           continue;
@@ -780,11 +781,24 @@ class RoomCubit extends Cubit<RoomState> {
   Future<bool> sendMessage({
     required String body,
     List<RoomPendingUpload> uploads = const [],
+    List<CommittedMention> explicitMentions = const [],
   }) async {
     final trimmed = body.trim();
     if (trimmed.isEmpty && uploads.isEmpty) {
       return false;
     }
+    final leadingTrimmedUnits = body.length - body.trimLeft().length;
+    final trailingBoundary = body.trimRight().length;
+    final normalizedMentions = [
+      for (final mention in explicitMentions)
+        if (mention.start >= leadingTrimmedUnits &&
+            mention.end <= trailingBoundary)
+          (
+            userId: mention.userId,
+            start: mention.start - leadingTrimmedUnits,
+            end: mention.end - leadingTrimmedUnits,
+          ),
+    ];
     final target = state.replyTarget;
     final localId = 'local:${_uuid.v4()}';
     final profile = GetIt.I<ProfileCubit>().state.profile;
@@ -801,6 +815,14 @@ class RoomCubit extends Cubit<RoomState> {
       replyToAuthorTitle: target?.author.shownName,
       replyToBodyExcerpt: target != null ? roomReplyExcerpt(target) : null,
       replyToHasAttachments: target?.attachments.isNotEmpty ?? false,
+      mentionSpans: [
+        for (final mention in normalizedMentions)
+          RoomMessageMentionSpan(
+            userId: mention.userId,
+            offset: mention.start,
+            length: mention.end - mention.start,
+          ),
+      ],
     );
     _pendingLocalMessageIds.add(localId);
     emit(
@@ -817,6 +839,15 @@ class RoomCubit extends Cubit<RoomState> {
         threadItemId: state.threadItemId,
         replyToMessageId: target?.id,
         uploads: uploads,
+        explicitMentionUserIds: [
+          for (final mention in normalizedMentions) mention.userId,
+        ],
+        explicitMentionOffsets: [
+          for (final mention in normalizedMentions) mention.start,
+        ],
+        explicitMentionLengths: [
+          for (final mention in normalizedMentions) mention.end - mention.start,
+        ],
       );
       _pendingLocalMessageIds.remove(localId);
       final deferred = serverId != null

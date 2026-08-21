@@ -166,9 +166,9 @@ class BeaconRoomRepository implements BeaconRoomRepositoryPort {
     if (filtered.isEmpty) {
       return {};
     }
-    final rows = await (_db.select(_db.beaconRoomMessageAttachments)
-          ..where((a) => a.messageId.isIn(filtered)))
-        .get();
+    final rows = await (_db.select(
+      _db.beaconRoomMessageAttachments,
+    )..where((a) => a.messageId.isIn(filtered))).get();
     return {for (final row in rows) row.messageId};
   }
 
@@ -370,14 +370,14 @@ class BeaconRoomRepository implements BeaconRoomRepositoryPort {
         return t.threadItemId.equals(tid);
       }
 
-      final parents = await (_db.select(_db.beaconRoomMessages)
-            ..where(
-              (t) =>
-                  t.id.isIn(parentIds) &
-                  t.beaconId.equals(beaconId) &
-                  parentThreadFilter(t),
-            ))
-          .get();
+      final parents =
+          await (_db.select(_db.beaconRoomMessages)..where(
+                (t) =>
+                    t.id.isIn(parentIds) &
+                    t.beaconId.equals(beaconId) &
+                    parentThreadFilter(t),
+              ))
+              .get();
       for (final parent in parents) {
         parentById[parent.id] = parent;
       }
@@ -465,6 +465,7 @@ class BeaconRoomRepository implements BeaconRoomRepositoryPort {
         'myReaction': myReactionFor(id),
         'reactorsJson': reactorsJsonFor(id),
         'attachmentsJson': attachmentsJsonByMid[id] ?? '[]',
+        'mentionSpansJson': jsonEncode(m.mentionSpans),
         // GraphQL `[String!]` — never emit null/empty slots (see migration 0060).
         'mentions': m.mentions.where((id) => id.isNotEmpty).toList(),
         'threadItemId': m.threadItemId,
@@ -637,6 +638,7 @@ class BeaconRoomRepository implements BeaconRoomRepositoryPort {
     int? semanticMarker,
     Map<String, Object?>? systemPayload,
     List<String> mentions = const [],
+    List<Map<String, Object?>> mentionSpans = const [],
   }) => _db.withMutatingUser(authorId, () async {
     final id = generateId('R');
     return (await _db.managers.beaconRoomMessages.createReturning(
@@ -653,6 +655,7 @@ class BeaconRoomRepository implements BeaconRoomRepositoryPort {
         semanticMarker: Value(semanticMarker),
         systemPayload: Value(systemPayload),
         mentions: Value(mentions),
+        mentionSpans: Value(mentionSpans),
         createdAt: const Value.absent(),
       ),
     )).toRecord();
@@ -702,6 +705,7 @@ class BeaconRoomRepository implements BeaconRoomRepositoryPort {
     required String messageId,
     required String newBody,
     required List<String> mentions,
+    required List<Map<String, Object?>> mentionSpans,
   }) async {
     await _db.managers.beaconRoomMessages
         .filter((m) => m.id.equals(messageId))
@@ -710,6 +714,7 @@ class BeaconRoomRepository implements BeaconRoomRepositoryPort {
             body: Value(newBody),
             editedAt: Value(PgDateTime(DateTime.timestamp())),
             mentions: Value(mentions),
+            mentionSpans: Value(mentionSpans),
           ),
         );
   }
@@ -736,6 +741,27 @@ class BeaconRoomRepository implements BeaconRoomRepositoryPort {
         .filter((r) => r.beaconId.id(beaconId))
         .get();
     return rows.map((r) => r.toRecord()).toList();
+  }
+
+  @override
+  Future<List<AdmittedRoomMentionParticipant>> listAdmittedMentionParticipants(
+    String beaconId,
+  ) async {
+    final admitted = (await listParticipants(
+      beaconId,
+    )).where((p) => p.roomAccess == RoomAccessBits.admitted).toList();
+    if (admitted.isEmpty) return const [];
+    final ids = admitted.map((p) => p.userId);
+    final titles = await userTitlesByIds(ids);
+    final handles = await userHandlesByIds(ids);
+    return [
+      for (final p in admitted)
+        AdmittedRoomMentionParticipant(
+          userId: p.userId,
+          displayName: titles[p.userId] ?? '',
+          handle: handles[p.userId] ?? '',
+        ),
+    ];
   }
 
   /// Active help offer `help_type` wire per user id for this beacon (at most one row per user).
@@ -767,20 +793,14 @@ class BeaconRoomRepository implements BeaconRoomRepositoryPort {
     if (tokens.isEmpty) {
       return const [];
     }
-    final participants = await listParticipants(beaconId);
-    final admitted = participants
-        .where((p) => p.roomAccess == RoomAccessBits.admitted)
-        .toList();
+    final admitted = await listAdmittedMentionParticipants(beaconId);
     if (admitted.isEmpty) {
       return const [];
     }
-    final handlesByUserId = await userHandlesByIds(
-      admitted.map((p) => p.userId),
-    );
     final out = <String>[];
     for (final t in tokens) {
       for (final p in admitted) {
-        final h = handlesByUserId[p.userId] ?? '';
+        final h = p.handle;
         if (h.isEmpty) {
           continue;
         }

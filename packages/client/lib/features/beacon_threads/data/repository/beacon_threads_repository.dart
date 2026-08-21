@@ -2,6 +2,8 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:typed_data';
 
+import 'package:built_collection/built_collection.dart';
+
 import 'package:injectable/injectable.dart';
 
 import 'package:tentura/consts.dart';
@@ -16,6 +18,7 @@ import 'package:tentura/domain/entity/image_entity.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/domain/entity/room_message.dart';
 import 'package:tentura/domain/entity/room_message_attachment.dart';
+import 'package:tentura/domain/entity/room_message_mention_span.dart';
 import 'package:tentura/domain/entity/room_pending_upload.dart';
 import 'package:tentura/domain/port/realtime_sync_port.dart';
 
@@ -209,6 +212,7 @@ class BeaconThreadsRepository {
             pollDataJson: m.pollDataJson,
             systemPayloadJson: m.systemPayloadJson,
             attachmentsJson: m.attachmentsJson,
+            mentionSpansJson: m.mentionSpansJson,
             mentions: m.mentions?.toList() ?? const [],
             threadItemId: m.threadItemId,
             replyToMessageId: m.replyToMessageId,
@@ -277,6 +281,7 @@ class BeaconThreadsRepository {
     pollDataJson: m.pollDataJson,
     systemPayloadJson: m.systemPayloadJson,
     attachmentsJson: m.attachmentsJson,
+    mentionSpansJson: m.mentionSpansJson,
     mentions: m.mentions?.toList() ?? const [],
     threadItemId: m.threadItemId,
     replyToMessageId: m.replyToMessageId,
@@ -321,6 +326,7 @@ class BeaconThreadsRepository {
     required String? pollDataJson,
     required String? systemPayloadJson,
     required String attachmentsJson,
+    required String mentionSpansJson,
     required List<String> mentions,
     required String? threadItemId,
     String? replyToMessageId,
@@ -393,6 +399,7 @@ class BeaconThreadsRepository {
       pollDataJson: pollDataJson,
       systemPayloadJson: systemPayloadJson,
       attachments: parseRoomMessageAttachmentsJson(attachmentsJson),
+      mentionSpans: parseRoomMessageMentionSpansJson(mentionSpansJson),
       mentions: mentions,
       threadItemId: threadItemId,
       replyToMessageId: replyToMessageId,
@@ -517,6 +524,9 @@ class BeaconThreadsRepository {
     String? replyToMessageId,
     String? threadItemId,
     RoomPendingUpload? firstAttachment,
+    List<String> explicitMentionUserIds = const [],
+    List<int> explicitMentionOffsets = const [],
+    List<int> explicitMentionLengths = const [],
   }) async {
     final multipart = firstAttachment == null
         ? null
@@ -533,7 +543,10 @@ class BeaconThreadsRepository {
               ..body = body
               ..replyToMessageId = replyToMessageId
               ..threadItemId = threadItemId
-              ..file = multipart,
+              ..file = multipart
+              ..explicitMentionUserIds = ListBuilder(explicitMentionUserIds)
+              ..explicitMentionOffsets = ListBuilder(explicitMentionOffsets)
+              ..explicitMentionLengths = ListBuilder(explicitMentionLengths),
           ),
         )
         .firstWhere((e) => e.dataSource == DataSource.Link);

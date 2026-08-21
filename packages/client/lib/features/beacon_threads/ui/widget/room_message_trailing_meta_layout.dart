@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:readmore/readmore.dart';
 
 import 'package:tentura/consts.dart';
+import 'package:tentura/domain/entity/room_message_mention_span.dart';
 
 /// Max fraction of list row width for a room message bubble (see DEV_GUIDELINES).
 const double kRoomMessageBubbleMaxWidthFraction = 0.75;
@@ -134,18 +135,97 @@ List<Annotation> buildRoomMessageMentionAnnotations({
         if (!isMentioned) {
           return TextSpan(text: text, style: textStyle);
         }
-        final isSelfMention = userId == selfUserId;
         return TextSpan(
           text: text,
-          style: textStyle?.copyWith(
-            color: isSelfMention ? null : mentionColor,
-            backgroundColor: isSelfMention ? selfMentionBackground : null,
-            fontWeight: isSelfMention ? FontWeight.w600 : FontWeight.w700,
+          style: roomMessageMentionTextStyle(
+            textStyle: textStyle,
+            isSelfMention: userId == selfUserId,
+            mentionColor: mentionColor,
+            selfMentionBackground: selfMentionBackground,
           ),
         );
       },
     ),
   ];
+}
+
+TextStyle? roomMessageMentionTextStyle({
+  required TextStyle? textStyle,
+  required bool isSelfMention,
+  required Color mentionColor,
+  required Color selfMentionBackground,
+}) => textStyle?.copyWith(
+  color: isSelfMention ? null : mentionColor,
+  backgroundColor: isSelfMention ? selfMentionBackground : null,
+  fontWeight: isSelfMention ? FontWeight.w600 : FontWeight.w700,
+);
+
+List<RoomMessageMentionSpan> usableRoomMessageMentionSpans({
+  required List<RoomMessageMentionSpan> spans,
+  required String body,
+}) {
+  final sorted = [...spans]..sort((a, b) => a.offset.compareTo(b.offset));
+  final usable = <RoomMessageMentionSpan>[];
+  var lastEnd = 0;
+  for (final span in sorted) {
+    final end = span.offset + span.length;
+    if (span.length <= 0 ||
+        span.offset < lastEnd ||
+        span.offset < 0 ||
+        end > body.length) {
+      continue;
+    }
+    usable.add(span);
+    lastEnd = end;
+  }
+  return usable;
+}
+
+TextSpan buildRoomMessageBodySpanWithExplicitMentions({
+  required String data,
+  required TextStyle? textStyle,
+  required List<Annotation>? plainTextAnnotations,
+  required List<RoomMessageMentionSpan> explicitSpans,
+  required TextStyle? Function(String userId) explicitMentionStyle,
+}) {
+  if (explicitSpans.isEmpty) {
+    return buildRoomMessageAnnotatedBodySpan(
+      data: data,
+      textStyle: textStyle,
+      annotations: plainTextAnnotations,
+    );
+  }
+  final children = <TextSpan>[];
+  var cursor = 0;
+  for (final span in explicitSpans) {
+    if (cursor < span.offset) {
+      children.add(
+        buildRoomMessageAnnotatedBodySpan(
+          data: data.substring(cursor, span.offset),
+          textStyle: textStyle,
+          annotations: plainTextAnnotations,
+        ),
+      );
+    }
+    final end = span.offset + span.length;
+    children.add(
+      TextSpan(
+        text: data.substring(span.offset, end),
+        style: explicitMentionStyle(span.userId),
+      ),
+    );
+    cursor = end;
+  }
+  if (cursor < data.length) {
+    children.add(
+      buildRoomMessageAnnotatedBodySpan(
+        data: data.substring(cursor),
+        textStyle: textStyle,
+        annotations: plainTextAnnotations,
+      ),
+    );
+  }
+  return TextSpan(style: textStyle, children: children);
 }
 
 TextSpan buildRoomMessageAnnotatedBodySpan({
@@ -214,12 +294,22 @@ TextSpan buildMessageTextSpanWithTrailingMeta({
   required TextStyle bodyStyle,
   required List<Annotation>? mentionAnnotations,
   required TrailingMetaMetrics metrics,
+  List<RoomMessageMentionSpan> explicitSpans = const [],
+  TextStyle? Function(String userId)? explicitMentionStyle,
 }) {
-  final body = buildRoomMessageAnnotatedBodySpan(
-    data: display,
-    textStyle: bodyStyle,
-    annotations: mentionAnnotations,
-  );
+  final body = explicitSpans.isEmpty
+      ? buildRoomMessageAnnotatedBodySpan(
+          data: display,
+          textStyle: bodyStyle,
+          annotations: mentionAnnotations,
+        )
+      : buildRoomMessageBodySpanWithExplicitMentions(
+          data: display,
+          textStyle: bodyStyle,
+          plainTextAnnotations: mentionAnnotations,
+          explicitSpans: explicitSpans,
+          explicitMentionStyle: explicitMentionStyle!,
+        );
   return TextSpan(
     style: bodyStyle,
     children: [

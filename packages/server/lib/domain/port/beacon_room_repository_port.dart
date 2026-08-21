@@ -87,6 +87,7 @@ abstract class BeaconRoomRepositoryPort {
     int? semanticMarker,
     Map<String, Object?>? systemPayload,
     List<String> mentions = const [],
+    List<Map<String, Object?>> mentionSpans = const [],
   });
 
   Future<void> insertRoomMessageAttachmentFile({
@@ -141,6 +142,10 @@ abstract class BeaconRoomRepositoryPort {
   });
 
   Future<List<String>> listAdmittedUserIds(String beaconId);
+
+  Future<List<AdmittedRoomMentionParticipant>> listAdmittedMentionParticipants(
+    String beaconId,
+  );
 
   Future<List<Map<String, Object?>>> listMessagesEnriched({
     required String beaconId,
@@ -204,6 +209,7 @@ abstract class BeaconRoomRepositoryPort {
     required String messageId,
     required String newBody,
     required List<String> mentions,
+    required List<Map<String, Object?>> mentionSpans,
   });
 
   Future<Map<String, String>> userHandlesByIds(Iterable<String> userIds);

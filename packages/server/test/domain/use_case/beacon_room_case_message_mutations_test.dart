@@ -49,9 +49,11 @@ class _StubRoom extends Fake implements BeaconRoomRepositoryPort {
 
   String? insertedBody;
   List<String>? insertedMentions;
+  List<Map<String, Object?>>? insertedMentionSpans;
   String? insertedReplyToMessageId;
   String? updatedBody;
   List<String>? updatedMentions;
+  List<Map<String, Object?>>? updatedMentionSpans;
   String? deletedMessageId;
 
   @override
@@ -82,6 +84,18 @@ class _StubRoom extends Fake implements BeaconRoomRepositoryPort {
   }) async => 0;
 
   List<String> Function(String body)? resolveMentions;
+  List<AdmittedRoomMentionParticipant> admittedParticipants = const [
+    AdmittedRoomMentionParticipant(
+      userId: _otherUserId,
+      displayName: 'Other User',
+      handle: 'mention',
+    ),
+  ];
+
+  @override
+  Future<List<AdmittedRoomMentionParticipant>> listAdmittedMentionParticipants(
+    String beaconId,
+  ) async => admittedParticipants;
 
   @override
   Future<List<String>> resolveMentionUserIdsForBeacon({
@@ -106,9 +120,11 @@ class _StubRoom extends Fake implements BeaconRoomRepositoryPort {
     int? semanticMarker,
     Map<String, Object?>? systemPayload,
     List<String> mentions = const [],
+    List<Map<String, Object?>> mentionSpans = const [],
   }) async {
     insertedBody = body;
     insertedMentions = mentions;
+    insertedMentionSpans = mentionSpans;
     insertedReplyToMessageId = replyToMessageId;
     return BeaconRoomMessageRecord(
       id: _messageId,
@@ -119,6 +135,7 @@ class _StubRoom extends Fake implements BeaconRoomRepositoryPort {
       threadItemId: threadItemId,
       createdAt: DateTime.utc(2026),
       mentions: mentions,
+      mentionSpans: mentionSpans,
     );
   }
 
@@ -138,9 +155,11 @@ class _StubRoom extends Fake implements BeaconRoomRepositoryPort {
     required String messageId,
     required String newBody,
     required List<String> mentions,
+    required List<Map<String, Object?>> mentionSpans,
   }) async {
     updatedBody = newBody;
     updatedMentions = mentions;
+    updatedMentionSpans = mentionSpans;
   }
 
   @override
@@ -176,7 +195,8 @@ void main() {
     sut = BeaconRoomCase(
       room,
       items,
-      _FakeFactCards(),      _FakeImages(),
+      _FakeFactCards(),
+      _FakeImages(),
       _FakeTasks(),
       _FakeRemoteStorage(),
       _FakePolling(),
@@ -218,6 +238,58 @@ void main() {
       },
     );
 
+    test(
+      'persists a validated handle-less text mention and notifies it',
+      () async {
+        await sut.createMessage(
+          beaconId: _beaconId,
+          userId: _userId,
+          body: '@Other User hello',
+          explicitMentionUserIds: const [_otherUserId],
+          explicitMentionOffsets: const [0],
+          explicitMentionLengths: const [11],
+        );
+
+        expect(room.insertedMentions, [_otherUserId]);
+        expect(room.insertedMentionSpans, [
+          {'userId': _otherUserId, 'offset': 0, 'length': 11},
+        ]);
+        expect(
+          attention.recorded.single.eventType,
+          AttentionEventType.roomMessagePosted,
+        );
+      },
+    );
+
+    test(
+      'legacy handle mention notifies every admitted duplicate handle',
+      () async {
+        room.admittedParticipants = const [
+          AdmittedRoomMentionParticipant(
+            userId: _otherUserId,
+            displayName: 'Other User',
+            handle: 'same',
+          ),
+          AdmittedRoomMentionParticipant(
+            userId: _thirdUserId,
+            displayName: 'Third User',
+            handle: 'same',
+          ),
+        ];
+
+        await sut.createMessage(
+          beaconId: _beaconId,
+          userId: _userId,
+          body: '@same',
+        );
+
+        expect(
+          room.insertedMentions,
+          containsAll([_otherUserId, _thirdUserId]),
+        );
+      },
+    );
+
     test('self @handle does not notify the author', () async {
       room.resolveMentions = (_) => [_userId];
 
@@ -240,28 +312,31 @@ void main() {
       expect(attention.recorded, isEmpty);
     });
 
-    test('reply targets the original author in the same thread scope', () async {
-      room.replyMessage = BeaconRoomMessageRecord(
-        id: _replyMessageId,
-        beaconId: _beaconId,
-        authorId: _otherUserId,
-        body: 'question',
-        createdAt: DateTime.utc(2026),
-      );
+    test(
+      'reply targets the original author in the same thread scope',
+      () async {
+        room.replyMessage = BeaconRoomMessageRecord(
+          id: _replyMessageId,
+          beaconId: _beaconId,
+          authorId: _otherUserId,
+          body: 'question',
+          createdAt: DateTime.utc(2026),
+        );
 
-      await sut.createMessage(
-        beaconId: _beaconId,
-        userId: _userId,
-        body: 'answer',
-        replyToMessageId: _replyMessageId,
-      );
+        await sut.createMessage(
+          beaconId: _beaconId,
+          userId: _userId,
+          body: 'answer',
+          replyToMessageId: _replyMessageId,
+        );
 
-      expect(room.insertedReplyToMessageId, _replyMessageId);
-      expect(
-        attention.recorded.single.recipients.single.recipientId,
-        _otherUserId,
-      );
-    });
+        expect(room.insertedReplyToMessageId, _replyMessageId);
+        expect(
+          attention.recorded.single.recipients.single.recipientId,
+          _otherUserId,
+        );
+      },
+    );
 
     test(
       'main-room reply notifies only the parent author, not other participants',
@@ -319,10 +394,11 @@ void main() {
         );
 
         expect(attention.recorded, hasLength(1));
-        final recipientIds = attention.recorded.single.recipients
-            .map((recipient) => recipient.recipientId)
-            .toList()
-          ..sort();
+        final recipientIds =
+            attention.recorded.single.recipients
+                .map((recipient) => recipient.recipientId)
+                .toList()
+              ..sort();
         expect(recipientIds, [_otherUserId, _thirdUserId]);
       },
     );
@@ -514,6 +590,41 @@ void main() {
 
       expect(attention.recorded, isEmpty);
     });
+
+    test(
+      'preserves an untouched explicit mention and drops an edited-over one',
+      () async {
+        room.messageById = BeaconRoomMessageRecord(
+          id: _messageId,
+          beaconId: _beaconId,
+          authorId: _userId,
+          body: '@Other User original',
+          createdAt: DateTime.utc(2026),
+          mentions: const [_otherUserId],
+          mentionSpans: const [
+            {'userId': _otherUserId, 'offset': 0, 'length': 11},
+          ],
+        );
+
+        await sut.editMessage(
+          beaconId: _beaconId,
+          messageId: _messageId,
+          userId: _userId,
+          newBody: 'Hello @Other User original',
+        );
+        expect(room.updatedMentionSpans, [
+          {'userId': _otherUserId, 'offset': 6, 'length': 11},
+        ]);
+
+        await sut.editMessage(
+          beaconId: _beaconId,
+          messageId: _messageId,
+          userId: _userId,
+          newBody: '@Different revised',
+        );
+        expect(room.updatedMentionSpans, isEmpty);
+      },
+    );
 
     test('mention plus reply notifies once via roomMention', () async {
       room.replyMessage = BeaconRoomMessageRecord(
@@ -727,7 +838,6 @@ void main() {
 }
 
 class _FakeFactCards extends Fake implements BeaconFactCardRepositoryPort {}
-
 
 class _FakeImages extends Fake implements ImageRepositoryPort {}
 

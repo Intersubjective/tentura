@@ -103,7 +103,7 @@ Unread counts are **per thread**, keyed by `(beacon, thread)`. General unread an
 
 ### Thread detail
 
-Each addressable thread hosts the shared message composer and history. Semantic threads show the item header (kind, status, title) above messages. **@mentions** in the composer notify admitted participants. **Replies** reference one parent message in the **same thread scope**; deleting the parent clears the quote on next read.
+Each addressable thread hosts the shared message composer and history. Semantic threads show the item header (kind, status, title) above messages. **@mentions** in the composer notify admitted participants; participants without a public handle can be mentioned by name while composing or sending, but not while editing an existing message. **Replies** reference one parent message in the **same thread scope**; deleting the parent clears the quote on next read.
 
 ## Discussion admission and membership
 

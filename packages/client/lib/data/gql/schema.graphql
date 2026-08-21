@@ -7401,6 +7401,21 @@ type v2_RoomMessageRow {
   threadItemId: String
 }
 
+type v2_ThreadMessagePreview {
+  admissionReason: String
+  excerpt: String
+  factTitle: String
+  factVisibility: Int
+  hasAttachment: Boolean!
+  itemKind: Int
+  itemTitle: String
+  joinedUserId: String
+  kind: Int!
+  linkedEventKind: Int
+  linkedItemId: String
+  pollTitle: String
+}
+
 input v2_Upload {
   filename: String
   type: String

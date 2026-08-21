@@ -63,6 +63,9 @@ abstract final class BeaconRoomMessageAttachmentKind {
 /// Max attachments per room message (images + files).
 const kMaxRoomMessageAttachments = 10;
 
+/// Max explicit id-anchored text mentions accepted per message.
+const kMaxExplicitMentionsPerRoomMessage = 20;
+
 /// Max upload size per attachment (bytes).
 const kMaxRoomMessageAttachmentBytes = 10 * 1024 * 1024;
 

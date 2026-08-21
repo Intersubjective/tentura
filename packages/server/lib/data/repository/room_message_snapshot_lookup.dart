@@ -70,6 +70,12 @@ final class RoomMessageSnapshotLookup
       createdAt: row.createdAt.dateTime,
       editedAt: row.editedAt?.dateTime,
       mentions: List<String>.from(row.mentions),
+      mentionSpans: row.mentionSpans == null
+          ? const []
+          : [
+              for (final raw in row.mentionSpans! as List)
+                if (raw is Map) Map<String, Object?>.from(raw),
+            ],
       threadItemId: row.threadItemId,
       replyToMessageId: replyToMessageId,
       replyToAuthorId: replyToAuthorId,

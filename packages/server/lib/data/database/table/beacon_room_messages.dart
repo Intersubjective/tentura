@@ -22,17 +22,23 @@ class BeaconRoomMessages extends Table {
 
   late final linkedFactCardId = text().nullable()();
 
-  late final linkedPollingId =
-      text().nullable().references(Pollings, #id)();
+  late final linkedPollingId = text().nullable().references(Pollings, #id)();
 
-  late final linkedItemId =
-      text().nullable().references(CoordinationItems, #id)();
+  late final linkedItemId = text().nullable().references(
+    CoordinationItems,
+    #id,
+  )();
 
   late final linkedEventKind = integer().nullable()();
 
   late final semanticMarker = integer().nullable()();
 
   late final systemPayload = customType(
+    PgTypes.jsonb,
+  ).nullable()();
+
+  /// Ordered id-anchored mention ranges for handle-less participants.
+  late final mentionSpans = customType(
     PgTypes.jsonb,
   ).nullable()();
 
@@ -50,9 +56,11 @@ class BeaconRoomMessages extends Table {
   )();
 
   /// NULL = main beacon room; non-null = coordination item thread.
-  late final threadItemId = text()
-      .nullable()
-      .references(CoordinationItems, #id, onDelete: KeyAction.cascade)();
+  late final threadItemId = text().nullable().references(
+    CoordinationItems,
+    #id,
+    onDelete: KeyAction.cascade,
+  )();
 
   @override
   Set<Column<Object>> get primaryKey => {id};

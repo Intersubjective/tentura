@@ -486,6 +486,7 @@ WHERE id = '${reply.id}'
         messageId: parent.id,
         newBody: 'Edited parent body text',
         mentions: const [],
+        mentionSpans: const [],
       );
 
       final rows = await room.listMessagesEnriched(

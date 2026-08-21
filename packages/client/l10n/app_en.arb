@@ -29,6 +29,13 @@
   "@labelDisplayName": {
     "context": "Utils"
   },
+  "beaconRoomMentionSuggestionSemantics": "Mention {name}",
+  "@beaconRoomMentionSuggestionSemantics": {
+    "context": "Accessible label for a chat mention suggestion",
+    "placeholders": {
+      "name": {}
+    }
+  },
   "pleaseFillDisplayName": "Enter your display name",
   "@pleaseFillDisplayName": {
     "context": "AccountAddDialog, ProfileEditScreen"

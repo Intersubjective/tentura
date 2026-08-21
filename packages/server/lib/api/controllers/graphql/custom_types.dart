@@ -200,6 +200,7 @@ final gqlTypeRoomMessageRow = GraphQLObjectType('RoomMessageRow', null)
     field('myReaction', graphQLString),
     field('reactorsJson', graphQLString),
     field('attachmentsJson', graphQLString.nonNullable()),
+    field('mentionSpansJson', graphQLString.nonNullable()),
     field(
       'mentions',
       GraphQLListType(graphQLString.nonNullable()),

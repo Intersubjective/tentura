@@ -11,7 +11,7 @@ base mixin WebsocketPathEntityChanges on WebsocketSessionHandlerBase {
     final aggregateId = data['id'];
     final event = data['event'];
     final actorUserId = data['actor_user_id'];
-  final rawMessageId = data['message_id'];
+    final rawMessageId = data['message_id'];
     if (userIds is! List ||
         entity is! String ||
         entity.isEmpty ||
@@ -44,9 +44,7 @@ base mixin WebsocketPathEntityChanges on WebsocketSessionHandlerBase {
     }
 
     RoomMessageSnapshot? snapshot;
-    if (entity == 'room_message' &&
-        event == 'insert' &&
-        childId != null) {
+    if (entity == 'room_message' && event == 'insert' && childId != null) {
       try {
         snapshot = await roomMessageSnapshotLookup.findEligibleInsert(
           messageId: childId,
@@ -92,20 +90,20 @@ base mixin WebsocketPathEntityChanges on WebsocketSessionHandlerBase {
     );
   }
 
-  static Map<String, dynamic> _serializePaint(RoomMessageSnapshot snapshot) =>
-      {
-        'id': snapshot.id,
-        'beaconId': snapshot.beaconId,
-        'authorId': snapshot.authorId,
-        'body': snapshot.body,
-        'createdAt': snapshot.createdAt.toUtc().toIso8601String(),
-        'editedAt': snapshot.editedAt?.toUtc().toIso8601String(),
-        'mentions': snapshot.mentions,
-        'threadItemId': snapshot.threadItemId,
-        'replyToMessageId': snapshot.replyToMessageId,
-        'replyToAuthorId': snapshot.replyToAuthorId,
-        'replyToAuthorTitle': snapshot.replyToAuthorTitle,
-        'replyToBodyExcerpt': snapshot.replyToBodyExcerpt,
-        'replyToHasAttachments': snapshot.replyToHasAttachments,
-      };
+  static Map<String, dynamic> _serializePaint(RoomMessageSnapshot snapshot) => {
+    'id': snapshot.id,
+    'beaconId': snapshot.beaconId,
+    'authorId': snapshot.authorId,
+    'body': snapshot.body,
+    'createdAt': snapshot.createdAt.toUtc().toIso8601String(),
+    'editedAt': snapshot.editedAt?.toUtc().toIso8601String(),
+    'mentions': snapshot.mentions,
+    'mentionSpans': snapshot.mentionSpans,
+    'threadItemId': snapshot.threadItemId,
+    'replyToMessageId': snapshot.replyToMessageId,
+    'replyToAuthorId': snapshot.replyToAuthorId,
+    'replyToAuthorTitle': snapshot.replyToAuthorTitle,
+    'replyToBodyExcerpt': snapshot.replyToBodyExcerpt,
+    'replyToHasAttachments': snapshot.replyToHasAttachments,
+  };
 }

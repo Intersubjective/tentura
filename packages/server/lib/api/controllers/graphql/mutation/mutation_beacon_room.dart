@@ -7,7 +7,7 @@ import '../input/_input_types.dart';
 
 final class MutationBeaconRoom extends GqlNodeBase {
   MutationBeaconRoom({BeaconRoomCase? beaconRoomCase})
-      : _case = beaconRoomCase ?? GetIt.I<BeaconRoomCase>();
+    : _case = beaconRoomCase ?? GetIt.I<BeaconRoomCase>();
 
   final BeaconRoomCase _case;
 
@@ -33,6 +33,22 @@ final class MutationBeaconRoom extends GqlNodeBase {
 
   final _variantsInput = InputFieldStringList(fieldName: 'variants');
 
+  final _explicitMentionUserIds = InputFieldStringList(
+    fieldName: 'explicitMentionUserIds',
+  );
+
+  final _explicitMentionOffsets = InputFieldIntList(
+    fieldName: 'explicitMentionOffsets',
+  );
+
+  final _explicitMentionLengths = InputFieldIntList(
+    fieldName: 'explicitMentionLengths',
+  );
+
+  final _explicitMentionsProvided = InputFieldBool(
+    fieldName: 'explicitMentionsProvided',
+  );
+
   final _pollTypeInput = InputFieldString(fieldName: 'pollType');
 
   final _isAnonymousInput = InputFieldBool(fieldName: 'isAnonymous');
@@ -42,18 +58,18 @@ final class MutationBeaconRoom extends GqlNodeBase {
   final _readThroughAt = InputFieldString(fieldName: 'readThroughAt');
 
   List<GraphQLObjectField<dynamic, dynamic>> get all => [
-        roomMessageCreate,
-        roomMessageAttachmentAdd,
-        roomMessageEdit,
-        roomMessageDelete,
-        participantOfferHelp,
-        beaconRoomAdmit,
-        beaconStewardPromote,
-        roomMessageReactionToggle,
-        roomMessageMarkSemanticDone,
-        markThreadSeen,
-        roomPollCreate,
-      ];
+    roomMessageCreate,
+    roomMessageAttachmentAdd,
+    roomMessageEdit,
+    roomMessageDelete,
+    participantOfferHelp,
+    beaconRoomAdmit,
+    beaconStewardPromote,
+    roomMessageReactionToggle,
+    roomMessageMarkSemanticDone,
+    markThreadSeen,
+    roomPollCreate,
+  ];
 
   GraphQLObjectField<dynamic, dynamic> get roomMessageCreate =>
       GraphQLObjectField(
@@ -64,6 +80,9 @@ final class MutationBeaconRoom extends GqlNodeBase {
           _body.field,
           _replyToMessageId.fieldNullable,
           _threadItemId.fieldNullable,
+          _explicitMentionUserIds.fieldNullable,
+          _explicitMentionOffsets.fieldNullable,
+          _explicitMentionLengths.fieldNullable,
           InputFieldUpload.fieldNullable,
         ],
         resolve: (_, args) async {
@@ -77,6 +96,12 @@ final class MutationBeaconRoom extends GqlNodeBase {
                 body: _body.fromArgs(args) ?? '',
                 replyToMessageId: _replyToMessageId.fromArgs(args),
                 threadItemId: _threadItemId.fromArgs(args),
+                explicitMentionUserIds:
+                    _explicitMentionUserIds.fromArgs(args) ?? const [],
+                explicitMentionOffsets:
+                    _explicitMentionOffsets.fromArgs(args) ?? const [],
+                explicitMentionLengths:
+                    _explicitMentionLengths.fromArgs(args) ?? const [],
                 attachmentBytes: InputFieldUpload.fromArgs(args),
                 attachmentFilename:
                     rawName is String && rawName.trim().isNotEmpty
@@ -137,6 +162,10 @@ final class MutationBeaconRoom extends GqlNodeBase {
           _beaconIdStr.field,
           _messageId.field,
           _body.field,
+          _explicitMentionUserIds.fieldNullable,
+          _explicitMentionOffsets.fieldNullable,
+          _explicitMentionLengths.fieldNullable,
+          _explicitMentionsProvided.fieldNullable,
         ],
         resolve: (_, args) => _case
             .editMessage(
@@ -144,6 +173,14 @@ final class MutationBeaconRoom extends GqlNodeBase {
               messageId: _messageId.fromArgsNonNullable(args),
               userId: getCredentials(args).sub,
               newBody: _body.fromArgsNonNullable(args),
+              explicitMentionUserIds:
+                  _explicitMentionUserIds.fromArgs(args) ?? const [],
+              explicitMentionOffsets:
+                  _explicitMentionOffsets.fromArgs(args) ?? const [],
+              explicitMentionLengths:
+                  _explicitMentionLengths.fromArgs(args) ?? const [],
+              explicitMentionsProvided:
+                  _explicitMentionsProvided.fromArgs(args) ?? false,
             )
             .then((_) => true),
       );
@@ -157,10 +194,10 @@ final class MutationBeaconRoom extends GqlNodeBase {
           _messageId.field,
         ],
         resolve: (_, args) => _case.deleteMessage(
-              beaconId: _beaconIdStr.fromArgsNonNullable(args),
-              messageId: _messageId.fromArgsNonNullable(args),
-              userId: getCredentials(args).sub,
-            ),
+          beaconId: _beaconIdStr.fromArgsNonNullable(args),
+          messageId: _messageId.fromArgsNonNullable(args),
+          userId: getCredentials(args).sub,
+        ),
       );
 
   GraphQLObjectField<dynamic, dynamic> get participantOfferHelp =>
@@ -242,49 +279,47 @@ final class MutationBeaconRoom extends GqlNodeBase {
           _messageId.field,
         ],
         resolve: (_, args) => _case.roomMessageMarkSemanticDone(
-              beaconId: _beaconIdStr.fromArgsNonNullable(args),
-              userId: getCredentials(args).sub,
-              messageId: _messageId.fromArgsNonNullable(args),
-            ),
-      );
-
-  GraphQLObjectField<dynamic, dynamic> get markThreadSeen =>
-      GraphQLObjectField(
-        'MarkThreadSeen',
-        gqlTypeBeaconRoomSeenResult.nonNullable(),
-        arguments: [
-          _beaconIdStr.field,
-          _threadId.field,
-          _readThroughAt.fieldNullable,
-        ],
-        resolve: (_, args) => _case.markThreadSeen(
-              beaconId: _beaconIdStr.fromArgsNonNullable(args),
-              userId: getCredentials(args).sub,
-              threadId: _threadId.fromArgsNonNullable(args),
-              readThroughAtIso: _readThroughAt.fromArgs(args),
-            ),
-      );
-
-  GraphQLObjectField<dynamic, dynamic> get roomPollCreate =>
-      GraphQLObjectField(
-        'RoomPollCreate',
-        gqlTypeRoomMessageRow.nonNullable(),
-        arguments: [
-          _beaconIdStr.field,
-          _questionInput.field,
-          _variantsInput.field,
-          _pollTypeInput.fieldNullable,
-          _isAnonymousInput.fieldNullable,
-          _allowRevoteInput.fieldNullable,
-        ],
-        resolve: (_, args) => _case.createPoll(
           beaconId: _beaconIdStr.fromArgsNonNullable(args),
           userId: getCredentials(args).sub,
-          question: _questionInput.fromArgsNonNullable(args),
-          variants: _variantsInput.fromArgsNonNullable(args),
-          pollType: _pollTypeInput.fromArgs(args),
-          isAnonymous: _isAnonymousInput.fromArgs(args),
-          allowRevote: _allowRevoteInput.fromArgs(args),
+          messageId: _messageId.fromArgsNonNullable(args),
         ),
       );
+
+  GraphQLObjectField<dynamic, dynamic> get markThreadSeen => GraphQLObjectField(
+    'MarkThreadSeen',
+    gqlTypeBeaconRoomSeenResult.nonNullable(),
+    arguments: [
+      _beaconIdStr.field,
+      _threadId.field,
+      _readThroughAt.fieldNullable,
+    ],
+    resolve: (_, args) => _case.markThreadSeen(
+      beaconId: _beaconIdStr.fromArgsNonNullable(args),
+      userId: getCredentials(args).sub,
+      threadId: _threadId.fromArgsNonNullable(args),
+      readThroughAtIso: _readThroughAt.fromArgs(args),
+    ),
+  );
+
+  GraphQLObjectField<dynamic, dynamic> get roomPollCreate => GraphQLObjectField(
+    'RoomPollCreate',
+    gqlTypeRoomMessageRow.nonNullable(),
+    arguments: [
+      _beaconIdStr.field,
+      _questionInput.field,
+      _variantsInput.field,
+      _pollTypeInput.fieldNullable,
+      _isAnonymousInput.fieldNullable,
+      _allowRevoteInput.fieldNullable,
+    ],
+    resolve: (_, args) => _case.createPoll(
+      beaconId: _beaconIdStr.fromArgsNonNullable(args),
+      userId: getCredentials(args).sub,
+      question: _questionInput.fromArgsNonNullable(args),
+      variants: _variantsInput.fromArgsNonNullable(args),
+      pollType: _pollTypeInput.fromArgs(args),
+      isAnonymous: _isAnonymousInput.fromArgs(args),
+      allowRevote: _allowRevoteInput.fromArgs(args),
+    ),
+  );
 }

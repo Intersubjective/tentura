@@ -1,4 +1,5 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
+import 'package:tentura/domain/entity/room_message_mention_span.dart';
 
 part 'realtime_room_message_paint.freezed.dart';
 
@@ -13,6 +14,8 @@ abstract class RealtimeRoomMessagePaint with _$RealtimeRoomMessagePaint {
     required DateTime createdAt,
     DateTime? editedAt,
     @Default(<String>[]) List<String> mentions,
+    @Default(<RoomMessageMentionSpan>[])
+    List<RoomMessageMentionSpan> mentionSpans,
     String? threadItemId,
     String? replyToMessageId,
     String? replyToAuthorId,

@@ -17,6 +17,7 @@ import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/domain/entity/room_message.dart';
 import 'package:tentura/domain/entity/room_message_attachment.dart';
 import 'package:tentura/domain/entity/room_pending_upload.dart';
+import 'package:tentura/features/beacon_threads/domain/entity/committed_mention.dart';
 import 'package:tentura/features/beacon_threads/ui/util/room_reply_excerpt.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/mention_suggestions_overlay.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/mention_text_controller.dart';
@@ -39,6 +40,7 @@ class BasicChatBody extends StatefulWidget {
     required this.participants,
     required this.isLoading,
     this.onSend,
+    this.onSendWithMentions,
     this.hasError = false,
     this.errorText = '',
     this.firstUnreadIndex = -1,
@@ -119,6 +121,13 @@ class BasicChatBody extends StatefulWidget {
   final Future<bool> Function(String body, List<RoomPendingUpload> uploads)?
   onSend;
 
+  final Future<bool> Function(
+    String body,
+    List<RoomPendingUpload> uploads,
+    List<CommittedMention> mentions,
+  )?
+  onSendWithMentions;
+
   final Widget? header;
 
   final Widget? emptyPlaceholder;
@@ -156,8 +165,9 @@ class BasicChatBody extends StatefulWidget {
 class BasicChatBodyState extends State<BasicChatBody> {
   final Map<String, GlobalKey> _messageKeys = {};
   final ScrollController _scrollController = ScrollController();
-  final ValueNotifier<String?> _highlightedMessageId =
-      ValueNotifier<String?>(null);
+  final ValueNotifier<String?> _highlightedMessageId = ValueNotifier<String?>(
+    null,
+  );
 
   static const _highlightDuration = Duration(milliseconds: 1200);
 
@@ -557,8 +567,7 @@ class BasicChatBodyState extends State<BasicChatBody> {
     final repo = widget.imageRepository;
     final clipboardRepo = widget.clipboardImageRepository;
     final onSend = widget.onSend;
-    final canCompose =
-        repo != null && clipboardRepo != null && onSend != null;
+    final canCompose = repo != null && clipboardRepo != null && onSend != null;
     final initialLoadInProgress = widget.isLoading && widget.messages.isEmpty;
 
     return SafeArea(
@@ -576,6 +585,7 @@ class BasicChatBodyState extends State<BasicChatBody> {
                         clipboardImageRepository: clipboardRepo,
                         isSending: initialLoadInProgress,
                         onSend: onSend,
+                        onSendWithMentions: widget.onSendWithMentions,
                         participants: widget.participants,
                         enableAttachments: widget.enableComposerAttachments,
                         enableParticipantMentions:
@@ -600,6 +610,7 @@ class BeaconRoomComposer extends StatefulWidget {
     required this.clipboardImageRepository,
     required this.isSending,
     required this.onSend,
+    this.onSendWithMentions,
     required this.participants,
     this.enableAttachments = true,
     this.enableParticipantMentions = true,
@@ -616,6 +627,13 @@ class BeaconRoomComposer extends StatefulWidget {
 
   final Future<bool> Function(String body, List<RoomPendingUpload> uploads)
   onSend;
+
+  final Future<bool> Function(
+    String body,
+    List<RoomPendingUpload> uploads,
+    List<CommittedMention> mentions,
+  )?
+  onSendWithMentions;
 
   final List<BeaconParticipant> participants;
 
@@ -707,9 +725,7 @@ class _BeaconRoomComposerState extends State<BeaconRoomComposer> {
     if (_overlaySuggestions.isEmpty) {
       return;
     }
-    final max = _overlaySuggestions.length < 5
-        ? _overlaySuggestions.length
-        : 5;
+    final max = _overlaySuggestions.length < 5 ? _overlaySuggestions.length : 5;
     final next = (_overlaySelectedIndex + delta).clamp(0, max - 1);
     if (next == _overlaySelectedIndex) {
       return;
@@ -806,7 +822,12 @@ class _BeaconRoomComposerState extends State<BeaconRoomComposer> {
   }
 
   bool _acceptMentionSuggestion(BeaconParticipant participant) {
-    final inserted = _text.insertMention(participant.handle.toLowerCase());
+    final inserted = participant.handle.isNotEmpty
+        ? _text.insertMention(participant.handle.toLowerCase())
+        : _text.insertLiteralMentionText(
+            '@${participant.userTitle.trim()}',
+            userId: participant.userId,
+          );
     _removeOverlay();
     if (inserted) {
       if (!_composerFocus.hasFocus) {
@@ -820,15 +841,14 @@ class _BeaconRoomComposerState extends State<BeaconRoomComposer> {
     if (_overlaySuggestions.isEmpty) {
       return false;
     }
-    final max = _overlaySuggestions.length < 5
-        ? _overlaySuggestions.length
-        : 5;
+    final max = _overlaySuggestions.length < 5 ? _overlaySuggestions.length : 5;
     final index = _overlaySelectedIndex.clamp(0, max - 1);
     return _acceptMentionSuggestion(_overlaySuggestions[index]);
   }
 
   void _showOverlay(List<BeaconParticipant> suggestions) {
-    final sameHandles = suggestions.length == _overlaySuggestions.length &&
+    final sameHandles =
+        suggestions.length == _overlaySuggestions.length &&
         [
           for (var i = 0; i < suggestions.length; i++)
             suggestions[i].userId == _overlaySuggestions[i].userId,
@@ -1044,7 +1064,13 @@ class _BeaconRoomComposerState extends State<BeaconRoomComposer> {
     }
     setState(() => _submitting = true);
     try {
-      final sent = await widget.onSend(body, uploads);
+      final sent =
+          await (widget.onSendWithMentions?.call(
+                body,
+                uploads,
+                _text.committedMentions,
+              ) ??
+              widget.onSend(body, uploads));
       if (!mounted) {
         return;
       }

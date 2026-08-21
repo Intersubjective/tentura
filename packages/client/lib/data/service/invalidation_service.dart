@@ -10,6 +10,7 @@ import 'package:tentura/domain/entity/realtime/realtime_catch_up.dart';
 import 'package:tentura/domain/entity/realtime/realtime_connection_status.dart';
 import 'package:tentura/domain/entity/realtime/realtime_entity_change.dart';
 import 'package:tentura/domain/entity/realtime/realtime_room_message_paint.dart';
+import 'package:tentura/domain/entity/room_message_mention_span.dart';
 import 'package:tentura/domain/port/realtime_sync_port.dart';
 
 import 'remote_api_service.dart';
@@ -255,9 +256,12 @@ class InvalidationService implements RealtimeSyncPort {
     final latestByProjectionKey =
         <(RealtimeEntityKind, String, String?), RealtimeEntityChange>{};
     for (final change in batch) {
-      latestByProjectionKey[
-        (change.kind, change.aggregateId, change.roomMessagePaint?.id)
-      ] = change;
+      latestByProjectionKey[(
+            change.kind,
+            change.aggregateId,
+            change.roomMessagePaint?.id,
+          )] =
+          change;
     }
     return latestByProjectionKey.values;
   }
@@ -319,6 +323,26 @@ class InvalidationService implements RealtimeSyncPort {
     final mentions = mentionsRaw is List
         ? mentionsRaw.whereType<String>().toList(growable: false)
         : const <String>[];
+    final mentionSpansRaw = message['mentionSpans'];
+    final mentionSpans = <RoomMessageMentionSpan>[];
+    if (mentionSpansRaw != null) {
+      if (mentionSpansRaw is! List) return null;
+      for (final raw in mentionSpansRaw) {
+        if (raw is! Map ||
+            raw['userId'] is! String ||
+            raw['offset'] is! int ||
+            raw['length'] is! int) {
+          return null;
+        }
+        mentionSpans.add(
+          RoomMessageMentionSpan(
+            userId: raw['userId']! as String,
+            offset: raw['offset']! as int,
+            length: raw['length']! as int,
+          ),
+        );
+      }
+    }
     final threadItemId = threadItemIdRaw is String && threadItemIdRaw.isNotEmpty
         ? threadItemIdRaw
         : null;
@@ -330,14 +354,16 @@ class InvalidationService implements RealtimeSyncPort {
     String? replyToMessageId;
     if (replyToMessageIdRaw != null) {
       if (replyToMessageIdRaw is! String) return null;
-      replyToMessageId =
-          replyToMessageIdRaw.isNotEmpty ? replyToMessageIdRaw : null;
+      replyToMessageId = replyToMessageIdRaw.isNotEmpty
+          ? replyToMessageIdRaw
+          : null;
     }
     String? replyToAuthorId;
     if (replyToAuthorIdRaw != null) {
       if (replyToAuthorIdRaw is! String) return null;
-      replyToAuthorId =
-          replyToAuthorIdRaw.isNotEmpty ? replyToAuthorIdRaw : null;
+      replyToAuthorId = replyToAuthorIdRaw.isNotEmpty
+          ? replyToAuthorIdRaw
+          : null;
     }
     String? replyToAuthorTitle;
     if (replyToAuthorTitleRaw != null) {
@@ -362,6 +388,7 @@ class InvalidationService implements RealtimeSyncPort {
       createdAt: createdAt,
       editedAt: editedAt,
       mentions: mentions,
+      mentionSpans: mentionSpans,
       threadItemId: threadItemId,
       replyToMessageId: replyToMessageId,
       replyToAuthorId: replyToAuthorId,

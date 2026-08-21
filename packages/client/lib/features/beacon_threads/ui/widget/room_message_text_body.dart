@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:readmore/readmore.dart';
 
 import 'package:tentura/features/beacon_threads/ui/widget/room_message_trailing_meta_layout.dart';
+import 'package:tentura/domain/entity/room_message_mention_span.dart';
 import 'package:tentura/ui/widget/tentura_selection_area.dart';
 
 /// Message body with trailing inline metadata (timestamp) on the last line.
@@ -15,6 +16,8 @@ class RoomMessageTextBody extends StatelessWidget {
     required this.metaStyle,
     required this.metrics,
     this.mentionAnnotations,
+    this.explicitSpans = const [],
+    this.explicitMentionStyle,
     this.textAlign = TextAlign.start,
     super.key,
   });
@@ -25,6 +28,8 @@ class RoomMessageTextBody extends StatelessWidget {
   final TextStyle metaStyle;
   final TrailingMetaMetrics metrics;
   final List<Annotation>? mentionAnnotations;
+  final List<RoomMessageMentionSpan> explicitSpans;
+  final TextStyle? Function(String userId)? explicitMentionStyle;
   final TextAlign textAlign;
 
   @override
@@ -38,6 +43,8 @@ class RoomMessageTextBody extends StatelessWidget {
       bodyStyle: bodyStyle,
       mentionAnnotations: mentionAnnotations,
       metrics: metrics,
+      explicitSpans: explicitSpans,
+      explicitMentionStyle: explicitMentionStyle,
     );
 
     // A single line of text reports only its own tight width, so force full
