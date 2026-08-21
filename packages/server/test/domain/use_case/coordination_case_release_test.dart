@@ -5,9 +5,11 @@ import 'package:test/test.dart';
 
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 import 'package:tentura_server/domain/attention/attention_models.dart';
+import 'package:tentura_server/consts/beacon_room_consts.dart';
 import 'package:tentura_server/domain/commitment/commitment_event_kind.dart';
 import 'package:tentura_server/domain/commitment/commitment_state.dart';
 import 'package:tentura_server/domain/entity/beacon_entity.dart';
+import 'package:tentura_server/domain/entity/beacon_room_record.dart';
 import 'package:tentura_server/domain/entity/help_offer_entity.dart';
 import 'package:tentura_server/domain/entity/user_entity.dart';
 import 'package:tentura_server/domain/exception.dart';
@@ -142,6 +144,9 @@ void main() {
       (_) async => (status: BeaconStatus.open, statusChangedAt: now),
     );
     when(
+      roomRepo.findParticipant(beaconId: beaconId, userId: helperId),
+    ).thenAnswer((_) async => null);
+    when(
       helpOfferRepo.fetchAllByBeaconId(beaconId),
     ).thenAnswer(
       (_) async => [
@@ -225,6 +230,69 @@ void main() {
           EvaluationExceptionCode.beaconNotClosable,
         ),
       ),
+    );
+  });
+
+  test('release also removes an admitted helper from the discussion', () async {
+    commitmentRepo = RecordingCommitmentRepository();
+    await commitmentRepo.record(
+      beaconId: beaconId,
+      userId: helperId,
+      actorUserId: authorId,
+      kind: CommitmentEventKind.offered,
+    );
+    await commitmentRepo.record(
+      beaconId: beaconId,
+      userId: helperId,
+      actorUserId: authorId,
+      kind: CommitmentEventKind.acknowledged,
+    );
+    when(
+      roomRepo.findParticipant(beaconId: beaconId, userId: helperId),
+    ).thenAnswer(
+      (_) async => BeaconParticipantRecord(
+        id: 'participant-1',
+        beaconId: beaconId,
+        userId: helperId,
+        role: 2,
+        status: 0,
+        roomAccess: RoomAccessBits.admitted,
+        createdAt: now,
+        updatedAt: now,
+      ),
+    );
+    when(
+      coordinationRepo.removeFromRoom(
+        beaconId: beaconId,
+        offerUserId: helperId,
+        actorUserId: authorId,
+        reason: 'done',
+      ),
+    ).thenAnswer(
+      (_) async => (status: BeaconStatus.open, statusChangedAt: now),
+    );
+    buildCoordinationCase();
+
+    await coordinationCase.releaseCommitment(
+      beaconId: beaconId,
+      offerUserId: helperId,
+      authorUserId: authorId,
+      reason: 'done',
+    );
+
+    verify(
+      coordinationRepo.removeFromRoom(
+        beaconId: beaconId,
+        offerUserId: helperId,
+        actorUserId: authorId,
+        reason: 'done',
+      ),
+    ).called(1);
+    expect(
+      attention.recorded.where(
+        (intent) => intent.eventType == AttentionEventType.offerRemoved,
+      ),
+      hasLength(1),
     );
   });
 

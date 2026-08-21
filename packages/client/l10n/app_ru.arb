@@ -3791,15 +3791,6 @@
   "beaconHudConfirmCloseNowBlockedBody": "Закрытие доступно, когда все обязательные рецензенты завершили или пропустили отзыв.",
   "beaconHudConfirmCloseNowAction": "Закрыть сейчас",
   "beaconHudConfirmChangeLaterInStatus": "Изменить позже в «Статус запроса»",
-  "helpOfferAdmissionAcceptHint": "Добавляет {name} в обсуждение",
-  "@helpOfferAdmissionAcceptHint": {
-    "placeholders": {
-      "name": {
-        "type": "String"
-      }
-    }
-  },
-  "helpOfferAdmissionDeclineHint": "Отклоняет предложение; без доступа к обсуждению",
   "beaconStatusSheetAdvancedHint": "Расширенные изменения; большинству авторов достаточно кнопки выше.",
   "beaconStatusRowOutcomeDraft": "Черновик до публикации",
   "beaconStatusRowOutcomeOpen": "Запрос принимает новые предложения",

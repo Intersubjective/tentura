@@ -260,6 +260,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('End participation'), findsOneWidget);
+    expect(find.text('Remove from discussion'), findsNothing);
     expect(find.text('Participation ended'), findsNothing);
   });
 

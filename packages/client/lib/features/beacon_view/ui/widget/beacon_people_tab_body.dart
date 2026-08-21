@@ -245,22 +245,6 @@ class BeaconPeopleTabBody extends StatelessWidget {
                 }
               }
             : null,
-        onRemoveFromChat: canManageOffer
-            ? () async {
-                final reason = await HelpOfferAdmissionReasonDialog.show(
-                  context,
-                  title: l10n.helpOfferRemoveDialogTitle,
-                  hintText: l10n.helpOfferRemoveDialogHint,
-                  explanatoryNote: l10n.helpOfferRemoveKeepsParticipationNote,
-                );
-                if (reason != null && context.mounted) {
-                  await beaconViewCubit.removeFromRoom(
-                    offerUserId: row.userId,
-                    reason: reason,
-                  );
-                }
-              }
-            : null,
         onReleaseCommitment:
             canManageOffer && c.stakeState == CommitmentStakeState.acknowledged
             ? () async {

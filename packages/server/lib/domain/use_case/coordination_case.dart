@@ -487,6 +487,32 @@ final class CoordinationCase extends UseCaseBase {
     return _attention!.runAction(
       actorUserId: authorUserId,
       action: (transaction) async {
+        final participant = await _beaconRoomRepository.findParticipant(
+          beaconId: beaconId,
+          userId: offerUserId,
+        );
+        if (participant?.roomAccess == RoomAccessBits.admitted) {
+          final removalIntent = await _attentionIntents!.offerRemoved(
+            receiverId: offerUserId,
+            beaconId: beaconId,
+            actorUserId: authorUserId,
+            reason: trimmedReason,
+            sourceEventKey: 'admission:${generateId('A')}',
+          );
+          await _coordinationRepository.removeFromRoom(
+            beaconId: beaconId,
+            offerUserId: offerUserId,
+            actorUserId: authorUserId,
+            reason: trimmedReason,
+          );
+          await _recordRemovedFromChatIfTransition(
+            beaconId: beaconId,
+            userId: offerUserId,
+            actorUserId: authorUserId,
+            reason: trimmedReason,
+          );
+          await transaction.record(removalIntent);
+        }
         final intent = await _attentionIntents!.commitmentReleased(
           receiverId: offerUserId,
           beaconId: beaconId,

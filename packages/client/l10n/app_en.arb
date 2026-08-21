@@ -3828,15 +3828,6 @@
   "beaconHudConfirmCloseNowBlockedBody": "Close now is available when every required reviewer has finished or skipped.",
   "beaconHudConfirmCloseNowAction": "Close now",
   "beaconHudConfirmChangeLaterInStatus": "Change later in Request status",
-  "helpOfferAdmissionAcceptHint": "Adds {name} to the discussion",
-  "@helpOfferAdmissionAcceptHint": {
-    "placeholders": {
-      "name": {
-        "type": "String"
-      }
-    }
-  },
-  "helpOfferAdmissionDeclineHint": "Declines offer; no discussion access",
   "beaconStatusSheetAdvancedHint": "Advanced changes; most authors follow the button above.",
   "beaconStatusRowOutcomeDraft": "Save as draft until you publish",
   "beaconStatusRowOutcomeOpen": "Request accepts new offers",
