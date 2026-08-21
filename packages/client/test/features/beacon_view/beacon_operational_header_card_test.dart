@@ -398,6 +398,15 @@ void main() {
       expect(find.text('Review offers'), findsOneWidget);
       expect(
         find.text('Opens People; accept adds helper to the discussion'),
+        findsNothing,
+      );
+      expect(
+        find.byWidgetPredicate(
+          (widget) =>
+              widget is Tooltip &&
+              widget.message ==
+                  'Opens People; accept adds helper to the discussion',
+        ),
         findsOneWidget,
       );
       expect(find.text('Update status'), findsNothing);
@@ -430,7 +439,7 @@ void main() {
 
       expect(
         find.text('Opens People; accept adds helper to the discussion'),
-        findsOneWidget,
+        findsNothing,
       );
     });
 
