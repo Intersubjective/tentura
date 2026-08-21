@@ -48,12 +48,6 @@ Widget _wrap(Widget child) => MaterialApp(
   home: Scaffold(body: SingleChildScrollView(child: child)),
 );
 
-Future<void> _disposeCard(WidgetTester tester) async {
-  await tester.pumpWidget(const SizedBox());
-  await tester.pump();
-  await tester.pump(const Duration(milliseconds: 600));
-}
-
 final class _FakeCapabilityRepository implements CapabilityRepositoryPort {
   _FakeCapabilityRepository({
     required this.promptState,
@@ -218,7 +212,6 @@ void main() {
     expect(find.text(l10n.inviteSeedPromptSubmit), findsOneWidget);
     expect(find.text(l10n.inviteSeedPromptSkip), findsOneWidget);
     expect(find.byType(CapabilityChipSet), findsOneWidget);
-    await _disposeCard(tester);
   });
 
   testWidgets('answered state does not render chip picker', (tester) async {
@@ -227,7 +220,6 @@ void main() {
     expect(find.text(l10n.inviteSeedPromptQuestion('Carol')), findsNothing);
     expect(find.text(l10n.inviteSeedPromptSubmit), findsNothing);
     expect(find.text('Carol'), findsOneWidget);
-    await _disposeCard(tester);
   });
 
   testWidgets('skipped state does not render chip picker', (tester) async {
@@ -236,7 +228,6 @@ void main() {
     expect(find.text(l10n.inviteSeedPromptQuestion('Carol')), findsNothing);
     expect(find.text(l10n.inviteSeedPromptSkip), findsNothing);
     expect(find.text('Carol'), findsOneWidget);
-    await _disposeCard(tester);
   });
 
   testWidgets('submitting selection calls answer and hides picker', (
@@ -253,7 +244,6 @@ void main() {
     expect(capabilityRepo.lastAnswerSubjectId, 'invitee-1');
     expect(capabilityRepo.lastAnswerSlugs, ['transport']);
     expect(find.text(l10n.inviteSeedPromptQuestion('Carol')), findsNothing);
-    await _disposeCard(tester);
   });
 
   testWidgets('skip calls inviteSeedPromptSkip and hides picker', (
@@ -268,7 +258,6 @@ void main() {
 
     expect(capabilityRepo.lastSkipSubjectId, 'invitee-1');
     expect(find.text(l10n.inviteSeedPromptQuestion('Carol')), findsNothing);
-    await _disposeCard(tester);
   });
 
   testWidgets('nickname title, canonical line, and origin body after load', (
@@ -296,7 +285,6 @@ void main() {
       find.text(l10n.updatesInviteAcceptedBodyNewAccount),
       findsOneWidget,
     );
-    await _disposeCard(tester);
   });
 
   testWidgets('loading keeps server title until profile is ready', (
@@ -312,7 +300,6 @@ void main() {
     expect(find.text('Alice · @alice'), findsOneWidget);
     await tester.pump(const Duration(milliseconds: 60));
     expect(find.text('Carol'), findsOneWidget);
-    await _disposeCard(tester);
   });
 
   testWidgets('profile fetch error keeps server title and body', (
@@ -328,6 +315,5 @@ void main() {
 
     expect(find.text('Carol joined via your invitation'), findsOneWidget);
     expect(find.text('Carol is now on Tentura.'), findsOneWidget);
-    await _disposeCard(tester);
   });
 }

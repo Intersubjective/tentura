@@ -17,8 +17,6 @@ import 'package:tentura/ui/test_ids.dart';
 import 'package:tentura/ui/utils/relative_time.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 
-import 'attention_visibility_ack.dart';
-
 /// Updates feed row for invite-accepted receipts with optional seed-routing prompt.
 class InviteAcceptedReceiptCard extends StatefulWidget {
   const InviteAcceptedReceiptCard({
@@ -153,147 +151,142 @@ class _InviteAcceptedReceiptCardState extends State<InviteAcceptedReceiptCard> {
         _phase == _PromptLoadPhase.ready &&
         _promptState?.state == PromptStateValue.pending;
 
-    return AttentionVisibilityAck(
-      receiptId: receipt.id,
-      isSeen: receipt.isSeen,
-      onAcknowledge: (_) async => widget.onMarkSeen(),
-      child: Semantics(
-        identifier: TestIds.updatesReceipt(receipt.id),
-        label: copy.title,
-        button: true,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            ListTile(
-              onTap: widget.onTap,
-              contentPadding: tt.cardPadding,
-              leading: Icon(
-                Icons.people_alt_outlined,
-                color: isUnread ? tt.info : tt.textMuted,
-                size: tt.iconSize,
-              ),
-              title: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                mainAxisSize: MainAxisSize.min,
-                children: [
+    return Semantics(
+      identifier: TestIds.updatesReceipt(receipt.id),
+      label: copy.title,
+      button: true,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          ListTile(
+            onTap: widget.onTap,
+            contentPadding: tt.cardPadding,
+            leading: Icon(
+              Icons.people_alt_outlined,
+              color: isUnread ? tt.info : tt.textMuted,
+              size: tt.iconSize,
+            ),
+            title: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text(
+                  copy.title,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style:
+                      TenturaText.title(
+                        isUnread ? colors.onSurface : tt.textMuted,
+                      ).copyWith(
+                        fontWeight: isUnread
+                            ? FontWeight.w700
+                            : FontWeight.w400,
+                      ),
+                ),
+                if (copy.secondary.isNotEmpty)
                   Text(
-                    copy.title,
-                    maxLines: 2,
+                    copy.secondary,
+                    maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style:
-                        TenturaText.title(
-                          isUnread ? colors.onSurface : tt.textMuted,
-                        ).copyWith(
-                          fontWeight: isUnread
-                              ? FontWeight.w700
-                              : FontWeight.w400,
-                        ),
+                    style: TenturaText.bodySmall(tt.textMuted),
                   ),
-                  if (copy.secondary.isNotEmpty)
-                    Text(
-                      copy.secondary,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TenturaText.bodySmall(tt.textMuted),
-                    ),
-                ],
+              ],
+            ),
+            subtitle: Text(
+              copy.body,
+              maxLines: 3,
+              overflow: TextOverflow.ellipsis,
+              style: TenturaText.bodySmall(tt.textMuted),
+            ),
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Tooltip(
+                  message: absoluteTime,
+                  child: Text(
+                    ageLabel,
+                    style: TenturaText.bodySmall(tt.textFaint),
+                  ),
+                ),
+                if (isUnread)
+                  IconButton(
+                    tooltip: l10n.updatesMarkSeen,
+                    onPressed: widget.onMarkSeen,
+                    icon: const Icon(Icons.done_outlined),
+                  ),
+              ],
+            ),
+          ),
+          if (_phase == _PromptLoadPhase.loading)
+            Padding(
+              padding: EdgeInsets.symmetric(
+                horizontal: tt.screenHPadding,
+                vertical: tt.tightGap,
               ),
-              subtitle: Text(
-                copy.body,
-                maxLines: 3,
-                overflow: TextOverflow.ellipsis,
+              child: const Center(
+                child: CircularProgressIndicator.adaptive(),
+              ),
+            )
+          else if (_phase == _PromptLoadPhase.error)
+            Padding(
+              padding: EdgeInsets.only(
+                left: tt.screenHPadding,
+                right: tt.screenHPadding,
+                bottom: tt.cardPadding.bottom,
+              ),
+              child: Text(
+                l10n.inviteSeedPromptLoadError,
                 style: TenturaText.bodySmall(tt.textMuted),
               ),
-              trailing: Row(
-                mainAxisSize: MainAxisSize.min,
+            )
+          else if (showPicker)
+            Padding(
+              padding: EdgeInsets.only(
+                left: tt.screenHPadding,
+                right: tt.screenHPadding,
+                bottom: tt.cardPadding.bottom,
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Tooltip(
-                    message: absoluteTime,
-                    child: Text(
-                      ageLabel,
-                      style: TenturaText.bodySmall(tt.textFaint),
-                    ),
+                  Text(
+                    l10n.inviteSeedPromptQuestion(_inviteeDisplayName),
+                    style: TenturaText.body(colors.onSurface),
                   ),
-                  if (isUnread)
-                    IconButton(
-                      tooltip: l10n.updatesMarkSeen,
-                      onPressed: widget.onMarkSeen,
-                      icon: const Icon(Icons.done_outlined),
-                    ),
+                  SizedBox(height: tt.rowGap),
+                  CapabilityChipSet(
+                    selectedSlugs: _selectedSlugs,
+                    maxSelection: _maxSeedSelections,
+                    onChanged: (slugs) =>
+                        setState(() => _selectedSlugs = slugs),
+                  ),
+                  SizedBox(height: tt.rowGap),
+                  Row(
+                    children: [
+                      FilledButton(
+                        onPressed: _selectedSlugs.isEmpty || _submitting
+                            ? null
+                            : _submit,
+                        child: _submitting
+                            ? SizedBox.square(
+                                dimension: tt.iconSize * 0.75,
+                                child: const CircularProgressIndicator.adaptive(
+                                  strokeWidth: 2,
+                                ),
+                              )
+                            : Text(l10n.inviteSeedPromptSubmit),
+                      ),
+                      SizedBox(width: tt.tightGap),
+                      TextButton(
+                        onPressed: _submitting ? null : _skip,
+                        child: Text(l10n.inviteSeedPromptSkip),
+                      ),
+                    ],
+                  ),
                 ],
               ),
             ),
-            if (_phase == _PromptLoadPhase.loading)
-              Padding(
-                padding: EdgeInsets.symmetric(
-                  horizontal: tt.screenHPadding,
-                  vertical: tt.tightGap,
-                ),
-                child: const Center(
-                  child: CircularProgressIndicator.adaptive(),
-                ),
-              )
-            else if (_phase == _PromptLoadPhase.error)
-              Padding(
-                padding: EdgeInsets.only(
-                  left: tt.screenHPadding,
-                  right: tt.screenHPadding,
-                  bottom: tt.cardPadding.bottom,
-                ),
-                child: Text(
-                  l10n.inviteSeedPromptLoadError,
-                  style: TenturaText.bodySmall(tt.textMuted),
-                ),
-              )
-            else if (showPicker)
-              Padding(
-                padding: EdgeInsets.only(
-                  left: tt.screenHPadding,
-                  right: tt.screenHPadding,
-                  bottom: tt.cardPadding.bottom,
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Text(
-                      l10n.inviteSeedPromptQuestion(_inviteeDisplayName),
-                      style: TenturaText.body(colors.onSurface),
-                    ),
-                    SizedBox(height: tt.rowGap),
-                    CapabilityChipSet(
-                      selectedSlugs: _selectedSlugs,
-                      maxSelection: _maxSeedSelections,
-                      onChanged: (slugs) => setState(() => _selectedSlugs = slugs),
-                    ),
-                    SizedBox(height: tt.rowGap),
-                    Row(
-                      children: [
-                        FilledButton(
-                          onPressed: _selectedSlugs.isEmpty || _submitting
-                              ? null
-                              : _submit,
-                          child: _submitting
-                              ? SizedBox.square(
-                                  dimension: tt.iconSize * 0.75,
-                                  child:
-                                      const CircularProgressIndicator.adaptive(
-                                        strokeWidth: 2,
-                                      ),
-                                )
-                              : Text(l10n.inviteSeedPromptSubmit),
-                        ),
-                        SizedBox(width: tt.tightGap),
-                        TextButton(
-                          onPressed: _submitting ? null : _skip,
-                          child: Text(l10n.inviteSeedPromptSkip),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-          ],
-        ),
+        ],
       ),
     );
   }

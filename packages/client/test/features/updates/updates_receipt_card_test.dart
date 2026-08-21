@@ -74,10 +74,6 @@ void main() {
     await tester.tap(find.byType(ListTile));
     await tester.pump();
     expect(tapped, isTrue);
-    await tester.pump(const Duration(milliseconds: 600));
-    await tester.pumpWidget(const SizedBox());
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 600));
   });
 
   testWidgets('card surfaces actor action request name and time', (
@@ -98,9 +94,6 @@ void main() {
     expect(find.text('Alex accepted your ask'), findsOneWidget);
     expect(find.text('Garden cleanup'), findsWidgets);
     expect(find.textContaining('ago'), findsOneWidget);
-    await tester.pumpWidget(const SizedBox());
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 600));
   });
 
   testWidgets('live obligation shows explicit next-step hint', (tester) async {
@@ -118,8 +111,5 @@ void main() {
 
     expect(find.text(L10nEn().updatesNextStepMarkDoneHint), findsOneWidget);
     expect(find.byIcon(Icons.task_alt_outlined), findsOneWidget);
-    await tester.pumpWidget(const SizedBox());
-    await tester.pump();
-    await tester.pump(const Duration(milliseconds: 600));
   });
 }

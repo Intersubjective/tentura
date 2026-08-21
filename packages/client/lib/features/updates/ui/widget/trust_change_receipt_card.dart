@@ -10,8 +10,6 @@ import 'package:tentura/ui/test_ids.dart';
 import 'package:tentura/ui/utils/relative_time.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 
-import 'attention_visibility_ack.dart';
-
 /// Updates feed row for trust-given / trust-received change receipts.
 class TrustChangeReceiptCard extends StatefulWidget {
   const TrustChangeReceiptCard({
@@ -90,84 +88,79 @@ class _TrustChangeReceiptCardState extends State<TrustChangeReceiptCard> {
     final iconColor = tenturaToneColor(tt, tone);
     final iconBackground = iconColor.withValues(alpha: 0.12);
 
-    return AttentionVisibilityAck(
-      receiptId: receipt.id,
-      isSeen: receipt.isSeen,
-      onAcknowledge: (_) async => widget.onMarkSeen(),
-      child: Semantics(
-        identifier: TestIds.updatesReceipt(receipt.id),
-        label: copy.title,
-        button: true,
-        child: TenturaChangeHighlight(
-          active: _highlightActive,
-          child: ListTile(
-            onTap: widget.onTap,
-            contentPadding: tt.cardPadding,
-            leading: _TrustToneGlyph(
-              icon: icon,
-              backgroundColor: iconBackground,
-              iconColor: iconColor,
-            ),
-            title: Text(
-              copy.title,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-              style:
-                  TenturaText.title(
-                    isUnread ? colors.onSurface : tt.textMuted,
-                  ).copyWith(
-                    fontWeight: isUnread ? FontWeight.w700 : FontWeight.w400,
-                  ),
-            ),
-            subtitle: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                if (requestTitle != null)
-                  Text(
-                    requestTitle,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: TenturaText.bodySmall(tt.textMuted),
-                  ),
+    return Semantics(
+      identifier: TestIds.updatesReceipt(receipt.id),
+      label: copy.title,
+      button: true,
+      child: TenturaChangeHighlight(
+        active: _highlightActive,
+        child: ListTile(
+          onTap: widget.onTap,
+          contentPadding: tt.cardPadding,
+          leading: _TrustToneGlyph(
+            icon: icon,
+            backgroundColor: iconBackground,
+            iconColor: iconColor,
+          ),
+          title: Text(
+            copy.title,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style:
+                TenturaText.title(
+                  isUnread ? colors.onSurface : tt.textMuted,
+                ).copyWith(
+                  fontWeight: isUnread ? FontWeight.w700 : FontWeight.w400,
+                ),
+          ),
+          subtitle: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              if (requestTitle != null)
                 Text(
-                  copy.body,
-                  maxLines: 3,
+                  requestTitle,
+                  maxLines: 1,
                   overflow: TextOverflow.ellipsis,
                   style: TenturaText.bodySmall(tt.textMuted),
                 ),
-                if (receipt.isLiveObligation)
-                  Text(
-                    l10n.updatesNextStepMarkDoneHint,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: TenturaText.bodySmall(tt.info),
-                  ),
-              ],
-            ),
-            trailing: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Tooltip(
-                  message: absoluteTime,
-                  child: Text(
-                    ageLabel,
-                    style: TenturaText.bodySmall(tt.textFaint),
-                  ),
+              Text(
+                copy.body,
+                maxLines: 3,
+                overflow: TextOverflow.ellipsis,
+                style: TenturaText.bodySmall(tt.textMuted),
+              ),
+              if (receipt.isLiveObligation)
+                Text(
+                  l10n.updatesNextStepMarkDoneHint,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: TenturaText.bodySmall(tt.info),
                 ),
-                if (isUnread)
-                  IconButton(
-                    tooltip: l10n.updatesMarkSeen,
-                    onPressed: widget.onMarkSeen,
-                    icon: const Icon(Icons.done_outlined),
-                  ),
-                if (receipt.isLiveObligation)
-                  IconButton(
-                    tooltip: l10n.updatesMarkDone,
-                    onPressed: widget.onSettle,
-                    icon: const Icon(Icons.task_alt_outlined),
-                  ),
-              ],
-            ),
+            ],
+          ),
+          trailing: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Tooltip(
+                message: absoluteTime,
+                child: Text(
+                  ageLabel,
+                  style: TenturaText.bodySmall(tt.textFaint),
+                ),
+              ),
+              if (isUnread)
+                IconButton(
+                  tooltip: l10n.updatesMarkSeen,
+                  onPressed: widget.onMarkSeen,
+                  icon: const Icon(Icons.done_outlined),
+                ),
+              if (receipt.isLiveObligation)
+                IconButton(
+                  tooltip: l10n.updatesMarkDone,
+                  onPressed: widget.onSettle,
+                  icon: const Icon(Icons.task_alt_outlined),
+                ),
+            ],
           ),
         ),
       ),

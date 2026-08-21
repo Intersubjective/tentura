@@ -41,12 +41,6 @@ Widget _wrap(Widget child) => MaterialApp(
   home: Scaffold(body: child),
 );
 
-Future<void> _disposeCard(WidgetTester tester) async {
-  await tester.pumpWidget(const SizedBox());
-  await tester.pump();
-  await tester.pump(const Duration(milliseconds: 600));
-}
-
 void main() {
   final l10n = L10nEn();
 
@@ -85,7 +79,6 @@ void main() {
     expect(find.textContaining('bin'), findsNothing);
     expect(find.textContaining('edge weight'), findsNothing);
     expect(find.textContaining('MeritRank'), findsNothing);
-    await _disposeCard(tester);
   });
 
   testWidgets('trust_given_changed_down shows downward glyph', (tester) async {
@@ -98,7 +91,6 @@ void main() {
 
     expect(find.text('Trust in Alex decreased'), findsOneWidget);
     expect(find.byIcon(Icons.arrow_downward), findsOneWidget);
-    await _disposeCard(tester);
   });
 
   testWidgets('trust_received_changed_neutral shows flat glyph', (tester) async {
@@ -111,7 +103,6 @@ void main() {
 
     expect(find.text('Someone reviewed you'), findsOneWidget);
     expect(find.byIcon(Icons.remove), findsOneWidget);
-    await _disposeCard(tester);
   });
 
   testWidgets('blank copy uses direction-agnostic trust fallbacks', (
@@ -136,6 +127,5 @@ void main() {
     expect(find.text(l10n.updatesFallbackTitleTrustReceivedChanged), findsOneWidget);
     expect(find.text(l10n.updatesFallbackBodyTrustReceivedChanged), findsOneWidget);
     expect(find.byIcon(Icons.arrow_upward), findsOneWidget);
-    await _disposeCard(tester);
   });
 }
