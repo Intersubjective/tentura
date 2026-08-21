@@ -37,6 +37,7 @@ class TenturaSheetDismissGuard extends StatelessWidget {
     required this.child,
     this.useRootNavigator = false,
     this.discardCopy,
+    this.canDismiss = true,
     super.key,
   });
 
@@ -44,6 +45,7 @@ class TenturaSheetDismissGuard extends StatelessWidget {
   final Widget child;
   final bool useRootNavigator;
   final TenturaSheetDiscardCopy? discardCopy;
+  final bool canDismiss;
 
   /// Programmatic dismiss (Cancel button, Escape). Same logic as barrier/back.
   static Future<void> requestClose(
@@ -51,7 +53,9 @@ class TenturaSheetDismissGuard extends StatelessWidget {
     required bool isDirty,
     bool useRootNavigator = false,
     TenturaSheetDiscardCopy? discardCopy,
+    bool canDismiss = true,
   }) async {
+    if (!canDismiss) return;
     if (!isDirty) {
       Navigator.of(context).pop();
       return;
@@ -74,7 +78,7 @@ class TenturaSheetDismissGuard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return PopScope(
-      canPop: !isDirty,
+      canPop: canDismiss && !isDirty,
       onPopInvokedWithResult: (didPop, _) async {
         if (didPop) return;
         await requestClose(
@@ -82,6 +86,7 @@ class TenturaSheetDismissGuard extends StatelessWidget {
           isDirty: isDirty,
           useRootNavigator: useRootNavigator,
           discardCopy: discardCopy,
+          canDismiss: canDismiss,
         );
       },
       child: child,

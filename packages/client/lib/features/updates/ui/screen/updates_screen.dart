@@ -158,8 +158,8 @@ class _UpdatesBodyState extends State<_UpdatesBody> {
                             ),
                           ),
                         SliverList.separated(
-                          itemCount: state.items.length +
-                              (state.hasNextPage ? 1 : 0),
+                          itemCount:
+                              state.items.length + (state.hasNextPage ? 1 : 0),
                           separatorBuilder: (_, _) =>
                               const TenturaHairlineDivider(),
                           itemBuilder: (context, index) {
@@ -191,7 +191,6 @@ class _UpdatesBodyState extends State<_UpdatesBody> {
                                 receipt: receipt,
                                 onTap: onTap,
                                 onMarkSeen: onMarkSeen,
-                                onSettle: onSettle,
                               );
                             }
                             return UpdatesReceiptCard(
