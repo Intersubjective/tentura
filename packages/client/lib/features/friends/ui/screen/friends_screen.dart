@@ -92,9 +92,6 @@ class _FriendsScreenState extends State<FriendsScreen>
   Future<void> _onCreateInvitation(BuildContext context) async {
     final l10n = L10n.of(context)!;
 
-    final addresseeName = await InvitationAddresseeDialog.show(context);
-    if (addresseeName == null || !context.mounted) return;
-
     if (_tabController.index != 1) {
       _tabController.animateTo(1);
       if (!MediaQuery.disableAnimationsOf(context)) {
@@ -103,7 +100,7 @@ class _FriendsScreenState extends State<FriendsScreen>
     }
 
     final invitation = await _invitationCubit.createInvitation(
-      addresseeName: addresseeName,
+      addresseeName: '',
     );
     if (invitation == null || !context.mounted) return;
 

@@ -14,7 +14,6 @@ import 'package:tentura/features/forward/domain/entity/forward_candidate.dart';
 import 'package:tentura/features/forward/domain/invite_new_person_enabled.dart';
 import 'package:tentura/features/forward/domain/forward_draft_policy.dart';
 import 'package:tentura/features/invitation/ui/bloc/invitation_cubit.dart';
-import 'package:tentura/features/invitation/ui/dialog/invitation_addressee_dialog.dart';
 import 'package:tentura/ui/dialog/share_code_dialog.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
@@ -334,14 +333,9 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
     _inviteFlowActive = true;
     try {
       final l10n = L10n.of(context)!;
-      final addresseeName = await InvitationAddresseeDialog.show(context);
-      if (addresseeName == null || !context.mounted) return;
-
-      await WidgetsBinding.instance.endOfFrame;
-      if (!context.mounted) return;
 
       final invitation = await _invitationCubit.createInvitation(
-        addresseeName: addresseeName,
+        addresseeName: '',
         beaconId: widget.beaconId.isNotEmpty ? widget.beaconId : null,
       );
       if (invitation == null || !context.mounted) return;
