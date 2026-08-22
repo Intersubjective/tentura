@@ -19,7 +19,7 @@ void main() {
   test(
     'legacy wire receipt deserializes and maps nullable identity fields',
     () async {
-      final feed = await _fetch(repository, remote, _legacyWireReceipt());
+      final feed = await _fetch(repository, remote, [_legacyWireReceipt()]);
       final receipt = feed.page.items.single;
 
       expect(receipt.sourceEventKey, isNull);
@@ -38,7 +38,7 @@ void main() {
   test(
     'canonical wire receipt preserves typed identity through mapping',
     () async {
-      final feed = await _fetch(repository, remote, _canonicalWireReceipt());
+      final feed = await _fetch(repository, remote, [_canonicalWireReceipt()]);
       final receipt = feed.page.items.single;
 
       expect(
@@ -54,12 +54,23 @@ void main() {
       );
     },
   );
+
+  test(
+    'wire replay never creates two domain receipts with the same id',
+    () async {
+      final receipt = _canonicalWireReceipt();
+      final feed = await _fetch(repository, remote, [receipt, receipt]);
+
+      expect(feed.page.items, hasLength(1));
+      expect(feed.page.items.single.id, receipt['id']);
+    },
+  );
 }
 
 Future<AttentionFeed> _fetch(
   AttentionRepository repository,
   _FixtureRemoteClient remote,
-  Map<String, dynamic> receipt,
+  List<Map<String, dynamic>> receipts,
 ) async {
   final data = GAttentionFeedData.fromJson({
     '__typename': 'query_root',
@@ -73,7 +84,7 @@ Future<AttentionFeed> _fetch(
       'page': {
         '__typename': 'AttentionPage',
         'nextCursor': null,
-        'items': [receipt],
+        'items': receipts,
       },
     },
   });

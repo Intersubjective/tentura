@@ -195,6 +195,37 @@ void main() {
       expect(attention.snapshot.summary.unreadTotal, 2);
     });
 
+    test('catch-up keeps one UI receipt for each stable receipt id', () async {
+      final initial = Completer<AttentionFeed>();
+      final reconnect = Completer<AttentionFeed>();
+      repository.pendingFetches.addAll([initial, reconnect]);
+      accounts.emit('account-a');
+      await _settle();
+      initial.complete(_feed(items: [_receipt(id: 'existing')]));
+      await _settle();
+
+      realtimePort.emitCatchUp();
+      await _settle();
+      reconnect.complete(
+        _feed(
+          unread: 2,
+          items: [
+            _receipt(id: 'new-after-reconnect'),
+            _receipt(id: 'existing'),
+            _receipt(id: 'existing'),
+          ],
+        ),
+      );
+      await _settle();
+
+      expect(
+        attention.snapshot.pages[AttentionView.all]!.items.map(
+          (item) => item.id,
+        ),
+        ['new-after-reconnect', 'existing'],
+      );
+    });
+
     test('records QA head refresh latency for the newest receipt', () async {
       final qaRepository = _Repository();
       final qaAccounts = _Accounts();

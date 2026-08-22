@@ -178,6 +178,7 @@ class _UpdatesBodyState extends State<_UpdatesBody> {
                               receipt.presentationKey,
                             )) {
                               return TrustChangeReceiptCard(
+                                key: ValueKey(receipt.id),
                                 receipt: receipt,
                                 onTap: onTap,
                                 onMarkSeen: onMarkSeen,
@@ -188,12 +189,14 @@ class _UpdatesBodyState extends State<_UpdatesBody> {
                               receipt.presentationKey,
                             )) {
                               return InviteAcceptedReceiptCard(
+                                key: ValueKey(receipt.id),
                                 receipt: receipt,
                                 onTap: onTap,
                                 onMarkSeen: onMarkSeen,
                               );
                             }
                             return UpdatesReceiptCard(
+                              key: ValueKey(receipt.id),
                               receipt: receipt,
                               onTap: onTap,
                               onMarkSeen: onMarkSeen,

@@ -229,7 +229,12 @@ final class AttentionCase {
     for (final receipt in feed.page.items) {
       _receiptsById[receipt.id] = receipt;
     }
-    final incoming = feed.page.items.map(_acks.apply).toList(growable: false);
+    // A reconnect can replay an already-normalized GraphQL list entry. Receipt
+    // id is the feed's stable identity, so never project a repeated entry into
+    // the UI even when the transport response contains one.
+    final incoming = _uniqueByReceiptId(
+      feed.page.items.map(_acks.apply),
+    );
     final items = replaceHead
         ? incoming
         : <AttentionReceipt>[...?oldPage?.items, ...incoming]
@@ -272,6 +277,15 @@ final class AttentionCase {
       ),
     );
   }
+
+  List<AttentionReceipt> _uniqueByReceiptId(Iterable<AttentionReceipt> items) =>
+      items
+          .fold<Map<String, AttentionReceipt>>(
+            {},
+            (byId, receipt) => byId..[receipt.id] = receipt,
+          )
+          .values
+          .toList(growable: false);
 
   void _emit(AttentionFeedSnapshot next) {
     if (!_snapshot.isClosed) _snapshot.add(next);
