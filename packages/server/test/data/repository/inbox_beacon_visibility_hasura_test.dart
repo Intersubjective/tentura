@@ -29,23 +29,30 @@ import '../../support/pg_test_public_keys.dart';
 /// contract directly, since it cannot be exercised by a pure Dart unit test.
 Future<void> main() async {
   final postgresReachable = await _canConnectPostgres();
-  final hasuraReachable =
-      postgresReachable && await _canConnectHasura();
+  final hasuraReachable = postgresReachable && await _canConnectHasura();
   final skipReason = !postgresReachable
       ? 'local Postgres not reachable'
       : !hasuraReachable
-          ? 'local Hasura not reachable'
-          : false;
+      ? 'local Hasura not reachable'
+      : false;
 
   late TenturaDb db;
+  Map<String, dynamic>? originalHasuraSourceConfiguration;
 
   if (skipReason == false) {
     setUpAll(() async {
       db = TenturaDb(_testEnv());
+      originalHasuraSourceConfiguration = await _pointHasuraAtTestDatabase();
     });
 
     tearDownAll(() async {
-      await db.close();
+      try {
+        await _restoreHasuraSourceConfiguration(
+          originalHasuraSourceConfiguration,
+        );
+      } finally {
+        await db.close();
+      }
     });
 
     tearDown(() async {
@@ -170,14 +177,91 @@ Future<List<Map<String, dynamic>>> _queryInboxItem({
   return rows.cast<Map<String, dynamic>>();
 }
 
+/// The tagged suite runs against an isolated database. Hasura is a separate
+/// process, however, and its configured source normally remains the local
+/// `postgres` database. Point it at the same disposable database for this
+/// metadata/permission test, then restore its prior source configuration.
+///
+/// This is intentionally a no-op for the ordinary local `postgres` target so
+/// developers can run the test without changing their Hasura configuration.
+Future<Map<String, dynamic>?> _pointHasuraAtTestDatabase() async {
+  final database = _testEnv().pgDatabase;
+  if (database == 'postgres') return null;
+
+  final metadata = await _postHasuraMetadata('export_metadata');
+  final sources = metadata['sources']! as List;
+  final source = sources.cast<Map<String, dynamic>>().singleWhere(
+    (source) => source['name'] == 'postgres',
+  );
+  final original = Map<String, dynamic>.from(
+    source['configuration']! as Map<String, dynamic>,
+  );
+  final connectionInfo = Map<String, dynamic>.from(
+    original['connection_info']! as Map<String, dynamic>,
+  )..['database_url'] = _hasuraTestDatabaseUrl(database);
+
+  await _postHasuraMetadata(
+    'pg_update_source',
+    args: {
+      'name': 'postgres',
+      'configuration': {'connection_info': connectionInfo},
+    },
+  );
+  return original;
+}
+
+Future<void> _restoreHasuraSourceConfiguration(
+  Map<String, dynamic>? configuration,
+) async {
+  if (configuration == null) return;
+  await _postHasuraMetadata(
+    'pg_update_source',
+    args: {'name': 'postgres', 'configuration': configuration},
+  );
+}
+
+String _hasuraTestDatabaseUrl(String database) {
+  final configured = Platform.environment['HASURA_TEST_DATABASE_URL'];
+  if (configured != null && configured.isNotEmpty) return configured;
+
+  return Uri(
+    scheme: 'postgres',
+    userInfo:
+        '${Platform.environment['POSTGRES_USERNAME'] ?? 'postgres'}:'
+        '${Platform.environment['POSTGRES_PASSWORD'] ?? 'password'}',
+    host: Platform.environment['POSTGRES_HOST'] ?? '127.0.0.1',
+    port: int.tryParse(Platform.environment['POSTGRES_PORT'] ?? '') ?? 5432,
+    path: database,
+  ).toString();
+}
+
+Future<Map<String, dynamic>> _postHasuraMetadata(
+  String type, {
+  Map<String, dynamic> args = const {},
+}) async {
+  final response = await http.post(
+    Uri.parse('$_hasuraUrl/v1/metadata'),
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Hasura-Admin-Secret': _hasuraAdminSecret,
+    },
+    body: jsonEncode({'type': type, 'args': args}),
+  );
+  final body = jsonDecode(response.body) as Map<String, dynamic>;
+  expect(response.statusCode, 200, reason: body.toString());
+  expect(body['error'], isNull, reason: body.toString());
+  return body;
+}
+
 Env _testEnv() => Env(
-      environment: Environment.test,
-      pgHost: Platform.environment['POSTGRES_HOST'] ?? '127.0.0.1',
-      pgPort: int.tryParse(Platform.environment['POSTGRES_PORT'] ?? '') ?? 5432,
-      pgPassword: Platform.environment['POSTGRES_PASSWORD'] ?? 'password',
-      printEnv: false,
-      isDebugModeOn: false,
-    );
+  environment: Environment.test,
+  pgHost: Platform.environment['POSTGRES_HOST'] ?? '127.0.0.1',
+  pgPort: int.tryParse(Platform.environment['POSTGRES_PORT'] ?? '') ?? 5432,
+  pgDatabase: Platform.environment['POSTGRES_DBNAME'] ?? 'postgres',
+  pgPassword: Platform.environment['POSTGRES_PASSWORD'] ?? 'password',
+  printEnv: false,
+  isDebugModeOn: false,
+);
 
 Future<bool> _canConnectPostgres() async {
   try {
