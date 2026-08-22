@@ -85,6 +85,9 @@ Future<void> main() async {
   } catch (error, stackTrace) {
     failure = error;
     failureStack = stackTrace;
+    File('${artifactDir.path}/failure.txt').writeAsStringSync(
+      '$error\n$stackTrace',
+    );
     await Future.wait([
       if (author != null) author.captureFailure(),
       if (authorPeer != null) authorPeer.captureFailure(),
@@ -159,6 +162,11 @@ Future<void> _runJourney({
 
   await author.setNetworkLatency(const Duration(milliseconds: 700));
   final submitStarted = author.clickTestId('forward.submit');
+  // A recipient with no personal note deliberately requires an explicit
+  // acknowledgement before the request is sent. Do not mistake the disabled
+  // control behind that sheet for an in-flight submission.
+  await author.waitForText('No personal note yet');
+  await author.clickText('Send without a shared note');
   await author.waitForTestIdDisabled('forward.submit');
   await author.setNetworkLatency(Duration.zero);
   await submitStarted;
@@ -226,6 +234,13 @@ Future<void> _runJourney({
     timeout: const Duration(seconds: 3),
   );
 
+  // An offer is not room admission. Accept it through the author-facing
+  // People workflow before asserting the helper can participate in General.
+  await author.open('/beacon/view/$beaconId');
+  await author.clickTestId('beacon.hud_author_action.reviewOffers');
+  await author.waitForTestId('help_offer.${fixture.helperUserId}.accept');
+  await author.clickTestId('help_offer.${fixture.helperUserId}.accept');
+
   // 3. Both Chat views stay mounted. First prove the established error UI,
   // then prove the successful hint creates exactly one remote bubble.
   // helperPeer enters Chat so helper's same-account My Work tab stays room-naive.
@@ -234,8 +249,12 @@ Future<void> _runJourney({
     helperPeer.open('/beacon/view/$beaconId'),
   ]);
   await Future.wait([
-    author.clickTestId('beacon.room.open'),
-    helperPeer.clickTestId('beacon.room.open'),
+    author.clickTestId('beacon.tab.threads'),
+    helperPeer.clickTestId('beacon.tab.threads'),
+  ]);
+  await Future.wait([
+    author.clickText('General'),
+    helperPeer.clickText('General'),
   ]);
   await Future.wait([
     author.waitForTestId('room.message.input'),
@@ -250,10 +269,16 @@ Future<void> _runJourney({
     'Failed message was delivered',
   );
   await helperPeer.blockGraphql(false);
-  // Error snackbars remain visible for 15 seconds and cover the composer. Close
-  // the deliberately-proven error before verifying that the next send works.
+  // Error snackbars remain visible for 15 seconds and cover the composer. The
+  // blocked mutation remains the pending composer action, so explicitly retry
+  // it before proving a distinct subsequent send.
   await helperPeer.dismissSnackBar('No Internet connection');
   await helperPeer.waitForTextGone('No Internet connection');
+  await helperPeer.sendChatMessage(failedMessage);
+  await _waitUntil(
+    () => author.hasText(failedMessage),
+    timeout: const Duration(seconds: 8),
+  );
 
   await helperPeer.sendChatMessage(chatMessage);
   timings['chat_delivery_ms'] = await _measureUntil(
@@ -283,7 +308,7 @@ Future<void> _runJourney({
         await _roomUnreadFromStatus(helper, beaconId) == unreadBeforeProbe + 1,
   );
   await helperPeer.open('/beacon/view/$beaconId');
-  await helperPeer.clickTestId('beacon.room.open');
+  await helperPeer.clickText('General');
   await helperPeer.waitForText(myWorkUnreadMessage);
   timings['same_account_my_work_read_ms'] = await _measureUntil(
     () async => await _roomUnreadFromStatus(helper, beaconId) == 0,
@@ -437,8 +462,16 @@ Future<void> _runJourney({
     helper.open('/beacon/view/$beaconId'),
   ]);
   await Future.wait([
-    author.clickTestId('beacon.room.open'),
-    helper.clickTestId('beacon.room.open'),
+    author.clickTestId('beacon.tab.threads'),
+    helper.clickTestId('beacon.tab.threads'),
+  ]);
+  await Future.wait([
+    author.clickText('General'),
+    helper.clickText('General'),
+  ]);
+  await Future.wait([
+    author.waitForTestId('room.message.input'),
+    helper.waitForTestId('room.message.input'),
   ]);
   final suspended = await _controlSocket(
     qaToken,
