@@ -10,6 +10,8 @@ import 'package:test/test.dart';
 import 'package:tentura_server/data/database/migration/_migrations.dart';
 import 'package:tentura_server/data/database/tentura_db.dart'
     hide isNotNull, isNull;
+import 'package:tentura_server/domain/exception.dart';
+import 'package:tentura_server/data/repository/invitation_repository.dart';
 import 'package:tentura_server/data/repository/invite_genealogy_repository.dart';
 import 'package:tentura_server/data/repository/invite_seed_prompt_repository.dart';
 import 'package:tentura_server/data/repository/user_block_repository.dart';
@@ -27,6 +29,7 @@ Future<void> main() async {
   late Connection writer;
   late TenturaDb db;
   late UserRepository repo;
+  late InvitationRepository invitationRepo;
   late Env env;
 
   const ancestorId = 'Usigngeneanc01';
@@ -35,6 +38,12 @@ Future<void> main() async {
   const descendantPublicKey = 'bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb';
 
   String? descendantId;
+
+  // Extra fixture ids used only by the bindMutual (handshake-accept) tests
+  // below — created/cleaned per-test, independent of the createInvited
+  // fixtures above.
+  final extraUserIds = <String>[];
+  final extraInvitationIds = <String>[];
 
   if (skipReason == false) {
     setUpAll(() async {
@@ -54,6 +63,7 @@ Future<void> main() async {
         InviteGenealogyRepository(env, db, UserBlockRepository(env, db)),
         InviteSeedPromptRepository(db),
       );
+      invitationRepo = InvitationRepository(db);
     });
 
     tearDownAll(() async {
@@ -130,7 +140,54 @@ ON CONFLICT (id) DO UPDATE SET
       await db.customStatement(
         '''DELETE FROM public."user" WHERE id = '$ancestorId' ''',
       );
+
+      for (final id in extraInvitationIds) {
+        await db.customStatement(
+          "DELETE FROM public.invitation WHERE id = '$id'",
+        );
+      }
+      extraInvitationIds.clear();
+      if (extraUserIds.isNotEmpty) {
+        final ids = extraUserIds.map((id) => "'$id'").join(', ');
+        await db.customStatement(
+          'DELETE FROM public.vote_user WHERE subject IN ($ids) OR object IN ($ids)',
+        );
+        await db.customStatement(
+          'DELETE FROM public.user_contact WHERE viewer_id IN ($ids) OR subject_id IN ($ids)',
+        );
+        await db.customStatement('DELETE FROM public."user" WHERE id IN ($ids)');
+      }
+      extraUserIds.clear();
     });
+  }
+
+  /// Inserts a standalone existing user (not created via createInvited) —
+  /// used as the acceptor in bindMutual tests. Cleaned up by [tearDown].
+  Future<String> insertExtraUser(String id, String publicKey) async {
+    await db.customStatement(
+      '''
+INSERT INTO public."user" (id, display_name, public_key, created_at, updated_at)
+VALUES ('$id', 'Extra $id', '$publicKey', now(), now())
+ON CONFLICT (id) DO NOTHING
+''',
+    );
+    extraUserIds.add(id);
+    return id;
+  }
+
+  /// Inserts a standalone pending invitation from [issuerId] — used by
+  /// bindMutual tests that need a second, independent invite. Cleaned up by
+  /// [tearDown].
+  Future<String> insertExtraInvitation(String id, String issuerId) async {
+    await db.customStatement(
+      '''
+INSERT INTO public.invitation (id, user_id, addressee_name, created_at, updated_at)
+VALUES ('$id', '$issuerId', 'Invitee', now(), now())
+ON CONFLICT (id) DO NOTHING
+''',
+    );
+    extraInvitationIds.add(id);
+    return id;
   }
 
   test('createInvited appends invite_genealogy row in same transaction', () async {
@@ -156,6 +213,210 @@ WHERE invitation_id = '$invitationId'
     expect(rows.single.read<String>('ancestor_user_id'), ancestorId);
     expect(rows.single.read<String>('descendant_user_id'), descendantId);
   }, skip: skipReason);
+
+  group('UserRepository.bindMutual (existing-user handshake accept)', () {
+    test(
+      'persists the invitation with existing_account origin and '
+      'accepted_at, and does not delete the row',
+      () async {
+        final acceptorId = await insertExtraUser(
+          'Ubindmutual0001',
+          'c' * 44,
+        );
+
+        final accepted = await repo.bindMutual(
+          invitationId: invitationId,
+          userId: acceptorId,
+        );
+        expect(accepted, isTrue);
+
+        final rows = await db.customSelect(
+          '''
+SELECT invited_id, invite_origin, accepted_at
+FROM public.invitation
+WHERE id = '$invitationId'
+''',
+        ).get();
+
+        expect(
+          rows,
+          hasLength(1),
+          reason: 'the row must persist, not be deleted',
+        );
+        final row = rows.single;
+        expect(row.read<String>('invited_id'), acceptorId);
+        expect(row.read<String>('invite_origin'), 'existing_account');
+        expect(row.data['accepted_at'], isNotNull);
+      },
+      skip: skipReason,
+    );
+
+    test(
+      'lets the same existing user accept invites from two different '
+      'issuers (the invited_id UNIQUE constraint was dropped for this)',
+      () async {
+        final acceptorId = await insertExtraUser('Ubindmutual0002', 'd' * 44);
+        final secondIssuerId = await insertExtraUser(
+          'Ubindmutual0003',
+          'e' * 44,
+        );
+        final secondInvitationId = await insertExtraInvitation(
+          'Ibindmutual002',
+          secondIssuerId,
+        );
+
+        final first = await repo.bindMutual(
+          invitationId: invitationId,
+          userId: acceptorId,
+        );
+        final second = await repo.bindMutual(
+          invitationId: secondInvitationId,
+          userId: acceptorId,
+        );
+
+        expect(first, isTrue);
+        expect(
+          second,
+          isTrue,
+          reason:
+              'one user must be able to accept invites from multiple '
+              'different inviters once invited_id is no longer UNIQUE',
+        );
+
+        final rows = await db.customSelect(
+          '''SELECT id FROM public.invitation WHERE invited_id = '$acceptorId' ''',
+        ).get();
+        expect(
+          rows.map((r) => r.read<String>('id')).toSet(),
+          {invitationId, secondInvitationId},
+        );
+      },
+      skip: skipReason,
+    );
+
+    test(
+      'throws when re-accepting an already-consumed invitation, and does '
+      'not overwrite the original acceptor',
+      () async {
+        final firstAcceptorId = await insertExtraUser(
+          'Ubindmutual0004',
+          'f' * 44,
+        );
+        final secondAcceptorId = await insertExtraUser(
+          'Ubindmutual0005',
+          'g' * 44,
+        );
+
+        final first = await repo.bindMutual(
+          invitationId: invitationId,
+          userId: firstAcceptorId,
+        );
+        expect(first, isTrue);
+
+        await expectLater(
+          repo.bindMutual(
+            invitationId: invitationId,
+            userId: secondAcceptorId,
+          ),
+          throwsA(isA<InvitationWrongException>()),
+        );
+
+        final rows = await db.customSelect(
+          "SELECT invited_id FROM public.invitation WHERE id = '$invitationId'",
+        ).get();
+        expect(rows.single.read<String>('invited_id'), firstAcceptorId);
+      },
+      skip: skipReason,
+    );
+
+    test(
+      'is race-safe: of two concurrent accepts on the same invitation, '
+      'exactly one wins and only the winner gets contact/trust side effects',
+      () async {
+        final acceptorA = await insertExtraUser('Ubindmutual0006', 'h' * 44);
+        final acceptorB = await insertExtraUser('Ubindmutual0007', 'i' * 44);
+
+        // A second, independent connection/repository so the two accepts
+        // race as genuinely concurrent transactions, not queued on one
+        // connection.
+        final db2 = TenturaDb(env);
+        final repo2 = UserRepository(
+          env,
+          db2,
+          const TrustEvidenceRepositoryMock(),
+          InviteGenealogyRepository(env, db2, UserBlockRepository(env, db2)),
+          InviteSeedPromptRepository(db2),
+        );
+
+        try {
+          final results = await Future.wait<Object?>([
+            repo
+                .bindMutual(invitationId: invitationId, userId: acceptorA)
+                .then<Object?>((v) => v)
+                .catchError((Object e) => e),
+            repo2
+                .bindMutual(invitationId: invitationId, userId: acceptorB)
+                .then<Object?>((v) => v)
+                .catchError((Object e) => e),
+          ]);
+
+          final wins = results.whereType<bool>().where((v) => v).length;
+          expect(wins, 1, reason: 'exactly one concurrent acceptor must win');
+
+          final rows = await db.customSelect(
+            "SELECT invited_id FROM public.invitation WHERE id = '$invitationId'",
+          ).get();
+          expect(rows, hasLength(1));
+          final winnerId = rows.single.read<String>('invited_id');
+          expect({acceptorA, acceptorB}, contains(winnerId));
+          final loserId = winnerId == acceptorA ? acceptorB : acceptorA;
+
+          // The loser must not have picked up a fabricated mutual-trust
+          // edge for a claim that didn't actually win.
+          final loserVotes = await db.customSelect(
+            '''
+SELECT count(*) AS n FROM public.vote_user
+WHERE subject = '$loserId' OR object = '$loserId'
+''',
+          ).getSingle();
+          expect(loserVotes.read<int>('n'), 0);
+        } finally {
+          await db2.close();
+        }
+      },
+      skip: skipReason,
+    );
+  });
+
+  group('InvitationRepository.deleteById guard', () {
+    test(
+      'does not delete an invitation that has already been accepted',
+      () async {
+        final acceptorId = await insertExtraUser('Ubindmutual0008', 'j' * 44);
+        final accepted = await repo.bindMutual(
+          invitationId: invitationId,
+          userId: acceptorId,
+        );
+        expect(accepted, isTrue);
+
+        final deleted = await invitationRepo.deleteById(
+          invitationId: invitationId,
+          userId: ancestorId,
+        );
+        expect(deleted, isFalse);
+
+        final rows = await db.customSelect(
+          "SELECT id FROM public.invitation WHERE id = '$invitationId'",
+        ).get();
+        expect(
+          rows,
+          hasLength(1),
+          reason: 'an accepted invitation must survive a cancel attempt',
+        );
+      },
+      skip: skipReason,
+    );
+  });
 }
 
 Future<bool> _canConnect(Env env) async {

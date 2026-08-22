@@ -367,6 +367,62 @@
   "@friendsInvitesBeaconSection": {
     "context": "FriendsScreen"
   },
+  "friendsInvitesSegmentPending": "Pending",
+  "@friendsInvitesSegmentPending": {
+    "context": "FriendsScreen"
+  },
+  "friendsInvitesSegmentAccepted": "Accepted",
+  "@friendsInvitesSegmentAccepted": {
+    "context": "FriendsScreen"
+  },
+  "friendsInvitesAcceptedEmptyTitle": "No one has joined yet",
+  "@friendsInvitesAcceptedEmptyTitle": {
+    "context": "FriendsScreen"
+  },
+  "friendsInvitesAcceptedEmptyBody": "Once someone accepts one of your invites, they'll show up here.",
+  "@friendsInvitesAcceptedEmptyBody": {
+    "context": "FriendsScreen"
+  },
+  "friendsInvitesAcceptedEmptyBackToPending": "View pending invites",
+  "@friendsInvitesAcceptedEmptyBackToPending": {
+    "context": "FriendsScreen"
+  },
+  "friendsInviteJoinedRelative": "Joined {relative}",
+  "@friendsInviteJoinedRelative": {
+    "context": "FriendsScreen",
+    "placeholders": {
+      "relative": {
+        "type": "String"
+      }
+    }
+  },
+  "friendsInviteJoinedOn": "Joined on {date}",
+  "@friendsInviteJoinedOn": {
+    "context": "FriendsScreen",
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "friendsInviteAcceptedNewAccount": "{name} joined Tentura via this invite",
+  "@friendsInviteAcceptedNewAccount": {
+    "context": "FriendsScreen",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "friendsInviteAcceptedExistingAccount": "You and {name} became friends via this invite",
+  "@friendsInviteAcceptedExistingAccount": {
+    "context": "FriendsScreen",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
   "confirmInvitationRemoval": "Are you sure you want to cancel this invite? The link will stop working.",
   "@confirmInvitationRemoval": {
     "context": "InvitationRemoveDialog"

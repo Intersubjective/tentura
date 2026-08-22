@@ -115,8 +115,12 @@ class InvitationRepository implements InvitationRepositoryPort {
     required String invitationId,
     required String userId,
   }) async =>
-      await _database.managers.invitations
-          .filter((e) => e.id(invitationId) & e.userId.id(userId))
-          .delete() ==
+      await (_database.delete(_database.invitations)..where(
+            (t) =>
+                t.id.equals(invitationId) &
+                t.userId.equals(userId) &
+                t.invitedId.isNull(),
+          ))
+          .go() ==
       1;
 }

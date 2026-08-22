@@ -1,9 +1,29 @@
+fragment InvitationRow on invitation {
+  id
+  beacon_id
+  invited_id
+  addressee_name
+  invite_origin
+  accepted_at
+  created_at
+  updated_at
+  beacon {
+    title
+  }
+  invited {
+    display_name
+    image_id
+  }
+}
+
 query InvitationsFetchByUserId(
-  $offset: Int = 0,
-  $limit: Int = 10,
+  $pending_offset: Int = 0,
+  $pending_limit: Int = 10,
+  $accepted_offset: Int = 0,
+  $accepted_limit: Int = 10,
   $created_at_gt: timestamptz!
 ) {
-  invitation(
+  pending: invitation(
     where: {
       _and: {
         invited_id: {_is_null: true},
@@ -11,17 +31,31 @@ query InvitationsFetchByUserId(
       }
     },
     order_by: {created_at: asc},
-    offset: $offset,
-    limit: $limit
+    offset: $pending_offset,
+    limit: $pending_limit
   ) {
-    id
-    beacon_id
-    invited_id
-    addressee_name
-    created_at
-    updated_at
-    beacon {
-      title
+    ...InvitationRow
+  }
+  accepted: invitation(
+    where: {
+      invited_id: {_is_null: false}
+    },
+    order_by: {accepted_at: desc},
+    offset: $accepted_offset,
+    limit: $accepted_limit
+  ) {
+    ...InvitationRow
+  }
+  pending_count: invitation_aggregate(
+    where: {
+      _and: {
+        invited_id: {_is_null: true},
+        created_at: {_gt: $created_at_gt}
+      }
+    }
+  ) {
+    aggregate {
+      count
     }
   }
 }

@@ -367,6 +367,62 @@
   "@friendsInvitesBeaconSection": {
     "context": "FriendsScreen"
   },
+  "friendsInvitesSegmentPending": "Ожидают",
+  "@friendsInvitesSegmentPending": {
+    "context": "FriendsScreen"
+  },
+  "friendsInvitesSegmentAccepted": "Приняты",
+  "@friendsInvitesSegmentAccepted": {
+    "context": "FriendsScreen"
+  },
+  "friendsInvitesAcceptedEmptyTitle": "Пока никто не присоединился",
+  "@friendsInvitesAcceptedEmptyTitle": {
+    "context": "FriendsScreen"
+  },
+  "friendsInvitesAcceptedEmptyBody": "Как только кто-то примет ваше приглашение, оно появится здесь.",
+  "@friendsInvitesAcceptedEmptyBody": {
+    "context": "FriendsScreen"
+  },
+  "friendsInvitesAcceptedEmptyBackToPending": "Показать ожидающие приглашения",
+  "@friendsInvitesAcceptedEmptyBackToPending": {
+    "context": "FriendsScreen"
+  },
+  "friendsInviteJoinedRelative": "Присоединился(-ась) {relative}",
+  "@friendsInviteJoinedRelative": {
+    "context": "FriendsScreen",
+    "placeholders": {
+      "relative": {
+        "type": "String"
+      }
+    }
+  },
+  "friendsInviteJoinedOn": "Присоединился(-ась) {date}",
+  "@friendsInviteJoinedOn": {
+    "context": "FriendsScreen",
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "friendsInviteAcceptedNewAccount": "{name} присоединился(-ась) к Tentura по этому приглашению",
+  "@friendsInviteAcceptedNewAccount": {
+    "context": "FriendsScreen",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "friendsInviteAcceptedExistingAccount": "Вы и {name} теперь друзья благодаря этому приглашению",
+  "@friendsInviteAcceptedExistingAccount": {
+    "context": "FriendsScreen",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
   "confirmInvitationRemoval": "Отменить приглашение? Ссылка перестанет работать.",
   "@confirmInvitationRemoval": {
     "context": "InvitationRemoveDialog"

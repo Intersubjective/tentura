@@ -24,6 +24,7 @@ import 'package:tentura/ui/bloc/screen_cubit.dart';
 
 import '../bloc/friends_cubit.dart';
 import '../invite_pending_subtitle.dart';
+import '../widget/accepted_invite_list_tile.dart';
 import '../widget/friends_app_bar_actions.dart';
 
 /// Semantic hook for blocked-people navigation from People.
@@ -53,6 +54,10 @@ class _FriendsScreenState extends State<FriendsScreen>
   late final StreamSubscription<String> _authChanges;
 
   String? _emphasizedInvitationId;
+
+  /// 0 = Pending, 1 = Accepted. Lives here (not inside `_InvitesTabBody`) so
+  /// [_onCreateInvitation] can force the view back to Pending.
+  int _invitesSegment = 0;
 
   @override
   void initState() {
@@ -97,6 +102,9 @@ class _FriendsScreenState extends State<FriendsScreen>
       if (!MediaQuery.disableAnimationsOf(context)) {
         await Future<void>.delayed(const Duration(milliseconds: 300));
       }
+    }
+    if (_invitesSegment != 0) {
+      setState(() => _invitesSegment = 0);
     }
 
     final invitation = await _invitationCubit.createInvitation(
@@ -157,7 +165,7 @@ class _FriendsScreenState extends State<FriendsScreen>
           tone: TenturaTopBarTone.primary,
           title: BlocSelector<InvitationCubit, InvitationState, int>(
             bloc: _invitationCubit,
-            selector: (s) => s.invitations.length,
+            selector: (s) => s.pendingCount,
             builder: (context, inviteCount) {
               return TenturaPrimaryTabBar(
                 controller: _tabController,
@@ -208,6 +216,9 @@ class _FriendsScreenState extends State<FriendsScreen>
                   scrollController: _invitesScrollController,
                   emphasizedInvitationId: _emphasizedInvitationId,
                   l10n: l10n,
+                  segment: _invitesSegment,
+                  onSegmentChanged: (i) =>
+                      setState(() => _invitesSegment = i),
                   onCreateInvitation: () =>
                       unawaited(_onCreateInvitation(context)),
                 ),
@@ -303,6 +314,8 @@ class _InvitesTabBody extends StatelessWidget {
     required this.scrollController,
     required this.emphasizedInvitationId,
     required this.l10n,
+    required this.segment,
+    required this.onSegmentChanged,
     required this.onCreateInvitation,
   });
 
@@ -310,7 +323,79 @@ class _InvitesTabBody extends StatelessWidget {
   final ScrollController scrollController;
   final String? emphasizedInvitationId;
   final L10n l10n;
+
+  /// 0 = Pending, 1 = Accepted.
+  final int segment;
+  final ValueChanged<int> onSegmentChanged;
   final VoidCallback onCreateInvitation;
+
+  @override
+  Widget build(BuildContext context) {
+    final tt = context.tt;
+    final isAccepted = segment == 1;
+
+    return Column(
+      children: [
+        TenturaUnderlineTabs(
+          tabs: [
+            l10n.friendsInvitesSegmentPending,
+            l10n.friendsInvitesSegmentAccepted,
+          ],
+          selectedIndex: segment,
+          onChanged: onSegmentChanged,
+          tabIds: const [
+            'invites-segment-pending',
+            'invites-segment-accepted',
+          ],
+        ),
+        SizedBox(height: tt.tightGap),
+        Expanded(
+          child: RefreshIndicator.adaptive(
+            onRefresh: invitationCubit.fetch,
+            child: BlocBuilder<InvitationCubit, InvitationState>(
+              key: Key('Friends.InvitesBody:${invitationCubit.hashCode}'),
+              bloc: invitationCubit,
+              buildWhen: (_, c) => c.isSuccess,
+              builder: (_, state) => _InvitesSegmentList(
+                invitationCubit: invitationCubit,
+                scrollController: scrollController,
+                emphasizedInvitationId: emphasizedInvitationId,
+                l10n: l10n,
+                isAccepted: isAccepted,
+                segmentInvites: isAccepted
+                    ? state.acceptedInvitations
+                    : state.pendingInvitations,
+                onCreateInvitation: onCreateInvitation,
+                onSwitchToPending: () => onSegmentChanged(0),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _InvitesSegmentList extends StatelessWidget {
+  const _InvitesSegmentList({
+    required this.invitationCubit,
+    required this.scrollController,
+    required this.emphasizedInvitationId,
+    required this.l10n,
+    required this.isAccepted,
+    required this.segmentInvites,
+    required this.onCreateInvitation,
+    required this.onSwitchToPending,
+  });
+
+  final InvitationCubit invitationCubit;
+  final ScrollController scrollController;
+  final String? emphasizedInvitationId;
+  final L10n l10n;
+  final bool isAccepted;
+  final List<InvitationEntity> segmentInvites;
+  final VoidCallback onCreateInvitation;
+  final VoidCallback onSwitchToPending;
 
   @override
   Widget build(BuildContext context) {
@@ -320,43 +405,41 @@ class _InvitesTabBody extends StatelessWidget {
     final onSurfaceVariant = scheme.onSurfaceVariant;
     final disableAnimations = MediaQuery.disableAnimationsOf(context);
 
-    return RefreshIndicator.adaptive(
-      onRefresh: invitationCubit.fetch,
-      child: BlocBuilder<InvitationCubit, InvitationState>(
-        key: Key('Friends.InvitesBody:${invitationCubit.hashCode}'),
-        bloc: invitationCubit,
-        buildWhen: (_, c) => c.isSuccess,
-        builder: (_, state) {
-          final peopleInvites = state.invitations
-              .where((i) => i.beaconId == null || i.beaconId!.isEmpty)
-              .toList();
-          final beaconInvites = state.invitations
-              .where((i) => i.beaconId != null && i.beaconId!.isNotEmpty)
-              .toList();
-          final beaconGroups = <String, List<InvitationEntity>>{};
-          for (final invitation in beaconInvites) {
-            final key = invitation.beaconTitle?.trim().isNotEmpty == true
-                ? invitation.beaconTitle!.trim()
-                : (invitation.beaconId ?? invitation.id);
-            beaconGroups.putIfAbsent(key, () => []).add(invitation);
-          }
-          final beaconGroupKeys = beaconGroups.keys.toList()..sort();
+    final peopleInvites = segmentInvites
+        .where((i) => i.beaconId == null || i.beaconId!.isEmpty)
+        .toList();
+    final beaconInvites = segmentInvites
+        .where((i) => i.beaconId != null && i.beaconId!.isNotEmpty)
+        .toList();
+    final beaconGroups = <String, List<InvitationEntity>>{};
+    for (final invitation in beaconInvites) {
+      final key = invitation.beaconTitle?.trim().isNotEmpty == true
+          ? invitation.beaconTitle!.trim()
+          : (invitation.beaconId ?? invitation.id);
+      beaconGroups.putIfAbsent(key, () => []).add(invitation);
+    }
+    final beaconGroupKeys = beaconGroups.keys.toList()..sort();
 
-          return CustomScrollView(
-            controller: scrollController,
-            physics: const AlwaysScrollableScrollPhysics(),
-            slivers: [
-              if (state.invitations.isEmpty)
-                SliverFillRemaining(
-                  hasScrollBody: false,
-                  child: Padding(
-                    padding: tt.cardPadding,
-                    child: Center(
-                      child: ConstrainedBox(
-                        constraints: BoxConstraints(
-                          maxWidth: tt.contentMaxWidth ?? 320,
-                        ),
-                        child: Column(
+    return CustomScrollView(
+      controller: scrollController,
+      physics: const AlwaysScrollableScrollPhysics(),
+      slivers: [
+        if (segmentInvites.isEmpty)
+          SliverFillRemaining(
+            hasScrollBody: false,
+            child: Padding(
+              padding: tt.cardPadding,
+              child: Center(
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(
+                    maxWidth: tt.contentMaxWidth ?? 320,
+                  ),
+                  child: isAccepted
+                      ? _AcceptedEmptyState(
+                          l10n: l10n,
+                          onSwitchToPending: onSwitchToPending,
+                        )
+                      : Column(
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             Icon(
@@ -388,101 +471,125 @@ class _InvitesTabBody extends StatelessWidget {
                             ),
                           ],
                         ),
-                      ),
-                    ),
+                ),
+              ),
+            ),
+          )
+        else ...[
+          if (peopleInvites.isNotEmpty) ...[
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: EdgeInsets.fromLTRB(
+                  tt.screenHPadding,
+                  tt.sectionGap,
+                  tt.screenHPadding,
+                  tt.rowGap,
+                ),
+                child: Text(
+                  l10n.friendsInvitesPeopleSection,
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    color: onSurfaceVariant,
                   ),
-                )
-              else ...[
-                if (peopleInvites.isNotEmpty) ...[
-                  SliverToBoxAdapter(
-                    child: Padding(
-                      padding: EdgeInsets.fromLTRB(
-                        tt.screenHPadding,
-                        tt.sectionGap,
-                        tt.screenHPadding,
-                        tt.rowGap,
-                      ),
-                      child: Text(
-                        l10n.friendsInvitesPeopleSection,
-                        style: theme.textTheme.titleSmall?.copyWith(
-                          color: onSurfaceVariant,
-                        ),
-                      ),
-                    ),
+                ),
+              ),
+            ),
+            SliverList.separated(
+              itemCount: peopleInvites.length,
+              separatorBuilder: separatorBuilder,
+              itemBuilder: (context, i) => _buildInviteTile(
+                context,
+                invitation: peopleInvites[i],
+                disableAnimations: disableAnimations,
+                isBeaconSection: false,
+              ),
+            ),
+          ],
+          if (beaconGroupKeys.isNotEmpty) ...[
+            SliverToBoxAdapter(
+              child: Padding(
+                padding: EdgeInsets.fromLTRB(
+                  tt.screenHPadding,
+                  tt.sectionGap,
+                  tt.screenHPadding,
+                  tt.rowGap,
+                ),
+                child: Text(
+                  l10n.friendsInvitesBeaconSection,
+                  style: theme.textTheme.titleSmall?.copyWith(
+                    color: onSurfaceVariant,
                   ),
-                  SliverList.separated(
-                    itemCount: peopleInvites.length,
-                    separatorBuilder: separatorBuilder,
-                    itemBuilder: (context, i) => _buildInviteTile(
-                      context,
-                      state: state,
-                      invitation: peopleInvites[i],
-                      disableAnimations: disableAnimations,
-                    ),
+                ),
+              ),
+            ),
+            for (final groupTitle in beaconGroupKeys) ...[
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: EdgeInsets.fromLTRB(
+                    tt.screenHPadding,
+                    tt.tightGap,
+                    tt.screenHPadding,
+                    0,
                   ),
-                ],
-                if (beaconGroupKeys.isNotEmpty) ...[
-                  SliverToBoxAdapter(
-                    child: Padding(
-                      padding: EdgeInsets.fromLTRB(
-                        tt.screenHPadding,
-                        tt.sectionGap,
-                        tt.screenHPadding,
-                        tt.rowGap,
-                      ),
-                      child: Text(
-                        l10n.friendsInvitesBeaconSection,
-                        style: theme.textTheme.titleSmall?.copyWith(
-                          color: onSurfaceVariant,
-                        ),
-                      ),
-                    ),
+                  child: Text(
+                    groupTitle,
+                    style: theme.textTheme.labelLarge,
                   ),
-                  for (final groupTitle in beaconGroupKeys) ...[
-                    SliverToBoxAdapter(
-                      child: Padding(
-                        padding: EdgeInsets.fromLTRB(
-                          tt.screenHPadding,
-                          tt.tightGap,
-                          tt.screenHPadding,
-                          0,
-                        ),
-                        child: Text(
-                          groupTitle,
-                          style: theme.textTheme.labelLarge,
-                        ),
-                      ),
-                    ),
-                    SliverList.separated(
-                      itemCount: beaconGroups[groupTitle]!.length,
-                      separatorBuilder: separatorBuilder,
-                      itemBuilder: (context, i) => _buildInviteTile(
-                        context,
-                        state: state,
-                        invitation: beaconGroups[groupTitle]![i],
-                        disableAnimations: disableAnimations,
-                      ),
-                    ),
-                  ],
-                ],
-              ],
+                ),
+              ),
+              SliverList.separated(
+                itemCount: beaconGroups[groupTitle]!.length,
+                separatorBuilder: separatorBuilder,
+                itemBuilder: (context, i) => _buildInviteTile(
+                  context,
+                  invitation: beaconGroups[groupTitle]![i],
+                  disableAnimations: disableAnimations,
+                  isBeaconSection: true,
+                ),
+              ),
             ],
-          );
-        },
-      ),
+          ],
+        ],
+      ],
     );
   }
 
   Widget _buildInviteTile(
     BuildContext context, {
-    required InvitationState state,
     required InvitationEntity invitation,
     required bool disableAnimations,
+    required bool isBeaconSection,
   }) {
-    if (state.invitations.length > kFetchListOffset &&
-        state.invitations.last == invitation) {
-      unawaited(invitationCubit.fetch(clear: false));
+    if (segmentInvites.length > kFetchListOffset &&
+        segmentInvites.last == invitation) {
+      unawaited(
+        isAccepted
+            ? invitationCubit.fetchMoreAccepted()
+            : invitationCubit.fetchMorePending(),
+      );
     }
+
+    if (isAccepted) {
+      VoidCallback? onTap;
+      if (isBeaconSection) {
+        final beaconId = invitation.beaconId;
+        if (beaconId != null) {
+          onTap = () => context.read<ScreenCubit>().showBeacon(beaconId);
+        }
+      } else if (invitation.invitedName != null ||
+          invitation.invitedImageId != null) {
+        final invitedId = invitation.invitedId;
+        if (invitedId != null) {
+          onTap = () => context.read<ScreenCubit>().showProfile(invitedId);
+        }
+      }
+      return AcceptedInviteListTile(
+        key: ValueKey(invitation),
+        invitation: invitation,
+        l10n: l10n,
+        onTap: onTap,
+      );
+    }
+
     final emphasize =
         invitation.id == emphasizedInvitationId && !disableAnimations;
     final addressee = invitation.addresseeName;
@@ -523,6 +630,55 @@ class _InvitesTabBody extends StatelessWidget {
             ? l10n.invitationDualPurposeBody
             : null,
       ),
+    );
+  }
+}
+
+class _AcceptedEmptyState extends StatelessWidget {
+  const _AcceptedEmptyState({
+    required this.l10n,
+    required this.onSwitchToPending,
+  });
+
+  final L10n l10n;
+  final VoidCallback onSwitchToPending;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final tt = context.tt;
+    final onSurfaceVariant = theme.colorScheme.onSurfaceVariant;
+
+    return Column(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(
+          Icons.check_circle_outline,
+          size: tt.iconSize * 3,
+          color: onSurfaceVariant,
+        ),
+        SizedBox(height: tt.sectionGap),
+        Text(
+          l10n.friendsInvitesAcceptedEmptyTitle,
+          style: theme.textTheme.titleMedium?.copyWith(
+            color: onSurfaceVariant,
+          ),
+          textAlign: TextAlign.center,
+        ),
+        SizedBox(height: tt.rowGap),
+        Text(
+          l10n.friendsInvitesAcceptedEmptyBody,
+          style: theme.textTheme.bodyMedium?.copyWith(
+            color: onSurfaceVariant,
+          ),
+          textAlign: TextAlign.center,
+        ),
+        SizedBox(height: tt.sectionGap),
+        TenturaTextAction(
+          label: l10n.friendsInvitesAcceptedEmptyBackToPending,
+          onPressed: onSwitchToPending,
+        ),
+      ],
     );
   }
 }

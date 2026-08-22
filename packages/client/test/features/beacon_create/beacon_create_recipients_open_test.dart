@@ -23,10 +23,16 @@ class _FakeInvitationRepository extends Fake implements InvitationRepository {
   Stream<void> get changes => const Stream<void>.empty();
 
   @override
-  Future<List<InvitationEntity>> fetchMine({
-    int offset = 0,
-    int limit = 0,
-  }) async => <InvitationEntity>[];
+  Future<InvitationsFetchResult> fetchMine({
+    int pendingOffset = 0,
+    int pendingLimit = 0,
+    int acceptedOffset = 0,
+    int acceptedLimit = 0,
+  }) async => (
+    pending: <InvitationEntity>[],
+    accepted: <InvitationEntity>[],
+    pendingCount: 0,
+  );
 
   @override
   Future<InvitationFetchByIdResult?> fetchById(String id) async => null;

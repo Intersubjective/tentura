@@ -18,11 +18,21 @@ import '../gql/_g/invitation_create.req.gql.dart';
 import '../gql/_g/invitation_delete_by_id.req.gql.dart';
 import '../gql/_g/invitation_fetch_by_id.req.gql.dart';
 import '../gql/_g/invitation_update.req.gql.dart';
+import '../gql/_g/invitations_fetch_by_user_id.data.gql.dart';
 import '../gql/_g/invitations_fetch_by_user_id.req.gql.dart';
 
 typedef InvitationFetchByIdResult = ({
   InvitationEntity invitation,
   Profile issuer,
+});
+
+/// Independently-paginated pending/accepted invitation lists from one
+/// GraphQL round trip, plus a true aggregate count for the pending badge
+/// (not just however many pending rows happen to be loaded so far).
+typedef InvitationsFetchResult = ({
+  List<InvitationEntity> pending,
+  List<InvitationEntity> accepted,
+  int pendingCount,
 });
 
 @Singleton(env: [Environment.dev, Environment.prod])
@@ -66,37 +76,47 @@ class InvitationRepository implements InvitationAcceptPort {
     );
   }
 
-  Future<List<InvitationEntity>> fetchMine({
-    int offset = 0,
-    int limit = kFetchWindowSize,
+  Future<InvitationsFetchResult> fetchMine({
+    int pendingOffset = 0,
+    int pendingLimit = kFetchWindowSize,
+    int acceptedOffset = 0,
+    int acceptedLimit = kFetchWindowSize,
   }) async {
-    final result = await _remoteApiService
+    final data = await _remoteApiService
         .request(
           GInvitationsFetchByUserIdReq(
             (b) => b.vars
               ..created_at_gt = DateTime.timestamp().subtract(
                 const Duration(hours: kInvitationDefaultTTL),
               )
-              ..offset = offset
-              ..limit = limit,
+              ..pending_offset = pendingOffset
+              ..pending_limit = pendingLimit
+              ..accepted_offset = acceptedOffset
+              ..accepted_limit = acceptedLimit,
           ),
         )
         .firstWhere((e) => e.dataSource == DataSource.Link)
-        .then((r) => r.dataOrThrow(label: _label).invitation);
-    return result
-        .map(
-          (e) => InvitationEntity(
-            id: e.id,
-            beaconId: e.beacon_id,
-            invitedId: e.invited_id,
-            addresseeName: e.addressee_name,
-            createdAt: e.created_at,
-            updatedAt: e.updated_at,
-            beaconTitle: e.beacon?.title,
-          ),
-        )
-        .toList();
+        .then((r) => r.dataOrThrow(label: _label));
+    return (
+      pending: data.pending.map(_invitationFromRow).toList(),
+      accepted: data.accepted.map(_invitationFromRow).toList(),
+      pendingCount: data.pending_count.aggregate?.count ?? 0,
+    );
   }
+
+  InvitationEntity _invitationFromRow(GInvitationRow e) => InvitationEntity(
+    id: e.id,
+    beaconId: e.beacon_id,
+    invitedId: e.invited_id,
+    addresseeName: e.addressee_name,
+    inviteOrigin: e.invite_origin,
+    acceptedAt: e.accepted_at,
+    invitedName: e.invited?.display_name,
+    invitedImageId: e.invited?.image_id,
+    createdAt: e.created_at,
+    updatedAt: e.updated_at,
+    beaconTitle: e.beacon?.title,
+  );
 
   Future<InvitationEntity> create({
     required String addresseeName,
