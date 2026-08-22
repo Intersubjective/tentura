@@ -172,7 +172,14 @@ async function enableSemantics(page) {
 
 async function bootRoom(page, beaconId) {
   await page.goto('about:blank');
-  await page.goto(`${BASE}/#/beacon/room/${beaconId}`, { waitUntil: 'load' });
+  // The room is now the General thread.  Navigate to its canonical nested
+  // route rather than relying on the legacy `/beacon/room/:id` redirect:
+  // direct hash cold starts can otherwise land on the home fallback before
+  // the redirect guard has a mounted tab router to forward through.
+  await page.goto(
+    `${BASE}/#/home/work/beacon/view/${beaconId}/thread/general`,
+    { waitUntil: 'load' },
+  );
   await settle(page, 10000);
   await enableSemantics(page);
   const attach = page.getByRole('button', { name: 'Attach' });
@@ -245,7 +252,7 @@ async function admitHelper({ authorJwt, helperJwt, beaconId, helperUserId }) {
   await gql(
     helperJwt,
     `mutation($id: String!) {
-      beaconOfferHelp(id: $id, message: "I can help", helpTypes: ["software"])
+      BeaconParticipantOfferHelp(beaconId: $id, body: "I can help")
     }`,
     { id: beaconId },
   );
