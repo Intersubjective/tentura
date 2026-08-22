@@ -19,7 +19,6 @@ import 'package:tentura/domain/entity/room_message.dart';
 import 'package:tentura/features/beacon_threads/domain/entity/request_thread.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/item_card.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/room_message_tile.dart';
-import 'package:tentura/features/coordination_item/ui/widget/coordination_item_overflow_menu.dart';
 import 'package:tentura/features/graph/domain/entity/node_details.dart';
 import 'package:tentura/features/graph/ui/bloc/graph_cubit.dart';
 import 'package:tentura/features/graph/ui/widget/graph_body.dart';
@@ -187,6 +186,18 @@ Future<void> pumpUntil(
   throw TimeoutException('Timed out waiting for condition. $dump');
 }
 
+/// Adds the user-action phase to asynchronous browser-test timeouts.
+Future<T> runE2eStep<T>(
+  String name,
+  Future<T> Function() action,
+) async {
+  try {
+    return await action();
+  } on TimeoutException catch (error) {
+    throw StateError('$name timed out: $error');
+  }
+}
+
 /// Current route, HUD author actions, and on-screen texts for timeout reports.
 String _screenDump() {
   final texts = find
@@ -326,7 +337,9 @@ Future<void> _createRequestToRecipientsTab(
     // CapabilityChipSet groups tags into collapsed accordion sections when
     // no search query is active (the Requirements sheet has no search
     // field) — the group header must be expanded before its chips exist.
-    final chipFinder = find.byKey(TestIds.key(TestIds.capabilityChip(needSlug)));
+    final chipFinder = find.byKey(
+      TestIds.key(TestIds.capabilityChip(needSlug)),
+    );
     if (!await tryPumpUntilVisible(tester, chipFinder)) {
       await tapAndSettle(
         tester,
@@ -520,15 +533,21 @@ Future<void> acceptHelpOffer(
   }
 }
 
-Future<void> removeHelperFromChat(
+/// Ends the acknowledged helper's participation through the current People UI.
+///
+/// The retired discussion-removal control used [helpOfferRemove]. An admitted
+/// committer now exposes only the distinct `End participation` action, which
+/// releases their current stake while retaining its history.
+Future<void> endHelperParticipation(
   WidgetTester tester, {
   required IntegrationFixture fixture,
 }) async {
   await tapAndSettle(
     tester,
-    find.byKey(TestIds.key(TestIds.helpOfferRemove(fixture.helperUserId))),
+    find.byKey(TestIds.key(TestIds.helpOfferRelease(fixture.helperUserId))),
   );
-  // Remove opens HelpOfferAdmissionReasonDialog; a non-empty reason enables OK.
+  // Ending participation opens HelpOfferAdmissionReasonDialog; a non-empty
+  // reason enables confirmation.
   final reasonField = find.byKey(TestIds.key(TestIds.admissionReasonInput));
   await pumpUntilVisible(tester, reasonField);
   await tester.enterText(reasonField, 'Integration cleanup');
@@ -564,12 +583,15 @@ Future<RoomMessage> sendRoomMessage(WidgetTester tester, String text) async {
     tester,
     find.byKey(TestIds.key(TestIds.roomMessageSend)),
   );
-  await pumpUntilVisible(tester, find.text(text));
+  // Sent messages are rendered as "You: <body>" for the author, rather than
+  // as a bare body Text widget.
+  final messageText = find.textContaining(text);
+  await pumpUntilVisible(tester, messageText);
   return tester
       .widget<RoomMessageTile>(
         find
             .ancestor(
-              of: find.text(text),
+              of: messageText,
               matching: find.byType(RoomMessageTile),
             )
             .first,
@@ -680,18 +702,20 @@ Future<RequestThread> createCoordinationItem(
 }) async {
   await enterThreadsIfNeeded(tester);
   final launcher = find.byKey(TestIds.key(launcherId));
-  if (finderHasMatch(launcher)) {
+  final visibleLabel = switch (launcherId) {
+    TestIds.coordinationAskCreate => 'Ask',
+    TestIds.coordinationPromiseCreate => 'Commitment',
+    _ => null,
+  };
+  // The wide Ask/Commitment controls carry their key on the HUD wrapper, not
+  // its inner button. Tap their rendered labels; the icon-only Blocker uses
+  // its keyed wrapper (and has no rendered text label).
+  if (visibleLabel != null && finderHasMatch(find.text(visibleLabel))) {
+    await tapAndSettle(tester, find.text(visibleLabel).first);
+  } else if (finderHasMatch(launcher)) {
     await tapAndSettle(tester, launcher.first);
   } else {
-    final fallbackLabel = switch (launcherId) {
-      TestIds.coordinationAskCreate => 'Ask',
-      TestIds.coordinationPromiseCreate => 'Commitment',
-      _ => null,
-    };
-    if (fallbackLabel == null) {
-      throw StateError('Coordination launcher not found: $launcherId');
-    }
-    await tapAndSettle(tester, find.text(fallbackLabel).first);
+    throw StateError('Coordination launcher not found: $launcherId');
   }
   await pumpUntilVisible(
     tester,
@@ -706,7 +730,21 @@ Future<RequestThread> createCoordinationItem(
     tester,
     find.byKey(TestIds.key(TestIds.coordinationComposerSubmit)),
   );
-  await pumpUntilVisible(tester, find.text(title));
+  final itemTitle = find.text(title);
+  // A Promise without another admitted target saves as a draft. Drafts are
+  // intentionally collapsed by default, so reveal that fold before asserting
+  // the saved item is rendered.
+  if (!await tryPumpUntilVisible(
+    tester,
+    itemTitle,
+    timeout: const Duration(seconds: 2),
+  )) {
+    final draftsFold = find.textContaining('Drafts (');
+    if (finderHasMatch(draftsFold)) {
+      await tapAndSettle(tester, draftsFold.first);
+    }
+  }
+  await pumpUntilVisible(tester, itemTitle);
   await popToThreadsListIfNeeded(tester);
   return tester
       .widget<ItemCard>(
@@ -717,15 +755,45 @@ Future<RequestThread> createCoordinationItem(
       .thread;
 }
 
-Future<void> resolveFirstCoordinationItem(WidgetTester tester) async {
+/// Resolves the specified active item. Drafts are also listed in the Threads
+/// UI, so a positional overflow-menu finder can target a draft that correctly
+/// has no Resolve action.
+Future<void> resolveCoordinationItem(
+  WidgetTester tester, {
+  required String title,
+}) async {
   await enterThreadsIfNeeded(tester);
-  final menu = find
-      .byType(
-        PopupMenuButton<CoordinationItemCardMenuAction>,
+  final itemTitle = find.text(title);
+  await pumpUntilVisible(tester, itemTitle);
+  final itemCard = find
+      .ancestor(
+        of: itemTitle,
+        matching: find.byType(ItemCard),
       )
       .first;
+  if (!finderHasMatch(itemCard)) {
+    throw StateError(
+      'coordination item card missing for "$title": ${_screenDump()}',
+    );
+  }
+  final itemId = tester.widget<ItemCard>(itemCard).thread.item!.id;
+  final menu = find.byKey(TestIds.key(TestIds.coordinationItemMenu(itemId)));
+  if (!await tryPumpUntilVisible(tester, menu)) {
+    final menuKeys = find
+        .byType(PopupMenuButton<Object?>)
+        .evaluate()
+        .map((e) => e.widget.key)
+        .join(', ');
+    throw StateError(
+      'resolve menu missing for item=$itemId title="$title" menus=[$menuKeys]: '
+      '${_screenDump()}',
+    );
+  }
   await tapAndSettle(tester, menu);
-  await tapAndSettle(tester, find.text('Resolve').last);
+  await tapAndSettle(
+    tester,
+    find.byKey(TestIds.key(TestIds.coordinationItemResolve(itemId))),
+  );
 }
 
 Finder _hudAction(String action) =>
@@ -938,7 +1006,9 @@ Future<void> userSubscribe(String objectUserId) async {
 }
 
 Future<void> openConnectionsGraph(WidgetTester tester, String profileId) async {
-  await goToPath(tester, '$kPathGraph/$profileId');
+  // The root `/graph/:id` route is a redirect into the Network tab. Navigate
+  // to its canonical nested URL so [goToPath] can observe the final route.
+  await goToPath(tester, '$kPathProfile$kPathGraph/$profileId');
   await pumpUntilVisible(
     tester,
     find.byKey(TestIds.key(TestIds.graphResetToEgo)),
@@ -1013,15 +1083,33 @@ Future<void> selectGraphNode(WidgetTester tester, String userId) async {
 }
 
 Future<String> selectGraphNeighbor(WidgetTester tester) async {
-  final helperLabel = find.textContaining('IT helper');
-  await pumpUntilVisible(
-    tester,
-    helperLabel,
-    timeout: const Duration(seconds: 45),
+  final cubit = readGraphCubit(tester);
+  bool isFixtureHelper(NodeDetails node) =>
+      node is UserNode &&
+      node.id != cubit.state.me.id &&
+      node.label.startsWith('IT helper');
+  try {
+    await pumpUntil(
+      tester,
+      () => cubit.graphController.nodes.any(isFixtureHelper),
+      timeout: const Duration(seconds: 45),
+    );
+  } on TimeoutException {
+    final nodes = cubit.graphController.nodes
+        .map((node) => '${node.runtimeType}:${node.id}:${node.label}')
+        .join(', ');
+    throw StateError('fixture helper is absent from graph nodes: $nodes');
+  }
+  final helper = cubit.graphController.nodes.singleWhere(
+    isFixtureHelper,
   );
-  await tester.tap(helperLabel.first);
+  // The graph canvas applies transforms independently of the label widgets,
+  // so WidgetTester taps can land outside the node. Select through the live
+  // cubit, as [selectGraphNode] does, after proving that the rendered graph
+  // contains the fixture neighbour.
+  cubit.selectNode(helper);
   await pumpBounded(tester);
-  return readGraphCubit(tester).state.focus;
+  return cubit.state.focus;
 }
 
 Future<void> expandEgoNeighbourhood(WidgetTester tester) async {
@@ -1037,12 +1125,22 @@ Future<void> expandEgoNeighbourhood(WidgetTester tester) async {
 }
 
 Future<void> expandFocusedGraphNode(WidgetTester tester) async {
-  final expand = find.byKey(TestIds.key(TestIds.graphExpand));
-  await pumpUntilVisible(tester, expand);
-  await tester.tap(expand);
+  final cubit = readGraphCubit(tester);
+  final focus = cubit.state.focus;
+  if (focus.isEmpty) {
+    throw StateError('cannot expand graph node without a focused node');
+  }
+  final node = cubit.graphController.nodes.singleWhere(
+    (node) => node.id == focus,
+  );
+  // Graph expansion is now a node action (the old graph.expand control was
+  // removed). As with [expandEgoNeighbourhood], Canvas transforms make a
+  // browser tap on the rendered node unreliable, so drive the running cubit
+  // command after the helper has been selected from the rendered graph.
+  await cubit.expandNode(node);
   await pumpBounded(tester, frames: 12);
   debugPrint(
-    '[e2e] expandFocusedGraphNode: focus=${readGraphCubit(tester).state.focus}',
+    '[e2e] expandFocusedGraphNode: focus=${cubit.state.focus}',
   );
 }
 

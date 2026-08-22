@@ -20,8 +20,8 @@ void main() {
       await loginAs(tester, fixture.authorEmail);
       await userSubscribe(fixture.helperUserId);
 
-      final urlBefore = currentAppUrl();
       await openConnectionsGraph(tester, fixture.authorUserId);
+      final graphUrl = currentAppUrl();
 
       // Hop 1: expand the ego neighbourhood (overview paging via cubit).
       await expandEgoNeighbourhood(tester);
@@ -38,24 +38,22 @@ void main() {
       await tapGraphBack(tester);
       expect(readGraphCubit(tester).state.focus, isEmpty);
       expect(readGraphCubit(tester).canPopFocus, isFalse);
-      expect(currentAppUrl(), urlBefore);
+      expect(currentAppUrl(), graphUrl);
 
       await selectGraphNeighbor(tester);
       await expandFocusedGraphNode(tester);
       expect(readGraphCubit(tester).canPopFocus, isTrue);
 
       final beforeHome = readGraphCubit(tester);
-      final focusBefore = beforeHome.state.focus;
-      final pathBefore = beforeHome.focusPath.length;
-      expect(focusBefore, isNotEmpty);
-      expect(pathBefore, greaterThan(1));
+      expect(beforeHome.state.focus, isNotEmpty);
+      expect(beforeHome.focusPath.length, greaterThan(1));
 
       await tapGraphResetToEgo(tester);
       final afterHome = readGraphCubit(tester);
-      expect(afterHome.state.focus, focusBefore);
-      expect(afterHome.focusPath.length, pathBefore);
-      expect(afterHome.canPopFocus, isTrue);
-      expect(currentAppUrl(), urlBefore);
+      expect(afterHome.state.focus, isEmpty);
+      expect(afterHome.focusPath.length, 1);
+      expect(afterHome.canPopFocus, isFalse);
+      expect(currentAppUrl(), graphUrl);
     },
   );
 }
