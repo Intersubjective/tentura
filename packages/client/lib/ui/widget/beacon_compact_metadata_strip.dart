@@ -85,6 +85,20 @@ class BeaconCompactMetadataStrip extends StatelessWidget {
       return const SizedBox.shrink();
     }
 
+    // A freshly forwarded Request can briefly lay out its My Work card while
+    // the surrounding route settles at compact width. In that state this row
+    // may receive less than one metadata avatar's width. A bare face pile is a
+    // non-flex Row child and would report its intrinsic width, overflowing the
+    // row; Align instead accepts the available width and constrains the pile.
+    if (hasPile && !hasSchedule && !hasLocation) {
+      return ClipRect(
+        child: Align(
+          alignment: Alignment.centerLeft,
+          child: pile,
+        ),
+      );
+    }
+
     return Row(
       children: [
         if (hasPile) pile,
