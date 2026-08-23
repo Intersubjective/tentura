@@ -184,9 +184,12 @@
 	}
 
 	# Signed-out `/` serves landing index.html with relative *.js / *.css at site root.
+	# Only match static landing files if root split is on, so LOCAL_ROOT_SPLIT=off lets Flutter dev server handle everything.
 	@landing_static_file {
 		path *.js *.css
 		not path /config.js /config.local.js
+		expression "{$LOCAL_ROOT_SPLIT:on}" != "off"
+		not header Cookie *__Host-tentura_session=*
 		file {
 			root {$LOCAL_LANDING_ROOT:./packages/landing}
 			try_files {path}
