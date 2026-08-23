@@ -21,6 +21,7 @@ class SelfAwareAvatar extends StatelessWidget {
     this.overlayBadge,
     this.isOnline = false,
     this.boxFit = BoxFit.cover,
+    this.onTap,
   }) : withContactBadge = withContactBadge ?? withRating;
 
   const SelfAwareAvatar.big({
@@ -32,6 +33,7 @@ class SelfAwareAvatar extends StatelessWidget {
     this.overlayBadge,
     this.isOnline = false,
     this.boxFit = BoxFit.cover,
+    this.onTap,
   }) : sizeBucket = TenturaAvatarSize.big,
        size = kTenturaAvatarBigSize,
        withContactBadge = withContactBadge ?? withRating;
@@ -46,6 +48,7 @@ class SelfAwareAvatar extends StatelessWidget {
     this.overlayBadge,
     this.isOnline = false,
     this.boxFit = BoxFit.cover,
+    this.onTap,
   }) : sizeBucket = TenturaAvatarSize.medium,
        withContactBadge = withContactBadge ?? withRating;
 
@@ -59,6 +62,7 @@ class SelfAwareAvatar extends StatelessWidget {
     this.overlayBadge,
     this.isOnline = false,
     this.boxFit = BoxFit.cover,
+    this.onTap,
   }) : sizeBucket = TenturaAvatarSize.small,
        withContactBadge = withContactBadge ?? withRating;
 
@@ -72,6 +76,7 @@ class SelfAwareAvatar extends StatelessWidget {
     this.overlayBadge,
     this.isOnline = false,
     this.boxFit = BoxFit.cover,
+    this.onTap,
   }) : sizeBucket = TenturaAvatarSize.tiny,
        withContactBadge = withContactBadge ?? withRating;
 
@@ -84,6 +89,7 @@ class SelfAwareAvatar extends StatelessWidget {
   final Widget? overlayBadge;
   final bool isOnline;
   final BoxFit boxFit;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -105,6 +111,7 @@ class SelfAwareAvatar extends StatelessWidget {
           overlayBadge: overlayBadge,
           isOnline: isOnline,
           boxFit: boxFit,
+          onTap: onTap,
         );
       },
     );

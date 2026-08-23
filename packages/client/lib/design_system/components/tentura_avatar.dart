@@ -43,6 +43,7 @@ class TenturaAvatar extends StatelessWidget {
     this.overlayBadge,
     this.isOnline = false,
     this.boxFit = BoxFit.cover,
+    this.onTap,
   }) : withContactBadge = withContactBadge ?? withRating;
 
   const TenturaAvatar.big({
@@ -55,6 +56,7 @@ class TenturaAvatar extends StatelessWidget {
     this.overlayBadge,
     this.isOnline = false,
     this.boxFit = BoxFit.cover,
+    this.onTap,
   }) : sizeBucket = TenturaAvatarSize.big,
        size = kTenturaAvatarBigSize,
        withContactBadge = withContactBadge ?? withRating;
@@ -70,6 +72,7 @@ class TenturaAvatar extends StatelessWidget {
     this.overlayBadge,
     this.isOnline = false,
     this.boxFit = BoxFit.cover,
+    this.onTap,
   }) : sizeBucket = TenturaAvatarSize.medium,
        withContactBadge = withContactBadge ?? withRating;
 
@@ -84,6 +87,7 @@ class TenturaAvatar extends StatelessWidget {
     this.overlayBadge,
     this.isOnline = false,
     this.boxFit = BoxFit.cover,
+    this.onTap,
   }) : sizeBucket = TenturaAvatarSize.small,
        withContactBadge = withContactBadge ?? withRating;
 
@@ -98,6 +102,7 @@ class TenturaAvatar extends StatelessWidget {
     this.overlayBadge,
     this.isOnline = false,
     this.boxFit = BoxFit.cover,
+    this.onTap,
   }) : sizeBucket = TenturaAvatarSize.tiny,
        withContactBadge = withContactBadge ?? withRating;
 
@@ -111,6 +116,7 @@ class TenturaAvatar extends StatelessWidget {
   final Widget? overlayBadge;
   final bool isOnline;
   final BoxFit boxFit;
+  final VoidCallback? onTap;
 
   static Widget avatarPlaceholder({
     int? cacheHeight,
@@ -229,6 +235,17 @@ class TenturaAvatar extends StatelessWidget {
               child: TenturaPresenceDot(size: s * 0.28),
             ),
         ],
+      );
+    }
+
+    if (onTap != null) {
+      inner = Material(
+        type: MaterialType.transparency,
+        child: InkWell(
+          customBorder: const CircleBorder(),
+          onTap: onTap,
+          child: inner,
+        ),
       );
     }
 
