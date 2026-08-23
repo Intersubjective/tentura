@@ -7,6 +7,7 @@ import 'package:flutter/services.dart';
 
 import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/design_system/tentura_capability_colors.dart';
+import 'package:tentura/design_system/tentura_radii.dart';
 import 'package:tentura/design_system/tentura_tokens.dart';
 import 'package:tentura/design_system/tentura_window_class.dart';
 import 'package:tentura/domain/capability/capability_tag.dart';
@@ -1780,10 +1781,14 @@ class _MessageLifecycleFooter extends StatelessWidget {
                                     ),
                                   )
                                 : null,
-                            borderRadius: BorderRadius.circular(18),
+                            borderRadius: BorderRadius.circular(
+                              TenturaRadii.avatar,
+                            ),
                             child: Padding(
                               padding: kPaddingSmallH.add(
-                                const EdgeInsets.symmetric(vertical: 6),
+                                EdgeInsets.symmetric(
+                                  vertical: tokens.iconTextGap,
+                                ),
                               ),
                               child: DecoratedBox(
                                 decoration: BoxDecoration(
@@ -1791,15 +1796,17 @@ class _MessageLifecycleFooter extends StatelessWidget {
                                       ? scheme.primaryContainer
                                       : scheme.surfaceContainerHighest
                                             .withValues(alpha: 0.75),
-                                  borderRadius: BorderRadius.circular(999),
+                                  borderRadius: BorderRadius.circular(
+                                    TenturaRadii.avatar,
+                                  ),
                                   border: viewerReactions.contains(entry.key)
                                       ? Border.all(color: scheme.primary)
                                       : null,
                                 ),
                                 child: Padding(
-                                  padding: const EdgeInsets.symmetric(
+                                  padding: EdgeInsets.symmetric(
                                     horizontal: kSpacingSmall,
-                                    vertical: 2,
+                                    vertical: tokens.tightGap,
                                   ),
                                   child: _RoomReactionChipPill(
                                     emoji: entry.key,
