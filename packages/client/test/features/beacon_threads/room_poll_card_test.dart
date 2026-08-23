@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/room_poll_data.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/room_poll_card.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
@@ -33,6 +34,7 @@ void main() {
 
     await tester.pumpWidget(
       MaterialApp(
+        theme: TenturaTheme.light(),
         localizationsDelegates: L10n.localizationsDelegates,
         supportedLocales: L10n.supportedLocales,
         home: Scaffold(
