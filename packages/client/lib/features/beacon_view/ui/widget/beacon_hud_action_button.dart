@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'package:tentura/design_system/tentura_design_system.dart';
+
 /// Compact beacon HUD action control (matches operational header rail, e.g. Forward).
 class BeaconHudActionButton extends StatelessWidget {
   const BeaconHudActionButton({
@@ -31,7 +33,10 @@ class BeaconHudActionButton extends StatelessWidget {
         ),
         style: FilledButton.styleFrom(
           textStyle: labelStyle,
-          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+          padding: const EdgeInsets.symmetric(
+            horizontal: TenturaSpacing.row,
+            vertical: TenturaSpacing.row,
+          ),
           visualDensity: VisualDensity.compact,
           minimumSize: minimumSize,
         ),
@@ -47,7 +52,10 @@ class BeaconHudActionButton extends StatelessWidget {
         style: labelStyle,
       ),
       style: OutlinedButton.styleFrom(
-        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+        padding: const EdgeInsets.symmetric(
+          horizontal: TenturaSpacing.row,
+          vertical: TenturaSpacing.row,
+        ),
         visualDensity: VisualDensity.compact,
         minimumSize: minimumSize,
       ),
@@ -79,7 +87,10 @@ class BeaconHudIconActionButton extends StatelessWidget {
           onPressed: onPressed,
           style: OutlinedButton.styleFrom(
             minimumSize: const Size(44, 40),
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+            padding: const EdgeInsets.symmetric(
+              horizontal: TenturaSpacing.row,
+              vertical: TenturaSpacing.row,
+            ),
             visualDensity: VisualDensity.compact,
           ),
           child: Icon(icon, size: 16),

@@ -51,7 +51,7 @@ class BeaconOperationalHeaderCard extends StatelessWidget {
   final VoidCallback? onStopWatching;
 
   /// Forward CTA — independent of the author/helper primary action; shown
-  /// whenever [Beacon.allowsForward], alongside whatever else is showing.
+  /// whenever the beacon allows forward, alongside whatever else is showing.
   final VoidCallback? onForward;
 
   /// Switches to the People lens (tab index 1).
@@ -82,9 +82,9 @@ class BeaconOperationalHeaderCard extends StatelessWidget {
     return Padding(
       padding: EdgeInsets.fromLTRB(
         tt.screenHPadding,
-        8,
+        TenturaSpacing.row,
         tt.screenHPadding,
-        10,
+        TenturaSpacing.cardGap,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -357,10 +357,13 @@ class BeaconCardPillReadOnly extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      padding: const EdgeInsets.symmetric(
+        horizontal: TenturaSpacing.cardPadding,
+        vertical: TenturaSpacing.iconText,
+      ),
       decoration: BoxDecoration(
         color: theme.colorScheme.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(999),
+        borderRadius: BorderRadius.circular(TenturaRadii.avatar),
       ),
       child: Text(
         l10n.beaconCtaReadOnly,

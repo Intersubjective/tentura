@@ -62,8 +62,8 @@ class BeaconDetailsFactsAccessRow extends StatelessWidget {
                   borderRadius: BorderRadius.circular(tt.cardRadius),
                 ),
                 padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 8,
+                  horizontal: TenturaSpacing.cardPadding,
+                  vertical: TenturaSpacing.row,
                 ),
                 child: ConstrainedBox(
                   constraints: BoxConstraints(minHeight: tt.buttonHeight),
