@@ -52,53 +52,64 @@ class BeaconDetailsFactsAccessRow extends StatelessWidget {
           return Semantics(
             button: true,
             label: label,
-            child: InkWell(
+            child: TenturaTechCard(
               key: ValueKey(testId),
+              padding: EdgeInsets.zero,
+              showShadow: true,
+              borderOverride: tt.borderSubtle,
               onTap: onTap,
-              child: ConstrainedBox(
-                constraints: BoxConstraints(minHeight: tt.buttonHeight),
-                child: Row(
-                  children: [
-                    if (showIcons) ...[
+              child: Padding(
+                padding: const EdgeInsets.symmetric(
+                  horizontal: TenturaSpacing.cardPadding,
+                  vertical: TenturaSpacing.row,
+                ),
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(minHeight: tt.buttonHeight),
+                  child: Row(
+                    children: [
+                      if (showIcons) ...[
+                        Icon(
+                          icon,
+                          size: tt.iconSize,
+                          color: scheme.onSurfaceVariant,
+                        ),
+                        SizedBox(width: tt.iconTextGap),
+                      ],
+                      Expanded(
+                        child: Text(
+                          label,
+                          style: TenturaText.bodySmall(
+                            scheme.onSurface,
+                          ).copyWith(fontWeight: FontWeight.w600),
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                      if (count != null) ...[
+                        SizedBox(width: tt.tightGap),
+                        Text(
+                          '$count',
+                          style: TenturaText.bodySmall(
+                            scheme.onSurfaceVariant,
+                          ),
+                        ),
+                      ],
+                      if (newCount > 0) ...[
+                        SizedBox(width: tt.tightGap),
+                        Text(
+                          l10n.beaconYouNewCount(newCount),
+                          style: TenturaText.bodySmall(tt.info).copyWith(
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ],
                       Icon(
-                        icon,
+                        Icons.chevron_right,
                         size: tt.iconSize,
                         color: scheme.onSurfaceVariant,
                       ),
-                      SizedBox(width: tt.iconTextGap),
                     ],
-                    Expanded(
-                      child: Text(
-                        label,
-                        style: TenturaText.bodySmall(scheme.onSurface).copyWith(
-                          fontWeight: FontWeight.w600,
-                        ),
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                    if (count != null) ...[
-                      SizedBox(width: tt.tightGap),
-                      Text(
-                        '$count',
-                        style: TenturaText.bodySmall(scheme.onSurfaceVariant),
-                      ),
-                    ],
-                    if (newCount > 0) ...[
-                      SizedBox(width: tt.tightGap),
-                      Text(
-                        l10n.beaconYouNewCount(newCount),
-                        style: TenturaText.bodySmall(tt.info).copyWith(
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                    ],
-                    Icon(
-                      Icons.chevron_right,
-                      size: tt.iconSize,
-                      color: scheme.onSurfaceVariant,
-                    ),
-                  ],
+                  ),
                 ),
               ),
             ),

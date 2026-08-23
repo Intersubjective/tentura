@@ -36,6 +36,7 @@ class BeaconOperationalHeaderCard extends StatelessWidget {
     this.onEditNowLine,
     this.onOpenItemDiscussion,
     this.onOpenPinnedFacts,
+    this.onForward,
     super.key,
   });
 
@@ -48,6 +49,10 @@ class BeaconOperationalHeaderCard extends StatelessWidget {
   final VoidCallback? onEditHelpOffer;
   final VoidCallback? onWatch;
   final VoidCallback? onStopWatching;
+
+  /// Forward CTA — independent of the author/helper primary action; shown
+  /// whenever the beacon allows forward, alongside whatever else is showing.
+  final VoidCallback? onForward;
 
   /// Switches to the People lens (tab index 1).
   final VoidCallback? onSwitchToPeopleTab;
@@ -71,13 +76,15 @@ class BeaconOperationalHeaderCard extends StatelessWidget {
     final helperActions = authorSpec == null
         ? _buildHelperHudActions(l10n)
         : const _HelperHudActions();
+    final showForwardCta = state.beacon.allowsForward && onForward != null;
+    final hasOtherAction = authorSpec != null || helperActions.hasActions;
 
     return Padding(
       padding: EdgeInsets.fromLTRB(
         tt.screenHPadding,
-        8,
+        TenturaSpacing.row,
         tt.screenHPadding,
-        10,
+        TenturaSpacing.cardGap,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -90,6 +97,9 @@ class BeaconOperationalHeaderCard extends StatelessWidget {
               rowWidth: rowWidth,
               state: state,
               onEditNowLine: onEditNowLine,
+              onReviewAuthorOffers: onAuthorHudAction == null
+                  ? null
+                  : () => onAuthorHudAction!(BeaconHudAuthorAction.reviewOffers),
             ),
           ),
           const SizedBox(height: kBeaconHudRowGap),
@@ -120,18 +130,26 @@ class BeaconOperationalHeaderCard extends StatelessWidget {
               ),
             ),
           ],
-          if (authorSpec != null) ...[
+          if (hasOtherAction || showForwardCta) ...[
             const SizedBox(height: 10),
-            BeaconHudAuthorActBlock(
-              spec: authorSpec,
-              onPressed: state.isLoading
-                  ? null
-                  : () => onAuthorHudAction!(authorSpec.action),
-            ),
-            const SizedBox(height: 10),
-          ] else if (helperActions.hasActions) ...[
-            const SizedBox(height: 10),
-            _HudActionStack(actions: helperActions),
+            if (authorSpec != null)
+              BeaconHudAuthorActBlock(
+                spec: authorSpec,
+                onPressed: state.isLoading
+                    ? null
+                    : () => onAuthorHudAction!(authorSpec.action),
+              )
+            else if (helperActions.hasActions)
+              _HudActionStack(actions: helperActions),
+            if (showForwardCta) ...[
+              if (hasOtherAction) const SizedBox(height: kBeaconHudRowGap),
+              BeaconHudActionButton(
+                icon: Icons.send,
+                label: l10n.labelForward,
+                onPressed: onForward,
+                filled: !hasOtherAction,
+              ),
+            ],
             const SizedBox(height: 10),
           ],
           Divider(height: 1, color: tt.border),
@@ -342,10 +360,13 @@ class BeaconCardPillReadOnly extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+      padding: const EdgeInsets.symmetric(
+        horizontal: TenturaSpacing.cardPadding,
+        vertical: TenturaSpacing.iconText,
+      ),
       decoration: BoxDecoration(
         color: theme.colorScheme.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(999),
+        borderRadius: BorderRadius.circular(TenturaRadii.avatar),
       ),
       child: Text(
         l10n.beaconCtaReadOnly,

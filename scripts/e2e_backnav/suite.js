@@ -14,17 +14,18 @@ async (page) => {
   const ME = 'Ua6432bd9e599';
 
   const EXPECT = {
-    railOnBeaconDetail: true, // STEP1+: beacon view lives in a tab branch
-    railOnGraphDetail: true, // STEP2: graph/profile details live in tab branches
+    railOnBeaconDetail: true, // root detail keeps the mounted Home rail
+    railOnGraphDetail: true, // root detail keeps the mounted Home rail
     bottomBarOnDetailCompact: false, // frozen: compact hides bottom bar on details
   };
 
-  // STEP1+: beacon view is a branch child; cold-start legacy links land in
-  // the default MyWork branch, warm pushes in the active tab's branch.
-  const BEACON_VIEW_RE = new RegExp(`^#/home/[a-z]+/beacon/view/${BEACON}`);
-  const GRAPH_ME_RE = new RegExp(`^#/home/[a-z]+/graph/${ME}`);
-  const GRAPH_HELPER_RE = new RegExp(`^#/home/[a-z]+/graph/${HELPER}`);
-  const PROFILE_HELPER_RE = new RegExp(`^#/home/[a-z]+/profile/view/${HELPER}`);
+  // Browse details are root routes. Cold links build their semantic Home
+  // source beneath the detail; warm navigation pushes above the mounted tab.
+  const BEACON_VIEW_RE = new RegExp(`^#/beacon/view/${BEACON}`);
+  const CANONICAL_BEACON_VIEW_RE = BEACON_VIEW_RE;
+  const GRAPH_ME_RE = new RegExp(`^#/graph/${ME}`);
+  const GRAPH_HELPER_RE = new RegExp(`^#/graph/${HELPER}`);
+  const PROFILE_HELPER_RE = new RegExp(`^#/profile/view/${HELPER}`);
 
   const results = [];
   const hash = () => page.evaluate(() => location.hash);
@@ -127,6 +128,26 @@ async (page) => {
     await until(railVisible, 'rail on home');
   });
 
+  // Regression: the expanded request view selects General and rewrites the
+  // query. Its route must remain the request detail, rather than rebuilding
+  // the Home shell and leaving those query parameters on `/home/work`.
+  await scenario('D1a desktop My Work card keeps request detail after thread URL sync', async () => {
+    await boot('#/home/work', desktop);
+    await page.getByRole('button', { name: /Open Request QA publish 526219/ }).first().click();
+    await until(async () => {
+      const currentHash = await hash();
+      return CANONICAL_BEACON_VIEW_RE.test(currentHash) &&
+          /[?&]tab=threads(?:&|$)/.test(currentHash) &&
+          /[?&]thread=general(?:&|$)/.test(currentHash);
+    }, 'expanded thread URL synchronized');
+    const detailHash = await hash();
+    await settle(3000);
+    expectEq(await hash(), detailHash, 'request detail URL remains stable after thread sync');
+    if ((await page.getByRole('button', { name: 'Back' }).count()) === 0) {
+      throw new Error('request detail disappeared after thread URL sync');
+    }
+  });
+
   await scenario('D2 graph -> profile -> graph -> back x3', async () => {
     await boot('#/home/profile', desktop);
     await page.getByRole('button', { name: 'Show Connections' }).first().click();
@@ -149,30 +170,6 @@ async (page) => {
     expectEq(await hash(), '#/home/profile', 'back to profile tab');
   });
 
-  await scenario('D3 legacy /beacon/room/:id redirect (desktop: split pane)', async () => {
-    await boot(`#/beacon/room/${BEACON}`, desktop);
-    const h = await hash();
-    expectMatch(h, BEACON_VIEW_RE, 'redirected to view');
-    // Desktop >=840 strips tab=room and derives the Phase 1 split instead;
-    // the room pane must be live (composer Attach affordance present).
-    const attach = (await page.getByRole('button', { name: 'Attach' }).count()) > 0;
-    if (!attach) throw new Error('room pane not visible after legacy room link');
-  });
-
-  await scenario('C0 compact legacy /beacon/room/:id keeps tab=room', async () => {
-    await boot(`#/beacon/room/${BEACON}`, compact);
-    const h = await hash();
-    expectMatch(h, BEACON_VIEW_RE, 'redirected to view');
-    expectMatch(h, /tab=room/, 'room tab preserved on compact');
-    const attach = (await page.getByRole('button', { name: 'Attach' }).count()) > 0;
-    if (!attach) throw new Error('room surface not visible on compact legacy room link');
-  });
-
-  await scenario('D4 legacy /beacon/:id redirect', async () => {
-    await boot(`#/beacon/${BEACON}`, desktop);
-    expectMatch(await hash(), BEACON_VIEW_RE, 'redirected to view');
-  });
-
   await scenario('D5 refresh mid-stack: leading back falls back home', async () => {
     await boot(`#/beacon/view/${BEACON}?entry=my_work`, desktop);
     expectMatch(await hash(), BEACON_VIEW_RE, 'deep load');
@@ -185,12 +182,6 @@ async (page) => {
       await page.getByRole('button', { name: 'Back' }).first().click();
       await until(async () => /^#\/home\//.test(await hash()), 'fallback to home (retry)');
     }
-  });
-
-  await scenario('D6 notification-style /shared/view?dest=room link', async () => {
-    await boot(`#/shared/view?id=${BEACON}&dest=room`, desktop);
-    const h = await hash();
-    expectMatch(h, new RegExp(`beacon/view/${BEACON}|beacon/room/${BEACON}`), 'lands on beacon');
   });
 
   await scenario('D7 tab switch keeps home URL mapping', async () => {

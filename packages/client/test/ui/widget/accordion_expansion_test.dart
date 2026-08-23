@@ -136,6 +136,57 @@ void main() {
     });
   });
 
+  group('AccordionExpansionGroup PageStorage isolation', () {
+    const regular = Size(800, 600);
+
+    Widget buildAtSharedSlot({Key? groupKey}) => ListView(
+      key: const PageStorageKey<String>('shared-slot'),
+      children: [
+        SizedBox(
+          height: 2000,
+          child: AccordionExpansionGroup(
+            key: groupKey,
+            accordionMode: false,
+            child: const Column(
+              children: [
+                AccordionExpansionTile(
+                  id: 'a',
+                  title: Text('Section A'),
+                  children: [Text('Body A')],
+                ),
+              ],
+            ),
+          ),
+        ),
+      ],
+    );
+
+    testWidgets(
+      'tile does not crash reading a scrollable-owned PageStorage slot',
+      (tester) async {
+        // A ListView's own scroll position and a nested AccordionExpansionTile
+        // with no distinguishing key of its own both resolve to the same
+        // PageStorage identifier when the ListView carries the only
+        // PageStorageKey in the ancestry (as updates_screen.dart's
+        // CustomScrollView does). Scrolling writes a non-bool value into that
+        // shared slot; remounting the tile afterwards used to crash reading
+        // it back as `bool?`.
+        await tester.pumpWidget(wrap(buildAtSharedSlot(), size: regular));
+        await tester.pumpAndSettle();
+
+        await tester.drag(find.byType(ListView), const Offset(0, -300));
+        await tester.pumpAndSettle();
+
+        await tester.pumpWidget(
+          wrap(buildAtSharedSlot(groupKey: UniqueKey()), size: regular),
+        );
+        await tester.pumpAndSettle();
+
+        expect(tester.takeException(), isNull);
+      },
+    );
+  });
+
   group('AccordionExpansionTile headerAction', () {
     const regular = Size(800, 600);
 

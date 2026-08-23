@@ -28,6 +28,47 @@ MyWorkCardViewModel _viewModel(Beacon beacon) => MyWorkCardViewModel(
 );
 
 void main() {
+  testWidgets('bare people strip accepts less than one avatar width', (
+    tester,
+  ) async {
+    final beacon = Beacon.empty.copyWith(
+      id: 'b-narrow-pile',
+      author: const Profile(id: 'a1', displayName: 'Alice'),
+      helpOfferCount: 1,
+      helpOfferUsers: const [Profile(id: 'h1', displayName: 'Bob')],
+    );
+
+    await tester.pumpWidget(
+      MaterialApp(
+        theme: TenturaTheme.light(),
+        localizationsDelegates: L10n.localizationsDelegates,
+        supportedLocales: L10n.supportedLocales,
+        locale: const Locale('en'),
+        home: Scaffold(
+          body: Align(
+            alignment: Alignment.topLeft,
+            child: SizedBox(
+              width: 21,
+              child: BeaconCompactMetadataStrip(
+                beacon: beacon,
+                involvedProfiles: beacon.helpOfferUsers,
+                currentUserId: 'viewer',
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+    expect(
+      tester.getSize(find.byType(BeaconCompactMetadataStrip)).width,
+      21,
+    );
+    expect(find.byType(OverlappingPeopleAvatars), findsOneWidget);
+  });
+
   testWidgets('metadata row shows schedule and location at 360px', (
     tester,
   ) async {

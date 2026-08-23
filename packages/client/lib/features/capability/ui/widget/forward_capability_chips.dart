@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/capability/capability_tag.dart';
+import 'package:tentura/ui/utils/capability_tag_presenter.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
 /// Read-only compact chips for capability tags assigned by a forwarder.
@@ -45,7 +46,9 @@ class ForwardCapabilityChips extends StatelessWidget {
                 ],
               ),
               backgroundColor: swatch.container,
-              labelPadding: const EdgeInsets.symmetric(horizontal: 8),
+              labelPadding: EdgeInsets.symmetric(
+                horizontal: context.tt.rowGap,
+              ),
               padding: EdgeInsets.zero,
               materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
               visualDensity: VisualDensity.compact,

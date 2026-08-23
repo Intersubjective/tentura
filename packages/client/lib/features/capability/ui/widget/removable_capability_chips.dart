@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/features/capability/ui/widget/capability_requirement_tags.dart';
+import 'package:tentura/ui/utils/capability_tag_presenter.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
 /// Removable capability chips for editable requirement selections.

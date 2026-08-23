@@ -96,6 +96,7 @@ class InboxRejectedScreen extends StatelessWidget implements AutoRouteWrapper {
                           : null,
                       onMoveToInbox: () => inboxCubit.unreject(item.beaconId),
                       showCtaRow: false,
+                      showForwardCta: false,
                       showProvenance: false,
                     );
                   },

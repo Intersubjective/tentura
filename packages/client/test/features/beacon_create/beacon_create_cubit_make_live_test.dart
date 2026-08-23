@@ -4,8 +4,11 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import 'package:tentura/domain/entity/beacon.dart';
+import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/beacon_create/ui/bloc/beacon_create_cubit.dart';
+import 'package:tentura/features/forward/domain/entity/forward_candidate.dart';
 import 'package:tentura/features/forward/ui/bloc/forward_cubit.dart';
+import 'package:tentura/features/forward/ui/bloc/forward_state.dart';
 import 'package:tentura/ui/effect/ui_effect.dart';
 
 import '../../ui/effect/fake_ui_effect_port.dart';
@@ -103,6 +106,19 @@ void main() {
       final forward = ForwardCubit(
         beaconId: 'B1',
         debugSkipInitialLoad: true,
+        debugInitialState: const ForwardState(
+          beaconId: 'B1',
+          candidates: [
+            ForwardCandidate(
+              profile: Profile(
+                id: 'U1',
+                displayName: 'Recipient',
+                myVote: 1,
+                subjectExplicitlyTrustsViewer: true,
+              ),
+            ),
+          ],
+        ),
         effects: FakeUiEffectPort(),
       );
       addTearDown(forward.close);

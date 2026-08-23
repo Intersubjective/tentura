@@ -50,7 +50,7 @@ final class AttentionRepository implements AttentionRepositoryPort {
       ),
       page: AttentionFeedPage(
         nextCursor: feed.page.nextCursor,
-        items: [
+        items: _uniqueByReceiptId([
           for (final item in feed.page.items)
             AttentionReceipt(
               id: item.id,
@@ -81,10 +81,20 @@ final class AttentionRepository implements AttentionRepositoryPort {
                   ? null
                   : DateTime.tryParse(item.settledAt!),
             ),
-        ],
+        ]),
       ),
     );
   }
+
+  List<AttentionReceipt> _uniqueByReceiptId(
+    Iterable<AttentionReceipt> items,
+  ) => items
+      .fold<Map<String, AttentionReceipt>>(
+        {},
+        (byId, receipt) => byId..[receipt.id] = receipt,
+      )
+      .values
+      .toList(growable: false);
 
   @override
   Future<Set<String>> unreadForBeacons(Set<String> beaconIds) async {

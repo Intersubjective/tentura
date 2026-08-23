@@ -22,6 +22,7 @@ import 'package:tentura_server/domain/use_case/capability_cell_expiry_sweep_case
 import 'package:tentura_server/domain/use_case/capability_telemetry_case.dart';
 import 'package:tentura_server/domain/use_case/trust_maintenance_case.dart';
 import 'package:tentura_server/domain/use_case/user_availability_case.dart';
+import 'package:tentura_server/domain/use_case/deadline_reminder_sweep_case.dart';
 import 'package:tentura_server/domain/port/trust_maintenance_port.dart';
 import 'package:tentura_server/domain/port/witness_window_port.dart';
 import 'package:tentura_server/utils/id.dart';
@@ -50,6 +51,7 @@ final class TaskWorkerCase extends UseCaseBase {
     WitnessWindowPort witnessWindow,
     CapabilityCellPort capabilityCellPort,
     UserAvailabilityCase userAvailabilityCase,
+    DeadlineReminderSweepCase deadlineReminderSweep,
   ) => Future.value(
     TaskWorkerCase(
       imageRepository,
@@ -71,6 +73,7 @@ final class TaskWorkerCase extends UseCaseBase {
       witnessWindow: witnessWindow,
       capabilityCellPort: capabilityCellPort,
       userAvailabilityCase: userAvailabilityCase,
+      deadlineReminderSweep: deadlineReminderSweep,
       env: env,
       logger: logger,
     ),
@@ -93,6 +96,7 @@ final class TaskWorkerCase extends UseCaseBase {
     WitnessWindowPort? witnessWindow,
     CapabilityCellPort? capabilityCellPort,
     UserAvailabilityCase? userAvailabilityCase,
+    DeadlineReminderSweepCase? deadlineReminderSweep,
     required super.env,
     required super.logger,
   }) : _imageObjectGc = imageObjectGc,
@@ -106,7 +110,8 @@ final class TaskWorkerCase extends UseCaseBase {
        _capabilityTelemetry = capabilityTelemetry,
        _witnessWindow = witnessWindow,
        _capabilityCellPort = capabilityCellPort,
-       _userAvailabilityCase = userAvailabilityCase;
+       _userAvailabilityCase = userAvailabilityCase,
+       _deadlineReminderSweep = deadlineReminderSweep;
 
   final ImageRepositoryPort _imageRepository;
 
@@ -128,6 +133,7 @@ final class TaskWorkerCase extends UseCaseBase {
   final WitnessWindowPort? _witnessWindow;
   final CapabilityCellPort? _capabilityCellPort;
   final UserAvailabilityCase? _userAvailabilityCase;
+  final DeadlineReminderSweepCase? _deadlineReminderSweep;
 
   /// Per-process identity for `image_object_gc` lease ownership (§3.4).
   final _gcLeaseOwner = generateId('W');
@@ -150,6 +156,7 @@ final class TaskWorkerCase extends UseCaseBase {
   var _lastEwwGcSweep = DateTime.fromMillisecondsSinceEpoch(0);
   var _lastCapGenGcSweep = DateTime.fromMillisecondsSinceEpoch(0);
   var _lastAvailabilityCleanupSweep = DateTime.fromMillisecondsSinceEpoch(0);
+  var _lastDeadlineReminderSweep = DateTime.fromMillisecondsSinceEpoch(0);
 
   late final _tasks = <Future<void> Function()>[
     () async {
@@ -175,6 +182,14 @@ final class TaskWorkerCase extends UseCaseBase {
     },
     () async {
       final now = DateTime.timestamp();
+      if (now.difference(_lastDeadlineReminderSweep) <
+          const Duration(minutes: 5))
+        return;
+      _lastDeadlineReminderSweep = now;
+      await _deadlineReminderSweep?.runDue(now: now);
+    },
+    () async {
+      final now = DateTime.timestamp();
       if (now.difference(_lastTrustMaintenanceSweep) <
           const Duration(minutes: 1)) {
         return;
@@ -184,8 +199,7 @@ final class TaskWorkerCase extends UseCaseBase {
     },
     () async {
       final now = DateTime.timestamp();
-      if (now.difference(_lastBlockCascadeSweep) <
-          const Duration(minutes: 1)) {
+      if (now.difference(_lastBlockCascadeSweep) < const Duration(minutes: 1)) {
         return;
       }
       _lastBlockCascadeSweep = now;
@@ -279,8 +293,7 @@ final class TaskWorkerCase extends UseCaseBase {
     // Beacon stage expiry (§3.3): sweeps invisible stages older than 24h.
     () async {
       final now = DateTime.timestamp();
-      if (now.difference(_lastStageExpirySweep) <
-          const Duration(minutes: 5)) {
+      if (now.difference(_lastStageExpirySweep) < const Duration(minutes: 5)) {
         return;
       }
       _lastStageExpirySweep = now;
@@ -298,7 +311,8 @@ final class TaskWorkerCase extends UseCaseBase {
     // Capability telemetry (G1b): population-wide mute rate + seed renewal gauges.
     () async {
       final now = DateTime.timestamp();
-      if (now.difference(_lastCapTelemetrySweep) < const Duration(minutes: 45)) {
+      if (now.difference(_lastCapTelemetrySweep) <
+          const Duration(minutes: 45)) {
         return;
       }
       _lastCapTelemetrySweep = now;

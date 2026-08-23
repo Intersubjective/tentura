@@ -4,6 +4,9 @@ mutation RoomMessageCreate(
   $replyToMessageId: String
   $threadItemId: String
   $file: v2_Upload = {}
+  $explicitMentionUserIds: [String!]
+  $explicitMentionOffsets: [Int!]
+  $explicitMentionLengths: [Int!]
 ) {
   RoomMessageCreate(
     beaconId: $beaconId
@@ -11,6 +14,9 @@ mutation RoomMessageCreate(
     replyToMessageId: $replyToMessageId
     threadItemId: $threadItemId
     file: $file
+    explicitMentionUserIds: $explicitMentionUserIds
+    explicitMentionOffsets: $explicitMentionOffsets
+    explicitMentionLengths: $explicitMentionLengths
   ) {
     id
   }

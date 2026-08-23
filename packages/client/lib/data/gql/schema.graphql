@@ -3187,6 +3187,7 @@ input Int_comparison_exp {
 columns and relationships of "invitation"
 """
 type invitation {
+  accepted_at: timestamptz
   addressee_name: String
 
   """An object relationship"""
@@ -3194,6 +3195,7 @@ type invitation {
   beacon_id: String
   created_at: timestamptz!
   id: String!
+  invite_origin: String
 
   """An object relationship"""
   invited: user
@@ -3206,17 +3208,36 @@ type invitation {
 }
 
 """
+aggregated selection of "invitation"
+"""
+type invitation_aggregate {
+  aggregate: invitation_aggregate_fields
+  nodes: [invitation!]!
+}
+
+"""
+aggregate fields of "invitation"
+"""
+type invitation_aggregate_fields {
+  count(columns: [invitation_select_column!], distinct: Boolean): Int!
+  max: invitation_max_fields
+  min: invitation_min_fields
+}
+
+"""
 Boolean expression to filter rows from the table "invitation". All fields are combined with a logical 'AND'.
 """
 input invitation_bool_exp {
   _and: [invitation_bool_exp!]
   _not: invitation_bool_exp
   _or: [invitation_bool_exp!]
+  accepted_at: timestamptz_comparison_exp
   addressee_name: String_comparison_exp
   beacon: beacon_bool_exp
   beacon_id: String_comparison_exp
   created_at: timestamptz_comparison_exp
   id: String_comparison_exp
+  invite_origin: String_comparison_exp
   invited: user_bool_exp
   invited_id: String_comparison_exp
   issuer: user_bool_exp
@@ -3229,11 +3250,6 @@ unique or primary key constraints on table "invitation"
 """
 enum invitation_constraint {
   """
-  unique or primary key constraint on columns "invited_id"
-  """
-  invitation_invited_id_key
-
-  """
   unique or primary key constraint on columns "id"
   """
   invitation_pkey
@@ -3243,6 +3259,32 @@ enum invitation_constraint {
 input type for inserting data into table "invitation"
 """
 input invitation_insert_input
+
+"""aggregate max on columns"""
+type invitation_max_fields {
+  accepted_at: timestamptz
+  addressee_name: String
+  beacon_id: String
+  created_at: timestamptz
+  id: String
+  invite_origin: String
+  invited_id: String
+  updated_at: timestamptz
+  user_id: String
+}
+
+"""aggregate min on columns"""
+type invitation_min_fields {
+  accepted_at: timestamptz
+  addressee_name: String
+  beacon_id: String
+  created_at: timestamptz
+  id: String
+  invite_origin: String
+  invited_id: String
+  updated_at: timestamptz
+  user_id: String
+}
 
 """
 response of any mutation on the table "invitation"
@@ -3266,11 +3308,13 @@ input invitation_on_conflict {
 
 """Ordering options when selecting data from "invitation"."""
 input invitation_order_by {
+  accepted_at: order_by
   addressee_name: order_by
   beacon: beacon_order_by
   beacon_id: order_by
   created_at: order_by
   id: order_by
+  invite_origin: order_by
   invited: user_order_by
   invited_id: order_by
   issuer: user_order_by
@@ -3283,6 +3327,9 @@ select columns of table "invitation"
 """
 enum invitation_select_column {
   """column name"""
+  accepted_at
+
+  """column name"""
   addressee_name
 
   """column name"""
@@ -3293,6 +3340,9 @@ enum invitation_select_column {
 
   """column name"""
   id
+
+  """column name"""
+  invite_origin
 
   """column name"""
   invited_id
@@ -3317,10 +3367,12 @@ input invitation_stream_cursor_input {
 
 """Initial value of the column from where the streaming should start"""
 input invitation_stream_cursor_value_input {
+  accepted_at: timestamptz
   addressee_name: String
   beacon_id: String
   created_at: timestamptz
   id: String
+  invite_origin: String
   invited_id: String
   updated_at: timestamptz
   user_id: String
@@ -3345,9 +3397,9 @@ type mutation_root {
   BeaconStewardPromote(beaconId: String!, stewardUserId: String!): Boolean!
   MarkThreadSeen(beaconId: String!, readThroughAt: String, threadId: String!): v2_BeaconRoomSeenResult!
   RoomMessageAttachmentAdd(beaconId: String!, file: v2_Upload = {}, messageId: String!): Boolean!
-  RoomMessageCreate(beaconId: String!, body: String!, file: v2_Upload, replyToMessageId: String, threadItemId: String): v2_RoomMessageCreatePayload!
+  RoomMessageCreate(beaconId: String!, body: String!, explicitMentionLengths: [Int!], explicitMentionOffsets: [Int!], explicitMentionUserIds: [String!], file: v2_Upload, replyToMessageId: String, threadItemId: String): v2_RoomMessageCreatePayload!
   RoomMessageDelete(beaconId: String!, messageId: String!): Boolean!
-  RoomMessageEdit(beaconId: String!, body: String!, messageId: String!): Boolean!
+  RoomMessageEdit(beaconId: String!, body: String!, explicitMentionLengths: [Int!], explicitMentionOffsets: [Int!], explicitMentionUserIds: [String!], explicitMentionsProvided: Boolean, messageId: String!): Boolean!
   RoomMessageMarkSemanticDone(beaconId: String!, messageId: String!): Boolean!
   RoomMessageReactionToggle(beaconId: String!, emoji: String!, messageId: String!): Boolean!
   RoomPollCreate(allowRevote: Boolean, beaconId: String!, isAnonymous: Boolean, pollType: String, question: String!, variants: [String!]): v2_RoomMessageRow!
@@ -4251,7 +4303,6 @@ type query_root {
   BeaconFactCardList(beaconId: String!): [v2_BeaconFactCardRow!]
   BeaconParticipantList(beaconId: String!): [v2_BeaconParticipantRow!]
   BeaconRoomStateGet(beaconId: String!): v2_BeaconRoomStateRow!
-  beaconThreads(beaconId: String!): [v2_BeaconThreadRow!]
   InboxRoomContextBatch(beaconIds: [String!]): [v2_InboxRoomContextRow!]
   RoomMessageList(beaconId: String!, beforeIso: String, threadItemId: String): [v2_RoomMessageRow!]
   attentionFeed(cursor: String, limit: Int, search: String, view: String!): v2_AttentionFeed!
@@ -4282,6 +4333,7 @@ type query_root {
   beaconHelpOffererForwardPath(helpOffererId: String!, id: String!): v2_ForwardGraphResult!
   beaconInvolvement(id: String!): v2_BeaconInvolvement!
   beaconLineageForwardSuggestions(id: String!): v2_BeaconLineageForwardSuggestions!
+  beaconThreads(beaconId: String!): [v2_BeaconThreadRow!]
 
   """
   fetch data from the table: "beacon_archived"
@@ -4574,6 +4626,7 @@ type query_root {
   evaluationReceived(id: String!): v2_EvaluationReceived!
   evaluationSummary(id: String!): v2_EvaluationSummary!
   evaluationsWrittenAboutMeBy(id: String!): [v2_EvaluationsWrittenAboutViewerRow!]
+  forwardCandidateContext(candidateId: String!, context: String!): v2_ForwardCandidateContext!
   forwardCandidates(context: String!): [v2_user!]!
   forwardContext(beaconId: String!, context: String): [v2_v2_ForwardBandRow!]
   forwardReasonsByBeacon(id: String!): [v2_v2_ForwardReasonRow!]
@@ -4715,6 +4768,26 @@ type query_root {
     where: invitation_bool_exp
   ): [invitation!]!
   invitationById(id: String!): v2_Invitation
+
+  """
+  fetch aggregated fields from the table: "invitation"
+  """
+  invitation_aggregate(
+    """distinct select on columns"""
+    distinct_on: [invitation_select_column!]
+
+    """limit the number of rows returned"""
+    limit: Int
+
+    """skip the first n rows. Use only with order_by"""
+    offset: Int
+
+    """sort the rows by one or more columns"""
+    order_by: [invitation_order_by!]
+
+    """filter the rows returned"""
+    where: invitation_bool_exp
+  ): invitation_aggregate!
 
   """fetch data from the table: "invitation" using primary key columns"""
   invitation_by_pk(id: String!): invitation
@@ -5767,6 +5840,26 @@ type subscription_root {
     """filter the rows returned"""
     where: invitation_bool_exp
   ): [invitation!]!
+
+  """
+  fetch aggregated fields from the table: "invitation"
+  """
+  invitation_aggregate(
+    """distinct select on columns"""
+    distinct_on: [invitation_select_column!]
+
+    """limit the number of rows returned"""
+    limit: Int
+
+    """skip the first n rows. Use only with order_by"""
+    offset: Int
+
+    """sort the rows by one or more columns"""
+    order_by: [invitation_order_by!]
+
+    """filter the rows returned"""
+    where: invitation_bool_exp
+  ): invitation_aggregate!
 
   """fetch data from the table: "invitation" using primary key columns"""
   invitation_by_pk(id: String!): invitation
@@ -6981,6 +7074,12 @@ type v2_BeaconRoomStateRow {
   updatedBy: String
 }
 
+type v2_BeaconStatusResult {
+  beaconId: String!
+  status: Int!
+  statusChangedAt: String
+}
+
 type v2_BeaconThreadRow {
   item: v2_CoordinationItemRow
   lastMessageAt: String
@@ -6991,27 +7090,6 @@ type v2_BeaconThreadRow {
   threadId: String!
   threadKind: String!
   unreadCount: Int!
-}
-
-type v2_ThreadMessagePreview {
-  admissionReason: String
-  excerpt: String
-  factTitle: String
-  factVisibility: Int
-  hasAttachment: Boolean!
-  itemKind: Int
-  itemTitle: String
-  joinedUserId: String
-  kind: Int!
-  linkedEventKind: Int
-  linkedItemId: String
-  pollTitle: String
-}
-
-type v2_BeaconStatusResult {
-  beaconId: String!
-  status: Int!
-  statusChangedAt: String
 }
 
 type v2_BlockIntent {
@@ -7072,7 +7150,6 @@ type v2_CoordinationResponsibilityBatchRow {
   othersOpenCount: Int!
   promiseNew: Int!
   promiseOpen: Int!
-  othersOpenCount: Int!
 }
 
 """An ISO-8601 Date."""
@@ -7155,6 +7232,18 @@ type v2_FcmTestSendResult {
   ok: Boolean!
   reason: String
   sent: Int!
+}
+
+type v2_ForwardCandidateConnectionNode {
+  displayName: String
+  id: String
+  image: v2_image
+  kind: String!
+}
+
+type v2_ForwardCandidateContext {
+  nodes: [v2_ForwardCandidateConnectionNode!]!
+  status: String!
 }
 
 type v2_ForwardDeliveryResult {
@@ -7386,6 +7475,7 @@ type v2_RoomMessageRow {
   linkedItemTitle: String
   linkedItemUpdatedAt: String
   linkedPollingId: String
+  mentionSpansJson: String!
   mentions: [String!]
   myReaction: String
   pollDataJson: String
@@ -7399,6 +7489,21 @@ type v2_RoomMessageRow {
   semanticMarker: Int
   systemPayloadJson: String
   threadItemId: String
+}
+
+type v2_ThreadMessagePreview {
+  admissionReason: String
+  excerpt: String
+  factTitle: String
+  factVisibility: Int
+  hasAttachment: Boolean!
+  itemKind: Int
+  itemTitle: String
+  joinedUserId: String
+  kind: Int!
+  linkedEventKind: Int
+  linkedItemId: String
+  pollTitle: String
 }
 
 input v2_Upload {
@@ -7947,4 +8052,3 @@ order by variance() on columns of table "vote_user"
 input vote_user_variance_order_by {
   amount: order_by
 }
-

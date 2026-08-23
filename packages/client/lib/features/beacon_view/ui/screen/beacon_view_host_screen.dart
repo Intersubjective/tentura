@@ -112,7 +112,10 @@ class _BeaconViewMessageCanonicalizer extends StatefulWidget {
 
 class _BeaconViewMessageCanonicalizerState
     extends State<_BeaconViewMessageCanonicalizer> {
-  var _started = false;
+  /// The `?message=` already resolved (or in flight), so a rebuild with the
+  /// same id — including one this canonicalizer's own route replace
+  /// triggers — does not re-resolve it.
+  String? _resolvedForMessageId;
 
   @override
   void initState() {
@@ -120,18 +123,29 @@ class _BeaconViewMessageCanonicalizerState
     WidgetsBinding.instance.addPostFrameCallback((_) => unawaited(_canonicalize()));
   }
 
+  @override
+  void didUpdateWidget(_BeaconViewMessageCanonicalizer oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // `usesPathAsKey` keeps this State alive across navigations to the same
+    // beacon id, so a fresh `?message=` (e.g. from a second deep link while
+    // a prior thread is already open) needs its own resolve pass rather than
+    // being silently dropped by the once-per-instance dedup below.
+    if (oldWidget.messageId != widget.messageId ||
+        oldWidget.threadId != widget.threadId) {
+      WidgetsBinding.instance.addPostFrameCallback((_) => unawaited(_canonicalize()));
+    }
+  }
+
   Future<void> _canonicalize() async {
-    if (_started || !mounted) return;
+    if (!mounted) return;
     final explicitThread = widget.threadId?.trim();
     if (explicitThread != null && explicitThread.isNotEmpty) return;
 
     final messageId = widget.messageId?.trim();
     if (messageId == null || messageId.isEmpty) return;
+    if (_resolvedForMessageId == messageId) return;
 
-    final childName = context.router.currentChild?.name;
-    if (childName == ThreadDetailRoute.name) return;
-
-    _started = true;
+    _resolvedForMessageId = messageId;
     final resolvedThreadId = await resolveCanonicalThreadIdForMessage(
       threadsCase: GetIt.I<BeaconThreadsCase>(),
       beaconId: widget.beaconId,

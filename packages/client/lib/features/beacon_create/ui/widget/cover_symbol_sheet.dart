@@ -3,6 +3,7 @@ import 'package:tentura_root/domain/capability/capability_slugs.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/capability/capability_tag.dart';
+import 'package:tentura/ui/utils/capability_tag_presenter.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/widget/unfocus_sheet_body.dart';
 

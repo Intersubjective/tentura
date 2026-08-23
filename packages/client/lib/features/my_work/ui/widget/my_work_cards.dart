@@ -32,9 +32,8 @@ import 'package:tentura/features/home/ui/widget/attention_marker.dart';
 bool myWorkCloseBeaconEnabled(MyWorkCardViewModel vm) =>
     vm.beacon.status == BeaconStatus.open && vm.displayStatus != null;
 
-/// Footer Forward CTA on authored My Work cards (D6: gated by [Beacon.allowsForward]).
-bool myWorkNeedsForwardCta(MyWorkCardViewModel vm) =>
-    !vm.authorHasForwardedOnce && vm.beacon.allowsForward;
+/// Footer Forward CTA on authored My Work cards (gated by [Beacon.allowsForward]).
+bool myWorkNeedsForwardCta(MyWorkCardViewModel vm) => vm.beacon.allowsForward;
 
 bool myWorkExpectedRequiresReviewWindow(MyWorkCardViewModel vm) =>
     (vm.displayStatus?.everAcknowledgedCommitterCount ?? 0) > 0;

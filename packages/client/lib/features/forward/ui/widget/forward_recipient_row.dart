@@ -7,6 +7,7 @@ import 'package:tentura/domain/capability/capability_group.dart';
 import 'package:tentura/domain/contacts/contact_name_overlay.dart';
 import 'package:tentura/domain/util/availability_presets.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
+import 'package:tentura/ui/utils/capability_tag_presenter.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/test_ids.dart';
 import 'package:tentura/ui/widget/self_aware_profile_avatar.dart';
@@ -25,6 +26,7 @@ class ForwardRecipientRow extends StatelessWidget {
     required this.host,
     required this.isSelected,
     required this.onToggle,
+    this.onOpenDetails,
     this.isPersonalNoteSkipped = false,
     this.onSkipPersonalNote,
     this.onRestorePersonalNote,
@@ -44,6 +46,7 @@ class ForwardRecipientRow extends StatelessWidget {
   final ForwardRecipientRowHost host;
   final bool isSelected;
   final VoidCallback? onToggle;
+  final VoidCallback? onOpenDetails;
   final bool isPersonalNoteSkipped;
   final VoidCallback? onSkipPersonalNote;
   final VoidCallback? onRestorePersonalNote;
@@ -107,10 +110,10 @@ class ForwardRecipientRow extends StatelessWidget {
 
     return Semantics(
       identifier: TestIds.forwardRecipient(candidate.id),
-      button: canSelectNew,
+      button: onOpenDetails != null,
       child: InkWell(
         key: TestIds.key(TestIds.forwardRecipient(candidate.id)),
-        onTap: checkboxEnabled ? onToggle : null,
+        onTap: onOpenDetails,
         child: Padding(
           padding: EdgeInsets.symmetric(
             vertical: tt.rowGap,
@@ -501,6 +504,10 @@ class _ForwardRowCheckbox extends StatelessWidget {
         ? (isSelected ? tt.info : tt.border)
         : tt.borderSubtle;
     return Semantics(
+      label: isSelected
+          ? L10n.of(context)!.forwardCandidateRemove
+          : L10n.of(context)!.forwardCandidateSelect,
+      button: true,
       checked: isSelected,
       child: Material(
         type: MaterialType.transparency,
@@ -516,7 +523,7 @@ class _ForwardRowCheckbox extends StatelessWidget {
                 height: 20,
                 decoration: BoxDecoration(
                   color: isSelected && enabled ? tt.info : Colors.transparent,
-                  borderRadius: BorderRadius.circular(4),
+                  borderRadius: BorderRadius.circular(TenturaRadii.accentBar),
                   border: Border.all(color: borderColor),
                 ),
                 child: isSelected && enabled

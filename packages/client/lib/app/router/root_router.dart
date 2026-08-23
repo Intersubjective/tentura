@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import 'package:collection/collection.dart';
 import 'package:auto_route/auto_route.dart';
 import 'package:injectable/injectable.dart';
 import 'package:logging/logging.dart';
@@ -15,11 +14,10 @@ import 'package:tentura/features/home/ui/bloc/post_join_navigation_cubit.dart';
 import 'package:tentura/features/settings/ui/bloc/settings_cubit.dart';
 
 import 'accept_invite_guard.dart';
-import 'beacon_legacy_path_deep_link.dart';
+import 'browse_deep_link.dart';
 import 'credential_link_deep_link.dart';
 import 'home_tab_branches.dart';
 import 'invite_deep_link.dart';
-import 'notification_deep_link.dart';
 import 'recover_route_guard.dart';
 import 'root_router.gr.dart';
 
@@ -44,8 +42,13 @@ List<PageRouteInfo> beaconViewChildRoutesFromQuery(
 }) {
   if (matchedThreadId != null) {
     return [
+      beaconViewOperationalChildFromQuery(qp),
       ThreadDetailRoute(
         threadId: matchedThreadId,
+        isDeepLink: qp.optString(kQueryIsDeepLink),
+        viewTab: qp.optString(kQueryBeaconViewTab),
+        peopleTabAttention: qp.optString(kQueryBeaconPeopleTabAttention),
+        entry: qp.optString(kQueryBeaconEntry),
         messageId: qp.optString(kQueryMessageId),
       ),
     ];
@@ -87,58 +90,8 @@ class RootRouter extends RootStackRouter {
   /// app never shows IntroScreen. Native keeps the Drift-backed intro flag.
   bool get _introPending => !kIsWeb && _settingsCubit.state.introEnabled;
 
-  /// Forwards a bare legacy detail path (e.g. `/beacon/view/:id`) into a
-  /// [HomeRoute] tab branch, then aborts the root-level navigation via
-  /// [resolver]`.next(false)` — the shared body of every root "redirect
-  /// target" guard below.
-  ///
-  /// Warm shell (a tab branch is mounted): plain `push` onto the **active**
-  /// branch. This must not be `navigate(HomeRoute(...))` — auto_route's
-  /// `navigate` has replace semantics for browser history (it pops-until /
-  /// merges to avoid duplicates), so pushing a second detail would swap the
-  /// URL in place and silently shorten the browser back chain (regression:
-  /// graph1 → profile → graph2, then back×2 could not reach graph1).
-  ///
-  /// Cold start (no shell yet): build the shell around the detail with
-  /// `navigate`; there's no back chain to preserve, and the tab is picked by
-  /// the route's semantic [owner] — see [homeTabShellFor].
-  void _forwardIntoHomeBranch(
-    NavigationResolver resolver, {
-    required HomeTab owner,
-    required PageRouteInfo route,
-  }) {
-    final tabs = innerRouterOf<TabsRouter>(HomeRoute.name);
-    final activeIndex = tabs?.activeIndex;
-    final branch = activeIndex == null
-        ? null
-        : tabs?.stackRouterOfIndex(activeIndex);
-    if (branch != null) {
-      // Defer to avoid pushing while the router's RenderStack is mid-layout
-      // (Flutter web can deliver early pointer events before first layout).
-      scheduleMicrotask(() {
-        unawaited(branch.push(route));
-      });
-    } else {
-      scheduleMicrotask(() {
-        unawaited(
-          navigate(
-            HomeRoute(
-              children: [
-                homeTabShellFor(activeIndex: activeIndex, owner: owner)(
-                  children: [route],
-                ),
-              ],
-            ),
-          ),
-        );
-      });
-    }
-    resolver.next(false);
-  }
-
-  /// Backs the [ProfileViewRoute] "viewing my own profile" guard, threaded
-  /// into [browseDetailChildren] as a live callback (not a torn-off getter)
-  /// so each check re-reads the current auth state.
+  /// Backs the [ProfileViewRoute] "viewing my own profile" guard and re-reads
+  /// the current auth state for every navigation.
   bool _checkIfIsMe(String id) => _authCubit.state.checkIfIsMe(id);
 
   @override
@@ -166,7 +119,6 @@ class RootRouter extends RootStackRouter {
           path: kPathMyWork.split('/').last,
           children: [
             AutoRoute(initial: true, page: MyWorkRoute.page, path: ''),
-            ...browseDetailChildren(checkIfIsMe: _checkIfIsMe),
           ],
         ),
         // Inbox (tab body only; rejected archive is a root-level full-screen route)
@@ -175,7 +127,6 @@ class RootRouter extends RootStackRouter {
           path: kPathInbox.split('/').last,
           children: [
             AutoRoute(initial: true, page: InboxRoute.page, path: ''),
-            ...browseDetailChildren(checkIfIsMe: _checkIfIsMe),
           ],
         ),
         AutoRoute(
@@ -183,7 +134,6 @@ class RootRouter extends RootStackRouter {
           path: kPathUpdates.split('/').last,
           children: [
             AutoRoute(initial: true, page: UpdatesRoute.page, path: ''),
-            ...browseDetailChildren(checkIfIsMe: _checkIfIsMe),
           ],
         ),
         // Network (Friends)
@@ -193,7 +143,6 @@ class RootRouter extends RootStackRouter {
           children: [
             AutoRoute(initial: true, page: FriendsRoute.page, path: ''),
             AutoRoute(page: BlockedUsersRoute.page, path: 'blocked'),
-            ...browseDetailChildren(checkIfIsMe: _checkIfIsMe),
           ],
         ),
         // Me (Profile)
@@ -202,7 +151,6 @@ class RootRouter extends RootStackRouter {
           path: kPathProfile.split('/').last,
           children: [
             AutoRoute(initial: true, page: ProfileRoute.page, path: ''),
-            ...browseDetailChildren(checkIfIsMe: _checkIfIsMe),
           ],
         ),
       ],
@@ -214,23 +162,10 @@ class RootRouter extends RootStackRouter {
       ],
     ),
 
-    // Inbox rejected archive — root registration only exists as a redirect
-    // target (see the BeaconViewRoute comment below for the pattern); the
-    // real registration lives under each tab branch via
-    // `browseDetailChildren()`. Intro/auth checks aren't re-declared here —
-    // navigating into `HomeRoute` below re-runs its own guards.
+    // Inbox rejected archive belongs to the root browse-detail stack.
     AutoRoute(
       page: InboxRejectedRoute.page,
       path: kPathInboxRejected,
-      guards: [
-        AutoRouteGuard.simple(
-          (resolver, _) => _forwardIntoHomeBranch(
-            resolver,
-            owner: HomeTab.inbox,
-            route: const InboxRejectedRoute(),
-          ),
-        ),
-      ],
     ),
 
     RedirectRoute(path: kPathNotifications, redirectTo: kPathUpdates),
@@ -374,26 +309,30 @@ class RootRouter extends RootStackRouter {
       ],
     ),
 
-    // Profile View — root registration only exists as a redirect target (see
-    // the BeaconViewRoute comment below for the pattern); the real
-    // registration lives under each tab branch via `browseDetailChildren()`,
-    // which also carries the "viewing my own profile" isMe guard (it must be
-    // checked there too, for full branch URLs that never reach this root
-    // entry).
+    // Other-user profiles live on the root browse stack. Viewing my own
+    // profile remains the documented Home/Me special case.
     AutoRoute(
       usesPathAsKey: true,
       page: ProfileViewRoute.page,
       path: '$kPathProfileView/:id',
       guards: [
-        AutoRouteGuard.simple(
-          (resolver, _) => _forwardIntoHomeBranch(
-            resolver,
-            owner: HomeTab.network,
-            route: ProfileViewRoute(
-              id: resolver.route.params.getString('id'),
+        AutoRouteGuard.simple((resolver, router) {
+          final id = resolver.route.params.getString('id');
+          if (!_checkIfIsMe(id)) {
+            resolver.next();
+            return;
+          }
+          resolver.next(false);
+          unawaited(
+            router.navigate(
+              HomeRoute(
+                children: [
+                  meTabShell(children: [const ProfileRoute()]),
+                ],
+              ),
             ),
-          ),
-        ),
+          );
+        }),
       ],
     ),
 
@@ -441,13 +380,8 @@ class RootRouter extends RootStackRouter {
       path: kPathBeaconNew,
     ),
 
-    // Beacon View — root registration only exists as a redirect target: the
-    // real (rendered) registration is nested under each tab branch via
-    // `browseDetailChildren()` above, so a full branch URL resolves there
-    // directly. This entry catches bare `/beacon/view/:id` pushes (all the
-    // legacy pushPath call sites) and forwards them into whichever tab is
-    // currently active — see [_forwardIntoHomeBranch] for the warm-push /
-    // cold-navigate split and its browser-history rationale.
+    // Request detail and its nested thread route live on the root browse
+    // stack, preserving the mounted Home or Forward source below them.
     AutoRoute(
       usesPathAsKey: true,
       page: BeaconViewRoute.page,
@@ -463,32 +397,6 @@ class RootRouter extends RootStackRouter {
           path: 'thread/:threadId',
         ),
       ],
-      guards: [
-        AutoRouteGuard.simple((resolver, _) {
-          final qp = resolver.route.queryParams;
-          final matchedChild = resolver.route.children?.firstOrNull;
-          final threadChildId = matchedChild?.params.optString('threadId');
-          _forwardIntoHomeBranch(
-            resolver,
-            owner: HomeTab.work,
-            route: BeaconViewRoute(
-              id: resolver.route.params.getString('id'),
-              isDeepLink: qp.optString(kQueryIsDeepLink),
-              viewTab: qp.optString(kQueryBeaconViewTab),
-              peopleTabAttention: qp.optString(
-                kQueryBeaconPeopleTabAttention,
-              ),
-              entry: qp.optString(kQueryBeaconEntry),
-              threadId: qp.optString(kQueryThreadId),
-              messageId: qp.optString(kQueryMessageId),
-              children: beaconViewChildRoutesFromQuery(
-                qp,
-                matchedThreadId: threadChildId,
-              ),
-            ),
-          );
-        }),
-      ],
     ),
 
     // Review contributions — root registration only exists as a redirect
@@ -497,41 +405,17 @@ class RootRouter extends RootStackRouter {
       usesPathAsKey: true,
       page: ReviewContributionsRoute.page,
       path: '$kPathReviewContributions/:id',
-      guards: [
-        AutoRouteGuard.simple(
-          (resolver, _) => _forwardIntoHomeBranch(
-            resolver,
-            owner: HomeTab.work,
-            route: ReviewContributionsRoute(
-              id: resolver.route.params.getString('id'),
-              draft: resolver.route.queryParams.getBool('draft', false),
-            ),
-          ),
-        ),
-      ],
     ),
 
     AutoRoute(
       usesPathAsKey: true,
       page: ReceivedReviewsRoute.page,
       path: '$kPathReceivedReviews/:id',
-      guards: [
-        AutoRouteGuard.simple(
-          (resolver, _) => _forwardIntoHomeBranch(
-            resolver,
-            owner: HomeTab.work,
-            route: ReceivedReviewsRoute(
-              id: resolver.route.params.getString('id'),
-            ),
-          ),
-        ),
-      ],
     ),
 
     // Forward Beacon
     AutoRoute(
-      keepHistory: false,
-      maintainState: false,
+      usesPathAsKey: true,
       fullscreenDialog: true,
       page: ForwardBeaconRoute.page,
       path: '$kPathForwardBeacon/:id',
@@ -545,142 +429,46 @@ class RootRouter extends RootStackRouter {
       path: '$kPathForwardPerson/:id',
     ),
 
-    // Beacon View All — root registration only exists as a redirect target;
-    // see the BeaconViewRoute comment above for the pattern.
+    // All Requests authored by this person.
     AutoRoute(
       usesPathAsKey: true,
       page: BeaconRoute.page,
       path: '$kPathBeaconViewAll/:id',
-      guards: [
-        AutoRouteGuard.simple(
-          (resolver, _) => _forwardIntoHomeBranch(
-            resolver,
-            owner: HomeTab.work,
-            route: BeaconRoute(id: resolver.route.params.getString('id')),
-          ),
-        ),
-      ],
     ),
 
-    // Beacons authored by :id that the viewer was ever forwarded. Root
-    // registration only exists as a redirect target; see the BeaconViewRoute
-    // comment above for the pattern.
+    // Requests authored by :id that the viewer was ever forwarded.
     AutoRoute(
       usesPathAsKey: true,
       page: InvolvedBeaconRoute.page,
       path: '$kPathBeaconInvolvedAll/:id',
-      guards: [
-        AutoRouteGuard.simple(
-          (resolver, _) => _forwardIntoHomeBranch(
-            resolver,
-            owner: HomeTab.work,
-            route: InvolvedBeaconRoute(
-              id: resolver.route.params.getString('id'),
-            ),
-          ),
-        ),
-      ],
     ),
 
-    // Legacy `/beacon/:id` (missing `/view`) → unified beacon view.
-    AutoRoute(
-      usesPathAsKey: true,
-      page: BeaconLegacyPathRoute.page,
-      path: '/beacon/:id',
-      guards: [
-        AutoRouteGuard.redirect((resolver) {
-          final id = resolver.route.params.getString('id');
-          return BeaconViewRoute(
-            id: id,
-            isDeepLink: 'true',
-            entry: kBeaconEntryDeepLink,
-            children: [
-              BeaconViewOperationalRoute(
-                isDeepLink: 'true',
-                entry: kBeaconEntryDeepLink,
-              ),
-            ],
-          );
-        }),
-      ],
-    ),
-
-    // Rating — root registration only exists as a redirect target; see the
-    // BeaconViewRoute comment above for the pattern.
+    // Rating browse detail.
     AutoRoute(
       usesPathAsKey: true,
       page: RatingRoute.page,
       path: kPathRating,
-      guards: [
-        AutoRouteGuard.simple(
-          (resolver, _) => _forwardIntoHomeBranch(
-            resolver,
-            owner: HomeTab.network,
-            route: const RatingRoute(),
-          ),
-        ),
-      ],
     ),
 
-    // Root registration only exists as a redirect target; see the
-    // BeaconViewRoute comment above for the pattern.
+    // Genealogy browse detail.
     AutoRoute(
       usesPathAsKey: true,
       page: InviteGenealogyRoute.page,
       path: kPathInviteGenealogy,
-      guards: [
-        AutoRouteGuard.simple(
-          (resolver, _) => _forwardIntoHomeBranch(
-            resolver,
-            owner: HomeTab.network,
-            route: InviteGenealogyRoute(
-              targetId: resolver.route.queryParams.optString(
-                kQueryGenealogyWith,
-              ),
-            ),
-          ),
-        ),
-      ],
     ),
 
-    // Graph — register `/graph/forwards/:id` before `/graph/:id` so
-    // `pushPath('/graph/forwards/B…')` does not match the trust graph route
-    // with id `forwards` (which would leave an empty graph when popping back).
-    // Root registrations only exist as redirect targets; see the
-    // BeaconViewRoute comment above for the pattern.
+    // Register the forwards graph before the trust graph so
+    // /graph/forwards/:id cannot match /graph/:id as id "forwards".
     AutoRoute(
       usesPathAsKey: true,
       page: ForwardsGraphRoute.page,
       path: '$kPathForwardsGraph/:id',
-      guards: [
-        AutoRouteGuard.simple((resolver, _) {
-          final qp = resolver.route.queryParams;
-          _forwardIntoHomeBranch(
-            resolver,
-            owner: HomeTab.network,
-            route: ForwardsGraphRoute(
-              focus: resolver.route.params.getString('id'),
-              helpOffererId: qp.optString('committer'),
-              helpOffererName: qp.optString('committerName'),
-            ),
-          );
-        }),
-      ],
     ),
 
     AutoRoute(
       usesPathAsKey: true,
       page: GraphRoute.page,
       path: '$kPathGraph/:id',
-      guards: [
-        AutoRouteGuard.simple(
-          (resolver, _) => _forwardIntoHomeBranch(
-            resolver,
-            owner: HomeTab.network,
-            route: GraphRoute(focus: resolver.route.params.getString('id')),
-          ),
-        ),
-      ],
     ),
 
     // Complaint
@@ -702,27 +490,19 @@ class RootRouter extends RootStackRouter {
 
   FutureOr<DeepLink> deepLinkBuilder(PlatformDeepLink deepLink) {
     _logger.info('DeepLinkBuilder: ${deepLink.uri}');
+    final transformed = _transformDeepLink(deepLink.uri);
+    final browseStack = buildBrowseDeepLinkStack(transformed);
+    if (browseStack != null) {
+      return deepLink.initial
+          ? DeepLink([browseStack.home, browseStack.detail])
+          : DeepLink([browseStack.detail], navigate: false);
+    }
     return deepLink;
   }
 
   Future<Uri> deepLinkTransformer(Uri uri) => SynchronousFuture(
-    _prefixBrowseBranch(_transformDeepLink(uri)),
+    _transformDeepLink(uri),
   );
-
-  /// Final transformer stage: nests bare browse-detail paths under their
-  /// `/home/<tab>` branch so platform navigations (URL bar, hash change,
-  /// notification links) match the nested registration directly with a
-  /// single history entry — see [homeBranchPathPrefixFor].
-  Uri _prefixBrowseBranch(Uri uri) {
-    final prefix = homeBranchPathPrefixFor(
-      path: uri.path,
-      activeIndex: innerRouterOf<TabsRouter>(HomeRoute.name)?.activeIndex,
-    );
-    if (prefix == null) {
-      return uri;
-    }
-    return uri.replace(path: '$prefix${uri.path}');
-  }
 
   Uri _transformDeepLink(Uri uri) {
     final credentialLink = transformCredentialLinkDeepLink(uri: uri);
@@ -737,100 +517,52 @@ class RootRouter extends RootStackRouter {
     if (invitePath.path != uri.path) {
       return invitePath;
     }
-    final legacyBeacon = transformLegacyBeaconPath(uri);
-    if (legacyBeacon.path != uri.path) {
-      return legacyBeacon;
-    }
-    if (uri.path != kPathAppLinkView) {
-      return uri;
-    }
-    return switch (uri.queryParameters['id']) {
-      final String id when id.startsWith('B') || id.startsWith('C') =>
-        transformBeaconAppLink(uri, id),
-      final String id when id.startsWith('O') || id.startsWith('U') =>
-        uri.replace(
-          path: '$kPathProfileView/$id',
-          queryParameters: {
-            kQueryIsDeepLink: 'true',
-          },
-        ),
-      final String id when id.startsWith('I') =>
-        transformSharedViewInviteDeepLink(
-          uri: uri,
-          id: id,
-          isAuthenticated: _authCubit.state.isAuthenticated,
-        ),
-      _ => uri.replace(
-        path: kPathNetwork,
-        queryParameters: {
-          kQueryIsDeepLink: 'true',
-        },
-      ),
-    };
+    return uri;
   }
 
-  /// Opens a notification [rawLink] (`/#/shared/view?…` or absolute URL).
+  /// Opens a notification [rawLink] above the current root source.
   ///
-  /// Deep-link pipeline (same for platform links and notification taps):
-  /// 1. [_transformDeepLink] normalizes legacy/app-link shapes to canonical
-  ///    paths (credential, invite, `/beacon/:id`, `/shared/view?id=…`);
-  /// 2. [_prefixBrowseBranch] nests bare browse paths under the owning
-  ///    `/home/<tab>` branch ([homeBranchPathPrefixFor]) so they match the
-  ///    nested registration directly with one history entry;
-  /// 3. anything that still arrives bare (in-app `pushPath` from effects)
-  ///    is caught by the root redirect-target guards, which forward into
-  ///    the active branch ([_forwardIntoHomeBranch]).
+  /// Cold starts use the typed semantic Home owner from
+  /// [buildBrowseDeepLinkStack]. Warm starts keep the mounted Home tab (or
+  /// Forward flow) in place and push the canonical root detail above it.
   Future<void> openFromNotificationLink(
     String rawLink, {
     bool preferUpdatesBranch = false,
   }) async {
-    final uri = _notificationUriFromRaw(rawLink);
-    if (!preferUpdatesBranch && uri.path.startsWith(kPathReviewContributions)) {
-      await pushPath(uri.path);
+    if (rawLink.isEmpty) return;
+
+    final rawUri = _notificationUriFromRaw(rawLink);
+    final destRoom = rawUri.queryParameters['dest'] == 'room';
+    var normalized = _transformDeepLink(rawUri);
+    if (destRoom && normalized.path.startsWith(kPathBeaconView)) {
+      final query = Map<String, String>.from(normalized.queryParameters)
+        ..[kQueryBeaconEntry] = kBeaconEntryRoomNotification;
+      normalized = normalized.replace(queryParameters: query);
+    }
+
+    final browseStack = buildBrowseDeepLinkStack(normalized);
+    final tabs = innerRouterOf<TabsRouter>(HomeRoute.name);
+    if (tabs == null && browseStack != null) {
+      final home = preferUpdatesBranch
+          ? HomeRoute(
+              children: [
+                updatesTabShell(children: [const UpdatesRoute()]),
+              ],
+            )
+          : browseStack.home;
+      await replaceAll([home, browseStack.detail]);
       return;
     }
-    final destRoom =
-        uri.queryParameters['dest'] == 'room' ||
-        (uri.path == kPathAppLinkView && uri.queryParameters['dest'] == 'room');
-    // Normalize only (no branch prefix): the bare path goes through
-    // `pushPath`, whose root redirect-target guard pushes onto the active
-    // branch — one history entry. The branch prefix stage is for
-    // platform-parsed links, where the browser already owns the entry.
-    var transformed = _transformDeepLink(uri);
-    if (destRoom && transformed.path.startsWith(kPathBeaconView)) {
-      final q = Map<String, String>.from(transformed.queryParameters);
-      q[kQueryBeaconEntry] = kBeaconEntryRoomNotification;
-      transformed = transformed.replace(queryParameters: q);
+    if (preferUpdatesBranch && tabs != null) {
+      tabs.setActiveIndex(HomeTabSpec.forTab(HomeTab.updates).index);
     }
-    final qp = transformed.queryParameters;
-    var path = transformed.path;
-    if (qp.isNotEmpty) {
-      final q = Uri(queryParameters: qp).query;
-      if (q.isNotEmpty) {
-        path = '$path?$q';
-      }
-    }
-    if (preferUpdatesBranch) {
-      final tabs = innerRouterOf<TabsRouter>(HomeRoute.name);
-      if (tabs != null) {
-        // `pushPath('/home/updates/...')` cannot switch a mounted tabs shell.
-        // Select Updates first, then let the existing root guard push the
-        // canonical detail path into that branch.
-        tabs.setActiveIndex(HomeTabSpec.forTab(HomeTab.updates).index);
-        path = transformed.path;
-        if (qp.isNotEmpty) {
-          final q = Uri(queryParameters: qp).query;
-          if (q.isNotEmpty) path = '$path?$q';
-        }
-      } else {
-        final prefix = homeBranchPathPrefixFor(
-          path: transformed.path,
-          activeIndex: HomeTabSpec.forTab(HomeTab.updates).index,
-        );
-        if (prefix != null) path = '$prefix$path';
-      }
-    }
-    await pushPath(path);
+
+    final query = normalized.queryParameters.isEmpty
+        ? ''
+        : Uri(queryParameters: normalized.queryParameters).query;
+    await pushPath(
+      query.isEmpty ? normalized.path : '${normalized.path}?$query',
+    );
   }
 
   Future<void> openFromUpdate(AttentionReceipt receipt) =>

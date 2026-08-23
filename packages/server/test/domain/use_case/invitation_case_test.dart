@@ -193,7 +193,26 @@ void main() {
       ).called(1);
     });
 
-    test('create rejects a too-short addressee name', () async {
+    test('create allows an omitted addressee name', () async {
+      when(
+        invitationRepo.create(
+          issuerId: anyNamed('issuerId'),
+          addresseeName: anyNamed('addresseeName'),
+          beaconId: anyNamed('beaconId'),
+        ),
+      ).thenAnswer((_) async => invitation());
+
+      await case_.create(userId: issuerId, addresseeName: '   ');
+
+      verify(
+        invitationRepo.create(
+          issuerId: issuerId,
+          addresseeName: null,
+        ),
+      ).called(1);
+    });
+
+    test('create rejects a too-short non-blank addressee name', () async {
       await expectLater(
         case_.create(userId: issuerId, addresseeName: ' B '),
         throwsA(isA<IdWrongException>()),
@@ -479,7 +498,7 @@ void main() {
       expect(attention.recorded, hasLength(2));
       expect(attention.recorded[0].recipients.single.recipientId, issuerId);
       expect(attention.recorded[0].actorUserId, 'Ustranger');
-      expect(attention.recorded[0].actionUrl, '/#/shared/view?id=Ustranger');
+      expect(attention.recorded[0].actionUrl, '/#/profile/view/Ustranger');
       expect(
         attention.recorded[1].eventType,
         AttentionEventType.mutualConnectionFormed,

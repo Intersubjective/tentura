@@ -564,11 +564,31 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
     final optimisticOffers = [
       for (final c in state.helpOffers)
         if (c.user.id == offerUserId)
-          c.copyWith(stakeState: CommitmentStakeState.released)
+          c.copyWith(
+            stakeState: CommitmentStakeState.released,
+            roomAccess: patchedHelpOfferRoomAccess(
+              current: c.roomAccess,
+              inviteToRoom: false,
+              removeFromRoom: true,
+            ),
+            admissionAction: HelpOfferAdmissionAction.remove,
+            lastRemoveReason: trimmedReason,
+          )
         else
           c,
     ];
-    emit(state.copyWith(helpOffers: optimisticOffers));
+    final optimisticParticipants = applyCoordinationRoomParticipantPatch(
+      participants: state.roomParticipants,
+      offerUserId: offerUserId,
+      inviteToRoom: false,
+      removeFromRoom: true,
+    );
+    emit(
+      state.copyWith(
+        helpOffers: optimisticOffers,
+        roomParticipants: optimisticParticipants,
+      ),
+    );
     try {
       await _case.releaseCommitment(
         beaconId: state.beacon.id,

@@ -6,7 +6,7 @@ query RoomMessageTarget($beaconId: String!, $messageId: String!) {
     linkedItemTargetPersonId linkedItemCreatedAt linkedItemUpdatedAt
     linkedItemLinkedMessageId linkedItemResolvedAt pollDataJson systemPayloadJson
     authorTitle authorHasPicture authorPicHeight authorPicWidth authorBlurHash
-    authorImageId reactionsJson myReaction reactorsJson attachmentsJson mentions
+    authorImageId reactionsJson myReaction reactorsJson attachmentsJson mentions mentionSpansJson
     replyToAuthorId replyToAuthorTitle replyToBodyExcerpt replyToHasAttachments
     replyToMessageId threadItemId
   }

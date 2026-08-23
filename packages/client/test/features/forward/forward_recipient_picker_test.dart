@@ -34,11 +34,16 @@ class _FakeInvitationRepository extends Fake implements InvitationRepository {
   Stream<void> get changes => const Stream<void>.empty();
 
   @override
-  Future<List<InvitationEntity>> fetchMine({
-    int offset = 0,
-    int limit = 0,
-  }) async =>
-      <InvitationEntity>[];
+  Future<InvitationsFetchResult> fetchMine({
+    int pendingOffset = 0,
+    int pendingLimit = 0,
+    int acceptedOffset = 0,
+    int acceptedLimit = 0,
+  }) async => (
+    pending: <InvitationEntity>[],
+    accepted: <InvitationEntity>[],
+    pendingCount: 0,
+  );
 
   @override
   Future<InvitationFetchByIdResult?> fetchById(String id) async => null;
@@ -128,7 +133,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Forward to 1'), findsNothing);
-    expect(find.byIcon(Icons.close), findsNothing);
+    expect(find.byTooltip('Close'), findsNothing);
   });
 
   testWidgets(
@@ -512,7 +517,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(cubit.state.skippedPersonalNoteIds, {'u1'});
-    expect(find.byTooltip('Add a personal note'), findsOneWidget);
+    expect(find.byType(TextField), findsNothing);
   });
 
   testWidgets('submit after skip proceeds without uncovered sheet', (
@@ -604,4 +609,42 @@ void main() {
     expect(find.text('No personal note yet'), findsOneWidget);
     expect(find.text('Send without a shared note'), findsOneWidget);
   });
+
+  testWidgets(
+    'recipient avatar on forward screen does not navigate on tap',
+    (tester) async {
+      final cubit = ForwardCubit(
+        beaconId: 'draft-1',
+        debugSkipInitialLoad: true,
+        embedded: true,
+        effects: FakeUiEffectPort(),
+      );
+      cubit.emit(
+        ForwardState(
+          beaconId: 'draft-1',
+          beacon: Beacon.empty.copyWith(id: 'draft-1', title: 'Draft'),
+          candidates: const [
+            ForwardCandidate(
+              profile: Profile(
+                id: 'u1',
+                displayName: 'Alex',
+                score: 10,
+                rScore: 1,
+              ),
+            ),
+          ],
+          selectedIds: const {},
+          candidatesLoad: const ForwardCandidatesReady(),
+        ),
+      );
+
+      await pumpPicker(tester, cubit: cubit, embedded: true);
+
+      final avatarFinder = find.byType(SelfAwareAvatar);
+      expect(avatarFinder, findsOneWidget);
+
+      final avatar = tester.widget<SelfAwareAvatar>(avatarFinder);
+      expect(avatar.onTap, isNull);
+    },
+  );
 }

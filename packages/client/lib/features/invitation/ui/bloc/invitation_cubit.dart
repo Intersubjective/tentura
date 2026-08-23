@@ -20,9 +20,9 @@ class InvitationCubit extends Cubit<InvitationState> {
     InvitationRepository? invitationRepository,
     UiEffectPort? effects,
   }) : _invitationRepository =
-          invitationRepository ?? GetIt.I<InvitationRepository>(),
+           invitationRepository ?? GetIt.I<InvitationRepository>(),
        _effects = effects ?? GetIt.I<UiEffectPort>(),
-      super(const InvitationState()) {
+       super(const InvitationState()) {
     _repoChanges = _invitationRepository.changes.listen((_) {
       unawaited(fetch());
     });
@@ -41,31 +41,87 @@ class InvitationCubit extends Cubit<InvitationState> {
 
   StreamSubscription<void>? _repoChanges;
 
-  Future<void> fetch({bool clear = true}) async {
+  /// Reloads both segments' first page, plus the true pending count. Used
+  /// for pull-to-refresh, initial load, and whenever the repository reports
+  /// a local change (create/update/delete).
+  Future<void> fetch() async {
     if (state.isLoading) {
       return;
     }
-    if (!clear && state.hasReachedMax) {
-      return;
-    }
 
-    // Keep the current list while loading — a failed (re)fetch must not
-    // wipe what the user already sees (count, list rows).
+    // Keep the current lists while loading — a failed refetch must not
+    // wipe what the user already sees (counts, list rows).
     emit(state.copyWith(status: StateStatus.isLoading));
 
     try {
-      final invitations = await _invitationRepository.fetchMine(
-        offset: clear ? 0 : state.invitations.length,
-      );
-      final next = <InvitationEntity>[
-        if (!clear) ...state.invitations,
-        ...invitations,
-      ]..sort((a, b) => a.createdAt.compareTo(b.createdAt));
+      final result = await _invitationRepository.fetchMine();
+      final pending = [...result.pending]
+        ..sort((a, b) => a.createdAt.compareTo(b.createdAt));
+      final accepted = [...result.accepted]
+        ..sort((a, b) => b.acceptedAt!.compareTo(a.acceptedAt!));
       emit(
         state.copyWith(
-          invitations: next,
+          pendingInvitations: pending,
+          acceptedInvitations: accepted,
+          pendingCount: result.pendingCount,
+          pendingHasReachedMax: result.pending.length < kFetchListOffset,
+          acceptedHasReachedMax: result.accepted.length < kFetchListOffset,
           status: StateStatus.isSuccess,
-          hasReachedMax: invitations.length < kFetchListOffset,
+        ),
+      );
+    } catch (e) {
+      _emitSnackError(e);
+    }
+  }
+
+  /// Paginates the Pending segment forward without touching Accepted.
+  Future<void> fetchMorePending() async {
+    if (state.isLoading || state.pendingHasReachedMax) {
+      return;
+    }
+
+    emit(state.copyWith(status: StateStatus.isLoading));
+
+    try {
+      final result = await _invitationRepository.fetchMine(
+        pendingOffset: state.pendingInvitations.length,
+        acceptedLimit: 0,
+      );
+      final pending = [...state.pendingInvitations, ...result.pending]
+        ..sort((a, b) => a.createdAt.compareTo(b.createdAt));
+      emit(
+        state.copyWith(
+          pendingInvitations: pending,
+          pendingCount: result.pendingCount,
+          pendingHasReachedMax: result.pending.length < kFetchListOffset,
+          status: StateStatus.isSuccess,
+        ),
+      );
+    } catch (e) {
+      _emitSnackError(e);
+    }
+  }
+
+  /// Paginates the Accepted segment forward without touching Pending.
+  Future<void> fetchMoreAccepted() async {
+    if (state.isLoading || state.acceptedHasReachedMax) {
+      return;
+    }
+
+    emit(state.copyWith(status: StateStatus.isLoading));
+
+    try {
+      final result = await _invitationRepository.fetchMine(
+        pendingLimit: 0,
+        acceptedOffset: state.acceptedInvitations.length,
+      );
+      final accepted = [...state.acceptedInvitations, ...result.accepted]
+        ..sort((a, b) => b.acceptedAt!.compareTo(a.acceptedAt!));
+      emit(
+        state.copyWith(
+          acceptedInvitations: accepted,
+          acceptedHasReachedMax: result.accepted.length < kFetchListOffset,
+          status: StateStatus.isSuccess,
         ),
       );
     } catch (e) {
@@ -84,10 +140,16 @@ class InvitationCubit extends Cubit<InvitationState> {
         beaconId: beaconId,
       );
       final next = <InvitationEntity>[
-        ...state.invitations,
+        ...state.pendingInvitations,
         invitation,
       ]..sort((a, b) => a.createdAt.compareTo(b.createdAt));
-      emit(state.copyWith(invitations: next, status: StateStatus.isSuccess));
+      emit(
+        state.copyWith(
+          pendingInvitations: next,
+          pendingCount: state.pendingCount + 1,
+          status: StateStatus.isSuccess,
+        ),
+      );
       return invitation;
     } catch (e) {
       _emitSnackError(e);
@@ -106,9 +168,11 @@ class InvitationCubit extends Cubit<InvitationState> {
         addresseeName: addresseeName,
       );
       final next = [
-        for (final e in state.invitations) e.id == id ? updated : e,
+        for (final e in state.pendingInvitations) e.id == id ? updated : e,
       ];
-      emit(state.copyWith(invitations: next, status: StateStatus.isSuccess));
+      emit(
+        state.copyWith(pendingInvitations: next, status: StateStatus.isSuccess),
+      );
     } catch (e) {
       _emitSnackError(e);
     }
@@ -118,8 +182,14 @@ class InvitationCubit extends Cubit<InvitationState> {
     emit(state.copyWith(status: StateStatus.isLoading));
     try {
       await _invitationRepository.deleteById(id);
-      final next = state.invitations.where((e) => e.id != id).toList();
-      emit(state.copyWith(invitations: next, status: StateStatus.isSuccess));
+      final next = state.pendingInvitations.where((e) => e.id != id).toList();
+      emit(
+        state.copyWith(
+          pendingInvitations: next,
+          pendingCount: state.pendingCount > 0 ? state.pendingCount - 1 : 0,
+          status: StateStatus.isSuccess,
+        ),
+      );
     } catch (e) {
       _emitSnackError(e);
     }

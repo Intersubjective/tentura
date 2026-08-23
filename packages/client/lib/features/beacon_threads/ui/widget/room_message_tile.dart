@@ -7,6 +7,7 @@ import 'package:flutter/services.dart';
 
 import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/design_system/tentura_capability_colors.dart';
+import 'package:tentura/design_system/tentura_radii.dart';
 import 'package:tentura/design_system/tentura_tokens.dart';
 import 'package:tentura/design_system/tentura_window_class.dart';
 import 'package:tentura/domain/capability/capability_tag.dart';
@@ -297,9 +298,9 @@ class RoomMessageTile extends StatelessWidget {
         CoordinationItemKind.plan => l10n.coordinationPlanCardLabel,
         CoordinationItemKind.ask => l10n.coordinationAskCardLabel,
         CoordinationItemKind.promise => l10n.coordinationPromiseCardLabel,
-      CoordinationItemKind.blocker => l10n.coordinationBlockerCardLabel,
-      null => l10n.coordinationItemCardTitle,
-    };
+        CoordinationItemKind.blocker => l10n.coordinationBlockerCardLabel,
+        null => l10n.coordinationItemCardTitle,
+      };
 
   static bool _isLinkedCoordSemantic(RoomMessage m) =>
       m.linkedItemId != null && m.linkedItemId!.trim().isNotEmpty;
@@ -627,11 +628,9 @@ class RoomMessageTile extends StatelessWidget {
         break;
       }
     }
-    final authorCapabilityTags = helpOfferTypeSlugs(authorHelpTypeWire)
-        .take(4)
-        .map(CapabilityTag.fromSlug)
-        .whereType<CapabilityTag>()
-        .toList();
+    final authorCapabilityTags = helpOfferTypeSlugs(
+      authorHelpTypeWire,
+    ).take(4).map(CapabilityTag.fromSlug).whereType<CapabilityTag>().toList();
 
     final imageAttachments = message.attachments
         .where((a) => a.isImage && a.imageId.isNotEmpty)
@@ -656,6 +655,10 @@ class RoomMessageTile extends StatelessWidget {
         selfMentionBackground: scheme.tertiaryContainer.withValues(alpha: 0.8),
       ),
     ];
+    final explicitMentionSpans = usableRoomMessageMentionSpans(
+      spans: message.mentionSpans,
+      body: display,
+    );
 
     final editedSuffix = message.editedAt != null
         ? l10n.beaconRoomMessageEdited
@@ -681,6 +684,12 @@ class RoomMessageTile extends StatelessWidget {
     }
     final bodyStyle = ShowMoreText.buildTextStyle(context).copyWith(
       height: theme.textTheme.bodyMedium?.height,
+    );
+    final explicitMentionStyle = (String userId) => roomMessageMentionTextStyle(
+      textStyle: bodyStyle,
+      isSelfMention: userId == myProfile.id,
+      mentionColor: scheme.primary,
+      selfMentionBackground: scheme.tertiaryContainer.withValues(alpha: 0.8),
     );
     final metaStyle = theme.textTheme.labelSmall ?? const TextStyle();
     final trailingGapH = 12.0;
@@ -805,6 +814,21 @@ class RoomMessageTile extends StatelessWidget {
                     metaStyle: metaStyle,
                     metrics: trailingMetrics,
                     mentionAnnotations: mentionAnnotations,
+                    explicitSpans: explicitMentionSpans,
+                    explicitMentionStyle: explicitMentionStyle,
+                  )
+                : explicitMentionSpans.isNotEmpty
+                ? TenturaSelectionArea(
+                    child: Text.rich(
+                      buildRoomMessageBodySpanWithExplicitMentions(
+                        data: display,
+                        textStyle: bodyStyle,
+                        plainTextAnnotations: mentionAnnotations,
+                        explicitSpans: explicitMentionSpans,
+                        explicitMentionStyle: explicitMentionStyle,
+                      ),
+                      textAlign: TextAlign.start,
+                    ),
                   )
                 : TenturaSelectionArea(
                     child: ShowMoreText(
@@ -959,10 +983,18 @@ class RoomMessageTile extends StatelessWidget {
             decoration: active
                 ? ShapeDecoration(
                     shape: RoomMessageBubbleShape(
-                      topLeft: isGroupStart ? tt.bubbleRadiusLarge : tt.bubbleRadiusSmall,
-                      topRight: isGroupStart ? tt.bubbleRadiusLarge : tt.bubbleRadiusSmall,
-                      bottomLeft: isGroupEnd ? tt.bubbleRadiusLarge : tt.bubbleRadiusSmall,
-                      bottomRight: isGroupEnd ? tt.bubbleRadiusLarge : tt.bubbleRadiusSmall,
+                      topLeft: isGroupStart
+                          ? tt.bubbleRadiusLarge
+                          : tt.bubbleRadiusSmall,
+                      topRight: isGroupStart
+                          ? tt.bubbleRadiusLarge
+                          : tt.bubbleRadiusSmall,
+                      bottomLeft: isGroupEnd
+                          ? tt.bubbleRadiusLarge
+                          : tt.bubbleRadiusSmall,
+                      bottomRight: isGroupEnd
+                          ? tt.bubbleRadiusLarge
+                          : tt.bubbleRadiusSmall,
                       side: BorderSide(
                         color: tt.attentionHighlight,
                         width: 2,
@@ -1024,11 +1056,19 @@ class RoomMessageTile extends StatelessWidget {
         double? tightTextWidth;
         if (shouldHug) {
           if (display.isNotEmpty) {
-            final bodySpan = buildRoomMessageAnnotatedBodySpan(
-              data: display,
-              textStyle: bodyStyle,
-              annotations: mentionAnnotations,
-            );
+            final bodySpan = explicitMentionSpans.isEmpty
+                ? buildRoomMessageAnnotatedBodySpan(
+                    data: display,
+                    textStyle: bodyStyle,
+                    annotations: mentionAnnotations,
+                  )
+                : buildRoomMessageBodySpanWithExplicitMentions(
+                    data: display,
+                    textStyle: bodyStyle,
+                    plainTextAnnotations: mentionAnnotations,
+                    explicitSpans: explicitMentionSpans,
+                    explicitMentionStyle: explicitMentionStyle,
+                  );
             if (useInlineMeta && trailingMetrics != null) {
               tightTextWidth = measureTightBodyWidthWithTrailingReserve(
                 bodySpan: bodySpan,
@@ -1741,10 +1781,14 @@ class _MessageLifecycleFooter extends StatelessWidget {
                                     ),
                                   )
                                 : null,
-                            borderRadius: BorderRadius.circular(18),
+                            borderRadius: BorderRadius.circular(
+                              TenturaRadii.avatar,
+                            ),
                             child: Padding(
                               padding: kPaddingSmallH.add(
-                                const EdgeInsets.symmetric(vertical: 6),
+                                EdgeInsets.symmetric(
+                                  vertical: tokens.iconTextGap,
+                                ),
                               ),
                               child: DecoratedBox(
                                 decoration: BoxDecoration(
@@ -1752,15 +1796,17 @@ class _MessageLifecycleFooter extends StatelessWidget {
                                       ? scheme.primaryContainer
                                       : scheme.surfaceContainerHighest
                                             .withValues(alpha: 0.75),
-                                  borderRadius: BorderRadius.circular(999),
+                                  borderRadius: BorderRadius.circular(
+                                    TenturaRadii.avatar,
+                                  ),
                                   border: viewerReactions.contains(entry.key)
                                       ? Border.all(color: scheme.primary)
                                       : null,
                                 ),
                                 child: Padding(
-                                  padding: const EdgeInsets.symmetric(
+                                  padding: EdgeInsets.symmetric(
                                     horizontal: kSpacingSmall,
-                                    vertical: 2,
+                                    vertical: tokens.tightGap,
                                   ),
                                   child: _RoomReactionChipPill(
                                     emoji: entry.key,
@@ -2117,8 +2163,10 @@ class _MessageBubbleInteractionState extends State<_MessageBubbleInteraction>
   );
 
   late final Animation<double> _pressScale = _pressController.drive(
-    Tween<double>(begin: 1, end: _pressedScale)
-        .chain(CurveTween(curve: _growCurve)),
+    Tween<double>(
+      begin: 1,
+      end: _pressedScale,
+    ).chain(CurveTween(curve: _growCurve)),
   );
 
   bool _hovering = false;

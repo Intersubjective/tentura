@@ -59,6 +59,13 @@ class AccordionExpansionGroup extends StatefulWidget {
 }
 
 class _AccordionExpansionGroupState extends State<AccordionExpansionGroup> {
+  // Isolates nested ExpansionTiles' PageStorage reads/writes from whatever
+  // ancestor PageStorageKey they'd otherwise inherit (e.g. a scrolling list's
+  // own scroll-offset storage) — without this, a tile with no distinguishing
+  // key of its own collides with that ancestor's stored value and can crash
+  // when the value isn't the bool ExpansionTile expects.
+  final _storageBucket = PageStorageBucket();
+
   String? _expandedId;
 
   bool _resolveAccordionMode(BuildContext context) {
@@ -92,19 +99,25 @@ class _AccordionExpansionGroupState extends State<AccordionExpansionGroup> {
   Widget build(BuildContext context) {
     final accordionMode = _resolveAccordionMode(context);
     if (!accordionMode) {
-      return AccordionExpansionScope(
-        accordionMode: false,
-        expandedId: null,
-        onTileChanged: (_, _) {},
-        child: widget.child,
+      return PageStorage(
+        bucket: _storageBucket,
+        child: AccordionExpansionScope(
+          accordionMode: false,
+          expandedId: null,
+          onTileChanged: (_, _) {},
+          child: widget.child,
+        ),
       );
     }
 
-    return AccordionExpansionScope(
-      accordionMode: true,
-      expandedId: _expandedId,
-      onTileChanged: _onTileChanged,
-      child: widget.child,
+    return PageStorage(
+      bucket: _storageBucket,
+      child: AccordionExpansionScope(
+        accordionMode: true,
+        expandedId: _expandedId,
+        onTileChanged: _onTileChanged,
+        child: widget.child,
+      ),
     );
   }
 }

@@ -170,9 +170,6 @@ final class MyWorkCase extends UseCaseBase {
     return (archivedCards: enriched);
   }
 
-  Future<bool> currentUserHasForwardedBeacon(String beaconId) =>
-      _forwardRepository.currentUserHasForwardedBeacon(beaconId);
-
   Future<List<MyWorkCardViewModel>> attachLastActivityEvents(
     List<MyWorkCardViewModel> cards,
   ) async {
@@ -234,8 +231,7 @@ final class MyWorkCase extends UseCaseBase {
       roomHints: hints,
     );
     final withHints = _applyRoomInboxSubtitles(withResponsibility, hints);
-    final withDisplayStatus = await _attachDisplayStatuses(withHints);
-    return _withAuthorForwardFlags(withDisplayStatus);
+    return _attachDisplayStatuses(withHints);
   }
 
   Future<List<MyWorkCardViewModel>> _attachDisplayStatuses(
@@ -295,29 +291,4 @@ final class MyWorkCase extends UseCaseBase {
     ];
   }
 
-  Future<List<MyWorkCardViewModel>> _withAuthorForwardFlags(
-    List<MyWorkCardViewModel> cards,
-  ) async {
-    final needsFlag = cards
-        .where((c) => c.kind != MyWorkCardKind.authoredDraft)
-        .toList();
-    if (needsFlag.isEmpty) {
-      return cards;
-    }
-    final results = await Future.wait(
-      needsFlag.map(
-        (c) => currentUserHasForwardedBeacon(c.beaconId),
-      ),
-    );
-    final map = <String, bool>{
-      for (var i = 0; i < needsFlag.length; i++)
-        needsFlag[i].beaconId: results[i],
-    };
-    return [
-      for (final c in cards)
-        c.kind == MyWorkCardKind.authoredDraft
-            ? c
-            : c.copyWith(authorHasForwardedOnce: map[c.beaconId] ?? false),
-    ];
-  }
 }

@@ -49,9 +49,6 @@ abstract class MyWorkCardViewModel with _$MyWorkCardViewModel {
     @Default(false) bool showArchiveAffordance,
     MyWorkAttentionChip? attentionChip,
 
-    /// Author has forwarded this beacon at least once (authored active cards).
-    @Default(false) bool authorHasForwardedOnce,
-
     /// Admitted room coordination summary line (Phase 6).
     @Default('') String roomInboxSubtitle,
 

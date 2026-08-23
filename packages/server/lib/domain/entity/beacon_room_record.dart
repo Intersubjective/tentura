@@ -13,6 +13,7 @@ final class BeaconRoomMessageRecord {
     required this.createdAt,
     this.editedAt,
     this.mentions = const [],
+    this.mentionSpans = const [],
   });
 
   final String id;
@@ -27,6 +28,20 @@ final class BeaconRoomMessageRecord {
   final DateTime createdAt;
   final DateTime? editedAt;
   final List<String> mentions;
+  final List<Map<String, Object?>> mentionSpans;
+}
+
+/// An admitted room participant's display identity for mention validation.
+final class AdmittedRoomMentionParticipant {
+  const AdmittedRoomMentionParticipant({
+    required this.userId,
+    required this.displayName,
+    required this.handle,
+  });
+
+  final String userId;
+  final String displayName;
+  final String handle;
 }
 
 /// Domain projection of [`beacon_room_state`].

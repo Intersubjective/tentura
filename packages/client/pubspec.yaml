@@ -2,7 +2,7 @@ name: tentura
 description: 'Social network for communities'
 publish_to: 'none'
 
-version: 6.7.7
+version: 6.11.1
 
 environment:
   sdk: ^3.12.0
@@ -80,7 +80,6 @@ dependencies:
   flutter_svg: ^2.2.3
   blurhash_shader: ^1.1.2
   vector_graphics: ^1.1.21
-  visibility_detector: ^0.4.0
   force_directed_graphview: ^0.6.2
   scrollable_positioned_list: ^0.3.8
 

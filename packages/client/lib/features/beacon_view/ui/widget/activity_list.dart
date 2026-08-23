@@ -59,12 +59,16 @@ class BeaconActivityList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = L10n.of(context)!;
+    final tt = context.tt;
     final roomEvents = coordinationLogOnly
         ? roomActivityEvents.where(_isCoordinationLogEvent).toList()
         : roomActivityEvents;
     if (timeline.isEmpty && roomEvents.isEmpty) {
       return Padding(
-        padding: kPaddingSmallV,
+        padding: EdgeInsets.symmetric(
+          horizontal: tt.screenHPadding,
+          vertical: tt.rowGap,
+        ),
         child: Text(
           l10n.beaconNoActivityYetShort,
           style: Theme.of(context).textTheme.bodyMedium?.copyWith(
@@ -109,9 +113,15 @@ class BeaconActivityList extends StatelessWidget {
       return a.tie.compareTo(b.tie);
     });
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [for (final r in rows) r.child],
+    return Padding(
+      padding: EdgeInsets.symmetric(
+        horizontal: tt.screenHPadding,
+        vertical: tt.rowGap,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [for (final r in rows) r.child],
+      ),
     );
   }
 }
@@ -196,13 +206,16 @@ class _LogActivityTile extends StatelessWidget {
     );
 
     if (onTap == null) {
-      return Padding(padding: kPaddingSmallV, child: row);
+      return Padding(
+        padding: EdgeInsets.symmetric(vertical: context.tt.tightGap * 2),
+        child: row,
+      );
     }
     return InkWell(
       onTap: onTap,
-      borderRadius: const BorderRadius.all(Radius.circular(8)),
+      borderRadius: BorderRadius.circular(context.tt.cardRadius),
       child: Padding(
-        padding: kPaddingSmallV,
+        padding: EdgeInsets.symmetric(vertical: context.tt.tightGap * 2),
         child: row,
       ),
     );
@@ -230,7 +243,7 @@ class _ActivityEntryTile extends StatelessWidget {
     final iconColor = _iconColor(theme, entry, tier);
 
     return Padding(
-      padding: kPaddingSmallV,
+      padding: EdgeInsets.symmetric(vertical: context.tt.tightGap * 2),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

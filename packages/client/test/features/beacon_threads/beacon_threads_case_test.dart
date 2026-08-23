@@ -210,22 +210,25 @@ void main() {
       expect(watermark.hasPendingSync(beaconId), isTrue);
     });
 
-    test('stale persisted response does not regress semantic watermark', () async {
-      const itemId = 'item-stale';
-      final local = DateTime.utc(2026, 7, 1, 18);
-      final stale = DateTime.utc(2026, 7, 1, 12);
-      room.markThreadSeenResult = stale;
-      watermark.observeReadThrough(beaconId, local, threadId: itemId);
+    test(
+      'stale persisted response does not regress semantic watermark',
+      () async {
+        const itemId = 'item-stale';
+        final local = DateTime.utc(2026, 7, 1, 18);
+        final stale = DateTime.utc(2026, 7, 1, 12);
+        room.markThreadSeenResult = stale;
+        watermark.observeReadThrough(beaconId, local, threadId: itemId);
 
-      await case_.markRoomSeenIfAllowed(
-        beaconId: beaconId,
-        threadItemId: itemId,
-        readThroughAt: local,
-      );
+        await case_.markRoomSeenIfAllowed(
+          beaconId: beaconId,
+          threadItemId: itemId,
+          readThroughAt: local,
+        );
 
-      expect(watermark.readThrough(beaconId, threadId: itemId), local);
-      expect(watermark.syncedAt(beaconId, threadId: itemId), local);
-    });
+        expect(watermark.readThrough(beaconId, threadId: itemId), local);
+        expect(watermark.syncedAt(beaconId, threadId: itemId), local);
+      },
+    );
   });
 
   group('realtime convergence', () {
@@ -258,7 +261,8 @@ RoomPendingUpload _upload(String fileName) => RoomPendingUpload(
   mimeType: 'application/octet-stream',
 );
 
-class FakeBeaconThreadsRepository extends Fake implements BeaconThreadsRepository {
+class FakeBeaconThreadsRepository extends Fake
+    implements BeaconThreadsRepository {
   int createMessageCalls = 0;
   int addAttachmentCalls = 0;
   String? lastCreateBeaconId;
@@ -283,6 +287,9 @@ class FakeBeaconThreadsRepository extends Fake implements BeaconThreadsRepositor
     String? replyToMessageId,
     String? threadItemId,
     RoomPendingUpload? firstAttachment,
+    List<String> explicitMentionUserIds = const [],
+    List<int> explicitMentionOffsets = const [],
+    List<int> explicitMentionLengths = const [],
   }) async {
     createMessageCalls++;
     lastCreateBeaconId = beaconId;

@@ -84,7 +84,6 @@ Widget _wrapBand({
             onRecipientNoteChanged: (_, __) {},
             skippedPersonalNoteIds: const {},
             onSkipPersonalNote: (_) {},
-            onRestorePersonalNote: (_) {},
           ),
         ),
       ),
@@ -140,7 +139,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('You\'ve routed Tools here'), findsOneWidget);
+    expect(find.text('You\'ve routed here:\nTools'), findsOneWidget);
   });
 
   testWidgets('networkOutcome tier renders joined label copy', (tester) async {

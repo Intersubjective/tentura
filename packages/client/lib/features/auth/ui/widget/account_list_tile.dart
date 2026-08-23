@@ -49,41 +49,40 @@ class AccountListTile extends StatelessWidget {
         child: PopupMenuButton(
           tooltip: materialLocalizations.showMenuTooltip,
           itemBuilder: (context) => <PopupMenuEntry<void>>[
-          //
-          // Share account code
-          PopupMenuItem<void>(
-            child: Text(l10n.shareAccount),
-            onTap: () => ShareCodeDialog.show(
-              context,
-              header: account.id,
-              link: Uri.parse(kServerName).replace(
-                path: kPathAppLinkView,
-                queryParameters: {'id': account.id},
+            //
+            // Share account code
+            PopupMenuItem<void>(
+              child: Text(l10n.shareAccount),
+              onTap: () => ShareCodeDialog.show(
+                context,
+                header: account.id,
+                link: Uri.parse(kServerName).replace(
+                  path: '$kPathProfileView/${account.id}',
+                ),
               ),
             ),
-          ),
-          const PopupMenuDivider(),
+            const PopupMenuDivider(),
 
-          // Share account seed
-          PopupMenuItem<void>(
-            child: Text(l10n.showSeed),
-            onTap: () async {
-              final seed = await GetIt.I<AuthCubit>().getSeedByAccountId(
-                account.id,
-              );
-              if (context.mounted) {
-                await ShowSeedDialog.show(context, seed: seed);
-              }
-            },
-          ),
-          const PopupMenuDivider(),
+            // Share account seed
+            PopupMenuItem<void>(
+              child: Text(l10n.showSeed),
+              onTap: () async {
+                final seed = await GetIt.I<AuthCubit>().getSeedByAccountId(
+                  account.id,
+                );
+                if (context.mounted) {
+                  await ShowSeedDialog.show(context, seed: seed);
+                }
+              },
+            ),
+            const PopupMenuDivider(),
 
-          // Remove account
-          PopupMenuItem<void>(
-            child: Text(l10n.removeFromList),
-            onTap: () => AccountRemoveDialog.show(context, id: account.id),
-          ),
-        ],
+            // Remove account
+            PopupMenuItem<void>(
+              child: Text(l10n.removeFromList),
+              onTap: () => AccountRemoveDialog.show(context, id: account.id),
+            ),
+          ],
         ),
       ),
 

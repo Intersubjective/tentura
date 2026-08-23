@@ -7,7 +7,7 @@ abstract class InvitationRepositoryPort {
 
   Future<InvitationEntity> create({
     required String issuerId,
-    required String addresseeName,
+    required String? addresseeName,
     String? beaconId,
     String? parentForwardEdgeId,
   });

@@ -45,7 +45,14 @@ class _MyWorkScreenState extends State<MyWorkScreen> {
     final l10n = L10n.of(context)!;
     final scheme = Theme.of(context).colorScheme;
     final useExpandedPane = context.windowClass == WindowClass.expanded;
+    final useCompactTopBar = context.windowClass == WindowClass.compact;
     final tt = context.tt;
+    final createButton = IconButton(
+      tooltip: l10n.newBeacon,
+      onPressed: () => context.read<ScreenCubit>().showBeaconCreate(),
+      icon: const Icon(Icons.add),
+    );
+    const overflowMenu = _MyWorkOverflowMenu();
 
     return BlocListener<HomeTabReselectCubit, HomeTabReselectState>(
       listenWhen: (prev, curr) =>
@@ -63,21 +70,42 @@ class _MyWorkScreenState extends State<MyWorkScreen> {
           alignment: useExpandedPane
               ? TenturaTopBarAlignment.fullWidth
               : TenturaTopBarAlignment.content,
-          title: const Row(
-            children: [
-              Expanded(child: _MyWorkFilterMenu()),
-              _MyWorkSortButton(),
-            ],
-          ),
-          actions: [
-            IconButton(
-              tooltip: l10n.newBeacon,
-              onPressed: () =>
-                  context.read<ScreenCubit>().showBeaconCreate(),
-              icon: const Icon(Icons.add),
-            ),
-            const _MyWorkOverflowMenu(),
-          ],
+          title: useCompactTopBar
+              ? const SizedBox.shrink()
+              : LayoutBuilder(
+                  builder: (context, constraints) {
+                    // NavigationToolbar can leave the title slot narrower
+                    // than one control while its leading and actions are
+                    // being measured. Keep the compact custom row unchanged;
+                    // on this transient non-compact path, omit controls that
+                    // cannot retain their tap target instead of overflowing.
+                    if (constraints.maxWidth < tt.buttonHeight) {
+                      return const SizedBox.shrink();
+                    }
+                    return const Row(
+                      children: [
+                        Expanded(child: _MyWorkFilterMenu()),
+                        _MyWorkSortButton(),
+                      ],
+                    );
+                  },
+                ),
+          actions: useCompactTopBar ? null : [createButton, overflowMenu],
+          // NavigationToolbar balances its middle against the full trailing
+          // action width. With filter + sort in the middle and two actions at
+          // 390px, that can leave only a few pixels for the middle Row. The
+          // compact bar is one explicit flex row so the filter owns the
+          // shrinkable remainder while sort and icon actions keep tap targets.
+          row: useCompactTopBar
+              ? Row(
+                  children: [
+                    const Expanded(child: _MyWorkFilterMenu()),
+                    const _MyWorkSortButton(),
+                    createButton,
+                    overflowMenu,
+                  ],
+                )
+              : null,
         ),
         body: SafeArea(
           minimum: EdgeInsets.symmetric(horizontal: tt.screenHPadding),

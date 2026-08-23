@@ -1,3 +1,4 @@
+import 'dart:math';
 import 'dart:typed_data';
 import 'package:tentura_server/domain/entity/beacon_room_record.dart';
 import 'package:tentura_server/domain/entity/beacon_thread_record.dart';
@@ -23,11 +24,13 @@ import 'package:tentura_server/consts/coordination_item_consts.dart';
 import 'package:tentura_server/domain/exception.dart';
 
 import 'package:tentura_root/utils/infer_image_mime_from_bytes.dart';
+import 'package:tentura_root/domain/mention_span_validation.dart';
 
 import 'package:tentura_server/domain/util/attachment_filename.dart';
 import 'package:tentura_server/domain/util/room_attachment_storage_key.dart';
 import 'package:tentura_server/utils/id.dart';
 import 'package:tentura_server/utils/read_uint8_stream_with_limit.dart';
+import 'package:tentura_server/utils/room_mention_utils.dart';
 import 'package:tentura_server/domain/use_case/attention_intent_case.dart';
 import 'package:tentura_server/domain/use_case/transactional_attention_case.dart';
 
@@ -173,6 +176,75 @@ final class BeaconRoomCase extends UseCaseBase {
     }
   }
 
+  Future<({List<String> ids, List<Map<String, Object?>> spans})>
+  _resolveMentions({
+    required String beaconId,
+    required String body,
+    required List<String> explicitMentionUserIds,
+    required List<int> explicitMentionOffsets,
+    required List<int> explicitMentionLengths,
+    List<ValidatedMentionSpan> preservedMentionSpans = const [],
+  }) async {
+    final admitted = await _room.listAdmittedMentionParticipants(beaconId);
+    final byId = {
+      for (final participant in admitted) participant.userId: participant,
+    };
+    final handles = <String, Set<String>>{};
+    for (final participant in admitted) {
+      final handle = participant.handle.trim().toLowerCase();
+      if (handle.isNotEmpty) {
+        (handles[handle] ??= {}).add(participant.userId);
+      }
+    }
+    final regexIds = {
+      for (final token in extractMentionHandleTokens(body)) ...?handles[token],
+    };
+    final n = min(
+      kMaxExplicitMentionsPerRoomMessage,
+      min(
+        explicitMentionUserIds.length,
+        min(explicitMentionOffsets.length, explicitMentionLengths.length),
+      ),
+    );
+    final validated = validateExplicitMentionSpans(
+      body: body,
+      proposals: [
+        for (var i = 0; i < n; i++)
+          (
+            userId: explicitMentionUserIds[i].trim(),
+            offset: explicitMentionOffsets[i],
+            length: explicitMentionLengths[i],
+          ),
+      ],
+      acceptableTokensForUserId: (userId) {
+        final participant = byId[userId];
+        if (participant == null) return const {};
+        return {
+          if (participant.displayName.trim().isNotEmpty)
+            '@${participant.displayName.trim()}',
+          if (participant.handle.trim().isNotEmpty)
+            '@${participant.handle.trim()}',
+        };
+      },
+    );
+    final admittedPreserved = [
+      for (final span in preservedMentionSpans)
+        if (byId.containsKey(span.userId)) span,
+    ];
+    final allSpans = [...admittedPreserved, ...validated];
+    return (
+      ids: {...regexIds, for (final span in allSpans) span.userId}.toList(),
+      spans: [
+        for (final span in allSpans)
+          {
+            'userId': span.userId,
+            'offset': span.offset,
+            'length': span.length,
+          },
+      ],
+    );
+  }
+
   Future<Map<String, Object?>> createMessage({
     required String beaconId,
     required String userId,
@@ -182,6 +254,9 @@ final class BeaconRoomCase extends UseCaseBase {
     Stream<Uint8List>? attachmentBytes,
     String? attachmentFilename,
     String? attachmentMimeType,
+    List<String> explicitMentionUserIds = const [],
+    List<int> explicitMentionOffsets = const [],
+    List<int> explicitMentionLengths = const [],
   }) async {
     final tid = threadItemId?.trim();
     final inThread = tid != null && tid.isNotEmpty;
@@ -229,7 +304,8 @@ final class BeaconRoomCase extends UseCaseBase {
           repliedMessage.beaconId != beaconId ||
           repliedMessage.threadItemId != (inThread ? tid : null)) {
         throw const IdWrongException(
-          description: 'Reply must reference a message in the same thread scope',
+          description:
+              'Reply must reference a message in the same thread scope',
         );
       }
     }
@@ -251,22 +327,25 @@ final class BeaconRoomCase extends UseCaseBase {
         description: 'Message text or attachment required',
       );
     }
-    final mentionIds = trimmed.isEmpty
-        ? const <String>[]
-        : await _room.resolveMentionUserIdsForBeacon(
-            beaconId: beaconId,
-            body: trimmed,
-          );
+    final resolvedMentions = await _resolveMentions(
+      beaconId: beaconId,
+      body: trimmed,
+      explicitMentionUserIds: explicitMentionUserIds,
+      explicitMentionOffsets: explicitMentionOffsets,
+      explicitMentionLengths: explicitMentionLengths,
+    );
+    final mentionIds = resolvedMentions.ids;
     final mentionRecipientIds = {
       for (final id in mentionIds)
         if (id.isNotEmpty && id != userId) id,
     };
-    final otherDirectedIds = <String>{
-      if (repliedMessage != null) repliedMessage.authorId,
-      if (threadItem?.targetPersonId case final target?) target,
-    }
-      ..removeWhere((id) => id.isEmpty || id == userId)
-      ..removeAll(mentionRecipientIds);
+    final otherDirectedIds =
+        <String>{
+            if (repliedMessage != null) repliedMessage.authorId,
+            if (threadItem?.targetPersonId case final target?) target,
+          }
+          ..removeWhere((id) => id.isEmpty || id == userId)
+          ..removeAll(mentionRecipientIds);
 
     final hasDirected =
         mentionRecipientIds.isNotEmpty || otherDirectedIds.isNotEmpty;
@@ -281,6 +360,7 @@ final class BeaconRoomCase extends UseCaseBase {
         replyToMessageId: replyToMessageId,
         threadItemId: inThread ? tid : null,
         mentions: mentionIds,
+        mentionSpans: resolvedMentions.spans,
       );
       if (payload != null) {
         await _addAttachmentBytesToMessage(
@@ -939,6 +1019,10 @@ final class BeaconRoomCase extends UseCaseBase {
     required String messageId,
     required String userId,
     required String newBody,
+    List<String> explicitMentionUserIds = const [],
+    List<int> explicitMentionOffsets = const [],
+    List<int> explicitMentionLengths = const [],
+    bool explicitMentionsProvided = false,
   }) async {
     final msg = await _room.getRoomMessageById(messageId);
     if (msg == null || msg.beaconId != beaconId) {
@@ -967,10 +1051,35 @@ final class BeaconRoomCase extends UseCaseBase {
       );
     }
     _assertBodyWithinLimit(trimmed);
-    final mentionIds = await _room.resolveMentionUserIdsForBeacon(
+    final existing = <ValidatedMentionSpan>[
+      for (final span in msg.mentionSpans)
+        if (span['userId'] case final String userId)
+          if (span['offset'] case final int offset)
+            if (span['length'] case final int length)
+              (userId: userId, offset: offset, length: length),
+    ];
+    final preserved = explicitMentionsProvided
+        ? const <ValidatedMentionSpan>[]
+        : shiftMentionSpansThroughTextEdit(
+            oldBody: msg.body,
+            newBody: trimmed,
+            spans: existing,
+          );
+    final resolvedMentions = await _resolveMentions(
       beaconId: beaconId,
       body: trimmed,
+      explicitMentionUserIds: explicitMentionsProvided
+          ? explicitMentionUserIds
+          : const [],
+      explicitMentionOffsets: explicitMentionsProvided
+          ? explicitMentionOffsets
+          : const [],
+      explicitMentionLengths: explicitMentionsProvided
+          ? explicitMentionLengths
+          : const [],
+      preservedMentionSpans: preserved,
     );
+    final mentionIds = resolvedMentions.ids;
     final newlyMentionedIds = {
       for (final id in mentionIds)
         if (id.isNotEmpty && id != userId && !msg.mentions.contains(id)) id,
@@ -981,6 +1090,7 @@ final class BeaconRoomCase extends UseCaseBase {
         messageId: messageId,
         newBody: trimmed,
         mentions: mentionIds,
+        mentionSpans: resolvedMentions.spans,
       );
       if (transaction != null && newlyMentionedIds.isNotEmpty) {
         await transaction.record(
@@ -991,7 +1101,8 @@ final class BeaconRoomCase extends UseCaseBase {
             recipientUserIds: newlyMentionedIds,
             excerpt: trimmed,
             threadItemId: msg.threadItemId,
-            sourceEventKey: 'room_mention_edit:$messageId:${DateTime.timestamp().millisecondsSinceEpoch}',
+            sourceEventKey:
+                'room_mention_edit:$messageId:${DateTime.timestamp().millisecondsSinceEpoch}',
           ),
         );
       }

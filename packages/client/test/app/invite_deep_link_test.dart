@@ -54,24 +54,4 @@ void main() {
       expect(out.path, '$kPathSignUp/I/abc');
     });
   });
-
-  group('transformSharedViewInviteDeepLink', () {
-    test('authenticated maps shared view invite to accept-invite', () {
-      final out = transformSharedViewInviteDeepLink(
-        uri: Uri.parse('/shared/view?id=Iabc'),
-        id: 'Iabc',
-        isAuthenticated: true,
-      );
-      expect(out.path, '$kPathAcceptInvite/Iabc');
-    });
-
-    test('anonymous maps shared view invite to sign-up', () {
-      final out = transformSharedViewInviteDeepLink(
-        uri: Uri.parse('/shared/view?id=Iabc'),
-        id: 'Iabc',
-        isAuthenticated: false,
-      );
-      expect(out.path, '$kPathSignUp/Iabc');
-    });
-  });
 }

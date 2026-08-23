@@ -8,6 +8,7 @@ import 'package:logging/logging.dart';
 import 'package:postgres/postgres.dart';
 import 'package:test/test.dart';
 
+import 'package:tentura_root/domain/entity/beacon_status.dart';
 import 'package:tentura_server/data/database/migration/_migrations.dart';
 import 'package:tentura_server/data/database/tentura_db.dart'
     hide isNotNull, isNull;
@@ -77,6 +78,7 @@ Future<void> main() async {
         settings: target.databaseEnv.pgEndpointSettings,
       );
       await writer.execute('SET check_function_bodies = false');
+      await writer.execute('CREATE EXTENSION IF NOT EXISTS pgcrypto');
       await writer.execute('CREATE EXTENSION IF NOT EXISTS pgmer2');
       await migrateDbSchema(writer);
 
@@ -192,8 +194,9 @@ Future<void> main() async {
         final aliceCarol = aliceCandidates
             .where((candidate) => candidate.userId == _carol)
             .toList();
-        final eveCarol =
-            eveCandidates.where((candidate) => candidate.userId == _carol);
+        final eveCarol = eveCandidates.where(
+          (candidate) => candidate.userId == _carol,
+        );
         expect(aliceCarol, hasLength(1));
         expect(eveCarol, hasLength(1));
         expect(aliceCarol.single.canForwardTo, isTrue);
@@ -206,8 +209,9 @@ Future<void> main() async {
         final aliceBob = aliceWindow
             .where((weight) => weight.witnessUserId == _bob)
             .toList();
-        final eveBob =
-            eveWindow.where((weight) => weight.witnessUserId == _bob).toList();
+        final eveBob = eveWindow
+            .where((weight) => weight.witnessUserId == _bob)
+            .toList();
         expect(aliceBob, hasLength(1));
         expect(aliceBob.single.admitted, isTrue);
         expect(
@@ -317,7 +321,7 @@ Future<void> _seedTrustGraph(
 }
 
 Future<void> _seedBeaconFixture(Connection writer) async {
-  await writer.execute(r'''
+  await writer.execute('''
 INSERT INTO public.beacon (
   id, user_id, title, description, needs, primary_need_slug, status
 ) VALUES (
@@ -327,7 +331,7 @@ INSERT INTO public.beacon (
   'd',
   'transport',
   'transport',
-  0
+  ${BeaconStatus.reviewOpen.smallintValue}
 )
 ON CONFLICT (id) DO UPDATE SET
   user_id = EXCLUDED.user_id,
@@ -407,13 +411,15 @@ Future<void> _mrEdge(
   String subject,
   String object,
   double weight,
-) =>
-    meritRank.putEdge(nodeA: subject, nodeB: object, weight: weight);
+) => meritRank.putEdge(nodeA: subject, nodeB: object, weight: weight);
 
-Future<void> _clearMrEdge(TenturaDb db, String subject, String object) =>
-    db.customStatement(
-      "SELECT mr_put_edge('$subject', '$object', 0::double precision, ''::text, 0)",
-    );
+Future<void> _clearMrEdge(
+  TenturaDb db,
+  String subject,
+  String object,
+) => db.customStatement(
+  "SELECT mr_put_edge('$subject', '$object', 0::double precision, ''::text, 0)",
+);
 
 Future<void> _insertUser(TenturaDb db, String id) => db.customStatement('''
 INSERT INTO public."user" (id, display_name, public_key, created_at, updated_at)

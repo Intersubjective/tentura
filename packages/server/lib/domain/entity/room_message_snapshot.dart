@@ -13,6 +13,7 @@ abstract class RoomMessageSnapshot with _$RoomMessageSnapshot {
     required DateTime createdAt,
     DateTime? editedAt,
     @Default(<String>[]) List<String> mentions,
+    @Default(<Map<String, Object?>>[]) List<Map<String, Object?>> mentionSpans,
     String? threadItemId,
     String? replyToMessageId,
     String? replyToAuthorId,

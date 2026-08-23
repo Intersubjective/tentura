@@ -52,6 +52,7 @@ void configureSentryOptions(SentryFlutterOptions options) {
     ..dsn = sentryDsn
     ..environment = sentryEnvironment
     ..sendDefaultPii = true
+    ..enableLogs = true
     ..tracesSampleRate = 1.0
     ..captureFailedRequests = false
     ..debug = false

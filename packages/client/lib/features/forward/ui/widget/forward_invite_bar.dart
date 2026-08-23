@@ -4,19 +4,35 @@ import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/test_ids.dart';
 
-/// "Invite new person" affordance shown above the forward tab content.
+/// Pinned "invite new person" / "clear selection" affordance shown above
+/// the forward tab content.
 ///
-/// Placed as the first sliver in the picker's scroll view, so it scrolls
-/// away with the rest of the top sections rather than staying pinned.
+/// While nothing is selected it offers the invite action; once at least
+/// one recipient is picked, it swaps in place to a "clear selection"
+/// action instead of coexisting with it, so the row always carries a
+/// single, high-visibility affordance rather than two competing ones.
 class ForwardInviteBar extends StatelessWidget {
-  const ForwardInviteBar({required this.onInvite, super.key});
+  const ForwardInviteBar({
+    required this.hasSelection,
+    required this.onInvite,
+    required this.onClearSelection,
+    super.key,
+  });
 
+  /// Matches [TenturaCommandButton]'s own fixed compact height.
+  static const double buttonHeight = 40;
+
+  final bool hasSelection;
   final VoidCallback onInvite;
+  final VoidCallback onClearSelection;
 
   @override
   Widget build(BuildContext context) {
     final tt = context.tt;
     final l10n = L10n.of(context)!;
+    final testId = hasSelection
+        ? TestIds.forwardClearSelection
+        : TestIds.forwardInviteNewPerson;
 
     return Padding(
       padding: EdgeInsets.fromLTRB(
@@ -25,23 +41,20 @@ class ForwardInviteBar extends StatelessWidget {
         tt.screenHPadding,
         tt.rowGap,
       ),
-      child: Semantics(
-        identifier: TestIds.forwardInviteNewPerson,
-        button: true,
-        child: TextButton.icon(
-          key: TestIds.key(TestIds.forwardInviteNewPerson),
-          onPressed: onInvite,
-          icon: Icon(
-            Icons.person_add_alt_1_outlined,
-            size: tt.iconSize,
-          ),
-          label: Text(l10n.forwardInviteNewPerson),
-          style: TextButton.styleFrom(
-            foregroundColor: tt.textMuted,
-            textStyle: TenturaText.command(tt.textMuted),
-            minimumSize: Size(0, tt.buttonHeight),
-            padding: EdgeInsets.zero,
-            alignment: Alignment.centerLeft,
+      child: Align(
+        alignment: Alignment.centerLeft,
+        child: Semantics(
+          identifier: testId,
+          button: true,
+          child: TenturaCommandButton(
+            key: TestIds.key(testId),
+            label: hasSelection
+                ? l10n.forwardClearSelection
+                : l10n.forwardInviteNewPerson,
+            icon: Icon(
+              hasSelection ? Icons.deselect : Icons.person_add_alt_1_outlined,
+            ),
+            onPressed: hasSelection ? onClearSelection : onInvite,
           ),
         ),
       ),

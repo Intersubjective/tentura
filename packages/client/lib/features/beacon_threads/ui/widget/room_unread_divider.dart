@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
-import 'package:tentura/ui/utils/ui_utils.dart';
 
 /// Horizontal divider with an "Unread · N" chip (Telegram-style).
 class RoomUnreadDivider extends StatelessWidget {
@@ -19,22 +18,28 @@ class RoomUnreadDivider extends StatelessWidget {
     return Semantics(
       label: chipText,
       child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 12),
+        padding: EdgeInsets.symmetric(vertical: context.tt.sectionGap),
         child: Row(
           children: [
-            Expanded(child: Divider(color: scheme.primary.withValues(alpha: 0.35))),
+            Expanded(
+              child: Divider(color: scheme.primary.withValues(alpha: 0.35)),
+            ),
             Padding(
-              padding: const EdgeInsets.symmetric(horizontal: kSpacingMedium),
+              padding: EdgeInsets.symmetric(
+                horizontal: context.tt.screenHPadding,
+              ),
               child: DecoratedBox(
                 decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(20),
+                  borderRadius: BorderRadius.circular(TenturaRadii.avatar),
                   border: Border.all(
                     color: scheme.primary.withValues(alpha: 0.45),
                   ),
                 ),
                 child: Padding(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: kSpacingMedium, vertical: 6),
+                  padding: EdgeInsets.symmetric(
+                    horizontal: context.tt.screenHPadding,
+                    vertical: context.tt.iconTextGap,
+                  ),
                   child: Text(
                     chipText,
                     maxLines: 1,
@@ -44,7 +49,9 @@ class RoomUnreadDivider extends StatelessWidget {
                 ),
               ),
             ),
-            Expanded(child: Divider(color: scheme.primary.withValues(alpha: 0.35))),
+            Expanded(
+              child: Divider(color: scheme.primary.withValues(alpha: 0.35)),
+            ),
           ],
         ),
       ),

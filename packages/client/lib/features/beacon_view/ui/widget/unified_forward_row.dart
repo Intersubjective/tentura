@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 
+import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/capability/ui/widget/forward_capability_chips.dart';
 import 'package:tentura/features/forward/domain/entity/forward_edge.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
-import 'package:tentura/design_system/components/tentura_avatar.dart';
 import 'package:tentura/ui/widget/self_aware_profile_avatar.dart';
 import 'package:tentura/ui/widget/self_user_highlight.dart';
 
@@ -172,7 +172,7 @@ class UnifiedForwardRow extends StatelessWidget {
           ),
         ),
         Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 4),
+          padding: EdgeInsets.symmetric(horizontal: context.tt.tightGap * 2),
           child: Icon(
             Icons.arrow_forward,
             size: 14,
@@ -481,31 +481,14 @@ class _NoteColumnWithBar extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const SizedBox(width: _kBarColumnWidth),
-            const SizedBox(width: 8),
-            Expanded(child: header),
-          ],
-        ),
+        header,
         SizedBox(height: afterHeaderGap),
-        IntrinsicHeight(
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              bar,
-              Expanded(
-                child: Padding(
-                  padding: const EdgeInsets.only(left: 8),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: lowerChildren,
-                  ),
-                ),
-              ),
-            ],
+        Padding(
+          padding: const EdgeInsets.only(left: _kAvatarSize + 4),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: lowerChildren,
           ),
         ),
       ],

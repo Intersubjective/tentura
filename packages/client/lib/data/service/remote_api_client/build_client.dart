@@ -232,6 +232,7 @@ class _V2RoutingLink extends Link {
     'UserRecalculateBookkeeping',
     'ForwardBeacon',
     'ForwardCandidatesFetch',
+    'ForwardCandidateContextFetch',
     'ForwardInboundSources',
     'InvitationCreate',
     'InvitationUpdate',

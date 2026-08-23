@@ -122,7 +122,7 @@ class _RoomMessageInlineImageAlbumState
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           ClipRRect(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(context.tt.cardRadius),
             child: SizedBox(
               height: albumHeight,
               width: double.infinity,
@@ -200,9 +200,9 @@ class _RoomMessageInlineImageAlbumState
                   ...List.generate(
                     items.length,
                     (index) => Padding(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 4,
-                        vertical: 8,
+                      padding: EdgeInsets.symmetric(
+                        horizontal: context.tt.albumGridGap,
+                        vertical: context.tt.rowGap,
                       ),
                       child: GestureDetector(
                         onTap: () => _goTo(index),

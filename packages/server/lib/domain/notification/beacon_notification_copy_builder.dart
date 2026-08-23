@@ -32,6 +32,22 @@ class BeaconNotificationCopyBuilder {
     final itemNoun = _coordinationItemNoun(intent.coordinationItemKind);
 
     final (title, body) = switch (intent.kind) {
+      NotificationKind.deadlineChanged => (
+        'Deadline changed',
+        _bodyWithRequest(
+          beaconTitle: beaconTitle,
+          excerpt: excerpt,
+          fallback: 'The request deadline changed',
+        ),
+      ),
+      NotificationKind.deadlineReminder => (
+        'Deadline reminder',
+        _bodyWithRequest(
+          beaconTitle: beaconTitle,
+          excerpt: excerpt,
+          fallback: 'This request deadline is tomorrow',
+        ),
+      ),
       NotificationKind.needsMe => (
         'Asked of you',
         _bodyWithRequest(
@@ -87,7 +103,7 @@ class BeaconNotificationCopyBuilder {
         excerpt.isNotEmpty
             ? excerpt
             : 'You were added to this request\'s discussion. '
-                'Everyone admitted can read messages, including earlier history.',
+                  'Everyone admitted can read messages, including earlier history.',
       ),
       NotificationKind.commitmentDeclined => (
         'Offer declined',
@@ -123,21 +139,19 @@ class BeaconNotificationCopyBuilder {
         intent.promiseWithdrawn
             ? (
                 actor,
-                excerpt.isNotEmpty
-                    ? excerpt
-                    : '$actor withdrew their help',
+                excerpt.isNotEmpty ? excerpt : '$actor withdrew their help',
               )
             : intent.isBackupOffer
-                ? (
-                    actor,
-                    excerpt.isNotEmpty
-                        ? excerpt
-                        : '$actor offered to help as backup',
-                  )
-                : (
-                    actor,
-                    excerpt.isNotEmpty ? excerpt : '$actor offered help',
-                  ),
+            ? (
+                actor,
+                excerpt.isNotEmpty
+                    ? excerpt
+                    : '$actor offered to help as backup',
+              )
+            : (
+                actor,
+                excerpt.isNotEmpty ? excerpt : '$actor offered help',
+              ),
       NotificationKind.reviewReady => (
         'Request closed — close the loop',
         beaconTitle.isNotEmpty ? beaconTitle : 'Review contributions',
@@ -261,17 +275,21 @@ class BeaconNotificationCopyBuilder {
   String _actionUrl(BeaconNotificationIntent intent) {
     final id = intent.beaconId;
     final item = intent.coordinationItemId;
-    final itemParam = item != null && item.isNotEmpty ? '&item=$item' : '';
+    final thread = item != null && item.isNotEmpty ? item : 'general';
+    final peopleUrl =
+        '/#$kPathBeaconView/$id?tab=people&entry=deep_link&is_deep_link=true';
+    final roomUrl =
+        '/#$kPathBeaconView/$id?tab=threads&thread=$thread'
+        '&entry=deep_link&is_deep_link=true';
+    final genericUrl = '/#$kPathBeaconView/$id?is_deep_link=true';
 
     return switch (intent.kind) {
       NotificationKind.reviewReady => '/#$kPathReviewContributions/$id',
-      NotificationKind.commitmentEvent =>
-        '/#$kPathAppLinkView?id=$id&dest=people',
+      NotificationKind.commitmentEvent => peopleUrl,
       NotificationKind.commitmentDeclined ||
       NotificationKind.commitmentRemoved ||
-      NotificationKind.commitmentReleased =>
-        '/#$kPathAppLinkView?id=$id&dest=people',
-      NotificationKind.newRelay => '/#$kPathAppLinkView?id=$id',
+      NotificationKind.commitmentReleased => peopleUrl,
+      NotificationKind.newRelay => genericUrl,
       NotificationKind.inviteAccepted => '/#/',
       NotificationKind.roomAccess ||
       NotificationKind.needsMe ||
@@ -285,8 +303,9 @@ class BeaconNotificationCopyBuilder {
       NotificationKind.commitmentAccepted ||
       NotificationKind.commitmentResolved ||
       NotificationKind.commitmentCancelled ||
-      NotificationKind.commitmentRedirected =>
-        '/#$kPathAppLinkView?id=$id&dest=room$itemParam',
+      NotificationKind.commitmentRedirected => roomUrl,
+      NotificationKind.deadlineChanged ||
+      NotificationKind.deadlineReminder => genericUrl,
     };
   }
 }

@@ -103,7 +103,7 @@ Unread counts are **per thread**, keyed by `(beacon, thread)`. General unread an
 
 ### Thread detail
 
-Each addressable thread hosts the shared message composer and history. Semantic threads show the item header (kind, status, title) above messages. **@mentions** in the composer notify admitted participants. **Replies** reference one parent message in the **same thread scope**; deleting the parent clears the quote on next read.
+Each addressable thread hosts the shared message composer and history. Semantic threads show the item header (kind, status, title) above messages. **@mentions** in the composer notify admitted participants; participants without a public handle can be mentioned by name while composing or sending, but not while editing an existing message. **Replies** reference one parent message in the **same thread scope**; deleting the parent clears the quote on next read.
 
 ## Discussion admission and membership
 
@@ -120,6 +120,20 @@ Facts pinned on messages use **discussion-scoped** visibility boundaries — req
 ## Forwarding
 
 Forwarding passes the request along the trust graph. Each hop is visible to people on the path. Forwarding does not grant discussion access by itself.
+
+The Forward candidate mini-profile may show one deterministic path through a
+capped MeritRank graph snapshot. This is provenance from that bounded snapshot,
+not a complete-network guarantee and not an explanation of why a person was
+recommended. Candidate eligibility continues to come from the canonical mutual
+visibility projection. People hidden from the viewer are removed before path
+construction; a graph identity that can no longer be hydrated is shown only as
+an unavailable person, without exposing its ID.
+
+One active Forward surface owns the synchronous recipient-selection session.
+Deselecting is always allowed; selecting re-resolves the current candidate and
+availability before changing local state. Blocking is viewer-owned, and this
+flow adds no cross-device or cross-session compare-and-swap. Server-side
+Forward validation remains the final enforcement boundary.
 
 ## Copy vocabulary (user-facing)
 

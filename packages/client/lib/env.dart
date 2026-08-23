@@ -1,7 +1,5 @@
 import 'package:injectable/injectable.dart';
 
-import 'consts.dart';
-
 export 'consts.dart';
 
 @singleton
@@ -11,7 +9,6 @@ class Env {
     String? logLevel,
     String? serverUrlBase,
     String? complaintEmail,
-    String? pathAppLinkView,
     String? inviteEmail,
 
     // Websocket
@@ -37,7 +34,6 @@ class Env {
        logLevel = logLevel ?? const String.fromEnvironment('LOG_LEVEL'),
        serverUrlBase =
            serverUrlBase ?? const String.fromEnvironment('SERVER_NAME'),
-       pathAppLinkView = pathAppLinkView ?? kPathAppLinkView,
        complaintEmail =
            complaintEmail ?? const String.fromEnvironment('COMPLAINT_EMAIL'),
        inviteEmail =
@@ -94,7 +90,6 @@ class Env {
   final String logLevel;
   final String serverUrlBase;
   final String complaintEmail;
-  final String pathAppLinkView;
   final String inviteEmail;
 
   // Websocket

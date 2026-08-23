@@ -111,9 +111,16 @@ class BeaconViewAppBarTitle extends StatelessWidget {
 
     final unread = roomUnreadBadgeCount;
     if (unread != null && unread > 0) {
-      row = Badge(
-        label: Text('$unread'),
-        child: row,
+      row = Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Expanded(child: row),
+          SizedBox(width: context.tt.iconTextGap),
+          TenturaCountBadge(
+            count: unread,
+            backgroundColor: context.tt.info,
+          ),
+        ],
       );
     }
 

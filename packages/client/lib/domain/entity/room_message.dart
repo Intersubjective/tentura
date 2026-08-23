@@ -5,6 +5,7 @@ import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:tentura/domain/entity/coordination_item.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/domain/entity/room_message_attachment.dart';
+import 'package:tentura/domain/entity/room_message_mention_span.dart';
 
 part 'room_message.freezed.dart';
 
@@ -45,6 +46,8 @@ abstract class RoomMessage with _$RoomMessage {
     String? systemPayloadJson,
     @Default(<RoomMessageAttachment>[]) List<RoomMessageAttachment> attachments,
     @Default(<String>[]) List<String> mentions,
+    @Default(<RoomMessageMentionSpan>[])
+    List<RoomMessageMentionSpan> mentionSpans,
     String? threadItemId,
     String? replyToMessageId,
     String? replyToAuthorId,

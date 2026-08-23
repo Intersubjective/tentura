@@ -22,6 +22,8 @@ List<GraphQLType<dynamic, dynamic>> get customTypes => [
   gqlTypeForwardDeliveryResult,
   gqlTypeForwardGraphEdge,
   gqlTypeForwardGraphResult,
+  gqlTypeForwardCandidateConnectionNode,
+  gqlTypeForwardCandidateContext,
   gqlTypeMutualScore,
   gqlTypeImagePublic,
   gqlTypeUserPresence,
@@ -200,6 +202,7 @@ final gqlTypeRoomMessageRow = GraphQLObjectType('RoomMessageRow', null)
     field('myReaction', graphQLString),
     field('reactorsJson', graphQLString),
     field('attachmentsJson', graphQLString.nonNullable()),
+    field('mentionSpansJson', graphQLString.nonNullable()),
     field(
       'mentions',
       GraphQLListType(graphQLString.nonNullable()),
@@ -441,6 +444,34 @@ final gqlTypeForwardGraphResult = GraphQLObjectType('ForwardGraphResult', null)
       GraphQLListType(gqlTypeForwardGraphEdge.nonNullable()).nonNullable(),
     ),
   ]);
+
+/// Bounded network provenance for one Forward candidate.
+final gqlTypeForwardCandidateConnectionNode =
+    GraphQLObjectType(
+        'ForwardCandidateConnectionNode',
+        null,
+      )
+      ..fields.addAll([
+        field('kind', graphQLString.nonNullable()),
+        field('id', graphQLString),
+        field('displayName', graphQLString),
+        field('image', gqlTypeImagePublic),
+      ]);
+
+final gqlTypeForwardCandidateContext =
+    GraphQLObjectType(
+        'ForwardCandidateContext',
+        null,
+      )
+      ..fields.addAll([
+        field('status', graphQLString.nonNullable()),
+        field(
+          'nodes',
+          GraphQLListType(
+            gqlTypeForwardCandidateConnectionNode.nonNullable(),
+          ).nonNullable(),
+        ),
+      ]);
 
 /// Return type for `userUpdate` / remote-schema mutations (minimal).
 final gqlTypeProfile = GraphQLObjectType('User', null)

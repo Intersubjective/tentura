@@ -85,35 +85,31 @@ final class BeaconThreadsCase extends UseCaseBase {
   DateTime? readThrough(
     String beaconId, {
     String threadId = RequestThread.generalId,
-  }) =>
-      _watermark.readThrough(beaconId, threadId: threadId);
+  }) => _watermark.readThrough(beaconId, threadId: threadId);
 
   bool observeReadThrough(
     String beaconId,
     DateTime at, {
     String threadId = RequestThread.generalId,
-  }) =>
-      _watermark.observeReadThrough(beaconId, at, threadId: threadId);
+  }) => _watermark.observeReadThrough(beaconId, at, threadId: threadId);
 
   void observeServerReadThrough(
     String beaconId,
     DateTime at, {
     String threadId = RequestThread.generalId,
-  }) =>
-      _watermark.confirmSynced(beaconId, at, threadId: threadId);
+  }) => _watermark.confirmSynced(beaconId, at, threadId: threadId);
 
   int resolveUnread({
     required String beaconId,
     required int serverCount,
     required DateTime? serverSeenAt,
     String threadId = RequestThread.generalId,
-  }) =>
-      _watermark.resolveUnread(
-        beaconId: beaconId,
-        serverCount: serverCount,
-        serverSeenAt: serverSeenAt,
-        threadId: threadId,
-      );
+  }) => _watermark.resolveUnread(
+    beaconId: beaconId,
+    serverCount: serverCount,
+    serverSeenAt: serverSeenAt,
+    threadId: threadId,
+  );
 
   Future<RoomUnreadSnapshot> fetchRoomUnreadSnapshot(String beaconId) async {
     try {
@@ -158,6 +154,9 @@ final class BeaconThreadsCase extends UseCaseBase {
     String? replyToMessageId,
     String? threadItemId,
     List<RoomPendingUpload> uploads = const [],
+    List<String> explicitMentionUserIds = const [],
+    List<int> explicitMentionOffsets = const [],
+    List<int> explicitMentionLengths = const [],
   }) async {
     if (body.trim().isEmpty && uploads.isEmpty) {
       return null;
@@ -172,6 +171,9 @@ final class BeaconThreadsCase extends UseCaseBase {
       replyToMessageId: replyToMessageId,
       threadItemId: threadItemId,
       firstAttachment: first,
+      explicitMentionUserIds: explicitMentionUserIds,
+      explicitMentionOffsets: explicitMentionOffsets,
+      explicitMentionLengths: explicitMentionLengths,
     );
     for (final u in extras) {
       await _room.addMessageAttachment(
@@ -202,8 +204,8 @@ final class BeaconThreadsCase extends UseCaseBase {
             id: paint.authorId,
             displayName: participant.userTitle,
             handle: participant.handle,
-            image: participant.userHasPicture &&
-                    participant.userImageId.isNotEmpty
+            image:
+                participant.userHasPicture && participant.userImageId.isNotEmpty
                 ? ImageEntity(
                     id: participant.userImageId,
                     authorId: paint.authorId,
@@ -229,6 +231,7 @@ final class BeaconThreadsCase extends UseCaseBase {
       editedAt: paint.editedAt,
       author: author,
       mentions: paint.mentions,
+      mentionSpans: paint.mentionSpans,
       threadItemId: paint.threadItemId,
       replyToMessageId: paint.replyToMessageId,
       replyToAuthorId: paint.replyToAuthorId,

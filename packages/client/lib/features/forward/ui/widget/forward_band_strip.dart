@@ -1,4 +1,7 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/capability/capability_tag.dart';
@@ -7,9 +10,12 @@ import 'package:tentura/domain/capability/projection_tier.dart';
 import 'package:tentura/domain/capability/tag_projection.dart';
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/features/forward/domain/entity/forward_candidate.dart';
+import 'package:tentura/features/forward_candidate_context/ui/widget/forward_candidate_context_sheet.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/utils/capability_tag_presenter.dart';
 
 import 'forward_recipient_row.dart';
+import '../bloc/forward_cubit.dart';
 import '../model/forward_recipient_row_host.dart';
 import 'per_recipient_note_input.dart';
 
@@ -26,7 +32,6 @@ class ForwardBandStrip extends StatelessWidget {
     required this.onRecipientNoteChanged,
     required this.skippedPersonalNoteIds,
     required this.onSkipPersonalNote,
-    required this.onRestorePersonalNote,
     this.beacon,
     super.key,
   });
@@ -41,7 +46,6 @@ class ForwardBandStrip extends StatelessWidget {
   final void Function(String userId, String text) onRecipientNoteChanged;
   final Set<String> skippedPersonalNoteIds;
   final void Function(String userId) onSkipPersonalNote;
-  final void Function(String userId) onRestorePersonalNote;
   final Beacon? beacon;
 
   static String tagSlugDisplayLabel(L10n l10n, String slug) {
@@ -64,8 +68,9 @@ class ForwardBandStrip extends StatelessWidget {
     return switch (tier) {
       ProjectionTier.ownOutcome => l10n.forwardBandTierOwnOutcome(tagText),
       ProjectionTier.ownRouting => l10n.forwardBandTierOwnRouting(tagText),
-      ProjectionTier.networkOutcome =>
-        l10n.forwardBandTierNetworkOutcome(tagText),
+      ProjectionTier.networkOutcome => l10n.forwardBandTierNetworkOutcome(
+        tagText,
+      ),
       ProjectionTier.networkSeed => l10n.forwardBandTierNetworkSeed(tagText),
     };
   }
@@ -131,9 +136,14 @@ class ForwardBandStrip extends StatelessWidget {
           requiredCapabilitySlugs: needs,
           isSelected: isSelected,
           onToggle: () => onToggle(candidate.id),
-          isPersonalNoteSkipped: isSkipped,
-          onSkipPersonalNote: () => onSkipPersonalNote(candidate.id),
-          onRestorePersonalNote: () => onRestorePersonalNote(candidate.id),
+          onOpenDetails: () => unawaited(
+            showForwardCandidateContextSheet(
+              sourceContext: context,
+              forwardCubit: context.read<ForwardCubit>(),
+              candidate: candidate,
+              relevanceLabel: tierLabel,
+            ),
+          ),
           reasonSlugs: recipientReasons[candidate.id] ?? const [],
           onEditReasons: () => onEditReasons(candidate.id),
           tierEvidenceLabel: tierLabel,
@@ -152,8 +162,8 @@ class ForwardBandStrip extends StatelessWidget {
               child: PerRecipientNoteInput(
                 profile: candidate.profile,
                 controller: controller,
-                onChanged: (text) =>
-                    onRecipientNoteChanged(candidate.id, text),
+                onChanged: (text) => onRecipientNoteChanged(candidate.id, text),
+                onClose: () => onSkipPersonalNote(candidate.id),
               ),
             ),
           );

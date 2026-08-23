@@ -19,6 +19,8 @@ export 'package:flutter_bloc/flutter_bloc.dart';
 
 export 'forward_state.dart';
 
+enum ForwardSelectionResult { selected, deselected, unavailable }
+
 class ForwardCubit extends Cubit<ForwardState> {
   ForwardCubit({
     required String beaconId,
@@ -26,6 +28,7 @@ class ForwardCubit extends Cubit<ForwardState> {
     ForwardCase? forwardCase,
     UiEffectPort? effects,
     @visibleForTesting bool debugSkipInitialLoad = false,
+    @visibleForTesting ForwardState? debugInitialState,
     this.preselectLineageSuggestions = false,
     this.initialSelectedIds = const {},
     this.embedded = false,
@@ -35,7 +38,10 @@ class ForwardCubit extends Cubit<ForwardState> {
            (debugSkipInitialLoad ? null : GetIt.I<ForwardCase>()),
        _effects = effects ?? GetIt.I<UiEffectPort>(),
        _clock = clock ?? DateTime.now,
-       super(ForwardState(beaconId: beaconId, context: context)) {
+       super(
+         debugInitialState ??
+             ForwardState(beaconId: beaconId, context: context),
+       ) {
     if (!debugSkipInitialLoad) {
       unawaited(_loadCandidates());
     }
@@ -423,11 +429,35 @@ class ForwardCubit extends Cubit<ForwardState> {
     emit(state.copyWith(activeFilter: filter));
   }
 
-  void toggleSelection(String userId) {
+  /// Clears every selected recipient along with their per-recipient state,
+  /// mirroring the reset [forward] performs on a successful send.
+  void clearSelection() {
+    if (state.selectedIds.isEmpty) return;
+    emit(
+      state.copyWith(
+        selectedIds: {},
+        perRecipientNotes: {},
+        recipientReasons: {},
+        skippedPersonalNoteIds: {},
+        note: '',
+      ),
+    );
+  }
+
+  /// Applies selection against the current candidate snapshot.
+  ///
+  /// Deselect is always allowed. Select re-resolves the candidate and repeats
+  /// the UTC availability/reachability gate; server Forward validation remains
+  /// the final enforcement boundary.
+  ForwardSelectionResult toggleSelection(String userId) {
     final selected = Set<String>.from(state.selectedIds);
     if (selected.contains(userId)) {
       selected.remove(userId);
     } else {
+      final candidate = _findCandidate(userId);
+      if (candidate == null || !candidate.canForwardToOn(_todayUtc())) {
+        return ForwardSelectionResult.unavailable;
+      }
       selected.add(userId);
     }
     final notes = Map<String, String>.from(state.perRecipientNotes);
@@ -443,6 +473,9 @@ class ForwardCubit extends Cubit<ForwardState> {
         recipientReasons: reasons,
       ),
     );
+    return selected.contains(userId)
+        ? ForwardSelectionResult.selected
+        : ForwardSelectionResult.deselected;
   }
 
   void setRecipientReasons(String userId, List<String> slugs) {
@@ -479,12 +512,6 @@ class ForwardCubit extends Cubit<ForwardState> {
   void skipPersonalNote(String userId) {
     if (state.skippedPersonalNoteIds.contains(userId)) return;
     final next = Set<String>.from(state.skippedPersonalNoteIds)..add(userId);
-    emit(state.copyWith(skippedPersonalNoteIds: next));
-  }
-
-  void restorePersonalNote(String userId) {
-    if (!state.skippedPersonalNoteIds.contains(userId)) return;
-    final next = Set<String>.from(state.skippedPersonalNoteIds)..remove(userId);
     emit(state.copyWith(skippedPersonalNoteIds: next));
   }
 

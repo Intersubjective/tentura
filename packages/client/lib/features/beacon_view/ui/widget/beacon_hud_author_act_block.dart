@@ -20,6 +20,15 @@ class BeaconHudAuthorActBlock extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final tt = context.tt;
+    final showAsTooltip = spec.action == BeaconHudAuthorAction.reviewOffers;
+    final actionButton = BeaconHudActionButton(
+      key: TestIds.key(TestIds.beaconHudAuthorAction(spec.action.name)),
+      icon: spec.icon,
+      label: spec.label,
+      onPressed: onPressed,
+      filled: spec.filled,
+      minimumSize: const Size(48, 48),
+    );
     return Semantics(
       identifier: TestIds.beaconHudAuthorAction(spec.action.name),
       button: true,
@@ -31,20 +40,17 @@ class BeaconHudAuthorActBlock extends StatelessWidget {
         children: [
           SizedBox(
             width: double.infinity,
-            child: BeaconHudActionButton(
-              key: TestIds.key(TestIds.beaconHudAuthorAction(spec.action.name)),
-              icon: spec.icon,
-              label: spec.label,
-              onPressed: onPressed,
-              filled: spec.filled,
-              minimumSize: const Size(48, 48),
+            child: showAsTooltip
+                ? Tooltip(message: spec.effectLine, child: actionButton)
+                : actionButton,
+          ),
+          if (!showAsTooltip) ...[
+            SizedBox(height: tt.tightGap),
+            Text(
+              spec.effectLine,
+              style: TenturaText.bodySmall(tt.textMuted),
             ),
-          ),
-          SizedBox(height: tt.tightGap),
-          Text(
-            spec.effectLine,
-            style: TenturaText.bodySmall(tt.textMuted),
-          ),
+          ],
         ],
       ),
     );

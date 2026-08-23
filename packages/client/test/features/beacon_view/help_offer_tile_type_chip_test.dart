@@ -260,6 +260,8 @@ void main() {
 
     expect(find.text('Accept'), findsOneWidget);
     expect(find.text('Decline'), findsOneWidget);
+    expect(find.textContaining('Adds '), findsNothing);
+    expect(find.text('Declines offer; no discussion access'), findsNothing);
     expect(find.text('Set coordination signal'), findsNothing);
   });
 

@@ -450,11 +450,10 @@ class _BeaconCreateScreenState extends State<BeaconCreateScreen>
                       ),
                       Expanded(
                         child: Padding(
-                          padding: EdgeInsets.fromLTRB(
-                            tt.screenHPadding,
-                            tt.sectionGap * 2,
-                            tt.screenHPadding,
-                            0,
+                          padding: EdgeInsets.only(
+                            left: tt.screenHPadding,
+                            top: tt.sectionGap * 2,
+                            right: tt.screenHPadding,
                           ),
                           child:
                               BlocSelector<

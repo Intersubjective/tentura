@@ -13,8 +13,8 @@ import 'package:tentura/features/capability/ui/widget/capability_chip_set.dart';
 import 'package:tentura/features/forward/domain/entity/forward_candidate.dart';
 import 'package:tentura/features/forward/domain/invite_new_person_enabled.dart';
 import 'package:tentura/features/forward/domain/forward_draft_policy.dart';
+import 'package:tentura/features/forward_candidate_context/ui/widget/forward_candidate_context_sheet.dart';
 import 'package:tentura/features/invitation/ui/bloc/invitation_cubit.dart';
-import 'package:tentura/features/invitation/ui/dialog/invitation_addressee_dialog.dart';
 import 'package:tentura/ui/dialog/share_code_dialog.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
@@ -159,7 +159,6 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
     required ForwardCubit cubit,
     required Set<String> uncoveredIds,
   }) async {
-    final l10n = L10n.of(context)!;
     final names = <String>[];
     for (final id in uncoveredIds) {
       ForwardCandidate? match;
@@ -304,11 +303,10 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
                     Expanded(
                       child: ListView(
                         controller: scrollController,
-                        padding: EdgeInsets.fromLTRB(
-                          modalTt.screenHPadding,
-                          0,
-                          modalTt.screenHPadding,
-                          modalTt.sectionGap,
+                        padding: EdgeInsets.only(
+                          left: modalTt.screenHPadding,
+                          right: modalTt.screenHPadding,
+                          bottom: modalTt.sectionGap,
                         ),
                         children: [
                           CapabilityChipSet(
@@ -334,14 +332,9 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
     _inviteFlowActive = true;
     try {
       final l10n = L10n.of(context)!;
-      final addresseeName = await InvitationAddresseeDialog.show(context);
-      if (addresseeName == null || !context.mounted) return;
-
-      await WidgetsBinding.instance.endOfFrame;
-      if (!context.mounted) return;
 
       final invitation = await _invitationCubit.createInvitation(
-        addresseeName: addresseeName,
+        addresseeName: '',
         beaconId: widget.beaconId.isNotEmpty ? widget.beaconId : null,
       );
       if (invitation == null || !context.mounted) return;
@@ -560,10 +553,20 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
                                     state.beacon?.allowsForward == true,
                                 isLive: widget.isLive,
                               ))
-                                SliverToBoxAdapter(
-                                  child: ForwardInviteBar(
-                                    onInvite: () =>
-                                        unawaited(_inviteNewPerson(context)),
+                                SliverPersistentHeader(
+                                  pinned: true,
+                                  delegate: ForwardPinnedSliverHeaderDelegate(
+                                    height:
+                                        ForwardInviteBar.buttonHeight +
+                                        tt.rowGap * 2,
+                                    child: ForwardInviteBar(
+                                      hasSelection:
+                                          state.selectedIds.isNotEmpty,
+                                      onInvite: () => unawaited(
+                                        _inviteNewPerson(context),
+                                      ),
+                                      onClearSelection: cubit.clearSelection,
+                                    ),
                                   ),
                                 ),
                               if (showBandBlock)
@@ -580,10 +583,7 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
                                         cubit.setRecipientNote,
                                     skippedPersonalNoteIds:
                                         state.skippedPersonalNoteIds,
-                                    onSkipPersonalNote:
-                                        cubit.skipPersonalNote,
-                                    onRestorePersonalNote:
-                                        cubit.restorePersonalNote,
+                                    onSkipPersonalNote: cubit.skipPersonalNote,
                                     onToggle: cubit.toggleSelection,
                                     onEditReasons: (userId) => unawaited(
                                       _editReasons(
@@ -598,7 +598,7 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
                                 ),
                               SliverPersistentHeader(
                                 pinned: true,
-                                delegate: ForwardPinnedTabBarDelegate(
+                                delegate: ForwardPinnedSliverHeaderDelegate(
                                   height: tt.buttonHeight + 4,
                                   child: ForwardScopeLinks(
                                     activeFilter: state.activeFilter,
@@ -733,12 +733,13 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
           requiredCapabilitySlugs: beacon?.needs ?? const {},
           isSelected: state.selectedIds.contains(lineage[i].id),
           onToggle: () => cubit.toggleSelection(lineage[i].id),
-          isPersonalNoteSkipped: state.skippedPersonalNoteIds.contains(
-            lineage[i].id,
+          onOpenDetails: () => unawaited(
+            showForwardCandidateContextSheet(
+              sourceContext: context,
+              forwardCubit: cubit,
+              candidate: lineage[i],
+            ),
           ),
-          onSkipPersonalNote: () => cubit.skipPersonalNote(lineage[i].id),
-          onRestorePersonalNote: () =>
-              cubit.restorePersonalNote(lineage[i].id),
           reasonSlugs: state.recipientReasons[lineage[i].id] ?? const [],
           onEditReasons: () => unawaited(
             _editReasons(
@@ -758,8 +759,8 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
             child: PerRecipientNoteInput(
               profile: lineage[i].profile,
               controller: _recipientNoteControllers[lineage[i].id]!,
-              onChanged: (text) =>
-                  cubit.setRecipientNote(lineage[i].id, text),
+              onChanged: (text) => cubit.setRecipientNote(lineage[i].id, text),
+              onClose: () => cubit.skipPersonalNote(lineage[i].id),
             ),
           ),
       ],
@@ -789,11 +790,13 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
           requiredCapabilitySlugs: beacon?.needs ?? const {},
           isSelected: state.selectedIds.contains(visible[i].id),
           onToggle: () => cubit.toggleSelection(visible[i].id),
-          isPersonalNoteSkipped: state.skippedPersonalNoteIds.contains(
-            visible[i].id,
+          onOpenDetails: () => unawaited(
+            showForwardCandidateContextSheet(
+              sourceContext: context,
+              forwardCubit: cubit,
+              candidate: visible[i],
+            ),
           ),
-          onSkipPersonalNote: () => cubit.skipPersonalNote(visible[i].id),
-          onRestorePersonalNote: () => cubit.restorePersonalNote(visible[i].id),
           reasonSlugs: state.recipientReasons[visible[i].id] ?? const [],
           onEditReasons: () => unawaited(
             _editReasons(
@@ -835,6 +838,7 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
               profile: visible[i].profile,
               controller: _recipientNoteControllers[visible[i].id]!,
               onChanged: (text) => cubit.setRecipientNote(visible[i].id, text),
+              onClose: () => cubit.skipPersonalNote(visible[i].id),
             ),
           ),
         );
@@ -901,7 +905,7 @@ class ForwardEditPanel extends StatelessWidget {
   }
 }
 
-enum _UncoveredSheetResult { sent, dismissed }
+enum _UncoveredSheetResult { sent }
 
 class _UncoveredRecipientsSheet extends StatefulWidget {
   const _UncoveredRecipientsSheet({

@@ -8,6 +8,7 @@ import 'package:logging/logging.dart';
 import 'package:postgres/postgres.dart';
 import 'package:test/test.dart';
 
+import 'package:tentura_root/domain/entity/beacon_status.dart';
 import 'package:tentura_server/data/database/migration/_migrations.dart';
 import 'package:tentura_server/data/database/tentura_db.dart'
     hide isNotNull, isNull;
@@ -228,17 +229,21 @@ VALUES
 ON CONFLICT DO NOTHING
 ''');
 
-  await writer.execute(r'''
-INSERT INTO public.beacon (id, user_id, title, description, needs, primary_need_slug)
+  await writer.execute('''
+INSERT INTO public.beacon (
+  id, user_id, title, description, needs, primary_need_slug, status
+)
 VALUES (
   'Bcapc1bcn001',
   'Ucapc1bauth01',
   'Ack policy beacon',
   'd',
   'transport,pets',
-  'transport'
+  'transport',
+  ${BeaconStatus.reviewOpen.smallintValue}
 )
-ON CONFLICT DO NOTHING
+ON CONFLICT (id) DO UPDATE SET
+  status = EXCLUDED.status
 ''');
 
   await writer.execute(r'''

@@ -151,7 +151,7 @@ class _ConnectBottomSheetState extends State<ConnectBottomSheet> {
 
     switch (code[0]) {
       case 'U':
-        await context.pushRoute(ProfileViewRoute(id: code));
+        await context.router.root.push(ProfileViewRoute(id: code));
       case 'B':
         await context.pushRoute(
           BeaconViewRoute(id: code, entry: kBeaconEntryUnknown),
@@ -175,7 +175,9 @@ class _ConnectBottomSheetState extends State<ConnectBottomSheet> {
             if (mounted) {
               // TBD: l10n
               showSnackBar(context, text: 'Invitation accepted!');
-              await context.pushRoute(ProfileViewRoute(id: result.issuer.id));
+              await context.router.root.push(
+                ProfileViewRoute(id: result.issuer.id),
+              );
             }
           }
         }

@@ -78,6 +78,76 @@ double beaconViewRoomSplitPaneWidth(
   return ideal.clamp(minChat, effectiveMaxPaneWidth);
 }
 
+/// Restores Home's persistent side navigation while a root browse-detail
+/// route covers the Home page on a non-compact window.
+class _BeaconViewHomeRail extends StatelessWidget {
+  const _BeaconViewHomeRail({
+    required this.selectedIndex,
+    required this.child,
+  });
+
+  final int selectedIndex;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    if (context.windowClass == WindowClass.compact) return child;
+
+    final l10n = L10n.of(context)!;
+    final extended = context.windowClass == WindowClass.expanded;
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        NavigationRail(
+          extended: extended,
+          selectedIndex: selectedIndex,
+          onDestinationSelected: (index) {
+            final spec = HomeTabSpec.fromIndex(index);
+            if (spec == null) return;
+            final root = context.router.root;
+            root
+                .innerRouterOf<TabsRouter>(HomeRoute.name)
+                ?.setActiveIndex(index);
+            unawaited(root.replacePath(spec.path));
+          },
+          labelType: extended
+              ? NavigationRailLabelType.none
+              : NavigationRailLabelType.all,
+          destinations: [
+            NavigationRailDestination(
+              icon: const Icon(Icons.work_outline),
+              selectedIcon: const Icon(Icons.work),
+              label: Text(l10n.myWork),
+            ),
+            NavigationRailDestination(
+              icon: const Icon(Icons.inbox_outlined),
+              selectedIcon: const Icon(Icons.inbox),
+              label: Text(l10n.inbox),
+            ),
+            NavigationRailDestination(
+              icon: const Icon(Icons.notifications_none),
+              selectedIcon: const Icon(Icons.notifications),
+              label: Text(l10n.updatesTitle),
+            ),
+            NavigationRailDestination(
+              icon: const Icon(Icons.people_outline),
+              selectedIcon: const Icon(Icons.people),
+              label: Text(l10n.network),
+            ),
+            NavigationRailDestination(
+              icon: const Icon(Icons.person_outline),
+              selectedIcon: const Icon(Icons.person),
+              label: Text(l10n.profile),
+            ),
+          ],
+        ),
+        const TenturaVerticalHairline(),
+        Expanded(child: child),
+      ],
+    );
+  }
+}
+
 class BeaconViewScreen extends StatefulWidget {
   const BeaconViewScreen({
     this.id = '',
@@ -136,6 +206,12 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
       return;
     }
 
+    final parent = router.parent<StackRouter>();
+    if (parent != null && parent.canPop()) {
+      unawaited(parent.maybePop());
+      return;
+    }
+
     // In deep-linked direct detail views we still want the back button to go back.
     // However, if we pop, we would pop out of the app.
     // Since we are inside Inbox, let's navigate to Inbox Route instead.
@@ -143,20 +219,26 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
     final tab = rootRouter
         .innerRouterOf<TabsRouter>(HomeRoute.name)
         ?.activeIndex;
-    
+
     // Only route to inbox if we are actually mounted inside the inbox tab.
     // In deep link operations we could be in 'My Work' tab.
-    final isInboxTab = tab != null && tab == HomeTabSpec.forTab(HomeTab.inbox).index;
-    
+    final isInboxTab =
+        tab != null && tab == HomeTabSpec.forTab(HomeTab.inbox).index;
+
     // Similarly, we can navigate to other tabs by looking up the tab index.
-    final isUpdatesTab = tab != null && tab == HomeTabSpec.forTab(HomeTab.updates).index;
-    final isNetworkTab = tab != null && tab == HomeTabSpec.forTab(HomeTab.network).index;
-    
-    final path = isInboxTab ? kPathInbox : 
-                 isUpdatesTab ? kPathUpdates :
-                 isNetworkTab ? kPathNetwork : 
-                 kPathMyWork;
-                 
+    final isUpdatesTab =
+        tab != null && tab == HomeTabSpec.forTab(HomeTab.updates).index;
+    final isNetworkTab =
+        tab != null && tab == HomeTabSpec.forTab(HomeTab.network).index;
+
+    final path = isInboxTab
+        ? kPathInbox
+        : isUpdatesTab
+        ? kPathUpdates
+        : isNetworkTab
+        ? kPathNetwork
+        : kPathMyWork;
+
     unawaited(router.root.replacePath(path));
   }
 
@@ -216,7 +298,6 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
   String _beaconViewPath({
     String? viewTab,
     String? threadId,
-    bool relativeToTabBranch = false,
   }) {
     final q = <String, String>{};
     if (viewTab != null && viewTab.isNotEmpty) {
@@ -229,20 +310,19 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
     if (entry != null && entry.isNotEmpty) {
       q[kQueryBeaconEntry] = entry;
     }
-    final pathPrefix = relativeToTabBranch
-        ? kPathBeaconView.replaceFirst('/', '')
-        : kPathBeaconView;
-    final base = '$pathPrefix/${widget.id}';
+    final base = '$kPathBeaconView/${widget.id}';
     if (q.isEmpty) return base;
     return '$base?${Uri(queryParameters: q).query}';
   }
 
   Future<void> _syncExpandedThreadQuery(String? threadId) {
+    // BeaconViewRoute is a root browse-detail route. Replacing it through the
+    // tab branch turns `beacon/view/:id` into an unmatched relative path, so
+    // AutoRoute falls back to My Work while retaining the query parameters.
     return context.router.replacePath(
       _beaconViewPath(
         viewTab: kBeaconViewTabThreads,
         threadId: threadId,
-        relativeToTabBranch: true,
       ),
     );
   }
@@ -324,12 +404,10 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
     String? messageId,
   }) async {
     if (!isSplit) {
-      unawaited(
-        context.router.push(
-          ThreadDetailRoute(
-            threadId: thread.threadId,
-            messageId: messageId,
-          ),
+      await context.router.push(
+        ThreadDetailRoute(
+          threadId: thread.threadId,
+          messageId: messageId,
         ),
       );
       return;
@@ -662,10 +740,10 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
     required TenturaTokens tt,
     required void Function(RequestThread thread) onOpenThread,
   }) {
-    const minPane = 360.0;
     return LayoutBuilder(
       builder: (context, constraints) {
         const handleWidth = TenturaSpacing.row;
+        const minPane = 360.0;
         final threadPaneWidth = beaconViewRoomSplitPaneWidth(
           tt,
           availableWidth: constraints.maxWidth - handleWidth,
@@ -781,19 +859,25 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
 
                   return LayoutBuilder(
                     builder: (context, constraints) {
-                      final isSplit = _usesExpandedThreadSplit(
-                        showBeaconContent: showBeaconContent,
-                        threadsState: threadsState,
-                      );
+                      // The outer window can be expanded while this route is
+                      // hosted in a narrower content pane. Do not mount the
+                      // two-pane room view unless that parent can hold both
+                      // of its minimum-width panes.
+                      const minPaneWidth = 360.0;
+                      const splitHandleWidth = TenturaSpacing.row;
+                      final isSplit =
+                          constraints.maxWidth >=
+                              minPaneWidth * 2 + splitHandleWidth &&
+                          _usesExpandedThreadSplit(
+                            showBeaconContent: showBeaconContent,
+                            threadsState: threadsState,
+                          );
 
                       void onOpenThread(RequestThread thread) {
                         unawaited(() async {
                           await _openThread(
                             thread,
-                            isSplit: _usesExpandedThreadSplit(
-                              showBeaconContent: showBeaconContent,
-                              threadsState: threadsState,
-                            ),
+                            isSplit: isSplit,
                           );
                         }());
                       }
@@ -1030,7 +1114,18 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
                             state.isLoading,
                           ),
                         ),
-                        body: SafeArea(child: contentColumn),
+                        body: _BeaconViewHomeRail(
+                          selectedIndex: switch (widget.entry) {
+                            kBeaconEntryInbox => HomeTabSpec.forTab(
+                              HomeTab.inbox,
+                            ).index,
+                            kBeaconEntryRoomNotification => HomeTabSpec.forTab(
+                              HomeTab.updates,
+                            ).index,
+                            _ => HomeTabSpec.forTab(HomeTab.work).index,
+                          },
+                          child: SafeArea(child: contentColumn),
+                        ),
                       );
                     },
                   );

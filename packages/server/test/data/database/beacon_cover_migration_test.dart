@@ -119,8 +119,10 @@ ORDER BY indexname
       () async {
         // Migrant only applies versions above the highest recorded one, so
         // every migration appended after this test was written (currently
-        // m0141-m0151) must be unwound here too, or the re-application below
+        // m0141-m0153) must be unwound here too, or the re-application below
         // is a silent no-op and the m0130/m0131 columns never come back.
+        await _rollBackM0153ForTest(writer);
+        await _rollBackM0152ForTest(writer);
         await _rollBackM0151ForTest(writer);
         await _rollBackM0150ForTest(writer);
         await _rollBackM0149ForTest(writer);
@@ -440,6 +442,33 @@ Future<void> _rollBackM0132ForTest(Connection connection) async {
   for (final statement in const [
     'ALTER TABLE public.beacon DROP COLUMN IF EXISTS cover_thumb_image_id',
     "DELETE FROM public.schema_version WHERE version = '0132'",
+  ]) {
+    await connection.execute(statement);
+  }
+}
+
+Future<void> _rollBackM0153ForTest(Connection connection) async {
+  for (final statement in const [
+    'ALTER TABLE public.beacon_room_message '
+        'DROP COLUMN IF EXISTS mention_spans',
+    "DELETE FROM public.schema_version WHERE version = '0153'",
+  ]) {
+    await connection.execute(statement);
+  }
+}
+
+Future<void> _rollBackM0152ForTest(Connection connection) async {
+  for (final statement in const [
+    '''
+ALTER TABLE public.invitation
+  DROP CONSTRAINT IF EXISTS invitation__accept_state_chk,
+  DROP CONSTRAINT IF EXISTS invitation__invite_origin_chk,
+  DROP COLUMN IF EXISTS accepted_at,
+  DROP COLUMN IF EXISTS invite_origin,
+  DROP CONSTRAINT IF EXISTS invitation_invited_id_key,
+  ADD CONSTRAINT invitation_invited_id_key UNIQUE (invited_id)
+''',
+    "DELETE FROM public.schema_version WHERE version = '0152'",
   ]) {
     await connection.execute(statement);
   }

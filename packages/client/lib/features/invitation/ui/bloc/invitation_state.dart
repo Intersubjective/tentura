@@ -6,8 +6,14 @@ part 'invitation_state.freezed.dart';
 @Freezed(makeCollectionsUnmodifiable: false)
 abstract class InvitationState extends StateBase with _$InvitationState {
   const factory InvitationState({
-    @Default(false) bool hasReachedMax,
-    @Default([]) List<InvitationEntity> invitations,
+    @Default([]) List<InvitationEntity> pendingInvitations,
+    @Default([]) List<InvitationEntity> acceptedInvitations,
+    @Default(false) bool pendingHasReachedMax,
+    @Default(false) bool acceptedHasReachedMax,
+
+    /// True total of pending invitations (drives the tab badge) —
+    /// independent of how many pending rows have been paginated in so far.
+    @Default(0) int pendingCount,
     @Default(StateIsSuccess()) StateStatus status,
   }) = _InvitationState;
 

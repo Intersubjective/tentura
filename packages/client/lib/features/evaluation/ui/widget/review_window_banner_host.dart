@@ -20,7 +20,7 @@ String? _formatClosesAt(BuildContext context, String? raw) {
   ).format(parsed.toLocal());
 }
 
-/// Presents review-window status from [BeaconViewState.reviewWindowInfo].
+/// Presents review-window status from `BeaconViewState.reviewWindowInfo`.
 ///
 /// Author lifecycle ACTs (review contributions, close now) live in the HUD
 /// action rail; this widget shows informational copy and non-author review CTAs.
@@ -34,7 +34,9 @@ class ReviewWindowBannerHost extends StatelessWidget {
   final ReviewWindowInfo? reviewWindowInfo;
   final bool isAuthor;
 
-  static const _slotPadding = EdgeInsets.only(top: 10, bottom: 10);
+  static const _slotPadding = EdgeInsets.symmetric(
+    vertical: TenturaSpacing.cardGap,
+  );
 
   @override
   Widget build(BuildContext context) {

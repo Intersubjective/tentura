@@ -197,7 +197,7 @@ void main() {
               inviterUserId: author,
               accepterUserId: actor,
               accepterDisplayName: 'Actor',
-              actionUrl: '/#/shared/view?id=$actor',
+              actionUrl: '/#/profile/view/$actor',
               inviteOrigin: 'existing_account',
             ),
             sourceEventKey: eventKey,
@@ -323,12 +323,15 @@ void main() {
         expect(
           intent.collapseKey,
           switch (fixture.eventType) {
-            AttentionEventType.coordinationChanged =>
-              startsWith('v1|coordination_changed|'),
-            AttentionEventType.trustGivenChanged =>
-              startsWith('v1|trust_given|'),
-            AttentionEventType.trustReceivedChanged =>
-              startsWith('v1|trust_received|'),
+            AttentionEventType.coordinationChanged => startsWith(
+              'v1|coordination_changed|',
+            ),
+            AttentionEventType.trustGivenChanged => startsWith(
+              'v1|trust_given|',
+            ),
+            AttentionEventType.trustReceivedChanged => startsWith(
+              'v1|trust_received|',
+            ),
             _ => startsWith('v1|none|'),
           },
         );
@@ -560,7 +563,7 @@ void main() {
           inviterUserId: author,
           accepterUserId: actor,
           accepterDisplayName: 'Actor',
-          actionUrl: '/#/shared/view?id=$actor',
+          actionUrl: '/#/profile/view/$actor',
           inviteOrigin: 'existing_account',
         ),
         sourceEventKey: eventKey,
@@ -593,7 +596,7 @@ void main() {
             accepterUserId: actor,
             accepterDisplayName: 'Alice',
             accepterHandle: 'alice',
-            actionUrl: '/#/shared/view?id=$actor',
+            actionUrl: '/#/profile/view/$actor',
             inviteOrigin: 'new_account',
           ),
           sourceEventKey: eventKey,
@@ -617,7 +620,7 @@ void main() {
             accepterUserId: actor,
             accepterDisplayName: '',
             accepterHandle: 'alice',
-            actionUrl: '/#/shared/view?id=$actor',
+            actionUrl: '/#/profile/view/$actor',
             inviteOrigin: 'existing_account',
           ),
           sourceEventKey: eventKey,
@@ -636,7 +639,7 @@ void main() {
             inviterUserId: author,
             accepterUserId: actor,
             accepterDisplayName: '  ',
-            actionUrl: '/#/shared/view?id=$actor',
+            actionUrl: '/#/profile/view/$actor',
             inviteOrigin: 'new_account',
           ),
           sourceEventKey: eventKey,
@@ -648,25 +651,28 @@ void main() {
   });
 
   group('commitmentChanged', () {
-    test('accepted uses none collapse key and commitmentAccepted kind', () async {
-      final intent = await harness.intents.commitmentChanged(
-        beaconId: beacon,
-        actorUserId: target,
-        transition: 'accepted',
-        excerpt: 'Need help',
-        targetPersonId: author,
-        coordinationItemId: item,
-        sourceEventKey: eventKey,
-      );
+    test(
+      'accepted uses none collapse key and commitmentAccepted kind',
+      () async {
+        final intent = await harness.intents.commitmentChanged(
+          beaconId: beacon,
+          actorUserId: target,
+          transition: 'accepted',
+          excerpt: 'Need help',
+          targetPersonId: author,
+          coordinationItemId: item,
+          sourceEventKey: eventKey,
+        );
 
-      expect(intent.eventType, AttentionEventType.commitmentAccepted);
-      expect(intent.kind, NotificationKind.commitmentAccepted);
-      expect(intent.collapseKey, AttentionCollapseKey.none(eventKey));
-      expect(
-        intent.recipients.map((r) => r.recipientId),
-        contains(author),
-      );
-    });
+        expect(intent.eventType, AttentionEventType.commitmentAccepted);
+        expect(intent.kind, NotificationKind.commitmentAccepted);
+        expect(intent.collapseKey, AttentionCollapseKey.none(eventKey));
+        expect(
+          intent.recipients.map((r) => r.recipientId),
+          contains(author),
+        );
+      },
+    );
 
     test('redirected_to uses commitmentRedirected at high priority', () async {
       final intent = await harness.intents.commitmentChanged(

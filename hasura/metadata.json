@@ -576,6 +576,8 @@
                     "invited_id",
                     "user_id",
                     "addressee_name",
+                    "invite_origin",
+                    "accepted_at",
                     "created_at",
                     "updated_at"
                   ],
@@ -583,7 +585,8 @@
                     "user_id": {
                       "_eq": "X-Hasura-User-Id"
                     }
-                  }
+                  },
+                  "allow_aggregations": true
                 },
                 "comment": ""
               }

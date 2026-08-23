@@ -14,6 +14,7 @@ import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_cubit.dart';
 import 'package:tentura/features/beacon_view/ui/widget/activity_list.dart';
 import 'package:tentura/features/beacon_view/ui/widget/beacon_operational_header_card.dart';
 import 'package:tentura/features/beacon_view/ui/widget/beacon_view_app_bar_overflow.dart';
+import 'package:tentura/features/beacon_view/ui/widget/beacon_view_forward_overflow.dart';
 import 'package:tentura/features/beacon_view/ui/widget/beacon_current_line_sheet.dart';
 import 'package:tentura/features/beacon_view/ui/widget/beacon_people_tab_body.dart';
 import 'package:tentura/features/beacon_view/ui/widget/beacon_pinned_facts_sheet.dart';
@@ -281,6 +282,15 @@ class BeaconOperationalScrollView extends StatelessWidget {
                         cubit: beaconViewCubit,
                       ),
                     ),
+                    onForward: state.beacon.allowsForward
+                        ? () => unawaited(
+                            beaconViewOpenForwardThenMaybeNudgeOfferHelp(
+                              context,
+                              beaconViewCubit,
+                              l10n,
+                            ),
+                          )
+                        : null,
                   ),
                 ),
               ),
@@ -380,13 +390,20 @@ class BeaconPinnedSegmentBarDelegate extends SliverPersistentHeaderDelegate {
     double shrinkOffset,
     bool overlapsContent,
   ) {
-    return Material(
-      color: Theme.of(context).colorScheme.surface,
-      elevation: overlapsContent ? 0.5 : 0,
+    final tt = context.tt;
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: Theme.of(context).colorScheme.surface,
+        border: Border(
+          bottom: BorderSide(
+            color: overlapsContent ? tt.borderSubtle : Colors.transparent,
+          ),
+        ),
+      ),
       child: SizedBox(
         height: _barHeight,
         width: double.infinity,
-        child: child,
+        child: Material(color: Colors.transparent, child: child),
       ),
     );
   }

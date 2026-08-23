@@ -51,3 +51,6 @@ packages/client/test/**/failures/
 
 # local tool cache (chromedriver etc.)
 .local/
+
+# Local landing dev config (synced from .env)
+packages/landing/config.local.js

@@ -2,332 +2,430 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:get_it/get_it.dart';
 
-import 'package:tentura/design_system/tentura_theme.dart';
+import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/attention/entity/attention_receipt.dart';
 import 'package:tentura/domain/capability/invite_seed_prompt_state.dart';
 import 'package:tentura/domain/capability/prompt_state_value.dart';
 import 'package:tentura/domain/entity/profile.dart';
-import 'package:tentura/domain/port/capability_repository_port.dart';
-import 'package:tentura/features/profile/domain/port/profile_repository_port.dart';
 import 'package:tentura/features/capability/ui/widget/capability_chip_set.dart';
+import 'package:tentura/features/updates/domain/use_case/invite_accepted_setup_case.dart';
 import 'package:tentura/features/updates/ui/widget/invite_accepted_receipt_card.dart';
+import 'package:tentura/features/updates/ui/widget/invite_accepted_setup_sheet.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/l10n/l10n_en.dart';
+import 'package:tentura/ui/test_ids.dart';
 
 AttentionReceipt _inviteReceipt({
-  String actorUserId = 'invitee-1',
-  String? targetEntityId = 'invitee-1',
+  String presentationPayloadJson = '{"inviteOrigin":"new_account"}',
   String title = 'Carol joined via your invitation',
   String body = 'Carol is now on Tentura.',
-  String presentationPayloadJson = '{}',
-}) {
-  return AttentionReceipt(
-    id: 'receipt-invite-1',
-    category: 'connections',
-    kind: 'inviteAccepted',
-    priority: 'normal',
-    title: title,
-    body: body,
-    actionUrl: '/profile/view/invitee-1',
-    createdAt: DateTime(2026, 8, 4, 14, 30),
-    collapsedCount: 1,
-    presentationKey: 'invite_accepted',
-    presentationPayloadJson: presentationPayloadJson,
-    actorUserId: actorUserId,
-    targetEntityId: targetEntityId,
-    seenAt: DateTime.utc(2026, 8, 4),
-  );
-}
-
-Widget _wrap(Widget child) => MaterialApp(
-  theme: TenturaTheme.light(),
-  localizationsDelegates: L10n.localizationsDelegates,
-  supportedLocales: L10n.supportedLocales,
-  home: Scaffold(body: SingleChildScrollView(child: child)),
+  DateTime? seenAt,
+  bool hasSubject = true,
+}) => AttentionReceipt(
+  id: 'receipt-invite-1',
+  category: 'connections',
+  kind: 'inviteAccepted',
+  priority: 'normal',
+  title: title,
+  body: body,
+  actionUrl: '/profile/view/invitee-1',
+  createdAt: DateTime(2026, 8, 4, 14, 30),
+  collapsedCount: 1,
+  presentationKey: 'invite_accepted',
+  presentationPayloadJson: presentationPayloadJson,
+  actorUserId: hasSubject ? 'invitee-1' : null,
+  targetEntityId: hasSubject ? 'invitee-1' : null,
+  seenAt: seenAt,
 );
 
-Future<void> _disposeCard(WidgetTester tester) async {
-  await tester.pumpWidget(const SizedBox());
-  await tester.pump();
-  await tester.pump(const Duration(milliseconds: 600));
-}
-
-final class _FakeCapabilityRepository implements CapabilityRepositoryPort {
-  _FakeCapabilityRepository({
-    required this.promptState,
-    this.answerDelay = Duration.zero,
-    this.skipDelay = Duration.zero,
-  });
-
-  InviteSeedPromptState promptState;
-  final Duration answerDelay;
-  final Duration skipDelay;
-
-  String? lastAnswerSubjectId;
-  List<String>? lastAnswerSlugs;
-  String? lastSkipSubjectId;
-
-  final _changes = StreamController<void>.broadcast();
-
-  @override
-  Stream<void> get changes => _changes.stream;
-
-  @override
-  Future<InviteSeedPromptState> fetchInviteSeedPromptState(
-    String subjectId,
-  ) async => promptState;
-
-  @override
-  Future<void> inviteSeedPromptAnswer({
-    required String subjectId,
-    required List<String> slugs,
-  }) async {
-    lastAnswerSubjectId = subjectId;
-    lastAnswerSlugs = List<String>.from(slugs);
-    if (answerDelay > Duration.zero) {
-      await Future<void>.delayed(answerDelay);
-    }
-    promptState = promptState.copyWith(state: PromptStateValue.answered);
-  }
-
-  @override
-  Future<void> inviteSeedPromptSkip(String subjectId) async {
-    lastSkipSubjectId = subjectId;
-    if (skipDelay > Duration.zero) {
-      await Future<void>.delayed(skipDelay);
-    }
-    promptState = promptState.copyWith(state: PromptStateValue.skipped);
-  }
-
-  @override
-  Future<void> dispose() => _changes.close();
-
-  @override
-  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
-}
-
-final class _FakeProfileRepository implements ProfileRepositoryPort {
-  _FakeProfileRepository(
-    this.profile, {
-    this.error,
-    this.delay = Duration.zero,
-  });
-
-  Profile profile;
-  Object? error;
-  Duration delay;
-
-  @override
-  Future<Profile> fetchById(String id) async {
-    if (delay > Duration.zero) {
-      await Future<void>.delayed(delay);
-    }
-    if (error != null) throw error!;
-    return profile;
-  }
-
-  @override
-  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
-}
-
-Future<void> _expandLogisticsGroup(WidgetTester tester) async {
-  final tile = find.text('Logistics');
-  await tester.ensureVisible(tile);
-  await tester.pumpAndSettle();
-  await tester.tap(tile);
-  await tester.pumpAndSettle();
-}
-
-Future<void> _selectTransportChip(WidgetTester tester) async {
-  await _expandLogisticsGroup(tester);
-  final transport = find.text('Transport');
-  await tester.ensureVisible(transport);
-  await tester.pumpAndSettle();
-  await tester.tap(transport);
-  await tester.pump();
-}
-
-void main() {
-  final l10n = L10nEn();
-
-  late _FakeCapabilityRepository capabilityRepo;
-  late _FakeProfileRepository profileRepo;
-
-  InviteSeedPromptState pendingState() => const InviteSeedPromptState(
+final class _FakeSetupCase implements InviteAcceptedSetupPort {
+  Profile profile = const Profile(id: 'invitee-1', displayName: 'Carol');
+  InviteSeedPromptState prompt = const InviteSeedPromptState(
     inviterUserId: 'inviter-1',
     inviteeUserId: 'invitee-1',
     state: PromptStateValue.pending,
   );
+  Completer<Profile>? profileCompleter;
+  Exception? profileError;
+  Exception? promptError;
+  Exception? renameError;
+  Exception? answerError;
+  Exception? skipError;
+
+  int fetchProfileCalls = 0;
+  int fetchPromptCalls = 0;
+  int renameCalls = 0;
+  int answerCalls = 0;
+  int skipCalls = 0;
+  String? renamedTo;
+  List<String>? answeredSlugs;
+
+  @override
+  Future<Profile> fetchProfile(String subjectId) async {
+    fetchProfileCalls++;
+    final completer = profileCompleter;
+    if (completer != null) return completer.future;
+    if (profileError case final error?) throw error;
+    return profile;
+  }
+
+  @override
+  Future<InviteSeedPromptState> fetchPrompt(String subjectId) async {
+    fetchPromptCalls++;
+    if (promptError case final error?) throw error;
+    return prompt;
+  }
+
+  @override
+  Future<void> rename({
+    required String subjectId,
+    required String privateName,
+  }) async {
+    renameCalls++;
+    renamedTo = privateName;
+    if (renameError case final error?) throw error;
+    profile = profile.copyWith(contactName: privateName);
+  }
+
+  @override
+  Future<void> answer({
+    required String subjectId,
+    required List<String> slugs,
+  }) async {
+    answerCalls++;
+    answeredSlugs = List<String>.from(slugs);
+    if (answerError case final error?) throw error;
+  }
+
+  @override
+  Future<void> skip(String subjectId) async {
+    skipCalls++;
+    if (skipError case final error?) throw error;
+  }
+}
+
+void main() {
+  final l10n = L10nEn();
+  late _FakeSetupCase setupCase;
+  late int profileTaps;
+  late int markSeenCalls;
 
   setUp(() {
-    capabilityRepo = _FakeCapabilityRepository(promptState: pendingState());
-    profileRepo = _FakeProfileRepository(
-      const Profile(id: 'invitee-1', displayName: 'Carol'),
-    );
-    GetIt.I.registerSingleton<CapabilityRepositoryPort>(capabilityRepo);
-    GetIt.I.registerSingleton<ProfileRepositoryPort>(profileRepo);
-  });
-
-  tearDown(() async {
-    if (GetIt.I.isRegistered<CapabilityRepositoryPort>()) {
-      await GetIt.I.unregister<CapabilityRepositoryPort>();
-    }
-    if (GetIt.I.isRegistered<ProfileRepositoryPort>()) {
-      await GetIt.I.unregister<ProfileRepositoryPort>();
-    }
+    setupCase = _FakeSetupCase();
+    profileTaps = 0;
+    markSeenCalls = 0;
   });
 
   Future<void> pumpCard(
     WidgetTester tester, {
-    PromptStateValue state = PromptStateValue.pending,
     AttentionReceipt? receipt,
+    Size size = const Size(390, 844),
+    bool settle = true,
   }) async {
-    tester.view.physicalSize = const Size(800, 1200);
-    tester.view.devicePixelRatio = 1.0;
-    addTearDown(tester.view.resetPhysicalSize);
-    addTearDown(tester.view.resetDevicePixelRatio);
-
-    capabilityRepo.promptState = capabilityRepo.promptState.copyWith(
-      state: state,
-    );
+    await tester.binding.setSurfaceSize(size);
+    addTearDown(() => tester.binding.setSurfaceSize(null));
     await tester.pumpWidget(
-      _wrap(
-        InviteAcceptedReceiptCard(
-          receipt: receipt ?? _inviteReceipt(),
-          onTap: () {},
-          onMarkSeen: () {},
-          onSettle: () {},
+      MaterialApp(
+        locale: const Locale('en'),
+        localizationsDelegates: L10n.localizationsDelegates,
+        supportedLocales: L10n.supportedLocales,
+        theme: TenturaTheme.light(),
+        home: MediaQuery(
+          data: MediaQueryData(size: size),
+          child: TenturaResponsiveScope(
+            child: Scaffold(
+              body: InviteAcceptedReceiptCard(
+                receipt: receipt ?? _inviteReceipt(),
+                setupCase: setupCase,
+                onTap: () => profileTaps++,
+                onMarkSeen: () async => markSeenCalls++,
+              ),
+            ),
+          ),
         ),
       ),
     );
-    await tester.pump();
-    await tester.pump();
+    if (settle) {
+      await tester.pumpAndSettle();
+    } else {
+      await tester.pump();
+    }
   }
 
-  testWidgets('pending state renders chip picker with name-substituted copy', (
-    tester,
-  ) async {
-    await pumpCard(tester);
-
-    expect(
-      find.text(l10n.inviteSeedPromptQuestion('Carol')),
-      findsOneWidget,
-    );
-    expect(find.text(l10n.inviteSeedPromptSubmit), findsOneWidget);
-    expect(find.text(l10n.inviteSeedPromptSkip), findsOneWidget);
-    expect(find.byType(CapabilityChipSet), findsOneWidget);
-    await _disposeCard(tester);
-  });
-
-  testWidgets('answered state does not render chip picker', (tester) async {
-    await pumpCard(tester, state: PromptStateValue.answered);
-
-    expect(find.text(l10n.inviteSeedPromptQuestion('Carol')), findsNothing);
-    expect(find.text(l10n.inviteSeedPromptSubmit), findsNothing);
-    expect(find.text('Carol'), findsOneWidget);
-    await _disposeCard(tester);
-  });
-
-  testWidgets('skipped state does not render chip picker', (tester) async {
-    await pumpCard(tester, state: PromptStateValue.skipped);
-
-    expect(find.text(l10n.inviteSeedPromptQuestion('Carol')), findsNothing);
-    expect(find.text(l10n.inviteSeedPromptSkip), findsNothing);
-    expect(find.text('Carol'), findsOneWidget);
-    await _disposeCard(tester);
-  });
-
-  testWidgets('submitting selection calls answer and hides picker', (
-    tester,
-  ) async {
-    await pumpCard(tester);
-
-    await _selectTransportChip(tester);
-    final submit = find.text(l10n.inviteSeedPromptSubmit);
-    await tester.ensureVisible(submit);
-    await tester.tap(submit);
-    await tester.pump();
-
-    expect(capabilityRepo.lastAnswerSubjectId, 'invitee-1');
-    expect(capabilityRepo.lastAnswerSlugs, ['transport']);
-    expect(find.text(l10n.inviteSeedPromptQuestion('Carol')), findsNothing);
-    await _disposeCard(tester);
-  });
-
-  testWidgets('skip calls inviteSeedPromptSkip and hides picker', (
-    tester,
-  ) async {
-    await pumpCard(tester);
-
-    final skip = find.text(l10n.inviteSeedPromptSkip);
-    await tester.ensureVisible(skip);
-    await tester.tap(skip);
-    await tester.pump();
-
-    expect(capabilityRepo.lastSkipSubjectId, 'invitee-1');
-    expect(find.text(l10n.inviteSeedPromptQuestion('Carol')), findsNothing);
-    await _disposeCard(tester);
-  });
-
-  testWidgets('nickname title, canonical line, and origin body after load', (
-    tester,
-  ) async {
-    profileRepo.profile = const Profile(
-      id: 'invitee-1',
-      contactName: 'Mom',
-      displayName: 'Alice',
-      handle: 'alice',
-    );
-    await pumpCard(
-      tester,
-      state: PromptStateValue.answered,
-      receipt: _inviteReceipt(
-        title: 'Alice · @alice',
-        body: 'Created an account via your invitation. You are now connected.',
-        presentationPayloadJson: '{"inviteOrigin":"new_account"}',
-      ),
-    );
-
-    expect(find.text('Mom'), findsOneWidget);
-    expect(find.text('Alice · @alice'), findsOneWidget);
-    expect(
-      find.text(l10n.updatesInviteAcceptedBodyNewAccount),
-      findsOneWidget,
-    );
-    await _disposeCard(tester);
-  });
-
-  testWidgets('loading keeps server title until profile is ready', (
-    tester,
-  ) async {
-    profileRepo.delay = const Duration(milliseconds: 50);
-    await pumpCard(
-      tester,
-      state: PromptStateValue.answered,
-      receipt: _inviteReceipt(title: 'Alice · @alice'),
-    );
-
-    expect(find.text('Alice · @alice'), findsOneWidget);
-    await tester.pump(const Duration(milliseconds: 60));
-    expect(find.text('Carol'), findsOneWidget);
-    await _disposeCard(tester);
-  });
-
-  testWidgets('profile fetch error keeps server title and body', (
-    tester,
-  ) async {
-    profileRepo.error = Exception('missing');
-    await pumpCard(
-      tester,
-      state: PromptStateValue.answered,
-      receipt: _inviteReceipt(),
-    );
+  Future<void> openSetup(WidgetTester tester) async {
+    await tester.tap(find.text(l10n.inviteAcceptedSetupAddDetails));
     await tester.pumpAndSettle();
+    expect(find.byType(InviteAcceptedSetupSheet), findsOneWidget);
+  }
 
-    expect(find.text('Carol joined via your invitation'), findsOneWidget);
-    expect(find.text('Carol is now on Tentura.'), findsOneWidget);
-    await _disposeCard(tester);
+  void selectCapability(WidgetTester tester) {
+    tester.widget<CapabilityChipSet>(find.byType(CapabilityChipSet)).onChanged({
+      'transport',
+    });
+  }
+
+  group('origin and prompt projection', () {
+    testWidgets('existing-account origin loads only profile', (tester) async {
+      await pumpCard(
+        tester,
+        receipt: _inviteReceipt(
+          presentationPayloadJson: '{"inviteOrigin":"existing_account"}',
+        ),
+      );
+
+      expect(setupCase.fetchProfileCalls, 1);
+      expect(setupCase.fetchPromptCalls, 0);
+      expect(find.text(l10n.inviteAcceptedSetupAddDetails), findsNothing);
+      expect(find.text(l10n.inviteAcceptedSetupRetry), findsNothing);
+    });
+
+    testWidgets('unknown origin never requests prompt state', (tester) async {
+      await pumpCard(
+        tester,
+        receipt: _inviteReceipt(
+          presentationPayloadJson: '{"inviteOrigin":"future_origin"}',
+        ),
+      );
+
+      expect(setupCase.fetchProfileCalls, 1);
+      expect(setupCase.fetchPromptCalls, 0);
+      expect(find.text(l10n.inviteAcceptedSetupAddDetails), findsNothing);
+    });
+
+    testWidgets('missing subject renders ordinary card without retry', (
+      tester,
+    ) async {
+      await pumpCard(
+        tester,
+        receipt: _inviteReceipt(hasSubject: false),
+      );
+
+      expect(setupCase.fetchProfileCalls, 0);
+      expect(setupCase.fetchPromptCalls, 0);
+      expect(find.text(l10n.inviteAcceptedSetupAddDetails), findsNothing);
+      expect(find.text(l10n.inviteAcceptedSetupRetry), findsNothing);
+    });
+
+    testWidgets('pending prompt shows Add details without inline selector', (
+      tester,
+    ) async {
+      await pumpCard(tester);
+
+      expect(find.text(l10n.inviteAcceptedSetupAddDetails), findsOneWidget);
+      expect(find.byType(CapabilityChipSet), findsNothing);
+      expect(find.byType(ListTile), findsOneWidget);
+    });
+
+    for (final state in [PromptStateValue.answered, PromptStateValue.skipped]) {
+      testWidgets('$state renders an ordinary card', (tester) async {
+        setupCase.prompt = setupCase.prompt.copyWith(state: state);
+        await pumpCard(tester);
+
+        expect(find.text(l10n.inviteAcceptedSetupAddDetails), findsNothing);
+        expect(find.text(l10n.inviteAcceptedSetupRetry), findsNothing);
+        expect(find.byType(CapabilityChipSet), findsNothing);
+      });
+    }
+
+    testWidgets('genuine prompt error exposes compact retry', (tester) async {
+      setupCase.promptError = Exception('offline');
+      await pumpCard(tester);
+
+      expect(find.text(l10n.inviteAcceptedSetupRetry), findsOneWidget);
+      expect(find.text(l10n.inviteSeedPromptLoadError), findsNothing);
+
+      setupCase.promptError = null;
+      await tester.tap(find.text(l10n.inviteAcceptedSetupRetry));
+      await tester.pumpAndSettle();
+
+      expect(setupCase.fetchPromptCalls, 2);
+      expect(find.text(l10n.inviteAcceptedSetupAddDetails), findsOneWidget);
+    });
+
+    testWidgets('profile failure keeps fallback receipt copy without retry', (
+      tester,
+    ) async {
+      setupCase.profileError = Exception('missing profile');
+      setupCase.prompt = setupCase.prompt.copyWith(
+        state: PromptStateValue.answered,
+      );
+      await pumpCard(tester);
+
+      expect(find.text('Carol joined via your invitation'), findsOneWidget);
+      expect(find.text('Carol is now on Tentura.'), findsOneWidget);
+      expect(find.text(l10n.inviteAcceptedSetupRetry), findsNothing);
+    });
+
+    testWidgets('loading keeps receipt copy until profile arrives', (
+      tester,
+    ) async {
+      final completer = Completer<Profile>();
+      setupCase.profileCompleter = completer;
+      setupCase.prompt = setupCase.prompt.copyWith(
+        state: PromptStateValue.answered,
+      );
+      await pumpCard(tester, settle: false);
+
+      expect(find.text('Carol joined via your invitation'), findsOneWidget);
+      completer.complete(
+        const Profile(id: 'invitee-1', displayName: 'Carol'),
+      );
+      await tester.pumpAndSettle();
+      expect(find.text('Carol'), findsOneWidget);
+    });
+  });
+
+  group('tap separation and adaptive host', () {
+    testWidgets('setup action does not trigger profile navigation', (
+      tester,
+    ) async {
+      await pumpCard(tester);
+      await openSetup(tester);
+
+      expect(profileTaps, 0);
+      await tester.tap(
+        find.byKey(TestIds.key(TestIds.inviteAcceptedSetupClose)),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.byType(ListTile));
+      expect(profileTaps, 1);
+    });
+
+    testWidgets('compact window uses bottom sheet', (tester) async {
+      await pumpCard(tester);
+      await openSetup(tester);
+
+      expect(find.byType(BottomSheet), findsOneWidget);
+      expect(find.byType(Dialog), findsNothing);
+    });
+
+    testWidgets('regular window uses constrained dialog', (tester) async {
+      await pumpCard(tester, size: const Size(700, 900));
+      await openSetup(tester);
+
+      expect(find.byType(Dialog), findsOneWidget);
+      expect(find.byType(BottomSheet), findsNothing);
+    });
+  });
+
+  group('modal outcomes', () {
+    testWidgets('Save refreshes private title and marks seen once', (
+      tester,
+    ) async {
+      setupCase.profile = const Profile(
+        id: 'invitee-1',
+        displayName: 'Carol',
+      );
+      await pumpCard(tester);
+      await openSetup(tester);
+      selectCapability(tester);
+      await tester.pump();
+      final changeName = find.byKey(
+        TestIds.key(TestIds.inviteAcceptedSetupChangePrivateName),
+      );
+      await tester.ensureVisible(changeName);
+      await tester.pumpAndSettle();
+      await tester.tap(changeName);
+      await tester.pumpAndSettle();
+      final privateName = find.byKey(
+        TestIds.key(TestIds.inviteAcceptedSetupPrivateName),
+      );
+      await tester.ensureVisible(privateName);
+      await tester.pumpAndSettle();
+      await tester.enterText(privateName, 'Mum');
+      await tester.tap(
+        find.byKey(TestIds.key(TestIds.inviteAcceptedSetupSave)),
+      );
+      await tester.pumpAndSettle();
+
+      expect(setupCase.renameCalls, 1);
+      expect(setupCase.answerCalls, 1);
+      expect(setupCase.answeredSlugs, ['transport']);
+      expect(markSeenCalls, 1);
+      expect(find.text('Mum'), findsOneWidget);
+      expect(find.text(l10n.inviteAcceptedSetupAddDetails), findsNothing);
+    });
+
+    testWidgets('Skip settles prompt and marks seen once', (tester) async {
+      await pumpCard(tester);
+      await openSetup(tester);
+      await tester.tap(
+        find.byKey(TestIds.key(TestIds.inviteAcceptedSetupSkip)),
+      );
+      await tester.pumpAndSettle();
+
+      expect(setupCase.skipCalls, 1);
+      expect(setupCase.answerCalls, 0);
+      expect(setupCase.renameCalls, 0);
+      expect(markSeenCalls, 1);
+      expect(find.text(l10n.inviteAcceptedSetupAddDetails), findsNothing);
+    });
+
+    testWidgets('dismissal and failed mutation do not mark seen', (
+      tester,
+    ) async {
+      setupCase.answerError = Exception('offline');
+      await pumpCard(tester);
+      await openSetup(tester);
+      selectCapability(tester);
+      await tester.pump();
+      await tester.tap(
+        find.byKey(TestIds.key(TestIds.inviteAcceptedSetupSave)),
+      );
+      await tester.pumpAndSettle();
+      expect(markSeenCalls, 0);
+
+      await tester.tap(
+        find.byKey(TestIds.key(TestIds.inviteAcceptedSetupClose)),
+      );
+      await tester.pumpAndSettle();
+      await tester.tap(find.text(l10n.inviteAcceptedSetupDiscardConfirm));
+      await tester.pumpAndSettle();
+
+      expect(markSeenCalls, 0);
+      expect(find.text(l10n.inviteAcceptedSetupAddDetails), findsOneWidget);
+    });
+
+    testWidgets(
+      'dismiss after partial rename refreshes title but stays unread',
+      (
+        tester,
+      ) async {
+        setupCase.answerError = Exception('offline');
+        await pumpCard(tester);
+        await openSetup(tester);
+        selectCapability(tester);
+        await tester.pump();
+        final changeName = find.byKey(
+          TestIds.key(TestIds.inviteAcceptedSetupChangePrivateName),
+        );
+        await tester.ensureVisible(changeName);
+        await tester.pumpAndSettle();
+        await tester.tap(changeName);
+        await tester.pumpAndSettle();
+        final privateName = find.byKey(
+          TestIds.key(TestIds.inviteAcceptedSetupPrivateName),
+        );
+        await tester.ensureVisible(privateName);
+        await tester.pumpAndSettle();
+        await tester.enterText(privateName, 'Mum');
+        await tester.tap(
+          find.byKey(TestIds.key(TestIds.inviteAcceptedSetupSave)),
+        );
+        await tester.pumpAndSettle();
+
+        await tester.tap(
+          find.byKey(TestIds.key(TestIds.inviteAcceptedSetupClose)),
+        );
+        await tester.pumpAndSettle();
+        await tester.tap(find.text(l10n.inviteAcceptedSetupDiscardConfirm));
+        await tester.pumpAndSettle();
+
+        expect(markSeenCalls, 0);
+        expect(find.text('Mum'), findsOneWidget);
+        expect(find.text(l10n.inviteAcceptedSetupAddDetails), findsOneWidget);
+      },
+    );
   });
 }

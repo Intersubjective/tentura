@@ -43,6 +43,7 @@ query RoomMessageList(
     reactorsJson
     attachmentsJson
     mentions
+    mentionSpansJson
     replyToAuthorId
     replyToAuthorTitle
     replyToBodyExcerpt

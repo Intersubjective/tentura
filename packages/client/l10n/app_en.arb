@@ -29,6 +29,13 @@
   "@labelDisplayName": {
     "context": "Utils"
   },
+  "beaconRoomMentionSuggestionSemantics": "Mention {name}",
+  "@beaconRoomMentionSuggestionSemantics": {
+    "context": "Accessible label for a chat mention suggestion",
+    "placeholders": {
+      "name": {}
+    }
+  },
   "pleaseFillDisplayName": "Enter your display name",
   "@pleaseFillDisplayName": {
     "context": "AccountAddDialog, ProfileEditScreen"
@@ -359,6 +366,62 @@
   "friendsInvitesBeaconSection": "Request invites",
   "@friendsInvitesBeaconSection": {
     "context": "FriendsScreen"
+  },
+  "friendsInvitesSegmentPending": "Pending",
+  "@friendsInvitesSegmentPending": {
+    "context": "FriendsScreen"
+  },
+  "friendsInvitesSegmentAccepted": "Accepted",
+  "@friendsInvitesSegmentAccepted": {
+    "context": "FriendsScreen"
+  },
+  "friendsInvitesAcceptedEmptyTitle": "No one has joined yet",
+  "@friendsInvitesAcceptedEmptyTitle": {
+    "context": "FriendsScreen"
+  },
+  "friendsInvitesAcceptedEmptyBody": "Once someone accepts one of your invites, they'll show up here.",
+  "@friendsInvitesAcceptedEmptyBody": {
+    "context": "FriendsScreen"
+  },
+  "friendsInvitesAcceptedEmptyBackToPending": "View pending invites",
+  "@friendsInvitesAcceptedEmptyBackToPending": {
+    "context": "FriendsScreen"
+  },
+  "friendsInviteJoinedRelative": "Joined {relative}",
+  "@friendsInviteJoinedRelative": {
+    "context": "FriendsScreen",
+    "placeholders": {
+      "relative": {
+        "type": "String"
+      }
+    }
+  },
+  "friendsInviteJoinedOn": "Joined on {date}",
+  "@friendsInviteJoinedOn": {
+    "context": "FriendsScreen",
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "friendsInviteAcceptedNewAccount": "{name} joined Tentura via this invite",
+  "@friendsInviteAcceptedNewAccount": {
+    "context": "FriendsScreen",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "friendsInviteAcceptedExistingAccount": "You and {name} became friends via this invite",
+  "@friendsInviteAcceptedExistingAccount": {
+    "context": "FriendsScreen",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
   },
   "confirmInvitationRemoval": "Are you sure you want to cancel this invite? The link will stop working.",
   "@confirmInvitationRemoval": {
@@ -1994,7 +2057,7 @@
       }
     }
   },
-  "forwardBandTierOwnRouting": "You've routed {tag} here",
+  "forwardBandTierOwnRouting": "You've routed here:\n{tag}",
   "@forwardBandTierOwnRouting": {
     "context": "Forward band row copy for own-routing tier evidence",
     "placeholders": {
@@ -2265,6 +2328,10 @@
   "forwardInviteNewPerson": "invite new person",
   "@forwardInviteNewPerson": {
     "context": "ForwardBeaconScreen"
+  },
+  "forwardClearSelection": "clear selection",
+  "@forwardClearSelection": {
+    "context": "ForwardBeaconScreen — replaces the invite affordance once at least one recipient is selected"
   },
   "forwardInviteCreatedHint": "Invite saved — find it in the Invitations tab",
   "@forwardInviteCreatedHint": {
@@ -3824,15 +3891,6 @@
   "beaconHudConfirmCloseNowBlockedBody": "Close now is available when every required reviewer has finished or skipped.",
   "beaconHudConfirmCloseNowAction": "Close now",
   "beaconHudConfirmChangeLaterInStatus": "Change later in Request status",
-  "helpOfferAdmissionAcceptHint": "Adds {name} to the discussion",
-  "@helpOfferAdmissionAcceptHint": {
-    "placeholders": {
-      "name": {
-        "type": "String"
-      }
-    }
-  },
-  "helpOfferAdmissionDeclineHint": "Declines offer; no discussion access",
   "beaconStatusSheetAdvancedHint": "Advanced changes; most authors follow the button above.",
   "beaconStatusRowOutcomeDraft": "Save as draft until you publish",
   "beaconStatusRowOutcomeOpen": "Request accepts new offers",
@@ -4986,6 +5044,23 @@
   "inviteSeedPromptSubmit": "Submit",
   "inviteSeedPromptSkip": "Skip",
   "inviteSeedPromptLoadError": "Couldn't load this prompt.",
+  "inviteAcceptedSetupAddDetails": "Add details",
+  "inviteAcceptedSetupRetry": "Try again",
+  "inviteAcceptedSetupTitle": "Set up connection",
+  "inviteAcceptedSetupChangePrivateName": "Change private name",
+  "inviteAcceptedSetupPrivateNameLabel": "Private name",
+  "inviteAcceptedSetupPrivateNameHelper": "Only you can see this name.",
+  "inviteAcceptedSetupSave": "Save",
+  "inviteAcceptedSetupSkip": "Skip",
+  "inviteAcceptedSetupDiscardTitle": "Discard setup changes?",
+  "inviteAcceptedSetupDiscardBody": "Your capability and private-name edits will be lost. The update will stay unread.",
+  "inviteAcceptedSetupDiscardConfirm": "Discard changes",
+  "inviteAcceptedSetupDiscardKeepEditing": "Keep editing",
+  "inviteAcceptedSetupSelectCapabilityError": "Choose at least one capability.",
+  "inviteAcceptedSetupRenameError": "Couldn't save the private name. Capabilities were not submitted.",
+  "inviteAcceptedSetupCapabilitiesError": "Couldn't save capabilities. Try again.",
+  "inviteAcceptedSetupPartialSuccessError": "The private name was saved, but capabilities were not. Try saving again.",
+  "inviteAcceptedSetupSkipError": "Couldn't skip setup. Try again.",
   "profileSeedSuggestionEditPrompt": "Edit routing suggestions for {name}",
   "@profileSeedSuggestionEditPrompt": {
     "placeholders": {
@@ -5016,6 +5091,10 @@
   "updatesFallbackBodyPromiseWithdrawn": "Someone withdrew a promise.",
   "updatesFallbackTitleCoordinationChanged": "Plan updated",
   "updatesFallbackBodyCoordinationChanged": "Coordination changed on a request.",
+  "updatesFallbackTitleDeadlineChanged": "Deadline changed",
+  "updatesFallbackBodyDeadlineChanged": "The request deadline changed.",
+  "updatesFallbackTitleDeadlineReminder": "Deadline reminder",
+  "updatesFallbackBodyDeadlineReminder": "This request deadline is tomorrow.",
   "updatesFallbackTitleStaleReminder": "Still needs attention",
   "updatesFallbackBodyStaleReminder": "Something in a request thread needs attention.",
   "updatesFallbackTitleCommitmentAccepted": "Commitment accepted",
@@ -5292,5 +5371,22 @@
   "availabilityDatePickerTitle": "Resume on",
   "@availabilityDatePickerTitle": {
     "description": "Title for the pause resume date picker."
-  }
+  },
+  "forwardCandidateDetailsTitle": "Candidate details",
+  "forwardCandidateRelevanceHeading": "Why they may be relevant",
+  "forwardCandidateConnectionHeading": "How you're connected",
+  "forwardCandidateDirectConnection": "Direct connection",
+  "forwardCandidateFindingPath": "Finding a path through your network…",
+  "forwardCandidateOnePath": "One path through your network.",
+  "forwardCandidateLongPathTitle": "Long network path",
+  "forwardCandidateLongPathBody": "A compact path isn't available from this network snapshot.",
+  "forwardCandidateContextUnavailable": "Connection details unavailable",
+  "forwardCandidateUnavailablePerson": "Unavailable person",
+  "forwardCandidateShowFullPath": "Show full path",
+  "forwardCandidateShowLess": "Show less",
+  "forwardCandidateRetry": "Try again",
+  "forwardCandidateSelect": "Select",
+  "forwardCandidateRemove": "Remove",
+  "forwardCandidateViewProfile": "View full profile",
+  "forwardCandidateUnavailableMessage": "This person is no longer available."
 }

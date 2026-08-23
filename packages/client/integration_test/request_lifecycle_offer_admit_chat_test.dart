@@ -47,35 +47,59 @@ void main() {
     // My Work (involved) list.
     await openRequestFromMyWork(tester, requestTitle: title);
 
-    await createCoordinationItem(
-      tester,
-      launcherId: TestIds.coordinationAskCreate,
-      title: 'Need answer',
-      body: 'Please confirm the plan',
+    final ask = await runE2eStep(
+      'create ask',
+      () => createCoordinationItem(
+        tester,
+        launcherId: TestIds.coordinationAskCreate,
+        title: 'Need answer',
+        body: 'Please confirm the plan',
+      ),
     );
-    await createCoordinationItem(
-      tester,
-      launcherId: TestIds.coordinationPromiseCreate,
-      title: 'I can help',
-      body: 'I will take this tomorrow',
+    await runE2eStep(
+      'create promise',
+      () => createCoordinationItem(
+        tester,
+        launcherId: TestIds.coordinationPromiseCreate,
+        title: 'I can help',
+        body: 'I will take this tomorrow',
+      ),
     );
-    await createCoordinationItem(
-      tester,
-      launcherId: TestIds.coordinationBlockerCreate,
-      title: 'Blocked on input',
-      body: 'Need one missing detail',
+    await runE2eStep(
+      'create blocker',
+      () => createCoordinationItem(
+        tester,
+        launcherId: TestIds.coordinationBlockerCreate,
+        title: 'Blocked on input',
+        body: 'Need one missing detail',
+      ),
     );
-    await resolveFirstCoordinationItem(tester);
+    await runE2eStep(
+      'resolve ask',
+      () => resolveCoordinationItem(tester, title: ask.item!.title),
+    );
 
-    await sendRoomMessage(tester, 'Integration test room message');
+    await runE2eStep(
+      'send room message',
+      () => sendRoomMessage(tester, 'Integration test room message'),
+    );
 
-    await logout(tester);
-    await loginAs(tester, fixture.authorEmail);
-    await openRequestFromMyWork(tester, requestTitle: title);
+    await runE2eStep('log out helper', () => logout(tester));
+    await runE2eStep(
+      'log in author',
+      () => loginAs(tester, fixture.authorEmail),
+    );
+    await runE2eStep(
+      'open author request from My Work',
+      () => openRequestFromMyWork(tester, requestTitle: title),
+    );
     final peopleTab = find.textContaining('People');
     if (peopleTab.evaluate().isNotEmpty) {
       await tapAndSettle(tester, peopleTab.first);
     }
-    await removeHelperFromChat(tester, fixture: fixture);
+    await runE2eStep(
+      'end helper participation',
+      () => endHelperParticipation(tester, fixture: fixture),
+    );
   });
 }

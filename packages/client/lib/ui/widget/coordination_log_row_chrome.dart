@@ -9,11 +9,11 @@ import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura/design_system/components/tentura_avatar.dart';
 
-/// Log tab row — avatar diameter (matches [TenturaAvatarSize.tiny] on expanded).
-const kCoordinationLogAvatarSize = 20.0;
-
 /// Log tab row — semantic event icon size.
 const kCoordinationLogEventIconSize = 22.0;
+
+/// Log tab row — avatar diameter (matches [TenturaAvatarSize.tiny] on expanded).
+const kCoordinationLogAvatarSize = 20.0;
 
 Profile profileFromBeaconParticipant(BeaconParticipant p) => Profile(
       id: p.userId,
@@ -32,15 +32,13 @@ Profile profileFromBeaconParticipant(BeaconParticipant p) => Profile(
 Widget coordinationLogParticipantAvatar(
   BeaconParticipant participant, {
   double? size,
-}) =>
-    size != null
-        ? TenturaAvatar.tiny(
-            profile: profileFromBeaconParticipant(participant),
-            size: size,
-          )
-        : TenturaAvatar.tiny(
-            profile: profileFromBeaconParticipant(participant),
-          );
+}) {
+  final profile = profileFromBeaconParticipant(participant);
+  if (size != null) {
+    return TenturaAvatar(profile: profile, size: size);
+  }
+  return TenturaAvatar(profile: profile, sizeBucket: TenturaAvatarSize.tiny);
+}
 
 /// Log tab leading segment: `[src avatar] [icon] [dst avatar?]`.
 Widget coordinationLogTabLeadRow({

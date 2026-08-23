@@ -67,8 +67,7 @@ class _FakeBeaconThreadsRepository extends Fake
   Object? listThreadsError;
   Completer<void>? listThreadsGate;
 
-  final _invalidations =
-      StreamController<BeaconRoomInvalidation>.broadcast();
+  final _invalidations = StreamController<BeaconRoomInvalidation>.broadcast();
 
   @override
   Stream<String> get beaconRoomRefresh => const Stream.empty();
@@ -111,8 +110,7 @@ class _FakeBeaconThreadsRepository extends Fake
     required String beaconId,
     String? beforeIso,
     String? threadItemId,
-  }) async =>
-      const [];
+  }) async => const [];
 
   @override
   Future<List<BeaconParticipant>> fetchParticipants(String beaconId) async =>
@@ -129,8 +127,10 @@ class _FakeBeaconThreadsRepository extends Fake
     String? replyToMessageId,
     String? threadItemId,
     RoomPendingUpload? firstAttachment,
-  }) async =>
-      'msg-created';
+    List<String> explicitMentionUserIds = const [],
+    List<int> explicitMentionOffsets = const [],
+    List<int> explicitMentionLengths = const [],
+  }) async => 'msg-created';
 }
 
 class _TrackingCoordinationItemCase extends FakeCoordinationItemCaseForRoom {
@@ -158,68 +158,63 @@ CoordinationItem _item({
   String creatorId = _kMyUserId,
   String? targetPersonId = _kOtherUserId,
   int unreadCount = 0,
-}) =>
-    CoordinationItem(
-      id: id,
-      beaconId: _kBeaconId,
-      kind: kind,
-      status: status,
-      creatorId: creatorId,
-      createdAt: DateTime.utc(2026, 1, 1),
-      updatedAt: DateTime.utc(2026, 1, 2),
-      published: published,
-      targetPersonId: targetPersonId,
-      unreadCount: unreadCount,
-    );
+}) => CoordinationItem(
+  id: id,
+  beaconId: _kBeaconId,
+  kind: kind,
+  status: status,
+  creatorId: creatorId,
+  createdAt: DateTime.utc(2026, 1, 1),
+  updatedAt: DateTime.utc(2026, 1, 2),
+  published: published,
+  targetPersonId: targetPersonId,
+  unreadCount: unreadCount,
+);
 
-RequestThreadKind _threadKindFor(CoordinationItemKind kind) =>
-    switch (kind) {
-      CoordinationItemKind.ask => RequestThreadKind.ask,
-      CoordinationItemKind.promise => RequestThreadKind.promise,
-      CoordinationItemKind.blocker => RequestThreadKind.blocker,
-      CoordinationItemKind.plan => RequestThreadKind.ask,
-    };
+RequestThreadKind _threadKindFor(CoordinationItemKind kind) => switch (kind) {
+  CoordinationItemKind.ask => RequestThreadKind.ask,
+  CoordinationItemKind.promise => RequestThreadKind.promise,
+  CoordinationItemKind.blocker => RequestThreadKind.blocker,
+  CoordinationItemKind.plan => RequestThreadKind.ask,
+};
 
 RequestThread _generalThread({
   int unreadCount = 0,
   DateTime? lastSeenAt,
-}) =>
-    RequestThread(
-      threadId: RequestThread.generalId,
-      kind: RequestThreadKind.general,
-      unreadCount: unreadCount,
-      lastSeenAt: lastSeenAt ?? _kSeenAt,
-    );
+}) => RequestThread(
+  threadId: RequestThread.generalId,
+  kind: RequestThreadKind.general,
+  unreadCount: unreadCount,
+  lastSeenAt: lastSeenAt ?? _kSeenAt,
+);
 
 RequestThread _semanticThread({
   required CoordinationItem item,
   int unreadCount = 0,
   DateTime? lastSeenAt,
-}) =>
-    RequestThread(
-      threadId: item.id,
-      kind: _threadKindFor(item.kind),
-      unreadCount: unreadCount,
-      lastSeenAt: lastSeenAt ?? _kSeenAt,
-      item: item,
-    );
+}) => RequestThread(
+  threadId: item.id,
+  kind: _threadKindFor(item.kind),
+  unreadCount: unreadCount,
+  lastSeenAt: lastSeenAt ?? _kSeenAt,
+  item: item,
+);
 
 BeaconThreadsCase _makeCase(
   _FakeBeaconThreadsRepository repo, {
   CoordinationItemCase? coordinationCase,
   RoomReadWatermarkStore? watermark,
-}) =>
-    BeaconThreadsCase(
-      repo,
-      _FakeBeaconFactCardRepository(),
-      _FakePollingRepository(),
-      _FakeBeaconRoomHintsRepository(),
-      watermark ?? RoomReadWatermarkStore.testing(),
-      coordinationCase ?? const FakeCoordinationItemCaseForRoom(),
-      buildTestRealtimeSync().case_,
-      env: const Env(),
-      logger: Logger('threads_cubit_test'),
-    );
+}) => BeaconThreadsCase(
+  repo,
+  _FakeBeaconFactCardRepository(),
+  _FakePollingRepository(),
+  _FakeBeaconRoomHintsRepository(),
+  watermark ?? RoomReadWatermarkStore.testing(),
+  coordinationCase ?? const FakeCoordinationItemCaseForRoom(),
+  buildTestRealtimeSync().case_,
+  env: const Env(),
+  logger: Logger('threads_cubit_test'),
+);
 
 void _registerProfileCubit(String userId) {
   final getIt = GetIt.instance;
@@ -240,17 +235,16 @@ ThreadsCubit _cubit({
   required _FakeBeaconThreadsRepository repo,
   CoordinationItemCase? coordinationCase,
   RoomReadWatermarkStore? watermark,
-}) =>
-    ThreadsCubit(
-      beaconId: _kBeaconId,
-      coordinationItemCase:
-          coordinationCase ?? const FakeCoordinationItemCaseForRoom(),
-      beaconThreadsCase: _makeCase(
-        repo,
-        coordinationCase: coordinationCase,
-        watermark: watermark,
-      ),
-    );
+}) => ThreadsCubit(
+  beaconId: _kBeaconId,
+  coordinationItemCase:
+      coordinationCase ?? const FakeCoordinationItemCaseForRoom(),
+  beaconThreadsCase: _makeCase(
+    repo,
+    coordinationCase: coordinationCase,
+    watermark: watermark,
+  ),
+);
 
 Future<void> _awaitListThreadsCount(
   _FakeBeaconThreadsRepository repo,
@@ -293,8 +287,7 @@ void main() {
 
     test('never calls fetchCurrentRootPlan', () async {
       final tracking = _TrackingCoordinationItemCase();
-      final repo = _FakeBeaconThreadsRepository()
-        ..threads = [_generalThread()];
+      final repo = _FakeBeaconThreadsRepository()..threads = [_generalThread()];
       final cubit = _cubit(repo: repo, coordinationCase: tracking);
       addTearDown(cubit.close);
 
@@ -307,52 +300,58 @@ void main() {
   });
 
   group('ThreadsCubit grouping getters', () {
-    test('preserves zero-message draft rows and groups active/closed', () async {
-      final activeItem = _item(id: 'active-ask');
-      final closedItem = _item(
-        id: 'closed-ask',
-        status: CoordinationItemStatus.resolved,
-      );
-      final draftItem = _item(
-        id: 'draft-ask',
-        published: false,
-        creatorId: _kMyUserId,
-      );
-      final repo = _FakeBeaconThreadsRepository()
-        ..threads = [
-          _generalThread(),
-          _semanticThread(item: activeItem),
-          _semanticThread(item: closedItem),
-          _semanticThread(item: draftItem, unreadCount: 0),
-        ];
-      final cubit = _cubit(repo: repo);
-      addTearDown(cubit.close);
+    test(
+      'preserves zero-message draft rows and groups active/closed',
+      () async {
+        final activeItem = _item(id: 'active-ask');
+        final closedItem = _item(
+          id: 'closed-ask',
+          status: CoordinationItemStatus.resolved,
+        );
+        final draftItem = _item(
+          id: 'draft-ask',
+          published: false,
+          creatorId: _kMyUserId,
+        );
+        final repo = _FakeBeaconThreadsRepository()
+          ..threads = [
+            _generalThread(),
+            _semanticThread(item: activeItem),
+            _semanticThread(item: closedItem),
+            _semanticThread(item: draftItem, unreadCount: 0),
+          ];
+        final cubit = _cubit(repo: repo);
+        addTearDown(cubit.close);
 
-      await cubit.fetch();
+        await cubit.fetch();
 
-      expect(cubit.state.general, isNotNull);
-      expect(cubit.state.active, hasLength(1));
-      expect(cubit.state.active.single.item!.id, 'active-ask');
-      expect(cubit.state.closed, hasLength(1));
-      expect(cubit.state.closed.single.item!.id, 'closed-ask');
-      expect(cubit.state.drafts, hasLength(1));
-      expect(cubit.state.drafts.single.item!.id, 'draft-ask');
-      expect(cubit.state.drafts.single.messageCount, 0);
-      expect(cubit.state.firstAccessible, cubit.state.general);
-    });
+        expect(cubit.state.general, isNotNull);
+        expect(cubit.state.active, hasLength(1));
+        expect(cubit.state.active.single.item!.id, 'active-ask');
+        expect(cubit.state.closed, hasLength(1));
+        expect(cubit.state.closed.single.item!.id, 'closed-ask');
+        expect(cubit.state.drafts, hasLength(1));
+        expect(cubit.state.drafts.single.item!.id, 'draft-ask');
+        expect(cubit.state.drafts.single.messageCount, 0);
+        expect(cubit.state.firstAccessible, cubit.state.general);
+      },
+    );
 
-    test('firstAccessible falls back to first row when General absent', () async {
-      final item = _item(id: 'only-item', creatorId: _kMyUserId);
-      final repo = _FakeBeaconThreadsRepository()
-        ..threads = [_semanticThread(item: item)];
-      final cubit = _cubit(repo: repo);
-      addTearDown(cubit.close);
+    test(
+      'firstAccessible falls back to first row when General absent',
+      () async {
+        final item = _item(id: 'only-item', creatorId: _kMyUserId);
+        final repo = _FakeBeaconThreadsRepository()
+          ..threads = [_semanticThread(item: item)];
+        final cubit = _cubit(repo: repo);
+        addTearDown(cubit.close);
 
-      await cubit.fetch();
+        await cubit.fetch();
 
-      expect(cubit.state.general, isNull);
-      expect(cubit.state.firstAccessible?.threadId, 'only-item');
-    });
+        expect(cubit.state.general, isNull);
+        expect(cubit.state.firstAccessible?.threadId, 'only-item');
+      },
+    );
 
     test('activeForMeOnly filters active semantic rows', () async {
       final mine = _item(id: 'mine', creatorId: _kMyUserId);
@@ -404,66 +403,69 @@ void main() {
   });
 
   group('ThreadsCubit latest-wins fetch', () {
-    test('discards stale success when a newer generation completes first',
-        () async {
-      final repo = _FakeBeaconThreadsRepository();
-      final cubit = _cubit(repo: repo);
-      addTearDown(cubit.close);
+    test(
+      'discards stale success when a newer generation completes first',
+      () async {
+        final repo = _FakeBeaconThreadsRepository();
+        final cubit = _cubit(repo: repo);
+        addTearDown(cubit.close);
 
-      final slowGate = Completer<void>();
-      repo.listThreadsGate = slowGate;
-      repo.threads = [_generalThread(unreadCount: 99)];
+        final slowGate = Completer<void>();
+        repo.listThreadsGate = slowGate;
+        repo.threads = [_generalThread(unreadCount: 99)];
 
-      final slow = cubit.fetch();
-      await Future<void>.delayed(const Duration(milliseconds: 5));
+        final slow = cubit.fetch();
+        await Future<void>.delayed(const Duration(milliseconds: 5));
 
-      repo.listThreadsGate = null;
-      repo.threads = [_generalThread(unreadCount: 1)];
-      await cubit.fetch();
-      expect(cubit.state.resolvedUnreadFor(cubit.state.general!), 1);
+        repo.listThreadsGate = null;
+        repo.threads = [_generalThread(unreadCount: 1)];
+        await cubit.fetch();
+        expect(cubit.state.resolvedUnreadFor(cubit.state.general!), 1);
 
-      slowGate.complete();
-      await slow;
-      await Future<void>.delayed(const Duration(milliseconds: 10));
+        slowGate.complete();
+        await slow;
+        await Future<void>.delayed(const Duration(milliseconds: 10));
 
-      expect(cubit.state.resolvedUnreadFor(cubit.state.general!), 1);
-      expect(repo.listThreadsCallCount, 2);
-    });
+        expect(cubit.state.resolvedUnreadFor(cubit.state.general!), 1);
+        expect(repo.listThreadsCallCount, 2);
+      },
+    );
 
-    test('discards stale error when a newer generation already succeeded',
-        () async {
-      final repo = _FakeBeaconThreadsRepository();
-      final cubit = _cubit(repo: repo);
-      addTearDown(cubit.close);
+    test(
+      'discards stale error when a newer generation already succeeded',
+      () async {
+        final repo = _FakeBeaconThreadsRepository();
+        final cubit = _cubit(repo: repo);
+        addTearDown(cubit.close);
 
-      final slowGate = Completer<void>();
-      repo.listThreadsGate = slowGate;
-      repo.listThreadsError = StateError('stale failure');
-      repo.threads = [_generalThread()];
+        final slowGate = Completer<void>();
+        repo.listThreadsGate = slowGate;
+        repo.listThreadsError = StateError('stale failure');
+        repo.threads = [_generalThread()];
 
-      final slow = cubit.fetch();
-      await Future<void>.delayed(const Duration(milliseconds: 5));
+        final slow = cubit.fetch();
+        await Future<void>.delayed(const Duration(milliseconds: 5));
 
-      repo.listThreadsError = null;
-      repo.listThreadsGate = null;
-      repo.threads = [_generalThread(unreadCount: 2)];
-      await cubit.fetch();
-      expect(cubit.state.loadError, isNull);
-      expect(cubit.state.resolvedUnreadFor(cubit.state.general!), 2);
+        repo.listThreadsError = null;
+        repo.listThreadsGate = null;
+        repo.threads = [_generalThread(unreadCount: 2)];
+        await cubit.fetch();
+        expect(cubit.state.loadError, isNull);
+        expect(cubit.state.resolvedUnreadFor(cubit.state.general!), 2);
 
-      slowGate.complete();
-      await slow;
-      await Future<void>.delayed(const Duration(milliseconds: 10));
+        slowGate.complete();
+        await slow;
+        await Future<void>.delayed(const Duration(milliseconds: 10));
 
-      expect(cubit.state.loadError, isNull);
-      expect(cubit.state.resolvedUnreadFor(cubit.state.general!), 2);
-    });
+        expect(cubit.state.loadError, isNull);
+        expect(cubit.state.resolvedUnreadFor(cubit.state.general!), 2);
+      },
+    );
   });
 
   group('ThreadsCubit invalidation', () {
     test('coalesces bursty non-seen invalidations into one fetch', () async {
-      final repo = _FakeBeaconThreadsRepository()
-        ..threads = [_generalThread()];
+      final repo = _FakeBeaconThreadsRepository()..threads = [_generalThread()];
       final cubit = _cubit(repo: repo);
       addTearDown(cubit.close);
 
@@ -504,46 +506,48 @@ void main() {
   });
 
   group('ThreadsCubit watermark changes', () {
-    test('optimistically suppresses unread without a network refetch', () async {
-      final watermark = RoomReadWatermarkStore.testing();
-      final repo = _FakeBeaconThreadsRepository()
-        ..threads = [
-          _generalThread(unreadCount: 3, lastSeenAt: _kSeenAt),
-          _semanticThread(
-            item: _item(id: 'ask-1'),
-            unreadCount: 2,
-            lastSeenAt: _kSeenAt,
-          ),
-        ];
-      final case_ = _makeCase(repo, watermark: watermark);
-      final cubit = ThreadsCubit(
-        beaconId: _kBeaconId,
-        coordinationItemCase: const FakeCoordinationItemCaseForRoom(),
-        beaconThreadsCase: case_,
-      );
-      addTearDown(cubit.close);
+    test(
+      'optimistically suppresses unread without a network refetch',
+      () async {
+        final watermark = RoomReadWatermarkStore.testing();
+        final repo = _FakeBeaconThreadsRepository()
+          ..threads = [
+            _generalThread(unreadCount: 3, lastSeenAt: _kSeenAt),
+            _semanticThread(
+              item: _item(id: 'ask-1'),
+              unreadCount: 2,
+              lastSeenAt: _kSeenAt,
+            ),
+          ];
+        final case_ = _makeCase(repo, watermark: watermark);
+        final cubit = ThreadsCubit(
+          beaconId: _kBeaconId,
+          coordinationItemCase: const FakeCoordinationItemCaseForRoom(),
+          beaconThreadsCase: case_,
+        );
+        addTearDown(cubit.close);
 
-      await cubit.fetch();
-      expect(cubit.state.threadsTabUnreadCount, 5);
+        await cubit.fetch();
+        expect(cubit.state.threadsTabUnreadCount, 5);
 
-      case_.observeReadThrough(
-        _kBeaconId,
-        _kReadThrough,
-        threadId: 'ask-1',
-      );
-      await Future<void>.delayed(const Duration(milliseconds: 10));
+        case_.observeReadThrough(
+          _kBeaconId,
+          _kReadThrough,
+          threadId: 'ask-1',
+        );
+        await Future<void>.delayed(const Duration(milliseconds: 10));
 
-      expect(repo.listThreadsCallCount, 1);
-      expect(cubit.state.resolvedUnreadFor(cubit.state.active.single), 0);
-      expect(cubit.state.threadsTabUnreadCount, 3);
-    });
+        expect(repo.listThreadsCallCount, 1);
+        expect(cubit.state.resolvedUnreadFor(cubit.state.active.single), 0);
+        expect(cubit.state.threadsTabUnreadCount, 3);
+      },
+    );
   });
 
   group('ThreadsCubit lifecycle actions', () {
     test('successful mutation triggers a silent refetch', () async {
       final tracking = _TrackingCoordinationItemCase();
-      final repo = _FakeBeaconThreadsRepository()
-        ..threads = [_generalThread()];
+      final repo = _FakeBeaconThreadsRepository()..threads = [_generalThread()];
       final cubit = _cubit(repo: repo, coordinationCase: tracking);
       addTearDown(cubit.close);
 

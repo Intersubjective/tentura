@@ -775,6 +775,54 @@ void main() {
       });
     });
 
+    test('mention spans are lenient when absent and strict when present', () {
+      fakeAsync((async) {
+        final wsMessages = StreamController<Map<String, dynamic>>.broadcast();
+        final service = InvalidationService.forTesting(wsMessages.stream);
+        addTearDown(() async {
+          await service.dispose();
+          await wsMessages.close();
+        });
+        final received = <RealtimeEntityChange>[];
+        final sub = service.entityChanges.listen(received.add);
+
+        void send(Object? spans, String messageId) {
+          wsMessages.add({
+            'type': 'subscription',
+            'path': 'entity_changes',
+            'payload': {
+              'entity': 'room_message',
+              'id': 'Bspan',
+              'event': 'insert',
+              'message_id': messageId,
+              'message': {
+                'id': messageId,
+                'beaconId': 'Bspan',
+                'authorId': 'Uspan',
+                'body': '@Bob',
+                'createdAt': '2026-07-27T17:00:00.000Z',
+                if (spans != null) 'mentionSpans': spans,
+              },
+            },
+          });
+        }
+
+        send([
+          {'userId': 'Ubob', 'offset': 0, 'length': 4},
+        ], 'Rgood');
+        async.elapse(const Duration(milliseconds: 20));
+        expect(
+          received.single.roomMessagePaint?.mentionSpans.single.userId,
+          'Ubob',
+        );
+
+        send({'not': 'a list'}, 'Rbad');
+        async.elapse(const Duration(milliseconds: 20));
+        expect(received.last.roomMessagePaint, isNull);
+        unawaited(sub.cancel());
+      });
+    });
+
     test('wrong-typed reply field rejects the whole paint', () {
       fakeAsync((async) {
         final wsMessages = StreamController<Map<String, dynamic>>.broadcast();
@@ -896,11 +944,13 @@ void main() {
         final received = <RealtimeEntityChange>[];
         final sub = service.entityChanges.listen(received.add);
 
-        wsMessages.add(_entityChange(
-          entity: 'room_message',
-          id: 'Bthin',
-          event: 'update',
-        ));
+        wsMessages.add(
+          _entityChange(
+            entity: 'room_message',
+            id: 'Bthin',
+            event: 'update',
+          ),
+        );
         wsMessages.add({
           'type': 'subscription',
           'path': 'entity_changes',

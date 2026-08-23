@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:tentura_root/domain/entity/beacon_cover_source.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
+import 'package:tentura/ui/utils/capability_tag_presenter.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/widget/beacon_identity_tile.dart';
 

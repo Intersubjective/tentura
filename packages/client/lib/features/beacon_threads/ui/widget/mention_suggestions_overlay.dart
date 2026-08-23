@@ -3,6 +3,7 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
+import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/domain/entity/beacon_participant.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/ui/test_ids.dart';
@@ -31,7 +32,6 @@ final class MentionSuggestionsOverlay extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     final tt = context.tt;
     final list = suggestions;
     if (list.isEmpty) return const SizedBox.shrink();
@@ -141,14 +141,19 @@ class _MentionSuggestionRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final l10n = L10n.of(context)!;
     final tt = context.tt;
     final title = participant.userTitle.trim();
     final handle = participant.handle.trim().toLowerCase();
     return Semantics(
-      identifier: TestIds.roomMentionSuggestion(handle),
+      identifier: TestIds.roomMentionSuggestion(
+        handle.isEmpty ? participant.userId : handle,
+      ),
       button: true,
       selected: selected,
-      label: '@$handle',
+      label: l10n.beaconRoomMentionSuggestionSemantics(
+        handle.isEmpty ? title : '@$handle',
+      ),
       child: MouseRegion(
         onEnter: (_) => onHover(),
         child: GestureDetector(
@@ -156,7 +161,9 @@ class _MentionSuggestionRow extends StatelessWidget {
           onTap: onTap,
           child: DecoratedBox(
             decoration: BoxDecoration(
-              color: selected ? theme.colorScheme.surfaceContainerHighest : null,
+              color: selected
+                  ? theme.colorScheme.surfaceContainerHighest
+                  : null,
             ),
             child: Padding(
               padding: EdgeInsets.symmetric(
@@ -176,13 +183,13 @@ class _MentionSuggestionRow extends StatelessWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          '@${participant.handle}',
+                          handle.isEmpty ? title : '@$handle',
                           style: theme.textTheme.titleSmall?.copyWith(
                             fontWeight: FontWeight.w700,
                           ),
                           overflow: TextOverflow.ellipsis,
                         ),
-                        if (title.isNotEmpty)
+                        if (title.isNotEmpty && handle.isNotEmpty)
                           Text(
                             title,
                             style: theme.textTheme.labelMedium?.copyWith(

@@ -280,6 +280,93 @@ class AttentionIntentCase {
     ),
   );
 
+  /// A deadline event is deliberately directed to the current committed
+  /// participants.  Do not derive this from the room context: admission and a
+  /// commitment are different facts, and the author must never receive it.
+  Future<AttentionDispatchIntent> deadlineChanged({
+    required String beaconId,
+    required String actorUserId,
+    required Set<String> participantUserIds,
+    required DateTime? oldEndAt,
+    required DateTime? newEndAt,
+    required String sourceEventKey,
+  }) => _deadlineIntent(
+    beaconId: beaconId,
+    actorUserId: actorUserId,
+    participantUserIds: participantUserIds,
+    oldEndAt: oldEndAt,
+    newEndAt: newEndAt,
+    sourceEventKey: sourceEventKey,
+    reminder: false,
+  );
+
+  Future<AttentionDispatchIntent> deadlineReminder({
+    required String beaconId,
+    required Set<String> participantUserIds,
+    required DateTime deadline,
+    required String sourceEventKey,
+  }) => _deadlineIntent(
+    beaconId: beaconId,
+    actorUserId: '',
+    participantUserIds: participantUserIds,
+    oldEndAt: null,
+    newEndAt: deadline,
+    sourceEventKey: sourceEventKey,
+    reminder: true,
+  );
+
+  Future<AttentionDispatchIntent> _deadlineIntent({
+    required String beaconId,
+    required String actorUserId,
+    required Set<String> participantUserIds,
+    required DateTime? oldEndAt,
+    required DateTime? newEndAt,
+    required String sourceEventKey,
+    required bool reminder,
+  }) async {
+    final oldValue = oldEndAt?.toUtc().toIso8601String() ?? 'none';
+    final newValue = newEndAt?.toUtc().toIso8601String() ?? 'none';
+    final recipients = participantUserIds
+        .where((id) => id.isNotEmpty && id != actorUserId)
+        .map(
+          (id) => AttentionRecipientSnapshot(
+            recipientId: id,
+            reasons: const {AttentionRecipientReason.activeParticipant},
+            role: AttentionRecipientRoleFacts(
+              beaconId: beaconId,
+              actorUserId: actorUserId.isEmpty ? null : actorUserId,
+              canReadBeaconContent: true,
+            ),
+          ),
+        )
+        .toList();
+    final deadlineText = newEndAt == null ? 'removed' : newValue;
+    return AttentionDispatchIntent(
+      eventType: reminder
+          ? AttentionEventType.deadlineReminder
+          : AttentionEventType.deadlineChanged,
+      sourceEventKey: sourceEventKey,
+      actorUserId: actorUserId.isEmpty ? null : actorUserId,
+      priority: reminder
+          ? NotificationPriority.high
+          : NotificationPriority.normal,
+      kind: reminder
+          ? NotificationKind.deadlineReminder
+          : NotificationKind.deadlineChanged,
+      title: reminder ? 'Deadline reminder' : 'Deadline changed',
+      // The values are immutable occurrence facts as well as user-facing copy.
+      body: reminder
+          ? 'Deadline: $deadlineText'
+          : 'Deadline changed from $oldValue to $deadlineText',
+      actionUrl:
+          '/#$kPathBeaconView/${Uri.encodeQueryComponent(beaconId)}'
+          '?is_deep_link=true',
+      collapseKey: AttentionCollapseKey.none(sourceEventKey),
+      beaconId: beaconId,
+      recipients: recipients,
+    );
+  }
+
   Future<AttentionDispatchIntent> staleReminder({
     required String beaconId,
     required String actorUserId,
@@ -316,38 +403,38 @@ class AttentionIntentCase {
     String? acceptedById,
     String? creatorId,
   }) {
-    final (NotificationKind kind, AttentionEventType eventType, NotificationPriority priority) =
-        switch (transition) {
-          'accepted' => (
-            NotificationKind.commitmentAccepted,
-            AttentionEventType.commitmentAccepted,
-            NotificationPriority.normal,
-          ),
-          'resolved' => (
-            NotificationKind.commitmentResolved,
-            AttentionEventType.commitmentResolved,
-            NotificationPriority.normal,
-          ),
-          'cancelled' || 'redirected_from' => (
-            NotificationKind.commitmentCancelled,
-            AttentionEventType.commitmentCancelled,
-            NotificationPriority.normal,
-          ),
-          'redirected_to' => (
-            NotificationKind.commitmentRedirected,
-            AttentionEventType.commitmentRedirected,
-            NotificationPriority.high,
-          ),
-          _ => throw ArgumentError.value(transition, 'transition'),
-        };
+    final (
+      NotificationKind kind,
+      AttentionEventType eventType,
+      NotificationPriority priority,
+    ) = switch (transition) {
+      'accepted' => (
+        NotificationKind.commitmentAccepted,
+        AttentionEventType.commitmentAccepted,
+        NotificationPriority.normal,
+      ),
+      'resolved' => (
+        NotificationKind.commitmentResolved,
+        AttentionEventType.commitmentResolved,
+        NotificationPriority.normal,
+      ),
+      'cancelled' || 'redirected_from' => (
+        NotificationKind.commitmentCancelled,
+        AttentionEventType.commitmentCancelled,
+        NotificationPriority.normal,
+      ),
+      'redirected_to' => (
+        NotificationKind.commitmentRedirected,
+        AttentionEventType.commitmentRedirected,
+        NotificationPriority.high,
+      ),
+      _ => throw ArgumentError.value(transition, 'transition'),
+    };
     final extraCreator =
-        creatorId != null &&
-            creatorId.isNotEmpty &&
-            creatorId != actorUserId
+        creatorId != null && creatorId.isNotEmpty && creatorId != actorUserId
         ? [creatorId]
         : const <String>[];
-    final extraAccepted =
-        acceptedById != null && acceptedById.isNotEmpty
+    final extraAccepted = acceptedById != null && acceptedById.isNotEmpty
         ? [acceptedById]
         : const <String>[];
     return fromBeaconNotification(
@@ -415,8 +502,7 @@ class AttentionIntentCase {
         beaconTitle: beaconTitle,
         direction: direction,
       ),
-      actionUrl:
-          '/#/shared/view?id=${Uri.encodeQueryComponent(evaluatedUserId)}',
+      actionUrl: '/#/profile/view/${Uri.encodeQueryComponent(evaluatedUserId)}',
       collapseKey: AttentionCollapseKey.family(
         'trust_given',
         [beaconId, evaluatorId, evaluatedUserId],
@@ -502,10 +588,8 @@ class AttentionIntentCase {
   }) {
     final counterpart = name.isEmpty ? 'them' : name;
     return switch (direction) {
-      'up' =>
-        'Your trust in $counterpart increased after "$beaconTitle".',
-      'down' =>
-        'Your trust in $counterpart decreased after "$beaconTitle".',
+      'up' => 'Your trust in $counterpart increased after "$beaconTitle".',
+      'down' => 'Your trust in $counterpart decreased after "$beaconTitle".',
       _ =>
         'No significant trust change with $counterpart after "$beaconTitle".',
     };
@@ -624,9 +708,11 @@ class AttentionIntentCase {
     }
     final encodedBeacon = Uri.encodeQueryComponent(beaconId);
     final encodedMessage = Uri.encodeQueryComponent(messageId);
-    final itemParam = threadItemId == null || threadItemId.isEmpty
-        ? ''
-        : '&item=${Uri.encodeQueryComponent(threadItemId)}';
+    final encodedThread = Uri.encodeQueryComponent(
+      threadItemId != null && threadItemId.isNotEmpty
+          ? threadItemId
+          : 'general',
+    );
     final safeExcerpt = notificationExcerpt(excerpt);
     final title = titleIsActorName && actorName.isNotEmpty
         ? actorName
@@ -645,7 +731,8 @@ class AttentionIntentCase {
       title: title,
       body: body,
       actionUrl:
-          '/#/shared/view?id=$encodedBeacon&dest=room&message=$encodedMessage$itemParam',
+          '/#$kPathBeaconView/$encodedBeacon?tab=threads&thread=$encodedThread'
+          '&entry=deep_link&is_deep_link=true&message=$encodedMessage',
       collapseKey: AttentionCollapseKey.none(sourceEventKey),
       recipients: recipients,
       beaconId: beaconId,
@@ -744,7 +831,9 @@ class AttentionIntentCase {
       body: actorName == null || actorName.isEmpty
           ? 'Request moved from $transition'
           : '$actorName moved the request from $transition',
-      actionUrl: '/#/shared/view?id=${Uri.encodeQueryComponent(beaconId)}',
+      actionUrl:
+          '/#$kPathBeaconView/${Uri.encodeQueryComponent(beaconId)}'
+          '?is_deep_link=true',
       collapseKey: AttentionCollapseKey.none(sourceEventKey),
       recipients: recipients,
       beaconId: beaconId,
@@ -772,7 +861,7 @@ class AttentionIntentCase {
       body: actorName.isEmpty
           ? 'You are now connected on Tentura.'
           : 'You and $actorName are now connected.',
-      actionUrl: '/#/shared/view?id=${Uri.encodeQueryComponent(actorUserId)}',
+      actionUrl: '/#/profile/view/${Uri.encodeQueryComponent(actorUserId)}',
       collapseKey: AttentionCollapseKey.none(sourceEventKey),
       recipients: blocked
           ? const []

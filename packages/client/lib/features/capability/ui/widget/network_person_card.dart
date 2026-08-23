@@ -205,7 +205,7 @@ class _FriendContextCountsRow extends StatelessWidget {
     );
 
     return Padding(
-      padding: const EdgeInsets.only(top: 4),
+      padding: EdgeInsets.only(top: context.tt.tightGap * 2),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [

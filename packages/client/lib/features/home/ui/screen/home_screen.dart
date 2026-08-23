@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import 'package:tentura/app/router/root_router.dart';
-import 'package:tentura/consts.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
@@ -36,32 +35,31 @@ class HomeScreen extends StatelessWidget implements AutoRouteWrapper {
     for (final spec in HomeTabSpec.all) spec.shell(),
   ];
 
-  /// Keeps the home shell subtree (and its [AutoTabsRouter] state) alive when
-  /// [wrappedRoute] reparents it after the account id arrives. Without this
-  /// the tabs router is disposed and rebuilt from the bare tab roots —
-  /// `TabsRouter.setupRoutes` has already consumed `pendingChildren`, so any
-  /// pushed branch detail (e.g. a deep-linked beacon view) is silently
-  /// dropped and the URL snaps back to the tab root.
-  /// Covered by `test/app/router/home_tab_branch_routing_test.dart`.
-  static final _shellSubtreeKey = GlobalKey(debugLabel: 'HomeShellSubtree');
-
   @override
-  Widget wrappedRoute(BuildContext context) => MultiBlocProvider(
-    providers: [
-      BlocProvider.value(value: GetIt.I<ScreenCubit>()),
-      BlocProvider.value(value: GetIt.I<HomeTabReselectCubit>()),
-      BlocProvider.value(value: GetIt.I<HomeAttentionCubit>()),
-      BlocProvider.value(value: GetIt.I<InboxOperationalCubit>()),
-    ],
-    child: BlocSelector<AuthCubit, AuthState, String>(
-      bloc: GetIt.I<AuthCubit>(),
-      selector: (state) => state.currentAccountId,
-      builder: (_, accountId) => _InboxScope(
-        accountId: accountId,
-        child: KeyedSubtree(key: _shellSubtreeKey, child: this),
+  Widget wrappedRoute(BuildContext context) {
+    // Preserves the tabs router while the account-scoped provider reparents
+    // this subtree. The route data is stable for that HomeRoute, while a
+    // concurrently mounted HomeRoute receives distinct data and key.
+    final shellSubtreeKey = GlobalObjectKey<State<StatefulWidget>>(
+      RouteData.of(context),
+    );
+    return MultiBlocProvider(
+      providers: [
+        BlocProvider.value(value: GetIt.I<ScreenCubit>()),
+        BlocProvider.value(value: GetIt.I<HomeTabReselectCubit>()),
+        BlocProvider.value(value: GetIt.I<HomeAttentionCubit>()),
+        BlocProvider.value(value: GetIt.I<InboxOperationalCubit>()),
+      ],
+      child: BlocSelector<AuthCubit, AuthState, String>(
+        bloc: GetIt.I<AuthCubit>(),
+        selector: (state) => state.currentAccountId,
+        builder: (_, accountId) => _InboxScope(
+          accountId: accountId,
+          child: KeyedSubtree(key: shellSubtreeKey, child: this),
+        ),
       ),
-    ),
-  );
+    );
+  }
 
   @override
   Widget build(BuildContext context) {

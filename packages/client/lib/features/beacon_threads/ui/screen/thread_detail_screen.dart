@@ -27,12 +27,20 @@ class ThreadDetailScreen extends StatefulWidget {
   const ThreadDetailScreen({
     @PathParam.inherit('id') required this.beaconId,
     @PathParam('threadId') required this.threadId,
+    @QueryParam(kQueryIsDeepLink) this.isDeepLink,
+    @QueryParam(kQueryBeaconViewTab) this.viewTab,
+    @QueryParam(kQueryBeaconPeopleTabAttention) this.peopleTabAttention,
+    @QueryParam(kQueryBeaconEntry) this.entry,
     @QueryParam(kQueryMessageId) this.messageId,
     super.key,
   });
 
   final String beaconId;
   final String threadId;
+  final String? isDeepLink;
+  final String? viewTab;
+  final String? peopleTabAttention;
+  final String? entry;
   final String? messageId;
 
   @override
@@ -52,6 +60,23 @@ class _ThreadDetailScreenState extends State<ThreadDetailScreen> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       unawaited(_ensureSelection());
     });
+  }
+
+  @override
+  void didUpdateWidget(ThreadDetailScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // `ThreadDetailRoute` pages all share one Page key (no `usesPathAsKey`),
+    // so switching threads via a pop+push in the same Navigator update (e.g.
+    // `context.router.replace(ThreadDetailRoute(threadId: ...))`) updates
+    // this State in place instead of remounting it. Re-arm the once-per-
+    // instance selection guard so the new thread actually gets selected.
+    if (oldWidget.threadId != widget.threadId) {
+      _selectionStarted = false;
+      setState(() => _selectedThread = null);
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        unawaited(_ensureSelection());
+      });
+    }
   }
 
   @override

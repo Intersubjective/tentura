@@ -36,8 +36,7 @@ import 'package:tentura_server/env.dart';
 import '../../support/fake_user_block_repository.dart';
 import '../../support/pg_test_public_keys.dart';
 
-class _PgFakeFactCards extends Fake
-    implements BeaconFactCardRepositoryPort {}
+class _PgFakeFactCards extends Fake implements BeaconFactCardRepositoryPort {}
 
 class _PgFakeImages extends Fake implements ImageRepositoryPort {}
 
@@ -59,8 +58,9 @@ Future<void> main() async {
     isDebugModeOn: false,
   );
   final reachable = await _canConnect(env);
-  final skipReason =
-      reachable ? false : 'Postgres not reachable for reply readback test';
+  final skipReason = reachable
+      ? false
+      : 'Postgres not reachable for reply readback test';
 
   const beaconId = 'Breplypg00001';
   const otherBeaconId = 'Breplypgother1';
@@ -204,11 +204,13 @@ ON CONFLICT DO NOTHING
         replyToMessageId: parent.id,
       );
 
-      final stored = await database.customSelect(
-        'SELECT reply_to_message_id FROM public.beacon_room_message '
-        'WHERE id = \$1',
-        variables: [Variable(reply.id)],
-      ).getSingle();
+      final stored = await database
+          .customSelect(
+            'SELECT reply_to_message_id FROM public.beacon_room_message '
+            'WHERE id = \$1',
+            variables: [Variable(reply.id)],
+          )
+          .getSingle();
       expect(stored.read<String>('reply_to_message_id'), parent.id);
 
       final rows = await room.listMessagesEnriched(
@@ -246,8 +248,7 @@ ON CONFLICT (id) DO UPDATE SET body = EXCLUDED.body
       );
       for (var i = 0; i < 50; i++) {
         final id = 'Rreplypgfill${i.toString().padLeft(2, '0')}';
-        final created =
-            '2026-01-02T12:${i.toString().padLeft(2, '0')}:00Z';
+        final created = '2026-01-02T12:${i.toString().padLeft(2, '0')}:00Z';
         await database.customStatement(
           '''
 INSERT INTO public.beacon_room_message (
@@ -302,8 +303,7 @@ ON CONFLICT (id) DO UPDATE SET body = EXCLUDED.body
       );
       for (var i = 0; i < 50; i++) {
         final id = 'Rreplypgpage${i.toString().padLeft(2, '0')}';
-        final created =
-            '2026-01-02T12:${i.toString().padLeft(2, '0')}:00Z';
+        final created = '2026-01-02T12:${i.toString().padLeft(2, '0')}:00Z';
         await database.customStatement(
           '''
 INSERT INTO public.beacon_room_message (
@@ -486,6 +486,7 @@ WHERE id = '${reply.id}'
         messageId: parent.id,
         newBody: 'Edited parent body text',
         mentions: const [],
+        mentionSpans: const [],
       );
 
       final rows = await room.listMessagesEnriched(
@@ -551,14 +552,16 @@ WHERE id = '${reply.id}'
       );
 
       Future<int> recipientMentionCount(String recipientId) async {
-        final row = await database.customSelect(
-          '''
+        final row = await database
+            .customSelect(
+              '''
 SELECT COUNT(*)::int AS c
 FROM public.attention_occurrence_recipient
 WHERE account_id = \$1
 ''',
-          variables: [Variable(recipientId)],
-        ).getSingle();
+              variables: [Variable(recipientId)],
+            )
+            .getSingle();
         return row.read<int>('c');
       }
 
@@ -597,11 +600,13 @@ WHERE account_id = \$1
         'DELETE FROM public.beacon_room_message WHERE id = \'${parent.id}\'',
       );
 
-      final stored = await database.customSelect(
-        'SELECT reply_to_message_id FROM public.beacon_room_message '
-        'WHERE id = \$1',
-        variables: [Variable(reply.id)],
-      ).getSingle();
+      final stored = await database
+          .customSelect(
+            'SELECT reply_to_message_id FROM public.beacon_room_message '
+            'WHERE id = \$1',
+            variables: [Variable(reply.id)],
+          )
+          .getSingle();
       expect(stored.read<String?>('reply_to_message_id'), isNull);
 
       final rows = await room.listMessagesEnriched(

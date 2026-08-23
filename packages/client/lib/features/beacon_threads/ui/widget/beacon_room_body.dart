@@ -249,6 +249,13 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
                     uploads: uploads,
                   )
                 : null,
+            onSendWithMentions: widget.enableComposer
+                ? (body, uploads, mentions) => cubit.sendMessage(
+                    body: body,
+                    uploads: uploads,
+                    explicitMentions: mentions,
+                  )
+                : null,
             imageRepository: GetIt.I<ImageRepository>(),
             clipboardImageRepository: GetIt.I<ClipboardImageRepository>(),
             jumpFabHeroTag: 'beacon_room_jump_latest',

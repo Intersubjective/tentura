@@ -8,8 +8,6 @@ import 'package:tentura/ui/test_ids.dart';
 import 'package:tentura/ui/utils/relative_time.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 
-import '../widget/attention_visibility_ack.dart';
-
 /// Single Updates feed row for one attention receipt.
 class UpdatesReceiptCard extends StatelessWidget {
   const UpdatesReceiptCard({
@@ -47,82 +45,77 @@ class UpdatesReceiptCard extends StatelessWidget {
     final absoluteTime =
         '${dateFormatYMD(localCreatedAt)} ${timeFormatHm(localCreatedAt)}';
 
-    return AttentionVisibilityAck(
-      receiptId: receipt.id,
-      isSeen: receipt.isSeen,
-      onAcknowledge: (_) async => onMarkSeen(),
-      child: Semantics(
-        identifier: TestIds.updatesReceipt(receipt.id),
-        label: copy.title,
-        button: true,
-        child: ListTile(
-          onTap: onTap,
-          contentPadding: tt.cardPadding,
-          leading: Icon(
-            _iconFor(receipt.kind),
-            color: isUnread ? tt.info : tt.textMuted,
-            size: tt.iconSize,
-          ),
-          title: Text(
-            copy.title,
-            maxLines: 2,
-            overflow: TextOverflow.ellipsis,
-            style:
-                TenturaText.title(
-                  isUnread ? colors.onSurface : tt.textMuted,
-                ).copyWith(
-                  fontWeight: isUnread ? FontWeight.w700 : FontWeight.w400,
-                ),
-          ),
-          subtitle: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              if (requestTitle != null)
-                Text(
-                  requestTitle,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: TenturaText.bodySmall(tt.textMuted),
-                ),
+    return Semantics(
+      identifier: TestIds.updatesReceipt(receipt.id),
+      label: copy.title,
+      button: true,
+      child: ListTile(
+        onTap: onTap,
+        contentPadding: tt.cardPadding,
+        leading: Icon(
+          _iconFor(receipt.kind),
+          color: isUnread ? tt.info : tt.textMuted,
+          size: tt.iconSize,
+        ),
+        title: Text(
+          copy.title,
+          maxLines: 2,
+          overflow: TextOverflow.ellipsis,
+          style:
+              TenturaText.title(
+                isUnread ? colors.onSurface : tt.textMuted,
+              ).copyWith(
+                fontWeight: isUnread ? FontWeight.w700 : FontWeight.w400,
+              ),
+        ),
+        subtitle: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            if (requestTitle != null)
               Text(
-                copy.body,
-                maxLines: 3,
+                requestTitle,
+                maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: TenturaText.bodySmall(tt.textMuted),
               ),
-              if (receipt.isLiveObligation)
-                Text(
-                  l10n.updatesNextStepMarkDoneHint,
-                  maxLines: 2,
-                  overflow: TextOverflow.ellipsis,
-                  style: TenturaText.bodySmall(tt.info),
-                ),
-            ],
-          ),
-          trailing: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Tooltip(
-                message: absoluteTime,
-                child: Text(
-                  ageLabel,
-                  style: TenturaText.bodySmall(tt.textFaint),
-                ),
+            Text(
+              copy.body,
+              maxLines: 3,
+              overflow: TextOverflow.ellipsis,
+              style: TenturaText.bodySmall(tt.textMuted),
+            ),
+            if (receipt.isLiveObligation)
+              Text(
+                l10n.updatesNextStepMarkDoneHint,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: TenturaText.bodySmall(tt.info),
               ),
-              if (isUnread)
-                IconButton(
-                  tooltip: l10n.updatesMarkSeen,
-                  onPressed: onMarkSeen,
-                  icon: const Icon(Icons.done_outlined),
-                ),
-              if (receipt.isLiveObligation)
-                IconButton(
-                  tooltip: l10n.updatesMarkDone,
-                  onPressed: onSettle,
-                  icon: const Icon(Icons.task_alt_outlined),
-                ),
-            ],
-          ),
+          ],
+        ),
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Tooltip(
+              message: absoluteTime,
+              child: Text(
+                ageLabel,
+                style: TenturaText.bodySmall(tt.textFaint),
+              ),
+            ),
+            if (isUnread)
+              IconButton(
+                tooltip: l10n.updatesMarkSeen,
+                onPressed: onMarkSeen,
+                icon: const Icon(Icons.done_outlined),
+              ),
+            if (receipt.isLiveObligation)
+              IconButton(
+                tooltip: l10n.updatesMarkDone,
+                onPressed: onSettle,
+                icon: const Icon(Icons.task_alt_outlined),
+              ),
+          ],
         ),
       ),
     );
@@ -132,8 +125,9 @@ class UpdatesReceiptCard extends StatelessWidget {
     if (receipt.beaconId == null || receipt.beaconId!.isEmpty) {
       return null;
     }
-    final payloadTitle =
-        beaconTitleFromPresentationPayload(receipt.presentationPayloadJson);
+    final payloadTitle = beaconTitleFromPresentationPayload(
+      receipt.presentationPayloadJson,
+    );
     if (payloadTitle != null) return payloadTitle;
     return null;
   }

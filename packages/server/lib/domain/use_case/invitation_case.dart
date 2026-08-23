@@ -91,7 +91,7 @@ final class InvitationCase extends UseCaseBase {
 
     return _invitationRepository.create(
       issuerId: userId,
-      addresseeName: ContactCase.normalizeName(addresseeName),
+      addresseeName: ContactCase.normalizeOptionalName(addresseeName),
       beaconId: beaconId,
       parentForwardEdgeId: parentForwardEdgeId,
     );
@@ -335,7 +335,7 @@ final class InvitationCase extends UseCaseBase {
                 inviterUserId: invitation.issuer.id,
                 accepterUserId: userId,
                 accepterDisplayName: accepter.displayName,
-                actionUrl: '/#/shared/view?id=$userId',
+                actionUrl: '/#/profile/view/$userId',
                 inviteOrigin: 'existing_account',
                 accepterHandle: accepter.handle,
               ),

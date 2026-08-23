@@ -39,7 +39,8 @@ import 'fake_coordination_item_case.dart';
 // Fakes
 // ---------------------------------------------------------------------------
 
-class _FakeBeaconThreadsRepository extends Fake implements BeaconThreadsRepository {
+class _FakeBeaconThreadsRepository extends Fake
+    implements BeaconThreadsRepository {
   _FakeBeaconThreadsRepository({required this.userId});
 
   final String userId;
@@ -134,6 +135,9 @@ class _FakeBeaconThreadsRepository extends Fake implements BeaconThreadsReposito
     String? replyToMessageId,
     String? threadItemId,
     RoomPendingUpload? firstAttachment,
+    List<String> explicitMentionUserIds = const [],
+    List<int> explicitMentionOffsets = const [],
+    List<int> explicitMentionLengths = const [],
   }) async => 'msg-created';
 
   @override
@@ -850,80 +854,84 @@ void main() {
   });
 
   group('RoomCubit thread-keyed watermark', () {
-    test('General cubit keeps threadItemId null and sends general threadId',
-        () async {
-      _registerProfileCubit(_kMyUserId);
+    test(
+      'General cubit keeps threadItemId null and sends general threadId',
+      () async {
+        _registerProfileCubit(_kMyUserId);
 
-      final newMsgTime = _kAnchorTime.add(const Duration(hours: 1));
-      final fakeRoom = _FakeBeaconThreadsRepository(userId: _kMyUserId)
-        ..participantLastSeenRoomAt = _kAnchorTime
-        ..messages = [
-          _msg('new', newMsgTime),
-        ];
+        final newMsgTime = _kAnchorTime.add(const Duration(hours: 1));
+        final fakeRoom = _FakeBeaconThreadsRepository(userId: _kMyUserId)
+          ..participantLastSeenRoomAt = _kAnchorTime
+          ..messages = [
+            _msg('new', newMsgTime),
+          ];
 
-      final cubit = _roomCubit(fakeRoom);
-      addTearDown(cubit.close);
+        final cubit = _roomCubit(fakeRoom);
+        addTearDown(cubit.close);
 
-      await _awaitLoad(cubit);
-      expect(cubit.state.threadItemId, isNull);
+        await _awaitLoad(cubit);
+        expect(cubit.state.threadItemId, isNull);
 
-      await cubit.markSeenNowIfNeeded();
+        await cubit.markSeenNowIfNeeded();
 
-      expect(fakeRoom.lastMarkThreadId, RequestThread.generalId);
-      expect(cubit.state.threadItemId, isNull);
-    });
+        expect(fakeRoom.lastMarkThreadId, RequestThread.generalId);
+        expect(cubit.state.threadItemId, isNull);
+      },
+    );
 
-    test('semantic thread records optimistic watermark before server flush',
-        () async {
-      _registerProfileCubit(_kMyUserId);
-      const itemId = 'item-semantic';
+    test(
+      'semantic thread records optimistic watermark before server flush',
+      () async {
+        _registerProfileCubit(_kMyUserId);
+        const itemId = 'item-semantic';
 
-      final watermark = RoomReadWatermarkStore.testing();
-      addTearDown(watermark.dispose);
+        final watermark = RoomReadWatermarkStore.testing();
+        addTearDown(watermark.dispose);
 
-      final newMsgTime = _kAnchorTime.add(const Duration(hours: 1));
-      final fakeRoom = _FakeBeaconThreadsRepository(userId: _kMyUserId)
-        ..participantLastSeenRoomAt = _kAnchorTime
-        ..messages = [
-          _msg('new', newMsgTime),
-        ];
+        final newMsgTime = _kAnchorTime.add(const Duration(hours: 1));
+        final fakeRoom = _FakeBeaconThreadsRepository(userId: _kMyUserId)
+          ..participantLastSeenRoomAt = _kAnchorTime
+          ..messages = [
+            _msg('new', newMsgTime),
+          ];
 
-      final case_ = BeaconThreadsCase(
-        fakeRoom,
-        _FakeBeaconFactCardRepository(),
-        _FakePollingRepository(),
-        _FakeBeaconRoomHintsRepository(),
-        watermark,
-        const FakeCoordinationItemCaseForRoom(),
-        buildTestRealtimeSync().case_,
-        env: const Env(),
-        logger: Logger('test'),
-      );
+        final case_ = BeaconThreadsCase(
+          fakeRoom,
+          _FakeBeaconFactCardRepository(),
+          _FakePollingRepository(),
+          _FakeBeaconRoomHintsRepository(),
+          watermark,
+          const FakeCoordinationItemCaseForRoom(),
+          buildTestRealtimeSync().case_,
+          env: const Env(),
+          logger: Logger('test'),
+        );
 
-      final cubit = RoomCubit(
-        beaconId: _kBeaconId,
-        threadItemId: itemId,
-        beaconRoomCase: case_,
-        coordinationItemRoomSync: _testItemSync,
-        presenceRepository: _fakePresenceRepository(),
-        effects: FakeUiEffectPort(),
-      );
-      addTearDown(cubit.close);
+        final cubit = RoomCubit(
+          beaconId: _kBeaconId,
+          threadItemId: itemId,
+          beaconRoomCase: case_,
+          coordinationItemRoomSync: _testItemSync,
+          presenceRepository: _fakePresenceRepository(),
+          effects: FakeUiEffectPort(),
+        );
+        addTearDown(cubit.close);
 
-      await _awaitLoad(cubit);
-      expect(cubit.state.threadItemId, itemId);
+        await _awaitLoad(cubit);
+        expect(cubit.state.threadItemId, itemId);
 
-      await cubit.markReadToBottom();
+        await cubit.markReadToBottom();
 
-      expect(
-        watermark.readThrough(_kBeaconId, threadId: itemId),
-        newMsgTime,
-      );
-      expect(
-        watermark.readThrough(_kBeaconId, threadId: RequestThread.generalId),
-        isNull,
-      );
-      expect(fakeRoom.lastMarkThreadId, itemId);
-    });
+        expect(
+          watermark.readThrough(_kBeaconId, threadId: itemId),
+          newMsgTime,
+        );
+        expect(
+          watermark.readThrough(_kBeaconId, threadId: RequestThread.generalId),
+          isNull,
+        );
+        expect(fakeRoom.lastMarkThreadId, itemId);
+      },
+    );
   });
 }

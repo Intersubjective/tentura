@@ -98,6 +98,8 @@ Future<void> _pumpRecipientRow(
   required ForwardCandidate candidate,
   required bool isSelected,
   required VoidCallback? onToggle,
+  VoidCallback? onOpenDetails,
+  VoidCallback? onEditReasons,
   DateTime? todayUtc,
 }) async {
   await tester.pumpWidget(
@@ -114,6 +116,8 @@ Future<void> _pumpRecipientRow(
             candidate: candidate,
             isSelected: isSelected,
             onToggle: onToggle,
+            onOpenDetails: onOpenDetails,
+            onEditReasons: onEditReasons,
             todayUtc: todayUtc ?? _todayUtc,
           ),
         ),
@@ -127,6 +131,13 @@ Future<void> _tapRowCheckbox(
   WidgetTester tester,
   String candidateId,
 ) async {
+  final semanticsTarget = find.bySemanticsLabel('Remove').evaluate().isNotEmpty
+      ? find.bySemanticsLabel('Remove')
+      : find.bySemanticsLabel('Select');
+  if (semanticsTarget.evaluate().isNotEmpty) {
+    await tester.tap(semanticsTarget);
+    return;
+  }
   final rowBox = tester.getRect(
     find.byKey(TestIds.key(TestIds.forwardRecipient(candidateId))),
   );
@@ -419,7 +430,32 @@ void main() {
   group('paused row interaction', () {
     const pausedId = 'paused-user';
 
-    testWidgets('selected paused row tap invokes onToggle exactly once', (
+    testWidgets('selected paused identity tap opens details only', (
+      tester,
+    ) async {
+      var taps = 0;
+      var opens = 0;
+      await _pumpRecipientRow(
+        tester,
+        candidate: _candidate(
+          id: pausedId,
+          availability: Availability(resumeOn: _resumeOn),
+        ),
+        isSelected: true,
+        onToggle: () => taps++,
+        onOpenDetails: () => opens++,
+      );
+
+      await tester.tap(
+        find.byKey(TestIds.key(TestIds.forwardRecipient(pausedId))),
+      );
+      await tester.pump();
+
+      expect(taps, 0);
+      expect(opens, 1);
+    });
+
+    testWidgets('selected paused checkbox deselects exactly once', (
       tester,
     ) async {
       var taps = 0;
@@ -431,14 +467,32 @@ void main() {
         ),
         isSelected: true,
         onToggle: () => taps++,
+        onOpenDetails: () {},
       );
 
-      await tester.tap(
-        find.byKey(TestIds.key(TestIds.forwardRecipient(pausedId))),
-      );
+      await _tapRowCheckbox(tester, pausedId);
       await tester.pump();
-
       expect(taps, 1);
+    });
+
+    testWidgets('trailing reason control is independent', (tester) async {
+      var toggles = 0;
+      var opens = 0;
+      var edits = 0;
+      await _pumpRecipientRow(
+        tester,
+        candidate: _candidate(id: 'available-user'),
+        isSelected: true,
+        onToggle: () => toggles++,
+        onOpenDetails: () => opens++,
+        onEditReasons: () => edits++,
+      );
+
+      await tester.tap(find.byIcon(Icons.label_outline));
+      await tester.pump();
+      expect(edits, 1);
+      expect(toggles, 0);
+      expect(opens, 0);
     });
 
     testWidgets('unselected paused row tap invokes no callback', (
@@ -562,9 +616,21 @@ void main() {
 
     test('removes paused candidates preserving band order', () async {
       final band = [
-        ForwardBandRow(userId: 'open', rank: 0, rowTier: ProjectionTier.ownOutcome),
-        ForwardBandRow(userId: 'paused', rank: 1, rowTier: ProjectionTier.ownOutcome),
-        ForwardBandRow(userId: 'ghost', rank: 2, rowTier: ProjectionTier.ownOutcome),
+        ForwardBandRow(
+          userId: 'open',
+          rank: 0,
+          rowTier: ProjectionTier.ownOutcome,
+        ),
+        ForwardBandRow(
+          userId: 'paused',
+          rank: 1,
+          rowTier: ProjectionTier.ownOutcome,
+        ),
+        ForwardBandRow(
+          userId: 'ghost',
+          rank: 2,
+          rowTier: ProjectionTier.ownOutcome,
+        ),
       ];
       final candidates = [
         Profile(

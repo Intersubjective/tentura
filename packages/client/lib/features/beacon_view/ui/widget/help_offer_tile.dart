@@ -4,7 +4,6 @@ import 'package:intl/intl.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon_participant.dart';
 import 'package:tentura/domain/entity/beacon_room_consts.dart';
-import 'package:tentura/domain/entity/commitment_stake_state.dart';
 import 'package:tentura/domain/entity/help_offer_admission_action.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/beacon/ui/widget/coordination_ui.dart';
@@ -39,7 +38,6 @@ class HelpOfferTile extends StatelessWidget {
     this.isAuthorView = false,
     this.onAccept,
     this.onDecline,
-    this.onRemoveFromChat,
     this.onReleaseCommitment,
     this.participant,
     this.showAuthorStar = false,
@@ -56,7 +54,6 @@ class HelpOfferTile extends StatelessWidget {
   final bool isAuthorView;
   final VoidCallback? onAccept;
   final VoidCallback? onDecline;
-  final VoidCallback? onRemoveFromChat;
   final VoidCallback? onReleaseCommitment;
   final BeaconParticipant? participant;
   final bool showAuthorStar;
@@ -106,13 +103,18 @@ class HelpOfferTile extends StatelessWidget {
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              GestureDetector(
-                onTap: isMine
-                    ? null
-                    : () => context.read<ScreenCubit>().showProfile(
-                        helpOffer.user.id,
-                      ),
-                child: avatarWidget,
+              Material(
+                color: Colors.transparent,
+                shape: const CircleBorder(),
+                clipBehavior: Clip.antiAlias,
+                child: InkWell(
+                  onTap: isMine
+                      ? null
+                      : () => context.read<ScreenCubit>().showProfile(
+                          helpOffer.user.id,
+                        ),
+                  child: avatarWidget,
+                ),
               ),
               const SizedBox(width: _contentGap),
               Expanded(
@@ -254,10 +256,8 @@ class HelpOfferTile extends StatelessWidget {
               isMine: isMine,
               onAccept: onAccept,
               onDecline: onDecline,
-              onRemoveFromChat: onRemoveFromChat,
               onReleaseCommitment: onReleaseCommitment,
               offerUserId: helpOffer.user.id,
-              offerUserName: helpOffer.user.shownName,
             ),
           ],
           if (isMine && !isWithdrawn && (onEdit != null || onWithdraw != null))
@@ -337,10 +337,8 @@ class _AdmissionFooter extends StatelessWidget {
     required this.isMine,
     required this.onAccept,
     required this.onDecline,
-    required this.onRemoveFromChat,
     this.onReleaseCommitment,
     required this.offerUserId,
-    required this.offerUserName,
   });
 
   final L10n l10n;
@@ -353,10 +351,8 @@ class _AdmissionFooter extends StatelessWidget {
   final bool isMine;
   final VoidCallback? onAccept;
   final VoidCallback? onDecline;
-  final VoidCallback? onRemoveFromChat;
   final VoidCallback? onReleaseCommitment;
   final String offerUserId;
-  final String offerUserName;
 
   @override
   Widget build(BuildContext context) {
@@ -375,10 +371,8 @@ class _AdmissionFooter extends StatelessWidget {
         reason: reason,
         onAccept: onAccept,
         onDecline: onDecline,
-        onRemoveFromChat: onRemoveFromChat,
         onReleaseCommitment: onReleaseCommitment,
         offerUserId: offerUserId,
-        offerUserName: offerUserName,
       );
     }
 
@@ -412,10 +406,8 @@ class _AuthorAdmissionFooter extends StatelessWidget {
     required this.reason,
     required this.onAccept,
     required this.onDecline,
-    required this.onRemoveFromChat,
     this.onReleaseCommitment,
     required this.offerUserId,
-    required this.offerUserName,
   });
 
   final L10n l10n;
@@ -425,10 +417,8 @@ class _AuthorAdmissionFooter extends StatelessWidget {
   final String? reason;
   final VoidCallback? onAccept;
   final VoidCallback? onDecline;
-  final VoidCallback? onRemoveFromChat;
   final VoidCallback? onReleaseCommitment;
   final String offerUserId;
-  final String offerUserName;
 
   @override
   Widget build(BuildContext context) {
@@ -453,19 +443,19 @@ class _AuthorAdmissionFooter extends StatelessWidget {
                   SizedBox(height: tt.tightGap),
                   Text(
                     l10n.helpOfferAdmittedAutomaticallyHint,
-                    style: TenturaText.bodySmall(tt.textFaint),
+                    style: TenturaText.bodySmall(tt.textMuted),
                   ),
                 ] else ...[
                   SizedBox(height: tt.tightGap),
                   Text(
                     l10n.helpOfferCanReadChat,
-                    style: TenturaText.bodySmall(tt.textFaint),
+                    style: TenturaText.bodySmall(tt.textMuted),
                   ),
                 ],
               ],
             ),
           ),
-          if (onRemoveFromChat != null || onReleaseCommitment != null) ...[
+          if (onReleaseCommitment != null) ...[
             SizedBox(width: tt.rowGap),
             Column(
               crossAxisAlignment: CrossAxisAlignment.end,
@@ -476,16 +466,6 @@ class _AuthorAdmissionFooter extends StatelessWidget {
                     semanticsIdentifier: TestIds.helpOfferRelease(offerUserId),
                     label: l10n.helpOfferReleaseCommitment,
                     onPressed: onReleaseCommitment,
-                    tone: TenturaTone.neutral,
-                  ),
-                if (onReleaseCommitment != null && onRemoveFromChat != null)
-                  SizedBox(height: tt.tightGap),
-                if (onRemoveFromChat != null)
-                  TenturaTextAction(
-                    key: TestIds.key(TestIds.helpOfferRemove(offerUserId)),
-                    semanticsIdentifier: TestIds.helpOfferRemove(offerUserId),
-                    label: l10n.helpOfferAdmissionRemove,
-                    onPressed: onRemoveFromChat,
                     tone: TenturaTone.neutral,
                   ),
               ],
@@ -571,21 +551,6 @@ class _AuthorAdmissionFooter extends StatelessWidget {
                 ),
             ],
           ),
-        if (onAccept != null || onDecline != null) ...[
-          SizedBox(height: tt.tightGap),
-          if (onAccept != null)
-            Text(
-              l10n.helpOfferAdmissionAcceptHint(offerUserName),
-              style: TenturaText.bodySmall(tt.textFaint),
-            ),
-          if (onAccept != null && onDecline != null)
-            SizedBox(height: tt.tightGap),
-          if (onDecline != null)
-            Text(
-              l10n.helpOfferAdmissionDeclineHint,
-              style: TenturaText.bodySmall(tt.textFaint),
-            ),
-        ],
         if (onReleaseCommitment != null) ...[
           SizedBox(height: tt.tightGap),
           Align(
@@ -651,12 +616,12 @@ class _CommitterAdmissionFooter extends StatelessWidget {
           SizedBox(height: tt.tightGap),
           Text(
             l10n.helpOfferAdmittedAutomaticallyHint,
-            style: TenturaText.bodySmall(tt.textFaint),
+            style: TenturaText.bodySmall(tt.textMuted),
           ),
           SizedBox(height: tt.tightGap),
           Text(
             l10n.helpOfferCanReadChat,
-            style: TenturaText.bodySmall(tt.textFaint),
+            style: TenturaText.bodySmall(tt.textMuted),
           ),
         ],
       );
@@ -672,7 +637,7 @@ class _CommitterAdmissionFooter extends StatelessWidget {
           SizedBox(height: tt.tightGap),
           Text(
             l10n.helpOfferCanReadChat,
-            style: TenturaText.bodySmall(tt.textFaint),
+            style: TenturaText.bodySmall(tt.textMuted),
           ),
         ],
       );

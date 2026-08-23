@@ -350,12 +350,15 @@ class FakeBeaconViewFactCardRepository implements BeaconFactCardRepository {
   final removedIds = <String>[];
   final correctedIds = <String>[];
   final visibilityUpdates = <String, int>{};
-  final pins = <({
-    String beaconId,
-    String factText,
-    int visibility,
-    String? sourceMessageId,
-  })>[];
+  final pins =
+      <
+        ({
+          String beaconId,
+          String factText,
+          int visibility,
+          String? sourceMessageId,
+        })
+      >[];
   Object? pinError;
 
   @override
@@ -423,17 +426,23 @@ class FakeBeaconViewRoomRepository implements BeaconThreadsRepository {
   List<BeaconParticipant> participants;
   String nextMessageId = 'Mcreated01';
   Object? createError;
-  final createdMessages = <({
-    String beaconId,
-    String body,
-    String? threadItemId,
-    RoomPendingUpload? firstAttachment,
-  })>[];
-  final addedAttachments = <({
-    String beaconId,
-    String messageId,
-    RoomPendingUpload upload,
-  })>[];
+  final createdMessages =
+      <
+        ({
+          String beaconId,
+          String body,
+          String? threadItemId,
+          RoomPendingUpload? firstAttachment,
+        })
+      >[];
+  final addedAttachments =
+      <
+        ({
+          String beaconId,
+          String messageId,
+          RoomPendingUpload upload,
+        })
+      >[];
 
   final _roomInvalidations =
       StreamController<BeaconRoomInvalidation>.broadcast();
@@ -463,6 +472,9 @@ class FakeBeaconViewRoomRepository implements BeaconThreadsRepository {
     String? replyToMessageId,
     String? threadItemId,
     RoomPendingUpload? firstAttachment,
+    List<String> explicitMentionUserIds = const [],
+    List<int> explicitMentionOffsets = const [],
+    List<int> explicitMentionLengths = const [],
   }) async {
     if (createError != null) _throwTestError(createError!);
     createdMessages.add((

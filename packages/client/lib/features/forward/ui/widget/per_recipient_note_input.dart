@@ -14,12 +14,14 @@ class PerRecipientNoteInput extends StatelessWidget {
     required this.profile,
     required this.controller,
     required this.onChanged,
+    required this.onClose,
     super.key,
   });
 
   final Profile profile;
   final TextEditingController controller;
   final ValueChanged<String> onChanged;
+  final VoidCallback? onClose;
 
   @override
   Widget build(BuildContext context) {
@@ -45,6 +47,15 @@ class PerRecipientNoteInput extends StatelessWidget {
                   state.profile.id,
                 ),
               ),
+              suffixIcon: onClose != null
+                  ? IconButton(
+                      icon: const Icon(Icons.close),
+                      iconSize: tt.iconSize,
+                      color: tt.textMuted,
+                      tooltip: l10n.forwardSkipPersonalNote,
+                      onPressed: onClose,
+                    )
+                  : null,
             ),
             maxLines: 2,
           );

@@ -1,12 +1,12 @@
 import 'package:flutter/material.dart';
 
+import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon_participant.dart';
 import 'package:tentura/domain/entity/image_entity.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/domain/entity/room_poll_data.dart';
-import 'package:tentura/ui/widget/self_aware_profile_avatar.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
-import 'package:tentura/ui/utils/ui_utils.dart';
+import 'package:tentura/ui/widget/self_aware_profile_avatar.dart';
 
 class RoomPollCard extends StatefulWidget {
   const RoomPollCard({
@@ -56,12 +56,20 @@ class _RoomPollCardState extends State<RoomPollCard> {
     widget.onVote?.call(variantIds, score: score);
   }
 
-  Widget _buildSingleUnvoted(ThemeData theme, String variantId, String label) =>
+  Widget _buildSingleUnvoted(
+    BuildContext context,
+    ThemeData theme,
+    String variantId,
+    String label,
+  ) =>
       InkWell(
         onTap: widget.onVote == null ? null : () => _submitVote([variantId]),
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(context.tt.buttonRadius),
         child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 4),
+          padding: EdgeInsets.symmetric(
+            vertical: context.tt.tightGap * 2,
+            horizontal: context.tt.tightGap * 2,
+          ),
           child: Row(
             children: [
               Icon(
@@ -69,7 +77,7 @@ class _RoomPollCardState extends State<RoomPollCard> {
                 size: 20,
                 color: theme.colorScheme.primary,
               ),
-              const SizedBox(width: kSpacingSmall),
+              SizedBox(width: context.tt.rowGap),
               Expanded(child: Text(label, style: theme.textTheme.bodyMedium)),
             ],
           ),
@@ -77,6 +85,7 @@ class _RoomPollCardState extends State<RoomPollCard> {
       );
 
   Widget _buildMultipleUnvoted(
+    BuildContext context,
     ThemeData theme,
     String variantId,
     String label,
@@ -88,9 +97,12 @@ class _RoomPollCardState extends State<RoomPollCard> {
         _pendingMultiple.add(variantId);
       }
     }),
-    borderRadius: BorderRadius.circular(8),
+    borderRadius: BorderRadius.circular(context.tt.buttonRadius),
     child: Padding(
-      padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 4),
+      padding: EdgeInsets.symmetric(
+        vertical: context.tt.tightGap * 2,
+        horizontal: context.tt.tightGap * 2,
+      ),
       child: Row(
         children: [
           Icon(
@@ -102,17 +114,22 @@ class _RoomPollCardState extends State<RoomPollCard> {
                 ? theme.colorScheme.primary
                 : theme.colorScheme.outline,
           ),
-          const SizedBox(width: kSpacingSmall),
+          SizedBox(width: context.tt.rowGap),
           Expanded(child: Text(label, style: theme.textTheme.bodyMedium)),
         ],
       ),
     ),
   );
 
-  Widget _buildRangeUnvoted(ThemeData theme, String variantId, String label) {
+  Widget _buildRangeUnvoted(
+    BuildContext context,
+    ThemeData theme,
+    String variantId,
+    String label,
+  ) {
     final score = _pendingRange[variantId];
     return Padding(
-      padding: const EdgeInsets.symmetric(vertical: 2),
+      padding: EdgeInsets.symmetric(vertical: context.tt.tightGap),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -123,13 +140,13 @@ class _RoomPollCardState extends State<RoomPollCard> {
               ),
               if (score != null)
                 Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 6,
-                    vertical: 2,
+                  padding: EdgeInsets.symmetric(
+                    horizontal: context.tt.iconTextGap,
+                    vertical: context.tt.tightGap,
                   ),
                   decoration: BoxDecoration(
                     color: theme.colorScheme.primaryContainer,
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(TenturaRadii.avatar),
                   ),
                   child: Text(
                     '$score',
@@ -141,13 +158,13 @@ class _RoomPollCardState extends State<RoomPollCard> {
                 ),
             ],
           ),
-          const SizedBox(height: 6),
+          SizedBox(height: context.tt.iconTextGap),
           // Flutter Web's mobile semantics for Slider can create empty
           // full-screen hit-test nodes that swallow taps on the chat composer.
           // Range votes are already integer 1-5 scores, so use explicit chips.
           Wrap(
-            spacing: 6,
-            runSpacing: 6,
+            spacing: context.tt.iconTextGap,
+            runSpacing: context.tt.iconTextGap,
             children: [
               for (final value in _kRangeScores)
                 ChoiceChip(
@@ -167,6 +184,7 @@ class _RoomPollCardState extends State<RoomPollCard> {
   }
 
   Widget _buildVotedRow(
+    BuildContext context,
     ThemeData theme,
     RoomPollVariant v,
     bool showVoters,
@@ -192,10 +210,13 @@ class _RoomPollCardState extends State<RoomPollCard> {
       decoration: isMine
           ? BoxDecoration(
               color: cs.primaryContainer.withValues(alpha: 0.4),
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(context.tt.buttonRadius),
             )
           : null,
-      padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 4),
+      padding: EdgeInsets.symmetric(
+        vertical: context.tt.tightGap * 2,
+        horizontal: context.tt.tightGap * 2,
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -217,7 +238,7 @@ class _RoomPollCardState extends State<RoomPollCard> {
                 )
               else
                 Icon(Icons.bar_chart, size: 20, color: cs.outline),
-              const SizedBox(width: kSpacingSmall),
+              SizedBox(width: context.tt.rowGap),
               Expanded(
                 child: Text(
                   v.description,
@@ -233,16 +254,16 @@ class _RoomPollCardState extends State<RoomPollCard> {
                   fontWeight: isMine ? FontWeight.w600 : FontWeight.normal,
                 ),
               ),
-              const SizedBox(width: 4),
+              SizedBox(width: context.tt.tightGap * 2),
               Text(
                 '(${v.votesCount})',
                 style: theme.textTheme.bodySmall?.copyWith(color: cs.outline),
               ),
             ],
           ),
-          const SizedBox(height: 4),
+          SizedBox(height: context.tt.tightGap * 2),
           ClipRRect(
-            borderRadius: BorderRadius.circular(4),
+            borderRadius: BorderRadius.circular(TenturaRadii.accentBar),
             child: LinearProgressIndicator(
               value: pct,
               minHeight: 4,
@@ -253,8 +274,9 @@ class _RoomPollCardState extends State<RoomPollCard> {
             ),
           ),
           if (showVoters && v.voterIds != null && v.voterIds!.isNotEmpty) ...[
-            const SizedBox(height: 4),
+            SizedBox(height: context.tt.tightGap * 2),
             _buildVoterAvatarsWrap(
+              context: context,
               theme: theme,
               voterIds: v.voterIds!,
               participantsByUserId: participantsByUserId,
@@ -282,6 +304,7 @@ class _RoomPollCardState extends State<RoomPollCard> {
   }
 
   Widget _buildVoterAvatarsWrap({
+    required BuildContext context,
     required ThemeData theme,
     required List<String> voterIds,
     required Map<String, BeaconParticipant> participantsByUserId,
@@ -290,8 +313,8 @@ class _RoomPollCardState extends State<RoomPollCard> {
     final shown = voterIds.take(_kMaxShownVoterAvatars).toList();
     final overflow = voterIds.length - shown.length;
     return Wrap(
-      spacing: 4,
-      runSpacing: 2,
+      spacing: context.tt.tightGap * 2,
+      runSpacing: context.tt.tightGap,
       crossAxisAlignment: WrapCrossAlignment.center,
       children: [
         for (final uid in shown)
@@ -351,7 +374,7 @@ class _RoomPollCardState extends State<RoomPollCard> {
     return Card.outlined(
       margin: EdgeInsets.zero,
       child: Padding(
-        padding: const EdgeInsets.all(kSpacingMedium),
+        padding: context.tt.cardPadding,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -360,7 +383,10 @@ class _RoomPollCardState extends State<RoomPollCard> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Padding(
-                  padding: const EdgeInsets.only(right: kSpacingSmall, top: 2),
+                  padding: EdgeInsets.only(
+                    right: context.tt.rowGap,
+                    top: context.tt.tightGap,
+                  ),
                   child: Icon(Icons.poll, size: 18, color: cs.primary),
                 ),
                 Expanded(
@@ -373,7 +399,7 @@ class _RoomPollCardState extends State<RoomPollCard> {
                 ),
               ],
             ),
-            const SizedBox(height: kSpacingSmall),
+            SizedBox(height: context.tt.rowGap),
 
             // Poll controls stay out of the focus tree so they do not hold
             // primary focus after interaction. A focused Slider FocusNode can
@@ -385,8 +411,9 @@ class _RoomPollCardState extends State<RoomPollCard> {
                   children: [
                     ...poll.variants.map(
                       (v) => Padding(
-                        padding: const EdgeInsets.only(top: 6),
+                        padding: EdgeInsets.only(top: context.tt.iconTextGap),
                         child: _buildVotedRow(
+                          context,
                           theme,
                           v,
                           showVoters,
@@ -404,24 +431,31 @@ class _RoomPollCardState extends State<RoomPollCard> {
                   children: [
                     ...poll.variants.map(
                       (v) => Padding(
-                        padding: const EdgeInsets.only(top: 6),
+                        padding: EdgeInsets.only(top: context.tt.iconTextGap),
                         child: switch (poll.pollType) {
                           PollType.multiple => _buildMultipleUnvoted(
+                            context,
                             theme,
                             v.id,
                             v.description,
                           ),
                           PollType.range => _buildRangeUnvoted(
+                            context,
                             theme,
                             v.id,
                             v.description,
                           ),
-                          _ => _buildSingleUnvoted(theme, v.id, v.description),
+                          _ => _buildSingleUnvoted(
+                            context,
+                            theme,
+                            v.id,
+                            v.description,
+                          ),
                         },
                       ),
                     ),
                     if (poll.pollType != PollType.single) ...[
-                      const SizedBox(height: kSpacingSmall),
+                      SizedBox(height: context.tt.rowGap),
                       FilledButton(
                         onPressed: switch (poll.pollType) {
                           PollType.multiple when _pendingMultiple.isNotEmpty =>
@@ -454,7 +488,7 @@ class _RoomPollCardState extends State<RoomPollCard> {
                 ),
               ),
 
-            const SizedBox(height: kSpacingSmall),
+            SizedBox(height: context.tt.rowGap),
 
             // Footer: vote count + revote button
             Row(

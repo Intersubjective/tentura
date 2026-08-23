@@ -77,8 +77,8 @@ class ForwardScopeLinks extends StatelessWidget {
                         child: DecoratedBox(
                           decoration: BoxDecoration(
                             color: active ? activeColor : Colors.transparent,
-                            borderRadius: const BorderRadius.vertical(
-                              top: Radius.circular(1),
+                            borderRadius: BorderRadius.vertical(
+                              top: Radius.circular(tt.tightGap / 2),
                             ),
                           ),
                           child: const SizedBox.expand(),

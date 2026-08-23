@@ -1742,6 +1742,7 @@ class MockBeaconRoomRepositoryPort extends _i1.Mock
     int? semanticMarker,
     Map<String, Object?>? systemPayload,
     List<String>? mentions = const [],
+    List<Map<String, Object?>>? mentionSpans = const [],
   }) =>
       (super.noSuchMethod(
             Invocation.method(#insertRoomMessage, [], {
@@ -1755,6 +1756,7 @@ class MockBeaconRoomRepositoryPort extends _i1.Mock
               #semanticMarker: semanticMarker,
               #systemPayload: systemPayload,
               #mentions: mentions,
+              #mentionSpans: mentionSpans,
             }),
             returnValue: _i3.Future<_i22.BeaconRoomMessageRecord>.value(
               _i10.dummyValue<_i22.BeaconRoomMessageRecord>(
@@ -1770,6 +1772,7 @@ class MockBeaconRoomRepositoryPort extends _i1.Mock
                   #semanticMarker: semanticMarker,
                   #systemPayload: systemPayload,
                   #mentions: mentions,
+                  #mentionSpans: mentionSpans,
                 }),
               ),
             ),
@@ -1926,6 +1929,18 @@ class MockBeaconRoomRepositoryPort extends _i1.Mock
             returnValue: _i3.Future<List<String>>.value(<String>[]),
           )
           as _i3.Future<List<String>>);
+
+  @override
+  _i3.Future<List<_i22.AdmittedRoomMentionParticipant>>
+  listAdmittedMentionParticipants(String? beaconId) =>
+      (super.noSuchMethod(
+            Invocation.method(#listAdmittedMentionParticipants, [beaconId]),
+            returnValue:
+                _i3.Future<List<_i22.AdmittedRoomMentionParticipant>>.value(
+                  <_i22.AdmittedRoomMentionParticipant>[],
+                ),
+          )
+          as _i3.Future<List<_i22.AdmittedRoomMentionParticipant>>);
 
   @override
   _i3.Future<List<Map<String, Object?>>> listMessagesEnriched({
@@ -2115,12 +2130,14 @@ class MockBeaconRoomRepositoryPort extends _i1.Mock
     required String? messageId,
     required String? newBody,
     required List<String>? mentions,
+    required List<Map<String, Object?>>? mentionSpans,
   }) =>
       (super.noSuchMethod(
             Invocation.method(#updateMessage, [], {
               #messageId: messageId,
               #newBody: newBody,
               #mentions: mentions,
+              #mentionSpans: mentionSpans,
             }),
             returnValue: _i3.Future<void>.value(),
             returnValueForMissingStub: _i3.Future<void>.value(),

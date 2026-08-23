@@ -150,12 +150,22 @@ fi
 cd "$CLIENT_DIR"
 FAILED=()
 for target in "${TARGETS[@]}"; do
-  log "=== flutter drive: $target"
+  browser_dimension="${BROWSER_DIMENSION:-1600x1024}"
+  if [[ -z "${BROWSER_DIMENSION:-}" && \
+        "$target" == "integration_test/request_threads_navigation_test.dart" ]]; then
+    # This journey asserts the compact nested-route/browser-history contract.
+    # WidgetTester.setSurfaceSize is not a valid substitute on Flutter Web: it
+    # constrains the render surface while MediaQuery retains the real browser
+    # viewport, producing an impossible mixed window class/layout.
+    browser_dimension="390x844"
+  fi
+  log "=== flutter drive: $target (browser $browser_dimension)"
   if flutter drive \
     --driver=test_driver/integration_test.dart \
     --target="$target" \
     -d web-server \
     --browser-name=chrome \
+    --browser-dimension="$browser_dimension" \
     --dart-define-from-file=env/integration-web.env \
     --dart-define=QA_AUTH_TOKEN="$QA_AUTH_TOKEN" \
     --dart-define=QA_INTEGRATION_TEST_MODE=true; then

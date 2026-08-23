@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'package:tentura/consts.dart';
+import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura/ui/widget/beacon_card_primitives.dart';
@@ -32,6 +33,7 @@ class InboxTombstoneCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = L10n.of(context)!;
     final theme = Theme.of(context);
+    final tt = context.tt;
     final scheme = theme.colorScheme;
     final isDeleted = item.status == InboxItemStatus.deletedBeforeResponse;
     final contextLabel =
@@ -88,13 +90,13 @@ class InboxTombstoneCard extends StatelessWidget {
                     ),
                   ),
                   Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 12,
-                      vertical: 4,
+                    padding: EdgeInsets.symmetric(
+                      horizontal: tt.avatarTextGap,
+                      vertical: tt.tightGap * 2,
                     ),
                     decoration: BoxDecoration(
                       color: scheme.surfaceContainerHighest,
-                      borderRadius: BorderRadius.circular(999),
+                      borderRadius: BorderRadius.circular(TenturaRadii.avatar),
                     ),
                     child: Text(
                       pillLabel,
@@ -108,7 +110,7 @@ class InboxTombstoneCard extends StatelessWidget {
                 ],
               ),
               Padding(
-                padding: const EdgeInsets.symmetric(vertical: 16),
+                padding: EdgeInsets.symmetric(vertical: tt.screenHPadding),
                 child: Divider(
                   height: 1,
                   color: scheme.outlineVariant.withValues(alpha: 0.35),
@@ -130,7 +132,7 @@ class InboxTombstoneCard extends StatelessWidget {
                       size: 22,
                     ),
                   ),
-                  const SizedBox(width: 12),
+                  SizedBox(width: tt.avatarTextGap),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -142,7 +144,7 @@ class InboxTombstoneCard extends StatelessWidget {
                             color: scheme.onSurfaceVariant,
                           ),
                         ),
-                        const SizedBox(height: 4),
+                        SizedBox(height: tt.tightGap * 2),
                         Text(
                           messageBody,
                           style: theme.textTheme.bodySmall?.copyWith(
@@ -157,15 +159,15 @@ class InboxTombstoneCard extends StatelessWidget {
                   ),
                 ],
               ),
-              const SizedBox(height: 16),
+              SizedBox(height: tt.screenHPadding),
               Row(
                 children: [
                   FilledButton.tonal(
                     onPressed: onDismiss,
                     style: FilledButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 16,
-                        vertical: 10,
+                      padding: EdgeInsets.symmetric(
+                        horizontal: tt.screenHPadding,
+                        vertical: tt.cardGap,
                       ),
                       textStyle: theme.textTheme.labelLarge?.copyWith(
                         fontWeight: FontWeight.w700,

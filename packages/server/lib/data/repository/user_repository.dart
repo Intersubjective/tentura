@@ -8,6 +8,7 @@ import 'package:tentura_server/domain/entity/account_credential_entity.dart';
 import 'package:tentura_server/domain/entity/asserted_contact.dart';
 import 'package:tentura_server/domain/entity/user_entity.dart';
 import 'package:tentura_server/domain/exception.dart';
+import 'package:tentura_server/domain/invite/invite_origin.dart';
 import 'package:tentura_server/domain/port/invite_genealogy_repository_port.dart';
 import 'package:tentura_server/domain/port/invite_seed_prompt_port.dart';
 import 'package:tentura_server/domain/port/trust_evidence_repository_port.dart';
@@ -177,9 +178,17 @@ class UserRepository implements UserRepositoryPort {
       ),
     );
     await _createDeviceCredential(accountId: user.id, publicKey: publicKey);
-    final changedRowCount = await _database.managers.invitations
-        .filter((e) => e.id(invitationId))
-        .update((o) => o(invitedId: Value(user.id)));
+    final changedRowCount =
+        await (_database.update(_database.invitations)..where(
+              (t) => t.id.equals(invitationId) & t.invitedId.isNull(),
+            ))
+            .write(
+              InvitationsCompanion(
+                invitedId: Value(user.id),
+                inviteOrigin: Value(InviteOrigin.newAccount.key),
+                acceptedAt: Value(PgDateTime(DateTime.timestamp())),
+              ),
+            );
     if (changedRowCount == 0) {
       throw const InvitationWrongException(
         description: 'Can`t update invitation!',
@@ -337,9 +346,17 @@ class UserRepository implements UserRepositoryPort {
       publicData: publicData,
       contacts: contacts,
     );
-    final changedRowCount = await _database.managers.invitations
-        .filter((e) => e.id(invitationId))
-        .update((o) => o(invitedId: Value(user.id)));
+    final changedRowCount =
+        await (_database.update(_database.invitations)..where(
+              (t) => t.id.equals(invitationId) & t.invitedId.isNull(),
+            ))
+            .write(
+              InvitationsCompanion(
+                invitedId: Value(user.id),
+                inviteOrigin: Value(InviteOrigin.newAccount.key),
+                acceptedAt: Value(PgDateTime(DateTime.timestamp())),
+              ),
+            );
     if (changedRowCount == 0) {
       throw const InvitationWrongException(
         description: 'Can`t update invitation!',
@@ -838,6 +855,24 @@ class UserRepository implements UserRepositoryPort {
       throw const InvitationWrongException(description: 'Invitation expired!');
     }
 
+    // Claim the row first, atomically — everything below is a side effect
+    // of a *successful* claim. A losing racer must get none of it (no
+    // contact/forward/vote/trust-edge writes for an accept that didn't win).
+    final changedRowCount =
+        await (_database.update(_database.invitations)..where(
+              (t) => t.id.equals(invitationId) & t.invitedId.isNull(),
+            ))
+            .write(
+              InvitationsCompanion(
+                invitedId: Value(userId),
+                inviteOrigin: Value(InviteOrigin.existingAccount.key),
+                acceptedAt: Value(PgDateTime(DateTime.timestamp())),
+              ),
+            );
+    if (changedRowCount == 0) {
+      return false;
+    }
+
     await _upsertInviteContact(
       viewerId: invitation.userId,
       subjectId: userId,
@@ -852,10 +887,6 @@ class UserRepository implements UserRepositoryPort {
         parentForwardEdgeId: invitation.parentForwardEdgeId,
       );
     }
-
-    final invitationsDeletedCount = await _database.managers.invitations
-        .filter((e) => e.id(invitationId))
-        .delete();
 
     if (bindFriendship) {
       await _database.managers.voteUsers.bulkCreate(
@@ -872,7 +903,7 @@ class UserRepository implements UserRepositoryPort {
       );
     }
 
-    return invitationsDeletedCount == 1;
+    return true;
   });
 
   Future<void> _applyReciprocalTrustEdges({

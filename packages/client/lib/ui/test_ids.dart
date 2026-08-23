@@ -8,6 +8,7 @@ abstract final class TestIds {
   static const requestRecipientsTab = 'request.tab.recipients';
 
   static const forwardInviteNewPerson = 'forward.invite_new_person';
+  static const forwardClearSelection = 'forward.clear_selection';
   static const forwardNote = 'forward.note';
   static const forwardSubmit = 'forward.submit';
 
@@ -25,6 +26,20 @@ abstract final class TestIds {
   /// Stable Updates feed row identity for integration and WebDriver proofs.
   static String updatesReceipt(String receiptId) =>
       'updates-receipt-$receiptId';
+
+  static const inviteAcceptedSetupOpen = 'invite_accepted.setup.open';
+  static const inviteAcceptedSetupRetry = 'invite_accepted.setup.retry';
+  static const inviteAcceptedSetupModal = 'invite_accepted.setup.modal';
+  static const inviteAcceptedSetupClose = 'invite_accepted.setup.close';
+  static const inviteAcceptedSetupDragHandle =
+      'invite_accepted.setup.drag_handle';
+  static const inviteAcceptedSetupChangePrivateName =
+      'invite_accepted.setup.change_private_name';
+  static const inviteAcceptedSetupPrivateName =
+      'invite_accepted.setup.private_name';
+  static const inviteAcceptedSetupSave = 'invite_accepted.setup.save';
+  static const inviteAcceptedSetupSkip = 'invite_accepted.setup.skip';
+  static const inviteAcceptedSetupError = 'invite_accepted.setup.error';
 
   static const helpOfferSearch = 'help_offer.search';
   static const helpOfferMessage = 'help_offer.message';

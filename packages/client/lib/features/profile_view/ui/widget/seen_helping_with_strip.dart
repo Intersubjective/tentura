@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'package:tentura/domain/capability/capability_tag.dart';
 import 'package:tentura/domain/capability/tag_projection.dart';
+import 'package:tentura/ui/utils/capability_tag_presenter.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
 /// Compact single-line strip showing "Seen helping with: Transport · Pets · …".

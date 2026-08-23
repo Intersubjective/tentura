@@ -161,6 +161,7 @@ List<BeaconHudMetadataEntry> buildBeaconViewHudMetadataEntries(
   required double rowWidth,
   required BeaconViewState state,
   VoidCallback? onEditNowLine,
+  VoidCallback? onReviewAuthorOffers,
 }) {
   final l10n = L10n.of(context)!;
   final tt = context.tt;
@@ -229,10 +230,16 @@ List<BeaconHudMetadataEntry> buildBeaconViewHudMetadataEntries(
   );
 
   if (isBeaconYouRowVisible(input: situationInput)) {
+    final hasAuthorReviewObligation =
+        state.isAuthorOrSteward && authorUnreviewedHelpOfferCount > 0;
     entries.add(
       BeaconHudMetadataEntry(
         icon: BeaconHudRowIcons.you,
         semanticsLabel: l10n.beaconHudYouLabel,
+        onTap: hasAuthorReviewObligation ? onReviewAuthorOffers : null,
+        semanticsValue: hasAuthorReviewObligation
+            ? l10n.beaconHudYouAuthorReview(authorUnreviewedHelpOfferCount)
+            : null,
         body: BeaconYouResponsibilityLine(
           beacon: beacon,
           responsibility: youResponsibility,
