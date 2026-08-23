@@ -516,7 +516,7 @@ class _ForwardRowCheckbox extends StatelessWidget {
                 height: 20,
                 decoration: BoxDecoration(
                   color: isSelected && enabled ? tt.info : Colors.transparent,
-                  borderRadius: BorderRadius.circular(4),
+                  borderRadius: BorderRadius.circular(TenturaRadii.accentBar),
                   border: Border.all(color: borderColor),
                 ),
                 child: isSelected && enabled

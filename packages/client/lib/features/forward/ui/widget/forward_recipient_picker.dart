@@ -158,7 +158,6 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
     required ForwardCubit cubit,
     required Set<String> uncoveredIds,
   }) async {
-    final l10n = L10n.of(context)!;
     final names = <String>[];
     for (final id in uncoveredIds) {
       ForwardCandidate? match;
@@ -303,11 +302,10 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
                     Expanded(
                       child: ListView(
                         controller: scrollController,
-                        padding: EdgeInsets.fromLTRB(
-                          modalTt.screenHPadding,
-                          0,
-                          modalTt.screenHPadding,
-                          modalTt.sectionGap,
+                        padding: EdgeInsets.only(
+                          left: modalTt.screenHPadding,
+                          right: modalTt.screenHPadding,
+                          bottom: modalTt.sectionGap,
                         ),
                         children: [
                           CapabilityChipSet(
@@ -905,7 +903,7 @@ class ForwardEditPanel extends StatelessWidget {
   }
 }
 
-enum _UncoveredSheetResult { sent, dismissed }
+enum _UncoveredSheetResult { sent }
 
 class _UncoveredRecipientsSheet extends StatefulWidget {
   const _UncoveredRecipientsSheet({

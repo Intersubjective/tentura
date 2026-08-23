@@ -71,7 +71,10 @@ class _ForwardSearchOverlayState extends State<ForwardSearchOverlay> {
     required MaterialLocalizations mat,
   }) {
     return Padding(
-      padding: EdgeInsets.only(left: 4, right: tt.screenHPadding),
+      padding: EdgeInsets.only(
+        left: tt.tightGap * 2,
+        right: tt.screenHPadding,
+      ),
       child: SizedBox(
         height: 48,
         child: Row(
