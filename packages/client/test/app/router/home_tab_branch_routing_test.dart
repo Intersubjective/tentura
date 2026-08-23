@@ -254,7 +254,7 @@ void main() {
     expect(router.navigationHistory.urlState.url, '/profile/view/U2');
   });
 
-  testWidgets('legacy detail retains explicit tab and canonicalizes URL', (
+  testWidgets('unsupported /home/<tab>/<detail> URL falls back to Home', (
     tester,
   ) async {
     await pumpRouter(
@@ -263,9 +263,9 @@ void main() {
     );
 
     final tabs = router.innerRouterOf<TabsRouter>(HomeRoute.name)!;
-    expect(tabs.activeIndex, HomeTabSpec.forTab(HomeTab.inbox).index);
-    expect(router.stackData.last.name, ProfileViewRoute.name);
-    expect(router.navigationHistory.urlState.url, '/profile/view/U2');
+    expect(tabs.activeIndex, HomeTabSpec.forTab(HomeTab.work).index);
+    expect(router.stackData.last.name, HomeRoute.name);
+    expect(router.navigationHistory.urlState.url, '/home/work');
   });
 
   testWidgets('Profile to Graph to Profile pops in reverse order', (

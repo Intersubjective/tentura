@@ -179,7 +179,7 @@ final class AuthCase extends UseCaseBase {
                 inviterUserId: invitation.issuer.id,
                 accepterUserId: user.id,
                 accepterDisplayName: user.displayName,
-                actionUrl: '/#/shared/view?id=${user.id}',
+                actionUrl: '/#/profile/view/${user.id}',
                 inviteOrigin: 'new_account',
                 accepterHandle: user.handle,
               ),

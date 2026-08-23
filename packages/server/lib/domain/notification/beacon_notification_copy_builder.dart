@@ -275,17 +275,21 @@ class BeaconNotificationCopyBuilder {
   String _actionUrl(BeaconNotificationIntent intent) {
     final id = intent.beaconId;
     final item = intent.coordinationItemId;
-    final itemParam = item != null && item.isNotEmpty ? '&item=$item' : '';
+    final thread = item != null && item.isNotEmpty ? item : 'general';
+    final peopleUrl =
+        '/#$kPathBeaconView/$id?tab=people&entry=deep_link&is_deep_link=true';
+    final roomUrl =
+        '/#$kPathBeaconView/$id?tab=threads&thread=$thread'
+        '&entry=deep_link&is_deep_link=true';
+    final genericUrl = '/#$kPathBeaconView/$id?is_deep_link=true';
 
     return switch (intent.kind) {
       NotificationKind.reviewReady => '/#$kPathReviewContributions/$id',
-      NotificationKind.commitmentEvent =>
-        '/#$kPathAppLinkView?id=$id&dest=people',
+      NotificationKind.commitmentEvent => peopleUrl,
       NotificationKind.commitmentDeclined ||
       NotificationKind.commitmentRemoved ||
-      NotificationKind.commitmentReleased =>
-        '/#$kPathAppLinkView?id=$id&dest=people',
-      NotificationKind.newRelay => '/#$kPathAppLinkView?id=$id',
+      NotificationKind.commitmentReleased => peopleUrl,
+      NotificationKind.newRelay => genericUrl,
       NotificationKind.inviteAccepted => '/#/',
       NotificationKind.roomAccess ||
       NotificationKind.needsMe ||
@@ -299,10 +303,9 @@ class BeaconNotificationCopyBuilder {
       NotificationKind.commitmentAccepted ||
       NotificationKind.commitmentResolved ||
       NotificationKind.commitmentCancelled ||
-      NotificationKind.commitmentRedirected =>
-        '/#$kPathAppLinkView?id=$id&dest=room$itemParam',
+      NotificationKind.commitmentRedirected => roomUrl,
       NotificationKind.deadlineChanged ||
-      NotificationKind.deadlineReminder => '/#$kPathAppLinkView?id=$id',
+      NotificationKind.deadlineReminder => genericUrl,
     };
   }
 }

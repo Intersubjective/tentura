@@ -358,7 +358,9 @@ class AttentionIntentCase {
       body: reminder
           ? 'Deadline: $deadlineText'
           : 'Deadline changed from $oldValue to $deadlineText',
-      actionUrl: '/#/shared/view?id=${Uri.encodeQueryComponent(beaconId)}',
+      actionUrl:
+          '/#$kPathBeaconView/${Uri.encodeQueryComponent(beaconId)}'
+          '?is_deep_link=true',
       collapseKey: AttentionCollapseKey.none(sourceEventKey),
       beaconId: beaconId,
       recipients: recipients,
@@ -500,8 +502,7 @@ class AttentionIntentCase {
         beaconTitle: beaconTitle,
         direction: direction,
       ),
-      actionUrl:
-          '/#/shared/view?id=${Uri.encodeQueryComponent(evaluatedUserId)}',
+      actionUrl: '/#/profile/view/${Uri.encodeQueryComponent(evaluatedUserId)}',
       collapseKey: AttentionCollapseKey.family(
         'trust_given',
         [beaconId, evaluatorId, evaluatedUserId],
@@ -707,9 +708,11 @@ class AttentionIntentCase {
     }
     final encodedBeacon = Uri.encodeQueryComponent(beaconId);
     final encodedMessage = Uri.encodeQueryComponent(messageId);
-    final itemParam = threadItemId == null || threadItemId.isEmpty
-        ? ''
-        : '&item=${Uri.encodeQueryComponent(threadItemId)}';
+    final encodedThread = Uri.encodeQueryComponent(
+      threadItemId != null && threadItemId.isNotEmpty
+          ? threadItemId
+          : 'general',
+    );
     final safeExcerpt = notificationExcerpt(excerpt);
     final title = titleIsActorName && actorName.isNotEmpty
         ? actorName
@@ -728,7 +731,8 @@ class AttentionIntentCase {
       title: title,
       body: body,
       actionUrl:
-          '/#/shared/view?id=$encodedBeacon&dest=room&message=$encodedMessage$itemParam',
+          '/#$kPathBeaconView/$encodedBeacon?tab=threads&thread=$encodedThread'
+          '&entry=deep_link&is_deep_link=true&message=$encodedMessage',
       collapseKey: AttentionCollapseKey.none(sourceEventKey),
       recipients: recipients,
       beaconId: beaconId,
@@ -827,7 +831,9 @@ class AttentionIntentCase {
       body: actorName == null || actorName.isEmpty
           ? 'Request moved from $transition'
           : '$actorName moved the request from $transition',
-      actionUrl: '/#/shared/view?id=${Uri.encodeQueryComponent(beaconId)}',
+      actionUrl:
+          '/#$kPathBeaconView/${Uri.encodeQueryComponent(beaconId)}'
+          '?is_deep_link=true',
       collapseKey: AttentionCollapseKey.none(sourceEventKey),
       recipients: recipients,
       beaconId: beaconId,
@@ -855,7 +861,7 @@ class AttentionIntentCase {
       body: actorName.isEmpty
           ? 'You are now connected on Tentura.'
           : 'You and $actorName are now connected.',
-      actionUrl: '/#/shared/view?id=${Uri.encodeQueryComponent(actorUserId)}',
+      actionUrl: '/#/profile/view/${Uri.encodeQueryComponent(actorUserId)}',
       collapseKey: AttentionCollapseKey.none(sourceEventKey),
       recipients: blocked
           ? const []

@@ -52,15 +52,13 @@ class BeaconDetailsFactsAccessRow extends StatelessWidget {
           return Semantics(
             button: true,
             label: label,
-            child: InkWell(
+            child: TenturaTechCard(
               key: ValueKey(testId),
+              padding: EdgeInsets.zero,
+              showShadow: true,
+              borderOverride: tt.borderSubtle,
               onTap: onTap,
-              borderRadius: BorderRadius.circular(tt.cardRadius),
-              child: Container(
-                decoration: BoxDecoration(
-                  border: Border.all(color: tt.borderSubtle),
-                  borderRadius: BorderRadius.circular(tt.cardRadius),
-                ),
+              child: Padding(
                 padding: const EdgeInsets.symmetric(
                   horizontal: TenturaSpacing.cardPadding,
                   vertical: TenturaSpacing.row,

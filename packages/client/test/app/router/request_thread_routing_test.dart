@@ -149,4 +149,35 @@ void main() {
       hasLength(1),
     );
   });
+
+  testWidgets('root request query remains a request URL', (tester) async {
+    tester.binding.platformDispatcher.defaultRouteNameTestValue =
+        '/beacon/view/B1?tab=threads&thread=general&entry=my_work';
+    addTearDown(
+      tester.binding.platformDispatcher.clearDefaultRouteNameTestValue,
+    );
+    await tester.pumpWidget(
+      MaterialApp.router(
+        routerConfig: router.config(
+          deepLinkBuilder: router.deepLinkBuilder,
+          deepLinkTransformer: router.deepLinkTransformer,
+          reevaluateListenable: router.reevaluateListenable,
+          includePrefixMatches: false,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final url = Uri.parse(router.navigationHistory.urlState.url);
+    expect(url.path, '/beacon/view/B1');
+    expect(url.queryParameters, {
+      'tab': 'threads',
+      'thread': 'general',
+      'entry': 'my_work',
+    });
+    expect(router.stackData.map((data) => data.name), [
+      HomeRoute.name,
+      BeaconViewRoute.name,
+    ]);
+  });
 }

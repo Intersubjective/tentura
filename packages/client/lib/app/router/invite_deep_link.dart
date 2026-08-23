@@ -21,18 +21,3 @@ Uri transformInviteDeepLink({
     queryParameters: {kQueryIsDeepLink: 'true'},
   );
 }
-
-/// Maps `/shared/view?id=I…` invite ids to explicit signup or accept routes.
-Uri transformSharedViewInviteDeepLink({
-  required Uri uri,
-  required String id,
-  required bool isAuthenticated,
-}) {
-  final normalizedId = normalizeInviteCode(id);
-  return uri.replace(
-    path: isAuthenticated
-        ? '$kPathAcceptInvite/$normalizedId'
-        : '$kPathSignUp/$normalizedId',
-    queryParameters: {kQueryIsDeepLink: 'true'},
-  );
-}

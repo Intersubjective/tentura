@@ -548,7 +548,7 @@ void main() {
 
         final intent = attention.recorded.single;
         expect(intent.coordinationItemId, _threadItemId);
-        expect(intent.actionUrl, contains('item=$_threadItemId'));
+        expect(intent.actionUrl, contains('thread=$_threadItemId'));
         expect(intent.recipients.single.recipientId, _otherUserId);
       },
     );

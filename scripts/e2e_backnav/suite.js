@@ -170,30 +170,6 @@ async (page) => {
     expectEq(await hash(), '#/home/profile', 'back to profile tab');
   });
 
-  await scenario('D3 legacy /beacon/room/:id redirect (desktop: split pane)', async () => {
-    await boot(`#/beacon/room/${BEACON}`, desktop);
-    const h = await hash();
-    expectMatch(h, BEACON_VIEW_RE, 'redirected to view');
-    // Desktop >=840 strips tab=room and derives the Phase 1 split instead;
-    // the room pane must be live (composer Attach affordance present).
-    const attach = (await page.getByRole('button', { name: 'Attach' }).count()) > 0;
-    if (!attach) throw new Error('room pane not visible after legacy room link');
-  });
-
-  await scenario('C0 compact legacy /beacon/room/:id keeps tab=room', async () => {
-    await boot(`#/beacon/room/${BEACON}`, compact);
-    const h = await hash();
-    expectMatch(h, BEACON_VIEW_RE, 'redirected to view');
-    expectMatch(h, /tab=room/, 'room tab preserved on compact');
-    const attach = (await page.getByRole('button', { name: 'Attach' }).count()) > 0;
-    if (!attach) throw new Error('room surface not visible on compact legacy room link');
-  });
-
-  await scenario('D4 legacy /beacon/:id redirect', async () => {
-    await boot(`#/beacon/${BEACON}`, desktop);
-    expectMatch(await hash(), BEACON_VIEW_RE, 'redirected to view');
-  });
-
   await scenario('D5 refresh mid-stack: leading back falls back home', async () => {
     await boot(`#/beacon/view/${BEACON}?entry=my_work`, desktop);
     expectMatch(await hash(), BEACON_VIEW_RE, 'deep load');
@@ -206,12 +182,6 @@ async (page) => {
       await page.getByRole('button', { name: 'Back' }).first().click();
       await until(async () => /^#\/home\//.test(await hash()), 'fallback to home (retry)');
     }
-  });
-
-  await scenario('D6 notification-style /shared/view?dest=room link', async () => {
-    await boot(`#/shared/view?id=${BEACON}&dest=room`, desktop);
-    const h = await hash();
-    expectMatch(h, new RegExp(`beacon/view/${BEACON}|beacon/room/${BEACON}`), 'lands on beacon');
   });
 
   await scenario('D7 tab switch keeps home URL mapping', async () => {

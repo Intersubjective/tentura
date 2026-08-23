@@ -498,7 +498,7 @@ void main() {
       expect(attention.recorded, hasLength(2));
       expect(attention.recorded[0].recipients.single.recipientId, issuerId);
       expect(attention.recorded[0].actorUserId, 'Ustranger');
-      expect(attention.recorded[0].actionUrl, '/#/shared/view?id=Ustranger');
+      expect(attention.recorded[0].actionUrl, '/#/profile/view/Ustranger');
       expect(
         attention.recorded[1].eventType,
         AttentionEventType.mutualConnectionFormed,

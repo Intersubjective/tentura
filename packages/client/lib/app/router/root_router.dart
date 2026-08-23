@@ -14,12 +14,10 @@ import 'package:tentura/features/home/ui/bloc/post_join_navigation_cubit.dart';
 import 'package:tentura/features/settings/ui/bloc/settings_cubit.dart';
 
 import 'accept_invite_guard.dart';
-import 'beacon_legacy_path_deep_link.dart';
 import 'browse_deep_link.dart';
 import 'credential_link_deep_link.dart';
 import 'home_tab_branches.dart';
 import 'invite_deep_link.dart';
-import 'notification_deep_link.dart';
 import 'recover_route_guard.dart';
 import 'root_router.gr.dart';
 
@@ -445,29 +443,6 @@ class RootRouter extends RootStackRouter {
       path: '$kPathBeaconInvolvedAll/:id',
     ),
 
-    // Legacy `/beacon/:id` (missing `/view`) → unified beacon view.
-    AutoRoute(
-      usesPathAsKey: true,
-      page: BeaconLegacyPathRoute.page,
-      path: '/beacon/:id',
-      guards: [
-        AutoRouteGuard.redirect((resolver) {
-          final id = resolver.route.params.getString('id');
-          return BeaconViewRoute(
-            id: id,
-            isDeepLink: 'true',
-            entry: kBeaconEntryDeepLink,
-            children: [
-              BeaconViewOperationalRoute(
-                isDeepLink: 'true',
-                entry: kBeaconEntryDeepLink,
-              ),
-            ],
-          );
-        }),
-      ],
-    ),
-
     // Rating browse detail.
     AutoRoute(
       usesPathAsKey: true,
@@ -542,36 +517,7 @@ class RootRouter extends RootStackRouter {
     if (invitePath.path != uri.path) {
       return invitePath;
     }
-    final legacyBeacon = transformLegacyBeaconPath(uri);
-    if (legacyBeacon.path != uri.path) {
-      return legacyBeacon;
-    }
-    if (uri.path != kPathAppLinkView) {
-      return uri;
-    }
-    return switch (uri.queryParameters['id']) {
-      final String id when id.startsWith('B') || id.startsWith('C') =>
-        transformBeaconAppLink(uri, id),
-      final String id when id.startsWith('O') || id.startsWith('U') =>
-        uri.replace(
-          path: '$kPathProfileView/$id',
-          queryParameters: {
-            kQueryIsDeepLink: 'true',
-          },
-        ),
-      final String id when id.startsWith('I') =>
-        transformSharedViewInviteDeepLink(
-          uri: uri,
-          id: id,
-          isAuthenticated: _authCubit.state.isAuthenticated,
-        ),
-      _ => uri.replace(
-        path: kPathNetwork,
-        queryParameters: {
-          kQueryIsDeepLink: 'true',
-        },
-      ),
-    };
+    return uri;
   }
 
   /// Opens a notification [rawLink] above the current root source.
@@ -586,10 +532,7 @@ class RootRouter extends RootStackRouter {
     if (rawLink.isEmpty) return;
 
     final rawUri = _notificationUriFromRaw(rawLink);
-    final destRoom =
-        rawUri.queryParameters['dest'] == 'room' ||
-        (rawUri.path == kPathAppLinkView &&
-            rawUri.queryParameters['dest'] == 'room');
+    final destRoom = rawUri.queryParameters['dest'] == 'room';
     var normalized = _transformDeepLink(rawUri);
     if (destRoom && normalized.path.startsWith(kPathBeaconView)) {
       final query = Map<String, String>.from(normalized.queryParameters)

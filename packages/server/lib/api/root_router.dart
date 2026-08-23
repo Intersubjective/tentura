@@ -21,7 +21,6 @@ import 'controllers/qa_integration_controller.dart';
 import 'controllers/qa_send_fcm_controller.dart';
 import 'controllers/room_attachment_download_controller.dart';
 import 'controllers/session_controller.dart';
-import 'controllers/app_link_redirect_controller.dart';
 import 'http/request_log_sanitizer.dart';
 import 'middleware/auth_middleware.dart';
 
@@ -34,7 +33,6 @@ class RootRouter {
     this._graphqlController,
     this._graphiqlController,
     this._firebaseSwController,
-    this._appLinkRedirectController,
     this._roomAttachmentDownloadController,
     this._invitePreviewController,
     this._inviteAcceptExistingController,
@@ -60,8 +58,6 @@ class RootRouter {
   final GraphiqlController _graphiqlController;
 
   final FirebaseSwController _firebaseSwController;
-
-  final AppLinkRedirectController _appLinkRedirectController;
 
   final RoomAttachmentDownloadController _roomAttachmentDownloadController;
 
@@ -110,7 +106,6 @@ class RootRouter {
       ..use(sentryRequestTracing(env: _env))
       ..get('/health', () => 'I`m fine!')
       ..get('/graphiql', _graphiqlController.handler)
-      ..get(kPathAppLinkView, _appLinkRedirectController.handler)
       ..get(kPathFirebaseSwJs, _firebaseSwController.handler)
       ..get(kPathWebSocketEndpoint, _wsController.handler)
       ..post(

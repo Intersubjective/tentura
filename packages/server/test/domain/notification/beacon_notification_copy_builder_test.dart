@@ -20,20 +20,19 @@ void main() {
     int? coordinationItemKind,
     bool promiseWithdrawn = false,
     bool isBackupOffer = false,
-  }) =>
-      BeaconNotificationIntent(
-        kind: kind,
-        priority: NotificationPriority.normal,
-        beaconId: beaconId,
-        actorUserId: 'actor-1',
-        bodyExcerpt: bodyExcerpt,
-        titleExcerpt: titleExcerpt,
-        beaconTitle: beaconTitle,
-        coordinationItemId: coordinationItemId,
-        coordinationItemKind: coordinationItemKind,
-        promiseWithdrawn: promiseWithdrawn,
-        isBackupOffer: isBackupOffer,
-      );
+  }) => BeaconNotificationIntent(
+    kind: kind,
+    priority: NotificationPriority.normal,
+    beaconId: beaconId,
+    actorUserId: 'actor-1',
+    bodyExcerpt: bodyExcerpt,
+    titleExcerpt: titleExcerpt,
+    beaconTitle: beaconTitle,
+    coordinationItemId: coordinationItemId,
+    coordinationItemKind: coordinationItemKind,
+    promiseWithdrawn: promiseWithdrawn,
+    isBackupOffer: isBackupOffer,
+  );
 
   test('needsMe uses excerpt body and room deep link', () {
     final copy = builder.build(
@@ -49,7 +48,8 @@ void main() {
     expect(copy.body, 'Please review the wiring plan');
     expect(
       copy.actionUrl,
-      '/#$kPathAppLinkView?id=beacon-1&dest=room&item=item-9',
+      '/#$kPathBeaconView/beacon-1?tab=threads&thread=item-9'
+      '&entry=deep_link&is_deep_link=true',
     );
   });
 
@@ -75,7 +75,7 @@ void main() {
 
     expect(copy.title, 'Jordan');
     expect(copy.body, 'Jordan forwarded a request to you');
-    expect(copy.actionUrl, '/#$kPathAppLinkView?id=beacon-1');
+    expect(copy.actionUrl, '/#$kPathBeaconView/beacon-1?is_deep_link=true');
   });
 
   test('reviewReady uses beacon title and review route', () {
@@ -102,7 +102,7 @@ void main() {
     expect(copy.body, 'Someone offered help');
     expect(
       copy.actionUrl,
-      '/#$kPathAppLinkView?id=beacon-1&dest=people',
+      '/#$kPathBeaconView/beacon-1?tab=people&entry=deep_link&is_deep_link=true',
     );
   });
 
@@ -132,7 +132,7 @@ void main() {
     expect(copy.body, 'Someone offered to help as backup');
     expect(
       copy.actionUrl,
-      '/#$kPathAppLinkView?id=beacon-1&dest=people',
+      '/#$kPathBeaconView/beacon-1?tab=people&entry=deep_link&is_deep_link=true',
     );
   });
 

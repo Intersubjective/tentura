@@ -14,15 +14,12 @@ final class BrowseDeepLinkStack {
 
 /// Centralized typed-stack builder for mutually navigable browse details.
 ///
-/// Canonical links get a semantic Home source. Legacy `/home/<tab>/<detail>`
-/// links retain their explicit source tab while normalizing the detail URL to
-/// its canonical root path.
+/// Only canonical root detail URLs (e.g. `/beacon/view/:id`, `/graph/:id`,
+/// `/profile/view/:id`) resolve here; each gets a semantic Home source.
 BrowseDeepLinkStack? buildBrowseDeepLinkStack(Uri input) {
-  final parsed = _canonicalizeLegacy(input);
-  final resolved = _detailFor(parsed.uri);
+  final resolved = _detailFor(input);
   if (resolved == null) return null;
-  final owner = parsed.explicitOwner ?? resolved.owner;
-  final spec = HomeTabSpec.forTab(owner);
+  final spec = HomeTabSpec.forTab(resolved.owner);
   return BrowseDeepLinkStack(
     home: HomeRoute(
       children: [
@@ -31,24 +28,6 @@ BrowseDeepLinkStack? buildBrowseDeepLinkStack(Uri input) {
     ),
     detail: resolved.route,
   );
-}
-
-({Uri uri, HomeTab? explicitOwner}) _canonicalizeLegacy(Uri input) {
-  // `/home/inbox/rejected` is itself the canonical root detail path.
-  if (input.path == kPathInboxRejected) {
-    return (uri: input, explicitOwner: null);
-  }
-  for (final spec in HomeTabSpec.all) {
-    final prefix = spec.path;
-    if (!input.path.startsWith('$prefix/')) continue;
-    var suffix = input.path.substring(prefix.length);
-    if (suffix == '/inbox-rejected') suffix = kPathInboxRejected;
-    return (
-      uri: input.replace(path: suffix),
-      explicitOwner: spec.tab,
-    );
-  }
-  return (uri: input, explicitOwner: null);
 }
 
 ({HomeTab owner, PageRouteInfo route})? _detailFor(Uri uri) {

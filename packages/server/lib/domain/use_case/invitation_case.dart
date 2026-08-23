@@ -335,7 +335,7 @@ final class InvitationCase extends UseCaseBase {
                 inviterUserId: invitation.issuer.id,
                 accepterUserId: userId,
                 accepterDisplayName: accepter.displayName,
-                actionUrl: '/#/shared/view?id=$userId',
+                actionUrl: '/#/profile/view/$userId',
                 inviteOrigin: 'existing_account',
                 accepterHandle: accepter.handle,
               ),

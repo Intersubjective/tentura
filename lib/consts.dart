@@ -65,7 +65,6 @@ const int kInvitationDefaultTTL = 24 * 7;
 const kAppTitle = 'Tentura';
 
 const kPathIcons = '/icons';
-const kPathAppLinkView = '/shared/view';
 
 /// Beacon detail screen (client Auto Route).
 const kPathBeaconView = '/beacon/view';
@@ -75,6 +74,7 @@ const kPathReviewContributions = '/beacon/review';
 const kPathWebSocketEndpoint = '/api/v2/ws';
 const kPathGraphQLEndpoint = '/api/v1/graphql';
 const kPathGraphQLEndpointV2 = '/api/v2/graphql';
+
 /// Authenticated binary download for beacon room message file attachments (not images).
 const kPathRoomAttachmentDownload = '/api/v2/room-attachments';
 const kPathFirebaseSwJs = '/firebase-messaging-sw.js';

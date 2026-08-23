@@ -24,7 +24,7 @@ class ShareCodeIconButton extends StatelessWidget {
                kServerName,
              ).replace(
                queryParameters: {'id': id},
-               path: kPathAppLinkView,
+               path: '$kPathProfileView/$id',
              ),
          icon: icon,
        );
