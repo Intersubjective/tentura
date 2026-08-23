@@ -97,6 +97,9 @@ class BeaconOperationalHeaderCard extends StatelessWidget {
               rowWidth: rowWidth,
               state: state,
               onEditNowLine: onEditNowLine,
+              onReviewAuthorOffers: onAuthorHudAction == null
+                  ? null
+                  : () => onAuthorHudAction!(BeaconHudAuthorAction.reviewOffers),
             ),
           ),
           const SizedBox(height: kBeaconHudRowGap),
