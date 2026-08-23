@@ -33,5 +33,18 @@ void main() {
         ),
       ),
     );
+    final repositoryRegistration = RegExp(
+      r'gh\.lazySingleton<_i\d+\.ForwardCandidateContextRepositoryPort>',
+    ).firstMatch(config);
+    final caseRegistration = RegExp(
+      r'gh\.singleton<_i\d+\.LoadForwardCandidateContextCase>',
+    ).firstMatch(config);
+    expect(repositoryRegistration, isNotNull);
+    expect(caseRegistration, isNotNull);
+    expect(
+      repositoryRegistration!.start,
+      lessThan(caseRegistration!.start),
+      reason: 'the repository port must be registered before the eager case',
+    );
   });
 }

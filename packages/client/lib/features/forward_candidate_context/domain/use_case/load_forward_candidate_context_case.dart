@@ -4,6 +4,7 @@ import 'package:tentura/domain/use_case/use_case_base.dart';
 import '../entity/candidate_connection_context.dart';
 import '../port/forward_candidate_context_repository_port.dart';
 
+@Order(2)
 @singleton
 final class LoadForwardCandidateContextCase extends UseCaseBase {
   LoadForwardCandidateContextCase(
