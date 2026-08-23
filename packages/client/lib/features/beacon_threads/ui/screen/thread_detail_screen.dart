@@ -55,6 +55,23 @@ class _ThreadDetailScreenState extends State<ThreadDetailScreen> {
   }
 
   @override
+  void didUpdateWidget(ThreadDetailScreen oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // `ThreadDetailRoute` pages all share one Page key (no `usesPathAsKey`),
+    // so switching threads via a pop+push in the same Navigator update (e.g.
+    // `context.router.replace(ThreadDetailRoute(threadId: ...))`) updates
+    // this State in place instead of remounting it. Re-arm the once-per-
+    // instance selection guard so the new thread actually gets selected.
+    if (oldWidget.threadId != widget.threadId) {
+      _selectionStarted = false;
+      setState(() => _selectedThread = null);
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        unawaited(_ensureSelection());
+      });
+    }
+  }
+
+  @override
   void didChangeDependencies() {
     super.didChangeDependencies();
     final wc = context.windowClass;

@@ -113,10 +113,72 @@ class RootRouter extends RootStackRouter {
         ? null
         : tabs?.stackRouterOfIndex(activeIndex);
     if (branch != null) {
+      // Re-navigating to the same top-of-stack resource (e.g. a different
+      // thread/tab within the beacon we're already viewing) must update
+      // that page in place. `usesPathAsKey` gives it a matching Page key,
+      // but a plain `push` still unconditionally appends a page
+      // (StackRouter never dedupes on push) — producing two pages with the
+      // identical key, which leaves the Navigator's diffing showing stale
+      // content instead of the new one. Only a genuinely different target
+      // gets a fresh push, preserving the back-history this
+      // push-not-navigate split exists for.
+      final top = branch.stackData.lastOrNull;
+      final sameTopResource =
+          top != null &&
+          top.name == route.routeName &&
+          const MapEquality<String, dynamic>().equals(
+            top.params.rawMap,
+            route.rawPathParams,
+          );
+      // Only the outer Page's own query params (e.g. messageId, read by
+      // `_BeaconViewMessageCanonicalizer` above the nested router) need a
+      // `replace` of the top-of-stack Page; if they're unchanged, swapping
+      // it is redundant.
+      final sameTopQuery =
+          top != null &&
+          const MapEquality<String, dynamic>().equals(
+            top.queryParams.rawMap,
+            route.rawQueryParams,
+          );
       // Defer to avoid pushing while the router's RenderStack is mid-layout
       // (Flutter web can deliver early pointer events before first layout).
       scheduleMicrotask(() {
-        unawaited(branch.push(route));
+        if (sameTopResource) {
+          // `replace` swaps the top Page object (same `usesPathAsKey` key,
+          // so the host widget updates in place — this is what carries
+          // `route`'s own query fields, e.g. messageId, to it) only when
+          // those fields actually changed. Its returned Future only
+          // resolves on pop (same as `push`), so it is intentionally not
+          // awaited here. The swap alone does not reliably propagate
+          // `route.children` into the already-mounted nested router for
+          // that page — its `_pages` is separate state the parent Page
+          // swap doesn't touch. So also drive that nested router directly,
+          // mirroring how in-app thread navigation already does this
+          // successfully; deferred by one more microtask so a replace
+          // above has had a chance to update `_childControllers` first.
+          if (!sameTopQuery) {
+            unawaited(branch.replace(route));
+          }
+          final nestedChild = route.initialChildren?.firstOrNull;
+          if (nestedChild != null) {
+            void driveNested() {
+              final nested = branch.innerRouterOf<StackRouter>(
+                route.routeName,
+              );
+              if (nested != null) {
+                unawaited(nested.replace(nestedChild));
+              }
+            }
+
+            if (sameTopQuery) {
+              driveNested();
+            } else {
+              scheduleMicrotask(driveNested);
+            }
+          }
+        } else {
+          unawaited(branch.push(route));
+        }
       });
     } else {
       scheduleMicrotask(() {
@@ -466,7 +528,17 @@ class RootRouter extends RootStackRouter {
       guards: [
         AutoRouteGuard.simple((resolver, _) {
           final qp = resolver.route.queryParams;
-          final matchedChild = resolver.route.children?.firstOrNull;
+          // `goToPath`-style callers resolve with `includePrefixMatches:
+          // true`, which (with the child `AutoRoute(path: '')` operational
+          // leaf's default `fullMatch: false`) makes the matcher also emit a
+          // spurious zero-segment Operational match ahead of the real
+          // ThreadDetail one whenever the requested path has a `/thread/:id`
+          // suffix. Pick the ThreadDetail match by name rather than trusting
+          // match order.
+          final matchedChild = resolver.route.children?.firstWhereOrNull(
+                (c) => c.name == ThreadDetailRoute.name,
+              ) ??
+              resolver.route.children?.firstOrNull;
           final threadChildId = matchedChild?.params.optString('threadId');
           _forwardIntoHomeBranch(
             resolver,

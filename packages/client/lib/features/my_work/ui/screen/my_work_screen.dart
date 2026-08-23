@@ -72,11 +72,23 @@ class _MyWorkScreenState extends State<MyWorkScreen> {
               : TenturaTopBarAlignment.content,
           title: useCompactTopBar
               ? const SizedBox.shrink()
-              : const Row(
-                  children: [
-                    Expanded(child: _MyWorkFilterMenu()),
-                    _MyWorkSortButton(),
-                  ],
+              : LayoutBuilder(
+                  builder: (context, constraints) {
+                    // NavigationToolbar can leave the title slot narrower
+                    // than one control while its leading and actions are
+                    // being measured. Keep the compact custom row unchanged;
+                    // on this transient non-compact path, omit controls that
+                    // cannot retain their tap target instead of overflowing.
+                    if (constraints.maxWidth < tt.buttonHeight) {
+                      return const SizedBox.shrink();
+                    }
+                    return const Row(
+                      children: [
+                        Expanded(child: _MyWorkFilterMenu()),
+                        _MyWorkSortButton(),
+                      ],
+                    );
+                  },
                 ),
           actions: useCompactTopBar ? null : [createButton, overflowMenu],
           // NavigationToolbar balances its middle against the full trailing

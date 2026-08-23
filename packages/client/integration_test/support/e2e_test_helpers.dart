@@ -164,8 +164,13 @@ Future<void> goToPath(WidgetTester tester, String path) async {
   // tab shell is active. includePrefixMatches is required for nested paths.
   // Don't await the Future (push-like futures resolve on pop, see
   // beacon_view_screen.dart); pump until the URL reflects the navigation.
+  //
+  // A bare detail path (e.g. `/beacon/view/:id/...`) gets forwarded into the
+  // active Home tab branch (see `_forwardIntoHomeBranch` in root_router.dart)
+  // and lands at `/home/<tab>/beacon/view/:id/...` — a `/home/<tab>` prefix,
+  // not a suffix — so `startsWith` never matches; check containment instead.
   unawaited(router.navigatePath(path, includePrefixMatches: true));
-  await pumpUntil(tester, () => router.currentUrl.startsWith(path));
+  await pumpUntil(tester, () => router.currentUrl.contains(path));
   debugPrint('[e2e] goToPath($path): done (url=${router.currentUrl})');
 }
 

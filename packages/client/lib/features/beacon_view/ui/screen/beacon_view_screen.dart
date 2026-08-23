@@ -136,6 +136,12 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
       return;
     }
 
+    final parent = router.parent<StackRouter>();
+    if (parent != null && parent.canPop()) {
+      unawaited(parent.maybePop());
+      return;
+    }
+
     // In deep-linked direct detail views we still want the back button to go back.
     // However, if we pop, we would pop out of the app.
     // Since we are inside Inbox, let's navigate to Inbox Route instead.
@@ -143,20 +149,27 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
     final tab = rootRouter
         .innerRouterOf<TabsRouter>(HomeRoute.name)
         ?.activeIndex;
-    
+
     // Only route to inbox if we are actually mounted inside the inbox tab.
     // In deep link operations we could be in 'My Work' tab.
-    final isInboxTab = tab != null && tab == HomeTabSpec.forTab(HomeTab.inbox).index;
-    
+    final isInboxTab =
+        tab != null && tab == HomeTabSpec.forTab(HomeTab.inbox).index;
+
     // Similarly, we can navigate to other tabs by looking up the tab index.
-    final isUpdatesTab = tab != null && tab == HomeTabSpec.forTab(HomeTab.updates).index;
-    final isNetworkTab = tab != null && tab == HomeTabSpec.forTab(HomeTab.network).index;
-    
-    final path = isInboxTab ? kPathInbox : 
-                 isUpdatesTab ? kPathUpdates :
-                 isNetworkTab ? kPathNetwork : 
-                 kPathMyWork;
-                 
+    final isUpdatesTab =
+        tab != null && tab == HomeTabSpec.forTab(HomeTab.updates).index;
+    final isNetworkTab =
+        tab != null && tab == HomeTabSpec.forTab(HomeTab.network).index;
+
+    final path =
+        isInboxTab
+            ? kPathInbox
+            : isUpdatesTab
+            ? kPathUpdates
+            : isNetworkTab
+            ? kPathNetwork
+            : kPathMyWork;
+
     unawaited(router.root.replacePath(path));
   }
 
@@ -324,12 +337,10 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
     String? messageId,
   }) async {
     if (!isSplit) {
-      unawaited(
-        context.router.push(
-          ThreadDetailRoute(
-            threadId: thread.threadId,
-            messageId: messageId,
-          ),
+      await context.router.push(
+        ThreadDetailRoute(
+          threadId: thread.threadId,
+          messageId: messageId,
         ),
       );
       return;
@@ -662,10 +673,10 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
     required TenturaTokens tt,
     required void Function(RequestThread thread) onOpenThread,
   }) {
-    const minPane = 360.0;
     return LayoutBuilder(
       builder: (context, constraints) {
         const handleWidth = TenturaSpacing.row;
+        const minPane = 360.0;
         final threadPaneWidth = beaconViewRoomSplitPaneWidth(
           tt,
           availableWidth: constraints.maxWidth - handleWidth,
@@ -781,19 +792,25 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
 
                   return LayoutBuilder(
                     builder: (context, constraints) {
-                      final isSplit = _usesExpandedThreadSplit(
-                        showBeaconContent: showBeaconContent,
-                        threadsState: threadsState,
-                      );
+                      // The outer window can be expanded while this route is
+                      // hosted in a narrower content pane. Do not mount the
+                      // two-pane room view unless that parent can hold both
+                      // of its minimum-width panes.
+                      const minPaneWidth = 360.0;
+                      const splitHandleWidth = TenturaSpacing.row;
+                      final isSplit =
+                          constraints.maxWidth >=
+                              minPaneWidth * 2 + splitHandleWidth &&
+                          _usesExpandedThreadSplit(
+                            showBeaconContent: showBeaconContent,
+                            threadsState: threadsState,
+                          );
 
                       void onOpenThread(RequestThread thread) {
                         unawaited(() async {
                           await _openThread(
                             thread,
-                            isSplit: _usesExpandedThreadSplit(
-                              showBeaconContent: showBeaconContent,
-                              threadsState: threadsState,
-                            ),
+                            isSplit: isSplit,
                           );
                         }());
                       }
