@@ -3397,9 +3397,9 @@ type mutation_root {
   BeaconStewardPromote(beaconId: String!, stewardUserId: String!): Boolean!
   MarkThreadSeen(beaconId: String!, readThroughAt: String, threadId: String!): v2_BeaconRoomSeenResult!
   RoomMessageAttachmentAdd(beaconId: String!, file: v2_Upload = {}, messageId: String!): Boolean!
-  RoomMessageCreate(beaconId: String!, body: String!, file: v2_Upload, replyToMessageId: String, threadItemId: String): v2_RoomMessageCreatePayload!
+  RoomMessageCreate(beaconId: String!, body: String!, explicitMentionLengths: [Int!], explicitMentionOffsets: [Int!], explicitMentionUserIds: [String!], file: v2_Upload, replyToMessageId: String, threadItemId: String): v2_RoomMessageCreatePayload!
   RoomMessageDelete(beaconId: String!, messageId: String!): Boolean!
-  RoomMessageEdit(beaconId: String!, body: String!, messageId: String!): Boolean!
+  RoomMessageEdit(beaconId: String!, body: String!, explicitMentionLengths: [Int!], explicitMentionOffsets: [Int!], explicitMentionUserIds: [String!], explicitMentionsProvided: Boolean, messageId: String!): Boolean!
   RoomMessageMarkSemanticDone(beaconId: String!, messageId: String!): Boolean!
   RoomMessageReactionToggle(beaconId: String!, emoji: String!, messageId: String!): Boolean!
   RoomPollCreate(allowRevote: Boolean, beaconId: String!, isAnonymous: Boolean, pollType: String, question: String!, variants: [String!]): v2_RoomMessageRow!
@@ -4626,6 +4626,7 @@ type query_root {
   evaluationReceived(id: String!): v2_EvaluationReceived!
   evaluationSummary(id: String!): v2_EvaluationSummary!
   evaluationsWrittenAboutMeBy(id: String!): [v2_EvaluationsWrittenAboutViewerRow!]
+  forwardCandidateContext(candidateId: String!, context: String!): v2_ForwardCandidateContext!
   forwardCandidates(context: String!): [v2_user!]!
   forwardContext(beaconId: String!, context: String): [v2_v2_ForwardBandRow!]
   forwardReasonsByBeacon(id: String!): [v2_v2_ForwardReasonRow!]
@@ -7233,6 +7234,18 @@ type v2_FcmTestSendResult {
   sent: Int!
 }
 
+type v2_ForwardCandidateConnectionNode {
+  displayName: String
+  id: String
+  image: v2_image
+  kind: String!
+}
+
+type v2_ForwardCandidateContext {
+  nodes: [v2_ForwardCandidateConnectionNode!]!
+  status: String!
+}
+
 type v2_ForwardDeliveryResult {
   availabilitySkippedRecipientIds: [String!]!
   batchId: String!
@@ -7462,8 +7475,8 @@ type v2_RoomMessageRow {
   linkedItemTitle: String
   linkedItemUpdatedAt: String
   linkedPollingId: String
-  mentions: [String!]
   mentionSpansJson: String!
+  mentions: [String!]
   myReaction: String
   pollDataJson: String
   reactionsJson: String

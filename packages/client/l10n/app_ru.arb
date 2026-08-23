@@ -5140,5 +5140,22 @@
   "availabilityDatePickerTitle": "Возобновить",
   "@availabilityDatePickerTitle": {
     "description": "Title for the pause resume date picker."
-  }
+  },
+  "forwardCandidateDetailsTitle": "Сведения о получателе",
+  "forwardCandidateRelevanceHeading": "Почему это может быть уместно",
+  "forwardCandidateConnectionHeading": "Как вы связаны",
+  "forwardCandidateDirectConnection": "Прямая связь",
+  "forwardCandidateFindingPath": "Ищем путь в вашей сети…",
+  "forwardCandidateOnePath": "Один из путей в вашей сети.",
+  "forwardCandidateLongPathTitle": "Длинный сетевой путь",
+  "forwardCandidateLongPathBody": "В этом снимке сети нет компактного пути.",
+  "forwardCandidateContextUnavailable": "Сведения о связи недоступны",
+  "forwardCandidateUnavailablePerson": "Недоступный человек",
+  "forwardCandidateShowFullPath": "Показать весь путь",
+  "forwardCandidateShowLess": "Свернуть",
+  "forwardCandidateRetry": "Повторить",
+  "forwardCandidateSelect": "Выбрать",
+  "forwardCandidateRemove": "Убрать",
+  "forwardCandidateViewProfile": "Открыть полный профиль",
+  "forwardCandidateUnavailableMessage": "Этот человек больше недоступен."
 }

@@ -5371,5 +5371,22 @@
   "availabilityDatePickerTitle": "Resume on",
   "@availabilityDatePickerTitle": {
     "description": "Title for the pause resume date picker."
-  }
+  },
+  "forwardCandidateDetailsTitle": "Candidate details",
+  "forwardCandidateRelevanceHeading": "Why they may be relevant",
+  "forwardCandidateConnectionHeading": "How you're connected",
+  "forwardCandidateDirectConnection": "Direct connection",
+  "forwardCandidateFindingPath": "Finding a path through your network…",
+  "forwardCandidateOnePath": "One path through your network.",
+  "forwardCandidateLongPathTitle": "Long network path",
+  "forwardCandidateLongPathBody": "A compact path isn't available from this network snapshot.",
+  "forwardCandidateContextUnavailable": "Connection details unavailable",
+  "forwardCandidateUnavailablePerson": "Unavailable person",
+  "forwardCandidateShowFullPath": "Show full path",
+  "forwardCandidateShowLess": "Show less",
+  "forwardCandidateRetry": "Try again",
+  "forwardCandidateSelect": "Select",
+  "forwardCandidateRemove": "Remove",
+  "forwardCandidateViewProfile": "View full profile",
+  "forwardCandidateUnavailableMessage": "This person is no longer available."
 }

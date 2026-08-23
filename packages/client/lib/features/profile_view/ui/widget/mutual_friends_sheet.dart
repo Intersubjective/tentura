@@ -93,9 +93,11 @@ Future<void> showMutualFriendsSheet(
                                   ),
                             ),
                       onTap: () {
-                        final router = context.router;
+                        final router = context.router.root;
                         Navigator.of(context).pop();
-                        unawaited(router.push(ProfileViewRoute(id: profile.id)));
+                        unawaited(
+                          router.push(ProfileViewRoute(id: profile.id)),
+                        );
                       },
                     );
                   },

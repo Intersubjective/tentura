@@ -1,0 +1,18 @@
+# import '/data/gql/image_model_v2.graphql'
+
+query ForwardCandidateContextFetch(
+  $candidateId: String!
+  $context: String!
+) {
+  forwardCandidateContext(candidateId: $candidateId, context: $context) {
+    status
+    nodes {
+      kind
+      id
+      displayName
+      image {
+        ...ImageModelV2
+      }
+    }
+  }
+}

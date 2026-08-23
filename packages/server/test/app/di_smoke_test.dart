@@ -7,8 +7,10 @@ import 'package:tentura_server/app/di.dart';
 import 'package:tentura_server/domain/port/beacon_access_guard.dart';
 import 'package:tentura_server/domain/port/room_message_snapshot_lookup_port.dart';
 import 'package:tentura_server/domain/port/beacon_room_repository_port.dart';
+import 'package:tentura_server/domain/port/forward_candidate_context_repository_port.dart';
 import 'package:tentura_server/domain/use_case/beacon_room_case.dart';
 import 'package:tentura_server/domain/use_case/coordination_item/update_coordination_item_case.dart';
+import 'package:tentura_server/domain/use_case/forward_candidate_context_case.dart';
 
 import '../support/smoke_env.dart';
 
@@ -37,6 +39,11 @@ void main() {
       expect(getIt.isRegistered<BeaconRoomRepositoryPort>(), isTrue);
       expect(getIt.isRegistered<BeaconAccessGuard>(), isTrue);
       expect(getIt.isRegistered<RoomMessageSnapshotLookupPort>(), isTrue);
+      expect(
+        getIt.isRegistered<ForwardCandidateContextRepositoryPort>(),
+        isTrue,
+      );
+      expect(getIt.isRegistered<ForwardCandidateContextCase>(), isTrue);
 
       if (await smokePostgresReachable(entry.$2)) {
         await getIt.allReady();

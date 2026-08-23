@@ -7,7 +7,7 @@ void main() {
     final source = File('lib/app/router/root_router.dart').readAsStringSync();
     final acceptInviteBlock = source.substring(
       source.indexOf('page: AcceptInviteRoute.page'),
-      source.indexOf('// Profile View'),
+      source.indexOf('// Other-user profiles'),
     );
     expect(acceptInviteBlock, contains('page: AcceptInviteRoute.page'));
     expect(acceptInviteBlock, contains(r"path: '$kPathAcceptInvite/:id'"));

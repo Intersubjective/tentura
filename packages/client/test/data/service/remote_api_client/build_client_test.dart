@@ -224,5 +224,54 @@ void main() {
     test('MarkThreadSeen routes to Tentura V2', () {
       expect(isTenturaDirectOperation('MarkThreadSeen'), isTrue);
     });
+
+    test('candidate context open and Retry each use only V2', () async {
+      final paths = <String>[];
+      final client = await buildClient(
+        params: (
+          apiEndpointUrl: 'https://example.test/api/v1/graphql',
+          apiEndpointUrlV2: 'https://example.test/api/v2/graphql',
+          userAgent: 'test',
+          requestTimeout: requestTimeout,
+        ),
+        getToken: () async => null,
+        httpClient: MockClient((request) async {
+          paths.add(request.url.path);
+          return http.Response(
+            '{"data":{"forwardCandidateContext":'
+            '{"status":"longPath","nodes":[]}}}',
+            200,
+            headers: {'content-type': 'application/json'},
+          );
+        }),
+      );
+      addTearDown(client.dispose);
+      final request = operationRequest(
+        operationName: 'ForwardCandidateContextFetch',
+        document: r'''
+          query ForwardCandidateContextFetch(
+            $candidateId: String!,
+            $context: String!
+          ) {
+            forwardCandidateContext(
+              candidateId: $candidateId,
+              context: $context
+            ) { status nodes { kind id displayName } }
+          }
+        ''',
+        vars: const {'candidateId': 'U2', 'context': 'personal'},
+      );
+
+      await client
+          .request(request)
+          .firstWhere((event) => event.dataSource == DataSource.Link);
+      expect(paths, ['/api/v2/graphql']);
+
+      await client
+          .request(request)
+          .firstWhere((event) => event.dataSource == DataSource.Link);
+      expect(paths, ['/api/v2/graphql', '/api/v2/graphql']);
+      expect(paths.where((path) => path == '/api/v1/graphql'), isEmpty);
+    });
   });
 }

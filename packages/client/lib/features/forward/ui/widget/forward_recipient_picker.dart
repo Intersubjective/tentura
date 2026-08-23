@@ -13,6 +13,7 @@ import 'package:tentura/features/capability/ui/widget/capability_chip_set.dart';
 import 'package:tentura/features/forward/domain/entity/forward_candidate.dart';
 import 'package:tentura/features/forward/domain/invite_new_person_enabled.dart';
 import 'package:tentura/features/forward/domain/forward_draft_policy.dart';
+import 'package:tentura/features/forward_candidate_context/ui/widget/forward_candidate_context_sheet.dart';
 import 'package:tentura/features/invitation/ui/bloc/invitation_cubit.dart';
 import 'package:tentura/ui/dialog/share_code_dialog.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
@@ -582,8 +583,7 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
                                         cubit.setRecipientNote,
                                     skippedPersonalNoteIds:
                                         state.skippedPersonalNoteIds,
-                                    onSkipPersonalNote:
-                                        cubit.skipPersonalNote,
+                                    onSkipPersonalNote: cubit.skipPersonalNote,
                                     onToggle: cubit.toggleSelection,
                                     onEditReasons: (userId) => unawaited(
                                       _editReasons(
@@ -733,6 +733,13 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
           requiredCapabilitySlugs: beacon?.needs ?? const {},
           isSelected: state.selectedIds.contains(lineage[i].id),
           onToggle: () => cubit.toggleSelection(lineage[i].id),
+          onOpenDetails: () => unawaited(
+            showForwardCandidateContextSheet(
+              sourceContext: context,
+              forwardCubit: cubit,
+              candidate: lineage[i],
+            ),
+          ),
           reasonSlugs: state.recipientReasons[lineage[i].id] ?? const [],
           onEditReasons: () => unawaited(
             _editReasons(
@@ -752,8 +759,7 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
             child: PerRecipientNoteInput(
               profile: lineage[i].profile,
               controller: _recipientNoteControllers[lineage[i].id]!,
-              onChanged: (text) =>
-                  cubit.setRecipientNote(lineage[i].id, text),
+              onChanged: (text) => cubit.setRecipientNote(lineage[i].id, text),
               onClose: () => cubit.skipPersonalNote(lineage[i].id),
             ),
           ),
@@ -784,6 +790,13 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
           requiredCapabilitySlugs: beacon?.needs ?? const {},
           isSelected: state.selectedIds.contains(visible[i].id),
           onToggle: () => cubit.toggleSelection(visible[i].id),
+          onOpenDetails: () => unawaited(
+            showForwardCandidateContextSheet(
+              sourceContext: context,
+              forwardCubit: cubit,
+              candidate: visible[i],
+            ),
+          ),
           reasonSlugs: state.recipientReasons[visible[i].id] ?? const [],
           onEditReasons: () => unawaited(
             _editReasons(

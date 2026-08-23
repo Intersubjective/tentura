@@ -27,12 +27,20 @@ class ThreadDetailScreen extends StatefulWidget {
   const ThreadDetailScreen({
     @PathParam.inherit('id') required this.beaconId,
     @PathParam('threadId') required this.threadId,
+    @QueryParam(kQueryIsDeepLink) this.isDeepLink,
+    @QueryParam(kQueryBeaconViewTab) this.viewTab,
+    @QueryParam(kQueryBeaconPeopleTabAttention) this.peopleTabAttention,
+    @QueryParam(kQueryBeaconEntry) this.entry,
     @QueryParam(kQueryMessageId) this.messageId,
     super.key,
   });
 
   final String beaconId;
   final String threadId;
+  final String? isDeepLink;
+  final String? viewTab;
+  final String? peopleTabAttention;
+  final String? entry;
   final String? messageId;
 
   @override

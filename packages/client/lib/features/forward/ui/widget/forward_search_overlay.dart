@@ -1,8 +1,11 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
+import 'package:tentura/features/forward_candidate_context/ui/widget/forward_candidate_context_sheet.dart';
 
 import '../bloc/forward_cubit.dart';
 import '../../domain/entity/forward_candidate.dart';
@@ -149,20 +152,25 @@ class _ForwardSearchOverlayState extends State<ForwardSearchOverlay> {
                     _focusedCandidateId == filtered[i].id
                 ? Theme.of(context).colorScheme.surfaceContainerHighest
                 : Colors.transparent,
-            child: InkWell(
-              onTap: onCandidateFocused == null
-                  ? null
-                  : () => onCandidateFocused(filtered[i].id),
-              child: ForwardRecipientRow(
-                host: ForwardRecipientRowHost.pickerSearch,
-                candidate: filtered[i],
-                requiredCapabilitySlugs: state.beacon?.needs ?? const {},
-                isSelected: state.selectedIds.contains(filtered[i].id),
-                onToggle: () {
-                  onCandidateFocused?.call(filtered[i].id);
-                  cubit.toggleSelection(filtered[i].id);
-                },
-              ),
+            child: ForwardRecipientRow(
+              host: ForwardRecipientRowHost.pickerSearch,
+              candidate: filtered[i],
+              requiredCapabilitySlugs: state.beacon?.needs ?? const {},
+              isSelected: state.selectedIds.contains(filtered[i].id),
+              onToggle: () {
+                onCandidateFocused?.call(filtered[i].id);
+                cubit.toggleSelection(filtered[i].id);
+              },
+              onOpenDetails: () {
+                onCandidateFocused?.call(filtered[i].id);
+                unawaited(
+                  showForwardCandidateContextSheet(
+                    sourceContext: context,
+                    forwardCubit: cubit,
+                    candidate: filtered[i],
+                  ),
+                );
+              },
             ),
           ),
           if (showInlineNotes &&
@@ -233,6 +241,13 @@ class _ForwardSearchOverlayState extends State<ForwardSearchOverlay> {
             requiredCapabilitySlugs: state.beacon?.needs ?? const {},
             isSelected: isSelected,
             onToggle: () => cubit.toggleSelection(candidate.id),
+            onOpenDetails: () => unawaited(
+              showForwardCandidateContextSheet(
+                sourceContext: context,
+                forwardCubit: cubit,
+                candidate: candidate,
+              ),
+            ),
           ),
           if (isSelected && !isSkipped) ...[
             SizedBox(height: tt.rowGap),
