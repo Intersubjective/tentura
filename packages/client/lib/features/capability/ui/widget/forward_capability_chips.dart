@@ -45,7 +45,9 @@ class ForwardCapabilityChips extends StatelessWidget {
                 ],
               ),
               backgroundColor: swatch.container,
-              labelPadding: const EdgeInsets.symmetric(horizontal: 8),
+              labelPadding: EdgeInsets.symmetric(
+                horizontal: context.tt.rowGap,
+              ),
               padding: EdgeInsets.zero,
               materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
               visualDensity: VisualDensity.compact,

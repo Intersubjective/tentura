@@ -212,11 +212,10 @@ class _GroupSection extends StatelessWidget {
       ),
       children: [
         Padding(
-          padding: EdgeInsets.fromLTRB(
-            context.tt.tightGap,
-            0,
-            context.tt.tightGap,
-            context.tt.rowGap,
+          padding: EdgeInsets.only(
+            left: context.tt.tightGap,
+            right: context.tt.tightGap,
+            bottom: context.tt.rowGap,
           ),
           child: Wrap(
             spacing: context.tt.tightGap,
