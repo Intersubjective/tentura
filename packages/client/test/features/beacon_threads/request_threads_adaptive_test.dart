@@ -807,6 +807,7 @@ void main() {
       expect(host.state.openThreadId, RequestThread.generalId);
       expect(find.byType(ThreadDetail), findsOneWidget);
       expect(find.byType(ThreadDetailColumnChrome), findsNothing);
+      expect(find.byType(NavigationRail), findsOneWidget);
       expect(_itemCardSelected(tester, RequestThread.generalId), isTrue);
 
       await tester.tap(find.byKey(TestIds.key(TestIds.beaconTabPeople)));

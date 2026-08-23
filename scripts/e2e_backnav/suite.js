@@ -14,17 +14,18 @@ async (page) => {
   const ME = 'Ua6432bd9e599';
 
   const EXPECT = {
-    railOnBeaconDetail: true, // STEP1+: beacon view lives in a tab branch
-    railOnGraphDetail: true, // STEP2: graph/profile details live in tab branches
+    railOnBeaconDetail: true, // root detail keeps the mounted Home rail
+    railOnGraphDetail: true, // root detail keeps the mounted Home rail
     bottomBarOnDetailCompact: false, // frozen: compact hides bottom bar on details
   };
 
-  // STEP1+: beacon view is a branch child; cold-start legacy links land in
-  // the default MyWork branch, warm pushes in the active tab's branch.
-  const BEACON_VIEW_RE = new RegExp(`^#/home/[a-z]+/beacon/view/${BEACON}`);
-  const GRAPH_ME_RE = new RegExp(`^#/home/[a-z]+/graph/${ME}`);
-  const GRAPH_HELPER_RE = new RegExp(`^#/home/[a-z]+/graph/${HELPER}`);
-  const PROFILE_HELPER_RE = new RegExp(`^#/home/[a-z]+/profile/view/${HELPER}`);
+  // Browse details are root routes. Cold links build their semantic Home
+  // source beneath the detail; warm navigation pushes above the mounted tab.
+  const BEACON_VIEW_RE = new RegExp(`^#/beacon/view/${BEACON}`);
+  const CANONICAL_BEACON_VIEW_RE = BEACON_VIEW_RE;
+  const GRAPH_ME_RE = new RegExp(`^#/graph/${ME}`);
+  const GRAPH_HELPER_RE = new RegExp(`^#/graph/${HELPER}`);
+  const PROFILE_HELPER_RE = new RegExp(`^#/profile/view/${HELPER}`);
 
   const results = [];
   const hash = () => page.evaluate(() => location.hash);
@@ -125,6 +126,26 @@ async (page) => {
     await page.goBack();
     await until(async () => (await hash()) === '#/home/work', 'after browser back');
     await until(railVisible, 'rail on home');
+  });
+
+  // Regression: the expanded request view selects General and rewrites the
+  // query. Its route must remain the request detail, rather than rebuilding
+  // the Home shell and leaving those query parameters on `/home/work`.
+  await scenario('D1a desktop My Work card keeps request detail after thread URL sync', async () => {
+    await boot('#/home/work', desktop);
+    await page.getByRole('button', { name: /Open Request QA publish 526219/ }).first().click();
+    await until(async () => {
+      const currentHash = await hash();
+      return CANONICAL_BEACON_VIEW_RE.test(currentHash) &&
+          /[?&]tab=threads(?:&|$)/.test(currentHash) &&
+          /[?&]thread=general(?:&|$)/.test(currentHash);
+    }, 'expanded thread URL synchronized');
+    const detailHash = await hash();
+    await settle(3000);
+    expectEq(await hash(), detailHash, 'request detail URL remains stable after thread sync');
+    if ((await page.getByRole('button', { name: 'Back' }).count()) === 0) {
+      throw new Error('request detail disappeared after thread URL sync');
+    }
   });
 
   await scenario('D2 graph -> profile -> graph -> back x3', async () => {

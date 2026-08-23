@@ -73,6 +73,8 @@ void main() {
   late PageInfo friendsPage;
   late PageInfo mePage;
   late PageInfo profilePage;
+  late PageInfo beaconViewPage;
+  late PageInfo beaconViewOperationalPage;
   late PageInfo graphPage;
   late PageInfo forwardsGraphPage;
   late PageInfo genealogyPage;
@@ -88,6 +90,8 @@ void main() {
     friendsPage = FriendsRoute.page;
     mePage = ProfileRoute.page;
     profilePage = ProfileViewRoute.page;
+    beaconViewPage = BeaconViewRoute.page;
+    beaconViewOperationalPage = BeaconViewOperationalRoute.page;
     graphPage = GraphRoute.page;
     forwardsGraphPage = ForwardsGraphRoute.page;
     genealogyPage = InviteGenealogyRoute.page;
@@ -110,6 +114,22 @@ void main() {
         'profile:${data.inheritedPathParams.getString('id', '')}',
         textDirection: TextDirection.ltr,
       ),
+    );
+    BeaconViewRoute.page = PageInfo(
+      BeaconViewRoute.name,
+      builder: (data) => Column(
+        children: [
+          Text(
+            'request:${data.inheritedPathParams.getString('id', '')}',
+            textDirection: TextDirection.ltr,
+          ),
+          const Expanded(child: AutoRouter()),
+        ],
+      ),
+    );
+    BeaconViewOperationalRoute.page = _labelPage(
+      BeaconViewOperationalRoute.name,
+      'request-operational',
     );
     GraphRoute.page = PageInfo(
       GraphRoute.name,
@@ -142,6 +162,8 @@ void main() {
     FriendsRoute.page = friendsPage;
     ProfileRoute.page = mePage;
     ProfileViewRoute.page = profilePage;
+    BeaconViewRoute.page = beaconViewPage;
+    BeaconViewOperationalRoute.page = beaconViewOperationalPage;
     GraphRoute.page = graphPage;
     ForwardsGraphRoute.page = forwardsGraphPage;
     InviteGenealogyRoute.page = genealogyPage;
@@ -195,7 +217,7 @@ void main() {
     }
   });
 
-  testWidgets('warm Home to Profile preserves active tab and state', (
+  testWidgets('warm Home to root detail preserves active tab after Back', (
     tester,
   ) async {
     await pumpRouter(tester, initialPath: '/home/inbox');

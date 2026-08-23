@@ -165,10 +165,9 @@ Future<void> goToPath(WidgetTester tester, String path) async {
   // Don't await the Future (push-like futures resolve on pop, see
   // beacon_view_screen.dart); pump until the URL reflects the navigation.
   //
-  // A bare detail path (e.g. `/beacon/view/:id/...`) gets forwarded into the
-  // active Home tab branch (see `_forwardIntoHomeBranch` in root_router.dart)
-  // and lands at `/home/<tab>/beacon/view/:id/...` — a `/home/<tab>` prefix,
-  // not a suffix — so `startsWith` never matches; check containment instead.
+  // Browse details are root routes. A cold direct link builds its semantic
+  // Home source below the detail; warm navigation pushes the root detail above
+  // the already-mounted Home tab. The URL therefore remains [path].
   unawaited(router.navigatePath(path, includePrefixMatches: true));
   await pumpUntil(tester, () => router.currentUrl.contains(path));
   debugPrint('[e2e] goToPath($path): done (url=${router.currentUrl})');
@@ -1011,9 +1010,9 @@ Future<void> userSubscribe(String objectUserId) async {
 }
 
 Future<void> openConnectionsGraph(WidgetTester tester, String profileId) async {
-  // The root `/graph/:id` route is a redirect into the Network tab. Navigate
-  // to its canonical nested URL so [goToPath] can observe the final route.
-  await goToPath(tester, '$kPathProfile$kPathGraph/$profileId');
+  // Graph browse details are canonical root routes, with Network as their
+  // semantic Home source on a cold link.
+  await goToPath(tester, '$kPathGraph/$profileId');
   await pumpUntilVisible(
     tester,
     find.byKey(TestIds.key(TestIds.graphResetToEgo)),

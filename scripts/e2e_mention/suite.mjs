@@ -182,12 +182,20 @@ async function enableSemantics(page) {
 async function bootRoom(page, beaconId) {
   await page.goto('about:blank');
   await page.goto(
-    `${BASE}/#/home/work/beacon/view/${beaconId}?tab=threads&thread=general`,
+    `${BASE}/#/beacon/view/${beaconId}?tab=threads&thread=general`,
     { waitUntil: 'load' },
   );
   await settle(page, 4000);
   await enableSemantics(page);
-  return;
+  const hash = await page.evaluate(() => location.hash);
+  const url = new URL(hash.slice(1), BASE);
+  if (
+    url.pathname !== `/beacon/view/${beaconId}` ||
+    url.searchParams.get('tab') !== 'threads' ||
+    url.searchParams.get('thread') !== 'general'
+  ) {
+    throw new Error(`room boot did not retain canonical request URL: ${hash}`);
+  }
 }
 
 async function focusComposer(page) {

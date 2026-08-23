@@ -78,6 +78,76 @@ double beaconViewRoomSplitPaneWidth(
   return ideal.clamp(minChat, effectiveMaxPaneWidth);
 }
 
+/// Restores Home's persistent side navigation while a root browse-detail
+/// route covers the Home page on a non-compact window.
+class _BeaconViewHomeRail extends StatelessWidget {
+  const _BeaconViewHomeRail({
+    required this.selectedIndex,
+    required this.child,
+  });
+
+  final int selectedIndex;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    if (context.windowClass == WindowClass.compact) return child;
+
+    final l10n = L10n.of(context)!;
+    final extended = context.windowClass == WindowClass.expanded;
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        NavigationRail(
+          extended: extended,
+          selectedIndex: selectedIndex,
+          onDestinationSelected: (index) {
+            final spec = HomeTabSpec.fromIndex(index);
+            if (spec == null) return;
+            final root = context.router.root;
+            root
+                .innerRouterOf<TabsRouter>(HomeRoute.name)
+                ?.setActiveIndex(index);
+            unawaited(root.replacePath(spec.path));
+          },
+          labelType: extended
+              ? NavigationRailLabelType.none
+              : NavigationRailLabelType.all,
+          destinations: [
+            NavigationRailDestination(
+              icon: const Icon(Icons.work_outline),
+              selectedIcon: const Icon(Icons.work),
+              label: Text(l10n.myWork),
+            ),
+            NavigationRailDestination(
+              icon: const Icon(Icons.inbox_outlined),
+              selectedIcon: const Icon(Icons.inbox),
+              label: Text(l10n.inbox),
+            ),
+            NavigationRailDestination(
+              icon: const Icon(Icons.notifications_none),
+              selectedIcon: const Icon(Icons.notifications),
+              label: Text(l10n.updatesTitle),
+            ),
+            NavigationRailDestination(
+              icon: const Icon(Icons.people_outline),
+              selectedIcon: const Icon(Icons.people),
+              label: Text(l10n.network),
+            ),
+            NavigationRailDestination(
+              icon: const Icon(Icons.person_outline),
+              selectedIcon: const Icon(Icons.person),
+              label: Text(l10n.profile),
+            ),
+          ],
+        ),
+        const TenturaVerticalHairline(),
+        Expanded(child: child),
+      ],
+    );
+  }
+}
+
 class BeaconViewScreen extends StatefulWidget {
   const BeaconViewScreen({
     this.id = '',
@@ -161,14 +231,13 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
     final isNetworkTab =
         tab != null && tab == HomeTabSpec.forTab(HomeTab.network).index;
 
-    final path =
-        isInboxTab
-            ? kPathInbox
-            : isUpdatesTab
-            ? kPathUpdates
-            : isNetworkTab
-            ? kPathNetwork
-            : kPathMyWork;
+    final path = isInboxTab
+        ? kPathInbox
+        : isUpdatesTab
+        ? kPathUpdates
+        : isNetworkTab
+        ? kPathNetwork
+        : kPathMyWork;
 
     unawaited(router.root.replacePath(path));
   }
@@ -229,7 +298,6 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
   String _beaconViewPath({
     String? viewTab,
     String? threadId,
-    bool relativeToTabBranch = false,
   }) {
     final q = <String, String>{};
     if (viewTab != null && viewTab.isNotEmpty) {
@@ -242,20 +310,19 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
     if (entry != null && entry.isNotEmpty) {
       q[kQueryBeaconEntry] = entry;
     }
-    final pathPrefix = relativeToTabBranch
-        ? kPathBeaconView.replaceFirst('/', '')
-        : kPathBeaconView;
-    final base = '$pathPrefix/${widget.id}';
+    final base = '$kPathBeaconView/${widget.id}';
     if (q.isEmpty) return base;
     return '$base?${Uri(queryParameters: q).query}';
   }
 
   Future<void> _syncExpandedThreadQuery(String? threadId) {
+    // BeaconViewRoute is a root browse-detail route. Replacing it through the
+    // tab branch turns `beacon/view/:id` into an unmatched relative path, so
+    // AutoRoute falls back to My Work while retaining the query parameters.
     return context.router.replacePath(
       _beaconViewPath(
         viewTab: kBeaconViewTabThreads,
         threadId: threadId,
-        relativeToTabBranch: true,
       ),
     );
   }
@@ -1047,7 +1114,18 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
                             state.isLoading,
                           ),
                         ),
-                        body: SafeArea(child: contentColumn),
+                        body: _BeaconViewHomeRail(
+                          selectedIndex: switch (widget.entry) {
+                            kBeaconEntryInbox => HomeTabSpec.forTab(
+                              HomeTab.inbox,
+                            ).index,
+                            kBeaconEntryRoomNotification => HomeTabSpec.forTab(
+                              HomeTab.updates,
+                            ).index,
+                            _ => HomeTabSpec.forTab(HomeTab.work).index,
+                          },
+                          child: SafeArea(child: contentColumn),
+                        ),
                       );
                     },
                   );
