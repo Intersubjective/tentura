@@ -368,8 +368,6 @@ class _ForwardRecipientGoldenBody extends StatelessWidget {
             ),
             isSelected: true,
             onToggle: () {},
-            onSkipPersonalNote: () {},
-            onRestorePersonalNote: () {},
           ),
         ],
       ),

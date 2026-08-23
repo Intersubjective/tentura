@@ -481,31 +481,14 @@ class _NoteColumnWithBar extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const SizedBox(width: _kBarColumnWidth),
-            const SizedBox(width: 8),
-            Expanded(child: header),
-          ],
-        ),
+        header,
         SizedBox(height: afterHeaderGap),
-        IntrinsicHeight(
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              bar,
-              Expanded(
-                child: Padding(
-                  padding: EdgeInsets.only(left: context.tt.rowGap),
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: lowerChildren,
-                  ),
-                ),
-              ),
-            ],
+        Padding(
+          padding: const EdgeInsets.only(left: _kAvatarSize + 4),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: lowerChildren,
           ),
         ),
       ],

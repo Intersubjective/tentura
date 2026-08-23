@@ -162,13 +162,6 @@ class _ForwardSearchOverlayState extends State<ForwardSearchOverlay> {
                   onCandidateFocused?.call(filtered[i].id);
                   cubit.toggleSelection(filtered[i].id);
                 },
-                isPersonalNoteSkipped: state.skippedPersonalNoteIds.contains(
-                  filtered[i].id,
-                ),
-                onSkipPersonalNote: () =>
-                    cubit.skipPersonalNote(filtered[i].id),
-                onRestorePersonalNote: () =>
-                    cubit.restorePersonalNote(filtered[i].id),
               ),
             ),
           ),
@@ -182,6 +175,7 @@ class _ForwardSearchOverlayState extends State<ForwardSearchOverlay> {
                 controller: widget.recipientNoteControllers[filtered[i].id]!,
                 onChanged: (t) =>
                     widget.onRecipientNoteChanged(filtered[i].id, t),
+                onClose: () => cubit.skipPersonalNote(filtered[i].id),
               ),
             ),
         ],
@@ -239,10 +233,6 @@ class _ForwardSearchOverlayState extends State<ForwardSearchOverlay> {
             requiredCapabilitySlugs: state.beacon?.needs ?? const {},
             isSelected: isSelected,
             onToggle: () => cubit.toggleSelection(candidate.id),
-            isPersonalNoteSkipped: isSkipped,
-            onSkipPersonalNote: () => cubit.skipPersonalNote(candidate.id),
-            onRestorePersonalNote: () =>
-                cubit.restorePersonalNote(candidate.id),
           ),
           if (isSelected && !isSkipped) ...[
             SizedBox(height: tt.rowGap),
@@ -250,6 +240,7 @@ class _ForwardSearchOverlayState extends State<ForwardSearchOverlay> {
               profile: candidate.profile,
               controller: widget.recipientNoteControllers[candidate.id]!,
               onChanged: (t) => widget.onRecipientNoteChanged(candidate.id, t),
+              onClose: () => cubit.skipPersonalNote(candidate.id),
             ),
           ],
         ],

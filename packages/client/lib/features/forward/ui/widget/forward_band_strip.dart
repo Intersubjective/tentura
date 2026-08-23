@@ -27,7 +27,6 @@ class ForwardBandStrip extends StatelessWidget {
     required this.onRecipientNoteChanged,
     required this.skippedPersonalNoteIds,
     required this.onSkipPersonalNote,
-    required this.onRestorePersonalNote,
     this.beacon,
     super.key,
   });
@@ -42,7 +41,6 @@ class ForwardBandStrip extends StatelessWidget {
   final void Function(String userId, String text) onRecipientNoteChanged;
   final Set<String> skippedPersonalNoteIds;
   final void Function(String userId) onSkipPersonalNote;
-  final void Function(String userId) onRestorePersonalNote;
   final Beacon? beacon;
 
   static String tagSlugDisplayLabel(L10n l10n, String slug) {
@@ -132,9 +130,6 @@ class ForwardBandStrip extends StatelessWidget {
           requiredCapabilitySlugs: needs,
           isSelected: isSelected,
           onToggle: () => onToggle(candidate.id),
-          isPersonalNoteSkipped: isSkipped,
-          onSkipPersonalNote: () => onSkipPersonalNote(candidate.id),
-          onRestorePersonalNote: () => onRestorePersonalNote(candidate.id),
           reasonSlugs: recipientReasons[candidate.id] ?? const [],
           onEditReasons: () => onEditReasons(candidate.id),
           tierEvidenceLabel: tierLabel,
@@ -155,6 +150,7 @@ class ForwardBandStrip extends StatelessWidget {
                 controller: controller,
                 onChanged: (text) =>
                     onRecipientNoteChanged(candidate.id, text),
+                onClose: () => onSkipPersonalNote(candidate.id),
               ),
             ),
           );

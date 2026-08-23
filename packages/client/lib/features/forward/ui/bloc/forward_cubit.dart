@@ -497,12 +497,6 @@ class ForwardCubit extends Cubit<ForwardState> {
     emit(state.copyWith(skippedPersonalNoteIds: next));
   }
 
-  void restorePersonalNote(String userId) {
-    if (!state.skippedPersonalNoteIds.contains(userId)) return;
-    final next = Set<String>.from(state.skippedPersonalNoteIds)..remove(userId);
-    emit(state.copyWith(skippedPersonalNoteIds: next));
-  }
-
   void startEditForward(String recipientId) {
     final candidate = _findCandidate(recipientId);
     if (candidate == null) return;

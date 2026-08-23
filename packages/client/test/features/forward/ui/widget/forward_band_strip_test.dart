@@ -84,7 +84,6 @@ Widget _wrapBand({
             onRecipientNoteChanged: (_, __) {},
             skippedPersonalNoteIds: const {},
             onSkipPersonalNote: (_) {},
-            onRestorePersonalNote: (_) {},
           ),
         ),
       ),
