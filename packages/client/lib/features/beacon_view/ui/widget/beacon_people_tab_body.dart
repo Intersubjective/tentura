@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
+import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura/domain/entity/beacon_people_lens.dart';
 import 'package:tentura/domain/entity/beacon_people_row.dart';
@@ -93,7 +94,7 @@ class BeaconPeopleTabBody extends StatelessWidget {
             liveRegion: true,
             label: l10n.beaconHudNeedsResponse,
             child: Padding(
-              padding: const EdgeInsets.only(bottom: 4),
+              padding: EdgeInsets.only(bottom: context.tt.tightGap * 2),
               child: Row(
                 children: [
                   Icon(

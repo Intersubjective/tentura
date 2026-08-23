@@ -200,7 +200,7 @@ class _LogActivityTile extends StatelessWidget {
     }
     return InkWell(
       onTap: onTap,
-      borderRadius: const BorderRadius.all(Radius.circular(8)),
+      borderRadius: BorderRadius.circular(context.tt.cardRadius),
       child: Padding(
         padding: kPaddingSmallV,
         child: row,
