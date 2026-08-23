@@ -7,7 +7,7 @@ import 'package:tentura/app/platform/platform_info.dart';
 import 'package:tentura/ui/effect/ui_effect.dart';
 import 'package:tentura/ui/effect/ui_effect_port.dart';
 
-import 'package:tentura/domain/use_case/bookkeeping_refresh_case.dart';
+import 'package:tentura/features/settings/domain/use_case/bookkeeping_refresh_case.dart';
 import 'package:tentura/features/auth/domain/use_case/auth_case.dart';
 import 'package:tentura/features/notification/domain/exception.dart';
 import 'package:tentura/features/notification/domain/port/direct_notification_probe_port.dart';

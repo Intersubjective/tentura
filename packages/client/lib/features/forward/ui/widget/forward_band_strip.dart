@@ -8,6 +8,7 @@ import 'package:tentura/domain/capability/tag_projection.dart';
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/features/forward/domain/entity/forward_candidate.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/utils/capability_tag_presenter.dart';
 
 import 'forward_recipient_row.dart';
 import '../model/forward_recipient_row_host.dart';

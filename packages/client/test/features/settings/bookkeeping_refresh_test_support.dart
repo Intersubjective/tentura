@@ -3,7 +3,7 @@ import 'package:logging/logging.dart';
 import 'package:tentura/data/service/bookkeeping_refresh_signal.dart';
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/repository_event.dart';
-import 'package:tentura/domain/use_case/bookkeeping_refresh_case.dart';
+import 'package:tentura/features/settings/domain/use_case/bookkeeping_refresh_case.dart';
 import 'package:tentura/env.dart';
 import 'package:tentura/features/auth/domain/use_case/auth_case.dart';
 import 'package:tentura/features/beacon/data/repository/beacon_repository.dart';

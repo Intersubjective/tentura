@@ -1,6 +1,5 @@
-import 'package:tentura/data/repository/platform_repository.dart' show PlatformRepository;
-
-/// Clipboard / URL / app version (implemented by [PlatformRepository]).
+/// Clipboard / URL / app version (implemented by `PlatformRepository` in the
+/// data layer).
 abstract class PlatformRepositoryPort {
   Future<String> getStringFromClipboard();
 
