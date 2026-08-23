@@ -34,6 +34,15 @@ final class ContactCase extends UseCaseBase {
     return trimmed;
   }
 
+  /// Normalizes the optional label supplied when an invitation is created.
+  ///
+  /// An invite may be created without a private addressee label. A non-blank
+  /// label still follows the same validation as a contact name.
+  static String? normalizeOptionalName(String name) {
+    final trimmed = name.trim();
+    return trimmed.isEmpty ? null : normalizeName(trimmed);
+  }
+
   Future<void> set({
     required String viewerId,
     required String subjectId,

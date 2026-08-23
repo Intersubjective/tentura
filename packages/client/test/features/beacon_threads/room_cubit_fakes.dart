@@ -37,7 +37,8 @@ import 'fake_coordination_item_case.dart';
 const kRoomCubitFakeBeaconId = 'b-send-test';
 const kRoomCubitFakeMyUserId = 'me-send';
 
-class FakeBeaconThreadsRepository extends Fake implements BeaconThreadsRepository {
+class FakeBeaconThreadsRepository extends Fake
+    implements BeaconThreadsRepository {
   FakeBeaconThreadsRepository({required this.userId});
 
   final String userId;
@@ -142,6 +143,9 @@ class FakeBeaconThreadsRepository extends Fake implements BeaconThreadsRepositor
     String? replyToMessageId,
     String? threadItemId,
     RoomPendingUpload? firstAttachment,
+    List<String> explicitMentionUserIds = const [],
+    List<int> explicitMentionOffsets = const [],
+    List<int> explicitMentionLengths = const [],
   }) async {
     createMessageCalls++;
     lastReplyToMessageId = replyToMessageId;
@@ -210,18 +214,17 @@ PresenceRepository roomCubitFakePresenceRepository() => PresenceRepository(
 BeaconThreadsCase roomCubitMakeCase(
   FakeBeaconThreadsRepository fakeRoom, {
   RealtimeSyncCase? realtimeSyncCase,
-}) =>
-    BeaconThreadsCase(
-      fakeRoom,
-      FakeBeaconFactCardRepository(),
-      FakePollingRepository(),
-      FakeBeaconRoomHintsRepository(),
-      RoomReadWatermarkStore.testing(),
-      const FakeCoordinationItemCaseForRoom(),
-      realtimeSyncCase ?? buildTestRealtimeSync().case_,
-      env: const Env(),
-      logger: Logger('test'),
-    );
+}) => BeaconThreadsCase(
+  fakeRoom,
+  FakeBeaconFactCardRepository(),
+  FakePollingRepository(),
+  FakeBeaconRoomHintsRepository(),
+  RoomReadWatermarkStore.testing(),
+  const FakeCoordinationItemCaseForRoom(),
+  realtimeSyncCase ?? buildTestRealtimeSync().case_,
+  env: const Env(),
+  logger: Logger('test'),
+);
 
 void registerRoomCubitProfileCubit(String userId) {
   final getIt = GetIt.instance;

@@ -7,8 +7,7 @@ import 'package:tentura_server/domain/util/room_reply_excerpt.dart';
 import '../database/tentura_db.dart';
 
 @LazySingleton(as: RoomMessageSnapshotLookupPort)
-final class RoomMessageSnapshotLookup
-    implements RoomMessageSnapshotLookupPort {
+final class RoomMessageSnapshotLookup implements RoomMessageSnapshotLookupPort {
   RoomMessageSnapshotLookup(this._database);
 
   final TenturaDb _database;
@@ -18,9 +17,11 @@ final class RoomMessageSnapshotLookup
     required String messageId,
     required String beaconId,
   }) async {
-    final row = await (_database.select(_database.beaconRoomMessages)..where(
-      (m) => m.id.equals(messageId) & m.beaconId.equals(beaconId),
-    )).getSingleOrNull();
+    final row =
+        await (_database.select(_database.beaconRoomMessages)..where(
+              (m) => m.id.equals(messageId) & m.beaconId.equals(beaconId),
+            ))
+            .getSingleOrNull();
     if (row == null || row.body.trim().isEmpty) {
       return null;
     }
@@ -85,12 +86,15 @@ final class RoomMessageSnapshotLookup
     );
   }
 
-  Future<({
-    String authorId,
-    String authorTitle,
-    String? bodyExcerpt,
-    bool hasAttachments,
-  })?> _resolveScopedParentReply({
+  Future<
+    ({
+      String authorId,
+      String authorTitle,
+      String? bodyExcerpt,
+      bool hasAttachments,
+    })?
+  >
+  _resolveScopedParentReply({
     required String parentMessageId,
     required String beaconId,
     required String? threadItemId,
@@ -103,17 +107,20 @@ final class RoomMessageSnapshotLookup
       return m.threadItemId.equals(tid);
     }
 
-    final joined = await (_database.select(_database.beaconRoomMessages).join([
-      innerJoin(
-        _database.users,
-        _database.users.id.equalsExp(_database.beaconRoomMessages.authorId),
-      ),
-    ])..where(
-        _database.beaconRoomMessages.id.equals(parentMessageId) &
-            _database.beaconRoomMessages.beaconId.equals(beaconId) &
-            threadFilter(_database.beaconRoomMessages),
-      ))
-        .getSingleOrNull();
+    final joined =
+        await (_database.select(_database.beaconRoomMessages).join([
+              innerJoin(
+                _database.users,
+                _database.users.id.equalsExp(
+                  _database.beaconRoomMessages.authorId,
+                ),
+              ),
+            ])..where(
+              _database.beaconRoomMessages.id.equals(parentMessageId) &
+                  _database.beaconRoomMessages.beaconId.equals(beaconId) &
+                  threadFilter(_database.beaconRoomMessages),
+            ))
+            .getSingleOrNull();
     if (joined == null) {
       return null;
     }
@@ -135,9 +142,9 @@ final class RoomMessageSnapshotLookup
     if (filtered.isEmpty) {
       return {};
     }
-    final rows = await (_database.select(_database.beaconRoomMessageAttachments)
-          ..where((a) => a.messageId.isIn(filtered)))
-        .get();
+    final rows = await (_database.select(
+      _database.beaconRoomMessageAttachments,
+    )..where((a) => a.messageId.isIn(filtered))).get();
     return {for (final row in rows) row.messageId};
   }
 }
