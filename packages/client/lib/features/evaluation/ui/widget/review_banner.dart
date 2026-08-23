@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
 /// Inline banner: draft phase (open beacon) or review window after closure.
@@ -25,7 +26,7 @@ class ReviewBanner extends StatelessWidget {
     final theme = Theme.of(context);
     if (isDraftPhase) {
       return Padding(
-        padding: const EdgeInsets.only(bottom: 12),
+        padding: const EdgeInsets.only(bottom: TenturaSpacing.section),
         child: SizedBox(
           width: double.infinity,
           height: 40,
@@ -33,7 +34,7 @@ class ReviewBanner extends StatelessWidget {
             onPressed: onPrimary,
             style: FilledButton.styleFrom(
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(8),
+                borderRadius: BorderRadius.circular(TenturaRadii.button),
               ),
             ),
             child: Text(l10n.evaluationBannerDraftReview),
@@ -42,9 +43,9 @@ class ReviewBanner extends StatelessWidget {
       );
     }
     return Card(
-      margin: margin ?? const EdgeInsets.only(bottom: 12),
+      margin: margin ?? const EdgeInsets.only(bottom: TenturaSpacing.section),
       child: Padding(
-        padding: const EdgeInsets.all(12),
+        padding: TenturaSpacing.cardPaddingAll,
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
