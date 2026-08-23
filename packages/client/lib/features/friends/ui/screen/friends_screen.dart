@@ -2,8 +2,6 @@ import 'dart:async';
 
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:get_it/get_it.dart';
 
 import 'package:tentura/consts.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
@@ -524,11 +522,10 @@ class _InvitesSegmentList extends StatelessWidget {
             for (final groupTitle in beaconGroupKeys) ...[
               SliverToBoxAdapter(
                 child: Padding(
-                  padding: EdgeInsets.fromLTRB(
-                    tt.screenHPadding,
-                    tt.tightGap,
-                    tt.screenHPadding,
-                    0,
+                  padding: EdgeInsets.only(
+                    left: tt.screenHPadding,
+                    top: tt.tightGap,
+                    right: tt.screenHPadding,
                   ),
                   child: Text(
                     groupTitle,

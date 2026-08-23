@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
+import 'graph_body.dart';
 import 'graph_legend_content.dart';
 import 'graph_legend_mode.dart';
 
@@ -87,11 +88,10 @@ class GraphLegendPanel extends StatelessWidget {
             ),
             Flexible(
               child: SingleChildScrollView(
-                padding: EdgeInsets.fromLTRB(
-                  tt.cardPadding.left,
-                  0,
-                  tt.cardPadding.right,
-                  tt.cardPadding.bottom,
+                padding: EdgeInsets.only(
+                  left: tt.cardPadding.left,
+                  right: tt.cardPadding.right,
+                  bottom: tt.cardPadding.bottom,
                 ),
                 child: GraphLegendContent(mode: mode),
               ),
