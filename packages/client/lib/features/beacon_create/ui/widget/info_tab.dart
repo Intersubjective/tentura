@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get_it/get_it.dart';
 
-import 'package:tentura/consts.dart';
 import 'package:tentura/env.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon_schedule.dart';
@@ -15,7 +14,6 @@ import 'package:tentura/ui/utils/string_input_validator.dart';
 import 'package:tentura/ui/test_ids.dart';
 import 'package:tentura/ui/widget/unfocus_sheet_body.dart';
 import 'package:tentura/features/capability/ui/widget/removable_capability_chips.dart';
-import 'package:tentura/ui/widget/tentura_icons.dart';
 
 import 'package:tentura/features/capability/ui/widget/capability_chip_set.dart';
 import 'package:tentura/features/context/ui/widget/context_drop_down.dart';
@@ -119,7 +117,6 @@ class _InfoTabState extends State<InfoTab> with StringInputValidator {
 
     await showTenturaAdaptiveSheet<void>(
       context: context,
-      isScrollControlled: true,
       showDragHandle: false,
       builder: (_) => UnfocusSheetBody(
         child: StatefulBuilder(
@@ -189,11 +186,10 @@ class _InfoTabState extends State<InfoTab> with StringInputValidator {
                           Expanded(
                             child: ListView(
                               controller: scrollController,
-                              padding: EdgeInsets.fromLTRB(
-                                tt.screenHPadding,
-                                0,
-                                tt.screenHPadding,
-                                tt.sectionGap * 2,
+                              padding: EdgeInsets.only(
+                                left: tt.screenHPadding,
+                                right: tt.screenHPadding,
+                                bottom: tt.sectionGap * 2,
                               ),
                               children: [
                                 Text(
@@ -319,10 +315,10 @@ class _InfoTabState extends State<InfoTab> with StringInputValidator {
                   color: Colors.transparent,
                   child: InkWell(
                     canRequestFocus: false,
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(tt.cardRadius),
                     onTap: () => unawaited(_showRequirementsSheet(context)),
                     child: Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 4),
+                      padding: EdgeInsets.symmetric(vertical: tt.tightGap * 2),
                       child: Row(
                         children: [
                           Expanded(
