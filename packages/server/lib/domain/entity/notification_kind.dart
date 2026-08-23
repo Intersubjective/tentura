@@ -22,4 +22,6 @@ enum NotificationKind {
   commitmentResolved,
   commitmentCancelled,
   commitmentRedirected,
+  deadlineChanged,
+  deadlineReminder,
 }

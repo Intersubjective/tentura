@@ -32,6 +32,22 @@ class BeaconNotificationCopyBuilder {
     final itemNoun = _coordinationItemNoun(intent.coordinationItemKind);
 
     final (title, body) = switch (intent.kind) {
+      NotificationKind.deadlineChanged => (
+        'Deadline changed',
+        _bodyWithRequest(
+          beaconTitle: beaconTitle,
+          excerpt: excerpt,
+          fallback: 'The request deadline changed',
+        ),
+      ),
+      NotificationKind.deadlineReminder => (
+        'Deadline reminder',
+        _bodyWithRequest(
+          beaconTitle: beaconTitle,
+          excerpt: excerpt,
+          fallback: 'This request deadline is tomorrow',
+        ),
+      ),
       NotificationKind.needsMe => (
         'Asked of you',
         _bodyWithRequest(
@@ -87,7 +103,7 @@ class BeaconNotificationCopyBuilder {
         excerpt.isNotEmpty
             ? excerpt
             : 'You were added to this request\'s discussion. '
-                'Everyone admitted can read messages, including earlier history.',
+                  'Everyone admitted can read messages, including earlier history.',
       ),
       NotificationKind.commitmentDeclined => (
         'Offer declined',
@@ -123,21 +139,19 @@ class BeaconNotificationCopyBuilder {
         intent.promiseWithdrawn
             ? (
                 actor,
-                excerpt.isNotEmpty
-                    ? excerpt
-                    : '$actor withdrew their help',
+                excerpt.isNotEmpty ? excerpt : '$actor withdrew their help',
               )
             : intent.isBackupOffer
-                ? (
-                    actor,
-                    excerpt.isNotEmpty
-                        ? excerpt
-                        : '$actor offered to help as backup',
-                  )
-                : (
-                    actor,
-                    excerpt.isNotEmpty ? excerpt : '$actor offered help',
-                  ),
+            ? (
+                actor,
+                excerpt.isNotEmpty
+                    ? excerpt
+                    : '$actor offered to help as backup',
+              )
+            : (
+                actor,
+                excerpt.isNotEmpty ? excerpt : '$actor offered help',
+              ),
       NotificationKind.reviewReady => (
         'Request closed — close the loop',
         beaconTitle.isNotEmpty ? beaconTitle : 'Review contributions',
@@ -287,6 +301,8 @@ class BeaconNotificationCopyBuilder {
       NotificationKind.commitmentCancelled ||
       NotificationKind.commitmentRedirected =>
         '/#$kPathAppLinkView?id=$id&dest=room$itemParam',
+      NotificationKind.deadlineChanged ||
+      NotificationKind.deadlineReminder => '/#$kPathAppLinkView?id=$id',
     };
   }
 }

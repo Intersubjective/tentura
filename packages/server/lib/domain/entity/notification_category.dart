@@ -42,6 +42,8 @@ NotificationCategory categoryOf(NotificationKind kind) => switch (kind) {
   NotificationKind.commitmentAccepted ||
   NotificationKind.commitmentResolved => NotificationCategory.unblocksMe,
   NotificationKind.commitmentRedirected => NotificationCategory.asksOfMe,
+  NotificationKind.deadlineChanged => NotificationCategory.coordination,
+  NotificationKind.deadlineReminder => NotificationCategory.asksOfMe,
   NotificationKind.inviteAccepted => NotificationCategory.connections,
   NotificationKind.roomActivityLowPriority => NotificationCategory.ambient,
 };

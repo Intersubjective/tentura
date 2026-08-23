@@ -36,7 +36,6 @@ const kMaxImagesPerBeacon = 10;
 /// Stage rows older than this are eligible for the expiry sweep (§3.3).
 const kBeaconStageExpiry = Duration(hours: 24);
 
-
 String? _trimOrNull(String? raw) {
   if (raw == null) return null;
   final t = raw.trim();
@@ -385,20 +384,48 @@ final class BeaconCase extends UseCaseBase {
       primaryNeedSlug: primaryNeedSlug,
       primaryNeedSlugProvided: primaryNeedSlugProvided,
     );
-    return _beaconRepository.updateBeacon(
-      beaconId: beaconId,
-      userId: userId,
-      title: title,
-      description: desc,
-      context: context,
-      tags: (tags?.isEmpty ?? true) ? null : tags?.split(',').toSet(),
-      needs: normalizedNeeds,
-      primaryNeedSlug: resolvedPrimary,
-      latitude: coordinates?.lat,
-      longitude: coordinates?.long,
-      startAt: startAt,
-      endAt: endAt,
-      addressLabel: _trimOrNull(addressLabel),
+    // The repository locks before loading, and this enclosing transaction also
+    // commits the occurrence/receipts/channel work.  Keeping comparison here
+    // means the observed old value is the serialised value, not a stale read.
+    return _attention!.runAction(
+      actorUserId: userId,
+      action: (transaction) async {
+        final before = await _beaconRepository.getBeaconById(
+          beaconId: beaconId,
+          filterByUserId: userId,
+        );
+        final updated = await _beaconRepository.updateBeacon(
+          beaconId: beaconId,
+          userId: userId,
+          title: title,
+          description: desc,
+          context: context,
+          tags: (tags?.isEmpty ?? true) ? null : tags?.split(',').toSet(),
+          needs: normalizedNeeds,
+          primaryNeedSlug: resolvedPrimary,
+          latitude: coordinates?.lat,
+          longitude: coordinates?.long,
+          startAt: startAt,
+          endAt: endAt,
+          addressLabel: _trimOrNull(addressLabel),
+        );
+        if (before.endAt != updated.endAt) {
+          final recipients = await _commitmentQueryCase.currentCommitterUserIds(
+            beaconId,
+          );
+          await transaction.record(
+            await _attentionIntents!.deadlineChanged(
+              beaconId: beaconId,
+              actorUserId: userId,
+              participantUserIds: recipients,
+              oldEndAt: before.endAt,
+              newEndAt: updated.endAt,
+              sourceEventKey: 'deadline_changed:${generateId('A')}',
+            ),
+          );
+        }
+        return updated;
+      },
     );
   }
 
@@ -775,7 +802,8 @@ final class BeaconCase extends UseCaseBase {
             if (await _commitmentQueryCase.everHadCommitter(beaconId)) {
               throw EvaluationException(
                 evaluationCode: EvaluationExceptionCode.beaconNotClosable,
-                description: 'Cannot cancel a request that ever had a committer',
+                description:
+                    'Cannot cancel a request that ever had a committer',
               );
             }
             final intent = transaction == null

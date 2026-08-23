@@ -31,6 +31,8 @@ enum AttentionEventType {
   commitmentReleased,
   trustGivenChanged,
   trustReceivedChanged,
+  deadlineChanged,
+  deadlineReminder,
 }
 
 extension AttentionEventTypeScope on AttentionEventType {
@@ -176,11 +178,13 @@ abstract class AttentionRecipientRoleFacts with _$AttentionRecipientRoleFacts {
     String? messageId,
     String? actorUserId,
     String? beaconTitle,
+
     /// Trust direction for presentation-key encoding: `up`, `down`, `noChange`.
     ///
     /// Mirrors receiver-facing trust tone naming without coupling to evaluation
     /// domain types. Null and unmapped values fall through to a neutral key.
     String? trustDirection,
+
     /// Wire literal `'new_account'` or `'existing_account'` on inviteAccepted.
     String? inviteOrigin,
   }) = _AttentionRecipientRoleFacts;

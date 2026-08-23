@@ -35,6 +35,16 @@ class BeaconNotificationRecipientResolver {
     }
 
     switch (intent.kind) {
+      case NotificationKind.deadlineChanged:
+      case NotificationKind.deadlineReminder:
+        for (final uid in intent.admittedUserIds) {
+          add(
+            uid,
+            NotificationRecipientReason.activeParticipant,
+            intent.priority,
+          );
+        }
+        break;
       case NotificationKind.needsMe:
         final target = intent.targetPersonId;
         if (target != null && target.isNotEmpty) {

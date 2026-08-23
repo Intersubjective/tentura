@@ -75,6 +75,8 @@ class AttentionPolicy {
           ? AttentionSuppressionClass.standard
           : AttentionSuppressionClass.noisy,
     AttentionEventType.coordinationChanged => AttentionSuppressionClass.noisy,
+    AttentionEventType.deadlineChanged => AttentionSuppressionClass.standard,
+    AttentionEventType.deadlineReminder => AttentionSuppressionClass.mandatory,
     AttentionEventType.relayReceived ||
     AttentionEventType.roomMessagePosted ||
     AttentionEventType.mutualConnectionFormed ||
@@ -84,10 +86,13 @@ class AttentionPolicy {
     AttentionEventType.promiseWithdrawn ||
     AttentionEventType.commitmentAccepted ||
     AttentionEventType.commitmentResolved ||
-    AttentionEventType.commitmentCancelled => AttentionSuppressionClass.standard,
-    AttentionEventType.commitmentRedirected => AttentionSuppressionClass.mandatory,
+    AttentionEventType.commitmentCancelled =>
+      AttentionSuppressionClass.standard,
+    AttentionEventType.commitmentRedirected =>
+      AttentionSuppressionClass.mandatory,
     AttentionEventType.trustGivenChanged ||
-    AttentionEventType.trustReceivedChanged => AttentionSuppressionClass.standard,
+    AttentionEventType.trustReceivedChanged =>
+      AttentionSuppressionClass.standard,
   };
 
   bool _isActiveRequestParticipant(AttentionRecipientReason reason) =>
@@ -123,6 +128,8 @@ class AttentionPolicy {
     AttentionEventType.promiseWithdrawn ||
     AttentionEventType.coordinationChanged ||
     AttentionEventType.commitmentCancelled => NotificationCategory.coordination,
+    AttentionEventType.deadlineChanged => NotificationCategory.coordination,
+    AttentionEventType.deadlineReminder => NotificationCategory.asksOfMe,
     AttentionEventType.trustGivenChanged ||
     AttentionEventType.trustReceivedChanged => NotificationCategory.connections,
   };
@@ -157,7 +164,10 @@ class AttentionPolicy {
     AttentionEventType.commitmentCancelled ||
     AttentionEventType.commitmentRedirected ||
     AttentionEventType.trustGivenChanged ||
-    AttentionEventType.trustReceivedChanged => AttentionAccessPolicy.beaconContent,
+    AttentionEventType.trustReceivedChanged =>
+      AttentionAccessPolicy.beaconContent,
+    AttentionEventType.deadlineChanged ||
+    AttentionEventType.deadlineReminder => AttentionAccessPolicy.beaconContent,
   };
 
   AttentionDestination _destination(
@@ -178,9 +188,9 @@ class AttentionPolicy {
         targetEntityId: role.beaconId,
       ),
       AttentionEventType.helpOfferSubmitted ||
-    AttentionEventType.offerDeclined ||
-    AttentionEventType.offerRemoved ||
-    AttentionEventType.commitmentReleased => AttentionDestination(
+      AttentionEventType.offerDeclined ||
+      AttentionEventType.offerRemoved ||
+      AttentionEventType.commitmentReleased => AttentionDestination(
         kind: AttentionDestinationKind.beaconPeopleOffer,
         targetEntityId: role.targetEntityId,
       ),
@@ -198,6 +208,11 @@ class AttentionPolicy {
       AttentionEventType.commitmentRedirected => AttentionDestination(
         kind: AttentionDestinationKind.beaconRoom,
         targetEntityId: role.coordinationItemId,
+      ),
+      AttentionEventType.deadlineChanged ||
+      AttentionEventType.deadlineReminder => AttentionDestination(
+        kind: AttentionDestinationKind.beacon,
+        targetEntityId: role.beaconId,
       ),
       AttentionEventType.roomMessagePosted => AttentionDestination(
         kind: AttentionDestinationKind.beaconRoomMessage,
@@ -243,14 +258,17 @@ class AttentionPolicy {
     AttentionEventType.helpOfferSubmitted => reasons.contains(
       AttentionRecipientReason.authorOfBeacon,
     ),
+    AttentionEventType.deadlineChanged ||
+    AttentionEventType.deadlineReminder => false,
     AttentionEventType.needsMe ||
     AttentionEventType.staleReminder ||
     AttentionEventType.reviewOpened => true,
     AttentionEventType.blockerOpened =>
       reasons.contains(AttentionRecipientReason.affectedParticipant) ||
           reasons.contains(AttentionRecipientReason.targetOfAsk),
-    AttentionEventType.commitmentRedirected =>
-      reasons.contains(AttentionRecipientReason.targetOfAsk),
+    AttentionEventType.commitmentRedirected => reasons.contains(
+      AttentionRecipientReason.targetOfAsk,
+    ),
     AttentionEventType.trustGivenChanged ||
     AttentionEventType.trustReceivedChanged => false,
     _ => false,
@@ -300,6 +318,8 @@ class AttentionPolicy {
     AttentionEventType.commitmentResolved => 'commitment_resolved',
     AttentionEventType.commitmentCancelled => 'commitment_cancelled',
     AttentionEventType.commitmentRedirected => 'commitment_redirected',
+    AttentionEventType.deadlineChanged => 'deadline_changed',
+    AttentionEventType.deadlineReminder => 'deadline_reminder',
     AttentionEventType.trustGivenChanged => _trustChangePresentationKey(
       'trust_given_changed',
       role.trustDirection,

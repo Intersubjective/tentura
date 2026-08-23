@@ -72,6 +72,16 @@ abstract class BeaconRepositoryPort {
 
   Future<void> deleteBeaconById(String id, {required String userId});
 
+  Future<List<String>> deadlineReminderCandidateIds({
+    required DateTime nextUtcDayStart,
+    required DateTime followingUtcDayStart,
+  });
+  Future<BeaconEntity?> lockOpenBeaconForDeadlineReminder({
+    required String beaconId,
+    required DateTime nextUtcDayStart,
+    required DateTime followingUtcDayStart,
+  });
+
   /// Row-lock beacon and run [fn] with the locked entity snapshot.
   Future<T> runInBeaconStateTransaction<T>({
     required String beaconId,

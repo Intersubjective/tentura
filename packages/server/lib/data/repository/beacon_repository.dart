@@ -45,6 +45,42 @@ class BeaconRepository implements BeaconRepositoryPort {
   final TenturaDb _database;
 
   @override
+  Future<List<String>> deadlineReminderCandidateIds({
+    required DateTime nextUtcDayStart,
+    required DateTime followingUtcDayStart,
+  }) async {
+    final rows = await _database
+        .customSelect(
+          r'''SELECT id FROM public.beacon WHERE status = 0 AND end_at >= $1 AND end_at < $2''',
+          variables: [
+            Variable<DateTime>(nextUtcDayStart),
+            Variable<DateTime>(followingUtcDayStart),
+          ],
+        )
+        .get();
+    return rows.map((row) => row.read<String>('id')).toList();
+  }
+
+  @override
+  Future<BeaconEntity?> lockOpenBeaconForDeadlineReminder({
+    required String beaconId,
+    required DateTime nextUtcDayStart,
+    required DateTime followingUtcDayStart,
+  }) async {
+    final rows = await _database
+        .customSelect(
+          r'''SELECT id FROM public.beacon WHERE id = $1 AND status = 0 AND end_at >= $2 AND end_at < $3 FOR UPDATE''',
+          variables: [
+            Variable<String>(beaconId),
+            Variable<DateTime>(nextUtcDayStart),
+            Variable<DateTime>(followingUtcDayStart),
+          ],
+        )
+        .get();
+    return rows.isEmpty ? null : getBeaconById(beaconId: beaconId);
+  }
+
+  @override
   Future<BeaconEntity> createBeacon({
     required String authorId,
     required String title,
@@ -236,6 +272,13 @@ class BeaconRepository implements BeaconRepositoryPort {
     String? primaryNeedSlug,
     String? addressLabel,
   }) => _database.withMutatingUser(userId, () async {
+    // Serialize editable state transitions before reading the old deadline.
+    await _database
+        .customSelect(
+          r'''SELECT 1 FROM public.beacon WHERE id = $1 AND user_id = $2 FOR UPDATE''',
+          variables: [Variable<String>(beaconId), Variable<String>(userId)],
+        )
+        .get();
     final row = await _database.managers.beacons
         .filter(
           (e) => e.id.equals(beaconId) & e.userId.id.equals(userId),
@@ -277,7 +320,10 @@ class BeaconRepository implements BeaconRepositoryPort {
           ),
         );
 
-    return getBeaconById(beaconId: beaconId, filterByUserId: userId);
+    return getBeaconById(
+      beaconId: beaconId,
+      filterByUserId: userId,
+    );
   });
 
   @override
@@ -532,25 +578,28 @@ WHERE user_id = $1 AND created_at >= $2
   );
 
   @override
-  Future<void> deleteStage({required String imageId}) =>
-      _database.managers.beaconImageStages
-          .filter((e) => e.imageId.id(UuidValue.fromString(imageId)))
-          .delete();
+  Future<void> deleteStage({required String imageId}) => _database
+      .managers
+      .beaconImageStages
+      .filter((e) => e.imageId.id(UuidValue.fromString(imageId)))
+      .delete();
 
   @override
   Future<void> setCover({
     required String beaconId,
     required String? coverImageId,
     required BeaconCoverSource coverSource,
-  }) => _database.managers.beacons.filter((e) => e.id.equals(beaconId)).update(
-    (o) => o(
-      coverImageId: coverImageId == null
-          ? const Value(null)
-          : Value(UuidValue.fromString(coverImageId)),
-      coverSource: Value(coverSource.wireValue),
-      coverThumbImageId: const Value(null),
-    ),
-  );
+  }) => _database.managers.beacons
+      .filter((e) => e.id.equals(beaconId))
+      .update(
+        (o) => o(
+          coverImageId: coverImageId == null
+              ? const Value(null)
+              : Value(UuidValue.fromString(coverImageId)),
+          coverSource: Value(coverSource.wireValue),
+          coverThumbImageId: const Value(null),
+        ),
+      );
 
   @override
   Future<List<String>> replaceMedia({
@@ -560,16 +609,18 @@ WHERE user_id = $1 AND created_at >= $2
     required BeaconCoverSource coverSource,
     String? coverThumbImageId,
   }) async {
-    final currentAttachedIds = (await _database.managers.beaconImages
-            .filter((e) => e.beaconId.id.equals(beaconId))
-            .get())
-        .map((e) => e.imageId.uuid)
-        .toSet();
-    final currentStagedIds = (await _database.managers.beaconImageStages
-            .filter((e) => e.beaconId.id.equals(beaconId))
-            .get())
-        .map((e) => e.imageId.uuid)
-        .toSet();
+    final currentAttachedIds =
+        (await _database.managers.beaconImages
+                .filter((e) => e.beaconId.id.equals(beaconId))
+                .get())
+            .map((e) => e.imageId.uuid)
+            .toSet();
+    final currentStagedIds =
+        (await _database.managers.beaconImageStages
+                .filter((e) => e.beaconId.id.equals(beaconId))
+                .get())
+            .map((e) => e.imageId.uuid)
+            .toSet();
 
     final desired = imageIds.toSet();
     final toDetach = currentAttachedIds.difference(desired);
@@ -616,17 +667,19 @@ WHERE user_id = $1 AND created_at >= $2
       }
     }
 
-    await _database.managers.beacons.filter((e) => e.id.equals(beaconId)).update(
-      (o) => o(
-        coverImageId: coverImageId == null
-            ? const Value(null)
-            : Value(UuidValue.fromString(coverImageId)),
-        coverSource: Value(coverSource.wireValue),
-        coverThumbImageId: coverThumbImageId == null
-            ? const Value(null)
-            : Value(UuidValue.fromString(coverThumbImageId)),
-      ),
-    );
+    await _database.managers.beacons
+        .filter((e) => e.id.equals(beaconId))
+        .update(
+          (o) => o(
+            coverImageId: coverImageId == null
+                ? const Value(null)
+                : Value(UuidValue.fromString(coverImageId)),
+            coverSource: Value(coverSource.wireValue),
+            coverThumbImageId: coverThumbImageId == null
+                ? const Value(null)
+                : Value(UuidValue.fromString(coverThumbImageId)),
+          ),
+        );
 
     if (coverThumbImageId != null &&
         currentStagedIds.contains(coverThumbImageId)) {

@@ -26,6 +26,19 @@ class BeaconRepositoryMock implements BeaconRepositoryPort {
   const BeaconRepositoryMock();
 
   @override
+  Future<List<String>> deadlineReminderCandidateIds({
+    required DateTime nextUtcDayStart,
+    required DateTime followingUtcDayStart,
+  }) async => const [];
+
+  @override
+  Future<BeaconEntity?> lockOpenBeaconForDeadlineReminder({
+    required String beaconId,
+    required DateTime nextUtcDayStart,
+    required DateTime followingUtcDayStart,
+  }) async => null;
+
+  @override
   Future<BeaconEntity> createBeacon({
     required String authorId,
     required String title,
