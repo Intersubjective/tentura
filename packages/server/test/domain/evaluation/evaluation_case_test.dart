@@ -267,13 +267,15 @@ class _FakeEvaluationRepository implements EvaluationRepositoryPort {
       <({String beaconId, String reason, String? actorUserId})>[];
   List<BeaconEvaluationRecord> listEvaluationsForEvaluatedUserResult = [];
   List<CrossBeaconEvaluationRecord> listFinalizedEvaluationsBetweenResult = [];
+  BeaconEvaluationRecord? evaluationResult;
+  bool mutateEvaluationOnSubmit = false;
 
   @override
   Future<BeaconEvaluationRecord?> getEvaluation({
     required String beaconId,
     required String evaluatorId,
     required String evaluatedUserId,
-  }) async => null;
+  }) async => evaluationResult;
 
   @override
   Future<List<BeaconEvaluationRecord>> listEvaluationsForEvaluator({
@@ -465,6 +467,21 @@ class _FakeEvaluationRepository implements EvaluationRepositoryPort {
         ackTags: ackTags,
       ),
     );
+    if (mutateEvaluationOnSubmit) {
+      final now = DateTime.timestamp();
+      evaluationResult = BeaconEvaluationRecord(
+        beaconId: beaconId,
+        evaluatorId: evaluatorId,
+        evaluatedUserId: evaluatedUserId,
+        value: value,
+        reasonTags: reasonTags.join(','),
+        ackTags: ackTags,
+        note: note,
+        status: BeaconEvaluationRowStatus.submitted,
+        createdAt: now,
+        updatedAt: now,
+      );
+    }
   }
 }
 
@@ -486,6 +503,162 @@ class _FakeReviewFinalization implements ReviewFinalizationPort {
       (beaconId: beaconId, reason: reason, actorUserId: actorUserId),
     );
     return result;
+  }
+}
+
+final class _CausalEvaluationRepository extends _FakeEvaluationRepository {
+  final rows = <String, BeaconEvaluationRecord>{};
+
+  String _key(String evaluatorId, String evaluatedUserId) =>
+      '$evaluatorId:$evaluatedUserId';
+
+  @override
+  Future<BeaconEvaluationRecord?> getEvaluation({
+    required String beaconId,
+    required String evaluatorId,
+    required String evaluatedUserId,
+  }) async => rows[_key(evaluatorId, evaluatedUserId)];
+
+  @override
+  Future<List<BeaconEvaluationRecord>> listEvaluationsForEvaluator({
+    required String beaconId,
+    required String evaluatorId,
+  }) async => rows.values
+      .where((row) => row.beaconId == beaconId && row.evaluatorId == evaluatorId)
+      .toList();
+
+  @override
+  Future<List<BeaconEvaluationRecord>> listEvaluationsForEvaluatedUser({
+    required String beaconId,
+    required String evaluatedUserId,
+  }) async => rows.values
+      .where(
+        (row) =>
+            row.beaconId == beaconId &&
+            row.evaluatedUserId == evaluatedUserId &&
+            row.status == BeaconEvaluationRowStatus.final_,
+      )
+      .toList();
+
+  @override
+  Future<void> upsertEvaluation({
+    required String beaconId,
+    required String evaluatorId,
+    required String evaluatedUserId,
+    required int value,
+    required String reasonTagsCsv,
+    required String note,
+    int status = BeaconEvaluationRowStatus.submitted,
+  }) async {
+    final now = DateTime.timestamp();
+    rows[_key(evaluatorId, evaluatedUserId)] = BeaconEvaluationRecord(
+      beaconId: beaconId,
+      evaluatorId: evaluatorId,
+      evaluatedUserId: evaluatedUserId,
+      value: value,
+      reasonTags: reasonTagsCsv,
+      note: note,
+      status: status,
+      createdAt: now,
+      updatedAt: now,
+    );
+  }
+
+  @override
+  Future<void> submitEvaluationAtomic({
+    required String beaconId,
+    required String evaluatorId,
+    required String evaluatedUserId,
+    required int value,
+    required List<String> reasonTags,
+    required String note,
+    required List<String> ackTags,
+  }) async {
+    final now = DateTime.timestamp();
+    rows[_key(evaluatorId, evaluatedUserId)] = BeaconEvaluationRecord(
+      beaconId: beaconId,
+      evaluatorId: evaluatorId,
+      evaluatedUserId: evaluatedUserId,
+      value: value,
+      reasonTags: reasonTags.join(','),
+      ackTags: ackTags,
+      note: note,
+      status: BeaconEvaluationRowStatus.submitted,
+      createdAt: now,
+      updatedAt: now,
+    );
+  }
+
+  void finalizeSubmitted(String beaconId) {
+    for (final entry in rows.entries) {
+      final row = entry.value;
+      if (row.beaconId == beaconId &&
+          row.status == BeaconEvaluationRowStatus.submitted) {
+        rows[entry.key] = BeaconEvaluationRecord(
+          beaconId: row.beaconId,
+          evaluatorId: row.evaluatorId,
+          evaluatedUserId: row.evaluatedUserId,
+          value: row.value,
+          reasonTags: row.reasonTags,
+          ackTags: row.ackTags,
+          note: row.note,
+          status: BeaconEvaluationRowStatus.final_,
+          createdAt: row.createdAt,
+          updatedAt: DateTime.timestamp(),
+        );
+      }
+    }
+  }
+}
+
+final class _CausalBeaconRepository extends Fake
+    implements BeaconRepositoryPort {
+  _CausalBeaconRepository(this.current);
+
+  BeaconEntity current;
+
+  @override
+  Future<BeaconEntity> getBeaconById({
+    required String beaconId,
+    String? filterByUserId,
+  }) async => current;
+
+  @override
+  Future<T> runInBeaconStateTransaction<T>({
+    required String beaconId,
+    required String userId,
+    required Future<T> Function(BeaconEntity locked) fn,
+  }) => fn(current);
+
+  @override
+  Future<void> recordBeaconStatusTransition({
+    required String beaconId,
+    required BeaconStatus fromStatus,
+    required BeaconStatus toStatus,
+    required String reason,
+    String? actorId,
+  }) async {
+    current = current.copyWith(status: toStatus);
+  }
+}
+
+final class _CausalReviewFinalization implements ReviewFinalizationPort {
+  _CausalReviewFinalization(this.repository, this.beaconRepository);
+
+  final _CausalEvaluationRepository repository;
+  final _CausalBeaconRepository beaconRepository;
+
+  @override
+  Future<ReviewFinalizationResult> closeAndFinalize(
+    String beaconId, {
+    required String reason,
+    String? actorUserId,
+  }) async {
+    repository.finalizeSubmitted(beaconId);
+    beaconRepository.current = beaconRepository.current.copyWith(
+      status: BeaconStatus.closed,
+    );
+    return const ReviewFinalizationResult(didClose: true);
   }
 }
 
@@ -1220,6 +1393,222 @@ void main() {
         ),
       );
     });
+  });
+
+  group('evaluationSubmit reason-tag tri-state', () {
+    ({_FakeEvaluationRepository repo, EvaluationCase case_}) fixture({
+      BeaconEvaluationRecord? existing,
+    }) {
+      final localRepo = _FakeEvaluationRepository()
+        ..reviewWindowResult = openWindow()
+        ..reviewUserStatusResult = 1
+        ..evaluationResult = existing
+        ..visibilityResult = [
+          const BeaconEvaluationVisibilityRecord(
+            beaconId: beaconId,
+            evaluatorId: 'evaluator',
+            participantId: 'subject',
+          ),
+        ]
+        ..participantsResult = [
+          const BeaconEvaluationParticipantRecord(
+            beaconId: beaconId,
+            userId: 'evaluator',
+            role: 1,
+            contributionSummary: 'evaluator',
+            causalHint: 'h',
+          ),
+          const BeaconEvaluationParticipantRecord(
+            beaconId: beaconId,
+            userId: 'subject',
+            role: 0,
+            contributionSummary: 'subject',
+            causalHint: 'h',
+          ),
+        ];
+      final localCase = buildTestEvaluationCase(
+        beaconRepo: _StubBeaconRepository(
+          BeaconEntity(
+            id: beaconId,
+            title: 't',
+            author: const UserEntity(id: 'subject'),
+            createdAt: DateTime.utc(2026),
+            updatedAt: DateTime.utc(2026),
+            status: BeaconStatus.reviewOpen,
+          ),
+        ),
+        forwardRepo: EmptyGraphForwardEdgeRepository(),
+        evalRepo: localRepo,
+        userProfileBatchLookup: StubUserProfileBatchLookup('User'),
+        graphBuilder: EvaluationParticipantGraphBuilder(
+          NoOpCommitmentRepository(),
+          EmptyGraphHelpOfferRepository(),
+          EmptyGraphForwardEdgeRepository(),
+          StubUserRepository('User'),
+        ),
+        attention: attention,
+        expirySweep: expirySweep,
+      );
+      return (repo: localRepo, case_: localCase);
+    }
+
+    BeaconEvaluationRecord existing(String tags) => BeaconEvaluationRecord(
+      beaconId: beaconId,
+      evaluatorId: 'evaluator',
+      evaluatedUserId: 'subject',
+      value: BeaconEvaluationValue.pos1,
+      reasonTags: tags,
+      note: 'old',
+      status: BeaconEvaluationRowStatus.submitted,
+      createdAt: DateTime.utc(2026, 1, 1),
+      updatedAt: DateTime.utc(2026, 1, 1),
+    );
+
+    Future<void> submit(
+      ({_FakeEvaluationRepository repo, EvaluationCase case_}) fixture, {
+      required int value,
+      List<String>? reasonTags,
+    }) async {
+      await fixture.case_.evaluationSubmit(
+        beaconId: beaconId,
+        evaluatorId: 'evaluator',
+        evaluatedUserId: 'subject',
+        value: value,
+        reasonTags: reasonTags,
+        note: 'new',
+      );
+    }
+
+    test('new omitted reasons are empty', () async {
+      final f = fixture();
+      await submit(f, value: BeaconEvaluationValue.pos1);
+      expect(f.repo.submitEvaluationAtomicCalls.single.reasonTags, isEmpty);
+    });
+
+    test('NO_BASIS live promotion remains valid with empty reasons', () async {
+      final f = fixture();
+      await submit(f, value: BeaconEvaluationValue.noBasis);
+      expect(
+        f.repo.submitEvaluationAtomicCalls.single.value,
+        BeaconEvaluationValue.noBasis,
+      );
+      expect(f.repo.submitEvaluationAtomicCalls.single.reasonTags, isEmpty);
+    });
+
+    test('unchanged compatible reasons are preserved', () async {
+      final f = fixture(existing: existing('clear_request'));
+      await submit(f, value: BeaconEvaluationValue.pos1);
+      expect(
+        f.repo.submitEvaluationAtomicCalls.single.reasonTags,
+        ['clear_request'],
+      );
+    });
+
+    test('compatible value transition preserves reasons', () async {
+      final f = fixture(existing: existing('clear_request'));
+      await submit(f, value: BeaconEvaluationValue.pos2);
+      expect(
+        f.repo.submitEvaluationAtomicCalls.single.reasonTags,
+        ['clear_request'],
+      );
+    });
+
+    test('incompatible value transition clears reasons', () async {
+      final f = fixture(existing: existing('clear_request'));
+      await submit(f, value: BeaconEvaluationValue.neg1);
+      expect(f.repo.submitEvaluationAtomicCalls.single.reasonTags, isEmpty);
+    });
+
+    test('explicit empty reasons clear persisted reasons', () async {
+      final f = fixture(existing: existing('clear_request'));
+      await submit(f, value: BeaconEvaluationValue.pos1, reasonTags: const []);
+      expect(f.repo.submitEvaluationAtomicCalls.single.reasonTags, isEmpty);
+    });
+
+    test('valid explicit reasons replace persisted reasons', () async {
+      final f = fixture(existing: existing('clear_request'));
+      await submit(
+        f,
+        value: BeaconEvaluationValue.pos1,
+        reasonTags: const ['fair_closure'],
+      );
+      expect(
+        f.repo.submitEvaluationAtomicCalls.single.reasonTags,
+        ['fair_closure'],
+      );
+    });
+
+    test('invalid explicit reasons are rejected', () async {
+      final f = fixture(existing: existing('clear_request'));
+      await expectLater(
+        () => submit(
+          f,
+          value: BeaconEvaluationValue.pos1,
+          reasonTags: const ['unclear_request'],
+        ),
+        throwsA(
+          isA<EvaluationException>().having(
+            (e) => e.code.codeNumber,
+            'codeNumber',
+            const EvaluationExceptionCodes(
+              EvaluationExceptionCode.invalidReasonTags,
+            ).codeNumber,
+          ),
+        ),
+      );
+      expect(f.repo.submitEvaluationAtomicCalls, isEmpty);
+    });
+
+    test(
+      'persisted-only acknowledgement is retained then removed and cannot re-add',
+      () async {
+        final f = fixture(
+          existing: BeaconEvaluationRecord(
+            beaconId: beaconId,
+            evaluatorId: 'evaluator',
+            evaluatedUserId: 'subject',
+            value: BeaconEvaluationValue.pos1,
+            reasonTags: 'clear_request',
+            ackTags: const ['legacy'],
+            note: 'old',
+            status: BeaconEvaluationRowStatus.submitted,
+            createdAt: DateTime.utc(2026, 1, 1),
+            updatedAt: DateTime.utc(2026, 1, 1),
+          ),
+        );
+        f.repo.mutateEvaluationOnSubmit = true;
+        await f.case_.evaluationSubmit(
+          beaconId: beaconId,
+          evaluatorId: 'evaluator',
+          evaluatedUserId: 'subject',
+          value: BeaconEvaluationValue.pos1,
+          reasonTags: const [],
+          note: 'retain',
+          acknowledgedHelpTags: const ['legacy'],
+        );
+        await f.case_.evaluationSubmit(
+          beaconId: beaconId,
+          evaluatorId: 'evaluator',
+          evaluatedUserId: 'subject',
+          value: BeaconEvaluationValue.pos1,
+          reasonTags: const [],
+          note: 'remove',
+          acknowledgedHelpTags: const [],
+        );
+        await expectLater(
+          () => f.case_.evaluationSubmit(
+            beaconId: beaconId,
+            evaluatorId: 'evaluator',
+            evaluatedUserId: 'subject',
+            value: BeaconEvaluationValue.pos1,
+            reasonTags: const [],
+            note: 're-add',
+            acknowledgedHelpTags: const ['legacy'],
+          ),
+          throwsA(isA<EvaluationException>()),
+        );
+      },
+    );
   });
 
   group('evaluationSkip', () {
@@ -2467,6 +2856,279 @@ void main() {
     });
   });
 
+  group('evaluation participant acknowledgement contract', () {
+    BeaconEvaluationRecord row({
+      required int status,
+      List<String> ackTags = const [],
+    }) => BeaconEvaluationRecord(
+      beaconId: beaconId,
+      evaluatorId: 'evaluator',
+      evaluatedUserId: 'subject',
+      value: BeaconEvaluationValue.pos1,
+      reasonTags: '',
+      ackTags: ackTags,
+      note: 'note',
+      status: status,
+      createdAt: DateTime.utc(2026, 1, 1),
+      updatedAt: DateTime.utc(2026, 1, 1),
+    );
+
+    EvaluationCase localCase({
+      required int evaluatorRole,
+      required BeaconEvaluationRecord evaluation,
+    }) {
+      final localRepo = _FakeEvaluationRepository()
+        ..reviewWindowResult = openWindow()
+        ..reviewUserStatusResult = 1
+        ..participantsResult = [
+          BeaconEvaluationParticipantRecord(
+            beaconId: beaconId,
+            userId: 'evaluator',
+            role: evaluatorRole,
+            contributionSummary: 'evaluator',
+            causalHint: 'h',
+          ),
+          const BeaconEvaluationParticipantRecord(
+            beaconId: beaconId,
+            userId: 'subject',
+            role: 1,
+            contributionSummary: 'subject',
+            causalHint: 'h',
+          ),
+        ]
+        ..visibilityResult = [
+          const BeaconEvaluationVisibilityRecord(
+            beaconId: beaconId,
+            evaluatorId: 'evaluator',
+            participantId: 'subject',
+          ),
+        ]
+        ..listEvaluationsForEvaluatorResult = [evaluation];
+      return buildTestEvaluationCase(
+        beaconRepo: _StubBeaconRepository(
+          BeaconEntity(
+            id: beaconId,
+            title: 't',
+            author: const UserEntity(id: userId),
+            createdAt: DateTime.utc(2026),
+            updatedAt: DateTime.utc(2026),
+            status: BeaconStatus.reviewOpen,
+            needs: const {'current'},
+          ),
+        ),
+        forwardRepo: EmptyGraphForwardEdgeRepository(),
+        evalRepo: localRepo,
+        userProfileBatchLookup: StubUserProfileBatchLookup('User'),
+        graphBuilder: EvaluationParticipantGraphBuilder(
+          NoOpCommitmentRepository(),
+          EmptyGraphHelpOfferRepository(),
+          EmptyGraphForwardEdgeRepository(),
+          StubUserRepository('User'),
+        ),
+        attention: attention,
+        expirySweep: expirySweep,
+      );
+    }
+
+    test(
+      'eligible participant exposes saved, current, grandfathered, cap and status',
+      () async {
+        final result =
+            await localCase(
+              evaluatorRole: EvaluationParticipantRole.author.dbValue,
+              evaluation: row(
+                status: BeaconEvaluationRowStatus.submitted,
+                ackTags: const ['legacy'],
+              ),
+            ).evaluationParticipants(
+              beaconId: beaconId,
+              evaluatorId: 'evaluator',
+            );
+        final participant = result.single;
+        expect(participant.acknowledgedHelpTags, ['legacy']);
+        expect(participant.acknowledgeableHelpTags, ['current', 'legacy']);
+        expect(participant.maxAcknowledgedHelpTags, 3);
+        expect(participant.isSubmitted, isTrue);
+      },
+    );
+
+    test(
+      'ineligible participant receives empty acknowledgement surface and cap zero',
+      () async {
+        final result =
+            await localCase(
+              evaluatorRole: EvaluationParticipantRole.forwarder.dbValue,
+              evaluation: row(
+                status: BeaconEvaluationRowStatus.submitted,
+                ackTags: const ['legacy'],
+              ),
+            ).evaluationParticipants(
+              beaconId: beaconId,
+              evaluatorId: 'evaluator',
+            );
+        final participant = result.single;
+        expect(participant.acknowledgedHelpTags, isEmpty);
+        expect(participant.acknowledgeableHelpTags, isEmpty);
+        expect(participant.maxAcknowledgedHelpTags, 0);
+      },
+    );
+
+    test(
+      'draft participant is not submitted and has no persisted acknowledgements',
+      () async {
+        final result =
+            await localCase(
+              evaluatorRole: EvaluationParticipantRole.author.dbValue,
+              evaluation: row(status: BeaconEvaluationRowStatus.draft),
+            ).evaluationParticipants(
+              beaconId: beaconId,
+              evaluatorId: 'evaluator',
+            );
+        final participant = result.single;
+        expect(participant.isSubmitted, isFalse);
+        expect(participant.acknowledgedHelpTags, isEmpty);
+      },
+    );
+  });
+
+  group('causal draft, submission, finalization and receipt', () {
+    test(
+      'promotes one no-basis draft and reveals only to the evaluated user',
+      () async {
+        const evaluatedUserId = 'helper1';
+        const unrelatedUserId = 'unrelated';
+        final now = DateTime.utc(2026, 1, 1);
+        final beaconRepo = _CausalBeaconRepository(
+          BeaconEntity(
+            id: beaconId,
+            title: 'Causal request',
+            author: const UserEntity(id: userId),
+            createdAt: now,
+            updatedAt: now,
+            status: BeaconStatus.open,
+          ),
+        );
+        final evalRepo = _CausalEvaluationRepository()
+          ..reviewWindowResult = openWindow()
+          ..reviewUserStatusResult = 1
+          ..reviewStatusesResult = {userId: 2, evaluatedUserId: 2}
+          ..visibilityResult = [
+            const BeaconEvaluationVisibilityRecord(
+              beaconId: beaconId,
+              evaluatorId: userId,
+              participantId: evaluatedUserId,
+            ),
+          ]
+          ..participantsResult = [
+            const BeaconEvaluationParticipantRecord(
+              beaconId: beaconId,
+              userId: userId,
+              role: 0,
+              contributionSummary: 'author',
+              causalHint: 'h',
+            ),
+            const BeaconEvaluationParticipantRecord(
+              beaconId: beaconId,
+              userId: evaluatedUserId,
+              role: 1,
+              contributionSummary: 'helper',
+              causalHint: 'h',
+            ),
+          ];
+        final offers = _SingleCommitterHelpOfferRepo(
+          HelpOfferEntity(
+            beaconId: beaconId,
+            userId: evaluatedUserId,
+            createdAt: now,
+            updatedAt: now,
+          ),
+        );
+        final commitment = acknowledgedCommitterCommitmentRepo(
+          beaconId: beaconId,
+          helperId: evaluatedUserId,
+          authorId: userId,
+          baseTime: now,
+        );
+        final forwardRepo = EmptyGraphForwardEdgeRepository();
+        final attention = TestAttentionHarness();
+        final expirySweep = AttentionExpirySweepCase(
+          _NoopAttentionExpiryRepository(),
+          _FakeReviewFinalization(),
+          attention.intents,
+          attention.transactional,
+        );
+        final evaluationCase = buildTestEvaluationCase(
+          beaconRepo: beaconRepo,
+          forwardRepo: forwardRepo,
+          evalRepo: evalRepo,
+          userProfileBatchLookup: StubUserProfileBatchLookup('User'),
+          graphBuilder: EvaluationParticipantGraphBuilder(
+            commitment,
+            offers,
+            forwardRepo,
+            StubUserRepository('User'),
+          ),
+          attention: attention,
+          expirySweep: expirySweep,
+          commitmentRepo: commitment,
+          helpOfferRepo: offers,
+          reviewFinalization: _CausalReviewFinalization(evalRepo, beaconRepo),
+        );
+
+        await evaluationCase.evaluationDraftSave(
+          beaconId: beaconId,
+          evaluatorId: userId,
+          evaluatedUserId: evaluatedUserId,
+          value: BeaconEvaluationValue.noBasis,
+          note: 'draft no basis',
+        );
+        beaconRepo.current = beaconRepo.current.copyWith(
+          status: BeaconStatus.reviewOpen,
+        );
+        final draft = (await evaluationCase.evaluationParticipants(
+          beaconId: beaconId,
+          evaluatorId: userId,
+        )).single;
+        expect(draft.isSubmitted, isFalse);
+        expect(evalRepo.rows.values.single.status, BeaconEvaluationRowStatus.draft);
+
+        await evaluationCase.evaluationSubmit(
+          beaconId: beaconId,
+          evaluatorId: userId,
+          evaluatedUserId: evaluatedUserId,
+          value: BeaconEvaluationValue.noBasis,
+          note: 'submitted no basis',
+        );
+        final submitted = (await evaluationCase.evaluationParticipants(
+          beaconId: beaconId,
+          evaluatorId: userId,
+        )).single;
+        expect(submitted.isSubmitted, isTrue);
+        expect(
+          evalRepo.rows.values.single.status,
+          BeaconEvaluationRowStatus.submitted,
+        );
+
+        await evaluationCase.closeNow(beaconId: beaconId, userId: userId);
+        expect(beaconRepo.current.status, BeaconStatus.closed);
+        expect(evalRepo.rows.values.single.status, BeaconEvaluationRowStatus.final_);
+
+        final received = await evaluationCase.evaluationReceived(
+          beaconId: beaconId,
+          userId: evaluatedUserId,
+        );
+        expect(received.windowClosed, isTrue);
+        expect(received.rows, hasLength(1));
+        expect(received.rows.single.value, BeaconEvaluationValue.noBasis);
+        final unrelated = await evaluationCase.evaluationReceived(
+          beaconId: beaconId,
+          userId: unrelatedUserId,
+        );
+        expect(unrelated.rows, isEmpty);
+      },
+    );
+  });
+
   group('evaluationReceived', () {
     late _TransactionStubBeaconRepo beaconRepo;
     const reviewerId = 'reviewer1';
@@ -2497,6 +3159,7 @@ void main() {
     BeaconEvaluationRecord evaluationRow({
       required int value,
       int status = BeaconEvaluationRowStatus.final_,
+      List<String> ackTags = const [],
     }) {
       final now = DateTime.utc(2026, 3, 1);
       return BeaconEvaluationRecord(
@@ -2505,6 +3168,7 @@ void main() {
         evaluatedUserId: evaluatedId,
         value: value,
         reasonTags: 'tag_a',
+        ackTags: ackTags,
         note: 'note',
         status: status,
         createdAt: now,
@@ -2553,7 +3217,10 @@ void main() {
     test('returns named rows with reviewer role and tone when closed', () async {
       evalRepo
         ..listEvaluationsForEvaluatedUserResult = [
-          evaluationRow(value: BeaconEvaluationValue.pos1),
+          evaluationRow(
+            value: BeaconEvaluationValue.pos1,
+            ackTags: const ['transport'],
+          ),
         ]
         ..participantsResult = [
           const BeaconEvaluationParticipantRecord(
@@ -2585,6 +3252,7 @@ void main() {
       expect(row.reviewerRole, EvaluationParticipantRole.forwarder);
       expect(row.tone, EvaluationReceivedTrustTone.up);
       expect(row.reasonTags, ['tag_a']);
+      expect(row.acknowledgedHelpTags, ['transport']);
       expect(row.note, 'note');
     });
 
@@ -2744,12 +3412,16 @@ void main() {
     const viewerId = 'viewer-evaluated';
     final occurredAt = DateTime.utc(2026, 4, 1, 12);
 
-    CrossBeaconEvaluationRecord crossBeaconRow({required int value}) =>
+    CrossBeaconEvaluationRecord crossBeaconRow({
+      required int value,
+      List<String> ackTags = const [],
+    }) =>
         CrossBeaconEvaluationRecord(
           evaluatorId: authorId,
           evaluatedUserId: viewerId,
           value: value,
           reasonTags: 'reliable,on_time',
+          ackTags: ackTags,
           note: 'Great help',
           occurredAt: occurredAt,
           beaconId: 'beacon-cross-1',
@@ -2796,7 +3468,7 @@ void main() {
 
     test('maps finalized rows with trust tone including noBasis', () async {
       evalRepo.listFinalizedEvaluationsBetweenResult = [
-        crossBeaconRow(value: BeaconEvaluationValue.pos1),
+        crossBeaconRow(value: BeaconEvaluationValue.pos1, ackTags: const ['transport']),
         crossBeaconRow(value: BeaconEvaluationValue.noBasis),
       ];
 
@@ -2809,6 +3481,7 @@ void main() {
       expect(rows[0].beaconTitle, 'Move help this weekend');
       expect(rows[0].tone, EvaluationReceivedTrustTone.up);
       expect(rows[0].reasonTags, ['reliable', 'on_time']);
+      expect(rows[0].acknowledgedHelpTags, ['transport']);
       expect(rows[1].tone, EvaluationReceivedTrustTone.noBasis);
     });
 

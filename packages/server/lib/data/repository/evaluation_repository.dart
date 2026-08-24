@@ -165,15 +165,32 @@ class EvaluationRepository implements EvaluationRepositoryPort {
     required String evaluatorId,
     required String evaluatedUserId,
   }) async {
-    final row = await _db.managers.beaconEvaluations
-        .filter(
-          (e) =>
-              e.beaconId.id(beaconId) &
-              e.evaluatorId.id(evaluatorId) &
-              e.evaluatedUserId.id(evaluatedUserId),
+    final rows = await _db
+        .customSelect(
+          r'''
+      SELECT e.beacon_id, e.evaluator_id, e.evaluated_user_id, e.value,
+             e.reason_tags, e.note, e.status, e.created_at, e.updated_at,
+             COALESCE(
+               (SELECT string_agg(a.tag_slug, ',' ORDER BY a.tag_slug)
+                  FROM public.beacon_evaluation_ack_tag a
+                 WHERE a.beacon_id = e.beacon_id
+                   AND a.evaluator_id = e.evaluator_id
+                   AND a.subject_id = e.evaluated_user_id),
+               ''
+             ) AS ack_tags_csv
+        FROM public.beacon_evaluation e
+       WHERE e.beacon_id = $1
+         AND e.evaluator_id = $2
+         AND e.evaluated_user_id = $3
+      ''',
+          variables: [
+            Variable<String>(beaconId),
+            Variable<String>(evaluatorId),
+            Variable<String>(evaluatedUserId),
+          ],
         )
-        .getSingleOrNull();
-    return row == null ? null : beaconEvaluationToRecord(row);
+        .get();
+    return rows.isEmpty ? null : _evaluationFromQueryRow(rows.single);
   }
 
   /// All evaluation rows for one evaluator on a beacon (single query).
@@ -182,12 +199,29 @@ class EvaluationRepository implements EvaluationRepositoryPort {
     required String beaconId,
     required String evaluatorId,
   }) async {
-    final rows = await _db.managers.beaconEvaluations
-        .filter(
-          (e) => e.beaconId.id(beaconId) & e.evaluatorId.id(evaluatorId),
+    final rows = await _db
+        .customSelect(
+          r'''
+      SELECT e.beacon_id, e.evaluator_id, e.evaluated_user_id, e.value,
+             e.reason_tags, e.note, e.status, e.created_at, e.updated_at,
+             COALESCE(
+               (SELECT string_agg(a.tag_slug, ',' ORDER BY a.tag_slug)
+                  FROM public.beacon_evaluation_ack_tag a
+                 WHERE a.beacon_id = e.beacon_id
+                   AND a.evaluator_id = e.evaluator_id
+                   AND a.subject_id = e.evaluated_user_id),
+               ''
+             ) AS ack_tags_csv
+        FROM public.beacon_evaluation e
+       WHERE e.beacon_id = $1 AND e.evaluator_id = $2
+      ''',
+          variables: [
+            Variable<String>(beaconId),
+            Variable<String>(evaluatorId),
+          ],
         )
         .get();
-    return rows.map(beaconEvaluationToRecord).toList();
+    return rows.map(_evaluationFromQueryRow).toList();
   }
 
   @override
@@ -306,18 +340,32 @@ class EvaluationRepository implements EvaluationRepositoryPort {
     required String beaconId,
     required String evaluatedUserId,
   }) async {
-    final rows = await _db.managers.beaconEvaluations
-        .filter(
-          (e) =>
-              e.beaconId.id(beaconId) & e.evaluatedUserId.id(evaluatedUserId),
+    final rows = await _db
+        .customSelect(
+          r'''
+      SELECT e.beacon_id, e.evaluator_id, e.evaluated_user_id, e.value,
+             e.reason_tags, e.note, e.status, e.created_at, e.updated_at,
+             COALESCE(
+               (SELECT string_agg(a.tag_slug, ',' ORDER BY a.tag_slug)
+                  FROM public.beacon_evaluation_ack_tag a
+                 WHERE a.beacon_id = e.beacon_id
+                   AND a.evaluator_id = e.evaluator_id
+                   AND a.subject_id = e.evaluated_user_id),
+               ''
+             ) AS ack_tags_csv
+        FROM public.beacon_evaluation e
+       WHERE e.beacon_id = $1 AND e.evaluated_user_id = $2
+         AND e.status IN ($3, $4)
+      ''',
+          variables: [
+            Variable<String>(beaconId),
+            Variable<String>(evaluatedUserId),
+            const Variable<int>(BeaconEvaluationRowStatus.submitted),
+            const Variable<int>(BeaconEvaluationRowStatus.final_),
+          ],
         )
         .get();
-    return rows
-        .where(
-          (r) => BeaconEvaluationRowStatus.countsTowardSummary(r.status),
-        )
-        .map(beaconEvaluationToRecord)
-        .toList();
+    return rows.map(_evaluationFromQueryRow).toList();
   }
 
   /// Finalized evaluations one person wrote about another across closed requests.
@@ -336,9 +384,19 @@ SELECT
   e.value,
   e.reason_tags,
   e.note,
+  e.status,
+  e.created_at,
   e.updated_at,
   b.title AS beacon_title,
-  b.status_changed_at AS beacon_closed_at
+  b.status_changed_at AS beacon_closed_at,
+  COALESCE(
+    (SELECT string_agg(a.tag_slug, ',' ORDER BY a.tag_slug)
+       FROM public.beacon_evaluation_ack_tag a
+      WHERE a.beacon_id = e.beacon_id
+        AND a.evaluator_id = e.evaluator_id
+        AND a.subject_id = e.evaluated_user_id),
+    ''
+  ) AS ack_tags_csv
 FROM beacon_evaluation e
 INNER JOIN beacon b ON b.id = e.beacon_id
 WHERE e.evaluator_id = $1
@@ -364,6 +422,7 @@ ORDER BY e.updated_at DESC
           evaluatedUserId: row.read<String>('evaluated_user_id'),
           value: row.read<int>('value'),
           reasonTags: row.read<String>('reason_tags'),
+          ackTags: _ackTagsFromCsv(row.read<String>('ack_tags_csv')),
           note: row.read<String>('note'),
           occurredAt: _readEvaluationTimestamp(row, 'updated_at'),
           beaconId: row.read<String>('beacon_id'),
@@ -668,6 +727,24 @@ Future<void> _insertBeaconLifecycleEvent({
       ? insert()
       : db.withMutatingUser(mutatingUserId, insert);
 }
+
+BeaconEvaluationRecord _evaluationFromQueryRow(QueryRow row) =>
+    BeaconEvaluationRecord(
+      beaconId: row.read<String>('beacon_id'),
+      evaluatorId: row.read<String>('evaluator_id'),
+      evaluatedUserId: row.read<String>('evaluated_user_id'),
+      value: row.read<int>('value'),
+      reasonTags: row.read<String>('reason_tags'),
+      ackTags: _ackTagsFromCsv(row.read<String>('ack_tags_csv')),
+      note: row.read<String>('note'),
+      status: row.read<int>('status'),
+      createdAt: _readEvaluationTimestamp(row, 'created_at'),
+      updatedAt: _readEvaluationTimestamp(row, 'updated_at'),
+    );
+
+List<String> _ackTagsFromCsv(String csv) => csv.isEmpty
+    ? const []
+    : csv.split(',').where((tag) => tag.isNotEmpty).toList(growable: false);
 
 DateTime _readEvaluationTimestamp(QueryRow row, String column) {
   final value = _readEvaluationTimestampNullable(row, column);

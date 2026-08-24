@@ -6,6 +6,7 @@ final class CrossBeaconEvaluationRecord {
     required this.evaluatedUserId,
     required this.value,
     required this.reasonTags,
+    this.ackTags = const [],
     required this.note,
     required this.occurredAt,
     required this.beaconId,
@@ -17,6 +18,7 @@ final class CrossBeaconEvaluationRecord {
   final String evaluatedUserId;
   final int value;
   final String reasonTags;
+  final List<String> ackTags;
   final String note;
   final DateTime occurredAt;
   final String beaconId;

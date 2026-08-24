@@ -8,6 +8,8 @@ BeaconEvaluationRecord beaconEvaluationToRecord(BeaconEvaluation r) =>
       evaluatedUserId: r.evaluatedUserId,
       value: r.value,
       reasonTags: r.reasonTags,
+      // Manager rows do not expose acknowledgement tags; explicit repository
+      // queries fill this field after mapping.
       note: r.note,
       status: r.status,
       createdAt: r.createdAt.dateTime,

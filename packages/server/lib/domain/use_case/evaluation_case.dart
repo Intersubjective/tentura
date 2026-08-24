@@ -2,6 +2,7 @@ import 'package:injectable/injectable.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 import 'package:tentura_server/consts/beacon_activity_event_consts.dart';
 import 'package:tentura_server/consts/commitment_consts.dart';
+import 'package:tentura_server/domain/capability/capability_consts.dart';
 import 'package:tentura_server/domain/commitment/commitment_event_kind.dart';
 import 'package:tentura_server/domain/commitment/commitment_state.dart';
 import 'package:tentura_server/domain/port/beacon_repository_port.dart';
@@ -583,6 +584,13 @@ final class EvaluationCase extends UseCaseBase {
     );
     final parts = await _evaluationRepository.listParticipants(beaconId);
     final partByUser = {for (final p in parts) p.userId: p};
+    final evaluatorRole = EvaluationParticipantRole.fromDb(
+      parts.firstWhere((p) => p.userId == evaluatorId).role,
+    );
+    final canAcknowledge = _canAcknowledgeHelp(evaluatorRole);
+    final beacon = canAcknowledge
+        ? await _beaconRepository.getBeaconById(beaconId: beaconId)
+        : null;
     final committerIds = parts
         .where((p) => p.role == EvaluationParticipantRole.committer.dbValue)
         .map((p) => p.userId)
@@ -605,6 +613,27 @@ final class EvaluationCase extends UseCaseBase {
       visibleParticipantIds,
     );
 
+    final allowedByParticipant = canAcknowledge
+        ? await Future.wait(
+            visibleParticipantIds.map(
+              (pid) async => (
+                pid: pid,
+                tags: <String>{
+                  ...beacon!.needs,
+                  ...await _helpOfferRepository.fetchActiveHelpTypes(
+                    beaconId: beaconId,
+                    userId: pid,
+                  ),
+                },
+              ),
+            ),
+          ).then(
+            (rows) => <String, Set<String>>{
+              for (final row in rows) row.pid: row.tags,
+            },
+          )
+        : const <String, Set<String>>{};
+
     final out = <EvaluationParticipantResult>[];
     for (final v in vis) {
       final pid = v.participantId;
@@ -617,6 +646,12 @@ final class EvaluationCase extends UseCaseBase {
         throw IdNotFoundException(id: pid);
       }
       final ev = evByTarget[pid];
+      final savedTags = canAcknowledge
+          ? (ev?.ackTags ?? const <String>[])
+          : const <String>[];
+      final acknowledgeable = canAcknowledge
+          ? ({...allowedByParticipant[pid]!, ...savedTags}.toList()..sort())
+          : const <String>[];
       out.add(
         EvaluationParticipantResult(
           userId: pid,
@@ -634,6 +669,14 @@ final class EvaluationCase extends UseCaseBase {
             latestEdgeToCommitter: latestEdgeToCommitter,
           ),
           value: ev?.value,
+          acknowledgedHelpTags: savedTags,
+          acknowledgeableHelpTags: acknowledgeable,
+          maxAcknowledgedHelpTags: canAcknowledge
+              ? kCapMaxTagsPerSubjectBeacon
+              : 0,
+          isSubmitted:
+              ev?.status == BeaconEvaluationRowStatus.submitted ||
+              ev?.status == BeaconEvaluationRowStatus.final_,
         ),
       );
     }
@@ -737,6 +780,10 @@ final class EvaluationCase extends UseCaseBase {
             latestEdgeToCommitter: graph.latestEdgeToCommitter,
           ),
           value: useEv?.value,
+          acknowledgedHelpTags: const [],
+          acknowledgeableHelpTags: const [],
+          maxAcknowledgedHelpTags: 0,
+          isSubmitted: false,
         ),
       );
     }
@@ -773,8 +820,8 @@ final class EvaluationCase extends UseCaseBase {
     required String evaluatorId,
     required String evaluatedUserId,
     required int value,
-    required List<String> reasonTags,
     required String note,
+    List<String>? reasonTags,
   }) async {
     await _ensureExpiredClosed();
     final beacon = await _beaconRepository.getBeaconById(beaconId: beaconId);
@@ -806,12 +853,23 @@ final class EvaluationCase extends UseCaseBase {
     final target = graph.participants.firstWhere(
       (p) => p.userId == evaluatedUserId,
     );
-    _validateEvaluation(
+    final existing = await _evaluationRepository.getEvaluation(
+      beaconId: beaconId,
+      evaluatorId: evaluatorId,
+      evaluatedUserId: evaluatedUserId,
+    );
+    final resolvedReasonTags = _resolveReasonTags(
+      incoming: reasonTags,
+      existing: existing,
       value: value,
-      reasonTags: reasonTags,
       evaluatedRole: target.role,
     );
-    final csv = reasonTags.join(',');
+    _validateEvaluation(
+      value: value,
+      reasonTags: resolvedReasonTags,
+      evaluatedRole: target.role,
+    );
+    final csv = resolvedReasonTags.join(',');
     await _evaluationRepository.upsertEvaluation(
       beaconId: beaconId,
       evaluatorId: evaluatorId,
@@ -1001,6 +1059,7 @@ final class EvaluationCase extends UseCaseBase {
           value: r.value,
           tone: evaluationReceivedTrustToneFromValue(r.value),
           reasonTags: _reasonTagsFromCsv(r.reasonTags),
+          acknowledgedHelpTags: r.ackTags,
           note: r.note,
           occurredAt: r.updatedAt,
         ),
@@ -1037,6 +1096,7 @@ final class EvaluationCase extends UseCaseBase {
           value: r.value,
           tone: evaluationReceivedTrustToneFromValue(r.value),
           reasonTags: _reasonTagsFromCsv(r.reasonTags),
+          acknowledgedHelpTags: r.ackTags,
           note: r.note,
           occurredAt: r.occurredAt,
         ),
@@ -1074,8 +1134,8 @@ final class EvaluationCase extends UseCaseBase {
     required String evaluatorId,
     required String evaluatedUserId,
     required int value,
-    required List<String> reasonTags,
     required String note,
+    List<String>? reasonTags,
     List<String>? acknowledgedHelpTags,
   }) async {
     await _ensureExpiredClosed();
@@ -1110,13 +1170,27 @@ final class EvaluationCase extends UseCaseBase {
       parts.firstWhere((p) => p.userId == evaluatedUserId).role,
     );
 
-    _validateEvaluation(
+    final existing = await _evaluationRepository.getEvaluation(
+      beaconId: beaconId,
+      evaluatorId: evaluatorId,
+      evaluatedUserId: evaluatedUserId,
+    );
+    final resolvedReasonTags = _resolveReasonTags(
+      incoming: reasonTags,
+      existing: existing,
       value: value,
-      reasonTags: reasonTags,
       evaluatedRole: roleOfEvaluated,
     );
 
-    final ackTags = acknowledgedHelpTags ?? const <String>[];
+    _validateEvaluation(
+      value: value,
+      reasonTags: resolvedReasonTags,
+      evaluatedRole: roleOfEvaluated,
+    );
+
+    final ackTags = _resolveAckTags(
+      incoming: acknowledgedHelpTags,
+    );
 
     if (ackTags.isNotEmpty) {
       const eligibleAckRoles = {
@@ -1130,12 +1204,22 @@ final class EvaluationCase extends UseCaseBase {
         );
       }
 
+      if (ackTags.length > kCapMaxTagsPerSubjectBeacon) {
+        throw EvaluationException(
+          evaluationCode: EvaluationExceptionCode.ackTagCapExceeded,
+        );
+      }
+
       final beacon = await _beaconRepository.getBeaconById(beaconId: beaconId);
       final helpTypes = await _helpOfferRepository.fetchActiveHelpTypes(
         beaconId: beaconId,
         userId: evaluatedUserId,
       );
-      final allowedAckSlugs = {...beacon.needs, ...helpTypes};
+      final allowedAckSlugs = {
+        ...beacon.needs,
+        ...helpTypes,
+        ...existing?.ackTags ?? const <String>[],
+      };
       for (final tag in ackTags) {
         if (!allowedAckSlugs.contains(tag)) {
           throw EvaluationException(
@@ -1152,7 +1236,7 @@ final class EvaluationCase extends UseCaseBase {
         evaluatorId: evaluatorId,
         evaluatedUserId: evaluatedUserId,
         value: value,
-        reasonTags: reasonTags,
+        reasonTags: resolvedReasonTags,
         note: note,
         ackTags: ackTags,
       );
@@ -1201,11 +1285,6 @@ final class EvaluationCase extends UseCaseBase {
         evaluationCode: EvaluationExceptionCode.invalidEvaluationValue,
       );
     }
-    if (BeaconEvaluationValue.requiresReasonTag(value) && reasonTags.isEmpty) {
-      throw EvaluationException(
-        evaluationCode: EvaluationExceptionCode.reasonTagRequired,
-      );
-    }
     if (!BeaconEvaluationValue.allowsReasonTag(value) &&
         reasonTags.isNotEmpty) {
       throw EvaluationException(
@@ -1221,6 +1300,33 @@ final class EvaluationCase extends UseCaseBase {
         );
       }
     }
+  }
+
+  bool _canAcknowledgeHelp(EvaluationParticipantRole role) =>
+      role == EvaluationParticipantRole.author ||
+      role == EvaluationParticipantRole.committer ||
+      role == EvaluationParticipantRole.formerCommitter;
+
+  List<String> _resolveReasonTags({
+    required List<String>? incoming,
+    required BeaconEvaluationRecord? existing,
+    required int value,
+    required EvaluationParticipantRole evaluatedRole,
+  }) {
+    if (incoming != null) return incoming;
+    if (existing == null || existing.reasonTags.isEmpty) return const [];
+    final previous = _reasonTagsFromCsv(existing.reasonTags);
+    final allowed = _allowedTagsForValue(value, evaluatedRole);
+    return previous.every(allowed.contains) ? previous : const [];
+  }
+
+  List<String> _resolveAckTags({
+    required List<String>? incoming,
+  }) {
+    // Null is the legacy/omitted mutation shape and means no acknowledgement
+    // selection. Explicit lists, including [], replace the child rows.
+    if (incoming == null) return const [];
+    return incoming;
   }
 
   static Set<String> _allowedTagsForValue(

@@ -12,6 +12,7 @@ import 'package:tentura_server/data/database/migration/_migrations.dart';
 import 'package:tentura_server/data/database/tentura_db.dart'
     hide isNotNull, isNull;
 import 'package:tentura_server/data/repository/evaluation_repository.dart';
+import 'package:tentura_server/domain/evaluation/beacon_evaluation_row_status.dart';
 import 'package:tentura_server/env.dart';
 
 const _beacon1 = 'Bcapc1abcn01';
@@ -41,6 +42,8 @@ Future<void> main() async {
       );
       await writer.execute('SET check_function_bodies = false');
       await migrateDbSchema(writer);
+      final proof = await writer.execute('SELECT current_database()');
+      print('PG_DISPOSABLE_DATABASE=${proof.single.single}');
 
       final tableRows = await writer.execute(r'''
 SELECT 1
@@ -149,6 +152,85 @@ WHERE beacon_id = 'Bcapc1abcn01'
         expect(evalRow.single[0], 5);
         expect(evalRow.single[1], 'second');
         expect(evalRow.single[2], 'n2');
+      },
+      skip: skipReason,
+    );
+
+    test(
+      'ack tags round-trip through every evaluation read projection',
+      () async {
+        await repo.submitEvaluationAtomic(
+          beaconId: _beacon1,
+          evaluatorId: _eval1,
+          evaluatedUserId: _subject,
+          value: 4,
+          reasonTags: const ['first'],
+          note: 'first',
+          ackTags: const ['zeta', 'alpha'],
+        );
+        await repo.submitEvaluationAtomic(
+          beaconId: _beacon1,
+          evaluatorId: _eval2,
+          evaluatedUserId: _subject,
+          value: 5,
+          reasonTags: const ['second'],
+          note: 'second',
+          ackTags: const ['beta'],
+        );
+        await repo.submitEvaluationAtomic(
+          beaconId: _beacon2,
+          evaluatorId: _eval1,
+          evaluatedUserId: _subject,
+          value: 3,
+          reasonTags: const [],
+          note: 'cross-beacon',
+          ackTags: const ['gamma'],
+        );
+        await writer.execute(
+          "UPDATE public.beacon_evaluation SET status = ${BeaconEvaluationRowStatus.final_}, "
+          "updated_at = CASE WHEN beacon_id = '$_beacon2' THEN '2026-01-03'::timestamptz "
+          "ELSE CASE WHEN evaluator_id = '$_eval2' THEN '2026-01-02'::timestamptz "
+          "ELSE '2026-01-01'::timestamptz END END "
+          "WHERE beacon_id IN ('$_beacon1', '$_beacon2')",
+        );
+        await writer.execute(
+          "UPDATE public.beacon SET status = 6 WHERE id IN ('$_beacon1', '$_beacon2')",
+        );
+        final direct = await repo.getEvaluation(
+          beaconId: _beacon1,
+          evaluatorId: _eval1,
+          evaluatedUserId: _subject,
+        );
+        expect(direct!.ackTags, ['alpha', 'zeta']);
+        final byEvaluator = await repo.listEvaluationsForEvaluator(
+          beaconId: _beacon1,
+          evaluatorId: _eval1,
+        );
+        expect(byEvaluator.single.ackTags, ['alpha', 'zeta']);
+        expect(byEvaluator.single.status, BeaconEvaluationRowStatus.final_);
+        final byEvaluated = await repo.listEvaluationsForEvaluatedUser(
+          beaconId: _beacon1,
+          evaluatedUserId: _subject,
+        );
+        final byEvaluatorId = {
+          for (final row in byEvaluated) row.evaluatorId: row,
+        };
+        expect(byEvaluatorId[_eval1]!.ackTags, ['alpha', 'zeta']);
+        expect(byEvaluatorId[_eval1]!.status, BeaconEvaluationRowStatus.final_);
+        expect(byEvaluatorId[_eval2]!.ackTags, ['beta']);
+        expect(byEvaluatorId[_eval2]!.status, BeaconEvaluationRowStatus.final_);
+        final cross = await repo.listFinalizedEvaluationsBetween(
+          evaluatorId: _eval1,
+          evaluatedUserId: _subject,
+        );
+        expect(cross.map((row) => row.beaconId), [_beacon2, _beacon1]);
+        expect(cross.map((row) => row.ackTags), [
+          ['gamma'],
+          ['alpha', 'zeta'],
+        ]);
+        await writer.execute(
+          "UPDATE public.beacon SET status = 0 WHERE id IN ('$_beacon1', '$_beacon2')",
+        );
       },
       skip: skipReason,
     );

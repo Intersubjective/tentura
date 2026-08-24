@@ -133,9 +133,7 @@ final class MutationEvaluation extends GqlNodeBase {
         resolve: (_, args) {
           final jwt = getCredentials(args);
           final tags = args[_reasonTagsField.name];
-          final list = tags == null
-              ? <String>[]
-              : List<String>.from(tags as List);
+          final list = tags == null ? null : List<String>.from(tags as List);
           final rawAck = args[_acknowledgedHelpTagsField.name];
           final acknowledgedHelpTags = rawAck == null
               ? null
@@ -193,9 +191,7 @@ final class MutationEvaluation extends GqlNodeBase {
         resolve: (_, args) {
           final jwt = getCredentials(args);
           final tags = args[_reasonTagsField.name];
-          final list = tags == null
-              ? <String>[]
-              : List<String>.from(tags as List);
+          final list = tags == null ? null : List<String>.from(tags as List);
           return _evaluationCase.evaluationDraftSave(
             beaconId: InputFieldId.fromArgsNonNullable(args),
             evaluatorId: jwt.sub,

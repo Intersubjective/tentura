@@ -15,6 +15,7 @@ class EvaluationsWrittenAboutViewerRow {
     required this.value,
     required this.tone,
     required this.reasonTags,
+    this.acknowledgedHelpTags = const [],
     required this.note,
     required this.occurredAt,
   });
@@ -27,6 +28,7 @@ class EvaluationsWrittenAboutViewerRow {
   final int value;
   final EvaluationReceivedTrustTone tone;
   final List<String> reasonTags;
+  final List<String> acknowledgedHelpTags;
   final String note;
   final DateTime occurredAt;
 }

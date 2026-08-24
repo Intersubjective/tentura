@@ -105,6 +105,10 @@ Map<String, dynamic> evaluationParticipantToGqlMap(
   'reasonTags': dto.reasonTags,
   'note': dto.note,
   'promptVariant': dto.promptVariant,
+  'acknowledgedHelpTags': dto.acknowledgedHelpTags,
+  'acknowledgeableHelpTags': dto.acknowledgeableHelpTags,
+  'maxAcknowledgedHelpTags': dto.maxAcknowledgedHelpTags,
+  'isSubmitted': dto.isSubmitted,
 };
 
 Map<String, dynamic> evaluationDraftRowToGqlMap(EvaluationDraftRowResult dto) =>
@@ -163,6 +167,7 @@ Map<String, dynamic> evaluationReceivedRowToGqlMap(
   'value': dto.value,
   'tone': dto.tone.name,
   'reasonTags': dto.reasonTags,
+  'acknowledgedHelpTags': dto.acknowledgedHelpTags,
   'note': dto.note,
   'occurredAt': dto.occurredAt.toUtc().toIso8601String(),
 };
@@ -178,6 +183,7 @@ Map<String, dynamic> evaluationsWrittenAboutViewerRowToGqlMap(
   'value': dto.value,
   'tone': dto.tone.name,
   'reasonTags': dto.reasonTags,
+  'acknowledgedHelpTags': dto.acknowledgedHelpTags,
   'note': dto.note,
   'occurredAt': dto.occurredAt.toUtc().toIso8601String(),
 };

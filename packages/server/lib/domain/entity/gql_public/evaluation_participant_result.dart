@@ -14,6 +14,10 @@ class EvaluationParticipantResult {
     required this.reasonTags,
     required this.note,
     required this.promptVariant,
+    this.acknowledgedHelpTags = const [],
+    this.acknowledgeableHelpTags = const [],
+    this.maxAcknowledgedHelpTags = 0,
+    this.isSubmitted = false,
     this.value,
   });
 
@@ -27,4 +31,8 @@ class EvaluationParticipantResult {
   final List<String> reasonTags;
   final String note;
   final String promptVariant;
+  final List<String> acknowledgedHelpTags;
+  final List<String> acknowledgeableHelpTags;
+  final int maxAcknowledgedHelpTags;
+  final bool isSubmitted;
 }

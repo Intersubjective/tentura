@@ -7,9 +7,6 @@ abstract final class BeaconEvaluationValue {
   static const int pos1 = 4;
   static const int pos2 = 5;
 
-  static bool requiresReasonTag(int v) =>
-      v == neg2 || v == neg1 || v == pos2;
-
   static bool allowsReasonTag(int v) => v != noBasis;
 
   static bool isNegative(int v) => v == neg2 || v == neg1;

@@ -6,6 +6,7 @@ final class BeaconEvaluationRecord {
     required this.evaluatedUserId,
     required this.value,
     required this.reasonTags,
+    this.ackTags = const [],
     required this.note,
     required this.status,
     required this.createdAt,
@@ -17,6 +18,9 @@ final class BeaconEvaluationRecord {
   final String evaluatedUserId;
   final int value;
   final String reasonTags;
+
+  /// Persisted capability acknowledgements for this evaluator/subject pair.
+  final List<String> ackTags;
   final String note;
   final int status;
   final DateTime createdAt;

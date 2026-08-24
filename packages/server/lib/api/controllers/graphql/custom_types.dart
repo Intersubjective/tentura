@@ -673,6 +673,16 @@ final gqlTypeEvaluationParticipant =
         ),
         field('note', graphQLString.nonNullable()),
         field('promptVariant', graphQLString.nonNullable()),
+        field(
+          'acknowledgedHelpTags',
+          GraphQLListType(graphQLString.nonNullable()).nonNullable(),
+        ),
+        field(
+          'acknowledgeableHelpTags',
+          GraphQLListType(graphQLString.nonNullable()).nonNullable(),
+        ),
+        field('maxAcknowledgedHelpTags', graphQLInt.nonNullable()),
+        field('isSubmitted', graphQLBoolean.nonNullable()),
       ]);
 
 /// One saved draft row for `evaluationDrafts` query.
@@ -767,6 +777,10 @@ final gqlTypeEvaluationReceivedRow =
           'reasonTags',
           GraphQLListType(graphQLString.nonNullable()).nonNullable(),
         ),
+        field(
+          'acknowledgedHelpTags',
+          GraphQLListType(graphQLString.nonNullable()).nonNullable(),
+        ),
         field('note', graphQLString.nonNullable()),
         field('occurredAt', graphQLString.nonNullable()),
       ]);
@@ -787,6 +801,10 @@ final gqlTypeEvaluationsWrittenAboutViewerRow =
         field('tone', graphQLString.nonNullable()),
         field(
           'reasonTags',
+          GraphQLListType(graphQLString.nonNullable()).nonNullable(),
+        ),
+        field(
+          'acknowledgedHelpTags',
           GraphQLListType(graphQLString.nonNullable()).nonNullable(),
         ),
         field('note', graphQLString.nonNullable()),
