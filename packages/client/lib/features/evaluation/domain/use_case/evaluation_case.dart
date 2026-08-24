@@ -38,7 +38,7 @@ final class EvaluationCase extends UseCaseBase {
     required String beaconId,
     required String evaluatedUserId,
     required int value,
-    List<String> reasonTags = const [],
+    List<String>? reasonTags,
     String note = '',
   }) =>
       _repository.draftSave(
@@ -53,7 +53,7 @@ final class EvaluationCase extends UseCaseBase {
     required String beaconId,
     required String evaluatedUserId,
     required int value,
-    List<String> reasonTags = const [],
+    List<String>? reasonTags,
     String note = '',
     List<String>? acknowledgedHelpTags,
   }) =>

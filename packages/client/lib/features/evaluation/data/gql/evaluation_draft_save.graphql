@@ -2,6 +2,7 @@ mutation EvaluationDraftSave(
   $id: String!
   $evaluatedUserId: String!
   $value: Int!
+  # Nullable on purpose: omission preserves legacy reasons; [] clears them.
   $reasonTags: [String!]
   $note: String
 ) {

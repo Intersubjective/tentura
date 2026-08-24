@@ -7169,10 +7169,14 @@ type v2_EvaluationDraftRow {
 }
 
 type v2_EvaluationParticipant {
+  acknowledgedHelpTags: [String!]!
+  acknowledgeableHelpTags: [String!]!
   causalHint: String!
   contributionSummary: String!
   displayName: String!
   imageId: String!
+  isSubmitted: Boolean!
+  maxAcknowledgedHelpTags: Int!
   note: String!
   promptVariant: String!
   reasonTags: [String!]
@@ -7189,6 +7193,7 @@ type v2_EvaluationReceived {
 }
 
 type v2_EvaluationReceivedRow {
+  acknowledgedHelpTags: [String!]!
   note: String!
   occurredAt: String!
   reasonTags: [String!]!
@@ -7214,6 +7219,7 @@ type v2_EvaluationSummary {
 }
 
 type v2_EvaluationsWrittenAboutViewerRow {
+  acknowledgedHelpTags: [String!]!
   beaconClosedAt: String
   beaconId: String!
   beaconTitle: String!

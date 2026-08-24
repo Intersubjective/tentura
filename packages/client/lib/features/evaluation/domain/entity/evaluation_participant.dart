@@ -24,6 +24,10 @@ abstract class EvaluationParticipant with _$EvaluationParticipant {
     EvaluationValue? currentValue,
     @Default([]) List<String> reasonTags,
     @Default('') String note,
+    @Default([]) List<String> acknowledgedHelpTags,
+    @Default([]) List<String> acknowledgeableHelpTags,
+    @Default(0) int maxAcknowledgedHelpTags,
+    @Default(false) bool isSubmitted,
   }) = _EvaluationParticipant;
 
   const EvaluationParticipant._();

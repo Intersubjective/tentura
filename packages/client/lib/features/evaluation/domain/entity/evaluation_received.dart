@@ -29,6 +29,7 @@ abstract class EvaluationReceivedRow with _$EvaluationReceivedRow {
     required EvaluationReceivedTrustTone trustTone,
     required DateTime occurredAt,
     @Default([]) List<String> reasonTags,
+    @Default([]) List<String> acknowledgedHelpTags,
     @Default('') String note,
   }) = _EvaluationReceivedRow;
 }

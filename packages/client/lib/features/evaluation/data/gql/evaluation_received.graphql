@@ -13,6 +13,7 @@ query EvaluationReceived($id: String!) {
       reasonTags
       note
       occurredAt
+      acknowledgedHelpTags
     }
   }
 }

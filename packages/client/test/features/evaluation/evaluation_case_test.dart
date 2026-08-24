@@ -322,7 +322,7 @@ class FakeEvaluationRepository implements EvaluationRepository {
     String beaconId,
     String evaluatedUserId,
     int value,
-    List<String> reasonTags,
+    List<String>? reasonTags,
     String note,
   })? lastDraftSave;
 
@@ -332,7 +332,7 @@ class FakeEvaluationRepository implements EvaluationRepository {
     String beaconId,
     String evaluatedUserId,
     int value,
-    List<String> reasonTags,
+    List<String>? reasonTags,
     String note,
     List<String>? acknowledgedHelpTags,
   })? lastSubmit;
@@ -412,7 +412,7 @@ class FakeEvaluationRepository implements EvaluationRepository {
     required String beaconId,
     required String evaluatedUserId,
     required int value,
-    List<String> reasonTags = const [],
+    List<String>? reasonTags,
     String note = '',
   }) async {
     draftSaveCalls++;
@@ -430,7 +430,7 @@ class FakeEvaluationRepository implements EvaluationRepository {
     required String beaconId,
     required String evaluatedUserId,
     required int value,
-    List<String> reasonTags = const [],
+    List<String>? reasonTags,
     String note = '',
     List<String>? acknowledgedHelpTags,
   }) async {

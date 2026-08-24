@@ -51,6 +51,10 @@ class EvaluationRepository {
     required int? value,
     required List<String>? reasonTags,
     required String note,
+    required List<String> acknowledgedHelpTags,
+    required List<String> acknowledgeableHelpTags,
+    required int maxAcknowledgedHelpTags,
+    required bool isSubmitted,
   }) {
     final tags = reasonTags ?? const <String>[];
     return EvaluationParticipant(
@@ -64,6 +68,10 @@ class EvaluationRepository {
       currentValue: EvaluationValue.fromWire(value),
       reasonTags: tags,
       note: note,
+      acknowledgedHelpTags: acknowledgedHelpTags,
+      acknowledgeableHelpTags: acknowledgeableHelpTags,
+      maxAcknowledgedHelpTags: maxAcknowledgedHelpTags,
+      isSubmitted: isSubmitted,
     );
   }
 
@@ -81,6 +89,10 @@ class EvaluationRepository {
         value: e.value,
         reasonTags: e.reasonTags?.toList(),
         note: e.note,
+        acknowledgedHelpTags: e.acknowledgedHelpTags.toList(),
+        acknowledgeableHelpTags: e.acknowledgeableHelpTags.toList(),
+        maxAcknowledgedHelpTags: e.maxAcknowledgedHelpTags,
+        isSubmitted: e.isSubmitted,
       );
 
   EvaluationParticipant _mapDraftParticipant(
@@ -97,6 +109,10 @@ class EvaluationRepository {
         value: e.value,
         reasonTags: e.reasonTags?.toList(),
         note: e.note,
+        acknowledgedHelpTags: e.acknowledgedHelpTags.toList(),
+        acknowledgeableHelpTags: e.acknowledgeableHelpTags.toList(),
+        maxAcknowledgedHelpTags: e.maxAcknowledgedHelpTags,
+        isSubmitted: e.isSubmitted,
       );
 
   Future<List<EvaluationParticipant>> fetchParticipants(String beaconId) =>
@@ -265,7 +281,7 @@ class EvaluationRepository {
     required String beaconId,
     required String evaluatedUserId,
     required int value,
-    List<String> reasonTags = const [],
+    List<String>? reasonTags,
     String note = '',
     List<String>? acknowledgedHelpTags,
   }) async {
@@ -276,10 +292,12 @@ class EvaluationRepository {
               ..id = beaconId
               ..evaluatedUserId = evaluatedUserId
               ..value = value
-              ..reasonTags = ListBuilder<String>(reasonTags)
+              ..reasonTags = reasonTags == null
+                  ? null
+                  : ListBuilder<String>(reasonTags)
               ..note = note.isEmpty ? null : note
-              ..acknowledgedHelpTags = acknowledgedHelpTags == null ||
-                      acknowledgedHelpTags.isEmpty
+              ..acknowledgedHelpTags =
+                  acknowledgedHelpTags == null
                   ? null
                   : ListBuilder<String>(acknowledgedHelpTags),
           ),
@@ -292,7 +310,7 @@ class EvaluationRepository {
     required String beaconId,
     required String evaluatedUserId,
     required int value,
-    List<String> reasonTags = const [],
+    List<String>? reasonTags,
     String note = '',
   }) async {
     await _remoteApiService
@@ -302,7 +320,9 @@ class EvaluationRepository {
               ..id = beaconId
               ..evaluatedUserId = evaluatedUserId
               ..value = value
-              ..reasonTags = ListBuilder<String>(reasonTags)
+              ..reasonTags = reasonTags == null
+                  ? null
+                  : ListBuilder<String>(reasonTags)
               ..note = note.isEmpty ? null : note,
           ),
         )
@@ -427,6 +447,7 @@ EvaluationReceivedRow _mapEvaluationReceivedRow(
       value: row.value,
       trustTone: EvaluationReceivedTrustTone.fromWire(row.tone),
       reasonTags: row.reasonTags.toList(),
+      acknowledgedHelpTags: row.acknowledgedHelpTags.toList(),
       note: row.note,
       occurredAt: _parseUtcDateTime(row.occurredAt),
     );
@@ -445,6 +466,7 @@ EvaluationsWrittenAboutViewerRow _mapEvaluationsWrittenAboutViewerRow(
       value: row.value,
       trustTone: EvaluationReceivedTrustTone.fromWire(row.tone),
       reasonTags: row.reasonTags.toList(),
+      acknowledgedHelpTags: row.acknowledgedHelpTags.toList(),
       note: row.note,
       occurredAt: _parseUtcDateTime(row.occurredAt),
     );

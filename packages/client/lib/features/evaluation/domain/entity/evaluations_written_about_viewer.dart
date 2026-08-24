@@ -17,6 +17,7 @@ abstract class EvaluationsWrittenAboutViewerRow
     required DateTime occurredAt,
     DateTime? beaconClosedAt,
     @Default([]) List<String> reasonTags,
+    @Default([]) List<String> acknowledgedHelpTags,
     @Default('') String note,
   }) = _EvaluationsWrittenAboutViewerRow;
 }
