@@ -204,12 +204,20 @@ class _RecoverScreenState extends State<RecoverScreen> {
                           icon: const Icon(Icons.paste_rounded),
                           label: Text(l10n.buttonPaste),
                         ),
-                        const Spacer(),
-                        FilledButton(
-                          onPressed: isLoading
-                              ? null
-                              : () => _recover(_seedController.text),
-                          child: Text(l10n.recoverFromSeedAction),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Align(
+                            alignment: Alignment.centerRight,
+                            child: FilledButton(
+                              onPressed: isLoading
+                                  ? null
+                                  : () => _recover(_seedController.text),
+                              child: Text(
+                                l10n.recoverFromSeedAction,
+                                textAlign: TextAlign.center,
+                              ),
+                            ),
+                          ),
                         ),
                       ],
                     ),
