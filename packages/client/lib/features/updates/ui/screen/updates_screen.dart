@@ -128,7 +128,11 @@ class _UpdatesBodyState extends State<_UpdatesBody> {
                 onChanged: (index) => context.read<UpdatesFeedCubit>().setView(
                   AttentionView.values[index],
                 ),
-                tabIds: const ['updates-all', 'updates-unread'],
+                tabIds: const [
+                  'updates-all',
+                  'updates-unread',
+                  'updates-needs-you',
+                ],
               ),
             ),
             Expanded(
