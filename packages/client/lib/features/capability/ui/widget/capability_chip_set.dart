@@ -21,6 +21,7 @@ class CapabilityChipSet extends StatelessWidget {
     required this.selectedSlugs,
     required this.onChanged,
     this.automaticSlugs = const {},
+    this.availableSlugs,
     this.maxSelection,
     this.query = '',
     super.key,
@@ -36,6 +37,10 @@ class CapabilityChipSet extends StatelessWidget {
   /// These chips are shown in a secondary color to distinguish them from
   /// manually-added ones.
   final Set<String> automaticSlugs;
+
+  /// When supplied, only these server-authorized slugs are shown. A null
+  /// value keeps the complete catalog for existing callers.
+  final Set<String>? availableSlugs;
 
   final void Function(Set<String> slugs) onChanged;
 
@@ -113,6 +118,9 @@ class CapabilityChipSet extends StatelessWidget {
         _groupDescription(l10n, group).toLowerCase().contains(normalized);
     return CapabilityTag.values.where((tag) {
       if (tag.group != group) return false;
+      if (availableSlugs != null && !availableSlugs!.contains(tag.slug)) {
+        return false;
+      }
       return groupMatches ||
           tag.labelOf(l10n).toLowerCase().contains(normalized);
     }).toList();

@@ -106,6 +106,9 @@ abstract final class TestIds {
       'evaluation.participant.$userId';
   static const evaluationSave = 'evaluation.save';
   static const evaluationSubmit = 'evaluation.submit';
+  static String evaluationImpact(String value) => 'evaluation.impact.$value';
+  static const evaluationCapabilityDone = 'evaluation.capability.done';
+  static const evaluationCapabilityCancel = 'evaluation.capability.cancel';
 
   /// Trust category tile, keyed by [EvaluationTrustSelection.name] of the
   /// option it selects (`zero`, `decreasePending`, `increasePending`).
