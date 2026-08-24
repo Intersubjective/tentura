@@ -1,6 +1,7 @@
 import 'package:drift/drift.dart' show QueryRow;
 import 'package:injectable/injectable.dart';
-import 'package:drift_postgres/drift_postgres.dart' show PgDateTime, UuidValue;
+import 'package:drift_postgres/drift_postgres.dart'
+    show PgDateTime, PgTypes, UuidValue;
 import 'package:postgres/postgres.dart' show Type, TypedValue;
 import 'package:tentura_root/domain/entity/beacon_cover_source.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
@@ -53,8 +54,11 @@ class BeaconRepository implements BeaconRepositoryPort {
         .customSelect(
           r'''SELECT id FROM public.beacon WHERE status = 0 AND end_at >= $1 AND end_at < $2''',
           variables: [
-            Variable<DateTime>(nextUtcDayStart),
-            Variable<DateTime>(followingUtcDayStart),
+            Variable(PgDateTime(nextUtcDayStart), PgTypes.timestampWithTimezone),
+            Variable(
+              PgDateTime(followingUtcDayStart),
+              PgTypes.timestampWithTimezone,
+            ),
           ],
         )
         .get();
@@ -72,8 +76,11 @@ class BeaconRepository implements BeaconRepositoryPort {
           r'''SELECT id FROM public.beacon WHERE id = $1 AND status = 0 AND end_at >= $2 AND end_at < $3 FOR UPDATE''',
           variables: [
             Variable<String>(beaconId),
-            Variable<DateTime>(nextUtcDayStart),
-            Variable<DateTime>(followingUtcDayStart),
+            Variable(PgDateTime(nextUtcDayStart), PgTypes.timestampWithTimezone),
+            Variable(
+              PgDateTime(followingUtcDayStart),
+              PgTypes.timestampWithTimezone,
+            ),
           ],
         )
         .get();

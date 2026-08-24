@@ -297,6 +297,36 @@ class MockBeaconRepositoryPort extends _i1.Mock
           as _i3.Future<void>);
 
   @override
+  _i3.Future<List<String>> deadlineReminderCandidateIds({
+    required DateTime? nextUtcDayStart,
+    required DateTime? followingUtcDayStart,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#deadlineReminderCandidateIds, [], {
+              #nextUtcDayStart: nextUtcDayStart,
+              #followingUtcDayStart: followingUtcDayStart,
+            }),
+            returnValue: _i3.Future<List<String>>.value(<String>[]),
+          )
+          as _i3.Future<List<String>>);
+
+  @override
+  _i3.Future<_i2.BeaconEntity?> lockOpenBeaconForDeadlineReminder({
+    required String? beaconId,
+    required DateTime? nextUtcDayStart,
+    required DateTime? followingUtcDayStart,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#lockOpenBeaconForDeadlineReminder, [], {
+              #beaconId: beaconId,
+              #nextUtcDayStart: nextUtcDayStart,
+              #followingUtcDayStart: followingUtcDayStart,
+            }),
+            returnValue: _i3.Future<_i2.BeaconEntity?>.value(),
+          )
+          as _i3.Future<_i2.BeaconEntity?>);
+
+  @override
   _i3.Future<T> runInBeaconStateTransaction<T>({
     required String? beaconId,
     required String? userId,

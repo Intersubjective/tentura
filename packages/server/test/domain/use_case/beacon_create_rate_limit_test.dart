@@ -17,6 +17,7 @@ import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import '../../support/fake_beacon_access_guard.dart';
 import '../../support/noop_commitment_query_case.dart';
+import '../../support/test_attention_harness.dart';
 
 class _StubBeaconRepo extends Fake implements BeaconRepositoryPort {
   int recentCount = 0;
@@ -65,6 +66,18 @@ class _StubBeaconRepo extends Fake implements BeaconRepositoryPort {
       addressLabel: addressLabel,
     );
   }
+
+  @override
+  Future<BeaconEntity> getBeaconById({
+    required String beaconId,
+    String? filterByUserId,
+  }) async => BeaconEntity(
+    id: beaconId,
+    title: 'Existing',
+    author: UserEntity(id: filterByUserId ?? 'Uauth'),
+    createdAt: DateTime.utc(2026),
+    updatedAt: DateTime.utc(2026),
+  );
 
   @override
   Future<BeaconEntity> updateBeacon({
@@ -134,16 +147,21 @@ void main() {
   late _StubBeaconRepo beaconRepo;
   late BeaconCase case_;
 
-  BeaconCase build(Env env) => BeaconCase(
-    beaconRepo,
-    _FakeImageRepo(),
-    _FakeImageObjectGc(),
-    _FakeTaskRepo(),
-    noopCommitmentQueryCase(),
-    FakeBeaconAccessGuard(),
-    env: env,
-    logger: Logger('BeaconCreateRateLimitTest'),
-  );
+  BeaconCase build(Env env) {
+    final attention = TestAttentionHarness();
+    return BeaconCase(
+      beaconRepo,
+      _FakeImageRepo(),
+      _FakeImageObjectGc(),
+      _FakeTaskRepo(),
+      noopCommitmentQueryCase(),
+      FakeBeaconAccessGuard(),
+      attentionIntents: attention.intents,
+      attention: attention.transactional,
+      env: env,
+      logger: Logger('BeaconCreateRateLimitTest'),
+    );
+  }
 
   setUp(() {
     beaconRepo = _StubBeaconRepo();
