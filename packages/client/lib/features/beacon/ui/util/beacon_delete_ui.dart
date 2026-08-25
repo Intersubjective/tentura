@@ -1,10 +1,24 @@
 import 'dart:async' show unawaited;
 
 import 'package:flutter/material.dart';
+import 'package:get_it/get_it.dart';
 
+import 'package:tentura/features/auth/ui/bloc/auth_cubit.dart';
+import 'package:tentura/features/my_work/domain/use_case/my_work_case.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/message/action_message_base.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
+
+/// Archive from request detail (root route) where [MyWorkCubit] is not in the
+/// tree. Desk list refreshes via [MyWorkCase.archiveBeacon]'s bookkeeping signal.
+Future<void> archiveBeaconFromDetail(String beaconId) async {
+  final userId = GetIt.I<AuthCubit>().state.currentAccountId;
+  if (userId.isEmpty) return;
+  await GetIt.I<MyWorkCase>().archiveBeacon(
+    beaconId: beaconId,
+    userId: userId,
+  );
+}
 
 Future<void> runBeaconDeleteWithRetry(
   BuildContext context, {

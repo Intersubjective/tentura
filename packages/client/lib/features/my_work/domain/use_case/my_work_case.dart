@@ -99,6 +99,8 @@ final class MyWorkCase extends UseCaseBase {
   }) async {
     await _archiveRepository.archive(beaconId);
     await _deskPreferences.setFinishedArchiveHintDismissed(userId: userId);
+    // Notify mounted desk (e.g. under Home while request detail is on root stack).
+    _bookkeepingRefreshSignal.notify();
   }
 
   Future<void> dismissFinishedArchiveHint({required String userId}) =>
