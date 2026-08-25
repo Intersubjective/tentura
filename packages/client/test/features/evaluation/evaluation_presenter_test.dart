@@ -1,5 +1,5 @@
 import 'package:built_collection/built_collection.dart';
-import 'package:flutter/material.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tentura/features/evaluation/domain/entity/evaluation_value.dart';
 import 'package:tentura/features/evaluation/data/gql/_g/evaluation_draft_save.var.gql.dart';
@@ -49,9 +49,14 @@ void main() {
       'No basis',
     );
     expect(
-      presentEvaluationValue(EvaluationValue.noBasis, en).icon,
-      Icons.help_outline_rounded,
+      presentEvaluationValue(EvaluationValue.noBasis, en).emoji,
+      '❔',
     );
+    expect(presentEvaluationValue(EvaluationValue.pos2, en).emoji, '🤩');
+    expect(presentEvaluationValue(EvaluationValue.pos1, en).emoji, '👍');
+    expect(presentEvaluationValue(EvaluationValue.zero, en).emoji, '🤷');
+    expect(presentEvaluationValue(EvaluationValue.neg1, en).emoji, '👎');
+    expect(presentEvaluationValue(EvaluationValue.neg2, en).emoji, '😠');
   });
 
   test('impact presenter localizes Russian labels', () {

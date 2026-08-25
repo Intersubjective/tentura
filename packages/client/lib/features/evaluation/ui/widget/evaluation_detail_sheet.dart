@@ -5,6 +5,8 @@ import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/contacts/contact_name_overlay.dart';
 import 'package:tentura/domain/entity/image_entity.dart';
 import 'package:tentura/domain/entity/profile.dart';
+import 'package:tentura/domain/capability/capability_tag.dart';
+import 'package:tentura/features/capability/ui/widget/forward_capability_chips.dart';
 import 'package:tentura/features/evaluation/domain/entity/evaluation_participant.dart';
 import 'package:tentura/features/evaluation/domain/entity/evaluation_value.dart';
 import 'package:tentura/features/evaluation/ui/presenter/evaluation_capability_presenter.dart';
@@ -47,7 +49,6 @@ Future<void> showEvaluationDetailSheet({
   );
   await showTenturaAdaptiveSheet<void>(
     context: context,
-    enableDrag: false,
     builder: (_) => profileCubit == null
         ? body
         : BlocProvider<ProfileCubit>.value(value: profileCubit, child: body),
@@ -315,9 +316,11 @@ class _EvaluationDetailSheetBodyState
                   minLines: 3,
                   onChanged: (_) => setState(() {}),
                   decoration: InputDecoration(
-                    labelText: widget.l10n.evaluationNoteLabelOptional(
+                    alignLabelWithHint: true,
+                    hintText: widget.l10n.evaluationNoteLabelOptional(
                       _displayName,
                     ),
+                    hintMaxLines: 3,
                     border: const OutlineInputBorder(),
                   ),
                 ),
@@ -363,6 +366,10 @@ class _CapabilityAcknowledgementField extends StatelessWidget {
     final theme = Theme.of(context);
     final tt = context.tt;
     final summary = presentAcknowledgedCapabilities(tags, l10n);
+    final orderedSlugs = CapabilityTag.values
+        .where((tag) => tags.contains(tag.slug))
+        .map((tag) => tag.slug)
+        .toList(growable: false);
     return Semantics(
       button: true,
       label: summary.isEmpty ? l10n.evaluationCapabilityChoose : summary,
@@ -375,14 +382,19 @@ class _CapabilityAcknowledgementField extends StatelessWidget {
             minHeight: kMinInteractiveDimension,
           ),
           child: Padding(
-            padding: EdgeInsets.symmetric(horizontal: tt.tightGap),
+            padding: EdgeInsets.symmetric(
+              horizontal: tt.tightGap,
+              vertical: tt.tightGap,
+            ),
             child: Row(
               children: [
                 Expanded(
-                  child: Text(
-                    summary.isEmpty ? l10n.evaluationCapabilityChoose : summary,
-                    style: theme.textTheme.bodyMedium,
-                  ),
+                  child: orderedSlugs.isEmpty
+                      ? Text(
+                          l10n.evaluationCapabilityChoose,
+                          style: theme.textTheme.bodyMedium,
+                        )
+                      : ForwardCapabilityChips(slugs: orderedSlugs),
                 ),
                 Icon(Icons.chevron_right_rounded, size: tt.iconSize),
               ],

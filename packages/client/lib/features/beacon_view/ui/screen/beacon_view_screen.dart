@@ -58,7 +58,10 @@ bool beaconViewUsesExpandedThreadSplit({
 ///
 /// Pass [preferredWidth] to honor a user drag override; otherwise uses
 /// 42% of [availableWidth] capped by [TenturaTokens.chatColumnMaxWidth].
-/// Always clamped to a usable floor and pane-aware ceiling so ops stays readable.
+/// Always leaves at least [minPaneWidth] for the ops pane when space allows;
+/// when the window is too narrow for both floors, room pane shrinks first so
+/// ops keeps a readable share (avoids CustomScrollView layout crashes at
+/// ~100px cross-axis extents).
 double beaconViewRoomSplitPaneWidth(
   TenturaTokens tt, {
   double? availableWidth,
@@ -67,15 +70,17 @@ double beaconViewRoomSplitPaneWidth(
 }) {
   final minChat = minPaneWidth;
   final minOps = minPaneWidth;
-  var effectiveMaxPaneWidth = math.max(minChat, tt.chatColumnMaxWidth);
-  if (availableWidth != null && availableWidth.isFinite) {
-    effectiveMaxPaneWidth = math.max(minChat, availableWidth - minOps);
+  if (availableWidth == null || !availableWidth.isFinite) {
+    final ideal = preferredWidth ?? tt.chatColumnMaxWidth;
+    return ideal.clamp(minChat, math.max(minChat, tt.chatColumnMaxWidth));
   }
-  final defaultWidth = availableWidth != null && availableWidth.isFinite
-      ? math.min(tt.chatColumnMaxWidth, availableWidth * 0.42)
-      : tt.chatColumnMaxWidth;
+
+  final maxForChat = math.max(0.0, availableWidth - minOps);
+  final defaultWidth = math.min(tt.chatColumnMaxWidth, availableWidth * 0.42);
   final ideal = preferredWidth ?? defaultWidth;
-  return ideal.clamp(minChat, effectiveMaxPaneWidth);
+  // When both floors cannot fit, lower == maxForChat and ops keeps minOps.
+  final lower = math.min(minChat, maxForChat);
+  return ideal.clamp(lower, maxForChat);
 }
 
 /// Restores Home's persistent side navigation while a root browse-detail

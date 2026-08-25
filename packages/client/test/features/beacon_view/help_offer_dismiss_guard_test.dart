@@ -42,7 +42,7 @@ void main() {
     await tester.tap(find.text('Cancel'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Discard changes?'), findsNothing);
+    expect(find.text('Leave without saving?'), findsNothing);
     expect(find.byType(HelpOfferMessageDialog), findsNothing);
   });
 
@@ -54,7 +54,7 @@ void main() {
     await tester.tapAt(const Offset(20, 20));
     await tester.pumpAndSettle();
 
-    expect(find.text('Discard changes?'), findsNothing);
+    expect(find.text('Leave without saving?'), findsNothing);
     expect(find.byType(HelpOfferMessageDialog), findsNothing);
   });
 
@@ -72,13 +72,13 @@ void main() {
       await tester.pumpAndSettle();
 
       // Confirm dialog appears; original dialog still mounted underneath.
-      expect(find.text('Discard changes?'), findsOneWidget);
-      expect(find.text('Keep editing'), findsOneWidget);
+      expect(find.text('Leave without saving?'), findsOneWidget);
+      expect(find.text('Return to editing'), findsOneWidget);
 
-      await tester.tap(find.text('Keep editing'));
+      await tester.tap(find.text('Return to editing'));
       await tester.pumpAndSettle();
 
-      expect(find.text('Discard changes?'), findsNothing);
+      expect(find.text('Leave without saving?'), findsNothing);
       expect(find.byType(HelpOfferMessageDialog), findsOneWidget);
       expect(find.text('I can help'), findsOneWidget);
     },
@@ -93,7 +93,7 @@ void main() {
     await tester.tap(find.text('Cancel'));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('Discard'));
+    await tester.tap(find.text('Leave and discard'));
     await tester.pumpAndSettle();
 
     expect(find.byType(HelpOfferMessageDialog), findsNothing);

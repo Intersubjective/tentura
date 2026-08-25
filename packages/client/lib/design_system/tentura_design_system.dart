@@ -3,6 +3,7 @@ library;
 
 export 'components/tentura_avatar.dart';
 export 'components/tentura_adaptive_sheet.dart';
+export 'components/tentura_modal_bottom_sheet_route.dart';
 export 'components/tentura_capability_glyph.dart';
 export 'components/tentura_command_button.dart';
 export 'components/tentura_change_highlight.dart';

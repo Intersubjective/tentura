@@ -187,7 +187,7 @@ class ReviewContributionsScreen extends StatelessWidget
           fullText: state.isDraftMode
               ? l10n.evaluationReviewListPrivacyDraft
               : l10n.evaluationReviewListPrivacyLive(
-                  l10n.evaluationCannotEvaluate,
+                  l10n.evaluationCanEvaluate,
                 ),
         ),
       ),
@@ -423,10 +423,12 @@ class _ParticipantTile extends StatelessWidget {
                           mainAxisSize: MainAxisSize.min,
                           children: [
                             if (presentation != null)
-                              Icon(
-                                presentation.icon,
-                                size: tt.iconSize,
-                                color: theme.colorScheme.onSurfaceVariant,
+                              Text(
+                                presentation.emoji,
+                                style: TextStyle(
+                                  fontSize: tt.iconSize,
+                                  height: 1,
+                                ),
                               ),
                             SizedBox(width: tt.tightGap),
                             Text(
@@ -446,8 +448,8 @@ class _ParticipantTile extends StatelessWidget {
                       TestIds.evaluationCannotEvaluate(participant.userId),
                     ),
                     contentPadding: EdgeInsets.zero,
-                    title: Text(l10n.evaluationCannotEvaluate),
-                    value: cannotEvaluateSelected,
+                    title: Text(l10n.evaluationCanEvaluate),
+                    value: !cannotEvaluateSelected,
                     onChanged: isLoading
                         ? null
                         : (_) => onCannotEvaluateToggle(),

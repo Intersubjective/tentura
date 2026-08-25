@@ -4,6 +4,7 @@ import 'package:tentura/domain/capability/capability_tag.dart';
 import 'package:tentura/features/capability/ui/widget/capability_chip_set.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/test_ids.dart';
+import 'package:tentura/ui/widget/tentura_info_hint_button.dart';
 
 /// Adaptive picker used by evaluation acknowledgement controls.
 ///
@@ -144,9 +145,20 @@ class _PickerContent extends StatelessWidget {
             tt.screenHPadding,
             tt.rowGap,
           ),
-          child: Text(
-            l10n.evaluationCapabilityChoose,
-            style: theme.textTheme.titleMedium,
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  l10n.evaluationCapabilityChoose,
+                  style: theme.textTheme.titleMedium,
+                ),
+              ),
+              TenturaInfoHintButton(
+                key: TestIds.key(TestIds.evaluationCapabilityInfo),
+                fullText: l10n.evaluationCapabilityChooseInfo,
+                semanticsLabel: l10n.evaluationCapabilityChooseInfo,
+              ),
+            ],
           ),
         ),
         Flexible(

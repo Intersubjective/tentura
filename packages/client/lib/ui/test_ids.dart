@@ -110,6 +110,7 @@ abstract final class TestIds {
   static const evaluationCapabilityDone = 'evaluation.capability.done';
   static const evaluationCapabilityCancel = 'evaluation.capability.cancel';
   static const evaluationCapabilityField = 'evaluation.capability.field';
+  static const evaluationCapabilityInfo = 'evaluation.capability.info';
   static String evaluationCannotEvaluate(String userId) =>
       'evaluation.cannot_evaluate.$userId';
 

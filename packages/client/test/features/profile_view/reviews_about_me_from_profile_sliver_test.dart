@@ -199,11 +199,8 @@ void main() {
       expect(find.text('Errand run downtown'), findsOneWidget);
       expect(find.text('Helped a lot'), findsOneWidget);
       expect(find.text('Hurt somewhat'), findsOneWidget);
-      expect(
-        find.byIcon(Icons.keyboard_double_arrow_up_rounded),
-        findsOneWidget,
-      );
-      expect(find.byIcon(Icons.arrow_downward_rounded), findsOneWidget);
+      expect(find.text('🤩'), findsOneWidget);
+      expect(find.text('👎'), findsOneWidget);
       expect(find.text('Transport, Storage +1'), findsOneWidget);
       expect(find.text('fast, careful'), findsOneWidget);
     });

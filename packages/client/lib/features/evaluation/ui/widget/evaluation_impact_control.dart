@@ -105,10 +105,13 @@ class _EvaluationImpactRow extends StatelessWidget {
               child: Row(
                 crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  Icon(
-                    presentEvaluationValue(impact, L10n.of(context)!).icon,
-                    color: foreground,
+                  _ImpactEmoji(
+                    emoji: presentEvaluationValue(
+                      impact,
+                      L10n.of(context)!,
+                    ).emoji,
                     size: tt.iconSize,
+                    colored: selected,
                   ),
                   SizedBox(width: tt.iconTextGap),
                   Expanded(
@@ -142,5 +145,36 @@ class _EvaluationImpactRow extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       children: [row, const TenturaHairlineDivider()],
     );
+  }
+}
+
+/// Recolorable impact emoji: grayscale until the row is selected.
+class _ImpactEmoji extends StatelessWidget {
+  const _ImpactEmoji({
+    required this.emoji,
+    required this.size,
+    required this.colored,
+  });
+
+  final String emoji;
+  final double size;
+  final bool colored;
+
+  /// Luminance-preserving grayscale matrix (BT.709).
+  static const _grayscale = ColorFilter.matrix(<double>[
+    0.2126, 0.7152, 0.0722, 0, 0,
+    0.2126, 0.7152, 0.0722, 0, 0,
+    0.2126, 0.7152, 0.0722, 0, 0,
+    0, 0, 0, 1, 0,
+  ]);
+
+  @override
+  Widget build(BuildContext context) {
+    final glyph = Text(
+      emoji,
+      style: TextStyle(fontSize: size, height: 1),
+    );
+    if (colored) return glyph;
+    return ColorFiltered(colorFilter: _grayscale, child: glyph);
   }
 }

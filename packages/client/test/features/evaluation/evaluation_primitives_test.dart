@@ -74,6 +74,37 @@ void main() {
     );
   });
 
+  testWidgets('unselected impact emojis are grayscale; selected stays color', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _app(
+        const EvaluationImpactControl(
+          value: EvaluationValue.pos1,
+          onChanged: _ignore,
+        ),
+      ),
+    );
+    expect(find.byType(ColorFiltered), findsNWidgets(4));
+    final selectedRow = find.ancestor(
+      of: find.text('Helped somewhat'),
+      matching: find.byType(InkWell),
+    );
+    expect(
+      find.descendant(of: selectedRow, matching: find.byType(ColorFiltered)),
+      findsNothing,
+    );
+  });
+
+  testWidgets('with no selection all impact emojis are grayscale', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _app(const EvaluationImpactControl(value: null, onChanged: _ignore)),
+    );
+    expect(find.byType(ColorFiltered), findsNWidgets(5));
+  });
+
   testWidgets('every impact row is at least the Material target', (
     tester,
   ) async {
@@ -270,6 +301,39 @@ void main() {
       expect(result, ['transport', 'storage', 'pickup_delivery']);
     },
   );
+
+  testWidgets('capability picker (i) opens list formation explanation', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _app(
+        Builder(
+          builder: (context) => ElevatedButton(
+            onPressed: () => EvaluationCapabilityPickerSheet.show(
+              context,
+              initialSlugs: const {},
+              availableSlugs: const {'transport'},
+              maxSelection: 3,
+            ),
+            child: const Text('Open'),
+          ),
+        ),
+      ),
+    );
+    await tester.tap(find.text('Open'));
+    await tester.pumpAndSettle();
+    expect(find.text('What exactly?'), findsOneWidget);
+    await tester.tap(find.byKey(TestIds.key(TestIds.evaluationCapabilityInfo)));
+    await tester.pumpAndSettle();
+    expect(
+      find.textContaining("This list combines this request's needs"),
+      findsOneWidget,
+    );
+    final dialog = tester.widget<AlertDialog>(find.byType(AlertDialog));
+    expect(dialog.constraints?.maxWidth, lessThanOrEqualTo(560));
+    await tester.tap(find.text('Dismiss'));
+    await tester.pumpAndSettle();
+  });
 
   testWidgets('picker Cancel returns null without changing parent', (
     tester,

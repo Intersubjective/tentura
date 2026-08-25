@@ -119,5 +119,30 @@ void main() {
         360,
       );
     });
+
+    test('when both floors cannot fit, shrinks room so ops keeps minPane', () {
+      final expanded = TenturaTokens.light.applyWindowClass(
+        WindowClass.expanded,
+      );
+
+      // 478 total → old clamp forced room to 360 and crushed ops to ~118.
+      expect(
+        beaconViewRoomSplitPaneWidth(
+          expanded,
+          availableWidth: 478,
+          minPaneWidth: 360,
+        ),
+        118,
+      );
+      expect(
+        beaconViewRoomSplitPaneWidth(
+          expanded,
+          availableWidth: 478,
+          minPaneWidth: 360,
+          preferredWidth: 400,
+        ),
+        118,
+      );
+    });
   });
 }

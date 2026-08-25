@@ -401,6 +401,65 @@ void main() {
       expect(capturedMaxWidth, viewportWidth);
     });
 
+    testWidgets(
+      'drag-to-dismiss on dirty sheet asks before closing',
+      (tester) async {
+        const viewportWidth = 375.0;
+        await tester.binding.setSurfaceSize(const Size(viewportWidth, 812));
+        addTearDown(() => tester.binding.setSurfaceSize(null));
+
+        await tester.pumpWidget(
+          MaterialApp(
+            theme: TenturaTheme.light(),
+            localizationsDelegates: L10n.localizationsDelegates,
+            supportedLocales: L10n.supportedLocales,
+            home: MediaQuery(
+              data: const MediaQueryData(size: Size(viewportWidth, 812)),
+              child: TenturaResponsiveScope(
+                child: Builder(
+                  builder: (context) {
+                    return TextButton(
+                      onPressed: () => showTenturaAdaptiveSheet<void>(
+                        context: context,
+                        enableDrag: true,
+                        showDragHandle: true,
+                        builder: (_) => const TenturaSheetDismissGuard(
+                          isDirty: true,
+                          child: SizedBox(
+                            height: 320,
+                            child: Center(child: Text('sheet-body')),
+                          ),
+                        ),
+                      ),
+                      child: const Text('open'),
+                    );
+                  },
+                ),
+              ),
+            ),
+          ),
+        );
+
+        await tester.tap(find.text('open'));
+        await tester.pumpAndSettle();
+        expect(find.byType(BottomSheet), findsOneWidget);
+        expect(find.text('sheet-body'), findsOneWidget);
+
+        await tester.drag(find.byType(BottomSheet), const Offset(0, 400));
+        await tester.pumpAndSettle();
+
+        expect(find.text('Return to editing'), findsOneWidget);
+        expect(find.text('Leave and discard'), findsOneWidget);
+        expect(find.byType(BottomSheet), findsOneWidget);
+        expect(find.text('sheet-body'), findsOneWidget);
+
+        await tester.tap(find.text('Return to editing'));
+        await tester.pumpAndSettle();
+        expect(find.byType(BottomSheet), findsOneWidget);
+        expect(find.text('sheet-body'), findsOneWidget);
+      },
+    );
+
     testWidgets('uses constrained dialog on expanded viewport', (tester) async {
       const viewportWidth = 900.0;
       double? capturedMaxWidth;

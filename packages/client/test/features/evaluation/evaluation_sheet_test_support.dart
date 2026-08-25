@@ -3,7 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/mockito.dart';
 
-import 'package:tentura/design_system/tentura_theme.dart';
+import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/features/evaluation/domain/entity/evaluation_participant.dart';
 import 'package:tentura/features/evaluation/domain/entity/evaluation_value.dart';
 import 'package:tentura/features/evaluation/ui/widget/evaluation_detail_sheet.dart';
@@ -59,13 +59,15 @@ Future<void> pumpEvaluationDetailSheet({
             textScaler: textScaler,
             viewInsets: viewInsets,
           ),
-          child: ElevatedButton(
-            onPressed: () => showEvaluationDetailSheet(
-              context: tester.element(find.byType(ElevatedButton)),
-              participant: participant,
-              onSave: onSave,
+          child: TenturaResponsiveScope(
+            child: ElevatedButton(
+              onPressed: () => showEvaluationDetailSheet(
+                context: tester.element(find.byType(ElevatedButton)),
+                participant: participant,
+                onSave: onSave,
+              ),
+              child: const Text('Open'),
             ),
-            child: const Text('Open'),
           ),
         ),
       ),

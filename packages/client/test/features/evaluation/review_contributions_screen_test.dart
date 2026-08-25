@@ -212,7 +212,7 @@ void main() {
               find.byKey(TestIds.key(TestIds.evaluationCannotEvaluate('u1'))),
             )
             .value,
-        isFalse,
+        isTrue,
       );
       await result.$3.close();
     },
@@ -225,6 +225,7 @@ void main() {
       final action = find.byKey(
         TestIds.key(TestIds.evaluationCannotEvaluate('u1')),
       );
+      expect(tester.widget<SwitchListTile>(action).value, isTrue);
       await test.tap(action);
       await test.pumpAndSettle();
       expect(repository.submitCalls, 1);
@@ -259,6 +260,7 @@ void main() {
       expect(repository.lastSubmit?.note, '');
       expect(cubit.state.participants.single.isSubmitted, isTrue);
       expect(cubit.state.participants.single.note, '');
+      expect(tester.widget<SwitchListTile>(action).value, isFalse);
       await cubit.close();
     },
   );
@@ -318,7 +320,7 @@ void main() {
     expect(cubit.state.participants.single.note, '');
     expect(test.widget<ListTile>(participantTile).onTap, isNull);
     expect(tester.widget<SwitchListTile>(action).onChanged, isNotNull);
-    expect(tester.widget<SwitchListTile>(action).value, isTrue);
+    expect(tester.widget<SwitchListTile>(action).value, isFalse);
     await cubit.close();
   });
 
@@ -335,7 +337,7 @@ void main() {
     await cubit.close();
   });
 
-  testWidgets('Cannot evaluate toggle OFF clears the card', (tester) async {
+  testWidgets('turning Can evaluate back on clears noBasis', (tester) async {
     final repository = FakeEvaluationRepository()
       ..participantsResult = [
         participant.copyWith(
@@ -347,12 +349,13 @@ void main() {
     final action = find.byKey(
       TestIds.key(TestIds.evaluationCannotEvaluate('u1')),
     );
-    expect(tester.widget<SwitchListTile>(action).value, isTrue);
+    expect(tester.widget<SwitchListTile>(action).value, isFalse);
     await test.tap(action);
     await test.pumpAndSettle();
     expect(repository.draftDeleteCalls, 1);
     expect(cubit.state.participants.single.currentValue, isNull);
     expect(cubit.state.participants.single.isSubmitted, isFalse);
+    expect(tester.widget<SwitchListTile>(action).value, isTrue);
     await cubit.close();
   });
 
@@ -391,7 +394,7 @@ void main() {
       scrollable: find.byType(Scrollable),
     );
     expect(find.text('Helped somewhat'), findsOneWidget);
-    expect(find.text('Cannot evaluate'), findsOneWidget);
+    expect(find.text('Can evaluate'), findsOneWidget);
     expect(tester.takeException(), isNull);
     await cubit.close();
   });

@@ -187,7 +187,7 @@ void main() {
       );
 
       expect(find.text('No basis'), findsOneWidget);
-      expect(find.byIcon(Icons.help_outline_rounded), findsOneWidget);
+      expect(find.text('❔'), findsOneWidget);
 
       await _pumpTile(
         tester,
@@ -200,12 +200,12 @@ void main() {
       expect(find.text('No basis'), findsOneWidget);
       expect(find.text('99'), findsNothing);
 
-      for (final entry in <(int, String, IconData)>[
-        (5, 'Helped a lot', Icons.keyboard_double_arrow_up_rounded),
-        (4, 'Helped somewhat', Icons.arrow_upward_rounded),
-        (3, 'No real effect', Icons.remove_rounded),
-        (2, 'Hurt somewhat', Icons.arrow_downward_rounded),
-        (1, 'Hurt a lot', Icons.keyboard_double_arrow_down_rounded),
+      for (final entry in <(int, String, String)>[
+        (5, 'Helped a lot', '🤩'),
+        (4, 'Helped somewhat', '👍'),
+        (3, 'No real effect', '🤷'),
+        (2, 'Hurt somewhat', '👎'),
+        (1, 'Hurt a lot', '😠'),
       ]) {
         await _pumpTile(
           tester,
@@ -217,7 +217,7 @@ void main() {
           ),
         );
         expect(find.text(entry.$2), findsOneWidget);
-        expect(find.byIcon(entry.$3), findsOneWidget);
+        expect(find.text(entry.$3), findsOneWidget);
       }
     });
 

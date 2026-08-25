@@ -236,8 +236,8 @@ void main() {
       await tester.binding.handlePopRoute();
       await tester.pumpAndSettle();
       await tester.pumpAndSettle();
-      expect(find.text('Keep editing'), findsOneWidget);
-      await tester.tap(find.text('Keep editing'));
+      expect(find.text('Return to editing'), findsOneWidget);
+      await tester.tap(find.text('Return to editing'));
       await tester.pumpAndSettle();
       expect(find.byType(BottomSheet), findsOneWidget);
       expect(find.byType(TextField), findsOneWidget);
@@ -376,7 +376,7 @@ void main() {
   );
 
   testWidgets(
-    'compact dirty sheet ignores drag then discards with confirmation',
+    'compact dirty sheet drag asks confirmation then can discard',
     (
       tester,
     ) async {
@@ -391,9 +391,22 @@ void main() {
         },
       );
       await evaluationSelectImpact(tester, 'Helped a lot');
-      await tester.drag(find.byType(BottomSheet), const Offset(0, 280));
+      final sheet = tester.widget<BottomSheet>(find.byType(BottomSheet));
+      expect(sheet.enableDrag, isTrue);
+      expect(sheet.showDragHandle, isTrue);
+
+      // Content is scrollable; dismiss drag must start on the drag handle.
+      final handle = find.bySemanticsLabel('Dismiss');
+      expect(handle, findsWidgets);
+      await tester.timedDrag(
+        handle.first,
+        const Offset(0, 500),
+        const Duration(milliseconds: 300),
+      );
       await tester.pumpAndSettle();
       expect(find.byType(BottomSheet), findsOneWidget);
+      expect(find.text('Return to editing'), findsOneWidget);
+      expect(find.text('Leave and discard'), findsOneWidget);
       expect(
         tester
             .getSemantics(
@@ -408,11 +421,7 @@ void main() {
       );
       expect(saveCalls, 0);
 
-      await tester.binding.handlePopRoute();
-      await tester.pumpAndSettle();
-      expect(find.text('Keep editing'), findsOneWidget);
-      expect(find.text('Discard'), findsOneWidget);
-      await tester.tap(find.text('Discard'));
+      await tester.tap(find.text('Leave and discard'));
       await tester.pumpAndSettle();
       expect(find.byType(BottomSheet), findsNothing);
       expect(saveCalls, 0);

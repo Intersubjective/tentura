@@ -147,7 +147,10 @@ class _ImpactLine extends StatelessWidget {
     final colors = Theme.of(context).colorScheme;
     return Row(
       children: [
-        Icon(p.icon, size: context.tt.iconSize, color: colors.primary),
+        Text(
+          p.emoji,
+          style: TextStyle(fontSize: context.tt.iconSize, height: 1),
+        ),
         SizedBox(width: context.tt.iconTextGap),
         Expanded(
           child: Text(p.label, style: TenturaText.status(colors.onSurface)),
