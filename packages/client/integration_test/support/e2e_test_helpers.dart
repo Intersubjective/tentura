@@ -23,7 +23,9 @@ import 'package:tentura/features/graph/domain/entity/node_details.dart';
 import 'package:tentura/features/graph/ui/bloc/graph_cubit.dart';
 import 'package:tentura/features/graph/ui/widget/graph_body.dart';
 import 'package:tentura/features/graph/ui/widget/graph_node_widget.dart';
+import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/test_ids.dart';
+import 'package:tentura/ui/utils/capability_tag_presenter.dart';
 
 class IntegrationFixture {
   const IntegrationFixture({
@@ -891,84 +893,100 @@ Future<void> triggerCloseNow(WidgetTester tester) async {
 Future<void> reviewParticipant(
   WidgetTester tester,
   String userId, {
-  // EvaluationTrustSelection.name of the category to pick; `zero` needs no
-  // intensity step and no reason tag, so Save succeeds right away.
-  // `pos1`/`pos2`/`neg1`/`neg2` are not top-level buttons — they are reached
-  // via `increasePending`/`decreasePending` then an intensity tile (little =
-  // pos1/neg1, lot = pos2/neg2). `pos1` alone needs no reason tag
-  // (EvaluationValue.requiresReasonTag is false only for pos1); this helper
-  // does not select a reason tag for any option, so only `zero`/`pos1` (and
-  // any other no-reason-required selection) will save successfully as-is.
-  String trustOption = 'zero',
-  // Capability slugs to select in the always-visible, optional
-  // "acknowledge who helped" chip set (source_type=closeAcknowledgement,
-  // D16 — emitted only when finalization resolves this evaluation as pos1/
-  // pos2).
+  String impact = 'zero',
   List<String> ackTags = const [],
 }) async {
   final tile = find.byKey(TestIds.key(TestIds.evaluationParticipant(userId)));
-  if (tile.evaluate().isEmpty) {
-    return;
-  }
+  expect(
+    tile,
+    findsOneWidget,
+    reason: 'evaluation participant $userId must be present',
+  );
   await tapAndSettle(tester, tile.first);
-
-  const intensityOptions = {'pos1', 'pos2', 'neg1', 'neg2'};
-  if (intensityOptions.contains(trustOption)) {
-    final isIncrease = trustOption == 'pos1' || trustOption == 'pos2';
-    await tapAndSettle(
-      tester,
-      find.byKey(
-        TestIds.key(
-          TestIds.evaluationTrustOption(
-            isIncrease ? 'increasePending' : 'decreasePending',
-          ),
-        ),
-      ),
+  await tapAndSettle(
+    tester,
+    find.byKey(TestIds.key(TestIds.evaluationImpact(impact))),
+  );
+  if (ackTags.isNotEmpty) {
+    final field = find.byKey(TestIds.key(TestIds.evaluationCapabilityField));
+    expect(
+      field,
+      findsOneWidget,
+      reason: 'acknowledgement field must be present for positive impact',
     );
-    final isLittle = trustOption == 'pos1' || trustOption == 'neg1';
-    await tapAndSettle(
-      tester,
-      find.byKey(
-        TestIds.key(
-          isLittle
-              ? TestIds.evaluationTrustIntensityLittle
-              : TestIds.evaluationTrustIntensityLot,
-        ),
-      ),
-    );
-  } else {
-    // The trust control validates on Save: a completed selection is
-    // required before the sheet closes.
-    await tapAndSettle(
-      tester,
-      find.byKey(TestIds.key(TestIds.evaluationTrustOption(trustOption))),
-    );
-  }
-
-  for (final slug in ackTags) {
-    // Same collapsed-accordion CapabilityChipSet shape as the Requirements
-    // sheet (no search query here either) — expand the group first.
-    final chipFinder = find.byKey(TestIds.key(TestIds.capabilityChip(slug)));
-    if (!await tryPumpUntilVisible(tester, chipFinder)) {
-      await tapAndSettle(
-        tester,
-        find.text(_capabilityGroupLabelFor(slug)).first,
+    await tapAndSettle(tester, field);
+    for (final slug in ackTags) {
+      final tag = CapabilityTag.fromSlug(slug);
+      expect(tag, isNotNull, reason: 'unknown capability slug: $slug');
+      final group = _capabilityGroupLabelFor(slug);
+      final chip = find.byKey(TestIds.key(TestIds.capabilityChip(slug)));
+      if (chip.evaluate().isEmpty) {
+        final groupFinder = find.text(group);
+        expect(
+          groupFinder,
+          findsOneWidget,
+          reason: 'capability group $group must be present',
+        );
+        await tapAndSettle(tester, groupFinder);
+      }
+      expect(
+        chip,
+        findsOneWidget,
+        reason: 'capability chip $slug must be visible',
       );
-      await pumpUntilVisible(tester, chipFinder);
+      await tapAndSettle(tester, chip);
     }
-    await tapAndSettle(tester, chipFinder.first);
+    final done = find.byKey(TestIds.key(TestIds.evaluationCapabilityDone));
+    expect(done, findsOneWidget, reason: 'capability Done must be present');
+    await tapAndSettle(tester, done);
   }
-
   final saveButton = find.byKey(TestIds.key(TestIds.evaluationSave));
   await tapAndSettle(tester, saveButton);
-  // The sheet pops only when the save round-trip succeeded.
   await pumpUntil(tester, () => saveButton.evaluate().isEmpty);
+  final impactLabel = switch (impact) {
+    'pos1' => 'Helped somewhat',
+    'pos2' => 'Helped a lot',
+    'neg1' => 'Hurt somewhat',
+    'neg2' => 'Hurt a lot',
+    'zero' => 'No real effect',
+    _ => throw ArgumentError('unknown evaluation impact: $impact'),
+  };
+  expect(
+    find.descendant(of: tile, matching: find.text(impactLabel)),
+    findsOneWidget,
+    reason: 'submitted impact label must be visible for participant $userId',
+  );
+  if (ackTags.isNotEmpty) {
+    await tapAndSettle(tester, tile);
+    await pumpUntilVisible(
+      tester,
+      find.byKey(TestIds.key(TestIds.evaluationCapabilityField)),
+    );
+    final l10n = L10n.of(tester.element(find.byType(Scaffold).first))!;
+    for (final slug in ackTags) {
+      final tag = CapabilityTag.fromSlug(slug);
+      expect(tag, isNotNull, reason: 'unknown capability slug: $slug');
+      final label = tag!.labelOf(l10n);
+      expect(
+        find.textContaining(label),
+        findsWidgets,
+        reason: 'saved acknowledgement $slug must survive reload',
+      );
+    }
+    final reopenedSaveButton = find.byKey(
+      TestIds.key(TestIds.evaluationSave),
+    );
+    expect(
+      reopenedSaveButton,
+      findsOneWidget,
+      reason: 'reopened review sheet must show Save',
+    );
+    Navigator.of(tester.element(reopenedSaveButton)).pop();
+    await tester.pumpAndSettle();
+    await pumpUntil(tester, () => reopenedSaveButton.evaluate().isEmpty);
+  }
 }
 
-/// Toggles the routing mute switch for [capabilityLabel] (the tag's
-/// rendered display label, e.g. "Transport") on the real F5 settings
-/// screen. [groupLabel] is the accordion section header text to expand if
-/// the switch is not already visible (mobile viewports start collapsed).
 Future<void> toggleRoutingMute(
   WidgetTester tester, {
   required String capabilityLabel,

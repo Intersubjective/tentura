@@ -9,6 +9,7 @@ import 'package:tentura/features/evaluation/domain/entity/evaluation_value.dart'
 import 'package:tentura/features/evaluation/ui/widget/evaluation_detail_sheet.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/test_ids.dart';
 
 class MockProfileCubit extends Mock implements ProfileCubit {
   @override
@@ -25,25 +26,24 @@ Future<void> evaluationScrollAndTap(WidgetTester tester, Finder finder) async {
   await tester.pumpAndSettle();
 }
 
-Future<void> evaluationSelectNoChange(WidgetTester tester) async {
-  await evaluationScrollAndTap(
-    tester,
-    find.text('This contribution did not change my trust'),
-  );
-}
+Future<void> evaluationSelectImpact(
+  WidgetTester tester,
+  String label,
+) => evaluationScrollAndTap(tester, find.text(label));
 
 Future<void> pumpEvaluationDetailSheet({
   required WidgetTester tester,
   required EvaluationParticipant participant,
   required Future<bool> Function(
     EvaluationValue,
-    List<String>,
     String,
     List<String>,
   )
   onSave,
   Size size = const Size(400, 900),
   Locale locale = const Locale('en'),
+  TextScaler textScaler = TextScaler.noScaling,
+  EdgeInsets viewInsets = EdgeInsets.zero,
 }) async {
   await tester.pumpWidget(
     MaterialApp(
@@ -54,25 +54,29 @@ Future<void> pumpEvaluationDetailSheet({
       home: BlocProvider<ProfileCubit>.value(
         value: MockProfileCubit(),
         child: MediaQuery(
-          data: MediaQueryData(size: size),
-          child: Scaffold(
-            body: Builder(
-              builder: (context) => ElevatedButton(
-                key: const Key('open_sheet'),
-                onPressed: () => showEvaluationDetailSheet(
-                  context: context,
-                  participant: participant,
-                  onSave: onSave,
-                ),
-                child: const Text('open'),
-              ),
+          data: MediaQueryData(
+            size: size,
+            textScaler: textScaler,
+            viewInsets: viewInsets,
+          ),
+          child: ElevatedButton(
+            onPressed: () => showEvaluationDetailSheet(
+              context: tester.element(find.byType(ElevatedButton)),
+              participant: participant,
+              onSave: onSave,
             ),
+            child: const Text('Open'),
           ),
         ),
       ),
     ),
   );
-
-  await tester.tap(find.byKey(const Key('open_sheet')));
+  final open = find.widgetWithText(ElevatedButton, 'Open');
+  await tester.ensureVisible(open);
+  await tester.pumpAndSettle();
+  await tester.tap(open);
   await tester.pumpAndSettle();
 }
+
+Finder evaluationSaveButton() =>
+    find.byKey(TestIds.key(TestIds.evaluationSave));

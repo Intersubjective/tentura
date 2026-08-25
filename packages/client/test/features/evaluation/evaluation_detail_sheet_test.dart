@@ -1,13 +1,14 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:tentura/features/evaluation/domain/entity/evaluation_participant.dart';
-import 'package:tentura/features/evaluation/domain/entity/evaluation_trust_selection.dart';
 import 'package:tentura/features/evaluation/domain/entity/evaluation_value.dart';
-import 'package:tentura/features/evaluation/ui/widget/evaluation_detail_sheet.dart';
+import 'package:tentura/ui/test_ids.dart';
 
 import 'evaluation_sheet_test_support.dart';
-import 'package:tentura/ui/test_ids.dart';
 
 void main() {
   const participant = EvaluationParticipant(
@@ -15,190 +16,406 @@ void main() {
     displayName: 'Alice',
     role: EvaluationParticipantRole.committer,
     contributionSummary: 'Helped with packing',
-    causalHint: 'via request B1',
+    causalHint: 'via old request',
+    maxAcknowledgedHelpTags: 3,
+    acknowledgeableHelpTags: ['transport', 'food', 'tools'],
   );
-
-  test('EvaluationTrustSelection maps to EvaluationValue', () {
-    expect(
-      EvaluationTrustSelectionX.fromEvaluationValue(null),
-      EvaluationTrustSelection.unselected,
-    );
-    // Legacy "no basis" saves fold into the merged "no trust change" option.
-    expect(
-      EvaluationTrustSelectionX.fromEvaluationValue(EvaluationValue.noBasis),
-      EvaluationTrustSelection.zero,
-    );
-    expect(
-      EvaluationTrustSelection.pos2.evaluationValue,
-      EvaluationValue.pos2,
-    );
-    expect(EvaluationTrustSelection.decreasePending.isComplete, isFalse);
-    expect(EvaluationTrustSelection.pos1.showsReasonCard, isTrue);
-  });
-
-  testWidgets('save without selection shows category error', (tester) async {
-    await pumpEvaluationDetailSheet(
-      tester: tester,
-      participant: participant,
-      onSave: (_, __, ___, ____) async => true,
-    );
-
-    await evaluationScrollAndTap(tester, find.text('Save'));
-    expect(
-      find.text('Choose how this contribution affected your trust.'),
-      findsOneWidget,
-    );
-    expect(find.byType(BottomSheet), findsOneWidget);
-  });
-
-  testWidgets('pending intensity shows error on save', (tester) async {
-    await pumpEvaluationDetailSheet(
-      tester: tester,
-      participant: participant,
-      onSave: (_, __, ___, ____) async => true,
-    );
-
-    await evaluationScrollAndTap(
-      tester,
-      find.text('My trust in this person decreased'),
-    );
-    await evaluationScrollAndTap(tester, find.text('Save'));
-
-    expect(
-      find.text('Choose how much your trust changed.'),
-      findsOneWidget,
-    );
-  });
-
-  testWidgets('pos2 without reason shows validation error', (tester) async {
-    await pumpEvaluationDetailSheet(
-      tester: tester,
-      participant: participant,
-      onSave: (_, __, ___, ____) async => true,
-    );
-
-    await evaluationScrollAndTap(
-      tester,
-      find.text('My trust in this person increased'),
-    );
-    await evaluationScrollAndTap(tester, find.text('A lot (reason required)'));
-    await evaluationScrollAndTap(tester, find.text('Save'));
-
-    expect(find.text('Choose at least one reason.'), findsOneWidget);
-  });
-
-  testWidgets('changing pos2 to neg1 clears incompatible reason tags', (
+  testWidgets('missing impact keeps sheet open and shows inline feedback', (
     tester,
   ) async {
-    List<String>? capturedTags;
-
     await pumpEvaluationDetailSheet(
       tester: tester,
       participant: participant,
-      onSave: (_, tags, __, ___) async {
-        capturedTags = tags;
-        return true;
-      },
+      onSave: (_, __, ___) async => true,
     );
-
-    await evaluationScrollAndTap(
-      tester,
-      find.text('My trust in this person increased'),
-    );
-    await evaluationScrollAndTap(tester, find.text('A lot (reason required)'));
-    await evaluationScrollAndTap(tester, find.text('Very useful'));
-    await evaluationScrollAndTap(
-      tester,
-      find.text('My trust in this person decreased'),
-    );
-    await evaluationScrollAndTap(tester, find.text('A little (reason required)'));
-    await evaluationScrollAndTap(tester, find.text('Did not follow through'));
-    await evaluationScrollAndTap(tester, find.text('Save'));
-
-    expect(capturedTags, isNotNull);
-    expect(capturedTags, contains('did_not_follow_through'));
-    expect(capturedTags, isNot(contains('very_useful')));
-  });
-
-  testWidgets('neg1 to zero clears all reason tags', (tester) async {
-    List<String>? capturedTags;
-    EvaluationValue? capturedValue;
-
-    await pumpEvaluationDetailSheet(
-      tester: tester,
-      participant: participant,
-      onSave: (v, tags, __, ___) async {
-        capturedValue = v;
-        capturedTags = tags;
-        return true;
-      },
-    );
-
-    await evaluationScrollAndTap(
-      tester,
-      find.text('My trust in this person decreased'),
-    );
-    await evaluationScrollAndTap(tester, find.text('A little (reason required)'));
-    await evaluationScrollAndTap(tester, find.text('Did not follow through'));
-    await evaluationScrollAndTap(
-      tester,
-      find.text('This contribution did not change my trust'),
-    );
-    await evaluationScrollAndTap(tester, find.text('Save'));
-
-    expect(capturedValue, EvaluationValue.zero);
-    expect(capturedTags, isEmpty);
-  });
-
-  testWidgets('onSave returning false keeps sheet open', (tester) async {
-    await pumpEvaluationDetailSheet(
-      tester: tester,
-      participant: participant,
-      onSave: (_, __, ___, ____) async => false,
-    );
-
-    await evaluationSelectNoChange(tester);
-    await evaluationScrollAndTap(tester, find.text('Save'));
-
+    await evaluationScrollAndTap(tester, evaluationSaveButton());
+    expect(find.text('Choose an impact.'), findsOneWidget);
     expect(find.byType(BottomSheet), findsOneWidget);
   });
 
-  testWidgets('onSave returning true closes sheet', (tester) async {
+  testWidgets('renders exactly five impact choices and no legacy authoring', (
+    tester,
+  ) async {
     await pumpEvaluationDetailSheet(
       tester: tester,
       participant: participant,
-      onSave: (_, __, ___, ____) async => true,
+      onSave: (_, __, ___) async => true,
     );
+    expect(
+      find.byKey(
+        TestIds.key(TestIds.evaluationImpact(EvaluationValue.pos2.name)),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(
+        TestIds.key(TestIds.evaluationImpact(EvaluationValue.pos1.name)),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(
+        TestIds.key(TestIds.evaluationImpact(EvaluationValue.zero.name)),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(
+        TestIds.key(TestIds.evaluationImpact(EvaluationValue.neg1.name)),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.byKey(
+        TestIds.key(TestIds.evaluationImpact(EvaluationValue.neg2.name)),
+      ),
+      findsOneWidget,
+    );
+    expect(find.text('No basis'), findsNothing);
+    expect(find.textContaining('trust'), findsNothing);
+    expect(find.textContaining('reason'), findsNothing);
+    expect(find.byType(TextField), findsOneWidget);
+  });
 
-    await evaluationSelectNoChange(tester);
-    await evaluationScrollAndTap(tester, find.text('Save'));
+  testWidgets('saved noBasis opens with no impact selected', (tester) async {
+    await pumpEvaluationDetailSheet(
+      tester: tester,
+      participant: participant.copyWith(currentValue: EvaluationValue.noBasis),
+      onSave: (_, __, ___) async => true,
+    );
+    final semantics = tester.getSemantics(
+      find.byKey(
+        TestIds.key(TestIds.evaluationImpact(EvaluationValue.zero.name)),
+      ),
+    );
+    expect(semantics.hasFlag(SemanticsFlag.isSelected), isFalse);
+  });
 
+  testWidgets('save omits reasons and returns note and acknowledgements', (
+    tester,
+  ) async {
+    EvaluationValue? value;
+    String? note;
+    List<String>? ack;
+    await pumpEvaluationDetailSheet(
+      tester: tester,
+      participant: participant,
+      onSave: (v, n, a) async {
+        value = v;
+        note = n;
+        ack = a;
+        return true;
+      },
+    );
+    await evaluationSelectImpact(tester, 'Helped somewhat');
+    await tester.enterText(find.byType(TextField), 'A short note');
+    await evaluationScrollAndTap(
+      tester,
+      find.byKey(TestIds.key(TestIds.evaluationCapabilityField)),
+    );
+    await tester.tap(find.text('Done'));
+    await tester.pumpAndSettle();
+    await evaluationScrollAndTap(tester, evaluationSaveButton());
+    expect(value, EvaluationValue.pos1);
+    expect(note, 'A short note');
+    expect(ack, isEmpty);
+  });
+
+  testWidgets('negative selection clears acknowledgement disclosure', (
+    tester,
+  ) async {
+    await pumpEvaluationDetailSheet(
+      tester: tester,
+      participant: participant.copyWith(
+        currentValue: EvaluationValue.pos1,
+        isSubmitted: true,
+        acknowledgedHelpTags: const ['transport'],
+      ),
+      onSave: (_, __, ___) async => true,
+    );
+    expect(
+      find.byKey(TestIds.key(TestIds.evaluationCapabilityField)),
+      findsOneWidget,
+    );
+    await evaluationSelectImpact(tester, 'Hurt somewhat');
+    expect(
+      find.byKey(TestIds.key(TestIds.evaluationCapabilityField)),
+      findsNothing,
+    );
+  });
+
+  testWidgets('failed save leaves sheet open and second tap is blocked', (
+    tester,
+  ) async {
+    var calls = 0;
+    final firstResult = Completer<bool>();
+    final results = <Future<bool>>[
+      firstResult.future,
+      Future<bool>.value(true),
+    ];
+    await pumpEvaluationDetailSheet(
+      tester: tester,
+      participant: participant,
+      onSave: (_, __, ___) async {
+        calls++;
+        return results.removeAt(0);
+      },
+    );
+    await evaluationSelectImpact(tester, 'No real effect');
+    await tester.tap(evaluationSaveButton());
+    await tester.pump();
+    expect(
+      tester.widget<FilledButton>(evaluationSaveButton()).onPressed,
+      isNull,
+    );
+    await tester.pump();
+    expect(calls, 1);
+    expect(
+      tester.widget<FilledButton>(evaluationSaveButton()).onPressed,
+      isNull,
+    );
+    await tester.tap(evaluationSaveButton(), warnIfMissed: false);
+    expect(calls, 1);
+    firstResult.complete(false);
+    await tester.pumpAndSettle();
+    expect(find.byType(BottomSheet), findsOneWidget);
+    expect(
+      tester.widget<FilledButton>(evaluationSaveButton()).onPressed,
+      isNotNull,
+    );
+    await tester.tap(evaluationSaveButton());
+    await tester.pumpAndSettle();
+    expect(calls, 2);
     expect(find.byType(BottomSheet), findsNothing);
   });
 
-  testWidgets('double submit is blocked while saving', (tester) async {
-    var saveCalls = 0;
+  for (final change
+      in <({String name, Future<void> Function(WidgetTester) edit})>[
+        (
+          name: 'impact',
+          edit: (tester) => evaluationSelectImpact(tester, 'Helped a lot'),
+        ),
+        (
+          name: 'capability',
+          edit: (tester) async {
+            await evaluationScrollAndTap(
+              tester,
+              find.byKey(TestIds.key(TestIds.evaluationCapabilityField)),
+            );
+            await evaluationScrollAndTap(tester, find.text('Logistics'));
+            await evaluationScrollAndTap(
+              tester,
+              find.byKey(TestIds.key(TestIds.capabilityChip('transport'))),
+            );
+            await evaluationScrollAndTap(
+              tester,
+              find.byKey(TestIds.key(TestIds.evaluationCapabilityDone)),
+            );
+          },
+        ),
+        (
+          name: 'note',
+          edit: (tester) async {
+            await tester.enterText(find.byType(TextField), 'A private note');
+          },
+        ),
+      ]) {
+    testWidgets('dirty ${change.name} dismissal requires confirmation', (
+      tester,
+    ) async {
+      await pumpEvaluationDetailSheet(
+        tester: tester,
+        participant: participant.copyWith(currentValue: EvaluationValue.pos1),
+        onSave: (_, __, ___) async => true,
+      );
+      await change.edit(tester);
+      if (change.name == 'note') {
+        tester.testTextInput.hide();
+        await tester.pumpAndSettle();
+      }
+      await tester.binding.handlePopRoute();
+      await tester.pumpAndSettle();
+      await tester.pumpAndSettle();
+      expect(find.text('Keep editing'), findsOneWidget);
+      await tester.tap(find.text('Keep editing'));
+      await tester.pumpAndSettle();
+      expect(find.byType(BottomSheet), findsOneWidget);
+      expect(find.byType(TextField), findsOneWidget);
+      if (change.name == 'note') {
+        expect(find.text('A private note'), findsOneWidget);
+      }
+    });
+  }
 
+  testWidgets('note field has exactly 280 character maximum', (tester) async {
     await pumpEvaluationDetailSheet(
       tester: tester,
       participant: participant,
-      onSave: (_, __, ___, ____) async {
-        saveCalls++;
-        await Future<void>.delayed(const Duration(milliseconds: 200));
-        return true;
+      onSave: (_, __, ___) async => true,
+    );
+    final field = tester.widget<TextField>(find.byType(TextField));
+    expect(field.maxLength, 280);
+    await tester.enterText(find.byType(TextField), 'x' * 400);
+    expect(find.text('x' * 280), findsOneWidget);
+    expect(find.text('x' * 281), findsNothing);
+  });
+
+  testWidgets(
+    'keyboard inset and large text keep Save reachable without errors',
+    (
+      tester,
+    ) async {
+      await pumpEvaluationDetailSheet(
+        tester: tester,
+        participant: participant,
+        size: const Size(320, 480),
+        textScaler: const TextScaler.linear(2.0),
+        viewInsets: const EdgeInsets.only(bottom: 280),
+        onSave: (_, __, ___) async => true,
+      );
+      await evaluationScrollAndTap(tester, evaluationSaveButton());
+      expect(find.text('Choose an impact.'), findsOneWidget);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
+  for (final values in <({EvaluationValue saved, EvaluationValue chosen})>[
+    (saved: EvaluationValue.pos1, chosen: EvaluationValue.pos2),
+    (saved: EvaluationValue.pos2, chosen: EvaluationValue.pos1),
+  ]) {
+    testWidgets(
+      'saved ${values.saved.name} changing to ${values.chosen.name} retains acknowledgements',
+      (tester) async {
+        EvaluationValue? result;
+        List<String>? acknowledgements;
+        await pumpEvaluationDetailSheet(
+          tester: tester,
+          participant: participant.copyWith(
+            currentValue: values.saved,
+            isSubmitted: true,
+            acknowledgedHelpTags: const ['transport'],
+          ),
+          onSave: (value, _, tags) async {
+            result = value;
+            acknowledgements = tags;
+            return true;
+          },
+        );
+        await evaluationSelectImpact(
+          tester,
+          values.chosen == EvaluationValue.pos1
+              ? 'Helped somewhat'
+              : 'Helped a lot',
+        );
+        await evaluationScrollAndTap(tester, evaluationSaveButton());
+        expect(result, values.chosen);
+        expect(acknowledgements, ['transport']);
       },
     );
+  }
 
-    await evaluationSelectNoChange(tester);
-    await tester.ensureVisible(find.text('Save'));
-    await tester.tap(find.text('Save'));
-    await tester.pump();
-    final button = tester.widget<FilledButton>(
-      find.byKey(TestIds.key(TestIds.evaluationSave)),
-    );
-    expect(button.onPressed, isNull);
-    await tester.pumpAndSettle();
+  testWidgets(
+    'saved positive changing to non-positive saves empty acknowledgements',
+    (
+      tester,
+    ) async {
+      List<String>? acknowledgements;
+      await pumpEvaluationDetailSheet(
+        tester: tester,
+        participant: participant.copyWith(
+          currentValue: EvaluationValue.pos1,
+          isSubmitted: true,
+          acknowledgedHelpTags: const ['transport'],
+        ),
+        onSave: (_, __, tags) async {
+          acknowledgements = tags;
+          return true;
+        },
+      );
+      await evaluationSelectImpact(tester, 'No real effect');
+      await evaluationScrollAndTap(tester, evaluationSaveButton());
+      expect(acknowledgements, isEmpty);
+    },
+  );
 
-    expect(saveCalls, 1);
-  });
+  testWidgets(
+    'capability Cancel keeps parent selection and Save returns original',
+    (
+      tester,
+    ) async {
+      List<String>? acknowledgements;
+      await pumpEvaluationDetailSheet(
+        tester: tester,
+        participant: participant.copyWith(
+          currentValue: EvaluationValue.pos1,
+          isSubmitted: true,
+          acknowledgedHelpTags: const ['transport'],
+        ),
+        onSave: (_, __, tags) async {
+          acknowledgements = tags;
+          return true;
+        },
+      );
+      await evaluationScrollAndTap(
+        tester,
+        find.byKey(TestIds.key(TestIds.evaluationCapabilityField)),
+      );
+      await evaluationScrollAndTap(tester, find.text('Resources'));
+      await evaluationScrollAndTap(
+        tester,
+        find.byKey(TestIds.key(TestIds.capabilityChip('food'))),
+      );
+      await evaluationScrollAndTap(
+        tester,
+        find.byKey(TestIds.key(TestIds.evaluationCapabilityCancel)),
+      );
+      expect(find.text('Transport'), findsOneWidget);
+      await evaluationScrollAndTap(tester, evaluationSaveButton());
+      expect(acknowledgements, ['transport']);
+    },
+  );
+
+  testWidgets(
+    'compact dirty sheet ignores drag then discards with confirmation',
+    (
+      tester,
+    ) async {
+      var saveCalls = 0;
+      await pumpEvaluationDetailSheet(
+        tester: tester,
+        participant: participant,
+        size: const Size(320, 700),
+        onSave: (_, __, ___) async {
+          saveCalls++;
+          return true;
+        },
+      );
+      await evaluationSelectImpact(tester, 'Helped a lot');
+      await tester.drag(find.byType(BottomSheet), const Offset(0, 280));
+      await tester.pumpAndSettle();
+      expect(find.byType(BottomSheet), findsOneWidget);
+      expect(
+        tester
+            .getSemantics(
+              find.byKey(
+                TestIds.key(
+                  TestIds.evaluationImpact(EvaluationValue.pos2.name),
+                ),
+              ),
+            )
+            .hasFlag(SemanticsFlag.isSelected),
+        isTrue,
+      );
+      expect(saveCalls, 0);
+
+      await tester.binding.handlePopRoute();
+      await tester.pumpAndSettle();
+      expect(find.text('Keep editing'), findsOneWidget);
+      expect(find.text('Discard'), findsOneWidget);
+      await tester.tap(find.text('Discard'));
+      await tester.pumpAndSettle();
+      expect(find.byType(BottomSheet), findsNothing);
+      expect(saveCalls, 0);
+    },
+  );
 }

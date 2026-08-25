@@ -54,7 +54,7 @@ void main() {
       await reviewParticipant(
         tester,
         fixture.carolUserId,
-        trustOption: 'pos1',
+        impact: 'pos1',
         ackTags: const ['transport'],
       );
       // The outer `evaluationSubmit` button on review_contributions_screen

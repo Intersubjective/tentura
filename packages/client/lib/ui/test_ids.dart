@@ -109,15 +109,9 @@ abstract final class TestIds {
   static String evaluationImpact(String value) => 'evaluation.impact.$value';
   static const evaluationCapabilityDone = 'evaluation.capability.done';
   static const evaluationCapabilityCancel = 'evaluation.capability.cancel';
-
-  /// Trust category tile, keyed by [EvaluationTrustSelection.name] of the
-  /// option it selects (`zero`, `decreasePending`, `increasePending`).
-  static String evaluationTrustOption(String selection) =>
-      'evaluation.trust.$selection';
-  static const evaluationTrustIntensityLittle =
-      'evaluation.trust.intensity.little';
-  static const evaluationTrustIntensityLot = 'evaluation.trust.intensity.lot';
-  static String evaluationReasonChip(String slug) => 'evaluation.reason.$slug';
+  static const evaluationCapabilityField = 'evaluation.capability.field';
+  static String evaluationCannotEvaluate(String userId) =>
+      'evaluation.cannot_evaluate.$userId';
 
   /// Trust graph node tap target, keyed by user id.
   static String graphNode(String userId) => 'graph.node.$userId';

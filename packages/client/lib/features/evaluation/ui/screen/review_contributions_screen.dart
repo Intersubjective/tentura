@@ -1,8 +1,9 @@
 import 'dart:async';
 
+import 'package:intl/intl.dart';
+
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
-import 'package:intl/intl.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/contacts/contact_name_overlay.dart';
@@ -11,8 +12,8 @@ import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/evaluation/domain/entity/evaluation_participant.dart';
 import 'package:tentura/features/evaluation/domain/entity/evaluation_value.dart';
 import 'package:tentura/features/evaluation/ui/bloc/evaluation_cubit.dart';
+import 'package:tentura/features/evaluation/ui/presenter/evaluation_value_presenter.dart';
 import 'package:tentura/features/evaluation/ui/widget/evaluation_detail_sheet.dart';
-import 'package:tentura/features/evaluation/ui/widget/evaluation_privacy_info_row.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/test_ids.dart';
@@ -23,7 +24,7 @@ import 'package:tentura/ui/widget/self_user_highlight.dart';
 class ReviewContributionsScreen extends StatelessWidget
     implements AutoRouteWrapper {
   const ReviewContributionsScreen({
-    @PathParam('id') this.id = '',
+    @PathParam('id') required this.id,
     @QueryParam('draft') this.draft = false,
     super.key,
   });
@@ -34,12 +35,12 @@ class ReviewContributionsScreen extends StatelessWidget
   @override
   Widget wrappedRoute(BuildContext context) => BlocProvider(
     create: (_) {
-      final c = EvaluationCubit.fromGetIt(
+      final cubit = EvaluationCubit.fromGetIt(
         beaconId: id,
         isDraftMode: draft,
       );
-      unawaited(c.loadParticipantsOnly());
-      return c;
+      unawaited(cubit.loadParticipantsOnly());
+      return cubit;
     },
     child: this,
   );
@@ -52,358 +53,318 @@ class ReviewContributionsScreen extends StatelessWidget
     final actionButtonStyle = FilledButton.styleFrom(
       minimumSize: Size.fromHeight(tt.buttonHeight),
     );
+
     return Scaffold(
       appBar: TenturaTopBar.of(
+        leading: const _EvaluationLeadingButton(),
         context,
-        leading: const AutoLeadingButton(),
         title: Text(
           draft
               ? l10n.evaluationAcknowledgeTitleDraft
               : l10n.evaluationAcknowledgeTitle,
         ),
         progress: BlocSelector<EvaluationCubit, EvaluationState, bool>(
-          bloc: cubit,
           selector: (state) => state.isLoading,
-          builder: TenturaTopBar.loadingBar,
+          builder: (context, loading) =>
+              TenturaTopBar.loadingBar(context, loading),
         ),
       ),
       body: SafeArea(
-        child: Column(
-          children: [
-            Expanded(
-              child: TenturaContentColumn(
-                child: BlocBuilder<EvaluationCubit, EvaluationState>(
-                  builder: (context, state) {
-                    if (state.isLoading && state.participants.isEmpty) {
-                      return const Center(
-                        child: CircularProgressIndicator.adaptive(),
-                      );
-                    }
-                    if (state.participants.isEmpty) {
-                      return Center(
-                        child: Padding(
-                          padding: tt.cardPadding,
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              if (state.beaconTitle.isNotEmpty) ...[
-                                Text(
-                                  state.beaconTitle,
-                                  style: Theme.of(
-                                    context,
-                                  ).textTheme.titleMedium,
-                                  textAlign: TextAlign.center,
-                                ),
-                                SizedBox(height: tt.sectionGap),
-                              ],
-                              Text(
-                                l10n.evaluationEmptyTargets,
-                                textAlign: TextAlign.center,
-                              ),
-                            ],
-                          ),
-                        ),
-                      );
-                    }
-                    final listItems = _ReviewListItems.build(
-                      context: context,
-                      l10n: l10n,
-                      state: state,
-                      draft: draft,
-                      onOpen: (p) async {
-                        await showEvaluationDetailSheet(
-                          context: context,
-                          participant: p,
-                          onSave: (v, tags, note, ackTags) =>
-                              context.read<EvaluationCubit>().submitOne(
-                                evaluatedUserId: p.userId,
-                                value: v,
-                                reasonTags: tags,
-                                note: note,
-                                acknowledgedHelpTags: ackTags.isEmpty
-                                    ? null
-                                    : ackTags,
-                              ),
-                        );
-                      },
-                    );
-                    return Column(
+        child: TenturaContentColumn(
+          child: BlocBuilder<EvaluationCubit, EvaluationState>(
+            builder: (context, state) {
+              if (state.isLoading && state.participants.isEmpty) {
+                return const Center(
+                  child: CircularProgressIndicator.adaptive(),
+                );
+              }
+              if (state.participants.isEmpty) {
+                return Center(
+                  child: Padding(
+                    padding: tt.cardPadding,
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
                       children: [
-                        Expanded(
-                          child: ListView.builder(
-                            padding: tt.cardPadding,
-                            itemCount: listItems.length,
-                            itemBuilder: listItems.itemBuilder,
+                        if (state.beaconTitle.isNotEmpty) ...[
+                          Text(
+                            state.beaconTitle,
+                            style: Theme.of(context).textTheme.titleMedium,
+                            textAlign: TextAlign.center,
                           ),
-                        ),
-                        Padding(
-                          padding: tt.cardPadding,
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: [
-                              Text(
-                                l10n.evaluationProgress(
-                                  state.reviewedCount,
-                                  state.totalCount,
-                                ),
-                                textAlign: TextAlign.center,
-                              ),
-                              SizedBox(height: tt.rowGap),
-                              FilledButton(
-                                key: TestIds.key(TestIds.evaluationSubmit),
-                                style: actionButtonStyle,
-                                onPressed: state.isLoading
-                                    ? null
-                                    : cubit.finalize,
-                                child: Text(
-                                  draft
-                                      ? l10n.evaluationDraftDone
-                                      : l10n.evaluationSubmitFinish,
-                                ),
-                              ),
-                              if (!draft) ...[
-                                TextButton(
-                                  onPressed: state.isLoading
-                                      ? null
-                                      : cubit.skip,
-                                  child: Text(l10n.evaluationSkipForNow),
-                                ),
-                              ],
-                            ],
-                          ),
+                          SizedBox(height: tt.sectionGap),
+                        ],
+                        Text(
+                          l10n.evaluationEmptyTargets,
+                          textAlign: TextAlign.center,
                         ),
                       ],
-                    );
-                  },
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-List<Widget> _participantSections({
-  required BuildContext context,
-  required List<EvaluationParticipant> participants,
-  required Future<void> Function(EvaluationParticipant p) onOpen,
-}) {
-  final l10n = L10n.of(context)!;
-  final theme = Theme.of(context);
-  final tt = context.tt;
-  final byRole = <EvaluationParticipantRole, List<EvaluationParticipant>>{};
-  for (final p in participants) {
-    byRole.putIfAbsent(p.role, () => []).add(p);
-  }
-  void addRole(
-    EvaluationParticipantRole role,
-    String sectionTitle,
-    List<Widget> out,
-  ) {
-    final list = byRole[role];
-    if (list == null || list.isEmpty) {
-      return;
-    }
-    out.add(
-      Padding(
-        padding: EdgeInsets.only(
-          top: tt.rowGap,
-          bottom: tt.tightGap * 2,
-        ),
-        child: Semantics(
-          header: true,
-          child: Text(
-            sectionTitle,
-            style: theme.textTheme.titleSmall,
+                    ),
+                  ),
+                );
+              }
+              final items = _participantItems(context, state);
+              return Column(
+                children: [
+                  Expanded(
+                    child: ListView.builder(
+                      padding: tt.cardPadding,
+                      itemCount: items.length,
+                      itemBuilder: (_, index) => items[index],
+                    ),
+                  ),
+                  Padding(
+                    padding: tt.cardPadding,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Text(
+                          l10n.evaluationProgress(
+                            state.reviewedCount,
+                            state.totalCount,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                        SizedBox(height: tt.rowGap),
+                        FilledButton(
+                          key: TestIds.key(TestIds.evaluationSubmit),
+                          style: actionButtonStyle,
+                          onPressed: state.isLoading ? null : cubit.finalize,
+                          child: Text(
+                            draft
+                                ? l10n.evaluationDraftDone
+                                : l10n.evaluationSubmitFinish,
+                          ),
+                        ),
+                        if (!draft)
+                          TextButton(
+                            onPressed: state.isLoading ? null : cubit.skip,
+                            child: Text(l10n.evaluationSkipForNow),
+                          ),
+                      ],
+                    ),
+                  ),
+                ],
+              );
+            },
           ),
         ),
       ),
     );
-    for (final p in list) {
-      out.add(
-        _ParticipantTile(
-          participant: p,
-          onTap: () => onOpen(p),
-        ),
-      );
-    }
   }
 
-  final out = <Widget>[];
-  addRole(
-    EvaluationParticipantRole.author,
-    l10n.evaluationSectionAuthor,
-    out,
-  );
-  addRole(
-    EvaluationParticipantRole.committer,
-    l10n.evaluationSectionHelpOfferer,
-    out,
-  );
-  addRole(
-    EvaluationParticipantRole.forwarder,
-    l10n.evaluationSectionForwarder,
-    out,
-  );
-  return out;
-}
-
-class _ReviewListItems {
-  const _ReviewListItems(this._builders);
-
-  final List<Widget Function(BuildContext)> _builders;
-
-  int get length => _builders.length;
-
-  Widget itemBuilder(BuildContext context, int index) =>
-      _builders[index](context);
-
-  static _ReviewListItems build({
-    required BuildContext context,
-    required L10n l10n,
-    required EvaluationState state,
-    required bool draft,
-    required Future<void> Function(EvaluationParticipant p) onOpen,
-  }) {
-    final theme = Theme.of(context);
-    final tt = context.tt;
-    final builders = <Widget Function(BuildContext)>[];
-
+  List<Widget> _participantItems(
+    BuildContext context,
+    EvaluationState state,
+  ) {
+    final l10n = L10n.of(context)!;
+    final byRole = <EvaluationParticipantRole, List<EvaluationParticipant>>{};
+    for (final participant in state.participants) {
+      byRole.putIfAbsent(participant.role, () => []).add(participant);
+    }
+    final output = <Widget>[];
     if (state.beaconTitle.isNotEmpty) {
-      builders.add(
-        (_) => Text(
-          state.beaconTitle,
-          style: theme.textTheme.titleMedium,
+      output.add(
+        Text(state.beaconTitle, style: Theme.of(context).textTheme.titleMedium),
+      );
+      output.add(SizedBox(height: context.tt.iconTextGap));
+    }
+    final closesRaw = state.windowInfo?.closesAt;
+    final closes = closesRaw == null ? null : DateTime.tryParse(closesRaw);
+    if (!state.isDraftMode && closes != null) {
+      final formatted = DateFormat.yMMMd(
+        Localizations.localeOf(context).toLanguageTag(),
+      ).format(closes.toLocal());
+      output.add(
+        Padding(
+          padding: EdgeInsets.only(bottom: context.tt.rowGap),
+          child: Text(
+            l10n.evaluationReviewDeadline(formatted),
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
+          ),
         ),
       );
-      builders.add((_) => SizedBox(height: tt.iconTextGap));
     }
-
-    if (!draft) {
-      final closesRaw = state.windowInfo?.closesAt;
-      if (closesRaw != null && closesRaw.isNotEmpty) {
-        final closes = DateTime.tryParse(closesRaw);
-        if (closes != null) {
-          builders.add(
-            (ctx) {
-              final formatted = DateFormat.yMMMd(
-                Localizations.localeOf(ctx).toLanguageTag(),
-              ).format(closes.toLocal());
-              return Padding(
-                padding: EdgeInsets.only(bottom: tt.rowGap),
-                child: Text(
-                  l10n.evaluationReviewDeadline(formatted),
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
-                  ),
-                ),
-              );
-            },
-          );
-        }
+    void addRole(EvaluationParticipantRole role, String title) {
+      final participants = byRole[role];
+      if (participants == null || participants.isEmpty) {
+        return;
+      }
+      output.add(
+        Padding(
+          padding: EdgeInsets.only(top: context.tt.rowGap),
+          child: Semantics(
+            header: true,
+            child: Text(title, style: Theme.of(context).textTheme.titleSmall),
+          ),
+        ),
+      );
+      for (final participant in participants) {
+        output.add(
+          _ParticipantTile(
+            participant: participant,
+            isDraftMode: state.isDraftMode,
+            isLoading: state.isLoading,
+            onTap: () => _openDetail(context, participant),
+            onCannotEvaluate: () => _cannotEvaluate(context, participant),
+          ),
+        );
       }
     }
 
-    builders.add(
-      (_) => EvaluationPrivacyInfoRow(
-        shortLabel: l10n.evaluationPrivacyShort,
-        fullText: l10n.evaluationPrivacyBlock,
+    addRole(EvaluationParticipantRole.author, l10n.evaluationSectionAuthor);
+    addRole(
+      EvaluationParticipantRole.committer,
+      l10n.evaluationSectionHelpOfferer,
+    );
+    addRole(
+      EvaluationParticipantRole.forwarder,
+      l10n.evaluationSectionForwarder,
+    );
+    return output;
+  }
+
+  Future<void> _openDetail(
+    BuildContext context,
+    EvaluationParticipant participant,
+  ) async {
+    await showEvaluationDetailSheet(
+      context: context,
+      participant: participant,
+      isDraftMode: draft,
+      onSave: (value, note, acknowledgedHelpTags) =>
+          context.read<EvaluationCubit>().submitOne(
+            evaluatedUserId: participant.userId,
+            value: value,
+            note: note,
+            acknowledgedHelpTags: acknowledgedHelpTags,
+          ),
+    );
+  }
+
+  Future<void> _cannotEvaluate(
+    BuildContext context,
+    EvaluationParticipant participant,
+  ) async {
+    final hasExistingWork =
+        participant.currentValue != null ||
+        participant.note.trim().isNotEmpty ||
+        participant.reasonTags.isNotEmpty ||
+        participant.acknowledgedHelpTags.isNotEmpty;
+    if (!hasExistingWork) {
+      if (context.mounted) {
+        await context.read<EvaluationCubit>().submitOne(
+          evaluatedUserId: participant.userId,
+          value: EvaluationValue.noBasis,
+          note: participant.note,
+          acknowledgedHelpTags: const <String>[],
+        );
+      }
+      return;
+    }
+    final shouldReplace = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text(L10n.of(context)!.evaluationCannotEvaluate),
+        content: Text(
+          L10n.of(context)!.evaluationCannotEvaluateReplacement,
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(false),
+            child: Text(L10n.of(context)!.buttonCancel),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.of(context).pop(true),
+            child: Text(L10n.of(context)!.evaluationCannotEvaluate),
+          ),
+        ],
       ),
     );
-    builders.add((_) => SizedBox(height: tt.sectionGap));
-
-    for (final section in _participantSections(
-      context: context,
-      participants: state.participants,
-      onOpen: onOpen,
-    )) {
-      builders.add((_) => section);
+    if (shouldReplace != true || !context.mounted) {
+      return;
     }
-
-    return _ReviewListItems(builders);
+    await context.read<EvaluationCubit>().submitOne(
+      evaluatedUserId: participant.userId,
+      value: EvaluationValue.noBasis,
+      note: participant.note,
+      acknowledgedHelpTags: const <String>[],
+    );
   }
+}
+
+class _EvaluationLeadingButton extends StatelessWidget {
+  const _EvaluationLeadingButton();
+
+  @override
+  Widget build(BuildContext context) => const AutoLeadingButton();
 }
 
 class _ParticipantTile extends StatelessWidget {
   const _ParticipantTile({
     required this.participant,
+    required this.isDraftMode,
+    required this.isLoading,
     required this.onTap,
+    required this.onCannotEvaluate,
   });
 
   final EvaluationParticipant participant;
+  final bool isDraftMode;
+  final bool isLoading;
   final VoidCallback onTap;
+  final VoidCallback onCannotEvaluate;
 
   @override
   Widget build(BuildContext context) {
     final l10n = L10n.of(context)!;
-    final tt = context.tt;
     final theme = Theme.of(context);
+    final tt = context.tt;
     final value = participant.currentValue;
     final profile = Profile(
       id: participant.userId,
       displayName: participant.displayName,
       contactName: contactNameOf(participant.userId),
-      image: participant.imageId.isNotEmpty
-          ? ImageEntity(id: participant.imageId, authorId: participant.userId)
-          : null,
+      image: participant.imageId.isEmpty
+          ? null
+          : ImageEntity(id: participant.imageId, authorId: participant.userId),
     );
-    final meId = context.read<ProfileCubit>().state.profile.id;
-    final displayName = SelfUserHighlight.displayName(l10n, profile, meId);
-    final (compactLabel, icon, iconColor, semanticsDetail) =
-        _trustStatusParts(l10n, tt, value, displayName);
-    final semanticsLabel = value == null
-        ? '$displayName. ${l10n.evaluationNotReviewed}'
-        : '$displayName. $semanticsDetail';
+    final submitted = participant.isSubmitted;
+    final presentation = value == null || !submitted
+        ? null
+        : presentEvaluationValue(value, l10n);
+    final statusLabel = !submitted && value != null
+        ? l10n.evaluationBannerDraftReview
+        : presentation?.label ?? l10n.evaluationNotReviewed;
+    final cannotEvaluateSelected =
+        value == EvaluationValue.noBasis && (isDraftMode || submitted);
 
     return Card(
       margin: EdgeInsets.only(bottom: tt.rowGap),
       child: LayoutBuilder(
         builder: (context, constraints) {
-          final textScale = MediaQuery.textScalerOf(context).scale(1);
-          final useSubtitleStatus =
-              constraints.maxWidth < 320 || textScale > 1.2;
-          final statusWidget = icon == null
-              ? Text(
-                  compactLabel,
-                  style: theme.textTheme.labelSmall,
-                )
-              : Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(icon, size: 18, color: iconColor),
-                    SizedBox(width: tt.tightGap),
-                    Flexible(
-                      child: Text(
-                        compactLabel,
-                        style: theme.textTheme.labelSmall,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                  ],
-                );
-
-          final subtitleLines = <String>[
-            if (participant.contributionSummary.isNotEmpty)
-              participant.contributionSummary,
-            if (participant.causalHint.isNotEmpty) participant.causalHint,
-            if (useSubtitleStatus && value != null) compactLabel,
-          ];
-
-          return Semantics(
-            label: semanticsLabel,
-            child: ListTile(
-              key: TestIds.key(
-                TestIds.evaluationParticipant(participant.userId),
-              ),
-              leading: SelfAwareAvatar.small(
-                profile: profile,
-              ),
-              title: BlocBuilder<ProfileCubit, ProfileState>(
-                buildWhen: (p, c) => p.profile.id != c.profile.id,
-                builder: (context, state) {
-                  return Text(
+          final subtitleStatus =
+              constraints.maxWidth < 500 ||
+              MediaQuery.textScalerOf(context).scale(1) >= 2;
+          final subtitle = <Widget>[];
+          if (participant.contributionSummary.isNotEmpty) {
+            subtitle.add(Text(participant.contributionSummary));
+          }
+          if (subtitleStatus) {
+            subtitle.add(
+              Text(statusLabel, style: theme.textTheme.labelLarge),
+            );
+          }
+          return Column(
+            children: [
+              ListTile(
+                key: TestIds.key(
+                  TestIds.evaluationParticipant(participant.userId),
+                ),
+                leading: SelfAwareAvatar.small(profile: profile),
+                title: BlocBuilder<ProfileCubit, ProfileState>(
+                  builder: (context, state) => Text(
                     SelfUserHighlight.displayName(
                       l10n,
                       profile,
@@ -412,81 +373,57 @@ class _ParticipantTile extends StatelessWidget {
                     style: SelfUserHighlight.nameStyle(
                       theme,
                       theme.textTheme.bodyLarge,
-                      SelfUserHighlight.profileIsSelf(profile, state.profile.id),
+                      SelfUserHighlight.profileIsSelf(
+                        profile,
+                        state.profile.id,
+                      ),
                     ),
-                  );
-                },
+                  ),
+                ),
+                subtitle: subtitle.isEmpty
+                    ? null
+                    : Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: subtitle,
+                      ),
+                trailing: subtitleStatus
+                    ? null
+                    : Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          if (presentation != null)
+                            Icon(
+                              presentation.icon,
+                              size: tt.iconSize,
+                              color: theme.colorScheme.onSurfaceVariant,
+                            ),
+                          SizedBox(width: tt.tightGap),
+                          Text(
+                            statusLabel,
+                            style: theme.textTheme.labelLarge,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                      ),
+                onTap: isLoading ? null : onTap,
               ),
-              subtitle: subtitleLines.isEmpty
-                  ? null
-                  : Text(
-                      subtitleLines.join('\n'),
-                      maxLines: 4,
-                    ),
-              isThreeLine: subtitleLines.length > 1,
-              trailing: useSubtitleStatus ? null : statusWidget,
-              onTap: onTap,
-            ),
+              const TenturaHairlineDivider(),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: TextButton(
+                  key: TestIds.key(
+                    TestIds.evaluationCannotEvaluate(participant.userId),
+                  ),
+                  onPressed: isLoading || cannotEvaluateSelected
+                      ? null
+                      : onCannotEvaluate,
+                  child: Text(l10n.evaluationCannotEvaluate),
+                ),
+              ),
+            ],
           );
         },
       ),
     );
   }
-}
-
-(
-  String compactLabel,
-  IconData? icon,
-  Color? iconColor,
-  String semanticsDetail,
-) _trustStatusParts(
-  L10n l10n,
-  TenturaTokens tt,
-  EvaluationValue? value,
-  String name,
-) {
-  return switch (value) {
-    null => (
-        l10n.evaluationNotReviewed,
-        null,
-        null,
-        l10n.evaluationNotReviewed,
-      ),
-    EvaluationValue.noBasis => (
-        l10n.evaluationNoBasisLabel,
-        null,
-        null,
-        l10n.evaluationTrustPreviewNoBasis(name),
-      ),
-    EvaluationValue.zero => (
-        l10n.evaluationTrustNoChangeSummary,
-        null,
-        null,
-        l10n.evaluationTrustPreviewZero(name),
-      ),
-    EvaluationValue.neg1 => (
-        l10n.evaluationTrustLessSummary,
-        Icons.trending_down,
-        tt.danger,
-        l10n.evaluationTrustPreviewNeg1(name),
-      ),
-    EvaluationValue.neg2 => (
-        l10n.evaluationTrustLessSummary,
-        Icons.trending_down,
-        tt.danger,
-        l10n.evaluationTrustPreviewNeg2(name),
-      ),
-    EvaluationValue.pos1 => (
-        l10n.evaluationTrustMoreSummary,
-        Icons.trending_up,
-        tt.good,
-        l10n.evaluationTrustPreviewPos1(name),
-      ),
-    EvaluationValue.pos2 => (
-        l10n.evaluationTrustMoreSummary,
-        Icons.trending_up,
-        tt.good,
-        l10n.evaluationTrustPreviewPos2(name),
-      ),
-  };
 }

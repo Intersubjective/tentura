@@ -1,6 +1,9 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:tentura/features/evaluation/domain/entity/evaluation_participant.dart';
+import 'package:tentura/features/evaluation/domain/entity/evaluation_value.dart';
+import 'package:tentura/ui/test_ids.dart';
 
 import 'evaluation_sheet_test_support.dart';
 
@@ -10,134 +13,50 @@ void main() {
     displayName: 'Alice',
     role: EvaluationParticipantRole.committer,
     contributionSummary: 'Helped with packing',
-    causalHint: 'via beacon B1',
+    causalHint: '',
+    isSubmitted: true,
+    currentValue: EvaluationValue.pos1,
+    acknowledgedHelpTags: ['transport'],
+    acknowledgeableHelpTags: ['transport', 'food', 'tools', 'writing'],
+    maxAcknowledgedHelpTags: 3,
   );
 
-  testWidgets(
-    'close-ack section is visible inside the sheet',
-    (tester) async {
+  testWidgets('positive live row preloads and filters acknowledgement picker', (
+    tester,
+  ) async {
+    await pumpEvaluationDetailSheet(
+      tester: tester,
+      participant: participant,
+      onSave: (_, __, ___) async => true,
+    );
+    expect(
+      find.byKey(TestIds.key(TestIds.evaluationCapabilityField)),
+      findsOneWidget,
+    );
+    await evaluationScrollAndTap(
+      tester,
+      find.byKey(TestIds.key(TestIds.evaluationCapabilityField)),
+    );
+    expect(find.text('Transport'), findsOneWidget);
+    expect(find.text('Food'), findsNothing);
+    expect(find.text('Writing'), findsNothing);
+  });
+
+  testWidgets('draft and non-positive rows hide acknowledgement field', (
+    tester,
+  ) async {
+    for (final value in [EvaluationValue.zero, EvaluationValue.neg1]) {
       await pumpEvaluationDetailSheet(
         tester: tester,
-        participant: participant,
-        onSave: (_, __, ___, ____) async => true,
+        participant: participant.copyWith(currentValue: value),
+        onSave: (_, __, ___) async => true,
       );
-
-      await evaluationSelectNoChange(tester);
-
-      await tester.ensureVisible(
-        find.text('What did this person actually help with?'),
-      );
-      await tester.pumpAndSettle();
-
       expect(
-        find.text('What did this person actually help with?'),
-        findsOneWidget,
+        find.byKey(TestIds.key(TestIds.evaluationCapabilityField)),
+        findsNothing,
       );
-
-      await tester.tap(find.text('Logistics'));
+      Navigator.of(tester.element(find.byType(BottomSheet))).pop();
       await tester.pumpAndSettle();
-
-      await tester.ensureVisible(find.text('Transport').first);
-      await tester.pumpAndSettle();
-      expect(find.text('Transport'), findsWidgets);
-    },
-  );
-
-  testWidgets(
-    'tapping a capability chip and saving passes acknowledgedHelpTags',
-    (tester) async {
-      List<String>? capturedAckTags;
-
-      await pumpEvaluationDetailSheet(
-        tester: tester,
-        participant: participant,
-        onSave: (v, tags, note, ackTags) async {
-          capturedAckTags = ackTags;
-          return true;
-        },
-      );
-
-      await evaluationSelectNoChange(tester);
-      await evaluationScrollAndTap(tester, find.text('Logistics'));
-      await evaluationScrollAndTap(tester, find.text('Transport').first);
-      await evaluationScrollAndTap(tester, find.text('Save'));
-
-      expect(capturedAckTags, isNotNull);
-      expect(capturedAckTags, contains('transport'));
-    },
-  );
-
-  testWidgets(
-    'saving with no chip selected passes empty acknowledgedHelpTags',
-    (tester) async {
-      List<String>? capturedAckTags;
-
-      await pumpEvaluationDetailSheet(
-        tester: tester,
-        participant: participant,
-        onSave: (v, tags, note, ackTags) async {
-          capturedAckTags = ackTags;
-          return true;
-        },
-      );
-
-      await evaluationSelectNoChange(tester);
-      await evaluationScrollAndTap(tester, find.text('Save'));
-
-      expect(capturedAckTags, isNotNull);
-      expect(capturedAckTags, isEmpty);
-    },
-  );
-
-  testWidgets(
-    'multiple chip selections are all forwarded in acknowledgedHelpTags',
-    (tester) async {
-      List<String>? capturedAckTags;
-
-      await pumpEvaluationDetailSheet(
-        tester: tester,
-        participant: participant,
-        onSave: (v, tags, note, ackTags) async {
-          capturedAckTags = ackTags;
-          return true;
-        },
-      );
-
-      await evaluationSelectNoChange(tester);
-      await evaluationScrollAndTap(tester, find.text('Logistics'));
-      await evaluationScrollAndTap(tester, find.text('Transport').first);
-      await evaluationScrollAndTap(tester, find.text('Resources'));
-      await evaluationScrollAndTap(tester, find.text('Money').first);
-      await evaluationScrollAndTap(tester, find.text('Save'));
-
-      expect(capturedAckTags, isNotNull);
-      expect(capturedAckTags, containsAll(['transport', 'money']));
-      expect(capturedAckTags!.length, 2);
-    },
-  );
-
-  testWidgets(
-    'deselecting a chip removes it from acknowledgedHelpTags',
-    (tester) async {
-      List<String>? capturedAckTags;
-
-      await pumpEvaluationDetailSheet(
-        tester: tester,
-        participant: participant,
-        onSave: (v, tags, note, ackTags) async {
-          capturedAckTags = ackTags;
-          return true;
-        },
-      );
-
-      await evaluationSelectNoChange(tester);
-      await evaluationScrollAndTap(tester, find.text('Logistics'));
-      await evaluationScrollAndTap(tester, find.text('Transport').first);
-      await evaluationScrollAndTap(tester, find.text('Transport').first);
-      await evaluationScrollAndTap(tester, find.text('Save'));
-
-      expect(capturedAckTags, isNotNull);
-      expect(capturedAckTags, isNot(contains('transport')));
-    },
-  );
+    }
+  });
 }

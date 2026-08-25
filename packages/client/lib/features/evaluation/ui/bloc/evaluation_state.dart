@@ -1,4 +1,3 @@
-
 import 'package:tentura/features/evaluation/domain/entity/evaluation_participant.dart';
 import 'package:tentura/features/evaluation/domain/entity/evaluation_summary.dart';
 import 'package:tentura/features/evaluation/domain/entity/review_window_info.dart';
@@ -20,12 +19,10 @@ abstract class EvaluationState extends StateBase with _$EvaluationState {
 
   const EvaluationState._();
 
-  int get reviewedCount =>
-      participants.where((p) => p.currentValue != null).length;
+  int get reviewedCount => participants.where((p) => p.isSubmitted).length;
 
   int get totalCount => participants.length;
 
   bool get canFinalize =>
-      participants.isNotEmpty &&
-      participants.every((p) => p.currentValue != null);
+      participants.isNotEmpty && participants.every((p) => p.isSubmitted);
 }

@@ -3334,6 +3334,15 @@
   "evaluationAcknowledgeTitleDraft": "Черновик отзыва",
   "evaluationPrivacyBlock": "Ваш отзыв здесь приватен. Он не будет показан публично, и другие участники запроса по умолчанию не увидят ваши ответы. Он используется только для улучшения вашего локального представления о доверии: кому вы можете больше доверять, кому меньше или через кого маршрутизировать запросы в следующий раз. Проще говоря: ответы помогают Tentura давать вам более точные персональные рекомендации и подбор относительно людей здесь и связанных с ними. Оценивайте только то, что вы реально видели в этом запросе. Если не уверены, выберите «Нет оснований».",
   "evaluationPrivacyShort": "Ваш отзыв приватен.",
+  "evaluationRevealNoticeLive": "После окончания окна отзывов {name} увидит ваше имя, выбранное влияние, подтверждения возможностей и заметку. Это видите только вы и {name}; отзыв не публичен и не виден другим участникам.",
+  "@evaluationRevealNoticeLive": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "evaluationRevealNoticeDraft": "Приватный черновик. Он не передаётся другим, если вы не сохраните его во время окна отзывов.",
   "evaluationDraftDone": "Готово",
   "evaluationSectionAuthor": "Автор",
   "evaluationSectionHelpOfferer": "Помощники",
@@ -3370,6 +3379,7 @@
   "evaluationNotReviewed": "Не оценено",
   "evaluationReviewed": "Оценено",
   "evaluationNoBasisLabel": "Нет оснований",
+  "evaluationChooseImpact": "Выберите влияние.",
   "evaluationTrustQuestion": "Как этот вклад повлиял на ваше личное доверие к {name}?",
   "@evaluationTrustQuestion": {
     "placeholders": {
@@ -3462,6 +3472,7 @@
   "evaluationImpactHurtALot": "Сильно навредило",
   "evaluationNoBasisLabel": "Нет оснований",
   "evaluationCannotEvaluate": "Невозможно оценить",
+  "evaluationCannotEvaluateReplacement": "Текущее влияние будет заменено, подтверждения возможностей будут очищены, а заметка сохранится.",
   "evaluationCapabilityChoose": "Выбрать возможности",
   "evaluationCapabilityDone": "Готово",
   "evaluationCapabilityAdditional": "+{count}",

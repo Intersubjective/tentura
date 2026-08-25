@@ -5,8 +5,8 @@ import 'package:tentura/features/evaluation/domain/entity/evaluation_value.dart'
 import 'package:tentura/features/evaluation/ui/bloc/evaluation_state.dart';
 
 void main() {
-  test('reviewedCount counts answered cards', () {
-    const s = EvaluationState(
+  test('live progress counts only submitted rows', () {
+    const state = EvaluationState(
       beaconId: 'B1',
       participants: [
         EvaluationParticipant(
@@ -16,6 +16,7 @@ void main() {
           contributionSummary: '',
           causalHint: '',
           currentValue: EvaluationValue.pos1,
+          isSubmitted: true,
         ),
         EvaluationParticipant(
           userId: 'U2',
@@ -23,17 +24,18 @@ void main() {
           role: EvaluationParticipantRole.committer,
           contributionSummary: '',
           causalHint: '',
+          currentValue: EvaluationValue.pos1,
         ),
       ],
     );
-    expect(s.reviewedCount, 1);
-    expect(s.totalCount, 2);
-    expect(s.canFinalize, isFalse);
+    expect(state.reviewedCount, 1);
+    expect(state.canFinalize, isFalse);
   });
 
-  test('reviewedCount is zero when no participant answered', () {
-    const s = EvaluationState(
+  test('draft values do not masquerade as submitted', () {
+    const state = EvaluationState(
       beaconId: 'B1',
+      isDraftMode: true,
       participants: [
         EvaluationParticipant(
           userId: 'U1',
@@ -41,22 +43,16 @@ void main() {
           role: EvaluationParticipantRole.author,
           contributionSummary: '',
           causalHint: '',
-        ),
-        EvaluationParticipant(
-          userId: 'U2',
-          displayName: 'B',
-          role: EvaluationParticipantRole.committer,
-          contributionSummary: '',
-          causalHint: '',
+          currentValue: EvaluationValue.noBasis,
         ),
       ],
     );
-    expect(s.reviewedCount, 0);
-    expect(s.canFinalize, isFalse);
+    expect(state.reviewedCount, 0);
+    expect(state.canFinalize, isFalse);
   });
 
-  test('canFinalize when every participant answered', () {
-    const s = EvaluationState(
+  test('live canFinalize requires every row submitted', () {
+    const state = EvaluationState(
       beaconId: 'B1',
       participants: [
         EvaluationParticipant(
@@ -66,6 +62,7 @@ void main() {
           contributionSummary: '',
           causalHint: '',
           currentValue: EvaluationValue.pos1,
+          isSubmitted: true,
         ),
         EvaluationParticipant(
           userId: 'U2',
@@ -74,10 +71,11 @@ void main() {
           contributionSummary: '',
           causalHint: '',
           currentValue: EvaluationValue.neg1,
+          isSubmitted: true,
         ),
       ],
     );
-    expect(s.reviewedCount, 2);
-    expect(s.canFinalize, isTrue);
+    expect(state.reviewedCount, 2);
+    expect(state.canFinalize, isTrue);
   });
 }
