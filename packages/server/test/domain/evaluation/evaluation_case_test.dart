@@ -440,7 +440,10 @@ class _FakeEvaluationRepository implements EvaluationRepositoryPort {
     required String reasonTagsCsv,
     required String note,
     int status = BeaconEvaluationRowStatus.submitted,
-  }) async {}
+    EvaluationWriteResolver? resolve,
+  }) async {
+    await resolve?.call(evaluationResult);
+  }
 
   @override
   Future<void> submitEvaluationAtomic({
@@ -451,20 +454,22 @@ class _FakeEvaluationRepository implements EvaluationRepositoryPort {
     required List<String> reasonTags,
     required String note,
     required List<String> ackTags,
+    EvaluationWriteResolver? resolve,
   }) async {
     final error = submitEvaluationAtomicError;
     if (error != null) {
       throw error;
     }
+    final command = await resolve?.call(evaluationResult);
     submitEvaluationAtomicCalls.add(
       _SubmitAtomicCall(
         beaconId: beaconId,
         evaluatorId: evaluatorId,
         evaluatedUserId: evaluatedUserId,
-        value: value,
-        reasonTags: reasonTags,
-        note: note,
-        ackTags: ackTags,
+        value: command?.value ?? value,
+        reasonTags: command?.reasonTags ?? reasonTags,
+        note: command?.note ?? note,
+        ackTags: command?.ackTags ?? ackTags,
       ),
     );
     if (mutateEvaluationOnSubmit) {
@@ -473,10 +478,10 @@ class _FakeEvaluationRepository implements EvaluationRepositoryPort {
         beaconId: beaconId,
         evaluatorId: evaluatorId,
         evaluatedUserId: evaluatedUserId,
-        value: value,
-        reasonTags: reasonTags.join(','),
-        ackTags: ackTags,
-        note: note,
+        value: command?.value ?? value,
+        reasonTags: (command?.reasonTags ?? reasonTags).join(','),
+        ackTags: command?.ackTags ?? ackTags,
+        note: command?.note ?? note,
         status: BeaconEvaluationRowStatus.submitted,
         createdAt: now,
         updatedAt: now,
@@ -549,15 +554,17 @@ final class _CausalEvaluationRepository extends _FakeEvaluationRepository {
     required String reasonTagsCsv,
     required String note,
     int status = BeaconEvaluationRowStatus.submitted,
+    EvaluationWriteResolver? resolve,
   }) async {
+    final command = await resolve?.call(rows[_key(evaluatorId, evaluatedUserId)]);
     final now = DateTime.timestamp();
     rows[_key(evaluatorId, evaluatedUserId)] = BeaconEvaluationRecord(
       beaconId: beaconId,
       evaluatorId: evaluatorId,
       evaluatedUserId: evaluatedUserId,
-      value: value,
-      reasonTags: reasonTagsCsv,
-      note: note,
+      value: command?.value ?? value,
+      reasonTags: command?.reasonTags.join(',') ?? reasonTagsCsv,
+      note: command?.note ?? note,
       status: status,
       createdAt: now,
       updatedAt: now,
@@ -573,16 +580,18 @@ final class _CausalEvaluationRepository extends _FakeEvaluationRepository {
     required List<String> reasonTags,
     required String note,
     required List<String> ackTags,
+    EvaluationWriteResolver? resolve,
   }) async {
+    final command = await resolve?.call(rows[_key(evaluatorId, evaluatedUserId)]);
     final now = DateTime.timestamp();
     rows[_key(evaluatorId, evaluatedUserId)] = BeaconEvaluationRecord(
       beaconId: beaconId,
       evaluatorId: evaluatorId,
       evaluatedUserId: evaluatedUserId,
-      value: value,
-      reasonTags: reasonTags.join(','),
-      ackTags: ackTags,
-      note: note,
+      value: command?.value ?? value,
+      reasonTags: (command?.reasonTags ?? reasonTags).join(','),
+      ackTags: command?.ackTags ?? ackTags,
+      note: command?.note ?? note,
       status: BeaconEvaluationRowStatus.submitted,
       createdAt: now,
       updatedAt: now,
@@ -1586,6 +1595,7 @@ void main() {
           note: 'retain',
           acknowledgedHelpTags: const ['legacy'],
         );
+        expect(f.repo.evaluationResult?.ackTags, ['legacy']);
         await f.case_.evaluationSubmit(
           beaconId: beaconId,
           evaluatorId: 'evaluator',

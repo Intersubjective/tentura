@@ -1,7 +1,28 @@
+import 'dart:async';
+
 import 'package:tentura_server/domain/evaluation/beacon_evaluation_row_status.dart';
 import 'package:tentura_server/domain/entity/evaluation/beacon_evaluation_record.dart';
 import 'package:tentura_server/domain/entity/evaluation/cross_beacon_evaluation_record.dart';
 import 'package:tentura_server/domain/entity/review_close_snapshot.dart';
+
+/// Values resolved by domain policy while the evaluation row is locked.
+class EvaluationWriteCommand {
+  const EvaluationWriteCommand({
+    required this.value,
+    required this.reasonTags,
+    required this.note,
+    required this.ackTags,
+  });
+
+  final int value;
+  final List<String> reasonTags;
+  final String note;
+  final List<String> ackTags;
+}
+
+typedef EvaluationWriteResolver = FutureOr<EvaluationWriteCommand> Function(
+  BeaconEvaluationRecord? existing,
+);
 
 abstract class EvaluationRepositoryPort {
   Future<void> insertReviewWindow({
@@ -72,6 +93,7 @@ abstract class EvaluationRepositoryPort {
     required String reasonTagsCsv,
     required String note,
     int status = BeaconEvaluationRowStatus.submitted,
+    EvaluationWriteResolver? resolve,
   });
 
   Future<void> submitEvaluationAtomic({
@@ -82,6 +104,7 @@ abstract class EvaluationRepositoryPort {
     required List<String> reasonTags,
     required String note,
     required List<String> ackTags,
+    EvaluationWriteResolver? resolve,
   });
 
   Future<List<BeaconEvaluationRecord>> listEvaluationsForEvaluatedUser({

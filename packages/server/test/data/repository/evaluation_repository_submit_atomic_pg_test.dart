@@ -13,6 +13,8 @@ import 'package:tentura_server/data/database/tentura_db.dart'
     hide isNotNull, isNull;
 import 'package:tentura_server/data/repository/evaluation_repository.dart';
 import 'package:tentura_server/domain/evaluation/beacon_evaluation_row_status.dart';
+import 'package:tentura_server/domain/entity/evaluation/beacon_evaluation_record.dart';
+import 'package:tentura_server/domain/port/evaluation_repository_port.dart';
 import 'package:tentura_server/env.dart';
 
 const _beacon1 = 'Bcapc1abcn01';
@@ -374,6 +376,113 @@ WHERE beacon_id = 'Bcapc1abcn01'
           await _ackTagCount(writer, _beacon1, _eval2, _subject),
           3,
         );
+      },
+      skip: skipReason,
+    );
+
+    test(
+      'resolver reads clear state after a competing submit waits on the lock',
+      () async {
+        await repo.submitEvaluationAtomic(
+          beaconId: _beacon1,
+          evaluatorId: _eval1,
+          evaluatedUserId: _subject,
+          value: 4,
+          reasonTags: const ['clear_request'],
+          note: 'before clear',
+          ackTags: const ['transport'],
+        );
+
+        final blockerDb = TenturaDb(target.databaseEnv);
+        final competingDb = TenturaDb(target.databaseEnv);
+        final competingRepo = EvaluationRepository(competingDb);
+        final blockerReady = Completer<void>();
+        final releaseBlocker = Completer<void>();
+        final competingResolverCalled = Completer<void>();
+        final releaseCompeting = Completer<void>();
+        final resolverCalled = Completer<BeaconEvaluationRecord?>();
+        try {
+          unawaited(
+            blockerDb.transaction(() async {
+              await blockerDb.customStatement(
+                r'SELECT pg_advisory_xact_lock(hashtextextended($1, 4242))',
+                [_beacon1],
+              );
+              blockerReady.complete();
+              await releaseBlocker.future;
+            }),
+          );
+          await blockerReady.future;
+
+          final competingClear = competingRepo.submitEvaluationAtomic(
+            beaconId: _beacon1,
+            evaluatorId: _eval1,
+            evaluatedUserId: _subject,
+            value: 5,
+            reasonTags: const [],
+            note: 'explicit clear',
+            ackTags: const [],
+            resolve: (existing) async {
+              expect(existing?.reasonTags, 'clear_request');
+              expect(existing?.ackTags, ['transport']);
+              competingResolverCalled.complete();
+              await releaseCompeting.future;
+              return const EvaluationWriteCommand(
+                value: 5,
+                reasonTags: [],
+                note: 'explicit clear',
+                ackTags: [],
+              );
+            },
+          );
+          releaseBlocker.complete();
+          await competingResolverCalled.future;
+
+          final pending = repo.submitEvaluationAtomic(
+            beaconId: _beacon1,
+            evaluatorId: _eval1,
+            evaluatedUserId: _subject,
+            value: 5,
+            reasonTags: const [],
+            note: 'after clear',
+            ackTags: const [],
+            resolve: (existing) {
+              resolverCalled.complete(existing);
+              return EvaluationWriteCommand(
+                value: 5,
+                reasonTags: existing == null
+                    ? const []
+                    : existing.reasonTags.isEmpty
+                    ? const []
+                    : existing.reasonTags.split(','),
+                note: 'after clear',
+                ackTags: existing?.ackTags ?? const [],
+              );
+            },
+          );
+
+          await Future<void>.delayed(const Duration(milliseconds: 25));
+          expect(resolverCalled.isCompleted, isFalse);
+          releaseCompeting.complete();
+          await competingClear;
+          final resolved = await resolverCalled.future;
+          expect(resolved?.reasonTags, isEmpty);
+          expect(resolved?.ackTags, isEmpty);
+          await pending;
+
+          final finalRow = await repo.getEvaluation(
+            beaconId: _beacon1,
+            evaluatorId: _eval1,
+            evaluatedUserId: _subject,
+          );
+          expect(finalRow!.reasonTags, isEmpty);
+          expect(finalRow.ackTags, isEmpty);
+        } finally {
+          if (!releaseBlocker.isCompleted) releaseBlocker.complete();
+          if (!releaseCompeting.isCompleted) releaseCompeting.complete();
+          await competingDb.close();
+          await blockerDb.close();
+        }
       },
       skip: skipReason,
     );

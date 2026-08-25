@@ -164,6 +164,16 @@ class EvaluationRepository implements EvaluationRepositoryPort {
     required String beaconId,
     required String evaluatorId,
     required String evaluatedUserId,
+  }) => _getEvaluation(
+    beaconId: beaconId,
+    evaluatorId: evaluatorId,
+    evaluatedUserId: evaluatedUserId,
+  );
+
+  Future<BeaconEvaluationRecord?> _getEvaluation({
+    required String beaconId,
+    required String evaluatorId,
+    required String evaluatedUserId,
   }) async {
     final rows = await _db
         .customSelect(
@@ -233,6 +243,38 @@ class EvaluationRepository implements EvaluationRepositoryPort {
     required String reasonTagsCsv,
     required String note,
     int status = BeaconEvaluationRowStatus.submitted,
+    EvaluationWriteResolver? resolve,
+  }) async {
+    await _db.transaction(() async {
+      await _lockBeacon(beaconId);
+      final existing = resolve == null
+          ? null
+          : await _getEvaluation(
+              beaconId: beaconId,
+              evaluatorId: evaluatorId,
+              evaluatedUserId: evaluatedUserId,
+            );
+      final command = await resolve?.call(existing);
+      await _upsertEvaluation(
+        beaconId: beaconId,
+        evaluatorId: evaluatorId,
+        evaluatedUserId: evaluatedUserId,
+        value: command?.value ?? value,
+        reasonTagsCsv: command?.reasonTags.join(',') ?? reasonTagsCsv,
+        note: command?.note ?? note,
+        status: status,
+      );
+    });
+  }
+
+  Future<void> _upsertEvaluation({
+    required String beaconId,
+    required String evaluatorId,
+    required String evaluatedUserId,
+    required int value,
+    required String reasonTagsCsv,
+    required String note,
+    required int status,
   }) => _db
       .into(_db.beaconEvaluations)
       .insert(
@@ -265,13 +307,10 @@ class EvaluationRepository implements EvaluationRepositoryPort {
     required List<String> reasonTags,
     required String note,
     required List<String> ackTags,
+    EvaluationWriteResolver? resolve,
   }) async {
-    final reasonTagsCsv = reasonTags.join(',');
     await _db.transaction(() async {
-      await _db.customStatement(
-        r'SELECT pg_advisory_xact_lock(hashtextextended($1, 4242))',
-        [beaconId],
-      );
+      await _lockBeacon(beaconId);
 
       final window = await _db.managers.beaconReviewWindows
           .filter((e) => e.beaconId.id(beaconId))
@@ -284,7 +323,23 @@ class EvaluationRepository implements EvaluationRepositoryPort {
         throw StateError('Review window expired');
       }
 
-      if (ackTags.length > kCapMaxTagsPerSubjectBeacon) {
+      final command =
+          await resolve?.call(
+            await _getEvaluation(
+              beaconId: beaconId,
+              evaluatorId: evaluatorId,
+              evaluatedUserId: evaluatedUserId,
+            ),
+          ) ??
+          EvaluationWriteCommand(
+            value: value,
+            reasonTags: reasonTags,
+            note: note,
+            ackTags: ackTags,
+          );
+      final reasonTagsCsv = command.reasonTags.join(',');
+
+      if (command.ackTags.length > kCapMaxTagsPerSubjectBeacon) {
         throw StateError(_ackTagCapExceededMessage);
       }
 
@@ -295,16 +350,16 @@ class EvaluationRepository implements EvaluationRepositoryPort {
               beaconId: beaconId,
               evaluatorId: evaluatorId,
               evaluatedUserId: evaluatedUserId,
-              value: value,
+              value: command.value,
               reasonTags: Value(reasonTagsCsv),
-              note: Value(note),
+              note: Value(command.note),
               status: const Value(BeaconEvaluationRowStatus.submitted),
             ),
             onConflict: DoUpdate(
               (_) => BeaconEvaluationsCompanion(
-                value: Value(value),
+                value: Value(command.value),
                 reasonTags: Value(reasonTagsCsv),
-                note: Value(note),
+                note: Value(command.note),
                 status: const Value(BeaconEvaluationRowStatus.submitted),
                 updatedAt: Value(PgDateTime(now)),
               ),
@@ -321,7 +376,7 @@ class EvaluationRepository implements EvaluationRepositoryPort {
         [beaconId, evaluatorId, evaluatedUserId],
       );
 
-      for (final tagSlug in ackTags) {
+      for (final tagSlug in command.ackTags) {
         await _db.into(_db.beaconEvaluationAckTags).insert(
           BeaconEvaluationAckTagsCompanion.insert(
             beaconId: beaconId,
@@ -692,6 +747,11 @@ GROUP BY f.evaluator_id, f.evaluated_user_id, f.value, p.role
       );
     });
   }
+
+  Future<void> _lockBeacon(String beaconId) => _db.customStatement(
+    r'SELECT pg_advisory_xact_lock(hashtextextended($1, 4242))',
+    [beaconId],
+  );
 }
 
 Future<void> _insertBeaconLifecycleEvent({

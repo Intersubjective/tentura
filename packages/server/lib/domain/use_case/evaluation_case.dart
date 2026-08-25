@@ -853,31 +853,33 @@ final class EvaluationCase extends UseCaseBase {
     final target = graph.participants.firstWhere(
       (p) => p.userId == evaluatedUserId,
     );
-    final existing = await _evaluationRepository.getEvaluation(
-      beaconId: beaconId,
-      evaluatorId: evaluatorId,
-      evaluatedUserId: evaluatedUserId,
-    );
-    final resolvedReasonTags = _resolveReasonTags(
-      incoming: reasonTags,
-      existing: existing,
-      value: value,
-      evaluatedRole: target.role,
-    );
-    _validateEvaluation(
-      value: value,
-      reasonTags: resolvedReasonTags,
-      evaluatedRole: target.role,
-    );
-    final csv = resolvedReasonTags.join(',');
     await _evaluationRepository.upsertEvaluation(
       beaconId: beaconId,
       evaluatorId: evaluatorId,
       evaluatedUserId: evaluatedUserId,
       value: value,
-      reasonTagsCsv: csv,
+      reasonTagsCsv: '',
       note: note,
       status: BeaconEvaluationRowStatus.draft,
+      resolve: (existing) {
+        final resolvedReasonTags = _resolveReasonTags(
+          incoming: reasonTags,
+          existing: existing,
+          value: value,
+          evaluatedRole: target.role,
+        );
+        _validateEvaluation(
+          value: value,
+          reasonTags: resolvedReasonTags,
+          evaluatedRole: target.role,
+        );
+        return EvaluationWriteCommand(
+          value: value,
+          reasonTags: resolvedReasonTags,
+          note: note,
+          ackTags: const [],
+        );
+      },
     );
     return true;
   }
@@ -1170,65 +1172,12 @@ final class EvaluationCase extends UseCaseBase {
       parts.firstWhere((p) => p.userId == evaluatedUserId).role,
     );
 
-    final existing = await _evaluationRepository.getEvaluation(
+    final beacon = await _beaconRepository.getBeaconById(beaconId: beaconId);
+    final helpTypes = await _helpOfferRepository.fetchActiveHelpTypes(
       beaconId: beaconId,
-      evaluatorId: evaluatorId,
-      evaluatedUserId: evaluatedUserId,
+      userId: evaluatedUserId,
     );
-    final resolvedReasonTags = _resolveReasonTags(
-      incoming: reasonTags,
-      existing: existing,
-      value: value,
-      evaluatedRole: roleOfEvaluated,
-    );
-
-    _validateEvaluation(
-      value: value,
-      reasonTags: resolvedReasonTags,
-      evaluatedRole: roleOfEvaluated,
-    );
-
-    final ackTags = _resolveAckTags(
-      incoming: acknowledgedHelpTags,
-    );
-
-    if (ackTags.isNotEmpty) {
-      const eligibleAckRoles = {
-        EvaluationParticipantRole.author,
-        EvaluationParticipantRole.committer,
-        EvaluationParticipantRole.formerCommitter,
-      };
-      if (!eligibleAckRoles.contains(evaluatorRole)) {
-        throw EvaluationException(
-          evaluationCode: EvaluationExceptionCode.ackRoleNotEligible,
-        );
-      }
-
-      if (ackTags.length > kCapMaxTagsPerSubjectBeacon) {
-        throw EvaluationException(
-          evaluationCode: EvaluationExceptionCode.ackTagCapExceeded,
-        );
-      }
-
-      final beacon = await _beaconRepository.getBeaconById(beaconId: beaconId);
-      final helpTypes = await _helpOfferRepository.fetchActiveHelpTypes(
-        beaconId: beaconId,
-        userId: evaluatedUserId,
-      );
-      final allowedAckSlugs = {
-        ...beacon.needs,
-        ...helpTypes,
-        ...existing?.ackTags ?? const <String>[],
-      };
-      for (final tag in ackTags) {
-        if (!allowedAckSlugs.contains(tag)) {
-          throw EvaluationException(
-            evaluationCode: EvaluationExceptionCode.invalidAckTagSlug,
-            description: 'Acknowledgement tag not in allowed set',
-          );
-        }
-      }
-    }
+    final currentAllowedAckSlugs = {...beacon.needs, ...helpTypes};
 
     try {
       await _evaluationRepository.submitEvaluationAtomic(
@@ -1236,9 +1185,60 @@ final class EvaluationCase extends UseCaseBase {
         evaluatorId: evaluatorId,
         evaluatedUserId: evaluatedUserId,
         value: value,
-        reasonTags: resolvedReasonTags,
+        reasonTags: const [],
         note: note,
-        ackTags: ackTags,
+        ackTags: const [],
+        resolve: (existing) {
+          final resolvedReasonTags = _resolveReasonTags(
+            incoming: reasonTags,
+            existing: existing,
+            value: value,
+            evaluatedRole: roleOfEvaluated,
+          );
+          _validateEvaluation(
+            value: value,
+            reasonTags: resolvedReasonTags,
+            evaluatedRole: roleOfEvaluated,
+          );
+          final resolvedAckTags = _resolveAckTags(
+            incoming: acknowledgedHelpTags,
+          );
+          if (resolvedAckTags.isNotEmpty) {
+            const eligibleAckRoles = {
+              EvaluationParticipantRole.author,
+              EvaluationParticipantRole.committer,
+              EvaluationParticipantRole.formerCommitter,
+            };
+            if (!eligibleAckRoles.contains(evaluatorRole)) {
+              throw EvaluationException(
+                evaluationCode: EvaluationExceptionCode.ackRoleNotEligible,
+              );
+            }
+            if (resolvedAckTags.length > kCapMaxTagsPerSubjectBeacon) {
+              throw EvaluationException(
+                evaluationCode: EvaluationExceptionCode.ackTagCapExceeded,
+              );
+            }
+            final allowedAckSlugs = {
+              ...currentAllowedAckSlugs,
+              ...existing?.ackTags ?? const <String>[],
+            };
+            for (final tag in resolvedAckTags) {
+              if (!allowedAckSlugs.contains(tag)) {
+                throw EvaluationException(
+                  evaluationCode: EvaluationExceptionCode.invalidAckTagSlug,
+                  description: 'Acknowledgement tag not in allowed set',
+                );
+              }
+            }
+          }
+          return EvaluationWriteCommand(
+            value: value,
+            reasonTags: resolvedReasonTags,
+            note: note,
+            ackTags: resolvedAckTags,
+          );
+        },
       );
     } on StateError catch (e) {
       final message = e.message;

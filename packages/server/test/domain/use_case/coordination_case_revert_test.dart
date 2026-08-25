@@ -177,6 +177,7 @@ class _TrackingEvaluationRepository implements EvaluationRepositoryPort {
     required String reasonTagsCsv,
     required String note,
     int status = BeaconEvaluationRowStatus.submitted,
+    EvaluationWriteResolver? resolve,
   }) async {}
 
   @override
@@ -188,6 +189,7 @@ class _TrackingEvaluationRepository implements EvaluationRepositoryPort {
     required List<String> reasonTags,
     required String note,
     required List<String> ackTags,
+    EvaluationWriteResolver? resolve,
   }) async {}
 }
 
