@@ -36,24 +36,26 @@ EvaluationsWrittenAboutViewerRow _row({
   required EvaluationReceivedTrustTone trustTone,
   String beaconId = 'B1',
   String note = '',
-}) =>
-    EvaluationsWrittenAboutViewerRow(
-      beaconId: beaconId,
-      beaconTitle: beaconTitle,
-      evaluatorId: 'U-owner',
-      evaluatedUserId: 'U-me',
-      value: 1,
-      trustTone: trustTone,
-      occurredAt: DateTime.utc(2026, 1, 1),
-      note: note,
-    );
+  int value = 5,
+  List<String> acknowledgedHelpTags = const [],
+}) => EvaluationsWrittenAboutViewerRow(
+  beaconId: beaconId,
+  beaconTitle: beaconTitle,
+  evaluatorId: 'U-owner',
+  evaluatedUserId: 'U-me',
+  value: value,
+  trustTone: trustTone,
+  occurredAt: DateTime.utc(2026, 1, 1),
+  note: note,
+  acknowledgedHelpTags: acknowledgedHelpTags,
+);
 
 class _FakeProfileReviewsAboutMeCubit extends ProfileReviewsAboutMeCubit {
   _FakeProfileReviewsAboutMeCubit(ProfileReviewsAboutMeState seed)
-      : super(
-          profileOwnerId: 'U-owner',
-          evaluationRepository: _MinimalEvaluationRepository(),
-        ) {
+    : super(
+        profileOwnerId: 'U-owner',
+        evaluationRepository: _MinimalEvaluationRepository(),
+      ) {
     emit(seed);
   }
 
@@ -179,11 +181,14 @@ void main() {
               beaconTitle: 'Move help this weekend',
               trustTone: EvaluationReceivedTrustTone.up,
               note: 'fast, careful',
+              value: 5,
+              acknowledgedHelpTags: const ['transport', 'pets', 'storage'],
             ),
             _row(
               beaconTitle: 'Errand run downtown',
               trustTone: EvaluationReceivedTrustTone.down,
               beaconId: 'B2',
+              value: 2,
             ),
           ],
         ),
@@ -192,10 +197,15 @@ void main() {
       expect(find.text('Reviews from Bota N.'), findsOneWidget);
       expect(find.text('Move help this weekend'), findsOneWidget);
       expect(find.text('Errand run downtown'), findsOneWidget);
-      expect(find.textContaining('Trust increased'), findsOneWidget);
-      expect(find.textContaining('Trust decreased'), findsOneWidget);
-      expect(find.byIcon(Icons.arrow_upward), findsOneWidget);
-      expect(find.byIcon(Icons.arrow_downward), findsOneWidget);
+      expect(find.text('Helped a lot'), findsOneWidget);
+      expect(find.text('Hurt somewhat'), findsOneWidget);
+      expect(
+        find.byIcon(Icons.keyboard_double_arrow_up_rounded),
+        findsOneWidget,
+      );
+      expect(find.byIcon(Icons.arrow_downward_rounded), findsOneWidget);
+      expect(find.text('Transport, Storage +1'), findsOneWidget);
+      expect(find.text('fast, careful'), findsOneWidget);
     });
 
     testWidgets('empty rows render nothing without section header', (

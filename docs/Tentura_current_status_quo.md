@@ -141,8 +141,8 @@ Framing: **“Acknowledge contributions / Close the loop”** — not public 360
 - Opens after **successful author closure** when the beacon **ever had an acknowledged committer**; bounded **review window**.
 - **Former committers** (ever acknowledged, no longer holding current stake) are included in the review window; a departed participant does **not** block **Close now**.
 - Role-specific prompts (author / helper / forwarder on winning path).
-- Raw reviews **private**; evaluated users see **beacon-local summaries** only.
-- **No basis to judge** is explicit; strong ratings need reasons.
+- Reviews are **pairwise-private**: after closure, the evaluated person sees the reviewer's name, exact impact, optional capability acknowledgements, note, and compatible legacy reasons. They are never public or visible to unrelated participants.
+- **No basis to judge** remains explicit. All five impact choices may be saved without a new reason; legacy reason tags remain compatible when present.
 - Principles and no-go rules: [`beacon-evaluation-principles.md`](beacon-evaluation-principles.md).
 
 Contest/dispute flows in principles are **north-star safeguards**; full contest UX may trail closure/review v1.

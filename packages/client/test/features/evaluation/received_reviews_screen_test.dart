@@ -13,35 +13,38 @@ import 'package:tentura/ui/l10n/l10n.dart';
 EvaluationReceivedRow _row({
   required String name,
   required EvaluationReceivedTrustTone trustTone,
+  int value = 4,
   String reviewerId = 'u1',
-}) =>
-    EvaluationReceivedRow(
-      reviewerId: reviewerId,
-      reviewerDisplayName: name,
-      reviewerImageId: '',
-      reviewerRole: 1,
-      value: 1,
-      trustTone: trustTone,
-      occurredAt: DateTime.utc(2026, 1, 1),
-      reasonTags: const [],
-      note: '',
-    );
+  List<String> acknowledgedHelpTags = const [],
+  List<String> reasonTags = const [],
+  String note = '',
+}) => EvaluationReceivedRow(
+  reviewerId: reviewerId,
+  reviewerDisplayName: name,
+  reviewerImageId: '',
+  reviewerRole: 1,
+  value: value,
+  trustTone: trustTone,
+  occurredAt: DateTime.utc(2026, 1, 1),
+  reasonTags: reasonTags,
+  acknowledgedHelpTags: acknowledgedHelpTags,
+  note: note,
+);
 
 EvaluationReceived _payload({
   required bool windowClosed,
   List<EvaluationReceivedRow> rows = const [],
   String beaconTitle = 'Move help this weekend',
-}) =>
-    EvaluationReceived(
-      beaconId: 'b1',
-      beaconTitle: beaconTitle,
-      windowClosed: windowClosed,
-      rows: rows,
-    );
+}) => EvaluationReceived(
+  beaconId: 'b1',
+  beaconTitle: beaconTitle,
+  windowClosed: windowClosed,
+  rows: rows,
+);
 
 class _FakeReceivedReviewsCubit extends ReceivedReviewsCubit {
   _FakeReceivedReviewsCubit(ReceivedReviewsState seed)
-      : super(_MinimalRepo(), beaconId: 'b1') {
+    : super(_MinimalRepo(), beaconId: 'b1') {
     emit(seed);
   }
 
@@ -78,6 +81,8 @@ Future<void> _pumpView(
 Future<void> _pumpTile(
   WidgetTester tester, {
   required EvaluationReceivedRow row,
+  double width = 800,
+  double textScale = 1,
 }) async {
   await tester.pumpWidget(
     MaterialApp(
@@ -85,9 +90,15 @@ Future<void> _pumpTile(
       localizationsDelegates: L10n.localizationsDelegates,
       supportedLocales: L10n.supportedLocales,
       locale: const Locale('en'),
-      home: TenturaResponsiveScope(
-        child: Scaffold(
-          body: ReceivedReviewTile(row: row, showDivider: false),
+      home: MediaQuery(
+        data: MediaQueryData(
+          size: Size(width, 800),
+          textScaler: TextScaler.linear(textScale),
+        ),
+        child: TenturaResponsiveScope(
+          child: Scaffold(
+            body: ReceivedReviewTile(row: row, showDivider: false),
+          ),
         ),
       ),
     ),
@@ -107,7 +118,11 @@ void main() {
           data: _payload(
             windowClosed: true,
             rows: [
-              _row(name: 'Alex K.', trustTone: EvaluationReceivedTrustTone.up),
+              _row(
+                name: 'Alex K.',
+                trustTone: EvaluationReceivedTrustTone.up,
+                value: 5,
+              ),
               _row(
                 name: 'Mira T.',
                 trustTone: EvaluationReceivedTrustTone.noChange,
@@ -120,8 +135,8 @@ void main() {
 
       expect(find.text('Alex K.'), findsOneWidget);
       expect(find.text('Mira T.'), findsOneWidget);
-      expect(find.text('Trust increased'), findsOneWidget);
-      expect(find.text('No significant change'), findsOneWidget);
+      expect(find.text('Helped a lot'), findsOneWidget);
+      expect(find.text('Helped somewhat'), findsOneWidget);
     });
 
     testWidgets('window open shows not-available-yet copy', (tester) async {
@@ -159,33 +174,97 @@ void main() {
   });
 
   group('ReceivedReviewTile trust tone', () {
-    testWidgets('noBasis renders distinctly from noChange', (tester) async {
+    testWidgets('renders exact five impact values and no basis', (
+      tester,
+    ) async {
       await _pumpTile(
         tester,
         row: _row(
           name: 'Deni R.',
           trustTone: EvaluationReceivedTrustTone.noBasis,
+          value: 0,
         ),
       );
 
-      expect(find.text('No basis to judge'), findsOneWidget);
-      expect(find.byIcon(Icons.help_outline), findsOneWidget);
-      expect(find.text('No significant change'), findsNothing);
-      expect(find.byIcon(Icons.remove), findsNothing);
+      expect(find.text('No basis'), findsOneWidget);
+      expect(find.byIcon(Icons.help_outline_rounded), findsOneWidget);
 
       await _pumpTile(
         tester,
         row: _row(
-          name: 'Mira T.',
+          name: 'Unknown wire value',
           trustTone: EvaluationReceivedTrustTone.noChange,
-          reviewerId: 'u2',
+          value: 99,
         ),
       );
+      expect(find.text('No basis'), findsOneWidget);
+      expect(find.text('99'), findsNothing);
 
-      expect(find.text('No significant change'), findsOneWidget);
-      expect(find.byIcon(Icons.remove), findsOneWidget);
-      expect(find.text('No basis to judge'), findsNothing);
-      expect(find.byIcon(Icons.help_outline), findsNothing);
+      for (final entry in <(int, String, IconData)>[
+        (5, 'Helped a lot', Icons.keyboard_double_arrow_up_rounded),
+        (4, 'Helped somewhat', Icons.arrow_upward_rounded),
+        (3, 'No real effect', Icons.remove_rounded),
+        (2, 'Hurt somewhat', Icons.arrow_downward_rounded),
+        (1, 'Hurt a lot', Icons.keyboard_double_arrow_down_rounded),
+      ]) {
+        await _pumpTile(
+          tester,
+          row: _row(
+            name: 'Mira T.',
+            trustTone: EvaluationReceivedTrustTone.noChange,
+            reviewerId: 'u${entry.$1}',
+            value: entry.$1,
+          ),
+        );
+        expect(find.text(entry.$2), findsOneWidget);
+        expect(find.byIcon(entry.$3), findsOneWidget);
+      }
+    });
+
+    testWidgets('renders reviewer details and localized legacy reasons', (
+      tester,
+    ) async {
+      await _pumpTile(
+        tester,
+        row: _row(
+          name: 'Alex Reviewer',
+          trustTone: EvaluationReceivedTrustTone.up,
+          value: 5,
+          acknowledgedHelpTags: const ['transport', 'pets', 'storage'],
+          reasonTags: const ['clear_request', 'future_unknown_reason'],
+          note: 'Fast and careful.',
+        ),
+      );
+      expect(find.text('Alex Reviewer'), findsOneWidget);
+      expect(find.text('Transport, Storage +1'), findsOneWidget);
+      expect(find.text('Fast and careful.'), findsOneWidget);
+      expect(find.text('Clear request'), findsOneWidget);
+      expect(find.text('Reason'), findsOneWidget);
+      expect(find.text('clear_request'), findsNothing);
+      expect(find.text('future_unknown_reason'), findsNothing);
+    });
+
+    testWidgets('wraps details at compact, expanded, and large text scales', (
+      tester,
+    ) async {
+      for (final dimensions in <(double, double)>[
+        (320, 1),
+        (840, 1),
+        (320, 2),
+      ]) {
+        await _pumpTile(
+          tester,
+          width: dimensions.$1,
+          textScale: dimensions.$2,
+          row: _row(
+            name: 'Large text reviewer',
+            trustTone: EvaluationReceivedTrustTone.up,
+            value: 4,
+            note: 'A note that should wrap without exposing wire values.',
+          ),
+        );
+        expect(find.text('Helped somewhat'), findsOneWidget);
+      }
     });
   });
 }

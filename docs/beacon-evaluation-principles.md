@@ -19,7 +19,7 @@ It is not a public reputation ritual, not a morality scoreboard, and not a perfo
 * Keep raw evaluations private by default.
 * Give users legibility about outcomes without turning evaluation into interpersonal combat.
 * Allow “no basis to judge” as a first-class option.
-* Make strong judgments require a reason.
+* Let every evaluator choose the exact impact of the contribution; legacy reason tags remain compatible but optional and are never required to submit.
 * Keep single-beacon effects bounded; no one beacon should define a person.
 
 ### Draft pre-flow (Phase A)
@@ -99,7 +99,7 @@ Never do any of the following:
 
 * never show public cumulative evaluation scores for people
 * never show leaderboards or “top contributors” based on these evaluations
-* never reveal raw named submissions by default
+* never reveal raw named submissions by default; after closure, a review is visible only to the evaluated person in that pair
 * never let everyone see “Alice rated Bob -2” as normal UI
 * never force users to rate people they did not directly observe
 * never use one generic prompt like “rate this person”
@@ -117,8 +117,7 @@ Never do any of the following:
 
 * include “No basis” as an explicit option
 * use role-specific evaluation prompts for author / helper / forwarder
-* require a reason tag for strong positive and negative ratings
-* keep raw submissions private; show only beacon-local summaries to the evaluated person
+* keep pairwise reviews private: after closure, the evaluated person sees the reviewer's name, exact impact, optional capability acknowledgements, note, and compatible legacy reasons; no review is public or visible to unrelated participants
 * keep evaluation bounded to a review window after closure
 * support contesting unfair closure or obviously unfair evaluation later *(north-star safeguard; full contest UX may ship after core review window)*
 * keep effects local, decayed, and aggregated over time

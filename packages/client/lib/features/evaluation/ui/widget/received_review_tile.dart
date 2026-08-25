@@ -1,13 +1,15 @@
 import 'package:flutter/material.dart';
-
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/image_entity.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/evaluation/domain/entity/evaluation_received.dart';
+import 'package:tentura/features/evaluation/domain/entity/evaluation_value.dart';
+import 'package:tentura/features/evaluation/ui/presenter/evaluation_capability_presenter.dart';
+import 'package:tentura/features/evaluation/ui/presenter/evaluation_legacy_reason_presenter.dart';
+import 'package:tentura/features/evaluation/ui/presenter/evaluation_value_presenter.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/relative_time.dart';
 
-/// Maps server `reviewerRole` int (0–3) to a display label.
 String evaluationReceivedReviewerRoleLabel(L10n l10n, int reviewerRole) =>
     switch (reviewerRole) {
       0 => l10n.evaluationRoleAuthor,
@@ -23,7 +25,6 @@ class ReceivedReviewTile extends StatelessWidget {
     super.key,
     this.showDivider = true,
   });
-
   final EvaluationReceivedRow row;
   final bool showDivider;
 
@@ -31,6 +32,10 @@ class ReceivedReviewTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = L10n.of(context)!;
     final tt = context.tt;
+    // A future/invalid wire value must remain legible and non-positive; never
+    // expose a numeric enum value to the recipient.
+    final value =
+        EvaluationValue.fromWire(row.value) ?? EvaluationValue.noBasis;
     final profile = Profile(
       id: row.reviewerId,
       displayName: row.reviewerDisplayName,
@@ -43,76 +48,85 @@ class ReceivedReviewTile extends StatelessWidget {
       now: DateTime.now(),
       l10n: l10n,
     );
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         Padding(
           padding: tt.cardPadding,
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  TenturaAvatar.small(profile: profile),
-                  SizedBox(width: tt.avatarTextGap),
-                  Expanded(
-                    child: Column(
+              TenturaAvatar.small(profile: profile),
+              SizedBox(width: tt.avatarTextGap),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Row(
-                          children: [
-                            Expanded(
-                              child: Text(
-                                row.reviewerDisplayName,
-                                style: TenturaText.title(
-                                  Theme.of(context).colorScheme.onSurface,
-                                ),
-                                maxLines: 2,
-                                overflow: TextOverflow.ellipsis,
-                              ),
-                            ),
-                            SizedBox(width: tt.tightGap),
-                            TenturaTypeLabel(
-                              evaluationReceivedReviewerRoleLabel(
-                                l10n,
-                                row.reviewerRole,
-                              ),
-                            ),
-                          ],
-                        ),
-                        SizedBox(height: tt.tightGap),
-                        _ReceivedReviewTrustLine(
-                          trustTone: row.trustTone,
-                          l10n: l10n,
-                        ),
-                        if (row.note.isNotEmpty) ...[
-                          SizedBox(height: tt.rowGap),
-                          Text(
-                            row.note,
-                            style: TenturaText.body(
+                        Expanded(
+                          child: Text(
+                            row.reviewerDisplayName,
+                            style: TenturaText.title(
                               Theme.of(context).colorScheme.onSurface,
                             ),
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
                           ),
-                        ],
-                        if (row.reasonTags.isNotEmpty) ...[
-                          SizedBox(height: tt.rowGap),
-                          Wrap(
-                            spacing: tt.tightGap,
-                            runSpacing: tt.tightGap,
-                            children: [
-                              for (final tag in row.reasonTags)
-                                TenturaTypeLabel(tag),
-                            ],
+                        ),
+                        SizedBox(width: tt.tightGap),
+                        Flexible(
+                          child: TenturaTypeLabel(
+                            evaluationReceivedReviewerRoleLabel(
+                              l10n,
+                              row.reviewerRole,
+                            ),
                           ),
-                        ],
-                        SizedBox(height: tt.rowGap),
-                        TenturaMetaText(ageLabel),
+                        ),
                       ],
                     ),
-                  ),
-                ],
+                    SizedBox(height: tt.tightGap),
+                    _ImpactLine(value: value, l10n: l10n),
+                    if ((value == EvaluationValue.pos1 ||
+                            value == EvaluationValue.pos2) &&
+                        row.acknowledgedHelpTags.isNotEmpty) ...[
+                      SizedBox(height: tt.tightGap),
+                      Text(
+                        presentAcknowledgedCapabilities(
+                          row.acknowledgedHelpTags,
+                          l10n,
+                        ),
+                        style: TenturaText.status(tt.textMuted),
+                      ),
+                    ],
+                    if (row.note.trim().isNotEmpty) ...[
+                      SizedBox(height: tt.rowGap),
+                      Text(
+                        row.note,
+                        style: TenturaText.body(
+                          Theme.of(context).colorScheme.onSurface,
+                        ),
+                      ),
+                    ],
+                    if (row.reasonTags.isNotEmpty) ...[
+                      SizedBox(height: tt.rowGap),
+                      Wrap(
+                        spacing: tt.tightGap,
+                        runSpacing: tt.tightGap,
+                        children: [
+                          for (final reason in row.reasonTags)
+                            Text(
+                              presentLegacyEvaluationReason(reason, l10n),
+                              style: TenturaText.status(tt.textMuted),
+                            ),
+                        ],
+                      ),
+                    ],
+                    SizedBox(height: tt.rowGap),
+                    TenturaMetaText(ageLabel),
+                  ],
+                ),
               ),
             ],
           ),
@@ -123,108 +137,22 @@ class ReceivedReviewTile extends StatelessWidget {
   }
 }
 
-class _ReceivedReviewTrustLine extends StatelessWidget {
-  const _ReceivedReviewTrustLine({
-    required this.trustTone,
-    required this.l10n,
-  });
-
-  final EvaluationReceivedTrustTone trustTone;
+class _ImpactLine extends StatelessWidget {
+  const _ImpactLine({required this.value, required this.l10n});
+  final EvaluationValue value;
   final L10n l10n;
-
   @override
   Widget build(BuildContext context) {
-    final tt = context.tt;
-    final label = switch (trustTone) {
-      EvaluationReceivedTrustTone.up => l10n.evaluationReceivedTrustUpLabel,
-      EvaluationReceivedTrustTone.down => l10n.evaluationReceivedTrustDownLabel,
-      EvaluationReceivedTrustTone.noChange =>
-        l10n.evaluationReceivedNeutralLabel,
-      EvaluationReceivedTrustTone.noBasis => l10n.evaluationReceivedNoBasisLabel,
-    };
-
-    if (trustTone == EvaluationReceivedTrustTone.noBasis) {
-      return Row(
-        children: [
-          _TrustToneGlyph(
-            icon: Icons.help_outline,
-            backgroundColor: tt.surface,
-            iconColor: tt.textFaint,
-          ),
-          SizedBox(width: tt.iconTextGap),
-          Expanded(
-            child: Text(
-              label,
-              style: TenturaText.status(tt.textFaint),
-            ),
-          ),
-        ],
-      );
-    }
-
-    final tone = switch (trustTone) {
-      EvaluationReceivedTrustTone.up => TenturaTone.good,
-      EvaluationReceivedTrustTone.down => TenturaTone.danger,
-      EvaluationReceivedTrustTone.noChange => TenturaTone.neutral,
-      EvaluationReceivedTrustTone.noBasis => TenturaTone.neutral,
-    };
-    final icon = switch (trustTone) {
-      EvaluationReceivedTrustTone.up => Icons.arrow_upward,
-      EvaluationReceivedTrustTone.down => Icons.arrow_downward,
-      EvaluationReceivedTrustTone.noChange => Icons.remove,
-      EvaluationReceivedTrustTone.noBasis => Icons.help_outline,
-    };
-    final iconColor = tenturaToneColor(tt, tone);
-    final backgroundColor = iconColor.withValues(alpha: 0.12);
-
+    final p = presentEvaluationValue(value, l10n);
+    final colors = Theme.of(context).colorScheme;
     return Row(
       children: [
-        _TrustToneGlyph(
-          icon: icon,
-          backgroundColor: backgroundColor,
-          iconColor: iconColor,
-        ),
-        SizedBox(width: tt.iconTextGap),
+        Icon(p.icon, size: context.tt.iconSize, color: colors.primary),
+        SizedBox(width: context.tt.iconTextGap),
         Expanded(
-          child: TenturaStatusText(
-            label,
-            tone: tone,
-            maxLines: null,
-          ),
+          child: Text(p.label, style: TenturaText.status(colors.onSurface)),
         ),
       ],
-    );
-  }
-}
-
-class _TrustToneGlyph extends StatelessWidget {
-  const _TrustToneGlyph({
-    required this.icon,
-    required this.backgroundColor,
-    required this.iconColor,
-  });
-
-  final IconData icon;
-  final Color backgroundColor;
-  final Color iconColor;
-
-  @override
-  Widget build(BuildContext context) {
-    final tt = context.tt;
-    final dimension = tt.iconSize;
-    return SizedBox.square(
-      dimension: dimension,
-      child: DecoratedBox(
-        decoration: BoxDecoration(
-          color: backgroundColor,
-          borderRadius: BorderRadius.circular(dimension / 2),
-        ),
-        child: Icon(
-          icon,
-          size: dimension * 0.55,
-          color: iconColor,
-        ),
-      ),
     );
   }
 }
