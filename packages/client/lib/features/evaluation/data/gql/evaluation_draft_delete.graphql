@@ -1,0 +1,9 @@
+mutation EvaluationDraftDelete(
+  $id: String!
+  $evaluatedUserId: String!
+) {
+  evaluationDraftDelete(
+    id: $id
+    evaluatedUserId: $evaluatedUserId
+  )
+}

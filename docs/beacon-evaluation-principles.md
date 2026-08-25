@@ -25,7 +25,7 @@ It is not a public reputation ritual, not a morality scoreboard, and not a perfo
 ### Draft pre-flow (Phase A)
 
 * While a beacon is still **open**, users who will later be eligible may save **private draft** notes (same structure as a review row) as **memory aids**.
-* Drafts are **not** shown to the person being described, **do not** count in summaries, and are **discarded or ignored** if never submitted before the review window closes (after invalid pairs are removed at closure).
+* Drafts are **not** shown to the person being described and **do not** count in summaries. In the review window, drafts are the working package until the evaluator explicitly **sends**; rows that were never sent are **discarded** when the window closes (timeout, early close, or auto-close).
 * This reduces forced-opinion noise after closure (“I forgot what happened”) without turning drafts into a shadow reputation layer.
 
 ## What evaluation is for
@@ -116,7 +116,8 @@ Never do any of the following:
 ## Required safeguards
 
 * include “No basis” as an explicit option
-* use role-specific evaluation prompts for author / helper / forwarder
+* use role-specific evaluation prompts for author / helper (and when judging a path forwarder as subject)
+* **forwarders do not leave reviews**; they may still be **reviewed** on the winning path by author/helpers
 * keep pairwise reviews private: after closure, the evaluated person sees the reviewer's name, exact impact, optional capability acknowledgements, note, and compatible legacy reasons; no review is public or visible to unrelated participants
 * keep evaluation bounded to a review window after closure
 * support contesting unfair closure or obviously unfair evaluation later *(north-star safeguard; full contest UX may ship after core review window)*

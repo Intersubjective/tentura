@@ -140,12 +140,16 @@ void main() {
     });
   });
 
-  group('skip', () {
-    test('delegates skip to repository', () async {
-      await case_.skip(beaconId);
+  group('draftDelete', () {
+    test('delegates draftDelete to repository', () async {
+      await case_.draftDelete(
+        beaconId: beaconId,
+        evaluatedUserId: evaluatedUserId,
+      );
 
-      expect(repository.skipCalls, 1);
-      expect(repository.lastSkipBeaconId, beaconId);
+      expect(repository.draftDeleteCalls, 1);
+      expect(repository.lastDraftDeleteBeaconId, beaconId);
+      expect(repository.lastDraftDeleteEvaluatedUserId, evaluatedUserId);
     });
   });
 
@@ -326,6 +330,10 @@ class FakeEvaluationRepository implements EvaluationRepository {
     String note,
   })? lastDraftSave;
 
+  int draftDeleteCalls = 0;
+  String? lastDraftDeleteBeaconId;
+  String? lastDraftDeleteEvaluatedUserId;
+
   int submitCalls = 0;
   Exception? submitError;
   ({
@@ -339,9 +347,6 @@ class FakeEvaluationRepository implements EvaluationRepository {
 
   int finalizeCalls = 0;
   String? lastFinalizeBeaconId;
-
-  int skipCalls = 0;
-  String? lastSkipBeaconId;
 
   ({String beaconId, bool expectedRequiresReviewWindow})? lastBeaconClose;
   String? lastBeaconCancelId;
@@ -426,6 +431,30 @@ class FakeEvaluationRepository implements EvaluationRepository {
   }
 
   @override
+  Future<void> draftDelete({
+    required String beaconId,
+    required String evaluatedUserId,
+  }) async {
+    draftDeleteCalls++;
+    lastDraftDeleteBeaconId = beaconId;
+    lastDraftDeleteEvaluatedUserId = evaluatedUserId;
+    participantsResult = [
+      for (final p in participantsResult)
+        if (p.userId == evaluatedUserId)
+          EvaluationParticipant(
+            userId: p.userId,
+            displayName: p.displayName,
+            role: p.role,
+            contributionSummary: p.contributionSummary,
+            causalHint: p.causalHint,
+            imageId: p.imageId,
+          )
+        else
+          p,
+    ];
+  }
+
+  @override
   Future<void> submit({
     required String beaconId,
     required String evaluatedUserId,
@@ -446,6 +475,20 @@ class FakeEvaluationRepository implements EvaluationRepository {
       note: note,
       acknowledgedHelpTags: acknowledgedHelpTags,
     );
+    final parsed = EvaluationValue.values.firstWhere((v) => v.wire == value);
+    participantsResult = [
+      for (final p in participantsResult)
+        if (p.userId == evaluatedUserId)
+          p.copyWith(
+            currentValue: parsed,
+            isSubmitted: true,
+            note: note,
+            reasonTags: reasonTags ?? const [],
+            acknowledgedHelpTags: acknowledgedHelpTags ?? const [],
+          )
+        else
+          p,
+    ];
   }
 
   @override
@@ -455,10 +498,7 @@ class FakeEvaluationRepository implements EvaluationRepository {
   }
 
   @override
-  Future<void> skip(String beaconId) async {
-    skipCalls++;
-    lastSkipBeaconId = beaconId;
-  }
+  Future<void> skip(String beaconId) async {}
 
   @override
   Future<BeaconCloseResult> beaconClose({

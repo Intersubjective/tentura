@@ -482,7 +482,7 @@ class _FakeEvaluationRepository implements EvaluationRepositoryPort {
         reasonTags: (command?.reasonTags ?? reasonTags).join(','),
         ackTags: command?.ackTags ?? ackTags,
         note: command?.note ?? note,
-        status: BeaconEvaluationRowStatus.submitted,
+        status: BeaconEvaluationRowStatus.draft,
         createdAt: now,
         updatedAt: now,
       );
@@ -592,7 +592,7 @@ final class _CausalEvaluationRepository extends _FakeEvaluationRepository {
       reasonTags: (command?.reasonTags ?? reasonTags).join(','),
       ackTags: command?.ackTags ?? ackTags,
       note: command?.note ?? note,
-      status: BeaconEvaluationRowStatus.submitted,
+      status: BeaconEvaluationRowStatus.draft,
       createdAt: now,
       updatedAt: now,
     );
@@ -602,7 +602,8 @@ final class _CausalEvaluationRepository extends _FakeEvaluationRepository {
     for (final entry in rows.entries) {
       final row = entry.value;
       if (row.beaconId == beaconId &&
-          row.status == BeaconEvaluationRowStatus.submitted) {
+          (row.status == BeaconEvaluationRowStatus.submitted ||
+              row.status == BeaconEvaluationRowStatus.draft)) {
         rows[entry.key] = BeaconEvaluationRecord(
           beaconId: row.beaconId,
           evaluatorId: row.evaluatorId,
@@ -766,7 +767,7 @@ void main() {
     );
 
     test(
-      'returns true without updating status when user skipped (3)',
+      'sets status to 2 when legacy skipped status (3) sends package',
       () async {
         evalRepo
           ..reviewWindowResult = openWindow()
@@ -779,7 +780,10 @@ void main() {
           ),
           isTrue,
         );
-        expect(evalRepo.setReviewUserStatusCalls, isEmpty);
+        expect(
+          evalRepo.setReviewUserStatusCalls,
+          const [_SetStatusCall(beaconId, userId, 2)],
+        );
       },
     );
 
@@ -953,7 +957,7 @@ void main() {
           const BeaconEvaluationParticipantRecord(
             beaconId: beaconId,
             userId: evaluatorId,
-            role: 2,
+            role: 1,
             contributionSummary: 'e',
             causalHint: 'h',
           ),
@@ -1004,7 +1008,7 @@ void main() {
             const BeaconEvaluationParticipantRecord(
               beaconId: beaconId,
               userId: evaluatorId,
-              role: 2,
+              role: 1,
               contributionSummary: 'e',
               causalHint: 'h',
             ),
@@ -1033,7 +1037,7 @@ void main() {
       },
     );
 
-    test('forwarder with empty ack tags succeeds via submitEvaluationAtomic', () async {
+    test('forwarder save is rejected as notEligible', () async {
       const evaluatorId = 'forwarder1';
       const evaluatedId = 'author1';
 
@@ -1065,7 +1069,7 @@ void main() {
         ];
 
       expect(
-        await evaluationCase.evaluationSubmit(
+        () => evaluationCase.evaluationSubmit(
           beaconId: beaconId,
           evaluatorId: evaluatorId,
           evaluatedUserId: evaluatedId,
@@ -1074,13 +1078,20 @@ void main() {
           note: '',
           acknowledgedHelpTags: const [],
         ),
-        isTrue,
+        throwsA(
+          isA<EvaluationException>().having(
+            (e) => e.code.codeNumber,
+            'codeNumber',
+            const EvaluationExceptionCodes(
+              EvaluationExceptionCode.notEligible,
+            ).codeNumber,
+          ),
+        ),
       );
-      expect(evalRepo.submitEvaluationAtomicCalls, hasLength(1));
-      expect(evalRepo.submitEvaluationAtomicCalls.single.ackTags, isEmpty);
+      expect(evalRepo.submitEvaluationAtomicCalls, isEmpty);
     });
 
-    test('forwarder with ack tags is rejected', () async {
+    test('forwarder with ack tags is rejected as notEligible', () async {
       const evaluatorId = 'forwarder1';
       const evaluatedId = 'author1';
       final beaconRepo = _StubBeaconRepository(
@@ -1151,7 +1162,7 @@ void main() {
             (e) => e.code.codeNumber,
             'codeNumber',
             const EvaluationExceptionCodes(
-              EvaluationExceptionCode.ackRoleNotEligible,
+              EvaluationExceptionCode.notEligible,
             ).codeNumber,
           ),
         ),
@@ -1622,10 +1633,10 @@ void main() {
   });
 
   group('evaluationSkip', () {
-    test('throws notEligible when user has no review row', () async {
+    test('throws notEligible because skip is removed', () async {
       evalRepo
         ..reviewWindowResult = openWindow()
-        ..reviewUserStatusResult = null;
+        ..reviewUserStatusResult = 0;
 
       expect(
         () => evaluationCase.evaluationSkip(beaconId: beaconId, userId: userId),
@@ -1639,21 +1650,7 @@ void main() {
           ),
         ),
       );
-    });
-
-    test('sets skipped status when user is eligible', () async {
-      evalRepo
-        ..reviewWindowResult = openWindow()
-        ..reviewUserStatusResult = 0;
-
-      expect(
-        await evaluationCase.evaluationSkip(beaconId: beaconId, userId: userId),
-        isTrue,
-      );
-      expect(
-        evalRepo.setReviewUserStatusCalls,
-        const [_SetStatusCall(beaconId, userId, 3)],
-      );
+      expect(evalRepo.setReviewUserStatusCalls, isEmpty);
     });
   });
 
@@ -2507,10 +2504,10 @@ void main() {
       evaluationCase = buildCase();
     });
 
-    test('closes early when required reviewers finished or skipped', () async {
+    test('closes early when required reviewers have sent', () async {
       evalRepo.reviewStatusesResult = {
         userId: 2,
-        helperId: 3,
+        helperId: 2,
       };
 
       final result = await evaluationCase.closeNow(
@@ -2532,6 +2529,27 @@ void main() {
       evalRepo.reviewStatusesResult = {
         userId: 2,
         helperId: 1,
+      };
+
+      expect(
+        () => evaluationCase.closeNow(beaconId: beaconId, userId: userId),
+        throwsA(
+          isA<EvaluationException>().having(
+            (e) => e.code.codeNumber,
+            'codeNumber',
+            const EvaluationExceptionCodes(
+              EvaluationExceptionCode.notEligible,
+            ).codeNumber,
+          ),
+        ),
+      );
+      expect(reviewFinalization.closeAndFinalizeCalls, isEmpty);
+    });
+
+    test('throws notEligible when a required reviewer only skipped', () async {
+      evalRepo.reviewStatusesResult = {
+        userId: 2,
+        helperId: 3,
       };
 
       expect(
@@ -2619,7 +2637,7 @@ void main() {
         const forwarderId = 'forwarder1';
         evalRepo.reviewStatusesResult = {
           userId: 2,
-          committerId: 3,
+          committerId: 2,
         };
         reviewFinalization.result = ReviewFinalizationResult(
           didClose: true,
@@ -2678,7 +2696,7 @@ void main() {
     test('skips trust intents for noEffect finalized pairs', () async {
       evalRepo.reviewStatusesResult = {
         userId: 2,
-        helperId: 3,
+        helperId: 2,
       };
       reviewFinalization.result = ReviewFinalizationResult(
         didClose: true,
@@ -2717,7 +2735,7 @@ void main() {
     test('records trust intents for each non-neutral pair in a mixed close', () async {
       evalRepo.reviewStatusesResult = {
         userId: 2,
-        helperId: 3,
+        helperId: 2,
       };
       reviewFinalization.result = ReviewFinalizationResult(
         didClose: true,
@@ -2787,7 +2805,7 @@ void main() {
     test('returns canCloseNow for accessible reviewOpen beacon', () async {
       final localEvalRepo = _FakeEvaluationRepository()
         ..reviewWindowResult = openWindow()
-        ..reviewStatusesResult = {userId: 2, 'helper1': 3}
+        ..reviewStatusesResult = {userId: 2, 'helper1': 2}
         ..participantsResult = [
           const BeaconEvaluationParticipantRecord(
             beaconId: beaconId,
@@ -2984,7 +3002,7 @@ void main() {
     );
 
     test(
-      'draft participant is not submitted and has no persisted acknowledgements',
+      'draft participant is ready (isSubmitted) without persisted acknowledgements',
       () async {
         final result =
             await localCase(
@@ -2995,7 +3013,7 @@ void main() {
               evaluatorId: 'evaluator',
             );
         final participant = result.single;
-        expect(participant.isSubmitted, isFalse);
+        expect(participant.isSubmitted, isTrue);
         expect(participant.acknowledgedHelpTags, isEmpty);
       },
     );
@@ -3099,7 +3117,7 @@ void main() {
           beaconId: beaconId,
           evaluatorId: userId,
         )).single;
-        expect(draft.isSubmitted, isFalse);
+        expect(draft.isSubmitted, isTrue);
         expect(evalRepo.rows.values.single.status, BeaconEvaluationRowStatus.draft);
 
         await evaluationCase.evaluationSubmit(
@@ -3116,7 +3134,7 @@ void main() {
         expect(submitted.isSubmitted, isTrue);
         expect(
           evalRepo.rows.values.single.status,
-          BeaconEvaluationRowStatus.submitted,
+          BeaconEvaluationRowStatus.draft,
         );
 
         await evaluationCase.closeNow(beaconId: beaconId, userId: userId);
@@ -3535,7 +3553,7 @@ void main() {
       final beaconRepo = _MutableTransactionStubBeaconRepo(() => beacon);
       final localEvalRepo = _FakeEvaluationRepository()
         ..reviewWindowResult = openWindow()
-        ..reviewStatusesResult = {userId: 2, 'helper1': 3}
+        ..reviewStatusesResult = {userId: 2, 'helper1': 2}
         ..participantsResult = [
           const BeaconEvaluationParticipantRecord(
             beaconId: beaconId,

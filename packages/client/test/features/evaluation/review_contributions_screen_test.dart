@@ -6,7 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:logging/logging.dart';
 import 'package:mockito/mockito.dart';
 
-import 'package:tentura/design_system/tentura_theme.dart';
+import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/env.dart';
 import 'package:tentura/features/evaluation/domain/entity/evaluation_participant.dart';
 import 'package:tentura/features/evaluation/domain/entity/evaluation_value.dart';
@@ -155,21 +155,27 @@ void main() {
   }
 
   testWidgets(
-    'draft value is visibly draft and cannot masquerade as submitted',
+    'draft noBasis is ready and shows draft privacy, not live privacy',
     (tester) async {
       final result = await pump(tester, draft: true);
-      expect(find.text('Draft review'), findsOneWidget);
       expect(find.text('Draft privacy'), findsOneWidget);
       expect(
         find.textContaining('These are private draft notes'),
-        findsOneWidget,
+        findsNothing,
+      );
+      await tester.tap(find.byIcon(Icons.info_outline));
+      await tester.pumpAndSettle();
+      expect(
+        find.textContaining('These are private draft notes'),
+        findsWidgets,
       );
       expect(find.text('Review privacy'), findsNothing);
       expect(
         find.textContaining('Reviews are pairwise-private'),
         findsNothing,
       );
-      expect(find.text('0 of 1 reviewed'), findsOneWidget);
+      expect(find.text('0 of 1 reviewed'), findsNothing);
+      expect(find.text('1 of 1 reviewed'), findsOneWidget);
       expect(find.textContaining('Review closes'), findsNothing);
       await result.$3.close();
     },
@@ -182,18 +188,30 @@ void main() {
       expect(find.text('Review privacy'), findsOneWidget);
       expect(
         find.textContaining('Reviews are pairwise-private'),
-        findsOneWidget,
+        findsNothing,
+      );
+      await tester.tap(find.byIcon(Icons.info_outline));
+      await tester.pumpAndSettle();
+      expect(
+        find.textContaining('Reviews are pairwise-private'),
+        findsWidgets,
       );
       expect(
         find.byKey(TestIds.key(TestIds.evaluationCannotEvaluate('u1'))),
         findsOneWidget,
+      );
+      expect(
+        tester.widget(
+          find.byKey(TestIds.key(TestIds.evaluationCannotEvaluate('u1'))),
+        ),
+        isA<TenturaCommandButton>(),
       );
       await result.$3.close();
     },
   );
 
   testWidgets(
-    'Cannot evaluate cancel causes no submit; confirm sends noBasis and empty ack',
+    'Cannot evaluate cancel causes no submit; confirm clears note and sends noBasis',
     (tester) async {
       final (test, repository, cubit) = await pump(tester);
       final action = find.byKey(
@@ -230,7 +248,9 @@ void main() {
       expect(repository.lastSubmit?.value, EvaluationValue.noBasis.wire);
       expect(repository.lastSubmit?.reasonTags, isNull);
       expect(repository.lastSubmit?.acknowledgedHelpTags, isEmpty);
+      expect(repository.lastSubmit?.note, '');
       expect(cubit.state.participants.single.isSubmitted, isTrue);
+      expect(cubit.state.participants.single.note, '');
       await cubit.close();
     },
   );
@@ -266,23 +286,14 @@ void main() {
     expect(cubit.state.participants.single.currentValue, EvaluationValue.pos1);
     expect(cubit.state.participants.single.isSubmitted, isTrue);
     expect(cubit.state.participants.single.note, 'kept note');
-    expect(tester.widget<TextButton>(action).onPressed, isNull);
+    expect(tester.widget<TenturaCommandButton>(action).onPressed, isNull);
 
-    expect(repository.submitCalls, 0);
-    expect(tester.widget<TextButton>(action).onPressed, isNull);
     repository.submitGate!.complete();
     await test.pumpAndSettle();
     expect(repository.submitCalls, 1);
     expect(test.widget<ListTile>(participantTile).onTap, isNotNull);
-    expect(tester.widget<TextButton>(action).onPressed, isNotNull);
+    expect(tester.widget<TenturaCommandButton>(action).onPressed, isNotNull);
     repository.submitError = null;
-    repository.participantsResult = [
-      participant.copyWith(
-        currentValue: EvaluationValue.noBasis,
-        isSubmitted: true,
-        note: 'kept note',
-      ),
-    ];
     await test.tap(action);
     await test.pumpAndSettle();
     await test.tap(find.text('Cannot evaluate').last);
@@ -291,12 +302,48 @@ void main() {
     expect(repository.lastSubmit?.value, EvaluationValue.noBasis.wire);
     expect(repository.lastSubmit?.reasonTags, isNull);
     expect(repository.lastSubmit?.acknowledgedHelpTags, isEmpty);
-    expect(repository.lastSubmit?.note, 'kept note');
+    expect(repository.lastSubmit?.note, '');
     expect(
       cubit.state.participants.single.currentValue,
       EvaluationValue.noBasis,
     );
-    expect(cubit.state.participants.single.note, 'kept note');
+    expect(cubit.state.participants.single.note, '');
+    expect(test.widget<ListTile>(participantTile).onTap, isNull);
+    expect(tester.widget<TenturaCommandButton>(action).onPressed, isNotNull);
+    await cubit.close();
+  });
+
+  testWidgets('CTA stays disabled until every card is ready', (tester) async {
+    final (_, _, cubit) = await pump(tester);
+    final submit = tester.widget<FilledButton>(
+      find.byKey(TestIds.key(TestIds.evaluationSubmit)),
+    );
+    expect(submit.onPressed, isNull);
+    expect(
+      find.textContaining('Send stays unavailable'),
+      findsOneWidget,
+    );
+    await cubit.close();
+  });
+
+  testWidgets('Cannot evaluate toggle OFF clears the card', (tester) async {
+    final repository = FakeEvaluationRepository()
+      ..participantsResult = [
+        participant.copyWith(
+          currentValue: EvaluationValue.noBasis,
+          isSubmitted: true,
+        ),
+      ];
+    final (test, _, cubit) = await pump(tester, repositoryArg: repository);
+    final action = find.byKey(
+      TestIds.key(TestIds.evaluationCannotEvaluate('u1')),
+    );
+    expect(tester.widget<TenturaCommandButton>(action).selected, isTrue);
+    await test.tap(action);
+    await test.pumpAndSettle();
+    expect(repository.draftDeleteCalls, 1);
+    expect(cubit.state.participants.single.currentValue, isNull);
+    expect(cubit.state.participants.single.isSubmitted, isFalse);
     await cubit.close();
   });
 
@@ -325,8 +372,10 @@ void main() {
     );
     expect(
       find.textContaining('Reviews are pairwise-private'),
-      findsOneWidget,
+      findsNothing,
     );
+    expect(find.text('Review privacy'), findsOneWidget);
+    expect(find.byIcon(Icons.info_outline), findsOneWidget);
     await test.scrollUntilVisible(
       find.text('Helped somewhat'),
       400,

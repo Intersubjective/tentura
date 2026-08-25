@@ -19,6 +19,7 @@ import '../gql/_g/beacon_reopen.req.gql.dart';
 import '../gql/_g/evaluation_draft_participants.data.gql.dart';
 import '../gql/_g/evaluation_draft_participants.req.gql.dart';
 import '../gql/_g/evaluation_draft_save.req.gql.dart';
+import '../gql/_g/evaluation_draft_delete.req.gql.dart';
 import '../gql/_g/evaluation_finalize.req.gql.dart';
 import '../gql/_g/evaluation_participants.data.gql.dart';
 import '../gql/_g/evaluation_participants.req.gql.dart';
@@ -324,6 +325,22 @@ class EvaluationRepository {
                   ? null
                   : ListBuilder<String>(reasonTags)
               ..note = note.isEmpty ? null : note,
+          ),
+        )
+        .firstWhere((e) => e.dataSource == DataSource.Link)
+        .then((r) => r.dataOrThrow(label: _label));
+  }
+
+  Future<void> draftDelete({
+    required String beaconId,
+    required String evaluatedUserId,
+  }) async {
+    await _remoteApiService
+        .request(
+          GEvaluationDraftDeleteReq(
+            (b) => b.vars
+              ..id = beaconId
+              ..evaluatedUserId = evaluatedUserId,
           ),
         )
         .firstWhere((e) => e.dataSource == DataSource.Link)

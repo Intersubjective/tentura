@@ -55,7 +55,7 @@ class ReviewWindowBannerHost extends StatelessWidget {
     final closesAtLabel = _formatClosesAt(context, review.closesAt);
     final scheme = Theme.of(context).colorScheme;
 
-    if (!isAuthor && review.viewerHasOutstandingReviewWork) {
+    if (!isAuthor && review.viewerCanOpenReviewScreen) {
       return Padding(
         padding: _slotPadding,
         child: Column(

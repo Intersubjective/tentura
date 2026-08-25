@@ -14,6 +14,7 @@ import 'package:tentura/features/evaluation/domain/entity/evaluation_value.dart'
 import 'package:tentura/features/evaluation/ui/bloc/evaluation_cubit.dart';
 import 'package:tentura/features/evaluation/ui/presenter/evaluation_value_presenter.dart';
 import 'package:tentura/features/evaluation/ui/widget/evaluation_detail_sheet.dart';
+import 'package:tentura/features/evaluation/ui/widget/evaluation_privacy_info_row.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/test_ids.dart';
@@ -103,6 +104,7 @@ class ReviewContributionsScreen extends StatelessWidget
                 );
               }
               final items = _participantItems(context, state);
+              final canSend = !state.isLoading && state.canFinalize;
               return Column(
                 children: [
                   Expanded(
@@ -123,23 +125,29 @@ class ReviewContributionsScreen extends StatelessWidget
                             state.totalCount,
                           ),
                           textAlign: TextAlign.center,
+                          style: Theme.of(context).textTheme.bodySmall,
                         ),
+                        if (!canSend && !state.isDraftMode) ...[
+                          SizedBox(height: tt.tightGap),
+                          Text(
+                            l10n.evaluationProgressIncompleteHint,
+                            textAlign: TextAlign.center,
+                            style: TenturaText.status(
+                              Theme.of(context).colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                        ],
                         SizedBox(height: tt.rowGap),
                         FilledButton(
                           key: TestIds.key(TestIds.evaluationSubmit),
                           style: actionButtonStyle,
-                          onPressed: state.isLoading ? null : cubit.finalize,
+                          onPressed: canSend ? cubit.finalize : null,
                           child: Text(
                             draft
                                 ? l10n.evaluationDraftDone
                                 : l10n.evaluationSubmitFinish,
                           ),
                         ),
-                        if (!draft)
-                          TextButton(
-                            onPressed: state.isLoading ? null : cubit.skip,
-                            child: Text(l10n.evaluationSkipForNow),
-                          ),
                       ],
                     ),
                   ),
@@ -172,27 +180,15 @@ class ReviewContributionsScreen extends StatelessWidget
     output.add(
       Padding(
         padding: EdgeInsets.only(bottom: context.tt.rowGap),
-        child: TenturaTechCardStatic(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                state.isDraftMode
-                    ? l10n.evaluationReviewListPrivacyTitleDraft
-                    : l10n.evaluationReviewListPrivacyTitle,
-                style: Theme.of(context).textTheme.titleSmall,
-              ),
-              SizedBox(height: context.tt.tightGap),
-              Text(
-                state.isDraftMode
-                    ? l10n.evaluationReviewListPrivacyDraft
-                    : l10n.evaluationReviewListPrivacyLive(
-                        l10n.evaluationCannotEvaluate,
-                      ),
-                style: Theme.of(context).textTheme.bodyMedium,
-              ),
-            ],
-          ),
+        child: EvaluationPrivacyInfoRow(
+          shortLabel: state.isDraftMode
+              ? l10n.evaluationReviewListPrivacyTitleDraft
+              : l10n.evaluationReviewListPrivacyTitle,
+          fullText: state.isDraftMode
+              ? l10n.evaluationReviewListPrivacyDraft
+              : l10n.evaluationReviewListPrivacyLive(
+                  l10n.evaluationCannotEvaluate,
+                ),
         ),
       ),
     );
@@ -236,7 +232,8 @@ class ReviewContributionsScreen extends StatelessWidget
             isDraftMode: state.isDraftMode,
             isLoading: state.isLoading,
             onTap: () => _openDetail(context, participant),
-            onCannotEvaluate: () => _cannotEvaluate(context, participant),
+            onCannotEvaluateToggle: () =>
+                _toggleCannotEvaluate(context, participant),
           ),
         );
       }
@@ -272,52 +269,51 @@ class ReviewContributionsScreen extends StatelessWidget
     );
   }
 
-  Future<void> _cannotEvaluate(
+  Future<void> _toggleCannotEvaluate(
     BuildContext context,
     EvaluationParticipant participant,
   ) async {
+    final cubit = context.read<EvaluationCubit>();
+    final selected = participant.currentValue == EvaluationValue.noBasis &&
+        (draft || participant.isSubmitted || participant.hasAnswered);
+    if (selected) {
+      await cubit.clearOne(evaluatedUserId: participant.userId);
+      return;
+    }
     final hasExistingWork =
-        participant.currentValue != null ||
+        (participant.currentValue != null &&
+            participant.currentValue != EvaluationValue.noBasis) ||
         participant.note.trim().isNotEmpty ||
         participant.reasonTags.isNotEmpty ||
         participant.acknowledgedHelpTags.isNotEmpty;
-    if (!hasExistingWork) {
-      if (context.mounted) {
-        await context.read<EvaluationCubit>().submitOne(
-          evaluatedUserId: participant.userId,
-          value: EvaluationValue.noBasis,
-          note: participant.note,
-          acknowledgedHelpTags: const <String>[],
-        );
-      }
-      return;
-    }
-    final shouldReplace = await showDialog<bool>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(L10n.of(context)!.evaluationCannotEvaluate),
-        content: Text(
-          L10n.of(context)!.evaluationCannotEvaluateReplacement,
+    if (hasExistingWork) {
+      final shouldReplace = await showDialog<bool>(
+        context: context,
+        builder: (context) => AlertDialog(
+          title: Text(L10n.of(context)!.evaluationCannotEvaluate),
+          content: Text(
+            L10n.of(context)!.evaluationCannotEvaluateReplacement,
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: Text(L10n.of(context)!.buttonCancel),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: Text(L10n.of(context)!.evaluationCannotEvaluate),
+            ),
+          ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
-            child: Text(L10n.of(context)!.buttonCancel),
-          ),
-          FilledButton(
-            onPressed: () => Navigator.of(context).pop(true),
-            child: Text(L10n.of(context)!.evaluationCannotEvaluate),
-          ),
-        ],
-      ),
-    );
-    if (shouldReplace != true || !context.mounted) {
-      return;
+      );
+      if (shouldReplace != true || !context.mounted) {
+        return;
+      }
     }
-    await context.read<EvaluationCubit>().submitOne(
+    await cubit.submitOne(
       evaluatedUserId: participant.userId,
       value: EvaluationValue.noBasis,
-      note: participant.note,
+      note: '',
       acknowledgedHelpTags: const <String>[],
     );
   }
@@ -336,14 +332,14 @@ class _ParticipantTile extends StatelessWidget {
     required this.isDraftMode,
     required this.isLoading,
     required this.onTap,
-    required this.onCannotEvaluate,
+    required this.onCannotEvaluateToggle,
   });
 
   final EvaluationParticipant participant;
   final bool isDraftMode;
   final bool isLoading;
   final VoidCallback onTap;
-  final VoidCallback onCannotEvaluate;
+  final VoidCallback onCannotEvaluateToggle;
 
   @override
   Widget build(BuildContext context) {
@@ -359,99 +355,108 @@ class _ParticipantTile extends StatelessWidget {
           ? null
           : ImageEntity(id: participant.imageId, authorId: participant.userId),
     );
-    final submitted = participant.isSubmitted;
-    final presentation = value == null || !submitted
+    final ready = isDraftMode ? participant.hasAnswered : participant.isSubmitted;
+    final presentation = value == null || !ready || value == EvaluationValue.noBasis
         ? null
         : presentEvaluationValue(value, l10n);
-    final statusLabel = !submitted && value != null
+    final cannotEvaluateSelected = value == EvaluationValue.noBasis && ready;
+    final statusLabel = cannotEvaluateSelected
+        ? l10n.evaluationNoBasisLabel
+        : !ready && value != null
         ? l10n.evaluationBannerDraftReview
         : presentation?.label ?? l10n.evaluationNotReviewed;
-    final cannotEvaluateSelected =
-        value == EvaluationValue.noBasis && (isDraftMode || submitted);
 
-    return Card(
-      margin: EdgeInsets.only(bottom: tt.rowGap),
-      child: LayoutBuilder(
-        builder: (context, constraints) {
-          final subtitleStatus =
-              constraints.maxWidth < 500 ||
-              MediaQuery.textScalerOf(context).scale(1) >= 2;
-          final subtitle = <Widget>[];
-          if (participant.contributionSummary.isNotEmpty) {
-            subtitle.add(Text(participant.contributionSummary));
-          }
-          if (subtitleStatus) {
-            subtitle.add(
-              Text(statusLabel, style: theme.textTheme.labelLarge),
-            );
-          }
-          return Column(
-            children: [
-              ListTile(
-                key: TestIds.key(
-                  TestIds.evaluationParticipant(participant.userId),
-                ),
-                leading: SelfAwareAvatar.small(profile: profile),
-                title: BlocBuilder<ProfileCubit, ProfileState>(
-                  builder: (context, state) => Text(
-                    SelfUserHighlight.displayName(
-                      l10n,
-                      profile,
-                      state.profile.id,
-                    ),
-                    style: SelfUserHighlight.nameStyle(
-                      theme,
-                      theme.textTheme.bodyLarge,
-                      SelfUserHighlight.profileIsSelf(
+    return Opacity(
+      opacity: cannotEvaluateSelected ? 0.55 : 1,
+      child: Card(
+        margin: EdgeInsets.only(bottom: tt.rowGap),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final subtitleStatus =
+                constraints.maxWidth < 500 ||
+                MediaQuery.textScalerOf(context).scale(1) >= 2;
+            final subtitle = <Widget>[];
+            if (participant.contributionSummary.isNotEmpty) {
+              subtitle.add(Text(participant.contributionSummary));
+            }
+            if (participant.note.trim().isNotEmpty && ready) {
+              subtitle.add(Text(participant.note.trim()));
+            }
+            if (subtitleStatus) {
+              subtitle.add(
+                Text(statusLabel, style: theme.textTheme.labelLarge),
+              );
+            }
+            return Column(
+              children: [
+                ListTile(
+                  key: TestIds.key(
+                    TestIds.evaluationParticipant(participant.userId),
+                  ),
+                  leading: SelfAwareAvatar.small(profile: profile),
+                  title: BlocBuilder<ProfileCubit, ProfileState>(
+                    builder: (context, state) => Text(
+                      SelfUserHighlight.displayName(
+                        l10n,
                         profile,
                         state.profile.id,
                       ),
+                      style: SelfUserHighlight.nameStyle(
+                        theme,
+                        theme.textTheme.bodyLarge,
+                        SelfUserHighlight.profileIsSelf(
+                          profile,
+                          state.profile.id,
+                        ),
+                      ),
+                    ),
+                  ),
+                  subtitle: subtitle.isEmpty
+                      ? null
+                      : Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: subtitle,
+                        ),
+                  trailing: subtitleStatus
+                      ? null
+                      : Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            if (presentation != null)
+                              Icon(
+                                presentation.icon,
+                                size: tt.iconSize,
+                                color: theme.colorScheme.onSurfaceVariant,
+                              ),
+                            SizedBox(width: tt.tightGap),
+                            Text(
+                              statusLabel,
+                              style: theme.textTheme.labelLarge,
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ],
+                        ),
+                  onTap: isLoading || cannotEvaluateSelected ? null : onTap,
+                ),
+                const TenturaHairlineDivider(),
+                Padding(
+                  padding: tt.cardPadding,
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: TenturaCommandButton(
+                      key: TestIds.key(
+                        TestIds.evaluationCannotEvaluate(participant.userId),
+                      ),
+                      label: l10n.evaluationCannotEvaluate,
+                      selected: cannotEvaluateSelected,
+                      onPressed: isLoading ? null : onCannotEvaluateToggle,
                     ),
                   ),
                 ),
-                subtitle: subtitle.isEmpty
-                    ? null
-                    : Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: subtitle,
-                      ),
-                trailing: subtitleStatus
-                    ? null
-                    : Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          if (presentation != null)
-                            Icon(
-                              presentation.icon,
-                              size: tt.iconSize,
-                              color: theme.colorScheme.onSurfaceVariant,
-                            ),
-                          SizedBox(width: tt.tightGap),
-                          Text(
-                            statusLabel,
-                            style: theme.textTheme.labelLarge,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ],
-                      ),
-                onTap: isLoading ? null : onTap,
-              ),
-              const TenturaHairlineDivider(),
-              Align(
-                alignment: Alignment.centerLeft,
-                child: TextButton(
-                  key: TestIds.key(
-                    TestIds.evaluationCannotEvaluate(participant.userId),
-                  ),
-                  onPressed: isLoading || cannotEvaluateSelected
-                      ? null
-                      : onCannotEvaluate,
-                  child: Text(l10n.evaluationCannotEvaluate),
-                ),
-              ),
-            ],
-          );
-        },
+              ],
+            );
+          },
+        ),
       ),
     );
   }

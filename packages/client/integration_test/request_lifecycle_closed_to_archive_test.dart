@@ -8,14 +8,6 @@ import 'package:tentura/ui/test_ids.dart';
 
 import 'support/e2e_test_helpers.dart';
 
-Future<void> skipReviewContributions(WidgetTester tester) async {
-  await pumpUntilVisible(
-    tester,
-    find.byKey(TestIds.key(TestIds.evaluationSubmit)),
-  );
-  await tapAndSettle(tester, find.text('Skip for now').first);
-}
-
 Future<void> openReviewContributionsIfNeeded(WidgetTester tester) async {
   if (await tryPumpUntilVisible(
     tester,
@@ -71,13 +63,13 @@ void main() {
     );
 
     await closeRequestAndOpenReview(tester);
-    await skipReviewContributions(tester);
+    await sendCompleteReviewPackage(tester);
     await logout(tester);
 
     await loginAs(tester, fixture.helperEmail);
     await openRequestFromMyWork(tester, requestTitle: title);
     await openReviewContributionsIfNeeded(tester);
-    await skipReviewContributions(tester);
+    await sendCompleteReviewPackage(tester);
     await logout(tester);
 
     await loginAs(tester, fixture.authorEmail);

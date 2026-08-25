@@ -139,7 +139,7 @@ final class EvaluationCase extends UseCaseBase {
   }
 
   Future<T> _runStatusAction<T>({
-    required String actorUserId,
+    required String? actorUserId,
     required Future<T> Function(AttentionTransaction? transaction) action,
   }) {
     return _attention!.runAction(
@@ -273,7 +273,11 @@ final class EvaluationCase extends UseCaseBase {
           }
 
           final participantIds = participants.map((e) => e.userId).toSet();
-          for (final uid in participantIds) {
+          final reviewerIds = {
+            for (final p in participants)
+              if (p.role != EvaluationParticipantRole.forwarder) p.userId,
+          };
+          for (final uid in reviewerIds) {
             await _evaluationRepository.insertReviewStatus(
               beaconId: beaconId,
               userId: uid,
@@ -294,7 +298,7 @@ final class EvaluationCase extends UseCaseBase {
             await _attentionIntents!.reviewOpened(
               beaconId: beaconId,
               beaconTitle: beacon.title,
-              recipientUserIds: participantIds,
+              recipientUserIds: reviewerIds,
               actorUserId: userId,
               sourceEventKey: 'review_opened:${generateId('A')}',
             ),
@@ -459,7 +463,7 @@ final class EvaluationCase extends UseCaseBase {
     }
   }
 
-  /// Author closes early when required reviewers finished or skipped.
+  /// Author closes early when required reviewers have sent.
   Future<BeaconCloseReviewResult> closeNow({
     required String beaconId,
     required String userId,
@@ -491,7 +495,7 @@ final class EvaluationCase extends UseCaseBase {
           if (!await _canCloseNow(beaconId: beaconId)) {
             throw EvaluationException(
               evaluationCode: EvaluationExceptionCode.notEligible,
-              description: 'Required reviewers have not finished or skipped',
+              description: 'Required reviewers have not sent their packages',
             );
           }
           final intent = transaction == null
@@ -555,7 +559,7 @@ final class EvaluationCase extends UseCaseBase {
         continue;
       }
       final st = statuses[p.userId];
-      if (st != 2 && st != 3) {
+      if (st != 2) {
         return false;
       }
     }
@@ -674,9 +678,10 @@ final class EvaluationCase extends UseCaseBase {
           maxAcknowledgedHelpTags: canAcknowledge
               ? kCapMaxTagsPerSubjectBeacon
               : 0,
-          isSubmitted:
-              ev?.status == BeaconEvaluationRowStatus.submitted ||
-              ev?.status == BeaconEvaluationRowStatus.final_,
+          isSubmitted: ev != null &&
+              (ev.status == BeaconEvaluationRowStatus.draft ||
+                  ev.status == BeaconEvaluationRowStatus.submitted ||
+                  ev.status == BeaconEvaluationRowStatus.final_),
         ),
       );
     }
@@ -891,18 +896,40 @@ final class EvaluationCase extends UseCaseBase {
   }) async {
     await _ensureExpiredClosed();
     final beacon = await _beaconRepository.getBeaconById(beaconId: beaconId);
-    if (!beacon.status.isOpenFamily) {
+    final inOpen = beacon.status.isOpenFamily;
+    final inReview = beacon.status == BeaconStatus.reviewOpen;
+    if (!inOpen && !inReview) {
       throw EvaluationException(
         evaluationCode: EvaluationExceptionCode.reviewWindowNotOpen,
-        description: 'Draft delete only while request is open',
+        description: 'Clear only while request is open or in review',
       );
+    }
+    if (inReview) {
+      await _requireLiveReview(beaconId);
+      final vis = await _evaluationRepository.listVisibilityForEvaluator(
+        beaconId,
+        evaluatorId,
+      );
+      if (!vis.any((v) => v.participantId == evaluatedUserId)) {
+        throw EvaluationException(
+          evaluationCode: EvaluationExceptionCode.notEligible,
+        );
+      }
     }
     final ev = await _evaluationRepository.getEvaluation(
       beaconId: beaconId,
       evaluatorId: evaluatorId,
       evaluatedUserId: evaluatedUserId,
     );
-    if (ev == null || ev.status != BeaconEvaluationRowStatus.draft) {
+    if (ev == null) {
+      return true;
+    }
+    if (inOpen && ev.status != BeaconEvaluationRowStatus.draft) {
+      return true;
+    }
+    if (inReview &&
+        ev.status != BeaconEvaluationRowStatus.draft &&
+        ev.status != BeaconEvaluationRowStatus.submitted) {
       return true;
     }
     await _evaluationRepository.deleteEvaluationRow(
@@ -910,6 +937,19 @@ final class EvaluationCase extends UseCaseBase {
       evaluatorId: evaluatorId,
       evaluatedUserId: evaluatedUserId,
     );
+    if (inReview) {
+      final st = await _evaluationRepository.getReviewUserStatus(
+        beaconId,
+        evaluatorId,
+      );
+      if (st == 2) {
+        await _evaluationRepository.setReviewUserStatus(
+          beaconId: beaconId,
+          userId: evaluatorId,
+          status: 1,
+        );
+      }
+    }
     return true;
   }
 
@@ -1168,6 +1208,12 @@ final class EvaluationCase extends UseCaseBase {
     final evaluatorRole = EvaluationParticipantRole.fromDb(
       parts.firstWhere((p) => p.userId == evaluatorId).role,
     );
+    if (evaluatorRole == EvaluationParticipantRole.forwarder) {
+      throw EvaluationException(
+        evaluationCode: EvaluationExceptionCode.notEligible,
+        description: 'Forwarders do not leave reviews',
+      );
+    }
     final roleOfEvaluated = EvaluationParticipantRole.fromDb(
       parts.firstWhere((p) => p.userId == evaluatedUserId).role,
     );
@@ -1189,20 +1235,26 @@ final class EvaluationCase extends UseCaseBase {
         note: note,
         ackTags: const [],
         resolve: (existing) {
-          final resolvedReasonTags = _resolveReasonTags(
-            incoming: reasonTags,
-            existing: existing,
-            value: value,
-            evaluatedRole: roleOfEvaluated,
-          );
+          final isNoBasis = value == BeaconEvaluationValue.noBasis;
+          final effectiveNote = isNoBasis ? '' : note;
+          final resolvedReasonTags = isNoBasis
+              ? const <String>[]
+              : _resolveReasonTags(
+                  incoming: reasonTags,
+                  existing: existing,
+                  value: value,
+                  evaluatedRole: roleOfEvaluated,
+                );
           _validateEvaluation(
             value: value,
             reasonTags: resolvedReasonTags,
             evaluatedRole: roleOfEvaluated,
           );
-          final resolvedAckTags = _resolveAckTags(
-            incoming: acknowledgedHelpTags,
-          );
+          final resolvedAckTags = isNoBasis
+              ? const <String>[]
+              : _resolveAckTags(
+                  incoming: acknowledgedHelpTags,
+                );
           if (resolvedAckTags.isNotEmpty) {
             const eligibleAckRoles = {
               EvaluationParticipantRole.author,
@@ -1235,7 +1287,7 @@ final class EvaluationCase extends UseCaseBase {
           return EvaluationWriteCommand(
             value: value,
             reasonTags: resolvedReasonTags,
-            note: note,
+            note: effectiveNote,
             ackTags: resolvedAckTags,
           );
         },
@@ -1264,7 +1316,7 @@ final class EvaluationCase extends UseCaseBase {
       beaconId,
       evaluatorId,
     );
-    if (st == 0) {
+    if (st == 0 || st == 2) {
       await _evaluationRepository.setReviewUserStatus(
         beaconId: beaconId,
         userId: evaluatorId,
@@ -1365,38 +1417,101 @@ final class EvaluationCase extends UseCaseBase {
         evaluationCode: EvaluationExceptionCode.notEligible,
       );
     }
-    // Idempotent: double "Finish", or Finish after Skip, should succeed.
-    if (st == 2 || st == 3) {
-      return true;
-    }
-    await _evaluationRepository.setReviewUserStatus(
-      beaconId: beaconId,
-      userId: userId,
-      status: 2,
+    final vis = await _evaluationRepository.listVisibilityForEvaluator(
+      beaconId,
+      userId,
     );
+    final byTarget = await _evaluationsByTargetForEvaluator(
+      beaconId: beaconId,
+      evaluatorId: userId,
+    );
+    for (final v in vis) {
+      final ev = byTarget[v.participantId];
+      final ready = ev != null &&
+          (ev.status == BeaconEvaluationRowStatus.draft ||
+              ev.status == BeaconEvaluationRowStatus.submitted);
+      if (!ready) {
+        throw EvaluationException(
+          evaluationCode: EvaluationExceptionCode.notEligible,
+          description: 'All review targets must be ready before send',
+        );
+      }
+    }
+    if (st != 2) {
+      await _evaluationRepository.setReviewUserStatus(
+        beaconId: beaconId,
+        userId: userId,
+        status: 2,
+      );
+    }
+    if (await _canCloseNow(beaconId: beaconId)) {
+      await _autoCloseReviewWindow(beaconId: beaconId, actorUserId: userId);
+    }
     return true;
+  }
+
+  /// Shared close path when all required reviewers have sent (or author Close now).
+  Future<void> _autoCloseReviewWindow({
+    required String beaconId,
+    required String? actorUserId,
+  }) async {
+    await _runStatusAction(
+      actorUserId: actorUserId,
+      action: (transaction) async {
+        final intent = transaction == null
+            ? null
+            : await _attentionIntents!.requestStatusChanged(
+                beaconId: beaconId,
+                fromStatus: BeaconStatus.reviewOpen.name,
+                toStatus: BeaconStatus.closed.name,
+                actorUserId: actorUserId,
+                sourceEventKey: 'request_status:${generateId('A')}',
+              );
+        final result = await _reviewFinalization!.closeAndFinalize(
+          beaconId,
+          reason: actorUserId == null
+              ? BeaconLifecycleChangeReason.reviewExpired
+              : BeaconLifecycleChangeReason.authorCloseNow,
+          actorUserId: actorUserId,
+        );
+        if (intent != null && result.didClose) {
+          await transaction!.record(intent);
+        }
+        if (transaction != null && result.didClose) {
+          final beaconTitle = result.beaconTitle ?? '';
+          for (final pair in result.pairs) {
+            if (pair.bin == TrustBin.noEffect) continue;
+            final given = await _attentionIntents!.trustGivenChanged(
+              beaconId: beaconId,
+              beaconTitle: beaconTitle,
+              evaluatorId: pair.evaluatorId,
+              evaluatedUserId: pair.evaluatedUserId,
+              bin: pair.bin,
+              sourceEventKey: 'trust_given:${generateId('A')}',
+            );
+            await transaction!.record(given);
+            final received = await _attentionIntents!.trustReceivedChanged(
+              beaconId: beaconId,
+              beaconTitle: beaconTitle,
+              evaluatorId: pair.evaluatorId,
+              evaluatedUserId: pair.evaluatedUserId,
+              bin: pair.bin,
+              sourceEventKey: 'trust_received:${generateId('A')}',
+            );
+            await transaction!.record(received);
+          }
+        }
+      },
+    );
   }
 
   Future<bool> evaluationSkip({
     required String beaconId,
     required String userId,
   }) async {
-    await _ensureExpiredClosed();
-    await _requireLiveReview(beaconId);
-    final st = await _evaluationRepository.getReviewUserStatus(
-      beaconId,
-      userId,
+    throw EvaluationException(
+      evaluationCode: EvaluationExceptionCode.notEligible,
+      description: 'Skip is no longer supported; send a complete review package',
     );
-    if (st == null) {
-      throw EvaluationException(
-        evaluationCode: EvaluationExceptionCode.notEligible,
-      );
-    }
-    await _evaluationRepository.setReviewUserStatus(
-      beaconId: beaconId,
-      userId: userId,
-      status: 3,
-    );
-    return true;
   }
 }

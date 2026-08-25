@@ -49,6 +49,15 @@ final class EvaluationCase extends UseCaseBase {
         note: note,
       );
 
+  Future<void> draftDelete({
+    required String beaconId,
+    required String evaluatedUserId,
+  }) =>
+      _repository.draftDelete(
+        beaconId: beaconId,
+        evaluatedUserId: evaluatedUserId,
+      );
+
   Future<void> submit({
     required String beaconId,
     required String evaluatedUserId,

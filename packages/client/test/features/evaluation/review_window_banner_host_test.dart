@@ -72,6 +72,27 @@ void main() {
     });
   });
 
+  group('ReviewWindowInfo.viewerCanOpenReviewScreen', () {
+    test('true after send while window still open', () {
+      expect(
+        _window(userReviewStatus: 2).viewerCanOpenReviewScreen,
+        isTrue,
+      );
+    });
+
+    test('false when not enrolled or window complete', () {
+      expect(
+        _window(userReviewStatus: -1).viewerCanOpenReviewScreen,
+        isFalse,
+      );
+      expect(
+        _window(windowComplete: true, userReviewStatus: 2)
+            .viewerCanOpenReviewScreen,
+        isFalse,
+      );
+    });
+  });
+
   group('ReviewWindowBannerHost', () {
     testWidgets('shows loading when snapshot is null', (tester) async {
       await pumpBanner(tester, window: null);
@@ -82,6 +103,14 @@ void main() {
       tester,
     ) async {
       await pumpBanner(tester, window: _window());
+
+      expect(find.text('Review'), findsOneWidget);
+    });
+
+    testWidgets('shows Review for sent package while window open', (
+      tester,
+    ) async {
+      await pumpBanner(tester, window: _window(userReviewStatus: 2));
 
       expect(find.text('Review'), findsOneWidget);
     });

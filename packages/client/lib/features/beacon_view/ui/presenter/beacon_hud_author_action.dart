@@ -111,7 +111,7 @@ BeaconHudAuthorAction? _reviewOpenAuthorAction(BeaconViewState state) {
     return null;
   }
 
-  if (review.viewerHasOutstandingReviewWork) {
+  if (review.viewerCanOpenReviewScreen) {
     return BeaconHudAuthorAction.reviewContributions;
   }
 

@@ -224,6 +224,7 @@ class _V2RoutingLink extends Link {
     'EvaluationFinalize',
     'EvaluationSkip',
     'EvaluationDraftSave',
+    'EvaluationDraftDelete',
     'CreateComplaint',
     'FcmRegisterToken',
     'FcmTokenDelete',

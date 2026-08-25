@@ -142,8 +142,8 @@ The in-between after the author **Closes** a beacon that **ever had an acknowled
 _Avoid_: "Review open" (opaque), or wording that implies moderation/approval gating; requiring a currently active committer to open the window.
 
 **Close now** (early close during Wrapping up):
-An author action available only when every **required reviewer** has **finished or skipped** their review (per-user review status in {finished, skipped}). **Required reviewers = the author + current committers only**; **former committers** and **forwarders are excluded** (they may still review, but their pending review never blocks closure). It skips the remaining countdown and moves the beacon to **Closed**. Disabled (with explanation) while a required current committer or the author still has their review open. Distinct from extending or reopening.
-_Avoid_: an unconditional early-close button; letting a former committer's or forwarder's pending review block Close now; closing while a **current** committer still has their review pending.
+An author action available only when every **required reviewer** has **sent** their review package (per-user review status = finished/sent). **Required reviewers = the author + current committers only**; **former committers** do not block. **Forwarders do not leave reviews** (they may still be reviewed on path as subjects). It skips the remaining countdown and moves the beacon to **Closed**. Also triggers automatically when all required reviewers have sent. Disabled (with explanation) while a required current committer or the author still has an unsent package. Distinct from extending or reopening.
+_Avoid_: an unconditional early-close button; letting a former committer block Close now; closing while a **current** committer still has their review unsent.
 
 **Extend review** (author action during Wrapping up):
 Adds another 7 days to the countdown. Allowed at most **twice**. Additive and low-risk — no confirmation; the UI shows extensions remaining and the new close date.

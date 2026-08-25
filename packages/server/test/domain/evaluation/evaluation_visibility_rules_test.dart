@@ -96,7 +96,7 @@ void main() {
     },
   );
 
-  test('committer may evaluate forwarder on path when forwarder is not author', () {
+  test('committer and author may evaluate path forwarder; forwarder is not an evaluator', () {
     final vis = buildEvaluationVisibility(
       authorId: author,
       participants: const [
@@ -118,12 +118,19 @@ void main() {
       },
     );
 
-    expect(_pairSet(vis), containsAll([(c1, forwarder), (forwarder, c1)]));
-    expect(_pairSet(vis), contains((c1, author)));
-    expect(_pairSet(vis), contains((forwarder, author)));
+    expect(
+      _pairSet(vis),
+      equals({
+        (author, c1),
+        (author, forwarder),
+        (c1, author),
+        (c1, forwarder),
+      }),
+    );
+    expect(_pairSet(vis).where((e) => e.$1 == forwarder), isEmpty);
   });
 
-  test('forwarder evaluates author and committers they forwarded toward', () {
+  test('forwarder has no outgoing evaluation edges', () {
     final vis = buildEvaluationVisibility(
       authorId: author,
       participants: const [
@@ -145,7 +152,7 @@ void main() {
       },
     );
 
-    expect(_pairSet(vis), containsAll([(forwarder, author), (forwarder, c1)]));
+    expect(vis.where((p) => p.evaluatorId == forwarder), isEmpty);
   });
 
   test('no self edges', () {

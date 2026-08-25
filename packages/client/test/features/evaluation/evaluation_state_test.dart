@@ -32,7 +32,7 @@ void main() {
     expect(state.canFinalize, isFalse);
   });
 
-  test('draft values do not masquerade as submitted', () {
+  test('draft progress counts answered rows', () {
     const state = EvaluationState(
       beaconId: 'B1',
       isDraftMode: true,
@@ -47,11 +47,11 @@ void main() {
         ),
       ],
     );
-    expect(state.reviewedCount, 0);
-    expect(state.canFinalize, isFalse);
+    expect(state.reviewedCount, 1);
+    expect(state.canFinalize, isTrue);
   });
 
-  test('live canFinalize requires every row submitted', () {
+  test('live canFinalize requires every row ready', () {
     const state = EvaluationState(
       beaconId: 'B1',
       participants: [

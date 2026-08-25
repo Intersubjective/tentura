@@ -57,29 +57,11 @@ void main() {
         impact: 'pos1',
         ackTags: const ['transport'],
       );
-      // The outer `evaluationSubmit` button on review_contributions_screen
-      // (distinct from the per-participant sheet's `evaluationSave`) calls
-      // EvaluationCubit.finalize(), which server-side only marks THIS
-      // reviewer's (Bob's) own review status as done (`evaluationFinalize`
-      // — verified server-side, `beacon_review_status.status` → 2) and
-      // navigates back on success. It does NOT itself close/finalize the
-      // beacon or write capability evidence — that is the separate,
-      // explicit author action `EvaluationCase.closeNow` →
-      // `ReviewFinalizationCase.closeAndFinalize`, exposed client-side as
-      // `BeaconViewCubit.closeBeaconNow()` behind the beacon-detail HUD's
-      // `closeNow` action (gated by `_canCloseNow`: all required reviewers
-      // finished or skipped — satisfied once Bob's own review is done).
-      await tapAndSettle(
-        tester,
-        find.byKey(TestIds.key(TestIds.evaluationSubmit)),
-      );
+      // Send Bob's package (all cards ready after the sheet save above).
+      await sendCompleteReviewPackage(tester);
 
-      // `_canCloseNow` (evaluation_case.dart) requires EVERY author/committer
-      // participant's own review status to independently reach finished(2)
-      // or skipped(3) — Bob's evaluationSubmit only set HIS status. Carol
-      // (the committer) has nothing useful to evaluate here, so she uses the
-      // review screen's real "Skip for now" affordance, reached via her own
-      // My Work card's "Review" quick action (`showReviewCta`).
+      // `_canCloseNow` requires author + committers to have sent (status==2).
+      // Carol (committer) marks remaining cards and sends her package.
       await logout(tester);
       await loginAs(tester, fixture.carolEmail);
       await goToPath(tester, kPathMyWork);
@@ -90,7 +72,7 @@ void main() {
         timeout: const Duration(seconds: 30),
       );
       await tapAndSettle(tester, reviewCta.first);
-      await tapAndSettle(tester, find.text('Skip for now'));
+      await sendCompleteReviewPackage(tester);
 
       // Switch back to Bob — only the beacon author may trigger closeNow.
       await logout(tester);

@@ -10,11 +10,13 @@ class TenturaCommandButton extends StatelessWidget {
     super.key,
     this.onPressed,
     this.icon,
+    this.selected = false,
   });
 
   final String label;
   final VoidCallback? onPressed;
   final Widget? icon;
+  final bool selected;
 
   @override
   Widget build(BuildContext context) {
@@ -25,8 +27,12 @@ class TenturaCommandButton extends StatelessWidget {
       style: OutlinedButton.styleFrom(
         minimumSize: const Size(0, 40),
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-        side: BorderSide(color: tt.skyBorder),
+        side: BorderSide(
+          color: selected ? color : tt.skyBorder,
+          width: selected ? 2 : 1,
+        ),
         foregroundColor: color,
+        backgroundColor: selected ? color.withValues(alpha: 0.08) : null,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(tt.buttonRadius),
         ),

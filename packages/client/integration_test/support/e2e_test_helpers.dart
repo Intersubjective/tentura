@@ -23,6 +23,7 @@ import 'package:tentura/features/graph/domain/entity/node_details.dart';
 import 'package:tentura/features/graph/ui/bloc/graph_cubit.dart';
 import 'package:tentura/features/graph/ui/widget/graph_body.dart';
 import 'package:tentura/features/graph/ui/widget/graph_node_widget.dart';
+import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/test_ids.dart';
 import 'package:tentura/ui/utils/capability_tag_presenter.dart';
@@ -893,6 +894,31 @@ Future<void> triggerCloseNow(WidgetTester tester) async {
     tester,
     find.text('Archive'),
     timeout: const Duration(seconds: 30),
+  );
+}
+
+/// Mark every remaining card cannot-evaluate (if needed) then send the package.
+Future<void> sendCompleteReviewPackage(WidgetTester tester) async {
+  await pumpUntilVisible(
+    tester,
+    find.byKey(TestIds.key(TestIds.evaluationSubmit)),
+  );
+  for (var i = 0; i < 12; i++) {
+    final submit = tester.widget<FilledButton>(
+      find.byKey(TestIds.key(TestIds.evaluationSubmit)),
+    );
+    if (submit.onPressed != null) {
+      break;
+    }
+    final unselected = find.byWidgetPredicate(
+      (widget) => widget is TenturaCommandButton && !widget.selected,
+    );
+    expect(unselected, findsWidgets);
+    await tapAndSettle(tester, unselected.first);
+  }
+  await tapAndSettle(
+    tester,
+    find.byKey(TestIds.key(TestIds.evaluationSubmit)),
   );
 }
 

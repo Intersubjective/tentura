@@ -353,14 +353,14 @@ class EvaluationRepository implements EvaluationRepositoryPort {
               value: command.value,
               reasonTags: Value(reasonTagsCsv),
               note: Value(command.note),
-              status: const Value(BeaconEvaluationRowStatus.submitted),
+              status: const Value(BeaconEvaluationRowStatus.draft),
             ),
             onConflict: DoUpdate(
               (_) => BeaconEvaluationsCompanion(
                 value: Value(command.value),
                 reasonTags: Value(reasonTagsCsv),
                 note: Value(command.note),
-                status: const Value(BeaconEvaluationRowStatus.submitted),
+                status: const Value(BeaconEvaluationRowStatus.draft),
                 updatedAt: Value(PgDateTime(now)),
               ),
             ),
@@ -386,6 +386,16 @@ class EvaluationRepository implements EvaluationRepositoryPort {
           ),
         );
       }
+
+      // Demote sent package when the evaluator edits again.
+      await _db.customStatement(
+        r'''
+        UPDATE public.beacon_review_status
+           SET status = 1, updated_at = now()
+         WHERE beacon_id = $1 AND user_id = $2 AND status = 2
+        ''',
+        [beaconId, evaluatorId],
+      );
     });
   }
 
@@ -510,14 +520,25 @@ ORDER BY e.updated_at DESC
     required String beaconId,
     required String evaluatorId,
     required String evaluatedUserId,
-  }) => _db.managers.beaconEvaluations
-      .filter(
-        (e) =>
-            e.beaconId.id(beaconId) &
-            e.evaluatorId.id(evaluatorId) &
-            e.evaluatedUserId.id(evaluatedUserId),
-      )
-      .delete();
+  }) => _db.transaction(() async {
+    await _db.customStatement(
+      r'''
+      DELETE FROM public.beacon_evaluation_ack_tag
+      WHERE beacon_id = $1
+        AND evaluator_id = $2
+        AND subject_id = $3
+      ''',
+      [beaconId, evaluatorId, evaluatedUserId],
+    );
+    await _db.managers.beaconEvaluations
+        .filter(
+          (e) =>
+              e.beaconId.id(beaconId) &
+              e.evaluatorId.id(evaluatorId) &
+              e.evaluatedUserId.id(evaluatedUserId),
+        )
+        .delete();
+  });
 
   @override
   Future<void> finalizeSubmittedEvaluationsForBeacon(String beaconId) => _db
@@ -693,11 +714,30 @@ ORDER BY e.updated_at DESC
       final transitioned = await _db
           .customSelect(
             r'''
-WITH finalized AS (
-  UPDATE public.beacon_evaluation
-  SET status = $1, updated_at = now()
-  WHERE beacon_id = $2 AND status = $3
-  RETURNING evaluator_id, evaluated_user_id, value
+WITH sent AS (
+  SELECT user_id
+    FROM public.beacon_review_status
+   WHERE beacon_id = $2 AND status = 2
+),
+deleted AS (
+  DELETE FROM public.beacon_evaluation e
+   WHERE e.beacon_id = $2
+     AND e.evaluator_id NOT IN (SELECT user_id FROM sent)
+  RETURNING e.evaluator_id, e.evaluated_user_id
+),
+ack_cleanup AS (
+  DELETE FROM public.beacon_evaluation_ack_tag a
+   WHERE a.beacon_id = $2
+     AND a.evaluator_id NOT IN (SELECT user_id FROM sent)
+  RETURNING 1
+),
+finalized AS (
+  UPDATE public.beacon_evaluation e
+     SET status = $1, updated_at = now()
+   WHERE e.beacon_id = $2
+     AND e.status IN ($3, $4)
+     AND e.evaluator_id IN (SELECT user_id FROM sent)
+  RETURNING e.evaluator_id, e.evaluated_user_id, e.value
 )
 SELECT f.evaluator_id,
        f.evaluated_user_id,
@@ -720,6 +760,7 @@ GROUP BY f.evaluator_id, f.evaluated_user_id, f.value, p.role
             variables: [
               const Variable<int>(BeaconEvaluationRowStatus.final_),
               Variable<String>(beaconId),
+              const Variable<int>(BeaconEvaluationRowStatus.draft),
               const Variable<int>(BeaconEvaluationRowStatus.submitted),
             ],
           )
@@ -735,8 +776,6 @@ GROUP BY f.evaluator_id, f.evaluated_user_id, f.value, p.role
             ackTags: row.read<List<dynamic>>('ack_tags').cast<String>(),
           ),
       ];
-
-      await deleteDraftEvaluationsForBeacon(beaconId);
 
       return ReviewCloseSnapshot(
         beaconId: beaconId,

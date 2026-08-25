@@ -23,7 +23,8 @@ final class EvaluationVisibilityParticipant {
   final EvaluationParticipantRole role;
 }
 
-/// Pure visibility graph for Phase 1 post-beacon review (who may rate whom).
+/// Pure visibility graph for post-beacon review (who may rate whom).
+/// Forwarders are **subjects only** — they never appear as [evaluatorId].
 List<EvaluationVisibilityPair> buildEvaluationVisibility({
   required String authorId,
   required List<EvaluationVisibilityParticipant> participants,
@@ -68,14 +69,7 @@ List<EvaluationVisibilityPair> buildEvaluationVisibility({
       }
       continue;
     }
-    if (e.role == EvaluationParticipantRole.forwarder) {
-      add(eid, authorId);
-      for (final entry in latestEdgeToCommitter.entries) {
-        if (entry.value.senderId == eid) {
-          add(eid, entry.key);
-        }
-      }
-    }
+    // Forwarders do not leave reviews (subjects only).
   }
 
   return out;

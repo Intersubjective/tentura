@@ -19,10 +19,17 @@ abstract class EvaluationState extends StateBase with _$EvaluationState {
 
   const EvaluationState._();
 
-  int get reviewedCount => participants.where((p) => p.isSubmitted).length;
+  int get reviewedCount => isDraftMode
+      ? participants.where((p) => p.hasAnswered).length
+      : participants.where((p) => p.isSubmitted).length;
 
   int get totalCount => participants.length;
 
-  bool get canFinalize =>
-      participants.isNotEmpty && participants.every((p) => p.isSubmitted);
+  bool get canFinalize {
+    if (participants.isEmpty) return false;
+    if (isDraftMode) {
+      return participants.every((p) => p.hasAnswered);
+    }
+    return participants.every((p) => p.isSubmitted);
+  }
 }

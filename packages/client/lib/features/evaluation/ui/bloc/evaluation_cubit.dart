@@ -131,13 +131,15 @@ class EvaluationCubit extends Cubit<EvaluationState> {
     }
     emit(state.copyWith(status: StateStatus.isLoading));
     try {
+      final effectiveNote =
+          value == EvaluationValue.noBasis ? '' : note;
       if (state.isDraftMode) {
         await _evaluationCase.draftSave(
           beaconId: state.beaconId,
           evaluatedUserId: evaluatedUserId,
           value: value.wire,
           reasonTags: null,
-          note: note,
+          note: effectiveNote,
         );
         final participants = await _evaluationCase.fetchDraftParticipants(
           state.beaconId,
@@ -155,8 +157,10 @@ class EvaluationCubit extends Cubit<EvaluationState> {
         evaluatedUserId: evaluatedUserId,
         value: value.wire,
         reasonTags: null,
-        note: note,
-        acknowledgedHelpTags: acknowledgedHelpTags,
+        note: effectiveNote,
+        acknowledgedHelpTags: value == EvaluationValue.noBasis
+            ? const <String>[]
+            : acknowledgedHelpTags,
       );
       final participants = await _evaluationCase.fetchParticipants(
         state.beaconId,
@@ -179,28 +183,60 @@ class EvaluationCubit extends Cubit<EvaluationState> {
     }
   }
 
+  Future<bool> clearOne({required String evaluatedUserId}) async {
+    if (state.isLoading) {
+      return false;
+    }
+    emit(state.copyWith(status: StateStatus.isLoading));
+    try {
+      await _evaluationCase.draftDelete(
+        beaconId: state.beaconId,
+        evaluatedUserId: evaluatedUserId,
+      );
+      if (state.isDraftMode) {
+        final participants = await _evaluationCase.fetchDraftParticipants(
+          state.beaconId,
+        );
+        emit(
+          state.copyWith(
+            participants: participants,
+            status: StateStatus.isSuccess,
+          ),
+        );
+      } else {
+        final participants = await _evaluationCase.fetchParticipants(
+          state.beaconId,
+        );
+        final window = await _evaluationCase.fetchReviewWindowStatus(
+          state.beaconId,
+        );
+        emit(
+          state.copyWith(
+            participants: participants,
+            windowInfo: window,
+            beaconTitle: window.beaconTitle,
+            status: StateStatus.isSuccess,
+          ),
+        );
+      }
+      return true;
+    } catch (e) {
+      _emitSnackError(e);
+      return false;
+    }
+  }
+
   Future<void> finalize() async {
     if (state.isDraftMode) {
       _emitNavigateBack();
       return;
     }
-    emit(state.copyWith(status: StateStatus.isLoading));
-    try {
-      await _evaluationCase.finalize(state.beaconId);
-      _emitNavigateBack();
-    } catch (e) {
-      _emitSnackError(e);
-    }
-  }
-
-  Future<void> skip() async {
-    if (state.isDraftMode) {
-      _emitNavigateBack();
+    if (!state.canFinalize) {
       return;
     }
     emit(state.copyWith(status: StateStatus.isLoading));
     try {
-      await _evaluationCase.skip(state.beaconId);
+      await _evaluationCase.finalize(state.beaconId);
       _emitNavigateBack();
     } catch (e) {
       _emitSnackError(e);
