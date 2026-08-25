@@ -168,6 +168,35 @@ class ReviewContributionsScreen extends StatelessWidget
       );
       output.add(SizedBox(height: context.tt.iconTextGap));
     }
+
+    output.add(
+      Padding(
+        padding: EdgeInsets.only(bottom: context.tt.rowGap),
+        child: TenturaTechCardStatic(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                state.isDraftMode
+                    ? l10n.evaluationReviewListPrivacyTitleDraft
+                    : l10n.evaluationReviewListPrivacyTitle,
+                style: Theme.of(context).textTheme.titleSmall,
+              ),
+              SizedBox(height: context.tt.tightGap),
+              Text(
+                state.isDraftMode
+                    ? l10n.evaluationReviewListPrivacyDraft
+                    : l10n.evaluationReviewListPrivacyLive(
+                        l10n.evaluationCannotEvaluate,
+                      ),
+                style: Theme.of(context).textTheme.bodyMedium,
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+
     final closesRaw = state.windowInfo?.closesAt;
     final closes = closesRaw == null ? null : DateTime.tryParse(closesRaw);
     if (!state.isDraftMode && closes != null) {

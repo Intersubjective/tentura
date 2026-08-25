@@ -159,8 +159,35 @@ void main() {
     (tester) async {
       final result = await pump(tester, draft: true);
       expect(find.text('Draft review'), findsOneWidget);
+      expect(find.text('Draft privacy'), findsOneWidget);
+      expect(
+        find.textContaining('These are private draft notes'),
+        findsOneWidget,
+      );
+      expect(find.text('Review privacy'), findsNothing);
+      expect(
+        find.textContaining('Reviews are pairwise-private'),
+        findsNothing,
+      );
       expect(find.text('0 of 1 reviewed'), findsOneWidget);
       expect(find.textContaining('Review closes'), findsNothing);
+      await result.$3.close();
+    },
+  );
+
+  testWidgets(
+    'live list discloses pairwise privacy beside untouched Cannot evaluate',
+    (tester) async {
+      final result = await pump(tester);
+      expect(find.text('Review privacy'), findsOneWidget);
+      expect(
+        find.textContaining('Reviews are pairwise-private'),
+        findsOneWidget,
+      );
+      expect(
+        find.byKey(TestIds.key(TestIds.evaluationCannotEvaluate('u1'))),
+        findsOneWidget,
+      );
       await result.$3.close();
     },
   );
@@ -296,6 +323,15 @@ void main() {
       surfaceSize: const Size(320, 700),
       textScaler: const TextScaler.linear(2),
     );
+    expect(
+      find.textContaining('Reviews are pairwise-private'),
+      findsOneWidget,
+    );
+    await test.scrollUntilVisible(
+      find.text('Helped somewhat'),
+      400,
+      scrollable: find.byType(Scrollable),
+    );
     expect(find.text('Helped somewhat'), findsOneWidget);
     expect(find.text('Cannot evaluate'), findsOneWidget);
     expect(tester.takeException(), isNull);
@@ -312,6 +348,11 @@ void main() {
       tester,
       repositoryArg: repository,
       surfaceSize: const Size(320, 700),
+    );
+    await test.scrollUntilVisible(
+      find.byKey(TestIds.key(TestIds.evaluationParticipant('u1'))),
+      300,
+      scrollable: find.byType(Scrollable),
     );
     final tile = test.widget<ListTile>(
       find.byKey(TestIds.key(TestIds.evaluationParticipant('u1'))),
