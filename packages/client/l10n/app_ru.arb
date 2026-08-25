@@ -3345,15 +3345,6 @@
   "evaluationReviewListPrivacyDraft": "Это приватные черновики. Они не передаются другим во время окна отзывов; сохраните их, чтобы отправить после закрытия запроса.",
   "evaluationPrivacyBlock": "Ваш отзыв здесь приватен. Он не будет показан публично, и другие участники запроса по умолчанию не увидят ваши ответы. Он используется только для улучшения вашего локального представления о доверии: кому вы можете больше доверять, кому меньше или через кого маршрутизировать запросы в следующий раз. Проще говоря: ответы помогают Tentura давать вам более точные персональные рекомендации и подбор относительно людей здесь и связанных с ними. Оценивайте только то, что вы реально видели в этом запросе. Если не уверены, выберите «Нет оснований».",
   "evaluationPrivacyShort": "Ваш отзыв приватен.",
-  "evaluationRevealNoticeLive": "После окончания окна отзывов {name} увидит ваше имя, выбранное влияние, подтверждения возможностей и заметку. Это видите только вы и {name}; отзыв не публичен и не виден другим участникам.",
-  "@evaluationRevealNoticeLive": {
-    "placeholders": {
-      "name": {
-        "type": "String"
-      }
-    }
-  },
-  "evaluationRevealNoticeDraft": "Приватный черновик. Он не передаётся другим, если вы не сохраните его во время окна отзывов.",
   "evaluationDraftDone": "Готово",
   "evaluationSectionAuthor": "Автор",
   "evaluationSectionHelpOfferer": "Помощники",
@@ -3482,9 +3473,9 @@
   "evaluationImpactHurtSomewhat": "Скорее навредило",
   "evaluationImpactHurtALot": "Сильно навредило",
   "evaluationNoBasisLabel": "Нет оснований",
-  "evaluationCannotEvaluate": "Невозможно оценить",
+  "evaluationCannotEvaluate": "Не могу оценить",
   "evaluationCannotEvaluateReplacement": "Текущее влияние, подтверждения возможностей и заметка будут сброшены.",
-  "evaluationProgressIncompleteHint": "Отправка недоступна, пока по каждому участнику нет отзыва или «невозможно оценить».",
+  "evaluationProgressIncompleteHint": "Отправка недоступна, пока по каждому участнику нет отзыва или «не могу оценить».",
   "evaluationCapabilityChoose": "Выбрать возможности",
   "evaluationCapabilityDone": "Готово",
   "evaluationCapabilityAdditional": "+{count}",
@@ -3510,9 +3501,12 @@
     "context": "EvaluationDetailSheet",
     "description": "Fallback label when an unknown reason tag slug is encountered"
   },
-  "evaluationNoteLabelOptional": "Короткая заметка (необязательно)",
+  "evaluationNoteLabelOptional": "Короткая заметка (необязательно) — увидят только вы и {name}",
   "@evaluationNoteLabelOptional": {
-    "context": "EvaluationDetailSheet"
+    "context": "EvaluationDetailSheet",
+    "placeholders": {
+      "name": {"type": "String"}
+    }
   },
   "evaluationReasonClearRequest": "Ясный запрос",
   "evaluationReasonFairClosure": "Честное закрытие",

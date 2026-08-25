@@ -3358,15 +3358,6 @@
   "evaluationReviewListPrivacyDraft": "These are private draft notes. They are not shared during the review window; save them to submit after the request closes.",
   "evaluationPrivacyBlock": "Your feedback here is private. It will not be shown publicly, and other people in this request will not see your answers by default. It is only used to improve your own local trust view: who you may want to trust more, trust less, or route requests through next time. In simple terms: your answers help Tentura make better personal recommendations and matching for you around the people involved here and the people connected to them. Please judge only what you actually saw in this request. If you are not sure, choose \"No basis\".",
   "evaluationPrivacyShort": "Your feedback is private.",
-  "evaluationRevealNoticeLive": "After the review window ends, {name} will see your name, impact choice, capability acknowledgements, and note. Only you and {name} can see this; it is not public or visible to other participants.",
-  "@evaluationRevealNoticeLive": {
-    "placeholders": {
-      "name": {
-        "type": "String"
-      }
-    }
-  },
-  "evaluationRevealNoticeDraft": "Private draft. It is not shared unless you save it during the review window.",
   "evaluationDraftDone": "Done",
   "evaluationSectionAuthor": "Author",
   "evaluationSectionHelpOfferer": "Helpers",
@@ -3523,9 +3514,12 @@
     "context": "EvaluationDetailSheet",
     "description": "Fallback label when an unknown reason tag slug is encountered"
   },
-  "evaluationNoteLabelOptional": "Short note (optional)",
+  "evaluationNoteLabelOptional": "Short note (optional) — only you and {name} will see it",
   "@evaluationNoteLabelOptional": {
-    "context": "EvaluationDetailSheet"
+    "context": "EvaluationDetailSheet",
+    "placeholders": {
+      "name": {"type": "String"}
+    }
   },
   "evaluationReasonClearRequest": "Clear request",
   "evaluationReasonFairClosure": "Fair closure",

@@ -23,7 +23,6 @@ import 'package:tentura/features/graph/domain/entity/node_details.dart';
 import 'package:tentura/features/graph/ui/bloc/graph_cubit.dart';
 import 'package:tentura/features/graph/ui/widget/graph_body.dart';
 import 'package:tentura/features/graph/ui/widget/graph_node_widget.dart';
-import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/test_ids.dart';
 import 'package:tentura/ui/utils/capability_tag_presenter.dart';
@@ -911,7 +910,7 @@ Future<void> sendCompleteReviewPackage(WidgetTester tester) async {
       break;
     }
     final unselected = find.byWidgetPredicate(
-      (widget) => widget is TenturaCommandButton && !widget.selected,
+      (widget) => widget is SwitchListTile && !widget.value,
     );
     expect(unselected, findsWidgets);
     await tapAndSettle(tester, unselected.first);

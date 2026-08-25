@@ -204,7 +204,15 @@ void main() {
         tester.widget(
           find.byKey(TestIds.key(TestIds.evaluationCannotEvaluate('u1'))),
         ),
-        isA<TenturaCommandButton>(),
+        isA<SwitchListTile>(),
+      );
+      expect(
+        tester
+            .widget<SwitchListTile>(
+              find.byKey(TestIds.key(TestIds.evaluationCannotEvaluate('u1'))),
+            )
+            .value,
+        isFalse,
       );
       await result.$3.close();
     },
@@ -286,13 +294,13 @@ void main() {
     expect(cubit.state.participants.single.currentValue, EvaluationValue.pos1);
     expect(cubit.state.participants.single.isSubmitted, isTrue);
     expect(cubit.state.participants.single.note, 'kept note');
-    expect(tester.widget<TenturaCommandButton>(action).onPressed, isNull);
+    expect(tester.widget<SwitchListTile>(action).onChanged, isNull);
 
     repository.submitGate!.complete();
     await test.pumpAndSettle();
     expect(repository.submitCalls, 1);
     expect(test.widget<ListTile>(participantTile).onTap, isNotNull);
-    expect(tester.widget<TenturaCommandButton>(action).onPressed, isNotNull);
+    expect(tester.widget<SwitchListTile>(action).onChanged, isNotNull);
     repository.submitError = null;
     await test.tap(action);
     await test.pumpAndSettle();
@@ -309,7 +317,8 @@ void main() {
     );
     expect(cubit.state.participants.single.note, '');
     expect(test.widget<ListTile>(participantTile).onTap, isNull);
-    expect(tester.widget<TenturaCommandButton>(action).onPressed, isNotNull);
+    expect(tester.widget<SwitchListTile>(action).onChanged, isNotNull);
+    expect(tester.widget<SwitchListTile>(action).value, isTrue);
     await cubit.close();
   });
 
@@ -338,7 +347,7 @@ void main() {
     final action = find.byKey(
       TestIds.key(TestIds.evaluationCannotEvaluate('u1')),
     );
-    expect(tester.widget<TenturaCommandButton>(action).selected, isTrue);
+    expect(tester.widget<SwitchListTile>(action).value, isTrue);
     await test.tap(action);
     await test.pumpAndSettle();
     expect(repository.draftDeleteCalls, 1);

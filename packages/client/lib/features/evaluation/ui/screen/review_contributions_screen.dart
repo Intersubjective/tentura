@@ -441,16 +441,16 @@ class _ParticipantTile extends StatelessWidget {
                 const TenturaHairlineDivider(),
                 Padding(
                   padding: tt.cardPadding,
-                  child: Align(
-                    alignment: Alignment.centerLeft,
-                    child: TenturaCommandButton(
-                      key: TestIds.key(
-                        TestIds.evaluationCannotEvaluate(participant.userId),
-                      ),
-                      label: l10n.evaluationCannotEvaluate,
-                      selected: cannotEvaluateSelected,
-                      onPressed: isLoading ? null : onCannotEvaluateToggle,
+                  child: SwitchListTile(
+                    key: TestIds.key(
+                      TestIds.evaluationCannotEvaluate(participant.userId),
                     ),
+                    contentPadding: EdgeInsets.zero,
+                    title: Text(l10n.evaluationCannotEvaluate),
+                    value: cannotEvaluateSelected,
+                    onChanged: isLoading
+                        ? null
+                        : (_) => onCannotEvaluateToggle(),
                   ),
                 ),
               ],

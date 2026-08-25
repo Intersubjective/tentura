@@ -315,15 +315,11 @@ class _EvaluationDetailSheetBodyState
                   minLines: 3,
                   onChanged: (_) => setState(() {}),
                   decoration: InputDecoration(
-                    labelText: widget.l10n.evaluationNoteLabelOptional,
+                    labelText: widget.l10n.evaluationNoteLabelOptional(
+                      _displayName,
+                    ),
                     border: const OutlineInputBorder(),
                   ),
-                ),
-                SizedBox(height: tt.rowGap),
-                _EvaluationRevealNotice(
-                  isDraft: _isDraft,
-                  name: _displayName,
-                  l10n: widget.l10n,
                 ),
                 SizedBox(height: tt.rowGap),
                 FilledButton(
@@ -346,31 +342,6 @@ class _EvaluationDetailSheetBodyState
             ),
           ),
         ),
-      ),
-    );
-  }
-}
-
-class _EvaluationRevealNotice extends StatelessWidget {
-  const _EvaluationRevealNotice({
-    required this.isDraft,
-    required this.name,
-    required this.l10n,
-  });
-
-  final bool isDraft;
-  final String name;
-  final L10n l10n;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    return Text(
-      isDraft
-          ? l10n.evaluationRevealNoticeDraft
-          : l10n.evaluationRevealNoticeLive(name),
-      style: theme.textTheme.bodySmall?.copyWith(
-        color: theme.colorScheme.onSurfaceVariant,
       ),
     );
   }
