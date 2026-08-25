@@ -59,6 +59,7 @@ final class ReviewFinalizationCase extends UseCaseBase
     String beaconId, {
     required String reason,
     String? actorUserId,
+    bool requireAllRequiredPackagesSent = false,
   }) =>
       _unitOfWork.run<ReviewFinalizationResult>(
         actorUserId: actorUserId,
@@ -67,6 +68,7 @@ final class ReviewFinalizationCase extends UseCaseBase
             beaconId,
             reason: reason,
             actorUserId: actorUserId,
+            requireAllRequiredPackagesSent: requireAllRequiredPackagesSent,
           );
           if (snapshot == null) {
             return const ReviewFinalizationResult(didClose: false);

@@ -163,4 +163,19 @@ void main() {
     expect(result.pairs, isEmpty);
     expect(trustEvidence.recorded, isEmpty);
   });
+
+  test(
+    'forwards requireAllRequiredPackagesSent and aborts when lock recheck fails',
+    () async {
+      evalRepo.abortWhenRequireAllRequiredPackagesSent = true;
+      final result = await case_.closeAndFinalize(
+        beaconId,
+        reason: 'author_close_now',
+        requireAllRequiredPackagesSent: true,
+      );
+      expect(evalRepo.lastRequireAllRequiredPackagesSent, isTrue);
+      expect(result.didClose, isFalse);
+      expect(trustEvidence.recorded, isEmpty);
+    },
+  );
 }

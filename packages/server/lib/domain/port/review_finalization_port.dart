@@ -5,5 +5,6 @@ abstract interface class ReviewFinalizationPort {
     String beaconId, {
     required String reason,
     String? actorUserId,
+    bool requireAllRequiredPackagesSent = false,
   });
 }

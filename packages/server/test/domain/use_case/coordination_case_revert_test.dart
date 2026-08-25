@@ -158,6 +158,7 @@ class _TrackingEvaluationRepository implements EvaluationRepositoryPort {
     String beaconId, {
     required String reason,
     String? actorUserId,
+    bool requireAllRequiredPackagesSent = false,
   }) async =>
       null;
 

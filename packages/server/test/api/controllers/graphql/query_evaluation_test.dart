@@ -309,5 +309,6 @@ final class _NoOpFinalization implements ReviewFinalizationPort {
     String beaconId, {
     required String reason,
     String? actorUserId,
+    bool requireAllRequiredPackagesSent = false,
   }) async => const ReviewFinalizationResult(didClose: false);
 }

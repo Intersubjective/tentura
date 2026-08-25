@@ -264,7 +264,14 @@ class _FakeEvaluationRepository implements EvaluationRepositoryPort {
   Map<String, int> reviewStatusesResult = {};
   DateTime extendReviewResult = DateTime.utc(2025, 1, 8);
   final closeReviewWindowCalls =
-      <({String beaconId, String reason, String? actorUserId})>[];
+      <
+        ({
+          String beaconId,
+          String reason,
+          String? actorUserId,
+          bool requireAllRequiredPackagesSent,
+        })
+      >[];
   List<BeaconEvaluationRecord> listEvaluationsForEvaluatedUserResult = [];
   List<CrossBeaconEvaluationRecord> listFinalizedEvaluationsBetweenResult = [];
   BeaconEvaluationRecord? evaluationResult;
@@ -409,9 +416,15 @@ class _FakeEvaluationRepository implements EvaluationRepositoryPort {
     String beaconId, {
     required String reason,
     String? actorUserId,
+    bool requireAllRequiredPackagesSent = false,
   }) async {
     closeReviewWindowCalls.add(
-      (beaconId: beaconId, reason: reason, actorUserId: actorUserId),
+      (
+        beaconId: beaconId,
+        reason: reason,
+        actorUserId: actorUserId,
+        requireAllRequiredPackagesSent: requireAllRequiredPackagesSent,
+      ),
     );
     return ReviewCloseSnapshot(
       beaconId: beaconId,
@@ -492,7 +505,14 @@ class _FakeEvaluationRepository implements EvaluationRepositoryPort {
 
 class _FakeReviewFinalization implements ReviewFinalizationPort {
   final closeAndFinalizeCalls =
-      <({String beaconId, String reason, String? actorUserId})>[];
+      <
+        ({
+          String beaconId,
+          String reason,
+          String? actorUserId,
+          bool requireAllRequiredPackagesSent,
+        })
+      >[];
 
   ReviewFinalizationResult result = const ReviewFinalizationResult(
     didClose: true,
@@ -503,9 +523,15 @@ class _FakeReviewFinalization implements ReviewFinalizationPort {
     String beaconId, {
     required String reason,
     String? actorUserId,
+    bool requireAllRequiredPackagesSent = false,
   }) async {
     closeAndFinalizeCalls.add(
-      (beaconId: beaconId, reason: reason, actorUserId: actorUserId),
+      (
+        beaconId: beaconId,
+        reason: reason,
+        actorUserId: actorUserId,
+        requireAllRequiredPackagesSent: requireAllRequiredPackagesSent,
+      ),
     );
     return result;
   }
@@ -663,6 +689,7 @@ final class _CausalReviewFinalization implements ReviewFinalizationPort {
     String beaconId, {
     required String reason,
     String? actorUserId,
+    bool requireAllRequiredPackagesSent = false,
   }) async {
     repository.finalizeSubmitted(beaconId);
     beaconRepository.current = beaconRepository.current.copyWith(
@@ -2521,8 +2548,42 @@ void main() {
           beaconId: beaconId,
           reason: BeaconLifecycleChangeReason.authorCloseNow,
           actorUserId: userId,
+          requireAllRequiredPackagesSent: true,
         ),
       ]);
+    });
+
+    test('throws notEligible when lock-time revalidation aborts close', () async {
+      evalRepo.reviewStatusesResult = {
+        userId: 2,
+        helperId: 2,
+      };
+      reviewFinalization.result = const ReviewFinalizationResult(
+        didClose: false,
+      );
+
+      await expectLater(
+        () => evaluationCase.closeNow(
+          beaconId: beaconId,
+          userId: userId,
+        ),
+        throwsA(
+          isA<EvaluationException>().having(
+            (e) => e.code.codeNumber,
+            'codeNumber',
+            const EvaluationExceptionCodes(
+              EvaluationExceptionCode.notEligible,
+            ).codeNumber,
+          ),
+        ),
+      );
+      expect(
+        reviewFinalization
+            .closeAndFinalizeCalls
+            .single
+            .requireAllRequiredPackagesSent,
+        isTrue,
+      );
     });
 
     test('throws notEligible when required reviewers are incomplete', () async {

@@ -146,9 +146,15 @@ abstract class EvaluationRepositoryPort {
 
   /// Storage-only close: window guard, status transitions, submitted→final.
   /// Returns null when the window is absent or already closed.
+  ///
+  /// When [requireAllRequiredPackagesSent] is true, rechecks author+committer
+  /// review statuses under the beacon advisory lock and aborts (null, no
+  /// mutation) if any required reviewer is no longer status=2 — closing the
+  /// TOCTOU with [submitEvaluationAtomic] demotions.
   Future<ReviewCloseSnapshot?> closeReviewWindow(
     String beaconId, {
     required String reason,
     String? actorUserId,
+    bool requireAllRequiredPackagesSent = false,
   });
 }
