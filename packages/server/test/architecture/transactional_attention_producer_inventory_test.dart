@@ -225,7 +225,7 @@ void main() {
       const expectedIntentSites = <String, int>{
         'beacon_case.dart': 2,
         'coordination_case.dart': 1,
-        'evaluation_case.dart': 3,
+        'evaluation_case.dart': 4,
         'attention_expiry_sweep_case.dart': 1,
       };
 
