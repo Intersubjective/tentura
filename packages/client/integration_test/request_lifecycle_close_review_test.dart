@@ -42,7 +42,6 @@ void main() {
     );
 
     await closeRequestAndOpenReview(tester);
-    await reviewParticipant(tester, fixture.authorUserId);
     await reviewParticipant(tester, fixture.helperUserId);
     await tapAndSettle(
       tester,

@@ -413,10 +413,16 @@ Future<String> createAndForwardRequest(
     needSlug: needSlug,
   );
 
-  await tapAndSettle(
-    tester,
-    find.byKey(TestIds.key(TestIds.forwardRecipient(fixture.helperUserId))),
+  final recipient = find.byKey(
+    TestIds.key(TestIds.forwardRecipient(fixture.helperUserId)),
   );
+  await pumpUntilVisible(tester, recipient);
+  final selectRecipient = find.descendant(
+    of: recipient,
+    matching: find.bySemanticsLabel('Select'),
+  );
+  await pumpUntilVisible(tester, selectRecipient);
+  await tapAndSettle(tester, selectRecipient);
   final forwardSubmit = find.byKey(TestIds.key(TestIds.forwardSubmit));
   await pumpUntil(
     tester,
