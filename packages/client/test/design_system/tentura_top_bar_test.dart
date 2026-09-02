@@ -101,6 +101,36 @@ void main() {
     expect(actionIconRight, moreOrLessEquals(bodyRight, epsilon: 1));
   });
 
+  testWidgets('TenturaTopBar accepts Expanded title rows', (tester) async {
+    await tester.pumpWidget(
+      _TopBarHarness(
+        size: const Size(390, 240),
+        builder: (context) => Scaffold(
+          appBar: TenturaTopBar.of(
+            context,
+            leading: const IconButton(
+              onPressed: null,
+              icon: Icon(Icons.arrow_back),
+            ),
+            title: const Row(
+              children: [
+                Expanded(child: Text('Flexible title that must not break')),
+                Icon(Icons.lock, size: 16),
+              ],
+            ),
+            actions: const [
+              IconButton(onPressed: null, icon: Icon(Icons.more_vert)),
+            ],
+          ),
+          body: const SizedBox(),
+        ),
+      ),
+    );
+
+    expect(tester.takeException(), isNull);
+    expect(find.text('Flexible title that must not break'), findsOneWidget);
+  });
+
   testWidgets('TenturaTopBar trailing actions do not overflow on compact', (
     tester,
   ) async {

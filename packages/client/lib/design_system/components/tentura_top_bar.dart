@@ -169,24 +169,17 @@ class TenturaTopBar extends StatelessWidget implements PreferredSizeWidget {
             ),
           );
 
+    // Do not wrap [title] in FittedBox: many callers pass a Row with Expanded
+    // (inbox / threads), and FittedBox gives the child unbounded width.
     final middle = Padding(
       padding: EdgeInsetsDirectional.only(
         start: leading == null ? 0 : iconTextGap,
       ),
       child: centerTitle
-          ? Center(
-              child: FittedBox(
-                fit: BoxFit.scaleDown,
-                child: title,
-              ),
-            )
+          ? Center(child: title)
           : Align(
               alignment: AlignmentDirectional.centerStart,
-              child: FittedBox(
-                fit: BoxFit.scaleDown,
-                alignment: AlignmentDirectional.centerStart,
-                child: title,
-              ),
+              child: title,
             ),
     );
 

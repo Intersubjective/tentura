@@ -24,6 +24,7 @@ COPY packages/tentura_lints/pubspec.yaml packages/tentura_lints/
 COPY packages/ferry_generator/pubspec.yaml packages/ferry_generator/
 COPY packages/image_cropper_for_web/pubspec.yaml packages/image_cropper_for_web/
 COPY packages/force_directed_graphview/pubspec.yaml packages/force_directed_graphview/
+COPY packages/web_socket_client/pubspec.yaml packages/web_socket_client/
 RUN dart pub get
 
 COPY . .
