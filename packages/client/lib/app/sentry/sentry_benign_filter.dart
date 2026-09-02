@@ -42,5 +42,11 @@ bool isBenignSentryExceptionText(String text) {
       lower.contains('timed out while trying to start the service worker')) {
     return true;
   }
+  // Flutter web LicenseRegistry / leftover callers loading the root NOTICES
+  // asset (Sentry enricher used to trigger this — see reportPackages=false).
+  if (lower.contains('unable to load asset: "notices"') ||
+      lower.contains("unable to load asset: 'notices'")) {
+    return true;
+  }
   return false;
 }

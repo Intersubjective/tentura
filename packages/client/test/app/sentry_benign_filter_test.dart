@@ -85,6 +85,18 @@ void main() {
         isTrue,
       );
     });
+
+    test('Flutter web NOTICES asset load failure is benign', () {
+      expect(
+        isBenignSentryThrowable(
+          Exception(
+            'Unable to load asset: "NOTICES".\n'
+            'The asset does not exist or has empty data.',
+          ),
+        ),
+        isTrue,
+      );
+    });
   });
 
   group('isBenignSentryExceptionText', () {

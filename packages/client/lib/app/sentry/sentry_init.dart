@@ -53,6 +53,11 @@ void configureSentryOptions(SentryFlutterOptions options) {
     ..environment = sentryEnvironment
     ..sendDefaultPii = true
     ..enableLogs = true
+    // Sentry's Flutter enricher reads LicenseRegistry to list package names.
+    // That loads the web `NOTICES` asset; a failed/transient fetch becomes an
+    // uncaught secondary error (TENTURA-CLIENT-2E). Versions are always
+    // "unknown" anyway — skip the expensive/fragile package scan.
+    ..reportPackages = false
     ..tracesSampleRate = 1.0
     ..captureFailedRequests = false
     ..debug = false

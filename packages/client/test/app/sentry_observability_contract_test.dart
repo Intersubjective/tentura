@@ -4,6 +4,14 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   group('client Sentry observability contract', () {
+    test('disables LicenseRegistry package scan on web (NOTICES)', () {
+      final source = File(
+        'lib/app/sentry/sentry_init.dart',
+      ).readAsStringSync();
+
+      expect(source, contains('reportPackages = false'));
+    });
+
     test('log bridge records breadcrumbs without creating issues', () {
       final source = File(
         'lib/app/sentry/sentry_log_bridge.dart',
