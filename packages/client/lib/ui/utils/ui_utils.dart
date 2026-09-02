@@ -5,8 +5,8 @@ import 'dart:async';
 
 import 'package:intl/intl.dart';
 import 'package:logging/logging.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 
 import 'package:tentura/app/sentry/report_user_facing_error.dart';
 import 'package:tentura/consts.dart';
@@ -17,6 +17,7 @@ import '../bloc/screen_cubit.dart';
 import '../effect/ui_effect_bus.dart';
 import '../effect/ui_effect_handler.dart';
 import '../l10n/l10n.dart';
+import 'copy_text_to_clipboard.dart';
 
 /// Provides a route-local [ScreenCubit] and [UiEffectHandler] subtree.
 Widget localScreenCubitScope({required Widget child}) {
@@ -126,7 +127,9 @@ ScaffoldFeatureController<SnackBar, SnackBarClosedReason> showSnackBar(
       (isError && fullText.isNotEmpty
           ? SnackBarAction(
               label: L10n.of(context)?.copyToClipboard ?? 'Copy',
-              onPressed: () => Clipboard.setData(ClipboardData(text: fullText)),
+              onPressed: () {
+                unawaited(copyTextToClipboard(fullText));
+              },
             )
           : null);
 

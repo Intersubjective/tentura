@@ -2,11 +2,11 @@ import 'dart:async';
 
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:get_it/get_it.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/utils/copy_text_to_clipboard.dart';
 
 import '../bloc/debug_settings_cubit.dart';
 
@@ -142,9 +142,9 @@ class _FcmRegistrationSection extends StatelessWidget {
                     Align(
                       alignment: Alignment.centerLeft,
                       child: TextButton(
-                        onPressed: () => Clipboard.setData(
-                          ClipboardData(text: token),
-                        ),
+                        onPressed: () {
+                          unawaited(copyTextToClipboard(token));
+                        },
                         child: Text(l10n.copyToClipboard),
                       ),
                     ),

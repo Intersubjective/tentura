@@ -1,12 +1,12 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:share_plus/share_plus.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
 
 import '../l10n/l10n.dart';
 import '../message/common_messages.dart';
+import '../utils/copy_text_to_clipboard.dart';
 import '../utils/ui_utils.dart';
 import '../widget/qr_code.dart';
 
@@ -40,8 +40,8 @@ class ShareCodeDialog extends StatelessWidget {
   final String? caption;
 
   Future<void> _copyLink(BuildContext context, L10n l10n) async {
-    await Clipboard.setData(ClipboardData(text: link));
-    if (context.mounted) {
+    final ok = await copyTextToClipboard(link);
+    if (ok && context.mounted) {
       showSnackBar(
         context,
         text: const LinkCopiedToClipboardMessage().toL10n(

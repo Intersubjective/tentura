@@ -3,7 +3,7 @@ import 'dart:ui';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
+import 'package:tentura/ui/utils/copy_text_to_clipboard.dart';
 
 class DebugErrorStore extends ChangeNotifier {
   DebugErrorStore._();
@@ -144,7 +144,7 @@ class DebugErrorPanel extends StatelessWidget {
               ),
               TextButton(
                 onPressed: () {
-                  unawaited(Clipboard.setData(ClipboardData(text: errorText)));
+                  unawaited(copyTextToClipboard(errorText));
                 },
                 child: const Text('Copy'),
               ),

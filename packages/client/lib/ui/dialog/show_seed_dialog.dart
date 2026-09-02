@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/utils/copy_text_to_clipboard.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura/ui/widget/qr_code.dart';
 
@@ -51,8 +51,8 @@ class ShowSeedDialog extends StatelessWidget {
         TextButton(
           child: Text(l10n.copyToClipboard),
           onPressed: () async {
-            await Clipboard.setData(ClipboardData(text: seed));
-            if (context.mounted) {
+            final ok = await copyTextToClipboard(seed);
+            if (ok && context.mounted) {
               showSnackBar(context, text: l10n.seedCopied);
             }
           },
