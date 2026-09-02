@@ -156,6 +156,21 @@ void main() {
     expect(promiseCopy.title, 'Sam accepted your promise');
   });
 
+  test('roomAccess uses offer-accepted copy and room deep link', () {
+    final copy = builder.build(
+      intent: intent(kind: NotificationKind.roomAccess),
+      actorDisplayName: 'Alex',
+    );
+
+    expect(copy.title, 'Offer accepted');
+    expect(copy.body, 'Your offer was accepted');
+    expect(
+      copy.actionUrl,
+      '/#$kPathBeaconView/beacon-1?tab=threads&thread=general'
+      '&entry=deep_link&is_deep_link=true',
+    );
+  });
+
   test('commitment copy includes request title when provided', () {
     final copy = builder.build(
       intent: intent(

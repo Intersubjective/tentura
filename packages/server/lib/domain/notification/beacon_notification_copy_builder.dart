@@ -99,11 +99,12 @@ class BeaconNotificationCopyBuilder {
         ),
       ),
       NotificationKind.roomAccess => (
-        'Discussion access',
-        excerpt.isNotEmpty
-            ? excerpt
-            : 'You were added to this request\'s discussion. '
-                  'Everyone admitted can read messages, including earlier history.',
+        'Offer accepted',
+        _bodyWithRequest(
+          beaconTitle: beaconTitle,
+          excerpt: excerpt,
+          fallback: 'Your offer was accepted',
+        ),
       ),
       NotificationKind.commitmentDeclined => (
         'Offer declined',
