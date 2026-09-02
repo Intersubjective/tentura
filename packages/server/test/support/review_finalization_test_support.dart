@@ -33,14 +33,23 @@ final class FakeEvaluationRepo extends Fake implements EvaluationRepositoryPort 
   ReviewCloseSnapshot? snapshotOnClose;
   String authorParticipantId = 'U-author';
   String committerParticipantId = 'U-committer';
+  bool? lastRequireAllRequiredPackagesSent;
+  bool abortWhenRequireAllRequiredPackagesSent = false;
 
   @override
   Future<ReviewCloseSnapshot?> closeReviewWindow(
     String beaconId, {
     required String reason,
     String? actorUserId,
-  }) async =>
-      snapshotOnClose;
+    bool requireAllRequiredPackagesSent = false,
+  }) async {
+    lastRequireAllRequiredPackagesSent = requireAllRequiredPackagesSent;
+    if (requireAllRequiredPackagesSent &&
+        abortWhenRequireAllRequiredPackagesSent) {
+      return null;
+    }
+    return snapshotOnClose;
+  }
 
   @override
   Future<List<BeaconEvaluationParticipantRecord>> listParticipants(

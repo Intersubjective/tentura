@@ -8,5 +8,11 @@ dependency_overrides:
   # hasn't been produced yet by the async relayout (see package README).
   force_directed_graphview:
     path: packages/force_directed_graphview
+  # Tentura workaround for web_socket_client 0.2.1 (Sentry 2A–2D).
+  # Remove packages/web_socket_client + this override when upstream merges+releases
+  # https://github.com/felangel/web_socket_client/pull/87
+  # AND channel stream onError / Object catch (our extra patches in that package).
+  web_socket_client:
+    path: packages/web_socket_client
   adaptive_number:
     git: https://github.com/alexandrim0/adaptive_number_dart.git

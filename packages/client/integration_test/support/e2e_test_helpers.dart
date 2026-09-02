@@ -909,11 +909,15 @@ Future<void> sendCompleteReviewPackage(WidgetTester tester) async {
     if (submit.onPressed != null) {
       break;
     }
-    final unselected = find.byWidgetPredicate(
-      (widget) => widget is SwitchListTile && !widget.value,
+    final canEvaluateOn = find.byWidgetPredicate(
+      (widget) => widget is SwitchListTile && widget.value,
     );
-    expect(unselected, findsWidgets);
-    await tapAndSettle(tester, unselected.first);
+    expect(canEvaluateOn, findsWidgets);
+    await tapAndSettle(tester, canEvaluateOn.first);
+    final confirm = find.text('Cannot evaluate');
+    if (confirm.evaluate().isNotEmpty) {
+      await tapAndSettle(tester, confirm.last);
+    }
   }
   await tapAndSettle(
     tester,

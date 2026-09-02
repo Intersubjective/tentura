@@ -44,25 +44,32 @@ class FcmService extends ServiceBase {
   //
   Future<NotificationPermissions> requestPermission() async {
     fcmLog('FcmService: requestPermission (Firebase)');
-    final settings = await FirebaseMessaging.instance.requestPermission(
-      provisional: true,
-    );
-    final status = settings.authorizationStatus;
-    final pluginAuthorized = status == AuthorizationStatus.authorized;
-    // Cross-check the browser's own Notification.permission: on an iOS
-    // Safari PWA, FirebaseMessaging's authorizationStatus was observed
-    // reporting "denied" while the browser's actual permission was
-    // "granted" (confirmed live — a direct showNotification() call
-    // displayed correctly on the same device at the same time this
-    // reported denied). Trust either source being affirmative.
-    final browserGranted = browserNotificationPermissionGranted() ?? false;
-    final authorized = pluginAuthorized || browserGranted;
-    fcmLog(
-      'FcmService: authorizationStatus=${status.name} '
-      'alert=${settings.alert} badge=${settings.badge} '
-      'browserGranted=$browserGranted authorized=$authorized',
-    );
-    return NotificationPermissions(authorized: authorized);
+    try {
+      final settings = await FirebaseMessaging.instance.requestPermission(
+        provisional: true,
+      );
+      final status = settings.authorizationStatus;
+      final pluginAuthorized = status == AuthorizationStatus.authorized;
+      // Cross-check the browser's own Notification.permission: on an iOS
+      // Safari PWA, FirebaseMessaging's authorizationStatus was observed
+      // reporting "denied" while the browser's actual permission was
+      // "granted" (confirmed live — a direct showNotification() call
+      // displayed correctly on the same device at the same time this
+      // reported denied). Trust either source being affirmative.
+      final browserGranted = browserNotificationPermissionGranted() ?? false;
+      final authorized = pluginAuthorized || browserGranted;
+      fcmLog(
+        'FcmService: authorizationStatus=${status.name} '
+        'alert=${settings.alert} badge=${settings.badge} '
+        'browserGranted=$browserGranted authorized=$authorized',
+      );
+      return NotificationPermissions(authorized: authorized);
+    } on Object catch (e, st) {
+      if (!_isUnsupportedBrowserMessaging(e)) rethrow;
+      logger.fine('FCM requestPermission unsupported browser', e, st);
+      fcmLog('FcmService: requestPermission unsupported-browser → denied');
+      return const NotificationPermissions();
+    }
   }
 
   //
@@ -71,12 +78,25 @@ class FcmService extends ServiceBase {
     fcmLog(
       'FcmService: getToken vapidKeyLen=${env.firebaseVapidKey.length}',
     );
-    final token = await FirebaseMessaging.instance.getToken(
-      vapidKey: env.firebaseVapidKey,
-    );
-    fcmLog('FcmService: getToken result ${fcmTokenFingerprint(token)}');
-    return token;
+    try {
+      final token = await FirebaseMessaging.instance.getToken(
+        vapidKey: env.firebaseVapidKey,
+      );
+      fcmLog('FcmService: getToken result ${fcmTokenFingerprint(token)}');
+      return token;
+    } on Object catch (e, st) {
+      if (!_isUnsupportedBrowserMessaging(e)) rethrow;
+      logger.fine('FCM getToken unsupported browser', e, st);
+      fcmLog('FcmService: getToken unsupported-browser → null');
+      return null;
+    }
   }
+}
+
+bool _isUnsupportedBrowserMessaging(Object error) {
+  final text = error.toString().toLowerCase();
+  return text.contains('messaging/unsupported-browser') ||
+      text.contains("doesn't support the api's required to use the firebase");
 }
 
 final class _FcmServiceFake implements FcmService {

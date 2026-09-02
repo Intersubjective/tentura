@@ -33,11 +33,18 @@ void main() {
       find.byKey(TestIds.key(TestIds.evaluationCapabilityField)),
       findsOneWidget,
     );
+    expect(
+      find.descendant(
+        of: find.byKey(TestIds.key(TestIds.evaluationCapabilityField)),
+        matching: find.byType(RawChip),
+      ),
+      findsOneWidget,
+    );
+    expect(find.text('Transport'), findsOneWidget);
     await evaluationScrollAndTap(
       tester,
       find.byKey(TestIds.key(TestIds.evaluationCapabilityField)),
     );
-    expect(find.text('Transport'), findsOneWidget);
     expect(find.text('Food'), findsNothing);
     expect(find.text('Writing'), findsNothing);
   });

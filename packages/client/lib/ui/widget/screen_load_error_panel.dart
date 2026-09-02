@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:get_it/get_it.dart';
 import 'package:logging/logging.dart';
 import 'package:tentura_root/domain/entity/localizable.dart';
@@ -12,6 +11,7 @@ import 'package:tentura/domain/exception/generic_exception.dart';
 import 'package:tentura/domain/exception/server_exception.dart';
 import 'package:tentura/features/auth/domain/exception.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/utils/copy_text_to_clipboard.dart';
 
 enum ScreenLoadErrorKind {
   network,
@@ -232,11 +232,9 @@ class ScreenLoadErrorPanel extends StatelessWidget {
               ],
               SizedBox(height: tt.tightGap),
               TextButton(
-                onPressed: () => Clipboard.setData(
-                  ClipboardData(
-                    text: _clipboardText(l10n),
-                  ),
-                ),
+                onPressed: () {
+                  unawaited(copyTextToClipboard(_clipboardText(l10n)));
+                },
                 child: Text(l10n.copyToClipboard),
               ),
             ],

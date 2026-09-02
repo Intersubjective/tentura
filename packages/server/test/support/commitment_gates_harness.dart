@@ -323,16 +323,29 @@ final class GateScenarioEvaluationRepository extends Fake
 final class GateScenarioReviewFinalization extends Fake
     implements ReviewFinalizationPort {
   final closeAndFinalizeCalls =
-      <({String beaconId, String reason, String? actorUserId})>[];
+      <
+        ({
+          String beaconId,
+          String reason,
+          String? actorUserId,
+          bool requireAllRequiredPackagesSent,
+        })
+      >[];
 
   @override
   Future<ReviewFinalizationResult> closeAndFinalize(
     String beaconId, {
     required String reason,
     String? actorUserId,
+    bool requireAllRequiredPackagesSent = false,
   }) async {
     closeAndFinalizeCalls.add(
-      (beaconId: beaconId, reason: reason, actorUserId: actorUserId),
+      (
+        beaconId: beaconId,
+        reason: reason,
+        actorUserId: actorUserId,
+        requireAllRequiredPackagesSent: requireAllRequiredPackagesSent,
+      ),
     );
     return const ReviewFinalizationResult(didClose: true);
   }

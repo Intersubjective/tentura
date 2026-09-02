@@ -6,6 +6,7 @@ import 'package:tentura_root/domain/entity/beacon_status.dart';
 import 'package:tentura_server/consts/beacon_activity_event_consts.dart';
 import 'package:tentura_server/domain/capability/capability_consts.dart';
 import 'package:tentura_server/domain/evaluation/beacon_evaluation_row_status.dart';
+import 'package:tentura_server/domain/evaluation/evaluation_participant_role.dart';
 import 'package:tentura_server/domain/entity/beacon_activity_event_entity.dart';
 import 'package:tentura_server/domain/entity/evaluation/beacon_evaluation_record.dart';
 import 'package:tentura_server/domain/entity/evaluation/cross_beacon_evaluation_record.dart';
@@ -647,6 +648,7 @@ ORDER BY e.updated_at DESC
     String beaconId, {
     required String reason,
     String? actorUserId,
+    bool requireAllRequiredPackagesSent = false,
   }) async {
     final now = DateTime.timestamp();
     return _db.transaction(() async {
@@ -672,6 +674,11 @@ ORDER BY e.updated_at DESC
       if (beaconRow.status != BeaconStatus.reviewOpen.smallintValue) {
         await downgradeSubmittedReviewsToDraft(beaconId);
         await deleteReviewScaffoldingForBeacon(beaconId);
+        return null;
+      }
+
+      if (requireAllRequiredPackagesSent &&
+          !await _requiredPackagesAllSentLocked(beaconId)) {
         return null;
       }
 
@@ -791,6 +798,22 @@ GROUP BY f.evaluator_id, f.evaluated_user_id, f.value, p.role
     r'SELECT pg_advisory_xact_lock(hashtextextended($1, 4242))',
     [beaconId],
   );
+
+  /// Caller must hold the beacon advisory xact lock.
+  Future<bool> _requiredPackagesAllSentLocked(String beaconId) async {
+    final participants = await listParticipants(beaconId);
+    final statuses = await listReviewStatusesForBeacon(beaconId);
+    for (final p in participants) {
+      if (p.role != EvaluationParticipantRole.author.dbValue &&
+          p.role != EvaluationParticipantRole.committer.dbValue) {
+        continue;
+      }
+      if (statuses[p.userId] != 2) {
+        return false;
+      }
+    }
+    return true;
+  }
 }
 
 Future<void> _insertBeaconLifecycleEvent({

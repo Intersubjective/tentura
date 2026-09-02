@@ -26,7 +26,9 @@ import 'package:tentura/features/forward/domain/use_case/forward_case.dart';
 import 'package:tentura/features/forward/domain/entity/forward_candidate.dart';
 import 'package:tentura/features/forward/domain/forward_draft_policy.dart';
 import 'package:tentura/features/forward/ui/model/forward_recipient_row_host.dart';
+import 'package:tentura/features/forward/ui/bloc/forward_state.dart';
 import 'package:tentura/features/forward/ui/widget/forward_recipient_row.dart';
+import 'package:tentura/features/forward/ui/widget/forward_scope_links.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/features/profile/domain/port/profile_repository_port.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
@@ -131,17 +133,9 @@ Future<void> _tapRowCheckbox(
   WidgetTester tester,
   String candidateId,
 ) async {
-  final semanticsTarget = find.bySemanticsLabel('Remove').evaluate().isNotEmpty
-      ? find.bySemanticsLabel('Remove')
-      : find.bySemanticsLabel('Select');
-  if (semanticsTarget.evaluate().isNotEmpty) {
-    await tester.tap(semanticsTarget);
-    return;
-  }
-  final rowBox = tester.getRect(
-    find.byKey(TestIds.key(TestIds.forwardRecipient(candidateId))),
+  await tester.tap(
+    find.byKey(TestIds.key(TestIds.forwardRecipientCheckbox(candidateId))),
   );
-  await tester.tapAt(Offset(rowBox.right - 22, rowBox.center.dy));
 }
 
 void main() {
@@ -535,6 +529,154 @@ void main() {
       await tester.pump();
 
       expect(taps, 0);
+    });
+
+    testWidgets(
+      'disabled checkbox tap does not open details',
+      (tester) async {
+        var taps = 0;
+        var opens = 0;
+        await _pumpRecipientRow(
+          tester,
+          candidate: _candidate(
+            id: pausedId,
+            availability: Availability(resumeOn: _resumeOn),
+          ),
+          isSelected: false,
+          onToggle: () => taps++,
+          onOpenDetails: () => opens++,
+        );
+
+        await _tapRowCheckbox(tester, pausedId);
+        await tester.pump();
+
+        expect(taps, 0);
+        expect(opens, 0);
+      },
+    );
+
+    testWidgets(
+      'enabled checkbox tap toggles without opening details',
+      (tester) async {
+        var taps = 0;
+        var opens = 0;
+        await _pumpRecipientRow(
+          tester,
+          candidate: _candidate(id: 'available-user'),
+          isSelected: false,
+          onToggle: () => taps++,
+          onOpenDetails: () => opens++,
+        );
+
+        await _tapRowCheckbox(tester, 'available-user');
+        await tester.pump();
+
+        expect(taps, 1);
+        expect(opens, 0);
+      },
+    );
+
+    testWidgets(
+      'identity tap opens details without toggling',
+      (tester) async {
+        var taps = 0;
+        var opens = 0;
+        await _pumpRecipientRow(
+          tester,
+          candidate: _candidate(id: 'available-user'),
+          isSelected: false,
+          onToggle: () => taps++,
+          onOpenDetails: () => opens++,
+        );
+
+        await tester.tap(
+          find.byKey(TestIds.key(TestIds.forwardRecipient('available-user'))),
+        );
+        await tester.pump();
+
+        expect(taps, 0);
+        expect(opens, 1);
+      },
+    );
+  });
+
+  group('ForwardScopeLinks.preferredHeight', () {
+    test('at default scale is at least buttonHeight', () {
+      const tt = TenturaTokens.light;
+      final height = ForwardScopeLinks.preferredHeight(
+        tt,
+        TextScaler.noScaling,
+      );
+      expect(height, greaterThanOrEqualTo(tt.buttonHeight));
+    });
+
+    test('grows with textScaler so content fits', () {
+      const tt = TenturaTokens.light;
+      final atDefault = ForwardScopeLinks.preferredHeight(
+        tt,
+        TextScaler.noScaling,
+      );
+      final atLarge = ForwardScopeLinks.preferredHeight(
+        tt,
+        const TextScaler.linear(1.5),
+      );
+      expect(atLarge, greaterThan(atDefault));
+      final line = 1.5 * 13 * 1.35;
+      final need = 2 * tt.rowGap + line + tt.iconTextGap + 2;
+      expect(atLarge, greaterThanOrEqualTo(need));
+    });
+
+    testWidgets('builds inside preferredHeight without overflow', (
+      tester,
+    ) async {
+      final flutterError = <FlutterErrorDetails>[];
+      final oldHandler = FlutterError.onError;
+      FlutterError.onError = flutterError.add;
+      addTearDown(() => FlutterError.onError = oldHandler);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          locale: const Locale('en'),
+          localizationsDelegates: L10n.localizationsDelegates,
+          supportedLocales: L10n.supportedLocales,
+          theme: TenturaTheme.light(),
+          builder: (context, child) => MediaQuery(
+            data: MediaQuery.of(context).copyWith(
+              textScaler: const TextScaler.linear(1.5),
+            ),
+            child: child!,
+          ),
+          home: Builder(
+            builder: (context) {
+              final tt = context.tt;
+              final height = ForwardScopeLinks.preferredHeight(
+                tt,
+                MediaQuery.textScalerOf(context),
+              );
+              return Scaffold(
+                body: SizedBox(
+                  height: height,
+                  width: 400,
+                  child: ForwardScopeLinks(
+                    activeFilter: ForwardFilter.alreadyInvolved,
+                    counts: const ForwardScopeCounts(unseen: 3, involved: 5),
+                    onScopeChanged: (_) {},
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(
+        flutterError.where(
+          (e) => e.exceptionAsString().contains('overflowed'),
+        ),
+        isEmpty,
+      );
+      expect(find.textContaining('Already involved'), findsOneWidget);
     });
   });
 

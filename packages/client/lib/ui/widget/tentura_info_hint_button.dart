@@ -40,15 +40,26 @@ class TenturaInfoHintButton extends StatelessWidget {
           unawaited(
             showDialog<void>(
               context: context,
-              builder: (ctx) => AlertDialog(
-                content: Text(fullText),
-                actions: [
-                  TextButton(
-                    onPressed: () => Navigator.of(ctx).pop(),
-                    child: Text(l10n.buttonDismiss),
+              builder: (ctx) {
+                final dialogTt = ctx.tt;
+                return AlertDialog(
+                  constraints: BoxConstraints(
+                    maxWidth: dialogTt.contentMaxWidth ?? 560,
                   ),
-                ],
-              ),
+                  content: SingleChildScrollView(
+                    child: Text(
+                      fullText,
+                      style: Theme.of(ctx).textTheme.bodyMedium,
+                    ),
+                  ),
+                  actions: [
+                    TextButton(
+                      onPressed: () => Navigator.of(ctx).pop(),
+                      child: Text(l10n.buttonDismiss),
+                    ),
+                  ],
+                );
+              },
             ),
           );
         },

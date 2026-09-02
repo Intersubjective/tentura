@@ -169,12 +169,51 @@ class TenturaTopBar extends StatelessWidget implements PreferredSizeWidget {
             ),
           );
 
-    return NavigationToolbar(
-      leading: toolbarLeading,
-      middle: title,
-      trailing: toolbarTrailing,
-      centerMiddle: centerTitle,
-      middleSpacing: leading == null ? 0 : iconTextGap,
+    final middle = Padding(
+      padding: EdgeInsetsDirectional.only(
+        start: leading == null ? 0 : iconTextGap,
+      ),
+      child: centerTitle
+          ? Center(
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                child: title,
+              ),
+            )
+          : Align(
+              alignment: AlignmentDirectional.centerStart,
+              child: FittedBox(
+                fit: BoxFit.scaleDown,
+                alignment: AlignmentDirectional.centerStart,
+                child: title,
+              ),
+            ),
+    );
+
+    // NavigationToolbar lays out trailing against the full width, so long
+    // text actions can paint over leading. Cap trailing to the space after a
+    // reserved leading slot; FittedBox.scaleDown shrinks labels to fit.
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final leadingReserve = leading == null
+            ? 0.0
+            : kMinInteractiveDimension + iconTextGap;
+        final trailingMax = (constraints.maxWidth - leadingReserve).clamp(
+          0.0,
+          double.infinity,
+        );
+        return Row(
+          children: [
+            if (toolbarLeading != null) toolbarLeading,
+            Expanded(child: middle),
+            if (toolbarTrailing != null)
+              ConstrainedBox(
+                constraints: BoxConstraints(maxWidth: trailingMax),
+                child: toolbarTrailing,
+              ),
+          ],
+        );
+      },
     );
   }
 

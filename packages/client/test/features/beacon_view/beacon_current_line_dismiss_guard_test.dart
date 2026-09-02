@@ -64,7 +64,7 @@ void main() {
     await tester.tapAt(const Offset(20, 20));
     await tester.pumpAndSettle();
 
-    expect(find.text('Discard changes?'), findsNothing);
+    expect(find.text('Leave without saving?'), findsNothing);
     expect(find.byType(TextField), findsNothing);
   });
 
@@ -77,10 +77,10 @@ void main() {
     await tester.tapAt(const Offset(20, 20));
     await tester.pumpAndSettle();
 
-    expect(find.text('Discard changes?'), findsOneWidget);
+    expect(find.text('Leave without saving?'), findsOneWidget);
     expect(find.byType(TextField), findsOneWidget);
 
-    await tester.tap(find.text('Discard'));
+    await tester.tap(find.text('Leave and discard'));
     await tester.pumpAndSettle();
 
     expect(find.byType(TextField), findsNothing);

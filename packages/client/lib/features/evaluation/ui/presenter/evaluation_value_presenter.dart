@@ -1,13 +1,11 @@
-import 'package:flutter/material.dart';
-
 import 'package:tentura/features/evaluation/domain/entity/evaluation_value.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
 class EvaluationValuePresentation {
-  const EvaluationValuePresentation(this.label, this.icon);
+  const EvaluationValuePresentation(this.label, this.emoji);
 
   final String label;
-  final IconData icon;
+  final String emoji;
 }
 
 EvaluationValuePresentation presentEvaluationValue(
@@ -16,27 +14,27 @@ EvaluationValuePresentation presentEvaluationValue(
 ) => switch (value) {
   EvaluationValue.pos2 => EvaluationValuePresentation(
     l10n.evaluationImpactHelpedALot,
-    Icons.keyboard_double_arrow_up_rounded,
+    '🤩',
   ),
   EvaluationValue.pos1 => EvaluationValuePresentation(
     l10n.evaluationImpactHelpedSomewhat,
-    Icons.arrow_upward_rounded,
+    '👍',
   ),
   EvaluationValue.zero => EvaluationValuePresentation(
     l10n.evaluationImpactNoRealEffect,
-    Icons.remove_rounded,
+    '🤷',
   ),
   EvaluationValue.neg1 => EvaluationValuePresentation(
     l10n.evaluationImpactHurtSomewhat,
-    Icons.arrow_downward_rounded,
+    '👎',
   ),
   EvaluationValue.neg2 => EvaluationValuePresentation(
     l10n.evaluationImpactHurtALot,
-    Icons.keyboard_double_arrow_down_rounded,
+    '😠',
   ),
   EvaluationValue.noBasis => EvaluationValuePresentation(
     l10n.evaluationNoBasisLabel,
-    Icons.help_outline_rounded,
+    '❔',
   ),
 };
 

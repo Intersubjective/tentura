@@ -145,6 +145,16 @@ export function trackError(event, err, data = {}) {
     message: event,
     data: { ...data, error: String(err) },
   });
+  // User-input validation (empty email) must not become Sentry issues
+  // (TENTURA-LANDING-E). Keep breadcrumbs; skip captureException.
+  if (
+    err &&
+    err.name === 'EmailLinkError' &&
+    typeof err.message === 'string' &&
+    err.message === 'Please enter your email.'
+  ) {
+    return;
+  }
   Sentry.captureException(err, { extra: { funnel_event: event, ...data } });
 }
 

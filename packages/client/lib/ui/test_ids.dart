@@ -14,6 +14,9 @@ abstract final class TestIds {
 
   static String forwardRecipient(String userId) => 'forward.recipient.$userId';
 
+  static String forwardRecipientCheckbox(String userId) =>
+      'forward.recipient.checkbox.$userId';
+
   static const inboxOfferHelp = 'inbox.offer_help';
   static const inboxForward = 'inbox.forward';
   static const inboxDismiss = 'inbox.dismiss';
@@ -110,6 +113,7 @@ abstract final class TestIds {
   static const evaluationCapabilityDone = 'evaluation.capability.done';
   static const evaluationCapabilityCancel = 'evaluation.capability.cancel';
   static const evaluationCapabilityField = 'evaluation.capability.field';
+  static const evaluationCapabilityInfo = 'evaluation.capability.info';
   static String evaluationCannotEvaluate(String userId) =>
       'evaluation.cannot_evaluate.$userId';
 

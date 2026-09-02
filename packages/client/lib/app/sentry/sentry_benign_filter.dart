@@ -42,5 +42,25 @@ bool isBenignSentryExceptionText(String text) {
       lower.contains('timed out while trying to start the service worker')) {
     return true;
   }
+  // Flutter web LicenseRegistry / leftover callers loading the root NOTICES
+  // asset (Sentry enricher used to trigger this — see reportPackages=false).
+  if (lower.contains('unable to load asset: "notices"') ||
+      lower.contains("unable to load asset: 'notices'")) {
+    return true;
+  }
+  // web_socket_client Completer race / channel drop — keep while older bundles
+  // are cached; drop after deploy of packages/web_socket_client workaround and
+  // eventually after https://github.com/felangel/web_socket_client/pull/87 lands.
+  if (lower.contains('bad state: future already completed') ||
+      lower.contains('websocket connection failed') ||
+      lower.contains('websocketchannelexception')) {
+    return true;
+  }
+  // Safari / privacy browsers: clipboard gesture or missing Messaging APIs.
+  if (lower.contains('clipboard.setdata failed') ||
+      lower.contains('copy_fail') ||
+      lower.contains('messaging/unsupported-browser')) {
+    return true;
+  }
   return false;
 }

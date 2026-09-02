@@ -21,7 +21,15 @@ class _ExpiryRepository extends Fake implements AttentionExpiryRepositoryPort {
 }
 
 class _ReviewFinalization implements ReviewFinalizationPort {
-  final calls = <({String beaconId, String reason, String? actorUserId})>[];
+  final calls =
+      <
+        ({
+          String beaconId,
+          String reason,
+          String? actorUserId,
+          bool requireAllRequiredPackagesSent,
+        })
+      >[];
 
   ReviewFinalizationResult result = const ReviewFinalizationResult(
     didClose: true,
@@ -32,11 +40,13 @@ class _ReviewFinalization implements ReviewFinalizationPort {
     String beaconId, {
     required String reason,
     String? actorUserId,
+    bool requireAllRequiredPackagesSent = false,
   }) async {
     calls.add((
       beaconId: beaconId,
       reason: reason,
       actorUserId: actorUserId,
+      requireAllRequiredPackagesSent: requireAllRequiredPackagesSent,
     ));
     return result;
   }
@@ -72,6 +82,7 @@ void main() {
           beaconId: beaconId,
           reason: BeaconLifecycleChangeReason.reviewExpired,
           actorUserId: null,
+          requireAllRequiredPackagesSent: false,
         ),
       ]);
       final intent = attention.recorded.single;

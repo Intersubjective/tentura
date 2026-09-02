@@ -52,11 +52,38 @@ test('track is no-op when Sentry is absent', async () => {
   assert.equal(track('landing_view'), undefined);
 });
 
-test('trackError is no-op when Sentry is absent', async () => {
+test('trackError skips captureException for empty-email EmailLinkError', async () => {
   installBrowserGlobals();
-  const { trackError, resetAnalyticsForTests } = await import('../analytics.js');
+  globalThis.TENTURA = {
+    sentryDsn: 'https://example.com/1',
+    sentryEnvironment: 'dev',
+    sentryRelease: 'landing@1.0.0',
+    apiBase: '',
+  };
+  const exceptions = [];
+  globalThis.Sentry = {
+    browserTracingIntegration: () => ({}),
+    replayIntegration: () => ({}),
+    init: () => {},
+    getCurrentScope: () => ({ setTag: () => {} }),
+    addBreadcrumb: () => {},
+    captureMessage: () => {},
+    captureException: (err) => exceptions.push(err),
+    setUser: () => {},
+  };
+  const { initAnalytics, trackError, resetAnalyticsForTests } = await import(
+    '../analytics.js'
+  );
   resetAnalyticsForTests();
-  assert.equal(trackError('preview_error', new Error('x')), undefined);
+  initAnalytics();
+  const err = new Error('Please enter your email.');
+  err.name = 'EmailLinkError';
+  trackError('qa_test_login_error', err);
+  assert.equal(exceptions.length, 0);
+  const real = new Error('Could not reach the server (x).');
+  real.name = 'EmailLinkError';
+  trackError('qa_test_login_error', real);
+  assert.equal(exceptions.length, 1);
 });
 
 test('initAnalytics wires Sentry when DSN present', async () => {

@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon_fact_card.dart';
@@ -9,6 +8,7 @@ import 'package:tentura/domain/entity/beacon_fact_card_consts.dart';
 import 'package:tentura/features/beacon_threads/ui/bloc/room_cubit.dart';
 import 'package:tentura/features/beacon_threads/ui/message/beacon_room_fact_messages.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/utils/copy_text_to_clipboard.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 
 /// Actions for a single fact card (modal).
@@ -130,15 +130,14 @@ Future<void> showFactActionsHostSheet(
               leading: const Icon(Icons.copy_outlined),
               title: Text(l10n.beaconRoomFactCardActionCopy),
               onTap: () async {
-                await Clipboard.setData(ClipboardData(text: fact.factText));
-                if (pageCtx.mounted) {
-                  Navigator.pop(ctx);
-                  final locale = L10n.of(pageCtx)!.localeName;
-                  showSnackBar(
-                    pageCtx,
-                    text: const BeaconFactCopiedMessage().toL10n(locale),
-                  );
-                }
+                final ok = await copyTextToClipboard(fact.factText);
+                if (!ok || !pageCtx.mounted) return;
+                Navigator.pop(ctx);
+                final locale = L10n.of(pageCtx)!.localeName;
+                showSnackBar(
+                  pageCtx,
+                  text: const BeaconFactCopiedMessage().toL10n(locale),
+                );
               },
             ),
             ListTile(

@@ -599,7 +599,10 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
                               SliverPersistentHeader(
                                 pinned: true,
                                 delegate: ForwardPinnedSliverHeaderDelegate(
-                                  height: tt.buttonHeight + 4,
+                                  height: ForwardScopeLinks.preferredHeight(
+                                    tt,
+                                    MediaQuery.textScalerOf(context),
+                                  ),
                                   child: ForwardScopeLinks(
                                     activeFilter: state.activeFilter,
                                     counts: counts,

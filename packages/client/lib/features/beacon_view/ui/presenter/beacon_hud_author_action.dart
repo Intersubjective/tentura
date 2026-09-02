@@ -111,12 +111,18 @@ BeaconHudAuthorAction? _reviewOpenAuthorAction(BeaconViewState state) {
     return null;
   }
 
-  if (review.viewerCanOpenReviewScreen) {
+  // Outstanding package work beats close-now; after send, keep review openable
+  // until the server says the author may close.
+  if (review.viewerHasOutstandingReviewWork) {
     return BeaconHudAuthorAction.reviewContributions;
   }
 
   if (review.canCloseNow == true) {
     return BeaconHudAuthorAction.closeNow;
+  }
+
+  if (review.viewerCanOpenReviewScreen) {
+    return BeaconHudAuthorAction.reviewContributions;
   }
 
   return null;

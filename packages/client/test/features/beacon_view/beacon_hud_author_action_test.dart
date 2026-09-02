@@ -205,10 +205,11 @@ void main() {
       );
     });
 
-    test('reviewOpen close now requires server canCloseNow', () {
+    test('reviewOpen prefers review UI until server canCloseNow', () {
       final withoutSnapshot = _authorState(status: BeaconStatus.reviewOpen);
       expect(deriveBeaconHudAuthorAction(withoutSnapshot), isNull);
 
+      // Package already sent (status 2) but window still open: keep review ACT.
       final waiting = _authorState(
         status: BeaconStatus.reviewOpen,
         reviewWindowInfo: const ReviewWindowInfo(
@@ -220,7 +221,10 @@ void main() {
           canCloseNow: false,
         ),
       );
-      expect(deriveBeaconHudAuthorAction(waiting), isNull);
+      expect(
+        deriveBeaconHudAuthorAction(waiting),
+        BeaconHudAuthorAction.reviewContributions,
+      );
 
       final canClose = _authorState(
         status: BeaconStatus.reviewOpen,

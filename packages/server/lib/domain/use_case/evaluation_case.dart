@@ -511,11 +511,18 @@ final class EvaluationCase extends UseCaseBase {
             beaconId,
             reason: BeaconLifecycleChangeReason.authorCloseNow,
             actorUserId: userId,
+            requireAllRequiredPackagesSent: true,
           );
+          if (!result.didClose) {
+            throw EvaluationException(
+              evaluationCode: EvaluationExceptionCode.notEligible,
+              description: 'Required reviewers have not sent their packages',
+            );
+          }
           if (intent != null) {
             await transaction!.record(intent);
           }
-          if (transaction != null && result.didClose) {
+          if (transaction != null) {
             final beaconTitle = result.beaconTitle ?? beacon.title;
             for (final pair in result.pairs) {
               if (pair.bin == TrustBin.noEffect) continue;
@@ -1473,6 +1480,7 @@ final class EvaluationCase extends UseCaseBase {
               ? BeaconLifecycleChangeReason.reviewExpired
               : BeaconLifecycleChangeReason.authorCloseNow,
           actorUserId: actorUserId,
+          requireAllRequiredPackagesSent: true,
         );
         if (intent != null && result.didClose) {
           await transaction!.record(intent);

@@ -1,9 +1,8 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart' show Clipboard, ClipboardData;
-
 import 'package:tentura/data/repository/clipboard_image_repository.dart';
+import 'package:tentura/ui/utils/copy_text_to_clipboard.dart';
 import 'package:tentura/data/repository/image_repository.dart';
 import 'package:tentura/domain/entity/beacon_room_consts.dart';
 import 'package:tentura/domain/entity/coordination_item.dart';
@@ -895,8 +894,8 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
     L10n l10n,
     RoomMessage message,
   ) async {
-    await Clipboard.setData(ClipboardData(text: message.body.trim()));
-    if (!context.mounted) return;
+    final ok = await copyTextToClipboard(message.body.trim());
+    if (!ok || !context.mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(l10n.beaconRoomCopiedToClipboard)),
     );
