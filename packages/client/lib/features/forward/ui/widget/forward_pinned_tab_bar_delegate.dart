@@ -30,6 +30,7 @@ class ForwardPinnedSliverHeaderDelegate extends SliverPersistentHeaderDelegate {
     return Material(
       color: Theme.of(context).colorScheme.surface,
       elevation: overlapsContent ? 0.5 : 0,
+      clipBehavior: Clip.hardEdge,
       child: SizedBox(
         height: height,
         width: double.infinity,

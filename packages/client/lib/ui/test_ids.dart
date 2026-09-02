@@ -14,6 +14,9 @@ abstract final class TestIds {
 
   static String forwardRecipient(String userId) => 'forward.recipient.$userId';
 
+  static String forwardRecipientCheckbox(String userId) =>
+      'forward.recipient.checkbox.$userId';
+
   static const inboxOfferHelp = 'inbox.offer_help';
   static const inboxForward = 'inbox.forward';
   static const inboxDismiss = 'inbox.dismiss';
