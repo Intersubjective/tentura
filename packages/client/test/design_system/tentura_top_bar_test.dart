@@ -128,6 +128,89 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
+  testWidgets(
+    'TenturaTopBar long text actions do not cover close on compact',
+    (tester) async {
+      tester.view.physicalSize = const Size(390, 812);
+      tester.view.devicePixelRatio = 1;
+      addTearDown(() {
+        tester.view.resetPhysicalSize();
+        tester.view.resetDevicePixelRatio();
+      });
+
+      var closed = false;
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: TenturaTheme.light(),
+          home: MediaQuery(
+            data: const MediaQueryData(
+              size: Size(390, 812),
+              padding: EdgeInsets.only(top: 47, bottom: 34),
+            ),
+            child: TenturaResponsiveScope(
+              child: Builder(
+                builder: (context) {
+                  final tt = context.tt;
+                  final actionButtonStyle = TextButton.styleFrom(
+                    minimumSize: Size(0, tt.buttonHeight),
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                  );
+                  return Scaffold(
+                    appBar: TenturaTopBar.of(
+                      context,
+                      centerTitle: true,
+                      leading: CloseButton(
+                        key: const Key('close'),
+                        onPressed: () => closed = true,
+                      ),
+                      trailingIsIcon: false,
+                      title: const Text('Создать запрос'),
+                      actions: [
+                        Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            TextButton(
+                              key: const Key('save'),
+                              style: actionButtonStyle,
+                              onPressed: () {},
+                              child: const Text('Сохранить черновик'),
+                            ),
+                            TextButton(
+                              key: const Key('live'),
+                              style: actionButtonStyle,
+                              onPressed: () {},
+                              child: const Text('Запустить'),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                    body: const SizedBox(),
+                  );
+                },
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      expect(tester.takeException(), isNull);
+
+      final closeRect = tester.getRect(find.byKey(const Key('close')));
+      final saveRect = tester.getRect(find.byKey(const Key('save')));
+      final liveRect = tester.getRect(find.byKey(const Key('live')));
+      expect(closeRect.overlaps(saveRect), isFalse);
+      expect(closeRect.overlaps(liveRect), isFalse);
+
+      await tester.tapAt(closeRect.center);
+      await tester.pump();
+      expect(closed, isTrue);
+      expect(tester.takeException(), isNull);
+    },
+  );
+
   testWidgets('TenturaPrimaryTabBar uses on-primary tab styling', (
     tester,
   ) async {
