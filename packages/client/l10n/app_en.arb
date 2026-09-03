@@ -5104,6 +5104,10 @@
   "updatesNeedsYou": "Needs you",
   "updatesSearchHint": "Search updates",
   "updatesMarkSeen": "Mark seen",
+  "updatesMarkUnseen": "Mark unread",
+  "@updatesMarkUnseen": {
+    "description": "Tooltip for the Updates trailing control that marks a receipt unread."
+  },
   "updatesMarkDone": "Mark done",
   "updatesMarkAllSeen": "Read all",
   "updatesRefreshFailedBanner": "Couldn't refresh updates. Your list may be out of date.",

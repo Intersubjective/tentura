@@ -21,6 +21,7 @@ final class MutationAttention extends GqlNodeBase {
   List<GraphQLObjectField<dynamic, dynamic>> get all => [
     attentionMarkSeen,
     attentionMarkAllSeen,
+    attentionMarkUnseen,
     attentionSettle,
   ];
 
@@ -39,6 +40,27 @@ final class MutationAttention extends GqlNodeBase {
             );
           }
           return _ack.markSeen(accountId: getCredentials(args).sub, ids: ids);
+        },
+      );
+
+  GraphQLObjectField<dynamic, dynamic> get attentionMarkUnseen =>
+      GraphQLObjectField(
+        'attentionMarkUnseen',
+        graphQLInt.nonNullable(),
+        arguments: [_ids.field],
+        resolve: (_, args) {
+          final ids = _ids.fromArgsNonNullable(args);
+          if (ids.length > 200) {
+            throw ArgumentError.value(
+              ids.length,
+              'ids',
+              'must contain at most 200 ids',
+            );
+          }
+          return _ack.markUnseen(
+            accountId: getCredentials(args).sub,
+            ids: ids,
+          );
         },
       );
 

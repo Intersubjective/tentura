@@ -30,7 +30,11 @@ final class _Accounts implements AttentionAccountPort {
 final class _Repository implements AttentionRepositoryPort {
   final List<Completer<AttentionFeed>> pendingFetches = [];
   final List<Completer<int>> pendingMarkSeen = [];
+  final List<Completer<int>> pendingMarkUnseen = [];
   final List<Completer<int>> pendingMarkAllSeen = [];
+  final List<List<String>> markSeenCalls = [];
+  final List<List<String>> markUnseenCalls = [];
+  int markAllSeenCalls = 0;
   final List<Completer<int>> pendingSettles = [];
   final List<({String receiptId, String kind})> settles = [];
   final List<({AttentionView view, String? cursor, String? search})> fetches =
@@ -58,10 +62,22 @@ final class _Repository implements AttentionRepositoryPort {
   }
 
   @override
-  Future<int> markAllSeen() => pendingMarkAllSeen.removeAt(0).future;
+  Future<int> markAllSeen() {
+    markAllSeenCalls++;
+    return pendingMarkAllSeen.removeAt(0).future;
+  }
 
   @override
-  Future<int> markSeen(List<String> ids) => pendingMarkSeen.removeAt(0).future;
+  Future<int> markSeen(List<String> ids) {
+    markSeenCalls.add(List<String>.from(ids));
+    return pendingMarkSeen.removeAt(0).future;
+  }
+
+  @override
+  Future<int> markUnseen(List<String> ids) {
+    markUnseenCalls.add(List<String>.from(ids));
+    return pendingMarkUnseen.removeAt(0).future;
+  }
 
   @override
   Future<int> settle({required String receiptId, required String kind}) {
@@ -95,6 +111,24 @@ AttentionReceipt _seenReceipt({String id = 'receipt-1'}) =>
 Future<void> _settle() => Future<void>.delayed(Duration.zero);
 
 void main() {
+  test('ack store overlays unseen until that generation confirms', () {
+    final store = AttentionAckStore()..resetForAccount('account-a');
+    final seen = _seenReceipt();
+    final token = store.markUnseen([seen.id]);
+    expect(store.apply(seen).isSeen, isFalse);
+    store.markCommitted([seen.id], token);
+    expect(store.apply(_receipt()).isSeen, isFalse);
+    expect(store.apply(_seenReceipt()).isSeen, isTrue);
+  });
+
+  test('ack store stale unseen fetch does not confirm an uncommitted overlay', () {
+    final store = AttentionAckStore()
+      ..resetForAccount('account-a')
+      ..markUnseen(['receipt-1']);
+    expect(store.apply(_receipt()).isSeen, isFalse);
+    expect(store.isOptimisticallyUnseen('receipt-1'), isTrue);
+  });
+
   test('ack store resets optimistic state on account changes', () {
     final store = AttentionAckStore()
       ..resetForAccount('account-a')
@@ -435,6 +469,274 @@ void main() {
           isTrue,
         );
         expect(attention.snapshot.summary.unreadTotal, 2);
+      },
+    );
+
+    test('optimistic unsee restores unread and rolls back on failure', () async {
+      final initial = Completer<AttentionFeed>();
+      final rejected = Completer<int>();
+      repository.pendingFetches.add(initial);
+      repository.pendingMarkUnseen.add(rejected);
+      accounts.emit('account-a');
+      await _settle();
+      initial.complete(_feed(unread: 0, items: [_seenReceipt()]));
+      await _settle();
+
+      final command = attention.markUnseen(['receipt-1']);
+      await _settle();
+      expect(
+        attention.snapshot.pages[AttentionView.all]!.items.single.isSeen,
+        isFalse,
+      );
+      expect(attention.snapshot.summary.unreadTotal, 1);
+
+      rejected.completeError(StateError('offline'));
+      await expectLater(command, throwsStateError);
+      expect(
+        attention.snapshot.pages[AttentionView.all]!.items.single.isSeen,
+        isTrue,
+      );
+      expect(attention.snapshot.summary.unreadTotal, 0);
+    });
+
+    test('queued unsee runs after in-flight markSeen', () async {
+      final initial = Completer<AttentionFeed>();
+      final seenRefresh = Completer<AttentionFeed>();
+      final unseenRefresh = Completer<AttentionFeed>();
+      final mark = Completer<int>();
+      final unsee = Completer<int>();
+      repository.pendingFetches.addAll([initial, seenRefresh, unseenRefresh]);
+      repository.pendingMarkSeen.add(mark);
+      repository.pendingMarkUnseen.add(unsee);
+      accounts.emit('account-a');
+      await _settle();
+      initial.complete(_feed());
+      await _settle();
+
+      final seenCommand = attention.markSeen(['receipt-1']);
+      await _settle();
+      final unseenCommand = attention.markUnseen(['receipt-1']);
+      await _settle();
+      expect(repository.markUnseenCalls, isEmpty);
+
+      mark.complete(1);
+      await seenCommand;
+      await _settle();
+      expect(repository.markUnseenCalls, [
+        ['receipt-1'],
+      ]);
+      unsee.complete(1);
+      seenRefresh.complete(_feed(unread: 0, items: [_seenReceipt()]));
+      unseenRefresh.complete(_feed());
+      await unseenCommand;
+      await _settle();
+      expect(
+        attention.snapshot.pages[AttentionView.all]!.items.single.isSeen,
+        isFalse,
+      );
+    });
+
+    test('zero-row unsee drops overlay instead of pinning unread', () async {
+      final initial = Completer<AttentionFeed>();
+      final refresh = Completer<AttentionFeed>();
+      final unsee = Completer<int>();
+      repository.pendingFetches.addAll([initial, refresh]);
+      repository.pendingMarkUnseen.add(unsee);
+      accounts.emit('account-a');
+      await _settle();
+      initial.complete(_feed(unread: 0, items: [_seenReceipt()]));
+      await _settle();
+
+      final command = attention.markUnseen(['receipt-1']);
+      await _settle();
+      expect(
+        attention.snapshot.pages[AttentionView.all]!.items.single.isSeen,
+        isFalse,
+      );
+
+      unsee.complete(0);
+      refresh.complete(_feed(unread: 0, items: [_seenReceipt()]));
+      await command;
+      await _settle();
+      expect(
+        attention.snapshot.pages[AttentionView.all]!.items.single.isSeen,
+        isTrue,
+      );
+      expect(attention.snapshot.summary.unreadTotal, 0);
+    });
+
+    test(
+      'refresh during queued unsee keeps overlay unread total',
+      () async {
+        final initial = Completer<AttentionFeed>();
+        final midRefresh = Completer<AttentionFeed>();
+        final afterSeen = Completer<AttentionFeed>();
+        final afterUnsee = Completer<AttentionFeed>();
+        final mark = Completer<int>();
+        final unsee = Completer<int>();
+        repository.pendingFetches.addAll([
+          initial,
+          midRefresh,
+          afterSeen,
+          afterUnsee,
+        ]);
+        repository.pendingMarkSeen.add(mark);
+        repository.pendingMarkUnseen.add(unsee);
+        accounts.emit('account-a');
+        await _settle();
+        initial.complete(_feed());
+        await _settle();
+
+        unawaited(attention.markSeen(['receipt-1']));
+        await _settle();
+        unawaited(attention.markUnseen(['receipt-1']));
+        await _settle();
+        expect(attention.snapshot.summary.unreadTotal, 1);
+        expect(
+          attention.snapshot.pages[AttentionView.all]!.items.single.isSeen,
+          isFalse,
+        );
+
+        realtimePort.emitChange(
+          const RealtimeEntityChange(
+            kind: RealtimeEntityKind.notification,
+            aggregateId: 'account-a',
+            operation: RealtimeOperation.update,
+            source: RealtimeChangeSource.serverInvalidation,
+          ),
+        );
+        await _settle();
+        midRefresh.complete(_feed(unread: 0, items: [_seenReceipt()]));
+        await _settle();
+        expect(attention.snapshot.summary.unreadTotal, 1);
+        expect(
+          attention.snapshot.pages[AttentionView.all]!.items.single.isSeen,
+          isFalse,
+        );
+
+        mark.complete(1);
+        await _settle();
+        afterSeen.complete(_feed(unread: 0, items: [_seenReceipt()]));
+        unsee.complete(1);
+        afterUnsee.complete(_feed());
+        await _settle();
+        expect(attention.snapshot.summary.unreadTotal, 1);
+        expect(
+          attention.snapshot.pages[AttentionView.all]!.items.single.isSeen,
+          isFalse,
+        );
+      },
+    );
+
+    test('markAllSeen waits so a later unsee still wins', () async {
+      final initial = Completer<AttentionFeed>();
+      final allSeen = Completer<int>();
+      final unsee = Completer<int>();
+      final afterAllSeen = Completer<AttentionFeed>();
+      final afterUnsee = Completer<AttentionFeed>();
+      repository.pendingFetches.addAll([initial, afterAllSeen, afterUnsee]);
+      repository.pendingMarkAllSeen.add(allSeen);
+      repository.pendingMarkUnseen.add(unsee);
+      accounts.emit('account-a');
+      await _settle();
+      initial.complete(
+        _feed(
+          unread: 1,
+          items: [_receipt()],
+        ),
+      );
+      await _settle();
+
+      unawaited(attention.markAllSeen());
+      await _settle();
+      final unseenCommand = attention.markUnseen(['receipt-1']);
+      await _settle();
+      expect(repository.markUnseenCalls, isEmpty);
+      expect(repository.markAllSeenCalls, 1);
+
+      allSeen.complete(1);
+      await _settle();
+      expect(repository.markUnseenCalls, [
+        ['receipt-1'],
+      ]);
+      unsee.complete(1);
+      afterAllSeen.complete(_feed(unread: 0, items: [_seenReceipt()]));
+      afterUnsee.complete(_feed());
+      await unseenCommand;
+    });
+
+    test('in-flight unsee delays markAllSeen', () async {
+      final initial = Completer<AttentionFeed>();
+      final unsee = Completer<int>();
+      final allSeen = Completer<int>();
+      final afterUnsee = Completer<AttentionFeed>();
+      final afterAllSeen = Completer<AttentionFeed>();
+      repository.pendingFetches.addAll([initial, afterUnsee, afterAllSeen]);
+      repository.pendingMarkUnseen.add(unsee);
+      repository.pendingMarkAllSeen.add(allSeen);
+      accounts.emit('account-a');
+      await _settle();
+      initial.complete(_feed(unread: 0, items: [_seenReceipt()]));
+      await _settle();
+
+      unawaited(attention.markUnseen(['receipt-1']));
+      await _settle();
+      unawaited(attention.markAllSeen());
+      await _settle();
+      expect(repository.markUnseenCalls, [
+        ['receipt-1'],
+      ]);
+      expect(repository.markAllSeenCalls, 0);
+      expect(
+        attention.snapshot.pages[AttentionView.all]!.items.single.isSeen,
+        isTrue,
+      );
+      expect(attention.snapshot.summary.unreadTotal, 0);
+
+      unsee.complete(1);
+      afterUnsee.complete(_feed());
+      await _settle();
+      expect(repository.markAllSeenCalls, 1);
+      allSeen.complete(1);
+      afterAllSeen.complete(_feed(unread: 0, items: [_seenReceipt()]));
+      await _settle();
+      expect(
+        attention.snapshot.pages[AttentionView.all]!.items.single.isSeen,
+        isTrue,
+      );
+      expect(attention.snapshot.summary.unreadTotal, 0);
+    });
+
+    test(
+      'account switch drops queued markAllSeen before it can hit the next account',
+      () async {
+        final first = Completer<AttentionFeed>();
+        final second = Completer<AttentionFeed>();
+        final allSeen = Completer<int>();
+        repository.pendingFetches.addAll([first, second]);
+        repository.pendingMarkAllSeen.add(allSeen);
+        accounts.emit('account-a');
+        await _settle();
+        first.complete(_feed());
+        await _settle();
+
+        unawaited(attention.markAllSeen());
+        await _settle();
+        accounts.emit('account-b');
+        await _settle();
+        allSeen.complete(1);
+        await _settle();
+        second.complete(_feed(items: [_receipt(id: 'from-b')]));
+        await _settle();
+        expect(repository.markAllSeenCalls, 1);
+        expect(
+          attention.snapshot.pages[AttentionView.all]!.items.single.id,
+          'from-b',
+        );
+        expect(
+          attention.snapshot.pages[AttentionView.all]!.items.single.isSeen,
+          isFalse,
+        );
       },
     );
 

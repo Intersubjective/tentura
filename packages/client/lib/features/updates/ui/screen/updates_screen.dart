@@ -221,6 +221,8 @@ class _UpdatesBodyState extends State<_UpdatesBody> {
     void onTap() => _open(context, receipt);
     void onMarkSeen() =>
         unawaited(context.read<UpdatesFeedCubit>().markSeen(receipt.id));
+    void onMarkUnseen() =>
+        unawaited(context.read<UpdatesFeedCubit>().markUnseen(receipt.id));
     void onSettle() =>
         unawaited(context.read<UpdatesFeedCubit>().settle(receipt.id));
     if (isTrustChangePresentationKey(receipt.presentationKey)) {
@@ -229,6 +231,7 @@ class _UpdatesBodyState extends State<_UpdatesBody> {
         receipt: receipt,
         onTap: onTap,
         onMarkSeen: onMarkSeen,
+        onMarkUnseen: onMarkUnseen,
         onSettle: onSettle,
       );
     }
@@ -238,6 +241,7 @@ class _UpdatesBodyState extends State<_UpdatesBody> {
         receipt: receipt,
         onTap: onTap,
         onMarkSeen: () => context.read<UpdatesFeedCubit>().markSeen(receipt.id),
+        onMarkUnseen: onMarkUnseen,
       );
     }
     return UpdatesReceiptCard(
@@ -245,6 +249,7 @@ class _UpdatesBodyState extends State<_UpdatesBody> {
       receipt: receipt,
       onTap: onTap,
       onMarkSeen: onMarkSeen,
+      onMarkUnseen: onMarkUnseen,
       onSettle: onSettle,
     );
   }

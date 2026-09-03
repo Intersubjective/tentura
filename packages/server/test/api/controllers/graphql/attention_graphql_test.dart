@@ -95,6 +95,16 @@ class _FakeAck implements AttentionAckPort {
   }
 
   @override
+  Future<int> markUnseen({
+    required String accountId,
+    required List<String> ids,
+  }) async {
+    this.accountId = accountId;
+    this.ids = ids;
+    return ids.length;
+  }
+
+  @override
   Future<int> bridgeRoomWatermark({
     required String accountId,
     required String beaconId,
@@ -236,6 +246,30 @@ void main() {
     expect(
       () => field.resolve!(null, {...auth, 'ids': List.filled(201, 'N')}),
       throwsA(isA<ArgumentError>()),
+    );
+  });
+
+  test('attentionMarkUnseen scopes ids and caps the request at 200', () async {
+    final ack = _FakeAck();
+    final field = MutationAttention(
+      ack: ack,
+    ).all.singleWhere((field) => field.name == 'attentionMarkUnseen');
+    expect(
+      await field.resolve!(null, {
+        ...auth,
+        'ids': ['N1'],
+      }),
+      1,
+    );
+    expect(ack.accountId, 'U1');
+    expect(ack.ids, ['N1']);
+    expect(
+      () => field.resolve!(null, {...auth, 'ids': List.filled(201, 'N')}),
+      throwsA(isA<ArgumentError>()),
+    );
+    expect(
+      () => field.resolve!(null, {'ids': ['N1']}),
+      throwsA(isA<UnauthorizedException>()),
     );
   });
 

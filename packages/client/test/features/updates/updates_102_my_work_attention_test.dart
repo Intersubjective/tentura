@@ -52,6 +52,9 @@ final class _Repository implements AttentionRepositoryPort {
   Future<int> markSeen(List<String> ids) async => 0;
 
   @override
+  Future<int> markUnseen(List<String> ids) async => 0;
+
+  @override
   Future<int> settle({required String receiptId, required String kind}) async =>
       0;
 }

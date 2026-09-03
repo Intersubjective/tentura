@@ -4,6 +4,11 @@ abstract interface class AttentionAckPort {
     required List<String> ids,
   });
 
+  Future<int> markUnseen({
+    required String accountId,
+    required List<String> ids,
+  });
+
   Future<int> markAllSeen(String accountId);
 
   Future<int> bridgeRoomWatermark({

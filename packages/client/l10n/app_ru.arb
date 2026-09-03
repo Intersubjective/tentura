@@ -4876,6 +4876,7 @@
   "updatesNeedsYou": "Требуют вас",
   "updatesSearchHint": "Поиск обновлений",
   "updatesMarkSeen": "Отметить прочитанным",
+  "updatesMarkUnseen": "Снять отметку о прочтении",
   "updatesMarkDone": "Отметить выполненным",
   "updatesMarkAllSeen": "Прочитать всё",
   "updatesRefreshFailedBanner": "Не удалось обновить ленту. Список может быть устаревшим.",

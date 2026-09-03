@@ -9,6 +9,7 @@ import 'package:tentura/domain/attention/port/attention_repository_port.dart';
 import 'package:tentura/features/attention/data/gql/_g/attention_feed.req.gql.dart';
 import 'package:tentura/features/attention/data/gql/_g/attention_mark_all_seen.req.gql.dart';
 import 'package:tentura/features/attention/data/gql/_g/attention_mark_seen.req.gql.dart';
+import 'package:tentura/features/attention/data/gql/_g/attention_mark_unseen.req.gql.dart';
 import 'package:tentura/features/attention/data/gql/_g/attention_markers.req.gql.dart';
 import 'package:tentura/features/attention/data/gql/_g/attention_settle.req.gql.dart';
 
@@ -120,6 +121,18 @@ final class AttentionRepository implements AttentionRepositoryPort {
         .firstWhere((response) => response.dataSource == DataSource.Link)
         .then((response) => response.dataOrThrow(label: _label));
     return data.attentionMarkSeen;
+  }
+
+  @override
+  Future<int> markUnseen(List<String> ids) async {
+    if (ids.isEmpty) return 0;
+    final data = await _remoteClient
+        .request(
+          GAttentionMarkUnseenReq((request) => request.vars.ids.addAll(ids)),
+        )
+        .firstWhere((response) => response.dataSource == DataSource.Link)
+        .then((response) => response.dataOrThrow(label: _label));
+    return data.attentionMarkUnseen;
   }
 
   @override

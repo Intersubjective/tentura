@@ -511,6 +511,79 @@ ORDER BY id
       },
     );
 
+    test('markUnseen clears seen_at and restores unread', () async {
+      await _insertReceipt(writer, id: 'Nvisible');
+      expect(
+        await ack.markSeen(accountId: _viewerId, ids: const ['Nvisible']),
+        1,
+      );
+      await _assertSeenOnly(writer, 'Nvisible');
+
+      expect(
+        await ack.markUnseen(accountId: _viewerId, ids: const ['Nvisible']),
+        1,
+      );
+      await _assertUnread(writer, 'Nvisible');
+      expect(
+        await ack.markUnseen(accountId: _viewerId, ids: const ['Nvisible']),
+        0,
+      );
+
+      final unread = await query.attentionFeed(
+        accountId: _viewerId,
+        view: AttentionFeedView.unread,
+      );
+      expect(unread.summary.unreadTotal, 1);
+      expect(unread.page.items.single.id, 'Nvisible');
+    });
+
+    test(
+      'markUnseen skips a seen sibling when another unread shares dedup_key',
+      () async {
+        await _insertReceipt(
+          writer,
+          id: 'Nseen',
+          dedupKey: 'shared-collapse',
+          seenAt: '2026-07-16T12:00:00Z',
+        );
+        await _insertReceipt(
+          writer,
+          id: 'Nunread',
+          dedupKey: 'shared-collapse',
+        );
+
+        expect(
+          await ack.markUnseen(accountId: _viewerId, ids: const ['Nseen']),
+          0,
+        );
+        await _assertSeenOnly(writer, 'Nseen');
+        await _assertUnread(writer, 'Nunread');
+      },
+    );
+
+    test(
+      'markUnseen ignores hidden receipts',
+      () async {
+        await _insertReceipt(
+          writer,
+          id: 'Nhidden',
+          beaconId: _hiddenBeaconId,
+          accessPolicy: 'beacon_content',
+          destinationKind: 'beacon',
+          presentationKey: 'request_status_changed',
+          seenAt: '2026-07-16T12:00:00Z',
+        );
+        expect(
+          await ack.markUnseen(accountId: _viewerId, ids: const ['Nhidden']),
+          0,
+        );
+        final hidden = await writer.execute('''
+SELECT seen_at FROM public.notification_outbox WHERE id = 'Nhidden'
+''');
+        expect(hidden.single[0], isNotNull);
+      },
+    );
+
     test(
       'room watermark bridge clears only directed messages at or before it',
       () async {
@@ -1106,6 +1179,8 @@ Future<void> _insertReceipt(
   String suppressionClass = 'standard',
   String? preferenceClass,
   String? targetEntityId,
+  String? dedupKey,
+  String? seenAt,
   String createdAt = '2026-07-16T12:00:00Z',
   String presentationPayload = '{"eventType":"fixture"}',
   String title = 'Secret title',
@@ -1114,7 +1189,7 @@ Future<void> _insertReceipt(
   Sql.named('''
 INSERT INTO public.notification_outbox (
   id, account_id, category, kind, priority,
-  title, body, action_url, dedup_key, created_at,
+  title, body, action_url, dedup_key, created_at, seen_at,
   beacon_id, coordination_item_id, source_event_key,
   destination_kind, target_entity_id,
   presentation_key, presentation_payload,
@@ -1123,6 +1198,7 @@ INSERT INTO public.notification_outbox (
   @id, @accountId, 'coordination', 'coordinationChanged', 'normal',
   @title, @body, '/attention', @dedupKey,
   CAST(@createdAt AS timestamptz),
+  CAST(@seenAt AS timestamptz),
   @beaconId, @coordinationItemId, @sourceEventKey,
   @destinationKind, @targetEntityId,
   @presentationKey, CAST(@presentationPayload AS jsonb),
@@ -1132,8 +1208,9 @@ INSERT INTO public.notification_outbox (
   parameters: {
     'id': id,
     'accountId': _viewerId,
-    'dedupKey': 'dedup-$id',
+    'dedupKey': dedupKey ?? 'dedup-$id',
     'createdAt': createdAt,
+    'seenAt': seenAt,
     'beaconId': beaconId,
     'coordinationItemId': coordinationItemId,
     'sourceEventKey': 'source-$id',

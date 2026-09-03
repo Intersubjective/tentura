@@ -1,0 +1,3 @@
+mutation AttentionMarkUnseen($ids: [String!]!) {
+  attentionMarkUnseen(ids: $ids)
+}

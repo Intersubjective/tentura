@@ -74,6 +74,8 @@ final class AttentionCase {
   bool _headRefreshInFlight = false;
   bool _headRefreshQueued = false;
   String? _search;
+  Future<void> _markAllSeenChain = Future.value();
+  final Map<String, Future<void>> _ackChains = {};
   StreamController<AttentionHeadRefreshLatency>? _qaLatencySamples;
   AttentionHeadRefreshLatency? _lastQaHeadRefreshLatency;
 
@@ -105,6 +107,8 @@ final class AttentionCase {
     _accountGeneration++;
     _headRefreshQueued = false;
     _receiptsById.clear();
+    _ackChains.clear();
+    _markAllSeenChain = Future.value();
     _acks.resetForAccount(accountId);
     _emit(const AttentionFeedSnapshot());
     if (accountId.isNotEmpty) unawaited(_requestHeadRefresh());
@@ -153,14 +157,20 @@ final class AttentionCase {
     final pending = ids.toSet();
     if (pending.isEmpty) return;
     final generation = _accountGeneration;
-    final unreadDelta = _unreadAckDelta(pending);
-    _acks.markSeen(pending);
+    final unreadDelta = _displayedUnreadCount(pending);
+    final token = _acks.markSeen(pending);
     _applyOptimisticAcks(unreadDelta: -unreadDelta);
     try {
-      await _repository.markSeen(pending.toList(growable: false));
+      await _runAfterAckBarriers(pending, generation, () async {
+        final still = pending.where((id) => _acks.hasToken(id, token)).toSet();
+        if (still.isEmpty) return;
+        await _repository.markSeen(still.toList(growable: false));
+        if (generation != _accountGeneration) return;
+        _acks.markCommitted(still, token);
+      });
     } catch (error, stackTrace) {
       if (generation == _accountGeneration) {
-        _acks.discard(pending);
+        _acks.discard(pending, token: token);
         _applyOptimisticAcks(unreadDelta: unreadDelta);
       }
       _logger.warning('Attention mark-seen failed', error, stackTrace);
@@ -169,25 +179,69 @@ final class AttentionCase {
     if (generation == _accountGeneration) unawaited(_requestHeadRefresh());
   }
 
+  Future<void> markUnseen(Iterable<String> ids) async {
+    final pending = ids.toSet();
+    if (pending.isEmpty) return;
+    final generation = _accountGeneration;
+    final unreadDelta = _displayedSeenCount(pending);
+    final token = _acks.markUnseen(pending);
+    _applyOptimisticAcks(unreadDelta: unreadDelta);
+    try {
+      await _runAfterAckBarriers(pending, generation, () async {
+        final still = pending.where((id) => _acks.hasToken(id, token)).toSet();
+        if (still.isEmpty) return;
+        final updated = await _repository.markUnseen(
+          still.toList(growable: false),
+        );
+        if (generation != _accountGeneration) return;
+        if (updated == 0) {
+          _acks.discard(still, token: token);
+          _applyOptimisticAcks(unreadDelta: -unreadDelta);
+          return;
+        }
+        _acks.markCommitted(still, token);
+      });
+    } catch (error, stackTrace) {
+      if (generation == _accountGeneration) {
+        _acks.discard(pending, token: token);
+        _applyOptimisticAcks(unreadDelta: -unreadDelta);
+      }
+      _logger.warning('Attention mark-unseen failed', error, stackTrace);
+      rethrow;
+    }
+    if (generation == _accountGeneration) unawaited(_requestHeadRefresh());
+  }
+
   Future<void> markAllSeen() async {
     final ids = _receiptsById.values
-        .where((receipt) => !receipt.isSeen)
+        .where((receipt) => !_displaysSeen(receipt.id))
         .map((receipt) => receipt.id)
         .toSet();
     final generation = _accountGeneration;
     final previousUnread = snapshot.summary.unreadTotal;
-    _acks.markAllSeen(ids);
+    final token = _acks.markAllSeen(ids);
     _applyOptimisticAcks(unreadTotal: 0);
-    try {
-      await _repository.markAllSeen();
-    } catch (error, stackTrace) {
-      if (generation == _accountGeneration) {
-        _acks.discard(ids);
-        _applyOptimisticAcks(unreadTotal: previousUnread);
+    final previous = _markAllSeenChain;
+    final op = previous.catchError((_) {}).then((_) async {
+      await Future.wait([
+        for (final chain in _ackChains.values) chain.catchError((_) {}),
+      ]);
+      if (generation != _accountGeneration) return;
+      try {
+        await _repository.markAllSeen();
+        if (generation != _accountGeneration) return;
+        _acks.markCommitted(ids, token);
+      } catch (error, stackTrace) {
+        if (generation == _accountGeneration) {
+          _acks.discard(ids, token: token);
+          _applyOptimisticAcks(unreadTotal: previousUnread);
+        }
+        _logger.warning('Attention mark-all-seen failed', error, stackTrace);
+        rethrow;
       }
-      _logger.warning('Attention mark-all-seen failed', error, stackTrace);
-      rethrow;
-    }
+    });
+    _markAllSeenChain = op.catchError((_) {});
+    await op;
     if (generation == _accountGeneration) unawaited(_requestHeadRefresh());
   }
 
@@ -252,18 +306,59 @@ final class AttentionCase {
         items: items,
         nextCursor: feed.page.nextCursor,
       );
-    _emit(snapshot.copyWith(summary: feed.summary, pages: pages, headRefreshError: null));
+    _emit(
+      snapshot.copyWith(
+        summary: feed.summary.copyWith(
+          unreadTotal: math.max(
+            0,
+            feed.summary.unreadTotal + _acks.pendingUnreadDelta(_receiptsById),
+          ),
+        ),
+        pages: pages,
+        headRefreshError: null,
+      ),
+    );
     if (replaceHead) {
       _recordQaHeadRefreshLatency(items, DateTime.now().toUtc());
     }
   }
 
-  int _unreadAckDelta(Iterable<String> ids) {
+  Future<void> _runAfterAckBarriers(
+    Set<String> ids,
+    int accountGeneration,
+    Future<void> Function() run,
+  ) async {
+    await Future.wait([
+      _markAllSeenChain.catchError((_) {}),
+      for (final id in ids) (_ackChains[id] ?? Future.value()).catchError((_) {}),
+    ]);
+    if (accountGeneration != _accountGeneration) return;
+    final op = run();
+    final tracked = op.catchError((_) {});
+    for (final id in ids) {
+      _ackChains[id] = tracked;
+    }
+    await op;
+  }
+
+  bool _displaysSeen(String id) {
+    if (_acks.isOptimisticallyUnseen(id)) return false;
+    if (_acks.isOptimisticallySeen(id)) return true;
+    return _receiptsById[id]?.isSeen ?? false;
+  }
+
+  int _displayedUnreadCount(Iterable<String> ids) {
     var n = 0;
     for (final id in ids) {
-      if (_acks.isOptimisticallySeen(id)) continue;
-      final receipt = _receiptsById[id];
-      if (receipt == null || !receipt.isSeen) n++;
+      if (!_displaysSeen(id)) n++;
+    }
+    return n;
+  }
+
+  int _displayedSeenCount(Iterable<String> ids) {
+    var n = 0;
+    for (final id in ids) {
+      if (_displaysSeen(id)) n++;
     }
     return n;
   }

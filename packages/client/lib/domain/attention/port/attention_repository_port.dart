@@ -13,6 +13,8 @@ abstract interface class AttentionRepositoryPort {
 
   Future<int> markSeen(List<String> ids);
 
+  Future<int> markUnseen(List<String> ids);
+
   Future<int> markAllSeen();
 
   Future<int> settle({required String receiptId, required String kind});

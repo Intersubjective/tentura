@@ -85,6 +85,16 @@ final class UpdatesFeedCubit extends Cubit<UpdatesFeedState> {
     }
   }
 
+  Future<void> markUnseen(String id) async {
+    try {
+      await _attention.markUnseen([id]);
+      emit(state.copyWith(actionError: null));
+    } catch (error, stackTrace) {
+      _logger.warning('Updates mark-unseen failed', error, stackTrace);
+      emit(state.copyWith(actionError: error, status: const StateIsSuccess()));
+    }
+  }
+
   Future<void> markAllSeen() async {
     try {
       await _attention.markAllSeen();

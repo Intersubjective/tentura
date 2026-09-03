@@ -2,7 +2,7 @@ name: tentura
 description: 'Social network for communities'
 publish_to: 'none'
 
-version: 6.15.1
+version: 6.15.2
 
 environment:
   sdk: ^3.12.0

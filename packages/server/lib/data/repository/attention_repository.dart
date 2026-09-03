@@ -306,6 +306,50 @@ WHERE outbox.account_id = \$1
   }
 
   @override
+  Future<int> markUnseen({
+    required String accountId,
+    required List<String> ids,
+  }) async {
+    if (ids.isEmpty) {
+      return 0;
+    }
+    final placeholders = List.generate(
+      ids.length,
+      (index) => '\$${index + 2}',
+    ).join(', ');
+    try {
+      return await _database.customUpdate(
+        '''
+UPDATE public.notification_outbox outbox
+SET
+  seen_at = NULL
+WHERE outbox.account_id = \$1
+  AND outbox.seen_at IS NOT NULL
+  AND outbox.id IN ($placeholders)
+  AND outbox.id IN (
+    SELECT receipt_id
+    FROM public.visible_attention_receipts(\$1)
+  )
+  AND NOT EXISTS (
+    SELECT 1
+    FROM public.notification_outbox sibling
+    WHERE sibling.dedup_key = outbox.dedup_key
+      AND sibling.id <> outbox.id
+      AND sibling.seen_at IS NULL
+  )
+''',
+        variables: [
+          Variable<String>(accountId),
+          for (final id in ids) Variable<String>(id),
+        ],
+        updateKind: UpdateKind.update,
+      );
+    } on UniqueViolationException {
+      return 0;
+    }
+  }
+
+  @override
   Future<int> markAllSeen(String accountId) => _database.customUpdate(
     r'''
 UPDATE public.notification_outbox outbox

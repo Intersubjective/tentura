@@ -61,6 +61,7 @@ void main() {
           ),
           onTap: () => tapped = true,
           onMarkSeen: () {},
+          onMarkUnseen: () {},
           onSettle: () {},
         ),
       ),
@@ -84,6 +85,7 @@ void main() {
           receipt: _receipt(),
           onTap: () {},
           onMarkSeen: () {},
+          onMarkUnseen: () {},
           onSettle: () {},
         ),
       ),
@@ -102,6 +104,7 @@ void main() {
           receipt: _receipt(requiresAction: true),
           onTap: () {},
           onMarkSeen: () {},
+          onMarkUnseen: () {},
           onSettle: () {},
         ),
       ),
@@ -112,16 +115,19 @@ void main() {
     expect(find.byIcon(Icons.task_alt_outlined), findsNothing);
   });
 
-  testWidgets('unread row shows mark-seen button; seen row shows static icon', (
+  testWidgets('unread row marks seen; seen row unsees without opening', (
     tester,
   ) async {
-    var marked = false;
+    var markedSeen = false;
+    var markedUnseen = false;
+    var tapped = false;
     await tester.pumpWidget(
       _wrap(
         UpdatesReceiptCard(
           receipt: _receipt(),
-          onTap: () {},
-          onMarkSeen: () => marked = true,
+          onTap: () => tapped = true,
+          onMarkSeen: () => markedSeen = true,
+          onMarkUnseen: () => markedUnseen = true,
           onSettle: () {},
         ),
       ),
@@ -130,14 +136,16 @@ void main() {
     expect(find.byIcon(Icons.radio_button_unchecked), findsOneWidget);
     await tester.tap(find.byIcon(Icons.radio_button_unchecked));
     await tester.pump();
-    expect(marked, isTrue);
+    expect(markedSeen, isTrue);
+    expect(tapped, isFalse);
 
     await tester.pumpWidget(
       _wrap(
         UpdatesReceiptCard(
           receipt: _receipt().copyWith(seenAt: DateTime.utc(2026, 8, 4)),
-          onTap: () {},
+          onTap: () => tapped = true,
           onMarkSeen: () {},
+          onMarkUnseen: () => markedUnseen = true,
           onSettle: () {},
         ),
       ),
@@ -145,6 +153,11 @@ void main() {
     await tester.pump();
     expect(find.byIcon(Icons.check_circle), findsOneWidget);
     expect(find.byIcon(Icons.radio_button_unchecked), findsNothing);
-    expect(find.byType(IconButton), findsNothing);
+    expect(find.byType(IconButton), findsOneWidget);
+    tapped = false;
+    await tester.tap(find.byIcon(Icons.check_circle));
+    await tester.pump();
+    expect(markedUnseen, isTrue);
+    expect(tapped, isFalse);
   });
 }

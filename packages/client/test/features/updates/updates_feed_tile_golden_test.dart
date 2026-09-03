@@ -49,6 +49,7 @@ void main() {
                     receipt: _unreadObligation(),
                     onTap: () {},
                     onMarkSeen: () {},
+                    onMarkUnseen: () {},
                     onSettle: () {},
                   ),
                 ),

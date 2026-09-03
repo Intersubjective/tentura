@@ -141,6 +141,7 @@ void main() {
                 setupCase: setupCase,
                 onTap: () => profileTaps++,
                 onMarkSeen: () async => markSeenCalls++,
+                onMarkUnseen: () {},
               ),
             ),
           ),

@@ -89,6 +89,7 @@ Future<void> _pumpCard(
                   setupCase: _GoldenSetupCase(),
                   onTap: () {},
                   onMarkSeen: () async {},
+                  onMarkUnseen: () {},
                 ),
               ),
             ),

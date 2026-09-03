@@ -71,6 +71,7 @@ class UpdatesFeedTile extends StatelessWidget {
     required this.receipt,
     required this.onTap,
     required this.onMarkSeen,
+    required this.onMarkUnseen,
     this.onSettle,
     this.headlineOverride,
     this.bodyOverride,
@@ -81,6 +82,7 @@ class UpdatesFeedTile extends StatelessWidget {
   final AttentionReceipt receipt;
   final VoidCallback onTap;
   final VoidCallback onMarkSeen;
+  final VoidCallback onMarkUnseen;
   final VoidCallback? onSettle;
   final String? headlineOverride;
   final String? bodyOverride;
@@ -188,7 +190,9 @@ class UpdatesFeedTile extends StatelessWidget {
                 _SeenTrailing(
                   unread: isUnread,
                   onMarkSeen: onMarkSeen,
-                  tooltip: l10n.updatesMarkSeen,
+                  onMarkUnseen: onMarkUnseen,
+                  markSeenTooltip: l10n.updatesMarkSeen,
+                  markUnseenTooltip: l10n.updatesMarkUnseen,
                 ),
               ],
             ),
@@ -245,26 +249,31 @@ class _SeenTrailing extends StatelessWidget {
   const _SeenTrailing({
     required this.unread,
     required this.onMarkSeen,
-    required this.tooltip,
+    required this.onMarkUnseen,
+    required this.markSeenTooltip,
+    required this.markUnseenTooltip,
   });
 
   final bool unread;
   final VoidCallback onMarkSeen;
-  final String tooltip;
+  final VoidCallback onMarkUnseen;
+  final String markSeenTooltip;
+  final String markUnseenTooltip;
 
   @override
   Widget build(BuildContext context) {
     final tt = context.tt;
     if (unread) {
       return IconButton(
-        tooltip: tooltip,
+        tooltip: markSeenTooltip,
         onPressed: onMarkSeen,
         icon: Icon(Icons.radio_button_unchecked, color: tt.textFaint),
       );
     }
-    return SizedBox.square(
-      dimension: tt.buttonHeight,
-      child: Icon(Icons.check_circle, color: tt.good),
+    return IconButton(
+      tooltip: markUnseenTooltip,
+      onPressed: onMarkUnseen,
+      icon: Icon(Icons.check_circle, color: tt.good),
     );
   }
 }

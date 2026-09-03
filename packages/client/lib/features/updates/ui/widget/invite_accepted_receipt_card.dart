@@ -21,6 +21,7 @@ class InviteAcceptedReceiptCard extends StatefulWidget {
     required this.receipt,
     required this.onTap,
     required this.onMarkSeen,
+    required this.onMarkUnseen,
     this.setupCase,
     super.key,
   });
@@ -28,6 +29,7 @@ class InviteAcceptedReceiptCard extends StatefulWidget {
   final AttentionReceipt receipt;
   final VoidCallback onTap;
   final Future<void> Function() onMarkSeen;
+  final VoidCallback onMarkUnseen;
   final InviteAcceptedSetupPort? setupCase;
 
   @override
@@ -208,6 +210,7 @@ class _InviteAcceptedReceiptCardState extends State<InviteAcceptedReceiptCard> {
       receipt: receipt,
       onTap: widget.onTap,
       onMarkSeen: () => unawaited(widget.onMarkSeen()),
+      onMarkUnseen: widget.onMarkUnseen,
       headlineOverride: copy.title,
       bodyOverride: copy.body,
       action: action,

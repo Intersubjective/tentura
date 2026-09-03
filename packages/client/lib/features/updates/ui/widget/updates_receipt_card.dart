@@ -10,6 +10,7 @@ class UpdatesReceiptCard extends StatelessWidget {
     required this.receipt,
     required this.onTap,
     required this.onMarkSeen,
+    required this.onMarkUnseen,
     required this.onSettle,
     super.key,
   });
@@ -17,6 +18,7 @@ class UpdatesReceiptCard extends StatelessWidget {
   final AttentionReceipt receipt;
   final VoidCallback onTap;
   final VoidCallback onMarkSeen;
+  final VoidCallback onMarkUnseen;
   final VoidCallback onSettle;
 
   @override
@@ -24,6 +26,7 @@ class UpdatesReceiptCard extends StatelessWidget {
     receipt: receipt,
     onTap: onTap,
     onMarkSeen: onMarkSeen,
+    onMarkUnseen: onMarkUnseen,
     onSettle: onSettle,
   );
 }

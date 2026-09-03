@@ -3409,6 +3409,7 @@ type mutation_root {
   addPlanStep(body: String, parentItemId: String!, title: String!): v2_CoordinationItemRow!
   attentionMarkAllSeen: Int!
   attentionMarkSeen(ids: [String!]): Int!
+  attentionMarkUnseen(ids: [String!]): Int!
   attentionSettle(kind: String!, receiptId: String!): Int!
   beaconAddImage(id: String!, image: v2_Upload = {}): v2_BeaconImageAdded!
   beaconCancel(id: String!): v2_BeaconCloseReviewResult!
