@@ -35,6 +35,13 @@ export 'room_state.dart';
 
 enum _RoomRefreshScope { messages, full }
 
+/// Observations that arrived after the active refresh began (and delete
+/// tombstones for that same refresh). Discarded when the refresh ends.
+final class _MessageRefreshOverlay {
+  final carriedById = <String, RoomMessage>{};
+  final deletedIds = <String>{};
+}
+
 class RoomCubit extends Cubit<RoomState> {
   RoomCubit({
     required String beaconId,
@@ -106,6 +113,10 @@ class RoomCubit extends Cubit<RoomState> {
 
   final Map<String, RoomMessage> _deferredOwnPaintByServerId = {};
 
+  _MessageRefreshOverlay? _activeMessageRefreshOverlay;
+
+  final Set<String> _pendingLocalDeleteIds = {};
+
   static const _kMaxPinnedOffWindow = 20;
 
   final _pinnedOffWindowMessages = <String, RoomMessage>{};
@@ -118,6 +129,16 @@ class RoomCubit extends Cubit<RoomState> {
 
   void _onRoomInvalidation(BeaconRoomInvalidation invalidation) {
     if (isClosed || invalidation.beaconId != state.beaconId) return;
+
+    if (invalidation.entityType == BeaconRoomEntityType.roomMessage &&
+        invalidation.operation == RealtimeOperation.delete) {
+      final id = invalidation.messageId?.trim();
+      if (id != null && id.isNotEmpty) {
+        _applyConfirmedMessageDelete(id);
+      }
+      _requestRefresh(scope: _RoomRefreshScope.messages);
+      return;
+    }
 
     if (invalidation.entityType == BeaconRoomEntityType.roomMessage &&
         invalidation.operation == RealtimeOperation.insert &&
@@ -136,6 +157,7 @@ class RoomCubit extends Cubit<RoomState> {
         _deferredOwnPaintByServerId[message.id] = message;
         return;
       }
+      _activeMessageRefreshOverlay?.carriedById[message.id] = message;
       _mergePaintedMessage(message);
       return;
     }
@@ -166,12 +188,38 @@ class RoomCubit extends Cubit<RoomState> {
     }
     var messages = List<RoomMessage>.from(state.messages);
     for (final painted in _deferredOwnPaintByServerId.values) {
+      _activeMessageRefreshOverlay?.carriedById[painted.id] = painted;
       messages = _replaceOrAppendMessage(messages, painted);
     }
     _deferredOwnPaintByServerId.clear();
     emit(
       state.copyWith(
         messages: _sortMessages(_dedupeMessages(messages)),
+      ),
+    );
+  }
+
+  void _carryAcrossActiveRefresh(RoomMessage message) {
+    _activeMessageRefreshOverlay?.carriedById[message.id] = message;
+  }
+
+  void _applyConfirmedMessageDelete(String id) {
+    final overlay = _activeMessageRefreshOverlay;
+    if (overlay != null) {
+      overlay.carriedById.remove(id);
+      overlay.deletedIds.add(id);
+    }
+    _deferredOwnPaintByServerId.remove(id);
+    _pinnedOffWindowMessages.remove(id);
+    if (isClosed) return;
+    final clearReply = state.replyTarget?.id == id;
+    emit(
+      state.copyWith(
+        messages: state.messages.where((m) => m.id != id).toList(),
+        pinnedJumpMessageIds: _pinnedOffWindowMessages.keys.toList(
+          growable: false,
+        ),
+        replyTarget: clearReply ? null : state.replyTarget,
       ),
     );
   }
@@ -201,20 +249,25 @@ class RoomCubit extends Cubit<RoomState> {
     required bool silent,
   }) async {
     _refreshInProgress = true;
+    final overlay = _MessageRefreshOverlay();
+    _activeMessageRefreshOverlay = overlay;
     try {
       if (scope == _RoomRefreshScope.full) {
-        await _fetchFullSnapshot(silent: silent);
+        await _fetchFullSnapshot(silent: silent, overlay: overlay);
       } else {
-        await _fetchMessagesSnapshot(silent: silent);
+        await _fetchMessagesSnapshot(silent: silent, overlay: overlay);
       }
     } finally {
+      if (identical(_activeMessageRefreshOverlay, overlay)) {
+        _activeMessageRefreshOverlay = null;
+      }
       _refreshInProgress = false;
       if (_queuedRefreshScope != null && !isClosed) {
         final nextScope = _queuedRefreshScope!;
         final nextSilent = _queuedRefreshSilent;
         _queuedRefreshScope = null;
         _queuedRefreshSilent = true;
-        unawaited(_runRefresh(scope: nextScope, silent: nextSilent));
+        unawaited(_requestRefresh(scope: nextScope, silent: nextSilent));
       }
     }
   }
@@ -320,7 +373,10 @@ class RoomCubit extends Cubit<RoomState> {
     _pinOffWindow(target);
     emit(
       state.copyWith(
-        messages: _mergeMessages(serverRows: state.messages),
+        messages: _mergeMessages(
+          serverRows: state.messages,
+          overlay: _activeMessageRefreshOverlay,
+        ),
         pinnedJumpMessageIds: _pinnedOffWindowMessages.keys.toList(
           growable: false,
         ),
@@ -339,16 +395,30 @@ class RoomCubit extends Cubit<RoomState> {
     _pinnedOffWindowMessages[target.id] = target;
   }
 
-  List<RoomMessage> _mergeMessages({required List<RoomMessage> serverRows}) =>
-      _sortMessages(
-        _dedupeMessages([
-          ..._pinnedOffWindowMessages.values,
-          ...serverRows,
-          ...state.messages.where(
-            (m) => _pendingLocalMessageIds.contains(m.id),
-          ),
-        ]),
-      );
+  List<RoomMessage> _mergeMessages({
+    required List<RoomMessage> serverRows,
+    _MessageRefreshOverlay? overlay,
+  }) {
+    final deleted = <String>{
+      ...?overlay?.deletedIds,
+      ..._pendingLocalDeleteIds,
+    };
+    final merged = _dedupeMessages([
+      ..._pinnedOffWindowMessages.values,
+      ...?overlay?.carriedById.values,
+      ...serverRows,
+      ...state.messages.where(
+        (m) => _pendingLocalMessageIds.contains(m.id),
+      ),
+    ]);
+    final filtered = deleted.isEmpty
+        ? merged
+        : [
+            for (final m in merged)
+              if (!deleted.contains(m.id)) m,
+          ];
+    return _sortMessages(filtered);
+  }
 
   /// Queues scrolling to a coordination item’s room thread after messages load
   /// (or immediately if messages are already present). Cleared when applied.
@@ -459,7 +529,10 @@ class RoomCubit extends Cubit<RoomState> {
     }
   }
 
-  Future<void> _fetchFullSnapshot({required bool silent}) async {
+  Future<void> _fetchFullSnapshot({
+    required bool silent,
+    required _MessageRefreshOverlay overlay,
+  }) async {
     if (isClosed) return;
     if (!silent) {
       emit(state.copyWith(status: const StateIsLoading()));
@@ -504,7 +577,10 @@ class RoomCubit extends Cubit<RoomState> {
         ],
         coordinationItems,
       );
-      final messages = _mergeMessages(serverRows: serverRows);
+      final messages = _mergeMessages(
+        serverRows: serverRows,
+        overlay: overlay,
+      );
 
       if (isClosed) return;
 
@@ -572,7 +648,10 @@ class RoomCubit extends Cubit<RoomState> {
     }
   }
 
-  Future<void> _fetchMessagesSnapshot({required bool silent}) async {
+  Future<void> _fetchMessagesSnapshot({
+    required bool silent,
+    required _MessageRefreshOverlay overlay,
+  }) async {
     if (isClosed) return;
     try {
       final rawMessages = await _case.fetchMessages(
@@ -608,7 +687,10 @@ class RoomCubit extends Cubit<RoomState> {
       if (!isClosed) {
         emit(
           state.copyWith(
-            messages: _mergeMessages(serverRows: refreshed),
+            messages: _mergeMessages(
+              serverRows: refreshed,
+              overlay: overlay,
+            ),
             loadError: null,
           ),
         );
@@ -855,6 +937,9 @@ class RoomCubit extends Cubit<RoomState> {
           : null;
       final reconciled =
           deferred ?? localMessage.copyWith(id: serverId ?? localId);
+      if (serverId != null) {
+        _carryAcrossActiveRefresh(reconciled);
+      }
       final withoutLocal = state.messages
           .where((message) => message.id != localId)
           .toList();
@@ -886,7 +971,7 @@ class RoomCubit extends Cubit<RoomState> {
         ),
       );
       _flushDeferredOwnPaints();
-      await _runRefresh(
+      await _requestRefresh(
         scope: _RoomRefreshScope.messages,
         silent: true,
       );
@@ -949,18 +1034,44 @@ class RoomCubit extends Cubit<RoomState> {
 
   Future<void> deleteMessage({required String messageId}) async {
     final previousMessages = List<RoomMessage>.from(state.messages);
+    final previousReplyTarget = state.replyTarget;
+    final previousPinnedJumpIds = state.pinnedJumpMessageIds;
+    final previousPinned = Map<String, RoomMessage>.from(
+      _pinnedOffWindowMessages,
+    );
+    _pendingLocalDeleteIds.add(messageId);
     emit(
       state.copyWith(
         messages: state.messages.where((m) => m.id != messageId).toList(),
+        replyTarget: state.replyTarget?.id == messageId
+            ? null
+            : state.replyTarget,
+        pinnedJumpMessageIds: [
+          for (final id in state.pinnedJumpMessageIds)
+            if (id != messageId) id,
+        ],
       ),
     );
+    _pinnedOffWindowMessages.remove(messageId);
     try {
       await _case.deleteMessage(
         beaconId: state.beaconId,
         messageId: messageId,
       );
+      _applyConfirmedMessageDelete(messageId);
+      _pendingLocalDeleteIds.remove(messageId);
     } on Object catch (e) {
-      emit(state.copyWith(messages: previousMessages));
+      _pendingLocalDeleteIds.remove(messageId);
+      _pinnedOffWindowMessages
+        ..clear()
+        ..addAll(previousPinned);
+      emit(
+        state.copyWith(
+          messages: previousMessages,
+          replyTarget: previousReplyTarget,
+          pinnedJumpMessageIds: previousPinnedJumpIds,
+        ),
+      );
       _showSnackError(e);
     }
   }
@@ -1116,6 +1227,8 @@ class RoomCubit extends Cubit<RoomState> {
   @override
   Future<void> close() async {
     _pinnedOffWindowMessages.clear();
+    _pendingLocalDeleteIds.clear();
+    _activeMessageRefreshOverlay = null;
     _presenceRepository.unwatch('room:${state.beaconId}');
     await _refreshSub.cancel();
     await _catchUpsSub.cancel();

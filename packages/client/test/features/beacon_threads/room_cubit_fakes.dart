@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:get_it/get_it.dart';
 import 'package:logging/logging.dart';
 import 'package:mockito/mockito.dart';
 
@@ -57,6 +58,19 @@ class FakeBeaconThreadsRepository extends Fake
   final Map<String, RoomMessage> fetchMessageTargetsById = {};
   Object? fetchMessageTargetError;
 
+  /// When set, the next [fetchMessages] awaits this before returning.
+  /// The message list is captured at gate entry (query-issue time).
+  Completer<void>? fetchMessagesCompleter;
+
+  /// When set, the next [fetchParticipants] awaits this before returning.
+  Completer<void>? fetchParticipantsCompleter;
+
+  List<BeaconParticipant>? participants;
+
+  int deleteMessageCalls = 0;
+  Object? deleteMessageError;
+  Completer<void>? deleteMessageGate;
+
   final _roomInvalidations =
       StreamController<BeaconRoomInvalidation>.broadcast();
 
@@ -91,7 +105,13 @@ class FakeBeaconThreadsRepository extends Fake
     String? threadItemId,
   }) async {
     fetchMessagesCallCount++;
-    return messages;
+    final snapshot = List<RoomMessage>.of(messages);
+    final gate = fetchMessagesCompleter;
+    if (gate != null) {
+      fetchMessagesCompleter = null;
+      await gate.future;
+    }
+    return snapshot;
   }
 
   @override
@@ -110,6 +130,13 @@ class FakeBeaconThreadsRepository extends Fake
 
   @override
   Future<List<BeaconParticipant>> fetchParticipants(String beaconId) async {
+    final gate = fetchParticipantsCompleter;
+    if (gate != null) {
+      fetchParticipantsCompleter = null;
+      await gate.future;
+    }
+    final configured = participants;
+    if (configured != null) return configured;
     if (userId.isEmpty) return const [];
     return [
       BeaconParticipant(
@@ -123,6 +150,25 @@ class FakeBeaconThreadsRepository extends Fake
         updatedAt: DateTime.utc(2026),
       ),
     ];
+  }
+
+  @override
+  Future<void> deleteMessage({
+    required String beaconId,
+    required String messageId,
+  }) async {
+    deleteMessageCalls++;
+    final gate = deleteMessageGate;
+    if (gate != null) {
+      deleteMessageGate = null;
+      await gate.future;
+    }
+    final error = deleteMessageError;
+    if (error != null) {
+      if (error is Exception) throw error;
+      if (error is Error) throw error;
+      throw StateError(error.toString());
+    }
   }
 
   @override
