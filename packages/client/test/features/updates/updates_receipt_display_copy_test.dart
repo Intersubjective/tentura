@@ -84,4 +84,35 @@ void main() {
     expect(beaconTitleFromPresentationPayload('{}'), isNull);
     expect(beaconTitleFromPresentationPayload('not-json'), isNull);
   });
+
+  test('feed row copy uses beacon title as headline and keeps excerpt', () {
+    final copy = resolveUpdatesFeedRowCopy(
+      title: 'Alex accepted your ask',
+      body: 'Garden cleanup — Bring tools',
+      presentationKey: 'commitment_accepted',
+      presentationPayloadJson:
+          '{"beaconTitle":"Garden cleanup","eventType":"commitmentAccepted"}',
+      l10n: l10n,
+    );
+
+    expect(copy.headline, 'Garden cleanup');
+    expect(copy.body, 'Alex accepted your ask: Bring tools');
+  });
+
+  test('feed row copy keeps trust excerpt after stripping request title', () {
+    final copy = resolveUpdatesFeedRowCopy(
+      title: 'Trust in Alex increased',
+      body: 'Move help this weekend — After the request closed, your trust shifted.',
+      presentationKey: 'trust_given_changed_up',
+      presentationPayloadJson:
+          '{"beaconTitle":"Move help this weekend","eventType":"trustGivenChanged"}',
+      l10n: l10n,
+    );
+
+    expect(copy.headline, 'Move help this weekend');
+    expect(
+      copy.body,
+      'Trust in Alex increased: After the request closed, your trust shifted.',
+    );
+  });
 }

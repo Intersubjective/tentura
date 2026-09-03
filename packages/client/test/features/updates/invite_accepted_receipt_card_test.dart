@@ -12,6 +12,7 @@ import 'package:tentura/features/capability/ui/widget/capability_chip_set.dart';
 import 'package:tentura/features/updates/domain/use_case/invite_accepted_setup_case.dart';
 import 'package:tentura/features/updates/ui/widget/invite_accepted_receipt_card.dart';
 import 'package:tentura/features/updates/ui/widget/invite_accepted_setup_sheet.dart';
+import 'package:tentura/features/updates/ui/widget/updates_feed_tile.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/l10n/l10n_en.dart';
 import 'package:tentura/ui/test_ids.dart';
@@ -214,7 +215,7 @@ void main() {
 
       expect(find.text(l10n.inviteAcceptedSetupAddDetails), findsOneWidget);
       expect(find.byType(CapabilityChipSet), findsNothing);
-      expect(find.byType(ListTile), findsOneWidget);
+      expect(find.byType(UpdatesFeedTile), findsOneWidget);
     });
 
     for (final state in [PromptStateValue.answered, PromptStateValue.skipped]) {
@@ -288,7 +289,7 @@ void main() {
         find.byKey(TestIds.key(TestIds.inviteAcceptedSetupClose)),
       );
       await tester.pumpAndSettle();
-      await tester.tap(find.byType(ListTile));
+      await tester.tap(find.byType(UpdatesFeedTile));
       expect(profileTaps, 1);
     });
 

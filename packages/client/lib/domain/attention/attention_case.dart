@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:math' as math;
 
 import 'package:injectable/injectable.dart';
 import 'package:logging/logging.dart';
@@ -152,14 +153,15 @@ final class AttentionCase {
     final pending = ids.toSet();
     if (pending.isEmpty) return;
     final generation = _accountGeneration;
+    final unreadDelta = _unreadAckDelta(pending);
     _acks.markSeen(pending);
-    _applyOptimisticAcks();
+    _applyOptimisticAcks(unreadDelta: -unreadDelta);
     try {
       await _repository.markSeen(pending.toList(growable: false));
     } catch (error, stackTrace) {
       if (generation == _accountGeneration) {
         _acks.discard(pending);
-        _applyOptimisticAcks();
+        _applyOptimisticAcks(unreadDelta: unreadDelta);
       }
       _logger.warning('Attention mark-seen failed', error, stackTrace);
       rethrow;
@@ -173,14 +175,15 @@ final class AttentionCase {
         .map((receipt) => receipt.id)
         .toSet();
     final generation = _accountGeneration;
+    final previousUnread = snapshot.summary.unreadTotal;
     _acks.markAllSeen(ids);
-    _applyOptimisticAcks();
+    _applyOptimisticAcks(unreadTotal: 0);
     try {
       await _repository.markAllSeen();
     } catch (error, stackTrace) {
       if (generation == _accountGeneration) {
         _acks.discard(ids);
-        _applyOptimisticAcks();
+        _applyOptimisticAcks(unreadTotal: previousUnread);
       }
       _logger.warning('Attention mark-all-seen failed', error, stackTrace);
       rethrow;
@@ -255,21 +258,33 @@ final class AttentionCase {
     }
   }
 
-  void _applyOptimisticAcks() {
+  int _unreadAckDelta(Iterable<String> ids) {
+    var n = 0;
+    for (final id in ids) {
+      if (_acks.isOptimisticallySeen(id)) continue;
+      final receipt = _receiptsById[id];
+      if (receipt == null || !receipt.isSeen) n++;
+    }
+    return n;
+  }
+
+  void _applyOptimisticAcks({int unreadDelta = 0, int? unreadTotal}) {
     final pages = <AttentionView, AttentionFeedPage>{
       for (final entry in snapshot.pages.entries)
         entry.key: entry.value.copyWith(
-          items: entry.value.items
-              .map(
-                (receipt) => _acks.apply(_receiptsById[receipt.id] ?? receipt),
-              )
-              .toList(growable: false),
+          items: [
+            for (final receipt in entry.value.items)
+              _acks.apply(_receiptsById[receipt.id] ?? receipt),
+          ].where((receipt) {
+            if (entry.key != AttentionView.unread) return true;
+            return !receipt.isSeen;
+          }).toList(growable: false),
         ),
     };
-    final unread = _receiptsById.values
-        .map(_acks.apply)
-        .where((receipt) => !receipt.isSeen)
-        .length;
+    final unread = math.max(
+      0,
+      unreadTotal ?? snapshot.summary.unreadTotal + unreadDelta,
+    );
     _emit(
       snapshot.copyWith(
         summary: snapshot.summary.copyWith(unreadTotal: unread),

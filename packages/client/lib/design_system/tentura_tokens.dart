@@ -52,6 +52,10 @@ class TenturaTokens extends ThemeExtension<TenturaTokens> {
     required this.iconTextGap,
     required this.avatarTextGap,
     required this.tightGap,
+    required this.listRowPadding,
+    required this.searchBarHeight,
+    required this.searchBarRadius,
+    required this.unreadDotSize,
     required this.graphPersonContextWidth,
     required this.graphPersonContextCompactMaxHeightFraction,
   });
@@ -133,6 +137,15 @@ class TenturaTokens extends ThemeExtension<TenturaTokens> {
   /// Hairline nudge between tightly-related stacked lines. Fixed across classes.
   final double tightGap;
 
+  /// Dense list-row padding (Updates feed). Start/end follow screen vs row gap.
+  final EdgeInsets listRowPadding;
+
+  final double searchBarHeight;
+  final double searchBarRadius;
+
+  /// Unread glyph badge diameter. Fixed across [WindowClass].
+  final double unreadDotSize;
+
   /// Trust-graph person context panel width on regular/expanded layouts.
   final double graphPersonContextWidth;
 
@@ -181,6 +194,10 @@ class TenturaTokens extends ThemeExtension<TenturaTokens> {
     iconTextGap: TenturaSpacing.iconText,
     avatarTextGap: TenturaSpacing.avatarText,
     tightGap: TenturaSpacing.tight,
+    listRowPadding: TenturaSpacing.listRowPadding,
+    searchBarHeight: TenturaSpacing.searchBar,
+    searchBarRadius: TenturaRadii.searchBar,
+    unreadDotSize: TenturaSpacing.unreadDot,
     graphPersonContextWidth: 320,
     graphPersonContextCompactMaxHeightFraction: 0.42,
   );
@@ -227,6 +244,10 @@ class TenturaTokens extends ThemeExtension<TenturaTokens> {
     iconTextGap: TenturaSpacing.iconText,
     avatarTextGap: TenturaSpacing.avatarText,
     tightGap: TenturaSpacing.tight,
+    listRowPadding: TenturaSpacing.listRowPadding,
+    searchBarHeight: TenturaSpacing.searchBar,
+    searchBarRadius: TenturaRadii.searchBar,
+    unreadDotSize: TenturaSpacing.unreadDot,
     graphPersonContextWidth: 320,
     graphPersonContextCompactMaxHeightFraction: 0.42,
   );
@@ -270,6 +291,10 @@ class TenturaTokens extends ThemeExtension<TenturaTokens> {
           iconTextGap: TenturaSpacing.iconText,
           avatarTextGap: TenturaSpacing.avatarText,
           tightGap: TenturaSpacing.tight,
+          listRowPadding: TenturaSpacing.listRowPadding,
+          searchBarHeight: TenturaSpacing.searchBar,
+          searchBarRadius: TenturaRadii.searchBar,
+          unreadDotSize: TenturaSpacing.unreadDot,
           refreshContentMaxWidth: true,
         );
       case WindowClass.regular:
@@ -300,6 +325,10 @@ class TenturaTokens extends ThemeExtension<TenturaTokens> {
           iconTextGap: 7,
           avatarTextGap: 13,
           tightGap: TenturaSpacing.tight,
+          listRowPadding: const EdgeInsets.fromLTRB(20, 14, 9, 14),
+          searchBarHeight: TenturaSpacing.searchBar,
+          searchBarRadius: TenturaRadii.searchBar,
+          unreadDotSize: TenturaSpacing.unreadDot,
           refreshContentMaxWidth: true,
         );
       case WindowClass.expanded:
@@ -330,6 +359,10 @@ class TenturaTokens extends ThemeExtension<TenturaTokens> {
           iconTextGap: 8,
           avatarTextGap: 14,
           tightGap: TenturaSpacing.tight,
+          listRowPadding: const EdgeInsets.fromLTRB(24, 16, 10, 16),
+          searchBarHeight: TenturaSpacing.searchBar,
+          searchBarRadius: TenturaRadii.searchBar,
+          unreadDotSize: TenturaSpacing.unreadDot,
           refreshContentMaxWidth: true,
         );
     }
@@ -379,6 +412,10 @@ class TenturaTokens extends ThemeExtension<TenturaTokens> {
     double? iconTextGap,
     double? avatarTextGap,
     double? tightGap,
+    EdgeInsets? listRowPadding,
+    double? searchBarHeight,
+    double? searchBarRadius,
+    double? unreadDotSize,
     double? graphPersonContextWidth,
     double? graphPersonContextCompactMaxHeightFraction,
   }) {
@@ -426,6 +463,10 @@ class TenturaTokens extends ThemeExtension<TenturaTokens> {
       iconTextGap: iconTextGap ?? this.iconTextGap,
       avatarTextGap: avatarTextGap ?? this.avatarTextGap,
       tightGap: tightGap ?? this.tightGap,
+      listRowPadding: listRowPadding ?? this.listRowPadding,
+      searchBarHeight: searchBarHeight ?? this.searchBarHeight,
+      searchBarRadius: searchBarRadius ?? this.searchBarRadius,
+      unreadDotSize: unreadDotSize ?? this.unreadDotSize,
       graphPersonContextWidth:
           graphPersonContextWidth ?? this.graphPersonContextWidth,
       graphPersonContextCompactMaxHeightFraction:
@@ -502,6 +543,10 @@ class TenturaTokens extends ThemeExtension<TenturaTokens> {
       iconTextGap: lerpDouble(iconTextGap, other.iconTextGap, t)!,
       avatarTextGap: lerpDouble(avatarTextGap, other.avatarTextGap, t)!,
       tightGap: lerpDouble(tightGap, other.tightGap, t)!,
+      listRowPadding: EdgeInsets.lerp(listRowPadding, other.listRowPadding, t)!,
+      searchBarHeight: lerpDouble(searchBarHeight, other.searchBarHeight, t)!,
+      searchBarRadius: lerpDouble(searchBarRadius, other.searchBarRadius, t)!,
+      unreadDotSize: lerpDouble(unreadDotSize, other.unreadDotSize, t)!,
       graphPersonContextWidth: lerpDouble(
         graphPersonContextWidth,
         other.graphPersonContextWidth,

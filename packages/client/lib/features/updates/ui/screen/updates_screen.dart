@@ -7,13 +7,15 @@ import 'package:tentura/app/router/root_router.dart';
 import 'package:get_it/get_it.dart';
 import 'package:tentura/domain/attention/entity/attention_feed.dart';
 import 'package:tentura/domain/attention/entity/attention_receipt.dart';
+import 'package:tentura/features/updates/updates_receipt_display_copy.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
 import '../bloc/updates_feed_cubit.dart';
-import 'package:tentura/features/updates/updates_receipt_display_copy.dart';
-
 import '../widget/invite_accepted_receipt_card.dart';
 import '../widget/trust_change_receipt_card.dart';
+import '../widget/updates_day_groups.dart';
+import '../widget/updates_feed_app_bar.dart';
+import '../widget/updates_feed_search_field.dart';
 import '../widget/updates_receipt_card.dart';
 import '../widget/updates_refresh_error_banner.dart';
 
@@ -42,6 +44,7 @@ class _UpdatesBodyState extends State<_UpdatesBody> {
   final _scrollController = ScrollController();
   final _searchController = TextEditingController();
   Timer? _searchDebounce;
+  var _searchOpen = false;
 
   @override
   void initState() {
@@ -71,63 +74,61 @@ class _UpdatesBodyState extends State<_UpdatesBody> {
   @override
   Widget build(BuildContext context) {
     final l10n = L10n.of(context)!;
+    final tt = context.tt;
+    final compact = context.windowClass == WindowClass.compact;
+    final showSearchField = !compact || _searchOpen;
+    final hasUnread = context.select<UpdatesFeedCubit, bool>(
+      (cubit) => cubit.state.summary.unreadTotal > 0,
+    );
+
     return Scaffold(
+      backgroundColor: tt.bg,
       appBar: TenturaTopBar.of(
         context,
-        title: Text(l10n.updatesTitle),
-        actions: [
-          BlocSelector<UpdatesFeedCubit, UpdatesFeedState, bool>(
-            selector: (state) => state.items.any((item) => !item.isSeen),
-            builder: (context, hasUnread) => TextButton(
-              onPressed: hasUnread
-                  ? () => context.read<UpdatesFeedCubit>().markAllSeen()
-                  : null,
-              child: Text(l10n.updatesMarkAllSeen),
-            ),
-          ),
-        ],
+        title: const SizedBox.shrink(),
+        row: UpdatesFeedAppBarRow(
+          title: l10n.updatesTitle,
+          markAllLabel: l10n.updatesMarkAllSeen,
+          hasUnread: hasUnread,
+          onMarkAll: () => context.read<UpdatesFeedCubit>().markAllSeen(),
+          showSearchIcon: compact,
+          searchOpen: _searchOpen,
+          onSearchPressed: () => setState(() => _searchOpen = !_searchOpen),
+          searchTooltip: l10n.updatesSearchHint,
+        ),
       ),
       body: TenturaContentColumn(
         child: Column(
           children: [
-            Padding(
-              padding: EdgeInsets.symmetric(
-                horizontal: context.tt.screenHPadding,
-              ),
-              child: TextField(
+            if (showSearchField)
+              UpdatesFeedSearchField(
                 controller: _searchController,
+                hintText: l10n.updatesSearchHint,
                 onChanged: _onSearchChanged,
-                textInputAction: TextInputAction.search,
-                decoration: InputDecoration(
-                  hintText: l10n.updatesSearchHint,
-                  prefixIcon: const Icon(Icons.search_outlined),
-                  suffixIcon: _searchController.text.isEmpty
-                      ? null
-                      : IconButton(
-                          tooltip: MaterialLocalizations.of(
-                            context,
-                          ).deleteButtonTooltip,
-                          icon: const Icon(Icons.clear_outlined),
-                          onPressed: () {
-                            _searchController.clear();
-                            _onSearchChanged('');
-                          },
-                        ),
-                ),
+                onClear: () {
+                  _searchController.clear();
+                  _onSearchChanged('');
+                },
               ),
-            ),
-            BlocSelector<UpdatesFeedCubit, UpdatesFeedState, AttentionView>(
-              selector: (state) => state.view,
-              builder: (context, view) => TenturaUnderlineTabs(
+            BlocBuilder<UpdatesFeedCubit, UpdatesFeedState>(
+              buildWhen: (p, c) =>
+                  p.view != c.view || p.summary != c.summary,
+              builder: (context, state) => TenturaUnderlineTabs(
                 tabs: [
                   l10n.updatesAll,
                   l10n.updatesUnread,
                   l10n.updatesNeedsYou,
                 ],
-                selectedIndex: view.index,
+                selectedIndex: state.view.index,
                 onChanged: (index) => context.read<UpdatesFeedCubit>().setView(
                   AttentionView.values[index],
                 ),
+                badges: [
+                  null,
+                  state.summary.unreadTotal,
+                  state.summary.needsYouTotal,
+                ],
+                countStyle: TenturaTabCountStyle.plainText,
                 tabIds: const [
                   'updates-all',
                   'updates-unread',
@@ -146,6 +147,10 @@ class _UpdatesBodyState extends State<_UpdatesBody> {
                   if (state.isEmpty) {
                     return _EmptyUpdates(view: state.view);
                   }
+                  final cells = flattenUpdatesFeed(
+                    items: state.items,
+                    hasNextPage: state.hasNextPage,
+                  );
                   return RefreshIndicator.adaptive(
                     onRefresh: context.read<UpdatesFeedCubit>().refresh,
                     child: CustomScrollView(
@@ -161,51 +166,10 @@ class _UpdatesBodyState extends State<_UpdatesBody> {
                               ),
                             ),
                           ),
-                        SliverList.separated(
-                          itemCount:
-                              state.items.length + (state.hasNextPage ? 1 : 0),
-                          separatorBuilder: (_, _) =>
-                              const TenturaHairlineDivider(),
+                        SliverList.builder(
+                          itemCount: cells.length,
                           itemBuilder: (context, index) {
-                            if (index == state.items.length) {
-                              return const _LoadMoreIndicator();
-                            }
-                            final receipt = state.items[index];
-                            final onTap = () => _open(context, receipt);
-                            final onMarkSeen = () => context
-                                .read<UpdatesFeedCubit>()
-                                .markSeen(receipt.id);
-                            final onSettle = () => context
-                                .read<UpdatesFeedCubit>()
-                                .settle(receipt.id);
-                            if (isTrustChangePresentationKey(
-                              receipt.presentationKey,
-                            )) {
-                              return TrustChangeReceiptCard(
-                                key: ValueKey(receipt.id),
-                                receipt: receipt,
-                                onTap: onTap,
-                                onMarkSeen: onMarkSeen,
-                                onSettle: onSettle,
-                              );
-                            }
-                            if (isInviteAcceptedPresentationKey(
-                              receipt.presentationKey,
-                            )) {
-                              return InviteAcceptedReceiptCard(
-                                key: ValueKey(receipt.id),
-                                receipt: receipt,
-                                onTap: onTap,
-                                onMarkSeen: onMarkSeen,
-                              );
-                            }
-                            return UpdatesReceiptCard(
-                              key: ValueKey(receipt.id),
-                              receipt: receipt,
-                              onTap: onTap,
-                              onMarkSeen: onMarkSeen,
-                              onSettle: onSettle,
-                            );
+                            return _cellWidget(context, cells[index]);
                           },
                         ),
                       ],
@@ -220,6 +184,71 @@ class _UpdatesBodyState extends State<_UpdatesBody> {
     );
   }
 
+  Widget _cellWidget(BuildContext context, UpdatesFeedCell cell) {
+    final l10n = L10n.of(context)!;
+    switch (cell.kind) {
+      case UpdatesFeedCellKind.header:
+        return Padding(
+          padding: EdgeInsets.fromLTRB(
+            context.tt.listRowPadding.left,
+            context.tt.rowGap,
+            context.tt.listRowPadding.right,
+            context.tt.tightGap,
+          ),
+          child: Text(
+            updatesDayHeaderLabel(
+              day: cell.day!,
+              now: DateTime.now(),
+              l10n: l10n,
+            ).toUpperCase(),
+            style: TenturaText.typeLabel(context.tt.textFaint),
+          ),
+        );
+      case UpdatesFeedCellKind.loadMore:
+        return const _LoadMoreIndicator();
+      case UpdatesFeedCellKind.row:
+        final receipt = cell.receipt!;
+        final row = _receiptRow(context, receipt);
+        if (!cell.showDividerBelow) return row;
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [row, const TenturaHairlineDivider()],
+        );
+    }
+  }
+
+  Widget _receiptRow(BuildContext context, AttentionReceipt receipt) {
+    void onTap() => _open(context, receipt);
+    void onMarkSeen() =>
+        unawaited(context.read<UpdatesFeedCubit>().markSeen(receipt.id));
+    void onSettle() =>
+        unawaited(context.read<UpdatesFeedCubit>().settle(receipt.id));
+    if (isTrustChangePresentationKey(receipt.presentationKey)) {
+      return TrustChangeReceiptCard(
+        key: ValueKey(receipt.id),
+        receipt: receipt,
+        onTap: onTap,
+        onMarkSeen: onMarkSeen,
+        onSettle: onSettle,
+      );
+    }
+    if (isInviteAcceptedPresentationKey(receipt.presentationKey)) {
+      return InviteAcceptedReceiptCard(
+        key: ValueKey(receipt.id),
+        receipt: receipt,
+        onTap: onTap,
+        onMarkSeen: () => context.read<UpdatesFeedCubit>().markSeen(receipt.id),
+      );
+    }
+    return UpdatesReceiptCard(
+      key: ValueKey(receipt.id),
+      receipt: receipt,
+      onTap: onTap,
+      onMarkSeen: onMarkSeen,
+      onSettle: onSettle,
+    );
+  }
+
   void _onSearchChanged(String value) {
     _searchDebounce?.cancel();
     _searchDebounce = Timer(const Duration(milliseconds: 250), () {
@@ -229,7 +258,7 @@ class _UpdatesBodyState extends State<_UpdatesBody> {
   }
 
   Future<void> _open(BuildContext context, AttentionReceipt receipt) async {
-    await context.read<UpdatesFeedCubit>().markSeen(receipt.id);
+    unawaited(context.read<UpdatesFeedCubit>().markSeen(receipt.id));
     await GetIt.I<RootRouter>().openFromUpdate(receipt);
   }
 }
@@ -243,30 +272,18 @@ class _EmptyUpdates extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = L10n.of(context)!;
     final tt = context.tt;
+    final text = view == AttentionView.needsYou
+        ? l10n.updatesEmptyNeedsYouHint
+        : view == AttentionView.unread
+        ? l10n.updatesEmptyUnreadHint
+        : l10n.updatesEmptyAllHint;
     return Center(
       child: Padding(
         padding: tt.cardPadding,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              Icons.notifications_none_outlined,
-              size: tt.iconSize * 2,
-              color: tt.textFaint,
-            ),
-            SizedBox(height: tt.rowGap),
-            Text(l10n.updatesEmptyTitle, style: TenturaText.title(tt.text)),
-            SizedBox(height: tt.tightGap),
-            Text(
-              view == AttentionView.all
-                  ? l10n.updatesEmptyAllHint
-                  : view == AttentionView.unread
-                  ? l10n.updatesEmptyUnreadHint
-                  : l10n.updatesEmptyNeedsYouHint,
-              textAlign: TextAlign.center,
-              style: TenturaText.bodySmall(tt.textMuted),
-            ),
-          ],
+        child: Text(
+          text,
+          textAlign: TextAlign.center,
+          style: TenturaText.bodySmall(tt.textMuted),
         ),
       ),
     );

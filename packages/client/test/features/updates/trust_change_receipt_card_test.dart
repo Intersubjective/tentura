@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:tentura/design_system/tentura_theme.dart';
+import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/attention/entity/attention_receipt.dart';
 import 'package:tentura/features/updates/ui/widget/trust_change_receipt_card.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
@@ -38,7 +38,9 @@ Widget _wrap(Widget child) => MaterialApp(
   theme: TenturaTheme.light(),
   localizationsDelegates: L10n.localizationsDelegates,
   supportedLocales: L10n.supportedLocales,
-  home: Scaffold(body: child),
+  home: TenturaResponsiveScope(
+    child: Scaffold(body: child),
+  ),
 );
 
 void main() {
@@ -72,8 +74,8 @@ void main() {
   ) async {
     await pumpCard(tester, presentationKey: 'trust_given_changed_up');
 
-    expect(find.text('Trust in Alex increased'), findsOneWidget);
-    expect(find.byIcon(Icons.arrow_upward), findsOneWidget);
+    expect(find.text('Trust in Alex increased: After "Move help this weekend" closed, your trust shifted.'), findsOneWidget);
+    expect(find.byIcon(TenturaIcons.arrowUp), findsOneWidget);
     expect(find.text('Move help this weekend'), findsOneWidget);
     expect(find.textContaining('ago'), findsOneWidget);
     expect(find.textContaining('bin'), findsNothing);
@@ -89,8 +91,8 @@ void main() {
       body: 'After the request closed, your trust shifted down.',
     );
 
-    expect(find.text('Trust in Alex decreased'), findsOneWidget);
-    expect(find.byIcon(Icons.arrow_downward), findsOneWidget);
+    expect(find.textContaining('Trust in Alex decreased'), findsOneWidget);
+    expect(find.byIcon(TenturaIcons.arrowDown), findsOneWidget);
   });
 
   testWidgets('trust_received_changed_neutral shows flat glyph', (tester) async {
@@ -101,8 +103,8 @@ void main() {
       body: 'No significant change in how they trust you.',
     );
 
-    expect(find.text('Someone reviewed you'), findsOneWidget);
-    expect(find.byIcon(Icons.remove), findsOneWidget);
+    expect(find.textContaining('Someone reviewed you'), findsOneWidget);
+    expect(find.byIcon(TenturaIcons.updates), findsOneWidget);
   });
 
   testWidgets('blank copy uses direction-agnostic trust fallbacks', (
@@ -115,6 +117,8 @@ void main() {
             presentationKey: 'trust_received_changed_up',
             title: '',
             body: '',
+            presentationPayloadJson: '{}',
+            beaconId: null,
           ),
           onTap: () {},
           onMarkSeen: () {},
@@ -125,7 +129,10 @@ void main() {
     await tester.pump();
 
     expect(find.text(l10n.updatesFallbackTitleTrustReceivedChanged), findsOneWidget);
-    expect(find.text(l10n.updatesFallbackBodyTrustReceivedChanged), findsOneWidget);
-    expect(find.byIcon(Icons.arrow_upward), findsOneWidget);
+    expect(
+      find.textContaining(l10n.updatesFallbackBodyTrustReceivedChanged),
+      findsOneWidget,
+    );
+    expect(find.byIcon(TenturaIcons.arrowUp), findsOneWidget);
   });
 }

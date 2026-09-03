@@ -364,6 +364,39 @@ void main() {
     );
 
     test(
+      'optimistic mark-seen decrements server unread not cached length',
+      () async {
+        final initial = Completer<AttentionFeed>();
+        final unreadPage = Completer<AttentionFeed>();
+        repository.pendingFetches.addAll([initial, unreadPage]);
+        accounts.emit('account-a');
+        await _settle();
+        final cached = [
+          for (var i = 0; i < 50; i++) _receipt(id: 'r$i'),
+        ];
+        initial.complete(_feed(unread: 100, items: cached));
+        await _settle();
+
+        attention.setActiveView(AttentionView.unread);
+        await _settle();
+        unreadPage.complete(_feed(unread: 100, items: cached));
+        await _settle();
+
+        repository.pendingMarkSeen.add(Completer<int>());
+        unawaited(attention.markSeen(['r0']));
+        await _settle();
+
+        expect(attention.snapshot.summary.unreadTotal, 99);
+        expect(
+          attention.snapshot.pages[AttentionView.unread]!.items.map(
+            (receipt) => receipt.id,
+          ),
+          isNot(contains('r0')),
+        );
+      },
+    );
+
+    test(
       'mark-all is optimistic and restores unread rows after failure',
       () async {
         final initial = Completer<AttentionFeed>();

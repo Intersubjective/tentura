@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
-import 'package:tentura/design_system/tentura_theme.dart';
+import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/attention/entity/attention_receipt.dart';
+import 'package:tentura/features/updates/ui/widget/updates_feed_tile.dart';
 import 'package:tentura/features/updates/ui/widget/updates_receipt_card.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/l10n/l10n_en.dart';
@@ -38,7 +39,9 @@ Widget _wrap(Widget child) => MaterialApp(
   theme: TenturaTheme.light(),
   localizationsDelegates: L10n.localizationsDelegates,
   supportedLocales: L10n.supportedLocales,
-  home: Scaffold(body: child),
+  home: TenturaResponsiveScope(
+    child: Scaffold(body: child),
+  ),
 );
 
 void main() {
@@ -64,14 +67,10 @@ void main() {
     );
     await tester.pump();
 
-    expect(
-      find.bySemanticsLabel(L10nEn().updatesFallbackTitleNeedsMe),
-      findsOneWidget,
-    );
     expect(find.text(L10nEn().updatesFallbackTitleNeedsMe), findsOneWidget);
     expect(find.text(L10nEn().updatesFallbackBodyNeedsMe), findsOneWidget);
 
-    await tester.tap(find.byType(ListTile));
+    await tester.tap(find.byType(UpdatesFeedTile));
     await tester.pump();
     expect(tapped, isTrue);
   });
@@ -91,8 +90,8 @@ void main() {
     );
     await tester.pump();
 
-    expect(find.text('Alex accepted your ask'), findsOneWidget);
-    expect(find.text('Garden cleanup'), findsWidgets);
+    expect(find.text('Alex accepted your ask: Bring tools'), findsOneWidget);
+    expect(find.text('Garden cleanup'), findsOneWidget);
     expect(find.textContaining('ago'), findsOneWidget);
   });
 
@@ -109,7 +108,43 @@ void main() {
     );
     await tester.pump();
 
-    expect(find.text(L10nEn().updatesNextStepMarkDoneHint), findsOneWidget);
-    expect(find.byIcon(Icons.task_alt_outlined), findsOneWidget);
+    expect(find.text(L10nEn().updatesMarkDone), findsOneWidget);
+    expect(find.byIcon(Icons.task_alt_outlined), findsNothing);
+  });
+
+  testWidgets('unread row shows mark-seen button; seen row shows static icon', (
+    tester,
+  ) async {
+    var marked = false;
+    await tester.pumpWidget(
+      _wrap(
+        UpdatesReceiptCard(
+          receipt: _receipt(),
+          onTap: () {},
+          onMarkSeen: () => marked = true,
+          onSettle: () {},
+        ),
+      ),
+    );
+    await tester.pump();
+    expect(find.byIcon(Icons.radio_button_unchecked), findsOneWidget);
+    await tester.tap(find.byIcon(Icons.radio_button_unchecked));
+    await tester.pump();
+    expect(marked, isTrue);
+
+    await tester.pumpWidget(
+      _wrap(
+        UpdatesReceiptCard(
+          receipt: _receipt().copyWith(seenAt: DateTime.utc(2026, 8, 4)),
+          onTap: () {},
+          onMarkSeen: () {},
+          onSettle: () {},
+        ),
+      ),
+    );
+    await tester.pump();
+    expect(find.byIcon(Icons.check_circle), findsOneWidget);
+    expect(find.byIcon(Icons.radio_button_unchecked), findsNothing);
+    expect(find.byType(IconButton), findsNothing);
   });
 }

@@ -5105,14 +5105,14 @@
   "updatesSearchHint": "Search updates",
   "updatesMarkSeen": "Mark seen",
   "updatesMarkDone": "Mark done",
-  "updatesMarkAllSeen": "Mark all seen",
+  "updatesMarkAllSeen": "Read all",
   "updatesRefreshFailedBanner": "Couldn't refresh updates. Your list may be out of date.",
   "@updatesRefreshFailedBanner": {
     "description": "Non-blocking banner when the Updates feed refresh fails."
   },
   "updatesEmptyTitle": "Nothing new",
-  "updatesEmptyAllHint": "New activity will appear here.",
-  "updatesEmptyUnreadHint": "You have no unread updates.",
+  "updatesEmptyAllHint": "All caught up. New updates will appear here.",
+  "updatesEmptyUnreadHint": "All caught up. New updates will appear here.",
   "updatesEmptyNeedsYouHint": "You have no open items that need you.",
   "updatesNextStepMarkDoneHint": "Mark this done when you finish the task.",
   "updatesFallbackTitleGeneric": "Update",

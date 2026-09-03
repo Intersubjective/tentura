@@ -126,4 +126,27 @@ void main() {
       expect(badge.backgroundColor, TenturaTokens.light.danger);
     },
   );
+
+  testWidgets(
+    'TenturaUnderlineTabs plainText counts skip TenturaCountBadge',
+    (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: TenturaTheme.light(),
+          home: Scaffold(
+            body: TenturaUnderlineTabs(
+              tabs: const ['A', 'B'],
+              selectedIndex: 0,
+              onChanged: (_) {},
+              badges: const [4, null],
+              countStyle: TenturaTabCountStyle.plainText,
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+      expect(find.byType(TenturaCountBadge), findsNothing);
+      expect(find.text('4'), findsOneWidget);
+    },
+  );
 }

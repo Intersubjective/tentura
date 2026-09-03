@@ -31,6 +31,7 @@ final class UpdatesFeedCubit extends Cubit<UpdatesFeedState> {
     emit(
       state.copyWith(
         view: snapshot.activeView,
+        summary: snapshot.summary,
         items: page?.items ?? const [],
         hasNextPage: page?.nextCursor?.isNotEmpty ?? false,
         refreshError: snapshot.headRefreshError,

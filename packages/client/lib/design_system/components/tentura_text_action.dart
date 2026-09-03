@@ -13,6 +13,7 @@ class TenturaTextAction extends StatelessWidget {
     this.tone = TenturaTone.info,
     this.icon,
     this.semanticsIdentifier,
+    this.flushStart = false,
   });
 
   final String label;
@@ -21,6 +22,9 @@ class TenturaTextAction extends StatelessWidget {
   final Widget? icon;
   final String? semanticsIdentifier;
 
+  /// Zero start padding so the label aligns with body text above it.
+  final bool flushStart;
+
   @override
   Widget build(BuildContext context) {
     final tt = context.tt;
@@ -28,10 +32,15 @@ class TenturaTextAction extends StatelessWidget {
     final button = TextButton(
       onPressed: onPressed,
       style: TextButton.styleFrom(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        padding: flushStart
+            ? const EdgeInsetsDirectional.only(end: 12, top: 10, bottom: 10)
+            : const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
         minimumSize: const Size(44, 44),
         tapTargetSize: MaterialTapTargetSize.shrinkWrap,
         foregroundColor: color,
+        alignment: flushStart
+            ? AlignmentDirectional.centerStart
+            : Alignment.center,
       ),
       child: icon == null
           ? Text(

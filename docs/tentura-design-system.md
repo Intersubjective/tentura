@@ -203,6 +203,10 @@ Do **not** wrap the app in `MediaQuery.copyWith(textScaler: TextScaler.noScaling
 7. **Avatars** — unified [`TenturaAvatar`](../packages/client/lib/design_system/components/tentura_avatar.dart) with four buckets via `TenturaAvatarSize`: **big** (160, profile hero), **medium** (`avatarSize`, list rows / people tab), **small** (`metadataAvatarSize`, facepiles / coordination footer), **tiny** (`avatarTinySize`, inline log/timeline). Optional flags: `showAuthorStar` (beacon author), `isSelf` (viewer halo), `withRating` / `withContactBadge` (MeritRank; honored at big/medium/small only). Personal/identity surfaces default to plain avatars (`withRating: false`). Viewer identity is resolved only in [`SelfAwareAvatar`](../packages/client/lib/ui/widget/self_aware_profile_avatar.dart) (never in the DS widget). Facepiles use [`OverlappingPeopleAvatars`](../packages/client/lib/ui/widget/overlapping_people_avatars.dart) with `selfUserId` + `starredProfileId`.
 8. **A11y** — min tap targets (e.g. button height from tokens); respect system text scaling.
 
+### Updates feed (home tab)
+
+Dense list rows, not cards. Scaffold uses `tt.bg`. Row padding is `tt.listRowPadding`. Headline is the Request title (`titleSmall`); event copy is line 2 (`bodySmall`); relative time sits on line 1 (`bodySmall` + tabular, `textFaint`). Unread leading glyph is `tt.surface` with a `tt.info` dot (`unreadDotSize`); separators are `TenturaHairlineDivider`. Search uses `searchBarHeight` / `searchBarRadius`. Tab counts on this screen use `TenturaTabCountStyle.plainText`. Top bar stays `TenturaTopBarTone.surface` so the `--info` “Read all” action keeps contrast.
+
 ## Token summary (light)
 
 
@@ -213,6 +217,7 @@ Do **not** wrap the app in `MediaQuery.copyWith(textScaler: TextScaler.noScaling
 | `border` / `borderSubtle`                                          | hairlines          |
 | `text` / `textMuted` / `textFaint`                                 | hierarchy          |
 | `info` (sky) / `good` (emerald) / `warn` (amber) / `danger` (rose) | semantics          |
+| `listRowPadding` / `searchBarHeight` / `searchBarRadius` / `unreadDotSize` | dense Updates list |
 
 
 ## Components (use these)

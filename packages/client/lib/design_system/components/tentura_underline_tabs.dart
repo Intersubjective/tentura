@@ -6,6 +6,8 @@ import 'tentura_count_badge.dart';
 import '../tentura_text.dart';
 import '../tentura_tokens.dart';
 
+enum TenturaTabCountStyle { badge, plainText }
+
 /// Underline tab row: full-width bottom border; active tab 2px sky underline.
 ///
 /// Optional [attentionIndex] + [attentionActive] pulse a soft highlight on that
@@ -21,6 +23,7 @@ class TenturaUnderlineTabs extends StatefulWidget {
     this.tabIds,
     this.attentionIndex,
     this.attentionActive = false,
+    this.countStyle = TenturaTabCountStyle.badge,
     super.key,
   });
 
@@ -45,6 +48,9 @@ class TenturaUnderlineTabs extends StatefulWidget {
 
   /// When true (with a valid [attentionIndex]), show pulse or static highlight.
   final bool attentionActive;
+
+  /// How [badges] / [secondaryBadges] render. Default [badge] keeps Beacon chips.
+  final TenturaTabCountStyle countStyle;
 
   @override
   State<TenturaUnderlineTabs> createState() => _TenturaUnderlineTabsState();
@@ -180,6 +186,7 @@ class _TenturaUnderlineTabsState extends State<TenturaUnderlineTabs>
       badgeBackgroundColor: badgeBackground,
       secondaryBadge: secondaryBadge,
       attentionBackgroundOpacity: staticAttentionOpacity,
+      countStyle: widget.countStyle,
     );
 
     if (!useAnimatedAttention) {
@@ -208,6 +215,7 @@ class _TenturaUnderlineTabsState extends State<TenturaUnderlineTabs>
           badgeBackgroundColor: badgeBackground,
           secondaryBadge: secondaryBadge,
           attentionBackgroundOpacity: opacity,
+          countStyle: widget.countStyle,
         );
       },
     );
@@ -224,6 +232,7 @@ class _TabCell extends StatelessWidget {
     this.badgeBackgroundColor,
     this.secondaryBadge,
     this.attentionBackgroundOpacity = 0.0,
+    this.countStyle = TenturaTabCountStyle.badge,
     super.key,
   });
 
@@ -235,6 +244,7 @@ class _TabCell extends StatelessWidget {
   final Color? badgeBackgroundColor;
   final int? secondaryBadge;
   final double attentionBackgroundOpacity;
+  final TenturaTabCountStyle countStyle;
 
   @override
   Widget build(BuildContext context) {
@@ -293,25 +303,41 @@ class _TabCell extends StatelessWidget {
                         ),
                       ),
                       if (hasAnyBadge) ...[
-                        const SizedBox(width: 10),
+                        SizedBox(width: tt.iconTextGap),
                         Padding(
-                          padding: const EdgeInsets.only(right: 8),
+                          padding: EdgeInsets.only(right: tt.iconTextGap),
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               if (hasPrimaryBadge)
-                                TenturaCountBadge(
-                                  count: badge!,
-                                  backgroundColor:
-                                      badgeBackgroundColor ?? tt.info,
-                                ),
+                                countStyle == TenturaTabCountStyle.plainText
+                                    ? Text(
+                                        '${badge!}',
+                                        style: TenturaText.withTabular(
+                                          TenturaText.bodySmall(
+                                            selected ? active : inactive,
+                                          ),
+                                        ),
+                                      )
+                                    : TenturaCountBadge(
+                                        count: badge!,
+                                        backgroundColor:
+                                            badgeBackgroundColor ?? tt.info,
+                                      ),
                               if (hasPrimaryBadge && hasSecondaryBadge)
-                                const SizedBox(width: 6),
+                                SizedBox(width: tt.tightGap),
                               if (hasSecondaryBadge)
-                                TenturaCountBadge(
-                                  count: secondaryBadge!,
-                                  backgroundColor: tt.warn,
-                                ),
+                                countStyle == TenturaTabCountStyle.plainText
+                                    ? Text(
+                                        '${secondaryBadge!}',
+                                        style: TenturaText.withTabular(
+                                          TenturaText.bodySmall(tt.warn),
+                                        ),
+                                      )
+                                    : TenturaCountBadge(
+                                        count: secondaryBadge!,
+                                        backgroundColor: tt.warn,
+                                      ),
                             ],
                           ),
                         ),

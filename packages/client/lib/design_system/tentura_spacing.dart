@@ -16,6 +16,20 @@ abstract final class TenturaSpacing {
   /// Intentionally fixed — does not scale with [WindowClass].
   static const double tight = 2;
 
+  /// M3 search-field height on Updates and similar list screens.
+  static const double searchBar = 48;
+
+  /// Unread indicator on a list-row leading glyph.
+  static const double unreadDot = 10;
+
+  /// Compact Updates / record-list row: start screenH, vertical card, end row.
+  static const EdgeInsets listRowPadding = EdgeInsets.fromLTRB(
+    screenH,
+    cardPadding,
+    row,
+    cardPadding,
+  );
+
   static const EdgeInsets screenHPadding = EdgeInsets.symmetric(
     horizontal: screenH,
   );
