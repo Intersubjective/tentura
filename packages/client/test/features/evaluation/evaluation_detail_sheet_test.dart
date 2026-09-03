@@ -376,7 +376,7 @@ void main() {
   );
 
   testWidgets(
-    'compact dirty sheet drag asks confirmation then can discard',
+    'compact dirty sheet barrier asks confirmation then can discard',
     (
       tester,
     ) async {
@@ -392,17 +392,12 @@ void main() {
       );
       await evaluationSelectImpact(tester, 'Helped a lot');
       final sheet = tester.widget<BottomSheet>(find.byType(BottomSheet));
-      expect(sheet.enableDrag, isTrue);
+      // Drag dismiss is disabled so note-field focus / keyboard scroll cannot
+      // false-trigger the leave dialog on mobile web.
+      expect(sheet.enableDrag, isFalse);
       expect(sheet.showDragHandle, isTrue);
 
-      // Content is scrollable; dismiss drag must start on the drag handle.
-      final handle = find.bySemanticsLabel('Dismiss');
-      expect(handle, findsWidgets);
-      await tester.timedDrag(
-        handle.first,
-        const Offset(0, 500),
-        const Duration(milliseconds: 300),
-      );
+      await tester.tapAt(const Offset(20, 20));
       await tester.pumpAndSettle();
       expect(find.byType(BottomSheet), findsOneWidget);
       expect(find.text('Return to editing'), findsOneWidget);

@@ -49,6 +49,9 @@ Future<void> showEvaluationDetailSheet({
   );
   await showTenturaAdaptiveSheet<void>(
     context: context,
+    // Text-input sheets: drag dismiss false-fires when the soft keyboard /
+    // viewport scroll focuses the note field (Android mobile web).
+    enableDrag: false,
     builder: (_) => profileCubit == null
         ? body
         : BlocProvider<ProfileCubit>.value(value: profileCubit, child: body),
