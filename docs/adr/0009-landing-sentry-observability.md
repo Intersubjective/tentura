@@ -30,9 +30,13 @@ leak whether an address is registered.
 3. **Release / environment**: `sentryEnvironment` and `sentryRelease` in
    `config.js`, injected at CI deploy (mirroring `sentryDsn` sed).
 
-4. **Funnel backbone**: discrete `captureMessage('funnel:…')` events plus
-   breadcrumbs — not a single cross-redirect trace. Client-visible failures use
-   `captureException` via `trackError`.
+4. **Funnel backbone**: breadcrumb-only for funnel events (`track()`) and auth
+   outcome events (`emitAuthOutcome`, `emitClientAuthOutcome`) — not a single
+   cross-redirect trace. Breadcrumbs are only observable when attached to a later
+   captured event. Client-visible failures use `captureException` via `trackError`;
+   `captureException` (and `captureSeedRecoveryFailed`) remain the only
+   Issue-creating paths for these helpers (other paths such as `sentry_log_bridge`
+   SEVERE and `report_sentry_message` remain).
 
 5. **Identity model**:
    - Ephemeral `visit_id` in `sessionStorage` on landing load (scope tag).
@@ -57,33 +61,40 @@ leak whether an address is registered.
    tried”; server/client `email_start_outcome`, `google_callback_outcome`,
    `seed_recovery_failed` mean what actually happened.
 
-10. **Cross-project join**: `auth_attempt_id` links landing, client, and server
-    Sentry projects. `sendDefaultPii: false` on landing; no email/seed in events.
+10. **Cross-project correlation**: `auth_attempt_id` is carried across landing,
+    client, and server as a breadcrumb data field and scope tag. It can correlate
+    breadcrumbs on the same event but does not enable cross-project Discover joins
+    on funnel/auth-outcome events (which no longer create Issues). `sendDefaultPii:
+    false` on landing; no email/seed in events. Auth exception Issues from the
+    `_log.severe` bridge remain uncorrelated (follow-up work).
 
-## Event taxonomy (stable Discover queries)
+## Event taxonomy
 
-**Landing funnel actions**: `landing_view`, `preview_loaded`, `preview_error`,
-`email_start_clicked`, `email_start_accepted`, `google_start_clicked`,
-`seed_recovery_clicked`, `post_signup_view`, `signup_name_saved`,
-`signup_name_error`, `onboarding_done`, `onboarding_skipped`.
+**Landing funnel actions** (breadcrumb-only): `landing_view`, `preview_loaded`,
+`preview_error`, `email_start_clicked`, `email_start_accepted`,
+`google_start_clicked`, `seed_recovery_clicked`, `post_signup_view`,
+`signup_name_saved`, `signup_name_error`, `onboarding_done`, `onboarding_skipped`.
 
-**Server email**: `email_start_outcome` — `sent`, `invalid_format`, `rate_limited`,
-`invite_required_skip`, `mail_unconfigured`, `unexpected_error`.
-
-**Server Google**: `google_start_outcome`, `google_callback_outcome` — `redirected`,
-`misconfigured`, `missing_code_or_state`, `missing_state_cookie`, `state_mismatch`,
-`token_exchange_failed`, `invite_required`, `credential_conflict`, `success_existing`,
-`success_new`, `unexpected_error`.
-
-**Seed**: `seed_recovery_started`, `seed_recovery_failed`,
-`seed_recovery_cookie_established` — `invalid_seed`, `remote_sign_in_failed`,
-`profile_fetch_failed`, `local_store_failed`, `session_cookie_failed`, `success`,
+**Server email** (breadcrumb-only): `email_start_outcome` — `sent`,
+`invalid_format`, `rate_limited`, `invite_required_skip`, `mail_unconfigured`,
 `unexpected_error`.
+
+**Server Google** (breadcrumb-only): `google_start_outcome`,
+`google_callback_outcome` — `redirected`, `misconfigured`,
+`missing_code_or_state`, `missing_state_cookie`, `state_mismatch`,
+`token_exchange_failed`, `invite_required`, `credential_conflict`,
+`success_existing`, `success_new`, `unexpected_error`.
+
+**Seed** (breadcrumb-only for outcome; Issue on failure): `seed_recovery_started`,
+`seed_recovery_failed`, `seed_recovery_cookie_established` — `invalid_seed`,
+`remote_sign_in_failed`, `profile_fetch_failed`, `local_store_failed`,
+`session_cookie_failed`, `success`, `unexpected_error`.
 
 ## Consequences
 
-- Operators can filter landing funnels by `environment`, `release`, `visit_id`,
-  and join auth failures across projects via `auth_attempt_id`.
+- Operators can filter landing funnels by `environment`, `release`, and `visit_id`
+  via Session Replay and error event breadcrumbs. Funnel and auth-outcome events
+  no longer create standalone Issues.
 - Email enumeration safety preserved: response shape is always `{ ok, attemptId }`.
 - Replay and tracing sample rates should be lowered when traffic grows.
 

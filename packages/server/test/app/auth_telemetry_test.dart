@@ -1,3 +1,4 @@
+import 'package:sentry/sentry.dart';
 import 'package:test/test.dart';
 
 import 'package:tentura_server/app/sentry/auth_telemetry.dart';
@@ -35,4 +36,69 @@ void main() {
       expect(isValidAuthAttemptId('bad!!!'), isFalse);
     });
   });
+
+  group('emitAuthOutcome', () {
+    late _FakeHub hub;
+
+    setUp(() {
+      hub = _FakeHub();
+    });
+
+    test('emits 0 captureMessage calls and 1 breadcrumb with correct data',
+        () async {
+      await emitAuthOutcomeOnHub(
+        hub,
+        'email_start_outcome',
+        authOutcome: 'sent',
+        authAttemptId: 'Eabc1234567890',
+        authMethod: 'email',
+      );
+      expect(hub.capturedMessages, isEmpty);
+      expect(hub.breadcrumbs, hasLength(1));
+      final b = hub.breadcrumbs.first;
+      expect(b.message, 'auth:email_start_outcome');
+      expect(b.category, 'auth');
+      expect(b.data?['auth_outcome'], 'sent');
+      expect(b.data?['auth_method'], 'email');
+      expect(b.data?['auth_attempt_id'], 'Eabc1234567890');
+    });
+
+    test('omits auth_attempt_id when invalid', () async {
+      await emitAuthOutcomeOnHub(
+        hub,
+        'google_callback_outcome',
+        authOutcome: 'success_new',
+        authAttemptId: null,
+        authMethod: 'google',
+      );
+      expect(hub.breadcrumbs, hasLength(1));
+      expect(hub.breadcrumbs.first.data?.containsKey('auth_attempt_id'), isFalse);
+    });
+  });
+}
+
+class _FakeHub implements Hub {
+  final List<String> capturedMessages = [];
+  final List<Breadcrumb> breadcrumbs = [];
+
+  @override
+  Future<SentryId> captureMessage(
+    String? message, {
+    SentryLevel? level,
+    String? template,
+    List<dynamic>? params,
+    Hint? hint,
+    ScopeCallback? withScope,
+  }) async {
+    if (message != null) capturedMessages.add(message);
+    return SentryId.empty();
+  }
+
+  @override
+  Future<void> addBreadcrumb(Breadcrumb crumb, {Hint? hint}) async {
+    breadcrumbs.add(crumb);
+  }
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => null;
 }

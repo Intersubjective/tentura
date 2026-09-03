@@ -95,6 +95,7 @@ test('initAnalytics wires Sentry when DSN present', async () => {
     apiBase: '',
   };
   const messages = [];
+  const breadcrumbs = [];
   globalThis.Sentry = {
     browserTracingIntegration: () => ({}),
     replayIntegration: () => ({}),
@@ -104,7 +105,7 @@ test('initAnalytics wires Sentry when DSN present', async () => {
     getCurrentScope: () => ({
       setTag: () => {},
     }),
-    addBreadcrumb: () => {},
+    addBreadcrumb: (b) => breadcrumbs.push(b),
     captureMessage: (m) => messages.push(m),
     captureException: () => {},
     setUser: () => {},
@@ -113,8 +114,10 @@ test('initAnalytics wires Sentry when DSN present', async () => {
   resetAnalyticsForTests();
   initAnalytics();
   track('landing_view');
-  assert.equal(messages.length, 1);
-  assert.equal(messages[0], 'funnel:landing_view');
+  assert.equal(messages.length, 0);
+  assert.equal(breadcrumbs.length, 1);
+  assert.equal(breadcrumbs[0].message, 'funnel:landing_view');
+  assert.equal(breadcrumbs[0].category, 'funnel');
   assert.equal(globalThis.__sentryInit.sendDefaultPii, false);
   assert.equal(globalThis.__sentryInit.tracesSampleRate, 1.0);
 });

@@ -27,16 +27,15 @@ Future<void> emitClientAuthOutcome(
     authAttemptId: authAttemptId,
     authMethod: authMethod,
   );
-  await Sentry.captureMessage(
-    'auth:$event',
-    withScope: (scope) {
-      scope.setTag('auth_outcome', authOutcome);
-      scope.setTag('auth_method', authMethod);
-      if (isValidClientAuthAttemptId(authAttemptId)) {
-        scope.setTag('auth_attempt_id', authAttemptId!);
-      }
+  await Sentry.addBreadcrumb(Breadcrumb(
+    message: 'auth:$event',
+    category: 'auth',
+    data: {
+      'auth_outcome': authOutcome,
+      'auth_method': authMethod,
+      if (isValidClientAuthAttemptId(authAttemptId)) 'auth_attempt_id': authAttemptId!,
     },
-  );
+  ));
 }
 
 Future<void> captureSeedRecoveryFailed({

@@ -107,12 +107,14 @@ extracts them to `./landing`, which `compose.prod.yaml` mounts at `/srv/landing`
 ## Analytics / funnel identity
 
 `analytics.js` initializes Sentry (tracing + replay), assigns an ephemeral
-`visit_id` in `sessionStorage`, and emits funnel `captureMessage` events. When the
-user chooses an auth method, `auth_attempt_id` is set on the Sentry scope and
-carried through email (server-returned), Google OAuth (signed state + return URL),
-or seed recovery (`/recover?auth_attempt_id=…`). After signup, `setUser` uses
-the account id and clears `visit_id`. Server and client projects join on
-`auth_attempt_id` (ADR 0009).
+`visit_id` in `sessionStorage`, and emits funnel events as **breadcrumbs only**
+(no standalone Issues). When the user chooses an auth method, `auth_attempt_id`
+is set on the Sentry scope and carried through email (server-returned), Google
+OAuth (signed state + return URL), or seed recovery (`/recover?auth_attempt_id=…`).
+After signup, `setUser` uses the account id and clears `visit_id`.
+`captureException` (via `trackError`) is the only Issue-creating path in
+`analytics.js`; auth outcome events on server and client are likewise
+breadcrumb-only (ADR 0009).
 
 ## App background warmup
 

@@ -60,18 +60,31 @@ Future<void> emitAuthOutcome(
       authMethod: authMethod,
     );
   }
-  await hub.captureMessage(
-    'auth:$event',
-    withScope: (scope) {
-      scope.setTag('auth_outcome', authOutcome);
-      if (authMethod != null) {
-        scope.setTag('auth_method', authMethod);
-      }
-      if (isValidAuthAttemptId(authAttemptId)) {
-        scope.setTag('auth_attempt_id', authAttemptId!);
-      }
-    },
+  await emitAuthOutcomeOnHub(
+    hub,
+    event,
+    authOutcome: authOutcome,
+    authAttemptId: authAttemptId,
+    authMethod: authMethod,
   );
+}
+
+Future<void> emitAuthOutcomeOnHub(
+  Hub hub,
+  String event, {
+  required String authOutcome,
+  String? authAttemptId,
+  String? authMethod,
+}) async {
+  await hub.addBreadcrumb(Breadcrumb(
+    message: 'auth:$event',
+    category: 'auth',
+    data: {
+      'auth_outcome': authOutcome,
+      if (authMethod != null) 'auth_method': authMethod,
+      if (isValidAuthAttemptId(authAttemptId)) 'auth_attempt_id': authAttemptId!,
+    },
+  ));
 }
 
 String? sanitizeAuthAttemptIdQuery(String? raw) {

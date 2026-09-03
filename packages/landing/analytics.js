@@ -133,8 +133,7 @@ export function setAccount(accountId) {
 export function track(event, data = {}) {
   if (!ready) return;
   const Sentry = window.Sentry;
-  Sentry.addBreadcrumb({ category: 'funnel', message: event, data });
-  Sentry.captureMessage(`funnel:${event}`, { level: 'info', extra: data });
+  Sentry.addBreadcrumb({ message: `funnel:${event}`, category: 'funnel', level: 'info', data });
 }
 
 export function trackError(event, err, data = {}) {
@@ -162,20 +161,3 @@ export function resetAnalyticsForTests() {
   ready = false;
 }
 
-export function trackOutcome(event, { authOutcome, method, ...rest }) {
-  if (!ready) return;
-  const Sentry = window.Sentry;
-  Sentry.addBreadcrumb({
-    category: 'auth_outcome',
-    message: event,
-    data: { authOutcome, method, ...rest },
-  });
-  Sentry.captureMessage(`auth:${event}`, {
-    level: 'info',
-    tags: {
-      auth_outcome: authOutcome,
-      ...(method ? { auth_method: method } : {}),
-    },
-    extra: rest,
-  });
-}
