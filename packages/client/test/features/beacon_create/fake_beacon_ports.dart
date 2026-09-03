@@ -133,6 +133,7 @@ class FakeBeaconWritePort implements BeaconWritePort {
   final updatedDraftFields = <Beacon>[];
   final updatedFields = <Beacon>[];
   final publishedIds = <String>[];
+  final deletedIds = <String>[];
 
   Exception? createError;
   Exception? updateDraftError;
@@ -194,6 +195,9 @@ class FakeBeaconWritePort implements BeaconWritePort {
 
   @override
   Future<void> publishDraft(String id) async => publishedIds.add(id);
+
+  @override
+  Future<void> delete(String id) async => deletedIds.add(id);
 
   @override
   Future<String> stageImage({

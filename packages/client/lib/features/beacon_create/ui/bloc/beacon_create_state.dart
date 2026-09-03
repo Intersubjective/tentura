@@ -57,6 +57,13 @@ abstract class BeaconCreateState extends StateBase with _$BeaconCreateState {
 
     /// True after [BeaconCreateCubit.makeLive] in this create session.
     @Default(false) bool isLive,
+
+    /// Quiet draft persist (must not use [StateStatus.isLoading]).
+    @Default(false) bool isAutosaving,
+    DateTime? lastAutosavedAt,
+
+    /// Show title/description errors after blur or Next, not on every keystroke.
+    @Default(false) bool showValidationHints,
     @Default(StateIsSuccess()) StateStatus status,
   }) = _BeaconCreateState;
 

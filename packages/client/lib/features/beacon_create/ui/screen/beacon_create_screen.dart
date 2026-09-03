@@ -3,25 +3,22 @@ import 'dart:async' show unawaited;
 import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:flutter/material.dart';
 import 'package:auto_route/auto_route.dart';
+import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/consts.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
+import 'package:tentura/features/beacon/ui/dialog/beacon_delete_dialog.dart';
 import 'package:tentura/features/context/ui/bloc/context_cubit.dart';
 import 'package:tentura/features/forward/ui/bloc/forward_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/test_ids.dart';
+import 'package:tentura/ui/widget/auto_leading_with_fallback.dart';
 
 import '../bloc/beacon_create_cubit.dart';
 import '../dialog/beacon_send_confirmation_dialog.dart';
 import '../widget/info_tab.dart';
 import '../widget/recipients_tab.dart';
-
-String? _publishBlockedDetail(L10n l10n, BeaconPublishBlocker blocker) =>
-    switch (blocker) {
-      BeaconPublishBlocker.title => l10n.beaconPublishBlockedTitle,
-      BeaconPublishBlocker.description => l10n.beaconPublishBlockedDescription,
-    };
 
 /// After a successful [BeaconCreateCubit.makeLive], leave create and open the
 /// published request. Shared so widget tests can assert [StackRouter.popAndPush]
@@ -49,7 +46,7 @@ class BeaconCreateScreen extends StatefulWidget implements AutoRouteWrapper {
   final String editId;
 
   /// Optional initial focus: [kBeaconCreateTabRecipients] or
-  /// [kBeaconCreateTabImage] (Images editor on Info).
+  /// [kBeaconCreateTabImage] (Cover editor on the form step).
   final String initialTab;
 
   /// Optional profile-route recipient to preselect when Recipients is prepared.
@@ -75,15 +72,17 @@ class BeaconCreateScreen extends StatefulWidget implements AutoRouteWrapper {
   );
 }
 
-class _BeaconCreateScreenState extends State<BeaconCreateScreen>
-    with TickerProviderStateMixin {
-  static const _recipientsTabIndex = 1;
+class _BeaconCreateScreenState extends State<BeaconCreateScreen> {
+  static const _formStep = 0;
+  static const _recipientsStep = 1;
 
   final _formKey = GlobalKey<FormState>();
 
-  late final _tabController = TabController(length: 2, vsync: this);
-
   late final _beaconCreateCubit = context.read<BeaconCreateCubit>();
+
+  late int _step = widget.initialTab == kBeaconCreateTabRecipients
+      ? _recipientsStep
+      : _formStep;
 
   ForwardCubit? _forwardCubit;
   String? _forwardCubitDraftId;
@@ -92,37 +91,26 @@ class _BeaconCreateScreenState extends State<BeaconCreateScreen>
   @override
   void initState() {
     super.initState();
-    _tabController.addListener(_onTabChanged);
     if (widget.initialTab == kBeaconCreateTabRecipients) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (mounted) {
-          unawaited(_openRecipientsTab());
+          unawaited(_openRecipientsStep());
         }
       });
     }
-    // `tab=image` is handled by InfoTab via [openImagesInitially].
   }
 
   @override
   void dispose() {
-    _tabController.removeListener(_onTabChanged);
-    _tabController.dispose();
     unawaited(_forwardCubit?.close());
     super.dispose();
   }
 
-  void _onTabChanged() {
-    if (!_tabController.indexIsChanging &&
-        _tabController.index == _recipientsTabIndex) {
-      unawaited(_prepareRecipientsTab());
-    }
-  }
-
-  Future<void> _openRecipientsTab() async {
+  Future<void> _openRecipientsStep() async {
     if (!mounted || _beaconCreateCubit.state.isEditMode) return;
     await _prepareRecipientsTab();
     if (mounted) {
-      _tabController.animateTo(_recipientsTabIndex);
+      setState(() => _step = _recipientsStep);
     }
   }
 
@@ -131,11 +119,7 @@ class _BeaconCreateScreenState extends State<BeaconCreateScreen>
       return;
     }
     _formKey.currentState?.save();
-    _beaconCreateCubit.validate(
-      _formKey.currentState?.validate() ?? false,
-    );
-    // Don't attempt server draft creation until required fields are present.
-    // This tab should be reachable without triggering a validation snackbar.
+    _beaconCreateCubit.validate();
     if (_beaconCreateCubit.state.publishBlocker != null) {
       return;
     }
@@ -188,9 +172,7 @@ class _BeaconCreateScreenState extends State<BeaconCreateScreen>
   Future<void> _sendRequest() async {
     final contextName = context.read<ContextCubit>().state.selected;
     _formKey.currentState?.save();
-    _beaconCreateCubit.validate(
-      _formKey.currentState?.validate() ?? false,
-    );
+    _beaconCreateCubit.validate();
     final forwardCubit = _forwardCubitFor(
       _beaconCreateCubit.state,
       contextName,
@@ -214,58 +196,272 @@ class _BeaconCreateScreenState extends State<BeaconCreateScreen>
     }
   }
 
+  Future<void> _leaveForm() async {
+    _formKey.currentState?.save();
+    await _beaconCreateCubit.flushAutosave();
+    if (!mounted) return;
+    if (context.router.canPop()) {
+      await context.router.maybePop();
+    } else {
+      await context.router.navigatePath(kPathMyWork);
+    }
+  }
+
+  Future<void> _onNext() async {
+    _formKey.currentState?.save();
+    _beaconCreateCubit.validate();
+    if (_beaconCreateCubit.state.publishBlocker != null) {
+      _beaconCreateCubit.revealValidationHints();
+      return;
+    }
+    await _beaconCreateCubit.flushAutosave();
+    if (!mounted) return;
+    await _openRecipientsStep();
+  }
+
+  Future<void> _onDraftMenu(String value) async {
+    final contextName = context.read<ContextCubit>().state.selected;
+    if (value == 'save') {
+      _formKey.currentState?.save();
+      await _beaconCreateCubit.saveDraft(context: contextName);
+      return;
+    }
+    if (value == 'delete') {
+      final confirmed = await BeaconDeleteDialog.show(
+        context,
+        status: BeaconStatus.draft,
+        hasEverHadCommitter: false,
+      );
+      if ((confirmed ?? false) && mounted) {
+        await _beaconCreateCubit.deleteDraft();
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = L10n.of(context)!;
     final tt = context.tt;
     final contextName = context.watch<ContextCubit>().state.selected;
-    final actionButtonStyle = TextButton.styleFrom(
-      minimumSize: Size(0, tt.buttonHeight),
-      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-    );
-    return Scaffold(
-      appBar: TenturaTopBar.of(
-        context,
-        centerTitle: true,
-        leading: const AutoLeadingButton(),
-        trailingIsIcon: false,
-        title:
-            BlocSelector<
-              BeaconCreateCubit,
-              BeaconCreateState,
-              ({bool isDraft, bool isEdit, bool isLive})
-            >(
-              bloc: _beaconCreateCubit,
-              selector: (s) => (
-                isDraft: s.draftId != null,
-                isEdit: s.isEditMode,
-                isLive: s.isLive,
+    _beaconCreateCubit.setAutosaveContext(contextName);
+    final isRecipients = _step == _recipientsStep;
+
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) async {
+        if (didPop) return;
+        if (_step == _recipientsStep) {
+          setState(() => _step = _formStep);
+          return;
+        }
+        await _leaveForm();
+      },
+      child: Scaffold(
+        appBar: TenturaTopBar.of(
+          context,
+          centerTitle: true,
+          leading: isRecipients
+              ? IconButton(
+                  icon: const Icon(Icons.arrow_back),
+                  onPressed: () => setState(() => _step = _formStep),
+                )
+              : AutoLeadingWithFallback(
+                  fallbackPath: kPathMyWork,
+                  closeWhenCanPop: true,
+                  onPressed: () => unawaited(_leaveForm()),
+                ),
+          trailingIsIcon: false,
+          title:
+              BlocSelector<
+                BeaconCreateCubit,
+                BeaconCreateState,
+                ({bool isDraft, bool isEdit, bool isLive})
+              >(
+                bloc: _beaconCreateCubit,
+                selector: (s) => (
+                  isDraft: s.draftId != null,
+                  isEdit: s.isEditMode,
+                  isLive: s.isLive,
+                ),
+                builder: (context, mode) => Text(
+                  mode.isEdit
+                      ? l10n.editBeaconTitle
+                      : mode.isLive
+                      ? l10n.liveRequestTitle
+                      : mode.isDraft
+                      ? l10n.editDraftTitle
+                      : l10n.createNewBeacon,
+                  style: Theme.of(context).textTheme.titleSmall,
+                ),
               ),
-              builder: (context, mode) => Text(
-                mode.isEdit
-                    ? l10n.editBeaconTitle
-                    : mode.isLive
-                    ? l10n.liveRequestTitle
-                    : mode.isDraft
-                    ? l10n.editDraftTitle
-                    : l10n.createNewBeacon,
+          actions: [
+            if (!isRecipients)
+              BlocBuilder<BeaconCreateCubit, BeaconCreateState>(
+                bloc: _beaconCreateCubit,
+                buildWhen: (p, c) =>
+                    p.isEditMode != c.isEditMode ||
+                    p.isLive != c.isLive ||
+                    p.draftId != c.draftId,
+                builder: (context, state) {
+                  if (state.isEditMode || state.isLive) {
+                    return const SizedBox.shrink();
+                  }
+                  return TenturaTextAction(
+                    label: l10n.beaconCreateDraftAction,
+                    tone: TenturaTone.neutral,
+                    onPressed: () async {
+                      final box = context.findRenderObject() as RenderBox?;
+                      final overlay =
+                          Overlay.of(context).context.findRenderObject()
+                              as RenderBox?;
+                      if (box == null || overlay == null) return;
+                      final position = RelativeRect.fromRect(
+                        Rect.fromPoints(
+                          box.localToGlobal(Offset.zero, ancestor: overlay),
+                          box.localToGlobal(
+                            box.size.bottomRight(Offset.zero),
+                            ancestor: overlay,
+                          ),
+                        ),
+                        Offset.zero & overlay.size,
+                      );
+                      final selected = await showMenu<String>(
+                        context: context,
+                        position: position,
+                        items: [
+                          PopupMenuItem(
+                            value: 'save',
+                            child: Text(l10n.buttonSaveDraft),
+                          ),
+                          if (state.draftId != null)
+                            PopupMenuItem(
+                              value: 'delete',
+                              child: Text(l10n.deleteBeacon),
+                            ),
+                        ],
+                      );
+                      if (selected != null && context.mounted) {
+                        await _onDraftMenu(selected);
+                      }
+                    },
+                  );
+                },
+              ),
+          ],
+          progress: BlocSelector<BeaconCreateCubit, BeaconCreateState, bool>(
+            key: const Key('BeaconCreate.LoadIndicator'),
+            bloc: _beaconCreateCubit,
+            selector: (state) => state.isLoading,
+            builder: TenturaTopBar.loadingBar,
+          ),
+        ),
+        bottomNavigationBar: _bottomBar(context, l10n, tt, contextName),
+        body: SafeArea(
+          child: TenturaContentColumn(
+            child: BlocListener<BeaconCreateCubit, BeaconCreateState>(
+              bloc: _beaconCreateCubit,
+              listenWhen: (p, c) =>
+                  p.publishBlocker != c.publishBlocker ||
+                  p.draftId != c.draftId,
+              listener: (context, state) {
+                if (!mounted) return;
+                if (_step != _recipientsStep) return;
+                if (state.isEditMode) return;
+                if (state.publishBlocker != null) return;
+                if (state.draftId != null) return;
+                if (_recipientsDraftEnsuring) return;
+                unawaited(_prepareRecipientsTab());
+              },
+              child: BlocBuilder<BeaconCreateCubit, BeaconCreateState>(
+                bloc: _beaconCreateCubit,
+                buildWhen: (p, c) =>
+                    p.status != c.status ||
+                    p.draftId != c.draftId ||
+                    p.isEditMode != c.isEditMode,
+                builder: (context, state) {
+                  if (state.isEditMode && _step != _formStep) {
+                    WidgetsBinding.instance.addPostFrameCallback((_) {
+                      if (mounted && _step != _formStep) {
+                        setState(() => _step = _formStep);
+                      }
+                    });
+                  }
+                  if ((widget.draftId.isNotEmpty && state.draftId == null ||
+                          widget.editId.isNotEmpty && state.editId == null) &&
+                      state.isLoading) {
+                    return const Center(
+                      child: CircularProgressIndicator.adaptive(),
+                    );
+                  }
+                  return Form(
+                    key: _formKey,
+                    child: Padding(
+                      padding: EdgeInsets.only(
+                        left: tt.screenHPadding,
+                        top: tt.sectionGap * 2,
+                        right: tt.screenHPadding,
+                      ),
+                      child:
+                          BlocSelector<
+                            BeaconCreateCubit,
+                            BeaconCreateState,
+                            bool
+                          >(
+                            key: const Key('BeaconCreate.FormBody'),
+                            bloc: _beaconCreateCubit,
+                            selector: (state) => state.isLoading,
+                            builder: (context, isLoading) => AbsorbPointer(
+                              absorbing: isLoading,
+                              child: IndexedStack(
+                                index: state.isEditMode ? _formStep : _step,
+                                children: [
+                                  InfoTab(
+                                    key: const ValueKey('BeaconCreate.InfoTab'),
+                                    openImagesInitially:
+                                        widget.initialTab ==
+                                        kBeaconCreateTabImage,
+                                  ),
+                                  _buildRecipientsTab(state, contextName),
+                                ],
+                              ),
+                            ),
+                          ),
+                    ),
+                  );
+                },
               ),
             ),
-        actions: [
-          BlocBuilder<BeaconCreateCubit, BeaconCreateState>(
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _bottomBar(
+    BuildContext context,
+    L10n l10n,
+    TenturaTokens tt,
+    String contextName,
+  ) {
+    return Material(
+      color: tt.surface,
+      child: SafeArea(
+        child: Padding(
+          padding: EdgeInsets.fromLTRB(
+            tt.screenHPadding,
+            tt.cardPadding.top,
+            tt.screenHPadding,
+            tt.sectionGap,
+          ),
+          child: BlocBuilder<BeaconCreateCubit, BeaconCreateState>(
             bloc: _beaconCreateCubit,
-            buildWhen: (p, c) =>
-                p.isEditMode != c.isEditMode ||
-                p.isLive != c.isLive ||
-                p.isLoading != c.isLoading ||
-                p.canTryToPublish != c.canTryToPublish,
             builder: (context, state) {
               if (state.isEditMode) {
-                return Tooltip(
-                  message: l10n.buttonSaveChanges,
-                  child: TextButton(
+                return SizedBox(
+                  height: tt.buttonHeight,
+                  width: double.infinity,
+                  child: FilledButton(
                     key: const Key('BeaconEdit.SaveChangesButton'),
-                    style: actionButtonStyle,
                     onPressed: state.isLoading
                         ? null
                         : () async {
@@ -277,227 +473,125 @@ class _BeaconCreateScreenState extends State<BeaconCreateScreen>
                   ),
                 );
               }
-              if (state.isLive) {
-                return Tooltip(
-                  message: l10n.buttonSaveChanges,
-                  child: TextButton(
-                    key: const Key('BeaconCreate.SaveChangesButton'),
-                    style: actionButtonStyle,
-                    onPressed: state.isLoading
-                        ? null
-                        : () async {
-                            await _beaconCreateCubit.saveEdit(
-                              context: contextName,
-                              navigateBack: false,
-                            );
-                          },
-                    child: Text(l10n.buttonSaveChanges),
-                  ),
+
+              if (_step == _recipientsStep) {
+                return Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    const TenturaHairlineDivider(subtle: true),
+                    SizedBox(height: tt.rowGap),
+                    Row(
+                      children: [
+                        if (!state.isLive)
+                          Expanded(
+                            child: SizedBox(
+                              height: tt.buttonHeight,
+                              child: OutlinedButton(
+                                key: TestIds.key(TestIds.requestMakeLive),
+                                onPressed: state.isLoading ||
+                                        !state.canTryToPublish
+                                    ? null
+                                    : () => unawaited(_makeLive()),
+                                child: Text(l10n.buttonMakeLive),
+                              ),
+                            ),
+                          ),
+                        if (!state.isLive) SizedBox(width: tt.rowGap),
+                        if (state.isLive)
+                          Expanded(
+                            child: SizedBox(
+                              height: tt.buttonHeight,
+                              child: FilledButton(
+                                key: const Key(
+                                  'BeaconCreate.SaveChangesButton',
+                                ),
+                                onPressed: state.isLoading
+                                    ? null
+                                    : () async {
+                                        await _beaconCreateCubit.saveEdit(
+                                          context: contextName,
+                                          navigateBack: false,
+                                        );
+                                      },
+                                child: Text(l10n.buttonSaveChanges),
+                              ),
+                            ),
+                          ),
+                      ],
+                    ),
+                  ],
                 );
               }
-              return Row(
+
+              final valid = state.publishBlocker == null;
+              return Column(
                 mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Tooltip(
-                    message: l10n.buttonSaveDraft,
-                    child: TextButton(
-                      key: const Key('BeaconCreate.SaveDraftButton'),
-                      style: actionButtonStyle,
-                      onPressed: state.isLoading
-                          ? null
-                          : () async {
-                              await _beaconCreateCubit.saveDraft(
-                                context: contextName,
-                              );
-                            },
-                      child: Text(l10n.buttonSaveDraft),
+                  const TenturaHairlineDivider(subtle: true),
+                  SizedBox(height: tt.rowGap),
+                  if (state.isLive)
+                    SizedBox(
+                      height: tt.buttonHeight,
+                      width: double.infinity,
+                      child: FilledButton(
+                        key: const Key('BeaconCreate.SaveChangesButton'),
+                        onPressed: state.isLoading
+                            ? null
+                            : () async {
+                                await _beaconCreateCubit.saveEdit(
+                                  context: contextName,
+                                  navigateBack: false,
+                                );
+                              },
+                        child: Text(l10n.buttonSaveChanges),
+                      ),
+                    )
+                  else
+                    Opacity(
+                      opacity: valid ? 1 : 0.4,
+                      child: SizedBox(
+                        height: tt.buttonHeight,
+                        width: double.infinity,
+                        child: FilledButton(
+                          key: TestIds.key(TestIds.requestRecipientsTab),
+                          onPressed: state.isLoading
+                              ? null
+                              : () => unawaited(_onNext()),
+                          child: Text(l10n.beaconCreateNextRecipients),
+                        ),
+                      ),
                     ),
-                  ),
-                  Tooltip(
-                    message: state.canTryToPublish
-                        ? l10n.buttonMakeLive
-                        : l10n.buttonMakeLiveBlockedHint,
-                    child: TextButton(
-                      key: TestIds.key(TestIds.requestMakeLive),
-                      style: actionButtonStyle,
-                      onPressed: state.isLoading || !state.canTryToPublish
-                          ? null
-                          : () => unawaited(_makeLive()),
-                      child: Text(l10n.buttonMakeLive),
+                  if (!state.isLive) ...[
+                    SizedBox(height: tt.tightGap),
+                    if (state.isAutosaving)
+                      Text(
+                        l10n.beaconCreateAutosaving,
+                        style: TenturaText.bodySmall(tt.textFaint),
+                      )
+                    else if (state.lastAutosavedAt != null)
+                      Text(
+                        l10n.beaconCreateAutosavedJustNow,
+                        style: TenturaText.bodySmall(tt.textFaint),
+                      ),
+                  ],
+                  if (state.isLive) ...[
+                    SizedBox(height: tt.rowGap),
+                    SizedBox(
+                      height: tt.buttonHeight,
+                      width: double.infinity,
+                      child: OutlinedButton(
+                        key: TestIds.key(TestIds.requestRecipientsTab),
+                        onPressed: () =>
+                            unawaited(_openRecipientsStep()),
+                        child: Text(l10n.beaconCreateNextRecipients),
+                      ),
                     ),
-                  ),
+                  ],
                 ],
               );
             },
-          ),
-        ],
-        progress: BlocSelector<BeaconCreateCubit, BeaconCreateState, bool>(
-          key: const Key('BeaconCreate.LoadIndicator'),
-          bloc: _beaconCreateCubit,
-          selector: (state) => state.isLoading,
-          builder: TenturaTopBar.loadingBar,
-        ),
-        bottom: TabBar(
-          controller: _tabController,
-          tabs: [
-            Tab(text: l10n.beaconInfo),
-            Tab(
-              key: TestIds.key(TestIds.requestRecipientsTab),
-              text: l10n.beaconRecipients,
-            ),
-          ],
-        ),
-      ),
-      body: SafeArea(
-        child: TenturaContentColumn(
-          child: BlocListener<BeaconCreateCubit, BeaconCreateState>(
-            bloc: _beaconCreateCubit,
-            listenWhen: (p, c) =>
-                p.publishBlocker != c.publishBlocker || p.draftId != c.draftId,
-            listener: (context, state) {
-              if (!mounted) return;
-              if (_tabController.index != _recipientsTabIndex) return;
-              if (state.isEditMode) return;
-              if (state.publishBlocker != null) return;
-              if (state.draftId != null) return;
-              if (_recipientsDraftEnsuring) return;
-              unawaited(_prepareRecipientsTab());
-            },
-            child: BlocBuilder<BeaconCreateCubit, BeaconCreateState>(
-              bloc: _beaconCreateCubit,
-              buildWhen: (p, c) =>
-                  p.status != c.status ||
-                  p.draftId != c.draftId ||
-                  p.isEditMode != c.isEditMode,
-              builder: (context, state) {
-                if ((widget.draftId.isNotEmpty && state.draftId == null ||
-                        widget.editId.isNotEmpty && state.editId == null) &&
-                    state.isLoading) {
-                  return const Center(
-                    child: CircularProgressIndicator.adaptive(),
-                  );
-                }
-                return Form(
-                  key: _formKey,
-                  autovalidateMode: AutovalidateMode.onUserInteraction,
-                  onChanged: () => _beaconCreateCubit.validate(
-                    _formKey.currentState?.validate() ?? false,
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                      BlocSelector<
-                        BeaconCreateCubit,
-                        BeaconCreateState,
-                        ({bool show, BeaconPublishBlocker? blocker})
-                      >(
-                        bloc: _beaconCreateCubit,
-                        selector: (s) => (
-                          show:
-                              !s.isEditMode &&
-                              !s.canTryToPublish &&
-                              !s.isLoading,
-                          blocker: s.publishBlocker,
-                        ),
-                        builder: (context, hint) {
-                          if (!hint.show || hint.blocker == null) {
-                            return const SizedBox.shrink();
-                          }
-                          final scheme = Theme.of(context).colorScheme;
-                          return Padding(
-                            padding: EdgeInsets.only(bottom: tt.rowGap),
-                            child: Material(
-                              color: scheme.surfaceContainerHighest,
-                              borderRadius: BorderRadius.circular(
-                                tt.cardRadius,
-                              ),
-                              child: Padding(
-                                padding: EdgeInsets.all(tt.cardPadding.top),
-                                child: Row(
-                                  crossAxisAlignment: CrossAxisAlignment.start,
-                                  children: [
-                                    Icon(
-                                      Icons.info_outline,
-                                      size: tt.iconSize,
-                                      color: scheme.onSurfaceVariant,
-                                    ),
-                                    SizedBox(width: tt.tightGap * 2),
-                                    Expanded(
-                                      child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                          Text(
-                                            l10n.beaconPublishBlockedHint,
-                                            style: Theme.of(context)
-                                                .textTheme
-                                                .bodyMedium
-                                                ?.copyWith(
-                                                  fontWeight: FontWeight.w600,
-                                                ),
-                                          ),
-                                          SizedBox(height: tt.tightGap),
-                                          Text(
-                                            _publishBlockedDetail(
-                                                  l10n,
-                                                  hint.blocker!,
-                                                ) ??
-                                                '',
-                                            style: TenturaText.bodySmall(
-                                              scheme.onSurfaceVariant,
-                                            ),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          );
-                        },
-                      ),
-                      Expanded(
-                        child: Padding(
-                          padding: EdgeInsets.only(
-                            left: tt.screenHPadding,
-                            top: tt.sectionGap * 2,
-                            right: tt.screenHPadding,
-                          ),
-                          child:
-                              BlocSelector<
-                                BeaconCreateCubit,
-                                BeaconCreateState,
-                                bool
-                              >(
-                                key: const Key('BeaconCreate.FormBody'),
-                                bloc: _beaconCreateCubit,
-                                selector: (state) => state.isLoading,
-                                builder: (context, isLoading) => AbsorbPointer(
-                                  absorbing: isLoading,
-                                  child: TabBarView(
-                                    controller: _tabController,
-                                    children: [
-                                      InfoTab(
-                                        key: const ValueKey(
-                                          'BeaconCreate.InfoTab',
-                                        ),
-                                        openImagesInitially:
-                                            widget.initialTab ==
-                                            kBeaconCreateTabImage,
-                                      ),
-                                      _buildRecipientsTab(state, contextName),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                        ),
-                      ),
-                    ],
-                  ),
-                );
-              },
-            ),
           ),
         ),
       ),

@@ -64,6 +64,7 @@ void main() {
     // Two capabilities: canonical order makes `transport` the primary and
     // `tools` the alternative the author can switch to.
     await _toggleLogisticsRequirements(tester, const ['tools', 'transport']);
+    await tapAndSettle(tester, find.byKey(const Key('BeaconCreate.CoverRow')));
     await pumpUntilVisible(tester, _sourceControl());
 
     // With nothing attached, the photo preference still resolves to the
@@ -87,9 +88,13 @@ void main() {
     );
     expect(_previewIdentity(tester), 'symbol');
 
+    await tapAndSettle(tester, find.byIcon(Icons.close_rounded).first);
+
     // Removing the selected primary promotes the canonical next capability
     // instead of leaving a dangling selection.
     await _toggleLogisticsRequirements(tester, const ['tools']);
+    await tapAndSettle(tester, find.byKey(const Key('BeaconCreate.CoverRow')));
+    await pumpUntilVisible(tester, _sourceControl());
     await pumpUntilVisible(
       tester,
       find.textContaining(_label(tester, 'transport')),

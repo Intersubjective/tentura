@@ -15,6 +15,8 @@ abstract interface class BeaconWritePort {
 
   Future<void> publishDraft(String id);
 
+  Future<void> delete(String id);
+
   /// Uploads [image] as an invisible stage and returns its exact server id.
   Future<String> stageImage({
     required String beaconId,

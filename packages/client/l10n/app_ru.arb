@@ -733,6 +733,42 @@
   "@beaconCreateTimingAnytime": {
     "context": "BeaconCreateScreen"
   },
+  "beaconCreateTitleHint": "Что нужно?",
+  "@beaconCreateTitleHint": {
+    "context": "BeaconCreateScreen"
+  },
+  "beaconCreateDescriptionHint": "Опишите, что нужно",
+  "@beaconCreateDescriptionHint": {
+    "context": "BeaconCreateScreen"
+  },
+  "beaconCreateDetailsLabel": "ДЕТАЛИ",
+  "@beaconCreateDetailsLabel": {
+    "context": "BeaconCreateScreen"
+  },
+  "beaconCreateNextRecipients": "Далее: получатели",
+  "@beaconCreateNextRecipients": {
+    "context": "BeaconCreateScreen"
+  },
+  "beaconCreateDraftAction": "Черновик",
+  "@beaconCreateDraftAction": {
+    "context": "BeaconCreateScreen"
+  },
+  "beaconCreateAutosaving": "Сохраняем…",
+  "@beaconCreateAutosaving": {
+    "context": "BeaconCreateScreen"
+  },
+  "beaconCreateAutosavedJustNow": "Черновик сохранён · только что",
+  "@beaconCreateAutosavedJustNow": {
+    "context": "BeaconCreateScreen"
+  },
+  "beaconRequirementsNone": "Не заданы",
+  "@beaconRequirementsNone": {
+    "context": "BeaconCreateScreen"
+  },
+  "beaconCreateCoverRow": "Обложка",
+  "@beaconCreateCoverRow": {
+    "context": "BeaconCreateScreen"
+  },
   "beaconIdentityCategoryMeta": "Координация",
   "@beaconIdentityCategoryMeta": {
     "context": "BeaconCreateScreen"

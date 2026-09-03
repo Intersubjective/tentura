@@ -1,4 +1,4 @@
-import 'dart:async' show Completer, unawaited;
+import 'dart:async' show Completer, Timer, unawaited;
 
 import 'package:get_it/get_it.dart';
 import 'package:tentura_root/domain/capability/capability_slugs.dart';
@@ -57,6 +57,12 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
 
   Completer<String?>? _draftCreateInFlight;
 
+  Timer? _autosaveTimer;
+
+  String _autosaveContext = '';
+
+  bool _autosaveArmed = false;
+
   void _emitSnackError(Object error) {
     _effects.emit(ShowError(error));
     if (!isClosed) {
@@ -76,6 +82,54 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
     if (!isClosed) {
       emit(state.copyWith(status: const StateIsSuccess()));
     }
+  }
+
+  void setAutosaveContext(String context) {
+    _autosaveContext = context;
+    _autosaveArmed = true;
+  }
+
+  void revealValidationHints() {
+    if (!isClosed && !state.showValidationHints) {
+      emit(state.copyWith(showValidationHints: true));
+    }
+  }
+
+  void _scheduleAutosave() {
+    if (!_autosaveArmed) return;
+    if (state.isEditMode || state.isLive) return;
+    if (state.title.trim().length < kTitleMinLength) return;
+    _autosaveTimer?.cancel();
+    _autosaveTimer = Timer(const Duration(seconds: 1), () {
+      unawaited(_quietPersist());
+    });
+  }
+
+  Future<void> flushAutosave() async {
+    _autosaveTimer?.cancel();
+    _autosaveTimer = null;
+    await _quietPersist();
+  }
+
+  bool get _shouldQuietPersist {
+    if (isClosed || state.isEditMode || state.isLive) return false;
+    return state.title.trim().length >= kTitleMinLength;
+  }
+
+  Future<void> _quietPersist() async {
+    if (!_shouldQuietPersist) return;
+    if (state.isAutosaving) return;
+    await saveDraft(
+      context: _autosaveContext,
+      showMessage: false,
+      quiet: true,
+    );
+  }
+
+  @override
+  Future<void> close() {
+    _autosaveTimer?.cancel();
+    return super.close();
   }
 
   static String _draftSafeTitle(String raw) {
@@ -171,6 +225,7 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
   void setTitle(String value) {
     emit(state.copyWith(title: value));
     validate();
+    _scheduleAutosave();
   }
 
   ///
@@ -178,6 +233,7 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
   void setDescription(String value) {
     emit(state.copyWith(description: value));
     validate();
+    _scheduleAutosave();
   }
 
   void setNeeds(Set<String> value) {
@@ -188,6 +244,7 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
         primaryNeedSlug: _promotedPrimary(needs, state.primaryNeedSlug),
       ),
     );
+    _scheduleAutosave();
   }
 
   void removeNeed(String slug) {
@@ -201,6 +258,7 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
         primaryNeedSlug: _promotedPrimary(next, state.primaryNeedSlug),
       ),
     );
+    _scheduleAutosave();
   }
 
   /// D-1/N3: keep a still-valid primary, otherwise promote the canonical-first
@@ -213,43 +271,53 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
 
   ///
   ///
-  void setDateRange({DateTime? startAt, DateTime? endAt}) => emit(
-    state.copyWith(
-      startAt: startAt,
-      endAt: endAt,
-      cachedEventStartAt: startAt ?? state.cachedEventStartAt,
-      cachedEventEndAt: startAt != null ? endAt : state.cachedEventEndAt,
-      cachedDeadlineAt: startAt == null && endAt != null
-          ? endAt
-          : state.cachedDeadlineAt,
-    ),
-  );
+  void setDateRange({DateTime? startAt, DateTime? endAt}) {
+    emit(
+      state.copyWith(
+        startAt: startAt,
+        endAt: endAt,
+        cachedEventStartAt: startAt ?? state.cachedEventStartAt,
+        cachedEventEndAt: startAt != null ? endAt : state.cachedEventEndAt,
+        cachedDeadlineAt: startAt == null && endAt != null
+            ? endAt
+            : state.cachedDeadlineAt,
+      ),
+    );
+    _scheduleAutosave();
+  }
 
   /// Deadline timing: only [endAt] is set ("needs to happen by"); `startAt` is
   /// cleared so the card derives a deadline (vs an event) from nullability.
-  void setDeadline(DateTime? endAt) => emit(
-    state.copyWith(
-      startAt: null,
-      endAt: endAt,
-      cachedDeadlineAt: endAt ?? state.cachedDeadlineAt,
-    ),
-  );
+  void setDeadline(DateTime? endAt) {
+    emit(
+      state.copyWith(
+        startAt: null,
+        endAt: endAt,
+        cachedDeadlineAt: endAt ?? state.cachedDeadlineAt,
+      ),
+    );
+    _scheduleAutosave();
+  }
 
   /// Event timing: [startAt] is the moment it happens; [endAt] (optional) makes
   /// it a window. The card derives an event from a non-null [startAt].
-  void setEventDates({required DateTime startAt, DateTime? endAt}) => emit(
-    state.copyWith(
-      startAt: startAt,
-      endAt: endAt,
-      cachedEventStartAt: startAt,
-      cachedEventEndAt: endAt,
-    ),
-  );
+  void setEventDates({required DateTime startAt, DateTime? endAt}) {
+    emit(
+      state.copyWith(
+        startAt: startAt,
+        endAt: endAt,
+        cachedEventStartAt: startAt,
+        cachedEventEndAt: endAt,
+      ),
+    );
+    _scheduleAutosave();
+  }
 
   /// Clears all schedule dates (flexible / no date).
-  void clearTiming() => emit(
-    state.copyWith(startAt: null, endAt: null),
-  );
+  void clearTiming() {
+    emit(state.copyWith(startAt: null, endAt: null));
+    _scheduleAutosave();
+  }
 
   /// Switches the declared meaning of schedule dates without destroying the
   /// user's previously entered values while the editor is open.
@@ -290,28 +358,35 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
           emit(s.copyWith(startAt: null, endAt: null));
         }
     }
+    _scheduleAutosave();
   }
 
   ///
   ///
-  void setLocation(Coordinates? value, String locationName) => emit(
-    state.copyWith(
-      coordinates: value,
-      location: locationName,
-    ),
-  );
+  void setLocation(Coordinates? value, String locationName) {
+    emit(
+      state.copyWith(
+        coordinates: value,
+        location: locationName,
+      ),
+    );
+    _scheduleAutosave();
+  }
 
   /// Cover
   ///
   /// Photo preference requires nothing; the resolver falls back on its own.
-  void selectPhotoCoverSource() =>
-      emit(state.copyWith(coverSource: BeaconCoverSource.photo));
+  void selectPhotoCoverSource() {
+    emit(state.copyWith(coverSource: BeaconCoverSource.photo));
+    _scheduleAutosave();
+  }
 
   /// Symbol preference requires a resolvable primary; the stored photo
   /// selection is deliberately kept.
   void selectSymbolCoverSource() {
     if (!state.canSelectSymbolSource) return;
     emit(state.copyWith(coverSource: BeaconCoverSource.symbol));
+    _scheduleAutosave();
   }
 
   /// D-4: only a capability already in [BeaconCreateState.needs] may be primary.
@@ -323,6 +398,7 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
         coverSource: BeaconCoverSource.symbol,
       ),
     );
+    _scheduleAutosave();
   }
 
   void setCoverImageKey(String key) {
@@ -334,9 +410,13 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
         coverThumb: null,
       ),
     );
+    _scheduleAutosave();
   }
 
-  void clearCoverThumb() => emit(state.copyWith(coverThumb: null));
+  void clearCoverThumb() {
+    emit(state.copyWith(coverThumb: null));
+    _scheduleAutosave();
+  }
 
   ///
   ///
@@ -349,6 +429,7 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
   Future<void> pickCoverPhoto() => _pickImages(asCover: true);
 
   Future<void> _pickImages({required bool asCover}) async {
+    await flushAutosave();
     try {
       final picked = await _case.pickImages();
       if (isClosed || picked.isEmpty) return;
@@ -378,6 +459,7 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
               : state.coverSource,
         ),
       );
+      _scheduleAutosave();
     } catch (e) {
       _emitSnackError(e);
     }
@@ -388,6 +470,7 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
   Future<void> adjustCoverCrop(ImageCropUiPort cropUi) async {
     final image = state.coverImage;
     if (image == null) return;
+    await flushAutosave();
     try {
       final replacement = await _case.adjustCoverCrop(
         image: image,
@@ -396,6 +479,7 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
       );
       if (isClosed || replacement == null) return;
       emit(state.copyWith(coverThumb: replacement));
+      _scheduleAutosave();
     } catch (e) {
       _emitSnackError(e);
     }
@@ -421,13 +505,15 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
         coverThumb: coverRemoved ? null : state.coverThumb,
       ),
     );
+    _scheduleAutosave();
   }
 
   ///
   ///
-  void clearAllImages() => emit(
-    state.copyWith(images: [], coverKey: null, coverThumb: null),
-  );
+  void clearAllImages() {
+    emit(state.copyWith(images: [], coverKey: null, coverThumb: null));
+    _scheduleAutosave();
+  }
 
   ///
   ///
@@ -436,6 +522,7 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
     final item = images.removeAt(oldIndex);
     images.insert(newIndex, item);
     emit(state.copyWith(images: images));
+    _scheduleAutosave();
   }
 
   /// Same bounds as [StringInputValidator] title/description checks on the form.
@@ -518,6 +605,7 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
   Future<String?> ensureDraft({
     required String context,
     bool showMessage = true,
+    bool quiet = false,
   }) async {
     if (state.draftId != null && state.draftId!.isNotEmpty) {
       return state.draftId;
@@ -528,19 +616,32 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
     }
     final gate = Completer<String?>();
     _draftCreateInFlight = gate;
-    emit(state.copyWith(status: StateStatus.isLoading));
+    if (!isClosed) {
+      emit(
+        state.copyWith(
+          status: quiet ? state.status : StateStatus.isLoading,
+          isAutosaving: quiet,
+        ),
+      );
+    }
     try {
       final result = await _case.create(
         _command(context: context, id: '', draftSafeTitle: true, draft: true),
       );
-      emit(
-        _applyServerMedia(
-          state.copyWith(draftId: result.beacon.id),
-          result.beacon,
-          result.images,
-          coverThumb: result.coverThumb,
-        ),
-      );
+      if (!isClosed) {
+        emit(
+          _applyServerMedia(
+            state.copyWith(
+              draftId: result.beacon.id,
+              isAutosaving: false,
+              lastAutosavedAt: DateTime.timestamp(),
+            ),
+            result.beacon,
+            result.images,
+            coverThumb: result.coverThumb,
+          ),
+        );
+      }
       if (showMessage) {
         _emitSnackMessage(const DraftSavedMessage());
       }
@@ -549,10 +650,16 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
       return id;
     } on BeaconSaveFailure catch (e) {
       gate.complete(null);
+      if (!isClosed) {
+        emit(state.copyWith(isAutosaving: false));
+      }
       _emitSaveFailure(e);
       return null;
     } catch (e) {
       gate.complete(null);
+      if (!isClosed) {
+        emit(state.copyWith(isAutosaving: false));
+      }
       _emitSnackError(e);
       return null;
     } finally {
@@ -567,39 +674,75 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
   Future<void> saveDraft({
     required String context,
     bool showMessage = true,
+    bool quiet = false,
   }) async {
     if (state.isLive) {
+      if (quiet) return;
       await saveEdit(context: context, navigateBack: false);
       return;
     }
     final existing = state.draftId;
     if (existing == null || existing.isEmpty) {
-      await ensureDraft(context: context, showMessage: showMessage);
+      await ensureDraft(
+        context: context,
+        showMessage: showMessage,
+        quiet: quiet,
+      );
       return;
     }
 
-    emit(state.copyWith(status: StateStatus.isLoading));
+    if (!isClosed) {
+      emit(
+        state.copyWith(
+          status: quiet ? state.status : StateStatus.isLoading,
+          isAutosaving: quiet,
+        ),
+      );
+    }
     try {
       final result = await _case.saveDraft(
         _command(context: context, id: existing, draftSafeTitle: true),
       );
-      emit(
-        _applyServerMedia(
-          state,
-          result.beacon,
-          result.images,
-          coverThumb: result.coverThumb,
-        ),
-      );
+      if (!isClosed) {
+        emit(
+          _applyServerMedia(
+            state.copyWith(
+              isAutosaving: false,
+              lastAutosavedAt: DateTime.timestamp(),
+            ),
+            result.beacon,
+            result.images,
+            coverThumb: result.coverThumb,
+          ),
+        );
+      }
       if (showMessage) {
         _emitSnackMessage(const DraftSavedMessage());
       }
     } on BeaconSaveFailure catch (e) {
+      if (!isClosed) {
+        emit(state.copyWith(isAutosaving: false));
+      }
       if (_isAlreadyPublished(e.cause)) {
         emit(state.copyWith(isLive: true, status: const StateIsSuccess()));
         return;
       }
       _emitSaveFailure(e);
+    } catch (e) {
+      if (!isClosed) {
+        emit(state.copyWith(isAutosaving: false));
+      }
+      _emitSnackError(e);
+    }
+  }
+
+  Future<void> deleteDraft() async {
+    final id = state.draftId;
+    if (id == null || id.isEmpty) return;
+    emit(state.copyWith(status: StateStatus.isLoading));
+    try {
+      await _case.delete(id);
+      _emitNavigateBack();
     } catch (e) {
       _emitSnackError(e);
     }

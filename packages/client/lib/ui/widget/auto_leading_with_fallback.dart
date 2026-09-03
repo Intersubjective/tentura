@@ -12,6 +12,8 @@ class AutoLeadingWithFallback extends StatelessWidget {
   const AutoLeadingWithFallback({
     required this.fallbackPath,
     this.onFallback,
+    this.onPressed,
+    this.closeWhenCanPop = false,
     super.key,
   });
 
@@ -21,21 +23,37 @@ class AutoLeadingWithFallback extends StatelessWidget {
   /// instead of [StackRouter.navigatePath] on [fallbackPath].
   final VoidCallback? onFallback;
 
+  /// Replaces both [maybePop] and the fallback navigation when set.
+  final VoidCallback? onPressed;
+
+  /// Show a close icon instead of back when the stack can pop.
+  final bool closeWhenCanPop;
+
   @override
   Widget build(BuildContext context) {
+    final l10n = MaterialLocalizations.of(context);
     if (context.router.canPop()) {
+      if (onPressed != null || closeWhenCanPop) {
+        return Semantics(
+          button: true,
+          label: closeWhenCanPop ? l10n.closeButtonLabel : l10n.backButtonTooltip,
+          child: IconButton(
+            icon: Icon(closeWhenCanPop ? Icons.close : Icons.arrow_back),
+            onPressed: onPressed ?? () => unawaited(context.router.maybePop()),
+          ),
+        );
+      }
       return const AutoLeadingButton();
     }
-    final l10n = MaterialLocalizations.of(context);
     return Semantics(
       button: true,
       label: l10n.backButtonTooltip,
       child: IconButton(
-        icon: const BackButtonIcon(),
+        icon: Icon(closeWhenCanPop ? Icons.close : Icons.arrow_back),
         onPressed: () {
-          final onFallback = this.onFallback;
-          if (onFallback != null) {
-            onFallback();
+          final custom = onPressed ?? onFallback;
+          if (custom != null) {
+            custom();
             return;
           }
           unawaited(context.router.navigatePath(fallbackPath));

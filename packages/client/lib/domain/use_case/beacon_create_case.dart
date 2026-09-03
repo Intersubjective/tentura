@@ -95,6 +95,8 @@ class BeaconCreateCase {
 
   Future<void> publishDraft(String id) => _beacons.publishDraft(id);
 
+  Future<void> delete(String id) => _beacons.delete(id);
+
   /// Picks images and gives each one a stable client identity.
   Future<List<ImageEntity>> pickImages() async {
     final picked = await _images.pickMultipleImages();

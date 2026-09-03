@@ -733,6 +733,42 @@
   "@beaconCreateTimingAnytime": {
     "context": "BeaconCreateScreen"
   },
+  "beaconCreateTitleHint": "What do you need?",
+  "@beaconCreateTitleHint": {
+    "context": "BeaconCreateScreen"
+  },
+  "beaconCreateDescriptionHint": "Describe what you need",
+  "@beaconCreateDescriptionHint": {
+    "context": "BeaconCreateScreen"
+  },
+  "beaconCreateDetailsLabel": "DETAILS",
+  "@beaconCreateDetailsLabel": {
+    "context": "BeaconCreateScreen"
+  },
+  "beaconCreateNextRecipients": "Next: Recipients",
+  "@beaconCreateNextRecipients": {
+    "context": "BeaconCreateScreen"
+  },
+  "beaconCreateDraftAction": "Draft",
+  "@beaconCreateDraftAction": {
+    "context": "BeaconCreateScreen"
+  },
+  "beaconCreateAutosaving": "Saving…",
+  "@beaconCreateAutosaving": {
+    "context": "BeaconCreateScreen"
+  },
+  "beaconCreateAutosavedJustNow": "Draft saved · just now",
+  "@beaconCreateAutosavedJustNow": {
+    "context": "BeaconCreateScreen"
+  },
+  "beaconRequirementsNone": "Not set",
+  "@beaconRequirementsNone": {
+    "context": "BeaconCreateScreen"
+  },
+  "beaconCreateCoverRow": "Cover",
+  "@beaconCreateCoverRow": {
+    "context": "BeaconCreateScreen"
+  },
   "beaconIdentityCategoryMeta": "Coordination",
   "@beaconIdentityCategoryMeta": {
     "context": "BeaconCreateScreen"

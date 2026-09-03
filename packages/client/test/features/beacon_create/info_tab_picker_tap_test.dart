@@ -652,7 +652,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byKey(const Key('BeaconCreate.TimingRow')), findsOneWidget);
-    expect(find.byKey(const Key('BeaconCreate.ImagesRow')), findsOneWidget);
+    expect(find.byKey(const Key('BeaconCreate.CoverRow')), findsOneWidget);
     expect(find.byKey(const Key('BeaconCreate.RequirementsRow')), findsOneWidget);
     expect(find.text('Date / period'), findsNothing);
 
@@ -671,7 +671,7 @@ void main() {
     await tester.pumpWidget(_infoTabHarness(cubit, width: 390));
     await tester.pumpAndSettle();
 
-    await tester.tap(find.byKey(const Key('BeaconCreate.ImagesRow')));
+    await tester.tap(find.byKey(const Key('BeaconCreate.CoverRow')));
     await tester.pumpAndSettle();
 
     expect(find.text('Add Images'), findsOneWidget);
