@@ -2129,9 +2129,13 @@
   "@forwardAttributionNotSure": {
     "context": "Skip attribution dialog without selecting a source"
   },
-  "requestClosedBannerMessage": "Запрос закрыт. Новые отклики, уведомления и доверие по нему больше не создаются.",
-  "@requestClosedBannerMessage": {
-    "context": "Non-dismissible banner on closed requests (status 6)"
+  "requestClosedBannerTitle": "Запрос закрыт",
+  "@requestClosedBannerTitle": {
+    "context": "Title of the non-dismissible banner on closed requests (status 6)"
+  },
+  "requestClosedBannerBody": "Новые отклики, уведомления и доверие по нему больше не создаются.",
+  "@requestClosedBannerBody": {
+    "context": "Supporting text of the non-dismissible banner on closed requests (status 6)"
   },
   "beaconForwardToPersonTitle": "Переслать {name}",
   "@beaconForwardToPersonTitle": {
