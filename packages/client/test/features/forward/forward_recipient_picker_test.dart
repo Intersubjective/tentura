@@ -8,6 +8,7 @@ import 'package:tentura/design_system/tentura_theme.dart';
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/invitation_entity.dart';
 import 'package:tentura/domain/entity/profile.dart';
+import 'package:tentura/features/forward/domain/entity/candidate_involvement.dart';
 import 'package:tentura/features/forward/domain/entity/forward_candidate.dart';
 import 'package:tentura/features/forward/ui/bloc/forward_cubit.dart';
 import 'package:tentura/features/forward/ui/widget/forward_recipient_picker.dart';
@@ -645,6 +646,46 @@ void main() {
 
       final avatar = tester.widget<SelfAwareAvatar>(avatarFinder);
       expect(avatar.onTap, isNull);
+    },
+  );
+
+  testWidgets(
+    'alreadyInvolved tab shows composer with enabled send for selection',
+    (tester) async {
+      final cubit = ForwardCubit(
+        beaconId: 'b1',
+        debugSkipInitialLoad: true,
+        effects: FakeUiEffectPort(),
+      );
+      cubit.emit(
+        ForwardState(
+          beaconId: 'b1',
+          beacon: Beacon.empty.copyWith(id: 'b1', title: 'Open request'),
+          activeFilter: ForwardFilter.alreadyInvolved,
+          candidates: const [
+            ForwardCandidate(
+              profile: Profile(
+                id: 'u1',
+                displayName: 'Alex',
+                score: 10,
+                rScore: 1,
+              ),
+              involvement: CandidateInvolvement.watching,
+            ),
+          ],
+          selectedIds: {'u1'},
+          candidatesLoad: const ForwardCandidatesReady(),
+        ),
+      );
+
+      await pumpPicker(tester, cubit: cubit);
+
+      expect(find.byKey(TestIds.key(TestIds.forwardSubmit)), findsOneWidget);
+      expect(find.text('Forward to 1'), findsOneWidget);
+      final button = tester.widget<OutlinedButton>(
+        find.byKey(TestIds.key(TestIds.forwardSubmit)),
+      );
+      expect(button.onPressed, isNotNull);
     },
   );
 }

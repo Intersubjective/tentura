@@ -665,29 +665,28 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
                             ],
                           ),
                         ),
-                        if (state.activeFilter != ForwardFilter.alreadyInvolved)
-                          ForwardBottomComposer(
-                            selectedIds: state.selectedIds,
-                            noteExpanded: _noteExpanded,
-                            onToggleNoteExpanded: _toggleNote,
-                            sharedNoteController: _sharedNoteController,
-                            onSharedNoteChanged: cubit.setNote,
-                            showSuggestedNoteHelper:
-                                state.lineageSuggestions.isNotEmpty &&
-                                state.note.trim().isNotEmpty &&
-                                _noteExpanded,
-                            onForward: widget.onSendPressed != null
-                                ? (widget.sendEnabled
-                                      ? () => unawaited(
-                                          _handleForwardPressed(context),
-                                        )
-                                      : null)
-                                : (!widget.embedded && state.selectedCount > 0
-                                      ? () => unawaited(
-                                          _handleForwardPressed(context),
-                                        )
-                                      : null),
-                          ),
+                        ForwardBottomComposer(
+                          selectedIds: state.selectedIds,
+                          noteExpanded: _noteExpanded,
+                          onToggleNoteExpanded: _toggleNote,
+                          sharedNoteController: _sharedNoteController,
+                          onSharedNoteChanged: cubit.setNote,
+                          showSuggestedNoteHelper:
+                              state.lineageSuggestions.isNotEmpty &&
+                              state.note.trim().isNotEmpty &&
+                              _noteExpanded,
+                          onForward: widget.onSendPressed != null
+                              ? (widget.sendEnabled
+                                    ? () => unawaited(
+                                        _handleForwardPressed(context),
+                                      )
+                                    : null)
+                              : (!widget.embedded && state.selectedCount > 0
+                                    ? () => unawaited(
+                                        _handleForwardPressed(context),
+                                      )
+                                    : null),
+                        ),
                       ],
                     ),
                   ),
