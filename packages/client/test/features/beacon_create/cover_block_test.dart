@@ -1,3 +1,5 @@
+import 'dart:typed_data';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tentura_root/domain/entity/beacon_cover_source.dart';
@@ -51,14 +53,6 @@ void main() {
   Finder photoButton() => find.byKey(const Key('BeaconCover.SourcePhoto'));
   Finder symbolButton() => find.byKey(const Key('BeaconCover.SourceSymbol'));
 
-  /// Selected source uses [FilledButton.tonal]; unselected uses [OutlinedButton].
-  bool isTonalSelected(WidgetTester tester, Key key) {
-    final filled = find.byWidgetPredicate(
-      (w) => w is FilledButton && w.key == key,
-    );
-    return tester.widgetList(filled).isNotEmpty;
-  }
-
   testWidgets('with no photos and no capabilities photo stays selected', (
     tester,
   ) async {
@@ -66,15 +60,9 @@ void main() {
 
     expect(find.text('Request cover'), findsOneWidget);
     expect(find.byKey(const Key('BeaconCover.SourceControl')), findsOneWidget);
-    expect(
-      isTonalSelected(tester, const Key('BeaconCover.SourcePhoto')),
-      isTrue,
-    );
-    expect(
-      isTonalSelected(tester, const Key('BeaconCover.SourceSymbol')),
-      isFalse,
-    );
-    expect(find.textContaining('Add a capability first.'), findsOneWidget);
+    expect(find.byKey(const Key('BeaconCover.SourcePhoto')), findsOneWidget);
+    expect(find.byKey(const Key('BeaconCover.SourceSymbol')), findsOneWidget);
+    expect(find.text('Add cover'), findsOneWidget);
     expect(find.byType(TenturaCapabilityGlyph), findsNothing);
   });
 
@@ -84,15 +72,8 @@ void main() {
     cubit.setNeeds({'transport'});
     await tester.pumpWidget(_harness(cubit));
 
-    expect(
-      isTonalSelected(tester, const Key('BeaconCover.SourcePhoto')),
-      isTrue,
-    );
     expect(find.byType(TenturaCapabilityGlyph), findsOneWidget);
-    expect(
-      find.text('No cover photo yet — showing the Transport symbol.'),
-      findsOneWidget,
-    );
+    expect(find.text('Symbol · Transport'), findsOneWidget);
   });
 
   testWidgets('selecting symbol keeps the preference and names the capability', (
@@ -110,12 +91,9 @@ void main() {
     await tester.tap(find.byKey(const Key('BeaconCover.Symbol.transport')));
     await tester.pumpAndSettle();
 
-    expect(
-      isTonalSelected(tester, const Key('BeaconCover.SourceSymbol')),
-      isTrue,
-    );
-    expect(find.text('Showing the Transport symbol.'), findsOneWidget);
-    expect(find.text('Change symbol'), findsOneWidget);
+    expect(cubit.state.coverSource, BeaconCoverSource.symbol);
+    expect(find.text('Symbol · Transport'), findsOneWidget);
+    expect(find.text('Change symbol'), findsNothing);
   });
 
   testWidgets('selecting symbol with several capabilities opens the sheet', (
@@ -189,13 +167,7 @@ void main() {
     expect(cubit.state.images, hasLength(1));
     expect(cubit.state.coverKey, cubit.state.images.single.key);
     expect(cubit.state.coverSource, BeaconCoverSource.photo);
-    expect(
-      find.text(
-        'Tap the preview to choose or replace the cover photo. '
-        'The full photo stays on the request; cropping affects only the small card.',
-      ),
-      findsOneWidget,
-    );
+    expect(find.text('Photo'), findsWidgets);
     expect(find.byType(Image), findsOneWidget);
   });
 
@@ -215,7 +187,6 @@ void main() {
 
     expect(cubit.state.coverKey, coverKey);
     expect(cubit.state.coverSource, BeaconCoverSource.symbol);
-    // Preview + sheet list both paint a glyph while the sheet is open.
     expect(find.byType(TenturaCapabilityGlyph), findsWidgets);
   });
 

@@ -63,11 +63,18 @@ const kQueryIsDeepLink = 'is_deep_link';
 /// Query param for opening the beacon create screen in server-draft edit mode.
 const kQueryBeaconDraftId = 'draft_id';
 
-/// Initial tab on beacon create: `info` (default), `image`, or [kBeaconCreateTabRecipients].
+/// Initial focus on beacon create: `info` (default), [kBeaconCreateTabImage],
+/// or [kBeaconCreateTabRecipients].
+///
+/// `image` opens the Images editor on the Info tab (sheet / inline section),
+/// not a separate TabBar tab.
 const kQueryBeaconCreateTab = 'tab';
 
 /// [kQueryBeaconCreateTab] value — open the Recipients tab.
 const kBeaconCreateTabRecipients = 'recipients';
+
+/// [kQueryBeaconCreateTab] value — focus the Images editor on the Info tab.
+const kBeaconCreateTabImage = 'image';
 
 /// Preselect a recipient when opening beacon create from a profile action.
 const kQueryBeaconForwardTo = 'forward_to';

@@ -691,6 +691,48 @@
   "@beaconCoverHintThumbOnCard": {
     "context": "BeaconCreateScreen"
   },
+  "beaconCoverStatusAddCover": "Add cover",
+  "@beaconCoverStatusAddCover": {
+    "context": "BeaconCreateScreen"
+  },
+  "beaconCoverStatusPhoto": "Photo",
+  "@beaconCoverStatusPhoto": {
+    "context": "BeaconCreateScreen"
+  },
+  "beaconCoverStatusSymbolNamed": "Symbol · {capability}",
+  "@beaconCoverStatusSymbolNamed": {
+    "context": "BeaconCreateScreen",
+    "placeholders": {
+      "capability": {
+        "type": "String"
+      }
+    }
+  },
+  "beaconCoverStatusNeedCapability": "Add a capability first",
+  "@beaconCoverStatusNeedCapability": {
+    "context": "BeaconCreateScreen"
+  },
+  "beaconCreateImagesNone": "None",
+  "@beaconCreateImagesNone": {
+    "context": "BeaconCreateScreen"
+  },
+  "beaconCreateImagesCount": "{count, plural, =0{None} one{1 photo} other{{count} photos}}",
+  "@beaconCreateImagesCount": {
+    "context": "BeaconCreateScreen",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "beaconCreatePlaceNone": "No place",
+  "@beaconCreatePlaceNone": {
+    "context": "BeaconCreateScreen"
+  },
+  "beaconCreateTimingAnytime": "Anytime",
+  "@beaconCreateTimingAnytime": {
+    "context": "BeaconCreateScreen"
+  },
   "beaconIdentityCategoryMeta": "Coordination",
   "@beaconIdentityCategoryMeta": {
     "context": "BeaconCreateScreen"

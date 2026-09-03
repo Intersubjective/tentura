@@ -691,6 +691,48 @@
   "@beaconCoverHintThumbOnCard": {
     "context": "BeaconCreateScreen"
   },
+  "beaconCoverStatusAddCover": "Добавить обложку",
+  "@beaconCoverStatusAddCover": {
+    "context": "BeaconCreateScreen"
+  },
+  "beaconCoverStatusPhoto": "Фото",
+  "@beaconCoverStatusPhoto": {
+    "context": "BeaconCreateScreen"
+  },
+  "beaconCoverStatusSymbolNamed": "Символ · {capability}",
+  "@beaconCoverStatusSymbolNamed": {
+    "context": "BeaconCreateScreen",
+    "placeholders": {
+      "capability": {
+        "type": "String"
+      }
+    }
+  },
+  "beaconCoverStatusNeedCapability": "Сначала добавьте возможность",
+  "@beaconCoverStatusNeedCapability": {
+    "context": "BeaconCreateScreen"
+  },
+  "beaconCreateImagesNone": "Нет",
+  "@beaconCreateImagesNone": {
+    "context": "BeaconCreateScreen"
+  },
+  "beaconCreateImagesCount": "{count, plural, =0{Нет} one{1 фото} few{{count} фото} many{{count} фото} other{{count} фото}}",
+  "@beaconCreateImagesCount": {
+    "context": "BeaconCreateScreen",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "beaconCreatePlaceNone": "Без места",
+  "@beaconCreatePlaceNone": {
+    "context": "BeaconCreateScreen"
+  },
+  "beaconCreateTimingAnytime": "В любое время",
+  "@beaconCreateTimingAnytime": {
+    "context": "BeaconCreateScreen"
+  },
   "beaconIdentityCategoryMeta": "Координация",
   "@beaconIdentityCategoryMeta": {
     "context": "BeaconCreateScreen"

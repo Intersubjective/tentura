@@ -104,7 +104,7 @@ These flows keep a **single-pane / bottom-sheet** UX on compact and add a wider 
 |------|---------|-------------------|
 | Forward recipient search | Single column + inline notes | Master–detail split ([`forward_search_overlay.dart`](../packages/client/lib/features/forward/ui/widget/forward_search_overlay.dart)) |
 | Connect | `showModalBottomSheet` | Centered `Dialog` ([`connect_bottom_sheet.dart`](../packages/client/lib/features/connect/ui/widget/connect_bottom_sheet.dart)) |
-| Beacon create images | `ReorderableListView` | 2- / 3-column grid ([`image_tab.dart`](../packages/client/lib/features/beacon_create/ui/widget/image_tab.dart)) |
+| Beacon create images | Gallery on Info tab (`ImageTab` body in sheet on compact/regular, inline on expanded) | 2- / 3-column grid ([`image_tab.dart`](../packages/client/lib/features/beacon_create/ui/widget/image_tab.dart)); not a top-level TabBar tab |
 | Beacon definition media | Fixed-height band | Taller band + max-width centering ([`beacon_definition_body.dart`](../packages/client/lib/features/beacon_view/ui/widget/beacon_definition_body.dart)) |
 | Graph | Full bleed + pan/zoom | Optional side rail controls ([`graph_body.dart`](../packages/client/lib/features/graph/ui/widget/graph_body.dart)) |
 

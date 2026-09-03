@@ -14,7 +14,6 @@ import 'package:tentura/ui/test_ids.dart';
 
 import '../bloc/beacon_create_cubit.dart';
 import '../dialog/beacon_send_confirmation_dialog.dart';
-import '../widget/image_tab.dart';
 import '../widget/info_tab.dart';
 import '../widget/recipients_tab.dart';
 
@@ -49,7 +48,8 @@ class BeaconCreateScreen extends StatefulWidget implements AutoRouteWrapper {
   /// Server open beacon id when editing a published beacon.
   final String editId;
 
-  /// Optional initial tab (`recipients` opens the Recipients tab).
+  /// Optional initial focus: [kBeaconCreateTabRecipients] or
+  /// [kBeaconCreateTabImage] (Images editor on Info).
   final String initialTab;
 
   /// Optional profile-route recipient to preselect when Recipients is prepared.
@@ -77,11 +77,11 @@ class BeaconCreateScreen extends StatefulWidget implements AutoRouteWrapper {
 
 class _BeaconCreateScreenState extends State<BeaconCreateScreen>
     with TickerProviderStateMixin {
-  static const _recipientsTabIndex = 2;
+  static const _recipientsTabIndex = 1;
 
   final _formKey = GlobalKey<FormState>();
 
-  late final _tabController = TabController(length: 3, vsync: this);
+  late final _tabController = TabController(length: 2, vsync: this);
 
   late final _beaconCreateCubit = context.read<BeaconCreateCubit>();
 
@@ -100,6 +100,7 @@ class _BeaconCreateScreenState extends State<BeaconCreateScreen>
         }
       });
     }
+    // `tab=image` is handled by InfoTab via [openImagesInitially].
   }
 
   @override
@@ -340,7 +341,6 @@ class _BeaconCreateScreenState extends State<BeaconCreateScreen>
           controller: _tabController,
           tabs: [
             Tab(text: l10n.beaconInfo),
-            Tab(text: l10n.beaconImage),
             Tab(
               key: TestIds.key(TestIds.requestRecipientsTab),
               text: l10n.beaconRecipients,
@@ -478,10 +478,14 @@ class _BeaconCreateScreenState extends State<BeaconCreateScreen>
                                   child: TabBarView(
                                     controller: _tabController,
                                     children: [
-                                      const InfoTab(
-                                        key: ValueKey('BeaconCreate.InfoTab'),
+                                      InfoTab(
+                                        key: const ValueKey(
+                                          'BeaconCreate.InfoTab',
+                                        ),
+                                        openImagesInitially:
+                                            widget.initialTab ==
+                                            kBeaconCreateTabImage,
                                       ),
-                                      const ImageTab(),
                                       _buildRecipientsTab(state, contextName),
                                     ],
                                   ),

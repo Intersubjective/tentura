@@ -70,14 +70,14 @@ Finder _descriptionField() => find.byKey(TestIds.key(TestIds.requestDescription)
 
 class _GeoRepositoryMock extends Mock implements GeoRepository {}
 
-Widget _infoTabHarness(BeaconCreateCubit cubit) {
+Widget _infoTabHarness(BeaconCreateCubit cubit, {double width = 800}) {
   return MaterialApp(
     locale: const Locale('en'),
     localizationsDelegates: L10n.localizationsDelegates,
     supportedLocales: L10n.supportedLocales,
     theme: TenturaTheme.light(),
     home: MediaQuery(
-      data: const MediaQueryData(size: Size(800, 1200)),
+      data: MediaQueryData(size: Size(width, 1200)),
       child: Scaffold(
         body: BlocProvider<BeaconCreateCubit>.value(
           value: cubit,
@@ -112,10 +112,16 @@ void main() {
 
   Future<void> scrollToLocationControls(WidgetTester tester) async {
     await tester.scrollUntilVisible(
-      find.byKey(const Key('BeaconCreate.LocationField')),
+      find.byKey(const Key('BeaconCreate.LocationRow')),
       120,
       scrollable: find.byType(Scrollable).first,
     );
+    await tester.pumpAndSettle();
+  }
+
+  Future<void> openTimingSheet(WidgetTester tester) async {
+    await tester.ensureVisible(find.byKey(const Key('BeaconCreate.TimingRow')));
+    await tester.tap(find.byKey(const Key('BeaconCreate.TimingRow')));
     await tester.pumpAndSettle();
   }
 
@@ -123,7 +129,7 @@ void main() {
     await tester.pumpWidget(_infoTabHarness(cubit));
     await tester.pumpAndSettle();
 
-    // Declare the timing meaning first, then the contextual picker appears.
+    await openTimingSheet(tester);
     await tester.tap(find.text('Date / period'));
     await tester.pumpAndSettle();
 
@@ -142,6 +148,7 @@ void main() {
     await tester.pumpWidget(_infoTabHarness(cubit));
     await tester.pumpAndSettle();
 
+    await openTimingSheet(tester);
     await tester.tap(find.text('Deadline'));
     await tester.pumpAndSettle();
 
@@ -158,11 +165,11 @@ void main() {
     await tester.pumpWidget(_infoTabHarness(cubit));
     await tester.pumpAndSettle();
 
+    await openTimingSheet(tester);
     await tester.tap(find.text('Deadline'));
     await tester.pumpAndSettle();
 
-    await tester.ensureVisible(find.text('Tap to choose'));
-    await tester.tap(find.text('Tap to choose'));
+    await tester.tap(find.byKey(const Key('BeaconCreate.TimingField')));
     await tester.pumpAndSettle();
 
     expect(find.byType(DatePickerDialog), findsOneWidget);
@@ -275,11 +282,14 @@ void main() {
     expect(cubit.state.title, titleText);
     expect(cubit.state.description, descriptionText);
 
+    await openTimingSheet(tester);
     await tester.tap(find.text('Deadline'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('Date / period'));
     await tester.pumpAndSettle();
     await tester.tap(find.text('No date'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Ok'));
     await tester.pumpAndSettle();
 
     expect(cubit.state.title, titleText);
@@ -339,7 +349,7 @@ void main() {
     await tester.pumpAndSettle();
 
     await scrollToLocationControls(tester);
-    await tester.tap(find.byKey(const Key('BeaconCreate.LocationField')));
+    await tester.tap(find.byKey(const Key('BeaconCreate.LocationRow')));
     await tester.pumpAndSettle();
 
     expect(find.text('Tap to choose location'), findsOneWidget);
@@ -355,6 +365,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byKey(const Key('BeaconCreate.LocationField')), findsNothing);
+    expect(find.byKey(const Key('BeaconCreate.LocationRow')), findsNothing);
   });
 
   testWidgets('location clear button clears coords without opening map', (
@@ -393,32 +404,27 @@ void main() {
     expect(cubit.state.location, isEmpty);
   });
 
-  testWidgets('removing a requirement chip updates cubit needs', (
+  testWidgets('removing a requirement updates selected count', (
     tester,
   ) async {
     cubit.setNeeds({'money', 'transport'});
     await tester.pumpWidget(_infoTabHarness(cubit));
     await tester.pumpAndSettle();
 
-    expect(find.text('Money'), findsOneWidget);
-    expect(find.text('Transport'), findsOneWidget);
     expect(cubit.state.needs, {'money', 'transport'});
+    expect(find.text('2 selected'), findsOneWidget);
 
-    final moneyChip = find.ancestor(
-      of: find.text('Money'),
-      matching: find.byType(InputChip),
-    );
-    await tester.tap(
-      find.descendant(
-        of: moneyChip,
-        matching: find.byIcon(Icons.clear),
-      ),
-    );
+    await _openRequirementsSheet(tester);
+    await _scrollToGroupInSheet(tester, 'Resources');
+    await tester.tap(find.text('Resources'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(FilterChip, 'Money'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Save'));
     await tester.pumpAndSettle();
 
     expect(cubit.state.needs, {'transport'});
-    expect(find.text('Money'), findsNothing);
-    expect(find.text('Transport'), findsOneWidget);
+    expect(find.text('1 selected'), findsOneWidget);
   });
 
   testWidgets('requirements sheet shows icon hint copy', (tester) async {
@@ -568,6 +574,7 @@ void main() {
       isFalse,
     );
 
+    await openTimingSheet(tester);
     await tester.tap(find.text('Deadline'));
     await tester.pumpAndSettle();
 
@@ -611,6 +618,7 @@ void main() {
       await tester.enterText(_descriptionField(), before);
       await tester.pump();
 
+      await openTimingSheet(tester);
       await tester.tap(find.text('Deadline'));
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(const Key('BeaconCreate.TimingField')));
@@ -619,9 +627,15 @@ void main() {
 
       await tester.tap(find.widgetWithText(TextButton, 'Cancel'));
       await tester.pumpAndSettle();
+      // Close timing sheet if still open (date picker was stacked above it).
+      if (find.text('When?').evaluate().isNotEmpty) {
+        await tester.tap(find.text('Ok'));
+        await tester.pumpAndSettle();
+      }
       _expectPrimaryFocusOnScope();
 
       const afterPicker = 'typed after date picker';
+      await tester.ensureVisible(_descriptionField());
       await tester.tap(_descriptionField());
       await tester.pump();
       await tester.enterText(_descriptionField(), afterPicker);
@@ -630,4 +644,63 @@ void main() {
       expect(cubit.state.description, afterPicker);
     },
   );
+
+  testWidgets('compact shows optional summary rows instead of inline timing', (
+    tester,
+  ) async {
+    await tester.pumpWidget(_infoTabHarness(cubit, width: 390));
+    await tester.pumpAndSettle();
+
+    expect(find.byKey(const Key('BeaconCreate.TimingRow')), findsOneWidget);
+    expect(find.byKey(const Key('BeaconCreate.ImagesRow')), findsOneWidget);
+    expect(find.byKey(const Key('BeaconCreate.RequirementsRow')), findsOneWidget);
+    expect(find.text('Date / period'), findsNothing);
+
+    await tester.tap(find.byKey(const Key('BeaconCreate.TimingRow')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Date / period'), findsOneWidget);
+    await tester.tap(find.text('Deadline'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.byKey(const Key('BeaconCreate.TimingField')));
+    await tester.pumpAndSettle();
+    expect(find.byType(DatePickerDialog), findsOneWidget);
+  });
+
+  testWidgets('compact images row opens the gallery sheet', (tester) async {
+    await tester.pumpWidget(_infoTabHarness(cubit, width: 390));
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.byKey(const Key('BeaconCreate.ImagesRow')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Add Images'), findsOneWidget);
+  });
+
+  testWidgets('openImagesInitially opens the images sheet on compact', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        locale: const Locale('en'),
+        localizationsDelegates: L10n.localizationsDelegates,
+        supportedLocales: L10n.supportedLocales,
+        theme: TenturaTheme.light(),
+        home: MediaQuery(
+          data: const MediaQueryData(size: Size(390, 1200)),
+          child: Scaffold(
+            body: BlocProvider<BeaconCreateCubit>.value(
+              value: cubit,
+              child: const Form(
+                child: InfoTab(openImagesInitially: true),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Add Images'), findsOneWidget);
+  });
 }

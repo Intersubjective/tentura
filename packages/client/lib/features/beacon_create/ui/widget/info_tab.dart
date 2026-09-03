@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:get_it/get_it.dart';
 
+import 'package:tentura/consts.dart';
 import 'package:tentura/env.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon_schedule.dart';
@@ -21,9 +22,18 @@ import 'package:tentura/features/geo/ui/dialog/choose_location_dialog.dart';
 
 import '../bloc/beacon_create_cubit.dart';
 import 'cover_block.dart';
+import 'cover_symbol_sheet.dart';
+import 'create_optional_summary_row.dart';
+import 'image_tab.dart';
 
 class InfoTab extends StatefulWidget {
-  const InfoTab({super.key});
+  const InfoTab({
+    this.openImagesInitially = false,
+    super.key,
+  });
+
+  /// When true (e.g. `?tab=image`), open/focus the Images editor after first frame.
+  final bool openImagesInitially;
 
   @override
   State<InfoTab> createState() => _InfoTabState();
@@ -31,6 +41,7 @@ class InfoTab extends StatefulWidget {
 
 class _InfoTabState extends State<InfoTab> with StringInputValidator {
   final _env = GetIt.I<Env>();
+  final _imagesSectionKey = GlobalKey();
 
   late final _l10n = L10n.of(context)!;
 
@@ -62,6 +73,31 @@ class _InfoTabState extends State<InfoTab> with StringInputValidator {
   );
 
   @override
+  void initState() {
+    super.initState();
+    if (widget.openImagesInitially) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        final expanded = context.windowClass == WindowClass.expanded;
+        if (expanded) {
+          final ctx = _imagesSectionKey.currentContext;
+          if (ctx != null) {
+            unawaited(
+              Scrollable.ensureVisible(
+                ctx,
+                duration: const Duration(milliseconds: 200),
+                alignment: 0.1,
+              ),
+            );
+          }
+        } else {
+          unawaited(_showImagesSheet(context));
+        }
+      });
+    }
+  }
+
+  @override
   void dispose() {
     _timingKindNotifier.dispose();
     _titleController.dispose();
@@ -77,8 +113,8 @@ class _InfoTabState extends State<InfoTab> with StringInputValidator {
   }
 
   /// Copies in-flight [TextEditingController] text into the cubit so modal sheets
-  /// (requirements picker) cannot leave draft state behind if focus/IME did not
-  /// flush [TextFormField.onChanged] before the overlay opened.
+  /// cannot leave draft state behind if focus/IME did not flush
+  /// [TextFormField.onChanged] before the overlay opened.
   void _commitFormFieldsToCubit() {
     final s = _cubit.state;
     if (_titleController.text != s.title) {
@@ -89,7 +125,10 @@ class _InfoTabState extends State<InfoTab> with StringInputValidator {
     }
   }
 
-  Future<void> _showRequirementsSheet(BuildContext context) async {
+  Future<void> _showRequirementsSheet(
+    BuildContext context, {
+    bool reopenSymbolAfterSave = false,
+  }) async {
     _commitFormFieldsToCubit();
     final l10n = L10n.of(context)!;
     final baseline = Set<String>.from(_cubit.state.needs);
@@ -129,6 +168,23 @@ class _InfoTabState extends State<InfoTab> with StringInputValidator {
               final saved = Set<String>.from(selected);
               _cubit.setNeeds(saved);
               Navigator.of(ctx).pop();
+              if (reopenSymbolAfterSave && saved.isNotEmpty) {
+                WidgetsBinding.instance.addPostFrameCallback((_) {
+                  if (!mounted) return;
+                  unawaited(
+                    CoverSymbolSheet.show(
+                      context,
+                      cubit: _cubit,
+                      onManageCapabilities: () => unawaited(
+                        _showRequirementsSheet(
+                          context,
+                          reopenSymbolAfterSave: true,
+                        ),
+                      ),
+                    ),
+                  );
+                });
+              }
             }
 
             return Focus(
@@ -220,6 +276,151 @@ class _InfoTabState extends State<InfoTab> with StringInputValidator {
     );
   }
 
+  Future<void> _showTimingSheet(BuildContext context) async {
+    _commitFormFieldsToCubit();
+    final l10n = L10n.of(context)!;
+    await showTenturaAdaptiveSheet<void>(
+      context: context,
+      builder: (_) => UnfocusSheetBody(
+        child: SafeArea(
+          child: Padding(
+            padding: EdgeInsets.fromLTRB(
+              context.tt.screenHPadding,
+              context.tt.sectionGap,
+              context.tt.screenHPadding,
+              context.tt.sectionGap,
+            ),
+            child: ValueListenableBuilder<BeaconScheduleKind>(
+              valueListenable: _timingKindNotifier,
+              builder: (ctx, timingKind, _) {
+                final tt = ctx.tt;
+                return Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Text(
+                      l10n.beaconTimingWhenTitle,
+                      style: Theme.of(ctx).textTheme.titleMedium,
+                    ),
+                    SizedBox(height: tt.rowGap),
+                    SegmentedButton<BeaconScheduleKind>(
+                      showSelectedIcon: false,
+                      segments: [
+                        ButtonSegment(
+                          value: BeaconScheduleKind.deadline,
+                          label: Text(l10n.beaconTimingDeadline),
+                        ),
+                        ButtonSegment(
+                          value: BeaconScheduleKind.event,
+                          label: Text(l10n.beaconTimingEvent),
+                        ),
+                        ButtonSegment(
+                          value: BeaconScheduleKind.none,
+                          label: Text(l10n.beaconTimingNone),
+                        ),
+                      ],
+                      selected: {timingKind},
+                      onSelectionChanged: (s) => _onTimingKindChanged(s.first),
+                    ),
+                    SizedBox(height: tt.tightGap * 2),
+                    Text(
+                      _timingKindHint(timingKind),
+                      style: TenturaText.bodySmall(
+                        Theme.of(ctx).colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                    if (timingKind != BeaconScheduleKind.none)
+                      Padding(
+                        padding: EdgeInsets.only(top: tt.rowGap),
+                        child:
+                            BlocSelector<
+                              BeaconCreateCubit,
+                              BeaconCreateState,
+                              String
+                            >(
+                              bloc: _cubit,
+                              selector: _timingSummary,
+                              builder: (_, displayText) => _pickerField(
+                                key: const Key('BeaconCreate.TimingField'),
+                                hint: l10n.beaconTimingPickDate,
+                                displayText: displayText,
+                                suffixIcon: const Icon(TenturaIcons.calendar),
+                                onTap: () => unawaited(
+                                  timingKind == BeaconScheduleKind.deadline
+                                      ? _pickDeadline(context)
+                                      : _pickEventDates(context),
+                                ),
+                              ),
+                            ),
+                      ),
+                    SizedBox(height: tt.sectionGap),
+                    Align(
+                      alignment: AlignmentDirectional.centerEnd,
+                      child: FilledButton(
+                        onPressed: () => Navigator.of(ctx).pop(),
+                        child: Text(l10n.buttonOk),
+                      ),
+                    ),
+                  ],
+                );
+              },
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _showImagesSheet(BuildContext context) async {
+    _commitFormFieldsToCubit();
+    final l10n = L10n.of(context)!;
+    final tt = context.tt;
+    await showTenturaAdaptiveSheet<void>(
+      context: context,
+      builder: (_) => UnfocusSheetBody(
+        child: DraggableScrollableSheet(
+          expand: false,
+          initialChildSize: 0.75,
+          minChildSize: 0.4,
+          maxChildSize: 0.95,
+          builder: (ctx, _) => Column(
+            children: [
+              Padding(
+                padding: EdgeInsets.fromLTRB(
+                  tt.screenHPadding,
+                  tt.sectionGap,
+                  tt.screenHPadding,
+                  tt.tightGap * 2,
+                ),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        l10n.beaconImage,
+                        style: Theme.of(ctx).textTheme.titleMedium,
+                      ),
+                    ),
+                    IconButton(
+                      tooltip: l10n.buttonOk,
+                      onPressed: () => Navigator.of(ctx).pop(),
+                      icon: const Icon(Icons.close_rounded),
+                    ),
+                  ],
+                ),
+              ),
+              Expanded(
+                child: BlocProvider<BeaconCreateCubit>.value(
+                  value: _cubit,
+                  child: const ImageTab(),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   InputDecoration _createFieldDecoration({
     String? hintText,
     String? labelText,
@@ -262,261 +463,346 @@ class _InfoTabState extends State<InfoTab> with StringInputValidator {
           }
         }
       },
-      child: ListView(
-        children: [
-          // Title
-          Semantics(
-            identifier: TestIds.requestTitle,
-            textField: true,
-            child: TextFormField(
-              key: TestIds.key(TestIds.requestTitle),
-              autovalidateMode: AutovalidateMode.onUserInteraction,
-              controller: _titleController,
-              decoration: _createFieldDecoration(
-                hintText: _l10n.beaconTitleRequired,
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final expanded =
+              windowClassForWidth(constraints.maxWidth) == WindowClass.expanded;
+          return ListView(
+            children: [
+              Semantics(
+                identifier: TestIds.requestTitle,
+                textField: true,
+                child: TextFormField(
+                  key: TestIds.key(TestIds.requestTitle),
+                  autovalidateMode: AutovalidateMode.onUserInteraction,
+                  controller: _titleController,
+                  decoration: _createFieldDecoration(
+                    hintText: _l10n.beaconTitleRequired,
+                  ),
+                  keyboardType: TextInputType.text,
+                  maxLength: kBeaconTitleMaxLength,
+                  onTapOutside: (_) => FocusScope.of(context).unfocus(),
+                  onChanged: _cubit.setTitle,
+                  onSaved: (value) => _cubit.setTitle(value ?? ''),
+                  validator: (text) => beaconTitleValidator(_l10n, text),
+                ),
               ),
-              keyboardType: TextInputType.text,
-              maxLength: kBeaconTitleMaxLength,
-              onTapOutside: (_) => FocusScope.of(context).unfocus(),
-              onChanged: _cubit.setTitle,
-              onSaved: (value) => _cubit.setTitle(value ?? ''),
-              validator: (text) => beaconTitleValidator(_l10n, text),
-            ),
-          ),
-
-          // Description
-          Semantics(
-            identifier: TestIds.requestDescription,
-            textField: true,
-            child: TextFormField(
-              key: TestIds.key(TestIds.requestDescription),
-              autovalidateMode: AutovalidateMode.onUserInteraction,
-              controller: _descriptionController,
-              decoration: _createFieldDecoration(
-                hintText: _l10n.labelDescription,
+              Semantics(
+                identifier: TestIds.requestDescription,
+                textField: true,
+                child: TextFormField(
+                  key: TestIds.key(TestIds.requestDescription),
+                  autovalidateMode: AutovalidateMode.onUserInteraction,
+                  controller: _descriptionController,
+                  decoration: _createFieldDecoration(
+                    hintText: _l10n.labelDescription,
+                  ),
+                  keyboardType: TextInputType.multiline,
+                  maxLength: kDescriptionMaxLength,
+                  maxLines: null,
+                  onChanged: _cubit.setDescription,
+                  onSaved: (value) => _cubit.setDescription(value ?? ''),
+                  onTapOutside: (_) => FocusScope.of(context).unfocus(),
+                  validator: (text) => beaconDescriptionValidator(_l10n, text),
+                ),
               ),
-              keyboardType: TextInputType.multiline,
-              maxLength: kDescriptionMaxLength,
-              maxLines: null,
-              onChanged: _cubit.setDescription,
-              onSaved: (value) => _cubit.setDescription(value ?? ''),
-              onTapOutside: (_) => FocusScope.of(context).unfocus(),
-              validator: (text) => beaconDescriptionValidator(_l10n, text),
-            ),
-          ),
-
-          // Requirements — same bottom sheet pattern as forward “Why?” picker
-          Padding(
-            padding: EdgeInsets.symmetric(vertical: tt.rowGap),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Material(
-                  color: Colors.transparent,
-                  child: InkWell(
-                    canRequestFocus: false,
-                    borderRadius: BorderRadius.circular(tt.cardRadius),
-                    onTap: () => unawaited(_showRequirementsSheet(context)),
-                    child: Padding(
-                      padding: EdgeInsets.symmetric(vertical: tt.tightGap * 2),
-                      child: Row(
-                        children: [
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  _l10n.beaconRequirementsTitle,
-                                  style: _theme.textTheme.titleSmall?.copyWith(
-                                    fontWeight: FontWeight.w600,
-                                  ),
-                                ),
-                                const SizedBox(height: 2),
-                                BlocSelector<
-                                  BeaconCreateCubit,
-                                  BeaconCreateState,
-                                  Set<String>
-                                >(
-                                  bloc: _cubit,
-                                  selector: (state) => state.needs,
-                                  builder: (context, needs) => Text(
-                                    _l10n.beaconRequirementsSelectedCount(
-                                      needs.length,
-                                    ),
-                                    style: _theme.textTheme.bodySmall?.copyWith(
-                                      color:
-                                          _theme.colorScheme.onSurfaceVariant,
-                                    ),
-                                  ),
-                                ),
-                              ],
-                            ),
-                          ),
-                          Icon(
-                            Icons.chevron_right_rounded,
-                            color: _theme.colorScheme.onSurfaceVariant,
-                          ),
-                        ],
-                      ),
+              if (kShowBeaconCreateContextSelector)
+                Padding(
+                  padding: EdgeInsets.symmetric(vertical: tt.rowGap),
+                  child: const ContextDropDown(),
+                ),
+              Padding(
+                padding: EdgeInsets.symmetric(vertical: tt.rowGap),
+                child: CoverBlock(
+                  onManageCapabilities: () => unawaited(
+                    _showRequirementsSheet(
+                      context,
+                      reopenSymbolAfterSave: true,
                     ),
                   ),
                 ),
-                BlocSelector<BeaconCreateCubit, BeaconCreateState, Set<String>>(
-                  bloc: _cubit,
-                  selector: (state) => state.needs,
-                  builder: (context, needs) {
-                    if (needs.isEmpty) {
-                      return const SizedBox.shrink();
-                    }
-                    return Padding(
-                      padding: EdgeInsets.only(top: tt.tightGap),
-                      child: RemovableCapabilityChips(
-                        slugs: needs,
-                        onRemove: _cubit.removeNeed,
-                      ),
-                    );
-                  },
-                ),
-              ],
-            ),
-          ),
-
-          // Context (topics selector; gated — see kShowBeaconCreateContextSelector)
-          if (kShowBeaconCreateContextSelector)
-            Padding(
-              padding: EdgeInsets.symmetric(vertical: tt.rowGap),
-              child: const ContextDropDown(),
-            ),
-
-          // Timing — declare the meaning of the dates first (event vs
-          // deadline), then pick. This is where date ambiguity is removed.
-          Padding(
-            padding: EdgeInsets.symmetric(vertical: tt.rowGap),
-            child: ValueListenableBuilder<BeaconScheduleKind>(
-              valueListenable: _timingKindNotifier,
-              builder: (context, timingKind, _) => Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    _l10n.beaconTimingWhenTitle,
-                    style: _theme.textTheme.titleSmall?.copyWith(
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  const SizedBox(height: 6),
-                  SizedBox(
-                    width: double.infinity,
-                    child: SegmentedButton<BeaconScheduleKind>(
-                      showSelectedIcon: false,
-                      segments: [
-                        ButtonSegment(
-                          value: BeaconScheduleKind.deadline,
-                          label: Text(_l10n.beaconTimingDeadline),
-                        ),
-                        ButtonSegment(
-                          value: BeaconScheduleKind.event,
-                          label: Text(_l10n.beaconTimingEvent),
-                        ),
-                        ButtonSegment(
-                          value: BeaconScheduleKind.none,
-                          label: Text(_l10n.beaconTimingNone),
-                        ),
-                      ],
-                      selected: {timingKind},
-                      onSelectionChanged: (s) => _onTimingKindChanged(s.first),
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    _timingKindHint(timingKind),
-                    style: _theme.textTheme.bodySmall?.copyWith(
-                      color: _theme.colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                  if (timingKind != BeaconScheduleKind.none)
-                    Padding(
-                      padding: EdgeInsets.only(top: tt.tightGap * 2),
-                      child:
-                          BlocSelector<
-                            BeaconCreateCubit,
-                            BeaconCreateState,
-                            String
-                          >(
-                            bloc: _cubit,
-                            selector: _timingSummary,
-                            builder: (_, displayText) => _pickerField(
-                              key: const Key('BeaconCreate.TimingField'),
-                              hint: _l10n.beaconTimingPickDate,
-                              displayText: displayText,
-                              suffixIcon: const Icon(TenturaIcons.calendar),
-                              onTap: () => unawaited(
-                                timingKind == BeaconScheduleKind.deadline
-                                    ? _pickDeadline(context)
-                                    : _pickEventDates(context),
-                              ),
-                            ),
-                          ),
-                    ),
-                ],
               ),
-            ),
-          ),
-
-          // Request cover — persisted photo/symbol preference
-          Padding(
-            padding: EdgeInsets.symmetric(vertical: tt.rowGap),
-            child: CoverBlock(
-              onManageCapabilities: () =>
-                  unawaited(_showRequirementsSheet(context)),
-            ),
-          ),
-
-          if (_env.isGoogleMapsConfigured)
-            Padding(
-              padding: EdgeInsets.symmetric(vertical: tt.rowGap),
-              child:
-                  BlocSelector<
-                    BeaconCreateCubit,
-                    BeaconCreateState,
-                    ({String location, Coordinates? coordinates})
-                  >(
-                    bloc: _cubit,
-                    selector: (s) =>
-                        (location: s.location, coordinates: s.coordinates),
-                    builder: (_, data) {
-                      final hasCoordinates = data.coordinates != null;
-                      // Coordinates picked but reverse geocoding found no
-                      // address: say so explicitly rather than showing a blank
-                      // field (looks unset) or leaking raw lat/long.
-                      final showsUnnamedPlaceholder =
-                          hasCoordinates && data.location.trim().isEmpty;
-                      return _pickerField(
-                        key: const Key('BeaconCreate.LocationField'),
-                        hint: _l10n.addLocation,
-                        displayText: showsUnnamedPlaceholder
-                            ? _l10n.locationNameUnavailable
-                            : data.location,
-                        isEmpty: !hasCoordinates && data.location.isEmpty,
-                        suffixIcon: !hasCoordinates
-                            ? const Icon(TenturaIcons.location)
-                            : IconButton(
-                                key: const Key(
-                                  'BeaconCreate.LocationClearButton',
-                                ),
-                                icon: const Icon(Icons.cancel_rounded),
-                                onPressed: () {
-                                  _locationController.clear();
-                                  _cubit.setLocation(null, '');
-                                },
-                              ),
-                        onTap: () => unawaited(_pickLocation(context)),
-                      );
-                    },
-                  ),
-            ),
-        ],
+              if (expanded)
+                ..._expandedOptionalSections(tt)
+              else
+                ..._compactOptionalSummaryRows(tt),
+            ],
+          );
+        },
       ),
     );
+  }
+
+  List<Widget> _compactOptionalSummaryRows(TenturaTokens tt) {
+    return [
+      Padding(
+        padding: EdgeInsets.symmetric(vertical: tt.tightGap),
+        child: BlocSelector<BeaconCreateCubit, BeaconCreateState, int>(
+          bloc: _cubit,
+          selector: (s) => s.needs.length,
+          builder: (context, count) => CreateOptionalSummaryRow(
+            keyId: const Key('BeaconCreate.RequirementsRow'),
+            title: _l10n.beaconRequirementsTitle,
+            subtitle: _l10n.beaconRequirementsSelectedCount(count),
+            onTap: () => unawaited(_showRequirementsSheet(context)),
+          ),
+        ),
+      ),
+      Padding(
+        padding: EdgeInsets.symmetric(vertical: tt.tightGap),
+        child: ValueListenableBuilder<BeaconScheduleKind>(
+          valueListenable: _timingKindNotifier,
+          builder: (context, timingKind, _) =>
+              BlocSelector<BeaconCreateCubit, BeaconCreateState, String>(
+                bloc: _cubit,
+                selector: _timingSummary,
+                builder: (context, summary) {
+                  final subtitle = timingKind == BeaconScheduleKind.none
+                      ? _l10n.beaconCreateTimingAnytime
+                      : (summary.isEmpty
+                            ? _l10n.beaconTimingPickDate
+                            : summary);
+                  return CreateOptionalSummaryRow(
+                    keyId: const Key('BeaconCreate.TimingRow'),
+                    title: _l10n.beaconTimingWhenTitle,
+                    subtitle: subtitle,
+                    onTap: () => unawaited(_showTimingSheet(context)),
+                  );
+                },
+              ),
+        ),
+      ),
+      if (_env.isGoogleMapsConfigured)
+        Padding(
+          padding: EdgeInsets.symmetric(vertical: tt.tightGap),
+          child:
+              BlocSelector<
+                BeaconCreateCubit,
+                BeaconCreateState,
+                ({String location, Coordinates? coordinates})
+              >(
+                bloc: _cubit,
+                selector: (s) =>
+                    (location: s.location, coordinates: s.coordinates),
+                builder: (context, data) {
+                  final hasCoordinates = data.coordinates != null;
+                  final showsUnnamed =
+                      hasCoordinates && data.location.trim().isEmpty;
+                  final subtitle = !hasCoordinates && data.location.isEmpty
+                      ? _l10n.beaconCreatePlaceNone
+                      : (showsUnnamed
+                            ? _l10n.locationNameUnavailable
+                            : data.location);
+                  return Row(
+                    children: [
+                      Expanded(
+                        child: CreateOptionalSummaryRow(
+                          keyId: const Key('BeaconCreate.LocationRow'),
+                          title: _l10n.addLocation,
+                          subtitle: subtitle,
+                          onTap: () => unawaited(_pickLocation(context)),
+                        ),
+                      ),
+                      if (hasCoordinates)
+                        IconButton(
+                          key: const Key('BeaconCreate.LocationClearButton'),
+                          icon: const Icon(Icons.cancel_rounded),
+                          onPressed: () {
+                            _locationController.clear();
+                            _cubit.setLocation(null, '');
+                          },
+                        ),
+                    ],
+                  );
+                },
+              ),
+        ),
+      Padding(
+        padding: EdgeInsets.symmetric(vertical: tt.tightGap),
+        child: BlocSelector<BeaconCreateCubit, BeaconCreateState, int>(
+          bloc: _cubit,
+          selector: (s) => s.images.length,
+          builder: (context, count) => CreateOptionalSummaryRow(
+            keyId: const Key('BeaconCreate.ImagesRow'),
+            title: _l10n.beaconImage,
+            subtitle: count == 0
+                ? _l10n.beaconCreateImagesNone
+                : _l10n.beaconCreateImagesCount(count),
+            onTap: () => unawaited(_showImagesSheet(context)),
+          ),
+        ),
+      ),
+    ];
+  }
+
+  List<Widget> _expandedOptionalSections(TenturaTokens tt) {
+    return [
+      Padding(
+        padding: EdgeInsets.symmetric(vertical: tt.rowGap),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            BlocSelector<BeaconCreateCubit, BeaconCreateState, int>(
+              bloc: _cubit,
+              selector: (s) => s.needs.length,
+              builder: (context, count) => CreateOptionalSummaryRow(
+                keyId: const Key('BeaconCreate.RequirementsRow'),
+                title: _l10n.beaconRequirementsTitle,
+                subtitle: _l10n.beaconRequirementsSelectedCount(count),
+                onTap: () => unawaited(_showRequirementsSheet(context)),
+              ),
+            ),
+            BlocSelector<BeaconCreateCubit, BeaconCreateState, Set<String>>(
+              bloc: _cubit,
+              selector: (state) => state.needs,
+              builder: (context, needs) {
+                if (needs.isEmpty) {
+                  return const SizedBox.shrink();
+                }
+                return Padding(
+                  padding: EdgeInsets.only(top: tt.tightGap),
+                  child: RemovableCapabilityChips(
+                    slugs: needs,
+                    onRemove: _cubit.removeNeed,
+                  ),
+                );
+              },
+            ),
+          ],
+        ),
+      ),
+      Padding(
+        padding: EdgeInsets.symmetric(vertical: tt.rowGap),
+        child: ValueListenableBuilder<BeaconScheduleKind>(
+          valueListenable: _timingKindNotifier,
+          builder: (context, timingKind, _) => Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                _l10n.beaconTimingWhenTitle,
+                style: _theme.textTheme.titleSmall?.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              SizedBox(height: tt.tightGap * 2),
+              SizedBox(
+                width: double.infinity,
+                child: SegmentedButton<BeaconScheduleKind>(
+                  showSelectedIcon: false,
+                  segments: [
+                    ButtonSegment(
+                      value: BeaconScheduleKind.deadline,
+                      label: Text(_l10n.beaconTimingDeadline),
+                    ),
+                    ButtonSegment(
+                      value: BeaconScheduleKind.event,
+                      label: Text(_l10n.beaconTimingEvent),
+                    ),
+                    ButtonSegment(
+                      value: BeaconScheduleKind.none,
+                      label: Text(_l10n.beaconTimingNone),
+                    ),
+                  ],
+                  selected: {timingKind},
+                  onSelectionChanged: (s) => _onTimingKindChanged(s.first),
+                ),
+              ),
+              SizedBox(height: tt.tightGap),
+              Text(
+                _timingKindHint(timingKind),
+                style: _theme.textTheme.bodySmall?.copyWith(
+                  color: _theme.colorScheme.onSurfaceVariant,
+                ),
+              ),
+              if (timingKind != BeaconScheduleKind.none)
+                Padding(
+                  padding: EdgeInsets.only(top: tt.tightGap * 2),
+                  child:
+                      BlocSelector<
+                        BeaconCreateCubit,
+                        BeaconCreateState,
+                        String
+                      >(
+                        bloc: _cubit,
+                        selector: _timingSummary,
+                        builder: (_, displayText) => _pickerField(
+                          key: const Key('BeaconCreate.TimingField'),
+                          hint: _l10n.beaconTimingPickDate,
+                          displayText: displayText,
+                          suffixIcon: const Icon(TenturaIcons.calendar),
+                          onTap: () => unawaited(
+                            timingKind == BeaconScheduleKind.deadline
+                                ? _pickDeadline(context)
+                                : _pickEventDates(context),
+                          ),
+                        ),
+                      ),
+                ),
+            ],
+          ),
+        ),
+      ),
+      if (_env.isGoogleMapsConfigured)
+        Padding(
+          padding: EdgeInsets.symmetric(vertical: tt.rowGap),
+          child:
+              BlocSelector<
+                BeaconCreateCubit,
+                BeaconCreateState,
+                ({String location, Coordinates? coordinates})
+              >(
+                bloc: _cubit,
+                selector: (s) =>
+                    (location: s.location, coordinates: s.coordinates),
+                builder: (_, data) {
+                  final hasCoordinates = data.coordinates != null;
+                  final showsUnnamedPlaceholder =
+                      hasCoordinates && data.location.trim().isEmpty;
+                  return _pickerField(
+                    key: const Key('BeaconCreate.LocationField'),
+                    hint: _l10n.addLocation,
+                    displayText: showsUnnamedPlaceholder
+                        ? _l10n.locationNameUnavailable
+                        : data.location,
+                    isEmpty: !hasCoordinates && data.location.isEmpty,
+                    suffixIcon: !hasCoordinates
+                        ? const Icon(TenturaIcons.location)
+                        : IconButton(
+                            key: const Key(
+                              'BeaconCreate.LocationClearButton',
+                            ),
+                            icon: const Icon(Icons.cancel_rounded),
+                            onPressed: () {
+                              _locationController.clear();
+                              _cubit.setLocation(null, '');
+                            },
+                          ),
+                    onTap: () => unawaited(_pickLocation(context)),
+                  );
+                },
+              ),
+        ),
+      Padding(
+        key: _imagesSectionKey,
+        padding: EdgeInsets.symmetric(vertical: tt.rowGap),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Text(
+              _l10n.beaconImage,
+              style: _theme.textTheme.titleSmall?.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            SizedBox(height: tt.rowGap),
+            const SizedBox(
+              height: 360,
+              child: ImageTab(),
+            ),
+          ],
+        ),
+      ),
+    ];
   }
 
   /// Calendar date at local midnight — Material pickers compare dates only.
@@ -525,13 +811,6 @@ class _InfoTabState extends State<InfoTab> with StringInputValidator {
 
   /// Picker row styled like a [TextFormField] but opened via [InkWell], not
   /// `readOnly` + `onTap` on a real text input.
-  ///
-  /// Workaround: read-only [TextFormField] inside a [ListView] often does not
-  /// receive taps on Flutter web (especially mobile Firefox); [onTap] never
-  /// runs so date/map dialogs never open. See flutter/flutter#164282.
-  /// [InkWell] wraps the whole [InputDecorator] with a minimum height so the
-  /// hint row and suffix icon share one tappable target (an empty label alone
-  /// has no hit area).
   Widget _pickerField({
     required Key key,
     required String hint,
@@ -568,7 +847,6 @@ class _InfoTabState extends State<InfoTab> with StringInputValidator {
     );
   }
 
-  /// Deadline mode: one date → `endAt` only (startAt cleared).
   Future<void> _pickDeadline(BuildContext context) async {
     final today = _calendarDate(DateTime.now());
     final lastDate = today.add(const Duration(days: 365));
@@ -594,8 +872,6 @@ class _InfoTabState extends State<InfoTab> with StringInputValidator {
     }
   }
 
-  /// Event mode: a date or period. Same start/end day → single-moment event
-  /// (`startAt` only); a span → window (`startAt` + `endAt`).
   Future<void> _pickEventDates(BuildContext context) async {
     final today = _calendarDate(DateTime.now());
     final lastDate = today.add(const Duration(days: 365));
@@ -663,8 +939,6 @@ class _InfoTabState extends State<InfoTab> with StringInputValidator {
     BeaconScheduleKind.none => _l10n.beaconTimingNoneHint,
   };
 
-  /// Human summary of the chosen dates, reusing the same formatters the card
-  /// uses so authoring and display speak one language.
   String _timingSummary(BeaconCreateState s) {
     final now = DateTime.now();
     final locale = _l10n.localeName;
@@ -687,9 +961,6 @@ class _InfoTabState extends State<InfoTab> with StringInputValidator {
     return '';
   }
 
-  /// Switching mode clears the field that doesn't belong to the new kind so a
-  /// stale date can't leak into the wrong semantics; compatible dates are
-  /// reinterpreted rather than lost.
   void _onTimingKindChanged(BeaconScheduleKind kind) {
     _timingKindNotifier.value = kind;
     _cubit.setTimingKind(kind);

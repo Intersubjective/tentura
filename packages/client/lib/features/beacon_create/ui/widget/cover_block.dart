@@ -11,8 +11,7 @@ import 'package:tentura/ui/widget/beacon_identity_tile.dart';
 import '../bloc/beacon_create_cubit.dart';
 import 'cover_symbol_sheet.dart';
 
-/// "Request cover" block: identity preview, helper copy, and the persisted
-/// photo/symbol preference control.
+/// "Request cover" block: identity preview and compact photo/symbol actions.
 ///
 /// Photo / Symbol are **actions** (open picker / symbol sheet), not a mute
 /// mode toggle: re-tapping the already-selected source still runs the action.
@@ -78,80 +77,36 @@ class CoverBlock extends StatelessWidget {
             ),
             SizedBox(height: tt.tightGap),
             Text(
-              _helperText(l10n, state, capability),
+              _statusText(l10n, state, capability),
               style: TenturaText.bodySmall(tt.textMuted),
             ),
-            if (state.coverSource == BeaconCoverSource.symbol &&
-                capability != null)
-              Align(
-                alignment: AlignmentDirectional.centerStart,
-                child: TextButton(
-                  key: const Key('BeaconCover.ChangeSymbol'),
-                  onPressed: () => unawaited(
-                    CoverSymbolSheet.show(
-                      context,
-                      cubit: cubit,
-                      onManageCapabilities: onManageCapabilities,
-                    ),
-                  ),
-                  child: Text(l10n.beaconCoverChangeSymbol),
-                ),
-              ),
           ],
         );
 
-        return LayoutBuilder(
-          builder: (context, constraints) {
-            final compact =
-                windowClassForWidth(constraints.maxWidth) ==
-                WindowClass.compact;
-            final control = _sourceActions(
-              context,
-              compact: compact,
-              state: state,
-              cubit: cubit,
-              l10n: l10n,
-              tt: tt,
-            );
-            if (compact) {
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      preview,
-                      SizedBox(width: tt.avatarTextGap),
-                      Expanded(child: text),
-                    ],
-                  ),
-                  SizedBox(height: tt.rowGap),
-                  control,
-                ],
-              );
-            }
-            return Row(
-              children: [
-                preview,
-                SizedBox(width: tt.avatarTextGap),
-                Expanded(child: text),
-                SizedBox(width: tt.cardGap),
-                control,
-              ],
-            );
-          },
+        final control = _sourceActions(
+          context,
+          state: state,
+          cubit: cubit,
+          l10n: l10n,
+          tt: tt,
+        );
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [
+            preview,
+            SizedBox(width: tt.avatarTextGap),
+            Expanded(child: text),
+            SizedBox(width: tt.cardGap),
+            control,
+          ],
         );
       },
     );
   }
 
-  /// Always-firing Photo / Symbol actions with selected styling from [state].
-  ///
-  /// Compact: full-width [Expanded] pair. Wide: intrinsic [MainAxisSize.min]
-  /// so the trailing slot in an unbounded [Row] does not flex-explode.
+  /// Always-firing Photo / Symbol icon actions with selected styling.
   Widget _sourceActions(
     BuildContext context, {
-    required bool compact,
     required BeaconCreateState state,
     required BeaconCreateCubit cubit,
     required L10n l10n,
@@ -161,6 +116,7 @@ class CoverBlock extends StatelessWidget {
     final photo = _sourceActionButton(
       key: const Key('BeaconCover.SourcePhoto'),
       label: l10n.beaconCoverSourcePhoto,
+      icon: Icons.photo_outlined,
       selected: photoSelected,
       tt: tt,
       onPressed: () => unawaited(cubit.pickCoverPhoto()),
@@ -168,6 +124,7 @@ class CoverBlock extends StatelessWidget {
     final symbol = _sourceActionButton(
       key: const Key('BeaconCover.SourceSymbol'),
       label: l10n.beaconCoverSourceSymbol,
+      icon: Icons.category_outlined,
       selected: !photoSelected,
       tt: tt,
       onPressed: () => _onSymbolPressed(context, cubit: cubit, state: state),
@@ -176,11 +133,11 @@ class CoverBlock extends StatelessWidget {
     return KeyedSubtree(
       key: const Key('BeaconCover.SourceControl'),
       child: Row(
-        mainAxisSize: compact ? MainAxisSize.max : MainAxisSize.min,
+        mainAxisSize: MainAxisSize.min,
         children: [
-          if (compact) Expanded(child: photo) else photo,
+          photo,
           gap,
-          if (compact) Expanded(child: symbol) else symbol,
+          symbol,
         ],
       ),
     );
@@ -189,34 +146,37 @@ class CoverBlock extends StatelessWidget {
   Widget _sourceActionButton({
     required Key key,
     required String label,
+    required IconData icon,
     required bool selected,
     required TenturaTokens tt,
     required VoidCallback onPressed,
   }) {
-    final child = Text(label, overflow: TextOverflow.ellipsis);
-    final shape = RoundedRectangleBorder(
-      borderRadius: BorderRadius.circular(tt.buttonRadius),
-    );
-    final minSize = Size(0, tt.buttonHeight);
+    final iconWidget = Icon(icon, size: tt.iconSize);
     if (selected) {
-      return FilledButton.tonal(
+      return IconButton.filledTonal(
         key: key,
+        tooltip: label,
         onPressed: onPressed,
-        style: FilledButton.styleFrom(
-          minimumSize: minSize,
-          shape: shape,
+        style: IconButton.styleFrom(
+          minimumSize: Size(tt.buttonHeight, tt.buttonHeight),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(tt.buttonRadius),
+          ),
         ),
-        child: child,
+        icon: iconWidget,
       );
     }
-    return OutlinedButton(
+    return IconButton.outlined(
       key: key,
+      tooltip: label,
       onPressed: onPressed,
-      style: OutlinedButton.styleFrom(
-        minimumSize: minSize,
-        shape: shape,
+      style: IconButton.styleFrom(
+        minimumSize: Size(tt.buttonHeight, tt.buttonHeight),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(tt.buttonRadius),
+        ),
       ),
-      child: child,
+      icon: iconWidget,
     );
   }
 
@@ -237,24 +197,22 @@ class CoverBlock extends StatelessWidget {
     );
   }
 
-  String _helperText(
+  String _statusText(
     L10n l10n,
     BeaconCreateState state,
     String? capability,
   ) {
     if (state.coverSource == BeaconCoverSource.symbol) {
       return capability == null
-          ? l10n.beaconCoverSymbolNeedsCapability
-          : l10n.beaconCoverHintSymbolSelected(capability);
+          ? l10n.beaconCoverStatusNeedCapability
+          : l10n.beaconCoverStatusSymbolNamed(capability);
     }
     if (state.coverImage != null) {
-      return '${l10n.beaconCoverHintPhotoSelected} '
-          '${l10n.beaconCoverHintThumbOnCard}';
+      return l10n.beaconCoverStatusPhoto;
     }
     if (capability != null) {
-      return l10n.beaconCoverHintNoPhotoUsingSymbol(capability);
+      return l10n.beaconCoverStatusSymbolNamed(capability);
     }
-    return '${l10n.beaconCoverHintPhotoPick} '
-        '${l10n.beaconCoverSymbolNeedsCapability}';
+    return l10n.beaconCoverStatusAddCover;
   }
 }
