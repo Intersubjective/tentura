@@ -87,6 +87,7 @@ class _BeaconCreateScreenState extends State<BeaconCreateScreen> {
   ForwardCubit? _forwardCubit;
   String? _forwardCubitDraftId;
   bool _recipientsDraftEnsuring = false;
+  bool _leaveInProgress = false;
 
   @override
   void initState() {
@@ -197,13 +198,22 @@ class _BeaconCreateScreenState extends State<BeaconCreateScreen> {
   }
 
   Future<void> _leaveForm() async {
-    _formKey.currentState?.save();
-    await _beaconCreateCubit.flushAutosave();
-    if (!mounted) return;
-    if (context.router.canPop()) {
-      await context.router.maybePop();
-    } else {
-      await context.router.navigatePath(kPathMyWork);
+    if (_leaveInProgress) return;
+    _leaveInProgress = true;
+    try {
+      _formKey.currentState?.save();
+      await _beaconCreateCubit.flushAutosave();
+      if (!mounted) return;
+      // PopScope.canPop is false, so maybePop re-enters this method. Pop
+      // bypasses that guard; isFirst ignores PopScope for the deep-link case.
+      final route = ModalRoute.of(context);
+      if (route != null && !route.isFirst) {
+        Navigator.of(context).pop();
+      } else {
+        await context.router.navigatePath(kPathMyWork);
+      }
+    } finally {
+      if (mounted) _leaveInProgress = false;
     }
   }
 
@@ -489,8 +499,8 @@ class _BeaconCreateScreenState extends State<BeaconCreateScreen> {
                               height: tt.buttonHeight,
                               child: OutlinedButton(
                                 key: TestIds.key(TestIds.requestMakeLive),
-                                onPressed: state.isLoading ||
-                                        !state.canTryToPublish
+                                onPressed:
+                                    state.isLoading || !state.canTryToPublish
                                     ? null
                                     : () => unawaited(_makeLive()),
                                 child: Text(l10n.buttonMakeLive),
@@ -583,8 +593,7 @@ class _BeaconCreateScreenState extends State<BeaconCreateScreen> {
                       width: double.infinity,
                       child: OutlinedButton(
                         key: TestIds.key(TestIds.requestRecipientsTab),
-                        onPressed: () =>
-                            unawaited(_openRecipientsStep()),
+                        onPressed: () => unawaited(_openRecipientsStep()),
                         child: Text(l10n.beaconCreateNextRecipients),
                       ),
                     ),

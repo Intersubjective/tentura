@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:tentura/consts.dart';
@@ -32,17 +34,44 @@ void main() {
     expect(cubit.state.lastAutosavedAt, isNotNull);
   });
 
-  test('title shorter than min length never persists Draft placeholder', () async {
-    final write = FakeBeaconWritePort();
+  test(
+    'title shorter than min length never persists Draft placeholder',
+    () async {
+      final write = FakeBeaconWritePort();
+      final cubit = BeaconCreateCubit(
+        beaconCreateCase: fakeBeaconCreateCase(write: write),
+        effects: FakeUiEffectPort(),
+      );
+      addTearDown(cubit.close);
+      cubit.setAutosaveContext('');
+
+      cubit.setTitle('x' * (kTitleMinLength - 1));
+      await cubit.flushAutosave();
+      expect(write.createdFields, isEmpty);
+    },
+  );
+
+  test('flushAutosave waits for an in-flight quiet persist', () async {
+    final hold = Completer<void>();
+    final write = FakeBeaconWritePort()..createHold = hold;
     final cubit = BeaconCreateCubit(
       beaconCreateCase: fakeBeaconCreateCase(write: write),
       effects: FakeUiEffectPort(),
     );
     addTearDown(cubit.close);
     cubit.setAutosaveContext('');
+    cubit
+      ..setTitle('Valid title')
+      ..setDescription('A description that is required.');
 
-    cubit.setTitle('x' * (kTitleMinLength - 1));
-    await cubit.flushAutosave();
-    expect(write.createdFields, isEmpty);
+    final first = cubit.flushAutosave();
+    await Future<void>.delayed(Duration.zero);
+    expect(cubit.state.isAutosaving, isTrue);
+
+    final second = cubit.flushAutosave();
+    hold.complete();
+    await Future.wait([first, second]);
+    expect(cubit.state.isAutosaving, isFalse);
+    expect(write.createdFields, hasLength(1));
   });
 }

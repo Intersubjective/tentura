@@ -108,6 +108,10 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
   Future<void> flushAutosave() async {
     _autosaveTimer?.cancel();
     _autosaveTimer = null;
+    if (state.isAutosaving) {
+      await stream.firstWhere((s) => !s.isAutosaving);
+      if (isClosed) return;
+    }
     await _quietPersist();
   }
 
