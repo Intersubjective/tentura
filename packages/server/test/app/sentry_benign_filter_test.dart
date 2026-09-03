@@ -1,6 +1,8 @@
 import 'dart:io';
 
 import 'package:logging/logging.dart';
+import 'package:sentry/sentry.dart';
+import 'package:shelf/shelf.dart' show HijackException;
 import 'package:test/test.dart';
 
 import 'package:tentura_server/app/sentry/sentry_benign_filter.dart';
@@ -26,6 +28,24 @@ void main() {
         isBenignServerThrowable(StateError('boom')),
         isFalse,
       );
+    });
+
+    test('HijackException is benign', () {
+      expect(
+        isBenignServerThrowable(const HijackException()),
+        isTrue,
+      );
+    });
+  });
+
+  group('isBenignSentryEvent', () {
+    test('HijackException event is benign', () {
+      final event = SentryEvent(
+        exceptions: [
+          SentryException(type: 'HijackException', value: 'hijacked'),
+        ],
+      );
+      expect(isBenignSentryEvent(event, Hint()), isTrue);
     });
   });
 

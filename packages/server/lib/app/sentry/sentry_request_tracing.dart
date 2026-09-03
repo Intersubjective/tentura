@@ -1,4 +1,6 @@
+import 'package:meta/meta.dart';
 import 'package:sentry/sentry.dart';
+import 'package:shelf/shelf.dart' show HijackException;
 import 'package:shelf_plus/shelf_plus.dart';
 
 import 'package:tentura_server/consts.dart';
@@ -18,7 +20,7 @@ const _excludedPathPrefixes = {
 Middleware sentryRequestTracing({required Env env}) {
   return (Handler innerHandler) {
     return (Request request) async {
-      if (!env.isSentryEnabled || !_shouldTrace(request)) {
+      if (!env.isSentryEnabled || !sentryShouldTraceRequest(request)) {
         return innerHandler(request);
       }
 
@@ -72,6 +74,11 @@ Middleware sentryRequestTracing({required Env env}) {
         return response;
       } on Object catch (error, stackTrace) {
         await sentryContext.enrichFromRequest(enrichedRequest);
+        if (error is HijackException) {
+          transaction.status = SpanStatus.ok();
+          await transaction.finish();
+          rethrow;
+        }
         transaction
           ..status = SpanStatus.internalError()
           ..throwable = error;
@@ -85,8 +92,9 @@ Middleware sentryRequestTracing({required Env env}) {
   };
 }
 
-bool _shouldTrace(Request request) {
-  final path = request.url.path;
+@visibleForTesting
+bool sentryShouldTraceRequest(Request request) {
+  final path = request.requestedUri.path;
   if (_excludedPathPrefixes.contains(path)) {
     return false;
   }

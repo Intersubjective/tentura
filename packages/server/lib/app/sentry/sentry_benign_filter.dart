@@ -2,6 +2,7 @@ import 'dart:io';
 
 import 'package:logging/logging.dart';
 import 'package:sentry/sentry.dart';
+import 'package:shelf/shelf.dart' show HijackException;
 
 /// Whether [error] is expected network churn that should not become a Sentry issue.
 bool isBenignServerThrowable(Object? error) {
@@ -12,6 +13,9 @@ bool isBenignServerThrowable(Object? error) {
     return true;
   }
   if (error is HttpException || error is TlsException) {
+    return true;
+  }
+  if (error is HijackException) {
     return true;
   }
   final message = error.toString().toLowerCase();
@@ -53,7 +57,8 @@ bool isBenignSentryEvent(SentryEvent event, Hint hint) {
     final type = ex.type ?? '';
     if (type.contains('SocketException') ||
         type.contains('HttpException') ||
-        type.contains('TlsException')) {
+        type.contains('TlsException') ||
+        type.contains('HijackException')) {
       return true;
     }
     final value = ex.value ?? '';
