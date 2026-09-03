@@ -1,8 +1,10 @@
 import 'dart:async' show unawaited;
 
+import 'package:flutter/foundation.dart' show visibleForTesting;
 import 'package:flutter/material.dart';
 import 'package:auto_route/auto_route.dart';
 
+import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/consts.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/features/context/ui/bloc/context_cubit.dart';
@@ -21,6 +23,15 @@ String? _publishBlockedDetail(L10n l10n, BeaconPublishBlocker blocker) =>
       BeaconPublishBlocker.title => l10n.beaconPublishBlockedTitle,
       BeaconPublishBlocker.description => l10n.beaconPublishBlockedDescription,
     };
+
+/// After a successful [BeaconCreateCubit.makeLive], leave create and open the
+/// published request. Shared so widget tests can assert [StackRouter.popAndPush]
+/// without pumping the full create form.
+@visibleForTesting
+Future<void> popCreateAndOpenLiveBeacon(
+  StackRouter router, {
+  required String beaconId,
+}) => router.popAndPush(BeaconViewRoute(id: beaconId));
 
 @RoutePage()
 class BeaconCreateScreen extends StatefulWidget implements AutoRouteWrapper {
@@ -168,11 +179,9 @@ class _BeaconCreateScreenState extends State<BeaconCreateScreen>
     final contextName = context.read<ContextCubit>().state.selected;
     await _beaconCreateCubit.makeLive(context: contextName);
     if (!mounted || !_beaconCreateCubit.state.isLive) return;
-    final forwardCubit = _forwardCubitFor(
-      _beaconCreateCubit.state,
-      contextName,
-    );
-    await forwardCubit?.reloadCandidates();
+    final id = _beaconCreateCubit.state.draftId;
+    if (id == null || id.isEmpty) return;
+    await popCreateAndOpenLiveBeacon(context.router, beaconId: id);
   }
 
   Future<void> _sendRequest() async {

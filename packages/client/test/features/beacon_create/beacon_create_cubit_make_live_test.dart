@@ -29,23 +29,27 @@ void _fillRequired(BeaconCreateCubit cubit) {
 }
 
 void main() {
-  test('makeLive publishes, sets isLive, and does not navigate back', () async {
-    final write = FakeBeaconWritePort(
-      beacon: Beacon.empty.copyWith(id: 'B1', status: BeaconStatus.draft),
-    );
-    final effects = FakeUiEffectPort();
-    final cubit = _cubit(write: write, effects: effects);
-    addTearDown(cubit.close);
-    _fillRequired(cubit);
+  test(
+    'makeLive publishes and sets isLive; navigation is screen responsibility',
+    () async {
+      final write = FakeBeaconWritePort(
+        beacon: Beacon.empty.copyWith(id: 'B1', status: BeaconStatus.draft),
+      );
+      final effects = FakeUiEffectPort();
+      final cubit = _cubit(write: write, effects: effects);
+      addTearDown(cubit.close);
+      _fillRequired(cubit);
 
-    await cubit.makeLive(context: 'c');
+      await cubit.makeLive(context: 'c');
 
-    expect(cubit.state.isLive, isTrue);
-    expect(cubit.state.draftId, 'B1');
-    expect(cubit.state.editId, isNull);
-    expect(write.publishedIds, ['B1']);
-    expect(effects.emitted.whereType<NavigateBack>(), isEmpty);
-  });
+      expect(cubit.state.isLive, isTrue);
+      expect(cubit.state.draftId, 'B1');
+      expect(cubit.state.editId, isNull);
+      expect(write.publishedIds, ['B1']);
+      expect(effects.emitted.whereType<NavigateBack>(), isEmpty);
+      expect(effects.emitted.whereType<NavigatePush>(), isEmpty);
+    },
+  );
 
   test(
     'makeLive on an already-open id sets isLive and does not throw',
