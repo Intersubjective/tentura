@@ -3,6 +3,7 @@ import 'package:flutter/foundation.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
 
 import 'app/app.dart';
+import 'app/sentry/install_web_script_error_filter.dart';
 import 'app/sentry/sentry_init.dart';
 
 Future<void> main() async {
@@ -13,7 +14,10 @@ Future<void> main() async {
   } else {
     await SentryFlutter.init(
       configureSentryOptions,
-      appRunner: () => App.runner(useSentryWidget: true),
+      appRunner: () {
+        installWebScriptErrorFilter();
+        return App.runner(useSentryWidget: true);
+      },
     );
   }
 }
