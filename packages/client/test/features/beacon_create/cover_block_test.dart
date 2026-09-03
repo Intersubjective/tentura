@@ -48,22 +48,30 @@ void main() {
     addTearDown(cubit.close);
   });
 
-  SegmentedButton<BeaconCoverSource> control(WidgetTester tester) =>
-      tester.widget<SegmentedButton<BeaconCoverSource>>(
-        find.byKey(const Key('BeaconCover.SourceControl')),
-      );
+  Finder photoButton() => find.byKey(const Key('BeaconCover.SourcePhoto'));
+  Finder symbolButton() => find.byKey(const Key('BeaconCover.SourceSymbol'));
 
-  testWidgets('with no photos and no capabilities symbol is disabled', (
+  /// Selected source uses [FilledButton.tonal]; unselected uses [OutlinedButton].
+  bool isTonalSelected(WidgetTester tester, Key key) {
+    final filled = find.byWidgetPredicate(
+      (w) => w is FilledButton && w.key == key,
+    );
+    return tester.widgetList(filled).isNotEmpty;
+  }
+
+  testWidgets('with no photos and no capabilities photo stays selected', (
     tester,
   ) async {
     await tester.pumpWidget(_harness(cubit));
 
     expect(find.text('Request cover'), findsOneWidget);
-    expect(control(tester).selected, {BeaconCoverSource.photo});
+    expect(find.byKey(const Key('BeaconCover.SourceControl')), findsOneWidget);
     expect(
-      control(tester).segments
-          .firstWhere((s) => s.value == BeaconCoverSource.symbol)
-          .enabled,
+      isTonalSelected(tester, const Key('BeaconCover.SourcePhoto')),
+      isTrue,
+    );
+    expect(
+      isTonalSelected(tester, const Key('BeaconCover.SourceSymbol')),
       isFalse,
     );
     expect(find.textContaining('Add a capability first.'), findsOneWidget);
@@ -76,7 +84,10 @@ void main() {
     cubit.setNeeds({'transport'});
     await tester.pumpWidget(_harness(cubit));
 
-    expect(control(tester).selected, {BeaconCoverSource.photo});
+    expect(
+      isTonalSelected(tester, const Key('BeaconCover.SourcePhoto')),
+      isTrue,
+    );
     expect(find.byType(TenturaCapabilityGlyph), findsOneWidget);
     expect(
       find.text('No cover photo yet — showing the Transport symbol.'),
@@ -90,11 +101,19 @@ void main() {
     cubit.setNeeds({'transport'});
     await tester.pumpWidget(_harness(cubit));
 
-    await tester.tap(find.text('Symbol'));
+    await tester.tap(symbolButton());
     await tester.pumpAndSettle();
 
     expect(cubit.state.coverSource, BeaconCoverSource.symbol);
-    expect(control(tester).selected, {BeaconCoverSource.symbol});
+    expect(find.text('Choose a symbol'), findsOneWidget);
+
+    await tester.tap(find.byKey(const Key('BeaconCover.Symbol.transport')));
+    await tester.pumpAndSettle();
+
+    expect(
+      isTonalSelected(tester, const Key('BeaconCover.SourceSymbol')),
+      isTrue,
+    );
     expect(find.text('Showing the Transport symbol.'), findsOneWidget);
     expect(find.text('Change symbol'), findsOneWidget);
   });
@@ -105,7 +124,7 @@ void main() {
     cubit.setNeeds({'transport', 'food'});
     await tester.pumpWidget(_harness(cubit));
 
-    await tester.tap(find.text('Symbol'));
+    await tester.tap(symbolButton());
     await tester.pumpAndSettle();
 
     expect(find.text('Choose a symbol'), findsOneWidget);
@@ -118,14 +137,45 @@ void main() {
     expect(cubit.state.coverSource, BeaconCoverSource.symbol);
   });
 
-  testWidgets('the disabled symbol segment cannot change the preference', (
+  testWidgets('symbol with no capabilities opens the empty sheet', (
     tester,
   ) async {
     await tester.pumpWidget(_harness(cubit));
 
-    await tester.tap(find.text('Symbol'), warnIfMissed: false);
+    await tester.tap(symbolButton());
     await tester.pumpAndSettle();
 
+    expect(cubit.state.coverSource, BeaconCoverSource.photo);
+    expect(find.text('Choose a symbol'), findsOneWidget);
+  });
+
+  testWidgets('tapping photo opens the cover picker', (tester) async {
+    images.picked = [_picked('a.jpg')];
+    await tester.pumpWidget(_harness(cubit));
+
+    await tester.tap(photoButton());
+    await tester.pumpAndSettle();
+
+    expect(cubit.state.images, hasLength(1));
+    expect(cubit.state.coverKey, cubit.state.images.single.key);
+    expect(cubit.state.coverSource, BeaconCoverSource.photo);
+  });
+
+  testWidgets('re-tapping photo while selected still picks', (tester) async {
+    images.picked = [_picked('a.jpg'), _picked('b.jpg')];
+    await tester.pumpWidget(_harness(cubit));
+
+    await tester.tap(photoButton());
+    await tester.pumpAndSettle();
+    expect(cubit.state.images, hasLength(2));
+    final firstCover = cubit.state.coverKey;
+
+    images.picked = [_picked('c.jpg')];
+    await tester.tap(photoButton());
+    await tester.pumpAndSettle();
+
+    expect(cubit.state.images, hasLength(3));
+    expect(cubit.state.coverKey, isNot(firstCover));
     expect(cubit.state.coverSource, BeaconCoverSource.photo);
   });
 
@@ -160,11 +210,13 @@ void main() {
 
     cubit.setNeeds({'transport'});
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Symbol'));
+    await tester.tap(symbolButton());
     await tester.pumpAndSettle();
 
     expect(cubit.state.coverKey, coverKey);
-    expect(find.byType(TenturaCapabilityGlyph), findsOneWidget);
+    expect(cubit.state.coverSource, BeaconCoverSource.symbol);
+    // Preview + sheet list both paint a glyph while the sheet is open.
+    expect(find.byType(TenturaCapabilityGlyph), findsWidgets);
   });
 
   testWidgets('the block lays out at compact width and text scale 2.0', (

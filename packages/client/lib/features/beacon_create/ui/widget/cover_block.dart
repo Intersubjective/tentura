@@ -14,8 +14,9 @@ import 'cover_symbol_sheet.dart';
 /// "Request cover" block: identity preview, helper copy, and the persisted
 /// photo/symbol preference control.
 ///
-/// The control is bound to [BeaconCreateState.coverSource], never to the
-/// resolved identity, so a preference survives having nothing to show yet.
+/// Photo / Symbol are **actions** (open picker / symbol sheet), not a mute
+/// mode toggle: re-tapping the already-selected source still runs the action.
+/// Selected styling still reflects [BeaconCreateState.coverSource].
 class CoverBlock extends StatelessWidget {
   const CoverBlock({
     required this.onManageCapabilities,
@@ -99,34 +100,19 @@ class CoverBlock extends StatelessWidget {
           ],
         );
 
-        final control = SegmentedButton<BeaconCoverSource>(
-          key: const Key('BeaconCover.SourceControl'),
-          showSelectedIcon: false,
-          segments: [
-            ButtonSegment(
-              value: BeaconCoverSource.photo,
-              label: Text(l10n.beaconCoverSourcePhoto),
-            ),
-            ButtonSegment(
-              value: BeaconCoverSource.symbol,
-              label: Text(l10n.beaconCoverSourceSymbol),
-              enabled: state.canSelectSymbolSource,
-            ),
-          ],
-          selected: {state.coverSource},
-          onSelectionChanged: (selection) => _onSourceChanged(
-            context,
-            cubit: cubit,
-            source: selection.first,
-            state: state,
-          ),
-        );
-
         return LayoutBuilder(
           builder: (context, constraints) {
             final compact =
                 windowClassForWidth(constraints.maxWidth) ==
                 WindowClass.compact;
+            final control = _sourceActions(
+              context,
+              compact: compact,
+              state: state,
+              cubit: cubit,
+              l10n: l10n,
+              tt: tt,
+            );
             if (compact) {
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -159,28 +145,96 @@ class CoverBlock extends StatelessWidget {
     );
   }
 
-  void _onSourceChanged(
+  /// Always-firing Photo / Symbol actions with selected styling from [state].
+  ///
+  /// Compact: full-width [Expanded] pair. Wide: intrinsic [MainAxisSize.min]
+  /// so the trailing slot in an unbounded [Row] does not flex-explode.
+  Widget _sourceActions(
+    BuildContext context, {
+    required bool compact,
+    required BeaconCreateState state,
+    required BeaconCreateCubit cubit,
+    required L10n l10n,
+    required TenturaTokens tt,
+  }) {
+    final photoSelected = state.coverSource == BeaconCoverSource.photo;
+    final photo = _sourceActionButton(
+      key: const Key('BeaconCover.SourcePhoto'),
+      label: l10n.beaconCoverSourcePhoto,
+      selected: photoSelected,
+      tt: tt,
+      onPressed: () => unawaited(cubit.pickCoverPhoto()),
+    );
+    final symbol = _sourceActionButton(
+      key: const Key('BeaconCover.SourceSymbol'),
+      label: l10n.beaconCoverSourceSymbol,
+      selected: !photoSelected,
+      tt: tt,
+      onPressed: () => _onSymbolPressed(context, cubit: cubit, state: state),
+    );
+    final gap = SizedBox(width: tt.tightGap);
+    return KeyedSubtree(
+      key: const Key('BeaconCover.SourceControl'),
+      child: Row(
+        mainAxisSize: compact ? MainAxisSize.max : MainAxisSize.min,
+        children: [
+          if (compact) Expanded(child: photo) else photo,
+          gap,
+          if (compact) Expanded(child: symbol) else symbol,
+        ],
+      ),
+    );
+  }
+
+  Widget _sourceActionButton({
+    required Key key,
+    required String label,
+    required bool selected,
+    required TenturaTokens tt,
+    required VoidCallback onPressed,
+  }) {
+    final child = Text(label, overflow: TextOverflow.ellipsis);
+    final shape = RoundedRectangleBorder(
+      borderRadius: BorderRadius.circular(tt.buttonRadius),
+    );
+    final minSize = Size(0, tt.buttonHeight);
+    if (selected) {
+      return FilledButton.tonal(
+        key: key,
+        onPressed: onPressed,
+        style: FilledButton.styleFrom(
+          minimumSize: minSize,
+          shape: shape,
+        ),
+        child: child,
+      );
+    }
+    return OutlinedButton(
+      key: key,
+      onPressed: onPressed,
+      style: OutlinedButton.styleFrom(
+        minimumSize: minSize,
+        shape: shape,
+      ),
+      child: child,
+    );
+  }
+
+  void _onSymbolPressed(
     BuildContext context, {
     required BeaconCreateCubit cubit,
-    required BeaconCoverSource source,
     required BeaconCreateState state,
   }) {
-    switch (source) {
-      case BeaconCoverSource.photo:
-        cubit.selectPhotoCoverSource();
-      case BeaconCoverSource.symbol:
-        cubit.selectSymbolCoverSource();
-        // More than one capability means the author has a real choice to make.
-        if (state.needs.length > 1) {
-          unawaited(
-            CoverSymbolSheet.show(
-              context,
-              cubit: cubit,
-              onManageCapabilities: onManageCapabilities,
-            ),
-          );
-        }
+    if (state.canSelectSymbolSource) {
+      cubit.selectSymbolCoverSource();
     }
+    unawaited(
+      CoverSymbolSheet.show(
+        context,
+        cubit: cubit,
+        onManageCapabilities: onManageCapabilities,
+      ),
+    );
   }
 
   String _helperText(
