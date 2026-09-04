@@ -411,9 +411,6 @@ Widget beaconViewAppBarOverflow({
       onCreatePoll: onCreatePoll,
       onUpdatePlan: onUpdatePlan,
       onForward: onForward,
-      onForwardsGraph: showBeaconManagementOverflow
-          ? () => screenCubit.showForwardsGraphFor(beaconId)
-          : null,
       onDraftReview: state.showDraftEvaluationCta
           ? () => unawaited(
               context.router.push(
@@ -486,9 +483,6 @@ Widget beaconViewAppBarOverflow({
               );
             }
           }
-        : null,
-    onForwardsGraph: showBeaconManagementOverflow
-        ? () => screenCubit.showForwardsGraphFor(beaconId)
         : null,
     onCreateFrom: showBeaconManagementOverflow && beaconAllowsLineageOverflow(b)
         ? () async {

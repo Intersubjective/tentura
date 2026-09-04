@@ -14,9 +14,13 @@ import 'package:tentura/features/beacon_view/ui/util/beacon_accordion_sections.d
 import 'package:tentura/features/beacon_view/ui/widget/beacon_view_app_bar_overflow.dart';
 import 'package:tentura/features/beacon_view/ui/widget/help_offer_tile.dart';
 import 'package:tentura/features/beacon_view/ui/widget/unified_forward_row.dart';
+import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/widget/accordion_expansion.dart';
 import 'package:tentura/ui/widget/focus_flash_highlight.dart';
+
+/// PageStorage / ExpansionTile id for the People-tab Forwards fold (not exclusive).
+const _forwardsFoldId = 'forwards';
 
 class BeaconPeopleTabBody extends StatelessWidget {
   const BeaconPeopleTabBody({
@@ -320,10 +324,108 @@ class BeaconPeopleTabBody extends StatelessWidget {
     final sectionHeaderStyle = theme.textTheme.titleSmall!.copyWith(
       color: theme.colorScheme.onSurface,
     );
+    final tt = context.tt;
+    final graphHit = tt.buttonHeight < kMinInteractiveDimension
+        ? kMinInteractiveDimension
+        : tt.buttonHeight;
+
+    final forwardsTitle = state.forwardsLoaded
+        ? '${l10n.labelForwards} (${state.viewerForwardEdges.length})'
+        : l10n.labelForwards;
+
+    final List<Widget> forwardsChildren;
+    if (state.forwardsLoading) {
+      forwardsChildren = const [
+        Center(
+          child: Padding(
+            padding: kPaddingSmallV,
+            child: CircularProgressIndicator.adaptive(),
+          ),
+        ),
+      ];
+    } else if (state.forwardsLoaded) {
+      final edges = state.viewerForwardEdges;
+      final viewerId = state.myProfile.id;
+      if (edges.isEmpty) {
+        forwardsChildren = [
+          Text(
+            l10n.beaconForwardsEmpty,
+            style: theme.textTheme.bodyMedium?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
+        ];
+      } else {
+        final feedRows = <Widget>[
+          for (final e in edges)
+            e.sender.id == viewerId
+                ? UnifiedForwardRow.outgoing(
+                    edge: e,
+                    viewerUserId: viewerId,
+                    helpOffered: state.involvementHelpOfferedIds,
+                    watching: state.involvementWatchingIds,
+                    onward: state.involvementOnwardForwarderIds,
+                    reasonSlugs:
+                        state.forwardReasonSlugs['${e.sender.id}__${e.recipient.id}'] ??
+                        const [],
+                  )
+                : UnifiedForwardRow.inbound(
+                    sender: e.sender,
+                    note: e.note,
+                    viewerUserId: viewerId,
+                    reasonSlugs:
+                        state.forwardReasonSlugs['${e.sender.id}__${e.recipient.id}'] ??
+                        const [],
+                  ),
+        ];
+        forwardsChildren = [
+          for (var i = 0; i < feedRows.length; i++) ...[
+            if (i > 0) const SizedBox(height: kSpacingMedium),
+            feedRows[i],
+          ],
+        ];
+      }
+    } else {
+      forwardsChildren = const [SizedBox.shrink()];
+    }
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
+        AccordionExpansionGroup(
+          accordionMode: false,
+          child: AccordionExpansionTile(
+            id: _forwardsFoldId,
+            initiallyExpanded: false,
+            title: Text(
+              forwardsTitle,
+              style: theme.textTheme.titleSmall,
+            ),
+            headerAction: SizedBox(
+              width: graphHit,
+              height: graphHit,
+              child: IconButton(
+                icon: const Icon(TenturaIcons.graph),
+                tooltip: l10n.forwardsGraphMenuTitle,
+                visualDensity: VisualDensity.compact,
+                padding: EdgeInsets.zero,
+                constraints: BoxConstraints(
+                  minWidth: graphHit,
+                  minHeight: graphHit,
+                ),
+                onPressed: () =>
+                    context.read<ScreenCubit>().showForwardsGraphFor(beacon.id),
+              ),
+            ),
+            onExpansionChanged: (open) {
+              if (open) {
+                unawaited(beaconViewCubit.loadForwards());
+              }
+            },
+            children: forwardsChildren,
+          ),
+        ),
+        SizedBox(height: tt.rowGap),
         AccordionExpansionGroup(
           initialExpandedId: requestedSectionId,
           requestedExpandedId: requestedSectionId,
@@ -400,92 +502,6 @@ class BeaconPeopleTabBody extends StatelessWidget {
             ],
           ),
         ),
-        const SizedBox(height: 16),
-        if (state.forwardsLoaded) ...[
-          Builder(
-            builder: (context) {
-              final edges = state.viewerForwardEdges;
-              final hasAny = edges.isNotEmpty;
-              final viewerId = state.myProfile.id;
-              final feedRows = <Widget>[
-                for (final e in edges)
-                  e.sender.id == viewerId
-                      ? UnifiedForwardRow.outgoing(
-                          edge: e,
-                          viewerUserId: viewerId,
-                          helpOffered: state.involvementHelpOfferedIds,
-                          watching: state.involvementWatchingIds,
-                          onward: state.involvementOnwardForwarderIds,
-                          reasonSlugs:
-                              state
-                                  .forwardReasonSlugs['${e.sender.id}__${e.recipient.id}'] ??
-                              const [],
-                        )
-                      : UnifiedForwardRow.inbound(
-                          sender: e.sender,
-                          note: e.note,
-                          viewerUserId: viewerId,
-                          reasonSlugs:
-                              state
-                                  .forwardReasonSlugs['${e.sender.id}__${e.recipient.id}'] ??
-                              const [],
-                        ),
-              ];
-              if (hasAny) {
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    Text(
-                      '${l10n.labelForwards} (${edges.length})',
-                      style: sectionHeaderStyle,
-                    ),
-                    const SizedBox(height: 8),
-                    Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        for (var i = 0; i < feedRows.length; i++) ...[
-                          if (i > 0) const SizedBox(height: kSpacingMedium),
-                          feedRows[i],
-                        ],
-                      ],
-                    ),
-                  ],
-                );
-              }
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  Text(
-                    '${l10n.labelForwards} (0)',
-                    style: sectionHeaderStyle,
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    l10n.beaconForwardsEmpty,
-                    style: theme.textTheme.bodyMedium?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                ],
-              );
-            },
-          ),
-        ] else if (state.forwardsLoading)
-          const Center(
-            child: Padding(
-              padding: kPaddingSmallV,
-              child: CircularProgressIndicator.adaptive(),
-            ),
-          )
-        else
-          SizedBox(
-            width: double.infinity,
-            child: OutlinedButton.icon(
-              icon: const Icon(Icons.forward_to_inbox),
-              label: Text(l10n.beaconPeopleShowForwards),
-              onPressed: () => unawaited(beaconViewCubit.loadForwards()),
-            ),
-          ),
       ],
     );
   }

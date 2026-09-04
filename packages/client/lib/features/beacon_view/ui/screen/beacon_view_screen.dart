@@ -196,6 +196,12 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
   String? _focusThreadId;
   String? _focusUserId;
 
+  /// Remount People accordion folds on same-tab reselect.
+  int _peopleFoldEpoch = 0;
+
+  /// Remount Threads accordion folds on same-tab reselect.
+  int _threadsFoldEpoch = 0;
+
   bool _didApplyThreadsResolution = false;
   String? _bannerMessage;
   WindowClass? _lastWindowClass;
@@ -637,6 +643,16 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
     });
   }
 
+  void _onTabReselected(int tab) {
+    setState(() {
+      if (tab == kBeaconTabPeople) {
+        _peopleFoldEpoch++;
+      } else if (tab == kBeaconTabThreads) {
+        _threadsFoldEpoch++;
+      }
+    });
+  }
+
   Widget _buildOperationalBody({
     required BeaconViewCubit beaconViewCubit,
     required ScreenCubit screenCubit,
@@ -663,6 +679,9 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
         onOpenThread: onOpenThread,
         onOpenGeneralThread: () => unawaited(_openGeneralThread()),
         onThreadsTabRefresh: _refreshThreadsTab,
+        peopleFoldEpoch: _peopleFoldEpoch,
+        threadsFoldEpoch: _threadsFoldEpoch,
+        onTabReselected: _onTabReselected,
         selectedThreadId: isSplit
             ? context.watch<ThreadHostCubit>().state.openThreadId
             : null,

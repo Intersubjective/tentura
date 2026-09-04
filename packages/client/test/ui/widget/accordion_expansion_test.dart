@@ -187,6 +187,49 @@ void main() {
     );
   });
 
+  group('AccordionExpansionTile onExpansionChanged', () {
+    const regular = Size(800, 600);
+
+    testWidgets('callback fires when title is tapped', (tester) async {
+      await tester.binding.setSurfaceSize(regular);
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      final opens = <bool>[];
+      await tester.pumpWidget(
+        wrap(
+          AccordionExpansionGroup(
+            accordionMode: false,
+            child: Column(
+              children: [
+                AccordionExpansionTile(
+                  id: 'a',
+                  title: const Text('Section A'),
+                  onExpansionChanged: opens.add,
+                  children: const [Text('Body A')],
+                ),
+              ],
+            ),
+          ),
+          size: regular,
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(find.text('Body A'), findsNothing);
+
+      await tester.tap(find.text('Section A'));
+      await tester.pumpAndSettle();
+
+      expect(opens, [true]);
+      expect(find.text('Body A'), findsOneWidget);
+
+      await tester.tap(find.text('Section A'));
+      await tester.pumpAndSettle();
+
+      expect(opens, [true, false]);
+    });
+  });
+
   group('AccordionExpansionTile headerAction', () {
     const regular = Size(800, 600);
 

@@ -43,6 +43,9 @@ class BeaconOperationalScrollView extends StatelessWidget {
     required this.onOpenGeneralThread,
     required this.onThreadsTabRefresh,
     required this.beaconState,
+    this.peopleFoldEpoch = 0,
+    this.threadsFoldEpoch = 0,
+    this.onTabReselected,
     this.selectedThreadId,
     super.key,
   });
@@ -68,12 +71,28 @@ class BeaconOperationalScrollView extends StatelessWidget {
   final VoidCallback onOpenGeneralThread;
   final VoidCallback onThreadsTabRefresh;
 
+  /// Bumped on same-tab reselect to remount People folds to defaults.
+  final int peopleFoldEpoch;
+
+  /// Bumped on same-tab reselect to remount Threads folds to defaults.
+  final int threadsFoldEpoch;
+
+  /// Called when the already-selected People or Threads tab is tapped again.
+  final ValueChanged<int>? onTabReselected;
+
   final BeaconViewState beaconState;
   final String? selectedThreadId;
 
-  void _setTab(int i) {
+  void _setTab(BuildContext context, int i) {
     if (tabIndex == i) {
       onPeopleTabAttentionCleared();
+      if (i == kBeaconTabPeople || i == kBeaconTabThreads) {
+        onOperationalFocusCleared();
+        onTabReselected?.call(i);
+        if (i == kBeaconTabThreads) {
+          context.read<ThreadsCubit>().setActiveForMeOnly(false);
+        }
+      }
       return;
     }
     onTabChanged(i);
@@ -146,7 +165,7 @@ class BeaconOperationalScrollView extends StatelessWidget {
           kBeaconTabThreads => ThreadsList(
             beaconState: beaconState,
             onOpenThread: onOpenThread,
-            onSwitchToPeopleTab: () => _setTab(kBeaconTabPeople),
+            onSwitchToPeopleTab: () => _setTab(context, kBeaconTabPeople),
             focusThreadId: focusThreadId,
             selectedThreadId: selectedThreadId,
           ),
@@ -220,11 +239,13 @@ class BeaconOperationalScrollView extends StatelessWidget {
                               cubit: beaconViewCubit,
                               l10n: l10n,
                               action: action,
-                              onOpenPeopleTab: () => _setTab(kBeaconTabPeople),
+                              onOpenPeopleTab: () =>
+                                  _setTab(context, kBeaconTabPeople),
                               onActivatePeopleAttention:
                                   onActivatePeopleTabAttention,
                               onFocusCoordinationItem: onFocusCoordinationItem,
-                              onOpenItemsTab: () => _setTab(kBeaconTabThreads),
+                              onOpenItemsTab: () =>
+                                  _setTab(context, kBeaconTabThreads),
                               onOpenGeneralThread: onOpenGeneralThread,
                             ),
                           )
@@ -260,7 +281,8 @@ class BeaconOperationalScrollView extends StatelessWidget {
                             state.inboxStatus == InboxItemStatus.watching
                         ? () => unawaited(beaconViewCubit.stopWatching())
                         : null,
-                    onSwitchToPeopleTab: () => _setTab(kBeaconTabPeople),
+                    onSwitchToPeopleTab: () =>
+                        _setTab(context, kBeaconTabPeople),
                     onEditNowLine: state.canCoordinateInBeaconRoom
                         ? () => unawaited(
                             showBeaconCurrentLineSheet(
@@ -327,7 +349,7 @@ class BeaconOperationalScrollView extends StatelessWidget {
                                 TestIds.beaconTabLog,
                               ],
                               selectedIndex: idx,
-                              onChanged: _setTab,
+                              onChanged: (i) => _setTab(context, i),
                               badges: [
                                 threadsTabBadge,
                                 peopleTabBadge,
@@ -354,7 +376,13 @@ class BeaconOperationalScrollView extends StatelessWidget {
                 ),
               ),
               SliverPadding(
-                key: ValueKey<int>(idx),
+                key: ValueKey(
+                  '$idx-${idx == kBeaconTabPeople
+                      ? peopleFoldEpoch
+                      : idx == kBeaconTabThreads
+                      ? threadsFoldEpoch
+                      : 0}',
+                ),
                 padding: tabPadding,
                 sliver: SliverToBoxAdapter(child: tabBody),
               ),

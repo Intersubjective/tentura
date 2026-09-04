@@ -130,6 +130,7 @@ class AccordionExpansionTile extends StatefulWidget {
     required this.children,
     this.leading,
     this.headerAction,
+    this.onExpansionChanged,
     this.initiallyExpanded = false,
     this.maintainState = true,
     super.key,
@@ -142,6 +143,9 @@ class AccordionExpansionTile extends StatefulWidget {
 
   /// Optional trailing control rendered before the expand chevron (e.g. filter toggle).
   final Widget? headerAction;
+
+  /// Called after local expansion state updates (and after accordion sibling sync).
+  final ValueChanged<bool>? onExpansionChanged;
 
   /// Used only when the parent group is not in accordion mode.
   final bool initiallyExpanded;
@@ -185,6 +189,7 @@ class _AccordionExpansionTileState extends State<AccordionExpansionTile> {
     if (scope?.accordionMode ?? false) {
       scope!.onTileChanged(widget.id, open);
     }
+    widget.onExpansionChanged?.call(open);
   }
 
   @override
