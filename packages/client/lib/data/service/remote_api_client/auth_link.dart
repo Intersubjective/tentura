@@ -2,6 +2,8 @@ import 'dart:async';
 import 'package:ferry/ferry.dart' show Link, NextLink;
 import 'package:gql_exec/gql_exec.dart';
 
+import 'exception.dart';
+
 enum AuthHeaderMode { anon, bearer }
 
 class HttpAuthHeaders extends ContextEntry {
@@ -29,21 +31,24 @@ class AuthLink extends Link {
     assert(forward != null, 'NextLink forward is null!');
     final withAuth = request.context.entry<HttpAuthHeaders>()?.withAuth ?? true;
     final token = withAuth ? await getToken() : null;
+    if (withAuth && (token == null || token.isEmpty)) {
+      throw const AuthenticationNoKeyException();
+    }
     yield* token == null
         ? forward!(request)
         : forward!(
-          Request(
-            operation: request.operation,
-            variables: request.variables,
-            context: request.context.updateEntry<HttpLinkHeaders>(
-              (headers) => HttpLinkHeaders(
-                headers: {
-                  ...?headers?.headers,
-                  'Authorization': 'Bearer $token',
-                },
+            Request(
+              operation: request.operation,
+              variables: request.variables,
+              context: request.context.updateEntry<HttpLinkHeaders>(
+                (headers) => HttpLinkHeaders(
+                  headers: {
+                    ...?headers?.headers,
+                    'Authorization': 'Bearer $token',
+                  },
+                ),
               ),
             ),
-          ),
-        );
+          );
   }
 }

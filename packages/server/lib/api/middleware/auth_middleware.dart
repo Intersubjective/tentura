@@ -42,16 +42,23 @@ class AuthMiddleware {
         return Response.unauthorized(null);
       };
 
-  ///
-  /// Check JWT, if success then place claims into request context
-  ///
+  /// Optional auth: no Bearer continues anonymous. Invalid/expired Bearer
+  /// is 401 so the client can treat it as session loss, not a GraphQL
+  /// `UnauthorizedException` on a still-signed-in user.
   Middleware get extractJwtClaims =>
       (innerHandler) => (request) {
-        final jwt = _tryExtractJwt(request);
-        if (jwt != null) {
-          return innerHandler(request.change(context: {kContextJwtKey: jwt}));
+        if (!request.headers.containsKey(kHeaderAuthorization)) {
+          return innerHandler(request);
         }
-        return innerHandler(request);
+        try {
+          final jwt = _authCase.parseAndVerifyJwt(
+            token: _extractAuthTokenFromHeaders(request.headers),
+          );
+          return innerHandler(request.change(context: {kContextJwtKey: jwt}));
+        } catch (e) {
+          _log.warning('JWT verification failed', e);
+          return Response.unauthorized(null);
+        }
       };
 
   /// Bearer JWT first, then session cookie (preview / optional-auth paths).
