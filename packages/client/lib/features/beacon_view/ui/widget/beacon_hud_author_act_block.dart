@@ -6,7 +6,7 @@ import 'package:tentura/ui/test_ids.dart';
 
 import 'beacon_hud_action_button.dart';
 
-/// Author HUD primary action: verb button plus outcome effect line.
+/// Author HUD primary action: verb button plus outcome effect disclosure.
 class BeaconHudAuthorActBlock extends StatelessWidget {
   const BeaconHudAuthorActBlock({
     required this.spec,
@@ -20,7 +20,7 @@ class BeaconHudAuthorActBlock extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final tt = context.tt;
-    final showAsTooltip = spec.action == BeaconHudAuthorAction.reviewOffers;
+    final presentation = spec.effectPresentation;
     final actionButton = BeaconHudActionButton(
       key: TestIds.key(TestIds.beaconHudAuthorAction(spec.action.name)),
       icon: spec.icon,
@@ -29,6 +29,15 @@ class BeaconHudAuthorActBlock extends StatelessWidget {
       filled: spec.filled,
       minimumSize: const Size(48, 48),
     );
+    final buttonChild = switch (presentation) {
+      BeaconHudAuthorActEffectPresentation.tooltip => Tooltip(
+          message: spec.effectLine,
+          child: actionButton,
+        ),
+      BeaconHudAuthorActEffectPresentation.mutedSubtitle ||
+      BeaconHudAuthorActEffectPresentation.hiddenKeepSemantics =>
+        actionButton,
+    };
     return Semantics(
       identifier: TestIds.beaconHudAuthorAction(spec.action.name),
       button: true,
@@ -40,11 +49,10 @@ class BeaconHudAuthorActBlock extends StatelessWidget {
         children: [
           SizedBox(
             width: double.infinity,
-            child: showAsTooltip
-                ? Tooltip(message: spec.effectLine, child: actionButton)
-                : actionButton,
+            child: buttonChild,
           ),
-          if (!showAsTooltip) ...[
+          if (presentation ==
+              BeaconHudAuthorActEffectPresentation.mutedSubtitle) ...[
             SizedBox(height: tt.tightGap),
             Text(
               spec.effectLine,

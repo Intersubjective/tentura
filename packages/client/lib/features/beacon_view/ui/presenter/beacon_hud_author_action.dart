@@ -16,6 +16,34 @@ enum BeaconHudAuthorAction {
   closeNow,
 }
 
+/// How the author HUD ACT exposes its effect copy.
+enum BeaconHudAuthorActEffectPresentation {
+  /// Muted subtitle under the CTA.
+  mutedSubtitle,
+
+  /// Effect only in a Tooltip (no subtitle).
+  tooltip,
+
+  /// No visible effect; keep effect in [BeaconHudAuthorActSpec.semanticsLabel].
+  hiddenKeepSemantics,
+}
+
+/// Effect disclosure mode for [action].
+BeaconHudAuthorActEffectPresentation
+    effectPresentationForBeaconHudAuthorAction(BeaconHudAuthorAction action) {
+  return switch (action) {
+    BeaconHudAuthorAction.reviewOffers =>
+      BeaconHudAuthorActEffectPresentation.tooltip,
+    BeaconHudAuthorAction.markEnoughHelp ||
+    BeaconHudAuthorAction.closeNow =>
+      BeaconHudAuthorActEffectPresentation.hiddenKeepSemantics,
+    BeaconHudAuthorAction.resolveBlocker ||
+    BeaconHudAuthorAction.wrapUpForReview ||
+    BeaconHudAuthorAction.reviewContributions =>
+      BeaconHudAuthorActEffectPresentation.mutedSubtitle,
+  };
+}
+
 /// Resolved author ACT for the HUD action rail.
 class BeaconHudAuthorActSpec {
   const BeaconHudAuthorActSpec({
@@ -25,6 +53,7 @@ class BeaconHudAuthorActSpec {
     required this.semanticsLabel,
     required this.icon,
     required this.filled,
+    required this.effectPresentation,
   });
 
   final BeaconHudAuthorAction action;
@@ -33,6 +62,7 @@ class BeaconHudAuthorActSpec {
   final String semanticsLabel;
   final IconData icon;
   final bool filled;
+  final BeaconHudAuthorActEffectPresentation effectPresentation;
 }
 
 bool authorHudActGate(BeaconViewState state) {
@@ -186,6 +216,7 @@ BeaconHudAuthorActSpec? deriveBeaconHudAuthorActSpec({
     semanticsLabel: '$label. $effectLine',
     icon: iconForBeaconHudAuthorAction(action),
     filled: filledBeaconHudAuthorAction(action),
+    effectPresentation: effectPresentationForBeaconHudAuthorAction(action),
   );
 }
 

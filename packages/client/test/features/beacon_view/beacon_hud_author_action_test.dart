@@ -306,6 +306,51 @@ void main() {
         spec?.semanticsLabel,
         'Review offers. Opens People; accept adds helper to the discussion',
       );
+      expect(
+        spec?.effectPresentation,
+        BeaconHudAuthorActEffectPresentation.tooltip,
+      );
+    });
+  });
+
+  group('effectPresentationForBeaconHudAuthorAction', () {
+    test('maps each action to disclosure mode', () {
+      expect(
+        effectPresentationForBeaconHudAuthorAction(
+          BeaconHudAuthorAction.reviewOffers,
+        ),
+        BeaconHudAuthorActEffectPresentation.tooltip,
+      );
+      expect(
+        effectPresentationForBeaconHudAuthorAction(
+          BeaconHudAuthorAction.markEnoughHelp,
+        ),
+        BeaconHudAuthorActEffectPresentation.hiddenKeepSemantics,
+      );
+      expect(
+        effectPresentationForBeaconHudAuthorAction(
+          BeaconHudAuthorAction.closeNow,
+        ),
+        BeaconHudAuthorActEffectPresentation.hiddenKeepSemantics,
+      );
+      expect(
+        effectPresentationForBeaconHudAuthorAction(
+          BeaconHudAuthorAction.resolveBlocker,
+        ),
+        BeaconHudAuthorActEffectPresentation.mutedSubtitle,
+      );
+      expect(
+        effectPresentationForBeaconHudAuthorAction(
+          BeaconHudAuthorAction.wrapUpForReview,
+        ),
+        BeaconHudAuthorActEffectPresentation.mutedSubtitle,
+      );
+      expect(
+        effectPresentationForBeaconHudAuthorAction(
+          BeaconHudAuthorAction.reviewContributions,
+        ),
+        BeaconHudAuthorActEffectPresentation.mutedSubtitle,
+      );
     });
   });
 }
