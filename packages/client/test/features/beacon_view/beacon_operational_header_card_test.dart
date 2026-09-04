@@ -274,6 +274,8 @@ void main() {
     final l10n = await L10n.delegate.load(const Locale('en'));
     expect(find.text(l10n.beaconDetailsSection), findsOneWidget);
     expect(find.text(l10n.beaconFactsRowLabel), findsOneWidget);
+    expect(find.byIcon(Icons.description_outlined), findsOneWidget);
+    expect(find.byIcon(Icons.push_pin_outlined), findsOneWidget);
     expect(find.text(l10n.beaconYouNewCount(1)), findsOneWidget);
 
     await tester.tap(find.byKey(TestIds.key(TestIds.beaconFactsOpen)));

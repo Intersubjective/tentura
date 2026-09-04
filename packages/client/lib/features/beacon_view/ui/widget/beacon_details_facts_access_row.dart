@@ -34,115 +34,106 @@ class BeaconDetailsFactsAccessRow extends StatelessWidget {
     final l10n = L10n.of(context)!;
     final tt = context.tt;
     final scheme = Theme.of(context).colorScheme;
+    final both = showDetails && showFacts;
 
-    return LayoutBuilder(
-      builder: (context, constraints) {
-        final both = showDetails && showFacts;
-        final compact = constraints.maxWidth < 600;
-        final showIcons = !both || !compact;
-
-        Widget cell({
-          required String testId,
-          required String label,
-          required IconData icon,
-          required VoidCallback? onTap,
-          int? count,
-          int newCount = 0,
-        }) {
-          return Semantics(
-            button: true,
-            label: label,
-            child: TenturaTechCard(
-              key: ValueKey(testId),
-              padding: EdgeInsets.zero,
-              showShadow: true,
-              borderOverride: tt.borderSubtle,
-              onTap: onTap,
-              child: Padding(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: TenturaSpacing.cardPadding,
-                  vertical: TenturaSpacing.row,
-                ),
-                child: ConstrainedBox(
-                  constraints: BoxConstraints(minHeight: tt.buttonHeight),
-                  child: Row(
-                    children: [
-                      if (showIcons) ...[
-                        Icon(
-                          icon,
-                          size: tt.iconSize,
-                          color: scheme.onSurfaceVariant,
-                        ),
-                        SizedBox(width: tt.iconTextGap),
-                      ],
-                      Expanded(
-                        child: Text(
-                          label,
-                          style: TenturaText.bodySmall(
-                            scheme.onSurface,
-                          ).copyWith(fontWeight: FontWeight.w600),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                      if (count != null) ...[
-                        SizedBox(width: tt.tightGap),
-                        Text(
-                          '$count',
-                          style: TenturaText.bodySmall(
-                            scheme.onSurfaceVariant,
-                          ),
-                        ),
-                      ],
-                      if (newCount > 0) ...[
-                        SizedBox(width: tt.tightGap),
-                        Text(
-                          l10n.beaconYouNewCount(newCount),
-                          style: TenturaText.bodySmall(tt.info).copyWith(
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ],
-                      Icon(
-                        Icons.chevron_right,
-                        size: tt.iconSize,
-                        color: scheme.onSurfaceVariant,
-                      ),
-                    ],
+    Widget cell({
+      required String testId,
+      required String label,
+      required IconData icon,
+      required VoidCallback? onTap,
+      int? count,
+      int newCount = 0,
+    }) {
+      return Semantics(
+        button: true,
+        label: label,
+        child: TenturaTechCard(
+          key: ValueKey(testId),
+          padding: EdgeInsets.zero,
+          showShadow: true,
+          borderOverride: tt.borderSubtle,
+          onTap: onTap,
+          child: Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: TenturaSpacing.cardPadding,
+              vertical: TenturaSpacing.row,
+            ),
+            child: ConstrainedBox(
+              constraints: BoxConstraints(minHeight: tt.buttonHeight),
+              child: Row(
+                children: [
+                  Icon(
+                    icon,
+                    size: tt.iconSize,
+                    color: scheme.onSurfaceVariant,
                   ),
-                ),
+                  SizedBox(width: tt.iconTextGap),
+                  Expanded(
+                    child: Text(
+                      label,
+                      style: TenturaText.bodySmall(
+                        scheme.onSurface,
+                      ).copyWith(fontWeight: FontWeight.w600),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
+                  if (count != null) ...[
+                    SizedBox(width: tt.tightGap),
+                    Text(
+                      '$count',
+                      style: TenturaText.bodySmall(
+                        scheme.onSurfaceVariant,
+                      ),
+                    ),
+                  ],
+                  if (newCount > 0) ...[
+                    SizedBox(width: tt.tightGap),
+                    Text(
+                      l10n.beaconYouNewCount(newCount),
+                      style: TenturaText.bodySmall(tt.info).copyWith(
+                        fontWeight: FontWeight.w600,
+                      ),
+                    ),
+                  ],
+                  Icon(
+                    Icons.chevron_right,
+                    size: tt.iconSize,
+                    color: scheme.onSurfaceVariant,
+                  ),
+                ],
               ),
             ),
-          );
-        }
+          ),
+        ),
+      );
+    }
 
-        final details = cell(
-          testId: TestIds.beaconDetailsOpen,
-          label: l10n.beaconDetailsSection,
-          icon: Icons.info_outline,
-          onTap: onOpenDetails,
-        );
-        final facts = cell(
-          testId: TestIds.beaconFactsOpen,
-          label: l10n.beaconFactsRowLabel,
-          icon: Icons.article_outlined,
-          onTap: onOpenFacts,
-          count: factsCount > 0 ? factsCount : null,
-          newCount: factsNewCount,
-        );
+    final details = cell(
+      testId: TestIds.beaconDetailsOpen,
+      label: l10n.beaconDetailsSection,
+      icon: Icons.description_outlined,
+      onTap: onOpenDetails,
+    );
+    final facts = cell(
+      testId: TestIds.beaconFactsOpen,
+      label: l10n.beaconFactsRowLabel,
+      icon: Icons.push_pin_outlined,
+      onTap: onOpenFacts,
+      count: factsCount > 0 ? factsCount : null,
+      newCount: factsNewCount,
+    );
 
-        if (!both) {
-          return showDetails ? details : facts;
-        }
+    if (!both) {
+      return showDetails ? details : facts;
+    }
 
-        return Row(
-          children: [
-            Expanded(child: details),
-            SizedBox(width: tt.rowGap),
-            Expanded(child: facts),
-          ],
-        );
-      },
+    return Row(
+      children: [
+        Expanded(child: details),
+        SizedBox(width: tt.rowGap),
+        Expanded(child: facts),
+      ],
     );
   }
 }
