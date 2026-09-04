@@ -172,6 +172,30 @@ void main() {
       final json = r.toJson();
       expect((json['beacon']! as Map)['title'], 'Shared beacon');
       expect((json['beacon']! as Map)['snippet'], 'help needed');
+      expect((json['beacon']! as Map)['description'], 'help needed');
+    });
+
+    test('long beacon description keeps full text and truncates snippet', () async {
+      final longDescription = '${'a' * 140} more text past the snippet limit';
+      stubGetById(invitation(beaconId: 'Bbeacon'));
+      when(beaconRepo.getBeaconById(beaconId: 'Bbeacon')).thenAnswer(
+        (_) async => BeaconEntity(
+          id: 'Bbeacon',
+          title: 'Shared beacon',
+          author: const UserEntity(id: issuerId),
+          createdAt: now,
+          updatedAt: now,
+          description: '  $longDescription  ',
+        ),
+      );
+      final json = (await case_.preview(code: 'Iabc')).toJson();
+      final beaconJson = json['beacon']! as Map;
+      expect(beaconJson['description'], longDescription);
+      expect(beaconJson['snippet'], '${'a' * 140}…');
+      expect(
+        (beaconJson['snippet'] as String).length,
+        lessThan(beaconJson['description']!.toString().length),
+      );
     });
   });
 

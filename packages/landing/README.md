@@ -22,6 +22,7 @@ opens it — gated off in in-app webviews, Save-Data mode, and slow links.
 | `config.js`          | runtime config template (`apiBase`, `googleEnabled`, `sentryDsn`, `sentryEnvironment`, `sentryRelease`) |
 | `config.local.js`    | no-op stub by default; `./scripts/sync-landing-local-config.sh` sets `googleEnabled` locally |
 | `main.js`            | entry ES module; renders invite states + signed-out `/` + post-signup dispatch |
+| `beacon_overlay.js`  | shared-request card helpers (snippet expand / collapse)              |
 | `onboarding.js`      | post-signup name step + 3-page onboarding pager (`?signed_in=1&new=1`) |
 | `app_preload.js`     | background app asset warmup (manifest + SW + cache)        |
 | `browser_compatibility.js` | Flutter loader–aligned wasm vs js path detection   |
@@ -94,6 +95,8 @@ extracts them to `./landing`, which `compose.prod.yaml` mounts at `/srv/landing`
 - Renders 5 preview states from `suggestedAction`: invalid · is-inviter ·
   already-friends · existing-user (befriend) · anonymous (email/Google/recover).
 - **Beacon overlay** shown above the CTA in every state when `beacon` is present.
+  Long descriptions stay collapsed to `snippet` with **Show more / Show less**
+  (full `description` from the same preview JSON).
 - **Post-signup (`?signed_in=1&new=1`):** brand-new accounts get the **name
   step** (display name via cookie-auth `GET/PATCH /api/v2/accounts/me/profile`
   with `credentials: 'include'` — **landing JS never touches JWTs**) followed by

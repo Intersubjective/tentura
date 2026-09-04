@@ -16,6 +16,7 @@ import {
   renderPostSignup,
   shouldRunPostSignup,
 } from './onboarding.js';
+import { needsExpand, beaconBodyText } from './beacon_overlay.js';
 
 const LANDING_CONFIG = window.TENTURA || {};
 const GOOGLE_ENABLED = Boolean(
@@ -68,15 +69,50 @@ function isLikelyEmailDerivedDisplayName(name) {
 // Shared beacon context — shown above the CTA in EVERY state when present.
 function beaconOverlay(p) {
   if (!p.beacon) return null;
-  return el(
+
+  const bodyId = 'beacon-body';
+  const canExpand = needsExpand(p.beacon.snippet, p.beacon.description);
+  const initialBody = beaconBodyText(p.beacon, false);
+
+  const body = el(
     'div',
-    { class: 'beacon' },
+    {
+      class: 'beacon-snippet',
+      id: bodyId,
+    },
+    initialBody,
+  );
+
+  const children = [
     el('div', { class: 'beacon-label' }, `${inviterName(p)} shared`),
     el('div', { class: 'beacon-title' }, p.beacon.title || 'a request'),
-    p.beacon.snippet
-      ? el('div', { class: 'beacon-snippet' }, p.beacon.snippet)
-      : null,
-  );
+  ];
+  if (initialBody) children.push(body);
+
+  if (canExpand) {
+    let expanded = false;
+    const toggle = el(
+      'button',
+      {
+        class: 'beacon-expand',
+        type: 'button',
+        'aria-expanded': 'false',
+        'aria-controls': bodyId,
+      },
+      'Show more',
+    );
+    toggle.addEventListener('click', () => {
+      expanded = !expanded;
+      body.textContent = beaconBodyText(p.beacon, expanded);
+      body.classList.toggle('is-expanded', expanded);
+      toggle.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+      toggle.textContent = expanded ? 'Show less' : 'Show more';
+      track('beacon_snippet_toggled', { expanded });
+    });
+    children.push(toggle);
+  }
+
+  return el('div', { class: 'beacon' }, ...children);
 }
 
 function header(p) {

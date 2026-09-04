@@ -65,6 +65,7 @@ class InvitePreviewResult {
         'id': beacon!.id,
         'title': beacon!.title,
         'snippet': _snippet(beacon!.description),
+        'description': beacon!.description.trim(),
       },
     'suggestedAction': suggestedAction,
   };

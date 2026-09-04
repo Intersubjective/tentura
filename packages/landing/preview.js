@@ -1,7 +1,8 @@
 // Talks to the Dart server preview endpoint on the same origin:
 //   GET /api/v2/invite/:code/preview  (extractJwtOrSessionClaims)
 // Response shape (see invite_preview_result.dart):
-//   { inviter:{id,displayName,image}, codeStatus, callerStatus, beacon?, suggestedAction }
+//   { inviter:{id,displayName,image}, codeStatus, callerStatus,
+//     beacon?:{id,title,snippet,description}, suggestedAction }
 
 import { normalizeInviteCode } from './invite_entry.js';
 

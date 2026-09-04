@@ -268,7 +268,45 @@ p {
 .beacon-snippet {
   color: var(--muted);
   font-size: 14px;
+  line-height: 1.5;
   margin-top: 4px;
+}
+
+.beacon-snippet.is-expanded {
+  white-space: pre-wrap;
+  max-height: 40vh;
+  overflow-y: auto;
+  transition: max-height 200ms ease-out, opacity 200ms ease-out;
+}
+
+.beacon-expand {
+  display: inline-block;
+  margin-top: 4px;
+  padding: 10px 0;
+  min-height: 44px;
+  background: none;
+  border: 0;
+  color: var(--muted);
+  font: inherit;
+  font-size: 14px;
+  text-align: left;
+  cursor: pointer;
+  text-decoration: underline;
+}
+
+.beacon-expand:hover {
+  color: var(--fg);
+}
+
+.beacon-expand:focus-visible {
+  outline: 2px solid var(--accent, #7c9cff);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .beacon-snippet.is-expanded {
+    transition: none;
+  }
 }
 
 /* Post-signup onboarding pager (state-post-signup). */
