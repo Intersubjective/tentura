@@ -151,3 +151,202 @@ test('pager clamps page index and hidden controls actually hide', () => {
   const css = readFileSync(join(root, 'styles.css'), 'utf8');
   assert.match(css, /\[hidden\]\s*\{\s*display:\s*none\s*!important;?\s*\}/);
 });
+
+test('pager Back stays visible on first slide and returns to name step', () => {
+  // Page 0 Back must not be hidden — it returns to the name step.
+  assert.doesNotMatch(onboardingJs, /back\.hidden\s*=\s*page\s*===\s*0/);
+  assert.match(onboardingJs, /onBackFromFirstPage/);
+  assert.match(onboardingJs, /onboarding_back/);
+});
+
+/**
+ * Minimal DOM stub for el()/renderPostSignup — enough for createElement,
+ * attributes, events, append, and replaceChildren. No jsdom (landing has no npm).
+ */
+function installDomFake() {
+  class FakeNode {
+    constructor(nodeType, tagName = '') {
+      this.nodeType = nodeType;
+      this.tagName = tagName;
+      this.children = [];
+      this.attrs = {};
+      this.listeners = {};
+      this.className = '';
+      this._text = '';
+      this._value = '';
+      this.hidden = false;
+      this.disabled = false;
+    }
+    setAttribute(k, v) {
+      this.attrs[k] = String(v);
+      if (k === 'value') this._value = String(v);
+    }
+    getAttribute(k) {
+      return this.attrs[k] ?? null;
+    }
+    addEventListener(type, fn) {
+      (this.listeners[type] ??= []).push(fn);
+    }
+    append(...nodes) {
+      for (const n of nodes) {
+        if (n == null) continue;
+        this.children.push(n);
+        if (n.nodeType === 3) this._text += n.data;
+      }
+    }
+    replaceChildren(...nodes) {
+      this.children = [];
+      this._text = '';
+      this.append(...nodes);
+    }
+    get textContent() {
+      if (this.nodeType === 3) return this.data;
+      return this.children.map((c) => c.textContent).join('');
+    }
+    set textContent(v) {
+      this.children = [];
+      this._text = String(v);
+      if (v) this.children.push(new FakeNode(3));
+      if (this.children[0]) this.children[0].data = String(v);
+    }
+    get value() {
+      return this._value;
+    }
+    set value(v) {
+      this._value = String(v);
+      this.attrs.value = String(v);
+    }
+    focus() {
+      this._focused = true;
+    }
+    querySelector(sel) {
+      if (sel.startsWith('#')) {
+        const id = sel.slice(1);
+        return this._find((n) => n.attrs.id === id);
+      }
+      if (sel.startsWith('.')) {
+        const cls = sel.slice(1);
+        return this._find(
+          (n) =>
+            n.className === cls ||
+            String(n.className).split(/\s+/).includes(cls),
+        );
+      }
+      const tag = sel.toUpperCase();
+      return this._find((n) => n.tagName === tag);
+    }
+    querySelectorAll(sel) {
+      const out = [];
+      this._walk((n) => {
+        if (sel.startsWith('.')) {
+          const cls = sel.slice(1);
+          if (
+            n.className === cls ||
+            String(n.className).split(/\s+/).includes(cls)
+          ) {
+            out.push(n);
+          }
+        } else if (n.tagName === sel.toUpperCase()) {
+          out.push(n);
+        }
+      });
+      return out;
+    }
+    _find(pred) {
+      let found = null;
+      this._walk((n) => {
+        if (!found && pred(n)) found = n;
+      });
+      return found;
+    }
+    _walk(fn) {
+      fn(this);
+      for (const c of this.children) {
+        if (c._walk) c._walk(fn);
+      }
+    }
+    click() {
+      for (const fn of this.listeners.click || []) fn({ preventDefault() {} });
+    }
+    submit() {
+      for (const fn of this.listeners.submit || [])
+        fn({ preventDefault() {} });
+    }
+  }
+
+  globalThis.document = {
+    createElement(tag) {
+      return new FakeNode(1, tag.toUpperCase());
+    },
+    createTextNode(text) {
+      const n = new FakeNode(3);
+      n.data = String(text);
+      return n;
+    },
+  };
+  return FakeNode;
+}
+
+test('save name then Back from page 1 restores saved prefill', async () => {
+  installDomFake();
+  const events = [];
+  let patchedName = null;
+  globalThis.fetch = async (url, init) => {
+    if (init?.method === 'PATCH') {
+      patchedName = JSON.parse(init.body).displayName;
+      return {
+        ok: true,
+        json: async () => ({ id: 'U1', displayName: patchedName }),
+      };
+    }
+    return { ok: true, json: async () => ({}) };
+  };
+  globalThis.window = globalThis;
+
+  const { renderPostSignup } = await import('../onboarding.js');
+  const card = document.createElement('div');
+  const storage = fakeStorage();
+
+  renderPostSignup({
+    card,
+    profile: { id: 'U1', displayName: 'agent 3c4703tb' },
+    setState: () => {},
+    setPageTitle: () => {},
+    track: (name, data) => events.push({ name, data }),
+    openProductUrl: () => '/app/',
+    storage,
+    nameOnly: false,
+  });
+
+  const input = card.querySelector('#display-name');
+  assert.ok(input);
+  assert.equal(input.value, 'agent 3c4703tb');
+  input.value = 'Ada Lovelace';
+  const form = card.querySelector('FORM');
+  form.submit();
+  // Allow the async PATCH + onDone to settle.
+  await new Promise((r) => setTimeout(r, 0));
+  await new Promise((r) => setTimeout(r, 0));
+
+  assert.equal(patchedName, 'Ada Lovelace');
+  assert.ok(card.querySelector('.pager'));
+  assert.ok(
+    events.some((e) => e.name === 'signup_name_saved'),
+    'saved event fired',
+  );
+
+  const back = card.querySelector('.pager-back');
+  assert.ok(back);
+  assert.equal(back.hidden, false);
+  back.click();
+
+  const revisited = card.querySelector('#display-name');
+  assert.ok(revisited, 'name step re-rendered');
+  assert.equal(revisited.value, 'Ada Lovelace');
+  assert.equal(
+    card.querySelectorAll('.hint-link').length,
+    0,
+    'Skip for now hidden on revisit',
+  );
+  assert.ok(events.some((e) => e.name === 'onboarding_back'));
+});

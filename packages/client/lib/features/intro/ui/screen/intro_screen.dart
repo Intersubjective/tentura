@@ -64,37 +64,47 @@ class _IntroScreenState extends State<IntroScreen> {
                     controller: _controller,
                     itemCount: _pageCount,
                     onPageChanged: (page) => setState(() => _page = page),
-                    itemBuilder: (context, index) => Column(
-                      children: [
-                        const Spacer(),
+                    itemBuilder: (context, index) => LayoutBuilder(
+                      builder: (context, constraints) {
+                        return SingleChildScrollView(
+                          child: ConstrainedBox(
+                            constraints: BoxConstraints(
+                              minHeight: constraints.maxHeight,
+                            ),
+                            child: Center(
+                              child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  // Image
+                                  const SvgPicture(
+                                    AssetBytesLoader('images/intro.svg.vec'),
+                                  ),
 
-                        // Image
-                        const SvgPicture(
-                          AssetBytesLoader('images/intro.svg.vec'),
-                        ),
+                                  // Title
+                                  Padding(
+                                    padding: tt.cardPadding,
+                                    child: Text(
+                                      pages[index].title,
+                                      textAlign: TextAlign.center,
+                                      style: textTheme.titleLarge,
+                                    ),
+                                  ),
 
-                        // Title
-                        Padding(
-                          padding: tt.cardPadding,
-                          child: Text(
-                            pages[index].title,
-                            textAlign: TextAlign.center,
-                            style: textTheme.titleLarge,
+                                  // Text
+                                  Padding(
+                                    padding: tt.cardPadding,
+                                    child: Text(
+                                      pages[index].text,
+                                      textAlign: TextAlign.center,
+                                      style: textTheme.bodyLarge,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
                           ),
-                        ),
-
-                        // Text
-                        Padding(
-                          padding: tt.cardPadding,
-                          child: Text(
-                            pages[index].text,
-                            textAlign: TextAlign.center,
-                            style: textTheme.bodyLarge,
-                          ),
-                        ),
-
-                        const Spacer(),
-                      ],
+                        );
+                      },
                     ),
                   ),
                 ),
@@ -129,19 +139,42 @@ class _IntroScreenState extends State<IntroScreen> {
                   ],
                 ),
 
-                // Next / Start
+                // Next / Start + Back (Back slot always reserved to avoid
+                // Expanded(PageView) height jump between slides).
                 Padding(
                   padding: EdgeInsets.symmetric(vertical: tt.sectionGap),
-                  child: FilledButton(
-                    onPressed: isLast && isPersistingIntro
-                        ? null
-                        : isLast
-                        ? () => _settingsCubit.setIntroEnabled(false)
-                        : () => _controller.nextPage(
-                            duration: const Duration(milliseconds: 250),
-                            curve: Curves.easeInOut,
-                          ),
-                    child: Text(isLast ? l10n.buttonStart : l10n.buttonNext),
+                  child: Column(
+                    children: [
+                      FilledButton(
+                        onPressed: isLast && isPersistingIntro
+                            ? null
+                            : isLast
+                            ? () => _settingsCubit.setIntroEnabled(false)
+                            : () => _controller.nextPage(
+                                duration: const Duration(milliseconds: 250),
+                                curve: Curves.easeInOut,
+                              ),
+                        child: Text(
+                          isLast ? l10n.buttonStart : l10n.buttonNext,
+                        ),
+                      ),
+                      SizedBox(height: tt.rowGap),
+                      Visibility(
+                        visible: _page > 0,
+                        maintainSize: true,
+                        maintainAnimation: true,
+                        maintainState: true,
+                        child: OutlinedButton(
+                          onPressed: isPersistingIntro
+                              ? null
+                              : () => _controller.previousPage(
+                                  duration: const Duration(milliseconds: 250),
+                                  curve: Curves.easeInOut,
+                                ),
+                          child: Text(l10n.buttonBack),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
                 ],

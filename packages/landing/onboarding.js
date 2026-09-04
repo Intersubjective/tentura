@@ -175,7 +175,21 @@ export function renderPostSignup({
   setState('post-signup');
   setPageTitle('Welcome to Tentura');
 
-  const finish = () => {
+  let currentName = (profile.displayName || '').trim();
+
+  const showPager = () => {
+    card.replaceChildren(
+      renderOnboardingPager({
+        track,
+        openProductUrl,
+        storage,
+        onBackFromFirstPage: () => showName({ revisit: true }),
+      }),
+    );
+  };
+
+  const finish = (savedName) => {
+    if (typeof savedName === 'string') currentName = savedName;
     if (nameOnly) {
       markOnboardingDone(storage);
       card.replaceChildren(
@@ -183,18 +197,21 @@ export function renderPostSignup({
       );
       return;
     }
-    card.replaceChildren(
-      renderOnboardingPager({ track, openProductUrl, storage }),
-    );
+    showPager();
   };
 
-  card.replaceChildren(
-    renderNameStep({
-      prefill: (profile.displayName || '').trim(),
+  const showName = ({ revisit = false } = {}) => {
+    const { root, input } = renderNameStep({
+      prefill: currentName,
+      revisit,
       track,
       onDone: finish,
-    }),
-  );
+    });
+    card.replaceChildren(root);
+    if (revisit) input.focus();
+  };
+
+  showName();
 }
 
 function renderOpenAppPrompt({ openProductUrl, track, storage }) {
@@ -216,7 +233,7 @@ function renderOpenAppPrompt({ openProductUrl, track, storage }) {
   );
 }
 
-function renderNameStep({ prefill, track, onDone }) {
+function renderNameStep({ prefill, track, onDone, revisit = false }) {
   track('signup_name_view');
 
   const input = el('input', {
@@ -241,7 +258,9 @@ function renderNameStep({ prefill, track, onDone }) {
     errorEl.textContent = '';
     const name = input.value.trim();
     if (name === prefill || name.length === 0) {
-      track('signup_name_skipped', { reason: 'unchanged' });
+      // Revisit: unchanged continue must not emit signup_name_skipped after a
+      // prior signup_name_saved (would corrupt the name funnel).
+      if (!revisit) track('signup_name_skipped', { reason: 'unchanged' });
       onDone();
       return;
     }
@@ -250,7 +269,7 @@ function renderNameStep({ prefill, track, onDone }) {
     try {
       await saveDisplayName(name);
       track('signup_name_saved');
-      onDone();
+      onDone(name);
     } catch (err) {
       trackError('signup_name_error', err);
       errorEl.textContent = err.message;
@@ -259,19 +278,7 @@ function renderNameStep({ prefill, track, onDone }) {
     }
   };
 
-  const skip = el(
-    'button',
-    { class: 'hint hint-link', type: 'button' },
-    'Skip for now',
-  );
-  skip.addEventListener('click', () => {
-    track('signup_name_skipped', { reason: 'skip' });
-    onDone();
-  });
-
-  return el(
-    'div',
-    { class: 'content' },
+  const children = [
     el('p', { class: 'eyebrow' }, 'Account created'),
     el('h1', {}, 'Welcome to Tentura'),
     el('p', {}, 'What should people call you?'),
@@ -283,11 +290,29 @@ function renderNameStep({ prefill, track, onDone }) {
       submit,
       errorEl,
     ),
-    skip,
-  );
+  ];
+  if (!revisit) {
+    const skip = el(
+      'button',
+      { class: 'hint hint-link', type: 'button' },
+      'Skip for now',
+    );
+    skip.addEventListener('click', () => {
+      track('signup_name_skipped', { reason: 'skip' });
+      onDone();
+    });
+    children.push(skip);
+  }
+
+  return { root: el('div', { class: 'content' }, ...children), input };
 }
 
-function renderOnboardingPager({ track, openProductUrl, storage }) {
+function renderOnboardingPager({
+  track,
+  openProductUrl,
+  storage,
+  onBackFromFirstPage,
+}) {
   let page = 0;
 
   const title = el('h1', {});
@@ -335,7 +360,6 @@ function renderOnboardingPager({ track, openProductUrl, storage }) {
         el('span', { class: i === page ? 'pager-dot active' : 'pager-dot' }),
       ),
     );
-    back.hidden = page === 0;
     const isLast = page === ONBOARDING_PAGES.length - 1;
     next.hidden = isLast;
     next.textContent = 'Next';
@@ -343,7 +367,14 @@ function renderOnboardingPager({ track, openProductUrl, storage }) {
     track('onboarding_view', { page: page + 1 });
   };
 
-  back.addEventListener('click', () => show(page - 1));
+  back.addEventListener('click', () => {
+    if (page === 0) {
+      track('onboarding_back', { page: 1 });
+      onBackFromFirstPage();
+      return;
+    }
+    show(page - 1);
+  });
   next.addEventListener('click', () => show(page + 1));
   show(0);
 

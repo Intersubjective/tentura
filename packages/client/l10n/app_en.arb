@@ -1254,6 +1254,10 @@
   "@buttonStart": {
     "context": "Intro"
   },
+  "buttonBack": "Back",
+  "@buttonBack": {
+    "context": "Intro"
+  },
   "confirmProfileRemoval": "Are you sure you want to delete your profile?",
   "@confirmProfileRemoval": {
     "context": "MyProfileDelete"
