@@ -12,41 +12,6 @@ const sentryEnvironment = String.fromEnvironment(
 const sentryRelease = String.fromEnvironment('SENTRY_RELEASE');
 const sentryDist = String.fromEnvironment('SENTRY_DIST');
 
-bool _isBenignSentryEvent(SentryEvent event, Hint hint) {
-  final synthetic = hint.get(TypeCheckHint.syntheticException);
-  if (isBenignSentryThrowable(synthetic)) {
-    return true;
-  }
-
-  final message = event.message?.formatted ?? '';
-  if (isBenignSentryExceptionText(message)) {
-    return true;
-  }
-
-  final exceptions = event.exceptions;
-  if (exceptions == null) {
-    return false;
-  }
-
-  for (final ex in exceptions) {
-    final type = ex.type ?? '';
-    if (type.contains('ConnectionUplinkException') ||
-        type.contains('AuthSessionLostException') ||
-        type.contains('AuthenticationNoKeyException')) {
-      return true;
-    }
-    final value = ex.value ?? '';
-    if (isBenignSentryExceptionText(value)) {
-      return true;
-    }
-    if (ex.type == 'AbortError' &&
-        value.toLowerCase().contains('serviceworker')) {
-      return true;
-    }
-  }
-  return false;
-}
-
 void configureSentryOptions(SentryFlutterOptions options) {
   options
     ..dsn = sentryDsn
@@ -75,7 +40,7 @@ void configureSentryOptions(SentryFlutterOptions options) {
   _configureTracePropagation(options);
 
   options.beforeSend = (event, hint) {
-    if (_isBenignSentryEvent(event, hint)) {
+    if (isBenignSentryEvent(event, hint)) {
       return null;
     }
     return event;

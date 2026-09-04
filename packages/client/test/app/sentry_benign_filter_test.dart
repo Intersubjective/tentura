@@ -1,4 +1,6 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
 import 'package:tentura/app/sentry/sentry_benign_filter.dart';
 import 'package:tentura/data/service/remote_api_client/exception.dart';
 import 'package:tentura/domain/exception/generic_exception.dart';
@@ -152,6 +154,101 @@ void main() {
         ),
         isTrue,
       );
+    });
+
+    test('unlaid-out RenderBox without hit-test context is not benign', () {
+      expect(
+        isBenignSentryExceptionText(
+          'StateError: Bad state: RenderBox was not laid out: '
+          'RenderPointerListener#bed68',
+        ),
+        isFalse,
+      );
+    });
+  });
+
+  group('isBenignSentryEvent', () {
+    test('filters unlaid-out hit test from FlutterErrorDetails hint', () {
+      final hint = Hint();
+      hint.set(
+        TypeCheckHint.syntheticException,
+        FlutterErrorDetails(
+          exception: StateError(
+            'RenderBox was not laid out: RenderPointerListener#bed68',
+          ),
+          library: 'gestures library',
+          context: ErrorDescription('while handling a pointer data packet'),
+        ),
+      );
+
+      expect(
+        isBenignSentryEvent(SentryEvent(), hint),
+        isTrue,
+      );
+    });
+
+    test('filters unlaid-out hit test from flutter_error_details context', () {
+      final event = SentryEvent(
+        exceptions: [
+          SentryException(
+            type: 'StateError',
+            value:
+                'Bad state: RenderBox was not laid out: '
+                'RenderPointerListener#bed68',
+          ),
+        ],
+        contexts: Contexts()
+          ..['flutter_error_details'] = {
+            'context': 'thrown while handling a pointer data packet',
+            'library': 'gestures library',
+          },
+      );
+
+      expect(isBenignSentryEvent(event, Hint()), isTrue);
+    });
+
+    test('does not filter unlaid-out RenderBox during layout', () {
+      final hint = Hint();
+      hint.set(
+        TypeCheckHint.syntheticException,
+        FlutterErrorDetails(
+          exception: StateError(
+            'RenderBox was not laid out: RenderFlex#abc12',
+          ),
+          library: 'rendering library',
+          context: ErrorDescription('during layout'),
+        ),
+      );
+
+      expect(
+        isBenignSentryEvent(
+          SentryEvent(
+            exceptions: [
+              SentryException(
+                type: 'StateError',
+                value: 'Bad state: RenderBox was not laid out: RenderFlex#abc12',
+              ),
+            ],
+          ),
+          hint,
+        ),
+        isFalse,
+      );
+    });
+
+    test('does not filter unlaid-out RenderBox without FlutterError context', () {
+      final event = SentryEvent(
+        exceptions: [
+          SentryException(
+            type: 'StateError',
+            value:
+                'Bad state: RenderBox was not laid out: '
+                'RenderPointerListener#bed68',
+          ),
+        ],
+      );
+
+      expect(isBenignSentryEvent(event, Hint()), isFalse);
     });
   });
 }
