@@ -243,7 +243,7 @@ jobs:
           fi
           tar -czf landing-prod-${{ steps.versions.outputs.server_version }}.tar.gz \
             -C packages/landing \
-            index.html config.js config.local.js main.js app_preload.js browser_compatibility.js invite_entry.js preview.js webview.js analytics.js auth.js onboarding.js styles.css
+            index.html config.js config.local.js main.js app_preload.js browser_compatibility.js invite_entry.js preview.js webview.js analytics.js auth.js onboarding.js beacon_overlay.js styles.css
 
       - name: Test static landing
         run: node --test packages/landing/test/*.mjs

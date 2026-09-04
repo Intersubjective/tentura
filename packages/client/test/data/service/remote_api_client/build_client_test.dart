@@ -36,7 +36,7 @@ void main() {
       userAgent: 'test',
       requestTimeout: requestTimeout,
     ),
-    getToken: () async => null,
+    getToken: () async => 'test-token',
     httpClient: hangingHttpClient,
   );
 
@@ -152,7 +152,7 @@ void main() {
             userAgent: 'test',
             requestTimeout: requestTimeout,
           ),
-          getToken: () async => null,
+          getToken: () async => 'test-token',
           // Never actually invoked: the point is that ferry never forwards
           // the request down to the link chain at all.
           httpClient: MockClient((_) async {
@@ -234,7 +234,7 @@ void main() {
           userAgent: 'test',
           requestTimeout: requestTimeout,
         ),
-        getToken: () async => null,
+        getToken: () async => 'test-token',
         httpClient: MockClient((request) async {
           paths.add(request.url.path);
           return http.Response(
