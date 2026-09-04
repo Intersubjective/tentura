@@ -149,4 +149,139 @@ void main() {
       expect(find.text('4'), findsOneWidget);
     },
   );
+
+  testWidgets(
+    'TenturaUnderlineTabs with icons shows labels when wide enough',
+    (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: TenturaTheme.light(),
+          home: Scaffold(
+            body: SizedBox(
+              width: 600,
+              child: TenturaUnderlineTabs(
+                tabs: const ['Threads', 'People', 'Log'],
+                icons: const [
+                  Icons.forum_outlined,
+                  Icons.people_outline,
+                  Icons.history_outlined,
+                ],
+                selectedIndex: 0,
+                onChanged: (_) {},
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+      expect(find.text('Threads'), findsOneWidget);
+      expect(find.text('People'), findsOneWidget);
+      expect(find.text('Log'), findsOneWidget);
+      expect(find.byIcon(Icons.forum_outlined), findsOneWidget);
+      expect(find.byIcon(Icons.people_outline), findsOneWidget);
+      expect(find.byIcon(Icons.history_outlined), findsOneWidget);
+    },
+  );
+
+  testWidgets(
+    'TenturaUnderlineTabs with icons hides labels when slots are tight',
+    (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: TenturaTheme.light(),
+          home: Scaffold(
+            body: SizedBox(
+              width: 240,
+              child: TenturaUnderlineTabs(
+                tabs: const ['Threads', 'People', 'Journal'],
+                icons: const [
+                  Icons.forum_outlined,
+                  Icons.people_outline,
+                  Icons.history_outlined,
+                ],
+                selectedIndex: 0,
+                onChanged: (_) {},
+                badges: const [null, 2, null],
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+      expect(find.text('Threads'), findsNothing);
+      expect(find.text('People'), findsNothing);
+      expect(find.text('Journal'), findsNothing);
+      expect(find.byIcon(Icons.forum_outlined), findsOneWidget);
+      expect(find.byIcon(Icons.people_outline), findsOneWidget);
+      expect(find.byIcon(Icons.history_outlined), findsOneWidget);
+      expect(find.byType(TenturaCountBadge), findsOneWidget);
+
+      final threadsSemantics = tester.getSemantics(
+        find.byIcon(Icons.forum_outlined),
+      );
+      expect(
+        threadsSemantics.label,
+        contains('Threads'),
+      );
+    },
+  );
+
+  testWidgets(
+    'TenturaUnderlineTabs badges do not force label hide when icon+text fits',
+    (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: TenturaTheme.light(),
+          home: Scaffold(
+            body: SizedBox(
+              width: 600,
+              child: TenturaUnderlineTabs(
+                tabs: const ['Threads', 'People', 'Log'],
+                icons: const [
+                  Icons.forum_outlined,
+                  Icons.people_outline,
+                  Icons.history_outlined,
+                ],
+                selectedIndex: 1,
+                onChanged: (_) {},
+                badges: const [null, 2, null],
+                secondaryBadges: const [null, 3, null],
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+      expect(find.text('Threads'), findsOneWidget);
+      expect(find.text('People'), findsOneWidget);
+      expect(find.text('Log'), findsOneWidget);
+      expect(find.byType(TenturaCountBadge), findsNWidgets(2));
+    },
+  );
+
+  testWidgets(
+    'TenturaUnderlineTabs without icons keeps text when narrow',
+    (tester) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: TenturaTheme.light(),
+          home: Scaffold(
+            body: SizedBox(
+              width: 180,
+              child: TenturaUnderlineTabs(
+                tabs: const ['Threads', 'People', 'Journal'],
+                selectedIndex: 0,
+                onChanged: (_) {},
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+      expect(find.text('Threads'), findsOneWidget);
+      expect(find.text('People'), findsOneWidget);
+      expect(find.text('Journal'), findsOneWidget);
+      expect(find.byType(Icon), findsNothing);
+    },
+  );
 }

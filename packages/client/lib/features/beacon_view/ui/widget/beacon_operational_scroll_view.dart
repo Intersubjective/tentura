@@ -320,6 +320,7 @@ class BeaconOperationalScrollView extends StatelessWidget {
                                 l10n.labelBeaconTabPeople,
                                 l10n.labelBeaconTabLog,
                               ],
+                              icons: kBeaconTabIcons,
                               tabIds: [
                                 TestIds.beaconTabThreads,
                                 TestIds.beaconTabPeople,

@@ -8,15 +8,23 @@ import '../tentura_tokens.dart';
 
 enum TenturaTabCountStyle { badge, plainText }
 
+/// Icon size for tabs with [TenturaUnderlineTabs.icons] — matches HUD row icons
+/// so the 48px pinned beacon bar stays valid across WindowClass.
+const double _kTabIconSize = 20;
+
 /// Underline tab row: full-width bottom border; active tab 2px sky underline.
 ///
 /// Optional [attentionIndex] + [attentionActive] pulse a soft highlight on that
 /// tab (respects [MediaQuery.disableAnimationsOf] with a static highlight).
+///
+/// When [icons] is set, labels hide together if icon+text does not fit each
+/// equal slot (badges are not part of that fit decision).
 class TenturaUnderlineTabs extends StatefulWidget {
   const TenturaUnderlineTabs({
     required this.tabs,
     required this.selectedIndex,
     required this.onChanged,
+    this.icons,
     this.badges,
     this.badgeBackgroundColors,
     this.secondaryBadges,
@@ -30,6 +38,10 @@ class TenturaUnderlineTabs extends StatefulWidget {
   final List<String> tabs;
   final int selectedIndex;
   final ValueChanged<int> onChanged;
+
+  /// Optional per-tab icons. Same length as [tabs] when non-null.
+  final List<IconData>? icons;
+
   final List<int?>? badges;
 
   /// Optional per-tab primary badge fill. Same length as [tabs] when non-null;
@@ -117,6 +129,35 @@ class _TenturaUnderlineTabsState extends State<TenturaUnderlineTabs>
     super.dispose();
   }
 
+  /// Whether icon+label fits every equal slot. Badges are ignored so count
+  /// chips do not flip the whole row between labeled and icon-only.
+  bool _labelsFit(BuildContext context, double maxWidth) {
+    final icons = widget.icons;
+    if (icons == null || icons.isEmpty || widget.tabs.isEmpty) {
+      return true;
+    }
+    final n = widget.tabs.length;
+    final slotWidth = maxWidth / n;
+    final tt = context.tt;
+    final textScaler = MediaQuery.textScalerOf(context);
+    final style = TenturaText.tabLabel(tt.text);
+
+    for (var i = 0; i < n; i++) {
+      final painter = TextPainter(
+        text: TextSpan(text: widget.tabs[i], style: style),
+        textDirection: Directionality.of(context),
+        textScaler: textScaler,
+        maxLines: 1,
+      )..layout();
+      final needed = _kTabIconSize + tt.iconTextGap + painter.width;
+      painter.dispose();
+      if (needed > slotWidth) {
+        return false;
+      }
+    }
+    return true;
+  }
+
   @override
   Widget build(BuildContext context) {
     final tt = context.tt;
@@ -124,6 +165,7 @@ class _TenturaUnderlineTabsState extends State<TenturaUnderlineTabs>
     final staticOpacity = _shouldShowAttention && disableMotion
         ? _staticAttentionOpacity
         : 0.0;
+    final hasIcons = widget.icons != null && widget.icons!.isNotEmpty;
 
     return DecoratedBox(
       decoration: BoxDecoration(
@@ -131,19 +173,26 @@ class _TenturaUnderlineTabsState extends State<TenturaUnderlineTabs>
           bottom: BorderSide(color: tt.border),
         ),
       ),
-      child: Row(
-        children: [
-          for (var i = 0; i < widget.tabs.length; i++)
-            Expanded(
-              child: _buildTabCell(
-                context,
-                index: i,
-                staticAttentionOpacity: i == widget.attentionIndex
-                    ? staticOpacity
-                    : 0.0,
-              ),
-            ),
-        ],
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final showLabels = !hasIcons ||
+              _labelsFit(context, constraints.maxWidth);
+          return Row(
+            children: [
+              for (var i = 0; i < widget.tabs.length; i++)
+                Expanded(
+                  child: _buildTabCell(
+                    context,
+                    index: i,
+                    showLabel: showLabels,
+                    staticAttentionOpacity: i == widget.attentionIndex
+                        ? staticOpacity
+                        : 0.0,
+                  ),
+                ),
+            ],
+          );
+        },
       ),
     );
   }
@@ -151,6 +200,7 @@ class _TenturaUnderlineTabsState extends State<TenturaUnderlineTabs>
   Widget _buildTabCell(
     BuildContext context, {
     required int index,
+    required bool showLabel,
     required double staticAttentionOpacity,
   }) {
     final badge = widget.badges != null && index < widget.badges!.length
@@ -165,17 +215,22 @@ class _TenturaUnderlineTabsState extends State<TenturaUnderlineTabs>
             index < widget.badgeBackgroundColors!.length
         ? widget.badgeBackgroundColors![index]
         : null;
+    final icon = widget.icons != null && index < widget.icons!.length
+        ? widget.icons![index]
+        : null;
 
     final useAnimatedAttention =
         _shouldShowAttention &&
         index == widget.attentionIndex &&
         _attentionController != null;
 
-    final cell = _TabCell(
+    Widget cell({required double attentionOpacity}) => _TabCell(
       key: widget.tabIds != null && index < widget.tabIds!.length
           ? ValueKey<String>(widget.tabIds![index])
           : null,
       label: widget.tabs[index],
+      icon: icon,
+      showLabel: showLabel,
       semanticsIdentifier:
           widget.tabIds != null && index < widget.tabIds!.length
           ? widget.tabIds![index]
@@ -185,12 +240,12 @@ class _TenturaUnderlineTabsState extends State<TenturaUnderlineTabs>
       badge: badge,
       badgeBackgroundColor: badgeBackground,
       secondaryBadge: secondaryBadge,
-      attentionBackgroundOpacity: staticAttentionOpacity,
+      attentionBackgroundOpacity: attentionOpacity,
       countStyle: widget.countStyle,
     );
 
     if (!useAnimatedAttention) {
-      return cell;
+      return cell(attentionOpacity: staticAttentionOpacity);
     }
 
     final controller = _attentionController!;
@@ -200,23 +255,7 @@ class _TenturaUnderlineTabsState extends State<TenturaUnderlineTabs>
         final opacity =
             _animatedAttentionOpacityMin +
             controller.value * _animatedAttentionOpacityRange;
-        return _TabCell(
-          key: widget.tabIds != null && index < widget.tabIds!.length
-              ? ValueKey<String>(widget.tabIds![index])
-              : null,
-          label: widget.tabs[index],
-          semanticsIdentifier:
-              widget.tabIds != null && index < widget.tabIds!.length
-              ? widget.tabIds![index]
-              : null,
-          selected: index == widget.selectedIndex,
-          onTap: () => widget.onChanged(index),
-          badge: badge,
-          badgeBackgroundColor: badgeBackground,
-          secondaryBadge: secondaryBadge,
-          attentionBackgroundOpacity: opacity,
-          countStyle: widget.countStyle,
-        );
+        return cell(attentionOpacity: opacity);
       },
     );
   }
@@ -228,6 +267,8 @@ class _TabCell extends StatelessWidget {
     required this.semanticsIdentifier,
     required this.selected,
     required this.onTap,
+    required this.showLabel,
+    this.icon,
     this.badge,
     this.badgeBackgroundColor,
     this.secondaryBadge,
@@ -237,6 +278,8 @@ class _TabCell extends StatelessWidget {
   });
 
   final String label;
+  final IconData? icon;
+  final bool showLabel;
   final String? semanticsIdentifier;
   final bool selected;
   final VoidCallback onTap;
@@ -252,13 +295,105 @@ class _TabCell extends StatelessWidget {
     final scheme = Theme.of(context).colorScheme;
     final active = tt.info;
     final inactive = tt.textMuted;
+    final color = selected ? active : inactive;
     final hasPrimaryBadge = badge != null && badge! > 0;
     final hasSecondaryBadge = secondaryBadge != null && secondaryBadge! > 0;
     final hasAnyBadge = hasPrimaryBadge || hasSecondaryBadge;
     final showAttention = attentionBackgroundOpacity > 0;
+    final iconOnly = icon != null && !showLabel;
+
+    Widget content = Padding(
+      padding: EdgeInsets.symmetric(vertical: tt.rowGap),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            children: [
+              Expanded(
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    if (icon != null) ...[
+                      Icon(icon, size: _kTabIconSize, color: color),
+                      if (showLabel) SizedBox(width: tt.iconTextGap),
+                    ],
+                    if (showLabel)
+                      Flexible(
+                        child: Text(
+                          label,
+                          maxLines: 1,
+                          softWrap: false,
+                          overflow: TextOverflow.ellipsis,
+                          textAlign: TextAlign.center,
+                          style: TenturaText.tabLabel(color),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+              if (hasAnyBadge) ...[
+                SizedBox(width: tt.iconTextGap),
+                Padding(
+                  padding: EdgeInsets.only(right: tt.iconTextGap),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (hasPrimaryBadge)
+                        countStyle == TenturaTabCountStyle.plainText
+                            ? Text(
+                                '${badge!}',
+                                style: TenturaText.withTabular(
+                                  TenturaText.bodySmall(color),
+                                ),
+                              )
+                            : TenturaCountBadge(
+                                count: badge!,
+                                backgroundColor:
+                                    badgeBackgroundColor ?? tt.info,
+                              ),
+                      if (hasPrimaryBadge && hasSecondaryBadge)
+                        SizedBox(width: tt.tightGap),
+                      if (hasSecondaryBadge)
+                        countStyle == TenturaTabCountStyle.plainText
+                            ? Text(
+                                '${secondaryBadge!}',
+                                style: TenturaText.withTabular(
+                                  TenturaText.bodySmall(tt.warn),
+                                ),
+                              )
+                            : TenturaCountBadge(
+                                count: secondaryBadge!,
+                                backgroundColor: tt.warn,
+                              ),
+                    ],
+                  ),
+                ),
+              ],
+            ],
+          ),
+          const SizedBox(height: 6),
+          SizedBox(
+            height: 2,
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                color: selected ? active : Colors.transparent,
+                borderRadius: const BorderRadius.vertical(
+                  top: Radius.circular(1),
+                ),
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (iconOnly) {
+      content = Tooltip(message: label, child: content);
+    }
 
     return Semantics(
       identifier: semanticsIdentifier,
+      label: iconOnly ? label : null,
       button: true,
       selected: selected,
       child: InkWell(
@@ -283,82 +418,7 @@ class _TabCell extends StatelessWidget {
                   ),
                 ),
               ),
-            Padding(
-              padding: EdgeInsets.symmetric(vertical: tt.rowGap),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Text(
-                          label,
-                          maxLines: 1,
-                          softWrap: false,
-                          overflow: TextOverflow.ellipsis,
-                          textAlign: TextAlign.center,
-                          style: TenturaText.tabLabel(
-                            selected ? active : inactive,
-                          ),
-                        ),
-                      ),
-                      if (hasAnyBadge) ...[
-                        SizedBox(width: tt.iconTextGap),
-                        Padding(
-                          padding: EdgeInsets.only(right: tt.iconTextGap),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              if (hasPrimaryBadge)
-                                countStyle == TenturaTabCountStyle.plainText
-                                    ? Text(
-                                        '${badge!}',
-                                        style: TenturaText.withTabular(
-                                          TenturaText.bodySmall(
-                                            selected ? active : inactive,
-                                          ),
-                                        ),
-                                      )
-                                    : TenturaCountBadge(
-                                        count: badge!,
-                                        backgroundColor:
-                                            badgeBackgroundColor ?? tt.info,
-                                      ),
-                              if (hasPrimaryBadge && hasSecondaryBadge)
-                                SizedBox(width: tt.tightGap),
-                              if (hasSecondaryBadge)
-                                countStyle == TenturaTabCountStyle.plainText
-                                    ? Text(
-                                        '${secondaryBadge!}',
-                                        style: TenturaText.withTabular(
-                                          TenturaText.bodySmall(tt.warn),
-                                        ),
-                                      )
-                                    : TenturaCountBadge(
-                                        count: secondaryBadge!,
-                                        backgroundColor: tt.warn,
-                                      ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
-                  const SizedBox(height: 6),
-                  SizedBox(
-                    height: 2,
-                    child: DecoratedBox(
-                      decoration: BoxDecoration(
-                        color: selected ? active : Colors.transparent,
-                        borderRadius: const BorderRadius.vertical(
-                          top: Radius.circular(1),
-                        ),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ),
+            content,
           ],
         ),
       ),
