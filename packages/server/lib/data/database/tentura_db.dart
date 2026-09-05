@@ -155,6 +155,12 @@ class TenturaDb extends _$TenturaDb {
   @factoryMethod
   TenturaDb(Env env)
     : super(
+        // Pool must keep maxConnectionCount == 1 (and a long maxConnectionAge).
+        // Drift issues BEGIN/COMMIT/SAVEPOINT via NoTransactionDelegate as
+        // ordinary session.execute() calls; Pool.execute releases the
+        // connection after each statement. A second/expired connection then
+        // hits Postgres 25P01 on RELEASE/ROLLBACK TO SAVEPOINT
+        // (TENTURA-SERVER-H / BeaconDisplayStatuses → getBeaconById).
         PgDatabase.opened(
           Pool<dynamic>.withEndpoints(
             [env.pgEndpoint],

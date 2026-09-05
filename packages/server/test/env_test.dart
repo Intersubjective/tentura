@@ -89,4 +89,22 @@ void main() {
       expect(env.missingFcmServerCreds, ['FB_PROJECT_ID']);
     });
   });
+
+  group('pgPoolSettings', () {
+    test('forces maxConnectionCount to 1 for Drift statement transactions', () {
+      final env = Env(maxConnectionCount: 20, maxConnectionAge: 600);
+      expect(env.pgMaxConnectionCount, 20);
+      expect(env.pgPoolSettings.maxConnectionCount, 1);
+      expect(env.pgPoolSettings.maxConnectionAge, const Duration(seconds: 600));
+    });
+
+    test('defaults maxConnectionAge to 12h', () {
+      final env = Env();
+      expect(env.pgMaxConnectionAge, 43200);
+      expect(
+        env.pgPoolSettings.maxConnectionAge,
+        const Duration(seconds: 43200),
+      );
+    });
+  });
 }

@@ -182,18 +182,22 @@ class BeaconRepository implements BeaconRepositoryPort {
     required String beaconId,
     String? filterByUserId,
   }) async {
-    final (beacon, author) = await _database.managers.beacons
+    // Avoid managers.withReferences(...).getSingle(): Drift wraps prefetch in
+    // a nested transaction (SAVEPOINT). Over a postgres Pool that can surface
+    // as 25P01 CouldNotRollBackException (TENTURA-SERVER-H).
+    final beacon = await _database.managers.beacons
         .filter(
           filterByUserId == null
               ? (e) => e.id.equals(beaconId)
               : (e) =>
                     e.id.equals(beaconId) & e.userId.id.equals(filterByUserId),
         )
-        .withReferences((p) => p(userId: true))
         .getSingle();
 
     final images = await _getBeaconImages(beaconId);
-    final authorRow = await author.userId.getSingle();
+    final authorRow = await _database.managers.users
+        .filter((e) => e.id.equals(beacon.userId))
+        .getSingle();
 
     return beaconModelToEntity(
       beacon,

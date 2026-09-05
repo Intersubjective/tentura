@@ -333,14 +333,20 @@ class Env {
        pgDatabase = pgDatabase ?? _env['POSTGRES_DBNAME'] ?? 'postgres',
        pgUsername = pgUsername ?? _env['POSTGRES_USERNAME'] ?? 'postgres',
        pgPassword = pgPassword ?? _env['POSTGRES_PASSWORD'] ?? 'password',
+       // Keep age long: Drift's NoTransactionDelegate sends BEGIN/SAVEPOINT/
+       // RELEASE as discrete Pool.execute calls; each returns the connection
+       // to the pool. Expiring/replacing it between those statements yields
+       // Postgres 25P01 (TENTURA-SERVER-H). Package default is 12h.
        pgMaxConnectionAge =
            maxConnectionAge ??
            int.tryParse(_env['POSTGRES_MAXCONNAGE'] ?? '') ??
-           600,
+           43200,
+       // PgDatabase is isSequential; a multi-connection pool cannot pin the
+       // transaction session across statement boundaries. Force one connection.
        pgMaxConnectionCount =
            maxConnectionCount ??
            int.tryParse(_env['POSTGRES_MAXCONN'] ?? '') ??
-           25,
+           1,
 
        // Task Worker
        taskOnEmptyDelay =
@@ -704,7 +710,11 @@ class Env {
 
   late final pgPoolSettings = PoolSettings(
     maxConnectionAge: Duration(seconds: pgMaxConnectionAge),
-    maxConnectionCount: pgMaxConnectionCount,
+    // Always 1 for Drift (TENTURA-SERVER-H). POSTGRES_MAXCONN is retained for
+    // ops visibility but must not open a multi-connection pool under
+    // NoTransactionDelegate — see packages/server/WORKAROUNDS.md §4.
+    maxConnectionCount: 1,
+    maxSessionUse: Duration(seconds: pgMaxConnectionAge),
     sslMode: pgEndpointSettings.sslMode,
   );
 
