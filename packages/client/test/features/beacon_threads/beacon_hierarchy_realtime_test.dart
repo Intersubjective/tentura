@@ -15,6 +15,7 @@ import 'package:tentura/domain/port/beacon_write_port.dart';
 import 'package:tentura/domain/use_case/beacon_create_case.dart';
 import 'package:tentura/domain/use_case/realtime_sync_case.dart';
 import 'package:tentura/features/beacon_threads/ui/bloc/beacon_hierarchy_cubit.dart';
+import 'package:tentura/ui/bloc/state_base.dart';
 
 import '../../domain/use_case/fake_beacon_hierarchy_ports.dart';
 import '../../support/test_realtime_sync.dart';
@@ -233,6 +234,40 @@ void main() {
       await firstLoad;
       await waitFor(() => port.capabilitiesCalls == 2);
     });
+
+    test(
+      'explicit load queued behind an in-flight refresh resolves status '
+      'back to success, not stuck loading',
+      () async {
+        port.pendingCapabilities = Completer<BeaconHierarchyCapabilities>();
+        final cubit = buildCubit();
+        addTearDown(cubit.close);
+
+        realtimePort.emitChange(
+          const RealtimeEntityChange(
+            kind: RealtimeEntityKind.beaconHierarchy,
+            aggregateId: 'parent-1',
+            operation: RealtimeOperation.update,
+            source: RealtimeChangeSource.serverInvalidation,
+          ),
+        );
+        await Future<void>.delayed(const Duration(milliseconds: 150));
+        expect(port.capabilitiesCalls, 1);
+
+        unawaited(cubit.load());
+        expect(cubit.state.status, isA<StateIsLoading>());
+
+        port.pendingCapabilities!.complete(
+          const BeaconHierarchyCapabilities(
+            canListChildren: true,
+            canCreateChild: true,
+          ),
+        );
+        port.pendingCapabilities = null;
+
+        await waitFor(() => cubit.state.status is StateIsSuccess);
+      },
+    );
 
     test('authoritative access loss evicts cached hierarchy state', () async {
       final cubit = buildCubit();

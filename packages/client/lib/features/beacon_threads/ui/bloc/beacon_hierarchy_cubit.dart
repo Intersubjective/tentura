@@ -37,6 +37,7 @@ class BeaconHierarchyCubit extends Cubit<BeaconHierarchyState> {
   Timer? _refreshTimer;
   bool _refreshInFlight = false;
   bool _refreshQueued = false;
+  bool _queuedRequestWasExplicit = false;
   int _loadGeneration = 0;
 
   void _onHierarchyChanged(RealtimeEntityChange _) => _scheduleSilentRefresh();
@@ -56,11 +57,30 @@ class BeaconHierarchyCubit extends Cubit<BeaconHierarchyState> {
     if (_refreshInFlight) {
       _refreshQueued = true;
       if (!silent) {
+        _queuedRequestWasExplicit = true;
         emit(state.copyWith(status: const StateIsLoading()));
       }
       return;
     }
     await _runLoad(silent: silent);
+  }
+
+  /// Runs the deferred rerun requested while a refresh was already
+  /// in-flight (queued by [load] or a coalesced realtime hint). The
+  /// rerun itself is always the silent snapshot refresh, but if the
+  /// deferred request was an explicit (non-silent) [load] call — which
+  /// already flipped `status` to loading before returning — restore it
+  /// to success afterward, so an explicit load queued behind another
+  /// refresh can never leave `status` stuck at loading.
+  Future<void> _runQueuedRerunIfNeeded() async {
+    if (!_refreshQueued || isClosed) return;
+    _refreshQueued = false;
+    final wasExplicit = _queuedRequestWasExplicit;
+    _queuedRequestWasExplicit = false;
+    await _runSilentRefresh();
+    if (wasExplicit && !isClosed) {
+      emit(state.copyWith(status: const StateIsSuccess()));
+    }
   }
 
   Future<void> _runLoad({required bool silent}) async {
@@ -118,10 +138,7 @@ class BeaconHierarchyCubit extends Cubit<BeaconHierarchyState> {
       );
     } finally {
       _refreshInFlight = false;
-      if (_refreshQueued && !isClosed) {
-        _refreshQueued = false;
-        unawaited(_runSilentRefresh());
-      }
+      unawaited(_runQueuedRerunIfNeeded());
     }
   }
 
@@ -248,10 +265,7 @@ class BeaconHierarchyCubit extends Cubit<BeaconHierarchyState> {
       // Keep the usable snapshot; a later hint or catch-up retries.
     } finally {
       _refreshInFlight = false;
-      if (_refreshQueued && !isClosed) {
-        _refreshQueued = false;
-        unawaited(_runSilentRefresh());
-      }
+      unawaited(_runQueuedRerunIfNeeded());
     }
   }
 
