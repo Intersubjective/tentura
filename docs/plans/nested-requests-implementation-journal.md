@@ -587,3 +587,35 @@ Independently verified with extra scrutiny given this task's severity:
 Task 03 is ACCEPTED — no remediation needed. This is the highest-quality
 task result so far. Proceeding to Task 04 (shared normal creation and atomic
 child commands).
+
+### Task 04 — attempt 1 killed (external, 2026-09-06)
+
+First Task 04 worker was killed by the harness mid-task due to host memory
+pressure (not a stuck/bad process, not a worker decision). No commits had
+been made. Manager inspected the partial uncommitted state before deciding
+how to proceed (per orchestration recovery protocol — never resume a killed
+session, but preserve valid partial work):
+
+- `packages/server/lib/domain/exception_codes.dart`: the six Task 04
+  `BeaconExceptionCode` entries (1309-1314) — additive, correct, matches
+  the plan's §3.5 list exactly for this task's scope. Kept.
+- `packages/server/lib/domain/policy/beacon_creation_policy.dart` (new,
+  untracked): verified against the real current
+  `BeaconCase`-file top-level helpers (`_trimOrNull`,
+  `_normalizeBeaconDescription`, `_normalizeNeeds`,
+  `_resolvePrimaryNeedSlug` at their real line numbers) — the extraction is
+  a faithful, byte-for-byte transcription of existing standalone-creation
+  logic into static methods, plus one new `normalizeChildDescription`
+  variant (allows empty, for child drafts) not yet wired anywhere. Kept.
+- `packages/server/lib/domain/policy/beacon_promotion_eligibility_policy.dart`
+  (new, untracked): pure `BeaconPromotionSourceFacts` + `isEligible` per
+  §3.4.9. Contains a minor dead-code wart (an inner semantic-marker
+  blocker/needInfo/done check whose branches both return `false`, made
+  redundant by the enclosing `if (semanticMarker != null)` — functionally
+  correct per the plan's literal wording ("no semantic marker" rejects any
+  marker), just needs simplifying). Kept; next worker asked to clean it up.
+
+None of this partial work had been wired into `BeaconCase`/a new
+`BeaconChildCreateCase` yet, and no tests exist yet — the bulk of Task 04
+remains to be done by a fresh worker. Launching attempt 2 with the same
+scope, informed of this existing partial state.

@@ -81,6 +81,12 @@ enum BeaconExceptionCode {
   beaconImageNotAttached, // 1306
   beaconCoverNotAttached, // 1307
   beaconMediaInvalid, // 1308
+  beaconChildCreateForbidden, // 1309
+  beaconParentNotCoordinatable, // 1310
+  beaconPromotionSourceInvalid, // 1311
+  beaconSourceAlreadyPromoted, // 1312
+  beaconChildCommandConflict, // 1313
+  beaconChildCommandGone, // 1314
 }
 
 class BeaconExceptionCodes extends ExceptionCodes {
