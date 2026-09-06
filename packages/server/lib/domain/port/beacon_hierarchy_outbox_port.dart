@@ -16,6 +16,13 @@ abstract class BeaconHierarchyOutboxPort {
     required List<BeaconHierarchyDeliveryTarget> targets,
   });
 
+  /// Set-based recursive parent-edge traversal for lifecycle delivery targets
+  /// (§4.3 step 3). Deduplicates by `(event, target)` via the table PK.
+  Future<void> insertTopologyDeliveryTargets({
+    required String sourceBeaconId,
+    required String eventId,
+  });
+
   Future<List<BeaconHierarchyDeliveryTarget>> claimDueDeliveries({
     required String leaseOwner,
     required int limit,

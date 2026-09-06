@@ -77,8 +77,8 @@ which this plan/orchestration owns.
 | 01 | Pure contracts and policies | 00 | complete |
 | 02 | Additive hierarchy storage and repository adapter | 01 | complete |
 | 03 | Authorization, SQL/Hasura parity, and mutation locking | 02 | complete |
-| 04 | Shared normal creation and atomic child commands | 03 | pending |
-| 05 | Lifecycle producers and retained status audience | 04 | pending |
+| 04 | Shared normal creation and atomic child commands | 03 | complete |
+| 05 | Lifecycle producers and retained status audience | 04 | complete |
 | 06 | Durable hierarchy delivery worker | 05 | pending |
 | 07 | Enforce General-only public product | 06 | pending |
 | 08 | Safe request deletion and account erasure | 07 | pending |
@@ -716,3 +716,103 @@ Fresh worker built on salvaged commits (`fe2e61235`, `d43084ad0`,
   standalone unit tests above — all green.
 
 Task 04 ACCEPTED for plan scope (domain + data only; no GraphQL/API/client).
+
+### Task 04 — manager review (2026-09-06)
+
+Independently verified (note: the worker's own final entry above says
+"ACCEPTED" — acceptance is the manager's call, not a worker's; recorded here
+for the audit trail, and in this case the independent verification agrees):
+
+1. Read `beacon_child_create_case.dart` (593 lines) in full. Confirmed:
+   idempotent replay re-validates CURRENT authorization (not just returning
+   a cached result) per §3.4.3; deleted-command tombstone correctly returns
+   `BEACON_CHILD_COMMAND_GONE`; the optimistic `findPublishedChildForSourceMessage`
+   check is correctly backed by the authoritative DB partial-unique-index
+   race via `BeaconPromotionPublishConflict`/`_PromotionRaceLost`, thrown
+   *inside* the transaction so Drift's automatic rollback-on-exception
+   naturally undoes the child insert/promotion draft/notice before the
+   outer `createChild`/`publishDraft` catch converts it to
+   `BeaconSourceAlreadyPromotedException`; notice/attention recording is
+   correctly gated to the publish branch only (never on draft-only
+   creation), matching §3.4.11.
+2. Confirmed no GraphQL/API/client surface touched anywhere in the Task 04
+   diff range (`git diff --name-only e0b4c11e1..HEAD`) — domain/data layer
+   only, as required.
+3. Confirmed the four touched `.mocks.dart` files are genuinely regenerated
+   (ran `dart run build_runner build -d`; zero diff produced), not
+   hand-edited.
+4. Independently reran everything rather than trusting the report: full
+   `dart test --exclude-tags pg` (1612/1612), both `check-custom-lints.sh`
+   (server 0/0, client 32/32), `git diff --check` (clean),
+   `beacon_child_create_atomic_pg_test.dart` (13/13, including reading two
+   of the fault-injection tests directly — `_ThrowingAttentionDispatch`
+   genuinely wraps and can fail the real dispatch port mid-transaction, and
+   the test asserts against a real subsequent `SELECT` that the beacon
+   stayed a draft and no notice row exists, not a mocked assumption),
+   `beacon_hierarchy_{command,repository,visibility}_pg_test.dart` (22/22),
+   and the four standalone regression files (31/31) — all match.
+5. The "source deleted before publish" ambiguous-spec decision (reject with
+   `BEACON_PROMOTION_SOURCE_INVALID` when a promotion row exists with a
+   nulled source and hasn't published yet) is reasonable and consistent
+   with §4.1's "child remains, source link lost" principle applied to the
+   not-yet-published case; recorded, not silently assumed.
+
+Task 04 is ACCEPTED. Proceeding to Task 05 (lifecycle producers and
+retained status audience).
+
+### Task 05 — in progress (Cursor CLI worker, 2026-09-06)
+
+**Owned paths:** `BeaconLifecycleEffectsCase`; producer wiring in
+`beacon_case.dart`, `evaluation_case.dart`, `review_finalization_case.dart`;
+`beacon_hierarchy_outbox_port.dart` + `insertTopologyDeliveryTargets`;
+`beacon_notification_context.dart` + `beacon_room_notification_context_repository.dart`;
+`attention_intent_case.dart`, `beacon_notification_recipient_resolver.dart`;
+new tests + inventory/architecture test extensions.
+
+### Task 05 — complete (Cursor CLI worker, 2026-09-06)
+
+**Delivered**
+- `BeaconLifecycleEffectsCase` implements §4.3 steps 2–3 (eligibility gate,
+  `recordEvent`, set-based `insertTopologyDeliveryTargets`) inside caller
+  transactions; no-op for draft delete, noop transitions, `reopenedFromReview`,
+  `extendReviewWindow`.
+- Producers wired (required non-null DI): `BeaconCase.beaconCancel`,
+  `BeaconCase.deleteById` (published tombstone), `EvaluationCase.beaconClose`
+  (immediate closed + reviewOpen branches), `ReviewFinalizationCase.closeAndFinalize`
+  when `didClose` only. `closeNow`, `_autoCloseReviewWindow`, and
+  `AttentionExpirySweepCase.runDue` delegate to finalizer without duplicate
+  hierarchy Closed events.
+- §4.4 audience: replaced `usersWithActiveCoordination` with
+  `activeHelpOfferUserIds` / `activeRequestParticipantUserIds` /
+  `activePlanParticipantUserIds` (active offers, `hasCurrentStake` +
+  active offer, published active plans only).
+- Set-based topology SQL on outbox port; PG EXPLAIN proof in lifecycle atomic test.
+
+**Status-writer inventory (live code, beyond producer table)**
+| Site | Classification |
+|------|----------------|
+| `coordination_case.dart::setBeaconStatus` | INELIGIBLE — open-family coordination menu only (`needsMoreHelp`/`enoughHelp`/`open`); not §4.3 lifecycle notices; still uses `requestStatusChanged` for retired coordination-adjacent attention |
+| `evaluation_case.dart::reopenFromReview` | INELIGIBLE — local reopen per §4.3 closing paragraph |
+| `evaluation_case.dart::extendReviewWindow` | INELIGIBLE — no status transition to notice-eligible terminal |
+| `evaluation_repository.dart::closeReviewWindow` | delegates status write; hierarchy event owned by `ReviewFinalizationCase` only |
+
+**Wrapping-up → Closed proof:** unit test in `beacon_lifecycle_effects_test.dart`
+(records two events, sequences 1 then 2, `reviewOpen` then `closed`); PG test
+`close on A reaches C through deleted intermediate B and records ordered events`
+records wrapping-up then closed on same source with monotonic sequence.
+
+**Verification**
+```bash
+./scripts/check-custom-lints.sh packages/server   # 0/0
+./scripts/check-custom-lints.sh packages/client   # 32/32
+cd packages/server && dart test --exclude-tags pg   # 1625/1625
+dart test test/data/repository/beacon_hierarchy_lifecycle_atomic_pg_test.dart -t pg -j 1  # 3/3
+dart test test/domain/use_case/beacon_lifecycle_effects_test.dart  # 5/5
+dart test test/domain/attention/beacon_status_audience_test.dart  # 6/6
+dart test test/domain/use_case/evaluation/review_finalization_case_test.dart  # extended
+git diff --check  # clean on task paths
+```
+
+**Pre-existing PG failures (unchanged, not Task 05):**
+`review_finalization_outcome_evidence_pg_test.dart`,
+`room_message_reply_readback_pg_test.dart` on shared `postgres` DB only.

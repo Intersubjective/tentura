@@ -1,5 +1,9 @@
 import 'package:test/test.dart';
 
+import 'package:tentura_root/domain/entity/beacon_status.dart';
+import 'package:tentura_server/consts/beacon_activity_event_consts.dart';
+
+import '../../../support/recording_beacon_hierarchy_outbox.dart';
 import 'package:tentura_server/domain/entity/forward_edge_entity.dart';
 import 'package:tentura_server/domain/entity/help_offer_entity.dart';
 import 'package:tentura_server/domain/entity/review_close_snapshot.dart';
@@ -178,4 +182,54 @@ void main() {
       expect(trustEvidence.recorded, isEmpty);
     },
   );
+
+  test('manual and expiry finalization share the same hierarchy closed shape', () async {
+    final manualOutbox = RecordingBeaconHierarchyOutbox();
+    final expiryOutbox = RecordingBeaconHierarchyOutbox();
+    final manualCase = buildReviewFinalizationCase(
+      evaluationRepo: evalRepo,
+      forwardEdges: forwardEdges,
+      helpOffers: helpOffers,
+      trustEvidence: trustEvidence,
+      lifecycleOutbox: manualOutbox,
+    );
+    final expiryCase = buildReviewFinalizationCase(
+      evaluationRepo: evalRepo,
+      forwardEdges: forwardEdges,
+      helpOffers: helpOffers,
+      trustEvidence: RecordingTrustEvidence(),
+      lifecycleOutbox: expiryOutbox,
+    );
+
+    await manualCase.closeAndFinalize(
+      beaconId,
+      reason: BeaconLifecycleChangeReason.authorCloseNow,
+      actorUserId: authorId,
+    );
+    await expiryCase.closeAndFinalize(
+      beaconId,
+      reason: BeaconLifecycleChangeReason.reviewExpired,
+    );
+
+    expect(manualOutbox.recordedEvents.single.toStatus, BeaconStatus.closed);
+    expect(expiryOutbox.recordedEvents.single.toStatus, BeaconStatus.closed);
+    expect(
+      manualOutbox.recordedEvents.single.fromStatus,
+      expiryOutbox.recordedEvents.single.fromStatus,
+    );
+  });
+
+  test('closeAndFinalize does not record hierarchy event when window already closed', () async {
+    final outbox = RecordingBeaconHierarchyOutbox();
+    final localCase = buildReviewFinalizationCase(
+      evaluationRepo: evalRepo,
+      forwardEdges: forwardEdges,
+      helpOffers: helpOffers,
+      trustEvidence: trustEvidence,
+      lifecycleOutbox: outbox,
+    );
+    evalRepo.snapshotOnClose = null;
+    await localCase.closeAndFinalize(beaconId, reason: 'expired');
+    expect(outbox.recordedEvents, isEmpty);
+  });
 }

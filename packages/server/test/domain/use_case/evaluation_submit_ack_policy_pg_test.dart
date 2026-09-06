@@ -9,6 +9,7 @@ import 'package:postgres/postgres.dart';
 import 'package:test/test.dart';
 
 import '../../support/fake_beacon_hierarchy_repository.dart';
+import '../../support/beacon_lifecycle_effects_test_support.dart';
 
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 import 'package:tentura_server/data/database/migration/_migrations.dart';
@@ -93,8 +94,9 @@ Future<void> main() async {
         ),
         NoOpCommitmentRepository(),
         helpOfferRepo,
-      FakeBeaconHierarchyRepository(),
-              attentionIntents: attention.intents,
+        FakeBeaconHierarchyRepository(),
+        buildLifecycleEffectsCase(),
+        attentionIntents: attention.intents,
         attention: attention.transactional,
         attentionExpirySweep: expirySweep,
         reviewFinalization: reviewFinalization,

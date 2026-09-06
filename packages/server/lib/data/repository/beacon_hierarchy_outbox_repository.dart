@@ -124,6 +124,53 @@ ON CONFLICT (event_id, target_beacon_id) DO NOTHING
     }
   }
 
+  @override
+  Future<void> insertTopologyDeliveryTargets({
+    required String sourceBeaconId,
+    required String eventId,
+  }) async {
+    await _database.customStatement(
+      r'''
+WITH RECURSIVE descendants AS (
+  SELECT b.id
+  FROM public.beacon b
+  WHERE b.parent_beacon_id = $1
+    AND b.published_at IS NOT NULL
+  UNION ALL
+  SELECT child.id
+  FROM public.beacon child
+  JOIN descendants d ON child.parent_beacon_id = d.id
+  WHERE child.published_at IS NOT NULL
+),
+ancestor AS (
+  SELECT p.id
+  FROM public.beacon source
+  JOIN public.beacon p ON p.id = source.parent_beacon_id
+  WHERE source.id = $1
+    AND p.published_at IS NOT NULL
+),
+targets AS (
+  SELECT id AS target_beacon_id, 'ancestor'::text AS direction
+  FROM descendants
+  UNION ALL
+  SELECT id, 'child'::text FROM ancestor
+)
+INSERT INTO public.beacon_hierarchy_deliveries (
+  event_id,
+  target_beacon_id,
+  direction,
+  state,
+  next_attempt_at
+)
+SELECT $2, target_beacon_id, direction, 'pending', now()
+FROM targets
+WHERE target_beacon_id <> $1
+ON CONFLICT (event_id, target_beacon_id) DO NOTHING
+''',
+      [sourceBeaconId, eventId],
+    );
+  }
+
   /// Set-based recursive traversal of immutable parent edges for lifecycle targets.
   Future<List<BeaconHierarchyDeliveryTarget>> collectPublishedTopologyTargets({
     required String sourceBeaconId,

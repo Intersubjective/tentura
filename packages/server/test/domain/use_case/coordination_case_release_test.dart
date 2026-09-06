@@ -5,6 +5,7 @@ import 'package:test/test.dart';
 
 import '../../support/fake_beacon_hierarchy_repository.dart';
 import '../../support/fake_beacon_child_create_port.dart';
+import '../../support/beacon_lifecycle_effects_test_support.dart';
 
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 import 'package:tentura_server/domain/attention/attention_models.dart';
@@ -128,6 +129,7 @@ void main() {
       FakeBeaconAccessGuard(),
       FakeBeaconHierarchyRepository(),
       FakeBeaconChildCreatePort(),
+      buildLifecycleEffectsCase(),
       attentionIntents: attention.intents,
       attention: attention.transactional,
       env: Env(environment: Environment.test),

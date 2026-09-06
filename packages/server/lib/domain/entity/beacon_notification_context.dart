@@ -8,7 +8,9 @@ abstract class BeaconNotificationContext with _$BeaconNotificationContext {
     @Default('') String beaconAuthorId,
     @Default({}) Set<String> admittedUserIds,
     @Default({}) Set<String> stewardUserIds,
-    @Default({}) Set<String> usersWithActiveCoordination,
+    @Default({}) Set<String> activeHelpOfferUserIds,
+    @Default({}) Set<String> activeRequestParticipantUserIds,
+    @Default({}) Set<String> activePlanParticipantUserIds,
     @Default({}) Set<String> inboxStanceUserIds,
   }) = _BeaconNotificationContext;
 }

@@ -1,5 +1,7 @@
 import 'package:injectable/injectable.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
+import 'package:tentura_root/domain/entity/beacon_status_transition.dart';
+import 'package:tentura_server/domain/use_case/beacon_lifecycle_effects_case.dart';
 import 'package:tentura_server/consts/beacon_activity_event_consts.dart';
 import 'package:tentura_server/consts/commitment_consts.dart';
 import 'package:tentura_server/domain/capability/capability_consts.dart';
@@ -106,7 +108,8 @@ final class EvaluationCase extends UseCaseBase {
     this._commitmentQueryCase,
     this._commitmentRepository,
     this._helpOfferRepository,
-    this._hierarchyRepository, {
+    this._hierarchyRepository,
+    this._lifecycleEffects, {
     AttentionIntentCase? attentionIntents,
     TransactionalAttentionCase? attention,
     AttentionExpirySweepCase? attentionExpirySweep,
@@ -132,6 +135,7 @@ final class EvaluationCase extends UseCaseBase {
   final CommitmentRepositoryPort _commitmentRepository;
   final HelpOfferRepositoryPort _helpOfferRepository;
   final BeaconHierarchyRepositoryPort _hierarchyRepository;
+  final BeaconLifecycleEffectsCase _lifecycleEffects;
 
   static const Duration _reviewWindowDuration = Duration(days: 7);
 
@@ -206,6 +210,14 @@ final class EvaluationCase extends UseCaseBase {
           );
 
           if (!requiresReviewWindow) {
+            await _lifecycleEffects.recordEligibleSourceTransition(
+              sourceBeaconId: beaconId,
+              fromStatus: beacon.status,
+              toStatus: BeaconStatus.closed,
+              occurredAt: DateTime.timestamp(),
+              actorUserId: userId,
+              reason: BeaconStatusTransitionReason.directClose,
+            );
             await _beaconRepository.recordBeaconStatusTransition(
               beaconId: beaconId,
               fromStatus: beacon.status,
@@ -250,6 +262,14 @@ final class EvaluationCase extends UseCaseBase {
             beaconId,
           );
 
+          await _lifecycleEffects.recordEligibleSourceTransition(
+            sourceBeaconId: beaconId,
+            fromStatus: beacon.status,
+            toStatus: BeaconStatus.reviewOpen,
+            occurredAt: DateTime.timestamp(),
+            actorUserId: userId,
+            reason: BeaconStatusTransitionReason.reviewWindowOpened,
+          );
           await _beaconRepository.recordBeaconStatusTransition(
             beaconId: beaconId,
             fromStatus: beacon.status,

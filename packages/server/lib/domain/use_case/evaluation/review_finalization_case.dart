@@ -1,5 +1,9 @@
 import 'package:injectable/injectable.dart';
 
+import 'package:tentura_root/domain/entity/beacon_status.dart';
+import 'package:tentura_root/domain/entity/beacon_status_transition.dart';
+import 'package:tentura_server/consts/beacon_activity_event_consts.dart';
+import 'package:tentura_server/domain/use_case/beacon_lifecycle_effects_case.dart';
 import 'package:tentura_server/domain/capability/capability_consts.dart';
 import 'package:tentura_server/domain/capability/capability_evidence_models.dart';
 import 'package:tentura_server/domain/evaluation/beacon_evaluation_value.dart';
@@ -38,7 +42,8 @@ final class ReviewFinalizationCase extends UseCaseBase
     this._helpOfferRepository,
     this._trustEvidenceRepository,
     this._capabilityEvidence,
-    this._hierarchyRepository, {
+    this._hierarchyRepository,
+    this._lifecycleEffects, {
     required super.env,
     required super.logger,
   });
@@ -51,6 +56,7 @@ final class ReviewFinalizationCase extends UseCaseBase
   final TrustEvidenceRepositoryPort _trustEvidenceRepository;
   final CapabilityEvidencePort _capabilityEvidence;
   final BeaconHierarchyRepositoryPort _hierarchyRepository;
+  final BeaconLifecycleEffectsCase _lifecycleEffects;
 
   static const _outcomeEligibleRoles = {
     EvaluationParticipantRole.author,
@@ -77,6 +83,15 @@ final class ReviewFinalizationCase extends UseCaseBase
           if (snapshot == null) {
             return const ReviewFinalizationResult(didClose: false);
           }
+
+          await _lifecycleEffects.recordEligibleSourceTransition(
+            sourceBeaconId: beaconId,
+            fromStatus: BeaconStatus.reviewOpen,
+            toStatus: BeaconStatus.closed,
+            occurredAt: DateTime.timestamp(),
+            actorUserId: actorUserId,
+            reason: _hierarchyReasonForFinalClose(reason),
+          );
 
           final now = DateTime.timestamp();
           await _recordCommitmentEvidence(snapshot, at: now);
@@ -359,4 +374,15 @@ final class ReviewFinalizationCase extends UseCaseBase
     }
     return ev.ackTags.isNotEmpty;
   }
+
+  static BeaconStatusTransitionReason _hierarchyReasonForFinalClose(
+    String reason,
+  ) =>
+      switch (reason) {
+        BeaconLifecycleChangeReason.reviewExpired =>
+          BeaconStatusTransitionReason.reviewExpired,
+        BeaconLifecycleChangeReason.authorCloseNow =>
+          BeaconStatusTransitionReason.authorCloseNow,
+        _ => BeaconStatusTransitionReason.directClose,
+      };
 }

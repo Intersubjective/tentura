@@ -774,7 +774,15 @@ class AttentionIntentCase {
       AttentionRecipientReason.admittedRoomMember,
     );
     addReasons(
-      context.usersWithActiveCoordination,
+      context.activeHelpOfferUserIds,
+      AttentionRecipientReason.activeParticipant,
+    );
+    addReasons(
+      context.activeRequestParticipantUserIds,
+      AttentionRecipientReason.activeParticipant,
+    );
+    addReasons(
+      context.activePlanParticipantUserIds,
       AttentionRecipientReason.activeParticipant,
     );
     addReasons(

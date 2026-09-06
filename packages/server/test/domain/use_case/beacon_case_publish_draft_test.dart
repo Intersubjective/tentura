@@ -4,6 +4,7 @@ import 'package:mockito/mockito.dart';
 import 'package:test/test.dart';
 
 import '../../support/fake_beacon_child_create_port.dart';
+import '../../support/beacon_lifecycle_effects_test_support.dart';
 import '../../support/fake_beacon_hierarchy_repository.dart';
 
 import 'package:tentura_server/domain/entity/beacon_entity.dart';
@@ -72,6 +73,7 @@ void main() {
       FakeBeaconAccessGuard(),
       FakeBeaconHierarchyRepository(),
       FakeBeaconChildCreatePort(),
+      buildLifecycleEffectsCase(),
       env: Env(environment: Environment.test),
       logger: Logger('BeaconCasePublishDraftTest'),
     );

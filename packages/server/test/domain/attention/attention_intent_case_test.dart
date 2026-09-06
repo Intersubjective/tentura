@@ -27,7 +27,9 @@ void main() {
       beaconAuthorId: author,
       admittedUserIds: {'member', target},
       stewardUserIds: {'steward'},
-      usersWithActiveCoordination: {'active', target},
+      activeHelpOfferUserIds: {'active'},
+      activeRequestParticipantUserIds: {target},
+      activePlanParticipantUserIds: const {},
       inboxStanceUserIds: {'watcher', 'member'},
     ),
   );
@@ -483,7 +485,7 @@ void main() {
     group('requestStatusChanged', () {
       final blockContext = const BeaconNotificationContext(
         admittedUserIds: {unrelated, target},
-        usersWithActiveCoordination: {target},
+        activeRequestParticipantUserIds: {target},
       );
 
       Future<AttentionDispatchIntent> buildIntent(

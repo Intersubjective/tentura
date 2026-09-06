@@ -16,7 +16,9 @@ import 'package:tentura_server/data/repository/attention_dispatch_repository.dar
 import 'package:tentura_server/data/repository/beacon_access_repository.dart';
 import 'package:tentura_server/data/repository/beacon_room_notification_context_repository.dart';
 import 'package:tentura_server/data/repository/beacon_room_repository.dart';
+import 'package:tentura_server/data/repository/commitment_repository.dart';
 import 'package:tentura_server/data/repository/coordination_item_repository.dart';
+import 'package:tentura_server/data/repository/help_offer_repository.dart';
 import 'package:tentura_server/data/repository/mutating_unit_of_work.dart';
 import 'package:tentura_server/data/repository/mock/invite_seed_prompt_repository_mock.dart';
 import 'package:tentura_server/data/repository/user_repository.dart';
@@ -69,7 +71,12 @@ Future<void> main() async {
       attention = TransactionalAttentionCase(unitOfWork, dispatch);
       final room = BeaconRoomRepository(database);
       attentionIntents = AttentionIntentCase(
-        BeaconRoomNotificationContextRepository(room, database),
+        BeaconRoomNotificationContextRepository(
+          room,
+          database,
+          HelpOfferRepository(database),
+          CommitmentRepository(database),
+        ),
         UserRepository(
           Env(environment: Environment.test),
           database,

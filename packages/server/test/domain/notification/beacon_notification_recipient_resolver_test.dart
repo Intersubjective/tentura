@@ -34,13 +34,17 @@ void main() {
     String beaconAuthorId = 'author',
     Set<String> admittedUserIds = const {},
     Set<String> stewardUserIds = const {},
-    Set<String> usersWithActiveCoordination = const {},
+    Set<String> activeHelpOfferUserIds = const {},
+    Set<String> activeRequestParticipantUserIds = const {},
+    Set<String> activePlanParticipantUserIds = const {},
   }) =>
       BeaconNotificationContext(
         beaconAuthorId: beaconAuthorId,
         admittedUserIds: admittedUserIds,
         stewardUserIds: stewardUserIds,
-        usersWithActiveCoordination: usersWithActiveCoordination,
+        activeHelpOfferUserIds: activeHelpOfferUserIds,
+        activeRequestParticipantUserIds: activeRequestParticipantUserIds,
+        activePlanParticipantUserIds: activePlanParticipantUserIds,
       );
 
   test('needsMe notifies target and excludes actor', () {
@@ -81,7 +85,7 @@ void main() {
       intent: intent(kind: NotificationKind.coordinationChanged),
       ctx: ctx(
         admittedUserIds: {'member-a', 'member-b'},
-        usersWithActiveCoordination: {'active-1'},
+        activePlanParticipantUserIds: {'active-1'},
       ),
     );
 
@@ -154,7 +158,7 @@ void main() {
       ctx: ctx(
         beaconAuthorId: 'same-user',
         admittedUserIds: {'same-user'},
-        usersWithActiveCoordination: {'same-user'},
+        activeRequestParticipantUserIds: {'same-user'},
       ),
     );
 

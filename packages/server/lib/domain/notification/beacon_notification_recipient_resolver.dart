@@ -9,6 +9,15 @@ import 'package:tentura_server/domain/entity/notification_recipient_reason.dart'
 class BeaconNotificationRecipientResolver {
   const BeaconNotificationRecipientResolver();
 
+  static Iterable<String> _activeCoordinationParticipants(
+    BeaconNotificationContext ctx,
+  ) =>
+      {
+        ...ctx.activeHelpOfferUserIds,
+        ...ctx.activeRequestParticipantUserIds,
+        ...ctx.activePlanParticipantUserIds,
+      };
+
   List<BeaconNotificationRecipient> resolveRecipients({
     required BeaconNotificationIntent intent,
     required BeaconNotificationContext ctx,
@@ -90,7 +99,7 @@ class BeaconNotificationRecipientResolver {
             intent.priority,
           );
         }
-        for (final uid in ctx.usersWithActiveCoordination) {
+        for (final uid in _activeCoordinationParticipants(ctx)) {
           add(
             uid,
             NotificationRecipientReason.activeParticipant,

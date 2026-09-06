@@ -38,6 +38,8 @@ import 'package:tentura_server/domain/port/commitment_repository_port.dart';
 import 'package:tentura_server/domain/trust/trust_bin.dart';
 
 import '../../support/fake_beacon_hierarchy_repository.dart';
+import '../../support/beacon_lifecycle_effects_test_support.dart';
+import '../../support/recording_beacon_hierarchy_outbox.dart';
 import '../../support/recording_commitment_repository.dart';
 import 'evaluation_graph_test_repos.dart';
 import '../../support/test_attention_harness.dart';
@@ -180,9 +182,11 @@ EvaluationCase buildTestEvaluationCase({
   CommitmentRepositoryPort? commitmentRepo,
   HelpOfferRepositoryPort? helpOfferRepo,
   ReviewFinalizationPort? reviewFinalization,
+  RecordingBeaconHierarchyOutbox? lifecycleOutbox,
 }) {
   final commitment = commitmentRepo ?? NoOpCommitmentRepository();
   final offers = helpOfferRepo ?? EmptyGraphHelpOfferRepository();
+  final outbox = lifecycleOutbox ?? RecordingBeaconHierarchyOutbox();
   return EvaluationCase(
     beaconRepo,
     forwardRepo,
@@ -199,6 +203,7 @@ EvaluationCase buildTestEvaluationCase({
     commitment,
     offers,
     FakeBeaconHierarchyRepository(),
+    buildLifecycleEffectsCase(outbox: outbox),
     attentionIntents: attention.intents,
     attention: attention.transactional,
     attentionExpirySweep: expirySweep,

@@ -15,6 +15,8 @@ import 'package:tentura_server/data/repository/beacon_hierarchy_repository.dart'
 import 'package:tentura_server/data/repository/beacon_repository.dart';
 import 'package:tentura_server/data/repository/beacon_room_notification_context_repository.dart';
 import 'package:tentura_server/data/repository/beacon_room_repository.dart';
+import 'package:tentura_server/data/repository/commitment_repository.dart';
+import 'package:tentura_server/data/repository/help_offer_repository.dart';
 import 'package:tentura_server/data/repository/mutating_unit_of_work.dart';
 import 'package:tentura_server/data/repository/mock/invite_seed_prompt_repository_mock.dart';
 import 'package:tentura_server/data/repository/user_repository.dart';
@@ -90,7 +92,12 @@ Future<void> main() async {
       final unitOfWork = MutatingUnitOfWork(session.db);
       final room = BeaconRoomRepository(session.db);
       attentionIntents = AttentionIntentCase(
-        BeaconRoomNotificationContextRepository(room, session.db),
+        BeaconRoomNotificationContextRepository(
+          room,
+          session.db,
+          HelpOfferRepository(session.db),
+          CommitmentRepository(session.db),
+        ),
         UserRepository(
           Env(environment: Environment.test),
           session.db,
@@ -106,7 +113,12 @@ Future<void> main() async {
         hierarchy,
         commands,
         BeaconAccessRepository(session.db),
-        BeaconRoomNotificationContextRepository(room, session.db),
+        BeaconRoomNotificationContextRepository(
+          room,
+          session.db,
+          HelpOfferRepository(session.db),
+          CommitmentRepository(session.db),
+        ),
         attentionIntents: attentionIntents,
         attention: TransactionalAttentionCase(
           unitOfWork,

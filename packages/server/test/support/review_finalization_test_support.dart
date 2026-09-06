@@ -21,6 +21,8 @@ import 'package:tentura_server/domain/use_case/evaluation/review_finalization_ca
 import 'package:tentura_server/env.dart';
 
 import 'fake_beacon_hierarchy_repository.dart';
+import 'beacon_lifecycle_effects_test_support.dart';
+import 'recording_beacon_hierarchy_outbox.dart';
 
 final class PassThroughUoW extends Fake implements MutatingUnitOfWorkPort {
   @override
@@ -153,8 +155,10 @@ ReviewFinalizationCase buildReviewFinalizationCase({
   required TrustEvidenceRepositoryPort trustEvidence,
   CapabilityEvidencePort? capabilityEvidence,
   ForwardAttributionRepositoryPort? attribution,
-}) =>
-    ReviewFinalizationCase(
+  RecordingBeaconHierarchyOutbox? lifecycleOutbox,
+}) {
+  final outbox = lifecycleOutbox ?? RecordingBeaconHierarchyOutbox();
+  return ReviewFinalizationCase(
       PassThroughUoW(),
       evaluationRepo,
       forwardEdges,
@@ -163,6 +167,8 @@ ReviewFinalizationCase buildReviewFinalizationCase({
       trustEvidence,
       capabilityEvidence ?? NoopCapabilityEvidence(),
       FakeBeaconHierarchyRepository(),
+      buildLifecycleEffectsCase(outbox: outbox),
       env: Env(environment: Environment.test),
       logger: Logger('ReviewFinalizationTestSupport'),
     );
+}

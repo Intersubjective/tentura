@@ -143,6 +143,7 @@ void main() {
     'beacon_case.dart': [
       'runAction(',
       '.requestStatusChanged(',
+      '_lifecycleEffects.recordEligibleSourceTransition(',
     ],
     'coordination_case.dart': [
       'runAction(',
@@ -151,6 +152,10 @@ void main() {
     'evaluation_case.dart': [
       'runAction(',
       '.requestStatusChanged(',
+      '_lifecycleEffects.recordEligibleSourceTransition(',
+    ],
+    'evaluation/review_finalization_case.dart': [
+      '_lifecycleEffects.recordEligibleSourceTransition(',
     ],
     'attention_expiry_sweep_case.dart': [
       'actorUserId: null',
@@ -244,6 +249,21 @@ void main() {
         'lib/domain/use_case/task_worker_case.dart',
       ).readAsStringSync();
       expect(worker, contains('_attentionExpirySweep!.runDue'));
+
+      final finalizer = File(
+        'lib/domain/use_case/evaluation/review_finalization_case.dart',
+      ).readAsStringSync();
+      expect(
+        RegExp(r'_lifecycleEffects\.recordEligibleSourceTransition\(')
+            .allMatches(finalizer),
+        hasLength(1),
+        reason: 'final Closed hierarchy event is owned only by closeAndFinalize',
+      );
+      expect(
+        finalizer,
+        isNot(contains('requestStatusChanged(')),
+        reason: 'review finalizer must not duplicate status attention producers',
+      );
     },
   );
 

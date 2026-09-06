@@ -40,6 +40,7 @@ import 'package:tentura_server/domain/use_case/evaluation/review_finalization_ca
 import 'package:tentura_server/env.dart';
 
 import '../../support/fake_beacon_hierarchy_repository.dart';
+import '../../support/beacon_lifecycle_effects_test_support.dart';
 import '../../support/review_finalization_test_support.dart';
 
 const _alice = 'Ucapg3alice1';
@@ -144,6 +145,7 @@ Future<void> main() async {
         RecordingTrustEvidence(),
         capEvidenceRepo,
         FakeBeaconHierarchyRepository(),
+        buildLifecycleEffectsCase(),
         env: env,
         logger: logger,
       );

@@ -9,6 +9,7 @@ import 'package:tentura_root/domain/entity/coordinates.dart';
 import 'package:tentura_server/env.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 import 'package:tentura_root/domain/entity/beacon_status_transition.dart';
+import 'package:tentura_server/domain/use_case/beacon_lifecycle_effects_case.dart';
 import 'package:tentura_server/consts/beacon_activity_event_consts.dart';
 import 'package:tentura_server/domain/beacon_lineage_visibility.dart';
 import 'package:tentura_server/domain/policy/beacon_creation_policy.dart';
@@ -109,6 +110,7 @@ final class BeaconCase extends UseCaseBase {
     BeaconAccessGuard guard,
     BeaconHierarchyRepositoryPort hierarchyRepository,
     BeaconChildCreatePort childCreateCase,
+    BeaconLifecycleEffectsCase lifecycleEffects,
     AttentionIntentCase attentionIntents,
     TransactionalAttentionCase attention,
   ) async => BeaconCase(
@@ -120,6 +122,7 @@ final class BeaconCase extends UseCaseBase {
     guard,
     hierarchyRepository,
     childCreateCase,
+    lifecycleEffects,
     attentionIntents: attentionIntents,
     attention: attention,
     env: env,
@@ -134,7 +137,8 @@ final class BeaconCase extends UseCaseBase {
     this._commitmentQueryCase,
     this._guard,
     this._hierarchyRepository,
-    this._childCreateCase, {
+    this._childCreateCase,
+    this._lifecycleEffects, {
     AttentionIntentCase? attentionIntents,
     TransactionalAttentionCase? attention,
     required super.env,
@@ -157,6 +161,8 @@ final class BeaconCase extends UseCaseBase {
   final BeaconHierarchyRepositoryPort _hierarchyRepository;
 
   final BeaconChildCreatePort _childCreateCase;
+
+  final BeaconLifecycleEffectsCase _lifecycleEffects;
 
   final AttentionIntentCase? _attentionIntents;
 
@@ -775,6 +781,14 @@ final class BeaconCase extends UseCaseBase {
                     actorUserId: userId,
                     sourceEventKey: 'request_status:${generateId('A')}',
                   );
+            await _lifecycleEffects.recordEligibleSourceTransition(
+              sourceBeaconId: beaconId,
+              fromStatus: beacon.status,
+              toStatus: BeaconStatus.cancelled,
+              occurredAt: DateTime.timestamp(),
+              actorUserId: userId,
+              reason: BeaconStatusTransitionReason.cancelled,
+            );
             await _beaconRepository.recordBeaconStatusTransition(
               beaconId: beaconId,
               fromStatus: beacon.status,
@@ -868,6 +882,14 @@ final class BeaconCase extends UseCaseBase {
                 actorUserId: userId,
                 sourceEventKey: 'request_status:${generateId('A')}',
               );
+        await _lifecycleEffects.recordEligibleSourceTransition(
+          sourceBeaconId: beacon.id,
+          fromStatus: beacon.status,
+          toStatus: BeaconStatus.deleted,
+          occurredAt: DateTime.timestamp(),
+          actorUserId: userId,
+          reason: BeaconStatusTransitionReason.deleted,
+        );
         await _beaconRepository.recordBeaconStatusTransition(
           beaconId: beacon.id,
           fromStatus: beacon.status,
