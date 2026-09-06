@@ -1801,3 +1801,22 @@ concern.
 
 Task 12 is ACCEPTED. Proceeding to Task 13 (typed notices and promoted-
 source footer).
+
+### Task 13 — first attempt killed; small server gap salvaged (2026-09-06)
+
+First Cursor worker attempt on Task 13 was killed by external memory
+pressure before its first commit. Diff was small but correct: exposed
+`beacon_room_message.system_message_kind` (a Task 06 column, already
+used server-side, never surfaced via GraphQL) through the room-message
+GraphQL projection, and mirrored the server's real
+`BeaconRoomSystemMessageKind` discriminator values client-side. No
+orphaned processes found (checked for a leftover dev server or
+cursor-agent process — none). Verified: `dart analyze` 0 errors, `dart
+test --exclude-tags pg` 1651/1651, custom-lints baseline unchanged,
+`git diff --check` clean. Commit: `0728ebcca`.
+
+Not accepted as task-complete — still need the Hasura reload +
+schema_fetcher regeneration, the `RoomMessage` client entity field, the
+notice/footer widgets, room_message_tile.dart wiring, notification-
+navigation extension, l10n, and both required tests. A fresh worker
+continues Task 13 from here.
