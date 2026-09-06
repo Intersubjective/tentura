@@ -48,6 +48,15 @@ Future<void> main() async {
       );
       await writer.execute('SET check_function_bodies = false');
       await migrateDbSchema(writer);
+      // This file fixtures retired/semantic thread-item-scoped rows directly
+      // via raw SQL to prove dormant `listThreads` mechanics across all
+      // historical kinds (0-9) — the m0156 general-only guard trigger
+      // (Task 07) now rejects non-General beacon_room_message writes on
+      // this connection unless the internal dormant-fixture GUC is set.
+      // Reads under test go through the separate `db` (Drift) connection.
+      await writer.execute(
+        "SET tentura.discussion_internal_fixture = 'allow_non_general'",
+      );
       db = TenturaDb(target.databaseEnv);
       items = CoordinationItemRepository(db);
       room = BeaconRoomRepository(db);

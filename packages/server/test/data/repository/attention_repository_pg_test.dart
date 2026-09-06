@@ -50,6 +50,13 @@ Future<void> main() async {
       );
       await writer.execute('SET check_function_bodies = false');
       await migrateDbSchema(writer);
+      // Some fixtures below insert thread-item-scoped beacon_room_message
+      // rows directly via raw SQL (dormant/retired scope) — the m0156
+      // general-only guard trigger (Task 07) rejects those on this
+      // connection unless the internal dormant-fixture GUC is set.
+      await writer.execute(
+        "SET tentura.discussion_internal_fixture = 'allow_non_general'",
+      );
       await writer.execute('''
 CREATE TABLE public.attention_uow_probe (
   id text NOT NULL,
@@ -82,6 +89,16 @@ AFTER INSERT ON public.notification_outbox
 FOR EACH ROW EXECUTE FUNCTION public.capture_attention_uow_receipt()
 ''');
       database = TenturaDb(target.databaseEnv);
+      // TenturaDb's pool is pinned to a single connection (maxConnectionCount
+      // == 1 by design — see tentura_db.dart), so this SET reliably applies
+      // to every subsequent query through `database` for the test's
+      // lifetime. One scenario below exercises BeaconRoomRepository.markBeaconRoomSeen
+      // with a real (dormant/retired) thread_item_id directly at the
+      // repository layer to prove the mechanics still work internally; the
+      // m0156 general-only guard trigger (Task 07) would otherwise reject it.
+      await database.customStatement(
+        "SET tentura.discussion_internal_fixture = 'allow_non_general'",
+      );
       query = AttentionRepository(database);
       ack = AttentionAckRepository(database);
       dispatch = AttentionDispatchRepository(database, Logger('attention_pg_test'));
