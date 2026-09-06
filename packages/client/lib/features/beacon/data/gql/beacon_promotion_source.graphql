@@ -1,0 +1,15 @@
+query BeaconPromotionSource($parentBeaconId: String!, $sourceMessageId: String!) {
+  beaconPromotionSource(
+    parentBeaconId: $parentBeaconId,
+    sourceMessageId: $sourceMessageId
+  ) {
+    sourceBeaconId
+    sourceMessageId
+    textPreview
+    author {
+      id
+      displayName
+      avatarImageId
+    }
+  }
+}

@@ -22,7 +22,7 @@ type beacon {
   address_label: String
 
   """An object relationship"""
-  author: user!
+  author: user
 
   """An array relationship"""
   beacon_archiveds(
@@ -250,7 +250,7 @@ type beacon {
   tags: String!
   title: String!
   updated_at: timestamptz!
-  user_id: String!
+  user_id: String
 
   """An array relationship"""
   vote_beacons(
@@ -852,8 +852,8 @@ Author per-commit coordination response; 0=useful,1=overlapping,2=need_different
 """
 type beacon_help_offer_coordination {
   """An object relationship"""
-  author: user!
-  author_user_id: String!
+  author: user
+  author_user_id: String
   created_at: timestamptz!
 
   """An object relationship"""
@@ -3418,6 +3418,7 @@ type mutation_root {
   attentionSettle(kind: String!, receiptId: String!): Int!
   beaconAddImage(id: String!, image: v2_Upload = {}): v2_BeaconImageAdded!
   beaconCancel(id: String!): v2_BeaconCloseReviewResult!
+  beaconChildCreate(addressLabel: String, clientCommandId: String!, context: String, coordinates: v2_Coordinates = {}, description: String, draft: Boolean, endAt: String, needs: String, parentBeaconId: String!, primaryNeedSlug: String, sourceMessageId: String, startAt: String, tags: String, title: String!): v2_BeaconChildCreateResult!
   beaconClose(expectedRequiresReviewWindow: Boolean!, id: String!): v2_BeaconCloseReviewResult!
   beaconCloseNow(id: String!): v2_BeaconCloseReviewResult!
   beaconCreate(addressLabel: String, context: String, coordinates: v2_Coordinates = {}, description: String, draft: Boolean, endAt: String, image: v2_Upload = {}, needs: String, primaryNeedSlug: String, startAt: String, tags: String, title: String!): v2_Beacon!
@@ -4327,12 +4328,16 @@ type query_root {
     """filter the rows returned"""
     where: beacon_bool_exp
   ): [beacon!]!
+  beaconChildren(after: String, first: Int, group: String!, parentBeaconId: String!): v2_BeaconHierarchyPage!
   beaconDisplayStatuses(beaconIds: [String!]): [v2_BeaconDisplayStatus!]
   beaconEligibleInboundForwards(id: String!): [v2_ForwardInboundEdge!]
   beaconForwardGraph(id: String!): v2_ForwardGraphResult!
   beaconHelpOffererForwardPath(helpOffererId: String!, id: String!): v2_ForwardGraphResult!
+  beaconHierarchyCapabilities(beaconId: String!): v2_BeaconHierarchyCapabilities!
   beaconInvolvement(id: String!): v2_BeaconInvolvement!
   beaconLineageForwardSuggestions(id: String!): v2_BeaconLineageForwardSuggestions!
+  beaconParentReference(beaconId: String!): v2_BeaconParentReference!
+  beaconPromotionSource(parentBeaconId: String!, sourceMessageId: String!): v2_BeaconPromotionSource!
   beaconThreads(beaconId: String!): [v2_BeaconThreadRow!]
 
   """
@@ -6951,6 +6956,12 @@ type v2_BeaconActivityEventRow {
   visibility: Int!
 }
 
+type v2_BeaconChildCreateResult {
+  beacon: v2_Beacon
+  beaconId: String
+  outcome: String!
+}
+
 type v2_BeaconCloseReviewResult {
   closesAt: String
   id: String!
@@ -6990,6 +7001,32 @@ type v2_BeaconFactCardRow {
   status: Int!
   updatedAt: String
   visibility: Int!
+}
+
+type v2_BeaconHierarchyCapabilities {
+  canCreateChild: Boolean!
+  canListChildren: Boolean!
+  denialCode: String
+}
+
+type v2_BeaconHierarchyOwnerSummary {
+  avatarImageId: String
+  displayName: String!
+  id: String!
+}
+
+type v2_BeaconHierarchyPage {
+  nextCursor: String
+  summaries: [v2_BeaconHierarchySummary!]!
+}
+
+type v2_BeaconHierarchySummary {
+  beaconId: String!
+  isTombstone: Boolean!
+  owner: v2_BeaconHierarchyOwnerSummary
+  publishedAt: String!
+  status: Int!
+  title: String
 }
 
 type v2_BeaconImageAdded {
@@ -7033,6 +7070,12 @@ type v2_BeaconLineageSuggestion {
   userId: String!
 }
 
+type v2_BeaconParentReference {
+  beaconId: String
+  state: String!
+  title: String
+}
+
 type v2_BeaconParticipantRow {
   beaconId: String!
   createdAt: String!
@@ -7056,6 +7099,13 @@ type v2_BeaconParticipantRow {
   userPicHeight: Int!
   userPicWidth: Int!
   userTitle: String!
+}
+
+type v2_BeaconPromotionSource {
+  author: v2_BeaconHierarchyOwnerSummary!
+  sourceBeaconId: String!
+  sourceMessageId: String!
+  textPreview: String!
 }
 
 type v2_BeaconRoomSeenResult {

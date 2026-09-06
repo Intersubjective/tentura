@@ -1,0 +1,27 @@
+query BeaconChildren(
+  $parentBeaconId: String!,
+  $group: String!,
+  $first: Int,
+  $after: String
+) {
+  beaconChildren(
+    parentBeaconId: $parentBeaconId,
+    group: $group,
+    first: $first,
+    after: $after
+  ) {
+    nextCursor
+    summaries {
+      beaconId
+      title
+      status
+      publishedAt
+      isTombstone
+      owner {
+        id
+        displayName
+        avatarImageId
+      }
+    }
+  }
+}

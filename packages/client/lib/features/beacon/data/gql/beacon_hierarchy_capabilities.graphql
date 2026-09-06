@@ -1,0 +1,7 @@
+query BeaconHierarchyCapabilities($beaconId: String!) {
+  beaconHierarchyCapabilities(beaconId: $beaconId) {
+    canListChildren
+    canCreateChild
+    denialCode
+  }
+}

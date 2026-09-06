@@ -1,0 +1,39 @@
+mutation BeaconChildCreate(
+  $parentBeaconId: String!,
+  $sourceMessageId: String,
+  $clientCommandId: String!,
+  $title: String!,
+  $context: String = "",
+  $description: String = "",
+  $coordinates: v2_Coordinates = {},
+  $startAt: String = "",
+  $endAt: String = "",
+  $tags: String = "",
+  $needs: String,
+  $primaryNeedSlug: String,
+  $addressLabel: String,
+  $draft: Boolean
+) {
+  beaconChildCreate(
+    parentBeaconId: $parentBeaconId,
+    sourceMessageId: $sourceMessageId,
+    clientCommandId: $clientCommandId,
+    title: $title,
+    context: $context,
+    description: $description,
+    coordinates: $coordinates,
+    startAt: $startAt,
+    endAt: $endAt,
+    tags: $tags,
+    needs: $needs,
+    primaryNeedSlug: $primaryNeedSlug,
+    addressLabel: $addressLabel,
+    draft: $draft
+  ) {
+    outcome
+    beaconId
+    beacon {
+      id
+    }
+  }
+}

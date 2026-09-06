@@ -15,6 +15,7 @@ import 'package:tentura_root/consts.dart';
 
 import 'auth_link.dart';
 import 'auth_loss_classifier.dart';
+import 'beacon_hierarchy_error_mapper.dart';
 import 'v2_upload_multipart_link.dart';
 
 typedef ClientParams = ({
@@ -76,6 +77,7 @@ Future<Client> buildClient({
                   factCardId: factId,
                 );
               }
+              throwIfBeaconHierarchyError(code, ext);
             }
             throw mapRemoteFailure(errs);
           }
@@ -189,6 +191,11 @@ class _V2RoutingLink extends Link {
     'BeaconSetMedia',
     'BeaconOfferHelp',
     'BeaconCreate',
+    'BeaconChildCreate',
+    'BeaconHierarchyCapabilities',
+    'BeaconChildren',
+    'BeaconParentReference',
+    'BeaconPromotionSource',
     'BeaconFork',
     'BeaconLineageForwardSuggestions',
     'BeaconUpdate',

@@ -1,0 +1,7 @@
+query BeaconParentReference($beaconId: String!) {
+  beaconParentReference(beaconId: $beaconId) {
+    state
+    beaconId
+    title
+  }
+}
