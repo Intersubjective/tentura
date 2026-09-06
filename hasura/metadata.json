@@ -213,6 +213,28 @@
                   "session_argument": "hasura_session",
                   "table_argument": "beacon_row"
                 }
+              },
+              {
+                "name": "can_read_linked_detail",
+                "definition": {
+                  "function": {
+                    "name": "beacon_get_can_read_linked_detail",
+                    "schema": "public"
+                  },
+                  "session_argument": "hasura_session",
+                  "table_argument": "beacon_row"
+                }
+              },
+              {
+                "name": "effective_admission",
+                "definition": {
+                  "function": {
+                    "name": "beacon_get_effective_admission",
+                    "schema": "public"
+                  },
+                  "session_argument": "hasura_session",
+                  "table_argument": "beacon_row"
+                }
               }
             ],
             "select_permissions": [

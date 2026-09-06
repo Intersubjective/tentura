@@ -35,10 +35,8 @@ class BeaconAccessRepository implements BeaconAccessGuard {
   Future<bool> canReadLinkedDetail({
     required String beaconId,
     required String viewerId,
-  }) async {
-    // Task 03 wires `beacon_can_read_linked_detail` SQL parity.
-    return false;
-  }
+  }) =>
+      _callPredicate('beacon_can_read_linked_detail', beaconId, viewerId);
 
   Future<bool> _callPredicate(
     String functionName,
