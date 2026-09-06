@@ -138,6 +138,7 @@ class FakeBeaconWritePort implements BeaconWritePort {
   Exception? createError;
   Exception? updateDraftError;
   Exception? updateError;
+  Exception? publishError;
 
   /// When set, [create] waits until this completes (overlapping create tests).
   Completer<void>? createHold;
@@ -194,7 +195,10 @@ class FakeBeaconWritePort implements BeaconWritePort {
   );
 
   @override
-  Future<void> publishDraft(String id) async => publishedIds.add(id);
+  Future<void> publishDraft(String id) async {
+    if (publishError != null) throw publishError!;
+    publishedIds.add(id);
+  }
 
   @override
   Future<void> delete(String id) async => deletedIds.add(id);
