@@ -37,7 +37,7 @@ Older iterations assumed feed/discovery, comments, contexts, and broad social-ne
 
 ### 4.1 Beacon is the only first-class object
 
-For v1, **beacon** is the only primary object: a request/need/task that can be forwarded, committed to, coordinated in a **Room**, and closed.
+For v1, **beacon** is the only primary object: a request/need/task that can be forwarded, committed to, coordinated in a **discussion** (internally: room), closed, and optionally nested under a parent via `parent_beacon_id`. Nesting is independent of fork **lineage** (`beaconFork` / `lineage_parent_beacon_id`).
 
 ### 4.2 Explicitly out of scope for v1
 
@@ -120,11 +120,11 @@ Status includes phases such as: no offers yet, offers awaiting author review, mo
 
 At **enough help**, new offers are **not blocked** — they are submitted as **backup offers** (secondary coordination; the primary public action for uninvolved viewers becomes **Offer as backup**, with **Forward** available as a persistent secondary control in Request chrome). The author coordinates openly across primary and backup offers.
 
-### 8.3 Beacon detail + Room
+### 8.3 Request detail + discussion
 
-Beacon detail: **Items**, **People**, **Log** + coordination header (STATUS / NOW / YOU / ACT).
+Request detail: **Discussion**, **People**, **Log** + coordination header (STATUS / NOW / YOU / ACT).
 
-**Room** — separate workspace for admitted helpers: messages, plan/ask/blocker/promise/resolution items, scoped facts. Room-private content does not leak to non-members on public beacon surfaces. See [`features/beacon_room.md`](features/beacon_room.md).
+**Discussion** — workspace for admitted helpers: **General** (the only public conversation), child request cards, hierarchy notices, messages, plans, facts, replies, mentions, and polls. Ask/promise/blocker coordination-item threads are retired. Discussion-private content does not leak to non-members on public request surfaces. Child General requires independent admission; parent admission alone does not grant it. See [`features/beacon_room.md`](features/beacon_room.md).
 
 **Remove from chat ≠ End participation** — revoke Chat access without erasing stake history; ending participation is a separate author action (`releaseCommitment`). Vocabulary and gates: [`../CONTEXT.md`](../CONTEXT.md) § Beacon lifecycle / Commitment facts.
 
@@ -165,7 +165,7 @@ Anti-pattern: “I saw content, therefore a social tie was created.”
 
 ## 12. Longer-term ontology (not v1)
 
-Signal / Case / Probe / Care Thread remain conceptual north stars. v1 **compresses** into beacon + Room coordination.
+Signal / Case / Probe / Care Thread remain conceptual north stars. v1 **compresses** into beacon + General-only discussion coordination, with optional nested child requests.
 
 Repair loop: `NEED → RELAY → COMMIT → VERIFY → CLOSE`.
 
@@ -201,4 +201,4 @@ Treat as legacy unless deliberately revived:
 
 ## 16. Short version
 
-> Feedless, inbox-driven, MR-scoped human relay for requests: manual forwarding, relational visibility, open help offers, overcommit solved through coordination metadata and Room work, closure producing private contribution traces, MeritRank hidden as procedural routing — with beacon detail (Items/People/Log) and an admitted **Room** for execution coordination.
+> Feedless, inbox-driven, MR-scoped human relay for requests: manual forwarding, relational visibility, open help offers, overcommit solved through coordination metadata and General discussion work (plus nested child requests where needed), closure producing private contribution traces, MeritRank hidden as procedural routing — with request detail (Discussion/People/Log) and admitted **discussion** for execution coordination.
