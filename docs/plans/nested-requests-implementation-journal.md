@@ -82,7 +82,7 @@ which this plan/orchestration owns.
 | 06 | Durable hierarchy delivery worker | 05 | complete |
 | 07 | Enforce General-only public product | 06 | complete |
 | 08 | Safe request deletion and account erasure | 07 | complete |
-| 09 | Scoped legacy cleanup migration | 08 | pending |
+| 09 | Scoped legacy cleanup migration | 08 | complete |
 | 10 | V2 hierarchy schema and generated client transport | 09 | pending |
 | 11 | Extend existing composer/save flow | 10 | pending |
 | 12 | Child request surface, General host, and safe navigation | 11 | pending |
