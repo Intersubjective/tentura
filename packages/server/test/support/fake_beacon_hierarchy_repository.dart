@@ -5,6 +5,7 @@ import 'package:tentura_root/domain/entity/beacon_hierarchy_page.dart';
 import 'package:tentura_root/domain/entity/beacon_parent_reference.dart';
 import 'package:tentura_root/domain/entity/beacon_promotion_source.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
+import 'package:tentura_server/domain/entity/beacon_structural_record.dart';
 import 'package:tentura_server/domain/port/beacon_hierarchy_repository_port.dart';
 import 'package:tentura_server/domain/port/mutating_unit_of_work_port.dart';
 
@@ -58,6 +59,10 @@ class FakeBeaconHierarchyRepository implements BeaconHierarchyRepositoryPort {
   @override
   Future<String?> loadImmediateParentBeaconId(String childBeaconId) =>
       throw UnimplementedError();
+
+  @override
+  Future<BeaconStructuralRecord?> loadStructuralRecord(String beaconId) async =>
+      null;
 }
 
 /// Runs [action] directly — for unit tests that need [MutatingUnitOfWorkPort].

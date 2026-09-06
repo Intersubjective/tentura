@@ -14,6 +14,7 @@ import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import 'package:tentura_server/consts/beacon_hierarchy_consts.dart';
 import 'package:tentura_server/consts/beacon_room_consts.dart';
+import 'package:tentura_server/domain/entity/beacon_structural_record.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/policy/beacon_hierarchy_policy.dart';
 import 'package:tentura_server/domain/port/beacon_hierarchy_repository_port.dart';
@@ -126,7 +127,9 @@ LIMIT $2
         .map(
           (row) => BeaconHierarchySummary(
             beaconId: row.read<String>('id'),
-            title: row.read<String>('title'),
+            title: row.read<int>('status') == BeaconStatus.deleted.smallintValue
+                ? null
+                : row.read<String>('title'),
             owner: row.readNullable<String>('user_id') == null
                 ? null
                 : BeaconHierarchyOwnerSummary(
@@ -265,6 +268,32 @@ WHERE id = $1
     return rows.single.readNullable<String>('parent_beacon_id');
   }
 
+  @override
+  Future<BeaconStructuralRecord?> loadStructuralRecord(String beaconId) async {
+    final rows = await _database.customSelect(
+      r'''
+SELECT id, status, parent_beacon_id, published_at
+FROM public.beacon
+WHERE id = $1
+''',
+      variables: [Variable<String>(beaconId)],
+    ).get();
+    if (rows.isEmpty) {
+      return null;
+    }
+    final row = rows.single;
+    final status = BeaconStatus.fromSmallint(row.read<int>('status'));
+    return BeaconStructuralRecord(
+      beaconId: row.read<String>('id'),
+      status: status,
+      isTombstone: status == BeaconStatus.deleted,
+      parentBeaconId: row.readNullable<String>('parent_beacon_id'),
+      publishedAt: row.readNullable<String>('published_at') == null
+          ? null
+          : DateTime.parse(row.read<String>('published_at')).toUtc(),
+    );
+  }
+
   Future<_BeaconRow?> _loadBeaconRow(String beaconId) async {
     final rows = await _database
         .customSelect(
@@ -282,7 +311,7 @@ WHERE id = $1
     final row = rows.single;
     return _BeaconRow(
       id: row.read<String>('id'),
-      ownerId: row.read<String>('user_id'),
+      ownerId: row.readNullable<String>('user_id') ?? '',
       title: row.read<String>('title'),
       status: row.read<int>('status'),
     );

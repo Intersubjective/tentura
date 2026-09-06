@@ -79,9 +79,9 @@ which this plan/orchestration owns.
 | 03 | Authorization, SQL/Hasura parity, and mutation locking | 02 | complete |
 | 04 | Shared normal creation and atomic child commands | 03 | complete |
 | 05 | Lifecycle producers and retained status audience | 04 | complete |
-| 06 | Durable hierarchy delivery worker | 05 | pending |
-| 07 | Enforce General-only public product | 06 | pending |
-| 08 | Safe request deletion and account erasure | 07 | pending |
+| 06 | Durable hierarchy delivery worker | 05 | complete |
+| 07 | Enforce General-only public product | 06 | complete |
+| 08 | Safe request deletion and account erasure | 07 | complete |
 | 09 | Scoped legacy cleanup migration | 08 | pending |
 | 10 | V2 hierarchy schema and generated client transport | 09 | pending |
 | 11 | Extend existing composer/save flow | 10 | pending |
@@ -1076,3 +1076,88 @@ requiring the most manager intervention: four salvage rounds plus one
 critical bug found only through direct database verification. Task 07 is
 ACCEPTED. Proceeding to Task 08 (safe request deletion and account
 erasure).
+
+### Task 08 — worker checkpoint (2026-09-06)
+
+**Migration `m0157.dart` (commit `7133dd306`, manager-verified salvage):**
+- `beacon.user_id` → nullable, `ON DELETE SET NULL`, check
+  `beacon_owner_or_deleted_ck` (`user_id IS NOT NULL OR status = 2`).
+- Nullable-and-anonymise FK forward migrations (live constraint names verified
+  via `pg_constraint` on disposable DB): `beacon_fact_card.pinned_by`,
+  `beacon_commitment_event.actor_user_id`,
+  `beacon_help_offer_admission_event.actor_user_id`,
+  `beacon_help_offer_coordination.author_user_id`,
+  `coordination_item.{creator_id,target_person_id,accepted_by_id}`.
+- **No migration needed (already nullable + SET NULL pre-m0157, re-verified
+  live):** `beacon_activity_event.{actor_id,target_user_id}`,
+  `beacon_room_state.updated_by`, `invite_genealogy.{ancestor_user_id,
+  descendant_user_id}`, `beacon_room_message.author_id` (Task 02 `m0154`).
+- **`beacon_help_offer.user_id` — manifest says nullable-and-anonymise but
+  column is part of composite PK `(beacon_id, user_id)`:** attempted
+  `DROP NOT NULL` fails with `42P16`; disposition stays **`cascade-is-correct`**
+  (offer rows removed with account; cannot anonymise owner in PK).
+
+**Account-erasure transaction sequence (`UserErasureCase.deleteById`, §4.5
+point 2):**
+1. `TransactionalAttentionCase.runAction` (attention UoW).
+2. `BeaconHierarchyRepositoryPort.lockMutationScope()`.
+3. For each owned published beacon (`published_at IS NOT NULL`, not draft):
+   - If already deleted: scrub content only.
+   - Else: `runInBeaconStateTransaction` →
+     `BeaconLifecycleEffectsCase.recordEligibleSourceTransition` (deleted) →
+     `BeaconRepository.recordBeaconStatusTransition` →
+     `UserErasurePort.scrubDeletedOwnedBeaconContent` (placeholders
+     `'Deleted request'` / `'This request was deleted.'`, clear optional
+     fields/media refs, delete owned `image` rows inside txn).
+4. Hard-delete owned draft beacons (`DELETE FROM beacon WHERE status = draft`).
+5. `deleteUserScopedEvaluationAndCapabilityRows` (scrub-then-delete tables:
+   `beacon_evaluation*`, `person_capability_event`).
+6. `deleteOwnedImageRows` (profile/other author-scoped `image` rows).
+7. **`deleteOrdinaryRoomMessagesAuthoredByUser`** — `DELETE FROM
+   beacon_room_message WHERE author_id = $user AND system_message_kind IS NULL`
+   (required so user delete's SET NULL on `author_id` does not violate
+   `beacon_room_message_author_or_system_ck`; system hierarchy notices keep
+   rows with null author).
+8. `UserRepository.deleteById` — owner FKs SET NULL; `beacon_owner_or_deleted_ck`
+   blocks raw delete while non-deleted owned requests remain.
+9. **Post-commit only:** `ImageObjectGcPort.enqueue` for collected image ids
+   (no object-store delete inside DB txn).
+
+**Structural/tombstone read path (§4.5 point 6):**
+- `BeaconStructuralRecord` + `BeaconHierarchyRepository.loadStructuralRecord`.
+- `BeaconRepository.getBeaconById`: null `user_id` on deleted status →
+  `BeaconStructuralOnlyException` (not a fake populated entity).
+
+**Tests added/extended:**
+- `beacon_hierarchy_erasure_pg_test.dart` (6 PG tests: A/B hierarchy erasure,
+  raw `DELETE FROM user` denied, rollback fault injection, FK dispositions,
+  delivered hierarchy notices survive author erasure).
+- `user_delete_attention_pg_test.dart` wired through `UserErasureTestStack`.
+- `BeaconHierarchyFixture.seedFullTopology` sets
+  `tentura.discussion_internal_fixture = allow_non_general` (Task 07 guard bypass
+  for retired-thread fixture rows); tearDown also clears hierarchy delivery/event
+  rows before beacon delete.
+
+**User-FK disposition handling (Task 00 manifest, verified at erasure time):**
+| Disposition | Handling |
+|---|---|
+| nullable-and-anonymise actor columns | SET NULL on user delete (m0157) |
+| `beacon_room_message.author_id` (system notices) | SET NULL; CHECK satisfied via `system_message_kind` |
+| `beacon_room_message.author_id` (ordinary) | deleted in step 7 before user row |
+| scrub-then-delete evaluation/capability/image | explicit DELETE in steps 5–6 |
+| `beacon_help_offer.user_id` (PK) | CASCADE removes offers |
+| cascade-is-correct | unchanged |
+
+### Task 08 — worker completion (2026-09-06)
+
+Verification:
+- `./scripts/check-custom-lints.sh packages/server` → 0/0; client → 32/32.
+- `cd packages/server && dart test --exclude-tags pg` → 1651/1651.
+- PG: `beacon_hierarchy_erasure_pg_test.dart` 6/6,
+  `user_delete_attention_pg_test.dart` 2/2,
+  `beacon_hierarchy_delivery_pg_test.dart` 12/12 (fixture bypass fix restores
+  suite under live m0156 guard).
+- Commits: `7133dd306` (migration salvage) + Task 08 erasure implementation
+  commit (this worker turn).
+
+Task 08 complete. Proceeding to Task 09 when scheduled.

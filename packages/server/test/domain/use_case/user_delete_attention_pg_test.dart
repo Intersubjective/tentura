@@ -23,6 +23,15 @@ import 'package:tentura_server/domain/port/image_repository_port.dart';
 import 'package:tentura_server/domain/port/invite_genealogy_repository_port.dart';
 import 'package:tentura_server/domain/port/task_repository_port.dart';
 import 'package:tentura_server/domain/port/trust_evidence_repository_port.dart';
+import 'package:tentura_server/data/repository/beacon_hierarchy_outbox_repository.dart';
+import 'package:tentura_server/data/repository/beacon_hierarchy_repository.dart';
+import 'package:tentura_server/data/repository/beacon_room_notification_context_repository.dart';
+import 'package:tentura_server/data/repository/beacon_room_repository.dart';
+import 'package:tentura_server/data/repository/commitment_repository.dart';
+import 'package:tentura_server/data/repository/help_offer_repository.dart';
+import 'package:tentura_server/domain/use_case/beacon_lifecycle_effects_case.dart';
+import 'package:tentura_server/domain/use_case/transactional_attention_case.dart';
+import '../../support/user_erasure_test_stack.dart';
 import 'package:tentura_server/domain/use_case/user_case.dart';
 import 'package:tentura_server/env.dart';
 
@@ -60,19 +69,31 @@ Future<void> main() async {
       dispatch = AttentionDispatchRepository(database, Logger('user_delete_attention_pg_test'));
       delivery = AttentionChannelDeliveryRepository(database);
       unitOfWork = MutatingUnitOfWork(database);
-      userCase = UserCase(
-        _NoopImageRepository(),
-        UserRepository(
-          Env(environment: Environment.test),
-          database,
-          _NoopTrustEvidenceRepository(),
-          _NoopInviteGenealogyRepository(),
-          InviteSeedPromptRepositoryMock(),
-        ),
-        _NoopTaskRepository(),
-        env: Env(environment: Environment.test),
-        logger: Logger('test'),
+      final users = UserRepository(
+        Env(environment: Environment.test),
+        database,
+        _NoopTrustEvidenceRepository(),
+        _NoopInviteGenealogyRepository(),
+        InviteSeedPromptRepositoryMock(),
       );
+      final room = BeaconRoomRepository(database);
+      final helpOffers = HelpOfferRepository(database);
+      final commitments = CommitmentRepository(database);
+      final outbox = BeaconHierarchyOutboxRepository(database);
+      final lifecycleEffects = BeaconLifecycleEffectsCase(
+        outbox,
+        env: Env(environment: Environment.test),
+        logger: Logger('user_delete_attention_pg_test'),
+      );
+      final attention = TransactionalAttentionCase(unitOfWork, dispatch);
+      final stack = buildUserErasureTestStack(
+        db: database,
+        userRepository: users,
+        lifecycleEffects: lifecycleEffects,
+        attention: attention,
+        logger: Logger('user_delete_attention_pg_test'),
+      );
+      userCase = stack.userCase;
     });
 
     tearDownAll(() async {

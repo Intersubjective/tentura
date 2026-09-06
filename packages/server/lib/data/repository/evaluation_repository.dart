@@ -677,6 +677,11 @@ ORDER BY e.updated_at DESC
         return null;
       }
 
+      final beaconAuthorId = beaconRow.userId;
+      if (beaconAuthorId == null) {
+        return null;
+      }
+
       if (requireAllRequiredPackagesSent &&
           !await _requiredPackagesAllSentLocked(beaconId)) {
         return null;
@@ -702,7 +707,7 @@ ORDER BY e.updated_at DESC
         toState: 6,
         reason: reason,
         actorId: actorUserId,
-        mutatingUserId: actorUserId ?? beaconRow.userId,
+        mutatingUserId: actorUserId ?? beaconAuthorId,
       );
 
       await _db.managers.beaconReviewStatuses
@@ -786,7 +791,7 @@ GROUP BY f.evaluator_id, f.evaluated_user_id, f.value, p.role
 
       return ReviewCloseSnapshot(
         beaconId: beaconId,
-        beaconAuthorId: beaconRow.userId,
+        beaconAuthorId: beaconAuthorId,
         beaconTitle: beaconRow.title,
         windowOpenedAt: window.openedAt.dateTime,
         finalizedEvaluations: finalized,

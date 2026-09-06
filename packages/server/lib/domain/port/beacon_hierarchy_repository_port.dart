@@ -5,6 +5,8 @@ import 'package:tentura_root/domain/entity/beacon_parent_reference.dart';
 import 'package:tentura_root/domain/entity/beacon_promotion_source.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 
+import 'package:tentura_server/domain/entity/beacon_structural_record.dart';
+
 /// Read-side hierarchy projections and structural facts.
 abstract class BeaconHierarchyRepositoryPort {
   Future<void> lockMutationScope();
@@ -36,4 +38,7 @@ abstract class BeaconHierarchyRepositoryPort {
   Future<BeaconStatus?> loadBeaconStatus(String beaconId);
 
   Future<String?> loadImmediateParentBeaconId(String childBeaconId);
+
+  /// Structural facts for deleted rows whose owner FK was nulled by erasure.
+  Future<BeaconStructuralRecord?> loadStructuralRecord(String beaconId);
 }

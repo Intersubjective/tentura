@@ -12,7 +12,7 @@ class Beacons extends Table
   late final id = text().clientDefault(() => BeaconEntity.newId)();
 
   @ReferenceName('author')
-  late final userId = text().references(Users, #id)();
+  late final userId = text().nullable().references(Users, #id)();
 
   late final context = text().nullable().withLength(
     min: kTitleMinLength,

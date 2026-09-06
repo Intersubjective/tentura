@@ -11,6 +11,7 @@ import 'package:tentura_server/domain/port/image_repository_port.dart';
 import 'package:tentura_server/domain/port/task_repository_port.dart';
 import 'package:tentura_server/domain/port/user_repository_port.dart';
 import 'package:tentura_server/domain/use_case/user_case.dart';
+import 'package:tentura_server/domain/use_case/user_erasure_case.dart';
 import 'package:tentura_server/env.dart';
 
 final class _FakeUserRepository implements UserRepositoryPort {
@@ -51,6 +52,11 @@ final class _FakeTaskRepository implements TaskRepositoryPort {
   dynamic noSuchMethod(Invocation invocation) => throw UnimplementedError();
 }
 
+final class _FakeAccountErasure implements AccountErasureCase {
+  @override
+  Future<bool> deleteById({required String id}) async => true;
+}
+
 void main() {
   late AccountProfileController controller;
   late _FakeUserRepository userRepo;
@@ -62,6 +68,7 @@ void main() {
       _FakeImageRepository(),
       userRepo,
       _FakeTaskRepository(),
+      _FakeAccountErasure(),
       env: env,
       logger: Logger('AccountProfileControllerTest'),
     );

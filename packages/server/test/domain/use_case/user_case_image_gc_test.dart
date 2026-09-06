@@ -3,33 +3,68 @@ import 'package:logging/logging.dart';
 import 'package:mockito/mockito.dart';
 import 'package:test/test.dart';
 
-import 'package:tentura_server/domain/port/image_repository_port.dart';
-import 'package:tentura_server/domain/port/task_repository_port.dart';
+import 'package:tentura_server/domain/attention/attention_models.dart';
+import 'package:tentura_server/domain/port/attention_dispatch_port.dart';
+import 'package:tentura_server/domain/port/beacon_hierarchy_outbox_port.dart';
+import 'package:tentura_server/domain/port/beacon_hierarchy_repository_port.dart';
+import 'package:tentura_server/domain/port/beacon_repository_port.dart';
+import 'package:tentura_server/domain/port/image_object_gc_port.dart';
+import 'package:tentura_server/domain/port/mutating_unit_of_work_port.dart';
+import 'package:tentura_server/domain/port/user_erasure_port.dart';
 import 'package:tentura_server/domain/port/user_repository_port.dart';
-import 'package:tentura_server/domain/use_case/user_case.dart';
+import 'package:tentura_server/domain/use_case/beacon_lifecycle_effects_case.dart';
+import 'package:tentura_server/domain/use_case/transactional_attention_case.dart';
+import 'package:tentura_server/domain/use_case/user_erasure_case.dart';
 import 'package:tentura_server/env.dart';
 
-/// Records call order across both ports so tests can assert the account
-/// deletion sequence without depending on a real database.
 class _CallOrder {
   final calls = <String>[];
 }
 
-class _TrackingImageRepo extends Fake implements ImageRepositoryPort {
-  _TrackingImageRepo(this.order);
+class _TrackingImageGc extends Fake implements ImageObjectGcPort {
+  _TrackingImageGc(this.order);
 
   final _CallOrder order;
-  Object? failure;
 
   @override
-  Future<void> deleteAllOf({required String userId}) async {
-    order.calls.add('imageRepo.deleteAllOf($userId)');
-    if (failure != null) throw failure!;
+  Future<void> enqueue({
+    required String imageId,
+    required String authorId,
+  }) async {
+    order.calls.add('imageGc.enqueue($authorId,$imageId)');
   }
 }
 
-class _TrackingUserRepo extends Fake implements UserRepositoryPort {
-  _TrackingUserRepo(this.order);
+class _FakeErasurePort extends Fake implements UserErasurePort {
+  @override
+  Future<List<OwnedPublishedBeaconRow>> listOwnedPublishedBeacons({
+    required String userId,
+  }) async =>
+      const [];
+
+  @override
+  Future<List<String>> listOwnedDraftBeaconIds({required String userId}) async =>
+      const [];
+
+  @override
+  Future<void> deleteUserScopedEvaluationAndCapabilityRows({
+    required String userId,
+  }) async {}
+
+  @override
+  Future<void> deleteOrdinaryRoomMessagesAuthoredByUser({
+    required String userId,
+  }) async {}
+
+  @override
+  Future<List<String>> deleteOwnedImageRows({required String userId}) async =>
+      ['Iprofile1'];
+}
+
+class _FakeBeaconRepo extends Fake implements BeaconRepositoryPort {}
+
+class _FakeUserRepo extends Fake implements UserRepositoryPort {
+  _FakeUserRepo(this.order);
 
   final _CallOrder order;
 
@@ -39,50 +74,63 @@ class _TrackingUserRepo extends Fake implements UserRepositoryPort {
   }
 }
 
-class _FakeTaskRepo extends Fake implements TaskRepositoryPort {}
+class _FakeHierarchy extends Fake implements BeaconHierarchyRepositoryPort {
+  @override
+  Future<void> lockMutationScope() async {}
+}
+
+class _FakeOutbox extends Fake implements BeaconHierarchyOutboxPort {}
+
+class _FakeUow extends Fake implements MutatingUnitOfWorkPort {
+  @override
+  Future<T> run<T>({
+    required Future<T> Function() action,
+    String? actorUserId,
+  }) async =>
+      action();
+}
+
+class _FakeDispatch extends Fake implements AttentionDispatchPort {
+  @override
+  Future<void> record(AttentionDispatchIntent intent) async {}
+}
 
 void main() {
   late _CallOrder order;
-  late _TrackingImageRepo imageRepo;
-  late _TrackingUserRepo userRepo;
-  late UserCase case_;
+  late _TrackingImageGc imageGc;
+  late _FakeUserRepo userRepo;
+  late UserErasureCase case_;
 
   setUp(() {
     order = _CallOrder();
-    imageRepo = _TrackingImageRepo(order);
-    userRepo = _TrackingUserRepo(order);
-    case_ = UserCase(
-      imageRepo,
+    imageGc = _TrackingImageGc(order);
+    userRepo = _FakeUserRepo(order);
+    case_ = UserErasureCase(
+      _FakeErasurePort(),
+      _FakeBeaconRepo(),
       userRepo,
-      _FakeTaskRepo(),
+      _FakeHierarchy(),
+      BeaconLifecycleEffectsCase(
+        _FakeOutbox(),
+        env: Env(environment: Environment.test),
+        logger: Logger('UserErasureImageGcTest'),
+      ),
+      TransactionalAttentionCase(_FakeUow(), _FakeDispatch()),
+      imageGc,
       env: Env(environment: Environment.test),
-      logger: Logger('UserCaseImageGcTest'),
+      logger: Logger('UserErasureImageGcTest'),
     );
   });
 
   test(
-    'enqueues every owned image for GC before deleting the user row',
+    'enqueues image GC only after the account erasure transaction commits',
     () async {
       expect(await case_.deleteById(id: 'Uauth'), isTrue);
 
       expect(order.calls, [
-        'imageRepo.deleteAllOf(Uauth)',
         'userRepo.deleteById(Uauth)',
+        'imageGc.enqueue(Uauth,Iprofile1)',
       ]);
-    },
-  );
-
-  test(
-    'never deletes the user row when image cleanup fails, so nothing is orphaned',
-    () async {
-      imageRepo.failure = StateError('gc enqueue failed');
-
-      await expectLater(
-        case_.deleteById(id: 'Uauth'),
-        throwsA(isA<StateError>()),
-      );
-
-      expect(order.calls, ['imageRepo.deleteAllOf(Uauth)']);
     },
   );
 }

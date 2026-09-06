@@ -346,6 +346,16 @@ final class BeaconChildCreateForbiddenException extends ExceptionBase {
       );
 }
 
+final class BeaconStructuralOnlyException extends ExceptionBase {
+  const BeaconStructuralOnlyException({required String beaconId})
+    : super(
+        code: const GeneralExceptionCodes(
+          GeneralExceptionCode.idNotFoundException,
+        ),
+        description: 'Structural request record only: [$beaconId]',
+      );
+}
+
 final class BeaconParentNotCoordinatableException extends ExceptionBase {
   const BeaconParentNotCoordinatableException({String? description})
     : super(

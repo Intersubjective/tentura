@@ -11,14 +11,26 @@ import 'package:tentura_server/domain/entity/task_entity.dart';
 import 'package:tentura_server/domain/entity/user_entity.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/use_case/user_case.dart';
+import 'package:tentura_server/domain/use_case/user_erasure_case.dart';
 import 'package:tentura_server/env.dart';
 
 import 'user_case_mocks.mocks.dart';
+
+class _RecordingAccountErasure implements AccountErasureCase {
+  String? lastDeletedId;
+
+  @override
+  Future<bool> deleteById({required String id}) async {
+    lastDeletedId = id;
+    return true;
+  }
+}
 
 void main() {
   late MockUserRepositoryPort userRepo;
   late MockImageRepositoryPort imageRepo;
   late MockTaskRepositoryPort taskRepo;
+  late _RecordingAccountErasure accountErasure;
   late UserCase case_;
 
   final createdAt = DateTime.utc(2026, 6, 25);
@@ -66,10 +78,12 @@ void main() {
     userRepo = MockUserRepositoryPort();
     imageRepo = MockImageRepositoryPort();
     taskRepo = MockTaskRepositoryPort();
+    accountErasure = _RecordingAccountErasure();
     case_ = UserCase(
       imageRepo,
       userRepo,
       taskRepo,
+      accountErasure,
       env: Env(environment: Environment.test),
       logger: Logger('UserCaseTest'),
     );
@@ -344,10 +358,9 @@ void main() {
   });
 
   group('UserCase.deleteById', () {
-    test('deletes the user and all of their images', () async {
+    test('delegates to UserErasureCase', () async {
       expect(await case_.deleteById(id: userId), isTrue);
-      verify(userRepo.deleteById(id: userId)).called(1);
-      verify(imageRepo.deleteAllOf(userId: userId)).called(1);
+      expect(accountErasure.lastDeletedId, userId);
     });
   });
 }

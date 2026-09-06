@@ -8,6 +8,7 @@ import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/port/image_repository_port.dart';
 import 'package:tentura_server/domain/port/task_repository_port.dart';
 import 'package:tentura_server/domain/port/user_repository_port.dart';
+import 'package:tentura_server/domain/use_case/user_erasure_case.dart';
 
 import '../entity/task_entity.dart';
 import '../entity/user_entity.dart';
@@ -22,10 +23,12 @@ final class UserCase extends UseCaseBase {
     ImageRepositoryPort imageRepository,
     UserRepositoryPort userRepository,
     TaskRepositoryPort tasksRepository,
+    AccountErasureCase accountErasure,
   ) async => UserCase(
     imageRepository,
     userRepository,
     tasksRepository,
+    accountErasure,
     env: env,
     logger: logger,
   );
@@ -33,7 +36,8 @@ final class UserCase extends UseCaseBase {
   UserCase(
     this._imageRepository,
     this._userRepository,
-    this._tasksRepository, {
+    this._tasksRepository,
+    this._accountErasure, {
     required super.env,
     required super.logger,
   });
@@ -43,6 +47,8 @@ final class UserCase extends UseCaseBase {
   final UserRepositoryPort _userRepository;
 
   final TaskRepositoryPort _tasksRepository;
+
+  final AccountErasureCase _accountErasure;
 
   //
   Future<UserEntity> getProfile({required String id}) =>
@@ -103,11 +109,7 @@ final class UserCase extends UseCaseBase {
     return _userRepository.getById(id);
   }
 
-  /// Enqueues GC and deletes every owned image row before the user row
-  /// itself, so no object is orphaned in remote storage (§3.4).
-  Future<bool> deleteById({required String id}) async {
-    await _imageRepository.deleteAllOf(userId: id);
-    await _userRepository.deleteById(id: id);
-    return true;
-  }
+  /// Account erasure with structural tombstone retention (§4.5).
+  Future<bool> deleteById({required String id}) =>
+      _accountErasure.deleteById(id: id);
 }

@@ -11,8 +11,8 @@ import 'package:tentura_server/consts.dart'
 import 'package:tentura_server/consts/beacon_activity_event_consts.dart';
 import 'package:tentura_server/domain/entity/beacon_activity_event_entity.dart';
 import 'package:tentura_server/domain/entity/beacon_entity.dart';
-import 'package:tentura_server/domain/entity/beacon_media_state.dart';
 import 'package:tentura_server/domain/exception.dart';
+import 'package:tentura_server/domain/entity/beacon_media_state.dart';
 import 'package:tentura_server/domain/port/beacon_repository_port.dart';
 
 import '../database/tentura_db.dart';
@@ -112,7 +112,7 @@ class BeaconRepository implements BeaconRepositoryPort {
     final effectiveStatus = status ?? BeaconStatus.open;
     var beacon = await _database.managers.beacons.createReturning(
       (o) => o(
-        userId: authorId,
+        userId: Value(authorId),
         title: title,
         context: Value(_beaconContextForDb(context)),
         description: Value(description ?? ''),
@@ -198,7 +198,7 @@ class BeaconRepository implements BeaconRepositoryPort {
     final publishedAt = draft ? null : DateTime.timestamp();
     var beacon = await _database.managers.beacons.createReturning(
       (o) => o(
-        userId: authorId,
+        userId: Value(authorId),
         title: title,
         parentBeaconId: Value(parentBeaconId),
         publishedAt: Value(
@@ -255,8 +255,19 @@ class BeaconRepository implements BeaconRepositoryPort {
         .getSingle();
 
     final images = await _getBeaconImages(beaconId);
+    final ownerId = beacon.userId;
+    if (ownerId == null) {
+      if (beacon.status == BeaconStatus.deleted.smallintValue) {
+        throw BeaconStructuralOnlyException(beaconId: beaconId);
+      }
+      throw IdNotFoundException(
+        id: beaconId,
+        description: 'Request owner missing for [$beaconId]',
+      );
+    }
+
     final authorRow = await _database.managers.users
-        .filter((e) => e.id.equals(beacon.userId))
+        .filter((e) => e.id.equals(ownerId))
         .getSingle();
 
     return beaconModelToEntity(

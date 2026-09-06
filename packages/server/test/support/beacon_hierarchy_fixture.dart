@@ -173,6 +173,9 @@ final class BeaconHierarchyFixture {
   final BeaconHierarchyTopology topology;
 
   Future<void> seedFullTopology() async {
+    await writer.execute(
+      "SET tentura.discussion_internal_fixture = 'allow_non_general'",
+    );
     await _seedUsers();
     await _seedPublishedBeacons();
     await _seedPrivateDraftChild();
@@ -184,6 +187,14 @@ final class BeaconHierarchyFixture {
   }
 
   Future<void> tearDown() async {
+    await writer.execute(
+      "DELETE FROM public.beacon_hierarchy_deliveries "
+      "WHERE target_beacon_id LIKE 'Bhier%' OR event_id LIKE 'Hier%'",
+    );
+    await writer.execute(
+      "DELETE FROM public.beacon_hierarchy_events "
+      "WHERE source_beacon_id LIKE 'Bhier%' OR id LIKE 'Hier%'",
+    );
     await writer.execute(
       "DELETE FROM public.beacon_room_message_attachment WHERE message_id LIKE 'Rhier%'",
     );
