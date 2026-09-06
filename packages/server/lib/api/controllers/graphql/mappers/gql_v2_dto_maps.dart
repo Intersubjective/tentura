@@ -1,3 +1,4 @@
+import 'package:tentura_root/domain/entity/beacon_child_command_outcome.dart';
 import 'package:tentura_root/domain/entity/beacon_hierarchy_capabilities.dart';
 import 'package:tentura_root/domain/entity/beacon_hierarchy_page.dart';
 import 'package:tentura_root/domain/entity/beacon_hierarchy_summary.dart';
@@ -193,4 +194,68 @@ Map<String, dynamic> evaluationsWrittenAboutViewerRowToGqlMap(
   'acknowledgedHelpTags': dto.acknowledgedHelpTags,
   'note': dto.note,
   'occurredAt': dto.occurredAt.toUtc().toIso8601String(),
+};
+
+Map<String, dynamic> beaconHierarchyOwnerSummaryToGqlMap(
+  BeaconHierarchyOwnerSummary owner,
+) => {
+  'id': owner.id,
+  'displayName': owner.displayName,
+  'avatarImageId': owner.avatarImageId,
+};
+
+Map<String, dynamic> beaconHierarchySummaryToGqlMap(
+  BeaconHierarchySummary summary,
+) => {
+  'beaconId': summary.beaconId,
+  'title': summary.title,
+  'owner': summary.owner == null
+      ? null
+      : beaconHierarchyOwnerSummaryToGqlMap(summary.owner!),
+  'status': summary.status.smallintValue,
+  'publishedAt': summary.publishedAt.toUtc().toIso8601String(),
+  'isTombstone': summary.isTombstone,
+};
+
+Map<String, dynamic> beaconHierarchyPageToGqlMap(BeaconHierarchyPage page) => {
+  'summaries': page.summaries.map(beaconHierarchySummaryToGqlMap).toList(),
+  'nextCursor': page.nextCursor,
+};
+
+Map<String, dynamic> beaconHierarchyCapabilitiesToGqlMap(
+  BeaconHierarchyCapabilities capabilities,
+) => {
+  'canListChildren': capabilities.canListChildren,
+  'canCreateChild': capabilities.canCreateChild,
+  'denialCode': capabilities.denialCode?.name,
+};
+
+Map<String, dynamic> beaconParentReferenceToGqlMap(
+  BeaconParentReference reference,
+) => {
+  'state': reference.state.name,
+  'beaconId': reference.beaconId,
+  'title': reference.title,
+};
+
+Map<String, dynamic> beaconPromotionSourceToGqlMap(
+  BeaconPromotionSource source,
+) => {
+  'sourceBeaconId': source.sourceBeaconId,
+  'sourceMessageId': source.sourceMessageId,
+  'textPreview': source.textPreview,
+  'author': beaconHierarchyOwnerSummaryToGqlMap(source.author),
+};
+
+Map<String, dynamic> beaconChildCreateResultToGqlMap(
+  BeaconChildCreateResult result,
+) => {
+  'outcome': result.outcome.name,
+  'beaconId': result.beaconId,
+  'beacon': switch (result.outcome) {
+    BeaconChildCommandOutcome.created ||
+    BeaconChildCommandOutcome.replayed =>
+      result.beacon?.asJson,
+    BeaconChildCommandOutcome.alreadyPromoted => null,
+  },
 };
