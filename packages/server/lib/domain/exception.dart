@@ -336,6 +336,86 @@ final class BeaconMediaInvalidException extends ExceptionBase {
       );
 }
 
+final class BeaconChildCreateForbiddenException extends ExceptionBase {
+  const BeaconChildCreateForbiddenException({String? description})
+    : super(
+        code: const BeaconExceptionCodes(
+          BeaconExceptionCode.beaconChildCreateForbidden,
+        ),
+        description: description ?? 'Child request creation is not allowed',
+      );
+}
+
+final class BeaconParentNotCoordinatableException extends ExceptionBase {
+  const BeaconParentNotCoordinatableException({String? description})
+    : super(
+        code: const BeaconExceptionCodes(
+          BeaconExceptionCode.beaconParentNotCoordinatable,
+        ),
+        description:
+            description ?? 'Parent request cannot accept child requests',
+      );
+}
+
+final class BeaconPromotionSourceInvalidException extends ExceptionBase {
+  const BeaconPromotionSourceInvalidException({String? description})
+    : super(
+        code: const BeaconExceptionCodes(
+          BeaconExceptionCode.beaconPromotionSourceInvalid,
+        ),
+        description: description ?? 'Promotion source message is not eligible',
+      );
+}
+
+final class BeaconSourceAlreadyPromotedException extends ExceptionBase {
+  const BeaconSourceAlreadyPromotedException({
+    this.existingChildBeaconId,
+    String? description,
+  }) : super(
+         code: const BeaconExceptionCodes(
+           BeaconExceptionCode.beaconSourceAlreadyPromoted,
+         ),
+         description:
+             description ?? 'Source message already has a published child',
+       );
+
+  final String? existingChildBeaconId;
+
+  @override
+  Map<String, Object> get toMap => {
+    'message': description,
+    'extensions': {
+      'code': '${code.codeNumber}',
+      'path': path,
+      if (existingChildBeaconId != null)
+        'beaconId': existingChildBeaconId!,
+    },
+  };
+}
+
+final class BeaconChildCommandConflictException extends ExceptionBase {
+  const BeaconChildCommandConflictException({String? description})
+    : super(
+        code: const BeaconExceptionCodes(
+          BeaconExceptionCode.beaconChildCommandConflict,
+        ),
+        description:
+            description ??
+            'Client command id was reused with different input',
+      );
+}
+
+final class BeaconChildCommandGoneException extends ExceptionBase {
+  const BeaconChildCommandGoneException({String? description})
+    : super(
+        code: const BeaconExceptionCodes(
+          BeaconExceptionCode.beaconChildCommandGone,
+        ),
+        description:
+            description ?? 'Prior child draft for this command was deleted',
+      );
+}
+
 final class EvaluationException extends ExceptionBase {
   EvaluationException({
     required EvaluationExceptionCode evaluationCode,

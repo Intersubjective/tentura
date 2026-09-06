@@ -54,11 +54,6 @@ abstract final class BeaconPromotionEligibilityPolicy {
       return false;
     }
     if (facts.semanticMarker != null) {
-      if (facts.semanticMarker == BeaconRoomSemanticMarker.blocker ||
-          facts.semanticMarker == BeaconRoomSemanticMarker.needInfo ||
-          facts.semanticMarker == BeaconRoomSemanticMarker.done) {
-        return false;
-      }
       return false;
     }
     if (facts.linkedItemId != null && facts.linkedItemId!.isNotEmpty) {
