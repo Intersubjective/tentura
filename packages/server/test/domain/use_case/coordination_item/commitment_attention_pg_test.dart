@@ -213,6 +213,59 @@ SELECT count(*)::int FROM public.notification_outbox
       },
       skip: skipReason,
     );
+
+    test(
+      'requestStatusChanged excludes a withdrawn help offer author but '
+      'includes an active one',
+      () async {
+        const activeHelperId = 'Uhelperactive1';
+        const withdrawnHelperId = 'Uhelperwdrwn1';
+        final helperKey1 = pgTestPublicKey('commit', 3);
+        final helperKey2 = pgTestPublicKey('commit', 4);
+        await writer.execute(
+          Sql.named('''
+INSERT INTO public."user" (id, display_name, public_key)
+VALUES
+  (@activeId, @activeId, @activeKey),
+  (@withdrawnId, @withdrawnId, @withdrawnKey)
+'''),
+          parameters: {
+            'activeId': activeHelperId,
+            'activeKey': helperKey1,
+            'withdrawnId': withdrawnHelperId,
+            'withdrawnKey': helperKey2,
+          },
+        );
+        await writer.execute(
+          Sql.named('''
+INSERT INTO public.beacon_help_offer (beacon_id, user_id, status)
+VALUES
+  (@beaconId, @activeId, 0),
+  (@beaconId, @withdrawnId, 1)
+'''),
+          parameters: {
+            'beaconId': beaconId,
+            'activeId': activeHelperId,
+            'withdrawnId': withdrawnHelperId,
+          },
+        );
+
+        final intent = await attentionIntents.requestStatusChanged(
+          beaconId: beaconId,
+          fromStatus: 'open',
+          toStatus: 'closed',
+          actorUserId: creatorId,
+          sourceEventKey: 'request_status:withdrawn-offer-check',
+        );
+
+        final recipientIds = intent.recipients
+            .map((r) => r.recipientId)
+            .toSet();
+        expect(recipientIds, contains(activeHelperId));
+        expect(recipientIds, isNot(contains(withdrawnHelperId)));
+      },
+      skip: skipReason,
+    );
   });
 }
 

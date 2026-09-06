@@ -63,7 +63,7 @@ class BeaconRoomNotificationContextRepository
     final offers = await _helpOffers.fetchByBeaconId(beaconId);
     return {
       for (final offer in offers)
-        if (offer.userId.isNotEmpty) offer.userId,
+        if (offer.userId.isNotEmpty && _isActiveOffer(offer)) offer.userId,
     };
   }
 
