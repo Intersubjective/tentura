@@ -136,31 +136,34 @@ void main() {
       expect(recorder.created, hasLength(1));
       final first = recorder.created.single;
 
-      final secondSelect = host.select(_semanticThread(itemId: 'item-b'));
+      // General-only now (plan §6.1: select() no-ops for non-General
+      // threads), so re-selecting General is the only way to exercise the
+      // close-before-recreate ordering this test guards.
+      final secondSelect = host.select(_generalThread());
       expect(recorder.created, hasLength(1));
 
       first.closeCompleter.complete();
       await secondSelect;
 
       expect(recorder.created, hasLength(2));
-      expect(recorder.calls.last.threadItemId, 'item-b');
+      expect(recorder.calls.last.threadItemId, isNull);
       expect(first.closeCallCount, 1);
 
       recorder.created.last.closeCompleter.complete();
       await host.close();
     });
 
-    test('rapid A→B→C coalesces to one factory call when tail has not run', () async {
+    test('rapid repeat selects coalesce to one factory call when tail has not run', () async {
       final recorder = RoomCubitFactoryRecorder();
       final host = _host(recorder: recorder);
 
-      final threadA = _semanticThread(itemId: 'item-a');
-      final threadB = _semanticThread(itemId: 'item-b');
-      final threadC = _semanticThread(itemId: 'item-c');
-
-      unawaited(host.select(threadA));
-      unawaited(host.select(threadB));
-      final finalSelect = host.select(threadC);
+      // Only General exists to select now; rapid repeats of the same
+      // target still exercise the generation-coalescing logic this test
+      // guards (only the last of several overlapping selects should
+      // actually construct a cubit).
+      unawaited(host.select(_generalThread()));
+      unawaited(host.select(_generalThread()));
+      final finalSelect = host.select(_generalThread());
 
       expect(recorder.calls, isEmpty);
       expect(host.state.selectionGeneration, 3);
@@ -169,10 +172,10 @@ void main() {
       await finalSelect;
 
       expect(recorder.calls, hasLength(1));
-      expect(recorder.calls.single.threadItemId, 'item-c');
-      expect(host.state.openThreadId, 'item-c');
+      expect(recorder.calls.single.threadItemId, isNull);
+      expect(host.state.openThreadId, RequestThread.generalId);
       expect(host.state.switching, isFalse);
-      expect(host.roomCubit?.state.threadItemId, 'item-c');
+      expect(host.roomCubit?.state.threadItemId, isNull);
 
       recorder.created.single.closeCompleter.complete();
       await host.close();
@@ -194,16 +197,17 @@ void main() {
       await host.close();
     });
 
-    test('semantic thread passes item id to factory', () async {
+    test('select ignores a non-General thread (General-only host, plan §6.1)', () async {
       final recorder = RoomCubitFactoryRecorder();
       final host = _host(recorder: recorder);
 
       await host.select(_semanticThread(itemId: 'semantic-42'));
 
-      expect(recorder.calls.single.threadItemId, 'semantic-42');
-      expect(host.state.openThreadId, 'semantic-42');
+      expect(recorder.calls, isEmpty);
+      expect(host.state.openThreadId, isNull);
+      expect(host.state.switching, isFalse);
+      expect(host.roomCubit, isNull);
 
-      recorder.created.single.closeCompleter.complete();
       await host.close();
     });
 
@@ -233,7 +237,7 @@ void main() {
       final recorder = RoomCubitFactoryRecorder();
       final host = _host(recorder: recorder);
 
-      await host.select(_semanticThread(itemId: 'item-clear'));
+      await host.select(_generalThread());
       final owned = recorder.created.single;
 
       final clearFuture = host.clear();
