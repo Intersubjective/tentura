@@ -10,6 +10,7 @@ final class RecordingBeaconHierarchyOutbox implements BeaconHierarchyOutboxPort 
   final topologyInserts = <({String sourceBeaconId, String eventId})>[];
   var failOnTopologyInsert = false;
   int recordEventCalls = 0;
+  int claimDueCalls = 0;
 
   @override
   Future<BeaconHierarchyEvent> recordEvent({
@@ -55,8 +56,10 @@ final class RecordingBeaconHierarchyOutbox implements BeaconHierarchyOutboxPort 
     required String leaseOwner,
     required DateTime now,
     required int limit,
-  }) async =>
-      const [];
+  }) async {
+    claimDueCalls++;
+    return const [];
+  }
 
   @override
   Future<BeaconHierarchyEvent?> loadEvent(String eventId) async => null;

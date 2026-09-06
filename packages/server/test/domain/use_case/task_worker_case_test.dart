@@ -16,11 +16,14 @@ import 'package:tentura_server/domain/port/task_repository_port.dart';
 import 'package:tentura_server/domain/port/user_availability_repository_port.dart';
 import 'package:tentura_server/domain/port/verified_contact_repository_port.dart';
 import 'package:tentura_server/domain/use_case/email_digest_case.dart';
+import 'package:tentura_server/domain/use_case/beacon_hierarchy_delivery_case.dart';
 import 'package:tentura_server/domain/use_case/task_worker_case.dart';
 import 'package:tentura_server/domain/use_case/user_availability_case.dart';
 import 'package:tentura_server/env.dart';
 
 import '../../support/fake_beacon_access_guard.dart';
+import '../../support/recording_beacon_hierarchy_outbox.dart';
+import '../../support/test_attention_harness.dart';
 
 Uint8List _png(int width, int height) =>
     Uint8List.fromList(img.encodePng(img.Image(width: width, height: height)));
@@ -130,6 +133,19 @@ class _CountingAvailabilityRepo implements UserAvailabilityRepositoryPort {
   dynamic noSuchMethod(Invocation i) => throw UnimplementedError('$i');
 }
 
+BeaconHierarchyDeliveryCase _hierarchyDeliveryCase(
+  RecordingBeaconHierarchyOutbox outbox,
+) {
+  final harness = TestAttentionHarness();
+  return BeaconHierarchyDeliveryCase(
+    outbox,
+    harness.transactional,
+    harness.intents,
+    env: _testEnv(),
+    logger: Logger('test'),
+  );
+}
+
 UserAvailabilityCase _availabilityCase(_CountingAvailabilityRepo repo) =>
     UserAvailabilityCase(
       repo,
@@ -154,6 +170,7 @@ TaskWorkerCase _worker({
   required EmailDigestCase digest,
   required NotificationOutboxRepositoryPort outbox,
   UserAvailabilityCase? userAvailabilityCase,
+  BeaconHierarchyDeliveryCase? beaconHierarchyDelivery,
   Env? env,
 }) =>
     TaskWorkerCase(
@@ -162,6 +179,7 @@ TaskWorkerCase _worker({
       digest,
       outbox,
       userAvailabilityCase: userAvailabilityCase,
+      beaconHierarchyDelivery: beaconHierarchyDelivery,
       env: env ?? _testEnv(),
       logger: Logger('test'),
     );
@@ -284,6 +302,21 @@ void main() {
       await _runBriefly(worker);
 
       expect(availabilityRepo.cleanupCalls, 1);
+    });
+
+    test('invokes hierarchy delivery sweep at attention-delivery cadence', () async {
+      final hierarchyOutbox = RecordingBeaconHierarchyOutbox();
+      final worker = _worker(
+        tasks: _FakeTaskRepo(),
+        images: _FakeImageRepo(),
+        digest: _digestCase(_CountingOutbox()),
+        outbox: _CountingOutbox(),
+        beaconHierarchyDelivery: _hierarchyDeliveryCase(hierarchyOutbox),
+      );
+
+      await _runBriefly(worker);
+
+      expect(hierarchyOutbox.claimDueCalls, 1);
     });
 
     test('dispose stops the worker loop', () async {

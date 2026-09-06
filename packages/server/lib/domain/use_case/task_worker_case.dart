@@ -107,6 +107,7 @@ final class TaskWorkerCase extends UseCaseBase {
        _beaconCase = beaconCase,
        _attentionExpirySweep = attentionExpirySweep,
        _attentionChannelDelivery = attentionChannelDelivery,
+       _beaconHierarchyDelivery = beaconHierarchyDelivery,
        _trustMaintenance = trustMaintenance,
        _blockCascade = blockCascade,
        _blockReleaseSweep = blockReleaseSweep,
@@ -129,6 +130,7 @@ final class TaskWorkerCase extends UseCaseBase {
   final BeaconCase? _beaconCase;
   final AttentionExpirySweepCase? _attentionExpirySweep;
   final AttentionChannelDeliveryCase? _attentionChannelDelivery;
+  final BeaconHierarchyDeliveryCase? _beaconHierarchyDelivery;
   final TrustMaintenancePort? _trustMaintenance;
   final BlockCascadeCase? _blockCascade;
   final BlockReleaseSweepCase? _blockReleaseSweep;
@@ -150,6 +152,7 @@ final class TaskWorkerCase extends UseCaseBase {
 
   var _lastAttentionExpirySweep = DateTime.fromMillisecondsSinceEpoch(0);
   var _lastAttentionDeliverySweep = DateTime.fromMillisecondsSinceEpoch(0);
+  var _lastBeaconHierarchyDeliverySweep = DateTime.fromMillisecondsSinceEpoch(0);
   var _lastTrustMaintenanceSweep = DateTime.fromMillisecondsSinceEpoch(0);
   var _lastBlockCascadeSweep = DateTime.fromMillisecondsSinceEpoch(0);
   var _lastBlockReleaseSweep = DateTime.fromMillisecondsSinceEpoch(0);
@@ -170,6 +173,17 @@ final class TaskWorkerCase extends UseCaseBase {
         return;
       _lastAttentionDeliverySweep = now;
       await _attentionChannelDelivery?.runDue(
+        workerId: 'task-worker',
+        now: now,
+      );
+    },
+    () async {
+      final now = DateTime.timestamp();
+      if (now.difference(_lastBeaconHierarchyDeliverySweep) <
+          const Duration(seconds: 10))
+        return;
+      _lastBeaconHierarchyDeliverySweep = now;
+      await _beaconHierarchyDelivery?.runDue(
         workerId: 'task-worker',
         now: now,
       );
