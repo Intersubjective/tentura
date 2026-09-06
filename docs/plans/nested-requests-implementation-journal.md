@@ -878,3 +878,70 @@ didClose-gating proof) — all match.
 
 Task 05 is ACCEPTED. Proceeding to Task 06 (durable hierarchy delivery
 worker).
+
+### Task 06 — manager review and acceptance (2026-09-06)
+
+Two consecutive external memory-pressure kills on this task (see the two
+salvage checkpoints above, commits `fc6151f1b` and `66b3afd12`). Both times
+the manager verified with the real toolchain before committing anything —
+including catching and correcting my own tooling mistake (an anchored
+`grep "^error"` silently hiding real `dart analyze` errors that carry
+leading whitespace) and, separately, my own inaccurate claim in the first
+salvage commit message that `TaskWorkerCase`'s sweep wiring was left dead —
+re-reading the full diff (not a truncated `sed` excerpt) showed it was
+already correctly wired all along. Recorded both corrections rather than
+letting an inaccurate record stand.
+
+Independently verified the final state:
+1. Read `beacon_hierarchy_delivery_case.dart` in full — `runDue` claims a
+   batch, processes each target in its own logical unit via
+   `TransactionalAttentionCase.runAction` (one Postgres transaction per
+   target, matching §4.4), routes failures through `scheduleDeliveryRetry`
+   with the capped-exponential-backoff safe-error policy, logs poison-
+   threshold warnings without leaking source content, and exposes
+   `parkPoisonedDeliveryAsOperator` as a distinct method never called by
+   `runDue` itself.
+2. Read the outbox repository SQL directly: `claimDueDeliveries` correctly
+   implements `FOR UPDATE SKIP LOCKED`, due = pending-and-due OR leased-
+   and-lease-expired, excludes rows with an earlier pending/leased event
+   for the same target (the per-pair ordering guarantee), and excludes
+   `attempt_count >= poisonAttemptThreshold` from ordinary selection.
+   **Every one of `markDeliveryDelivered`/`markDeliverySuppressed`/
+   `markDeliveryParked`/`scheduleDeliveryRetry` is owner-qualified**
+   (`WHERE event_id=$1 AND target_beacon_id=$2 AND state='leased' AND
+   lease_owner=$3`) — confirmed directly in the SQL, not inferred.
+   `operatorParkPoisonedDelivery` is correctly unfenced (gates on
+   `state='pending' AND attempt_count >= threshold` instead, since a
+   poisoned row is never actively leased).
+3. Read the claim-fencing and poison-escape-hatch PG tests line-by-line:
+   both are genuine two-actor proofs — claim as worker-a, force-expire the
+   lease via direct SQL, run a real `runDue()` as worker-b (which
+   re-claims and delivers), then attempt worker-a's stale update directly
+   and assert the row is unaffected (still `delivered` under worker-b).
+   The poison test forces attempt_count to the threshold, confirms
+   ordinary claim selection excludes it, parks it via the real operator
+   method, and confirms a real subsequent `runDue()` now delivers the
+   later same-pair event. Neither test is vacuous.
+4. Confirmed the destination-audience-at-delivery-time test is real (fixed
+   a wrong `room_access` seed value that made it initially fail).
+5. Confirmed no GraphQL/API/client files touched anywhere across the whole
+   task (`git diff --name-only` from before attempt 1 to HEAD).
+6. Independently reran everything: `dart analyze` (properly this time)
+   zero errors, `dart test --exclude-tags pg` 1634/1634, both new test
+   files 8/8 and 12/12, existing outbox/lifecycle/commitment-attention PG
+   suites unaffected, both lint baselines exact, `git diff --check` clean.
+
+One accepted, documented limitation (not a defect): `BeaconHierarchyDeliverySafeError.classify`'s
+`NoticeInsertFailure`/`AttentionDispatchFailure` substring branches can
+never match a real production exception's `runtimeType` (only a test's
+descriptive error *message* would contain those words, not its type name),
+so in practice only `transactionFailed`/`unknown` are reachable from
+`_processTarget`'s single blanket catch. The task's own test explicitly
+documents and asserts this current behavior rather than hiding it, and the
+prompt's instruction not to invent codes speculatively was correctly
+followed — `unknown` is itself a valid safe code for an unrecognized
+failure. Worth a note for Task 15's whole-product regression pass, not a
+blocker now.
+
+Task 06 is ACCEPTED. Proceeding to Task 07 (enforce General-only public
+product).
