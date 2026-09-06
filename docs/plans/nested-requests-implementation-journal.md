@@ -528,3 +528,62 @@ dart test -t pg -j 1 test/api/beacon_hierarchy_hasura_parity_test.dart  # 2/2
 ./scripts/check-custom-lints.sh packages/server  # 0/0
 ./scripts/check-custom-lints.sh packages/client  # 32/32
 ```
+
+### Task 03 — manager review (2026-09-06)
+
+Independently verified with extra scrutiny given this task's severity:
+
+1. `beacon_can_read_content`'s SQL body confirmed byte-for-byte untouched
+   (read `m0136.dart` vs current state — no modification anywhere in the
+   Task 03 diff range).
+2. Read `m0155.dart` in full. `beacon_effective_admission` correctly excludes
+   help-offer/forward facts (narrower than `canReadContent`, as required).
+   `beacon_can_read_linked_detail` correctly orders block → draft/deleted
+   restriction → ordinary content → one-edge parent/child, with adjacent
+   grantor required non-draft/non-deleted/published, and does NOT recursively
+   call `canReadContent`/`canReadLinkedDetail` on the adjacent node.
+3. **Traced the transaction plumbing by hand**: `lockMutationScope()` calls
+   `_database.customStatement(...)` on the same singleton `TenturaDb`
+   instance; `TransactionalAttentionCase.runAction` → `MutatingUnitOfWork.run`
+   → `TenturaDb.withMutatingUser`/`withMutatingSystem`, which wrap the entire
+   action callback in a real `transaction()` zone — so the advisory-lock
+   statement issued at the top of each wired method genuinely joins the same
+   Postgres transaction as the row locks that follow (Drift's zone-based
+   transaction routing), confirming `pg_advisory_xact_lock` is held for the
+   correct scope, not released early. The worker's own new test
+   ("repository lockMutationScope runs inside caller transaction", asserting
+   against `pg_locks` directly) independently proves the same thing.
+4. DB-level defense-in-depth beyond what was asked: BEFORE STATEMENT/ROW
+   triggers on `beacon_participant`, `beacon_steward`, `user_block`, and
+   `beacon` (status/user_id changes only, correctly narrowed via a `WHEN`
+   clause so ordinary field edits don't acquire the mutex), plus
+   `beacon_room_message` delete — closes the gap for any write path the
+   application-level enumeration might have missed. `REVOKE ALL ... FROM
+   PUBLIC` applied to all four new hierarchy tables (inert under the current
+   single-superuser local role model, harmless, forward-looking).
+5. Hasura diff is minimal and correctly scoped: two computed fields added to
+   `beacon`'s definition, but NOT added to the `user` role's
+   `select_permissions.computed_fields` allowlist — unreachable by ordinary
+   clients until Task 10 deliberately exposes them. `select_permissions`
+   filter unchanged (`can_read_content` only); no new columns, no new
+   relationships.
+6. Read the five non-transitivity test cases directly — not vacuous: each
+   invokes the real production case method with a real hierarchy-only
+   admitted viewer (Frank, admitted only to parent A) against the real child
+   B, asserting the correct exception type is thrown.
+7. **Investigated the worker's "environmental" full-PG-suite-failure claim
+   rather than accepting it at face value.** Used a disposable `git worktree`
+   at the pre-Task-03 commit (`bda0df158`, Task 02's HEAD) and reproduced
+   both flagged failures (`review_finalization_outcome_evidence_pg_test.dart`
+   three assertions, `room_message_reply_readback_pg_test.dart` two
+   assertions) identically at that baseline — confirming both are pre-
+   existing/unrelated to Task 03 (the reply-readback one traces to the
+   shared local `postgres`-named dev database not having had `m0154`/`m0155`
+   applied yet — an environment-state gap, not a code defect; the review-
+   finalization one is a pre-existing failure unrelated to this plan
+   entirely). Worktree removed after verification.
+8. `git diff --check` clean across the full Task 03 range.
+
+Task 03 is ACCEPTED — no remediation needed. This is the highest-quality
+task result so far. Proceeding to Task 04 (shared normal creation and atomic
+child commands).
