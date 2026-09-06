@@ -21,6 +21,8 @@ import 'package:tentura/domain/entity/room_message_attachment.dart';
 import 'package:tentura/domain/entity/room_poll_data.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/features/beacon_threads/ui/bloc/room_cubit.dart';
+import 'package:tentura/features/beacon_threads/ui/widget/beacon_child_promotion_footer.dart';
+import 'package:tentura/features/beacon_threads/ui/widget/beacon_hierarchy_notice.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/room_pinned_fact_visibility_mark.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/room_attachment_widgets.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/room_poll_card.dart';
@@ -91,10 +93,18 @@ class RoomMessageTile extends StatelessWidget {
     this.hideCoordinationLifecycleFooter = false,
     this.pinnedFact,
     this.highlightedMessageId,
+    this.promotedChildBeaconId,
     super.key,
   });
 
   final RoomMessage message;
+
+  /// Set by the caller when this message is a promotion source with a
+  /// published child (derived from sibling `childCreated` notice rows'
+  /// `sourceMessageId`, since the new hierarchy system never marks the
+  /// source message itself — plan §3.4.9/§6.2). Renders
+  /// [BeaconChildPromotionFooter] below the ordinary bubble when set.
+  final String? promotedChildBeaconId;
 
   final RoomMessage? previousMessage;
 
@@ -417,6 +427,10 @@ class RoomMessageTile extends StatelessWidget {
     final showCoordinationFooter =
         !hideCoordinationLifecycleFooter && showCoordinationItemFooter(message);
     final showMarkDone = showMarkDoneFooter(message);
+
+    if (BeaconHierarchyNotice.isHierarchyNoticeRow(message)) {
+      return BeaconHierarchyNotice(message: message);
+    }
 
     if (isParticipantJoinedNotification(message)) {
       final payload = participantJoinedPayload(message);
@@ -1366,6 +1380,7 @@ class RoomMessageTile extends StatelessWidget {
             ],
           );
 
+    final childBeaconId = promotedChildBeaconId;
     return Padding(
       padding: EdgeInsets.fromLTRB(
         isMine ? tt.bubbleFarGutter : tt.screenHPadding,
@@ -1373,7 +1388,16 @@ class RoomMessageTile extends StatelessWidget {
         isMine ? tt.screenHPadding : tt.screenHPadding,
         bottomPad,
       ),
-      child: row,
+      child: childBeaconId == null
+          ? row
+          : Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                row,
+                SizedBox(height: tt.tightGap),
+                BeaconChildPromotionFooter(childBeaconId: childBeaconId),
+              ],
+            ),
     );
   }
 }

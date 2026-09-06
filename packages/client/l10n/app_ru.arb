@@ -3710,6 +3710,10 @@
   "beaconParentUnavailable": "Родительский запрос недоступен",
   "beaconDeletedChild": "Удалённый запрос",
   "beaconLegacyThreadUnavailable": "Эта тема обсуждения больше недоступна. Откройте обзор запроса, чтобы продолжить.",
+  "beaconHierarchyNoticeChildCreated": "Создан дочерний запрос",
+  "beaconHierarchyNoticeUnknown": "Активность запроса",
+  "beaconPromotionAlreadyExists": "Это сообщение уже преобразовано в дочерний запрос",
+  "beaconChildFooterUnavailable": "Запрос недоступен",
   "threadGeneralTitle": "Общее",
   "threadClosedFoldTitle": "Закрытые ({count})",
   "@threadClosedFoldTitle": {

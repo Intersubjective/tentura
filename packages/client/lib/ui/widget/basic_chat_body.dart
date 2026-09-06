@@ -16,6 +16,7 @@ import 'package:tentura/domain/entity/beacon_participant.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/domain/entity/room_message.dart';
 import 'package:tentura/domain/entity/room_message_attachment.dart';
+import 'package:tentura/domain/entity/room_message_hierarchy_payload.dart';
 import 'package:tentura/domain/entity/room_pending_upload.dart';
 import 'package:tentura/features/beacon_threads/domain/entity/committed_mention.dart';
 import 'package:tentura/features/beacon_threads/ui/util/room_reply_excerpt.dart';
@@ -434,6 +435,21 @@ class BasicChatBodyState extends State<BasicChatBody> {
     final messages = widget.messages;
     final showListContent = !widget.hasError || messages.isNotEmpty;
 
+    // The new hierarchy child-creation system never marks its own source
+    // message (plan §3.4.9) — only the sibling `childCreated` notice row
+    // carries `sourceMessageId`. Derive the reverse mapping once per build
+    // so each tile can find its own promoted-child footer target, if any.
+    final promotedChildBySourceMessageId = <String, String>{};
+    for (final m in messages) {
+      final payload = m.hierarchyPayload;
+      if (payload is RoomMessageHierarchyChildCreated) {
+        final sourceMessageId = payload.sourceMessageId;
+        if (sourceMessageId != null) {
+          promotedChildBySourceMessageId[sourceMessageId] = payload.childBeaconId;
+        }
+      }
+    }
+
     return TenturaChatColumn(
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -488,6 +504,8 @@ class BasicChatBodyState extends State<BasicChatBody> {
                             myProfile: widget.myProfile,
                             previousMessage: prev,
                             nextMessage: next,
+                            promotedChildBeaconId:
+                                promotedChildBySourceMessageId[m.id],
                             breakGroupAbove: dateChanged || showUnreadBand,
                             onActionsPressed: widget.onMessageActions,
                             onReplyPressed: widget.onReply,
