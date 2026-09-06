@@ -1536,3 +1536,86 @@ promotion entry points, l10n for promotion-conflict copy, and dedicated child
 composer navigation (this task delivers the save protocol + cubit hooks only).
 
 **Next task:** Task 12 — child request surface, General host, and safe navigation.
+
+### Task 11 — manager review and acceptance (2026-09-06)
+
+Cursor worker completed in one clean pass (no kills), four commits
+(`825ed279d`, `c9685fd51`, `67de5744d`, `7c9b8322d`). Reviewed the full
+diff and design directly rather than trusting the worker-reported 18/18
+and 129/129:
+
+1. Confirmed the `_saveChild` exact-retry-then-edit-apply logic
+   (`BeaconHierarchyCase._saveChild`/`_sameCreatePayload`) genuinely
+   implements §3.4.4: when `exactRetrySnapshot` differs from the current
+   (possibly user-edited) `saveCommand`, it retries the ORIGINAL
+   pre-edit payload first to recover the canonical id, then applies the
+   edited fields as an ordinary draft update — verified directly against
+   its test ("changed form after unknown result"), which asserts the
+   hierarchy `createChild` call received the original title while the
+   subsequent draft update received the edited title.
+2. Confirmed `BeaconCreateCase`'s changes (`BeaconSavePhase.publish`,
+   `BeaconSaveCommand.copyWith`, nullable `BeaconSaveFailure.
+   clientCommandId`, public `reconcileMedia`) are purely additive —
+   nothing in the existing standalone `create`/`saveDraft`/`makeLive`
+   paths was touched.
+3. Confirmed `BeaconCreateCubit`'s `_hierarchyCase` is resolved from
+   `GetIt` only when `childCreationContext != null`, and every child-mode
+   branch has a parallel unmodified standalone `else` branch — verified
+   directly (not just via the passing regression count) by reading the
+   full diff, and confirmed by the worker's own two "normal standalone
+   regression" tests asserting the ORIGINAL `BeaconCreateCase`/
+   `BeaconWritePort` methods are what standalone mode still calls.
+4. **Traced the server's actual `alreadyPromoted` trigger conditions**
+   directly in `beacon_child_create_case.dart` (server) rather than
+   trusting the client design: `createChild`'s own
+   `existingChildId != null → alreadyPromoted` early-exit is gated on
+   `!draft` — since `BeaconHierarchyCase._runCreateChild` always sends
+   `draft: true` (this client's draft-first architecture never varies
+   this), that branch can never fire for this client's `createChild`
+   calls in practice. The actually-reachable trigger for this
+   architecture is `publishDraft`'s own race check (`_PromotionRaceLost`
+   → `BeaconSourceAlreadyPromotedException`), thrown when a concurrent
+   publisher wins the same source between this draft's creation and its
+   publish attempt — exactly plan §3.4.6's described scenario. Found
+   that `BeaconHierarchyCase.publishChildDraft`'s catch-all wrapped this
+   as a generic `BeaconSavePhase.publish` `BeaconSaveFailure` instead of
+   the typed `BeaconChildPromotionConflict` `_runCreateChild` already
+   produces for the (rarely reachable) create-time variant — the UI
+   would have shown a plain error instead of the intended promotion-
+   conflict state, and `existingChildBeaconId` would never have reached
+   the composer. Fixed directly: `publishChildDraft` now catches
+   `BeaconSourceAlreadyPromotedException` and throws
+   `BeaconChildPromotionConflict`, matching `_runCreateChild`'s handling.
+   Confirmed via code read that `BeaconCreateCubit.makeLive`'s existing
+   `on BeaconChildPromotionConflict catch` wiring was already present but
+   dead until this fix — the worker's cubit code anticipated this
+   correctly even though the underlying case-layer bug prevented it from
+   ever firing.
+5. Also fixed a latent, lower-severity bug found in the same review:
+   `_runCreateChild`'s `alreadyPromoted` branch set
+   `draftBeaconId: outcome.beaconId`, but `outcome.beaconId` in that
+   branch names the OTHER (already-published, winning) child, never a
+   draft belonging to the current actor — no draft is ever created for
+   this actor in that branch. Left as-is, `BeaconCreateCubit`'s
+   `draftId: state.draftId ?? conflict.draftBeaconId` would have
+   hijacked the composer's own draft id to someone else's beacon ID (not
+   observed in practice today since this branch is effectively
+   unreachable for this client's draft:true-only usage, but a real
+   latent bug — removed the incorrect field, leaving it null).
+6. Added a use-case-level test for the actually-reachable publish-time
+   scenario (`beacon_child_save_test.dart`: "a publish-time race loss
+   surfaces as a promotion conflict, not a generic publish failure") —
+   the worker's own "promotion conflict" test only covered the
+   create-time discriminator (the unreachable path), and its "denied
+   publication" test used a different exception
+   (`BeaconParentNotCoordinatableException`), so nothing had exercised
+   the real trigger before this review.
+7. Independently reran (not trusting worker-reported numbers):
+   `dart analyze` on the changed files — 0 issues; `flutter test` on
+   both new test files — 19/19 (was 18/18, +1 for the new test); the
+   broader `test/features/beacon_create/` + `test/domain/use_case/`
+   suite — 130/130 (was 129/129); custom-lints baseline unchanged
+   (32/32); `git diff --check` clean. Fix commit: `b474afcaf`.
+
+Task 11 is ACCEPTED (with the above remediation). Proceeding to Task 12
+(child request surface, General host, and safe navigation).
