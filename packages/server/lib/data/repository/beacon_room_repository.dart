@@ -1245,8 +1245,8 @@ RETURNING last_seen_at
   Future<BeaconRoomMessageRecord?> getRoomMessageByLinkedPollingId(
     String pollingId,
   ) async =>
-      (await _db.managers.beaconRoomMessages
-              .filter((m) => m.linkedPollingId.equals(pollingId))
+      (await (_db.select(_db.beaconRoomMessages)
+                ..where((t) => t.linkedPollingId.equals(pollingId)))
               .getSingleOrNull())
           ?.toRecord();
 
