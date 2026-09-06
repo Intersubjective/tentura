@@ -1214,3 +1214,66 @@ Independently verified:
 
 Task 08 is ACCEPTED. Proceeding to Task 09 (scoped legacy cleanup
 migration).
+
+### Task 09 — manager review and acceptance (2026-09-06)
+
+Highest-blast-radius task in the plan (irreversible legacy ask/promise/
+blocker + non-General thread cleanup, m0158). Multiple worker attempts
+were killed by external memory pressure; the surviving migration body was
+salvaged and committed at `7277c7856` (see its message for the full
+salvage story), with the required acceptance test still missing at that
+point. A further attempt produced
+`test/data/database/nested_requests_cleanup_pg_test.dart` but was itself
+killed before finishing; salvaged directly by the manager rather than
+dispatching a fourth Cursor attempt blind, per the remediation-loop rule
+(same defect class, second consecutive kill on this file):
+
+1. The salvaged test tried to fixture a `beacon_promotions` row whose
+   `source_message_id` pointed at a non-General (doomed) message. Verified
+   directly against the live schema that this is unconstructible: m0154's
+   `beacon_promotions_consistency_guard` trigger rejects any insert/update
+   whose source message has a non-null thread scope, at draft time as
+   well as publish time (plan §3.4.9). Removed the impossible fixture
+   INSERT and its corresponding assertion — there is nothing for m0158's
+   own provenance-nulling UPDATE to exercise on that table under the live
+   schema.
+2. With that fixed, the suite got past `setUpAll` but failed the main test:
+   `Rm158survlnk1` (a real General user message meant to survive cleanup
+   with just its footer link cleared, per plan §5.3 step 4: "prefer
+   deletion of obsolete system anchor rows, keeping user messages") was
+   being fully deleted instead. Traced to root cause by reading
+   `CoordinationItemRepository._emitCreatedRoomNotify` directly: it sets
+   `linked_event_kind` unconditionally on every message it ever touches —
+   both the disposable, empty-bodied system-notify row it creates for
+   itself, AND (in its linked-source-message branch) the pre-existing real
+   user message it updates in place to carry the same footer. m0158's
+   step-4 DELETE criterion (`linked_event_kind IS NOT NULL`) could not
+   tell these apart and deleted both. Fixed by adding `AND m.body = ''` to
+   the DELETE, matching the one column that actually distinguishes a
+   bodyless system-notify anchor from a real user message carrying an
+   incidental retired-item footer. Verified against the fixture's own
+   `systemAnchorMessageId` (empty body, correctly deleted) vs.
+   `survivorLinkedMessageId` (non-empty body, now correctly survives with
+   `linked_item_id`/`linked_event_kind`/`system_payload` all cleared by
+   the following UPDATE).
+3. Independently reran (not trusting prior worker-reported results):
+   `dart analyze` on both changed files — zero errors (only pre-existing
+   `info`-level lint noise); `dart test -t pg` on
+   `nested_requests_cleanup_pg_test.dart` — 3/3 passing, including the
+   `nested_requests_apply_legacy_cleanup is safe to invoke again`
+   re-invocation idempotency test; `dart test -t pg` on
+   `beacon_hierarchy_erasure_pg_test.dart` (7/7) and
+   `beacon_hierarchy_fixture_pg_test.dart` (5/5) to confirm the migration
+   fix didn't disturb Task 08's erasure suite — unaffected, still green.
+4. Confirmed via `git log` that `m0158.dart` had only ever been committed
+   locally (`7277c7856`) and never applied to any shared/persistent
+   database — disposable test databases are dropped every run — so
+   amending its DELETE criterion before Task 09's final acceptance does
+   not violate the plan's migration-immutability rule (that rule protects
+   migrations already applied somewhere real, not in-progress local work
+   within the same task).
+5. Commit: `46e3805e3` (test suite + migration fix, single focused
+   commit — the fix and the test that caught it belong together).
+
+Task 09 is ACCEPTED. Proceeding to Task 10 (V2 hierarchy schema and
+generated client transport).
