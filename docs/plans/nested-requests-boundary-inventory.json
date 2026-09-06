@@ -2,8 +2,8 @@
   "version": 1,
   "planRevision": 2,
   "baselineCommit": "104786666",
-  "generatedAt": "2026-09-06",
-  "entryCount": 193,
+  "generatedAt": "2026-09-06 (Task 00 remediation round 1)",
+  "entryCount": 216,
   "entries": [
     {
       "path": "docs/plans/nested-requests-boundary-inventory.json",
@@ -1102,6 +1102,30 @@
       "test": "ST/domain/use_case/beacon_hierarchy_erasure_pg_test.dart"
     },
     {
+      "path": "public.attention_channel_delivery",
+      "symbol": "account_id",
+      "surface": "user-fk-erasure",
+      "scopeInput": "pg_constraint ON DELETE CASCADE",
+      "decision": "cascade-is-correct",
+      "test": "ST/domain/use_case/beacon_hierarchy_erasure_pg_test.dart"
+    },
+    {
+      "path": "public.attention_channel_throttle",
+      "symbol": "account_id",
+      "surface": "user-fk-erasure",
+      "scopeInput": "pg_constraint ON DELETE CASCADE",
+      "decision": "cascade-is-correct",
+      "test": "ST/domain/use_case/beacon_hierarchy_erasure_pg_test.dart"
+    },
+    {
+      "path": "public.attention_occurrence_recipient",
+      "symbol": "account_id",
+      "surface": "user-fk-erasure",
+      "scopeInput": "pg_constraint ON DELETE CASCADE",
+      "decision": "cascade-is-correct",
+      "test": "ST/domain/use_case/beacon_hierarchy_erasure_pg_test.dart"
+    },
+    {
       "path": "public.beacon",
       "symbol": "user_id",
       "surface": "user-fk-erasure",
@@ -1134,6 +1158,14 @@
       "test": "ST/domain/use_case/beacon_hierarchy_erasure_pg_test.dart"
     },
     {
+      "path": "public.beacon_commitment_event",
+      "symbol": "actor_user_id",
+      "surface": "user-fk-erasure",
+      "scopeInput": "pg_constraint ON DELETE NO ACTION",
+      "decision": "nullable-and-anonymise",
+      "test": "ST/domain/use_case/beacon_hierarchy_erasure_pg_test.dart"
+    },
+    {
       "path": "public.beacon_evaluation",
       "symbol": "evaluated_user_id",
       "surface": "user-fk-erasure",
@@ -1144,6 +1176,22 @@
     {
       "path": "public.beacon_evaluation",
       "symbol": "evaluator_id",
+      "surface": "user-fk-erasure",
+      "scopeInput": "pg_constraint ON DELETE CASCADE",
+      "decision": "scrub-then-delete",
+      "test": "ST/domain/use_case/beacon_hierarchy_erasure_pg_test.dart"
+    },
+    {
+      "path": "public.beacon_evaluation_ack_tag",
+      "symbol": "evaluator_id",
+      "surface": "user-fk-erasure",
+      "scopeInput": "pg_constraint ON DELETE CASCADE",
+      "decision": "scrub-then-delete",
+      "test": "ST/domain/use_case/beacon_hierarchy_erasure_pg_test.dart"
+    },
+    {
+      "path": "public.beacon_evaluation_ack_tag",
+      "symbol": "subject_id",
       "surface": "user-fk-erasure",
       "scopeInput": "pg_constraint ON DELETE CASCADE",
       "decision": "scrub-then-delete",
@@ -1294,6 +1342,46 @@
       "test": "ST/domain/use_case/beacon_hierarchy_erasure_pg_test.dart"
     },
     {
+      "path": "public.capability_evidence_edge",
+      "symbol": "observer_user_id",
+      "surface": "user-fk-erasure",
+      "scopeInput": "pg_constraint ON DELETE CASCADE",
+      "decision": "cascade-is-correct",
+      "test": "ST/domain/use_case/beacon_hierarchy_erasure_pg_test.dart"
+    },
+    {
+      "path": "public.capability_evidence_edge",
+      "symbol": "subject_user_id",
+      "surface": "user-fk-erasure",
+      "scopeInput": "pg_constraint ON DELETE CASCADE",
+      "decision": "cascade-is-correct",
+      "test": "ST/domain/use_case/beacon_hierarchy_erasure_pg_test.dart"
+    },
+    {
+      "path": "public.capability_evidence_generation",
+      "symbol": "observer_user_id",
+      "surface": "user-fk-erasure",
+      "scopeInput": "pg_constraint ON DELETE CASCADE",
+      "decision": "cascade-is-correct",
+      "test": "ST/domain/use_case/beacon_hierarchy_erasure_pg_test.dart"
+    },
+    {
+      "path": "public.capability_evidence_generation",
+      "symbol": "subject_user_id",
+      "surface": "user-fk-erasure",
+      "scopeInput": "pg_constraint ON DELETE CASCADE",
+      "decision": "cascade-is-correct",
+      "test": "ST/domain/use_case/beacon_hierarchy_erasure_pg_test.dart"
+    },
+    {
+      "path": "public.capability_routing_mute",
+      "symbol": "user_id",
+      "surface": "user-fk-erasure",
+      "scopeInput": "pg_constraint ON DELETE CASCADE",
+      "decision": "cascade-is-correct",
+      "test": "ST/domain/use_case/beacon_hierarchy_erasure_pg_test.dart"
+    },
+    {
       "path": "public.complaint",
       "symbol": "user_id",
       "surface": "user-fk-erasure",
@@ -1323,6 +1411,22 @@
       "surface": "user-fk-erasure",
       "scopeInput": "pg_constraint ON DELETE NO ACTION",
       "decision": "nullable-and-anonymise",
+      "test": "ST/domain/use_case/beacon_hierarchy_erasure_pg_test.dart"
+    },
+    {
+      "path": "public.ego_witness_window",
+      "symbol": "ego_user_id",
+      "surface": "user-fk-erasure",
+      "scopeInput": "pg_constraint ON DELETE CASCADE",
+      "decision": "cascade-is-correct",
+      "test": "ST/domain/use_case/beacon_hierarchy_erasure_pg_test.dart"
+    },
+    {
+      "path": "public.ego_witness_window",
+      "symbol": "witness_user_id",
+      "surface": "user-fk-erasure",
+      "scopeInput": "pg_constraint ON DELETE CASCADE",
+      "decision": "cascade-is-correct",
       "test": "ST/domain/use_case/beacon_hierarchy_erasure_pg_test.dart"
     },
     {
@@ -1379,6 +1483,22 @@
       "surface": "user-fk-erasure",
       "scopeInput": "pg_constraint ON DELETE SET NULL",
       "decision": "nullable-and-anonymise",
+      "test": "ST/domain/use_case/beacon_hierarchy_erasure_pg_test.dart"
+    },
+    {
+      "path": "public.invite_seed_prompt_state",
+      "symbol": "invitee_user_id",
+      "surface": "user-fk-erasure",
+      "scopeInput": "pg_constraint ON DELETE CASCADE",
+      "decision": "cascade-is-correct",
+      "test": "ST/domain/use_case/beacon_hierarchy_erasure_pg_test.dart"
+    },
+    {
+      "path": "public.invite_seed_prompt_state",
+      "symbol": "inviter_user_id",
+      "surface": "user-fk-erasure",
+      "scopeInput": "pg_constraint ON DELETE CASCADE",
+      "decision": "cascade-is-correct",
       "test": "ST/domain/use_case/beacon_hierarchy_erasure_pg_test.dart"
     },
     {
@@ -1462,6 +1582,54 @@
       "test": "ST/domain/use_case/beacon_hierarchy_erasure_pg_test.dart"
     },
     {
+      "path": "public.user_availability",
+      "symbol": "user_id",
+      "surface": "user-fk-erasure",
+      "scopeInput": "pg_constraint ON DELETE CASCADE",
+      "decision": "cascade-is-correct",
+      "test": "ST/domain/use_case/beacon_hierarchy_erasure_pg_test.dart"
+    },
+    {
+      "path": "public.user_block",
+      "symbol": "blocked_id",
+      "surface": "user-fk-erasure",
+      "scopeInput": "pg_constraint ON DELETE CASCADE",
+      "decision": "cascade-is-correct",
+      "test": "ST/domain/use_case/beacon_hierarchy_erasure_pg_test.dart"
+    },
+    {
+      "path": "public.user_block",
+      "symbol": "blocker_id",
+      "surface": "user-fk-erasure",
+      "scopeInput": "pg_constraint ON DELETE CASCADE",
+      "decision": "cascade-is-correct",
+      "test": "ST/domain/use_case/beacon_hierarchy_erasure_pg_test.dart"
+    },
+    {
+      "path": "public.user_block",
+      "symbol": "origin_id",
+      "surface": "user-fk-erasure",
+      "scopeInput": "pg_constraint ON DELETE CASCADE",
+      "decision": "cascade-is-correct",
+      "test": "ST/domain/use_case/beacon_hierarchy_erasure_pg_test.dart"
+    },
+    {
+      "path": "public.user_block_intent",
+      "symbol": "blocked_id",
+      "surface": "user-fk-erasure",
+      "scopeInput": "pg_constraint ON DELETE CASCADE",
+      "decision": "cascade-is-correct",
+      "test": "ST/domain/use_case/beacon_hierarchy_erasure_pg_test.dart"
+    },
+    {
+      "path": "public.user_block_intent",
+      "symbol": "blocker_id",
+      "surface": "user-fk-erasure",
+      "scopeInput": "pg_constraint ON DELETE CASCADE",
+      "decision": "cascade-is-correct",
+      "test": "ST/domain/use_case/beacon_hierarchy_erasure_pg_test.dart"
+    },
+    {
       "path": "public.user_contact",
       "symbol": "subject_id",
       "surface": "user-fk-erasure",
@@ -1503,6 +1671,22 @@
     },
     {
       "path": "public.user_trust_edge",
+      "symbol": "subject",
+      "surface": "user-fk-erasure",
+      "scopeInput": "pg_constraint ON DELETE CASCADE",
+      "decision": "cascade-is-correct",
+      "test": "ST/domain/use_case/beacon_hierarchy_erasure_pg_test.dart"
+    },
+    {
+      "path": "public.user_trust_source_edge",
+      "symbol": "object",
+      "surface": "user-fk-erasure",
+      "scopeInput": "pg_constraint ON DELETE CASCADE",
+      "decision": "cascade-is-correct",
+      "test": "ST/domain/use_case/beacon_hierarchy_erasure_pg_test.dart"
+    },
+    {
+      "path": "public.user_trust_source_edge",
       "symbol": "subject",
       "surface": "user-fk-erasure",
       "scopeInput": "pg_constraint ON DELETE CASCADE",

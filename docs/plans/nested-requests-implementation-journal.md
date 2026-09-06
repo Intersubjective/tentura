@@ -145,3 +145,117 @@ See plan §8 in full for the authoritative commands. Summary:
 **Manifest:** `docs/plans/nested-requests-boundary-inventory.json` — 193 entries covering §5.2 surfaces, §4.3 producers, `canReadContent` callers, 59 `public.user(id)` FK rows from live `pg_constraint` on disposable migrated DB, routes, notification destinations, mutation-lock candidates.
 
 ### Task 00 — complete (Cursor CLI worker, 2026-09-06)
+
+### Task 00 — manager review (2026-09-06)
+
+Independently verified: created a fresh disposable DB
+(`tentura_test_bhier_verify00`), migrated via
+`BeaconHierarchyDisposablePgTarget` + `migrateDbSchema`, and queried
+`information_schema` for every FK whose confirmed target is `user(id)`.
+
+Result: 82 FK rows across 68 distinct tables actually exist. The manifest's
+`user-fk-erasure` entries cover only 46 tables (59 entries). **14 tables with
+real live FK references to `user(id)` are entirely missing** from the
+manifest, including `beacon_commitment_event.actor_user_id` (NO ACTION) —
+which is exactly the "Commitment-event actor (m0139)" row plan §4.5 already
+names and requires a disposition for. Full missing list: `attention_channel_delivery`,
+`attention_channel_throttle`, `attention_occurrence_recipient`,
+`beacon_commitment_event`, `beacon_evaluation_ack_tag`,
+`capability_evidence_edge`, `capability_evidence_generation`,
+`capability_routing_mute`, `ego_witness_window`, `invite_seed_prompt_state`,
+`user_availability`, `user_block`, `user_block_intent`,
+`user_trust_source_edge`.
+
+Everything else independently checked (13 `canReadContent`-caller entries
+including all 5 consumers named in §3.2; `git diff --check` clean; both
+`check-custom-lints.sh` baselines match `scripts/custom-lint-baseline.txt`
+exactly) passed review.
+
+Verdict: REJECTED for completeness — dispatching a scoped remediation worker
+for the FK-inventory gap only (not a full Task 00 redo). See remediation
+checkpoint below.
+
+### Task 00 — remediation (Cursor CLI worker, remediation round 1)
+
+**Owned paths:** `docs/plans/nested-requests-boundary-inventory.json` (append
+23 `user-fk-erasure` rows), `docs/plans/nested-requests-implementation-journal.md`
+(append only).
+
+**Fresh PG verification (no secrets):**
+
+```bash
+export $(grep -E '^POSTGRES_' /home/vader/MY_SRC/tentura/.env | xargs)
+export TENTURA_BEACON_HIERARCHY_PG_TEST_DB="tentura_test_bhier_remed00_<unique>"
+docker exec -e PGPASSWORD="$POSTGRES_PASSWORD" postgres psql \
+  -U "$POSTGRES_USERNAME" -d postgres \
+  -c "CREATE DATABASE \"$TENTURA_BEACON_HIERARCHY_PG_TEST_DB\""
+cd packages/server
+# migrateDbSchema via BeaconHierarchyDisposablePgTarget pattern (SET check_function_bodies=false first)
+dart run test/support/_tmp_query_user_fks.dart   # ephemeral helper; deleted after run
+```
+
+Query (same shape as manager review; confirmed against live disposable DB after
+`migrateDbSchema` through `m0153`):
+
+```sql
+SELECT tc.table_name, kcu.column_name, rc.delete_rule
+FROM information_schema.table_constraints tc
+JOIN information_schema.key_column_usage kcu
+  ON tc.constraint_name = kcu.constraint_name AND tc.table_schema = kcu.table_schema
+JOIN information_schema.referential_constraints rc
+  ON tc.constraint_name = rc.constraint_name AND tc.table_schema = rc.constraint_schema
+JOIN information_schema.constraint_column_usage ccu
+  ON rc.unique_constraint_name = ccu.constraint_name AND rc.unique_constraint_schema = ccu.constraint_schema
+WHERE tc.constraint_type = 'FOREIGN KEY' AND ccu.table_name = 'user'
+ORDER BY tc.table_name, kcu.column_name;
+```
+
+**Fresh query result:** 82 FK rows across **60** distinct `public` tables
+(manager review cited 68 distinct tables for the same 82-row count — recount on
+this baseline yields 60; no drift in row set vs manager's missing-table list).
+Manifest previously had 59/82 rows (46 tables); **23 rows on 14 tables** were
+missing, matching manager review exactly. No spurious `beacon_commitment_event.user_id`
+row added (composite FK to `beacon_help_offer`, not direct `user(id)`).
+
+**Added 23 `user-fk-erasure` entries** (manifest `entryCount` 193 → 216;
+`user-fk-erasure` 59 → 82). `generatedAt` bumped to
+`2026-09-06 (Task 00 remediation round 1)`.
+
+| Table.column | pg ON DELETE | Disposition | Reasoning |
+|---|---|---|---|
+| `attention_channel_delivery.account_id` | CASCADE | cascade-is-correct | Per-account attention delivery queue state; no cross-user retained history. |
+| `attention_channel_throttle.account_id` | CASCADE | cascade-is-correct | Per-account throttle counters. |
+| `attention_occurrence_recipient.account_id` | CASCADE | cascade-is-correct | Per-account attention recipient rows. |
+| `beacon_commitment_event.actor_user_id` | NO ACTION | nullable-and-anonymise | Plan §4.5 commitment-event actor: retain append-only event, anonymise attribution (same as admission-event actor). |
+| `beacon_evaluation_ack_tag.evaluator_id` | CASCADE | scrub-then-delete | Evaluation-domain subjective ack rows; align with sibling `beacon_evaluation*` scrub-then-delete dispositions. |
+| `beacon_evaluation_ack_tag.subject_id` | CASCADE | scrub-then-delete | Same. |
+| `capability_evidence_edge.observer_user_id` | CASCADE | cascade-is-correct | Derived capability accumulator (mirrors `user_trust_source_edge`); PK includes user id — row is meaningless without that party; cascade matches effective-edge cleanup without corrupting unrelated users' graphs. |
+| `capability_evidence_edge.subject_user_id` | CASCADE | cascade-is-correct | Same. |
+| `capability_evidence_generation.observer_user_id` | CASCADE | cascade-is-correct | Generation counter for same triple; ephemeral derived state. |
+| `capability_evidence_generation.subject_user_id` | CASCADE | cascade-is-correct | Same. |
+| `capability_routing_mute.user_id` | CASCADE | cascade-is-correct | Per-user routing mute preference. |
+| `ego_witness_window.ego_user_id` | CASCADE | cascade-is-correct | TTL-cached MeritRank witness projection (`docs/features/trust_edges.md` / capability architecture §4.3); recomputed cache, not append-only cross-user history — safe to drop rows touching erased account. |
+| `ego_witness_window.witness_user_id` | CASCADE | cascade-is-correct | Same. |
+| `invite_seed_prompt_state.inviter_user_id` | CASCADE | cascade-is-correct | Ephemeral invite-seed UI prompt state. |
+| `invite_seed_prompt_state.invitee_user_id` | CASCADE | cascade-is-correct | Same. |
+| `user_availability.user_id` | CASCADE | cascade-is-correct | Per-user availability preference row. |
+| `user_block.blocker_id` | CASCADE | cascade-is-correct | Operational block relationship ends with account erasure. |
+| `user_block.blocked_id` | CASCADE | cascade-is-correct | Same. |
+| `user_block.origin_id` | CASCADE | cascade-is-correct | Same. |
+| `user_block_intent.blocker_id` | CASCADE | cascade-is-correct | Pre-commit block intent; ephemeral. |
+| `user_block_intent.blocked_id` | CASCADE | cascade-is-correct | Same. |
+| `user_trust_source_edge.subject` | CASCADE | cascade-is-correct | MeritRank source accumulators (`docs/features/trust_edges.md`); same disposition as sibling `user_trust_edge.subject/object` already in manifest — cascade removes edges involving erased user without leaving orphaned inflated bins. |
+| `user_trust_source_edge.object` | CASCADE | cascade-is-correct | Same. |
+
+**Verification:**
+
+```bash
+python3 -c "import json; m=json.load(open('docs/plans/nested-requests-boundary-inventory.json')); assert m['entryCount']==len(m['entries'])"
+cd packages/server && export $(grep -E '^POSTGRES_' /home/vader/MY_SRC/tentura/.env | xargs) \
+  && dart test test/support/beacon_hierarchy_fixture_pg_test.dart -t pg -j 1
+# disposable DB(s) dropped with FORCE after run
+```
+
+Result: JSON valid; `entryCount` 216; smoke test 4/4 passed including
+`pg_constraint inventory: every public.user(id) FK has assigned disposition`.
+Disposable DBs dropped.
