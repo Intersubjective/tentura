@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:drift/drift.dart';
 import 'package:injectable/injectable.dart';
 import 'package:postgres/postgres.dart' show TypedValue, Type;
@@ -6,6 +8,7 @@ import 'package:tentura_root/domain/entity/beacon_hierarchy_event.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import 'package:tentura_server/consts/beacon_hierarchy_consts.dart';
+import 'package:tentura_server/consts/beacon_hierarchy_delivery_consts.dart';
 import 'package:tentura_server/domain/port/beacon_hierarchy_outbox_port.dart';
 import 'package:tentura_server/utils/id.dart';
 
@@ -222,11 +225,112 @@ ORDER BY direction, target_beacon_id
   }
 
   @override
+  Future<BeaconHierarchyEvent?> loadEvent(String eventId) async {
+    final rows = await _database
+        .customSelect(
+          r'''
+SELECT *
+FROM public.beacon_hierarchy_events
+WHERE id = $1
+''',
+          variables: [Variable<String>(eventId)],
+        )
+        .get();
+    if (rows.isEmpty) {
+      return null;
+    }
+    return _eventFromRow(rows.single);
+  }
+
+  @override
+  Future<BeaconStatus?> loadDestinationBeaconStatus(
+    String targetBeaconId,
+  ) async {
+    final rows = await _database
+        .customSelect(
+          r'''
+SELECT status
+FROM public.beacon
+WHERE id = $1
+''',
+          variables: [Variable<String>(targetBeaconId)],
+        )
+        .get();
+    if (rows.isEmpty) {
+      return null;
+    }
+    return BeaconStatus.fromSmallint(rows.single.read<int>('status'));
+  }
+
+  @override
+  Future<String> insertHierarchyLifecycleNotice({
+    required String eventId,
+    required String targetBeaconId,
+    required BeaconHierarchyDeliveryDirection direction,
+    required BeaconStatus toStatus,
+    required DateTime occurredAt,
+    required String noticeBody,
+    required bool sourceDeleted,
+  }) async {
+    final messageId = generateId('R');
+    final identity = 'hierarchy:$eventId:$targetBeaconId';
+    final payload = <String, Object?>{
+      'version': 1,
+      'kind': 'hierarchyLifecycle',
+      'eventId': eventId,
+      'targetBeaconId': targetBeaconId,
+      'direction': _directionWire(direction),
+      'toStatus': toStatus.name,
+      'occurredAt': occurredAt.toUtc().toIso8601String(),
+      'sourceDeleted': sourceDeleted,
+    };
+    await _database.customStatement(
+      r'''
+INSERT INTO public.beacon_room_message (
+  id,
+  beacon_id,
+  author_id,
+  body,
+  thread_item_id,
+  system_message_kind,
+  hierarchy_notice_identity,
+  system_payload,
+  created_at
+) VALUES (
+  $1, $2, NULL, $3, NULL, $4, $5, $6::jsonb, now()
+)
+ON CONFLICT (hierarchy_notice_identity)
+WHERE hierarchy_notice_identity IS NOT NULL
+DO NOTHING
+''',
+      [
+        messageId,
+        targetBeaconId,
+        noticeBody,
+        BeaconRoomSystemMessageKind.hierarchyLifecycle,
+        identity,
+        jsonEncode(payload),
+      ],
+    );
+    final rows = await _database
+        .customSelect(
+          r'''
+SELECT id, author_id, body, system_payload::text AS system_payload
+FROM public.beacon_room_message
+WHERE hierarchy_notice_identity = $1
+''',
+          variables: [Variable<String>(identity)],
+        )
+        .get();
+    return rows.single.read<String>('id');
+  }
+
+  @override
   Future<List<BeaconHierarchyDeliveryTarget>> claimDueDeliveries({
     required String leaseOwner,
+    required DateTime now,
     required int limit,
   }) async {
-    final now = DateTime.timestamp().toUtc();
     final rows = await _database
         .customSelect(
           r'''
@@ -244,6 +348,7 @@ WITH candidates AS (
       (d.state = 'pending' AND d.next_attempt_at <= $1::timestamptz)
       OR (d.state = 'leased' AND d.lease_until <= $1::timestamptz)
     )
+    AND d.attempt_count < $4
     AND NOT EXISTS (
       SELECT 1
       FROM public.beacon_hierarchy_deliveries earlier
@@ -272,9 +377,10 @@ claimed AS (
 SELECT event_id, target_beacon_id, direction FROM claimed
 ''',
           variables: [
-            Variable(TypedValue(Type.timestampTz, now)),
+            Variable(TypedValue(Type.timestampTz, now.toUtc())),
             Variable<int>(limit),
             Variable<String>(leaseOwner),
+            Variable<int>(BeaconHierarchyDeliverySafeError.poisonAttemptThreshold),
           ],
         )
         .get();
@@ -354,6 +460,94 @@ WHERE event_id = $1
 ''',
     [eventId, targetBeaconId, leaseOwner, safeErrorCode],
   );
+
+  @override
+  Future<void> scheduleDeliveryRetry({
+    required String eventId,
+    required String targetBeaconId,
+    required String leaseOwner,
+    required DateTime now,
+    required int attemptCount,
+    required String safeErrorCode,
+  }) {
+    final delay = BeaconHierarchyDeliverySafeError.retryDelayForAttemptCount(
+      attemptCount,
+    );
+    final nextAttempt = now.toUtc().add(delay);
+    return _database.customStatement(
+      r'''
+UPDATE public.beacon_hierarchy_deliveries
+SET
+  state = 'pending',
+  next_attempt_at = $4::timestamptz,
+  last_safe_error_code = $5,
+  lease_owner = NULL,
+  lease_until = NULL
+WHERE event_id = $1
+  AND target_beacon_id = $2
+  AND state = 'leased'
+  AND lease_owner = $3
+''',
+      [
+        eventId,
+        targetBeaconId,
+        leaseOwner,
+        nextAttempt.toIso8601String(),
+        safeErrorCode,
+      ],
+    );
+  }
+
+  @override
+  Future<bool> operatorParkPoisonedDelivery({
+    required String eventId,
+    required String targetBeaconId,
+  }) async {
+    final result = await _database.customUpdate(
+      r'''
+UPDATE public.beacon_hierarchy_deliveries
+SET
+  state = 'parked',
+  completed_at = now(),
+  last_safe_error_code = COALESCE(last_safe_error_code, 'operator_parked')
+WHERE event_id = $1
+  AND target_beacon_id = $2
+  AND state = 'pending'
+  AND attempt_count >= $3
+''',
+      variables: [
+        Variable<String>(eventId),
+        Variable<String>(targetBeaconId),
+        Variable<int>(BeaconHierarchyDeliverySafeError.poisonAttemptThreshold),
+      ],
+      updates: {},
+    );
+    return result > 0;
+  }
+
+  @override
+  Future<int?> loadDeliveryAttemptCount({
+    required String eventId,
+    required String targetBeaconId,
+  }) async {
+    final rows = await _database
+        .customSelect(
+          r'''
+SELECT attempt_count
+FROM public.beacon_hierarchy_deliveries
+WHERE event_id = $1 AND target_beacon_id = $2
+''',
+          variables: [
+            Variable<String>(eventId),
+            Variable<String>(targetBeaconId),
+          ],
+        )
+        .get();
+    if (rows.isEmpty) {
+      return null;
+    }
+    return rows.single.read<int>('attempt_count');
+  }
 
   static BeaconHierarchyEvent _eventFromRow(QueryRow row) => BeaconHierarchyEvent(
     eventId: row.read<String>('id'),

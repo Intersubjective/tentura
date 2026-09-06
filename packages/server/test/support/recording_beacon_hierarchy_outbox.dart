@@ -53,9 +53,55 @@ final class RecordingBeaconHierarchyOutbox implements BeaconHierarchyOutboxPort 
   @override
   Future<List<BeaconHierarchyDeliveryTarget>> claimDueDeliveries({
     required String leaseOwner,
+    required DateTime now,
     required int limit,
   }) async =>
       const [];
+
+  @override
+  Future<BeaconHierarchyEvent?> loadEvent(String eventId) async => null;
+
+  @override
+  Future<BeaconStatus?> loadDestinationBeaconStatus(
+    String targetBeaconId,
+  ) async =>
+      null;
+
+  @override
+  Future<String> insertHierarchyLifecycleNotice({
+    required String eventId,
+    required String targetBeaconId,
+    required BeaconHierarchyDeliveryDirection direction,
+    required BeaconStatus toStatus,
+    required DateTime occurredAt,
+    required String noticeBody,
+    required bool sourceDeleted,
+  }) async =>
+      'R-notice';
+
+  @override
+  Future<void> scheduleDeliveryRetry({
+    required String eventId,
+    required String targetBeaconId,
+    required String leaseOwner,
+    required DateTime now,
+    required int attemptCount,
+    required String safeErrorCode,
+  }) async {}
+
+  @override
+  Future<bool> operatorParkPoisonedDelivery({
+    required String eventId,
+    required String targetBeaconId,
+  }) async =>
+      false;
+
+  @override
+  Future<int?> loadDeliveryAttemptCount({
+    required String eventId,
+    required String targetBeaconId,
+  }) async =>
+      null;
 
   @override
   Future<void> markDeliveryDelivered({
@@ -128,9 +174,76 @@ final class ThrowingBeaconHierarchyOutbox extends BeaconHierarchyOutboxPort {
   @override
   Future<List<BeaconHierarchyDeliveryTarget>> claimDueDeliveries({
     required String leaseOwner,
+    required DateTime now,
     required int limit,
   }) =>
-      _inner.claimDueDeliveries(leaseOwner: leaseOwner, limit: limit);
+      _inner.claimDueDeliveries(leaseOwner: leaseOwner, now: now, limit: limit);
+
+  @override
+  Future<BeaconHierarchyEvent?> loadEvent(String eventId) =>
+      _inner.loadEvent(eventId);
+
+  @override
+  Future<BeaconStatus?> loadDestinationBeaconStatus(String targetBeaconId) =>
+      _inner.loadDestinationBeaconStatus(targetBeaconId);
+
+  @override
+  Future<String> insertHierarchyLifecycleNotice({
+    required String eventId,
+    required String targetBeaconId,
+    required BeaconHierarchyDeliveryDirection direction,
+    required BeaconStatus toStatus,
+    required DateTime occurredAt,
+    required String noticeBody,
+    required bool sourceDeleted,
+  }) =>
+      _inner.insertHierarchyLifecycleNotice(
+        eventId: eventId,
+        targetBeaconId: targetBeaconId,
+        direction: direction,
+        toStatus: toStatus,
+        occurredAt: occurredAt,
+        noticeBody: noticeBody,
+        sourceDeleted: sourceDeleted,
+      );
+
+  @override
+  Future<void> scheduleDeliveryRetry({
+    required String eventId,
+    required String targetBeaconId,
+    required String leaseOwner,
+    required DateTime now,
+    required int attemptCount,
+    required String safeErrorCode,
+  }) =>
+      _inner.scheduleDeliveryRetry(
+        eventId: eventId,
+        targetBeaconId: targetBeaconId,
+        leaseOwner: leaseOwner,
+        now: now,
+        attemptCount: attemptCount,
+        safeErrorCode: safeErrorCode,
+      );
+
+  @override
+  Future<bool> operatorParkPoisonedDelivery({
+    required String eventId,
+    required String targetBeaconId,
+  }) =>
+      _inner.operatorParkPoisonedDelivery(
+        eventId: eventId,
+        targetBeaconId: targetBeaconId,
+      );
+
+  @override
+  Future<int?> loadDeliveryAttemptCount({
+    required String eventId,
+    required String targetBeaconId,
+  }) =>
+      _inner.loadDeliveryAttemptCount(
+        eventId: eventId,
+        targetBeaconId: targetBeaconId,
+      );
 
   @override
   Future<void> markDeliveryDelivered({

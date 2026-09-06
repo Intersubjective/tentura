@@ -16,6 +16,7 @@ import 'package:tentura_server/domain/use_case/beacon_case.dart';
 import 'package:tentura_server/domain/use_case/email_digest_case.dart';
 import 'package:tentura_server/domain/use_case/attention_expiry_sweep_case.dart';
 import 'package:tentura_server/domain/use_case/attention_channel_delivery_case.dart';
+import 'package:tentura_server/domain/use_case/beacon_hierarchy_delivery_case.dart';
 import 'package:tentura_server/domain/use_case/block_cascade_case.dart';
 import 'package:tentura_server/domain/use_case/block_release_sweep_case.dart';
 import 'package:tentura_server/domain/use_case/capability_cell_expiry_sweep_case.dart';
@@ -43,6 +44,7 @@ final class TaskWorkerCase extends UseCaseBase {
     NotificationOutboxRepositoryPort notificationOutbox,
     AttentionExpirySweepCase attentionExpirySweep,
     AttentionChannelDeliveryCase attentionChannelDelivery,
+    BeaconHierarchyDeliveryCase beaconHierarchyDelivery,
     TrustMaintenancePort trustMaintenance,
     BlockCascadeCase blockCascade,
     BlockReleaseSweepCase blockReleaseSweep,
@@ -65,6 +67,7 @@ final class TaskWorkerCase extends UseCaseBase {
       beaconCase: GetIt.I<BeaconCase>(),
       attentionExpirySweep: attentionExpirySweep,
       attentionChannelDelivery: attentionChannelDelivery,
+      beaconHierarchyDelivery: beaconHierarchyDelivery,
       trustMaintenance: trustMaintenance,
       blockCascade: blockCascade,
       blockReleaseSweep: blockReleaseSweep,
@@ -88,6 +91,7 @@ final class TaskWorkerCase extends UseCaseBase {
     BeaconCase? beaconCase,
     AttentionExpirySweepCase? attentionExpirySweep,
     AttentionChannelDeliveryCase? attentionChannelDelivery,
+    BeaconHierarchyDeliveryCase? beaconHierarchyDelivery,
     TrustMaintenancePort? trustMaintenance,
     BlockCascadeCase? blockCascade,
     BlockReleaseSweepCase? blockReleaseSweep,

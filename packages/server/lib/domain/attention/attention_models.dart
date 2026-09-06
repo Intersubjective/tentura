@@ -14,6 +14,7 @@ enum AttentionEventType {
   offerRemoved,
   roomMessagePosted,
   requestStatusChanged,
+  beaconHierarchyStatusChanged,
   reviewOpened,
   mutualConnectionFormed,
   inviteAccepted,

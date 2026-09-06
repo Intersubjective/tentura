@@ -74,6 +74,10 @@ class AttentionPolicy {
       reasons.any(_isActiveRequestParticipant)
           ? AttentionSuppressionClass.standard
           : AttentionSuppressionClass.noisy,
+    AttentionEventType.beaconHierarchyStatusChanged =>
+      reasons.any(_isActiveRequestParticipant)
+          ? AttentionSuppressionClass.standard
+          : AttentionSuppressionClass.noisy,
     AttentionEventType.coordinationChanged => AttentionSuppressionClass.noisy,
     AttentionEventType.deadlineChanged => AttentionSuppressionClass.standard,
     AttentionEventType.deadlineReminder => AttentionSuppressionClass.mandatory,
@@ -123,6 +127,7 @@ class AttentionPolicy {
     AttentionEventType.relayReceived ||
     AttentionEventType.roomMessagePosted ||
     AttentionEventType.requestStatusChanged ||
+    AttentionEventType.beaconHierarchyStatusChanged ||
     AttentionEventType.blockerOpened ||
     AttentionEventType.promiseMade ||
     AttentionEventType.promiseWithdrawn ||
@@ -151,6 +156,7 @@ class AttentionPolicy {
     AttentionEventType.offerAccepted ||
     AttentionEventType.roomMessagePosted ||
     AttentionEventType.requestStatusChanged ||
+    AttentionEventType.beaconHierarchyStatusChanged ||
     AttentionEventType.reviewOpened ||
     AttentionEventType.needsMe ||
     AttentionEventType.blockerOpened ||
@@ -218,6 +224,10 @@ class AttentionPolicy {
         kind: AttentionDestinationKind.beaconRoomMessage,
         targetEntityId: role.messageId,
       ),
+      AttentionEventType.beaconHierarchyStatusChanged => AttentionDestination(
+        kind: AttentionDestinationKind.beaconRoomMessage,
+        targetEntityId: role.messageId,
+      ),
       AttentionEventType.reviewOpened => AttentionDestination(
         kind: AttentionDestinationKind.review,
         targetEntityId: role.beaconId,
@@ -244,7 +254,8 @@ class AttentionPolicy {
           AttentionPreferenceClass.coordinationChurn,
         AttentionEventType.commitmentCancelled =>
           AttentionPreferenceClass.coordinationChurn,
-        AttentionEventType.requestStatusChanged =>
+        AttentionEventType.requestStatusChanged ||
+        AttentionEventType.beaconHierarchyStatusChanged =>
           AttentionPreferenceClass.requestProgress,
         AttentionEventType.trustGivenChanged ||
         AttentionEventType.trustReceivedChanged => null,
@@ -304,6 +315,8 @@ class AttentionPolicy {
     AttentionEventType.commitmentReleased => 'commitment_released',
     AttentionEventType.roomMessagePosted => 'room_message_posted',
     AttentionEventType.requestStatusChanged => 'request_status_changed',
+    AttentionEventType.beaconHierarchyStatusChanged =>
+      'beacon_hierarchy_status_changed',
     AttentionEventType.reviewOpened => 'review_opened',
     AttentionEventType.mutualConnectionFormed => 'mutual_connection_formed',
     AttentionEventType.inviteAccepted => 'invite_accepted',

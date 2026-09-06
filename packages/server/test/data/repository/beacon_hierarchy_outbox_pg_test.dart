@@ -212,6 +212,7 @@ INSERT INTO public.beacon_room_message (
 
       final claimed = await outbox.claimDueDeliveries(
         leaseOwner: 'worker-1',
+        now: DateTime.timestamp(),
         limit: 5,
       );
       expect(claimed, hasLength(1));

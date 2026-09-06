@@ -1,3 +1,4 @@
+import 'package:tentura_root/domain/entity/beacon_hierarchy_delivery_direction.dart';
 import 'package:tentura_root/domain/entity/beacon_hierarchy_event.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 
@@ -23,8 +24,23 @@ abstract class BeaconHierarchyOutboxPort {
     required String eventId,
   });
 
+  Future<BeaconHierarchyEvent?> loadEvent(String eventId);
+
+  Future<BeaconStatus?> loadDestinationBeaconStatus(String targetBeaconId);
+
+  Future<String> insertHierarchyLifecycleNotice({
+    required String eventId,
+    required String targetBeaconId,
+    required BeaconHierarchyDeliveryDirection direction,
+    required BeaconStatus toStatus,
+    required DateTime occurredAt,
+    required String noticeBody,
+    required bool sourceDeleted,
+  });
+
   Future<List<BeaconHierarchyDeliveryTarget>> claimDueDeliveries({
     required String leaseOwner,
+    required DateTime now,
     required int limit,
   });
 
@@ -46,5 +62,27 @@ abstract class BeaconHierarchyOutboxPort {
     required String targetBeaconId,
     required String leaseOwner,
     required String safeErrorCode,
+  });
+
+  /// Owner-qualified retry scheduling after a materialization transaction rolls
+  /// back. [attemptCount] is the post-claim attempt count on the leased row.
+  Future<void> scheduleDeliveryRetry({
+    required String eventId,
+    required String targetBeaconId,
+    required String leaseOwner,
+    required DateTime now,
+    required int attemptCount,
+    required String safeErrorCode,
+  });
+
+  /// Audited operator action for poisoned rows — never called by the sweep.
+  Future<bool> operatorParkPoisonedDelivery({
+    required String eventId,
+    required String targetBeaconId,
+  });
+
+  Future<int?> loadDeliveryAttemptCount({
+    required String eventId,
+    required String targetBeaconId,
   });
 }

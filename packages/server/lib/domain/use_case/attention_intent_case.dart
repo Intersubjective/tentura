@@ -1,5 +1,7 @@
 import 'package:injectable/injectable.dart';
 import 'package:tentura_root/consts.dart';
+import 'package:tentura_root/domain/entity/beacon_hierarchy_delivery_direction.dart';
+import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import 'package:tentura_server/domain/attention/attention_models.dart';
 import 'package:tentura_server/domain/entity/beacon_notification_context.dart';
@@ -15,6 +17,7 @@ import 'package:tentura_server/domain/port/beacon_access_guard.dart';
 import 'package:tentura_server/domain/port/beacon_room_notification_context_port.dart';
 import 'package:tentura_server/domain/port/user_block_repository_port.dart';
 import 'package:tentura_server/domain/port/user_repository_port.dart';
+import 'package:tentura_server/domain/policy/beacon_hierarchy_notice_copy.dart';
 import 'package:tentura_server/domain/trust/trust_bin.dart';
 
 /// Builds the immutable, recipient-specific snapshot recorded by an attention
@@ -845,6 +848,122 @@ class AttentionIntentCase {
       collapseKey: AttentionCollapseKey.none(sourceEventKey),
       recipients: recipients,
       beaconId: beaconId,
+    );
+  }
+
+  Future<AttentionDispatchIntent> beaconHierarchyStatusChanged({
+    required String destinationBeaconId,
+    required String messageId,
+    required BeaconHierarchyDeliveryDirection direction,
+    required BeaconStatus toStatus,
+    required DateTime occurredAt,
+    required String sourceEventKey,
+    required bool sourceDeleted,
+    String? actorUserId,
+  }) async {
+    final context = await _context.loadContextForBeacon(destinationBeaconId);
+    final reasonsByRecipient = <String, Set<AttentionRecipientReason>>{};
+
+    void addReasons(
+      Iterable<String> userIds,
+      AttentionRecipientReason reason,
+    ) {
+      for (final userId in userIds) {
+        if (userId.isEmpty || userId == actorUserId) continue;
+        reasonsByRecipient.putIfAbsent(userId, () => {}).add(reason);
+      }
+    }
+
+    addReasons(
+      [context.beaconAuthorId],
+      AttentionRecipientReason.authorOfBeacon,
+    );
+    addReasons(
+      context.stewardUserIds,
+      AttentionRecipientReason.roomModeratorOrSteward,
+    );
+    addReasons(
+      context.admittedUserIds,
+      AttentionRecipientReason.admittedRoomMember,
+    );
+    addReasons(
+      context.activeHelpOfferUserIds,
+      AttentionRecipientReason.activeParticipant,
+    );
+    addReasons(
+      context.activeRequestParticipantUserIds,
+      AttentionRecipientReason.activeParticipant,
+    );
+    addReasons(
+      context.activePlanParticipantUserIds,
+      AttentionRecipientReason.activeParticipant,
+    );
+    addReasons(
+      context.inboxStanceUserIds,
+      AttentionRecipientReason.inboxStanceHolder,
+    );
+
+    if (actorUserId != null) {
+      final hiddenPeerIds = await _userBlocks.hiddenPeerIds(
+        viewerId: actorUserId!,
+        peerIds: reasonsByRecipient.keys,
+      );
+      for (final hiddenId in hiddenPeerIds) {
+        reasonsByRecipient.remove(hiddenId);
+      }
+    }
+
+    final recipients = <AttentionRecipientSnapshot>[];
+    for (final entry in reasonsByRecipient.entries) {
+      final watcherOnly =
+          entry.value.length == 1 &&
+          entry.value.contains(AttentionRecipientReason.inboxStanceHolder);
+      recipients.add(
+        AttentionRecipientSnapshot(
+          recipientId: entry.key,
+          reasons: entry.value,
+          collapseKey: watcherOnly
+              ? AttentionCollapseKey.family(
+                  'request_status',
+                  [destinationBeaconId],
+                )
+              : null,
+          channelEligible: !watcherOnly,
+          role: AttentionRecipientRoleFacts(
+            canReadBeaconContent: await _accessGuard.canReadContent(
+              beaconId: destinationBeaconId,
+              viewerId: entry.key,
+            ),
+            beaconId: destinationBeaconId,
+            messageId: messageId,
+            actorUserId: actorUserId,
+          ),
+        ),
+      );
+    }
+
+    final encodedBeacon = Uri.encodeQueryComponent(destinationBeaconId);
+    final encodedMessage = Uri.encodeQueryComponent(messageId);
+    return AttentionDispatchIntent(
+      eventType: AttentionEventType.beaconHierarchyStatusChanged,
+      sourceEventKey: sourceEventKey,
+      actorUserId: actorUserId,
+      priority: NotificationPriority.low,
+      kind: NotificationKind.roomActivityLowPriority,
+      title: BeaconHierarchyNoticeCopy.attentionTitle(direction: direction),
+      body: BeaconHierarchyNoticeCopy.attentionBody(
+        direction: direction,
+        toStatus: toStatus,
+        occurredAt: occurredAt,
+        sourceDeleted: sourceDeleted,
+      ),
+      actionUrl:
+          '/#$kPathBeaconView/$encodedBeacon?tab=threads&thread=general'
+          '&entry=deep_link&is_deep_link=true&message=$encodedMessage',
+      collapseKey: AttentionCollapseKey.none(sourceEventKey),
+      recipients: recipients,
+      beaconId: destinationBeaconId,
+      messageId: messageId,
     );
   }
 
