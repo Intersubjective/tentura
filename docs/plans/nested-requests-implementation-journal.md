@@ -2114,3 +2114,65 @@ and cache-buster, multiclient harness `markAsk`/Issue-102 scenario adaptation,
 
 **Task 15 overall:** partial — documentation slice complete; release/versioning
 and browser regression gates remain open.
+
+### Task 15 — child independence PG regression checkpoint (Cursor CLI worker, 2026-09-06)
+
+**Scope (this worker):** Task 15 cross-cutting E2E proof only — one new PG integration
+test exercising a nested child beacon through the **generic** forward → help-offer →
+admission → review/finalization machinery (no hierarchy-specific lifecycle code).
+Explicitly **out of scope:** docs, version bump, multiclient harness, client code.
+
+**Owned paths:** `packages/server/test/domain/use_case/beacon_hierarchy_child_independence_pg_test.dart`,
+`docs/plans/nested-requests-implementation-journal.md` (append only).
+
+**PG environment (no secrets logged):**
+- Load: `export $(grep -E '^POSTGRES_' /home/vader/MY_SRC/tentura/.env | xargs)`
+- Create DB: `docker exec -e PGPASSWORD="$POSTGRES_PASSWORD" postgres psql -U "$POSTGRES_USERNAME" -d postgres -c "CREATE DATABASE \"$POSTGRES_DBNAME\""`
+- Verify: `SELECT current_database()` equals allocated `tentura_test_bhier_*` name
+- Migrations: `openBeaconHierarchyPgSession` → `migrateDbSchema` (same as other hierarchy PG tests)
+- Tests:
+  ```bash
+  cd packages/server
+  TENTURA_BEACON_HIERARCHY_PG_TEST_DB="$POSTGRES_DBNAME" \
+    dart test test/domain/use_case/beacon_hierarchy_child_independence_pg_test.dart -t pg -j 1
+  TENTURA_BEACON_HIERARCHY_PG_TEST_DB="$POSTGRES_DBNAME" \
+    dart test -t pg -j 1 test/domain/use_case/beacon_hierarchy_child_independence_pg_test.dart \
+    test/domain/use_case/beacon_hierarchy_erasure_pg_test.dart \
+    test/data/repository/beacon_hierarchy_*_pg_test.dart \
+    test/data/repository/beacon_child_create_atomic_pg_test.dart \
+    test/data/database/nested_requests_cleanup_pg_test.dart \
+    test/support/beacon_hierarchy_fixture_pg_test.dart
+  ```
+- Result: new file **2/2**; hierarchy PG suite **77/77** on disposable DB
+  `tentura_test_bhier_suite_*` (serial `-j 1`).
+
+**Test design:**
+1. `seedFullTopology()` + `seedPublishedHierarchyTree()` — child **C** under parent **B**
+   (`parent_beacon_id` set). Generic lifecycle on C: `ForwardCase.forward` (Dave→Eve),
+   `HelpOfferCase.offerHelp`, `CoordinationCase.acceptHelpOffer`,
+   `EvaluationCase.beaconClose` → `evaluationSubmit` ×2 → `evaluationFinalize` ×2
+   (auto-close via `_autoCloseReviewWindow`). Compared outcome shape to same sequence on
+   standalone beacon `Bhierstand01` (no parent).
+2. Assert parent **B** row snapshot unchanged (status, `updated_at`, review-window fields).
+3. Assert **Alice** (A owner) and **Bob** (B owner) `user_trust_edge`,
+   `user_trust_source_edge`, `trust_evidence_event`, and `mr_mutual_scores` snapshots
+   unchanged — trust follows child participants only.
+4. Second case: Bob closes **B** while **C** still open; C status/admission unchanged.
+
+**Trust write path verified (live code, not journal folklore):**
+- Close/finalization: `ReviewFinalizationCase.closeAndFinalize` →
+  `TrustEvidenceRepository.record` → SQL `trust_apply_source_evidence` +
+  `trust_rebuild_effective_edge` (m0122/m0144). **Not** `vote_user` trigger.
+- Forward reason ledger: `CapabilityEvidenceRepository` / `person_capability_event`
+  (separate from trust edges).
+
+**Finding:** Child needed **zero** hierarchy-specific code on the forward/help/review path;
+only generic use cases + existing `BeaconHierarchyRepository.lockMutationScope()` inside
+those cases (same as standalone beacons since Task 03).
+
+### Task 15 — child independence PG regression complete (Cursor CLI worker, 2026-09-06)
+
+**Commits:** see STATUS block.
+
+**Task 15 overall:** partial — child-independence PG regression complete; release/versioning,
+multiclient browser gate, and `docs/README.md` release notes remain open.
