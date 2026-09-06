@@ -1319,3 +1319,58 @@ Not accepted as task-complete — no `query_beacon_hierarchy.dart`,
 Hasura metadata reload, schema_fetcher regeneration, or any client-side
 transport exist yet. A fresh worker continues Task 10 from this
 foundation.
+
+### Task 10 — second attempt killed; GraphQL resolvers salvaged (2026-09-06)
+
+Second Cursor worker attempt also killed by external memory pressure
+before its first commit (system had 50GiB available at review time but
+~7.7GiB in swap — likely a transient spike from cursor-agent + build
+tooling running alongside other desktop applications, not a sustained
+shortage; not something to work around by touching unrelated processes).
+This attempt made real, correctly-scoped progress on top of the first
+attempt's salvaged foundation (`4f4b22206`):
+
+- `query/query_beacon_hierarchy.dart` (new): `beaconHierarchyCapabilities`,
+  `beaconChildren`, `beaconParentReference`, `beaconPromotionSource` —
+  thin resolvers over the already-implemented
+  `BeaconHierarchyRepositoryPort`.
+- `mutation/mutation_beacon_hierarchy.dart` (new): `beaconChildCreate` —
+  thin resolver over the already-implemented `BeaconChildCreatePort`,
+  correctly reusing the existing `InputFieldBeaconTitle`/`Description`/
+  `Coordinates`/`Context` wrappers from `beaconCreate` rather than
+  duplicating them.
+- Five DTO-mapping functions added to `gql_v2_dto_maps.dart`.
+- Both resolver classes registered in `_queries_all.dart`/
+  `_mutations_all.dart`.
+
+Manager review, before accepting:
+1. Confirmed the resolvers do not locally catch
+   `BeaconHierarchyCursorInvalidException` — verified this is correct,
+   not an oversight: this codebase already funnels every `ExceptionBase`
+   through one top-level `on ExceptionBase catch` in
+   `graphql_controller.dart:90`; no other resolver in the codebase
+   catches domain exceptions locally either.
+2. Confirmed `beaconChildCreateResultToGqlMap` never exposes the full
+   `beacon` object for the `alreadyPromoted` outcome (only for
+   `created`/`replayed`) — matches plan §4.3's "carrying the existing
+   child ID only if currently readable" / §3.5's "do not disclose a
+   conflicting child ID before authorizing it".
+3. Confirmed the existing `beaconPublish` mutation needed no changes:
+   read `BeaconCase.publishDraft` directly and confirmed it already
+   branches to `_childCreateCase.publishDraft` when
+   `beacon.parentBeaconId` is set (Task 04), so child-draft publication
+   was already wired at the domain layer before this task started.
+4. Wrote and ran a throwaway schema-build smoke test (real prod DI via
+   `configureDependencies`/`getIt.allReady`, then constructed
+   `graphqlSchema` directly) to catch schema-wiring failures `dart
+   analyze` cannot see (duplicate type names, unresolved GraphQL type
+   references) — passed, then discarded; not a permanent addition.
+5. Independently reran: `dart analyze lib` 0 errors; `dart test
+   --exclude-tags pg` 1651/1651; `test/app/di_smoke_test.dart` (prod+dev
+   DI graphs resolve, pre-existing, unaffected); custom-lints baseline
+   unchanged (0/0); `git diff --check` clean. Commit: `38db4c001`.
+
+Not accepted as task-complete — still missing Hasura metadata reload,
+schema_fetcher regeneration, all client-side transport (`.graphql`
+documents, direct-routing registration, repository/adapter, DI), and all
+four required tests. A fresh worker continues Task 10 from here.
