@@ -2,9 +2,11 @@ import 'dart:convert';
 
 import 'package:freezed_annotation/freezed_annotation.dart';
 
+import 'package:tentura/domain/entity/beacon_room_consts.dart';
 import 'package:tentura/domain/entity/coordination_item.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/domain/entity/room_message_attachment.dart';
+import 'package:tentura/domain/entity/room_message_hierarchy_payload.dart';
 import 'package:tentura/domain/entity/room_message_mention_span.dart';
 
 part 'room_message.freezed.dart';
@@ -44,6 +46,7 @@ abstract class RoomMessage with _$RoomMessage {
     @Default(0) int linkedItemMessageCount,
     @Default(0) int linkedItemUnreadCount,
     String? systemPayloadJson,
+    int? systemMessageKind,
     @Default(<RoomMessageAttachment>[]) List<RoomMessageAttachment> attachments,
     @Default(<String>[]) List<String> mentions,
     @Default(<RoomMessageMentionSpan>[])
@@ -135,6 +138,68 @@ abstract class RoomMessage with _$RoomMessage {
       final id = decoded['semanticActorId'];
       if (id is String && id.trim().isNotEmpty) return id.trim();
       return null;
+    } on Object {
+      return null;
+    }
+  }
+
+  /// Typed `system_payload` for a hierarchy notice row
+  /// (`systemMessageKind == hierarchyLifecycle|childCreated`, plan §4.1/§4.4).
+  /// Any unknown/unparseable `kind`, `version`, or shape returns null so the
+  /// caller falls back to generic, non-actionable system-event text —
+  /// never throws.
+  RoomMessageHierarchyPayload? get hierarchyPayload {
+    if (systemMessageKind != BeaconRoomSystemMessageKind.hierarchyLifecycle &&
+        systemMessageKind != BeaconRoomSystemMessageKind.childCreated) {
+      return null;
+    }
+    final raw = systemPayloadJson;
+    if (raw == null || raw.trim().isEmpty) return null;
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is! Map<String, dynamic>) return null;
+      if (decoded['version'] != 1) return null;
+      switch (decoded['kind']) {
+        case 'childCreated':
+          final childBeaconId = decoded['childBeaconId'];
+          if (childBeaconId is! String || childBeaconId.trim().isEmpty) {
+            return null;
+          }
+          final sourceMessageId = decoded['sourceMessageId'];
+          return RoomMessageHierarchyChildCreated(
+            childBeaconId: childBeaconId.trim(),
+            sourceMessageId: sourceMessageId is String && sourceMessageId.trim().isNotEmpty
+                ? sourceMessageId.trim()
+                : null,
+          );
+        case 'hierarchyLifecycle':
+          final eventId = decoded['eventId'];
+          final targetBeaconId = decoded['targetBeaconId'];
+          final direction = decoded['direction'];
+          final toStatus = decoded['toStatus'];
+          final occurredAt = decoded['occurredAt'];
+          final sourceDeleted = decoded['sourceDeleted'];
+          if (eventId is! String ||
+              targetBeaconId is! String ||
+              direction is! String ||
+              toStatus is! String ||
+              occurredAt is! String ||
+              sourceDeleted is! bool) {
+            return null;
+          }
+          final parsedAt = DateTime.tryParse(occurredAt);
+          if (parsedAt == null) return null;
+          return RoomMessageHierarchyLifecycle(
+            eventId: eventId,
+            targetBeaconId: targetBeaconId,
+            direction: direction,
+            toStatus: toStatus,
+            occurredAt: parsedAt,
+            sourceDeleted: sourceDeleted,
+          );
+        default:
+          return null;
+      }
     } on Object {
       return null;
     }
