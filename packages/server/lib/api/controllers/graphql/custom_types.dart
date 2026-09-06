@@ -70,6 +70,13 @@ List<GraphQLType<dynamic, dynamic>> get customTypes => [
   gqlTypeBeaconThreadRow,
   gqlTypeBeaconLineageSuggestion,
   gqlTypeBeaconLineageForwardSuggestions,
+  gqlTypeBeaconHierarchyCapabilities,
+  gqlTypeBeaconHierarchyOwnerSummary,
+  gqlTypeBeaconHierarchySummary,
+  gqlTypeBeaconHierarchyPage,
+  gqlTypeBeaconParentReference,
+  gqlTypeBeaconPromotionSource,
+  gqlTypeBeaconChildCreateResult,
   gqlTypeNotificationPreferences,
   gqlTypeFcmTestSendResult,
   gqlTypeEmailTestSendResult,
@@ -1120,6 +1127,67 @@ final gqlTypeBeaconLineageForwardSuggestions =
             gqlTypeBeaconLineageSuggestion.nonNullable(),
           ).nonNullable(),
         ),
+      ]);
+
+final gqlTypeBeaconHierarchyOwnerSummary =
+    GraphQLObjectType('BeaconHierarchyOwnerSummary', null)
+      ..fields.addAll([
+        field('id', graphQLString.nonNullable()),
+        field('displayName', graphQLString.nonNullable()),
+        field('avatarImageId', graphQLString),
+      ]);
+
+final gqlTypeBeaconHierarchySummary =
+    GraphQLObjectType('BeaconHierarchySummary', null)
+      ..fields.addAll([
+        field('beaconId', graphQLString.nonNullable()),
+        field('title', graphQLString),
+        field('owner', gqlTypeBeaconHierarchyOwnerSummary),
+        field('status', graphQLInt.nonNullable()),
+        field('publishedAt', graphQLString.nonNullable()),
+        field('isTombstone', graphQLBoolean.nonNullable()),
+      ]);
+
+final gqlTypeBeaconHierarchyPage = GraphQLObjectType('BeaconHierarchyPage', null)
+  ..fields.addAll([
+    field(
+      'summaries',
+      GraphQLListType(gqlTypeBeaconHierarchySummary.nonNullable()).nonNullable(),
+    ),
+    field('nextCursor', graphQLString),
+  ]);
+
+final gqlTypeBeaconHierarchyCapabilities =
+    GraphQLObjectType('BeaconHierarchyCapabilities', null)
+      ..fields.addAll([
+        field('canListChildren', graphQLBoolean.nonNullable()),
+        field('canCreateChild', graphQLBoolean.nonNullable()),
+        field('denialCode', graphQLString),
+      ]);
+
+final gqlTypeBeaconParentReference =
+    GraphQLObjectType('BeaconParentReference', null)
+      ..fields.addAll([
+        field('state', graphQLString.nonNullable()),
+        field('beaconId', graphQLString),
+        field('title', graphQLString),
+      ]);
+
+final gqlTypeBeaconPromotionSource =
+    GraphQLObjectType('BeaconPromotionSource', null)
+      ..fields.addAll([
+        field('sourceBeaconId', graphQLString.nonNullable()),
+        field('sourceMessageId', graphQLString.nonNullable()),
+        field('textPreview', graphQLString.nonNullable()),
+        field('author', gqlTypeBeaconHierarchyOwnerSummary.nonNullable()),
+      ]);
+
+final gqlTypeBeaconChildCreateResult =
+    GraphQLObjectType('BeaconChildCreateResult', null)
+      ..fields.addAll([
+        field('outcome', graphQLString.nonNullable()),
+        field('beaconId', graphQLString),
+        field('beacon', gqlTypeBeacon),
       ]);
 
 /// Result of a debug FCM test push to all registered devices.

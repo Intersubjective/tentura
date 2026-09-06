@@ -1,5 +1,3 @@
-import 'dart:convert';
-
 import 'package:drift/drift.dart';
 import 'package:injectable/injectable.dart';
 import 'package:postgres/postgres.dart' show TypedValue, Type;
@@ -12,8 +10,8 @@ import 'package:tentura_root/domain/entity/beacon_parent_reference.dart';
 import 'package:tentura_root/domain/entity/beacon_promotion_source.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 
-import 'package:tentura_server/consts/beacon_hierarchy_consts.dart';
 import 'package:tentura_server/consts/beacon_room_consts.dart';
+import 'package:tentura_server/domain/beacon_hierarchy_cursor.dart';
 import 'package:tentura_server/domain/entity/beacon_structural_record.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/policy/beacon_hierarchy_policy.dart';
@@ -69,7 +67,7 @@ class BeaconHierarchyRepository implements BeaconHierarchyRepositoryPort {
     required int first,
     String? after,
   }) async {
-    final cursor = _decodeCursor(
+    final cursor = decodeBeaconHierarchyCursor(
       after,
       expectedParentId: parentBeaconId,
       expectedGroup: group,
@@ -148,7 +146,7 @@ LIMIT $2
     String? nextCursor;
     if (hasMore && pageRows.isNotEmpty) {
       final last = pageRows.last;
-      nextCursor = _encodeCursor(
+      nextCursor = encodeBeaconHierarchyCursor(
         parentId: parentBeaconId,
         group: group,
         publishedAt: DateTime.parse(
@@ -364,56 +362,6 @@ SELECT
         BeaconHierarchyChildGroup.deleted => '2',
       };
 
-  static String _encodeCursor({
-    required String parentId,
-    required BeaconHierarchyChildGroup group,
-    required DateTime publishedAt,
-    required String beaconId,
-  }) {
-    final payload = jsonEncode({
-      'v': kBeaconHierarchyCursorVersion,
-      'p': parentId,
-      'g': group.name,
-      't': publishedAt.toUtc().toIso8601String(),
-      'i': beaconId,
-    });
-    return base64Url.encode(utf8.encode(payload)).replaceAll('=', '');
-  }
-
-  static _HierarchyCursor? _decodeCursor(
-    String? after, {
-    required String expectedParentId,
-    required BeaconHierarchyChildGroup expectedGroup,
-  }) {
-    if (after == null || after.isEmpty) {
-      return null;
-    }
-    try {
-      final normalized = after.padRight(
-        after.length + ((4 - after.length % 4) % 4),
-        '=',
-      );
-      final decoded = utf8.decode(base64Url.decode(normalized));
-      final map = jsonDecode(decoded) as Map<String, dynamic>;
-      if (map['v'] != kBeaconHierarchyCursorVersion) {
-        throw const FormatException('cursor version');
-      }
-      if (map['p'] != expectedParentId) {
-        throw const FormatException('cursor parent');
-      }
-      if (map['g'] != expectedGroup.name) {
-        throw const FormatException('cursor group');
-      }
-      return _HierarchyCursor(
-        publishedAt: DateTime.parse(map['t'] as String),
-        beaconId: map['i'] as String,
-      );
-    } on Object {
-      throw const UnspecifiedException(
-        description: 'BEACON_HIERARCHY_CURSOR_INVALID',
-      );
-    }
-  }
 }
 
 final class _BeaconRow {
@@ -428,14 +376,4 @@ final class _BeaconRow {
   final String ownerId;
   final String title;
   final int status;
-}
-
-final class _HierarchyCursor {
-  const _HierarchyCursor({
-    required this.publishedAt,
-    required this.beaconId,
-  });
-
-  final DateTime publishedAt;
-  final String beaconId;
 }

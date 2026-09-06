@@ -448,6 +448,17 @@ final class CoordinationKindDisabledException extends ExceptionBase {
       );
 }
 
+final class BeaconHierarchyCursorInvalidException extends ExceptionBase {
+  const BeaconHierarchyCursorInvalidException({String? description})
+    : super(
+        code: const BeaconExceptionCodes(
+          BeaconExceptionCode.beaconHierarchyCursorInvalid,
+        ),
+        description:
+            description ?? 'BEACON_HIERARCHY_CURSOR_INVALID',
+      );
+}
+
 final class EvaluationException extends ExceptionBase {
   EvaluationException({
     required EvaluationExceptionCode evaluationCode,

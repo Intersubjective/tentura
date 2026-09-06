@@ -89,6 +89,7 @@ enum BeaconExceptionCode {
   beaconChildCommandGone, // 1314
   discussionScopeDisabled, // 1315
   coordinationKindDisabled, // 1316
+  beaconHierarchyCursorInvalid, // 1317
 }
 
 class BeaconExceptionCodes extends ExceptionCodes {
