@@ -85,7 +85,7 @@ which this plan/orchestration owns.
 | 09 | Scoped legacy cleanup migration | 08 | complete |
 | 10 | V2 hierarchy schema and generated client transport | 09 | complete |
 | 11 | Extend existing composer/save flow | 10 | complete |
-| 12 | Child request surface, General host, and safe navigation | 11 | pending |
+| 12 | Child request surface, General host, and safe navigation | 11 | complete |
 | 13 | Typed notices and promoted-source footer | 12 | pending |
 | 14 | Realtime producers and convergence | 13 | pending |
 | 15 | Whole-product regression and release documentation | 14 | pending |
@@ -1746,3 +1746,58 @@ Per-case disposition:
 
 Note: `thread_host_cubit_test.dart` semantic/multi-select cases remain failing
 from Task 12 production changes and were intentionally out of scope here.
+
+### Task 12 — manager final acceptance (2026-09-06)
+
+Remediation worker completed cleanly (1 commit, `92aa1bdf1`), fixing 11
+of the diagnosed stale-test cases across `request_threads_adaptive_test.dart`
+and `thread_detail_test.dart`. Reviewed its full diff directly (not just
+its self-reported pass count): confirmed each of the 11 dispositions
+(rewrite/delete/fixture-fix) was well-reasoned and non-mechanical — e.g.
+the "unknown thread id falls back to first accessible row" rewrite now
+asserts the actual new behavior (`l10n.beaconLegacyThreadUnavailable`
+shown) rather than just deleting coverage, and the tab-badge fixture fix
+correctly updated the expected count from the old item-inclusive total
+(5) to the new General-only total (1). Independently reran both files
+twice — 16/16 passing consistently.
+
+The worker's own report surfaced one honest, correctly-scoped-out
+finding: `thread_host_cubit_test.dart` had 4 additional pre-existing
+failures from the same General-only `ThreadHostCubit.select()` change,
+outside its remediation's stated file list. Verified this myself
+(4/8 failing, all selecting a non-General thread after the cubit's
+`if (!thread.isGeneral) return;` no-op guard was added) and fixed it
+directly given the fix pattern was now well-understood from reviewing
+the other 11 analogous cases: two tests rewritten to exercise the same
+close-before-recreate/generation-coalescing guarantees using repeated
+General selects instead of semantic-thread switches; one test deleted
+(asserted passing a non-General item id to the room-cubit factory —
+structurally impossible now) and replaced with a new test asserting the
+actual current invariant (`select` no-ops for non-General) instead of
+silently losing coverage of that code path; one test's setup swapped
+from a now-inert semantic-thread `select()` to General so its `clear()`
+assertions had a cubit to close. Commit `1b65d8ae9`.
+
+Swept the wider test suite for any other collateral: grepped for
+`_semanticThread`/`RequestThreadKind.ask`/`ItemActionsCubit`/
+`coordinationSemanticAskOpened`/`coordinationComposerTitle` across
+`test/`, found 4 more matching files
+(`item_card_golden_test.dart`, `beacon_threads_repository_test.dart`,
+`coordination_item_composer_sheet_test.dart`,
+`test/domain/entity/request_thread_test.dart`) and ran each
+individually — all pass (or, for the golden test, skip as before,
+unrelated to this task) since they test still-supported lower-level
+concerns (the `ItemCard` widget component itself, `RequestThread`
+domain-entity mapping, the still-used promise/ask composer sheet
+component) rather than the retired Discussion-overview entry points this
+task actually changed.
+
+Final verification: `dart analyze lib test` (client) — 0 errors, 0
+warnings; custom-lints baseline unchanged (32/32); every test file
+touched or flagged across this task's full arc — production commits
+`8601e904b`, test commits `239c008d8`/`92aa1bdf1`/`1b65d8ae9` — passes
+in isolation, run at least twice where timing/ordering sensitivity was a
+concern.
+
+Task 12 is ACCEPTED. Proceeding to Task 13 (typed notices and promoted-
+source footer).
