@@ -1277,3 +1277,45 @@ dispatching a fourth Cursor attempt blind, per the remediation-loop rule
 
 Task 09 is ACCEPTED. Proceeding to Task 10 (V2 hierarchy schema and
 generated client transport).
+
+### Task 10 — first attempt killed; foundation salvaged (2026-09-06)
+
+First Cursor worker attempt was killed by external memory pressure before
+its first commit. Diff inspection found real, correctly-scoped
+foundational progress (not a false start): extraction of the existing
+private cursor encode/decode pair out of `BeaconHierarchyRepository`
+(added by Task 02) into a new shared
+`packages/server/lib/domain/beacon_hierarchy_cursor.dart`, a new typed
+`BeaconHierarchyCursorInvalidException` replacing the previous generic
+`UnspecifiedException` on cursor decode failure (matching §3.5's
+`BEACON_HIERARCHY_CURSOR_INVALID`), and GraphQL object-type declarations
+in `custom_types.dart` for all five new hierarchy operations' result
+shapes — verified field-by-field against the actual domain entities
+under `lib/domain/entity/` rather than guessed.
+
+Found and fixed two real defects, both careless import edits from the
+kill, before accepting any of it:
+1. `gql_v2_dto_maps.dart`'s new import block deleted the pre-existing
+   `beacon_close_review_result.dart` import instead of inserting above
+   it — `BeaconCloseReviewResult` (used later in the same file) went
+   undefined. Restored the import.
+2. `beacon_hierarchy_repository.dart`'s import cleanup dropped the file's
+   only `exception.dart` import (reasonable-looking, since the cursor
+   methods being extracted were its only visible user in the diff) but
+   missed that `loadPromotionSource` in the same file independently
+   throws `IdNotFoundException` from that same import. Restored it.
+Also fixed a trailing-blank-line-at-EOF left by the extraction
+(`git diff --check` violation).
+
+Independently verified after both fixes: `dart analyze lib` — 0 errors;
+`dart test -t pg` on `beacon_hierarchy_repository_pg_test.dart` (8/8,
+confirming the cursor extraction preserved pagination behavior exactly,
+same test file Task 02/03 already relied on); `dart test --exclude-tags
+pg` (1651/1651); custom-lints baseline unchanged (0/0); `git diff --check`
+clean. Commit: `4f4b22206`.
+
+Not accepted as task-complete — no `query_beacon_hierarchy.dart`,
+`mutation_beacon_hierarchy.dart`, registry wiring, DTO-mapping functions,
+Hasura metadata reload, schema_fetcher regeneration, or any client-side
+transport exist yet. A fresh worker continues Task 10 from this
+foundation.
