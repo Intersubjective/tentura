@@ -10,8 +10,14 @@ CREATE OR REPLACE FUNCTION public.discussion_internal_fixture_allowed()
   LANGUAGE sql
   STABLE
   AS $$
-SELECT current_setting('tentura.discussion_internal_fixture', true)
-  = 'allow_non_general';
+-- COALESCE guards against an unset GUC: current_setting(name, true) returns
+-- NULL when never SET, and `NULL = 'allow_non_general'` is NULL (not false),
+-- which PL/pgSQL's IF treats as false and silently skips the RAISE entirely
+-- -- i.e. without this, the guard is inert in every ordinary session.
+SELECT COALESCE(
+  current_setting('tentura.discussion_internal_fixture', true),
+  ''
+) = 'allow_non_general';
 $$;
 ''',
   r'''
