@@ -7,6 +7,7 @@ import 'package:tentura_server/domain/evaluation/evaluation_participant_role.dar
 import 'package:tentura_server/domain/entity/review_close_snapshot.dart';
 import 'package:tentura_server/domain/entity/review_finalization_result.dart';
 import 'package:tentura_server/domain/port/capability_evidence_port.dart';
+import 'package:tentura_server/domain/port/beacon_hierarchy_repository_port.dart';
 import 'package:tentura_server/domain/port/evaluation_repository_port.dart';
 import 'package:tentura_server/domain/port/forward_attribution_repository_port.dart';
 import 'package:tentura_server/domain/port/forward_edge_repository_port.dart';
@@ -36,7 +37,8 @@ final class ReviewFinalizationCase extends UseCaseBase
     this._forwardAttributionRepository,
     this._helpOfferRepository,
     this._trustEvidenceRepository,
-    this._capabilityEvidence, {
+    this._capabilityEvidence,
+    this._hierarchyRepository, {
     required super.env,
     required super.logger,
   });
@@ -48,6 +50,7 @@ final class ReviewFinalizationCase extends UseCaseBase
   final HelpOfferRepositoryPort _helpOfferRepository;
   final TrustEvidenceRepositoryPort _trustEvidenceRepository;
   final CapabilityEvidencePort _capabilityEvidence;
+  final BeaconHierarchyRepositoryPort _hierarchyRepository;
 
   static const _outcomeEligibleRoles = {
     EvaluationParticipantRole.author,
@@ -64,6 +67,7 @@ final class ReviewFinalizationCase extends UseCaseBase
       _unitOfWork.run<ReviewFinalizationResult>(
         actorUserId: actorUserId,
         action: () async {
+          await _hierarchyRepository.lockMutationScope();
           final snapshot = await _evaluationRepository.closeReviewWindow(
             beaconId,
             reason: reason,

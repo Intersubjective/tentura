@@ -13,6 +13,7 @@ import 'package:tentura_root/domain/entity/beacon_status_transition.dart';
 import 'package:tentura_server/consts/beacon_activity_event_consts.dart';
 import 'package:tentura_server/domain/beacon_lineage_visibility.dart';
 import 'package:tentura_server/domain/port/beacon_access_guard.dart';
+import 'package:tentura_server/domain/port/beacon_hierarchy_repository_port.dart';
 import 'package:tentura_server/domain/port/beacon_repository_port.dart';
 import 'package:tentura_server/domain/port/image_object_gc_port.dart';
 import 'package:tentura_server/domain/port/image_repository_port.dart';
@@ -170,6 +171,7 @@ final class BeaconCase extends UseCaseBase {
     TaskRepositoryPort tasksRepository,
     CommitmentQueryCase commitmentQueryCase,
     BeaconAccessGuard guard,
+    BeaconHierarchyRepositoryPort hierarchyRepository,
     AttentionIntentCase attentionIntents,
     TransactionalAttentionCase attention,
   ) async => BeaconCase(
@@ -179,6 +181,7 @@ final class BeaconCase extends UseCaseBase {
     tasksRepository,
     commitmentQueryCase,
     guard,
+    hierarchyRepository,
     attentionIntents: attentionIntents,
     attention: attention,
     env: env,
@@ -191,7 +194,8 @@ final class BeaconCase extends UseCaseBase {
     this._imageObjectGc,
     this._tasksRepository,
     this._commitmentQueryCase,
-    this._guard, {
+    this._guard,
+    this._hierarchyRepository, {
     AttentionIntentCase? attentionIntents,
     TransactionalAttentionCase? attention,
     required super.env,
@@ -210,6 +214,8 @@ final class BeaconCase extends UseCaseBase {
   final CommitmentQueryCase _commitmentQueryCase;
 
   final BeaconAccessGuard _guard;
+
+  final BeaconHierarchyRepositoryPort _hierarchyRepository;
 
   final AttentionIntentCase? _attentionIntents;
 
@@ -782,8 +788,9 @@ final class BeaconCase extends UseCaseBase {
     required String beaconId,
     required String userId,
   }) {
-    Future<BeaconCloseReviewResult> mutate(AttentionTransaction? transaction) =>
-        _beaconRepository.runInBeaconStateTransaction(
+    Future<BeaconCloseReviewResult> mutate(AttentionTransaction? transaction) async {
+      await _hierarchyRepository.lockMutationScope();
+      return _beaconRepository.runInBeaconStateTransaction(
           beaconId: beaconId,
           userId: userId,
           fn: (beacon) async {
@@ -831,6 +838,7 @@ final class BeaconCase extends UseCaseBase {
             );
           },
         );
+    }
 
     return _attention!.runAction(actorUserId: userId, action: mutate);
   }
@@ -842,7 +850,9 @@ final class BeaconCase extends UseCaseBase {
   }) {
     Future<bool> mutate(
       AttentionTransaction? transaction,
-    ) => _beaconRepository.runInBeaconStateTransaction(
+    ) async {
+      await _hierarchyRepository.lockMutationScope();
+      return _beaconRepository.runInBeaconStateTransaction(
       beaconId: beaconId,
       userId: userId,
       fn: (beacon) async {
@@ -918,6 +928,7 @@ final class BeaconCase extends UseCaseBase {
         return true;
       },
     );
+    }
 
     return _attention!.runAction(actorUserId: userId, action: mutate);
   }

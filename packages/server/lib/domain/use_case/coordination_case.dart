@@ -2,6 +2,7 @@ import 'package:injectable/injectable.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 import 'package:tentura_root/domain/entity/beacon_status_transition.dart';
 import 'package:tentura_server/consts/beacon_room_consts.dart';
+import 'package:tentura_server/domain/port/beacon_hierarchy_repository_port.dart';
 import 'package:tentura_server/domain/port/beacon_repository_port.dart';
 import 'package:tentura_server/domain/port/evaluation_repository_port.dart';
 import 'package:tentura_server/domain/port/help_offer_repository_port.dart';
@@ -36,7 +37,8 @@ final class CoordinationCase extends UseCaseBase {
     this._evaluationRepository,
     this._userBlockRepository,
     this._commitmentRepository,
-    this._commitmentQueryCase, {
+    this._commitmentQueryCase,
+    this._hierarchyRepository, {
     AttentionIntentCase? attentionIntents,
     TransactionalAttentionCase? attention,
     required BeaconAccessGuard guard,
@@ -57,6 +59,7 @@ final class CoordinationCase extends UseCaseBase {
   final AttentionIntentCase? _attentionIntents;
   final TransactionalAttentionCase? _attention;
   final BeaconAccessGuard _guard;
+  final BeaconHierarchyRepositoryPort _hierarchyRepository;
 
   Future<BeaconEntity> _ensureAuthorOrSteward({
     required String beaconId,
@@ -324,6 +327,7 @@ final class CoordinationCase extends UseCaseBase {
     return _attention!.runAction(
       actorUserId: actorUserId,
       action: (transaction) async {
+        await _hierarchyRepository.lockMutationScope();
         final snap = await _coordinationRepository.acceptHelpOffer(
           beaconId: beaconId,
           offerUserId: offerUserId,
@@ -423,6 +427,7 @@ final class CoordinationCase extends UseCaseBase {
     return _attention!.runAction(
       actorUserId: actorUserId,
       action: (transaction) async {
+        await _hierarchyRepository.lockMutationScope();
         // Snapshot before access revocation so the terminal receipt survives.
         final intent = await _attentionIntents!.offerRemoved(
           receiverId: offerUserId,
@@ -487,6 +492,7 @@ final class CoordinationCase extends UseCaseBase {
     return _attention!.runAction(
       actorUserId: authorUserId,
       action: (transaction) async {
+        await _hierarchyRepository.lockMutationScope();
         final participant = await _beaconRoomRepository.findParticipant(
           beaconId: beaconId,
           userId: offerUserId,
@@ -587,6 +593,9 @@ final class CoordinationCase extends UseCaseBase {
       authorUserId: authorUserId,
       responseType: responseType,
     );
+    if (removeFromRoom || inviteToRoom) {
+      await _hierarchyRepository.lockMutationScope();
+    }
     if (removeFromRoom) {
       await _beaconRoomRepository.revokeOfferUserBeaconRoomAccess(
         beaconId: beaconId,

@@ -8,7 +8,9 @@ import 'package:injectable/injectable.dart';
 
 import 'package:tentura_server/consts.dart';
 import 'package:tentura_server/domain/port/beacon_fact_card_repository_port.dart';
+import 'package:tentura_server/domain/port/beacon_hierarchy_repository_port.dart';
 import 'package:tentura_server/domain/port/beacon_room_repository_port.dart';
+import 'package:tentura_server/domain/port/mutating_unit_of_work_port.dart';
 import 'package:tentura_server/domain/port/user_block_repository_port.dart';
 import 'package:tentura_server/domain/port/coordination_item_repository_port.dart';
 import 'package:tentura_server/domain/port/polling_repository_port.dart';
@@ -50,7 +52,9 @@ final class BeaconRoomCase extends UseCaseBase {
     this._remoteStorage,
     this._pollingRepository,
     this._uploadQuota,
-    this._userBlockRepository, {
+    this._userBlockRepository,
+    this._unitOfWork,
+    this._hierarchyRepository, {
     AttentionIntentCase? attentionIntents,
     TransactionalAttentionCase? attention,
     required super.env,
@@ -79,6 +83,10 @@ final class BeaconRoomCase extends UseCaseBase {
   final UploadQuotaRepositoryPort _uploadQuota;
 
   final UserBlockRepositoryPort _userBlockRepository;
+
+  final MutatingUnitOfWorkPort _unitOfWork;
+
+  final BeaconHierarchyRepositoryPort _hierarchyRepository;
 
   Future<bool> _canUseRoom({
     required String beaconId,
@@ -872,6 +880,7 @@ final class BeaconRoomCase extends UseCaseBase {
     await _attention!.runAction<void>(
       actorUserId: actorUserId,
       action: (transaction) async {
+        await _hierarchyRepository.lockMutationScope();
         await _room.admitParticipant(
           beaconId: beaconId,
           participantUserId: participantUserId,
@@ -901,10 +910,16 @@ final class BeaconRoomCase extends UseCaseBase {
     if (!author) {
       throw const UnauthorizedException(description: 'Author only');
     }
-    await _room.setBeaconSteward(
-      beaconId: beaconId,
-      stewardUserId: stewardUserId,
-      authorUserId: authorUserId,
+    await _unitOfWork.run(
+      actorUserId: authorUserId,
+      action: () async {
+        await _hierarchyRepository.lockMutationScope();
+        await _room.setBeaconSteward(
+          beaconId: beaconId,
+          stewardUserId: stewardUserId,
+          authorUserId: authorUserId,
+        );
+      },
     );
   }
 
@@ -1010,7 +1025,13 @@ final class BeaconRoomCase extends UseCaseBase {
         description: 'Only the message author can delete messages',
       );
     }
-    await _room.deleteRoomMessage(messageId: messageId);
+    await _unitOfWork.run(
+      actorUserId: userId,
+      action: () async {
+        await _hierarchyRepository.lockMutationScope();
+        await _room.deleteRoomMessage(messageId: messageId);
+      },
+    );
     return true;
   }
 

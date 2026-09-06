@@ -9,6 +9,7 @@ import 'package:tentura_server/domain/port/commitment_repository_port.dart';
 import 'package:tentura_server/domain/port/forward_edge_repository_port.dart';
 import 'package:tentura_server/domain/port/help_offer_repository_port.dart';
 import 'package:tentura_server/domain/port/inbox_repository_port.dart';
+import 'package:tentura_server/domain/port/beacon_hierarchy_repository_port.dart';
 import 'package:tentura_server/domain/port/mutating_unit_of_work_port.dart';
 import 'package:tentura_server/domain/port/user_block_repository_port.dart';
 import 'package:tentura_server/domain/port/user_contact_repository_port.dart';
@@ -34,7 +35,8 @@ final class UserBlockCase extends UseCaseBase {
     this._beacons,
     this._commitmentRepository,
     this._inbox,
-    this._capabilityEvidence, {
+    this._capabilityEvidence,
+    this._hierarchyRepository, {
     AttentionIntentCase? attentionIntents,
     AttentionDispatchPort? attentionDispatch,
     WitnessWindowPort? witnessWindow,
@@ -54,6 +56,7 @@ final class UserBlockCase extends UseCaseBase {
   final CommitmentRepositoryPort _commitmentRepository;
   final InboxRepositoryPort _inbox;
   final CapabilityEvidencePort _capabilityEvidence;
+  final BeaconHierarchyRepositoryPort _hierarchyRepository;
   final AttentionIntentCase? _attentionIntents;
   final AttentionDispatchPort? _attentionDispatch;
   final WitnessWindowPort? _witnessWindow;
@@ -69,6 +72,7 @@ final class UserBlockCase extends UseCaseBase {
     return _unitOfWork.run(
       actorUserId: blockerId,
       action: () async {
+        await _hierarchyRepository.lockMutationScope();
         await _requireUserExists(blockedId);
         await _enforceRateLimit(blockerId);
         await _blocks.block(
@@ -95,6 +99,7 @@ final class UserBlockCase extends UseCaseBase {
       _unitOfWork.run(
         actorUserId: blockerId,
         action: () async {
+          await _hierarchyRepository.lockMutationScope();
           await _blocks.unblock(
             blockerId: blockerId,
             blockedId: blockedId,

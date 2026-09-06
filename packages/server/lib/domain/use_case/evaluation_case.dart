@@ -5,6 +5,7 @@ import 'package:tentura_server/consts/commitment_consts.dart';
 import 'package:tentura_server/domain/capability/capability_consts.dart';
 import 'package:tentura_server/domain/commitment/commitment_event_kind.dart';
 import 'package:tentura_server/domain/commitment/commitment_state.dart';
+import 'package:tentura_server/domain/port/beacon_hierarchy_repository_port.dart';
 import 'package:tentura_server/domain/port/beacon_repository_port.dart';
 import 'package:tentura_server/domain/port/commitment_repository_port.dart';
 import 'package:tentura_server/domain/port/evaluation_repository_port.dart';
@@ -104,7 +105,8 @@ final class EvaluationCase extends UseCaseBase {
     this._draftPurger,
     this._commitmentQueryCase,
     this._commitmentRepository,
-    this._helpOfferRepository, {
+    this._helpOfferRepository,
+    this._hierarchyRepository, {
     AttentionIntentCase? attentionIntents,
     TransactionalAttentionCase? attention,
     AttentionExpirySweepCase? attentionExpirySweep,
@@ -129,6 +131,7 @@ final class EvaluationCase extends UseCaseBase {
   final CommitmentQueryCase _commitmentQueryCase;
   final CommitmentRepositoryPort _commitmentRepository;
   final HelpOfferRepositoryPort _helpOfferRepository;
+  final BeaconHierarchyRepositoryPort _hierarchyRepository;
 
   static const Duration _reviewWindowDuration = Duration(days: 7);
 
@@ -157,7 +160,9 @@ final class EvaluationCase extends UseCaseBase {
     await _ensureExpiredClosed();
     return _attention!.runAction(
       actorUserId: userId,
-      action: (transaction) => _beaconRepository.runInBeaconStateTransaction(
+      action: (transaction) async {
+        await _hierarchyRepository.lockMutationScope();
+        return _beaconRepository.runInBeaconStateTransaction(
         beaconId: beaconId,
         userId: userId,
         fn: (beacon) async {
@@ -310,7 +315,8 @@ final class EvaluationCase extends UseCaseBase {
             closesAt: closesAt,
           );
         },
-      ),
+      );
+      },
     );
   }
 
