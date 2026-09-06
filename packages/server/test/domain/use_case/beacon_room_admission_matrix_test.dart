@@ -42,6 +42,7 @@ import '../../support/recording_commitment_repository.dart';
 import '../../support/test_attention_harness.dart';
 import '../../support/fake_user_block_repository.dart';
 import 'help_offer_case_mocks.mocks.dart';
+import 'package:tentura_server/domain/policy/discussion_product_policy.dart';
 
 const _beaconId = 'Bbbbbbbbbbbbb';
 const _authorId = 'Uauthor000001';
@@ -153,6 +154,7 @@ void main() {
           FakeUserBlockRepository(),
       PassThroughMutatingUnitOfWork(),
       FakeBeaconHierarchyRepository(),
+      const ProductionDiscussionProductPolicy(),
           attentionIntents: attention.intents,
           attention: attention.transactional,
           env: Env(environment: Environment.test),
@@ -180,6 +182,7 @@ void main() {
               FakeUserBlockRepository(),
       PassThroughMutatingUnitOfWork(),
       FakeBeaconHierarchyRepository(),
+      const ProductionDiscussionProductPolicy(),
               attentionIntents: attention.intents,
               attention: attention.transactional,
               env: Env(environment: Environment.test),
@@ -217,6 +220,7 @@ void main() {
           FakeUserBlockRepository(),
       PassThroughMutatingUnitOfWork(),
       FakeBeaconHierarchyRepository(),
+      const ProductionDiscussionProductPolicy(),
           attentionIntents: attention.intents,
           attention: attention.transactional,
           env: Env(environment: Environment.test),

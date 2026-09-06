@@ -38,6 +38,7 @@ import 'package:tentura_server/env.dart';
 import '../../support/fake_beacon_hierarchy_repository.dart';
 import '../../support/fake_user_block_repository.dart';
 import '../../support/pg_test_public_keys.dart';
+import 'package:tentura_server/domain/policy/discussion_product_policy.dart';
 
 class _PgFakeFactCards extends Fake implements BeaconFactCardRepositoryPort {}
 
@@ -543,6 +544,7 @@ WHERE id = '${reply.id}'
         FakeUserBlockRepository(),
         PassThroughMutatingUnitOfWork(),
         FakeBeaconHierarchyRepository(),
+        const ProductionDiscussionProductPolicy(),
         attentionIntents: attentionIntents,
         attention: attention,
         env: Env(environment: Environment.test),

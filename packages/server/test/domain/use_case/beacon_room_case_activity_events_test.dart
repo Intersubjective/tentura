@@ -21,6 +21,7 @@ import 'package:tentura_server/env.dart';
 
 import '../../support/coordination_item_record_fixtures.dart';
 import '../../support/fake_user_block_repository.dart';
+import 'package:tentura_server/domain/policy/discussion_product_policy.dart';
 
 const _beaconId = 'Baaaaaaaaaaaa';
 const _userId = 'Uaaaaaaaaaaaa';
@@ -99,6 +100,7 @@ void main() {
       FakeUserBlockRepository(),
       PassThroughMutatingUnitOfWork(),
       FakeBeaconHierarchyRepository(),
+      const ProductionDiscussionProductPolicy(),
       env: Env(environment: Environment.test),
       logger: Logger('BeaconRoomCaseActivityEventsTest'),
     );

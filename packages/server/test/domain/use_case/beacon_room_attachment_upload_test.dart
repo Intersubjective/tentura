@@ -23,6 +23,7 @@ import 'package:tentura_server/domain/use_case/beacon_room_case.dart';
 import 'package:tentura_server/env.dart';
 
 import '../../support/fake_user_block_repository.dart';
+import 'package:tentura_server/domain/policy/discussion_product_policy.dart';
 
 const _beaconId = 'Baaaaaaaaaaaa';
 const _userId = 'Uaaaaaaaaaaaa';
@@ -154,6 +155,7 @@ BeaconRoomCase _sut({
       FakeUserBlockRepository(),
       PassThroughMutatingUnitOfWork(),
       FakeBeaconHierarchyRepository(),
+      const ProductionDiscussionProductPolicy(),
       env: Env(environment: Environment.test),
       logger: Logger('BeaconRoomAttachmentUploadTest'),
     );

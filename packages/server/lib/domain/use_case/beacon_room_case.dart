@@ -8,8 +8,13 @@ import 'package:injectable/injectable.dart';
 
 import 'package:tentura_server/consts.dart';
 import 'package:tentura_server/domain/port/beacon_fact_card_repository_port.dart';
+import 'package:tentura_root/domain/entity/beacon_status.dart';
+
 import 'package:tentura_server/domain/port/beacon_hierarchy_repository_port.dart';
 import 'package:tentura_server/domain/port/beacon_room_repository_port.dart';
+import 'package:tentura_server/domain/port/discussion_product_policy_port.dart';
+import 'package:tentura_server/domain/policy/beacon_room_lifecycle_write_policy.dart';
+import 'package:tentura_server/domain/policy/discussion_product_policy.dart';
 import 'package:tentura_server/domain/port/mutating_unit_of_work_port.dart';
 import 'package:tentura_server/domain/port/user_block_repository_port.dart';
 import 'package:tentura_server/domain/port/coordination_item_repository_port.dart';
@@ -54,7 +59,8 @@ final class BeaconRoomCase extends UseCaseBase {
     this._uploadQuota,
     this._userBlockRepository,
     this._unitOfWork,
-    this._hierarchyRepository, {
+    this._hierarchyRepository,
+    this._discussionPolicy, {
     AttentionIntentCase? attentionIntents,
     TransactionalAttentionCase? attention,
     required super.env,
@@ -87,6 +93,34 @@ final class BeaconRoomCase extends UseCaseBase {
   final MutatingUnitOfWorkPort _unitOfWork;
 
   final BeaconHierarchyRepositoryPort _hierarchyRepository;
+
+  final DiscussionProductPolicyPort _discussionPolicy;
+
+  void _rejectDisabledDiscussionScope(String? threadScopeId) {
+    if (!_discussionPolicy.isDiscussionScopeEnabled(
+      threadScopeId: threadScopeId,
+    )) {
+      throw const DiscussionScopeDisabledException();
+    }
+  }
+
+  Future<void> _rejectOrdinaryUserWritesForLifecycle(String beaconId) async {
+    final status = await _hierarchyRepository.loadBeaconStatus(beaconId);
+    if (status != null &&
+        BeaconRoomLifecycleWritePolicy.blocksOrdinaryUserWrites(status)) {
+      throw const BeaconCreateException(
+        description: 'Discussion is read-only for this request',
+      );
+    }
+  }
+
+  Future<void> _guardMessageMutation({
+    required String beaconId,
+    required BeaconRoomMessageRecord msg,
+  }) async {
+    _rejectDisabledDiscussionScope(msg.threadItemId);
+    await _rejectOrdinaryUserWritesForLifecycle(beaconId);
+  }
 
   Future<bool> _canUseRoom({
     required String beaconId,

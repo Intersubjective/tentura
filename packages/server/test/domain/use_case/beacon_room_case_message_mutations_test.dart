@@ -25,6 +25,7 @@ import 'package:tentura_server/env.dart';
 import '../../support/coordination_item_record_fixtures.dart';
 import '../../support/test_attention_harness.dart';
 import '../../support/fake_user_block_repository.dart';
+import 'package:tentura_server/domain/policy/discussion_product_policy.dart';
 
 const _beaconId = 'Baaaaaaaaaaaa';
 const _userId = 'Uaaaaaaaaaaaa';
@@ -206,6 +207,7 @@ void main() {
       userBlocks,
       PassThroughMutatingUnitOfWork(),
       FakeBeaconHierarchyRepository(),
+      const ProductionDiscussionProductPolicy(),
       attentionIntents: attention.intents,
       attention: attention.transactional,
       env: Env(

@@ -22,6 +22,7 @@ import 'package:tentura_server/domain/use_case/beacon_room_case.dart';
 import 'package:tentura_server/env.dart';
 
 import '../../support/fake_user_block_repository.dart';
+import 'package:tentura_server/domain/policy/discussion_product_policy.dart';
 
 class _RecordingItems extends Fake implements CoordinationItemRepositoryPort {
   bool? lastIncludeGeneral;
@@ -121,6 +122,7 @@ void main() {
       FakeUserBlockRepository(),
       PassThroughMutatingUnitOfWork(),
       FakeBeaconHierarchyRepository(),
+      const ProductionDiscussionProductPolicy(),
       env: Env(environment: Environment.test),
       logger: Logger('BeaconThreadsCaseTest'),
     );

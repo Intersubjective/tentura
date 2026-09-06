@@ -416,6 +416,28 @@ final class BeaconChildCommandGoneException extends ExceptionBase {
       );
 }
 
+final class DiscussionScopeDisabledException extends ExceptionBase {
+  const DiscussionScopeDisabledException({String? description})
+    : super(
+        code: const BeaconExceptionCodes(
+          BeaconExceptionCode.discussionScopeDisabled,
+        ),
+        description:
+            description ?? 'Only the General discussion is available',
+      );
+}
+
+final class CoordinationKindDisabledException extends ExceptionBase {
+  const CoordinationKindDisabledException({String? description})
+    : super(
+        code: const BeaconExceptionCodes(
+          BeaconExceptionCode.coordinationKindDisabled,
+        ),
+        description:
+            description ?? 'This coordination item type is not supported',
+      );
+}
+
 final class EvaluationException extends ExceptionBase {
   EvaluationException({
     required EvaluationExceptionCode evaluationCode,

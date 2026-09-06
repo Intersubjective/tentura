@@ -52,3 +52,20 @@ final class ProductionDiscussionProductPolicy
   bool isCoordinationKindEnabled(int kind) =>
       DiscussionProductPolicy.isSupportedCoordinationKind(kind);
 }
+
+/// Test-only multi-thread policy for dormant repository proofs.
+///
+/// Never register in production DI — use only in direct unit/repository tests.
+final class InternalMultiThreadDiscussionProductPolicy
+    implements DiscussionProductPolicyPort {
+  const InternalMultiThreadDiscussionProductPolicy();
+
+  @override
+  bool get generalOnly => false;
+
+  @override
+  bool isDiscussionScopeEnabled({required String? threadScopeId}) => true;
+
+  @override
+  bool isCoordinationKindEnabled(int kind) => true;
+}
