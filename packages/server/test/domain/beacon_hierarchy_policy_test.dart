@@ -51,18 +51,18 @@ void main() {
     });
 
     test('rejects non-General scope in production', () {
+      const policy = ProductionDiscussionProductPolicy();
+      expect(policy.generalOnly, isTrue);
       expect(
-        DiscussionProductPolicy.isDiscussionScopeEnabled(threadScopeId: null),
+        policy.isDiscussionScopeEnabled(threadScopeId: null),
         isTrue,
       );
       expect(
-        DiscussionProductPolicy.isDiscussionScopeEnabled(threadScopeId: ''),
+        policy.isDiscussionScopeEnabled(threadScopeId: ''),
         isTrue,
       );
       expect(
-        DiscussionProductPolicy.isDiscussionScopeEnabled(
-          threadScopeId: 'thread-1',
-        ),
+        policy.isDiscussionScopeEnabled(threadScopeId: 'thread-1'),
         isFalse,
       );
     });

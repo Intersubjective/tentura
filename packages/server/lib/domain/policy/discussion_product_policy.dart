@@ -1,4 +1,16 @@
-/// Production discussion capability: General-only threads and supported kinds.
+import 'package:injectable/injectable.dart';
+
+import 'package:tentura_server/domain/port/discussion_product_policy_port.dart';
+
+/// Kind constants and helpers for discussion/coordination product policy.
+///
+/// Production servers compose [ProductionDiscussionProductPolicy] at startup
+/// (see `packages/server/lib/app/di.dart`). Only direct unit/repository tests
+/// may instantiate an internal multi-thread policy variant.
+///
+/// See `docs/plans/nested-requests-implementation-plan.md` §5.1 and
+/// `docs/plans/nested-requests-architecture.md`. Future multi-thread exposure
+/// requires a new authorization/API review.
 abstract final class DiscussionProductPolicy {
   DiscussionProductPolicy._();
 
@@ -16,22 +28,27 @@ abstract final class DiscussionProductPolicy {
     kindPromise,
   };
 
-  /// Public product exposes only General (null thread scope).
-  static const bool productionGeneralOnly = true;
-
   static bool isSupportedCoordinationKind(int kind) =>
       supportedCoordinationKinds.contains(kind);
 
   static bool isRetiredCoordinationKind(int kind) =>
       retiredCoordinationKinds.contains(kind);
+}
 
-  static bool isDiscussionScopeEnabled({required String? threadScopeId}) {
-    if (!productionGeneralOnly) {
-      return true;
-    }
-    return threadScopeId == null || threadScopeId.isEmpty;
-  }
+/// Production General-only policy — always injected in deployed servers.
+@Singleton(as: DiscussionProductPolicyPort)
+final class ProductionDiscussionProductPolicy
+    implements DiscussionProductPolicyPort {
+  const ProductionDiscussionProductPolicy();
 
-  static bool isCoordinationKindEnabled(int kind) =>
-      isSupportedCoordinationKind(kind);
+  @override
+  bool get generalOnly => true;
+
+  @override
+  bool isDiscussionScopeEnabled({required String? threadScopeId}) =>
+      threadScopeId == null || threadScopeId.isEmpty;
+
+  @override
+  bool isCoordinationKindEnabled(int kind) =>
+      DiscussionProductPolicy.isSupportedCoordinationKind(kind);
 }

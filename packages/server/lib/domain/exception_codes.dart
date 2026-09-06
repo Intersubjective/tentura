@@ -87,6 +87,8 @@ enum BeaconExceptionCode {
   beaconSourceAlreadyPromoted, // 1312
   beaconChildCommandConflict, // 1313
   beaconChildCommandGone, // 1314
+  discussionScopeDisabled, // 1315
+  coordinationKindDisabled, // 1316
 }
 
 class BeaconExceptionCodes extends ExceptionCodes {
