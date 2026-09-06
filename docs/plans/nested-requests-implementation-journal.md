@@ -619,3 +619,100 @@ None of this partial work had been wired into `BeaconCase`/a new
 `BeaconChildCreateCase` yet, and no tests exist yet — the bulk of Task 04
 remains to be done by a fresh worker. Launching attempt 2 with the same
 scope, informed of this existing partial state.
+
+### Task 04 — three consecutive external kills, pausing for user input (2026-09-06)
+
+Three fresh Task 04 attempts in a row have each been killed by host memory
+pressure before making their first commit — confirmed via process inspection
+to be caused by unrelated concurrent activity on this shared desktop machine
+(many Firefox/Chrome/PyCharm processes, other unrelated `cursor-agent`
+sandbox processes from apparently separate sessions), not by anything this
+orchestration is doing. Each attempt still made real, verifiable partial
+progress before being killed; the manager reviewed, verified (including
+running `dart analyze`/`dart test`/custom-lints after each), fixed two real
+defects found in attempt 3's interrupted state (see commit `e0b4c11e1`), and
+committed only what was confirmed correct. Combined salvaged state so far:
+- Six Task 04 exception codes + classes (commits `fe2e61235`, `d43084ad0`).
+- Clean `BeaconPromotionEligibilityPolicy` (dead code removed).
+- `BeaconCreationPolicy` now actually wired into `BeaconCase.create`,
+  standalone behavior confirmed unchanged (1607/1607).
+- `BeaconHierarchyCommandPort`/`Repository` idempotency and promotion-
+  provenance primitives (row-lock ordering, effective-admission check,
+  parent validation, promotion source facts, draft/publish writes, child-
+  creation notice insertion) — commit `e0b4c11e1`.
+
+Still missing for Task 04: `BeaconChildCreateCase` itself (the actual
+orchestrating use case), the publish-branch delegation in
+`BeaconCase.publishDraft`, and all the required tests (idempotency races,
+rollback-on-failure injection, non-transitivity-adjacent regression proof).
+
+Per the manager's own escalation plan, three consecutive kills on the same
+task warrants surfacing the pattern to the user rather than silently
+retrying a fourth time. Pausing here to report status and ask how to
+proceed (keep retrying / wait / other).
+
+### Task 04 — attempt 4 complete (2026-09-06)
+
+Fresh worker built on salvaged commits (`fe2e61235`, `d43084ad0`,
+`e0b4c11e1`, `cc3c77147`) plus follow-up fixes/tests below.
+
+**Delivered**
+- `BeaconChildCreateCase` orchestrates §3.4 create-draft/publish with
+  `lockMutationScope()` first, row-lock ordering via command port, idempotency
+  `(actorUserId, clientCommandId)` + normalized hash, outcomes
+  `created/replayed/alreadyPromoted`, tombstone → `BEACON_CHILD_COMMAND_GONE`.
+- `BeaconCase.publishDraft` delegates child drafts to
+  `BeaconChildCreateCase.publishDraft`; standalone branch unchanged.
+- `BeaconChildCreateResult.beacon` typed as `BeaconEntity?` (no `Object?`).
+- Bugfixes: `lockBeaconRows` uses `TypedValue(Type.textArray, …)`; JSON
+  command columns read as `String` under Drift; promotion publish rejects
+  when `source_message_id` was nulled by source delete.
+
+**§3.4 interpretation (ambiguous point resolved)**
+- Promotion draft whose source message was deleted before publish: FK
+  `ON DELETE SET NULL` nulls `beacon_promotions.source_message_id`; publish
+  re-validation treats promotion row with null source as
+  `BEACON_PROMOTION_SOURCE_INVALID` (child draft still exists but cannot
+  publish via promotion path without a live source). Non-promotion child
+  drafts unaffected.
+
+**Attention on creation notice**
+- Reuses `AttentionIntentCase.roomMessagePosted` with parent notification
+  context recipients (author/stewards/admitted minus actor). Records only
+  when `intent.recipients` is non-empty (matches undirected General pattern).
+
+**Client-side promotion policy twin (Task 11)**
+- Belongs in
+  `packages/client/lib/domain/policy/beacon_promotion_eligibility_policy.dart`
+  mirroring server `BeaconPromotionEligibilityPolicy`.
+
+**Commits (this attempt)**
+- `cc3c77147` — `BeaconChildCreateCase`, publish delegation, repository wiring
+- `81900201a` — command-repo + publish source-null fixes
+- `22956b850` — unit + atomic PG tests (13 scenarios)
+- `052b23a41` — Mockito stub regen for new port methods
+
+**Verification**
+- `./scripts/check-custom-lints.sh packages/server` — 0 (baseline 0)
+- `./scripts/check-custom-lints.sh packages/client` — 32 (baseline 32)
+- `cd packages/server && dart test --exclude-tags pg` — 1612/1612 green
+- `dart test test/data/repository/beacon_child_create_atomic_pg_test.dart -t pg` — 13/13
+- `dart test test/data/repository/beacon_hierarchy_{command,repository,visibility}_pg_test.dart -t pg` — 22/22
+- Standalone regression:
+  `beacon_case_{fork_media,media,publish_draft}_test.dart`,
+  `beacon_create_rate_limit_test.dart` — 31/31
+- `git diff --check` clean on Task 04 paths
+
+**PG fault-injection proof**
+- Child insert rollback: trigger on `beacon_child_commands` INSERT fails after
+  child beacon insert → zero child rows remain.
+- Promotion publish rollback: trigger on `beacon_promotions` fails on publish
+  write → child stays draft.
+- Attention rollback: injected `TransactionalAttentionCase` failure → child
+  stays draft, no hierarchy notice row.
+
+**Standalone create/fork/media unchanged**
+- `BeaconCreationPolicy` extraction was wired in salvaged commit; re-ran
+  standalone unit tests above — all green.
+
+Task 04 ACCEPTED for plan scope (domain + data only; no GraphQL/API/client).
