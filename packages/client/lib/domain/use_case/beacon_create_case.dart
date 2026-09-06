@@ -8,7 +8,7 @@ import 'package:tentura/domain/port/beacon_image_port.dart';
 import 'package:tentura/domain/port/beacon_write_port.dart';
 
 /// Which command was in flight when a save failed.
-enum BeaconSavePhase { fields, stage, reconcile }
+enum BeaconSavePhase { fields, stage, reconcile, publish }
 
 /// One request save: field values plus the complete desired media state.
 class BeaconSaveCommand {
@@ -36,6 +36,20 @@ class BeaconSaveCommand {
   final bool draft;
 
   BeaconCoverSource get coverSource => fields.coverSource;
+
+  BeaconSaveCommand copyWith({
+    Beacon? fields,
+    List<ImageEntity>? images,
+    String? coverKey,
+    ImageEntity? coverThumb,
+    bool? draft,
+  }) => BeaconSaveCommand(
+    fields: fields ?? this.fields,
+    images: images ?? this.images,
+    coverKey: coverKey ?? this.coverKey,
+    coverThumb: coverThumb ?? this.coverThumb,
+    draft: draft ?? this.draft,
+  );
 }
 
 class BeaconSaveResult {
@@ -64,6 +78,7 @@ class BeaconSaveFailure implements Exception {
     required this.images,
     required this.coverKey,
     this.coverThumb,
+    this.clientCommandId,
   });
 
   final Object cause;
@@ -76,6 +91,9 @@ class BeaconSaveFailure implements Exception {
   final List<ImageEntity> images;
   final String? coverKey;
   final ImageEntity? coverThumb;
+
+  /// Child creation: durable command identity retained for idempotent retry.
+  final String? clientCommandId;
 
   @override
   String toString() => 'BeaconSaveFailure(${phase.name}): $cause';
@@ -127,6 +145,21 @@ class BeaconCreateCase {
 
   Future<BeaconSaveResult> saveEdit(BeaconSaveCommand command) =>
       _save(command, _Save.edit);
+
+  /// Stages and reconciles media for a beacon that already has a canonical id.
+  Future<BeaconSaveResult> reconcileMedia({
+    required String beaconId,
+    required List<ImageEntity> images,
+    required String? coverKey,
+    required ImageEntity? coverThumb,
+    required BeaconCoverSource coverSource,
+  }) => _reconcile(
+    beaconId: beaconId,
+    images: images,
+    coverKey: coverKey,
+    coverThumb: coverThumb,
+    coverSource: coverSource,
+  );
 
   Future<BeaconSaveResult> _save(BeaconSaveCommand command, _Save kind) async {
     final Beacon written;
