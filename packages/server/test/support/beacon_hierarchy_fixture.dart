@@ -15,8 +15,8 @@ import 'pg_test_public_keys.dart';
 
 /// Canonical A→B→C plus A→D topology from nested-requests plan §3.2.
 ///
-/// `parent_beacon_id` is not persisted until Task 02 (`m0154`); until then
-/// [BeaconHierarchyTopology.intendedParentByChild] documents the intended edges
+/// `parent_beacon_id` is persisted from Task 02 (`m0154`); until nested edges are
+/// seeded, [BeaconHierarchyTopology.intendedParentByChild] documents intended edges.
 /// for authorization and hierarchy tests.
 final class BeaconHierarchyTopology {
   const BeaconHierarchyTopology();
@@ -247,9 +247,9 @@ ON CONFLICT (id) DO NOTHING
       await writer.execute(
         Sql.named(r'''
 INSERT INTO public.beacon (
-  id, user_id, title, description, status, created_at, updated_at
+  id, user_id, title, description, status, published_at, created_at, updated_at
 ) VALUES (
-  @id, @ownerId, @title, '', 0, '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z'
+  @id, @ownerId, @title, '', 0, '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z'
 )
 ON CONFLICT (id) DO NOTHING
 '''),

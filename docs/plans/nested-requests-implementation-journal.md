@@ -75,7 +75,7 @@ which this plan/orchestration owns.
 |---|---|---|---|
 | 00 | Inventory, journal, and fixture harness | none | complete |
 | 01 | Pure contracts and policies | 00 | complete |
-| 02 | Additive hierarchy storage and repository adapter | 01 | pending |
+| 02 | Additive hierarchy storage and repository adapter | 01 | complete |
 | 03 | Authorization, SQL/Hasura parity, and mutation locking | 02 | pending |
 | 04 | Shared normal creation and atomic child commands | 03 | pending |
 | 05 | Lifecycle producers and retained status audience | 04 | pending |
@@ -322,3 +322,108 @@ custom lints OK.
 plan=1, ask=2, blocker=3, promise=5.
 
 **Next task:** Task 02 — additive hierarchy storage and repository adapter (`m0154`).
+
+### Task 01 — ACCEPTED (2026-09-06)
+
+Verified independently: no banned imports (SQL/Ferry/GetIt/GraphQL/TenturaDb)
+in any new pure domain file; `canReadLinkedDetail` stub has zero production
+callers (grep confirmed only definition sites); guard/fake test-support edits
+are minimal mechanical additions; `git diff --check` clean. Independently
+reran: `dart test test/domain/entity/beacon_hierarchy_entities_test.dart`
+(3/3), `packages/server` focused domain tests (61/61), full
+`dart test --exclude-tags pg` (1607/1607), both
+`scripts/check-custom-lints.sh` (server 0/0, client 32/32) — all match the
+worker's report exactly. Task 01 is ACCEPTED. Proceeding to Task 02
+(additive hierarchy storage and repository adapter, `m0154`).
+
+### Task 02 — in progress (Cursor CLI worker, 2026-09-06)
+
+**Owned paths:** `packages/server/lib/data/database/migration/m0154.dart`,
+`packages/server/lib/data/database/migration/_migrations.dart`,
+`packages/server/lib/data/database/table/beacons.dart`,
+`packages/server/lib/data/database/table/beacon_room_messages.dart`,
+`packages/server/lib/domain/entity/beacon_entity.dart`,
+`packages/server/lib/data/mapper/beacon_mapper.dart`,
+`packages/server/lib/domain/entity/beacon_room_record.dart` (nullable `authorId`),
+`packages/server/lib/consts/beacon_hierarchy_consts.dart`,
+`packages/server/lib/data/repository/beacon_hierarchy_repository.dart`,
+`beacon_hierarchy_command_repository.dart`, `beacon_hierarchy_outbox_repository.dart`,
+compatibility fixes in `beacon_room_repository.dart`, `coordination_item_repository.dart`,
+`beacon_room_participant_join_recorder.dart`, `room_message_snapshot_lookup.dart`,
+`beacon_room_case.dart`, tests under `packages/server/test/data/repository/`,
+`packages/server/test/support/beacon_hierarchy_fixture.dart`.
+
+**Final `m0154` schema names (stable for later tasks):**
+
+`beacon` additive columns:
+- `parent_beacon_id` (FK `beacon_parent_beacon_id_fkey` ON DELETE RESTRICT)
+- `published_at`
+- `hierarchy_event_sequence`
+- index `beacon_parent_published_children_idx`
+- triggers/functions: `beacon_parent_beacon_id_insert_guard`,
+  `beacon_parent_beacon_id_update_guard`,
+  `beacon_parent_beacon_id_insert_guard_trg`,
+  `beacon_parent_beacon_id_update_guard_trg`
+
+`beacon_child_commands`:
+- PK `(actor_user_id, client_command_id)`
+- columns: `normalized_input_hash`, `result_beacon_id`, `result_state` (0/1/2),
+  `deleted`, `created_at`, `updated_at`
+- check `beacon_child_commands_deleted_result_ck`
+- index `beacon_child_commands_result_beacon_idx`
+
+`beacon_promotions`:
+- PK/FK `child_beacon_id`
+- columns: `parent_beacon_id`, `source_message_id`, `promoter_user_id`,
+  `published_at`, `created_at`
+- partial unique `beacon_promotions_published_source_uidx`
+- check `beacon_promotions_source_general_ck`
+- trigger `beacon_promotions_consistency_guard` /
+  `beacon_promotions_consistency_guard_trg`
+
+`beacon_hierarchy_events`:
+- PK `id`
+- unique `(source_beacon_id, source_sequence)`
+- columns: `from_status`, `to_status`, `occurred_at`, `actor_user_id`
+- index `beacon_hierarchy_events_source_idx`
+
+`beacon_hierarchy_deliveries`:
+- PK `(event_id, target_beacon_id)`
+- `direction` (`ancestor`/`child`)
+- `state` (`pending`/`leased`/`delivered`/`suppressed`/`parked`)
+- `attempt_count`, `next_attempt_at`, `last_safe_error_code`,
+  `notice_message_id`, `completed_at`, `lease_owner`, `lease_until`
+- index `beacon_hierarchy_deliveries_due_idx`
+
+`beacon_room_message` additive:
+- nullable `author_id` (FK `beacon_room_message_author_id_fkey` ON DELETE SET NULL)
+- `system_message_kind` (1=hierarchy lifecycle, 2=child created)
+- `hierarchy_notice_identity` + unique `beacon_room_message_hierarchy_notice_identity_uidx`
+- check `beacon_room_message_author_or_system_ck`
+
+Four hierarchy tables intentionally have **no** Drift `Table` classes (raw SQL +
+`customSelect` adapters, same pattern as `attention_channel_delivery`).
+
+**Verification:**
+```bash
+export $(grep -E '^POSTGRES_' /home/vader/MY_SRC/tentura/.env | xargs)
+cd packages/server
+dart test test/data/repository/beacon_hierarchy_repository_pg_test.dart \
+  test/data/repository/beacon_hierarchy_command_pg_test.dart \
+  test/data/repository/beacon_hierarchy_outbox_pg_test.dart \
+  test/support/beacon_hierarchy_fixture_pg_test.dart -t pg -j 1
+dart test test/data/repository/beacon_threads_repository_pg_test.dart -t pg -j 1
+dart test --exclude-tags pg
+./scripts/check-custom-lints.sh packages/server
+./scripts/check-custom-lints.sh packages/client
+```
+Results: hierarchy PG 20/20; `beacon_threads_repository_pg_test` 12/12;
+non-PG 1607/1607; custom lints server 0/0, client 32/32.
+
+**Note:** indirect parent-cycle rejection at INSERT for brand-new PKs collapses
+to self-parent in practice; immutability trigger blocks reparenting of existing
+rows. Full indirect cycle walk is covered by the insert trigger ancestor CTE when
+a row's id already appears in the parent chain (future Task 04 paths).
+
+### Task 02 — complete (Cursor CLI worker, 2026-09-06)
+
