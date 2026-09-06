@@ -106,11 +106,11 @@ class _NoopImageRepo implements ImageRepository {
 }
 
 BeaconHierarchyCase _hierarchyCase(FakeBeaconHierarchyRepositoryPort port) =>
-    BeaconHierarchyCase(
+    buildBeaconHierarchyCaseForTest(
       port,
-      BeaconCreateCase(_NoopBeaconWritePort(), _NoopImageRepo()),
-      _NoopBeaconWritePort(),
-      InMemoryBeaconChildCommandStore(),
+      createCase: BeaconCreateCase(_NoopBeaconWritePort(), _NoopImageRepo()),
+      beacons: _NoopBeaconWritePort(),
+      commandStore: InMemoryBeaconChildCommandStore(),
     );
 
 Widget _wrapThreadsList({

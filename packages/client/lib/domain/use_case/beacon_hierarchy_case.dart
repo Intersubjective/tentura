@@ -10,9 +10,11 @@ import 'package:uuid/uuid.dart';
 
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/image_entity.dart';
+import 'package:tentura/domain/entity/realtime/realtime_entity_change.dart';
 import 'package:tentura/domain/port/beacon_child_command_store_port.dart';
 import 'package:tentura/domain/port/beacon_write_port.dart';
 import 'package:tentura/domain/use_case/beacon_create_case.dart';
+import 'package:tentura/domain/use_case/realtime_sync_case.dart';
 import 'package:tentura/features/beacon/domain/beacon_hierarchy_exception.dart';
 import 'package:tentura/features/beacon/domain/port/beacon_hierarchy_repository_port.dart';
 
@@ -101,12 +103,22 @@ class BeaconHierarchyCase {
     this._createCase,
     this._beacons,
     this._commandStore,
+    this._realtimeSyncCase,
   );
 
   final BeaconHierarchyRepositoryPort _hierarchy;
   final BeaconCreateCase _createCase;
   final BeaconWritePort _beacons;
   final BeaconChildCommandStorePort _commandStore;
+  final RealtimeSyncCase _realtimeSyncCase;
+
+  Stream<RealtimeEntityChange> hierarchyChangesFor(String beaconId) =>
+      _realtimeSyncCase.changesForAggregate(
+        kinds: const {RealtimeEntityKind.beaconHierarchy},
+        aggregateId: beaconId,
+      );
+
+  Stream<void> get catchUps => _realtimeSyncCase.catchUps.map((_) {});
 
   static const _uuid = Uuid();
 

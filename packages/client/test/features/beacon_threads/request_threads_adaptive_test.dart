@@ -456,16 +456,16 @@ Future<_Harness> _pumpHarness(
       BlocProvider<BeaconHierarchyCubit>(
         create: (_) => BeaconHierarchyCubit(
           beaconId: _kBeaconId,
-          hierarchyCase: BeaconHierarchyCase(
+          hierarchyCase: buildBeaconHierarchyCaseForTest(
             FakeBeaconHierarchyRepositoryPort(
               capabilities: const BeaconHierarchyCapabilities(
                 canListChildren: false,
                 canCreateChild: false,
               ),
             ),
-            BeaconCreateCase(_NoopBeaconWritePort(), _NoopImageRepository()),
-            _NoopBeaconWritePort(),
-            InMemoryBeaconChildCommandStore(),
+            createCase: BeaconCreateCase(_NoopBeaconWritePort(), _NoopImageRepository()),
+            beacons: _NoopBeaconWritePort(),
+            commandStore: InMemoryBeaconChildCommandStore(),
           ),
         ),
       ),

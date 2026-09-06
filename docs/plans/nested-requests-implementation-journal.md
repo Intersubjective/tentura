@@ -1947,3 +1947,41 @@ composer's promotion-conflict UX is next touched.
 
 Task 13 is ACCEPTED. Proceeding to Task 14 (realtime producers and
 convergence).
+
+### Task 14 — realtime producers and client convergence (2026-09-06)
+
+Implemented §6.3 `beacon_hierarchy` wire kind end-to-end.
+
+1. **`m0159` server producers** — added bounded
+   `realtime_beacon_hierarchy_recipients` / `realtime_beacon_hierarchy_emit`
+   helpers plus three specialized publishers:
+   `notify_beacon_hierarchy_beacon_change` (published child
+   publication/summary/status/tombstone + parent delete fan-out),
+   `notify_beacon_hierarchy_promotion_change` (source-link / parent-ref
+   projection owner = child id), and `notify_beacon_hierarchy_admission_change`
+   (participant/steward/block with revoked-account union). Draft children
+   emit **no** hierarchy hints. Payloads stay entity/id/event/actor only.
+2. **Contract manifest** — new `beacon_hierarchy` row with impacts
+   `beacon_hierarchy_children` and `beacon_hierarchy_parent_reference`;
+   server architecture test now scans `m0159.dart` for publisher evidence.
+3. **Client convergence** — `RealtimeEntityKind.beaconHierarchy`,
+   `BeaconHierarchyCase.hierarchyChangesFor` / `catchUps`, and
+   `BeaconHierarchyCubit` guarded silent refresh (100 ms debounce, shared
+   in-flight + queued rerun with `_loadGeneration`, access-loss eviction via
+   existing `evictHierarchyAccess()`).
+4. **Tests** — `beacon_hierarchy_realtime_pg_test.dart` (5/5 PG),
+   `beacon_hierarchy_realtime_test.dart` (6/6), contract architecture tests
+   green; extended `realtime_multiclient_web_test.dart` §7 with helper
+   `beaconChildCreate(draft:false)` convergence on a mounted parent Threads
+   view plus Inbox negative proof.
+5. **Notice materialization finding** — hierarchy delivery worker inserts
+   ordinary `beacon_room_message` system notices; those already publish
+   through the existing `room_message` generic trigger (`m0036` /
+   `notify_entity_change('room_message')`). Attention receipts use the
+   existing notification/attention pipeline. **No additional
+   `beacon_hierarchy` wiring is required for notice visibility**; the new
+   wire kind covers the other §6.3 rows (child publication, summary/status
+   changes, admission/block eviction, parent-delete / promotion source).
+
+Task 14 complete pending multiclient harness run on a live stack (not
+executed in this session — infra not started).

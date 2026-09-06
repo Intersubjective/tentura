@@ -64,11 +64,11 @@ BeaconHierarchyCase _sut({
   InMemoryBeaconChildCommandStore? store,
 }) {
   final w = write ?? FakeBeaconWritePort();
-  return BeaconHierarchyCase(
+  return buildBeaconHierarchyCaseForTest(
     hierarchy ?? FakeBeaconHierarchyRepositoryPort(),
-    BeaconCreateCase(w, FakeBeaconImagePort()),
-    w,
-    store ?? InMemoryBeaconChildCommandStore(),
+    createCase: BeaconCreateCase(w, FakeBeaconImagePort()),
+    beacons: w,
+    commandStore: store ?? InMemoryBeaconChildCommandStore(),
   );
 }
 

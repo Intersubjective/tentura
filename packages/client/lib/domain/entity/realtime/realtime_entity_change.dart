@@ -23,6 +23,7 @@ enum RealtimeEntityKind {
   relationship,
   profile,
   notification,
+  beaconHierarchy,
   ;
 
   /// Maps the closed WebSocket protocol vocabulary into a domain kind.
@@ -44,6 +45,7 @@ enum RealtimeEntityKind {
     'relationship' => RealtimeEntityKind.relationship,
     'profile' => RealtimeEntityKind.profile,
     'notification' => RealtimeEntityKind.notification,
+    'beacon_hierarchy' => RealtimeEntityKind.beaconHierarchy,
     _ => null,
   };
 }

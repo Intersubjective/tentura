@@ -146,16 +146,16 @@ void main() {
             BlocProvider<BeaconHierarchyCubit>.value(
               value: BeaconHierarchyCubit(
                 beaconId: beaconId,
-                hierarchyCase: BeaconHierarchyCase(
+                hierarchyCase: buildBeaconHierarchyCaseForTest(
                   FakeBeaconHierarchyRepositoryPort(
                     capabilities: const BeaconHierarchyCapabilities(
                       canListChildren: false,
                       canCreateChild: false,
                     ),
                   ),
-                  BeaconCreateCase(_NoopBeaconWritePort(), _NoopImageRepo()),
-                  _NoopBeaconWritePort(),
-                  InMemoryBeaconChildCommandStore(),
+                  createCase: BeaconCreateCase(_NoopBeaconWritePort(), _NoopImageRepo()),
+                  beacons: _NoopBeaconWritePort(),
+                  commandStore: InMemoryBeaconChildCommandStore(),
                 ),
               ),
             ),

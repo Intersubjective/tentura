@@ -119,6 +119,12 @@ const impactSubscribers = <String, List<String>>{
     'packages/client/lib/domain/attention/attention_case.dart',
     'packages/client/lib/features/updates/ui/bloc/updates_feed_cubit.dart',
   ],
+  'beacon_hierarchy_children': [
+    'packages/client/lib/features/beacon_threads/ui/bloc/beacon_hierarchy_cubit.dart',
+  ],
+  'beacon_hierarchy_parent_reference': [
+    'packages/client/lib/features/beacon_threads/ui/bloc/beacon_hierarchy_cubit.dart',
+  ],
 };
 
 void main() {

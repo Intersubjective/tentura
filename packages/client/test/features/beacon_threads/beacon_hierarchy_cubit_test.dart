@@ -30,11 +30,11 @@ class _NoopImageRepo implements ImageRepository {
 BeaconHierarchyCubit _cubit(FakeBeaconHierarchyRepositoryPort port) {
   final cubit = BeaconHierarchyCubit(
     beaconId: 'parent-1',
-    hierarchyCase: BeaconHierarchyCase(
+    hierarchyCase: buildBeaconHierarchyCaseForTest(
       port,
-      BeaconCreateCase(_NoopBeaconWritePort(), _NoopImageRepo()),
-      _NoopBeaconWritePort(),
-      InMemoryBeaconChildCommandStore(),
+      createCase: BeaconCreateCase(_NoopBeaconWritePort(), _NoopImageRepo()),
+      beacons: _NoopBeaconWritePort(),
+      commandStore: InMemoryBeaconChildCommandStore(),
     ),
   );
   return cubit;

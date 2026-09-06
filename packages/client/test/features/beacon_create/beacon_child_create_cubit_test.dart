@@ -27,11 +27,11 @@ BeaconCreateCubit _childCubit({
   final commandStore = store ?? InMemoryBeaconChildCommandStore();
   return BeaconCreateCubit(
     beaconCreateCase: BeaconCreateCase(write, FakeBeaconImagePort()),
-    hierarchyCase: BeaconHierarchyCase(
+    hierarchyCase: buildBeaconHierarchyCaseForTest(
       hierarchy,
-      BeaconCreateCase(write, FakeBeaconImagePort()),
-      write,
-      commandStore,
+      createCase: BeaconCreateCase(write, FakeBeaconImagePort()),
+      beacons: write,
+      commandStore: commandStore,
     ),
     childCreationContext: _childContext,
     effects: effects ?? FakeUiEffectPort(),
@@ -43,11 +43,11 @@ BeaconCreateCubit _standaloneCubit({
   FakeUiEffectPort? effects,
 }) => BeaconCreateCubit(
   beaconCreateCase: BeaconCreateCase(write, FakeBeaconImagePort()),
-  hierarchyCase: BeaconHierarchyCase(
+  hierarchyCase: buildBeaconHierarchyCaseForTest(
     FakeBeaconHierarchyRepositoryPort(),
-    BeaconCreateCase(write, FakeBeaconImagePort()),
-    write,
-    InMemoryBeaconChildCommandStore(),
+    createCase: BeaconCreateCase(write, FakeBeaconImagePort()),
+    beacons: write,
+    commandStore: InMemoryBeaconChildCommandStore(),
   ),
   effects: effects ?? FakeUiEffectPort(),
 );
@@ -151,11 +151,11 @@ void main() {
       );
       final cubit = BeaconCreateCubit(
         beaconCreateCase: BeaconCreateCase(write, FakeBeaconImagePort()),
-        hierarchyCase: BeaconHierarchyCase(
+        hierarchyCase: buildBeaconHierarchyCaseForTest(
           FakeBeaconHierarchyRepositoryPort(),
-          BeaconCreateCase(write, FakeBeaconImagePort()),
-          write,
-          InMemoryBeaconChildCommandStore(),
+          createCase: BeaconCreateCase(write, FakeBeaconImagePort()),
+          beacons: write,
+          commandStore: InMemoryBeaconChildCommandStore(),
         ),
         childCreationContext: _childContext,
         draftBeaconIdToLoad: 'restored-draft',

@@ -9,7 +9,13 @@ import 'package:tentura_root/domain/entity/beacon_promotion_source.dart';
 import 'package:tentura_root/domain/entity/coordinates.dart';
 
 import 'package:tentura/domain/port/beacon_child_command_store_port.dart';
+import 'package:tentura/domain/port/beacon_write_port.dart';
+import 'package:tentura/domain/use_case/beacon_create_case.dart';
+import 'package:tentura/domain/use_case/beacon_hierarchy_case.dart';
+import 'package:tentura/domain/use_case/realtime_sync_case.dart';
 import 'package:tentura/features/beacon/domain/port/beacon_hierarchy_repository_port.dart';
+
+import '../../support/test_realtime_sync.dart';
 
 class FakeBeaconHierarchyRepositoryPort implements BeaconHierarchyRepositoryPort {
   FakeBeaconHierarchyRepositoryPort({
@@ -161,3 +167,18 @@ class InMemoryBeaconChildCommandStore implements BeaconChildCommandStorePort {
     _values[_key(context)] = clientCommandId;
   }
 }
+
+BeaconHierarchyCase buildBeaconHierarchyCaseForTest(
+  BeaconHierarchyRepositoryPort hierarchy, {
+  required BeaconCreateCase createCase,
+  required BeaconWritePort beacons,
+  required BeaconChildCommandStorePort commandStore,
+  RealtimeSyncCase? realtimeSyncCase,
+}) =>
+    BeaconHierarchyCase(
+      hierarchy,
+      createCase,
+      beacons,
+      commandStore,
+      realtimeSyncCase ?? buildTestRealtimeSync().case_,
+    );

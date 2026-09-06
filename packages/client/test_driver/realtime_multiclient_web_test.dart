@@ -509,6 +509,46 @@ Future<void> _runJourney({
     timeout: const Duration(seconds: 5),
   );
 
+  // 7. Nested child hierarchy convergence on a mounted parent Threads view.
+  // The helper is an admitted participant and may publish a child; the author's
+  // second session must converge without navigation while Inbox stays unchanged.
+  final childTitle = 'Nested child $suffix';
+  final childClientCommandId = 'nested-$suffix';
+  await Future.wait([
+    authorPeer.open('/beacon/view/$beaconId'),
+    helper.open('/beacon/view/$beaconId'),
+  ]);
+  await Future.wait([
+    authorPeer.clickTestId('beacon.tab.threads'),
+    helper.clickTestId('beacon.tab.threads'),
+  ]);
+  await authorPeer.waitForTestId('room.message.input');
+  final childBeaconId = await _createPublishedChildViaApi(
+    helperEmail: fixture.helperEmail,
+    parentBeaconId: beaconId,
+    title: childTitle,
+    clientCommandId: childClientCommandId,
+  );
+  timings['hierarchy_child_create_ms'] = await _measureUntil(
+    () => authorPeer.hasText(childTitle),
+    timeout: const Duration(seconds: 5),
+  );
+  _require(
+    await authorPeer.textCount(childTitle) == 1,
+    'Nested child card duplicated on parent view',
+  );
+  await author.open('/home/inbox');
+  await author.waitForText('Inbox');
+  _require(
+    !await author.hasText(childTitle),
+    'Nested child appeared in Inbox without direct involvement',
+  );
+  proof['nested_hierarchy'] = {
+    'childBeaconId': childBeaconId,
+    'delivery_ms': timings['hierarchy_child_create_ms'],
+    'ok': true,
+  };
+
   // Connected delivery budget is p95 <= 1.5s. A single run records samples;
   // the shell runner aggregates five consecutive runs as the exit gate.
   for (final entry in timings.entries) {
@@ -698,6 +738,34 @@ Future<void> _acceptAskViaApi({
   if (status != 1) {
     throw StateError('acceptAsk did not accept: $response');
   }
+}
+
+Future<String> _createPublishedChildViaApi({
+  required String helperEmail,
+  required String parentBeaconId,
+  required String title,
+  required String clientCommandId,
+}) async {
+  final query =
+      'mutation { beaconChildCreate(parentBeaconId: "$parentBeaconId", '
+      'clientCommandId: "$clientCommandId", '
+      'title: "${_escapeGraphQlString(title)}", draft: false) '
+      '{ outcome beaconId } }';
+  final response = await _postGraphQlAuthenticated(
+    email: helperEmail,
+    query: query,
+  );
+  final errors = response['errors'];
+  if (errors != null) {
+    throw StateError('beaconChildCreate failed: $errors');
+  }
+  final data = response['data'] as Map<String, dynamic>?;
+  final result = data?['beaconChildCreate'] as Map<String, dynamic>?;
+  final beaconId = result?['beaconId'] as String?;
+  if (beaconId == null || beaconId.isEmpty) {
+    throw StateError('beaconChildCreate returned no beaconId: $response');
+  }
+  return beaconId;
 }
 
 Future<Map<String, dynamic>> _postGraphQlAuthenticated({

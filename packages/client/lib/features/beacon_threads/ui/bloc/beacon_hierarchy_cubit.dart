@@ -4,6 +4,7 @@ import 'package:get_it/get_it.dart';
 import 'package:tentura_root/domain/entity/beacon_hierarchy_child_group.dart';
 import 'package:tentura_root/domain/entity/beacon_hierarchy_summary.dart';
 
+import 'package:tentura/domain/entity/realtime/realtime_entity_change.dart';
 import 'package:tentura/domain/use_case/beacon_hierarchy_case.dart';
 import 'package:tentura/features/beacon/domain/beacon_hierarchy_exception.dart';
 import 'package:tentura/ui/bloc/state_base.dart';
@@ -18,14 +19,53 @@ class BeaconHierarchyCubit extends Cubit<BeaconHierarchyState> {
     BeaconHierarchyCase? hierarchyCase,
   }) : _beaconId = beaconId,
        _hierarchy = hierarchyCase ?? GetIt.I<BeaconHierarchyCase>(),
-       super(const BeaconHierarchyState());
+       super(const BeaconHierarchyState()) {
+    _hierarchyChangesSub = _hierarchy
+        .hierarchyChangesFor(_beaconId)
+        .listen(_onHierarchyChanged);
+    _catchUpsSub = _hierarchy.catchUps.listen((_) => _scheduleSilentRefresh());
+  }
+
+  static const _refreshDebounce = Duration(milliseconds: 100);
 
   final String _beaconId;
   final BeaconHierarchyCase _hierarchy;
 
+  late final StreamSubscription<RealtimeEntityChange> _hierarchyChangesSub;
+  late final StreamSubscription<void> _catchUpsSub;
+
+  Timer? _refreshTimer;
+  bool _refreshInFlight = false;
+  bool _refreshQueued = false;
   int _loadGeneration = 0;
 
+  void _onHierarchyChanged(RealtimeEntityChange _) => _scheduleSilentRefresh();
+
+  void _scheduleSilentRefresh() {
+    if (isClosed) return;
+    _refreshTimer?.cancel();
+    _refreshTimer = Timer(_refreshDebounce, () {
+      _refreshTimer = null;
+      if (!isClosed) {
+        unawaited(_runSilentRefresh());
+      }
+    });
+  }
+
   Future<void> load({bool silent = false}) async {
+    if (_refreshInFlight) {
+      _refreshQueued = true;
+      if (!silent) {
+        emit(state.copyWith(status: const StateIsLoading()));
+      }
+      return;
+    }
+    await _runLoad(silent: silent);
+  }
+
+  Future<void> _runLoad({required bool silent}) async {
+    _refreshInFlight = true;
+    _refreshQueued = false;
     final generation = ++_loadGeneration;
     if (!silent) {
       emit(state.copyWith(status: const StateIsLoading()));
@@ -76,6 +116,12 @@ class BeaconHierarchyCubit extends Cubit<BeaconHierarchyState> {
           status: const StateIsSuccess(),
         ),
       );
+    } finally {
+      _refreshInFlight = false;
+      if (_refreshQueued && !isClosed) {
+        _refreshQueued = false;
+        unawaited(_runSilentRefresh());
+      }
     }
   }
 
@@ -145,17 +191,113 @@ class BeaconHierarchyCubit extends Cubit<BeaconHierarchyState> {
     );
   }
 
+  Future<void> _runSilentRefresh() async {
+    if (_refreshInFlight) {
+      _refreshQueued = true;
+      return;
+    }
+    _refreshInFlight = true;
+    _refreshQueued = false;
+    final generation = ++_loadGeneration;
+    try {
+      final capabilities = await _hierarchy.fetchCapabilities(
+        beaconId: _beaconId,
+      );
+      if (generation != _loadGeneration || isClosed) return;
+
+      if (!capabilities.canListChildren) {
+        if (state.canListChildren ||
+            state.active.items.isNotEmpty ||
+            state.finished.items.isNotEmpty ||
+            state.parentReference != null) {
+          evictHierarchyAccess();
+        } else {
+          emit(
+            state.copyWith(
+              capabilities: capabilities,
+              capabilitiesError: null,
+            ),
+          );
+        }
+        await _refreshParentReferenceSilent(generation);
+        return;
+      }
+
+      emit(
+        state.copyWith(
+          capabilities: capabilities,
+          capabilitiesError: null,
+        ),
+      );
+      await _loadGroup(
+        BeaconHierarchyChildGroup.active,
+        generation: generation,
+        reset: true,
+        silent: true,
+      );
+      if (generation != _loadGeneration || isClosed) return;
+      await _loadGroup(
+        BeaconHierarchyChildGroup.finished,
+        generation: generation,
+        reset: true,
+        silent: true,
+      );
+      if (generation != _loadGeneration || isClosed) return;
+      await _refreshParentReferenceSilent(generation);
+    } on Object catch (_) {
+      // Keep the usable snapshot; a later hint or catch-up retries.
+    } finally {
+      _refreshInFlight = false;
+      if (_refreshQueued && !isClosed) {
+        _refreshQueued = false;
+        unawaited(_runSilentRefresh());
+      }
+    }
+  }
+
+  Future<void> _refreshParentReferenceSilent(int generation) async {
+    if (state.parentReference == null &&
+        !state.parentReferenceLoading &&
+        state.parentReferenceError == null) {
+      return;
+    }
+    try {
+      final reference = await _hierarchy.fetchParentReference(
+        beaconId: _beaconId,
+      );
+      if (generation != _loadGeneration || isClosed) return;
+      emit(
+        state.copyWith(
+          parentReference: reference,
+          parentReferenceLoading: false,
+          parentReferenceError: null,
+        ),
+      );
+    } on BeaconHierarchyException catch (_) {
+      if (generation != _loadGeneration || isClosed) return;
+      evictHierarchyAccess();
+    } on Object catch (_) {
+      // Transient failure retains the current parent-reference snapshot.
+    }
+  }
+
   Future<void> _loadGroup(
     BeaconHierarchyChildGroup group, {
     required int generation,
     required bool reset,
     String? after,
+    bool silent = false,
   }) async {
-    if (!state.canListChildren) return;
+    if (!state.canListChildren && silent) {
+      final capabilities = state.capabilities;
+      if (capabilities == null || !capabilities.canListChildren) return;
+    } else if (!state.canListChildren) {
+      return;
+    }
 
     final previous = state.sliceFor(group);
     final loadingSlice = previous.copyWith(
-      loading: reset,
+      loading: reset && !silent,
       loadingMore: !reset,
       error: reset ? null : previous.error,
     );
@@ -186,6 +328,10 @@ class BeaconHierarchyCubit extends Cubit<BeaconHierarchyState> {
       );
     } on BeaconHierarchyException catch (e) {
       if (generation != _loadGeneration || isClosed) return;
+      if (silent) {
+        evictHierarchyAccess();
+        return;
+      }
       emit(
         _replaceSlice(
           group,
@@ -205,8 +351,8 @@ class BeaconHierarchyCubit extends Cubit<BeaconHierarchyState> {
           previous.copyWith(
             loading: false,
             loadingMore: false,
-            error: e,
-            items: reset ? const [] : previous.items,
+            error: silent ? previous.error : e,
+            items: reset && !silent ? const [] : previous.items,
           ),
         ),
       );
@@ -233,5 +379,13 @@ class BeaconHierarchyCubit extends Cubit<BeaconHierarchyState> {
       }
     }
     return out;
+  }
+
+  @override
+  Future<void> close() async {
+    _refreshTimer?.cancel();
+    await _hierarchyChangesSub.cancel();
+    await _catchUpsSub.cancel();
+    return super.close();
   }
 }
