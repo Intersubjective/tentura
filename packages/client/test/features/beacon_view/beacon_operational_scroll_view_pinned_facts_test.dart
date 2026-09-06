@@ -1,4 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:tentura/features/beacon_threads/ui/bloc/beacon_hierarchy_cubit.dart';
+import 'package:tentura/domain/use_case/beacon_hierarchy_case.dart';
+import 'package:tentura/domain/use_case/beacon_create_case.dart';
+import 'package:tentura/domain/port/beacon_write_port.dart';
+import 'package:tentura/data/repository/image_repository.dart';
+import 'package:tentura_root/domain/entity/beacon_hierarchy_capabilities.dart';
+
+import '../../domain/use_case/fake_beacon_hierarchy_ports.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/mockito.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
@@ -22,6 +31,16 @@ import 'package:tentura/ui/test_ids.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
 import '../beacon_threads/fake_coordination_item_case.dart';
 import 'beacon_view_case_test_support.dart';
+
+class _NoopBeaconWritePort implements BeaconWritePort {
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+class _NoopImageRepo implements ImageRepository {
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
 
 class _MockThreadsCubit extends Mock implements ThreadsCubit {
   _MockThreadsCubit(this._state);
@@ -124,6 +143,22 @@ void main() {
                 const ThreadsState(status: StateIsSuccess()),
               ),
             ),
+            BlocProvider<BeaconHierarchyCubit>.value(
+              value: BeaconHierarchyCubit(
+                beaconId: beaconId,
+                hierarchyCase: BeaconHierarchyCase(
+                  FakeBeaconHierarchyRepositoryPort(
+                    capabilities: const BeaconHierarchyCapabilities(
+                      canListChildren: false,
+                      canCreateChild: false,
+                    ),
+                  ),
+                  BeaconCreateCase(_NoopBeaconWritePort(), _NoopImageRepo()),
+                  _NoopBeaconWritePort(),
+                  InMemoryBeaconChildCommandStore(),
+                ),
+              ),
+            ),
           ],
           child: TenturaResponsiveScope(
             child: Scaffold(
@@ -136,11 +171,11 @@ void main() {
                 onPeopleTabAttentionCleared: () {},
                 onActivatePeopleTabAttention: () {},
                 onFocusCoordinationItem: (_) {},
-                focusThreadId: null,
+                focusGeneral: false,
                 focusUserId: null,
                 onOperationalFocusCleared: () {},
                 onTapCoordinationLogEvent: (_) {},
-                onOpenThread: (_) {},
+                onOpenGeneral: () {},
                 onOpenGeneralThread: () {},
                 onThreadsTabRefresh: () {},
                 beaconState: cubit.state,

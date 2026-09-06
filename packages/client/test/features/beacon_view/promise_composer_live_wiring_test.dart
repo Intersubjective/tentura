@@ -184,7 +184,7 @@ void main() {
                 bloc: cubit,
                 builder: (context, state) => ThreadsList(
                   beaconState: state,
-                  onOpenThread: (_) {},
+                  onOpenGeneral: () {},
                 ),
               ),
             ),
@@ -236,5 +236,6 @@ void main() {
       expect(trackingCase.createdBeaconId, beaconId);
       expect(trackingCase.createdTargetId, 'Uhelper01');
     },
+    skip: true, // Promise creation CTA retired from Discussion overview (Task 12).
   );
 }

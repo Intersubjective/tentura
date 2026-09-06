@@ -133,23 +133,6 @@ class _FakeBeaconThreadsRepository extends Fake
   }) async => 'msg-created';
 }
 
-class _TrackingCoordinationItemCase extends FakeCoordinationItemCaseForRoom {
-  int fetchCurrentRootPlanCallCount = 0;
-  int acceptAskCallCount = 0;
-
-  @override
-  Future<CoordinationItem?> fetchCurrentRootPlan(String beaconId) async {
-    fetchCurrentRootPlanCallCount++;
-    return null;
-  }
-
-  @override
-  Future<CoordinationItem> acceptAsk({required String itemId}) async {
-    acceptAskCallCount++;
-    return _item(id: itemId);
-  }
-}
-
 CoordinationItem _item({
   required String id,
   CoordinationItemKind kind = CoordinationItemKind.ask,
@@ -237,8 +220,6 @@ ThreadsCubit _cubit({
   RoomReadWatermarkStore? watermark,
 }) => ThreadsCubit(
   beaconId: _kBeaconId,
-  coordinationItemCase:
-      coordinationCase ?? const FakeCoordinationItemCaseForRoom(),
   beaconThreadsCase: _makeCase(
     repo,
     coordinationCase: coordinationCase,
@@ -281,105 +262,13 @@ void main() {
 
       expect(state.threads, hasLength(2));
       expect(state.resolvedUnreadFor(state.general!), 2);
-      expect(state.threadsTabUnreadCount, 5);
+      expect(state.threadsTabUnreadCount, 2);
       expect(repo.listThreadsCallCount, 1);
     });
-
-    test('never calls fetchCurrentRootPlan', () async {
-      final tracking = _TrackingCoordinationItemCase();
-      final repo = _FakeBeaconThreadsRepository()..threads = [_generalThread()];
-      final cubit = _cubit(repo: repo, coordinationCase: tracking);
-      addTearDown(cubit.close);
-
-      await cubit.fetch();
-      await cubit.acceptAsk('ask-1');
-
-      expect(tracking.fetchCurrentRootPlanCallCount, 0);
-      expect(tracking.acceptAskCallCount, 1);
-    });
   });
 
-  group('ThreadsCubit grouping getters', () {
-    test(
-      'preserves zero-message draft rows and groups active/closed',
-      () async {
-        final activeItem = _item(id: 'active-ask');
-        final closedItem = _item(
-          id: 'closed-ask',
-          status: CoordinationItemStatus.resolved,
-        );
-        final draftItem = _item(
-          id: 'draft-ask',
-          published: false,
-          creatorId: _kMyUserId,
-        );
-        final repo = _FakeBeaconThreadsRepository()
-          ..threads = [
-            _generalThread(),
-            _semanticThread(item: activeItem),
-            _semanticThread(item: closedItem),
-            _semanticThread(item: draftItem, unreadCount: 0),
-          ];
-        final cubit = _cubit(repo: repo);
-        addTearDown(cubit.close);
-
-        await cubit.fetch();
-
-        expect(cubit.state.general, isNotNull);
-        expect(cubit.state.active, hasLength(1));
-        expect(cubit.state.active.single.item!.id, 'active-ask');
-        expect(cubit.state.closed, hasLength(1));
-        expect(cubit.state.closed.single.item!.id, 'closed-ask');
-        expect(cubit.state.drafts, hasLength(1));
-        expect(cubit.state.drafts.single.item!.id, 'draft-ask');
-        expect(cubit.state.drafts.single.messageCount, 0);
-        expect(cubit.state.firstAccessible, cubit.state.general);
-      },
-    );
-
-    test(
-      'firstAccessible falls back to first row when General absent',
-      () async {
-        final item = _item(id: 'only-item', creatorId: _kMyUserId);
-        final repo = _FakeBeaconThreadsRepository()
-          ..threads = [_semanticThread(item: item)];
-        final cubit = _cubit(repo: repo);
-        addTearDown(cubit.close);
-
-        await cubit.fetch();
-
-        expect(cubit.state.general, isNull);
-        expect(cubit.state.firstAccessible?.threadId, 'only-item');
-      },
-    );
-
-    test('activeForMeOnly filters active semantic rows', () async {
-      final mine = _item(id: 'mine', creatorId: _kMyUserId);
-      final other = _item(
-        id: 'other',
-        creatorId: _kOtherUserId,
-        targetPersonId: 'someone-else',
-      );
-      final repo = _FakeBeaconThreadsRepository()
-        ..threads = [
-          _generalThread(),
-          _semanticThread(item: mine),
-          _semanticThread(item: other),
-        ];
-      final cubit = _cubit(repo: repo);
-      addTearDown(cubit.close);
-
-      await cubit.fetch();
-      expect(cubit.state.active, hasLength(2));
-
-      cubit.setActiveForMeOnly(true);
-      expect(cubit.state.active, hasLength(1));
-      expect(cubit.state.active.single.item!.id, 'mine');
-    });
-  });
-
-  group('ThreadsCubit badge math', () {
-    test('tab total is General plus active only; closed excluded', () async {
+  group('ThreadsCubit general-only badge', () {
+    test('tab total counts General unread only', () async {
       final activeItem = _item(id: 'active', unreadCount: 4);
       final closedItem = _item(
         id: 'closed',
@@ -397,8 +286,8 @@ void main() {
 
       await cubit.fetch();
 
-      expect(cubit.state.threadsTabUnreadCount, 5);
-      expect(cubit.state.resolvedUnreadFor(cubit.state.closed.single), 7);
+      expect(cubit.state.threadsTabUnreadCount, 1);
+      expect(cubit.state.resolvedUnreadFor(cubit.state.general!), 1);
     });
   });
 
@@ -522,42 +411,24 @@ void main() {
         final case_ = _makeCase(repo, watermark: watermark);
         final cubit = ThreadsCubit(
           beaconId: _kBeaconId,
-          coordinationItemCase: const FakeCoordinationItemCaseForRoom(),
           beaconThreadsCase: case_,
         );
         addTearDown(cubit.close);
 
         await cubit.fetch();
-        expect(cubit.state.threadsTabUnreadCount, 5);
+        expect(cubit.state.threadsTabUnreadCount, 3);
 
         case_.observeReadThrough(
           _kBeaconId,
           _kReadThrough,
-          threadId: 'ask-1',
+          threadId: RequestThread.generalId,
         );
         await Future<void>.delayed(const Duration(milliseconds: 10));
 
         expect(repo.listThreadsCallCount, 1);
-        expect(cubit.state.resolvedUnreadFor(cubit.state.active.single), 0);
-        expect(cubit.state.threadsTabUnreadCount, 3);
+        expect(cubit.state.resolvedUnreadFor(cubit.state.general!), 0);
+        expect(cubit.state.threadsTabUnreadCount, 0);
       },
     );
-  });
-
-  group('ThreadsCubit lifecycle actions', () {
-    test('successful mutation triggers a silent refetch', () async {
-      final tracking = _TrackingCoordinationItemCase();
-      final repo = _FakeBeaconThreadsRepository()..threads = [_generalThread()];
-      final cubit = _cubit(repo: repo, coordinationCase: tracking);
-      addTearDown(cubit.close);
-
-      await cubit.fetch();
-      expect(repo.listThreadsCallCount, 1);
-
-      await cubit.acceptAsk('ask-1');
-
-      expect(tracking.acceptAskCallCount, 1);
-      expect(repo.listThreadsCallCount, 2);
-    });
   });
 }

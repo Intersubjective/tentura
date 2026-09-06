@@ -13,6 +13,13 @@ import 'package:tentura/features/beacon/domain/port/beacon_hierarchy_repository_
 
 class FakeBeaconHierarchyRepositoryPort implements BeaconHierarchyRepositoryPort {
   FakeBeaconHierarchyRepositoryPort({
+    this.capabilities = const BeaconHierarchyCapabilities(
+      canListChildren: true,
+      canCreateChild: true,
+    ),
+    this.parentReference = const BeaconParentReference(
+      state: BeaconParentReferenceState.none,
+    ),
     this.promotionSource = const BeaconPromotionSource(
       sourceBeaconId: 'parent-1',
       sourceMessageId: 'msg-1',
@@ -22,7 +29,21 @@ class FakeBeaconHierarchyRepositoryPort implements BeaconHierarchyRepositoryPort
         displayName: 'Alice',
       ),
     ),
+    this.childrenByGroup = const {},
+    this.capabilitiesError,
+    this.childrenError,
+    this.fetchChildrenHandler,
   });
+
+  final BeaconHierarchyCapabilities capabilities;
+  final BeaconParentReference parentReference;
+  final Map<BeaconHierarchyChildGroup, BeaconHierarchyPage> childrenByGroup;
+  final Object? capabilitiesError;
+  final Object? childrenError;
+  Future<BeaconHierarchyPage> Function({
+    required BeaconHierarchyChildGroup group,
+    String? after,
+  })? fetchChildrenHandler;
 
   final createCalls = <Map<String, Object?>>[];
   final BeaconPromotionSource promotionSource;
@@ -36,8 +57,10 @@ class FakeBeaconHierarchyRepositoryPort implements BeaconHierarchyRepositoryPort
   @override
   Future<BeaconHierarchyCapabilities> fetchCapabilities({
     required String beaconId,
-  }) async =>
-      const BeaconHierarchyCapabilities(canListChildren: true, canCreateChild: true);
+  }) async {
+    if (capabilitiesError != null) throw capabilitiesError!;
+    return capabilities;
+  }
 
   @override
   Future<BeaconHierarchyPage> fetchChildren({
@@ -45,14 +68,19 @@ class FakeBeaconHierarchyRepositoryPort implements BeaconHierarchyRepositoryPort
     required BeaconHierarchyChildGroup group,
     int first = 20,
     String? after,
-  }) async =>
-      const BeaconHierarchyPage(summaries: []);
+  }) async {
+    if (childrenError != null) throw childrenError!;
+    if (fetchChildrenHandler != null) {
+      return fetchChildrenHandler!(group: group, after: after);
+    }
+    return childrenByGroup[group] ?? const BeaconHierarchyPage(summaries: []);
+  }
 
   @override
   Future<BeaconParentReference> fetchParentReference({
     required String beaconId,
   }) async =>
-      const BeaconParentReference(state: BeaconParentReferenceState.none);
+      parentReference;
 
   @override
   Future<BeaconPromotionSource> fetchPromotionSource({

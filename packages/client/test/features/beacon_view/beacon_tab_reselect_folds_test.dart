@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/mockito.dart';
+import 'package:tentura_root/domain/entity/beacon_hierarchy_capabilities.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
@@ -17,6 +19,13 @@ import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/bloc/state_base.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/test_ids.dart';
+import 'package:tentura/features/beacon_threads/ui/bloc/beacon_hierarchy_cubit.dart';
+import 'package:tentura/domain/use_case/beacon_hierarchy_case.dart';
+import 'package:tentura/domain/use_case/beacon_create_case.dart';
+import 'package:tentura/domain/port/beacon_write_port.dart';
+import 'package:tentura/data/repository/image_repository.dart';
+
+import '../../domain/use_case/fake_beacon_hierarchy_ports.dart';
 
 class _MockProfileCubit extends Mock implements ProfileCubit {
   @override
@@ -43,22 +52,37 @@ class _FakeBeaconViewCubit extends Mock implements BeaconViewCubit {
   Future<void> loadForwards() async {}
 }
 
-class _TrackingThreadsCubit extends Cubit<ThreadsState>
-    implements ThreadsCubit {
-  _TrackingThreadsCubit()
-      : super(const ThreadsState(status: StateIsSuccess(), activeForMeOnly: true));
-
-  int setActiveForMeOnlyCalls = 0;
-
-  @override
-  void setActiveForMeOnly(bool value) {
-    setActiveForMeOnlyCalls++;
-    emit(state.copyWith(activeForMeOnly: value));
-  }
+class _TrackingThreadsCubit extends Cubit<ThreadsState> implements ThreadsCubit {
+  _TrackingThreadsCubit() : super(const ThreadsState(status: StateIsSuccess()));
 
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
+
+class _NoopBeaconWritePort implements BeaconWritePort {
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+class _NoopImageRepo implements ImageRepository {
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+BeaconHierarchyCubit _hierarchyCubit() => BeaconHierarchyCubit(
+  beaconId: 'B1',
+  hierarchyCase: BeaconHierarchyCase(
+    FakeBeaconHierarchyRepositoryPort(
+      capabilities: const BeaconHierarchyCapabilities(
+        canListChildren: false,
+        canCreateChild: false,
+      ),
+    ),
+    BeaconCreateCase(_NoopBeaconWritePort(), _NoopImageRepo()),
+    _NoopBeaconWritePort(),
+    InMemoryBeaconChildCommandStore(),
+  ),
+);
 
 void main() {
   final t = DateTime.utc(2026);
@@ -102,8 +126,10 @@ void main() {
 
     final beaconCubit = _FakeBeaconViewCubit(peopleState());
     final threadsCubit = _TrackingThreadsCubit();
+    final hierarchyCubit = _hierarchyCubit();
     final screenCubit = ScreenCubit.local();
     addTearDown(screenCubit.close);
+    addTearDown(hierarchyCubit.close);
 
     var peopleFoldEpoch = 0;
     var threadsFoldEpoch = 0;
@@ -121,6 +147,7 @@ void main() {
               BlocProvider<ProfileCubit>.value(value: _MockProfileCubit()),
               BlocProvider<ThreadsCubit>.value(value: threadsCubit),
               BlocProvider<BeaconViewCubit>.value(value: beaconCubit),
+              BlocProvider<BeaconHierarchyCubit>.value(value: hierarchyCubit),
             ],
             child: TenturaResponsiveScope(
               child: Scaffold(
@@ -135,11 +162,11 @@ void main() {
                       onPeopleTabAttentionCleared: () {},
                       onActivatePeopleTabAttention: () {},
                       onFocusCoordinationItem: (_) {},
-                      focusThreadId: null,
+                      focusGeneral: false,
                       focusUserId: null,
                       onOperationalFocusCleared: () {},
                       onTapCoordinationLogEvent: (_) {},
-                      onOpenThread: (_) {},
+                      onOpenGeneral: () {},
                       onOpenGeneralThread: () {},
                       onThreadsTabRefresh: () {},
                       peopleFoldEpoch: peopleFoldEpoch,
@@ -180,7 +207,7 @@ void main() {
     expect(find.text('Rejected'), findsNothing);
   });
 
-  testWidgets('same-tab Threads reselect clears activeForMeOnly', (
+  testWidgets('same-tab Discussion reselect triggers refresh callback', (
     tester,
   ) async {
     const compact = Size(500, 900);
@@ -189,8 +216,12 @@ void main() {
 
     final beaconCubit = _FakeBeaconViewCubit(peopleState());
     final threadsCubit = _TrackingThreadsCubit();
+    final hierarchyCubit = _hierarchyCubit();
     final screenCubit = ScreenCubit.local();
     addTearDown(screenCubit.close);
+    addTearDown(hierarchyCubit.close);
+
+    var refreshCalls = 0;
 
     await tester.pumpWidget(
       MediaQuery(
@@ -205,6 +236,7 @@ void main() {
               BlocProvider<ProfileCubit>.value(value: _MockProfileCubit()),
               BlocProvider<ThreadsCubit>.value(value: threadsCubit),
               BlocProvider<BeaconViewCubit>.value(value: beaconCubit),
+              BlocProvider<BeaconHierarchyCubit>.value(value: hierarchyCubit),
             ],
             child: TenturaResponsiveScope(
               child: Scaffold(
@@ -217,13 +249,13 @@ void main() {
                   onPeopleTabAttentionCleared: () {},
                   onActivatePeopleTabAttention: () {},
                   onFocusCoordinationItem: (_) {},
-                  focusThreadId: null,
+                  focusGeneral: false,
                   focusUserId: null,
                   onOperationalFocusCleared: () {},
                   onTapCoordinationLogEvent: (_) {},
-                  onOpenThread: (_) {},
+                  onOpenGeneral: () {},
                   onOpenGeneralThread: () {},
-                  onThreadsTabRefresh: () {},
+                  onThreadsTabRefresh: () => refreshCalls++,
                   onTabReselected: (_) {},
                   beaconState: beaconCubit.state,
                 ),
@@ -235,12 +267,11 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(threadsCubit.state.activeForMeOnly, isTrue);
+    expect(refreshCalls, 0);
 
     await tester.tap(find.byKey(TestIds.key(TestIds.beaconTabThreads)));
     await tester.pumpAndSettle();
 
-    expect(threadsCubit.setActiveForMeOnlyCalls, 1);
-    expect(threadsCubit.state.activeForMeOnly, isFalse);
+    expect(refreshCalls, 1);
   });
 }
