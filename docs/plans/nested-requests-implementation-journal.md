@@ -978,3 +978,101 @@ cd packages/client && dart run build_runner build -d   # Built in ~50s; 3974 out
 **Retired client documents:** 25 `.graphql` files removed under `coordination_item/data/gql/`; architecture test `retired_client_graphql_documents_test.dart` asserts absence.
 
 **Note:** Retired coordination case methods on client remain as `UnsupportedError` stubs until Task 12 removes UI surfaces. PG suite for touched repos not re-run in this checkpoint (infra up; recommend `beacon_threads_repository_pg_test.dart` before manager acceptance).
+
+### Task 07 — manager review and acceptance (2026-09-06)
+
+Four external memory-pressure kills across this task's development (see
+salvage checkpoints `96fa62e08`, `a8df29488`, `36b75466d` above), each
+reviewed and salvaged before the final worker attempt completed the rest:
+General-only + lifecycle write guards wired into every `BeaconRoomCase`
+mutation surface plus `PollingCase.create`, `m0156` DB backstop, 25 retired
+GraphQL mutations removed server-side, 25 client `.graphql` documents
+deleted, Hasura poll/room-state filters tightened, and a verified-live
+`schema_fetcher` + `build_runner` regeneration cycle.
+
+Given this task's severity (breaking API removal + a brand-new DB-level
+security guard), reviewed with the highest scrutiny used in this
+orchestration:
+
+1. Read `m0156.dart` in full. Confirmed the lifecycle-write-guard trigger's
+   bypass for internal system notices (`system_message_kind IS NOT NULL OR
+   author_id IS NULL`) and its blocked-status set (`beacon.status IN (1, 2,
+   6)` = cancelled/deleted/closed, verified against the live `BeaconStatus`
+   smallint mapping) are both correct.
+2. **Found and fixed a critical, confirmed bug via direct SQL against a
+   real disposable database, not just code reading**:
+   `discussion_internal_fixture_allowed()` computed
+   `current_setting(name, true) = 'allow_non_general'`, which evaluates to
+   NULL (not false) whenever the GUC has never been SET — the case for
+   every ordinary session. PL/pgSQL's `IF` treats a NULL condition as
+   false, so the general-only guard trigger **never actually rejected
+   anything in normal operation** — reproduced directly: a non-General
+   insert on an open beacon with no bypass set silently succeeded.
+   Fixed with `COALESCE(..., '')`, re-verified the full five-scenario
+   matrix (reject-on-closed, permit-system-notice-on-closed, reject-non-
+   General-no-bypass, permit-non-General-with-bypass, permit-ordinary-
+   General) directly against Postgres, then wrote
+   `m0156_general_only_lifecycle_guard_pg_test.dart` — the first and only
+   direct test of this migration's triggers (commit `2b96efc65`).
+3. That fix correctly restored REAL enforcement, which in turn (correctly)
+   broke three pre-existing PG test files that fixture retired/thread-
+   scoped rows directly via raw SQL or exercise repository methods with
+   real thread-item ids to prove dormant mechanics below the case-layer
+   guard: `beacon_threads_repository_pg_test.dart`,
+   `attention_repository_pg_test.dart`, and (found via a systematic sweep
+   for every PG test referencing `thread_item_id`/`semanticMarker`)
+   `beacon_room_seen_upsert_pg_test.dart`. Fixed each with the same
+   sanctioned bypass mechanism the new migration itself documents and
+   tests, applied to the correct connection in each case (the raw `writer`
+   for direct-SQL fixtures; the Drift-backed `database`/`db` — confirmed
+   pinned to `maxConnectionCount == 1` in `tentura_db.dart`, so a single
+   `SET` reliably persists — for tests exercising the repository API
+   directly). Commits `dfdd566fd`, `d69c1599e`.
+4. Verified the guard wiring is comprehensive: grepped every call site of
+   `_rejectDisabledDiscussionScope`/`_rejectOrdinaryUserWritesForLifecycle`/
+   `_guardMessageMutation` across `BeaconRoomCase` — covers
+   createMessage/listMessages/markThreadSeen/roomMessageMarkSemanticDone/
+   reactionToggle/addMessageAttachment/deleteMessage/editMessage/
+   attachment download/createPoll, matching §5.2's full surface list.
+5. Confirmed the 6 tests I had left `skip:`-marked in the prior salvage
+   round were properly split (not just re-enabled): each file now builds
+   both a `ProductionDiscussionProductPolicy` `sut` (asserting
+   `DiscussionScopeDisabledException`) and a separate
+   `InternalMultiThreadDiscussionProductPolicy` `internalSut` (asserting
+   the original dormant-mechanics behavior) — read the diffs directly,
+   confirmed no stray skips remain anywhere in the touched files.
+6. Confirmed `InternalMultiThreadDiscussionProductPolicy` has zero
+   references in `packages/server/lib/` outside its own definition (only
+   test files use it), and `di.config.dart` has exactly one singleton
+   registration for `DiscussionProductPolicyPort`, resolving to
+   `ProductionDiscussionProductPolicy` — no bypass path exists in
+   production.
+7. Confirmed the retired-client-documents test
+   (`retired_client_graphql_documents_test.dart`) is real (checks the
+   actual filesystem directory against the exact 25 retired basenames) and
+   passes; confirmed the client `gql` directory now has exactly 9 files
+   (34 − 25, matching Task 00's independently-confirmed count).
+8. Read the Hasura metadata diff: `polling` gets a `room_general_visible`
+   computed field (backed by the already-verified `polling_room_general_visible`
+   SQL, which correctly preserves standalone/non-room-linked polls
+   unaffected); `polling_act`/`polling_variant` inherit the same via FK
+   relationship rather than duplicating logic; `beacon_room_state`'s
+   previous complex owner/steward/participant `_or` filter is replaced
+   with a single `general_visible` computed field reusing Task 03's
+   `beacon_effective_admission`. No new relationships, no widened columns.
+9. Independently reran everything: full `dart test --exclude-tags pg`
+   (1652/1652), `beacon_threads_repository_pg_test.dart` (12/12),
+   `attention_repository_pg_test.dart` (17/17),
+   `beacon_room_seen_upsert_pg_test.dart` (3/3),
+   `m0156_general_only_lifecycle_guard_pg_test.dart` (5/5), both
+   `check-custom-lints.sh` (server 0/0, client 32/32), `cd packages/client
+   && flutter test --dart-define=ENV=test` (2621 passed / 33 skipped,
+   matching the worker's report exactly), `git diff --check` clean.
+10. Confirmed no stray local server process was left running after the
+    live regeneration cycle.
+
+This was the largest and highest-risk task in the plan, and also the one
+requiring the most manager intervention: four salvage rounds plus one
+critical bug found only through direct database verification. Task 07 is
+ACCEPTED. Proceeding to Task 08 (safe request deletion and account
+erasure).
