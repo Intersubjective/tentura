@@ -816,3 +816,65 @@ git diff --check  # clean on task paths
 **Pre-existing PG failures (unchanged, not Task 05):**
 `review_finalization_outcome_evidence_pg_test.dart`,
 `room_message_reply_readback_pg_test.dart` on shared `postgres` DB only.
+
+### Task 05 — manager review (2026-09-06)
+
+Independently verified. Read `beacon_lifecycle_effects_case.dart` in full:
+correctly delegates eligibility to Task 01's pure
+`BeaconHierarchyPolicy.isHierarchyLifecycleNoticeEligible` (from==draft,
+reopenedFromReview reason, and noop transitions all correctly excluded;
+eligible set is exactly {reviewOpen, closed, cancelled, deleted}) and
+persistence to the outbox repository's `recordEvent`/
+`insertTopologyDeliveryTargets`. Read the outbox SQL directly: `recordEvent`
+atomically locks+increments+inserts under one CTE chain (no TOCTOU gap);
+the recursive traversal correctly walks descendants and the immediate
+published parent, direction-labels ancestor/child from the TARGET's
+perspective (matches §4.4's "An ancestor request entered X" / "A child
+request was closed" copy — verified this is not swapped), excludes the
+source, dedupes by `(event,target)`, and passes through deleted/closed/
+cancelled intermediates via the `published_at IS NOT NULL` filter alone
+(exactly per §4.3 step 4).
+
+Verified producer wiring is exactly-once and matches the manifest's
+producer table precisely: `beacon_case.dart` wires only `beaconCancel`/
+`deleteById` (confirmed the private-draft hard-delete branch returns before
+reaching the hierarchy call, so drafts are never a source); `evaluation_case.dart`
+wires only `beaconClose`'s two branches; `closeNow`/`_autoCloseReviewWindow`
+have zero references (delegate-only); `attention_expiry_sweep_case.dart`
+has zero references; `review_finalization_case.dart`'s call is placed after
+the `snapshot == null` early return, so it only fires when `didClose`.
+Cross-checked the two "extra status writer" classifications:
+`coordination_case.setBeaconStatus` only ever transitions to
+open-family statuses (`needsMoreHelp`/`enoughHelp`/`open`), none of which
+are hierarchy-eligible even if wired — correctly left out; `evaluation_repository.closeReviewWindow`
+has exactly one production caller (`closeAndFinalize`, already handled) —
+confirmed via grep, not assumed.
+
+Confirmed no GraphQL/API/client surface touched (only two GraphQL *test*
+files bumped 2 lines each, for constructor-arg threading).
+
+**One finding I initially misdiagnosed, corrected before commit:** I
+suspected `_activeHelpOfferUserIds` was missing an active-only filter
+(unlike its sibling `_activeRequestParticipantUserIds`'s explicit
+`_isActiveOffer` check), since the existing `beacon_status_audience_test.dart`
+never actually exercises `BeaconRoomNotificationContextRepository` against
+real data (it only hand-constructs a `BeaconNotificationContext`). Verified
+by reverting my own suspected fix and re-running a new real PG test: it
+still passed, because `HelpOfferRepository.fetchByBeaconId` already filters
+to `status=0` at the SQL level — never a live bug. Kept the explicit check
+anyway (harmless, consistent with the sibling method) and kept the new PG
+test (commit `2b036e3a3`) as a permanent regression guard, since the
+underlying repository logic this task changed was otherwise completely
+untested end-to-end.
+
+Independently reran: `dart test --exclude-tags pg` (1625/1625), both
+`check-custom-lints.sh` (server 0/0, client 32/32), `git diff --check`
+(clean), `beacon_hierarchy_lifecycle_atomic_pg_test.dart` (3/3, including
+the single-statement EXPLAIN proof and the rollback-together fault
+injection), `transactional_attention_producer_inventory_test.dart` (5/5,
+now covering the new producer), extended `review_finalization_case_test.dart`
+(7/7, including the manual-vs-expiry shape-equality proof and the
+didClose-gating proof) — all match.
+
+Task 05 is ACCEPTED. Proceeding to Task 06 (durable hierarchy delivery
+worker).
