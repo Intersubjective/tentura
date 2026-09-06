@@ -952,7 +952,8 @@ product).
 - `1ddc79f26` — wire General-only + lifecycle write guards; split production/internal thread tests; `general_only_public_contract_test.dart` + `general_only_boundary_inventory_test.dart`; plan-only remind rules
 - `a47e38033` — `m0156` DB triggers/functions; remove 25 retired GraphQL mutation fields; Hasura poll/state filters; disable responsibility projection
 - `3250df6c9` — fix `getRoomMessageByLinkedPollingId` nullable Drift query; `retired_client_graphql_documents_test.dart`
-- (client commit hash pending final `git log`)
+- `e630b8715` — client repository/model/case + schema.graphql regeneration
+- `b37e94ada` — delete 25 retired `.graphql` source files
 
 **Guards wired:**
 - `BeaconRoomCase`: `_rejectDisabledDiscussionScope` on list/mark/create/read paths; `_guardMessageMutation` on edit/delete/reaction/attachment/semantic-done; `_rejectOrdinaryUserWritesForLifecycle` on `createMessage`/`createPoll`; `listThreads` post-filters to General when `generalOnly`
