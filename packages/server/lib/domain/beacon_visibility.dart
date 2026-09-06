@@ -53,6 +53,19 @@ class BeaconTombstoneFacts {
   final bool hasParticipantRow;
 }
 
+/// Typed inputs for one-edge hierarchy link reads.
+class BeaconLinkedDetailVisibilityFacts {
+  const BeaconLinkedDetailVisibilityFacts({
+    required this.contentFacts,
+    required this.isAdmittedToImmediateParent,
+    required this.isAdmittedToImmediatePublishedChild,
+  });
+
+  final BeaconContentVisibilityFacts contentFacts;
+  final bool isAdmittedToImmediateParent;
+  final bool isAdmittedToImmediatePublishedChild;
+}
+
 /// Typed inputs for [BeaconVisibility.canPreviewInvite].
 class BeaconInvitePreviewFacts {
   const BeaconInvitePreviewFacts({
@@ -109,6 +122,16 @@ abstract final class BeaconVisibility {
         facts.isOnActiveForwardEdge ||
         facts.isActiveHelpOfferer ||
         facts.isRoomAdmittedOrSteward;
+  }
+
+  /// Hierarchy-linked detail read — carries only the two one-edge grants and
+  /// ordinary content visibility. Does not widen [canReadContent].
+  static bool canReadLinkedDetail(BeaconLinkedDetailVisibilityFacts facts) {
+    if (canReadContent(facts.contentFacts)) {
+      return true;
+    }
+    return facts.isAdmittedToImmediateParent ||
+        facts.isAdmittedToImmediatePublishedChild;
   }
 
   /// Generic deleted-state UX only — never authorizes normal content columns.

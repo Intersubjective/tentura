@@ -14,4 +14,9 @@ abstract class BeaconAccessGuard {
     required String beaconId,
     required String viewerId,
   });
+
+  Future<bool> canReadLinkedDetail({
+    required String beaconId,
+    required String viewerId,
+  });
 }

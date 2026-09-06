@@ -31,6 +31,15 @@ class BeaconAccessRepository implements BeaconAccessGuard {
   }) =>
       _callPredicate('beacon_can_read_tombstone', beaconId, viewerId);
 
+  @override
+  Future<bool> canReadLinkedDetail({
+    required String beaconId,
+    required String viewerId,
+  }) async {
+    // Task 03 wires `beacon_can_read_linked_detail` SQL parity.
+    return false;
+  }
+
   Future<bool> _callPredicate(
     String functionName,
     String beaconId,
