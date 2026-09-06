@@ -86,7 +86,7 @@ which this plan/orchestration owns.
 | 10 | V2 hierarchy schema and generated client transport | 09 | complete |
 | 11 | Extend existing composer/save flow | 10 | complete |
 | 12 | Child request surface, General host, and safe navigation | 11 | complete |
-| 13 | Typed notices and promoted-source footer | 12 | pending |
+| 13 | Typed notices and promoted-source footer | 12 | complete |
 | 14 | Realtime producers and convergence | 13 | pending |
 | 15 | Whole-product regression and release documentation | 14 | pending |
 
@@ -1854,3 +1854,96 @@ to understand *why* prior attempts fell short before ruling out further
 delegation — the "why" here is external memory pressure during
 long-running steps (schema regen, dev-server lifecycle), not a
 comprehension or design problem with the task itself.
+
+### Task 13 — manager completion and acceptance (2026-09-06)
+
+After three consecutive Cursor worker kills by external memory pressure
+(each making real but progressively smaller forward progress: server
+GraphQL exposure, then schema regen, then a small entity/payload
+scaffold), completed the remaining scope directly rather than
+dispatching a fourth attempt, per the overseer skill's remediation-loop
+rule.
+
+1. Fixed a stale-freezed compile error from the third attempt's
+   uncommitted scaffolding (reran `build_runner`), then completed the
+   `RoomMessage.systemMessageKind` repository mapping
+   (`BeaconThreadsRepository._toRoomMessageFields`/`_toRoomMessageTarget`,
+   mirroring the adjacent `semanticMarker` field exactly) and a defensive
+   `RoomMessage.hierarchyPayload` getter parsing the two known payload
+   shapes (verified byte-for-byte against
+   `insertHierarchyLifecycleNotice`/`insertChildCreationNotice`'s actual
+   server-side JSON construction, not guessed) with a strict fallback to
+   null for any unknown `version`/`kind`/malformed shape. Commit
+   `1f0b69083`.
+2. Built `beacon_hierarchy_notice.dart`, reusing the exact existing
+   participant-admission notice chrome in `room_message_tile.dart`
+   (centered icon + labelSmall text) rather than a new visual, and
+   `beacon_child_promotion_footer.dart`, a compact `BeaconCardShell`-
+   based footer resolving its child via the existing
+   `BeaconWritePort.fetchBeaconById` with a safe non-leaking fallback for
+   any thrown exception (inaccessible and deleted children surface
+   identically at this API layer). Wired both into
+   `room_message_tile.dart` as additive dispatch branches. Commit
+   `a1303e019`.
+3. **Real architectural finding, resolved directly**: plan §3.4.9
+   explicitly forbids the new child-provenance system from marking its
+   own source message (unlike the OLD coordination-item promotion
+   system, confirmed by reading `_emitCreatedRoomNotify` server-side,
+   which DOES set `linked_item_id`/`linked_event_kind` on its source
+   message — the mechanism `RoomMessage.isPromotedSourceMessage` keys
+   off). This means there is no per-message flag identifying "I am a
+   promotion source" for the new system at all — the only place the
+   association exists is the sibling `childCreated` notice's own
+   `system_payload.sourceMessageId`. Resolved by computing a one-time
+   reverse map (`sourceMessageId -> childBeaconId`) from all currently-
+   loaded messages in `basic_chat_body.dart`'s `build()`, threaded down
+   via a new optional `RoomMessageTile.promotedChildBeaconId` parameter —
+   a minimal, additive change rather than new Cubit/state-shape surgery.
+4. Added l10n keys to both `app_en.arb`/`app_ru.arb`:
+   `beaconHierarchyNoticeChildCreated`, `beaconHierarchyNoticeUnknown`,
+   `beaconChildFooterUnavailable`, and the plan-prescribed
+   `beaconPromotionAlreadyExists` (added but not yet wired into Task 11's
+   `childPromotionConflict` UI state — that remains a loose end, noted
+   below).
+5. Wrote both required tests
+   (`beacon_hierarchy_notice_test.dart` 8/8,
+   `beacon_child_promotion_footer_test.dart` 5/5) reusing this
+   codebase's established patterns exactly (`Mock<StackRouter>` +
+   `StackRouterScope` for tap-navigation verification, matching
+   `my_work_card_router_navigation_test.dart`). One test-writing snag:
+   `tester.getSemantics()`/`find.bySemanticsLabel()` matched the outer
+   Scaffold's merged semantics scope instead of the notice's own
+   `Semantics` wrapper — worked around by asserting directly against the
+   `Semantics` widget's `properties.label`. Commit `480a8a411`.
+6. **Investigated "extend notification navigation tests" and found
+   nothing to build**: traced `AttentionIntentCase.beaconHierarchyStatusChanged`
+   (server, Task 06) and found it builds a complete, self-contained
+   `actionUrl` deep link directly
+   (`/#/beacon/view/<id>?tab=threads&thread=general&message=<id>`) rather
+   than setting `destinationKind`/`targetEntityId` — meaning the
+   client's existing generic `Uri.parse(receipt.actionUrl)` fallback in
+   `lib/domain/attention/destination_map.dart` already handles hierarchy
+   notifications correctly with zero changes needed. Confirmed the query
+   param names (`tab`/`thread`/`message`) match the client's existing
+   `kQueryBeaconViewTab`/`kQueryThreadId`/`kQueryMessageId` constants
+   exactly, and that `kBeaconViewTabThreads`'s underlying string value
+   (`'threads'`) was untouched by Task 12's user-facing rename to
+   "Discussion". This item was already done by Task 06; no client work
+   was missing.
+7. Independently reran the full `test/features/beacon_threads/`
+   directory (286 passed, 14 pre-existing skips, 0 failures — confirmed
+   via a direct `[E]` marker grep rather than trusting the compact
+   reporter's cumulative tally, per this session's established
+   precedent that the compact reporter is unreliable across many files
+   at once) plus `basic_chat_body_test.dart` in isolation; `dart analyze
+   lib` 0 errors; custom-lints baseline unchanged (32/32); `git diff
+   --check` clean throughout.
+
+**Loose end carried forward, not blocking**: `beaconPromotionAlreadyExists`
+is defined but not wired into `BeaconCreateScreen`'s handling of
+`childPromotionConflict` state (Task 11 added the state field; no task
+since has rendered UI for it). Worth a small follow-up whenever the
+composer's promotion-conflict UX is next touched.
+
+Task 13 is ACCEPTED. Proceeding to Task 14 (realtime producers and
+convergence).
