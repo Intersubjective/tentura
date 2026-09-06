@@ -254,6 +254,53 @@ void main() {
     });
   });
 
+  group('BeaconVisibility.canReadLinkedDetail', () {
+    test('one-edge parent grant does not change canReadContent', () {
+      final content = _content();
+      final linked = BeaconLinkedDetailVisibilityFacts(
+        contentFacts: content,
+        isAdmittedToImmediateParent: true,
+        isAdmittedToImmediatePublishedChild: false,
+      );
+      expect(BeaconVisibility.canReadContent(content), isFalse);
+      expect(BeaconVisibility.canReadLinkedDetail(linked), isTrue);
+    });
+
+    test('one-edge child grant does not change canReadInvolvement', () {
+      final content = _content();
+      expect(
+        BeaconVisibility.canReadInvolvement(
+          _involvement(contentFacts: content),
+        ),
+        isFalse,
+      );
+      expect(
+        BeaconVisibility.canReadLinkedDetail(
+          BeaconLinkedDetailVisibilityFacts(
+            contentFacts: content,
+            isAdmittedToImmediateParent: false,
+            isAdmittedToImmediatePublishedChild: true,
+          ),
+        ),
+        isTrue,
+      );
+    });
+
+    test('ordinary content access still satisfies linked detail', () {
+      final content = _content(isRoomAdmittedOrSteward: true);
+      expect(
+        BeaconVisibility.canReadLinkedDetail(
+          BeaconLinkedDetailVisibilityFacts(
+            contentFacts: content,
+            isAdmittedToImmediateParent: false,
+            isAdmittedToImmediatePublishedChild: false,
+          ),
+        ),
+        isTrue,
+      );
+    });
+  });
+
   group('BeaconVisibility.canPreviewInvite', () {
     test('valid beacon invite preview', () {
       expect(

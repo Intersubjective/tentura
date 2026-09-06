@@ -30,5 +30,20 @@ void main() {
         throwsA(isA<BeaconCreateException>()),
       );
     });
+
+    test('lineage gate uses canReadContent not canReadLinkedDetail', () async {
+      final guard = FakeBeaconAccessGuard(
+        contentAllowed: false,
+        linkedDetailAllowed: true,
+      );
+      await expectLater(
+        assertBeaconLineageSourceVisible(
+          guard: guard,
+          beaconId: 'B1',
+          userId: 'Uauth',
+        ),
+        throwsA(isA<BeaconCreateException>()),
+      );
+    });
   });
 }

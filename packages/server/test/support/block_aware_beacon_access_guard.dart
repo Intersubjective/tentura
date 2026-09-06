@@ -44,4 +44,11 @@ class BlockAwareBeaconAccessGuard implements BeaconAccessGuard {
     required String viewerId,
   }) =>
       _fallback.canReadTombstone(beaconId: beaconId, viewerId: viewerId);
+
+  @override
+  Future<bool> canReadLinkedDetail({
+    required String beaconId,
+    required String viewerId,
+  }) =>
+      _fallback.canReadLinkedDetail(beaconId: beaconId, viewerId: viewerId);
 }

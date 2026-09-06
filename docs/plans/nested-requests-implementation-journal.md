@@ -74,7 +74,7 @@ which this plan/orchestration owns.
 | # | Task | Depends on | Status |
 |---|---|---|---|
 | 00 | Inventory, journal, and fixture harness | none | complete |
-| 01 | Pure contracts and policies | 00 | pending |
+| 01 | Pure contracts and policies | 00 | complete |
 | 02 | Additive hierarchy storage and repository adapter | 01 | pending |
 | 03 | Authorization, SQL/Hasura parity, and mutation locking | 02 | pending |
 | 04 | Shared normal creation and atomic child commands | 03 | pending |
@@ -259,3 +259,65 @@ cd packages/server && export $(grep -E '^POSTGRES_' /home/vader/MY_SRC/tentura/.
 Result: JSON valid; `entryCount` 216; smoke test 4/4 passed including
 `pg_constraint inventory: every public.user(id) FK has assigned disposition`.
 Disposable DBs dropped.
+
+### Task 00 — ACCEPTED (2026-09-06, after remediation round 1)
+
+Verified independently: manifest now has 216 entries; `user-fk-erasure`
+surface covers all 82 real FK rows / 60 distinct tables confirmed via fresh
+`information_schema` query on a disposable migrated DB (cross-checked against
+manager's own independent query from the first review pass — exact match).
+All 14 previously-missing tables present with valid dispositions; no invalid/
+missing decision values; `entryCount` field matches actual array length;
+`git diff --check` clean on both commits. Task 00 is ACCEPTED. Proceeding to
+Task 01 (pure contracts and policies).
+
+### Task 01 — in progress (Cursor CLI worker, 2026-09-06)
+
+**Cross-task boundary judgments (Task 01 vs later tasks):**
+- **Case files deferred:** `BeaconHierarchyCase`, `BeaconChildCreateCase`,
+  `BeaconLifecycleEffectsCase`, `BeaconHierarchyDeliveryCase`, and
+  `BeaconCreationPolicy` are **not** added in Task 01 — Task 04/05/06/04 file
+  lists own those implementations. Task 01 delivers shared values, pure
+  policies, port **interfaces**, and `canReadLinkedDetail` fact types only.
+- **`BeaconAccessRepository.canReadLinkedDetail`:** interface added on
+  `BeaconAccessGuard`; data adapter returns `false` with Task 03 comment — no
+  SQL/`beacon_can_read_linked_detail` yet (Task 03).
+- **`canReadContent` unchanged:** one-edge grants live only in
+  `BeaconVisibility.canReadLinkedDetail` + `BeaconHierarchyPolicy` fact
+  helpers; canonical content predicate untouched per §3.2 revision 2.
+- **Root entity tests:** new `test/domain/entity/` at repo root (first root
+  test suite for shared values).
+
+**Owned paths:** `lib/domain/entity/beacon_*` (§3.3 table + error/outcome types),
+`test/domain/entity/beacon_hierarchy_entities_test.dart`,
+`packages/server/lib/domain/policy/discussion_product_policy.dart`,
+`packages/server/lib/domain/policy/beacon_hierarchy_policy.dart`,
+`packages/server/lib/domain/port/beacon_hierarchy_*_port.dart`,
+`packages/server/lib/domain/beacon_visibility.dart` (linked-detail facts only),
+`packages/server/lib/domain/port/beacon_access_guard.dart`,
+`packages/client/lib/domain/port/beacon_hierarchy_port.dart`,
+`packages/server/test/domain/beacon_hierarchy_policy_test.dart`,
+extended `beacon_visibility_test.dart` / `beacon_lineage_visibility_test.dart`,
+test guard stubs, minimal `beacon_access_repository.dart` compile stub.
+
+### Task 01 — complete (Cursor CLI worker, 2026-09-06)
+
+**Verification:**
+```bash
+dart test test/domain/entity/beacon_hierarchy_entities_test.dart
+cd packages/server && dart test test/domain/beacon_hierarchy_policy_test.dart \
+  test/domain/beacon_visibility_test.dart test/domain/beacon_lineage_visibility_test.dart --exclude-tags pg
+cd packages/server && dart test --exclude-tags pg
+./scripts/check-custom-lints.sh packages/server   # total 0 (baseline 0)
+./scripts/check-custom-lints.sh packages/client   # total 32 (baseline 32)
+```
+
+Results: root 3/3; focused server domain 61/61; full server non-PG 1607/1607;
+custom lints OK.
+
+**Commits:** (see STATUS block)
+
+**Kind codes verified** against `packages/server/lib/consts/coordination_item_consts.dart`:
+plan=1, ask=2, blocker=3, promise=5.
+
+**Next task:** Task 02 — additive hierarchy storage and repository adapter (`m0154`).
