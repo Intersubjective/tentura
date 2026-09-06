@@ -11,7 +11,6 @@ import 'package:tentura/data/repository/clipboard_image_repository.dart';
 import 'package:tentura/data/repository/image_repository.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon.dart';
-import 'package:tentura/domain/entity/coordination_item.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/beacon_threads/domain/entity/request_thread.dart';
 import 'package:tentura/features/beacon_threads/domain/use_case/beacon_threads_case.dart';
@@ -26,7 +25,6 @@ import 'package:tentura/features/beacon_threads/ui/widget/thread_detail.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_cubit.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_state.dart';
 import 'package:tentura/features/coordination_item/domain/use_case/coordination_item_case.dart';
-import 'package:tentura/features/coordination_item/ui/bloc/item_actions_cubit.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/bloc/state_base.dart';
 import 'package:tentura/ui/effect/ui_effect_port.dart';
@@ -135,34 +133,11 @@ class RoomCubitFactoryRecorder {
   }
 }
 
-CoordinationItem _item(String id, {String title = 'Ask title preview'}) =>
-    CoordinationItem(
-      id: id,
-      beaconId: _kBeaconId,
-      kind: CoordinationItemKind.ask,
-      status: CoordinationItemStatus.open,
-      creatorId: 'creator',
-      title: title,
-      createdAt: DateTime.utc(2026, 1, 1),
-      updatedAt: DateTime.utc(2026, 1, 2),
-      published: true,
-    );
-
 RequestThread _generalThread() => RequestThread(
   threadId: RequestThread.generalId,
   kind: RequestThreadKind.general,
   lastSeenAt: _kSeenAt,
 );
-
-RequestThread _semanticThread(String itemId) {
-  final item = _item(itemId);
-  return RequestThread(
-    threadId: itemId,
-    kind: RequestThreadKind.ask,
-    lastSeenAt: _kSeenAt,
-    item: item,
-  );
-}
 
 BeaconViewState _beaconState() => BeaconViewState(
   myProfile: const Profile(id: _kMyId, displayName: 'Viewer'),
@@ -352,56 +327,6 @@ void main() {
       expect(find.byType(ExpansionTile), findsNothing);
       expect(find.byType(BeaconRoomBody), findsOneWidget);
     });
-
-    testWidgets('semantic thread renders body without pinned header', (
-      tester,
-    ) async {
-      final host = _host();
-      final thread = _semanticThread('ask-1');
-      await host.select(thread);
-
-      await tester.binding.setSurfaceSize(const Size(390, 844));
-      addTearDown(() => tester.binding.setSurfaceSize(null));
-
-      final profileCubit = _MockProfileCubit();
-
-      await tester.pumpWidget(
-        MaterialApp(
-          theme: TenturaTheme.light(),
-          localizationsDelegates: L10n.localizationsDelegates,
-          supportedLocales: L10n.supportedLocales,
-          locale: const Locale('en'),
-          home: MediaQuery(
-            data: const MediaQueryData(size: Size(390, 844)),
-            child: TenturaResponsiveScope(
-              child: Scaffold(
-                body: Column(
-                  children: [
-                    Expanded(
-                      child: MultiBlocProvider(
-                        providers: [
-                          BlocProvider<ThreadHostCubit>.value(value: host),
-                          BlocProvider<ProfileCubit>.value(value: profileCubit),
-                          BlocProvider(
-                            create: (_) => ItemActionsCubit(item: thread.item!),
-                          ),
-                        ],
-                        child: ThreadDetail(thread: thread),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        ),
-      );
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 50));
-
-      expect(find.byType(ExpansionTile), findsNothing);
-      expect(find.byType(BeaconRoomBody), findsOneWidget);
-    });
   });
 
   group('ThreadDetailScreen', () {
@@ -436,36 +361,6 @@ void main() {
       await tester.tap(find.text('Request title'));
       await tester.pump();
       expect(tester.takeException(), isNull);
-    });
-
-    testWidgets('ask thread AppBar title and overflow find ItemActionsCubit', (
-      tester,
-    ) async {
-      final host = _host();
-      final ask = _semanticThread('ask-1');
-      final threadsState = ThreadsState(
-        threads: [ask],
-        myUserId: _kMyId,
-        status: const StateIsSuccess(),
-      );
-      final router = _PopTrackingStackRouter();
-
-      await _pumpThreadDetail(
-        tester,
-        host: host,
-        threadsState: threadsState,
-        beaconState: _beaconState(),
-        threadId: ask.threadId,
-        router: router,
-      );
-
-      expect(tester.takeException(), isNull);
-      expect(find.byType(ThreadDetailTitle), findsOneWidget);
-      expect(find.byType(ThreadDetailOverflowAction), findsOneWidget);
-      expect(find.byType(ExpansionTile), findsNothing);
-      expect(find.text('Ask title preview'), findsOneWidget);
-      expect(find.text('Ask'), findsOneWidget);
-      expect(find.text('Open'), findsOneWidget);
     });
 
     testWidgets('close awaits host clear before route pop completes', (

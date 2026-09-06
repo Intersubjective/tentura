@@ -27,6 +27,13 @@ import 'package:tentura/features/beacon_threads/ui/bloc/room_state.dart';
 import 'package:tentura/features/beacon_threads/ui/bloc/thread_host_cubit.dart';
 import 'package:tentura/features/beacon_threads/ui/bloc/threads_cubit.dart';
 import 'package:tentura/features/beacon_threads/ui/bloc/threads_state.dart';
+import 'package:tentura/features/beacon_threads/ui/bloc/beacon_hierarchy_cubit.dart';
+import 'package:tentura/domain/port/beacon_write_port.dart';
+import 'package:tentura/domain/use_case/beacon_create_case.dart';
+import 'package:tentura/domain/use_case/beacon_hierarchy_case.dart';
+import 'package:tentura_root/domain/entity/beacon_hierarchy_capabilities.dart';
+
+import '../../domain/use_case/fake_beacon_hierarchy_ports.dart';
 import 'package:tentura/features/beacon_threads/ui/screen/thread_detail_screen.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/item_card.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/thread_detail.dart';
@@ -47,6 +54,16 @@ import 'fake_coordination_item_case.dart';
 import 'room_cubit_fakes.dart';
 
 const _kBeaconId = 'b-adaptive-test';
+
+class _NoopBeaconWritePort implements BeaconWritePort {
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+class _NoopImageRepository implements ImageRepository {
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
 const _kAuthorId = 'author-adaptive';
 const _kHelperId = 'helper-adaptive';
 final _kSeenAt = DateTime.utc(2026, 8, 14, 10);
@@ -147,38 +164,13 @@ class _HarnessBeaconViewCubit extends Mock implements BeaconViewCubit {
   }
 }
 
-class _HarnessThreadsCubit extends Mock implements ThreadsCubit {
-  _HarnessThreadsCubit(this._state) {
-    _controller = StreamController<ThreadsState>.broadcast();
-    _controller.add(_state);
-  }
+class _HarnessThreadsCubit extends Cubit<ThreadsState> implements ThreadsCubit {
+  _HarnessThreadsCubit(super.initial);
 
-  ThreadsState _state;
-  late final StreamController<ThreadsState> _controller;
-
-  void emitState(ThreadsState value) {
-    _state = value;
-    _controller.add(_state);
-  }
-
-  @override
-  ThreadsState get state => _state;
-
-  @override
-  Stream<ThreadsState> get stream => _controller.stream;
+  void emitState(ThreadsState value) => emit(value);
 
   @override
   Future<void> fetch({bool silent = false}) async {}
-
-  @override
-  void setActiveForMeOnly(bool value) {
-    emitState(_state.copyWith(activeForMeOnly: value));
-  }
-
-  @override
-  Future<void> close() async {
-    await _controller.close();
-  }
 }
 
 class RecordingRoomCubit extends Mock implements RoomCubit {
@@ -461,6 +453,22 @@ Future<_Harness> _pumpHarness(
       BlocProvider<BeaconViewCubit>.value(value: beaconCubit),
       BlocProvider<ThreadsCubit>.value(value: threadsCubit),
       BlocProvider<ThreadHostCubit>.value(value: harnessHost),
+      BlocProvider<BeaconHierarchyCubit>(
+        create: (_) => BeaconHierarchyCubit(
+          beaconId: _kBeaconId,
+          hierarchyCase: BeaconHierarchyCase(
+            FakeBeaconHierarchyRepositoryPort(
+              capabilities: const BeaconHierarchyCapabilities(
+                canListChildren: false,
+                canCreateChild: false,
+              ),
+            ),
+            BeaconCreateCase(_NoopBeaconWritePort(), _NoopImageRepository()),
+            _NoopBeaconWritePort(),
+            InMemoryBeaconChildCommandStore(),
+          ),
+        ),
+      ),
       BlocProvider<ProfileCubit>.value(
         value: _MockProfileCubit(beaconState.myProfile),
       ),
@@ -630,13 +638,10 @@ void main() {
   });
 
   group('compact adaptive', () {
-    testWidgets('Threads is tab 0; General row 0; semantic push', (
+    testWidgets('Discussion is tab 0; General row pushes detail on compact', (
       tester,
     ) async {
-      final semantic = _item(id: 'ask-compact');
-      final threads = _threadsState(
-        threads: [_generalThread(), _semanticThread(item: semantic)],
-      );
+      final threads = _threadsState(threads: [_generalThread()]);
       final harness = await _pumpHarness(
         tester,
         size: _kCompact,
@@ -653,7 +658,9 @@ void main() {
       );
 
       await tester.tap(
-        find.byKey(TestIds.key(TestIds.requestThread(semantic.id))),
+        find.byKey(
+          TestIds.key(TestIds.requestThread(RequestThread.generalId)),
+        ),
       );
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 50));
@@ -683,44 +690,13 @@ void main() {
       expect(recorder.created.single.state.threadItemId, isNull);
     });
 
-    testWidgets('draft row opens composer and never navigates', (tester) async {
-      final draft = _item(
-        id: 'draft-compact',
-        published: false,
-        title: 'Draft compact body',
-      );
-      final threads = _threadsState(
-        threads: [_generalThread(), _semanticThread(item: draft)],
-      );
-      final harness = await _pumpHarness(
-        tester,
-        size: _kCompact,
-        beaconState: _authorBeaconState(),
-        threadsState: threads,
-      );
-
-      final l10n = await L10n.delegate.load(const Locale('en'));
-      await tester.tap(find.text(l10n.threadDraftsFoldTitle(1)));
-      await tester.pumpAndSettle();
-      await tester.tap(find.text('Draft compact body'));
-      await tester.pumpAndSettle();
-
-      expect(harness.router.pushCount, 0);
-      expect(
-        find.byKey(TestIds.key(TestIds.coordinationComposerTitle)),
-        findsOneWidget,
-      );
-    });
   });
 
   group('regular adaptive', () {
     testWidgets('push/pop like compact with no split or selected residue', (
       tester,
     ) async {
-      final semantic = _item(id: 'ask-regular');
-      final threads = _threadsState(
-        threads: [_generalThread(), _semanticThread(item: semantic)],
-      );
+      final threads = _threadsState(threads: [_generalThread()]);
       final harness = await _pumpHarness(
         tester,
         size: _kRegular,
@@ -731,7 +707,9 @@ void main() {
       expect(find.byType(ThreadDetail), findsNothing);
 
       await tester.tap(
-        find.byKey(TestIds.key(TestIds.requestThread(semantic.id))),
+        find.byKey(
+          TestIds.key(TestIds.requestThread(RequestThread.generalId)),
+        ),
       );
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 50));
@@ -741,7 +719,6 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 50));
 
-      expect(_itemCardSelected(tester, semantic.id), isFalse);
       expect(_itemCardSelected(tester, RequestThread.generalId), isFalse);
     });
   });
@@ -829,49 +806,6 @@ void main() {
       );
     });
 
-    testWidgets('row switch awaits close; indicator moves; no stacked detail', (
-      tester,
-    ) async {
-      final first = _item(id: 'ask-switch-a');
-      final second = _item(id: 'ask-switch-b', title: 'Switch target');
-      final threads = _threadsState(
-        threads: [
-          _generalThread(),
-          _semanticThread(item: first),
-          _semanticThread(item: second),
-        ],
-      );
-      final recorder = RoomCubitFactoryRecorder();
-      final host = _host(recorder: recorder);
-      final harness = await _pumpHarness(
-        tester,
-        size: _kExpanded,
-        beaconState: _authorBeaconState(),
-        threadsState: threads,
-        host: host,
-        recorder: recorder,
-      );
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 100));
-
-      final firstCubit = recorder.created.single;
-      firstCubit.gateClose = true;
-
-      await tester.tap(find.byKey(TestIds.key(TestIds.requestThread(second.id))));
-      await tester.pump();
-      expect(recorder.created, hasLength(1));
-      expect(host.state.switching, isTrue);
-
-      firstCubit.closeCompleter.complete();
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 100));
-
-      expect(recorder.created, hasLength(2));
-      expect(host.state.openThreadId, second.id);
-      expect(_itemCardSelected(tester, second.id), isTrue);
-      expect(_itemCardSelected(tester, first.id), isFalse);
-      expect(harness.router.pushCount, 0);
-    });
   });
 
   group('resize transitions', () {
@@ -1004,44 +938,10 @@ void main() {
   });
 
   group('item-only authorization fixture', () {
-    testWidgets('participant sees semantic row without General', (tester) async {
-      final participantId = _kHelperId;
-      final item = _item(
-        id: 'item-only-thread',
-        creatorId: participantId,
-        targetPersonId: _kAuthorId,
-      );
-      final threads = _threadsState(
-        threads: [_semanticThread(item: item)],
-        myUserId: participantId,
-      );
-      await _pumpHarness(
-        tester,
-        size: _kCompact,
-        beaconState: _itemOnlyParticipantState(participantId: participantId),
-        threadsState: threads,
-      );
-
-      expect(
-        find.byKey(
-          TestIds.key(TestIds.requestThread(RequestThread.generalId)),
-        ),
-        findsNothing,
-      );
-      expect(
-        find.byKey(TestIds.key(TestIds.requestThread(item.id))),
-        findsOneWidget,
-      );
-    });
-
-    testWidgets('unknown thread id falls back to first accessible row', (
+    testWidgets('legacy thread id shows unavailable placeholder', (
       tester,
     ) async {
-      final item = _item(id: 'fallback-thread');
-      final threads = _threadsState(
-        threads: [_generalThread(), _semanticThread(item: item)],
-      );
-      final host = _host();
+      final threads = _threadsState(threads: [_generalThread()]);
       await _setupGetIt();
       await tester.binding.setSurfaceSize(_kCompact);
       addTearDown(() => tester.binding.setSurfaceSize(null));
@@ -1063,7 +963,7 @@ void main() {
                     BlocProvider<ThreadsCubit>.value(
                       value: _HarnessThreadsCubit(threads),
                     ),
-                    BlocProvider<ThreadHostCubit>.value(value: host),
+                    BlocProvider<ThreadHostCubit>.value(value: _host()),
                     BlocProvider<BeaconViewCubit>.value(
                       value: _HarnessBeaconViewCubit(_authorBeaconState()),
                     ),
@@ -1086,7 +986,8 @@ void main() {
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 100));
 
-      expect(host.state.openThreadId, RequestThread.generalId);
+      final l10n = await L10n.delegate.load(const Locale('en'));
+      expect(find.text(l10n.beaconLegacyThreadUnavailable), findsOneWidget);
     });
 
     testWidgets('empty accessible set shows admission placeholder', (
@@ -1148,7 +1049,7 @@ void main() {
   });
 
   group('unread adaptive', () {
-    testWidgets('tab badge totals General plus active rows only', (tester) async {
+    testWidgets('tab badge totals General unread only', (tester) async {
       final active = _item(id: 'unread-active', unreadCount: 4);
       final closed = _item(
         id: 'unread-closed',
@@ -1174,7 +1075,7 @@ void main() {
         threadsState: threads,
       );
 
-      expect(_tabs(tester).badges?[0], 5);
+      expect(_tabs(tester).badges?[0], 1);
     });
 
     testWidgets('closed-thread unread stored but excluded from tab badge', (
@@ -1198,89 +1099,17 @@ void main() {
       );
 
       expect(_tabs(tester).badges?[0], isNull);
+      final closedThread = harness.threadsCubit.state.threads.firstWhere(
+        (thread) => thread.threadId == closed.id,
+      );
       expect(
-        harness.threadsCubit.state.resolvedUnreadFor(
-          harness.threadsCubit.state.closed.single,
-        ),
+        harness.threadsCubit.state.resolvedUnreadFor(closedThread),
         3,
       );
-    });
-
-    testWidgets('optimistic read suppresses badge without flicker during close', (
-      tester,
-    ) async {
-      final general = _generalThread(unreadCount: 2);
-      final threads = _threadsState(
-        threads: [general, _semanticThread(item: _item(id: 'unread-switch'))],
-        resolvedUnreadByThreadId: {RequestThread.generalId: 2},
-      );
-      final recorder = RoomCubitFactoryRecorder();
-      final host = _host(recorder: recorder);
-      final harness = await _pumpHarness(
-        tester,
-        size: _kExpanded,
-        beaconState: _authorBeaconState(),
-        threadsState: threads,
-        host: host,
-        recorder: recorder,
-      );
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 100));
-
-      harness.threadsCubit.emitState(
-        threads.copyWith(
-          resolvedUnreadByThreadId: {RequestThread.generalId: 0},
-        ),
-      );
-      await tester.pump();
-      expect(_tabs(tester).badges?[0], isNull);
-
-      final owned = recorder.created.single;
-      owned.gateClose = true;
-      await tester.tap(
-        find.byKey(TestIds.key(TestIds.requestThread('unread-switch'))),
-      );
-      await tester.pump();
-      expect(_tabs(tester).badges?[0], isNull);
-      owned.closeCompleter.complete();
-      await tester.pump();
-      expect(_tabs(tester).badges?[0], isNull);
     });
   });
 
   group('Log adaptive', () {
-    testWidgets('ask row focuses semantic thread', (tester) async {
-      final ask = _item(id: 'log-ask');
-      final threads = _threadsState(
-        threads: [_generalThread(), _semanticThread(item: ask)],
-      );
-      final beacon = _authorBeaconState(
-        roomActivityEvents: [
-          _coordinationEvent(kind: CoordinationItemKind.ask, itemId: ask.id),
-        ],
-      );
-      await _pumpHarness(
-        tester,
-        size: _kExpanded,
-        beaconState: beacon,
-        threadsState: threads,
-      );
-
-      final l10n = await L10n.delegate.load(const Locale('en'));
-      await tester.tap(find.byKey(TestIds.key(TestIds.beaconTabLog)));
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 50));
-      await tester.tap(find.textContaining(l10n.coordinationSemanticAskOpened));
-      await tester.pump();
-      await tester.pump(const Duration(milliseconds: 50));
-
-      expect(_tabs(tester).selectedIndex, 0);
-      expect(
-        find.byKey(TestIds.key(TestIds.requestThread(ask.id))),
-        findsOneWidget,
-      );
-    });
-
     testWidgets('plan row opens General and scrolls to sourceMessageId', (
       tester,
     ) async {

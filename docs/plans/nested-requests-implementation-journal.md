@@ -1702,3 +1702,47 @@ Committed the verified-good salvage in two commits: `8601e904b`
 (production code) and `239c008d8` (passing tests + the router fix).
 Dispatching a fresh, precisely-scoped Cursor worker for the remaining 11
 test failures (see next journal entry for its prompt/dispatch).
+
+### Task 12 — test remediation checkpoint (2026-09-06)
+
+Cursor remediation worker updated the two stale adaptive/detail test files
+to match Task 12's General-only Discussion surface:
+
+- Rewrote compact/regular adaptive push-pop tests to tap General instead of
+  retired semantic rows.
+- Deleted draft-composer, expanded semantic row-switch, item-only semantic
+  row, Log ask-focus, and both semantic `ThreadDetail*` cases.
+- Fixed Discussion tab badge expectation to General-only (`threadsTabUnreadCount`).
+- Replaced unknown-thread fallback with legacy-unavailable placeholder coverage.
+- Deleted optimistic-read-during-semantic-switch test (no equivalent row to
+  switch; badge counting covered by sibling unread tests).
+- Switched `_HarnessThreadsCubit` to extend real `Cubit<ThreadsState>` so
+  mid-test `emitState` reaches `BlocBuilder` listeners reliably.
+
+Verified: `request_threads_adaptive_test.dart` 13/13,
+`thread_detail_test.dart` 3/3; all other previously-passing
+`test/features/beacon_threads/` and `test/app/router/` files still pass.
+(`thread_host_cubit_test.dart` still fails on pre-existing semantic-host
+assertions outside this remediation scope.)
+
+### Task 12 — test remediation complete (2026-09-06)
+
+Committed test-only remediation for the 11 Task-12 stale assertions. No
+production changes.
+
+Per-case disposition:
+1. compact semantic push → **rewrote** (General row push on compact)
+2. draft composer → **deleted** (retired coordination-item composer flow)
+3. regular push/pop → **rewrote** (General-only fixture)
+4. expanded row switch → **deleted** (no second Discussion row to switch)
+5. item-only semantic row → **deleted** (retired item-only authorization UI)
+6. unknown thread fallback → **rewrote** (legacy thread unavailable placeholder)
+7. tab badge totals → **fixed fixture** (expect General-only count `1`)
+8. optimistic read during close → **deleted** (depended on semantic switch;
+   sibling tests cover General-only badge rules)
+9. Log ask focus → **deleted** (retired semantic thread focus from Log)
+10. semantic ThreadDetail body → **deleted** (General-only host ignores semantic select)
+11. ask ThreadDetail AppBar → **deleted** (retired semantic AppBar path)
+
+Note: `thread_host_cubit_test.dart` semantic/multi-select cases remain failing
+from Task 12 production changes and were intentionally out of scope here.
