@@ -114,7 +114,7 @@ void main() {
     attention = TestAttentionHarness(
       context: BeaconNotificationContext(beaconAuthorId: beaconAuthorId),
     );
-    items.item = _sampleBlocker(
+    items.item = _samplePlan(
       id: itemId,
       beaconId: beaconId,
       creatorId: creatorId,
@@ -131,7 +131,7 @@ void main() {
     );
   });
 
-  test('creator can update open published blocker', () async {
+  test('creator can update open published plan step', () async {
     final result = await sut.call(
       userId: creatorId,
       itemId: itemId,
@@ -167,7 +167,7 @@ void main() {
   });
 
   test('rejects resolved item', () async {
-    items.item = _sampleBlocker(
+    items.item = _samplePlan(
       id: itemId,
       beaconId: beaconId,
       creatorId: creatorId,
@@ -185,7 +185,7 @@ void main() {
   });
 
   test('rejects draft (unpublished) item', () async {
-    items.item = _sampleBlocker(
+    items.item = _samplePlan(
       id: itemId,
       beaconId: beaconId,
       creatorId: creatorId,
@@ -231,12 +231,28 @@ void main() {
     await sut.call(
       userId: creatorId,
       itemId: itemId,
-      title: 'Blocker',
+      title: 'Plan step',
       body: '',
     );
 
     expect(attention.recorded, isEmpty);
     expect(items.calls, hasLength(1));
+  });
+  test('rejects retired ask items', () async {
+    items.item = _samplePlan(
+      id: itemId,
+      beaconId: beaconId,
+      creatorId: creatorId,
+    ).copyWith(kind: coordinationItemKindAsk);
+    expect(
+      () => sut.call(
+        userId: creatorId,
+        itemId: itemId,
+        title: 'Nope',
+      ),
+      throwsA(isA<CoordinationKindDisabledException>()),
+    );
+    expect(items.calls, isEmpty);
   });
 }
 
@@ -248,7 +264,7 @@ BeaconEntity _openBeacon(String id) => BeaconEntity(
       updatedAt: DateTime.utc(2024),
     );
 
-CoordinationItemRecord _sampleBlocker({
+CoordinationItemRecord _samplePlan({
   required String id,
   required String beaconId,
   required String creatorId,
@@ -259,9 +275,9 @@ CoordinationItemRecord _sampleBlocker({
   return testCoordinationItem(
     id: id,
     beaconId: beaconId,
-    kind: coordinationItemKindBlocker,
+    kind: coordinationItemKindPlan,
     status: status,
-    title: 'Blocker',
+    title: 'Plan step',
     body: '',
     creatorId: creatorId,
     published: published,

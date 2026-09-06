@@ -2,6 +2,7 @@ import 'package:injectable/injectable.dart';
 import 'package:tentura_server/domain/entity/coordination_item_record.dart';
 
 import 'package:tentura_server/consts/coordination_item_consts.dart';
+import 'package:tentura_server/domain/policy/discussion_product_policy.dart';
 import 'package:tentura_server/domain/port/beacon_room_repository_port.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/port/beacon_repository_port.dart';
@@ -44,9 +45,15 @@ final class UpdateCoordinationItemCase extends UseCaseBase {
     if (existing == null) {
       throw const IdNotFoundException(description: 'Item not found');
     }
+    if (DiscussionProductPolicy.isRetiredCoordinationKind(existing.kind)) {
+      throw const CoordinationKindDisabledException();
+    }
+    if (!DiscussionProductPolicy.isSupportedCoordinationKind(existing.kind)) {
+      throw const CoordinationKindDisabledException();
+    }
     if (!existing.published) {
       throw const BeaconCreateException(
-        description: 'Use updateDraftAsk for unpublished asks',
+        description: 'Only published plan items can be updated',
       );
     }
     if (existing.status != coordinationItemStatusOpen &&
