@@ -3,6 +3,7 @@ import 'package:logging/logging.dart';
 import 'package:mockito/mockito.dart';
 import 'package:test/test.dart';
 
+import '../../support/fake_beacon_child_create_port.dart';
 import '../../support/fake_beacon_hierarchy_repository.dart';
 
 import 'package:tentura_server/domain/entity/beacon_entity.dart';
@@ -70,6 +71,7 @@ void main() {
       noopCommitmentQueryCase(),
       FakeBeaconAccessGuard(),
       FakeBeaconHierarchyRepository(),
+      FakeBeaconChildCreatePort(),
       env: Env(environment: Environment.test),
       logger: Logger('BeaconCasePublishDraftTest'),
     );

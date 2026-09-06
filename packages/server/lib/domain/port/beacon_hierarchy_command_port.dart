@@ -2,6 +2,7 @@ import 'package:tentura_root/domain/entity/beacon_child_command_outcome.dart';
 import 'package:tentura_root/domain/entity/beacon_creation_context.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 
+import 'package:tentura_server/domain/entity/beacon_entity.dart';
 import 'package:tentura_server/domain/policy/beacon_promotion_eligibility_policy.dart';
 
 /// Persisted child-command lookup for idempotent create flows.
@@ -33,7 +34,7 @@ class BeaconChildCreateResult {
 
   final BeaconChildCommandOutcome outcome;
   final String? beaconId;
-  final Object? beacon;
+  final BeaconEntity? beacon;
 }
 
 /// Parent beacon facts required for child create/publish validation.
@@ -106,7 +107,7 @@ abstract class BeaconHierarchyCommandPort {
   });
 
   Future<void> lockPromotionRows({
-    required String childBeaconId,
+    String? childBeaconId,
     String? sourceMessageId,
   });
 

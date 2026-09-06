@@ -19,6 +19,7 @@ import 'package:tentura_server/domain/port/image_object_gc_port.dart';
 import 'package:tentura_server/domain/port/image_repository_port.dart';
 import 'package:tentura_server/domain/port/task_repository_port.dart';
 import 'package:tentura_server/domain/use_case/attention_intent_case.dart';
+import 'package:tentura_server/domain/port/beacon_child_create_port.dart';
 import 'package:tentura_server/domain/use_case/commitment_query_case.dart';
 import 'package:tentura_server/domain/use_case/transactional_attention_case.dart';
 import 'package:tentura_server/domain/exception.dart';
@@ -107,6 +108,7 @@ final class BeaconCase extends UseCaseBase {
     CommitmentQueryCase commitmentQueryCase,
     BeaconAccessGuard guard,
     BeaconHierarchyRepositoryPort hierarchyRepository,
+    BeaconChildCreatePort childCreateCase,
     AttentionIntentCase attentionIntents,
     TransactionalAttentionCase attention,
   ) async => BeaconCase(
@@ -117,6 +119,7 @@ final class BeaconCase extends UseCaseBase {
     commitmentQueryCase,
     guard,
     hierarchyRepository,
+    childCreateCase,
     attentionIntents: attentionIntents,
     attention: attention,
     env: env,
@@ -130,7 +133,8 @@ final class BeaconCase extends UseCaseBase {
     this._tasksRepository,
     this._commitmentQueryCase,
     this._guard,
-    this._hierarchyRepository, {
+    this._hierarchyRepository,
+    this._childCreateCase, {
     AttentionIntentCase? attentionIntents,
     TransactionalAttentionCase? attention,
     required super.env,
@@ -151,6 +155,8 @@ final class BeaconCase extends UseCaseBase {
   final BeaconAccessGuard _guard;
 
   final BeaconHierarchyRepositoryPort _hierarchyRepository;
+
+  final BeaconChildCreatePort _childCreateCase;
 
   final AttentionIntentCase? _attentionIntents;
 
@@ -256,10 +262,16 @@ final class BeaconCase extends UseCaseBase {
     required String userId,
     required String beaconId,
   }) async {
-    await _beaconRepository.getBeaconById(
+    final beacon = await _beaconRepository.getBeaconById(
       beaconId: beaconId,
       filterByUserId: userId,
     );
+    if (beacon.parentBeaconId != null) {
+      return _childCreateCase.publishDraft(
+        actorUserId: userId,
+        childBeaconId: beaconId,
+      );
+    }
     return _beaconRepository.publishDraft(id: beaconId, actorId: userId);
   }
 

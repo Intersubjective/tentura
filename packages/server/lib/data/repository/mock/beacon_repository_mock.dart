@@ -298,6 +298,70 @@ class BeaconRepositoryMock implements BeaconRepositoryPort {
   }
 
   @override
+  Future<BeaconEntity> createChildBeacon({
+    required String authorId,
+    required String parentBeaconId,
+    required String title,
+    required String description,
+    String? context,
+    double? latitude,
+    double? longitude,
+    DateTime? startAt,
+    DateTime? endAt,
+    Set<String>? tags,
+    Set<String>? needs,
+    String? primaryNeedSlug,
+    String? addressLabel,
+    required bool draft,
+  }) async {
+    final author = UserEntity(id: authorId, displayName: authorId);
+    final now = DateTime.timestamp();
+    final entity = BeaconEntity(
+      id: BeaconEntity.newId,
+      title: title,
+      description: description,
+      author: author,
+      createdAt: now,
+      updatedAt: now,
+      status: draft ? BeaconStatus.draft : BeaconStatus.open,
+      parentBeaconId: parentBeaconId,
+      publishedAt: draft ? null : now,
+      context: context,
+      coordinates: latitude == null && longitude == null
+          ? null
+          : Coordinates(lat: latitude ?? 0, long: longitude ?? 0),
+      startAt: startAt,
+      endAt: endAt,
+      tags: tags,
+      needs: needs ?? const {},
+      primaryNeedSlug: primaryNeedSlug,
+      addressLabel: addressLabel,
+    );
+    storageById[entity.id] = entity;
+    return entity;
+  }
+
+  @override
+  Future<BeaconEntity> publishChildDraft({
+    required String childBeaconId,
+    required String actorId,
+  }) async {
+    final b = storageById[childBeaconId];
+    if (b == null || b.author.id != actorId) {
+      throw IdNotFoundException(id: childBeaconId);
+    }
+    if (b.status == BeaconStatus.draft) {
+      final now = DateTime.timestamp();
+      return storageById[childBeaconId] = b.copyWith(
+        status: BeaconStatus.open,
+        updatedAt: now,
+        publishedAt: now,
+      );
+    }
+    return b;
+  }
+
+  @override
   Future<BeaconMediaSnapshot> getMediaSnapshot(String beaconId) async {
     final b = storageById[beaconId];
     return BeaconMediaSnapshot(

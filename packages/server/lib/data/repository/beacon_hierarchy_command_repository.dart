@@ -174,18 +174,20 @@ FOR UPDATE
 
   @override
   Future<void> lockPromotionRows({
-    required String childBeaconId,
+    String? childBeaconId,
     String? sourceMessageId,
   }) async {
-    await _database.customStatement(
-      r'''
+    if (childBeaconId != null) {
+      await _database.customStatement(
+        r'''
 SELECT child_beacon_id
 FROM public.beacon_promotions
 WHERE child_beacon_id = $1
 FOR UPDATE
 ''',
-      [childBeaconId],
-    );
+        [childBeaconId],
+      );
+    }
     if (sourceMessageId != null) {
       await _database.customStatement(
         r'''

@@ -49,6 +49,7 @@ import '../domain/use_case/help_offer_case_mocks.mocks.dart';
 import 'coordination_item_record_fixtures.dart';
 import 'fake_beacon_access_guard.dart';
 import 'fake_beacon_hierarchy_repository.dart';
+import 'fake_beacon_child_create_port.dart';
 import 'fake_user_block_repository.dart';
 import 'recording_commitment_repository.dart';
 import 'test_attention_harness.dart';
@@ -549,6 +550,7 @@ final class CommitmentGatesHarness {
       commitmentQueryCase,
       FakeBeaconAccessGuard(),
       FakeBeaconHierarchyRepository(),
+      FakeBeaconChildCreatePort(),
       attentionIntents: attention.intents,
       attention: attention.transactional,
       env: Env(environment: Environment.test),

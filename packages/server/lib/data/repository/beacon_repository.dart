@@ -178,6 +178,66 @@ class BeaconRepository implements BeaconRepositoryPort {
   });
 
   @override
+  Future<BeaconEntity> createChildBeacon({
+    required String authorId,
+    required String parentBeaconId,
+    required String title,
+    required String description,
+    String? context,
+    double? latitude,
+    double? longitude,
+    DateTime? startAt,
+    DateTime? endAt,
+    Set<String>? tags,
+    Set<String>? needs,
+    String? primaryNeedSlug,
+    String? addressLabel,
+    required bool draft,
+  }) => _database.withMutatingUser(authorId, () async {
+    final effectiveStatus = draft ? BeaconStatus.draft : BeaconStatus.open;
+    final publishedAt = draft ? null : DateTime.timestamp();
+    var beacon = await _database.managers.beacons.createReturning(
+      (o) => o(
+        userId: authorId,
+        title: title,
+        parentBeaconId: Value(parentBeaconId),
+        publishedAt: Value(
+          publishedAt == null ? null : PgDateTime(publishedAt),
+        ),
+        context: Value(_beaconContextForDb(context)),
+        description: Value(description),
+        lat: Value(latitude),
+        long: Value(longitude),
+        startAt: Value(startAt == null ? null : PgDateTime(startAt)),
+        endAt: Value(endAt == null ? null : PgDateTime(endAt)),
+        tags: Value.absentIfNull(tags?.join(',')),
+        needs: Value(needs == null || needs.isEmpty ? '' : needs.join(',')),
+        primaryNeedSlug: Value(primaryNeedSlug),
+        status: Value(effectiveStatus.smallintValue),
+        addressLabel: Value(addressLabel),
+      ),
+    );
+
+    if (effectiveStatus == BeaconStatus.open) {
+      await _insertBeaconPublishedEvent(
+        beaconId: beacon.id,
+        actorId: authorId,
+        title: title,
+      );
+    }
+
+    final author = await _database.managers.users
+        .filter((e) => e.id.equals(authorId))
+        .getSingle();
+
+    return beaconModelToEntity(
+      beacon,
+      author: author,
+      images: const [],
+    );
+  });
+
+  @override
   Future<BeaconEntity> getBeaconById({
     required String beaconId,
     String? filterByUserId,
@@ -493,6 +553,49 @@ WHERE user_id = $1 AND created_at >= $2
       );
 
       return getBeaconById(beaconId: id, filterByUserId: actorId);
+    });
+  });
+
+  @override
+  Future<BeaconEntity> publishChildDraft({
+    required String childBeaconId,
+    required String actorId,
+  }) => _database.withMutatingUser(actorId, () async {
+    return _database.transaction(() async {
+      final existing = await _database.managers.beacons
+          .filter(
+            (e) => e.id.equals(childBeaconId) & e.userId.id.equals(actorId),
+          )
+          .getSingleOrNull();
+
+      if (existing == null) {
+        throw const BeaconCreateException(
+          description: 'Request not found or not owned',
+        );
+      }
+
+      if (existing.status != BeaconStatus.draft.smallintValue) {
+        return getBeaconById(beaconId: childBeaconId, filterByUserId: actorId);
+      }
+
+      final publishedAt = DateTime.timestamp();
+      await _database.managers.beacons
+          .filter((e) => e.id.equals(childBeaconId))
+          .update(
+            (o) => o(
+              status: Value(BeaconStatus.open.smallintValue),
+              statusChangedAt: Value(PgDateTime(publishedAt)),
+              publishedAt: Value(PgDateTime(publishedAt)),
+            ),
+          );
+
+      await _insertBeaconPublishedEvent(
+        beaconId: childBeaconId,
+        actorId: actorId,
+        title: existing.title,
+      );
+
+      return getBeaconById(beaconId: childBeaconId, filterByUserId: actorId);
     });
   });
 

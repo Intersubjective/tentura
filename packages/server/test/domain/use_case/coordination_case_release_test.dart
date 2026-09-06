@@ -4,6 +4,7 @@ import 'package:mockito/mockito.dart';
 import 'package:test/test.dart';
 
 import '../../support/fake_beacon_hierarchy_repository.dart';
+import '../../support/fake_beacon_child_create_port.dart';
 
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 import 'package:tentura_server/domain/attention/attention_models.dart';
@@ -126,6 +127,7 @@ void main() {
       commitmentQueryCase,
       FakeBeaconAccessGuard(),
       FakeBeaconHierarchyRepository(),
+      FakeBeaconChildCreatePort(),
       attentionIntents: attention.intents,
       attention: attention.transactional,
       env: Env(environment: Environment.test),

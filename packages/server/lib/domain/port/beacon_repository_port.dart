@@ -32,6 +32,26 @@ abstract class BeaconRepositoryPort {
     String? lineageRootBeaconId,
   });
 
+  /// Creates a nested child beacon with immutable [parentBeaconId].
+  ///
+  /// Draft children keep [publishedAt] null; direct publication sets it.
+  Future<BeaconEntity> createChildBeacon({
+    required String authorId,
+    required String parentBeaconId,
+    required String title,
+    required String description,
+    String? context,
+    double? latitude,
+    double? longitude,
+    DateTime? startAt,
+    DateTime? endAt,
+    Set<String>? tags,
+    Set<String>? needs,
+    String? primaryNeedSlug,
+    String? addressLabel,
+    required bool draft,
+  });
+
   Future<BeaconEntity> getBeaconById({
     required String beaconId,
     String? filterByUserId,
@@ -126,6 +146,12 @@ abstract class BeaconRepositoryPort {
   /// Draft → open and emit a `beaconPublished` activity event.
   Future<BeaconEntity> publishDraft({
     required String id,
+    required String actorId,
+  });
+
+  /// Publishes a nested child draft: sets status/open, [publishedAt], activity.
+  Future<BeaconEntity> publishChildDraft({
+    required String childBeaconId,
     required String actorId,
   });
 

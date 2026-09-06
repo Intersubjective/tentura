@@ -4,6 +4,7 @@ import 'package:mockito/mockito.dart';
 import 'package:test/test.dart';
 
 import '../../support/fake_beacon_hierarchy_repository.dart';
+import '../../support/fake_beacon_child_create_port.dart';
 
 import 'package:tentura_root/domain/entity/beacon_cover_source.dart';
 import 'package:tentura_server/domain/entity/beacon_entity.dart';
@@ -159,6 +160,7 @@ void main() {
       noopCommitmentQueryCase(),
       FakeBeaconAccessGuard(),
       FakeBeaconHierarchyRepository(),
+      FakeBeaconChildCreatePort(),
       attentionIntents: attention.intents,
       attention: attention.transactional,
       env: env,
