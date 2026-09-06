@@ -182,6 +182,7 @@ final gqlTypeRoomMessageRow = GraphQLObjectType('RoomMessageRow', null)
     field('createdAt', graphQLString.nonNullable()),
     field('editedAt', graphQLString),
     field('semanticMarker', graphQLInt),
+    field('systemMessageKind', graphQLInt),
     field('linkedBlockerId', graphQLString),
     field('linkedFactCardId', graphQLString),
     field('linkedPollingId', graphQLString),

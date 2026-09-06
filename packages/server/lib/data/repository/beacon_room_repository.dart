@@ -432,6 +432,7 @@ class BeaconRoomRepository implements BeaconRoomRepositoryPort {
         'createdAt': m.createdAt.dateTime.toUtc().toIso8601String(),
         'editedAt': m.editedAt?.dateTime.toUtc().toIso8601String(),
         'semanticMarker': m.semanticMarker,
+        'systemMessageKind': m.systemMessageKind,
         'linkedBlockerId':
             linkedRow != null && linkedRow.kind == coordinationItemKindBlocker
             ? linkedId

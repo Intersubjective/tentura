@@ -51,6 +51,12 @@ abstract final class BeaconRoomSemanticMarker {
   static const participantJoined = 9;
 }
 
+/// Mirrors server [BeaconRoomSystemMessageKind].
+abstract final class BeaconRoomSystemMessageKind {
+  static const hierarchyLifecycle = 1;
+  static const childCreated = 2;
+}
+
 /// Quick-picker emojis for room message reactions (`RoomMessageReactionToggle`).
 abstract final class BeaconRoomMessageReaction {
   static const quickPickerEmojis = <String>[
