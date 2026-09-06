@@ -6,6 +6,9 @@ import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon_activity_event.dart';
 import 'package:tentura/domain/entity/coordination_item.dart';
 import 'package:tentura/features/beacon/ui/widget/beacon_lineage_parent_link.dart';
+import 'package:tentura/features/beacon_threads/ui/bloc/beacon_hierarchy_cubit.dart';
+import 'package:tentura/features/beacon_threads/ui/bloc/beacon_hierarchy_state.dart';
+import 'package:tentura/features/beacon_threads/ui/widget/beacon_hierarchy_parent_link.dart';
 import 'package:tentura/features/beacon_threads/domain/entity/request_thread.dart';
 import 'package:tentura/features/beacon_threads/ui/bloc/threads_cubit.dart';
 import 'package:tentura/features/beacon_threads/ui/bloc/threads_state.dart';
@@ -35,11 +38,11 @@ class BeaconOperationalScrollView extends StatelessWidget {
     required this.onPeopleTabAttentionCleared,
     required this.onActivatePeopleTabAttention,
     required this.onFocusCoordinationItem,
-    required this.focusThreadId,
+    required this.focusGeneral,
     required this.focusUserId,
     required this.onOperationalFocusCleared,
     required this.onTapCoordinationLogEvent,
-    required this.onOpenThread,
+    required this.onOpenGeneral,
     required this.onOpenGeneralThread,
     required this.onThreadsTabRefresh,
     required this.beaconState,
@@ -62,12 +65,12 @@ class BeaconOperationalScrollView extends StatelessWidget {
   final void Function(CoordinationItem item) onFocusCoordinationItem;
 
   /// Thread / participant to focus + flash (Log row tap-to-focus).
-  final String? focusThreadId;
+  final bool focusGeneral;
   final String? focusUserId;
   final VoidCallback onOperationalFocusCleared;
   final void Function(BeaconActivityEvent event) onTapCoordinationLogEvent;
 
-  final void Function(RequestThread thread) onOpenThread;
+  final VoidCallback onOpenGeneral;
   final VoidCallback onOpenGeneralThread;
   final VoidCallback onThreadsTabRefresh;
 
@@ -90,7 +93,7 @@ class BeaconOperationalScrollView extends StatelessWidget {
         onOperationalFocusCleared();
         onTabReselected?.call(i);
         if (i == kBeaconTabThreads) {
-          context.read<ThreadsCubit>().setActiveForMeOnly(false);
+          onThreadsTabRefresh();
         }
       }
       return;
@@ -99,7 +102,7 @@ class BeaconOperationalScrollView extends StatelessWidget {
   }
 
   void _onPointerDown(PointerDownEvent _) {
-    if (focusThreadId != null || focusUserId != null) {
+    if (focusGeneral || focusUserId != null) {
       onOperationalFocusCleared();
     }
   }
@@ -164,10 +167,10 @@ class BeaconOperationalScrollView extends StatelessWidget {
         final tabBody = switch (idx) {
           kBeaconTabThreads => ThreadsList(
             beaconState: beaconState,
-            onOpenThread: onOpenThread,
+            onOpenGeneral: onOpenGeneral,
             onSwitchToPeopleTab: () => _setTab(context, kBeaconTabPeople),
-            focusThreadId: focusThreadId,
-            selectedThreadId: selectedThreadId,
+            focusGeneral: focusGeneral,
+            selectedGeneral: selectedThreadId == RequestThread.generalId,
           ),
           kBeaconTabPeople => BeaconPeopleTabBody(
             state: state,
@@ -215,6 +218,21 @@ class BeaconOperationalScrollView extends StatelessWidget {
           child: CustomScrollView(
             physics: const ClampingScrollPhysics(),
             slivers: [
+              BlocBuilder<BeaconHierarchyCubit, BeaconHierarchyState>(
+                buildWhen: (p, c) => p.parentReference != c.parentReference,
+                builder: (context, hierarchyState) {
+                  final reference = hierarchyState.parentReference;
+                  if (reference == null) {
+                    return const SliverToBoxAdapter(child: SizedBox.shrink());
+                  }
+                  return SliverToBoxAdapter(
+                    child: ColoredBox(
+                      color: scheme.surface,
+                      child: BeaconHierarchyParentLink(reference: reference),
+                    ),
+                  );
+                },
+              ),
               if (state.beacon.lineageParentBeaconId != null &&
                   state.beacon.lineageParentBeaconId!.isNotEmpty)
                 SliverToBoxAdapter(
@@ -338,7 +356,7 @@ class BeaconOperationalScrollView extends StatelessWidget {
                                 : null;
                             return TenturaUnderlineTabs(
                               tabs: [
-                                l10n.labelBeaconTabThreads,
+                                l10n.labelBeaconTabDiscussion,
                                 l10n.labelBeaconTabPeople,
                                 l10n.labelBeaconTabLog,
                               ],

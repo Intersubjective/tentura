@@ -1,6 +1,10 @@
 import 'package:injectable/injectable.dart';
 import 'package:tentura_root/domain/entity/beacon_child_command_outcome.dart';
 import 'package:tentura_root/domain/entity/beacon_creation_context.dart';
+import 'package:tentura_root/domain/entity/beacon_hierarchy_capabilities.dart';
+import 'package:tentura_root/domain/entity/beacon_hierarchy_child_group.dart';
+import 'package:tentura_root/domain/entity/beacon_hierarchy_page.dart';
+import 'package:tentura_root/domain/entity/beacon_parent_reference.dart';
 import 'package:tentura_root/domain/entity/beacon_promotion_source.dart';
 import 'package:uuid/uuid.dart';
 
@@ -105,6 +109,29 @@ class BeaconHierarchyCase {
   final BeaconChildCommandStorePort _commandStore;
 
   static const _uuid = Uuid();
+
+  Future<BeaconHierarchyCapabilities> fetchCapabilities({
+    required String beaconId,
+  }) =>
+      _hierarchy.fetchCapabilities(beaconId: beaconId);
+
+  Future<BeaconHierarchyPage> fetchChildren({
+    required String parentBeaconId,
+    required BeaconHierarchyChildGroup group,
+    int first = 20,
+    String? after,
+  }) =>
+      _hierarchy.fetchChildren(
+        parentBeaconId: parentBeaconId,
+        group: group,
+        first: first,
+        after: after,
+      );
+
+  Future<BeaconParentReference> fetchParentReference({
+    required String beaconId,
+  }) =>
+      _hierarchy.fetchParentReference(beaconId: beaconId);
 
   Future<BeaconChildComposerSession> openComposer({
     required BeaconCreationContext creationContext,

@@ -1,4 +1,4 @@
-import 'package:flutter/scheduler.dart';
+import 'package:flutter/widgets.dart';
 
 import 'package:tentura/features/beacon_threads/domain/entity/request_thread.dart';
 
@@ -13,6 +13,7 @@ typedef RoomCubitFactory = RoomCubit Function({
   DateTime? initialUnreadAnchorAt,
 });
 
+/// Hosts the General discussion room only (plan §6.1).
 class ThreadHostCubit extends Cubit<ThreadHostState> {
   ThreadHostCubit({
     required String beaconId,
@@ -34,17 +35,24 @@ class ThreadHostCubit extends Cubit<ThreadHostState> {
     _windowClassTransitionGeneration++;
   }
 
-  /// Schedules [action] once after the next frame. Superseded when a newer
-  /// transition is scheduled or when [select]/[clear] runs.
   void scheduleWindowClassTransition(void Function() action) {
     final generation = ++_windowClassTransitionGeneration;
-    SchedulerBinding.instance.scheduleFrameCallback((_) {
+    WidgetsBinding.instance.scheduleFrameCallback((_) {
       if (isClosed || generation != _windowClassTransitionGeneration) return;
       action();
     });
   }
 
+  Future<void> ensureGeneral(RequestThread generalThread) async {
+    if (!generalThread.isGeneral) return;
+    if (state.openThreadId == RequestThread.generalId && _roomCubit != null) {
+      return;
+    }
+    await select(generalThread);
+  }
+
   Future<void> select(RequestThread thread) async {
+    if (!thread.isGeneral) return;
     _cancelWindowClassTransition();
     final generation = state.selectionGeneration + 1;
     emit(state.copyWith(switching: true, selectionGeneration: generation));
@@ -54,17 +62,14 @@ class ThreadHostCubit extends Cubit<ThreadHostState> {
       _roomCubit = null;
       if (old != null && !old.isClosed) await old.close();
       if (isClosed || generation != state.selectionGeneration) return;
-      final itemId = thread.threadId == RequestThread.generalId
-          ? null
-          : thread.threadId;
       _roomCubit = _factory(
-        beaconId: thread.item?.beaconId ?? _beaconId,
-        threadItemId: itemId,
+        beaconId: _beaconId,
+        threadItemId: null,
         initialUnreadAnchorAt: thread.lastSeenAt,
       );
       emit(
         state.copyWith(
-          openThreadId: thread.threadId,
+          openThreadId: RequestThread.generalId,
           switching: false,
         ),
       );

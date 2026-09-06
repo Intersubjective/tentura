@@ -352,31 +352,12 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
     );
   }
 
-  RequestThread? _resolveThreadRow(ThreadsState state, String threadId) {
-    for (final thread in state.threads) {
-      if (thread.threadId == threadId) {
-        return thread;
-      }
-    }
-    return null;
-  }
+  RequestThread? _generalThread(ThreadsState state) => state.general;
 
-  RequestThread? _resolveAccessibleRow(ThreadsState state, String? threadId) {
-    final explicit = threadId?.trim();
-    if (explicit != null && explicit.isNotEmpty) {
-      final row = _resolveThreadRow(state, explicit);
-      if (row != null) return row;
-    }
-    return state.firstAccessible;
-  }
-
-  RequestThread? _selectedThread(
-    ThreadsState threadsState,
-    ThreadHostState hostState,
-  ) {
-    final openId = hostState.openThreadId;
-    if (openId == null) return null;
-    return _resolveThreadRow(threadsState, openId);
+  bool _isLegacyThreadId(String? threadId) {
+    final id = threadId?.trim();
+    if (id == null || id.isEmpty) return false;
+    return id != RequestThread.generalId;
   }
 
   Future<void> _applyThreadsResolution({
@@ -384,40 +365,49 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
     required bool isSplit,
   }) async {
     if (!threadsState.isSuccess || _didApplyThreadsResolution) return;
-    // Wait until the ops|room split is actually shown. Threads can succeed
-    // before beacon content loads; burning the flag then leaves the 3rd
-    // column spinning forever when split turns on later.
     if (!isSplit) return;
     _didApplyThreadsResolution = true;
+
+    if (_isLegacyThreadId(widget.threadId)) return;
 
     final host = context.read<ThreadHostCubit>();
     if (host.state.openThreadId != null) return;
 
-    final row = _resolveAccessibleRow(threadsState, widget.threadId);
+    final row = _generalThread(threadsState);
     if (row == null) return;
 
-    await host.select(row);
+    await host.ensureGeneral(row);
     if (!mounted) return;
 
     final messageId = widget.messageId?.trim();
     if (messageId != null && messageId.isNotEmpty) {
-      host.roomCubit?.prepareThreadScroll(
-        messageId: messageId,
-        coordinationItemId: row.item?.id,
-      );
+      host.roomCubit?.prepareThreadScroll(messageId: messageId);
     }
-    unawaited(_syncExpandedThreadQuery(row.threadId));
+    unawaited(_syncExpandedThreadQuery(RequestThread.generalId));
   }
 
-  Future<void> _openThread(
-    RequestThread thread, {
+  Future<void> _openGeneralDiscussion({
     required bool isSplit,
     String? messageId,
+    String? coordinationItemId,
   }) async {
+    final threadsState = context.read<ThreadsCubit>().state;
+    final row = _generalThread(threadsState);
+    if (row == null) return;
+
     if (!isSplit) {
+      if (_isLegacyThreadId(widget.threadId)) {
+        await context.router.push(
+          ThreadDetailRoute(
+            threadId: RequestThread.generalId,
+            messageId: messageId,
+          ),
+        );
+        return;
+      }
       await context.router.push(
         ThreadDetailRoute(
-          threadId: thread.threadId,
+          threadId: RequestThread.generalId,
           messageId: messageId,
         ),
       );
@@ -425,38 +415,9 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
     }
 
     final host = context.read<ThreadHostCubit>();
-    await host.select(thread);
+    await host.ensureGeneral(row);
     if (!mounted) return;
 
-    final scrollMessageId = messageId?.trim();
-    if (scrollMessageId != null && scrollMessageId.isNotEmpty) {
-      host.roomCubit?.prepareThreadScroll(
-        messageId: scrollMessageId,
-        coordinationItemId: thread.item?.id,
-      );
-    }
-    unawaited(_syncExpandedThreadQuery(thread.threadId));
-  }
-
-  Future<void> _openGeneralThread({
-    String? messageId,
-    String? coordinationItemId,
-  }) async {
-    final threadsState = context.read<ThreadsCubit>().state;
-    final row = threadsState.general ?? threadsState.firstAccessible;
-    if (row == null) return;
-
-    final isSplit = _usesExpandedThreadSplit(
-      showBeaconContent:
-          context.read<BeaconViewCubit>().state.beaconContentLoaded &&
-          !context.read<BeaconViewCubit>().state.beaconUnavailable,
-      threadsState: threadsState,
-    );
-
-    await _openThread(row, messageId: messageId, isSplit: isSplit);
-    if (!mounted) return;
-
-    final host = context.read<ThreadHostCubit>();
     final scrollMessageId = messageId?.trim();
     final itemId = coordinationItemId?.trim();
     if ((scrollMessageId != null && scrollMessageId.isNotEmpty) ||
@@ -466,6 +427,26 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
         coordinationItemId: itemId,
       );
     }
+    unawaited(_syncExpandedThreadQuery(RequestThread.generalId));
+  }
+
+  Future<void> _openGeneralThread({
+    String? messageId,
+    String? coordinationItemId,
+  }) async {
+    final threadsState = context.read<ThreadsCubit>().state;
+    final isSplit = _usesExpandedThreadSplit(
+      showBeaconContent:
+          context.read<BeaconViewCubit>().state.beaconContentLoaded &&
+          !context.read<BeaconViewCubit>().state.beaconUnavailable,
+      threadsState: threadsState,
+    );
+
+    await _openGeneralDiscussion(
+      isSplit: isSplit,
+      messageId: messageId,
+      coordinationItemId: coordinationItemId,
+    );
   }
 
   void _onOpenCoordinationItemFromThread(CoordinationItem item) {
@@ -476,19 +457,12 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
       );
       return;
     }
-    final row = _resolveThreadRow(
-      context.read<ThreadsCubit>().state,
-      item.id,
+    unawaited(
+      _openGeneralThread(
+        messageId: item.threadAnchorMessageId,
+        coordinationItemId: item.id,
+      ),
     );
-    if (row == null) return;
-    final threadsState = context.read<ThreadsCubit>().state;
-    final isSplit = _usesExpandedThreadSplit(
-      showBeaconContent:
-          context.read<BeaconViewCubit>().state.beaconContentLoaded &&
-          !context.read<BeaconViewCubit>().state.beaconUnavailable,
-      threadsState: threadsState,
-    );
-    unawaited(_openThread(row, isSplit: isSplit));
   }
 
   void _refreshThreadsTab() {
@@ -576,10 +550,10 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
     });
   }
 
-  void _focusThreadByItemId(String itemId) {
+  void _focusDiscussionGeneral() {
     setState(() {
       _tabIndex = kBeaconTabThreads;
-      _focusThreadId = itemId;
+      _focusThreadId = RequestThread.generalId;
       _focusUserId = null;
       _bannerMessage = null;
       _peopleTabAttentionActive = false;
@@ -593,15 +567,7 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
     if (kind == CoordinationItemKind.ask ||
         kind == CoordinationItemKind.promise ||
         kind == CoordinationItemKind.blocker) {
-      if (itemId != null && itemId.isNotEmpty) {
-        setState(() {
-          _tabIndex = kBeaconTabThreads;
-          _focusThreadId = itemId;
-          _focusUserId = null;
-          _bannerMessage = null;
-          _peopleTabAttentionActive = false;
-        });
-      }
+      _focusDiscussionGeneral();
       return;
     }
 
@@ -658,7 +624,7 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
     required ScreenCubit screenCubit,
     required BeaconViewState beaconState,
     required bool isSplit,
-    required void Function(RequestThread thread) onOpenThread,
+    required VoidCallback onOpenGeneral,
   }) {
     return TenturaContentColumn(
       child: BeaconOperationalScrollView(
@@ -671,12 +637,12 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
           _peopleTabAttentionActive = false;
         }),
         onActivatePeopleTabAttention: _activatePeopleTabAttention,
-        onFocusCoordinationItem: (item) => _focusThreadByItemId(item.id),
-        focusThreadId: _focusThreadId,
+        onFocusCoordinationItem: (_) => _focusDiscussionGeneral(),
+        focusGeneral: _focusThreadId == RequestThread.generalId,
         focusUserId: _focusUserId,
         onOperationalFocusCleared: _clearOperationalFocus,
         onTapCoordinationLogEvent: _onTapCoordinationLogEvent,
-        onOpenThread: onOpenThread,
+        onOpenGeneral: onOpenGeneral,
         onOpenGeneralThread: () => unawaited(_openGeneralThread()),
         onThreadsTabRefresh: _refreshThreadsTab,
         peopleFoldEpoch: _peopleFoldEpoch,
@@ -699,7 +665,7 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
       return const Center(child: CircularProgressIndicator.adaptive());
     }
 
-    final thread = _selectedThread(threadsState, hostState);
+    final thread = _generalThread(threadsState);
     if (thread == null) {
       return const Center(child: CircularProgressIndicator.adaptive());
     }
@@ -719,7 +685,7 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
     required L10n l10n,
     required Widget overflow,
   }) {
-    final thread = _selectedThread(threadsState, hostState);
+    final thread = _generalThread(threadsState);
     if (thread == null) {
       return Align(
         alignment: Alignment.centerRight,
@@ -727,25 +693,12 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
       );
     }
 
-    final Widget title;
-    if (thread.isGeneral) {
-      title = ThreadDetailGeneralTitle(
-        title: threadGeneralAppBarTitle(l10n, beaconState.beacon),
-        beacon: beaconState.beacon,
-        involvedProfiles: beaconState.activeHelpOfferUsers,
-        currentUserId: beaconState.myProfile.id,
-      );
-    } else if (thread.item != null) {
-      title = ThreadDetailTitle(
-        fallback: threadTitleFallback(l10n, thread),
-        item: thread.item!,
-      );
-    } else {
-      return Align(
-        alignment: Alignment.centerRight,
-        child: overflow,
-      );
-    }
+    final title = ThreadDetailGeneralTitle(
+      title: threadGeneralAppBarTitle(l10n, beaconState.beacon),
+      beacon: beaconState.beacon,
+      involvedProfiles: beaconState.activeHelpOfferUsers,
+      currentUserId: beaconState.myProfile.id,
+    );
 
     return Row(
       children: [
@@ -762,7 +715,7 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
     required ThreadsState threadsState,
     required ThreadHostState hostState,
     required TenturaTokens tt,
-    required void Function(RequestThread thread) onOpenThread,
+    required VoidCallback onOpenGeneral,
   }) {
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -783,7 +736,7 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
                 screenCubit: screenCubit,
                 beaconState: beaconState,
                 isSplit: true,
-                onOpenThread: onOpenThread,
+                onOpenGeneral: onOpenGeneral,
               ),
             ),
             TenturaVerticalResizeHandle(
@@ -897,13 +850,10 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
                             threadsState: threadsState,
                           );
 
-                      void onOpenThread(RequestThread thread) {
-                        unawaited(() async {
-                          await _openThread(
-                            thread,
-                            isSplit: isSplit,
-                          );
-                        }());
+                      void onOpenGeneral() {
+                        unawaited(
+                          _openGeneralDiscussion(isSplit: isSplit),
+                        );
                       }
 
                       if (threadsState.isSuccess && isSplit) {
@@ -960,7 +910,7 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
                           threadsState: threadsState,
                           hostState: hostState,
                           tt: tt,
-                          onOpenThread: onOpenThread,
+                          onOpenGeneral: onOpenGeneral,
                         );
                       } else {
                         body = _buildOperationalBody(
@@ -968,7 +918,7 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
                           screenCubit: screenCubit,
                           beaconState: state,
                           isSplit: false,
-                          onOpenThread: onOpenThread,
+                          onOpenGeneral: onOpenGeneral,
                         );
                       }
 

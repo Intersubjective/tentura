@@ -23,8 +23,8 @@ import 'package:tentura/features/beacon_view/ui/util/beacon_hud_derivation.dart'
 import 'package:tentura/ui/widget/hud_labeled_multiline.dart';
 import 'package:tentura/ui/widget/beacon_hud_row_lead.dart';
 import 'package:tentura/features/beacon_view/ui/widget/coordination_item_composer_sheet.dart';
+import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/features/coordination_item/ui/widget/ask_composer_fields.dart';
-import 'package:tentura/features/coordination_item/ui/widget/coordination_staleness_picker.dart';
 
 import '../bloc/room_cubit.dart';
 import '../coordination_room_navigation.dart';
@@ -330,7 +330,7 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
     // Already-linked messages can be opened/resolved but never re-promoted;
     // only plain, non-system messages offer the "Turn into…" verbs.
     final linkedItem = message.linkedCoordinationItem;
-    final showTurnInto =
+    final showCreateChild =
         !isThreadMode &&
         linkedItem == null &&
         !_suppressesRichMessageActions(message);
@@ -435,7 +435,7 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
                           },
                         ),
                       // ── Coordination: turn a plain message into an item … ──
-                      if (showTurnInto) ...[
+                      if (showCreateChild) ...[
                         Padding(
                           padding: EdgeInsets.only(
                             left: tt.screenHPadding,
@@ -448,6 +448,18 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
                               color: theme.colorScheme.onSurfaceVariant,
                             ),
                           ),
+                        ),
+                        ListTile(
+                          leading: const Icon(Icons.subdirectory_arrow_right_outlined),
+                          title: Text(l10n.beaconCreateChildRequest),
+                          onTap: () {
+                            Navigator.pop(ctx);
+                            _openChildRequestComposerFromMessage(
+                              context,
+                              cubit,
+                              message,
+                            );
+                          },
                         ),
                         if (canCreatePromise)
                           ListTile(
@@ -465,32 +477,6 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
                               );
                             },
                           ),
-                        ListTile(
-                          leading: const Icon(Icons.help_outline),
-                          title: Text(l10n.beaconRoomActionMarkAsk),
-                          onTap: () {
-                            Navigator.pop(ctx);
-                            _openCoordinationComposerFromMessage(
-                              context,
-                              cubit,
-                              message,
-                              CoordinationItemKind.ask,
-                            );
-                          },
-                        ),
-                        ListTile(
-                          leading: const Icon(Icons.report_problem_outlined),
-                          title: Text(l10n.beaconRoomActionMarkBlocker),
-                          onTap: () {
-                            Navigator.pop(ctx);
-                            _openCoordinationComposerFromMessage(
-                              context,
-                              cubit,
-                              message,
-                              CoordinationItemKind.blocker,
-                            );
-                          },
-                        ),
                         ListTile(
                           leading: const Icon(Icons.edit_note_outlined),
                           title: Text(
@@ -511,19 +497,14 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
                       ],
                       // ── …or open / resolve an already-linked item. ──
                       if (linkedItem != null &&
+                          linkedItem.kind == CoordinationItemKind.plan &&
                           (!isThreadMode ||
                               widget.onOpenCoordinationItem != null)) ...[
                         ListTile(
-                          leading: Icon(
-                            planItemSuppressesItemDiscussion(linkedItem)
-                                ? Icons.subdirectory_arrow_left_outlined
-                                : Icons.forum_outlined,
+                          leading: const Icon(
+                            Icons.subdirectory_arrow_left_outlined,
                           ),
-                          title: Text(
-                            planItemSuppressesItemDiscussion(linkedItem)
-                                ? l10n.beaconRoomActionJumpToPlan
-                                : l10n.beaconRoomActionOpenThread,
-                          ),
+                          title: Text(l10n.beaconRoomActionJumpToPlan),
                           onTap: () {
                             Navigator.pop(ctx);
                             final open = widget.onOpenCoordinationItem;
@@ -540,20 +521,6 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
                             );
                           },
                         ),
-                        if (linkedItem.kind == CoordinationItemKind.blocker &&
-                            linkedItem.status == CoordinationItemStatus.open)
-                          ListTile(
-                            leading: const Icon(Icons.task_alt_outlined),
-                            title: Text(l10n.beaconRoomActionResolveBlocker),
-                            onTap: () {
-                              Navigator.pop(ctx);
-                              unawaited(
-                                cubit.resolveCoordinationBlocker(
-                                  itemId: linkedItem.id,
-                                ),
-                              );
-                            },
-                          ),
                       ],
                       // ── Fact pin (state-aware). ──
                       if (showFactInMenu && pf == null)
@@ -852,6 +819,21 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
         myRole == BeaconParticipantRoleBits.steward;
   }
 
+  void _openChildRequestComposerFromMessage(
+    BuildContext context,
+    RoomCubit cubit,
+    RoomMessage message,
+  ) {
+    unawaited(
+      context.router.push(
+        BeaconCreateRoute(
+          parentBeaconId: cubit.state.beaconId,
+          sourceMessageId: message.id,
+        ),
+      ),
+    );
+  }
+
   void _openCoordinationComposerFromMessage(
     BuildContext context,
     RoomCubit cubit,
@@ -901,64 +883,6 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
     );
   }
 
-  List<BeaconParticipant> _admittedParticipantsForPromote(RoomCubit cubit) {
-    final myUserId = cubit.state.myUserId;
-    final myParticipantRole = cubit.state.participants
-        .where((p) => p.userId == myUserId)
-        .firstOrNull
-        ?.role;
-    final isAuthorOrSteward =
-        myParticipantRole == BeaconParticipantRoleBits.author ||
-        myParticipantRole == BeaconParticipantRoleBits.steward;
-    return isAuthorOrSteward
-        ? cubit.state.participants
-              .where(
-                (p) =>
-                    p.roomAccess == RoomAccessBits.admitted ||
-                    p.status == BeaconParticipantStatusBits.candidate ||
-                    p.status == BeaconParticipantStatusBits.offeredHelp,
-              )
-              .toList()
-        : cubit.state.participants
-              .where((p) => p.roomAccess == RoomAccessBits.admitted)
-              .toList();
-  }
-
-  Future<
-    ({String title, String body, String targetUserId, int? staleAfterDays})?
-  >
-  _showPromoteFieldsDialog({
-    required BuildContext context,
-    required L10n l10n,
-    required Profile viewer,
-    required RoomCubit cubit,
-    required String dialogTitle,
-    required String messageBody,
-    bool includeStalenessPicker = false,
-  }) async {
-    final admitted = _admittedParticipantsForPromote(cubit);
-    if (admitted.isEmpty) return null;
-
-    return showTenturaAdaptiveSheet<
-      ({String title, String body, String targetUserId, int? staleAfterDays})?
-    >(
-      context: context,
-      useRootNavigator: true,
-      enableDrag: false,
-      showDragHandle: true,
-      isScrollControlled: true,
-      builder: (ctx) => _PromoteFieldsSheet(
-        l10n: l10n,
-        viewer: viewer,
-        admitted: admitted,
-        dialogTitle: dialogTitle,
-        messageBody: messageBody,
-        includeStalenessPicker: includeStalenessPicker,
-        targetLabel: (p) => _needInfoTargetLabel(l10n, viewer, p),
-      ),
-    );
-  }
-
   Future<void> _showUpdatePlanFromMessageSheet(
     BuildContext context,
     RoomCubit cubit,
@@ -990,184 +914,6 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
     if (plan == null || plan.isEmpty || !context.mounted) return;
     await cubit.updatePlan(plan, linkedMessageId: message.id);
     widget.onCoordinationSaved?.call();
-  }
-
-  String _needInfoTargetLabel(L10n l10n, Profile viewer, BeaconParticipant p) {
-    if (p.userId == viewer.id) {
-      return l10n.labelYou;
-    }
-    final t = p.userTitle.trim();
-    if (t.isNotEmpty) {
-      return t;
-    }
-    return p.userId.length <= 16 ? p.userId : '${p.userId.substring(0, 14)}…';
-  }
-}
-
-class _PromoteFieldsSheet extends StatefulWidget {
-  const _PromoteFieldsSheet({
-    required this.l10n,
-    required this.viewer,
-    required this.admitted,
-    required this.dialogTitle,
-    required this.messageBody,
-    required this.includeStalenessPicker,
-    required this.targetLabel,
-  });
-
-  final L10n l10n;
-  final Profile viewer;
-  final List<BeaconParticipant> admitted;
-  final String dialogTitle;
-  final String messageBody;
-  final bool includeStalenessPicker;
-  final String Function(BeaconParticipant p) targetLabel;
-
-  @override
-  State<_PromoteFieldsSheet> createState() => _PromoteFieldsSheetState();
-}
-
-class _PromoteFieldsSheetState extends State<_PromoteFieldsSheet> {
-  late final TextEditingController _titleController;
-  late String _targetUserId;
-  late int _staleDays;
-  late final String _initialTitle;
-  late final String _initialTargetUserId;
-  late final int _initialStaleDays;
-
-  @override
-  void initState() {
-    super.initState();
-    _titleController = TextEditingController(text: widget.messageBody.trim());
-    _targetUserId = widget.viewer.id;
-    if (!widget.admitted.any((p) => p.userId == _targetUserId)) {
-      _targetUserId = widget.admitted.first.userId;
-    }
-    _staleDays = CoordinationItem.defaultStaleDays;
-    _initialTitle = _titleController.text;
-    _initialTargetUserId = _targetUserId;
-    _initialStaleDays = _staleDays;
-  }
-
-  @override
-  void dispose() {
-    _titleController.dispose();
-    super.dispose();
-  }
-
-  bool get _isDirty =>
-      _titleController.text != _initialTitle ||
-      _targetUserId != _initialTargetUserId ||
-      _staleDays != _initialStaleDays;
-
-  void _submit() {
-    final title = _titleController.text.trim();
-    if (title.isEmpty) return;
-    Navigator.of(context).pop((
-      title: title,
-      body: '',
-      targetUserId: _targetUserId,
-      staleAfterDays: widget.includeStalenessPicker ? _staleDays : null,
-    ));
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = widget.l10n;
-    final tt = context.tt;
-    final bottom = MediaQuery.viewInsetsOf(context).bottom;
-    final scheme = Theme.of(context).colorScheme;
-
-    return TenturaSheetDismissGuard(
-      isDirty: _isDirty,
-      useRootNavigator: true,
-      child: Padding(
-        padding: EdgeInsets.only(
-          left: tt.screenHPadding,
-          right: tt.screenHPadding,
-          top: tt.sectionGap,
-          bottom: bottom + tt.sectionGap,
-        ),
-        child: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Text(
-                widget.dialogTitle,
-                style: Theme.of(context).textTheme.titleMedium,
-              ),
-              SizedBox(height: tt.rowGap),
-              TextField(
-                controller: _titleController,
-                decoration: InputDecoration(
-                  labelText: l10n.labelTitle,
-                  hintText: l10n.coordinationPromoteTitleHint,
-                ),
-                maxLines: 4,
-                autofocus: widget.messageBody.isEmpty,
-                onChanged: (_) => setState(() {}),
-              ),
-              SizedBox(height: tt.rowGap),
-              DropdownButtonFormField<String>(
-                key: ValueKey<String>(_targetUserId),
-                initialValue: _targetUserId,
-                decoration: InputDecoration(
-                  labelText: l10n.beaconRoomNeedInfoPickTarget,
-                ),
-                items: [
-                  for (final p in widget.admitted)
-                    DropdownMenuItem(
-                      value: p.userId,
-                      child: Text(widget.targetLabel(p)),
-                    ),
-                ],
-                onChanged: (v) =>
-                    setState(() => _targetUserId = v ?? _targetUserId),
-              ),
-              if (widget.includeStalenessPicker) ...[
-                SizedBox(height: tt.rowGap),
-                CoordinationStalenessPicker(
-                  l10n: l10n,
-                  selectedDays: _staleDays,
-                  onSelected: (days) => setState(() => _staleDays = days),
-                ),
-              ] else ...[
-                SizedBox(height: tt.rowGap),
-                Text(
-                  l10n.coordinationStalenessDefaultHint,
-                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: scheme.onSurfaceVariant,
-                  ),
-                ),
-              ],
-              SizedBox(height: tt.sectionGap),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  TextButton(
-                    onPressed: () => TenturaSheetDismissGuard.requestClose(
-                      context,
-                      isDirty: _isDirty,
-                      useRootNavigator: true,
-                    ),
-                    child: Text(
-                      MaterialLocalizations.of(context).cancelButtonLabel,
-                    ),
-                  ),
-                  FilledButton(
-                    onPressed: _submit,
-                    child: Text(
-                      MaterialLocalizations.of(context).okButtonLabel,
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
   }
 }
 

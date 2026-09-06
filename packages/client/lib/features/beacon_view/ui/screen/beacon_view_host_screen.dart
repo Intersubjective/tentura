@@ -7,6 +7,7 @@ import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/consts.dart';
 import 'package:tentura/features/beacon_threads/domain/entity/request_thread.dart';
 import 'package:tentura/features/beacon_threads/domain/use_case/beacon_threads_case.dart';
+import 'package:tentura/features/beacon_threads/ui/bloc/beacon_hierarchy_cubit.dart';
 import 'package:tentura/features/beacon_threads/ui/bloc/thread_host_cubit.dart';
 import 'package:tentura/features/beacon_threads/ui/bloc/threads_cubit.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_cubit.dart';
@@ -67,6 +68,13 @@ class BeaconViewHostScreen extends StatelessWidget implements AutoRouteWrapper {
           ),
           child: MultiBlocProvider(
             providers: [
+              BlocProvider(
+                create: (_) {
+                  final cubit = BeaconHierarchyCubit(beaconId: id);
+                  unawaited(cubit.loadParentReference());
+                  return cubit;
+                },
+              ),
               BlocProvider(
                 create: (_) {
                   final cubit = ThreadsCubit(beaconId: id);

@@ -95,9 +95,18 @@ class _ThreadDetailScreenState extends State<ThreadDetailScreen> {
     }
   }
 
+  bool _isLegacyThreadId() =>
+      widget.threadId.trim().isNotEmpty &&
+      widget.threadId != RequestThread.generalId;
+
   Future<void> _ensureSelection() async {
     if (_selectionStarted || !mounted) return;
     _selectionStarted = true;
+
+    if (_isLegacyThreadId()) {
+      setState(() => _selectedThread = null);
+      return;
+    }
 
     final threadsCubit = context.read<ThreadsCubit>();
     var threadsState = threadsCubit.state;
@@ -114,7 +123,7 @@ class _ThreadDetailScreenState extends State<ThreadDetailScreen> {
       return;
     }
 
-    await context.read<ThreadHostCubit>().select(row);
+    await context.read<ThreadHostCubit>().ensureGeneral(row);
     if (!mounted) return;
 
     final roomCubit = context.read<ThreadHostCubit>().roomCubit;
@@ -128,12 +137,13 @@ class _ThreadDetailScreenState extends State<ThreadDetailScreen> {
 
   RequestThread? _resolveAccessibleRow(ThreadsState state) {
     if (state.threads.isEmpty) return null;
+    if (_isLegacyThreadId()) return null;
     for (final thread in state.threads) {
       if (thread.threadId == widget.threadId) {
         return thread;
       }
     }
-    return state.firstAccessible;
+    return state.general;
   }
 
   Future<void> _closeThenPop() async {
@@ -157,10 +167,19 @@ class _ThreadDetailScreenState extends State<ThreadDetailScreen> {
       return;
     }
     unawaited(
-      context.router.replace(
-        ThreadDetailRoute(
-          threadId: item.id,
-        ),
+      _openGeneralFromLegacy(),
+    );
+  }
+
+  Future<void> _openGeneralFromLegacy() async {
+    final threadsState = context.read<ThreadsCubit>().state;
+    final row = threadsState.general;
+    if (row == null) return;
+    await context.read<ThreadHostCubit>().ensureGeneral(row);
+    if (!mounted) return;
+    await context.router.replace(
+      ThreadDetailRoute(
+        threadId: RequestThread.generalId,
       ),
     );
   }
@@ -187,6 +206,13 @@ class _ThreadDetailScreenState extends State<ThreadDetailScreen> {
 
         if (threadsState.threads.isEmpty) {
           return _AdmissionPlaceholder(beaconId: widget.beaconId);
+        }
+
+        if (_isLegacyThreadId()) {
+          return _LegacyThreadUnavailable(
+            beaconId: widget.beaconId,
+            onBack: () => unawaited(_closeThenPop()),
+          );
         }
 
         return BlocBuilder<ThreadHostCubit, ThreadHostState>(
@@ -313,6 +339,41 @@ class _AdmissionPlaceholder extends StatelessWidget {
           ),
         );
       },
+    );
+  }
+}
+
+class _LegacyThreadUnavailable extends StatelessWidget {
+  const _LegacyThreadUnavailable({
+    required this.beaconId,
+    required this.onBack,
+  });
+
+  final String beaconId;
+  final VoidCallback onBack;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = L10n.of(context)!;
+    final tt = context.tt;
+    return Scaffold(
+      appBar: TenturaTopBar.of(
+        context,
+        title: Text(l10n.beaconViewTitle),
+        leading: BackButton(onPressed: onBack),
+      ),
+      body: Center(
+        child: Padding(
+          padding: EdgeInsets.all(tt.screenHPadding),
+          child: Text(
+            l10n.beaconLegacyThreadUnavailable,
+            textAlign: TextAlign.center,
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+              color: Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
+          ),
+        ),
+      ),
     );
   }
 }

@@ -6,6 +6,8 @@ import 'package:auto_route/auto_route.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import 'package:tentura/app/router/root_router.dart';
+import 'package:tentura_root/domain/entity/beacon_creation_context.dart';
+
 import 'package:tentura/consts.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/features/beacon/ui/dialog/beacon_delete_dialog.dart';
@@ -29,6 +31,22 @@ Future<void> popCreateAndOpenLiveBeacon(
   required String beaconId,
 }) => router.popAndPush(BeaconViewRoute(id: beaconId));
 
+BeaconCreationContext? _childCreationContext({
+  required String parentBeaconId,
+  required String sourceMessageId,
+}) {
+  final parent = parentBeaconId.trim();
+  if (parent.isEmpty) return null;
+  final source = sourceMessageId.trim();
+  if (source.isNotEmpty) {
+    return BeaconCreationContextPromotedChild(
+      parentBeaconId: parent,
+      sourceMessageId: source,
+    );
+  }
+  return BeaconCreationContextChild(parentBeaconId: parent);
+}
+
 @RoutePage()
 class BeaconCreateScreen extends StatefulWidget implements AutoRouteWrapper {
   const BeaconCreateScreen({
@@ -36,6 +54,8 @@ class BeaconCreateScreen extends StatefulWidget implements AutoRouteWrapper {
     @QueryParam(kQueryBeaconEditId) this.editId = '',
     @QueryParam(kQueryBeaconCreateTab) this.initialTab = '',
     @QueryParam(kQueryBeaconForwardTo) this.forwardToUserId = '',
+    @QueryParam(kQueryBeaconParentId) this.parentBeaconId = '',
+    @QueryParam(kQueryBeaconSourceMessageId) this.sourceMessageId = '',
     super.key,
   });
 
@@ -52,6 +72,12 @@ class BeaconCreateScreen extends StatefulWidget implements AutoRouteWrapper {
   /// Optional profile-route recipient to preselect when Recipients is prepared.
   final String forwardToUserId;
 
+  /// Parent request when creating a nested child.
+  final String parentBeaconId;
+
+  /// General message to promote into a child request.
+  final String sourceMessageId;
+
   @override
   State<BeaconCreateScreen> createState() => _BeaconCreateScreenState();
 
@@ -65,6 +91,10 @@ class BeaconCreateScreen extends StatefulWidget implements AutoRouteWrapper {
         create: (_) => BeaconCreateCubit(
           draftBeaconIdToLoad: draftId.isEmpty ? null : draftId,
           editBeaconIdToLoad: editId.isEmpty ? null : editId,
+          childCreationContext: _childCreationContext(
+            parentBeaconId: parentBeaconId,
+            sourceMessageId: sourceMessageId,
+          ),
         ),
       ),
     ],

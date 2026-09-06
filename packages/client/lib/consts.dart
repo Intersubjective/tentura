@@ -79,6 +79,12 @@ const kBeaconCreateTabImage = 'image';
 /// Preselect a recipient when opening beacon create from a profile action.
 const kQueryBeaconForwardTo = 'forward_to';
 
+/// Parent request id when creating a nested child request.
+const kQueryBeaconParentId = 'parent_id';
+
+/// Source General message id when promoting a child request from chat.
+const kQueryBeaconSourceMessageId = 'source_message_id';
+
 /// Query param for opening the beacon edit screen for an open (published) beacon.
 const kQueryBeaconEditId = 'edit_id';
 
