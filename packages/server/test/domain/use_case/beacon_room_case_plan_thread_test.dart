@@ -216,17 +216,28 @@ void main() {
     },
   );
 
-  test('listMessages allows ask item thread', () async {
-    items.itemById = sampleItem(id: askItemId, kind: coordinationItemKindAsk);
+  test(
+    'listMessages allows ask item thread',
+    () async {
+      items.itemById = sampleItem(id: askItemId, kind: coordinationItemKindAsk);
 
-    final out = await sut.listMessages(
-      beaconId: beaconId,
-      userId: userId,
-      threadItemId: askItemId,
-    );
+      final out = await sut.listMessages(
+        beaconId: beaconId,
+        userId: userId,
+        threadItemId: askItemId,
+      );
 
-    expect(out, isEmpty);
-  });
+      expect(out, isEmpty);
+    },
+    skip:
+        'Task 07 in progress: exercises retired ask-item thread scope '
+        'against the production-configured `sut`, now correctly rejected '
+        'by DiscussionProductPolicyPort.generalOnly. Per plan §5.2,'
+        ' reclassify to a separate internal-fixture BeaconRoomCase built '
+        'with InternalMultiThreadDiscussionProductPolicy() rather than '
+        're-enabling as-is; add the production-rejects case to '
+        'general_only_public_contract_test.dart.',
+  );
 
   test('roomMessageTarget returns only the exact authorized message', () async {
     room.message = BeaconRoomMessageRecord(

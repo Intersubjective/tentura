@@ -155,6 +155,9 @@ final class BeaconRoomCase extends UseCaseBase {
     required String userId,
     required String threadItemId,
   }) async {
+    if (_discussionPolicy.generalOnly) {
+      return false;
+    }
     if (await _canUseRoom(beaconId: beaconId, userId: userId)) {
       return true;
     }

@@ -49,9 +49,11 @@ class FakeBeaconHierarchyRepository implements BeaconHierarchyRepositoryPort {
   }) =>
       throw UnimplementedError();
 
+  BeaconStatus statusOverride = BeaconStatus.open;
+
   @override
-  Future<BeaconStatus?> loadBeaconStatus(String beaconId) =>
-      throw UnimplementedError();
+  Future<BeaconStatus?> loadBeaconStatus(String beaconId) async =>
+      statusOverride;
 
   @override
   Future<String?> loadImmediateParentBeaconId(String childBeaconId) =>
