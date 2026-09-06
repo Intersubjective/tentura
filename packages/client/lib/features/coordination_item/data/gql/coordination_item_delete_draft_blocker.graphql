@@ -1,3 +1,0 @@
-mutation CoordinationItemDeleteDraftBlocker($itemId: String!) {
-  deleteDraftBlocker(itemId: $itemId)
-}
