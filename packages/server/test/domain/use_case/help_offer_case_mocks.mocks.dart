@@ -1770,6 +1770,16 @@ class MockBeaconRoomRepositoryPort extends _i1.Mock
           as _i3.Future<_i22.BeaconRoomMessageRecord?>);
 
   @override
+  _i3.Future<_i22.BeaconRoomMessageRecord?> getRoomMessageByLinkedPollingId(
+    String? pollingId,
+  ) =>
+      (super.noSuchMethod(
+            Invocation.method(#getRoomMessageByLinkedPollingId, [pollingId]),
+            returnValue: _i3.Future<_i22.BeaconRoomMessageRecord?>.value(),
+          )
+          as _i3.Future<_i22.BeaconRoomMessageRecord?>);
+
+  @override
   _i3.Future<Map<String, String?>> helpTypesByUserId(String? beaconId) =>
       (super.noSuchMethod(
             Invocation.method(#helpTypesByUserId, [beaconId]),
