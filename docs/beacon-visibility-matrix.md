@@ -24,7 +24,7 @@
 
 ## Content-read predicate
 
-`beacon_can_read_content(beacon_id, viewer_id)` — the single enforcement point used by Hasura `beacon` select permissions and the V2 access guard.
+`beacon_can_read_content(beacon_id, viewer_id)` — the canonical enforcement point for **normal beacon content**, Hasura `beacon` select permissions (unchanged by nesting), and mutation gates such as forward, help offer, invitation, and fork.
 
 | Condition | Content readable? |
 |-----------|:-----------------:|
@@ -39,6 +39,24 @@
 | Vote-mutual or one-way friend of author (trust only) | ❌ |
 | MR-connected (but not otherwise involved) | ❌ |
 | Bridge / indirect friend | ❌ |
+| **Parent-only admittee** viewing **child** content | ❌ |
+| **Child-only admittee** viewing **parent** content (no other path) | ❌ |
+
+## Linked-detail predicate (hierarchy one-edge reads)
+
+`beacon_can_read_linked_detail(beacon_id, viewer_id)` — a **narrower** predicate for child-card, child-detail summary, and parent-reference projections only. Implemented in migration `m0155` and `BeaconVisibility.canReadLinkedDetail`. **Does not modify** `beacon_can_read_content`.
+
+| Condition | Linked detail readable? |
+|-----------|:------------------------:|
+| `can_read_content` already true | ✅ |
+| Effective admission to **immediate published non-deleted parent** (viewing child) | ✅ |
+| Effective admission to **one immediate published non-deleted child** (viewing parent) | ✅ |
+| Parent-only admittee needs child **discussion** / General messages | ❌ (use child admission) |
+| Hierarchy-only viewer may **forward** / **offer help** / **invite** / **fork** linked beacon | ❌ (`canReadContent` unchanged) |
+| **Deleted child** card for admitted parent viewer (not blocked by child owner) | Tombstone via `canReadTombstone`, not normal deleted content |
+| Ancestor **hierarchy notice** payload to child-only participant | Structural ids only — no private ancestor title/body |
+
+Ordering: block restriction → draft/deleted restriction → ordinary `can_read_content` → one-edge parent/child admission on the adjacent node only (non-recursive).
 
 ---
 
@@ -73,6 +91,8 @@ The three profile surfaces + "open detail" + "can forward" for each relationship
 | **Withdrawn help offerer** | — | — | ❌ | ❌ | ❌ |
 | **Steward** | If P = author | If you forwarded to P | If both offered | ✅ | ✅ open-family only |
 | **Room-admitted participant** (`room_access = 3`) | If P = author | If you forwarded to P | If both offered | ✅ | ✅ open-family only |
+| **Parent admittee, child not admitted** | If P = parent author | If you forwarded to child | — | ❌ on child content; ✅ child **card** via linked detail | ❌ on child |
+| **Child admittee, parent not admitted** | — | — | — | ✅ on child; ❌ on parent content unless one-edge linked detail | ✅ on child only |
 | **Room participant, not admitted** | — | — | — | ❌ | ❌ |
 | **Invite not yet accepted** | ❌ | ❌ | ❌ | Preview only (`canPreviewInvite`) | — |
 | **After invite accepted** (creates forward edge) | — | — | — | ✅ (now a recipient) | ✅ open-family only |
@@ -142,8 +162,10 @@ Per-candidate **selectability** (`ForwardCandidate.canForwardTo`):
 | What | File |
 |------|------|
 | Content-read predicate (Dart) | `packages/server/lib/domain/beacon_visibility.dart` |
+| Linked-detail predicate (Dart) | `packages/server/lib/domain/beacon_visibility.dart` (`canReadLinkedDetail`) |
 | Content-read predicate (SQL) | `packages/server/lib/data/database/migration/m0098.dart`, `m0123.dart` |
-| Hasura computed fields wiring | `packages/server/lib/data/database/migration/m0099.dart` |
+| Linked-detail predicate (SQL) | `packages/server/lib/data/database/migration/m0155.dart` |
+| Hasura computed fields wiring | `packages/server/lib/data/database/migration/m0099.dart`, `m0155.dart` (`can_read_linked_detail`, `effective_admission`) |
 | Product summary | `CONTEXT.md` § "Beacon visibility & sharing" |
 | ADR | `docs/adr/0008-beacon-visibility-and-invite-sharing.md` |
 | Profile involved-requests query | `packages/client/lib/features/beacon/data/gql/beacons_involved_with_author.graphql` |

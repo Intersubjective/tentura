@@ -48,3 +48,9 @@ This ADR reverses that: beacon and involvement reads become **relationship-scope
 **Decision:** Remove vote-mutual friendship from `beacon_can_read_content` and `beacon_can_read_involvement` (migration `m0123`). `user_is_mutual_friend` / `is_mutual_friend` remain for profile labels and the mutual-trust bridge query only.
 
 **Consequences:** Mutual friends can open a request only through an involvement path (forward recipient, help offerer, room participant, invite accept, etc.). Trust still affects MeritRank forwarding suggestions and network surfaces.
+
+## Related: beacon nesting (2026-09-06)
+
+This ADR governs **relationship-scoped read access** to beacon content and involvement. It does **not** define parent/child request nesting.
+
+**Beacon nesting** (implemented separately; `parent_beacon_id`, nested-requests plan) is a distinct mechanism from ADR 0004 **fork lineage** (`lineage_parent_beacon_id`, `beaconFork`, `beaconLineageForwardSuggestions`). Lineage records “created from a previous beacon” for one user's local memory; nesting records an immutable parent reference for navigation and lifecycle notices. A child may have both a nesting parent and separate lineage pointers after a fork. Hierarchy one-edge reads use `beacon_can_read_linked_detail` / `canReadLinkedDetail` and intentionally do **not** widen `beacon_can_read_content` defined in this ADR.
