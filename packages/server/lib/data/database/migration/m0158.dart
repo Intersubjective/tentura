@@ -77,10 +77,16 @@ BEGIN
     AND m.id NOT IN (SELECT id FROM m0158_doomed_messages);
 
   -- §5.3 step 4 — remove obsolete General anchors; clear retired links on survivors.
+  -- Anchor rows are pure system notifies (empty body, e.g. from
+  -- CoordinationItemRepository._emitCreatedRoomNotify's standalone/notify
+  -- branches); a non-empty body means a real user message merely carries a
+  -- footer/link to the retired item, and must survive with only the link
+  -- cleared below.
   DELETE FROM public.beacon_room_message m
   WHERE m.thread_item_id IS NULL
     AND m.linked_item_id IN (SELECT id FROM m0158_doomed_items)
-    AND m.linked_event_kind IS NOT NULL;
+    AND m.linked_event_kind IS NOT NULL
+    AND m.body = '';
 
   UPDATE public.beacon_room_message m
   SET
