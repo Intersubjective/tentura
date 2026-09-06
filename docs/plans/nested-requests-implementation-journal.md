@@ -945,3 +945,35 @@ blocker now.
 
 Task 06 is ACCEPTED. Proceeding to Task 07 (enforce General-only public
 product).
+
+### Task 07 — worker checkpoint (2026-09-06)
+
+**Commits (this worker):**
+- `1ddc79f26` — wire General-only + lifecycle write guards; split production/internal thread tests; `general_only_public_contract_test.dart` + `general_only_boundary_inventory_test.dart`; plan-only remind rules
+- `a47e38033` — `m0156` DB triggers/functions; remove 25 retired GraphQL mutation fields; Hasura poll/state filters; disable responsibility projection
+- `3250df6c9` — fix `getRoomMessageByLinkedPollingId` nullable Drift query; `retired_client_graphql_documents_test.dart`
+- (client commit hash pending final `git log`)
+
+**Guards wired:**
+- `BeaconRoomCase`: `_rejectDisabledDiscussionScope` on list/mark/create/read paths; `_guardMessageMutation` on edit/delete/reaction/attachment/semantic-done; `_rejectOrdinaryUserWritesForLifecycle` on `createMessage`/`createPoll`; `listThreads` post-filters to General when `generalOnly`
+- `PollingCase.create`: room-backed poll scope + lifecycle guard via linked room message
+- Lifecycle boundary: ordinary user writes throw `BeaconCreateException(description: 'Discussion is read-only for this request')`; internal system-notice insertion bypasses app-level guards (DB trigger allows `system_message_kind IS NOT NULL` or null `author_id`)
+
+**Regeneration (verified live):**
+```bash
+dart run bin/utils/run_migrations_once.dart          # applied m0156
+./scripts/run-server-local.sh                        # server :2080
+./scripts/hasura_apply_metadata.sh                   # is_consistent: true
+docker compose run --rm schema_fetcher                 # updated schema.graphql
+cd packages/client && dart run build_runner build -d   # Built in ~50s; 3974 outputs
+```
+
+**Tests:**
+- `cd packages/server && dart test --exclude-tags pg` → 1651 passed
+- `./scripts/check-custom-lints.sh packages/server` → 0 (baseline 0)
+- `./scripts/check-custom-lints.sh packages/client` → 32 (baseline 32)
+- `cd packages/client && flutter test --dart-define=ENV=test` → 2621 passed, 33 skipped
+
+**Retired client documents:** 25 `.graphql` files removed under `coordination_item/data/gql/`; architecture test `retired_client_graphql_documents_test.dart` asserts absence.
+
+**Note:** Retired coordination case methods on client remain as `UnsupportedError` stubs until Task 12 removes UI surfaces. PG suite for touched repos not re-run in this checkpoint (infra up; recommend `beacon_threads_repository_pg_test.dart` before manager acceptance).
