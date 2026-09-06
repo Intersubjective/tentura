@@ -1,0 +1,1553 @@
+{
+  "version": 1,
+  "planRevision": 2,
+  "baselineCommit": "104786666",
+  "generatedAt": "2026-09-06",
+  "entryCount": 193,
+  "entries": [
+    {
+      "path": "docs/plans/nested-requests-boundary-inventory.json",
+      "symbol": "manifest",
+      "surface": "meta",
+      "scopeInput": "task-00",
+      "decision": "baseline-inventory",
+      "test": "ST/support/beacon_hierarchy_fixture_pg_test.dart"
+    },
+    {
+      "path": "S/api/controllers/graphql/mutation/mutation_beacon_room.dart",
+      "symbol": "roomMessageCreate",
+      "surface": "graphql-mutation",
+      "scopeInput": "threadItemId nullable",
+      "decision": "general-only-plus-lifecycle-guard",
+      "test": "ST/api/general_only_public_contract_test.dart"
+    },
+    {
+      "path": "S/api/controllers/graphql/mutation/mutation_beacon_room.dart",
+      "symbol": "roomMessageAttachmentAdd",
+      "surface": "graphql-mutation",
+      "scopeInput": "messageId",
+      "decision": "general-only-plus-lifecycle-guard",
+      "test": "ST/api/general_only_public_contract_test.dart"
+    },
+    {
+      "path": "S/api/controllers/graphql/mutation/mutation_beacon_room.dart",
+      "symbol": "roomMessageEdit",
+      "surface": "graphql-mutation",
+      "scopeInput": "messageId",
+      "decision": "general-only-plus-lifecycle-guard",
+      "test": "ST/api/general_only_public_contract_test.dart"
+    },
+    {
+      "path": "S/api/controllers/graphql/mutation/mutation_beacon_room.dart",
+      "symbol": "roomMessageDelete",
+      "surface": "graphql-mutation",
+      "scopeInput": "messageId",
+      "decision": "general-only-plus-lifecycle-guard",
+      "test": "ST/api/general_only_public_contract_test.dart"
+    },
+    {
+      "path": "S/api/controllers/graphql/mutation/mutation_beacon_room.dart",
+      "symbol": "roomMessageReactionToggle",
+      "surface": "graphql-mutation",
+      "scopeInput": "messageId",
+      "decision": "general-only-plus-lifecycle-guard",
+      "test": "ST/api/general_only_public_contract_test.dart"
+    },
+    {
+      "path": "S/api/controllers/graphql/mutation/mutation_beacon_room.dart",
+      "symbol": "roomMessageMarkSemanticDone",
+      "surface": "graphql-mutation",
+      "scopeInput": "messageId",
+      "decision": "general-only-plus-lifecycle-guard",
+      "test": "ST/api/general_only_public_contract_test.dart"
+    },
+    {
+      "path": "S/api/controllers/graphql/mutation/mutation_beacon_room.dart",
+      "symbol": "roomPollCreate",
+      "surface": "graphql-mutation",
+      "scopeInput": "threadItemId nullable",
+      "decision": "general-only-plus-lifecycle-guard",
+      "test": "ST/api/general_only_public_contract_test.dart"
+    },
+    {
+      "path": "S/api/controllers/graphql/mutation/mutation_beacon_room.dart",
+      "symbol": "markThreadSeen",
+      "surface": "graphql-mutation",
+      "scopeInput": "threadId/threadItemId",
+      "decision": "general-only-plus-lifecycle-guard",
+      "test": "ST/api/general_only_public_contract_test.dart"
+    },
+    {
+      "path": "S/api/controllers/graphql/mutation/mutation_beacon_room.dart",
+      "symbol": "participantOfferHelp",
+      "surface": "graphql-mutation",
+      "scopeInput": "beaconId",
+      "decision": "general-only-plus-lifecycle-guard",
+      "test": "ST/api/general_only_public_contract_test.dart"
+    },
+    {
+      "path": "S/api/controllers/graphql/mutation/mutation_beacon_room.dart",
+      "symbol": "beaconRoomAdmit",
+      "surface": "graphql-mutation",
+      "scopeInput": "beaconId",
+      "decision": "general-only-plus-lifecycle-guard",
+      "test": "ST/api/general_only_public_contract_test.dart"
+    },
+    {
+      "path": "S/api/controllers/graphql/mutation/mutation_beacon_room.dart",
+      "symbol": "beaconStewardPromote",
+      "surface": "graphql-mutation",
+      "scopeInput": "beaconId",
+      "decision": "general-only-plus-lifecycle-guard",
+      "test": "ST/api/general_only_public_contract_test.dart"
+    },
+    {
+      "path": "S/api/controllers/graphql/query/query_beacon_room.dart",
+      "symbol": "roomMessageList",
+      "surface": "graphql-query",
+      "scopeInput": "threadItemId nullable",
+      "decision": "general-only-thread-scope",
+      "test": "ST/api/general_only_public_contract_test.dart"
+    },
+    {
+      "path": "S/api/controllers/graphql/query/query_beacon_room.dart",
+      "symbol": "roomMessageTarget",
+      "surface": "graphql-query",
+      "scopeInput": "messageId",
+      "decision": "general-only-thread-scope",
+      "test": "ST/api/general_only_public_contract_test.dart"
+    },
+    {
+      "path": "S/api/controllers/graphql/query/query_beacon_room.dart",
+      "symbol": "beaconThreads",
+      "surface": "graphql-query",
+      "scopeInput": "beaconId",
+      "decision": "general-only-thread-scope",
+      "test": "ST/api/general_only_public_contract_test.dart"
+    },
+    {
+      "path": "S/api/controllers/graphql/query/query_beacon_room.dart",
+      "symbol": "beaconParticipantList",
+      "surface": "graphql-query",
+      "scopeInput": "beaconId",
+      "decision": "general-only-thread-scope",
+      "test": "ST/api/general_only_public_contract_test.dart"
+    },
+    {
+      "path": "S/api/controllers/graphql/query/query_beacon_room.dart",
+      "symbol": "beaconRoomStateGet",
+      "surface": "graphql-query",
+      "scopeInput": "beaconId",
+      "decision": "general-only-thread-scope",
+      "test": "ST/api/general_only_public_contract_test.dart"
+    },
+    {
+      "path": "S/api/controllers/graphql/query/query_beacon_room.dart",
+      "symbol": "beaconActivityEventList",
+      "surface": "graphql-query",
+      "scopeInput": "beaconId",
+      "decision": "general-only-thread-scope",
+      "test": "ST/api/general_only_public_contract_test.dart"
+    },
+    {
+      "path": "S/api/controllers/graphql/query/query_beacon_room.dart",
+      "symbol": "inboxRoomContextBatch",
+      "surface": "graphql-query",
+      "scopeInput": "beaconIds",
+      "decision": "general-only-thread-scope",
+      "test": "ST/api/general_only_public_contract_test.dart"
+    },
+    {
+      "path": "S/api/controllers/graphql/query/query_beacon_room.dart",
+      "symbol": "myWorkLastActivityEvent",
+      "surface": "graphql-query",
+      "scopeInput": "beaconIds",
+      "decision": "general-only-thread-scope",
+      "test": "ST/api/general_only_public_contract_test.dart"
+    },
+    {
+      "path": "S/api/controllers/graphql/mutation/mutation_coordination_item.dart",
+      "symbol": "markBlocker",
+      "surface": "graphql-mutation",
+      "scopeInput": "coordination kind ask/blocker/promise",
+      "decision": "retire-public-field",
+      "test": "ST/api/general_only_public_contract_test.dart"
+    },
+    {
+      "path": "S/api/controllers/graphql/mutation/mutation_coordination_item.dart",
+      "symbol": "resolveBlocker",
+      "surface": "graphql-mutation",
+      "scopeInput": "coordination kind ask/blocker/promise",
+      "decision": "retire-public-field",
+      "test": "ST/api/general_only_public_contract_test.dart"
+    },
+    {
+      "path": "S/api/controllers/graphql/mutation/mutation_coordination_item.dart",
+      "symbol": "cancelBlocker",
+      "surface": "graphql-mutation",
+      "scopeInput": "coordination kind ask/blocker/promise",
+      "decision": "retire-public-field",
+      "test": "ST/api/general_only_public_contract_test.dart"
+    },
+    {
+      "path": "S/api/controllers/graphql/mutation/mutation_coordination_item.dart",
+      "symbol": "markAsk",
+      "surface": "graphql-mutation",
+      "scopeInput": "coordination kind ask/blocker/promise",
+      "decision": "retire-public-field",
+      "test": "ST/api/general_only_public_contract_test.dart"
+    },
+    {
+      "path": "S/api/controllers/graphql/mutation/mutation_coordination_item.dart",
+      "symbol": "createPromise",
+      "surface": "graphql-mutation",
+      "scopeInput": "coordination kind ask/blocker/promise",
+      "decision": "retire-public-field",
+      "test": "ST/api/general_only_public_contract_test.dart"
+    },
+    {
+      "path": "S/api/controllers/graphql/mutation/mutation_coordination_item.dart",
+      "symbol": "createDraftPromise",
+      "surface": "graphql-mutation",
+      "scopeInput": "coordination kind ask/blocker/promise",
+      "decision": "retire-public-field",
+      "test": "ST/api/general_only_public_contract_test.dart"
+    },
+    {
+      "path": "S/api/controllers/graphql/mutation/mutation_coordination_item.dart",
+      "symbol": "publishPromise",
+      "surface": "graphql-mutation",
+      "scopeInput": "coordination kind ask/blocker/promise",
+      "decision": "retire-public-field",
+      "test": "ST/api/general_only_public_contract_test.dart"
+    },
+    {
+      "path": "S/api/controllers/graphql/mutation/mutation_coordination_item.dart",
+      "symbol": "updateDraftPromise",
+      "surface": "graphql-mutation",
+      "scopeInput": "coordination kind ask/blocker/promise",
+      "decision": "retire-public-field",
+      "test": "ST/api/general_only_public_contract_test.dart"
+    },
+    {
+      "path": "S/api/controllers/graphql/mutation/mutation_coordination_item.dart",
+      "symbol": "deleteDraftPromise",
+      "surface": "graphql-mutation",
+      "scopeInput": "coordination kind ask/blocker/promise",
+      "decision": "retire-public-field",
+      "test": "ST/api/general_only_public_contract_test.dart"
+    },
+    {
+      "path": "S/api/controllers/graphql/mutation/mutation_coordination_item.dart",
+      "symbol": "acceptPromise",
+      "surface": "graphql-mutation",
+      "scopeInput": "coordination kind ask/blocker/promise",
+      "decision": "retire-public-field",
+      "test": "ST/api/general_only_public_contract_test.dart"
+    },
+    {
+      "path": "S/api/controllers/graphql/mutation/mutation_coordination_item.dart",
+      "symbol": "resolvePromise",
+      "surface": "graphql-mutation",
+      "scopeInput": "coordination kind ask/blocker/promise",
+      "decision": "retire-public-field",
+      "test": "ST/api/general_only_public_contract_test.dart"
+    },
+    {
+      "path": "S/api/controllers/graphql/mutation/mutation_coordination_item.dart",
+      "symbol": "cancelPromise",
+      "surface": "graphql-mutation",
+      "scopeInput": "coordination kind ask/blocker/promise",
+      "decision": "retire-public-field",
+      "test": "ST/api/general_only_public_contract_test.dart"
+    },
+    {
+      "path": "S/api/controllers/graphql/mutation/mutation_coordination_item.dart",
+      "symbol": "redirectPromise",
+      "surface": "graphql-mutation",
+      "scopeInput": "coordination kind ask/blocker/promise",
+      "decision": "retire-public-field",
+      "test": "ST/api/general_only_public_contract_test.dart"
+    },
+    {
+      "path": "S/api/controllers/graphql/mutation/mutation_coordination_item.dart",
+      "symbol": "createDraftAsk",
+      "surface": "graphql-mutation",
+      "scopeInput": "coordination kind ask/blocker/promise",
+      "decision": "retire-public-field",
+      "test": "ST/api/general_only_public_contract_test.dart"
+    },
+    {
+      "path": "S/api/controllers/graphql/mutation/mutation_coordination_item.dart",
+      "symbol": "publishAsk",
+      "surface": "graphql-mutation",
+      "scopeInput": "coordination kind ask/blocker/promise",
+      "decision": "retire-public-field",
+      "test": "ST/api/general_only_public_contract_test.dart"
+    },
+    {
+      "path": "S/api/controllers/graphql/mutation/mutation_coordination_item.dart",
+      "symbol": "updateDraftAsk",
+      "surface": "graphql-mutation",
+      "scopeInput": "coordination kind ask/blocker/promise",
+      "decision": "retire-public-field",
+      "test": "ST/api/general_only_public_contract_test.dart"
+    },
+    {
+      "path": "S/api/controllers/graphql/mutation/mutation_coordination_item.dart",
+      "symbol": "deleteDraftAsk",
+      "surface": "graphql-mutation",
+      "scopeInput": "coordination kind ask/blocker/promise",
+      "decision": "retire-public-field",
+      "test": "ST/api/general_only_public_contract_test.dart"
+    },
+    {
+      "path": "S/api/controllers/graphql/mutation/mutation_coordination_item.dart",
+      "symbol": "createDraftBlocker",
+      "surface": "graphql-mutation",
+      "scopeInput": "coordination kind ask/blocker/promise",
+      "decision": "retire-public-field",
+      "test": "ST/api/general_only_public_contract_test.dart"
+    },
+    {
+      "path": "S/api/controllers/graphql/mutation/mutation_coordination_item.dart",
+      "symbol": "publishBlocker",
+      "surface": "graphql-mutation",
+      "scopeInput": "coordination kind ask/blocker/promise",
+      "decision": "retire-public-field",
+      "test": "ST/api/general_only_public_contract_test.dart"
+    },
+    {
+      "path": "S/api/controllers/graphql/mutation/mutation_coordination_item.dart",
+      "symbol": "updateDraftBlocker",
+      "surface": "graphql-mutation",
+      "scopeInput": "coordination kind ask/blocker/promise",
+      "decision": "retire-public-field",
+      "test": "ST/api/general_only_public_contract_test.dart"
+    },
+    {
+      "path": "S/api/controllers/graphql/mutation/mutation_coordination_item.dart",
+      "symbol": "deleteDraftBlocker",
+      "surface": "graphql-mutation",
+      "scopeInput": "coordination kind ask/blocker/promise",
+      "decision": "retire-public-field",
+      "test": "ST/api/general_only_public_contract_test.dart"
+    },
+    {
+      "path": "S/api/controllers/graphql/mutation/mutation_coordination_item.dart",
+      "symbol": "acceptAsk",
+      "surface": "graphql-mutation",
+      "scopeInput": "coordination kind ask/blocker/promise",
+      "decision": "retire-public-field",
+      "test": "ST/api/general_only_public_contract_test.dart"
+    },
+    {
+      "path": "S/api/controllers/graphql/mutation/mutation_coordination_item.dart",
+      "symbol": "resolveAsk",
+      "surface": "graphql-mutation",
+      "scopeInput": "coordination kind ask/blocker/promise",
+      "decision": "retire-public-field",
+      "test": "ST/api/general_only_public_contract_test.dart"
+    },
+    {
+      "path": "S/api/controllers/graphql/mutation/mutation_coordination_item.dart",
+      "symbol": "cancelAsk",
+      "surface": "graphql-mutation",
+      "scopeInput": "coordination kind ask/blocker/promise",
+      "decision": "retire-public-field",
+      "test": "ST/api/general_only_public_contract_test.dart"
+    },
+    {
+      "path": "S/api/controllers/graphql/mutation/mutation_coordination_item.dart",
+      "symbol": "redirectAsk",
+      "surface": "graphql-mutation",
+      "scopeInput": "coordination kind ask/blocker/promise",
+      "decision": "retire-public-field",
+      "test": "ST/api/general_only_public_contract_test.dart"
+    },
+    {
+      "path": "S/api/controllers/graphql/mutation/mutation_coordination_item.dart",
+      "symbol": "updateCoordinationPlan",
+      "surface": "graphql-mutation",
+      "scopeInput": "plan-only where applicable",
+      "decision": "retain-audit-kind-gate",
+      "test": "ST/api/general_only_public_contract_test.dart"
+    },
+    {
+      "path": "S/api/controllers/graphql/mutation/mutation_coordination_item.dart",
+      "symbol": "addPlanStep",
+      "surface": "graphql-mutation",
+      "scopeInput": "plan-only where applicable",
+      "decision": "retain-audit-kind-gate",
+      "test": "ST/api/general_only_public_contract_test.dart"
+    },
+    {
+      "path": "S/api/controllers/graphql/mutation/mutation_coordination_item.dart",
+      "symbol": "resolvePlanStep",
+      "surface": "graphql-mutation",
+      "scopeInput": "plan-only where applicable",
+      "decision": "retain-audit-kind-gate",
+      "test": "ST/api/general_only_public_contract_test.dart"
+    },
+    {
+      "path": "S/api/controllers/graphql/mutation/mutation_coordination_item.dart",
+      "symbol": "updateCoordinationItem",
+      "surface": "graphql-mutation",
+      "scopeInput": "plan-only where applicable",
+      "decision": "retain-audit-kind-gate",
+      "test": "ST/api/general_only_public_contract_test.dart"
+    },
+    {
+      "path": "S/api/controllers/graphql/mutation/mutation_coordination_item.dart",
+      "symbol": "remindCoordinationItem",
+      "surface": "graphql-mutation",
+      "scopeInput": "plan-only where applicable",
+      "decision": "retain-audit-kind-gate",
+      "test": "ST/api/general_only_public_contract_test.dart"
+    },
+    {
+      "path": "S/api/controllers/graphql/mutation/mutation_coordination_item.dart",
+      "symbol": "markBeaconItemsSeen",
+      "surface": "graphql-mutation",
+      "scopeInput": "plan-only where applicable",
+      "decision": "retain-audit-kind-gate",
+      "test": "ST/api/general_only_public_contract_test.dart"
+    },
+    {
+      "path": "S/api/controllers/graphql/mutation/mutation_polling.dart",
+      "symbol": "pollingAct",
+      "surface": "graphql-mutation",
+      "scopeInput": "pollingId resolves owner message",
+      "decision": "general-plus-admission",
+      "test": "ST/api/general_only_public_contract_test.dart"
+    },
+    {
+      "path": "S/domain/use_case/polling_case.dart",
+      "symbol": "create",
+      "surface": "domain-mutation",
+      "scopeInput": "pollingId",
+      "decision": "general-plus-admission",
+      "test": "ST/api/general_only_public_contract_test.dart"
+    },
+    {
+      "path": "S/api/controllers/graphql/mutation/mutation_fact_card.dart",
+      "symbol": "beaconFactCardPin",
+      "surface": "graphql-mutation",
+      "scopeInput": "sourceMessageId optional",
+      "decision": "general-source-authorization",
+      "test": "ST/api/general_only_public_contract_test.dart"
+    },
+    {
+      "path": "S/api/controllers/graphql/mutation/mutation_fact_card.dart",
+      "symbol": "beaconFactCardCorrect",
+      "surface": "graphql-mutation",
+      "scopeInput": "sourceMessageId optional",
+      "decision": "general-source-authorization",
+      "test": "ST/api/general_only_public_contract_test.dart"
+    },
+    {
+      "path": "S/api/controllers/graphql/mutation/mutation_fact_card.dart",
+      "symbol": "beaconFactCardRemove",
+      "surface": "graphql-mutation",
+      "scopeInput": "sourceMessageId optional",
+      "decision": "general-source-authorization",
+      "test": "ST/api/general_only_public_contract_test.dart"
+    },
+    {
+      "path": "S/api/controllers/graphql/mutation/mutation_fact_card.dart",
+      "symbol": "beaconFactCardSetVisibility",
+      "surface": "graphql-mutation",
+      "scopeInput": "sourceMessageId optional",
+      "decision": "general-source-authorization",
+      "test": "ST/api/general_only_public_contract_test.dart"
+    },
+    {
+      "path": "S/api/controllers/graphql/query/query_fact_card.dart",
+      "symbol": "beaconFactCardList",
+      "surface": "graphql-query",
+      "scopeInput": "beaconId",
+      "decision": "existing-fact-policy",
+      "test": "ST/api/general_only_public_contract_test.dart"
+    },
+    {
+      "path": "S/api/controllers/room_attachment_download_controller.dart",
+      "symbol": "download",
+      "surface": "http-get",
+      "scopeInput": "messageId+attachment",
+      "decision": "resolve-message-general-access",
+      "test": "ST/api/general_only_public_contract_test.dart"
+    },
+    {
+      "path": "S/domain/use_case/beacon_room_case.dart",
+      "symbol": "downloadAttachment",
+      "surface": "domain-read",
+      "scopeInput": "messageId",
+      "decision": "resolve-message-general-access",
+      "test": "ST/api/general_only_public_contract_test.dart"
+    },
+    {
+      "path": "S/domain/use_case/beacon_room_case.dart",
+      "symbol": "listThreads",
+      "surface": "domain",
+      "scopeInput": "threadItemId/threadId",
+      "decision": "general-only-plus-lifecycle-guard",
+      "test": "ST/domain/use_case/beacon_threads_case_test.dart"
+    },
+    {
+      "path": "S/domain/use_case/beacon_room_case.dart",
+      "symbol": "listMessages",
+      "surface": "domain",
+      "scopeInput": "threadItemId/threadId",
+      "decision": "general-only-plus-lifecycle-guard",
+      "test": "ST/domain/use_case/beacon_threads_case_test.dart"
+    },
+    {
+      "path": "S/domain/use_case/beacon_room_case.dart",
+      "symbol": "createMessage",
+      "surface": "domain",
+      "scopeInput": "threadItemId/threadId",
+      "decision": "general-only-plus-lifecycle-guard",
+      "test": "ST/domain/use_case/beacon_threads_case_test.dart"
+    },
+    {
+      "path": "S/domain/use_case/beacon_room_case.dart",
+      "symbol": "editMessage",
+      "surface": "domain",
+      "scopeInput": "threadItemId/threadId",
+      "decision": "general-only-plus-lifecycle-guard",
+      "test": "ST/domain/use_case/beacon_threads_case_test.dart"
+    },
+    {
+      "path": "S/domain/use_case/beacon_room_case.dart",
+      "symbol": "deleteMessage",
+      "surface": "domain",
+      "scopeInput": "threadItemId/threadId",
+      "decision": "general-only-plus-lifecycle-guard",
+      "test": "ST/domain/use_case/beacon_threads_case_test.dart"
+    },
+    {
+      "path": "S/domain/use_case/beacon_room_case.dart",
+      "symbol": "reactionToggle",
+      "surface": "domain",
+      "scopeInput": "threadItemId/threadId",
+      "decision": "general-only-plus-lifecycle-guard",
+      "test": "ST/domain/use_case/beacon_threads_case_test.dart"
+    },
+    {
+      "path": "S/domain/use_case/beacon_room_case.dart",
+      "symbol": "addMessageAttachment",
+      "surface": "domain",
+      "scopeInput": "threadItemId/threadId",
+      "decision": "general-only-plus-lifecycle-guard",
+      "test": "ST/domain/use_case/beacon_threads_case_test.dart"
+    },
+    {
+      "path": "S/domain/use_case/beacon_room_case.dart",
+      "symbol": "createPoll",
+      "surface": "domain",
+      "scopeInput": "threadItemId/threadId",
+      "decision": "general-only-plus-lifecycle-guard",
+      "test": "ST/domain/use_case/beacon_threads_case_test.dart"
+    },
+    {
+      "path": "S/domain/use_case/beacon_room_case.dart",
+      "symbol": "markThreadSeen",
+      "surface": "domain",
+      "scopeInput": "threadItemId/threadId",
+      "decision": "general-only-plus-lifecycle-guard",
+      "test": "ST/domain/use_case/beacon_threads_case_test.dart"
+    },
+    {
+      "path": "S/domain/use_case/beacon_room_case.dart",
+      "symbol": "markBeaconRoomSeen",
+      "surface": "domain",
+      "scopeInput": "threadItemId/threadId",
+      "decision": "general-only-plus-lifecycle-guard",
+      "test": "ST/domain/use_case/beacon_threads_case_test.dart"
+    },
+    {
+      "path": "S/domain/use_case/beacon_room_case.dart",
+      "symbol": "roomMessageTarget",
+      "surface": "domain",
+      "scopeInput": "threadItemId/threadId",
+      "decision": "general-only-plus-lifecycle-guard",
+      "test": "ST/domain/use_case/beacon_threads_case_test.dart"
+    },
+    {
+      "path": "S/domain/use_case/beacon_room_case.dart",
+      "symbol": "roomMessageMarkSemanticDone",
+      "surface": "domain",
+      "scopeInput": "threadItemId/threadId",
+      "decision": "general-only-plus-lifecycle-guard",
+      "test": "ST/domain/use_case/beacon_threads_case_test.dart"
+    },
+    {
+      "path": "S/domain/use_case/beacon_room_case.dart",
+      "symbol": "_canUseRoom",
+      "surface": "domain-auth",
+      "scopeInput": "beaconId",
+      "decision": "author-steward-admitted-only",
+      "test": "ST/domain/use_case/beacon_threads_case_test.dart"
+    },
+    {
+      "path": "S/domain/use_case/beacon_room_case.dart",
+      "symbol": "_canAccessThread",
+      "surface": "domain-auth",
+      "scopeInput": "threadItemId",
+      "decision": "general-or-item-participant",
+      "test": "ST/domain/use_case/beacon_threads_case_test.dart"
+    },
+    {
+      "path": "S/domain/use_case/beacon_room_case.dart",
+      "symbol": "_canMutateMessage",
+      "surface": "domain-auth",
+      "scopeInput": "message.threadItemId",
+      "decision": "load-message-verify-scope",
+      "test": "ST/api/general_only_public_contract_test.dart"
+    },
+    {
+      "path": "S/domain/use_case/beacon_room_case.dart",
+      "symbol": "lifecycleWriteGuard",
+      "surface": "domain-policy",
+      "scopeInput": "beacon.status closed/cancelled/deleted",
+      "decision": "reject-ordinary-user-writes",
+      "test": "ST/api/general_only_public_contract_test.dart"
+    },
+    {
+      "path": "hasura/metadata.json",
+      "symbol": "polling",
+      "surface": "hasura-relationship",
+      "scopeInput": "room-backed rows",
+      "decision": "restrict-general-ownership",
+      "test": "ST/api/beacon_hierarchy_hasura_parity_test.dart"
+    },
+    {
+      "path": "hasura/metadata.json",
+      "symbol": "polling_act",
+      "surface": "hasura-relationship",
+      "scopeInput": "room-backed rows",
+      "decision": "restrict-general-ownership",
+      "test": "ST/api/beacon_hierarchy_hasura_parity_test.dart"
+    },
+    {
+      "path": "hasura/metadata.json",
+      "symbol": "polling_variant",
+      "surface": "hasura-relationship",
+      "scopeInput": "room-backed rows",
+      "decision": "restrict-general-ownership",
+      "test": "ST/api/beacon_hierarchy_hasura_parity_test.dart"
+    },
+    {
+      "path": "hasura/metadata.json",
+      "symbol": "beacon_room_state",
+      "surface": "hasura-relationship",
+      "scopeInput": "room-backed rows",
+      "decision": "restrict-general-ownership",
+      "test": "ST/api/beacon_hierarchy_hasura_parity_test.dart"
+    },
+    {
+      "path": "S/domain/use_case/beacon_room_case.dart",
+      "symbol": "beaconRoomStateGet",
+      "surface": "graphql-query",
+      "scopeInput": "beaconId",
+      "decision": "no-non-general-snapshot",
+      "test": "ST/api/general_only_public_contract_test.dart"
+    },
+    {
+      "path": "C/features/beacon_threads/ui/bloc/room_cubit.dart",
+      "symbol": "_applyInvalidation",
+      "surface": "client-realtime",
+      "scopeInput": "invalidation.paint.threadItemId",
+      "decision": "no-optional-ws-bypass",
+      "test": "CT/features/beacon_threads/beacon_hierarchy_realtime_test.dart"
+    },
+    {
+      "path": "S/api/controllers/graphql/query/query_coordination_item.dart",
+      "symbol": "coordinationItemsByBeacon",
+      "surface": "graphql-query",
+      "scopeInput": "beaconId/beaconIds",
+      "decision": "retire-or-plan-only",
+      "test": "ST/api/general_only_public_contract_test.dart"
+    },
+    {
+      "path": "S/api/controllers/graphql/query/query_coordination_item.dart",
+      "symbol": "coordinationResponsibilityBatch",
+      "surface": "graphql-query",
+      "scopeInput": "beaconId/beaconIds",
+      "decision": "retire-or-plan-only",
+      "test": "ST/api/general_only_public_contract_test.dart"
+    },
+    {
+      "path": "S/api/controllers/graphql/query/query_coordination_item.dart",
+      "symbol": "coordinationMyResponsibilityItems",
+      "surface": "graphql-query",
+      "scopeInput": "beaconId/beaconIds",
+      "decision": "retire-or-plan-only",
+      "test": "ST/api/general_only_public_contract_test.dart"
+    },
+    {
+      "path": "S/api/controllers/graphql/query/query_coordination_item.dart",
+      "symbol": "myWorkCoordinationItemActivity",
+      "surface": "graphql-query",
+      "scopeInput": "beaconId/beaconIds",
+      "decision": "retire-or-plan-only",
+      "test": "ST/api/general_only_public_contract_test.dart"
+    },
+    {
+      "path": "S/domain/use_case/coordination_item/remind_coordination_item_case.dart",
+      "symbol": "call",
+      "surface": "attention-producer",
+      "scopeInput": "coordination item kind",
+      "decision": "retire-non-plan-reminders",
+      "test": "ST/architecture/general_only_boundary_inventory_test.dart"
+    },
+    {
+      "path": "S/domain/use_case/coordination_item/coordination_responsibility_case.dart",
+      "symbol": "batch",
+      "surface": "read-projection",
+      "scopeInput": "beaconIds",
+      "decision": "retire-responsibility-projection",
+      "test": "ST/architecture/general_only_boundary_inventory_test.dart"
+    },
+    {
+      "path": "S/domain/use_case/attention_intent_case.dart",
+      "symbol": "staleReminder",
+      "surface": "attention-intent",
+      "scopeInput": "coordinationItemId",
+      "decision": "retire-non-plan",
+      "test": "ST/architecture/transactional_attention_producer_inventory_test.dart"
+    },
+    {
+      "path": "S/domain/use_case/beacon_case.dart",
+      "symbol": "beaconCancel",
+      "surface": "lifecycle-producer",
+      "scopeInput": "eligible-hierarchy-source",
+      "decision": "call-BeaconLifecycleEffectsCase",
+      "test": "ST/domain/use_case/beacon_lifecycle_effects_test.dart"
+    },
+    {
+      "path": "S/domain/use_case/beacon_case.dart",
+      "symbol": "deleteById",
+      "surface": "lifecycle-producer",
+      "scopeInput": "published-delete-tombstone",
+      "decision": "call-BeaconLifecycleEffectsCase",
+      "test": "ST/domain/use_case/beacon_lifecycle_effects_test.dart"
+    },
+    {
+      "path": "S/domain/use_case/evaluation_case.dart",
+      "symbol": "beaconClose",
+      "surface": "lifecycle-producer",
+      "scopeInput": "immediate-closed-or-reviewOpen",
+      "decision": "call-BeaconLifecycleEffectsCase-on-closed-branch",
+      "test": "ST/domain/use_case/beacon_lifecycle_effects_test.dart"
+    },
+    {
+      "path": "S/domain/use_case/evaluation_case.dart",
+      "symbol": "closeNow",
+      "surface": "lifecycle-producer",
+      "scopeInput": "reviewOpen-to-closed",
+      "decision": "delegate-finalizer-only",
+      "test": "ST/domain/use_case/beacon_lifecycle_effects_test.dart"
+    },
+    {
+      "path": "S/domain/use_case/evaluation_case.dart",
+      "symbol": "_autoCloseReviewWindow",
+      "surface": "lifecycle-producer",
+      "scopeInput": "reviewOpen-to-closed",
+      "decision": "delegate-finalizer-only",
+      "test": "ST/domain/use_case/beacon_lifecycle_effects_test.dart"
+    },
+    {
+      "path": "S/domain/use_case/evaluation/review_finalization_case.dart",
+      "symbol": "closeAndFinalize",
+      "surface": "lifecycle-producer",
+      "scopeInput": "didClose-final-closed",
+      "decision": "sole-hierarchy-closed-producer",
+      "test": "ST/domain/use_case/beacon_lifecycle_effects_test.dart"
+    },
+    {
+      "path": "S/domain/use_case/attention_expiry_sweep_case.dart",
+      "symbol": "runDue",
+      "surface": "lifecycle-producer",
+      "scopeInput": "review-expiry",
+      "decision": "delegate-finalizer-only",
+      "test": "ST/domain/use_case/beacon_lifecycle_effects_test.dart"
+    },
+    {
+      "path": "S/domain/use_case/evaluation_case.dart",
+      "symbol": "_ensureExpiredClosed",
+      "surface": "lifecycle-producer",
+      "scopeInput": "read-triggered-expiry",
+      "decision": "calls-expiry-sweep-not-direct-producer",
+      "test": "ST/domain/use_case/beacon_lifecycle_effects_test.dart"
+    },
+    {
+      "path": "S/domain/use_case/evaluation_case.dart",
+      "symbol": "reopenFromReview",
+      "surface": "lifecycle-producer",
+      "scopeInput": "local-reopen",
+      "decision": "ineligible-no-hierarchy-event",
+      "test": "ST/domain/use_case/beacon_lifecycle_effects_test.dart"
+    },
+    {
+      "path": "S/domain/use_case/evaluation_case.dart",
+      "symbol": "extendReviewWindow",
+      "surface": "lifecycle-producer",
+      "scopeInput": "review-window-extend",
+      "decision": "ineligible-no-hierarchy-event",
+      "test": "ST/domain/use_case/beacon_lifecycle_effects_test.dart"
+    },
+    {
+      "path": "S/domain/use_case/coordination_case.dart",
+      "symbol": "requestStatusChanged",
+      "surface": "lifecycle-producer",
+      "scopeInput": "coordination-status-side-effect",
+      "decision": "ineligible-not-lifecycle-source",
+      "test": "ST/architecture/transactional_attention_producer_inventory_test.dart"
+    },
+    {
+      "path": "S/domain/use_case/beacon_case.dart",
+      "symbol": "publishDraft",
+      "surface": "beacon-mutation",
+      "scopeInput": "draft/create/fork",
+      "decision": "ineligible-no-status-transition-event",
+      "test": "ST/domain/use_case/beacon_child_create_case_test.dart"
+    },
+    {
+      "path": "S/domain/use_case/beacon_case.dart",
+      "symbol": "create",
+      "surface": "beacon-mutation",
+      "scopeInput": "draft/create/fork",
+      "decision": "ineligible-no-status-transition-event",
+      "test": "ST/domain/use_case/beacon_child_create_case_test.dart"
+    },
+    {
+      "path": "S/domain/use_case/beacon_case.dart",
+      "symbol": "fork",
+      "surface": "beacon-mutation",
+      "scopeInput": "draft/create/fork",
+      "decision": "ineligible-no-status-transition-event",
+      "test": "ST/domain/use_case/beacon_child_create_case_test.dart"
+    },
+    {
+      "path": "S/domain/use_case/beacon_room_case.dart",
+      "symbol": "admit",
+      "surface": "admission-block-erasure",
+      "scopeInput": "beaconId/userId",
+      "decision": "mutation-lock-candidate",
+      "test": "ST/data/repository/beacon_hierarchy_visibility_pg_test.dart"
+    },
+    {
+      "path": "S/domain/use_case/beacon_room_case.dart",
+      "symbol": "stewardPromote",
+      "surface": "admission-block-erasure",
+      "scopeInput": "beaconId/userId",
+      "decision": "mutation-lock-candidate",
+      "test": "ST/data/repository/beacon_hierarchy_visibility_pg_test.dart"
+    },
+    {
+      "path": "S/domain/use_case/help_offer_case.dart",
+      "symbol": "acknowledge",
+      "surface": "admission-block-erasure",
+      "scopeInput": "beaconId/userId",
+      "decision": "mutation-lock-candidate",
+      "test": "ST/data/repository/beacon_hierarchy_visibility_pg_test.dart"
+    },
+    {
+      "path": "S/domain/use_case/coordination_case.dart",
+      "symbol": "acceptOffer",
+      "surface": "admission-block-erasure",
+      "scopeInput": "beaconId/userId",
+      "decision": "mutation-lock-candidate",
+      "test": "ST/data/repository/beacon_hierarchy_visibility_pg_test.dart"
+    },
+    {
+      "path": "S/domain/use_case/user_block_case.dart",
+      "symbol": "block",
+      "surface": "admission-block-erasure",
+      "scopeInput": "beaconId/userId",
+      "decision": "mutation-lock-candidate",
+      "test": "ST/data/repository/beacon_hierarchy_visibility_pg_test.dart"
+    },
+    {
+      "path": "S/domain/use_case/user_block_case.dart",
+      "symbol": "unblock",
+      "surface": "admission-block-erasure",
+      "scopeInput": "beaconId/userId",
+      "decision": "mutation-lock-candidate",
+      "test": "ST/data/repository/beacon_hierarchy_visibility_pg_test.dart"
+    },
+    {
+      "path": "S/domain/use_case/user_case.dart",
+      "symbol": "deleteById",
+      "surface": "admission-block-erasure",
+      "scopeInput": "beaconId/userId",
+      "decision": "mutation-lock-candidate",
+      "test": "ST/data/repository/beacon_hierarchy_visibility_pg_test.dart"
+    },
+    {
+      "path": "S/domain/use_case",
+      "symbol": "beaconChildCreate",
+      "surface": "mutation-lock",
+      "scopeInput": "hierarchy-sensitive",
+      "decision": "acquire-BeaconHierarchyRepositoryPort.lockMutationScope-first",
+      "test": "ST/data/repository/beacon_hierarchy_visibility_pg_test.dart"
+    },
+    {
+      "path": "S/domain/use_case",
+      "symbol": "publishDraft-child-branch",
+      "surface": "mutation-lock",
+      "scopeInput": "hierarchy-sensitive",
+      "decision": "acquire-BeaconHierarchyRepositoryPort.lockMutationScope-first",
+      "test": "ST/data/repository/beacon_hierarchy_visibility_pg_test.dart"
+    },
+    {
+      "path": "S/domain/use_case",
+      "symbol": "sourceMessageDelete",
+      "surface": "mutation-lock",
+      "scopeInput": "hierarchy-sensitive",
+      "decision": "acquire-BeaconHierarchyRepositoryPort.lockMutationScope-first",
+      "test": "ST/data/repository/beacon_hierarchy_visibility_pg_test.dart"
+    },
+    {
+      "path": "S/domain/use_case/help_offer_case.dart",
+      "symbol": "offerHelp",
+      "surface": "canReadContent-caller",
+      "scopeInput": "mutation",
+      "decision": "must-remain-unchanged-for-hierarchy-only-viewer",
+      "test": "ST/domain/use_case/beacon_hierarchy_case_test.dart"
+    },
+    {
+      "path": "S/domain/use_case/help_offer_case.dart",
+      "symbol": "withdrawHelp",
+      "surface": "canReadContent-caller",
+      "scopeInput": "mutation",
+      "decision": "must-remain-unchanged-for-hierarchy-only-viewer",
+      "test": "ST/domain/use_case/beacon_hierarchy_case_test.dart"
+    },
+    {
+      "path": "S/domain/use_case/forward_case.dart",
+      "symbol": "relay",
+      "surface": "canReadContent-caller",
+      "scopeInput": "mutation",
+      "decision": "must-remain-unchanged-for-hierarchy-only-viewer",
+      "test": "ST/domain/use_case/beacon_hierarchy_case_test.dart"
+    },
+    {
+      "path": "S/domain/use_case/forward_band_case.dart",
+      "symbol": "fetchBand",
+      "surface": "canReadContent-caller",
+      "scopeInput": "read",
+      "decision": "unchanged",
+      "test": "ST/domain/use_case/beacon_hierarchy_case_test.dart"
+    },
+    {
+      "path": "S/domain/beacon_lineage_visibility.dart",
+      "symbol": "assertBeaconLineageSourceVisible",
+      "surface": "canReadContent-caller",
+      "scopeInput": "mutation",
+      "decision": "must-remain-unchanged-for-hierarchy-only-viewer",
+      "test": "ST/domain/beacon_lineage_visibility_test.dart"
+    },
+    {
+      "path": "S/domain/use_case/invitation_case.dart",
+      "symbol": "createBeaconScoped",
+      "surface": "canReadContent-caller",
+      "scopeInput": "mutation",
+      "decision": "must-remain-unchanged-for-hierarchy-only-viewer",
+      "test": "ST/domain/use_case/beacon_hierarchy_case_test.dart"
+    },
+    {
+      "path": "S/domain/use_case/coordination_case.dart",
+      "symbol": "helpOffersWithCoordination",
+      "surface": "canReadContent-caller",
+      "scopeInput": "read",
+      "decision": "must-remain-unchanged-for-hierarchy-only-viewer",
+      "test": "ST/domain/use_case/beacon_hierarchy_case_test.dart"
+    },
+    {
+      "path": "S/domain/use_case/beacon_display_case.dart",
+      "symbol": "loadBeacon",
+      "surface": "canReadContent-caller",
+      "scopeInput": "read",
+      "decision": "unchanged",
+      "test": "ST/domain/beacon_visibility_test.dart"
+    },
+    {
+      "path": "S/domain/use_case/attention_intent_case.dart",
+      "symbol": "requestStatusChanged",
+      "surface": "canReadContent-caller",
+      "scopeInput": "read-side-effect",
+      "decision": "canReadBeaconContent snapshot only",
+      "test": "ST/domain/attention/beacon_status_audience_test.dart"
+    },
+    {
+      "path": "S/domain/coordination/filter_beacon_notifications.dart",
+      "symbol": "filter",
+      "surface": "canReadContent-caller",
+      "scopeInput": "read",
+      "decision": "notification-filter",
+      "test": "ST/domain/attention/beacon_status_audience_test.dart"
+    },
+    {
+      "path": "S/data/repository/beacon_access_repository.dart",
+      "symbol": "canReadContent",
+      "surface": "canReadContent-caller",
+      "scopeInput": "sql-adapter",
+      "decision": "beacon_can_read_content",
+      "test": "ST/data/repository/beacon_hierarchy_visibility_pg_test.dart"
+    },
+    {
+      "path": "S/domain/beacon_visibility.dart",
+      "symbol": "canReadContent",
+      "surface": "canReadContent-caller",
+      "scopeInput": "pure-policy",
+      "decision": "facts-only",
+      "test": "ST/domain/beacon_visibility_test.dart"
+    },
+    {
+      "path": "S/domain/port/beacon_access_guard.dart",
+      "symbol": "canReadContent",
+      "surface": "canReadContent-caller",
+      "scopeInput": "port",
+      "decision": "beaconId+viewerId",
+      "test": "ST/data/repository/beacon_hierarchy_visibility_pg_test.dart"
+    },
+    {
+      "path": "C/app/router/root_router.dart",
+      "symbol": "ThreadDetailRoute",
+      "surface": "client-route",
+      "scopeInput": "threadId",
+      "decision": "legacy-non-general-unavailable",
+      "test": "CT/app/router/nested_beacon_navigation_test.dart"
+    },
+    {
+      "path": "C/app/router/browse_deep_link.dart",
+      "symbol": "resolveThreadDeepLink",
+      "surface": "client-route",
+      "scopeInput": "threadId",
+      "decision": "legacy-non-general-unavailable",
+      "test": "CT/app/router/nested_beacon_navigation_test.dart"
+    },
+    {
+      "path": "C/app/router/root_router.dart",
+      "symbol": "BeaconViewRoute",
+      "surface": "client-route",
+      "scopeInput": "beaconId",
+      "decision": "normal-child-navigation",
+      "test": "CT/app/router/nested_beacon_navigation_test.dart"
+    },
+    {
+      "path": "S/data/repository/notification_outbox_repository.dart",
+      "symbol": "destination_kind",
+      "surface": "notification",
+      "scopeInput": "beacon_room_message",
+      "decision": "no-retired-thread-destination",
+      "test": "ST/domain/attention/beacon_status_audience_test.dart"
+    },
+    {
+      "path": "S/data/repository/notification_outbox_repository.dart",
+      "symbol": "destination_kind",
+      "surface": "notification",
+      "scopeInput": "profile",
+      "decision": "no-retired-thread-destination",
+      "test": "ST/domain/attention/beacon_status_audience_test.dart"
+    },
+    {
+      "path": "S/data/repository/notification_outbox_repository.dart",
+      "symbol": "destination_kind",
+      "surface": "notification",
+      "scopeInput": "safe_terminal",
+      "decision": "no-retired-thread-destination",
+      "test": "ST/domain/attention/beacon_status_audience_test.dart"
+    },
+    {
+      "path": "S/domain/use_case/attention_intent_case.dart",
+      "symbol": "requestStatusChanged",
+      "surface": "notification-producer",
+      "scopeInput": "beacon_room_message destination",
+      "decision": "retained-status-audience-facts",
+      "test": "ST/domain/attention/beacon_status_audience_test.dart"
+    },
+    {
+      "path": "ST/architecture/transactional_attention_producer_inventory_test.dart",
+      "symbol": "inventory",
+      "surface": "architecture-test",
+      "scopeInput": "attention-producers",
+      "decision": "extend-in-task-05-for-hierarchy-intent",
+      "test": "ST/architecture/transactional_attention_producer_inventory_test.dart"
+    },
+    {
+      "path": "public.account_credential",
+      "symbol": "account_id",
+      "surface": "user-fk-erasure",
+      "scopeInput": "pg_constraint ON DELETE CASCADE",
+      "decision": "cascade-is-correct",
+      "test": "ST/domain/use_case/beacon_hierarchy_erasure_pg_test.dart"
+    },
+    {
+      "path": "public.account_session",
+      "symbol": "account_id",
+      "surface": "user-fk-erasure",
+      "scopeInput": "pg_constraint ON DELETE CASCADE",
+      "decision": "cascade-is-correct",
+      "test": "ST/domain/use_case/beacon_hierarchy_erasure_pg_test.dart"
+    },
+    {
+      "path": "public.account_verified_contact",
+      "symbol": "account_id",
+      "surface": "user-fk-erasure",
+      "scopeInput": "pg_constraint ON DELETE CASCADE",
+      "decision": "cascade-is-correct",
+      "test": "ST/domain/use_case/beacon_hierarchy_erasure_pg_test.dart"
+    },
+    {
+      "path": "public.beacon",
+      "symbol": "user_id",
+      "surface": "user-fk-erasure",
+      "scopeInput": "pg_constraint ON DELETE CASCADE",
+      "decision": "nullable-and-anonymise",
+      "test": "ST/domain/use_case/beacon_hierarchy_erasure_pg_test.dart"
+    },
+    {
+      "path": "public.beacon_activity_event",
+      "symbol": "actor_id",
+      "surface": "user-fk-erasure",
+      "scopeInput": "pg_constraint ON DELETE SET NULL",
+      "decision": "nullable-and-anonymise",
+      "test": "ST/domain/use_case/beacon_hierarchy_erasure_pg_test.dart"
+    },
+    {
+      "path": "public.beacon_activity_event",
+      "symbol": "target_user_id",
+      "surface": "user-fk-erasure",
+      "scopeInput": "pg_constraint ON DELETE SET NULL",
+      "decision": "nullable-and-anonymise",
+      "test": "ST/domain/use_case/beacon_hierarchy_erasure_pg_test.dart"
+    },
+    {
+      "path": "public.beacon_archived",
+      "symbol": "user_id",
+      "surface": "user-fk-erasure",
+      "scopeInput": "pg_constraint ON DELETE CASCADE",
+      "decision": "cascade-is-correct",
+      "test": "ST/domain/use_case/beacon_hierarchy_erasure_pg_test.dart"
+    },
+    {
+      "path": "public.beacon_evaluation",
+      "symbol": "evaluated_user_id",
+      "surface": "user-fk-erasure",
+      "scopeInput": "pg_constraint ON DELETE CASCADE",
+      "decision": "scrub-then-delete",
+      "test": "ST/domain/use_case/beacon_hierarchy_erasure_pg_test.dart"
+    },
+    {
+      "path": "public.beacon_evaluation",
+      "symbol": "evaluator_id",
+      "surface": "user-fk-erasure",
+      "scopeInput": "pg_constraint ON DELETE CASCADE",
+      "decision": "scrub-then-delete",
+      "test": "ST/domain/use_case/beacon_hierarchy_erasure_pg_test.dart"
+    },
+    {
+      "path": "public.beacon_evaluation_participant",
+      "symbol": "user_id",
+      "surface": "user-fk-erasure",
+      "scopeInput": "pg_constraint ON DELETE CASCADE",
+      "decision": "scrub-then-delete",
+      "test": "ST/domain/use_case/beacon_hierarchy_erasure_pg_test.dart"
+    },
+    {
+      "path": "public.beacon_evaluation_visibility",
+      "symbol": "evaluator_id",
+      "surface": "user-fk-erasure",
+      "scopeInput": "pg_constraint ON DELETE CASCADE",
+      "decision": "scrub-then-delete",
+      "test": "ST/domain/use_case/beacon_hierarchy_erasure_pg_test.dart"
+    },
+    {
+      "path": "public.beacon_evaluation_visibility",
+      "symbol": "participant_id",
+      "surface": "user-fk-erasure",
+      "scopeInput": "pg_constraint ON DELETE CASCADE",
+      "decision": "scrub-then-delete",
+      "test": "ST/domain/use_case/beacon_hierarchy_erasure_pg_test.dart"
+    },
+    {
+      "path": "public.beacon_fact_card",
+      "symbol": "pinned_by",
+      "surface": "user-fk-erasure",
+      "scopeInput": "pg_constraint ON DELETE RESTRICT",
+      "decision": "nullable-and-anonymise",
+      "test": "ST/domain/use_case/beacon_hierarchy_erasure_pg_test.dart"
+    },
+    {
+      "path": "public.beacon_forward_edge",
+      "symbol": "recipient_id",
+      "surface": "user-fk-erasure",
+      "scopeInput": "pg_constraint ON DELETE CASCADE",
+      "decision": "cascade-is-correct",
+      "test": "ST/domain/use_case/beacon_hierarchy_erasure_pg_test.dart"
+    },
+    {
+      "path": "public.beacon_forward_edge",
+      "symbol": "sender_id",
+      "surface": "user-fk-erasure",
+      "scopeInput": "pg_constraint ON DELETE CASCADE",
+      "decision": "cascade-is-correct",
+      "test": "ST/domain/use_case/beacon_hierarchy_erasure_pg_test.dart"
+    },
+    {
+      "path": "public.beacon_help_offer",
+      "symbol": "user_id",
+      "surface": "user-fk-erasure",
+      "scopeInput": "pg_constraint ON DELETE CASCADE",
+      "decision": "nullable-and-anonymise",
+      "test": "ST/domain/use_case/beacon_hierarchy_erasure_pg_test.dart"
+    },
+    {
+      "path": "public.beacon_help_offer_admission_event",
+      "symbol": "actor_user_id",
+      "surface": "user-fk-erasure",
+      "scopeInput": "pg_constraint ON DELETE NO ACTION",
+      "decision": "nullable-and-anonymise",
+      "test": "ST/domain/use_case/beacon_hierarchy_erasure_pg_test.dart"
+    },
+    {
+      "path": "public.beacon_help_offer_coordination",
+      "symbol": "author_user_id",
+      "surface": "user-fk-erasure",
+      "scopeInput": "pg_constraint ON DELETE NO ACTION",
+      "decision": "nullable-and-anonymise",
+      "test": "ST/domain/use_case/beacon_hierarchy_erasure_pg_test.dart"
+    },
+    {
+      "path": "public.beacon_items_seen",
+      "symbol": "user_id",
+      "surface": "user-fk-erasure",
+      "scopeInput": "pg_constraint ON DELETE CASCADE",
+      "decision": "cascade-is-correct",
+      "test": "ST/domain/use_case/beacon_hierarchy_erasure_pg_test.dart"
+    },
+    {
+      "path": "public.beacon_participant",
+      "symbol": "user_id",
+      "surface": "user-fk-erasure",
+      "scopeInput": "pg_constraint ON DELETE CASCADE",
+      "decision": "cascade-is-correct",
+      "test": "ST/domain/use_case/beacon_hierarchy_erasure_pg_test.dart"
+    },
+    {
+      "path": "public.beacon_pinned",
+      "symbol": "user_id",
+      "surface": "user-fk-erasure",
+      "scopeInput": "pg_constraint ON DELETE CASCADE",
+      "decision": "cascade-is-correct",
+      "test": "ST/domain/use_case/beacon_hierarchy_erasure_pg_test.dart"
+    },
+    {
+      "path": "public.beacon_review_status",
+      "symbol": "user_id",
+      "surface": "user-fk-erasure",
+      "scopeInput": "pg_constraint ON DELETE CASCADE",
+      "decision": "cascade-is-correct",
+      "test": "ST/domain/use_case/beacon_hierarchy_erasure_pg_test.dart"
+    },
+    {
+      "path": "public.beacon_room_message",
+      "symbol": "author_id",
+      "surface": "user-fk-erasure",
+      "scopeInput": "pg_constraint ON DELETE CASCADE",
+      "decision": "nullable-and-anonymise",
+      "test": "ST/domain/use_case/beacon_hierarchy_erasure_pg_test.dart"
+    },
+    {
+      "path": "public.beacon_room_message_reaction",
+      "symbol": "user_id",
+      "surface": "user-fk-erasure",
+      "scopeInput": "pg_constraint ON DELETE CASCADE",
+      "decision": "cascade-is-correct",
+      "test": "ST/domain/use_case/beacon_hierarchy_erasure_pg_test.dart"
+    },
+    {
+      "path": "public.beacon_room_seen",
+      "symbol": "user_id",
+      "surface": "user-fk-erasure",
+      "scopeInput": "pg_constraint ON DELETE CASCADE",
+      "decision": "cascade-is-correct",
+      "test": "ST/domain/use_case/beacon_hierarchy_erasure_pg_test.dart"
+    },
+    {
+      "path": "public.beacon_room_state",
+      "symbol": "updated_by",
+      "surface": "user-fk-erasure",
+      "scopeInput": "pg_constraint ON DELETE SET NULL",
+      "decision": "nullable-and-anonymise",
+      "test": "ST/domain/use_case/beacon_hierarchy_erasure_pg_test.dart"
+    },
+    {
+      "path": "public.beacon_steward",
+      "symbol": "user_id",
+      "surface": "user-fk-erasure",
+      "scopeInput": "pg_constraint ON DELETE CASCADE",
+      "decision": "cascade-is-correct",
+      "test": "ST/domain/use_case/beacon_hierarchy_erasure_pg_test.dart"
+    },
+    {
+      "path": "public.complaint",
+      "symbol": "user_id",
+      "surface": "user-fk-erasure",
+      "scopeInput": "pg_constraint ON DELETE CASCADE",
+      "decision": "cascade-is-correct",
+      "test": "ST/domain/use_case/beacon_hierarchy_erasure_pg_test.dart"
+    },
+    {
+      "path": "public.coordination_item",
+      "symbol": "accepted_by_id",
+      "surface": "user-fk-erasure",
+      "scopeInput": "pg_constraint ON DELETE NO ACTION",
+      "decision": "nullable-and-anonymise",
+      "test": "ST/domain/use_case/beacon_hierarchy_erasure_pg_test.dart"
+    },
+    {
+      "path": "public.coordination_item",
+      "symbol": "creator_id",
+      "surface": "user-fk-erasure",
+      "scopeInput": "pg_constraint ON DELETE NO ACTION",
+      "decision": "nullable-and-anonymise",
+      "test": "ST/domain/use_case/beacon_hierarchy_erasure_pg_test.dart"
+    },
+    {
+      "path": "public.coordination_item",
+      "symbol": "target_person_id",
+      "surface": "user-fk-erasure",
+      "scopeInput": "pg_constraint ON DELETE NO ACTION",
+      "decision": "nullable-and-anonymise",
+      "test": "ST/domain/use_case/beacon_hierarchy_erasure_pg_test.dart"
+    },
+    {
+      "path": "public.fcm_token",
+      "symbol": "user_id",
+      "surface": "user-fk-erasure",
+      "scopeInput": "pg_constraint ON DELETE CASCADE",
+      "decision": "cascade-is-correct",
+      "test": "ST/domain/use_case/beacon_hierarchy_erasure_pg_test.dart"
+    },
+    {
+      "path": "public.image",
+      "symbol": "author_id",
+      "surface": "user-fk-erasure",
+      "scopeInput": "pg_constraint ON DELETE CASCADE",
+      "decision": "scrub-then-delete",
+      "test": "ST/domain/use_case/beacon_hierarchy_erasure_pg_test.dart"
+    },
+    {
+      "path": "public.inbox_item",
+      "symbol": "user_id",
+      "surface": "user-fk-erasure",
+      "scopeInput": "pg_constraint ON DELETE CASCADE",
+      "decision": "cascade-is-correct",
+      "test": "ST/domain/use_case/beacon_hierarchy_erasure_pg_test.dart"
+    },
+    {
+      "path": "public.invitation",
+      "symbol": "invited_id",
+      "surface": "user-fk-erasure",
+      "scopeInput": "pg_constraint ON DELETE CASCADE",
+      "decision": "cascade-is-correct",
+      "test": "ST/domain/use_case/beacon_hierarchy_erasure_pg_test.dart"
+    },
+    {
+      "path": "public.invitation",
+      "symbol": "user_id",
+      "surface": "user-fk-erasure",
+      "scopeInput": "pg_constraint ON DELETE CASCADE",
+      "decision": "cascade-is-correct",
+      "test": "ST/domain/use_case/beacon_hierarchy_erasure_pg_test.dart"
+    },
+    {
+      "path": "public.invite_genealogy",
+      "symbol": "ancestor_user_id",
+      "surface": "user-fk-erasure",
+      "scopeInput": "pg_constraint ON DELETE SET NULL",
+      "decision": "nullable-and-anonymise",
+      "test": "ST/domain/use_case/beacon_hierarchy_erasure_pg_test.dart"
+    },
+    {
+      "path": "public.invite_genealogy",
+      "symbol": "descendant_user_id",
+      "surface": "user-fk-erasure",
+      "scopeInput": "pg_constraint ON DELETE SET NULL",
+      "decision": "nullable-and-anonymise",
+      "test": "ST/domain/use_case/beacon_hierarchy_erasure_pg_test.dart"
+    },
+    {
+      "path": "public.notification_beacon_mute",
+      "symbol": "account_id",
+      "surface": "user-fk-erasure",
+      "scopeInput": "pg_constraint ON DELETE CASCADE",
+      "decision": "cascade-is-correct",
+      "test": "ST/domain/use_case/beacon_hierarchy_erasure_pg_test.dart"
+    },
+    {
+      "path": "public.notification_outbox",
+      "symbol": "account_id",
+      "surface": "user-fk-erasure",
+      "scopeInput": "pg_constraint ON DELETE CASCADE",
+      "decision": "cascade-is-correct",
+      "test": "ST/domain/use_case/beacon_hierarchy_erasure_pg_test.dart"
+    },
+    {
+      "path": "public.notification_preference",
+      "symbol": "account_id",
+      "surface": "user-fk-erasure",
+      "scopeInput": "pg_constraint ON DELETE CASCADE",
+      "decision": "cascade-is-correct",
+      "test": "ST/domain/use_case/beacon_hierarchy_erasure_pg_test.dart"
+    },
+    {
+      "path": "public.p2p_message",
+      "symbol": "receiver_id",
+      "surface": "user-fk-erasure",
+      "scopeInput": "pg_constraint ON DELETE CASCADE",
+      "decision": "cascade-is-correct",
+      "test": "ST/domain/use_case/beacon_hierarchy_erasure_pg_test.dart"
+    },
+    {
+      "path": "public.p2p_message",
+      "symbol": "sender_id",
+      "surface": "user-fk-erasure",
+      "scopeInput": "pg_constraint ON DELETE CASCADE",
+      "decision": "cascade-is-correct",
+      "test": "ST/domain/use_case/beacon_hierarchy_erasure_pg_test.dart"
+    },
+    {
+      "path": "public.person_capability_event",
+      "symbol": "observer_user_id",
+      "surface": "user-fk-erasure",
+      "scopeInput": "pg_constraint ON DELETE CASCADE",
+      "decision": "scrub-then-delete",
+      "test": "ST/domain/use_case/beacon_hierarchy_erasure_pg_test.dart"
+    },
+    {
+      "path": "public.person_capability_event",
+      "symbol": "subject_user_id",
+      "surface": "user-fk-erasure",
+      "scopeInput": "pg_constraint ON DELETE CASCADE",
+      "decision": "scrub-then-delete",
+      "test": "ST/domain/use_case/beacon_hierarchy_erasure_pg_test.dart"
+    },
+    {
+      "path": "public.polling",
+      "symbol": "author_id",
+      "surface": "user-fk-erasure",
+      "scopeInput": "pg_constraint ON DELETE CASCADE",
+      "decision": "cascade-is-correct",
+      "test": "ST/domain/use_case/beacon_hierarchy_erasure_pg_test.dart"
+    },
+    {
+      "path": "public.polling_act",
+      "symbol": "author_id",
+      "surface": "user-fk-erasure",
+      "scopeInput": "pg_constraint ON DELETE CASCADE",
+      "decision": "cascade-is-correct",
+      "test": "ST/domain/use_case/beacon_hierarchy_erasure_pg_test.dart"
+    },
+    {
+      "path": "public.upload_daily_usage",
+      "symbol": "user_id",
+      "surface": "user-fk-erasure",
+      "scopeInput": "pg_constraint ON DELETE CASCADE",
+      "decision": "cascade-is-correct",
+      "test": "ST/domain/use_case/beacon_hierarchy_erasure_pg_test.dart"
+    },
+    {
+      "path": "public.user_contact",
+      "symbol": "subject_id",
+      "surface": "user-fk-erasure",
+      "scopeInput": "pg_constraint ON DELETE CASCADE",
+      "decision": "cascade-is-correct",
+      "test": "ST/domain/use_case/beacon_hierarchy_erasure_pg_test.dart"
+    },
+    {
+      "path": "public.user_contact",
+      "symbol": "viewer_id",
+      "surface": "user-fk-erasure",
+      "scopeInput": "pg_constraint ON DELETE CASCADE",
+      "decision": "cascade-is-correct",
+      "test": "ST/domain/use_case/beacon_hierarchy_erasure_pg_test.dart"
+    },
+    {
+      "path": "public.user_context",
+      "symbol": "user_id",
+      "surface": "user-fk-erasure",
+      "scopeInput": "pg_constraint ON DELETE CASCADE",
+      "decision": "cascade-is-correct",
+      "test": "ST/domain/use_case/beacon_hierarchy_erasure_pg_test.dart"
+    },
+    {
+      "path": "public.user_presence",
+      "symbol": "user_id",
+      "surface": "user-fk-erasure",
+      "scopeInput": "pg_constraint ON DELETE CASCADE",
+      "decision": "cascade-is-correct",
+      "test": "ST/domain/use_case/beacon_hierarchy_erasure_pg_test.dart"
+    },
+    {
+      "path": "public.user_trust_edge",
+      "symbol": "object",
+      "surface": "user-fk-erasure",
+      "scopeInput": "pg_constraint ON DELETE CASCADE",
+      "decision": "cascade-is-correct",
+      "test": "ST/domain/use_case/beacon_hierarchy_erasure_pg_test.dart"
+    },
+    {
+      "path": "public.user_trust_edge",
+      "symbol": "subject",
+      "surface": "user-fk-erasure",
+      "scopeInput": "pg_constraint ON DELETE CASCADE",
+      "decision": "cascade-is-correct",
+      "test": "ST/domain/use_case/beacon_hierarchy_erasure_pg_test.dart"
+    },
+    {
+      "path": "public.user_updates",
+      "symbol": "user_id",
+      "surface": "user-fk-erasure",
+      "scopeInput": "pg_constraint ON DELETE CASCADE",
+      "decision": "cascade-is-correct",
+      "test": "ST/domain/use_case/beacon_hierarchy_erasure_pg_test.dart"
+    },
+    {
+      "path": "public.user_vsids",
+      "symbol": "user_id",
+      "surface": "user-fk-erasure",
+      "scopeInput": "pg_constraint ON DELETE CASCADE",
+      "decision": "cascade-is-correct",
+      "test": "ST/domain/use_case/beacon_hierarchy_erasure_pg_test.dart"
+    },
+    {
+      "path": "public.vote_beacon",
+      "symbol": "subject",
+      "surface": "user-fk-erasure",
+      "scopeInput": "pg_constraint ON DELETE CASCADE",
+      "decision": "cascade-is-correct",
+      "test": "ST/domain/use_case/beacon_hierarchy_erasure_pg_test.dart"
+    },
+    {
+      "path": "public.vote_user",
+      "symbol": "object",
+      "surface": "user-fk-erasure",
+      "scopeInput": "pg_constraint ON DELETE CASCADE",
+      "decision": "cascade-is-correct",
+      "test": "ST/domain/use_case/beacon_hierarchy_erasure_pg_test.dart"
+    },
+    {
+      "path": "public.vote_user",
+      "symbol": "subject",
+      "surface": "user-fk-erasure",
+      "scopeInput": "pg_constraint ON DELETE CASCADE",
+      "decision": "cascade-is-correct",
+      "test": "ST/domain/use_case/beacon_hierarchy_erasure_pg_test.dart"
+    }
+  ]
+}
