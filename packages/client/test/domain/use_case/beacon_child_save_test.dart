@@ -264,6 +264,37 @@ void main() {
   });
 
   group('promotion conflict', () {
+    test(
+      'a publish-time race loss surfaces as a promotion conflict, not a generic publish failure',
+      () async {
+        final write = FakeBeaconWritePort()
+          ..publishError = const BeaconSourceAlreadyPromotedException(
+            existingChildBeaconId: 'winning-child',
+          );
+        final sut = _sut(write: write);
+        final session = await sut.openComposer(creationContext: _context);
+        final cmd = _child(
+          clientCommandId: session.clientCommandId!,
+          save: _save(id: 'child-draft'),
+        );
+
+        await expectLater(
+          sut.publishChildDraft(
+            beaconId: 'child-draft',
+            command: cmd,
+            images: const [],
+            coverKey: null,
+            coverThumb: null,
+          ),
+          throwsA(
+            isA<BeaconChildPromotionConflict>()
+                .having((e) => e.existingChildBeaconId, 'existingChildBeaconId', 'winning-child')
+                .having((e) => e.draftBeaconId, 'draftBeaconId', 'child-draft'),
+          ),
+        );
+      },
+    );
+
     test('alreadyPromoted is never treated as this drafts successful publication', () async {
       final hierarchy = FakeBeaconHierarchyRepositoryPort()
         ..createOutcomeOverride = const BeaconChildCreateOutcome(

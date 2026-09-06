@@ -163,6 +163,18 @@ class BeaconHierarchyCase {
     try {
       await _beacons.publishDraft(beaconId);
       await _commandStore.clear(command.creationContext);
+    } on BeaconSourceAlreadyPromotedException catch (e) {
+      // The real-world trigger for alreadyPromoted (plan §3.4.6): a
+      // concurrent publisher won the same source between this draft's
+      // creation and its publish attempt. Surface the same typed conflict
+      // _runCreateChild uses, not a generic publish failure, so the UI
+      // never implies this draft published and can offer the winning
+      // child instead.
+      throw BeaconChildPromotionConflict(
+        clientCommandId: command.clientCommandId,
+        draftBeaconId: beaconId,
+        existingChildBeaconId: e.existingChildBeaconId,
+      );
     } catch (e) {
       throw BeaconSaveFailure(
         cause: e,
@@ -308,9 +320,11 @@ class BeaconHierarchyCase {
             );
           }
         case BeaconChildCommandOutcome.alreadyPromoted:
+          // No draft was created for this actor in this branch (server
+          // only reaches it pre-creation) — outcome.beaconId names the
+          // OTHER, already-published child, never this actor's own draft.
           throw BeaconChildPromotionConflict(
             clientCommandId: command.clientCommandId,
-            draftBeaconId: outcome.beaconId,
             existingChildBeaconId: outcome.beaconId,
           );
       }
