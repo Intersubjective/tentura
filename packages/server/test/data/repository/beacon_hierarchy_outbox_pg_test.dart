@@ -247,7 +247,10 @@ WHERE event_id = @eventId AND target_beacon_id = @target
     }, skip: skipReason);
 
     test('m0154 upgrades from m0153 and backfills published_at', () async {
-      final upgradeTarget = BeaconHierarchyDisposablePgTarget.fromEnvironment();
+      final upgradeTarget = BeaconHierarchyDisposablePgTarget.fromEnvironment(
+        databaseNameOverride:
+            'tentura_test_bhier_upg_${DateTime.timestamp().microsecondsSinceEpoch}',
+      );
       await upgradeTarget.recreate();
       final upgradeWriter = await Connection.open(
         upgradeTarget.databaseEnv.pgEndpoint,

@@ -75,7 +75,16 @@ final class BeaconHierarchyDisposablePgTarget {
     required this.databaseName,
   });
 
-  factory BeaconHierarchyDisposablePgTarget.fromEnvironment() {
+  /// [databaseNameOverride] forces a specific disposable name, bypassing
+  /// `TENTURA_BEACON_HIERARCHY_PG_TEST_DB`. Use it whenever a single test
+  /// process needs more than one disposable target at once (e.g. an
+  /// upgrade-path test alongside the suite's own `setUpAll` target) — two
+  /// calls to `fromEnvironment()` with the env var set would otherwise
+  /// resolve to the *same* name, and a later `recreate()`/`drop()` would
+  /// `DROP DATABASE` out from under the other target's live connection.
+  factory BeaconHierarchyDisposablePgTarget.fromEnvironment({
+    String? databaseNameOverride,
+  }) {
     final host = Platform.environment['POSTGRES_HOST'] ?? '127.0.0.1';
     final port =
         int.tryParse(Platform.environment['POSTGRES_PORT'] ?? '') ?? 5432;
@@ -84,6 +93,7 @@ final class BeaconHierarchyDisposablePgTarget {
     final adminDatabase =
         Platform.environment['POSTGRES_ADMIN_DBNAME'] ?? 'postgres';
     final databaseName =
+        databaseNameOverride ??
         Platform.environment['TENTURA_BEACON_HIERARCHY_PG_TEST_DB'] ??
         'tentura_test_bhier_${pid}_${DateTime.timestamp().microsecondsSinceEpoch}';
     if (!RegExp(r'^tentura_test_[a-z0-9_]+$').hasMatch(databaseName) ||
