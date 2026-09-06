@@ -1374,3 +1374,26 @@ Not accepted as task-complete — still missing Hasura metadata reload,
 schema_fetcher regeneration, all client-side transport (`.graphql`
 documents, direct-routing registration, repository/adapter, DI), and all
 four required tests. A fresh worker continues Task 10 from here.
+
+### Task 10 — third attempt killed with zero progress; manager takes over directly (2026-09-06)
+
+Third consecutive Cursor worker attempt on Task 10 was killed by external
+memory pressure, this time before producing any file changes at all (git
+status was identical to the pre-launch snapshot). Its log shows it was
+mid-exploration of starting a local server process to introspect the V2
+schema for the Hasura reload step when killed — starting a live Dart
+server process alongside cursor-agent's own overhead is a plausible
+trigger for the memory spike, on top of the same pattern seen repeatedly
+elsewhere in this session (Tasks 04, 06, 07, 09 also required multiple
+kill/salvage cycles).
+
+Per the overseer skill's remediation-loop rule ("If the same defect
+survives two well-scoped Cursor attempts, stop dispatching further Cursor
+attempts and take over diagnosis yourself... Do not accept a third blind
+Cursor retry without first understanding why the first two failed"): this
+is the third consecutive kill on this task with no net new committed
+progress from this attempt. Stopping Cursor dispatch for the remainder of
+Task 10. The manager is completing the remaining scope directly (Hasura
+metadata reload, schema_fetcher regeneration, client-side transport, and
+the four required tests), building on the already-accepted, verified
+server GraphQL surface from commits `4f4b22206`/`38db4c001`.
