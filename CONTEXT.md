@@ -9,7 +9,7 @@ Coordination product for **Requests** (internally: **Beacons**), request **discu
 | **User-facing** (UI, push, landing, l10n values) | **Request** / **Requests** | **discussion** |
 | **Internal** (code, DB, GraphQL, routes, technical docs) | **Beacon** / `beacon` | room / `beacon_room` |
 
-**Request (internally: Beacon)** is a help need that can be forwarded, committed to, coordinated, and closed. **Discussion (internally: room)** is the private coordination workspace on a request — the collective space you are admitted to. One conversation inside it is a **thread** / **тема**; the built-in thread is **General** / **Общее**. **Ask** (coordination item in a thread): user-facing **ask** (EN); Russian **просьба** / **просьбы** — distinct from Request → **запрос**.
+**Request (internally: Beacon)** is a help need that can be forwarded, committed to, coordinated, and closed. **Discussion (internally: room)** is the private coordination workspace on a request — the collective space you are admitted to. One conversation inside it is a **thread** / **тема**; the built-in thread is **General** / **Общее** (the only public conversation on each request). Retired ask/promise/blocker coordination-item threads are no longer a product surface; nested child requests replaced that model (see **Beacon nesting** below).
 
 **Forbidden:** a parallel `Request` domain entity, table, or route. User-visible copy must not say "beacon" or "room" as product nouns — use l10n and `scripts/check-user-facing-terminology.sh`.
 
@@ -85,11 +85,30 @@ Copies a visible beacon's reusable content into a new draft and sets that draft'
 A single forwarding user's rules-based, explainable suggested targets derived only from that user's own visible memory across the lineage (their own forwards, positive reviews, private tags, and downstream help they routed). Computed per `(current_user_id, draft_beacon_id, lineage_parent_beacon_id)`; never stored as an objective beacon property and never a "best candidates" list.
 _Avoid_: best candidates, audience, subscribers, customers, channel, campaign.
 
+## Beacon nesting
+
+**Nesting parent** (internal: `parent_beacon_id`):
+An optional, immutable reference from a child beacon to its immediate published parent. Establishes a one-edge navigation and lifecycle-notification relationship only — **not** admission, membership, or shared authorization. Each child remains a normal beacon with its own owner, discussion admission, help offers, forwarding, review window, and trust attribution. Parentage is assigned only at creation (including private child drafts) and never changes; deleting a published parent preserves a structural tombstone while descendants keep independent lifecycles.
+_Avoid_: conflating nesting with fork **lineage** (`lineage_parent_beacon_id` / `beaconFork`); treating parent admission as child admission; recursive parent/child content reads beyond one authorized edge.
+
+**Child request** (user-facing):
+A published beacon created under a parent, either promoted from a General message or created directly from the parent's Discussion surface. Appears as a child card on the parent for admitted parent viewers; opens through normal beacon routes. Parent-only viewers may see authorized child summary/detail via a separate **linked-detail** read predicate (`canReadLinkedDetail` / `beacon_can_read_linked_detail`) that does **not** widen canonical content read (`canReadContent`) — so hierarchy-only viewers cannot forward, offer help on, invite to, or fork the child.
+
+**Hierarchy notice** (system message in General):
+A durable, typed system row delivered when an ancestor or child request enters Wrapping up, Closed, Cancelled, or Deleted, or when a child is published from a source message. Rendered with generic system identity (nullable `author_id`); payloads carry structural ids only — never private ancestor content to viewers who lack independent parent admission.
+
+**Realtime `beacon_hierarchy` wire kind**:
+Lightweight invalidation hints (no projection data on the wire) telling already-authorized clients to refetch child-list and parent-reference projections. See `docs/contracts/realtime-entity-contract.json` and `DEV_GUIDELINES.md` § Realtime projection convergence.
+
 ## Beacon visibility & sharing
 
 **Beacon visibility** (who can SEE a beacon):
-A beacon's normal content is visible to a user V iff any of: V is the **author**; V has an active (non-cancelled) **forward edge** as recipient; V is a **room-admitted participant** or active **help-offerer**. Vote-mutual friendship (reciprocal trust) does **not** grant read access by itself. **Drafts** are always author-only. **Deleted** beacons never expose normal content to non-authors; use generic tombstones only. **MeritRank is never a visibility gate** — it is used only as the forwarding-candidate gate.
+A beacon's normal **content** is visible to a user V iff any of: V is the **author**; V has an active (non-cancelled) **forward edge** as recipient; V is a **room-admitted participant** or active **help-offerer**. Vote-mutual friendship (reciprocal trust) does **not** grant read access by itself. **Drafts** are always author-only. **Deleted** beacons never expose normal content to non-authors; use generic tombstones only. **MeritRank is never a visibility gate** — it is used only as the forwarding-candidate gate.
 _Avoid_: treating a beacon id/URL as a read capability; using MeritRank score or path distance to decide who can read a beacon.
+
+**Linked-detail visibility** (hierarchy one-edge reads only):
+Separate from content read: V may read authorized child-card / parent-reference projections when V has effective admission to the adjacent published non-deleted parent or child, even without full content read on that node. This predicate does **not** grant discussion admission, involvement visibility, forwarding, help offers, invitations, or fork rights on the linked beacon.
+_Avoid_: adding hierarchy reasons to `canReadContent`; treating a parent-only admittee as a child participant.
 
 **Involvement visibility** (who can see WHO is involved):
 The forwarder chain, "not interested" rejections, help-offerers, watchers, and onward-forwarders of a non-deleted beacon are visible to **involved** users only (author + anyone on a forward edge + help-offerers/room participants).
@@ -103,14 +122,14 @@ Beacon invites are tracked in the **Friends → Invitations** surface, split int
 
 ## Room coordination UI
 
-**Promoted message**:
-A room message that was turned into a coordination item (ask, blocker, promise, etc.). The message keeps a normal message bubble; a **message lifecycle footer** shows promotion and, when terminal, resolution metadata. Tapping the footer opens the item thread.
+**General-only discussion**:
+The product exposes only the **General** thread per request. Server thread machinery for scoped rows remains dormant; ask/promise/blocker coordination-item threads and their public mutations are retired. Plans, plan steps, facts, replies, mentions, polls, and attachments continue through General and retained coordination APIs where applicable.
 
-**Coordination anchor event** (timeline notify row):
-A separate room message inserted when an item’s status changes (or on promote). Rendered as a centered system timeline bar, not an inline item card. `system_payload.sourceMessageId` points at the promoted source; tapping the bar scrolls to that message.
+**Child-request promotion** (from General):
+An admitted participant may promote a General message into a **child request** draft (or create a child directly). The source message keeps its bubble; a compact **child-request footer** on eligible messages links to the published child when readable. A separate **child created** hierarchy notice row records publication (`system_message_kind` + `system_payload.sourceMessageId`). One published child per source message; concurrent promotion resolves to the existing child.
 
-**Message lifecycle footer**:
-Three-case chrome under a promoted source: reactions + date; promotion row (avatar, kind, date → thread); optional resolution row when status is resolved/cancelled/superseded (from `system_payload.lastStatusEvent` on the source message). Distinct from mark-done (`semanticMarker == done`).
+**Hierarchy notice** (system row in General):
+Centered system timeline chrome for ancestor/child lifecycle transitions (Wrapping up, Closed, Cancelled, Deleted) and child creation. Authored with nullable `author_id` and typed payload — no private ancestor title/body to viewers who are child-only participants.
 
 ## Beacon lifecycle
 
