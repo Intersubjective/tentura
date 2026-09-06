@@ -87,8 +87,8 @@ which this plan/orchestration owns.
 | 11 | Extend existing composer/save flow | 10 | complete |
 | 12 | Child request surface, General host, and safe navigation | 11 | complete |
 | 13 | Typed notices and promoted-source footer | 12 | complete |
-| 14 | Realtime producers and convergence | 13 | pending |
-| 15 | Whole-product regression and release documentation | 14 | pending |
+| 14 | Realtime producers and convergence | 13 | complete |
+| 15 | Whole-product regression and release documentation | 14 | in progress (docs slice) |
 
 Each task may be split into sub-units by the manager if too large for one worker
 turn; splits are recorded here when they happen, preserving dependency order.
@@ -2063,3 +2063,54 @@ executed in this session — infra not started).
 
 Proceeding to Task 15 (whole-product regression and release
 documentation).
+
+### Task 15 — documentation slice in progress (Cursor CLI worker, 2026-09-06)
+
+**Scope (this worker):** Task 15 documentation-only slice per plan §Task 15 —
+update product/visibility/terminology/realtime docs to the implemented nested-
+requests state (Tasks 00–14). Explicitly **out of scope here:** acceptance E2E,
+version bump (`pubspec.yaml`, `web/index.html`, `env.dart`, `.env.example`),
+`realtime_multiclient_web_test.dart` harness fixes, application code, tests,
+migrations.
+
+**Owned paths:** `CONTEXT.md`, `docs/features/beacon_room.md`,
+`docs/Tentura_current_status_quo.md`, `docs/beacon-visibility-matrix.md`,
+`docs/adr/0008-beacon-visibility-and-invite-sharing.md`, `DEV_GUIDELINES.md`
+(realtime § one-line `beacon_hierarchy` example), superseded headers on
+`docs/plans/request-threads-{architecture,implementation-plan,implementation-journal}.md`,
+`docs/plans/nested-requests-implementation-journal.md` (append only).
+
+**Live-code cross-checks (grep/read, not analyzer):**
+- `BeaconVisibility.canReadLinkedDetail` split from `canReadContent` confirmed in
+  `packages/server/lib/domain/beacon_visibility.dart` and SQL
+  `beacon_can_read_linked_detail` in `m0155.dart`; `beacon_can_read_content` body
+  unchanged per journal Task 03.
+- `RealtimeEntityKind.beaconHierarchy` / manifest row `beacon_hierarchy` with
+  impacts `beacon_hierarchy_children` and `beacon_hierarchy_parent_reference`.
+- User-facing Discussion tab uses `labelBeaconTabDiscussion`; internal route
+  query still `tab=threads&thread=general`.
+- Retired ask/promise/blocker public GraphQL mutations absent (Task 07); General-
+  only enforced in `BeaconRoomCase` + `m0156`.
+
+**Doc themes applied:** nesting via immutable `parent_beacon_id` (distinct from
+fork lineage); General-only discussion; one-edge linked-detail vs content read;
+parent admission ≠ child General; hierarchy notices without ancestor content leak;
+`beacon_hierarchy` realtime wire kind.
+
+### Task 15 — documentation slice complete (Cursor CLI worker, 2026-09-06)
+
+**Verification (documentation slice):**
+```bash
+bash scripts/check-user-facing-terminology.sh   # pass
+git diff --check                                 # clean
+```
+
+**Commits (this slice):** see STATUS block — focused commits per file group.
+
+**Deferred to plan owner / other Task 15 workers:** whole-product E2E regression
+(child forward → help → admission → review path), breaking release version gate
+and cache-buster, multiclient harness `markAsk`/Issue-102 scenario adaptation,
+`docs/README.md` release notes if desired.
+
+**Task 15 overall:** partial — documentation slice complete; release/versioning
+and browser regression gates remain open.
