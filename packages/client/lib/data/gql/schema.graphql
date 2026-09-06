@@ -7543,6 +7543,7 @@ type v2_RoomMessageRow {
   replyToHasAttachments: Boolean
   replyToMessageId: String
   semanticMarker: Int
+  systemMessageKind: Int
   systemPayloadJson: String
   threadItemId: String
 }

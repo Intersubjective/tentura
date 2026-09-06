@@ -1,6 +1,6 @@
 query RoomMessageTarget($beaconId: String!, $messageId: String!) {
   roomMessageTarget(beaconId: $beaconId, messageId: $messageId) {
-    id beaconId authorId body createdAt editedAt semanticMarker linkedBlockerId
+    id beaconId authorId body createdAt editedAt semanticMarker systemMessageKind linkedBlockerId
     linkedFactCardId linkedPollingId linkedItemId linkedEventKind linkedItemKind
     linkedItemStatus linkedItemTitle linkedItemBody linkedItemCreatorId
     linkedItemTargetPersonId linkedItemCreatedAt linkedItemUpdatedAt

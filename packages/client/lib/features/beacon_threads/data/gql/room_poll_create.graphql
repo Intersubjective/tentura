@@ -21,6 +21,7 @@ mutation RoomPollCreate(
     createdAt
     editedAt
     semanticMarker
+    systemMessageKind
     linkedBlockerId
     linkedFactCardId
     linkedPollingId

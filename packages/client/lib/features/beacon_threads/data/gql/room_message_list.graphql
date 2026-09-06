@@ -15,6 +15,7 @@ query RoomMessageList(
     createdAt
     editedAt
     semanticMarker
+    systemMessageKind
     linkedBlockerId
     linkedFactCardId
     linkedPollingId
