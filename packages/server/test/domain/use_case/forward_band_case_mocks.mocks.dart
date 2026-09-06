@@ -644,4 +644,18 @@ class MockBeaconAccessGuard extends _i1.Mock implements _i11.BeaconAccessGuard {
             returnValue: _i3.Future<bool>.value(false),
           )
           as _i3.Future<bool>);
+
+  @override
+  _i3.Future<bool> canReadLinkedDetail({
+    required String? beaconId,
+    required String? viewerId,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#canReadLinkedDetail, [], {
+              #beaconId: beaconId,
+              #viewerId: viewerId,
+            }),
+            returnValue: _i3.Future<bool>.value(false),
+          )
+          as _i3.Future<bool>);
 }
