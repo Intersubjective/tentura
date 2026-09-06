@@ -44,6 +44,16 @@ Future<void> main() async {
       await writer.execute('SET check_function_bodies = false');
       await migrateDbSchema(writer);
       db = TenturaDb(target.databaseEnv);
+      // TenturaDb pins its pool to a single connection (maxConnectionCount
+      // == 1, see tentura_db.dart), so this SET reliably applies for the
+      // whole file. This suite exercises markBeaconRoomSeen with real
+      // (dormant/retired) thread_item_id values directly at the repository
+      // layer, below the case-layer guard, to prove per-thread watermark
+      // mechanics still work internally — the m0156 general-only guard
+      // trigger (Task 07) would otherwise reject those writes.
+      await db.customStatement(
+        "SET tentura.discussion_internal_fixture = 'allow_non_general'",
+      );
       room = BeaconRoomRepository(db);
     });
 
