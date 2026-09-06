@@ -3,6 +3,7 @@ import 'dart:async' show Completer, Timer, unawaited;
 import 'package:get_it/get_it.dart';
 import 'package:tentura_root/domain/capability/capability_slugs.dart';
 import 'package:tentura_root/domain/entity/beacon_cover_source.dart';
+import 'package:tentura_root/domain/entity/beacon_creation_context.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 import 'package:tentura_root/domain/entity/localizable.dart';
 
@@ -13,6 +14,7 @@ import 'package:tentura/domain/entity/coordinates.dart';
 import 'package:tentura/domain/entity/image_entity.dart';
 import 'package:tentura/domain/port/beacon_image_port.dart';
 import 'package:tentura/domain/use_case/beacon_create_case.dart';
+import 'package:tentura/domain/use_case/beacon_hierarchy_case.dart';
 import 'package:tentura/features/forward/ui/bloc/forward_cubit.dart';
 import 'package:tentura/ui/effect/ui_effect.dart';
 import 'package:tentura/ui/effect/ui_effect_port.dart';
@@ -29,13 +31,18 @@ export 'beacon_create_state.dart';
 class BeaconCreateCubit extends Cubit<BeaconCreateState> {
   BeaconCreateCubit({
     BeaconCreateCase? beaconCreateCase,
+    BeaconHierarchyCase? hierarchyCase,
+    BeaconCreationContext? childCreationContext,
     String? draftBeaconIdToLoad,
     String? editBeaconIdToLoad,
     UiEffectPort? effects,
   }) : _case = beaconCreateCase ?? GetIt.I<BeaconCreateCase>(),
+       _hierarchyCase = hierarchyCase ??
+           (childCreationContext != null ? GetIt.I<BeaconHierarchyCase>() : null),
        _effects = effects ?? GetIt.I<UiEffectPort>(),
        super(
          BeaconCreateState(
+           creationContext: childCreationContext,
            status:
                (draftBeaconIdToLoad != null &&
                        draftBeaconIdToLoad.isNotEmpty) ||
@@ -48,10 +55,14 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
       unawaited(Future<void>.microtask(() => loadDraft(draftBeaconIdToLoad)));
     } else if (editBeaconIdToLoad != null && editBeaconIdToLoad.isNotEmpty) {
       unawaited(Future<void>.microtask(() => loadEdit(editBeaconIdToLoad)));
+    } else if (childCreationContext != null) {
+      unawaited(Future<void>.microtask(_initChildComposer));
     }
   }
 
   final BeaconCreateCase _case;
+
+  final BeaconHierarchyCase? _hierarchyCase;
 
   final UiEffectPort _effects;
 
@@ -62,6 +73,69 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
   String _autosaveContext = '';
 
   bool _autosaveArmed = false;
+
+  BeaconSaveCommand? _exactRetrySnapshot;
+
+  Future<void> _initChildComposer() async {
+    final context = state.creationContext;
+    final hierarchy = _hierarchyCase;
+    if (context == null || hierarchy == null || isClosed) return;
+    emit(state.copyWith(status: StateStatus.isLoading));
+    try {
+      final session = await hierarchy.openComposer(
+        creationContext: context,
+        restoredDraftBeaconId: state.draftId,
+      );
+      if (isClosed) return;
+      emit(
+        state.copyWith(
+          clientCommandId: session.clientCommandId,
+          promotionSource: session.promotionSource,
+          description: session.descriptionSeed ?? state.description,
+          status: const StateIsSuccess(),
+        ),
+      );
+      validate();
+    } catch (e) {
+      _emitSnackError(e);
+    }
+  }
+
+  bool get _usesChildSaveFlow =>
+      state.isChildMode &&
+      state.clientCommandId != null &&
+      (state.draftId == null || state.draftId!.isEmpty);
+
+  BeaconChildSaveCommand? _childSaveCommand({
+    required String context,
+    required String id,
+    required bool draftSafeTitle,
+    bool draft = false,
+  }) {
+    final creationContext = state.creationContext;
+    if (creationContext == null) {
+      return null;
+    }
+    return BeaconChildSaveCommand(
+      creationContext: creationContext,
+      clientCommandId: state.clientCommandId ?? '',
+      saveCommand: _command(
+        context: context,
+        id: id,
+        draftSafeTitle: draftSafeTitle,
+        draft: draft,
+      ),
+      exactRetrySnapshot: _exactRetrySnapshot,
+    );
+  }
+
+  void _clearExactRetrySnapshot() => _exactRetrySnapshot = null;
+
+  void _rememberExactRetrySnapshot(BeaconSaveCommand command) {
+    if (_usesChildSaveFlow && command.fields.id.isEmpty) {
+      _exactRetrySnapshot = command;
+    }
+  }
 
   void _emitSnackError(Object error) {
     _effects.emit(ShowError(error));
@@ -601,7 +675,28 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
         ),
       );
     }
+    _rememberExactRetrySnapshot(
+      _command(
+        context: _autosaveContext,
+        id: failure.beaconId ?? '',
+        draftSafeTitle: true,
+      ),
+    );
     _emitSnackError(failure.cause);
+  }
+
+  void _emitChildPromotionConflict(BeaconChildPromotionConflict conflict) {
+    if (!isClosed) {
+      emit(
+        state.copyWith(
+          draftId: state.draftId ?? conflict.draftBeaconId,
+          childPromotionConflict: true,
+          existingPromotedChildBeaconId: conflict.existingChildBeaconId,
+          status: const StateIsSuccess(),
+        ),
+      );
+    }
+    _emitSnackError(conflict);
   }
 
   ///
@@ -629,14 +724,28 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
       );
     }
     try {
-      final result = await _case.create(
-        _command(context: context, id: '', draftSafeTitle: true, draft: true),
-      );
+      final BeaconSaveResult result;
+      if (_usesChildSaveFlow) {
+        final childCommand = _childSaveCommand(
+          context: context,
+          id: '',
+          draftSafeTitle: true,
+          draft: true,
+        )!;
+        _rememberExactRetrySnapshot(childCommand.saveCommand);
+        result = await _hierarchyCase!.ensureChildDraft(childCommand);
+        _clearExactRetrySnapshot();
+      } else {
+        result = await _case.create(
+          _command(context: context, id: '', draftSafeTitle: true, draft: true),
+        );
+      }
       if (!isClosed) {
         emit(
           _applyServerMedia(
             state.copyWith(
               draftId: result.beacon.id,
+              clientCommandId: _usesChildSaveFlow ? null : state.clientCommandId,
               isAutosaving: false,
               lastAutosavedAt: DateTime.timestamp(),
             ),
@@ -658,6 +767,13 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
         emit(state.copyWith(isAutosaving: false));
       }
       _emitSaveFailure(e);
+      return null;
+    } on BeaconChildPromotionConflict catch (e) {
+      gate.complete(null);
+      if (!isClosed) {
+        emit(state.copyWith(isAutosaving: false));
+      }
+      _emitChildPromotionConflict(e);
       return null;
     } catch (e) {
       gate.complete(null);
@@ -704,9 +820,22 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
       );
     }
     try {
-      final result = await _case.saveDraft(
-        _command(context: context, id: existing, draftSafeTitle: true),
-      );
+      final BeaconSaveResult result;
+      if (state.isChildMode) {
+        final childCommand = _childSaveCommand(
+          context: context,
+          id: existing,
+          draftSafeTitle: true,
+        )!;
+        result = state.clientCommandId != null
+            ? await _hierarchyCase!.saveChildDraft(childCommand)
+            : await _case.saveDraft(childCommand.saveCommand);
+        _clearExactRetrySnapshot();
+      } else {
+        result = await _case.saveDraft(
+          _command(context: context, id: existing, draftSafeTitle: true),
+        );
+      }
       if (!isClosed) {
         emit(
           _applyServerMedia(
@@ -732,6 +861,11 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
         return;
       }
       _emitSaveFailure(e);
+    } on BeaconChildPromotionConflict catch (e) {
+      if (!isClosed) {
+        emit(state.copyWith(isAutosaving: false));
+      }
+      _emitChildPromotionConflict(e);
     } catch (e) {
       if (!isClosed) {
         emit(state.copyWith(isAutosaving: false));
@@ -746,6 +880,11 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
     emit(state.copyWith(status: StateStatus.isLoading));
     try {
       await _case.delete(id);
+      final creationContext = state.creationContext;
+      if (creationContext != null) {
+        await _hierarchyCase?.clearCommandIdentity(creationContext);
+      }
+      _clearExactRetrySnapshot();
       _emitNavigateBack();
     } catch (e) {
       _emitSnackError(e);
@@ -836,9 +975,22 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
       }
 
       try {
-        final result = await _case.saveDraft(
-          _command(context: context, id: id, draftSafeTitle: false),
-        );
+        final BeaconSaveResult result;
+        if (state.isChildMode) {
+          final childCommand = _childSaveCommand(
+            context: context,
+            id: id,
+            draftSafeTitle: false,
+          )!;
+          result = state.clientCommandId != null
+              ? await _hierarchyCase!.saveChildDraft(childCommand)
+              : await _case.saveDraft(childCommand.saveCommand);
+          _clearExactRetrySnapshot();
+        } else {
+          result = await _case.saveDraft(
+            _command(context: context, id: id, draftSafeTitle: false),
+          );
+        }
         emit(
           _applyServerMedia(
             state,
@@ -852,13 +1004,32 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
           _emitSaveFailure(e);
           return;
         }
+      } on BeaconChildPromotionConflict catch (e) {
+        _emitChildPromotionConflict(e);
+        return;
       }
 
-      await _case.publishDraft(id);
+      if (state.isChildMode) {
+        final childCommand = _childSaveCommand(
+          context: context,
+          id: id,
+          draftSafeTitle: false,
+        )!;
+        await _hierarchyCase!.publishChildDraft(
+          beaconId: id,
+          command: childCommand,
+          images: state.images,
+          coverKey: state.coverKey,
+          coverThumb: state.coverThumb,
+        );
+      } else {
+        await _case.publishDraft(id);
+      }
       emit(
         state.copyWith(
           draftId: id,
           isLive: true,
+          childPromotionConflict: false,
           status: const StateIsSuccess(),
         ),
       );
@@ -870,6 +1041,8 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
         return;
       }
       _emitSaveFailure(e);
+    } on BeaconChildPromotionConflict catch (e) {
+      _emitChildPromotionConflict(e);
     } catch (e) {
       _emitSnackError(e);
     }

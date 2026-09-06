@@ -1,4 +1,6 @@
 import 'package:tentura_root/domain/entity/beacon_cover_source.dart';
+import 'package:tentura_root/domain/entity/beacon_creation_context.dart';
+import 'package:tentura_root/domain/entity/beacon_promotion_source.dart';
 
 import 'package:tentura/consts.dart';
 import 'package:tentura/domain/capability/capability_tag.dart';
@@ -64,10 +66,26 @@ abstract class BeaconCreateState extends StateBase with _$BeaconCreateState {
 
     /// Show title/description errors after blur or Next, not on every keystroke.
     @Default(false) bool showValidationHints,
+
+    /// Non-null when composing a nested child request (plan §3.4).
+    BeaconCreationContext? creationContext,
+
+    /// Idempotent create command identity; null for restored server drafts.
+    String? clientCommandId,
+
+    /// Composer-only promotion preview; never submitted as child content.
+    BeaconPromotionSource? promotionSource,
+
+    /// Set when [BeaconChildCommandOutcome.alreadyPromoted] is returned.
+    @Default(false) bool childPromotionConflict,
+    String? existingPromotedChildBeaconId,
+
     @Default(StateIsSuccess()) StateStatus status,
   }) = _BeaconCreateState;
 
   const BeaconCreateState._();
+
+  bool get isChildMode => creationContext != null;
 
   bool get isEditMode => editId != null;
 
