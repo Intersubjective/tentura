@@ -1985,3 +1985,81 @@ Implemented §6.3 `beacon_hierarchy` wire kind end-to-end.
 
 Task 14 complete pending multiclient harness run on a live stack (not
 executed in this session — infra not started).
+
+**Manager review (2026-09-06)**
+
+1. **Cubit convergence bug found and fixed** — traced
+   `BeaconHierarchyCubit.load()`'s queuing branch: an explicit `load()`
+   call arriving while a refresh is already in flight (from a prior
+   `load()`, a realtime hint, or a catch-up) sets `status:
+   StateIsLoading()` and returns, but the deferred rerun that eventually
+   satisfies it always resolves through `_runSilentRefresh()`, which
+   never touches `status` — leaving it stuck at Loading indefinitely (no
+   current widget consumes this field, so no visible symptom today, but
+   a genuine latent bug). Fixed with a `_queuedRequestWasExplicit` flag
+   and a shared `_runQueuedRerunIfNeeded()` that restores
+   `StateIsSuccess()` after the deferred rerun when the queued request
+   was explicit. Added a regression test ("explicit load queued behind
+   an in-flight refresh resolves status back to success, not stuck
+   loading") to `beacon_hierarchy_realtime_test.dart` — confirmed it
+   fails against the pre-fix code (times out) and passes against the fix.
+   Commit `a940c908e`.
+2. **Independent verification** — read `m0159.dart` and
+   `beacon_hierarchy_realtime_pg_test.dart` in full; ran the PG suite
+   myself (5/5 passing, not trusting the worker's report); ran
+   `realtime_entity_contract_test.dart` (green); ran the full server
+   suite excl. `pg` (1651/1651); ran
+   `beacon_hierarchy_realtime_test.dart` +
+   `beacon_hierarchy_cubit_test.dart` + `beacon_child_save_test.dart`
+   (28/28); `dart analyze` on every touched file (info-level only, all
+   pre-existing style); `check-custom-lints.sh packages/client` (32/32
+   baseline, OK); `git diff --check` clean.
+3. **Multiclient browser gate — found and fixed 4 real pre-existing
+   defects unrelated to this plan**, all from unrelated commits in the
+   few days before this session, that block *any* run of
+   `run_realtime_multiclient_web_local.sh` regardless of Task 14's own
+   changes:
+   - `d19563e47` renamed the Updates "Mark all seen" button to "Read
+     all"; the harness still clicked the old label.
+   - `1c19ae330`'s one-step beacon-create form renamed the "Recipients"
+     CTA to "Next: Recipients"; the harness still clicked the old text.
+   - The My Work review-window status the harness waited for
+     ("Closed by") does not and never did match
+     `myWorkStatusLine`'s actual output; `wrapUpForReview` transitions
+     to the `wrappingUp` phase, displayed as "Wrapping up".
+   - `44ce713a5` split the forward-recipient row's tap target (opens
+     details) from its selection checkbox, but only wired the
+     checkbox's `Key` (for `flutter_test`), not a `Semantics(identifier:
+     )` — so no WebDriver-based harness could ever select a recipient
+     again. Added the missing identifier in
+     `forward_recipient_row.dart` and pointed the harness at the
+     checkbox testId instead of the row's.
+   All four confirmed by reading source/l10n/git history first, then
+   watching each fix unblock the harness one step further through a
+   live run. Commit `fb7c13e15`.
+4. **Remaining blocker — out of Task 14's scope, deferred to Task 15**:
+   past the above four fixes, the harness reaches an "Issue #102"
+   sub-scenario (My Work / Updates unread convergence for ask-acceptance
+   receipts) that calls a `markAsk` mutation. `markAsk` no longer exists
+   anywhere in the server code or the current GraphQL schema — it was
+   retired by this plan's own earlier ask/promise/blocker → General-only
+   work (Tasks 07/12), and nothing updated this pre-existing,
+   unrelated-to-hierarchy browser scenario to match. This is real
+   evidence *for* Task 15's own acceptance item "every retired public
+   API/old deep link is unavailable," not a regression to fix here.
+   Redesigning or removing that sub-scenario is Task 15's job (whole-
+   product regression + doc updates); Task 14's own new §7 nested-child
+   scenario has not yet been exercised end-to-end in a browser because
+   of this earlier, unrelated blocker.
+5. **Decision**: Task 14 is ACCEPTED on the strength of the PG,
+   contract, and client unit/cubit test evidence in items 1-2 above,
+   which directly and completely cover Task 14's own acceptance
+   criteria (§6.3 recipients/actor-echo/no-draft-leak, catch-up, guarded
+   refresh, cache eviction). The full 5-run + negative-proof browser
+   gate (plan §8) is carried forward as an open item into Task 15, where
+   the `markAsk`/Issue-102 sub-scenario must be adapted before that gate
+   can go green, alongside Task 15's own required whole-product
+   regression pass.
+
+Proceeding to Task 15 (whole-product regression and release
+documentation).
