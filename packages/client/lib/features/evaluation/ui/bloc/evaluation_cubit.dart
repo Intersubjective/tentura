@@ -64,12 +64,15 @@ class EvaluationCubit extends Cubit<EvaluationState> {
       final window = await _evaluationCase.fetchReviewWindowStatus(
         state.beaconId,
       );
+      if (isClosed) return;
       final participants = window.hasWindow
           ? await _evaluationCase.fetchParticipants(state.beaconId)
           : <EvaluationParticipant>[];
+      if (isClosed) return;
       EvaluationSummary? summary;
       if (window.windowComplete) {
         summary = await _evaluationCase.fetchSummary(state.beaconId);
+        if (isClosed) return;
       }
       emit(
         state.copyWith(
@@ -81,6 +84,7 @@ class EvaluationCubit extends Cubit<EvaluationState> {
         ),
       );
     } catch (e) {
+      if (isClosed) return;
       _emitSnackError(e);
     }
   }
@@ -92,6 +96,7 @@ class EvaluationCubit extends Cubit<EvaluationState> {
         final data = await _evaluationCase.fetchDraftModeBootstrap(
           state.beaconId,
         );
+        if (isClosed) return;
         emit(
           state.copyWith(
             participants: data.participants,
@@ -104,9 +109,11 @@ class EvaluationCubit extends Cubit<EvaluationState> {
       final participants = await _evaluationCase.fetchParticipants(
         state.beaconId,
       );
+      if (isClosed) return;
       final window = await _evaluationCase.fetchReviewWindowStatus(
         state.beaconId,
       );
+      if (isClosed) return;
       emit(
         state.copyWith(
           participants: participants,
@@ -116,6 +123,7 @@ class EvaluationCubit extends Cubit<EvaluationState> {
         ),
       );
     } catch (e) {
+      if (isClosed) return;
       _emitSnackError(e);
     }
   }
@@ -141,9 +149,11 @@ class EvaluationCubit extends Cubit<EvaluationState> {
           reasonTags: null,
           note: effectiveNote,
         );
+        if (isClosed) return true;
         final participants = await _evaluationCase.fetchDraftParticipants(
           state.beaconId,
         );
+        if (isClosed) return true;
         emit(
           state.copyWith(
             participants: participants,
@@ -162,12 +172,15 @@ class EvaluationCubit extends Cubit<EvaluationState> {
             ? const <String>[]
             : acknowledgedHelpTags,
       );
+      if (isClosed) return true;
       final participants = await _evaluationCase.fetchParticipants(
         state.beaconId,
       );
+      if (isClosed) return true;
       final window = await _evaluationCase.fetchReviewWindowStatus(
         state.beaconId,
       );
+      if (isClosed) return true;
       emit(
         state.copyWith(
           participants: participants,
@@ -178,6 +191,7 @@ class EvaluationCubit extends Cubit<EvaluationState> {
       );
       return true;
     } catch (e) {
+      if (isClosed) return false;
       _emitSnackError(e);
       return false;
     }
@@ -193,10 +207,12 @@ class EvaluationCubit extends Cubit<EvaluationState> {
         beaconId: state.beaconId,
         evaluatedUserId: evaluatedUserId,
       );
+      if (isClosed) return true;
       if (state.isDraftMode) {
         final participants = await _evaluationCase.fetchDraftParticipants(
           state.beaconId,
         );
+        if (isClosed) return true;
         emit(
           state.copyWith(
             participants: participants,
@@ -207,9 +223,11 @@ class EvaluationCubit extends Cubit<EvaluationState> {
         final participants = await _evaluationCase.fetchParticipants(
           state.beaconId,
         );
+        if (isClosed) return true;
         final window = await _evaluationCase.fetchReviewWindowStatus(
           state.beaconId,
         );
+        if (isClosed) return true;
         emit(
           state.copyWith(
             participants: participants,
@@ -221,6 +239,7 @@ class EvaluationCubit extends Cubit<EvaluationState> {
       }
       return true;
     } catch (e) {
+      if (isClosed) return false;
       _emitSnackError(e);
       return false;
     }
@@ -237,8 +256,10 @@ class EvaluationCubit extends Cubit<EvaluationState> {
     emit(state.copyWith(status: StateStatus.isLoading));
     try {
       await _evaluationCase.finalize(state.beaconId);
+      if (isClosed) return;
       _emitNavigateBack();
     } catch (e) {
+      if (isClosed) return;
       _emitSnackError(e);
     }
   }
