@@ -7,11 +7,11 @@ import 'package:tentura_root/domain/entity/beacon_cover_source.dart';
 import 'package:tentura_root/domain/entity/coordinates.dart';
 
 import 'package:tentura_server/env.dart';
-import 'package:tentura_server/domain/capability/capability_tag.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 import 'package:tentura_root/domain/entity/beacon_status_transition.dart';
 import 'package:tentura_server/consts/beacon_activity_event_consts.dart';
 import 'package:tentura_server/domain/beacon_lineage_visibility.dart';
+import 'package:tentura_server/domain/policy/beacon_creation_policy.dart';
 import 'package:tentura_server/domain/port/beacon_access_guard.dart';
 import 'package:tentura_server/domain/port/beacon_hierarchy_repository_port.dart';
 import 'package:tentura_server/domain/port/beacon_repository_port.dart';
@@ -36,71 +36,6 @@ const kMaxImagesPerBeacon = 10;
 
 /// Stage rows older than this are eligible for the expiry sweep (§3.3).
 const kBeaconStageExpiry = Duration(hours: 24);
-
-String? _trimOrNull(String? raw) {
-  if (raw == null) return null;
-  final t = raw.trim();
-  return t.isEmpty ? null : t;
-}
-
-String _normalizeBeaconDescription(String? raw) {
-  final t = (raw ?? '').trim();
-  if (t.isEmpty) {
-    throw const BeaconCreateException(description: 'Description is required');
-  }
-  if (t.length > kBeaconDescriptionMaxLength) {
-    throw const BeaconCreateException(description: 'Description is too long');
-  }
-  return t;
-}
-
-Set<String>? _normalizeNeeds(String? raw) {
-  if (raw == null || raw.isEmpty) return null;
-  final slugs = raw
-      .split(',')
-      .map((s) => s.trim())
-      .where((s) => s.isNotEmpty)
-      .toSet();
-  for (final slug in slugs) {
-    if (!kAllowedCapabilitySlugs.contains(slug)) {
-      throw BeaconCreateException(
-        description: 'Unknown capability slug: $slug',
-      );
-    }
-  }
-  return slugs.isEmpty ? null : slugs;
-}
-
-/// Resolves the strict/compatibility `primaryNeedSlug` (N1-N3, §3.5).
-///
-/// When [primaryNeedSlugProvided] is false (legacy caller omitted the
-/// argument), derives canonical-first from [needs]. Otherwise validates
-/// strictly: an unknown slug throws [BeaconPrimaryNeedInvalidException]; a
-/// non-null primary absent from [needs], or a null primary while [needs] is
-/// non-empty, throws [BeaconPrimaryNeedNotInNeedsException].
-String? _resolvePrimaryNeedSlug({
-  required Set<String>? needs,
-  required String? primaryNeedSlug,
-  required bool primaryNeedSlugProvided,
-}) {
-  final needsSet = needs ?? const <String>{};
-  if (!primaryNeedSlugProvided) {
-    return canonicalFirstCapabilitySlug(needsSet);
-  }
-  if (primaryNeedSlug == null) {
-    if (needsSet.isNotEmpty) {
-      throw const BeaconPrimaryNeedNotInNeedsException();
-    }
-    return null;
-  }
-  if (!kAllowedCapabilitySlugs.contains(primaryNeedSlug)) {
-    throw const BeaconPrimaryNeedInvalidException();
-  }
-  if (!needsSet.contains(primaryNeedSlug)) {
-    throw const BeaconPrimaryNeedNotInNeedsException();
-  }
-  return primaryNeedSlug;
-}
 
 BeaconCoverSource _parseCoverSourceStrict(int wireValue) {
   for (final source in BeaconCoverSource.values) {
@@ -264,8 +199,8 @@ final class BeaconCase extends UseCaseBase {
     String? addressLabel,
   }) async {
     await _enforceCreateRateLimit(userId);
-    final normalizedNeeds = _normalizeNeeds(needs);
-    final resolvedPrimary = _resolvePrimaryNeedSlug(
+    final normalizedNeeds = BeaconCreationPolicy.normalizeNeeds(needs);
+    final resolvedPrimary = BeaconCreationPolicy.resolvePrimaryNeedSlug(
       needs: normalizedNeeds,
       primaryNeedSlug: primaryNeedSlug,
       primaryNeedSlugProvided: primaryNeedSlugProvided,
@@ -286,7 +221,9 @@ final class BeaconCase extends UseCaseBase {
         );
       }
 
-      final desc = _normalizeBeaconDescription(description);
+      final desc = BeaconCreationPolicy.normalizeStandaloneDescription(
+        description,
+      );
       return await _beaconRepository.createBeacon(
         authorId: userId,
         title: title,
@@ -301,7 +238,7 @@ final class BeaconCase extends UseCaseBase {
         startAt: startAt,
         endAt: endAt,
         status: draft ? BeaconStatus.draft : null,
-        addressLabel: _trimOrNull(addressLabel),
+        addressLabel: BeaconCreationPolicy.trimOrNull(addressLabel),
       );
     } catch (_) {
       for (final imageId in imageIds) {
@@ -342,9 +279,11 @@ final class BeaconCase extends UseCaseBase {
     Coordinates? coordinates,
     String? addressLabel,
   }) async {
-    final desc = _normalizeBeaconDescription(description);
-    final normalizedNeeds = _normalizeNeeds(needs);
-    final resolvedPrimary = _resolvePrimaryNeedSlug(
+    final desc = BeaconCreationPolicy.normalizeStandaloneDescription(
+      description,
+    );
+    final normalizedNeeds = BeaconCreationPolicy.normalizeNeeds(needs);
+    final resolvedPrimary = BeaconCreationPolicy.resolvePrimaryNeedSlug(
       needs: normalizedNeeds,
       primaryNeedSlug: primaryNeedSlug,
       primaryNeedSlugProvided: primaryNeedSlugProvided,
@@ -362,7 +301,7 @@ final class BeaconCase extends UseCaseBase {
       longitude: coordinates?.long,
       startAt: startAt,
       endAt: endAt,
-      addressLabel: _trimOrNull(addressLabel),
+      addressLabel: BeaconCreationPolicy.trimOrNull(addressLabel),
     );
     return beacon;
   }
@@ -383,9 +322,11 @@ final class BeaconCase extends UseCaseBase {
     Coordinates? coordinates,
     String? addressLabel,
   }) async {
-    final desc = _normalizeBeaconDescription(description);
-    final normalizedNeeds = _normalizeNeeds(needs);
-    final resolvedPrimary = _resolvePrimaryNeedSlug(
+    final desc = BeaconCreationPolicy.normalizeStandaloneDescription(
+      description,
+    );
+    final normalizedNeeds = BeaconCreationPolicy.normalizeNeeds(needs);
+    final resolvedPrimary = BeaconCreationPolicy.resolvePrimaryNeedSlug(
       needs: normalizedNeeds,
       primaryNeedSlug: primaryNeedSlug,
       primaryNeedSlugProvided: primaryNeedSlugProvided,
@@ -413,7 +354,7 @@ final class BeaconCase extends UseCaseBase {
           longitude: coordinates?.long,
           startAt: startAt,
           endAt: endAt,
-          addressLabel: _trimOrNull(addressLabel),
+          addressLabel: BeaconCreationPolicy.trimOrNull(addressLabel),
         );
         if (before.endAt != updated.endAt) {
           final recipients = await _commitmentQueryCase.currentCommitterUserIds(
