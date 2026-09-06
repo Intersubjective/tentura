@@ -1619,3 +1619,86 @@ and 129/129:
 
 Task 11 is ACCEPTED (with the above remediation). Proceeding to Task 12
 (child request surface, General host, and safe navigation).
+
+### Task 12 — worker timed out; manager salvaged, fixed, and dispatched scoped remediation (2026-09-06)
+
+Cursor worker hit its own 1-hour hard timeout (exit 124) with zero
+commits. Found and killed one orphaned `flutter test` child process
+(PID surviving the worker's own kill, 7:45 elapsed, running the very
+test files this task added) before reviewing — a reminder that a
+`timeout`-wrapped worker's own child processes are not always reaped
+with it; checked for and cleaned this up per standing practice.
+
+Reviewed the full uncommitted diff (19 changed files, ~2400 lines) directly:
+
+1. Reverted one out-of-scope change: the worker bumped
+   `packages/client/pubspec.yaml`/`web/index.html`'s cache-busting
+   version string 6.16.4 → 6.16.5 — not part of this task; a version
+   bump is a deliberate release decision. Reverted both.
+2. Fixed 4 real `dart analyze` warnings the worker's own pass had missed
+   (unused imports in three files, one unnecessary null assertion).
+3. Found ~240 lines of newly-dead code in `beacon_room_body.dart`
+   (`_showPromoteFieldsDialog`/`_admittedParticipantsForPromote`/
+   `_needInfoTargetLabel`/`_PromoteFieldsSheet(State)` — the retired ask/
+   promise/blocker "promote fields" dialog, unreferenced after the
+   message-action rewiring to "Create child request") — confirmed via
+   `dart analyze`'s `unused_element` warning, traced every reference,
+   confirmed the still-live `_BeaconRoomTextBottomSheet`/
+   `showBeaconRoomUpdatePlanSheet` sitting immediately after it in the
+   same file were NOT part of the same dead chain (still used at three
+   other call sites), and removed exactly the dead range. This is
+   precisely what plan §Task 12 asks for ("remove retired creation
+   controls... this task removes only the remaining UI surfaces") —
+   the worker had stopped calling the dead code but not deleted it.
+4. **Root-caused the worker's own stall directly**, since I had already
+   independently confirmed the exact same test file hangs when run
+   standalone: `nested_beacon_navigation_test.dart`'s "router pop after
+   nested push drops child from stack" test called
+   `await router.push(BeaconViewRoute(id: 'child-1'))` — AutoRoute's
+   `push()` returns a Future that only resolves when the pushed route is
+   POPPED, not when the push itself completes (confirmed against this
+   repo's own established pattern in
+   `test/app/router/home_tab_branch_routing_test.dart`, which always
+   wraps `router.push(...)` in `unawaited(...)`). The test awaited that
+   Future three lines before ever calling `router.pop()` — a genuine
+   self-deadlock, not a `flutter pub get`/tooling flake as the worker's
+   own log concluded while it repeatedly re-ran the same hanging test
+   under a 15s-per-test cap for over two minutes. Fixed with
+   `unawaited(...)` + `pumpAndSettle()`; confirmed directly (240s
+   timeout → <1s, 5/5, twice).
+5. Independently reran EVERY changed/new test file individually (not
+   trusting a single combined multi-directory run, whose
+   `--reporter compact` output turned out to have serious sticky
+   line-overwrite artifacts in a non-interactive terminal — spot-checked
+   one apparently-failing file from that noisy run
+   (`help_offer_chip_roundtrip_test.dart`) in isolation and found it
+   fully passing, confirming the combined run's signal was unreliable
+   for files outside this task's own diff): `beacon_hierarchy_cubit_test.dart`
+   9/9, `beacon_hierarchy_view_test.dart` 5/5, `nested_beacon_navigation_test.dart`
+   5/5, `threads_cubit_test.dart` 7/7, `threads_list_test.dart` 4/4,
+   `beacon_operational_scroll_view_pinned_facts_test.dart`/
+   `beacon_tab_reselect_folds_test.dart` 3/3 (+1 legitimately skipped,
+   documented reason), `promise_composer_live_wiring_test.dart` 1
+   skipped with a clear "retired from Discussion overview (Task 12)"
+   comment.
+6. Found two files with genuine, real failures, both the same root
+   cause: `request_threads_adaptive_test.dart` (9 of 18 failing) and
+   `thread_detail_test.dart` (2 of 5 failing) both assert on retired
+   semantic ask/item-thread rendering (`request.thread.item-only-thread`,
+   `request.thread.log-ask` row keys; `ThreadDetailTitle` for an "ask
+   thread"; an "item-only authorization" model; item-inclusive unread
+   badge totals) that `threads_list.dart`/`thread_detail_screen.dart`
+   correctly no longer produce after this task's intentional removal.
+   Traced one representative case (`draft row opens composer` —
+   constructs an unpublished coordination-item draft and expects it to
+   open the old `coordinationComposerTitle`) to confirm this is testing
+   retired functionality, not a real regression. Left both files
+   uncommitted (they still compile — the worker's own edits kept them
+   buildable — but 11 assertions need updating/pruning to match the new
+   behavior, which requires case-by-case judgment about what layout
+   coverage is still worth preserving vs. what's purely retired).
+
+Committed the verified-good salvage in two commits: `8601e904b`
+(production code) and `239c008d8` (passing tests + the router fix).
+Dispatching a fresh, precisely-scoped Cursor worker for the remaining 11
+test failures (see next journal entry for its prompt/dispatch).
