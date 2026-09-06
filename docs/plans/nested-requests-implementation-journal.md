@@ -1161,3 +1161,56 @@ Verification:
   commit (this worker turn).
 
 Task 08 complete. Proceeding to Task 09 when scheduled.
+
+### Task 08 — manager review and acceptance (2026-09-06)
+
+One salvage round (killed by external memory pressure before its first
+commit — found and fixed two real defects verified live: a missing `part
+'m0157.dart';` registration that meant the whole migration silently didn't
+exist, and a wrong guessed constraint name that left
+`beacon_help_offer_coordination` with two conflicting FKs on the same
+column; see commit `7133dd306`). The completing attempt added the full
+domain-owned erasure transaction (`UserErasureCase`), structural/tombstone
+read-path support, and the remaining 3 nullable-and-anonymise tables plus
+scrub-then-delete handling.
+
+Independently verified:
+1. `beacon_help_offer.user_id` staying `CASCADE` is correct and
+   unavoidable — confirmed the table's primary key is the composite
+   `(beacon_id, user_id)`, so `user_id` cannot be nullable at all.
+2. **Investigated a consequence of that CASCADE directly against a live
+   database rather than trusting the code**: `beacon_commitment_event` and
+   `beacon_help_offer_admission_event` both carry a composite FK to
+   `beacon_help_offer(beacon_id, user_id)` with `ON DELETE CASCADE`, so
+   erasing the OFFERING user removes not just their offer row but every
+   commitment/admission event tied to that pair — even ones where a
+   different, still-live user was the acting party. Verified separately
+   that erasing a mere commitment ACTOR (not the offerer) correctly
+   anonymises the event in place instead. Neither property had any test
+   coverage before this review. This is a defensible, intentional
+   consequence (the offer's own identity disappearing removes its whole
+   lifecycle together, same as a user's own messages being deleted rather
+   than orphaned) — added one test making both properties explicit and
+   verified rather than an unverified side effect (commit `0834ee2f9`).
+3. Read the "failed erasure rolls back completely" test — genuine fault
+   injection (`_FailingUserRepository.failOnDelete` throws deep inside the
+   real `deleteById` call, at the END of the erasure sequence), and the
+   test asserts the beacon's status/title/description/user_id are ALL
+   still their original un-scrubbed values, proving the whole sequence —
+   not just the final step — rolled back together.
+4. Confirmed no object-store deletion happens inside the DB transaction:
+   `_imageObjectGc.enqueue(...)` calls are outside the
+   `_hierarchyRepository`-locked transaction block, firing only after
+   commit.
+5. Confirmed the raw-delete-denied backstop
+   (`beacon_owner_or_deleted_ck`) fires correctly at the DB level for a
+   direct `DELETE FROM "user"` bypassing the application entirely.
+6. Independently reran: full `dart test --exclude-tags pg` (1651/1651,
+   1652 pre-existing minus the deliberate legacy-cascade behavior change
+   accounted for), `beacon_hierarchy_erasure_pg_test.dart` (7/7 including
+   the new test), `user_delete_attention_pg_test.dart` (2/2),
+   `beacon_hierarchy_delivery_pg_test.dart` (14/14, unaffected), custom-
+   lints baseline unchanged, `git diff --check` clean.
+
+Task 08 is ACCEPTED. Proceeding to Task 09 (scoped legacy cleanup
+migration).
