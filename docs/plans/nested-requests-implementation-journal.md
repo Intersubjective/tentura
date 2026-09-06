@@ -84,7 +84,7 @@ which this plan/orchestration owns.
 | 08 | Safe request deletion and account erasure | 07 | complete |
 | 09 | Scoped legacy cleanup migration | 08 | complete |
 | 10 | V2 hierarchy schema and generated client transport | 09 | complete |
-| 11 | Extend existing composer/save flow | 10 | pending |
+| 11 | Extend existing composer/save flow | 10 | complete |
 | 12 | Child request surface, General host, and safe navigation | 11 | pending |
 | 13 | Typed notices and promoted-source footer | 12 | pending |
 | 14 | Realtime producers and convergence | 13 | pending |
@@ -1471,3 +1471,68 @@ passing repository test).
 
 Task 10 is ACCEPTED. Proceeding to Task 11 (extend existing composer/
 save flow).
+
+### Task 11 — complete (Cursor CLI worker, 2026-09-06)
+
+**Architectural decision:** Added a separate `BeaconHierarchyCase` rather than
+extending `BeaconCreateCase` internals. Child field creation uses
+`BeaconHierarchyRepositoryPort.createChild` (V2 transport from Task 10); media
+staging/reconcile and draft updates reuse `BeaconCreateCase` unchanged.
+Standalone `BeaconCreateCase.create/saveDraft/makeLive` paths are untouched.
+
+**Delivered**
+- `packages/client/lib/domain/use_case/beacon_hierarchy_case.dart`:
+  `openComposer` (clientCommandId mint/persist via
+  `BeaconChildCommandStorePort`, promotion source preview seeds description
+  only), `ensureChildDraft`/`saveChildDraft` (idempotent create + exact-retry
+  snapshot for ambiguous responses + update-after-recovery), `publishChildDraft`
+  (existing `BeaconWritePort.publishDraft`, publish-phase `BeaconSaveFailure`),
+  typed `BeaconChildPromotionConflict` for `alreadyPromoted`.
+- `BeaconChildCommandStorePort` + `BeaconChildCommandStore` (secure storage,
+  keyed by parent/source context).
+- `BeaconCreateCase`: `BeaconSavePhase.publish`, optional
+  `BeaconSaveFailure.clientCommandId`, public `reconcileMedia`, `copyWith` on
+  `BeaconSaveCommand`.
+- `BeaconCreateCubit`/`State`: optional `childCreationContext` constructor
+  param; child-mode routing for ensureDraft/saveDraft/makeLive/deleteDraft;
+  `childPromotionConflict` + `existingPromotedChildBeaconId` UI state;
+  hierarchy case resolved from DI only when `childCreationContext != null`
+  (standalone widget tests unaffected).
+
+**§3.4 coverage**
+| Requirement | Implementation |
+|---|---|
+| clientCommandId at composer open, persisted across retry/restart | `openComposer` + `BeaconChildCommandStore` |
+| Restored draft uses canonical id, no fresh command | `openComposer(restoredDraftBeaconId:)` → null command id |
+| draft-first create via hierarchy port, media after | `createChild(draft:true)` then `reconcileMedia` |
+| Exact retry before edited resubmit | `exactRetrySnapshot` on `BeaconChildSaveCommand` |
+| alreadyPromoted never treated as own publication | `BeaconChildPromotionConflict` + cubit state flag |
+| Publish via existing `publishDraft` | `publishChildDraft` → `BeaconWritePort.publishDraft` |
+| Denial keeps draft/media | publish-phase failure preserves beaconId/images |
+| Promotion preview seeds description only | `fetchPromotionSource` once at open |
+
+**Verification**
+```bash
+cd packages/client
+flutter test test/domain/use_case/beacon_child_save_test.dart \
+  test/features/beacon_create/beacon_child_create_cubit_test.dart   # 18/18
+flutter test test/features/beacon_create/ test/domain/use_case/    # 129/129
+dart analyze lib/domain/use_case/beacon_hierarchy_case.dart \
+  lib/domain/use_case/beacon_create_case.dart \
+  lib/features/beacon_create/ui/bloc/beacon_create_cubit.dart \
+  lib/data/service/beacon_child_command_store.dart                  # 0 errors (1 info)
+dart analyze test/domain/use_case/beacon_child_save_test.dart \
+  test/features/beacon_create/beacon_child_create_cubit_test.dart   # 0 issues
+./scripts/check-custom-lints.sh packages/client                       # 32/32 baseline
+```
+
+**Commits**
+- `825ed279d` — `feat(client): add BeaconHierarchyCase for child draft-first save`
+- `c9685fd51` — `feat(client): wire child creation into BeaconCreateCubit`
+- `67de5744d` — `test(client): add child save and cubit acceptance tests for Task 11`
+
+**Deferred to Task 12:** Screen/route wiring passing `childCreationContext` from
+promotion entry points, l10n for promotion-conflict copy, and dedicated child
+composer navigation (this task delivers the save protocol + cubit hooks only).
+
+**Next task:** Task 12 — child request surface, General host, and safe navigation.
