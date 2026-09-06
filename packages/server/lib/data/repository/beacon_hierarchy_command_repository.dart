@@ -2,7 +2,7 @@ import 'dart:convert';
 
 import 'package:drift/drift.dart';
 import 'package:injectable/injectable.dart';
-import 'package:postgres/postgres.dart' show Severity;
+import 'package:postgres/postgres.dart' show Severity, Type, TypedValue;
 import 'package:tentura_root/domain/entity/beacon_child_command_outcome.dart';
 import 'package:tentura_root/domain/entity/beacon_creation_context.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
@@ -154,7 +154,7 @@ WHERE id = ANY($1::text[])
 ORDER BY id
 FOR UPDATE
 ''',
-      [sorted],
+      [TypedValue(Type.textArray, sorted)],
     );
   }
 
@@ -478,18 +478,13 @@ WHERE hierarchy_notice_identity = $1
   }
 
   static Map<String, Object?>? _readJsonMap(QueryRow row, String column) {
-    final raw = row.readNullable<Object>(column);
-    if (raw == null) {
+    final raw = row.readNullable<String>(column);
+    if (raw == null || raw.isEmpty) {
       return null;
     }
-    if (raw is Map<String, Object?>) {
-      return raw;
-    }
-    if (raw is String) {
-      final decoded = jsonDecode(raw);
-      if (decoded is Map<String, Object?>) {
-        return decoded;
-      }
+    final decoded = jsonDecode(raw);
+    if (decoded is Map<String, Object?>) {
+      return decoded;
     }
     return null;
   }

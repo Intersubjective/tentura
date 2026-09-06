@@ -304,6 +304,8 @@ final class BeaconChildCreateCase extends UseCaseBase
               parentBeaconId: child.parentBeaconId!,
               sourceMessageId: sourceMessageId,
             );
+          } else if (promotion != null) {
+            throw const BeaconPromotionSourceInvalidException();
           }
 
           return _publishChildInTransaction(
