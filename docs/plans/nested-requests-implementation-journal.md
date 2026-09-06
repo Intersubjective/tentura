@@ -1820,3 +1820,37 @@ schema_fetcher regeneration, the `RoomMessage` client entity field, the
 notice/footer widgets, room_message_tile.dart wiring, notification-
 navigation extension, l10n, and both required tests. A fresh worker
 continues Task 13 from here.
+
+### Task 13 — second attempt killed; schema regen salvaged (2026-09-06)
+
+Second consecutive Cursor worker attempt on Task 13 killed by external
+memory pressure before its first commit. Found and cleaned up one
+orphaned process this time: the worker had started the local dev server
+per its own prompt's instructions (to reload Hasura/regenerate the
+client schema) but was killed before stopping it — still listening on
+:2080 with no worker left to use it. Killed both the dev server and its
+parent shell wrapper before reviewing the diff.
+
+Diff was small but correct and complete for its scope: regenerated
+`schema.graphql` (confirmed `systemMessageKind` now present) and added
+it to the three client `.graphql` documents that needed it
+(`room_message_list.graphql`, `room_message_target.graphql`,
+`room_poll_create.graphql`) — correctly left `beacon_threads_list.graphql`
+alone after verifying it selects a different type
+(`ThreadMessagePreview`, not the full room-message row). Ran
+`build_runner` myself (the worker hadn't reached it), verified `dart
+analyze` 0 errors and all room_message_tile-adjacent existing tests
+still pass, custom-lints unchanged, `git diff --check` clean. Commit:
+`5c2e77d88`.
+
+Not accepted as task-complete — still need the `RoomMessage` entity
+field + typed payload parsing, both new widgets, `room_message_tile.dart`
+wiring, notification-navigation extension, l10n, and both required
+tests. This is the second consecutive kill on this task, but each
+attempt has produced real, distinct forward progress (not the same
+defect recurring), so continuing with one more scoped Cursor attempt
+before considering manual completion, per the overseer skill's guidance
+to understand *why* prior attempts fell short before ruling out further
+delegation — the "why" here is external memory pressure during
+long-running steps (schema regen, dev-server lifecycle), not a
+comprehension or design problem with the task itself.
