@@ -2248,6 +2248,11 @@ type beacon_room_state {
   beacon: beacon!
   beacon_id: String!
   current_line: String!
+
+  """
+  A computed field, executes function "beacon_room_state_general_visible"
+  """
+  general_visible: Boolean
   last_room_meaningful_change: String
   open_blocker_id: String
   updated_at: timestamptz!
@@ -2276,6 +2281,7 @@ input beacon_room_state_bool_exp {
   beacon: beacon_bool_exp
   beacon_id: String_comparison_exp
   current_line: String_comparison_exp
+  general_visible: Boolean_comparison_exp
   last_room_meaningful_change: String_comparison_exp
   open_blocker_id: String_comparison_exp
   updated_at: timestamptz_comparison_exp
@@ -2312,6 +2318,7 @@ input beacon_room_state_order_by {
   beacon: beacon_order_by
   beacon_id: order_by
   current_line: order_by
+  general_visible: order_by
   last_room_meaningful_change: order_by
   open_blocker_id: order_by
   updated_at: order_by
@@ -3403,9 +3410,7 @@ type mutation_root {
   RoomMessageMarkSemanticDone(beaconId: String!, messageId: String!): Boolean!
   RoomMessageReactionToggle(beaconId: String!, emoji: String!, messageId: String!): Boolean!
   RoomPollCreate(allowRevote: Boolean, beaconId: String!, isAnonymous: Boolean, pollType: String, question: String!, variants: [String!]): v2_RoomMessageRow!
-  acceptAsk(itemId: String!): v2_CoordinationItemRow!
   acceptHelpOffer(id: String!, offerUserId: String!): v2_BeaconStatusResult!
-  acceptPromise(itemId: String!): v2_CoordinationItemRow!
   addPlanStep(body: String, parentItemId: String!, title: String!): v2_CoordinationItemRow!
   attentionMarkAllSeen: Int!
   attentionMarkSeen(ids: [String!]): Int!
@@ -3434,22 +3439,12 @@ type mutation_root {
   beaconUpdate(addressLabel: String, context: String, coordinates: v2_Coordinates = {}, description: String, endAt: String, id: String!, needs: String, primaryNeedSlug: String, startAt: String, tags: String, title: String!): v2_Beacon!
   beaconUpdateDraft(addressLabel: String, context: String, coordinates: v2_Coordinates = {}, description: String, endAt: String, id: String!, needs: String, primaryNeedSlug: String, startAt: String, tags: String, title: String!): v2_Beacon!
   beaconWithdraw(id: String!, message: String, withdrawReason: String!): Boolean!
-  cancelAsk(itemId: String!, reason: String): v2_CoordinationItemRow!
-  cancelBlocker(itemId: String!, reason: String): v2_CoordinationItemRow!
-  cancelPromise(itemId: String!, reason: String): v2_CoordinationItemRow!
   capabilityPrivateLabelSet(slugs: [String!], subjectUserId: String!): Boolean!
   capabilitySetViewerVisible(slugs: [String!], subjectUserId: String!): Boolean!
   complaintCreate(details: String!, email: String!, id: String!, type: String!): Boolean!
   contactDelete(subjectUserId: String!): Boolean!
   contactSet(contactName: String!, subjectUserId: String!): Boolean!
-  createDraftAsk(beaconId: String!, body: String, linkedMessageId: String, staleAfterDays: Int, targetPersonId: String, title: String!): v2_CoordinationItemRow!
-  createDraftBlocker(beaconId: String!, body: String, staleAfterDays: Int, targetPersonId: String, title: String!): v2_CoordinationItemRow!
-  createDraftPromise(beaconId: String!, body: String, linkedMessageId: String, staleAfterDays: Int, targetPersonId: String, title: String!): v2_CoordinationItemRow!
-  createPromise(beaconId: String!, body: String, linkedMessageId: String, staleAfterDays: Int, targetPersonId: String!, title: String!): v2_CoordinationItemRow!
   declineHelpOffer(id: String!, offerUserId: String!, reason: String!): v2_BeaconStatusResult!
-  deleteDraftAsk(itemId: String!): Boolean!
-  deleteDraftBlocker(itemId: String!): Boolean!
-  deleteDraftPromise(itemId: String!): Boolean!
 
   """
   delete data from the table: "beacon_archived"
@@ -3636,24 +3631,14 @@ type mutation_root {
   invitationUpdate(addresseeName: String!, id: String!): v2_Invitation!
   inviteSeedPromptAnswer(slugs: [String!], subjectId: String!): Boolean!
   inviteSeedPromptSkip(subjectId: String!): Boolean!
-  markAsk(beaconId: String!, body: String, linkedMessageId: String, staleAfterDays: Int, targetPersonId: String!, title: String!): v2_CoordinationItemRow!
   markBeaconItemsSeen(beaconId: String!): v2_BeaconItemsSeenResult!
-  markBlocker(beaconId: String!, body: String, linkedMessageId: String, staleAfterDays: Int, targetPersonId: String, title: String!): v2_CoordinationItemRow!
   meritrankInit(forceCalculate: Boolean): Int!
   notificationPreferencesUpdate(clearQuietHours: Boolean, clearSnooze: Boolean, emailCategories: [String!], emailDigest: String, locale: String, lockScreenSafe: Boolean, mutedInAppEventClasses: [String!], pushCategories: [String!], quietHoursEnd: Int, quietHoursStart: Int, snoozeUntil: String, tzOffsetMinutes: Int): v2_NotificationPreferences!
   pollingAct(pollingId: String!, score: Int, variantIds: [String!]): Boolean!
-  publishAsk(itemId: String!, staleAfterDays: Int, targetPersonId: String!): v2_CoordinationItemRow!
-  publishBlocker(itemId: String!, staleAfterDays: Int): v2_CoordinationItemRow!
-  publishPromise(itemId: String!, staleAfterDays: Int, targetPersonId: String!): v2_CoordinationItemRow!
-  redirectAsk(itemId: String!, newTargetPersonId: String!): v2_CoordinationItemRow!
-  redirectPromise(itemId: String!, newTargetPersonId: String!): v2_CoordinationItemRow!
   releaseCommitment(id: String!, offerUserId: String!, reason: String!): v2_BeaconStatusResult!
   remindCoordinationItem(itemId: String!): v2_CoordinationItemRow!
   removeFromRoom(id: String!, offerUserId: String!, reason: String!): v2_BeaconStatusResult!
-  resolveAsk(itemId: String!, note: String): v2_CoordinationItemRow!
-  resolveBlocker(itemId: String!, note: String): v2_CoordinationItemRow!
   resolvePlanStep(itemId: String!): v2_CoordinationItemRow!
-  resolvePromise(itemId: String!, note: String): v2_CoordinationItemRow!
   revokeAcknowledgement(beaconId: String!, slug: String!, subjectId: String!): Boolean!
   seedRoutingAttestation(slugs: [String!], subjectId: String!): Boolean!
   setBeaconStatus(id: String!, status: Int!): v2_BeaconStatusResult!
@@ -3666,9 +3651,6 @@ type mutation_root {
   trustForceRefreshStar(sourceUserId: String!): Boolean!
   updateCoordinationItem(body: String, itemId: String!, title: String!): v2_CoordinationItemRow!
   updateCoordinationPlan(beaconId: String!, body: String, linkedMessageId: String, targetPersonId: String, title: String!): v2_CoordinationItemRow!
-  updateDraftAsk(body: String, itemId: String!, staleAfterDays: Int, targetPersonId: String, title: String!): v2_CoordinationItemRow!
-  updateDraftBlocker(body: String, itemId: String!, staleAfterDays: Int, targetPersonId: String, title: String!): v2_CoordinationItemRow!
-  updateDraftPromise(body: String, itemId: String!, staleAfterDays: Int, targetPersonId: String, title: String!): v2_CoordinationItemRow!
 
   """
   update data of the table: "beacon_help_offer"
@@ -4020,6 +4002,11 @@ type polling {
     where: polling_act_bool_exp
   ): [polling_act!]!
   question: String!
+
+  """
+  A computed field, executes function "polling_get_room_general_visible"
+  """
+  room_general_visible: Boolean
   updated_at: timestamptz!
 
   """An array relationship"""
@@ -4047,6 +4034,9 @@ columns and relationships of "polling_act"
 type polling_act {
   author_id: String!
   created_at: timestamptz!
+
+  """An object relationship"""
+  polling: polling!
   polling_id: String!
   polling_variant_id: String!
 }
@@ -4069,6 +4059,7 @@ input polling_act_bool_exp {
   _or: [polling_act_bool_exp!]
   author_id: String_comparison_exp
   created_at: timestamptz_comparison_exp
+  polling: polling_bool_exp
   polling_id: String_comparison_exp
   polling_variant_id: String_comparison_exp
 }
@@ -4097,6 +4088,7 @@ input polling_act_min_order_by {
 input polling_act_order_by {
   author_id: order_by
   created_at: order_by
+  polling: polling_order_by
   polling_id: order_by
   polling_variant_id: order_by
 }
@@ -4151,6 +4143,7 @@ input polling_bool_exp {
   id: String_comparison_exp
   polling_acts: polling_act_bool_exp
   question: String_comparison_exp
+  room_general_visible: Boolean_comparison_exp
   updated_at: timestamptz_comparison_exp
   variants: polling_variant_bool_exp
 }
@@ -4164,6 +4157,7 @@ input polling_order_by {
   id: order_by
   polling_acts_aggregate: polling_act_aggregate_order_by
   question: order_by
+  room_general_visible: order_by
   updated_at: order_by
   variants_aggregate: polling_variant_aggregate_order_by
 }
@@ -4218,6 +4212,9 @@ columns and relationships of "polling_variant"
 type polling_variant {
   description: String!
   id: String!
+
+  """An object relationship"""
+  polling: polling!
   polling_id: String!
 }
 
@@ -4239,6 +4236,7 @@ input polling_variant_bool_exp {
   _or: [polling_variant_bool_exp!]
   description: String_comparison_exp
   id: String_comparison_exp
+  polling: polling_bool_exp
   polling_id: String_comparison_exp
 }
 
@@ -4264,6 +4262,7 @@ input polling_variant_min_order_by {
 input polling_variant_order_by {
   description: order_by
   id: order_by
+  polling: polling_order_by
   polling_id: order_by
 }
 
@@ -7170,8 +7169,8 @@ type v2_EvaluationDraftRow {
 }
 
 type v2_EvaluationParticipant {
-  acknowledgedHelpTags: [String!]!
   acknowledgeableHelpTags: [String!]!
+  acknowledgedHelpTags: [String!]!
   causalHint: String!
   contributionSummary: String!
   displayName: String!
@@ -8059,3 +8058,4 @@ order by variance() on columns of table "vote_user"
 input vote_user_variance_order_by {
   amount: order_by
 }
+

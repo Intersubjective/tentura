@@ -1,31 +1,9 @@
 import 'package:tentura/domain/entity/coordination_item.dart';
 
 import '../gql/_g/coordination_item_list.data.gql.dart';
-import '../gql/_g/coordination_item_mark_blocker.data.gql.dart';
-import '../gql/_g/coordination_item_resolve_blocker.data.gql.dart';
-import '../gql/_g/coordination_item_cancel_blocker.data.gql.dart';
-import '../gql/_g/coordination_item_mark_ask.data.gql.dart';
-import '../gql/_g/coordination_item_create_promise.data.gql.dart';
-import '../gql/_g/coordination_item_create_draft_promise.data.gql.dart';
-import '../gql/_g/coordination_item_publish_promise.data.gql.dart';
-import '../gql/_g/coordination_item_update_draft_promise.data.gql.dart';
-import '../gql/_g/coordination_item_accept_promise.data.gql.dart';
-import '../gql/_g/coordination_item_resolve_promise.data.gql.dart';
-import '../gql/_g/coordination_item_cancel_promise.data.gql.dart';
-import '../gql/_g/coordination_item_redirect_promise.data.gql.dart';
-import '../gql/_g/coordination_item_accept_ask.data.gql.dart';
-import '../gql/_g/coordination_item_resolve_ask.data.gql.dart';
-import '../gql/_g/coordination_item_cancel_ask.data.gql.dart';
-import '../gql/_g/coordination_item_redirect_ask.data.gql.dart';
 import '../gql/_g/coordination_item_update_plan.data.gql.dart';
 import '../gql/_g/coordination_item_add_plan_step.data.gql.dart';
 import '../gql/_g/coordination_item_resolve_plan_step.data.gql.dart';
-import '../gql/_g/coordination_item_create_draft_ask.data.gql.dart';
-import '../gql/_g/coordination_item_publish_ask.data.gql.dart';
-import '../gql/_g/coordination_item_update_draft_ask.data.gql.dart';
-import '../gql/_g/coordination_item_create_draft_blocker.data.gql.dart';
-import '../gql/_g/coordination_item_publish_blocker.data.gql.dart';
-import '../gql/_g/coordination_item_update_draft_blocker.data.gql.dart';
 import '../gql/_g/coordination_item_update.data.gql.dart';
 import '../gql/_g/coordination_item_remind.data.gql.dart';
 
@@ -85,7 +63,65 @@ CoordinationItem coordinationItemFromFields({
       lastSeenAt: lastSeenAt == null ? null : DateTime.parse(lastSeenAt),
     );
 
-extension type const CoordinationItemListModel(GCoordinationItemListData_coordinationItemsByBeacon i) implements GCoordinationItemListData_coordinationItemsByBeacon {
+CoordinationItem _coordinationItemFromMutationRow({
+  required String id,
+  required String beaconId,
+  required int kind,
+  required int status,
+  required int source,
+  required bool published,
+  required String title,
+  required String body,
+  required String creatorId,
+  String? targetPersonId,
+  String? acceptedById,
+  String? targetItemId,
+  String? targetMessageId,
+  String? linkedMessageId,
+  String? linkedParentItemId,
+  required String createdAt,
+  required String updatedAt,
+  String? resolvedAt,
+  String? cancelledAt,
+  String? staleAt,
+  String? lastRemindedAt,
+  int? staleAfterDays,
+  int messageCount = 0,
+  int unreadCount = 0,
+  String? lastSeenAt,
+}) =>
+    CoordinationItem(
+      id: id,
+      beaconId: beaconId,
+      kind: CoordinationItemKind.fromInt(kind),
+      status: CoordinationItemStatus.fromInt(status),
+      source: source,
+      published: published,
+      title: title,
+      body: body,
+      creatorId: creatorId,
+      targetPersonId: targetPersonId,
+      acceptedById: acceptedById,
+      targetItemId: targetItemId,
+      targetMessageId: targetMessageId,
+      linkedMessageId: linkedMessageId,
+      linkedParentItemId: linkedParentItemId,
+      createdAt: DateTime.parse(createdAt),
+      updatedAt: DateTime.parse(updatedAt),
+      resolvedAt: resolvedAt == null ? null : DateTime.parse(resolvedAt),
+      cancelledAt: cancelledAt == null ? null : DateTime.parse(cancelledAt),
+      staleAt: staleAt == null ? null : DateTime.parse(staleAt),
+      lastRemindedAt:
+          lastRemindedAt == null ? null : DateTime.parse(lastRemindedAt),
+      staleAfterDays: staleAfterDays,
+      messageCount: messageCount,
+      unreadCount: unreadCount,
+      lastSeenAt: lastSeenAt == null ? null : DateTime.parse(lastSeenAt),
+    );
+
+extension type const CoordinationItemListModel(
+    GCoordinationItemListData_coordinationItemsByBeacon i)
+    implements GCoordinationItemListData_coordinationItemsByBeacon {
   CoordinationItem toEntity() => coordinationItemFromFields(
         id: i.id,
         beaconId: i.beaconId,
@@ -115,12 +151,14 @@ extension type const CoordinationItemListModel(GCoordinationItemListData_coordin
       );
 }
 
-extension type const CoordinationItemMarkBlockerModel(GCoordinationItemMarkBlockerData_markBlocker i) implements GCoordinationItemMarkBlockerData_markBlocker {
-  CoordinationItem toEntity() => CoordinationItem(
+extension type const CoordinationItemUpdateModel(
+    GCoordinationItemUpdateData_updateCoordinationItem i)
+    implements GCoordinationItemUpdateData_updateCoordinationItem {
+  CoordinationItem toEntity() => _coordinationItemFromMutationRow(
         id: i.id,
         beaconId: i.beaconId,
-        kind: CoordinationItemKind.fromInt(i.kind),
-        status: CoordinationItemStatus.fromInt(i.status),
+        kind: i.kind,
+        status: i.status,
         source: i.source,
         published: i.published,
         title: i.title,
@@ -132,25 +170,24 @@ extension type const CoordinationItemMarkBlockerModel(GCoordinationItemMarkBlock
         targetMessageId: i.targetMessageId,
         linkedMessageId: i.linkedMessageId,
         linkedParentItemId: i.linkedParentItemId,
-        createdAt: DateTime.parse(i.createdAt),
-        updatedAt: DateTime.parse(i.updatedAt),
-        resolvedAt: i.resolvedAt == null ? null : DateTime.parse(i.resolvedAt!),
-        cancelledAt:
-            i.cancelledAt == null ? null : DateTime.parse(i.cancelledAt!),
-        staleAt: i.staleAt == null ? null : DateTime.parse(i.staleAt!),
-        lastRemindedAt: i.lastRemindedAt == null
-            ? null
-            : DateTime.parse(i.lastRemindedAt!),
+        createdAt: i.createdAt,
+        updatedAt: i.updatedAt,
+        resolvedAt: i.resolvedAt,
+        cancelledAt: i.cancelledAt,
+        staleAt: i.staleAt,
+        lastRemindedAt: i.lastRemindedAt,
         staleAfterDays: i.staleAfterDays,
       );
 }
 
-extension type const CoordinationItemResolveBlockerModel(GCoordinationItemResolveBlockerData_resolveBlocker i) implements GCoordinationItemResolveBlockerData_resolveBlocker {
-  CoordinationItem toEntity() => CoordinationItem(
+extension type const CoordinationItemUpdatePlanModel(
+    GCoordinationItemUpdatePlanData_updateCoordinationPlan i)
+    implements GCoordinationItemUpdatePlanData_updateCoordinationPlan {
+  CoordinationItem toEntity() => _coordinationItemFromMutationRow(
         id: i.id,
         beaconId: i.beaconId,
-        kind: CoordinationItemKind.fromInt(i.kind),
-        status: CoordinationItemStatus.fromInt(i.status),
+        kind: i.kind,
+        status: i.status,
         source: i.source,
         published: i.published,
         title: i.title,
@@ -162,25 +199,24 @@ extension type const CoordinationItemResolveBlockerModel(GCoordinationItemResolv
         targetMessageId: i.targetMessageId,
         linkedMessageId: i.linkedMessageId,
         linkedParentItemId: i.linkedParentItemId,
-        createdAt: DateTime.parse(i.createdAt),
-        updatedAt: DateTime.parse(i.updatedAt),
-        resolvedAt: i.resolvedAt == null ? null : DateTime.parse(i.resolvedAt!),
-        cancelledAt:
-            i.cancelledAt == null ? null : DateTime.parse(i.cancelledAt!),
-        staleAt: i.staleAt == null ? null : DateTime.parse(i.staleAt!),
-        lastRemindedAt: i.lastRemindedAt == null
-            ? null
-            : DateTime.parse(i.lastRemindedAt!),
+        createdAt: i.createdAt,
+        updatedAt: i.updatedAt,
+        resolvedAt: i.resolvedAt,
+        cancelledAt: i.cancelledAt,
+        staleAt: i.staleAt,
+        lastRemindedAt: i.lastRemindedAt,
         staleAfterDays: i.staleAfterDays,
       );
 }
 
-extension type const CoordinationItemCancelBlockerModel(GCoordinationItemCancelBlockerData_cancelBlocker i) implements GCoordinationItemCancelBlockerData_cancelBlocker {
-  CoordinationItem toEntity() => CoordinationItem(
+extension type const CoordinationItemAddPlanStepModel(
+    GCoordinationItemAddPlanStepData_addPlanStep i)
+    implements GCoordinationItemAddPlanStepData_addPlanStep {
+  CoordinationItem toEntity() => _coordinationItemFromMutationRow(
         id: i.id,
         beaconId: i.beaconId,
-        kind: CoordinationItemKind.fromInt(i.kind),
-        status: CoordinationItemStatus.fromInt(i.status),
+        kind: i.kind,
+        status: i.status,
         source: i.source,
         published: i.published,
         title: i.title,
@@ -192,25 +228,24 @@ extension type const CoordinationItemCancelBlockerModel(GCoordinationItemCancelB
         targetMessageId: i.targetMessageId,
         linkedMessageId: i.linkedMessageId,
         linkedParentItemId: i.linkedParentItemId,
-        createdAt: DateTime.parse(i.createdAt),
-        updatedAt: DateTime.parse(i.updatedAt),
-        resolvedAt: i.resolvedAt == null ? null : DateTime.parse(i.resolvedAt!),
-        cancelledAt:
-            i.cancelledAt == null ? null : DateTime.parse(i.cancelledAt!),
-        staleAt: i.staleAt == null ? null : DateTime.parse(i.staleAt!),
-        lastRemindedAt: i.lastRemindedAt == null
-            ? null
-            : DateTime.parse(i.lastRemindedAt!),
+        createdAt: i.createdAt,
+        updatedAt: i.updatedAt,
+        resolvedAt: i.resolvedAt,
+        cancelledAt: i.cancelledAt,
+        staleAt: i.staleAt,
+        lastRemindedAt: i.lastRemindedAt,
         staleAfterDays: i.staleAfterDays,
       );
 }
 
-extension type const CoordinationItemMarkAskModel(GCoordinationItemMarkAskData_markAsk i) implements GCoordinationItemMarkAskData_markAsk {
-  CoordinationItem toEntity() => CoordinationItem(
+extension type const CoordinationItemResolvePlanStepModel(
+    GCoordinationItemResolvePlanStepData_resolvePlanStep i)
+    implements GCoordinationItemResolvePlanStepData_resolvePlanStep {
+  CoordinationItem toEntity() => _coordinationItemFromMutationRow(
         id: i.id,
         beaconId: i.beaconId,
-        kind: CoordinationItemKind.fromInt(i.kind),
-        status: CoordinationItemStatus.fromInt(i.status),
+        kind: i.kind,
+        status: i.status,
         source: i.source,
         published: i.published,
         title: i.title,
@@ -222,703 +257,12 @@ extension type const CoordinationItemMarkAskModel(GCoordinationItemMarkAskData_m
         targetMessageId: i.targetMessageId,
         linkedMessageId: i.linkedMessageId,
         linkedParentItemId: i.linkedParentItemId,
-        createdAt: DateTime.parse(i.createdAt),
-        updatedAt: DateTime.parse(i.updatedAt),
-        resolvedAt: i.resolvedAt == null ? null : DateTime.parse(i.resolvedAt!),
-        cancelledAt:
-            i.cancelledAt == null ? null : DateTime.parse(i.cancelledAt!),
-        staleAt: i.staleAt == null ? null : DateTime.parse(i.staleAt!),
-        lastRemindedAt: i.lastRemindedAt == null
-            ? null
-            : DateTime.parse(i.lastRemindedAt!),
-        staleAfterDays: i.staleAfterDays,
-      );
-}
-
-extension type const CoordinationItemCreatePromiseModel(
-    GCoordinationItemCreatePromiseData_createPromise i)
-    implements GCoordinationItemCreatePromiseData_createPromise {
-  CoordinationItem toEntity() => CoordinationItem(
-        id: i.id,
-        beaconId: i.beaconId,
-        kind: CoordinationItemKind.fromInt(i.kind),
-        status: CoordinationItemStatus.fromInt(i.status),
-        source: i.source,
-        published: i.published,
-        title: i.title,
-        body: i.body,
-        creatorId: i.creatorId,
-        targetPersonId: i.targetPersonId,
-        acceptedById: i.acceptedById,
-        targetItemId: i.targetItemId,
-        targetMessageId: i.targetMessageId,
-        linkedMessageId: i.linkedMessageId,
-        linkedParentItemId: i.linkedParentItemId,
-        createdAt: DateTime.parse(i.createdAt),
-        updatedAt: DateTime.parse(i.updatedAt),
-        resolvedAt: i.resolvedAt == null ? null : DateTime.parse(i.resolvedAt!),
-        cancelledAt:
-            i.cancelledAt == null ? null : DateTime.parse(i.cancelledAt!),
-        staleAt: i.staleAt == null ? null : DateTime.parse(i.staleAt!),
-        lastRemindedAt: i.lastRemindedAt == null
-            ? null
-            : DateTime.parse(i.lastRemindedAt!),
-        staleAfterDays: i.staleAfterDays,
-      );
-}
-
-extension type const CoordinationItemCreateDraftPromiseModel(
-    GCoordinationItemCreateDraftPromiseData_createDraftPromise i)
-    implements GCoordinationItemCreateDraftPromiseData_createDraftPromise {
-  CoordinationItem toEntity() => CoordinationItem(
-        id: i.id,
-        beaconId: i.beaconId,
-        kind: CoordinationItemKind.fromInt(i.kind),
-        status: CoordinationItemStatus.fromInt(i.status),
-        source: i.source,
-        published: i.published,
-        title: i.title,
-        body: i.body,
-        creatorId: i.creatorId,
-        targetPersonId: i.targetPersonId,
-        acceptedById: i.acceptedById,
-        targetItemId: i.targetItemId,
-        targetMessageId: i.targetMessageId,
-        linkedMessageId: i.linkedMessageId,
-        linkedParentItemId: i.linkedParentItemId,
-        createdAt: DateTime.parse(i.createdAt),
-        updatedAt: DateTime.parse(i.updatedAt),
-        resolvedAt: i.resolvedAt == null ? null : DateTime.parse(i.resolvedAt!),
-        cancelledAt:
-            i.cancelledAt == null ? null : DateTime.parse(i.cancelledAt!),
-        staleAt: i.staleAt == null ? null : DateTime.parse(i.staleAt!),
-        lastRemindedAt: i.lastRemindedAt == null
-            ? null
-            : DateTime.parse(i.lastRemindedAt!),
-        staleAfterDays: i.staleAfterDays,
-      );
-}
-
-extension type const CoordinationItemPublishPromiseModel(
-    GCoordinationItemPublishPromiseData_publishPromise i)
-    implements GCoordinationItemPublishPromiseData_publishPromise {
-  CoordinationItem toEntity() => CoordinationItem(
-        id: i.id,
-        beaconId: i.beaconId,
-        kind: CoordinationItemKind.fromInt(i.kind),
-        status: CoordinationItemStatus.fromInt(i.status),
-        source: i.source,
-        published: i.published,
-        title: i.title,
-        body: i.body,
-        creatorId: i.creatorId,
-        targetPersonId: i.targetPersonId,
-        acceptedById: i.acceptedById,
-        targetItemId: i.targetItemId,
-        targetMessageId: i.targetMessageId,
-        linkedMessageId: i.linkedMessageId,
-        linkedParentItemId: i.linkedParentItemId,
-        createdAt: DateTime.parse(i.createdAt),
-        updatedAt: DateTime.parse(i.updatedAt),
-        resolvedAt: i.resolvedAt == null ? null : DateTime.parse(i.resolvedAt!),
-        cancelledAt:
-            i.cancelledAt == null ? null : DateTime.parse(i.cancelledAt!),
-        staleAt: i.staleAt == null ? null : DateTime.parse(i.staleAt!),
-        lastRemindedAt: i.lastRemindedAt == null
-            ? null
-            : DateTime.parse(i.lastRemindedAt!),
-        staleAfterDays: i.staleAfterDays,
-      );
-}
-
-extension type const CoordinationItemUpdateDraftPromiseModel(
-    GCoordinationItemUpdateDraftPromiseData_updateDraftPromise i)
-    implements GCoordinationItemUpdateDraftPromiseData_updateDraftPromise {
-  CoordinationItem toEntity() => CoordinationItem(
-        id: i.id,
-        beaconId: i.beaconId,
-        kind: CoordinationItemKind.fromInt(i.kind),
-        status: CoordinationItemStatus.fromInt(i.status),
-        source: i.source,
-        published: i.published,
-        title: i.title,
-        body: i.body,
-        creatorId: i.creatorId,
-        targetPersonId: i.targetPersonId,
-        acceptedById: i.acceptedById,
-        targetItemId: i.targetItemId,
-        targetMessageId: i.targetMessageId,
-        linkedMessageId: i.linkedMessageId,
-        linkedParentItemId: i.linkedParentItemId,
-        createdAt: DateTime.parse(i.createdAt),
-        updatedAt: DateTime.parse(i.updatedAt),
-        resolvedAt: i.resolvedAt == null ? null : DateTime.parse(i.resolvedAt!),
-        cancelledAt:
-            i.cancelledAt == null ? null : DateTime.parse(i.cancelledAt!),
-        staleAt: i.staleAt == null ? null : DateTime.parse(i.staleAt!),
-        lastRemindedAt: i.lastRemindedAt == null
-            ? null
-            : DateTime.parse(i.lastRemindedAt!),
-        staleAfterDays: i.staleAfterDays,
-      );
-}
-
-extension type const CoordinationItemAcceptPromiseModel(
-    GCoordinationItemAcceptPromiseData_acceptPromise i)
-    implements GCoordinationItemAcceptPromiseData_acceptPromise {
-  CoordinationItem toEntity() => CoordinationItem(
-        id: i.id,
-        beaconId: i.beaconId,
-        kind: CoordinationItemKind.fromInt(i.kind),
-        status: CoordinationItemStatus.fromInt(i.status),
-        source: i.source,
-        published: i.published,
-        title: i.title,
-        body: i.body,
-        creatorId: i.creatorId,
-        targetPersonId: i.targetPersonId,
-        acceptedById: i.acceptedById,
-        targetItemId: i.targetItemId,
-        targetMessageId: i.targetMessageId,
-        linkedMessageId: i.linkedMessageId,
-        linkedParentItemId: i.linkedParentItemId,
-        createdAt: DateTime.parse(i.createdAt),
-        updatedAt: DateTime.parse(i.updatedAt),
-        resolvedAt: i.resolvedAt == null ? null : DateTime.parse(i.resolvedAt!),
-        cancelledAt:
-            i.cancelledAt == null ? null : DateTime.parse(i.cancelledAt!),
-        staleAt: i.staleAt == null ? null : DateTime.parse(i.staleAt!),
-        lastRemindedAt: i.lastRemindedAt == null
-            ? null
-            : DateTime.parse(i.lastRemindedAt!),
-        staleAfterDays: i.staleAfterDays,
-      );
-}
-
-extension type const CoordinationItemResolvePromiseModel(
-    GCoordinationItemResolvePromiseData_resolvePromise i)
-    implements GCoordinationItemResolvePromiseData_resolvePromise {
-  CoordinationItem toEntity() => CoordinationItem(
-        id: i.id,
-        beaconId: i.beaconId,
-        kind: CoordinationItemKind.fromInt(i.kind),
-        status: CoordinationItemStatus.fromInt(i.status),
-        source: i.source,
-        published: i.published,
-        title: i.title,
-        body: i.body,
-        creatorId: i.creatorId,
-        targetPersonId: i.targetPersonId,
-        acceptedById: i.acceptedById,
-        targetItemId: i.targetItemId,
-        targetMessageId: i.targetMessageId,
-        linkedMessageId: i.linkedMessageId,
-        linkedParentItemId: i.linkedParentItemId,
-        createdAt: DateTime.parse(i.createdAt),
-        updatedAt: DateTime.parse(i.updatedAt),
-        resolvedAt: i.resolvedAt == null ? null : DateTime.parse(i.resolvedAt!),
-        cancelledAt:
-            i.cancelledAt == null ? null : DateTime.parse(i.cancelledAt!),
-        staleAt: i.staleAt == null ? null : DateTime.parse(i.staleAt!),
-        lastRemindedAt: i.lastRemindedAt == null
-            ? null
-            : DateTime.parse(i.lastRemindedAt!),
-        staleAfterDays: i.staleAfterDays,
-      );
-}
-
-extension type const CoordinationItemCancelPromiseModel(
-    GCoordinationItemCancelPromiseData_cancelPromise i)
-    implements GCoordinationItemCancelPromiseData_cancelPromise {
-  CoordinationItem toEntity() => CoordinationItem(
-        id: i.id,
-        beaconId: i.beaconId,
-        kind: CoordinationItemKind.fromInt(i.kind),
-        status: CoordinationItemStatus.fromInt(i.status),
-        source: i.source,
-        published: i.published,
-        title: i.title,
-        body: i.body,
-        creatorId: i.creatorId,
-        targetPersonId: i.targetPersonId,
-        acceptedById: i.acceptedById,
-        targetItemId: i.targetItemId,
-        targetMessageId: i.targetMessageId,
-        linkedMessageId: i.linkedMessageId,
-        linkedParentItemId: i.linkedParentItemId,
-        createdAt: DateTime.parse(i.createdAt),
-        updatedAt: DateTime.parse(i.updatedAt),
-        resolvedAt: i.resolvedAt == null ? null : DateTime.parse(i.resolvedAt!),
-        cancelledAt:
-            i.cancelledAt == null ? null : DateTime.parse(i.cancelledAt!),
-        staleAt: i.staleAt == null ? null : DateTime.parse(i.staleAt!),
-        lastRemindedAt: i.lastRemindedAt == null
-            ? null
-            : DateTime.parse(i.lastRemindedAt!),
-        staleAfterDays: i.staleAfterDays,
-      );
-}
-
-extension type const CoordinationItemRedirectPromiseModel(
-    GCoordinationItemRedirectPromiseData_redirectPromise i)
-    implements GCoordinationItemRedirectPromiseData_redirectPromise {
-  CoordinationItem toEntity() => CoordinationItem(
-        id: i.id,
-        beaconId: i.beaconId,
-        kind: CoordinationItemKind.fromInt(i.kind),
-        status: CoordinationItemStatus.fromInt(i.status),
-        source: i.source,
-        published: i.published,
-        title: i.title,
-        body: i.body,
-        creatorId: i.creatorId,
-        targetPersonId: i.targetPersonId,
-        acceptedById: i.acceptedById,
-        targetItemId: i.targetItemId,
-        targetMessageId: i.targetMessageId,
-        linkedMessageId: i.linkedMessageId,
-        linkedParentItemId: i.linkedParentItemId,
-        createdAt: DateTime.parse(i.createdAt),
-        updatedAt: DateTime.parse(i.updatedAt),
-        resolvedAt: i.resolvedAt == null ? null : DateTime.parse(i.resolvedAt!),
-        cancelledAt:
-            i.cancelledAt == null ? null : DateTime.parse(i.cancelledAt!),
-        staleAt: i.staleAt == null ? null : DateTime.parse(i.staleAt!),
-        lastRemindedAt: i.lastRemindedAt == null
-            ? null
-            : DateTime.parse(i.lastRemindedAt!),
-        staleAfterDays: i.staleAfterDays,
-      );
-}
-
-extension type const CoordinationItemAcceptAskModel(GCoordinationItemAcceptAskData_acceptAsk i) implements GCoordinationItemAcceptAskData_acceptAsk {
-  CoordinationItem toEntity() => CoordinationItem(
-        id: i.id,
-        beaconId: i.beaconId,
-        kind: CoordinationItemKind.fromInt(i.kind),
-        status: CoordinationItemStatus.fromInt(i.status),
-        source: i.source,
-        published: i.published,
-        title: i.title,
-        body: i.body,
-        creatorId: i.creatorId,
-        targetPersonId: i.targetPersonId,
-        acceptedById: i.acceptedById,
-        targetItemId: i.targetItemId,
-        targetMessageId: i.targetMessageId,
-        linkedMessageId: i.linkedMessageId,
-        linkedParentItemId: i.linkedParentItemId,
-        createdAt: DateTime.parse(i.createdAt),
-        updatedAt: DateTime.parse(i.updatedAt),
-        resolvedAt: i.resolvedAt == null ? null : DateTime.parse(i.resolvedAt!),
-        cancelledAt:
-            i.cancelledAt == null ? null : DateTime.parse(i.cancelledAt!),
-        staleAt: i.staleAt == null ? null : DateTime.parse(i.staleAt!),
-        lastRemindedAt: i.lastRemindedAt == null
-            ? null
-            : DateTime.parse(i.lastRemindedAt!),
-        staleAfterDays: i.staleAfterDays,
-      );
-}
-
-extension type const CoordinationItemResolveAskModel(GCoordinationItemResolveAskData_resolveAsk i) implements GCoordinationItemResolveAskData_resolveAsk {
-  CoordinationItem toEntity() => CoordinationItem(
-        id: i.id,
-        beaconId: i.beaconId,
-        kind: CoordinationItemKind.fromInt(i.kind),
-        status: CoordinationItemStatus.fromInt(i.status),
-        source: i.source,
-        published: i.published,
-        title: i.title,
-        body: i.body,
-        creatorId: i.creatorId,
-        targetPersonId: i.targetPersonId,
-        acceptedById: i.acceptedById,
-        targetItemId: i.targetItemId,
-        targetMessageId: i.targetMessageId,
-        linkedMessageId: i.linkedMessageId,
-        linkedParentItemId: i.linkedParentItemId,
-        createdAt: DateTime.parse(i.createdAt),
-        updatedAt: DateTime.parse(i.updatedAt),
-        resolvedAt: i.resolvedAt == null ? null : DateTime.parse(i.resolvedAt!),
-        cancelledAt:
-            i.cancelledAt == null ? null : DateTime.parse(i.cancelledAt!),
-        staleAt: i.staleAt == null ? null : DateTime.parse(i.staleAt!),
-        lastRemindedAt: i.lastRemindedAt == null
-            ? null
-            : DateTime.parse(i.lastRemindedAt!),
-        staleAfterDays: i.staleAfterDays,
-      );
-}
-
-extension type const CoordinationItemCancelAskModel(GCoordinationItemCancelAskData_cancelAsk i) implements GCoordinationItemCancelAskData_cancelAsk {
-  CoordinationItem toEntity() => CoordinationItem(
-        id: i.id,
-        beaconId: i.beaconId,
-        kind: CoordinationItemKind.fromInt(i.kind),
-        status: CoordinationItemStatus.fromInt(i.status),
-        source: i.source,
-        published: i.published,
-        title: i.title,
-        body: i.body,
-        creatorId: i.creatorId,
-        targetPersonId: i.targetPersonId,
-        acceptedById: i.acceptedById,
-        targetItemId: i.targetItemId,
-        targetMessageId: i.targetMessageId,
-        linkedMessageId: i.linkedMessageId,
-        linkedParentItemId: i.linkedParentItemId,
-        createdAt: DateTime.parse(i.createdAt),
-        updatedAt: DateTime.parse(i.updatedAt),
-        resolvedAt: i.resolvedAt == null ? null : DateTime.parse(i.resolvedAt!),
-        cancelledAt:
-            i.cancelledAt == null ? null : DateTime.parse(i.cancelledAt!),
-        staleAt: i.staleAt == null ? null : DateTime.parse(i.staleAt!),
-        lastRemindedAt: i.lastRemindedAt == null
-            ? null
-            : DateTime.parse(i.lastRemindedAt!),
-        staleAfterDays: i.staleAfterDays,
-      );
-}
-
-extension type const CoordinationItemRedirectAskModel(GCoordinationItemRedirectAskData_redirectAsk i) implements GCoordinationItemRedirectAskData_redirectAsk {
-  CoordinationItem toEntity() => CoordinationItem(
-        id: i.id,
-        beaconId: i.beaconId,
-        kind: CoordinationItemKind.fromInt(i.kind),
-        status: CoordinationItemStatus.fromInt(i.status),
-        source: i.source,
-        published: i.published,
-        title: i.title,
-        body: i.body,
-        creatorId: i.creatorId,
-        targetPersonId: i.targetPersonId,
-        acceptedById: i.acceptedById,
-        targetItemId: i.targetItemId,
-        targetMessageId: i.targetMessageId,
-        linkedMessageId: i.linkedMessageId,
-        linkedParentItemId: i.linkedParentItemId,
-        createdAt: DateTime.parse(i.createdAt),
-        updatedAt: DateTime.parse(i.updatedAt),
-        resolvedAt: i.resolvedAt == null ? null : DateTime.parse(i.resolvedAt!),
-        cancelledAt:
-            i.cancelledAt == null ? null : DateTime.parse(i.cancelledAt!),
-        staleAt: i.staleAt == null ? null : DateTime.parse(i.staleAt!),
-        lastRemindedAt: i.lastRemindedAt == null
-            ? null
-            : DateTime.parse(i.lastRemindedAt!),
-        staleAfterDays: i.staleAfterDays,
-      );
-}
-
-extension type const CoordinationItemUpdateModel(GCoordinationItemUpdateData_updateCoordinationItem i) implements GCoordinationItemUpdateData_updateCoordinationItem {
-  CoordinationItem toEntity() => CoordinationItem(
-        id: i.id,
-        beaconId: i.beaconId,
-        kind: CoordinationItemKind.fromInt(i.kind),
-        status: CoordinationItemStatus.fromInt(i.status),
-        source: i.source,
-        published: i.published,
-        title: i.title,
-        body: i.body,
-        creatorId: i.creatorId,
-        targetPersonId: i.targetPersonId,
-        acceptedById: i.acceptedById,
-        targetItemId: i.targetItemId,
-        targetMessageId: i.targetMessageId,
-        linkedMessageId: i.linkedMessageId,
-        linkedParentItemId: i.linkedParentItemId,
-        createdAt: DateTime.parse(i.createdAt),
-        updatedAt: DateTime.parse(i.updatedAt),
-        resolvedAt: i.resolvedAt == null ? null : DateTime.parse(i.resolvedAt!),
-        cancelledAt:
-            i.cancelledAt == null ? null : DateTime.parse(i.cancelledAt!),
-        staleAt: i.staleAt == null ? null : DateTime.parse(i.staleAt!),
-        lastRemindedAt: i.lastRemindedAt == null
-            ? null
-            : DateTime.parse(i.lastRemindedAt!),
-        staleAfterDays: i.staleAfterDays,
-      );
-}
-
-extension type const CoordinationItemUpdatePlanModel(GCoordinationItemUpdatePlanData_updateCoordinationPlan i) implements GCoordinationItemUpdatePlanData_updateCoordinationPlan {
-  CoordinationItem toEntity() => CoordinationItem(
-        id: i.id,
-        beaconId: i.beaconId,
-        kind: CoordinationItemKind.fromInt(i.kind),
-        status: CoordinationItemStatus.fromInt(i.status),
-        source: i.source,
-        published: i.published,
-        title: i.title,
-        body: i.body,
-        creatorId: i.creatorId,
-        targetPersonId: i.targetPersonId,
-        acceptedById: i.acceptedById,
-        targetItemId: i.targetItemId,
-        targetMessageId: i.targetMessageId,
-        linkedMessageId: i.linkedMessageId,
-        linkedParentItemId: i.linkedParentItemId,
-        createdAt: DateTime.parse(i.createdAt),
-        updatedAt: DateTime.parse(i.updatedAt),
-        resolvedAt: i.resolvedAt == null ? null : DateTime.parse(i.resolvedAt!),
-        cancelledAt:
-            i.cancelledAt == null ? null : DateTime.parse(i.cancelledAt!),
-        staleAt: i.staleAt == null ? null : DateTime.parse(i.staleAt!),
-        lastRemindedAt: i.lastRemindedAt == null
-            ? null
-            : DateTime.parse(i.lastRemindedAt!),
-        staleAfterDays: i.staleAfterDays,
-      );
-}
-
-extension type const CoordinationItemAddPlanStepModel(GCoordinationItemAddPlanStepData_addPlanStep i) implements GCoordinationItemAddPlanStepData_addPlanStep {
-  CoordinationItem toEntity() => CoordinationItem(
-        id: i.id,
-        beaconId: i.beaconId,
-        kind: CoordinationItemKind.fromInt(i.kind),
-        status: CoordinationItemStatus.fromInt(i.status),
-        source: i.source,
-        published: i.published,
-        title: i.title,
-        body: i.body,
-        creatorId: i.creatorId,
-        targetPersonId: i.targetPersonId,
-        acceptedById: i.acceptedById,
-        targetItemId: i.targetItemId,
-        targetMessageId: i.targetMessageId,
-        linkedMessageId: i.linkedMessageId,
-        linkedParentItemId: i.linkedParentItemId,
-        createdAt: DateTime.parse(i.createdAt),
-        updatedAt: DateTime.parse(i.updatedAt),
-        resolvedAt: i.resolvedAt == null ? null : DateTime.parse(i.resolvedAt!),
-        cancelledAt:
-            i.cancelledAt == null ? null : DateTime.parse(i.cancelledAt!),
-        staleAt: i.staleAt == null ? null : DateTime.parse(i.staleAt!),
-        lastRemindedAt: i.lastRemindedAt == null
-            ? null
-            : DateTime.parse(i.lastRemindedAt!),
-        staleAfterDays: i.staleAfterDays,
-      );
-}
-
-extension type const CoordinationItemResolvePlanStepModel(GCoordinationItemResolvePlanStepData_resolvePlanStep i) implements GCoordinationItemResolvePlanStepData_resolvePlanStep {
-  CoordinationItem toEntity() => CoordinationItem(
-        id: i.id,
-        beaconId: i.beaconId,
-        kind: CoordinationItemKind.fromInt(i.kind),
-        status: CoordinationItemStatus.fromInt(i.status),
-        source: i.source,
-        published: i.published,
-        title: i.title,
-        body: i.body,
-        creatorId: i.creatorId,
-        targetPersonId: i.targetPersonId,
-        acceptedById: i.acceptedById,
-        targetItemId: i.targetItemId,
-        targetMessageId: i.targetMessageId,
-        linkedMessageId: i.linkedMessageId,
-        linkedParentItemId: i.linkedParentItemId,
-        createdAt: DateTime.parse(i.createdAt),
-        updatedAt: DateTime.parse(i.updatedAt),
-        resolvedAt: i.resolvedAt == null ? null : DateTime.parse(i.resolvedAt!),
-        cancelledAt:
-            i.cancelledAt == null ? null : DateTime.parse(i.cancelledAt!),
-        staleAt: i.staleAt == null ? null : DateTime.parse(i.staleAt!),
-        lastRemindedAt: i.lastRemindedAt == null
-            ? null
-            : DateTime.parse(i.lastRemindedAt!),
-        staleAfterDays: i.staleAfterDays,
-      );
-}
-
-extension type const CoordinationItemCreateDraftAskModel(
-    GCoordinationItemCreateDraftAskData_createDraftAsk i)
-    implements GCoordinationItemCreateDraftAskData_createDraftAsk {
-  CoordinationItem toEntity() => CoordinationItem(
-        id: i.id,
-        beaconId: i.beaconId,
-        kind: CoordinationItemKind.fromInt(i.kind),
-        status: CoordinationItemStatus.fromInt(i.status),
-        source: i.source,
-        published: i.published,
-        title: i.title,
-        body: i.body,
-        creatorId: i.creatorId,
-        targetPersonId: i.targetPersonId,
-        acceptedById: i.acceptedById,
-        targetItemId: i.targetItemId,
-        targetMessageId: i.targetMessageId,
-        linkedMessageId: i.linkedMessageId,
-        linkedParentItemId: i.linkedParentItemId,
-        createdAt: DateTime.parse(i.createdAt),
-        updatedAt: DateTime.parse(i.updatedAt),
-        resolvedAt: i.resolvedAt == null ? null : DateTime.parse(i.resolvedAt!),
-        cancelledAt:
-            i.cancelledAt == null ? null : DateTime.parse(i.cancelledAt!),
-        staleAt: i.staleAt == null ? null : DateTime.parse(i.staleAt!),
-        lastRemindedAt: i.lastRemindedAt == null
-            ? null
-            : DateTime.parse(i.lastRemindedAt!),
-        staleAfterDays: i.staleAfterDays,
-      );
-}
-
-extension type const CoordinationItemPublishAskModel(
-    GCoordinationItemPublishAskData_publishAsk i)
-    implements GCoordinationItemPublishAskData_publishAsk {
-  CoordinationItem toEntity() => CoordinationItem(
-        id: i.id,
-        beaconId: i.beaconId,
-        kind: CoordinationItemKind.fromInt(i.kind),
-        status: CoordinationItemStatus.fromInt(i.status),
-        source: i.source,
-        published: i.published,
-        title: i.title,
-        body: i.body,
-        creatorId: i.creatorId,
-        targetPersonId: i.targetPersonId,
-        acceptedById: i.acceptedById,
-        targetItemId: i.targetItemId,
-        targetMessageId: i.targetMessageId,
-        linkedMessageId: i.linkedMessageId,
-        linkedParentItemId: i.linkedParentItemId,
-        createdAt: DateTime.parse(i.createdAt),
-        updatedAt: DateTime.parse(i.updatedAt),
-        resolvedAt: i.resolvedAt == null ? null : DateTime.parse(i.resolvedAt!),
-        cancelledAt:
-            i.cancelledAt == null ? null : DateTime.parse(i.cancelledAt!),
-        staleAt: i.staleAt == null ? null : DateTime.parse(i.staleAt!),
-        lastRemindedAt: i.lastRemindedAt == null
-            ? null
-            : DateTime.parse(i.lastRemindedAt!),
-        staleAfterDays: i.staleAfterDays,
-      );
-}
-
-extension type const CoordinationItemUpdateDraftAskModel(
-    GCoordinationItemUpdateDraftAskData_updateDraftAsk i)
-    implements GCoordinationItemUpdateDraftAskData_updateDraftAsk {
-  CoordinationItem toEntity() => CoordinationItem(
-        id: i.id,
-        beaconId: i.beaconId,
-        kind: CoordinationItemKind.fromInt(i.kind),
-        status: CoordinationItemStatus.fromInt(i.status),
-        source: i.source,
-        published: i.published,
-        title: i.title,
-        body: i.body,
-        creatorId: i.creatorId,
-        targetPersonId: i.targetPersonId,
-        acceptedById: i.acceptedById,
-        targetItemId: i.targetItemId,
-        targetMessageId: i.targetMessageId,
-        linkedMessageId: i.linkedMessageId,
-        linkedParentItemId: i.linkedParentItemId,
-        createdAt: DateTime.parse(i.createdAt),
-        updatedAt: DateTime.parse(i.updatedAt),
-        resolvedAt: i.resolvedAt == null ? null : DateTime.parse(i.resolvedAt!),
-        cancelledAt:
-            i.cancelledAt == null ? null : DateTime.parse(i.cancelledAt!),
-        staleAt: i.staleAt == null ? null : DateTime.parse(i.staleAt!),
-        lastRemindedAt: i.lastRemindedAt == null
-            ? null
-            : DateTime.parse(i.lastRemindedAt!),
-        staleAfterDays: i.staleAfterDays,
-      );
-}
-
-extension type const CoordinationItemCreateDraftBlockerModel(
-    GCoordinationItemCreateDraftBlockerData_createDraftBlocker i)
-    implements GCoordinationItemCreateDraftBlockerData_createDraftBlocker {
-  CoordinationItem toEntity() => CoordinationItem(
-        id: i.id,
-        beaconId: i.beaconId,
-        kind: CoordinationItemKind.fromInt(i.kind),
-        status: CoordinationItemStatus.fromInt(i.status),
-        source: i.source,
-        published: i.published,
-        title: i.title,
-        body: i.body,
-        creatorId: i.creatorId,
-        targetPersonId: i.targetPersonId,
-        acceptedById: i.acceptedById,
-        targetItemId: i.targetItemId,
-        targetMessageId: i.targetMessageId,
-        linkedMessageId: i.linkedMessageId,
-        linkedParentItemId: i.linkedParentItemId,
-        createdAt: DateTime.parse(i.createdAt),
-        updatedAt: DateTime.parse(i.updatedAt),
-        resolvedAt: i.resolvedAt == null ? null : DateTime.parse(i.resolvedAt!),
-        cancelledAt:
-            i.cancelledAt == null ? null : DateTime.parse(i.cancelledAt!),
-        staleAt: i.staleAt == null ? null : DateTime.parse(i.staleAt!),
-        lastRemindedAt: i.lastRemindedAt == null
-            ? null
-            : DateTime.parse(i.lastRemindedAt!),
-        staleAfterDays: i.staleAfterDays,
-      );
-}
-
-extension type const CoordinationItemPublishBlockerModel(
-    GCoordinationItemPublishBlockerData_publishBlocker i)
-    implements GCoordinationItemPublishBlockerData_publishBlocker {
-  CoordinationItem toEntity() => CoordinationItem(
-        id: i.id,
-        beaconId: i.beaconId,
-        kind: CoordinationItemKind.fromInt(i.kind),
-        status: CoordinationItemStatus.fromInt(i.status),
-        source: i.source,
-        published: i.published,
-        title: i.title,
-        body: i.body,
-        creatorId: i.creatorId,
-        targetPersonId: i.targetPersonId,
-        acceptedById: i.acceptedById,
-        targetItemId: i.targetItemId,
-        targetMessageId: i.targetMessageId,
-        linkedMessageId: i.linkedMessageId,
-        linkedParentItemId: i.linkedParentItemId,
-        createdAt: DateTime.parse(i.createdAt),
-        updatedAt: DateTime.parse(i.updatedAt),
-        resolvedAt: i.resolvedAt == null ? null : DateTime.parse(i.resolvedAt!),
-        cancelledAt:
-            i.cancelledAt == null ? null : DateTime.parse(i.cancelledAt!),
-        staleAt: i.staleAt == null ? null : DateTime.parse(i.staleAt!),
-        lastRemindedAt: i.lastRemindedAt == null
-            ? null
-            : DateTime.parse(i.lastRemindedAt!),
-        staleAfterDays: i.staleAfterDays,
-      );
-}
-
-extension type const CoordinationItemUpdateDraftBlockerModel(
-    GCoordinationItemUpdateDraftBlockerData_updateDraftBlocker i)
-    implements GCoordinationItemUpdateDraftBlockerData_updateDraftBlocker {
-  CoordinationItem toEntity() => CoordinationItem(
-        id: i.id,
-        beaconId: i.beaconId,
-        kind: CoordinationItemKind.fromInt(i.kind),
-        status: CoordinationItemStatus.fromInt(i.status),
-        source: i.source,
-        published: i.published,
-        title: i.title,
-        body: i.body,
-        creatorId: i.creatorId,
-        targetPersonId: i.targetPersonId,
-        acceptedById: i.acceptedById,
-        targetItemId: i.targetItemId,
-        targetMessageId: i.targetMessageId,
-        linkedMessageId: i.linkedMessageId,
-        linkedParentItemId: i.linkedParentItemId,
-        createdAt: DateTime.parse(i.createdAt),
-        updatedAt: DateTime.parse(i.updatedAt),
-        resolvedAt: i.resolvedAt == null ? null : DateTime.parse(i.resolvedAt!),
-        cancelledAt:
-            i.cancelledAt == null ? null : DateTime.parse(i.cancelledAt!),
-        staleAt: i.staleAt == null ? null : DateTime.parse(i.staleAt!),
-        lastRemindedAt: i.lastRemindedAt == null
-            ? null
-            : DateTime.parse(i.lastRemindedAt!),
+        createdAt: i.createdAt,
+        updatedAt: i.updatedAt,
+        resolvedAt: i.resolvedAt,
+        cancelledAt: i.cancelledAt,
+        staleAt: i.staleAt,
+        lastRemindedAt: i.lastRemindedAt,
         staleAfterDays: i.staleAfterDays,
       );
 }
@@ -926,11 +270,11 @@ extension type const CoordinationItemUpdateDraftBlockerModel(
 extension type const CoordinationItemRemindModel(
     GCoordinationItemRemindData_remindCoordinationItem i)
     implements GCoordinationItemRemindData_remindCoordinationItem {
-  CoordinationItem toEntity() => CoordinationItem(
+  CoordinationItem toEntity() => _coordinationItemFromMutationRow(
         id: i.id,
         beaconId: i.beaconId,
-        kind: CoordinationItemKind.fromInt(i.kind),
-        status: CoordinationItemStatus.fromInt(i.status),
+        kind: i.kind,
+        status: i.status,
         source: i.source,
         published: i.published,
         title: i.title,
@@ -942,19 +286,15 @@ extension type const CoordinationItemRemindModel(
         targetMessageId: i.targetMessageId,
         linkedMessageId: i.linkedMessageId,
         linkedParentItemId: i.linkedParentItemId,
-        createdAt: DateTime.parse(i.createdAt),
-        updatedAt: DateTime.parse(i.updatedAt),
-        resolvedAt: i.resolvedAt == null ? null : DateTime.parse(i.resolvedAt!),
-        cancelledAt:
-            i.cancelledAt == null ? null : DateTime.parse(i.cancelledAt!),
-        staleAt: i.staleAt == null ? null : DateTime.parse(i.staleAt!),
-        lastRemindedAt: i.lastRemindedAt == null
-            ? null
-            : DateTime.parse(i.lastRemindedAt!),
+        createdAt: i.createdAt,
+        updatedAt: i.updatedAt,
+        resolvedAt: i.resolvedAt,
+        cancelledAt: i.cancelledAt,
+        staleAt: i.staleAt,
+        lastRemindedAt: i.lastRemindedAt,
         staleAfterDays: i.staleAfterDays,
         messageCount: i.messageCount,
         unreadCount: i.unreadCount,
-        lastSeenAt:
-            i.lastSeenAt == null ? null : DateTime.parse(i.lastSeenAt!),
+        lastSeenAt: i.lastSeenAt,
       );
 }

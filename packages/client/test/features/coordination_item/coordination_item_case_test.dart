@@ -91,41 +91,21 @@ void main() {
       expect(repository.lastListRootOnly, isFalse);
     });
 
-    test('markBlocker forwards mutation args and returns item', () async {
-      final created = _item(id: 'block-new', kind: CoordinationItemKind.blocker);
-      repository.markBlockerResult = created;
-
-      final result = await case_.markBlocker(
-        beaconId: beaconId,
-        title: 'Blocked',
-        body: 'Details',
-        targetPersonId: 'user-t',
-        linkedMessageId: 'msg-1',
-        staleAfterDays: 5,
+    test('retired markBlocker throws UnsupportedError', () async {
+      await expectLater(
+        () => case_.markBlocker(
+          beaconId: beaconId,
+          title: 'Blocked',
+        ),
+        throwsA(isA<UnsupportedError>()),
       );
-
-      expect(result, created);
-      expect(repository.markBlockerCalls, 1);
-      expect(repository.lastMarkBlocker?.beaconId, beaconId);
-      expect(repository.lastMarkBlocker?.title, 'Blocked');
-      expect(repository.lastMarkBlocker?.body, 'Details');
-      expect(repository.lastMarkBlocker?.targetPersonId, 'user-t');
-      expect(repository.lastMarkBlocker?.linkedMessageId, 'msg-1');
-      expect(repository.lastMarkBlocker?.staleAfterDays, 5);
     });
 
-    test('resolvePromise forwards note to repository', () async {
-      final resolved = _item(id: 'promise-1', kind: CoordinationItemKind.promise);
-      repository.resolvePromiseResult = resolved;
-
-      final result = await case_.resolvePromise(
-        itemId: 'promise-1',
-        note: 'Done',
+    test('retired resolvePromise throws UnsupportedError', () async {
+      await expectLater(
+        () => case_.resolvePromise(itemId: 'promise-1', note: 'Done'),
+        throwsA(isA<UnsupportedError>()),
       );
-
-      expect(result, resolved);
-      expect(repository.lastResolvePromise?.itemId, 'promise-1');
-      expect(repository.lastResolvePromise?.note, 'Done');
     });
 
     test('fetchResponsibilityBatch returns repository map', () async {

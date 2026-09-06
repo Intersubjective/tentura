@@ -4,6 +4,9 @@ import 'package:tentura/domain/entity/coordination_item.dart';
 import 'package:tentura/domain/entity/coordination_responsibility.dart';
 import '../../data/repository/coordination_item_repository.dart';
 
+Never _retiredCoordinationMutation() =>
+    throw UnsupportedError('Retired coordination mutation');
+
 @singleton
 class CoordinationItemCase {
   const CoordinationItemCase(this._repository);
@@ -40,20 +43,13 @@ class CoordinationItemCase {
     String? linkedMessageId,
     int? staleAfterDays,
   }) =>
-      _repository.markBlocker(
-        beaconId: beaconId,
-        title: title,
-        body: body,
-        targetPersonId: targetPersonId,
-        linkedMessageId: linkedMessageId,
-        staleAfterDays: staleAfterDays,
-      );
+      _retiredCoordinationMutation();
 
   Future<CoordinationItem> resolveBlocker({required String itemId}) =>
-      _repository.resolveBlocker(itemId: itemId);
+      _retiredCoordinationMutation();
 
   Future<CoordinationItem> cancelBlocker({required String itemId}) =>
-      _repository.cancelBlocker(itemId: itemId);
+      _retiredCoordinationMutation();
 
   Future<CoordinationItem> markAsk({
     required String beaconId,
@@ -63,14 +59,7 @@ class CoordinationItemCase {
     String? linkedMessageId,
     int? staleAfterDays,
   }) =>
-      _repository.markAsk(
-        beaconId: beaconId,
-        title: title,
-        targetPersonId: targetPersonId,
-        body: body,
-        linkedMessageId: linkedMessageId,
-        staleAfterDays: staleAfterDays,
-      );
+      _retiredCoordinationMutation();
 
   Future<CoordinationItem> createPromise({
     required String beaconId,
@@ -80,14 +69,7 @@ class CoordinationItemCase {
     String? linkedMessageId,
     int? staleAfterDays,
   }) =>
-      _repository.createPromise(
-        beaconId: beaconId,
-        title: title,
-        targetPersonId: targetPersonId,
-        body: body,
-        linkedMessageId: linkedMessageId,
-        staleAfterDays: staleAfterDays,
-      );
+      _retiredCoordinationMutation();
 
   Future<CoordinationItem> createDraftPromise({
     required String beaconId,
@@ -97,25 +79,14 @@ class CoordinationItemCase {
     String? linkedMessageId,
     int? staleAfterDays,
   }) =>
-      _repository.createDraftPromise(
-        beaconId: beaconId,
-        title: title,
-        body: body,
-        targetPersonId: targetPersonId,
-        linkedMessageId: linkedMessageId,
-        staleAfterDays: staleAfterDays,
-      );
+      _retiredCoordinationMutation();
 
   Future<CoordinationItem> publishDraftPromise({
     required String itemId,
     required String targetPersonId,
     int? staleAfterDays,
   }) =>
-      _repository.publishDraftPromise(
-        itemId: itemId,
-        targetPersonId: targetPersonId,
-        staleAfterDays: staleAfterDays,
-      );
+      _retiredCoordinationMutation();
 
   Future<CoordinationItem> updateDraftPromise({
     required String itemId,
@@ -125,35 +96,25 @@ class CoordinationItemCase {
     bool omitTargetPersonId = false,
     int? staleAfterDays,
   }) =>
-      _repository.updateDraftPromise(
-        itemId: itemId,
-        title: title,
-        body: body,
-        targetPersonId: targetPersonId,
-        omitTargetPersonId: omitTargetPersonId,
-        staleAfterDays: staleAfterDays,
-      );
+      _retiredCoordinationMutation();
 
   Future<void> deleteDraftPromise({required String itemId}) =>
-      _repository.deleteDraftPromise(itemId: itemId);
+      _retiredCoordinationMutation();
 
   Future<CoordinationItem> acceptPromise({required String itemId}) =>
-      _repository.acceptPromise(itemId: itemId);
+      _retiredCoordinationMutation();
 
   Future<CoordinationItem> resolvePromise({required String itemId, String? note}) =>
-      _repository.resolvePromise(itemId: itemId, note: note);
+      _retiredCoordinationMutation();
 
   Future<CoordinationItem> cancelPromise({required String itemId, String? reason}) =>
-      _repository.cancelPromise(itemId: itemId, reason: reason);
+      _retiredCoordinationMutation();
 
   Future<CoordinationItem> redirectPromise({
     required String itemId,
     required String newTargetPersonId,
   }) =>
-      _repository.redirectPromise(
-        itemId: itemId,
-        newTargetPersonId: newTargetPersonId,
-      );
+      _retiredCoordinationMutation();
 
   Future<CoordinationItem> createDraftAsk({
     required String beaconId,
@@ -163,25 +124,14 @@ class CoordinationItemCase {
     String? linkedMessageId,
     int? staleAfterDays,
   }) =>
-      _repository.createDraftAsk(
-        beaconId: beaconId,
-        title: title,
-        body: body,
-        targetPersonId: targetPersonId,
-        linkedMessageId: linkedMessageId,
-        staleAfterDays: staleAfterDays,
-      );
+      _retiredCoordinationMutation();
 
   Future<CoordinationItem> publishDraftAsk({
     required String itemId,
     required String targetPersonId,
     int? staleAfterDays,
   }) =>
-      _repository.publishDraftAsk(
-        itemId: itemId,
-        targetPersonId: targetPersonId,
-        staleAfterDays: staleAfterDays,
-      );
+      _retiredCoordinationMutation();
 
   Future<CoordinationItem> updateDraftAsk({
     required String itemId,
@@ -191,17 +141,10 @@ class CoordinationItemCase {
     bool omitTargetPersonId = false,
     int? staleAfterDays,
   }) =>
-      _repository.updateDraftAsk(
-        itemId: itemId,
-        title: title,
-        body: body,
-        targetPersonId: targetPersonId,
-        omitTargetPersonId: omitTargetPersonId,
-        staleAfterDays: staleAfterDays,
-      );
+      _retiredCoordinationMutation();
 
   Future<void> deleteDraftAsk({required String itemId}) =>
-      _repository.deleteDraftAsk(itemId: itemId);
+      _retiredCoordinationMutation();
 
   Future<CoordinationItem> createDraftBlocker({
     required String beaconId,
@@ -210,22 +153,13 @@ class CoordinationItemCase {
     String? targetPersonId,
     int? staleAfterDays,
   }) =>
-      _repository.createDraftBlocker(
-        beaconId: beaconId,
-        title: title,
-        body: body,
-        targetPersonId: targetPersonId,
-        staleAfterDays: staleAfterDays,
-      );
+      _retiredCoordinationMutation();
 
   Future<CoordinationItem> publishDraftBlocker({
     required String itemId,
     int? staleAfterDays,
   }) =>
-      _repository.publishDraftBlocker(
-        itemId: itemId,
-        staleAfterDays: staleAfterDays,
-      );
+      _retiredCoordinationMutation();
 
   Future<CoordinationItem> updateDraftBlocker({
     required String itemId,
@@ -235,35 +169,25 @@ class CoordinationItemCase {
     bool omitTargetPersonId = false,
     int? staleAfterDays,
   }) =>
-      _repository.updateDraftBlocker(
-        itemId: itemId,
-        title: title,
-        body: body,
-        targetPersonId: targetPersonId,
-        omitTargetPersonId: omitTargetPersonId,
-        staleAfterDays: staleAfterDays,
-      );
+      _retiredCoordinationMutation();
 
   Future<void> deleteDraftBlocker({required String itemId}) =>
-      _repository.deleteDraftBlocker(itemId: itemId);
+      _retiredCoordinationMutation();
 
   Future<CoordinationItem> acceptAsk({required String itemId}) =>
-      _repository.acceptAsk(itemId: itemId);
+      _retiredCoordinationMutation();
 
   Future<CoordinationItem> resolveAsk({required String itemId, String? note}) =>
-      _repository.resolveAsk(itemId: itemId, note: note);
+      _retiredCoordinationMutation();
 
   Future<CoordinationItem> cancelAsk({required String itemId, String? reason}) =>
-      _repository.cancelAsk(itemId: itemId, reason: reason);
+      _retiredCoordinationMutation();
 
   Future<CoordinationItem> redirectAsk({
     required String itemId,
     required String newTargetPersonId,
   }) =>
-      _repository.redirectAsk(
-        itemId: itemId,
-        newTargetPersonId: newTargetPersonId,
-      );
+      _retiredCoordinationMutation();
 
   Future<CoordinationItem> updateItem({
     required String itemId,
@@ -339,5 +263,4 @@ class CoordinationItemCase {
 
   Future<void> markItemsSeen(String beaconId) =>
       _repository.markItemsSeen(beaconId);
-
 }
