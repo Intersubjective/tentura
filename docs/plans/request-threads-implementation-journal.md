@@ -1,3 +1,5 @@
+> **Superseded** by [`nested-requests-implementation-plan.md`](nested-requests-implementation-plan.md) — ask/promise/blocker coordination-item threads retired in favor of General-only Discussion and nested child requests; see [`nested-requests-implementation-journal.md`](nested-requests-implementation-journal.md).
+
 # Request Threads — implementation journal
 
 ## Objective

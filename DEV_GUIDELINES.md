@@ -133,6 +133,9 @@ The machine-checked entity/impact matrix is
 [`docs/contracts/realtime-entity-contract.json`](docs/contracts/realtime-entity-contract.json).
 Update that manifest with every new wire kind. Client and server architecture
 tests fail when a kind lacks a producer, enum mapping, impact, or test evidence.
+Example kinds in the manifest today include `beacon`, `room_message`, `participant`,
+and `beacon_hierarchy` (child-list / parent-reference invalidation for nested
+requests — hints only, no projection payload on the wire).
 
 ### Data flow and envelope
 
