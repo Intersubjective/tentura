@@ -691,6 +691,64 @@ class MockBeaconRepositoryPort extends _i1.Mock
           as _i6.Future<_i5.BeaconEntity>);
 
   @override
+  _i6.Future<_i5.BeaconEntity> createChildBeacon({
+    required String? authorId,
+    required String? parentBeaconId,
+    required String? title,
+    required String? description,
+    String? context,
+    double? latitude,
+    double? longitude,
+    DateTime? startAt,
+    DateTime? endAt,
+    Set<String>? tags,
+    Set<String>? needs,
+    String? primaryNeedSlug,
+    String? addressLabel,
+    required bool? draft,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#createChildBeacon, [], {
+              #authorId: authorId,
+              #parentBeaconId: parentBeaconId,
+              #title: title,
+              #description: description,
+              #context: context,
+              #latitude: latitude,
+              #longitude: longitude,
+              #startAt: startAt,
+              #endAt: endAt,
+              #tags: tags,
+              #needs: needs,
+              #primaryNeedSlug: primaryNeedSlug,
+              #addressLabel: addressLabel,
+              #draft: draft,
+            }),
+            returnValue: _i6.Future<_i5.BeaconEntity>.value(
+              _FakeBeaconEntity_3(
+                this,
+                Invocation.method(#createChildBeacon, [], {
+                  #authorId: authorId,
+                  #parentBeaconId: parentBeaconId,
+                  #title: title,
+                  #description: description,
+                  #context: context,
+                  #latitude: latitude,
+                  #longitude: longitude,
+                  #startAt: startAt,
+                  #endAt: endAt,
+                  #tags: tags,
+                  #needs: needs,
+                  #primaryNeedSlug: primaryNeedSlug,
+                  #addressLabel: addressLabel,
+                  #draft: draft,
+                }),
+              ),
+            ),
+          )
+          as _i6.Future<_i5.BeaconEntity>);
+
+  @override
   _i6.Future<_i5.BeaconEntity> getBeaconById({
     required String? beaconId,
     String? filterByUserId,
@@ -998,6 +1056,28 @@ class MockBeaconRepositoryPort extends _i1.Mock
                 this,
                 Invocation.method(#publishDraft, [], {
                   #id: id,
+                  #actorId: actorId,
+                }),
+              ),
+            ),
+          )
+          as _i6.Future<_i5.BeaconEntity>);
+
+  @override
+  _i6.Future<_i5.BeaconEntity> publishChildDraft({
+    required String? childBeaconId,
+    required String? actorId,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#publishChildDraft, [], {
+              #childBeaconId: childBeaconId,
+              #actorId: actorId,
+            }),
+            returnValue: _i6.Future<_i5.BeaconEntity>.value(
+              _FakeBeaconEntity_3(
+                this,
+                Invocation.method(#publishChildDraft, [], {
+                  #childBeaconId: childBeaconId,
                   #actorId: actorId,
                 }),
               ),
