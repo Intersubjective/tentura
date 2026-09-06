@@ -59,10 +59,7 @@ bool isItemStale(CoordinationStaleItemView item, DateTime nowUtc) {
   return !staleAt.isAfter(nowUtc);
 }
 
-bool isRemindableKind(int kind) =>
-    kind == coordinationItemKindAsk ||
-    kind == coordinationItemKindPromise ||
-    kind == coordinationItemKindBlocker;
+bool isRemindableKind(int kind) => kind == coordinationItemKindPlan;
 
 /// Status-aware responsible person for remind push.
 String? resolveResponsibleUserId(CoordinationStaleItemView item) {
@@ -73,6 +70,13 @@ String? resolveResponsibleUserId(CoordinationStaleItemView item) {
   final hasTarget = target != null && target.isNotEmpty;
 
   switch (item.kind) {
+    case coordinationItemKindPlan:
+      if (item.status != coordinationItemStatusOpen &&
+          item.status != coordinationItemStatusAccepted) {
+        return null;
+      }
+      return hasTarget ? target : item.creatorId;
+
     case coordinationItemKindAsk:
       if (item.status == coordinationItemStatusAccepted) {
         final accepted = item.acceptedById?.trim();

@@ -7,7 +7,11 @@ import 'dart:async' as _i3;
 
 import 'package:mockito/mockito.dart' as _i1;
 import 'package:mockito/src/dummies.dart' as _i6;
+import 'package:tentura_server/domain/entity/beacon_activity_event_record.dart'
+    as _i8;
 import 'package:tentura_server/domain/entity/beacon_room_record.dart' as _i5;
+import 'package:tentura_server/domain/port/beacon_room_repository_port.dart'
+    as _i7;
 import 'package:tentura_server/domain/port/polling_act_repository_port.dart'
     as _i2;
 import 'package:tentura_server/domain/port/polling_repository_port.dart' as _i4;
@@ -27,6 +31,11 @@ import 'package:tentura_server/domain/port/polling_repository_port.dart' as _i4;
 // ignore_for_file: camel_case_types
 // ignore_for_file: subtype_of_sealed_class
 // ignore_for_file: invalid_use_of_internal_member
+
+class _FakeDateTime_0 extends _i1.SmartFake implements DateTime {
+  _FakeDateTime_0(Object parent, Invocation parentInvocation)
+    : super(parent, parentInvocation);
+}
 
 /// A class which mocks [PollingActRepositoryPort].
 ///
@@ -111,4 +120,724 @@ class MockPollingRepositoryPort extends _i1.Mock
             ),
           )
           as _i3.Future<String>);
+}
+
+/// A class which mocks [BeaconRoomRepositoryPort].
+///
+/// See the documentation for Mockito's code generation for more information.
+class MockBeaconRoomRepositoryPort extends _i1.Mock
+    implements _i7.BeaconRoomRepositoryPort {
+  MockBeaconRoomRepositoryPort() {
+    _i1.throwOnMissingStub(this);
+  }
+
+  @override
+  _i3.Future<void> admitParticipant({
+    required String? beaconId,
+    required String? participantUserId,
+    required String? actorUserId,
+    String? admissionReason = 'admit',
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#admitParticipant, [], {
+              #beaconId: beaconId,
+              #participantUserId: participantUserId,
+              #actorUserId: actorUserId,
+              #admissionReason: admissionReason,
+            }),
+            returnValue: _i3.Future<void>.value(),
+            returnValueForMissingStub: _i3.Future<void>.value(),
+          )
+          as _i3.Future<void>);
+
+  @override
+  _i3.Future<Map<String, String>> attachmentsJsonByMessageIds(
+    Iterable<String>? messageIds,
+  ) =>
+      (super.noSuchMethod(
+            Invocation.method(#attachmentsJsonByMessageIds, [messageIds]),
+            returnValue: _i3.Future<Map<String, String>>.value(
+              <String, String>{},
+            ),
+          )
+          as _i3.Future<Map<String, String>>);
+
+  @override
+  _i3.Future<String?> beaconAuthorUserId(String? beaconId) =>
+      (super.noSuchMethod(
+            Invocation.method(#beaconAuthorUserId, [beaconId]),
+            returnValue: _i3.Future<String?>.value(),
+          )
+          as _i3.Future<String?>);
+
+  @override
+  _i3.Future<int> countAttachmentsForMessage(String? messageId) =>
+      (super.noSuchMethod(
+            Invocation.method(#countAttachmentsForMessage, [messageId]),
+            returnValue: _i3.Future<int>.value(0),
+          )
+          as _i3.Future<int>);
+
+  @override
+  _i3.Future<int> countRoomMessagesAfter({
+    required String? beaconId,
+    DateTime? after,
+    String? excludeAuthorId,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#countRoomMessagesAfter, [], {
+              #beaconId: beaconId,
+              #after: after,
+              #excludeAuthorId: excludeAuthorId,
+            }),
+            returnValue: _i3.Future<int>.value(0),
+          )
+          as _i3.Future<int>);
+
+  @override
+  _i3.Future<int> countRecentMessagesByAuthor({
+    required String? authorId,
+    required Duration? window,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#countRecentMessagesByAuthor, [], {
+              #authorId: authorId,
+              #window: window,
+            }),
+            returnValue: _i3.Future<int>.value(0),
+          )
+          as _i3.Future<int>);
+
+  @override
+  _i3.Future<void> deleteRoomMessage({required String? messageId}) =>
+      (super.noSuchMethod(
+            Invocation.method(#deleteRoomMessage, [], {#messageId: messageId}),
+            returnValue: _i3.Future<void>.value(),
+            returnValueForMissingStub: _i3.Future<void>.value(),
+          )
+          as _i3.Future<void>);
+
+  @override
+  _i3.Future<_i5.BeaconParticipantRecord?> findParticipant({
+    required String? beaconId,
+    required String? userId,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#findParticipant, [], {
+              #beaconId: beaconId,
+              #userId: userId,
+            }),
+            returnValue: _i3.Future<_i5.BeaconParticipantRecord?>.value(),
+          )
+          as _i3.Future<_i5.BeaconParticipantRecord?>);
+
+  @override
+  _i3.Future<_i5.BeaconRoomStateRecord?> getBeaconRoomState(String? beaconId) =>
+      (super.noSuchMethod(
+            Invocation.method(#getBeaconRoomState, [beaconId]),
+            returnValue: _i3.Future<_i5.BeaconRoomStateRecord?>.value(),
+          )
+          as _i3.Future<_i5.BeaconRoomStateRecord?>);
+
+  @override
+  _i3.Future<DateTime?> getMainRoomLastSeen({
+    required String? beaconId,
+    required String? userId,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#getMainRoomLastSeen, [], {
+              #beaconId: beaconId,
+              #userId: userId,
+            }),
+            returnValue: _i3.Future<DateTime?>.value(),
+          )
+          as _i3.Future<DateTime?>);
+
+  @override
+  _i3.Future<_i5.BeaconRoomMessageAttachmentRecord?>
+  getRoomMessageAttachmentById(String? attachmentId) =>
+      (super.noSuchMethod(
+            Invocation.method(#getRoomMessageAttachmentById, [attachmentId]),
+            returnValue:
+                _i3.Future<_i5.BeaconRoomMessageAttachmentRecord?>.value(),
+          )
+          as _i3.Future<_i5.BeaconRoomMessageAttachmentRecord?>);
+
+  @override
+  _i3.Future<_i5.BeaconRoomMessageRecord?> getRoomMessageById(
+    String? messageId,
+  ) =>
+      (super.noSuchMethod(
+            Invocation.method(#getRoomMessageById, [messageId]),
+            returnValue: _i3.Future<_i5.BeaconRoomMessageRecord?>.value(),
+          )
+          as _i3.Future<_i5.BeaconRoomMessageRecord?>);
+
+  @override
+  _i3.Future<_i5.BeaconRoomMessageRecord?> getRoomMessageByLinkedPollingId(
+    String? pollingId,
+  ) =>
+      (super.noSuchMethod(
+            Invocation.method(#getRoomMessageByLinkedPollingId, [pollingId]),
+            returnValue: _i3.Future<_i5.BeaconRoomMessageRecord?>.value(),
+          )
+          as _i3.Future<_i5.BeaconRoomMessageRecord?>);
+
+  @override
+  _i3.Future<Map<String, String?>> helpTypesByUserId(String? beaconId) =>
+      (super.noSuchMethod(
+            Invocation.method(#helpTypesByUserId, [beaconId]),
+            returnValue: _i3.Future<Map<String, String?>>.value(
+              <String, String?>{},
+            ),
+          )
+          as _i3.Future<Map<String, String?>>);
+
+  @override
+  _i3.Future<void> insertActivityEvent({
+    required String? beaconId,
+    required int? visibility,
+    required int? type,
+    required String? actorId,
+    String? targetUserId,
+    String? sourceMessageId,
+    Map<String, Object?>? diff,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#insertActivityEvent, [], {
+              #beaconId: beaconId,
+              #visibility: visibility,
+              #type: type,
+              #actorId: actorId,
+              #targetUserId: targetUserId,
+              #sourceMessageId: sourceMessageId,
+              #diff: diff,
+            }),
+            returnValue: _i3.Future<void>.value(),
+            returnValueForMissingStub: _i3.Future<void>.value(),
+          )
+          as _i3.Future<void>);
+
+  @override
+  _i3.Future<Map<String, Object?>> insertAndEnrichPollMessage({
+    required String? beaconId,
+    required String? authorId,
+    required String? linkedPollingId,
+    required String? viewerUserId,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#insertAndEnrichPollMessage, [], {
+              #beaconId: beaconId,
+              #authorId: authorId,
+              #linkedPollingId: linkedPollingId,
+              #viewerUserId: viewerUserId,
+            }),
+            returnValue: _i3.Future<Map<String, Object?>>.value(
+              <String, Object?>{},
+            ),
+          )
+          as _i3.Future<Map<String, Object?>>);
+
+  @override
+  _i3.Future<Map<String, Object?>?> roomMessageTarget({
+    required String? beaconId,
+    required String? messageId,
+    required String? viewerUserId,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#roomMessageTarget, [], {
+              #beaconId: beaconId,
+              #messageId: messageId,
+              #viewerUserId: viewerUserId,
+            }),
+            returnValue: _i3.Future<Map<String, Object?>?>.value(),
+          )
+          as _i3.Future<Map<String, Object?>?>);
+
+  @override
+  _i3.Future<_i5.BeaconRoomMessageRecord> insertRoomMessage({
+    required String? beaconId,
+    required String? authorId,
+    required String? body,
+    String? replyToMessageId,
+    String? threadItemId,
+    String? linkedParticipantId,
+    String? linkedPollingId,
+    int? semanticMarker,
+    Map<String, Object?>? systemPayload,
+    List<String>? mentions = const [],
+    List<Map<String, Object?>>? mentionSpans = const [],
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#insertRoomMessage, [], {
+              #beaconId: beaconId,
+              #authorId: authorId,
+              #body: body,
+              #replyToMessageId: replyToMessageId,
+              #threadItemId: threadItemId,
+              #linkedParticipantId: linkedParticipantId,
+              #linkedPollingId: linkedPollingId,
+              #semanticMarker: semanticMarker,
+              #systemPayload: systemPayload,
+              #mentions: mentions,
+              #mentionSpans: mentionSpans,
+            }),
+            returnValue: _i3.Future<_i5.BeaconRoomMessageRecord>.value(
+              _i6.dummyValue<_i5.BeaconRoomMessageRecord>(
+                this,
+                Invocation.method(#insertRoomMessage, [], {
+                  #beaconId: beaconId,
+                  #authorId: authorId,
+                  #body: body,
+                  #replyToMessageId: replyToMessageId,
+                  #threadItemId: threadItemId,
+                  #linkedParticipantId: linkedParticipantId,
+                  #linkedPollingId: linkedPollingId,
+                  #semanticMarker: semanticMarker,
+                  #systemPayload: systemPayload,
+                  #mentions: mentions,
+                  #mentionSpans: mentionSpans,
+                }),
+              ),
+            ),
+          )
+          as _i3.Future<_i5.BeaconRoomMessageRecord>);
+
+  @override
+  _i3.Future<void> insertRoomMessageAttachmentFile({
+    required String? attachmentId,
+    required String? messageId,
+    required int? position,
+    required String? storagePath,
+    required String? mime,
+    required int? sizeBytes,
+    required String? displayName,
+    required String? mutatingUserId,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#insertRoomMessageAttachmentFile, [], {
+              #attachmentId: attachmentId,
+              #messageId: messageId,
+              #position: position,
+              #storagePath: storagePath,
+              #mime: mime,
+              #sizeBytes: sizeBytes,
+              #displayName: displayName,
+              #mutatingUserId: mutatingUserId,
+            }),
+            returnValue: _i3.Future<void>.value(),
+            returnValueForMissingStub: _i3.Future<void>.value(),
+          )
+          as _i3.Future<void>);
+
+  @override
+  _i3.Future<void> insertRoomMessageAttachmentImage({
+    required String? attachmentId,
+    required String? messageId,
+    required int? position,
+    required String? imageId,
+    required String? mime,
+    required int? sizeBytes,
+    required String? displayName,
+    required String? mutatingUserId,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#insertRoomMessageAttachmentImage, [], {
+              #attachmentId: attachmentId,
+              #messageId: messageId,
+              #position: position,
+              #imageId: imageId,
+              #mime: mime,
+              #sizeBytes: sizeBytes,
+              #displayName: displayName,
+              #mutatingUserId: mutatingUserId,
+            }),
+            returnValue: _i3.Future<void>.value(),
+            returnValueForMissingStub: _i3.Future<void>.value(),
+          )
+          as _i3.Future<void>);
+
+  @override
+  _i3.Future<void> inviteOfferUserToBeaconRoom({
+    required String? beaconId,
+    required String? offerUserId,
+    required String? authorUserId,
+    String? admissionReason = 'accept',
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#inviteOfferUserToBeaconRoom, [], {
+              #beaconId: beaconId,
+              #offerUserId: offerUserId,
+              #authorUserId: authorUserId,
+              #admissionReason: admissionReason,
+            }),
+            returnValue: _i3.Future<void>.value(),
+            returnValueForMissingStub: _i3.Future<void>.value(),
+          )
+          as _i3.Future<void>);
+
+  @override
+  _i3.Future<bool> isBeaconAuthor({
+    required String? beaconId,
+    required String? userId,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#isBeaconAuthor, [], {
+              #beaconId: beaconId,
+              #userId: userId,
+            }),
+            returnValue: _i3.Future<bool>.value(false),
+          )
+          as _i3.Future<bool>);
+
+  @override
+  _i3.Future<bool> isBeaconSteward({
+    required String? beaconId,
+    required String? userId,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#isBeaconSteward, [], {
+              #beaconId: beaconId,
+              #userId: userId,
+            }),
+            returnValue: _i3.Future<bool>.value(false),
+          )
+          as _i3.Future<bool>);
+
+  @override
+  _i3.Future<List<_i8.MyWorkLastActivityEventRow>>
+  latestActivityEventsByBeaconIds({
+    required List<String>? beaconIds,
+    required String? viewerUserId,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#latestActivityEventsByBeaconIds, [], {
+              #beaconIds: beaconIds,
+              #viewerUserId: viewerUserId,
+            }),
+            returnValue: _i3.Future<List<_i8.MyWorkLastActivityEventRow>>.value(
+              <_i8.MyWorkLastActivityEventRow>[],
+            ),
+          )
+          as _i3.Future<List<_i8.MyWorkLastActivityEventRow>>);
+
+  @override
+  _i3.Future<DateTime?> latestMainRoomMessageCreatedAt(String? beaconId) =>
+      (super.noSuchMethod(
+            Invocation.method(#latestMainRoomMessageCreatedAt, [beaconId]),
+            returnValue: _i3.Future<DateTime?>.value(),
+          )
+          as _i3.Future<DateTime?>);
+
+  @override
+  _i3.Future<List<Map<String, Object?>>> listActivityEvents({
+    required String? beaconId,
+    int? limit = 200,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#listActivityEvents, [], {
+              #beaconId: beaconId,
+              #limit: limit,
+            }),
+            returnValue: _i3.Future<List<Map<String, Object?>>>.value(
+              <Map<String, Object?>>[],
+            ),
+          )
+          as _i3.Future<List<Map<String, Object?>>>);
+
+  @override
+  _i3.Future<List<String>> listAdmittedUserIds(String? beaconId) =>
+      (super.noSuchMethod(
+            Invocation.method(#listAdmittedUserIds, [beaconId]),
+            returnValue: _i3.Future<List<String>>.value(<String>[]),
+          )
+          as _i3.Future<List<String>>);
+
+  @override
+  _i3.Future<List<_i5.AdmittedRoomMentionParticipant>>
+  listAdmittedMentionParticipants(String? beaconId) =>
+      (super.noSuchMethod(
+            Invocation.method(#listAdmittedMentionParticipants, [beaconId]),
+            returnValue:
+                _i3.Future<List<_i5.AdmittedRoomMentionParticipant>>.value(
+                  <_i5.AdmittedRoomMentionParticipant>[],
+                ),
+          )
+          as _i3.Future<List<_i5.AdmittedRoomMentionParticipant>>);
+
+  @override
+  _i3.Future<List<Map<String, Object?>>> listMessagesEnriched({
+    required String? beaconId,
+    required String? viewerUserId,
+    String? threadItemId,
+    DateTime? before,
+    int? limit = 50,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#listMessagesEnriched, [], {
+              #beaconId: beaconId,
+              #viewerUserId: viewerUserId,
+              #threadItemId: threadItemId,
+              #before: before,
+              #limit: limit,
+            }),
+            returnValue: _i3.Future<List<Map<String, Object?>>>.value(
+              <Map<String, Object?>>[],
+            ),
+          )
+          as _i3.Future<List<Map<String, Object?>>>);
+
+  @override
+  _i3.Future<List<_i5.BeaconParticipantRecord>> listParticipants(
+    String? beaconId,
+  ) =>
+      (super.noSuchMethod(
+            Invocation.method(#listParticipants, [beaconId]),
+            returnValue: _i3.Future<List<_i5.BeaconParticipantRecord>>.value(
+              <_i5.BeaconParticipantRecord>[],
+            ),
+          )
+          as _i3.Future<List<_i5.BeaconParticipantRecord>>);
+
+  @override
+  _i3.Future<List<String>> listStewardUserIds(String? beaconId) =>
+      (super.noSuchMethod(
+            Invocation.method(#listStewardUserIds, [beaconId]),
+            returnValue: _i3.Future<List<String>>.value(<String>[]),
+          )
+          as _i3.Future<List<String>>);
+
+  @override
+  _i3.Future<Map<String, DateTime>> mainRoomLastSeenByUserIds({
+    required String? beaconId,
+    required List<String>? userIds,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#mainRoomLastSeenByUserIds, [], {
+              #beaconId: beaconId,
+              #userIds: userIds,
+            }),
+            returnValue: _i3.Future<Map<String, DateTime>>.value(
+              <String, DateTime>{},
+            ),
+          )
+          as _i3.Future<Map<String, DateTime>>);
+
+  @override
+  _i3.Future<DateTime> markBeaconRoomSeen({
+    required String? userId,
+    required String? beaconId,
+    required String? threadItemId,
+    required DateTime? at,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#markBeaconRoomSeen, [], {
+              #userId: userId,
+              #beaconId: beaconId,
+              #threadItemId: threadItemId,
+              #at: at,
+            }),
+            returnValue: _i3.Future<DateTime>.value(
+              _FakeDateTime_0(
+                this,
+                Invocation.method(#markBeaconRoomSeen, [], {
+                  #userId: userId,
+                  #beaconId: beaconId,
+                  #threadItemId: threadItemId,
+                  #at: at,
+                }),
+              ),
+            ),
+          )
+          as _i3.Future<DateTime>);
+
+  @override
+  _i3.Future<void> markRoomMessageSemanticDone({
+    required String? messageId,
+    required String? actingUserId,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#markRoomMessageSemanticDone, [], {
+              #messageId: messageId,
+              #actingUserId: actingUserId,
+            }),
+            returnValue: _i3.Future<void>.value(),
+            returnValueForMissingStub: _i3.Future<void>.value(),
+          )
+          as _i3.Future<void>);
+
+  @override
+  _i3.Future<void> participantOfferHelp({
+    required String? beaconId,
+    required String? userId,
+    required String? note,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#participantOfferHelp, [], {
+              #beaconId: beaconId,
+              #userId: userId,
+              #note: note,
+            }),
+            returnValue: _i3.Future<void>.value(),
+            returnValueForMissingStub: _i3.Future<void>.value(),
+          )
+          as _i3.Future<void>);
+
+  @override
+  _i3.Future<List<String>> resolveMentionUserIdsForBeacon({
+    required String? beaconId,
+    required String? body,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#resolveMentionUserIdsForBeacon, [], {
+              #beaconId: beaconId,
+              #body: body,
+            }),
+            returnValue: _i3.Future<List<String>>.value(<String>[]),
+          )
+          as _i3.Future<List<String>>);
+
+  @override
+  _i3.Future<void> revokeOfferUserBeaconRoomAccess({
+    required String? beaconId,
+    required String? offerUserId,
+    required String? authorUserId,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#revokeOfferUserBeaconRoomAccess, [], {
+              #beaconId: beaconId,
+              #offerUserId: offerUserId,
+              #authorUserId: authorUserId,
+            }),
+            returnValue: _i3.Future<void>.value(),
+            returnValueForMissingStub: _i3.Future<void>.value(),
+          )
+          as _i3.Future<void>);
+
+  @override
+  _i3.Future<void> setBeaconSteward({
+    required String? beaconId,
+    required String? stewardUserId,
+    required String? authorUserId,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#setBeaconSteward, [], {
+              #beaconId: beaconId,
+              #stewardUserId: stewardUserId,
+              #authorUserId: authorUserId,
+            }),
+            returnValue: _i3.Future<void>.value(),
+            returnValueForMissingStub: _i3.Future<void>.value(),
+          )
+          as _i3.Future<void>);
+
+  @override
+  _i3.Future<void> toggleReaction({
+    required String? messageId,
+    required String? userId,
+    required String? emoji,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#toggleReaction, [], {
+              #messageId: messageId,
+              #userId: userId,
+              #emoji: emoji,
+            }),
+            returnValue: _i3.Future<void>.value(),
+            returnValueForMissingStub: _i3.Future<void>.value(),
+          )
+          as _i3.Future<void>);
+
+  @override
+  _i3.Future<void> updateMessage({
+    required String? messageId,
+    required String? newBody,
+    required List<String>? mentions,
+    required List<Map<String, Object?>>? mentionSpans,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#updateMessage, [], {
+              #messageId: messageId,
+              #newBody: newBody,
+              #mentions: mentions,
+              #mentionSpans: mentionSpans,
+            }),
+            returnValue: _i3.Future<void>.value(),
+            returnValueForMissingStub: _i3.Future<void>.value(),
+          )
+          as _i3.Future<void>);
+
+  @override
+  _i3.Future<Map<String, String>> userHandlesByIds(Iterable<String>? userIds) =>
+      (super.noSuchMethod(
+            Invocation.method(#userHandlesByIds, [userIds]),
+            returnValue: _i3.Future<Map<String, String>>.value(
+              <String, String>{},
+            ),
+          )
+          as _i3.Future<Map<String, String>>);
+
+  @override
+  _i3.Future<
+    Map<
+      String,
+      ({
+        String blurHash,
+        bool hasPicture,
+        String imageId,
+        int picHeight,
+        int picWidth,
+      })
+    >
+  >
+  userPicMetaByIds(Iterable<String>? userIds) =>
+      (super.noSuchMethod(
+            Invocation.method(#userPicMetaByIds, [userIds]),
+            returnValue:
+                _i3.Future<
+                  Map<
+                    String,
+                    ({
+                      String blurHash,
+                      bool hasPicture,
+                      String imageId,
+                      int picHeight,
+                      int picWidth,
+                    })
+                  >
+                >.value(
+                  <
+                    String,
+                    ({
+                      String blurHash,
+                      bool hasPicture,
+                      String imageId,
+                      int picHeight,
+                      int picWidth,
+                    })
+                  >{},
+                ),
+          )
+          as _i3.Future<
+            Map<
+              String,
+              ({
+                String blurHash,
+                bool hasPicture,
+                String imageId,
+                int picHeight,
+                int picWidth,
+              })
+            >
+          >);
+
+  @override
+  _i3.Future<Map<String, String>> userTitlesByIds(Iterable<String>? userIds) =>
+      (super.noSuchMethod(
+            Invocation.method(#userTitlesByIds, [userIds]),
+            returnValue: _i3.Future<Map<String, String>>.value(
+              <String, String>{},
+            ),
+          )
+          as _i3.Future<Map<String, String>>);
 }

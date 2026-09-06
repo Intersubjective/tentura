@@ -25,6 +25,7 @@ import 'package:tentura_server/env.dart';
 import '../../support/coordination_item_record_fixtures.dart';
 import '../../support/fake_user_block_repository.dart';
 import 'package:tentura_server/domain/policy/discussion_product_policy.dart';
+import 'package:tentura_server/domain/port/discussion_product_policy_port.dart';
 
 class _StubItems extends Fake implements CoordinationItemRepositoryPort {
   CoordinationItemRecord? itemById;
@@ -119,11 +120,29 @@ void main() {
   late _MarkSeenStubRoom room;
   late _StubItems items;
   late BeaconRoomCase sut;
+  late BeaconRoomCase internalSut;
 
   const beaconId = 'Baaaaaaaaaaaa';
   const userId = 'Uaaaaaaaaaaaa';
   const askItemId = 'CIaskaaaaaaaa';
   const planItemId = 'CIplanaaaaaaa';
+
+  BeaconRoomCase buildSut(DiscussionProductPolicyPort policy) => BeaconRoomCase(
+        room,
+        items,
+        FakeBeaconFactCardRepository(),
+        FakeImageRepositoryPort(),
+        FakeTaskRepositoryPort(),
+        FakeRemoteStorage(),
+        FakePollingRepository(),
+        FakeUploadQuota(),
+        FakeUserBlockRepository(),
+        PassThroughMutatingUnitOfWork(),
+        FakeBeaconHierarchyRepository(),
+        policy,
+        env: Env(environment: Environment.test),
+        logger: Logger('BeaconRoomCaseMarkSeenTest'),
+      );
 
   CoordinationItemRecord sampleItem({
     required String id,
@@ -149,22 +168,8 @@ void main() {
   setUp(() {
     room = _MarkSeenStubRoom();
     items = _StubItems();
-    sut = BeaconRoomCase(
-      room,
-      items,
-      FakeBeaconFactCardRepository(),
-      FakeImageRepositoryPort(),
-      FakeTaskRepositoryPort(),
-      FakeRemoteStorage(),
-      FakePollingRepository(),
-      FakeUploadQuota(),
-      FakeUserBlockRepository(),
-      PassThroughMutatingUnitOfWork(),
-      FakeBeaconHierarchyRepository(),
-      const ProductionDiscussionProductPolicy(),
-      env: Env(environment: Environment.test),
-      logger: Logger('BeaconRoomCaseMarkSeenTest'),
-    );
+    sut = buildSut(const ProductionDiscussionProductPolicy());
+    internalSut = buildSut(const InternalMultiThreadDiscussionProductPolicy());
   });
 
   test(
@@ -225,7 +230,7 @@ void main() {
     () async {
       items.itemById = sampleItem(id: askItemId, kind: coordinationItemKindAsk);
 
-      final out = await sut.markThreadSeen(
+      final out = await internalSut.markThreadSeen(
         beaconId: beaconId,
         userId: userId,
         threadId: askItemId,
@@ -234,14 +239,6 @@ void main() {
       expect(out['threadItemId'], askItemId);
       expect(room.persistedThreadItemId, askItemId);
     },
-    skip:
-        'Task 07 in progress: exercises retired ask-item thread scope '
-        'against the production-configured `sut`, now correctly rejected '
-        'by DiscussionProductPolicyPort.generalOnly. Per plan §5.2,'
-        ' reclassify to a separate internal-fixture BeaconRoomCase built '
-        'with InternalMultiThreadDiscussionProductPolicy() rather than '
-        're-enabling as-is; add the production-rejects case to '
-        'general_only_public_contract_test.dart.',
   );
 
   test(
@@ -254,7 +251,7 @@ void main() {
       room.existingSeen = existing;
       items.itemById = sampleItem(id: askItemId, kind: coordinationItemKindAsk);
 
-      final out = await sut.markThreadSeen(
+      final out = await internalSut.markThreadSeen(
         beaconId: beaconId,
         userId: userId,
         threadId: askItemId,
@@ -264,17 +261,26 @@ void main() {
       expect(room.persistedAt, readThrough);
       expect(out['seenAt'], readThrough.toUtc().toIso8601String());
     },
-    skip:
-        'Task 07 in progress: retired item-thread scope, see the skip '
-        'reason on "markThreadSeen passes real item id unchanged" above '
-        'for the required reclassification.',
   );
 
-  test('markThreadSeen rejects plan item thread', () async {
+  test('markThreadSeen rejects plan item thread in production', () async {
     items.itemById = sampleItem(id: planItemId, kind: coordinationItemKindPlan);
 
     expect(
       () => sut.markThreadSeen(
+        beaconId: beaconId,
+        userId: userId,
+        threadId: planItemId,
+      ),
+      throwsA(isA<DiscussionScopeDisabledException>()),
+    );
+  });
+
+  test('markThreadSeen rejects plan item thread under internal policy', () async {
+    items.itemById = sampleItem(id: planItemId, kind: coordinationItemKindPlan);
+
+    expect(
+      () => internalSut.markThreadSeen(
         beaconId: beaconId,
         userId: userId,
         threadId: planItemId,

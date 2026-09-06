@@ -23,6 +23,7 @@ import 'package:tentura_server/env.dart';
 
 import '../../support/fake_user_block_repository.dart';
 import 'package:tentura_server/domain/policy/discussion_product_policy.dart';
+import 'package:tentura_server/domain/port/discussion_product_policy_port.dart';
 
 class _RecordingItems extends Fake implements CoordinationItemRepositoryPort {
   bool? lastIncludeGeneral;
@@ -102,33 +103,37 @@ void main() {
   late _AuthStubRoom room;
   late _RecordingItems items;
   late BeaconRoomCase sut;
+  late BeaconRoomCase internalSut;
 
   const beaconId = 'Bthreadsauth1';
   const memberId = 'Uthreadsauth1';
   const outsiderId = 'Uthreadsauth2';
 
+  BeaconRoomCase buildSut(DiscussionProductPolicyPort policy) => BeaconRoomCase(
+        room,
+        items,
+        FakeBeaconFactCardRepository(),
+        FakeImageRepositoryPort(),
+        FakeTaskRepositoryPort(),
+        FakeRemoteStorage(),
+        FakePollingRepository(),
+        FakeUploadQuota(),
+        FakeUserBlockRepository(),
+        PassThroughMutatingUnitOfWork(),
+        FakeBeaconHierarchyRepository(),
+        policy,
+        env: Env(environment: Environment.test),
+        logger: Logger('BeaconThreadsCaseTest'),
+      );
+
   setUp(() {
     room = _AuthStubRoom();
     items = _RecordingItems();
-    sut = BeaconRoomCase(
-      room,
-      items,
-      FakeBeaconFactCardRepository(),
-      FakeImageRepositoryPort(),
-      FakeTaskRepositoryPort(),
-      FakeRemoteStorage(),
-      FakePollingRepository(),
-      FakeUploadQuota(),
-      FakeUserBlockRepository(),
-      PassThroughMutatingUnitOfWork(),
-      FakeBeaconHierarchyRepository(),
-      const ProductionDiscussionProductPolicy(),
-      env: Env(environment: Environment.test),
-      logger: Logger('BeaconThreadsCaseTest'),
-    );
+    sut = buildSut(const ProductionDiscussionProductPolicy());
+    internalSut = buildSut(const InternalMultiThreadDiscussionProductPolicy());
   });
 
-  test('room member requests General plus full item list', () async {
+  test('production room member receives only General thread row', () async {
     room.isAuthor = true;
     items.nextRows = [_generalRow(), _askRow('Ithreadsask01')];
 
@@ -136,15 +141,16 @@ void main() {
 
     expect(items.lastIncludeGeneral, isTrue);
     expect(items.lastItemParticipantsOnly, isFalse);
-    expect(rows, hasLength(2));
-    expect(rows.first.threadId, 'general');
+    expect(rows, hasLength(1));
+    expect(rows.single.threadId, 'general');
   });
 
-  test('item-only participant omits General and filters to participant items',
+  test('internal fixture still lists item threads for item-only participant',
       () async {
     items.nextRows = [_askRow('Ithreadsask01')];
 
-    final rows = await sut.listThreads(beaconId: beaconId, userId: outsiderId);
+    final rows =
+        await internalSut.listThreads(beaconId: beaconId, userId: outsiderId);
 
     expect(items.lastIncludeGeneral, isFalse);
     expect(items.lastItemParticipantsOnly, isTrue);

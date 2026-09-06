@@ -26,6 +26,7 @@ import '../../support/coordination_item_record_fixtures.dart';
 import '../../support/test_attention_harness.dart';
 import '../../support/fake_user_block_repository.dart';
 import 'package:tentura_server/domain/policy/discussion_product_policy.dart';
+import 'package:tentura_server/domain/port/discussion_product_policy_port.dart';
 
 const _beaconId = 'Baaaaaaaaaaaa';
 const _userId = 'Uaaaaaaaaaaaa';
@@ -175,8 +176,30 @@ void main() {
   late _StubItems items;
   late _StubRoom room;
   late BeaconRoomCase sut;
+  late BeaconRoomCase internalSut;
   late FakeUserBlockRepository userBlocks;
   late TestAttentionHarness attention;
+
+  BeaconRoomCase buildSut(DiscussionProductPolicyPort policy) => BeaconRoomCase(
+        room,
+        items,
+        _FakeFactCards(),
+        _FakeImages(),
+        _FakeTasks(),
+        _FakeRemoteStorage(),
+        _FakePolling(),
+        _FakeUploadQuota(),
+        userBlocks,
+        PassThroughMutatingUnitOfWork(),
+        FakeBeaconHierarchyRepository(),
+        policy,
+        attentionIntents: attention.intents,
+        attention: attention.transactional,
+        env: Env(
+          environment: Environment.test,
+        ),
+        logger: Logger('BeaconRoomCaseMessageMutationsTest'),
+      );
 
   setUp(() {
     items = _StubItems();
@@ -195,26 +218,8 @@ void main() {
       );
     attention = TestAttentionHarness();
     userBlocks = FakeUserBlockRepository();
-    sut = BeaconRoomCase(
-      room,
-      items,
-      _FakeFactCards(),
-      _FakeImages(),
-      _FakeTasks(),
-      _FakeRemoteStorage(),
-      _FakePolling(),
-      _FakeUploadQuota(),
-      userBlocks,
-      PassThroughMutatingUnitOfWork(),
-      FakeBeaconHierarchyRepository(),
-      const ProductionDiscussionProductPolicy(),
-      attentionIntents: attention.intents,
-      attention: attention.transactional,
-      env: Env(
-        environment: Environment.test,
-      ),
-      logger: Logger('BeaconRoomCaseMessageMutationsTest'),
-    );
+    sut = buildSut(const ProductionDiscussionProductPolicy());
+    internalSut = buildSut(const InternalMultiThreadDiscussionProductPolicy());
   });
 
   group('createMessage', () {
@@ -391,7 +396,7 @@ void main() {
           createdAt: DateTime.utc(2026),
         );
 
-        await sut.createMessage(
+        await internalSut.createMessage(
           beaconId: _beaconId,
           userId: _userId,
           body: 'thread reply',
@@ -407,10 +412,6 @@ void main() {
               ..sort();
         expect(recipientIds, [_otherUserId, _thirdUserId]);
       },
-      skip:
-          'Task 07 in progress: retired item-thread scope, see the skip '
-          'reason on "allows ask item thread when caller is item '
-          'participant" above for the required reclassification.',
     );
 
     test('self-reply creates no attention intents', () async {
@@ -528,7 +529,7 @@ void main() {
         room.participant = null;
         room.isAuthor = false;
 
-        final out = await sut.createMessage(
+        final out = await internalSut.createMessage(
           beaconId: _beaconId,
           userId: _userId,
           body: 'thread reply',
@@ -538,17 +539,6 @@ void main() {
         expect(out['id'], _messageId);
         expect(room.insertedBody, 'thread reply');
       },
-      skip:
-          'Task 07 in progress: this exercises retired item-thread scope '
-          'against the production-configured `sut`, which the new '
-          'DiscussionProductPolicyPort.generalOnly guard now correctly '
-          'rejects. Per plan §5.2, this must be RECLASSIFIED to a separate '
-          'internal-fixture BeaconRoomCase instance built with '
-          'InternalMultiThreadDiscussionProductPolicy() (proving dormant '
-          'item-thread mechanics still work), not re-enabled as-is against '
-          'the production sut. A new production-rejects negative test '
-          'belongs in general_only_public_contract_test.dart. Do not just '
-          'remove this skip without doing that split.',
     );
 
     test(
@@ -563,7 +553,7 @@ void main() {
         );
         room.participant = null;
 
-        await sut.createMessage(
+        await internalSut.createMessage(
           beaconId: _beaconId,
           userId: _userId,
           body: 'directed update',
@@ -575,10 +565,6 @@ void main() {
         expect(intent.actionUrl, contains('thread=$_threadItemId'));
         expect(intent.recipients.single.recipientId, _otherUserId);
       },
-      skip:
-          'Task 07 in progress: retired item-thread scope, see the skip '
-          'reason on "allows ask item thread when caller is item '
-          'participant" above for the required reclassification.',
     );
   });
 

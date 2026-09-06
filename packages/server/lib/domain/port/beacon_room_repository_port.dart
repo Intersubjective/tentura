@@ -51,6 +51,10 @@ abstract class BeaconRoomRepositoryPort {
 
   Future<BeaconRoomMessageRecord?> getRoomMessageById(String messageId);
 
+  Future<BeaconRoomMessageRecord?> getRoomMessageByLinkedPollingId(
+    String pollingId,
+  );
+
   Future<Map<String, String?>> helpTypesByUserId(String beaconId);
 
   Future<void> insertActivityEvent({

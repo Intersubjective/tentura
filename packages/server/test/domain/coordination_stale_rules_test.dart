@@ -35,11 +35,11 @@ void main() {
   });
 
   group('resolveResponsibleUserId', () {
-    test('open ask targets recipient', () {
+    test('open plan step targets assignee when set', () {
       expect(
         resolveResponsibleUserId(
           const CoordinationStaleItemView(
-            kind: coordinationItemKindAsk,
+            kind: coordinationItemKindPlan,
             status: coordinationItemStatusOpen,
             creatorId: 'c1',
             targetPersonId: 't1',
@@ -49,50 +49,48 @@ void main() {
       );
     });
 
-    test('accepted ask uses acceptedById', () {
+    test('open plan step without assignee uses creator', () {
       expect(
         resolveResponsibleUserId(
           const CoordinationStaleItemView(
-            kind: coordinationItemKindAsk,
-            status: coordinationItemStatusAccepted,
-            creatorId: 'c1',
-            targetPersonId: 't1',
-            acceptedById: 'a1',
-          ),
-        ),
-        'a1',
-      );
-    });
-
-    test('open promise targets recipient', () {
-      expect(
-        resolveResponsibleUserId(
-          const CoordinationStaleItemView(
-            kind: coordinationItemKindPromise,
+            kind: coordinationItemKindPlan,
             status: coordinationItemStatusOpen,
             creatorId: 'c1',
-            targetPersonId: 't1',
-          ),
-        ),
-        't1',
-      );
-    });
-
-    test('accepted promise targets creator', () {
-      expect(
-        resolveResponsibleUserId(
-          const CoordinationStaleItemView(
-            kind: coordinationItemKindPromise,
-            status: coordinationItemStatusAccepted,
-            creatorId: 'c1',
-            targetPersonId: 't1',
           ),
         ),
         'c1',
       );
     });
 
-    test('blocker without target uses creator', () {
+    test('retired ask kinds are not remindable', () {
+      expect(
+        resolveResponsibleUserId(
+          const CoordinationStaleItemView(
+            kind: coordinationItemKindAsk,
+            status: coordinationItemStatusOpen,
+            creatorId: 'c1',
+            targetPersonId: 't1',
+          ),
+        ),
+        isNull,
+      );
+    });
+
+    test('retired promise kinds are not remindable', () {
+      expect(
+        resolveResponsibleUserId(
+          const CoordinationStaleItemView(
+            kind: coordinationItemKindPromise,
+            status: coordinationItemStatusAccepted,
+            creatorId: 'c1',
+            targetPersonId: 't1',
+          ),
+        ),
+        isNull,
+      );
+    });
+
+    test('retired blocker kinds are not remindable', () {
       expect(
         resolveResponsibleUserId(
           const CoordinationStaleItemView(
@@ -101,7 +99,7 @@ void main() {
             creatorId: 'c1',
           ),
         ),
-        'c1',
+        isNull,
       );
     });
   });

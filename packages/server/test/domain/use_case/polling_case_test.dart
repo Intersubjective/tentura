@@ -4,14 +4,18 @@ import 'package:mockito/mockito.dart';
 import 'package:test/test.dart';
 
 import 'package:tentura_server/domain/entity/beacon_room_record.dart';
+import 'package:tentura_server/domain/policy/discussion_product_policy.dart';
 import 'package:tentura_server/domain/use_case/polling_case.dart';
 import 'package:tentura_server/env.dart';
 
+import '../../support/fake_beacon_hierarchy_repository.dart';
 import 'polling_case_mocks.mocks.dart';
 
 void main() {
   late MockPollingActRepositoryPort actRepo;
   late MockPollingRepositoryPort pollingRepo;
+  late MockBeaconRoomRepositoryPort roomRepo;
+  late FakeBeaconHierarchyRepository hierarchyRepo;
   late PollingCase case_;
 
   const authorId = 'Uauthor000001';
@@ -30,12 +34,19 @@ void main() {
   setUp(() {
     actRepo = MockPollingActRepositoryPort();
     pollingRepo = MockPollingRepositoryPort();
+    roomRepo = MockBeaconRoomRepositoryPort();
+    hierarchyRepo = FakeBeaconHierarchyRepository();
     case_ = PollingCase(
       actRepo,
       pollingRepo,
+      roomRepo,
+      hierarchyRepo,
+      const ProductionDiscussionProductPolicy(),
       env: Env(environment: Environment.test),
       logger: Logger('PollingCaseTest'),
     );
+
+    when(roomRepo.getRoomMessageByLinkedPollingId(any)).thenAnswer((_) async => null);
 
     when(pollingRepo.findById(any)).thenAnswer((_) async => poll());
     when(

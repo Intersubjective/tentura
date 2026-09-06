@@ -78,6 +78,29 @@ void main() {
   const targetId = 'Utarget000001';
   const observerId = 'Uobserver0001';
 
+  CoordinationItemRecord stalePlan({
+    int status = coordinationItemStatusOpen,
+    String? targetPersonId,
+  }) {
+    final now = DateTime.utc(2026, 6, 12);
+    return testCoordinationItem(
+      id: itemId,
+      beaconId: beaconId,
+      kind: coordinationItemKindPlan,
+      status: status,
+      title: 'Follow up',
+      body: 'Body',
+      creatorId: creatorId,
+      targetPersonId: targetPersonId ?? targetId,
+      published: true,
+      source: coordinationItemSourceDefault,
+      createdAt: now,
+      updatedAt: now,
+      ordering: 0,
+      staleAt: DateTime.utc(2026, 6, 10),
+    );
+  }
+
   CoordinationItemRecord staleAsk({
     int kind = coordinationItemKindAsk,
     int status = coordinationItemStatusOpen,
@@ -107,7 +130,7 @@ void main() {
     attention = TestAttentionHarness();
     items = _StubItems();
     room = _StubRoom(admittedUserIds: {observerId, targetId, creatorId});
-    items.item = staleAsk();
+    items.item = stalePlan();
     items.claimSucceeds = true;
     sut = RemindCoordinationItemCase(
       items,
@@ -139,7 +162,7 @@ void main() {
     items.item = testCoordinationItem(
       id: itemId,
       beaconId: beaconId,
-      kind: coordinationItemKindAsk,
+      kind: coordinationItemKindPlan,
       status: coordinationItemStatusOpen,
       title: 'Future',
       body: 'Body',
@@ -159,11 +182,19 @@ void main() {
     expect(attention.recorded, isEmpty);
   });
 
-  test('rejects plan items', () async {
-    items.item = staleAsk(kind: coordinationItemKindPlan);
+  test('rejects retired ask items', () async {
+    items.item = staleAsk(kind: coordinationItemKindAsk);
     await expectLater(
       () => sut.call(userId: observerId, itemId: itemId),
-      throwsA(isA<BeaconCreateException>()),
+      throwsA(isA<CoordinationKindDisabledException>()),
+    );
+  });
+
+  test('rejects unsupported kinds', () async {
+    items.item = staleAsk(kind: coordinationItemKindPromise);
+    await expectLater(
+      () => sut.call(userId: observerId, itemId: itemId),
+      throwsA(isA<CoordinationKindDisabledException>()),
     );
   });
 

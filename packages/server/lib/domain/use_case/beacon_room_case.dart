@@ -305,6 +305,8 @@ final class BeaconRoomCase extends UseCaseBase {
   }) async {
     final tid = threadItemId?.trim();
     final inThread = tid != null && tid.isNotEmpty;
+    _rejectDisabledDiscussionScope(inThread ? tid : null);
+    await _rejectOrdinaryUserWritesForLifecycle(beaconId);
     CoordinationItemRecord? threadItem;
     if (inThread) {
       await _rejectPlanItemThread(tid);
@@ -464,13 +466,16 @@ final class BeaconRoomCase extends UseCaseBase {
     required String userId,
   }) async {
     final roomMember = await _canUseRoom(beaconId: beaconId, userId: userId);
-    final rows = await _items.listThreads(
+    var rows = await _items.listThreads(
       beaconId: beaconId,
       viewerUserId: userId,
       includeGeneral: roomMember,
       itemParticipantsOnly: !roomMember,
       excerptCharacters: 140,
     );
+    if (_discussionPolicy.generalOnly) {
+      rows = rows.where((row) => row.threadKind == 'general').toList();
+    }
     if (!roomMember && rows.isEmpty) {
       throw const UnauthorizedException(
         description: 'Room or item thread access required',
@@ -487,6 +492,7 @@ final class BeaconRoomCase extends UseCaseBase {
   }) async {
     final tid = threadItemId?.trim();
     final inThread = tid != null && tid.isNotEmpty;
+    _rejectDisabledDiscussionScope(inThread ? tid : null);
     if (inThread) {
       await _rejectPlanItemThread(tid);
       final allowed = await _canAccessThread(
@@ -530,6 +536,9 @@ final class BeaconRoomCase extends UseCaseBase {
       );
     }
     final threadItemId = message.threadItemId?.trim();
+    _rejectDisabledDiscussionScope(
+      threadItemId == null || threadItemId.isEmpty ? null : threadItemId,
+    );
     final allowed = threadItemId == null || threadItemId.isEmpty
         ? await _canUseRoom(beaconId: beaconId, userId: userId)
         : await _canAccessThread(
@@ -686,12 +695,6 @@ final class BeaconRoomCase extends UseCaseBase {
     required String userId,
     required String messageId,
   }) async {
-    final allowed = await _canUseRoom(beaconId: beaconId, userId: userId);
-    if (!allowed) {
-      throw const UnauthorizedException(
-        description: 'Room access required',
-      );
-    }
     final msg = await _room.getRoomMessageById(messageId);
     if (msg == null || msg.beaconId != beaconId) {
       throw IdNotFoundException(
@@ -699,6 +702,17 @@ final class BeaconRoomCase extends UseCaseBase {
         description: 'Message is not on this request',
       );
     }
+    final allowed = await _canMutateMessage(
+      beaconId: beaconId,
+      userId: userId,
+      msg: msg,
+    );
+    if (!allowed) {
+      throw const UnauthorizedException(
+        description: 'Room access required',
+      );
+    }
+    await _guardMessageMutation(beaconId: beaconId, msg: msg);
     await _room.markRoomMessageSemanticDone(
       messageId: messageId,
       actingUserId: userId,
@@ -722,6 +736,7 @@ final class BeaconRoomCase extends UseCaseBase {
   }) async {
     final tid = threadItemId?.trim();
     final inThread = tid != null && tid.isNotEmpty;
+    _rejectDisabledDiscussionScope(inThread ? tid : null);
     if (inThread) {
       await _rejectPlanItemThread(tid);
       final allowed = await _canAccessThread(
@@ -983,6 +998,7 @@ final class BeaconRoomCase extends UseCaseBase {
         description: 'Room access required',
       );
     }
+    await _guardMessageMutation(beaconId: beaconId, msg: msg);
     await _room.toggleReaction(
       messageId: messageId,
       userId: userId,
@@ -1018,6 +1034,7 @@ final class BeaconRoomCase extends UseCaseBase {
         description: 'Only the message author can add attachments',
       );
     }
+    await _guardMessageMutation(beaconId: beaconId, msg: msg);
     final payload = await readUint8StreamWithLimit(
       attachmentBytes,
       kMaxRoomMessageAttachmentBytes,
@@ -1062,6 +1079,7 @@ final class BeaconRoomCase extends UseCaseBase {
         description: 'Only the message author can delete messages',
       );
     }
+    await _guardMessageMutation(beaconId: beaconId, msg: msg);
     await _unitOfWork.run(
       actorUserId: userId,
       action: () async {
@@ -1102,6 +1120,7 @@ final class BeaconRoomCase extends UseCaseBase {
         description: 'Only the message author can edit messages',
       );
     }
+    await _guardMessageMutation(beaconId: beaconId, msg: msg);
     final trimmed = newBody.trim();
     if (trimmed.isEmpty) {
       throw const BeaconCreateException(
@@ -1201,6 +1220,7 @@ final class BeaconRoomCase extends UseCaseBase {
         description: 'Message missing',
       );
     }
+    _rejectDisabledDiscussionScope(msg.threadItemId);
     final roomOk = await _canMutateMessage(
       beaconId: msg.beaconId,
       userId: userId,
@@ -1344,6 +1364,7 @@ final class BeaconRoomCase extends UseCaseBase {
     if (!allowed) {
       throw const UnauthorizedException(description: 'Room access required');
     }
+    await _rejectOrdinaryUserWritesForLifecycle(beaconId);
     await _enforceMessageRateLimit(userId);
     final trimmedQuestion = question.trim();
     if (trimmedQuestion.isEmpty) {

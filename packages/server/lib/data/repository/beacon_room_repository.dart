@@ -1242,6 +1242,14 @@ RETURNING last_seen_at
               .getSingleOrNull())
           ?.toRecord();
 
+  Future<BeaconRoomMessageRecord?> getRoomMessageByLinkedPollingId(
+    String pollingId,
+  ) async =>
+      (await _db.managers.beaconRoomMessages
+              .filter((m) => m.linkedPollingId.equals(pollingId))
+              .getSingleOrNull())
+          ?.toRecord();
+
   Future<void> markRoomMessageSemanticDone({
     required String messageId,
     required String actingUserId,

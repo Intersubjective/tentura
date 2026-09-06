@@ -1,7 +1,11 @@
 import 'package:injectable/injectable.dart';
+import 'package:tentura_server/domain/port/beacon_hierarchy_repository_port.dart';
+import 'package:tentura_server/domain/port/beacon_room_repository_port.dart';
+import 'package:tentura_server/domain/port/discussion_product_policy_port.dart';
 import 'package:tentura_server/domain/port/polling_act_repository_port.dart';
 import 'package:tentura_server/domain/port/polling_repository_port.dart';
-import 'package:tentura_server/domain/entity/beacon_room_record.dart';
+import 'package:tentura_server/domain/policy/beacon_room_lifecycle_write_policy.dart';
+import 'package:tentura_server/domain/exception.dart';
 
 import '_use_case_base.dart';
 
@@ -9,13 +13,19 @@ import '_use_case_base.dart';
 final class PollingCase extends UseCaseBase {
   PollingCase(
     this._pollingActRepository,
-    this._pollingRepository, {
+    this._pollingRepository,
+    this._roomRepository,
+    this._hierarchyRepository,
+    this._discussionPolicy, {
     required super.env,
     required super.logger,
   });
 
   final PollingActRepositoryPort _pollingActRepository;
   final PollingRepositoryPort _pollingRepository;
+  final BeaconRoomRepositoryPort _roomRepository;
+  final BeaconHierarchyRepositoryPort _hierarchyRepository;
+  final DiscussionProductPolicyPort _discussionPolicy;
 
   Future<bool> create({
     required String authorId,
@@ -25,6 +35,8 @@ final class PollingCase extends UseCaseBase {
   }) async {
     final polling = await _pollingRepository.findById(pollingId);
     if (polling == null) throw ArgumentError('Poll not found: $pollingId');
+
+    await _guardRoomBackedPollMutation(pollingId);
 
     final pollType = polling.pollType;
 
@@ -45,5 +57,26 @@ final class PollingCase extends UseCaseBase {
       score: score,
     );
     return true;
+  }
+
+  Future<void> _guardRoomBackedPollMutation(String pollingId) async {
+    final message = await _roomRepository.getRoomMessageByLinkedPollingId(
+      pollingId,
+    );
+    if (message == null) {
+      return;
+    }
+    if (!_discussionPolicy.isDiscussionScopeEnabled(
+      threadScopeId: message.threadItemId,
+    )) {
+      throw const DiscussionScopeDisabledException();
+    }
+    final status = await _hierarchyRepository.loadBeaconStatus(message.beaconId);
+    if (status != null &&
+        BeaconRoomLifecycleWritePolicy.blocksOrdinaryUserWrites(status)) {
+      throw const BeaconCreateException(
+        description: 'Discussion is read-only for this request',
+      );
+    }
   }
 }

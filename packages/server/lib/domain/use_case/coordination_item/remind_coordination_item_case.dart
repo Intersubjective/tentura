@@ -5,6 +5,7 @@ import 'package:injectable/injectable.dart';
 import 'package:tentura_server/domain/port/beacon_room_repository_port.dart';
 import 'package:tentura_server/domain/coordination_stale_rules.dart';
 import 'package:tentura_server/domain/exception.dart';
+import 'package:tentura_server/domain/policy/discussion_product_policy.dart';
 import 'package:tentura_server/domain/port/coordination_item_repository_port.dart';
 import 'package:tentura_server/domain/use_case/attention_intent_case.dart';
 import 'package:tentura_server/domain/use_case/transactional_attention_case.dart';
@@ -39,9 +40,12 @@ final class RemindCoordinationItemCase extends UseCaseBase {
         description: 'Coordination item not found',
       );
     }
+    if (DiscussionProductPolicy.isRetiredCoordinationKind(existing.kind)) {
+      throw const CoordinationKindDisabledException();
+    }
     if (!isRemindableKind(existing.kind)) {
       throw const BeaconCreateException(
-        description: 'Only asks, promises, and blockers can be reminded',
+        description: 'Only plan steps can be reminded',
       );
     }
 
