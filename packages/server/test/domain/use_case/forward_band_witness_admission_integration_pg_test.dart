@@ -39,6 +39,7 @@ import 'package:tentura_server/domain/use_case/forward_band_case.dart';
 import 'package:tentura_server/domain/use_case/evaluation/review_finalization_case.dart';
 import 'package:tentura_server/env.dart';
 
+import '../../support/fake_beacon_hierarchy_repository.dart';
 import '../../support/review_finalization_test_support.dart';
 
 const _alice = 'Ucapg3alice1';
@@ -142,6 +143,7 @@ Future<void> main() async {
         FakeHelpOffers(),
         RecordingTrustEvidence(),
         capEvidenceRepo,
+        FakeBeaconHierarchyRepository(),
         env: env,
         logger: logger,
       );

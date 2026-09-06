@@ -76,7 +76,7 @@ which this plan/orchestration owns.
 | 00 | Inventory, journal, and fixture harness | none | complete |
 | 01 | Pure contracts and policies | 00 | complete |
 | 02 | Additive hierarchy storage and repository adapter | 01 | complete |
-| 03 | Authorization, SQL/Hasura parity, and mutation locking | 02 | pending |
+| 03 | Authorization, SQL/Hasura parity, and mutation locking | 02 | complete |
 | 04 | Shared normal creation and atomic child commands | 03 | pending |
 | 05 | Lifecycle producers and retained status audience | 04 | pending |
 | 06 | Durable hierarchy delivery worker | 05 | pending |
@@ -427,3 +427,104 @@ a row's id already appears in the parent chain (future Task 04 paths).
 
 ### Task 02 — complete (Cursor CLI worker, 2026-09-06)
 
+
+### Task 02 — manager review (2026-09-06)
+
+Independently verified: read `m0154.dart` in full against §4.1 — scope is
+exactly right (no drift into Task 03/07/08/09/14's migration allocations).
+Triggers/constraints checked line-by-line: insert guard (self/missing-parent/
+unpublished-parent/cycle rejection), update guard (immutability), promotion
+consistency guard (child.parent match, source.beacon match, null thread
+scope), delivery five-state CHECK + lease-column CHECK, room-message
+author-or-system CHECK — all match plan intent. Confirmed `beacon_promotions`
+rows are written only for promoted children (worker's own documented design
+choice; noted for Task 04's attention). Confirmed the five
+nullable-author-compatibility production-file edits are mechanical
+null-safety threading only (no behavior change for current all-non-null
+data). Ran `dart run build_runner build -d` in `packages/server` to verify
+the hand-edited `forward_band_case_mocks.mocks.dart` (should have been
+regenerated, not hand-edited, per AGENTS.md) — **regenerated output was
+byte-identical**, so no correctness issue, just a process note.
+
+**Found and fixed one real defect via independent re-verification:**
+`BeaconHierarchyDisposablePgTarget.fromEnvironment()` resolves to the same
+database name on every call whenever `TENTURA_BEACON_HIERARCHY_PG_TEST_DB` is
+set (a documented, sanctioned usage per plan §8 and this project's own
+fixture docs). The outbox PG test's nested "m0154 upgrades from m0153"
+sub-test called `.fromEnvironment()` again while the suite's own `setUpAll`
+target was still live and open, so `recreate()`'s `DROP DATABASE ... WITH
+(FORCE)` destroyed the outer target's live connection mid-suite. Reproduced
+exactly this way; the worker's own reported run used unset-env-var default
+naming (unique per call), which is why it didn't surface there. Fixed
+directly (small/local/unambiguous per orchestration criteria): added
+`databaseNameOverride` to `fromEnvironment()`, and the nested upgrade target
+now requests a distinct generated name. Verified: full 20/20 hierarchy PG
+suite passes both with and without `TENTURA_BEACON_HIERARCHY_PG_TEST_DB` set;
+existing `beacon_threads_repository_pg_test.dart` still 12/12; full
+`dart test --exclude-tags pg` 1607/1607; both lint baselines still exact
+(server 0/0, client 32/32); `git diff --check` clean. Commit `bda0df158`.
+
+Task 02 is ACCEPTED (after one manager-applied fix). Proceeding to Task 03
+(authorization, SQL/Hasura parity, and mutation locking — `m0155`).
+
+### Task 03 — complete (Cursor CLI worker, 2026-09-06)
+
+**Migration `m0155` SQL objects (final names):**
+- `public.beacon_effective_admission(beacon_id, viewer_id)` — block check, then
+  author / `beacon_steward` / admitted participant (`role = 1` OR `room_access = 3`).
+- `public.beacon_can_read_linked_detail(beacon_id, viewer_id)` — block →
+  draft/deleted restrictions → `beacon_can_read_content` OR one-edge parent/child
+  via `beacon_effective_admission` on adjacent published non-deleted nodes only
+  (no recursive content/linked-detail calls on adjacent nodes).
+- Hasura wrappers: `beacon_get_can_read_linked_detail`,
+  `beacon_get_effective_admission`.
+- Mutation lock helper: `beacon_hierarchy_acquire_mutation_lock()` →
+  `pg_advisory_xact_lock(hashtextextended('tentura.beacon_hierarchy.v1', 0))`.
+- DB triggers (statement/row): `beacon_hierarchy_participant_mutation_lock_trg`,
+  `beacon_hierarchy_steward_mutation_lock_trg`,
+  `beacon_hierarchy_user_block_mutation_lock_trg`,
+  `beacon_hierarchy_beacon_status_mutation_lock_trg`,
+  `beacon_hierarchy_room_message_delete_mutation_lock_trg`.
+- `beacon_can_read_content` SQL body **unchanged**.
+
+**Repository / Hasura:**
+- `BeaconAccessRepository.canReadLinkedDetail` → `beacon_can_read_linked_detail`.
+- `BeaconHierarchyRepository.lockMutationScope()` (already on port from Task 01).
+- Hasura computed fields on `beacon`: `can_read_linked_detail`, `effective_admission`;
+  default `beacon` select permission still `can_read_content`-only (not widened).
+
+**Mutex wired at production call sites (file + method):**
+| File | Method(s) |
+|------|-----------|
+| `beacon_case.dart` | `beaconCancel`, `deleteById` |
+| `evaluation_case.dart` | `beaconClose` |
+| `evaluation/review_finalization_case.dart` | `closeAndFinalize` |
+| `beacon_room_case.dart` | `admit`, `stewardPromote`, `deleteMessage` |
+| `coordination_case.dart` | `acceptHelpOffer`, `removeFromRoom`, `releaseCommitment`, `setCoordinationResponse` (invite/remove paths) |
+| `user_block_case.dart` | `block`, `unblock` |
+
+**Explicitly deferred (per plan):** child create/publish mutex → Task 04;
+account erasure mutex → Task 08. No production steward-removal path found today.
+
+**Tests added:**
+- `beacon_hierarchy_visibility_pg_test.dart` — effective admission, linked-detail
+  vs content, blocks, revocation, non-transitivity across grandchild, five
+  production `canReadContent` call-site refusals, mutex concurrency.
+- `beacon_hierarchy_hasura_parity_test.dart` — metadata contract + JWT probes
+  proving child rows stay off the content select path.
+- `beacon_hierarchy_case_test.dart` — skipped (no `BeaconHierarchyCase` at this depth).
+
+**Non-transitivity proof tests (hierarchy-only Frank on parent A, child B):**
+`help_offer_case offerHelp/withdrawHelp`, `forward_case forward`,
+`assertBeaconLineageSourceVisible`, `invitation_case create`,
+`coordination_case helpOffersWithCoordination` — all throw before mutating.
+
+**Verification:**
+```bash
+cd packages/server
+dart test --exclude-tags pg   # 1607/1607
+dart test -t pg -j 1 test/data/repository/beacon_hierarchy_visibility_pg_test.dart  # 12/12
+dart test -t pg -j 1 test/api/beacon_hierarchy_hasura_parity_test.dart  # 2/2
+./scripts/check-custom-lints.sh packages/server  # 0/0
+./scripts/check-custom-lints.sh packages/client  # 32/32
+```

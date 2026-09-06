@@ -21,6 +21,7 @@ import 'package:tentura_server/domain/entity/review_finalization_result.dart';
 import 'package:tentura_server/domain/use_case/evaluation/review_finalization_case.dart';
 import 'package:tentura_server/env.dart';
 
+import '../../support/fake_beacon_hierarchy_repository.dart';
 import '../../support/review_finalization_test_support.dart';
 
 const _beaconId = 'Bcapc2bcn001';
@@ -68,6 +69,7 @@ Future<void> main() async {
         FakeHelpOffers(),
         RecordingTrustEvidence(),
         capEvidenceRepo,
+        FakeBeaconHierarchyRepository(),
         env: target.databaseEnv,
         logger: Logger('ReviewFinalizationOutcomeEvidencePgTest'),
       );

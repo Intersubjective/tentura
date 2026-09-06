@@ -3,6 +3,8 @@ import 'package:logging/logging.dart';
 import 'package:mockito/mockito.dart';
 import 'package:test/test.dart';
 
+import '../../support/fake_beacon_hierarchy_repository.dart';
+
 import 'package:tentura_server/consts/beacon_activity_event_consts.dart';
 import 'package:tentura_server/domain/port/beacon_fact_card_repository_port.dart';
 import 'package:tentura_server/domain/port/beacon_room_repository_port.dart';
@@ -64,6 +66,8 @@ void main() {
       FakePollingRepository(),
       FakeUploadQuota(),
       FakeUserBlockRepository(),
+      PassThroughMutatingUnitOfWork(),
+      FakeBeaconHierarchyRepository(),
       env: Env(environment: Environment.test),
       logger: Logger('BeaconRoomCaseBatchTest'),
     );

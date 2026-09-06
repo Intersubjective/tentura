@@ -39,6 +39,7 @@ import 'package:tentura_server/domain/use_case/user_block_case.dart';
 import 'package:tentura_server/domain/use_case/user_trust_edge_case.dart';
 import 'package:tentura_server/env.dart';
 
+import '../../support/fake_beacon_hierarchy_repository.dart';
 import '../../support/recording_commitment_repository.dart';
 import '../../support/test_attention_harness.dart';
 
@@ -112,6 +113,7 @@ Future<void> main() async {
         NoOpCommitmentRepository(),
         _FakeInbox(),
         _NoopCapabilityEvidence(),
+        FakeBeaconHierarchyRepository(),
         witnessWindow: witnessWindow,
         env: target.databaseEnv,
         logger: Logger('mr_publish_epoch_pg_test'),

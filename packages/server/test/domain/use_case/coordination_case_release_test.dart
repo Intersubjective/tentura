@@ -3,6 +3,8 @@ import 'package:logging/logging.dart';
 import 'package:mockito/mockito.dart';
 import 'package:test/test.dart';
 
+import '../../support/fake_beacon_hierarchy_repository.dart';
+
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 import 'package:tentura_server/domain/attention/attention_models.dart';
 import 'package:tentura_server/consts/beacon_room_consts.dart';
@@ -105,6 +107,7 @@ void main() {
       FakeUserBlockRepository(),
       commitmentRepo,
       commitmentQueryCase,
+      FakeBeaconHierarchyRepository(),
       attentionIntents: attention.intents,
       attention: attention.transactional,
       guard: FakeBeaconAccessGuard(),
@@ -122,6 +125,7 @@ void main() {
       _FakeTaskRepo(),
       commitmentQueryCase,
       FakeBeaconAccessGuard(),
+      FakeBeaconHierarchyRepository(),
       attentionIntents: attention.intents,
       attention: attention.transactional,
       env: Env(environment: Environment.test),

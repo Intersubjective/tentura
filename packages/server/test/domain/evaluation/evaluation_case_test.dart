@@ -37,6 +37,7 @@ import 'package:tentura_server/domain/commitment/commitment_event_kind.dart';
 import 'package:tentura_server/domain/port/commitment_repository_port.dart';
 import 'package:tentura_server/domain/trust/trust_bin.dart';
 
+import '../../support/fake_beacon_hierarchy_repository.dart';
 import '../../support/recording_commitment_repository.dart';
 import 'evaluation_graph_test_repos.dart';
 import '../../support/test_attention_harness.dart';
@@ -197,6 +198,7 @@ EvaluationCase buildTestEvaluationCase({
     ),
     commitment,
     offers,
+    FakeBeaconHierarchyRepository(),
     attentionIntents: attention.intents,
     attention: attention.transactional,
     attentionExpirySweep: expirySweep,

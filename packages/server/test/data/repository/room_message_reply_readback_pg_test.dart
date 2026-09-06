@@ -33,6 +33,7 @@ import 'package:tentura_server/domain/use_case/beacon_room_case.dart';
 import 'package:tentura_server/domain/use_case/transactional_attention_case.dart';
 import 'package:tentura_server/env.dart';
 
+import '../../support/fake_beacon_hierarchy_repository.dart';
 import '../../support/fake_user_block_repository.dart';
 import '../../support/pg_test_public_keys.dart';
 
@@ -533,6 +534,8 @@ WHERE id = '${reply.id}'
         _PgFakePolling(),
         _PgFakeUploadQuota(),
         FakeUserBlockRepository(),
+        PassThroughMutatingUnitOfWork(),
+        FakeBeaconHierarchyRepository(),
         attentionIntents: attentionIntents,
         attention: attention,
         env: Env(environment: Environment.test),

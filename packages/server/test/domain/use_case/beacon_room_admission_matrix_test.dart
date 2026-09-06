@@ -3,6 +3,8 @@ import 'package:logging/logging.dart';
 import 'package:mockito/mockito.dart';
 import 'package:test/test.dart';
 
+import '../../support/fake_beacon_hierarchy_repository.dart';
+
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 import 'package:tentura_server/consts/beacon_room_consts.dart';
 import 'package:tentura_server/domain/commitment/commitment_event.dart';
@@ -149,6 +151,8 @@ void main() {
           _MinimalPolling(),
           _MinimalUploadQuota(),
           FakeUserBlockRepository(),
+      PassThroughMutatingUnitOfWork(),
+      FakeBeaconHierarchyRepository(),
           attentionIntents: attention.intents,
           attention: attention.transactional,
           env: Env(environment: Environment.test),
@@ -174,6 +178,8 @@ void main() {
               _MinimalPolling(),
               _MinimalUploadQuota(),
               FakeUserBlockRepository(),
+      PassThroughMutatingUnitOfWork(),
+      FakeBeaconHierarchyRepository(),
               attentionIntents: attention.intents,
               attention: attention.transactional,
               env: Env(environment: Environment.test),
@@ -209,6 +215,8 @@ void main() {
           _MinimalPolling(),
           _MinimalUploadQuota(),
           FakeUserBlockRepository(),
+      PassThroughMutatingUnitOfWork(),
+      FakeBeaconHierarchyRepository(),
           attentionIntents: attention.intents,
           attention: attention.transactional,
           env: Env(environment: Environment.test),
@@ -255,6 +263,7 @@ void main() {
           FakeUserBlockRepository(),
           commitmentRepo,
           _commitmentQueryCase(commitmentRepo, helpOfferRepo),
+          FakeBeaconHierarchyRepository(),
           guard: FakeBeaconAccessGuard(),
           env: Env(environment: Environment.test),
           logger: Logger('BeaconRoomAdmissionMatrixTest'),
@@ -434,6 +443,7 @@ void main() {
           userBlocks,
           commitmentRepo,
           _commitmentQueryCase(commitmentRepo, helpOfferRepo),
+          FakeBeaconHierarchyRepository(),
           attentionIntents: attention.intents,
           attention: attention.transactional,
           guard: guard ?? FakeBeaconAccessGuard(),
@@ -667,6 +677,7 @@ void main() {
           userBlocks,
           commitmentRepo,
           _commitmentQueryCase(commitmentRepo, helpOfferRepo),
+          FakeBeaconHierarchyRepository(),
           attentionIntents: attention.intents,
           attention: attention.transactional,
           guard: FakeBeaconAccessGuard(),

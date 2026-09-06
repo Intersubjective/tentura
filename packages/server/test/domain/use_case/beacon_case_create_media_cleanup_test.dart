@@ -6,6 +6,8 @@ import 'package:logging/logging.dart';
 import 'package:mockito/mockito.dart';
 import 'package:test/test.dart';
 
+import '../../support/fake_beacon_hierarchy_repository.dart';
+
 import 'package:tentura_root/domain/entity/beacon_cover_source.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 import 'package:tentura_server/domain/entity/beacon_entity.dart';
@@ -108,6 +110,7 @@ void main() {
       _FakeTaskRepo(),
       noopCommitmentQueryCase(),
       FakeBeaconAccessGuard(),
+      FakeBeaconHierarchyRepository(),
       env: Env(environment: Environment.test),
       logger: Logger('BeaconCaseCreateMediaCleanupTest'),
     );
@@ -156,6 +159,7 @@ void main() {
       _FakeTaskRepo(),
       noopCommitmentQueryCase(),
       FakeBeaconAccessGuard(),
+      FakeBeaconHierarchyRepository(),
       env: env,
       logger: Logger('BeaconCaseCreateMediaCleanupTest'),
     );

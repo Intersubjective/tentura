@@ -5,6 +5,8 @@ import 'package:logging/logging.dart';
 import 'package:mockito/mockito.dart';
 import 'package:test/test.dart';
 
+import '../../../support/fake_beacon_hierarchy_repository.dart';
+
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 import 'package:tentura_server/api/controllers/graphql/custom_types.dart';
 import 'package:tentura_server/api/controllers/graphql/input/_input_types.dart';
@@ -210,6 +212,7 @@ EvaluationCase _evaluationCase(_RecordingEvaluationRepository repository) {
     ),
     commitment,
     offers,
+    FakeBeaconHierarchyRepository(),
     attentionIntents: attention.intents,
     attention: attention.transactional,
     attentionExpirySweep: expiry,

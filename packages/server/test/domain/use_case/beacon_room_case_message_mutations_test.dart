@@ -3,6 +3,8 @@ import 'package:logging/logging.dart';
 import 'package:mockito/mockito.dart';
 import 'package:test/test.dart';
 
+import '../../support/fake_beacon_hierarchy_repository.dart';
+
 import 'package:tentura_server/consts/beacon_room_consts.dart';
 import 'package:tentura_server/consts/coordination_item_consts.dart';
 import 'package:tentura_server/domain/attention/attention_models.dart';
@@ -202,6 +204,8 @@ void main() {
       _FakePolling(),
       _FakeUploadQuota(),
       userBlocks,
+      PassThroughMutatingUnitOfWork(),
+      FakeBeaconHierarchyRepository(),
       attentionIntents: attention.intents,
       attention: attention.transactional,
       env: Env(

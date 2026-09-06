@@ -48,6 +48,7 @@ import 'package:tentura_server/env.dart';
 import '../domain/use_case/help_offer_case_mocks.mocks.dart';
 import 'coordination_item_record_fixtures.dart';
 import 'fake_beacon_access_guard.dart';
+import 'fake_beacon_hierarchy_repository.dart';
 import 'fake_user_block_repository.dart';
 import 'recording_commitment_repository.dart';
 import 'test_attention_harness.dart';
@@ -532,6 +533,7 @@ final class CommitmentGatesHarness {
       FakeUserBlockRepository(),
       commitmentRepo,
       commitmentQueryCase,
+      FakeBeaconHierarchyRepository(),
       attentionIntents: attention.intents,
       attention: attention.transactional,
       guard: FakeBeaconAccessGuard(),
@@ -546,6 +548,7 @@ final class CommitmentGatesHarness {
       _FakeTaskRepository(),
       commitmentQueryCase,
       FakeBeaconAccessGuard(),
+      FakeBeaconHierarchyRepository(),
       attentionIntents: attention.intents,
       attention: attention.transactional,
       env: Env(environment: Environment.test),
@@ -563,6 +566,7 @@ final class CommitmentGatesHarness {
       commitmentRepo,
       _inboxRepo,
       _NoopCapabilityEvidence(),
+      FakeBeaconHierarchyRepository(),
       env: Env(environment: Environment.test),
       logger: Logger(_logName),
     );
@@ -587,6 +591,7 @@ final class CommitmentGatesHarness {
       commitmentQueryCase,
       commitmentRepo,
       helpOfferRepo,
+      FakeBeaconHierarchyRepository(),
       attentionIntents: attention.intents,
       attention: attention.transactional,
       attentionExpirySweep: AttentionExpirySweepCase(

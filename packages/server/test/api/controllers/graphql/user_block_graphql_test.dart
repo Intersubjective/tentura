@@ -2,6 +2,8 @@ import 'package:logging/logging.dart';
 import 'package:mockito/mockito.dart';
 import 'package:test/test.dart';
 
+import '../../../support/fake_beacon_hierarchy_repository.dart';
+
 import 'package:tentura_server/api/controllers/graphql/input/_input_types.dart';
 import 'package:tentura_server/api/controllers/graphql/mutation/mutation_user_block.dart';
 import 'package:tentura_server/api/controllers/graphql/query/query_user_block.dart';
@@ -134,6 +136,7 @@ UserBlockCase _userBlockCase(_RecordingBlockRepository blocks) => UserBlockCase(
   NoOpCommitmentRepository(),
   _FakeInbox(),
   _NoopCapabilityEvidence(),
+      FakeBeaconHierarchyRepository(),
   env: Env.test(),
   logger: Logger('user-block-graphql-test'),
 );

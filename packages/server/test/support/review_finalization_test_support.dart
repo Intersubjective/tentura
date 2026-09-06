@@ -20,6 +20,8 @@ import 'package:tentura_server/domain/trust/trust_evidence.dart';
 import 'package:tentura_server/domain/use_case/evaluation/review_finalization_case.dart';
 import 'package:tentura_server/env.dart';
 
+import 'fake_beacon_hierarchy_repository.dart';
+
 final class PassThroughUoW extends Fake implements MutatingUnitOfWorkPort {
   @override
   Future<T> run<T>({
@@ -160,6 +162,7 @@ ReviewFinalizationCase buildReviewFinalizationCase({
       helpOffers,
       trustEvidence,
       capabilityEvidence ?? NoopCapabilityEvidence(),
+      FakeBeaconHierarchyRepository(),
       env: Env(environment: Environment.test),
       logger: Logger('ReviewFinalizationTestSupport'),
     );

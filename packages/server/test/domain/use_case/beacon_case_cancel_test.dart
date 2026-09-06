@@ -4,6 +4,8 @@ import 'package:meta/meta.dart';
 import 'package:mockito/mockito.dart';
 import 'package:test/test.dart';
 
+import '../../support/fake_beacon_hierarchy_repository.dart';
+
 import 'package:tentura_server/consts/beacon_activity_event_consts.dart';
 import 'package:tentura_server/domain/attention/attention_models.dart';
 import 'package:tentura_server/domain/commitment/commitment_event.dart';
@@ -169,6 +171,7 @@ void main() {
       _FakeTaskRepo(),
       commitmentQueryCase ?? noopCommitmentQueryCase(),
       FakeBeaconAccessGuard(),
+      FakeBeaconHierarchyRepository(),
       attentionIntents: attention.intents,
       attention: attention.transactional,
       env: Env(environment: Environment.test),
@@ -188,6 +191,7 @@ void main() {
         _FakeTaskRepo(),
         noopCommitmentQueryCase(),
         FakeBeaconAccessGuard(),
+      FakeBeaconHierarchyRepository(),
         attentionIntents: attention.intents,
         attention: attention.transactional,
         env: Env(environment: Environment.test),
@@ -231,6 +235,7 @@ void main() {
           _FakeTaskRepo(),
           noopCommitmentQueryCase(),
           FakeBeaconAccessGuard(),
+      FakeBeaconHierarchyRepository(),
           attentionIntents: attention.intents,
           attention: attention.transactional,
           env: Env(
