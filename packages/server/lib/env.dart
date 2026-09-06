@@ -51,7 +51,15 @@ Duration? _parseEnvDuration(String? raw) {
 /// was released, hitting `closeBranchConflict` on every close attempt. P3.11
 /// fixes the client to read the server-provided counter instead, so this gate
 /// must exclude clients built before that fix shipped.
-const kDefaultMinClientVersion = '6.12.16';
+///
+/// Raised to 7.0.0 for the nested-requests release (plan
+/// docs/plans/nested-requests-implementation-plan.md): ask/promise/blocker
+/// coordination-item mutations and their client surfaces are retired in favor
+/// of General-only Discussion plus parent/child beacon nesting. Older clients
+/// still send the retired mutations and render the retired UI, which no
+/// longer resolves against the current schema, so this gate must exclude
+/// clients built before that release shipped.
+const kDefaultMinClientVersion = '7.0.0';
 
 class Env {
   Env({

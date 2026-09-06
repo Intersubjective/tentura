@@ -38,6 +38,8 @@ Short pointers for agents — read only what your task needs.
 
 | Doc | Read when |
 |-----|-----------|
+| [`plans/nested-requests-architecture.md`](plans/nested-requests-architecture.md) | Nested requests replacing ask/promise/blocker item threads; General-only product with retained backend thread machinery — architectural proposal, implemented (see journal) |
+| [`plans/nested-requests-implementation-plan.md`](plans/nested-requests-implementation-plan.md) | Detailed nested-request execution plan: adopted visibility/notice defaults, domain/API/storage contracts, 16 ordered tasks, retirement and verification gates — implemented; see [`nested-requests-implementation-journal.md`](plans/nested-requests-implementation-journal.md) for acceptance evidence |
 | [`plans/availability-request-receptiveness-architecture.md`](plans/availability-request-receptiveness-architecture.md) | Availability / request-receptiveness signal (profile + Forward) — architecture rev 3, awaiting sign-off (reviews: [grok](plans/availability-review-grok46.md), [kimi](plans/availability-review-kimik3.md), [codex](plans/availability-review-codex.md)) |
 | [`plans/issue-110-forward-explicit-architecture.md`](plans/issue-110-forward-explicit-architecture.md) | Explicit forwarding UX (#110): note coverage, stay-on-send, Watching confirm, `allowsForward` gate — architecture rev 1 |
 | [`plans/issue-97-invite-identity-plan.md`](plans/issue-97-invite-identity-plan.md) | Invite identity + canonical name (#97) — private nickname, dual-purpose People invite, Updates origin |
