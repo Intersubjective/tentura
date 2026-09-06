@@ -307,6 +307,7 @@ class ForwardRecipientRow extends StatelessWidget {
               key: TestIds.key(
                 TestIds.forwardRecipientCheckbox(candidate.id),
               ),
+              identifier: TestIds.forwardRecipientCheckbox(candidate.id),
               isSelected: isSelected,
               enabled: checkboxEnabled,
               onTap: onToggle,
@@ -504,12 +505,14 @@ class _CapabilityHintChip extends StatelessWidget {
 
 class _ForwardRowCheckbox extends StatelessWidget {
   const _ForwardRowCheckbox({
+    required this.identifier,
     required this.isSelected,
     required this.enabled,
     required this.onTap,
     super.key,
   });
 
+  final String identifier;
   final bool isSelected;
   final bool enabled;
   final VoidCallback? onTap;
@@ -521,6 +524,7 @@ class _ForwardRowCheckbox extends StatelessWidget {
         ? (isSelected ? tt.info : tt.border)
         : tt.borderSubtle;
     return Semantics(
+      identifier: identifier,
       label: isSelected
           ? L10n.of(context)!.forwardCandidateRemove
           : L10n.of(context)!.forwardCandidateSelect,

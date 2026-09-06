@@ -157,8 +157,8 @@ Future<void> _runJourney({
     'request.description',
     'Simultaneous WebDriver proof for $title',
   );
-  await author.clickText('Recipients');
-  await author.clickTestId('forward.recipient.${fixture.helperUserId}');
+  await author.clickText('Next: Recipients');
+  await author.clickTestId('forward.recipient.checkbox.${fixture.helperUserId}');
 
   await author.setNetworkLatency(const Duration(milliseconds: 700));
   final submitStarted = author.clickTestId('forward.submit');
@@ -450,7 +450,7 @@ Future<void> _runJourney({
   );
   await author.clickTestId('beacon.hud_author_action.wrapUpForReview');
   timings['my_work_review_ms'] = await _measureUntil(
-    () => helper.hasText('Closed by'),
+    () => helper.hasText('Wrapping up'),
     timeout: const Duration(seconds: 5),
   );
   _require(await helper.hasText(title), 'Request disappeared from My Work');
@@ -577,7 +577,7 @@ Future<void> _clearAuthorAttentionBaseline(
     author.waitForText('Updates'),
     authorPeer.waitForText('Updates'),
   ]);
-  await author.clickText('Mark all seen');
+  await author.clickText('Read all');
   await _waitUntil(
     () async =>
         await author.hasTestId('updates-unread-count-0') &&
