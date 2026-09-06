@@ -10,6 +10,8 @@ class FakeUserBlockRepository extends Fake implements UserBlockRepositoryPort {
     _pairKeys.add(_key(b, a));
   }
 
+  void clear() => _pairKeys.clear();
+
   String _key(String a, String b) => '$a|$b';
 
   bool _isBlocked(String a, String b) => _pairKeys.contains(_key(a, b));
