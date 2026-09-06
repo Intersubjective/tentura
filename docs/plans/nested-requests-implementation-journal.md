@@ -83,7 +83,7 @@ which this plan/orchestration owns.
 | 07 | Enforce General-only public product | 06 | complete |
 | 08 | Safe request deletion and account erasure | 07 | complete |
 | 09 | Scoped legacy cleanup migration | 08 | complete |
-| 10 | V2 hierarchy schema and generated client transport | 09 | pending |
+| 10 | V2 hierarchy schema and generated client transport | 09 | complete |
 | 11 | Extend existing composer/save flow | 10 | pending |
 | 12 | Child request surface, General host, and safe navigation | 11 | pending |
 | 13 | Typed notices and promoted-source footer | 12 | pending |
@@ -1397,3 +1397,77 @@ Task 10. The manager is completing the remaining scope directly (Hasura
 metadata reload, schema_fetcher regeneration, client-side transport, and
 the four required tests), building on the already-accepted, verified
 server GraphQL surface from commits `4f4b22206`/`38db4c001`.
+
+### Task 10 — manager completion and acceptance (2026-09-06)
+
+After three consecutive Cursor worker kills (the last with zero committed
+progress), completed the remaining Task 10 scope directly rather than
+dispatching a fourth blind attempt, per the overseer skill's remediation-
+loop rule:
+
+1. Started the local Tentura dev server (`dart run bin/tentura_dev.dart`,
+   port 2080, root `.env` loaded) and ran
+   `./scripts/hasura_apply_metadata.sh` — `is_consistent: true`, no
+   inconsistent objects — to reload the Tentura remote schema with the
+   five new V2 fields from commits `4f4b22206`/`38db4c001`.
+2. Regenerated `packages/client/lib/data/gql/schema.graphql` via
+   `docker compose run --rm schema_fetcher`; confirmed it contains
+   `beaconHierarchyCapabilities`/`beaconChildren`/`beaconParentReference`/
+   `beaconPromotionSource`/`beaconChildCreate` and no retired public
+   coordination mutations. Commit `b70ee3061`.
+3. Added the five client `.graphql` documents, registered them in
+   `_tenturaDirectOperationNames`, added typed client-side translation for
+   all nine of §3.5's error codes (`BeaconHierarchyException` sealed
+   hierarchy + `throwIfBeaconHierarchyError`, wired into `_V2RoutingLink`'s
+   existing `onGraphQLError` — the codebase's one prior precedent for
+   numeric-code translation, at the link layer, same as
+   `BeaconFactAlreadyPinnedException`). Ran client codegen. Commit
+   `b70ee3061`.
+4. Added `BeaconHierarchyRepositoryPort`/`BeaconHierarchyRepository`
+   under `features/beacon/` (matching the plan's own stated test path,
+   not `features/beacon_threads/`), reusing the shared `tentura_root`
+   hierarchy entities directly rather than duplicating client-local
+   copies. Registered via `@Singleton`, confirmed in the generated
+   (gitignored) `di.config.dart`. Commit `d9b41013e`.
+5. Wrote all four required acceptance tests:
+   - `packages/client/test/data/service/beacon_hierarchy_direct_routing_test.dart`
+     (2/2) and `packages/client/test/features/beacon/beacon_hierarchy_repository_test.dart`
+     (8/8) — the latter required refactoring the repository's five inline
+     mapping blocks into `@visibleForTesting` static methods so the test
+     exercises the real mapping code via a fake Ferry `Link`, matching
+     the existing `beacon_threads_repository_test.dart` precedent. Commit
+     `4a9e190c7`.
+   - `packages/server/test/api/beacon_hierarchy_graphql_contract_test.dart`
+     (11/11) — invokes the real `QueryBeaconHierarchy`/
+     `MutationBeaconHierarchy` resolvers directly against real ports
+     backed by a disposable Postgres database with real JWT auth (no
+     Hasura), reusing `beacon_child_create_atomic_pg_test.dart`'s exact
+     dependency wiring. Found and fixed two real fixture-interaction
+     bugs while writing it (wrong viewer for the parent-reference
+     "admitted" case — the one-edge grant needs admission to the PARENT,
+     not the child under test; description validation runs before
+     authorization checks in `BeaconChildCreateCase`, so every createChild
+     call needs a valid description even when testing a later failure
+     path) and one test-hygiene gap (dynamically created child beacons
+     need their own tearDown cleanup before the fixture's own topology
+     teardown, or its FK blocks on them). Ran twice consecutively to rule
+     out order-dependent flakiness. Commit `692d552d9`.
+6. Independently reran the full picture: `dart analyze` 0 errors on both
+   packages; `dart test --exclude-tags pg` 1651/1651 (server);
+   `flutter test` on all new client test files; the two other
+   hierarchy-adjacent PG suites (`beacon_hierarchy_repository_pg_test.dart`
+   7/7, `beacon_child_create_atomic_pg_test.dart` 13/13) unaffected;
+   custom-lints baseline unchanged on both packages; `git diff --check`
+   clean throughout.
+
+All four plan-specified acceptance criteria are met: the three named test
+files exist and pass; each operation was exercised over direct V2 with
+real user auth, proving results/errors map correctly and unauthorized/
+invalid IDs are rejected without disclosure; the regenerated schema
+contains the new fields and no retired public mutations; DI bootstraps
+correctly for both server (di_smoke_test.dart, unaffected) and client
+(generated di.config.dart registration confirmed, exercised by the
+passing repository test).
+
+Task 10 is ACCEPTED. Proceeding to Task 11 (extend existing composer/
+save flow).
