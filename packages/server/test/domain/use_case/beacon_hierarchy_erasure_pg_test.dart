@@ -508,6 +508,121 @@ WHERE event_id = @eventId AND target_beacon_id = @target
       expect(delivery.single[2], isNull);
       expect(delivery.single[3], isNull);
     });
+
+    test(
+      'erasing the offering user removes their help-offer commitment '
+      'chain, but erasing a mere commitment actor anonymises it in place',
+      () async {
+        // beacon_help_offer's primary key is the composite (beacon_id,
+        // user_id) — it cannot be made nullable, so an erased offerer's
+        // offer row (and anything with a hard composite FK to it, e.g.
+        // beacon_commitment_event's `beacon_commitment_event_offer_fk`)
+        // is removed together as one unit, the same way a user's own
+        // authored content is removed rather than left orphaned. This is
+        // distinct from — and must not be confused with — erasing a user
+        // who only appears as a commitment event's *actor*: that case is
+        // already covered by nullable-and-anonymise (actor_user_id -> NULL,
+        // the event row itself survives). This test makes both properties
+        // explicit and verified, not an unverified side effect.
+        const offererId = 'Uerasureoffer1';
+        const actorOnlyId = 'Uerasureactor1';
+        const ownerId = 'Uerasureowner1';
+        const beaconId = 'Berasurehelp01';
+        const actorEventId = 'CEerasureact01';
+
+        await writer.execute(
+          Sql.named(r'''
+INSERT INTO public."user" (id, display_name, public_key)
+VALUES
+  (@offerer, @offerer, @offererKey),
+  (@actorOnly, @actorOnly, @actorKey),
+  (@owner, @owner, @ownerKey)
+'''),
+          parameters: {
+            'offerer': offererId,
+            'offererKey': 'erasure-offerer-key-0000000000001',
+            'actorOnly': actorOnlyId,
+            'actorKey': 'erasure-actoronly-key-000000001',
+            'owner': ownerId,
+            'ownerKey': 'erasure-owner-key-00000000000001',
+          },
+        );
+        await writer.execute(
+          Sql.named(r'''
+INSERT INTO public.beacon (
+  id, user_id, title, description, status, created_at, updated_at
+) VALUES (@id, @owner, 'Help offer erasure', 'body', 0, now(), now())
+'''),
+          parameters: {'id': beaconId, 'owner': ownerId},
+        );
+        await writer.execute(
+          Sql.named(r'''
+INSERT INTO public.beacon_help_offer (
+  beacon_id, user_id, message, status, created_at, updated_at
+) VALUES (@beacon, @offerer, 'I can help', 0, now(), now())
+'''),
+          parameters: {'beacon': beaconId, 'offerer': offererId},
+        );
+        // Commitment event where a DIFFERENT user (actorOnlyId) is only the
+        // acting party — must survive erasure of that actor, anonymised.
+        await writer.execute(
+          Sql.named(r'''
+INSERT INTO public.beacon_commitment_event (
+  id, beacon_id, user_id, actor_user_id, kind, created_at
+) VALUES (@id, @beacon, @offerer, @actorOnly, 1, now())
+'''),
+          parameters: {
+            'id': actorEventId,
+            'beacon': beaconId,
+            'offerer': offererId,
+            'actorOnly': actorOnlyId,
+          },
+        );
+
+        // Erase the mere actor first: the commitment event must survive,
+        // anonymised.
+        expect(await stack.userCase.deleteById(id: actorOnlyId), isTrue);
+        final afterActorErasure = await writer.execute(
+          Sql.named(r'''
+SELECT user_id, actor_user_id FROM public.beacon_commitment_event
+WHERE id = @id
+'''),
+          parameters: {'id': actorEventId},
+        );
+        expect(afterActorErasure, hasLength(1));
+        expect(afterActorErasure.single[0], offererId);
+        expect(afterActorErasure.single[1], isNull);
+
+        // Now erase the OFFERER — the offer row and its dependent
+        // commitment event are removed together (documented, intentional).
+        expect(await stack.userCase.deleteById(id: offererId), isTrue);
+        final offerAfter = await writer.execute(
+          Sql.named(r'''
+SELECT beacon_id FROM public.beacon_help_offer WHERE beacon_id = @beacon
+'''),
+          parameters: {'beacon': beaconId},
+        );
+        expect(offerAfter, isEmpty);
+        final eventAfter = await writer.execute(
+          Sql.named(
+            'SELECT id FROM public.beacon_commitment_event WHERE id = @id',
+          ),
+          parameters: {'id': actorEventId},
+        );
+        expect(eventAfter, isEmpty);
+
+        // The beacon itself (owned by a third, non-erased user) is wholly
+        // unaffected by either erasure.
+        final beaconAfter = await writer.execute(
+          Sql.named(
+            'SELECT user_id, status FROM public.beacon WHERE id = @id',
+          ),
+          parameters: {'id': beaconId},
+        );
+        expect(beaconAfter.single[0], ownerId);
+        expect(beaconAfter.single[1], BeaconStatus.open.smallintValue);
+      },
+    );
   }, skip: skipReason);
 }
 
