@@ -39,4 +39,6 @@ BeaconEntity beaconModelToEntity(
   coverThumbImageId: model.coverThumbImageId?.uuid,
   lineageParentBeaconId: model.lineageParentBeaconId,
   lineageRootBeaconId: model.lineageRootBeaconId,
+  parentBeaconId: model.parentBeaconId,
+  publishedAt: model.publishedAt?.dateTime,
 );

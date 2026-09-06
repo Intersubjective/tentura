@@ -18,7 +18,7 @@ final class BeaconRoomMessageRecord {
 
   final String id;
   final String beaconId;
-  final String authorId;
+  final String? authorId;
   final String body;
   final String? replyToMessageId;
   final String? threadItemId;

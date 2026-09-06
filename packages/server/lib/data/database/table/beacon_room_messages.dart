@@ -12,7 +12,7 @@ class BeaconRoomMessages extends Table {
 
   late final beaconId = text().references(Beacons, #id)();
 
-  late final authorId = text().references(Users, #id)();
+  late final authorId = text().nullable().references(Users, #id)();
 
   late final body = text().withDefault(const Constant(''))();
 
@@ -54,6 +54,12 @@ class BeaconRoomMessages extends Table {
   late final mentions = customType(kMentionsTextArrayType).withDefault(
     const Constant(<String>[], kMentionsTextArrayType),
   )();
+
+  /// Non-null for system-authored notices (see [BeaconRoomSystemMessageKind]).
+  late final systemMessageKind = integer().nullable()();
+
+  /// Stable identity for hierarchy/creation notices (`child_created:…`, `hierarchy:…`).
+  late final hierarchyNoticeIdentity = text().nullable()();
 
   /// NULL = main beacon room; non-null = coordination item thread.
   late final threadItemId = text().nullable().references(

@@ -39,6 +39,8 @@ abstract class BeaconEntity with _$BeaconEntity {
     String? coverThumbImageId,
     String? lineageParentBeaconId,
     String? lineageRootBeaconId,
+    String? parentBeaconId,
+    DateTime? publishedAt,
   }) = _BeaconEntity;
 
   const BeaconEntity._();

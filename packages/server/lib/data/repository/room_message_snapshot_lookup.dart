@@ -66,7 +66,7 @@ final class RoomMessageSnapshotLookup implements RoomMessageSnapshotLookupPort {
     return RoomMessageSnapshot(
       id: row.id,
       beaconId: row.beaconId,
-      authorId: row.authorId,
+      authorId: row.authorId ?? '',
       body: row.body,
       createdAt: row.createdAt.dateTime,
       editedAt: row.editedAt?.dateTime,
@@ -130,7 +130,7 @@ final class RoomMessageSnapshotLookup implements RoomMessageSnapshotLookupPort {
     final attachmentIds = await _messageIdsWithAttachments([parentMessageId]);
 
     return (
-      authorId: parent.authorId,
+      authorId: parent.authorId ?? '',
       authorTitle: author.displayName,
       bodyExcerpt: roomReplyExcerpt(parent.body),
       hasAttachments: attachmentIds.contains(parentMessageId),

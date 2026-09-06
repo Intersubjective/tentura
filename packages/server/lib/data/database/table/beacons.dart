@@ -65,6 +65,17 @@ class Beacons extends Table
   late final Column<int> reviewReopenCount =
       integer().withDefault(const Constant(0))();
 
+  /// Immutable nesting parent (distinct from [lineageParentBeaconId]).
+  late final parentBeaconId = text().nullable().references(Beacons, #id)();
+
+  /// Set once at publication; null for drafts.
+  late final publishedAt = customType(
+    PgTypes.timestampWithTimezone,
+  ).nullable()();
+
+  /// Monotonic hierarchy lifecycle event sequence for this source beacon.
+  late final hierarchyEventSequence = integer().withDefault(const Constant(0))();
+
   @override
   Set<Column<Object>> get primaryKey => {id};
 

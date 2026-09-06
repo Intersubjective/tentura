@@ -197,7 +197,11 @@ class BeaconRoomRepository implements BeaconRoomRepositoryPort {
       return [];
     }
 
-    final authorIds = msgs.map((m) => m.authorId).toSet().toList();
+    final authorIds = msgs
+        .map((m) => m.authorId)
+        .whereType<String>()
+        .toSet()
+        .toList();
     final users = await _db.managers.users
         .filter((u) => u.id.isIn(authorIds))
         .get();
@@ -383,6 +387,7 @@ class BeaconRoomRepository implements BeaconRoomRepositoryPort {
       }
       final missingParentAuthorIds = parents
           .map((p) => p.authorId)
+          .whereType<String>()
           .toSet()
           .difference(userById.keys.toSet())
           .toList();
@@ -471,8 +476,8 @@ class BeaconRoomRepository implements BeaconRoomRepositoryPort {
         'threadItemId': m.threadItemId,
         'replyToMessageId': m.replyToMessageId,
         'replyToAuthorId': parent?.authorId,
-        'replyToAuthorTitle': parent != null
-            ? (userById[parent.authorId]?.displayName ?? '')
+        'replyToAuthorTitle': parent != null && parent.authorId != null
+            ? (userById[parent.authorId!]?.displayName ?? '')
             : null,
         'replyToBodyExcerpt': parent != null
             ? roomReplyExcerpt(parent.body)
@@ -645,7 +650,7 @@ class BeaconRoomRepository implements BeaconRoomRepositoryPort {
       (o) => o(
         id: id,
         beaconId: beaconId,
-        authorId: authorId,
+        authorId: Value(authorId),
         body: Value(body),
         replyToMessageId: Value(replyToMessageId),
         threadItemId: Value(threadItemId),

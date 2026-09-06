@@ -341,7 +341,7 @@ final class BeaconRoomCase extends UseCaseBase {
     };
     final otherDirectedIds =
         <String>{
-            if (repliedMessage != null) repliedMessage.authorId,
+            if (repliedMessage?.authorId case final author?) author,
             if (threadItem?.targetPersonId case final target?) target,
           }
           ..removeWhere((id) => id.isEmpty || id == userId)

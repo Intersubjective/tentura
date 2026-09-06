@@ -17,7 +17,7 @@ Future<void> recordBeaconRoomParticipantJoined({
     (o) => o(
       id: generateId('R'),
       beaconId: beaconId,
-      authorId: actorUserId,
+      authorId: Value(actorUserId),
       body: const Value(''),
       semanticMarker: const Value(BeaconRoomSemanticMarker.participantJoined),
       systemPayload: Value(<String, Object?>{
