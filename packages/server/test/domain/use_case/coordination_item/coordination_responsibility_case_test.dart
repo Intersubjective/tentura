@@ -187,14 +187,13 @@ void main() {
   });
 
   test(
-    'myItems returns rows matching per-kind open counts for fixture beacons',
+    'myItems returns empty after retired responsibility projection disabled',
     () async {
       final counts = await sut.batch(
         viewerUserId: viewerUserId,
         beaconIds: const ['b1', 'b2'],
       );
-      final b1Counts = counts.singleWhere((r) => r.beaconId == 'b1');
-      final b2Counts = counts.singleWhere((r) => r.beaconId == 'b2');
+      expect(counts.every((r) => r.askOpen == 0 && r.promiseOpen == 0), isTrue);
 
       final b1Items = await sut.myItems(
         viewerUserId: viewerUserId,
@@ -205,14 +204,8 @@ void main() {
         beaconId: 'b2',
       );
 
-      expect(
-        b1Items.where((e) => e.item.kind == coordinationItemKindAsk).length,
-        b1Counts.askOpen,
-      );
-      expect(
-        b2Items.where((e) => e.item.kind == coordinationItemKindPromise).length,
-        b2Counts.promiseOpen,
-      );
+      expect(b1Items, isEmpty);
+      expect(b2Items, isEmpty);
     },
   );
 

@@ -761,6 +761,19 @@
                 }
               }
             ],
+            "computed_fields": [
+              {
+                "name": "room_general_visible",
+                "definition": {
+                  "function": {
+                    "name": "polling_get_room_general_visible",
+                    "schema": "public"
+                  },
+                  "session_argument": "hasura_session",
+                  "table_argument": "polling_row"
+                }
+              }
+            ],
             "select_permissions": [
               {
                 "role": "user",
@@ -773,7 +786,14 @@
                     "created_at",
                     "updated_at"
                   ],
-                  "filter": {}
+                  "computed_fields": [
+                    "room_general_visible"
+                  ],
+                  "filter": {
+                    "room_general_visible": {
+                      "_eq": true
+                    }
+                  }
                 },
                 "comment": ""
               }
@@ -784,6 +804,14 @@
               "name": "polling_act",
               "schema": "public"
             },
+            "object_relationships": [
+              {
+                "name": "polling",
+                "using": {
+                  "foreign_key_constraint_on": "polling_id"
+                }
+              }
+            ],
             "select_permissions": [
               {
                 "role": "user",
@@ -795,8 +823,10 @@
                     "created_at"
                   ],
                   "filter": {
-                    "author_id": {
-                      "_eq": "X-Hasura-User-Id"
+                    "polling": {
+                      "room_general_visible": {
+                        "_eq": true
+                      }
                     }
                   }
                 },
@@ -809,6 +839,14 @@
               "name": "polling_variant",
               "schema": "public"
             },
+            "object_relationships": [
+              {
+                "name": "polling",
+                "using": {
+                  "foreign_key_constraint_on": "polling_id"
+                }
+              }
+            ],
             "select_permissions": [
               {
                 "role": "user",
@@ -818,7 +856,13 @@
                     "id",
                     "polling_id"
                   ],
-                  "filter": {}
+                  "filter": {
+                    "polling": {
+                      "room_general_visible": {
+                        "_eq": true
+                      }
+                    }
+                  }
                 },
                 "comment": ""
               }
@@ -1587,6 +1631,19 @@
                 }
               }
             ],
+            "computed_fields": [
+              {
+                "name": "general_visible",
+                "definition": {
+                  "function": {
+                    "name": "beacon_room_state_general_visible",
+                    "schema": "public"
+                  },
+                  "session_argument": "hasura_session",
+                  "table_argument": "state_row"
+                }
+              }
+            ],
             "select_permissions": [
               {
                 "role": "user",
@@ -1599,37 +1656,13 @@
                     "updated_at",
                     "updated_by"
                   ],
+                  "computed_fields": [
+                    "general_visible"
+                  ],
                   "filter": {
-                    "_or": [
-                      {
-                        "beacon": {
-                          "user_id": {
-                            "_eq": "X-Hasura-User-Id"
-                          }
-                        }
-                      },
-                      {
-                        "beacon": {
-                          "beacon_steward": {
-                            "user_id": {
-                              "_eq": "X-Hasura-User-Id"
-                            }
-                          }
-                        }
-                      },
-                      {
-                        "beacon": {
-                          "beacon_participants": {
-                            "user_id": {
-                              "_eq": "X-Hasura-User-Id"
-                            },
-                            "room_access": {
-                              "_eq": 3
-                            }
-                          }
-                        }
-                      }
-                    ]
+                    "general_visible": {
+                      "_eq": true
+                    }
                   }
                 }
               }

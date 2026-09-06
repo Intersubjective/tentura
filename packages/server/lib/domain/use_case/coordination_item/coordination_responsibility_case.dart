@@ -42,10 +42,14 @@ final class CoordinationResponsibilityCase extends UseCaseBase {
     if (allowed.isEmpty) {
       return const [];
     }
-    return _items.responsibilityCountsByBeaconIds(
+    final counts = await _items.responsibilityCountsByBeaconIds(
       viewerUserId: viewerUserId,
       beaconIds: allowed,
     );
+    return [
+      for (final count in counts)
+        CoordinationResponsibilityCounts(beaconId: count.beaconId),
+    ];
   }
 
   Future<bool> _canCoordinateOnBeacon({
@@ -73,10 +77,7 @@ final class CoordinationResponsibilityCase extends UseCaseBase {
       beaconId: beaconId,
       userId: viewerUserId,
     );
-    return _items.myResponsibilityItemsByBeacon(
-      viewerUserId: viewerUserId,
-      beaconId: beaconId,
-    );
+    return const [];
   }
 
   Future<DateTime> markSeen({
