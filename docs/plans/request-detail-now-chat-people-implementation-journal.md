@@ -100,7 +100,7 @@ Order is the plan's §5 order (dependency-aware; it was already reordered in rev
 
 | # | Unit | Plan § | Existing tests this unit must also migrate (OD-1) | Status |
 |---|---|---|---|---|
-| U1 | Design-system tab support (`compactIconTabs`, `tabCompactWidth`, 48 dp min height) | §4.2 | `test/design_system/tentura_underline_tabs_test.dart` (must stay green unchanged) | pending |
+| U1 | Design-system tab support (`compactIconTabs`, `tabCompactWidth`, 48 dp min height) | §4.2 | `test/design_system/tentura_underline_tabs_test.dart` (must stay green unchanged) | complete |
 | U2 | `BeaconSurface` enum + `beaconVisibleSurfaces`, added alongside old constants | §4.1 | none | pending |
 | U3 | `BeaconRoomLease` refcount + `ThreadHostCubit` guard tightening | §4.5 | `thread_host_cubit_test.dart` | pending |
 | U4 | Four surface widgets (NOW / ROOM / PEOPLE / tabs), not yet wired | §4.4 | none | pending |
@@ -146,3 +146,10 @@ COMMITS / TESTS / FILES / FINDINGS / REMAINING
 
 ### [overseer] scope established — 2026-09-07
 Branch created off `main` at `40fd7bae1`. `cursor-agent` 2026.09.02, authenticated, `composer-2.5` present (non-fast). Baselines launched. OD-1..OD-4 recorded above.
+
+### [U1] complete — 2026-09-07T20:15:00Z
+COMMITS: 215424fd5 feat(design-system): add tabCompactWidth token for compact icon tabs; a1dc34e2a feat(design-system): add compactIconTabs layout to TenturaUnderlineTabs; d77ffc00f fix(design-system): enforce 48dp minimum tap target on underline tab cells; 9fcbe2229 test(design-system): cover compactIconTabs and 48dp tab hit targets
+TESTS: `cd packages/client && flutter analyze --no-fatal-warnings --no-fatal-infos` → exit 0, 0 errors, 89 warnings; `cd packages/client && flutter test test/design_system/tentura_underline_tabs_test.dart` → +17 passed, 0 failed; `cd packages/client && flutter test test/features/friends test/features/updates` → +85 passed, 0 failed
+FILES: packages/client/lib/design_system/tentura_spacing.dart, packages/client/lib/design_system/tentura_tokens.dart, packages/client/lib/design_system/components/tentura_underline_tabs.dart, packages/client/test/design_system/tentura_underline_tabs_test.dart
+FINDINGS: none — all 9 pre-existing underline-tabs tests pass unchanged; `compactIconTabs` defaults to `{}` so friends/updates call sites need no edits
+REMAINING: none
