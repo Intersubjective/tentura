@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get_it/get_it.dart';
@@ -283,6 +284,99 @@ void main() {
 
   tearDown(() async {
     await GetIt.I.reset();
+  });
+
+  group('ThreadDetailGeneralTitle', () {
+    const author = Profile(id: 'author', displayName: 'Author');
+    const helper = Profile(id: 'helper', displayName: 'Helper');
+
+    Beacon _beacon() => Beacon(
+      id: _kBeaconId,
+      title: 'Request title',
+      createdAt: DateTime.utc(2026, 1, 1),
+      updatedAt: DateTime.utc(2026, 1, 2),
+      author: author,
+    );
+
+    Future<void> _pumpGeneralTitle(
+      WidgetTester tester, {
+      VoidCallback? onFacePileTap,
+    }) async {
+      await tester.binding.setSurfaceSize(const Size(390, 844));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: TenturaTheme.light(),
+          localizationsDelegates: L10n.localizationsDelegates,
+          supportedLocales: L10n.supportedLocales,
+          locale: const Locale('en'),
+          home: MediaQuery(
+            data: const MediaQueryData(size: Size(390, 844)),
+            child: TenturaResponsiveScope(
+              child: Scaffold(
+                body: ThreadDetailGeneralTitle(
+                  title: 'Request title',
+                  beacon: _beacon(),
+                  involvedProfiles: const [helper],
+                  currentUserId: _kMyId,
+                  onFacePileTap: onFacePileTap,
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+    }
+
+    testWidgets('face pile tap invokes onFacePileTap', (tester) async {
+      var taps = 0;
+      await _pumpGeneralTitle(tester, onFacePileTap: () => taps++);
+
+      expect(find.byType(BeaconInvolvedPeopleFacePile), findsOneWidget);
+      await tester.tap(find.byType(BeaconInvolvedPeopleFacePile));
+      await tester.pump();
+
+      expect(taps, 1);
+      expect(tester.takeException(), isNull);
+    });
+
+    testWidgets('face pile is activatable via semantics', (tester) async {
+      final handle = tester.ensureSemantics();
+      var taps = 0;
+      await _pumpGeneralTitle(tester, onFacePileTap: () => taps++);
+
+      final pile = find.byType(BeaconInvolvedPeopleFacePile);
+      final semantics = tester.getSemantics(pile);
+      expect(semantics.label, 'People involved');
+      expect(semantics.hasFlag(SemanticsFlag.isButton), isTrue);
+
+      await tester.tap(find.bySemanticsLabel('People involved'));
+      await tester.pump();
+
+      expect(taps, 1);
+      handle.dispose();
+    });
+
+    testWidgets('null onFacePileTap is not a button and does not throw', (
+      tester,
+    ) async {
+      final handle = tester.ensureSemantics();
+      await _pumpGeneralTitle(tester);
+
+      expect(find.byType(BeaconInvolvedPeopleFacePile), findsOneWidget);
+      final semantics = tester.getSemantics(
+        find.byType(BeaconInvolvedPeopleFacePile),
+      );
+      expect(semantics.hasFlag(SemanticsFlag.isButton), isFalse);
+
+      await tester.tap(find.byType(BeaconInvolvedPeopleFacePile));
+      await tester.pump();
+
+      expect(tester.takeException(), isNull);
+      handle.dispose();
+    });
   });
 
   group('ThreadDetail widget', () {
