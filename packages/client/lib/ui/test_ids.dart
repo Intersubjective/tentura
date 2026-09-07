@@ -94,6 +94,7 @@ abstract final class TestIds {
   static const beaconOverflowMenu = 'beacon.overflow.menu';
   static const beaconOverflowClose = 'beacon.overflow.close';
   static const beaconOverflowRequestStatus = 'beacon.overflow.request_status';
+  static const beaconOverflowActivity = 'beacon.overflow.activity';
   static const beaconCloseConfirm = 'beacon.close.confirm';
 
   /// Status bottom-sheet row, keyed by [BeaconStatusMenuRowId.name].
