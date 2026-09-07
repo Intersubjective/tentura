@@ -110,6 +110,9 @@ class BeaconRepository implements BeaconRepositoryPort {
     String? lineageRootBeaconId,
   }) => _database.withMutatingUser(authorId, () async {
     final effectiveStatus = status ?? BeaconStatus.open;
+    final publishedAt = effectiveStatus == BeaconStatus.draft
+        ? null
+        : DateTime.timestamp();
     var beacon = await _database.managers.beacons.createReturning(
       (o) => o(
         userId: Value(authorId),
@@ -126,6 +129,9 @@ class BeaconRepository implements BeaconRepositoryPort {
         primaryNeedSlug: Value(primaryNeedSlug),
         coverSource: Value(coverSource.wireValue),
         status: Value(effectiveStatus.smallintValue),
+        publishedAt: Value(
+          publishedAt == null ? null : PgDateTime(publishedAt),
+        ),
         addressLabel: Value(addressLabel),
         lineageParentBeaconId: Value(lineageParentBeaconId),
         lineageRootBeaconId: Value(lineageRootBeaconId),
