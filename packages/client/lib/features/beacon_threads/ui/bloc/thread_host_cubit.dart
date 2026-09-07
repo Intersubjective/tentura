@@ -45,7 +45,9 @@ class ThreadHostCubit extends Cubit<ThreadHostState> {
 
   Future<void> ensureGeneral(RequestThread generalThread) async {
     if (!generalThread.isGeneral) return;
-    if (state.openThreadId == RequestThread.generalId && _roomCubit != null) {
+    if (state.openThreadId == RequestThread.generalId &&
+        _roomCubit != null &&
+        !state.switching) {
       return;
     }
     await select(generalThread);
