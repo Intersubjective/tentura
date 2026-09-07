@@ -20,11 +20,12 @@ import 'package:tentura/features/beacon_threads/ui/bloc/room_state.dart';
 import 'package:tentura/features/beacon_threads/ui/bloc/thread_host_cubit.dart';
 import 'package:tentura/features/beacon_threads/ui/bloc/threads_cubit.dart';
 import 'package:tentura/features/beacon_threads/ui/bloc/threads_state.dart';
-import 'package:tentura/features/beacon_threads/ui/screen/thread_detail_screen.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/beacon_room_body.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/thread_detail.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_cubit.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_state.dart';
+import 'package:tentura/features/beacon_view/ui/util/beacon_room_lease.dart';
+import 'package:tentura/features/beacon_view/ui/widget/beacon_room_surface.dart';
 import 'package:tentura/features/coordination_item/domain/use_case/coordination_item_case.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/bloc/state_base.dart';
@@ -215,27 +216,28 @@ Future<void> _pumpWithRouter(
   );
 }
 
-Future<void> _pumpUntilThreadDetailLoaded(
+Future<void> _pumpUntilRoomLoaded(
   WidgetTester tester, {
   int maxFrames = 60,
 }) async {
   for (var i = 0; i < maxFrames; i++) {
     await tester.pump(const Duration(milliseconds: 16));
-    if (find.byType(BackButton).evaluate().isNotEmpty) {
+    if (find.byType(BeaconRoomBody).evaluate().isNotEmpty) {
       return;
     }
   }
 }
 
-Future<void> _pumpThreadDetail(
+Future<void> _pumpBeaconRoomSurface(
   WidgetTester tester, {
   required ThreadHostCubit host,
+  required BeaconRoomLease lease,
   required ThreadsState threadsState,
   required BeaconViewState beaconState,
-  required String threadId,
   required StackRouter router,
   Size size = const Size(390, 844),
 }) async {
+  final beaconCubit = _MockBeaconViewCubit(beaconState);
   await _pumpWithRouter(
     tester,
     router: router,
@@ -246,18 +248,16 @@ Future<void> _pumpThreadDetail(
           value: _MockThreadsCubit(threadsState),
         ),
         BlocProvider<ThreadHostCubit>.value(value: host),
-        BlocProvider<BeaconViewCubit>.value(
-          value: _MockBeaconViewCubit(beaconState),
-        ),
+        BlocProvider<BeaconViewCubit>.value(value: beaconCubit),
         BlocProvider<ProfileCubit>.value(value: _MockProfileCubit()),
       ],
-      child: ThreadDetailScreen(
-        beaconId: _kBeaconId,
-        threadId: threadId,
+      child: BeaconRoomSurface(
+        beaconViewCubit: beaconCubit,
+        roomLease: lease,
       ),
     ),
   );
-  await _pumpUntilThreadDetailLoaded(tester);
+  await _pumpUntilRoomLoaded(tester);
 }
 
 Future<void> _setupGetIt() async {
@@ -423,11 +423,11 @@ void main() {
     });
   });
 
-  group('ThreadDetailScreen', () {
-    testWidgets('shows request title for General and composer unconditionally', (
-      tester,
-    ) async {
-      final host = _host();
+  group('BeaconRoomSurface', () {
+    testWidgets('General ROOM shows composer inline', (tester) async {
+      final recorder = RoomCubitFactoryRecorder();
+      final host = _host(recorder: recorder);
+      final lease = BeaconRoomLease(host: host);
       final threadsState = ThreadsState(
         threads: [_generalThread()],
         myUserId: _kMyId,
@@ -435,64 +435,72 @@ void main() {
       );
       final router = _PopTrackingStackRouter();
 
-      await _pumpThreadDetail(
+      await _pumpBeaconRoomSurface(
         tester,
         host: host,
+        lease: lease,
         threadsState: threadsState,
         beaconState: _beaconState(),
-        threadId: RequestThread.generalId,
         router: router,
       );
 
-      expect(find.byType(ThreadDetailGeneralTitle), findsOneWidget);
-      expect(find.text('Request title'), findsOneWidget);
-      expect(find.byType(BeaconInvolvedPeopleFacePile), findsOneWidget);
+      expect(find.byType(ThreadDetail), findsOneWidget);
+      expect(find.byType(BeaconRoomBody), findsOneWidget);
       expect(
         find.byKey(TestIds.key(TestIds.roomMessageInput)),
         findsOneWidget,
       );
-
-      await tester.tap(find.text('Request title'));
-      await tester.pump();
-      expect(tester.takeException(), isNull);
     });
 
-    testWidgets('close awaits host clear before route pop completes', (
+    testWidgets('lease release awaits host clear before room teardown', (
       tester,
     ) async {
       final recorder = RoomCubitFactoryRecorder();
       final host = _host(recorder: recorder);
+      final lease = BeaconRoomLease(host: host);
       final threadsState = ThreadsState(
         threads: [_generalThread()],
         myUserId: _kMyId,
         status: const StateIsSuccess(),
       );
       final router = _PopTrackingStackRouter();
+      final beaconCubit = _MockBeaconViewCubit(_beaconState());
 
-      await _pumpThreadDetail(
+      await _pumpWithRouter(
         tester,
-        host: host,
-        threadsState: threadsState,
-        beaconState: _beaconState(),
-        threadId: RequestThread.generalId,
         router: router,
+        child: MultiBlocProvider(
+          providers: [
+            BlocProvider<ThreadsCubit>.value(
+              value: _MockThreadsCubit(threadsState),
+            ),
+            BlocProvider<ThreadHostCubit>.value(value: host),
+            BlocProvider<BeaconViewCubit>.value(value: beaconCubit),
+            BlocProvider<ProfileCubit>.value(value: _MockProfileCubit()),
+          ],
+          child: BeaconRoomSurface(
+            beaconViewCubit: beaconCubit,
+            roomLease: lease,
+          ),
+        ),
       );
+      await _pumpUntilRoomLoaded(tester);
 
       expect(recorder.created, hasLength(1));
       final owned = recorder.created.single;
       owned.gateClose = true;
 
-      await tester.tap(find.byType(BackButton));
+      await tester.pumpWidget(const SizedBox.shrink());
       await tester.pump();
 
-      expect(router.popCount, 0);
       expect(owned.closeCallCount, 1);
+      expect(owned.isClosed, isFalse);
 
       owned.closeCompleter.complete();
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 50));
 
-      expect(router.popCount, 1);
+      expect(owned.isClosed, isTrue);
     });
   });
 }

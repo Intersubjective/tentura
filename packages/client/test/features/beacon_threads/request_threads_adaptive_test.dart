@@ -94,7 +94,7 @@ class _HarnessRouter extends Mock implements StackRouter {
   }) async {
     pushCount++;
     lastPush = route;
-    currentChild = _MockRouteData(ThreadDetailRoute.name);
+    currentChild = _MockRouteData(BeaconViewOperationalRoute.name);
     return null;
   }
 

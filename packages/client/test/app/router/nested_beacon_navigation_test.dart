@@ -7,6 +7,7 @@ import 'package:logging/logging.dart';
 import 'package:mockito/mockito.dart';
 import 'package:tentura/app/router/browse_deep_link.dart';
 import 'package:tentura/app/router/root_router.dart';
+import 'package:tentura/consts.dart';
 import 'package:tentura/features/auth/ui/bloc/auth_cubit.dart';
 import 'package:tentura/features/home/ui/bloc/post_join_navigation_cubit.dart';
 import 'package:tentura/features/settings/ui/bloc/settings_cubit.dart';
@@ -49,14 +50,12 @@ void main() {
   late PageInfo workPage;
   late PageInfo beaconPage;
   late PageInfo operationalPage;
-  late PageInfo threadPage;
 
   setUpAll(() {
     homePage = HomeRoute.page;
     workPage = MyWorkRoute.page;
     beaconPage = BeaconViewRoute.page;
     operationalPage = BeaconViewOperationalRoute.page;
-    threadPage = ThreadDetailRoute.page;
     HomeRoute.page = PageInfo(HomeRoute.name, builder: (_) => const _Home());
     MyWorkRoute.page = PageInfo(
       MyWorkRoute.name,
@@ -70,6 +69,10 @@ void main() {
             'request:${data.inheritedPathParams.getString('id', '')}',
             textDirection: TextDirection.ltr,
           ),
+          Text(
+            'thread-query:${data.queryParams.optString(kQueryThreadId) ?? ''}',
+            textDirection: TextDirection.ltr,
+          ),
           const Expanded(child: AutoRouter()),
         ],
       ),
@@ -81,14 +84,6 @@ void main() {
         textDirection: TextDirection.ltr,
       ),
     );
-    ThreadDetailRoute.page = PageInfo(
-      ThreadDetailRoute.name,
-      builder: (data) => Text(
-        'thread:${data.inheritedPathParams.getString('id', '')}:'
-        '${data.pathParams.getString('threadId', '')}',
-        textDirection: TextDirection.ltr,
-      ),
-    );
   });
 
   tearDownAll(() {
@@ -96,7 +91,6 @@ void main() {
     MyWorkRoute.page = workPage;
     BeaconViewRoute.page = beaconPage;
     BeaconViewOperationalRoute.page = operationalPage;
-    ThreadDetailRoute.page = threadPage;
   });
 
   setUp(() {
@@ -110,15 +104,18 @@ void main() {
 
   tearDown(() => router.dispose());
 
-  test('browse deep link resolves legacy thread path to request route', () {
+  test('browse deep link resolves legacy thread path to normalized query', () {
     final stack = buildBrowseDeepLinkStack(
       Uri.parse('/beacon/view/B1/thread/legacy-item'),
     );
     expect(stack, isNotNull);
     expect(stack!.detail.routeName, BeaconViewRoute.name);
+    final route = stack.detail as BeaconViewRoute;
+    expect(route.rawQueryParams['thread'], 'legacy-item');
+    expect(route.rawQueryParams['tab'], kBeaconViewTabThreads);
   });
 
-  testWidgets('legacy thread route remains on stack for unavailable handling', (
+  testWidgets('legacy thread URL lands on operational ROOM query', (
     tester,
   ) async {
     tester.binding.platformDispatcher.defaultRouteNameTestValue =
@@ -139,12 +136,12 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('request:B1'), findsOneWidget);
-    expect(find.text('thread:B1:legacy-item'), findsOneWidget);
-
-    final nested = router.innerRouterOf<StackRouter>(BeaconViewRoute.name)!;
-    unawaited(nested.maybePop());
-    await tester.pumpAndSettle();
+    expect(find.text('thread-query:legacy-item'), findsOneWidget);
     expect(find.text('operational'), findsOneWidget);
+    expect(
+      router.navigationHistory.urlState.url,
+      '/beacon/view/B1?tab=threads&thread=legacy-item',
+    );
   });
 
   test('buildBrowseDeepLinkStack resolves child beacon URL', () {
@@ -205,7 +202,8 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('request:B1'), findsOneWidget);
-    expect(find.textContaining('thread:B1'), findsNothing);
+    expect(find.text('thread-query:general'), findsOneWidget);
+    expect(find.text('operational'), findsOneWidget);
     final url = Uri.parse(router.navigationHistory.urlState.url);
     expect(url.path, '/beacon/view/B1');
     expect(url.queryParameters['thread'], 'general');
