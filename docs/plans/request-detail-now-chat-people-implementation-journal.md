@@ -120,7 +120,7 @@ Order is the plan's §5 order (dependency-aware; it was already reordered in rev
 | U8 | Activity sheet + overflow entry | §4.7 | `activity_list_padding_test.dart` | complete |
 | U9 | Anchor navigation off `ThreadDetailRoute` in `coordination_room_navigation.dart`, `room_message_tile.dart` | §4.8 | `room_message_tile_coordination_test.dart` | complete |
 | U10 | Routing + deep links + `build_runner`; fold away `ThreadDetailScreen` | §4.6, §6, §6.1 | `request_thread_routing_test.dart`, `nested_beacon_navigation_test.dart`, `thread_detail_test.dart`, `request_threads_adaptive_test.dart`, `integration_test/*` | complete |
-| U11 | Docs, rules, client semver bump + web cache-buster | §9 | doc-drift script | pending |
+| U11 | Docs, rules, client semver bump + web cache-buster | §9 | doc-drift script | in_progress |
 | U12 | New suites T1–T10 | §8 | — | pending |
 
 ---
