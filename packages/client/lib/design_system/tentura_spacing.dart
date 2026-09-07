@@ -22,6 +22,12 @@ abstract final class TenturaSpacing {
   /// Unread indicator on a list-row leading glyph.
   static const double unreadDot = 10;
 
+  /// Fixed width for icon-only compact tabs (e.g. People tab at row end).
+  static const double tabCompact = 56;
+
+  /// [tabCompact] width on regular and expanded [WindowClass].
+  static const double tabCompactWide = 64;
+
   /// Compact Updates / record-list row: start screenH, vertical card, end row.
   static const EdgeInsets listRowPadding = EdgeInsets.fromLTRB(
     screenH,
