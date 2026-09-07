@@ -106,7 +106,7 @@ Order is the plan's §5 order (dependency-aware; it was already reordered in rev
 |---|---|---|---|---|
 | U1 | Design-system tab support (`compactIconTabs`, `tabCompactWidth`, 48 dp min height) | §4.2 | `test/design_system/tentura_underline_tabs_test.dart` (must stay green unchanged) | complete |
 | U2 | `BeaconSurface` enum + `beaconVisibleSurfaces`, added alongside old constants | §4.1 | none | **folded into U4** (OD-5) |
-| U3 | `BeaconRoomLease` refcount + `ThreadHostCubit` guard tightening | §4.5 | `thread_host_cubit_test.dart` | pending |
+| U3 | `BeaconRoomLease` refcount + `ThreadHostCubit` guard tightening | §4.5 | `thread_host_cubit_test.dart` | complete |
 | U4 | Four surface widgets (NOW / ROOM / PEOPLE / tabs), not yet wired | §4.4 | none | pending |
 | U5 | `ThreadDetailGeneralTitle.onFacePileTap` + drop `ExcludeSemantics` | §3.1 | `thread_detail_test.dart` (title assertions) | pending |
 | U6 | Screen recomposition; delete `beacon_operational_scroll_view.dart`, `threads_list.dart`, `item_card.dart` | §4.1, §4.3, §4.6 | `threads_list_test.dart` + `item_card_golden_test.dart` (+4 goldens) **delete**; `promise_composer_live_wiring_test.dart`, `beacon_hierarchy_view_test.dart`, `beacon_tab_reselect_folds_test.dart`, `beacon_operational_scroll_view_pinned_facts_test.dart`, `beacon_view_room_split_contract_test.dart` **migrate** | pending |
@@ -157,3 +157,10 @@ TESTS: `cd packages/client && flutter analyze --no-fatal-warnings --no-fatal-inf
 FILES: packages/client/lib/design_system/tentura_spacing.dart, packages/client/lib/design_system/tentura_tokens.dart, packages/client/lib/design_system/components/tentura_underline_tabs.dart, packages/client/test/design_system/tentura_underline_tabs_test.dart
 FINDINGS: none — all 9 pre-existing underline-tabs tests pass unchanged; `compactIconTabs` defaults to `{}` so friends/updates call sites need no edits
 REMAINING: none
+
+### [U3] complete — 2026-09-07T21:25:00+02:00
+COMMITS: 4f08ad35f fix(beacon-threads): require settled host before ensureGeneral no-op; c35653712 feat(beacon-view): add refcounted BeaconRoomLease for General room lifetime; c53294536 test(beacon-view): cover BeaconRoomLease refcount and ensureGeneral guard
+TESTS: `cd packages/client && flutter analyze --no-fatal-warnings --no-fatal-infos` → exit 0, 0 errors, 89 warnings; `cd packages/client && flutter test test/features/beacon_view/beacon_room_lease_test.dart` → +8 passed, 0 failed; `cd packages/client && flutter test test/features/beacon_threads/` → +293 passed, ~14 skipped, 0 failed
+FILES: packages/client/lib/features/beacon_threads/ui/bloc/thread_host_cubit.dart, packages/client/lib/features/beacon_view/ui/util/beacon_room_lease.dart, packages/client/test/features/beacon_view/beacon_room_lease_test.dart, docs/plans/request-detail-now-chat-people-implementation-journal.md
+FINDINGS: `thread_host_cubit_test.dart` required no changes — existing tests remain valid with the tightened guard. `BeaconRoomLease` placed in `ui/util/` per OD-5 (not `ui/widget/`). Lease tests must complete `RecordingRoomCubit.closeCompleter` before `host.close()` teardown or the test hangs on the async close path. Fast-flip coverage relies on synchronous `release` + `acquire` in one turn (microtask drop is generation-cancelled before it runs).
+REMAINING: none — U6 wires `BeaconRoomLease` into `BeaconViewScreen` / surface widgets.
