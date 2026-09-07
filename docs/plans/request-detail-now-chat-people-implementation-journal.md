@@ -80,6 +80,8 @@ Resolution: **migrating an existing test is part of the unit that breaks it.** U
 
 **OD-5 — Two manifest adjustments.**
 (a) **U2 is folded into U4.** U2 is a pure additive declaration (`BeaconSurface` enum + `beaconVisibleSurfaces`) with no behaviour of its own; its only acceptance criterion is "it compiles", and U4 is its first consumer. A separate worker session for ~15 lines is waste. U4's review covers both.
+(c) **U7 is split.** `BeaconSurfaceTabs` (U4) cannot compile without `l10n.labelBeaconTabNow` / `labelBeaconTabChat`, but the plan scheduled all of U7 after U4. **U7a** (add the two keys) was done by the overseer before U4; **U7b** (remove `labelBeaconTabDiscussion`) folds into U6, where its last reader disappears. Generated `lib/ui/l10n/*` is gitignored (`packages/client/.gitignore:65`) — commit only the `.arb` files and run `flutter gen-l10n` locally.
+
 (b) **`BeaconRoomLease` lives in `ui/util/`, not `ui/widget/`.** Plan §4.4 filed it under `ui/widget/`, but it is a plain controller class, not a widget, and this repo already keeps non-widget UI helpers in `features/beacon_view/ui/util/` (`beacon_hud_derivation.dart`, `beacon_closure_readiness.dart`, `beacon_accordion_sections.dart`).
 
 ---
@@ -110,7 +112,8 @@ Order is the plan's §5 order (dependency-aware; it was already reordered in rev
 | U4 | Four surface widgets (NOW / ROOM / PEOPLE / tabs), not yet wired | §4.4 | none | pending |
 | U5 | `ThreadDetailGeneralTitle.onFacePileTap` + drop `ExcludeSemantics` | §3.1 | `thread_detail_test.dart` (title assertions) | pending |
 | U6 | Screen recomposition; delete `beacon_operational_scroll_view.dart`, `threads_list.dart`, `item_card.dart` | §4.1, §4.3, §4.6 | `threads_list_test.dart` + `item_card_golden_test.dart` (+4 goldens) **delete**; `promise_composer_live_wiring_test.dart`, `beacon_hierarchy_view_test.dart`, `beacon_tab_reselect_folds_test.dart`, `beacon_operational_scroll_view_pinned_facts_test.dart`, `beacon_view_room_split_contract_test.dart` **migrate** | pending |
-| U7 | l10n keys (`labelBeaconTabNow`, `labelBeaconTabChat`; remove `labelBeaconTabDiscussion`) | §7 | `test/l10n/request_terminology_contract_test.dart` | pending |
+| U7a | **add** `labelBeaconTabNow` / `labelBeaconTabChat` | §7 | `test/l10n/` | **DONE** by overseer `151e35e9c` (OD-6) |
+| U7b | **remove** `labelBeaconTabDiscussion` | §7 | `test/l10n/` | folded into U6 (OD-6) |
 | U8 | Activity sheet + overflow entry | §4.7 | `activity_list_padding_test.dart` | pending |
 | U9 | Anchor navigation off `ThreadDetailRoute` in `coordination_room_navigation.dart`, `room_message_tile.dart` | §4.8 | `room_message_tile_coordination_test.dart` | pending |
 | U10 | Routing + deep links + `build_runner`; fold away `ThreadDetailScreen` | §4.6, §6, §6.1 | `request_thread_routing_test.dart`, `nested_beacon_navigation_test.dart`, `thread_detail_test.dart`, `request_threads_adaptive_test.dart`, `integration_test/*` | pending |
@@ -137,7 +140,11 @@ cd packages/client && dart run tool/verify_web_version_consistency.dart
 
 ## Open questions / blockers
 
-- none yet
+- none blocking.
+
+## Pre-existing defects found but NOT fixed (out of scope, per OD-2)
+
+- **Duplicate ARB key.** `evaluationNoBasisLabel` appears **twice** in both `app_en.arb` (lines 3482, 3574) and `app_ru.arb` (3469, 3561), with identical values in each locale. Harmless today because the values match and the last one wins, but it is a latent trap: editing only the first occurrence would be silently ignored. Not touched here — it belongs to whoever owns that feature's copy.
 
 ---
 
@@ -164,3 +171,10 @@ TESTS: `cd packages/client && flutter analyze --no-fatal-warnings --no-fatal-inf
 FILES: packages/client/lib/features/beacon_threads/ui/bloc/thread_host_cubit.dart, packages/client/lib/features/beacon_view/ui/util/beacon_room_lease.dart, packages/client/test/features/beacon_view/beacon_room_lease_test.dart, docs/plans/request-detail-now-chat-people-implementation-journal.md
 FINDINGS: `thread_host_cubit_test.dart` required no changes — existing tests remain valid with the tightened guard. `BeaconRoomLease` placed in `ui/util/` per OD-5 (not `ui/widget/`). Lease tests must complete `RecordingRoomCubit.closeCompleter` before `host.close()` teardown or the test hangs on the async close path. Fast-flip coverage relies on synchronous `release` + `acquire` in one turn (microtask drop is generation-cancelled before it runs).
 REMAINING: none — U6 wires `BeaconRoomLease` into `BeaconViewScreen` / surface widgets.
+
+### [overseer] U3 accepted + readiness fix — 2026-09-07
+Independently verified U3: analyze 0 errors / 89 warnings (= baseline); `beacon_room_lease_test.dart` + `thread_host_cubit_test.dart` green; full `beacon_view` + `beacon_threads` suites green (560 tests). Guard fix and lease mechanism both correct; lease tests assert real `close()` call counts and factory-creation counts, not just state flags.
+
+**Overseer-authored fix `542462428`** — review gap the unit's own scope could not surface: `acquire()` awaited `ensureGeneral` only on the 0 -> 1 edge, so a second holder joining mid-open (exactly the split <-> tab handover this lease exists for) returned before the room existed. Plan §4.6 requires a scroll target to reach `prepareThreadScroll` only once the room is ready, and the lease exposed no readiness signal. Now every acquirer awaits the same in-flight open, plus an `isReady` accessor; the deferred `clear()` is wrapped in `unawaited()` so its future is not silently dropped. One new test covers the mid-open join.
+
+**U7a done by overseer `151e35e9c`** — see OD-6(c). First attempt round-tripped the ARB through `json.dumps`, which reformatted unrelated entries and collapsed the duplicate `evaluationNoBasisLabel` key; reverted and redone as a pure textual insert (+2 lines per locale, 0 deletions). `check-user-facing-terminology.sh` and `test/l10n/` both green with "Chat".
