@@ -456,9 +456,13 @@ class _TabCell extends StatelessWidget {
       label: iconOnly ? label : null,
       button: true,
       selected: selected,
-      child: InkWell(
-        onTap: onTap,
-        child: Stack(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(
+          minHeight: kMinInteractiveDimension,
+        ),
+        child: InkWell(
+          onTap: onTap,
+          child: Stack(
             clipBehavior: Clip.none,
             children: [
               if (showAttention)
@@ -480,6 +484,7 @@ class _TabCell extends StatelessWidget {
                 ),
             content,
           ],
+        ),
         ),
       ),
     );
