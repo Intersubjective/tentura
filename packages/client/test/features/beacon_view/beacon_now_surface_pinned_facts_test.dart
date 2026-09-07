@@ -20,9 +20,8 @@ import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/beacon_threads/ui/bloc/threads_cubit.dart';
 import 'package:tentura/features/beacon_threads/ui/bloc/threads_state.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_cubit.dart';
+import 'package:tentura/features/beacon_view/ui/widget/beacon_now_surface.dart';
 import 'package:tentura/features/beacon_view/ui/widget/beacon_operational_header_card.dart';
-import 'package:tentura/features/beacon_view/ui/widget/beacon_operational_scroll_view.dart';
-import 'package:tentura/features/beacon_view/ui/widget/beacon_view_constants.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
@@ -97,7 +96,7 @@ void main() {
         status: BeaconFactCardStatusBits.active,
       );
 
-  testWidgets('scroll-view buildWhen rebuilds when pinnedFactsSeenAt changes', (
+  testWidgets('NOW surface buildWhen rebuilds when pinnedFactsSeenAt changes', (
     tester,
   ) async {
     final case_ = buildTestBeaconViewCase(
@@ -162,23 +161,14 @@ void main() {
           ],
           child: TenturaResponsiveScope(
             child: Scaffold(
-              body: BeaconOperationalScrollView(
+              body: BeaconNowSurface(
                 beaconViewCubit: cubit,
                 screenCubit: screenCubit,
-                tabIndex: kBeaconTabLog,
-                onTabChanged: (_) {},
-                peopleTabAttentionActive: false,
-                onPeopleTabAttentionCleared: () {},
+                beaconState: cubit.state,
+                onSurfaceSelected: (_) {},
                 onActivatePeopleTabAttention: () {},
                 onFocusCoordinationItem: (_) {},
-                focusGeneral: false,
-                focusUserId: null,
-                onOperationalFocusCleared: () {},
-                onTapCoordinationLogEvent: (_) {},
-                onOpenGeneral: () {},
                 onOpenGeneralThread: () {},
-                onThreadsTabRefresh: () {},
-                beaconState: cubit.state,
               ),
             ),
           ),
