@@ -24,6 +24,12 @@ class BeaconRoomLease {
   bool get isReady =>
       _holders.isNotEmpty && _openInFlight == null && _host.roomCubit != null;
 
+  /// Completes once any in-flight [acquire] open finishes (plan §4.6).
+  Future<void> awaitReady() async {
+    final open = _openInFlight;
+    if (open != null) await open;
+  }
+
   /// Registers [holder] and opens the room when the count goes 0 -> 1.
   ///
   /// Completes only once the room is actually open, for every caller. A second

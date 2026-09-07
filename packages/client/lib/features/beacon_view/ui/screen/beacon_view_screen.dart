@@ -18,6 +18,7 @@ import 'package:tentura/features/beacon_threads/ui/coordination_room_navigation.
 import 'package:tentura/features/beacon_threads/ui/widget/thread_detail.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_cubit.dart';
 import 'package:tentura/features/beacon_view/ui/util/beacon_room_lease.dart';
+import 'package:tentura/features/beacon_view/ui/util/beacon_room_navigation_scope.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/widget/auto_leading_with_fallback.dart';
@@ -1083,7 +1084,18 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
                       // history sentinel on canPop:false made AppBar back a no-op
                       // when a ThreadDetail child was open — that child route goes
                       // away in U10, but the leave path must stay unblocked).
-                      return PopScope(
+                      return BeaconRoomNavigationScope(
+                        isRoomPresented: isBeaconRoomPresented(
+                          isSplit: isSplit,
+                          selectedSurface: _selectedSurface,
+                        ),
+                        roomLease: roomLease,
+                        openGeneralAnchor: ({messageId, coordinationItemId}) =>
+                            _openGeneralThread(
+                              messageId: messageId,
+                              coordinationItemId: coordinationItemId,
+                            ),
+                        child: PopScope(
                         canPop: _selectedSurface == BeaconSurface.now,
                         onPopInvokedWithResult: (didPop, result) {
                           if (didPop) return;
@@ -1256,7 +1268,8 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
                             child: SafeArea(child: contentColumn),
                           ),
                         ),
-                      );
+                      ),
+                    );
                     },
                   );
                 },
