@@ -342,9 +342,9 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
         showDragHandle: true,
         // useRootNavigator: true is required on Web.
         //
-        // ThreadDetailScreen wraps the room surface in PopScope(canPop: false)
-        // so that the browser back-button can be intercepted. Flutter Web
-        // implements this by injecting a sentinel history entry via
+        // BeaconViewScreen PopScope on non-NOW surfaces intercepts browser
+        // back until the user returns to NOW. Flutter Web implements this by
+        // injecting a sentinel history entry via
         // SystemNavigator. When showModalBottomSheet opens under the *same*
         // Navigator as that PopScope (the default, useRootNavigator: false),
         // the sentinel and the modal's route lifecycle interact: after the

@@ -14,6 +14,7 @@ import 'package:tentura/features/home/ui/bloc/post_join_navigation_cubit.dart';
 import 'package:tentura/features/settings/ui/bloc/settings_cubit.dart';
 
 import 'accept_invite_guard.dart';
+import 'beacon_view_route_normalizer.dart';
 import 'browse_deep_link.dart';
 import 'credential_link_deep_link.dart';
 import 'home_tab_branches.dart';
@@ -27,33 +28,35 @@ export 'home_tab_branches.dart';
 export 'root_router.gr.dart';
 
 PageRouteInfo beaconViewOperationalChildFromQuery(Parameters qp) =>
-    BeaconViewOperationalRoute(
-      isDeepLink: qp.optString(kQueryIsDeepLink),
-      viewTab: qp.optString(kQueryBeaconViewTab),
-      peopleTabAttention: qp.optString(kQueryBeaconPeopleTabAttention),
-      entry: qp.optString(kQueryBeaconEntry),
-      threadId: qp.optString(kQueryThreadId),
-      messageId: qp.optString(kQueryMessageId),
+    beaconViewOperationalFromNormalized(
+      normalizeBeaconViewRouteQueryFromParameters(qp),
     );
 
 List<PageRouteInfo> beaconViewChildRoutesFromQuery(
   Parameters qp, {
   String? matchedThreadId,
-}) {
-  if (matchedThreadId != null) {
-    return [
-      beaconViewOperationalChildFromQuery(qp),
-      ThreadDetailRoute(
-        threadId: matchedThreadId,
-        isDeepLink: qp.optString(kQueryIsDeepLink),
-        viewTab: qp.optString(kQueryBeaconViewTab),
-        peopleTabAttention: qp.optString(kQueryBeaconPeopleTabAttention),
-        entry: qp.optString(kQueryBeaconEntry),
-        messageId: qp.optString(kQueryMessageId),
-      ),
-    ];
-  }
-  return [beaconViewOperationalChildFromQuery(qp)];
+}) => [
+  beaconViewOperationalFromNormalized(
+    normalizeBeaconViewRouteQueryFromParameters(
+      qp,
+      pathThreadId: matchedThreadId,
+    ),
+  ),
+];
+
+Uri normalizeBeaconViewThreadDeepLink(Uri uri) {
+  final match = RegExp(
+    '^${RegExp.escape(kPathBeaconView)}/([^/]+)/thread/([^/]+)\$',
+  ).firstMatch(uri.path);
+  if (match == null) return uri;
+  final normalized = normalizeBeaconViewRouteQuery(
+    pathThreadId: match.group(2),
+    incomingQuery: uri.queryParameters,
+  );
+  return uri.replace(
+    path: '${kPathBeaconView}/${match.group(1)}',
+    queryParameters: normalized.queryParameters,
+  );
 }
 
 @singleton
@@ -392,10 +395,6 @@ class RootRouter extends RootStackRouter {
           path: '',
           initial: true,
         ),
-        AutoRoute(
-          page: ThreadDetailRoute.page,
-          path: 'thread/:threadId',
-        ),
       ],
     ),
 
@@ -505,6 +504,7 @@ class RootRouter extends RootStackRouter {
   );
 
   Uri _transformDeepLink(Uri uri) {
+    uri = normalizeBeaconViewThreadDeepLink(uri);
     final credentialLink = transformCredentialLinkDeepLink(uri: uri);
     if (credentialLink.path == kPathSignInMethods &&
         credentialLink.queryParameters.containsKey(kQueryCredentialLinked)) {

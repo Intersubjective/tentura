@@ -18,8 +18,8 @@ typedef OpenBeaconGeneralAnchor =
 
 /// In-request coordination anchor navigation (plan §4.8).
 ///
-/// Provided by [BeaconViewScreen] so message / coordination taps never push
-/// [ThreadDetailRoute].
+/// Provided by [BeaconViewScreen] so message / coordination taps never leave
+/// the request via a pushed thread route (plan §4.8).
 class BeaconRoomNavigationScope extends InheritedWidget {
   const BeaconRoomNavigationScope({
     required this.isRoomPresented,
