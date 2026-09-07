@@ -554,12 +554,14 @@ WHERE user_id = $1 AND created_at >= $2
         return getBeaconById(beaconId: id, filterByUserId: actorId);
       }
 
+      final publishedAt = DateTime.timestamp();
       await _database.managers.beacons
           .filter((e) => e.id.equals(id))
           .update(
             (o) => o(
               status: Value(BeaconStatus.open.smallintValue),
-              statusChangedAt: Value(PgDateTime(DateTime.timestamp())),
+              statusChangedAt: Value(PgDateTime(publishedAt)),
+              publishedAt: Value(PgDateTime(publishedAt)),
             ),
           );
 
