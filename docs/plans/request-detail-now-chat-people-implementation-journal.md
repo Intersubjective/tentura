@@ -231,3 +231,24 @@ Minor behaviour note, accepted: when `onFacePileTap` is null the pile is no long
 
 ### [U6a] complete — 2026-09-07T23:22:00+02:00
 COMMITS: 3795a2177 feat(client): add kBeaconViewTabNow query wire value; 814736e67 feat(beacon-view): extend BeaconRoomSurface scroll and coordination hooks; 3b260c1cc feat(beacon-view): wire NOW/CHAT/People surfaces into BeaconViewScreen; 70694d10b test(beacon-threads): migrate request_threads_adaptive_test to inline surfaces / TESTS: `cd packages/client && flutter analyze --no-fatal-warnings --no-fatal-infos` → exit 0, **0 errors, 89 warnings**; `cd packages/client && flutter test test/features/beacon_view/ test/features/beacon_threads/ test/app/` → **+653 passed, ~16 skipped, 0 failed**; `bash scripts/check-custom-lints.sh packages/client` → exit 0, **total 32** (baseline 32) / FILES: packages/client/lib/consts.dart, packages/client/lib/features/beacon_view/ui/screen/beacon_view_screen.dart, packages/client/lib/features/beacon_view/ui/widget/beacon_room_surface.dart, packages/client/test/features/beacon_threads/request_threads_adaptive_test.dart, docs/plans/request-detail-now-chat-people-implementation-journal.md / FINDINGS: screen steps §1–§5 land in one commit (single-file rewrite); `_scheduleSplitEdgeHandling` post-frames surface reselection to avoid setState-during-build on resize; PopScope uses `canPop: true` on NOW so leave-request never hits a blocking sentinel (Scaffold comment preserved); `_onTapCoordinationLogEvent` / `_clearOperationalFocus` kept with `// ignore: unused_element` + TODO(U8) until Activity sheet wires them; Log adaptive plan-row test **skipped** (`skip: true`, name cites TODO(U8)); `beacon_view_room_split_contract_test.dart` unchanged/green; legacy widgets untouched / REMAINING: U6b deletes `beacon_operational_scroll_view.dart`, `threads_list.dart`, `item_card.dart` + migrates their dependent tests; U8 Activity sheet + `?tab=log` post-frame opener; U10 retires pushed `ThreadDetailRoute`
+
+### [overseer] U6a accepted — 2026-09-07
+**Full suite: 2700 passed / 35 skipped / 0 failed** (baseline 2670/34). Analyze **0 errors, 89 warnings**. Custom lints **32**.
+
+All three review-driven correctness requirements are genuinely implemented:
+- **Latched split (F6):** `_hadThreadRowsAtLeastOnce` (set on first success+non-empty, reset only on beacon-id change) feeds `hasThreadRows`, replacing `threadsState.isSuccess`. A non-silent `fetch()` from `onCoordinationSaved` can no longer collapse the desktop split.
+- **Edge-only reselection:** `_scheduleSplitEdgeHandling` fires only when `previous != isSplit`, post-framed to avoid setState-during-build on resize.
+- **Web back (F2/D4):** `PopScope(canPop: _selectedSurface == BeaconSurface.now)` — leaving the request from NOW never passes through a blocking PopScope, so the documented history-sentinel bug stays unreachable. The original explanatory comment was preserved.
+- **Lease:** owned by the screen, created lazily, disposed in `dispose()`; surfaces acquire/release.
+
+**Adaptive-test migration audited, not taken on trust.** `request_threads_adaptive_test.dart` shrank 1162 -> 1052 lines (-230/+120), which is exactly the "rewrite hides a regression" risk. It does not: **11 `testWidgets` before, 11 after**, every group preserved (compact / regular / expanded / resize / item-only authorization / unread / Log), and assertions went **36 -> 37**. The line loss is deleted push/pop route scaffolding that no longer has a subject.
+
+### Debt owed by U8 (must not be forgotten)
+
+1. `test/features/beacon_threads/request_threads_adaptive_test.dart:1049` — `skip: true` on the Log plan-row test. **Re-enable it.**
+2. `beacon_view_screen.dart:622, :666` — two `// ignore: unused_element` on `_onTapCoordinationLogEvent` and `_clearOperationalFocus`. **Remove the ignores when the Activity sheet wires them.**
+3. `beacon_view_screen.dart:501` — `_maybeOpenActivitySheetForLogTab()` is called from two sites but has an empty body. **Implement it** (`?tab=log` legacy compat).
+
+### Open UX question for the repo owner (not a defect; plan-conformant)
+
+On split -> non-split (window narrowing), the code selects ROOM unconditionally, per plan §4.1 ("split -> non-split while the room pane was open -> select ROOM"). Because the room pane is always mounted in split mode, that condition is always true — so a user who was reading **PEOPLE** in the left pane gets moved to CHAT when the window narrows. This follows the approved spec literally; preserving the left-pane surface instead would arguably be less surprising. Flagged rather than changed unilaterally.
