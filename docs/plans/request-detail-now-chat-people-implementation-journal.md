@@ -143,7 +143,25 @@ cd packages/client && dart run tool/verify_web_version_consistency.dart
 
 ## Open questions / blockers
 
-- none blocking.
+### ⚠️ CONCURRENT EDITOR IN THIS REPO — hands off these paths
+
+Between U5 finishing and the U6a launch, files changed that **no worker of ours touched**:
+
+| Path | State | Evidence it is not ours |
+|---|---|---|
+| `docs/Tentura_current_status_quo.md` | modified, **uncommitted** | mtime `23:04:35`; U5's worker log ends `23:03:49` |
+| `docs/plans/constellation-edge-semantics.md` | new, untracked | mtime `23:07:35`, later still |
+
+The content (mutual visibility, `person_visibility_peers.is_mutually_visible`, opt-out discoverability, constellation edge semantics) is unrelated to this plan, and the U5 log contains **zero** occurrences of "constellation".
+
+**Rules for every subsequent unit:**
+- do NOT stage, commit, revert, stash, or delete either path;
+- do NOT run `git add -A` / `git commit -a` / `git checkout -- .`;
+- **U11 must NOT edit `docs/Tentura_current_status_quo.md` while it is dirty.** Plan §9 assigns edits to lines 125/127/204 of that file. Re-check its status when U11 starts; if still dirty, U11 skips that file and the overseer reports it as deferred rather than colliding with someone's in-progress work.
+
+Untracked baseline therefore moves from 34 to **35** paths.
+
+- No other blockers.
 
 ## Pre-existing defects found but NOT fixed (out of scope, per OD-2)
 
@@ -203,3 +221,10 @@ COMMITS: (pending) / TESTS: thread_detail_test +3 green / FILES: thread_detail.d
 
 ### [U5] complete — 2026-09-07T23:20:00+02:00
 COMMITS: 357bdc48f feat(beacon-threads): add onFacePileTap to ThreadDetailGeneralTitle; 3f415db79 test(beacon-threads): cover ThreadDetailGeneralTitle face pile tap / TESTS: `cd packages/client && flutter analyze --no-fatal-warnings --no-fatal-infos` → exit 0, 0 errors, 89 warnings; `cd packages/client && flutter test test/features/beacon_threads/` → +296 passed, ~14 skipped, 0 failed; `bash scripts/check-custom-lints.sh packages/client` → exit 0, total 32 (baseline 32) / FILES: packages/client/lib/features/beacon_threads/ui/widget/thread_detail.dart, packages/client/test/features/beacon_threads/thread_detail_test.dart, docs/plans/request-detail-now-chat-people-implementation-journal.md / FINDINGS: reused existing `beaconHudPeopleRowSemantics` ("People involved") — no new l10n keys; when `onFacePileTap` is set, outer `Semantics(button:, onTap:)` + `ExcludeSemantics` on inner pile gives assistive activation without making the title row a button / REMAINING: U6a wires `onFacePileTap` → People tab in `beacon_view_screen.dart`; U6b deletes `item_card.dart` affordance
+
+### [overseer] U5 accepted — 2026-09-07
+Verified: `test/features/beacon_threads/` **296 passed / 14 skipped / 0 failed**; analyze **0 errors, 89 warnings**; custom lints 32. Implementation is the right shape — outer `Semantics(button: true, label:, onTap:)` wrapping `ExcludeSemantics(pile)` makes the composite one accessible button, and the button role appears ONLY when a callback is supplied, so the split app bar (which passes none today) does not become spuriously tappable. Reused the existing `beaconHudPeopleRowSemantics` ("People involved" / «Участники») — no new l10n keys.
+
+Minor behaviour note, accepted: when `onFacePileTap` is null the pile is no longer wrapped in `ExcludeSemantics` at all, so its avatars are now individually visible to assistive tech in that case (previously fully excluded). Harmless, and U6a passes a real callback on the path users actually hit.
+
+**Concurrent editor detected — see the blockers section above.** Not caused by any worker; preserved untouched.
