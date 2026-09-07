@@ -286,3 +286,12 @@ Both §4.7 requirements — the ones the sheet does NOT get for free from the ol
 
 ### [U9] complete — 2026-09-08T00:45:00+02:00
 COMMITS: (see git log) / TESTS: `cd packages/client && flutter analyze --no-fatal-warnings --no-fatal-infos` → exit 0, **0 errors, 89 warnings**; `cd packages/client && flutter test` → **+2711 passed, ~30 skipped, 0 failed**; `bash scripts/check-custom-lints.sh packages/client` → exit 0, **total 32** (baseline 32) / FILES: `beacon_room_navigation_scope.dart`, `beacon_room_lease.dart` (`awaitReady`), `coordination_room_navigation.dart`, `room_message_tile.dart`, `beacon_view_screen.dart`, `coordination_room_navigation_test.dart`, journal / FINDINGS: `BeaconRoomNavigationScope` replaces `router.currentChild?.name == ThreadDetailRoute.name` with `isBeaconRoomPresented(isSplit || CHAT tab)`; `openCoordinationItemFromRoom` uses lease `awaitReady` + `prepareThreadScroll` when presented, else `openGeneralAnchor` (same path as `_onOpenCoordinationItemFromThread`); legacy pushed thread detail without scope scrolls only when host already has an active room (no ad-hoc `ensureGeneral`); `room_message_tile` fallback delegates to `openCoordinationItemFromRoom` / REMAINING: U10 retires `ThreadDetailRoute` entirely; U10 should migrate `thread_detail_screen.dart` `_openGeneralFromLegacy` which still pushes the route
+
+### [overseer] U9 accepted — 2026-09-08
+**Full suite 2711 passed / 30 skipped / 0 failed**; analyze **0 errors, 89 warnings**; custom lints **32**. Both F4 files verified to contain **zero** `ThreadDetailRoute` references.
+
+Design is sound: `isBeaconRoomPresented({isSplit, selectedSurface})` is a pure, directly-testable predicate replacing the `router.currentChild?.name` probe, and `BeaconRoomNavigationScope` is a correct `InheritedWidget` (`maybeOf`, `updateShouldNotify` comparing all three fields). Placed in `ui/util/`, consistent with OD-5(b). The worker also extended `BeaconRoomLease` with `awaitReady()` so an anchor tap can join an in-flight open instead of racing it — a natural continuation of the overseer readiness fix in `542462428`.
+
+Remaining `ThreadDetailRoute(` constructors are exactly the four U10 owns: `thread_detail_screen.dart:181`, `beacon_view_host_screen.dart:165`, `root_router.dart:46`, `browse_deep_link.dart:72`.
+
+Process note: U9 committed its journal entry inside the code commit rather than separately. Content was complete; noting only so the pattern is visible.
