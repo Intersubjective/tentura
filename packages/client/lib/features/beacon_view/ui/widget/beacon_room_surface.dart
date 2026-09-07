@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import 'package:tentura/domain/entity/coordination_item.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/features/beacon_threads/domain/entity/request_thread.dart';
 import 'package:tentura/features/beacon_threads/ui/bloc/thread_host_cubit.dart';
@@ -23,7 +24,9 @@ class BeaconRoomSurface extends StatefulWidget {
     required this.roomLease,
     this.legacyThreadId,
     this.messageId,
+    this.coordinationItemId,
     this.onCoordinationSaved,
+    this.onOpenCoordinationItem,
     super.key,
   });
 
@@ -34,7 +37,9 @@ class BeaconRoomSurface extends StatefulWidget {
   final String? legacyThreadId;
 
   final String? messageId;
+  final String? coordinationItemId;
   final VoidCallback? onCoordinationSaved;
+  final void Function(CoordinationItem item)? onOpenCoordinationItem;
 
   @override
   State<BeaconRoomSurface> createState() => _BeaconRoomSurfaceState();
@@ -84,7 +89,7 @@ class _BeaconRoomSurfaceState extends State<BeaconRoomSurface> {
     final roomCubit = context.read<ThreadHostCubit>().roomCubit;
     roomCubit?.prepareThreadScroll(
       messageId: widget.messageId,
-      coordinationItemId: general.item?.id,
+      coordinationItemId: widget.coordinationItemId ?? general.item?.id,
     );
 
     setState(() {
@@ -187,6 +192,7 @@ class _BeaconRoomSurfaceState extends State<BeaconRoomSurface> {
                         thread: _generalThread!,
                         beaconAuthorId: beacon.author.id,
                         onCoordinationSaved: widget.onCoordinationSaved,
+                        onOpenCoordinationItem: widget.onOpenCoordinationItem,
                       ),
                     ),
                   ],
