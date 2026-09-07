@@ -32,6 +32,7 @@ class TenturaUnderlineTabs extends StatefulWidget {
     this.attentionIndex,
     this.attentionActive = false,
     this.countStyle = TenturaTabCountStyle.badge,
+    this.compactIconTabs = const {},
     super.key,
   });
 
@@ -63,6 +64,10 @@ class TenturaUnderlineTabs extends StatefulWidget {
 
   /// How [badges] / [secondaryBadges] render. Default [badge] keeps Beacon chips.
   final TenturaTabCountStyle countStyle;
+
+  /// Indices rendered at a fixed compact width, icon-only, outside the
+  /// equal-width distribution — for a secondary tab at the row's end.
+  final Set<int> compactIconTabs;
 
   @override
   State<TenturaUnderlineTabs> createState() => _TenturaUnderlineTabsState();
@@ -131,18 +136,29 @@ class _TenturaUnderlineTabsState extends State<TenturaUnderlineTabs>
 
   /// Whether icon+label fits every equal slot. Badges are ignored so count
   /// chips do not flip the whole row between labeled and icon-only.
+  /// [compactIconTabs] are excluded — they are always icon-only.
   bool _labelsFit(BuildContext context, double maxWidth) {
     final icons = widget.icons;
     if (icons == null || icons.isEmpty || widget.tabs.isEmpty) {
       return true;
     }
     final n = widget.tabs.length;
-    final slotWidth = maxWidth / n;
+    final compact = widget.compactIconTabs;
+    final compactCount = compact.where((i) => i >= 0 && i < n).length;
+    final flexCount = n - compactCount;
+    if (flexCount == 0) {
+      return true;
+    }
     final tt = context.tt;
+    final fixedTotal = compactCount * tt.tabCompactWidth;
+    final slotWidth = (maxWidth - fixedTotal) / flexCount;
     final textScaler = MediaQuery.textScalerOf(context);
     final style = TenturaText.tabLabel(tt.text);
 
     for (var i = 0; i < n; i++) {
+      if (compact.contains(i)) {
+        continue;
+      }
       final painter = TextPainter(
         text: TextSpan(text: widget.tabs[i], style: style),
         textDirection: Directionality.of(context),
@@ -180,16 +196,31 @@ class _TenturaUnderlineTabsState extends State<TenturaUnderlineTabs>
           return Row(
             children: [
               for (var i = 0; i < widget.tabs.length; i++)
-                Expanded(
-                  child: _buildTabCell(
-                    context,
-                    index: i,
-                    showLabel: showLabels,
-                    staticAttentionOpacity: i == widget.attentionIndex
-                        ? staticOpacity
-                        : 0.0,
+                if (widget.compactIconTabs.contains(i))
+                  SizedBox(
+                    width: tt.tabCompactWidth,
+                    child: _buildTabCell(
+                      context,
+                      index: i,
+                      showLabel: false,
+                      badgeOverlay: true,
+                      staticAttentionOpacity: i == widget.attentionIndex
+                          ? staticOpacity
+                          : 0.0,
+                    ),
+                  )
+                else
+                  Expanded(
+                    child: _buildTabCell(
+                      context,
+                      index: i,
+                      showLabel: showLabels,
+                      badgeOverlay: false,
+                      staticAttentionOpacity: i == widget.attentionIndex
+                          ? staticOpacity
+                          : 0.0,
+                    ),
                   ),
-                ),
             ],
           );
         },
@@ -201,6 +232,7 @@ class _TenturaUnderlineTabsState extends State<TenturaUnderlineTabs>
     BuildContext context, {
     required int index,
     required bool showLabel,
+    required bool badgeOverlay,
     required double staticAttentionOpacity,
   }) {
     final badge = widget.badges != null && index < widget.badges!.length
@@ -231,6 +263,7 @@ class _TenturaUnderlineTabsState extends State<TenturaUnderlineTabs>
       label: widget.tabs[index],
       icon: icon,
       showLabel: showLabel,
+      badgeOverlay: badgeOverlay,
       semanticsIdentifier:
           widget.tabIds != null && index < widget.tabIds!.length
           ? widget.tabIds![index]
@@ -268,6 +301,7 @@ class _TabCell extends StatelessWidget {
     required this.selected,
     required this.onTap,
     required this.showLabel,
+    this.badgeOverlay = false,
     this.icon,
     this.badge,
     this.badgeBackgroundColor,
@@ -280,6 +314,7 @@ class _TabCell extends StatelessWidget {
   final String label;
   final IconData? icon;
   final bool showLabel;
+  final bool badgeOverlay;
   final String? semanticsIdentifier;
   final bool selected;
   final VoidCallback onTap;
@@ -302,6 +337,31 @@ class _TabCell extends StatelessWidget {
     final showAttention = attentionBackgroundOpacity > 0;
     final iconOnly = icon != null && !showLabel;
 
+    Widget? iconWidget;
+    if (icon != null) {
+      iconWidget = Icon(icon, size: _kTabIconSize, color: color);
+      if (badgeOverlay && (hasPrimaryBadge || hasSecondaryBadge)) {
+        final overlayCount = hasPrimaryBadge ? badge! : secondaryBadge!;
+        final overlayColor = hasPrimaryBadge
+            ? (badgeBackgroundColor ?? tt.info)
+            : tt.warn;
+        iconWidget = Stack(
+          clipBehavior: Clip.none,
+          children: [
+            iconWidget,
+            Positioned(
+              top: -6,
+              right: -10,
+              child: TenturaCountBadge(
+                count: overlayCount,
+                backgroundColor: overlayColor,
+              ),
+            ),
+          ],
+        );
+      }
+    }
+
     Widget content = Padding(
       padding: EdgeInsets.symmetric(vertical: tt.rowGap),
       child: Column(
@@ -313,8 +373,8 @@ class _TabCell extends StatelessWidget {
                 child: Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    if (icon != null) ...[
-                      Icon(icon, size: _kTabIconSize, color: color),
+                    if (iconWidget != null) ...[
+                      iconWidget,
                       if (showLabel) SizedBox(width: tt.iconTextGap),
                     ],
                     if (showLabel)
@@ -331,7 +391,7 @@ class _TabCell extends StatelessWidget {
                   ],
                 ),
               ),
-              if (hasAnyBadge) ...[
+              if (!badgeOverlay && hasAnyBadge) ...[
                 SizedBox(width: tt.iconTextGap),
                 Padding(
                   padding: EdgeInsets.only(right: tt.iconTextGap),
@@ -399,25 +459,25 @@ class _TabCell extends StatelessWidget {
       child: InkWell(
         onTap: onTap,
         child: Stack(
-          clipBehavior: Clip.none,
-          children: [
-            if (showAttention)
-              Positioned.fill(
-                child: Padding(
-                  padding: EdgeInsets.symmetric(
-                    horizontal: 4,
-                    vertical: tt.rowGap,
-                  ),
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                      color: scheme.primaryContainer.withValues(
-                        alpha: attentionBackgroundOpacity,
+            clipBehavior: Clip.none,
+            children: [
+              if (showAttention)
+                Positioned.fill(
+                  child: Padding(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: 4,
+                      vertical: tt.rowGap,
+                    ),
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        color: scheme.primaryContainer.withValues(
+                          alpha: attentionBackgroundOpacity,
+                        ),
+                        borderRadius: BorderRadius.circular(tt.buttonRadius),
                       ),
-                      borderRadius: BorderRadius.circular(tt.buttonRadius),
                     ),
                   ),
                 ),
-              ),
             content,
           ],
         ),
