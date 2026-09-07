@@ -1749,7 +1749,17 @@ ThreadMessagePreviewRecord _mapThreadMessagePreview({
     );
   }
 
-  throw StateError('Unmapped last-message preview family');
+  // A last message with no body, no semantic marker, no linked item, and no
+  // attachment is a system row this preview computation doesn't specifically
+  // know how to summarize (e.g. a hierarchy lifecycle/child-created notice,
+  // which carries its content in system_payload rather than body). Preview
+  // computation must never break the whole thread list for a message kind it
+  // doesn't recognize — degrade to an empty text preview instead of throwing.
+  return const ThreadMessagePreviewRecord(
+    kind: ThreadMessagePreviewKind.text,
+    excerpt: '',
+    hasAttachment: false,
+  );
 }
 
 int _previewKindForSemanticMarker(int marker) => switch (marker) {

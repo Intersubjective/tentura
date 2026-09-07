@@ -164,13 +164,16 @@ Future<bool> showBeaconCloseConfirmSheet({
                 const Center(child: CircularProgressIndicator.adaptive())
               else ...[
                 if (r == BeaconClosureReadiness.readyToClose) ...[
-                  FilledButton(
-                    key: TestIds.key(TestIds.beaconCloseConfirm),
-                    onPressed: () async {
-                      Navigator.of(ctx).pop();
-                      confirmed = await onCloseBeacon(reviewBranch);
-                    },
-                    child: Text(l10n.beaconCloseSheetActionCloseBeacon),
+                  Semantics(
+                    identifier: TestIds.beaconCloseConfirm,
+                    child: FilledButton(
+                      key: TestIds.key(TestIds.beaconCloseConfirm),
+                      onPressed: () async {
+                        Navigator.of(ctx).pop();
+                        confirmed = await onCloseBeacon(reviewBranch);
+                      },
+                      child: Text(l10n.beaconCloseSheetActionCloseBeacon),
+                    ),
                   ),
                   TextButton(
                     onPressed: () => Navigator.of(ctx).pop(),

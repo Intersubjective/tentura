@@ -315,130 +315,58 @@ Future<void> _runJourney({
     timeout: const Duration(seconds: 5),
   );
 
-  // Issue #102 setup: author creates the ask while still on the beacon surface,
-  // then moves to My Work and stays there while helper accepts.
-  final askTitle = 'Accept proof $suffix';
-  final askBody = '102 accept regression $suffix';
-  final askItemId = await _markAskViaApi(
-    authorEmail: fixture.authorEmail,
-    beaconId: beaconId,
-    targetPersonId: fixture.helperUserId,
-    title: askTitle,
-    body: askBody,
+  // 4. Nested child hierarchy convergence on a mounted parent Threads view.
+  // The helper is an admitted participant and may publish a child; the author's
+  // second session must converge without navigation while Inbox stays unchanged.
+  final childTitle = 'Nested child $suffix';
+  final childClientCommandId = 'nested-$suffix';
+  await Future.wait([
+    authorPeer.open('/beacon/view/$beaconId'),
+    helper.open('/beacon/view/$beaconId'),
+  ]);
+  await Future.wait([
+    authorPeer.clickTestId('beacon.tab.threads'),
+    helper.clickTestId('beacon.tab.threads'),
+  ]);
+  // Stay on the Threads overview (General card + Child requests section)
+  // rather than opening General itself: the new child's title renders on
+  // its BeaconChildRequestsSection card here, not inline in the chat feed
+  // (the hierarchy notice there only ever says "Child request created",
+  // never the child's own title — see room_message_tile.dart /
+  // beacon_hierarchy_notice.dart). "Without navigation" means this mounted
+  // overview must silently pick up the new card, not that a chat view stays
+  // mounted.
+  await Future.wait([
+    authorPeer.waitForText('General'),
+    helper.waitForText('General'),
+  ]);
+  final childBeaconId = await _createPublishedChildViaApi(
+    helperEmail: fixture.helperEmail,
+    parentBeaconId: beaconId,
+    title: childTitle,
+    clientCommandId: childClientCommandId,
   );
-
-  // 7. Issue #102: author stays on My Work; helper accepts an ask via API.
-  await Future.wait([
-    author.open('/home/work'),
-    authorPeer.open('/home/updates'),
-  ]);
-  await Future.wait([
-    author.waitForText(title),
-    authorPeer.waitForText('Updates'),
-  ]);
-  final receiptIdsBefore102 = await authorPeer.collectUpdatesReceiptIds();
-  await _acceptAskViaApi(helperEmail: fixture.helperEmail, itemId: askItemId);
-  timings['my_work_102_delivery_ms'] = await _measureUntil(
-    () async =>
-        await author.hasTestId('updates-unread-count-1') &&
-        await author.hasText('Ask accepted') &&
-        await authorPeer.hasTestId('updates-unread-count-1'),
+  timings['hierarchy_child_create_ms'] = await _measureUntil(
+    () => authorPeer.hasText(childTitle),
     timeout: const Duration(seconds: 5),
   );
   _require(
-    await authorPeer.textCount('accepted your ask') == 1,
-    'Commitment accept produced duplicate Updates cards',
+    await authorPeer.textCount(childTitle) == 1,
+    'Nested child card duplicated on parent view',
   );
-  final receiptIdsAfter102 = await authorPeer.collectUpdatesReceiptIds();
-  final newReceiptIds102 = receiptIdsAfter102.difference(receiptIdsBefore102);
+  await author.open('/home/inbox');
+  await author.waitForText('Inbox');
   _require(
-    newReceiptIds102.length == 1,
-    'Expected exactly one new Updates receipt id',
+    !await author.hasText(childTitle),
+    'Nested child appeared in Inbox without direct involvement',
   );
-  final receiptId102 = newReceiptIds102.single;
-  _require(
-    await authorPeer.receiptIdCount(receiptId102) == 1,
-    'Duplicate stable receipt id in Updates feed',
-  );
-  final qaLatencyMs = await author.readQaHeadRefreshLatencyMs();
-  if (qaLatencyMs != null) {
-    timings['my_work_102_qa_head_refresh_latency_ms'] = qaLatencyMs;
-  }
-  proof['my_work_102'] = {
-    'runId': Platform.environment['REALTIME_MULTICLIENT_RUN_ID'],
-    'beaconId': beaconId,
-    'itemId': askItemId,
-    'receiptId': receiptId102,
-    'delivery_ms': timings['my_work_102_delivery_ms'],
-    'qa_head_refresh_latency_ms': qaLatencyMs,
-    'artifactDir': artifactDir.path,
+  proof['nested_hierarchy'] = {
+    'childBeaconId': childBeaconId,
+    'delivery_ms': timings['hierarchy_child_create_ms'],
     'ok': true,
   };
 
-  // 8. Missed attention receipt: author socket gated, then catch-up without dupes.
-  final receiptIdsBeforeReconnect =
-      await authorPeer.collectUpdatesReceiptIds();
-  final suspendedAuthor = await _controlSocket(
-    qaToken,
-    fixture.authorUserId,
-    action: 'suspend',
-  );
-  _require(
-    suspendedAuthor.sessionsClosed > 0,
-    'QA gate closed no author session',
-  );
-  final reconnectAskItemId = await _markAskViaApi(
-    authorEmail: fixture.authorEmail,
-    beaconId: beaconId,
-    targetPersonId: fixture.helperUserId,
-    title: 'Reconnect catch-up ask $suffix',
-    body: 'Attention reconnect proof $suffix',
-  );
-  await _acceptAskViaApi(
-    helperEmail: fixture.helperEmail,
-    itemId: reconnectAskItemId,
-  );
-  final receiptIdsWhileGated = await authorPeer.collectUpdatesReceiptIds();
-  _require(
-    receiptIdsWhileGated.difference(receiptIdsBeforeReconnect).isEmpty,
-    'Attention receipt arrived while author socket was gated',
-  );
-  if (disabledPath != 'catch_up') {
-    await _controlSocket(qaToken, fixture.authorUserId, action: 'resume');
-  }
-  timings['attention_reconnect_catch_up_ms'] = await _measureUntil(
-    () async {
-      final ids = await authorPeer.collectUpdatesReceiptIds();
-      return ids.difference(receiptIdsBeforeReconnect).length == 1;
-    },
-    timeout: const Duration(seconds: 8),
-  );
-  final receiptIdsAfterReconnect = await authorPeer.collectUpdatesReceiptIds();
-  _require(
-    receiptIdsAfterReconnect.length ==
-        receiptIdsAfterReconnect.toSet().length,
-    'Reconnect catch-up duplicated a receipt id in the feed',
-  );
-  final newReceiptIdsReconnect = receiptIdsAfterReconnect.difference(
-    receiptIdsBeforeReconnect,
-  );
-  _require(
-    newReceiptIdsReconnect.length == 1,
-    'Reconnect catch-up produced wrong receipt id count',
-  );
-  _require(
-    await authorPeer.receiptIdCount(newReceiptIdsReconnect.single) == 1,
-    'Reconnect catch-up duplicated stable receipt content',
-  );
-  proof['attention_reconnect'] = {
-    'receiptIdsBefore': receiptIdsBeforeReconnect.toList(),
-    'receiptIdsAfter': receiptIdsAfterReconnect.toList(),
-    'newReceiptIds': newReceiptIdsReconnect.toList(),
-    'catch_up_ms': timings['attention_reconnect_catch_up_ms'],
-    'ok': true,
-  };
-
-  // 4. Helper My Work stays mounted while the author enters review.
+  // 5. Helper My Work stays mounted while the author enters review.
   await helper.open('/home/work');
   await helper.waitForText(title);
   await author.open('/beacon/view/$beaconId');
@@ -449,13 +377,14 @@ Future<void> _runJourney({
     timeout: const Duration(seconds: 5),
   );
   await author.clickTestId('beacon.hud_author_action.wrapUpForReview');
+  await author.clickTestId('beacon.close.confirm');
   timings['my_work_review_ms'] = await _measureUntil(
     () => helper.hasText('Wrapping up'),
     timeout: const Duration(seconds: 5),
   );
   _require(await helper.hasText(title), 'Request disappeared from My Work');
 
-  // 5. Force a confirmed missed-event window. The server deny gate prevents
+  // 6. Force a confirmed missed-event window. The server deny gate prevents
   // auth until resume, so the mutation cannot be delivered live.
   await Future.wait([
     author.open('/beacon/view/$beaconId'),
@@ -496,7 +425,7 @@ Future<void> _runJourney({
     'Catch-up produced duplicate stable content',
   );
 
-  // 6. Author Profile stays mounted while helper changes the friendship.
+  // 7. Author Profile stays mounted while helper changes the friendship.
   await author.open('/profile/view/${fixture.helperUserId}');
   await author.waitForText('Trust: mutual');
   await helper.open('/profile/view/${fixture.authorUserId}');
@@ -509,43 +438,160 @@ Future<void> _runJourney({
     timeout: const Duration(seconds: 5),
   );
 
-  // 7. Nested child hierarchy convergence on a mounted parent Threads view.
-  // The helper is an admitted participant and may publish a child; the author's
-  // second session must converge without navigation while Inbox stays unchanged.
-  final childTitle = 'Nested child $suffix';
-  final childClientCommandId = 'nested-$suffix';
-  await Future.wait([
-    authorPeer.open('/beacon/view/$beaconId'),
-    helper.open('/beacon/view/$beaconId'),
-  ]);
-  await Future.wait([
-    authorPeer.clickTestId('beacon.tab.threads'),
-    helper.clickTestId('beacon.tab.threads'),
-  ]);
-  await authorPeer.waitForTestId('room.message.input');
-  final childBeaconId = await _createPublishedChildViaApi(
-    helperEmail: fixture.helperEmail,
-    parentBeaconId: beaconId,
-    title: childTitle,
-    clientCommandId: childClientCommandId,
+  // Issue #102 setup: ask/promise/blocker coordination items are retired
+  // (General-only discussion, see nested-requests plan); the closest surviving
+  // "directed obligation transition, accepted by the counterpart, receipt to
+  // the initiator" flow is a help offer being accepted by the beacon author.
+  // The receipt lands on the OFFERER (helper), not the accepter, so helper is
+  // the party staying on My Work / Updates while author performs the accept
+  // via API. A fresh beacon isolates this from the help-offer cycle already
+  // exercised on the primary beaconId earlier in this journey.
+  final offer102BeaconId = await _createBeaconViaApi(
+    authorEmail: fixture.authorEmail,
+    title: 'Accept proof $suffix',
   );
-  timings['hierarchy_child_create_ms'] = await _measureUntil(
-    () => authorPeer.hasText(childTitle),
+  await _forwardBeaconViaApi(
+    authorEmail: fixture.authorEmail,
+    beaconId: offer102BeaconId,
+    recipientId: fixture.helperUserId,
+  );
+  await _offerHelpViaApi(
+    helperEmail: fixture.helperEmail,
+    beaconId: offer102BeaconId,
+    message: '102 accept regression $suffix',
+  );
+
+  // 8. Issue #102: helper stays on My Work; author accepts the offer via API.
+  await Future.wait([
+    helper.open('/home/work'),
+    helperPeer.open('/home/updates'),
+  ]);
+  await Future.wait([
+    helper.waitForText('Accept proof $suffix'),
+    helperPeer.waitForText('Updates'),
+  ]);
+  final receiptIdsBefore102 = await helperPeer.collectUpdatesReceiptIds();
+  await _acceptHelpOfferViaApi(
+    authorEmail: fixture.authorEmail,
+    beaconId: offer102BeaconId,
+    offerUserId: fixture.helperUserId,
+  );
+  timings['my_work_102_delivery_ms'] = await _measureUntil(
+    () async =>
+        await helper.hasText('Coordinating the plan') &&
+        (await helperPeer.collectUpdatesReceiptIds())
+            .difference(receiptIdsBefore102)
+            .isNotEmpty,
     timeout: const Duration(seconds: 5),
   );
+  // Note: 'Your offer was accepted' is the generic offer_accepted fallback
+  // body shared by any beacon's acceptance event, including the main
+  // beaconId's own help-offer accepted earlier in this journey (step 2b) —
+  // a whole-feed text count is not scoped per beacon, so uniqueness is
+  // instead proven below via the receipt id delta, which is.
+  final receiptIdsAfter102 = await helperPeer.collectUpdatesReceiptIds();
+  final newReceiptIds102 = receiptIdsAfter102.difference(receiptIdsBefore102);
   _require(
-    await authorPeer.textCount(childTitle) == 1,
-    'Nested child card duplicated on parent view',
+    newReceiptIds102.length == 1,
+    'Expected exactly one new Updates receipt id',
   );
-  await author.open('/home/inbox');
-  await author.waitForText('Inbox');
+  final receiptId102 = newReceiptIds102.single;
   _require(
-    !await author.hasText(childTitle),
-    'Nested child appeared in Inbox without direct involvement',
+    await helperPeer.receiptIdCount(receiptId102) == 1,
+    'Duplicate stable receipt id in Updates feed',
   );
-  proof['nested_hierarchy'] = {
-    'childBeaconId': childBeaconId,
-    'delivery_ms': timings['hierarchy_child_create_ms'],
+  final qaLatencyMs = await helper.readQaHeadRefreshLatencyMs();
+  if (qaLatencyMs != null) {
+    timings['my_work_102_qa_head_refresh_latency_ms'] = qaLatencyMs;
+  }
+  proof['my_work_102'] = {
+    'runId': Platform.environment['REALTIME_MULTICLIENT_RUN_ID'],
+    'beaconId': offer102BeaconId,
+    'receiptId': receiptId102,
+    'delivery_ms': timings['my_work_102_delivery_ms'],
+    'qa_head_refresh_latency_ms': qaLatencyMs,
+    'artifactDir': artifactDir.path,
+    'ok': true,
+  };
+
+  // 9. Missed attention receipt: helper socket gated, then catch-up without dupes.
+  // Forwarding itself notifies helper (the recipient) via Updates, so let that
+  // settle before snapshotting the pre-suspend baseline — otherwise its own
+  // delivery can race the suspend and look like a receipt that arrived while
+  // gated.
+  final receiptIdsBeforeForward = await helperPeer.collectUpdatesReceiptIds();
+  final reconnectBeaconId = await _createBeaconViaApi(
+    authorEmail: fixture.authorEmail,
+    title: 'Reconnect catch-up offer $suffix',
+  );
+  await _forwardBeaconViaApi(
+    authorEmail: fixture.authorEmail,
+    beaconId: reconnectBeaconId,
+    recipientId: fixture.helperUserId,
+  );
+  await _waitUntil(
+    () async => (await helperPeer.collectUpdatesReceiptIds())
+        .difference(receiptIdsBeforeForward)
+        .isNotEmpty,
+  );
+  await _offerHelpViaApi(
+    helperEmail: fixture.helperEmail,
+    beaconId: reconnectBeaconId,
+    message: 'Attention reconnect proof $suffix',
+  );
+  final receiptIdsBeforeReconnect =
+      await helperPeer.collectUpdatesReceiptIds();
+  final suspendedHelper = await _controlSocket(
+    qaToken,
+    fixture.helperUserId,
+    action: 'suspend',
+  );
+  _require(
+    suspendedHelper.sessionsClosed > 0,
+    'QA gate closed no helper session',
+  );
+  await _acceptHelpOfferViaApi(
+    authorEmail: fixture.authorEmail,
+    beaconId: reconnectBeaconId,
+    offerUserId: fixture.helperUserId,
+  );
+  final receiptIdsWhileGated = await helperPeer.collectUpdatesReceiptIds();
+  _require(
+    receiptIdsWhileGated.difference(receiptIdsBeforeReconnect).isEmpty,
+    'Attention receipt arrived while helper socket was gated',
+  );
+  if (disabledPath != 'catch_up') {
+    await _controlSocket(qaToken, fixture.helperUserId, action: 'resume');
+  }
+  timings['attention_reconnect_catch_up_ms'] = await _measureUntil(
+    () async {
+      final ids = await helperPeer.collectUpdatesReceiptIds();
+      return ids.difference(receiptIdsBeforeReconnect).length == 1;
+    },
+    timeout: const Duration(seconds: 8),
+  );
+  final receiptIdsAfterReconnect = await helperPeer.collectUpdatesReceiptIds();
+  _require(
+    receiptIdsAfterReconnect.length ==
+        receiptIdsAfterReconnect.toSet().length,
+    'Reconnect catch-up duplicated a receipt id in the feed',
+  );
+  final newReceiptIdsReconnect = receiptIdsAfterReconnect.difference(
+    receiptIdsBeforeReconnect,
+  );
+  _require(
+    newReceiptIdsReconnect.length == 1,
+    'Reconnect catch-up produced wrong receipt id count',
+  );
+  _require(
+    await helperPeer.receiptIdCount(newReceiptIdsReconnect.single) == 1,
+    'Reconnect catch-up duplicated stable receipt content',
+  );
+  proof['attention_reconnect'] = {
+    'receiptIdsBefore': receiptIdsBeforeReconnect.toList(),
+    'receiptIdsAfter': receiptIdsAfterReconnect.toList(),
+    'newReceiptIds': newReceiptIdsReconnect.toList(),
+    'catch_up_ms': timings['attention_reconnect_catch_up_ms'],
     'ok': true,
   };
 
@@ -693,50 +739,94 @@ Future<SocketControlResult> _controlSocket(
 String _escapeGraphQlString(String value) =>
     value.replaceAll(r'\', r'\\').replaceAll('"', r'\"');
 
-Future<String> _markAskViaApi({
+Future<String> _createBeaconViaApi({
   required String authorEmail,
-  required String beaconId,
-  required String targetPersonId,
   required String title,
-  required String body,
 }) async {
   final query =
-      'mutation { markAsk(beaconId: "$beaconId", title: "${_escapeGraphQlString(title)}", targetPersonId: "$targetPersonId", body: "${_escapeGraphQlString(body)}") { id } }';
+      'mutation { beaconCreate(title: "${_escapeGraphQlString(title)}", description: "${_escapeGraphQlString(title)}", draft: false) { id } }';
   final response = await _postGraphQlAuthenticated(
     email: authorEmail,
     query: query,
   );
   final errors = response['errors'];
   if (errors != null) {
-    throw StateError('markAsk failed: $errors');
+    throw StateError('beaconCreate failed: $errors');
   }
   final data = response['data'] as Map<String, dynamic>?;
-  final markAsk = data?['markAsk'] as Map<String, dynamic>?;
-  final id = markAsk?['id'] as String?;
+  final beaconCreate = data?['beaconCreate'] as Map<String, dynamic>?;
+  final id = beaconCreate?['id'] as String?;
   if (id == null || id.isEmpty) {
-    throw StateError('markAsk returned no id: $response');
+    throw StateError('beaconCreate returned no id: $response');
   }
   return id;
 }
 
-Future<void> _acceptAskViaApi({
-  required String helperEmail,
-  required String itemId,
+Future<void> _forwardBeaconViaApi({
+  required String authorEmail,
+  required String beaconId,
+  required String recipientId,
 }) async {
-  final query = 'mutation { acceptAsk(itemId: "$itemId") { id status } }';
+  final query =
+      'mutation { beaconForward(id: "$beaconId", recipientIds: ["$recipientId"]) { deliveredRecipientIds } }';
+  final response = await _postGraphQlAuthenticated(
+    email: authorEmail,
+    query: query,
+  );
+  final errors = response['errors'];
+  if (errors != null) {
+    throw StateError('beaconForward failed: $errors');
+  }
+  final data = response['data'] as Map<String, dynamic>?;
+  final beaconForward = data?['beaconForward'] as Map<String, dynamic>?;
+  final delivered =
+      (beaconForward?['deliveredRecipientIds'] as List?)?.cast<String>() ??
+      const <String>[];
+  if (!delivered.contains(recipientId)) {
+    throw StateError('beaconForward did not deliver to recipient: $response');
+  }
+}
+
+Future<void> _offerHelpViaApi({
+  required String helperEmail,
+  required String beaconId,
+  required String message,
+}) async {
+  final query =
+      'mutation { beaconOfferHelp(id: "$beaconId", message: "${_escapeGraphQlString(message)}") }';
   final response = await _postGraphQlAuthenticated(
     email: helperEmail,
     query: query,
   );
   final errors = response['errors'];
   if (errors != null) {
-    throw StateError('acceptAsk failed: $errors');
+    throw StateError('beaconOfferHelp failed: $errors');
   }
   final data = response['data'] as Map<String, dynamic>?;
-  final acceptAsk = data?['acceptAsk'] as Map<String, dynamic>?;
-  final status = acceptAsk?['status'];
-  if (status != 1) {
-    throw StateError('acceptAsk did not accept: $response');
+  if (data?['beaconOfferHelp'] != true) {
+    throw StateError('beaconOfferHelp did not succeed: $response');
+  }
+}
+
+Future<void> _acceptHelpOfferViaApi({
+  required String authorEmail,
+  required String beaconId,
+  required String offerUserId,
+}) async {
+  final query =
+      'mutation { acceptHelpOffer(id: "$beaconId", offerUserId: "$offerUserId") { beaconId } }';
+  final response = await _postGraphQlAuthenticated(
+    email: authorEmail,
+    query: query,
+  );
+  final errors = response['errors'];
+  if (errors != null) {
+    throw StateError('acceptHelpOffer failed: $errors');
+  }
+  final data = response['data'] as Map<String, dynamic>?;
+  final acceptHelpOffer = data?['acceptHelpOffer'] as Map<String, dynamic>?;
+  if (acceptHelpOffer?['beaconId'] != beaconId) {
+    throw StateError('acceptHelpOffer did not resolve: $response');
   }
 }
 
@@ -749,7 +839,8 @@ Future<String> _createPublishedChildViaApi({
   final query =
       'mutation { beaconChildCreate(parentBeaconId: "$parentBeaconId", '
       'clientCommandId: "$clientCommandId", '
-      'title: "${_escapeGraphQlString(title)}", draft: false) '
+      'title: "${_escapeGraphQlString(title)}", '
+      'description: "${_escapeGraphQlString(title)}", draft: false) '
       '{ outcome beaconId } }';
   final response = await _postGraphQlAuthenticated(
     email: helperEmail,
