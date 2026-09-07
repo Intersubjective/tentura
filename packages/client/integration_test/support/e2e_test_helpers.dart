@@ -17,7 +17,6 @@ import 'package:tentura/features/auth/ui/bloc/auth_cubit.dart';
 import 'package:tentura/features/beacon_create/ui/bloc/beacon_create_cubit.dart';
 import 'package:tentura/domain/entity/room_message.dart';
 import 'package:tentura/features/beacon_threads/domain/entity/request_thread.dart';
-import 'package:tentura/features/beacon_threads/ui/widget/item_card.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/room_message_tile.dart';
 import 'package:tentura/features/graph/domain/entity/node_details.dart';
 import 'package:tentura/features/graph/ui/bloc/graph_cubit.dart';
@@ -706,6 +705,49 @@ Future<void> enterThreadsIfNeeded(WidgetTester tester) async {
   );
 }
 
+bool _isRequestThreadRowKey(Key? key) {
+  return key is ValueKey<String> && key.value.startsWith('request.thread.');
+}
+
+String _threadIdFromRowKey(ValueKey<String> key) =>
+    key.value.replaceFirst('request.thread.', '');
+
+Finder _requestThreadRowForTitle(String title) => find
+    .ancestor(
+      of: find.text(title),
+      matching: find.byWidgetPredicate((w) => _isRequestThreadRowKey(w.key)),
+    )
+    .first;
+
+RequestThread _requestThreadForTitle(WidgetTester tester, String title) {
+  final row = _requestThreadRowForTitle(title);
+  final threadId = _threadIdFromRowKey(
+    tester.widget(row).key! as ValueKey<String>,
+  );
+  return RequestThread(
+    threadId: threadId,
+    kind: RequestThreadKind.blocker,
+  );
+}
+
+String _coordinationItemIdForTitle(WidgetTester tester, String title) {
+  final menu = find
+      .descendant(
+        of: _requestThreadRowForTitle(title),
+        matching: find.byWidgetPredicate((w) {
+          final key = w.key;
+          return key is ValueKey<String> &&
+              key.value.startsWith('coordination.item.') &&
+              key.value.endsWith('.menu');
+        }),
+      )
+      .first;
+  final key = (tester.widget(menu).key! as ValueKey<String>).value;
+  const prefix = 'coordination.item.';
+  const suffix = '.menu';
+  return key.substring(prefix.length, key.length - suffix.length);
+}
+
 Future<RequestThread> createCoordinationItem(
   WidgetTester tester, {
   required String launcherId,
@@ -758,13 +800,7 @@ Future<RequestThread> createCoordinationItem(
   }
   await pumpUntilVisible(tester, itemTitle);
   await popToThreadsListIfNeeded(tester);
-  return tester
-      .widget<ItemCard>(
-        find
-            .ancestor(of: find.text(title), matching: find.byType(ItemCard))
-            .first,
-      )
-      .thread;
+  return _requestThreadForTitle(tester, title);
 }
 
 /// Resolves the specified active item. Drafts are also listed in the Threads
@@ -777,18 +813,13 @@ Future<void> resolveCoordinationItem(
   await enterThreadsIfNeeded(tester);
   final itemTitle = find.text(title);
   await pumpUntilVisible(tester, itemTitle);
-  final itemCard = find
-      .ancestor(
-        of: itemTitle,
-        matching: find.byType(ItemCard),
-      )
-      .first;
+  final itemCard = _requestThreadRowForTitle(title);
   if (!finderHasMatch(itemCard)) {
     throw StateError(
       'coordination item card missing for "$title": ${_screenDump()}',
     );
   }
-  final itemId = tester.widget<ItemCard>(itemCard).thread.item!.id;
+  final itemId = _coordinationItemIdForTitle(tester, title);
   final menu = find.byKey(TestIds.key(TestIds.coordinationItemMenu(itemId)));
   if (!await tryPumpUntilVisible(tester, menu)) {
     final menuKeys = find
