@@ -161,4 +161,52 @@ void main() {
       find.byKey(TestIds.key(TestIds.roomMessageInput)),
     );
   });
+
+  testWidgets(
+    'T7 web: browser back after PEOPLE tab switch reaches My Desk in one press',
+    (tester) async {
+      await launchApp(app.main);
+      await tester.pump(const Duration(seconds: 2));
+
+      final fixture = await bootstrapFixture(
+        runId: uniqueRunId('request-threads-web-back'),
+      );
+      final title = uniqueRequestTitle('IT web back');
+
+      await logout(tester);
+      await createAndForwardRequest(
+        tester,
+        fixture: fixture,
+        title: title,
+      );
+
+      await logout(tester);
+      await offerHelpFromInbox(
+        tester,
+        fixture: fixture,
+        requestTitle: title,
+      );
+
+      await logout(tester);
+      await loginAs(tester, fixture.authorEmail);
+      await openRequestFromMyWork(tester, requestTitle: title);
+      await tapAndSettle(
+        tester,
+        find.byKey(TestIds.key(TestIds.beaconTabPeople)),
+      );
+
+      final onRequestUrl = currentAppUrl();
+      expect(onRequestUrl.startsWith(kPathBeaconView), isTrue);
+
+      web.window.history.back();
+      await pumpUntil(
+        tester,
+        () => currentAppUrl() == kPathMyWork,
+        timeout: const Duration(seconds: 15),
+      );
+
+      expect(currentAppUrl(), kPathMyWork);
+      expect(currentAppUrl(), isNot(onRequestUrl));
+    },
+  );
 }
