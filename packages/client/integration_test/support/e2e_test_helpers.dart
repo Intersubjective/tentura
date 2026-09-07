@@ -569,17 +569,20 @@ Future<void> endHelperParticipation(
   );
 }
 
-Future<void> enterGeneralIfNeeded(WidgetTester tester) async {
-  final threadsTab = find.byKey(TestIds.key(TestIds.beaconTabThreads));
-  if (threadsTab.evaluate().isEmpty) {
-    throw StateError('Threads tab not found');
+Future<void> enterChatIfNeeded(WidgetTester tester) async {
+  final messageInput = find.byKey(TestIds.key(TestIds.roomMessageInput));
+  if (messageInput.evaluate().isNotEmpty) {
+    return;
   }
-  await tapAndSettle(tester, threadsTab.first);
-  final generalRow = find.byKey(
-    TestIds.key(TestIds.requestThread(RequestThread.generalId)),
-  );
-  await tapAndSettle(tester, generalRow);
+  final chatTab = find.byKey(TestIds.key(TestIds.beaconTabRoom));
+  if (chatTab.evaluate().isEmpty) {
+    throw StateError('Chat tab not found');
+  }
+  await tapAndSettle(tester, chatTab.first);
+  await pumpUntilVisible(tester, messageInput);
 }
+
+Future<void> enterGeneralIfNeeded(WidgetTester tester) => enterChatIfNeeded(tester);
 
 Future<RoomMessage> sendRoomMessage(WidgetTester tester, String text) async {
   final messageInput = find.byKey(TestIds.key(TestIds.roomMessageInput));
@@ -622,29 +625,16 @@ Future<void> showMyWorkList(WidgetTester tester) async {
   }
 }
 
-Future<void> popToThreadsListIfNeeded(WidgetTester tester) async {
-  final askButton = find.byKey(TestIds.key(TestIds.coordinationAskCreate));
-  final askLabel = find.text('Ask');
-  if (finderHasMatch(askButton) || finderHasMatch(askLabel)) {
-    return;
-  }
+Future<void> popToChatIfNeeded(WidgetTester tester) async {
   final messageInput = find.byKey(TestIds.key(TestIds.roomMessageInput));
   if (finderHasMatch(messageInput)) {
-    final backToThreads = find.byTooltip('Back to Threads');
-    if (finderHasMatch(backToThreads)) {
-      await tapAndSettle(tester, backToThreads.first);
-      if (finderHasMatch(askButton) || finderHasMatch(askLabel)) {
-        return;
-      }
-    }
-    final detailsTab = find.byKey(TestIds.key(TestIds.beaconDetailsOpen));
-    final threadsTab = find.byKey(TestIds.key(TestIds.beaconTabThreads));
-    if (finderHasMatch(detailsTab) && finderHasMatch(threadsTab)) {
-      await tapAndSettle(tester, detailsTab.first);
-      await tapAndSettle(tester, threadsTab.first);
-      if (finderHasMatch(askButton) || finderHasMatch(askLabel)) {
-        return;
-      }
+    return;
+  }
+  final chatTab = find.byKey(TestIds.key(TestIds.beaconTabRoom));
+  if (finderHasMatch(chatTab)) {
+    await tapAndSettle(tester, chatTab.first);
+    if (finderHasMatch(messageInput)) {
+      return;
     }
   }
   for (var attempt = 0; attempt < 3; attempt++) {
@@ -655,48 +645,29 @@ Future<void> popToThreadsListIfNeeded(WidgetTester tester) async {
     } else if (finderHasMatch(arrowBack)) {
       await tapAndSettle(tester, arrowBack.first);
     } else {
-      final threadsTab = find.byKey(TestIds.key(TestIds.beaconTabThreads));
-      if (threadsTab.evaluate().isEmpty) {
-        throw StateError('Threads tab not found');
-      }
-      final detailsTab = find.byKey(TestIds.key(TestIds.beaconDetailsOpen));
-      if (finderHasMatch(detailsTab)) {
-        await tapAndSettle(tester, detailsTab.first);
-      }
-      await tapAndSettle(tester, threadsTab.first);
+      break;
     }
-    if (await tryPumpUntilVisible(
-      tester,
-      askButton,
-      timeout: const Duration(seconds: 3),
-    )) {
+    if (finderHasMatch(messageInput)) {
       return;
     }
   }
+  await enterChatIfNeeded(tester);
 }
 
+Future<void> popToThreadsListIfNeeded(WidgetTester tester) =>
+    popToChatIfNeeded(tester);
+
 Future<void> enterThreadsIfNeeded(WidgetTester tester) async {
+  await enterChatIfNeeded(tester);
   final askButton = find.byKey(TestIds.key(TestIds.coordinationAskCreate));
   final askLabel = find.text('Ask');
-  if (await tryPumpUntilVisible(
-        tester,
-        askButton,
-        timeout: const Duration(milliseconds: 500),
-      ) ||
-      await tryPumpUntilVisible(
-        tester,
-        askLabel,
-        timeout: const Duration(milliseconds: 500),
-      )) {
+  if (finderHasMatch(askButton) || finderHasMatch(askLabel)) {
     return;
   }
-  await popToThreadsListIfNeeded(tester);
-  if (!finderHasMatch(askButton) && !finderHasMatch(askLabel)) {
-    final scrollables = find.byType(Scrollable);
-    if (scrollables.evaluate().isNotEmpty) {
-      await tester.drag(scrollables.first, const Offset(0, 320));
-      await tester.pumpAndSettle();
-    }
+  final scrollables = find.byType(Scrollable);
+  if (scrollables.evaluate().isNotEmpty) {
+    await tester.drag(scrollables.first, const Offset(0, 320));
+    await tester.pumpAndSettle();
   }
   await pumpUntil(
     tester,
@@ -705,48 +676,39 @@ Future<void> enterThreadsIfNeeded(WidgetTester tester) async {
   );
 }
 
-bool _isRequestThreadRowKey(Key? key) {
-  return key is ValueKey<String> && key.value.startsWith('request.thread.');
+String _coordinationItemIdFromMenuKey(ValueKey<String> key) {
+  const prefix = 'coordination.item.';
+  const suffix = '.menu';
+  final value = key.value;
+  return value.substring(prefix.length, value.length - suffix.length);
 }
 
-String _threadIdFromRowKey(ValueKey<String> key) =>
-    key.value.replaceFirst('request.thread.', '');
-
-Finder _requestThreadRowForTitle(String title) => find
-    .ancestor(
-      of: find.text(title),
-      matching: find.byWidgetPredicate((w) => _isRequestThreadRowKey(w.key)),
+Finder _coordinationMenuNearTitle(String title) => find
+    .descendant(
+      of: find.ancestor(of: find.text(title), matching: find.byType(Widget)),
+      matching: find.byWidgetPredicate((w) {
+        final key = w.key;
+        return key is ValueKey<String> &&
+            key.value.startsWith('coordination.item.') &&
+            key.value.endsWith('.menu');
+      }),
     )
     .first;
 
-RequestThread _requestThreadForTitle(WidgetTester tester, String title) {
-  final row = _requestThreadRowForTitle(title);
-  final threadId = _threadIdFromRowKey(
-    tester.widget(row).key! as ValueKey<String>,
-  );
-  return RequestThread(
-    threadId: threadId,
-    kind: RequestThreadKind.blocker,
-  );
+Future<String> _coordinationItemIdForTitle(WidgetTester tester, String title) async {
+  await pumpUntilVisible(tester, find.text(title));
+  if (!finderHasMatch(_coordinationMenuNearTitle(title))) {
+    throw StateError(
+      'coordination item menu missing for "$title": ${_screenDump()}',
+    );
+  }
+  final menu = _coordinationMenuNearTitle(title);
+  final key = tester.widget(menu).key! as ValueKey<String>;
+  return _coordinationItemIdFromMenuKey(key);
 }
 
-String _coordinationItemIdForTitle(WidgetTester tester, String title) {
-  final menu = find
-      .descendant(
-        of: _requestThreadRowForTitle(title),
-        matching: find.byWidgetPredicate((w) {
-          final key = w.key;
-          return key is ValueKey<String> &&
-              key.value.startsWith('coordination.item.') &&
-              key.value.endsWith('.menu');
-        }),
-      )
-      .first;
-  final key = (tester.widget(menu).key! as ValueKey<String>).value;
-  const prefix = 'coordination.item.';
-  const suffix = '.menu';
-  return key.substring(prefix.length, key.length - suffix.length);
-}
+RequestThread _requestThreadForItemId(String itemId, RequestThreadKind kind) =>
+    RequestThread(threadId: itemId, kind: kind);
 
 Future<RequestThread> createCoordinationItem(
   WidgetTester tester, {
@@ -799,8 +761,14 @@ Future<RequestThread> createCoordinationItem(
     }
   }
   await pumpUntilVisible(tester, itemTitle);
-  await popToThreadsListIfNeeded(tester);
-  return _requestThreadForTitle(tester, title);
+  await popToChatIfNeeded(tester);
+  final itemId = await _coordinationItemIdForTitle(tester, title);
+  final kind = switch (launcherId) {
+    TestIds.coordinationAskCreate => RequestThreadKind.ask,
+    TestIds.coordinationPromiseCreate => RequestThreadKind.promise,
+    _ => RequestThreadKind.blocker,
+  };
+  return _requestThreadForItemId(itemId, kind);
 }
 
 /// Resolves the specified active item. Drafts are also listed in the Threads
@@ -810,16 +778,10 @@ Future<void> resolveCoordinationItem(
   WidgetTester tester, {
   required String title,
 }) async {
-  await enterThreadsIfNeeded(tester);
+  await enterChatIfNeeded(tester);
   final itemTitle = find.text(title);
   await pumpUntilVisible(tester, itemTitle);
-  final itemCard = _requestThreadRowForTitle(title);
-  if (!finderHasMatch(itemCard)) {
-    throw StateError(
-      'coordination item card missing for "$title": ${_screenDump()}',
-    );
-  }
-  final itemId = _coordinationItemIdForTitle(tester, title);
+  final itemId = await _coordinationItemIdForTitle(tester, title);
   final menu = find.byKey(TestIds.key(TestIds.coordinationItemMenu(itemId)));
   if (!await tryPumpUntilVisible(tester, menu)) {
     final menuKeys = find
