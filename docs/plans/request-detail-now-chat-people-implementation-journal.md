@@ -112,7 +112,7 @@ Order is the plan's §5 order (dependency-aware; it was already reordered in rev
 | U2 | `BeaconSurface` enum + `beaconVisibleSurfaces`, added alongside old constants | §4.1 | none | **folded into U4** (OD-5) |
 | U3 | `BeaconRoomLease` refcount + `ThreadHostCubit` guard tightening | §4.5 | `thread_host_cubit_test.dart` | complete |
 | U4 | Four surface widgets (NOW / ROOM / PEOPLE / tabs), not yet wired | §4.4 | none | complete |
-| U5 | `ThreadDetailGeneralTitle.onFacePileTap` + drop `ExcludeSemantics` | §3.1 | `thread_detail_test.dart` (title assertions) | pending |
+| U5 | `ThreadDetailGeneralTitle.onFacePileTap` + drop `ExcludeSemantics` | §3.1 | `thread_detail_test.dart` (title assertions) | complete |
 | U6a | Wire surfaces into `BeaconViewScreen`: tab row below app bar, latched split, `PopScope` | §4.1, §4.3, §4.6 | `beacon_view_room_split_contract_test.dart` | pending |
 | U6b | Delete `beacon_operational_scroll_view.dart`, `threads_list.dart`, `item_card.dart`; remove `labelBeaconTabDiscussion` | §4.4, §7 | `threads_list_test.dart` + `item_card_golden_test.dart` (+4 goldens) **delete**; `promise_composer_live_wiring_test.dart`, `beacon_hierarchy_view_test.dart`, `beacon_tab_reselect_folds_test.dart`, `beacon_operational_scroll_view_pinned_facts_test.dart`, `beacon_view_room_split_contract_test.dart` **migrate** | pending |
 | U7a | **add** `labelBeaconTabNow` / `labelBeaconTabChat` | §7 | `test/l10n/` | **DONE** by overseer `151e35e9c` (OD-6) |
@@ -197,3 +197,9 @@ Independently verified: `beacon_view` + `beacon_threads` suites **571 passed / 1
 **Worker green-claim was stale.** U4 reported "0 errors, 89 warnings"; the measured value was **91** — two unused imports in files the unit itself created. Fixed by the overseer; analyze back to 0/89. Lesson recorded: worker-reported analyze counts are not evidence, only the overseer's own re-run is (this is why OD-2 exists).
 
 **U6 split into U6a/U6b.** Screen recomposition plus three widget deletions plus five test migrations is too much for one reliable turn. U6a wires the surfaces in; U6b removes the dead widgets and migrates their tests (and takes U7b).
+
+### [U5] checkpoint — 2026-09-07T23:15:00+02:00
+COMMITS: (pending) / TESTS: thread_detail_test +3 green / FILES: thread_detail.dart / FINDINGS: reused `beaconHudPeopleRowSemantics` for button label; `Semantics(onTap:)` + `ExcludeSemantics` on inner pile when callback set / REMAINING: commits + full-suite verify + journal final
+
+### [U5] complete — 2026-09-07T23:20:00+02:00
+COMMITS: 357bdc48f feat(beacon-threads): add onFacePileTap to ThreadDetailGeneralTitle; 3f415db79 test(beacon-threads): cover ThreadDetailGeneralTitle face pile tap / TESTS: `cd packages/client && flutter analyze --no-fatal-warnings --no-fatal-infos` → exit 0, 0 errors, 89 warnings; `cd packages/client && flutter test test/features/beacon_threads/` → +296 passed, ~14 skipped, 0 failed; `bash scripts/check-custom-lints.sh packages/client` → exit 0, total 32 (baseline 32) / FILES: packages/client/lib/features/beacon_threads/ui/widget/thread_detail.dart, packages/client/test/features/beacon_threads/thread_detail_test.dart, docs/plans/request-detail-now-chat-people-implementation-journal.md / FINDINGS: reused existing `beaconHudPeopleRowSemantics` ("People involved") — no new l10n keys; when `onFacePileTap` is set, outer `Semantics(button:, onTap:)` + `ExcludeSemantics` on inner pile gives assistive activation without making the title row a button / REMAINING: U6a wires `onFacePileTap` → People tab in `beacon_view_screen.dart`; U6b deletes `item_card.dart` affordance
