@@ -16,6 +16,8 @@ Russian: **запрос** / **запросы**; workspace **обсуждение
 
 One conversation inside the workspace is a **thread** / **тема**; the built-in thread is **General** / **Общее** (not a glossary-table column).
 
+**Chat** (`labelBeaconTabChat` / «Чат») is the sanctioned **short tab-label form** of the discussion workspace on request detail — not a separate product noun. Keep **discussion** / **обсуждение** as the general workspace noun everywhere else (admission copy, push, sheets, `docs/features/beacon_room.md`).
+
 ## Forbidden
 
 - `Request` domain entity, `request` table, `RequestRepository`, `/request/*` routes, `features/request_*` module.
