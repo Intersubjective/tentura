@@ -301,3 +301,17 @@ Design is sound: `isBeaconRoomPresented({isSplit, selectedSurface})` is a pure, 
 Remaining `ThreadDetailRoute(` constructors are exactly the four U10 owns: `thread_detail_screen.dart:181`, `beacon_view_host_screen.dart:165`, `root_router.dart:46`, `browse_deep_link.dart:72`.
 
 Process note: U9 committed its journal entry inside the code commit rather than separately. Content was complete; noting only so the pattern is visible.
+
+### [overseer] U10 accepted — 2026-09-08
+**Full suite 2725 passed / 30 skipped / 0 failed**; analyze **0 errors, 89 warnings**; custom lints **32**.
+
+Verified by measurement, not report:
+- `ThreadDetailRoute` has **zero** references left in `lib/` (outside generated `.gr.dart`); `thread_detail_screen.dart` is deleted.
+- `TestIds.beaconTabThreads` / `beaconTabLog` have **zero** references across `lib/`, `test/`, `integration_test/` and are removed.
+- `test/domain/attention/destination_map_test.dart` is **untouched** (0 changed lines) — which is the real proof that the `?tab=` wire values were preserved and server-issued receipts need no migration.
+- `beacon_view_route_normalizer.dart` documents and implements all five §6.1 precedence rules, including rule 3 (a legacy thread id drops `message=`).
+- The old compile-only shim is gone. The remaining `RequestThreadKind.blocker` in the e2e helpers is NOT the old fabrication: it is a `switch` over which launcher the test actually clicked (`coordinationAskCreate` -> ask, `coordinationPromiseCreate` -> promise, else blocker), which is legitimate.
+
+### Correction to U10's own FINDINGS (3) — attribution was wrong
+
+U10 reported that `createCoordinationItem` "still depends on Ask/Blocker HUD launchers **removed in U6b**". It checked out that the dependency is real — `TestIds.coordinationAskCreate` / `coordinationPromiseCreate` / `coordinationBlockerCreate` appear **nowhere** in `packages/client/lib` — but the attribution is wrong. At the branch point (`main` @ `40fd7bae1`) those ids had **0 occurrences in `lib/` either**. So this integration helper was ALREADY targeting launchers that do not exist in the app, before this branch started. It is a **pre-existing** broken helper, not a regression introduced here, and per OD-2 it is out of scope to fix. Recorded so nobody later bisects this onto the redesign.
