@@ -273,3 +273,13 @@ U10 must **replace** this shim with real navigation against the new surfaces, no
 
 ### [U8] complete — 2026-09-08T00:15:00+02:00
 COMMITS: c89ef707b feat(beacon-view): add Activity adaptive sheet for coordination log; 1fb8f40c8 feat(beacon): wire Activity log entry in request overflow menu; 8e83a944c feat(beacon-view): open Activity sheet from overflow and ?tab=log compat; 153bf1c8e test(beacon-threads): re-enable Activity sheet plan-row adaptive test; 7abe0c8e9 test(beacon-view): cover Activity sheet scroll, liveness, and log-row focus / TESTS: `cd packages/client && flutter analyze --no-fatal-warnings --no-fatal-infos` → exit 0, **0 errors, 89 warnings**; `cd packages/client && flutter test` → **+2705 passed, ~30 skipped, 0 failed** (skip −1 vs U6b); `bash scripts/check-custom-lints.sh packages/client` → exit 0, **total 32** (baseline 32) / FILES: `beacon_activity_sheet.dart`, `beacon_overflow_menu.dart`, `beacon_view_app_bar_overflow.dart`, `beacon_view_screen.dart`, `test_ids.dart`, `request_threads_adaptive_test.dart`, `beacon_activity_sheet_test.dart` / FINDINGS: sheet takes explicit `BeaconViewCubit` + `BlocBuilder` (pinned-facts pattern); log-row tap pops sheet post-frame then reuses `_onTapCoordinationLogEvent`; `_clearOperationalFocus` wired on People/Chat tab reselect (replaces operational-scroll pointer-down path); overflow menu tap in tests must use `labelBeaconTabLog` text — keyed item can miss hit-test on wide split chrome / REMAINING: none — U8 debt items 1–3 cleared; U9 anchor navigation next
+
+### [overseer] U8 accepted — 2026-09-07
+**Full suite 2705 passed / 30 skipped / 0 failed**; analyze **0 errors, 89 warnings**; custom lints **32**.
+
+Both §4.7 requirements — the ones the sheet does NOT get for free from the old tab — are present in `beacon_activity_sheet.dart`: `ConstrainedBox` + `SingleChildScrollView` (bounded scroll for a plain `Column` list) and its own `BlocBuilder<BeaconViewCubit, BeaconViewState>` (liveness across the Navigator boundary, since a sheet does not inherit page providers).
+
+**All three recorded debts verified clear, by measurement not by claim:**
+1. `grep -c 'ignore: unused_element' beacon_view_screen.dart` -> **0**
+2. `grep -c 'TODO(U8)' beacon_view_screen.dart` -> **0**
+3. Skip count **31 -> 30**; the only remaining `skip: true` in the client tree is the pre-existing `promise_composer_live_wiring_test.dart:282` (Task 12, not ours).
