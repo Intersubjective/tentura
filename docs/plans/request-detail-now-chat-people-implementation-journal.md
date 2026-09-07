@@ -119,7 +119,7 @@ Order is the plan's §5 order (dependency-aware; it was already reordered in rev
 | U7b | **remove** `labelBeaconTabDiscussion` | §7 | `test/l10n/` | folded into U6 (OD-6) |
 | U8 | Activity sheet + overflow entry | §4.7 | `activity_list_padding_test.dart` | complete |
 | U9 | Anchor navigation off `ThreadDetailRoute` in `coordination_room_navigation.dart`, `room_message_tile.dart` | §4.8 | `room_message_tile_coordination_test.dart` | complete |
-| U10 | Routing + deep links + `build_runner`; fold away `ThreadDetailScreen` | §4.6, §6, §6.1 | `request_thread_routing_test.dart`, `nested_beacon_navigation_test.dart`, `thread_detail_test.dart`, `request_threads_adaptive_test.dart`, `integration_test/*` | pending |
+| U10 | Routing + deep links + `build_runner`; fold away `ThreadDetailScreen` | §4.6, §6, §6.1 | `request_thread_routing_test.dart`, `nested_beacon_navigation_test.dart`, `thread_detail_test.dart`, `request_threads_adaptive_test.dart`, `integration_test/*` | complete |
 | U11 | Docs, rules, client semver bump + web cache-buster | §9 | doc-drift script | pending |
 | U12 | New suites T1–T10 | §8 | — | pending |
 
@@ -289,6 +289,9 @@ COMMITS: (see git log) / TESTS: `cd packages/client && flutter analyze --no-fata
 
 ### [U10] checkpoint — 2026-09-08T00:30:00+02:00
 COMMITS: pending / TESTS: router + thread_detail green / FILES: normalizer, root_router, browse_deep_link, host canonicalizer, deleted thread_detail_screen, tests, e2e / FINDINGS: deep-link transformer rewrites `/thread/:id` before match; integration createCoordinationItem still depends on HUD launchers removed in U6 — runtime unverified / REMAINING: full-suite verify + commits + journal final
+
+### [U10] complete — 2026-09-08T00:35:00+02:00
+COMMITS: d11754753 refactor(client): retire pushed ThreadDetailRoute via shared deep-link normalizer; 123c384a3 test(client): migrate routing and room surface tests for U10 redirect; 96e3b3e29 test(integration): drive CHAT tab navigation and drop compile-only thread shim / TESTS: `cd packages/client && dart run build_runner build -d` → exit 0; `cd packages/client && flutter analyze --no-fatal-warnings --no-fatal-infos` → exit 0, **0 errors, 89 warnings**; `cd packages/client && flutter test` → **+2725 passed, ~30 skipped, 0 failed**; `bash scripts/check-custom-lints.sh packages/client` → exit 0, **total 32** (baseline 32) / FILES: `beacon_view_route_normalizer.dart`, `root_router.dart`, `browse_deep_link.dart`, `beacon_view_host_screen.dart` (canonicalizer), deleted `thread_detail_screen.dart`, `test_ids.dart`, `beacon_view_route_normalizer_test.dart`, routing/thread_detail/adaptive tests, `integration_test/*` / FINDINGS: (1) `/thread/:id` URLs rewrite to query form via `normalizeBeaconViewThreadDeepLink` in `deepLinkTransformer` — covers warm notification path where AutoRoute would merge query over redirect defaults. (2) Non-general thread + `message=` drops message per §6.1 rule 3. (3) `createCoordinationItem` e2e helper still looks for Ask/Blocker HUD launchers removed in U6b — **integration runtime for coordination-item creation remains unverified** until a QA API or restored composer entry exists. (4) `destination_map_test.dart` unchanged as required. / REMAINING: none — U11 docs/version next
 
 ### [overseer] U9 accepted — 2026-09-08
 **Full suite 2711 passed / 30 skipped / 0 failed**; analyze **0 errors, 89 warnings**; custom lints **32**. Both F4 files verified to contain **zero** `ThreadDetailRoute` references.
