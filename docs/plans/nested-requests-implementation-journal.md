@@ -2176,3 +2176,157 @@ those cases (same as standalone beacons since Task 03).
 
 **Task 15 overall:** partial — child-independence PG regression complete; release/versioning,
 multiclient browser gate, and `docs/README.md` release notes remain open.
+
+### Task 15 — release version bump (manager, 2026-09-07)
+
+Client `pubspec.yaml` 6.16.4 -> 7.0.0; server `pubspec.yaml` 2.1.0 -> 3.0.0 (major,
+matching the client's breaking bump per `versioning.mdc`); `web/index.html`
+`flutter_bootstrap.js` cache-buster query to `7.0.0` (matches
+`resolveWebBuildVersion()`'s bare-pubspec-version fallback for local builds);
+`packages/server/lib/env.dart` `kDefaultMinClientVersion` `6.12.16` -> `7.0.0`
+with a rationale comment matching the existing style; `.env.example`
+`MIN_CLIENT_VERSION` override guidance updated to
+match (its own "currently 6.0.0" comment was already stale before this
+change — corrected too). Also corrected two now-stale "not implemented"
+`docs/README.md` pointers to the nested-requests plan docs (a pre-existing
+uncommitted edit from before this session; `docs/README.md` is an explicit
+Task 15 target file).
+
+Audited for other tracked references to the old version strings
+(`6.16.4`/`6.12.16`) — none found outside untracked `reports/` run artifacts.
+Verified: `dart analyze` clean on every touched file (info-level only,
+pre-existing style); full server suite 1651/1651; `check-custom-lints.sh`
+clean on both packages (baselines unchanged); `git diff --check` clean.
+Commit `20afcbcf1`.
+
+**Correction**: commit `2353e2730` (documentation slice, prior entry) swept
+two pre-existing, untracked draft files
+(`docs/plans/request-threads-architecture.md`,
+`docs/plans/request-threads-implementation-plan.md` — present since before
+this session, unrelated to this plan) into git tracking via a broad `git add`
+alongside its own intended two-line "Superseded" header edit. Restored both
+to their exact pre-edit content and untracked them (`git rm --cached`);
+matches the repo's own established convention (confirmed via `git ls-files`)
+that architecture/plan docs stay untracked scratch — only journals get
+committed. Commit `751a94c37`.
+
+### Task 15 — multiclient browser acceptance gate (manager, 2026-09-07)
+
+Ran `./scripts/run_realtime_multiclient_web_local.sh` to completion after
+extending it (Task 14's own worker had added a nested-hierarchy scenario but
+never actually executed it end-to-end — infra wasn't started in that
+session). Getting a first green single-run sanity pass required finding and
+fixing **eight** real, independently-verified defects. All are either
+pre-existing tech debt from unrelated recent commits (surfaced only now
+because earlier, unrelated harness breakage had always stopped every prior
+run before reaching this code) or genuine gaps in this plan's own Task 13/14
+work that had never been exercised end-to-end in a browser before. None are
+regressions from this session's own Task 15 doc/version-bump work.
+
+1. **Pre-existing harness string/wiring drift** (commit `fb7c13e15`, from
+   Task 14 review) — Updates "Mark all seen" label renamed to "Read all"
+   (`d19563e47`); beacon-create CTA "Recipients" renamed to "Next:
+   Recipients" (`1c19ae330`'s one-step form); My Work status the harness
+   waited for ("Closed by") never matched `myWorkStatusLine`'s real output
+   ("Wrapping up"); `44ce713a5` split the forward-recipient row's tap
+   (opens details) from its selection checkbox but only wired the
+   checkbox's widget `Key`, never a `Semantics(identifier:)` — fixed in
+   `forward_recipient_row.dart` and pointed the harness at the checkbox.
+2. **`published_at` never set on two beacon-creation paths**
+   (`beacon_repository.dart`, commits `e3a5ce729` + `cfefd5530`) —
+   `createBeacon()` (direct `draft:false` create, also used by `fork`) and
+   the top-level `publishDraft()` (the client's *actual* one-step-form
+   code path: autosave draft, then `beaconPublish` on submit) both set
+   `status`/`statusChangedAt` but never `published_at`, unlike their
+   sibling `createChildBeacon()`/`publishChildDraft()`, which already did
+   this correctly. Nothing depended on the column until this plan's own
+   `loadParentValidationRow.isPublished` check (`status != draft &&
+   published_at IS NOT NULL`) started reading it: every top-level beacon
+   was permanently ineligible to become a hierarchy parent
+   ("Parent request cannot accept child requests", code 1310). Confirmed
+   via direct `psql` query against the local dev database before and after
+   each fix. Full server suite reran green (1651/1651) after each.
+3. **`wrapUpForReview` never clicked its own confirm sheet** — the harness
+   called `beacon.hud_author_action.wrapUpForReview` but never the
+   resulting "Close and wrap up?" sheet's "Close request" button, so the
+   beacon silently never transitioned and every subsequent "Wrapping up"
+   convergence check just timed out. The button itself had the same
+   missing-`Semantics(identifier:)` bug as item 1's checkbox
+   (`beacon_close_confirm_sheet.dart`) — fixed both the widget and the
+   harness (commit `ab88ad00e`).
+4. **`_mapThreadMessagePreview` crashed the entire thread list** when a
+   thread's last message was a hierarchy lifecycle/child-created system
+   notice (empty body, no semantic marker, no linked item, no attachment —
+   its content lives in `system_payload`) — `throw StateError('Unmapped
+   last-message preview family')` silently killed the whole `beaconThreads`
+   GraphQL query, hiding the General thread from the Threads overview with
+   no visible client-side error. Root-caused via a temporary diagnostic
+   GraphQL dump (removed after use). This is squarely this plan's own gap
+   (Task 13 added the new system message kind but never taught the
+   pre-existing preview mapper about it) — fixed by degrading to an empty
+   text preview for any unrecognized message family instead of throwing,
+   so preview computation can never again break the whole list for a
+   message kind it doesn't know about (commit `ab88ad00e`).
+5. **Nested-hierarchy scenario ran too late** — Task 14's own new scenario
+   tried to create a child on the main journey beacon *after* it had
+   already progressed through the review-window steps; a beacon that has
+   entered review can no longer accept child requests (by design). Moved
+   the scenario to run right after the base convergence steps, before any
+   review-window transition (commit `ab88ad00e`).
+6. **Nested-hierarchy scenario asserted the child's title in the wrong
+   place** — it opened the actual General chat and waited for the child's
+   title to appear there, but the hierarchy notice rendered in chat only
+   ever says the fixed string "Child request created", never the child's
+   own title; the title only renders on the child's own card in
+   `BeaconChildRequestsSection`, on the Threads overview page. Fixed to
+   stay on the overview (matching the scenario's own "without navigation"
+   comment) instead of opening General (commit `ab88ad00e`).
+7. **`beaconChildCreate` also requires `description`**, matching the
+   already-known `beaconCreate` requirement from item 2's investigation —
+   fixed both helper functions in the harness (commits `fb7c13e15`,
+   `ab88ad00e`).
+8. **Redundant/ambiguous polling condition inflated a delivery-latency
+   measurement above its budget** — `my_work_102_delivery_ms` (the Issue
+   #102 replacement scenario's own metric, see Task 14 entry above)
+   consistently measured ~2000ms against a 1500ms per-run budget, twice in
+   a row, while every other metric in the same run stayed comfortably
+   under 1300ms — ruling out general system load. Root cause: the poll
+   condition ANDed `helper.hasText('Coordinating the plan')` (always
+   trivially true from the first poll, since the main journey beacon
+   already shows that exact phase text on the same My Work list) with the
+   real, precise signal (a receipt id delta on `helperPeer`), doubling the
+   WebDriver round-trips on every 100 ms tick. Removing the redundant
+   condition dropped the measurement to ~215-220ms, reproduced across four
+   subsequent runs. Test-code efficiency bug, not a product regression
+   (commit `7ce9c998a`).
+
+**Final acceptance evidence** (`reports/realtime-multiclient/20260907-120413/`,
+git revision `7ce9c998a`): 5 consecutive full-journey runs, all green, every
+timing metric comfortably inside budget across all 5
+(`inbox_delivery_ms` 1138-1218, `chat_delivery_ms` 165-260,
+`my_work_status_ms` 763-1078, `my_work_review_ms` 333-847,
+`my_work_102_delivery_ms` 216-235, etc. — full per-run breakdown in that
+directory's `run-*/timings.json`); both negative proofs (`live` and
+`catch_up` convergence disabled) correctly produced their expected failures,
+confirming the harness actually exercises the realtime mechanism rather than
+trivially passing. Default runner invocation used
+(`./scripts/run_realtime_multiclient_web_local.sh`, `RUNS=5`,
+`NEGATIVE_PROOFS=true` — the script's own defaults).
+
+Also ran, independently of the browser gate: full client suite
+(`flutter test --dart-define=ENV=test`, repo root) — 2670 passed, 34 skipped,
+0 failed; `packages/tentura_lints` suite — 18/18 passed.
+
+Retired-API verification (plan §8 minimum-scenario item 7, "every retired
+public API/old deep link is unavailable"): confirmed `markAsk`, `acceptAsk`,
+`cancelAsk`, `createDraftAsk`, `createDraftBlocker`, `createDraftPromise`,
+`markBlocker`, `resolveBlocker`, `deleteDraftPromise` all absent from the
+current client schema (`packages/client/lib/data/gql/schema.graphql`) and
+from server mutation registrations — zero matches for any of them.
+
+**Task 15 overall: complete.** All items from this task's own scope (child-
+independence proof, documentation slice, release version bump, multiclient
+browser gate) have passing evidence recorded above. Remaining before the
+whole plan can be declared done: final `docs/README.md` release-notes pass
+(optional, not required by §8), and the manager's own final cross-task
+completion review against plan §10.
