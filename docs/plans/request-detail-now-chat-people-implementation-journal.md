@@ -78,6 +78,10 @@ Resolution: **migrating an existing test is part of the unit that breaks it.** U
 
 **OD-4 — No push, no PR, no branch force-update.** Commits stay local on `feat/request-detail-now-chat-people`.
 
+**OD-5 — Two manifest adjustments.**
+(a) **U2 is folded into U4.** U2 is a pure additive declaration (`BeaconSurface` enum + `beaconVisibleSurfaces`) with no behaviour of its own; its only acceptance criterion is "it compiles", and U4 is its first consumer. A separate worker session for ~15 lines is waste. U4's review covers both.
+(b) **`BeaconRoomLease` lives in `ui/util/`, not `ui/widget/`.** Plan §4.4 filed it under `ui/widget/`, but it is a plain controller class, not a widget, and this repo already keeps non-widget UI helpers in `features/beacon_view/ui/util/` (`beacon_hud_derivation.dart`, `beacon_closure_readiness.dart`, `beacon_accordion_sections.dart`).
+
 ---
 
 ## Baseline (recorded before any worker ran)
@@ -101,7 +105,7 @@ Order is the plan's §5 order (dependency-aware; it was already reordered in rev
 | # | Unit | Plan § | Existing tests this unit must also migrate (OD-1) | Status |
 |---|---|---|---|---|
 | U1 | Design-system tab support (`compactIconTabs`, `tabCompactWidth`, 48 dp min height) | §4.2 | `test/design_system/tentura_underline_tabs_test.dart` (must stay green unchanged) | complete |
-| U2 | `BeaconSurface` enum + `beaconVisibleSurfaces`, added alongside old constants | §4.1 | none | pending |
+| U2 | `BeaconSurface` enum + `beaconVisibleSurfaces`, added alongside old constants | §4.1 | none | **folded into U4** (OD-5) |
 | U3 | `BeaconRoomLease` refcount + `ThreadHostCubit` guard tightening | §4.5 | `thread_host_cubit_test.dart` | pending |
 | U4 | Four surface widgets (NOW / ROOM / PEOPLE / tabs), not yet wired | §4.4 | none | pending |
 | U5 | `ThreadDetailGeneralTitle.onFacePileTap` + drop `ExcludeSemantics` | §3.1 | `thread_detail_test.dart` (title assertions) | pending |
