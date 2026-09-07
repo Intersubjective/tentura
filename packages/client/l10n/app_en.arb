@@ -3712,6 +3712,8 @@
   "labelBeaconTabLog": "Log",
   "labelBeaconTabThreads": "Threads",
   "labelBeaconTabDiscussion": "Discussion",
+  "labelBeaconTabNow": "Now",
+  "labelBeaconTabChat": "Chat",
   "beaconChildRequestsTitle": "Child requests",
   "beaconCreateChildRequest": "Create child request",
   "beaconChildRequestsEmpty": "No child requests yet",

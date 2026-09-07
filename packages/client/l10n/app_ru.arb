@@ -3699,6 +3699,8 @@
   "labelBeaconTabLog": "Журнал",
   "labelBeaconTabThreads": "Темы",
   "labelBeaconTabDiscussion": "Обсуждение",
+  "labelBeaconTabNow": "Сейчас",
+  "labelBeaconTabChat": "Чат",
   "beaconChildRequestsTitle": "Дочерние запросы",
   "beaconCreateChildRequest": "Создать дочерний запрос",
   "beaconChildRequestsEmpty": "Дочерних запросов пока нет",
