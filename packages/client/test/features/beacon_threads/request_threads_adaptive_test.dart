@@ -15,6 +15,7 @@ import 'package:tentura/design_system/components/tentura_underline_tabs.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/beacon_activity_event.dart';
+import 'package:tentura/domain/entity/beacon_activity_event_consts.dart';
 import 'package:tentura/domain/entity/beacon_participant.dart';
 import 'package:tentura/domain/entity/beacon_room_consts.dart';
 import 'package:tentura/domain/entity/coordination_item.dart';
@@ -530,6 +531,31 @@ Future<void> _tapChatTab(WidgetTester tester) async {
   await tester.pump(const Duration(milliseconds: 100));
 }
 
+BeaconActivityEvent _coordinationEvent({
+  required CoordinationItemKind kind,
+  required String itemId,
+  CoordinationItemEventKind eventKind = CoordinationItemEventKind.created,
+  String? sourceMessageId,
+}) =>
+    BeaconActivityEvent(
+      id: 'ev-$itemId',
+      beaconId: _kBeaconId,
+      visibility: BeaconActivityEventVisibilityBits.room,
+      type: kind.value * 100 + eventKind.value,
+      createdAt: _kNow,
+      coordinationItemId: itemId,
+      sourceMessageId: sourceMessageId,
+    );
+
+Future<void> _openActivitySheetFromOverflow(WidgetTester tester) async {
+  final l10n = await L10n.delegate.load(const Locale('en'));
+  await tester.tap(find.byKey(TestIds.key(TestIds.beaconOverflowMenu)));
+  await tester.pumpAndSettle();
+  await tester.tap(find.text(l10n.labelBeaconTabLog).last);
+  await tester.pump();
+  await tester.pump(const Duration(milliseconds: 400));
+}
+
 Future<void> _setupGetIt({Profile? profile}) async {
   final getIt = GetIt.I;
   if (getIt.isRegistered<CoordinationItemCase>()) {
@@ -1042,11 +1068,50 @@ void main() {
   });
 
   group('Log adaptive', () {
-    // TODO(U8): Activity sheet owns log-row navigation; ?tab=log selects NOW until U8.
     testWidgets(
-      'plan row opens General and scrolls to sourceMessageId — TODO(U8): Activity sheet',
-      (tester) async {},
-      skip: true,
+      'plan row in Activity sheet opens General and scrolls to sourceMessageId',
+      (tester) async {
+        const planId = 'log-plan';
+        const messageId = 'msg-plan-anchor';
+        final plan = _item(
+          id: planId,
+          kind: CoordinationItemKind.plan,
+          linkedMessageId: messageId,
+        );
+        final threads = _threadsState(
+          threads: [_generalThread(), _semanticThread(item: plan)],
+        );
+        final recorder = RoomCubitFactoryRecorder();
+        final host = _host(recorder: recorder);
+        final beacon = _authorBeaconState(
+          roomActivityEvents: [
+            _coordinationEvent(
+              kind: CoordinationItemKind.plan,
+              itemId: planId,
+              sourceMessageId: messageId,
+            ),
+          ],
+        );
+        await _pumpHarness(
+          tester,
+          size: _kExpanded,
+          beaconState: beacon,
+          threadsState: threads,
+          host: host,
+          recorder: recorder,
+        );
+        await _openActivitySheetFromOverflow(tester);
+
+        final l10n = await L10n.delegate.load(const Locale('en'));
+        await tester.tap(find.text(l10n.coordinationSemanticPlanOpened).first);
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 100));
+
+        expect(host.state.openThreadId, RequestThread.generalId);
+        final roomCubit = recorder.created.last;
+        expect(roomCubit.lastScrollMessageId, messageId);
+        expect(roomCubit.lastScrollCoordinationItemId, planId);
+      },
     );
   });
 }
