@@ -121,7 +121,7 @@ Order is the plan's §5 order (dependency-aware; it was already reordered in rev
 | U9 | Anchor navigation off `ThreadDetailRoute` in `coordination_room_navigation.dart`, `room_message_tile.dart` | §4.8 | `room_message_tile_coordination_test.dart` | complete |
 | U10 | Routing + deep links + `build_runner`; fold away `ThreadDetailScreen` | §4.6, §6, §6.1 | `request_thread_routing_test.dart`, `nested_beacon_navigation_test.dart`, `thread_detail_test.dart`, `request_threads_adaptive_test.dart`, `integration_test/*` | complete |
 | U11 | Docs, rules, client semver bump + web cache-buster | §9 | doc-drift script | complete |
-| U12 | New suites T1–T10 | §8 | — | pending |
+| U12 | Remaining new suites T3 / T7 / T9 | §8 | — | **ACCEPTED** (overseer-verified, guards independently broken) |
 
 ---
 
@@ -339,3 +339,17 @@ Untracked count restored to **35**. The plan did list this file for updating (§
 
 ### [U12] complete — 2026-09-08T01:15:00+02:00
 COMMITS: e3448875d test(beacon-view): add T3/T7/T9 regression suites for request detail surfaces / TESTS: `cd packages/client && flutter analyze --no-fatal-warnings --no-fatal-infos` → exit 0, **0 errors, 89 warnings**; `cd packages/client && flutter test` → **+2736 passed, 30 skipped, 0 failed** (+11 widget tests: T3/T7/T9); `bash scripts/check-custom-lints.sh packages/client` → exit 0, **total 32** (baseline 32) / FILES: `test/features/beacon_view/beacon_view_screen_harness.dart` (shared harness), `beacon_surface_selection_test.dart` (T3 + §4.1 edges), `beacon_back_navigation_test.dart` (T7 app/Android back + `PopScope.canPop`), `beacon_message_canonicalizer_test.dart` (T9 canonicalizer + scroll hand-off), `integration_test/request_threads_navigation_test.dart` (T7 web leg) / FINDINGS: (1) `BeaconViewRecordingRoomCubit` must stub `isClosed` or CHAT tab layout throws during overflow build. (2) `find.byType(PopScope)` misses the request `PopScope` — use `find.byWidgetPredicate((w) => w is PopScope)`. (3) T7 NOW-leave widget leg uses nested `Navigator.maybePop()` (not `handlePopRoute`, which does not reach the inner stack in this harness); CHAT/PEOPLE legs still use `handlePopRoute()`. (4) T7 **web leg** added as `T7 web: browser back after PEOPLE tab switch reaches My Desk in one press` — requires `./scripts/run_client_integration_web_local.sh` (not runnable under `flutter test`). (5) Guard-breaking sanity checks run: reverting `_hadThreadRowsAtLeastOnce`, `PopScope.canPop`, and canonicalizer generation checks each made the corresponding new test fail. / REMAINING: none — plan §8 regression suites complete
+
+### [overseer] U12 accepted — 2026-09-08
+**Full suite 2736 passed / 30 skipped / 0 failed**; analyze **0 errors, 89 warnings**; custom lints **32**; doc-drift and terminology gates clean. Exactly one `skip: true` remains in the client tree (the pre-existing Task-12 one).
+
+**The guard-breaking claim was verified independently, not accepted on report.** The overseer temporarily reverted two guards and confirmed the new tests actually catch them:
+
+| Guard reverted | Result |
+|---|---|
+| `PopScope(canPop: _selectedSurface == BeaconSurface.now)` -> `canPop: false` | **4 T7 tests FAILED** |
+| `hasThreadRows: _hadThreadRowsAtLeastOnce` -> `threadsState.isSuccess && threads.isNotEmpty` | **T3 "expanded split -> compact selects CHAT" FAILED** |
+
+Both reverts restored; `git diff` clean on `beacon_view_screen.dart`; the three suites green again (11 tests). These are genuine regression tests — reverting either review fix breaks the build.
+
+Worker also reported three honest implementation notes worth keeping: `find.byType(PopScope)` does not match the request `PopScope` (needs `find.byWidgetPredicate`); the NOW-leave leg needs a nested `Navigator.maybePop()` rather than `handlePopRoute()`; and the T7 **web leg** is in `integration_test/` and cannot run under `flutter test`.
