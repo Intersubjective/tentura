@@ -113,7 +113,8 @@ Order is the plan's §5 order (dependency-aware; it was already reordered in rev
 | U3 | `BeaconRoomLease` refcount + `ThreadHostCubit` guard tightening | §4.5 | `thread_host_cubit_test.dart` | complete |
 | U4 | Four surface widgets (NOW / ROOM / PEOPLE / tabs), not yet wired | §4.4 | none | complete |
 | U5 | `ThreadDetailGeneralTitle.onFacePileTap` + drop `ExcludeSemantics` | §3.1 | `thread_detail_test.dart` (title assertions) | pending |
-| U6 | Screen recomposition; delete `beacon_operational_scroll_view.dart`, `threads_list.dart`, `item_card.dart` | §4.1, §4.3, §4.6 | `threads_list_test.dart` + `item_card_golden_test.dart` (+4 goldens) **delete**; `promise_composer_live_wiring_test.dart`, `beacon_hierarchy_view_test.dart`, `beacon_tab_reselect_folds_test.dart`, `beacon_operational_scroll_view_pinned_facts_test.dart`, `beacon_view_room_split_contract_test.dart` **migrate** | pending |
+| U6a | Wire surfaces into `BeaconViewScreen`: tab row below app bar, latched split, `PopScope` | §4.1, §4.3, §4.6 | `beacon_view_room_split_contract_test.dart` | pending |
+| U6b | Delete `beacon_operational_scroll_view.dart`, `threads_list.dart`, `item_card.dart`; remove `labelBeaconTabDiscussion` | §4.4, §7 | `threads_list_test.dart` + `item_card_golden_test.dart` (+4 goldens) **delete**; `promise_composer_live_wiring_test.dart`, `beacon_hierarchy_view_test.dart`, `beacon_tab_reselect_folds_test.dart`, `beacon_operational_scroll_view_pinned_facts_test.dart`, `beacon_view_room_split_contract_test.dart` **migrate** | pending |
 | U7a | **add** `labelBeaconTabNow` / `labelBeaconTabChat` | §7 | `test/l10n/` | **DONE** by overseer `151e35e9c` (OD-6) |
 | U7b | **remove** `labelBeaconTabDiscussion` | §7 | `test/l10n/` | folded into U6 (OD-6) |
 | U8 | Activity sheet + overflow entry | §4.7 | `activity_list_padding_test.dart` | pending |
@@ -187,3 +188,12 @@ TESTS: `cd packages/client && flutter analyze --no-fatal-warnings --no-fatal-inf
 FILES: packages/client/lib/features/beacon_view/ui/widget/beacon_view_constants.dart, beacon_surface_tabs.dart, beacon_now_surface.dart, beacon_room_surface.dart, beacon_people_surface.dart, packages/client/lib/ui/test_ids.dart, packages/client/test/features/beacon_view/beacon_surface_tabs_test.dart, beacon_now_surface_test.dart, docs/plans/request-detail-now-chat-people-implementation-journal.md
 FINDINGS: `BeaconViewState.unansweredHelpOffersCount` / `needCoordinationHelpOffersCount` are getters over `helpOffers`, not constructor fields — tab-badge tests build `TimelineHelpOffer` rows. `_HierarchyBootstrap` copied into `beacon_now_surface.dart` (original in `threads_list.dart` untouched until U6). Widgets are additive only; `beacon_operational_scroll_view.dart` / `threads_list.dart` / `item_card.dart` unchanged.
 REMAINING: none — U6 wires surfaces into `BeaconViewScreen`, deletes legacy widgets, migrates dependent tests.
+
+### [overseer] U4 accepted — 2026-09-07
+Independently verified: `beacon_view` + `beacon_threads` suites **571 passed / 15 skipped / 0 failed**; custom lints **32** (baseline); `beacon_operational_scroll_view.dart`, `threads_list.dart`, `item_card.dart` and the screen dir confirmed **untouched** (additive-only constraint held).
+
+`BeaconSurfaceTabs` index mapping is correct — the risk point of this unit. Every positional input to `TenturaUnderlineTabs` (`selectedIndex`, `compactIconTabs`, `attentionIndex`, all three badge lists, and the `onChanged` -> `BeaconSurface` mapping) is derived from `beaconVisibleSurfaces(isSplit:)`, with a NOW fallback when the selected surface is hidden. Its test drives BOTH `isSplit: false` (People at index 2) and `isSplit: true` (People at index 1). `BeaconRoomSurface` goes through `BeaconRoomLease` rather than touching `ThreadHostCubit` directly, and awaits `acquire` before `prepareThreadScroll`, as §4.5/§4.6 require.
+
+**Worker green-claim was stale.** U4 reported "0 errors, 89 warnings"; the measured value was **91** — two unused imports in files the unit itself created. Fixed by the overseer; analyze back to 0/89. Lesson recorded: worker-reported analyze counts are not evidence, only the overseer's own re-run is (this is why OD-2 exists).
+
+**U6 split into U6a/U6b.** Screen recomposition plus three widget deletions plus five test migrations is too much for one reliable turn. U6a wires the surfaces in; U6b removes the dead widgets and migrates their tests (and takes U7b).
