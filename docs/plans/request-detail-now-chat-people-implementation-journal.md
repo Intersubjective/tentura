@@ -318,3 +318,21 @@ Verified by measurement, not report:
 ### Correction to U10's own FINDINGS (3) — attribution was wrong
 
 U10 reported that `createCoordinationItem` "still depends on Ask/Blocker HUD launchers **removed in U6b**". It checked out that the dependency is real — `TestIds.coordinationAskCreate` / `coordinationPromiseCreate` / `coordinationBlockerCreate` appear **nowhere** in `packages/client/lib` — but the attribution is wrong. At the branch point (`main` @ `40fd7bae1`) those ids had **0 occurrences in `lib/` either**. So this integration helper was ALREADY targeting launchers that do not exist in the app, before this branch started. It is a **pre-existing** broken helper, not a regression introduced here, and per OD-2 it is out of scope to fix. Recorded so nobody later bisects this onto the redesign.
+
+### [overseer] U11 accepted, with a repair — 2026-09-08
+**Full suite 2725 passed / 30 skipped / 0 failed**; analyze **0 errors, 89 warnings**; `check-doc-drift.sh` clean; `check-user-facing-terminology.sh` ok.
+
+Version: `packages/client/pubspec.yaml` **7.0.0 -> 7.1.0** and `web/index.html` `flutter_bootstrap.js?v=7.1.0` — synchronized, per `.cursor/rules/versioning.mdc`. `kDefaultMinClientVersion` correctly left alone (client-only UI change).
+Docs: `beacon_room.md`, `client-ui-inventory.md`, `tentura-design-system.md` (documents `compactIconTabs`, `tabCompactWidth`, and the 48 dp floor), `.cursor/rules/terminology.mdc` + `CONTEXT.md` (Chat sanctioned as the short tab-label form only, discussion kept as the general noun — exactly plan §2.1).
+`docs/Tentura_current_status_quo.md` correctly **skipped** and left untouched.
+
+### ⚠️ Repair — U11 committed one of the repo owner's untracked files
+
+U11's `87652aedc` added **`docs/plans/request-threads-architecture.md`** (+1492 lines) to git. That file is on the preserve-only untracked list and was **absent from `main` at the branch point** (`git ls-tree 40fd7bae1` -> empty), i.e. it is the owner's work-in-progress. Committing it would have silently taken over authorship.
+
+Repaired with `git rm --cached` (index only). The file and U11's three plan-§9 annotations remain on disk, untracked, for the owner to keep or drop:
+- L3 — "Superseded UX (shipped 2026-09)" banner
+- L145 — D1 annotated "Shipped as NOW / Chat / People"
+- L1448 — "Settled (shipped)" bullet
+
+Untracked count restored to **35**. The plan did list this file for updating (§9), so the *edits* were in scope; the *commit* was not.
