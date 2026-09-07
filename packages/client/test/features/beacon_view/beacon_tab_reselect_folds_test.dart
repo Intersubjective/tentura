@@ -12,10 +12,10 @@ import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/beacon_threads/ui/bloc/threads_cubit.dart';
 import 'package:tentura/features/beacon_threads/ui/bloc/threads_state.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_cubit.dart';
-import 'package:tentura/features/beacon_view/ui/widget/beacon_operational_scroll_view.dart';
+import 'package:tentura/features/beacon_view/ui/widget/beacon_people_surface.dart';
+import 'package:tentura/features/beacon_view/ui/widget/beacon_surface_tabs.dart';
 import 'package:tentura/features/beacon_view/ui/widget/beacon_view_constants.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
-import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/bloc/state_base.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/test_ids.dart';
@@ -127,12 +127,9 @@ void main() {
     final beaconCubit = _FakeBeaconViewCubit(peopleState());
     final threadsCubit = _TrackingThreadsCubit();
     final hierarchyCubit = _hierarchyCubit();
-    final screenCubit = ScreenCubit.local();
-    addTearDown(screenCubit.close);
     addTearDown(hierarchyCubit.close);
 
     var peopleFoldEpoch = 0;
-    var threadsFoldEpoch = 0;
 
     await tester.pumpWidget(
       MediaQuery(
@@ -153,34 +150,28 @@ void main() {
               child: Scaffold(
                 body: StatefulBuilder(
                   builder: (context, setState) {
-                    return BeaconOperationalScrollView(
-                      beaconViewCubit: beaconCubit,
-                      screenCubit: screenCubit,
-                      tabIndex: kBeaconTabPeople,
-                      onTabChanged: (_) {},
-                      peopleTabAttentionActive: false,
-                      onPeopleTabAttentionCleared: () {},
-                      onActivatePeopleTabAttention: () {},
-                      onFocusCoordinationItem: (_) {},
-                      focusGeneral: false,
-                      focusUserId: null,
-                      onOperationalFocusCleared: () {},
-                      onTapCoordinationLogEvent: (_) {},
-                      onOpenGeneral: () {},
-                      onOpenGeneralThread: () {},
-                      onThreadsTabRefresh: () {},
-                      peopleFoldEpoch: peopleFoldEpoch,
-                      threadsFoldEpoch: threadsFoldEpoch,
-                      onTabReselected: (tab) {
-                        setState(() {
-                          if (tab == kBeaconTabPeople) {
-                            peopleFoldEpoch++;
-                          } else if (tab == kBeaconTabThreads) {
-                            threadsFoldEpoch++;
-                          }
-                        });
-                      },
-                      beaconState: beaconCubit.state,
+                    return Column(
+                      children: [
+                        BeaconSurfaceTabs(
+                          isSplit: false,
+                          selectedSurface: BeaconSurface.people,
+                          onSurfaceSelected: (_) {},
+                          onSurfaceReselected: (surface) {
+                            if (surface == BeaconSurface.people) {
+                              setState(() => peopleFoldEpoch++);
+                            }
+                          },
+                        ),
+                        Expanded(
+                          child: BeaconPeopleSurface(
+                            beaconViewCubit: beaconCubit,
+                            beaconState: beaconCubit.state,
+                            focusUserId: null,
+                            peopleTabAttentionActive: false,
+                            peopleFoldEpoch: peopleFoldEpoch,
+                          ),
+                        ),
+                      ],
                     );
                   },
                 ),
@@ -207,7 +198,7 @@ void main() {
     expect(find.text('Rejected'), findsNothing);
   });
 
-  testWidgets('same-tab Discussion reselect triggers refresh callback', (
+  testWidgets('same-tab Chat reselect triggers refresh callback', (
     tester,
   ) async {
     const compact = Size(500, 900);
@@ -217,8 +208,6 @@ void main() {
     final beaconCubit = _FakeBeaconViewCubit(peopleState());
     final threadsCubit = _TrackingThreadsCubit();
     final hierarchyCubit = _hierarchyCubit();
-    final screenCubit = ScreenCubit.local();
-    addTearDown(screenCubit.close);
     addTearDown(hierarchyCubit.close);
 
     var refreshCalls = 0;
@@ -240,24 +229,15 @@ void main() {
             ],
             child: TenturaResponsiveScope(
               child: Scaffold(
-                body: BeaconOperationalScrollView(
-                  beaconViewCubit: beaconCubit,
-                  screenCubit: screenCubit,
-                  tabIndex: kBeaconTabThreads,
-                  onTabChanged: (_) {},
-                  peopleTabAttentionActive: false,
-                  onPeopleTabAttentionCleared: () {},
-                  onActivatePeopleTabAttention: () {},
-                  onFocusCoordinationItem: (_) {},
-                  focusGeneral: false,
-                  focusUserId: null,
-                  onOperationalFocusCleared: () {},
-                  onTapCoordinationLogEvent: (_) {},
-                  onOpenGeneral: () {},
-                  onOpenGeneralThread: () {},
-                  onThreadsTabRefresh: () => refreshCalls++,
-                  onTabReselected: (_) {},
-                  beaconState: beaconCubit.state,
+                body: BeaconSurfaceTabs(
+                  isSplit: false,
+                  selectedSurface: BeaconSurface.room,
+                  onSurfaceSelected: (_) {},
+                  onSurfaceReselected: (surface) {
+                    if (surface == BeaconSurface.room) {
+                      refreshCalls++;
+                    }
+                  },
                 ),
               ),
             ),
@@ -269,7 +249,7 @@ void main() {
 
     expect(refreshCalls, 0);
 
-    await tester.tap(find.byKey(TestIds.key(TestIds.beaconTabThreads)));
+    await tester.tap(find.text('Chat'));
     await tester.pumpAndSettle();
 
     expect(refreshCalls, 1);
