@@ -118,7 +118,7 @@ Order is the plan's §5 order (dependency-aware; it was already reordered in rev
 | U7a | **add** `labelBeaconTabNow` / `labelBeaconTabChat` | §7 | `test/l10n/` | **DONE** by overseer `151e35e9c` (OD-6) |
 | U7b | **remove** `labelBeaconTabDiscussion` | §7 | `test/l10n/` | folded into U6 (OD-6) |
 | U8 | Activity sheet + overflow entry | §4.7 | `activity_list_padding_test.dart` | complete |
-| U9 | Anchor navigation off `ThreadDetailRoute` in `coordination_room_navigation.dart`, `room_message_tile.dart` | §4.8 | `room_message_tile_coordination_test.dart` | pending |
+| U9 | Anchor navigation off `ThreadDetailRoute` in `coordination_room_navigation.dart`, `room_message_tile.dart` | §4.8 | `room_message_tile_coordination_test.dart` | complete |
 | U10 | Routing + deep links + `build_runner`; fold away `ThreadDetailScreen` | §4.6, §6, §6.1 | `request_thread_routing_test.dart`, `nested_beacon_navigation_test.dart`, `thread_detail_test.dart`, `request_threads_adaptive_test.dart`, `integration_test/*` | pending |
 | U11 | Docs, rules, client semver bump + web cache-buster | §9 | doc-drift script | pending |
 | U12 | New suites T1–T10 | §8 | — | pending |
@@ -283,3 +283,6 @@ Both §4.7 requirements — the ones the sheet does NOT get for free from the ol
 1. `grep -c 'ignore: unused_element' beacon_view_screen.dart` -> **0**
 2. `grep -c 'TODO(U8)' beacon_view_screen.dart` -> **0**
 3. Skip count **31 -> 30**; the only remaining `skip: true` in the client tree is the pre-existing `promise_composer_live_wiring_test.dart:282` (Task 12, not ours).
+
+### [U9] complete — 2026-09-08T00:45:00+02:00
+COMMITS: (see git log) / TESTS: `cd packages/client && flutter analyze --no-fatal-warnings --no-fatal-infos` → exit 0, **0 errors, 89 warnings**; `cd packages/client && flutter test` → **+2711 passed, ~30 skipped, 0 failed**; `bash scripts/check-custom-lints.sh packages/client` → exit 0, **total 32** (baseline 32) / FILES: `beacon_room_navigation_scope.dart`, `beacon_room_lease.dart` (`awaitReady`), `coordination_room_navigation.dart`, `room_message_tile.dart`, `beacon_view_screen.dart`, `coordination_room_navigation_test.dart`, journal / FINDINGS: `BeaconRoomNavigationScope` replaces `router.currentChild?.name == ThreadDetailRoute.name` with `isBeaconRoomPresented(isSplit || CHAT tab)`; `openCoordinationItemFromRoom` uses lease `awaitReady` + `prepareThreadScroll` when presented, else `openGeneralAnchor` (same path as `_onOpenCoordinationItemFromThread`); legacy pushed thread detail without scope scrolls only when host already has an active room (no ad-hoc `ensureGeneral`); `room_message_tile` fallback delegates to `openCoordinationItemFromRoom` / REMAINING: U10 retires `ThreadDetailRoute` entirely; U10 should migrate `thread_detail_screen.dart` `_openGeneralFromLegacy` which still pushes the route
