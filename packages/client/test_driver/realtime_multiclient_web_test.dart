@@ -476,12 +476,16 @@ Future<void> _runJourney({
     beaconId: offer102BeaconId,
     offerUserId: fixture.helperUserId,
   );
+  // Do not additionally require helper.hasText('Coordinating the plan'):
+  // the main journey beacon already shows that exact phase text on this
+  // same My Work list well before this point, so it is always trivially
+  // true and cannot signal this specific beacon's own convergence. The
+  // receipt id delta on helperPeer is the only signal precise to this
+  // beacon's own accept event.
   timings['my_work_102_delivery_ms'] = await _measureUntil(
-    () async =>
-        await helper.hasText('Coordinating the plan') &&
-        (await helperPeer.collectUpdatesReceiptIds())
-            .difference(receiptIdsBefore102)
-            .isNotEmpty,
+    () async => (await helperPeer.collectUpdatesReceiptIds())
+        .difference(receiptIdsBefore102)
+        .isNotEmpty,
     timeout: const Duration(seconds: 5),
   );
   // Note: 'Your offer was accepted' is the generic offer_accepted fallback
