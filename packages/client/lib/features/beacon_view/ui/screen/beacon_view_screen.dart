@@ -22,6 +22,7 @@ import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/widget/auto_leading_with_fallback.dart';
 
+import '../widget/beacon_activity_sheet.dart';
 import '../widget/beacon_anchor_status.dart';
 import '../widget/beacon_now_surface.dart';
 import '../widget/beacon_people_surface.dart';
@@ -232,6 +233,9 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
   /// One-shot scroll targets when opening Chat from coordination / log focus.
   String? _roomScrollMessageId;
   String? _roomScrollCoordinationItemId;
+
+  /// Guards legacy `?tab=log` from opening the Activity sheet twice.
+  bool _didOpenActivitySheetForLogTab = false;
 
   void _leaveBeaconView(BuildContext context) {
     final router = context.router;
@@ -499,8 +503,22 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
   }
 
   void _maybeOpenActivitySheetForLogTab() {
-    if (widget.viewTab != 'log') return;
-    // TODO(U8): open Activity sheet post-frame when ?tab=log (legacy compat).
+    if (widget.viewTab != 'log' || _didOpenActivitySheetForLogTab) return;
+    _didOpenActivitySheetForLogTab = true;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      unawaited(_openActivitySheet());
+    });
+  }
+
+  Future<void> _openActivitySheet() async {
+    if (!mounted) return;
+    final cubit = context.read<BeaconViewCubit>();
+    await showBeaconActivitySheet(
+      context,
+      cubit: cubit,
+      onTapCoordinationEvent: _onTapCoordinationLogEvent,
+    );
   }
 
   void _scheduleSplitEdgeHandling({required bool isSplit}) {
@@ -541,10 +559,7 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
         _beaconPeopleTabAttentionQueryTruthy(widget.peopleTabAttention) &&
         _selectedSurface == BeaconSurface.people;
     if (widget.viewTab == 'log') {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!mounted) return;
-        _maybeOpenActivitySheetForLogTab();
-      });
+      _maybeOpenActivitySheetForLogTab();
     }
   }
 
@@ -564,14 +579,12 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
       _roomPaneWidthOverride = null;
       _hadThreadRowsAtLeastOnce = false;
       _lastIsSplit = null;
+      _didOpenActivitySheetForLogTab = false;
     }
     if (oldWidget.viewTab != widget.viewTab) {
       _selectedSurface = _beaconViewSurface(widget.viewTab);
       if (widget.viewTab == 'log') {
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          if (!mounted) return;
-          _maybeOpenActivitySheetForLogTab();
-        });
+        _maybeOpenActivitySheetForLogTab();
       }
     }
   }
@@ -618,8 +631,6 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
     unawaited(_syncSurfaceQuery(BeaconSurface.room));
   }
 
-  // TODO(U8): wired from Activity sheet log-row taps.
-  // ignore: unused_element
   void _onTapCoordinationLogEvent(BeaconActivityEvent e) {
     final kind = e.coordinationKind;
     final itemId = e.coordinationItemId?.trim();
@@ -662,8 +673,6 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
     }
   }
 
-  // TODO(U8): clear People/room focus flashes after Activity sheet navigation.
-  // ignore: unused_element
   void _clearOperationalFocus() {
     if (_focusThreadId == null && _focusUserId == null) return;
     setState(() {
@@ -673,6 +682,9 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
   }
 
   void _onSurfaceReselected(BeaconSurface surface) {
+    if (surface == BeaconSurface.people || surface == BeaconSurface.room) {
+      _clearOperationalFocus();
+    }
     setState(() {
       if (surface == BeaconSurface.people) {
         _peopleFoldEpoch++;
@@ -1115,6 +1127,8 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
                                             .read<ThreadHostCubit>()
                                             .roomCubit,
                                         onItemsTabRefresh: _refreshThreadsTab,
+                                        onActivityLog: () =>
+                                            unawaited(_openActivitySheet()),
                                         onAuthorManageStatus: () async {
                                           await beaconViewCubit
                                               .refreshReviewWindowInfo();
@@ -1159,6 +1173,9 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
                                                   .roomCubit,
                                               onItemsTabRefresh:
                                                   _refreshThreadsTab,
+                                              onActivityLog: () => unawaited(
+                                                _openActivitySheet(),
+                                              ),
                                               onAuthorManageStatus: () async {
                                                 await beaconViewCubit
                                                     .refreshReviewWindowInfo();
