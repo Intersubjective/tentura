@@ -82,6 +82,8 @@ Resolution: **migrating an existing test is part of the unit that breaks it.** U
 (a) **U2 is folded into U4.** U2 is a pure additive declaration (`BeaconSurface` enum + `beaconVisibleSurfaces`) with no behaviour of its own; its only acceptance criterion is "it compiles", and U4 is its first consumer. A separate worker session for ~15 lines is waste. U4's review covers both.
 (c) **U7 is split.** `BeaconSurfaceTabs` (U4) cannot compile without `l10n.labelBeaconTabNow` / `labelBeaconTabChat`, but the plan scheduled all of U7 after U4. **U7a** (add the two keys) was done by the overseer before U4; **U7b** (remove `labelBeaconTabDiscussion`) folds into U6, where its last reader disappears. Generated `lib/ui/l10n/*` is gitignored (`packages/client/.gitignore:65`) — commit only the `.arb` files and run `flutter gen-l10n` locally.
 
+(d) **OD-7 — widget-local tests land with their widget.** Plan §8 parks all new suites (T1-T10) in U12. For a NEW widget, its own contract test is part of building it correctly, so `beacon_surface_tabs_test.dart` (T1) and `beacon_now_surface_test.dart` (T5) land in U4. U12 keeps the cross-cutting suites: T3, T6, T7, T8, T9, T10.
+
 (b) **`BeaconRoomLease` lives in `ui/util/`, not `ui/widget/`.** Plan §4.4 filed it under `ui/widget/`, but it is a plain controller class, not a widget, and this repo already keeps non-widget UI helpers in `features/beacon_view/ui/util/` (`beacon_hud_derivation.dart`, `beacon_closure_readiness.dart`, `beacon_accordion_sections.dart`).
 
 ---
