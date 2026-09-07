@@ -824,5 +824,98 @@ FROM (
       },
       skip: skipReason,
     );
+
+    test(
+      'cleanup on a closed beacon clears a survivor link instead of raising '
+      'discussion_read_only',
+      () async {
+        // Reproduces a real-data-only deployment failure: the lifecycle
+        // write-guard (m0156) blocks normal writes to beacon_room_message on
+        // a terminal-status beacon, and this migration's own maintenance
+        // UPDATE (clearing a stale linked_item_id on a surviving message)
+        // was not exempted from it — synthetic PG fixtures never included a
+        // closed/cancelled/deleted beacon with a survivor-linked message, so
+        // this never reproduced until a real, long-lived database's data hit
+        // it during an actual deploy.
+        const closedBeaconId = 'Bm158closed01';
+        const closedItemId = 'Im158closed01';
+        const closedMsgId = 'Rm158closed01';
+
+        // This test's own setup insert simulates pre-existing historical
+        // data (a message written before the beacon closed), not a live
+        // write — bypass the same guard the fix under test exercises,
+        // matching the established fixture-seeding pattern.
+        await writer.execute(
+          "SET tentura.discussion_internal_fixture = 'allow_non_general'",
+        );
+        await writer.execute(
+          Sql.named(r'''
+INSERT INTO public.beacon (
+  id, user_id, title, description, status, parent_beacon_id, published_at, created_at, updated_at
+) VALUES (
+  @id, @ownerId, 'Closed cleanup host', '', 6, NULL, '2026-01-01T00:00:00Z',
+  '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z'
+)
+ON CONFLICT (id) DO NOTHING
+'''),
+          parameters: {'id': closedBeaconId, 'ownerId': _CleanupFixtureIds.ownerId},
+        );
+        await writer.execute(
+          Sql.named(r'''
+INSERT INTO public.coordination_item (
+  id, beacon_id, kind, status, title, body, creator_id, target_person_id,
+  published, created_at, updated_at, published_at, source, ordering
+) VALUES (
+  @id, @beaconId, 2, 0, 'Closed-beacon retired ask', '', @ownerId, @ownerId,
+  true, '2026-01-02T00:00:00Z', '2026-01-02T00:00:00Z',
+  '2026-01-02T00:00:00Z'::timestamptz, 0, 0
+)
+ON CONFLICT (id) DO NOTHING
+'''),
+          parameters: {
+            'id': closedItemId,
+            'beaconId': closedBeaconId,
+            'ownerId': _CleanupFixtureIds.ownerId,
+          },
+        );
+        await writer.execute(
+          Sql.named(r'''
+INSERT INTO public.beacon_room_message (
+  id, beacon_id, author_id, body, linked_item_id, linked_event_kind, created_at
+) VALUES (
+  @id, @beaconId, @ownerId, 'Survivor on a closed beacon', @itemId,
+  @eventKind, '2026-01-03T00:00:00Z'::timestamptz
+)
+ON CONFLICT (id) DO NOTHING
+'''),
+          parameters: {
+            'id': closedMsgId,
+            'beaconId': closedBeaconId,
+            'ownerId': _CleanupFixtureIds.ownerId,
+            'itemId': closedItemId,
+            'eventKind': coordinationEventKindCreated,
+          },
+        );
+
+        // Reset so the cleanup call below proves its own internal SET LOCAL
+        // bypass, not this test's session-level setup convenience.
+        await writer.execute('RESET tentura.discussion_internal_fixture');
+        await writer.execute(
+          'SELECT public.nested_requests_apply_legacy_cleanup()',
+        );
+
+        final row = await writer.execute(
+          Sql.named(
+            'SELECT linked_item_id, linked_event_kind, system_payload '
+            'FROM public.beacon_room_message WHERE id = @id',
+          ),
+          parameters: {'id': closedMsgId},
+        );
+        expect(row.single[0], isNull);
+        expect(row.single[1], isNull);
+        expect(row.single[2], isNull);
+      },
+      skip: skipReason,
+    );
   });
 }

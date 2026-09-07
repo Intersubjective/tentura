@@ -9,12 +9,56 @@ part of '_migrations.dart';
 /// Idempotent in shape: [nested_requests_apply_legacy_cleanup] may be invoked again
 /// after a successful run; subsequent passes delete/update zero rows.
 final m0158 = Migration('0158', [
+  // The lifecycle write-guard (m0156) has no bypass for this cleanup's own
+  // maintenance UPDATEs on beacon_room_message (clearing stale
+  // reply_to/linked_item/linked_polling references on rows that survive
+  // cleanup) when the surviving row's beacon has already reached a terminal
+  // status. On any database with real historical data this is common and
+  // trips 'discussion_read_only', aborting the whole migration. Add the same
+  // discussion_internal_fixture_allowed() bypass the sibling general-only
+  // guard already has, matching that established pattern.
+  r'''
+CREATE OR REPLACE FUNCTION public.beacon_room_message_lifecycle_write_guard()
+  RETURNS trigger
+  LANGUAGE plpgsql
+  AS $$
+DECLARE
+  beacon_status smallint;
+BEGIN
+  IF NEW.system_message_kind IS NOT NULL OR NEW.author_id IS NULL THEN
+    RETURN NEW;
+  END IF;
+
+  IF public.discussion_internal_fixture_allowed() THEN
+    RETURN NEW;
+  END IF;
+
+  SELECT b.status
+  INTO beacon_status
+  FROM public.beacon b
+  WHERE b.id = NEW.beacon_id;
+
+  IF beacon_status IN (1, 2, 6) THEN
+    RAISE EXCEPTION 'discussion_read_only'
+      USING ERRCODE = 'check_violation';
+  END IF;
+
+  RETURN NEW;
+END;
+$$;
+''',
   r'''
 CREATE OR REPLACE FUNCTION public.nested_requests_apply_legacy_cleanup()
   RETURNS void
   LANGUAGE plpgsql
   AS $$
 BEGIN
+  -- Maintenance cleanup, not a normal user write: this whole function only
+  -- clears stale references on rows that survive cleanup (never posts new
+  -- content), so it must bypass the lifecycle/general-only write guards for
+  -- beacons that have already reached a terminal or non-General state.
+  SET LOCAL tentura.discussion_internal_fixture = 'allow_non_general';
+
   -- §5.3 step 2 — snapshot doomed sets (transaction-local).
   CREATE TEMP TABLE m0158_doomed_items ON COMMIT DROP AS
     SELECT id
