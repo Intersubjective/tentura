@@ -210,6 +210,36 @@ void main() {
       },
     );
 
+    test(
+      'a second holder joining mid-open awaits the same open (readiness)',
+      () async {
+        final recorder = RoomCubitFactoryRecorder();
+        final host = _host(recorder: recorder);
+        final lease = BeaconRoomLease(host: host);
+        final general = _generalThread();
+        final holderA = Object();
+        final holderB = Object();
+
+        // Do not await A: B joins while the open is still in flight.
+        final openA = lease.acquire(holderA, general);
+        final openB = lease.acquire(holderB, general);
+
+        await Future.wait([openA, openB]);
+
+        // Both callers observe a room that is actually there — this is the
+        // precondition for handing a scroll target to prepareThreadScroll.
+        expect(host.roomCubit, isNotNull);
+        expect(host.state.openThreadId, RequestThread.generalId);
+        expect(lease.isReady, isTrue);
+        expect(recorder.calls, hasLength(1));
+
+        lease.release(holderA);
+        lease.release(holderB);
+        await _settleDeferredClear(host: host, room: recorder.created.single);
+        await host.close();
+      },
+    );
+
     test('acquire is idempotent for the same holder', () async {
       final recorder = RoomCubitFactoryRecorder();
       final host = _host(recorder: recorder);
