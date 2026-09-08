@@ -102,9 +102,25 @@ Lightweight invalidation hints (no projection data on the wire) telling already-
 
 ## Beacon visibility & sharing
 
+### Current contract (live today)
+
 **Beacon visibility** (who can SEE a beacon):
 A beacon's normal **content** is visible to a user V iff any of: V is the **author**; V has an active (non-cancelled) **forward edge** as recipient; V is a **room-admitted participant** or active **help-offerer**. Vote-mutual friendship (reciprocal trust) does **not** grant read access by itself. **Drafts** are always author-only. **Deleted** beacons never expose normal content to non-authors; use generic tombstones only. **MeritRank is never a visibility gate** — it is used only as the forwarding-candidate gate.
 _Avoid_: treating a beacon id/URL as a read capability; using MeritRank score or path distance to decide who can read a beacon.
+
+Implemented by `beacon_can_read_content` (migration **m0136**). Live evidence:
+[`docs/plans/constellation-implementation-journal.md`](docs/plans/constellation-implementation-journal.md)
+§ *UNIT 01 — visibility evidence*.
+
+### Target contract (not yet active)
+
+Per [`docs/plans/constellation-edge-semantics.md`](docs/plans/constellation-edge-semantics.md) **D4**, **D11**, and **D14**:
+
+- **Discoverability (D4):** active, published requests are readable by everyone **mutually visible** with the author unless the author opts out per request (`is_discoverable`).
+- **Read-wall parity (D11):** that discoverability clause widens `beacon_can_read_content` on every surface that uses the shared wall (not Constellation-only). Discovery grants the same **content** reads and operation eligibility as a forward recipient, but does **not** grant involvement visibility or **discussion admission** by itself.
+- **Symmetric mutual visibility (D14):** peer membership for discoverability uses a symmetric wrapper over the current viewer-first predicate.
+
+Activating migration: **m0162** (plan **UNIT 05**), after **m0160** (`is_discoverable`) and **m0161** (symmetric `person_are_mutually_visible`). Not shipped until those units land and evidence is recorded at **UNIT 12**.
 
 **Linked-detail visibility** (hierarchy one-edge reads only):
 Separate from content read: V may read authorized child-card / parent-reference projections when V has effective admission to the adjacent published non-deleted parent or child, even without full content read on that node. This predicate does **not** grant discussion admission, involvement visibility, forwarding, help offers, invitations, or fork rights on the linked beacon.

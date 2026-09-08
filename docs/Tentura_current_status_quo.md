@@ -159,7 +159,9 @@ Users can override MR-derived recommendations with scoped consequences.
 
 ## 11. Visibility
 
-Forwarding does **not** create general social visibility. Visibility is bounded by MR and relation to the specific beacon/path.
+Forwarding does **not** create general social visibility. Visibility is bounded by MR — specifically by **mutual visibility** (`person_visibility_peers.is_mutually_visible`): each direction must be satisfied, by explicit trust *or* by a positive MeritRank score, and **both** directions must hold. It is **not** bounded by relation to a specific beacon or forward path.
+
+**Discoverability is opt-out (intended behaviour, not yet active).** When Constellation ships, an active beacon will be discoverable by everyone mutually visible with its author unless the author disables discoverability for that beacon. Discovery will confer the same reads and actions as receiving a forward. Discovery is a *field* property, not a *path* property: being able to see a beacon says nothing about who forwarded it, and implies no forwarding, endorsement, or causal credit. Activates with migration **m0162** (plan UNIT 05) after **m0160** / **m0161**. See [`plans/constellation-edge-semantics.md`](plans/constellation-edge-semantics.md) D4/D11/D14.
 
 Anti-pattern: “I saw content, therefore a social tie was created.”
 

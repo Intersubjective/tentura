@@ -129,7 +129,7 @@ is triggered.
 
 - [x] 00 — Journal, baseline, docs index — done directly by the overseer (no
       worker: pure mechanical recording, no code/design decision)
-- [ ] 01 — Visibility docs, evidence, architecture amendments
+- [x] 01 — Visibility docs, evidence, architecture amendments
 - [ ] 02 — **Gate:** authorization cache + read-wall performance decision
 - [ ] 03 — `beacon.is_discoverable` — m0160, Drift, mutations, Hasura
 - [ ] 04 — Symmetric `person_are_mutually_visible` — m0161
@@ -183,4 +183,167 @@ DECISIONS: branch strategy — new branch `feat/constellation` cut from
   branch (plan owner decision, 2026-09-08). Full-autonomy operating mode and
   gate-name pre-authorization recorded above under "Orchestration" (plan owner
   decision, 2026-09-08).
+REMAINING: none for this unit.
+
+---
+
+## UNIT 01 — visibility evidence
+
+Live baseline inspected 2026-09-08 against migration tail **m0159**. Evidence below is what
+UNIT 05 will re-check for `BeaconAccessGuard.canReadContent` blast radius.
+
+### `beacon_can_read_content` (m0136)
+
+Source: `packages/server/lib/data/database/migration/m0136.dart:7-43`
+(`CREATE OR REPLACE`; last migration touching this function per plan §1).
+
+`LANGUAGE sql STABLE`. Evaluates `public.beacon b WHERE b.id = p_beacon_id`; returns
+`false` when no row (`COALESCE(..., false)`). `CASE` branches, in order:
+
+| # | Condition | Grants read |
+|---|-----------|-------------|
+| 1 | `block_hides(b.user_id, p_viewer_id)` | no |
+| 2 | `b.status = 3` (draft) | author only (`b.user_id = p_viewer_id`) |
+| 3 | `b.status = 2` (deleted) | no |
+| 4 | `b.user_id = p_viewer_id` | yes (author) |
+| 5 | active `beacon_forward_edge` (`recipient_id = viewer`, `cancelled_at IS NULL`) | yes |
+| 6 | `beacon_participant` (`user_id = viewer`, `role = 1` OR `room_access = 3`) | yes |
+| 7 | `beacon_help_offer` (`user_id = viewer`, `status = 0`) | yes |
+| else | — | no |
+
+No discoverability / mutual-visibility / MeritRank branch today. Status smallints per
+`lib/domain/entity/beacon_status.dart`: draft = 3, deleted = 2.
+
+Server implementation: `BeaconAccessRepository.canReadContent` → SQL
+`SELECT public.beacon_can_read_content($1, $2)` at
+`packages/server/lib/data/repository/beacon_access_repository.dart:14-18`.
+
+### `person_visibility_peers` (m0151)
+
+Source: `packages/server/lib/data/database/migration/m0151.dart:14-123`
+(supersedes m0140's broader peer discovery; m0140 header notes incoming-only MR dropped).
+
+Returns per-peer columns including directional explicit-trust flags, `forward_mr` /
+`reverse_mr` from `mr_mutual_scores(viewer_id, ctx)` only (no `mr_edgelist` /
+`mr_node_score` discovery). Peer union: `trust_out` ∪ `trust_in` ∪ `mr_mutual_agg`.
+
+Directional visibility:
+
+- `viewer_can_see_subject` := `viewer_explicitly_trusts_subject OR forward_mr > 0`
+- `subject_can_see_viewer` := `subject_explicitly_trusts_viewer OR reverse_mr > 0`
+- `is_mutually_visible` := both directional clauses ANDed (`m0151.dart:118-121`)
+
+Explicit trust := `vote_user` row with `amount > 0` (`m0151.dart:84-101`).
+
+### `person_is_mutually_visible` (m0140, delegates to m0151 peers)
+
+Source: `packages/server/lib/data/database/migration/m0140.dart:168-184`.
+
+`SELECT p.is_mutually_visible FROM person_visibility_peers(viewer_id, ctx) p
+WHERE p.peer_id = peer_id`, default `false`. Viewer-first argument order; inherits m0151
+truth table (asymmetric today — see architecture §1 / D14).
+
+Also defined in m0140: `mutually_visible_users` (`m0140.dart:205-225`) joins
+`person_visibility_peers` filtered to `is_mutually_visible`.
+
+### Hasura `beacon` row filter and exposed columns
+
+Metadata: `hasura/metadata.json`.
+
+- **Computed field** `can_read_content` → `beacon_get_can_read_content(beacon_row,
+  hasura_session)` (`hasura/metadata.json:196-204`).
+- **Wrapper** `beacon_get_can_read_content` created in **m0099**
+  (`packages/server/lib/data/database/migration/m0099.dart:11-22`) — delegates to
+  `beacon_can_read_content(beacon_row.id, session user id)`.
+- **Select permission** (`role: user`): row filter `can_read_content._eq: true`
+  (`hasura/metadata.json:273-276`). Exposed base columns (`hasura/metadata.json:244-266`):
+  `context`, `created_at`, `description`, `address_label`, `end_at`, `id`, `lat`, `long`,
+  `needs`, `start_at`, `status`, `status_changed_at`, `tags`, `title`, `updated_at`,
+  `user_id`, `lineage_parent_beacon_id`, `lineage_root_beacon_id`, `primary_need_slug`,
+  `cover_image_id`, `cover_thumb_image_id`, `cover_source`. Computed fields also exposed:
+  `is_pinned`, `my_vote`, `can_read_content`. No `is_discoverable` column yet (UNIT 03 /
+  m0160).
+- **Related filter:** `beacon_image` select uses parent `beacon.can_read_content._eq:
+  true` (`hasura/metadata.json:377-381`). `beacon_help_offer` insert check includes
+  `beacon.can_read_content._eq: true` (`hasura/metadata.json:1468-1470`).
+
+### `BeaconAccessGuard.canReadContent` server call sites
+
+Implementation dispatches to `beacon_can_read_content` (see above). Consumer blast radius
+(`grep -rn "canReadContent" packages/server/lib`):
+
+| File:line | Enclosing API / helper |
+|-----------|------------------------|
+| `attention_intent_case.dart:700` | `_directedRoomMessage` (room mention / directed chat targets) |
+| `attention_intent_case.dart:820` | `requestStatusChanged` |
+| `attention_intent_case.dart:933` | `beaconHierarchyStatusChanged` |
+| `attention_intent_case.dart:1055` | `fromBeaconNotification` |
+| `beacon_child_create_case.dart:516` | `_readableChildId` |
+| `beacon_display_case.dart:46` | `displayStatuses` |
+| `beacon_lineage_visibility.dart:10` | `assertBeaconLineageSourceVisible` |
+| `coordination_case.dart:99` | `helpOffersWithCoordination` |
+| `filter_beacon_notifications.dart:25` | `filterBeaconNotifications` |
+| `forward_band_case.dart:39` | `forwardContext` |
+| `forward_case.dart:208` | `forward` (sender authorization) |
+| `help_offer_case.dart:62` | `offerHelp` |
+| `help_offer_case.dart:168` | `withdraw` |
+| `invitation_case.dart:69` | `create` (issuer must read beacon) |
+| `invitation_case.dart:203` | `_previewBeaconForInvite` |
+| `invitation_case.dart:365` | `_acceptBeaconInviteOnly` |
+
+Not listed: `beacon_access_repository.dart:14` (guard implementation),
+`beacon_visibility.dart:99` (pure Dart policy mirror of different type).
+
+### Target activation pointer
+
+Discoverability read-wall change: **m0162** (plan **UNIT 05**), depending on **m0160**
+(`is_discoverable`, UNIT 03) and **m0161** (symmetric `person_are_mutually_visible`,
+UNIT 04). GATE-14.1 (UNIT 02) must resolve before UNIT 05.
+
+### Term reconciliation (step 5)
+
+Checked across `CONTEXT.md`, `docs/Tentura_current_status_quo.md`, and
+`constellation-edge-semantics.md`:
+
+| Term | Status |
+|------|--------|
+| **Direct / explicit trust** | Plan checklist says "direct trust"; normative docs use **explicit trust** for the same referent (`vote_user`, `amount > 0`). No product collision — wording alias only. |
+| **Discoverability** | Now split: status-quo §11 paragraph and `CONTEXT.md` target contract marked **not yet active**; architecture D4/D11 describe intended rule. Person-level mutual visibility in status-quo §11 first paragraph remains **current** (m0151). |
+| **Forwarding** | Consistent: manual `beacon_forward_edge` act (content read + involvement for recipient); separate from Constellation path drawing (D5) and from MR forward-candidate gate. |
+| **Discussion admission** | Consistent: explicit chat/workspace admission (status-quo §6–7); distinct from content read; architecture D11 states discovery does not grant it. |
+
+No collisions requiring a product decision.
+
+### Architecture amendment checklist (step 6)
+
+Confirmed present and self-consistent in `constellation-edge-semantics.md` as of
+2026-09-08 amendment banner:
+
+- [x] **O1** — §5 layered `d2[p][h]`, hops-first within stage, `depth(parent(p)) ==
+  depth(p)-1` proof, `(tier, id)` in D8; D1 + §12.1 O1a across-stages
+- [x] **A2** — §12/U5 `constellationField` has no context argument
+- [x] **A3** — §5.1 four narrowed stability clauses
+- [x] **N1** — §5 **V** symmetric single-source + accepted enumeration gap
+- [x] **N2** — §5.2 transport guard rail vs client render budget + absence-semantics table
+- [x] **N3** — §12/U8 provider-neutral render seam before reuse
+- [x] **§14.2** items 6, 7, 8
+- [x] **§8.3** four conjuncts incl. `published_at IS NOT NULL`, `user_id IS NOT NULL`
+- [x] **ALG-*** — `ALG-HOLDERS`, `ALG-DEDUP`, `ALG-STAGE1`, `ALG-STAGE2`, `ALG-PARENT`
+  (guard `q ∉ T OR depth1(q) = depth(p)-1`), `ALG-EGO`, `ALG-PRUNE`; `d2[ego][0] = 0`;
+  **B** publication conjunct; §5.2 absence table; D11 narrowed to content-wall parity
+
+Not `BLOCKED`.
+
+---
+
+## UNIT 01 — complete — 2026-09-08
+COMMITS: (this unit's commit, staged next)
+TESTS: `bash scripts/check-user-facing-terminology.sh` — exit 0
+FILES: CONTEXT.md, docs/Tentura_current_status_quo.md,
+  docs/plans/constellation-edge-semantics.md, docs/plans/constellation-implementation-journal.md
+FINDINGS: none beyond evidence recorded above; status-quo §11 already had a
+  discoverability paragraph (pre-existing unstaged edit) reconciled to "not yet active"
+  framing per journal pre-existing worktree note.
+DECISIONS: none beyond §0; "direct trust" in plan step 5 treated as alias for
+  "explicit trust" in normative docs (journal term table).
 REMAINING: none for this unit.
