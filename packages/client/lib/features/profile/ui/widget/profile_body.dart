@@ -9,6 +9,8 @@ import 'package:tentura/ui/utils/availability_line.dart';
 import 'package:tentura/ui/widget/self_aware_profile_avatar.dart';
 import 'package:tentura/ui/widget/show_more_text.dart';
 import 'package:tentura/ui/widget/tentura_fullscreen_image_viewer.dart';
+import 'package:tentura/ui/widget/tentura_selection_area.dart';
+import 'package:tentura/ui/widget/url_link_annotations.dart';
 import 'package:tentura/domain/util/availability_presets.dart';
 import 'package:tentura_root/domain/enums.dart';
 
@@ -124,10 +126,13 @@ class ProfileBody extends StatelessWidget {
           // Description
           Padding(
             padding: sectionTop,
-            child: ShowMoreText(
-              profile.description,
-              style: textTheme.bodyMedium,
-              colorClickableText: theme.colorScheme.primary,
+            child: TenturaSelectionArea(
+              child: ShowMoreText(
+                profile.description,
+                style: textTheme.bodyMedium,
+                colorClickableText: theme.colorScheme.primary,
+                annotations: buildUrlAnnotations(linkColor: tt.info),
+              ),
             ),
           ),
 

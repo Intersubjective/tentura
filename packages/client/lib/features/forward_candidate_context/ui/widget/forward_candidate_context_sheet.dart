@@ -11,6 +11,9 @@ import 'package:tentura/features/forward/ui/bloc/forward_state.dart';
 import 'package:tentura/features/forward/ui/widget/lineage_forward_section.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/availability_line.dart';
+import 'package:tentura/ui/widget/show_more_text.dart';
+import 'package:tentura/ui/widget/tentura_selection_area.dart';
+import 'package:tentura/ui/widget/url_link_annotations.dart';
 
 import '../../domain/entity/candidate_connection_context.dart';
 import '../bloc/forward_candidate_context_cubit.dart';
@@ -164,6 +167,7 @@ class _SheetBody extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final tt = context.tt;
+    final theme = Theme.of(context);
     final l10n = L10n.of(context)!;
     final profile = profileWithContactOverlay(candidate.profile);
     final availability = otherAvailabilityStatusLine(
@@ -222,9 +226,13 @@ class _SheetBody extends StatelessWidget {
             ),
             if (profile.description.trim().isNotEmpty) ...[
               SizedBox(height: tt.rowGap),
-              Text(
-                profile.description.trim(),
-                style: TenturaText.body(tt.text),
+              TenturaSelectionArea(
+                child: ShowMoreText(
+                  profile.description.trim(),
+                  style: TenturaText.body(tt.text),
+                  colorClickableText: theme.colorScheme.primary,
+                  annotations: buildUrlAnnotations(linkColor: tt.info),
+                ),
               ),
             ],
             if (availability != null) ...[

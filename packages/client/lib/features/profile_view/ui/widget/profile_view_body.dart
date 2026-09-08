@@ -16,6 +16,8 @@ import 'package:tentura/ui/widget/contact_badge_legend.dart';
 import 'package:tentura/ui/widget/show_more_text.dart';
 import 'package:tentura/ui/widget/tentura_fullscreen_image_viewer.dart';
 import 'package:tentura/ui/widget/tentura_icons.dart';
+import 'package:tentura/ui/widget/tentura_selection_area.dart';
+import 'package:tentura/ui/widget/url_link_annotations.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 
 import 'package:tentura/features/capability/ui/widget/capability_cue_strip.dart';
@@ -55,10 +57,15 @@ class ProfileViewBody extends StatelessWidget {
                 _ProfileAvatarSection(profile: profile),
                 Padding(
                   padding: kPaddingT,
-                  child: ShowMoreText(
-                    profile.description,
-                    style: theme.textTheme.bodyMedium,
-                    colorClickableText: theme.colorScheme.primary,
+                  child: TenturaSelectionArea(
+                    child: ShowMoreText(
+                      profile.description,
+                      style: theme.textTheme.bodyMedium,
+                      colorClickableText: theme.colorScheme.primary,
+                      annotations: buildUrlAnnotations(
+                        linkColor: context.tt.info,
+                      ),
+                    ),
                   ),
                 ),
                 Builder(
