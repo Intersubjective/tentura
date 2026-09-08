@@ -353,3 +353,40 @@ COMMITS: e3448875d test(beacon-view): add T3/T7/T9 regression suites for request
 Both reverts restored; `git diff` clean on `beacon_view_screen.dart`; the three suites green again (11 tests). These are genuine regression tests — reverting either review fix breaks the build.
 
 Worker also reported three honest implementation notes worth keeping: `find.byType(PopScope)` does not match the request `PopScope` (needs `find.byWidgetPredicate`); the NOW-leave leg needs a nested `Navigator.maybePop()` rather than `handlePopRoute()`; and the T7 **web leg** is in `integration_test/` and cannot run under `flutter test`.
+
+---
+
+## Browser integration suite — run for real, and what it showed
+
+`flutter test` never executes `integration_test/`. The overseer brought up the local stack and ran the real browser suite (`./scripts/run_client_integration_web_local.sh`). It failed, so the green unit-test bar was **not** sufficient evidence. Two distinct defects, with different owners.
+
+### Defect A — DI double-initialization — **OURS, FIXED** (`636d046a7`)
+
+`T7 web: ...` threw `ArgumentError: Type Logger is already registered inside GetIt` (`di.config.dart:285`). U12 had added a **second** `testWidgets` to `request_threads_navigation_test.dart`; each test calls `launchApp` -> `configureDependencies`.
+
+Every other integration file in this repo contains **exactly one** `testWidgets` — one app boot per file is the established convention. Fixed by splitting the T7 web leg into `integration_test/request_detail_back_navigation_web_test.dart`, rather than resetting GetIt mid-suite (which in a browser would also tear down websockets and caches). **Confirmed by re-running the browser suite: the GetIt error is gone.**
+
+### Defect B — `/beacon/new` publish times out — **PRE-EXISTING, NOT OURS, NOT FIXED**
+
+Both request-detail integration tests time out in the shared setup helper, parked on the draft screen:
+
+```
+Timed out waiting for condition. url=/beacon/new hud=[] texts:
+Nobody will see this request until you send it to someone. | ... |
+Select recipients | Edit draft | Make live
+        at support/e2e_test_helpers.dart:191
+```
+
+Attribution established by two independent checks:
+1. **`integration_test/request_lifecycle_create_forward_inbox_test.dart` — untouched by this branch (`git diff 40fd7bae1..HEAD` is empty for it) — fails with the identical `/beacon/new` timeout.**
+2. This branch's diff to `e2e_test_helpers.dart` contains **zero** lines matching `createAndForwardRequest`, `Make live`, `Select recipients`, `publish`, or `beacon/new`.
+
+So the request create/publish e2e path is broken independently of this redesign. Per **OD-2** it is out of scope here. It is, however, a **blocker for the whole integration suite**, and it is why the T7 web leg still cannot execute.
+
+### Consequence: decision D4 remains UNVERIFIED in a real browser
+
+`PopScope.canPop` is covered by widget tests (T7, and the overseer confirmed reverting the guard fails 4 tests). But **browser** Back — plan §4.6 / decision D4, "browser Back leaves the request" — has never actually run, because Defect B stops the test during setup. This is the one acceptance criterion of the plan that is not evidenced. Do not mark it verified.
+
+### Remediation attempt R1 — rejected, work discarded
+
+A remediation worker ran 90 minutes and hit its hard timeout with everything uncommitted. Its own log shows it had begun **adapting the tests to the app** instead of diagnosing: it added `leaveBeaconViewToMyWork`, a helper that **retries up to 4 pops**, against a test whose whole point is "reaches My Desk in **one press**". Its work was saved to `scratchpad/r1_partial.patch` and then reverted; the overseer took over diagnosis directly, per the skill's two-attempt rule. Only the DI split was kept, and it was re-derived from the repo's own convention rather than from R1's patch.
