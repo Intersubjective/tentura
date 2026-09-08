@@ -63,20 +63,35 @@ void main() {
     );
 
     await closeRequestAndOpenReview(tester);
-    await sendCompleteReviewPackage(tester);
+    await runE2eStep('author send review package', () async {
+      await sendCompleteReviewPackage(tester);
+    });
     await logout(tester);
 
     await loginAs(tester, fixture.helperEmail);
-    await openRequestFromMyWork(tester, requestTitle: title);
-    await openReviewContributionsIfNeeded(tester);
-    await sendCompleteReviewPackage(tester);
+    await runE2eStep('helper open request from My Work', () async {
+      await openRequestFromMyWork(tester, requestTitle: title);
+    });
+    await runE2eStep('helper open review contributions', () async {
+      await openReviewContributionsIfNeeded(tester);
+    });
+    await runE2eStep('helper send review package', () async {
+      await sendCompleteReviewPackage(tester);
+    });
     await logout(tester);
 
     await loginAs(tester, fixture.authorEmail);
-    await triggerCloseNow(tester);
+    await runE2eStep('trigger close / await finished archive', () async {
+      await triggerCloseNow(tester);
+    });
 
-    await tapAndSettle(tester, find.text('Archive').first);
-    await pumpUntil(tester, () => find.text(title).evaluate().isEmpty);
+    await runE2eStep('archive finished card', () async {
+      await tapAndSettle(
+        tester,
+        find.widgetWithText(TextButton, 'Archive').first,
+      );
+      await pumpUntil(tester, () => find.text(title).evaluate().isEmpty);
+    });
 
     // Active becomes empty after archiving the only item, so the toolbar
     // filter menu (hidden in some layouts once the list is empty / a card

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:js_interop';
 import 'dart:js_interop_unsafe';
 
@@ -68,11 +69,12 @@ void main() {
       // Controller caches isBackground from construction / visibility events.
       // Re-assert the QA override and notify so it re-reads after the receipt.
       _setForceTabBackground(true);
-      web.document.dispatchEvent(web.Event('visibilitychange'));
+      _reemitTabBackground();
       await tester.pump();
 
-      await pumpUntil(
+      await _waitForQaState(
         tester,
+        'activate unread indicator',
         () {
           final state = _readTabAttentionQaState();
           if (state == null) return false;
@@ -95,13 +97,14 @@ void main() {
       );
 
       // Clear via "visible" transition: drop the QA force override and notify
-      // the adapter's visibility listener so it re-reads isBackground.
+      // the adapter so it re-reads isBackground (WebDriver cannot hide the tab).
       _setForceTabBackground(false);
-      web.document.dispatchEvent(web.Event('visibilitychange'));
+      _reemitTabBackground();
       await tester.pump();
 
-      await pumpUntil(
+      await _waitForQaState(
         tester,
+        'clear indicator on visible',
         () {
           final state = _readTabAttentionQaState();
           if (state == null) return false;
@@ -121,10 +124,37 @@ void main() {
   );
 }
 
+Future<void> _waitForQaState(
+  WidgetTester tester,
+  String step,
+  bool Function() condition, {
+  required Duration timeout,
+}) async {
+  try {
+    await pumpUntil(tester, condition, timeout: timeout);
+  } on TimeoutException catch (error) {
+    throw StateError(
+      '$step: qa=${_readTabAttentionQaState()} '
+      'visibility=${web.document.visibilityState} forced=${_readForceTabBackground()} '
+      'unread=${GetIt.I<AttentionCase>().snapshot.summary.unreadTotal}; $error',
+    );
+  }
+}
+
 JSObject get _window => web.window as JSObject;
 
 void _setForceTabBackground(bool forced) {
   _window.setProperty('__tenturaForceTabBackground'.toJS, forced.toJS);
+}
+
+void _reemitTabBackground() {
+  final reemit = _window.getProperty('__tenturaReemitTabBackground'.toJS);
+  if (reemit != null && reemit.isA<JSFunction>()) {
+    (reemit as JSFunction).callAsFunction();
+    return;
+  }
+  // Fallback for older builds that only listen for visibilitychange.
+  web.document.dispatchEvent(web.Event('visibilitychange'));
 }
 
 bool _readForceTabBackground() {

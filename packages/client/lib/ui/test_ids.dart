@@ -62,15 +62,18 @@ abstract final class TestIds {
   static const beaconForward = 'beacon.forward';
   static const beaconTabNow = 'beacon.tab.now';
   static const beaconTabRoom = 'beacon.tab.room';
+  static const childRequestCreate = 'request.child.create';
+  static const childRequestsActive = 'request.children.active';
+  static const childRequestsFinished = 'request.children.finished';
+  static const childRequestParentLink = 'request.child.parent';
+  static String childRequestCard(String beaconId) => 'request.child.$beaconId';
   static const beaconTabPeople = 'beacon.tab.people';
   static const beaconDetailsOpen = 'beacon.details.open';
   static const beaconFactsOpen = 'beacon.facts.open';
   static const beaconFactsAdd = 'beacon.facts.add';
   static const beaconFactsComposerSubmit = 'beacon.facts.composer.submit';
 
-  static const coordinationAskCreate = 'coordination.ask.create';
   static const coordinationPromiseCreate = 'coordination.promise.create';
-  static const coordinationBlockerCreate = 'coordination.blocker.create';
   static const coordinationComposerTitle = 'coordination.composer.title';
   static const coordinationComposerSubmit = 'coordination.composer.submit';
 

@@ -3571,7 +3571,6 @@
   "evaluationImpactNoRealEffect": "No real effect",
   "evaluationImpactHurtSomewhat": "Hurt somewhat",
   "evaluationImpactHurtALot": "Hurt a lot",
-  "evaluationNoBasisLabel": "No basis",
   "evaluationCanEvaluate": "Can evaluate",
   "evaluationCannotEvaluate": "Cannot evaluate",
   "evaluationCannotEvaluateReplacement": "Your current impact, capability acknowledgements, and note will be cleared.",

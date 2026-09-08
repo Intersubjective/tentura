@@ -9,14 +9,18 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:web/web.dart' as web;
 
 import 'package:tentura/app/router/root_router.dart';
+import 'package:tentura/app/router/browse_deep_link.dart';
 import 'package:tentura/consts.dart';
+import 'package:tentura_root/domain/entity/beacon_status.dart';
+import 'package:tentura/features/beacon/data/repository/beacon_repository.dart';
 import 'package:tentura/domain/capability/capability_group.dart';
 import 'package:tentura/domain/capability/capability_tag.dart';
 import 'package:tentura/features/auth/domain/use_case/auth_case.dart';
 import 'package:tentura/features/auth/ui/bloc/auth_cubit.dart';
 import 'package:tentura/features/beacon_create/ui/bloc/beacon_create_cubit.dart';
+import 'package:tentura/features/beacon_create/ui/dialog/beacon_send_confirmation_dialog.dart';
+import 'package:tentura/features/forward/ui/bloc/forward_cubit.dart';
 import 'package:tentura/domain/entity/room_message.dart';
-import 'package:tentura/features/beacon_threads/domain/entity/request_thread.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/room_message_tile.dart';
 import 'package:tentura/features/graph/domain/entity/node_details.dart';
 import 'package:tentura/features/graph/ui/bloc/graph_cubit.dart';
@@ -148,6 +152,13 @@ Future<void> logout(WidgetTester tester) async {
   if (accountId.isEmpty) {
     return;
   }
+  // Pop root details before sign-out. Auto-close can leave a closed beacon
+  // detail mounted; signing out from that route has hung accountId clears.
+  final router = GetIt.I<RootRouter>();
+  for (var i = 0; i < 6 && router.canPop(); i++) {
+    await router.maybePop();
+    await tester.pump(const Duration(milliseconds: 150));
+  }
   await GetIt.I<AuthCubit>().signOut();
   debugPrint('[e2e] logout: signOut returned');
   await pumpUntil(
@@ -155,6 +166,42 @@ Future<void> logout(WidgetTester tester) async {
     () => GetIt.I<AuthCubit>().state.currentAccountId.isEmpty,
   );
   debugPrint('[e2e] logout: done');
+}
+
+/// Apply the same URL transformer used by app startup before warm navigation.
+/// AutoRoute.navigatePath itself does not run the platform deep-link transformer.
+Future<void> goToDeepLink(WidgetTester tester, String path) async {
+  final router = GetIt.I<RootRouter>();
+  final transformed = await router.deepLinkTransformer(Uri.parse(path));
+  final browseStack = buildBrowseDeepLinkStack(transformed);
+  if (browseStack == null) {
+    await goToPath(tester, transformed.toString());
+    return;
+  }
+
+  // Match RootRouter.openFromNotificationLink / deepLinkBuilder:
+  // cold start builds Home+detail; warm keeps the mounted Home tab and pushes
+  // the detail. replaceAll([home, detail]) on a warm app breaks AppBar back
+  // after browser history.back().
+  final tabs = router.innerRouterOf<TabsRouter>(HomeRoute.name);
+  if (tabs == null) {
+    unawaited(router.replaceAll([browseStack.home, browseStack.detail]));
+  } else {
+    final query = transformed.queryParameters.isEmpty
+        ? ''
+        : Uri(queryParameters: transformed.queryParameters).query;
+    final target = query.isEmpty
+        ? transformed.path
+        : '${transformed.path}?$query';
+    unawaited(router.pushPath(target));
+  }
+  await pumpUntil(tester, () {
+    final current = Uri.parse(router.currentUrl);
+    return current.path == transformed.path &&
+        transformed.queryParameters.entries.every(
+          (entry) => current.queryParameters[entry.key] == entry.value,
+        );
+  });
 }
 
 Future<void> goToPath(WidgetTester tester, String path) async {
@@ -196,8 +243,11 @@ Future<T> runE2eStep<T>(
   String name,
   Future<T> Function() action,
 ) async {
+  debugPrint('[e2e] checkpoint: $name');
   try {
-    return await action();
+    final result = await action();
+    debugPrint('[e2e] checkpoint passed: $name');
+    return result;
   } on TimeoutException catch (error) {
     throw StateError('$name timed out: $error');
   }
@@ -229,7 +279,23 @@ String _screenDump() {
   try {
     url = GetIt.I<RootRouter>().currentUrl;
   } catch (_) {}
-  return 'url=$url hud=[${hudKeys.join(',')}] texts: $texts';
+  var publish = '';
+  final form = find.byKey(const Key('BeaconCreate.FormBody'));
+  if (finderHasMatch(form)) {
+    final state = form.evaluate().first.read<BeaconCreateCubit>().state;
+    publish =
+        ' draftId=${state.draftId} loading=${state.isLoading}'
+        ' validationBlocker=${state.publishBlocker}';
+  }
+  final submit = find.byKey(TestIds.key(TestIds.forwardSubmit));
+  if (finderHasMatch(submit)) {
+    final state = submit.evaluate().first.read<ForwardCubit>().state;
+    final outcome = state.lastDeliveryOutcome;
+    publish +=
+        ' selectedRecipientIds=${state.selectedIds}'
+        ' deliveryOutcome=${outcome == null ? "pending" : "failed=${outcome.failed} delivered=${outcome.deliveredRecipientIds} skipped=${outcome.availabilitySkippedRecipientIds}"}';
+  }
+  return 'url=$url hud=[${hudKeys.join(',')}]$publish texts: $texts';
 }
 
 /// `.first`-style finders throw StateError instead of returning an empty set.
@@ -405,41 +471,86 @@ Future<String> createAndForwardRequest(
   // capability evidence purely through the helper's own offered help type.
   String? needSlug,
 }) async {
-  await _createRequestToRecipientsTab(
-    tester,
-    authorEmail: fixture.authorEmail,
-    title: title,
-    needSlug: needSlug,
+  await runE2eStep(
+    'fill and persist draft',
+    () => _createRequestToRecipientsTab(
+      tester,
+      authorEmail: fixture.authorEmail,
+      title: title,
+      needSlug: needSlug,
+    ),
   );
-
-  final recipient = find.byKey(
-    TestIds.key(TestIds.forwardRecipient(fixture.helperUserId)),
+  final createCubit = tester
+      .element(find.byKey(const Key('BeaconCreate.FormBody')))
+      .read<BeaconCreateCubit>();
+  await runE2eStep(
+    'draft persistence',
+    () => pumpUntil(
+      tester,
+      () => createCubit.state.draftId?.isNotEmpty ?? false,
+    ),
   );
-  await pumpUntilVisible(tester, recipient);
-  final selectRecipient = find.descendant(
-    of: recipient,
-    matching: find.bySemanticsLabel('Select'),
+  final selectRecipient = find.byKey(
+    TestIds.key(TestIds.forwardRecipientCheckbox(fixture.helperUserId)),
   );
   await pumpUntilVisible(tester, selectRecipient);
-  await tapAndSettle(tester, selectRecipient);
+  final forwardCubit = tester.element(selectRecipient).read<ForwardCubit>();
+  await runE2eStep('recipient selection', () async {
+    expect(
+      forwardCubit.state.selectedIds,
+      isNot(contains(fixture.helperUserId)),
+    );
+    await tapAndSettle(tester, selectRecipient);
+    expect(
+      forwardCubit.state.selectedIds,
+      contains(fixture.helperUserId),
+      reason: 'Recipient tap must change selection. ${_screenDump()}',
+    );
+  });
   final forwardSubmit = find.byKey(TestIds.key(TestIds.forwardSubmit));
-  await pumpUntil(
-    tester,
-    () {
-      if (!finderHasMatch(forwardSubmit)) return false;
-      return tester.widget<OutlinedButton>(forwardSubmit).onPressed != null;
-    },
-    timeout: const Duration(seconds: 30),
+  await runE2eStep(
+    'enabled submit',
+    () => pumpUntil(
+      tester,
+      () =>
+          finderHasMatch(forwardSubmit) &&
+          tester.widget<OutlinedButton>(forwardSubmit).onPressed != null,
+      timeout: const Duration(seconds: 30),
+    ),
   );
-  await tapAndSettle(
-    tester,
-    forwardSubmit,
+  await tapAndSettle(tester, forwardSubmit);
+  await runE2eStep(
+    'note confirmation',
+    () => confirmUncoveredForwardNoteIfPresent(tester),
   );
-  await confirmUncoveredForwardNoteIfPresent(tester);
+  await runE2eStep('delivery confirmation', () async {
+    await pumpUntilVisible(tester, find.byType(BeaconSendConfirmationDialog));
+    final outcome = tester
+        .widget<BeaconSendConfirmationDialog>(
+          find.byType(BeaconSendConfirmationDialog),
+        )
+        .outcome;
+    expect(outcome.failed, isFalse, reason: _screenDump());
+    expect(outcome.deliveredRecipientIds, contains(fixture.helperUserId));
+    expect(outcome.availabilitySkippedRecipientIds, isEmpty);
+  });
+  await runE2eStep('publication', () async {
+    // Read-only verification of the UI publish command, never fixture setup.
+    final beacon = await GetIt.I<BeaconRepository>().fetchBeaconById(
+      createCubit.state.draftId!,
+    );
+    expect(beacon.id, createCubit.state.draftId);
+    expect(
+      beacon.status,
+      BeaconStatus.open,
+      reason: 'UI-created request must be published',
+    );
+  });
   await dismissOkDialogIfPresent(tester);
-
-  await goToPath(tester, kPathMyWork);
-  await pumpUntilVisible(tester, find.text(title));
+  await runE2eStep('navigation after publication', () async {
+    await goToPath(tester, kPathMyWork);
+    await pumpUntilVisible(tester, find.text(title));
+  });
   return title;
 }
 
@@ -582,7 +693,8 @@ Future<void> enterChatIfNeeded(WidgetTester tester) async {
   await pumpUntilVisible(tester, messageInput);
 }
 
-Future<void> enterGeneralIfNeeded(WidgetTester tester) => enterChatIfNeeded(tester);
+Future<void> enterGeneralIfNeeded(WidgetTester tester) =>
+    enterChatIfNeeded(tester);
 
 Future<RoomMessage> sendRoomMessage(WidgetTester tester, String text) async {
   final messageInput = find.byKey(TestIds.key(TestIds.roomMessageInput));
@@ -597,25 +709,69 @@ Future<RoomMessage> sendRoomMessage(WidgetTester tester, String text) async {
     tester,
     find.byKey(TestIds.key(TestIds.roomMessageSend)),
   );
-  // Sent messages are rendered as "You: <body>" for the author, rather than
-  // as a bare body Text widget.
-  final messageText = find.textContaining(text);
-  await pumpUntilVisible(tester, messageText);
-  return tester
-      .widget<RoomMessageTile>(
-        find
-            .ancestor(
-              of: messageText,
-              matching: find.byType(RoomMessageTile),
-            )
-            .first,
-      )
-      .message;
+  final messageTile = find.byWidgetPredicate(
+    (widget) =>
+        widget is RoomMessageTile &&
+        widget.message.body == text &&
+        !widget.message.id.startsWith('local:'),
+  );
+  await runE2eStep(
+    'General message persisted',
+    () => pumpUntilVisible(tester, messageTile),
+  );
+  return tester.widget<RoomMessageTile>(messageTile).message;
+}
+
+Future<void> _forceMyWorkDesk(WidgetTester tester) async {
+  final router = GetIt.I<RootRouter>();
+  final spec = HomeTabSpec.forTab(HomeTab.work);
+  if (router.innerRouterOf<TabsRouter>(HomeRoute.name) != null) {
+    router.popUntilRouteWithName(HomeRoute.name);
+    await tester.pumpAndSettle();
+    router.innerRouterOf<TabsRouter>(HomeRoute.name)!
+        .setActiveIndex(spec.index);
+  } else {
+    await router.replaceAll([
+      HomeRoute(
+        children: [
+          spec.shell(children: [spec.rootRoute()]),
+        ],
+      ),
+    ]);
+  }
+  await pumpUntil(
+    tester,
+    () =>
+        currentAppUrl() == kPathMyWork ||
+        currentAppUrl().startsWith('$kPathMyWork?'),
+    timeout: const Duration(seconds: 30),
+  );
+}
+
+/// My Work desk, reclaiming it if attention/deep-link reopens a detail.
+Future<void> _awaitMyWorkDeskAction(
+  WidgetTester tester,
+  bool Function() ready, {
+  Duration timeout = const Duration(seconds: 45),
+}) async {
+  final deadline = DateTime.now().add(timeout);
+  while (DateTime.now().isBefore(deadline)) {
+    if (!currentAppUrl().startsWith(kPathMyWork)) {
+      await _forceMyWorkDesk(tester);
+    }
+    if (ready()) {
+      return;
+    }
+    await tester.pump(const Duration(milliseconds: 200));
+  }
+  throw TimeoutException(
+    'Timed out waiting for My Work desk action. ${_screenDump()}',
+  );
 }
 
 Future<void> showMyWorkList(WidgetTester tester) async {
-  await goToPath(tester, kPathMyWork);
-  if (finderHasMatch(find.text('Archive')) ||
+  await _forceMyWorkDesk(tester);
+  if (finderHasMatch(find.widgetWithText(TextButton, 'Archive')) ||
       finderHasMatch(find.textContaining('Drafts ('))) {
     return;
   }
@@ -657,154 +813,11 @@ Future<void> popToChatIfNeeded(WidgetTester tester) async {
 Future<void> popToThreadsListIfNeeded(WidgetTester tester) =>
     popToChatIfNeeded(tester);
 
-Future<void> enterThreadsIfNeeded(WidgetTester tester) async {
-  await enterChatIfNeeded(tester);
-  final askButton = find.byKey(TestIds.key(TestIds.coordinationAskCreate));
-  final askLabel = find.text('Ask');
-  if (finderHasMatch(askButton) || finderHasMatch(askLabel)) {
-    return;
-  }
-  final scrollables = find.byType(Scrollable);
-  if (scrollables.evaluate().isNotEmpty) {
-    await tester.drag(scrollables.first, const Offset(0, 320));
-    await tester.pumpAndSettle();
-  }
-  await pumpUntil(
-    tester,
-    () => finderHasMatch(askButton) || finderHasMatch(askLabel),
-    timeout: const Duration(seconds: 30),
-  );
-}
-
-String _coordinationItemIdFromMenuKey(ValueKey<String> key) {
-  const prefix = 'coordination.item.';
-  const suffix = '.menu';
-  final value = key.value;
-  return value.substring(prefix.length, value.length - suffix.length);
-}
-
-Finder _coordinationMenuNearTitle(String title) => find
-    .descendant(
-      of: find.ancestor(of: find.text(title), matching: find.byType(Widget)),
-      matching: find.byWidgetPredicate((w) {
-        final key = w.key;
-        return key is ValueKey<String> &&
-            key.value.startsWith('coordination.item.') &&
-            key.value.endsWith('.menu');
-      }),
-    )
-    .first;
-
-Future<String> _coordinationItemIdForTitle(WidgetTester tester, String title) async {
-  await pumpUntilVisible(tester, find.text(title));
-  if (!finderHasMatch(_coordinationMenuNearTitle(title))) {
-    throw StateError(
-      'coordination item menu missing for "$title": ${_screenDump()}',
-    );
-  }
-  final menu = _coordinationMenuNearTitle(title);
-  final key = tester.widget(menu).key! as ValueKey<String>;
-  return _coordinationItemIdFromMenuKey(key);
-}
-
-RequestThread _requestThreadForItemId(String itemId, RequestThreadKind kind) =>
-    RequestThread(threadId: itemId, kind: kind);
-
-Future<RequestThread> createCoordinationItem(
-  WidgetTester tester, {
-  required String launcherId,
-  required String title,
-  String? body,
-}) async {
-  await enterThreadsIfNeeded(tester);
-  final launcher = find.byKey(TestIds.key(launcherId));
-  final visibleLabel = switch (launcherId) {
-    TestIds.coordinationAskCreate => 'Ask',
-    TestIds.coordinationPromiseCreate => 'Commitment',
-    _ => null,
-  };
-  // The wide Ask/Commitment controls carry their key on the HUD wrapper, not
-  // its inner button. Tap their rendered labels; the icon-only Blocker uses
-  // its keyed wrapper (and has no rendered text label).
-  if (visibleLabel != null && finderHasMatch(find.text(visibleLabel))) {
-    await tapAndSettle(tester, find.text(visibleLabel).first);
-  } else if (finderHasMatch(launcher)) {
-    await tapAndSettle(tester, launcher.first);
-  } else {
-    throw StateError('Coordination launcher not found: $launcherId');
-  }
-  await pumpUntilVisible(
-    tester,
-    find.byKey(TestIds.key(TestIds.coordinationComposerTitle)),
-  );
-
-  await tester.enterText(
-    find.byKey(TestIds.key(TestIds.coordinationComposerTitle)),
-    title,
-  );
-  await tapAndSettle(
-    tester,
-    find.byKey(TestIds.key(TestIds.coordinationComposerSubmit)),
-  );
-  final itemTitle = find.text(title);
-  // A Promise without another admitted target saves as a draft. Drafts are
-  // intentionally collapsed by default, so reveal that fold before asserting
-  // the saved item is rendered.
-  if (!await tryPumpUntilVisible(
-    tester,
-    itemTitle,
-    timeout: const Duration(seconds: 2),
-  )) {
-    final draftsFold = find.textContaining('Drafts (');
-    if (finderHasMatch(draftsFold)) {
-      await tapAndSettle(tester, draftsFold.first);
-    }
-  }
-  await pumpUntilVisible(tester, itemTitle);
-  await popToChatIfNeeded(tester);
-  final itemId = await _coordinationItemIdForTitle(tester, title);
-  final kind = switch (launcherId) {
-    TestIds.coordinationAskCreate => RequestThreadKind.ask,
-    TestIds.coordinationPromiseCreate => RequestThreadKind.promise,
-    _ => RequestThreadKind.blocker,
-  };
-  return _requestThreadForItemId(itemId, kind);
-}
-
-/// Resolves the specified active item. Drafts are also listed in the Threads
-/// UI, so a positional overflow-menu finder can target a draft that correctly
-/// has no Resolve action.
-Future<void> resolveCoordinationItem(
-  WidgetTester tester, {
-  required String title,
-}) async {
-  await enterChatIfNeeded(tester);
-  final itemTitle = find.text(title);
-  await pumpUntilVisible(tester, itemTitle);
-  final itemId = await _coordinationItemIdForTitle(tester, title);
-  final menu = find.byKey(TestIds.key(TestIds.coordinationItemMenu(itemId)));
-  if (!await tryPumpUntilVisible(tester, menu)) {
-    final menuKeys = find
-        .byType(PopupMenuButton<Object?>)
-        .evaluate()
-        .map((e) => e.widget.key)
-        .join(', ');
-    throw StateError(
-      'resolve menu missing for item=$itemId title="$title" menus=[$menuKeys]: '
-      '${_screenDump()}',
-    );
-  }
-  await tapAndSettle(tester, menu);
-  await tapAndSettle(
-    tester,
-    find.byKey(TestIds.key(TestIds.coordinationItemResolve(itemId))),
-  );
-}
-
 Finder _hudAction(String action) =>
     find.byKey(TestIds.key(TestIds.beaconHudAuthorAction(action)));
 
 Future<void> closeRequestAndOpenReview(WidgetTester tester) async {
+  await tapAndSettle(tester, find.byKey(TestIds.key(TestIds.beaconTabNow)));
   // The author closes via the operational HUD primary action (not the overflow
   // menu). The HUD is a small state machine that depends on closure readiness:
   //   markEnoughHelp → wrapUpForReview → (close) → reviewContributions.
@@ -855,22 +868,30 @@ Future<void> closeRequestAndOpenReview(WidgetTester tester) async {
 /// After every required reviewer has finished or skipped, closes the request
 /// via My Work's "Close request" card CTA when visible, otherwise the beacon
 /// detail HUD `closeNow` action (and its confirm sheet).
+///
+/// Sending the last required review package auto-closes the review window on
+/// the server (`EvaluationCase` → `_autoCloseReviewWindow`). In that case the
+/// desk already shows the Finished card with Archive — do not wait for a Close
+/// CTA that will never appear.
 Future<void> triggerCloseNow(WidgetTester tester) async {
-  await goToPath(tester, kPathMyWork);
+  await _forceMyWorkDesk(tester);
   final myWorkClose = find.byWidgetPredicate(
     (w) =>
         w.key is ValueKey<String> &&
         (w.key! as ValueKey<String>).value.startsWith('my_work.close_now.'),
   );
   final hudCloseNow = _hudAction('closeNow');
-  await pumpUntil(
+  final finishedArchive = find.widgetWithText(TextButton, 'Archive');
+  await _awaitMyWorkDeskAction(
     tester,
-    () => finderHasMatch(myWorkClose) || finderHasMatch(hudCloseNow),
-    timeout: const Duration(seconds: 45),
+    () =>
+        finderHasMatch(myWorkClose) ||
+        finderHasMatch(hudCloseNow) ||
+        finderHasMatch(finishedArchive),
   );
   if (finderHasMatch(myWorkClose)) {
     await tapAndSettle(tester, myWorkClose.first);
-  } else {
+  } else if (finderHasMatch(hudCloseNow)) {
     await tapAndSettle(tester, hudCloseNow.first);
     await pumpUntilVisible(
       tester,
@@ -882,9 +903,9 @@ Future<void> triggerCloseNow(WidgetTester tester) async {
   }
   // Close may leave the author on embedded beacon detail; Archive is on the list.
   await showMyWorkList(tester);
-  await pumpUntilVisible(
+  await _awaitMyWorkDeskAction(
     tester,
-    find.text('Archive'),
+    () => finderHasMatch(find.widgetWithText(TextButton, 'Archive')),
     timeout: const Duration(seconds: 30),
   );
 }

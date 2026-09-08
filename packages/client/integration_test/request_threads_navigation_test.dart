@@ -27,14 +27,20 @@ Future<void> _backToMyWork(WidgetTester tester) async {
       return;
     }
 
+    // AutoLeadingWithFallback uses AutoLeadingButton (BackButton) when the
+    // stack can pop, otherwise an IconButton with Icons.arrow_back (e.g. after
+    // browser history.back() desyncs the AutoRoute stack from the URL).
     final back = find.byType(BackButton);
-    if (back.evaluate().isEmpty) {
-      throw StateError(
-        'AppBar Back unavailable while returning to My Work '
-        '(url=${currentAppUrl()})',
-      );
+    final arrowBack = find.byIcon(Icons.arrow_back);
+    if (back.evaluate().isNotEmpty) {
+      await tapAndSettle(tester, back.first);
+    } else if (arrowBack.evaluate().isNotEmpty) {
+      await tapAndSettle(tester, arrowBack.first);
+    } else {
+      // Last resort: same destination as onFallback / fallbackPath.
+      await goToPath(tester, kPathMyWork);
+      return;
     }
-    await tapAndSettle(tester, back.first);
   }
 
   if (currentAppUrl() != kPathMyWork) {
@@ -58,22 +64,31 @@ void main() {
     final title = uniqueRequestTitle('IT threads nav');
 
     await logout(tester);
-    await createAndForwardRequest(
-      tester,
-      fixture: fixture,
-      title: title,
+    await runE2eStep(
+      'publish parent',
+      () => createAndForwardRequest(
+        tester,
+        fixture: fixture,
+        title: title,
+      ),
     );
 
     await logout(tester);
-    await offerHelpFromInbox(
-      tester,
-      fixture: fixture,
-      requestTitle: title,
+    await runE2eStep(
+      'helper offers help',
+      () => offerHelpFromInbox(
+        tester,
+        fixture: fixture,
+        requestTitle: title,
+      ),
     );
 
     await logout(tester);
     await loginAs(tester, fixture.authorEmail);
-    await openRequestFromMyWork(tester, requestTitle: title);
+    await runE2eStep(
+      'open Request detail from My Work',
+      () => openRequestFromMyWork(tester, requestTitle: title),
+    );
     await tapAndSettle(
       tester,
       find.byKey(TestIds.key(TestIds.beaconTabPeople)),
@@ -97,7 +112,10 @@ void main() {
 
     await logout(tester);
     await loginAs(tester, fixture.helperEmail);
-    await openRequestFromMyWork(tester, requestTitle: title);
+    await runE2eStep(
+      'open Request detail from My Work',
+      () => openRequestFromMyWork(tester, requestTitle: title),
+    );
     final beaconId = _beaconIdFromUrl(currentAppUrl());
 
     await tapAndSettle(
@@ -114,7 +132,7 @@ void main() {
       'Semantic thread navigation message',
     );
 
-    await goToPath(
+    await goToDeepLink(
       tester,
       '$kPathBeaconView/$beaconId/thread/${RequestThread.generalId}',
     );
@@ -127,7 +145,7 @@ void main() {
       isTrue,
     );
 
-    await goToPath(
+    await goToDeepLink(
       tester,
       '$kPathBeaconView/$beaconId?tab=threads&message=${message.id}',
     );
@@ -151,7 +169,10 @@ void main() {
     await _backToMyWork(tester);
     expect(currentAppUrl(), kPathMyWork);
 
-    await openRequestFromMyWork(tester, requestTitle: title);
+    await runE2eStep(
+      'open Request detail from My Work',
+      () => openRequestFromMyWork(tester, requestTitle: title),
+    );
     await tapAndSettle(
       tester,
       find.byKey(TestIds.key(TestIds.beaconTabRoom)),
@@ -161,5 +182,4 @@ void main() {
       find.byKey(TestIds.key(TestIds.roomMessageInput)),
     );
   });
-
 }

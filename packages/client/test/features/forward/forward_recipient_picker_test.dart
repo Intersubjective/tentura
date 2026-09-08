@@ -53,8 +53,7 @@ class _FakeInvitationRepository extends Fake implements InvitationRepository {
   Future<InvitationEntity> create({
     required String addresseeName,
     String? beaconId,
-  }) =>
-      throw UnimplementedError();
+  }) => throw UnimplementedError();
 
   @override
   Future<void> deleteById(String id) async {}
@@ -83,6 +82,71 @@ void main() {
       await GetIt.I.unregister<UiEffectPort>();
     }
   });
+  for (final language in ['en', 'ru']) {
+    testWidgets(
+      'stable recipient checkbox selects and enables send ($language)',
+      (tester) async {
+        final cubit = ForwardCubit(
+          beaconId: 'draft-1',
+          debugSkipInitialLoad: true,
+          embedded: true,
+          effects: FakeUiEffectPort(),
+        );
+        addTearDown(cubit.close);
+        cubit.emit(
+          ForwardState(
+            beaconId: 'draft-1',
+            beacon: Beacon.empty.copyWith(id: 'draft-1', title: 'Draft'),
+            candidates: const [
+              ForwardCandidate(
+                profile: Profile(
+                  id: 'u1',
+                  displayName: 'Alex',
+                  score: 10,
+                  rScore: 1,
+                ),
+              ),
+            ],
+            candidatesLoad: const ForwardCandidatesReady(),
+          ),
+        );
+        await tester.pumpWidget(
+          MaterialApp(
+            locale: Locale(language),
+            localizationsDelegates: L10n.localizationsDelegates,
+            supportedLocales: L10n.supportedLocales,
+            theme: TenturaTheme.light(),
+            home: MultiBlocProvider(
+              providers: [
+                BlocProvider<ForwardCubit>.value(value: cubit),
+                BlocProvider<ProfileCubit>.value(value: _MockProfileCubit()),
+              ],
+              child: Scaffold(
+                body: BlocBuilder<ForwardCubit, ForwardState>(
+                  builder: (context, state) => ForwardRecipientPicker(
+                    beaconId: 'draft-1',
+                    embedded: true,
+                    onSendPressed: () {},
+                    sendEnabled: state.selectedIds.isNotEmpty,
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+        final submit = find.byKey(TestIds.key(TestIds.forwardSubmit));
+        expect(tester.widget<OutlinedButton>(submit).onPressed, isNull);
+        await tester.tap(
+          find.byKey(TestIds.key(TestIds.forwardRecipientCheckbox('u1'))),
+        );
+        await tester.pumpAndSettle();
+        expect(cubit.state.selectedIds, {'u1'});
+        expect(tester.widget<OutlinedButton>(submit).onPressed, isNotNull);
+      },
+    );
+  }
+
   testWidgets('embedded ForwardRecipientPicker hides standalone send CTA', (
     tester,
   ) async {

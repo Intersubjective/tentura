@@ -11,8 +11,8 @@ understand how it is wired so failures can be diagnosed.
 ```
 
 That one command starts whatever local infra isn't already running, downloads a
-matching chromedriver, and runs all four lifecycle tests headless. It exits 0
-on success, non-zero on the first failing test.
+matching chromedriver, and runs every top-level browser test file headless. It exits 0
+on success, non-zero if any target fails (after reporting every target).
 
 For simultaneous realtime convergence and reconnect proof, run:
 
@@ -36,16 +36,20 @@ Hasura + Tentura API). They are not widget tests with mocks — they create real
 beacons, forward them, offer/admit help, chat, and close/review, asserting on
 real UI and real data.
 
-Four scenarios (each its own `flutter drive` process):
+Core lifecycle scenarios (each runs in its own `flutter drive` process; the runner also discovers navigation, cover, graph, attention, and witness tests):
 
 | File | Scenario |
 |---|---|
 | `request_lifecycle_create_forward_inbox_test.dart` | create a request, publish, forward to a helper, confirm it reaches their inbox |
-| `request_lifecycle_offer_admit_chat_test.dart` | offer help, admit, chat, create/resolve coordination items, remove from chat |
+| `request_lifecycle_offer_admit_chat_test.dart` | offer help → admission → helper creates and publishes a child from the parent Discussion → parent link and Active card → helper closes child from My Work → Finished card while parent stays open → General chat → participation removal |
 | `request_lifecycle_close_review_test.dart` | close a request (wrap-up-for-review) and complete the contribution review |
 | `request_lifecycle_review_trust_control_test.dart` | post-close review two-step trust control: save validation gates (category → intensity → reason), trust-impact preview, saved status on the participant list |
 
 Shared helpers: `integration_test/support/e2e_test_helpers.dart`.
+Publish/forward checkpoints cover draft persistence, recipient selection, enabled submit, note confirmation, publication, delivery confirmation, and navigation. The shared helper uses `forwardRecipientCheckbox(userId)` and immediately asserts that the tap changed selection. An authenticated repository read verifies the UI-created Request is published. Confirmation must report delivery to the fixture helper; the lifecycle test then signs in as that helper and opens the Request from Inbox. Timeout diagnostics include draft ID, loading state, validation blocker, selected recipients, and delivery outcome.
+
+The nested-request journey uses the existing Discussion child controls and composer. It preserves the offer, admission, General chat (including receipt by the parent author after hierarchy notices), and participation-removal checks; retired Ask/Promise/Blocker launchers are not part of this journey.
+
 Test IDs used to find widgets: `packages/client/lib/ui/test_ids.dart`.
 
 ## 2. Architecture — how the app reaches the backend
@@ -101,7 +105,7 @@ The script fails fast with a clear message if any of these are missing.
 ## 5. Running
 
 ```bash
-# all four tests
+# all browser test files
 ./scripts/run_client_integration_web_local.sh
 
 # a single test

@@ -9,6 +9,7 @@ import 'package:tentura/features/beacon_threads/ui/widget/beacon_child_request_c
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_state.dart';
 import 'package:tentura/features/beacon_view/ui/widget/beacon_hud_action_button.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/test_ids.dart';
 import 'package:tentura/ui/widget/accordion_expansion.dart';
 
 class BeaconChildRequestsSection extends StatelessWidget {
@@ -70,6 +71,7 @@ class BeaconChildRequestsSection extends StatelessWidget {
                 ),
                 if (showCreate)
                   BeaconHudActionButton(
+                    key: TestIds.key(TestIds.childRequestCreate),
                     icon: Icons.add,
                     label: l10n.beaconCreateChildRequest,
                     onPressed: () => context.router.push(
@@ -101,11 +103,13 @@ class BeaconChildRequestsSection extends StatelessWidget {
                 ),
               ),
             _ChildGroupSection(
+              key: TestIds.key(TestIds.childRequestsActive),
               title: l10n.beaconChildRequestsActiveTitle,
               group: BeaconHierarchyChildGroup.active,
               slice: hierarchyState.active,
             ),
             _ChildGroupSection(
+              key: TestIds.key(TestIds.childRequestsFinished),
               title: l10n.beaconChildRequestsFinishedTitle,
               group: BeaconHierarchyChildGroup.finished,
               slice: hierarchyState.finished,
@@ -123,6 +127,7 @@ class _ChildGroupSection extends StatelessWidget {
     required this.title,
     required this.group,
     required this.slice,
+    super.key,
   });
 
   final String title;
@@ -160,7 +165,10 @@ class _ChildGroupSection extends StatelessWidget {
           for (final summary in slice.items)
             Padding(
               padding: EdgeInsets.only(top: tt.cardGap),
-              child: BeaconChildRequestCard(summary: summary),
+              child: BeaconChildRequestCard(
+                key: TestIds.key(TestIds.childRequestCard(summary.beaconId)),
+                summary: summary,
+              ),
             ),
           if (slice.error != null)
             Padding(
@@ -209,8 +217,7 @@ class _DeletedChildGroupSection extends StatelessWidget {
     return Padding(
       padding: EdgeInsets.only(top: tt.rowGap),
       child: AccordionExpansionGroup(
-        requestedExpandedId:
-            slice.expanded ? 'child_requests_deleted' : null,
+        requestedExpandedId: slice.expanded ? 'child_requests_deleted' : null,
         child: AccordionExpansionTile(
           id: 'child_requests_deleted',
           initiallyExpanded: false,
@@ -224,7 +231,9 @@ class _DeletedChildGroupSection extends StatelessWidget {
             if (slice.loading && slice.items.isEmpty)
               Padding(
                 padding: EdgeInsets.symmetric(vertical: tt.tightGap),
-                child: const Center(child: CircularProgressIndicator.adaptive()),
+                child: const Center(
+                  child: CircularProgressIndicator.adaptive(),
+                ),
               )
             else if (slice.error != null && slice.items.isEmpty)
               _GroupErrorRow(
@@ -236,7 +245,12 @@ class _DeletedChildGroupSection extends StatelessWidget {
               for (final summary in slice.items)
                 Padding(
                   padding: EdgeInsets.only(bottom: tt.cardGap),
-                  child: BeaconChildRequestCard(summary: summary),
+                  child: BeaconChildRequestCard(
+                    key: TestIds.key(
+                      TestIds.childRequestCard(summary.beaconId),
+                    ),
+                    summary: summary,
+                  ),
                 ),
             if (slice.error != null && slice.items.isNotEmpty)
               _GroupErrorRow(

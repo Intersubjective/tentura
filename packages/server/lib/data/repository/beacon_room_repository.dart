@@ -427,7 +427,9 @@ class BeaconRoomRepository implements BeaconRoomRepositoryPort {
       return <String, Object?>{
         'id': id,
         'beaconId': m.beaconId,
-        'authorId': m.authorId,
+        // Hierarchy notices are system-authored; preserve the non-null wire
+        // contract without attributing them to a user.
+        'authorId': m.authorId ?? '',
         'body': m.body,
         'createdAt': m.createdAt.dateTime.toUtc().toIso8601String(),
         'editedAt': m.editedAt?.dateTime.toUtc().toIso8601String(),

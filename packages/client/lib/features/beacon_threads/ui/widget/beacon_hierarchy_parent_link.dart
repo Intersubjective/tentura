@@ -4,6 +4,7 @@ import 'package:tentura_root/domain/entity/beacon_parent_reference.dart';
 import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/test_ids.dart';
 
 /// Immediate-parent link for a child request header (plan §6.1).
 class BeaconHierarchyParentLink extends StatelessWidget {
@@ -90,6 +91,7 @@ class _AvailableRow extends StatelessWidget {
       child: Material(
         color: Colors.transparent,
         child: InkWell(
+          key: TestIds.key(TestIds.childRequestParentLink),
           onTap: () => context.router.push(BeaconViewRoute(id: parentBeaconId)),
           child: ConstrainedBox(
             constraints: const BoxConstraints(minHeight: 44),

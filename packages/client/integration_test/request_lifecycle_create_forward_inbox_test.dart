@@ -26,7 +26,10 @@ void main() {
 
     await logout(tester);
     await loginAs(tester, fixture.helperEmail);
-    await openRequestFromInbox(tester, requestTitle: title);
+    await runE2eStep(
+      'recipient Inbox delivery',
+      () => openRequestFromInbox(tester, requestTitle: title),
+    );
 
     expect(find.text(title), findsWidgets);
   });

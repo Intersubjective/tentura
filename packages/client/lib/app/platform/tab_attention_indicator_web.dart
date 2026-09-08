@@ -26,6 +26,17 @@ class TabAttentionIndicator {
     _pageShowSubscription = web.EventStreamProviders.pageShowEvent
         .forTarget(web.window)
         .listen(_onPageShow);
+    // WebDriver cannot actually background a page. Tests flip
+    // `__tenturaForceTabBackground` then call this hook so the controller
+    // re-reads isBackground; synthetic visibilitychange is not reliable alone.
+    if (kQaIntegrationTestMode) {
+      (web.window as JSObject).setProperty(
+        '__tenturaReemitTabBackground'.toJS,
+        (() {
+          _emitBackground();
+        }).toJS,
+      );
+    }
   }
 
   late final StreamController<bool> _backgroundController;
@@ -95,6 +106,9 @@ class TabAttentionIndicator {
 
     _visibilitySubscription?.cancel();
     _pageShowSubscription?.cancel();
+    if (kQaIntegrationTestMode) {
+      (web.window as JSObject).delete('__tenturaReemitTabBackground'.toJS);
+    }
     if (!_backgroundController.isClosed) {
       unawaited(_backgroundController.close());
     }

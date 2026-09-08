@@ -1,12 +1,13 @@
 import 'package:flutter/material.dart';
 
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/test_ids.dart';
 
 class BeaconCloseConfirmDialog extends StatelessWidget {
   static Future<bool?> show(BuildContext context) => showAdaptiveDialog(
-        context: context,
-        builder: (_) => const BeaconCloseConfirmDialog(),
-      );
+    context: context,
+    builder: (_) => const BeaconCloseConfirmDialog(),
+  );
 
   const BeaconCloseConfirmDialog({super.key});
 
@@ -17,6 +18,7 @@ class BeaconCloseConfirmDialog extends StatelessWidget {
       title: Text(l10n.confirmBeaconClose),
       actions: [
         TextButton(
+          key: TestIds.key(TestIds.beaconCloseConfirm),
           onPressed: () => Navigator.of(context).pop(true),
           child: Text(l10n.closeBeacon),
         ),

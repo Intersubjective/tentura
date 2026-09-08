@@ -3558,7 +3558,6 @@
   "evaluationImpactNoRealEffect": "Без заметного эффекта",
   "evaluationImpactHurtSomewhat": "Скорее навредило",
   "evaluationImpactHurtALot": "Сильно навредило",
-  "evaluationNoBasisLabel": "Нет оснований",
   "evaluationCanEvaluate": "Могу оценить",
   "evaluationCannotEvaluate": "Не могу оценить",
   "evaluationCannotEvaluateReplacement": "Текущее влияние, подтверждения возможностей и заметка будут сброшены.",

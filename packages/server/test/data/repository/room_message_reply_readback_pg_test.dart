@@ -34,6 +34,7 @@ import 'package:tentura_server/domain/use_case/attention_intent_case.dart';
 import 'package:tentura_server/domain/use_case/beacon_room_case.dart';
 import 'package:tentura_server/domain/use_case/transactional_attention_case.dart';
 import 'package:tentura_server/env.dart';
+import 'package:tentura_server/consts/beacon_hierarchy_consts.dart';
 
 import '../../support/fake_beacon_hierarchy_repository.dart';
 import '../../support/fake_user_block_repository.dart';
@@ -191,6 +192,43 @@ ON CONFLICT DO NOTHING
     expect(row['replyToBodyExcerpt'], replyToBodyExcerpt);
     expect(row['replyToHasAttachments'], replyToHasAttachments);
   }
+
+  test(
+    'system-authored hierarchy notices preserve the non-null message wire contract',
+    () async {
+      await seedBaseRoom();
+      final userMessage = await room.insertRoomMessage(
+        beaconId: beaconId,
+        authorId: parentAuthorId,
+        body: 'General still works',
+      );
+      await database.customStatement(
+        "INSERT INTO public.beacon_room_message "
+        "(id, beacon_id, author_id, body, system_message_kind, system_payload) "
+        "VALUES ('Rreplypghier1', '$beaconId', NULL, 'Child finished', "
+        "${BeaconRoomSystemMessageKind.hierarchyLifecycle}, "
+        "'{\"version\":1,\"kind\":\"hierarchyLifecycle\"}'::jsonb)",
+      );
+      final rows = await room.listMessagesEnriched(
+        beaconId: beaconId,
+        viewerUserId: viewerId,
+        limit: 10,
+      );
+      final notice = rows.singleWhere((row) => row['id'] == 'Rreplypghier1');
+      expect(notice['authorId'], '');
+      expect(notice['authorTitle'], '');
+      expect(
+        notice['systemMessageKind'],
+        BeaconRoomSystemMessageKind.hierarchyLifecycle,
+      );
+      expect(notice['systemPayloadJson'], contains('hierarchyLifecycle'));
+      expect(
+        rows.singleWhere((row) => row['id'] == userMessage.id)['authorId'],
+        parentAuthorId,
+      );
+    },
+    skip: skipReason,
+  );
 
   test(
     'stored reply_to_message_id and list snapshot fields round-trip',

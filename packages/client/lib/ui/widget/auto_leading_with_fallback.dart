@@ -43,7 +43,29 @@ class AutoLeadingWithFallback extends StatelessWidget {
           ),
         );
       }
-      return const AutoLeadingButton();
+      // AutoLeadingButton may still render noLeading when its RouterScope
+      // canPop disagrees with context.router.canPop() (e.g. after warm deep
+      // link + browser history.back). Keep a tappable fallback in that case.
+      return AutoLeadingButton.builder(
+        builder: (context, leading) {
+          if (leading != null) return leading;
+          return Semantics(
+            button: true,
+            label: l10n.backButtonTooltip,
+            child: IconButton(
+              icon: const Icon(Icons.arrow_back),
+              onPressed: () {
+                final custom = onFallback;
+                if (custom != null) {
+                  custom();
+                  return;
+                }
+                unawaited(context.router.navigatePath(fallbackPath));
+              },
+            ),
+          );
+        },
+      );
     }
     return Semantics(
       button: true,
