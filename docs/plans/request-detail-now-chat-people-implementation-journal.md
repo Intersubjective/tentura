@@ -390,3 +390,39 @@ So the request create/publish e2e path is broken independently of this redesign.
 ### Remediation attempt R1 — rejected, work discarded
 
 A remediation worker ran 90 minutes and hit its hard timeout with everything uncommitted. Its own log shows it had begun **adapting the tests to the app** instead of diagnosing: it added `leaveBeaconViewToMyWork`, a helper that **retries up to 4 pops**, against a test whose whole point is "reaches My Desk in **one press**". Its work was saved to `scratchpad/r1_partial.patch` and then reverted; the overseer took over diagnosis directly, per the skill's two-attempt rule. Only the DI split was kept, and it was re-derived from the repo's own convention rather than from R1's patch.
+
+---
+
+## Final close-out — 2026-09-08
+
+**Branch:** `feat/request-detail-now-chat-people` · **67 commits** on top of `main` @ `40fd7bae1` · 68 files, +7330 / −3188.
+
+### Verification matrix (all re-run by the overseer, not taken from worker reports)
+
+| Gate | Baseline | Final | Status |
+|---|---|---|---|
+| `flutter analyze` | 0 errors / 89 warnings | **0 / 89** | ✅ |
+| `flutter test` | 2670 passed, 0 failed | **2736 passed, 30 skipped, 0 failed** | ✅ (+66) |
+| `check-custom-lints.sh packages/client` | 32 | **32** | ✅ |
+| `check-user-facing-terminology.sh` | ok | **ok** | ✅ |
+| `check-doc-drift.sh` | clean | **clean** | ✅ |
+| `build_runner build -d` | — | **no drift** (0 tracked changes) | ✅ |
+| browser integration suite | — | **blocked by pre-existing Defect B** | ⚠️ |
+| `verify_web_version_consistency.dart` | already failing on `main` | still failing | ⚠️ pre-existing |
+
+Skips: exactly **one** in the client tree — the pre-existing `promise_composer_live_wiring_test.dart` ("Task 12"). None added by this work.
+
+### Scope discipline
+
+**Zero** changes under `packages/client/lib/domain`, `packages/client/lib/data`, or `packages/server` — so MR / admission / visibility semantics are untouched, as the plan required. Changes are confined to `features/beacon_view` (12 files), `features/beacon_threads` (8), design system (3), routing (3), l10n (2), tests (25), docs (5).
+
+The repo owner's parallel work was preserved throughout: `docs/Tentura_current_status_quo.md` stayed modified-uncommitted and unedited; `constellation-edge-semantics.md` and `request-threads-architecture.md` remain untracked (the latter after an overseer repair — U11 had committed it).
+
+### Open items — NOT resolved, deliberately
+
+1. **Pre-existing: `/beacon/new` publish times out in the browser suite.** Blocks all request-detail integration tests, including T7's web leg. Proven not ours (an untouched lifecycle test fails identically; our helper diff never touches the publish path). Out of scope per OD-2, but it blocks e2e validation of this branch.
+2. **Decision D4 (browser Back leaves the request) is unverified in a real browser** — a direct consequence of (1). Widget-level `PopScope.canPop` coverage exists and is guard-verified; the browser leg is not.
+3. **Pre-existing: `verify_web_version_consistency.dart` fails.** `manifest.json` (skip-worktree) said `5.12.1` against pubspec `7.0.0` at the branch point — already two majors stale. These are build outputs rewritten by a real `flutter build web`. The one file the versioning rule requires us to sync by hand, `web/index.html`'s `flutter_bootstrap.js?v=`, IS at `7.1.0`.
+4. **UX question for the owner:** on window-narrowing, split -> non-split selects ROOM unconditionally (plan §4.1 followed literally). A user reading PEOPLE gets moved to CHAT. Flagged, not changed.
+5. **Pre-existing: `createCoordinationItem` e2e helper** targets coordination launchers absent from `lib/` — absent at the branch point too.
+6. **Pre-existing: duplicate ARB key** `evaluationNoBasisLabel` in both locales.
