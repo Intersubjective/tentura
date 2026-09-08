@@ -195,9 +195,18 @@ one new branch, placed **after** the help-offer branch and **before** `ELSE fals
       AND b.status IN (0, 7, 8)                              -- D10
       AND b.published_at IS NOT NULL
       AND b.user_id IS NOT NULL                              -- m0157 erasure tombstones
-      AND public.person_are_mutually_visible(p_viewer_id, b.user_id, '')  -- D14, ctx = ''
+      AND public.person_are_mutually_visible_cached(p_viewer_id, b.user_id, '')  -- D14, ctx = ''; GATE-14.1(b), UNIT 04a
       THEN true
 ```
+
+**[amended by `GATE-14.1: resolved (b)`]** The predicate call is
+`person_are_mutually_visible_cached`, not the direct
+`person_are_mutually_visible` this section originally specified before the
+gate resolved — see
+[`constellation-read-wall-performance.md`](constellation-read-wall-performance.md)
+and UNIT 04a. The uncached function is not deleted (UNIT 04a's cache still
+calls it once per genuine miss) and every other frozen contract in this
+section is unchanged; only this one call site gains the cache seam.
 
 Nothing else in the function changes. `block_hides` stays the first branch.
 
@@ -848,7 +857,8 @@ REMAINING: <specific work, or none>
 | 02 | **Gate:** authorization cache + read-wall performance decision | §14.1 / §8.4 | 00 | `docs: decide constellation read-wall performance gate` |
 | 03 | `beacon.is_discoverable` — m0160, Drift, mutations, Hasura | U1 | 01 | `feat(server): add per-request discoverability flag` |
 | 04 | Symmetric `person_are_mutually_visible` — m0161 | U2 | 01 | `feat(server): make mutual visibility symmetric` |
-| 05 | Read-wall discoverability clause — m0162 | U3 | 01, 02, 03, 04 | `feat(server): open active requests to the author's field` |
+| 04a | **Inserted by GATE-14.1 (b):** discoverability visibility cache | §14.1 (`constellation-read-wall-performance.md`) | 02, 04 | `feat(server): cache discoverability mutual-visibility checks` |
+| 05 | Read-wall discoverability clause — m0162 | U3 | 01, 02, 03, 04, 04a | `feat(server): open active requests to the author's field` |
 | 06 | `constellation_trust_edges` — m0163 | U4 | 04 | `feat(server): add two-tier constellation edge source` |
 | 07 | `constellationField` V2 query | U5 | 03, 05, 06 | `feat(server): expose the constellation field query` |
 | 08 | Client pure domain: paths, caps | U6 | 00 | `feat(client): resolve constellation paths` |
@@ -1196,6 +1206,177 @@ latter would re-baseline nothing (step 3 is the point of this unit).
 **Acceptance:** symmetry holds on every fixture; no existing suite is silenced;
 each widened forward-candidate expectation is explained in the journal; a
 repaired pair that displays as eligible can actually be sent to.
+
+---
+
+## UNIT 04a — Discoverability visibility cache
+
+**Inserted by `GATE-14.1: resolved (b)`** — see
+[`constellation-read-wall-performance.md`](constellation-read-wall-performance.md)
+for the measurements that forced this outcome (4 of 6 representative queries
+exceeded the +150ms budget by more than 30×, one by an observed 16m42s before
+the benchmark itself was bounded) and the full cache specification this unit
+implements verbatim. Do not re-derive the spec here; that document is
+normative for this unit the same way §0 is normative for the rest of the plan.
+Gate on UNIT 05 exactly like UNIT 02 and UNIT 01 (plan §2 rule 6): UNIT 05 must
+not start until this unit is `complete`.
+
+**Owns:**
+
+```text
+packages/server/lib/data/database/migration/m0163a.dart                new
+packages/server/lib/data/database/migration/_migrations.dart           edit
+packages/server/test/data/database/discoverability_visibility_cache_pg_test.dart new
+```
+
+(Migration numbered `m0163a` — after m0163, the last migration §0.1 fixes — so
+this insertion does not renumber anything else in §0.1. Re-read §1's stop
+condition before picking the number: if a migration above m0159 already exists
+by execution time, renumber into the free range instead of colliding, exactly
+as §1 already instructs for the rest of this plan.)
+
+1. **Cache table**, keyed on the normalized unordered pair (per the
+   performance doc's "What is cached" section — sort the two ids before
+   storing/looking up, so `(a,b)` and `(b,a)` share one row):
+   ```sql
+   CREATE TABLE IF NOT EXISTS public.person_mutual_visibility_cache (
+     person_lo        text NOT NULL,
+     person_hi        text NOT NULL,
+     ctx              text NOT NULL,
+     is_mutually_visible boolean NOT NULL,
+     mr_epoch         bigint NOT NULL,
+     trust_version    bigint NOT NULL,
+     computed_at      timestamptz NOT NULL DEFAULT now(),
+     PRIMARY KEY (person_lo, person_hi, ctx)
+   );
+   ```
+2. **Direct-trust version counter** (the second invalidator the performance
+   doc requires — `mr_bump_publish_epoch()` already exists as the first):
+   a sequence plus a trigger function bumped on every `vote_user` write:
+   ```sql
+   CREATE SEQUENCE IF NOT EXISTS public.direct_trust_version_seq;
+   CREATE OR REPLACE FUNCTION public.direct_trust_current_version()
+     RETURNS bigint LANGUAGE sql STABLE AS $$
+       SELECT last_value FROM public.direct_trust_version_seq;
+   $$;
+   CREATE OR REPLACE FUNCTION public.bump_direct_trust_version()
+     RETURNS trigger LANGUAGE plpgsql AS $$
+     BEGIN
+       PERFORM nextval('public.direct_trust_version_seq');
+       RETURN NULL;
+     END;
+   $$;
+   CREATE TRIGGER vote_user_bump_direct_trust_version
+     AFTER INSERT OR UPDATE OR DELETE ON public.vote_user
+     FOR EACH STATEMENT EXECUTE FUNCTION public.bump_direct_trust_version();
+   ```
+   (Statement-level, not row-level — one bump per statement regardless of how
+   many rows it touched is sufficient; this is a coarse invalidator, not a
+   per-row diff.)
+3. **Wrapping function**, replacing the direct call m0162 makes. `m0162`
+   (already landed as of this unit, per the manifest order — UNIT 05 runs
+   after this one) calls `person_are_mutually_visible` directly today; this
+   unit does not touch m0162's SQL text (that would mean re-registering an
+   already-shipped migration), it defines the cache-aware wrapper for UNIT 05
+   to call instead when UNIT 05's branch is written:
+   ```sql
+   CREATE OR REPLACE FUNCTION public.person_are_mutually_visible_cached(
+     a_id text, b_id text, ctx text
+   ) RETURNS boolean LANGUAGE plpgsql AS $$
+   DECLARE
+     _lo text := LEAST(a_id, b_id);
+     _hi text := GREATEST(a_id, b_id);
+     _ctx text := coalesce(ctx, '');
+     _cur_epoch bigint;
+     _cur_trust bigint;
+     _row public.person_mutual_visibility_cache;
+     _result boolean;
+   BEGIN
+     _cur_epoch := public.mr_current_publish_epoch();   -- confirm exact accessor name against m0144 before implementing; re-derive if it differs
+     _cur_trust := public.direct_trust_current_version();
+     SELECT * INTO _row FROM public.person_mutual_visibility_cache
+       WHERE person_lo = _lo AND person_hi = _hi AND ctx = _ctx
+       AND mr_epoch = _cur_epoch AND trust_version = _cur_trust
+       AND computed_at > now() - interval '60 seconds';
+     IF FOUND THEN
+       RETURN _row.is_mutually_visible;
+     END IF;
+     -- Miss: single-flight via row-level lock on a per-key advisory lock,
+     -- so concurrent misses on the same pair rebuild once, not N times.
+     PERFORM pg_advisory_xact_lock(hashtext(_lo || ':' || _hi || ':' || _ctx));
+     -- Re-check after acquiring the lock: another backend may have just
+     -- finished the rebuild we were about to duplicate.
+     SELECT * INTO _row FROM public.person_mutual_visibility_cache
+       WHERE person_lo = _lo AND person_hi = _hi AND ctx = _ctx
+       AND mr_epoch = _cur_epoch AND trust_version = _cur_trust
+       AND computed_at > now() - interval '60 seconds';
+     IF FOUND THEN
+       RETURN _row.is_mutually_visible;
+     END IF;
+     BEGIN
+       _result := public.person_are_mutually_visible(a_id, b_id, _ctx);
+     EXCEPTION WHEN OTHERS THEN
+       -- Fail CLOSED, per the performance doc: never cache, never propagate,
+       -- never serve a stale positive through an outage.
+       RETURN false;
+     END;
+     INSERT INTO public.person_mutual_visibility_cache
+       (person_lo, person_hi, ctx, is_mutually_visible, mr_epoch, trust_version, computed_at)
+     VALUES (_lo, _hi, _ctx, _result, _cur_epoch, _cur_trust, now())
+     ON CONFLICT (person_lo, person_hi, ctx) DO UPDATE SET
+       is_mutually_visible = EXCLUDED.is_mutually_visible,
+       mr_epoch = EXCLUDED.mr_epoch,
+       trust_version = EXCLUDED.trust_version,
+       computed_at = EXCLUDED.computed_at;
+     RETURN _result;
+   END;
+   $$;
+   ```
+   **Verify the exact name of m0144's epoch-reading accessor** (this sketch
+   guesses `mr_current_publish_epoch()`; if m0144 only exposes the bump
+   function and stores the epoch in a plain table/sequence, read from that
+   directly) — re-derive against the live m0144 body rather than trusting this
+   guess, the same way every other unit re-derives against live code.
+   `block_hides` is not referenced here at all — it stays outside the cache
+   entirely, exactly as the performance doc requires, by never being part of
+   what this function memoizes.
+4. Tests (`@Tags(['pg'])`):
+   - a cache miss computes and stores a row; a subsequent call with the same
+     inputs and no intervening writes is a hit (assert via a spy/counter on
+     calls to the uncached `person_are_mutually_visible`, or by timing);
+   - bumping `mr_bump_publish_epoch()` invalidates every existing entry;
+   - an insert/update/delete on `vote_user` invalidates every existing entry
+     (the trigger is statement-level, so assert this holds for both a single
+     row change and a batch);
+   - a TTL-expired entry (mock `computed_at` into the past, or use a short TTL
+     for the test) is treated as a miss even with both versions unchanged;
+   - `(a,b)` and `(b,a)` share one cache row (normalized-pair key);
+   - concurrent misses on the same key: two simultaneous callers rebuild once,
+     not twice — assert via a call-counter on the underlying function under
+     concurrent connections;
+   - **MeritRank unavailable ⇒ fail closed:** with the `meritrank` container
+     stopped (or the underlying call mocked to raise), a miss resolves to
+     `false`, writes nothing to the cache table (or writes a
+     non-authoritative miss marker your implementation prefers, but never a
+     cached `true`), and does not raise past this function — assert no
+     exception escapes and the boolean result is `false`;
+   - `block_hides` is never referenced by this function or its cache table —
+     grep the migration body in the test to assert the string never appears,
+     so this invariant cannot silently regress later.
+
+**Verify:**
+
+```bash
+cd packages/server && dart run build_runner build -d
+cd packages/server && dart test -t pg -j 1 test/data/database/discoverability_visibility_cache_pg_test.dart
+./scripts/check-custom-lints.sh packages/server
+```
+
+**Acceptance:** every property in the performance doc's cache specification
+holds under test — TTL, both invalidators, single-flight rebuild, fail-closed
+on MeritRank failure, `block_hides` excluded — and UNIT 05 can call
+`person_are_mutually_visible_cached` in place of the direct call without
+changing anything else about its branch.
 
 ---
 

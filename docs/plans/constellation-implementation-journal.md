@@ -130,10 +130,11 @@ is triggered.
 - [x] 00 — Journal, baseline, docs index — done directly by the overseer (no
       worker: pure mechanical recording, no code/design decision)
 - [x] 01 — Visibility docs, evidence, architecture amendments
-- [ ] 02 — **Gate:** authorization cache + read-wall performance decision
+- [x] 02 — **Gate:** authorization cache + read-wall performance decision — **resolved (b), cache required**
 - [ ] 03 — `beacon.is_discoverable` — m0160, Drift, mutations, Hasura
 - [ ] 04 — Symmetric `person_are_mutually_visible` — m0161
-- [ ] 05 — Read-wall discoverability clause — m0162 **(access-control; needs GATE-14.1 resolved + SECURITY-REVIEW)**
+- [ ] 04a — **Inserted by GATE-14.1(b):** discoverability visibility cache
+- [ ] 05 — Read-wall discoverability clause — m0162 **(access-control; needs GATE-14.1 resolved + SECURITY-REVIEW; now also depends on 04a)**
 - [ ] 06 — `constellation_trust_edges` — m0163
 - [ ] 07 — `constellationField` V2 query
 - [ ] 08 — Client pure domain: paths, caps
@@ -167,7 +168,160 @@ the shared **disposable, migrated** database (never reset shared `postgres`).
 
 ## Unresolved decisions / blockers
 
-None yet.
+None currently open. See UNIT 02 attempt 1 (below) for a resolved incident.
+
+## UNIT 02 attempt 1 — timed out — 2026-09-09 (overseer incident note)
+
+The first UNIT 02 worker ran the full 3600s hard timeout without finishing and
+was killed mid-`await` by the runner. Overseer post-mortem:
+
+- No commit was made; no `docs/plans/constellation-read-wall-performance.md`
+  was created; no journal entry was appended (this note is the overseer's,
+  not the worker's).
+- The worker left two untracked, uncommitted, genuinely useful partial-work
+  files: `packages/server/tool/constellation_read_wall_benchmark.dart` (851
+  lines) and `scripts/constellation_read_wall_benchmark.sh`. Both are correct
+  as far as they go — verbatim §0.1 SQL bodies, sound bulk `generate_series`
+  fixture inserts, a proper before/after `EXPLAIN (ANALYZE, BUFFERS)` suite,
+  the exact plan decision rule (`delta_p95_ms > 150 → gate_decision 'b' else
+  'a'`), and a MeritRank-unavailable measurement that stops/restarts the
+  `meritrank` container safely. **Preserve them; a continuation worker should
+  build on them, not restart from scratch.**
+- Root cause: `_seedFixture` tried to publish MeritRank coverage by looping
+  `SELECT mr_put_edge(...)` over a sampled subset of `vote_user` rows
+  (~2-3k rows) directly against the live MeritRank service, one row at a
+  time. That is not how this repo bulk-loads MeritRank in any existing
+  migration or fixture — every real bulk-seed path
+  (`packages/server/lib/data/database/migration/m0061.dart` and similarly
+  m0010/m0011/m0013/m0044/m0053/m0062) aggregates edges into arrays and calls
+  `public.meritrank_init()` (which itself calls
+  `mr_bulk_load_edges(_src, _dst, _weight, _magnitude, _context, 120000::bigint)`
+  once), not `mr_put_edge` per row. The per-row loop is almost certainly what
+  consumed the full hour with no useful signal — a single set-based
+  `meritrank_init()` call should cover the same `vote_user` graph in
+  low single-digit seconds. `meritrank_init()` reads whatever is currently in
+  `vote_user`/`opinion`/`polling`/`polling_act` at call time, so it needs no
+  sampling trick — it will bulk-load the fixture's full ~20.4k-edge graph in
+  one shot, which is more faithful anyway (was a *subset* before).
+- Cleanup performed by the overseer (not a worker) after the timeout: verified
+  `meritrank` (and every other compose service) was healthy — the crashed
+  worker never reached its MeritRank-unavailable stop/restart phase, so
+  nothing needed restarting; found and dropped the leftover disposable
+  database `tentura_test_constellation_perf_1788907129566546` (0 active
+  connections at drop time — safe; this is a throwaway `tentura_test_*`
+  database the tool itself creates and drops per run, never the shared
+  `postgres` database other suites use). No other cleanup was necessary; the
+  worktree had no partial staged/committed state to unwind.
+- Retry: attempt 2 is a **fresh** Cursor session (never `--resume` a stuck
+  session, per the overseer skill's contract) with a narrower prompt pointing
+  at the existing tool file, the root cause above, and the
+  `meritrank_init()` fix. It keeps everything else from attempt 1's approach.
+
+## UNIT 02 attempt 2 — timed out (second distinct cause) — 2026-09-09, then completed directly by the overseer
+
+Attempt 2's `meritrank_init()` fix was verified working (2ms bulk load,
+confirmed live in the log). It then hit a **second, different** problem: with
+MeritRank publishing fast now, the benchmark reached its actual query-timing
+loop, where a single execution of the post-m0162 `hasura_beacon_row_filter`
+query was observed still running after **16m42s** with no sign of finishing
+(confirmed via `pg_stat_activity` — an `active` query, not a hung process; the
+Dart process itself was idle at 0.8% CPU waiting on Postgres). This is a real
+finding, not a bug: `beacon_can_read_content`'s new branch is genuinely
+expensive per row at 50k-row scale. With ~40 of the worker's 60-minute budget
+still available, the overseer cancelled the stuck query
+(`pg_cancel_backend`), sent one `SIGINT` to the worker's `timeout` wrapper
+(which exited cleanly, reported as exit 124 — same signature as attempt 1's
+timeout, different root cause), and verified a clean aftermath: no leftover
+disposable database, `meritrank` and every other compose container healthy,
+no partial commit.
+
+Per the overseer skill's escalation rule ("if the same defect survives two
+well-scoped Cursor attempts, take over diagnosis yourself rather than
+dispatching a third blind attempt") — this was technically a *different*
+defect each time, but the overseer judged that a third blind full-hour Cursor
+attempt was not the efficient next step once the actual bottleneck was this
+well understood, and took over directly instead:
+
+- Patched `packages/server/tool/constellation_read_wall_benchmark.dart`
+  directly (bounded probes: an 8000ms `statement_timeout` cap plus a
+  single-sample fast-path fallback above 1500ms in `_measureQuery`,
+  `_measureShortCircuit`, `_measureMeritRankUnavailable`, and
+  `_measureComposedField`, replacing the unconditional 2-warmup+10-timed-run
+  loop that could no longer bound its own runtime once queries got genuinely
+  slow) and fixed one unrelated bug found along the way (`_measureMeritRankUnavailable`
+  unconditionally passed a `profileTarget` parameter even to SQL that never
+  referenced it, which the Postgres driver rejects as a superfluous variable —
+  masked most of that section's real signal in the runs before the fix).
+- Ran the fixed tool directly via Bash rather than another Cursor worker
+  (background runs were twice killed by the **host machine's own OOM
+  killer** — unrelated to this tool; `free -h` showed 87% swap used from
+  other concurrent processes on this shared desktop, several unrelated
+  `claude` sessions among them; a **foreground** run with the same 10-minute
+  cap completed successfully both times once background execution was
+  avoided).
+- Wrote up the full result, with methodology caveats, in
+  [`constellation-read-wall-performance.md`](constellation-read-wall-performance.md).
+
+**`GATE-14.1: resolved (b)`** — cache required, decided by **V.G. Bulavintsev**
+per the pre-authorized gate-owner assignment (see "Orchestration" above),
+applying the pre-fixed +150ms budget rule mechanically: 4 of 6 representative
+queries exceeded it by more than 30×. Full measurements, root-cause analysis
+(the per-row predicate recomputes the viewer's whole peer set from scratch,
+compounded by a live network call to the MeritRank service via the `pgmer2`
+extension — correcting an earlier wrong assumption that this was a local
+table read), the MeritRank-unavailable "fails loud, not closed" finding, and
+the complete cache specification are all in that document — this entry does
+not restate them.
+
+**Plan amended accordingly** (not merely the journal): `constellation-implementation-plan.md`
+§3's manifest gained a new row, **UNIT 04a — Discoverability visibility
+cache**, between UNIT 04 and UNIT 05 (UNIT 05's dependency list now includes
+`04a`); a full "## UNIT 04a" unit section was added (owns/steps/tests/verify/
+acceptance, in the same format as every other unit) with a concrete
+cache-table + trigger + wrapping-function sketch implementing the performance
+doc's spec; and §0.1's m0162 SQL was amended in place (with an explicit
+`[amended by GATE-14.1: resolved (b)]` marker, not a silent edit) to call
+`person_are_mutually_visible_cached` instead of the direct
+`person_are_mutually_visible` — otherwise UNIT 04a's cache would exist and do
+nothing.
+
+---
+
+## UNIT 02 — complete — 2026-09-09
+COMMITS: (this unit's commit, staged next)
+TESTS: `bash scripts/constellation_read_wall_benchmark.sh` (twice, clean, after
+  the bounded-probe fix) — see `constellation-read-wall-performance.md` for
+  full output; `dart analyze tool/constellation_read_wall_benchmark.dart` —
+  0 errors (19 style-only lints, expected for a throwaway `tool/` script,
+  not under the `lib/` custom-lint gate)
+FILES: docs/plans/constellation-read-wall-performance.md (new),
+  packages/server/tool/constellation_read_wall_benchmark.dart (new, carried
+  over from attempt 1 and patched by the overseer),
+  scripts/constellation_read_wall_benchmark.sh (new, carried over unchanged
+  from attempt 1), docs/plans/constellation-implementation-plan.md (§3
+  manifest + new UNIT 04a section + §0.1 m0162 amendment),
+  docs/plans/constellation-implementation-journal.md
+FINDINGS: see constellation-read-wall-performance.md in full — headline: the
+  post-m0162 read wall is unusable at 50k-row scale without a cache (4 of 6
+  representative queries exceeded the fixed +150ms budget by 30x+); the
+  underlying MeritRank read path is a live network call, not a local table
+  read (corrects an assumption made earlier in this same investigation);
+  MeritRank-unavailable behavior is currently "fail loud" (raw connectivity
+  exception), neither open nor closed, which the new cache's spec explicitly
+  requires fixing to fail closed.
+DECISIONS: GATE-14.1: resolved (b) — cache required, owner V.G. Bulavintsev.
+  Cache specification, migration/table/trigger/function shape, and test
+  obligations are in constellation-read-wall-performance.md and the new
+  UNIT 04a plan section. Two Cursor-worker attempts at this unit each hit a
+  distinct runtime problem (mr_put_edge loop hang; then a genuinely slow
+  post-m0162 query once that was fixed); the overseer took over directly for
+  the remainder per the skill's escalation guidance rather than dispatch a
+  third blind attempt, since the root cause and fix were already well
+  understood by that point.
+REMAINING: UNIT 04a's implementation (a new plan unit, to be dispatched like
+  any other) must land, and be reviewed, before UNIT 05 may start. UNIT 05
+  additionally still needs its own `SECURITY-REVIEW:` sign-off line
+  (unaffected by this unit).
 
 ---
 
