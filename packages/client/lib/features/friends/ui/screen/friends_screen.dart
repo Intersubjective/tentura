@@ -167,9 +167,6 @@ class _FriendsScreenState extends State<FriendsScreen>
             builder: (context, inviteCount) {
               return TenturaPrimaryTabBar(
                 controller: _tabController,
-                labelPadding: EdgeInsets.symmetric(
-                  horizontal: context.tt.tightGap,
-                ),
                 tabs: [
                   Tab(text: l10n.friendsTitle),
                   Tab(
