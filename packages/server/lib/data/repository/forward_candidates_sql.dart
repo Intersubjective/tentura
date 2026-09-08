@@ -12,7 +12,11 @@ SELECT
 FROM public.person_visibility_peers($1, public.cap_normalize_context($2)) p
 INNER JOIN public."user" u ON u.id = p.peer_id
 WHERE nullif(btrim($1), '') IS NOT NULL
-  AND p.is_mutually_visible
+  AND public.person_are_mutually_visible(
+    $1,
+    u.id,
+    public.cap_normalize_context($2)
+  )
   AND u.id <> $1
   AND NOT public.block_hides($1, u.id)
 ORDER BY p.forward_mr DESC, u.display_name, u.id

@@ -6,8 +6,7 @@ import 'package:tentura_server/domain/port/person_visibility_repository_port.dar
 
 import '../database/tentura_db.dart';
 
-/// Mutual IDs from `person_visibility_peers`. Incoming-only MR is omitted
-/// (m0151: speed, then simplicity).
+/// Mutual IDs via symmetric `person_are_mutually_visible` (m0161 / D14).
 @LazySingleton(as: PersonVisibilityRepositoryPort)
 class PersonVisibilityRepository implements PersonVisibilityRepositoryPort {
   PersonVisibilityRepository(this._database);
@@ -33,10 +32,11 @@ class PersonVisibilityRepository implements PersonVisibilityRepositoryPort {
     final rows = await _database
         .customSelect(
           r'''
-SELECT p.peer_id::text AS peer_id
-FROM public.person_visibility_peers($1, $2) p
-WHERE p.is_mutually_visible
-  AND p.peer_id = ANY($3::text[])
+SELECT DISTINCT c.peer_id
+FROM unnest($3::text[]) AS c(peer_id)
+WHERE c.peer_id <> $1
+  AND public.person_are_mutually_visible($1, c.peer_id, $2)
+  AND NOT public.block_hides($1, c.peer_id)
 ''',
           variables: [
             Variable.withString(viewerId),

@@ -11,6 +11,8 @@ void main() {
       contains('ORDER BY p.forward_mr DESC, u.display_name, u.id'),
     );
     expect(kForwardCandidatesWrapSql, contains('LIMIT 500'));
+    expect(kForwardCandidatesWrapSql, contains('person_are_mutually_visible('));
+    expect(kForwardCandidatesWrapSql, isNot(contains('p.is_mutually_visible')));
     expect(kForwardCandidatesWrapSql, isNot(contains('mr_node_score')));
   });
 }

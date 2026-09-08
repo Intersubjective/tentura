@@ -8,6 +8,7 @@ import 'package:injectable/injectable.dart' show Environment;
 import 'package:postgres/postgres.dart';
 import 'package:test/test.dart';
 
+import 'package:tentura_server/data/database/migration/_migrations.dart';
 import 'package:tentura_server/data/database/tentura_db.dart'
     hide isNotNull, isNull;
 import 'package:tentura_server/data/repository/forward_candidates_sql.dart';
@@ -72,6 +73,7 @@ SELECT
   }
 
   late TenturaDb db;
+  Connection? migrationConnection;
 
   const viewerId = 'Upvviewer001';
   const selfPeerId = 'Upvselfpeer1';
@@ -249,6 +251,21 @@ WHERE peer_id = \$3
   }
 
   if (skipReason == false) {
+    setUpAll(() async {
+      final env = _testEnv();
+      migrationConnection = await Connection.open(
+        env.pgEndpoint,
+        settings: env.pgEndpointSettings,
+      );
+      await migrationConnection!.execute('SET check_function_bodies = false');
+      await migrationConnection!.execute('CREATE EXTENSION IF NOT EXISTS pgmer2');
+      await migrateDbSchema(migrationConnection!);
+    });
+
+    tearDownAll(() async {
+      await migrationConnection?.close();
+    });
+
     setUp(() async {
       db = TenturaDb(_testEnv());
       await cleanup();
@@ -519,11 +536,11 @@ WHERE u.id = $2
   );
 
   test(
-    'forwardCandidates wrap id-set matches mutually_visible_users',
+    'forwardCandidates wrap id-set matches symmetric mutual visibility',
     () async {
       final explicitPeer = scenarioPeers[5];
       final mrPeer = scenarioPeers[6];
-      final droppedTrustOutMrInPeer = scenarioPeers[8];
+      final repairedSymmetryPeer = scenarioPeers[8];
       final keptTrustInMrOutPeer = scenarioPeers[9];
       final oneWayPeer = scenarioPeers[1];
       final blockedPeer = scenarioPeers[7];
@@ -537,7 +554,7 @@ WHERE u.id = $2
         (trustOut: false, trustIn: false, mrOut: true, mrIn: true),
       );
       await applySignals(
-        droppedTrustOutMrInPeer,
+        repairedSymmetryPeer,
         (trustOut: true, trustIn: false, mrOut: false, mrIn: true),
       );
       await applySignals(
@@ -561,11 +578,13 @@ ON CONFLICT DO NOTHING
       );
 
       final wrapIds = await _wrapPeerIds(db, viewerId: viewerId);
-      final mvuIds = await _mvuIds(db, viewerId: viewerId);
+      final symmetricIds = await _symmetricPeerIds(db, viewerId: viewerId);
 
-      expect(wrapIds.toSet(), mvuIds);
-      expect(wrapIds, containsAll([explicitPeer, mrPeer, keptTrustInMrOutPeer]));
-      expect(wrapIds, isNot(contains(droppedTrustOutMrInPeer)));
+      expect(wrapIds.toSet(), symmetricIds.difference({blockedPeer}));
+      expect(
+        wrapIds,
+        containsAll([explicitPeer, mrPeer, repairedSymmetryPeer, keptTrustInMrOutPeer]),
+      );
       expect(wrapIds, isNot(contains(oneWayPeer)));
       expect(wrapIds, isNot(contains(blockedPeer)));
       expect(wrapIds, isNot(contains(viewerId)));
@@ -782,6 +801,26 @@ Future<List<String>> _wrapPeerIds(
       )
       .get();
   return [for (final row in rows) row.read<String>('peer_id')];
+}
+
+Future<Set<String>> _symmetricPeerIds(
+  TenturaDb db, {
+  required String viewerId,
+  String context = '',
+}) async {
+  final rows = await db
+      .customSelect(
+        r'''
+SELECT peer_id
+FROM public.person_visible_peers_symmetric($1, $2)
+''',
+        variables: [
+          Variable<String>(viewerId),
+          Variable<String>(context),
+        ],
+      )
+      .get();
+  return {for (final row in rows) row.read<String>('peer_id')};
 }
 
 Future<Set<String>> _mvuIds(

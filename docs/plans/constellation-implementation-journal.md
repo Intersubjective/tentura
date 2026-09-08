@@ -132,7 +132,7 @@ is triggered.
 - [x] 01 — Visibility docs, evidence, architecture amendments
 - [x] 02 — **Gate:** authorization cache + read-wall performance decision — **resolved (b), cache required**
 - [x] 03 — `beacon.is_discoverable` — m0160, Drift, mutations, Hasura
-- [ ] 04 — Symmetric `person_are_mutually_visible` — m0161
+- [x] 04 — Symmetric `person_are_mutually_visible` — m0161
 - [ ] 04a — **Inserted by GATE-14.1(b):** discoverability visibility cache
 - [ ] 05 — Read-wall discoverability clause — m0162 **(access-control; needs GATE-14.1 resolved + SECURITY-REVIEW; now also depends on 04a)**
 - [ ] 06 — `constellation_trust_edges` — m0163
@@ -322,6 +322,44 @@ REMAINING: UNIT 04a's implementation (a new plan unit, to be dispatched like
   any other) must land, and be reviewed, before UNIT 05 may start. UNIT 05
   additionally still needs its own `SECURITY-REVIEW:` sign-off line
   (unaffected by this unit).
+
+---
+
+## UNIT 04 — complete — 2026-09-09
+COMMITS: (this unit's commit, staged next)
+TESTS: `cd packages/server && dart test -t pg -j 1 test/data/database/person_visibility_symmetry_pg_test.dart test/data/database/person_visibility_migration_pg_test.dart test/data/repository/forward_candidate_context_repository_pg_test.dart test/data/repository/person_visibility_repository_pg_test.dart` — 30/30 passed;
+  `cd packages/server && dart test test/domain/use_case/forward_case_auth_test.dart test/data/repository/forward_candidate_context_sql_test.dart test/data/repository/forward_candidates_sql_test.dart test/api/controllers/graphql/query_forward_candidate_context_test.dart test/api/controllers/graphql/query_forward_candidates_test.dart` — 25/25 passed;
+  `./scripts/check-custom-lints.sh packages/server` — exit 0
+FILES: packages/server/lib/data/database/migration/m0161.dart (new),
+  packages/server/lib/data/database/migration/_migrations.dart,
+  packages/server/lib/data/repository/forward_candidate_context_sql.dart,
+  packages/server/lib/data/repository/forward_candidates_sql.dart,
+  packages/server/lib/data/repository/person_visibility_repository.dart,
+  packages/server/test/data/database/person_visibility_symmetry_pg_test.dart (new),
+  packages/server/test/data/database/person_visibility_migration_pg_test.dart,
+  packages/server/test/data/repository/person_visibility_repository_pg_test.dart (new),
+  packages/server/test/data/repository/forward_candidate_context_sql_test.dart,
+  packages/server/test/data/repository/forward_candidates_sql_test.dart,
+  docs/plans/constellation-implementation-journal.md
+FINDINGS: `person_visibility_peers` remains m0151 (last `CREATE OR REPLACE` at
+  m0151.dart; no migration above m0151 redefines it — §1 stop condition clear).
+  UNIT 02 short-circuit hit-rate on the 50k-beacon fixture could not be measured
+  (timed out; see `docs/plans/constellation-read-wall-performance.md` §
+  "Short-circuit hit-rate could not be measured — itself confirmatory"); recorded
+  here instead of inventing a number. `person_visibility_migration_pg_test` needed
+  `setUpAll(migrateDbSchema)` so shared Postgres reaches m0161 before wrap SQL
+  runs.
+DECISIONS: Forward-candidate widening verified by **V.G. Bulavintsev** (plan
+  owner, pre-authorized per Orchestration). Re-baselined forward-candidate
+  expectation: `Upvscen08peer` (`trustOut + mrIn`, no reciprocal trust/MR out)
+  — old wrap excluded it because `person_visibility_peers.is_mutually_visible`
+  was false while reverse-only MR made `person_is_mutually_visible(A,V)` true;
+  symmetric `person_are_mutually_visible(V,A)` repairs eligibility. Test now
+  compares wrap to `person_visible_peers_symmetric` minus `block_hides` peers
+  (wrap filters blocks; symmetric enumerator does not). Send-time path moved to
+  bounded `person_are_mutually_visible` check; `ForwardCase` forward to repaired
+  pair proven via real `PersonVisibilityRepository` in pg test.
+REMAINING: none for this unit.
 
 ---
 

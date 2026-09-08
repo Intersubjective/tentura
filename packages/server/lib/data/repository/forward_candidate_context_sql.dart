@@ -16,17 +16,14 @@ authorized AS MATERIALIZED (
     p.viewer_id,
     p.candidate_id,
     p.normalized_context,
-    EXISTS (
-      SELECT 1
-      FROM public.person_visibility_peers(
+    (
+      p.candidate_id <> p.viewer_id
+      AND NOT public.block_hides(p.viewer_id, p.candidate_id)
+      AND public.person_are_mutually_visible(
         p.viewer_id,
+        p.candidate_id,
         p.normalized_context
-      ) peer
-      INNER JOIN public."user" candidate ON candidate.id = peer.peer_id
-      WHERE peer.peer_id = p.candidate_id
-        AND peer.is_mutually_visible
-        AND p.candidate_id <> p.viewer_id
-        AND NOT public.block_hides(p.viewer_id, p.candidate_id)
+      )
     ) AS candidate_eligible
   FROM params p
 ),

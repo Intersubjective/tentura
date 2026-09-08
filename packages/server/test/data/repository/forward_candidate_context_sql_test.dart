@@ -9,7 +9,7 @@ void main() {
     );
     expect(
       kForwardCandidateContextSql,
-      contains('person_visibility_peers('),
+      contains('person_are_mutually_visible('),
     );
     expect(kForwardCandidateContextSql, contains(r'cap_normalize_context($3'));
     expect(kForwardCandidateContextSql, contains('public.mr_graph('));
