@@ -142,6 +142,7 @@ Future<void> loginAs(WidgetTester tester, String email) async {
   await pumpUntil(
     tester,
     () => GetIt.I<AuthCubit>().state.currentAccountId.isNotEmpty,
+    label: 'loginAs($email) account',
   );
   debugPrint('[e2e] loginAs($email): done');
 }
@@ -152,18 +153,17 @@ Future<void> logout(WidgetTester tester) async {
   if (accountId.isEmpty) {
     return;
   }
-  // Pop root details before sign-out. Auto-close can leave a closed beacon
-  // detail mounted; signing out from that route has hung accountId clears.
+  // Clear root BeaconView overlays before sign-out. Auto-close can leave a
+  // closed detail mounted; signing out from that route has hung accountId clears.
   final router = GetIt.I<RootRouter>();
-  for (var i = 0; i < 6 && router.canPop(); i++) {
-    await router.maybePop();
-    await tester.pump(const Duration(milliseconds: 150));
-  }
+  await router.replaceAll([const AuthLoginRoute()]);
+  await tester.pump(const Duration(milliseconds: 150));
   await GetIt.I<AuthCubit>().signOut();
   debugPrint('[e2e] logout: signOut returned');
   await pumpUntil(
     tester,
     () => GetIt.I<AuthCubit>().state.currentAccountId.isEmpty,
+    label: 'logout account cleared',
   );
   debugPrint('[e2e] logout: done');
 }
@@ -217,7 +217,11 @@ Future<void> goToPath(WidgetTester tester, String path) async {
   // Home source below the detail; warm navigation pushes the root detail above
   // the already-mounted Home tab. The URL therefore remains [path].
   unawaited(router.navigatePath(path, includePrefixMatches: true));
-  await pumpUntil(tester, () => router.currentUrl.contains(path));
+  await pumpUntil(
+    tester,
+    () => router.currentUrl.contains(path),
+    label: 'goToPath($path)',
+  );
   debugPrint('[e2e] goToPath($path): done (url=${router.currentUrl})');
 }
 
@@ -226,6 +230,7 @@ Future<void> pumpUntil(
   bool Function() condition, {
   Duration step = const Duration(milliseconds: 200),
   Duration timeout = const Duration(seconds: 20),
+  String label = 'condition',
 }) async {
   final deadline = DateTime.now().add(timeout);
   while (DateTime.now().isBefore(deadline)) {
@@ -235,7 +240,7 @@ Future<void> pumpUntil(
     }
   }
   final dump = _screenDump();
-  throw TimeoutException('Timed out waiting for condition. $dump');
+  throw TimeoutException('Timed out waiting for $label. $dump');
 }
 
 /// Adds the user-action phase to asynchronous browser-test timeouts.
@@ -311,7 +316,13 @@ Future<void> pumpUntilVisible(
   WidgetTester tester,
   Finder finder, {
   Duration timeout = const Duration(seconds: 20),
-}) => pumpUntil(tester, () => finderHasMatch(finder), timeout: timeout);
+  String? label,
+}) => pumpUntil(
+  tester,
+  () => finderHasMatch(finder),
+  timeout: timeout,
+  label: label ?? 'visible(${finder.description})',
+);
 
 Future<void> tapAndSettle(WidgetTester tester, Finder finder) async {
   // finder.description, not $finder: toString() evaluates the finder and
@@ -420,11 +431,31 @@ Future<void> _createRequestToRecipientsTab(
     }
     await tapAndSettle(tester, chipFinder.first);
     await tapAndSettle(tester, find.text('Save').first);
+    // Flush needs before Recipients: draft autosave from the title alone
+    // creates an empty-needs draft; opening Recipients immediately then
+    // loads an empty forward band (no "Seen helping with …").
+    final formBody = find.byKey(const Key('BeaconCreate.FormBody'));
+    await pumpUntilVisible(tester, formBody);
+    final createCubit = tester.element(formBody).read<BeaconCreateCubit>();
+    await pumpUntil(
+      tester,
+      () => createCubit.state.needs.contains(needSlug),
+      label: 'create needs contain $needSlug',
+    );
+    await createCubit.flushAutosave();
   }
 
   await tapAndSettle(
     tester,
     find.byKey(TestIds.key(TestIds.requestRecipientsTab)),
+  );
+  // Next/Recipients is async (flush + step swap). Wait for recipients chrome
+  // so callers do not race the form step.
+  await pumpUntilVisible(
+    tester,
+    find.byKey(TestIds.key(TestIds.requestMakeLive)),
+    timeout: const Duration(seconds: 60),
+    label: 'recipients step Make live',
   );
 }
 
@@ -725,26 +756,29 @@ Future<RoomMessage> sendRoomMessage(WidgetTester tester, String text) async {
 Future<void> _forceMyWorkDesk(WidgetTester tester) async {
   final router = GetIt.I<RootRouter>();
   final spec = HomeTabSpec.forTab(HomeTab.work);
-  if (router.innerRouterOf<TabsRouter>(HomeRoute.name) != null) {
-    router.popUntilRouteWithName(HomeRoute.name);
-    await tester.pumpAndSettle();
-    router.innerRouterOf<TabsRouter>(HomeRoute.name)!
-        .setActiveIndex(spec.index);
-  } else {
-    await router.replaceAll([
-      HomeRoute(
-        children: [
-          spec.shell(children: [spec.rootRoute()]),
-        ],
-      ),
-    ]);
+  // Root BeaconView overlays survive popUntil/navigatePath after auto-close.
+  // Pop what we can, hard-reset the stack, and align the browser URL so a
+  // stale /beacon/view deep link cannot resurrect the detail.
+  for (var i = 0; i < 8 && router.canPop(); i++) {
+    await router.maybePop();
+    await tester.pump(const Duration(milliseconds: 100));
   }
+  await router.replaceAll([
+    HomeRoute(
+      children: [
+        spec.shell(children: [spec.rootRoute()]),
+      ],
+    ),
+  ]);
+  web.window.history.replaceState(null, '', kPathMyWork);
+  unawaited(router.navigatePath(kPathMyWork, includePrefixMatches: true));
   await pumpUntil(
     tester,
     () =>
         currentAppUrl() == kPathMyWork ||
         currentAppUrl().startsWith('$kPathMyWork?'),
     timeout: const Duration(seconds: 30),
+    label: '_forceMyWorkDesk',
   );
 }
 

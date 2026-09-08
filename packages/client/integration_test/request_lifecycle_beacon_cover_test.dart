@@ -5,6 +5,7 @@ import 'package:integration_test/integration_test.dart';
 import 'package:tentura/consts.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/capability/capability_tag.dart';
+import 'package:tentura/features/beacon_create/ui/dialog/beacon_send_confirmation_dialog.dart';
 import 'package:tentura/main.dart' as app;
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/test_ids.dart';
@@ -77,8 +78,9 @@ void main() {
     );
 
     // Choosing the symbol preference opens the sheet, which offers only the
-    // capabilities this request asks for.
-    await tapAndSettle(tester, find.text(_l10n(tester).beaconCoverSourceSymbol));
+    // capabilities this request asks for. Source actions are icon buttons
+    // (tooltip only) — tap by key, not by visible "Symbol" label.
+    await tapAndSettle(tester, find.byKey(const Key('BeaconCover.SourceSymbol')));
     await pumpUntilVisible(tester, _symbolOption('tools'));
     expect(_symbolOption('housing'), findsNothing);
     await tapAndSettle(tester, _symbolOption('tools'));
@@ -100,18 +102,44 @@ void main() {
       find.textContaining(_label(tester, 'transport')),
     );
     expect(_previewIdentity(tester), 'symbol');
+    await tapAndSettle(tester, find.byIcon(Icons.close_rounded).first);
 
     // Publish to the recipient and verify the author's My Desk.
+    // Next: Recipients runs async prepare/flush before swapping the step;
+    // wait for the recipients chrome (Make live) rather than racing an
+    // offstage IndexedStack child (recipients are no longer built early).
     await tapAndSettle(
       tester,
       find.byKey(TestIds.key(TestIds.requestRecipientsTab)),
     );
-    await tapAndSettle(
+    await pumpUntilVisible(
       tester,
-      find.byKey(TestIds.key(TestIds.forwardRecipient(fixture.helperUserId))),
+      find.byKey(TestIds.key(TestIds.requestMakeLive)),
+      timeout: const Duration(seconds: 60),
+      label: 'recipients step',
     );
-    await tapAndSettle(tester, find.byKey(TestIds.key(TestIds.forwardSubmit)));
+    final selectRecipient = find.byKey(
+      TestIds.key(TestIds.forwardRecipientCheckbox(fixture.helperUserId)),
+    );
+    await pumpUntilVisible(tester, selectRecipient);
+    await tapAndSettle(tester, selectRecipient);
+    final forwardSubmit = find.byKey(TestIds.key(TestIds.forwardSubmit));
+    await pumpUntil(
+      tester,
+      () =>
+          finderHasMatch(forwardSubmit) &&
+          tester.widget<OutlinedButton>(forwardSubmit).onPressed != null,
+      timeout: const Duration(seconds: 30),
+      label: 'enabled forward submit',
+    );
+    await tapAndSettle(tester, forwardSubmit);
     await confirmUncoveredForwardNoteIfPresent(tester);
+    await pumpUntilVisible(
+      tester,
+      find.byType(BeaconSendConfirmationDialog),
+      timeout: const Duration(seconds: 60),
+      label: 'send confirmation',
+    );
     await dismissOkDialogIfPresent(tester);
 
     await goToPath(tester, kPathMyWork);

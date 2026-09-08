@@ -1,6 +1,6 @@
 # Browser flow repair verification
 
-Base HEAD: c097d4712ab66d68b1c72011fab4d1e7003688a4. Client bumped to **7.1.1** (AppBar leading fallback + QA tab-attention reemit seam).
+Base HEAD: c097d4712ab66d68b1c72011fab4d1e7003688a4. Client now **7.1.3** (split management overflow + deferred ForwardCubit; prior 7.1.1 AppBar/QA seams, 7.1.2 create flush).
 
 ## Codex handoff (token limit) — resumed
 
@@ -17,17 +17,26 @@ Codex had left two browser failures after close/review went green: threads navig
 - **Lint/terminology**: client baseline 32 OK, server 0 OK, terminology OK (`/tmp/tentura-*-rerun.log`).
 - **Focused unit**: wasm preload + forward picker PASS.
 
-### Still failing (nine-gate)
+### Landed (was still failing)
 
-1. `request_lifecycle_closed_to_archive_test.dart` — after last review package **auto-closes**, hangs with a raw `TimeoutException` (outside `runE2eStep`) while URL stays on closed `/beacon/view/…?entry=my_work`. Suspect logout/login vs auto-closed detail. Latest: `/tmp/tentura-browser-closed-rerun9.log`.
-2. `witness_admission_forward_band_test.dart` — Alice’s recipients tab never shows `Seen helping with` after auto-close (Carol/Bob/Eve Unseen). `/tmp/tentura-browser-archive-witness-rerun2.log`.
+1. **`request_lifecycle_closed_to_archive_test.dart`** — PASS (`/tmp/tentura-browser-closed-witness-fix5.log`).
+   - Desk reclaim / Archive path was already green; final assert failed because wide split (1600×1024) mounted overflow only on the thread pane with `inRoomSurface: true`, so **Delete Request** never appeared.
+   - Fix: content-pane management overflow (`inRoomSurface: false`) + room overflow on the thread pane; test prefers content overflow / Now when present.
 
-`triggerCloseNow` treats Finished+Archive as already closed; logout pops root details before `signOut`. Desk reclaim still not green.
+2. **`witness_admission_forward_band_test.dart`** — PASS (same log).
+   - `IndexedStack` always built the recipients child, so `ForwardCubit` fetched on the title-only draft (empty `needs`) and cached `filled=false` (`forward_band_composed … filled=false` before the later `needs=transport` UPDATE).
+   - Fix: defer `_buildRecipientsTab` / `ForwardCubit` until the recipients step (after `_prepareRecipientsTab` flush); e2e also flushes needs before opening Recipients.
+
+### Eleven-file runner
+
+**All 11 PASS** — `/tmp/tentura-browser-eleven-gate2.log`.
+
+Earlier partial run (`eleven-gate.log`) was 10/11; cover then fixed (icon key, close sheet, Make live wait, checkbox + confirmation). Cover alone: `/tmp/tentura-browser-cover-fix4.log`.
+
+Lint/terminology after 7.1.3: client baseline 32 OK, server 0 OK, terminology OK.
 
 ### Remaining acceptance (plan)
 
-- Land closed-to-archive + witness.
-- Full eleven-file browser runner.
 - Fresh profile+WASM build with one `WEB_BUILD_ID`, trim/version/preload/verify.
-- Final custom lint + terminology (already green on current patch).
 - Preserve unrelated `docs/Tentura_current_status_quo.md` and pre-existing untracked files; keep build output ignored and `web/manifest.json` skip-worktree.
+- Commit when asked (client **7.1.3** + product/test fixes).

@@ -81,16 +81,27 @@ void main() {
     await logout(tester);
 
     await loginAs(tester, fixture.authorEmail);
+    await runE2eStep('author reclaim My Work desk', () async {
+      await showMyWorkList(tester);
+    });
     await runE2eStep('trigger close / await finished archive', () async {
       await triggerCloseNow(tester);
     });
 
     await runE2eStep('archive finished card', () async {
-      await tapAndSettle(
+      final archive = find.widgetWithText(TextButton, 'Archive');
+      await pumpUntilVisible(
         tester,
-        find.widgetWithText(TextButton, 'Archive').first,
+        archive,
+        timeout: const Duration(seconds: 30),
+        label: 'finished Archive CTA',
       );
-      await pumpUntil(tester, () => find.text(title).evaluate().isEmpty);
+      await tapAndSettle(tester, archive.first);
+      await pumpUntil(
+        tester,
+        () => find.text(title).evaluate().isEmpty,
+        label: 'archived card left active list',
+      );
     });
 
     // Active becomes empty after archiving the only item, so the toolbar
@@ -102,11 +113,21 @@ void main() {
     await pumpUntilVisible(tester, find.text(title));
 
     await tapAndSettle(tester, find.text(title).first);
+    // Delete is on the management overflow (`inRoomSurface: false`). In the
+    // wide split layout that lives on the content pane (first overflow key);
+    // on narrow layouts switch to Now so Chat's room-only overflow is not
+    // the sole menu.
+    final nowTab = find.byKey(TestIds.key(TestIds.beaconTabNow));
+    if (finderHasMatch(nowTab)) {
+      await tapAndSettle(tester, nowTab);
+    }
     await tapAndSettle(
       tester,
       find.byKey(TestIds.key(TestIds.beaconOverflowMenu)).first,
     );
-    await tapAndSettle(tester, find.text('Delete Request').first);
+    final deleteItem = find.text('Delete Request');
+    await pumpUntilVisible(tester, deleteItem, label: 'Delete Request overflow');
+    await tapAndSettle(tester, deleteItem.first);
 
     expect(find.text('Cannot delete'), findsOneWidget);
     expect(find.text('Archive'), findsWidgets);

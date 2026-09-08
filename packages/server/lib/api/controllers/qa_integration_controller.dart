@@ -3,10 +3,13 @@ import 'dart:convert';
 import 'package:injectable/injectable.dart';
 
 import 'package:tentura_server/consts.dart';
+import 'package:tentura_server/domain/capability/capability_evidence_models.dart';
 import 'package:tentura_server/domain/entity/account_credential_entity.dart';
 import 'package:tentura_server/domain/entity/user_entity.dart';
+import 'package:tentura_server/domain/port/meritrank_repository_port.dart';
 import 'package:tentura_server/domain/port/user_repository_port.dart';
 import 'package:tentura_server/domain/port/vote_user_friendship_lookup_port.dart';
+import 'package:tentura_server/domain/port/witness_window_port.dart';
 import 'package:tentura_server/domain/use_case/email_auth_case.dart';
 import 'package:tentura_server/domain/use_case/invitation_case.dart';
 import 'package:tentura_server/domain/use_case/user_trust_edge_case.dart';
@@ -26,6 +29,8 @@ final class QaIntegrationController extends BaseController {
     this._friendshipLookup,
     this._realtimeSocketGate,
     this._userTrustEdgeCase,
+    this._meritrank,
+    this._witnessWindow,
   );
 
   final EmailAuthCase _emailAuthCase;
@@ -34,6 +39,8 @@ final class QaIntegrationController extends BaseController {
   final VoteUserFriendshipLookupPort _friendshipLookup;
   final QaRealtimeSocketGate _realtimeSocketGate;
   final UserTrustEdgeCase _userTrustEdgeCase;
+  final MeritrankRepositoryPort _meritrank;
+  final WitnessWindowPort _witnessWindow;
 
   Future<Response> bootstrap(Request request) async {
     if (!_qaAllowed(request)) {
@@ -154,6 +161,31 @@ final class QaIntegrationController extends BaseController {
       subjectUserId: alice.id,
       objectUserId: bob.id,
       amount: 1,
+    );
+    // Witness-window SQL only considers peers with forward_mr > 0. A one-way
+    // vote alone may not yield a usable MR score before G3b probes the band;
+    // seed the same Alice→Bob edge G3a uses, then invalidate cached windows.
+    await _meritrank.putEdge(
+      nodeA: alice.id,
+      nodeB: bob.id,
+      weight: 0.85,
+    );
+    await _witnessWindow.invalidateFor(userId: alice.id);
+    await _witnessWindow.invalidateFor(userId: bob.id);
+    await _witnessWindow.bumpMrEpoch();
+    // Fresh close-ack e_out ≈ 1/3; network score is m*e_out vs theta 0.30, so
+    // Bob must be admitted with m≈1 or the band stays empty. Pre-seed Alice's
+    // window so G3b does not depend on floor/MR ordering races.
+    await _witnessWindow.storeWindow(
+      egoId: alice.id,
+      normalizedContext: '',
+      weights: [
+        WitnessWeight(
+          witnessUserId: bob.id,
+          m: 1,
+          admitted: true,
+        ),
+      ],
     );
 
     return Response.ok(

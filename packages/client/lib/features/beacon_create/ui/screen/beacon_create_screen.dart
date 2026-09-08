@@ -154,6 +154,10 @@ class _BeaconCreateScreenState extends State<BeaconCreateScreen> {
     if (_beaconCreateCubit.state.publishBlocker != null) {
       return;
     }
+    // Flush before the forward band loads: needs selected after the first
+    // autosave must reach the server or fetchForwardContext sees empty needs
+    // and returns an empty band (no "Seen helping with …").
+    await _beaconCreateCubit.flushAutosave();
     if (_beaconCreateCubit.state.draftId != null) {
       return;
     }
@@ -647,6 +651,13 @@ class _BeaconCreateScreenState extends State<BeaconCreateScreen> {
           style: TenturaText.bodySmall(context.tt.textMuted),
         ),
       );
+    }
+
+    // IndexedStack keeps both steps mounted. Creating ForwardCubit while still
+    // on the form step races the title-only draft autosave (empty needs) and
+    // caches an empty forward band until the screen is rebuilt.
+    if (_step != _recipientsStep) {
+      return const SizedBox.shrink();
     }
 
     final draftId = state.draftId;
