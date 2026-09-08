@@ -170,6 +170,20 @@ the shared **disposable, migrated** database (never reset shared `postgres`).
 
 None currently open. See UNIT 02 attempt 1 (below) for a resolved incident.
 
+**Baseline test-health note (found during UNIT 04 review, not a Constellation
+regression):** running the whole `test/data/database/` directory with
+`-t pg -j 1` currently shows ~15 pre-existing failures unrelated to any unit
+in this plan (e.g. `beacon_cover_migration_test.dart`,
+`m0149_resolution_removal_migration_test.dart`,
+`realtime_notification_migration_test.dart`) — confirmed by running one of
+them (`beacon_cover_migration_test.dart`) in isolation on plain `main`
+(`Severity.error 42703: column "primary_need_slug" does not exist`), where it
+fails identically. **Do not "fix" these as part of any Constellation unit** —
+they are out of scope and pre-date this branch. When a unit's Verify block
+asks for `test/data/database/` broadly, only that unit's own named files are
+the acceptance signal; the ambient ~15 failures are expected noise until
+someone separately triages them.
+
 ## UNIT 02 attempt 1 — timed out — 2026-09-09 (overseer incident note)
 
 The first UNIT 02 worker ran the full 3600s hard timeout without finishing and
