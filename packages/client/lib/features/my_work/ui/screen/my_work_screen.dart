@@ -190,10 +190,10 @@ class _MyWorkFilterMenu extends StatelessWidget {
       builder: (context, filter) {
         final scheme = theme.colorScheme;
         final tt = context.tt;
-        return Tooltip(
-          message: l10n.myWorkFilterMenuTooltip,
-          child: Align(
-            alignment: Alignment.centerLeft,
+        return Align(
+          alignment: Alignment.centerLeft,
+          child: Tooltip(
+            message: l10n.myWorkFilterMenuTooltip,
             child: TextButton(
               style: TextButton.styleFrom(
                 padding: EdgeInsets.symmetric(horizontal: tt.tightGap * 2),
