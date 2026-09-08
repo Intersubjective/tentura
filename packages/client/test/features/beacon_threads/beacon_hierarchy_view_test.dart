@@ -16,17 +16,15 @@ import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/domain/port/beacon_write_port.dart';
 import 'package:tentura/domain/use_case/beacon_create_case.dart';
 import 'package:tentura/domain/use_case/beacon_hierarchy_case.dart';
-import 'package:tentura/features/beacon_threads/domain/entity/request_thread.dart';
 import 'package:tentura/features/beacon_threads/ui/bloc/beacon_hierarchy_cubit.dart';
 import 'package:tentura/features/beacon_threads/ui/bloc/beacon_hierarchy_state.dart';
-import 'package:tentura/features/beacon_threads/ui/bloc/threads_cubit.dart';
-import 'package:tentura/features/beacon_threads/ui/bloc/threads_state.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/beacon_child_request_card.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/beacon_child_requests_section.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/beacon_hierarchy_parent_link.dart';
-import 'package:tentura/features/beacon_threads/ui/widget/threads_list.dart';
+import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_cubit.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_state.dart';
-import 'package:tentura/ui/bloc/state_base.dart';
+import 'package:tentura/features/beacon_view/ui/widget/beacon_now_surface.dart';
+import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
 import '../../domain/use_case/fake_beacon_hierarchy_ports.dart';
@@ -82,24 +80,8 @@ BeaconViewState _beaconState({bool terminal = false}) {
   );
 }
 
-class _StaticThreadsCubit extends Cubit<ThreadsState> implements ThreadsCubit {
-  _StaticThreadsCubit()
-      : super(
-          ThreadsState(
-            threads: [
-              RequestThread(
-                threadId: RequestThread.generalId,
-                kind: RequestThreadKind.general,
-                unreadCount: 2,
-                messageCount: 1,
-                lastMessageAt: DateTime.utc(2026),
-                lastMessageAuthorId: 'auth',
-              ),
-            ],
-            resolvedUnreadByThreadId: {RequestThread.generalId: 2},
-            status: const StateIsSuccess(),
-          ),
-        );
+class _FakeBeaconViewCubit extends Cubit<BeaconViewState> implements BeaconViewCubit {
+  _FakeBeaconViewCubit(BeaconViewState initial) : super(initial);
 
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
@@ -108,7 +90,7 @@ class _StaticThreadsCubit extends Cubit<ThreadsState> implements ThreadsCubit {
 Widget _wrap({
   required Widget child,
   required BeaconHierarchyCubit hierarchyCubit,
-  ThreadsCubit? threadsCubit,
+  BeaconViewCubit? beaconViewCubit,
 }) {
   return MaterialApp(
     theme: TenturaTheme.light(),
@@ -119,8 +101,8 @@ Widget _wrap({
       body: MultiBlocProvider(
         providers: [
           BlocProvider<BeaconHierarchyCubit>.value(value: hierarchyCubit),
-          if (threadsCubit != null)
-            BlocProvider<ThreadsCubit>.value(value: threadsCubit),
+          if (beaconViewCubit != null)
+            BlocProvider<BeaconViewCubit>.value(value: beaconViewCubit),
         ],
         child: child,
       ),
@@ -265,16 +247,23 @@ void main() {
     );
     addTearDown(cubit.close);
 
-    final threadsCubit = _StaticThreadsCubit();
-    addTearDown(threadsCubit.close);
+    final beaconViewCubit = _FakeBeaconViewCubit(_beaconState());
+    addTearDown(beaconViewCubit.close);
+    final screenCubit = ScreenCubit.local();
+    addTearDown(screenCubit.close);
 
     await tester.pumpWidget(
       _wrap(
         hierarchyCubit: cubit,
-        threadsCubit: threadsCubit,
-        child: ThreadsList(
-          beaconState: _beaconState(),
-          onOpenGeneral: () {},
+        beaconViewCubit: beaconViewCubit,
+        child: BeaconNowSurface(
+          beaconViewCubit: beaconViewCubit,
+          screenCubit: screenCubit,
+          beaconState: beaconViewCubit.state,
+          onSurfaceSelected: (_) {},
+          onActivatePeopleTabAttention: () {},
+          onFocusCoordinationItem: (_) {},
+          onOpenGeneralThread: () {},
         ),
       ),
     );
@@ -282,12 +271,10 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Visible child'), findsOneWidget);
-    expect(find.text('2'), findsOneWidget);
 
     cubit.evictHierarchyAccess();
     await tester.pumpAndSettle();
 
     expect(find.text('Visible child'), findsNothing);
-    expect(find.text('2'), findsOneWidget);
   });
 }

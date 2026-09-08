@@ -345,6 +345,7 @@ Widget beaconViewAppBarOverflow({
   required ScreenCubit screenCubit,
   required L10n l10n,
   required Future<void> Function() onAuthorManageStatus,
+  required VoidCallback onActivityLog,
   required bool inRoomSurface,
   required VoidCallback onItemsTabRefresh,
   RoomCubit? roomCubit,
@@ -394,6 +395,7 @@ Widget beaconViewAppBarOverflow({
               await onAuthorManageStatus();
             }
           : null,
+      onActivityLog: onActivityLog,
       onEdit: showBeaconManagementOverflow && beaconAllowsEdit(b)
           ? () => unawaited(
               context.router.push(BeaconCreateRoute(editId: beaconId)),
@@ -451,6 +453,7 @@ Widget beaconViewAppBarOverflow({
             await onAuthorManageStatus();
           }
         : null,
+    onActivityLog: onActivityLog,
     onCreatePromise: onCreatePromise,
     onCreatePoll: onCreatePoll,
     onUpdatePlan: onUpdatePlan,

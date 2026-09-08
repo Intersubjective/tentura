@@ -58,6 +58,7 @@ class TenturaTokens extends ThemeExtension<TenturaTokens> {
     required this.unreadDotSize,
     required this.graphPersonContextWidth,
     required this.graphPersonContextCompactMaxHeightFraction,
+    required this.tabCompactWidth,
   });
 
   final Color bg;
@@ -152,6 +153,9 @@ class TenturaTokens extends ThemeExtension<TenturaTokens> {
   /// Max height fraction for the compact bottom person context card.
   final double graphPersonContextCompactMaxHeightFraction;
 
+  /// Fixed width for icon-only compact tabs at the end of a tab row.
+  final double tabCompactWidth;
+
   static const TenturaTokens light = TenturaTokens(
     bg: TenturaPalette.bg,
     surface: TenturaPalette.surface,
@@ -200,6 +204,7 @@ class TenturaTokens extends ThemeExtension<TenturaTokens> {
     unreadDotSize: TenturaSpacing.unreadDot,
     graphPersonContextWidth: 320,
     graphPersonContextCompactMaxHeightFraction: 0.42,
+    tabCompactWidth: TenturaSpacing.tabCompact,
   );
 
   static const TenturaTokens dark = TenturaTokens(
@@ -250,6 +255,7 @@ class TenturaTokens extends ThemeExtension<TenturaTokens> {
     unreadDotSize: TenturaSpacing.unreadDot,
     graphPersonContextWidth: 320,
     graphPersonContextCompactMaxHeightFraction: 0.42,
+    tabCompactWidth: TenturaSpacing.tabCompact,
   );
 
   /// Mine / secondary info on cards (sky-tinted border emphasis).
@@ -295,6 +301,7 @@ class TenturaTokens extends ThemeExtension<TenturaTokens> {
           searchBarHeight: TenturaSpacing.searchBar,
           searchBarRadius: TenturaRadii.searchBar,
           unreadDotSize: TenturaSpacing.unreadDot,
+          tabCompactWidth: TenturaSpacing.tabCompact,
           refreshContentMaxWidth: true,
         );
       case WindowClass.regular:
@@ -329,6 +336,7 @@ class TenturaTokens extends ThemeExtension<TenturaTokens> {
           searchBarHeight: TenturaSpacing.searchBar,
           searchBarRadius: TenturaRadii.searchBar,
           unreadDotSize: TenturaSpacing.unreadDot,
+          tabCompactWidth: TenturaSpacing.tabCompactWide,
           refreshContentMaxWidth: true,
         );
       case WindowClass.expanded:
@@ -363,6 +371,7 @@ class TenturaTokens extends ThemeExtension<TenturaTokens> {
           searchBarHeight: TenturaSpacing.searchBar,
           searchBarRadius: TenturaRadii.searchBar,
           unreadDotSize: TenturaSpacing.unreadDot,
+          tabCompactWidth: TenturaSpacing.tabCompactWide,
           refreshContentMaxWidth: true,
         );
     }
@@ -418,6 +427,7 @@ class TenturaTokens extends ThemeExtension<TenturaTokens> {
     double? unreadDotSize,
     double? graphPersonContextWidth,
     double? graphPersonContextCompactMaxHeightFraction,
+    double? tabCompactWidth,
   }) {
     return TenturaTokens(
       bg: bg ?? this.bg,
@@ -472,6 +482,7 @@ class TenturaTokens extends ThemeExtension<TenturaTokens> {
       graphPersonContextCompactMaxHeightFraction:
           graphPersonContextCompactMaxHeightFraction ??
           this.graphPersonContextCompactMaxHeightFraction,
+      tabCompactWidth: tabCompactWidth ?? this.tabCompactWidth,
     );
   }
 
@@ -557,6 +568,7 @@ class TenturaTokens extends ThemeExtension<TenturaTokens> {
         other.graphPersonContextCompactMaxHeightFraction,
         t,
       )!,
+      tabCompactWidth: lerpDouble(tabCompactWidth, other.tabCompactWidth, t)!,
     );
   }
 }

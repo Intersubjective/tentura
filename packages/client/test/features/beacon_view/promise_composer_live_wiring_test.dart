@@ -1,5 +1,5 @@
 // Closes a coverage gap: proves production wiring from BeaconViewCubit
-// participant stream into the coordination composer opened via ThreadsList CTA.
+// participant stream into the coordination composer opened via NOW surface CTA.
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -7,26 +7,44 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get_it/get_it.dart';
 import 'package:mockito/mockito.dart';
+import 'package:tentura_root/domain/entity/beacon_hierarchy_capabilities.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 
+import 'package:tentura/data/repository/image_repository.dart';
 import 'package:tentura/design_system/tentura_theme.dart';
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/beacon_participant.dart';
 import 'package:tentura/domain/entity/beacon_room_consts.dart';
 import 'package:tentura/domain/entity/coordination_item.dart';
 import 'package:tentura/domain/entity/profile.dart';
+import 'package:tentura/domain/port/beacon_write_port.dart';
+import 'package:tentura/domain/use_case/beacon_create_case.dart';
+import 'package:tentura/domain/use_case/beacon_hierarchy_case.dart';
+import 'package:tentura/features/beacon_threads/ui/bloc/beacon_hierarchy_cubit.dart';
 import 'package:tentura/features/beacon_threads/ui/bloc/threads_cubit.dart';
 import 'package:tentura/features/beacon_threads/ui/bloc/threads_state.dart';
-import 'package:tentura/features/beacon_threads/ui/widget/threads_list.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_cubit.dart';
+import 'package:tentura/features/beacon_view/ui/widget/beacon_now_surface.dart';
 import 'package:tentura/features/coordination_item/domain/use_case/coordination_item_case.dart';
+import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/bloc/state_base.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/test_ids.dart';
 
+import '../../domain/use_case/fake_beacon_hierarchy_ports.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
 import '../beacon_threads/fake_coordination_item_case.dart';
 import 'beacon_view_case_test_support.dart';
+
+class _NoopBeaconWritePort implements BeaconWritePort {
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
+class _NoopImageRepo implements ImageRepository {
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
 
 class _MockThreadsCubit extends Mock implements ThreadsCubit {
   _MockThreadsCubit(this._state);
@@ -136,7 +154,7 @@ void main() {
   });
 
   testWidgets(
-    'real BeaconViewCubit feeds live participants into composer from ThreadsList CTA',
+    'real BeaconViewCubit feeds live participants into composer from NOW surface CTA',
     (tester) async {
       final trackingCase = _TrackingPromiseCase();
       GetIt.I.registerSingleton<CoordinationItemCase>(trackingCase);
@@ -168,6 +186,25 @@ void main() {
         const ThreadsState(status: StateIsSuccess()),
       );
 
+      final hierarchyCubit = BeaconHierarchyCubit(
+        beaconId: beaconId,
+        hierarchyCase: buildBeaconHierarchyCaseForTest(
+          FakeBeaconHierarchyRepositoryPort(
+            capabilities: const BeaconHierarchyCapabilities(
+              canListChildren: false,
+              canCreateChild: false,
+            ),
+          ),
+          createCase: BeaconCreateCase(_NoopBeaconWritePort(), _NoopImageRepo()),
+          beacons: _NoopBeaconWritePort(),
+          commandStore: InMemoryBeaconChildCommandStore(),
+        ),
+      );
+      addTearDown(hierarchyCubit.close);
+
+      final screenCubit = ScreenCubit.local();
+      addTearDown(screenCubit.close);
+
       await tester.pumpWidget(
         MaterialApp(
           theme: TenturaTheme.light(),
@@ -178,13 +215,19 @@ void main() {
             providers: [
               BlocProvider<BeaconViewCubit>.value(value: cubit),
               BlocProvider<ThreadsCubit>.value(value: threadsCubit),
+              BlocProvider<BeaconHierarchyCubit>.value(value: hierarchyCubit),
             ],
             child: Scaffold(
               body: BlocBuilder<BeaconViewCubit, BeaconViewState>(
                 bloc: cubit,
-                builder: (context, state) => ThreadsList(
+                builder: (context, state) => BeaconNowSurface(
+                  beaconViewCubit: cubit,
+                  screenCubit: screenCubit,
                   beaconState: state,
-                  onOpenGeneral: () {},
+                  onSurfaceSelected: (_) {},
+                  onActivatePeopleTabAttention: () {},
+                  onFocusCoordinationItem: (_) {},
+                  onOpenGeneralThread: () {},
                 ),
               ),
             ),

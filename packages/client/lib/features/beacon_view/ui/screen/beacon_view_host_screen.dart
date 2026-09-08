@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:get_it/get_it.dart';
 
+import 'package:tentura/app/router/beacon_view_route_normalizer.dart';
 import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/consts.dart';
 import 'package:tentura/features/beacon_threads/domain/entity/request_thread.dart';
@@ -90,6 +91,8 @@ class BeaconViewHostScreen extends StatelessWidget implements AutoRouteWrapper {
               beaconId: id,
               threadId: threadId,
               messageId: messageId,
+              isDeepLink: isDeepLink,
+              entry: entry,
               child: this,
             ),
           ),
@@ -105,12 +108,16 @@ class _BeaconViewMessageCanonicalizer extends StatefulWidget {
     required this.beaconId,
     required this.threadId,
     required this.messageId,
+    required this.isDeepLink,
+    required this.entry,
     required this.child,
   });
 
   final String beaconId;
   final String? threadId;
   final String? messageId;
+  final String? isDeepLink;
+  final String? entry;
   final Widget child;
 
   @override
@@ -120,10 +127,10 @@ class _BeaconViewMessageCanonicalizer extends StatefulWidget {
 
 class _BeaconViewMessageCanonicalizerState
     extends State<_BeaconViewMessageCanonicalizer> {
-  /// The `?message=` already resolved (or in flight), so a rebuild with the
-  /// same id — including one this canonicalizer's own route replace
-  /// triggers — does not re-resolve it.
+  /// Set only after a successful in-place ROOM hand-off (plan §4.6).
   String? _resolvedForMessageId;
+
+  int _intentGeneration = 0;
 
   @override
   void initState() {
@@ -134,12 +141,11 @@ class _BeaconViewMessageCanonicalizerState
   @override
   void didUpdateWidget(_BeaconViewMessageCanonicalizer oldWidget) {
     super.didUpdateWidget(oldWidget);
-    // `usesPathAsKey` keeps this State alive across navigations to the same
-    // beacon id, so a fresh `?message=` (e.g. from a second deep link while
-    // a prior thread is already open) needs its own resolve pass rather than
-    // being silently dropped by the once-per-instance dedup below.
     if (oldWidget.messageId != widget.messageId ||
         oldWidget.threadId != widget.threadId) {
+      if (oldWidget.messageId != widget.messageId) {
+        _resolvedForMessageId = null;
+      }
       WidgetsBinding.instance.addPostFrameCallback((_) => unawaited(_canonicalize()));
     }
   }
@@ -153,20 +159,35 @@ class _BeaconViewMessageCanonicalizerState
     if (messageId == null || messageId.isEmpty) return;
     if (_resolvedForMessageId == messageId) return;
 
-    _resolvedForMessageId = messageId;
-    final resolvedThreadId = await resolveCanonicalThreadIdForMessage(
-      threadsCase: GetIt.I<BeaconThreadsCase>(),
-      beaconId: widget.beaconId,
-      messageId: messageId,
+    final generation = ++_intentGeneration;
+
+    String resolvedThreadId;
+    try {
+      resolvedThreadId = await resolveCanonicalThreadIdForMessage(
+        threadsCase: GetIt.I<BeaconThreadsCase>(),
+        beaconId: widget.beaconId,
+        messageId: messageId,
+      );
+    } on Object {
+      return;
+    }
+    if (!mounted || generation != _intentGeneration) return;
+
+    final normalized = normalizeBeaconViewRouteQuery(
+      pathThreadId: resolvedThreadId,
+      incomingQuery: {
+        if (widget.isDeepLink != null) kQueryIsDeepLink: widget.isDeepLink!,
+        if (widget.entry != null) kQueryBeaconEntry: widget.entry!,
+        kQueryMessageId: messageId,
+      },
     );
-    if (!mounted) return;
 
     await context.router.replace(
-      ThreadDetailRoute(
-        threadId: resolvedThreadId,
-        messageId: messageId,
-      ),
+      beaconViewOperationalFromNormalized(normalized),
     );
+    if (!mounted || generation != _intentGeneration) return;
+
+    _resolvedForMessageId = messageId;
   }
 
   @override

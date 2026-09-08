@@ -37,13 +37,15 @@ Bottom navigation (default tab: **My Work**):
 
 ## Request detail
 
-Opening a request shows a **coordination header** (shared situation + personal obligation) and three tabs:
+Opening a request shows a **coordination header** (shared situation + personal obligation) and three surface tabs below the app bar:
 
 | Tab | What the user sees |
 |-----|-------------------|
-| **Discussion** | **General** (when admitted), **child request** cards for immediate published children, and the viewer's own unpublished **child drafts** |
+| **NOW** | Coordination header card (**NOW**, **YOU**, **Details**, **ACT**), pinned facts, and **child request** cards (published children plus the viewer's unpublished drafts) |
+| **Chat** | **General** conversation when admitted (message list + composer); tab label is the short form of the discussion workspace — see [`.cursor/rules/terminology.mdc`](../../.cursor/rules/terminology.mdc) |
 | **People** | Author, helpers, forwarders, discussion participants |
-| **Log** | Public timeline of request-level changes |
+
+The **Activity log** (coordination timeline) is no longer a tab — it opens from the request overflow menu as a full-height adaptive sheet (`labelBeaconTabLog`).
 
 The header rows (**NOW**, **YOU**, **Details** when schedule/location/definition exist, **ACT**) summarize phase and next action. Copy is shared for everyone in the same visibility tier; **YOU** and **ACT** are personal. Mini-avatars for involved people appear on the **General** card (not in the header).
 
@@ -59,7 +61,7 @@ Closing or cancelling a parent does **not** auto-close children; admitted partic
 
 ### General-only conversation
 
-The **Discussion** tab exposes one addressable conversation per request:
+The **Chat** surface exposes one addressable conversation per request:
 
 | Surface | Meaning |
 |---------|---------|
@@ -83,7 +85,7 @@ A **child request** is a normal beacon with its own owner, membership, help offe
 
 Parent admission does **not** grant child discussion access. A forward to the child creates ordinary inbox involvement; accepting/obtaining child admission unlocks General independently.
 
-**Create child request** — from the parent's Discussion surface or by promoting a General message. Promotion keeps the source bubble; a footer links to the published child when readable; a system **child created** notice records publication. One published child per source message.
+**Create child request** — from the parent's **NOW** surface or by promoting a General message. Promotion keeps the source bubble; a footer links to the published child when readable; a system **child created** notice records publication. One published child per source message.
 
 **Parent reference on child** — when the viewer can read the parent under the one-edge rule, a navigable parent reference is shown; otherwise unavailable/tombstone wording with no actionable parent id or title leak.
 
@@ -101,15 +103,34 @@ Empty or blocked admission shows the admission placeholder. Item-participant uni
 
 | Window class | Behavior |
 |--------------|----------|
-| **Compact** / **regular** | Discussion tab; selecting **General** pushes the thread host; child cards open normal beacon detail routes |
-| **Expanded** | Left: header + tab bar + Discussion body; right: **General** preselected when accessible; right pane persists across **People** and **Log** |
-| **Embedded** (My Work pane) | Split vs push follows **pane width**, not window class |
+| **Compact** / **regular** | Three tabs (NOW / Chat / People). **Chat** shows **General** inline — no pushed thread route. Child cards on NOW open normal beacon detail routes. |
+| **Expanded** (split, when General is accessible and the thread list has ever had rows) | Left: app bar + tab bar (**NOW** and **People** only — Chat is hidden because the conversation is permanently in the right pane); right: **General** (`BeaconRoomSurface`). Split latches once thread rows exist and does not collapse on a silent threads refresh. |
+| **Embedded** (My Work pane) | Split follows **pane width**, not window class |
 
-URL: `?tab=threads&thread=general` (internal tab key unchanged). `message=` scrolls within General. Child beacons use standard beacon routes, not thread ids.
+**URL contract** (`kQueryBeaconViewTab` wire values are unchanged — `threads` still selects the conversation):
+
+| URL | Result |
+|-----|--------|
+| `/beacon/view/:id` | NOW |
+| `?tab=now` | NOW |
+| `?tab=threads` | Chat (split: room pane focused, NOW selected in the left tab bar) |
+| `?tab=threads&thread=general` | Chat |
+| `?tab=threads&message=<id>` | Chat, scrolled to the message |
+| `?tab=people` | People |
+| `?tab=people&people_tab_attention=1` | People + attention pulse |
+| `?tab=log` | NOW + Activity sheet opened post-frame (legacy compat) |
+| unknown / absent `tab` | NOW |
+| `/beacon/view/:id/thread/general` | redirect → `?tab=threads&thread=general` |
+| `/beacon/view/:id/thread/<legacy>` | redirect → Chat showing `beaconLegacyThreadUnavailable` |
+| `?message=<id>` without `thread=` | canonicalized in-place to Chat + scroll |
+
+**Redirect precedence** (one normalizer for cold deep links and warm `/thread/:id` redirects): (1) path `thread/:threadId` wins over query `thread=`; (2) a resolved thread id implies `tab=threads`, overriding incoming `tab=`; (3) a non-`general` thread id resolves to Chat + legacy-unavailable, even when `message=` is present; (4) `entry=` / `is_deep_link=` provenance parameters are preserved; (5) anything unrecognized falls through to NOW.
+
+Child beacons use standard beacon routes, not thread ids.
 
 ### Per-thread unread
 
-Unread counts apply to **General** only on the Discussion tab badge (`threadsTabUnreadCount`). Child request state does not inherit parent read watermarks; viewing a parent does not mark a child's General seen. Own messages do not count as unread. Read-to-bottom suppresses row unread optimistically until sync completes.
+Unread counts for **General** appear on the **Chat** tab badge (`threadsTabUnreadCount`). Closed-thread unread may be stored but is excluded from the badge. Child request state does not inherit parent read watermarks; viewing a parent does not mark a child's General seen. Own messages do not count as unread. Read-to-bottom suppresses row unread optimistically until sync completes.
 
 ### General detail
 

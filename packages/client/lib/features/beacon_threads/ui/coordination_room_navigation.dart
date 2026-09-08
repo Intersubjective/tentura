@@ -1,13 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import 'package:tentura/app/router/root_router.dart';
-import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/coordination_item.dart';
-import 'package:tentura/features/beacon_threads/domain/entity/request_thread.dart';
 import 'package:tentura/features/beacon_threads/ui/bloc/room_cubit.dart';
 import 'package:tentura/features/beacon_threads/ui/bloc/thread_host_cubit.dart';
-import 'package:tentura/features/beacon_threads/ui/bloc/threads_cubit.dart';
+import 'package:tentura/features/beacon_threads/ui/bloc/thread_host_state.dart';
+import 'package:tentura/features/beacon_view/ui/util/beacon_room_navigation_scope.dart';
 
 /// Plan coordination items use the main beacon room, not per-item threads.
 bool planItemSuppressesItemDiscussion(CoordinationItem item) =>
@@ -19,49 +17,92 @@ Future<void> openCoordinationItemFromRoom(
   required CoordinationItem item,
   RoomCubit? roomCubit,
 }) async {
+  final messageId = item.threadAnchorMessageId;
+  final coordinationItemId = item.id;
+
   if (planItemSuppressesItemDiscussion(item)) {
-    roomCubit?.prepareThreadScroll(
-      messageId: item.threadAnchorMessageId,
-      coordinationItemId: item.id,
+    final cubit = roomCubit ?? _activeRoomCubit(context);
+    cubit?.prepareThreadScroll(
+      messageId: messageId,
+      coordinationItemId: coordinationItemId,
     );
     return;
   }
 
-  final expanded = context.windowClass == WindowClass.expanded;
-  if (expanded) {
-    try {
-      final host = context.read<ThreadHostCubit>();
-      final threads = context.read<ThreadsCubit>().state.threads;
-      RequestThread? thread;
-      for (final t in threads) {
-        if (t.threadId == item.id) {
-          thread = t;
-          break;
-        }
-      }
-      if (thread != null) {
-        await host.select(thread);
-        final cubit = host.roomCubit;
-        if (cubit != null && !cubit.isClosed) {
-          await cubit.reloadMessages(silent: true);
-        }
-        return;
-      }
-    } on Object {
-      // No thread host scope — fall through to routed detail.
+  final scope = BeaconRoomNavigationScope.maybeOf(context);
+  if (scope != null) {
+    if (scope.isRoomPresented) {
+      await scope.roomLease.awaitReady();
+      if (!context.mounted) return;
+      _activeRoomCubit(context)?.prepareThreadScroll(
+        messageId: messageId,
+        coordinationItemId: coordinationItemId,
+      );
+    } else {
+      await scope.openGeneralAnchor(
+        messageId: messageId,
+        coordinationItemId: coordinationItemId,
+      );
     }
+    await _reloadRoomMessages(context, roomCubit: roomCubit);
+    return;
   }
 
-  final route = ThreadDetailRoute(threadId: item.id);
-  final router = context.router;
-  if (router.currentChild?.name == ThreadDetailRoute.name) {
-    await router.replace(route);
-  } else {
-    await router.push(route);
-  }
+  await _openAnchorWithoutNavigationScope(
+    context,
+    messageId: messageId,
+    coordinationItemId: coordinationItemId,
+    roomCubit: roomCubit,
+  );
+}
 
+RoomCubit? _activeRoomCubit(BuildContext context) {
+  try {
+    final cubit = context.read<ThreadHostCubit>().roomCubit;
+    if (cubit != null && !cubit.isClosed) return cubit;
+  } on Object {
+    // No thread host above this context.
+  }
+  return null;
+}
+
+bool _isRoomActiveWithoutScope(ThreadHostState state, RoomCubit? roomCubit) =>
+    roomCubit != null &&
+    !roomCubit.isClosed &&
+    !state.switching &&
+    state.openThreadId != null;
+
+Future<void> _reloadRoomMessages(
+  BuildContext context, {
+  RoomCubit? roomCubit,
+}) async {
   if (!context.mounted) return;
-  final cubit = roomCubit ?? context.read<ThreadHostCubit>().roomCubit;
+  final cubit = roomCubit ?? _activeRoomCubit(context);
   if (cubit == null || cubit.isClosed) return;
   await cubit.reloadMessages(silent: true);
+}
+
+/// Legacy pushed thread detail (U10) — no [BeaconRoomNavigationScope].
+Future<void> _openAnchorWithoutNavigationScope(
+  BuildContext context, {
+  String? messageId,
+  String? coordinationItemId,
+  RoomCubit? roomCubit,
+}) async {
+  ThreadHostCubit? host;
+  try {
+    host = context.read<ThreadHostCubit>();
+  } on Object {
+    return;
+  }
+  if (host.isClosed) return;
+
+  final activeCubit = roomCubit ?? host.roomCubit;
+  if (_isRoomActiveWithoutScope(host.state, activeCubit)) {
+    activeCubit!.prepareThreadScroll(
+      messageId: messageId,
+      coordinationItemId: coordinationItemId,
+    );
+    await _reloadRoomMessages(context, roomCubit: roomCubit);
+  }
 }

@@ -1,6 +1,33 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/rendering.dart';
+import 'package:flutter/semantics.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
+import 'package:tentura/design_system/tentura_window_class.dart';
+
+Widget _tabsHarness({
+  required Widget child,
+  required double width,
+  WindowClass? windowClass,
+}) {
+  final wc = windowClass ?? windowClassForWidth(width);
+  final baseTheme = TenturaTheme.light();
+  final tokens =
+      (baseTheme.extension<TenturaTokens>() ?? TenturaTokens.light)
+          .applyWindowClass(wc);
+  return MaterialApp(
+    theme: baseTheme.copyWith(
+      extensions: [
+        tokens,
+        ...baseTheme.extensions.values.where((e) => e is! TenturaTokens),
+      ],
+    ),
+    home: MediaQuery(
+      data: MediaQueryData(size: Size(width, 800)),
+      child: Scaffold(body: child),
+    ),
+  );
+}
 
 void main() {
   testWidgets(
@@ -282,6 +309,302 @@ void main() {
       expect(find.text('People'), findsOneWidget);
       expect(find.text('Journal'), findsOneWidget);
       expect(find.byType(Icon), findsNothing);
+    },
+  );
+
+  testWidgets(
+    'TenturaUnderlineTabs without compactIconTabs keeps equal-width Expanded cells',
+    (tester) async {
+      await tester.pumpWidget(
+        _tabsHarness(
+          width: 400,
+          child: SizedBox(
+            width: 400,
+            child: TenturaUnderlineTabs(
+              tabs: const ['One', 'Two', 'Three'],
+              icons: const [
+                Icons.star_outline,
+                Icons.favorite_outline,
+                Icons.history_outlined,
+              ],
+              selectedIndex: 0,
+              onChanged: (_) {},
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      final inkWells = tester.renderObjectList<RenderBox>(
+        find.descendant(
+          of: find.byType(TenturaUnderlineTabs),
+          matching: find.byType(InkWell),
+        ),
+      );
+      expect(inkWells.length, 3);
+      final widths = inkWells.map((box) => box.size.width).toList();
+      expect(widths[0], closeTo(400 / 3, 0.01));
+      expect(widths[1], closeTo(400 / 3, 0.01));
+      expect(widths[2], closeTo(400 / 3, 0.01));
+    },
+  );
+
+  testWidgets(
+    'TenturaUnderlineTabs compactIconTabs uses tabCompactWidth and hides label',
+    (tester) async {
+      await tester.pumpWidget(
+        _tabsHarness(
+          width: 360,
+          child: SizedBox(
+            width: 360,
+            child: TenturaUnderlineTabs(
+              tabs: const ['Now', 'Chat', 'People'],
+              icons: const [
+                Icons.bolt_outlined,
+                Icons.forum_outlined,
+                Icons.people_outline,
+              ],
+              compactIconTabs: const {2},
+              selectedIndex: 2,
+              onChanged: (_) {},
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      final tt = TenturaTokens.light.applyWindowClass(WindowClass.compact);
+      expect(find.text('People'), findsNothing);
+      expect(find.text('Now'), findsOneWidget);
+      expect(find.text('Chat'), findsOneWidget);
+
+      final peopleIcon = find.byIcon(Icons.people_outline);
+      final peopleInkWell = tester.renderObject<RenderBox>(
+        find.ancestor(of: peopleIcon, matching: find.byType(InkWell)),
+      );
+      expect(peopleInkWell.size.width, tt.tabCompactWidth);
+
+      final inkWells = tester.renderObjectList<RenderBox>(
+        find.descendant(
+          of: find.byType(TenturaUnderlineTabs),
+          matching: find.byType(InkWell),
+        ),
+      );
+      final flexWidths = inkWells
+          .map((box) => box.size.width)
+          .where((w) => w != tt.tabCompactWidth)
+          .toList();
+      expect(flexWidths.length, 2);
+      expect(flexWidths[0], closeTo(flexWidths[1], 0.01));
+      expect(
+        flexWidths[0] + flexWidths[1] + tt.tabCompactWidth,
+        closeTo(360, 0.01),
+      );
+    },
+  );
+
+  testWidgets(
+    'TenturaUnderlineTabs compactIconTabs exposes tooltip and semantics',
+    (tester) async {
+      await tester.pumpWidget(
+        _tabsHarness(
+          width: 360,
+          child: TenturaUnderlineTabs(
+            tabs: const ['Now', 'Chat', 'People'],
+            icons: const [
+              Icons.bolt_outlined,
+              Icons.forum_outlined,
+              Icons.people_outline,
+            ],
+            compactIconTabs: const {2},
+            selectedIndex: 1,
+            onChanged: (_) {},
+          ),
+        ),
+      );
+      await tester.pump();
+
+      expect(find.byType(Tooltip), findsOneWidget);
+      final tooltip = tester.widget<Tooltip>(find.byType(Tooltip));
+      expect(tooltip.message, 'People');
+
+      final peopleSemantics = tester.getSemantics(
+        find.byIcon(Icons.people_outline),
+      );
+      expect(peopleSemantics.label, contains('People'));
+      expect(peopleSemantics.hasFlag(SemanticsFlag.isButton), isTrue);
+      expect(peopleSemantics.hasFlag(SemanticsFlag.isSelected), isFalse);
+    },
+  );
+
+  testWidgets(
+    'TenturaUnderlineTabs compactIconTabs selected exposes selected semantics',
+    (tester) async {
+      await tester.pumpWidget(
+        _tabsHarness(
+          width: 360,
+          child: TenturaUnderlineTabs(
+            tabs: const ['Now', 'Chat', 'People'],
+            icons: const [
+              Icons.bolt_outlined,
+              Icons.forum_outlined,
+              Icons.people_outline,
+            ],
+            compactIconTabs: const {2},
+            selectedIndex: 2,
+            onChanged: (_) {},
+          ),
+        ),
+      );
+      await tester.pump();
+
+      final peopleSemantics = tester.getSemantics(
+        find.byIcon(Icons.people_outline),
+      );
+      expect(peopleSemantics.hasFlag(SemanticsFlag.isSelected), isTrue);
+    },
+  );
+
+  testWidgets(
+    'TenturaUnderlineTabs _labelsFit reserves compact slot so flex labels show',
+    (tester) async {
+      // Without the fixed slot, three equal columns would hide all labels.
+      await tester.pumpWidget(
+        _tabsHarness(
+          width: 280,
+          child: SizedBox(
+            width: 280,
+            child: TenturaUnderlineTabs(
+              tabs: const ['Now', 'Chat', 'People'],
+              icons: const [
+                Icons.bolt_outlined,
+                Icons.forum_outlined,
+                Icons.people_outline,
+              ],
+              compactIconTabs: const {2},
+              selectedIndex: 0,
+              onChanged: (_) {},
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+
+      expect(find.text('Now'), findsOneWidget);
+      expect(find.text('Chat'), findsOneWidget);
+      expect(find.text('People'), findsNothing);
+    },
+  );
+
+  testWidgets(
+    'TenturaUnderlineTabs compactIconTabs badge overlay prefers primary',
+    (tester) async {
+      await tester.pumpWidget(
+        _tabsHarness(
+          width: 360,
+          child: TenturaUnderlineTabs(
+            tabs: const ['Now', 'Chat', 'People'],
+            icons: const [
+              Icons.bolt_outlined,
+              Icons.forum_outlined,
+              Icons.people_outline,
+            ],
+            compactIconTabs: const {2},
+            selectedIndex: 0,
+            onChanged: (_) {},
+            badges: const [null, null, 2],
+            secondaryBadges: const [null, null, 3],
+            badgeBackgroundColors: [
+              null,
+              null,
+              TenturaTokens.light.danger,
+            ],
+          ),
+        ),
+      );
+      await tester.pump();
+
+      expect(find.byType(TenturaCountBadge), findsOneWidget);
+      final badge = tester.widget<TenturaCountBadge>(
+        find.byType(TenturaCountBadge),
+      );
+      expect(badge.count, 2);
+      expect(badge.backgroundColor, TenturaTokens.light.danger);
+      expect(find.text('3'), findsNothing);
+    },
+  );
+
+  testWidgets(
+    'TenturaUnderlineTabs compactIconTabs badge overlay shows secondary alone',
+    (tester) async {
+      await tester.pumpWidget(
+        _tabsHarness(
+          width: 360,
+          child: TenturaUnderlineTabs(
+            tabs: const ['Now', 'Chat', 'People'],
+            icons: const [
+              Icons.bolt_outlined,
+              Icons.forum_outlined,
+              Icons.people_outline,
+            ],
+            compactIconTabs: const {2},
+            selectedIndex: 0,
+            onChanged: (_) {},
+            secondaryBadges: const [null, null, 3],
+          ),
+        ),
+      );
+      await tester.pump();
+
+      expect(find.byType(TenturaCountBadge), findsOneWidget);
+      final badge = tester.widget<TenturaCountBadge>(
+        find.byType(TenturaCountBadge),
+      );
+      expect(badge.count, 3);
+      expect(badge.backgroundColor, TenturaTokens.light.warn);
+    },
+  );
+
+  testWidgets(
+    'TenturaUnderlineTabs every cell hit target is at least 48dp tall',
+    (tester) async {
+      for (final wc in WindowClass.values) {
+        final width = switch (wc) {
+          WindowClass.compact => 360.0,
+          WindowClass.regular => 700.0,
+          WindowClass.expanded => 900.0,
+        };
+        await tester.pumpWidget(
+          _tabsHarness(
+            width: width,
+            windowClass: wc,
+            child: SizedBox(
+              width: width,
+              child: TenturaUnderlineTabs(
+                tabs: const ['Now', 'Chat', 'People'],
+                icons: const [
+                  Icons.bolt_outlined,
+                  Icons.forum_outlined,
+                  Icons.people_outline,
+                ],
+                compactIconTabs: const {2},
+                selectedIndex: 0,
+                onChanged: (_) {},
+              ),
+            ),
+          ),
+        );
+        await tester.pump();
+
+        for (final inkWell in find.byType(InkWell).evaluate()) {
+          final size = (inkWell.renderObject! as RenderBox).size;
+          expect(
+            size.height,
+            greaterThanOrEqualTo(kMinInteractiveDimension),
+            reason: 'InkWell height at $wc',
+          );
+        }
+      }
     },
   );
 }

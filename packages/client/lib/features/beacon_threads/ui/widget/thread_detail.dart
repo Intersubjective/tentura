@@ -192,6 +192,7 @@ class ThreadDetailGeneralTitle extends StatelessWidget {
     required this.beacon,
     required this.involvedProfiles,
     required this.currentUserId,
+    this.onFacePileTap,
     super.key,
   });
 
@@ -199,18 +200,29 @@ class ThreadDetailGeneralTitle extends StatelessWidget {
   final Beacon beacon;
   final List<Profile> involvedProfiles;
   final String currentUserId;
+  final VoidCallback? onFacePileTap;
 
   @override
   Widget build(BuildContext context) {
+    final l10n = L10n.of(context)!;
+    Widget pile = BeaconInvolvedPeopleFacePile(
+      beacon: beacon,
+      involvedProfiles: involvedProfiles,
+      currentUserId: currentUserId,
+      onTap: onFacePileTap,
+    );
+    if (onFacePileTap != null) {
+      pile = Semantics(
+        button: true,
+        label: l10n.beaconHudPeopleRowSemantics,
+        onTap: onFacePileTap,
+        child: ExcludeSemantics(child: pile),
+      );
+    }
+
     return ThreadDetailAppBarTitle(
       title: title,
-      subtitle: ExcludeSemantics(
-        child: BeaconInvolvedPeopleFacePile(
-          beacon: beacon,
-          involvedProfiles: involvedProfiles,
-          currentUserId: currentUserId,
-        ),
-      ),
+      subtitle: pile,
     );
   }
 }

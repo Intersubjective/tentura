@@ -5,7 +5,6 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/design_system/tentura_capability_colors.dart';
 import 'package:tentura/design_system/tentura_radii.dart';
 import 'package:tentura/design_system/tentura_tokens.dart';
@@ -63,15 +62,9 @@ VoidCallback? _linkedCoordinationItemOnTap(
       );
     };
   }
-  return () {
-    final router = context.router;
-    final route = ThreadDetailRoute(threadId: item.id);
-    if (router.currentChild?.name == ThreadDetailRoute.name) {
-      unawaited(router.replace(route));
-    } else {
-      unawaited(router.push(route));
-    }
-  };
+  return () => unawaited(
+    openCoordinationItemFromRoom(context, item: item),
+  );
 }
 
 class RoomMessageTile extends StatelessWidget {

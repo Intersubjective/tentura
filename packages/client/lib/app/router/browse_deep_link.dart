@@ -1,6 +1,7 @@
 import 'package:auto_route/auto_route.dart';
 import 'package:tentura/consts.dart';
 
+import 'beacon_view_route_normalizer.dart';
 import 'home_tab_branches.dart';
 import 'root_router.gr.dart';
 
@@ -46,40 +47,24 @@ BrowseDeepLinkStack? buildBrowseDeepLinkStack(Uri input) {
     '^${RegExp.escape(kPathBeaconView)}/([^/]+)(?:/thread/([^/]+))?\$',
   ).firstMatch(path);
   if (beaconMatch != null) {
-    final threadId = beaconMatch.group(2);
+    final beaconId = beaconMatch.group(1)!;
+    final pathThreadId = beaconMatch.group(2);
+    final normalized = normalizeBeaconViewRouteQuery(
+      pathThreadId: pathThreadId,
+      incomingQuery: uri.queryParameters,
+    );
+    final q = normalized.queryParameters;
     return (
       owner: HomeTab.work,
       route: BeaconViewRoute(
-        id: beaconMatch.group(1)!,
-        isDeepLink: query.optString(kQueryIsDeepLink),
-        viewTab: query.optString(kQueryBeaconViewTab),
-        peopleTabAttention: query.optString(kQueryBeaconPeopleTabAttention),
-        entry: query.optString(kQueryBeaconEntry),
-        threadId: query.optString(kQueryThreadId),
-        messageId: query.optString(kQueryMessageId),
-        children: [
-          BeaconViewOperationalRoute(
-            isDeepLink: query.optString(kQueryIsDeepLink),
-            viewTab: query.optString(kQueryBeaconViewTab),
-            peopleTabAttention: query.optString(
-              kQueryBeaconPeopleTabAttention,
-            ),
-            entry: query.optString(kQueryBeaconEntry),
-            threadId: query.optString(kQueryThreadId),
-            messageId: query.optString(kQueryMessageId),
-          ),
-          if (threadId != null)
-            ThreadDetailRoute(
-              threadId: threadId,
-              isDeepLink: query.optString(kQueryIsDeepLink),
-              viewTab: query.optString(kQueryBeaconViewTab),
-              peopleTabAttention: query.optString(
-                kQueryBeaconPeopleTabAttention,
-              ),
-              entry: query.optString(kQueryBeaconEntry),
-              messageId: query.optString(kQueryMessageId),
-            ),
-        ],
+        id: beaconId,
+        isDeepLink: q[kQueryIsDeepLink],
+        viewTab: q[kQueryBeaconViewTab],
+        peopleTabAttention: q[kQueryBeaconPeopleTabAttention],
+        entry: q[kQueryBeaconEntry],
+        threadId: q[kQueryThreadId],
+        messageId: q[kQueryMessageId],
+        children: [beaconViewOperationalFromNormalized(normalized)],
       ),
     );
   }

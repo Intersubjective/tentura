@@ -7,6 +7,7 @@ import 'package:logging/logging.dart';
 import 'package:mockito/mockito.dart';
 import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/consts.dart';
+import 'package:tentura/features/beacon_threads/domain/entity/request_thread.dart';
 import 'package:tentura/features/auth/ui/bloc/auth_cubit.dart';
 import 'package:tentura/features/home/ui/bloc/post_join_navigation_cubit.dart';
 import 'package:tentura/features/settings/ui/bloc/settings_cubit.dart';
@@ -49,14 +50,12 @@ void main() {
   late PageInfo workPage;
   late PageInfo beaconPage;
   late PageInfo operationalPage;
-  late PageInfo threadPage;
 
   setUpAll(() {
     homePage = HomeRoute.page;
     workPage = MyWorkRoute.page;
     beaconPage = BeaconViewRoute.page;
     operationalPage = BeaconViewOperationalRoute.page;
-    threadPage = ThreadDetailRoute.page;
     HomeRoute.page = PageInfo(HomeRoute.name, builder: (_) => const _Home());
     MyWorkRoute.page = PageInfo(
       MyWorkRoute.name,
@@ -70,6 +69,14 @@ void main() {
             'request:${data.inheritedPathParams.getString('id', '')}',
             textDirection: TextDirection.ltr,
           ),
+          Text(
+            'tab:${data.queryParams.optString(kQueryBeaconViewTab) ?? ''}',
+            textDirection: TextDirection.ltr,
+          ),
+          Text(
+            'thread:${data.queryParams.optString(kQueryThreadId) ?? ''}',
+            textDirection: TextDirection.ltr,
+          ),
           const Expanded(child: AutoRouter()),
         ],
       ),
@@ -77,16 +84,8 @@ void main() {
     BeaconViewOperationalRoute.page = PageInfo(
       BeaconViewOperationalRoute.name,
       builder: (data) => Text(
-        'operational:${data.queryParams.optString(kQueryMessageId) ?? ''}',
-        textDirection: TextDirection.ltr,
-      ),
-    );
-    ThreadDetailRoute.page = PageInfo(
-      ThreadDetailRoute.name,
-      builder: (data) => Text(
-        'thread:${data.inheritedPathParams.getString('id', '')}:'
-        '${data.pathParams.getString('threadId', '')}:'
-        '${data.queryParams.optString(kQueryMessageId) ?? ''}',
+        'operational:${data.queryParams.optString(kQueryMessageId) ?? ''}:'
+        '${data.queryParams.optString(kQueryThreadId) ?? ''}',
         textDirection: TextDirection.ltr,
       ),
     );
@@ -97,7 +96,6 @@ void main() {
     MyWorkRoute.page = workPage;
     BeaconViewRoute.page = beaconPage;
     BeaconViewOperationalRoute.page = operationalPage;
-    ThreadDetailRoute.page = threadPage;
   });
 
   setUp(() {
@@ -111,9 +109,11 @@ void main() {
 
   tearDown(() => router.dispose());
 
-  testWidgets('cold canonical thread preserves path and query', (tester) async {
+  testWidgets('cold /thread/general URL redirects to operational query form', (
+    tester,
+  ) async {
     tester.binding.platformDispatcher.defaultRouteNameTestValue =
-        '/beacon/view/B1/thread/T1?message=M1&entry=notification';
+        '/beacon/view/B1/thread/${RequestThread.generalId}?message=M1&entry=notification';
     addTearDown(
       tester.binding.platformDispatcher.clearDefaultRouteNameTestValue,
     );
@@ -134,20 +134,17 @@ void main() {
       BeaconViewRoute.name,
     ]);
     expect(find.text('request:B1'), findsOneWidget);
-    expect(find.text('thread:B1:T1:M1'), findsOneWidget);
-    expect(
-      router.navigationHistory.urlState.url,
-      '/beacon/view/B1/thread/T1?entry=notification&message=M1',
-    );
-
-    final nested = router.innerRouterOf<StackRouter>(BeaconViewRoute.name)!;
-    unawaited(nested.maybePop());
-    await tester.pumpAndSettle();
-    expect(find.text('operational:M1'), findsOneWidget);
-    expect(
-      router.stackData.where((data) => data.name == BeaconViewRoute.name),
-      hasLength(1),
-    );
+    expect(find.text('tab:threads'), findsOneWidget);
+    expect(find.text('thread:${RequestThread.generalId}'), findsOneWidget);
+    expect(find.text('operational:M1:${RequestThread.generalId}'), findsOneWidget);
+    final url = Uri.parse(router.navigationHistory.urlState.url);
+    expect(url.path, '/beacon/view/B1');
+    expect(url.queryParameters, {
+      'tab': 'threads',
+      'thread': RequestThread.generalId,
+      'message': 'M1',
+      'entry': 'notification',
+    });
   });
 
   testWidgets('root request query remains a request URL', (tester) async {

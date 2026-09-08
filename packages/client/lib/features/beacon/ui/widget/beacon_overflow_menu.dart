@@ -34,6 +34,7 @@ class BeaconOverflowMenu extends StatelessWidget {
     this.editActionLabel,
     this.onOpenBeacon,
     this.onRequestStatus,
+    this.onActivityLog,
     this.onCloseBeacon,
     this.onCancelBeacon,
     this.onEdit,
@@ -62,6 +63,7 @@ class BeaconOverflowMenu extends StatelessWidget {
   final VoidCallback? onOpenBeacon;
 
   final Future<void> Function()? onRequestStatus;
+  final VoidCallback? onActivityLog;
   final Future<void> Function()? onCloseBeacon;
   final Future<void> Function()? onCancelBeacon;
   final VoidCallback? onEdit;
@@ -111,6 +113,7 @@ class BeaconOverflowMenu extends StatelessWidget {
             'request_status' => TestIds.key(
               TestIds.beaconOverflowRequestStatus,
             ),
+            'activity_log' => TestIds.key(TestIds.beaconOverflowActivity),
             'forward' => TestIds.key(TestIds.beaconForward),
             _ => null,
           },
@@ -128,6 +131,13 @@ class BeaconOverflowMenu extends StatelessWidget {
         'request_status',
         Icons.tune_outlined,
         l10n.beaconStatusSheetTitle,
+      );
+    }
+    if (onActivityLog != null) {
+      add(
+        'activity_log',
+        Icons.history_outlined,
+        l10n.labelBeaconTabLog,
       );
     }
     if (onCloseBeacon != null && beacon.status == BeaconStatus.open) {
@@ -266,6 +276,7 @@ class BeaconOverflowMenu extends StatelessWidget {
           'request_status' => unawaited(
             _deferPopupAction(context, onRequestStatus),
           ),
+          'activity_log' => _deferSync(context, onActivityLog),
           'close_beacon' => unawaited(
             _deferPopupAction(context, onCloseBeacon),
           ),

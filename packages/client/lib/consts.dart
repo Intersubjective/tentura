@@ -91,7 +91,10 @@ const kQueryBeaconEditId = 'edit_id';
 /// Optional initial operational tab: `threads`, `people`, `log`.
 const kQueryBeaconViewTab = 'tab';
 
-/// [kQueryBeaconViewTab] value — open the Threads tab (expanded split selection).
+/// [kQueryBeaconViewTab] value — open the NOW surface.
+const kBeaconViewTabNow = 'now';
+
+/// [kQueryBeaconViewTab] value — open the Chat surface (expanded split selection).
 const kBeaconViewTabThreads = 'threads';
 
 /// Expanded split / deep-link thread selection (`general` or item id).

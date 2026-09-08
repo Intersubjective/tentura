@@ -2,7 +2,7 @@
 
 Complete inventory of screens, routes, dialogs, bottom sheets, and overlay entry points in the Tentura Flutter client.
 
-> **Note:** Regenerate before trusting this inventory against the tree. After refresh, verify home tab order (My Work default) and beacon detail tabs (**Items / People / Log**).
+> **Note:** Regenerate before trusting this inventory against the tree. After refresh, verify home tab order (My Work default) and beacon detail surfaces (**NOW / Chat / People**; Activity log is an overflow sheet, not a tab).
 
 **Generated:** 2026-06-22 (source scan of `packages/client/lib`; refreshed 2026-06-23 for removed stub screens; app-bar audit refreshed 2026-07-07)
 
@@ -54,8 +54,7 @@ Cross-checked `root_router.dart` against all `@RoutePage()` annotations. **Widge
 | **CredentialsScreen** | `/settings/sign-in-methods` | `lib/features/credentials/ui/screen/credentials_screen.dart` | Fullscreen dialog; linked accounts |
 | **BeaconCreateScreen** | `/beacon/new` | `lib/features/beacon_create/ui/screen/beacon_create_screen.dart` | Fullscreen dialog; create/edit draft |
 | **ItemDiscussionScreen** | `/beacon/view/:beaconId/discussion/:itemId` | `lib/features/coordination_item/ui/screen/item_discussion_screen.dart` | Coordination item thread |
-| **BeaconViewScreen** | `/beacon/view/:id` | `lib/features/beacon_view/ui/screen/beacon_view_screen.dart` | Unified beacon view; room is a surface/tab here |
-| **BeaconRoomScreen** ⚠ | `/beacon/room/:id` | `lib/features/beacon_room/ui/screen/beacon_room_screen.dart` | **Registered but router guard always redirects** to `BeaconViewScreen` with `?tab=room` |
+| **BeaconViewScreen** | `/beacon/view/:id` | `lib/features/beacon_view/ui/screen/beacon_view_screen.dart` | Unified beacon view; NOW / Chat / People surfaces + optional split room pane |
 | **ReviewContributionsScreen** | `/beacon/review/:id` | `lib/features/evaluation/ui/screen/review_contributions_screen.dart` | Post-close contribution review |
 | **ForwardBeaconScreen** | `/forward/:id` | `lib/features/forward/ui/screen/forward_beacon_screen.dart` | Fullscreen dialog |
 | **BeaconScreen** ("view all") | `/beacon/all/:id` | `lib/features/beacon/ui/screen/beacon_screen.dart` | All beacons by profile |
@@ -291,16 +290,19 @@ App (RootRouter — packages/client/lib/app/router/root_router.dart)
 │   └── [Pickers: showDatePicker, showDateRangePicker]
 │
 ├── BeaconViewScreen (/beacon/view/:id) ← unified beacon hub
-│   ├── Surface: operational tabs (items / people / log)
-│   │   ├── [Sheet: UpdateStatus, BeaconCurrentLine, BeaconNowDetail,
-│   │   │          CoordinationItemComposer, CoordinationItemEdit,
+│   ├── Surfaces: NOW / Chat / People (tab row below app bar)
+│   │   ├── NOW: coordination header, child-request cards, pinned facts
+│   │   ├── Chat: inline General (`BeaconRoomSurface` / `ThreadDetail`) — no pushed thread route
+│   │   ├── People: participants, help offers, coordination responses
+│   │   ├── [Sheet: Activity log (`showBeaconActivitySheet`), UpdateStatus, BeaconCurrentLine,
+│   │   │          BeaconNowDetail, CoordinationItemComposer, CoordinationItemEdit,
 │   │   │          BeaconYouItems, CoordinationResponse, FactActions]
 │   │   ├── [Dialog: HelpOfferMessage, BeaconDelete, ShareCode,
 │   │   │          confirmDeleteCoordinationDraft, BeaconCloseConfirmSheet]
 │   │   └── → ItemDiscussionScreen, ForwardBeaconScreen, ComplaintScreen,
 │   │             GraphScreen, ForwardsGraphScreen, ReviewContributionsScreen
 │   │
-│   └── Surface: room (tab=room / surface=room) — embedded chat
+│   └── Expanded split (≥840 dp, latched): left = NOW + People tabs; right = General room pane
 │       ├── BeaconRoomBody (BasicChatBody)
 │       │   ├── [Sheet: message actions, create poll, plan update, edit message,
 │       │   │          pin fact, promote, FactActions, RoomFacts, Promise,
@@ -338,14 +340,13 @@ App (RootRouter — packages/client/lib/app/router/root_router.dart)
 │
 ├── ComplaintScreen (/complaint/:id) [fullscreen dialog]
 │
-├── [Legacy route — always redirects]
-│   └── BeaconRoomRoute (/beacon/room/:id) → BeaconViewScreen?tab=room
-│
 ├── [Non–Auto Route pushes]
 │   ├── BeaconGalleryViewer (from beacon photos)
 │   ├── TenturaFullscreenImageViewer (from profile / profile-view image galleries)
 │   └── RoomAttachmentFullscreenGallery (from room attachments)
 ```
+
+> **Retired routes:** `BeaconRoomRoute` (`/beacon/room/:id`), `ThreadDetailRoute` (`/beacon/view/:id/thread/:threadId`), and `BeaconRoomScreen` / `ThreadDetailScreen` are gone. Legacy `/thread/:id` URLs rewrite to `?tab=threads&thread=…` via `normalizeBeaconViewThreadDeepLink`.
 
 ---
 
@@ -365,7 +366,7 @@ Normal screens now use `TenturaTopBar` instead of raw `AppBar`, `SliverAppBar`, 
 - **Primary tone roots:** MyWork, Inbox, Friends, and Profile.
 - **Surface tone pushed/standalone screens:** auth, settings, credentials, complaint, profile edit/view, BeaconCreate, Beacon lists, BeaconView, ItemDiscussion, notifications, rating, graph, invite genealogy, evaluation, Forward.
 - **Full-width alignment:** graph routes, rating, invite genealogy, and split/multi-pane custom rows.
-- **Multi-pane custom rows:** Inbox expanded aligns tabs over the master pane; BeaconView split aligns title over the operational pane and overflow over the room pane.
+- **Multi-pane custom rows:** Inbox expanded aligns tabs over the master pane; BeaconView split aligns title over the left (NOW/People) pane and overflow over the right (General) pane.
 
 ### Full-screen overlays with top bars
 
@@ -380,7 +381,6 @@ Normal screens now use `TenturaTopBar` instead of raw `AppBar`, `SliverAppBar`, 
 - **HomeScreen** (`packages/client/lib/features/home/ui/screen/home_screen.dart`): no top app bar. This is intentional because the shell chrome is the navigation rail or bottom bar, which is the adaptive control point for this surface.
 - **IntroScreen** (`packages/client/lib/features/intro/ui/screen/intro_screen.dart`): no top app bar. That is fine for immersive onboarding.
 - **AcceptInviteScreen** (`packages/client/lib/features/invitation/ui/screen/accept_invite_screen.dart`): no top app bar; it is a loading/redirect surface that hands off to a dialog or a registration route.
-- **BeaconRoomScreen** (`packages/client/lib/features/beacon_room/ui/screen/beacon_room_screen.dart`): legacy stub, no app bar. Keep it treated as dead UI.
 - **BeaconLegacyPathScreen** (`packages/client/lib/features/beacon_view/ui/screen/beacon_legacy_path_screen.dart`): legacy redirect stub, no app bar.
 
 ### Cross-cutting read
@@ -392,15 +392,15 @@ Normal screens now use `TenturaTopBar` instead of raw `AppBar`, `SliverAppBar`, 
 
 ### Adaptive consistency snapshot
 
-- **True width-adaptive shells**: `HomeScreen` changes navigation chrome by window class; `InboxScreen` switches into a split-pane master/detail layout on expanded widths (selected list chrome + embedded `BeaconViewScreen` in the detail pane); `BeaconViewScreen` switches between operational-only and room-surface modes and can split content on expanded windows; `BeaconCreateScreen` keeps the same app bar but its tab content becomes denser and more grid-like on wide widths.
+- **True width-adaptive shells**: `HomeScreen` changes navigation chrome by window class; `InboxScreen` switches into a split-pane master/detail layout on expanded widths (selected list chrome + embedded `BeaconViewScreen` in the detail pane); `BeaconViewScreen` switches between three tab surfaces (NOW / Chat / People) and, on expanded widths when General is accessible, a latched two-pane split (NOW + People left, General right — Chat tab hidden); `BeaconCreateScreen` keeps the same app bar but its tab content becomes denser and more grid-like on wide widths.
 - **Stable chrome, reflowed body**: `AuthLoginScreen`, `AuthRegisterScreen`, `RecoverScreen`, `SettingsScreen`, `CredentialsScreen`, `NotificationSettingsScreen`, `NotificationCenterScreen`, `ComplaintScreen`, `ProfileEditScreen`, `InvolvedBeaconScreen`, `InboxRejectedScreen`, `ReviewContributionsScreen`, and `InviteGenealogyScreen` keep the same top bar on mobile and desktop/tablet and mostly rely on width-capped content or vertical reflow. That is the right choice for forms and utility pages.
 - **Scrollable profile/detail surfaces**: `ProfileScreen` and `ProfileViewScreen` stay visually consistent across widths because their sliver headers are designed to survive more vertical space without needing a different navigation model. They read well on both mobile and desktop, but they do not yet split into a richer two-column layout on wide screens.
-- **Canvas / full-bleed surfaces**: `GraphScreen`, `ForwardsGraphScreen`, `RatingScreen` in scatter mode, `ChooseLocationDialog`, `BeaconGalleryViewer`, `TenturaFullscreenImageViewer`, `RoomAttachmentFullscreenGallery`, and the room surface inside `BeaconViewScreen` intentionally use the extra width instead of centering everything. These are consistent because the wide layout is supposed to feel expansive rather than compressed.
+- **Canvas / full-bleed surfaces**: `GraphScreen`, `ForwardsGraphScreen`, `RatingScreen` in scatter mode, `ChooseLocationDialog`, `BeaconGalleryViewer`, `TenturaFullscreenImageViewer`, `RoomAttachmentFullscreenGallery`, and the General room surface inside `BeaconViewScreen` (Chat tab or split right pane) intentionally use the extra width instead of centering everything. These are consistent because the wide layout is supposed to feel expansive rather than compressed.
 - **Most likely to feel cramped on desktop**: `InboxScreen`, `RatingScreen`, `ForwardBeaconScreen`, `BeaconCreateScreen`, `MyWorkScreen`, `FriendsScreen`, and `BeaconViewScreen` carry the highest top-bar action density. They are still coherent on tablet, but desktop is where a future split of secondary actions, search, or filters into side panels would buy the most clarity.
 
 ## Notes
 
-1. **Room is not a separate navigable screen anymore** — `BeaconRoomRoute` redirects into `BeaconViewScreen` with room surface; `BeaconRoomScreen` still exists as dead/legacy implementation.
+1. **General is inline on request detail** — `BeaconRoomRoute`, `ThreadDetailRoute`, `BeaconRoomScreen`, and `ThreadDetailScreen` are deleted. Chat is a `BeaconSurface.room` tab (compact/regular) or the permanent right pane (expanded split). Legacy `/beacon/view/:id/thread/:threadId` URLs normalize to query form.
 2. **Three dialog modules appear unwired:** `FriendRemoveDialog`, `MyProfileDeleteDialog`, `EditPrivateLabelsDialog` (profile view uses `removeFriend` cubit method directly instead).
 3. **Pin-only favorites module:** `features/favorites/` (GQL + cubit + `BeaconPinIconButton`) remains; standalone `FavoritesScreen` was removed.
 4. **No Tentura-prefixed sheet/dialog wrappers** in `design_system/` — overlays use Flutter primitives directly.

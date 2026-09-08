@@ -60,9 +60,9 @@ abstract final class TestIds {
   static String roomMentionSuggestion(String handle) =>
       'room.mention.suggestion.${handle.trim().toLowerCase()}';
   static const beaconForward = 'beacon.forward';
-  static const beaconTabThreads = 'beacon.tab.threads';
+  static const beaconTabNow = 'beacon.tab.now';
+  static const beaconTabRoom = 'beacon.tab.room';
   static const beaconTabPeople = 'beacon.tab.people';
-  static const beaconTabLog = 'beacon.tab.log';
   static const beaconDetailsOpen = 'beacon.details.open';
   static const beaconFactsOpen = 'beacon.facts.open';
   static const beaconFactsAdd = 'beacon.facts.add';
@@ -92,6 +92,7 @@ abstract final class TestIds {
   static const beaconOverflowMenu = 'beacon.overflow.menu';
   static const beaconOverflowClose = 'beacon.overflow.close';
   static const beaconOverflowRequestStatus = 'beacon.overflow.request_status';
+  static const beaconOverflowActivity = 'beacon.overflow.activity';
   static const beaconCloseConfirm = 'beacon.close.confirm';
 
   /// Status bottom-sheet row, keyed by [BeaconStatusMenuRowId.name].
