@@ -74,6 +74,7 @@ class _ForkBeaconRepo extends Fake implements BeaconRepositoryPort {
     String? addressLabel,
     String? lineageParentBeaconId,
     String? lineageRootBeaconId,
+    bool? isDiscoverable,
   }) async {
     createBeaconCalls.add((
       imageIds: imageIds,

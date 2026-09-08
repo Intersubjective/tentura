@@ -76,6 +76,9 @@ class Beacons extends Table
   /// Monotonic hierarchy lifecycle event sequence for this source beacon.
   late final hierarchyEventSequence = integer().withDefault(const Constant(0))();
 
+  /// Author opt-out for field discovery (D4). Backfilled true (D12).
+  late final isDiscoverable = boolean().withDefault(const Constant(true))();
+
   @override
   Set<Column<Object>> get primaryKey => {id};
 

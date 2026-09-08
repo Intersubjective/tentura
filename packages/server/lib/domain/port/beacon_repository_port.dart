@@ -30,6 +30,7 @@ abstract class BeaconRepositoryPort {
     String? addressLabel,
     String? lineageParentBeaconId,
     String? lineageRootBeaconId,
+    bool? isDiscoverable,
   });
 
   /// Creates a nested child beacon with immutable [parentBeaconId].
@@ -71,6 +72,8 @@ abstract class BeaconRepositoryPort {
     double? longitude,
     String? primaryNeedSlug,
     String? addressLabel,
+    bool? isDiscoverable,
+    bool isDiscoverableProvided = false,
   });
 
   /// Updates an open-family or reviewOpen beacon owned by [userId].
@@ -88,6 +91,8 @@ abstract class BeaconRepositoryPort {
     double? longitude,
     String? primaryNeedSlug,
     String? addressLabel,
+    bool? isDiscoverable,
+    bool isDiscoverableProvided = false,
   });
 
   Future<void> deleteBeaconById(String id, {required String userId});

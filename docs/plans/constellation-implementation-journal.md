@@ -131,7 +131,7 @@ is triggered.
       worker: pure mechanical recording, no code/design decision)
 - [x] 01 — Visibility docs, evidence, architecture amendments
 - [x] 02 — **Gate:** authorization cache + read-wall performance decision — **resolved (b), cache required**
-- [ ] 03 — `beacon.is_discoverable` — m0160, Drift, mutations, Hasura
+- [x] 03 — `beacon.is_discoverable` — m0160, Drift, mutations, Hasura
 - [ ] 04 — Symmetric `person_are_mutually_visible` — m0161
 - [ ] 04a — **Inserted by GATE-14.1(b):** discoverability visibility cache
 - [ ] 05 — Read-wall discoverability clause — m0162 **(access-control; needs GATE-14.1 resolved + SECURITY-REVIEW; now also depends on 04a)**
@@ -322,6 +322,38 @@ REMAINING: UNIT 04a's implementation (a new plan unit, to be dispatched like
   any other) must land, and be reviewed, before UNIT 05 may start. UNIT 05
   additionally still needs its own `SECURITY-REVIEW:` sign-off line
   (unaffected by this unit).
+
+---
+
+## UNIT 03 — complete — 2026-09-09
+COMMITS: (this unit's commit, staged next)
+TESTS: `cd packages/server && dart run build_runner build -d` — exit 0;
+  `cd packages/server && dart test -t pg -j 1 test/data/database/beacon_discoverability_pg_test.dart` — 6/6 passed;
+  `./scripts/check-custom-lints.sh packages/server` — exit 0
+FILES: packages/server/lib/data/database/migration/m0160.dart (new),
+  packages/server/lib/data/database/migration/_migrations.dart,
+  packages/server/lib/data/database/table/beacons.dart,
+  packages/server/lib/domain/entity/beacon_entity.dart,
+  packages/server/lib/domain/port/beacon_repository_port.dart,
+  packages/server/lib/data/repository/beacon_repository.dart,
+  packages/server/lib/data/repository/mock/beacon_repository_mock.dart,
+  packages/server/lib/domain/use_case/beacon_case.dart,
+  packages/server/lib/api/controllers/graphql/mutation/mutation_beacon.dart,
+  packages/server/lib/api/controllers/graphql/custom_types.dart,
+  hasura/metadata.json,
+  packages/server/test/data/database/beacon_discoverability_pg_test.dart (new),
+  docs/plans/constellation-implementation-journal.md
+FINDINGS: `Beacons` (Drift) did not carry `isDiscoverable` before this unit
+  (baseline §1 stop condition clear). `beacon_child_create_case` →
+  `BeaconRepository.createChildBeacon` does not pass `isDiscoverable`; child
+  rows take the column default `true` (D12) — verified in pg test. Four
+  hand-written `BeaconRepositoryPort` test stubs needed signature sync after
+  the port change (not on the owns list; required for analyzer gate).
+DECISIONS: `isDiscoverable` entity mapping lives in `BeaconRepository`
+  (`_beaconRowToEntity` + `copyWith`) rather than `beacon_mapper.dart` (not
+  on the unit owns list). Update semantics use `isDiscoverableProvided` /
+  `containsKey('isDiscoverable')`, matching `primaryNeedSlug` pattern.
+REMAINING: none for this unit.
 
 ---
 

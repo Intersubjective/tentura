@@ -59,6 +59,7 @@ class BeaconRepositoryMock implements BeaconRepositoryPort {
     String? addressLabel,
     String? lineageParentBeaconId,
     String? lineageRootBeaconId,
+    bool? isDiscoverable,
   }) async {
     final now = DateTime.timestamp();
     final images = [
@@ -93,6 +94,7 @@ class BeaconRepositoryMock implements BeaconRepositoryPort {
       coverImageId: images.isEmpty ? null : (coverImageId ?? images.first.id),
       coverSource: coverSource,
       addressLabel: addressLabel,
+      isDiscoverable: isDiscoverable ?? true,
     );
     return storageById[beacon.id] = beacon;
   }
@@ -112,6 +114,8 @@ class BeaconRepositoryMock implements BeaconRepositoryPort {
     double? longitude,
     String? primaryNeedSlug,
     String? addressLabel,
+    bool? isDiscoverable,
+    bool isDiscoverableProvided = false,
   }) async {
     final existing = storageById[beaconId];
     if (existing == null ||
@@ -136,6 +140,9 @@ class BeaconRepositoryMock implements BeaconRepositoryPort {
       primaryNeedSlug: primaryNeedSlug,
       updatedAt: now,
       addressLabel: addressLabel,
+      isDiscoverable: isDiscoverableProvided
+          ? isDiscoverable!
+          : existing.isDiscoverable,
     );
     return storageById[beaconId] = updated;
   }
@@ -155,6 +162,8 @@ class BeaconRepositoryMock implements BeaconRepositoryPort {
     double? longitude,
     String? primaryNeedSlug,
     String? addressLabel,
+    bool? isDiscoverable,
+    bool isDiscoverableProvided = false,
   }) async {
     final existing = storageById[beaconId];
     if (existing == null ||
@@ -179,6 +188,9 @@ class BeaconRepositoryMock implements BeaconRepositoryPort {
       primaryNeedSlug: primaryNeedSlug,
       updatedAt: DateTime.timestamp(),
       addressLabel: addressLabel,
+      isDiscoverable: isDiscoverableProvided
+          ? isDiscoverable!
+          : existing.isDiscoverable,
     );
     return storageById[beaconId] = updated;
   }

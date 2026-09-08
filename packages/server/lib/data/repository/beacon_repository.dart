@@ -32,6 +32,17 @@ String? _beaconContextForDb(String? raw) {
   return t;
 }
 
+BeaconEntity _beaconRowToEntity(
+  Beacon beacon, {
+  required User author,
+  List<Image>? images,
+}) =>
+    beaconModelToEntity(
+      beacon,
+      author: author,
+      images: images,
+    ).copyWith(isDiscoverable: beacon.isDiscoverable);
+
 @Injectable(
   as: BeaconRepositoryPort,
   env: [
@@ -108,6 +119,7 @@ class BeaconRepository implements BeaconRepositoryPort {
     String? addressLabel,
     String? lineageParentBeaconId,
     String? lineageRootBeaconId,
+    bool? isDiscoverable,
   }) => _database.withMutatingUser(authorId, () async {
     final effectiveStatus = status ?? BeaconStatus.open;
     final publishedAt = effectiveStatus == BeaconStatus.draft
@@ -135,6 +147,7 @@ class BeaconRepository implements BeaconRepositoryPort {
         addressLabel: Value(addressLabel),
         lineageParentBeaconId: Value(lineageParentBeaconId),
         lineageRootBeaconId: Value(lineageRootBeaconId),
+        isDiscoverable: Value(isDiscoverable ?? true),
       ),
     );
 
@@ -176,7 +189,7 @@ class BeaconRepository implements BeaconRepositoryPort {
 
     final images = await _getBeaconImages(beacon.id);
 
-    return beaconModelToEntity(
+    return _beaconRowToEntity(
       beacon,
       author: author,
       images: images,
@@ -236,7 +249,7 @@ class BeaconRepository implements BeaconRepositoryPort {
         .filter((e) => e.id.equals(authorId))
         .getSingle();
 
-    return beaconModelToEntity(
+    return _beaconRowToEntity(
       beacon,
       author: author,
       images: const [],
@@ -276,7 +289,7 @@ class BeaconRepository implements BeaconRepositoryPort {
         .filter((e) => e.id.equals(ownerId))
         .getSingle();
 
-    return beaconModelToEntity(
+    return _beaconRowToEntity(
       beacon,
       author: authorRow,
       images: images,
@@ -298,6 +311,8 @@ class BeaconRepository implements BeaconRepositoryPort {
     double? longitude,
     String? primaryNeedSlug,
     String? addressLabel,
+    bool? isDiscoverable,
+    bool isDiscoverableProvided = false,
   }) => _database.withMutatingUser(userId, () async {
     final row = await _database.managers.beacons
         .filter(
@@ -338,6 +353,9 @@ class BeaconRepository implements BeaconRepositoryPort {
             endAt: Value(endAt == null ? null : PgDateTime(endAt)),
             primaryNeedSlug: Value(primaryNeedSlug),
             addressLabel: Value(addressLabel),
+            isDiscoverable: isDiscoverableProvided
+                ? Value(isDiscoverable!)
+                : const Value.absent(),
           ),
         );
 
@@ -359,6 +377,8 @@ class BeaconRepository implements BeaconRepositoryPort {
     double? longitude,
     String? primaryNeedSlug,
     String? addressLabel,
+    bool? isDiscoverable,
+    bool isDiscoverableProvided = false,
   }) => _database.withMutatingUser(userId, () async {
     // Serialize editable state transitions before reading the old deadline.
     await _database
@@ -405,6 +425,9 @@ class BeaconRepository implements BeaconRepositoryPort {
             endAt: Value(endAt == null ? null : PgDateTime(endAt)),
             primaryNeedSlug: Value(primaryNeedSlug),
             addressLabel: Value(addressLabel),
+            isDiscoverable: isDiscoverableProvided
+                ? Value(isDiscoverable!)
+                : const Value.absent(),
           ),
         );
 

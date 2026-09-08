@@ -72,6 +72,7 @@ class _StubBeaconRepo extends Fake implements BeaconRepositoryPort {
     String? addressLabel,
     String? lineageParentBeaconId,
     String? lineageRootBeaconId,
+    bool? isDiscoverable,
   }) async {
     createCalls++;
     return BeaconEntity(

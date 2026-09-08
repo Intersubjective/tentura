@@ -263,7 +263,8 @@
                     "primary_need_slug",
                     "cover_image_id",
                     "cover_thumb_image_id",
-                    "cover_source"
+                    "cover_source",
+                    "is_discoverable"
                   ],
                   "computed_fields": [
                     "is_pinned",

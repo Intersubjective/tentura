@@ -29,6 +29,8 @@ final class MutationBeacon extends GqlNodeBase {
 
   final _primaryNeedSlug = InputFieldString(fieldName: 'primaryNeedSlug');
 
+  final _isDiscoverable = InputFieldBool(fieldName: 'isDiscoverable');
+
   List<GraphQLObjectField<dynamic, dynamic>> get all => [
     create,
     fork,
@@ -82,6 +84,7 @@ final class MutationBeacon extends GqlNodeBase {
       _primaryNeedSlug.fieldNullable,
       _addressLabel.fieldNullable,
       _draft.fieldNullable,
+      _isDiscoverable.fieldNullable,
     ],
     resolve: (_, args) => _beaconCase
         .create(
@@ -99,6 +102,7 @@ final class MutationBeacon extends GqlNodeBase {
           primaryNeedSlugProvided: args.containsKey('primaryNeedSlug'),
           draft: _draft.fromArgs(args) ?? false,
           addressLabel: _addressLabel.fromArgs(args),
+          isDiscoverable: _isDiscoverable.fromArgs(args) ?? true,
         )
         .then((v) => v.asJson),
   );
@@ -130,6 +134,7 @@ final class MutationBeacon extends GqlNodeBase {
       _needs.fieldNullable,
       _primaryNeedSlug.fieldNullable,
       _addressLabel.fieldNullable,
+      _isDiscoverable.fieldNullable,
     ],
     resolve: (_, args) => _beaconCase
         .update(
@@ -146,6 +151,8 @@ final class MutationBeacon extends GqlNodeBase {
           primaryNeedSlug: _primaryNeedSlug.fromArgs(args),
           primaryNeedSlugProvided: args.containsKey('primaryNeedSlug'),
           addressLabel: _addressLabel.fromArgs(args),
+          isDiscoverable: _isDiscoverable.fromArgs(args),
+          isDiscoverableProvided: args.containsKey('isDiscoverable'),
         )
         .then((v) => v.asJson),
   );
@@ -165,6 +172,7 @@ final class MutationBeacon extends GqlNodeBase {
       _needs.fieldNullable,
       _primaryNeedSlug.fieldNullable,
       _addressLabel.fieldNullable,
+      _isDiscoverable.fieldNullable,
     ],
     resolve: (_, args) => _beaconCase
         .updateDraft(
@@ -181,6 +189,8 @@ final class MutationBeacon extends GqlNodeBase {
           primaryNeedSlug: _primaryNeedSlug.fromArgs(args),
           primaryNeedSlugProvided: args.containsKey('primaryNeedSlug'),
           addressLabel: _addressLabel.fromArgs(args),
+          isDiscoverable: _isDiscoverable.fromArgs(args),
+          isDiscoverableProvided: args.containsKey('isDiscoverable'),
         )
         .then((v) => v.asJson),
   );

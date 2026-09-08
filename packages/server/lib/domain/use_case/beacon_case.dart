@@ -209,6 +209,7 @@ final class BeaconCase extends UseCaseBase {
     Stream<Uint8List>? imageBytes,
     bool draft = false,
     String? addressLabel,
+    bool? isDiscoverable,
   }) async {
     await _enforceCreateRateLimit(userId);
     final normalizedNeeds = BeaconCreationPolicy.normalizeNeeds(needs);
@@ -251,6 +252,7 @@ final class BeaconCase extends UseCaseBase {
         endAt: endAt,
         status: draft ? BeaconStatus.draft : null,
         addressLabel: BeaconCreationPolicy.trimOrNull(addressLabel),
+        isDiscoverable: isDiscoverable ?? true,
       );
     } catch (_) {
       for (final imageId in imageIds) {
@@ -296,6 +298,8 @@ final class BeaconCase extends UseCaseBase {
     DateTime? startAt,
     Coordinates? coordinates,
     String? addressLabel,
+    bool? isDiscoverable,
+    bool isDiscoverableProvided = false,
   }) async {
     final desc = BeaconCreationPolicy.normalizeStandaloneDescription(
       description,
@@ -320,6 +324,8 @@ final class BeaconCase extends UseCaseBase {
       startAt: startAt,
       endAt: endAt,
       addressLabel: BeaconCreationPolicy.trimOrNull(addressLabel),
+      isDiscoverable: isDiscoverable,
+      isDiscoverableProvided: isDiscoverableProvided,
     );
     return beacon;
   }
@@ -339,6 +345,8 @@ final class BeaconCase extends UseCaseBase {
     DateTime? startAt,
     Coordinates? coordinates,
     String? addressLabel,
+    bool? isDiscoverable,
+    bool isDiscoverableProvided = false,
   }) async {
     final desc = BeaconCreationPolicy.normalizeStandaloneDescription(
       description,
@@ -373,6 +381,8 @@ final class BeaconCase extends UseCaseBase {
           startAt: startAt,
           endAt: endAt,
           addressLabel: BeaconCreationPolicy.trimOrNull(addressLabel),
+          isDiscoverable: isDiscoverable,
+          isDiscoverableProvided: isDiscoverableProvided,
         );
         if (before.endAt != updated.endAt) {
           final recipients = await _commitmentQueryCase.currentCommitterUserIds(
@@ -730,6 +740,7 @@ final class BeaconCase extends UseCaseBase {
         imageIds: imageIds.isEmpty ? null : imageIds,
         lineageParentBeaconId: source.id,
         lineageRootBeaconId: source.lineageRootBeaconId ?? source.id,
+        isDiscoverable: source.isDiscoverable,
       );
     } catch (_) {
       for (final imageId in imageIds) {

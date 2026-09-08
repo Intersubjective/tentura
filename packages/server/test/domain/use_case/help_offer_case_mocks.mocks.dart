@@ -117,6 +117,7 @@ class MockBeaconRepositoryPort extends _i1.Mock
     String? addressLabel,
     String? lineageParentBeaconId,
     String? lineageRootBeaconId,
+    bool? isDiscoverable,
   }) =>
       (super.noSuchMethod(
             Invocation.method(#createBeacon, [], {
@@ -139,6 +140,7 @@ class MockBeaconRepositoryPort extends _i1.Mock
               #addressLabel: addressLabel,
               #lineageParentBeaconId: lineageParentBeaconId,
               #lineageRootBeaconId: lineageRootBeaconId,
+              #isDiscoverable: isDiscoverable,
             }),
             returnValue: _i3.Future<_i2.BeaconEntity>.value(
               _FakeBeaconEntity_0(
@@ -163,6 +165,7 @@ class MockBeaconRepositoryPort extends _i1.Mock
                   #addressLabel: addressLabel,
                   #lineageParentBeaconId: lineageParentBeaconId,
                   #lineageRootBeaconId: lineageRootBeaconId,
+                  #isDiscoverable: isDiscoverable,
                 }),
               ),
             ),
@@ -264,6 +267,8 @@ class MockBeaconRepositoryPort extends _i1.Mock
     double? longitude,
     String? primaryNeedSlug,
     String? addressLabel,
+    bool? isDiscoverable,
+    bool? isDiscoverableProvided = false,
   }) =>
       (super.noSuchMethod(
             Invocation.method(#updateDraftBeacon, [], {
@@ -280,6 +285,8 @@ class MockBeaconRepositoryPort extends _i1.Mock
               #longitude: longitude,
               #primaryNeedSlug: primaryNeedSlug,
               #addressLabel: addressLabel,
+              #isDiscoverable: isDiscoverable,
+              #isDiscoverableProvided: isDiscoverableProvided,
             }),
             returnValue: _i3.Future<_i2.BeaconEntity>.value(
               _FakeBeaconEntity_0(
@@ -298,6 +305,8 @@ class MockBeaconRepositoryPort extends _i1.Mock
                   #longitude: longitude,
                   #primaryNeedSlug: primaryNeedSlug,
                   #addressLabel: addressLabel,
+                  #isDiscoverable: isDiscoverable,
+                  #isDiscoverableProvided: isDiscoverableProvided,
                 }),
               ),
             ),
@@ -319,6 +328,8 @@ class MockBeaconRepositoryPort extends _i1.Mock
     double? longitude,
     String? primaryNeedSlug,
     String? addressLabel,
+    bool? isDiscoverable,
+    bool? isDiscoverableProvided = false,
   }) =>
       (super.noSuchMethod(
             Invocation.method(#updateBeacon, [], {
@@ -335,6 +346,8 @@ class MockBeaconRepositoryPort extends _i1.Mock
               #longitude: longitude,
               #primaryNeedSlug: primaryNeedSlug,
               #addressLabel: addressLabel,
+              #isDiscoverable: isDiscoverable,
+              #isDiscoverableProvided: isDiscoverableProvided,
             }),
             returnValue: _i3.Future<_i2.BeaconEntity>.value(
               _FakeBeaconEntity_0(
@@ -353,6 +366,8 @@ class MockBeaconRepositoryPort extends _i1.Mock
                   #longitude: longitude,
                   #primaryNeedSlug: primaryNeedSlug,
                   #addressLabel: addressLabel,
+                  #isDiscoverable: isDiscoverable,
+                  #isDiscoverableProvided: isDiscoverableProvided,
                 }),
               ),
             ),

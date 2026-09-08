@@ -57,6 +57,7 @@ class _StubBeaconRepo extends Fake implements BeaconRepositoryPort {
     String? addressLabel,
     String? lineageParentBeaconId,
     String? lineageRootBeaconId,
+    bool? isDiscoverable,
   }) async {
     createBeaconCalls++;
     lastAddressLabel = addressLabel;
@@ -98,6 +99,8 @@ class _StubBeaconRepo extends Fake implements BeaconRepositoryPort {
     double? longitude,
     String? primaryNeedSlug,
     String? addressLabel,
+    bool? isDiscoverable,
+    bool isDiscoverableProvided = false,
   }) async {
     updateBeaconCalls++;
     lastAddressLabel = addressLabel;
@@ -126,6 +129,8 @@ class _StubBeaconRepo extends Fake implements BeaconRepositoryPort {
     double? longitude,
     String? primaryNeedSlug,
     String? addressLabel,
+    bool? isDiscoverable,
+    bool isDiscoverableProvided = false,
   }) async {
     updateDraftBeaconCalls++;
     lastAddressLabel = addressLabel;

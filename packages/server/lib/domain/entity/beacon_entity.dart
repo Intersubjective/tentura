@@ -41,6 +41,7 @@ abstract class BeaconEntity with _$BeaconEntity {
     String? lineageRootBeaconId,
     String? parentBeaconId,
     DateTime? publishedAt,
+    @Default(true) bool isDiscoverable,
   }) = _BeaconEntity;
 
   const BeaconEntity._();
@@ -82,5 +83,6 @@ abstract class BeaconEntity with _$BeaconEntity {
     'coverImageId': coverImageId,
     'coverSource': coverSource.wireValue,
     'coverThumbImageId': coverThumbImageId,
+    'isDiscoverable': isDiscoverable,
   };
 }
