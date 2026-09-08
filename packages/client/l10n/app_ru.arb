@@ -3070,7 +3070,7 @@
   "@beaconViewBannerDismiss": {
     "context": "BeaconViewScreen"
   },
-  "beaconDetailsSection": "Подробности",
+  "beaconDetailsSection": "Детали",
   "@beaconDetailsSection": {
     "context": "BeaconViewScreen"
   },
