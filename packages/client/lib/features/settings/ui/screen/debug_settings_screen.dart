@@ -2,11 +2,14 @@ import 'dart:async';
 
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:get_it/get_it.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/copy_text_to_clipboard.dart';
+
+import 'package:tentura/features/home/ui/bloc/home_activation_cubit.dart';
 
 import '../bloc/debug_settings_cubit.dart';
 
@@ -15,12 +18,17 @@ class DebugSettingsScreen extends StatelessWidget implements AutoRouteWrapper {
   const DebugSettingsScreen({super.key});
 
   @override
-  Widget wrappedRoute(BuildContext context) => BlocProvider(
-    create: (_) {
-      final cubit = GetIt.I<DebugSettingsCubit>();
-      unawaited(cubit.loadFcmInfo());
-      return cubit;
-    },
+  Widget wrappedRoute(BuildContext context) => MultiBlocProvider(
+    providers: [
+      BlocProvider(
+        create: (_) {
+          final cubit = GetIt.I<DebugSettingsCubit>();
+          unawaited(cubit.loadFcmInfo());
+          return cubit;
+        },
+      ),
+      BlocProvider.value(value: GetIt.I<HomeActivationCubit>()),
+    ],
     child: this,
   );
 

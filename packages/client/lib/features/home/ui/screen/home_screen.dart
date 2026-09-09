@@ -14,9 +14,12 @@ import 'package:tentura/features/my_work/ui/bloc/my_work_cubit.dart';
 import 'package:tentura/features/my_work/ui/widget/my_work_attention_reporter.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 
+import '../bloc/home_activation_cubit.dart';
 import '../bloc/home_tab_reselect_cubit.dart';
 import '../bloc/home_attention_cubit.dart';
 import '../widget/constellation_navbar_item.dart';
+import '../widget/home_activation_binder.dart';
+import '../widget/home_activation_reporter.dart';
 import '../widget/friends_navbar_item.dart';
 import '../widget/home_bottom_nav_listener.dart';
 import '../widget/home_bottom_navigation_bar.dart';
@@ -49,13 +52,17 @@ class HomeScreen extends StatelessWidget implements AutoRouteWrapper {
         BlocProvider.value(value: GetIt.I<HomeTabReselectCubit>()),
         BlocProvider.value(value: GetIt.I<HomeAttentionCubit>()),
         BlocProvider.value(value: GetIt.I<InboxOperationalCubit>()),
+        BlocProvider.value(value: GetIt.I<HomeActivationCubit>()),
       ],
       child: BlocSelector<AuthCubit, AuthState, String>(
         bloc: GetIt.I<AuthCubit>(),
         selector: (state) => state.currentAccountId,
-        builder: (_, accountId) => _InboxScope(
+        builder: (_, accountId) => HomeActivationBinder(
           accountId: accountId,
-          child: KeyedSubtree(key: shellSubtreeKey, child: this),
+          child: _InboxScope(
+            accountId: accountId,
+            child: KeyedSubtree(key: shellSubtreeKey, child: this),
+          ),
         ),
       ),
     );
@@ -363,9 +370,12 @@ class _InboxScopeState extends State<_InboxScope> {
         BlocProvider(create: (_) => MyWorkCubit(userId: id)),
       ],
       child: InboxNeedsMeReporter(
-        child: MyWorkAttentionReporter(
+        child: HomeActivationReporter(
           accountId: id,
-          child: widget.child,
+          child: MyWorkAttentionReporter(
+            accountId: id,
+            child: widget.child,
+          ),
         ),
       ),
     );
