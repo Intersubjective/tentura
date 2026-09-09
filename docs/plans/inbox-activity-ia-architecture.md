@@ -2,9 +2,9 @@
 
 Status: architectural proposal, revision 7. Not an implementation plan. No application, API, schema, or data changes are authorized by this document alone.
 
-Date: 2026-09-09. Repository baseline inspected: `c6b24012d`, including the current working tree.
+Date: 2026-09-10. Repository baseline inspected: `c6b24012d`, plus this branch.
 
-Revisions 1–5 passed through six independent adversarial review passes (§12). Mechanics withdrawn under them are listed in §10 so they are not silently reintroduced.
+Revisions 1–6 went through seven independent adversarial review passes (§12), six of which produced findings. Mechanics withdrawn under them are listed in §10 so they are not silently reintroduced.
 
 **Revision 6 splits the document.** Server contracts, migration ordering, shipping sequence and test blast radius have moved to [`inbox-activity-ia-implementation-plan.md`](inbox-activity-ia-implementation-plan.md). Six passes had pushed every surviving objection into precisely that material — including a blocking finding about shipping order — which a document declaring itself "not an implementation plan" was never scoped to carry. What remains here is the part that has never been contested: which objects exist, where they belong, and how the surface behaves. User-facing **Request** remains internal **Beacon**; this proposal adds no parallel entity, table, or route family.
 
@@ -118,14 +118,14 @@ Note the keyboard is *not* part of this argument: the home shell sets `resizeToA
 
 **4.6 The first-screen budget, measured.** Compact tokens: `appBarHeight: 56`, `bottomNavHeight: 64` (`tentura_tokens.dart:180-181`). On a 360×640 compact screen the scrollable region is roughly `640 − 56 − 64 − ~24 safe ≈ 496dp`.
 
-At 1.3× text scale:
+At 1.3× text scale — this table is the calculation that *produced* the caps below, so two of its rows describe options this document then rejected:
 
 | element | cost |
 |---|---|
 | triage row (fixed) | ~52–60dp |
 | view control All/Unread (fixed) | ~42–48dp |
-| Watching affordance, if a second fixed row (§4.7) | ~52–60dp |
-| pinned prompts, 3 × `UpdatesFeedTile` (in scroll) | ~280dp |
+| Watching affordance, *had* it been a second fixed row — rejected below | ~52–60dp |
+| pinned prompts at the originally proposed 3 × `UpdatesFeedTile` — capped at 2 below | ~280dp |
 | one expanded tombstone card (in scroll) | ~234–300dp |
 
 Fixed chrome alone is ~94–108dp, or ~146–168dp with a Watching row. Adding three pinned prompts and one expanded tombstone puts non-chronological content at ~514–580dp against ~328–388dp of remaining space — **the chronological feed would be entirely below the fold on first paint**, which defeats the document's purpose.
@@ -135,7 +135,7 @@ Binding consequences:
 - pinned prompts cap at **2**, not 3 (§5.5 amended);
 - the resolved section is **collapsed by default** (§4.5), expanding on tap;
 - the Watching affordance must not be a second fixed row; §4.7 resolves it to a counted overflow entry;
-- acceptance requires that at least one chronological receipt is visible on first paint at 360×640 and 1.3× with the worst-case combination above.
+- acceptance requires that at 360×640 and 1.3×, with the worst-case combination above, the branch honours §5.7's first-paint rule: if the fetched page holds any chronological row, one is visible without scrolling.
 
 **4.7 Watching stays a reachable Request collection**, reached as a pushed route from the branch's overflow menu alongside Rejected (whose restore operation is preserved, `inbox_rejected_screen.dart:97`). It cannot become a receipt filter: `upsertWatchingForSender` fires after a forward when the sender has no active help offer (`forward_case.dart:263-272`) and on help-withdraw (`help_offer_case.dart:238-243`), so Watching is the passive accumulation surface of every active forwarder, while relay announcements explicitly exclude the sender (`server/.../attention_intent_case.dart:54`). No receipt filter can guarantee every watched Request appears, and a filter drops Stop watching, Forward, Dismiss and Offer help.
 
@@ -147,7 +147,7 @@ Watching status *is* consulted in recipient selection: `beacon_room_notification
 
 So the feed covers a watcher who is also admitted, and covers status transitions for everyone. It does **not** cover a Watching-only, non-admitted user's view of room activity, and it can go silent on preference or permission change.
 
-The overflow entry must therefore be specified as a genuine collection entry point, not a convenience: reachable without the post-forward snackbar, carrying a count, and listing Requests the feed may never mention. The snackbar intent (`forward_messages.dart:145-152`) remains the high-traffic path but is no longer the justification. Rev 5 owes an enumeration of the Watching-only, non-admitted, muted, and post-close cases and what each shows.
+The overflow entry must therefore be specified as a genuine collection entry point, not a convenience: reachable without the post-forward snackbar, carrying a count, and listing Requests the feed may never mention. The snackbar intent (`forward_messages.dart:145-152`) remains the high-traffic path but is no longer the justification. An enumeration of the Watching-only, non-admitted, muted and post-close cases, and what each shows, is still owed — §11.2.
 
 **4.8 Loading and failure are per-source.** Inbox already distinguishes an unloaded projection from a successful empty one (`inbox_state.dart:18-25`), and its current initial load can replace the whole body with a spinner (`inbox_screen.dart:169`). Here the triage row, the prompts and the feed load and fail independently: an unavailable pending count must never render as inbox-zero, and must never block an available feed.
 
@@ -162,7 +162,7 @@ The overflow entry must therefore be specified as a genuine collection entry poi
 
    **What does differ between devices, stated precisely.** Rev 4 claimed staleness "changes no state, no count, and nothing the user can do". Domain state and the badge are indeed untouched, but the observable surface is not: with three prompts pending and one at the 7-day boundary, device A sees three fresh and pins two with an overflow row reading `N = 1`, while device B sees two fresh, pins both, and shows no overflow row at all (§5.5). The pinned pair itself can differ. Per-prompt actions remain available in both (`invite_accepted_receipt_card.dart:123-162`); it is the batch entry point that diverges.
 
-   This is accepted, not overlooked: every prompt stays actionable on every device, and the divergence self-resolves as the boundary passes. What rev 5 owes is a definition of pin ordering, of the population `N` counts, and of when the boundary is recomputed — not a `staleAt` column.
+   This is accepted, not overlooked: every prompt stays actionable on every device, and the divergence self-resolves as the boundary passes. What is owed is a definition of pin ordering, of the population `N` counts, and of when the boundary is recomputed — §11.1 — not a `staleAt` column.
 
    Accordingly, §5.7's convergence guarantee is scoped to **settle**, not staleness, and that is deliberate rather than a gap.
 5. **Bounded.** At most **2** pinned (§4.6); beyond that, one collapsed row (`N people joined via your invites — set up access`) opening a batch sheet.
@@ -186,7 +186,7 @@ Rev 1's withdrawn mechanic (§10.1) is mechanically the same lift-out. What make
 - **What holds here:** the lift-out is *derived* from authoritative server state written through `answer`/`skip`, so it converges across devices, and **the unread total is untouched at every point**.
 - **What does not hold, and is withdrawn:** the claim that no receipt is hidden from the feed. A lifted-out row is absent from its chronological position by construction. The honest statement is: *no receipt is hidden from the unread total; a prompt receipt is relocated within the feed while pending-and-fresh.*
 
-Cursor pagination is unaffected: the cursor is generated from the server page boundary (`attention_repository.dart:142-146`) and prompt state is fetched separately, so relocation happens inside an already-fetched page.
+Cursor pagination is unaffected either way. The cursor is generated from the server page boundary (`attention_repository.dart:142-146`), and relocation happens **within** a page that has already been fetched — whether prompt state arrives joined into that read or alongside it. Neither mechanism moves a row across a page boundary, so no cursor is invalidated.
 
 **Page-bounded relocation does not by itself satisfy §4.6's first-paint guarantee, and rev 5 wrongly treated the two as one question.** The server returns 50 rows in chronological order (`attention_repository.dart:56,118`). If the newest 50 are all fresh pending prompts, the first page contains no chronology to show once two are pinned and the rest collapse; conversely a fresh prompt sitting below 50 news rows is not even a pinning candidate. Cursor integrity is not a display guarantee.
 
@@ -259,7 +259,7 @@ This is deliberately broader than the `reviewOpened` → `formerCommitter` hole 
 
 > **Archive changes authored and help-offered membership only. It never removes a Request that is in scope because of a live obligation.**
 
-This is not a detail of the existing archive path — it contradicts it. `my_work_cubit.dart:226` unconditionally removes the Request from state after archiving. The invariant means membership has a *source*, and archiving revokes one source rather than the row.
+This is not a detail of the existing archive path — it contradicts it. `my_work_cubit.dart:229` unconditionally removes the Request from state after archiving, and `:232` increments the archived count. The invariant means membership has a *source*, and archiving revokes one source rather than the row.
 
 Rev 4's claim that global and scoped counts "coincide by construction" is withdrawn as a pre-implementation assertion, and rev 5's restatement of it needs one correction: a Request can leave scope through **authorization loss** as well as settlement — content permission is lost on block (`m0162.dart:15`) and content-policy receipts are excluded at read time (`m0117.dart:39`). "Left scope" therefore does not imply "settled", and nothing may treat authorization loss as a terminal settlement.
 
@@ -282,7 +282,7 @@ Rev 4's claim that global and scoped counts "coincide by construction" is withdr
 Withdrawn from revision 3:
 
 10. **"No receipt is hidden from the feed."** A pinned prompt is lifted out of its chronological position by construction; the accurate guarantee is about the unread total only (§5.7).
-11. **Routing a single pending triage item to the Request detail.** Loses the private "Remove from inbox" dismissal path (§4.3).
+11. **Routing a single pending triage item to the Request detail.** Still withdrawn, but on operational-consistency grounds — the "private dismissal path" reason given at the time does not exist (§4.3, §13).
 12. **A `staleAt` column for prompt staleness.** Staleness is display-only; the column is disproportionate (§5.4).
 13. **Three pinned prompts, and an expanded-by-default resolved section.** Both violate the measured first-screen budget (§4.6).
 
@@ -339,7 +339,7 @@ Genuinely optional or later:
 
 **The rev 5 row is empty for budget reasons, not for lack of findings.** Three reviewers refused on an account-wide monthly cap and a fourth produced nothing; none of them read the document and declined to comment. An empty cell here carries no evidence either way, and rev 5 should not be treated as having survived a peer pass merely because the table has no findings under it.
 
-Across five passes the **spine has never been contested**: the feed as the branch body, triage as a bounded summary above it, obligations belonging to My Work, Watching as a Request collection, prompts placed rather than counted. Every rejection has been of a supporting mechanic or a justification, and in three cases of a factual claim about the codebase that turned out to be false.
+Across seven passes the **spine has never been contested**: the feed as the branch body, triage as a bounded summary above it, obligations belonging to My Work, Watching as a Request collection, prompts placed rather than counted. Every rejection has been of a supporting mechanic or a justification, and in three cases of a factual claim about the codebase that turned out to be false.
 
 The rev 4 pass was the most damaging so far, because it invalidated reasoning rather than detail:
 
@@ -348,13 +348,15 @@ The rev 4 pass was the most damaging so far, because it invalidated reasoning ra
 - **The expiry premise was wrong in the document's favour.** Rev 4 speculated review windows might close lazily with no hook. There is a per-minute sweep — but it never revisits already-closed windows, so a backfill is mandatory.
 - **§4.7 and §5's payload option** both rested on claims that were true only in part.
 
-Rev 5 corrected four justifications and expanded the server work from two items to six. Rev 6 then split the document: that server work, the cleanup ordering and the blast radius are now the implementation plan's, because the rev 5 pass's blocking finding was about **shipping order** — material an architecture document cannot adjudicate. No product decision and no layout has changed since rev 3.
+Rev 5 corrected four justifications and expanded the server work from two items to six. Rev 6 split the document: that server work, the cleanup ordering and the blast radius are now the implementation plan's, because the rev 5 pass's blocking finding was about **shipping order** — material an architecture document cannot adjudicate. Rev 7 folded the rev 6 findings, none of which contested the design; that pass was entirely about completeness and about which document owns which claim.
+
+No product decision and no layout has changed since rev 3.
 
 ## 13. Out of scope: a shipped privacy defect
 
 Found while verifying §4.3. Recorded here because this document must not silently depend on it, and because it should be fixed independently of anything proposed above.
 
-`showInboxDismissDialog` presents the hint **"Optional note (only you see this)"** (l10n `inboxDismissDialogHint`). The note is not private. Both dismissal dialogs call `inboxCubit.reject(..., message: msg)` (`inbox_screen.dart:753-765`), which writes `rejection_message` on `inbox_item` (`inbox_cubit.dart:285-289,336-339` → `inbox_set_status.graphql:8`). The trigger `inbox_item_on_rejection_update` copies it to `beacon_forward_edge.recipient_rejection_message` for every matching edge (`m0015.dart:67-76`), and Hasura's `user` role may select that column where `sender_id` matches the viewer (`hasura/metadata.json:1399-1407`).
+`showInboxDismissDialog` presented the hint **"Optional note (only you see this)"** (l10n `inboxDismissDialogHint`). The note is not private. Both dismissal dialogs call `inboxCubit.reject(..., message: msg)` (`inbox_screen.dart:753-765`), which writes `rejection_message` on `inbox_item` (`inbox_cubit.dart:285-289,336-339` → `inbox_set_status.graphql:8`). The trigger `inbox_item_on_rejection_update` copies it to `beacon_forward_edge.recipient_rejection_message` for every matching edge (`m0015.dart:67-76`), and Hasura's `user` role may select that column where `sender_id` matches the viewer (`hasura/metadata.json:1399-1407`).
 
 So a note written under a promise of privacy is readable by the person who forwarded the Request.
 

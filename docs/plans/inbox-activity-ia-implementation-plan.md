@@ -4,7 +4,7 @@ Status: implementation plan, revision 2. Companion to [`inbox-activity-ia-archit
 
 Date: 2026-09-10. Repository baseline: `c6b24012d` plus this branch.
 
-Split out of the architecture document at its revision 6. Six adversarial review passes had by then pushed every surviving objection into exactly this material — server contracts, migration ordering, shipping sequence, blast radius — which is implementation-plan content that the architecture document was never scoped to carry. The split is a response to that, not a reorganisation for its own sake.
+Split out of the architecture document at its revision 6. Seven adversarial review passes had by then pushed every surviving objection into exactly this material — server contracts, migration ordering, shipping sequence, blast radius — which is implementation-plan content that the architecture document was never scoped to carry. The split is a response to that, not a reorganisation for its own sake.
 
 ## 1. Shipping sequence
 
@@ -35,7 +35,7 @@ Steps 1–4 and step 5 are independent **only once session ownership is fixed**;
 
 ## 2. Server contracts
 
-Six items. The architecture depends on all of them; §2.4 is the only one that gates the Activity body specifically.
+Six items. §2.4 is the only one that gates the Activity **body** (step 6) directly; §2.1 and §2.2 gate it indirectly, by way of step 3 and step 4. §2.3 and §2.5 improve accuracy and gate nothing.
 
 **2.1 Live-obligation beacon-id contract.** A query returning the authorized set of beacon ids for which the viewer holds a live obligation — symmetric to `unreadForBeacons` (`attention_repository.dart:24-48`) and sharing its authorization path so the two cannot diverge. `notification_outbox` is not registered in Hasura metadata, and Beacon reads require `can_read_content` (`hasura/metadata.json:274-277`) which an obligation does not confer, so this cannot be expressed as a client-side query condition. It is a server endpoint or nothing.
 
