@@ -395,8 +395,8 @@ Found while verifying §4.3. Recorded here because this document must not silent
 
 So a note written under a promise of privacy is readable by the person who forwarded the Request.
 
-**Status: the copy is fixed; the product question is not.** `inboxDismissDialogHint` now reads "Optional note — the sender will see it" / «Комментарий необязателен — его увидит отправитель», so the interface no longer promises what it does not deliver. That is a stop-the-bleeding change, not the answer.
+**Status: copy corrected as a stopgap; behaviour tracked in [#137](https://github.com/Intersubjective/tentura/issues/137).** `inboxDismissDialogHint` now reads "Optional note — the sender will see it" / «Комментарий необязателен — его увидит отправитель» (`ba3a45905`), so the interface no longer promises what it does not deliver.
 
-The remaining question is a product one and is deliberately left open: should this note be private? If yes, it needs its own column and permission rather than a share of `rejection_message`, and the two dialogs then differ in substance rather than only in wording — which would in turn restore a real distinction between "remove from my inbox" and "tell the sender I can't help". If no, the two dialogs are the same act with two labels and should probably be merged.
+**The product decision is that the note must be private.** It therefore needs its own column and permission rather than a share of `rejection_message`, with the dismissal trigger never reading it — see #137, which also records that existing rows cannot be retroactively attributed to one dialog or the other, since both set `status = 2` and write the same column.
 
-Either answer is compatible with everything above; §4.3 no longer depends on the outcome.
+One consequence worth carrying forward: once #137 lands, the two dialogs differ in **substance**, not only wording — "remove from my inbox" becomes private and "can't help" stays communicated. §4.3 was rewritten in rev 5 to rest on operational consistency rather than on that distinction, and it stays that way; the distinction returning is a reason the rule is comfortable, not a reason to revisit it.
