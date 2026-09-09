@@ -80,7 +80,7 @@ Note that a receipt is **not** an immutable event: an unseen receipt with a matc
 | Class | Surface | Signal |
 |---|---|---|
 | Triage items (§2.1) | **Activity** | numeric badge |
-| Obligations (§2.2) | **My Work** | numeric badge (after §9) |
+| Obligations (§2.2) | **My Work** | numeric badge (implementation plan §2.5, step 7) |
 | Prompts (§2.3) | **Activity** | placement, never a badge |
 | News (§2.4) | **Activity** | dot |
 
@@ -167,7 +167,7 @@ The overflow entry must therefore be specified as a genuine collection entry poi
    Accordingly, §5.7's convergence guarantee is scoped to **settle**, not staleness, and that is deliberate rather than a gap.
 5. **Bounded.** At most **2** pinned (§4.6); beyond that, one collapsed row (`N people joined via your invites — set up access`) opening a batch sheet.
 
-The card itself is unchanged: `InviteAcceptedReceiptCard` already puts the action on the row with a setup sheet, requiring no navigation. Only its position changes.
+The card's **presentation** is unchanged: `InviteAcceptedReceiptCard` already puts the action on the row with a setup sheet, requiring no navigation, and that stays. Its **data path** does change — placement and the card's own action must read one shared prompt projection, or a row can be demoted while the action mounted on it still offers a stale choice. Rev 6 said "the card itself is unchanged"; that was wrong about the data path and is corrected here. Mechanism and acceptance live in the implementation plan §2.4.
 
 ### 5.6 Edge cases
 
@@ -190,20 +190,21 @@ Cursor pagination is unaffected: the cursor is generated from the server page bo
 
 **Page-bounded relocation does not by itself satisfy §4.6's first-paint guarantee, and rev 5 wrongly treated the two as one question.** The server returns 50 rows in chronological order (`attention_repository.dart:56,118`). If the newest 50 are all fresh pending prompts, the first page contains no chronology to show once two are pinned and the rest collapse; conversely a fresh prompt sitting below 50 news rows is not even a pinning candidate. Cursor integrity is not a display guarantee.
 
-The guarantee in §4.6 is therefore scoped explicitly: **it applies to the first page as fetched.** Making it hold unconditionally would require a bounded prompt projection fetched independently of the chronological page, which is deliberately not proposed — the distribution that breaks it (50 consecutive fresh invite-accepts) is not a state this product produces. If it ever becomes one, the fix is that separate projection, not a larger page.
+Rev 6 dismissed the breaking distribution — 50 consecutive fresh invite-accepts — as one the product does not produce. **That dismissal is withdrawn: nothing enforces it.** Invitations are created one per action (`friends_screen.dart:108`), but `InvitationCase.create` imposes no per-inviter quantity quota (`invitation_case.dart:62`), there is no bulk-send endpoint, `inviteAccepted` receipts do not collapse (`attention_intent_case.dart:1110`), and single-item creation says nothing about how many acceptances accumulate before a viewer opens the app. An inviter who has been recruiting can plausibly return to a page of nothing but acceptances.
+
+The guarantee is therefore stated conditionally rather than defended by an assumption:
+
+> **If the fetched page contains any chronological row, at least one is visible on first paint.** If it contains none, the branch shows the collapsed prompt row and fetches the next page rather than presenting an empty feed.
+
+The 50-prompt page is an explicit test case with defined behaviour, not an excluded one. Making the guarantee unconditional would require the bounded prompt projection fetched independently of the chronological page; that remains the fix if this state turns out to be common rather than merely possible.
 
 **Implementation constraint.** `InviteAcceptedSetupPort.fetchPrompt(subjectId)` is per-subject (`invite_accepted_setup_case.dart:13`) and the card loads it lazily (`_PromptLoadPhase.loading`). Pinning requires prompt state **before** the feed renders, or rows will reorder after paint.
 
 A static `pending` flag on the receipt payload does **not** suffice, and rev 4's claim that it was an equivalent option is withdrawn. Dispatch stores an event-time projection (`attention_dispatch_repository.dart:84-88,140-141,168`) and the feed read never joins prompt state (`attention_repository.dart:82-104`), while `answer`/`skip` write a different table entirely (`invite_seed_attestation_case.dart:63-95`, `invite_seed_prompt_repository.dart:66-101`). A frozen flag would therefore read `pending` forever. The existing card only refetches when the receipt id or payload changes (`invite_accepted_receipt_card.dart:68-77`), so a batch fetch alone inherits the same staleness.
 
-Two separate things are required, and rev 5's "projection **or** batch + invalidation" phrasing wrongly attached the second to only one branch:
+The requirement this document owns is **observable**, not mechanical: *settling a prompt on one device converges its placement and its available action on every other connected device, without a cold restart, for a receipt that is already mounted and already seen.*
 
-- **freshness at read** — a read-time projection joined into the feed query, or a batch fetch before render;
-- **invalidation** — the `answer`/`skip` mutation must emit a recipient-targeted signal, *whichever* freshness branch is chosen. A join is fresh at the moment of fetching; it does not cause a fetch. A connected device re-runs nothing on its own.
-
-The prompt projection must also carry its **own** authorization predicate rather than inheriting the receipt's — see the implementation plan §2.4.
-
-Acceptance: skip a prompt on device A, and device B — connected, with the receipt already seen — demotes it without a cold restart. Authoritative storage alone does not prove convergence.
+Two things follow, and rev 5's "projection **or** batch + invalidation" phrasing wrongly made the second optional: state must be fresh **at read**, and something must **cause** a read — a join is fresh when fetched but does not fetch. Which mechanism satisfies each, the projection's own authorization predicate, and the acceptance wiring are the implementation plan's (§2.4). Authoritative storage alone does not prove convergence.
 
 ## 6. Badges
 
@@ -302,6 +303,12 @@ Withdrawn from revision 5:
 23. **"Invalidation belongs to the batch branch only."** It is required in both (§5).
 24. **"Scope-exit implies settlement."** Authorization loss also exits scope (§8.1).
 
+Withdrawn from revision 6:
+
+25. **"The card itself is unchanged."** Its presentation is; its data path is not (§5).
+26. **"50 consecutive fresh invite-accepts is not a state this product produces."** Nothing enforces that — no quota, no bulk endpoint, no collapse (§5.7).
+27. **"Step 3 is four client changes."** It is a shipping gate that must also deliver the destination view, its settlement actions and per-destination sessions (implementation plan §1).
+
 ## 11. Open questions
 
 Still owed by this document:
@@ -327,7 +334,8 @@ Genuinely optional or later:
 | rev 5 | cursor-agent / Kimi K3, Gemini 3.7, GLM 5.2 | **not performed** — Cursor account budget exhausted |
 | rev 5 | cursor-agent / Grok 4.6 Fast | **not performed** — ran without error but emitted no output; retry abandoned (token cost) |
 | rev 5 | codex / Astra | **REJECT** — 1 blocking, 7 major, 1 minor |
-| rev 6 | — | not yet reviewed |
+| rev 6 | codex / Astra | **REJECT** — 4 high, 4 medium; all completeness or cross-document, none contesting the design |
+| rev 7 | — | not yet reviewed |
 
 **The rev 5 row is empty for budget reasons, not for lack of findings.** Three reviewers refused on an account-wide monthly cap and a fourth produced nothing; none of them read the document and declined to comment. An empty cell here carries no evidence either way, and rev 5 should not be treated as having survived a peer pass merely because the table has no findings under it.
 
