@@ -1066,3 +1066,27 @@ DECISIONS: UX1 need text prefers resolved `primaryNeedSlug` capability label, th
 REMAINING: none for this unit. Wiring preview/label into `ConstellationBody` tap
   handling and passing discoverable requests into the person panel from the
   constellation screen remain for a later unit (not on this owns list).
+
+**Overseer finding (post-review, before acceptance):** the worker's REMAINING
+note is confirmed real, not just caution. The overseer grepped every unit's
+"Owns:" list in the plan for `constellation_body.dart` — it appears exactly
+once, in UNIT 12's own list (where the file was created). **No later unit
+(16, 17, 18, 19, 20) ever touches it again.** Live-code check: `constellation_body.dart`
+renders `GraphNodeWidget` for both node kinds with no `onTap:` passed (the
+widget supports one — `graph_node_widget.dart`'s `onTap` param, already used
+by `graph_body.dart`'s `_onNodeTap`/`GraphPersonContextPanel` pattern), and
+`ConstellationCubit` has `selectRequest(String?)` (sets `selectedRequestId`,
+per UNIT 12) but no method yet to select/expand a person. **Without further
+work, nothing on the rendered map is tappable** — UNIT 15's own preview sheet
+and the person-panel request list it just built are unreachable from the
+actual screen. This blocks UNIT 16 in substance (its whole premise is
+"before entering an offer/forward flow" — a flow with no way to enter it) even
+though the plan's dependency graph doesn't show it as a formal blocker.
+
+**Remediation:** dispatching a small, focused continuation (not a renumbered
+plan unit — this is finishing UNIT 15's own intent, not adding new product
+scope) to wire `ConstellationBody` node taps to `selectRequest`/a new
+person-selection method, and to render the preview sheet / person panel in
+response, following `graph_body.dart`'s existing `_onNodeTap` +
+`GraphPersonContextPanel` pattern. See the follow-up entry below for the
+outcome.
