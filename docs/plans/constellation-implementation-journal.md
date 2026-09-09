@@ -1583,6 +1583,68 @@ REMAINING: keyboard/screen-reader operation of the Constellation text view
   is already covered by existing unit tests (`constellation_text_view_test.dart`
   "request tiles and overflow controls are keyboard reachable" /
   "missing selection after reload is explained, not replaced") and was not
-  re-driven manually — no gap found there worth a live repeat. UX9
-  acceptance record and the plan-wide integration read-through are the
-  remaining steps before declaring the plan complete.
+  re-driven manually — no gap found there worth a live repeat.
+
+**Finding 5 — cold deep-link straight into Constellation freezes the
+viewer's own node as "Unknown person" — fixed, committed with this entry.**
+While re-testing after Finding 4's fix, navigated via `about:blank` directly
+to `/#/home/constellation` (skipping the default My Work landing tab
+entirely — a real path: a bookmark, a shared in-app link, or a restored
+tab). The ego's own graph node rendered as **"Unknown person"** with no
+secondary label, while the peer node and the main tab bar's own profile
+item both showed correct data. Root cause:
+`ConstellationScreen.wrappedRoute` (`constellation_screen.dart`) read
+`GetIt.I<ProfileCubit>().state.profile` **synchronously, once**, at
+`BlocProvider.create` time, then handed that `Profile` into
+`ConstellationCubit`'s `_viewer` (a `final` field, never updated after
+construction) and into `GraphPersonContextCubit`'s `viewerId`.
+`ProfileCubit`'s own initial state is `ProfileState()` with `profile:
+Profile()` (empty id, empty display name) — populated only after its own
+async auth/profile-fetch listeners fire. If `ConstellationScreen` is the
+*first* screen built on a cold load (deep link bypasses the default tab, so
+there's no guarantee `ProfileCubit` has resolved yet), both child cubits
+capture that empty placeholder forever — `ConstellationCubit`'s self-node
+falls back to "Unknown person" for its display name, and
+`GraphPersonContextCubit` would carry an **empty `viewerId`** too (same root
+cause, not separately verified live but follows directly from the same
+synchronous read). Reproduced twice for contrast: cold deep link → broken;
+same session, reload via root landing tab then tap into Constellation →
+correct (`ProfileCubit` had time to resolve first). This is new-to-this-plan
+wiring (`ConstellationScreen` is a new screen) — other tabs don't render the
+viewer's *own* display name as their central artifact, so they weren't
+exposed to this class of bug even where they read `ProfileCubit` the same
+way. Fixed directly in `constellation_screen.dart`: wrapped both
+`BlocProvider`s in a `BlocBuilder<ProfileCubit, ProfileState>`
+(`buildWhen` on `profile.id` only) that gates their construction on
+`profile.id.isNotEmpty`, showing the app's existing
+`Center(child: CircularProgressIndicator())` convention (already used by
+several other screens for the same "waiting on a prerequisite cubit"
+condition) until the real profile arrives — so neither child cubit is ever
+constructed with the placeholder. No existing test exercises
+`ConstellationScreen`'s DI wiring itself (every constellation test drives
+`ConstellationCubit`/`ConstellationBody` directly with a fake `viewer`
+already supplied — exactly why this went uncaught) and building a full
+GetIt-backed widget harness for this one screen-wiring fix was judged
+disproportionate to the fix itself; verified instead by re-running
+`flutter test test/features/constellation/ test/features/profile/`
+(all green) plus a live re-test of the exact repro (now shows a brief
+loading spinner, then "constellation qa" renders correctly).
+
+COMMITS: (staged next)
+FILES: packages/client/lib/features/constellation/ui/screen/constellation_screen.dart,
+  docs/plans/constellation-implementation-journal.md
+TESTS: `flutter test test/features/constellation/ test/features/profile/` —
+  all green; full `flutter test` — 2873 passed / 30 skipped / 1 failed (same
+  pre-existing `request_threads_adaptive_test.dart` flake, unrelated);
+  `./scripts/check-custom-lints.sh packages/client` — 32/32 baseline;
+  `bash scripts/check-user-facing-terminology.sh` — clean.
+DECISIONS: gated (spinner-then-render) rather than double-construct-and-
+  replace (keying `BlocProvider` on `profile.id` to force a rebuild once
+  loaded) — gating avoids ever firing `ConstellationFieldCase.load()` with a
+  wrong viewer, at the cost of a brief spinner on the narrow cold-deep-link
+  path only; normal navigation (tab click after landing) never shows it.
+  Did not audit every other screen in the app for the same
+  read-`ProfileCubit`-synchronously pattern — out of scope for this plan;
+  flagging here in case it recurs elsewhere.
+REMAINING: UX9 acceptance record and the plan-wide integration
+  read-through are the remaining steps before declaring the plan complete.

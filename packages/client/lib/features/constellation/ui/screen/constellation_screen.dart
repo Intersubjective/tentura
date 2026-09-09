@@ -20,21 +20,37 @@ class ConstellationScreen extends StatefulWidget implements AutoRouteWrapper {
 
   @override
   Widget wrappedRoute(BuildContext context) => localScreenCubitScope(
-    child: BlocProvider(
-      create: (_) => ConstellationCubit(
-        case_: GetIt.I<ConstellationFieldCase>(),
-        viewer: GetIt.I<ProfileCubit>().state.profile,
-      ),
-      child: BlocProvider(
-        create: (context) {
-          final viewer = GetIt.I<ProfileCubit>().state.profile;
-          return GraphPersonContextCubit(
-            profileViewCase: GetIt.I<ProfileViewCase>(),
-            viewerId: viewer.id,
-          );
-        },
-        child: this,
-      ),
+    // `ConstellationCubit`/`GraphPersonContextCubit` capture `viewer` once,
+    // at construction time, not reactively — so if this screen is the very
+    // first thing built after a cold load (e.g. a deep link straight into
+    // this tab, before `ProfileCubit`'s own async fetch resolves), a
+    // synchronous `GetIt.I<ProfileCubit>().state.profile` read would freeze
+    // in an empty placeholder (empty id, empty display name) for the whole
+    // Cubit's lifetime. Gate construction on the profile actually being
+    // loaded instead.
+    child: BlocBuilder<ProfileCubit, ProfileState>(
+      bloc: GetIt.I<ProfileCubit>(),
+      buildWhen: (previous, current) =>
+          previous.profile.id != current.profile.id,
+      builder: (context, profileState) {
+        final viewer = profileState.profile;
+        if (viewer.id.isEmpty) {
+          return const Center(child: CircularProgressIndicator());
+        }
+        return BlocProvider(
+          create: (_) => ConstellationCubit(
+            case_: GetIt.I<ConstellationFieldCase>(),
+            viewer: viewer,
+          ),
+          child: BlocProvider(
+            create: (context) => GraphPersonContextCubit(
+              profileViewCase: GetIt.I<ProfileViewCase>(),
+              viewerId: viewer.id,
+            ),
+            child: this,
+          ),
+        );
+      },
     ),
   );
 
