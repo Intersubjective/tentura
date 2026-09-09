@@ -1,6 +1,6 @@
 # Inbox → Activity: information architecture — architectural proposal
 
-Status: architectural proposal, revision 6. Not an implementation plan. No application, API, schema, or data changes are authorized by this document alone.
+Status: architectural proposal, revision 7. Not an implementation plan. No application, API, schema, or data changes are authorized by this document alone.
 
 Date: 2026-09-09. Repository baseline inspected: `c6b24012d`, including the current working tree.
 

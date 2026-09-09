@@ -1,6 +1,6 @@
 # Inbox → Activity: implementation plan
 
-Status: implementation plan, revision 1. Companion to [`inbox-activity-ia-architecture.md`](inbox-activity-ia-architecture.md), which is the authority on *what* is being built and *why*. This document owns *what has to exist first*, *in what order*, and *what breaks*.
+Status: implementation plan, revision 2. Companion to [`inbox-activity-ia-architecture.md`](inbox-activity-ia-architecture.md), which is the authority on *what* is being built and *why*. This document owns *what has to exist first*, *in what order*, and *what breaks*.
 
 Date: 2026-09-10. Repository baseline: `c6b24012d` plus this branch.
 
