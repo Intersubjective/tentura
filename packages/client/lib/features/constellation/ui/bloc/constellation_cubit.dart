@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:ui' show Size;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -10,6 +11,7 @@ import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/beacon/domain/exception.dart';
 import 'package:tentura/features/forward/data/repository/forward_repository.dart';
 
+import '../../domain/constellation_density.dart';
 import '../../domain/constellation_filters.dart';
 import '../../domain/entity/constellation_field.dart';
 import '../../domain/use_case/constellation_field_case.dart';
@@ -91,6 +93,16 @@ enum ConstellationOfferSubmitOutcome {
   validationFailed,
 }
 
+/// Per-node absence classification (architecture §5.2 — presentation only).
+enum ConstellationNodeAbsence {
+  none,
+  filterHidden,
+  spaceCollapsed,
+  ring,
+  capDisplaced,
+  ringBudgetOmitted,
+}
+
 final class ConstellationCubit extends Cubit<ConstellationState> {
   ConstellationCubit({
     required ConstellationFieldCase case_,
@@ -99,7 +111,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     bool loadOnCreate = true,
   }) : _case = case_,
        _viewer = viewer,
-       _forwardRepository = forwardRepository ?? GetIt.I<ForwardRepository>(),
+       _forwardRepositoryOverride = forwardRepository,
        super(const ConstellationState()) {
     if (loadOnCreate) {
       unawaited(load());
@@ -108,7 +120,10 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
 
   final ConstellationFieldCase _case;
   final Profile _viewer;
-  final ForwardRepository _forwardRepository;
+  final ForwardRepository? _forwardRepositoryOverride;
+
+  ForwardRepository get _forwardRepository =>
+      _forwardRepositoryOverride ?? GetIt.I<ForwardRepository>();
 
   final graphController =
       GraphController<NodeDetails, EdgeDetails<NodeDetails>>();
@@ -118,6 +133,13 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
   String layoutEgoId = '';
   Map<String, List<String>> layoutVisibleRequestsByAuthor = const {};
   Set<String> layoutEgoOwnRequestIds = const {};
+  Set<String> droppedHolderIds = const {};
+  Set<String> displayedRequestIds = const {};
+  Map<String, int> overflowHiddenCountByAuthor = const {};
+  final Set<String> expandedSatelliteAuthorIds = {};
+
+  Size _labelBudgetViewport = const Size(1200, 900);
+  double _labelBudgetTextScale = 1.0;
 
   Future<void> load() async {
     if (isClosed) {
@@ -140,6 +162,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
           loadError: null,
         ),
       );
+      droppedHolderIds = resolved.droppedHolderIds;
       _rebuildGraph();
     } on Object catch (error) {
       if (isClosed) {
@@ -170,6 +193,155 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
       return;
     }
     emit(state.copyWith(viewMode: viewMode));
+  }
+
+  void updateLabelBudgetContext({
+    required Size viewport,
+    required double textScaleFactor,
+  }) {
+    _labelBudgetViewport = viewport;
+    _labelBudgetTextScale = textScaleFactor;
+    _rebuildGraph();
+  }
+
+  bool get hasActiveFilters =>
+      state.filterCapabilitySlugs.isNotEmpty ||
+      state.filterLocation != LocationFilter.any ||
+      state.filterTiming is! TimingFilterAny ||
+      !state.filterIncludeUnspecified;
+
+  bool get isFilteredResultEmpty {
+    final field = state.field;
+    if (field == null) {
+      return false;
+    }
+    return hasActiveFilters && _filteredRequestIds(field).isEmpty;
+  }
+
+  bool get peersCapped => state.field?.peersCapped ?? false;
+
+  bool get requestsCapped => state.field?.requestsCapped ?? false;
+
+  bool get renderBudgetCapped => state.capped;
+
+  void setFilterCapabilitySlugs(Set<String> slugs) {
+    if (isClosed) {
+      return;
+    }
+    emit(state.copyWith(filterCapabilitySlugs: slugs));
+    _rebuildGraph();
+  }
+
+  void setFilterLocation(LocationFilter location) {
+    if (isClosed || state.filterLocation == location) {
+      return;
+    }
+    emit(state.copyWith(filterLocation: location));
+    _rebuildGraph();
+  }
+
+  void setFilterTiming(TimingFilter timing) {
+    if (isClosed || state.filterTiming == timing) {
+      return;
+    }
+    emit(state.copyWith(filterTiming: timing));
+    _rebuildGraph();
+  }
+
+  void setFilterIncludeUnspecified(bool include) {
+    if (isClosed || state.filterIncludeUnspecified == include) {
+      return;
+    }
+    emit(state.copyWith(filterIncludeUnspecified: include));
+    _rebuildGraph();
+  }
+
+  void clearFilters() {
+    if (isClosed) {
+      return;
+    }
+    emit(
+      state.copyWith(
+        filterCapabilitySlugs: const {},
+        filterLocation: LocationFilter.any,
+        filterTiming: const TimingFilterAny(),
+        filterIncludeUnspecified: true,
+      ),
+    );
+    _rebuildGraph();
+  }
+
+  void toggleSatelliteOverflow(String authorId) {
+    if (isClosed) {
+      return;
+    }
+    if (expandedSatelliteAuthorIds.contains(authorId)) {
+      expandedSatelliteAuthorIds.remove(authorId);
+    } else {
+      expandedSatelliteAuthorIds.add(authorId);
+    }
+    _rebuildGraph();
+  }
+
+  bool isSatelliteOverflowExpanded(String authorId) =>
+      expandedSatelliteAuthorIds.contains(authorId);
+
+  Set<String> availableCapabilitySlugs() {
+    final field = state.field;
+    if (field == null) {
+      return const {};
+    }
+    final slugs = <String>{};
+    for (final request in field.requests) {
+      slugs.addAll(request.needs);
+      final primary = request.primaryNeedSlug?.trim();
+      if (primary != null && primary.isNotEmpty) {
+        slugs.add(primary);
+      }
+    }
+    return slugs;
+  }
+
+  ConstellationNodeAbsence absenceForPerson(String personId) {
+    if (personId == _viewer.id) {
+      return ConstellationNodeAbsence.none;
+    }
+    final paths = state.paths;
+    if (paths == null) {
+      return ConstellationNodeAbsence.none;
+    }
+    if (droppedHolderIds.contains(personId)) {
+      return ConstellationNodeAbsence.capDisplaced;
+    }
+    if (paths.ring.contains(personId)) {
+      if (!state.keptPeerIds.contains(personId)) {
+        return ConstellationNodeAbsence.ringBudgetOmitted;
+      }
+      return ConstellationNodeAbsence.ring;
+    }
+    return ConstellationNodeAbsence.none;
+  }
+
+  ConstellationNodeAbsence absenceForRequest(String requestId) {
+    final field = state.field;
+    if (field == null) {
+      return ConstellationNodeAbsence.none;
+    }
+    final filtered = _filteredRequestIds(field);
+    if (!filtered.contains(requestId)) {
+      return ConstellationNodeAbsence.filterHidden;
+    }
+    if (displayedRequestIds.contains(requestId)) {
+      return ConstellationNodeAbsence.none;
+    }
+    return ConstellationNodeAbsence.spaceCollapsed;
+  }
+
+  String ringSemanticsKeyForPerson(String personId) {
+    if (peersCapped && (state.paths?.ring.contains(personId) ?? false)) {
+      return 'constellationAbsencePathNotShown';
+    }
+    return 'constellationAbsenceRing';
   }
 
   Future<ConstellationRequestPreflight> preflightRequestAction(
@@ -320,29 +492,103 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     if (field == null) {
       return const [];
     }
-    final visibleRequestIds = _visibleRequestIds(field);
+    final filteredRequestIds = _filteredRequestIds(field);
     return [
       for (final request in field.requests)
-        if (request.authorId == personId && visibleRequestIds.contains(request.id))
+        if (request.authorId == personId &&
+            filteredRequestIds.contains(request.id))
           request,
     ]..sort((a, b) => a.id.compareTo(b.id));
   }
 
-  Set<String> _visibleRequestIds(ConstellationField field) => filterRequestIds(
-    requests: field.requests.map(
-      (request) => (
-        id: request.id,
-        needs: request.needs.toSet(),
-        primaryNeedSlug: request.primaryNeedSlug,
-        startAt: request.startAt,
-        endAt: request.endAt,
-        addressLabel: request.addressLabel,
-        hasCoordinates: request.hasCoordinates,
+  Set<String> _filteredRequestIds(ConstellationField field) {
+    final asOf = state.loadedAt ?? field.loadedAt;
+    return filterRequestIds(
+      requests: field.requests.map(
+        (request) => (
+          id: request.id,
+          needs: request.needs.toSet(),
+          primaryNeedSlug: request.primaryNeedSlug,
+          startAt: request.startAt,
+          endAt: request.endAt,
+          addressLabel: request.addressLabel,
+          hasCoordinates: request.hasCoordinates,
+        ),
       ),
-    ),
-    filters: state.filters,
-    asOfUtc: DateTime.now().toUtc(),
-  );
+      filters: state.filters,
+      asOfUtc: asOf.toUtc(),
+    );
+  }
+
+  Map<String, List<String>> _allRequestsByAuthor(ConstellationField field) {
+    final byAuthor = <String, List<String>>{};
+    for (final request in field.requests) {
+      byAuthor.putIfAbsent(request.authorId, () => <String>[]).add(request.id);
+    }
+    for (final entry in byAuthor.entries) {
+      entry.value.sort();
+    }
+    return byAuthor;
+  }
+
+  ({
+    Set<String> drawnRequestIds,
+    Map<String, List<String>> layoutByAuthor,
+    Set<String> egoOwnRequestIds,
+    Map<String, int> overflowByAuthor,
+  })
+  _displayPlan(ConstellationField field) {
+    final allByAuthor = _allRequestsByAuthor(field);
+    final filteredIds = _filteredRequestIds(field);
+
+    final filteredByAuthor = <String, List<String>>{};
+    for (final entry in allByAuthor.entries) {
+      final ids = [
+        for (final id in entry.value)
+          if (filteredIds.contains(id)) id,
+      ];
+      if (ids.isNotEmpty) {
+        filteredByAuthor[entry.key] = ids;
+      }
+    }
+
+    final budget = constellationLabelBudget(
+      viewport: _labelBudgetViewport,
+      textScaleFactor: _labelBudgetTextScale,
+    );
+    final allocated = allocateVisibleRequests(
+      requestIdsByAuthor: filteredByAuthor,
+      budget: budget,
+    );
+
+    final drawn = <String>{};
+    final overflow = <String, int>{};
+
+    for (final entry in filteredByAuthor.entries) {
+      final authorId = entry.key;
+      final allIds = entry.value;
+      final visibleIds = List<String>.from(allocated[authorId] ?? const []);
+      if (expandedSatelliteAuthorIds.contains(authorId)) {
+        visibleIds
+          ..clear()
+          ..addAll(allIds);
+      }
+      final hidden = allIds.length - visibleIds.length;
+      if (hidden > 0) {
+        overflow[authorId] = hidden;
+      }
+      drawn.addAll(visibleIds);
+    }
+
+    return (
+      drawnRequestIds: drawn,
+      layoutByAuthor: allByAuthor,
+      egoOwnRequestIds: {
+        for (final id in allByAuthor[_viewer.id] ?? const <String>[]) id,
+      },
+      overflowByAuthor: overflow,
+    );
+  }
 
   void _rebuildGraph() {
     final field = state.field;
@@ -350,34 +596,24 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     if (field == null || paths == null) {
       graphController.clear();
       edgeKinds.clear();
+      overflowHiddenCountByAuthor = const {};
       return;
     }
 
     final peersById = {for (final peer in field.peers) peer.id: peer};
-    final visibleRequestIds = _visibleRequestIds(field);
+    final plan = _displayPlan(field);
+    final drawnRequestIds = plan.drawnRequestIds;
 
-    final visibleRequests = [
+    final drawnRequests = [
       for (final request in field.requests)
-        if (visibleRequestIds.contains(request.id)) request,
+        if (drawnRequestIds.contains(request.id)) request,
     ]..sort((a, b) => a.id.compareTo(b.id));
 
-    final visibleRequestsByAuthor = <String, List<String>>{};
-    final egoOwnRequestIds = <String>{};
-    for (final request in visibleRequests) {
-      visibleRequestsByAuthor
-          .putIfAbsent(request.authorId, () => <String>[])
-          .add(request.id);
-      if (request.authorId == _viewer.id) {
-        egoOwnRequestIds.add(request.id);
-      }
-    }
-    for (final entry in visibleRequestsByAuthor.entries) {
-      entry.value.sort();
-    }
-
     layoutEgoId = _viewer.id;
-    layoutVisibleRequestsByAuthor = visibleRequestsByAuthor;
-    layoutEgoOwnRequestIds = egoOwnRequestIds;
+    layoutVisibleRequestsByAuthor = plan.layoutByAuthor;
+    layoutEgoOwnRequestIds = plan.egoOwnRequestIds;
+    displayedRequestIds = plan.drawnRequestIds;
+    overflowHiddenCountByAuthor = plan.overflowByAuthor;
 
     final nodes = <NodeDetails>{};
     final edges = <EdgeDetails<NodeDetails>>{};
@@ -409,7 +645,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
       );
     }
 
-    for (final request in visibleRequests) {
+    for (final request in drawnRequests) {
       nodes.add(FieldRequestNode(request: request));
     }
 
@@ -463,7 +699,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
       );
     }
 
-    for (final request in visibleRequests) {
+    for (final request in drawnRequests) {
       addEdge(
         srcId: request.authorId,
         dstId: request.id,

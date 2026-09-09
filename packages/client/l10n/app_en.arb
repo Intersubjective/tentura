@@ -1287,6 +1287,106 @@
   "@constellationPersonHideRequests": {
     "context": "GraphPersonContextPanel"
   },
+  "constellationEmptyFiltered": "No requests match these filters",
+  "@constellationEmptyFiltered": {
+    "context": "ConstellationFilterBar"
+  },
+  "constellationClearFilters": "Clear filters",
+  "@constellationClearFilters": {
+    "context": "ConstellationFilterBar"
+  },
+  "constellationUnspecifiedGroup": "Unspecified",
+  "@constellationUnspecifiedGroup": {
+    "context": "ConstellationFilterBar"
+  },
+  "constellationPathOmittedByCap": "Some connection paths are not shown",
+  "@constellationPathOmittedByCap": {
+    "context": "ConstellationFilterBar"
+  },
+  "constellationRequestsCapped": "Some requests could not be loaded",
+  "@constellationRequestsCapped": {
+    "context": "ConstellationFilterBar"
+  },
+  "constellationRenderBudgetCapped": "Some people were omitted to keep the map readable",
+  "@constellationRenderBudgetCapped": {
+    "context": "ConstellationFilterBar"
+  },
+  "constellationFallbackListLink": "View plain list",
+  "@constellationFallbackListLink": {
+    "context": "ConstellationFilterBar"
+  },
+  "constellationMoreRequests": "+{count} more",
+  "@constellationMoreRequests": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "constellationIncludeUnspecified": "Include unspecified",
+  "@constellationIncludeUnspecified": {
+    "context": "ConstellationFilterBar"
+  },
+  "constellationFilterLimitations": "No effort filter. Location shows presence only—not remote eligibility.",
+  "@constellationFilterLimitations": {
+    "context": "ConstellationFilterBar"
+  },
+  "constellationFilterCapability": "Capability",
+  "@constellationFilterCapability": {
+    "context": "ConstellationFilterBar"
+  },
+  "constellationFilterLocation": "Location",
+  "@constellationFilterLocation": {
+    "context": "ConstellationFilterBar"
+  },
+  "constellationFilterLocationAny": "Any",
+  "@constellationFilterLocationAny": {
+    "context": "ConstellationFilterBar"
+  },
+  "constellationFilterLocationHas": "Has location",
+  "@constellationFilterLocationHas": {
+    "context": "ConstellationFilterBar"
+  },
+  "constellationFilterTiming": "Timing",
+  "@constellationFilterTiming": {
+    "context": "ConstellationFilterBar"
+  },
+  "constellationFilterTimingAny": "Any timing",
+  "@constellationFilterTimingAny": {
+    "context": "ConstellationFilterBar"
+  },
+  "constellationFilterTimingWithinDays": "Within {days} days",
+  "@constellationFilterTimingWithinDays": {
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
+  },
+  "constellationAbsenceFilterHidden": "Hidden by your filters",
+  "@constellationAbsenceFilterHidden": {
+    "context": "ConstellationFilterBar"
+  },
+  "constellationAbsenceSpaceCollapsed": "Collapsed to save space",
+  "@constellationAbsenceSpaceCollapsed": {
+    "context": "ConstellationFilterBar"
+  },
+  "constellationAbsenceRing": "Connection not explained within this map's path rules",
+  "@constellationAbsenceRing": {
+    "context": "ConstellationFilterBar"
+  },
+  "constellationAbsencePathNotShown": "Path not shown",
+  "@constellationAbsencePathNotShown": {
+    "context": "ConstellationFilterBar"
+  },
+  "constellationAbsenceCapDisplaced": "Known connection omitted by the map's render budget",
+  "@constellationAbsenceCapDisplaced": {
+    "context": "ConstellationFilterBar"
+  },
+  "constellationAbsenceRingBudgetOmitted": "This ring connection is not drawn on the map",
+  "@constellationAbsenceRingBudgetOmitted": {
+    "context": "ConstellationFilterBar"
+  },
   "friends": "Friends",
   "@friends": {
     "context": "HomeScreen"

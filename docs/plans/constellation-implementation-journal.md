@@ -146,7 +146,7 @@ is triggered.
 - [x] 14 — Navigation slot, route, My Work entry
 - [x] 15 — Need labels, request preview, person panel
 - [x] 16 — Snapshot lifecycle + action-time validation, incl. server `expectedOfferKind`
-- [ ] 17 — Filter bar, grouping, stable anchors
+- [x] 17 — Filter bar, grouping, stable anchors
 - [ ] 18 — Accessible Map/Text switch
 - [ ] 19 — Author discoverability toggle + reach statement
 - [ ] 20 — Version bump, docs activation, UX acceptance
@@ -1179,3 +1179,35 @@ DECISIONS: Server permissible kind: new offer → `1` when locked status is
   never silent conversion; `offerKindChanged` preserves draft note and
   re-presents choice.
 REMAINING: none for this unit. UNIT 17 — filter bar, grouping, stable anchors.
+
+---
+
+## UNIT 17 — complete — 2026-09-09
+COMMITS: (this unit's commit, staged next)
+TESTS: `cd packages/client && flutter gen-l10n` — exit 0;
+  `cd packages/client && flutter test test/features/constellation/` — 108/108 passed;
+  `./scripts/check-custom-lints.sh packages/client` — exit 0 (32/32 baseline unchanged);
+  `bash scripts/check-user-facing-terminology.sh` — exit 0
+FILES: packages/client/lib/features/constellation/ui/widget/constellation_filter_bar.dart (new),
+  packages/client/lib/features/constellation/ui/widget/constellation_overflow_group.dart (new),
+  packages/client/lib/features/constellation/ui/bloc/constellation_cubit.dart,
+  packages/client/l10n/app_en.arb,
+  packages/client/l10n/app_ru.arb,
+  packages/client/test/features/constellation/constellation_density_widget_test.dart (new),
+  docs/plans/constellation-implementation-journal.md
+FINDINGS: `constellation_body.dart` is not on this unit's owns list — filter bar,
+  overflow group, and field-level notices are implemented as composable widgets
+  with cubit seam wiring, but the live map screen does not mount them yet (same
+  pattern as UNIT 15/16 body gaps before continuation). `ForwardRepository` is
+  now resolved lazily so graph-only tests avoid GetIt bootstrap.
+DECISIONS: Layout anchors use the unfiltered `requestIdsByAuthor` map; filters and
+  label budget only affect drawn satellites via `displayedRequestIds` /
+  `overflowHiddenCountByAuthor`. Three field-level notices (`peersCapped`,
+  `requestsCapped`, client `capped`) are independent widgets; `peersCapped` ring
+  copy degrades to `constellationAbsencePathNotShown` via `ringSemanticsKeyForPerson`.
+  Limitations footnote records no effort filter and no remote filter. Fallback
+  list link calls `setViewMode(text)` — UNIT 18 still owns the text surface.
+REMAINING: Mount `ConstellationFilterBar` and per-author `ConstellationOverflowGroup`
+  in `constellation_body.dart` (or UNIT 18 screen edit). UNIT 18 text view is the
+  fallback-list destination for `peersCapped` — link sets view mode but plain list
+  is not reachable until that unit lands.

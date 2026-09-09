@@ -1287,6 +1287,106 @@
   "@constellationPersonHideRequests": {
     "context": "GraphPersonContextPanel"
   },
+  "constellationEmptyFiltered": "Нет запросов по этим фильтрам",
+  "@constellationEmptyFiltered": {
+    "context": "ConstellationFilterBar"
+  },
+  "constellationClearFilters": "Сбросить фильтры",
+  "@constellationClearFilters": {
+    "context": "ConstellationFilterBar"
+  },
+  "constellationUnspecifiedGroup": "Не указано",
+  "@constellationUnspecifiedGroup": {
+    "context": "ConstellationFilterBar"
+  },
+  "constellationPathOmittedByCap": "Некоторые пути связи не показаны",
+  "@constellationPathOmittedByCap": {
+    "context": "ConstellationFilterBar"
+  },
+  "constellationRequestsCapped": "Некоторые запросы не удалось загрузить",
+  "@constellationRequestsCapped": {
+    "context": "ConstellationFilterBar"
+  },
+  "constellationRenderBudgetCapped": "Некоторые люди скрыты, чтобы карта оставалась читаемой",
+  "@constellationRenderBudgetCapped": {
+    "context": "ConstellationFilterBar"
+  },
+  "constellationFallbackListLink": "Показать простой список",
+  "@constellationFallbackListLink": {
+    "context": "ConstellationFilterBar"
+  },
+  "constellationMoreRequests": "ещё {count}",
+  "@constellationMoreRequests": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "constellationIncludeUnspecified": "Включать не указанные",
+  "@constellationIncludeUnspecified": {
+    "context": "ConstellationFilterBar"
+  },
+  "constellationFilterLimitations": "Нет фильтра по усилиям. Место показывает только наличие — не удалённость.",
+  "@constellationFilterLimitations": {
+    "context": "ConstellationFilterBar"
+  },
+  "constellationFilterCapability": "Навык",
+  "@constellationFilterCapability": {
+    "context": "ConstellationFilterBar"
+  },
+  "constellationFilterLocation": "Место",
+  "@constellationFilterLocation": {
+    "context": "ConstellationFilterBar"
+  },
+  "constellationFilterLocationAny": "Любое",
+  "@constellationFilterLocationAny": {
+    "context": "ConstellationFilterBar"
+  },
+  "constellationFilterLocationHas": "Есть место",
+  "@constellationFilterLocationHas": {
+    "context": "ConstellationFilterBar"
+  },
+  "constellationFilterTiming": "Срок",
+  "@constellationFilterTiming": {
+    "context": "ConstellationFilterBar"
+  },
+  "constellationFilterTimingAny": "Любой срок",
+  "@constellationFilterTimingAny": {
+    "context": "ConstellationFilterBar"
+  },
+  "constellationFilterTimingWithinDays": "В течение {days} дн.",
+  "@constellationFilterTimingWithinDays": {
+    "placeholders": {
+      "days": {
+        "type": "int"
+      }
+    }
+  },
+  "constellationAbsenceFilterHidden": "Скрыто фильтрами",
+  "@constellationAbsenceFilterHidden": {
+    "context": "ConstellationFilterBar"
+  },
+  "constellationAbsenceSpaceCollapsed": "Свёрнуто из‑за нехватки места",
+  "@constellationAbsenceSpaceCollapsed": {
+    "context": "ConstellationFilterBar"
+  },
+  "constellationAbsenceRing": "Связь не объяснена правилами путей на этой карте",
+  "@constellationAbsenceRing": {
+    "context": "ConstellationFilterBar"
+  },
+  "constellationAbsencePathNotShown": "Путь не показан",
+  "@constellationAbsencePathNotShown": {
+    "context": "ConstellationFilterBar"
+  },
+  "constellationAbsenceCapDisplaced": "Известная связь скрыта лимитом отрисовки карты",
+  "@constellationAbsenceCapDisplaced": {
+    "context": "ConstellationFilterBar"
+  },
+  "constellationAbsenceRingBudgetOmitted": "Эта кольцевая связь не нарисована на карте",
+  "@constellationAbsenceRingBudgetOmitted": {
+    "context": "ConstellationFilterBar"
+  },
   "friends": "Друзья",
   "@friends": {
     "context": "HomeScreen"
