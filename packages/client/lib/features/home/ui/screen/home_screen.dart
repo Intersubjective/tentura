@@ -228,7 +228,7 @@ class _HomeShellState extends State<_HomeShell> {
                     selectedIcon: const FriendsNavbarItem(
                       selected: true,
                     ),
-                    label: Text(l10n.network),
+                    label: Text(l10n.myField),
                   ),
                   NavigationRailDestination(
                     icon: Tooltip(
@@ -290,7 +290,9 @@ class _HomeShellState extends State<_HomeShell> {
                   selectedIcon: const FriendsNavbarItem(
                     selected: true,
                   ),
-                  label: l10n.network,
+                  // Icon-only on compact bottom nav; a11y via tooltip.
+                  label: '',
+                  tooltip: l10n.myField,
                 ),
                 HomeNavDestination(
                   icon: const ProfileNavBarItem(),

@@ -1183,9 +1183,13 @@
   "@helpOffererForwardPathTooltip": {
     "context": "HelpOfferTile — IconButton tooltip for helper forward path graph"
   },
-  "myField": "My Field",
+  "myField": "My field",
   "@myField": {
-    "context": "HomeScreen"
+    "context": "HomeScreen — side nav / non-compact label for the Field tab"
+  },
+  "field": "field",
+  "@field": {
+    "context": "FriendsScreen — AppBar title for the Field (network) tab"
   },
   "inbox": "Inbox",
   "@inbox": {
