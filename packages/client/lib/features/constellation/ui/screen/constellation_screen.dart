@@ -68,7 +68,7 @@ class _ConstellationScreenState extends State<ConstellationScreen> {
     return Scaffold(
       appBar: TenturaTopBar.of(
         context,
-        alignment: TenturaTopBarAlignment.fullWidth,
+        alignment: TenturaTopBarAlignment.content,
         title: const SizedBox.shrink(),
         row: ConstellationAppBarRow(
           legendExpanded: _legendExpanded,
