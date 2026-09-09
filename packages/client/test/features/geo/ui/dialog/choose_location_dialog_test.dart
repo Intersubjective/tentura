@@ -304,6 +304,16 @@ void main() {
     expect(result!.place.toString(), 'Prinsengracht 263, Amsterdam');
   });
 
+  testWidgets('close button dismisses without a location', (tester) async {
+    await openDialog(tester);
+
+    await tester.tap(find.byKey(const Key('ChooseLocation.Close')));
+    await tester.pumpAndSettle();
+
+    expect(result, isNull);
+    expect(find.byType(ChooseLocationDialog), findsNothing);
+  });
+
   testWidgets('shows missing maps key guidance when Env key is empty', (
     tester,
   ) async {

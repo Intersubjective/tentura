@@ -153,6 +153,12 @@ class _ChooseLocationDialogState extends State<ChooseLocationDialog> {
           centerTitle: true,
           forceMaterialTransparency: true,
           foregroundColor: tt.text,
+          leading: _wrapWebMapOverlay(
+            CloseButton(
+              key: const Key('ChooseLocation.Close'),
+              onPressed: () => Navigator.of(context).pop(),
+            ),
+          ),
           title: Text(l10n.tapToChooseLocation),
         ),
         extendBodyBehindAppBar: true,
