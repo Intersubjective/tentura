@@ -1,10 +1,12 @@
 # Inbox → Activity: information architecture — architectural proposal
 
-Status: architectural proposal, revision 5. Not an implementation plan. No application, API, schema, or data changes are authorized by this document alone.
+Status: architectural proposal, revision 6. Not an implementation plan. No application, API, schema, or data changes are authorized by this document alone.
 
 Date: 2026-09-09. Repository baseline inspected: `c6b24012d`, including the current working tree.
 
-Revisions 1–4 passed through five independent adversarial review passes (§15). Mechanics withdrawn under them are listed in §13 so they are not silently reintroduced. Revision 5 responds to the rev 4 pass, which rejected it on one blocking and five major findings — chiefly that §8.1 is a server contract, not a client-side scope edit. User-facing **Request** remains internal **Beacon**; this proposal adds no parallel entity, table, or route family.
+Revisions 1–5 passed through six independent adversarial review passes (§12). Mechanics withdrawn under them are listed in §10 so they are not silently reintroduced.
+
+**Revision 6 splits the document.** Server contracts, migration ordering, shipping sequence and test blast radius have moved to [`inbox-activity-ia-implementation-plan.md`](inbox-activity-ia-implementation-plan.md). Six passes had pushed every surviving objection into precisely that material — including a blocking finding about shipping order — which a document declaring itself "not an implementation plan" was never scoped to carry. What remains here is the part that has never been contested: which objects exist, where they belong, and how the surface behaves. User-facing **Request** remains internal **Beacon**; this proposal adds no parallel entity, table, or route family.
 
 ## Product decisions supplied by the product owner
 
@@ -51,7 +53,7 @@ With Ask, Blocker, Promise **and Plan** retired (`DiscussionProductPolicy.retire
 | `helpOfferSubmitted` | `help_offer_case.dart:148`, `beacon_room_case.dart:904` | `authorOfBeacon` only (`attention_policy.dart:269-271`) |
 | `reviewOpened` | `evaluation_case.dart:323` | `reviewerIds` (`:326`) — author, active helpers, **and `formerCommitter`** (`evaluation_participant_role.dart:6`, `evaluation_case.dart:1295,1393`) |
 
-Dead producers, retained only by DI and tests: `needsMe` (only `publish_draft_ask_case.dart:83` and `mark_ask_case.dart:83`), `staleReminder` (only `remind_coordination_item_case.dart:92`, which rejects retired kinds), `blockerOpened` and `commitmentRedirected` (retired kinds only). See §10.
+Dead producers, retained only by DI and tests: `needsMe` (only `publish_draft_ask_case.dart:83` and `mark_ask_case.dart:83`), `staleReminder` (only `remind_coordination_item_case.dart:92`, which rejects retired kinds), `blockerOpened` and `commitmentRedirected` (retired kinds only). See the implementation plan §4.
 
 `helpOfferSubmitted` is cleanly inside My Work. `reviewOpened` is **not**, in one case: My Work's scope query admits authored non-archived Requests plus help offers with `status: {_eq: 0}` — active offers only (`my_work/data/gql/my_work_fetch.graphql:6-21`). A `formerCommitter` — someone who offered help, withdrew, and whose Request then closed — receives a review obligation while holding no My Work row. `MyWorkReviewWindows` does not close this gap: it takes `beaconIds` as input (`my_work_review_windows.graphql:1`) and so never runs for a Request outside the set.
 
@@ -102,7 +104,7 @@ This corrects a shipped defect. The feed's "Needs you" view (`updates_feed_pane.
 
 Rev 3 routed the single-item case straight to the Request detail. That stays withdrawn, but **rev 4's justification for withdrawing it was factually wrong and is replaced**.
 
-Rev 4 argued that Inbox's two dismissal dialogs have different note audiences — private for `showInboxDismissDialog`, sent to the forwarder for `showRejectionDialog` — and that detail carries only the second. The copy does differ (`rejection_dialog.dart:72-89`), but the behaviour does not: both call `inboxCubit.reject(..., message: msg)` (`inbox_screen.dart:753-765`), both write the same `rejection_message` (`inbox_cubit.dart:285-289,336-339` → `inbox_set_status.graphql:8`), and a trigger copies it onto every matching forward edge as `recipient_rejection_message` (`m0015.dart:67-76`), which Hasura exposes to the sender (`hasura/metadata.json:1399-1407`). There is no private path to preserve. See §16.
+Rev 4 argued that Inbox's two dismissal dialogs have different note audiences — private for `showInboxDismissDialog`, sent to the forwarder for `showRejectionDialog` — and that detail carries only the second. The copy does differ (`rejection_dialog.dart:72-89`), but the behaviour does not: both call `inboxCubit.reject(..., message: msg)` (`inbox_screen.dart:753-765`), both write the same `rejection_message` (`inbox_cubit.dart:285-289,336-339` → `inbox_set_status.graphql:8`), and a trigger copies it onto every matching forward edge as `recipient_rejection_message` (`m0015.dart:67-76`), which Hasura exposes to the sender (`hasura/metadata.json:1399-1407`). There is no private path to preserve. See §13.
 
 The rule stands on **operational consistency** instead: one row, one destination, at every count. A tap that means "open triage" at two items and "open the Request" at one is a rule the user has to learn from experience. Detail's overflow does carry the affordances (`beacon_view_app_bar_overflow.dart:461-512`), so this is a coherence argument, not a capability one. Kimi's original objection — that a bare summary row withheld *which* Request was waiting — is answered by the title on the row, not by the destination.
 
@@ -178,19 +180,30 @@ The card itself is unchanged: `InviteAcceptedReceiptCard` already puts the actio
 
 A pinned prompt is **lifted out of its chronological position** while `pending` and fresh, and **reinserted** on settle or staleness. It is not additionally rendered in place; rendering both would duplicate the row.
 
-Rev 1's withdrawn mechanic (§13.1) is mechanically the same lift-out. What makes it sound here is narrower than rev 3 originally claimed, and the claim is corrected accordingly:
+Rev 1's withdrawn mechanic (§10.1) is mechanically the same lift-out. What makes it sound here is narrower than rev 3 originally claimed, and the claim is corrected accordingly:
 
-- **What §13.1 actually broke:** ordinary receipts have no settle state, so the client hid rows on its own authority, corrupting server-side unread accounting and diverging across devices.
+- **What §10.1 actually broke:** ordinary receipts have no settle state, so the client hid rows on its own authority, corrupting server-side unread accounting and diverging across devices.
 - **What holds here:** the lift-out is *derived* from authoritative server state written through `answer`/`skip`, so it converges across devices, and **the unread total is untouched at every point**.
 - **What does not hold, and is withdrawn:** the claim that no receipt is hidden from the feed. A lifted-out row is absent from its chronological position by construction. The honest statement is: *no receipt is hidden from the unread total; a prompt receipt is relocated within the feed while pending-and-fresh.*
 
-Cursor pagination is unaffected: the cursor is generated from the server page boundary (`server/.../attention_repository.dart:142-146`) and prompt state is fetched separately, so relocation happens inside an already-fetched page.
+Cursor pagination is unaffected: the cursor is generated from the server page boundary (`attention_repository.dart:142-146`) and prompt state is fetched separately, so relocation happens inside an already-fetched page.
+
+**Page-bounded relocation does not by itself satisfy §4.6's first-paint guarantee, and rev 5 wrongly treated the two as one question.** The server returns 50 rows in chronological order (`attention_repository.dart:56,118`). If the newest 50 are all fresh pending prompts, the first page contains no chronology to show once two are pinned and the rest collapse; conversely a fresh prompt sitting below 50 news rows is not even a pinning candidate. Cursor integrity is not a display guarantee.
+
+The guarantee in §4.6 is therefore scoped explicitly: **it applies to the first page as fetched.** Making it hold unconditionally would require a bounded prompt projection fetched independently of the chronological page, which is deliberately not proposed — the distribution that breaks it (50 consecutive fresh invite-accepts) is not a state this product produces. If it ever becomes one, the fix is that separate projection, not a larger page.
 
 **Implementation constraint.** `InviteAcceptedSetupPort.fetchPrompt(subjectId)` is per-subject (`invite_accepted_setup_case.dart:13`) and the card loads it lazily (`_PromptLoadPhase.loading`). Pinning requires prompt state **before** the feed renders, or rows will reorder after paint.
 
 A static `pending` flag on the receipt payload does **not** suffice, and rev 4's claim that it was an equivalent option is withdrawn. Dispatch stores an event-time projection (`attention_dispatch_repository.dart:84-88,140-141,168`) and the feed read never joins prompt state (`attention_repository.dart:82-104`), while `answer`/`skip` write a different table entirely (`invite_seed_attestation_case.dart:63-95`, `invite_seed_prompt_repository.dart:66-101`). A frozen flag would therefore read `pending` forever. The existing card only refetches when the receipt id or payload changes (`invite_accepted_receipt_card.dart:68-77`), so a batch fetch alone inherits the same staleness.
 
-What is required is either a **read-time prompt-state projection** joined into the feed query, or a batch fetch **plus an explicit invalidation and refetch contract**. Either way the acceptance case is: skip a prompt on device A, and device B — where the receipt is already seen — demotes it without a cold restart. Authoritative storage alone does not prove convergence.
+Two separate things are required, and rev 5's "projection **or** batch + invalidation" phrasing wrongly attached the second to only one branch:
+
+- **freshness at read** — a read-time projection joined into the feed query, or a batch fetch before render;
+- **invalidation** — the `answer`/`skip` mutation must emit a recipient-targeted signal, *whichever* freshness branch is chosen. A join is fresh at the moment of fetching; it does not cause a fetch. A connected device re-runs nothing on its own.
+
+The prompt projection must also carry its **own** authorization predicate rather than inheriting the receipt's — see the implementation plan §2.4.
+
+Acceptance: skip a prompt on device A, and device B — connected, with the receipt already seen — demotes it without a cold restart. Authoritative storage alone does not prove convergence.
 
 ## 6. Badges
 
@@ -203,13 +216,13 @@ One indicator per destination, two states, priority-ordered.
 
 The number is bounded by the triage lifecycle (`inbox_set_status`) rather than accumulating indefinitely. It is not monotonically decaying: restore-rejected returns an item to `needsMe` and increments it (`inbox_cubit.dart:293-296`). A prompt never contributes; a `pending` prompt that the user has already seen produces no signal, by design — the pinned position is the reminder. **The badge reports arrival; placement reports openness.**
 
-**My Work:** the numeric badge counts live obligations, and requires §9 first.
+**My Work:** the numeric badge counts **authorized live obligations** — receipts with `requiresAction` and no settlement, under the same authorization as the scope itself. It is deliberately *not* a count of unseen obligations: `isSeen` and `isLiveObligation` are independent (`attention_receipt.dart:35`), so an already-read unsettled review would vanish from an unseen-based count while still being owed. See the implementation plan §2.5.
 
 Both states carry distinct accessible descriptions ("3 requests need your response" vs. "new activity"). The dot-vs-number distinction is the second channel and is already the M3 `Badge` small/large dichotomy.
 
 **Why rev 2's formula is withdrawn.** It summed pending triage items and `needsYouTotal`. But `needs_you_total` is computed as `COUNT(*) FILTER (WHERE requires_action AND settlement_kind IS NULL)` with **no `seen_at IS NULL` filter**, while `unread_total` beside it does filter on `seen_at` (`server/.../attention_repository.dart:89-95`). Settlement is a manual gesture nothing else performs — triaging an Inbox item does not settle receipts, and reading one does not settle it. The badge would therefore converge on a permanent number equal to the user's lifetime count of unsettled obligations, training users to ignore the one signal this document exists to make meaningful.
 
-Moving obligations to My Work removes that defect from Activity's critical path. It does not fix it; §9 does.
+Moving obligations to My Work removes that defect from Activity's critical path. It does not fix it; the implementation plan does, by making the live count decay through expiry settlement rather than by filtering on seen.
 
 ## 7. Navigation contracts
 
@@ -220,6 +233,10 @@ Each entry path is specified separately. Rev 2's "opening shows the feed, always
 - **Reselect.** Scrolls the feed to top and clears search. Full stop. Rev 2 proposed a "second reselect opens triage" gesture; withdrawn — `HomeTabReselectCubit` is a pure counter (`home_tab_reselect_cubit.dart:14-28`), a temporal double-gesture has no precedent, no discoverability and no accessibility mapping, and triage is already reachable from an always-visible row.
 - **Forward-success intent.** `requestInboxWatching(beaconId)` from the forward snackbar (`forward_messages.dart:145-152`) currently animates to the Watching tab (`inbox_screen.dart:84-94,119-124`). With Watching demoted to a pushed route this intent must be explicitly re-pointed to that route, scrolled to the named Request. **This is a hard requirement, not a detail:** it is the feedback edge of the forwarding loop.
 - **Return from triage or Request detail.** Restores feed position.
+
+**Feed view state is per-destination; receipt state is per-account.** `AttentionCase` is a singleton holding a shared `activeView` and `_search` (`attention_case.dart:39,117`), and every `UpdatesFeedCubit` adopts the active view from that shared snapshot (`updates_feed_cubit.dart:29`). Moving the "Needs you" view to My Work by relocating the widget would therefore let one destination overwrite the other's view and search on every visit.
+
+The split is: receipts, acknowledgement and summary stay account-wide and shared; **view selection, search text, page and cursor become per-destination.** Round-tripping Activity → My Work → Activity must restore what Activity had, and that is an acceptance condition rather than an implementation note.
 
 ## 8. What My Work must gain
 
@@ -237,93 +254,19 @@ This is deliberately broader than the `reviewOpened` → `formerCommitter` hole 
 
 **Rev 4 asserted this as a client-side scope edit. That was wrong and is withdrawn.** "Carries a live obligation" is a predicate over authorized rows in `notification_outbox` (`attention_repository.dart:82-104`). That table is **not registered in Hasura metadata at all**, so no amount of condition-adding to My Work's existing GraphQL can express it. Beacon reads additionally require `can_read_content` (`hasura/metadata.json:274-277`), and holding an obligation does not confer read permission.
 
-§8.1 therefore requires the server contract in §9.1, and My Work requires:
+§8.1 is therefore a **server contract plus four client changes**, enumerated in the implementation plan §2.1 and §3. The one that is architectural rather than mechanical, and so belongs here:
 
-- a **third input** alongside authored and help-offered — the beacon-id set returned by that contract;
-- **card derivation** for a Request present only via that set (it may be archived, or carry no active offer, so the existing card builders have no row to hang on);
-- **refresh triggers** — the set changes when an obligation arrives, settles, or expires, none of which are events My Work listens to today.
+> **Archive changes authored and help-offered membership only. It never removes a Request that is in scope because of a live obligation.**
 
-Rev 4's claim that global and scoped counts "coincide by construction" is withdrawn as a pre-implementation assertion. The construction argument only holds once §9.1 and §9.3 both ship, and it must then be asserted by a test (§9.6).
+This is not a detail of the existing archive path — it contradicts it. `my_work_cubit.dart:226` unconditionally removes the Request from state after archiving. The invariant means membership has a *source*, and archiving revokes one source rather than the row.
 
-## 9. Server changes required
+Rev 4's claim that global and scoped counts "coincide by construction" is withdrawn as a pre-implementation assertion, and rev 5's restatement of it needs one correction: a Request can leave scope through **authorization loss** as well as settlement — content permission is lost on block (`m0162.dart:15`) and content-policy receipts are excluded at read time (`m0117.dart:39`). "Left scope" therefore does not imply "settled", and nothing may treat authorization loss as a terminal settlement.
 
-Rev 4 claimed two items, neither on Activity's critical path. The rev 4 review disproved both halves of that: there are six, and one of them (§9.4) is on Activity's critical path.
-
-| # | item | serves | blocks |
-|---|---|---|---|
-| 9.1 | live-obligation beacon-id contract | §8.1, §9.6 | My Work scope + badge |
-| 9.2 | `expired` settlement kind: constraint, parser, writer | §9.3 | My Work badge accuracy |
-| 9.3 | expiry settlement at review-window close, plus backfill | §6, §9.6 | My Work badge accuracy |
-| 9.4 | prompt-state read-time projection or batch + invalidation | §5 | **Activity** |
-| 9.5 | unseen-live-obligation aggregate | §6 | My Work badge |
-| 9.6 | scope/count coincidence test | §8.1 | My Work badge |
-
-**9.1 Live-obligation beacon-id contract.** A query returning the authorized set of beacon ids for which the viewer holds a live obligation — symmetric to `unreadForBeacons` (`attention_repository.dart:24-48`) and sharing its authorization path so the two cannot diverge. This is the prerequisite §8.1 depends on.
-
-**9.2 The `expired` settlement kind cannot simply be written.** The CHECK constraint admits only `resolved, dismissed, superseded, legacy_archived` (`m0118.dart:15-18`), so the UPDATE fails outright. Beyond the migration, `attention_models.dart:147-160` is a closed enum parsed with `firstWhere` and `attention_repository.dart:203-207` converts on read, so an old server instance reading an `expired` receipt throws. Required, in this order:
-
-1. CHECK migration admitting `expired`;
-2. server enum and parser accepting it;
-3. deploy so that no old reader remains;
-4. only then enable the writer.
-
-The writer is a **system** settlement path, not the user one — `attention_settlement_case.dart:26-28` is limited to two user-driven values. It must set `settled_at` alongside the kind (the `settlement_facts_chk` constraint requires it) and must preserve existing `seen_at` / `read_at`. A receipt already marked seen is still in scope: seen is not settled.
-
-**9.3 Expiry settlement at review-window close.** Rev 4 speculated the window might close lazily with no event to hang this on. That was wrong: `task_worker_case.dart:191-199` sweeps every minute, `evaluation_case.dart:144-145` invokes the same sweep, and `attention_expiry_sweep_case.dart:33-48` → `review_finalization_case.dart:73-99` is the real transaction boundary. Settlement belongs inside that transaction.
-
-Two gaps the hook alone does not close:
-
-- **Backfill.** The sweep only visits `status = 0` (`attention_expiry_repository.dart:19-23`) and the finalizer stops at `evaluation_repository.dart:663-664`, so windows already closed before this ships are never revisited. Their obligations would persist forever — and under §8.1 would pin their Requests into My Work permanently. A one-time backfill is required, not optional.
-- **Reopen.** `evaluation_case.dart:445-455` deletes review scaffolding and returns the Request to Open, removing the expiry target itself. Reopen must settle outstanding obligations as `superseded`.
-
-Distinguish the outcomes: submitted → `resolved`; window closed unsubmitted → `expired`; reopened → `superseded`. Verify against both seen and unseen receipts.
-
-**9.4 Prompt-state convergence** — see §5's implementation constraint. Either a read-time projection joined into the feed read, or batch fetch plus an invalidation/refetch contract. **This is on Activity's critical path**, unlike everything else in this section: without it §5's pinning either never demotes or demotes only after a cold restart.
-
-**9.5 Unseen-live-obligation aggregate.** `needs_you_total` is `COUNT(*) FILTER (WHERE requires_action AND settlement_kind IS NULL)` with no `seen_at IS NULL` filter, while `unread_total` beside it does filter on `seen_at` (`attention_repository.dart:89-95`). Either add a counter that filters on unseen, or rely on §9.3's expiry to make the existing one decay. Both is better.
-
-**9.6 The coincidence test.** Once §9.1 and §9.3 ship, every live obligation implies scope membership and every scope-exit implies settlement, so global and scoped counts coincide. That must be asserted by a test rather than assumed — rev 3 and rev 4 both asserted it prematurely on different grounds and were both wrong.
-
-## 10. Cleanup: retired coordination machinery
-
-Ask, Blocker and Promise are retired in `DiscussionProductPolicy.retiredCoordinationKinds`; Plan is retired by product decision, leaving `supportedCoordinationKinds` empty in practice. The following are dead and are to be removed as a distinct, separately reviewable change:
-
-- server use cases under `domain/use_case/coordination_item/` (`publish_draft_ask_case`, `mark_ask_case`, `accept_ask_case`, `resolve_ask_case`, `accept_promise_case`, `resolve_promise_case`, `publish_draft_blocker_case`, `mark_blocker_case`, `resolve_blocker_case`, `remind_coordination_item_case`, `update_coordination_item_case`), their DI registrations, and `api/controllers/graphql/mutation/mutation_coordination_item.dart`;
-- the `AttentionIntentCase` methods with no surviving caller: `needsMe`, `staleReminder`, `blockerChanged`, `commitmentChanged`, and the `commitmentRedirected` / `blockerOpened` branches of `AttentionPolicy._requiresAction`;
-- the client `features/coordination_item/` feature, including `coordination_item_overflow_menu.dart:276` → `item_actions_cubit.dart:136` → `remindItem`, which is the only live wire into `staleReminder`;
-- the glossary entry for **Plan (coordination item)** in `CONTEXT.md` §Language, which still describes it as a live structured object on an Items tab.
-
-**Sequencing constraint: the NOW line is currently implemented on this substrate.** Editing NOW runs client `room_cubit.updatePlan` (`beacon_threads/ui/bloc/room_cubit.dart:738`) → `beacon_threads_case.dart:315` → `CoordinationItemCase.updatePlan` (`features/coordination_item/domain/use_case/coordination_item_case.dart:203`) → server `UpdatePlanCase`, which calls `publishRootPlan(..., syncCurrentLineText: trimmed)` and emits `coordinationChanged` (`update_plan_case.dart:65-82`). So NOW is a root `kindPlan` coordination item whose text is synced onto `BeaconRoomState`. Conceptually distinct, mechanically not separable as written.
-
-Removal therefore proceeds in two steps, in this order:
-
-1. **Re-seat the NOW line** directly on `BeaconRoomState` with its own mutation and use case, retiring `UpdatePlanCase`, `publishRootPlan`, and the client `updatePlan` chain. Decide whether NOW edits keep emitting `coordinationChanged` receipts or gain their own event type.
-2. **Only then** remove the use cases, mutation and client feature listed above.
-
-Reversing this order breaks a live product surface. `add_plan_step_case.dart` and the rest of the plan-step family have no surviving product surface and go in step 2.
-
-Persisted kind codes are never renumbered (`DiscussionProductPolicy`), and existing rows are left in place. Step 2 is a code and surface removal; step 1 is a data-path change and needs its own migration decision for existing root plan rows.
-
-## 11. Migration and test blast radius
-
-**Integration.** `offerHelpFromInbox` and `openRequestFromInbox` (`integration_test/support/e2e_test_helpers.dart:588-638`) navigate to `kPathInbox` and expect Needs-me cards in the body. Nine lifecycle specs consume them: `request_lifecycle_closed_to_archive_test.dart:52`, `request_threads_navigation_test.dart:79`, `tab_attention_forced_background_test.dart:52`, `request_lifecycle_offer_admit_chat_test.dart:40`, `request_detail_back_navigation_web_test.dart:39`, `witness_admission_forward_band_test.dart:39`, `request_lifecycle_close_review_test.dart:31`, `request_lifecycle_review_trust_control_test.dart:20`, `request_lifecycle_create_forward_inbox_test.dart:31`. The helpers gain a `goToInboxTriage()` step rather than each spec being rewritten.
-
-**Unit / widget.** `inbox_expanded_chrome_test.dart` (3 × `find.byType(TenturaPrimaryTabBar)`), `home_tab_branch_routing_test.dart:324-337`, `home_tab_reselect_cubit_test.dart` (2 cases), `inbox_receipts_fold_test.dart:146-153`.
-
-**Also affected, by section:**
-
-- §4.5 (tombstones move into the feed) — `inbox_case_test.dart:100-109` (`dismissTombstone`); decide whether dismissal stays on `InboxCubit`.
-- §5 (prompt pinning) — `updates_feed_cubit_test.dart`: the cubit has no prompt handling today, so this is new coverage, not a fix. `invite_accepted_receipt_card_test.dart`: the "prompt state before feed render" constraint changes the card's lazy `_PromptLoadPhase.loading` contract (`invite_accepted_receipt_card.dart:80-90`).
-- §8/§8.1 (My Work gains obligations and review-window scope) — `my_work_load_review_windows_test.dart:50-61` asserts `canCloseNow` for authored Requests only, and the ~17 `my_work_*_test.dart` files carry no obligation coverage at all. Rev 3 listed none of these.
-- §6 (Activity badge becomes a triage count) — `inbox_navbar_item.dart` renders the badge and is inside the `shell_counters` contract bucket (`realtime_entity_contract_impacts_test.dart:107-111`) alongside `inbox_receipts_tab_label.dart`.
-
-**Contracts.** The `updates-unread-count-$unread` semantics identifier (`inbox_receipts_tab_label.dart:25`) is pinned by `realtime_entity_contract_impacts_test.dart:108-116` and must be re-homed, not deleted. Note also that the `updates-needs-you` tab id (`updates_feed_pane.dart:157`) and `AttentionView.needsYou` leave the Activity feed with **no** pinning test covering the 3-tab → 2-tab change — an absence of coverage rather than a breakage, but one rev 4 should close.
-
-## 12. Terminology
+## 9. Terminology
 
 **Activity** / «Активность» is a new user-facing product noun and must be added to `CONTEXT.md` §Terminology before use, with `scripts/check-user-facing-terminology.sh` updated accordingly. Internal identifiers stay `inbox`. The change also carries the mandatory version bump and `web/index.html` cache-buster sync.
 
-## 13. Withdrawn from earlier revisions
+## 10. Withdrawn from earlier revisions
 
 1. **Deduplication of pending forward receipts / "settles into history" for receipts generally.** Withdrawn in rev 2 and still withdrawn. Unread totals count the whole authorised visible set server-side (`attention_repository.dart:88`) and "read all" acknowledges that same set (`:353`), so a client-side hidden receipt either keeps contributing unread attention or is marked seen invisibly. Inbox and attention arrive over separate realtime subscriptions (`inbox_case.dart:55`, `updates_feed_cubit.dart:21`), so there is no atomic cross-device move; and triage is reversible. The mechanic returns in §5 for prompts only, where server-side settle state makes it sound.
 2. **"You accepted X's request" as a history event.** No such transition exists (§2.1); `inbox_set_status` records status and rejection text only.
@@ -344,28 +287,35 @@ Withdrawn from revision 3:
 
 Withdrawn from revision 4:
 
-14. **§8.1 as a client-side scope edit.** `notification_outbox` is not in Hasura metadata; the predicate is unreachable from My Work's GraphQL (§8.1, §9.1).
-15. **"Coincidence by construction" as a pre-implementation argument.** It holds only after §9.1 and §9.3 ship, and must be test-asserted (§9.6).
-16. **The private-vs-forwarder dismissal justification.** Both dialogs write the same field, and the trigger exposes it to the sender (§4.3, §16).
+14. **§8.1 as a client-side scope edit.** `notification_outbox` is not in Hasura metadata; the predicate is unreachable from My Work's GraphQL (§8.1; implementation plan §2.1).
+15. **"Coincidence by construction" as a pre-implementation argument.** It holds only after the live-obligation contract and expiry settlement ship, and must be test-asserted (implementation plan §2.6).
+16. **The private-vs-forwarder dismissal justification.** Both dialogs write the same field, and the trigger exposes it to the sender (§4.3, §13).
 17. **"A payload `pending` flag is an equivalent option."** A frozen event-time projection reads `pending` forever (§5).
 18. **"Watching's seeing job is already fully served by the feed."** True only for admitted watchers and status transitions (§4.7).
-19. **"Neither server item is on Activity's critical path."** §9.4 is.
+19. **"Neither server item is on Activity's critical path."** Several are, and the shipping order is now owned by the implementation plan §1.
 
-## 14. Open questions
+Withdrawn from revision 5:
 
-Owed by revision 6, and named at their sections:
+20. **"Only prompt convergence gates the Activity change."** Removing "Needs you" before My Work can accept obligations strands them (implementation plan §1).
+21. **"A third input, card derivation and refresh triggers suffice for §8.1."** Archive would still remove the card; membership needs a source (§8.1).
+22. **"An unseen-obligation counter is an acceptable badge source."** `isSeen` and `isLiveObligation` are independent (§6).
+23. **"Invalidation belongs to the batch branch only."** It is required in both (§5).
+24. **"Scope-exit implies settlement."** Authorization loss also exits scope (§8.1).
+
+## 11. Open questions
+
+Still owed by this document:
 
 1. **Pin ordering, the population `N` counts, and boundary recomputation** for prompts (§5.4).
 2. **The Watching case enumeration** — Watching-only, non-admitted, muted, post-close (§4.7).
-3. **The invalidation/refetch contract** for prompt state (§5, §9.4).
 
 Genuinely optional or later:
 
-4. **The 7-day prompt staleness window** (§5.4) is a guess. Display-only and client-side, so it is cheap to change and safe to ship wrong.
-5. **Whether `mutual_connection_formed` becomes the second prompt-class member** (§2.3). Out of scope; §5's rules accept it without a fourth mechanic.
-6. **Whether NOW-line edits keep emitting `coordinationChanged`** after §10 step 1, or gain a dedicated event type.
+3. **The 7-day prompt staleness window** (§5.4) is a guess. Display-only and client-side, so it is cheap to change and safe to ship wrong.
+4. **Whether `mutual_connection_formed` becomes the second prompt-class member** (§2.3). Out of scope; §5's rules accept it without a fourth mechanic.
+5. **Whether NOW-line edits keep emitting `coordinationChanged`** after the cleanup's first step, or gain a dedicated event type (implementation plan §4).
 
-## 15. Review status
+## 12. Review status
 
 | pass | reviewer | verdict |
 |---|---|---|
@@ -374,20 +324,25 @@ Genuinely optional or later:
 | rev 3 | codex / Astra | incomplete — budget exhausted at ~108k tokens; 2 findings recovered from the trace |
 | rev 3 | cursor-agent / GLM 5.2 High | ADOPT WITH CHANGES |
 | rev 4 | codex / Astra | **REJECT** — 1 blocking, 5 major |
-| rev 5 | — | not yet reviewed |
+| rev 5 | cursor-agent / Kimi K3, Gemini 3.7, GLM 5.2 | **not performed** — Cursor account budget exhausted |
+| rev 5 | cursor-agent / Grok 4.6 Fast | **not performed** — ran without error but emitted no output; retry abandoned (token cost) |
+| rev 5 | codex / Astra | **REJECT** — 1 blocking, 7 major, 1 minor |
+| rev 6 | — | not yet reviewed |
+
+**The rev 5 row is empty for budget reasons, not for lack of findings.** Three reviewers refused on an account-wide monthly cap and a fourth produced nothing; none of them read the document and declined to comment. An empty cell here carries no evidence either way, and rev 5 should not be treated as having survived a peer pass merely because the table has no findings under it.
 
 Across five passes the **spine has never been contested**: the feed as the branch body, triage as a bounded summary above it, obligations belonging to My Work, Watching as a Request collection, prompts placed rather than counted. Every rejection has been of a supporting mechanic or a justification, and in three cases of a factual claim about the codebase that turned out to be false.
 
 The rev 4 pass was the most damaging so far, because it invalidated reasoning rather than detail:
 
-- **§8.1 was declared, not designed.** `notification_outbox` is absent from Hasura metadata, so the invariant is a server contract (§9.1). Rev 4's "coincidence by construction" rested on it and fell with it.
-- **§4.3's justification was inverted.** The "private" dismissal note is exposed to the forwarder (§16). The conclusion survived on different grounds; the reasoning did not.
-- **§9.3's premise was wrong in the document's favour.** Rev 4 speculated review windows might close lazily with no hook. There is a per-minute sweep — but it never revisits already-closed windows, so a backfill is mandatory.
+- **§8.1 was declared, not designed.** `notification_outbox` is absent from Hasura metadata, so the invariant is a server contract (implementation plan §2.1). Rev 4's "coincidence by construction" rested on it and fell with it.
+- **§4.3's justification was inverted.** The "private" dismissal note is exposed to the forwarder (§13). The conclusion survived on different grounds; the reasoning did not.
+- **The expiry premise was wrong in the document's favour.** Rev 4 speculated review windows might close lazily with no hook. There is a per-minute sweep — but it never revisits already-closed windows, so a backfill is mandatory.
 - **§4.7 and §5's payload option** both rested on claims that were true only in part.
 
-Rev 5 changes no product decision and no layout. It corrects four justifications, converts §9 from two optional items into six with a dependency table, and records §16.
+Rev 5 corrected four justifications and expanded the server work from two items to six. Rev 6 then split the document: that server work, the cleanup ordering and the blast radius are now the implementation plan's, because the rev 5 pass's blocking finding was about **shipping order** — material an architecture document cannot adjudicate. No product decision and no layout has changed since rev 3.
 
-## 16. Out of scope: a shipped privacy defect
+## 13. Out of scope: a shipped privacy defect
 
 Found while verifying §4.3. Recorded here because this document must not silently depend on it, and because it should be fixed independently of anything proposed above.
 
