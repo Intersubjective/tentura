@@ -344,6 +344,73 @@ void main() {
       await cubit.close();
     });
 
+    test('failed initial fetch sets projectionFailed', () async {
+      final initial = Completer<List<InboxItem>>();
+      repo.pendingFetches.add(initial);
+
+      final cubit = InboxCubit(
+        userId: 'u1',
+        inboxCase: case_,
+        effects: FakeUiEffectPort(),
+      );
+      expect(cubit.state.isLoading, isTrue);
+
+      initial.completeError(Exception('initial fetch failed'));
+      await Future<void>.delayed(Duration.zero);
+
+      expect(cubit.state.projectionLoaded, isFalse);
+      expect(cubit.state.projectionFailed, isTrue);
+      await cubit.close();
+    });
+
+    test('successful fetch clears projectionFailed', () async {
+      final initial = Completer<List<InboxItem>>();
+      repo.pendingFetches.add(initial);
+
+      final cubit = InboxCubit(
+        userId: 'u1',
+        inboxCase: case_,
+        effects: FakeUiEffectPort(),
+      );
+
+      initial.completeError(Exception('initial fetch failed'));
+      await Future<void>.delayed(Duration.zero);
+      expect(cubit.state.projectionFailed, isTrue);
+
+      repo.fetchResult = [_item(status: InboxItemStatus.needsMe)];
+      await cubit.fetch();
+      await Future<void>.delayed(Duration.zero);
+
+      expect(cubit.state.projectionLoaded, isTrue);
+      expect(cubit.state.projectionFailed, isFalse);
+      await cubit.close();
+    });
+
+    test(
+      'failure after a prior success does not set projectionFailed',
+      () async {
+        repo.fetchResult = [_item(status: InboxItemStatus.needsMe)];
+        final cubit = InboxCubit(
+          userId: 'u1',
+          inboxCase: case_,
+          effects: FakeUiEffectPort(),
+        );
+        await cubit.stream.firstWhere((state) => state.projectionLoaded);
+        expect(cubit.state.projectionFailed, isFalse);
+
+        final silent = Completer<List<InboxItem>>();
+        repo.pendingFetches.add(silent);
+        unawaited(cubit.fetch(showLoading: false, showError: false));
+        await Future<void>.delayed(Duration.zero);
+        silent.completeError(Exception('silent refresh failed'));
+        await Future<void>.delayed(Duration.zero);
+
+        expect(cubit.state.projectionLoaded, isTrue);
+        expect(cubit.state.projectionFailed, isFalse);
+        await cubit.close();
+      },
+    );
+
     test(
       'empty initial load is not stuck when a silent refresh fails',
       () async {

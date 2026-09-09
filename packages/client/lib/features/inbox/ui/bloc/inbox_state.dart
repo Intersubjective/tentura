@@ -18,6 +18,9 @@ abstract class InboxState extends StateBase with _$InboxState {
     /// True only after a successful Inbox projection fetch.
     @Default(false) bool projectionLoaded,
 
+    /// True when the initial Inbox fetch failed before any successful load.
+    @Default(false) bool projectionFailed,
+
     /// Used to hide the current user’s own beacons from the Watching tab.
     @Default('') String currentUserId,
 

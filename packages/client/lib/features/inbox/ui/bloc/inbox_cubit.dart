@@ -242,17 +242,29 @@ class InboxCubit extends Cubit<InboxState> {
           items: items,
           status: const StateIsSuccess(),
           projectionLoaded: true,
+          projectionFailed: false,
         ),
       );
       _reportInboxActivity();
       return true;
     } catch (e) {
       if (isClosed) return false;
+      final projectionFailed = !state.projectionLoaded;
       if (showError) {
         _emitSnackError(e);
+        if (projectionFailed != state.projectionFailed) {
+          emit(state.copyWith(projectionFailed: projectionFailed));
+        }
       } else if (state.isLoading) {
         // Silent refresh must not leave the full-screen spinner up.
-        emit(state.copyWith(status: const StateIsSuccess()));
+        emit(
+          state.copyWith(
+            status: const StateIsSuccess(),
+            projectionFailed: projectionFailed,
+          ),
+        );
+      } else if (projectionFailed != state.projectionFailed) {
+        emit(state.copyWith(projectionFailed: projectionFailed));
       }
       return false;
     }
