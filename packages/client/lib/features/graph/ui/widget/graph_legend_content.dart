@@ -62,6 +62,7 @@ class GraphLegendContent extends StatelessWidget {
   List<Widget> _edgeRows(BuildContext context, GraphEdgeColors edgeColors) {
     final l10n = L10n.of(context)!;
     final tt = context.tt;
+    final scheme = Theme.of(context).colorScheme;
 
     Widget row(String label, Color color, {double strokeWidth = 2}) {
       return Padding(
@@ -98,6 +99,21 @@ class GraphLegendContent extends StatelessWidget {
           strokeWidth: 3,
         ),
         row(l10n.graphLegendEdgeGenealogyNeutral, edgeColors.neutral),
+      ],
+      GraphLegendMode.constellation => [
+        row('Direct connection', scheme.outline),
+        _ConstellationDashedEdgeRow(
+          label: 'Indirect connection',
+          color: scheme.outlineVariant,
+        ),
+        _ConstellationAttachmentEdgeRow(
+          label: 'Request link',
+          color: scheme.secondary,
+        ),
+        _ConstellationDashedEdgeRow(
+          label: 'Wider network reach',
+          color: scheme.outlineVariant,
+        ),
       ],
     };
   }
@@ -156,6 +172,13 @@ class GraphLegendContent extends StatelessWidget {
               ),
             ),
             l10n.graphLegendDeletedInvitee,
+          ),
+        ]);
+      case GraphLegendMode.constellation:
+        rows.addAll([
+          row(
+            const Icon(Icons.flag_outlined),
+            l10n.graphLegendRequestNode,
           ),
         ]);
     }
@@ -386,4 +409,104 @@ class _RatingArcSwatchPainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant _RatingArcSwatchPainter oldDelegate) =>
       oldDelegate.color != color;
+}
+
+class _ConstellationDashedEdgeRow extends StatelessWidget {
+  const _ConstellationDashedEdgeRow({
+    required this.label,
+    required this.color,
+  });
+
+  final String label;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    final tt = context.tt;
+    return Padding(
+      padding: EdgeInsets.only(bottom: tt.tightGap),
+      child: _LegendRow(
+        swatch: CustomPaint(
+          size: Size(tt.avatarSize, tt.iconSize),
+          painter: _ConstellationDashedSwatchPainter(color: color),
+        ),
+        label: label,
+      ),
+    );
+  }
+}
+
+class _ConstellationDashedSwatchPainter extends CustomPainter {
+  const _ConstellationDashedSwatchPainter({required this.color});
+
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color
+      ..strokeWidth = 2
+      ..style = PaintingStyle.stroke;
+    const dash = 5.0;
+    const gap = 4.0;
+    var x = 0.0;
+    final y = size.height / 2;
+    while (x < size.width) {
+      final end = (x + dash).clamp(0.0, size.width);
+      canvas.drawLine(Offset(x, y), Offset(end, y), paint);
+      x += dash + gap;
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant _ConstellationDashedSwatchPainter oldDelegate) =>
+      oldDelegate.color != color;
+}
+
+class _ConstellationAttachmentEdgeRow extends StatelessWidget {
+  const _ConstellationAttachmentEdgeRow({
+    required this.label,
+    required this.color,
+  });
+
+  final String label;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    final tt = context.tt;
+    return Padding(
+      padding: EdgeInsets.only(bottom: tt.tightGap),
+      child: _LegendRow(
+        swatch: CustomPaint(
+          size: Size(tt.avatarSize * 0.6, tt.iconSize),
+          painter: _ConstellationAttachmentSwatchPainter(color: color),
+        ),
+        label: label,
+      ),
+    );
+  }
+}
+
+class _ConstellationAttachmentSwatchPainter extends CustomPainter {
+  const _ConstellationAttachmentSwatchPainter({required this.color});
+
+  final Color color;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint = Paint()
+      ..color = color
+      ..strokeWidth = 1.5
+      ..strokeCap = StrokeCap.round
+      ..style = PaintingStyle.stroke;
+    final start = Offset(size.width * 0.15, size.height / 2);
+    final end = Offset(size.width * 0.85, size.height / 2);
+    canvas.drawLine(start, end, paint);
+  }
+
+  @override
+  bool shouldRepaint(
+    covariant _ConstellationAttachmentSwatchPainter oldDelegate,
+  ) => oldDelegate.color != color;
 }

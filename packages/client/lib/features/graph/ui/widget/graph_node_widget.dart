@@ -40,6 +40,9 @@ class GraphNodeWidget extends StatelessWidget {
       BeaconNode(:final beacon) => _beaconSemanticLabel(l10n, beacon),
       GenealogyDeletedNode(:final label) =>
         label.trim().isNotEmpty ? label : l10n.inviteGenealogyAnonymousNode,
+      FieldPersonNode(:final person) => person.displayLabel(l10n.unknownPerson),
+      FieldRequestNode(:final request) =>
+        request.title.trim().isEmpty ? l10n.beaconViewTitle : request.title,
       _ => '',
     };
   }
@@ -93,6 +96,29 @@ class GraphNodeWidget extends StatelessWidget {
         child: Icon(
           Icons.person_off_outlined,
           size: nodeDetails.size * 0.45,
+        ),
+      ),
+      FieldPersonNode(:final person) => TenturaAvatar(
+        profile: person,
+        size: nodeDetails.size,
+        withRating: withRating,
+        isSelf: isSelf,
+      ),
+      FieldRequestNode(:final request) => SizedBox.square(
+        dimension: nodeDetails.size,
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            shape: BoxShape.circle,
+            color: Theme.of(context).colorScheme.secondaryContainer,
+            border: Border.all(
+              color: Theme.of(context).colorScheme.secondary,
+            ),
+          ),
+          child: Icon(
+            Icons.flag_outlined,
+            size: nodeDetails.size * 0.45,
+            color: Theme.of(context).colorScheme.onSecondaryContainer,
+          ),
         ),
       ),
     };

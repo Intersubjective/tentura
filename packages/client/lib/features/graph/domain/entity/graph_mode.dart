@@ -3,4 +3,5 @@ enum GraphMode {
   trust,
   forwards,
   genealogy,
+  constellation,
 }

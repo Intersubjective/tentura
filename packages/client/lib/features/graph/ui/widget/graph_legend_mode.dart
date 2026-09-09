@@ -3,4 +3,5 @@ enum GraphLegendMode {
   trust,
   forwards,
   genealogy,
+  constellation,
 }

@@ -59,6 +59,7 @@ class GraphBodyState extends State<GraphBody>
     GraphMode.trust => GraphLegendMode.trust,
     GraphMode.forwards => GraphLegendMode.forwards,
     GraphMode.genealogy => GraphLegendMode.genealogy,
+    GraphMode.constellation => GraphLegendMode.constellation,
   };
 
   GraphLayoutAlgorithm get _layoutAlgorithm {
@@ -72,6 +73,10 @@ class GraphBodyState extends State<GraphBody>
       case GraphMode.trust:
         return RadialHopLayoutAlgorithm(
           rootId: _graphCubit.state.me.id,
+        );
+      case GraphMode.constellation:
+        throw UnsupportedError(
+          'Constellation uses ConstellationBody, not GraphBody',
         );
     }
   }

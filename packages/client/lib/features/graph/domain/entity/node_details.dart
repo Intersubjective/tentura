@@ -5,6 +5,8 @@ import 'package:force_directed_graphview/force_directed_graphview.dart'
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/profile.dart';
 
+import 'package:tentura/features/constellation/domain/entity/constellation_field.dart';
+
 @immutable
 sealed class NodeDetails extends NodeBase {
   const NodeDetails({
@@ -243,4 +245,101 @@ final class GenealogyDeletedNode extends NodeDetails {
     pinned: isPinned,
     size: size,
   );
+}
+
+/// Person node on the Constellation field map.
+final class FieldPersonNode extends NodeDetails {
+  const FieldPersonNode({
+    required this.person,
+    required this.ring,
+    required this.isKept,
+    super.pinned,
+    super.size,
+  });
+
+  final Profile person;
+  final int ring;
+  final bool isKept;
+
+  @override
+  String get userId => person.id;
+
+  @override
+  String get id => person.id;
+
+  @override
+  String get label => person.shownName;
+
+  @override
+  bool get hasImage => person.hasAvatar;
+
+  @override
+  double get score => person.score;
+
+  @override
+  double get rScore => person.rScore;
+
+  @override
+  FieldPersonNode copyWithPinned(bool isPinned) => FieldPersonNode(
+    person: person,
+    ring: ring,
+    isKept: isKept,
+    pinned: isPinned,
+    size: size,
+  );
+
+  @override
+  int get hashCode =>
+      super.hashCode ^ ring.hashCode ^ isKept.hashCode ^ person.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      super == other &&
+      other is FieldPersonNode &&
+      other.ring == ring &&
+      other.isKept == isKept &&
+      other.person == person;
+}
+
+/// Request satellite on the Constellation field map.
+final class FieldRequestNode extends NodeDetails {
+  const FieldRequestNode({
+    required this.request,
+    super.pinned,
+    super.size = 36,
+  });
+
+  final ConstellationRequest request;
+
+  @override
+  String get userId => request.authorId;
+
+  @override
+  String get id => request.id;
+
+  @override
+  String get label => request.title;
+
+  @override
+  bool get hasImage => request.coverThumb != null;
+
+  @override
+  double get score => 0;
+
+  @override
+  double get rScore => 0;
+
+  @override
+  FieldRequestNode copyWithPinned(bool isPinned) => FieldRequestNode(
+    request: request,
+    pinned: isPinned,
+    size: size,
+  );
+
+  @override
+  int get hashCode => super.hashCode ^ request.hashCode;
+
+  @override
+  bool operator ==(Object other) =>
+      super == other && other is FieldRequestNode && other.request == request;
 }

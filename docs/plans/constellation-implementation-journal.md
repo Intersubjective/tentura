@@ -141,7 +141,7 @@ is triggered.
 - [x] 09 — Client pure domain: filters, density
 - [x] 10 — Client pure domain: three-pass layout
 - [x] 11 — Client data: entities, gql, repository, use case
-- [ ] 12 — Render: mode, nodes, edges, painters, legend
+- [x] 12 — Render: mode, nodes, edges, painters, legend
 - [ ] 13 — Prerequisite project: fold Updates into Inbox
 - [ ] 14 — Navigation slot, route, My Work entry
 - [ ] 15 — Need labels, request preview, person panel
@@ -860,4 +860,38 @@ DECISIONS: `ConstellationHeldState` priority: `mine` → `offered` →
   flattens field + `ConstellationResolvedField` cap output for the cubit seam.
   Holder-id test asserts profile-only peers never enter `paths.ring` (indirect
   proof they are excluded from `holderIds`).
+REMAINING: none for this unit.
+
+---
+
+## UNIT 12 — complete — 2026-09-09
+COMMITS: bd3c09b53 refactor(graph): lift provider seam for constellation reuse; (this unit's commit, staged next)
+TESTS: `cd packages/client && dart run build_runner build -d` — exit 0;
+  `cd packages/client && flutter test test/features/constellation/` — 71/71 passed;
+  `cd packages/client && flutter test test/features/graph/` — 214/214 passed;
+  `./scripts/check-custom-lints.sh packages/client` — exit 0 (32/32 baseline unchanged)
+FILES: packages/client/lib/features/graph/domain/entity/graph_mode.dart,
+  packages/client/lib/features/graph/ui/widget/graph_legend_mode.dart,
+  packages/client/lib/features/graph/domain/entity/node_details.dart,
+  packages/client/lib/features/graph/ui/utils/tentura_layout_algorithms.dart,
+  packages/client/lib/features/graph/ui/widget/graph_legend_content.dart,
+  packages/client/lib/features/graph/ui/widget/graph_app_bar_actions.dart,
+  packages/client/lib/features/graph/ui/widget/graph_node_widget.dart,
+  packages/client/lib/features/graph/ui/widget/graph_body.dart,
+  packages/client/lib/features/constellation/ui/bloc/constellation_cubit.dart (new),
+  packages/client/lib/features/constellation/ui/bloc/constellation_state.dart (new),
+  packages/client/lib/features/constellation/ui/widget/constellation_body.dart (new),
+  packages/client/lib/features/constellation/ui/screen/constellation_screen.dart (new),
+  packages/client/test/features/constellation/constellation_body_test.dart (new),
+  docs/plans/constellation-implementation-journal.md
+FINDINGS: Plan owns-list omits required call-site files touched in step 0
+  (`graph_screen.dart`, four graph test files) — compilation and 214/214 graph
+  tests required them. Constellation legend copy is inline English (no l10n in
+  this unit's owns list); UNIT 14/20 own the §0.6 keys. `StateBase` has no
+  `StateIsFailure` — load failures use `StateIsSuccess` + `loadError` per
+  existing client pattern.
+DECISIONS: `ConstellationEdgePainter` classifies strokes via cubit `edgeKinds`
+  map (not weight-derived `EdgeDetails.color`). `ConstellationLayoutAlgorithm.relayout`
+  recomputes from resolved field every time (no position memoisation). Legend
+  tier-2 row labelled "Indirect connection" with no evidence vocabulary (D1a).
 REMAINING: none for this unit.

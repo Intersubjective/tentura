@@ -7,6 +7,8 @@ import 'package:force_directed_graphview/force_directed_graphview.dart';
 import '../../domain/entity/node_details.dart';
 import '../../domain/layout/layered_dag_positions.dart';
 import '../../domain/layout/radial_hop_positions.dart';
+import 'package:tentura/features/constellation/domain/constellation_layout.dart';
+import 'package:tentura/features/constellation/domain/constellation_path_resolution.dart';
 
 final class RadialHopLayoutAlgorithm implements GraphLayoutAlgorithm {
   const RadialHopLayoutAlgorithm({
@@ -182,6 +184,98 @@ final class RadialHopLayoutAlgorithm implements GraphLayoutAlgorithm {
 
   @override
   int get hashCode => Object.hash(runtimeType, rootId, ringGap);
+}
+
+/// Deterministic three-pass layout for the Constellation field map.
+final class ConstellationLayoutAlgorithm implements GraphLayoutAlgorithm {
+  const ConstellationLayoutAlgorithm({
+    required this.egoId,
+    required this.paths,
+    required this.keptPeerIds,
+    required this.maxHops,
+    required this.visibleRequestsByAuthor,
+    required this.egoOwnRequestIds,
+  });
+
+  final String egoId;
+  final ConstellationPathResolution paths;
+  final Set<String> keptPeerIds;
+  final int maxHops;
+  final Map<String, List<String>> visibleRequestsByAuthor;
+  final Set<String> egoOwnRequestIds;
+
+  @override
+  Stream<GraphLayout> layout({
+    required Set<NodeBase> nodes,
+    required Set<EdgeBase> edges,
+    required Size size,
+  }) {
+    return Stream.value(_buildLayout(nodes: nodes, size: size));
+  }
+
+  @override
+  Stream<GraphLayout> relayout({
+    required GraphLayout existingLayout,
+    required Set<NodeBase> nodes,
+    required Set<EdgeBase> edges,
+    required Size size,
+  }) {
+    return layout(nodes: nodes, edges: edges, size: size);
+  }
+
+  GraphLayout _buildLayout({
+    required Set<NodeBase> nodes,
+    required Size size,
+  }) {
+    if (nodes.isEmpty) {
+      return const GraphLayout.empty();
+    }
+
+    final computed = computeConstellationLayout(
+      egoId: egoId,
+      paths: paths,
+      keptPeerIds: keptPeerIds,
+      maxHops: maxHops,
+      visibleRequestsByAuthor: visibleRequestsByAuthor,
+      egoOwnRequestIds: egoOwnRequestIds,
+      canvasSize: size,
+    );
+
+    return _layoutFromPositions(
+      nodes: nodes,
+      positions: computed.positions,
+      canvasSize: size,
+    );
+  }
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is ConstellationLayoutAlgorithm &&
+          runtimeType == other.runtimeType &&
+          egoId == other.egoId &&
+          maxHops == other.maxHops &&
+          paths == other.paths &&
+          const SetEquality<String>().equals(keptPeerIds, other.keptPeerIds) &&
+          const SetEquality<String>().equals(
+            egoOwnRequestIds,
+            other.egoOwnRequestIds,
+          ) &&
+          const DeepCollectionEquality().equals(
+            visibleRequestsByAuthor,
+            other.visibleRequestsByAuthor,
+          );
+
+  @override
+  int get hashCode => Object.hash(
+    runtimeType,
+    egoId,
+    maxHops,
+    paths,
+    const SetEquality<String>().hash(keptPeerIds),
+    const SetEquality<String>().hash(egoOwnRequestIds),
+    const DeepCollectionEquality().hash(visibleRequestsByAuthor),
+  );
 }
 
 final class LayeredDagLayoutAlgorithm implements GraphLayoutAlgorithm {

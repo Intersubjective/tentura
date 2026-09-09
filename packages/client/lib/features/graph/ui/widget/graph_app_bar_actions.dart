@@ -76,6 +76,10 @@ class _GraphAppBarActionsState extends State<GraphAppBarActions> {
         screenCubit.showBeacon(n.id);
       case GenealogyDeletedNode():
         break;
+      case FieldPersonNode(:final person):
+        screenCubit.showProfile(person.id);
+      case FieldRequestNode(:final request):
+        screenCubit.showBeacon(request.id);
     }
   }
 
@@ -137,6 +141,14 @@ class _GraphAppBarActionsState extends State<GraphAppBarActions> {
               icon: Icons.person_outline,
             ),
             BeaconNode() => (
+              tooltip: l10n.openBeacon,
+              icon: Icons.flag_outlined,
+            ),
+            FieldPersonNode() => (
+              tooltip: l10n.profile,
+              icon: Icons.person_outline,
+            ),
+            FieldRequestNode() => (
               tooltip: l10n.openBeacon,
               icon: Icons.flag_outlined,
             ),
@@ -202,6 +214,8 @@ class _GraphAppBarActionsState extends State<GraphAppBarActions> {
                 minSize: tt.buttonHeight,
               ),
             );
+          case GraphMode.constellation:
+            break;
         }
 
         return Row(
