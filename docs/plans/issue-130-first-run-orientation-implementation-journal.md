@@ -45,7 +45,7 @@ Plan is explicit: units execute in the given order, each is
 - [x] UNIT 7 — My Work body integration
 - [x] UNIT 8 — reopen entry points (D6)
 - [x] UNIT 9 — contextual trust affordance (§5.6)
-- [ ] UNIT 10 — debug override UI (§7)
+- [x] UNIT 10 — debug override UI (§7)
 - [ ] UNIT 11 — invite → request navigation (§8) — verify §8 step 4
       (unreadable-request fallback) BEFORE wiring the push; journal the finding
 - [ ] UNIT 12 — browser integration test (§10.3)
@@ -703,3 +703,63 @@ UNIT 9.
 ```
 
 **Notes:** No dedicated profile_view test referenced `trustInfoTitle`/`ContactBadgeLegend` before this unit; full `test/features/profile_view/` suite run confirms rename-and-relocate did not break existing coverage. `friends_screen.dart` unchanged (inline `showTrustInfoSheet` call, no new constructor params).
+
+**Manager review (overseer):** ACCEPTED. Diffed all files: `trust_info_sheet.dart`'s
+content is a byte-for-byte move of the old `_showTrustInfoSheet` body (same
+widgets, same copy, same construction) with only the function made public
+and top-level; `profile_view_body.dart`'s diff shows exactly the deletion +
+one call-site rename, nothing else touched. `friends_app_bar_actions.dart`'s
+new `IconButton` is placed between "Create invitation" and the "More"
+overflow menu, styled identically to its siblings
+(`padding: EdgeInsets.zero`, reused `touchTarget`), with a properly-added
+`TestIds.friendsTrustInfo` constant. The new test case goes beyond the
+plan's minimum (tooltip-only) to also verify the tap actually opens the
+sheet with the right title/body/legend. Independently re-ran
+`./scripts/check-custom-lints.sh packages/client` (32, baseline held) and
+`flutter test test/features/friends/friends_app_bar_actions_test.dart
+test/features/profile_view/` (56/56 passed). Commit `6f9d827a1`.
+
+**Unrelated concurrent commits (noted, not acted on):** two more commits
+landed on `main` from the same concurrent session during this unit —
+`1a50b5b32` and `fb8b145eb`, both `docs(plans)` changes about an unrelated
+"Inbox to Activity" information-architecture proposal (matching the
+concurrent `cursor-agent` review process observed earlier in this run).
+Purely documentation, no code overlap with this plan's files; left alone.
+Starting UNIT 10.
+
+### 2026-09-10 — UNIT 10
+**Status:** complete
+
+**Files changed:**
+- `packages/client/lib/features/settings/ui/screen/debug_settings_screen.dart` —
+  new `FirstRunOrientationDebugSection` (public for widget tests) as first
+  column child above FCM block: live `BlocBuilder<HomeActivationCubit>` status
+  readout, `SegmentedButton<OrientationDebugOverride>` with test ids on segment
+  labels, reset `TenturaCommandButton` wired to `resetFirstRunState()` +
+  `GetIt.I<UiEffectPort>()` snackbar emission.
+- `packages/client/lib/features/settings/ui/message/debug_settings_messages.dart`
+  — `DebugOrientationResetMessage` (`LocalizableMessage`, EN/RU verbatim from
+  §6.3).
+- `packages/client/lib/ui/test_ids.dart` — four new constants
+  (`debugOrientationAuto`/`Show`/`Hide`/`Reset`).
+- `packages/client/test/features/settings/debug_orientation_section_test.dart`
+  (new) — 3 cases per plan §9 UNIT 10.
+
+**Test harness decision:** pumped `FirstRunOrientationDebugSection` directly
+(not full `DebugSettingsScreen`) — the full screen pulls in
+`DebugSettingsCubit` FCM/email/notification dependencies and shows a loading
+spinner until `loadFcmInfo()` completes; the extracted section widget is the
+same code path the screen uses and keeps the test focused on
+`HomeActivationCubit` wiring only.
+
+**Surprise:** `ButtonSegment` in this Flutter SDK has no `key:` parameter —
+test ids are on the segment `Text` labels instead (same `TestIds` constants,
+integration/e2e can still find them).
+
+**Commands:**
+```bash
+./scripts/check-custom-lints.sh packages/client        # 32 (baseline 32)
+bash scripts/check-user-facing-terminology.sh          # ok
+cd packages/client && flutter test test/features/settings/debug_orientation_section_test.dart
+# 3/3 passed
+```

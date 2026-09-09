@@ -6,12 +6,17 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:get_it/get_it.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
+import 'package:tentura/features/home/domain/entity/home_activation.dart';
+import 'package:tentura/ui/effect/ui_effect.dart';
+import 'package:tentura/ui/effect/ui_effect_port.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/test_ids.dart';
 import 'package:tentura/ui/utils/copy_text_to_clipboard.dart';
 
 import 'package:tentura/features/home/ui/bloc/home_activation_cubit.dart';
 
 import '../bloc/debug_settings_cubit.dart';
+import '../message/debug_settings_messages.dart';
 
 @RoutePage()
 class DebugSettingsScreen extends StatelessWidget implements AutoRouteWrapper {
@@ -63,6 +68,7 @@ class DebugSettingsScreen extends StatelessWidget implements AutoRouteWrapper {
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   spacing: tt.sectionGap,
                   children: [
+                    const FirstRunOrientationDebugSection(),
                     _FcmRegistrationSection(state: state, l10n: l10n),
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -110,6 +116,82 @@ class DebugSettingsScreen extends StatelessWidget implements AutoRouteWrapper {
           ),
         ),
       ),
+    );
+  }
+}
+
+/// First-run orientation debug controls (plan §7). Public for widget tests.
+class FirstRunOrientationDebugSection extends StatelessWidget {
+  const FirstRunOrientationDebugSection({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = L10n.of(context)!;
+    final tt = context.tt;
+    return BlocBuilder<HomeActivationCubit, HomeActivationState>(
+      builder: (context, activationState) {
+        return Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          spacing: tt.rowGap,
+          children: [
+            Text(
+              l10n.settingsDebugOrientationSection,
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
+            Text(
+              l10n.settingsDebugOrientationStatus(
+                activationState.activatedLatch ? 'true' : 'false',
+                activationState.dismissedLatch ? 'true' : 'false',
+                activationState.signals.activityCount,
+              ),
+            ),
+            SegmentedButton<OrientationDebugOverride>(
+              selected: {activationState.debugOverride},
+              showSelectedIcon: false,
+              segments: [
+                ButtonSegment<OrientationDebugOverride>(
+                  value: OrientationDebugOverride.auto,
+                  label: Text(
+                    l10n.settingsDebugOrientationAuto,
+                    key: TestIds.key(TestIds.debugOrientationAuto),
+                  ),
+                ),
+                ButtonSegment<OrientationDebugOverride>(
+                  value: OrientationDebugOverride.show,
+                  label: Text(
+                    l10n.settingsDebugOrientationShow,
+                    key: TestIds.key(TestIds.debugOrientationShow),
+                  ),
+                ),
+                ButtonSegment<OrientationDebugOverride>(
+                  value: OrientationDebugOverride.hide,
+                  label: Text(
+                    l10n.settingsDebugOrientationHide,
+                    key: TestIds.key(TestIds.debugOrientationHide),
+                  ),
+                ),
+              ],
+              onSelectionChanged: (selection) {
+                unawaited(
+                  context.read<HomeActivationCubit>().setDebugOverride(
+                    selection.first,
+                  ),
+                );
+              },
+            ),
+            TenturaCommandButton(
+              key: TestIds.key(TestIds.debugOrientationReset),
+              label: l10n.settingsDebugOrientationReset,
+              onPressed: () async {
+                await context.read<HomeActivationCubit>().resetFirstRunState();
+                GetIt.I<UiEffectPort>().emit(
+                  const ShowMessage(DebugOrientationResetMessage()),
+                );
+              },
+            ),
+          ],
+        );
+      },
     );
   }
 }

@@ -154,5 +154,10 @@ abstract final class TestIds {
   static const orientationPanel = 'orientation.panel';
   static const orientationDismiss = 'orientation.dismiss';
 
+  static const debugOrientationAuto = 'debug.orientation.auto';
+  static const debugOrientationShow = 'debug.orientation.show';
+  static const debugOrientationHide = 'debug.orientation.hide';
+  static const debugOrientationReset = 'debug.orientation.reset';
+
   static ValueKey<String> key(String id) => ValueKey<String>(id);
 }

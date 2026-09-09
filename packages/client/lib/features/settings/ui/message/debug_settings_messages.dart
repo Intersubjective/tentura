@@ -152,6 +152,16 @@ final class DebugEmailTestFailedMessage extends LocalizableMessage {
   String get toRu => 'Не удалось отправить тестовое письмо';
 }
 
+final class DebugOrientationResetMessage extends LocalizableMessage {
+  const DebugOrientationResetMessage();
+
+  @override
+  String get toEn => 'First-run state reset for this account';
+
+  @override
+  String get toRu => 'Состояние первого запуска сброшено';
+}
+
 final class DebugRecalculateCountersDoneMessage extends LocalizableMessage {
   const DebugRecalculateCountersDoneMessage({
     required this.coordination,
