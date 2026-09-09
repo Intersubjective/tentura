@@ -137,7 +137,7 @@ is triggered.
 - [x] 05 — Read-wall discoverability clause — m0162 **(access-control; needs GATE-14.1 resolved + SECURITY-REVIEW; now also depends on 04a)**
 - [x] 06 — `constellation_trust_edges` — m0163
 - [x] 07 — `constellationField` V2 query
-- [ ] 08 — Client pure domain: paths, caps
+- [x] 08 — Client pure domain: paths, caps
 - [ ] 09 — Client pure domain: filters, density
 - [ ] 10 — Client pure domain: three-pass layout
 - [ ] 11 — Client data: entities, gql, repository, use case
@@ -576,6 +576,25 @@ DECISIONS: `isDiscoverable` entity mapping lives in `BeaconRepository`
   (`_beaconRowToEntity` + `copyWith`) rather than `beacon_mapper.dart` (not
   on the unit owns list). Update semantics use `isDiscoverableProvided` /
   `containsKey('isDiscoverable')`, matching `primaryNeedSlug` pattern.
+REMAINING: none for this unit.
+
+---
+
+## UNIT 08 — complete — 2026-09-09
+COMMITS: (this unit's commit, staged next)
+TESTS: `cd packages/client && flutter test test/features/constellation/` — 27/27 passed;
+  `grep -n "import 'package:flutter\\|dart:ui" packages/client/lib/features/constellation/domain/*.dart` — no matches
+FILES: packages/client/lib/features/constellation/domain/constellation_path_resolution.dart (new),
+  packages/client/lib/features/constellation/domain/constellation_cap_policy.dart (new),
+  packages/client/lib/features/constellation/domain/constellation_consts.dart (new),
+  packages/client/test/features/constellation/constellation_path_resolution_test.dart (new),
+  packages/client/test/features/constellation/constellation_cap_policy_test.dart (new),
+  docs/plans/constellation-implementation-journal.md
+FINDINGS: none — §0.4 and architecture §5 agree; no `BLOCKED` contradictions. Ring-holder
+  cap fixture must use a genuinely unreachable holder (no edges to `r`); a tier-2-only
+  `ego→r` edge makes `r` attributed, not ring, which would falsify the N2 disjoint-states test.
+DECISIONS: none beyond frozen contracts — GATE-D1 (A) hops-first key implemented as specified;
+  `kConstellationRenderPeerCap = 120` (provisional, strictly < server 200).
 REMAINING: none for this unit.
 
 ---
