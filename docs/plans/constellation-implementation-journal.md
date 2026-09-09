@@ -1288,3 +1288,16 @@ DECISIONS: `BeaconDiscoverabilityControl.isAuthor` gates visibility for non-auth
 REMAINING: inline toggle on published request **view** (`beacon_view`) not wired —
   authors change discoverability via create/edit (`BeaconCreateRoute(editId:)`).
   UNIT 20 may note if product wants view-surface access without entering edit mode.
+
+**Overseer: accepted, with one note for UNIT 20.** Independently re-verified
+122/122 tests, lint 32/32, terminology clean, and confirmed
+`isAuthor` gating actually hides the widget (not just zeroes a count). The
+plan's UNIT 19 owns-list explicitly named `features/beacon/**` (detail
+settings surface) alongside `beacon_create`, which reads as intending a
+view-surface path too — this unit shipped the create/edit path only. That
+said, the acceptance criterion ("authors can see and change what they are
+opting out of") is genuinely met via edit mode, and reusable
+`BeaconDiscoverabilityControl` already exists for a future view-surface
+mount if wanted, so this is a product-completeness question, not a
+correctness gap — not fixing it unilaterally. Flagging for UNIT 20's UX
+acceptance pass to decide, rather than treating it as blocking.
