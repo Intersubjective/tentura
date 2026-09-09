@@ -184,6 +184,14 @@ asks for `test/data/database/` broadly, only that unit's own named files are
 the acceptance signal; the ambient ~15 failures are expected noise until
 someone separately triages them.
 
+**Update (UNIT 05 review):** the full `-t pg` sweep (not scoped to
+`test/data/database/`) shows ~22 pre-existing failures, not ~15 — the extra
+~7 live outside that directory, in `test/api/` and elsewhere. One is named
+specifically in UNIT 05's journal entry below
+(`beacon_hierarchy_hasura_parity_test.dart`, a 30s timeout, confirmed to
+predate UNIT 05). Same rule applies: not this plan's to fix, don't treat as a
+regression signal unless the *count* grows past ~22 on the full sweep.
+
 ## UNIT 02 attempt 1 — timed out — 2026-09-09 (overseer incident note)
 
 The first UNIT 02 worker ran the full 3600s hard timeout without finishing and
@@ -425,7 +433,41 @@ FILES: packages/server/lib/data/database/migration/m0162.dart (new),
   packages/server/test/data/repository/inbox_beacon_visibility_hasura_test.dart,
   packages/server/test/data/repository/user_block_adversarial_pg_test.dart,
   docs/plans/constellation-implementation-journal.md
-FINDINGS: live `beacon_can_read_content` body still matches m0136 (verified via grep — only m0098/m0123/m0124/m0136 touch it; m0162 re-derived verbatim + one branch). `BeaconStatus.openFamilyValues` still `{0,7,8}` at `lib/domain/entity/beacon_status.dart:16`. **Migrant ordering:** version stamp `0163b` required in `m0162.dart` because UNIT 04a shipped `0163a` first — migrant string compare (`0163a` > `0162`) would never apply a literal `0162` stamp on DBs already at `0163a`; SQL body unchanged from §0.1. Parity fixture `insertBeacon` never modelled `published_at` (§2/7 distinction: fixture gap, not an encoded old rule) — repaired with default non-null timestamp + explicit unpublished deny case.
+FINDINGS: live `beacon_can_read_content` body still matches m0136 (verified via grep — only m0098/m0123/m0124/m0136 touch it; m0162 re-derived verbatim + one branch). `BeaconStatus.openFamilyValues` still `{0,7,8}` at `lib/domain/entity/beacon_status.dart:16`. Parity fixture `insertBeacon` never modelled `published_at` (§2/7 distinction: fixture gap, not an encoded old rule) — repaired with default non-null timestamp + explicit unpublished deny case.
+
+**Overseer remediation (post-review, before acceptance):** the worker's first
+pass hit a real `migrant` ordering constraint — UNIT 04a's `m0163a` was
+already in `_allMigrations` before `m0162` existed, and `migrant` requires each
+migration's version to sort after every migration preceding it in the array.
+The worker's fix renamed `m0162`'s own version stamp to `'0163b'` to sort
+after `'0163a'`, keeping the array order `[..., m0161, m0163a, m0162]`. That
+works, but conflicts with §0's "frozen contract, do not rename" — a database's
+migration-tracking table would show `0163b` where every other document
+(architecture, plan, this journal) says `m0162`. Nothing had been applied to
+any persistent database at the time (only disposable test databases, rebuilt
+fresh per test), so the overseer instead **reordered the array** —
+`[..., m0161, m0162, m0163a]`, restoring `m0162`'s own version string to the
+literal `'0162'` the plan specifies — and re-verified all 33 tests across
+UNIT 04a's and UNIT 05's owned pg suites still pass in that order. This is a
+structural array-ordering fix, not a product decision, and needed no fresh
+`SECURITY-REVIEW`. If UNIT 06 (`m0163`) is ever inserted before `m0163a` in
+the array for the same reason, the same reordering approach applies rather
+than renaming a frozen migration number.
+
+**Broadened pre-existing test-health baseline:** independently re-running the
+whole `-t pg` suite after the above fix still shows the same ~22 failures the
+worker reported (not ~15) — the earlier journal note about "~15 pre-existing
+`test/data/database/` failures" was scoped only to that one directory; the
+full `-t pg` sweep also touches `test/api/`, where
+`beacon_hierarchy_hasura_parity_test.dart`'s "JWT user cannot read child
+beacon row via unchanged content permission" case times out after 30s. The
+overseer independently confirmed this exact timeout **already existed at
+UNIT 04a's commit (5ed2c1308), before UNIT 05 touched anything** — checked
+out that commit, ran the test in isolation, got the identical
+`TimeoutException`. **Not a UNIT 05 regression.** Root cause not further
+investigated (out of scope for this unit); a future unit or separate pass
+should look at it given its security-adjacent name, but it predates this
+plan's work and is not caused by it.
 DECISIONS: Dart mirror adds `isDiscoverable`, `isPublished`, `isMutuallyVisibleWithAuthor`; `b.user_id IS NOT NULL` needs no Dart field (author/tombstone assembly already implies resolved author). `canReadInvolvement` unchanged. **Blast-radius walk (D11 narrowed — content wall + operation-gated actions widen; involvement/admission do not):**
 
 | Call site | Expected change |

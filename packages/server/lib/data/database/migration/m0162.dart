@@ -1,10 +1,7 @@
 part of '_migrations.dart';
 
 /// Read-wall discoverability clause (Constellation D4/D11).
-///
-/// Registered as version `0163b` so migrant applies it after `0163a` on DBs
-/// that already received the UNIT 04a cache migration (string `0163a` > `0162`).
-final m0162 = Migration('0163b', [
+final m0162 = Migration('0162', [
   r'''
 CREATE OR REPLACE FUNCTION public.beacon_can_read_content(
   p_beacon_id text,
