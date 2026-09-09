@@ -150,5 +150,8 @@ abstract final class TestIds {
   static const constellationNavItem = 'constellation.nav_item';
   static const myWorkFindWaysToHelp = 'my_work.find_ways_to_help';
 
+  static const orientationPanel = 'orientation.panel';
+  static const orientationDismiss = 'orientation.dismiss';
+
   static ValueKey<String> key(String id) => ValueKey<String>(id);
 }
