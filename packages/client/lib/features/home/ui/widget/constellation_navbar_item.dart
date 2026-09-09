@@ -5,8 +5,9 @@ import 'package:tentura/ui/test_ids.dart';
 
 /// Field (Constellation) tab icon — deliberately badge-incapable (§9.2 anti-feed).
 ///
-/// Uses the Tentura brand glyph ([TenturaIcons.graph]); selection chrome comes
-/// from the parent [IconTheme] (no outlined variant).
+/// Uses the Tentura brand glyph ([TenturaIcons.graph]). Compact bottom bar
+/// wraps this in command-disk chrome (white + sky outline); the rail uses
+/// the parent [IconTheme] only.
 class ConstellationNavbarItem extends StatelessWidget {
   const ConstellationNavbarItem({super.key, this.selected = false});
 

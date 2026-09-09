@@ -290,6 +290,7 @@ class _HomeShellState extends State<_HomeShell> {
                   // Icon-only on compact bottom bar; keep a11y via tooltip.
                   label: '',
                   tooltip: l10n.constellationNavLabel,
+                  commandChrome: true,
                 ),
                 HomeNavDestination(
                   icon: const FriendsNavbarItem(),

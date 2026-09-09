@@ -90,12 +90,17 @@ class HomeNavDestination {
     required this.selectedIcon,
     required this.label,
     this.tooltip,
+    this.commandChrome = false,
   });
 
   final Widget icon;
   final Widget selectedIcon;
   final String label;
   final String? tooltip;
+
+  /// White disk + sky outline ([TenturaCommandButton] chrome) instead of
+  /// the stadium selection indicator. Used by the compact Field tab.
+  final bool commandChrome;
 }
 
 class _HomeNavTile extends StatelessWidget {
@@ -129,57 +134,67 @@ class _HomeNavTile extends StatelessWidget {
     final semanticLabel = destination.label.isEmpty
         ? (destination.tooltip ?? '')
         : destination.label;
+    final icon = selected ? destination.selectedIcon : destination.icon;
+    final glyph = destination.commandChrome
+        ? _CommandNavDisk(
+            selected: selected,
+            inactiveColor: unselectedIconTheme.color ?? scheme.onSurfaceVariant,
+            child: icon,
+          )
+        : SizedBox(
+            width: HomeBottomNavigationBar._indicatorWidth,
+            height: HomeBottomNavigationBar._indicatorHeight,
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                AnimatedOpacity(
+                  opacity: selected ? 1 : 0,
+                  duration: const Duration(milliseconds: 200),
+                  child: DecoratedBox(
+                    decoration: ShapeDecoration(
+                      color: indicatorColor,
+                      shape: const StadiumBorder(),
+                    ),
+                    child: const SizedBox(
+                      width: HomeBottomNavigationBar._indicatorWidth,
+                      height: HomeBottomNavigationBar._indicatorHeight,
+                    ),
+                  ),
+                ),
+                IconTheme(
+                  data: selected ? selectedIconTheme : unselectedIconTheme,
+                  child: icon,
+                ),
+              ],
+            ),
+          );
     final tile = Semantics(
       button: true,
       selected: selected,
       label: semanticLabel,
       child: InkWell(
         onTap: onTap,
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            SizedBox(
-              width: HomeBottomNavigationBar._indicatorWidth,
-              height: HomeBottomNavigationBar._indicatorHeight,
-              child: Stack(
-                alignment: Alignment.center,
-                children: [
-                  AnimatedOpacity(
-                    opacity: selected ? 1 : 0,
-                    duration: const Duration(milliseconds: 200),
-                    child: DecoratedBox(
-                      decoration: ShapeDecoration(
-                        color: indicatorColor,
-                        shape: const StadiumBorder(),
-                      ),
-                      child: const SizedBox(
-                        width: HomeBottomNavigationBar._indicatorWidth,
-                        height: HomeBottomNavigationBar._indicatorHeight,
+        child: SizedBox.expand(
+          child: destination.commandChrome
+              ? Center(child: glyph)
+              : Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    glyph,
+                    SizedBox(height: labelGap),
+                    MediaQuery.withClampedTextScaling(
+                      maxScaleFactor: 1.3,
+                      child: Text(
+                        destination.label,
+                        maxLines: 1,
+                        softWrap: false,
+                        overflow: TextOverflow.ellipsis,
+                        textAlign: TextAlign.center,
+                        style: labelStyle,
                       ),
                     ),
-                  ),
-                  IconTheme(
-                    data: selected ? selectedIconTheme : unselectedIconTheme,
-                    child: selected
-                        ? destination.selectedIcon
-                        : destination.icon,
-                  ),
-                ],
-              ),
-            ),
-            SizedBox(height: labelGap),
-            MediaQuery.withClampedTextScaling(
-              maxScaleFactor: 1.3,
-              child: Text(
-                destination.label,
-                maxLines: 1,
-                softWrap: false,
-                overflow: TextOverflow.ellipsis,
-                textAlign: TextAlign.center,
-                style: labelStyle,
-              ),
-            ),
-          ],
+                  ],
+                ),
         ),
       ),
     );
@@ -188,5 +203,45 @@ class _HomeNavTile extends StatelessWidget {
       return tile;
     }
     return Tooltip(message: tooltip, child: tile);
+  }
+}
+
+/// Compact Field-tab glyph: white disk.
+///
+/// Selected: sky outline and info icon. Unselected: same gray as other tabs.
+class _CommandNavDisk extends StatelessWidget {
+  const _CommandNavDisk({
+    required this.child,
+    required this.selected,
+    required this.inactiveColor,
+  });
+
+  final Widget child;
+  final bool selected;
+  final Color inactiveColor;
+
+  @override
+  Widget build(BuildContext context) {
+    final tt = context.tt;
+    final size = (tt.bottomNavHeight + tt.buttonHeight) / 2;
+    final accent = selected ? tt.info : inactiveColor;
+    return SizedBox(
+      width: size,
+      height: size,
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          color: tt.surface,
+          shape: BoxShape.circle,
+          border: Border.all(
+            color: selected ? tt.skyBorder : inactiveColor,
+            width: selected ? 2 : 1,
+          ),
+        ),
+        child: IconTheme(
+          data: IconThemeData(size: tt.iconSize, color: accent),
+          child: Center(child: child),
+        ),
+      ),
+    );
   }
 }

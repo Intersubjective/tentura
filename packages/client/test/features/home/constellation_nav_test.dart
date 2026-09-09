@@ -238,6 +238,7 @@ class _HomeChromeFixture extends StatelessWidget {
           selectedIcon: const ConstellationNavbarItem(selected: true),
           label: '',
           tooltip: l10n.constellationNavLabel,
+          commandChrome: true,
         ),
         HomeNavDestination(
           icon: const FriendsNavbarItem(),
@@ -360,7 +361,10 @@ void main() {
       );
 
       expect(find.byType(Badge), findsNothing);
-      expect(find.byKey(TestIds.key(TestIds.constellationNavItem)), findsOneWidget);
+      expect(
+        find.byKey(TestIds.key(TestIds.constellationNavItem)),
+        findsOneWidget,
+      );
     });
   });
 
@@ -422,6 +426,69 @@ void main() {
       expect(find.byIcon(TenturaIcons.graph), findsOneWidget);
     });
 
+    testWidgets('compact Field tab uses command disk chrome', (tester) async {
+      await _pumpHomeChrome(
+        tester,
+        logicalSize: const Size(390, 800),
+        attention: attention,
+        useSideNav: false,
+      );
+
+      final bar = tester.widget<HomeBottomNavigationBar>(
+        find.byType(HomeBottomNavigationBar),
+      );
+      expect(bar.destinations[2].commandChrome, isTrue);
+
+      final disk = tester.widget<DecoratedBox>(
+        find
+            .ancestor(
+              of: find.byIcon(TenturaIcons.graph),
+              matching: find.byType(DecoratedBox),
+            )
+            .first,
+      );
+      final decoration = disk.decoration as BoxDecoration;
+      final inactive = Theme.of(
+        tester.element(find.byType(HomeBottomNavigationBar)),
+      ).colorScheme.onSurfaceVariant;
+      expect(decoration.shape, BoxShape.circle);
+      expect(decoration.color, TenturaPalette.surface);
+      expect(decoration.border?.top.color, inactive);
+      expect(
+        tester
+            .widget<IconTheme>(
+              find
+                  .ancestor(
+                    of: find.byIcon(TenturaIcons.graph),
+                    matching: find.byType(IconTheme),
+                  )
+                  .first,
+            )
+            .data
+            .color,
+        inactive,
+      );
+
+      final expectedSize =
+          (TenturaTokens.light.bottomNavHeight +
+              TenturaTokens.light.buttonHeight) /
+          2;
+      final diskSize = tester.getSize(
+        find
+            .ancestor(
+              of: find.byIcon(TenturaIcons.graph),
+              matching: find.byType(DecoratedBox),
+            )
+            .first,
+      );
+      expect(diskSize.width, closeTo(expectedSize, 0.5));
+      expect(diskSize.height, closeTo(expectedSize, 0.5));
+
+      final diskCenter = tester.getCenter(find.byIcon(TenturaIcons.graph));
+      final barCenter = tester.getCenter(find.byType(HomeBottomNavigationBar));
+      expect(diskCenter.dy, closeTo(barCenter.dy, 1));
+    });
+
     testWidgets('expanded rail shows Field tab label', (tester) async {
       await _pumpHomeChrome(
         tester,
@@ -434,32 +501,43 @@ void main() {
       expect(find.byIcon(TenturaIcons.graph), findsOneWidget);
     });
 
-    testWidgets('anti-feed: constellation nav item has no badge while others do', (
-      tester,
-    ) async {
-      for (final useSideNav in [true, false]) {
-        await _pumpHomeChrome(
-          tester,
-          logicalSize: useSideNav ? const Size(900, 800) : const Size(390, 800),
-          attention: attention,
-          useSideNav: useSideNav,
-          selectedIndex: HomeTabSpec.forTab(HomeTab.constellation).index,
-        );
-        attention.setActiveHomeTab(HomeTab.constellation);
+    testWidgets(
+      'anti-feed: constellation nav item has no badge while others do',
+      (
+        tester,
+      ) async {
+        for (final useSideNav in [true, false]) {
+          await _pumpHomeChrome(
+            tester,
+            logicalSize: useSideNav
+                ? const Size(900, 800)
+                : const Size(390, 800),
+            attention: attention,
+            useSideNav: useSideNav,
+            selectedIndex: HomeTabSpec.forTab(HomeTab.constellation).index,
+          );
+          attention.setActiveHomeTab(HomeTab.constellation);
 
-        expect(attention.state.hasMyWorkDot, isTrue);
-        expect(attention.state.hasInboxDot, isTrue);
+          expect(attention.state.hasMyWorkDot, isTrue);
+          expect(attention.state.hasInboxDot, isTrue);
 
-        final constellationIcon = find.byKey(
-          TestIds.key(TestIds.constellationNavItem),
-        );
-        expect(constellationIcon, findsOneWidget);
-        expect(_navItemShowsBadge(tester, constellationIcon), isFalse);
+          final constellationIcon = find.byKey(
+            TestIds.key(TestIds.constellationNavItem),
+          );
+          expect(constellationIcon, findsOneWidget);
+          expect(_navItemShowsBadge(tester, constellationIcon), isFalse);
 
-        expect(_navItemShowsBadge(tester, find.byType(MyWorkNavbarItem)), isTrue);
-        expect(_navItemShowsBadge(tester, find.byType(InboxNavbarItem)), isTrue);
-      }
-    });
+          expect(
+            _navItemShowsBadge(tester, find.byType(MyWorkNavbarItem)),
+            isTrue,
+          );
+          expect(
+            _navItemShowsBadge(tester, find.byType(InboxNavbarItem)),
+            isTrue,
+          );
+        }
+      },
+    );
   });
 
   group('My Work empty state', () {
@@ -494,9 +572,10 @@ void main() {
             archivedCountHint: 0,
             onCreateBeacon: () {},
             onOpenInbox: () {},
-            onOpenConstellation: () => AutoTabsRouter.of(context).setActiveIndex(
-              HomeTabSpec.forTab(HomeTab.constellation).index,
-            ),
+            onOpenConstellation: () =>
+                AutoTabsRouter.of(context).setActiveIndex(
+                  HomeTabSpec.forTab(HomeTab.constellation).index,
+                ),
             onShowDrafts: () {},
             onShowArchived: () {},
           ),
