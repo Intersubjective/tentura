@@ -40,10 +40,10 @@ Plan is explicit: units execute in the given order, each is
 - [x] UNIT 2 — activation domain entity (`home_activation.dart`, pure)
 - [x] UNIT 3 — preferences port + Drift repository
 - [x] UNIT 4 — `HomeActivationCubit` + binder + reporter
-- [ ] UNIT 5 — `HowTenturaWorksContent`
-- [ ] UNIT 6 — `HomeOrientationPanel`
-- [ ] UNIT 7 — My Work body integration
-- [ ] UNIT 8 — reopen entry points (D6)
+- [x] UNIT 5 — `HowTenturaWorksContent`
+- [x] UNIT 6 — `HomeOrientationPanel`
+- [x] UNIT 7 — My Work body integration
+- [x] UNIT 8 — reopen entry points (D6)
 - [ ] UNIT 9 — contextual trust affordance (§5.6)
 - [ ] UNIT 10 — debug override UI (§7)
 - [ ] UNIT 11 — invite → request navigation (§8) — verify §8 step 4
@@ -290,3 +290,371 @@ bound account now resolves to `ordinaryEmpty`.
 
 **Commits:** split into two — Inbox `projectionFailed` scaffold, then
 activation cubit/binder/reporter + wiring (see finish block).
+
+**Manager review (overseer):** ACCEPTED, with one manager-applied fix.
+Read every new/changed file in full and independently confirmed: wiring in
+`home_screen.dart` places `HomeActivationBinder` above `_InboxScope` (so it
+observes the raw, possibly-empty `AuthCubit` account id, not
+`_InboxScope`'s retained last-known one) and `HomeActivationReporter`
+inside `_InboxScope` wrapping `MyWorkAttentionReporter` (both cubits
+in scope there); `DebugSettingsScreen.wrappedRoute` correctly converted to
+`MultiBlocProvider`; `InboxCubit`'s `projectionFailed` fix correctly
+computes from the pre-catch `state.projectionLoaded` (not a prior
+`projectionFailed`), so a transient retry after a real success cannot
+regress the account to fail-closed — verified against all three `_runFetch`
+catch branches, not just the primary one. All 13 required cubit-test cases
+present and correct, including the rebind-mid-flight race.
+
+Found one additional, narrower race while reviewing `bindAccount`: its
+trailing emit (after the three sequential preference reads resolve)
+unconditionally overwrote `activatedLatch`/`dismissedLatch` with the values
+captured before those reads started. A `reportMyWork`/`reportInbox` call
+landing during that same async window (accepted, since `boundAccountId` is
+set synchronously at the top of `bindAccount`) could trigger
+`_maybePersistActivation()` and flip `activatedLatch` true locally — then
+have it silently reverted back to `false` by the trailing emit, even though
+the underlying `setActivated` disk write had already fired. Self-healing on
+the very next report (idempotent re-write), and the sequential-local-Drift-
+reads-vs-network-fetch timing makes it unlikely in production, but it cuts
+against this unit's whole point (account-safety correctness), so fixed it
+directly per the overseer protocol's "small, local, unambiguous" bar rather
+than routing back through a worker cycle: changed the merge to
+`state.activatedLatch || activated` / `state.dismissedLatch || dismissed`
+(latches are monotonic once true, so OR-merge cannot lose a concurrent
+write). Added a dedicated regression test
+("a proven-activity write during bindAccount hydration is not reverted...")
+that fails without the fix and passes with it. Independently re-ran
+`./scripts/check-custom-lints.sh packages/client` (32, baseline held) and
+`flutter test test/features/home/ test/features/inbox/
+test/features/settings/ test/features/my_work/` (193/193 passed) after the
+fix. Commits `3ba6a2c06`, `66bcaf991` (worker) + `f9ddfc827` (manager fix).
+Starting UNIT 5.
+
+### 2026-09-09 — UNIT 5
+**Status:** complete
+
+**Files changed:**
+- `packages/client/lib/features/home/ui/widget/how_tentura_works_content.dart` (new) —
+  shared orientation body: injected `title`/`intro`, three numbered steps, four
+  interactive nav rows with `onOpenTab(HomeTab)?` callback; `Semantics` +
+  `ExcludeSemantics` per plan §5.7; no `InkWell` when callback is null.
+- `packages/client/test/features/home/how_tentura_works_content_test.dart` (new) —
+  five tests per plan §9 UNIT 5 spec (descriptions + semantics labels, tap →
+  `HomeTab`, row height ≥ 48dp, null callback inert, text scale 2.0 @ 375×667).
+
+**`HomeTab` members used (verified in `home_tab_branches.dart`):**
+- My Work → `HomeTab.work`
+- Inbox → `HomeTab.inbox`
+- My field → `HomeTab.constellation`
+- My people → `HomeTab.network`
+
+**Commands:**
+```bash
+./scripts/check-custom-lints.sh packages/client        # exit 0, total 32 (baseline 32)
+cd packages/client && flutter test test/features/home/how_tentura_works_content_test.dart
+# 5/5 passed
+```
+
+**Surprises:** Child `Text` semantics merged with the row-level `Semantics`
+label in widget tests until the row body was wrapped in `ExcludeSemantics` with
+`container: true` on the outer `Semantics` node — matches the plan's intent
+(one composed a11y label per row, decorative icon excluded).
+
+**Manager review (overseer):** ACCEPTED. Verified `HomeTab.work`/`.inbox`/
+`.constellation`/`.network` against the live enum
+(`home_tab_branches.dart:18` — `enum HomeTab { work, inbox, constellation,
+updates, network, me }`) rather than trusting the worker's choice; all four
+correct, row order matches plan §5.3. Read the full widget: type roles only
+(no literal sizes), no raw colors/EdgeInsets, `ExcludeSemantics` +
+`Semantics(button:, label:, container: true)` gives one composed a11y label
+per row with the decorative icon excluded, `onTap == null` correctly omits
+the `InkWell` entirely rather than disabling it. The text-scale-2.0 test
+wraps the pump in a `SingleChildScrollView` — confirmed this is faithful
+rather than a shortcut: the widget itself is `mainAxisSize: MainAxisSize.min`
+(no vertical scrolling of its own by design — that's the real host's job
+per plan §5.1's `SliverToBoxAdapter` note), and a horizontal `Row` overflow
+(the actual §5.7 failure mode) still throws regardless of the outer
+vertical scroll wrapper. Independently
+re-ran `./scripts/check-custom-lints.sh packages/client` (32, baseline
+held) and `flutter test test/features/home/how_tentura_works_content_test.dart`
+(5/5 passed). Commit `74a34d37c`. Starting UNIT 6.
+
+**Tracked follow-up (deferred, not forgotten):** plan §7's test-id block
+lists `static String orientationNavRow(String tab) =>
+'orientation.nav.$tab'` as "needed by §10.3" (the browser integration
+test). UNIT 5's `HowTenturaWorksContent` (the widget that owns the nav
+rows) was deliberately built WITHOUT this test id — its own widget test
+locates rows via `find.bySemanticsLabel` instead, which is sufficient for
+that unit. UNIT 12 (browser integration test) is the actual consumer and
+must either (a) add `TestIds.orientationNavRow` to `test_ids.dart` and
+thread a keyed wrapper into `HowTenturaWorksContent`'s nav rows (a small,
+explicitly-authorized touch to an already-accepted unit's file — not scope
+creep), or (b) use semantics-label-based finding in the integration test
+instead, matching UNIT 5's own widget-test approach, if that proves
+sufficient for Playwright/`flutter drive` row-tapping. Flag this explicitly
+in UNIT 12's prompt when that unit is reached.
+
+### 2026-09-09 — UNIT 6 (interrupted by system OOM, recovered by manager)
+
+The UNIT 6 Cursor worker was killed mid-run by an unrelated system-wide
+low-memory event (`free -h` showed 15Gi/15Gi swap exhausted from the
+user's other running applications — Chrome, Cursor IDE, Firefox, several
+GB each; unrelated to this orchestration). The worker had already written
+`home_orientation_panel.dart`, `home_orientation_panel_test.dart`, and the
+two new `test_ids.dart` constants, and had *started* (but per its log had
+not finished, and never committed) its own lint/test verification when the
+process was killed. No stale/zombie process from this session remained
+afterward (confirmed via `ps`/`pgrep`); swap pressure had cleared by the
+time this was investigated. Per the overseer protocol: did not resume the
+dead session; reviewed and completed the work directly instead of
+launching a fresh worker, both to avoid another OOM risk while system
+memory was still tight and because the remaining gap was small and
+independently verifiable.
+
+**Files (found on disk, uncommitted):**
+- `packages/client/lib/features/home/ui/widget/home_orientation_panel.dart`
+  (new) — read in full: correctly uses `TenturaCommandButton`/
+  `TenturaTextAction` (not `FilledButton`), CTA ladder matches plan §5.4's
+  table exactly including the "otherwise" branch's find-ways-to-help
+  secondary (not `MyWorkEmptyBody`'s own inbox-cta secondary), width
+  constraint 400/560 via `context.windowClass`, `TestIds.orientationPanel`
+  on the `TenturaTechCard` root, `TestIds.orientationDismiss` on Got it,
+  `HowTenturaWorksContent(title: orientationTitle, intro: orientationIntro,
+  ...)` — the one host that always uses that key pair. No issues found.
+- `packages/client/lib/ui/test_ids.dart` — exactly the two authorized new
+  constants (`orientationPanel`, `orientationDismiss`), nothing else
+  touched.
+- `packages/client/test/features/home/home_orientation_panel_test.dart`
+  (new) — all 4 required cases present, but **failing**: pumped the panel
+  into a plain `Scaffold` with no scroll wrapper. The panel is deliberately
+  `mainAxisSize.min` / non-scrolling by design (plan §5.1 — the real host
+  is UNIT 7's `SliverToBoxAdapter` inside a `CustomScrollView`), and the
+  test's `MediaQuery(data: MediaQueryData(size: surfaceSize), ...)`
+  override does not actually resize the test binding's real render view —
+  so the panel's natural content height overflowed the real (default,
+  ~800×600) test window in every one of the 4 tests, and taps on
+  now-offscreen buttons threw hit-test warnings that failed the callback
+  assertions.
+
+**Manager fix applied directly** (small, local, unambiguous — same bar as
+the UNIT 4 concurrency fix): wrapped the pumped panel in a
+`SingleChildScrollView` (documented inline why, so a future reader
+doesn't "fix" it back out), and added `tester.ensureVisible(finder)`
+before each of the 4 taps across the 3 interactive tests so the scroll
+view brings the target on-screen before tapping. Re-ran independently:
+```bash
+./scripts/check-custom-lints.sh packages/client        # 32 (baseline 32)
+cd packages/client && flutter test test/features/home/home_orientation_panel_test.dart
+# 4/4 passed
+cd packages/client && flutter test test/features/home/
+# 59/59 passed, no regressions
+```
+Commit `8eeab804c` (single commit — worker's files + manager's test fix,
+since the worker itself never reached a commit). Starting UNIT 7.
+
+**Operational note for the rest of this run:** system memory was tight
+(47-48Gi/61Gi used, swap briefly exhausted) around this unit. Will keep an
+eye on `free -h` before launching subsequent workers and prefer resolving
+small issues directly (as here) over spawning a replacement worker when
+memory is tight, to avoid compounding the pressure.
+
+### 2026-09-09 — UNIT 7 (implementation landed; test run genuinely hangs)
+
+`my_work_screen.dart` diff read in full: exactly matches the plan and the
+worker's own instructions — `BlocSelector<HomeActivationCubit, ...,
+OrientationDecision>` wraps the existing `InboxOperationalCubit` selector,
+switches on `decision` with all three arms (`show` →
+`SliverToBoxAdapter(HomeOrientationPanel(...))`, `ordinaryEmpty` → today's
+`MyWorkEmptyBody` branch verbatim, `undecided` → the new spinner), stays
+inside the same `RefreshIndicator.adaptive` + `CustomScrollView`, callback
+wiring matches spec including the deliberately-unchanged literal
+`setActiveIndex(1)` for Inbox. Lint check passed clean (32, baseline held).
+The new
+`packages/client/test/features/my_work/my_work_orientation_state_test.dart`
+is well-built to spec: all 6 required cases, reuses UNIT 4's
+`_FakePreferences` pattern, correctly reasoned that
+`AutoTabsRouter.of(context)` is only touched inside lazy tap callbacks so no
+real router ancestor is needed. This is the first test in the repo to pump
+the full `MyWorkScreen` widget.
+
+**But the test run itself does not complete.** Confirmed by direct
+execution (not inferred): the compiled test starts, loads, and enters the
+FIRST case (`unactivated settled-empty active filter shows
+HomeOrientationPanel`) — then hangs for the full 10-minute test timeout at
+`tester.pumpAndSettle()` (`TimeoutException ... dart:isolate
+_RawReceivePort._handleMessage`). This took several attempts to pin down
+because early attempts looked like compiler hangs (zero CPU-time growth on
+the `frontend_server_aot` process for minutes) — that turned out to be a
+red herring/compounding factor: system-wide contention from the user's own
+concurrent, unrelated `cursor-agent` process (an Inbox→Activity IA review,
+nothing to do with issue #130) plus a stale/corrupted incremental compile
+cache (`packages/client/build/test_cache/build/
+04f8c77cbd18c6c27d3e07f2c70a58cf.cache.dill.track.dill`, removed — safe,
+regenerable) from an earlier abrupt kill. After clearing that cache the
+compile itself proceeded normally and the run reached actual test
+execution, where it then hung for a real, reproducible reason inside the
+test/widget tree itself — most likely `tester.pumpAndSettle()` spinning
+forever against something that never stops scheduling frames (a
+first-instinct suspect: `HomeOrientationPanel`'s content pulls in
+`CircularProgressIndicator.adaptive()` only on the `undecided` arm, which
+this case's setup order should avoid — but "should avoid" is exactly what
+needs verifying, not assumed) — or an unresolved Future in
+`_createHarness`'s `await myWork.stream.firstWhere((s) => s.isSuccess)`
+against `buildTestMyWorkCase`'s fake dependency chain, which is proven
+safe in existing cubit-only tests but untested in a *full widget pump*
+context until this unit.
+
+**Not fixing blindly.** This needs actual bisection (bounded `tester.pump()`
+calls instead of `pumpAndSettle()`, prints, isolating harness setup from
+widget pump) that benefits from an interactive inner loop rather than
+another 10-minute round-trip per guess. Routing to a fresh, narrowly-scoped
+remediation worker per the overseer protocol ("cross-cutting, risky, or
+lengthy fix" bar) rather than continuing to guess-and-check myself.
+`my_work_screen.dart`'s production code is not itself suspected — the
+worker is told explicitly not to touch it in troubleshooting.
+
+### 2026-09-09/10 — UNIT 7 resolved: two real test-infrastructure bugs found
+
+**Commit `b5bda9102`.** The remediation worker (dispatched above) was itself
+killed by another system OOM event mid-diagnosis. Took over directly rather
+than dispatching a third worker, per the overseer protocol's two-attempt
+bar. What follows covers everything from that point, since it took many
+rounds of hands-on bisection worth recording precisely so nobody re-derives
+it.
+
+**Environmental noise that had to be ruled out first, in order:**
+1. Multiple orphaned `flutter_tester`/`dartvm test`/`frontend_server_aot`
+   processes accumulated across kills and had to be cleaned up explicitly
+   (`kill -9` by PID — `pkill -f` with a `\|`-alternation pattern silently
+   failed to match, a gotcha worth remembering: use explicit PIDs, not
+   pkill alternation, when killing this family of processes).
+2. The user's own unrelated concurrent `cursor-agent` session (an
+   Inbox→Activity IA review) and other heavy local apps (Chrome, Cursor
+   IDE, Firefox) caused genuine system-wide memory/CPU contention for much
+   of this investigation (`free -h` showed swap briefly fully exhausted at
+   points) — several early "hangs" were this, not a real bug, and cost
+   real time to distinguish from the two genuine bugs below. `vmstat`
+   showing high idle CPU alongside a stalled process with flat CPU-time
+   was the tell that a given stall was NOT contention.
+3. The incremental compile cache
+   (`packages/client/build/test_cache/build/*.cache.dill.track.dill`)
+   got corrupted by abrupt `kill -9`s at least twice, each manifesting as
+   `frontend_server_aot` sitting at flat, non-growing CPU time despite
+   available idle CPU/memory. Deleting the specific stale hash file
+   resolved it each time; when that stopped being enough, a full
+   `flutter clean && flutter pub get` in `packages/client` was needed
+   (also surfaced, harmlessly: `linux/flutter/ephemeral` can't be deleted
+   here due to permissions — expected, ignorable, unrelated to test
+   compilation). None of this is specific to this test file; it can
+   recur for any `flutter test` invocation on this machine after enough
+   forceful kills.
+4. A `.timeout(Duration(seconds: N))`-based diagnostic is **useless**
+   inside a `testWidgets` body for exactly the same reason as the earlier
+   `_settle()` bug: `Future.timeout` schedules its timeout via a real
+   `Timer`, which `AutomatedTestWidgetsFlutterBinding` holds until an
+   explicit `tester.pump()` — so a "timeout" that's supposed to fire in 8
+   seconds silently never fires if nothing pumps afterward, and looks
+   identical to the thing you were trying to diagnose timing out for real.
+   The working replacement: poll via a bounded loop of bare
+   `await Future<void>.microtask(() {})` calls (no Timer at all) and check
+   a plain boolean flag flipped by a `.then()` callback — this reliably
+   reveals whether an awaited Future settles, independent of pumping.
+
+**Bug 1 — already covered above:** `_settle()`'s `Future.delayed(Duration.zero)`
+loop, called from `_bindAndHydrate` before any widget was ever pumped,
+never fired. Fixed by switching to `Future.microtask`. This alone was not
+sufficient — a full-suite run afterward still hit the framework's 10-minute
+timeout on the same first test, so there was a second, independent bug
+still to find (initially wrongly attributed to a still-mounted
+`BlocBuilder`/`BlocListener` blocking `Cubit.close()` — the unmount-first
+fix for that theory, `tester.pumpWidget(const SizedBox.shrink())` before
+closing cubits, was tested and **did not** resolve the hang, disproving
+that theory; the unmount call was kept anyway as reasonable teardown
+hygiene, but it is not what fixes anything here).
+
+**Bug 2 — the actual remaining hang, found by direct measurement, not
+inference:** Added temporary `print()` diagnostics at every step of both
+the test's `_disposeHarness` and (temporarily, in the production file,
+fully reverted before committing — confirmed via `git diff` showing no
+changes) `MyWorkCubit.close()` itself. This proved, in order: the entire
+test BODY and all its assertions complete successfully (a `HomeOrientationPanel`
+genuinely renders and is found); disposal begins; `myWork.close()` is
+called; every one of its 7 `StreamSubscription.cancel()` calls and its
+`Timer.cancel()` calls complete without issue; then `return super.close();`
+(`package:bloc` 9.2.1's `BlocBase.close()`, whose body is just
+`_blocObserver.onClose(this); await _stateController.close();` — read
+directly from
+`~/.pub-cache`/`.pub-cache/hosted/pub.dev/bloc-9.2.1/lib/src/bloc_base.dart`)
+is reached and **never returns**. Confirmed by direct measurement (the
+microtask-polling technique above, not a Timer-based guess): the Future
+returned by `myWork.close()` does not complete even after 2000 drained
+microtask turns in this specific harness. Root mechanism inside
+`StreamController.broadcast().close()` not fully identified (did not chase
+further — see "Not chased further" below), but the practical fact is
+solid and reproducible.
+
+**The fix:** since every OTHER cubit closes fine, and nothing observable
+is left dangling once the 7 subscriptions and timers are cancelled (which
+happens synchronously at the top of `MyWorkCubit.close()`, before the
+part that hangs), `_disposeHarness` now does
+`unawaited(myWork.close())` instead of `await myWork.close()`. The other
+two cubits (`homeActivation`, `inboxOperational`) are still awaited
+normally — they close fine. Verified clean: no "pending timer" test
+framework complaints, no leaked-resource warnings; all 6 cases in
+`my_work_orientation_state_test.dart` pass, plus 160/160 across
+`my_work_empty_body_test.dart` + `test/features/home/` +
+`test/features/my_work/` (regression), plus lint baseline held (32).
+
+**Not chased further (accepted, scoped decision):** *why*
+`StreamController.broadcast().close()` never resolves specifically for
+`MyWorkCubit` in THIS harness (vs. `HomeActivationCubit`/
+`InboxOperationalCubit`, which close fine) was not root-caused to the
+Dart/`package:bloc` mechanism level — e.g. whether some fake stream in
+`buildTestMyWorkCase`'s dependency chain (`FakeBeaconRepository`,
+`FakeForwardRepository`, `FakeBeaconThreadsRepository`, all backed by
+un-closed broadcast `StreamController`s in `my_work_test_support.dart`)
+holds a reference that prevents `_stateController`'s own close from
+settling. This is a **test-infrastructure quirk, not a product bug** —
+`MyWorkCubit` is used identically, and closed normally, in every other
+existing test in this repo (none of which pump a full widget tree with a
+real `MyWorkCubit`, which is the specific combination that surfaces this).
+If a future test in this same family hits the identical symptom, start
+from `unawaited(myWork.close())` rather than re-deriving this from
+scratch.
+
+**Manager review of UNIT 7 (overseer):** ACCEPTED. Production diff
+(`my_work_screen.dart`) verified correct against plan §9 UNIT 7 in an
+earlier checkpoint above (unchanged since — this session only touched the
+test file for the fix). Independently re-ran the full test file (6/6
+passed), the regression suite (`my_work_empty_body_test.dart` +
+`test/features/home/` + `test/features/my_work/`, 160/160 passed), and
+`./scripts/check-custom-lints.sh packages/client` (32, baseline held).
+Commit `b5bda9102`. Starting UNIT 8.
+
+**Unrelated concurrent session note:** throughout this unit, an unrelated
+session has been actively editing `CONTEXT.md`,
+`packages/client/lib/features/geo/ui/dialog/choose_location_dialog.dart`
+(+test), and bumping `packages/client/pubspec.yaml`/`web/index.html`'s
+version (observed at 7.2.7 → 7.2.8 → 7.2.9 over the course of this unit) —
+all uncommitted, all left untouched throughout. Do not stage, commit, or
+"fix" any of these; they belong to someone else's in-progress work in this
+same shared working tree.
+
+### 2026-09-10 — UNIT 8
+
+**Status:** complete
+
+**Files changed:**
+- `packages/client/lib/features/home/ui/sheet/how_tentura_works_sheet.dart` (new) — `showHowTenturaWorksSheet` via `showTenturaAdaptiveSheet` with reopen title/intro; wraps `onOpenTab` to pop sheet before tab switch; passes `null` through when no router host.
+- `packages/client/lib/features/profile/ui/widget/profile_body.dart` — `OutlinedButton.icon(Icons.help_outline, l10n.orientationReopen)` above Settings; `onOpenTab` wired to `AutoTabsRouter`.
+- `packages/client/lib/features/settings/ui/screen/settings_screen.dart` — `TenturaCommandButton` for reopen placed immediately after the web-gated "Show Intro Again" block (unconditional, all platforms); no `onOpenTab` (Settings is outside `AutoTabsRouter`).
+- `packages/client/test/features/home/how_tentura_works_sheet_test.dart` (new) — sheet opens with reopen copy; nav rows inert when `onOpenTab` is null (InkWell absent inside `HowTenturaWorksContent`, tap is no-op).
+
+**Commands run:**
+```bash
+./scripts/check-custom-lints.sh packages/client        # 32 (baseline 32)
+bash scripts/check-user-facing-terminology.sh          # ok
+cd packages/client && flutter test test/features/home/how_tentura_works_sheet_test.dart  # 2/2 passed
+```
+
+**Notes:** Sheet chrome may include its own `InkWell` (drag handle); inert-nav assertion scopes to `HowTenturaWorksContent` descendants only. Unrelated concurrent edits (`CONTEXT.md`, geo dialog, version bump) left untouched.

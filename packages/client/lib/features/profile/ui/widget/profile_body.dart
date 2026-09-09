@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 
+import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
+import 'package:tentura/features/home/ui/sheet/how_tentura_works_sheet.dart';
 import 'package:tentura/domain/entity/availability.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
@@ -181,6 +183,20 @@ class ProfileBody extends StatelessWidget {
               onPressed: () => screenCubit.showBeaconsOf(profile.id),
               icon: const Icon(Icons.open_in_full),
               label: Text(l10n.showBeacons),
+            ),
+          ),
+
+          Padding(
+            padding: sectionTop,
+            child: OutlinedButton.icon(
+              onPressed: () => showHowTenturaWorksSheet(
+                context,
+                onOpenTab: (tab) => AutoTabsRouter.of(context).setActiveIndex(
+                  HomeTabSpec.forTab(tab).index,
+                ),
+              ),
+              icon: const Icon(Icons.help_outline),
+              label: Text(l10n.orientationReopen),
             ),
           ),
 

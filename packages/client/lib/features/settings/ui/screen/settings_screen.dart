@@ -6,6 +6,7 @@ import 'package:tentura/ui/dialog/show_seed_dialog.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
 import 'package:tentura/features/auth/ui/bloc/auth_cubit.dart';
+import 'package:tentura/features/home/ui/sheet/how_tentura_works_sheet.dart';
 import 'package:tentura/features/profile/ui/dialog/my_profile_delete.dart';
 
 import '../bloc/settings_cubit.dart';
@@ -158,6 +159,11 @@ class _SettingsCommandList extends StatelessWidget {
                 icon: const Icon(Icons.reset_tv),
                 onPressed: () => settingsCubit.setIntroEnabled(true),
               ),
+            TenturaCommandButton(
+              label: l10n.orientationReopen,
+              icon: const Icon(Icons.help_outline),
+              onPressed: () => showHowTenturaWorksSheet(context),
+            ),
             TenturaCommandButton(
               label: l10n.authRecoveryResetLocalTitle,
               icon: const Icon(Icons.delete_forever_outlined),
