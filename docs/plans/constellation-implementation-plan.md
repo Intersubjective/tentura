@@ -1292,7 +1292,7 @@ as §1 already instructs for the rest of this plan.)
      _row public.person_mutual_visibility_cache;
      _result boolean;
    BEGIN
-     _cur_epoch := public.mr_current_publish_epoch();   -- confirm exact accessor name against m0144 before implementing; re-derive if it differs
+     SELECT epoch INTO _cur_epoch FROM public.mr_publish_epoch WHERE id = true;  -- m0144: singleton row, no reader function exists — read the table directly
      _cur_trust := public.direct_trust_current_version();
      SELECT * INTO _row FROM public.person_mutual_visibility_cache
        WHERE person_lo = _lo AND person_hi = _hi AND ctx = _ctx
@@ -1332,11 +1332,20 @@ as §1 already instructs for the rest of this plan.)
    END;
    $$;
    ```
-   **Verify the exact name of m0144's epoch-reading accessor** (this sketch
-   guesses `mr_current_publish_epoch()`; if m0144 only exposes the bump
-   function and stores the epoch in a plain table/sequence, read from that
-   directly) — re-derive against the live m0144 body rather than trusting this
-   guess, the same way every other unit re-derives against live code.
+   **The epoch read above is already verified against live code** (unlike
+   most `[resolves]` markers in this plan, which ask the executor to
+   re-derive — this one is settled): `public.mr_publish_epoch` is a singleton
+   table (`id = true`, `epoch` column) that `mr_bump_publish_epoch()`
+   (m0144) increments; there is no separate reader function, so the direct
+   `SELECT ... WHERE id = true` above is correct as written, not a guess to
+   re-verify. While confirming this, the overseer also verified — do not
+   re-litigate — that **`vote_user` currently has no live trigger bumping this
+   epoch**: `notify_meritrank_vote_user_mutation()` is still defined in m0144,
+   but its trigger on `public.vote_user` was dropped in m0088
+   (`DROP TRIGGER IF EXISTS notify_meritrank_vote_user_mutation ON
+   public.vote_user;`) and never recreated. This is exactly why the
+   performance doc requires a *second*, independent invalidator for direct
+   trust — the MR epoch genuinely does not move when `vote_user` changes.
    `block_hides` is not referenced here at all — it stays outside the cache
    entirely, exactly as the performance doc requires, by never being part of
    what this function memoizes.
