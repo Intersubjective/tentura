@@ -56,7 +56,7 @@ messaging.onBackgroundMessage(async (payload) => {
     }
     await self.registration.showNotification(data.title || "Tentura", {
       body: data.body || "",
-      icon: "/icons/Icon-192.png",
+      icon: "${kPathWebAppIcon192}",
       tag: data.beaconId || undefined,
       data: { link: data.link || "/" },
     });

@@ -116,6 +116,52 @@ void main() {
       }
     },
   );
+
+  test('keeps root PWA icons at origin and does not prefix absolute icon URLs', () {
+    final dir = Directory.systemTemp.createTempSync(
+      'tentura_versioned_pwa_icon_test',
+    );
+    try {
+      const version = '4.0.0-deadbeef1234';
+      _writeBuildFixture(dir);
+      File('${dir.path}/tentura-icon-192.png').writeAsStringSync('icon');
+      File('${dir.path}/index.html').writeAsStringSync(
+        '<link rel="apple-touch-icon" href="/tentura-icon-192.png">'
+        ' <link rel="icon" type="image/png" href="favicon.png">',
+      );
+      File('${dir.path}/manifest.json').writeAsStringSync(
+        jsonEncode({
+          'name': 'Tentura',
+          'icons': [
+            {'src': '/tentura-icon-192.png', 'sizes': '192x192'},
+            {'src': 'icons/Icon-192.png', 'sizes': '192x192'},
+          ],
+        }),
+      );
+
+      assets.applyVersionedWebAssets(buildWebDir: dir.path, version: version);
+
+      const prefix = '/app-assets/$version/';
+      expect(File('${dir.path}/tentura-icon-192.png').existsSync(), isTrue);
+      expect(
+        File('${dir.path}/app-assets/$version/tentura-icon-192.png').existsSync(),
+        isFalse,
+      );
+
+      final index = File('${dir.path}/index.html').readAsStringSync();
+      expect(index, contains('href="/tentura-icon-192.png"'));
+      expect(index, isNot(contains('${prefix}tentura-icon-192.png')));
+
+      final icons =
+          (jsonDecode(File('${dir.path}/manifest.json').readAsStringSync())
+                  as Map<String, dynamic>)['icons']
+              as List;
+      expect(icons[0]['src'], '/tentura-icon-192.png');
+      expect(icons[1]['src'], '${prefix}icons/Icon-192.png');
+    } finally {
+      dir.deleteSync(recursive: true);
+    }
+  });
 }
 
 void _writeBuildFixture(Directory dir) {

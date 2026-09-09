@@ -4,7 +4,7 @@ flutter_launcher_icons:
   remove_alpha_ios: true
   image_path: "images/logo1024.png"
 
+  # Web PWA icons are `web/tentura-icon-*.png` (cache-busted names). Do not
+  # regenerate Flutter's default `web/icons/Icon-*.png` — iOS pins that path.
   web:
-    generate: true
-    theme_color: "#3A1E5C"
-    background_color: "#3A1E5C"
+    generate: false

@@ -39,6 +39,8 @@ void main() {
     expect(body, contains('onBackgroundMessage'));
     expect(body, contains('showNotification'));
     expect(body, contains('notificationclick'));
+    expect(body, contains('icon: "/tentura-icon-192.png"'));
+    expect(body, isNot(contains('/icons/Icon-192.png')));
   });
 
   test('falls back to a no-op stub when FB_API_KEY is unset', () async {

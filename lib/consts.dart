@@ -66,6 +66,14 @@ const kAppTitle = 'Tentura';
 
 const kPathIcons = '/icons';
 
+/// Cache-busted PWA / apple-touch / notification icons at the site root.
+/// Kept out of `/app-assets/<version>/` so landing, FCM SW, and install UI
+/// share one URL. Rename the files (and these consts) when the artwork changes.
+const kPathWebAppIcon192 = '/tentura-icon-192.png';
+const kPathWebAppIcon512 = '/tentura-icon-512.png';
+const kPathWebAppIconMaskable192 = '/tentura-icon-maskable-192.png';
+const kPathWebAppIconMaskable512 = '/tentura-icon-maskable-512.png';
+
 /// Beacon detail screen (client Auto Route).
 const kPathBeaconView = '/beacon/view';
 

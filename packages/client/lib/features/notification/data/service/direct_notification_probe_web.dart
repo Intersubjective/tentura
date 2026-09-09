@@ -2,6 +2,8 @@ import 'dart:js_interop';
 
 import 'package:web/web.dart' as web;
 
+import 'package:tentura/consts.dart';
+
 /// Calls `ServiceWorkerRegistration.showNotification()` directly from the
 /// page — no FCM, no server, no push relay involved at all. Used to isolate
 /// whether a device/browser can display a notification full stop (permission
@@ -19,7 +21,7 @@ Future<void> showDirectTestNotification() async {
         web.NotificationOptions(
           body: 'If you see this, this device can display notifications — '
               'the failure is in FCM/push delivery, not local display.',
-          icon: '/icons/Icon-192.png',
+          icon: kPathWebAppIcon192,
         ),
       )
       .toDart;

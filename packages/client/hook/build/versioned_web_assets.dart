@@ -47,6 +47,8 @@ void applyVersionedWebAssets({
 
 bool _isRootControlPath(String name) {
   if (name.startsWith('.')) return true;
+  // Stable PWA/notification icons; must stay at `/tentura-icon-*.png`.
+  if (name.startsWith('tentura-icon-') && name.endsWith('.png')) return true;
   return const {
     'app-assets',
     'firebase-messaging-sw.js',
