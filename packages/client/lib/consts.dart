@@ -120,6 +120,7 @@ const kBeaconEntryInbox = 'inbox';
 const kBeaconEntryForward = 'forward';
 const kBeaconEntryRoomNotification = 'room_notification';
 const kBeaconEntryDeepLink = 'deep_link';
+const kBeaconEntryInvite = 'invite';
 const kBeaconEntryUnknown = 'unknown';
 
 /// When false, blocked closure readiness hides author Close (HUD + overflow).

@@ -94,16 +94,9 @@ class AcceptInviteCubit extends Cubit<AcceptInviteState> {
           beaconId: beacon.id,
           beaconTitle: beacon.title,
           inviterName: inviter?.displayName ?? '',
-          showSnackbar: false,
+          showSnackbar: true,
         );
-        _finishWithMessage(
-          BeaconInviteAcceptedMessage(
-            inviterName: inviter?.displayName ?? '',
-            beaconId: beacon.id,
-            beaconTitle: beacon.title,
-          ),
-          navigateToInbox: true,
-        );
+        _finishWithMessage(null, navigateToInbox: true);
       } else {
         _finishWithMessage(const InviteAcceptedMessage());
       }
@@ -152,10 +145,12 @@ class AcceptInviteCubit extends Cubit<AcceptInviteState> {
   }
 
   void _finishWithMessage(
-    LocalizableMessage message, {
+    LocalizableMessage? message, {
     bool navigateToInbox = false,
   }) {
-    _effects.emit(ShowMessage(message));
+    if (message != null) {
+      _effects.emit(ShowMessage(message));
+    }
     _effects.emit(
       NavigateReplace(
         navigateToInbox

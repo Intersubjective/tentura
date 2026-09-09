@@ -97,14 +97,14 @@ void main() {
       effects.clear();
       await cubit.confirmAccept();
       expect(repo.acceptCalls, 1);
-      expect(
-        effects.emitted.whereType<ShowMessage>().map((e) => e.message),
-        contains(isA<BeaconInviteAcceptedMessage>()),
-      );
+      expect(effects.emitted.whereType<ShowMessage>(), isEmpty);
       expect(
         effects.emitted.whereType<NavigateReplace>().map((e) => e.target),
         contains(NavigateReplaceTarget.homeInboxTab),
       );
+      final dest = postJoin.takeDestination();
+      expect(dest?.beaconId, 'B1');
+      expect(dest?.showSnackbar, isTrue);
     });
 
     test('confirmAccept posts accept-as-existing', () async {

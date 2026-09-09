@@ -2,11 +2,14 @@ import 'dart:async';
 
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/scheduler.dart';
 import 'package:get_it/get_it.dart';
 
+import 'package:tentura/consts.dart';
 import 'package:tentura/features/home/domain/port/post_join_beacon_handoff_port.dart';
 import 'package:tentura/features/home/ui/bloc/post_join_navigation_cubit.dart';
 import 'package:tentura/features/invitation/ui/message/accept_invite_messages.dart';
+import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/effect/ui_effect.dart';
 import 'package:tentura/ui/effect/ui_effect_port.dart';
 
@@ -50,6 +53,17 @@ class _HomePostJoinListenerState extends State<HomePostJoinListener> {
     if (dest == null || !dest.hasBeacon) return;
 
     widget.tabsRouter.setActiveIndex(1);
+
+    GetIt.I<ScreenCubit>().showBeacon(
+      dest.beaconId!,
+      entry: kBeaconEntryInvite,
+    );
+
+    // ClearSnackBarsOnPushObserver clears the snackbar in a microtask on didPush;
+    // ShowMessage defers LocalizableActionMessage one frame. Yield past both before
+    // emitting so the invite snackbar survives the BeaconViewRoute push.
+    await SchedulerBinding.instance.endOfFrame;
+    await SchedulerBinding.instance.endOfFrame;
 
     if (!dest.showSnackbar) return;
 

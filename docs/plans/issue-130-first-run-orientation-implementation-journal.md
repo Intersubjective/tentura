@@ -46,7 +46,7 @@ Plan is explicit: units execute in the given order, each is
 - [x] UNIT 8 — reopen entry points (D6)
 - [x] UNIT 9 — contextual trust affordance (§5.6)
 - [x] UNIT 10 — debug override UI (§7)
-- [ ] UNIT 11 — invite → request navigation (§8) — verify §8 step 4
+- [x] UNIT 11 — invite → request navigation (§8) — verify §8 step 4
       (unreadable-request fallback) BEFORE wiring the push; journal the finding
 - [ ] UNIT 12 — browser integration test (§10.3)
 - [ ] UNIT 13 — version bump (7.2.7→7.3.0) + cache-buster + full verification gate
@@ -763,3 +763,143 @@ bash scripts/check-user-facing-terminology.sh          # ok
 cd packages/client && flutter test test/features/settings/debug_orientation_section_test.dart
 # 3/3 passed
 ```
+
+**Manager review (overseer):** ACCEPTED. Extracted a public
+`FirstRunOrientationDebugSection` widget (good call for testability, not
+required by the plan but sensible) inserted as the literal first child
+before `_FcmRegistrationSection` — confirmed "above the FCM block."
+`SegmentedButton`/`ButtonSegment` wiring, live `BlocBuilder`-driven status
+readout, and the reset button's `resetFirstRunState()` → `UiEffectPort`
+snackbar sequencing all match spec. `DebugOrientationResetMessage`'s EN/RU
+strings verified byte-identical to plan §6.3's `settingsDebugOrientationResetDone`
+ARB values. Test file reuses the established `_FakePreferences`/microtask-
+settle pattern and independently confirms the activity-count math (2
+cards + 1 archived + 3 inbox = 6, `draftCount` correctly excluded) as a
+side effect of its third case. Independently re-ran
+`./scripts/check-custom-lints.sh packages/client` (32, baseline held),
+`bash scripts/check-user-facing-terminology.sh` (ok), and
+`flutter test test/features/settings/debug_orientation_section_test.dart`
+(3/3 passed). Commit `96f2c965d`. Starting UNIT 11 — per plan §9, this unit
+requires verifying §8 step 4 (unreadable-request fallback behavior) BEFORE
+wiring the invite push, and journaling that finding; will do this
+verification myself before dispatching the worker, per the plan's own
+explicit instruction and this session's established pattern of
+pre-researching live-code facts before writing worker prompts.
+
+### 2026-09-10 — pre-UNIT-11 required verification: §8 step 4 (overseer)
+
+**Finding: `BeaconViewScreen` already degrades gracefully for both failure
+modes the plan worries about — no new fallback logic is needed.** Traced
+the full chain live:
+
+- `BeaconRepository.fetchBeaconById` (`beacon_repository.dart:120-124`):
+  `beacon_by_pk` returning GraphQL `null` — which is what Hasura returns
+  BOTH when the row is genuinely deleted AND when the `can_read_content`
+  row permission filters it out (these two cases are indistinguishable at
+  the GraphQL layer, by Hasura's design) — is uniformly translated to
+  `throw BeaconFetchException(id)`.
+- `BeaconViewCubit._fetchBeaconByIdOrRetry` (`beacon_view_cubit.dart:1202`)
+  retries once after 300ms, then re-throws.
+- `BeaconViewCubit._fetchBeaconByIdWithTimeline`
+  (`beacon_view_cubit.dart:990-1017`) catches `BeaconFetchException` on the
+  *initial* load (`!state.beaconContentLoaded`) and emits
+  `beaconUnavailable: true` — never lets the exception escape uncaught.
+- `BeaconViewScreen` (`beacon_view_screen.dart:975-1032`) renders
+  `showInitialUnavailable` (`state.beaconUnavailable`) as a proper
+  `_beaconViewErrorBody` with `l10n.beaconHudBeaconUnavailable` title,
+  `l10n.beaconViewUnavailableBody` body copy, a Retry button
+  (`beaconViewCubit.retryInitialLoad()`), and a "Go back" button
+  (`_leaveBeaconView(context)`) — never a raw crash, never a dead end.
+
+Conclusion: the listener may push `showBeacon(dest.beaconId!, entry:
+kBeaconEntryInvite)` unconditionally, with no new guard/fallback logic of
+its own — `BeaconViewScreen` already handles a missing/unreadable id
+exactly as plan §8 step 4 requires ("the user must not be stranded on an
+error screen"). This satisfies plan §9 UNIT 11's "verify before wiring"
+instruction.
+
+**Also confirmed live (context for the worker, to avoid re-deriving):** the
+CURRENT code is exactly the "before" state plan §8 describes fixing, not
+already fixed by drift:
+- `AcceptInviteCubit.confirmAccept()`'s beacon branch
+  (`accept_invite_cubit.dart:~88-104`) already calls
+  `_postJoinNavigation.setFromBeaconInvite(..., showSnackbar: false)` — but
+  plan wants `true` — AND still calls
+  `_finishWithMessage(BeaconInviteAcceptedMessage(...), navigateToInbox:
+  true)`, which emits `ShowMessage` immediately followed by
+  `NavigateReplace(homeInboxTab)` (`_finishWithMessage`,
+  `accept_invite_cubit.dart:154-166`) — the exact double-hazard the plan
+  diagnoses (cubit both emits the message AND is about to be superseded by
+  a full root replace).
+- `HomePostJoinListener._handlePostJoin` currently only sets the tab index
+  and (since `showSnackbar` is false) never re-emits anything — meaning
+  today's actual behavior is that the ONE early cubit-emitted snackbar is
+  the only chance the message has, racing the `NavigateReplace` that
+  follows it a call later. It never pushes to the beacon at all currently
+  — confirming the reported bug ("the request that motivated the whole
+  signup is never opened").
+- Traced the observer race precisely: `ClearSnackBarsOnPushObserver.didPush`
+  (`ui_utils.dart:66-75`) clears via `scheduleMicrotask`, which drains
+  before the next frame. `dispatchUiEffect`'s `ShowMessage` case
+  (`ui_effect_dispatcher.dart:56-75`) defers `LocalizableActionMessage`s
+  (which `BeaconInviteAcceptedMessage` is) via
+  `WidgetsBinding.instance.addPostFrameCallback` — i.e. one frame later.
+  `UiEffectPort.emit`/`effects` is a plain `Stream<UiEffect>` consumed by a
+  single `StreamSubscription.listen` in `UiEffectHandler`
+  (`ui_effect_handler.dart`) — ordering between two same-tick `emit()`
+  calls is preserved (FIFO delivery to one listener) but delivery itself is
+  asynchronous, and `NavigatePush`'s `dispatchUiEffect` case
+  (`ui_effect_dispatcher.dart`) calls `router.pushPath(...)` **without**
+  awaiting it — there is no Future in the current architecture that
+  resolves when a `ScreenCubit`-driven push has actually landed. This
+  means the fix cannot literally `await` `showBeacon(...)` (it returns
+  `void`); it needs an explicit settle-wait (frame boundary(s)) between
+  calling `showBeacon` and emitting `ShowMessage`, not a true await chain.
+  Documented this precisely for the UNIT 11 worker so it isn't
+  re-discovered from scratch.
+
+### 2026-09-10 — UNIT 11
+
+**Status:** complete.
+
+**Changes:**
+- `packages/client/lib/consts.dart` — added `kBeaconEntryInvite = 'invite'`.
+- `packages/client/lib/features/invitation/ui/bloc/accept_invite_cubit.dart` —
+  beacon branch sets `showSnackbar: true`, calls `_finishWithMessage(null,
+  navigateToInbox: true)` (navigation only; listener owns the snackbar).
+  `_finishWithMessage` accepts nullable `LocalizableMessage?` and guards
+  `ShowMessage` emission.
+- `packages/client/lib/features/home/ui/widget/home_post_join_listener.dart` —
+  after Inbox tab index, calls `ScreenCubit.showBeacon(..., entry:
+  kBeaconEntryInvite)`, then two chained `SchedulerBinding.instance.endOfFrame`
+  yields, then emits `BeaconInviteAcceptedMessage` when `dest.showSnackbar`.
+- `packages/client/test/features/home/home_post_join_listener_test.dart` —
+  extended with `ScreenCubit.local` registration, NavigatePush + ShowMessage
+  assertions for beacon destination, no-op case without beacon id.
+- `packages/client/test/features/invitation/accept_invite_cubit_test.dart` —
+  beacon confirm test updated: no cubit-level `ShowMessage`; asserts
+  `PostJoinDestination` with `showSnackbar: true`.
+
+**Settle-wait primitive:** two consecutive `await
+SchedulerBinding.instance.endOfFrame` between `showBeacon` and `ShowMessage`.
+Rationale: `ClearSnackBarsOnPushObserver` clears snackbars in a
+`scheduleMicrotask` on `didPush` (drains before the next frame); the dispatcher
+defers `LocalizableActionMessage` snackbars one frame via
+`addPostFrameCallback`. Two frame boundaries bridge both async gaps without
+`Future.delayed` (pump-compatible in widget tests). Cannot literally await
+`showBeacon` — it returns `void` and `NavigatePush` is fire-and-forget.
+
+**§8 step 4:** relied on pre-UNIT-11 journal verification — no new fallback
+logic added; `BeaconViewScreen` already handles unreadable ids via
+`beaconUnavailable` / `_beaconViewErrorBody`.
+
+**Commands:**
+- `./scripts/check-custom-lints.sh packages/client` — OK (32, baseline 32).
+- `bash scripts/check-user-facing-terminology.sh` — OK.
+- `flutter test test/features/home/home_post_join_listener_test.dart` — 2/2.
+- `flutter test test/features/invitation/` — 41/41.
+
+**Manual QA still required (plan §10.4 step 6):** end-to-end invite signup →
+request opens with inviter snackbar visible after push; automated tests stub
+`ScreenCubit`/`UiEffectPort` and cannot prove the observer race is won in a
+real navigator stack.
