@@ -43,6 +43,7 @@ Map<String, dynamic> _requestToGqlMap(ConstellationRequestRecord request) => {
   'viewerIsRoomParticipant': request.viewerIsRoomParticipant,
   'viewerHasForwardEdge': request.viewerHasForwardEdge,
   'helpOfferCount': request.helpOfferCount,
+  'coverSource': request.coverSource,
   'coverThumb': request.coverThumb == null
       ? null
       : imagePublicToGqlMap(request.coverThumb!),

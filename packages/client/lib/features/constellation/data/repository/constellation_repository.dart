@@ -1,4 +1,5 @@
 import 'package:injectable/injectable.dart';
+import 'package:tentura_root/domain/entity/beacon_cover_source.dart';
 import 'package:tentura/data/model/image_model_v2.dart';
 import 'package:tentura/data/service/remote_api_service.dart';
 
@@ -80,6 +81,7 @@ final class ConstellationRepository implements ConstellationRepositoryPort {
     viewerIsRoomParticipant: request.viewerIsRoomParticipant,
     viewerHasForwardEdge: request.viewerHasForwardEdge,
     helpOfferCount: request.helpOfferCount,
+    coverSource: BeaconCoverSource.fromWireOrPhoto(request.coverSource),
     coverThumb: (request.coverThumb as ImageModelV2?)?.asEntity,
   );
 

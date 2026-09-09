@@ -9,6 +9,159 @@ import 'package:tentura/ui/utils/capability_tag_presenter.dart';
 import '../../domain/constellation_filters.dart';
 import '../bloc/constellation_cubit.dart';
 
+Future<void> showConstellationFilterSheet(
+  BuildContext context, {
+  required ConstellationCubit cubit,
+}) {
+  return showTenturaAdaptiveSheet<void>(
+    context: context,
+    isScrollControlled: true,
+    showDragHandle: true,
+    builder: (_) => BlocProvider.value(
+      value: cubit,
+      child: const _ConstellationFilterSheet(),
+    ),
+  );
+}
+
+class _ConstellationFilterSheet extends StatelessWidget {
+  const _ConstellationFilterSheet();
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = L10n.of(context)!;
+    final tt = context.tt;
+    final media = MediaQuery.of(context);
+    final maxHeight = media.size.height * 0.85;
+
+    return BlocBuilder<ConstellationCubit, ConstellationState>(
+      buildWhen: (previous, current) =>
+          previous.filterCapabilitySlugs != current.filterCapabilitySlugs ||
+          previous.filterLocation != current.filterLocation ||
+          previous.filterTiming != current.filterTiming ||
+          previous.filterIncludeUnspecified !=
+              current.filterIncludeUnspecified,
+      builder: (context, state) {
+        final cubit = context.read<ConstellationCubit>();
+        return ConstrainedBox(
+          constraints: BoxConstraints(maxHeight: maxHeight),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              Padding(
+                padding: EdgeInsets.symmetric(horizontal: tt.screenHPadding),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        l10n.constellationFiltersTitle,
+                        style: Theme.of(context).textTheme.titleMedium,
+                      ),
+                    ),
+                    if (cubit.hasActiveFilters)
+                      TextButton(
+                        key: const Key('constellation.filter.sheet_clear'),
+                        onPressed: cubit.clearFilters,
+                        child: Text(l10n.constellationClearFilters),
+                      ),
+                  ],
+                ),
+              ),
+              Flexible(
+                child: SingleChildScrollView(
+                  padding: EdgeInsets.fromLTRB(
+                    tt.screenHPadding,
+                    tt.tightGap,
+                    tt.screenHPadding,
+                    media.padding.bottom + tt.rowGap,
+                  ),
+                  child: const ConstellationFilterBar(),
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+}
+
+/// Cap / budget notices shown above the constellation canvas (not in the
+/// filter sheet).
+class ConstellationFieldNotices extends StatelessWidget {
+  const ConstellationFieldNotices({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return BlocBuilder<ConstellationCubit, ConstellationState>(
+      buildWhen: (previous, current) =>
+          previous.field != current.field ||
+          previous.capped != current.capped ||
+          previous.keptPeerIds != current.keptPeerIds ||
+          previous.paths != current.paths,
+      builder: (context, _) {
+        final cubit = context.read<ConstellationCubit>();
+        return _FieldLevelNotices(cubit: cubit);
+      },
+    );
+  }
+}
+
+/// Compact empty-filter banner for the map surface.
+class ConstellationEmptyFilterBanner extends StatelessWidget {
+  const ConstellationEmptyFilterBanner({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return BlocBuilder<ConstellationCubit, ConstellationState>(
+      buildWhen: (previous, current) =>
+          previous.filterCapabilitySlugs != current.filterCapabilitySlugs ||
+          previous.filterLocation != current.filterLocation ||
+          previous.filterTiming != current.filterTiming ||
+          previous.filterIncludeUnspecified !=
+              current.filterIncludeUnspecified ||
+          previous.field != current.field ||
+          previous.viewMode != current.viewMode,
+      builder: (context, state) {
+        final cubit = context.read<ConstellationCubit>();
+        if (!cubit.isFilteredResultEmpty ||
+            state.viewMode != ConstellationViewMode.map) {
+          return const SizedBox.shrink();
+        }
+        final l10n = L10n.of(context)!;
+        final tt = context.tt;
+        final theme = Theme.of(context);
+        return Material(
+          color: theme.colorScheme.surfaceContainerHighest,
+          child: Padding(
+            padding: EdgeInsets.symmetric(
+              horizontal: tt.screenHPadding,
+              vertical: tt.tightGap,
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Text(
+                    l10n.constellationEmptyFiltered,
+                    key: const Key('constellation.filter.empty'),
+                    style: theme.textTheme.bodyMedium,
+                  ),
+                ),
+                FilledButton.tonal(
+                  key: const Key('constellation.filter.clear'),
+                  onPressed: cubit.clearFilters,
+                  child: Text(l10n.constellationClearFilters),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
 class ConstellationFilterBar extends StatelessWidget {
   const ConstellationFilterBar({super.key});
 
@@ -21,10 +174,7 @@ class ConstellationFilterBar extends StatelessWidget {
           previous.filterTiming != current.filterTiming ||
           previous.filterIncludeUnspecified !=
               current.filterIncludeUnspecified ||
-          previous.field != current.field ||
-          previous.capped != current.capped ||
-          previous.keptPeerIds != current.keptPeerIds ||
-          previous.paths != current.paths,
+          previous.field != current.field,
       builder: (context, state) {
         final cubit = context.read<ConstellationCubit>();
         final l10n = L10n.of(context)!;
@@ -32,62 +182,33 @@ class ConstellationFilterBar extends StatelessWidget {
         final theme = Theme.of(context);
 
         return Material(
-          key: const Key('constellation.filter_bar'),
-          color: theme.colorScheme.surface,
-          child: SafeArea(
-            bottom: false,
-            child: Padding(
-              padding: EdgeInsets.symmetric(
-                horizontal: tt.screenHPadding,
-                vertical: tt.tightGap,
+          color: Theme.of(context).colorScheme.surface,
+          child: Column(
+            key: const Key('constellation.filter_bar'),
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              _CapabilityFilters(cubit: cubit),
+              SizedBox(height: tt.tightGap),
+              _LocationFilters(cubit: cubit),
+              SizedBox(height: tt.tightGap),
+              _TimingFilters(cubit: cubit),
+              SizedBox(height: tt.tightGap),
+              SwitchListTile.adaptive(
+                key: const Key('constellation.filter.include_unspecified'),
+                contentPadding: EdgeInsets.zero,
+                title: Text(l10n.constellationIncludeUnspecified),
+                value: state.filterIncludeUnspecified,
+                onChanged: cubit.setFilterIncludeUnspecified,
               ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  _FieldLevelNotices(cubit: cubit),
-                  if (cubit.isFilteredResultEmpty) ...[
-                    SizedBox(height: tt.rowGap),
-                    Text(
-                      l10n.constellationEmptyFiltered,
-                      key: const Key('constellation.filter.empty'),
-                      style: theme.textTheme.bodyMedium,
-                    ),
-                    SizedBox(height: tt.tightGap),
-                    Align(
-                      alignment: Alignment.centerLeft,
-                      child: FilledButton.tonal(
-                        key: const Key('constellation.filter.clear'),
-                        onPressed: cubit.clearFilters,
-                        child: Text(l10n.constellationClearFilters),
-                      ),
-                    ),
-                  ] else ...[
-                    SizedBox(height: tt.rowGap),
-                    _CapabilityFilters(cubit: cubit),
-                    SizedBox(height: tt.tightGap),
-                    _LocationFilters(cubit: cubit),
-                    SizedBox(height: tt.tightGap),
-                    _TimingFilters(cubit: cubit),
-                    SizedBox(height: tt.tightGap),
-                    SwitchListTile.adaptive(
-                      key: const Key('constellation.filter.include_unspecified'),
-                      contentPadding: EdgeInsets.zero,
-                      title: Text(l10n.constellationIncludeUnspecified),
-                      value: state.filterIncludeUnspecified,
-                      onChanged: cubit.setFilterIncludeUnspecified,
-                    ),
-                  ],
-                  SizedBox(height: tt.tightGap),
-                  Text(
-                    l10n.constellationFilterLimitations,
-                    key: const Key('constellation.filter.limitations'),
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                ],
+              SizedBox(height: tt.tightGap),
+              Text(
+                l10n.constellationFilterLimitations,
+                key: const Key('constellation.filter.limitations'),
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
+                ),
               ),
-            ),
+            ],
           ),
         );
       },
@@ -104,7 +225,6 @@ class _FieldLevelNotices extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = L10n.of(context)!;
     final tt = context.tt;
-    final theme = Theme.of(context);
     final notices = <Widget>[];
 
     if (cubit.peersCapped) {
@@ -138,14 +258,20 @@ class _FieldLevelNotices extends StatelessWidget {
       return const SizedBox.shrink();
     }
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        for (var i = 0; i < notices.length; i++) ...[
-          if (i > 0) SizedBox(height: tt.tightGap),
-          notices[i],
+    return Padding(
+      padding: EdgeInsets.symmetric(
+        horizontal: tt.screenHPadding,
+        vertical: tt.tightGap,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          for (var i = 0; i < notices.length; i++) ...[
+            if (i > 0) SizedBox(height: tt.tightGap),
+            notices[i],
+          ],
         ],
-      ],
+      ),
     );
   }
 }
@@ -215,7 +341,10 @@ class _CapabilityFilters extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(l10n.constellationFilterCapability, style: Theme.of(context).textTheme.labelLarge),
+        Text(
+          l10n.constellationFilterCapability,
+          style: Theme.of(context).textTheme.labelLarge,
+        ),
         SizedBox(height: tt.tightGap),
         Wrap(
           spacing: tt.tightGap,
@@ -260,7 +389,10 @@ class _LocationFilters extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(l10n.constellationFilterLocation, style: Theme.of(context).textTheme.labelLarge),
+        Text(
+          l10n.constellationFilterLocation,
+          style: Theme.of(context).textTheme.labelLarge,
+        ),
         SizedBox(height: tt.tightGap),
         Wrap(
           spacing: tt.tightGap,
@@ -303,7 +435,10 @@ class _TimingFilters extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(l10n.constellationFilterTiming, style: Theme.of(context).textTheme.labelLarge),
+        Text(
+          l10n.constellationFilterTiming,
+          style: Theme.of(context).textTheme.labelLarge,
+        ),
         SizedBox(height: tt.tightGap),
         Wrap(
           spacing: tt.tightGap,

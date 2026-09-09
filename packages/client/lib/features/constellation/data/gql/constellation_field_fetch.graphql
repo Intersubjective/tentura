@@ -35,6 +35,7 @@ query ConstellationFieldFetch {
       viewerIsRoomParticipant
       viewerHasForwardEdge
       helpOfferCount
+      coverSource
       coverThumb {
         ...ImageModelV2
       }

@@ -7230,6 +7230,7 @@ type v2_ConstellationPeer {
 type v2_ConstellationRequest {
   addressLabel: String
   authorId: String!
+  coverSource: Int!
   coverThumb: v2_image
   endAt: String
   hasCoordinates: Boolean!

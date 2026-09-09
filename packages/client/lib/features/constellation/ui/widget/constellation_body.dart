@@ -6,7 +6,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:force_directed_graphview/force_directed_graphview.dart';
-import 'package:intl/intl.dart' hide TextDirection;
 
 import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
@@ -444,12 +443,8 @@ class _ConstellationBodyState extends State<ConstellationBody> {
               return Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  _ConstellationSnapshotChrome(
-                    loadedAt: state.loadedAt ?? resolved.field.loadedAt,
-                    viewMode: state.viewMode,
-                    onViewModeChanged: cubit.setViewMode,
-                  ),
-                  const ConstellationFilterBar(),
+                  const ConstellationFieldNotices(),
+                  const ConstellationEmptyFilterBanner(),
                   if (_selectionUnavailableMessage != null)
                     Material(
                       color: theme.colorScheme.errorContainer,
@@ -619,72 +614,6 @@ class _ConstellationBodyState extends State<ConstellationBody> {
     return ConstrainedBox(
       constraints: BoxConstraints(maxHeight: maxHeight),
       child: SingleChildScrollView(child: legend),
-    );
-  }
-}
-
-class _ConstellationSnapshotChrome extends StatelessWidget {
-  const _ConstellationSnapshotChrome({
-    required this.loadedAt,
-    required this.viewMode,
-    required this.onViewModeChanged,
-  });
-
-  final DateTime loadedAt;
-  final ConstellationViewMode viewMode;
-  final ValueChanged<ConstellationViewMode> onViewModeChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = L10n.of(context)!;
-    final tt = context.tt;
-    final theme = Theme.of(context);
-    final stamp = DateFormat.yMMMd().add_jm().format(loadedAt.toLocal());
-
-    return Material(
-      color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.92),
-      child: SafeArea(
-        bottom: false,
-        child: Padding(
-          padding: EdgeInsets.symmetric(
-            horizontal: tt.screenHPadding,
-            vertical: tt.tightGap,
-          ),
-          child: Row(
-            children: [
-              Expanded(
-                child: Text(
-                  l10n.constellationSnapshotLoadedAt(stamp),
-                  key: const Key('constellation.snapshot.loaded_at'),
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
-                  ),
-                ),
-              ),
-              Semantics(
-                label: l10n.constellationViewModeMap,
-                child: SegmentedButton<ConstellationViewMode>(
-                  key: const Key('constellation.snapshot.view_mode'),
-                  segments: [
-                    ButtonSegment(
-                      value: ConstellationViewMode.map,
-                      label: Text(l10n.constellationViewModeMap),
-                    ),
-                    ButtonSegment(
-                      value: ConstellationViewMode.text,
-                      label: Text(l10n.constellationViewModeText),
-                    ),
-                  ],
-                  selected: {viewMode},
-                  onSelectionChanged: (selection) {
-                    onViewModeChanged(selection.first);
-                  },
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
     );
   }
 }

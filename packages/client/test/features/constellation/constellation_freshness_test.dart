@@ -1,20 +1,15 @@
 import 'dart:async';
 
-import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:logging/logging.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
-import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/env.dart';
 import 'package:tentura/features/constellation/domain/entity/constellation_field.dart';
 import 'package:tentura/features/constellation/domain/port/constellation_repository_port.dart';
 import 'package:tentura/features/constellation/domain/use_case/constellation_field_case.dart';
 import 'package:tentura/features/constellation/ui/bloc/constellation_cubit.dart';
-import 'package:tentura/features/constellation/ui/widget/constellation_snapshot_bar.dart';
 import 'package:tentura/features/forward/data/repository/forward_repository.dart';
-import 'package:tentura/ui/l10n/l10n.dart';
 
 const _ego = Profile(id: 'ego', displayName: 'Ego');
 final _loadedAt = DateTime.utc(2026, 9, 8, 12, 30);
@@ -111,43 +106,19 @@ Future<(ConstellationCubit, _StubConstellationRepository)> _cubitWithField(
 
 void main() {
   group('Constellation snapshot freshness', () {
-    testWidgets('view mode switch does not change Loaded at timestamp', (
-      tester,
-    ) async {
+    test('setViewMode does not change loadedAt', () async {
       final (cubit, _) = await _cubitWithField(
         _fieldForRequest(_request(id: 'B1')),
       );
 
-      await tester.pumpWidget(
-        MaterialApp(
-          locale: const Locale('en'),
-          theme: TenturaTheme.light(),
-          localizationsDelegates: L10n.localizationsDelegates,
-          supportedLocales: L10n.supportedLocales,
-          home: TenturaResponsiveScope(
-            child: BlocProvider.value(
-              value: cubit,
-              child: const Scaffold(body: ConstellationSnapshotBar()),
-            ),
-          ),
-        ),
-      );
-      await tester.pumpAndSettle();
-
-      expect(find.textContaining('Loaded at'), findsOneWidget);
-      final before = tester.widget<Text>(
-        find.byKey(const Key('constellation.snapshot.loaded_at')),
-      ).data;
-
-      await tester.tap(find.text('Text'));
-      await tester.pumpAndSettle();
+      final before = cubit.state.loadedAt;
+      cubit.setViewMode(ConstellationViewMode.text);
       expect(cubit.state.viewMode, ConstellationViewMode.text);
+      expect(cubit.state.loadedAt, before);
       expect(cubit.state.loadedAt, _loadedAt);
 
-      final after = tester.widget<Text>(
-        find.byKey(const Key('constellation.snapshot.loaded_at')),
-      ).data;
-      expect(after, before);
+      cubit.setViewMode(ConstellationViewMode.map);
+      expect(cubit.state.loadedAt, before);
     });
 
     test('selected-request refresh keeps field loadedAt unchanged', () async {

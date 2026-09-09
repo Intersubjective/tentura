@@ -77,6 +77,8 @@ Future<void> _pumpHarness(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
+                  const ConstellationFieldNotices(),
+                  const ConstellationEmptyFilterBanner(),
                   const ConstellationFilterBar(),
                   ...extra,
                   _AbsenceProbeList(cubit: cubit),

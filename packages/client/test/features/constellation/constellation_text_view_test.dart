@@ -13,6 +13,7 @@ import 'package:tentura/features/constellation/domain/entity/constellation_field
 import 'package:tentura/features/constellation/domain/port/constellation_repository_port.dart';
 import 'package:tentura/features/constellation/domain/use_case/constellation_field_case.dart';
 import 'package:tentura/features/constellation/ui/bloc/constellation_cubit.dart';
+import 'package:tentura/features/constellation/ui/widget/constellation_app_bar.dart';
 import 'package:tentura/features/constellation/ui/widget/constellation_body.dart';
 import 'package:tentura/features/constellation/ui/widget/constellation_text_view.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -169,10 +170,20 @@ Future<void> _pumpBody(WidgetTester tester, ConstellationCubit cubit) async {
               create: (_) => ScreenCubit(FakeUiEffectPort()),
             ),
           ],
-          child: const Scaffold(
-            body: ConstellationBody(
-              legendExpanded: false,
-              onToggleLegend: _noop,
+          child: Builder(
+            builder: (context) => Scaffold(
+              appBar: TenturaTopBar.of(
+                context,
+                title: const SizedBox.shrink(),
+                row: const ConstellationAppBarRow(
+                  legendExpanded: false,
+                  onToggleLegend: _noop,
+                ),
+              ),
+              body: const ConstellationBody(
+                legendExpanded: false,
+                onToggleLegend: _noop,
+              ),
             ),
           ),
         ),
@@ -356,7 +367,7 @@ void main() {
       );
       await _pumpBody(tester, cubit);
 
-      expect(find.byKey(const Key('constellation.filter_bar')), findsOneWidget);
+      expect(find.byKey(const Key('constellation.app_bar.filters')), findsOneWidget);
       expect(find.byKey(const Key('constellation.overflow.a')), findsOneWidget);
     });
 

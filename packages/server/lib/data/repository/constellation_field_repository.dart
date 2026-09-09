@@ -17,6 +17,7 @@ const _kRequestSelect = r'''
   b.status,
   b.needs,
   b.primary_need_slug,
+  b.cover_source,
   b.start_at,
   b.end_at,
   b.address_label,
@@ -254,6 +255,7 @@ LIMIT \$3
       viewerIsRoomParticipant: row.read<bool>('viewer_is_room_participant'),
       viewerHasForwardEdge: row.read<bool>('viewer_has_forward_edge'),
       helpOfferCount: row.read<int>('help_offer_count'),
+      coverSource: row.read<int>('cover_source'),
       coverThumb: coverThumb,
     );
   }

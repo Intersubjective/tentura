@@ -1361,6 +1361,14 @@
   "@constellationFilterLimitations": {
     "context": "ConstellationFilterBar"
   },
+  "constellationFiltersTitle": "Filters",
+  "@constellationFiltersTitle": {
+    "context": "ConstellationFilterSheet"
+  },
+  "constellationFiltersOpen": "Filters",
+  "@constellationFiltersOpen": {
+    "context": "ConstellationAppBar"
+  },
   "constellationFilterCapability": "Capability",
   "@constellationFilterCapability": {
     "context": "ConstellationFilterBar"
@@ -1424,15 +1432,6 @@
   "constellationViewModeText": "Text",
   "@constellationViewModeText": {
     "context": "ConstellationBody"
-  },
-  "constellationSnapshotLoadedAt": "Loaded at {timestamp}",
-  "@constellationSnapshotLoadedAt": {
-    "context": "ConstellationBody",
-    "placeholders": {
-      "timestamp": {
-        "type": "String"
-      }
-    }
   },
   "constellationSelectionUnavailable": "The selected request is no longer in this snapshot.",
   "@constellationSelectionUnavailable": {

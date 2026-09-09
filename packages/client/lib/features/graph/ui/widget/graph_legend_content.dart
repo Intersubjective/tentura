@@ -142,7 +142,19 @@ class GraphLegendContent extends StatelessWidget {
             l10n.graphLegendHiddenNeighbors,
           ),
           row(
-            const Icon(Icons.image_outlined),
+            TenturaIdentityTileFrame(
+              size: tt.avatarSize * 0.75,
+              child: ColoredBox(
+                color: scheme.surfaceContainerHighest,
+                child: Center(
+                  child: Icon(
+                    Icons.campaign_outlined,
+                    size: tt.avatarSize * 0.4,
+                    color: scheme.onSurfaceVariant,
+                  ),
+                ),
+              ),
+            ),
             l10n.graphLegendRequestNode,
           ),
           row(
@@ -177,7 +189,19 @@ class GraphLegendContent extends StatelessWidget {
       case GraphLegendMode.constellation:
         rows.addAll([
           row(
-            const Icon(Icons.flag_outlined),
+            TenturaIdentityTileFrame(
+              size: tt.avatarSize * 0.75,
+              child: ColoredBox(
+                color: scheme.surfaceContainerHighest,
+                child: Center(
+                  child: Icon(
+                    Icons.campaign_outlined,
+                    size: tt.avatarSize * 0.4,
+                    color: scheme.onSurfaceVariant,
+                  ),
+                ),
+              ),
+            ),
             l10n.graphLegendRequestNode,
           ),
         ]);

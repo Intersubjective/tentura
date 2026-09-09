@@ -536,6 +536,7 @@ final gqlTypeConstellationRequest =
         field('viewerIsRoomParticipant', graphQLBoolean.nonNullable()),
         field('viewerHasForwardEdge', graphQLBoolean.nonNullable()),
         field('helpOfferCount', graphQLInt.nonNullable()),
+        field('coverSource', graphQLInt.nonNullable()),
         field('coverThumb', gqlTypeImagePublic),
       ]);
 

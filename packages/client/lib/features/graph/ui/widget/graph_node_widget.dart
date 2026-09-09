@@ -3,9 +3,10 @@ import 'package:flutter/material.dart';
 import 'package:tentura/design_system/components/tentura_avatar.dart';
 import 'package:tentura/design_system/components/tentura_count_badge.dart';
 import 'package:tentura/domain/entity/beacon.dart';
+import 'package:tentura/features/constellation/domain/constellation_request_identity.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
-import 'package:tentura/ui/widget/beacon_image.dart';
+import 'package:tentura/ui/widget/beacon_identity_tile.dart';
 import 'package:tentura/ui/widget/self_user_highlight.dart';
 
 import '../../domain/entity/node_details.dart';
@@ -80,8 +81,9 @@ class GraphNodeWidget extends StatelessWidget {
           return result;
         },
       ),
-      final BeaconNode beaconNode => BeaconImage(
+      final BeaconNode beaconNode => BeaconIdentityTile(
         beacon: beaconNode.beacon,
+        size: nodeDetails.size,
       ),
       final GenealogyUserNode genealogyUser => TenturaAvatar(
         profile: genealogyUser.user,
@@ -104,31 +106,24 @@ class GraphNodeWidget extends StatelessWidget {
         withRating: withRating,
         isSelf: isSelf,
       ),
-      FieldRequestNode(:final request) => SizedBox.square(
-        dimension: nodeDetails.size,
-        child: DecoratedBox(
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            color: Theme.of(context).colorScheme.secondaryContainer,
-            border: Border.all(
-              color: Theme.of(context).colorScheme.secondary,
-            ),
-          ),
-          child: Icon(
-            Icons.flag_outlined,
-            size: nodeDetails.size * 0.45,
-            color: Theme.of(context).colorScheme.onSecondaryContainer,
-          ),
-        ),
+      FieldRequestNode(:final request) => BeaconIdentityTile(
+        beacon: constellationRequestAsIdentityBeacon(request),
+        size: nodeDetails.size,
       ),
     };
+    final useSquareFocus =
+        nodeDetails is BeaconNode || nodeDetails is FieldRequestNode;
     var decorated = isOrigin && !isSelf
         ? _OriginRing(size: nodeDetails.size, child: node)
         : node;
     // Focus is outermost so selection stays visible; painter is inset so it
     // does not coincide with self / origin / help-offerer rings.
     if (isFocused) {
-      decorated = _FocusRing(size: nodeDetails.size, child: decorated);
+      decorated = _FocusRing(
+        size: nodeDetails.size,
+        square: useSquareFocus,
+        child: decorated,
+      );
     }
     final widget = SizedBox.square(
       dimension: nodeDetails.size,
@@ -173,10 +168,15 @@ class GraphNodeWidget extends StatelessWidget {
 /// Always inset so it remains readable under self halo, origin, or help-offerer
 /// rings that paint at the outer radius.
 class _FocusRing extends StatelessWidget {
-  const _FocusRing({required this.size, required this.child});
+  const _FocusRing({
+    required this.size,
+    required this.child,
+    this.square = false,
+  });
 
   final double size;
   final Widget child;
+  final bool square;
 
   @override
   Widget build(BuildContext context) {
@@ -191,7 +191,7 @@ class _FocusRing extends StatelessWidget {
           IgnorePointer(
             child: CustomPaint(
               key: GraphNodeWidget.focusRingKey,
-              painter: _FocusRingPainter(color: color),
+              painter: _FocusRingPainter(color: color, square: square),
             ),
           ),
         ],
@@ -201,28 +201,43 @@ class _FocusRing extends StatelessWidget {
 }
 
 class _FocusRingPainter extends CustomPainter {
-  _FocusRingPainter({required this.color});
+  _FocusRingPainter({required this.color, required this.square});
 
   final Color color;
+  final bool square;
 
   static const stroke = 3.0;
   static const inset = 4.0;
 
   @override
   void paint(Canvas canvas, Size size) {
-    final c = Offset(size.width / 2, size.height / 2);
-    final r = size.shortestSide / 2 - stroke / 2 - inset;
     final paint = Paint()
       ..color = color
       ..style = PaintingStyle.stroke
       ..strokeWidth = stroke
       ..isAntiAlias = true;
+    if (square) {
+      final radius = size.shortestSide * 0.2;
+      final rect = Rect.fromLTWH(
+        inset + stroke / 2,
+        inset + stroke / 2,
+        size.width - (inset + stroke / 2) * 2,
+        size.height - (inset + stroke / 2) * 2,
+      );
+      canvas.drawRRect(
+        RRect.fromRectAndRadius(rect, Radius.circular(radius)),
+        paint,
+      );
+      return;
+    }
+    final c = Offset(size.width / 2, size.height / 2);
+    final r = size.shortestSide / 2 - stroke / 2 - inset;
     canvas.drawCircle(c, r, paint);
   }
 
   @override
   bool shouldRepaint(covariant _FocusRingPainter oldDelegate) =>
-      oldDelegate.color != color;
+      oldDelegate.color != color || oldDelegate.square != square;
 }
 
 /// Distinct primary ring for the graph origin (ego / genealogy viewer).

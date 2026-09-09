@@ -1357,9 +1357,17 @@
   "@constellationIncludeUnspecified": {
     "context": "ConstellationFilterBar"
   },
-  "constellationFilterLimitations": "Нет фильтра по усилиям. Место показывает только наличие — не удалённость.",
+  "constellationFilterLimitations": "Нет фильтра по типу потребности. Место показывает только наличие — не удалённость.",
   "@constellationFilterLimitations": {
     "context": "ConstellationFilterBar"
+  },
+  "constellationFiltersTitle": "Фильтры",
+  "@constellationFiltersTitle": {
+    "context": "ConstellationFilterSheet"
+  },
+  "constellationFiltersOpen": "Фильтры",
+  "@constellationFiltersOpen": {
+    "context": "ConstellationAppBar"
   },
   "constellationFilterCapability": "Навык",
   "@constellationFilterCapability": {
@@ -1424,15 +1432,6 @@
   "constellationViewModeText": "Текст",
   "@constellationViewModeText": {
     "context": "ConstellationBody"
-  },
-  "constellationSnapshotLoadedAt": "Загружено {timestamp}",
-  "@constellationSnapshotLoadedAt": {
-    "context": "ConstellationBody",
-    "placeholders": {
-      "timestamp": {
-        "type": "String"
-      }
-    }
   },
   "constellationSelectionUnavailable": "Выбранного запроса больше нет в этом снимке.",
   "@constellationSelectionUnavailable": {

@@ -69,6 +69,7 @@ class ConstellationRequestRecord {
     required this.viewerIsRoomParticipant,
     required this.viewerHasForwardEdge,
     required this.helpOfferCount,
+    this.coverSource = 0,
     this.coverThumb,
   });
 
@@ -87,5 +88,7 @@ class ConstellationRequestRecord {
   final bool viewerIsRoomParticipant;
   final bool viewerHasForwardEdge;
   final int helpOfferCount;
+  /// Wire: 0 = photo, 1 = symbol (matches `beacon.cover_source`).
+  final int coverSource;
   final ImagePublicRecord? coverThumb;
 }

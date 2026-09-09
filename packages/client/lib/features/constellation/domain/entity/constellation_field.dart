@@ -1,4 +1,5 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
+import 'package:tentura_root/domain/entity/beacon_cover_source.dart';
 import 'package:tentura/domain/entity/image_entity.dart';
 
 part 'constellation_field.freezed.dart';
@@ -61,6 +62,7 @@ abstract class ConstellationRequest with _$ConstellationRequest {
     @Default(false) bool viewerIsRoomParticipant,
     @Default(false) bool viewerHasForwardEdge,
     @Default(0) int helpOfferCount,
+    @Default(BeaconCoverSource.photo) BeaconCoverSource coverSource,
     ImageEntity? coverThumb,
   }) = _ConstellationRequest;
 
