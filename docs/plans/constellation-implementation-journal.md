@@ -1126,3 +1126,12 @@ DECISIONS: **Profile/UserNode construction:** build synchronously from the
 REMAINING: UNIT 16 — snapshot lifecycle, action-time validation, and wiring
   real offer/forward submission from the preview sheet (and any server
   `expectedOfferKind` contract). No other gaps from this continuation.
+
+**Overseer: accepted.** Independently re-verified worktree clean, 91/91
+constellation + 214/214 graph tests, lint 32/32 baseline unchanged, and
+spot-checked the three new tap-interaction tests
+(`tapping a request node opens the preview sheet`,
+`dismiss and re-tap reopens the request preview sheet`,
+`tapping a person node opens the discoverable-requests panel`) are
+substantive, not stubs. The map is now genuinely interactive; UNIT 16 can
+proceed.
