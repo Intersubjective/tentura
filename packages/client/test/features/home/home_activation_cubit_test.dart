@@ -323,6 +323,38 @@ void main() {
     expect(cubit.state.activatedLatch, isTrue);
   });
 
+  test(
+    'a proven-activity write during bindAccount hydration is not reverted '
+    'by the trailing preference-read emit',
+    () async {
+      preferences.activated['U1'] = false;
+      final delay = Completer<bool>();
+      preferences.activatedReadDelayUserId = 'U1';
+      preferences.activatedReadDelay = delay;
+
+      final bind = cubit.bindAccount('U1');
+      await _settle(2);
+
+      // A report arrives (and proves activity) while bindAccount's own
+      // isActivated('U1') read is still in flight, captured as `false`.
+      cubit.reportMyWork(
+        accountId: 'U1',
+        myWorkCardCount: 1,
+        draftCount: 0,
+        archivedCountHint: 0,
+        myWorkLoaded: true,
+      );
+      expect(cubit.state.activatedLatch, isTrue);
+
+      delay.complete(false);
+      await bind;
+      await _settle();
+
+      expect(cubit.state.hydrated, isTrue);
+      expect(cubit.state.activatedLatch, isTrue);
+    },
+  );
+
   test('no override shows the panel for a non-active filter', () {
     const settledEmpty = HomeActivationState(
       hydrated: true,

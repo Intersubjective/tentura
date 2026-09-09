@@ -43,10 +43,15 @@ final class HomeActivationCubit extends Cubit<HomeActivationState> {
 
     if (isClosed || generation != _bindGeneration) return;
 
+    // Merge rather than overwrite: a report's own `_maybePersistActivation`
+    // may have already flipped `activatedLatch`/`dismissedLatch` true while
+    // these reads were in flight (both read from the same still-bound
+    // account). Latches are monotonic once true, so `||` never loses a
+    // concurrent write; a plain overwrite here would silently revert one.
     emit(
       state.copyWith(
-        activatedLatch: activated,
-        dismissedLatch: dismissed,
+        activatedLatch: state.activatedLatch || activated,
+        dismissedLatch: state.dismissedLatch || dismissed,
         debugOverride: override,
         hydrated: true,
       ),
