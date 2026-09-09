@@ -30,6 +30,7 @@ Short pointers for agents — read only what your task needs.
 | Doc | Read when |
 |-----|-----------|
 | [`features/beacon_room.md`](features/beacon_room.md) | Threads tab, General/semantic threads, discussion admission, People/Log |
+| [`features/constellation.md`](features/constellation.md) | Constellation map/text field, discoverability, path explanation, filters, limitations |
 | [`features/new-stuff-indicators.md`](features/new-stuff-indicators.md) | Inbox/My Work “new since last visit” dots and pills |
 | [`features/trust_edges.md`](features/trust_edges.md) | Per-context trust source edges, effective projection, MeritRank publish |
 | [`features/mutual-friends.md`](features/mutual-friends.md) | Mutual-friends query on profiles / invite accept |
@@ -38,8 +39,8 @@ Short pointers for agents — read only what your task needs.
 
 | Doc | Read when |
 |-----|-----------|
-| [`plans/constellation-edge-semantics.md`](plans/constellation-edge-semantics.md) | Constellation architecture: ego-centred map of the reachable field of active requests — widened symmetric discoverability read wall, two-tier path algorithm (§5, `ALG-*` clauses), normative for product decisions D1–D17 and UX1–UX10; in implementation (see [`constellation-implementation-plan.md`](plans/constellation-implementation-plan.md)) |
-| [`plans/constellation-implementation-plan.md`](plans/constellation-implementation-plan.md) | Constellation execution plan: 21 ordered units, frozen contracts (§0), migrations m0160–m0163 — in implementation; see [`constellation-implementation-journal.md`](plans/constellation-implementation-journal.md) for progress |
+| [`plans/constellation-edge-semantics.md`](plans/constellation-edge-semantics.md) | Constellation architecture: ego-centred map of the reachable field of active requests — widened symmetric discoverability read wall, two-tier path algorithm (§5, `ALG-*` clauses), normative for product decisions D1–D17 and UX1–UX10 |
+| [`plans/constellation-implementation-plan.md`](plans/constellation-implementation-plan.md) | Constellation execution plan: 21 ordered units, frozen contracts (§0), migrations m0160–m0163 — mechanical implementation complete; pending overseer UX acceptance (UX9); see [`constellation-implementation-journal.md`](plans/constellation-implementation-journal.md) |
 | [`plans/nested-requests-architecture.md`](plans/nested-requests-architecture.md) | Nested requests replacing ask/promise/blocker item threads; General-only product with retained backend thread machinery — architectural proposal, implemented (see journal) |
 | [`plans/nested-requests-implementation-plan.md`](plans/nested-requests-implementation-plan.md) | Detailed nested-request execution plan: adopted visibility/notice defaults, domain/API/storage contracts, 16 ordered tasks, retirement and verification gates — implemented; see [`nested-requests-implementation-journal.md`](plans/nested-requests-implementation-journal.md) for acceptance evidence |
 | [`plans/availability-request-receptiveness-architecture.md`](plans/availability-request-receptiveness-architecture.md) | Availability / request-receptiveness signal (profile + Forward) — architecture rev 3, awaiting sign-off (reviews: [grok](plans/availability-review-grok46.md), [kimi](plans/availability-review-kimik3.md), [codex](plans/availability-review-codex.md)) |

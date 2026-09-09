@@ -25,7 +25,7 @@ Working metaphor: **reactor, not bomb**.
 
 Older iterations assumed feed/discovery, comments, contexts, and broad social-network behavior. The current direction rejects that.
 
-> Tentura v1 is a **feedless, inbox-driven, MR-scoped human relay system for requests**.
+> Tentura v1 is a **feedless, inbox- and field-driven, MR-scoped human relay system for requests**.
 
 - Not Twitter/Facebook/Reddit.
 - Virality is not the main primitive.
@@ -61,16 +61,14 @@ Deferred (not rejected in principle):
 | Tab | Meaning |
 |-----|---------|
 | **My Work** | Beacons I authored and/or offered help on |
-| **Inbox** | Forwarded to me — triage and passive follow |
-| **Updates** | Unread attention receipts and their destinations |
+| **Inbox** | Forwarded to me — triage, watching, and attention receipts |
+| **Constellation** | Discoverable field of active requests among mutually visible peers |
 | **Friends** | Network / forward targets |
 | **Profile** | Capabilities, settings, account |
 
-**Inbox** = push (items brought to me). **My Work** = pull on **my** responsibility.
+**Inbox** = push (items brought to me). **My Work** = pull on **my** responsibility. **Constellation** = pull on the relational field (nobody chose me; I am looking).
 
-**Inbox tabs:** **Needs me** (triage) and **Watching** (passive follow). **Not for me** lives in an **archive**, not a third tab.
-
-**Updates** — dedicated home tab for unread attention receipts; it is not a substitute for Inbox semantics.
+**Inbox tabs:** **Needs me** (triage), **Watching** (passive follow), and **Receipts** (attention history folded from the retired Updates tab). **Not for me** lives in an **archive**, not a third tab.
 
 There is **no** ranked feed, **no** Registry/Group tab, **no** standalone chat tab.
 
@@ -95,6 +93,8 @@ Targeted forwarding is default. Broadcast is escalation, not the norm.
 - **My Work** — I **authored** and/or **offered help**.
 
 Offering help moves responsibility into My Work logic. This split prevents collapse into a passive feed.
+
+**Field membership and held-request state are independent (D16).** A request can appear in Constellation while already held — authored by ego, offered on, forwarded, or joined as a participant — with held state annotated rather than hidden. Actions derive from real involvement state, not from discoverability alone.
 
 On **help-offered** My Work cards, the helper sees an **offer-response state** derived from the display-only `stake_state` projection (awaiting author / accepted / declined / softened / participation ended / exited / closed without response) — not from inventing state out of `response_type` alone after exit or release.
 
@@ -161,7 +161,7 @@ Users can override MR-derived recommendations with scoped consequences.
 
 Forwarding does **not** create general social visibility. Visibility is bounded by MR — specifically by **mutual visibility** (`person_visibility_peers.is_mutually_visible`): each direction must be satisfied, by explicit trust *or* by a positive MeritRank score, and **both** directions must hold. It is **not** bounded by relation to a specific beacon or forward path.
 
-**Discoverability is opt-out (intended behaviour, not yet active).** When Constellation ships, an active beacon will be discoverable by everyone mutually visible with its author unless the author disables discoverability for that beacon. Discovery will confer the same reads and actions as receiving a forward. Discovery is a *field* property, not a *path* property: being able to see a beacon says nothing about who forwarded it, and implies no forwarding, endorsement, or causal credit. Activates with migration **m0162** (plan UNIT 05) after **m0160** / **m0161**. See [`plans/constellation-edge-semantics.md`](plans/constellation-edge-semantics.md) D4/D11/D14.
+**Discoverability is opt-out (active).** An active, published request is discoverable by everyone mutually visible with its author unless the author disables discoverability for that beacon (`is_discoverable`). Discovery confers the same **content** reads and operation eligibility as receiving a forward, but does **not** grant involvement visibility or **discussion admission** by itself. Discovery is a *field* property, not a *path* property: seeing a request says nothing about who forwarded it and implies no endorsement or causal credit. Activated by migrations **m0160** (`is_discoverable`), **m0161** (symmetric `person_are_mutually_visible`), **m0162** (read-wall discoverability clause), and **m0163** (`constellation_trust_edges`). See [`plans/constellation-edge-semantics.md`](plans/constellation-edge-semantics.md) D4/D11/D14 and [`features/constellation.md`](features/constellation.md).
 
 Anti-pattern: “I saw content, therefore a social tie was created.”
 
@@ -182,7 +182,7 @@ Good early environments: neighborhood chats, cohousing/campus, repair/maker circ
 ## 14. Explicit unresolved questions
 
 - Balance between continuous fabric and bounded execution contexts;
-- Exploration without feed logic;
+- Constellation field semantics, residual gaps, and path explanation — see [`plans/constellation-edge-semantics.md`](plans/constellation-edge-semantics.md) and [`features/constellation.md`](features/constellation.md);
 - Anti-lock-in damping;
 - Treasury across resource classes;
 - When/if beacon splits into richer ontology objects;
@@ -203,4 +203,4 @@ Treat as legacy unless deliberately revived:
 
 ## 16. Short version
 
-> Feedless, inbox-driven, MR-scoped human relay for requests: manual forwarding, relational visibility, open help offers, overcommit solved through coordination metadata and General discussion work (plus nested child requests where needed), closure producing private contribution traces, MeritRank hidden as procedural routing — with request detail (Discussion/People/Log) and admitted **discussion** for execution coordination.
+> Feedless, inbox- and field-driven, MR-scoped human relay for requests: manual forwarding, relational visibility, open help offers, overcommit solved through coordination metadata and General discussion work (plus nested child requests where needed), closure producing private contribution traces, MeritRank hidden as procedural routing — with request detail (Discussion/People/Log), admitted **discussion** for execution coordination, and **Constellation** as the bounded relational field of discoverable opportunities.

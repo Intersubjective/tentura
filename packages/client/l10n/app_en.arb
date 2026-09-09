@@ -1149,6 +1149,22 @@
   "@graphLegendToggleNegative": {
     "context": "GraphScreen"
   },
+  "graphLegendConstellationDirectConnection": "Direct connection",
+  "@graphLegendConstellationDirectConnection": {
+    "description": "Constellation legend: tier-1 explicit-trust path edge"
+  },
+  "graphLegendConstellationIndirectConnection": "Indirect connection",
+  "@graphLegendConstellationIndirectConnection": {
+    "description": "Constellation legend: tier-2 derived-trust path edge (dashed)"
+  },
+  "graphLegendConstellationRequestLink": "Request link",
+  "@graphLegendConstellationRequestLink": {
+    "description": "Constellation legend: author-to-request satellite attachment"
+  },
+  "graphLegendConstellationWiderNetworkReach": "Wider network reach",
+  "@graphLegendConstellationWiderNetworkReach": {
+    "description": "Constellation legend: residual-ring peer with no drawn path (dashed)"
+  },
   "graphLegendEdgeMutual": "One line — mutual trust (highlights flow both ways)",
   "@graphLegendEdgeMutual": {
     "context": "GraphScreen"

@@ -1149,6 +1149,22 @@
   "@graphLegendToggleNegative": {
     "context": "GraphScreen"
   },
+  "graphLegendConstellationDirectConnection": "Прямая связь",
+  "@graphLegendConstellationDirectConnection": {
+    "context": "GraphScreen"
+  },
+  "graphLegendConstellationIndirectConnection": "Косвенная связь",
+  "@graphLegendConstellationIndirectConnection": {
+    "context": "GraphScreen"
+  },
+  "graphLegendConstellationRequestLink": "Ссылка на запрос",
+  "@graphLegendConstellationRequestLink": {
+    "context": "GraphScreen"
+  },
+  "graphLegendConstellationWiderNetworkReach": "Широкий охват сети",
+  "@graphLegendConstellationWiderNetworkReach": {
+    "context": "GraphScreen"
+  },
   "graphLegendEdgeMutual": "Одна линия — взаимное доверие (подсветки идут в обе стороны)",
   "@graphLegendEdgeMutual": {
     "context": "GraphScreen"

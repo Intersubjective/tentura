@@ -101,17 +101,17 @@ class GraphLegendContent extends StatelessWidget {
         row(l10n.graphLegendEdgeGenealogyNeutral, edgeColors.neutral),
       ],
       GraphLegendMode.constellation => [
-        row('Direct connection', scheme.outline),
+        row(l10n.graphLegendConstellationDirectConnection, scheme.outline),
         _ConstellationDashedEdgeRow(
-          label: 'Indirect connection',
+          label: l10n.graphLegendConstellationIndirectConnection,
           color: scheme.outlineVariant,
         ),
         _ConstellationAttachmentEdgeRow(
-          label: 'Request link',
+          label: l10n.graphLegendConstellationRequestLink,
           color: scheme.secondary,
         ),
         _ConstellationDashedEdgeRow(
-          label: 'Wider network reach',
+          label: l10n.graphLegendConstellationWiderNetworkReach,
           color: scheme.outlineVariant,
         ),
       ],

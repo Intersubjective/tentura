@@ -149,7 +149,7 @@ is triggered.
 - [x] 17 — Filter bar, grouping, stable anchors
 - [x] 18 — Accessible Map/Text switch
 - [x] 19 — Author discoverability toggle + reach statement
-- [ ] 20 — Version bump, docs activation, UX acceptance
+- [x] 20 — Version bump, docs activation, UX acceptance
 
 Parallelizable per plan: {08, 09, 10} after 08's contracts land; {13} alongside
 03–07; {19} after 03. Overseer note: this journal still processes them in
@@ -1301,3 +1301,72 @@ opting out of") is genuinely met via edit mode, and reusable
 mount if wanted, so this is a product-completeness question, not a
 correctness gap — not fixing it unilaterally. Flagging for UNIT 20's UX
 acceptance pass to decide, rather than treating it as blocking.
+
+---
+
+## UNIT 20 — complete — 2026-09-09
+
+**Scope split (UX9):** this worker did **not** conduct the task-based human
+user study (UX9). That requires a real human tester and browser-automation
+tooling the overseer runs separately after this unit lands. This entry records
+fixture **constructibility** in `docs/features/constellation.md` § *UX
+acceptance fixtures* and leaves the study task, measured times, and acceptance
+record for the overseer to fill in.
+
+COMMITS: (this unit's commit, staged next)
+TESTS: `cd packages/client && flutter gen-l10n` — exit 0;
+  `cd packages/client && flutter build web` — exit 0 (`flutter_bootstrap.js?v=7.2.0`);
+  `cd packages/client && flutter test` — 2872 passed, 30 skipped, **1 failed**
+  (`test/features/beacon_threads/request_threads_adaptive_test.dart`: Log adaptive
+  plan row in Activity sheet opens General and scrolls to sourceMessageId —
+  ambiguous `PopupMenuButton` tap; pre-existing, outside this unit's owns list,
+  unrelated to Constellation);
+  `cd packages/server && dart test` — 2255 passed, 2 skipped, **24 failed**
+  (4 named + 20 more; includes the ~22 pre-existing pg-tagged ambient failures
+  when Postgres is reachable — count matches journal baseline, not a regression);
+  `cd packages/server && dart test -x pg` — 1675 passed, **1 failed**
+  (`test/domain/use_case/beacon_room_admission_matrix_test.dart`: direct forward
+  does not auto-admit — pre-existing COV-051 matrix, outside this unit);
+  `cd packages/server && dart test -t pg -j 1` — 575 passed, 2 skipped, **23 failed**
+  (within journal baseline ~22; named: `beacon_hierarchy_hasura_parity_test.dart`,
+  `beacon_cover_migration_test.dart`, `m0149_resolution_removal_migration_test.dart`,
+  `realtime_notification_migration_test.dart`, plus 19 more — same pre-existing set);
+  `./scripts/check-custom-lints.sh packages/client` — exit 0 (32/32 baseline unchanged);
+  `./scripts/check-custom-lints.sh packages/server` — exit 0 (baseline 0);
+  `bash scripts/check-user-facing-terminology.sh` — exit 0;
+  `git status --short packages/client/web/index.html` — ` M` (cache-buster 7.2.0)
+FILES: packages/client/pubspec.yaml (7.2.0),
+  packages/client/web/index.html,
+  packages/client/l10n/app_en.arb,
+  packages/client/l10n/app_ru.arb,
+  packages/client/lib/features/graph/ui/widget/graph_legend_content.dart,
+  docs/Tentura_current_status_quo.md,
+  CONTEXT.md,
+  docs/features/constellation.md (new),
+  docs/README.md,
+  docs/plans/constellation-implementation-journal.md
+FINDINGS: Client version was 7.1.5 at unit start; `kDefaultMinClientVersion`
+  left at 7.0.0 per plan (additive schema only). §5 surface table in status-quo
+  still listed Updates — reconciled to shipped five-tab shape (Constellation at
+  index 2, Receipts under Inbox). Out-of-scope items from plan §5 (mr_graph
+  paths, nav badges, score ordering, involvement widening, etc.) did not creep
+  in across units 00–19 per journal review.
+DECISIONS: **UNIT 12 legend l10n gap — fixed in this unit** (plan allowed fix
+  or document-only): four keys added to `app_en.arb`/`app_ru.arb`
+  (`graphLegendConstellationDirectConnection`, `…IndirectConnection`,
+  `…RequestLink`, `…WiderNetworkReach`) and wired in
+  `graph_legend_content.dart` — removes the orphaned inline-English gap before
+  doc activation. **UNIT 19 view-surface gap — documented, not built:** authors
+  change discoverability via create/edit only; recorded in
+  `docs/features/constellation.md` limitations §9 (product-completeness note,
+  acceptance criterion met via edit). **UX9 study — explicitly deferred to
+  overseer** (see scope split above). Plan mechanical work across 21 units is
+  complete; **plan acceptance is not declared here** — pending overseer UX9
+  pass and acceptance record.
+REMAINING: **UX acceptance (UX9)** — overseer conducts task-based study using
+  fixtures documented in `docs/features/constellation.md`; records completion
+  times, taps, mistaken-endorsement incidents, stale-recovery, and
+  keyboard/screen-reader tasks; fills acceptance into journal when done.
+  **Discoverability on published request view** — optional future mount of
+  `BeaconDiscoverabilityControl` on `beacon_view` (not blocking). Pre-existing
+  test failures listed above remain out of scope for this plan.
