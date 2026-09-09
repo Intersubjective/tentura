@@ -10,8 +10,48 @@ import 'package:tentura/features/constellation/domain/use_case/constellation_fie
 import 'package:tentura/features/constellation/ui/bloc/constellation_cubit.dart';
 import 'package:tentura/features/constellation/ui/widget/constellation_body.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:tentura/features/graph/ui/bloc/graph_person_context_cubit.dart';
 import 'package:tentura/features/graph/ui/widget/graph_node_widget.dart';
+import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/test_ids.dart';
+
+import '../../ui/effect/fake_ui_effect_port.dart';
+
+class _StubContextCubit extends Cubit<GraphPersonContextState>
+    implements GraphPersonContextCubit {
+  _StubContextCubit() : super(const GraphPersonContextState());
+
+  @override
+  final void Function(Profile profile)? onProfilePatched = null;
+
+  @override
+  void selectProfile(Profile profile, {required bool intentional}) {
+    emit(
+      state.copyWith(
+        selectedProfile: profile,
+        dismissedFocusId: null,
+      ),
+    );
+  }
+
+  @override
+  void dismiss() {
+    final id = state.selectedProfile?.id;
+    if (id == null || id.isEmpty) {
+      return;
+    }
+    emit(state.copyWith(dismissedFocusId: id));
+  }
+
+  @override
+  Future<void> trustSelected() async {}
+
+  @override
+  void clearSelection() {
+    emit(const GraphPersonContextState());
+  }
+}
 
 const _ego = Profile(id: 'ego', displayName: 'Ego');
 
@@ -48,8 +88,16 @@ Future<void> _pumpBody(WidgetTester tester, ConstellationCubit cubit) async {
       localizationsDelegates: L10n.localizationsDelegates,
       supportedLocales: L10n.supportedLocales,
       home: TenturaResponsiveScope(
-        child: BlocProvider<ConstellationCubit>.value(
-          value: cubit,
+        child: MultiBlocProvider(
+          providers: [
+            BlocProvider<ConstellationCubit>.value(value: cubit),
+            BlocProvider<GraphPersonContextCubit>(
+              create: (_) => _StubContextCubit(),
+            ),
+            BlocProvider<ScreenCubit>(
+              create: (_) => ScreenCubit(FakeUiEffectPort()),
+            ),
+          ],
           child: ConstellationBody(
             legendExpanded: false,
             onToggleLegend: () {},
@@ -61,6 +109,11 @@ Future<void> _pumpBody(WidgetTester tester, ConstellationCubit cubit) async {
   await tester.pump();
   await tester.pump(const Duration(milliseconds: 400));
 }
+
+Finder _requestNodeFinder() => find.byKey(TestIds.key(TestIds.graphNode('req-a')));
+
+Finder _personNodeFinder(String personId) =>
+    find.byKey(TestIds.key(TestIds.graphNode(personId)));
 
 void main() {
   group('Constellation graph edges', () {
@@ -224,6 +277,115 @@ void main() {
         cubit.edgeKinds['a\0req-a'],
         ConstellationEdgeKind.attachment,
       );
+    });
+
+    testWidgets('tapping a request node opens the preview sheet', (
+      tester,
+    ) async {
+      final cubit = await _loadCubit(
+        ConstellationField(
+          loadedAt: DateTime.utc(2026, 9, 9),
+          context: '',
+          peers: [const ConstellationPerson(id: 'a', displayName: 'Ann')],
+          edges: [
+            const ConstellationTrustEdgeEntity(src: 'ego', dst: 'a', tier: 1),
+          ],
+          requests: [
+            const ConstellationRequest(
+              id: 'req-a',
+              authorId: 'a',
+              title: 'Need tools',
+              status: 0,
+            ),
+          ],
+        ),
+      );
+
+      await _pumpBody(tester, cubit);
+
+      await tester.tap(_requestNodeFinder());
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+
+      expect(find.byKey(const Key('constellation.request_preview')), findsOneWidget);
+      expect(find.text('Need tools'), findsWidgets);
+      expect(find.text('By Ann'), findsOneWidget);
+    });
+
+    testWidgets('dismiss and re-tap reopens the request preview sheet', (
+      tester,
+    ) async {
+      final cubit = await _loadCubit(
+        ConstellationField(
+          loadedAt: DateTime.utc(2026, 9, 9),
+          context: '',
+          peers: [const ConstellationPerson(id: 'a', displayName: 'Ann')],
+          edges: [
+            const ConstellationTrustEdgeEntity(src: 'ego', dst: 'a', tier: 1),
+          ],
+          requests: [
+            const ConstellationRequest(
+              id: 'req-a',
+              authorId: 'a',
+              title: 'Need tools',
+              status: 0,
+            ),
+          ],
+        ),
+      );
+
+      await _pumpBody(tester, cubit);
+
+      await tester.tap(_requestNodeFinder());
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(find.byKey(const Key('constellation.request_preview')), findsOneWidget);
+
+      await tester.tapAt(const Offset(20, 20));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(find.byKey(const Key('constellation.request_preview')), findsNothing);
+      expect(cubit.state.selectedRequestId, isNull);
+
+      await tester.tap(_requestNodeFinder());
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 300));
+      expect(find.byKey(const Key('constellation.request_preview')), findsOneWidget);
+    });
+
+    testWidgets('tapping a person node opens the discoverable-requests panel', (
+      tester,
+    ) async {
+      final cubit = await _loadCubit(
+        ConstellationField(
+          loadedAt: DateTime.utc(2026, 9, 9),
+          context: '',
+          peers: [const ConstellationPerson(id: 'a', displayName: 'Ann')],
+          edges: [
+            const ConstellationTrustEdgeEntity(src: 'ego', dst: 'a', tier: 1),
+          ],
+          requests: [
+            const ConstellationRequest(
+              id: 'req-a',
+              authorId: 'a',
+              title: 'Need tools',
+              status: 0,
+            ),
+          ],
+        ),
+      );
+
+      await _pumpBody(tester, cubit);
+
+      await tester.tap(_personNodeFinder('a'));
+      await tester.pump();
+
+      expect(
+        find.byKey(TestIds.key(TestIds.graphPersonContextPanel)),
+        findsOneWidget,
+      );
+      expect(find.text('Ann'), findsWidgets);
+      expect(find.textContaining('Show 1 request'), findsOneWidget);
     });
   });
 }

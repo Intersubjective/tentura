@@ -4,7 +4,10 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:get_it/get_it.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
+import 'package:tentura/features/graph/ui/bloc/graph_person_context_cubit.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
+import 'package:tentura/features/profile_view/domain/use_case/profile_view_case.dart';
+import 'package:tentura/ui/utils/ui_utils.dart';
 
 import '../../domain/use_case/constellation_field_case.dart';
 import '../bloc/constellation_cubit.dart';
@@ -15,12 +18,23 @@ class ConstellationScreen extends StatefulWidget implements AutoRouteWrapper {
   const ConstellationScreen({super.key});
 
   @override
-  Widget wrappedRoute(BuildContext context) => BlocProvider(
-    create: (_) => ConstellationCubit(
-      case_: GetIt.I<ConstellationFieldCase>(),
-      viewer: GetIt.I<ProfileCubit>().state.profile,
+  Widget wrappedRoute(BuildContext context) => localScreenCubitScope(
+    child: BlocProvider(
+      create: (_) => ConstellationCubit(
+        case_: GetIt.I<ConstellationFieldCase>(),
+        viewer: GetIt.I<ProfileCubit>().state.profile,
+      ),
+      child: BlocProvider(
+        create: (context) {
+          final viewer = GetIt.I<ProfileCubit>().state.profile;
+          return GraphPersonContextCubit(
+            profileViewCase: GetIt.I<ProfileViewCase>(),
+            viewerId: viewer.id,
+          );
+        },
+        child: this,
+      ),
     ),
-    child: this,
   );
 
   @override

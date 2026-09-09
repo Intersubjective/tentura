@@ -85,12 +85,94 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     }
   }
 
+  String get viewerId => _viewer.id;
+
+  Profile get viewer => _viewer;
+
   void selectRequest(String? requestId) {
     if (isClosed) {
       return;
     }
     emit(state.copyWith(selectedRequestId: requestId));
   }
+
+  void selectPerson(String? personId) {
+    if (isClosed) {
+      return;
+    }
+    emit(state.copyWith(selectedPersonId: personId));
+  }
+
+  void togglePersonRequestsExpanded(String personId) {
+    if (isClosed) {
+      return;
+    }
+    final expanded = Set<String>.from(state.expandedPersonIds);
+    if (expanded.contains(personId)) {
+      expanded.remove(personId);
+    } else {
+      expanded.add(personId);
+    }
+    emit(state.copyWith(expandedPersonIds: expanded));
+  }
+
+  ConstellationRequest? requestById(String requestId) {
+    final field = state.field;
+    if (field == null) {
+      return null;
+    }
+    for (final request in field.requests) {
+      if (request.id == requestId) {
+        return request;
+      }
+    }
+    return null;
+  }
+
+  Profile? profileForPersonId(String personId) {
+    if (personId == _viewer.id) {
+      return _viewer;
+    }
+    final field = state.field;
+    if (field == null) {
+      return null;
+    }
+    for (final peer in field.peers) {
+      if (peer.id == personId) {
+        return _profileFromPeer(peer);
+      }
+    }
+    return null;
+  }
+
+  List<ConstellationRequest> discoverableRequestsForPerson(String personId) {
+    final field = state.field;
+    if (field == null) {
+      return const [];
+    }
+    final visibleRequestIds = _visibleRequestIds(field);
+    return [
+      for (final request in field.requests)
+        if (request.authorId == personId && visibleRequestIds.contains(request.id))
+          request,
+    ]..sort((a, b) => a.id.compareTo(b.id));
+  }
+
+  Set<String> _visibleRequestIds(ConstellationField field) => filterRequestIds(
+    requests: field.requests.map(
+      (request) => (
+        id: request.id,
+        needs: request.needs.toSet(),
+        primaryNeedSlug: request.primaryNeedSlug,
+        startAt: request.startAt,
+        endAt: request.endAt,
+        addressLabel: request.addressLabel,
+        hasCoordinates: request.hasCoordinates,
+      ),
+    ),
+    filters: state.filters,
+    asOfUtc: DateTime.now().toUtc(),
+  );
 
   void _rebuildGraph() {
     final field = state.field;
@@ -102,21 +184,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     }
 
     final peersById = {for (final peer in field.peers) peer.id: peer};
-    final visibleRequestIds = filterRequestIds(
-      requests: field.requests.map(
-        (request) => (
-          id: request.id,
-          needs: request.needs.toSet(),
-          primaryNeedSlug: request.primaryNeedSlug,
-          startAt: request.startAt,
-          endAt: request.endAt,
-          addressLabel: request.addressLabel,
-          hasCoordinates: request.hasCoordinates,
-        ),
-      ),
-      filters: state.filters,
-      asOfUtc: DateTime.now().toUtc(),
-    );
+    final visibleRequestIds = _visibleRequestIds(field);
 
     final visibleRequests = [
       for (final request in field.requests)
@@ -248,5 +316,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
   Profile _profileFromPeer(ConstellationPerson peer) => Profile(
     id: peer.id,
     displayName: peer.displayName ?? '',
+    handle: peer.handle ?? '',
+    image: peer.image,
   );
 }

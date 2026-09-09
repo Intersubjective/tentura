@@ -1090,3 +1090,39 @@ person-selection method, and to render the preview sheet / person panel in
 response, following `graph_body.dart`'s existing `_onNodeTap` +
 `GraphPersonContextPanel` pattern. See the follow-up entry below for the
 outcome.
+
+---
+
+## UNIT 15 continuation — wire node taps — complete — 2026-09-09
+COMMITS: (this unit's commit, staged next)
+TESTS: `cd packages/client && dart run build_runner build -d` — exit 0;
+  `cd packages/client && flutter test test/features/constellation/` — 91/91 passed;
+  `cd packages/client && flutter test test/features/graph/` — 214/214 passed;
+  `./scripts/check-custom-lints.sh packages/client` — exit 0 (32/32 baseline unchanged)
+FILES: packages/client/lib/features/constellation/ui/widget/constellation_body.dart,
+  packages/client/lib/features/constellation/ui/bloc/constellation_cubit.dart,
+  packages/client/lib/features/constellation/ui/bloc/constellation_state.dart,
+  packages/client/lib/features/constellation/ui/screen/constellation_screen.dart,
+  packages/client/test/features/constellation/constellation_body_test.dart,
+  docs/plans/constellation-implementation-journal.md
+FINDINGS: none — `expandedPersonIds` in UNIT 12 state was already the right
+  shape for per-person discoverable-request expand/collapse; selection needed a
+  separate `selectedPersonId`. `GraphPersonContextPanel` still requires
+  `GraphPersonContextCubit` + `ScreenCubit` in the subtree (close/trust/profile
+  actions); constellation screen now provides both via `localScreenCubitScope`
+  and a route-local `GraphPersonContextCubit`, matching graph screen wiring.
+DECISIONS: **Profile/UserNode construction:** build synchronously from the
+  one-shot field snapshot — `FieldPersonNode.person` / `ConstellationPerson`
+  → `Profile` (id, displayName, handle, image) and `UserNode(user: profile)`
+  with no `GraphPersonContextCubit` async profile fetch. Constellation's field
+  is a single upfront load (D15), not the paginated trust-graph focus model.
+  **Preview-sheet actions:** `onOpen` and held-state primaries that mean "open
+  request" (`mine`/`participant`/`forwarded`/`offered`) navigate to
+  `BeaconViewRoute` — fully wired. `onPrimaryAction` for `heldState.none`
+  (offer help / backup) is a deliberate no-op placeholder for UNIT 16's
+  validated action-time flow. `onForward` is a visible no-op placeholder (empty
+  callback) so the forward affordance renders but does not submit — UNIT 16
+  owns real forward validation/submission.
+REMAINING: UNIT 16 — snapshot lifecycle, action-time validation, and wiring
+  real offer/forward submission from the preview sheet (and any server
+  `expectedOfferKind` contract). No other gaps from this continuation.

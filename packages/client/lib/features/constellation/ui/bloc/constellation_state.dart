@@ -29,6 +29,7 @@ abstract class ConstellationState extends StateBase with _$ConstellationState {
     @Default(TimingFilterAny()) TimingFilter filterTiming,
     @Default(true) bool filterIncludeUnspecified,
     @Default(<String>{}) Set<String> expandedPersonIds,
+    String? selectedPersonId,
     String? selectedRequestId,
     @Default(ConstellationViewMode.map) ConstellationViewMode viewMode,
     @Default(0) int graphRevision,

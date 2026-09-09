@@ -1,21 +1,30 @@
+import 'dart:async';
 import 'dart:math' as math;
 
+import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:force_directed_graphview/force_directed_graphview.dart';
 
+import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/features/graph/domain/entity/edge_details.dart';
 import 'package:tentura/features/graph/domain/entity/node_details.dart';
+import 'package:tentura/features/graph/ui/bloc/graph_person_context_cubit.dart';
 import 'package:tentura/features/graph/ui/utils/tentura_layout_algorithms.dart';
 import 'package:tentura/features/graph/ui/widget/graph_legend_mode.dart';
 import 'package:tentura/features/graph/ui/widget/graph_legend_panel.dart';
 import 'package:tentura/features/graph/ui/widget/graph_node_widget.dart';
+import 'package:tentura/features/graph/ui/widget/graph_person_context_panel.dart';
+import 'package:tentura/ui/test_ids.dart';
 import 'package:tentura/ui/widget/linear_pi_active.dart';
 
+import '../../domain/entity/constellation_field.dart';
 import '../bloc/constellation_cubit.dart';
+import 'constellation_request_label.dart';
+import 'constellation_request_preview_sheet.dart';
 
-class ConstellationBody extends StatelessWidget {
+class ConstellationBody extends StatefulWidget {
   const ConstellationBody({
     required this.legendExpanded,
     required this.onToggleLegend,
@@ -28,134 +37,348 @@ class ConstellationBody extends StatelessWidget {
   static const _canvasSize = GraphCanvasSize.fixed(Size(4096, 4096));
 
   @override
-  Widget build(BuildContext context) {
-    return BlocBuilder<ConstellationCubit, ConstellationState>(
-      buildWhen: (previous, current) =>
-          previous.status != current.status ||
-          previous.graphRevision != current.graphRevision ||
-          previous.loadError != current.loadError,
-      builder: (context, state) {
-        final cubit = context.read<ConstellationCubit>();
-        final tt = context.tt;
+  State<ConstellationBody> createState() => _ConstellationBodyState();
+}
 
-        if (state.status is StateIsLoading && state.field == null) {
+class _ConstellationBodyState extends State<ConstellationBody> {
+  void _onNodeTap(BuildContext context, ConstellationCubit cubit, NodeDetails node) {
+    switch (node) {
+      case FieldPersonNode(:final person):
+        if (person.id == cubit.viewerId) {
+          return;
+        }
+        cubit.selectPerson(person.id);
+        context.read<GraphPersonContextCubit>().selectProfile(
+          person,
+          intentional: true,
+        );
+      case FieldRequestNode(:final request):
+        cubit.selectRequest(request.id);
+      default:
+        break;
+    }
+  }
+
+  Future<void> _showRequestPreview(
+    BuildContext context,
+    ConstellationCubit cubit,
+    ConstellationRequest request,
+  ) async {
+    final state = cubit.state;
+    final author = cubit.profileForPersonId(request.authorId);
+    final authorDisplayName = author?.shownName ?? '';
+    final paths = state.paths;
+    final throughPeerId = paths == null
+        ? null
+        : constellationConnectionThroughPeerId(
+            egoId: cubit.viewerId,
+            authorId: request.authorId,
+            parent: paths.parent,
+          );
+    final connectionThroughName = throughPeerId == null
+        ? null
+        : cubit.profileForPersonId(throughPeerId)?.shownName;
+
+    await showConstellationRequestPreviewSheet(
+      context: context,
+      request: request,
+      authorDisplayName: authorDisplayName,
+      connectionThroughName: connectionThroughName,
+      onOpen: () => _openBeacon(context, request.id),
+      onPrimaryAction: _primaryActionForRequest(context, request),
+      onForward: constellationPreviewShowsForward(request)
+          ? () {}
+          : null,
+    );
+    if (!context.mounted) {
+      return;
+    }
+    cubit.selectRequest(null);
+  }
+
+  void _openBeacon(BuildContext context, String beaconId) {
+    unawaited(context.router.push(BeaconViewRoute(id: beaconId)));
+  }
+
+  VoidCallback _primaryActionForRequest(
+    BuildContext context,
+    ConstellationRequest request,
+  ) {
+    return switch (request.heldState) {
+      ConstellationHeldState.mine ||
+      ConstellationHeldState.participant ||
+      ConstellationHeldState.forwarded ||
+      ConstellationHeldState.offered => () => _openBeacon(context, request.id),
+      ConstellationHeldState.none => () {},
+    };
+  }
+
+  Widget _buildPersonContextOverlay(
+    BuildContext context,
+    ConstellationCubit cubit,
+    ConstellationState state,
+  ) {
+    final personId = state.selectedPersonId;
+    if (personId == null || personId == cubit.viewerId) {
+      return const SizedBox.shrink();
+    }
+
+    final profile = cubit.profileForPersonId(personId);
+    if (profile == null) {
+      return const SizedBox.shrink();
+    }
+
+    final tt = context.tt;
+    final panel = GraphPersonContextPanel(
+      profile: profile,
+      focusedNode: UserNode(user: profile),
+      discoverableRequests: cubit.discoverableRequestsForPerson(personId),
+      requestsExpanded: state.expandedPersonIds.contains(personId),
+      onToggleRequestsExpanded: () =>
+          cubit.togglePersonRequestsExpanded(personId),
+      onDiscoverableRequestTap: (request) {
+        cubit.selectPerson(null);
+        cubit.selectRequest(request.id);
+      },
+    );
+
+    if (context.windowClass == WindowClass.compact) {
+      return Positioned(
+        left: tt.screenHPadding,
+        right: tt.screenHPadding,
+        bottom: 0,
+        child: SafeArea(
+          top: false,
+          child: Padding(
+            padding: EdgeInsets.only(bottom: tt.rowGap),
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                maxHeight:
+                    MediaQuery.sizeOf(context).height *
+                    tt.graphPersonContextCompactMaxHeightFraction,
+              ),
+              child: panel,
+            ),
+          ),
+        ),
+      );
+    }
+
+    return Positioned(
+      top: tt.rowGap,
+      right: tt.screenHPadding,
+      bottom: tt.rowGap,
+      width: tt.graphPersonContextWidth,
+      child: SafeArea(
+        left: false,
+        child: panel,
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return MultiBlocListener(
+      listeners: [
+        BlocListener<ConstellationCubit, ConstellationState>(
+          listenWhen: (previous, current) =>
+              previous.selectedRequestId != current.selectedRequestId,
+          listener: (context, state) {
+            final requestId = state.selectedRequestId;
+            if (requestId == null) {
+              return;
+            }
+            final cubit = context.read<ConstellationCubit>();
+            final request = cubit.requestById(requestId);
+            if (request == null) {
+              cubit.selectRequest(null);
+              return;
+            }
+            unawaited(_showRequestPreview(context, cubit, request));
+          },
+        ),
+        BlocListener<GraphPersonContextCubit, GraphPersonContextState>(
+          listenWhen: (previous, current) =>
+              previous.dismissedFocusId != current.dismissedFocusId &&
+              current.dismissedFocusId != null,
+          listener: (context, state) {
+            context.read<ConstellationCubit>().selectPerson(null);
+          },
+        ),
+      ],
+      child: BlocBuilder<ConstellationCubit, ConstellationState>(
+        buildWhen: (previous, current) =>
+            previous.status != current.status ||
+            previous.graphRevision != current.graphRevision ||
+            previous.loadError != current.loadError ||
+            previous.selectedPersonId != current.selectedPersonId ||
+            previous.expandedPersonIds != current.expandedPersonIds,
+        builder: (context, state) {
+          final cubit = context.read<ConstellationCubit>();
+          final tt = context.tt;
+
+          if (state.status is StateIsLoading && state.field == null) {
+            return Stack(
+              fit: StackFit.expand,
+              children: [
+                const Center(child: CircularProgressIndicator()),
+                Positioned(
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  child: LinearPiActive.builder(context, true),
+                ),
+              ],
+            );
+          }
+
+          if (state.loadError != null && state.field == null) {
+            return Center(
+              child: Padding(
+                padding: EdgeInsets.symmetric(horizontal: tt.screenHPadding),
+                child: Text(
+                  state.loadError.toString(),
+                  style: Theme.of(context).textTheme.bodyMedium,
+                ),
+              ),
+            );
+          }
+
+          final resolved = state.resolvedField;
+          if (resolved == null || cubit.layoutEgoId.isEmpty) {
+            return const SizedBox.shrink();
+          }
+
+          final layoutAlgorithm = ConstellationLayoutAlgorithm(
+            egoId: cubit.layoutEgoId,
+            paths: resolved.paths,
+            keptPeerIds: resolved.keptPeerIds,
+            maxHops: kConstellationLayoutMaxHops,
+            visibleRequestsByAuthor: cubit.layoutVisibleRequestsByAuthor,
+            egoOwnRequestIds: cubit.layoutEgoOwnRequestIds,
+          );
+
+          final panelVisible = state.selectedPersonId != null;
+
           return Stack(
             fit: StackFit.expand,
             children: [
-              const Center(child: CircularProgressIndicator()),
-              Positioned(
-                top: 0,
-                left: 0,
-                right: 0,
-                child: LinearPiActive.builder(context, true),
-              ),
-            ],
-          );
-        }
-
-        if (state.loadError != null && state.field == null) {
-          return Center(
-            child: Padding(
-              padding: EdgeInsets.symmetric(horizontal: tt.screenHPadding),
-              child: Text(
-                state.loadError.toString(),
-                style: Theme.of(context).textTheme.bodyMedium,
-              ),
-            ),
-          );
-        }
-
-        final resolved = state.resolvedField;
-        if (resolved == null || cubit.layoutEgoId.isEmpty) {
-          return const SizedBox.shrink();
-        }
-
-        final layoutAlgorithm = ConstellationLayoutAlgorithm(
-          egoId: cubit.layoutEgoId,
-          paths: resolved.paths,
-          keptPeerIds: resolved.keptPeerIds,
-          maxHops: kConstellationLayoutMaxHops,
-          visibleRequestsByAuthor: cubit.layoutVisibleRequestsByAuthor,
-          egoOwnRequestIds: cubit.layoutEgoOwnRequestIds,
-        );
-
-        return Stack(
-          fit: StackFit.expand,
-          children: [
-            GraphView<NodeDetails, EdgeDetails<NodeDetails>>(
-              controller: cubit.graphController,
-              canvasSize: _canvasSize,
-              minScale: 0.1,
-              maxScale: 3,
-              layoutAlgorithm: layoutAlgorithm,
-              layoutTransitionDuration: const Duration(milliseconds: 350),
-              edgePainter: ConstellationEdgePainter(
-                edgeKinds: cubit.edgeKinds,
-                colorScheme: Theme.of(context).colorScheme,
-              ),
-              labelBuilder: BottomLabelBuilder(
-                labelSize: const Size(100, 20),
-                builder: (_, node) => switch (node) {
-                  FieldPersonNode(:final person) => Text(
-                    person.shownName,
-                    textAlign: TextAlign.center,
-                    overflow: TextOverflow.ellipsis,
-                    style: TenturaText.labelSmall(
-                      Theme.of(context).colorScheme.onSurface,
+              GraphView<NodeDetails, EdgeDetails<NodeDetails>>(
+                controller: cubit.graphController,
+                canvasSize: ConstellationBody._canvasSize,
+                minScale: 0.1,
+                maxScale: 3,
+                layoutAlgorithm: layoutAlgorithm,
+                layoutTransitionDuration: const Duration(milliseconds: 350),
+                edgePainter: ConstellationEdgePainter(
+                  edgeKinds: cubit.edgeKinds,
+                  colorScheme: Theme.of(context).colorScheme,
+                ),
+                labelBuilder: BottomLabelBuilder(
+                  labelSize: const Size(100, 20),
+                  builder: (_, node) => switch (node) {
+                    FieldPersonNode(:final person) => Text(
+                      person.shownName,
+                      textAlign: TextAlign.center,
+                      overflow: TextOverflow.ellipsis,
+                      style: TenturaText.labelSmall(
+                        Theme.of(context).colorScheme.onSurface,
+                      ),
                     ),
+                    FieldRequestNode(:final request) => Text(
+                      request.title,
+                      textAlign: TextAlign.center,
+                      overflow: TextOverflow.ellipsis,
+                      style: TenturaText.labelSmall(
+                        Theme.of(context).colorScheme.onSurface,
+                      ),
+                    ),
+                    _ => const SizedBox.shrink(),
+                  },
+                ),
+                nodeBuilder: (_, node) => switch (node) {
+                  FieldPersonNode(:final ring) => GraphNodeWidget(
+                    key: TestIds.key(TestIds.graphNode(node.id)),
+                    nodeDetails: node,
+                    hiddenNeighborCount: null,
+                    isOrigin: ring == 0,
+                    isFocused:
+                        panelVisible && node.id == state.selectedPersonId,
+                    onTap: () => _onNodeTap(context, cubit, node),
                   ),
-                  FieldRequestNode(:final request) => Text(
-                    request.title,
-                    textAlign: TextAlign.center,
-                    overflow: TextOverflow.ellipsis,
-                    style: TenturaText.labelSmall(
-                      Theme.of(context).colorScheme.onSurface,
-                    ),
+                  FieldRequestNode() => GraphNodeWidget(
+                    key: TestIds.key(TestIds.graphNode(node.id)),
+                    nodeDetails: node,
+                    hiddenNeighborCount: null,
+                    onTap: () => _onNodeTap(context, cubit, node),
                   ),
                   _ => const SizedBox.shrink(),
                 },
               ),
-              nodeBuilder: (_, node) => switch (node) {
-                FieldPersonNode(:final ring) => GraphNodeWidget(
-                  nodeDetails: node,
-                  hiddenNeighborCount: null,
-                  isOrigin: ring == 0,
-                ),
-                FieldRequestNode() => GraphNodeWidget(
-                  nodeDetails: node,
-                  hiddenNeighborCount: null,
-                ),
-                _ => const SizedBox.shrink(),
-              },
-            ),
-            Positioned(
-              top: 0,
-              left: 0,
-              right: 0,
-              child: LinearPiActive.builder(
-                context,
-                state.status is StateIsLoading,
-              ),
-            ),
-            if (legendExpanded)
               Positioned(
+                top: 0,
                 left: 0,
-                bottom: 0,
-                child: SafeArea(
-                  right: false,
-                  child: Padding(
-                    padding: EdgeInsets.all(tt.rowGap),
-                    child: GraphLegendPanel(
-                      mode: GraphLegendMode.constellation,
-                      expanded: true,
-                      onToggle: onToggleLegend,
+                right: 0,
+                child: LinearPiActive.builder(
+                  context,
+                  state.status is StateIsLoading,
+                ),
+              ),
+              if (widget.legendExpanded)
+                Positioned(
+                  left: 0,
+                  bottom: panelVisible && context.windowClass == WindowClass.compact
+                      ? null
+                      : 0,
+                  top: panelVisible && context.windowClass == WindowClass.compact
+                      ? 0
+                      : null,
+                  child: SafeArea(
+                    top: panelVisible && context.windowClass == WindowClass.compact,
+                    bottom:
+                        !(panelVisible && context.windowClass == WindowClass.compact),
+                    right: false,
+                    child: Padding(
+                      padding: EdgeInsets.all(tt.rowGap),
+                      child: _buildLegendPanel(
+                        context,
+                        panelVisible: panelVisible,
+                      ),
                     ),
                   ),
                 ),
-              ),
-          ],
-        );
-      },
+              if (panelVisible)
+                _buildPersonContextOverlay(context, cubit, state),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildLegendPanel(
+    BuildContext context, {
+    required bool panelVisible,
+  }) {
+    final tt = context.tt;
+    final legend = GraphLegendPanel(
+      mode: GraphLegendMode.constellation,
+      expanded: true,
+      onToggle: widget.onToggleLegend,
+    );
+    if (!panelVisible || context.windowClass != WindowClass.compact) {
+      return legend;
+    }
+    final media = MediaQuery.of(context);
+    final maxHeight =
+        media.size.height *
+            (1 - tt.graphPersonContextCompactMaxHeightFraction) -
+        media.padding.top -
+        media.padding.bottom -
+        tt.rowGap * 4;
+    return ConstrainedBox(
+      constraints: BoxConstraints(maxHeight: maxHeight),
+      child: SingleChildScrollView(child: legend),
     );
   }
 }
