@@ -125,14 +125,14 @@ At 1.3× text scale — this table is the calculation that *produced* the caps b
 | triage row (fixed) | ~52–60dp |
 | view control All/Unread (fixed) | ~42–48dp |
 | Watching affordance, *had* it been a second fixed row — rejected below | ~52–60dp |
-| pinned prompts at the originally proposed 3 × `UpdatesFeedTile` — capped at 2 below | ~280dp |
+| pinned prompts at the originally proposed 3 × `UpdatesFeedTile` — capped at 2, and mutually exclusive with the collapsed row, below | ~280dp |
 | one expanded tombstone card (in scroll) | ~234–300dp |
 
 Fixed chrome alone is ~94–108dp, or ~146–168dp with a Watching row. Adding three pinned prompts and one expanded tombstone puts non-chronological content at ~514–580dp against ~328–388dp of remaining space — **the chronological feed would be entirely below the fold on first paint**, which defeats the document's purpose.
 
 Binding consequences:
 
-- pinned prompts cap at **2**, not 3 (§5.5 amended);
+- pinned prompts cap at **2**, not 3, and three or more collapse to a single row instead of pinning alongside one (§5.5);
 - the resolved section is **collapsed by default** (§4.5), expanding on tap;
 - the Watching affordance must not be a second fixed row; §4.7 resolves it to a counted overflow entry;
 - acceptance requires that at 360×640 and 1.3×, with the worst-case combination above, the branch honours §5.7's first-paint rule: if the fetched page holds any chronological row, one is visible without scrolling.
@@ -147,7 +147,16 @@ Watching status *is* consulted in recipient selection: `beacon_room_notification
 
 So the feed covers a watcher who is also admitted, and covers status transitions for everyone. It does **not** cover a Watching-only, non-admitted user's view of room activity, and it can go silent on preference or permission change.
 
-The overflow entry must therefore be specified as a genuine collection entry point, not a convenience: reachable without the post-forward snackbar, carrying a count, and listing Requests the feed may never mention. The snackbar intent (`forward_messages.dart:145-152`) remains the high-traffic path but is no longer the justification. An enumeration of the Watching-only, non-admitted, muted and post-close cases, and what each shows, is still owed — §11.2.
+The overflow entry must therefore be specified as a genuine collection entry point, not a convenience: reachable without the post-forward snackbar, carrying a count, and listing Requests the feed may never mention. The snackbar intent (`forward_messages.dart:145-152`) remains the high-traffic path but is no longer the justification. **The collection is derived from Inbox rows, never from receipts.** That single rule settles the cases the feed cannot cover:
+
+| case | what the collection shows |
+|---|---|
+| watcher who is also admitted | the Request, plus the room reachable as today |
+| Watching-only, not admitted | the Request with title, author and its last known status transition — no room content, because none is authorized |
+| notifications muted, or preference-suppressed | the Request, unchanged. Preferences filter receipts; they do not filter Inbox rows, which is exactly why the collection must not be receipt-derived |
+| Request closed or gone quiet | the Request with its terminal status, until the viewer stops watching or the tombstone rules of §4.5 apply |
+
+Each row carries Stop watching, Forward, Dismiss and Offer help, as today (`inbox_screen.dart:839-859`). A Request never silently disappears from this list because of a permission or preference change — only the viewer's own Stop watching, or the Request's lifecycle, removes it.
 
 **4.8 Loading and failure are per-source.** Inbox already distinguishes an unloaded projection from a successful empty one (`inbox_state.dart:18-25`), and its current initial load can replace the whole body with a spinner (`inbox_screen.dart:169`). Here the triage row, the prompts and the feed load and fail independently: an unavailable pending count must never render as inbox-zero, and must never block an available feed.
 
@@ -162,10 +171,18 @@ The overflow entry must therefore be specified as a genuine collection entry poi
 
    **What does differ between devices, stated precisely.** Rev 4 claimed staleness "changes no state, no count, and nothing the user can do". Domain state and the badge are indeed untouched, but the observable surface is not: with three prompts pending and one at the 7-day boundary, device A sees three fresh and pins two with an overflow row reading `N = 1`, while device B sees two fresh, pins both, and shows no overflow row at all (§5.5). The pinned pair itself can differ. Per-prompt actions remain available in both (`invite_accepted_receipt_card.dart:123-162`); it is the batch entry point that diverges.
 
-   This is accepted, not overlooked: every prompt stays actionable on every device, and the divergence self-resolves as the boundary passes. What is owed is a definition of pin ordering, of the population `N` counts, and of when the boundary is recomputed — §11.1 — not a `staleAt` column.
+   This is accepted, not overlooked: every prompt stays actionable on every device, and the divergence self-resolves as the boundary passes. What is owed is a definition of pin ordering, of the population `N` counts, and of when the boundary is recomputed — all three settled in §5.5.1 — not a `staleAt` column.
 
    Accordingly, §5.7's convergence guarantee is scoped to **settle**, not staleness, and that is deliberate rather than a gap.
-5. **Bounded.** At most **2** pinned (§4.6); beyond that, one collapsed row (`N people joined via your invites — set up access`) opening a batch sheet.
+5. **Bounded, and the two modes are exclusive.** One or two fresh pending prompts render as pinned rows. **Three or more render as a single collapsed row instead** — `N people joined via your invites — set up access` — opening a batch sheet; no individual prompt is pinned alongside it.
+
+   Rev 5 left this ambiguous, and "2 pinned plus an overflow row" is the reading to avoid: it consumes the most vertical space of any option while showing the least, and it makes `N` mean "the ones you cannot see", which is a quantity nobody can act on. Either you see the prompts or you see their count.
+
+### 5.5.1 Pin ordering, `N`, and the staleness boundary
+
+- **Ordering.** Pinned prompts sort by `receipt.createdAt` descending — newest first, matching the feed around them. No secondary key is needed: the prompt table is keyed per invitee (§2.3), so two rows cannot share a subject.
+- **Population of `N`.** `N` counts **all** fresh pending prompts, not an overflow remainder, which follows from the two modes being exclusive. Three fresh prompts read `3 people joined…`, not `1 more`.
+- **Boundary recomputation.** Freshness is evaluated when the feed is built and on app resume — not on a timer. A prompt crossing the 7-day line while the user is looking at it does not rearrange the screen under them; it demotes the next time the feed is built. This bounds the cross-device divergence of §5.4 to "until one of them rebuilds", and makes the divergence a display race rather than a state disagreement.
 
 The card's **presentation** is unchanged: `InviteAcceptedReceiptCard` already puts the action on the row with a setup sheet, requiring no navigation, and that stays. Its **data path** does change — placement and the card's own action must read one shared prompt projection, or a row can be demoted while the action mounted on it still offers a stale choice. Rev 6 said "the card itself is unchanged"; that was wrong about the data path and is corrected here. Mechanism and acceptance live in the implementation plan §2.4.
 
@@ -311,16 +328,13 @@ Withdrawn from revision 6:
 
 ## 11. Open questions
 
-Still owed by this document:
+Nothing is outstanding that blocks implementation. Rev 7 closed the two that were: pin ordering and `N` (§5.5.1), and the Watching case enumeration (§4.7).
 
-1. **Pin ordering, the population `N` counts, and boundary recomputation** for prompts (§5.4).
-2. **The Watching case enumeration** — Watching-only, non-admitted, muted, post-close (§4.7).
+What remains is optional or belongs to a later change:
 
-Genuinely optional or later:
-
-3. **The 7-day prompt staleness window** (§5.4) is a guess. Display-only and client-side, so it is cheap to change and safe to ship wrong.
-4. **Whether `mutual_connection_formed` becomes the second prompt-class member** (§2.3). Out of scope; §5's rules accept it without a fourth mechanic.
-5. **Whether NOW-line edits keep emitting `coordinationChanged`** after the cleanup's first step, or gain a dedicated event type (implementation plan §4).
+1. **The 7-day prompt staleness window** (§5.4) is a guess. Display-only and client-side, so it is cheap to change and safe to ship wrong.
+2. **Whether `mutual_connection_formed` becomes the second prompt-class member** (§2.3). Out of scope; §5's rules accept it without a fourth mechanic.
+3. **Whether NOW-line edits keep emitting `coordinationChanged`** after the cleanup's first step, or gain a dedicated event type (implementation plan §4).
 
 ## 12. Review status
 
