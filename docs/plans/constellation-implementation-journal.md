@@ -135,7 +135,7 @@ is triggered.
 - [x] 04 — Symmetric `person_are_mutually_visible` — m0161
 - [x] 04a — **Inserted by GATE-14.1(b):** discoverability visibility cache
 - [x] 05 — Read-wall discoverability clause — m0162 **(access-control; needs GATE-14.1 resolved + SECURITY-REVIEW; now also depends on 04a)**
-- [ ] 06 — `constellation_trust_edges` — m0163
+- [x] 06 — `constellation_trust_edges` — m0163
 - [ ] 07 — `constellationField` V2 query
 - [ ] 08 — Client pure domain: paths, caps
 - [ ] 09 — Client pure domain: filters, density
@@ -491,6 +491,24 @@ DECISIONS: Dart mirror adds `isDiscoverable`, `isPublished`, `isMutuallyVisibleW
 
 **Parity expectation changes (justified):** reciprocal-trust + discoverable published open beacon now SQL-allow/Dart-allow (was SQL-deny before m0162). Sender on active forward edge + discoverable content now SQL-involvement-allow (m0124 sender/recipient OR; previously masked because content was deny-first).
 
+REMAINING: none for this unit.
+
+---
+
+## UNIT 06 — complete — 2026-09-09
+COMMITS: (this unit's commit, staged next)
+TESTS: `cd packages/server && dart test -t pg -j 1 test/data/database/constellation_trust_edges_pg_test.dart` — 11/11 passed;
+  `./scripts/check-custom-lints.sh packages/server` — exit 0
+FILES: packages/server/lib/data/database/migration/m0163.dart (new),
+  packages/server/lib/data/database/migration/_migrations.dart,
+  packages/server/test/data/database/constellation_trust_edges_pg_test.dart (new),
+  docs/plans/constellation-implementation-journal.md
+FINDINGS: none beyond the journal's pre-stated m0163/m0163a ordering pitfall — verified
+  `_allMigrations` tail is `..., m0161, m0162, m0163, m0163a` (both `part` directives
+  and array entries) so `'0163'` sorts before `'0163a'` per `migrant` string order.
+  `pg_get_function_result` is the reliable way to assert RETURNS TABLE column names
+  (direct `pg_attribute` join on `prorettype` returned empty for this function shape).
+DECISIONS: none — §0.1 SQL copied verbatim; no product decisions in this unit.
 REMAINING: none for this unit.
 
 ---

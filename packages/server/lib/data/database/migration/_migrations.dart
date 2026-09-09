@@ -165,6 +165,7 @@ part 'm0159.dart';
 part 'm0160.dart';
 part 'm0161.dart';
 part 'm0162.dart';
+part 'm0163.dart';
 part 'm0163a.dart';
 
 final _allMigrations = <Migration>[
@@ -330,6 +331,7 @@ final _allMigrations = <Migration>[
   m0160,
   m0161,
   m0162,
+  m0163,
   m0163a,
 ];
 
