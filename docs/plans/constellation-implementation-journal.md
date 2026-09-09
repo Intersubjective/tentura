@@ -133,7 +133,7 @@ is triggered.
 - [x] 02 — **Gate:** authorization cache + read-wall performance decision — **resolved (b), cache required**
 - [x] 03 — `beacon.is_discoverable` — m0160, Drift, mutations, Hasura
 - [x] 04 — Symmetric `person_are_mutually_visible` — m0161
-- [ ] 04a — **Inserted by GATE-14.1(b):** discoverability visibility cache
+- [x] 04a — **Inserted by GATE-14.1(b):** discoverability visibility cache
 - [ ] 05 — Read-wall discoverability clause — m0162 **(access-control; needs GATE-14.1 resolved + SECURITY-REVIEW; now also depends on 04a)**
 - [ ] 06 — `constellation_trust_edges` — m0163
 - [ ] 07 — `constellationField` V2 query
@@ -374,6 +374,36 @@ DECISIONS: Forward-candidate widening verified by **V.G. Bulavintsev** (plan
   bounded `person_are_mutually_visible` check; `ForwardCase` forward to repaired
   pair proven via real `PersonVisibilityRepository` in pg test.
 REMAINING: none for this unit.
+
+---
+
+## UNIT 04a — complete — 2026-09-09
+COMMITS: (this unit's commit, staged next)
+TESTS: `cd packages/server && dart run build_runner build -d` — exit 0;
+  `cd packages/server && dart test -t pg -j 1 test/data/database/discoverability_visibility_cache_pg_test.dart` — 11/11 passed;
+  `./scripts/check-custom-lints.sh packages/server` — exit 0
+FILES: packages/server/lib/data/database/migration/m0163a.dart (new),
+  packages/server/lib/data/database/migration/_migrations.dart,
+  packages/server/test/data/database/discoverability_visibility_cache_pg_test.dart (new),
+  docs/plans/constellation-implementation-journal.md
+FINDINGS: continuation after two OOM-killed fresh attempts left a correct
+  migration skeleton; writing tests exposed a real plpgsql bug in the shipped
+  `person_are_mutually_visible_cached` body — unqualified `ctx` in
+  `ON CONFLICT (person_lo, person_hi, ctx)` (and related SQL) is ambiguous
+  against the function parameter of the same name. Fixed with
+  `#variable_conflict use_column` plus table-alias qualification on cache
+  lookups. No other plan/spec deviations.
+DECISIONS: cache hit vs miss asserted via a test-only call counter: rename
+  `person_are_mutually_visible` → `_uncached`, wrap it to increment
+  `_discoverability_cache_test_pamv_calls.n` before delegating — more reliable
+  than timing and matches existing pg-test spy patterns. MeritRank-unavailable
+  fail-closed exercised by temporarily replacing `_uncached` to
+  `RAISE EXCEPTION` (simulated outage) rather than stopping the compose
+  `meritrank` container — same observable contract, no infra side effects.
+  Concurrent single-flight test uses two `Connection`s + `pg_sleep(0.4)` in
+  the counter wrapper to widen the race window.
+REMAINING: none for this unit. UNIT 05 may proceed (still needs its own
+  SECURITY-REVIEW journal line).
 
 ---
 
