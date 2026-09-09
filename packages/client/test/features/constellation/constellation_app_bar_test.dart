@@ -106,19 +106,49 @@ void main() {
       await cubit.close();
     });
 
-    testWidgets('legend is visible on map and hidden on text', (tester) async {
+    testWidgets('legend stays slotted so view-mode toggle does not shift', (
+      tester,
+    ) async {
       final cubit = await _loadCubit();
       await _pumpAppBar(tester, cubit: cubit, size: const Size(400, 800));
 
-      expect(find.byKey(const Key('constellation.app_bar.legend')), findsOneWidget);
+      final legend = find.byKey(const Key('constellation.app_bar.legend'));
+      final toggle = find.byKey(const Key('constellation.app_bar.view_mode'));
+      expect(legend, findsOneWidget);
+      expect(
+        tester
+            .widget<Visibility>(
+              find.ancestor(of: legend, matching: find.byType(Visibility)),
+            )
+            .visible,
+        isTrue,
+      );
+      final mapToggleOrigin = tester.getTopLeft(toggle);
 
       cubit.setViewMode(ConstellationViewMode.text);
       await tester.pumpAndSettle();
-      expect(find.byKey(const Key('constellation.app_bar.legend')), findsNothing);
+      expect(legend, findsOneWidget);
+      expect(
+        tester
+            .widget<Visibility>(
+              find.ancestor(of: legend, matching: find.byType(Visibility)),
+            )
+            .visible,
+        isFalse,
+      );
+      expect(tester.getTopLeft(toggle), mapToggleOrigin);
 
       cubit.setViewMode(ConstellationViewMode.map);
       await tester.pumpAndSettle();
-      expect(find.byKey(const Key('constellation.app_bar.legend')), findsOneWidget);
+      expect(
+        tester
+            .widget<Visibility>(
+              find.ancestor(of: legend, matching: find.byType(Visibility)),
+            )
+            .visible,
+        isTrue,
+      );
+      expect(tester.getTopLeft(toggle), mapToggleOrigin);
       await cubit.close();
     });
 

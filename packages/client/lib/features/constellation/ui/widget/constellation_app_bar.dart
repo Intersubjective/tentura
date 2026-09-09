@@ -63,8 +63,14 @@ class ConstellationAppBarRow extends StatelessWidget {
                 minHeight: tt.buttonHeight,
               ),
             ),
-            if (showLegend)
-              IconButton(
+            // Keep a fixed slot so the view-mode toggle does not shift when
+            // map→text hides the legend control (RenderFlex / Flexible reflow).
+            Visibility(
+              visible: showLegend,
+              maintainSize: true,
+              maintainAnimation: true,
+              maintainState: true,
+              child: IconButton(
                 key: const Key('constellation.app_bar.legend'),
                 tooltip: legendExpanded
                     ? l10n.graphLegendClose
@@ -78,6 +84,7 @@ class ConstellationAppBarRow extends StatelessWidget {
                   minHeight: tt.buttonHeight,
                 ),
               ),
+            ),
             Flexible(
               child: _ConstellationViewModeToggle(
                 viewMode: state.viewMode,
