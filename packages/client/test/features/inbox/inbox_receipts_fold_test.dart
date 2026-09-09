@@ -1,16 +1,17 @@
 import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
+import 'package:get_it/get_it.dart';
 import 'package:logging/logging.dart';
 
-import 'package:tentura/app/router/home_tab_branches.dart';
+import 'package:tentura/consts.dart';
 import 'package:tentura/domain/attention/attention_case.dart';
 import 'package:tentura/domain/attention/entity/attention_feed.dart';
 import 'package:tentura/domain/attention/entity/attention_receipt.dart';
 import 'package:tentura/domain/attention/entity/attention_summary.dart';
 import 'package:tentura/domain/attention/port/attention_account_port.dart';
 import 'package:tentura/domain/attention/port/attention_repository_port.dart';
-import 'package:tentura/features/home/ui/bloc/home_attention_cubit.dart';
+import 'package:tentura/features/inbox/ui/widget/inbox_receipts_tab_label.dart';
 
 import '../../support/test_realtime_sync.dart';
 import '../block/support/controllable_block_case.dart';
@@ -31,7 +32,6 @@ final class _Repository implements AttentionRepositoryPort {
     summary: AttentionSummary(),
     page: AttentionFeedPage(),
   );
-  Set<String> unread = const {};
 
   @override
   Future<AttentionFeed> fetch({
@@ -42,8 +42,7 @@ final class _Repository implements AttentionRepositoryPort {
   }) async => feed;
 
   @override
-  Future<Set<String>> unreadForBeacons(Set<String> beaconIds) async =>
-      unread.intersection(beaconIds);
+  Future<Set<String>> unreadForBeacons(Set<String> beaconIds) async => const {};
 
   @override
   Future<int> markAllSeen() async => 0;
@@ -59,35 +58,28 @@ final class _Repository implements AttentionRepositoryPort {
       0;
 }
 
-AttentionReceipt _commitmentAcceptedReceipt({
+AttentionReceipt _receipt({
   required String id,
-  required String beaconId,
+  required bool seen,
 }) => AttentionReceipt(
   id: id,
   category: 'requestProgress',
   kind: 'commitmentAccepted',
   priority: 'normal',
-  title: 'Alex accepted your ask',
-  body: 'Accept proof',
+  title: 'Test receipt',
+  body: 'Body',
   actionUrl: '/#/',
-  createdAt: DateTime.utc(2026, 8, 5, 10),
+  createdAt: DateTime.utc(2026, 9, 9),
   collapsedCount: 1,
   presentationPayloadJson: '{}',
-  beaconId: beaconId,
+  seenAt: seen ? DateTime.utc(2026, 9, 9, 1) : null,
 );
-
-Future<void> _settle([int turns = 8]) async {
-  for (var i = 0; i < turns; i++) {
-    await Future<void>.delayed(Duration.zero);
-  }
-}
 
 void main() {
   late _Accounts accounts;
   late _Repository repository;
   late TestRealtimeSyncPort realtime;
   late AttentionCase attention;
-  late HomeAttentionCubit home;
 
   setUp(() {
     accounts = _Accounts();
@@ -99,70 +91,64 @@ void main() {
       accounts,
       sync.case_,
       noopBlockCase(),
-      Logger('updates-102-attention-test'),
+      Logger('inbox-receipts-read-state-test'),
     );
-    home = HomeAttentionCubit(
-      attention,
-      accounts,
-      Logger('updates-102-attention-test'),
-    );
+    if (GetIt.I.isRegistered<AttentionCase>()) {
+      GetIt.I.unregister<AttentionCase>();
+    }
+    GetIt.I.registerSingleton<AttentionCase>(attention);
+    if (!GetIt.I.isRegistered<Logger>()) {
+      GetIt.I.registerSingleton<Logger>(Logger('inbox-receipts-read-state-test'));
+    }
   });
 
   tearDown(() async {
-    await home.close();
+    if (GetIt.I.isRegistered<AttentionCase>()) {
+      GetIt.I.unregister<AttentionCase>();
+    }
     await attention.dispose();
     await realtime.dispose();
     await accounts.close();
   });
 
-  test(
-    'commitmentAccepted receipt drives Updates unread and My Work dot without navigation',
-    () async {
-      const beaconId = 'B102';
-      const receiptId = 'receipt-102';
-      repository
-        ..feed = AttentionFeed(
-          summary: const AttentionSummary(unreadTotal: 1),
-          page: AttentionFeedPage(
-            items: [
-              _commitmentAcceptedReceipt(id: receiptId, beaconId: beaconId),
-            ],
-          ),
-        )
-        ..unread = {beaconId};
+  test('read-state survives fold: seen receipt stays seen after refresh', () async {
+    const receiptId = 'receipt-fold-1';
+    repository.feed = AttentionFeed(
+      summary: const AttentionSummary(unreadTotal: 1),
+      page: AttentionFeedPage(
+        items: [_receipt(id: receiptId, seen: false)],
+      ),
+    );
+    accounts.emit('user');
+    await attention.refresh();
+    await Future<void>.delayed(Duration.zero);
 
-      accounts.emit('author');
-      await attention.refresh();
-      await _settle();
+    expect(attention.snapshot.summary.unreadTotal, 1);
+    await attention.markSeen([receiptId]);
+    expect(attention.snapshot.summary.unreadTotal, 0);
 
-      expect(attention.snapshot.summary.unreadTotal, 1);
-      expect(
-        attention.snapshot.pages[AttentionView.all]!.items.single.id,
-        receiptId,
-      );
+    repository.feed = AttentionFeed(
+      summary: const AttentionSummary(unreadTotal: 1),
+      page: AttentionFeedPage(
+        items: [_receipt(id: receiptId, seen: false)],
+      ),
+    );
+    await attention.refresh();
+    await Future<void>.delayed(Duration.zero);
 
-      home.reportInboxSnapshot(
-        accountId: 'author',
-        beaconIds: const {},
-        loaded: true,
-      );
-      home.reportMyWorkSnapshot(
-        accountId: 'author',
-        beaconIds: {beaconId},
-        loaded: true,
-      );
-      home.setActiveHomeTab(HomeTab.work);
-      await _settle();
+    expect(attention.snapshot.summary.unreadTotal, 0);
+    expect(
+      attention.snapshot.pages[AttentionView.all]!.items.single.isSeen,
+      isTrue,
+    );
+  });
 
-      expect(home.state.hasMyWorkDot, isFalse);
-      expect(home.state.isMyWorkBeaconMarked(beaconId), isTrue);
-
-      home.setActiveHomeTab(HomeTab.inbox);
-      await _settle();
-
-      expect(home.state.hasMyWorkDot, isTrue);
-      expect(home.state.isMyWorkBeaconMarked(beaconId), isTrue);
-      expect(home.state.myWorkMarkerIds, {beaconId});
-    },
-  );
+  test('receipts tab label uses AttentionCase unread total like Updates nav', () {
+    expect(formatInboxReceiptsTabLabel('Receipts', 3), 'Receipts (3)');
+    expect(formatInboxReceiptsTabLabel('Receipts', 0), 'Receipts');
+    expect(
+      attention.snapshot.summary.unreadTotal,
+      repository.feed.summary.unreadTotal,
+    );
+  });
 }

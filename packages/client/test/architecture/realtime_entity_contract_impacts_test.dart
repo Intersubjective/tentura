@@ -105,7 +105,7 @@ const impactSubscribers = <String, List<String>>{
   ],
   'shell_counters': [
     'packages/client/lib/features/home/ui/bloc/home_attention_cubit.dart',
-    'packages/client/lib/features/home/ui/widget/updates_navbar_item.dart',
+    'packages/client/lib/features/inbox/ui/widget/inbox_receipts_tab_label.dart',
     'packages/client/lib/features/home/ui/widget/inbox_navbar_item.dart',
   ],
   'unread': [
@@ -113,7 +113,7 @@ const impactSubscribers = <String, List<String>>{
   ],
   'updates_badge': [
     'packages/client/lib/domain/attention/attention_case.dart',
-    'packages/client/lib/features/home/ui/widget/updates_navbar_item.dart',
+    'packages/client/lib/features/inbox/ui/widget/inbox_receipts_tab_label.dart',
   ],
   'updates_feed': [
     'packages/client/lib/domain/attention/attention_case.dart',

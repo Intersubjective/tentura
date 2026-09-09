@@ -1819,6 +1819,11 @@
   "@inboxTabWatching": {
     "context": "InboxScreen"
   },
+  "inboxTabReceipts": "Обновления",
+  "@inboxTabReceipts": {
+    "context": "InboxScreen",
+    "description": "Primary Inbox tab for folded Updates / notification receipts."
+  },
   "inboxForwardedByMe": "Переслано",
   "@inboxForwardedByMe": {
     "context": "InboxScreen"

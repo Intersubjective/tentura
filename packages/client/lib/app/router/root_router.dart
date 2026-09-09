@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:auto_route/auto_route.dart';
+import 'package:get_it/get_it.dart';
 import 'package:injectable/injectable.dart';
 import 'package:logging/logging.dart';
 
@@ -10,6 +11,7 @@ import 'package:tentura/domain/attention/entity/attention_receipt.dart';
 import 'package:tentura/app/platform/landing_redirect.dart';
 
 import 'package:tentura/features/auth/ui/bloc/auth_cubit.dart';
+import 'package:tentura/features/home/ui/bloc/home_tab_reselect_cubit.dart';
 import 'package:tentura/features/home/ui/bloc/post_join_navigation_cubit.dart';
 import 'package:tentura/features/settings/ui/bloc/settings_cubit.dart';
 
@@ -132,13 +134,6 @@ class RootRouter extends RootStackRouter {
             AutoRoute(initial: true, page: InboxRoute.page, path: ''),
           ],
         ),
-        AutoRoute(
-          page: updatesTabShell.page,
-          path: kPathUpdates.split('/').last,
-          children: [
-            AutoRoute(initial: true, page: UpdatesRoute.page, path: ''),
-          ],
-        ),
         // Network (Friends)
         AutoRoute(
           page: networkTabShell.page,
@@ -169,6 +164,11 @@ class RootRouter extends RootStackRouter {
     AutoRoute(
       page: InboxRejectedRoute.page,
       path: kPathInboxRejected,
+    ),
+
+    RedirectRoute(
+      path: kPathUpdates,
+      redirectTo: '$kPathInbox?$kQueryHomeTab=$kInboxTabReceipts',
     ),
 
     RedirectRoute(path: kPathNotifications, redirectTo: kPathUpdates),
@@ -271,7 +271,7 @@ class RootRouter extends RootStackRouter {
             if (_postJoinNavigationCubit.hasPending) {
               return HomeRoute(
                 children: [
-                  inboxTabShell(children: [const InboxRoute()]),
+                  inboxTabShell(children: [InboxRoute()]),
                 ],
               );
             }
@@ -546,7 +546,11 @@ class RootRouter extends RootStackRouter {
       final home = preferUpdatesBranch
           ? HomeRoute(
               children: [
-                updatesTabShell(children: [const UpdatesRoute()]),
+                inboxTabShell(
+                  children: [
+                    InboxRoute(initialTab: kInboxTabReceipts),
+                  ],
+                ),
               ],
             )
           : browseStack.home;
@@ -554,7 +558,8 @@ class RootRouter extends RootStackRouter {
       return;
     }
     if (preferUpdatesBranch && tabs != null) {
-      tabs.setActiveIndex(HomeTabSpec.forTab(HomeTab.updates).index);
+      tabs.setActiveIndex(HomeTabSpec.forTab(HomeTab.inbox).index);
+      GetIt.I<HomeTabReselectCubit>().requestInboxReceipts();
     }
 
     final query = normalized.queryParameters.isEmpty

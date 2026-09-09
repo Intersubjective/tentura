@@ -147,7 +147,7 @@ final class ForwardLocationMessage extends LocalizableActionMessage {
     GetIt.I<HomeTabReselectCubit>().requestInboxWatching(beaconId);
     unawaited(
       GetIt.I<RootRouter>().replaceAll([
-        HomeRoute(children: [inboxTabShell(children: [const InboxRoute()])]),
+        HomeRoute(children: [inboxTabShell(children: [InboxRoute()])]),
       ]),
     );
   };

@@ -32,4 +32,12 @@ class HomeTabReselectCubit extends Cubit<HomeTabReselectState> {
       ),
     );
   }
+
+  void requestInboxReceipts() {
+    emit(
+      state.copyWith(
+        inboxReceiptsOpenCount: state.inboxReceiptsOpenCount + 1,
+      ),
+    );
+  }
 }

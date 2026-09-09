@@ -58,6 +58,9 @@ const kPathInvitations = '/invitations';
 const kQueryHomeTab = 'tab';
 const kHomeTabInvitations = 'invitations';
 
+/// Inbox primary tab query value for the folded Updates / receipts feed.
+const kInboxTabReceipts = 'receipts';
+
 const kQueryIsDeepLink = 'is_deep_link';
 
 /// Query param for opening the beacon create screen in server-draft edit mode.

@@ -4,11 +4,15 @@ import 'package:get_it/get_it.dart';
 import 'package:tentura/domain/attention/attention_case.dart';
 import 'package:tentura/domain/attention/entity/attention_summary.dart';
 
-/// Updates tab icon with the authoritative unread-receipt count.
-class UpdatesNavbarItem extends StatelessWidget {
-  const UpdatesNavbarItem({super.key, this.selected = false});
+/// Formats the Receipts primary-tab label with optional unread suffix.
+String formatInboxReceiptsTabLabel(String label, int unread) =>
+    unread > 0 ? '$label ($unread)' : label;
 
-  final bool selected;
+/// Receipts primary-tab label with the authoritative unread-receipt count.
+class InboxReceiptsTabLabel extends StatelessWidget {
+  const InboxReceiptsTabLabel({required this.label, super.key});
+
+  final String label;
 
   @override
   Widget build(BuildContext context) => StreamBuilder<AttentionSummary>(
@@ -16,16 +20,10 @@ class UpdatesNavbarItem extends StatelessWidget {
     initialData: GetIt.I<AttentionCase>().snapshot.summary,
     builder: (context, snapshot) {
       final unread = snapshot.data?.unreadTotal ?? 0;
+      final text = formatInboxReceiptsTabLabel(label, unread);
       return Semantics(
         identifier: 'updates-unread-count-$unread',
-        child: Badge.count(
-          count: unread,
-          maxCount: 99,
-          isLabelVisible: unread > 0,
-          child: Icon(
-            selected ? Icons.notifications : Icons.notifications_outlined,
-          ),
-        ),
+        child: Text(text),
       );
     },
   );

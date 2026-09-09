@@ -142,7 +142,7 @@ is triggered.
 - [x] 10 — Client pure domain: three-pass layout
 - [x] 11 — Client data: entities, gql, repository, use case
 - [x] 12 — Render: mode, nodes, edges, painters, legend
-- [ ] 13 — Prerequisite project: fold Updates into Inbox
+- [x] 13 — Prerequisite project: fold Updates into Inbox
 - [ ] 14 — Navigation slot, route, My Work entry
 - [ ] 15 — Need labels, request preview, person panel
 - [ ] 16 — Snapshot lifecycle + action-time validation, incl. server `expectedOfferKind`
@@ -918,3 +918,73 @@ matching the existing `l10n.graphLegendRequestNode` pattern already used two
 lines away in the same file. Recorded here, and should also be added to
 UNIT 20's limitations/acceptance checklist explicitly when that unit runs.
 REMAINING: the orphaned legend-l10n gap above. Otherwise none for this unit.
+
+---
+
+## UNIT 13 — pre-implementation product review — 2026-09-09
+
+**Reviewer:** V.G. Bulavintsev (plan owner; pre-authorized per Orchestration).
+
+Fold shape is **decided** (plan step 1): receipts become a **third Inbox tab**
+alongside *Needs me* and *Watching*. Open details resolved before code edits:
+
+| Open detail | Resolution |
+|-------------|------------|
+| **Updates badge + read-state store** (§9.2) | `AttentionAckStore` keys pending acks by **receipt `id`** only (`attention_ack_store.dart`); account scope via `resetForAccount`. No store or `AttentionCase` API change — the badge widget moves from the retired nav item to the Inbox **Receipts** tab label, still driven by `AttentionCase.unreadSummary` / `snapshot.summary.unreadTotal`. |
+| **Where the Updates archive lands** | The existing Updates feed body stays intact inside the Receipts tab: **All / Unread / Needs you** sub-tabs, search, mark-all-seen, and paginated history — no separate archive route. |
+| **`kPathUpdates` + `RedirectRoute(kPathNotifications → kPathUpdates)`** | Keep both path constants. Remove Updates as a Home shell branch. `kPathUpdates` becomes a **redirect** to `kPathInbox` with `?tab=receipts` (new `kInboxTabReceipts` query value on existing `kQueryHomeTab`). `kPathNotifications` still redirects to `kPathUpdates` first so legacy notification/deep links chain through unchanged. `openFromUpdate` activates **Inbox** and selects the Receipts sub-tab. |
+
+**UNIT 14 must follow immediately after this unit** to restore the fifth
+navigation destination at index 2 (Constellation). This unit intentionally
+ships **four** nav destinations; that is not a release stopping point on this
+branch, but must not sit long before UNIT 14 lands.
+
+---
+
+## UNIT 13 — complete — 2026-09-09
+
+COMMITS: (this unit's commit, staged next)
+TESTS: `cd packages/client && flutter gen-l10n && dart run build_runner build -d` — exit 0;
+  `cd packages/client && flutter test test/features/inbox/ test/features/updates/ test/features/home/ test/app/ test/architecture/home_tab_spec_test.dart` — 200/200 passed;
+  `bash scripts/check-user-facing-terminology.sh` — exit 0
+FILES: packages/client/lib/consts.dart,
+  packages/client/lib/app/router/home_tab_branches.dart,
+  packages/client/lib/app/router/root_router.dart,
+  packages/client/lib/features/home/ui/screen/home_screen.dart,
+  packages/client/lib/features/home/ui/bloc/home_tab_reselect_cubit.dart,
+  packages/client/lib/features/home/ui/bloc/home_tab_reselect_state.dart,
+  packages/client/lib/features/inbox/ui/screen/inbox_screen.dart,
+  packages/client/lib/features/inbox/ui/widget/inbox_receipts_tab_label.dart (new),
+  packages/client/lib/features/updates/ui/widget/updates_feed_pane.dart (new),
+  packages/client/lib/features/updates/ui/screen/updates_screen.dart,
+  packages/client/lib/features/home/ui/widget/updates_navbar_item.dart (deleted),
+  packages/client/l10n/app_en.arb,
+  packages/client/l10n/app_ru.arb,
+  packages/client/test/features/inbox/inbox_receipts_fold_test.dart (new),
+  packages/client/test/features/inbox/inbox_expanded_chrome_test.dart,
+  packages/client/test/features/updates/updates_102_my_work_attention_test.dart,
+  packages/client/test/app/router/home_tab_branch_routing_test.dart,
+  packages/client/test/architecture/home_tab_spec_test.dart,
+  packages/client/test/architecture/realtime_entity_contract_impacts_test.dart,
+  packages/client/lib/ui/effect/ui_effect_dispatcher.dart,
+  packages/client/lib/features/forward/ui/message/forward_messages.dart,
+  docs/plans/constellation-implementation-journal.md
+FINDINGS: `InboxRoute` gained `@QueryParam(kQueryHomeTab)` for receipts deep
+  links, which made `const InboxRoute()` invalid — required dropping `const`
+  at three call sites outside the unit owns list (`ui_effect_dispatcher.dart`,
+  `forward_messages.dart`, browse cold-start in `root_router.dart`). Root-level
+  `RedirectRoute` for `kPathUpdates` was required (nested redirect under
+  `HomeRoute` children did not activate). `HomeTab.updates` enum value kept with
+  `HomeTabSpec.forTab` alias → Inbox so `beacon_view_screen.dart` back/rail
+  paths compile unchanged until a future cleanup.
+DECISIONS: Product review **V.G. Bulavintsev** (pre-authorized). Badge +
+  read-state: `AttentionAckStore` receipt-`id` keying unchanged; badge on Inbox
+  **Receipts** tab via `InboxReceiptsTabLabel` (`updates-unread-count-N`
+  semantics identifier preserved). Archive: existing All/Unread/Needs-you feed
+  inside Receipts tab (`UpdatesFeedPane`). Paths: `kPathUpdates` root redirect →
+  `/home/inbox?tab=receipts`; `kPathNotifications` → `kPathUpdates` chain kept.
+  Nav: four destinations (Work, Inbox, Network, Profile); Network index 2, Me
+  index 3 — slot freed for UNIT 14 Constellation at index 2.
+REMAINING: **UNIT 14 must follow immediately** — restore the fifth navigation
+  destination (Constellation) at index 2. Do not treat the interim four-item bar
+  as a release stopping point.

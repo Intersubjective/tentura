@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:get_it/get_it.dart';
 import 'package:logging/logging.dart';
 import 'package:mockito/mockito.dart';
 
@@ -176,6 +177,19 @@ Future<void> _pumpInbox(
     Logger('inbox-chrome-test'),
   );
   addTearDown(attentionCase.dispose);
+  if (GetIt.I.isRegistered<AttentionCase>()) {
+    GetIt.I.unregister<AttentionCase>();
+  }
+  GetIt.I.registerSingleton<AttentionCase>(attentionCase);
+  addTearDown(() {
+    if (GetIt.I.isRegistered<AttentionCase>()) {
+      GetIt.I.unregister<AttentionCase>();
+    }
+  });
+  final logger = Logger('inbox-chrome-test');
+  if (!GetIt.I.isRegistered<Logger>()) {
+    GetIt.I.registerSingleton<Logger>(logger);
+  }
   final attention = HomeAttentionCubit(
     attentionCase,
     accounts,

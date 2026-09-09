@@ -18,17 +18,29 @@ import 'package:tentura/features/forward/data/repository/forward_repository.dart
 import 'package:tentura/features/forward/domain/forward_draft_policy.dart';
 import 'package:tentura/features/home/ui/bloc/home_tab_reselect_cubit.dart';
 import 'package:tentura/features/home/ui/bloc/home_attention_cubit.dart';
+import 'package:tentura/features/updates/ui/bloc/updates_feed_cubit.dart';
+import 'package:tentura/features/updates/ui/widget/updates_feed_pane.dart';
 
 import '../../domain/entity/inbox_item.dart';
 import '../../domain/enum.dart';
 import '../bloc/inbox_cubit.dart';
 import '../widget/inbox_item_tile.dart';
+import '../widget/inbox_receipts_tab_label.dart';
 import '../widget/inbox_tombstone_card.dart';
 import '../widget/rejection_dialog.dart';
 
+const _inboxTabNeedsMe = 0;
+const _inboxTabWatching = 1;
+const _inboxTabReceipts = 2;
+
 @RoutePage()
 class InboxScreen extends StatefulWidget {
-  const InboxScreen({super.key});
+  const InboxScreen({
+    @QueryParam(kQueryHomeTab) this.initialTab,
+    super.key,
+  });
+
+  final String? initialTab;
 
   @override
   State<InboxScreen> createState() => _InboxScreenState();
@@ -36,6 +48,29 @@ class InboxScreen extends StatefulWidget {
 
 class _InboxScreenState extends State<InboxScreen> {
   var _lastHandledWatchingOpenCount = 0;
+  var _lastHandledReceiptsOpenCount = 0;
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.initialTab == kInboxTabReceipts) {
+      _lastHandledReceiptsOpenCount = -1;
+    }
+  }
+
+  void _consumeReceiptsIntentIfNeeded(BuildContext tabContext) {
+    final reselect = tabContext.read<HomeTabReselectCubit>().state;
+    final fromRoute = widget.initialTab == kInboxTabReceipts;
+    final fromReselect =
+        reselect.inboxReceiptsOpenCount > _lastHandledReceiptsOpenCount;
+    if (!fromRoute && !fromReselect) return;
+    if (fromReselect) {
+      _lastHandledReceiptsOpenCount = reselect.inboxReceiptsOpenCount;
+    } else {
+      _lastHandledReceiptsOpenCount = reselect.inboxReceiptsOpenCount;
+    }
+    DefaultTabController.of(tabContext).animateTo(_inboxTabReceipts);
+  }
 
   void _consumeWatchingIntentIfNeeded(BuildContext tabContext) {
     final reselect = tabContext.read<HomeTabReselectCubit>().state;
@@ -48,7 +83,7 @@ class _InboxScreenState extends State<InboxScreen> {
 
   void _applyInboxWatchingIntent(BuildContext tabContext, String? beaconId) {
     if (beaconId == null || beaconId.isEmpty) return;
-    DefaultTabController.of(tabContext).animateTo(1);
+    DefaultTabController.of(tabContext).animateTo(_inboxTabWatching);
     if (tabContext.windowClass != WindowClass.expanded) return;
     final inboxState = tabContext.read<InboxCubit>().state;
     if (!inboxState.watching.any((e) => e.beaconId == beaconId)) return;
@@ -64,16 +99,22 @@ class _InboxScreenState extends State<InboxScreen> {
     final inboxCubit = context.read<InboxCubit>();
 
     final screen = DefaultTabController(
-      length: 2,
+      length: 3,
+      initialIndex: widget.initialTab == kInboxTabReceipts
+          ? _inboxTabReceipts
+          : 0,
       child: _InboxWatchingIntentBinder(
-        onFirstFrame: _consumeWatchingIntentIfNeeded,
+        onFirstFrame: (context) {
+          _consumeWatchingIntentIfNeeded(context);
+          _consumeReceiptsIntentIfNeeded(context);
+        },
         child: _InboxMovedSnackBarDismisser(
           child: BlocListener<HomeTabReselectCubit, HomeTabReselectState>(
             listenWhen: (prev, curr) =>
                 prev.inboxReselectCount != curr.inboxReselectCount,
             listener: (context, _) {
               inboxCubit.setSort(InboxSort.recent);
-              DefaultTabController.of(context).animateTo(0);
+              DefaultTabController.of(context).animateTo(_inboxTabNeedsMe);
             },
             child: BlocListener<HomeTabReselectCubit, HomeTabReselectState>(
               listenWhen: (prev, curr) =>
@@ -82,7 +123,14 @@ class _InboxScreenState extends State<InboxScreen> {
                 _lastHandledWatchingOpenCount = state.inboxWatchingOpenCount;
                 _applyInboxWatchingIntent(context, state.inboxWatchingBeaconId);
               },
-              child: BlocListener<InboxCubit, InboxState>(
+              child: BlocListener<HomeTabReselectCubit, HomeTabReselectState>(
+                listenWhen: (prev, curr) =>
+                    prev.inboxReceiptsOpenCount != curr.inboxReceiptsOpenCount,
+                listener: (context, state) {
+                  _lastHandledReceiptsOpenCount = state.inboxReceiptsOpenCount;
+                  DefaultTabController.of(context).animateTo(_inboxTabReceipts);
+                },
+                child: BlocListener<InboxCubit, InboxState>(
                 listenWhen: (prev, curr) =>
                     curr.pendingMovedNudge != null &&
                     prev.pendingMovedNudge != curr.pendingMovedNudge,
@@ -143,6 +191,10 @@ class _InboxScreenState extends State<InboxScreen> {
                               l10n: l10n,
                             ),
                           ),
+                          _InboxTabKeepAlive(
+                            storageKey: 'inbox-tab-receipts-global-empty',
+                            child: _inboxReceiptsTabBody(context),
+                          ),
                         ],
                       );
                     } else {
@@ -175,6 +227,10 @@ class _InboxScreenState extends State<InboxScreen> {
                                       attentionMarkerIds,
                                     ),
                                   ),
+                                  _InboxTabKeepAlive(
+                                    storageKey: 'inbox-tab-receipts',
+                                    child: _inboxReceiptsTabBody(context),
+                                  ),
                                 ],
                               );
                             },
@@ -194,7 +250,7 @@ class _InboxScreenState extends State<InboxScreen> {
                         title: const Row(
                           children: [
                             Expanded(child: _InboxTabStrip()),
-                            _InboxSortButton(),
+                            _InboxSortButtonHost(),
                           ],
                         ),
                         actions: const [
@@ -215,6 +271,7 @@ class _InboxScreenState extends State<InboxScreen> {
           ),
         ),
       ),
+    ),
     );
     return screen;
   }
@@ -354,6 +411,9 @@ class _InboxTabStrip extends StatelessWidget {
           tabs: [
             Tab(text: '${l10n.inboxTabNeedsMe} ($needsMeCount)'),
             Tab(text: l10n.inboxTabWatching),
+            Tab(
+              child: InboxReceiptsTabLabel(label: l10n.inboxTabReceipts),
+            ),
           ],
         );
       },
@@ -366,6 +426,24 @@ InboxSort _inboxSortAfter(InboxSort current) => switch (current) {
   InboxSort.meritRank => InboxSort.deadline,
   InboxSort.deadline => InboxSort.recent,
 };
+
+class _InboxSortButtonHost extends StatelessWidget {
+  const _InboxSortButtonHost();
+
+  @override
+  Widget build(BuildContext context) {
+    final tabController = DefaultTabController.of(context);
+    return AnimatedBuilder(
+      animation: tabController,
+      builder: (context, _) {
+        if (tabController.index == _inboxTabReceipts) {
+          return const SizedBox.shrink();
+        }
+        return const _InboxSortButton();
+      },
+    );
+  }
+}
 
 /// Cycles [InboxSort] on each tap; debounces bursts so one accidental double-tap
 /// does not skip a mode.
@@ -534,6 +612,13 @@ Widget _watchingQuietEmpty({
         textAlign: TextAlign.center,
       ),
     ),
+  );
+}
+
+Widget _inboxReceiptsTabBody(BuildContext context) {
+  return BlocProvider(
+    create: (_) => UpdatesFeedCubit(),
+    child: const UpdatesFeedPane(),
   );
 }
 

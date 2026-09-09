@@ -9,6 +9,7 @@ abstract class HomeTabReselectState extends StateBase with _$HomeTabReselectStat
     @Default(0) int inboxReselectCount,
     @Default(0) int myWorkReselectCount,
     @Default(0) int inboxWatchingOpenCount,
+    @Default(0) int inboxReceiptsOpenCount,
     String? inboxWatchingBeaconId,
   }) = _HomeTabReselectState;
 

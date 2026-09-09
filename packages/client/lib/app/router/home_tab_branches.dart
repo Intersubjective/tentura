@@ -9,7 +9,6 @@ import 'root_router.gr.dart';
 /// shared root stack above [HomeRoute].
 const workTabShell = EmptyShellRoute('WorkTabShell');
 const inboxTabShell = EmptyShellRoute('InboxTabShell');
-const updatesTabShell = EmptyShellRoute('UpdatesTabShell');
 const networkTabShell = EmptyShellRoute('NetworkTabShell');
 const meTabShell = EmptyShellRoute('MeTabShell');
 
@@ -19,8 +18,8 @@ enum HomeTab { work, inbox, updates, network, me }
 
 /// The single mapping between a semantic Home tab and AutoRoute mechanics.
 ///
-/// Keep tab index, branch path, shell, and root together so adding Updates
-/// cannot silently shift Network/Profile behavior.
+/// Keep tab index, branch path, shell, and root together so adding a branch
+/// cannot silently shift sibling tab behavior.
 final class HomeTabSpec {
   const HomeTabSpec({
     required this.tab,
@@ -52,30 +51,27 @@ final class HomeTabSpec {
       rootRoute: InboxRoute.new,
     ),
     HomeTabSpec(
-      tab: HomeTab.updates,
-      index: 2,
-      path: kPathUpdates,
-      shell: updatesTabShell,
-      rootRoute: UpdatesRoute.new,
-    ),
-    HomeTabSpec(
       tab: HomeTab.network,
-      index: 3,
+      index: 2,
       path: kPathNetwork,
       shell: networkTabShell,
       rootRoute: FriendsRoute.new,
     ),
     HomeTabSpec(
       tab: HomeTab.me,
-      index: 4,
+      index: 3,
       path: kPathProfile,
       shell: meTabShell,
       rootRoute: ProfileRoute.new,
     ),
   ];
 
-  static HomeTabSpec forTab(HomeTab tab) =>
-      all.singleWhere((spec) => spec.tab == tab);
+  static HomeTabSpec forTab(HomeTab tab) {
+    if (tab == HomeTab.updates) {
+      return forTab(HomeTab.inbox);
+    }
+    return all.singleWhere((spec) => spec.tab == tab);
+  }
 
   static HomeTabSpec? fromIndex(int index) {
     for (final spec in all) {

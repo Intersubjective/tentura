@@ -1828,6 +1828,11 @@
   "@inboxTabWatching": {
     "context": "InboxScreen"
   },
+  "inboxTabReceipts": "Receipts",
+  "@inboxTabReceipts": {
+    "context": "InboxScreen",
+    "description": "Primary Inbox tab for folded Updates / notification receipts."
+  },
   "inboxForwardedByMe": "Forwarded",
   "@inboxForwardedByMe": {
     "context": "InboxScreen"

@@ -5,16 +5,26 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:tentura/app/router/home_tab_branches.dart';
 
 void main() {
-  test('HomeTabSpec preserves the five-tab branch mappings', () {
+  test('HomeTabSpec preserves the four-tab branch mappings after UNIT 13', () {
     expect(
       [for (final spec in HomeTabSpec.all) (spec.tab, spec.index, spec.path)],
       const [
         (HomeTab.work, 0, '/home/work'),
         (HomeTab.inbox, 1, '/home/inbox'),
-        (HomeTab.updates, 2, '/home/updates'),
-        (HomeTab.network, 3, '/home/network'),
-        (HomeTab.me, 4, '/home/profile'),
+        (HomeTab.network, 2, '/home/network'),
+        (HomeTab.me, 3, '/home/profile'),
       ],
+    );
+  });
+
+  test('folded Updates tab alias resolves to Inbox branch index', () {
+    expect(
+      HomeTabSpec.forTab(HomeTab.updates).tab,
+      HomeTab.inbox,
+    );
+    expect(
+      HomeTabSpec.forTab(HomeTab.updates).index,
+      HomeTabSpec.forTab(HomeTab.inbox).index,
     );
   });
 

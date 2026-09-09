@@ -25,7 +25,6 @@ import '../widget/inbox_navbar_item.dart';
 import '../widget/inbox_needs_me_reporter.dart';
 import '../widget/my_work_navbar_item.dart';
 import '../widget/profile_navbar_item.dart';
-import '../widget/updates_navbar_item.dart';
 
 @RoutePage()
 class HomeScreen extends StatelessWidget implements AutoRouteWrapper {
@@ -219,11 +218,6 @@ class _HomeShellState extends State<_HomeShell> {
                     label: Text(l10n.inbox),
                   ),
                   NavigationRailDestination(
-                    icon: const UpdatesNavbarItem(),
-                    selectedIcon: const UpdatesNavbarItem(selected: true),
-                    label: Text(l10n.updatesTitle),
-                  ),
-                  NavigationRailDestination(
                     icon: const FriendsNavbarItem(),
                     selectedIcon: const FriendsNavbarItem(
                       selected: true,
@@ -279,11 +273,6 @@ class _HomeShellState extends State<_HomeShell> {
                   icon: const InboxNavbarItem(),
                   selectedIcon: const InboxNavbarItem(selected: true),
                   label: l10n.inbox,
-                ),
-                HomeNavDestination(
-                  icon: const UpdatesNavbarItem(),
-                  selectedIcon: const UpdatesNavbarItem(selected: true),
-                  label: l10n.updatesTitle,
                 ),
                 HomeNavDestination(
                   icon: const FriendsNavbarItem(),

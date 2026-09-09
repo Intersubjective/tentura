@@ -47,7 +47,7 @@ void dispatchUiEffect(
             router.replaceAll([
               HomeRoute(
                 children: [
-                  inboxTabShell(children: [const InboxRoute()]),
+                  inboxTabShell(children: [InboxRoute()]),
                 ],
               ),
             ]),

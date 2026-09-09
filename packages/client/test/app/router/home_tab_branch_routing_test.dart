@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:logging/logging.dart';
 import 'package:mockito/mockito.dart';
 import 'package:tentura/app/router/root_router.dart';
+import 'package:tentura/consts.dart';
 import 'package:tentura/features/auth/ui/bloc/auth_cubit.dart';
 import 'package:tentura/features/home/ui/bloc/post_join_navigation_cubit.dart';
 import 'package:tentura/features/settings/ui/bloc/settings_cubit.dart';
@@ -317,6 +318,21 @@ void main() {
     ]);
     await router.maybePop();
     await tester.pumpAndSettle();
+    expect(find.text('inbox-root'), findsOneWidget);
+  });
+
+  testWidgets('legacy /home/updates deep link lands on Inbox receipts tab', (
+    tester,
+  ) async {
+    await pumpRouter(tester, initialPath: kPathUpdates);
+    await tester.pumpAndSettle();
+
+    final tabs = router.innerRouterOf<TabsRouter>(HomeRoute.name)!;
+    expect(tabs.activeIndex, HomeTabSpec.forTab(HomeTab.inbox).index);
+    expect(
+      router.navigationHistory.urlState.url,
+      '$kPathInbox?$kQueryHomeTab=$kInboxTabReceipts',
+    );
     expect(find.text('inbox-root'), findsOneWidget);
   });
 }
