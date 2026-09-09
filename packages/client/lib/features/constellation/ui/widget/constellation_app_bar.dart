@@ -7,7 +7,7 @@ import 'package:tentura/ui/l10n/l10n.dart';
 import '../bloc/constellation_cubit.dart';
 import 'constellation_filter_bar.dart';
 
-/// App-bar row for the constellation field: title, filters, optional legend,
+/// App-bar row for the constellation field: title, optional legend, filters,
 /// and map/text mode switch.
 class ConstellationAppBarRow extends StatelessWidget {
   const ConstellationAppBarRow({
@@ -46,23 +46,6 @@ class ConstellationAppBarRow extends StatelessWidget {
                 overflow: TextOverflow.ellipsis,
               ),
             ),
-            IconButton(
-              key: const Key('constellation.app_bar.filters'),
-              tooltip: l10n.constellationFiltersOpen,
-              onPressed: () => showConstellationFilterSheet(
-                context,
-                cubit: cubit,
-              ),
-              icon: Badge(
-                isLabelVisible: cubit.hasActiveFilters,
-                smallSize: tt.tightGap,
-                child: const Icon(Icons.tune),
-              ),
-              constraints: BoxConstraints(
-                minWidth: tt.buttonHeight,
-                minHeight: tt.buttonHeight,
-              ),
-            ),
             // Keep a fixed slot so the view-mode toggle does not shift when
             // map→text hides the legend control (RenderFlex / Flexible reflow).
             Visibility(
@@ -83,6 +66,23 @@ class ConstellationAppBarRow extends StatelessWidget {
                   minWidth: tt.buttonHeight,
                   minHeight: tt.buttonHeight,
                 ),
+              ),
+            ),
+            IconButton(
+              key: const Key('constellation.app_bar.filters'),
+              tooltip: l10n.constellationFiltersOpen,
+              onPressed: () => showConstellationFilterSheet(
+                context,
+                cubit: cubit,
+              ),
+              icon: Badge(
+                isLabelVisible: cubit.hasActiveFilters,
+                smallSize: tt.tightGap,
+                child: const Icon(Icons.tune),
+              ),
+              constraints: BoxConstraints(
+                minWidth: tt.buttonHeight,
+                minHeight: tt.buttonHeight,
               ),
             ),
             Flexible(
@@ -133,7 +133,7 @@ class _ConstellationViewModeToggle extends StatelessWidget {
           segments: [
             ButtonSegment(
               value: ConstellationViewMode.map,
-              icon: const Icon(Icons.map_outlined),
+              icon: const Icon(TenturaIcons.graph),
               label: showLabels ? Text(mapLabel) : null,
               tooltip: mapLabel,
             ),

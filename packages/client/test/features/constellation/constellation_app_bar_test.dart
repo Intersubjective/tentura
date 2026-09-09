@@ -160,7 +160,7 @@ void main() {
 
       expect(find.text('Map'), findsNothing);
       expect(find.text('Text'), findsNothing);
-      expect(find.byIcon(Icons.map_outlined), findsWidgets);
+      expect(find.byIcon(TenturaIcons.graph), findsOneWidget);
       expect(find.byIcon(Icons.view_list_outlined), findsOneWidget);
       await cubit.close();
     });
