@@ -1,9 +1,11 @@
+import 'dart:ui' show Size;
+
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:tentura/features/constellation/domain/constellation_density.dart';
 
-ConstellationViewport _viewport({double width = 1200, double height = 900}) =>
-    (width: width, height: height);
+Size _viewport({double width = 1200, double height = 900}) =>
+    Size(width, height);
 
 void main() {
   group('constellationLabelBudget', () {

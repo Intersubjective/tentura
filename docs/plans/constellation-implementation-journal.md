@@ -591,11 +591,27 @@ FILES: packages/client/lib/features/constellation/domain/constellation_filters.d
   docs/plans/constellation-implementation-journal.md
 FINDINGS: none — timing semantics align with `BeaconScheduleKind` in
   `beacon_schedule.dart` (event when `startAt` set; deadline when only `endAt`;
-  undated when both null). §0.4's `Size viewport` parameter is not usable in this
-  pure-Dart unit; see DECISIONS.
-DECISIONS: `constellationLabelBudget` takes `ConstellationViewport` (`width`,
-  `height` record) instead of Flutter `Size` to preserve the UNIT 09 no-Flutter
-  constraint; UI layers adapt at the call site. Budget formula:
+  undated when both null).
+
+**Overseer correction (post-review, before acceptance):** the worker's prompt
+(written by the overseer) incorrectly told it this unit carries the same "no
+Flutter / no dart:ui" constraint as UNIT 08. That constraint is real for
+UNIT 08's own text ("Pure Dart: no Flutter import, no dart:ui... records and
+collections only") but is **not** stated anywhere in UNIT 09's plan section —
+and §0.4's frozen `constellationLabelBudget` signature explicitly takes
+`required Size viewport` (`dart:ui`'s `Size`), which UNIT 10's frozen
+`computeConstellationLayout`/`ConstellationLayout` signatures also use
+(`Size canvasSize`, `Map<String, Offset> positions`) — geometry primitives are
+evidently expected in this part of the domain layer, unlike UNIT 08's graph
+algorithm, which genuinely has no geometric concern. Following the
+overseer's incorrect briefing, the worker substituted a custom
+`ConstellationViewport` (`width`, `height`) record for `Size`, disclosing the
+substitution honestly as a DECISION rather than silently deviating — good
+worker behavior given the (wrong) instruction it was given. The overseer
+reverted this to the literal frozen signature: `constellationLabelBudget`
+now takes `Size` from `dart:ui`, in both the implementation and the test
+helper. All 51 tests still pass; lint baseline unchanged (32/32).
+DECISIONS: Budget formula:
   `floor(ceiling × (viewportArea / refArea) / textScaleFactor)` clamped to
   `[1, ceiling]` with reference viewport 1200×900 — monotonic, never exceeds
   `(3, 150)`. `TimingFilter` / `LocationFilter` use sealed classes + enum per

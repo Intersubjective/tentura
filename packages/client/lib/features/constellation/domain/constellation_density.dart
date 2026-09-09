@@ -1,6 +1,6 @@
-typedef ConstellationLabelBudget = ({int perPerson, int total});
+import 'dart:ui' show Size;
 
-typedef ConstellationViewport = ({double width, double height});
+typedef ConstellationLabelBudget = ({int perPerson, int total});
 
 const _kMaxLabelsPerPerson = 3;
 const _kMaxLabelsTotal = 150;
@@ -8,7 +8,7 @@ const _kReferenceViewportWidth = 1200.0;
 const _kReferenceViewportHeight = 900.0;
 
 ConstellationLabelBudget constellationLabelBudget({
-  required ConstellationViewport viewport,
+  required Size viewport,
   required double textScaleFactor,
 }) {
   final safeScale = textScaleFactor <= 0 ? 1.0 : textScaleFactor;
