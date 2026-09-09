@@ -1185,7 +1185,11 @@
   },
   "myField": "Моё поле",
   "@myField": {
-    "context": "HomeScreen"
+    "context": "HomeScreen — side nav / non-compact label for the Field tab"
+  },
+  "field": "поле",
+  "@field": {
+    "context": "FriendsScreen — AppBar title for the Field (network) tab"
   },
   "inbox": "Входящие",
   "@inbox": {

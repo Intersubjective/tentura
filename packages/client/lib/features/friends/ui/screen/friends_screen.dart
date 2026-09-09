@@ -161,24 +161,7 @@ class _FriendsScreenState extends State<FriendsScreen>
         appBar: TenturaTopBar.of(
           context,
           tone: TenturaTopBarTone.primary,
-          title: BlocSelector<InvitationCubit, InvitationState, int>(
-            bloc: _invitationCubit,
-            selector: (s) => s.pendingCount,
-            builder: (context, inviteCount) {
-              return TenturaPrimaryTabBar(
-                controller: _tabController,
-                labelPadding: EdgeInsets.symmetric(
-                  horizontal: context.tt.tightGap,
-                ),
-                tabs: [
-                  Tab(text: l10n.friendsTitle),
-                  Tab(
-                    text: '${l10n.invitationScreenTitle} ($inviteCount)',
-                  ),
-                ],
-              );
-            },
-          ),
+          title: Text(l10n.field),
           actions: [
             FriendsAppBarActions(
               onGraph: () => _onOpenGraph(context),
@@ -189,6 +172,27 @@ class _FriendsScreenState extends State<FriendsScreen>
                   navigateToBlockedPeopleFromFriends(context),
             ),
           ],
+          bottom: PreferredSize(
+            preferredSize: const Size.fromHeight(kTextTabBarHeight),
+            child: BlocSelector<InvitationCubit, InvitationState, int>(
+              bloc: _invitationCubit,
+              selector: (s) => s.pendingCount,
+              builder: (context, inviteCount) {
+                return TenturaPrimaryTabBar(
+                  controller: _tabController,
+                  labelPadding: EdgeInsets.symmetric(
+                    horizontal: context.tt.tightGap,
+                  ),
+                  tabs: [
+                    Tab(text: l10n.friendsTitle),
+                    Tab(
+                      text: '${l10n.invitationScreenTitle} ($inviteCount)',
+                    ),
+                  ],
+                );
+              },
+            ),
+          ),
           progress: BlocSelector<InvitationCubit, InvitationState, bool>(
             key: Key('Friends.InvitationLoader:${_invitationCubit.hashCode}'),
             bloc: _invitationCubit,

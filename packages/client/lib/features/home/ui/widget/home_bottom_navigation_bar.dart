@@ -125,11 +125,14 @@ class _HomeNavTile extends StatelessWidget {
       fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
     );
     final tooltip = destination.tooltip ?? destination.label;
+    final semanticLabel =
+        destination.label.isNotEmpty ? destination.label : tooltip;
+    final showLabel = destination.label.isNotEmpty;
 
     final tile = Semantics(
       button: true,
       selected: selected,
-      label: destination.label,
+      label: semanticLabel,
       child: InkWell(
         onTap: onTap,
         child: Column(
@@ -164,16 +167,24 @@ class _HomeNavTile extends StatelessWidget {
                 ],
               ),
             ),
+            // Keep a one-line label slot even when hidden so icon-only tabs
+            // share vertical rhythm with labeled neighbors.
             SizedBox(height: labelGap),
             MediaQuery.withClampedTextScaling(
               maxScaleFactor: 1.3,
-              child: Text(
-                destination.label,
-                maxLines: 1,
-                softWrap: false,
-                overflow: TextOverflow.ellipsis,
-                textAlign: TextAlign.center,
-                style: labelStyle,
+              child: Visibility(
+                visible: showLabel,
+                maintainSize: true,
+                maintainAnimation: true,
+                maintainState: true,
+                child: Text(
+                  showLabel ? destination.label : ' ',
+                  maxLines: 1,
+                  softWrap: false,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
+                  style: labelStyle,
+                ),
               ),
             ),
           ],
