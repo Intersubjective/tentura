@@ -871,6 +871,18 @@ void main() {
           beaconRepo.getBeaconById(beaconId: _beaconId),
         ).thenAnswer((_) async => _beacon());
         when(
+          beaconRepo.runInBeaconStateTransaction<void>(
+            beaconId: anyNamed('beaconId'),
+            userId: anyNamed('userId'),
+            fn: anyNamed('fn'),
+          ),
+        ).thenAnswer((invocation) {
+          final fn =
+              invocation.namedArguments[#fn]
+                  as Future<void> Function(BeaconEntity);
+          return fn(_beacon());
+        });
+        when(
           helpOfferRepo.hasActiveHelpOffer(
             beaconId: _beaconId,
             userId: _helperId,

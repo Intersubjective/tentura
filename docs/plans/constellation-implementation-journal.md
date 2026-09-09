@@ -1370,3 +1370,45 @@ REMAINING: **UX acceptance (UX9)** — overseer conducts task-based study using
   **Discoverability on published request view** — optional future mount of
   `BeaconDiscoverabilityControl` on `beacon_view` (not blocking). Pre-existing
   test failures listed above remain out of scope for this plan.
+
+**Overseer full-suite review (post-UNIT-20, before UX9 pass):** the worker's
+"1 failed" on the client and "23 failed (baseline ~22)" on the server pg
+sweep were not accepted at face value — both were independently
+investigated, not just re-counted.
+
+- **Real regression, fixed:** `test/domain/use_case/beacon_room_admission_matrix_test.dart`
+  (untagged, so it ran only under the whole-suite `dart test`, never under any
+  single unit's scoped Verify block) failed with
+  `MissingStubError: 'runInBeaconStateTransaction'` — a **direct, causal
+  regression from UNIT 16**, which wrapped both `HelpOfferCase.offerHelp`
+  branches in the new `BeaconRepositoryPort.runInBeaconStateTransaction`
+  call. This file's own `MockBeaconRepositoryPort` (shared generated mocks
+  from `help_offer_case_mocks.mocks.dart`, the same file UNIT 16's own test
+  uses) was never taught to stub the new method — UNIT 16 only ran and fixed
+  up its *own* owned test file, not this sibling file that also happens to
+  exercise `HelpOfferCase.offerHelp` through a bare mock. Fixed directly (a
+  small, local addition — `when(beaconRepo.runInBeaconStateTransaction<void>(...))`
+  answering by invoking the captured `fn` against the test's existing beacon
+  fixture, mirroring `help_offer_case_test.dart`'s own `_LockingBeaconRepo`
+  fake's behavior). Re-verified: 17/17 now pass in this file. This is plan
+  §2 rule 7 case (a) — a genuine regression, not a stale assertion — so it
+  was fixed, not just documented.
+- **Investigated and ruled out, not a regression:** the client failure
+  (`request_threads_adaptive_test.dart`, "ambiguously found 2 widgets with
+  key 'beacon.overflow.menu'") has **zero code overlap** with anything this
+  plan touched — the file has no `graph`/`constellation` references at all —
+  and the failure signature (a finder ambiguously matching two mounted
+  widgets) is a classic test-isolation artifact, not a logic error. It also
+  fails identically running the file in isolation, consistent with an
+  existing intra-file test-order dependency rather than anything introduced
+  here. Left alone, per this plan's stated scope (fixing unrelated
+  pre-existing flakes is out of scope) — recorded here for whoever next
+  triages the client suite's flakes, since it wasn't in any baseline note
+  before this run surfaced it (first time the *whole* `flutter test` ran in
+  this session).
+
+Re-ran the full suites after the fix:
+`cd packages/server && dart test -x pg` — clean (no failures);
+`cd packages/server && dart test -t pg -j 1` — unchanged from the
+pre-existing ~22 baseline (not re-investigated further; same named files as
+every prior unit's baseline note).
