@@ -12,8 +12,11 @@ import 'package:tentura/features/auth/domain/exception.dart';
 import 'package:tentura/ui/widget/screen_load_error_panel.dart';
 import 'package:tentura/ui/widget/show_anchored_popup_menu.dart';
 
-import 'package:tentura/features/inbox/ui/bloc/inbox_operational_cubit.dart';
+import 'package:tentura/features/home/domain/entity/home_activation.dart';
+import 'package:tentura/features/home/ui/bloc/home_activation_cubit.dart';
 import 'package:tentura/features/home/ui/bloc/home_attention_cubit.dart';
+import 'package:tentura/features/home/ui/widget/home_orientation_panel.dart';
+import 'package:tentura/features/inbox/ui/bloc/inbox_operational_cubit.dart';
 
 import '../bloc/my_work_cubit.dart';
 import '../widget/my_work_cards.dart';
@@ -421,42 +424,79 @@ class _MyWorkListBody extends StatelessWidget {
         cards.any((c) => c.isFinishedCard);
     if (cards.isEmpty) {
       return BlocSelector<
-        InboxOperationalCubit,
-        InboxOperationalState,
-        (int, bool)
+        HomeActivationCubit,
+        HomeActivationState,
+        OrientationDecision
       >(
-        selector: (s) => (s.needsMeCount, s.loadComplete),
-        builder: (context, inboxMeta) {
-          final (inboxNeedsMeCount, inboxLoadComplete) = inboxMeta;
-          return RefreshIndicator.adaptive(
-            onRefresh: cubit.fetch,
-            child: CustomScrollView(
-              controller: scrollController,
-              physics: const AlwaysScrollableScrollPhysics(),
-              slivers: [
-                SliverFillRemaining(
-                  hasScrollBody: false,
-                  child: MyWorkEmptyBody(
-                    filter: state.filter,
-                    draftCount: state.draftCount,
-                    archivedCountHint: state.archivedCountHint,
-                    inboxNeedsMeCount: inboxNeedsMeCount,
-                    inboxLoadComplete: inboxLoadComplete,
-                    onCreateBeacon: () =>
-                        context.read<ScreenCubit>().showBeaconCreate(),
-                    onOpenInbox: () =>
-                        AutoTabsRouter.of(context).setActiveIndex(1),
-                    onOpenConstellation: () => AutoTabsRouter.of(context)
-                        .setActiveIndex(
-                          HomeTabSpec.forTab(HomeTab.constellation).index,
+        selector: (s) => s.decideFor(state.filter),
+        builder: (context, decision) {
+          return BlocSelector<
+            InboxOperationalCubit,
+            InboxOperationalState,
+            (int, bool)
+          >(
+            selector: (s) => (s.needsMeCount, s.loadComplete),
+            builder: (context, inboxMeta) {
+              final (inboxNeedsMeCount, inboxLoadComplete) = inboxMeta;
+              return RefreshIndicator.adaptive(
+                onRefresh: cubit.fetch,
+                child: CustomScrollView(
+                  controller: scrollController,
+                  physics: const AlwaysScrollableScrollPhysics(),
+                  slivers: [
+                    switch (decision) {
+                      OrientationDecision.show => SliverToBoxAdapter(
+                        child: HomeOrientationPanel(
+                          inboxNeedsMeCount: inboxNeedsMeCount,
+                          onCreateBeacon: () =>
+                              context.read<ScreenCubit>().showBeaconCreate(),
+                          onOpenInbox: () =>
+                              AutoTabsRouter.of(context).setActiveIndex(1),
+                          onOpenConstellation: () =>
+                              AutoTabsRouter.of(context).setActiveIndex(
+                                HomeTabSpec.forTab(HomeTab.constellation).index,
+                              ),
+                          onOpenTab: (tab) => AutoTabsRouter.of(context)
+                              .setActiveIndex(HomeTabSpec.forTab(tab).index),
+                          onDismiss: () =>
+                              context.read<HomeActivationCubit>().dismiss(),
                         ),
-                    onShowDrafts: () => cubit.setFilter(MyWorkFilter.drafts),
-                    onShowArchived: () =>
-                        cubit.setFilter(MyWorkFilter.archived),
-                  ),
+                      ),
+                      OrientationDecision.ordinaryEmpty =>
+                        SliverFillRemaining(
+                          hasScrollBody: false,
+                          child: MyWorkEmptyBody(
+                            filter: state.filter,
+                            draftCount: state.draftCount,
+                            archivedCountHint: state.archivedCountHint,
+                            inboxNeedsMeCount: inboxNeedsMeCount,
+                            inboxLoadComplete: inboxLoadComplete,
+                            onCreateBeacon: () =>
+                                context.read<ScreenCubit>().showBeaconCreate(),
+                            onOpenInbox: () =>
+                                AutoTabsRouter.of(context).setActiveIndex(1),
+                            onOpenConstellation: () =>
+                                AutoTabsRouter.of(context).setActiveIndex(
+                                  HomeTabSpec.forTab(HomeTab.constellation)
+                                      .index,
+                                ),
+                            onShowDrafts: () =>
+                                cubit.setFilter(MyWorkFilter.drafts),
+                            onShowArchived: () =>
+                                cubit.setFilter(MyWorkFilter.archived),
+                          ),
+                        ),
+                      OrientationDecision.undecided => SliverFillRemaining(
+                        hasScrollBody: false,
+                        child: Center(
+                          child: CircularProgressIndicator.adaptive(),
+                        ),
+                      ),
+                    },
+                  ],
                 ),
-              ],
-            ),
+              );
+            },
           );
         },
       );
