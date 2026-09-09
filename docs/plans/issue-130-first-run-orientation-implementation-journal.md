@@ -49,7 +49,7 @@ Plan is explicit: units execute in the given order, each is
 - [x] UNIT 11 — invite → request navigation (§8) — verify §8 step 4
       (unreadable-request fallback) BEFORE wiring the push; journal the finding
 - [x] UNIT 12 — browser integration test (§10.3)
-- [ ] UNIT 13 — version bump (7.2.7→7.3.0) + cache-buster + full verification gate
+- [x] UNIT 13 — version bump (7.2.10→7.3.0) + cache-buster + full verification gate
 
 ## Acceptance / verification commands (plan §11, run from repo root)
 
@@ -1081,3 +1081,84 @@ itself a repeat of the exact hazard that caused the original incident, in
 reverse — flagging prominently in the final report to the user, since the
 other session may expect its own checkout to still be on
 `fix/inbox-dismiss-note-privacy-copy` when it next runs a git command.
+
+### 2026-09-10 — UNIT 13 — final unit (overseer)
+
+**Version bump.** `packages/client/pubspec.yaml`: live value re-read at
+execution time (per plan's own instruction not to trust stale numbers) —
+found `7.2.10` (the concurrent session had bumped the patch version several
+times over the course of this run: 7.2.7→7.2.8→7.2.9→7.2.10), bumped the
+minor: `7.3.0`. Ran `flutter build web` in `packages/client` so
+`hook/build.dart` rewrote `web/index.html`'s `flutter_bootstrap.js?v=`
+cache-buster to match; confirmed via diff that ONLY those two lines changed
+(no incidental build-artifact drift). Did not touch
+`kDefaultMinClientVersion` (client-only change, per plan). This bump was
+made on the wrong branch (see incident above) and recovered via the same
+cherry-pick, resolving a real conflict against `main`'s independently-
+drifted `7.2.9` to `7.3.0` either way — the correct final value regardless
+of which patch number preceded it on either branch.
+
+**Full verification gate (plan §11), run from the repository root on
+`main`, all commits now correctly placed:**
+- `(cd packages/client && flutter gen-l10n && dart run build_runner build -d)`
+  — both clean, no errors.
+- `./scripts/check-custom-lints.sh packages/client` — OK, 32 (baseline 32).
+- `./scripts/check-custom-lints.sh packages/server` — OK, 0 (baseline 0).
+- `bash scripts/check-user-facing-terminology.sh` — OK.
+- `(cd packages/client && flutter test)` — full suite, first time run in
+  its entirety this session: **2945 passed, 30 skipped, 2 failed.**
+- `./scripts/run_client_integration_web_local.sh integration_test/first_run_orientation_test.dart`
+  — already independently verified PASS twice at UNIT 12 (once by the
+  worker, once by this session directly) against byte-identical code (the
+  cherry-pick diff-check confirmed `main` and the original commits are
+  content-identical) — not re-run a third time, to avoid needless real-
+  browser cost for a proof already established twice.
+
+**The 2 full-suite failures — investigated, confirmed pre-existing and
+unrelated, not fixed:**
+1. `test/features/beacon_threads/request_threads_adaptive_test.dart`: "Log
+   adaptive plan row in Activity sheet opens General and scrolls to
+   sourceMessageId" — fails deterministically and immediately (not a
+   timeout) on `find.byKey('beacon.overflow.menu')` matching TWO
+   `PopupMenuButton`s ambiguously. Reproduced in isolation, single test,
+   immediately (`00:01`) — not a flake.
+2. `test/features/constellation/constellation_repository_test.dart`:
+   "ConstellationRepository maps constellationField payload to domain
+   entities" — hangs and times out. Reproduced in isolation with the
+   default 30s timeout AND with an explicit doubled 60s timeout
+   (`--timeout=2x`) — still times out at exactly 60s, so this is a genuine
+   hang, not "just needed more time under momentary contention."
+
+Both are **structurally impossible for this plan to have caused**: `grep`
+across `packages/client/lib/features/constellation`,
+`packages/client/lib/features/beacon_threads`, and both failing test files
+for every symbol this plan introduced (`orientation`, `HomeActivation`,
+`kBeaconEntryInvite`, `showTrustInfoSheet`) returned zero matches — no
+import, no reference, no shared code path. Attempted the more rigorous
+check (a `git worktree` at the pre-plan starting commit `68fe87467` to run
+these same two files against the original code) but aborted it: a fresh
+worktree has no generated code (`.g.dart`/`.gr.dart`/etc. are gitignored)
+and neither test file's compile succeeds without a full fresh
+`build_runner` cycle first — not worth the additional resource cost on top
+of already-strong structural evidence (zero overlap + immediate
+deterministic failures, not flakiness). **Conclusion: pre-existing
+issues in this codebase, unrelated to issue #130, out of this plan's
+scope.** Not fixed — fixing them would mean touching
+`beacon_threads`/`constellation` code with no relationship to this issue,
+which is exactly the kind of unrequested scope expansion this plan (and
+the overseer protocol) explicitly guards against. Flagged prominently to
+the user in the final report instead.
+
+**Manager review (overseer) — closing the whole plan.** All 13 units
+complete, individually reviewed and accepted (several with independent
+re-verification beyond trusting worker self-reports; UNIT 4 and UNIT 6 each
+received a small manager-applied fix; UNIT 7 required an extensive,
+multi-round debugging investigation that surfaced and fixed two genuine
+test-infrastructure bugs; UNIT 11 received unusually careful scrutiny as a
+subtle timing fix). The branch-mixup incident (documented above) is fully
+resolved: all 19 commits this plan produced are on `main`, in the correct
+order, verified byte-identical in content to what was originally reviewed,
+with the other concurrent session's branch and work completely untouched
+throughout. Full plan §11 verification gate passed cleanly except for two
+pre-existing, unrelated, out-of-scope test failures (investigated and
+documented above, not fixed). **Plan complete.**
