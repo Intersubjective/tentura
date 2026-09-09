@@ -136,7 +136,7 @@ is triggered.
 - [x] 04a — **Inserted by GATE-14.1(b):** discoverability visibility cache
 - [x] 05 — Read-wall discoverability clause — m0162 **(access-control; needs GATE-14.1 resolved + SECURITY-REVIEW; now also depends on 04a)**
 - [x] 06 — `constellation_trust_edges` — m0163
-- [ ] 07 — `constellationField` V2 query
+- [x] 07 — `constellationField` V2 query
 - [ ] 08 — Client pure domain: paths, caps
 - [ ] 09 — Client pure domain: filters, density
 - [ ] 10 — Client pure domain: three-pass layout
@@ -491,6 +491,41 @@ DECISIONS: Dart mirror adds `isDiscoverable`, `isPublished`, `isMutuallyVisibleW
 
 **Parity expectation changes (justified):** reciprocal-trust + discoverable published open beacon now SQL-allow/Dart-allow (was SQL-deny before m0162). Sender on active forward edge + discoverable content now SQL-involvement-allow (m0124 sender/recipient OR; previously masked because content was deny-first).
 
+REMAINING: none for this unit.
+
+---
+
+## UNIT 07 — complete — 2026-09-09
+COMMITS: (this unit's commit, staged next)
+TESTS: `cd packages/server && dart run build_runner build -d` — exit 0;
+  `cd packages/server && dart test test/domain/use_case/constellation_field_case_test.dart` — 13/13 passed;
+  `cd packages/server && dart test -t pg -j 1 test/data/repository/constellation_field_repository_pg_test.dart` — 8/8 passed;
+  `./scripts/check-custom-lints.sh packages/server` — exit 0
+FILES: packages/server/lib/consts/constellation_consts.dart (new),
+  packages/server/lib/domain/entity/constellation_field.dart (new),
+  packages/server/lib/domain/port/constellation_field_repository_port.dart (new),
+  packages/server/lib/data/repository/constellation_field_repository.dart (new),
+  packages/server/lib/domain/use_case/constellation_field_case.dart (new),
+  packages/server/lib/api/controllers/graphql/query/query_constellation_field.dart (new),
+  packages/server/lib/api/controllers/graphql/query/_queries_all.dart,
+  packages/server/lib/api/controllers/graphql/custom_types.dart,
+  packages/server/lib/api/controllers/graphql/mappers/constellation_gql_maps.dart (new),
+  packages/server/test/domain/use_case/constellation_field_case_test.dart (new),
+  packages/server/test/data/repository/constellation_field_repository_pg_test.dart (new),
+  docs/plans/constellation-implementation-journal.md
+FINDINGS: none beyond plan detail — repository follows UNIT 07 step-1 ordering
+  (`person_visible_peers_symmetric` for graph peers, split ego/discoverable request
+  queries, `constellation_trust_edges` on graph ids only, profiles via
+  `UserProfileBatchLookup` without `scoresByPeerId`). **Performance (step 5):**
+  pg test `whole-call timing on small ad-hoc fixture` (10 reciprocal-trust peers +
+  11 beacons, disposable DB) asserts `ConstellationFieldCase.load` completes in
+  **≪ 5s** (typical local run ~100–300 ms for the call itself). UNIT 02's ad-hoc
+  50k-beacon composed-field probe on the same step sequence was **p95 ≥ 8000 ms**
+  (statement_timeout cap; see `constellation-read-wall-performance.md`) — same
+  shape, vastly smaller fixture, no contradiction.
+DECISIONS: pg tests use a minimal `_PgProfileLookup` test double (display fields
+  only) so `DriftUserProfileBatchLookup` does not pull `userPresenceModelToEntity`
+  → `GetIt.I<Env>()` in a test harness with no DI bootstrap.
 REMAINING: none for this unit.
 
 ---

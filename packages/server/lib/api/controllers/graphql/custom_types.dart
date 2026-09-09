@@ -24,6 +24,10 @@ List<GraphQLType<dynamic, dynamic>> get customTypes => [
   gqlTypeForwardGraphResult,
   gqlTypeForwardCandidateConnectionNode,
   gqlTypeForwardCandidateContext,
+  gqlTypeConstellationPeer,
+  gqlTypeConstellationEdge,
+  gqlTypeConstellationRequest,
+  gqlTypeConstellationField,
   gqlTypeMutualScore,
   gqlTypeImagePublic,
   gqlTypeUserPresence,
@@ -480,6 +484,86 @@ final gqlTypeForwardCandidateContext =
             gqlTypeForwardCandidateConnectionNode.nonNullable(),
           ).nonNullable(),
         ),
+      ]);
+
+/// Constellation field peer profile (display only — no scores).
+final gqlTypeConstellationPeer =
+    GraphQLObjectType(
+        'ConstellationPeer',
+        null,
+      )
+      ..fields.addAll([
+        field('id', graphQLString.nonNullable()),
+        field('displayName', graphQLString),
+        field('handle', graphQLString),
+        field('image', gqlTypeImagePublic),
+      ]);
+
+/// Two-tier trust edge between constellation peers (ids + tier only).
+final gqlTypeConstellationEdge =
+    GraphQLObjectType(
+        'ConstellationEdge',
+        null,
+      )
+      ..fields.addAll([
+        field('src', graphQLString.nonNullable()),
+        field('dst', graphQLString.nonNullable()),
+        field('tier', graphQLInt.nonNullable()),
+      ]);
+
+/// Authorized request row in the constellation field.
+final gqlTypeConstellationRequest =
+    GraphQLObjectType(
+        'ConstellationRequest',
+        null,
+      )
+      ..fields.addAll([
+        field('id', graphQLString.nonNullable()),
+        field('authorId', graphQLString.nonNullable()),
+        field('title', graphQLString.nonNullable()),
+        field('status', graphQLInt.nonNullable()),
+        field(
+          'needs',
+          GraphQLListType(graphQLString.nonNullable()).nonNullable(),
+        ),
+        field('primaryNeedSlug', graphQLString),
+        field('startAt', graphQLString),
+        field('endAt', graphQLString),
+        field('addressLabel', graphQLString),
+        field('hasCoordinates', graphQLBoolean.nonNullable()),
+        field('isMine', graphQLBoolean.nonNullable()),
+        field('viewerHasActiveHelpOffer', graphQLBoolean.nonNullable()),
+        field('viewerIsRoomParticipant', graphQLBoolean.nonNullable()),
+        field('viewerHasForwardEdge', graphQLBoolean.nonNullable()),
+        field('helpOfferCount', graphQLInt.nonNullable()),
+        field('coverThumb', gqlTypeImagePublic),
+      ]);
+
+/// Full constellation field snapshot for the JWT viewer.
+final gqlTypeConstellationField =
+    GraphQLObjectType(
+        'ConstellationField',
+        null,
+      )
+      ..fields.addAll([
+        field('loadedAt', graphQLString.nonNullable()),
+        field('context', graphQLString.nonNullable()),
+        field(
+          'peers',
+          GraphQLListType(gqlTypeConstellationPeer.nonNullable()).nonNullable(),
+        ),
+        field(
+          'edges',
+          GraphQLListType(gqlTypeConstellationEdge.nonNullable()).nonNullable(),
+        ),
+        field(
+          'requests',
+          GraphQLListType(
+            gqlTypeConstellationRequest.nonNullable(),
+          ).nonNullable(),
+        ),
+        field('peersCapped', graphQLBoolean.nonNullable()),
+        field('requestsCapped', graphQLBoolean.nonNullable()),
       ]);
 
 /// Return type for `userUpdate` / remote-schema mutations (minimal).

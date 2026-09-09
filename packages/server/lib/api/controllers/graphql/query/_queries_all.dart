@@ -14,6 +14,7 @@ import 'query_coordination.dart';
 import 'query_evaluation.dart';
 import 'query_fact_card.dart';
 import 'query_forward_candidates.dart';
+import 'query_constellation_field.dart';
 import 'query_forward_candidate_context.dart';
 import 'query_forward_graph.dart';
 import 'query_forward_inbound.dart';
@@ -44,6 +45,7 @@ List<GraphQLObjectField<dynamic, dynamic>> get queriesAll => [
   ...QueryEvaluation().all,
   ...QueryFactCard().all,
   ...QueryForwardCandidates().all,
+  ...QueryConstellationField().all,
   ...QueryForwardCandidateContext().all,
   ...QueryForwardGraph().all,
   ...QueryForwardInbound().all,
