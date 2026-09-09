@@ -3430,7 +3430,7 @@ type mutation_root {
   beaconForwardUpdate(id: String!, note: String, reasons: [String!]): Boolean!
   beaconMuteClear(beaconId: String!): Boolean!
   beaconMuteSet(beaconId: String!, mutedUntil: String): Boolean!
-  beaconOfferHelp(helpTypes: [String!], id: String!, message: String): Boolean!
+  beaconOfferHelp(expectedOfferKind: Int, helpTypes: [String!], id: String!, message: String): Boolean!
   beaconPublish(id: String!): v2_Beacon!
   beaconRemoveImage(beaconId: String!, imageId: String!): Boolean!
   beaconReopen(id: String!): v2_BeaconCloseReviewResult!

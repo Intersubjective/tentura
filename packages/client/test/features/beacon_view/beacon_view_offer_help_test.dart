@@ -120,6 +120,7 @@ class TrackingOfferHelpForwardRepository extends FakeBeaconViewForwardRepository
     required String beaconId,
     String? message,
     List<String>? helpTypes,
+    int? expectedOfferKind,
     bool notifyHelpOfferListeners = true,
   }) async {
     offerHelpCalls++;

@@ -13,6 +13,8 @@ final class MutationHelpOffer extends GqlNodeBase {
 
   final _helpTypes = InputFieldStringList(fieldName: 'helpTypes');
 
+  final _expectedOfferKind = InputFieldInt(fieldName: 'expectedOfferKind');
+
   final _withdrawReason = InputFieldString(fieldName: 'withdrawReason');
 
   List<GraphQLObjectField<dynamic, dynamic>> get all => [offerHelp, withdraw];
@@ -24,6 +26,7 @@ final class MutationHelpOffer extends GqlNodeBase {
       InputFieldId.field,
       _message.fieldNullable,
       _helpTypes.fieldNullable,
+      _expectedOfferKind.fieldNullable,
     ],
     resolve: (_, args) => _helpOfferCase
         .offerHelp(
@@ -31,6 +34,7 @@ final class MutationHelpOffer extends GqlNodeBase {
           userId: getCredentials(args).sub,
           message: _message.fromArgs(args) ?? '',
           helpTypes: _helpTypes.fromArgs(args),
+          expectedOfferKind: _expectedOfferKind.fromArgs(args),
         )
         .then((_) => true),
   );

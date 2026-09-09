@@ -508,6 +508,7 @@ class ForwardRepository {
     required String beaconId,
     String? message,
     List<String>? helpTypes,
+    int? expectedOfferKind,
     bool notifyHelpOfferListeners = true,
   }) async {
     final ok = await _remoteApiService
@@ -518,7 +519,8 @@ class ForwardRepository {
               ..vars.message = message
               ..vars.helpTypes = helpTypes != null
                   ? BuiltList<String>(helpTypes).toBuilder()
-                  : null,
+                  : null
+              ..vars.expectedOfferKind = expectedOfferKind,
           ),
         )
         .firstWhere((e) => e.dataSource == DataSource.Link)

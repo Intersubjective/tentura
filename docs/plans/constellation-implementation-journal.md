@@ -145,7 +145,7 @@ is triggered.
 - [x] 13 — Prerequisite project: fold Updates into Inbox
 - [x] 14 — Navigation slot, route, My Work entry
 - [x] 15 — Need labels, request preview, person panel
-- [ ] 16 — Snapshot lifecycle + action-time validation, incl. server `expectedOfferKind`
+- [x] 16 — Snapshot lifecycle + action-time validation, incl. server `expectedOfferKind`
 - [ ] 17 — Filter bar, grouping, stable anchors
 - [ ] 18 — Accessible Map/Text switch
 - [ ] 19 — Author discoverability toggle + reach statement
@@ -1135,3 +1135,47 @@ spot-checked the three new tap-interaction tests
 `tapping a person node opens the discoverable-requests panel`) are
 substantive, not stubs. The map is now genuinely interactive; UNIT 16 can
 proceed.
+
+---
+
+## UNIT 16 — complete — 2026-09-09
+COMMITS: (this unit's commit, staged next)
+TESTS: `cd packages/server && dart test test/domain/use_case/help_offer_case_test.dart` — 26/26 passed;
+  `cd packages/server && dart test -t pg -j 1 test/data/repository/help_offer_expected_kind_pg_test.dart` — 1/1 passed;
+  `./scripts/check-custom-lints.sh packages/server` — exit 0 (baseline 0);
+  `cd packages/client && dart run build_runner build -d` — exit 0;
+  `cd packages/client && flutter test test/features/constellation/constellation_freshness_test.dart test/features/forward/` — 219/219 passed;
+  `./scripts/check-custom-lints.sh packages/client` — exit 0 (32/32 baseline unchanged)
+FILES: packages/server/lib/api/controllers/graphql/mutation/mutation_help_offer.dart,
+  packages/server/lib/domain/use_case/help_offer_case.dart,
+  packages/server/lib/domain/exception_codes.dart,
+  packages/server/test/domain/use_case/help_offer_case_test.dart,
+  packages/server/test/data/repository/help_offer_expected_kind_pg_test.dart (new),
+  packages/client/lib/features/forward/data/gql/beacon_offer_help.graphql,
+  packages/client/lib/data/gql/schema.graphql,
+  packages/client/lib/features/forward/data/repository/forward_repository.dart,
+  packages/client/lib/features/constellation/ui/widget/constellation_snapshot_bar.dart (new),
+  packages/client/lib/features/constellation/ui/bloc/constellation_cubit.dart,
+  packages/client/lib/features/constellation/ui/widget/constellation_body.dart,
+  packages/client/test/features/constellation/constellation_freshness_test.dart (new),
+  packages/client/test/features/beacon_view/beacon_view_offer_help_test.dart,
+  docs/plans/constellation-implementation-journal.md
+FINDINGS: `constellation_body.dart` is not on the plan §3 owns list but was
+  required to wire UNIT 15 continuation placeholders (`onPrimaryAction` /
+  `onForward`) and mount `ConstellationSnapshotBar`; same for
+  `beacon_view_offer_help_test.dart` — one-line `offerHelp` fake signature
+  update after `ForwardRepository` gained `expectedOfferKind`. Generated Ferry
+  `*_req.gql.dart` outputs remain git-ignored; `build_runner` is still required
+  after pulling. Client `offerKindChanged` detection parses coordination code
+  `1516` from exception text (no dedicated GraphQL error mapper yet).
+DECISIONS: Server permissible kind: new offer → `1` when locked status is
+  `enoughHelp`, else `0`; active-offer update → stored `offerKind` (update
+  never changes kind). Both branches run inside `_attention.runAction` →
+  `runInBeaconStateTransaction` with kind check before any write; omitted
+  `expectedOfferKind` preserves legacy behavior. Client preflight uses existing
+  `ForwardRepository.fetchBeaconInvolvement`; selected-request refresh updates
+  the request row in the field but leaves `loadedAt` unchanged; Map/Text
+  switch does not reload. Coverage flip after snapshot → backup choice prompt,
+  never silent conversion; `offerKindChanged` preserves draft note and
+  re-presents choice.
+REMAINING: none for this unit. UNIT 17 — filter bar, grouping, stable anchors.

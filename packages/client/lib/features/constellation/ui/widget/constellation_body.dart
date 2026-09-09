@@ -8,6 +8,8 @@ import 'package:force_directed_graphview/force_directed_graphview.dart';
 
 import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
+import 'package:tentura/features/beacon_view/ui/dialog/help_offer_message_dialog.dart';
+import 'package:tentura/features/beacon_view/ui/util/help_offer_types_wire.dart';
 import 'package:tentura/features/graph/domain/entity/edge_details.dart';
 import 'package:tentura/features/graph/domain/entity/node_details.dart';
 import 'package:tentura/features/graph/ui/bloc/graph_person_context_cubit.dart';
@@ -16,6 +18,7 @@ import 'package:tentura/features/graph/ui/widget/graph_legend_mode.dart';
 import 'package:tentura/features/graph/ui/widget/graph_legend_panel.dart';
 import 'package:tentura/features/graph/ui/widget/graph_node_widget.dart';
 import 'package:tentura/features/graph/ui/widget/graph_person_context_panel.dart';
+import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/test_ids.dart';
 import 'package:tentura/ui/widget/linear_pi_active.dart';
 
@@ -23,6 +26,7 @@ import '../../domain/entity/constellation_field.dart';
 import '../bloc/constellation_cubit.dart';
 import 'constellation_request_label.dart';
 import 'constellation_request_preview_sheet.dart';
+import 'constellation_snapshot_bar.dart';
 
 class ConstellationBody extends StatefulWidget {
   const ConstellationBody({
@@ -85,9 +89,9 @@ class _ConstellationBodyState extends State<ConstellationBody> {
       authorDisplayName: authorDisplayName,
       connectionThroughName: connectionThroughName,
       onOpen: () => _openBeacon(context, request.id),
-      onPrimaryAction: _primaryActionForRequest(context, request),
+      onPrimaryAction: _primaryActionForRequest(context, cubit, request),
       onForward: constellationPreviewShowsForward(request)
-          ? () {}
+          ? () => unawaited(_runForwardFlow(context, cubit, request))
           : null,
     );
     if (!context.mounted) {
@@ -102,6 +106,7 @@ class _ConstellationBodyState extends State<ConstellationBody> {
 
   VoidCallback _primaryActionForRequest(
     BuildContext context,
+    ConstellationCubit cubit,
     ConstellationRequest request,
   ) {
     return switch (request.heldState) {
@@ -109,8 +114,144 @@ class _ConstellationBodyState extends State<ConstellationBody> {
       ConstellationHeldState.participant ||
       ConstellationHeldState.forwarded ||
       ConstellationHeldState.offered => () => _openBeacon(context, request.id),
-      ConstellationHeldState.none => () {},
+      ConstellationHeldState.none => () {
+        Navigator.of(context).pop();
+        unawaited(_runOfferFlowAndMaybeReopenPreview(
+          context,
+          cubit,
+          request,
+        ));
+      },
     };
+  }
+
+  Future<void> _runForwardFlow(
+    BuildContext context,
+    ConstellationCubit cubit,
+    ConstellationRequest request,
+  ) async {
+    final preflight = await cubit.preflightRequestAction(request.id);
+    if (!context.mounted) {
+      return;
+    }
+    switch (preflight) {
+      case ConstellationRequestPreflightAuthorizationDenied(:final message):
+        _showActionMessage(context, message);
+      case ConstellationRequestPreflightUnavailable(:final message):
+        _showActionMessage(context, message);
+      case ConstellationRequestPreflightReady(:final request):
+        await context.router.push(ForwardBeaconRoute(beaconId: request.id));
+    }
+  }
+
+  Future<void> _runOfferFlowAndMaybeReopenPreview(
+    BuildContext context,
+    ConstellationCubit cubit,
+    ConstellationRequest request,
+  ) async {
+    final reShow = await _runOfferFlow(context, cubit, request);
+    if (reShow != null && context.mounted) {
+      await _showRequestPreview(context, cubit, reShow);
+    }
+  }
+
+  Future<ConstellationRequest?> _runOfferFlow(
+    BuildContext context,
+    ConstellationCubit cubit,
+    ConstellationRequest snapshotRequest, {
+    String? preservedMessage,
+    List<String>? preservedHelpTypes,
+  }) async {
+    final preflight = await cubit.preflightRequestAction(snapshotRequest.id);
+    if (!context.mounted) {
+      return null;
+    }
+    switch (preflight) {
+      case ConstellationRequestPreflightAuthorizationDenied(:final message):
+        _showActionMessage(context, message);
+        return null;
+      case ConstellationRequestPreflightUnavailable(:final message):
+        _showActionMessage(context, message);
+        return null;
+      case ConstellationRequestPreflightReady(
+        :final beacon,
+        :final request,
+        :final viewerHasActiveHelpOffer,
+      ):
+        if (cubit.coverageRequiresExplicitBackupChoice(
+          snapshotRequest: snapshotRequest,
+          freshBeacon: beacon,
+        )) {
+          _showActionMessage(
+            context,
+            'Help is now covered. Choose whether to offer as backup.',
+          );
+          return request;
+        }
+        final expectedOfferKind = cubit.expectedOfferKindForRequest(request);
+        final useBackupCopy = expectedOfferKind == 1;
+        final l10n = L10n.of(context)!;
+        final outcome = await HelpOfferMessageDialog.show(
+          context,
+          title: useBackupCopy
+              ? l10n.dialogOfferHelpAnywayTitle
+              : l10n.dialogOfferHelpTitle,
+          hintText: l10n.hintOfferHelpMessage,
+          initialText: preservedMessage ?? '',
+          allowEmptyMessage: false,
+          showHelpTypeChips: true,
+          initialHelpTypeSlugs: preservedHelpTypes?.toSet() ?? const {},
+          automaticSlugs: beacon.needs,
+        );
+        if (outcome == null || !context.mounted) {
+          return null;
+        }
+        final submit = await cubit.submitValidatedOfferHelp(
+          beaconId: request.id,
+          expectedOfferKind: expectedOfferKind,
+          message: outcome.message,
+          helpTypes: viewerHasActiveHelpOffer
+              ? normalizeOfferHelpTypesWire(outcome.helpTypesWire)
+              : outcome.helpTypesWire,
+        );
+        if (!context.mounted) {
+          return null;
+        }
+        switch (submit) {
+          case ConstellationOfferSubmitOutcome.success:
+            _showActionMessage(context, l10n.labelOfferHelp);
+            return null;
+          case ConstellationOfferSubmitOutcome.offerKindChanged:
+            _showActionMessage(
+              context,
+              'Coverage changed. Choose how you want to help.',
+            );
+            final refreshed = cubit.requestById(request.id) ?? request;
+            return await _runOfferFlow(
+              context,
+              cubit,
+              refreshed,
+              preservedMessage: outcome.message,
+              preservedHelpTypes: outcome.helpTypesWire,
+            );
+          case ConstellationOfferSubmitOutcome.validationFailed:
+            _showActionMessage(
+              context,
+              'Could not submit your offer. Try again.',
+            );
+            return await _runOfferFlow(
+              context,
+              cubit,
+              request,
+              preservedMessage: outcome.message,
+              preservedHelpTypes: outcome.helpTypesWire,
+            );
+        }
+    }
+  }
+
+  void _showActionMessage(BuildContext context, String message) {
+    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
   }
 
   Widget _buildPersonContextOverlay(
@@ -263,6 +404,38 @@ class _ConstellationBodyState extends State<ConstellationBody> {
           return Stack(
             fit: StackFit.expand,
             children: [
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  const ConstellationSnapshotBar(),
+                  Expanded(
+                    child: _buildGraphStack(
+                      context,
+                      cubit,
+                      state,
+                      layoutAlgorithm,
+                      panelVisible,
+                    ),
+                  ),
+                ],
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildGraphStack(
+    BuildContext context,
+    ConstellationCubit cubit,
+    ConstellationState state,
+    ConstellationLayoutAlgorithm layoutAlgorithm,
+    bool panelVisible,
+  ) {
+    return Stack(
+            fit: StackFit.expand,
+            children: [
               GraphView<NodeDetails, EdgeDetails<NodeDetails>>(
                 controller: cubit.graphController,
                 canvasSize: ConstellationBody._canvasSize,
@@ -339,7 +512,7 @@ class _ConstellationBodyState extends State<ConstellationBody> {
                         !(panelVisible && context.windowClass == WindowClass.compact),
                     right: false,
                     child: Padding(
-                      padding: EdgeInsets.all(tt.rowGap),
+                      padding: EdgeInsets.all(context.tt.rowGap),
                       child: _buildLegendPanel(
                         context,
                         panelVisible: panelVisible,
@@ -351,9 +524,6 @@ class _ConstellationBodyState extends State<ConstellationBody> {
                 _buildPersonContextOverlay(context, cubit, state),
             ],
           );
-        },
-      ),
-    );
   }
 
   Widget _buildLegendPanel(

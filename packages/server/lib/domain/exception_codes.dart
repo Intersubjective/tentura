@@ -152,6 +152,7 @@ enum HelpOfferCoordinationExceptionCode {
   commitmentAlreadyAcknowledged,
   admissionRequiresAcknowledgement,
   commitmentNotAcknowledged,
+  offerKindChanged,
 }
 
 class HelpOfferCoordinationExceptionCodes extends ExceptionCodes {

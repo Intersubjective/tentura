@@ -3,7 +3,12 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:force_directed_graphview/force_directed_graphview.dart';
+import 'package:get_it/get_it.dart';
+import 'package:tentura_root/domain/entity/beacon_status.dart';
+import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/profile.dart';
+import 'package:tentura/features/beacon/domain/exception.dart';
+import 'package:tentura/features/forward/data/repository/forward_repository.dart';
 
 import '../../domain/constellation_filters.dart';
 import '../../domain/entity/constellation_field.dart';
@@ -25,13 +30,76 @@ enum ConstellationEdgeKind {
 
 const kConstellationLayoutMaxHops = 3;
 
+/// Server `HelpOfferCoordinationExceptionCode.offerKindChanged` wire code.
+const kOfferKindChangedCoordinationCode = 1516;
+
+enum ConstellationRequestPreflightOutcome {
+  ready,
+  authorizationDenied,
+  requestUnavailable,
+}
+
+sealed class ConstellationRequestPreflight {
+  const ConstellationRequestPreflight();
+
+  const factory ConstellationRequestPreflight.ready({
+    required Beacon beacon,
+    required ConstellationRequest request,
+    required bool viewerHasActiveHelpOffer,
+  }) = ConstellationRequestPreflightReady;
+
+  const factory ConstellationRequestPreflight.authorizationDenied({
+    required String message,
+  }) = ConstellationRequestPreflightAuthorizationDenied;
+
+  const factory ConstellationRequestPreflight.requestUnavailable({
+    required String message,
+  }) = ConstellationRequestPreflightUnavailable;
+}
+
+final class ConstellationRequestPreflightReady extends ConstellationRequestPreflight {
+  const ConstellationRequestPreflightReady({
+    required this.beacon,
+    required this.request,
+    required this.viewerHasActiveHelpOffer,
+  });
+
+  final Beacon beacon;
+  final ConstellationRequest request;
+  final bool viewerHasActiveHelpOffer;
+}
+
+final class ConstellationRequestPreflightAuthorizationDenied
+    extends ConstellationRequestPreflight {
+  const ConstellationRequestPreflightAuthorizationDenied({
+    required this.message,
+  });
+
+  final String message;
+}
+
+final class ConstellationRequestPreflightUnavailable
+    extends ConstellationRequestPreflight {
+  const ConstellationRequestPreflightUnavailable({required this.message});
+
+  final String message;
+}
+
+enum ConstellationOfferSubmitOutcome {
+  success,
+  offerKindChanged,
+  validationFailed,
+}
+
 final class ConstellationCubit extends Cubit<ConstellationState> {
   ConstellationCubit({
     required ConstellationFieldCase case_,
     required Profile viewer,
+    ForwardRepository? forwardRepository,
     bool loadOnCreate = true,
   }) : _case = case_,
        _viewer = viewer,
+       _forwardRepository = forwardRepository ?? GetIt.I<ForwardRepository>(),
        super(const ConstellationState()) {
     if (loadOnCreate) {
       unawaited(load());
@@ -40,6 +108,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
 
   final ConstellationFieldCase _case;
   final Profile _viewer;
+  final ForwardRepository _forwardRepository;
 
   final graphController =
       GraphController<NodeDetails, EdgeDetails<NodeDetails>>();
@@ -94,6 +163,107 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
       return;
     }
     emit(state.copyWith(selectedRequestId: requestId));
+  }
+
+  void setViewMode(ConstellationViewMode viewMode) {
+    if (isClosed || state.viewMode == viewMode) {
+      return;
+    }
+    emit(state.copyWith(viewMode: viewMode));
+  }
+
+  Future<ConstellationRequestPreflight> preflightRequestAction(
+    String beaconId,
+  ) async {
+    try {
+      final involvement = await _forwardRepository.fetchBeaconInvolvement(
+        beaconId: beaconId,
+      );
+      final beacon = involvement.beacon;
+      if (!beacon.status.isOpenFamily) {
+        return ConstellationRequestPreflight.authorizationDenied(
+          message: _authorizationDeniedMessage(beacon.status),
+        );
+      }
+      final snapshot = requestById(beaconId);
+      if (snapshot == null) {
+        return const ConstellationRequestPreflight.requestUnavailable(
+          message: 'This request is no longer in the field snapshot.',
+        );
+      }
+      final viewerHasActiveHelpOffer =
+          involvement.helpOfferedIds.contains(_viewer.id) &&
+          !involvement.withdrawnIds.contains(_viewer.id);
+      final viewerHasForwardEdge =
+          involvement.myForwardedRecipientEdgeIds.isNotEmpty;
+      final refreshed = _requestFromInvolvement(
+        snapshot: snapshot,
+        beacon: beacon,
+        viewerHasActiveHelpOffer: viewerHasActiveHelpOffer,
+        viewerHasForwardEdge: viewerHasForwardEdge,
+      );
+      _replaceRequestInField(refreshed);
+      return ConstellationRequestPreflight.ready(
+        beacon: beacon,
+        request: refreshed,
+        viewerHasActiveHelpOffer: viewerHasActiveHelpOffer,
+      );
+    } on BeaconFetchException {
+      return const ConstellationRequestPreflight.requestUnavailable(
+        message: 'This request is no longer available to you.',
+      );
+    } on Object catch (error) {
+      if (_isAuthorizationFailure(error)) {
+        return const ConstellationRequestPreflight.authorizationDenied(
+          message: 'You can no longer act on this request.',
+        );
+      }
+      return ConstellationRequestPreflight.requestUnavailable(
+        message: error.toString(),
+      );
+    }
+  }
+
+  Future<ConstellationOfferSubmitOutcome> submitValidatedOfferHelp({
+    required String beaconId,
+    required int expectedOfferKind,
+    required String message,
+    List<String>? helpTypes,
+  }) async {
+    try {
+      final ok = await _forwardRepository.offerHelp(
+        beaconId: beaconId,
+        message: message,
+        helpTypes: helpTypes,
+        expectedOfferKind: expectedOfferKind,
+      );
+      if (!ok) {
+        return ConstellationOfferSubmitOutcome.validationFailed;
+      }
+      await preflightRequestAction(beaconId);
+      return ConstellationOfferSubmitOutcome.success;
+    } on Object catch (error) {
+      if (_isOfferKindChanged(error)) {
+        return ConstellationOfferSubmitOutcome.offerKindChanged;
+      }
+      return ConstellationOfferSubmitOutcome.validationFailed;
+    }
+  }
+
+  int expectedOfferKindForRequest(ConstellationRequest request) {
+    return BeaconStatus.fromSmallint(request.status) == BeaconStatus.enoughHelp
+        ? 1
+        : 0;
+  }
+
+  bool coverageRequiresExplicitBackupChoice({
+    required ConstellationRequest snapshotRequest,
+    required Beacon freshBeacon,
+  }) {
+    final snapshotOpen =
+        BeaconStatus.fromSmallint(snapshotRequest.status) != BeaconStatus.enoughHelp;
+    final freshCovered = freshBeacon.status == BeaconStatus.enoughHelp;
+    return snapshotOpen && freshCovered;
   }
 
   void selectPerson(String? personId) {
@@ -319,4 +489,60 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     handle: peer.handle ?? '',
     image: peer.image,
   );
+
+  void _replaceRequestInField(ConstellationRequest refreshed) {
+    final field = state.field;
+    if (field == null) {
+      return;
+    }
+    final requests = [
+      for (final request in field.requests)
+        if (request.id == refreshed.id) refreshed else request,
+    ];
+    emit(
+      state.copyWith(
+        field: field.copyWith(requests: requests),
+      ),
+    );
+    _rebuildGraph();
+  }
+
+  ConstellationRequest _requestFromInvolvement({
+    required ConstellationRequest snapshot,
+    required Beacon beacon,
+    required bool viewerHasActiveHelpOffer,
+    required bool viewerHasForwardEdge,
+  }) {
+    return snapshot.copyWith(
+      status: beacon.status.smallintValue,
+      viewerHasActiveHelpOffer: viewerHasActiveHelpOffer,
+      viewerHasForwardEdge: viewerHasForwardEdge,
+    );
+  }
+
+  String _authorizationDeniedMessage(BeaconStatus status) => switch (status) {
+    BeaconStatus.cancelled ||
+    BeaconStatus.closed ||
+    BeaconStatus.reviewOpen => 'This request is closed and no longer accepts help.',
+    BeaconStatus.deleted => 'This request is no longer available.',
+    BeaconStatus.draft => 'This request is not open yet.',
+    _ => 'You can no longer act on this request.',
+  };
+
+  bool _isOfferKindChanged(Object error) {
+    final code = _coordinationCodeFromError(error);
+    return code == kOfferKindChangedCoordinationCode;
+  }
+
+  bool _isAuthorizationFailure(Object error) {
+    final message = error.toString().toLowerCase();
+    return message.contains('unauthorized') ||
+        message.contains('cannot read request content');
+  }
+
+  int? _coordinationCodeFromError(Object error) {
+    final text = error.toString();
+    final match = RegExp(r'code\D*(\d{4})').firstMatch(text);
+    return match == null ? null : int.tryParse(match.group(1)!);
+  }
 }

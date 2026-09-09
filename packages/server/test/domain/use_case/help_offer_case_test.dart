@@ -1,14 +1,21 @@
 import 'package:drift_postgres/drift_postgres.dart';
+import 'package:graphql_schema2/graphql_schema2.dart';
+import 'package:graphql_server2/graphql_server2.dart';
 import 'package:injectable/injectable.dart' show Environment;
 import 'package:logging/logging.dart';
 import 'package:mockito/mockito.dart';
 import 'package:test/test.dart';
 
+import 'package:tentura_server/api/controllers/graphql/gql_nodel_base.dart';
+import 'package:tentura_server/api/controllers/graphql/input/_input_types.dart';
+import 'package:tentura_server/api/controllers/graphql/mutation/mutation_help_offer.dart';
+import 'package:tentura_server/domain/entity/jwt_entity.dart';
 import 'package:tentura_server/env.dart';
 import 'package:tentura_server/consts/beacon_participant_status_bits.dart';
 import 'package:tentura_server/domain/entity/beacon_entity.dart';
 import 'package:tentura_server/domain/entity/help_offer_entity.dart';
 import 'package:tentura_server/domain/entity/user_entity.dart';
+import 'package:tentura_server/domain/port/beacon_repository_port.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/exception_codes.dart';
 import 'package:tentura_server/domain/entity/notification_priority.dart';
@@ -24,8 +31,39 @@ import '../../support/recording_commitment_repository.dart';
 import '../../support/test_attention_harness.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 
+class _LockingBeaconRepo extends Fake implements BeaconRepositoryPort {
+  BeaconEntity _beacon = BeaconEntity(
+    id: 'Bplaceholder1',
+    title: 't',
+    author: const UserEntity(id: 'Uauth'),
+    createdAt: DateTime.utc(2025),
+    updatedAt: DateTime.utc(2025),
+    status: BeaconStatus.open,
+  );
+
+  void setBeacon(BeaconEntity beacon) => _beacon = beacon;
+
+  @override
+  Future<BeaconEntity> getBeaconById({
+    required String beaconId,
+    String? filterByUserId,
+  }) async =>
+      _beacon;
+
+  @override
+  Future<T> runInBeaconStateTransaction<T>({
+    required String beaconId,
+    required String userId,
+    required Future<T> Function(BeaconEntity locked) fn,
+  }) =>
+      fn(_beacon);
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
+}
+
 void main() {
-  late MockBeaconRepositoryPort beaconRepo;
+  late _LockingBeaconRepo beaconRepo;
   late MockHelpOfferRepositoryPort helpOfferRepo;
   late MockInboxRepositoryPort inboxRepo;
   late MockPersonCapabilityEventRepositoryPort capabilityRepo;
@@ -51,13 +89,11 @@ void main() {
   );
 
   void stubBeacon(BeaconEntity b) {
-    when(
-      beaconRepo.getBeaconById(beaconId: b.id),
-    ).thenAnswer((_) async => b);
+    beaconRepo.setBeacon(b);
   }
 
   setUp(() {
-    beaconRepo = MockBeaconRepositoryPort();
+    beaconRepo = _LockingBeaconRepo();
     helpOfferRepo = MockHelpOfferRepositoryPort();
     inboxRepo = MockInboxRepositoryPort();
     capabilityRepo = MockPersonCapabilityEventRepositoryPort();
@@ -234,6 +270,14 @@ void main() {
           ),
         ),
       );
+      verifyNever(
+        helpOfferRepo.upsert(
+          beaconId: anyNamed('beaconId'),
+          userId: anyNamed('userId'),
+        ),
+      );
+      expect(commitmentRepo.recordCalls, isEmpty);
+      expect(attention.recorded, isEmpty);
     });
 
     test('rejects author on initial offer', () async {
@@ -262,6 +306,8 @@ void main() {
           userId: 'Uauth',
         ),
       );
+      expect(commitmentRepo.recordCalls, isEmpty);
+      expect(attention.recorded, isEmpty);
     });
 
     test('allows upsert when already offered help (update note)', () async {
@@ -302,7 +348,201 @@ void main() {
           offerKind: 0,
         ),
       ).called(1);
+      expect(commitmentRepo.recordCalls, isEmpty);
+      expect(attention.recorded, isEmpty);
     });
+  });
+
+  group('offerHelp — expectedOfferKind', () {
+    test(
+      'rejects normal kind after locked status becomes enoughHelp with no writes',
+      () async {
+        stubBeacon(beacon(id: 'B1', status: BeaconStatus.enoughHelp));
+        when(
+          helpOfferRepo.hasActiveHelpOffer(beaconId: 'B1', userId: 'U1'),
+        ).thenAnswer((_) async => false);
+
+        await expectLater(
+          case_.offerHelp(
+            beaconId: 'B1',
+            userId: 'U1',
+            expectedOfferKind: 0,
+          ),
+          throwsA(
+            isA<HelpOfferCoordinationException>().having(
+              (e) =>
+                  (e.code as HelpOfferCoordinationExceptionCodes).exceptionCode,
+              'code',
+              HelpOfferCoordinationExceptionCode.offerKindChanged,
+            ),
+          ),
+        );
+
+        verifyNever(
+          helpOfferRepo.upsert(
+            beaconId: anyNamed('beaconId'),
+            userId: anyNamed('userId'),
+          ),
+        );
+        expect(commitmentRepo.recordCalls, isEmpty);
+        expect(attention.recorded, isEmpty);
+      },
+    );
+
+    test(
+      'rejects backup kind after locked status is open with no writes',
+      () async {
+        stubBeacon(beacon(id: 'B1', status: BeaconStatus.open));
+        when(
+          helpOfferRepo.hasActiveHelpOffer(beaconId: 'B1', userId: 'U1'),
+        ).thenAnswer((_) async => false);
+
+        await expectLater(
+          case_.offerHelp(
+            beaconId: 'B1',
+            userId: 'U1',
+            expectedOfferKind: 1,
+          ),
+          throwsA(
+            isA<HelpOfferCoordinationException>().having(
+              (e) =>
+                  (e.code as HelpOfferCoordinationExceptionCodes).exceptionCode,
+              'code',
+              HelpOfferCoordinationExceptionCode.offerKindChanged,
+            ),
+          ),
+        );
+
+        verifyNever(
+          helpOfferRepo.upsert(
+            beaconId: anyNamed('beaconId'),
+            userId: anyNamed('userId'),
+          ),
+        );
+        expect(commitmentRepo.recordCalls, isEmpty);
+        expect(attention.recorded, isEmpty);
+      },
+    );
+
+    test('omitted kind keeps enoughHelp backup creation', () async {
+      stubBeacon(beacon(id: 'B1', status: BeaconStatus.enoughHelp));
+      when(
+        helpOfferRepo.hasActiveHelpOffer(beaconId: 'B1', userId: 'U1'),
+      ).thenAnswer((_) async => false);
+      when(
+        helpOfferRepo.upsert(
+          beaconId: 'B1',
+          userId: 'U1',
+          offerKind: 1,
+        ),
+      ).thenAnswer((_) async {});
+
+      await case_.offerHelp(beaconId: 'B1', userId: 'U1');
+
+      verify(
+        helpOfferRepo.upsert(
+          beaconId: 'B1',
+          userId: 'U1',
+          offerKind: 1,
+        ),
+      ).called(1);
+    });
+
+    test(
+      'active backup offer rejects normal expected kind without changing row',
+      () async {
+        stubBeacon(beacon(id: 'B1', status: BeaconStatus.enoughHelp));
+        when(
+          helpOfferRepo.hasActiveHelpOffer(beaconId: 'B1', userId: 'U1'),
+        ).thenAnswer((_) async => true);
+        when(helpOfferRepo.fetchByBeaconId('B1')).thenAnswer(
+          (_) async => [
+            HelpOfferEntity(
+              beaconId: 'B1',
+              userId: 'U1',
+              createdAt: now,
+              updatedAt: now,
+              message: 'keep me',
+              offerKind: 1,
+            ),
+          ],
+        );
+
+        await expectLater(
+          case_.offerHelp(
+            beaconId: 'B1',
+            userId: 'U1',
+            message: 'new text',
+            expectedOfferKind: 0,
+          ),
+          throwsA(
+            isA<HelpOfferCoordinationException>().having(
+              (e) =>
+                  (e.code as HelpOfferCoordinationExceptionCodes).exceptionCode,
+              'code',
+              HelpOfferCoordinationExceptionCode.offerKindChanged,
+            ),
+          ),
+        );
+
+        verifyNever(
+          helpOfferRepo.upsert(
+            beaconId: anyNamed('beaconId'),
+            userId: anyNamed('userId'),
+            message: anyNamed('message'),
+          ),
+        );
+        expect(commitmentRepo.recordCalls, isEmpty);
+        expect(attention.recorded, isEmpty);
+      },
+    );
+
+    test(
+      'matching active-offer update preserves kind and creates no receipt',
+      () async {
+        stubBeacon(beacon(id: 'B1', status: BeaconStatus.enoughHelp));
+        when(
+          helpOfferRepo.hasActiveHelpOffer(beaconId: 'B1', userId: 'U1'),
+        ).thenAnswer((_) async => true);
+        when(helpOfferRepo.fetchByBeaconId('B1')).thenAnswer(
+          (_) async => [
+            HelpOfferEntity(
+              beaconId: 'B1',
+              userId: 'U1',
+              createdAt: now,
+              updatedAt: now,
+              offerKind: 1,
+            ),
+          ],
+        );
+        when(
+          helpOfferRepo.upsert(
+            beaconId: 'B1',
+            userId: 'U1',
+            message: 'updated',
+            offerKind: 1,
+          ),
+        ).thenAnswer((_) async {});
+
+        await case_.offerHelp(
+          beaconId: 'B1',
+          userId: 'U1',
+          message: 'updated',
+          expectedOfferKind: 1,
+        );
+
+        verify(
+          helpOfferRepo.upsert(
+            beaconId: 'B1',
+            userId: 'U1',
+            message: 'updated',
+            offerKind: 1,
+          ),
+        ).called(1);
+        expect(commitmentRepo.recordCalls, isEmpty);
+        expect(attention.recorded, isEmpty);
+      },
+    );
   });
 
   group('offerHelp — offerKind assignment (P6)', () {
@@ -569,6 +809,57 @@ void main() {
         case_.offerHelp(beaconId: 'B1', userId: 'Uofferer'),
         throwsA(isA<UnauthorizedException>()),
       );
+    });
+  });
+
+  group('beaconOfferHelp schema compatibility', () {
+    test('legacy operation validates and executes without expectedOfferKind', () async {
+      const beaconId = 'Bhelpoffer001';
+      stubBeacon(beacon(id: beaconId, status: BeaconStatus.open));
+      when(
+        helpOfferRepo.hasActiveHelpOffer(beaconId: beaconId, userId: 'U1'),
+      ).thenAnswer((_) async => false);
+      when(
+        helpOfferRepo.upsert(beaconId: beaconId, userId: 'U1', offerKind: 0),
+      ).thenAnswer((_) async {});
+
+      final mutation = MutationHelpOffer(helpOfferCase: case_);
+      final graphQL = GraphQL(
+        GraphQLSchema(
+          queryType: GraphQLObjectType('Query', 'Query root')
+            ..fields.add(
+              GraphQLObjectField(
+                '_health',
+                graphQLBoolean.nonNullable(),
+                resolve: (_, __) => true,
+              ),
+            ),
+          mutationType: GraphQLObjectType('Mutation', 'Mutation root')
+            ..fields.addAll(mutation.all),
+        ),
+      );
+
+      const document = r'''
+mutation BeaconOfferHelp($beaconId: String!, $message: String) {
+  beaconOfferHelp(id: $beaconId, message: $message)
+}
+''';
+
+      final result =
+          await graphQL.parseAndExecute(
+                document,
+                operationName: 'BeaconOfferHelp',
+                variableValues: {
+                  'beaconId': beaconId,
+                  'message': 'hello',
+                },
+                globalVariables: {
+                  kGlobalInputQueryJwt: const JwtEntity(sub: 'U1'),
+                },
+              )
+              as Map<String, dynamic>;
+      expect(result['errors'], isNull);
+      expect(result['beaconOfferHelp'], isTrue);
     });
   });
 }

@@ -48,6 +48,7 @@ final class HelpOfferCase extends UseCaseBase {
     required String userId,
     String message = '',
     List<String>? helpTypes,
+    int? expectedOfferKind,
   }) async {
     if (helpTypes != null) {
       for (final type in helpTypes) {
@@ -59,98 +60,136 @@ final class HelpOfferCase extends UseCaseBase {
         }
       }
     }
-    if (!await _guard.canReadContent(beaconId: beaconId, viewerId: userId)) {
-      throw const UnauthorizedException(
-        description: 'Viewer cannot read request content',
-      );
-    }
-    final beacon = await _beaconRepository.getBeaconById(beaconId: beaconId);
-    if (!beacon.status.isOpenFamily) {
-      throw HelpOfferCoordinationException(
-        coordinationCode: HelpOfferCoordinationExceptionCode.beaconNotOpen,
-      );
-    }
-    final hasActive = await _helpOfferRepository.hasActiveHelpOffer(
-      beaconId: beaconId,
-      userId: userId,
-    );
-    if (hasActive) {
-      final existingOffers =
-          await _helpOfferRepository.fetchByBeaconId(beaconId);
-      final existingOfferKind = existingOffers
-          .firstWhere((o) => o.userId == userId)
-          .offerKind;
-      await _helpOfferRepository.upsert(
-        beaconId: beaconId,
-        userId: userId,
-        message: message,
-        helpTypes: helpTypes,
-        offerKind: existingOfferKind,
-      );
-      if (helpTypes != null && helpTypes.isNotEmpty) {
-        for (final type in helpTypes) {
-          try {
-            await _capabilityCase.recordCommitRole(
-              observerId: userId,
-              subjectId: userId,
-              beaconId: beaconId,
-              slug: type,
-            );
-          } catch (e, st) {
-            logger.warning('recordCommitRole failed', e, st);
-          }
-        }
-      }
-      return;
-    }
-    if (beacon.author.id == userId) {
-      throw HelpOfferCoordinationException(
-        coordinationCode: HelpOfferCoordinationExceptionCode.authorCannotCommit,
-      );
-    }
-    final offerKind =
-        beacon.status == BeaconStatus.enoughHelp ? 1 : 0;
     await _attention!.runAction<void>(
       actorUserId: userId,
       action: (transaction) async {
-        await _helpOfferRepository.upsert(
+        await _beaconRepository.runInBeaconStateTransaction(
           beaconId: beaconId,
           userId: userId,
-          message: message,
-          helpTypes: helpTypes,
-          offerKind: offerKind,
-        );
-        await _commitmentRepository.record(
-          beaconId: beaconId,
-          userId: userId,
-          actorUserId: userId,
-          kind: CommitmentEventKind.offered,
-        );
-        if (helpTypes != null && helpTypes.isNotEmpty) {
-          for (final type in helpTypes) {
-            try {
-              await _capabilityCase.recordCommitRole(
-                observerId: userId,
-                subjectId: userId,
-                beaconId: beaconId,
-                slug: type,
+          fn: (lockedBeacon) async {
+            if (!await _guard.canReadContent(
+              beaconId: beaconId,
+              viewerId: userId,
+            )) {
+              throw const UnauthorizedException(
+                description: 'Viewer cannot read request content',
               );
-            } catch (e, st) {
-              logger.warning('recordCommitRole failed', e, st);
             }
-          }
-        }
-        await transaction.record(
-          await _attentionIntents!.helpOfferSubmitted(
-            beaconId: beaconId,
-            helpOffererId: userId,
-            authorId: beacon.author.id,
-            sourceEventKey: 'help_offer:${generateId('A')}',
-            isBackupOffer: offerKind == 1,
-          ),
+            if (!lockedBeacon.status.isOpenFamily) {
+              throw HelpOfferCoordinationException(
+                coordinationCode:
+                    HelpOfferCoordinationExceptionCode.beaconNotOpen,
+              );
+            }
+
+            final hasActive = await _helpOfferRepository.hasActiveHelpOffer(
+              beaconId: beaconId,
+              userId: userId,
+            );
+
+            if (hasActive) {
+              final existingOffers =
+                  await _helpOfferRepository.fetchByBeaconId(beaconId);
+              final existingOfferKind = existingOffers
+                  .firstWhere((o) => o.userId == userId)
+                  .offerKind;
+              _rejectOfferKindMismatch(
+                expectedOfferKind: expectedOfferKind,
+                permissibleKind: existingOfferKind,
+              );
+              await _helpOfferRepository.upsert(
+                beaconId: beaconId,
+                userId: userId,
+                message: message,
+                helpTypes: helpTypes,
+                offerKind: existingOfferKind,
+              );
+              await _recordHelpTypeCapabilities(
+                userId: userId,
+                beaconId: beaconId,
+                helpTypes: helpTypes,
+              );
+              return;
+            }
+
+            if (lockedBeacon.author.id == userId) {
+              throw HelpOfferCoordinationException(
+                coordinationCode:
+                    HelpOfferCoordinationExceptionCode.authorCannotCommit,
+              );
+            }
+
+            final permissibleKind =
+                lockedBeacon.status == BeaconStatus.enoughHelp ? 1 : 0;
+            _rejectOfferKindMismatch(
+              expectedOfferKind: expectedOfferKind,
+              permissibleKind: permissibleKind,
+            );
+            final offerKind = permissibleKind;
+            await _helpOfferRepository.upsert(
+              beaconId: beaconId,
+              userId: userId,
+              message: message,
+              helpTypes: helpTypes,
+              offerKind: offerKind,
+            );
+            await _commitmentRepository.record(
+              beaconId: beaconId,
+              userId: userId,
+              actorUserId: userId,
+              kind: CommitmentEventKind.offered,
+            );
+            await _recordHelpTypeCapabilities(
+              userId: userId,
+              beaconId: beaconId,
+              helpTypes: helpTypes,
+            );
+            await transaction.record(
+              await _attentionIntents!.helpOfferSubmitted(
+                beaconId: beaconId,
+                helpOffererId: userId,
+                authorId: lockedBeacon.author.id,
+                sourceEventKey: 'help_offer:${generateId('A')}',
+                isBackupOffer: offerKind == 1,
+              ),
+            );
+          },
         );
       },
     );
+  }
+
+  void _rejectOfferKindMismatch({
+    required int? expectedOfferKind,
+    required int permissibleKind,
+  }) {
+    if (expectedOfferKind != null && expectedOfferKind != permissibleKind) {
+      throw HelpOfferCoordinationException(
+        coordinationCode: HelpOfferCoordinationExceptionCode.offerKindChanged,
+      );
+    }
+  }
+
+  Future<void> _recordHelpTypeCapabilities({
+    required String userId,
+    required String beaconId,
+    required List<String>? helpTypes,
+  }) async {
+    if (helpTypes == null || helpTypes.isEmpty) {
+      return;
+    }
+    for (final type in helpTypes) {
+      try {
+        await _capabilityCase.recordCommitRole(
+          observerId: userId,
+          subjectId: userId,
+          beaconId: beaconId,
+          slug: type,
+        );
+      } catch (e, st) {
+        logger.warning('recordCommitRole failed', e, st);
+      }
+    }
   }
 
   Future<void> withdraw({
