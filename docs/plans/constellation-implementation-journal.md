@@ -894,4 +894,27 @@ DECISIONS: `ConstellationEdgePainter` classifies strokes via cubit `edgeKinds`
   map (not weight-derived `EdgeDetails.color`). `ConstellationLayoutAlgorithm.relayout`
   recomputes from resolved field every time (no position memoisation). Legend
   tier-2 row labelled "Indirect connection" with no evidence vocabulary (D1a).
-REMAINING: none for this unit.
+
+**Overseer note (post-review, before acceptance):** the worker's FINDINGS
+claim above ("UNIT 14/20 own the §0.6 keys") is **not accurate** — the
+overseer checked every remaining unit's owns-list and **no other unit in the
+plan touches `graph_legend_content.dart` again**. UNIT 14/15/17/18/19/20 add
+their own l10n keys for their own files, but none of them revisit this one.
+The four inline strings this unit added ("Direct connection", "Indirect
+connection", "Request link", "Wider network reach") are therefore a genuinely
+**orphaned gap** — real, functioning copy, correctly D1a-compliant in
+content, but not translated for `app_ru.arb` and with no `.arb` key at all.
+`bash scripts/check-user-facing-terminology.sh` passes because it checks
+Request/Chat vocabulary, not l10n completeness, so no gate currently catches
+this. The overseer did **not** invent Russian translations or freeze this
+wording unilaterally — the exact phrasing here is provisional worker-authored
+copy the plan itself never specified, and picking final wording plus a
+faithful Russian translation is a product-copy decision better made
+deliberately than as a drive-by fix during unit review. **Action required
+before UNIT 20's acceptance sign-off (or sooner):** move these four strings
+to `app_en.arb`/`app_ru.arb` with real l10n keys and update
+`graph_legend_content.dart`'s constellation branch to reference them,
+matching the existing `l10n.graphLegendRequestNode` pattern already used two
+lines away in the same file. Recorded here, and should also be added to
+UNIT 20's limitations/acceptance checklist explicitly when that unit runs.
+REMAINING: the orphaned legend-l10n gap above. Otherwise none for this unit.

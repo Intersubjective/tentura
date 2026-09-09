@@ -2654,8 +2654,17 @@ Implements **U12 / UX9 / UX10 / §10**.
    stage-2 reachability cost** (architecture §5, `ALG-STAGE2`): a holder whose
    only route needs a `T` node at a ring other than its explicit-trust `depth1`
    falls to the residual ring although a path exists, because one person is never
-   drawn at two rings; and **no remote filter** — the location fields establish
-   presence only, and a request without them is *unspecified*, never "remote".
+   drawn at two rings; **no remote filter** — the location fields establish
+   presence only, and a request without them is *unspecified*, never "remote";
+   and **the UNIT 12 legend l10n gap** — `graph_legend_content.dart`'s
+   constellation branch ("Direct connection" / "Indirect connection" /
+   "Request link" / "Wider network reach") shipped as inline English with no
+   `.arb` key and no Russian translation, and no other unit in this plan
+   revisits that file. Before this unit's acceptance, move those four strings
+   into `app_en.arb`/`app_ru.arb` with real keys and update the file to use
+   them, matching the existing `l10n.graphLegendRequestNode` reference two
+   lines away in the same switch. See the implementation journal's UNIT 12
+   entry for the full context.
 5. **UX acceptance (UX9).** Fixtures must include: explicit and inferred
    connections, a genuine referral, pending and acknowledged helpers, unknown
    effort/timing, an `enoughHelp` request, a dense field, compact and large
