@@ -5471,9 +5471,9 @@
   "@inboxDismissDialogTitle": {
     "description": "Title for the inbox dismiss (X) dialog — not the same as Can't help."
   },
-  "inboxDismissDialogHint": "Optional note (only you see this)",
+  "inboxDismissDialogHint": "Optional note \u2014 the sender will see it",
   "@inboxDismissDialogHint": {
-    "description": "Hint for optional note when removing a beacon from inbox."
+    "description": "Hint for the optional note when removing a beacon from inbox. The note is copied to the forward edge and is visible to whoever forwarded it."
   },
   "inboxDismissTooltip": "Remove from inbox",
   "@inboxDismissTooltip": {

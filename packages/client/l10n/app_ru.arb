@@ -5243,7 +5243,7 @@
   "@inboxDismissDialogTitle": {
     "description": "Title for the inbox dismiss (X) dialog — not the same as Can't help."
   },
-  "inboxDismissDialogHint": "Комментарий необязателен (видите только вы)",
+  "inboxDismissDialogHint": "Комментарий необязателен — его увидит отправитель",
   "@inboxDismissDialogHint": {
     "description": "Hint for optional note when removing a beacon from inbox."
   },
