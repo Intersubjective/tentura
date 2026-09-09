@@ -5,14 +5,15 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:tentura/app/router/home_tab_branches.dart';
 
 void main() {
-  test('HomeTabSpec preserves the four-tab branch mappings after UNIT 13', () {
+  test('HomeTabSpec preserves the five-tab branch mappings after UNIT 14', () {
     expect(
       [for (final spec in HomeTabSpec.all) (spec.tab, spec.index, spec.path)],
       const [
         (HomeTab.work, 0, '/home/work'),
         (HomeTab.inbox, 1, '/home/inbox'),
-        (HomeTab.network, 2, '/home/network'),
-        (HomeTab.me, 3, '/home/profile'),
+        (HomeTab.constellation, 2, '/home/constellation'),
+        (HomeTab.network, 3, '/home/network'),
+        (HomeTab.me, 4, '/home/profile'),
       ],
     );
   });

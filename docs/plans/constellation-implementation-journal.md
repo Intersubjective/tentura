@@ -1022,5 +1022,18 @@ DECISIONS: `ConstellationNavbarItem` is a plain `Icon` + `Semantics`/`TestIds`
   (`constellationNavItem`, `myWorkFindWaysToHelp`) landed in `test_ids.dart`
   despite UNIT 14 owns-list omitting that file — required by acceptance tests.
   My Work empty-state CTA uses `TenturaTextAction` with no count/badge.
-REMAINING: none for this unit. `home_tab_spec_test.dart` four-tab assertion is
-  stale for full-suite CI (not in this unit's verify scope).
+REMAINING: none for this unit.
+
+**Overseer fix (post-review, before acceptance):** confirmed the worker's
+FINDING — `test/architecture/home_tab_spec_test.dart` (a file UNIT 13's
+worker added outside its own owns list, with no other unit ever claiming it)
+asserted the transient four-tab shape and failed once UNIT 14 landed. This is
+squarely case (b) of executor contract §2 rule 7 — an assertion that encoded
+an intentionally-superseded intermediate state, not a genuine regression — so
+the overseer updated its expectations to the final five-tab shape
+(`work=0, inbox=1, constellation=2, network=3, me=4`) and renamed the test
+description from "four-tab... after UNIT 13" to "five-tab... after UNIT 14".
+Re-verified: this file's 3/3 tests pass, and the full
+`flutter test test/features/home/ test/features/my_work/ test/app/` sweep
+plus the lint gate were independently re-run afterward and remain
+206/206 / 32-baseline clean.
