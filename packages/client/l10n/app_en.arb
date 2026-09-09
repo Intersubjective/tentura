@@ -1199,6 +1199,14 @@
   "@network": {
     "context": "HomeScreen"
   },
+  "requestDiscoverableLabel": "Discoverable",
+  "@requestDiscoverableLabel": {
+    "description": "Short label for the author discoverability toggle on a request."
+  },
+  "requestDiscoverableHint": "Discoverable by people you and your network can both see",
+  "@requestDiscoverableHint": {
+    "description": "Plain reach statement beside the author discoverability toggle."
+  },
   "constellationTitle": "Constellation",
   "@constellationTitle": {
     "context": "HomeScreen"

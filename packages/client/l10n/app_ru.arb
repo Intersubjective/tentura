@@ -1199,6 +1199,14 @@
   "@network": {
     "context": "HomeScreen"
   },
+  "requestDiscoverableLabel": "Обнаружение",
+  "@requestDiscoverableLabel": {
+    "description": "Short label for the author discoverability toggle on a request."
+  },
+  "requestDiscoverableHint": "Видно людям, которых видите вы и ваша сеть",
+  "@requestDiscoverableHint": {
+    "description": "Plain reach statement beside the author discoverability toggle."
+  },
   "constellationTitle": "Созвездие",
   "@constellationTitle": {
     "context": "HomeScreen"

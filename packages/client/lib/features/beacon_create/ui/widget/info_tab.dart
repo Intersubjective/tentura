@@ -14,6 +14,7 @@ import 'package:tentura/ui/utils/schedule_date_format.dart';
 import 'package:tentura/ui/utils/string_input_validator.dart';
 import 'package:tentura/ui/test_ids.dart';
 import 'package:tentura/ui/widget/unfocus_sheet_body.dart';
+import 'package:tentura/features/beacon/ui/widget/beacon_discoverability_control.dart';
 import 'package:tentura/features/capability/ui/widget/capability_chip_set.dart';
 import 'package:tentura/features/context/ui/widget/context_drop_down.dart';
 import 'package:tentura/features/geo/ui/dialog/choose_location_dialog.dart';
@@ -844,6 +845,17 @@ class _InfoTabState extends State<InfoTab> with StringInputValidator {
                   child: const ContextDropDown(),
                 ),
               ],
+              _detailsHairline(tt),
+              BlocSelector<BeaconCreateCubit, BeaconCreateState, bool>(
+                bloc: _cubit,
+                selector: (s) => s.isDiscoverable,
+                builder: (context, isDiscoverable) =>
+                    BeaconDiscoverabilityControl(
+                  isAuthor: true,
+                  isDiscoverable: isDiscoverable,
+                  onChanged: _cubit.setDiscoverable,
+                ),
+              ),
             ],
           ),
         ),

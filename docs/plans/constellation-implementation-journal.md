@@ -148,7 +148,7 @@ is triggered.
 - [x] 16 — Snapshot lifecycle + action-time validation, incl. server `expectedOfferKind`
 - [x] 17 — Filter bar, grouping, stable anchors
 - [x] 18 — Accessible Map/Text switch
-- [ ] 19 — Author discoverability toggle + reach statement
+- [x] 19 — Author discoverability toggle + reach statement
 - [ ] 20 — Version bump, docs activation, UX acceptance
 
 Parallelizable per plan: {08, 09, 10} after 08's contracts land; {13} alongside
@@ -1245,3 +1245,46 @@ DECISIONS: Map viewport preservation uses `IndexedStack` (map stays mounted whil
   request. Overflow groups mount on the map canvas via `GraphView.builder` at author
   satellite positions; filter bar sits above both views.
 REMAINING: none for this unit. UNIT 19 — author discoverability toggle.
+
+---
+
+## UNIT 19 — complete — 2026-09-09
+COMMITS: (this unit's commit, staged next)
+TESTS: `cd packages/client && flutter gen-l10n && dart run build_runner build -d` — exit 0;
+  `cd packages/client && flutter test test/features/beacon_create/` — 122/122 passed;
+  `bash scripts/check-user-facing-terminology.sh` — exit 0;
+  `./scripts/check-custom-lints.sh packages/client` — exit 0 (32/32 baseline unchanged)
+FILES: packages/client/lib/domain/entity/beacon.dart,
+  packages/client/lib/data/gql/beacon_model.graphql,
+  packages/client/lib/data/model/beacon_model.dart,
+  packages/client/lib/data/gql/schema.graphql,
+  packages/client/lib/features/beacon/data/gql/beacon_create.graphql,
+  packages/client/lib/features/beacon/data/gql/beacon_update.graphql,
+  packages/client/lib/features/beacon/data/gql/beacon_update_draft.graphql,
+  packages/client/lib/features/beacon/data/repository/beacon_repository.dart,
+  packages/client/lib/features/beacon/ui/widget/beacon_discoverability_control.dart (new),
+  packages/client/lib/features/beacon_create/ui/bloc/beacon_create_state.dart,
+  packages/client/lib/features/beacon_create/ui/bloc/beacon_create_cubit.dart,
+  packages/client/lib/features/beacon_create/ui/widget/info_tab.dart,
+  packages/client/lib/ui/test_ids.dart,
+  packages/client/l10n/app_en.arb,
+  packages/client/l10n/app_ru.arb,
+  packages/client/test/features/beacon_create/discoverability_toggle_test.dart (new),
+  packages/client/test/features/beacon_create/fake_beacon_ports.dart,
+  docs/plans/constellation-implementation-journal.md
+FINDINGS: server GraphQL field name confirmed `isDiscoverable` (camelCase) in
+  `custom_types.dart`; Hasura column `is_discoverable` on reads. Toggle surface:
+  **`info_tab.dart` Details card** (not the compact optional-summary row) — that
+  card already holds per-request settings (timing, requirements, cover, location);
+  the compact summary row is layout-only navigation. Reusable author control lives
+  in `features/beacon/ui/widget/beacon_discoverability_control.dart` for the detail
+  settings seam; wired from create/edit `InfoTab` only (author-only route). No live
+  reach count (v1). `SwitchListTile` inside the Details `DecoratedBox` needs an
+  explicit `Material` wrapper to avoid ink-splash assertions in tests.
+DECISIONS: `BeaconDiscoverabilityControl.isAuthor` gates visibility for non-authors
+  (widget returns shrink — tested directly). Reach copy uses frozen §0.6 keys
+  (`requestDiscoverableLabel` / `requestDiscoverableHint`). Draft saves pass
+  `isDiscoverable` through the same payload as publish/edit updates.
+REMAINING: inline toggle on published request **view** (`beacon_view`) not wired —
+  authors change discoverability via create/edit (`BeaconCreateRoute(editId:)`).
+  UNIT 20 may note if product wants view-surface access without entering edit mode.

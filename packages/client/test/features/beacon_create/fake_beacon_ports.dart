@@ -192,6 +192,7 @@ class FakeBeaconWritePort implements BeaconWritePort {
     needs: fields.needs,
     primaryNeedSlug: fields.primaryNeedSlug,
     coverSource: fields.coverSource,
+    isDiscoverable: fields.isDiscoverable,
   );
 
   @override

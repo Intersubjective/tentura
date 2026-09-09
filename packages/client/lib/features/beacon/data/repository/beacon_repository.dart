@@ -154,7 +154,8 @@ class BeaconRepository implements BeaconWritePort {
         ..needs = beacon.needs.isEmpty ? null : beacon.needs.join(',')
         ..primaryNeedSlug = beacon.primaryNeedSlug
         ..addressLabel = beacon.addressLabel
-        ..draft = draft;
+        ..draft = draft
+        ..isDiscoverable = beacon.isDiscoverable;
     });
     final beaconId = await _remoteApiService
         .request(request)
@@ -186,7 +187,8 @@ class BeaconRepository implements BeaconWritePort {
                 ..long = beacon.coordinates!.long)
         ..needs = beacon.needs.isEmpty ? null : beacon.needs.join(',')
         ..primaryNeedSlug = beacon.primaryNeedSlug
-        ..addressLabel = beacon.addressLabel;
+        ..addressLabel = beacon.addressLabel
+        ..isDiscoverable = beacon.isDiscoverable;
     });
     await _remoteApiService
         .request(request)
@@ -217,7 +219,8 @@ class BeaconRepository implements BeaconWritePort {
                 ..long = beacon.coordinates!.long)
         ..needs = beacon.needs.isEmpty ? null : beacon.needs.join(',')
         ..primaryNeedSlug = beacon.primaryNeedSlug
-        ..addressLabel = beacon.addressLabel;
+        ..addressLabel = beacon.addressLabel
+        ..isDiscoverable = beacon.isDiscoverable;
     });
     await _remoteApiService
         .request(request)

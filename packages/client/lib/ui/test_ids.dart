@@ -6,6 +6,7 @@ abstract final class TestIds {
   static const requestPublish = 'request.publish';
   static const requestMakeLive = 'request.make_live';
   static const requestRecipientsTab = 'request.tab.recipients';
+  static const requestDiscoverableToggle = 'request.discoverable_toggle';
 
   static const forwardInviteNewPerson = 'forward.invite_new_person';
   static const forwardClearSelection = 'forward.clear_selection';

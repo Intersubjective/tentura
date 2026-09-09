@@ -277,6 +277,7 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
         for (final img in beacon.images)
           if (img.id.isNotEmpty) img.id,
       },
+      isDiscoverable: beacon.isDiscoverable,
       status: StateStatus.isSuccess,
     );
   }
@@ -448,6 +449,11 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
         location: locationName,
       ),
     );
+    _scheduleAutosave();
+  }
+
+  void setDiscoverable(bool value) {
+    emit(state.copyWith(isDiscoverable: value));
     _scheduleAutosave();
   }
 
@@ -641,6 +647,7 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
       images: state.images,
       primaryNeedSlug: state.primaryNeedSlug,
       coverSource: state.coverSource,
+      isDiscoverable: state.isDiscoverable,
     );
   }
 

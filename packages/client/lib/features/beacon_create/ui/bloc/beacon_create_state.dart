@@ -80,6 +80,9 @@ abstract class BeaconCreateState extends StateBase with _$BeaconCreateState {
     @Default(false) bool childPromotionConflict,
     String? existingPromotedChildBeaconId,
 
+    /// Whether the request may appear in others' constellation field (opt-out).
+    @Default(true) bool isDiscoverable,
+
     @Default(StateIsSuccess()) StateStatus status,
   }) = _BeaconCreateState;
 

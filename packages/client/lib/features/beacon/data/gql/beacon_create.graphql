@@ -10,7 +10,8 @@ mutation BeaconCreate(
   $needs: String,
   $primaryNeedSlug: String,
   $addressLabel: String,
-  $draft: Boolean
+  $draft: Boolean,
+  $isDiscoverable: Boolean
 ) {
   beaconCreate(
     title: $title,
@@ -24,7 +25,8 @@ mutation BeaconCreate(
     needs: $needs,
     primaryNeedSlug: $primaryNeedSlug,
     addressLabel: $addressLabel,
-    draft: $draft
+    draft: $draft,
+    isDiscoverable: $isDiscoverable
   ) {
     id
   }
