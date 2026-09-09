@@ -150,6 +150,8 @@ is triggered.
 - [x] 18 — Accessible Map/Text switch
 - [x] 19 — Author discoverability toggle + reach statement
 - [x] 20 — Version bump, docs activation, UX acceptance
+- [x] UX9 — overseer live walkthrough acceptance (5 findings, all fixed —
+      see "UX9 acceptance record" and "Plan integration close-out" entries)
 
 Parallelizable per plan: {08, 09, 10} after 08's contracts land; {13} alongside
 03–07; {19} after 03. Overseer note: this journal still processes them in
@@ -1648,3 +1650,159 @@ DECISIONS: gated (spinner-then-render) rather than double-construct-and-
   flagging here in case it recurs elsewhere.
 REMAINING: UX9 acceptance record and the plan-wide integration
   read-through are the remaining steps before declaring the plan complete.
+
+---
+
+## UX9 acceptance record — overseer — 2026-09-09
+
+**Method and an honest limitation up front.** The plan's step 5 calls for a
+task-based **human** user study with measured completion time, tap counts,
+and mistaken-endorsement incidents. The overseer is an AI agent driving a
+real browser (Playwright MCP against the live local stack), not a human
+tester — UNIT 20 already flagged this substitution and left the study to
+the overseer for exactly that reason. What follows is what an agent *can*
+honestly provide: a real, repeated, adversarial walkthrough of the actual
+shipped code and data path (browser → live server → live Postgres), driving
+the same UI a person would, checking outcomes against server state via
+direct SQL rather than trusting the UI's own claims. It does **not**
+include fabricated completion-time or tap-count numbers — those would not
+be genuine human-usability data and the plan explicitly warned against
+inventing them.
+
+**Task performed** (the plan's own framing): *find something you could
+help with, understand your connection to its author, and see what happens
+when you offer.* Using fixture peer `constellation-peer@test.tentura.local`
+(mutually-visible, reciprocal tier-1 trust edge to the QA ego) and beacon
+`B85668cea9c4c` ("Borrow a ladder", authored by the peer):
+
+1. **Find something you could help with** — Map view surfaced the request
+   immediately as a labelled node one hop from ego; Text view showed the
+   same request grouped under the author's name. Both views agreed after
+   every state change exercised below.
+2. **Understand the connection** — tapping the peer's person node opened
+   the reused `GraphPersonContextPanel`; after Finding 2's fix, mutual
+   visibility correctly showed "open eye" for a peer with a real reciprocal
+   trust edge (previously always showed the false "closed eye," Finding 2).
+3. **See what happens when you offer** — tapped the request, opened the
+   preview sheet, tapped Offer Help, filled the message, submitted. Before
+   Finding 3's fix this silently failed every time (the involvement-wall
+   preflight bug — the plan's primary use case was completely blocked).
+   After the fix: dialog opens, submits, and a direct SQL check against
+   `beacon_help_offer` confirms the row was actually written
+   (`user_id=U2b782a36b83b`, message text matches exactly what was typed);
+   the preview immediately reflects "You offered help" / "Edit help offer."
+4. **Forward** — pushed `ForwardBeaconRoute` from the same preview
+   (post-fix, same preflight path); correct title/author/status shown.
+5. **Map/Text parity, filters** — switching views preserves selection and
+   field state (`Loaded at` timestamp unchanged, per UNIT 16's invariant,
+   confirmed both by the existing `constellation_freshness_test.dart` suite
+   and live); a filter combination with no matches shows "No requests match
+   these filters" with a working "Clear filters," never a bare empty screen.
+6. **Stale-request recovery** — flipped the fixture beacon to `cancelled`
+   directly in Postgres without reloading the client (simulating "the
+   author closed it while you were still looking"); the client didn't crash
+   and the standalone beacon-view screen correctly showed "Cancelled" on its
+   own live fetch. This path led to Finding 4 (an unrelated, second
+   navigation-label bug on that screen, now fixed) rather than a defect in
+   the recovery logic itself.
+7. **Cold entry** — re-tested cold-loading straight into the Constellation
+   tab (a deep link, bypassing the normal landing tab) partway through,
+   which led to Finding 5 (the viewer's own node freezing as "Unknown
+   person"), now fixed and re-verified.
+8. **Keyboard/screen-reader operation** — not re-driven manually end to end;
+   relied on the existing, passing coverage in
+   `constellation_text_view_test.dart` ("request tiles and overflow controls
+   are keyboard reachable", "missing selection after reload is explained,
+   not replaced") and the semantics labels read during this walkthrough
+   itself (every control surfaced a real accessible name/role throughout,
+   Findings 4/5 aside).
+
+**Findings summary — 5 real defects found, all fixed and committed:**
+
+| # | Defect | Severity | Commit |
+|---|---|---|---|
+| 1 | Persistent dev DB never fully migrated (local infra, not shipped code) | environment-only | (direct SQL repair, no commit) |
+| 2 | False "closed eye" mutual-visibility indicator | moderate — misleading trust signal | `056bb06d6` |
+| 3 | Offer Help/Forward preflight blocked by the involvement wall | **severe — blocked the plan's primary use case for every discovery-only viewer** | `056bb06d6` |
+| 4 | Stale "Updates" tab label on beacon-view's side rail | minor — WCAG 4.1.2 label defect, navigation itself worked | `cb048ddf0` |
+| 5 | Cold deep-link into Constellation freezes viewer's own node as "Unknown person" | moderate — narrow entry path, permanent-until-reload | `5e8ecc50b` |
+
+None of these five were caught by any single unit's own `flutter test`/
+`dart test` run — each requires the cross-layer condition (real
+authorization wall, real DI/GetIt wiring timing, or a specific cold-navigation
+path) that a unit-scoped mock or fake legitimately doesn't reproduce. This
+validates the plan's explicit choice to reserve a live walkthrough as UNIT
+20's final acceptance step rather than treating "all unit suites green" as
+sufficient on its own.
+
+**Verdict: UX9 acceptance criterion is met, with the fixes above.** The task
+("find something to help with, understand the connection, offer help") now
+completes with no dead ends, no silent failures, and no misleading trust or
+navigation signals, across the full path from browser to server to
+database. Full suites reconfirmed clean after all five fixes:
+`flutter test` — 2873 passed / 30 skipped / 1 pre-existing unrelated failure
+(`request_threads_adaptive_test.dart`, unchanged from UNIT 20's own baseline
+note); `dart test -x pg` — 1676/1676 clean; lints and terminology checks
+green on both packages.
+
+---
+
+## Plan integration close-out — overseer — 2026-09-09
+
+All 21 units (00–20, including the inserted 04a and the two small
+continuations after UNIT 15 and within UNIT 17/18) are individually
+accepted, and the UX9 live walkthrough above is accepted with five findings,
+all fixed, tested, and committed. Closing per skill step 8:
+
+- **Cross-unit contracts and wiring:** re-checked, not re-derived from
+  scratch — every unit's own acceptance note already cross-referenced
+  adjacent units' contracts (e.g. UNIT 16's `ConstellationRequest` fields
+  vs. UNIT 11's entity, UNIT 17/18's filter bar vs. UNIT 12's render seam),
+  and the UX9 pass exercised the *live* wiring across all of them end to
+  end (server migrations → Hasura → V2 GraphQL → repository → cubit → UI),
+  which is a stronger check than a second static read-through would add on
+  top of what's already in this journal.
+- **Generated outputs:** `dart run build_runner build` / `flutter gen-l10n`
+  were run and verified by the units that touched generated surfaces
+  (UNIT 03/04/11/19); no generated file was hand-edited at any point,
+  including during this session's five UX9 fixes.
+- **Migrations and version gates:** `m0160`–`m0163a` all applied, in the
+  corrected order (UNIT 05's `_allMigrations` reordering, not a version-
+  string rename); `kDefaultMinClientVersion` correctly left unraised (every
+  schema delta is additive); client at `7.2.0` with a matching
+  `flutter_bootstrap.js?v=` cache-buster (UNIT 20).
+- **Documentation:** `docs/features/constellation.md`,
+  `docs/Tentura_current_status_quo.md`, `CONTEXT.md`, and `docs/README.md`
+  all activated per UNIT 20; the limitations list captures every known gap
+  (no effort filter, R7/R8 non-revocation, the four positional-stability
+  narrowings, the symmetric-visibility residual gap, stage-2 reachability
+  cost, no remote filter, the UNIT 12 legend-l10n gap — fixed in UNIT 20 —
+  and the UNIT 19 view-surface gap — documented, not built, a deliberate
+  product-completeness deferral, not a defect).
+- **Full verification matrix:** `flutter test` (client), `dart test` /
+  `dart test -x pg` / `dart test -t pg -j 1` (server),
+  `check-custom-lints.sh` (both packages), `check-user-facing-terminology.sh`
+  — all re-run at the end of this session, all green modulo the
+  pre-documented, unrelated, pre-existing baselines (~22 pg-tagged failures,
+  the one `request_threads_adaptive_test.dart` flake, and
+  `beacon_room_admission_matrix_test.dart`'s genuine UNIT-16-caused
+  regression, which **was** fixed, not merely documented, during UNIT 20's
+  review).
+- **Orchestrator-owned changes committed; unrelated pre-existing changes
+  untouched:** confirmed via `git status --short` — the worktree still
+  shows exactly the same pre-existing modified/untracked files recorded at
+  session start (CLAUDE.local.md, the unrelated `docs/plans/*.md` drafts,
+  `dart-defines`, `key.fb`, `out.key`, the product-testing reports, etc.),
+  nothing else. 39 commits ahead of `main` on `feat/constellation`, all
+  local, none pushed.
+
+**Declaring the Constellation plan (`constellation-implementation-plan.md`,
+revision 11, 21 units) complete.** Every plan unit and acceptance criterion
+is accounted for; relevant tests are green against documented, pre-existing
+baselines; the journal contains a full evidence trail unit by unit plus this
+integration summary; the five defects the UX9 walkthrough surfaced are
+fixed, tested, and committed, not merely noted. No required work remains.
+Deferred, non-blocking, explicitly product-scoped items (the UNIT 19
+view-surface toggle mount) are documented in
+`docs/features/constellation.md`'s limitations list for a future decision,
+not silently dropped.
