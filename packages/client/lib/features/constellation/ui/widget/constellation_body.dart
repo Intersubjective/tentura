@@ -3,8 +3,10 @@ import 'dart:math' as math;
 
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/semantics.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:force_directed_graphview/force_directed_graphview.dart';
+import 'package:intl/intl.dart' hide TextDirection;
 
 import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
@@ -24,9 +26,11 @@ import 'package:tentura/ui/widget/linear_pi_active.dart';
 
 import '../../domain/entity/constellation_field.dart';
 import '../bloc/constellation_cubit.dart';
+import 'constellation_filter_bar.dart';
+import 'constellation_overflow_group.dart';
 import 'constellation_request_label.dart';
 import 'constellation_request_preview_sheet.dart';
-import 'constellation_snapshot_bar.dart';
+import 'constellation_text_view.dart';
 
 class ConstellationBody extends StatefulWidget {
   const ConstellationBody({
@@ -45,6 +49,24 @@ class ConstellationBody extends StatefulWidget {
 }
 
 class _ConstellationBodyState extends State<ConstellationBody> {
+  Size? _lastLabelBudgetViewport;
+  double? _lastLabelBudgetTextScale;
+  String? _selectionUnavailableMessage;
+
+  void _syncLabelBudget(BuildContext context, ConstellationCubit cubit, Size viewport) {
+    final scale = MediaQuery.textScalerOf(context).scale(14);
+    if (_lastLabelBudgetViewport == viewport &&
+        _lastLabelBudgetTextScale == scale) {
+      return;
+    }
+    _lastLabelBudgetViewport = viewport;
+    _lastLabelBudgetTextScale = scale;
+    cubit.updateLabelBudgetContext(
+      viewport: viewport,
+      textScaleFactor: scale,
+    );
+  }
+
   void _onNodeTap(BuildContext context, ConstellationCubit cubit, NodeDetails node) {
     switch (node) {
       case FieldPersonNode(:final person):
@@ -332,9 +354,13 @@ class _ConstellationBodyState extends State<ConstellationBody> {
             final cubit = context.read<ConstellationCubit>();
             final request = cubit.requestById(requestId);
             if (request == null) {
+              final message = L10n.of(context)!.constellationSelectionUnavailable;
+              setState(() => _selectionUnavailableMessage = message);
+              SemanticsService.announce(message, TextDirection.ltr);
               cubit.selectRequest(null);
               return;
             }
+            setState(() => _selectionUnavailableMessage = null);
             unawaited(_showRequestPreview(context, cubit, request));
           },
         ),
@@ -353,10 +379,18 @@ class _ConstellationBodyState extends State<ConstellationBody> {
             previous.graphRevision != current.graphRevision ||
             previous.loadError != current.loadError ||
             previous.selectedPersonId != current.selectedPersonId ||
-            previous.expandedPersonIds != current.expandedPersonIds,
+            previous.expandedPersonIds != current.expandedPersonIds ||
+            previous.viewMode != current.viewMode ||
+            previous.loadedAt != current.loadedAt ||
+            previous.filterCapabilitySlugs != current.filterCapabilitySlugs ||
+            previous.filterLocation != current.filterLocation ||
+            previous.filterTiming != current.filterTiming ||
+            previous.filterIncludeUnspecified !=
+                current.filterIncludeUnspecified,
         builder: (context, state) {
           final cubit = context.read<ConstellationCubit>();
           final tt = context.tt;
+          final theme = Theme.of(context);
 
           if (state.status is StateIsLoading && state.field == null) {
             return Stack(
@@ -401,25 +435,58 @@ class _ConstellationBodyState extends State<ConstellationBody> {
 
           final panelVisible = state.selectedPersonId != null;
 
-          return Stack(
-            fit: StackFit.expand,
-            children: [
-              Column(
+          return LayoutBuilder(
+            builder: (context, constraints) {
+              _syncLabelBudget(
+                context,
+                cubit,
+                Size(constraints.maxWidth, constraints.maxHeight),
+              );
+              return Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  const ConstellationSnapshotBar(),
+                  _ConstellationSnapshotChrome(
+                    loadedAt: state.loadedAt ?? resolved.field.loadedAt,
+                    viewMode: state.viewMode,
+                    onViewModeChanged: cubit.setViewMode,
+                  ),
+                  const ConstellationFilterBar(),
+                  if (_selectionUnavailableMessage != null)
+                    Material(
+                      color: theme.colorScheme.errorContainer,
+                      child: Padding(
+                        padding: EdgeInsets.symmetric(
+                          horizontal: tt.screenHPadding,
+                          vertical: tt.tightGap,
+                        ),
+                        child: Text(
+                          _selectionUnavailableMessage!,
+                          key: const Key('constellation.selection_unavailable'),
+                          style: theme.textTheme.bodySmall?.copyWith(
+                            color: theme.colorScheme.onErrorContainer,
+                          ),
+                        ),
+                      ),
+                    ),
                   Expanded(
-                    child: _buildGraphStack(
-                      context,
-                      cubit,
-                      state,
-                      layoutAlgorithm,
-                      panelVisible,
+                    child: IndexedStack(
+                      index: state.viewMode == ConstellationViewMode.map ? 0 : 1,
+                      sizing: StackFit.expand,
+                      children: [
+                        _buildGraphStack(
+                          context,
+                          cubit,
+                          state,
+                          layoutAlgorithm,
+                          panelVisible,
+                        ),
+                        const ConstellationTextView(),
+                      ],
                     ),
                   ),
                 ],
-              ),
-            ],
+              );
+            },
           );
         },
       ),
@@ -443,6 +510,10 @@ class _ConstellationBodyState extends State<ConstellationBody> {
                 maxScale: 3,
                 layoutAlgorithm: layoutAlgorithm,
                 layoutTransitionDuration: const Duration(milliseconds: 350),
+                builder: (context, child) => _MapOverflowOverlay(
+                  cubit: cubit,
+                  child: child,
+                ),
                 edgePainter: ConstellationEdgePainter(
                   edgeKinds: cubit.edgeKinds,
                   colorScheme: Theme.of(context).colorScheme,
@@ -549,6 +620,139 @@ class _ConstellationBodyState extends State<ConstellationBody> {
     return ConstrainedBox(
       constraints: BoxConstraints(maxHeight: maxHeight),
       child: SingleChildScrollView(child: legend),
+    );
+  }
+}
+
+class _ConstellationSnapshotChrome extends StatelessWidget {
+  const _ConstellationSnapshotChrome({
+    required this.loadedAt,
+    required this.viewMode,
+    required this.onViewModeChanged,
+  });
+
+  final DateTime loadedAt;
+  final ConstellationViewMode viewMode;
+  final ValueChanged<ConstellationViewMode> onViewModeChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = L10n.of(context)!;
+    final tt = context.tt;
+    final theme = Theme.of(context);
+    final stamp = DateFormat.yMMMd().add_jm().format(loadedAt.toLocal());
+
+    return Material(
+      color: theme.colorScheme.surfaceContainerHighest.withValues(alpha: 0.92),
+      child: SafeArea(
+        bottom: false,
+        child: Padding(
+          padding: EdgeInsets.symmetric(
+            horizontal: tt.screenHPadding,
+            vertical: tt.tightGap,
+          ),
+          child: Row(
+            children: [
+              Expanded(
+                child: Text(
+                  l10n.constellationSnapshotLoadedAt(stamp),
+                  key: const Key('constellation.snapshot.loaded_at'),
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ),
+              Semantics(
+                label: l10n.constellationViewModeMap,
+                child: SegmentedButton<ConstellationViewMode>(
+                  key: const Key('constellation.snapshot.view_mode'),
+                  segments: [
+                    ButtonSegment(
+                      value: ConstellationViewMode.map,
+                      label: Text(l10n.constellationViewModeMap),
+                    ),
+                    ButtonSegment(
+                      value: ConstellationViewMode.text,
+                      label: Text(l10n.constellationViewModeText),
+                    ),
+                  ],
+                  selected: {viewMode},
+                  onSelectionChanged: (selection) {
+                    onViewModeChanged(selection.first);
+                  },
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _MapOverflowOverlay extends StatelessWidget {
+  const _MapOverflowOverlay({
+    required this.cubit,
+    required this.child,
+  });
+
+  final ConstellationCubit cubit;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    if (!cubit.graphController.canLayout) {
+      return child;
+    }
+
+    final layout = cubit.graphController.layout;
+    final overlays = <Widget>[];
+
+    for (final entry in cubit.overflowHiddenCountByAuthor.entries) {
+      final authorId = entry.key;
+      final hiddenCount = entry.value;
+      if (hiddenCount <= 0) {
+        continue;
+      }
+
+      FieldPersonNode? personNode;
+      for (final node in cubit.graphController.nodes) {
+        if (node is FieldPersonNode && node.id == authorId) {
+          personNode = node;
+          break;
+        }
+      }
+      if (personNode == null) {
+        continue;
+      }
+
+      final position = layout.getPositionOrNull(personNode);
+      if (position == null) {
+        continue;
+      }
+
+      overlays.add(
+        Positioned(
+          left: position.dx - 80,
+          top: position.dy + personNode.size / 2 + 48,
+          child: ConstellationOverflowGroup(
+            authorId: authorId,
+            hiddenCount: hiddenCount,
+          ),
+        ),
+      );
+    }
+
+    if (overlays.isEmpty) {
+      return child;
+    }
+
+    return Stack(
+      clipBehavior: Clip.none,
+      children: [
+        child,
+        ...overlays,
+      ],
     );
   }
 }

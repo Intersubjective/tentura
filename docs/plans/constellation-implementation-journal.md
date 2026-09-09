@@ -147,7 +147,7 @@ is triggered.
 - [x] 15 — Need labels, request preview, person panel
 - [x] 16 — Snapshot lifecycle + action-time validation, incl. server `expectedOfferKind`
 - [x] 17 — Filter bar, grouping, stable anchors
-- [ ] 18 — Accessible Map/Text switch
+- [x] 18 — Accessible Map/Text switch
 - [ ] 19 — Author discoverability toggle + reach statement
 - [ ] 20 — Version bump, docs activation, UX acceptance
 
@@ -1211,3 +1211,37 @@ REMAINING: Mount `ConstellationFilterBar` and per-author `ConstellationOverflowG
   in `constellation_body.dart` (or UNIT 18 screen edit). UNIT 18 text view is the
   fallback-list destination for `peersCapped` — link sets view mode but plain list
   is not reachable until that unit lands.
+
+---
+
+## UNIT 18 — complete — 2026-09-09
+COMMITS: (this unit's commit, staged next)
+TESTS: `cd packages/client && flutter gen-l10n` — exit 0;
+  `cd packages/client && flutter test test/features/constellation/` — 117/117 passed;
+  `bash scripts/check-user-facing-terminology.sh` — exit 0;
+  `./scripts/check-custom-lints.sh packages/client` — exit 0 (32/32 baseline unchanged)
+FILES: packages/client/lib/features/constellation/ui/widget/constellation_text_view.dart (new),
+  packages/client/lib/features/constellation/ui/widget/constellation_body.dart,
+  packages/client/lib/features/constellation/ui/screen/constellation_screen.dart,
+  packages/client/l10n/app_en.arb,
+  packages/client/l10n/app_ru.arb,
+  packages/client/test/features/constellation/constellation_text_view_test.dart (new),
+  packages/client/test/features/constellation/constellation_body_test.dart,
+  docs/plans/constellation-implementation-journal.md
+FINDINGS: `ConstellationSnapshotBar` (UNIT 16) still carries inline English Map/Text
+  labels — this unit replaced it in `ConstellationBody` with localized
+  `_ConstellationSnapshotChrome` using new l10n keys; the standalone snapshot bar
+  widget remains for its freshness unit test. `intl`’s `TextDirection` class shadows
+  Flutter’s enum when both are imported — fixed with `hide TextDirection` on the
+  intl import in `constellation_body.dart`. Body widget tests needed a 1200×900
+  surface after the filter bar was mounted (default 800×600 pushed graph nodes
+  off-screen).
+DECISIONS: Map viewport preservation uses `IndexedStack` (map stays mounted while
+  text is shown) rather than serializing `GraphController` transforms. Plain-list
+  mode (peersCapped) suppresses per-request connection copy in text view only;
+  map path notices still use UNIT 17’s filter-bar link to switch view mode.
+  Selection reconciliation when a stale id is selected shows
+  `constellationSelectionUnavailable` and clears selection — never auto-picks another
+  request. Overflow groups mount on the map canvas via `GraphView.builder` at author
+  satellite positions; filter bar sits above both views.
+REMAINING: none for this unit. UNIT 19 — author discoverability toggle.

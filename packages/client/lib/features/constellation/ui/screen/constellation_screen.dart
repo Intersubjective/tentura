@@ -7,6 +7,7 @@ import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/features/graph/ui/bloc/graph_person_context_cubit.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/features/profile_view/domain/use_case/profile_view_case.dart';
+import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 
 import '../../domain/use_case/constellation_field_case.dart';
@@ -48,12 +49,13 @@ class _ConstellationScreenState extends State<ConstellationScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final l10n = L10n.of(context)!;
     return Scaffold(
       appBar: TenturaTopBar.of(
         context,
         alignment: TenturaTopBarAlignment.fullWidth,
         title: Text(
-          'Constellation',
+          l10n.constellationTitle,
           style: Theme.of(context).textTheme.titleLarge,
         ),
         actions: [

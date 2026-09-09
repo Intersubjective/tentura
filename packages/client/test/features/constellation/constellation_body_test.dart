@@ -81,6 +81,7 @@ Future<ConstellationCubit> _loadCubit(ConstellationField field) async {
 }
 
 Future<void> _pumpBody(WidgetTester tester, ConstellationCubit cubit) async {
+  await tester.binding.setSurfaceSize(const Size(1200, 900));
   await tester.pumpWidget(
     MaterialApp(
       locale: const Locale('en'),

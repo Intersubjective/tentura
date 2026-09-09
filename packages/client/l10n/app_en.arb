@@ -1387,6 +1387,39 @@
   "@constellationAbsenceRingBudgetOmitted": {
     "context": "ConstellationFilterBar"
   },
+  "constellationViewModeMap": "Map",
+  "@constellationViewModeMap": {
+    "context": "ConstellationBody"
+  },
+  "constellationViewModeText": "Text",
+  "@constellationViewModeText": {
+    "context": "ConstellationBody"
+  },
+  "constellationSnapshotLoadedAt": "Loaded at {timestamp}",
+  "@constellationSnapshotLoadedAt": {
+    "context": "ConstellationBody",
+    "placeholders": {
+      "timestamp": {
+        "type": "String"
+      }
+    }
+  },
+  "constellationSelectionUnavailable": "The selected request is no longer in this snapshot.",
+  "@constellationSelectionUnavailable": {
+    "context": "ConstellationBody"
+  },
+  "constellationTextViewSemantics": "Request list grouped by person",
+  "@constellationTextViewSemantics": {
+    "context": "ConstellationTextView"
+  },
+  "constellationTextEmptyField": "No active requests in this snapshot.",
+  "@constellationTextEmptyField": {
+    "context": "ConstellationTextView"
+  },
+  "constellationPlainListNotice": "Connection paths are not shown in this list because the field is too large for reliable paths.",
+  "@constellationPlainListNotice": {
+    "context": "ConstellationTextView"
+  },
   "friends": "Friends",
   "@friends": {
     "context": "HomeScreen"

@@ -1387,6 +1387,39 @@
   "@constellationAbsenceRingBudgetOmitted": {
     "context": "ConstellationFilterBar"
   },
+  "constellationViewModeMap": "Карта",
+  "@constellationViewModeMap": {
+    "context": "ConstellationBody"
+  },
+  "constellationViewModeText": "Текст",
+  "@constellationViewModeText": {
+    "context": "ConstellationBody"
+  },
+  "constellationSnapshotLoadedAt": "Загружено {timestamp}",
+  "@constellationSnapshotLoadedAt": {
+    "context": "ConstellationBody",
+    "placeholders": {
+      "timestamp": {
+        "type": "String"
+      }
+    }
+  },
+  "constellationSelectionUnavailable": "Выбранного запроса больше нет в этом снимке.",
+  "@constellationSelectionUnavailable": {
+    "context": "ConstellationBody"
+  },
+  "constellationTextViewSemantics": "Список запросов по людям",
+  "@constellationTextViewSemantics": {
+    "context": "ConstellationTextView"
+  },
+  "constellationTextEmptyField": "В этом снимке нет активных запросов.",
+  "@constellationTextEmptyField": {
+    "context": "ConstellationTextView"
+  },
+  "constellationPlainListNotice": "Пути связи в этом списке не показаны — поле слишком велико для надёжных путей.",
+  "@constellationPlainListNotice": {
+    "context": "ConstellationTextView"
+  },
   "friends": "Друзья",
   "@friends": {
     "context": "HomeScreen"
