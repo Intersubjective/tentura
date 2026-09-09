@@ -21,6 +21,7 @@ import 'package:tentura/ui/effect/ui_effect.dart';
 import 'package:tentura/ui/effect/ui_effect_port.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/test_ids.dart';
+import 'package:tentura/ui/widget/contact_badge_legend.dart';
 
 import '../../features/auth/auth_test_helpers.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
@@ -152,6 +153,31 @@ void main() {
       final scanY = tester.getTopLeft(scanFinder).dy;
       final blockedY = tester.getTopLeft(blockedFinder).dy;
       expect(scanY, lessThan(blockedY));
+    });
+
+    testWidgets('trust info button opens trust info sheet', (tester) async {
+      final l10n = lookupL10n(const Locale('en'));
+
+      await _pumpFriendsAppBarActions(
+        tester,
+        onGraph: () {},
+        onCreateInvitation: () {},
+        onScanInvitationQr: () {},
+        onBlockedPeople: () {},
+      );
+
+      expect(
+        find.byKey(TestIds.key(TestIds.friendsTrustInfo)),
+        findsOneWidget,
+      );
+      expect(find.byTooltip(l10n.trustInfoTitle), findsOneWidget);
+
+      await tester.tap(find.byKey(TestIds.key(TestIds.friendsTrustInfo)));
+      await tester.pumpAndSettle();
+
+      expect(find.text(l10n.trustInfoTitle), findsOneWidget);
+      expect(find.text(l10n.trustInfoBody), findsOneWidget);
+      expect(find.byType(ContactBadgeLegend), findsOneWidget);
     });
 
     testWidgets('each action invokes exactly its callback', (tester) async {

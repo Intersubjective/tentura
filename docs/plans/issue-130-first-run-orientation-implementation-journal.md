@@ -44,7 +44,7 @@ Plan is explicit: units execute in the given order, each is
 - [x] UNIT 6 — `HomeOrientationPanel`
 - [x] UNIT 7 — My Work body integration
 - [x] UNIT 8 — reopen entry points (D6)
-- [ ] UNIT 9 — contextual trust affordance (§5.6)
+- [x] UNIT 9 — contextual trust affordance (§5.6)
 - [ ] UNIT 10 — debug override UI (§7)
 - [ ] UNIT 11 — invite → request navigation (§8) — verify §8 step 4
       (unreadable-request fallback) BEFORE wiring the push; journal the finding
@@ -658,3 +658,48 @@ cd packages/client && flutter test test/features/home/how_tentura_works_sheet_te
 ```
 
 **Notes:** Sheet chrome may include its own `InkWell` (drag handle); inert-nav assertion scopes to `HowTenturaWorksContent` descendants only. Unrelated concurrent edits (`CONTEXT.md`, geo dialog, version bump) left untouched.
+
+**Manager review (overseer):** ACCEPTED. Diffed all three production files:
+`how_tentura_works_sheet.dart` matches `_showTrustInfoSheet`'s
+`showTenturaAdaptiveSheet` construction idiom exactly, uses
+`orientationReopen`/`orientationIntroReopen` (the correct key pair per plan
+§6.2 for the reopened host), and wraps `onOpenTab` to pop the sheet before
+invoking the caller's callback — matching "close sheet first, then switch
+tab." `profile_body.dart`: confirmed by direct file inspection the new
+button sits immediately after "Show Beacons" and immediately before
+"Settings" — genuinely "above Settings" as required, with a real
+`onOpenTab` wired to `AutoTabsRouter` (correct: Profile is a Home tab, so a
+tabs router ancestor exists). `settings_screen.dart`: confirmed by grep the
+new button (line 163) sits right after the `if (!kIsWeb)`-guarded "Show
+Intro Again" block (ends ~161) and before the reset-local button —
+correctly unconditional/unguarded, using `TenturaCommandButton` matching
+this screen's own idiom (not `profile_body.dart`'s `OutlinedButton.icon`),
+with no `onOpenTab` (Settings has no tabs router ancestor). Independently
+re-ran `./scripts/check-custom-lints.sh packages/client` (32, baseline
+held), `bash scripts/check-user-facing-terminology.sh` (ok), and
+`flutter test test/features/home/how_tentura_works_sheet_test.dart` (2/2
+passed). Noted in passing: an unrelated commit (`c6b24012d`, "serve
+cache-busted PWA icons from a stable root URL") landed on `main` from the
+same concurrent session during this unit — same author identity as this
+whole session, a complete and self-consistent commit, no conflict with
+this plan's work; left entirely alone. Commit `948574ae6`. Starting
+UNIT 9.
+
+### 2026-09-10 — UNIT 9
+**Status:** complete
+
+**Files changed:**
+- `packages/client/lib/ui/widget/trust_info_sheet.dart` (new) — promoted `_showTrustInfoSheet` body verbatim as public `showTrustInfoSheet(BuildContext)`.
+- `packages/client/lib/features/profile_view/ui/widget/profile_view_body.dart` — deleted private function; import + call site rename only (no behavior change).
+- `packages/client/lib/features/friends/ui/widget/friends_app_bar_actions.dart` — added trust-info `IconButton` between Create invitation and More (overflow menu): keeps the three primary actions grouped left-to-right as Graph → Create invitation → Trust info → More, so the contextual help sits with the other direct icon buttons immediately before the overflow menu.
+- `packages/client/lib/ui/test_ids.dart` — `friendsTrustInfo = 'friends.trust_info'`.
+- `packages/client/test/features/friends/friends_app_bar_actions_test.dart` — new case asserts tooltip + tap opens sheet (`trustInfoTitle`, `trustInfoBody`, `ContactBadgeLegend`).
+
+**Commands run:**
+```bash
+./scripts/check-custom-lints.sh packages/client        # 32 (baseline 32)
+(cd packages/client && flutter test test/features/friends/friends_app_bar_actions_test.dart)  # 5/5 passed
+(cd packages/client && flutter test test/features/profile_view/)  # 51/51 passed
+```
+
+**Notes:** No dedicated profile_view test referenced `trustInfoTitle`/`ContactBadgeLegend` before this unit; full `test/features/profile_view/` suite run confirms rename-and-relocate did not break existing coverage. `friends_screen.dart` unchanged (inline `showTrustInfoSheet` call, no new constructor params).

@@ -12,8 +12,8 @@ import 'package:tentura/ui/utils/availability_line.dart';
 import 'package:tentura/ui/utils/profile_presence_line.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura/design_system/components/tentura_avatar.dart';
-import 'package:tentura/ui/widget/contact_badge_legend.dart';
 import 'package:tentura/ui/widget/show_more_text.dart';
+import 'package:tentura/ui/widget/trust_info_sheet.dart';
 import 'package:tentura/ui/widget/tentura_fullscreen_image_viewer.dart';
 import 'package:tentura/ui/widget/tentura_icons.dart';
 import 'package:tentura/ui/widget/tentura_selection_area.dart';
@@ -347,7 +347,7 @@ class _ProfilePrimaryAction extends StatelessWidget {
               ),
             ),
             IconButton(
-              onPressed: () => _showTrustInfoSheet(context),
+              onPressed: () => showTrustInfoSheet(context),
               icon: const Icon(Icons.info_outline),
               tooltip: l10n.trustInfoTitle,
             ),
@@ -543,40 +543,3 @@ class _ProfileCapabilitySection extends StatelessWidget {
     );
   }
 }
-
-Future<void> _showTrustInfoSheet(BuildContext context) =>
-    showTenturaAdaptiveSheet<void>(
-      context: context,
-      isScrollControlled: true,
-      showDragHandle: true,
-      useSafeArea: true,
-      builder: (ctx) {
-        final l10n = L10n.of(ctx)!;
-        final tt = ctx.tt;
-        return SingleChildScrollView(
-          padding: EdgeInsets.fromLTRB(
-            tt.screenHPadding,
-            tt.rowGap,
-            tt.screenHPadding,
-            tt.sectionGap,
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                l10n.trustInfoTitle,
-                style: Theme.of(ctx).textTheme.titleMedium,
-              ),
-              SizedBox(height: tt.rowGap),
-              Text(
-                l10n.trustInfoBody,
-                style: Theme.of(ctx).textTheme.bodyMedium,
-              ),
-              SizedBox(height: tt.sectionGap),
-              const ContactBadgeLegend(showTextLabelNote: true),
-            ],
-          ),
-        );
-      },
-    );

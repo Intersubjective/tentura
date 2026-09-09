@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/test_ids.dart';
+import 'package:tentura/ui/widget/trust_info_sheet.dart';
 
 /// People top-bar actions: Graph, Create invitation, and More (QR, Blocked).
 class FriendsAppBarActions extends StatelessWidget {
@@ -44,6 +45,14 @@ class FriendsAppBarActions extends StatelessWidget {
           tooltip: l10n.friendsCreateInvitation,
           onPressed: onCreateInvitation,
           icon: const Icon(Icons.person_add_alt_1),
+          padding: EdgeInsets.zero,
+          constraints: touchTarget,
+        ),
+        IconButton(
+          key: TestIds.key(TestIds.friendsTrustInfo),
+          tooltip: l10n.trustInfoTitle,
+          onPressed: () => showTrustInfoSheet(context),
+          icon: const Icon(Icons.info_outline),
           padding: EdgeInsets.zero,
           constraints: touchTarget,
         ),

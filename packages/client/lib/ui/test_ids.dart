@@ -145,6 +145,7 @@ abstract final class TestIds {
 
   static const friendsGraph = 'friends.graph';
   static const friendsCreateInvitation = 'friends.create_invitation';
+  static const friendsTrustInfo = 'friends.trust_info';
   static const friendsMore = 'friends.more';
 
   static const constellationNavItem = 'constellation.nav_item';
