@@ -144,7 +144,7 @@ is triggered.
 - [x] 12 — Render: mode, nodes, edges, painters, legend
 - [x] 13 — Prerequisite project: fold Updates into Inbox
 - [x] 14 — Navigation slot, route, My Work entry
-- [ ] 15 — Need labels, request preview, person panel
+- [x] 15 — Need labels, request preview, person panel
 - [ ] 16 — Snapshot lifecycle + action-time validation, incl. server `expectedOfferKind`
 - [ ] 17 — Filter bar, grouping, stable anchors
 - [ ] 18 — Accessible Map/Text switch
@@ -1037,3 +1037,32 @@ Re-verified: this file's 3/3 tests pass, and the full
 `flutter test test/features/home/ test/features/my_work/ test/app/` sweep
 plus the lint gate were independently re-run afterward and remain
 206/206 / 32-baseline clean.
+
+---
+
+## UNIT 15 — complete — 2026-09-09
+COMMITS: (this unit's commit, staged next)
+TESTS: `cd packages/client && flutter gen-l10n` — exit 0;
+  `cd packages/client && flutter test test/features/constellation/` — 88/88 passed;
+  `bash scripts/check-user-facing-terminology.sh` — exit 0;
+  `./scripts/check-custom-lints.sh packages/client` — exit 0 (32/32 baseline unchanged)
+FILES: packages/client/lib/features/constellation/ui/widget/constellation_request_label.dart (new),
+  packages/client/lib/features/constellation/ui/widget/constellation_request_preview_sheet.dart (new),
+  packages/client/lib/features/graph/ui/widget/graph_person_context_panel.dart,
+  packages/client/l10n/app_en.arb,
+  packages/client/l10n/app_ru.arb,
+  packages/client/test/features/constellation/constellation_preview_test.dart (new),
+  docs/plans/constellation-implementation-journal.md
+FINDINGS: none — timing reuses `beaconSchedulePresentation` via a minimal schedule
+  adapter; coverage strings come from author-supplied `status` only (never
+  `helpOfferCount`). `test_ids.dart` §0.6 ids for preview/person-expand were not
+  added (outside this unit's owns list); widgets use the same string keys inline.
+DECISIONS: UX1 need text prefers resolved `primaryNeedSlug` capability label, then
+  title, then unspecified. Connection copy uses the first-hop peer on the selected
+  path (`parent` walk); direct depth-1 authors omit the connection block. Primary
+  preview actions: `none` → offer/backup by status; `offered` → edit help offer;
+  `participant`/`forwarded`/`mine` → open request. Person panel requests use an
+  explicit expand/collapse control (default collapsed).
+REMAINING: none for this unit. Wiring preview/label into `ConstellationBody` tap
+  handling and passing discoverable requests into the person panel from the
+  constellation screen remain for a later unit (not on this owns list).

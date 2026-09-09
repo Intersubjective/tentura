@@ -1,0 +1,235 @@
+import 'package:flutter/material.dart';
+import 'package:tentura_root/domain/entity/beacon_status.dart';
+
+import 'package:tentura/design_system/tentura_design_system.dart';
+import 'package:tentura/features/beacon/ui/widget/coordination_ui.dart';
+import 'package:tentura/features/constellation/domain/entity/constellation_field.dart';
+import 'package:tentura/ui/l10n/l10n.dart';
+import 'constellation_request_label.dart';
+
+/// Primary action label for the preview action matrix (held state × coverage).
+String constellationPreviewPrimaryActionLabel(
+  L10n l10n,
+  ConstellationRequest request,
+) {
+  return switch (request.heldState) {
+    ConstellationHeldState.mine => l10n.openBeacon,
+    ConstellationHeldState.offered => l10n.beaconCtaEditHelpOffer,
+    ConstellationHeldState.participant => l10n.openBeacon,
+    ConstellationHeldState.forwarded => l10n.openBeacon,
+    ConstellationHeldState.none => switch (
+      BeaconStatus.fromSmallint(request.status)
+    ) {
+      BeaconStatus.enoughHelp => l10n.beaconOfferHelpAsBackup,
+      _ => l10n.labelOfferHelp,
+    },
+  };
+}
+
+/// Whether [Forward] is shown as a permitted secondary action.
+bool constellationPreviewShowsForward(ConstellationRequest request) {
+  if (request.isMine) {
+    return false;
+  }
+  return BeaconStatus.fromSmallint(request.status).isOpenFamily;
+}
+
+Future<void> showConstellationRequestPreviewSheet({
+  required BuildContext context,
+  required ConstellationRequest request,
+  required String authorDisplayName,
+  String? connectionThroughName,
+  VoidCallback? onOpen,
+  VoidCallback? onPrimaryAction,
+  VoidCallback? onForward,
+  DateTime? now,
+}) {
+  return showModalBottomSheet<void>(
+    context: context,
+    isScrollControlled: true,
+    showDragHandle: true,
+    builder: (sheetContext) => ConstellationRequestPreviewSheet(
+      request: request,
+      authorDisplayName: authorDisplayName,
+      connectionThroughName: connectionThroughName,
+      onOpen: onOpen,
+      onPrimaryAction: onPrimaryAction,
+      onForward: onForward,
+      now: now,
+    ),
+  );
+}
+
+class ConstellationRequestPreviewSheet extends StatelessWidget {
+  const ConstellationRequestPreviewSheet({
+    required this.request,
+    required this.authorDisplayName,
+    this.connectionThroughName,
+    this.onOpen,
+    this.onPrimaryAction,
+    this.onForward,
+    this.now,
+    super.key,
+  });
+
+  final ConstellationRequest request;
+  final String authorDisplayName;
+  final String? connectionThroughName;
+  final VoidCallback? onOpen;
+  final VoidCallback? onPrimaryAction;
+  final VoidCallback? onForward;
+  final DateTime? now;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = L10n.of(context)!;
+    final theme = Theme.of(context);
+    final tt = context.tt;
+    final scheme = theme.colorScheme;
+    final clock = now ?? DateTime.now();
+    final status = BeaconStatus.fromSmallint(request.status);
+    final heldAnnotation = constellationHeldAnnotation(l10n, request);
+    final connectionLabel = constellationConnectionLabelText(
+      l10n,
+      throughPeerName: connectionThroughName,
+    );
+    final primaryLabel = constellationPreviewPrimaryActionLabel(l10n, request);
+    final showForward =
+        constellationPreviewShowsForward(request) && onForward != null;
+
+    return SafeArea(
+      child: Padding(
+        key: const Key('constellation.request_preview'),
+        padding: EdgeInsets.fromLTRB(
+          tt.screenHPadding,
+          tt.rowGap,
+          tt.screenHPadding,
+          tt.sectionGap,
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              constellationNeedText(l10n, request),
+              style: theme.textTheme.titleMedium,
+            ),
+            if (heldAnnotation != null) ...[
+              SizedBox(height: tt.tightGap),
+              TenturaStatusText(
+                heldAnnotation,
+                tone: TenturaTone.info,
+                maxLines: 2,
+                softWrap: true,
+              ),
+            ],
+            SizedBox(height: tt.sectionGap),
+            _PreviewSection(
+              title: l10n.constellationPreviewWhenTitle,
+              body: _whenLine(l10n, clock),
+            ),
+            if (_locationLine(l10n) != null) ...[
+              SizedBox(height: tt.rowGap),
+              _PreviewSection(
+                title: l10n.constellationPreviewWhereTitle,
+                body: _locationLine(l10n)!,
+              ),
+            ],
+            SizedBox(height: tt.rowGap),
+            _PreviewSection(
+              title: l10n.constellationPreviewCoverageTitle,
+              body: coordinationStatusLabel(l10n, status),
+            ),
+            if (connectionLabel != null) ...[
+              SizedBox(height: tt.sectionGap),
+              Text(
+                connectionLabel,
+                style: theme.textTheme.bodyMedium?.copyWith(
+                  color: scheme.onSurfaceVariant,
+                ),
+              ),
+              SizedBox(height: tt.tightGap),
+              Text(
+                l10n.constellationNotReferral,
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: scheme.onSurfaceVariant,
+                ),
+              ),
+            ],
+            SizedBox(height: tt.sectionGap),
+            Text(
+              l10n.constellationPreviewAuthorLine(authorDisplayName),
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: scheme.onSurfaceVariant,
+              ),
+            ),
+            SizedBox(height: tt.sectionGap),
+            if (onOpen != null)
+              OutlinedButton(
+                onPressed: onOpen,
+                child: Text(l10n.openBeacon),
+              ),
+            if (onPrimaryAction != null) ...[
+              SizedBox(height: tt.rowGap),
+              FilledButton(
+                onPressed: onPrimaryAction,
+                child: Text(primaryLabel),
+              ),
+            ],
+            if (showForward) ...[
+              SizedBox(height: tt.rowGap),
+              OutlinedButton.icon(
+                onPressed: onForward,
+                icon: const Icon(Icons.send_outlined),
+                label: Text(l10n.labelForward),
+              ),
+            ],
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _whenLine(L10n l10n, DateTime clock) {
+    return constellationTimingSnippet(l10n, request, now: clock) ??
+        l10n.constellationUnspecified;
+  }
+
+  String? _locationLine(L10n l10n) {
+    final label = request.addressLabel?.trim();
+    if (label != null && label.isNotEmpty) {
+      return label;
+    }
+    if (request.hasCoordinates) {
+      return l10n.constellationLocationPinned;
+    }
+    return null;
+  }
+}
+
+class _PreviewSection extends StatelessWidget {
+  const _PreviewSection({
+    required this.title,
+    required this.body,
+  });
+
+  final String title;
+  final String body;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final tt = context.tt;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        TenturaTypeLabel(title),
+        SizedBox(height: tt.tightGap),
+        Text(
+          body,
+          style: theme.textTheme.bodyMedium,
+        ),
+      ],
+    );
+  }
+}

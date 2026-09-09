@@ -1207,6 +1207,86 @@
   "@constellationFindWaysToHelp": {
     "context": "MyWorkEmptyBody"
   },
+  "constellationConnectionLabel": "Видно через {name}",
+  "@constellationConnectionLabel": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "constellationNotReferral": "Это связь, а не пересылка",
+  "@constellationNotReferral": {
+    "context": "ConstellationRequestPreviewSheet"
+  },
+  "constellationNeedUnspecified": "Потребность не указана",
+  "@constellationNeedUnspecified": {
+    "context": "ConstellationRequestLabel"
+  },
+  "constellationUnspecified": "Не указано",
+  "@constellationUnspecified": {
+    "context": "ConstellationRequestPreviewSheet"
+  },
+  "constellationCoverageBackupsWelcome": "Резервная помощь приветствуется",
+  "@constellationCoverageBackupsWelcome": {
+    "context": "ConstellationRequestLabel"
+  },
+  "constellationHeldMine": "Ваш запрос",
+  "@constellationHeldMine": {
+    "context": "ConstellationRequestLabel"
+  },
+  "constellationHeldOffered": "Вы предложили помощь",
+  "@constellationHeldOffered": {
+    "context": "ConstellationRequestLabel"
+  },
+  "constellationHeldParticipant": "Вы в обсуждении",
+  "@constellationHeldParticipant": {
+    "context": "ConstellationRequestLabel"
+  },
+  "constellationHeldForwarded": "Вы переслали этот запрос",
+  "@constellationHeldForwarded": {
+    "context": "ConstellationRequestLabel"
+  },
+  "constellationPreviewWhenTitle": "Когда",
+  "@constellationPreviewWhenTitle": {
+    "context": "ConstellationRequestPreviewSheet"
+  },
+  "constellationPreviewWhereTitle": "Где",
+  "@constellationPreviewWhereTitle": {
+    "context": "ConstellationRequestPreviewSheet"
+  },
+  "constellationPreviewCoverageTitle": "Нужна помощь",
+  "@constellationPreviewCoverageTitle": {
+    "context": "ConstellationRequestPreviewSheet"
+  },
+  "constellationPreviewAuthorLine": "От {name}",
+  "@constellationPreviewAuthorLine": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "constellationLocationPinned": "Отмеченное место",
+  "@constellationLocationPinned": {
+    "context": "ConstellationRequestPreviewSheet"
+  },
+  "constellationPersonActiveRequests": "Активные запросы",
+  "@constellationPersonActiveRequests": {
+    "context": "GraphPersonContextPanel"
+  },
+  "constellationPersonShowRequests": "Показать запросы ({count})",
+  "@constellationPersonShowRequests": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "constellationPersonHideRequests": "Скрыть запросы",
+  "@constellationPersonHideRequests": {
+    "context": "GraphPersonContextPanel"
+  },
   "friends": "Друзья",
   "@friends": {
     "context": "HomeScreen"

@@ -11,6 +11,9 @@ import 'package:tentura/ui/model/person_action_policy.dart';
 import 'package:tentura/ui/test_ids.dart';
 import 'package:tentura/ui/utils/availability_line.dart';
 
+import 'package:tentura/features/constellation/domain/entity/constellation_field.dart';
+import 'package:tentura/features/constellation/ui/widget/constellation_request_label.dart';
+
 import '../../domain/entity/node_details.dart';
 import '../bloc/graph_person_context_cubit.dart';
 
@@ -23,6 +26,10 @@ class GraphPersonContextPanel extends StatelessWidget {
     this.isLoading = false,
     this.canPageMore = false,
     this.onExpand,
+    this.discoverableRequests = const [],
+    this.requestsExpanded = false,
+    this.onToggleRequestsExpanded,
+    this.onDiscoverableRequestTap,
     super.key,
   });
 
@@ -32,6 +39,10 @@ class GraphPersonContextPanel extends StatelessWidget {
   final bool isLoading;
   final bool canPageMore;
   final VoidCallback? onExpand;
+  final List<ConstellationRequest> discoverableRequests;
+  final bool requestsExpanded;
+  final VoidCallback? onToggleRequestsExpanded;
+  final ValueChanged<ConstellationRequest>? onDiscoverableRequestTap;
 
   @override
   Widget build(BuildContext context) {
@@ -104,6 +115,17 @@ class GraphPersonContextPanel extends StatelessWidget {
                   profile: profile,
                   policy: policy,
                 ),
+                if (discoverableRequests.isNotEmpty &&
+                    onToggleRequestsExpanded != null) ...[
+                  SizedBox(height: tt.sectionGap),
+                  _DiscoverableRequestsSection(
+                    l10n: l10n,
+                    requests: discoverableRequests,
+                    expanded: requestsExpanded,
+                    onToggle: onToggleRequestsExpanded!,
+                    onRequestTap: onDiscoverableRequestTap,
+                  ),
+                ],
                 SizedBox(height: tt.sectionGap),
                 ..._buildActions(
                   context: context,
@@ -350,6 +372,105 @@ class _VisibilitySection extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+class _DiscoverableRequestsSection extends StatelessWidget {
+  const _DiscoverableRequestsSection({
+    required this.l10n,
+    required this.requests,
+    required this.expanded,
+    required this.onToggle,
+    this.onRequestTap,
+  });
+
+  final L10n l10n;
+  final List<ConstellationRequest> requests;
+  final bool expanded;
+  final VoidCallback onToggle;
+  final ValueChanged<ConstellationRequest>? onRequestTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final tt = context.tt;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        TenturaTypeLabel(l10n.constellationPersonActiveRequests),
+        SizedBox(height: tt.tightGap),
+        OutlinedButton.icon(
+          key: const Key('constellation.person_expand'),
+          onPressed: onToggle,
+          icon: Icon(expanded ? Icons.expand_less : Icons.expand_more),
+          label: Text(
+            expanded
+                ? l10n.constellationPersonHideRequests
+                : l10n.constellationPersonShowRequests(requests.length),
+          ),
+        ),
+        if (expanded) ...[
+          SizedBox(height: tt.rowGap),
+          for (final request in requests) ...[
+            _DiscoverableRequestRow(
+              request: request,
+              onTap: onRequestTap == null
+                  ? null
+                  : () => onRequestTap!(request),
+            ),
+            SizedBox(height: tt.tightGap),
+          ],
+        ],
+      ],
+    );
+  }
+}
+
+class _DiscoverableRequestRow extends StatelessWidget {
+  const _DiscoverableRequestRow({
+    required this.request,
+    this.onTap,
+  });
+
+  final ConstellationRequest request;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = L10n.of(context)!;
+    final theme = Theme.of(context);
+    final tt = context.tt;
+    final annotation = constellationHeldAnnotation(l10n, request);
+
+    return Material(
+      color: theme.colorScheme.surfaceContainerLow,
+      borderRadius: BorderRadius.circular(tt.cardRadius),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(tt.cardRadius),
+        child: Padding(
+          padding: tt.cardPadding,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                constellationRequestLabelText(l10n, request),
+                style: theme.textTheme.bodyMedium,
+              ),
+              if (annotation != null) ...[
+                SizedBox(height: tt.tightGap),
+                TenturaStatusText(
+                  annotation,
+                  tone: TenturaTone.info,
+                  maxLines: 2,
+                  softWrap: true,
+                ),
+              ],
+            ],
+          ),
+        ),
+      ),
     );
   }
 }

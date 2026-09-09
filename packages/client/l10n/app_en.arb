@@ -1207,6 +1207,86 @@
   "@constellationFindWaysToHelp": {
     "context": "MyWorkEmptyBody"
   },
+  "constellationConnectionLabel": "Visible through {name}",
+  "@constellationConnectionLabel": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "constellationNotReferral": "This is a connection, not a referral",
+  "@constellationNotReferral": {
+    "context": "ConstellationRequestPreviewSheet"
+  },
+  "constellationNeedUnspecified": "Unspecified need",
+  "@constellationNeedUnspecified": {
+    "context": "ConstellationRequestLabel"
+  },
+  "constellationUnspecified": "Unspecified",
+  "@constellationUnspecified": {
+    "context": "ConstellationRequestPreviewSheet"
+  },
+  "constellationCoverageBackupsWelcome": "Backups welcome",
+  "@constellationCoverageBackupsWelcome": {
+    "context": "ConstellationRequestLabel"
+  },
+  "constellationHeldMine": "Your request",
+  "@constellationHeldMine": {
+    "context": "ConstellationRequestLabel"
+  },
+  "constellationHeldOffered": "You offered help",
+  "@constellationHeldOffered": {
+    "context": "ConstellationRequestLabel"
+  },
+  "constellationHeldParticipant": "You are in the discussion",
+  "@constellationHeldParticipant": {
+    "context": "ConstellationRequestLabel"
+  },
+  "constellationHeldForwarded": "You forwarded this request",
+  "@constellationHeldForwarded": {
+    "context": "ConstellationRequestLabel"
+  },
+  "constellationPreviewWhenTitle": "When",
+  "@constellationPreviewWhenTitle": {
+    "context": "ConstellationRequestPreviewSheet"
+  },
+  "constellationPreviewWhereTitle": "Where",
+  "@constellationPreviewWhereTitle": {
+    "context": "ConstellationRequestPreviewSheet"
+  },
+  "constellationPreviewCoverageTitle": "Help needed",
+  "@constellationPreviewCoverageTitle": {
+    "context": "ConstellationRequestPreviewSheet"
+  },
+  "constellationPreviewAuthorLine": "By {name}",
+  "@constellationPreviewAuthorLine": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "constellationLocationPinned": "Pinned location",
+  "@constellationLocationPinned": {
+    "context": "ConstellationRequestPreviewSheet"
+  },
+  "constellationPersonActiveRequests": "Active requests",
+  "@constellationPersonActiveRequests": {
+    "context": "GraphPersonContextPanel"
+  },
+  "constellationPersonShowRequests": "Show {count} requests",
+  "@constellationPersonShowRequests": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "constellationPersonHideRequests": "Hide requests",
+  "@constellationPersonHideRequests": {
+    "context": "GraphPersonContextPanel"
+  },
   "friends": "Friends",
   "@friends": {
     "context": "HomeScreen"
