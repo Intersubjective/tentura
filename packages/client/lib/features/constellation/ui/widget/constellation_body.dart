@@ -196,13 +196,12 @@ class _ConstellationBodyState extends State<ConstellationBody> {
         _showActionMessage(context, message);
         return null;
       case ConstellationRequestPreflightReady(
-        :final beacon,
         :final request,
         :final viewerHasActiveHelpOffer,
       ):
         if (cubit.coverageRequiresExplicitBackupChoice(
           snapshotRequest: snapshotRequest,
-          freshBeacon: beacon,
+          freshRequest: request,
         )) {
           _showActionMessage(
             context,
@@ -223,7 +222,7 @@ class _ConstellationBodyState extends State<ConstellationBody> {
           allowEmptyMessage: false,
           showHelpTypeChips: true,
           initialHelpTypeSlugs: preservedHelpTypes?.toSet() ?? const {},
-          automaticSlugs: beacon.needs,
+          automaticSlugs: request.needs.toSet(),
         );
         if (outcome == null || !context.mounted) {
           return null;

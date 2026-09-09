@@ -1412,3 +1412,108 @@ Re-ran the full suites after the fix:
 `cd packages/server && dart test -t pg -j 1` — unchanged from the
 pre-existing ~22 baseline (not re-investigated further; same named files as
 every prior unit's baseline note).
+
+---
+
+## UX9 — overseer live walkthrough — in progress — 2026-09-09
+
+Conducting the task-based walkthrough UNIT 20 explicitly deferred (real
+human tester substitute: overseer driving `https://dev.lvh.me:9443` via
+Playwright MCP as `constellation-qa@test.tentura.local`, with a seeded
+mutually-visible peer `constellation-peer@test.tentura.local` and beacon
+`B85668cea9c4c` "Borrow a ladder", author = peer, `is_discoverable=true`).
+This is a genuine end-to-end pass across the browser, the live server, and
+the persistent dev Postgres — none of which any unit's `flutter test`/
+`dart test` run exercises together. It surfaced three real, previously
+undetected defects, none caught by any unit's own test suite. All three are
+now root-caused and fixed; walkthrough continues below this entry.
+
+**Finding 1 — persistent dev DB never fully migrated (infra, not app code).**
+Root cause: an earlier unit attempt (UNIT 05, attempt 1) ran
+`migrateDbSchema` against the shared `postgres` database instead of a
+disposable one, and left a phantom `'0163b'` row in `schema_version` — a
+version string from a since-reverted mid-flight rename (see the UNIT 05
+remediation note above) — which made `migrant` believe `m0163` was already
+applied and skip it forever on every subsequent server boot. Fixed by
+applying `m0163`'s SQL directly against the persistent DB and correcting
+`schema_version` (removed `'0163b'`, inserted accurate `'0162'`/`'0163'`
+rows). This is a one-time local-environment repair, not a code or migration
+defect — `_allMigrations` itself is correct and was independently verified
+during UNIT 05's own review.
+
+**Finding 2 — false "closed eye" (mutual-visibility) indicator — fixed,
+committed with this entry.** `packages/client/lib/features/constellation/ui/bloc/constellation_cubit.dart`
+`_profileFromPeer` was constructing the `Profile` passed into the reused
+`GraphPersonContextPanel` using only defaults for `myVote` /
+`subjectExplicitlyTrustsViewer` (never populated from the peer's actual
+tier-1 edges), so `Profile.isMutuallyVisible` (which reads those two old,
+per-direction asymmetric-trust fields — the exact model D14/UNIT04
+superseded with the symmetric `person_are_mutually_visible` function) was
+always false for every Constellation peer, showing a "closed eye — not
+mutually visible" badge even for a peer with a live reciprocal `vote_user`
+trust edge to the viewer. Fixed by deriving `myVote`/
+`subjectExplicitlyTrustsViewer` from the field snapshot's own tier-1 edges
+(`state.field.edges`) instead of leaving them at their zero-value defaults.
+Verified: `flutter test test/features/constellation/` 117/117 green, and
+live in-browser the peer now shows "Open eye — two-way visibility."
+
+**Finding 3 — Offer Help / Forward silently blocked for every
+discovery-only viewer (most severe; fixed, committed with this entry).**
+`ConstellationCubit.preflightRequestAction` (called immediately before
+either action commits) fetched fresh beacon state via
+`_forwardRepository.fetchBeaconInvolvement`, which is gated server-side by
+`can_read_involvement` (confirmed via the shared `'Viewer cannot read
+request involvement'` / GraphQL error code `1102` raised by
+`beacon_involvement_case.dart`, `forward_inbound_query_case.dart`, and
+`beacon_forward_graph_case.dart` alike). Per D11, Constellation's whole
+premise is that discovery grants **content-wall** reads, never
+**involvement/discussion-admission** access — so this preflight denied
+*every* discovery-only viewer on *every* attempted action, the primary use
+case the entire 20-unit plan exists to serve. This was invisible to every
+unit's own tests because each one legitimately mocked/stubbed
+`fetchBeaconInvolvement` to succeed (a reasonable per-unit assumption; no
+unit's scope was "is this the correct data source"). Fixed by switching
+`preflightRequestAction` to refresh via `_case.load(viewerId:)` — the same
+content-wall-gated `ConstellationFieldCase` the initial field snapshot
+already comes from — and extracting the one matching `ConstellationRequest`
+from the refreshed field instead of a `Beacon` from involvement data;
+`ConstellationRequestPreflightReady` now carries `ConstellationRequest`
+directly (dropped the `beacon` field), and
+`coverageRequiresExplicitBackupChoice` takes `freshRequest:
+ConstellationRequest` instead of `freshBeacon: Beacon` (it only ever read
+`.status`, already present on `ConstellationRequest`). Per UNIT 16's
+"refreshing one selected request must not claim the whole field refreshed"
+invariant, only the single request is merged into state via the existing
+`_replaceRequestInField` (unchanged) — `state.loadedAt`/peers/paths are left
+untouched. Rewrote
+`packages/client/test/features/constellation/constellation_freshness_test.dart`
+around this: the stub `ConstellationRepositoryPort.fetch()` is now mutable
+so tests can simulate a server-side change between the initial load and the
+preflight refresh (status flips, request vanishes from the field), replacing
+the old `_FakeForwardRepository.fetchBeaconInvolvement`-based staging, which
+is no longer on the call path at all. Verified: `flutter test
+test/features/constellation/` 117/117 green; full `flutter test` 2872
+passed / 30 skipped / 1 failed (`request_threads_adaptive_test.dart`, the
+same pre-existing unrelated flake UNIT 20 already recorded — zero overlap,
+confirmed unchanged); `./scripts/check-custom-lints.sh packages/client`
+32/32 baseline; `bash scripts/check-user-facing-terminology.sh` clean. Live
+re-verification: submitted a real Offer Help through the browser: the
+dialog now opens and submits (previously blocked before the dialog even
+appeared); confirmed via direct SQL against the dev DB that a
+`beacon_help_offer` row was actually written
+(`beacon_id=B85668cea9c4c, user_id=U2b782a36b83b` — the QA ego — `message='I
+have a ladder you can borrow.'`); re-opened the preview and confirmed it now
+reads "You offered help" / "Edit help offer", proving the post-submit
+`preflightRequestAction` refresh also works end to end.
+
+COMMITS: (staged next, both findings 2 and 3 together —
+`constellation_cubit.dart` carries both fixes)
+FILES: packages/client/lib/features/constellation/ui/bloc/constellation_cubit.dart,
+  packages/client/lib/features/constellation/ui/widget/constellation_body.dart,
+  packages/client/test/features/constellation/constellation_freshness_test.dart,
+  docs/plans/constellation-implementation-journal.md
+REMAINING: continue the walkthrough (Forward flow, Map/Text switch, filter
+  bar interactions, keyboard/screen-reader operation, a stale-request
+  recovery scenario), then record full UX9 acceptance (or a further finding)
+  in a follow-up entry. Plan-wide integration read-through and final
+  completion report still pending behind that.

@@ -6,7 +6,6 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:force_directed_graphview/force_directed_graphview.dart';
 import 'package:get_it/get_it.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
-import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/beacon/domain/exception.dart';
 import 'package:tentura/features/forward/data/repository/forward_repository.dart';
@@ -45,7 +44,6 @@ sealed class ConstellationRequestPreflight {
   const ConstellationRequestPreflight();
 
   const factory ConstellationRequestPreflight.ready({
-    required Beacon beacon,
     required ConstellationRequest request,
     required bool viewerHasActiveHelpOffer,
   }) = ConstellationRequestPreflightReady;
@@ -61,12 +59,10 @@ sealed class ConstellationRequestPreflight {
 
 final class ConstellationRequestPreflightReady extends ConstellationRequestPreflight {
   const ConstellationRequestPreflightReady({
-    required this.beacon,
     required this.request,
     required this.viewerHasActiveHelpOffer,
   });
 
-  final Beacon beacon;
   final ConstellationRequest request;
   final bool viewerHasActiveHelpOffer;
 }
@@ -344,45 +340,44 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     return 'constellationAbsenceRing';
   }
 
+  /// Refreshes a single request's status/offer/forward flags before an
+  /// action (Offer Help / Forward) commits. This MUST stay on a
+  /// content-wall-gated data source (`_case.load`, the same
+  /// [ConstellationFieldCase] the initial field snapshot came from) rather
+  /// than an involvement-gated one (e.g. `fetchBeaconInvolvement`) —
+  /// discovery-only Constellation viewers per D11 have content-read access
+  /// but never involvement/discussion-admission access, so an
+  /// involvement-gated preflight would always deny the primary Constellation
+  /// action flow. Only the one matching request is merged into state
+  /// ([_replaceRequestInField]); this must not update `state.loadedAt` or
+  /// otherwise claim the whole field was refreshed.
   Future<ConstellationRequestPreflight> preflightRequestAction(
     String beaconId,
   ) async {
     try {
-      final involvement = await _forwardRepository.fetchBeaconInvolvement(
-        beaconId: beaconId,
-      );
-      final beacon = involvement.beacon;
-      if (!beacon.status.isOpenFamily) {
-        return ConstellationRequestPreflight.authorizationDenied(
-          message: _authorizationDeniedMessage(beacon.status),
-        );
+      final resolved = await _case.load(viewerId: _viewer.id);
+      ConstellationRequest? refreshed;
+      for (final request in resolved.field.requests) {
+        if (request.id == beaconId) {
+          refreshed = request;
+          break;
+        }
       }
-      final snapshot = requestById(beaconId);
-      if (snapshot == null) {
+      if (refreshed == null) {
         return const ConstellationRequestPreflight.requestUnavailable(
           message: 'This request is no longer in the field snapshot.',
         );
       }
-      final viewerHasActiveHelpOffer =
-          involvement.helpOfferedIds.contains(_viewer.id) &&
-          !involvement.withdrawnIds.contains(_viewer.id);
-      final viewerHasForwardEdge =
-          involvement.myForwardedRecipientEdgeIds.isNotEmpty;
-      final refreshed = _requestFromInvolvement(
-        snapshot: snapshot,
-        beacon: beacon,
-        viewerHasActiveHelpOffer: viewerHasActiveHelpOffer,
-        viewerHasForwardEdge: viewerHasForwardEdge,
-      );
+      final status = BeaconStatus.fromSmallint(refreshed.status);
+      if (!status.isOpenFamily) {
+        return ConstellationRequestPreflight.authorizationDenied(
+          message: _authorizationDeniedMessage(status),
+        );
+      }
       _replaceRequestInField(refreshed);
       return ConstellationRequestPreflight.ready(
-        beacon: beacon,
         request: refreshed,
-        viewerHasActiveHelpOffer: viewerHasActiveHelpOffer,
-      );
-    } on BeaconFetchException {
-      return const ConstellationRequestPreflight.requestUnavailable(
-        message: 'This request is no longer available to you.',
+        viewerHasActiveHelpOffer: refreshed.viewerHasActiveHelpOffer,
       );
     } on Object catch (error) {
       if (_isAuthorizationFailure(error)) {
@@ -430,11 +425,12 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
 
   bool coverageRequiresExplicitBackupChoice({
     required ConstellationRequest snapshotRequest,
-    required Beacon freshBeacon,
+    required ConstellationRequest freshRequest,
   }) {
     final snapshotOpen =
         BeaconStatus.fromSmallint(snapshotRequest.status) != BeaconStatus.enoughHelp;
-    final freshCovered = freshBeacon.status == BeaconStatus.enoughHelp;
+    final freshCovered =
+        BeaconStatus.fromSmallint(freshRequest.status) == BeaconStatus.enoughHelp;
     return snapshotOpen && freshCovered;
   }
 
@@ -719,12 +715,46 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     emit(state.copyWith(graphRevision: state.graphRevision + 1));
   }
 
-  Profile _profileFromPeer(ConstellationPerson peer) => Profile(
-    id: peer.id,
-    displayName: peer.displayName ?? '',
-    handle: peer.handle ?? '',
-    image: peer.image,
-  );
+  /// [Profile.isMutuallyVisible] (and the "closed eye" copy it drives in the
+  /// reused [GraphPersonContextPanel]) is derived from the *old*,
+  /// per-direction trust/MeritRank fields (`myVote`, `subjectExplicitlyTrustsViewer`,
+  /// `score`/`rScore`) — the exact asymmetric model D14/UNIT04 superseded.
+  /// Every peer in `field.peers` is already guaranteed mutually visible by
+  /// `person_visible_peers_symmetric` (that guarantee is *why* they're in the
+  /// field at all), so defaulting these fields to false — as a bare
+  /// `ConstellationPerson`→`Profile` mapping does — makes the panel falsely
+  /// claim "no two-way visibility" for every peer. Fix it using only data
+  /// Constellation is actually allowed to have without violating wire hygiene
+  /// (§9.1 forbids ever setting `score`/`rScore` from this feature — those
+  /// are MeritRank-shaped fields and this reused widget may render a score
+  /// badge from them elsewhere): if a **tier-1** (explicit `vote_user`) edge
+  /// exists between the viewer and this peer in either direction — checked
+  /// against `field.edges`, the full closure over the graph peer set, not
+  /// just the resolved tree — mark that direction's explicit-trust flag
+  /// true. That's an honest, score-free signal, and matches this specific
+  /// peer's real data in the common case (a direct, explicit connection).
+  /// A peer reached only via a tier-2/derived path, or with no edge to the
+  /// viewer in `field.edges` at all (e.g. a request-author-only profile),
+  /// still can't honestly be marked "explicit" — that residual case is a
+  /// known, documented limitation (see docs/features/constellation.md),
+  /// not something to paper over with a fabricated score.
+  Profile _profileFromPeer(ConstellationPerson peer) {
+    final edges = state.field?.edges ?? const <ConstellationTrustEdgeEntity>[];
+    final viewerTrustsSubject = edges.any(
+      (e) => e.tier == 1 && e.src == _viewer.id && e.dst == peer.id,
+    );
+    final subjectTrustsViewer = edges.any(
+      (e) => e.tier == 1 && e.src == peer.id && e.dst == _viewer.id,
+    );
+    return Profile(
+      id: peer.id,
+      displayName: peer.displayName ?? '',
+      handle: peer.handle ?? '',
+      image: peer.image,
+      myVote: viewerTrustsSubject ? 1 : 0,
+      subjectExplicitlyTrustsViewer: subjectTrustsViewer,
+    );
+  }
 
   void _replaceRequestInField(ConstellationRequest refreshed) {
     final field = state.field;
@@ -741,19 +771,6 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
       ),
     );
     _rebuildGraph();
-  }
-
-  ConstellationRequest _requestFromInvolvement({
-    required ConstellationRequest snapshot,
-    required Beacon beacon,
-    required bool viewerHasActiveHelpOffer,
-    required bool viewerHasForwardEdge,
-  }) {
-    return snapshot.copyWith(
-      status: beacon.status.smallintValue,
-      viewerHasActiveHelpOffer: viewerHasActiveHelpOffer,
-      viewerHasForwardEdge: viewerHasForwardEdge,
-    );
   }
 
   String _authorizationDeniedMessage(BeaconStatus status) => switch (status) {
