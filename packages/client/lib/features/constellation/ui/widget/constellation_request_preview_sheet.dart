@@ -96,6 +96,8 @@ class ConstellationRequestPreviewSheet extends StatelessWidget {
     final primaryLabel = constellationPreviewPrimaryActionLabel(l10n, request);
     final showForward =
         constellationPreviewShowsForward(request) && onForward != null;
+    final showOpenButton = onOpen != null &&
+        (onPrimaryAction == null || primaryLabel != l10n.openBeacon);
 
     return SafeArea(
       child: Padding(
@@ -164,13 +166,15 @@ class ConstellationRequestPreviewSheet extends StatelessWidget {
               ),
             ),
             SizedBox(height: tt.sectionGap),
-            if (onOpen != null)
+            // Drop outlined Open when primary already is Open (mine /
+            // participant / forwarded) — same destination, duplicate CTA.
+            if (showOpenButton)
               OutlinedButton(
                 onPressed: onOpen,
                 child: Text(l10n.openBeacon),
               ),
             if (onPrimaryAction != null) ...[
-              SizedBox(height: tt.rowGap),
+              if (showOpenButton) SizedBox(height: tt.rowGap),
               FilledButton(
                 onPressed: onPrimaryAction,
                 child: Text(primaryLabel),

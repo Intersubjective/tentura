@@ -174,6 +174,41 @@ void main() {
     }
   });
 
+  group('CTA dedup', () {
+    testWidgets(
+      'hides outlined Open when primary label is also Open',
+      (tester) async {
+        await _pumpPreview(
+          tester,
+          request: _request(
+            id: 'fwd',
+            held: ConstellationHeldState.forwarded,
+          ),
+        );
+
+        expect(find.text(l10n.openBeacon), findsOneWidget);
+        expect(find.widgetWithText(FilledButton, l10n.openBeacon), findsOneWidget);
+        expect(find.widgetWithText(OutlinedButton, l10n.openBeacon), findsNothing);
+      },
+    );
+
+    testWidgets(
+      'keeps outlined Open when primary is a different action',
+      (tester) async {
+        await _pumpPreview(
+          tester,
+          request: _request(
+            id: 'new',
+            held: ConstellationHeldState.none,
+          ),
+        );
+
+        expect(find.widgetWithText(OutlinedButton, l10n.openBeacon), findsOneWidget);
+        expect(find.widgetWithText(FilledButton, l10n.labelOfferHelp), findsOneWidget);
+      },
+    );
+  });
+
   group('forbidden copy', () {
     testWidgets('preview sheet renders no forbidden strings', (tester) async {
       await _pumpPreview(
