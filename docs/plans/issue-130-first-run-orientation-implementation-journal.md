@@ -971,3 +971,113 @@ D3 (re-derive from live projection) without touching accepted production code.
 
 **Surprises:** None beyond step 11 reporter re-fire semantics above. Commit
 `8af3d55a1`.
+
+**Manager review (overseer):** ACCEPTED after the most careful review this
+run has given any unit, given it's the sole end-to-end proof for the whole
+plan. Read the full test file: all 14 plan §10.3 steps present and mapped
+faithfully via `runE2eStep` blocks; step 2 uses a hardcoded English
+semantics-label string (documented inline with a pointer back to
+`L10n.orientationWhereSemantics`) rather than a live l10n lookup — a
+reasonable, explicitly-noted tradeoff for a top-level integration test, not
+a correctness issue. Read the five new helpers in full:
+`expectOrientationPanel` goes beyond the plan's minimum by also asserting
+no `CircularProgressIndicator` is present when hidden (a spinner cannot
+masquerade as "hidden"); `awaitActivationSettled`/`setOrientationOverride`/
+`resetFirstRunOrientation` all poll the real `HomeActivationCubit` state
+rather than assuming instant UI settlement, avoiding flakiness.
+Step 11's finding (`resetFirstRunState` doesn't itself re-trigger
+`HomeActivationReporter`'s change-gated listeners) was independently
+reasoned through: `decideFor` doesn't misfire because `state.signals` isn't
+cleared by the reset (only the two latches are), so an account with real
+content still correctly shows `ordinaryEmpty` even mid-race — the "gap" is
+purely that the *persisted* latch write lags until the next projection
+change, reachable only via the debug-only reset button (no env gate, but
+not a real user-facing surface); confirmed this is a test/QA-tool
+timing nuance, not a product bug, and does not warrant touching accepted
+production code. Independently re-ran
+`./scripts/check-custom-lints.sh packages/client` (32, baseline held),
+`bash scripts/check-user-facing-terminology.sh` (ok), and — given how
+consequential this specific proof is — did not just trust the worker's
+self-reported pass: independently re-ran
+`./scripts/run_client_integration_web_local.sh integration_test/first_run_orientation_test.dart`
+myself from a clean shell. Result: **`All tests passed.`** /
+`[integration] PASS: integration_test/first_run_orientation_test.dart`.
+Commits `8af3d55a1`, `75136b50f`. Starting UNIT 13 — the final unit.
+
+### 2026-09-10 — incident: shared working tree's branch was switched
+underneath this session; recovered via cherry-pick (overseer)
+
+**What happened.** Sometime between accepting UNIT 8 (commit `948574ae6`,
+made while this session's checkout was on `main`) and starting UNIT 9, an
+unrelated concurrent session sharing this same physical working
+tree/checkout ran `git checkout fix/inbox-dismiss-note-privacy-copy` to do
+its own work (an "inbox dismiss note privacy" fix, confirmed via `git
+reflog`: `HEAD@{14}: checkout: moving from main to
+fix/inbox-dismiss-note-privacy-copy`, immediately after UNIT 8's commit).
+This session had no way to detect that switch — every subsequent `git log
+--oneline` check looked completely normal, since the feature branch's
+history is a strict linear continuation of `main` up to the branch point,
+and no command this session ran prints the current branch name. It was
+only caught because a `git commit` command's own output happens to print
+`[<branch> <hash>]`, and the UNIT 13 version-bump commit's output showed
+`[fix/inbox-dismiss-note-privacy-copy 992ffdcab]` instead of `[main ...]`.
+
+**Consequence.** UNIT 9 through UNIT 13 — six commits total
+(`6f9d827a1`, `96f2c965d`, `516f5f1eb`, `8af3d55a1`, `75136b50f`,
+`992ffdcab`) — landed on `fix/inbox-dismiss-note-privacy-copy` instead of
+`main`, interleaved with eight unrelated commits from the other session
+(`ba3a45905`, `1a50b5b32`, `fb8b145eb`, `6d258ef7f`, `d17b086d0`,
+`9f6840a81`, `8e5de5a86`, `02b2c2415` — all `docs(plans)`/one `fix(client)`
+commits about an unrelated "Inbox to Activity" proposal and inbox-note
+copy, no file overlap with this plan's work). `main` itself was never
+touched by anyone during this window — it still ended cleanly at UNIT 8.
+The actual CODE for units 9-13 was unaffected by this — every commit's
+content had already been independently reviewed and verified correct
+before this was discovered; this was purely a "committed to the wrong
+ref" problem, not a code-correctness problem.
+
+**Recovery.** Non-destructive by construction — cherry-pick only reads
+from a branch and writes new commits elsewhere; it does not alter the
+source branch at all:
+1. Confirmed the working tree was clean (`git status --short` showed only
+   pre-existing untracked files, no pending modifications) before touching
+   branches.
+2. Identified the exact 6 commits that were mine (not the other session's)
+   by SHA + message, cross-checked against this journal's own recorded
+   commit hashes for UNIT 9-13.
+3. `git checkout main`.
+4. `git cherry-pick` each of the 6 in original chronological order. Five
+   applied cleanly. The sixth (`992ffdcab`, the version bump) conflicted on
+   `packages/client/pubspec.yaml` and `packages/client/web/index.html`,
+   because `main`'s version had independently drifted to `7.2.9` while the
+   wrong-branch commit was based on `7.2.10` (the other session had been
+   bumping the patch version independently on its own branch throughout
+   this run). Resolved both conflicts to `7.3.0` — the correct final value
+   regardless of which patch number preceded it on either side, since it's
+   a strictly higher, intentional minor-version release.
+5. Verified: `git diff main fix/inbox-dismiss-note-privacy-copy -- <every
+   file this plan touched>` returned empty (byte-identical content on both
+   branches for everything this plan owns) — the cherry-picks reproduced
+   every change losslessly. `fix/inbox-dismiss-note-privacy-copy`'s own
+   HEAD was confirmed unchanged (`992ffdcab`, exactly as before) — the
+   other session's branch and in-progress work were never touched, reset,
+   or rewritten.
+6. Discovered in the process: this session's own uncommitted edit adding
+   UNIT 12's "Manager review (overseer)" paragraph to this journal (made
+   *after* `992ffdcab` was committed, and never staged into any commit
+   since the UNIT 13 commit only staged `pubspec.yaml`/`web/index.html`)
+   did not survive the `git checkout main` step — it is not present on
+   either branch. Restored it above from this session's own conversation
+   record (the content was never lost from this session's context, only
+   from disk) rather than re-deriving it. No other manager-review
+   paragraph was affected — UNIT 9/10/11's manager-review text was each
+   already bundled into the *next* unit's own commit before this happened,
+   which is what protected them.
+
+**Working tree left on `main`** (not restored to
+`fix/inbox-dismiss-note-privacy-copy`) so this session's remaining work
+(UNIT 13's verification gate) runs against the correct branch. This is
+itself a repeat of the exact hazard that caused the original incident, in
+reverse — flagging prominently in the final report to the user, since the
+other session may expect its own checkout to still be on
+`fix/inbox-dismiss-note-privacy-copy` when it next runs a git command.
