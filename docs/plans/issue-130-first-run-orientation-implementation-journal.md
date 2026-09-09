@@ -48,7 +48,7 @@ Plan is explicit: units execute in the given order, each is
 - [x] UNIT 10 — debug override UI (§7)
 - [x] UNIT 11 — invite → request navigation (§8) — verify §8 step 4
       (unreadable-request fallback) BEFORE wiring the push; journal the finding
-- [ ] UNIT 12 — browser integration test (§10.3)
+- [x] UNIT 12 — browser integration test (§10.3)
 - [ ] UNIT 13 — version bump (7.2.7→7.3.0) + cache-buster + full verification gate
 
 ## Acceptance / verification commands (plan §11, run from repo root)
@@ -903,3 +903,34 @@ logic added; `BeaconViewScreen` already handles unreadable ids via
 request opens with inviter snackbar visible after push; automated tests stub
 `ScreenCubit`/`UiEffectPort` and cannot prove the observer race is won in a
 real navigator stack.
+
+**Manager review (overseer):** ACCEPTED after unusually careful review —
+this is a subtle timing fix, not a mechanical one. Verified the reasoning,
+not just that tests pass: `AcceptInviteCubit`'s beacon branch now sets
+`showSnackbar: true` and calls `_finishWithMessage(null, navigateToInbox:
+true)`; `_finishWithMessage`'s nullable-message guard leaves every OTHER
+call site's immediate-emission behavior untouched (confirmed by diff — only
+the signature and one `if` added). `HomePostJoinListener` now calls
+`GetIt.I<ScreenCubit>().showBeacon(dest.beaconId!, entry:
+kBeaconEntryInvite)`, then TWO chained `await
+SchedulerBinding.instance.endOfFrame` calls before emitting
+`ShowMessage`, with a comment citing the exact observer race. Traced why
+this is sufficient, not just plausible: `NavigatePush`'s effect delivery
+resolves via a single microtask hop, `Navigator.push`'s resulting
+`didPush` fires synchronously during route insertion (well before any
+frame renders), and its `scheduleMicrotask`-based snackbar-clear therefore
+completes before even the FIRST `endOfFrame` resolves — two is a generous,
+correctly-reasoned safety margin, not a magic number. `accept_invite_cubit_test.dart`'s
+pre-existing test was correctly updated (old assertion that the cubit
+itself emitted the message replaced with `isEmpty` plus new assertions on
+`PostJoinDestination.beaconId`/`showSnackbar`, proving the responsibility
+genuinely moved rather than silently vanishing). The new
+`home_post_join_listener_test.dart` cases register a real
+`ScreenCubit.local(effects)` sharing the test's fake port and correctly
+assert the `NavigatePush` path contains both the beacon id and
+`entry=invite`. Independently re-ran
+`./scripts/check-custom-lints.sh packages/client` (32, baseline held),
+`bash scripts/check-user-facing-terminology.sh` (ok), and
+`flutter test test/features/home/home_post_join_listener_test.dart
+test/features/invitation/` (43/43 passed). Commit `516f5f1eb`. Starting
+UNIT 12.

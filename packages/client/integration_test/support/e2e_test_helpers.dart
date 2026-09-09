@@ -17,6 +17,8 @@ import 'package:tentura/domain/capability/capability_group.dart';
 import 'package:tentura/domain/capability/capability_tag.dart';
 import 'package:tentura/features/auth/domain/use_case/auth_case.dart';
 import 'package:tentura/features/auth/ui/bloc/auth_cubit.dart';
+import 'package:tentura/features/home/domain/entity/home_activation.dart';
+import 'package:tentura/features/home/ui/bloc/home_activation_cubit.dart';
 import 'package:tentura/features/beacon_create/ui/bloc/beacon_create_cubit.dart';
 import 'package:tentura/features/beacon_create/ui/dialog/beacon_send_confirmation_dialog.dart';
 import 'package:tentura/features/forward/ui/bloc/forward_cubit.dart';
@@ -1096,6 +1098,106 @@ Future<void> pumpBounded(
 }
 
 String currentAppUrl() => GetIt.I<RootRouter>().currentUrl;
+
+/// English [L10n.myWorkEmptyActiveTitle] — this suite hardcodes English strings.
+const _myWorkEmptyActiveTitle = 'No active work yet';
+
+/// Waits until [HomeActivationCubit] has hydrated latches for [accountId] and
+/// both My Work and Inbox projections have settled (or Inbox failed).
+Future<void> awaitActivationSettled(
+  WidgetTester tester,
+  String accountId,
+) async {
+  await pumpUntil(
+    tester,
+    () {
+      final state = GetIt.I<HomeActivationCubit>().state;
+      return state.hydrated &&
+          state.boundAccountId == accountId &&
+          state.signals.isSettled;
+    },
+    label: 'awaitActivationSettled($accountId)',
+  );
+}
+
+/// Asserts the first-run orientation panel is shown or hidden. When hidden,
+/// also requires the ordinary empty title or a non-empty card list so a spinner
+/// or blank body cannot pass.
+Future<void> expectOrientationPanel(
+  WidgetTester tester, {
+  required bool visible,
+}) async {
+  final panel = find.byKey(TestIds.key(TestIds.orientationPanel));
+  if (visible) {
+    expect(panel, findsOneWidget, reason: _screenDump());
+    return;
+  }
+  expect(panel, findsNothing, reason: _screenDump());
+  final hasEmptyTitle = finderHasMatch(find.text(_myWorkEmptyActiveTitle));
+  final hasCards = _myWorkShowsCards();
+  expect(
+    hasEmptyTitle || hasCards,
+    isTrue,
+    reason:
+        'Hidden orientation must show empty title or card list; ${_screenDump()}',
+  );
+  expect(
+    finderHasMatch(find.byType(CircularProgressIndicator)),
+    isFalse,
+    reason: 'Spinner must not pass as hidden orientation; ${_screenDump()}',
+  );
+}
+
+bool _myWorkShowsCards() {
+  return finderHasMatch(
+    find.byWidgetPredicate(
+      (widget) {
+        if (widget.key is! ValueKey<String>) return false;
+        final value = (widget.key! as ValueKey<String>).value;
+        return value.startsWith('authored') || value.startsWith('helpOffered');
+      },
+    ),
+  );
+}
+
+Future<void> openDebugSettings(WidgetTester tester) async {
+  await goToPath(tester, kPathDebugSettings);
+}
+
+Future<void> setOrientationOverride(
+  WidgetTester tester,
+  OrientationDebugOverride mode,
+) async {
+  final segment = switch (mode) {
+    OrientationDebugOverride.auto =>
+      find.byKey(TestIds.key(TestIds.debugOrientationAuto)),
+    OrientationDebugOverride.show =>
+      find.byKey(TestIds.key(TestIds.debugOrientationShow)),
+    OrientationDebugOverride.hide =>
+      find.byKey(TestIds.key(TestIds.debugOrientationHide)),
+  };
+  await tapAndSettle(tester, segment);
+  await pumpUntil(
+    tester,
+    () => GetIt.I<HomeActivationCubit>().state.debugOverride == mode,
+    label: 'setOrientationOverride($mode)',
+  );
+}
+
+Future<void> resetFirstRunOrientation(WidgetTester tester) async {
+  await tapAndSettle(
+    tester,
+    find.byKey(TestIds.key(TestIds.debugOrientationReset)),
+  );
+  await pumpUntil(
+    tester,
+    () {
+      final state = GetIt.I<HomeActivationCubit>().state;
+      return !state.dismissedLatch && !state.activatedLatch;
+    },
+    label: 'resetFirstRunOrientation',
+  );
+}
 
 Future<String> ensureQaUserId(WidgetTester tester, String email) async {
   await loginAs(tester, email);

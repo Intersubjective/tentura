@@ -44,6 +44,7 @@ Core lifecycle scenarios (each runs in its own `flutter drive` process; the runn
 | `request_lifecycle_offer_admit_chat_test.dart` | offer help → admission → helper creates and publishes a child from the parent Discussion → parent link and Active card → helper closes child from My Work → Finished card while parent stays open → General chat → participation removal |
 | `request_lifecycle_close_review_test.dart` | close a request (wrap-up-for-review) and complete the contribution review |
 | `request_lifecycle_review_trust_control_test.dart` | post-close review two-step trust control: save validation gates (category → intensity → reason), trust-impact preview, saved status on the participant list |
+| `first_run_orientation_test.dart` | first-run orientation panel shown/hidden matrix: dismiss persistence, debug override, activation latch, per-user keys |
 
 Shared helpers: `integration_test/support/e2e_test_helpers.dart`.
 Publish/forward checkpoints cover draft persistence, recipient selection, enabled submit, note confirmation, publication, delivery confirmation, and navigation. The shared helper uses `forwardRecipientCheckbox(userId)` and immediately asserts that the tap changed selection. An authenticated repository read verifies the UI-created Request is published. Confirmation must report delivery to the fixture helper; the lifecycle test then signs in as that helper and opens the Request from Inbox. Timeout diagnostics include draft ID, loading state, validation blocker, selected recipients, and delivery outcome.
