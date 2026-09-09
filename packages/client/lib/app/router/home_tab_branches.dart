@@ -9,12 +9,13 @@ import 'root_router.gr.dart';
 /// shared root stack above [HomeRoute].
 const workTabShell = EmptyShellRoute('WorkTabShell');
 const inboxTabShell = EmptyShellRoute('InboxTabShell');
+const constellationTabShell = EmptyShellRoute('ConstellationTabShell');
 const networkTabShell = EmptyShellRoute('NetworkTabShell');
 const meTabShell = EmptyShellRoute('MeTabShell');
 
 /// Stable identity for a Home branch. Display order is owned by [HomeTabSpec],
 /// not by enum ordinal or ad-hoc router integers.
-enum HomeTab { work, inbox, updates, network, me }
+enum HomeTab { work, inbox, constellation, updates, network, me }
 
 /// The single mapping between a semantic Home tab and AutoRoute mechanics.
 ///
@@ -51,15 +52,22 @@ final class HomeTabSpec {
       rootRoute: InboxRoute.new,
     ),
     HomeTabSpec(
-      tab: HomeTab.network,
+      tab: HomeTab.constellation,
       index: 2,
+      path: kPathConstellation,
+      shell: constellationTabShell,
+      rootRoute: ConstellationRoute.new,
+    ),
+    HomeTabSpec(
+      tab: HomeTab.network,
+      index: 3,
       path: kPathNetwork,
       shell: networkTabShell,
       rootRoute: FriendsRoute.new,
     ),
     HomeTabSpec(
       tab: HomeTab.me,
-      index: 3,
+      index: 4,
       path: kPathProfile,
       shell: meTabShell,
       rootRoute: ProfileRoute.new,

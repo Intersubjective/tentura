@@ -134,6 +134,14 @@ class RootRouter extends RootStackRouter {
             AutoRoute(initial: true, page: InboxRoute.page, path: ''),
           ],
         ),
+        // Constellation (discoverable request field map)
+        AutoRoute(
+          page: constellationTabShell.page,
+          path: kPathConstellation.split('/').last,
+          children: [
+            AutoRoute(initial: true, page: ConstellationRoute.page, path: ''),
+          ],
+        ),
         // Network (Friends)
         AutoRoute(
           page: networkTabShell.page,

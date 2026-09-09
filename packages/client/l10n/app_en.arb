@@ -1199,6 +1199,14 @@
   "@network": {
     "context": "HomeScreen"
   },
+  "constellationTitle": "Constellation",
+  "@constellationTitle": {
+    "context": "HomeScreen"
+  },
+  "constellationFindWaysToHelp": "Find ways to help",
+  "@constellationFindWaysToHelp": {
+    "context": "MyWorkEmptyBody"
+  },
   "friends": "Friends",
   "@friends": {
     "context": "HomeScreen"

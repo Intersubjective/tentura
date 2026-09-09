@@ -16,6 +16,7 @@ import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 
 import '../bloc/home_tab_reselect_cubit.dart';
 import '../bloc/home_attention_cubit.dart';
+import '../widget/constellation_navbar_item.dart';
 import '../widget/friends_navbar_item.dart';
 import '../widget/home_bottom_nav_listener.dart';
 import '../widget/home_bottom_navigation_bar.dart';
@@ -218,6 +219,13 @@ class _HomeShellState extends State<_HomeShell> {
                     label: Text(l10n.inbox),
                   ),
                   NavigationRailDestination(
+                    icon: const ConstellationNavbarItem(),
+                    selectedIcon: const ConstellationNavbarItem(
+                      selected: true,
+                    ),
+                    label: Text(l10n.constellationTitle),
+                  ),
+                  NavigationRailDestination(
                     icon: const FriendsNavbarItem(),
                     selectedIcon: const FriendsNavbarItem(
                       selected: true,
@@ -273,6 +281,13 @@ class _HomeShellState extends State<_HomeShell> {
                   icon: const InboxNavbarItem(),
                   selectedIcon: const InboxNavbarItem(selected: true),
                   label: l10n.inbox,
+                ),
+                HomeNavDestination(
+                  icon: const ConstellationNavbarItem(),
+                  selectedIcon: const ConstellationNavbarItem(
+                    selected: true,
+                  ),
+                  label: l10n.constellationTitle,
                 ),
                 HomeNavDestination(
                   icon: const FriendsNavbarItem(),

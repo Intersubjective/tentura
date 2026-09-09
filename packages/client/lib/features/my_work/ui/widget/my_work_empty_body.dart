@@ -5,6 +5,7 @@ import 'package:tentura/design_system/components/tentura_command_button.dart';
 import 'package:tentura/design_system/components/tentura_text_action.dart';
 import 'package:tentura/features/my_work/domain/entity/my_work_filter.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/test_ids.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 
 /// Empty My Desk body — callback-only; parent owns navigation.
@@ -15,6 +16,7 @@ class MyWorkEmptyBody extends StatelessWidget {
     required this.archivedCountHint,
     required this.onCreateBeacon,
     required this.onOpenInbox,
+    required this.onOpenConstellation,
     required this.onShowDrafts,
     required this.onShowArchived,
     this.inboxNeedsMeCount = 0,
@@ -29,6 +31,7 @@ class MyWorkEmptyBody extends StatelessWidget {
   final bool inboxLoadComplete;
   final VoidCallback onCreateBeacon;
   final VoidCallback onOpenInbox;
+  final VoidCallback onOpenConstellation;
   final VoidCallback onShowDrafts;
   final VoidCallback onShowArchived;
 
@@ -127,6 +130,12 @@ class MyWorkEmptyBody extends StatelessWidget {
                     onPressed: onOpenInbox,
                   ),
                 ],
+                const SizedBox(height: kSpacingSmall),
+                TenturaTextAction(
+                  key: TestIds.key(TestIds.myWorkFindWaysToHelp),
+                  label: l10n.constellationFindWaysToHelp,
+                  onPressed: onOpenConstellation,
+                ),
               ],
               if (_showShortcuts) ...[
                 if (!isActive) const SizedBox(height: kSpacingSmall),

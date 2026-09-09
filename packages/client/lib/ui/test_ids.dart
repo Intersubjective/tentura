@@ -146,5 +146,8 @@ abstract final class TestIds {
   static const friendsCreateInvitation = 'friends.create_invitation';
   static const friendsMore = 'friends.more';
 
+  static const constellationNavItem = 'constellation.nav_item';
+  static const myWorkFindWaysToHelp = 'my_work.find_ways_to_help';
+
   static ValueKey<String> key(String id) => ValueKey<String>(id);
 }

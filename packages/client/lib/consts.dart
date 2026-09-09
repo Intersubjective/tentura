@@ -43,6 +43,7 @@ const kPathRoutingMute = '/settings/routing-mute';
 const kPathBlockedUsers = '/home/network/blocked';
 const kPathDebugSettings = '/settings/debug';
 const kPathMyWork = '/home/work';
+const kPathConstellation = '/home/constellation';
 const kPathNetwork = '/home/network';
 const kPathBeaconNew = '/beacon/new';
 const kPathBeaconView = '/beacon/view';

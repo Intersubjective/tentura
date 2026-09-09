@@ -143,7 +143,7 @@ is triggered.
 - [x] 11 — Client data: entities, gql, repository, use case
 - [x] 12 — Render: mode, nodes, edges, painters, legend
 - [x] 13 — Prerequisite project: fold Updates into Inbox
-- [ ] 14 — Navigation slot, route, My Work entry
+- [x] 14 — Navigation slot, route, My Work entry
 - [ ] 15 — Need labels, request preview, person panel
 - [ ] 16 — Snapshot lifecycle + action-time validation, incl. server `expectedOfferKind`
 - [ ] 17 — Filter bar, grouping, stable anchors
@@ -988,3 +988,39 @@ DECISIONS: Product review **V.G. Bulavintsev** (pre-authorized). Badge +
 REMAINING: **UNIT 14 must follow immediately** — restore the fifth navigation
   destination (Constellation) at index 2. Do not treat the interim four-item bar
   as a release stopping point.
+
+---
+
+## UNIT 14 — complete — 2026-09-09
+COMMITS: (this unit's commit, staged next)
+TESTS: `cd packages/client && flutter gen-l10n && dart run build_runner build -d` — exit 0;
+  `cd packages/client && flutter test test/features/home/ test/features/my_work/ test/app/` — 206/206 passed;
+  `bash scripts/check-user-facing-terminology.sh` — exit 0;
+  `./scripts/check-custom-lints.sh packages/client` — exit 0 (32/32 baseline unchanged)
+FILES: packages/client/lib/consts.dart,
+  packages/client/lib/app/router/home_tab_branches.dart,
+  packages/client/lib/app/router/root_router.dart,
+  packages/client/lib/features/home/ui/screen/home_screen.dart,
+  packages/client/lib/features/home/ui/widget/constellation_navbar_item.dart (new),
+  packages/client/lib/features/home/ui/bloc/home_tab_reselect_cubit.dart,
+  packages/client/lib/features/my_work/ui/screen/my_work_screen.dart,
+  packages/client/lib/features/my_work/ui/widget/my_work_empty_body.dart,
+  packages/client/lib/ui/test_ids.dart,
+  packages/client/l10n/app_en.arb,
+  packages/client/l10n/app_ru.arb,
+  packages/client/test/features/home/constellation_nav_test.dart (new),
+  packages/client/test/features/my_work/my_work_empty_body_test.dart,
+  docs/plans/constellation-implementation-journal.md
+FINDINGS: live `home_tab_branches.dart` matched UNIT 13 snapshot (four tabs,
+  Network index 2). `test/architecture/home_tab_spec_test.dart` still asserts the
+  four-tab UNIT 13 shape — outside this unit's owns list and verify block; full
+  `flutter test` CI will need that file updated separately.
+DECISIONS: `ConstellationNavbarItem` is a plain `Icon` + `Semantics`/`TestIds`
+  only — no `Badge` widget (§9.2). Nav label/icon: `l10n.constellationTitle` +
+  `Icons.hub` / `Icons.hub_outlined`. `HomeTab.constellation` enum value added;
+  `HomeTab.updates` → Inbox alias untouched. §0.6 frozen ids
+  (`constellationNavItem`, `myWorkFindWaysToHelp`) landed in `test_ids.dart`
+  despite UNIT 14 owns-list omitting that file — required by acceptance tests.
+  My Work empty-state CTA uses `TenturaTextAction` with no count/badge.
+REMAINING: none for this unit. `home_tab_spec_test.dart` four-tab assertion is
+  stale for full-suite CI (not in this unit's verify scope).

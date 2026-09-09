@@ -446,6 +446,10 @@ class _MyWorkListBody extends StatelessWidget {
                         context.read<ScreenCubit>().showBeaconCreate(),
                     onOpenInbox: () =>
                         AutoTabsRouter.of(context).setActiveIndex(1),
+                    onOpenConstellation: () => AutoTabsRouter.of(context)
+                        .setActiveIndex(
+                          HomeTabSpec.forTab(HomeTab.constellation).index,
+                        ),
                     onShowDrafts: () => cubit.setFilter(MyWorkFilter.drafts),
                     onShowArchived: () =>
                         cubit.setFilter(MyWorkFilter.archived),

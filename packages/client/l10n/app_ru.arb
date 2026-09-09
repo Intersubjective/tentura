@@ -1199,6 +1199,14 @@
   "@network": {
     "context": "HomeScreen"
   },
+  "constellationTitle": "Созвездие",
+  "@constellationTitle": {
+    "context": "HomeScreen"
+  },
+  "constellationFindWaysToHelp": "Найти, чем помочь",
+  "@constellationFindWaysToHelp": {
+    "context": "MyWorkEmptyBody"
+  },
   "friends": "Друзья",
   "@friends": {
     "context": "HomeScreen"
