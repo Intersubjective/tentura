@@ -223,7 +223,7 @@ class _HomeShellState extends State<_HomeShell> {
                     selectedIcon: const ConstellationNavbarItem(
                       selected: true,
                     ),
-                    label: Text(l10n.constellationTitle),
+                    label: Text(l10n.constellationNavLabel),
                   ),
                   NavigationRailDestination(
                     icon: const FriendsNavbarItem(),
@@ -287,7 +287,9 @@ class _HomeShellState extends State<_HomeShell> {
                   selectedIcon: const ConstellationNavbarItem(
                     selected: true,
                   ),
-                  label: l10n.constellationTitle,
+                  // Icon-only on compact bottom bar; keep a11y via tooltip.
+                  label: '',
+                  tooltip: l10n.constellationNavLabel,
                 ),
                 HomeNavDestination(
                   icon: const FriendsNavbarItem(),

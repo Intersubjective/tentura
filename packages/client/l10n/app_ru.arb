@@ -1223,8 +1223,14 @@
   "@requestDiscoverableHint": {
     "description": "Plain reach statement beside the author discoverability toggle."
   },
-  "constellationTitle": "Созвездие",
+  "constellationTitle": "Поле",
   "@constellationTitle": {
+    "description": "App bar title on the Field (Constellation) screen",
+    "context": "ConstellationScreen"
+  },
+  "constellationNavLabel": "Моё поле",
+  "@constellationNavLabel": {
+    "description": "Side-nav / accessibility label for the Field tab (bottom bar is icon-only)",
     "context": "HomeScreen"
   },
   "constellationFindWaysToHelp": "Найти, чем помочь",

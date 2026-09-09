@@ -145,9 +145,9 @@ class _BeaconViewHomeRail extends StatelessWidget {
               label: Text(l10n.inbox),
             ),
             NavigationRailDestination(
-              icon: const Icon(Icons.hub_outlined),
-              selectedIcon: const Icon(Icons.hub),
-              label: Text(l10n.constellationTitle),
+              icon: const Icon(TenturaIcons.graph),
+              selectedIcon: const Icon(TenturaIcons.graph),
+              label: Text(l10n.constellationNavLabel),
             ),
             NavigationRailDestination(
               icon: const Icon(Icons.people_outline),

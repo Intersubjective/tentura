@@ -204,7 +204,7 @@ class _HomeChromeFixture extends StatelessWidget {
           NavigationRailDestination(
             icon: const ConstellationNavbarItem(),
             selectedIcon: const ConstellationNavbarItem(selected: true),
-            label: Text(l10n.constellationTitle),
+            label: Text(l10n.constellationNavLabel),
           ),
           NavigationRailDestination(
             icon: const FriendsNavbarItem(),
@@ -236,7 +236,8 @@ class _HomeChromeFixture extends StatelessWidget {
         HomeNavDestination(
           icon: const ConstellationNavbarItem(),
           selectedIcon: const ConstellationNavbarItem(selected: true),
-          label: l10n.constellationTitle,
+          label: '',
+          tooltip: l10n.constellationNavLabel,
         ),
         HomeNavDestination(
           icon: const FriendsNavbarItem(),
@@ -407,6 +408,30 @@ void main() {
         find.byType(HomeBottomNavigationBar),
       );
       expect(bar.destinations, hasLength(5));
+    });
+
+    testWidgets('compact bottom bar hides Field tab label', (tester) async {
+      await _pumpHomeChrome(
+        tester,
+        logicalSize: const Size(390, 800),
+        attention: attention,
+        useSideNav: false,
+      );
+
+      expect(find.text('My field'), findsNothing);
+      expect(find.byIcon(TenturaIcons.graph), findsOneWidget);
+    });
+
+    testWidgets('expanded rail shows Field tab label', (tester) async {
+      await _pumpHomeChrome(
+        tester,
+        logicalSize: const Size(900, 800),
+        attention: attention,
+        useSideNav: true,
+      );
+
+      expect(find.text('My field'), findsOneWidget);
+      expect(find.byIcon(TenturaIcons.graph), findsOneWidget);
     });
 
     testWidgets('anti-feed: constellation nav item has no badge while others do', (

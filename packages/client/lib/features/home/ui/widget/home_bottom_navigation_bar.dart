@@ -126,10 +126,13 @@ class _HomeNavTile extends StatelessWidget {
     );
     final tooltip = destination.tooltip ?? destination.label;
 
+    final semanticLabel = destination.label.isEmpty
+        ? (destination.tooltip ?? '')
+        : destination.label;
     final tile = Semantics(
       button: true,
       selected: selected,
-      label: destination.label,
+      label: semanticLabel,
       child: InkWell(
         onTap: onTap,
         child: Column(

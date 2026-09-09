@@ -1223,8 +1223,14 @@
   "@requestDiscoverableHint": {
     "description": "Plain reach statement beside the author discoverability toggle."
   },
-  "constellationTitle": "Constellation",
+  "constellationTitle": "Field",
   "@constellationTitle": {
+    "description": "App bar title on the Field (Constellation) screen",
+    "context": "ConstellationScreen"
+  },
+  "constellationNavLabel": "My field",
+  "@constellationNavLabel": {
+    "description": "Side-nav / accessibility label for the Field tab (bottom bar is icon-only)",
     "context": "HomeScreen"
   },
   "constellationFindWaysToHelp": "Find ways to help",
