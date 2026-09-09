@@ -2534,8 +2534,23 @@ ranking anywhere.
 
 Implements **U10c / UX6 / §11.3**.
 
+**[amended by the overseer, 2026-09-09] Also owns:**
+`packages/client/lib/features/constellation/ui/widget/constellation_body.dart`
+(edit). **No unit in this plan ever mounts `ConstellationFilterBar` or
+`ConstellationOverflowGroup` (both built by UNIT 17) into the live screen** —
+verified by grepping every unit's owns-list for `constellation_body.dart`,
+which appears only in UNIT 12's (creation) and now here. Since this unit
+already edits `constellation_screen.dart` to add the Map/Text switch, and
+that switch is the natural point where the filter bar and per-person overflow
+groups also get assembled into the final screen, mount both here rather than
+leaving a fourth orphaned-wiring gap (see the journal's UNIT 12, UNIT 15, and
+UNIT 17 entries for the prior three). This does not change UNIT 18's own
+UX6/§11.3 scope — it closes a gap two units back that this unit is best
+positioned to fix.
+
 **Owns:** `packages/client/lib/features/constellation/ui/widget/constellation_text_view.dart`,
-`.../ui/screen/constellation_screen.dart` (edit), l10n,
+`.../ui/screen/constellation_screen.dart` (edit),
+`.../ui/widget/constellation_body.dart` (edit, see above), l10n,
 `packages/client/test/features/constellation/constellation_text_view_test.dart` (new).
 
 1. A labelled Map/Text switch over the **same** authorized snapshot, filters, and
