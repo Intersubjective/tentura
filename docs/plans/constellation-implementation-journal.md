@@ -139,7 +139,7 @@ is triggered.
 - [x] 07 — `constellationField` V2 query
 - [x] 08 — Client pure domain: paths, caps
 - [x] 09 — Client pure domain: filters, density
-- [ ] 10 — Client pure domain: three-pass layout
+- [x] 10 — Client pure domain: three-pass layout
 - [ ] 11 — Client data: entities, gql, repository, use case
 - [ ] 12 — Render: mode, nodes, edges, painters, legend
 - [ ] 13 — Prerequisite project: fold Updates into Inbox
@@ -576,6 +576,25 @@ DECISIONS: `isDiscoverable` entity mapping lives in `BeaconRepository`
   (`_beaconRowToEntity` + `copyWith`) rather than `beacon_mapper.dart` (not
   on the unit owns list). Update semantics use `isDiscoverableProvided` /
   `containsKey('isDiscoverable')`, matching `primaryNeedSlug` pattern.
+REMAINING: none for this unit.
+
+---
+
+## UNIT 10 — complete — 2026-09-09
+COMMITS: (this unit's commit, staged next)
+TESTS: `cd packages/client && flutter test test/features/constellation/constellation_layout_test.dart` — 10/10 passed;
+  `./scripts/check-custom-lints.sh packages/client` — exit 0 (32/32 baseline unchanged)
+FILES: packages/client/lib/features/constellation/domain/constellation_layout.dart (new),
+  packages/client/test/features/constellation/constellation_layout_test.dart (new),
+  docs/plans/constellation-implementation-journal.md
+FINDINGS: none — §0.4 three-pass structure implemented without calling
+  `computeRadialHopLayout`. Ring-holder test fixtures must use genuinely
+  unattributed holders (a tier-2-only `ego→r` edge attributes `r` at depth 1,
+  not `paths.ring`).
+DECISIONS: satellite fan uses `localFanPositions` (which internally applies
+  `amenityChordForRingGap` / `preferredFanStep`) with `ringGap: satelliteOffset`
+  and the author's centre-to-author radial unit vector; ego satellites fan from
+  centre via `branchUnitDirection` default (D16).
 REMAINING: none for this unit.
 
 ---
