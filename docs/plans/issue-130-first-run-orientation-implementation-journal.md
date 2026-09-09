@@ -934,3 +934,40 @@ assert the `NavigatePush` path contains both the beacon id and
 `flutter test test/features/home/home_post_join_listener_test.dart
 test/features/invitation/` (43/43 passed). Commit `516f5f1eb`. Starting
 UNIT 12.
+
+### 2026-09-10 — UNIT 12
+
+**Status:** complete.
+
+**Changes:**
+- `packages/client/integration_test/first_run_orientation_test.dart` (new) —
+  single `testWidgets` covering plan §10.3 steps 1–14: panel visibility matrix,
+  Inbox nav row via `find.bySemanticsLabel` (deferred `orientationNavRow`
+  test-id from UNIT 5/6), dismiss Drift persistence, settings navigation,
+  debug override show/hide/auto + reset, activation latch via
+  `createAndForwardRequest`, per-user key isolation on helper account, teardown
+  override reset.
+- `packages/client/integration_test/support/e2e_test_helpers.dart` — five new
+  helpers: `expectOrientationPanel`, `openDebugSettings`,
+  `setOrientationOverride`, `resetFirstRunOrientation`, `awaitActivationSettled`.
+- `docs/local-integration-tests.md` — table row for `first_run_orientation_test.dart`.
+
+**Step 11 finding (test workaround, not a production fix):** `resetFirstRunState`
+clears in-memory latches and Drift keys but does **not** re-invoke
+`_maybePersistActivation` for an already-loaded projection.
+`HomeActivationReporter` only fires on projection *changes* (`listenWhen` on
+`nonArchivedCards` / `projectionLoaded` toggles). Navigating back to My Work
+after reset therefore leaves `isActivated` false until a pull-to-refresh toggles
+`nonArchivedProjectionLoaded` and re-triggers the reporter. Step 11 adds an
+explicit `RefreshIndicator` fling before polling the port — this is faithful to
+D3 (re-derive from live projection) without touching accepted production code.
+
+**Commands:**
+- `./scripts/check-custom-lints.sh packages/client` — OK (32, baseline 32).
+- `bash scripts/check-user-facing-terminology.sh` — OK.
+- `./scripts/run_client_integration_web_local.sh integration_test/first_run_orientation_test.dart` —
+  **PASS** (`All tests passed.`, ~1m33s wall on second clean run; first run
+  failed step 11 before pull-to-refresh workaround was added, ~1m58s).
+
+**Surprises:** None beyond step 11 reporter re-fire semantics above. Commit
+`8af3d55a1`.
