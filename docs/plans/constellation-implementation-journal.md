@@ -1517,3 +1517,72 @@ REMAINING: continue the walkthrough (Forward flow, Map/Text switch, filter
   recovery scenario), then record full UX9 acceptance (or a further finding)
   in a follow-up entry. Plan-wide integration read-through and final
   completion report still pending behind that.
+
+**Walkthrough continued.** Forward flow: pushed `ForwardBeaconRoute` cleanly
+from the preview sheet, showed the correct beacon title/status and author —
+no defect (the small fixture has no third, not-yet-involved recipient to
+forward to, so "Not yet seen (0)" is expected, not a bug). Map/Text switch:
+`ConstellationTextView` renders the same request grouped by author with
+matching state ("You offered help"); a "Has location" filter against
+location-less fixture data correctly shows the "No requests match these
+filters" / "Clear filters" empty state, and Clear filters correctly restores
+the map. These are all already covered by the unit test suites; the live
+pass found no daylight between tested and shipped behavior here.
+
+**Finding 4 — stale-request recovery uncovered a second, unrelated
+navigation-label regression from UNIT 13/14 — fixed, committed with this
+entry.** To exercise stale-request recovery, flipped the fixture beacon to
+`cancelled` directly in Postgres (bypassing the app, simulating "the author
+closed it while I was still looking at the field") without reloading the
+client. `preflightRequestAction`'s new content-wall-gated refresh handled it
+gracefully (no crash), and separately, the standalone `beacon_view` screen's
+own live fetch correctly showed "Cancelled" status — both correct. But
+opening that beacon-view route (which is a **top-level** AutoRoute page, not
+nested inside `HomeScreen`'s tabs shell — confirmed via
+`root_router.dart:398`) on a non-compact window surfaced a **second, latent
+bug with zero relation to this walkthrough's other findings**: its
+`_BeaconViewHomeRail` restore-navigation-rail widget
+(`beacon_view_screen.dart`) independently hardcodes its own 5-destination
+list for when a root browse-detail route needs to keep Home's side rail
+visible, and this copy was never updated by UNIT 13 (fold Updates into
+Inbox) or UNIT 14 (Constellation replaces Updates) — it still showed
+`Icons.notifications_none` / `l10n.updatesTitle` at index 2, i.e. **"Updates
+Tab 3 of 5"**, a retired tab that no longer exists anywhere else in the app.
+Reproduced on a fully fresh cold load (not a stale-semantics-tree artifact):
+navigated directly to `/#/beacon/view/<id>` after an `about:blank` bounce,
+confirmed identically. Functionally harmless (tapping it still correctly
+routed to Constellation via `HomeTabSpec.fromIndex`, which was never wrong —
+only the destination's icon/label were stale), but it is a genuine WCAG
+4.1.2 (Name/Role/Value) defect: a screen-reader user on any beacon detail
+page on a tablet/desktop-width window would hear a tab announced as
+"Updates" that actually opens Constellation. Fixed directly (small, local,
+one destination in one file): `Icons.notifications_none`/`Icons.notifications`
+→ `Icons.hub_outlined`/`Icons.hub` (matching `ConstellationNavbarItem`'s
+icon choice without pulling in that widget, consistent with this rail's
+existing plain-`Icon` style for every other destination), `l10n.updatesTitle`
+→ `l10n.constellationTitle`. Added a regression test
+(`test/features/beacon_view/beacon_view_home_rail_test.dart`, new) — this
+widget had **zero prior test coverage**, which is exactly why the label went
+stale silently through two units' worth of navigation changes. Verified:
+new test passes; `flutter test test/features/beacon_view/` 298/298 green;
+`./scripts/check-custom-lints.sh packages/client` 32/32 baseline unchanged;
+live re-verification via a fresh cold load confirms "Constellation Tab 3 of
+5" now renders correctly on `/#/beacon/view/<id>`.
+
+COMMITS: (staged next — `beacon_view_screen.dart` fix +
+  `beacon_view_home_rail_test.dart` new)
+FILES: packages/client/lib/features/beacon_view/ui/screen/beacon_view_screen.dart,
+  packages/client/test/features/beacon_view/beacon_view_home_rail_test.dart,
+  docs/plans/constellation-implementation-journal.md
+DECISIONS: left the rail's other four destinations' plain-Material-icon
+  style untouched (not converting to the custom `*NavbarItem` asset widgets
+  `home_screen.dart` uses) — that divergence is pre-existing and intentional
+  per this widget's own "restore" framing, and redoing it would be scope
+  creep for what is a one-line staleness fix, not a design-parity project.
+REMAINING: keyboard/screen-reader operation of the Constellation text view
+  is already covered by existing unit tests (`constellation_text_view_test.dart`
+  "request tiles and overflow controls are keyboard reachable" /
+  "missing selection after reload is explained, not replaced") and was not
+  re-driven manually — no gap found there worth a live repeat. UX9
+  acceptance record and the plan-wide integration read-through are the
+  remaining steps before declaring the plan complete.
