@@ -1,0 +1,43 @@
+# import '/data/gql/image_model_v2.graphql'
+
+query ConstellationFieldFetch {
+  constellationField {
+    loadedAt
+    context
+    peersCapped
+    requestsCapped
+    peers {
+      id
+      displayName
+      handle
+      image {
+        ...ImageModelV2
+      }
+    }
+    edges {
+      src
+      dst
+      tier
+    }
+    requests {
+      id
+      authorId
+      title
+      status
+      needs
+      primaryNeedSlug
+      startAt
+      endAt
+      addressLabel
+      hasCoordinates
+      isMine
+      viewerHasActiveHelpOffer
+      viewerIsRoomParticipant
+      viewerHasForwardEdge
+      helpOfferCount
+      coverThumb {
+        ...ImageModelV2
+      }
+    }
+  }
+}

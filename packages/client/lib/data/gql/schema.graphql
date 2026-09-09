@@ -4605,6 +4605,7 @@ type query_root {
   coordinationItemsByBeacon(acceptedById: String, beaconId: String!, kind: Int, linkedParentItemId: String, rootOnly: Boolean, status: Int, targetPersonId: String): [v2_CoordinationItemRow!]
   coordinationMyResponsibilityItems(beaconId: String!): [v2_CoordinationItemRow!]
   coordinationResponsibilityBatch(beaconIds: [String!]): [v2_CoordinationResponsibilityBatchRow!]
+  constellationField: v2_ConstellationField!
 
   """
   fetch data from the table: "edge"
@@ -7200,6 +7201,48 @@ type v2_CoordinationResponsibilityBatchRow {
   othersOpenCount: Int!
   promiseNew: Int!
   promiseOpen: Int!
+}
+
+type v2_ConstellationEdge {
+  dst: String!
+  src: String!
+  tier: Int!
+}
+
+type v2_ConstellationField {
+  context: String!
+  edges: [v2_ConstellationEdge!]!
+  loadedAt: String!
+  peers: [v2_ConstellationPeer!]!
+  peersCapped: Boolean!
+  requests: [v2_ConstellationRequest!]!
+  requestsCapped: Boolean!
+}
+
+type v2_ConstellationPeer {
+  displayName: String
+  handle: String
+  id: String!
+  image: v2_image
+}
+
+type v2_ConstellationRequest {
+  addressLabel: String
+  authorId: String!
+  coverThumb: v2_image
+  endAt: String
+  hasCoordinates: Boolean!
+  helpOfferCount: Int!
+  id: String!
+  isMine: Boolean!
+  needs: [String!]!
+  primaryNeedSlug: String
+  startAt: String
+  status: Int!
+  title: String!
+  viewerHasActiveHelpOffer: Boolean!
+  viewerHasForwardEdge: Boolean!
+  viewerIsRoomParticipant: Boolean!
 }
 
 """An ISO-8601 Date."""

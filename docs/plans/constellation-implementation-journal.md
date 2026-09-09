@@ -140,7 +140,7 @@ is triggered.
 - [x] 08 — Client pure domain: paths, caps
 - [x] 09 — Client pure domain: filters, density
 - [x] 10 — Client pure domain: three-pass layout
-- [ ] 11 — Client data: entities, gql, repository, use case
+- [x] 11 — Client data: entities, gql, repository, use case
 - [ ] 12 — Render: mode, nodes, edges, painters, legend
 - [ ] 13 — Prerequisite project: fold Updates into Inbox
 - [ ] 14 — Navigation slot, route, My Work entry
@@ -833,4 +833,31 @@ FINDINGS: none beyond evidence recorded above; status-quo §11 already had a
   framing per journal pre-existing worktree note.
 DECISIONS: none beyond §0; "direct trust" in plan step 5 treated as alias for
   "explicit trust" in normative docs (journal term table).
+REMAINING: none for this unit.
+
+---
+
+## UNIT 11 — complete — 2026-09-09
+COMMITS: (this unit's commit, staged next)
+TESTS: `cd packages/client && dart run build_runner build -d` — exit 0;
+  `cd packages/client && flutter test test/features/constellation/` — 66/66 passed;
+  `./scripts/check-custom-lints.sh packages/client` — exit 0 (32/32 baseline unchanged)
+FILES: packages/client/lib/features/constellation/domain/entity/constellation_field.dart (new),
+  packages/client/lib/features/constellation/domain/port/constellation_repository_port.dart (new),
+  packages/client/lib/features/constellation/domain/use_case/constellation_field_case.dart (new),
+  packages/client/lib/features/constellation/data/gql/constellation_field_fetch.graphql (new),
+  packages/client/lib/features/constellation/data/repository/constellation_repository.dart (new),
+  packages/client/lib/features/constellation/data/repository/constellation_repository_mock.dart (new),
+  packages/client/lib/data/service/remote_api_client/build_client.dart,
+  packages/client/lib/data/gql/schema.graphql,
+  packages/client/test/features/constellation/constellation_repository_test.dart (new),
+  docs/plans/constellation-implementation-journal.md
+FINDINGS: none — schema overlay uses `v2_Constellation*` types matching the
+  Hasura-stitched naming convention; direct V2 routing registered as
+  `ConstellationFieldFetch` per `build_client.dart` procedure step 1.
+DECISIONS: `ConstellationHeldState` priority: `mine` → `offered` →
+  `participant` → `forwarded` → `none`. `ConstellationFieldResolved` typedef
+  flattens field + `ConstellationResolvedField` cap output for the cubit seam.
+  Holder-id test asserts profile-only peers never enter `paths.ring` (indirect
+  proof they are excluded from `holderIds`).
 REMAINING: none for this unit.

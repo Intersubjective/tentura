@@ -254,6 +254,7 @@ class _V2RoutingLink extends Link {
     'MyContacts',
     'ContactSet',
     'ContactDelete',
+    'ConstellationFieldFetch',
     'UserBlock',
     'UserUnblock',
     'UserBlockPromote',
