@@ -138,7 +138,7 @@ is triggered.
 - [x] 06 — `constellation_trust_edges` — m0163
 - [x] 07 — `constellationField` V2 query
 - [x] 08 — Client pure domain: paths, caps
-- [ ] 09 — Client pure domain: filters, density
+- [x] 09 — Client pure domain: filters, density
 - [ ] 10 — Client pure domain: three-pass layout
 - [ ] 11 — Client data: entities, gql, repository, use case
 - [ ] 12 — Render: mode, nodes, edges, painters, legend
@@ -576,6 +576,30 @@ DECISIONS: `isDiscoverable` entity mapping lives in `BeaconRepository`
   (`_beaconRowToEntity` + `copyWith`) rather than `beacon_mapper.dart` (not
   on the unit owns list). Update semantics use `isDiscoverableProvided` /
   `containsKey('isDiscoverable')`, matching `primaryNeedSlug` pattern.
+REMAINING: none for this unit.
+
+---
+
+## UNIT 09 — complete — 2026-09-09
+COMMITS: (this unit's commit, staged next)
+TESTS: `cd packages/client && flutter test test/features/constellation/` — 51/51 passed;
+  `grep -n "import 'package:flutter\\|dart:ui" packages/client/lib/features/constellation/domain/constellation_filters.dart packages/client/lib/features/constellation/domain/constellation_density.dart` — no matches
+FILES: packages/client/lib/features/constellation/domain/constellation_filters.dart (new),
+  packages/client/lib/features/constellation/domain/constellation_density.dart (new),
+  packages/client/test/features/constellation/constellation_filters_test.dart (new),
+  packages/client/test/features/constellation/constellation_density_test.dart (new),
+  docs/plans/constellation-implementation-journal.md
+FINDINGS: none — timing semantics align with `BeaconScheduleKind` in
+  `beacon_schedule.dart` (event when `startAt` set; deadline when only `endAt`;
+  undated when both null). §0.4's `Size viewport` parameter is not usable in this
+  pure-Dart unit; see DECISIONS.
+DECISIONS: `constellationLabelBudget` takes `ConstellationViewport` (`width`,
+  `height` record) instead of Flutter `Size` to preserve the UNIT 09 no-Flutter
+  constraint; UI layers adapt at the call site. Budget formula:
+  `floor(ceiling × (viewportArea / refArea) / textScaleFactor)` clamped to
+  `[1, ceiling]` with reference viewport 1200×900 — monotonic, never exceeds
+  `(3, 150)`. `TimingFilter` / `LocationFilter` use sealed classes + enum per
+  plan variants (`withinDays(int)` needs a payload).
 REMAINING: none for this unit.
 
 ---
