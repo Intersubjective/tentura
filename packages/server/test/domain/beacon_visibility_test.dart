@@ -9,6 +9,9 @@ BeaconContentVisibilityFacts _content({
   bool hasActiveForwardEdgeAsRecipient = false,
   bool isRoomAdmittedOrSteward = false,
   bool isActiveHelpOfferer = false,
+  bool isDiscoverable = true,
+  bool isPublished = true,
+  bool isMutuallyVisibleWithAuthor = false,
 }) =>
     BeaconContentVisibilityFacts(
       status: status,
@@ -16,6 +19,9 @@ BeaconContentVisibilityFacts _content({
       hasActiveForwardEdgeAsRecipient: hasActiveForwardEdgeAsRecipient,
       isRoomAdmittedOrSteward: isRoomAdmittedOrSteward,
       isActiveHelpOfferer: isActiveHelpOfferer,
+      isDiscoverable: isDiscoverable,
+      isPublished: isPublished,
+      isMutuallyVisibleWithAuthor: isMutuallyVisibleWithAuthor,
     );
 
 BeaconInvolvementVisibilityFacts _involvement({
@@ -106,8 +112,81 @@ void main() {
       );
     });
 
-    test('vote-mutual friendship alone does not grant content', () {
+    test('vote-mutual friendship alone does not grant content without discoverability facts', () {
       expect(BeaconVisibility.canReadContent(_content()), isFalse);
+    });
+
+    test('discoverable published open beacon grants content to mutually visible peer', () {
+      expect(
+        BeaconVisibility.canReadContent(
+          _content(isMutuallyVisibleWithAuthor: true),
+        ),
+        isTrue,
+      );
+    });
+
+    test('discoverability opt-out denies mutually visible peer', () {
+      expect(
+        BeaconVisibility.canReadContent(
+          _content(
+            isDiscoverable: false,
+            isMutuallyVisibleWithAuthor: true,
+          ),
+        ),
+        isFalse,
+      );
+    });
+
+    test('unpublished open beacon denies discoverability-only peer', () {
+      expect(
+        BeaconVisibility.canReadContent(
+          _content(
+            isPublished: false,
+            isMutuallyVisibleWithAuthor: true,
+          ),
+        ),
+        isFalse,
+      );
+    });
+
+    test('discoverability denied for every non-open-family status (D10)', () {
+      for (final status in [
+        BeaconStatus.draft,
+        BeaconStatus.deleted,
+        BeaconStatus.closed,
+        BeaconStatus.cancelled,
+        BeaconStatus.reviewOpen,
+      ]) {
+        expect(
+          BeaconVisibility.canReadContent(
+            _content(
+              status: status,
+              isMutuallyVisibleWithAuthor: true,
+            ),
+          ),
+          isFalse,
+          reason: 'discoverability + $status',
+        );
+      }
+    });
+
+    test('discoverability grants open-family statuses only', () {
+      for (final status in [
+        BeaconStatus.open,
+        BeaconStatus.needsMoreHelp,
+        BeaconStatus.enoughHelp,
+      ]) {
+        expect(
+          BeaconVisibility.canReadContent(
+            _content(
+              status: status,
+              isMutuallyVisibleWithAuthor: true,
+            ),
+          ),
+          isTrue,
+          reason: 'discoverability + $status',
+        );
+      }
     });
 
     test('active help-offerer reads content', () {
@@ -183,6 +262,17 @@ void main() {
             contentFacts: _content(),
             isOnActiveForwardEdge: true,
           ),
+        ),
+        isFalse,
+      );
+    });
+
+    test('discovery-only viewer sees content but not involvement', () {
+      final content = _content(isMutuallyVisibleWithAuthor: true);
+      expect(BeaconVisibility.canReadContent(content), isTrue);
+      expect(
+        BeaconVisibility.canReadInvolvement(
+          _involvement(contentFacts: content),
         ),
         isFalse,
       );

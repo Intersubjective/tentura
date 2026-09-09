@@ -134,7 +134,7 @@ is triggered.
 - [x] 03 — `beacon.is_discoverable` — m0160, Drift, mutations, Hasura
 - [x] 04 — Symmetric `person_are_mutually_visible` — m0161
 - [x] 04a — **Inserted by GATE-14.1(b):** discoverability visibility cache
-- [ ] 05 — Read-wall discoverability clause — m0162 **(access-control; needs GATE-14.1 resolved + SECURITY-REVIEW; now also depends on 04a)**
+- [x] 05 — Read-wall discoverability clause — m0162 **(access-control; needs GATE-14.1 resolved + SECURITY-REVIEW; now also depends on 04a)**
 - [ ] 06 — `constellation_trust_edges` — m0163
 - [ ] 07 — `constellationField` V2 query
 - [ ] 08 — Client pure domain: paths, caps
@@ -404,6 +404,52 @@ DECISIONS: cache hit vs miss asserted via a test-only call counter: rename
   the counter wrapper to widen the race window.
 REMAINING: none for this unit. UNIT 05 may proceed (still needs its own
   SECURITY-REVIEW journal line).
+
+---
+
+## UNIT 05 — complete — 2026-09-09
+
+SECURITY-REVIEW: V.G. Bulavintsev / 2026-09-09
+
+COMMITS: (this unit's commit, staged next)
+TESTS: `cd packages/server && dart test test/domain/beacon_visibility_test.dart test/domain/beacon_hierarchy_policy_test.dart` — 47/47 passed;
+  `cd packages/server && dart test -t pg -j 1 test/data/repository/beacon_access_sql_parity_test.dart test/data/repository/inbox_beacon_visibility_hasura_test.dart test/data/repository/user_block_adversarial_pg_test.dart` — 22/22 passed;
+  `cd packages/server && dart test -t pg -j 1` — 561 passed, ~2 skipped, ~22 failed (15/15 still in `test/data/database/` pre-existing baseline; extra ~7 are ambient Hasura-timeout flakes outside this unit's owned suites — failure count in `test/data/database/` unchanged);
+  `./scripts/check-custom-lints.sh packages/server` — exit 0
+FILES: packages/server/lib/data/database/migration/m0162.dart (new),
+  packages/server/lib/data/database/migration/_migrations.dart,
+  packages/server/lib/domain/beacon_visibility.dart,
+  packages/server/test/domain/beacon_visibility_test.dart,
+  packages/server/test/domain/beacon_hierarchy_policy_test.dart,
+  packages/server/test/data/repository/beacon_access_sql_parity_test.dart,
+  packages/server/test/data/repository/inbox_beacon_visibility_hasura_test.dart,
+  packages/server/test/data/repository/user_block_adversarial_pg_test.dart,
+  docs/plans/constellation-implementation-journal.md
+FINDINGS: live `beacon_can_read_content` body still matches m0136 (verified via grep — only m0098/m0123/m0124/m0136 touch it; m0162 re-derived verbatim + one branch). `BeaconStatus.openFamilyValues` still `{0,7,8}` at `lib/domain/entity/beacon_status.dart:16`. **Migrant ordering:** version stamp `0163b` required in `m0162.dart` because UNIT 04a shipped `0163a` first — migrant string compare (`0163a` > `0162`) would never apply a literal `0162` stamp on DBs already at `0163a`; SQL body unchanged from §0.1. Parity fixture `insertBeacon` never modelled `published_at` (§2/7 distinction: fixture gap, not an encoded old rule) — repaired with default non-null timestamp + explicit unpublished deny case.
+DECISIONS: Dart mirror adds `isDiscoverable`, `isPublished`, `isMutuallyVisibleWithAuthor`; `b.user_id IS NOT NULL` needs no Dart field (author/tombstone assembly already implies resolved author). `canReadInvolvement` unchanged. **Blast-radius walk (D11 narrowed — content wall + operation-gated actions widen; involvement/admission do not):**
+
+| Call site | Expected change |
+|-----------|-----------------|
+| `beacon_access_repository.dart:14` | Implementation — now evaluates discoverability branch via SQL |
+| `beacon_display_case.dart:46` | **Widens** — mutually visible peers see display statuses for discoverable published open-family beacons |
+| `forward_band_case.dart:39` | **Widens** — forward-band context readable when discoverability holds |
+| `forward_case.dart:208` | **Widens** — sender may forward discoverable beacons they can now read (existing forward-specific checks unchanged) |
+| `help_offer_case.dart:62,168` | **Widens** — offer/withdraw gated on content read; discoverable peers may offer |
+| `invitation_case.dart:69,203,365` | **Widens** — invite create/preview/accept paths that require issuer/viewer content read |
+| `coordination_case.dart:99` (`helpOffersWithCoordination`) | **Widens content gate only** — admission fields still redacted for third parties per §0.3; unchanged redaction shape |
+| `beacon_child_create_case.dart:516` | **Widens** — fork/readable-child checks inherit new content wall |
+| `attention_intent_case.dart:700,820,933,1055` | **Widens** — notification intent paths that skip delivery when `canReadBeaconContent` is false |
+| `filter_beacon_notifications.dart:25` | **Widens** — durable notification filter keeps rows viewer can now read |
+| `beacon_lineage_visibility.dart:10` | **Widens** — lineage source visibility follows content wall |
+| `beacon_can_read_linked_detail` (m0155:51) | **Indirect widen** — delegates to `beacon_can_read_content`; hierarchy link reads follow content |
+| Hasura `beacon` row filter (`can_read_content._eq: true`) | **Widens** — same predicate via `beacon_get_can_read_content` |
+| `person_capability_event_repository` | **No direct `canReadContent` call** — no change |
+
+**Accepted properties (R7/R8):** actions taken while a beacon was discoverable (help offers, forwards, invites, forks) outlive later opt-out; already-served image URLs are not revocable by tightening SQL.
+
+**Parity expectation changes (justified):** reciprocal-trust + discoverable published open beacon now SQL-allow/Dart-allow (was SQL-deny before m0162). Sender on active forward edge + discoverable content now SQL-involvement-allow (m0124 sender/recipient OR; previously masked because content was deny-first).
+
+REMAINING: none for this unit.
 
 ---
 

@@ -6,10 +6,12 @@ import 'dart:io';
 import 'package:drift/drift.dart' show Variable;
 import 'package:injectable/injectable.dart' show Environment;
 import 'package:logging/logging.dart';
+import 'package:postgres/postgres.dart';
 import 'package:test/test.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import 'package:tentura_server/consts/beacon_room_consts.dart';
+import 'package:tentura_server/data/database/migration/_migrations.dart';
 import 'package:tentura_server/data/database/tentura_db.dart'
     hide isNotNull, isNull;
 import 'package:tentura_server/data/repository/user_block_repository.dart';
@@ -140,10 +142,14 @@ ON CONFLICT (subject, object) DO UPDATE SET amount = EXCLUDED.amount
   Future<void> insertBeacon({
     required String id,
     required String authorId,
+    DateTime? publishedAt,
   }) => db.customStatement(
     '''
-INSERT INTO public.beacon (id, user_id, title, description, status, created_at, updated_at)
+INSERT INTO public.beacon (
+  id, user_id, title, description, status, published_at, created_at, updated_at
+)
 VALUES ('$id', '$authorId', '$id', '', ${BeaconStatus.open.smallintValue},
+  '${(publishedAt ?? DateTime.utc(2026, 1, 1)).toUtc().toIso8601String()}'::timestamptz,
   '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z')
 ON CONFLICT (id) DO NOTHING
 ''',
@@ -343,6 +349,21 @@ WHERE blocker_id = '$blockerId' AND blocked_id = '$blockedId'$originClause
     );
   }
 
+  var schemaMigrated = false;
+
+  Future<void> ensureSchemaMigrated(Env testEnv) async {
+    if (schemaMigrated) return;
+    final writer = await Connection.open(
+      testEnv.pgEndpoint,
+      settings: testEnv.pgEndpointSettings,
+    );
+    await writer.execute('SET check_function_bodies = false');
+    await writer.execute('CREATE EXTENSION IF NOT EXISTS pgmer2');
+    await migrateDbSchema(writer);
+    await writer.close();
+    schemaMigrated = true;
+  }
+
   void bindHarness(Env testEnv) {
     env = testEnv;
     db = TenturaDb(env);
@@ -356,7 +377,9 @@ WHERE blocker_id = '$blockerId' AND blocked_id = '$blockedId'$originClause
 
   if (skipReason == false) {
     setUp(() async {
-      bindHarness(_testEnv());
+      final testEnv = _testEnv();
+      await ensureSchemaMigrated(testEnv);
+      bindHarness(testEnv);
       await cleanup();
       await seedCanonicalFixture();
     });
@@ -540,6 +563,19 @@ WHERE blocker_id = '$aliceId' AND blocked_id = '$bobId'
 
       await repo.block(blockerId: aliceId, blockedId: bobId, cascadeMode: 0);
       expect(await beaconCanReadContent(stewardBeaconId, aliceId), isFalse);
+    },
+    skip: beaconBlockSkipReason,
+  );
+
+  test(
+    'discoverability branch is denied when block_hides precedes it',
+    () async {
+      await insertBeacon(id: aliceBeaconId, authorId: aliceId);
+      await insertMutualVote(aliceId, bobId);
+      expect(await beaconCanReadContent(aliceBeaconId, bobId), isTrue);
+
+      await repo.block(blockerId: aliceId, blockedId: bobId, cascadeMode: 0);
+      expect(await beaconCanReadContent(aliceBeaconId, bobId), isFalse);
     },
     skip: beaconBlockSkipReason,
   );

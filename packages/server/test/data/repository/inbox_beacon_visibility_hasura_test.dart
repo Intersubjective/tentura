@@ -6,9 +6,11 @@ import 'dart:io';
 
 import 'package:http/http.dart' as http;
 import 'package:injectable/injectable.dart' show Environment;
+import 'package:postgres/postgres.dart';
 import 'package:test/test.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 
+import 'package:tentura_server/data/database/migration/_migrations.dart';
 import 'package:tentura_server/data/database/tentura_db.dart'
     hide isNotNull, isNull;
 import 'package:tentura_server/env.dart';
@@ -41,7 +43,16 @@ Future<void> main() async {
 
   if (skipReason == false) {
     setUpAll(() async {
-      db = TenturaDb(_testEnv());
+      final env = _testEnv();
+      final writer = await Connection.open(
+        env.pgEndpoint,
+        settings: env.pgEndpointSettings,
+      );
+      await writer.execute('SET check_function_bodies = false');
+      await writer.execute('CREATE EXTENSION IF NOT EXISTS pgmer2');
+      await migrateDbSchema(writer);
+      await writer.close();
+      db = TenturaDb(env);
       originalHasuraSourceConfiguration = await _pointHasuraAtTestDatabase();
     });
 
@@ -56,6 +67,9 @@ Future<void> main() async {
     });
 
     tearDown(() async {
+      await db.customStatement(
+        "DELETE FROM public.vote_user WHERE subject LIKE 'Uibxvis%' OR object LIKE 'Uibxvis%'",
+      );
       await db.customStatement(
         "DELETE FROM public.inbox_item WHERE beacon_id LIKE 'Bibxvis%'",
       );
@@ -79,14 +93,26 @@ ON CONFLICT (id) DO UPDATE SET display_name = EXCLUDED.display_name
     );
   }
 
-  Future<void> seedBeacon(String id, {required int status}) async {
+  Future<void> seedBeacon(
+    String id, {
+    required int status,
+    bool isDiscoverable = true,
+    DateTime? publishedAt,
+  }) async {
+    final effectivePublishedAt = publishedAt ?? DateTime.utc(2026, 1, 1);
     await db.customStatement(
       r'''
-INSERT INTO public.beacon (id, user_id, title, description, status, created_at, updated_at)
-VALUES ($1, 'Uibxvisauth', 'Inbox visibility beacon', '', $2, now(), now())
-ON CONFLICT (id) DO UPDATE SET status = EXCLUDED.status
+INSERT INTO public.beacon (
+  id, user_id, title, description, status, is_discoverable,
+  published_at, created_at, updated_at
+)
+VALUES ($1, 'Uibxvisauth', 'Inbox visibility beacon', '', $2, $3, $4::timestamptz, now(), now())
+ON CONFLICT (id) DO UPDATE SET
+  status = EXCLUDED.status,
+  is_discoverable = EXCLUDED.is_discoverable,
+  published_at = EXCLUDED.published_at
 ''',
-      [id, status],
+      [id, status, isDiscoverable, effectivePublishedAt.toUtc().toIso8601String()],
     );
   }
 
@@ -144,12 +170,91 @@ ON CONFLICT (user_id, beacon_id) DO NOTHING
     },
     skip: skipReason,
   );
+
+  test(
+    'Hasura beacon filter matches SQL discoverability for mutual peer',
+    () async {
+      await seedUser();
+      await db.customStatement(
+        r'''
+INSERT INTO public."user" (id, display_name, public_key, created_at, updated_at)
+VALUES ('Uibxvispeer1', 'Peer', $1, now(), now())
+ON CONFLICT (id) DO NOTHING
+''',
+        [pgTestPublicKey('ibxvis', 2)],
+      );
+      await db.customStatement(
+        '''
+INSERT INTO public.vote_user (subject, object, amount, created_at, updated_at)
+VALUES
+  ('Uibxvispeer1', 'Uibxvisauth', 1, now(), now()),
+  ('Uibxvisauth', 'Uibxvispeer1', 1, now(), now())
+ON CONFLICT (subject, object) DO UPDATE SET amount = EXCLUDED.amount
+''',
+      );
+      await seedBeacon(
+        'Bibxvisdisc1',
+        status: BeaconStatus.open.smallintValue,
+      );
+      await seedInboxItem('Bibxvisdisc1');
+
+      final sqlVisible = await db.customSelect(
+        r'''
+SELECT public.beacon_can_read_content('Bibxvisdisc1', 'Uibxvispeer1') AS ok
+''',
+      ).getSingle();
+      expect(sqlVisible.read<bool>('ok'), isTrue);
+
+      expect(
+        await _hasuraBeaconReadable(
+          userId: 'Uibxvispeer1',
+          beaconId: 'Bibxvisdisc1',
+        ),
+        isTrue,
+      );
+      expect(
+        await _hasuraBeaconReadable(
+          userId: 'Uibxvispeer1',
+          beaconId: 'Bibxvisdisc1',
+          filtered: false,
+        ),
+        isTrue,
+      );
+    },
+    skip: skipReason,
+  );
 }
 
 final _hasuraUrl =
     Platform.environment['HASURA_URL'] ?? 'http://127.0.0.1:8080';
 final _hasuraAdminSecret =
     Platform.environment['HASURA_GRAPHQL_ADMIN_SECRET'] ?? 'password';
+
+Future<bool> _hasuraBeaconReadable({
+  required String userId,
+  required String beaconId,
+  bool filtered = true,
+}) async {
+  final filter = filtered
+      ? ', can_read_content: {_eq: true}'
+      : '';
+  final query =
+      'query { beacon(where: {id: {_eq: "$beaconId"}$filter}) { id } }';
+  final response = await http.post(
+    Uri.parse('$_hasuraUrl/v1/graphql'),
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Hasura-Admin-Secret': _hasuraAdminSecret,
+      'X-Hasura-Role': 'user',
+      'X-Hasura-User-Id': userId,
+    },
+    body: jsonEncode({'query': query}),
+  ).timeout(const Duration(seconds: 10));
+  final body = jsonDecode(response.body) as Map<String, dynamic>;
+  expect(body['errors'], isNull, reason: body.toString());
+  final rows = (body['data']! as Map<String, dynamic>)['beacon'] as List;
+  return rows.isNotEmpty;
+}
 
 Future<List<Map<String, dynamic>>> _queryInboxItem({
   required String userId,

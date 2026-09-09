@@ -8,6 +8,9 @@ class BeaconContentVisibilityFacts {
     required this.hasActiveForwardEdgeAsRecipient,
     required this.isRoomAdmittedOrSteward,
     required this.isActiveHelpOfferer,
+    required this.isDiscoverable,
+    required this.isPublished,
+    required this.isMutuallyVisibleWithAuthor,
   });
 
   final BeaconStatus status;
@@ -15,6 +18,9 @@ class BeaconContentVisibilityFacts {
   final bool hasActiveForwardEdgeAsRecipient;
   final bool isRoomAdmittedOrSteward;
   final bool isActiveHelpOfferer;
+  final bool isDiscoverable;
+  final bool isPublished;
+  final bool isMutuallyVisibleWithAuthor;
 }
 
 /// Typed inputs for [BeaconVisibility.canReadInvolvement].
@@ -94,8 +100,8 @@ abstract final class BeaconVisibility {
   BeaconVisibility._();
 
   /// Normal beacon content read — never authorizes deleted rows or drafts
-  /// for non-authors. MeritRank and vote-mutual friendship are not part of
-  /// this predicate.
+  /// for non-authors. Discoverability grants read to mutually visible peers
+  /// on published open-family beacons (D11); involvement is separate.
   static bool canReadContent(BeaconContentVisibilityFacts facts) {
     if (facts.status == BeaconStatus.draft) {
       return facts.isAuthor;
@@ -108,7 +114,11 @@ abstract final class BeaconVisibility {
     }
     return facts.hasActiveForwardEdgeAsRecipient ||
         facts.isRoomAdmittedOrSteward ||
-        facts.isActiveHelpOfferer;
+        facts.isActiveHelpOfferer ||
+        (facts.isDiscoverable &&
+            facts.isPublished &&
+            facts.status.isOpenFamily &&
+            facts.isMutuallyVisibleWithAuthor);
   }
 
   /// Involvement graph read — requires content visibility plus the involved

@@ -30,6 +30,9 @@ BeaconContentVisibilityFacts _content({
   bool hasActiveForwardEdgeAsRecipient = false,
   bool isRoomAdmittedOrSteward = false,
   bool isActiveHelpOfferer = false,
+  bool isDiscoverable = true,
+  bool isPublished = true,
+  bool isMutuallyVisibleWithAuthor = false,
 }) =>
     BeaconContentVisibilityFacts(
       status: status,
@@ -37,6 +40,9 @@ BeaconContentVisibilityFacts _content({
       hasActiveForwardEdgeAsRecipient: hasActiveForwardEdgeAsRecipient,
       isRoomAdmittedOrSteward: isRoomAdmittedOrSteward,
       isActiveHelpOfferer: isActiveHelpOfferer,
+      isDiscoverable: isDiscoverable,
+      isPublished: isPublished,
+      isMutuallyVisibleWithAuthor: isMutuallyVisibleWithAuthor,
     );
 
 void main() {

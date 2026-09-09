@@ -4,14 +4,17 @@ library;
 import 'dart:io';
 
 import 'package:injectable/injectable.dart' show Environment;
+import 'package:postgres/postgres.dart';
 import 'package:test/test.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 
-import 'package:tentura_server/consts/beacon_room_consts.dart';
+import 'package:tentura_server/data/database/migration/_migrations.dart';
 import 'package:tentura_server/data/database/tentura_db.dart'
     hide isNotNull, isNull;
+import 'package:tentura_server/consts/beacon_room_consts.dart';
 import 'package:tentura_server/data/repository/beacon_access_repository.dart';
 import 'package:tentura_server/domain/beacon_visibility.dart';
+
 import 'package:tentura_server/env.dart';
 
 import '../../support/pg_test_public_keys.dart';
@@ -47,7 +50,16 @@ Future<void> main() async {
 
   if (skipReason == false) {
     setUpAll(() async {
-      db = TenturaDb(_testEnv());
+      final env = _testEnv();
+      final writer = await Connection.open(
+        env.pgEndpoint,
+        settings: env.pgEndpointSettings,
+      );
+      await writer.execute('SET check_function_bodies = false');
+      await writer.execute('CREATE EXTENSION IF NOT EXISTS pgmer2');
+      await migrateDbSchema(writer);
+      await writer.close();
+      db = TenturaDb(env);
       repo = BeaconAccessRepository(db);
     });
 
@@ -56,6 +68,9 @@ Future<void> main() async {
     });
 
     tearDown(() async {
+      await db.customStatement(
+        "DELETE FROM public.user_block WHERE blocker_id LIKE 'Uvisparity%'",
+      );
       await db.customStatement(
         "DELETE FROM public.notification_outbox WHERE account_id LIKE 'Uvisparity%'",
       );
@@ -102,16 +117,64 @@ ON CONFLICT (id) DO UPDATE SET
     );
   }
 
-  Future<void> insertBeacon({required int status}) async {
+  Future<void> insertBeacon({
+    required int status,
+    bool isDiscoverable = true,
+    bool unpublished = false,
+    DateTime? publishedAt,
+  }) async {
+    final effectivePublishedAt = unpublished
+        ? null
+        : (publishedAt ?? DateTime.utc(2026, 1, 1));
     await db.customStatement(
       r'''
-INSERT INTO public.beacon (id, user_id, title, description, status, created_at, updated_at)
-VALUES ('Bvisparity01', 'Uvisparityauth', 'Parity beacon', '', $1, '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z')
-ON CONFLICT (id) DO UPDATE SET status = EXCLUDED.status
+INSERT INTO public.beacon (
+  id, user_id, title, description, status, is_discoverable,
+  published_at, created_at, updated_at
+)
+VALUES (
+  'Bvisparity01', 'Uvisparityauth', 'Parity beacon', '', $1, $2, $3::timestamptz,
+  '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z'
+)
+ON CONFLICT (id) DO UPDATE SET
+  status = EXCLUDED.status,
+  is_discoverable = EXCLUDED.is_discoverable,
+  published_at = EXCLUDED.published_at
 ''',
-      [status],
+      [status, isDiscoverable, effectivePublishedAt?.toUtc().toIso8601String()],
     );
   }
+
+  BeaconContentVisibilityFacts discoverablePeerFacts({
+    BeaconStatus status = BeaconStatus.open,
+    bool isDiscoverable = true,
+    bool isPublished = true,
+    bool isMutuallyVisibleWithAuthor = true,
+  }) =>
+      BeaconContentVisibilityFacts(
+        status: status,
+        isAuthor: false,
+        hasActiveForwardEdgeAsRecipient: false,
+        isRoomAdmittedOrSteward: false,
+        isActiveHelpOfferer: false,
+        isDiscoverable: isDiscoverable,
+        isPublished: isPublished,
+        isMutuallyVisibleWithAuthor: isMutuallyVisibleWithAuthor,
+      );
+
+  BeaconContentVisibilityFacts legacyPeerFacts({
+    BeaconStatus status = BeaconStatus.open,
+  }) =>
+      BeaconContentVisibilityFacts(
+        status: status,
+        isAuthor: false,
+        hasActiveForwardEdgeAsRecipient: false,
+        isRoomAdmittedOrSteward: false,
+        isActiveHelpOfferer: false,
+        isDiscoverable: true,
+        isPublished: true,
+        isMutuallyVisibleWithAuthor: false,
+      );
 
   Future<bool> sqlContent(String viewerId) =>
       repo.canReadContent(beaconId: 'Bvisparity01', viewerId: viewerId);
@@ -142,19 +205,16 @@ ON CONFLICT (id) DO UPDATE SET status = EXCLUDED.status
             hasActiveForwardEdgeAsRecipient: false,
             isRoomAdmittedOrSteward: false,
             isActiveHelpOfferer: false,
+            isDiscoverable: true,
+            isPublished: true,
+            isMutuallyVisibleWithAuthor: false,
           ),
         ),
         isTrue,
       );
       expect(
         BeaconVisibility.canReadContent(
-          const BeaconContentVisibilityFacts(
-            status: BeaconStatus.draft,
-            isAuthor: false,
-            hasActiveForwardEdgeAsRecipient: false,
-            isRoomAdmittedOrSteward: false,
-            isActiveHelpOfferer: false,
-          ),
+          legacyPeerFacts(status: BeaconStatus.draft),
         ),
         isFalse,
       );
@@ -173,18 +233,12 @@ VALUES
 ON CONFLICT (subject, object) DO UPDATE SET amount = EXCLUDED.amount
 ''',
       );
-      expect(await sqlContent('Uvisparityview'), isFalse);
+      expect(await sqlContent('Uvisparityview'), isTrue);
       expect(
         BeaconVisibility.canReadContent(
-          const BeaconContentVisibilityFacts(
-            status: BeaconStatus.open,
-            isAuthor: false,
-            hasActiveForwardEdgeAsRecipient: false,
-            isRoomAdmittedOrSteward: false,
-            isActiveHelpOfferer: false,
-          ),
+          discoverablePeerFacts(isMutuallyVisibleWithAuthor: true),
         ),
-        isFalse,
+        isTrue,
       );
     },
     skip: skipReason,
@@ -212,12 +266,15 @@ ON CONFLICT (id) DO NOTHING
       expect(
         BeaconVisibility.canReadInvolvement(
           BeaconInvolvementVisibilityFacts(
-            contentFacts: const BeaconContentVisibilityFacts(
+            contentFacts: BeaconContentVisibilityFacts(
               status: BeaconStatus.open,
               isAuthor: false,
               hasActiveForwardEdgeAsRecipient: true,
               isRoomAdmittedOrSteward: false,
               isActiveHelpOfferer: false,
+              isDiscoverable: true,
+              isPublished: true,
+              isMutuallyVisibleWithAuthor: false,
             ),
             isOnActiveForwardEdge: true,
             isActiveHelpOfferer: false,
@@ -275,12 +332,15 @@ ON CONFLICT (beacon_id, user_id) DO UPDATE SET status = EXCLUDED.status
       expect(await sqlContent('Uvisparityview'), isTrue);
       expect(
         BeaconVisibility.canReadContent(
-          const BeaconContentVisibilityFacts(
+          BeaconContentVisibilityFacts(
             status: BeaconStatus.open,
             isAuthor: false,
             hasActiveForwardEdgeAsRecipient: false,
             isRoomAdmittedOrSteward: false,
             isActiveHelpOfferer: true,
+            isDiscoverable: true,
+            isPublished: true,
+            isMutuallyVisibleWithAuthor: false,
           ),
         ),
         isTrue,
@@ -331,12 +391,15 @@ ON CONFLICT (id) DO UPDATE SET role = EXCLUDED.role, room_access = EXCLUDED.room
       expect(await sqlInvolvement('Uvisparityview'), isTrue);
       expect(
         BeaconVisibility.canReadContent(
-          const BeaconContentVisibilityFacts(
+          BeaconContentVisibilityFacts(
             status: BeaconStatus.open,
             isAuthor: false,
             hasActiveForwardEdgeAsRecipient: false,
             isRoomAdmittedOrSteward: true,
             isActiveHelpOfferer: false,
+            isDiscoverable: true,
+            isPublished: true,
+            isMutuallyVisibleWithAuthor: false,
           ),
         ),
         isTrue,
@@ -353,15 +416,7 @@ WHERE id = 'Pvisparity02'
       expect(await sqlContent('Uvisparityview'), isFalse);
       expect(await sqlInvolvement('Uvisparityview'), isFalse);
       expect(
-        BeaconVisibility.canReadContent(
-          const BeaconContentVisibilityFacts(
-            status: BeaconStatus.open,
-            isAuthor: false,
-            hasActiveForwardEdgeAsRecipient: false,
-            isRoomAdmittedOrSteward: false,
-            isActiveHelpOfferer: false,
-          ),
-        ),
+        BeaconVisibility.canReadContent(legacyPeerFacts()),
         isFalse,
       );
     },
@@ -383,7 +438,7 @@ VALUES
 ON CONFLICT (subject, object) DO UPDATE SET amount = EXCLUDED.amount
 ''',
       );
-      expect(await sqlContent('Uvisparityview'), isFalse);
+      expect(await sqlContent('Uvisparityview'), isTrue);
       expect(await sqlInvolvement('Uvisparityview'), isFalse);
 
       await db.customStatement(
@@ -396,22 +451,16 @@ INSERT INTO public.beacon_forward_edge (
 ON CONFLICT (id) DO NOTHING
 ''',
       );
-      expect(await sqlContent('Uvisparityview'), isFalse);
-      expect(await sqlInvolvement('Uvisparityview'), isFalse);
+      expect(await sqlContent('Uvisparityview'), isTrue);
+      expect(await sqlInvolvement('Uvisparityview'), isTrue);
       expect(
         BeaconVisibility.canReadInvolvement(
           _involvementFacts(
-            contentFacts: const BeaconContentVisibilityFacts(
-              status: BeaconStatus.open,
-              isAuthor: false,
-              hasActiveForwardEdgeAsRecipient: false,
-              isRoomAdmittedOrSteward: false,
-              isActiveHelpOfferer: false,
-            ),
+            contentFacts: discoverablePeerFacts(isMutuallyVisibleWithAuthor: true),
             isOnActiveForwardEdge: true,
           ),
         ),
-        isFalse,
+        isTrue,
       );
     },
     skip: skipReason,
@@ -586,6 +635,186 @@ ON CONFLICT (id) DO NOTHING
         ),
         isFalse,
       );
+    },
+    skip: skipReason,
+  );
+
+  test(
+    'SQL discoverability branch matches Dart for active published mutual peers',
+    () async {
+      await seedUsers();
+      await insertBeacon(status: BeaconStatus.open.smallintValue);
+      await db.customStatement(
+        '''
+INSERT INTO public.vote_user (subject, object, amount, created_at, updated_at)
+VALUES
+  ('Uvisparityview', 'Uvisparityauth', 1, now(), now()),
+  ('Uvisparityauth', 'Uvisparityview', 1, now(), now())
+ON CONFLICT (subject, object) DO UPDATE SET amount = EXCLUDED.amount
+''',
+      );
+
+      expect(await sqlContent('Uvisparityview'), isTrue);
+      expect(
+        BeaconVisibility.canReadContent(
+          discoverablePeerFacts(isMutuallyVisibleWithAuthor: true),
+        ),
+        isTrue,
+      );
+      expect(await sqlInvolvement('Uvisparityview'), isFalse);
+    },
+    skip: skipReason,
+  );
+
+  test(
+    'SQL discoverability opt-out and non-open statuses deny mutually visible peer',
+    () async {
+      await seedUsers();
+      await db.customStatement(
+        '''
+INSERT INTO public.vote_user (subject, object, amount, created_at, updated_at)
+VALUES
+  ('Uvisparityview', 'Uvisparityauth', 1, now(), now()),
+  ('Uvisparityauth', 'Uvisparityview', 1, now(), now())
+ON CONFLICT (subject, object) DO UPDATE SET amount = EXCLUDED.amount
+''',
+      );
+
+      await insertBeacon(
+        status: BeaconStatus.open.smallintValue,
+        isDiscoverable: false,
+      );
+      expect(await sqlContent('Uvisparityview'), isFalse);
+      expect(
+        BeaconVisibility.canReadContent(
+          discoverablePeerFacts(
+            isDiscoverable: false,
+            isMutuallyVisibleWithAuthor: true,
+          ),
+        ),
+        isFalse,
+      );
+
+      for (final status in [
+        BeaconStatus.draft,
+        BeaconStatus.deleted,
+        BeaconStatus.closed,
+        BeaconStatus.cancelled,
+        BeaconStatus.reviewOpen,
+      ]) {
+        await insertBeacon(status: status.smallintValue);
+        expect(await sqlContent('Uvisparityview'), isFalse);
+        expect(
+          BeaconVisibility.canReadContent(
+            discoverablePeerFacts(
+              status: status,
+              isMutuallyVisibleWithAuthor: true,
+            ),
+          ),
+          isFalse,
+          reason: '$status',
+        );
+      }
+    },
+    skip: skipReason,
+  );
+
+  test(
+    'SQL discoverability denies open-but-unpublished beacon on both sides',
+    () async {
+      await seedUsers();
+      await insertBeacon(
+        status: BeaconStatus.open.smallintValue,
+        unpublished: true,
+      );
+      await db.customStatement(
+        '''
+INSERT INTO public.vote_user (subject, object, amount, created_at, updated_at)
+VALUES
+  ('Uvisparityview', 'Uvisparityauth', 1, now(), now()),
+  ('Uvisparityauth', 'Uvisparityview', 1, now(), now())
+ON CONFLICT (subject, object) DO UPDATE SET amount = EXCLUDED.amount
+''',
+      );
+
+      expect(await sqlContent('Uvisparityview'), isFalse);
+      expect(
+        BeaconVisibility.canReadContent(
+          discoverablePeerFacts(
+            isPublished: false,
+            isMutuallyVisibleWithAuthor: true,
+          ),
+        ),
+        isFalse,
+      );
+    },
+    skip: skipReason,
+  );
+
+  test(
+    'SQL discoverability allows peer visible only through repaired symmetry direction',
+    () async {
+      await seedUsers();
+      await insertBeacon(status: BeaconStatus.open.smallintValue);
+      await db.customStatement(
+        '''
+INSERT INTO public.vote_user (subject, object, amount, created_at, updated_at)
+VALUES ('Uvisparityview', 'Uvisparityauth', 1, now(), now())
+ON CONFLICT (subject, object) DO UPDATE SET amount = EXCLUDED.amount
+''',
+      );
+      await db.customStatement(
+        "SELECT mr_put_edge('Uvisparityauth', 'Uvisparityview', 0.75::double precision, ''::text, 0)",
+      );
+
+      expect(await sqlContent('Uvisparityview'), isTrue);
+      expect(
+        BeaconVisibility.canReadContent(
+          discoverablePeerFacts(isMutuallyVisibleWithAuthor: true),
+        ),
+        isTrue,
+      );
+    },
+    skip: skipReason,
+  );
+
+  test(
+    'SQL discoverability branch is denied when block_hides precedes it',
+    () async {
+      await seedUsers();
+      await insertBeacon(status: BeaconStatus.open.smallintValue);
+      await db.customStatement(
+        '''
+INSERT INTO public.vote_user (subject, object, amount, created_at, updated_at)
+VALUES
+  ('Uvisparityview', 'Uvisparityauth', 1, now(), now()),
+  ('Uvisparityauth', 'Uvisparityview', 1, now(), now())
+ON CONFLICT (subject, object) DO UPDATE SET amount = EXCLUDED.amount
+''',
+      );
+      expect(await sqlContent('Uvisparityview'), isTrue);
+
+      await db.customStatement(
+        '''
+INSERT INTO public.user_block (blocker_id, blocked_id, origin_id)
+VALUES ('Uvisparityauth', 'Uvisparityview', 'Uvisparityauth')
+ON CONFLICT DO NOTHING
+''',
+      );
+      expect(await sqlContent('Uvisparityview'), isFalse);
+
+      await db.customStatement(
+        "DELETE FROM public.user_block WHERE blocker_id = 'Uvisparityauth'",
+      );
+
+      await db.customStatement(
+        '''
+INSERT INTO public.user_block (blocker_id, blocked_id, origin_id)
+VALUES ('Uvisparityview', 'Uvisparityauth', 'Uvisparityview')
+ON CONFLICT DO NOTHING
+''',
+      );
+      expect(await sqlContent('Uvisparityview'), isFalse);
     },
     skip: skipReason,
   );
