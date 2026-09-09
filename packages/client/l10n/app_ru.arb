@@ -1733,6 +1733,57 @@
   "@settingsDebug": {
     "context": "SettingsScreen"
   },
+  "settingsDebugOrientationSection": "Панель первого запуска",
+  "@settingsDebugOrientationSection": {
+    "context": "DebugSettingsScreen",
+    "description": "Section heading for first-run orientation debug controls"
+  },
+  "settingsDebugOrientationOverride": "Показ панели",
+  "@settingsDebugOrientationOverride": {
+    "context": "DebugSettingsScreen",
+    "description": "Label for the orientation panel visibility override control"
+  },
+  "settingsDebugOrientationAuto": "Автоматически",
+  "@settingsDebugOrientationAuto": {
+    "context": "DebugSettingsScreen",
+    "description": "Debug override: follow normal activation and dismissal rules"
+  },
+  "settingsDebugOrientationShow": "Всегда показывать",
+  "@settingsDebugOrientationShow": {
+    "context": "DebugSettingsScreen",
+    "description": "Debug override: force the orientation panel visible on eligible empty My Work"
+  },
+  "settingsDebugOrientationHide": "Всегда скрывать",
+  "@settingsDebugOrientationHide": {
+    "context": "DebugSettingsScreen",
+    "description": "Debug override: suppress the orientation panel even for unactivated accounts"
+  },
+  "settingsDebugOrientationStatus": "Активирован: {activated} · Скрыт: {dismissed} · Активность: {count}",
+  "@settingsDebugOrientationStatus": {
+    "context": "DebugSettingsScreen",
+    "description": "Live readout of activation latch, dismiss latch, and activity count for QA",
+    "placeholders": {
+      "activated": {
+        "type": "String"
+      },
+      "dismissed": {
+        "type": "String"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "settingsDebugOrientationReset": "Сбросить состояние первого запуска",
+  "@settingsDebugOrientationReset": {
+    "context": "DebugSettingsScreen",
+    "description": "Clears per-user activation and dismiss latches for the signed-in account"
+  },
+  "settingsDebugOrientationResetDone": "Состояние первого запуска сброшено",
+  "@settingsDebugOrientationResetDone": {
+    "context": "DebugSettingsScreen",
+    "description": "Snackbar after resetting first-run orientation latches"
+  },
   "settingsFcmRegistration": "Регистрация FCM",
   "settingsFcmToken": "Токен FCM",
   "settingsFcmTokenUnavailable": "Недоступен (проверьте разрешение на уведомления и конфигурацию Firebase)",
@@ -2864,6 +2915,89 @@
   "myWorkRetry": "Повторить",
   "@myWorkRetry": {
     "context": "MyWorkScreen"
+  },
+  "orientationTitle": "Добро пожаловать в Tentura",
+  "@orientationTitle": {
+    "context": "HomeOrientationPanel",
+    "description": "Title on the first-run orientation panel in My Work"
+  },
+  "orientationIntro": "За вас поручился кто-то из знакомых. Tentura — это место, где дела делаются через людей, которым вы доверяете: просите о помощи, когда она нужна, и передавайте запрос тому, кто сможет помочь.",
+  "@orientationIntro": {
+    "context": "HomeOrientationPanel",
+    "description": "Opening paragraph on the first-run orientation panel, including the vouch sentence"
+  },
+  "orientationIntroReopen": "Tentura — это место, где дела делаются через людей, которым вы доверяете: просите о помощи, когда она нужна, и передавайте запрос тому, кто сможет помочь.",
+  "@orientationIntroReopen": {
+    "context": "HowTenturaWorksContent",
+    "description": "Intro paragraph when orientation is reopened from Profile or Settings (no vouch sentence)"
+  },
+  "orientationHowTitle": "Как это работает",
+  "@orientationHowTitle": {
+    "context": "HowTenturaWorksContent",
+    "description": "Section heading for the numbered how-it-works steps"
+  },
+  "orientationHowStep1": "Опубликуйте запрос — своими словами опишите, что вам нужно. Здесь нет общей ленты.",
+  "@orientationHowStep1": {
+    "context": "HowTenturaWorksContent",
+    "description": "First numbered step: posting a request"
+  },
+  "orientationHowStep2": "Друзья передают его дальше — любой, кто увидит запрос, может переслать его тому, кто ближе к решению.",
+  "@orientationHowStep2": {
+    "context": "HowTenturaWorksContent",
+    "description": "Second numbered step: forwarding through the network"
+  },
+  "orientationHowStep3": "Вы обо всём договариваетесь на месте — у каждого запроса есть своё обсуждение: там вы уточняете детали и закрываете запрос, когда всё сделано.",
+  "@orientationHowStep3": {
+    "context": "HowTenturaWorksContent",
+    "description": "Third numbered step: discussion and closing a request"
+  },
+  "orientationWhereTitle": "Что где находится",
+  "@orientationWhereTitle": {
+    "context": "HowTenturaWorksContent",
+    "description": "Section heading for the interactive navigation map"
+  },
+  "orientationWhereWork": "Запросы, которые вы опубликовали, и те, где вы предложили помощь.",
+  "@orientationWhereWork": {
+    "context": "HowTenturaWorksContent",
+    "description": "Nav-map description for the My Work tab"
+  },
+  "orientationWhereInbox": "Запросы, которые вам переслали друзья.",
+  "@orientationWhereInbox": {
+    "context": "HowTenturaWorksContent",
+    "description": "Nav-map description for the Inbox tab"
+  },
+  "orientationWhereField": "Люди и запросы вокруг вас — начните отсюда, если хотите помочь.",
+  "@orientationWhereField": {
+    "context": "HowTenturaWorksContent",
+    "description": "Nav-map description for the My field tab"
+  },
+  "orientationWhereNetwork": "Все, кому доверяете вы, и все, кто доверяет вам.",
+  "@orientationWhereNetwork": {
+    "context": "HowTenturaWorksContent",
+    "description": "Nav-map description for the My people tab"
+  },
+  "orientationWhereSemantics": "{name}: {description}",
+  "@orientationWhereSemantics": {
+    "context": "HowTenturaWorksContent",
+    "description": "Screen-reader label for a tappable nav-map row (tab name plus description)",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "description": {
+        "type": "String"
+      }
+    }
+  },
+  "orientationDismiss": "Понятно",
+  "@orientationDismiss": {
+    "context": "HomeOrientationPanel",
+    "description": "Dismisses the first-run orientation panel"
+  },
+  "orientationReopen": "Как устроена Tentura",
+  "@orientationReopen": {
+    "context": "ProfileBody, SettingsScreen",
+    "description": "Button label to reopen orientation content from Profile or Settings"
   },
   "screenLoadErrorNetworkTitle": "Нет соединения",
   "@screenLoadErrorNetworkTitle": {

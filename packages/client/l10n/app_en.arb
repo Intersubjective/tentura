@@ -1733,6 +1733,57 @@
   "@settingsDebug": {
     "context": "SettingsScreen"
   },
+  "settingsDebugOrientationSection": "First-run orientation",
+  "@settingsDebugOrientationSection": {
+    "context": "DebugSettingsScreen",
+    "description": "Section heading for first-run orientation debug controls"
+  },
+  "settingsDebugOrientationOverride": "Orientation panel",
+  "@settingsDebugOrientationOverride": {
+    "context": "DebugSettingsScreen",
+    "description": "Label for the orientation panel visibility override control"
+  },
+  "settingsDebugOrientationAuto": "Automatic",
+  "@settingsDebugOrientationAuto": {
+    "context": "DebugSettingsScreen",
+    "description": "Debug override: follow normal activation and dismissal rules"
+  },
+  "settingsDebugOrientationShow": "Always show",
+  "@settingsDebugOrientationShow": {
+    "context": "DebugSettingsScreen",
+    "description": "Debug override: force the orientation panel visible on eligible empty My Work"
+  },
+  "settingsDebugOrientationHide": "Always hide",
+  "@settingsDebugOrientationHide": {
+    "context": "DebugSettingsScreen",
+    "description": "Debug override: suppress the orientation panel even for unactivated accounts"
+  },
+  "settingsDebugOrientationStatus": "Activated: {activated} · Dismissed: {dismissed} · Activity: {count}",
+  "@settingsDebugOrientationStatus": {
+    "context": "DebugSettingsScreen",
+    "description": "Live readout of activation latch, dismiss latch, and activity count for QA",
+    "placeholders": {
+      "activated": {
+        "type": "String"
+      },
+      "dismissed": {
+        "type": "String"
+      },
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "settingsDebugOrientationReset": "Reset first-run state",
+  "@settingsDebugOrientationReset": {
+    "context": "DebugSettingsScreen",
+    "description": "Clears per-user activation and dismiss latches for the signed-in account"
+  },
+  "settingsDebugOrientationResetDone": "First-run state reset for this account",
+  "@settingsDebugOrientationResetDone": {
+    "context": "DebugSettingsScreen",
+    "description": "Snackbar after resetting first-run orientation latches"
+  },
   "settingsFcmRegistration": "FCM registration",
   "settingsFcmToken": "FCM token",
   "settingsFcmTokenUnavailable": "Not available (check notification permission and Firebase config)",
@@ -2873,6 +2924,89 @@
   "myWorkRetry": "Try again",
   "@myWorkRetry": {
     "context": "MyWorkScreen"
+  },
+  "orientationTitle": "Welcome to Tentura",
+  "@orientationTitle": {
+    "context": "HomeOrientationPanel",
+    "description": "Title on the first-run orientation panel in My Work"
+  },
+  "orientationIntro": "Someone you know vouched for you. Tentura is where people get things done through people they trust — ask for help when you need it, or pass a request on to someone who can give it.",
+  "@orientationIntro": {
+    "context": "HomeOrientationPanel",
+    "description": "Opening paragraph on the first-run orientation panel, including the vouch sentence"
+  },
+  "orientationIntroReopen": "Tentura is where people get things done through people they trust — ask for help when you need it, or pass a request on to someone who can give it.",
+  "@orientationIntroReopen": {
+    "context": "HowTenturaWorksContent",
+    "description": "Intro paragraph when orientation is reopened from Profile or Settings (no vouch sentence)"
+  },
+  "orientationHowTitle": "How it works",
+  "@orientationHowTitle": {
+    "context": "HowTenturaWorksContent",
+    "description": "Section heading for the numbered how-it-works steps"
+  },
+  "orientationHowStep1": "Post a request — say what you need, in your own words. Nothing here is public.",
+  "@orientationHowStep1": {
+    "context": "HowTenturaWorksContent",
+    "description": "First numbered step: posting a request"
+  },
+  "orientationHowStep2": "Friends pass it on — anyone who sees it can forward it to someone better placed to help.",
+  "@orientationHowStep2": {
+    "context": "HowTenturaWorksContent",
+    "description": "Second numbered step: forwarding through the network"
+  },
+  "orientationHowStep3": "You sort it out together — every request has its own discussion, where you agree the details and close it when it's done.",
+  "@orientationHowStep3": {
+    "context": "HowTenturaWorksContent",
+    "description": "Third numbered step: discussion and closing a request"
+  },
+  "orientationWhereTitle": "Where things are",
+  "@orientationWhereTitle": {
+    "context": "HowTenturaWorksContent",
+    "description": "Section heading for the interactive navigation map"
+  },
+  "orientationWhereWork": "Requests you posted, and the ones you've offered to help with.",
+  "@orientationWhereWork": {
+    "context": "HowTenturaWorksContent",
+    "description": "Nav-map description for the My Work tab"
+  },
+  "orientationWhereInbox": "Requests your friends have forwarded to you.",
+  "@orientationWhereInbox": {
+    "context": "HowTenturaWorksContent",
+    "description": "Nav-map description for the Inbox tab"
+  },
+  "orientationWhereField": "The people and requests around you — start here to find a way to help.",
+  "@orientationWhereField": {
+    "context": "HowTenturaWorksContent",
+    "description": "Nav-map description for the My field tab"
+  },
+  "orientationWhereNetwork": "Everyone you trust, and everyone who trusts you.",
+  "@orientationWhereNetwork": {
+    "context": "HowTenturaWorksContent",
+    "description": "Nav-map description for the My people tab"
+  },
+  "orientationWhereSemantics": "{name}: {description}",
+  "@orientationWhereSemantics": {
+    "context": "HowTenturaWorksContent",
+    "description": "Screen-reader label for a tappable nav-map row (tab name plus description)",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "description": {
+        "type": "String"
+      }
+    }
+  },
+  "orientationDismiss": "Got it",
+  "@orientationDismiss": {
+    "context": "HomeOrientationPanel",
+    "description": "Dismisses the first-run orientation panel"
+  },
+  "orientationReopen": "How Tentura works",
+  "@orientationReopen": {
+    "context": "ProfileBody, SettingsScreen",
+    "description": "Button label to reopen orientation content from Profile or Settings"
   },
   "screenLoadErrorNetworkTitle": "No connection",
   "@screenLoadErrorNetworkTitle": {
