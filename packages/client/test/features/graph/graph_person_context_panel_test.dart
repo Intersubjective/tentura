@@ -66,6 +66,9 @@ class _StubContextCubit extends Cubit<GraphPersonContextState>
   int dismissCalls = 0;
 
   @override
+  final void Function(Profile profile)? onProfilePatched = null;
+
+  @override
   void selectProfile(Profile profile, {required bool intentional}) {}
 
   @override
@@ -86,6 +89,10 @@ Future<void> _pumpPanel(
   _StubContextCubit? contextCubit,
   FakeUiEffectPort? effects,
   Size size = const Size(900, 600),
+  int? hiddenNeighborCount,
+  bool? isLoading,
+  bool? canPageMore,
+  VoidCallback? onExpand,
 }) async {
   await tester.binding.setSurfaceSize(size);
   addTearDown(() => tester.binding.setSurfaceSize(null));
@@ -94,6 +101,18 @@ Future<void> _pumpPanel(
   final fx = effects ?? FakeUiEffectPort();
   addTearDown(ctx.close);
   addTearDown(graphCubit.close);
+
+  final focusedNode = UserNode(user: profile);
+  final hidden =
+      hiddenNeighborCount ??
+      graphState.hiddenNeighborCounts[focusedNode.id] ??
+      0;
+  final pageMore = canPageMore ?? graphCubit.canPageMore(focusedNode.id);
+  final expand =
+      onExpand ??
+      () {
+        graphCubit.expandNode(focusedNode);
+      };
 
   await tester.pumpWidget(
     MaterialApp(
@@ -106,15 +125,17 @@ Future<void> _pumpPanel(
         child: TenturaResponsiveScope(
           child: MultiBlocProvider(
             providers: [
-              BlocProvider<GraphCubit>.value(value: graphCubit),
               BlocProvider<GraphPersonContextCubit>.value(value: ctx),
               BlocProvider<ScreenCubit>(create: (_) => ScreenCubit(fx)),
             ],
             child: Scaffold(
               body: GraphPersonContextPanel(
                 profile: profile,
-                focusedNode: UserNode(user: profile),
-                graphState: graphState,
+                focusedNode: focusedNode,
+                hiddenNeighborCount: hidden,
+                isLoading: isLoading ?? graphState.isLoading,
+                canPageMore: pageMore,
+                onExpand: pageMore && hidden > 0 ? expand : null,
               ),
             ),
           ),

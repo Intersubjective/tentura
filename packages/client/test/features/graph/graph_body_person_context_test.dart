@@ -323,7 +323,8 @@ _pumpTrustGraphBody(
   graphCubit.emit(graphCubit.state.copyWith(isAnimated: false));
   final contextCubit = GraphPersonContextCubit(
     profileViewCase: _profileViewCase(),
-    graphCubit: graphCubit,
+    viewerId: _me.id,
+    onProfilePatched: graphCubit.patchLoadedProfile,
   );
   addTearDown(graphCubit.close);
   addTearDown(contextCubit.close);

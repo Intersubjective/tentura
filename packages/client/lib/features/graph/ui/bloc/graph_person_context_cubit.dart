@@ -1,9 +1,9 @@
 import 'dart:async';
 
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/profile_view/domain/use_case/profile_view_case.dart';
 
-import 'graph_cubit.dart';
 import 'graph_person_context_state.dart';
 
 export 'package:flutter_bloc/flutter_bloc.dart';
@@ -13,18 +13,20 @@ export 'graph_person_context_state.dart';
 class GraphPersonContextCubit extends Cubit<GraphPersonContextState> {
   GraphPersonContextCubit({
     required ProfileViewCase profileViewCase,
-    required GraphCubit graphCubit,
+    required String viewerId,
+    this.onProfilePatched,
   }) : _case = profileViewCase,
-       _graphCubit = graphCubit,
+       _viewerId = viewerId,
        super(const GraphPersonContextState());
 
   final ProfileViewCase _case;
-  final GraphCubit _graphCubit;
+  final String _viewerId;
+  final void Function(Profile profile)? onProfilePatched;
 
   void selectProfile(Profile profile, {required bool intentional}) {
     if (isClosed) return;
     final id = profile.id;
-    if (id.isEmpty || id == _graphCubit.state.me.id) {
+    if (id.isEmpty || id == _viewerId) {
       clearSelection();
       return;
     }
@@ -87,9 +89,7 @@ class GraphPersonContextCubit extends Cubit<GraphPersonContextState> {
 
     try {
       final authoritative = await _case.addFriend(profile);
-      if (!isClosed) {
-        _graphCubit.patchLoadedProfile(authoritative);
-      }
+      onProfilePatched?.call(authoritative);
       if (isClosed) return;
       if (state.selectedProfile?.id == aliceId &&
           state.selectionSequence == sequence) {

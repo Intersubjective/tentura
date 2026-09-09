@@ -387,7 +387,8 @@ final class _Harness {
     );
     contextCubit = GraphPersonContextCubit(
       profileViewCase: case_,
-      graphCubit: graphCubit,
+      viewerId: _me.id,
+      onProfilePatched: graphCubit.patchLoadedProfile,
     );
     await _settle();
   }

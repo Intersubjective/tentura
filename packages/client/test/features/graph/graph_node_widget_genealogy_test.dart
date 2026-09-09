@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
@@ -33,9 +34,38 @@ class _BadgeTestGraphCubit extends Cubit<GraphState> implements GraphCubit {
       throw UnimplementedError('${invocation.memberName}');
 }
 
+/// Mirrors [GraphBody]'s call-site wiring for hidden-neighbour counts.
+class _GraphNodeWithHiddenCount extends StatelessWidget {
+  const _GraphNodeWithHiddenCount({
+    required this.nodeDetails,
+    this.withRating = false,
+    this.isSelf = false,
+    this.isFocused = false,
+  });
+
+  final NodeDetails nodeDetails;
+  final bool withRating;
+  final bool isSelf;
+  final bool isFocused;
+
+  @override
+  Widget build(BuildContext context) {
+    final count = context.select<GraphCubit, int?>(
+      (cubit) => cubit.state.hiddenNeighborCounts[nodeDetails.id],
+    );
+    return GraphNodeWidget(
+      nodeDetails: nodeDetails,
+      withRating: withRating,
+      isSelf: isSelf,
+      isFocused: isFocused,
+      hiddenNeighborCount: count,
+    );
+  }
+}
+
 Future<_BadgeTestGraphCubit> _pumpGraphNode(
   WidgetTester tester,
-  GraphNodeWidget child,
+  Widget child,
 ) async {
   final cubit = _BadgeTestGraphCubit();
   addTearDown(cubit.close);
@@ -118,7 +148,7 @@ void main() {
   ) async {
     final cubit = await _pumpGraphNode(
       tester,
-      const GraphNodeWidget(
+      const _GraphNodeWithHiddenCount(
         nodeDetails: GenealogyUserNode(nodeKey: 'Gviewer', user: _viewer),
       ),
     );
@@ -163,7 +193,7 @@ void main() {
     (tester) async {
       final cubit = await _pumpGraphNode(
         tester,
-        const GraphNodeWidget(
+        const _GraphNodeWithHiddenCount(
           nodeDetails: GenealogyUserNode(nodeKey: 'Gviewer', user: _viewer),
         ),
       );

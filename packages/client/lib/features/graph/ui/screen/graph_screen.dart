@@ -33,10 +33,14 @@ class GraphScreen extends StatelessWidget implements AutoRouteWrapper {
         edgeColors: GraphEdgeColors.fromTokens(context.ttOnce),
       ),
       child: BlocProvider(
-        create: (context) => GraphPersonContextCubit(
-          profileViewCase: GetIt.I<ProfileViewCase>(),
-          graphCubit: context.read<GraphCubit>(),
-        ),
+        create: (context) {
+          final graphCubit = context.read<GraphCubit>();
+          return GraphPersonContextCubit(
+            profileViewCase: GetIt.I<ProfileViewCase>(),
+            viewerId: graphCubit.state.me.id,
+            onProfilePatched: graphCubit.patchLoadedProfile,
+          );
+        },
         child: this,
       ),
     ),

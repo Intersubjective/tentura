@@ -260,7 +260,11 @@ class GraphBodyState extends State<GraphBody>
     final panel = GraphPersonContextPanel(
       profile: profile,
       focusedNode: focusedNode,
-      graphState: graphState,
+      hiddenNeighborCount:
+          graphState.hiddenNeighborCounts[focusedNode.id] ?? 0,
+      isLoading: graphState.isLoading,
+      canPageMore: context.read<GraphCubit>().canPageMore(focusedNode.id),
+      onExpand: () => context.read<GraphCubit>().expandNode(focusedNode),
     );
 
     if (context.windowClass == WindowClass.compact) {
@@ -362,6 +366,7 @@ class GraphBodyState extends State<GraphBody>
               node.id == _graphCubit.state.egoNodeId,
           isOrigin: node.id == _graphCubit.originNodeId,
           isFocused: graphState.focus.isNotEmpty && node.id == graphState.focus,
+          hiddenNeighborCount: graphState.hiddenNeighborCounts[node.id],
           onTap: () => _onNodeTap(node),
         ),
       );

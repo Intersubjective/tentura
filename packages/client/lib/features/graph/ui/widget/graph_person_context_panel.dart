@@ -12,7 +12,6 @@ import 'package:tentura/ui/test_ids.dart';
 import 'package:tentura/ui/utils/availability_line.dart';
 
 import '../../domain/entity/node_details.dart';
-import '../bloc/graph_cubit.dart';
 import '../bloc/graph_person_context_cubit.dart';
 
 /// Trust-graph overlay for the selected person's visibility and actions.
@@ -20,13 +19,19 @@ class GraphPersonContextPanel extends StatelessWidget {
   const GraphPersonContextPanel({
     required this.profile,
     required this.focusedNode,
-    required this.graphState,
+    this.hiddenNeighborCount = 0,
+    this.isLoading = false,
+    this.canPageMore = false,
+    this.onExpand,
     super.key,
   });
 
   final Profile profile;
   final UserNode focusedNode;
-  final GraphState graphState;
+  final int hiddenNeighborCount;
+  final bool isLoading;
+  final bool canPageMore;
+  final VoidCallback? onExpand;
 
   @override
   Widget build(BuildContext context) {
@@ -34,7 +39,6 @@ class GraphPersonContextPanel extends StatelessWidget {
     final theme = Theme.of(context);
     final tt = context.tt;
     final scheme = theme.colorScheme;
-    final graphCubit = context.read<GraphCubit>();
     final contextCubit = context.read<GraphPersonContextCubit>();
     final contextState = context.watch<GraphPersonContextCubit>().state;
     final todayUtc = availabilityTodayUtc();
@@ -44,11 +48,8 @@ class GraphPersonContextPanel extends StatelessWidget {
       isBlocked: false,
       todayUtc: todayUtc,
     );
-    final hiddenCount = graphState.hiddenNeighborCounts[focusedNode.id] ?? 0;
     final canShowMore =
-        !graphState.isLoading &&
-        graphCubit.canPageMore(focusedNode.id) &&
-        hiddenCount > 0;
+        !isLoading && canPageMore && hiddenNeighborCount > 0;
 
     return FocusTraversalGroup(
       policy: OrderedTraversalPolicy(),
@@ -109,11 +110,11 @@ class GraphPersonContextPanel extends StatelessWidget {
                   l10n: l10n,
                   policy: policy,
                   canShowMore: canShowMore,
-                  hiddenCount: hiddenCount,
+                  hiddenCount: hiddenNeighborCount,
                   trustLoading: contextState.trustLoading,
                   focusedNode: focusedNode,
-                  graphCubit: graphCubit,
                   contextCubit: contextCubit,
+                  onExpand: onExpand,
                 ),
                 if (contextState.trustError != null) ...[
                   SizedBox(height: tt.rowGap),
@@ -140,8 +141,8 @@ class GraphPersonContextPanel extends StatelessWidget {
     required int hiddenCount,
     required bool trustLoading,
     required UserNode focusedNode,
-    required GraphCubit graphCubit,
     required GraphPersonContextCubit contextCubit,
+    VoidCallback? onExpand,
   }) {
     final screenCubit = context.read<ScreenCubit>();
     final children = <Widget>[];
@@ -236,14 +237,14 @@ class GraphPersonContextPanel extends StatelessWidget {
       ),
     );
 
-    if (canShowMore) {
+    if (canShowMore && onExpand != null) {
       addGap();
       children.add(
         FocusTraversalOrder(
           order: const NumericFocusOrder(4),
           child: OutlinedButton.icon(
             key: TestIds.key(TestIds.graphPersonContextShowMore),
-            onPressed: () => graphCubit.expandNode(focusedNode),
+            onPressed: onExpand,
             icon: const Icon(Icons.hub_outlined),
             label: Text(l10n.graphShowMoreConnections(hiddenCount)),
           ),

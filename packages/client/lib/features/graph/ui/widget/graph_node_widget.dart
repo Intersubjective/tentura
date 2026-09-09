@@ -9,7 +9,6 @@ import 'package:tentura/ui/widget/beacon_image.dart';
 import 'package:tentura/ui/widget/self_user_highlight.dart';
 
 import '../../domain/entity/node_details.dart';
-import '../bloc/graph_cubit.dart';
 
 class GraphNodeWidget extends StatelessWidget {
   const GraphNodeWidget({
@@ -18,6 +17,7 @@ class GraphNodeWidget extends StatelessWidget {
     this.isSelf = false,
     this.isOrigin = false,
     this.isFocused = false,
+    this.hiddenNeighborCount,
     this.onTap,
     super.key,
   });
@@ -29,6 +29,7 @@ class GraphNodeWidget extends StatelessWidget {
   final bool isSelf;
   final bool isOrigin;
   final bool isFocused;
+  final int? hiddenNeighborCount;
   final NodeDetails nodeDetails;
   final VoidCallback? onTap;
 
@@ -109,22 +110,15 @@ class GraphNodeWidget extends StatelessWidget {
         clipBehavior: Clip.none,
         children: [
           Positioned.fill(child: decorated),
-          Positioned(
-            top: 0,
-            right: 0,
-            child: BlocSelector<GraphCubit, GraphState, int?>(
-              selector: (state) => state.hiddenNeighborCounts[nodeDetails.id],
-              builder: (context, count) {
-                if (count == null || count <= 0) {
-                  return const SizedBox.shrink();
-                }
-                return TenturaCountBadge(
-                  count: count,
-                  backgroundColor: Theme.of(context).colorScheme.primary,
-                );
-              },
+          if (hiddenNeighborCount != null && hiddenNeighborCount! > 0)
+            Positioned(
+              top: 0,
+              right: 0,
+              child: TenturaCountBadge(
+                count: hiddenNeighborCount!,
+                backgroundColor: Theme.of(context).colorScheme.primary,
+              ),
             ),
-          ),
         ],
       ),
     );
