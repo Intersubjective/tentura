@@ -9,7 +9,7 @@
   "orientation": "portrait-primary",
   "prefer_related_applications": true,
   "manifest_version": 3,
-  "version": "7.2.9",
+  "version": "7.3.1",
   "icons": [
     {
       "src": "/tentura-icon-192.png",
