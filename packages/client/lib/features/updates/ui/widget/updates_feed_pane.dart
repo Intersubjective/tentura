@@ -7,6 +7,7 @@ import 'package:get_it/get_it.dart';
 import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/attention/entity/attention_feed.dart';
+import 'package:tentura/domain/attention/entity/attention_summary.dart';
 import 'package:tentura/domain/attention/entity/attention_receipt.dart';
 import 'package:tentura/features/updates/updates_receipt_display_copy.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
@@ -27,10 +28,20 @@ import 'updates_refresh_error_banner.dart';
 class UpdatesFeedPane extends StatefulWidget {
   const UpdatesFeedPane({
     this.showTitleRow = false,
+    this.offeredViews = kDefaultUpdatesFeedOfferedViews,
+    this.showViewControl = true,
     super.key,
   });
 
+  static const kDefaultUpdatesFeedOfferedViews = <AttentionView>[
+    AttentionView.all,
+    AttentionView.unread,
+    AttentionView.needsYou,
+  ];
+
   final bool showTitleRow;
+  final List<AttentionView> offeredViews;
+  final bool showViewControl;
 
   @override
   State<UpdatesFeedPane> createState() => _UpdatesFeedPaneState();
@@ -145,31 +156,33 @@ class _UpdatesFeedPaneState extends State<UpdatesFeedPane> {
               _onSearchChanged('');
             },
           ),
-        BlocBuilder<UpdatesFeedCubit, UpdatesFeedState>(
-          buildWhen: (p, c) => p.view != c.view || p.summary != c.summary,
-          builder: (context, state) => TenturaUnderlineTabs(
-            tabs: [
-              l10n.updatesAll,
-              l10n.updatesUnread,
-              l10n.updatesNeedsYou,
-            ],
-            selectedIndex: state.view.index,
-            onChanged: (index) => context.read<UpdatesFeedCubit>().setView(
-              AttentionView.values[index],
-            ),
-            badges: [
-              null,
-              state.summary.unreadTotal,
-              state.summary.needsYouTotal,
-            ],
-            countStyle: TenturaTabCountStyle.plainText,
-            tabIds: const [
-              'updates-all',
-              'updates-unread',
-              'updates-needs-you',
-            ],
+        if (widget.showViewControl && widget.offeredViews.length > 1)
+          BlocBuilder<UpdatesFeedCubit, UpdatesFeedState>(
+            buildWhen: (p, c) => p.view != c.view || p.summary != c.summary,
+            builder: (context, state) {
+              final views = widget.offeredViews;
+              final selectedIndex = views.indexOf(state.view).clamp(
+                0,
+                views.length - 1,
+              );
+              return TenturaUnderlineTabs(
+                tabs: [
+                  for (final view in views) _labelForView(l10n, view),
+                ],
+                selectedIndex: selectedIndex,
+                onChanged: (index) => context.read<UpdatesFeedCubit>().setView(
+                  views[index],
+                ),
+                badges: [
+                  for (final view in views) _badgeForView(state.summary, view),
+                ],
+                countStyle: TenturaTabCountStyle.plainText,
+                tabIds: [
+                  for (final view in views) _tabIdForView(view),
+                ],
+              );
+            },
           ),
-        ),
         Expanded(
           child: BlocBuilder<UpdatesFeedCubit, UpdatesFeedState>(
             builder: (context, state) {
@@ -299,6 +312,25 @@ class _UpdatesFeedPaneState extends State<UpdatesFeedPane> {
     await GetIt.I<RootRouter>().openFromUpdate(receipt);
   }
 }
+
+String _labelForView(L10n l10n, AttentionView view) => switch (view) {
+  AttentionView.all => l10n.updatesAll,
+  AttentionView.unread => l10n.updatesUnread,
+  AttentionView.needsYou => l10n.updatesNeedsYou,
+};
+
+int? _badgeForView(AttentionSummary summary, AttentionView view) =>
+    switch (view) {
+      AttentionView.all => null,
+      AttentionView.unread => summary.unreadTotal,
+      AttentionView.needsYou => summary.needsYouTotal,
+    };
+
+String _tabIdForView(AttentionView view) => switch (view) {
+  AttentionView.all => 'updates-all',
+  AttentionView.unread => 'updates-unread',
+  AttentionView.needsYou => 'updates-needs-you',
+};
 
 class _EmptyUpdates extends StatelessWidget {
   const _EmptyUpdates({required this.view});

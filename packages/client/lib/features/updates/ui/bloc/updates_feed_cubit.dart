@@ -16,6 +16,7 @@ export 'updates_feed_state.dart';
 final class UpdatesFeedCubit extends Cubit<UpdatesFeedState> {
   UpdatesFeedCubit({
     required String destinationId,
+    AttentionView? pinnedView,
     AttentionCase? attention,
     Logger? logger,
   }) : _destinationId = destinationId,
@@ -23,6 +24,9 @@ final class UpdatesFeedCubit extends Cubit<UpdatesFeedState> {
        _logger = logger ?? GetIt.I<Logger>(),
        super(const UpdatesFeedState()) {
     _attention.attachFeedSession(_destinationId);
+    if (pinnedView != null) {
+      _attention.setActiveView(_destinationId, pinnedView);
+    }
     _accountSub = _attention.feedPages.listen((_) => _projectFromDomain());
     _sessionSub = _attention
         .watchFeedSession(_destinationId)

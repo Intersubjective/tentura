@@ -27,6 +27,8 @@ abstract final class TestIds {
   static String myWorkCloseNow(String beaconId) =>
       'my_work.close_now.$beaconId';
 
+  static const myWorkObligationsPane = 'my_work.obligations.pane';
+
   /// Stable Updates feed row identity for integration and WebDriver proofs.
   static String updatesReceipt(String receiptId) =>
       'updates-receipt-$receiptId';

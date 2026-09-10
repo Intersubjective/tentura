@@ -18,10 +18,13 @@ import 'package:tentura/features/home/ui/bloc/home_attention_cubit.dart';
 import 'package:tentura/features/home/ui/widget/home_orientation_panel.dart';
 import 'package:tentura/features/inbox/ui/bloc/inbox_operational_cubit.dart';
 
+import 'package:tentura/features/my_work/domain/my_work_obligations_gate.dart';
+
 import '../bloc/my_work_cubit.dart';
 import '../widget/my_work_cards.dart';
 import '../widget/my_work_empty_body.dart';
 import '../widget/my_work_finished_status_row.dart';
+import '../widget/my_work_obligations_pane.dart';
 
 @RoutePage()
 class MyWorkScreen extends StatefulWidget implements AutoRouteWrapper {
@@ -345,6 +348,7 @@ class _MyWorkBody extends StatelessWidget {
     final l10n = L10n.of(context)!;
     final cubit = context.read<MyWorkCubit>();
     final tt = context.tt;
+    final obligationsGateEnabled = readMyWorkObligationsGateEnabled();
 
     return BlocListener<MyWorkCubit, MyWorkState>(
       listenWhen: (previous, current) =>
@@ -367,7 +371,23 @@ class _MyWorkBody extends StatelessWidget {
             tt: tt,
             scrollController: listScrollController,
           );
-          return TenturaContentColumn(child: listBody);
+          if (!obligationsGateEnabled) {
+            return TenturaContentColumn(child: listBody);
+          }
+          return TenturaContentColumn(
+            child: Column(
+              children: [
+                const Expanded(
+                  flex: 2,
+                  child: MyWorkObligationsPane(),
+                ),
+                Expanded(
+                  flex: 3,
+                  child: listBody,
+                ),
+              ],
+            ),
+          );
         },
       ),
     );
