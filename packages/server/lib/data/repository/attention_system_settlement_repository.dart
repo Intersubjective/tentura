@@ -63,7 +63,7 @@ WHERE outbox.occurrence_id = occ.id
   AND occ.event_type = $2
   AND outbox.beacon_id = $1
   AND outbox.requires_action
-  AND outbox.settlement_kind IS DISTINCT FROM 'superseded'
+  AND outbox.settlement_kind IS NULL
 ''',
         variables: [
           Variable<String>(beaconId),
