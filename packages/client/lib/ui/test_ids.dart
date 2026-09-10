@@ -20,6 +20,11 @@ abstract final class TestIds {
 
   static const activityTriageRow = 'activity-triage-row';
 
+  static String activityPromptPin(String receiptId) =>
+      'activity-prompt-pin-$receiptId';
+
+  static const activityPromptCollapsed = 'activity-prompt-collapsed';
+
   static const inboxOfferHelp = 'inbox.offer_help';
   static const inboxForward = 'inbox.forward';
   static const inboxDismiss = 'inbox.dismiss';

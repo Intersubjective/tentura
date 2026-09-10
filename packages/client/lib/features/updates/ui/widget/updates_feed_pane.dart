@@ -12,10 +12,12 @@ import 'package:tentura/domain/attention/entity/attention_receipt.dart';
 import 'package:tentura/features/updates/domain/entity/prompt_projection.dart';
 import 'package:tentura/features/updates/updates_receipt_display_copy.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/test_ids.dart';
 
 import '../bloc/updates_feed_cubit.dart';
 import 'invite_accepted_receipt_card.dart';
 import 'trust_change_receipt_card.dart';
+import 'prompt_batch_sheet.dart';
 import 'updates_day_groups.dart';
 import 'updates_feed_app_bar.dart';
 import 'updates_feed_search_field.dart';
@@ -47,7 +49,8 @@ class UpdatesFeedPane extends StatefulWidget {
   State<UpdatesFeedPane> createState() => _UpdatesFeedPaneState();
 }
 
-class _UpdatesFeedPaneState extends State<UpdatesFeedPane> {
+class _UpdatesFeedPaneState extends State<UpdatesFeedPane>
+    with WidgetsBindingObserver {
   final _scrollController = ScrollController();
   final _searchController = TextEditingController();
   Timer? _searchDebounce;
@@ -57,7 +60,15 @@ class _UpdatesFeedPaneState extends State<UpdatesFeedPane> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _scrollController.addListener(_loadMoreWhenNeeded);
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed && mounted) {
+      setState(() {});
+    }
   }
 
   @override
@@ -83,6 +94,7 @@ class _UpdatesFeedPaneState extends State<UpdatesFeedPane> {
 
   @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _searchDebounce?.cancel();
     _searchController.dispose();
     _scrollController
@@ -194,12 +206,22 @@ class _UpdatesFeedPaneState extends State<UpdatesFeedPane> {
               if (state.isEmpty) {
                 return _EmptyUpdates(view: state.view);
               }
-              final cells = flattenUpdatesFeed(
+              final now = DateTime.now();
+              final placement = computeInvitePromptPinPlacement(
                 items: state.items,
+                state: state,
+                now: now,
+              );
+              final chronologicalItems = state.items
+                  .where((r) => !placement.liftedReceiptIds.contains(r.id))
+                  .toList(growable: false);
+              final cells = flattenUpdatesFeed(
+                items: chronologicalItems,
                 hasNextPage: state.hasNextPage,
               );
+              final cubit = context.read<UpdatesFeedCubit>();
               return RefreshIndicator.adaptive(
-                onRefresh: context.read<UpdatesFeedCubit>().refresh,
+                onRefresh: cubit.refresh,
                 child: CustomScrollView(
                   key: PageStorageKey<String>('updates-${state.view.name}'),
                   controller: _scrollController,
@@ -208,8 +230,32 @@ class _UpdatesFeedPaneState extends State<UpdatesFeedPane> {
                     if (state.hasRefreshError)
                       SliverToBoxAdapter(
                         child: UpdatesRefreshErrorBanner(
-                          onRetry: () => unawaited(
-                            context.read<UpdatesFeedCubit>().refresh(),
+                          onRetry: () => unawaited(cubit.refresh()),
+                        ),
+                      ),
+                    if (placement.pinnedReceipts.isNotEmpty)
+                      SliverList.builder(
+                        itemCount: placement.pinnedReceipts.length,
+                        itemBuilder: (context, index) {
+                          final receipt = placement.pinnedReceipts[index];
+                          return KeyedSubtree(
+                            key: TestIds.key(
+                              TestIds.activityPromptPin(receipt.id),
+                            ),
+                            child: _receiptRow(context, receipt),
+                          );
+                        },
+                      ),
+                    if (placement.collapsedCount >= 3)
+                      SliverToBoxAdapter(
+                        child: _CollapsedInvitePromptRow(
+                          count: placement.collapsedCount,
+                          onOpenBatch: () => unawaited(
+                            PromptBatchSheet.show(
+                              context: context,
+                              cubit: cubit,
+                              receipts: placement.collapsedReceipts,
+                            ),
                           ),
                         ),
                       ),
@@ -379,4 +425,118 @@ class _LoadMoreIndicator extends StatelessWidget {
     padding: context.tt.cardPadding,
     child: const Center(child: CircularProgressIndicator.adaptive()),
   );
+}
+
+class _CollapsedInvitePromptRow extends StatelessWidget {
+  const _CollapsedInvitePromptRow({
+    required this.count,
+    required this.onOpenBatch,
+  });
+
+  final int count;
+  final VoidCallback onOpenBatch;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final tt = context.tt;
+    final l10n = L10n.of(context)!;
+    final label = l10n.activityPromptCollapsedBatch(count);
+
+    return Padding(
+      padding: EdgeInsets.fromLTRB(
+        tt.listRowPadding.left,
+        tt.tightGap,
+        tt.listRowPadding.right,
+        tt.tightGap,
+      ),
+      child: Semantics(
+        button: true,
+        label: label,
+        child: Material(
+          color: scheme.surfaceContainerLow,
+          borderRadius: BorderRadius.circular(tt.cardRadius),
+          child: InkWell(
+            key: TestIds.key(TestIds.activityPromptCollapsed),
+            borderRadius: BorderRadius.circular(tt.cardRadius),
+            onTap: onOpenBatch,
+            child: SizedBox(
+              height: tt.buttonHeight + tt.tightGap,
+              child: Padding(
+                padding: EdgeInsets.symmetric(horizontal: tt.rowGap),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: Text(
+                    label,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: TenturaText.titleSmall(scheme.onSurface),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// Fresh pending invite prompts are younger than 7 local calendar days.
+bool isFreshInvitePromptReceipt({
+  required DateTime createdAt,
+  required DateTime now,
+}) =>
+    now.difference(createdAt.toLocal()).inDays < 7;
+
+/// Pin placement for architecture §5.5 / §5.5.1 (exclusive pin vs collapsed modes).
+InvitePromptPinPlacement computeInvitePromptPinPlacement({
+  required List<AttentionReceipt> items,
+  required UpdatesFeedState state,
+  required DateTime now,
+}) {
+  final candidates = <AttentionReceipt>[];
+  for (final receipt in items) {
+    if (!state.canPinInvitePrompt(receipt)) continue;
+    if (!isFreshInvitePromptReceipt(createdAt: receipt.createdAt, now: now)) {
+      continue;
+    }
+    candidates.add(receipt);
+  }
+  candidates.sort(_invitePromptPinSort);
+
+  if (candidates.length >= 3) {
+    return InvitePromptPinPlacement(
+      pinnedReceipts: const [],
+      collapsedReceipts: List<AttentionReceipt>.from(candidates),
+      collapsedCount: candidates.length,
+      liftedReceiptIds: {for (final r in candidates) r.id},
+    );
+  }
+  return InvitePromptPinPlacement(
+    pinnedReceipts: List<AttentionReceipt>.from(candidates),
+    collapsedReceipts: const [],
+    collapsedCount: 0,
+    liftedReceiptIds: {for (final r in candidates) r.id},
+  );
+}
+
+int _invitePromptPinSort(AttentionReceipt a, AttentionReceipt b) {
+  final byTime = b.createdAt.compareTo(a.createdAt);
+  if (byTime != 0) return byTime;
+  return b.id.compareTo(a.id);
+}
+
+class InvitePromptPinPlacement {
+  const InvitePromptPinPlacement({
+    required this.pinnedReceipts,
+    required this.collapsedReceipts,
+    required this.collapsedCount,
+    required this.liftedReceiptIds,
+  });
+
+  final List<AttentionReceipt> pinnedReceipts;
+  final List<AttentionReceipt> collapsedReceipts;
+  final int collapsedCount;
+  final Set<String> liftedReceiptIds;
 }

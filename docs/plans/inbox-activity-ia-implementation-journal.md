@@ -214,3 +214,11 @@ The worker's own entry above correctly deferred the browser integration suite (t
 
 **Net for UNIT 14's own acceptance**: 5 genuine passes, 2 confirmed pre-existing/plan-sequencing gaps with no code fix owed to this unit, 1 inconclusive due to environment resource limits, 0 regressions found in any code this plan has shipped. UNIT 14 is accepted on this basis.
 REMAINING: re-run `request_lifecycle_closed_to_archive_test.dart` after UNIT 21 ships; opportunistically re-attempt `witness_admission_forward_band_test.dart` later in this session or at UNIT 25's acceptance walk.
+
+## UNIT 15 — complete — 2026-09-10
+COMMITS: 244ae0777 feat(client): pin fresh invite prompts
+TESTS: `cd packages/client && flutter pub get --offline` — ok; `cd packages/client && flutter gen-l10n` — ok; `cd packages/client && flutter test test/features/updates/` — 85 passed; `./scripts/check-custom-lints.sh packages/client` — pass.
+FILES: packages/client/lib/features/updates/ui/widget/updates_feed_pane.dart; packages/client/lib/features/updates/ui/widget/prompt_batch_sheet.dart (new); packages/client/lib/ui/test_ids.dart; packages/client/l10n/app_en.arb; packages/client/l10n/app_ru.arb; packages/client/test/features/updates/prompt_pinning_test.dart (new); docs/plans/inbox-activity-ia-implementation-journal.md
+FINDINGS: none
+DECISIONS: none
+REMAINING: none

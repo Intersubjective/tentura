@@ -2121,6 +2121,15 @@
       }
     }
   },
+  "activityPromptCollapsedBatch": "{count, plural, one{1 человек присоединился по вашим приглашениям — настройте доступ} few{{count} человека присоединились по вашим приглашениям — настройте доступ} many{{count} человек присоединились по вашим приглашениям — настройте доступ} other{{count} человек присоединились по вашим приглашениям — настройте доступ}}",
+  "@activityPromptCollapsedBatch": {
+    "context": "UpdatesFeedPane",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "inboxTabNeedsMe": "Ждёт меня",
   "@inboxTabNeedsMe": {
     "context": "InboxScreen"
