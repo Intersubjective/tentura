@@ -55,7 +55,6 @@ void main() {
           helpOfferedNonArchived: const [],
           obligationBeacons: [(beacon: beacon, viewerArchived: false)],
           archivedCountHint: 0,
-          lastItemDiscussionMessageAtByBeaconId: const {},
         );
       final attentionRepo = StubAttentionRepository()
         ..obligationBeaconIds = {'both'};
@@ -95,7 +94,6 @@ void main() {
           helpOfferedNonArchived: const [],
           obligationBeacons: [(beacon: beacon, viewerArchived: false)],
           archivedCountHint: 0,
-          lastItemDiscussionMessageAtByBeaconId: const {},
         );
       final cubit = MyWorkCubit(
         userId: 'user-1',
@@ -124,7 +122,6 @@ void main() {
           helpOfferedNonArchived: const [],
           obligationBeacons: [(beacon: beacon, viewerArchived: false)],
           archivedCountHint: 0,
-          lastItemDiscussionMessageAtByBeaconId: const {},
         );
       final attentionRepo = StubAttentionRepository()
         ..obligationBeaconIds = {'both'};
@@ -146,7 +143,6 @@ void main() {
         helpOfferedNonArchived: const [],
         obligationBeacons: const [],
         archivedCountHint: 1,
-        lastItemDiscussionMessageAtByBeaconId: const {},
       );
       await cubit.fetch(showLoading: false);
       expect(cubit.state.isSuccess, isTrue);
@@ -163,7 +159,6 @@ void main() {
           helpOfferedNonArchived: const [],
           obligationBeacons: [(beacon: beacon, viewerArchived: false)],
           archivedCountHint: 0,
-          lastItemDiscussionMessageAtByBeaconId: const {},
         );
       final attentionRepo = StubAttentionRepository()
         ..obligationBeaconIds = {'both'};
@@ -183,7 +178,6 @@ void main() {
         helpOfferedNonArchived: const [],
         obligationBeacons: [(beacon: beacon, viewerArchived: true)],
         archivedCountHint: 1,
-        lastItemDiscussionMessageAtByBeaconId: const {},
       );
       await cubit.fetch(showLoading: false);
       expect(cubit.state.isSuccess, isTrue);

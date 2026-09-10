@@ -1,6 +1,3 @@
-import 'package:tentura/domain/entity/coordination_item.dart';
-import 'package:tentura/features/coordination_item/data/model/coordination_item_model.dart';
-
 import '../../domain/entity/request_thread.dart';
 import '../gql/_g/beacon_threads_list.data.gql.dart';
 
@@ -35,58 +32,12 @@ ThreadMessagePreview mapThreadMessagePreview(
   );
 }
 
-CoordinationItem mapEmbeddedThreadItem(
-  GBeaconThreadsListData_beaconThreads_item item,
-) =>
-    coordinationItemFromFields(
-      id: item.id,
-      beaconId: item.beaconId,
-      kind: item.kind,
-      status: item.status,
-      source: item.source,
-      published: item.published,
-      title: item.title,
-      body: item.body,
-      creatorId: item.creatorId,
-      targetPersonId: item.targetPersonId,
-      acceptedById: item.acceptedById,
-      targetItemId: item.targetItemId,
-      targetMessageId: item.targetMessageId,
-      linkedMessageId: item.linkedMessageId,
-      linkedParentItemId: item.linkedParentItemId,
-      createdAt: item.createdAt,
-      updatedAt: item.updatedAt,
-      resolvedAt: item.resolvedAt,
-      cancelledAt: item.cancelledAt,
-      staleAt: item.staleAt,
-      lastRemindedAt: item.lastRemindedAt,
-      staleAfterDays: item.staleAfterDays,
-      messageCount: item.messageCount,
-      unreadCount: item.unreadCount,
-      lastSeenAt: item.lastSeenAt,
-    );
-
 DateTime? _parseOptionalDate(String? raw) =>
     raw == null || raw.isEmpty ? null : DateTime.parse(raw);
-
-void _assertGeneralItemInvariant({
-  required String threadId,
-  required CoordinationItem? item,
-}) {
-  final isGeneral = threadId == RequestThread.generalId;
-  if (isGeneral && item != null) {
-    throw StateError('General thread must not carry an embedded item');
-  }
-  if (!isGeneral && item == null) {
-    throw StateError('Semantic thread must carry an embedded item');
-  }
-}
 
 extension type const RequestThreadRowModel(GBeaconThreadsListData_beaconThreads i)
     implements GBeaconThreadsListData_beaconThreads {
   RequestThread toEntity() {
-    final item = i.item == null ? null : mapEmbeddedThreadItem(i.item!);
-    _assertGeneralItemInvariant(threadId: i.threadId, item: item);
     final preview = i.lastMessagePreview;
     return RequestThread(
       threadId: i.threadId,
@@ -98,7 +49,7 @@ extension type const RequestThreadRowModel(GBeaconThreadsListData_beaconThreads 
       lastMessageAuthorId: i.lastMessageAuthorId,
       lastMessagePreview:
           preview == null ? null : mapThreadMessagePreview(preview),
-      item: item,
+      item: null,
     );
   }
 }

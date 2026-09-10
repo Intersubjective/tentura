@@ -67,12 +67,6 @@ abstract class CoordinationItemRepositoryPort {
     required int excerptCharacters,
   });
 
-  /// Latest item-discussion message time per beacon (active items only).
-  Future<Map<String, DateTime>> lastCoordinationItemMessageAtByBeaconIds({
-    required List<String> beaconIds,
-    required String viewerUserId,
-  });
-
   /// Supersedes open root plans and creates a new root plan item.
   Future<CoordinationItemRecord> publishRootPlan({
     required String beaconId,

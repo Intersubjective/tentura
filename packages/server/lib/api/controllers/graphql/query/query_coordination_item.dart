@@ -1,9 +1,9 @@
 import 'package:tentura_server/domain/port/beacon_room_repository_port.dart';
-import 'package:tentura_server/domain/entity/coordination_item_with_counts.dart';
 import 'package:tentura_server/domain/port/coordination_item_repository_port.dart';
 import 'package:tentura_server/domain/use_case/coordination_item/coordination_responsibility_case.dart';
 import 'package:tentura_server/domain/use_case/coordination_item/coordination_room_access.dart';
 
+import 'coordination_item_maps.dart';
 import '../custom_types.dart';
 import '../gql_nodel_base.dart';
 import '../input/_input_types.dart';
@@ -34,7 +34,6 @@ final class QueryCoordinationItem extends GqlNodeBase {
 
   List<GraphQLObjectField<dynamic, dynamic>> get all => [
         coordinationItemsByBeacon,
-        myWorkCoordinationItemActivity,
         coordinationResponsibilityBatch,
         coordinationMyResponsibilityItems,
       ];
@@ -73,33 +72,6 @@ final class QueryCoordinationItem extends GqlNodeBase {
             rootOnly: _rootOnly.fromArgs(args) ?? false,
           );
           return items.map(coordinationItemWithCountsToMap).toList();
-        },
-      );
-
-  GraphQLObjectField<dynamic, dynamic> get myWorkCoordinationItemActivity =>
-      GraphQLObjectField(
-        'myWorkCoordinationItemActivity',
-        GraphQLListType(
-          gqlTypeMyWorkBeaconCoordinationActivityRow.nonNullable(),
-        ),
-        arguments: [_beaconIds.field],
-        resolve: (_, args) async {
-          final viewerUserId = getCredentials(args).sub;
-          final beaconIds = _beaconIds.fromArgsNonNullable(args);
-          final byBeacon = await _itemRepository
-              .lastCoordinationItemMessageAtByBeaconIds(
-            beaconIds: beaconIds,
-            viewerUserId: viewerUserId,
-          );
-          return beaconIds
-              .map(
-                (id) => {
-                  'beaconId': id,
-                  'lastCoordinationItemMessageAt':
-                      byBeacon[id]?.toUtc().toIso8601String(),
-                },
-              )
-              .toList();
         },
       );
 
@@ -149,36 +121,3 @@ final class QueryCoordinationItem extends GqlNodeBase {
       );
 }
 
-Map<String, Object?> coordinationItemWithCountsToMap(
-  CoordinationItemWithCounts row,
-) {
-  final item = row.item;
-  return {
-    'id': item.id,
-    'beaconId': item.beaconId,
-    'kind': item.kind,
-    'status': item.status,
-    'title': item.title,
-    'body': item.body,
-    'creatorId': item.creatorId,
-    'targetPersonId': item.targetPersonId,
-    'acceptedById': item.acceptedById,
-    'targetItemId': item.targetItemId,
-    'targetMessageId': item.targetMessageId,
-    'linkedMessageId': item.linkedMessageId,
-    'linkedParentItemId': item.linkedParentItemId,
-    'ordering': item.ordering,
-    'createdAt': item.createdAt.toIso8601String(),
-    'updatedAt': item.updatedAt.toIso8601String(),
-    'resolvedAt': item.resolvedAt?.toIso8601String(),
-    'cancelledAt': item.cancelledAt?.toIso8601String(),
-    'staleAt': item.staleAt?.toIso8601String(),
-    'lastRemindedAt': item.lastRemindedAt?.toIso8601String(),
-    'staleAfterDays': item.staleAfterDays,
-    'source': item.source,
-    'published': item.published,
-    'messageCount': row.messageCount,
-    'unreadCount': row.unreadCount,
-    'lastSeenAt': row.lastSeenAt?.toUtc().toIso8601String(),
-  };
-}

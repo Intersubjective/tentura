@@ -1031,47 +1031,6 @@ ORDER BY (tb.thread_id = 'general') DESC,
   }
 
   @override
-  Future<Map<String, DateTime>> lastCoordinationItemMessageAtByBeaconIds({
-    required List<String> beaconIds,
-    required String viewerUserId,
-  }) async {
-    if (beaconIds.isEmpty) {
-      return const {};
-    }
-    // Aggregates only scalars drift can read from customSelect (int/bigint).
-    // Timestamptz columns must use typed table reads (see beacon_mapper .dateTime).
-    final rows = await _db.customSelect(
-      r'''
-      SELECT ci.beacon_id AS beacon_id,
-        floor(extract(epoch from max(brm.created_at)) * 1000)::bigint
-          AS last_at_ms
-      FROM coordination_item ci
-      INNER JOIN beacon_room_message brm ON brm.thread_item_id = ci.id
-      WHERE ci.beacon_id = ANY($1::text[])
-        AND ci.kind <> $5
-        AND ci.status IN ($3, $4)
-        AND (ci.published = true OR ci.creator_id = $2)
-      GROUP BY ci.beacon_id
-      ''',
-      variables: [
-        Variable(TypedValue(Type.textArray, beaconIds)),
-        Variable<String>(viewerUserId),
-        const Variable<int>(coordinationItemStatusOpen),
-        const Variable<int>(coordinationItemStatusAccepted),
-        const Variable<int>(coordinationItemKindPlan),
-      ],
-    ).get();
-
-    return {
-      for (final row in rows)
-        row.read<String>('beacon_id'): DateTime.fromMillisecondsSinceEpoch(
-          row.read<int>('last_at_ms'),
-          isUtc: true,
-        ),
-    };
-  }
-
-  @override
   Future<CoordinationItemRecord> publishRootPlan({
     required String beaconId,
     required String creatorId,

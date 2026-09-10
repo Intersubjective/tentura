@@ -50,7 +50,6 @@ void main() {
           id: beaconId,
           myProfile: myProfile,
           beaconViewCase: case_,
-          coordinationItemCase: const FakeCoordinationItemCaseForRoom(),
           effects: effects,
         );
         addTearDown(cubit.close);
@@ -83,7 +82,6 @@ void main() {
         id: beaconId,
         myProfile: myProfile,
         beaconViewCase: case_,
-        coordinationItemCase: const FakeCoordinationItemCaseForRoom(),
         effects: FakeUiEffectPort(),
       );
       addTearDown(cubit.close);
@@ -125,7 +123,6 @@ void main() {
         id: beaconId,
         myProfile: myProfile,
         beaconViewCase: case_,
-        coordinationItemCase: const FakeCoordinationItemCaseForRoom(),
         effects: FakeUiEffectPort(),
       );
       addTearDown(cubit.close);
@@ -183,7 +180,6 @@ void main() {
         id: beaconId,
         myProfile: myProfile,
         beaconViewCase: case_,
-        coordinationItemCase: const FakeCoordinationItemCaseForRoom(),
         effects: FakeUiEffectPort(),
       );
       addTearDown(cubit.close);
@@ -219,7 +215,6 @@ void main() {
         id: beaconId,
         myProfile: myProfile,
         beaconViewCase: case_,
-        coordinationItemCase: const FakeCoordinationItemCaseForRoom(),
         effects: FakeUiEffectPort(),
       );
       addTearDown(cubit.close);
@@ -249,7 +244,6 @@ void main() {
           id: beaconId,
           myProfile: myProfile,
           beaconViewCase: case_,
-          coordinationItemCase: const FakeCoordinationItemCaseForRoom(),
           effects: effects,
         );
         addTearDown(cubit.close);
@@ -284,7 +278,6 @@ void main() {
           id: beaconId,
           myProfile: myProfile,
           beaconViewCase: case_,
-          coordinationItemCase: const FakeCoordinationItemCaseForRoom(),
           effects: effects,
         );
         addTearDown(cubit.close);
@@ -319,7 +312,6 @@ void main() {
           id: beaconId,
           myProfile: myProfile,
           beaconViewCase: case_,
-          coordinationItemCase: const FakeCoordinationItemCaseForRoom(),
           effects: effects,
         );
         addTearDown(cubit.close);
@@ -339,39 +331,6 @@ void main() {
     );
 
     test(
-      'responsibility mark-seen denial does not surface error for loaded beacon',
-      () async {
-        final effects = FakeUiEffectPort();
-        final beaconRepo = TrackingBeaconRepository()
-          ..fetchByIdHandler = (_) async => readableBeacon();
-        final case_ = buildTestBeaconViewCase(beaconRepo: beaconRepo);
-        final cubit = BeaconViewCubit(
-          id: beaconId,
-          myProfile: myProfile,
-          beaconViewCase: case_,
-          coordinationItemCase: const FakeCoordinationItemCaseForRoom(
-            markItemsSeenException: RemoteApiException(
-              'You must be an admitted beacon participant',
-            ),
-          ),
-          effects: effects,
-        );
-        addTearDown(cubit.close);
-
-        await pumpUntil(
-          cubit.stream,
-          () => cubit.state.beaconContentLoaded,
-        );
-        await Future<void>.delayed(const Duration(milliseconds: 50));
-
-        expect(cubit.state.beacon.id, beaconId);
-        expect(cubit.state.beaconContentLoaded, isTrue);
-        expect(cubit.state.status, isA<StateIsSuccess>());
-        expect(effects.emitted.whereType<ShowError>(), isEmpty);
-      },
-    );
-
-    test(
       'matching same-actor invalidation silently replaces beacon truth',
       () async {
         var current = readableBeacon();
@@ -383,7 +342,6 @@ void main() {
           id: beaconId,
           myProfile: myProfile,
           beaconViewCase: buildTestBeaconViewCase(beaconRepo: beaconRepo),
-          coordinationItemCase: const FakeCoordinationItemCaseForRoom(),
           effects: effects,
         );
         addTearDown(cubit.close);
@@ -408,7 +366,6 @@ void main() {
         id: beaconId,
         myProfile: myProfile,
         beaconViewCase: buildTestBeaconViewCase(beaconRepo: beaconRepo),
-        coordinationItemCase: const FakeCoordinationItemCaseForRoom(),
         effects: FakeUiEffectPort(),
       );
       addTearDown(cubit.close);
@@ -436,7 +393,6 @@ void main() {
         id: beaconId,
         myProfile: myProfile,
         beaconViewCase: buildTestBeaconViewCase(beaconRepo: beaconRepo),
-        coordinationItemCase: const FakeCoordinationItemCaseForRoom(),
         effects: FakeUiEffectPort(),
       );
       addTearDown(cubit.close);
@@ -470,7 +426,6 @@ void main() {
           beaconRepo: beaconRepo,
           realtimeSyncCase: realtime.case_,
         ),
-        coordinationItemCase: const FakeCoordinationItemCaseForRoom(),
         effects: FakeUiEffectPort(),
       );
       addTearDown(cubit.close);
@@ -504,7 +459,6 @@ void main() {
             coordinationRepo: coordination,
             realtimeSyncCase: realtime.case_,
           ),
-          coordinationItemCase: const FakeCoordinationItemCaseForRoom(),
           effects: FakeUiEffectPort(),
         );
         addTearDown(cubit.close);
@@ -545,7 +499,6 @@ void main() {
           id: beaconId,
           myProfile: myProfile,
           beaconViewCase: buildTestBeaconViewCase(beaconRepo: beaconRepo),
-          coordinationItemCase: const FakeCoordinationItemCaseForRoom(),
           effects: effects,
         );
         addTearDown(cubit.close);

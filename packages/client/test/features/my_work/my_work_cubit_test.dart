@@ -61,7 +61,6 @@ void main() {
         helpOfferedNonArchived: const [],
         obligationBeacons: const [],
         archivedCountHint: 0,
-        lastItemDiscussionMessageAtByBeaconId: const {},
       );
     final cubit = MyWorkCubit(
       userId: 'user-1',

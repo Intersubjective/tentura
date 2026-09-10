@@ -125,7 +125,7 @@ void main() {
     expect(rows.first.lastMessagePreview?.excerpt, 'hello');
     expect(rows.last.threadId, 'item-ask');
     expect(rows.last.kind, RequestThreadKind.ask);
-    expect(rows.last.item?.title, 'Need review');
+    expect(rows.last.item, isNull);
   });
 
   test('BeaconThreadsList maps null server list to empty list', () async {

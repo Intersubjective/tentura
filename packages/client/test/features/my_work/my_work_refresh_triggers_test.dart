@@ -28,7 +28,6 @@ MyWorkInitResult _initWithObligation(Beacon beacon) => (
   helpOfferedNonArchived: const [],
   obligationBeacons: [(beacon: beacon, viewerArchived: false)],
   archivedCountHint: 0,
-  lastItemDiscussionMessageAtByBeaconId: const <String, DateTime>{},
 );
 
 MyWorkInitResult _initWithoutObligation() => (
@@ -36,7 +35,6 @@ MyWorkInitResult _initWithoutObligation() => (
   helpOfferedNonArchived: const [],
   obligationBeacons: const [],
   archivedCountHint: 0,
-  lastItemDiscussionMessageAtByBeaconId: const <String, DateTime>{},
 );
 
 class _TrackingAttentionRepository extends StubAttentionRepository {

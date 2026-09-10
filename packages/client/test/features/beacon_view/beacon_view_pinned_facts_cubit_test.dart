@@ -57,7 +57,6 @@ void main() {
         id: beaconId,
         myProfile: myProfile,
         beaconViewCase: case_,
-        coordinationItemCase: const FakeCoordinationItemCaseForRoom(),
         effects: FakeUiEffectPort(),
       );
 
@@ -200,7 +199,6 @@ void main() {
       id: beaconId,
       myProfile: myProfile,
       beaconViewCase: case_,
-      coordinationItemCase: const FakeCoordinationItemCaseForRoom(),
       effects: effects,
     );
     addTearDown(cubit.close);
@@ -242,7 +240,6 @@ void main() {
       id: beaconId,
       myProfile: myProfile,
       beaconViewCase: case_,
-      coordinationItemCase: const FakeCoordinationItemCaseForRoom(),
       effects: effects,
     );
     addTearDown(cubit.close);

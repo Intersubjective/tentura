@@ -22,9 +22,7 @@ import 'package:tentura/features/beacon_view/domain/pinned_facts.dart';
 import 'package:tentura/features/beacon_view/ui/util/beacon_hud_derivation.dart';
 import 'package:tentura/ui/widget/hud_labeled_multiline.dart';
 import 'package:tentura/ui/widget/beacon_hud_row_lead.dart';
-import 'package:tentura/features/beacon_view/ui/widget/coordination_item_composer_sheet.dart';
 import 'package:tentura/app/router/root_router.dart';
-import 'package:tentura/features/coordination_item/ui/widget/ask_composer_fields.dart';
 
 import '../bloc/room_cubit.dart';
 import '../coordination_room_navigation.dart';
@@ -334,7 +332,6 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
         !isThreadMode &&
         linkedItem == null &&
         !_suppressesRichMessageActions(message);
-    final canCreatePromise = _roomCanCreatePromise(cubit);
     final hasBodyText = message.body.trim().isNotEmpty;
     unawaited(
       showModalBottomSheet<void>(
@@ -461,22 +458,6 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
                             );
                           },
                         ),
-                        if (canCreatePromise)
-                          ListTile(
-                            leading: const Icon(Icons.front_hand_outlined),
-                            title: Text(
-                              l10n.coordinationCreatePromiseFromMessage,
-                            ),
-                            onTap: () {
-                              Navigator.pop(ctx);
-                              _openCoordinationComposerFromMessage(
-                                context,
-                                cubit,
-                                message,
-                                CoordinationItemKind.promise,
-                              );
-                            },
-                          ),
                         ListTile(
                           leading: const Icon(Icons.edit_note_outlined),
                           title: Text(
@@ -809,16 +790,6 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
     return myParticipant.roomAccess == RoomAccessBits.admitted;
   }
 
-  bool _isAuthorOrSteward(RoomCubit cubit) {
-    final myUserId = cubit.state.myUserId;
-    final myRole = cubit.state.participants
-        .where((p) => p.userId == myUserId)
-        .firstOrNull
-        ?.role;
-    return myRole == BeaconParticipantRoleBits.author ||
-        myRole == BeaconParticipantRoleBits.steward;
-  }
-
   void _openChildRequestComposerFromMessage(
     BuildContext context,
     RoomCubit cubit,
@@ -830,43 +801,6 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
           parentBeaconId: cubit.state.beaconId,
           sourceMessageId: message.id,
         ),
-      ),
-    );
-  }
-
-  void _openCoordinationComposerFromMessage(
-    BuildContext context,
-    RoomCubit cubit,
-    RoomMessage message,
-    CoordinationItemKind kind,
-  ) {
-    final myUserId = cubit.state.myUserId;
-    unawaited(
-      showCoordinationItemComposerSheet(
-        context,
-        kind: kind,
-        beaconId: cubit.state.beaconId,
-        participants: cubit.state.participants,
-        participantsLoaded: cubit.state.participantsLoaded,
-        participantsUpdates: cubit.stream.map(
-          (s) => (
-            participants: s.participants,
-            loaded: s.participantsLoaded,
-          ),
-        ),
-        beaconAuthorId: widget.beaconAuthorId,
-        myUserId: myUserId,
-        isAuthorOrSteward: _isAuthorOrSteward(cubit),
-        seed: AskComposerSeed.fromMessage(
-          messageId: message.id,
-          messageBody: message.body,
-        ),
-        useRootNavigator: true,
-        enableDrag: false,
-        onSaved: () {
-          unawaited(cubit.load());
-          widget.onCoordinationSaved?.call();
-        },
       ),
     );
   }

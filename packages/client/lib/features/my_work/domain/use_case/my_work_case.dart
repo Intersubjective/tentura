@@ -13,7 +13,6 @@ import 'package:tentura/features/beacon/data/repository/beacon_repository.dart';
 import 'package:tentura/features/beacon_threads/data/repository/beacon_room_hints_repository.dart';
 import 'package:tentura/features/beacon_threads/domain/entity/beacon_room_invalidation.dart';
 import 'package:tentura/features/beacon_threads/domain/use_case/beacon_threads_case.dart';
-import 'package:tentura/features/coordination_item/domain/use_case/coordination_item_case.dart';
 import 'package:tentura/features/forward/data/repository/forward_repository.dart';
 import 'package:tentura/features/forward/domain/entity/help_offer_event.dart';
 import 'package:tentura/features/inbox/domain/entity/inbox_room_card_hints.dart';
@@ -37,7 +36,6 @@ final class MyWorkCase extends UseCaseBase {
     this._archiveRepository,
     this._forwardRepository,
     this._beaconRepository,
-    this._coordinationItemCase,
     this._beaconRoomCase,
     this._roomHints,
     this._deskPreferences,
@@ -58,8 +56,6 @@ final class MyWorkCase extends UseCaseBase {
   final ForwardRepository _forwardRepository;
 
   final BeaconRepository _beaconRepository;
-
-  final CoordinationItemCase _coordinationItemCase;
 
   final BeaconThreadsCase _beaconRoomCase;
 
@@ -132,15 +128,11 @@ final class MyWorkCase extends UseCaseBase {
     final obligationBeacons = _obligationsGateEnabled
         ? init.obligationBeacons
         : const <MyWorkObligationRow>[];
-    final nonArchived =
-        buildNonArchivedViewModels(
-          authoredNonArchived: init.authoredNonArchived,
-          helpOfferedNonArchived: init.helpOfferedNonArchived,
-          obligationBeacons: obligationBeacons,
-        ).map((c) {
-          final at = init.lastItemDiscussionMessageAtByBeaconId[c.beaconId];
-          return at == null ? c : c.copyWith(lastCoordinationItemMessageAt: at);
-        }).toList();
+    final nonArchived = buildNonArchivedViewModels(
+      authoredNonArchived: init.authoredNonArchived,
+      helpOfferedNonArchived: init.helpOfferedNonArchived,
+      obligationBeacons: obligationBeacons,
+    );
     final enriched = await _enrichDeskCards(nonArchived);
     final finishedArchiveHintDismissed = await _deskPreferences
         .isFinishedArchiveHintDismissed(userId: userId);
@@ -210,34 +202,6 @@ final class MyWorkCase extends UseCaseBase {
     ];
   }
 
-  Future<List<MyWorkCardViewModel>> attachResponsibilityCounts(
-    List<MyWorkCardViewModel> cards, {
-    Map<String, InboxRoomCardHints>? roomHints,
-  }) async {
-    if (cards.isEmpty) {
-      return cards;
-    }
-    final ids = roomHints == null
-        ? cards.map((c) => c.beaconId).toList()
-        : [
-            for (final c in cards)
-              if (roomHints[c.beaconId]?.isRoomMember ?? false) c.beaconId,
-          ];
-    if (ids.isEmpty) {
-      return cards;
-    }
-    final byBeacon = await _coordinationItemCase.fetchResponsibilityBatch(
-      ids,
-    );
-    return [
-      for (final card in cards)
-        if (byBeacon.containsKey(card.beaconId))
-          card.copyWith(youResponsibility: byBeacon[card.beaconId])
-        else
-          card,
-    ];
-  }
-
   Future<List<MyWorkCardViewModel>> _enrichDeskCards(
     List<MyWorkCardViewModel> cards,
   ) async {
@@ -248,11 +212,7 @@ final class MyWorkCase extends UseCaseBase {
     final hints = await _roomHints.fetchByBeaconIds(
       withLastEvents.map((c) => c.beaconId),
     );
-    final withResponsibility = await attachResponsibilityCounts(
-      withLastEvents,
-      roomHints: hints,
-    );
-    final withHints = _applyRoomInboxSubtitles(withResponsibility, hints);
+    final withHints = _applyRoomInboxSubtitles(withLastEvents, hints);
     return _attachDisplayStatuses(withHints);
   }
 
@@ -312,5 +272,4 @@ final class MyWorkCase extends UseCaseBase {
         }(),
     ];
   }
-
 }

@@ -169,7 +169,6 @@ void main() {
           helpOfferedNonArchived: const [],
         obligationBeacons: const [],
           archivedCountHint: 0,
-          lastItemDiscussionMessageAtByBeaconId: const {},
         );
     });
 
@@ -220,7 +219,6 @@ void main() {
         helpOfferedNonArchived: const [],
         obligationBeacons: const [],
         archivedCountHint: 0,
-        lastItemDiscussionMessageAtByBeaconId: const {},
       );
 
       beaconRepo.emitChange(
@@ -391,7 +389,6 @@ void main() {
           helpOfferedNonArchived: const [],
         obligationBeacons: const [],
           archivedCountHint: 0,
-          lastItemDiscussionMessageAtByBeaconId: const {},
         );
 
       final cubit = MyWorkCubit(userId: 'u1', myWorkCase: buildCase());
@@ -408,7 +405,6 @@ void main() {
         helpOfferedNonArchived: const [],
         obligationBeacons: const [],
         archivedCountHint: 0,
-        lastItemDiscussionMessageAtByBeaconId: const {},
       );
 
       beaconRepo
@@ -514,7 +510,6 @@ void main() {
           helpOfferedNonArchived: const [],
         obligationBeacons: const [],
           archivedCountHint: 0,
-          lastItemDiscussionMessageAtByBeaconId: const {},
         );
 
         beaconRepo.emitChange(

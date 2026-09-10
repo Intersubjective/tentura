@@ -48,7 +48,6 @@ void main() {
             forward: forward,
             beaconRepo: beaconRepo,
           ),
-          coordinationItemCase: const FakeCoordinationItemCaseForRoom(),
           effects: effects,
         );
         addTearDown(cubit.close);
@@ -86,7 +85,6 @@ void main() {
             forward: forward,
             beaconRepo: beaconRepo,
           ),
-          coordinationItemCase: const FakeCoordinationItemCaseForRoom(),
           effects: effects,
         );
         addTearDown(cubit.close);

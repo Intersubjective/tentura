@@ -68,7 +68,6 @@ List<GraphQLType<dynamic, dynamic>> get customTypes => [
   gqlTypeCoordinationItemRow,
   gqlTypeCoordinationResponsibilityBatchRow,
   gqlTypeBeaconItemsSeenResult,
-  gqlTypeMyWorkBeaconCoordinationActivityRow,
   gqlTypeMyWorkLastActivityEventRow,
   gqlTypeThreadMessagePreview,
   gqlTypeBeaconThreadRow,
@@ -1139,14 +1138,6 @@ final gqlTypeBeaconItemsSeenResult =
         field('seenAt', graphQLString.nonNullable()),
       ]);
 
-/// Per-beacon latest active item-discussion activity (My Work dot).
-final gqlTypeMyWorkBeaconCoordinationActivityRow =
-    GraphQLObjectType('MyWorkBeaconCoordinationActivityRow', null)
-      ..fields.addAll([
-        field('beaconId', graphQLString.nonNullable()),
-        field('lastCoordinationItemMessageAt', graphQLString),
-      ]);
-
 /// Last-message preview for a thread list row (single object, never a union).
 final gqlTypeThreadMessagePreview =
     GraphQLObjectType('ThreadMessagePreview', null)
@@ -1176,7 +1167,6 @@ final gqlTypeBeaconThreadRow = GraphQLObjectType('BeaconThreadRow', null)
     field('lastMessageAt', graphQLString),
     field('lastMessageAuthorId', graphQLString),
     field('lastMessagePreview', gqlTypeThreadMessagePreview),
-    field('item', gqlTypeCoordinationItemRow),
   ]);
 
 final gqlTypeMyWorkLastActivityEventRow =

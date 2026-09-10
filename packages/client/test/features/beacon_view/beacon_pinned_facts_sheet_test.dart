@@ -71,7 +71,6 @@ void main() {
       id: beaconId,
       myProfile: me,
       beaconViewCase: case_,
-      coordinationItemCase: const FakeCoordinationItemCaseForRoom(),
       effects: FakeUiEffectPort(),
     );
     await pumpUntil(cubit.stream, () => cubit.state.beaconContextLoaded);
@@ -269,7 +268,6 @@ void main() {
         id: beaconId,
         myProfile: author,
         beaconViewCase: case_,
-        coordinationItemCase: const FakeCoordinationItemCaseForRoom(),
         effects: FakeUiEffectPort(),
       );
       await pumpUntil(c.stream, () => c.state.beaconContextLoaded);

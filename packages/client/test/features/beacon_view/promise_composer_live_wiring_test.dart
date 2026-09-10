@@ -177,7 +177,6 @@ void main() {
         id: beaconId,
         myProfile: authorProfile,
         beaconViewCase: case_,
-        coordinationItemCase: const FakeCoordinationItemCaseForRoom(),
         effects: FakeUiEffectPort(),
       );
       addTearDown(cubit.close);

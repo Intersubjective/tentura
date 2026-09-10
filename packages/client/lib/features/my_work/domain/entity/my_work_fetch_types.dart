@@ -33,9 +33,6 @@ typedef MyWorkInitResult = ({
   List<MyWorkHelpOfferedRow> helpOfferedNonArchived,
   List<MyWorkObligationRow> obligationBeacons,
   int archivedCountHint,
-
-  /// Latest message on active coordination items per beacon (V2).
-  Map<String, DateTime> lastItemDiscussionMessageAtByBeaconId,
 });
 
 /// Result of My Work fetch archived (full archived rows).

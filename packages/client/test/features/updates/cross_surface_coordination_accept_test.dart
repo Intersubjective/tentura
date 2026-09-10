@@ -7,24 +7,19 @@ import 'package:tentura_root/domain/entity/beacon_status.dart';
 import 'package:tentura/domain/attention/attention_case.dart';
 import 'package:tentura/domain/attention/entity/attention_feed.dart';
 import 'package:tentura/domain/attention/feed_session_registry.dart';
-import 'package:tentura/domain/attention/feed_session_registry.dart';
-import 'package:tentura/domain/attention/entity/attention_feed.dart';
 import 'package:tentura/domain/attention/entity/attention_receipt.dart';
 import 'package:tentura/domain/attention/entity/attention_summary.dart';
 import 'package:tentura/domain/attention/port/attention_account_port.dart';
 import 'package:tentura/domain/attention/port/attention_repository_port.dart';
 import 'package:tentura/domain/entity/beacon.dart';
-import 'package:tentura/domain/entity/coordination_responsibility.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/domain/entity/realtime/realtime_entity_change.dart';
 import 'package:tentura/features/beacon_threads/domain/entity/beacon_room_invalidation.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_cubit.dart';
 import 'package:tentura/features/my_work/ui/bloc/my_work_cubit.dart';
 
-import '../beacon_threads/fake_coordination_item_case.dart';
 import '../beacon_view/beacon_view_case_test_support.dart';
 import '../beacon_view/beacon_view_initial_load_test.dart';
-import '../beacon_view/beacon_view_you_responsibility_test.dart';
 import '../block/support/controllable_block_case.dart';
 import '../my_work/my_work_test_support.dart';
 import '../../support/test_realtime_sync.dart';
@@ -76,7 +71,6 @@ void main() {
           helpOfferedNonArchived: const [],
         obligationBeacons: const [],
           archivedCountHint: 0,
-          lastItemDiscussionMessageAtByBeaconId: const {},
         );
       final myWorkCase = buildTestMyWorkCase(
         repo: myWorkRepo,
@@ -95,14 +89,10 @@ void main() {
         roomRepo: beaconViewRoom,
         realtimeSyncCase: sync.case_,
       );
-      final coordination = TrackingCoordinationItemCase(
-        responsibility: CoordinationResponsibility(beaconId: beaconId),
-      );
       final beaconViewCubit = BeaconViewCubit(
         id: beaconId,
         myProfile: myProfile,
         beaconViewCase: beaconViewCase,
-        coordinationItemCase: coordination,
         effects: FakeUiEffectPort(),
       );
       addTearDown(beaconViewCubit.close);
@@ -117,7 +107,6 @@ void main() {
 
       final fetchesBefore = repository.fetchCalls;
       final deskFetchesBefore = myWorkRepo.fetchInitCallCount;
-      final responsibilityBefore = coordination.fetchResponsibilityCalls;
 
       sync.port.emitChange(
         const RealtimeEntityChange(
@@ -170,23 +159,10 @@ void main() {
         ),
       );
 
-      coordination.responsibility = CoordinationResponsibility(
-        beaconId: beaconId,
-        askOpen: 1,
-      );
-
       await Future<void>.delayed(const Duration(milliseconds: 200));
-      await pumpUntil(
-        beaconViewCubit.stream,
-        () => coordination.fetchResponsibilityCalls > responsibilityBefore,
-      );
 
       expect(myWorkRepo.fetchInitCallCount, greaterThan(deskFetchesBefore));
-      expect(
-        coordination.fetchResponsibilityCalls,
-        greaterThan(responsibilityBefore),
-      );
-      expect(beaconViewCubit.state.youResponsibility?.askOpen, 1);
+      expect(beaconViewCubit.state.youResponsibility, isNull);
     },
   );
 }

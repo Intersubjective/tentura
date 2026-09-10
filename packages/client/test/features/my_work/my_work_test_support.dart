@@ -98,7 +98,6 @@ class FakeMyWorkRepository implements MyWorkRepository {
     helpOfferedNonArchived: const [],
     obligationBeacons: const [],
     archivedCountHint: 0,
-    lastItemDiscussionMessageAtByBeaconId: const <String, DateTime>{},
   );
 
   List<String> lastObligationBeaconIds = const [];
@@ -334,7 +333,6 @@ MyWorkCase buildTestMyWorkCase({
   FakeMyWorkDeskPreferencesPort? deskPreferences,
   FakeBeaconRepository? beaconRepo,
   FakeForwardRepository? forwardRepo,
-  FakeCoordinationItemRepository? coordinationRepo,
   FakeRoomHints? roomHints,
   FakeBeaconDisplayRepository? displayRepo,
   FakeEvaluationRepository? evaluationRepo,
@@ -347,7 +345,6 @@ MyWorkCase buildTestMyWorkCase({
   bool obligationsGateEnabled = false,
 }) {
   final hints = roomHints ?? FakeRoomHints();
-  final coordination = coordinationRepo ?? FakeCoordinationItemRepository();
   final prefs = deskPreferences ?? FakeMyWorkDeskPreferencesPort();
   final beacon = beaconRepo ?? FakeBeaconRepository();
   final forward = forwardRepo ?? FakeForwardRepository();
@@ -358,7 +355,6 @@ MyWorkCase buildTestMyWorkCase({
     FakeArchiveRepository(),
     forward,
     beacon,
-    CoordinationItemCase(coordination),
     buildTestBeaconThreadsCase(
       hints,
       watermarkStore: watermark,

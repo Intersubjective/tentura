@@ -56,7 +56,7 @@ abstract class RequestThread with _$RequestThread {
 
   const RequestThread._();
 
-  bool get isGeneral => item == null;
+  bool get isGeneral => threadId == generalId;
 
   bool get isDraft => item?.published == false;
 

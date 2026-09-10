@@ -101,7 +101,6 @@ void main() {
             (beacon: _beacon('would-appear'), viewerArchived: false),
           ],
           archivedCountHint: 0,
-          lastItemDiscussionMessageAtByBeaconId: const {},
         );
       final case_ = buildTestMyWorkCase(
         repo: repo,
@@ -131,7 +130,6 @@ void main() {
             (beacon: _beacon('obl-only'), viewerArchived: false),
           ],
           archivedCountHint: 0,
-          lastItemDiscussionMessageAtByBeaconId: const {},
         );
       final case_ = buildTestMyWorkCase(
         repo: repo,

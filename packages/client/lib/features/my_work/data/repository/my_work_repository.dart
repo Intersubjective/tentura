@@ -14,7 +14,6 @@ import 'package:tentura/domain/entity/profile.dart';
 import '../model/beacon_model_with_help_offer_users.dart';
 import '../../domain/entity/my_work_last_event.dart';
 import '../../domain/entity/my_work_fetch_types.dart';
-import '../gql/_g/my_work_coordination_activity.req.gql.dart';
 import '../gql/_g/my_work_fetch.data.gql.dart';
 import '../gql/_g/my_work_fetch.req.gql.dart';
 import '../gql/_g/my_work_last_activity_event.req.gql.dart';
@@ -45,12 +44,6 @@ class MyWorkRepository {
         .timeout(_kNetworkTimeout)
         .firstWhere((e) => e.dataSource == DataSource.Link);
     final d = r.dataOrThrow(label: _label);
-    final beaconIds = <String>{
-      for (final e in d.authoredNonArchived) e.id,
-      for (final e in d.helpOfferedNonArchived) e.beacon.id,
-      for (final e in d.obligationBeacons) e.id,
-    }.toList();
-    final itemActivity = await _fetchItemDiscussionActivity(beaconIds);
     return (
       authoredNonArchived: d.authoredNonArchived
           .map((e) => BeaconModelWithHelpOfferUsers(e).toEntity())
@@ -63,35 +56,7 @@ class MyWorkRepository {
         return (beacon: beacon, viewerArchived: viewerArchived);
       }).toList(),
       archivedCountHint: d.archivedIdHints.length,
-      lastItemDiscussionMessageAtByBeaconId: itemActivity,
     );
-  }
-
-  Future<Map<String, DateTime>> _fetchItemDiscussionActivity(
-    List<String> beaconIds,
-  ) async {
-    if (beaconIds.isEmpty) {
-      return const {};
-    }
-    final r = await _remoteApiService
-        .request(
-          GMyWorkCoordinationItemActivityReq(
-            (b) => b.vars.beaconIds.replace(beaconIds),
-          ),
-        )
-        .timeout(_kNetworkTimeout)
-        .firstWhere((e) => e.dataSource == DataSource.Link);
-    final rows =
-        r.dataOrThrow(label: _label).myWorkCoordinationItemActivity?.toList() ??
-        const [];
-    final out = <String, DateTime>{};
-    for (final row in rows) {
-      final at = row.lastCoordinationItemMessageAt;
-      if (at != null && at.isNotEmpty) {
-        out[row.beaconId] = DateTime.parse(at);
-      }
-    }
-    return out;
   }
 
   Future<Map<String, MyWorkLastEvent?>> fetchLastActivityEventsByBeaconId(

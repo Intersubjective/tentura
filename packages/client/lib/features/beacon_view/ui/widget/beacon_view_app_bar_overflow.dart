@@ -15,7 +15,6 @@ import 'package:tentura/features/beacon_threads/ui/bloc/room_cubit.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/beacon_room_body.dart'
     show showBeaconRoomUpdatePlanSheet;
 import 'package:tentura/features/beacon_threads/ui/widget/beacon_room_poll_sheet.dart';
-import 'package:tentura/features/beacon_view/ui/widget/coordination_item_composer_sheet.dart';
 import 'package:tentura/features/beacon_view/ui/widget/coordination_target_candidates.dart';
 import 'package:tentura/features/beacon_view/ui/presenter/beacon_hud_author_action.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_cubit.dart';
@@ -280,28 +279,7 @@ VoidCallback? beaconViewRoomCreatePromiseAction({
   required VoidCallback onSaved,
   required bool inRoomSurface,
 }) {
-  if (!inRoomSurface || !canShowCreatePromise(state)) return null;
-  return () => unawaited(
-        showCoordinationItemComposerSheet(
-          context,
-          kind: CoordinationItemKind.promise,
-          beaconId: beaconId,
-          participants: state.roomParticipants,
-          participantsLoaded: state.roomParticipantsLoaded,
-          participantsUpdates: beaconViewCubit.stream.map(
-            (s) => (
-              participants: s.roomParticipants,
-              loaded: s.roomParticipantsLoaded,
-            ),
-          ),
-          beaconAuthorId: state.beacon.author.id,
-          myUserId: state.myProfile.id,
-          isAuthorOrSteward: state.isAuthorOrSteward,
-          useRootNavigator: true,
-          enableDrag: false,
-          onSaved: onSaved,
-        ),
-      );
+  return null;
 }
 
 VoidCallback? beaconViewRoomCreatePollAction({

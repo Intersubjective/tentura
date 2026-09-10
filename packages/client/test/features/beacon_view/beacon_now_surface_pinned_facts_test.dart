@@ -118,7 +118,6 @@ void main() {
       id: beaconId,
       myProfile: myProfile,
       beaconViewCase: case_,
-      coordinationItemCase: const FakeCoordinationItemCaseForRoom(),
       effects: FakeUiEffectPort(),
     );
     addTearDown(cubit.close);

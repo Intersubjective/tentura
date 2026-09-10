@@ -5,7 +5,7 @@ import 'package:tentura_server/domain/use_case/beacon_room_case.dart';
 import '../custom_types.dart';
 import '../gql_nodel_base.dart';
 import '../input/_input_types.dart';
-import 'query_coordination_item.dart';
+import 'coordination_item_maps.dart';
 
 final class QueryBeaconRoom extends GqlNodeBase {
   QueryBeaconRoom({BeaconRoomCase? beaconRoomCase})
@@ -165,9 +165,6 @@ Map<String, Object?> beaconThreadRecordToMap(BeaconThreadRecord row) {
             'factTitle': preview.factTitle,
             'factVisibility': preview.factVisibility,
           },
-    'item': row.item == null
-        ? null
-        : coordinationItemWithCountsToMap(row.item!),
   };
 }
 

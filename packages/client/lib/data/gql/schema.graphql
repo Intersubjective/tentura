@@ -4862,7 +4862,6 @@ type query_root {
   myContacts: [v2_UserContact!]
   myPrivateLabelsForUser(subjectUserId: String!): [String!]
   myRoutingTags: [String!]!
-  myWorkCoordinationItemActivity(beaconIds: [String!]): [v2_MyWorkBeaconCoordinationActivityRow!]
   myWorkLastActivityEvent(beaconIds: [String!]): [v2_MyWorkLastActivityEventRow!]
 
   """
@@ -7143,7 +7142,6 @@ type v2_BeaconStatusResult {
 }
 
 type v2_BeaconThreadRow {
-  item: v2_CoordinationItemRow
   lastMessageAt: String
   lastMessageAuthorId: String
   lastMessagePreview: v2_ThreadMessagePreview
@@ -7506,11 +7504,6 @@ type v2_MyForwardRecipient {
   readAt: String
   recipientId: String!
   recipientRejected: Boolean!
-}
-
-type v2_MyWorkBeaconCoordinationActivityRow {
-  beaconId: String!
-  lastCoordinationItemMessageAt: String
 }
 
 type v2_MyWorkLastActivityEventRow {

@@ -67,6 +67,10 @@ class EvaluationRepositoryMock extends Mock implements EvaluationRepository {}
 class CoordinationRepositoryMock extends Mock
     implements CoordinationRepository {}
 
+@Injectable(as: CoordinationItemRepository, env: [Environment.test], order: 1)
+class CoordinationItemRepositoryMock extends Mock
+    implements CoordinationItemRepository {}
+
 @Injectable(as: AuthLocalRepositoryPort, env: [Environment.test], order: 1)
 class AuthLocalRepositoryMock extends Mock implements AuthLocalRepositoryPort {}
 
@@ -145,7 +149,3 @@ class FcmRemoteRepositoryMock extends Mock implements FcmRemoteRepositoryPort {}
 )
 class EmailTestRemoteRepositoryMock extends Mock
     implements EmailTestRemoteRepositoryPort {}
-
-@Injectable(as: CoordinationItemRepository, env: [Environment.test], order: 1)
-class CoordinationItemRepositoryMock extends Mock
-    implements CoordinationItemRepository {}

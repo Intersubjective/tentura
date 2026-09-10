@@ -16,10 +16,6 @@ import 'package:tentura/ui/widget/beacon_involved_people_face_pile.dart';
 import 'package:tentura/ui/widget/coordination_item_presenter.dart';
 import 'package:tentura/ui/widget/coordination_item_card_chrome.dart';
 
-import 'package:tentura/features/coordination_item/ui/bloc/item_actions_cubit.dart';
-import 'package:tentura/features/coordination_item/ui/bloc/item_actions_state.dart';
-import 'package:tentura/features/coordination_item/ui/widget/coordination_item_overflow_menu.dart';
-
 /// User-facing title when a semantic thread row has no item title yet.
 String threadTitleFallback(L10n l10n, RequestThread thread) {
   if (thread.isGeneral) {
@@ -92,11 +88,13 @@ class ThreadDetailColumnChrome extends StatelessWidget {
   const ThreadDetailColumnChrome({
     required this.onBack,
     required this.titleFallback,
+    required this.thread,
     super.key,
   });
 
   final VoidCallback onBack;
   final String titleFallback;
+  final RequestThread thread;
 
   @override
   Widget build(BuildContext context) {
@@ -132,15 +130,12 @@ class ThreadDetailColumnChrome extends StatelessWidget {
                 ),
               ),
               Expanded(
-                child: BlocBuilder<ItemActionsCubit, ItemActionsState>(
-                  buildWhen: (p, c) => p.item != c.item,
-                  builder: (context, state) => ThreadDetailTitle(
-                    fallback: titleFallback,
-                    item: state.item,
-                  ),
+                child: ThreadDetailTitle(
+                  fallback: titleFallback,
+                  item: thread.item,
+                  kind: thread.kind,
                 ),
               ),
-              const ThreadDetailOverflowAction(),
             ],
           ),
         ),
@@ -232,24 +227,45 @@ class ThreadDetailTitle extends StatelessWidget {
   const ThreadDetailTitle({
     required this.fallback,
     required this.item,
+    required this.kind,
     super.key,
   });
 
   final String fallback;
-  final CoordinationItem item;
+  final CoordinationItem? item;
+  final RequestThreadKind kind;
 
   @override
   Widget build(BuildContext context) {
     final l10n = L10n.of(context)!;
-    final title = item.title.trim().isEmpty ? fallback : item.title.trim();
+    if (item == null) {
+      final title = switch (kind) {
+        RequestThreadKind.ask => l10n.coordinationAskCardLabel,
+        RequestThreadKind.promise => l10n.coordinationPromiseCardLabel,
+        RequestThreadKind.blocker => l10n.coordinationBlockerCardLabel,
+        RequestThreadKind.general => fallback,
+      };
+      return ThreadDetailAppBarTitle(
+        title: title,
+        subtitle: const SizedBox.shrink(),
+      );
+    }
+    final resolvedItem = item!;
+    final title = resolvedItem.title.trim().isEmpty
+        ? fallback
+        : resolvedItem.title.trim();
     final tt = context.tt;
-    final statusColor = coordinationItemColor(tt, item.kind, item.status);
-    final kindLabel = _threadItemKindLabel(l10n, item);
-    final statusLabel = coordinationItemStatusLabel(l10n, item.status);
+    final statusColor = coordinationItemColor(
+      tt,
+      resolvedItem.kind,
+      resolvedItem.status,
+    );
+    final kindLabel = _threadItemKindLabel(l10n, resolvedItem);
+    final statusLabel = coordinationItemStatusLabel(l10n, resolvedItem.status);
     final headerIcon = coordinationCompoundStatusIcon(
-      kind: item.kind,
-      status: item.status,
-      isPlanStep: item.isPlanStep,
+      kind: resolvedItem.kind,
+      status: resolvedItem.status,
+      isPlanStep: resolvedItem.isPlanStep,
       tt: tt,
       size: tt.iconSize,
     );
@@ -261,7 +277,7 @@ class ThreadDetailTitle extends StatelessWidget {
         child: ThreadDetailAppBarTitle(
           title: title,
           subtitle: _ThreadDetailTitleMetaRow(
-            item: item,
+            item: resolvedItem,
             headerIcon: headerIcon,
             kindLabel: kindLabel,
             statusLabel: statusLabel,
@@ -340,21 +356,6 @@ class _ThreadDetailTitleMetaRow extends StatelessWidget {
       bloc: roomCubit,
       buildWhen: (p, c) => p.participants != c.participants,
       builder: (context, roomState) => row(roomState.participants),
-    );
-  }
-}
-
-class ThreadDetailOverflowAction extends StatelessWidget {
-  const ThreadDetailOverflowAction({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return BlocBuilder<ItemActionsCubit, ItemActionsState>(
-      buildWhen: (p, c) => p.item != c.item || p.isLoading != c.isLoading,
-      builder: (context, state) => CoordinationItemDiscussionOverflowMenu(
-        item: state.item,
-        isLoading: state.isLoading,
-      ),
     );
   }
 }
