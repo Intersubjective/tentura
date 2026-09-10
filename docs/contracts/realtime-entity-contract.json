@@ -194,6 +194,18 @@
         "packages/client/test/features/beacon_threads/beacon_hierarchy_realtime_test.dart",
         "packages/server/test/data/repository/beacon_hierarchy_realtime_pg_test.dart"
       ]
+    },
+    {
+      "wireKind": "invite_seed_prompt",
+      "acceptedWireKinds": ["invite_seed_prompt"],
+      "clientKind": "inviteSeedPrompt",
+      "genericTriggerArgs": [],
+      "specializedPublishers": ["notify_invite_seed_prompt_state_change"],
+      "impacts": ["updates_feed"],
+      "tests": [
+        "packages/client/test/features/updates/prompt_projection_test.dart",
+        "packages/client/test/data/service/invalidation_service_test.dart"
+      ]
     }
   ]
 }
