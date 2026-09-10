@@ -262,7 +262,7 @@ REMAINING: none
 - Net effect: of the worker's reported "6 failed," one cluster (`realtime_entity_contract_test.dart`, both copies) is now fixed; the remaining 3+2 (my_work, request_threads/constellation) are confirmed pre-existing/out-of-scope and left as-is, with the my_work one specifically flagged for follow-up rather than silently accepted.
 
 ## UNIT 20 — complete — 2026-09-10
-COMMITS: (this commit, hash TBD — see next commit)
+COMMITS: d4e339b9e feat(server): admit the expired settlement kind (m0166)
 TESTS: `cd packages/server && dart pub get --offline` — ok; `cd packages/server && dart run build_runner build -d` — ok; `cd packages/server && dart test -j 1 test/domain/attention/settlement_kind_test.dart` — 3 passed, 0 skipped; `cd packages/server && dart test -t pg -j 1 test/data/database/settlement_kind_constraint_pg_test.dart` — 2 passed, 0 skipped; `./scripts/check-custom-lints.sh packages/server` — pass.
 FILES: packages/server/lib/data/database/migration/m0166.dart; packages/server/lib/data/database/migration/_migrations.dart; packages/server/lib/domain/attention/attention_models.dart; packages/server/test/domain/attention/settlement_kind_test.dart; packages/server/test/data/database/settlement_kind_constraint_pg_test.dart; docs/plans/inbox-activity-ia-implementation-journal.md
 FINDINGS: none
