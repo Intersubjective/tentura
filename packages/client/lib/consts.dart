@@ -36,6 +36,7 @@ const kQueryCredentialLinked = 'linked';
 const kPathComplaint = '/complaint';
 const kPathInbox = '/home/inbox';
 const kPathInboxRejected = '$kPathInbox/rejected';
+const kPathInboxTriage = '$kPathInbox/triage';
 const kPathUpdates = '/home/updates';
 const kPathNotifications = '/notifications';
 const kPathNotificationSettings = '/settings/notifications';

@@ -189,3 +189,11 @@ FILES: packages/client/lib/features/inbox/ui/screen/inbox_screen.dart; packages/
 FINDINGS: none
 DECISIONS: moved-nudge snackbar action is Rejected-archive only until UNIT 14/17 restore triage/Watching routes; Activity top bar uses `updatesTitle` until a later copy unit renames the branch to Activity.
 REMAINING: none. Proceed to UNIT 14.
+
+## UNIT 14 — complete — 2026-09-10
+COMMITS: (this entry's own commit, made immediately after)
+TESTS: `cd packages/client && flutter pub get --offline` — ok; `cd packages/client && flutter gen-l10n` — ok; `cd packages/client && dart run build_runner build -d` — ok; `cd packages/client && flutter test test/features/inbox/` — 38 passed; `./scripts/check-custom-lints.sh packages/client` — pass.
+FILES: packages/client/lib/features/inbox/ui/widget/inbox_triage_row.dart (new); packages/client/lib/features/inbox/ui/screen/inbox_triage_screen.dart (new); packages/client/lib/features/inbox/ui/screen/inbox_screen.dart; packages/client/lib/app/router/root_router.dart; packages/client/lib/consts.dart; packages/client/lib/ui/test_ids.dart; packages/client/l10n/app_en.arb; packages/client/l10n/app_ru.arb; packages/client/integration_test/support/e2e_test_helpers.dart; packages/client/test/features/inbox/inbox_triage_row_test.dart (new); packages/client/test/features/inbox/inbox_expanded_chrome_test.dart; docs/plans/inbox-activity-ia-implementation-journal.md
+FINDINGS: `forward_messages.dart` is listed in the plan Owns block but UNIT 14 steps do not change it (forward-success re-point is UNIT 17); left untouched. Dismissal affordances remain on `InboxTriageList` via existing `showInboxDismissDialog` / `showRejectionDialog` wiring from UNIT 13.
+DECISIONS: E2E `goToInboxTriage()` navigates directly to `$kPathInbox/triage` rather than tapping the summary row.
+REMAINING: Browser integration suite (nine lifecycle specs in the plan Verify block) has not been run in this worker environment; overseer must run `./scripts/run_client_integration_web_local.sh` with those targets before this unit is fully accepted.

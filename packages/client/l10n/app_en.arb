@@ -2121,6 +2121,15 @@
   "@inboxWatchingEmptyCalm": {
     "context": "InboxScreen"
   },
+  "activityTriageRequestsNeedResponse": "{count, plural, one{1 request needs your response} other{{count} requests need your response}}",
+  "@activityTriageRequestsNeedResponse": {
+    "context": "InboxScreen",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "inboxTabNeedsMe": "Needs me",
   "@inboxTabNeedsMe": {
     "context": "InboxScreen"

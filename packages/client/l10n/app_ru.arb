@@ -2112,6 +2112,15 @@
   "@inboxWatchingEmptyCalm": {
     "context": "InboxScreen"
   },
+  "activityTriageRequestsNeedResponse": "{count, plural, one{1 запрос ждёт вашего ответа} few{{count} запроса ждут вашего ответа} many{{count} запросов ждут вашего ответа} other{{count} запросов ждут вашего ответа}}",
+  "@activityTriageRequestsNeedResponse": {
+    "context": "InboxScreen",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "inboxTabNeedsMe": "Ждёт меня",
   "@inboxTabNeedsMe": {
     "context": "InboxScreen"

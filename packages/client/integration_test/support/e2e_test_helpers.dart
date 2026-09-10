@@ -587,6 +587,11 @@ Future<String> createAndForwardRequest(
   return title;
 }
 
+Future<void> goToInboxTriage(WidgetTester tester) async {
+  await goToPath(tester, kPathInboxTriage);
+  await tester.pumpAndSettle();
+}
+
 Future<void> offerHelpFromInbox(
   WidgetTester tester, {
   required IntegrationFixture fixture,
@@ -594,7 +599,7 @@ Future<void> offerHelpFromInbox(
   String capabilitySlug = 'software',
 }) async {
   await loginAs(tester, fixture.helperEmail);
-  await goToPath(tester, kPathInbox);
+  await goToInboxTriage(tester);
   await pumpUntilVisible(tester, find.text(requestTitle));
   await tapAndSettle(
     tester,
@@ -636,7 +641,7 @@ Future<void> openRequestFromInbox(
   WidgetTester tester, {
   required String requestTitle,
 }) async {
-  await goToPath(tester, kPathInbox);
+  await goToInboxTriage(tester);
   await tapAndSettle(tester, find.text(requestTitle).first);
 }
 

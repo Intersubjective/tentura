@@ -15,6 +15,7 @@ import 'package:tentura/features/updates/ui/widget/updates_feed_pane.dart';
 
 import '../../domain/enum.dart';
 import '../bloc/inbox_cubit.dart';
+import '../widget/inbox_triage_row.dart';
 
 @RoutePage()
 class InboxScreen extends StatefulWidget {
@@ -213,11 +214,21 @@ class _InboxFeedKeepAliveState extends State<_InboxFeedKeepAlive>
 }
 
 Widget _inboxActivityFeedBody(BuildContext context) {
-  return BlocProvider(
-    create: (_) => UpdatesFeedCubit(
-      destinationId: AttentionFeedDestinationId.activity,
-    ),
-    child: const UpdatesFeedPane(),
+  final tt = context.tt;
+  return Column(
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    children: [
+      const InboxTriageRow(),
+      SizedBox(height: tt.tightGap),
+      Expanded(
+        child: BlocProvider(
+          create: (_) => UpdatesFeedCubit(
+            destinationId: AttentionFeedDestinationId.activity,
+          ),
+          child: const UpdatesFeedPane(),
+        ),
+      ),
+    ],
   );
 }
 

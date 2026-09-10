@@ -18,6 +18,8 @@ abstract final class TestIds {
   static String forwardRecipientCheckbox(String userId) =>
       'forward.recipient.checkbox.$userId';
 
+  static const activityTriageRow = 'activity-triage-row';
+
   static const inboxOfferHelp = 'inbox.offer_help';
   static const inboxForward = 'inbox.forward';
   static const inboxDismiss = 'inbox.dismiss';

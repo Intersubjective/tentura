@@ -173,6 +173,10 @@ class RootRouter extends RootStackRouter {
       page: InboxRejectedRoute.page,
       path: kPathInboxRejected,
     ),
+    AutoRoute(
+      page: InboxTriageRoute.page,
+      path: kPathInboxTriage,
+    ),
 
     RedirectRoute(
       path: kPathUpdates,

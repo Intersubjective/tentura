@@ -23,6 +23,7 @@ import 'package:tentura/features/inbox/domain/entity/inbox_item.dart';
 import 'package:tentura/features/inbox/domain/enum.dart';
 import 'package:tentura/features/inbox/ui/bloc/inbox_cubit.dart';
 import 'package:tentura/features/inbox/ui/screen/inbox_screen.dart';
+import 'package:tentura/features/inbox/ui/widget/inbox_item_tile.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/features/updates/domain/use_case/invite_accepted_setup_case.dart';
 import 'package:tentura/features/updates/ui/widget/updates_feed_pane.dart';
@@ -258,7 +259,8 @@ void main() {
     expect(find.byType(TenturaTopBar), findsOneWidget);
     expect(find.byType(TenturaPrimaryTabBar), findsNothing);
     expect(find.byType(UpdatesFeedPane), findsOneWidget);
-    expect(find.text('Needs-me request'), findsNothing);
+    expect(find.text('Needs-me request'), findsOneWidget);
+    expect(find.byType(InboxItemTile), findsNothing);
   });
 
   testWidgets('expanded screen keeps feed body mounted', (tester) async {
