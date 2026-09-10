@@ -16,6 +16,7 @@ import 'package:tentura_server/domain/port/evaluation_repository_port.dart';
 import 'package:tentura_server/domain/port/forward_attribution_repository_port.dart';
 import 'package:tentura_server/domain/port/forward_edge_repository_port.dart';
 import 'package:tentura_server/domain/port/help_offer_repository_port.dart';
+import 'package:tentura_server/domain/port/attention_system_settlement_port.dart';
 import 'package:tentura_server/domain/port/mutating_unit_of_work_port.dart';
 import 'package:tentura_server/domain/port/review_finalization_port.dart';
 import 'package:tentura_server/domain/port/trust_evidence_repository_port.dart';
@@ -43,7 +44,8 @@ final class ReviewFinalizationCase extends UseCaseBase
     this._trustEvidenceRepository,
     this._capabilityEvidence,
     this._hierarchyRepository,
-    this._lifecycleEffects, {
+    this._lifecycleEffects,
+    this._attentionSystemSettlement, {
     required super.env,
     required super.logger,
   });
@@ -57,6 +59,7 @@ final class ReviewFinalizationCase extends UseCaseBase
   final CapabilityEvidencePort _capabilityEvidence;
   final BeaconHierarchyRepositoryPort _hierarchyRepository;
   final BeaconLifecycleEffectsCase _lifecycleEffects;
+  final AttentionSystemSettlementPort _attentionSystemSettlement;
 
   static const _outcomeEligibleRoles = {
     EvaluationParticipantRole.author,
@@ -83,6 +86,9 @@ final class ReviewFinalizationCase extends UseCaseBase
           if (snapshot == null) {
             return const ReviewFinalizationResult(didClose: false);
           }
+
+          await _attentionSystemSettlement
+              .settleReviewObligationsAfterWindowClose(beaconId);
 
           await _lifecycleEffects.recordEligibleSourceTransition(
             sourceBeaconId: beaconId,

@@ -14,6 +14,7 @@ import 'package:tentura_server/domain/port/evaluation_repository_port.dart';
 import 'package:tentura_server/domain/port/forward_attribution_repository_port.dart';
 import 'package:tentura_server/domain/port/forward_edge_repository_port.dart';
 import 'package:tentura_server/domain/port/help_offer_repository_port.dart';
+import 'package:tentura_server/domain/port/attention_system_settlement_port.dart';
 import 'package:tentura_server/domain/port/mutating_unit_of_work_port.dart';
 import 'package:tentura_server/domain/port/trust_evidence_repository_port.dart';
 import 'package:tentura_server/domain/trust/trust_evidence.dart';
@@ -117,6 +118,19 @@ final class RecordingTrustEvidence extends Fake
       forwardAlreadyRecorded;
 }
 
+final class NoopAttentionSystemSettlement extends Fake
+    implements AttentionSystemSettlementPort {
+  @override
+  Future<int> settleReviewObligationsAfterWindowClose(String beaconId) async =>
+      0;
+
+  @override
+  Future<int> supersedeReviewObligationsOnReopen(String beaconId) async => 0;
+
+  @override
+  Future<List<String>> listBeaconIdsWithClosedReviewWindows() async => [];
+}
+
 final class NoopCapabilityEvidence extends Fake implements CapabilityEvidencePort {
   @override
   Future<void> emitOutcomeEvidenceBatch({
@@ -168,6 +182,7 @@ ReviewFinalizationCase buildReviewFinalizationCase({
       capabilityEvidence ?? NoopCapabilityEvidence(),
       FakeBeaconHierarchyRepository(),
       buildLifecycleEffectsCase(outbox: outbox),
+      NoopAttentionSystemSettlement(),
       env: Env(environment: Environment.test),
       logger: Logger('ReviewFinalizationTestSupport'),
     );

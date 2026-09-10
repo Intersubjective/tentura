@@ -41,6 +41,7 @@ import 'commitment_query_case.dart';
 import 'evaluation/evaluation_draft_purger.dart';
 import 'evaluation/evaluation_participant_graph_builder.dart';
 import 'evaluation/evaluation_prompt_variant.dart';
+import 'package:tentura_server/domain/port/attention_system_settlement_port.dart';
 import 'package:tentura_server/domain/port/review_finalization_port.dart';
 import 'package:tentura_server/domain/trust/trust_bin.dart';
 import '_use_case_base.dart';
@@ -114,12 +115,14 @@ final class EvaluationCase extends UseCaseBase {
     TransactionalAttentionCase? attention,
     AttentionExpirySweepCase? attentionExpirySweep,
     ReviewFinalizationPort? reviewFinalization,
+    AttentionSystemSettlementPort? attentionSystemSettlement,
     required super.env,
     required super.logger,
   }) : _attentionIntents = attentionIntents,
        _attention = attention,
        _attentionExpirySweep = attentionExpirySweep,
-       _reviewFinalization = reviewFinalization;
+       _reviewFinalization = reviewFinalization,
+       _attentionSystemSettlement = attentionSystemSettlement;
 
   final BeaconRepositoryPort _beaconRepository;
   final ForwardEdgeRepositoryPort _forwardEdgeRepository;
@@ -129,6 +132,7 @@ final class EvaluationCase extends UseCaseBase {
   final TransactionalAttentionCase? _attention;
   final AttentionExpirySweepCase? _attentionExpirySweep;
   final ReviewFinalizationPort? _reviewFinalization;
+  final AttentionSystemSettlementPort? _attentionSystemSettlement;
   final EvaluationParticipantGraphBuilder _participantGraphBuilder;
   final EvaluationDraftPurger _draftPurger;
   final CommitmentQueryCase _commitmentQueryCase;
@@ -446,6 +450,9 @@ final class EvaluationCase extends UseCaseBase {
             beaconId,
           );
           await _evaluationRepository.deleteReviewScaffoldingForBeacon(
+            beaconId,
+          );
+          await _attentionSystemSettlement?.supersedeReviewObligationsOnReopen(
             beaconId,
           );
           await _beaconRepository.recordBeaconStatusTransition(

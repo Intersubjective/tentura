@@ -62,6 +62,8 @@ import '../../data/repository/beacon_hierarchy_pg_helpers.dart';
 import '../../domain/evaluation/evaluation_graph_test_repos.dart';
 import '../../support/beacon_hierarchy_fixture.dart';
 import '../../support/fake_user_block_repository.dart';
+import '../../support/review_finalization_test_support.dart'
+    show NoopAttentionSystemSettlement;
 
 const _standaloneBeaconId = 'Bhierstand01';
 
@@ -180,6 +182,7 @@ final class _ChildIndependenceHarness {
       CapabilityEvidenceRepository(db),
       hierarchy,
       lifecycleEffects,
+      NoopAttentionSystemSettlement(),
       env: env,
       logger: logger,
     );

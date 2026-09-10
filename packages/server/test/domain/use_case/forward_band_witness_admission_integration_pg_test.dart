@@ -146,6 +146,7 @@ Future<void> main() async {
         capEvidenceRepo,
         FakeBeaconHierarchyRepository(),
         buildLifecycleEffectsCase(),
+        NoopAttentionSystemSettlement(),
         env: env,
         logger: logger,
       );

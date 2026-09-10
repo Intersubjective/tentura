@@ -23,7 +23,13 @@ import 'package:tentura_server/env.dart';
 
 import '../../support/fake_beacon_hierarchy_repository.dart';
 import '../../support/beacon_lifecycle_effects_test_support.dart';
-import '../../support/review_finalization_test_support.dart';
+import '../../support/review_finalization_test_support.dart'
+    show
+        FakeAttribution,
+        FakeForwardEdges,
+        FakeHelpOffers,
+        NoopAttentionSystemSettlement,
+        RecordingTrustEvidence;
 
 const _beaconId = 'Bcapc2bcn001';
 const _author = 'Ucapc2author1';
@@ -72,6 +78,7 @@ Future<void> main() async {
         capEvidenceRepo,
         FakeBeaconHierarchyRepository(),
         buildLifecycleEffectsCase(),
+        NoopAttentionSystemSettlement(),
         env: target.databaseEnv,
         logger: Logger('ReviewFinalizationOutcomeEvidencePgTest'),
       );
