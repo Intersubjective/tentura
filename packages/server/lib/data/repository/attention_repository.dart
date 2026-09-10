@@ -20,6 +20,10 @@ class AttentionRepository implements AttentionQueryPort {
 
   final TenturaDb _database;
 
+  static const _authorizedReceiptJoin = '''
+FROM public.visible_attention_receipts(\$1) visible
+JOIN public.notification_outbox receipt ON receipt.id = visible.receipt_id''';
+
   @override
   Future<Set<String>> unreadForBeacons({
     required String accountId,
@@ -34,14 +38,29 @@ class AttentionRepository implements AttentionQueryPort {
     final rows = await _database
         .customSelect(
           '''SELECT DISTINCT receipt.beacon_id
-FROM public.visible_attention_receipts(\$1) visible
-JOIN public.notification_outbox receipt ON receipt.id = visible.receipt_id
+$_authorizedReceiptJoin
 WHERE receipt.seen_at IS NULL
   AND receipt.beacon_id IN ($placeholders)''',
           variables: [
             Variable<String>(accountId),
             ...ids.map(Variable<String>.new),
           ],
+        )
+        .get();
+    return {for (final row in rows) row.read<String>('beacon_id')};
+  }
+
+  @override
+  Future<Set<String>> liveObligationBeacons({
+    required String accountId,
+  }) async {
+    final rows = await _database
+        .customSelect(
+          '''SELECT DISTINCT receipt.beacon_id
+$_authorizedReceiptJoin
+WHERE receipt.requires_action
+  AND receipt.settlement_kind IS NULL''',
+          variables: [Variable<String>(accountId)],
         )
         .get();
     return {for (final row in rows) row.read<String>('beacon_id')};

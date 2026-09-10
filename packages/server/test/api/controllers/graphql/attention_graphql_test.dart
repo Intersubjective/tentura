@@ -72,6 +72,16 @@ class _FakeQuery implements AttentionQueryPort {
     this.beaconIds = beaconIds;
     return beaconIds.where((id) => id == 'B1').toSet();
   }
+
+  Set<String> liveObligationBeaconIds = const {'B2', 'B1'};
+
+  @override
+  Future<Set<String>> liveObligationBeacons({
+    required String accountId,
+  }) async {
+    this.accountId = accountId;
+    return liveObligationBeaconIds;
+  }
 }
 
 class _FakeAck implements AttentionAckPort {
@@ -204,6 +214,16 @@ void main() {
       );
     },
   );
+
+  test('liveObligationBeacons scopes to the authenticated account', () async {
+    final query = _FakeQuery();
+    final field = QueryAttention(
+      query: query,
+    ).all.singleWhere((field) => field.name == 'liveObligationBeacons');
+
+    expect(await field.resolve!(null, auth), ['B1', 'B2']);
+    expect(query.accountId, 'U1');
+  });
 
   test('attentionMarkers scopes and bounds candidate Beacon ids', () async {
     final query = _FakeQuery();

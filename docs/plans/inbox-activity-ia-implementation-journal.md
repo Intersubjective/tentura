@@ -60,3 +60,11 @@ FILES: `docs/plans/inbox-activity-ia-implementation-journal.md` (new)
 FINDINGS: worktree generated code was stale (never built in this worktree); sandboxed shell needs `dart pub get --offline` before any `dart test`/`dart run build_runner` invocation, else it hangs/fails on a network fetch unrelated to this plan.
 DECISIONS: none beyond the plan's own text.
 REMAINING: none. Proceed to UNIT 01.
+
+## UNIT 01 — complete — 2026-09-10
+COMMITS: (this entry's own commit, made immediately after)
+TESTS: `cd packages/server && dart pub get --offline`; `dart run build_runner build -d`; `dart test -t pg -j 1 test/data/repository/attention_live_obligations_pg_test.dart` — 5 passed, 0 skipped; `./scripts/check-custom-lints.sh packages/server` — pass.
+FILES: packages/server/lib/domain/port/attention_query_port.dart; packages/server/lib/data/repository/attention_repository.dart; packages/server/lib/api/controllers/graphql/query/query_attention.dart; packages/server/test/api/controllers/graphql/attention_graphql_test.dart; packages/server/test/domain/attention/legacy_canonical_compat_fixture_test.dart; packages/server/test/data/repository/attention_live_obligations_pg_test.dart; docs/plans/inbox-activity-ia-implementation-journal.md
+FINDINGS: none
+DECISIONS: extracted `_authorizedReceiptJoin` SQL fragment so `unreadForBeacons` and `liveObligationBeacons` share one authorization join path.
+REMAINING: none. Proceed to UNIT 02.

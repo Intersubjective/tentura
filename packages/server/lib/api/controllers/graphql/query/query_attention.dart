@@ -17,7 +17,20 @@ final class QueryAttention extends GqlNodeBase {
   List<GraphQLObjectField<dynamic, dynamic>> get all => [
     attentionFeed,
     attentionMarkers,
+    liveObligationBeacons,
   ];
+
+  GraphQLObjectField<dynamic, dynamic> get liveObligationBeacons =>
+      GraphQLObjectField(
+        'liveObligationBeacons',
+        GraphQLListType(graphQLString.nonNullable()).nonNullable(),
+        resolve: (_, args) async {
+          final beaconIds = await _query.liveObligationBeacons(
+            accountId: getCredentials(args).sub,
+          );
+          return beaconIds.toList()..sort();
+        },
+      );
 
   GraphQLObjectField<dynamic, dynamic> get attentionMarkers =>
       GraphQLObjectField(
