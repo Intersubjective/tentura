@@ -1,6 +1,6 @@
 # Inbox → Activity: information architecture — architectural proposal
 
-Status: architectural proposal, revision 7. Not an implementation plan. No application, API, schema, or data changes are authorized by this document alone.
+Status: architectural proposal, revision 8. Not an implementation plan. No application, API, schema, or data changes are authorized by this document alone.
 
 Date: 2026-09-10. Repository baseline inspected: `c6b24012d`, plus this branch.
 
@@ -155,10 +155,23 @@ The overflow entry must therefore be specified as a genuine collection entry poi
 | Watching-only, not admitted | the Request with title, author and its last known status transition — no room content, because none is authorized |
 | notifications muted, or preference-suppressed | the Request, unchanged. Preferences filter receipts; they do not filter Inbox rows, which is exactly why the collection must not be receipt-derived |
 | Request closed or gone quiet | the Request with its terminal status, until the viewer stops watching or the tombstone rules of §4.5 apply |
+| content authorization lost (block, or discoverability withdrawn) | **the Request leaves the collection** |
 
-Each row carries Stop watching, Forward, Dismiss and Offer help, as today (`inbox_screen.dart:839-859`). A Request never silently disappears from this list because of a permission or preference change — only the viewer's own Stop watching, or the Request's lifecycle, removes it.
+Each row carries Stop watching, Forward, Dismiss and Offer help, as today (`inbox_screen.dart:839-859`).
+
+**Preference changes never remove an entry; authorization loss does, and that is correct.** Rev 7 promised that nothing but the viewer's own Stop watching could remove a Request. That overreached: `InboxFetch` filters rows by `beacon: {can_read_content: {_eq: true}}` (`inbox_fetch.graphql:6`), and that permission is denied for blocked pairs and made conditional for discoverability-derived access (`m0162.dart:15,37-43`). Deriving membership from Inbox rows fixes *preference* filtering; it does not confer presentation authorization.
+
+The alternative — a separately authorized restricted projection that keeps showing a title after access is gone — is rejected. It would be a new server contract in service of showing someone metadata about a Request they may no longer see, which is the wrong side of a blocking decision to err on. A blocked pair losing sight of each other's Requests is intended behaviour, not a regression.
 
 **4.8 Loading and failure are per-source.** Inbox already distinguishes an unloaded projection from a successful empty one (`inbox_state.dart:18-25`), and its current initial load can replace the whole body with a spinner (`inbox_screen.dart:169`). Here the triage row, the prompts and the feed load and fail independently: an unavailable pending count must never render as inbox-zero, and must never block an available feed.
+
+**Prompt state is tri-state, which resolves an apparent conflict.** Pinning needs prompt state before placement is decided, yet prompts must not be able to block the feed. Both hold once the projection is explicitly **unknown / known / failed**:
+
+- the feed renders immediately from receipts alone, every prompt receipt in its **chronological** position;
+- placement is decided only for prompts whose state is *known*; unknown or failed is simply not a pinning candidate;
+- when state arrives, placement is recomputed and pinned rows lift out.
+
+A slow or failed prompt fetch therefore degrades to today's behaviour — the row sits in the feed and the card resolves its own state, as it already does (`invite_accepted_receipt_card.dart:104-119`) — instead of delaying the feed. A prompt is never rendered as *not pending* merely because its state is unknown.
 
 ## 5. Prompt-class rules
 
@@ -169,7 +182,7 @@ Each row carries Stop watching, Forward, Dismiss and Offer help, as today (`inbo
 
    The wire type carries only `inviterUserId, inviteeUserId, state, slugs` (`custom_types.dart:1010-1019`) and the table only adds `updatedAt`; there is no `staleAt`, and **none is being added**. Staleness changes no state, no count, and nothing the user can do — it reorders one row. Two devices disagreeing for a few hours about whether a prompt is still pinned costs nothing: the prompt is actionable in both. A schema column, migration and wire change to synchronise a cosmetic ordering decision is disproportionate.
 
-   **What does differ between devices, stated precisely.** Rev 4 claimed staleness "changes no state, no count, and nothing the user can do". Domain state and the badge are indeed untouched, but the observable surface is not: with three prompts pending and one at the 7-day boundary, device A sees three fresh and pins two with an overflow row reading `N = 1`, while device B sees two fresh, pins both, and shows no overflow row at all (§5.5). The pinned pair itself can differ. Per-prompt actions remain available in both (`invite_accepted_receipt_card.dart:123-162`); it is the batch entry point that diverges.
+   **What does differ between devices, stated precisely.** Rev 4 claimed staleness "changes no state, no count, and nothing the user can do". Domain state and the badge are indeed untouched, but the observable surface is not: with three prompts pending and one at the 7-day boundary, device A counts three fresh and therefore shows **the collapsed row with `N = 3` and no pins**, while device B counts two fresh and shows **two pinned rows and no collapsed row** (§5.5). The two devices sit on opposite sides of the mode switch, not merely one row apart. Per-prompt actions remain available in both (`invite_accepted_receipt_card.dart:123-162`); it is the batch entry point that appears and disappears.
 
    This is accepted, not overlooked: every prompt stays actionable on every device, and the divergence self-resolves as the boundary passes. What is owed is a definition of pin ordering, of the population `N` counts, and of when the boundary is recomputed — all three settled in §5.5.1 — not a `staleAt` column.
 
@@ -180,7 +193,7 @@ Each row carries Stop watching, Forward, Dismiss and Offer help, as today (`inbo
 
 ### 5.5.1 Pin ordering, `N`, and the staleness boundary
 
-- **Ordering.** Pinned prompts sort by `receipt.createdAt` descending — newest first, matching the feed around them. No secondary key is needed: the prompt table is keyed per invitee (§2.3), so two rows cannot share a subject.
+- **Ordering.** Pinned prompts sort by **`(receipt.createdAt DESC, receipt.id DESC)`** — newest first, with the same tiebreak the feed itself uses (`attention_repository.dart:118`). Rev 7 argued no secondary key was needed because invitees are unique; that confuses two things. `primaryKey => {inviteeUserId}` (`invite_seed_prompt_state.dart:24`) makes *subjects* unique, not *timestamps* — two acceptances landing in the same clock tick would otherwise order nondeterministically between refreshes.
 - **Population of `N`.** `N` counts **all** fresh pending prompts, not an overflow remainder, which follows from the two modes being exclusive. Three fresh prompts read `3 people joined…`, not `1 more`.
 - **Boundary recomputation.** Freshness is evaluated when the feed is built and on app resume — not on a timer. A prompt crossing the 7-day line while the user is looking at it does not rearrange the screen under them; it demotes the next time the feed is built. This bounds the cross-device divergence of §5.4 to "until one of them rebuilds", and makes the divergence a display race rather than a state disagreement.
 
@@ -326,6 +339,12 @@ Withdrawn from revision 6:
 26. **"50 consecutive fresh invite-accepts is not a state this product produces."** Nothing enforces that — no quota, no bulk endpoint, no collapse (§5.7).
 27. **"Step 3 is four client changes."** It is a shipping gate that must also deliver the destination view, its settlement actions and per-destination sessions (implementation plan §1).
 
+Withdrawn from revision 7:
+
+28. **"Only the viewer's own Stop watching removes a Watching entry."** `InboxFetch` filters by `can_read_content`; authorization loss removes it, and should (§4.7).
+29. **"Three fresh prompts give two pins and an overflow row of 1."** The modes are exclusive; three gives a collapsed row of 3 and no pins (§5.4, §5.5).
+30. **"Invitee uniqueness makes a secondary sort key unnecessary."** It makes subjects unique, not timestamps (§5.5.1).
+
 ## 11. Open questions
 
 Nothing is outstanding that blocks implementation. Rev 7 closed the two that were: pin ordering and `N` (§5.5.1), and the Watching case enumeration (§4.7).
@@ -349,11 +368,12 @@ What remains is optional or belongs to a later change:
 | rev 5 | cursor-agent / Grok 4.6 Fast | **not performed** — ran without error but emitted no output; retry abandoned (token cost) |
 | rev 5 | codex / Astra | **REJECT** — 1 blocking, 7 major, 1 minor |
 | rev 6 | codex / Astra | **REJECT** — 4 high, 4 medium; all completeness or cross-document, none contesting the design |
-| rev 7 | — | not yet reviewed |
+| rev 7 | codex / Astra | reviewed as rev 7 (the rev 8 header bump was lost to a concurrent branch switch) — **ADOPT WITH CHANGES**, 1 high, 3 medium, 1 low |
+| rev 8 | — | not yet reviewed |
 
 **The rev 5 row is empty for budget reasons, not for lack of findings.** Three reviewers refused on an account-wide monthly cap and a fourth produced nothing; none of them read the document and declined to comment. An empty cell here carries no evidence either way, and rev 5 should not be treated as having survived a peer pass merely because the table has no findings under it.
 
-Across seven passes the **spine has never been contested**: the feed as the branch body, triage as a bounded summary above it, obligations belonging to My Work, Watching as a Request collection, prompts placed rather than counted. Every rejection has been of a supporting mechanic or a justification, and in three cases of a factual claim about the codebase that turned out to be false.
+Across eight passes the **spine has never been contested**: the feed as the branch body, triage as a bounded summary above it, obligations belonging to My Work, Watching as a Request collection, prompts placed rather than counted. Every rejection has been of a supporting mechanic or a justification, and in three cases of a factual claim about the codebase that turned out to be false.
 
 The rev 4 pass was the most damaging so far, because it invalidated reasoning rather than detail:
 
