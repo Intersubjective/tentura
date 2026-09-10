@@ -156,3 +156,11 @@ FILES: packages/server/lib/domain/port/invite_seed_prompt_port.dart; packages/se
 FINDINGS: `dart run build_runner build -d` regenerates `invite_seed_resolver_mocks.mocks.dart` for the port growth; Mockito still compiles without committing that file.
 DECISIONS: batch authorization omits blocked/unauthorized/unknown subjects (same predicate as `_authorizeInviter`, without throwing); GraphQL clamps `subjectIds` to 100 per call.
 REMAINING: none. Proceed to UNIT 11.
+
+## UNIT 11 — complete — 2026-09-10
+COMMITS: (this entry's own commit, made immediately after)
+TESTS: `cd packages/server && dart pub get --offline`; `cd packages/server && dart run build_runner build -d`; `cd packages/server && dart test -t pg -j 1 test/domain/use_case/invite_prompt_invalidation_pg_test.dart` — 4 passed, 0 skipped; `./scripts/check-custom-lints.sh packages/server` — pass.
+FILES: packages/server/lib/data/database/migration/m0165.dart; packages/server/lib/data/database/migration/_migrations.dart; packages/server/lib/domain/use_case/invite_seed_attestation_case.dart; packages/server/test/domain/use_case/invite_prompt_invalidation_pg_test.dart; docs/plans/inbox-activity-ia-implementation-journal.md
+FINDINGS: none
+DECISIONS: added `emit_realtime_entity_change_strict` (failure-propagating sibling of `emit_realtime_entity_change`) for prompt invalidation; trigger fires on `invite_seed_prompt_state` state changes only.
+REMAINING: none. Proceed to UNIT 12.

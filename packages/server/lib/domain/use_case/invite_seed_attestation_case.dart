@@ -140,9 +140,14 @@ final class InviteSeedAttestationCase extends UseCaseBase {
     required String subjectId,
   }) async {
     await _authorizeInviter(actorId: actorId, subjectId: subjectId);
-    await _inviteSeedPrompt.markSkipped(
-      inviterId: actorId,
-      inviteeId: subjectId,
+    await _unitOfWork.run(
+      actorUserId: actorId,
+      action: () async {
+        await _inviteSeedPrompt.markSkipped(
+          inviterId: actorId,
+          inviteeId: subjectId,
+        );
+      },
     );
   }
 
