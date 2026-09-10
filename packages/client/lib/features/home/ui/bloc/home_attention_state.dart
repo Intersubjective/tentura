@@ -13,6 +13,7 @@ abstract class HomeAttentionState with _$HomeAttentionState {
   const factory HomeAttentionState({
     @Default({}) Set<String> inboxBeaconIds,
     @Default(0) int inboxTriageCount,
+    @Default(0) int myWorkObligationCount,
     @Default({}) Set<String> myWorkBeaconIds,
     @Default({}) Set<String> unreadBeaconIds,
     @Default(false) bool inboxLoaded,
@@ -57,4 +58,8 @@ abstract class HomeAttentionState with _$HomeAttentionState {
 
   bool get hasMyWorkDot =>
       activeHomeTab != HomeTab.work && myWorkMarkerIds.isNotEmpty;
+
+  /// Live obligation receipt count for the My Work nav badge (not unseen-based).
+  bool get showMyWorkObligationBadge =>
+      activeHomeTab != HomeTab.work && myWorkObligationCount > 0;
 }

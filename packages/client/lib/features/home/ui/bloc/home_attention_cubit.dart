@@ -7,6 +7,7 @@ import 'package:logging/logging.dart';
 
 import 'package:tentura/app/router/home_tab_branches.dart';
 import 'package:tentura/domain/attention/attention_case.dart';
+import 'package:tentura/domain/attention/entity/attention_summary.dart';
 import 'package:tentura/domain/attention/port/attention_account_port.dart';
 
 import 'home_attention_state.dart';
@@ -21,10 +22,18 @@ export 'home_attention_state.dart';
 /// markers so stale UI state cannot manufacture activity.
 @singleton
 final class HomeAttentionCubit extends Cubit<HomeAttentionState> {
-  HomeAttentionCubit(this._attention, this._account, this._logger)
-    : super(const HomeAttentionState()) {
+  HomeAttentionCubit(AttentionCase attention, this._account, this._logger)
+    : _attention = attention,
+      super(
+        HomeAttentionState(
+          myWorkObligationCount: attention.snapshot.summary.needsYouTotal,
+        ),
+      ) {
     _accountSub = _account.currentAccountChanges.listen(_onAccountChanged);
     _attentionSub = _attention.feedPages.listen((_) => _invalidateMarkers());
+    _obligationSummarySub = _attention.unreadSummary.listen(
+      _onObligationSummary,
+    );
   }
 
   static const _maxIdsPerRequest = 500;
@@ -35,6 +44,7 @@ final class HomeAttentionCubit extends Cubit<HomeAttentionState> {
 
   late final StreamSubscription<String> _accountSub;
   late final StreamSubscription<Object?> _attentionSub;
+  late final StreamSubscription<AttentionSummary> _obligationSummarySub;
 
   String _accountId = '';
   int _accountGeneration = 0;
@@ -116,7 +126,18 @@ final class HomeAttentionCubit extends Cubit<HomeAttentionState> {
     _accountGeneration++;
     _projectionGeneration++;
     _refreshQueued = false;
-    emit(HomeAttentionState(activeHomeTab: state.activeHomeTab));
+    emit(
+      HomeAttentionState(
+        activeHomeTab: state.activeHomeTab,
+        myWorkObligationCount: 0,
+      ),
+    );
+  }
+
+  void _onObligationSummary(AttentionSummary summary) {
+    final count = summary.needsYouTotal;
+    if (state.myWorkObligationCount == count) return;
+    emit(state.copyWith(myWorkObligationCount: count));
   }
 
   void _invalidateMarkers() {
@@ -214,6 +235,7 @@ final class HomeAttentionCubit extends Cubit<HomeAttentionState> {
   Future<void> close() async {
     await _accountSub.cancel();
     await _attentionSub.cancel();
+    await _obligationSummarySub.cancel();
     return super.close();
   }
 }

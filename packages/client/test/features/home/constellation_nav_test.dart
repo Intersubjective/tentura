@@ -137,7 +137,7 @@ PageInfo _labelPage(String name, String label) => PageInfo(
 
 Future<void> _settle([int turns = 8]) async {
   for (var i = 0; i < turns; i++) {
-    await Future<void>.delayed(Duration.zero);
+    await Future<void>.microtask(() {});
   }
 }
 
@@ -162,6 +162,11 @@ Future<HomeAttentionCubit> _seedAttentionCubit({
   repository.unread = {'inbox-b1', 'work-b1'};
   accounts.emit('U1');
   await _settle();
+  cubit.reportInboxTriageCount(
+    accountId: 'U1',
+    triageCount: 1,
+    loaded: true,
+  );
   cubit.reportInboxSnapshot(
     accountId: 'U1',
     beaconIds: {'inbox-b1'},
@@ -535,7 +540,7 @@ void main() {
 
           expect(
             _navItemShowsBadge(tester, find.byType(MyWorkNavbarItem)),
-            isTrue,
+            isFalse,
           );
           expect(
             _navItemShowsBadge(tester, find.byType(InboxNavbarItem)),

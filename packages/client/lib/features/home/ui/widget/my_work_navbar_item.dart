@@ -3,7 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'package:tentura/features/home/ui/bloc/home_attention_cubit.dart';
 
-/// My Work tab icon with an attention-derived activity dot.
+/// My Work tab icon with a live-obligation count badge.
 class MyWorkNavbarItem extends StatelessWidget {
   const MyWorkNavbarItem({super.key, this.selected = false});
 
@@ -11,14 +11,18 @@ class MyWorkNavbarItem extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) =>
-      BlocSelector<HomeAttentionCubit, HomeAttentionState, bool>(
-        selector: (state) => state.hasMyWorkDot,
-        builder: (context, show) {
+      BlocSelector<HomeAttentionCubit, HomeAttentionState, int>(
+        selector: (state) =>
+            state.showMyWorkObligationBadge ? state.myWorkObligationCount : 0,
+        builder: (context, count) {
           final scheme = Theme.of(context).colorScheme;
+          final icon = Icon(selected ? Icons.work : Icons.work_outline);
+          if (count <= 0) return icon;
           return Badge(
-            isLabelVisible: show,
+            label: Text('$count'),
+            isLabelVisible: true,
             backgroundColor: scheme.primary,
-            child: Icon(selected ? Icons.work : Icons.work_outline),
+            child: icon,
           );
         },
       );

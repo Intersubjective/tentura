@@ -29,6 +29,7 @@ final class _Accounts implements AttentionAccountPort {
 
 final class _Repository implements AttentionRepositoryPort {
   Set<String> unread = const {};
+  int needsYouTotal = 0;
   bool failMarkers = false;
   final markerQueries = <Set<String>>[];
   final pendingMarkers = <Completer<Set<String>>>[];
@@ -39,9 +40,9 @@ final class _Repository implements AttentionRepositoryPort {
     String? cursor,
     String? search,
     int limit = 50,
-  }) async => const AttentionFeed(
-    summary: AttentionSummary(),
-    page: AttentionFeedPage(),
+  }) async => AttentionFeed(
+    summary: AttentionSummary(needsYouTotal: needsYouTotal),
+    page: const AttentionFeedPage(),
   );
 
   @override
@@ -71,7 +72,7 @@ final class _Repository implements AttentionRepositoryPort {
 
 Future<void> _settle([int turns = 8]) async {
   for (var i = 0; i < turns; i++) {
-    await Future<void>.delayed(Duration.zero);
+    await Future<void>.microtask(() {});
   }
 }
 
@@ -202,6 +203,31 @@ void main() {
       expect(home.state.inboxMarkerIds, isEmpty);
     },
   );
+
+  test('tracks live obligation count from account-wide unreadSummary', () async {
+    repository.needsYouTotal = 3;
+    final attentionWithFeed = attention;
+    attentionWithFeed.attachFeedSession(
+      AttentionFeedDestinationId.myWorkObligations,
+    );
+    attentionWithFeed.setActiveView(
+      AttentionFeedDestinationId.myWorkObligations,
+      AttentionView.needsYou,
+    );
+    accounts.emit('U1');
+    await attentionWithFeed.refresh(
+      destinationId: AttentionFeedDestinationId.myWorkObligations,
+    );
+    await _settle(20);
+    final obligationHome = HomeAttentionCubit(
+      attentionWithFeed,
+      accounts,
+      Logger('home-attention-test-obligations'),
+    );
+
+    expect(obligationHome.state.myWorkObligationCount, 3);
+    unawaited(obligationHome.close());
+  });
 
   test('chunks the candidate union at the server request bound', () async {
     accounts.emit('U1');
