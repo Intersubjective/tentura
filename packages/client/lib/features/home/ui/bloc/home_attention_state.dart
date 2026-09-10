@@ -12,6 +12,7 @@ part 'home_attention_state.freezed.dart';
 abstract class HomeAttentionState with _$HomeAttentionState {
   const factory HomeAttentionState({
     @Default({}) Set<String> inboxBeaconIds,
+    @Default(0) int inboxTriageCount,
     @Default({}) Set<String> myWorkBeaconIds,
     @Default({}) Set<String> unreadBeaconIds,
     @Default(false) bool inboxLoaded,
@@ -45,6 +46,14 @@ abstract class HomeAttentionState with _$HomeAttentionState {
 
   bool get hasInboxDot =>
       activeHomeTab != HomeTab.inbox && inboxMarkerIds.isNotEmpty;
+
+  /// Needs-me triage count for the Activity nav badge (Watching excluded).
+  bool get showInboxTriageBadge =>
+      activeHomeTab != HomeTab.inbox && inboxLoaded && inboxTriageCount > 0;
+
+  /// Unread marker dot when no pending triage items are shown on the icon.
+  bool get showInboxUnreadDot =>
+      inboxTriageCount == 0 && hasInboxDot;
 
   bool get hasMyWorkDot =>
       activeHomeTab != HomeTab.work && myWorkMarkerIds.isNotEmpty;

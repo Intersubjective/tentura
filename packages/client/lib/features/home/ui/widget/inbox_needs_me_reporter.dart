@@ -24,7 +24,13 @@ class InboxNeedsMeReporter extends StatelessWidget {
           needsMeCount: state.needsMe.length,
           loadComplete: loaded,
         );
-        context.read<HomeAttentionCubit>().reportInboxSnapshot(
+        final attention = context.read<HomeAttentionCubit>();
+        attention.reportInboxTriageCount(
+          accountId: state.currentUserId,
+          triageCount: state.needsMe.length,
+          loaded: loaded,
+        );
+        attention.reportInboxSnapshot(
           accountId: state.currentUserId,
           beaconIds: loaded
               ? {

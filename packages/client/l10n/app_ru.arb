@@ -2121,6 +2121,11 @@
       }
     }
   },
+  "activityNavBadgeNewActivity": "Новая активность",
+  "@activityNavBadgeNewActivity": {
+    "context": "InboxNavbarItem",
+    "description": "Accessibility label for the Activity nav icon unread dot"
+  },
   "activityPromptCollapsedBatch": "{count, plural, one{1 человек присоединился по вашим приглашениям — настройте доступ} few{{count} человека присоединились по вашим приглашениям — настройте доступ} many{{count} человек присоединились по вашим приглашениям — настройте доступ} other{{count} человек присоединились по вашим приглашениям — настройте доступ}}",
   "@activityPromptCollapsedBatch": {
     "context": "UpdatesFeedPane",

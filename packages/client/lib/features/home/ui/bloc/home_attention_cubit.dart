@@ -69,6 +69,25 @@ final class HomeAttentionCubit extends Cubit<HomeAttentionState> {
     unawaited(_refreshMarkers());
   }
 
+  void reportInboxTriageCount({
+    required String accountId,
+    required int triageCount,
+    required bool loaded,
+  }) {
+    if (accountId.isEmpty || accountId != _accountId) return;
+    final count = loaded ? triageCount : 0;
+    if (state.inboxTriageCount == count &&
+        state.inboxLoaded == loaded) {
+      return;
+    }
+    emit(
+      state.copyWith(
+        inboxTriageCount: count,
+        inboxLoaded: loaded,
+      ),
+    );
+  }
+
   void reportMyWorkSnapshot({
     required String accountId,
     required Set<String> beaconIds,

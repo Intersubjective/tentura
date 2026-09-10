@@ -2130,6 +2130,11 @@
       }
     }
   },
+  "activityNavBadgeNewActivity": "New activity",
+  "@activityNavBadgeNewActivity": {
+    "context": "InboxNavbarItem",
+    "description": "Accessibility label for the Activity nav icon unread dot"
+  },
   "activityPromptCollapsedBatch": "{count, plural, one{1 person joined via your invite — set up access} other{{count} people joined via your invites — set up access}}",
   "@activityPromptCollapsedBatch": {
     "context": "UpdatesFeedPane",
