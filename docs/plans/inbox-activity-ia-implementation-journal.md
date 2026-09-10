@@ -181,3 +181,11 @@ FINDINGS: the overseer refreshed `schema.graphql` before launching this unit's w
 4. `updates_feed_cubit_test.dart` had a duplicate `import '.../feed_session_registry.dart'` line (the same class of mistake as UNIT 09's worker, apparently a recurring composer-2.5 tic worth watching for) and referenced `realtime.case_` where `realtime` was already unwrapped to the port, not the record — added a `late RealtimeSyncCase realtimeCase` field set alongside `attention` in `setUp`.
 DECISIONS: none beyond the plan's own text, aside from the fixes above.
 REMAINING: none. Proceed to UNIT 13.
+
+## UNIT 13 — complete — 2026-09-10
+COMMITS: (this entry's own commit, made immediately after)
+TESTS: `cd packages/client && flutter pub get --offline` — ok; `cd packages/client && flutter test test/features/inbox/` — 33 passed; `./scripts/check-custom-lints.sh packages/client` — pass.
+FILES: packages/client/lib/features/inbox/ui/screen/inbox_screen.dart; packages/client/lib/features/inbox/ui/widget/inbox_triage_list.dart (new); packages/client/lib/features/inbox/ui/widget/inbox_tombstone_section.dart (new); packages/client/test/features/inbox/inbox_expanded_chrome_test.dart; packages/client/test/features/inbox/inbox_receipts_fold_test.dart; docs/plans/inbox-activity-ia-implementation-journal.md
+FINDINGS: none
+DECISIONS: moved-nudge snackbar action is Rejected-archive only until UNIT 14/17 restore triage/Watching routes; Activity top bar uses `updatesTitle` until a later copy unit renames the branch to Activity.
+REMAINING: none. Proceed to UNIT 14.

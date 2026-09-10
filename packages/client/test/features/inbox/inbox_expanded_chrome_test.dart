@@ -7,15 +7,14 @@ import 'package:logging/logging.dart';
 import 'package:mockito/mockito.dart';
 
 import 'package:tentura/app/router/root_router.dart';
-import 'package:tentura/consts.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/attention/attention_case.dart';
-import 'package:tentura/domain/attention/feed_session_registry.dart';
 import 'package:tentura/domain/attention/feed_session_registry.dart';
 import 'package:tentura/domain/attention/entity/attention_feed.dart';
 import 'package:tentura/domain/attention/entity/attention_summary.dart';
 import 'package:tentura/domain/attention/port/attention_account_port.dart';
 import 'package:tentura/domain/attention/port/attention_repository_port.dart';
+import 'package:tentura/domain/use_case/realtime_sync_case.dart';
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/home/ui/bloc/home_attention_cubit.dart';
@@ -25,11 +24,14 @@ import 'package:tentura/features/inbox/domain/enum.dart';
 import 'package:tentura/features/inbox/ui/bloc/inbox_cubit.dart';
 import 'package:tentura/features/inbox/ui/screen/inbox_screen.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
+import 'package:tentura/features/updates/domain/use_case/invite_accepted_setup_case.dart';
+import 'package:tentura/features/updates/ui/widget/updates_feed_pane.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
 import '../../support/test_realtime_sync.dart';
 import '../block/support/controllable_block_case.dart';
+import '../updates/support/noop_invite_setup_port.dart';
 
 class _HarnessRouter extends Mock implements StackRouter {
   int pushCount = 0;
@@ -168,12 +170,12 @@ Future<void> _pumpInbox(
       projectionLoaded: true,
     ),
   );
-  addTearDown(inboxCubit.close);
+  unawaited(inboxCubit.close());
 
   final accounts = _Accounts();
-  addTearDown(accounts.close);
+  unawaited(accounts.close());
   final sync = buildTestRealtimeSync();
-  addTearDown(sync.port.dispose);
+  unawaited(sync.port.dispose());
   final attentionCase = AttentionCase(
     _Repository(),
     accounts,
@@ -182,14 +184,24 @@ Future<void> _pumpInbox(
     FeedSessionRegistry(),
     Logger('inbox-chrome-test'),
   );
-  addTearDown(attentionCase.dispose);
+  unawaited(attentionCase.dispose());
   if (GetIt.I.isRegistered<AttentionCase>()) {
     GetIt.I.unregister<AttentionCase>();
   }
   GetIt.I.registerSingleton<AttentionCase>(attentionCase);
+  GetIt.I.registerSingleton<InviteAcceptedSetupPort>(
+    NoopInviteAcceptedSetupPort(),
+  );
+  GetIt.I.registerSingleton<RealtimeSyncCase>(sync.case_);
   addTearDown(() {
     if (GetIt.I.isRegistered<AttentionCase>()) {
       GetIt.I.unregister<AttentionCase>();
+    }
+    if (GetIt.I.isRegistered<InviteAcceptedSetupPort>()) {
+      GetIt.I.unregister<InviteAcceptedSetupPort>();
+    }
+    if (GetIt.I.isRegistered<RealtimeSyncCase>()) {
+      GetIt.I.unregister<RealtimeSyncCase>();
     }
   });
   final logger = Logger('inbox-chrome-test');
@@ -201,7 +213,7 @@ Future<void> _pumpInbox(
     accounts,
     Logger('inbox-chrome-test'),
   );
-  addTearDown(attention.close);
+  unawaited(attention.close());
 
   await tester.pumpWidget(
     StackRouterScope(
@@ -234,7 +246,9 @@ Future<void> _pumpInbox(
 }
 
 void main() {
-  testWidgets('expanded list shows host TopBar and tab strip', (tester) async {
+  testWidgets('expanded list shows host TopBar without primary tab strip', (
+    tester,
+  ) async {
     await _pumpInbox(
       tester,
       logicalSize: const Size(1024, 800),
@@ -242,11 +256,12 @@ void main() {
     );
 
     expect(find.byType(TenturaTopBar), findsOneWidget);
-    expect(find.byType(TenturaPrimaryTabBar), findsOneWidget);
-    expect(find.text('Needs-me request'), findsOneWidget);
+    expect(find.byType(TenturaPrimaryTabBar), findsNothing);
+    expect(find.byType(UpdatesFeedPane), findsOneWidget);
+    expect(find.text('Needs-me request'), findsNothing);
   });
 
-  testWidgets('expanded tap pushes a routed BeaconViewRoute', (tester) async {
+  testWidgets('expanded screen keeps feed body mounted', (tester) async {
     final router = _HarnessRouter();
     await _pumpInbox(
       tester,
@@ -254,22 +269,14 @@ void main() {
       router: router,
     );
 
-    await tester.tap(find.text('Needs-me request'));
-    await tester.pump();
-
-    expect(router.pushCount, 1);
-    final push = router.lastPush;
-    expect(push, isA<BeaconViewRoute>());
-    final args = (push! as BeaconViewRoute).args!;
-    expect(args.id, 'b-needs');
-    expect(args.entry, kBeaconEntryInbox);
-    // The list stays mounted — the push is real routed navigation, not an
-    // in-place chrome swap, so the host TopBar/tab strip are unaffected here.
     expect(find.byType(TenturaTopBar), findsOneWidget);
-    expect(find.byType(TenturaPrimaryTabBar), findsOneWidget);
+    expect(find.byType(TenturaPrimaryTabBar), findsNothing);
+    expect(find.byType(UpdatesFeedPane), findsOneWidget);
   });
 
-  testWidgets('regular width keeps host TopBar', (tester) async {
+  testWidgets('regular width keeps host TopBar without tab strip', (
+    tester,
+  ) async {
     await _pumpInbox(
       tester,
       logicalSize: const Size(800, 800),
@@ -277,7 +284,7 @@ void main() {
     );
 
     expect(find.byType(TenturaTopBar), findsOneWidget);
-    expect(find.byType(TenturaPrimaryTabBar), findsOneWidget);
-    expect(find.text('Needs-me request'), findsOneWidget);
+    expect(find.byType(TenturaPrimaryTabBar), findsNothing);
+    expect(find.byType(UpdatesFeedPane), findsOneWidget);
   });
 }
