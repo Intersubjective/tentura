@@ -10,6 +10,7 @@ import 'package:tentura/main.dart' as app;
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/test_ids.dart';
 import 'package:tentura/ui/utils/capability_tag_presenter.dart';
+import 'package:tentura/ui/widget/beacon_card_primitives.dart';
 import 'package:tentura/ui/widget/beacon_identity_tile.dart';
 
 import 'support/e2e_test_helpers.dart';
@@ -143,15 +144,13 @@ void main() {
     await dismissOkDialogIfPresent(tester);
 
     await goToPath(tester, kPathMyWork);
-    await pumpUntilVisible(tester, find.text(title));
-    expect(_listIdentity(tester), 'symbol');
+    await _expectListIdentitySymbol(tester, title);
 
-    // The recipient's Inbox and detail resolve the same identity.
+    // The recipient sees the forward on Activity (title only); identity is on detail.
     await logout(tester);
     await loginAs(tester, fixture.helperEmail);
     await goToPath(tester, kPathInbox);
     await pumpUntilVisible(tester, find.text(title));
-    expect(_listIdentity(tester), 'symbol');
 
     await openRequestFromInbox(tester, requestTitle: title);
     await pumpUntilVisible(tester, find.byType(BeaconIdentityTile));
@@ -201,10 +200,43 @@ String _previewIdentity(WidgetTester tester) => _identityOf(
       .first,
 );
 
-/// Identity of the only request tile on a list surface. The QA fixture creates
-/// fresh accounts per run, so each list holds exactly this request.
-String _listIdentity(WidgetTester tester) =>
-    _identityOf(tester, find.byType(BeaconIdentityTile).first);
+Future<void> _expectListIdentitySymbol(WidgetTester tester, String title) async {
+  await pumpUntilVisible(tester, find.text(title));
+  await pumpUntil(
+    tester,
+    () => _listIdentityBesideTitle(tester, title) != null,
+    label: 'identity glyph beside list title',
+  );
+  expect(_listIdentityBesideTitle(tester, title), 'symbol');
+}
+
+/// Identity glyph on the desk/triage card row that owns [title], not an offstage
+/// tab's first [BeaconIdentityTile] (which may omit chrome or lack paint).
+String? _listIdentityBesideTitle(WidgetTester tester, String title) {
+  final titleFinder = find.text(title);
+  if (!finderHasMatch(titleFinder)) {
+    return null;
+  }
+  final headerRow = find.ancestor(
+    of: titleFinder.first,
+    matching: find.byType(BeaconCardHeaderRow),
+  );
+  if (!finderHasMatch(headerRow)) {
+    return null;
+  }
+  final tile = find.descendant(
+    of: headerRow,
+    matching: find.byType(BeaconIdentityTile),
+  );
+  if (!finderHasMatch(tile)) {
+    return null;
+  }
+  try {
+    return _identityOf(tester, tile.first);
+  } on StateError {
+    return null;
+  }
+}
 
 /// Toggles logistics capabilities in the requirements sheet. Groups are
 /// accordion sections folded until something in them is selected, so the group

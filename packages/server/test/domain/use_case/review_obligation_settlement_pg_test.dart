@@ -268,6 +268,35 @@ WHERE outbox.beacon_id = '$_beaconId'
       expect(helpRows.single[0], isNull);
     }, skip: skipReason);
 
+    test('settleAuthorHelpOfferSubmitted resolves author help-offer obligation',
+        () async {
+      await dispatch.record(
+        await intents.helpOfferSubmitted(
+          beaconId: _beaconId,
+          helpOffererId: _reviewer2,
+          authorId: _authorId,
+          sourceEventKey: 'help_offer:admit',
+        ),
+      );
+
+      final updated = await systemSettlement.settleAuthorHelpOfferSubmitted(
+        beaconId: _beaconId,
+        authorAccountId: _authorId,
+        helpOffererUserId: _reviewer2,
+      );
+      expect(updated, 1);
+
+      final helpRows = await writer.execute('''
+SELECT settlement_kind
+FROM public.notification_outbox outbox
+JOIN public.attention_occurrence occ ON occ.id = outbox.occurrence_id
+WHERE outbox.beacon_id = '$_beaconId'
+  AND outbox.account_id = '$_authorId'
+  AND occ.event_type = 'helpOfferSubmitted'
+''');
+      expect(helpRows.single[0], 'resolved');
+    }, skip: skipReason);
+
     test('settlement preserves seen_at and read_at', () async {
       await _dispatchReviewOpened(dispatch, intents);
       await writer.execute('''

@@ -17,6 +17,7 @@ import 'package:tentura_server/domain/entity/gql_public/beacon_status_result.dar
 import 'package:tentura_server/domain/entity/gql_public/help_offer_with_coordination_row.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/exception_codes.dart';
+import 'package:tentura_server/domain/port/attention_system_settlement_port.dart';
 import 'package:tentura_server/domain/port/beacon_access_guard.dart';
 import 'package:tentura_server/domain/port/beacon_room_repository_port.dart';
 import 'package:tentura_server/domain/port/user_block_repository_port.dart';
@@ -41,11 +42,13 @@ final class CoordinationCase extends UseCaseBase {
     this._hierarchyRepository, {
     AttentionIntentCase? attentionIntents,
     TransactionalAttentionCase? attention,
+    AttentionSystemSettlementPort? attentionSystemSettlement,
     required BeaconAccessGuard guard,
     required super.env,
     required super.logger,
   }) : _attentionIntents = attentionIntents,
        _attention = attention,
+       _attentionSystemSettlement = attentionSystemSettlement,
        _guard = guard;
 
   final BeaconRepositoryPort _beaconRepository;
@@ -58,6 +61,7 @@ final class CoordinationCase extends UseCaseBase {
   final CommitmentQueryCase _commitmentQueryCase;
   final AttentionIntentCase? _attentionIntents;
   final TransactionalAttentionCase? _attention;
+  final AttentionSystemSettlementPort? _attentionSystemSettlement;
   final BeaconAccessGuard _guard;
   final BeaconHierarchyRepositoryPort _hierarchyRepository;
 
@@ -346,6 +350,11 @@ final class CoordinationCase extends UseCaseBase {
             sourceEventKey: 'admission:${generateId('A')}',
           ),
         );
+        await _attentionSystemSettlement?.settleAuthorHelpOfferSubmitted(
+          beaconId: beaconId,
+          authorAccountId: actorUserId,
+          helpOffererUserId: offerUserId,
+        );
         return _statusResult(beaconId, snap);
       },
     );
@@ -398,6 +407,11 @@ final class CoordinationCase extends UseCaseBase {
           );
         }
         await transaction.record(intent);
+        await _attentionSystemSettlement?.settleAuthorHelpOfferSubmitted(
+          beaconId: beaconId,
+          authorAccountId: actorUserId,
+          helpOffererUserId: offerUserId,
+        );
         return _statusResult(beaconId, snap);
       },
     );

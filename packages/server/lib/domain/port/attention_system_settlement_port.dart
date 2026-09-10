@@ -6,6 +6,14 @@ abstract class AttentionSystemSettlementPort {
   /// When review returns to open: prior reviewOpened obligations on this beacon.
   Future<int> supersedeReviewObligationsOnReopen(String beaconId);
 
+  /// After the author admits or declines a help offer: the review-offer obligation
+  /// no longer applies.
+  Future<int> settleAuthorHelpOfferSubmitted({
+    required String beaconId,
+    required String authorAccountId,
+    required String helpOffererUserId,
+  });
+
   /// Beacons whose review window row is closed ([beacon_review_window].status = 1).
   Future<List<String>> listBeaconIdsWithClosedReviewWindows();
 }
