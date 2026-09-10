@@ -76,3 +76,11 @@ FILES: packages/client/lib/data/gql/schema.graphql; packages/client/lib/features
 FINDINGS: unit owns list omits V2 direct-routing registration in `build_client.dart` (required alongside sibling `AttentionMarkers` per codegen.mdc).
 DECISIONS: registered `AttentionLiveObligations` in `_tenturaDirectOperationNames` so the Ferry adapter reaches the V2 field.
 REMAINING: none. Proceed to UNIT 03.
+
+## UNIT 03 — complete — 2026-09-10
+COMMITS: b9ce9dc82 fix(server): notify on settlement-only outbox updates
+TESTS: `cd packages/server && dart pub get --offline`; `cd packages/server && dart run build_runner build -d`; `cd packages/server && dart test -t pg -j 1 test/data/database/settlement_notify_pg_test.dart` — 2 passed, 0 skipped; `./scripts/check-custom-lints.sh packages/server` — pass.
+FILES: packages/server/lib/data/database/migration/m0164.dart; packages/server/lib/data/database/migration/_migrations.dart; packages/server/test/data/database/settlement_notify_pg_test.dart; docs/plans/inbox-activity-ia-implementation-journal.md
+FINDINGS: none
+DECISIONS: none
+REMAINING: none. Proceed to UNIT 04.
