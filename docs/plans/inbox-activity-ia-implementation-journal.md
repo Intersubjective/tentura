@@ -84,3 +84,11 @@ FILES: packages/server/lib/data/database/migration/m0164.dart; packages/server/l
 FINDINGS: none
 DECISIONS: none
 REMAINING: none. Proceed to UNIT 04.
+
+## UNIT 04 — complete — 2026-09-10
+COMMITS: (this entry's own commit, made immediately after)
+TESTS: `cd packages/client && flutter pub get --offline`; `cd packages/client && dart run build_runner build -d`; `cd packages/client && flutter test test/features/my_work/` — 107 passed; `./scripts/check-custom-lints.sh packages/client` — pass.
+FILES: packages/client/lib/features/my_work/domain/my_work_obligations_gate.dart; packages/client/lib/features/my_work/data/gql/my_work_fetch.graphql; packages/client/lib/features/my_work/domain/entity/my_work_fetch_types.dart; packages/client/lib/features/my_work/data/repository/my_work_repository.dart; packages/client/lib/features/my_work/domain/use_case/my_work_case.dart; packages/client/lib/features/my_work/domain/derive_my_work_cards.dart; packages/client/lib/features/my_work/domain/entity/my_work_card_view_model.dart; packages/client/lib/features/my_work/ui/widget/my_work_cards.dart; packages/client/test/features/my_work/my_work_obligation_membership_test.dart; packages/client/test/features/my_work/my_work_test_support.dart; packages/client/test/features/my_work/my_work_case_load_desk_test.dart; packages/client/test/features/my_work/my_work_case_streams_test.dart; packages/client/test/features/my_work/my_work_cubit_test.dart; packages/client/test/features/updates/cross_surface_coordination_accept_test.dart; docs/plans/inbox-activity-ia-implementation-journal.md
+FINDINGS: owns list omits `my_work_test_support.dart` and sibling my_work test tuple updates required by `MyWorkInitResult.obligationBeacons`; `my_work_cubit.dart` needed no edits (gate lives in `MyWorkCase`).
+DECISIONS: none
+REMAINING: none. Proceed to UNIT 05.
