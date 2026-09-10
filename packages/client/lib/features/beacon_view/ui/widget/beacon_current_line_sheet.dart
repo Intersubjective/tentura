@@ -5,12 +5,12 @@ import 'package:get_it/get_it.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon_room_consts.dart';
-import 'package:tentura/features/coordination_item/domain/use_case/coordination_item_case.dart';
+import 'package:tentura/features/beacon_threads/domain/use_case/beacon_threads_case.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura_root/domain/entity/localizable.dart';
 
-/// Sets the beacon room [current line] (synced via coordination updatePlan).
+/// Sets the beacon room [current line] via [BeaconThreadsCase.updateRoomNowLine].
 Future<void> showBeaconCurrentLineSheet(
   BuildContext context, {
   required String beaconId,
@@ -18,7 +18,7 @@ Future<void> showBeaconCurrentLineSheet(
   void Function(String savedLine)? onSaved,
 }) async {
   final l10n = L10n.of(context)!;
-  final coordinationCase = GetIt.I<CoordinationItemCase>();
+  final threadsCase = GetIt.I<BeaconThreadsCase>();
   final savedLine = await showTenturaAdaptiveSheet<String>(
     context: context,
     showDragHandle: true,
@@ -29,7 +29,7 @@ Future<void> showBeaconCurrentLineSheet(
       l10n: l10n,
       beaconId: beaconId,
       initialText: initialText,
-      coordinationCase: coordinationCase,
+      threadsCase: threadsCase,
     ),
   );
   if (savedLine != null && savedLine.isNotEmpty && context.mounted) {
@@ -42,13 +42,13 @@ class _BeaconCurrentLineSheetBody extends StatefulWidget {
     required this.l10n,
     required this.beaconId,
     required this.initialText,
-    required this.coordinationCase,
+    required this.threadsCase,
   });
 
   final L10n l10n;
   final String beaconId;
   final String initialText;
-  final CoordinationItemCase coordinationCase;
+  final BeaconThreadsCase threadsCase;
 
   @override
   State<_BeaconCurrentLineSheetBody> createState() =>
@@ -82,9 +82,9 @@ class _BeaconCurrentLineSheetBodyState extends State<_BeaconCurrentLineSheetBody
     setState(() => _submitting = true);
     try {
       final line = _controller.text.trim();
-      await widget.coordinationCase.updatePlan(
+      await widget.threadsCase.updateRoomNowLine(
         beaconId: widget.beaconId,
-        title: line,
+        currentLine: line,
       );
       if (mounted) {
         Navigator.of(context).pop(line);

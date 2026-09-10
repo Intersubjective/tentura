@@ -290,6 +290,7 @@ class _V2RoutingLink extends Link {
     'RoomMessageAttachmentAdd',
     'BeaconParticipantOfferHelp',
     'BeaconRoomAdmit',
+    'BeaconRoomNowLineUpdate',
     'BeaconStewardPromote',
     'RoomMessageReactionToggle',
     'BeaconRoomStateGet',

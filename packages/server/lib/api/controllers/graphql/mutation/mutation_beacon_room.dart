@@ -57,6 +57,8 @@ final class MutationBeaconRoom extends GqlNodeBase {
 
   final _readThroughAt = InputFieldString(fieldName: 'readThroughAt');
 
+  final _nowLineText = InputFieldString(fieldName: 'text');
+
   List<GraphQLObjectField<dynamic, dynamic>> get all => [
     roomMessageCreate,
     roomMessageAttachmentAdd,
@@ -69,6 +71,7 @@ final class MutationBeaconRoom extends GqlNodeBase {
     roomMessageMarkSemanticDone,
     markThreadSeen,
     roomPollCreate,
+    beaconRoomNowLineUpdate,
   ];
 
   GraphQLObjectField<dynamic, dynamic> get roomMessageCreate =>
@@ -300,6 +303,21 @@ final class MutationBeaconRoom extends GqlNodeBase {
       readThroughAtIso: _readThroughAt.fromArgs(args),
     ),
   );
+
+  GraphQLObjectField<dynamic, dynamic> get beaconRoomNowLineUpdate =>
+      GraphQLObjectField(
+        'BeaconRoomNowLineUpdate',
+        gqlTypeBeaconRoomStateRow.nonNullable(),
+        arguments: [
+          _beaconIdStr.field,
+          _nowLineText.field,
+        ],
+        resolve: (_, args) => _case.updateRoomNowLine(
+          beaconId: _beaconIdStr.fromArgsNonNullable(args),
+          userId: getCredentials(args).sub,
+          text: _nowLineText.fromArgsNonNullable(args),
+        ),
+      );
 
   GraphQLObjectField<dynamic, dynamic> get roomPollCreate => GraphQLObjectField(
     'RoomPollCreate',

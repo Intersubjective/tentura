@@ -41,6 +41,7 @@ import 'package:tentura_server/utils/room_mention_utils.dart';
 import 'package:tentura_server/domain/use_case/attention_intent_case.dart';
 import 'package:tentura_server/domain/use_case/transactional_attention_case.dart';
 
+import 'coordination_item/coordination_room_access.dart';
 import '_use_case_base.dart';
 
 /// Room coordination: admission, steward, messages (server-side rules).
@@ -598,6 +599,67 @@ final class BeaconRoomCase extends UseCaseBase {
       'updatedAt': row.updatedAt.toIso8601String(),
       'updatedBy': row.updatedBy,
     };
+  }
+
+  Future<Map<String, Object?>> updateRoomNowLine({
+    required String beaconId,
+    required String userId,
+    required String text,
+  }) async {
+    final trimmed = text.trim();
+    if (trimmed.isEmpty) {
+      throw const BeaconCreateException(description: 'Plan text is required');
+    }
+    if (trimmed.length > kBeaconRoomCurrentLineMaxLength) {
+      throw BeaconCreateException(
+        description:
+            'Plan text must be at most $kBeaconRoomCurrentLineMaxLength characters',
+      );
+    }
+    final status = await _hierarchyRepository.loadBeaconStatus(beaconId);
+    if (status == null || !status.allowsCoordination) {
+      throw const BeaconCreateException(description: 'Request is not open');
+    }
+    await ensureCanCoordinateOnBeacon(
+      room: _room,
+      beaconId: beaconId,
+      userId: userId,
+    );
+    return _attention!.runAction(
+      actorUserId: userId,
+      action: (transaction) async {
+        await _room.setBeaconRoomCurrentLine(
+          beaconId: beaconId,
+          text: trimmed,
+          updatedBy: userId,
+        );
+        final row = await _room.getBeaconRoomState(beaconId);
+        final updatedAt = row!.updatedAt;
+        await transaction.record(
+          await _attentionIntents!.coordinationChanged(
+            beaconId: beaconId,
+            actorUserId: userId,
+            planExcerpt: trimmed,
+            sourceEventKey:
+                'beacon_room_state:$beaconId:now_updated:'
+                '${updatedAt.toUtc().microsecondsSinceEpoch}',
+          ),
+        );
+        final openBlocker = await _findOpenCoordinationBlocker(
+          beaconId,
+          viewerUserId: userId,
+        );
+        return {
+          'beaconId': row.beaconId,
+          'currentLine': row.currentLine,
+          'openBlockerId': openBlocker?.id,
+          'openBlockerTitle': openBlocker?.title,
+          'lastRoomMeaningfulChange': row.lastRoomMeaningfulChange,
+          'updatedAt': updatedAt.toIso8601String(),
+          'updatedBy': row.updatedBy,
+        };
+      },
+    );
   }
 
   /// Inbox / My Work: batch room visibility, unread counts, public fact snippet.

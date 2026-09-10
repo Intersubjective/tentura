@@ -3408,6 +3408,7 @@ type mutation_root {
   BeaconFactCardSetVisibility(beaconId: String!, factCardId: String!, visibility: Int!): Boolean!
   BeaconParticipantOfferHelp(beaconId: String!, body: String!): Boolean!
   BeaconRoomAdmit(beaconId: String!, participantUserId: String!): Boolean!
+  BeaconRoomNowLineUpdate(beaconId: String!, text: String!): v2_BeaconRoomStateRow!
   BeaconStewardPromote(beaconId: String!, stewardUserId: String!): Boolean!
   MarkThreadSeen(beaconId: String!, readThroughAt: String, threadId: String!): v2_BeaconRoomSeenResult!
   RoomMessageAttachmentAdd(beaconId: String!, file: v2_Upload = {}, messageId: String!): Boolean!

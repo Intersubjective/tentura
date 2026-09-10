@@ -39,6 +39,7 @@ import '../gql/_g/room_message_reaction_toggle.req.gql.dart';
 import '../gql/_g/room_message_target.req.gql.dart';
 import '../gql/_g/room_message_target.data.gql.dart';
 import '../gql/_g/room_poll_create.req.gql.dart';
+import '../gql/_g/room_now_line_update.req.gql.dart';
 
 import '../model/request_thread_model.dart';
 
@@ -448,6 +449,31 @@ class BeaconThreadsRepository {
         .firstWhere((e) => e.dataSource == DataSource.Link)
         .then((r) => r.dataOrThrow(label: _label).MarkThreadSeen);
     return DateTime.parse(row.seenAt).toUtc();
+  }
+
+  Future<BeaconRoomState> updateRoomNowLine({
+    required String beaconId,
+    required String text,
+  }) async {
+    final row = await _remoteApiService
+        .request(
+          GRoomNowLineUpdateReq(
+            (b) => b.vars
+              ..beaconId = beaconId
+              ..text = text,
+          ),
+        )
+        .firstWhere((e) => e.dataSource == DataSource.Link)
+        .then((r) => r.dataOrThrow(label: _label).BeaconRoomNowLineUpdate);
+    return BeaconRoomState(
+      beaconId: row.beaconId,
+      currentLine: row.currentLine,
+      openBlockerId: row.openBlockerId,
+      openBlockerTitle: row.openBlockerTitle,
+      lastRoomMeaningfulChange: row.lastRoomMeaningfulChange,
+      updatedAt: DateTime.parse(row.updatedAt),
+      updatedBy: row.updatedBy,
+    );
   }
 
   Future<bool> markMessageSemanticDone({

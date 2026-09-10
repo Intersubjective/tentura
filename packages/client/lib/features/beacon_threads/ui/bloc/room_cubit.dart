@@ -753,13 +753,20 @@ class RoomCubit extends Cubit<RoomState> {
       ),
     );
     try {
-      await _case.updateRoomPlan(
-        beaconId: state.beaconId,
-        currentLine: currentLine,
-        body: body,
-        targetPersonId: targetPersonId,
-        linkedMessageId: linkedMessageId,
-      );
+      if (linkedMessageId != null) {
+        await _case.updateRoomPlan(
+          beaconId: state.beaconId,
+          currentLine: currentLine,
+          body: body,
+          targetPersonId: targetPersonId,
+          linkedMessageId: linkedMessageId,
+        );
+      } else {
+        await _case.updateRoomNowLine(
+          beaconId: state.beaconId,
+          currentLine: currentLine,
+        );
+      }
       await load();
     } on Object catch (e) {
       _showSnackError(e);

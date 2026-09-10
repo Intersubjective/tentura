@@ -33,6 +33,7 @@ void main() {
       'runAction<',
       '.helpOfferSubmitted(',
       '.offerAccepted(',
+      '.coordinationChanged(',
     ],
     'coordination_item/create_promise_case.dart': [
       'runAction(',

@@ -1045,6 +1045,24 @@ class BeaconRoomRepository implements BeaconRoomRepositoryPort {
     });
   }
 
+  @override
+  Future<void> setBeaconRoomCurrentLine({
+    required String beaconId,
+    required String text,
+    required String updatedBy,
+  }) async {
+    await _db.withMutatingUser(updatedBy, () async {
+      await _db.into(_db.beaconRoomStates).insertOnConflictUpdate(
+            BeaconRoomStatesCompanion.insert(
+              beaconId: beaconId,
+              currentLine: Value(text),
+              updatedBy: Value(updatedBy),
+              updatedAt: Value(PgDateTime(DateTime.timestamp())),
+            ),
+          );
+    });
+  }
+
   Future<void> setBeaconSteward({
     required String beaconId,
     required String stewardUserId,

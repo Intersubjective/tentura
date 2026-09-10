@@ -197,6 +197,12 @@ abstract class BeaconRoomRepositoryPort {
     required String authorUserId,
   });
 
+  Future<void> setBeaconRoomCurrentLine({
+    required String beaconId,
+    required String text,
+    required String updatedBy,
+  });
+
   Future<void> setBeaconSteward({
     required String beaconId,
     required String stewardUserId,

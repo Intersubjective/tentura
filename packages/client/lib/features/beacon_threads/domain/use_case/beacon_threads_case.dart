@@ -320,6 +320,14 @@ final class BeaconThreadsCase extends UseCaseBase {
     linkedMessageId: linkedMessageId,
   );
 
+  Future<void> updateRoomNowLine({
+    required String beaconId,
+    required String currentLine,
+  }) => _room.updateRoomNowLine(
+    beaconId: beaconId,
+    text: currentLine,
+  );
+
   Future<CoordinationItem?> fetchCurrentCoordinationPlan(String beaconId) =>
       _coordinationItemCase.fetchCurrentRootPlan(beaconId);
 
