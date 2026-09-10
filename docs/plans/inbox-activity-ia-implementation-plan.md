@@ -1,6 +1,6 @@
 # Inbox → Activity: implementation plan
 
-Status: implementation plan, revision 5. Companion to [`inbox-activity-ia-architecture.md`](inbox-activity-ia-architecture.md), which is the authority on *what* is being built and *why*. This document owns *what has to exist first*, *in what order*, and *what breaks*.
+Status: implementation plan, revision 6. Companion to [`inbox-activity-ia-architecture.md`](inbox-activity-ia-architecture.md), which is the authority on *what* is being built and *why*. This document owns *what has to exist first*, *in what order*, and *what breaks*.
 
 Date: 2026-09-10. Repository baseline: `c6b24012d` plus this branch.
 
@@ -43,7 +43,7 @@ Six items. §2.4 is the only one that gates the Activity **body** (step 6) direc
 
 **2.3 The `expired` settlement kind.** The CHECK constraint admits only `resolved, dismissed, superseded, legacy_archived` (`m0118.dart:15-18`), so the UPDATE fails outright. `attention_models.dart:147-160` is a closed enum parsed with `firstWhere` and `attention_repository.dart:203-207` converts on read, so an old server instance reading an `expired` receipt throws. In order:
 
-1. CHECK migration admitting `expired`;
+1. CHECK migration admitting `expired` (`m0166`);
 2. server enum and parser accepting it;
 3. deploy until no old reader remains;
 4. only then enable the writer.
@@ -165,11 +165,20 @@ ordered list near `:333`).
 | id | purpose | unit |
 |---|---|---|
 | `m0164` | add settlement columns to the outbox change-detection tuple | 03 |
-| `m0165` | admit `expired` in `notification_outbox__settlement_kind_chk` | 20 |
-| `m0166` | prompt-state change notification trigger | 11 |
+| `m0165` | prompt-state change notification trigger | 11 |
+| `m0166` | admit `expired` in `notification_outbox__settlement_kind_chk` | 20 |
 
-`m0163a` shows suffixed ids are acceptable if a number is taken by an
-in-flight branch. Never renumber a landed migration.
+**Migration numbers must ascend in the order the units run.** The runner selects
+only migrations whose version compares **greater than** the database's current
+one (`migrant`'s `getNext`, driven from `_migrations.dart:338-339`), so a
+database that has applied `0166` will *never* apply a `0165` added afterwards.
+UNIT 11 runs before UNIT 20 in the manifest, so it takes the lower number.
+Rev 5 had these the wrong way round; the symptom would not have been a failing
+test but a CHECK violation on the first `expired` write against an
+already-upgraded database, while fresh test databases passed.
+
+`m0163a` shows suffixed ids are acceptable if a number is taken by an in-flight
+branch. Never renumber a landed migration.
 
 ### 6.2 Server GraphQL (V2, additive)
 
@@ -362,10 +371,11 @@ and mirror `unreadForBeacons` at every layer.
 3. Expose it on `QueryAttention` next to the `unreadForBeacons` resolver
    (`query_attention.dart:34-40`). It returns `[String!]!`, a scalar list, so
    **`custom_types.dart` needs no new object type** — do not add one.
-4. `attention_graphql_test.dart:19` holds a fake that `implements
-   AttentionQueryPort` with plain `implements`; adding a method to the port
-   breaks it. Update it in this unit — the mandatory lint gate analyses the whole
-   package (`scripts/check-custom-lints.sh:41-53`) and will stop you otherwise.
+4. **Every plain `implements AttentionQueryPort` breaks when the port grows**,
+   and the lint gate analyses the whole package (`scripts/check-custom-lints.sh:41-53`).
+   Update all of them here, returning an empty set unless the test needs
+   otherwise: `test/api/controllers/graphql/attention_graphql_test.dart:19`,
+   `test/domain/attention/legacy_canonical_compat_fixture_test.dart:124`.
 4. Tests (`@Tags(['pg'])`): a live obligation appears; a settled one does not; a
    seen-but-unsettled one **does**; a receipt the viewer is not authorized for
    does not; two receipts on one Beacon yield **one** id.
@@ -409,8 +419,19 @@ packages/client/test/domain/attention/attention_live_obligations_test.dart      
    (`:101-111`) — the port alone is not a working call.
 3. Add the use-case method on `AttentionCase`, mirroring `unreadForBeacons`
    including its batching if the call shape needs it.
-4. `attention_case_test.dart:30-87` holds a fake implementing the port; update it
-   here for the same reason as UNIT 01 step 4.
+4. **Update every fake implementing the client attention port**, returning an
+   empty set unless a test needs otherwise. There are ten, and missing one stops
+   the analyzer for the whole package:
+   `test/domain/attention/attention_case_test.dart:30-87`,
+   `test/architecture/cross_surface_subscription_test.dart:196`,
+   `test/features/home/home_attention_cubit_test.dart:28`,
+   `test/features/home/constellation_nav_test.dart:84`,
+   `test/ui/widget/tab_attention_scope_test.dart:95`,
+   `test/features/inbox/inbox_expanded_chrome_test.dart:104`,
+   `test/features/inbox/inbox_receipts_fold_test.dart:30`,
+   `test/features/updates/updates_feed_cubit_test.dart:29`,
+   `test/features/updates/updates_102_my_work_attention_test.dart:29`,
+   `test/features/updates/cross_surface_coordination_accept_test.dart:205`.
 3. Unit tests against a mocked port: empty, populated, error propagates rather
    than being swallowed into an empty set — an unavailable set must be
    distinguishable from an empty one (architecture §4.8).
@@ -469,6 +490,7 @@ Implements §3.1–3.2.
 **Owns:**
 
 ```text
+packages/client/lib/features/my_work/domain/my_work_obligations_gate.dart      new
 packages/client/lib/features/my_work/data/gql/my_work_fetch.graphql            edit
 packages/client/lib/features/my_work/domain/entity/my_work_fetch_types.dart    edit
 packages/client/lib/features/my_work/data/repository/my_work_repository.dart   edit
@@ -498,9 +520,13 @@ The switch in `my_work_cards.dart` is exhaustive, so adding kinds without adding
 arms will not compile — which is the desired failure, not a problem to route
 around.
 
-1. Add an **activation gate** — a single compile-time or DI-provided boolean,
-   default off, named `kMyWorkObligationsEnabled`. Everything in units 04–08
-   reads it. With it off the behaviour must be byte-identical to today.
+1. Add an **activation gate**, declared exactly once and in exactly one way:
+   a DI-provided `bool` registered as a named injectable in
+   `packages/client/lib/features/my_work/domain/my_work_obligations_gate.dart`
+   (**new**), default `false`, overridable in tests by re-registering it.
+   Not a compile-time constant — UNIT 09 flips its default and tests need both
+   values. Units 04–08 read it; UNIT 09 owns the same file to flip it. With the
+   gate off, behaviour must be byte-identical to today.
 2. Add the obligation beacon-id set as a third input alongside
    `authoredNonArchived` and `helpOfferedNonArchived`
    (`my_work_fetch.graphql:6-23`, repository `:41-54`, case `:114-124`).
@@ -621,7 +647,7 @@ restart.
 
 ## UNIT 07 — Client: per-destination feed sessions
 
-Implements architecture §7. Independent of 01–06; may run in parallel.
+Implements architecture §7. **Run it in manifest order like everything else** — it shares `attention_case.dart` with UNIT 02. "Independent" in the manifest means "does not depend on", never "may run concurrently".
 
 **Owns:**
 
@@ -630,6 +656,9 @@ packages/client/lib/domain/attention/attention_case.dart                 edit
 packages/client/lib/domain/attention/entity/attention_feed.dart          edit
 packages/client/lib/features/updates/ui/bloc/updates_feed_cubit.dart     edit
 packages/client/lib/features/updates/ui/bloc/updates_feed_state.dart     edit
+packages/client/lib/features/updates/ui/bloc/feed_session_registry.dart  new
+packages/client/lib/features/updates/ui/widget/updates_feed_pane.dart    edit
+packages/client/lib/features/updates/ui/screen/updates_screen.dart       edit
 packages/client/lib/features/inbox/ui/screen/inbox_screen.dart           edit
 packages/client/test/features/updates/updates_feed_session_test.dart     new
 ```
@@ -651,11 +680,18 @@ packages/client/test/features/updates/updates_feed_session_test.dart     new
      counter**, and drop a response whose generation is stale.
    - **cursor ownership.** A cursor belongs to a (destination, view, search)
      triple. Changing search discards it.
-   - **lifetime.** State survives the cubit being disposed and remounted within
-     an account; an account switch discards it entirely.
-   - **existing call sites** move with the API: `attention_feed.dart:27-34`,
-     `updates_feed_state.dart:10-18`, and the construction at
-     `inbox_screen.dart:618-621`. Add them to this unit's Owns before starting.
+   - **where it is kept.** A cubit cannot outlive itself: add an account-scoped
+     **session registry** holding one record per destination, with
+     `attach(destinationId)` / `detach()` / `resetForAccount()`. The cubit reads
+     and writes through it; the registry owns the lifetime. State survives a
+     dispose-and-remount within an account; an account switch clears the whole
+     registry.
+   - **the search text is not in the cubit today.** It lives in a
+     `TextEditingController` owned by the pane (`updates_feed_pane.dart:39-43,61-66`),
+     so restoring search means restoring that controller's text on mount.
+   - **every construction site** moves with the API: `attention_feed.dart:27-34`,
+     `updates_feed_state.dart:10-18`, `inbox_screen.dart:618-621`, and
+     `updates/ui/screen/updates_screen.dart:18`.
 3. Tests: two cubits with different destination ids hold independent view and
    search; both observe the same receipt list and the same unread total; a
    round trip A → B → A restores A's view and search.
@@ -682,6 +718,7 @@ Implements §1 step 3. **The gate that UNIT 09 waits on.**
 
 ```text
 packages/client/lib/features/my_work/ui/widget/my_work_obligations_pane.dart  new
+packages/client/lib/features/updates/ui/widget/updates_feed_pane.dart         edit
 packages/client/lib/features/my_work/ui/screen/my_work_screen.dart            edit
 packages/client/lib/ui/test_ids.dart                                          edit
 packages/client/test/features/my_work/my_work_obligations_pane_test.dart      new
@@ -693,13 +730,17 @@ packages/client/test/features/my_work/my_work_obligations_pane_test.dart      ne
 
    **Each destination declares which views it offers**, rather than sharing one
    three-way control: today the pane hardcodes three tabs and indexes
-   `AttentionView.values[index]` (`updates_feed_pane.dart:135-156`). Activity
-   offers `[all, unread]`; My Work offers `needsYou` **only**, with no view
-   control at all. Parameterise the pane on its allowed views.
+   `AttentionView.values[index]` (`updates_feed_pane.dart:135-156`).
+   **This unit owns that parameterisation** — and it must be behaviour-preserving
+   here: Activity keeps all three views for now, My Work is constructed with
+   `needsYou` **only** and no view control. UNIT 09 then changes Activity's
+   argument to `[all, unread]`. Narrowing Activity in this unit would remove
+   Needs-you before its replacement is switched on, which is the exact ordering
+   the sequence exists to prevent.
 
-   The gate `kMyWorkObligationsEnabled` is declared **once**, in UNIT 04, as a
-   DI-provided boolean with a test override, and this unit and UNIT 09 read that
-   same declaration.
+   The gate is the DI-provided boolean declared in UNIT 04
+   (`my_work/domain/my_work_obligations_gate.dart`); this unit reads it and
+   UNIT 09 flips its default.
 2. Carry the **settlement actions** onto it. An obligation must be dischargeable
    where it now lives; a read-only list does not satisfy this unit.
 3. Test ids follow the dotted My Work convention (§6.4).
@@ -727,8 +768,8 @@ Implements §1 step 4. **Do not start until UNIT 08 is `complete` in the journal
 **Owns:**
 
 ```text
+packages/client/lib/features/my_work/domain/my_work_obligations_gate.dart  edit
 packages/client/lib/features/updates/ui/widget/updates_feed_pane.dart      edit
-packages/client/lib/domain/attention/entity/attention_feed.dart            edit
 packages/client/test/features/updates/updates_feed_views_test.dart         new
 ```
 
@@ -766,6 +807,9 @@ packages/server/lib/domain/use_case/invite_seed_attestation_case.dart        edi
 packages/server/lib/api/controllers/graphql/query/query_invite_seed_prompt.dart  edit
 packages/server/test/domain/use_case/invite_prompt_projection_pg_test.dart   new
 ```
+
+Also update `lib/data/repository/mock/invite_seed_prompt_repository_mock.dart:11`,
+which implements the port and stops compiling when it grows.
 
 The endpoint is `query_invite_seed_prompt.dart:9-34`, **not** `query_capability.dart`,
 and the use case reaches storage through `invite_seed_prompt_port.dart:3-23` —
@@ -807,7 +851,7 @@ Implements §2.4.
 **Owns:**
 
 ```text
-packages/server/lib/data/database/migration/m0166.dart                    new
+packages/server/lib/data/database/migration/m0165.dart                    new
 packages/server/lib/data/database/migration/_migrations.dart              edit
 packages/server/lib/domain/use_case/invite_seed_attestation_case.dart     edit
 packages/server/test/domain/use_case/invite_prompt_invalidation_pg_test.dart  new
@@ -820,14 +864,20 @@ packages/server/test/domain/use_case/invite_prompt_invalidation_pg_test.dart  ne
    **The existing `emit_realtime_entity_change` does not satisfy this on its
    own**: it catches a notification failure and returns with only a WARNING
    (`m0133.dart:76-92`), as does the outbox trigger that would otherwise be the
-   model (`m0116.dart:119-124`). Delivery is therefore best-effort, and a
-   rollback test cannot detect the gap. Either propagate the failure so the
-   transaction aborts, or make the invalidation durable (a queued row the
-   delivery path drains). Choose one and record which. A post-write emission leaves a window where
+   model (`m0116.dart:119-124`). Delivery is therefore best-effort.
+
+   **Use failure propagation**, not a durable queue. Rev 5 offered both; that was
+   a false choice, because the two imply different acceptance — with a queue, a
+   delivery failure *should* still commit the state plus the queued row, which
+   contradicts the rollback test below. One mechanism, one contract: a
+   notification failure aborts the transaction. A post-write emission leaves a window where
    the state commits, the emission fails, and another connected device stays
    stale with no later event that would correct it.
-2. Fix the wire shape here so UNIT 12 has something to subscribe to: the
-   invalidation kind, the subject id it carries, and the recipient it targets.
+2. **Freeze the wire shape**, because the client silently discards a change of
+   unknown kind (`realtime_entity_change.dart:30-49`) — a mismatch here fails as
+   "nothing happens", the hardest possible symptom to trace. Fixed:
+   `kind: "invite_seed_prompt"`, `id:` the **invitee user id**, recipient the
+   inviter. UNIT 12 subscribes on exactly that kind.
 3. Tests (`@Tags(['pg'])`): rollback leaves neither the state change nor an
    emission; **an injected notification failure rolls the prompt write back too**;
    a committed `skip` is observable on a second connected client with no refetch
@@ -867,8 +917,10 @@ The single-subject read runs `CapabilityRepositoryPort.fetchInviteSeedPromptStat
 (`capability_repository_port.dart:66`) → `capability_repository.dart:341-349`.
 The batch belongs on the same pair; adding it only to `InviteAcceptedSetupPort`
 leaves nothing that can talk to the server. Refresh the SDL and run codegen as in
-UNIT 02 step 1. `invite_accepted_setup_sheet_test.dart:15-61` fakes the setup
-port and breaks when the interface grows.
+UNIT 02 step 1. Three fakes implement the setup port and break when it grows:
+`test/features/updates/invite_accepted_setup_sheet_test.dart:15-61`,
+`test/features/updates/invite_accepted_receipt_card_test.dart:43`,
+`test/features/updates/invite_accepted_setup_golden_test.dart:14`.
 
 1. Add `fetchPrompts(Set<String> subjectIds)` to `InviteAcceptedSetupPort`
    alongside the existing per-subject `fetchPrompt` (`:13`), backed by UNIT 10.
@@ -909,21 +961,37 @@ Implements architecture §4.1–4.2.
 
 ```text
 packages/client/lib/features/inbox/ui/screen/inbox_screen.dart   edit
+packages/client/lib/features/inbox/ui/widget/inbox_triage_list.dart      new
+packages/client/lib/features/inbox/ui/widget/inbox_tombstone_section.dart new
 packages/client/test/features/inbox/inbox_expanded_chrome_test.dart  edit
 packages/client/test/features/inbox/inbox_receipts_fold_test.dart    edit
 ```
 
-1. Remove the `TenturaPrimaryTabBar` and the three-way `TabBarView`
+**Extract before you remove.** Rev 5 had UNIT 13 delete the old bodies and
+UNIT 14 then reuse them, which cannot both be true. Do the extraction here, as
+step 1, while the code is still wired up.
+
+1. Extract, without behaviour change, into new files:
+   - `inbox_triage_list.dart` — the Needs-me body and its card actions
+     (`inbox_screen.dart:625-795`, actions at `:734-770`) and the sort control
+     and its cycle (`:424-451` declaration, `:450-521` implementation);
+   - `inbox_tombstone_section.dart` — the resolved section (`:671-732`), which is
+     interleaved with the Needs-me body and must come out separately, because
+     UNIT 16 moves it somewhere else entirely.
+
+   Cut the boundary at those two files and nowhere else; UNIT 14 mounts the
+   first, UNIT 16 relocates the second.
+2. Remove the `TenturaPrimaryTabBar` and the three-way `TabBarView`
    (`inbox_screen.dart:411-417` and the bodies around `:176-236`). The branch
    body becomes `UpdatesFeedPane`.
-2. Re-point, do not delete, the keep-alive and page-storage machinery
+3. Re-point, do not delete, the keep-alive and page-storage machinery
    (`:369`); feed views own their scroll keys (`updates_feed_pane.dart:177-178`).
-3. `InboxSort` (`:424`) leaves the branch root — it belongs to the triage route
+4. `InboxSort` (`:424`) leaves the branch root — it belongs to the triage route
    (UNIT 14) and to Watching (UNIT 17). Do not drop it.
-4. Deep links keep working unchanged: `/home/updates` → `/home/inbox?tab=receipts`
+5. Deep links keep working unchanged: `/home/updates` → `/home/inbox?tab=receipts`
    (`root_router.dart:177-182`) and notification intents (`:553`) now land on the
    feed, which is what they always meant.
-5. Update the three `find.byType(TenturaPrimaryTabBar)` assertions rather than
+6. Update the three `find.byType(TenturaPrimaryTabBar)` assertions rather than
    deleting them — assert the tab bar is **gone**.
 
 **Verify:**
@@ -948,7 +1016,6 @@ Implements architecture §4.3.
 ```text
 packages/client/lib/features/inbox/ui/widget/inbox_triage_row.dart    new
 packages/client/lib/features/inbox/ui/screen/inbox_triage_screen.dart new
-packages/client/lib/features/inbox/ui/widget/inbox_triage_list.dart   new
 packages/client/lib/features/inbox/ui/screen/inbox_screen.dart        edit
 packages/client/lib/app/router/root_router.dart                       edit
 packages/client/lib/consts.dart                                       edit
@@ -963,9 +1030,8 @@ packages/client/test/features/inbox/inbox_triage_row_test.dart        new
 **Mounting and state ownership, fixed here rather than discovered:**
 
 - the row mounts in `inbox_screen.dart`, above the feed, inside the branch body;
-- the sort control and Needs-me list are private to `inbox_screen.dart` today
-  (`:424-451`, `:625-636`). Extract them into `inbox_triage_list.dart` and have
-  both the old call site and the new route use it — do not copy;
+- the sort control and Needs-me list were extracted into `inbox_triage_list.dart`
+  by UNIT 13. Mount that file in the route; do not re-extract and do not copy;
 - the route **creates its own `InboxCubit`**, following the precedent set by
   Rejected (`inbox_rejected_screen.dart:19-27`), and is torn down with the route.
   Sort and scroll live on the route, not on the branch;
@@ -994,8 +1060,13 @@ packages/client/test/features/inbox/inbox_triage_row_test.dart        new
 cd packages/client && flutter gen-l10n
 cd packages/client && dart run build_runner build -d
 cd packages/client && flutter test test/features/inbox/
+./scripts/run_client_integration_web_local.sh integration_test/request_lifecycle_create_forward_inbox_test.dart integration_test/request_lifecycle_offer_admit_chat_test.dart integration_test/request_lifecycle_closed_to_archive_test.dart integration_test/request_lifecycle_close_review_test.dart integration_test/request_lifecycle_review_trust_control_test.dart integration_test/request_threads_navigation_test.dart integration_test/request_detail_back_navigation_web_test.dart integration_test/witness_admission_forward_band_test.dart integration_test/tab_attention_forced_background_test.dart
 ./scripts/check-custom-lints.sh packages/client
 ```
+
+The runner takes explicit targets (`scripts/run_client_integration_web_local.sh:5-7`).
+These nine are this unit's acceptance, not UNIT 25's — they exercise the helpers
+this unit re-points.
 
 **Acceptance:** triage is reachable and bounded; no card renders inline, and the
 nine lifecycle specs still pass through the re-pointed helpers.
@@ -1058,15 +1129,17 @@ Implements architecture §4.5.
 **Owns:**
 
 ```text
-packages/client/lib/features/inbox/ui/widget/inbox_tombstone_card.dart   edit
-packages/client/lib/features/updates/ui/widget/updates_feed_pane.dart    edit
+packages/client/lib/features/inbox/ui/widget/inbox_tombstone_card.dart      edit
+packages/client/lib/features/inbox/ui/widget/inbox_tombstone_section.dart   edit
+packages/client/lib/features/updates/ui/widget/updates_feed_pane.dart       edit
 packages/client/test/features/inbox/inbox_case_test.dart                 edit
 ```
 
-1. Move the 24h resolved/tombstone section (`inbox_screen.dart:671-732`, whose
-   dismiss callbacks are at `:719-728`, and `inbox_state.dart:32-52`) into the
-   feed scroll as the **second sliver**, on the **All view only**, **collapsed by
-   default** and expanding on tap.
+1. Move the 24h resolved/tombstone section — extracted by UNIT 13 into
+   `inbox_tombstone_section.dart`, backed by `inbox_state.dart:32-52`, dismiss
+   callbacks originally at `inbox_screen.dart:719-728` — into the feed scroll as
+   the **second sliver**, on the **All view only**, **collapsed by default** and
+   expanding on tap.
 
    **The feed returns an empty placeholder before it ever builds the
    `CustomScrollView` when there are no receipts** (`updates_feed_pane.dart:168-178`).
@@ -1147,6 +1220,8 @@ Implements architecture §6.
 packages/client/lib/features/home/ui/widget/inbox_navbar_item.dart   edit
 packages/client/lib/features/home/ui/bloc/home_attention_state.dart  edit
 packages/client/lib/features/home/ui/bloc/home_attention_cubit.dart  edit
+packages/client/lib/features/home/ui/widget/inbox_needs_me_reporter.dart edit
+packages/client/test/architecture/realtime_entity_contract_impacts_test.dart edit
 packages/client/l10n/app_en.arb                                      edit
 packages/client/l10n/app_ru.arb                                      edit
 packages/client/test/features/home/inbox_navbar_item_test.dart       new
@@ -1158,13 +1233,16 @@ this unit's own l10n keys (UNIT 19 owns only the rename).
 1. Pending triage items > 0 → **numeric** badge with that count; else unread > 0
    → **dot**; never both.
 
-   **The state this reads does not exist yet.** `HomeAttentionState` holds Beacon
-   id *sets*, not counts (`home_attention_state.dart:13-20`), and its producer
-   only fetches unread for candidate Beacons (`home_attention_cubit.dart:140-159`).
-   This unit adds: the triage count, sourced from `InboxState.needsMe.length`
-   which `inbox_needs_me_reporter.dart:24-26` already reports; and an unread
-   signal for the badge. Add both to the state and its producer — they are part
-   of this unit's Owns, not a prerequisite someone else supplies.
+   **The state this reads does not exist yet, and the count is not where rev 5
+   claimed.** `inbox_needs_me_reporter.dart:23-25` reports `needsMeCount` to
+   `InboxOperationalCubit`, **not** to `HomeAttentionCubit`; what it sends the
+   latter is the `needsMe ∪ watching` **id set** (`:27-33`), and the receiving
+   method takes no count at all (`home_attention_cubit.dart:50-54`).
+   `HomeAttentionState` holds id sets, not counts (`home_attention_state.dart:13-20`).
+
+   So this unit adds an explicit `triageCount` channel from the reporter to
+   `HomeAttentionCubit` and onto its state. **Do not derive it from the id set** —
+   that set includes Watching, and the badge must count Needs-me only.
 2. Prompts never contribute, at any count or freshness.
 3. Distinct accessible descriptions for the two states — "3 requests need your
    response" against "new activity". The badge is inside the `shell_counters`
@@ -1241,13 +1319,14 @@ Implements §2.3, part one. **Ship and deploy this before UNIT 21.**
 **Owns:**
 
 ```text
-packages/server/lib/data/database/migration/m0165.dart        new
+packages/server/lib/data/database/migration/m0166.dart        new
 packages/server/lib/data/database/migration/_migrations.dart  edit
 packages/server/lib/domain/attention/attention_models.dart    edit
 packages/server/test/domain/attention/settlement_kind_test.dart  new
+packages/server/test/data/database/settlement_kind_constraint_pg_test.dart  new
 ```
 
-1. `m0165` extends `notification_outbox__settlement_kind_chk`
+1. `m0166` extends `notification_outbox__settlement_kind_chk`
    (`m0118.dart:15-18`) to admit `expired`. Leave `settlement_facts_chk` alone.
 2. `attention_models.dart:147-160` is a closed enum parsed with `firstWhere`;
    `attention_repository.dart:203-207` converts on read. **A reader that does not
@@ -1261,8 +1340,16 @@ packages/server/test/domain/attention/settlement_kind_test.dart  new
 ```bash
 cd packages/server && dart run build_runner build -d
 cd packages/server && dart test -j 1 test/domain/attention/settlement_kind_test.dart
+cd packages/server && dart test -t pg -j 1 test/data/database/settlement_kind_constraint_pg_test.dart
 ./scripts/check-custom-lints.sh packages/server
 ```
+
+Keep the parser test and the constraint test in **separate files**: a single file
+mixing them passes with the database half silently skipped (§7's PG rule), which
+is exactly the failure mode this unit exists to prevent. The constraint test must
+also run against a database **already upgraded through `m0165`**, proving the
+number ordering of §6.1 holds on an upgrade path and not only on a fresh
+database.
 
 **Acceptance:** the schema and every reader tolerate `expired`. Nothing writes
 it. **Deploy to completion before UNIT 21** — a reader left on the old build
@@ -1277,10 +1364,14 @@ Implements §2.3, part two.
 **Owns:**
 
 ```text
+packages/server/lib/domain/port/attention_system_settlement_port.dart         new
+packages/server/lib/data/repository/attention_system_settlement_repository.dart new
+packages/server/lib/domain/use_case/review_obligation_backfill_case.dart      new
 packages/server/lib/domain/use_case/evaluation/review_finalization_case.dart  edit
 packages/server/lib/domain/use_case/evaluation_case.dart                      edit
 packages/server/lib/data/repository/attention_repository.dart                 edit
 packages/server/test/domain/use_case/review_obligation_settlement_pg_test.dart  new
+packages/server/test/domain/use_case/review_obligation_backfill_pg_test.dart   new
 ```
 
 1. Settlement goes **inside** the existing finalization transaction:
@@ -1303,12 +1394,20 @@ packages/server/test/domain/use_case/review_obligation_settlement_pg_test.dart  
 3. This is a **system** settlement path — `attention_settlement_case.dart:26-28`
    is limited to the two user-driven values. Set `settled_at` (required by
    `settlement_facts_chk`) and preserve `seen_at` / `read_at` untouched.
-4. **Matching a receipt to its review package.** A `reviewOpened` receipt
-   carries the beacon and the recipient; the package is
-   `beacon_review_status` for that (beacon, reviewer) pair. Settle the receipts
-   whose (beacon, recipient) matches the package being finalized, and only those
-   — never settle by beacon alone, or one reviewer's finalize would settle
-   another's obligation. Record the exact predicate in the journal.
+4. **Matching a receipt to its review package — event type is part of the
+   predicate.** `(beacon, recipient)` alone is **not** enough: several event
+   types carry `requiresAction` for the same viewer (`attention_policy.dart:269-278`),
+   so a help-offer obligation on the same Request would be settled by a review
+   finalize. Scope to receipts whose occurrence event type is `reviewOpened`
+   (the type lives on the occurrence, `attention_dispatch_repository.dart:28-34,110-115`),
+   unsettled, for that Beacon.
+
+   At window close, the target is **every** such receipt on the Beacon; each
+   recipient's outcome is then read from their own `beacon_review_status`
+   (`status = 2` → `resolved`, otherwise `expired`). A single reviewer finalizing
+   early settles only their own receipt. Record the exact predicate in the
+   journal, and add a PG fixture with a help-offer obligation on the same Request
+   that must survive untouched.
 
 5. **The system settlement path does not exist yet.** The current repository
    method is recipient-driven (`attention_repository.dart:405-425`) and
@@ -1357,9 +1456,18 @@ Implements §2.5.
 ```text
 packages/client/lib/features/home/ui/widget/my_work_navbar_item.dart  edit
 packages/client/lib/features/home/ui/bloc/home_attention_state.dart   edit
+packages/client/lib/features/home/ui/bloc/home_attention_cubit.dart   edit
 packages/client/test/features/home/my_work_navbar_item_test.dart      new
 packages/client/test/features/my_work/my_work_scope_coincidence_test.dart  new
+packages/server/test/data/repository/obligation_scope_coincidence_pg_test.dart  new
 ```
+
+**A count cannot be derived from the id set.** The producer fetches unread
+Beacon ids (`home_attention_cubit.dart:143-159`), and one Beacon with two live
+receipts is two obligations and one id — so the badge needs a **receipt count**
+carried alongside, in the shape `AttentionSummary.needsYouTotal` already uses.
+Extend the producer accordingly. `home_attention_state.dart:11-21` is Freezed:
+run codegen in the Verify block.
 
 1. The badge counts **authorized live obligations**, under the same
    authorization as the scope (UNIT 01). It is **not** an unseen count:
@@ -1378,12 +1486,16 @@ packages/client/test/features/my_work/my_work_scope_coincidence_test.dart  new
 **Verify:**
 
 ```bash
+cd packages/client && dart run build_runner build -d
 cd packages/client && flutter test test/features/home/ test/features/my_work/
+cd packages/server && dart test -t pg -j 1 test/data/repository/obligation_scope_coincidence_pg_test.dart
 ./scripts/check-custom-lints.sh packages/client
+./scripts/check-custom-lints.sh packages/server
 ```
 
 **Acceptance:** the badge is accurate, decays without a janitorial gesture, and
-the coincidence between scope and count is asserted rather than assumed.
+the coincidence between scope and count is asserted from **one** SQL snapshot
+rather than assumed.
 
 ---
 
@@ -1397,6 +1509,8 @@ Implements §4 step 1. **Gates UNIT 24.** Independent of every other unit.
 packages/server/lib/domain/use_case/beacon_room_case.dart                    edit
 packages/server/lib/api/controllers/graphql/mutation/mutation_beacon_room.dart edit
 packages/server/lib/data/repository/coordination_item_repository.dart        edit
+packages/client/lib/features/beacon_threads/data/gql/room_now_line_update.graphql new
+packages/client/lib/features/beacon_threads/data/repository/beacon_threads_repository.dart edit
 packages/client/lib/features/beacon_threads/domain/use_case/beacon_threads_case.dart edit
 packages/client/lib/features/beacon_threads/ui/bloc/room_cubit.dart          edit
 packages/client/lib/features/beacon_view/ui/widget/beacon_now_surface.dart   edit
@@ -1422,6 +1536,12 @@ packages/server/test/domain/use_case/room_now_line_pg_test.dart              new
    re-seated.
 2. Give NOW its own mutation and use case writing `BeaconRoomState` directly.
    Retire `UpdatePlanCase`, `publishRootPlan` and the client `updatePlan` chain.
+
+   **The client needs a transport, not just a use case.** Today the call reaches
+   the server through `CoordinationItemCase`
+   (`beacon_threads_case.dart:309-321`); the replacement goes through
+   `beacon_threads_repository.dart:25-41,45-60` with its own GraphQL document.
+   A use-case method without that document and adapter is unreachable code.
 3. **Decide and record** whether NOW edits keep emitting `coordinationChanged`
    receipts or gain their own event type (architecture §11.3). Either is
    acceptable; leaving it undecided is not, because it determines what the
@@ -1488,8 +1608,13 @@ CONTEXT.md                                                        edit
    | `client/.../my_work/domain/use_case/my_work_case.dart:15,57` | decide what My Work was using it for before deleting |
    | `client/.../beacon_threads/data/model/request_thread_model.dart:1-2,38-41` | **decide the mapper's new home before removing the model it maps** |
 
-   Do this as three separate commits — consumer migration, endpoint removal,
-   directory deletion — so a mistake is bisectable.
+   Do this as **three separate commits with their own Verify runs** — consumer
+   migration, endpoint removal, directory deletion — so a mistake is bisectable
+   and each stage compiles on its own. A single commit deleting directories with
+   consumers still importing them cannot be bisected, and codegen will not repair
+   ordinary source imports.
+
+   One more consumer rev 5 missed: `beacon_view/ui/bloc/beacon_view_cubit.dart:729-754`.
 7. Re-run server and client codegen; DI will not compile until every registration
    is gone.
 
