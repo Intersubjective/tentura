@@ -38,15 +38,67 @@ final class InviteSeedAttestationCase extends UseCaseBase {
       actorId: actorId,
       subjectId: subjectId,
     );
+    return _viewForPrompt(
+      actorId: actorId,
+      prompt: prompt,
+    );
+  }
+
+  /// Authorized prompt states for [subjectIds]; omits unauthorized, blocked,
+  /// and unknown subjects (no error, no synthetic pending).
+  Future<List<InviteSeedPromptView>> promptStatesFor({
+    required String actorId,
+    required List<String> subjectIds,
+  }) async {
+    if (subjectIds.isEmpty) {
+      return const [];
+    }
+    final eligibleInviteeIds = <String>[];
+    for (final subjectId in subjectIds) {
+      if (actorId == subjectId) {
+        continue;
+      }
+      if (await _userBlockRepository.isBlockedPair(
+        a: actorId,
+        b: subjectId,
+      )) {
+        continue;
+      }
+      final directInviter = await _inviteGenealogy.inviterOf(subjectId);
+      if (directInviter != actorId) {
+        continue;
+      }
+      eligibleInviteeIds.add(subjectId);
+    }
+    if (eligibleInviteeIds.isEmpty) {
+      return const [];
+    }
+    final prompts = await _inviteSeedPrompt.statesForInvitees(
+      inviterId: actorId,
+      inviteeIds: eligibleInviteeIds,
+    );
+    final views = <InviteSeedPromptView>[];
+    for (final prompt in prompts) {
+      views.add(
+        await _viewForPrompt(actorId: actorId, prompt: prompt),
+      );
+    }
+    return views;
+  }
+
+  Future<InviteSeedPromptView> _viewForPrompt({
+    required String actorId,
+    required PromptState prompt,
+  }) async {
     Set<String> ledger;
     try {
       ledger = await _capabilityEvidence.activeSeedSlugs(
         observerId: actorId,
-        subjectId: subjectId,
+        subjectId: prompt.inviteeUserId,
       );
     } on Object catch (e, st) {
       logger.warning(
-        'activeSeedSlugs failed observer=$actorId subject=$subjectId: $e',
+        'activeSeedSlugs failed observer=$actorId subject=${prompt.inviteeUserId}: $e',
         e,
         st,
       );

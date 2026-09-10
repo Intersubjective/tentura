@@ -148,3 +148,11 @@ FINDINGS:
 4. **Repo-wide note for future units, since this is now the second time this exact class of bug has cost significant investigation time**: any `testWidgets` test in this codebase that (a) constructs a real `AttentionCase`/`Cubit` outside of DI, (b) mounts it into a real widget via `BlocProvider`, and (c) then tries to `await` that cubit's or case's `close()`/`dispose()` in the same test body, should make those calls `unawaited` from the start rather than discovering the hang empirically.
 DECISIONS: none beyond the plan's own text.
 REMAINING: none. Proceed to UNIT 10.
+
+## UNIT 10 — complete — 2026-09-10
+COMMITS: (this entry's own commit, made immediately after)
+TESTS: `cd packages/server && dart pub get --offline`; `cd packages/server && dart run build_runner build -d`; `cd packages/server && dart test -t pg -j 1 test/domain/use_case/invite_prompt_projection_pg_test.dart` — 3 passed, 0 skipped; `./scripts/check-custom-lints.sh packages/server` — pass.
+FILES: packages/server/lib/domain/port/invite_seed_prompt_port.dart; packages/server/lib/data/repository/invite_seed_prompt_repository.dart; packages/server/lib/data/repository/mock/invite_seed_prompt_repository_mock.dart; packages/server/lib/domain/use_case/invite_seed_attestation_case.dart; packages/server/lib/api/controllers/graphql/query/query_invite_seed_prompt.dart; packages/server/test/domain/use_case/invite_prompt_projection_pg_test.dart; docs/plans/inbox-activity-ia-implementation-journal.md
+FINDINGS: `dart run build_runner build -d` regenerates `invite_seed_resolver_mocks.mocks.dart` for the port growth; Mockito still compiles without committing that file.
+DECISIONS: batch authorization omits blocked/unauthorized/unknown subjects (same predicate as `_authorizeInviter`, without throwing); GraphQL clamps `subjectIds` to 100 per call.
+REMAINING: none. Proceed to UNIT 11.

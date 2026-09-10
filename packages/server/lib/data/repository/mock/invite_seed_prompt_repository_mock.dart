@@ -15,6 +15,21 @@ class InviteSeedPromptRepositoryMock implements InviteSeedPromptPort {
   PromptState? state;
 
   @override
+  Future<List<PromptState>> statesForInvitees({
+    required String inviterId,
+    required List<String> inviteeIds,
+  }) async {
+    final current = state;
+    if (current == null || current.inviterUserId != inviterId) {
+      return const [];
+    }
+    if (!inviteeIds.contains(current.inviteeUserId)) {
+      return const [];
+    }
+    return [current];
+  }
+
+  @override
   Future<PromptState?> stateFor({
     required String inviterId,
     required String inviteeId,

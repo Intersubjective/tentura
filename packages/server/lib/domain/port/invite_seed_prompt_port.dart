@@ -6,6 +6,13 @@ abstract interface class InviteSeedPromptPort {
     required String inviteeId,
   });
 
+  /// Rows for [inviteeIds] where [inviterId] is the stored inviter; omits ids
+  /// with no row or a different inviter.
+  Future<List<PromptState>> statesForInvitees({
+    required String inviterId,
+    required List<String> inviteeIds,
+  });
+
   /// Inserts state `pending` for a new signup; idempotent on conflict.
   Future<void> insertPending({
     required String inviterId,

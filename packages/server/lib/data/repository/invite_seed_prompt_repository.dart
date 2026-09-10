@@ -22,6 +22,32 @@ class InviteSeedPromptRepository implements InviteSeedPromptPort {
   static const _skipped = 2;
 
   @override
+  Future<List<PromptState>> statesForInvitees({
+    required String inviterId,
+    required List<String> inviteeIds,
+  }) async {
+    if (inviteeIds.isEmpty) {
+      return const [];
+    }
+    final rows = await (_database.select(_database.inviteSeedPromptStates)
+          ..where(
+            (t) =>
+                t.inviterUserId.equals(inviterId) &
+                t.inviteeUserId.isIn(inviteeIds),
+          ))
+        .get();
+    return rows
+        .map(
+          (row) => PromptState(
+            inviterUserId: row.inviterUserId,
+            inviteeUserId: row.inviteeUserId,
+            state: _toValue(row.state),
+          ),
+        )
+        .toList(growable: false);
+  }
+
+  @override
   Future<PromptState?> stateFor({
     required String inviterId,
     required String inviteeId,
