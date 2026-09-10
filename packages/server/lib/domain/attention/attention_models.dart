@@ -144,7 +144,13 @@ AttentionDestinationKind attentionDestinationKindFromWireName(String value) =>
 
 enum AttentionFeedView { all, unread, needsYou }
 
-enum AttentionSettlementKind { resolved, dismissed, superseded, legacyArchived }
+enum AttentionSettlementKind {
+  resolved,
+  dismissed,
+  superseded,
+  legacyArchived,
+  expired,
+}
 
 extension AttentionSettlementKindWireName on AttentionSettlementKind {
   String get wireName => switch (this) {
@@ -152,6 +158,7 @@ extension AttentionSettlementKindWireName on AttentionSettlementKind {
     AttentionSettlementKind.dismissed => 'dismissed',
     AttentionSettlementKind.superseded => 'superseded',
     AttentionSettlementKind.legacyArchived => 'legacy_archived',
+    AttentionSettlementKind.expired => 'expired',
   };
 }
 
