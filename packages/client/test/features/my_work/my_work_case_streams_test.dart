@@ -167,6 +167,7 @@ void main() {
             ),
           ],
           helpOfferedNonArchived: const [],
+        obligationBeacons: const [],
           archivedCountHint: 0,
           lastItemDiscussionMessageAtByBeaconId: const {},
         );
@@ -217,6 +218,7 @@ void main() {
           ),
         ],
         helpOfferedNonArchived: const [],
+        obligationBeacons: const [],
         archivedCountHint: 0,
         lastItemDiscussionMessageAtByBeaconId: const {},
       );
@@ -387,6 +389,7 @@ void main() {
             ),
           ],
           helpOfferedNonArchived: const [],
+        obligationBeacons: const [],
           archivedCountHint: 0,
           lastItemDiscussionMessageAtByBeaconId: const {},
         );
@@ -403,6 +406,7 @@ void main() {
           ),
         ],
         helpOfferedNonArchived: const [],
+        obligationBeacons: const [],
         archivedCountHint: 0,
         lastItemDiscussionMessageAtByBeaconId: const {},
       );
@@ -508,6 +512,7 @@ void main() {
             authoredBeacon('b-new', updatedAt: DateTime(2025, 9)),
           ],
           helpOfferedNonArchived: const [],
+        obligationBeacons: const [],
           archivedCountHint: 0,
           lastItemDiscussionMessageAtByBeaconId: const {},
         );

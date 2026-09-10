@@ -2,7 +2,7 @@
 # import '/data/gql/user_model.graphql'
 # import 'beacon_model_with_help_offer_users.graphql'
 
-query MyWorkInit($userId: String!) {
+query MyWorkInit($userId: String!, $obligationBeaconIds: [String!]!) {
   authoredNonArchived: beacon(
     where: {
       user_id: {_eq: $userId},
@@ -49,6 +49,18 @@ query MyWorkInit($userId: String!) {
     where: {user_id: {_eq: $userId}}
   ) {
     beacon_id
+  }
+  obligationBeacons: beacon(
+    where: {
+      id: {_in: $obligationBeaconIds},
+      status: {_neq: 2},
+    },
+    order_by: {updated_at: desc}
+  ) {
+    ...BeaconModelWithHelpOfferUsers
+    beacon_archiveds(where: {user_id: {_eq: $userId}}, limit: 1) {
+      beacon_id
+    }
   }
 }
 

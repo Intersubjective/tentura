@@ -69,6 +69,7 @@ void main() {
         ..initResult = (
           authoredNonArchived: [readableBeacon()],
           helpOfferedNonArchived: const [],
+        obligationBeacons: const [],
           archivedCountHint: 0,
           lastItemDiscussionMessageAtByBeaconId: const {},
         );

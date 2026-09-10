@@ -19,10 +19,19 @@ typedef MyWorkHelpOfferedRow = ({
   DateTime? authorCoordinationUpdatedAt,
 });
 
+/// Obligation-backed beacon from init fetch (archive state is per viewer, not split query).
+typedef MyWorkObligationRow = ({
+  Beacon beacon,
+
+  /// Whether the viewer has archived this Request (independent of card kind).
+  bool viewerArchived,
+});
+
 /// Result of My Work fetch init (non-archived full rows + archived count hint).
 typedef MyWorkInitResult = ({
   List<Beacon> authoredNonArchived,
   List<MyWorkHelpOfferedRow> helpOfferedNonArchived,
+  List<MyWorkObligationRow> obligationBeacons,
   int archivedCountHint,
 
   /// Latest message on active coordination items per beacon (V2).

@@ -25,21 +25,81 @@ import 'package:tentura/features/my_work/domain/entity/my_work_last_event.dart';
 import 'package:tentura/features/my_work/domain/port/my_work_desk_preferences_port.dart';
 import 'package:tentura/features/evaluation/data/repository/evaluation_repository.dart';
 import 'package:tentura/features/evaluation/domain/entity/review_window_info.dart';
+import 'package:tentura/domain/attention/attention_case.dart';
+import 'package:tentura/domain/attention/entity/attention_feed.dart';
+import 'package:tentura/domain/attention/port/attention_account_port.dart';
+import 'package:tentura/domain/attention/port/attention_repository_port.dart';
 import 'package:tentura/features/my_work/domain/use_case/my_work_case.dart';
 import 'package:tentura/features/polling/data/repository/polling_repository.dart';
 import 'package:tentura/domain/use_case/realtime_sync_case.dart';
 
 import '../beacon_view/beacon_view_case_test_support.dart' show FakeBeaconDisplayRepository;
+import '../block/support/controllable_block_case.dart' show noopBlockCase;
 import '../evaluation/evaluation_case_test.dart' show FakeEvaluationRepository;
 import '../../support/test_realtime_sync.dart';
+
+class StubAttentionRepository implements AttentionRepositoryPort {
+  Set<String> obligationBeaconIds = const {};
+
+  @override
+  Future<Set<String>> liveObligationBeacons() async => obligationBeaconIds;
+
+  @override
+  Future<AttentionFeed> fetch({
+    required AttentionView view,
+    String? cursor,
+    String? search,
+    int limit = 50,
+  }) async =>
+      throw UnimplementedError();
+
+  @override
+  Future<Set<String>> unreadForBeacons(Set<String> beaconIds) async =>
+      throw UnimplementedError();
+
+  @override
+  Future<int> markAllSeen() async => throw UnimplementedError();
+
+  @override
+  Future<int> markSeen(List<String> ids) async => throw UnimplementedError();
+
+  @override
+  Future<int> markUnseen(List<String> ids) async => throw UnimplementedError();
+
+  @override
+  Future<int> settle({required String receiptId, required String kind}) async =>
+      throw UnimplementedError();
+}
+
+class _StubAttentionAccounts implements AttentionAccountPort {
+  @override
+  Stream<String> get currentAccountChanges => const Stream.empty();
+}
+
+AttentionCase buildStubAttentionCase({
+  StubAttentionRepository? repository,
+}) {
+  final repo = repository ?? StubAttentionRepository();
+  return AttentionCase(
+    repo,
+    _StubAttentionAccounts(),
+    buildTestRealtimeSync().case_,
+    noopBlockCase(),
+    Logger('my-work-test-attention'),
+    qaLatencyMeasurementEnabled: false,
+  );
+}
 
 class FakeMyWorkRepository implements MyWorkRepository {
   MyWorkInitResult initResult = (
     authoredNonArchived: const <Beacon>[],
     helpOfferedNonArchived: const [],
+    obligationBeacons: const [],
     archivedCountHint: 0,
     lastItemDiscussionMessageAtByBeaconId: const <String, DateTime>{},
   );
+
+  List<String> lastObligationBeaconIds = const [];
 
   MyWorkArchivedResult archivedResult = (
     authoredArchived: const <Beacon>[],
@@ -53,7 +113,11 @@ class FakeMyWorkRepository implements MyWorkRepository {
   Duration fetchInitDelay = Duration.zero;
 
   @override
-  Future<MyWorkInitResult> fetchInit({required String userId}) async {
+  Future<MyWorkInitResult> fetchInit({
+    required String userId,
+    List<String> obligationBeaconIds = const [],
+  }) async {
+    lastObligationBeaconIds = obligationBeaconIds;
     fetchInitCallCount++;
     if (fetchInitDelay > Duration.zero) {
       await Future<void>.delayed(fetchInitDelay);
@@ -276,6 +340,9 @@ MyWorkCase buildTestMyWorkCase({
   FakeBeaconThreadsRepository? roomRepo,
   BookkeepingRefreshSignal? bookkeepingRefreshSignal,
   RealtimeSyncCase? realtimeSyncCase,
+  AttentionCase? attentionCase,
+  StubAttentionRepository? attentionRepository,
+  bool obligationsGateEnabled = false,
 }) {
   final hints = roomHints ?? FakeRoomHints();
   final coordination = coordinationRepo ?? FakeCoordinationItemRepository();
@@ -301,6 +368,9 @@ MyWorkCase buildTestMyWorkCase({
     evaluationRepo ?? FakeEvaluationRepository(),
     realtime,
     bookkeepingRefreshSignal ?? BookkeepingRefreshSignal(),
+    attentionCase ??
+        buildStubAttentionCase(repository: attentionRepository),
+    obligationsGateEnabled,
     env: const Env(),
     logger: Logger('test'),
   );

@@ -30,10 +30,17 @@ class MyWorkRepository {
 
   static const _kNetworkTimeout = Duration(seconds: 60);
 
-  Future<MyWorkInitResult> fetchInit({required String userId}) async {
+  Future<MyWorkInitResult> fetchInit({
+    required String userId,
+    List<String> obligationBeaconIds = const [],
+  }) async {
     final r = await _remoteApiService
         .request(
-          GMyWorkInitReq((b) => b..vars.userId = userId),
+          GMyWorkInitReq(
+            (b) => b
+              ..vars.userId = userId
+              ..vars.obligationBeaconIds.replace(obligationBeaconIds),
+          ),
         )
         .timeout(_kNetworkTimeout)
         .firstWhere((e) => e.dataSource == DataSource.Link);
@@ -41,6 +48,7 @@ class MyWorkRepository {
     final beaconIds = <String>{
       for (final e in d.authoredNonArchived) e.id,
       for (final e in d.helpOfferedNonArchived) e.beacon.id,
+      for (final e in d.obligationBeacons) e.id,
     }.toList();
     final itemActivity = await _fetchItemDiscussionActivity(beaconIds);
     return (
@@ -49,6 +57,11 @@ class MyWorkRepository {
           .toList(),
       helpOfferedNonArchived:
           d.helpOfferedNonArchived.map(_mapInitHelpOfferedRow).toList(),
+      obligationBeacons: d.obligationBeacons.map((e) {
+        final beacon = BeaconModelWithHelpOfferUsers(e).toEntity();
+        final viewerArchived = e.beacon_archiveds.isNotEmpty;
+        return (beacon: beacon, viewerArchived: viewerArchived);
+      }).toList(),
       archivedCountHint: d.archivedIdHints.length,
       lastItemDiscussionMessageAtByBeaconId: itemActivity,
     );

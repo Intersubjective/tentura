@@ -59,6 +59,7 @@ void main() {
           Beacon.empty.copyWith(id: 'b1'),
         ],
         helpOfferedNonArchived: const [],
+        obligationBeacons: const [],
         archivedCountHint: 0,
         lastItemDiscussionMessageAtByBeaconId: const {},
       );

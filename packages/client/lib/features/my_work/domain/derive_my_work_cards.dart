@@ -60,12 +60,13 @@ MyWorkCardViewModel _deriveAuthored({
 }) {
   final lc = beacon.status;
   if (!archived && lc == BeaconStatus.draft) {
-    return MyWorkCardViewModel(
-      beaconId: beacon.id,
-      role: MyWorkCardRole.authored,
-      kind: MyWorkCardKind.authoredDraft,
-      beacon: beacon,
-    );
+  return MyWorkCardViewModel(
+    beaconId: beacon.id,
+    role: MyWorkCardRole.authored,
+    kind: MyWorkCardKind.authoredDraft,
+    beacon: beacon,
+    sources: {MyWorkMembershipSource.authored},
+  );
   }
   if (archived) {
     return MyWorkCardViewModel(
@@ -74,6 +75,8 @@ MyWorkCardViewModel _deriveAuthored({
       kind: MyWorkCardKind.authoredArchived,
       beacon: beacon,
       showArchiveAffordance: true,
+      sources: {MyWorkMembershipSource.authored},
+      viewerArchived: true,
     );
   }
   if (lc.isFinished) {
@@ -83,6 +86,7 @@ MyWorkCardViewModel _deriveAuthored({
       kind: MyWorkCardKind.authoredFinished,
       beacon: beacon,
       showArchiveAffordance: true,
+      sources: {MyWorkMembershipSource.authored},
     );
   }
 
@@ -102,6 +106,23 @@ MyWorkCardViewModel _deriveAuthored({
     beacon: beacon,
     attentionChip: attention,
     showReviewHelpOffersCta: showReviewHelpOffersCta,
+    sources: {MyWorkMembershipSource.authored},
+  );
+}
+
+MyWorkCardViewModel _deriveObligation({
+  required Beacon beacon,
+  required bool viewerArchived,
+}) {
+  return MyWorkCardViewModel(
+    beaconId: beacon.id,
+    role: MyWorkCardRole.obligation,
+    kind: viewerArchived
+        ? MyWorkCardKind.obligationArchived
+        : MyWorkCardKind.obligationActive,
+    beacon: beacon,
+    sources: {MyWorkMembershipSource.obligation},
+    viewerArchived: viewerArchived,
   );
 }
 
@@ -125,6 +146,8 @@ MyWorkCardViewModel _deriveHelpOffered({
       showArchiveAffordance: true,
       helpOfferRowUpdatedAt: row.helpOfferRowUpdatedAt,
       authorCoordinationUpdatedAt: row.authorCoordinationUpdatedAt,
+      sources: {MyWorkMembershipSource.helpOffered},
+      viewerArchived: true,
     );
   }
 
@@ -141,6 +164,7 @@ MyWorkCardViewModel _deriveHelpOffered({
       showArchiveAffordance: true,
       helpOfferRowUpdatedAt: row.helpOfferRowUpdatedAt,
       authorCoordinationUpdatedAt: row.authorCoordinationUpdatedAt,
+      sources: {MyWorkMembershipSource.helpOffered},
     );
   }
 
@@ -158,6 +182,7 @@ MyWorkCardViewModel _deriveHelpOffered({
     showReviewCta: reviewOpen,
     helpOfferRowUpdatedAt: row.helpOfferRowUpdatedAt,
     authorCoordinationUpdatedAt: row.authorCoordinationUpdatedAt,
+    sources: {MyWorkMembershipSource.helpOffered},
   );
 }
 
@@ -196,21 +221,46 @@ List<MyWorkCardViewModel> mergeMyWorkDeskCards({
   return [...serverCards, ...preserved]..sort(compareMyWorkCards);
 }
 
-/// Non-archived cards from init fetch (authored beacons + help-offered rows).
+/// Non-archived cards from init fetch (authored, help-offered, and obligations).
 List<MyWorkCardViewModel> buildNonArchivedViewModels({
   required List<Beacon> authoredNonArchived,
   required List<MyWorkHelpOfferedRow> helpOfferedNonArchived,
+  List<MyWorkObligationRow> obligationBeacons = const [],
 }) {
-  final authored = authoredNonArchived
-      .map((b) => _deriveAuthored(beacon: b))
-      .toList(growable: false);
-  final authoredIds = authored.map((v) => v.beaconId).toSet();
-  final helpOffered = helpOfferedNonArchived
-      .map((r) => _deriveHelpOffered(row: r))
-      .where((v) => !authoredIds.contains(v.beaconId))
-      .toList(growable: false);
-  final merged = [...authored, ...helpOffered]..sort(compareMyWorkCards);
-  return merged;
+  final byId = <String, MyWorkCardViewModel>{};
+
+  for (final beacon in authoredNonArchived) {
+    byId[beacon.id] = _deriveAuthored(beacon: beacon);
+  }
+
+  for (final row in helpOfferedNonArchived) {
+    final id = row.beacon.id;
+    if (byId.containsKey(id)) {
+      continue;
+    }
+    byId[id] = _deriveHelpOffered(row: row);
+  }
+
+  for (final row in obligationBeacons) {
+    final id = row.beacon.id;
+    final existing = byId[id];
+    if (existing != null) {
+      byId[id] = existing.copyWith(
+        sources: {
+          ...existing.sources,
+          MyWorkMembershipSource.obligation,
+        },
+        viewerArchived: row.viewerArchived || existing.viewerArchived,
+      );
+    } else {
+      byId[id] = _deriveObligation(
+        beacon: row.beacon,
+        viewerArchived: row.viewerArchived,
+      );
+    }
+  }
+
+  return byId.values.toList()..sort(compareMyWorkCards);
 }
 
 List<MyWorkCardViewModel> filterMyWorkCardsForDesk({
@@ -228,7 +278,9 @@ List<MyWorkCardViewModel> filterMyWorkCardsForDesk({
                 c.kind == MyWorkCardKind.authoredActive ||
                 c.kind == MyWorkCardKind.helpOfferedActive ||
                 c.kind == MyWorkCardKind.authoredFinished ||
-                c.kind == MyWorkCardKind.helpOfferedFinished,
+                c.kind == MyWorkCardKind.helpOfferedFinished ||
+                c.kind == MyWorkCardKind.obligationActive ||
+                c.kind == MyWorkCardKind.obligationArchived,
           )
           .toList(),
     MyWorkFilter.drafts =>

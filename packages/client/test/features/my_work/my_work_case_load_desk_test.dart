@@ -21,6 +21,7 @@ void main() {
           ),
         ],
         helpOfferedNonArchived: const [],
+        obligationBeacons: const [],
         archivedCountHint: 2,
         lastItemDiscussionMessageAtByBeaconId: const {},
       );
@@ -43,6 +44,7 @@ void main() {
       ..initResult = (
         authoredNonArchived: [beacon],
         helpOfferedNonArchived: const [],
+        obligationBeacons: const [],
         archivedCountHint: 0,
         lastItemDiscussionMessageAtByBeaconId: const {},
       );
@@ -120,6 +122,7 @@ void main() {
               authorCoordinationUpdatedAt: null,
             ),
           ],
+          obligationBeacons: const [],
           archivedCountHint: 0,
           lastItemDiscussionMessageAtByBeaconId: const {},
         );
@@ -190,6 +193,7 @@ void main() {
               authorCoordinationUpdatedAt: null,
             ),
           ],
+          obligationBeacons: const [],
           archivedCountHint: 0,
           lastItemDiscussionMessageAtByBeaconId: const {},
         );

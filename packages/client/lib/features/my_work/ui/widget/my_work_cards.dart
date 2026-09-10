@@ -113,6 +113,16 @@ class MyWorkCardRouter extends StatelessWidget {
         currentUserId: currentUserId,
         attentionMarked: attentionMarked,
       ),
+      MyWorkCardKind.obligationActive => _AuthoredActiveCard(
+        vm: vm,
+        currentUserId: currentUserId,
+        attentionMarked: attentionMarked,
+      ),
+      MyWorkCardKind.obligationArchived => _FinishedAuthoredCard(
+        vm: vm,
+        currentUserId: currentUserId,
+        attentionMarked: attentionMarked,
+      ),
     };
   }
 }

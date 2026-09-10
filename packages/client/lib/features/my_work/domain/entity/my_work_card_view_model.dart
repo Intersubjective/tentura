@@ -12,7 +12,7 @@ import 'my_work_last_event.dart';
 
 part 'my_work_card_view_model.freezed.dart';
 
-enum MyWorkCardRole { authored, helpOffered }
+enum MyWorkCardRole { authored, helpOffered, obligation }
 
 enum MyWorkCardKind {
   authoredActive,
@@ -22,7 +22,11 @@ enum MyWorkCardKind {
   helpOfferedFinished,
   authoredArchived,
   helpOfferedArchived,
+  obligationActive,
+  obligationArchived,
 }
+
+enum MyWorkMembershipSource { authored, helpOffered, obligation }
 
 enum MyWorkAttentionChip {
   /// Author: beacon in review window (Wrapping up).
@@ -78,6 +82,12 @@ abstract class MyWorkCardViewModel with _$MyWorkCardViewModel {
 
     /// Server display-status projection (author gate fields).
     BeaconDisplayStatusDto? displayStatus,
+
+    /// Membership sources that keep this Request in My Work scope.
+    @Default(<MyWorkMembershipSource>{}) Set<MyWorkMembershipSource> sources,
+
+    /// Viewer archive preference (orthogonal to [kind]; UNIT 05 reads this).
+    @Default(false) bool viewerArchived,
   }) = _MyWorkCardViewModel;
 
   const MyWorkCardViewModel._();

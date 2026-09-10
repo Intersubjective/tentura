@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:injectable/injectable.dart';
 
 import 'package:tentura/data/service/bookkeeping_refresh_signal.dart';
+import 'package:tentura/domain/attention/attention_case.dart';
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 import 'package:tentura/domain/entity/repository_event.dart';
@@ -25,6 +26,8 @@ import 'package:tentura/domain/entity/beacon_display_status_dto.dart';
 import '../derive_my_work_cards.dart';
 import '../entity/my_work_card_view_model.dart';
 import '../entity/my_work_desk_load_types.dart';
+import '../entity/my_work_fetch_types.dart';
+import '../my_work_obligations_gate.dart';
 import '../port/my_work_desk_preferences_port.dart';
 
 @singleton
@@ -41,7 +44,9 @@ final class MyWorkCase extends UseCaseBase {
     this._displayRepository,
     this._evaluationRepository,
     this._realtimeSyncCase,
-    this._bookkeepingRefreshSignal, {
+    this._bookkeepingRefreshSignal,
+    this._attentionCase,
+    @Named(myWorkObligationsGate) this._obligationsGateEnabled, {
     required super.env,
     required super.logger,
   });
@@ -67,6 +72,10 @@ final class MyWorkCase extends UseCaseBase {
 
   final BookkeepingRefreshSignal _bookkeepingRefreshSignal;
 
+  final AttentionCase _attentionCase;
+
+  final bool _obligationsGateEnabled;
+
   Stream<RepositoryEvent<Beacon>> get beaconChanges =>
       _beaconRepository.changes;
 
@@ -87,8 +96,15 @@ final class MyWorkCase extends UseCaseBase {
 
   Stream<void> get catchUps => _realtimeSyncCase.catchUps.map((_) {});
 
-  Future<MyWorkInitResult> fetchInit({required String userId}) =>
-      _repository.fetchInit(userId: userId);
+  Future<MyWorkInitResult> fetchInit({required String userId}) async {
+    final obligationBeaconIds = _obligationsGateEnabled
+        ? await _attentionCase.liveObligationBeacons()
+        : const <String>{};
+    return _repository.fetchInit(
+      userId: userId,
+      obligationBeaconIds: obligationBeaconIds.toList(),
+    );
+  }
 
   Future<MyWorkArchivedResult> fetchArchived({required String userId}) =>
       _repository.fetchArchived(userId: userId);
@@ -112,11 +128,15 @@ final class MyWorkCase extends UseCaseBase {
   }) => _archiveRepository.unarchive(beaconId: beaconId, userId: userId);
 
   Future<MyWorkDeskInitLoad> loadDeskInit({required String userId}) async {
-    final init = await _repository.fetchInit(userId: userId);
+    final init = await fetchInit(userId: userId);
+    final obligationBeacons = _obligationsGateEnabled
+        ? init.obligationBeacons
+        : const <MyWorkObligationRow>[];
     final nonArchived =
         buildNonArchivedViewModels(
           authoredNonArchived: init.authoredNonArchived,
           helpOfferedNonArchived: init.helpOfferedNonArchived,
+          obligationBeacons: obligationBeacons,
         ).map((c) {
           final at = init.lastItemDiscussionMessageAtByBeaconId[c.beaconId];
           return at == null ? c : c.copyWith(lastCoordinationItemMessageAt: at);
