@@ -13,6 +13,8 @@ import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/consts.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/attention/attention_case.dart';
+import 'package:tentura/domain/attention/feed_session_registry.dart';
+import 'package:tentura/domain/attention/feed_session_registry.dart';
 import 'package:tentura/domain/attention/entity/attention_feed.dart';
 import 'package:tentura/domain/attention/entity/attention_summary.dart';
 import 'package:tentura/domain/attention/port/attention_account_port.dart';
@@ -149,6 +151,7 @@ Future<HomeAttentionCubit> _seedAttentionCubit({
     accounts,
     sync.case_,
     noopBlockCase(),
+    FeedSessionRegistry(),
     Logger('constellation-nav-test'),
   );
   final cubit = HomeAttentionCubit(

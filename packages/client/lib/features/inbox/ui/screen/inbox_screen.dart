@@ -7,6 +7,7 @@ import 'package:get_it/get_it.dart';
 import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/consts.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
+import 'package:tentura/domain/attention/entity/attention_feed.dart';
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/effect/ui_effect.dart';
@@ -617,7 +618,9 @@ Widget _watchingQuietEmpty({
 
 Widget _inboxReceiptsTabBody(BuildContext context) {
   return BlocProvider(
-    create: (_) => UpdatesFeedCubit(),
+    create: (_) => UpdatesFeedCubit(
+      destinationId: AttentionFeedDestinationId.activity,
+    ),
     child: const UpdatesFeedPane(),
   );
 }

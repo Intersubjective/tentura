@@ -9,6 +9,7 @@ part 'updates_feed_state.freezed.dart';
 abstract class UpdatesFeedState extends StateBase with _$UpdatesFeedState {
   const factory UpdatesFeedState({
     @Default(AttentionView.all) AttentionView view,
+    @Default('') String searchText,
     @Default(AttentionSummary()) AttentionSummary summary,
     @Default(<AttentionReceipt>[]) List<AttentionReceipt> items,
     @Default(false) bool hasNextPage,

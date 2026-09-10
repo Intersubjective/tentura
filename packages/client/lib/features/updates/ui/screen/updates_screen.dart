@@ -4,6 +4,8 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
 
+import 'package:tentura/domain/attention/entity/attention_feed.dart';
+
 import '../bloc/updates_feed_cubit.dart';
 import '../widget/updates_feed_pane.dart';
 
@@ -15,7 +17,9 @@ class UpdatesScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return BlocProvider(
-      create: (_) => UpdatesFeedCubit(),
+      create: (_) => UpdatesFeedCubit(
+        destinationId: AttentionFeedDestinationId.activity,
+      ),
       child: Scaffold(
         backgroundColor: context.tt.bg,
         body: const SafeArea(

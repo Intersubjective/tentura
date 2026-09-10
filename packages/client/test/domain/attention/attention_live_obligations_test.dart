@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:logging/logging.dart';
 
 import 'package:tentura/domain/attention/attention_case.dart';
+import 'package:tentura/domain/attention/feed_session_registry.dart';
 import 'package:tentura/domain/attention/entity/attention_feed.dart';
 import 'package:tentura/domain/attention/port/attention_account_port.dart';
 import 'package:tentura/domain/attention/port/attention_repository_port.dart';
@@ -68,6 +69,7 @@ void main() {
       _Accounts(),
       realtime.case_,
       noopBlockCase(),
+      FeedSessionRegistry(),
       Logger('attention-live-obligations-test'),
       qaLatencyMeasurementEnabled: false,
     );

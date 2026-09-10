@@ -41,11 +41,24 @@ class _UpdatesFeedPaneState extends State<UpdatesFeedPane> {
   final _searchController = TextEditingController();
   Timer? _searchDebounce;
   var _searchOpen = false;
+  var _restoredSearchText = false;
 
   @override
   void initState() {
     super.initState();
     _scrollController.addListener(_loadMoreWhenNeeded);
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_restoredSearchText) {
+      _restoredSearchText = true;
+      final saved = context.read<UpdatesFeedCubit>().state.searchText;
+      if (saved.isNotEmpty) {
+        _searchController.text = saved;
+      }
+    }
   }
 
   void _loadMoreWhenNeeded() {

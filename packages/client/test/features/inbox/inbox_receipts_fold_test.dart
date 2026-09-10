@@ -7,6 +7,9 @@ import 'package:logging/logging.dart';
 import 'package:tentura/consts.dart';
 import 'package:tentura/domain/attention/attention_case.dart';
 import 'package:tentura/domain/attention/entity/attention_feed.dart';
+import 'package:tentura/domain/attention/feed_session_registry.dart';
+import 'package:tentura/domain/attention/feed_session_registry.dart';
+import 'package:tentura/domain/attention/entity/attention_feed.dart';
 import 'package:tentura/domain/attention/entity/attention_receipt.dart';
 import 'package:tentura/domain/attention/entity/attention_summary.dart';
 import 'package:tentura/domain/attention/port/attention_account_port.dart';
@@ -94,8 +97,10 @@ void main() {
       accounts,
       sync.case_,
       noopBlockCase(),
+      FeedSessionRegistry(),
       Logger('inbox-receipts-read-state-test'),
     );
+    attention.attachFeedSession(AttentionFeedDestinationId.activity);
     if (GetIt.I.isRegistered<AttentionCase>()) {
       GetIt.I.unregister<AttentionCase>();
     }
@@ -141,7 +146,12 @@ void main() {
 
     expect(attention.snapshot.summary.unreadTotal, 0);
     expect(
-      attention.snapshot.pages[AttentionView.all]!.items.single.isSeen,
+      attention
+          .feedSession(AttentionFeedDestinationId.activity)
+          .pages[AttentionView.all]!
+          .items
+          .single
+          .isSeen,
       isTrue,
     );
   });

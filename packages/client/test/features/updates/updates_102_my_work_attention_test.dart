@@ -6,6 +6,9 @@ import 'package:logging/logging.dart';
 import 'package:tentura/app/router/home_tab_branches.dart';
 import 'package:tentura/domain/attention/attention_case.dart';
 import 'package:tentura/domain/attention/entity/attention_feed.dart';
+import 'package:tentura/domain/attention/feed_session_registry.dart';
+import 'package:tentura/domain/attention/feed_session_registry.dart';
+import 'package:tentura/domain/attention/entity/attention_feed.dart';
 import 'package:tentura/domain/attention/entity/attention_receipt.dart';
 import 'package:tentura/domain/attention/entity/attention_summary.dart';
 import 'package:tentura/domain/attention/port/attention_account_port.dart';
@@ -102,8 +105,10 @@ void main() {
       accounts,
       sync.case_,
       noopBlockCase(),
+      FeedSessionRegistry(),
       Logger('updates-102-attention-test'),
     );
+    attention.attachFeedSession(AttentionFeedDestinationId.activity);
     home = HomeAttentionCubit(
       attention,
       accounts,
@@ -140,7 +145,12 @@ void main() {
 
       expect(attention.snapshot.summary.unreadTotal, 1);
       expect(
-        attention.snapshot.pages[AttentionView.all]!.items.single.id,
+        attention
+            .feedSession(AttentionFeedDestinationId.activity)
+            .pages[AttentionView.all]!
+            .items
+            .single
+            .id,
         receiptId,
       );
 

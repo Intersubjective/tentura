@@ -5,6 +5,8 @@ import 'package:logging/logging.dart';
 
 import 'package:tentura/app/router/home_tab_branches.dart';
 import 'package:tentura/domain/attention/attention_case.dart';
+import 'package:tentura/domain/attention/feed_session_registry.dart';
+import 'package:tentura/domain/attention/feed_session_registry.dart';
 import 'package:tentura/domain/attention/entity/attention_feed.dart';
 import 'package:tentura/domain/attention/entity/attention_summary.dart';
 import 'package:tentura/domain/attention/port/attention_account_port.dart';
@@ -90,6 +92,7 @@ void main() {
       accounts,
       sync.case_,
       noopBlockCase(),
+      FeedSessionRegistry(),
       Logger('home-attention-test'),
     );
     home = HomeAttentionCubit(

@@ -7,6 +7,12 @@ part 'attention_feed.freezed.dart';
 
 enum AttentionView { all, unread, needsYou }
 
+/// Stable ids for independently mounted feed destinations (Activity, My Work, …).
+abstract final class AttentionFeedDestinationId {
+  static const activity = 'activity_feed';
+  static const myWorkObligations = 'my_work_obligations_feed';
+}
+
 @freezed
 abstract class AttentionFeedPage with _$AttentionFeedPage {
   const factory AttentionFeedPage({
@@ -24,12 +30,27 @@ abstract class AttentionFeed with _$AttentionFeed {
 }
 
 @freezed
+abstract class AttentionFeedSession with _$AttentionFeedSession {
+  const factory AttentionFeedSession({
+    @Default(AttentionView.all) AttentionView activeView,
+    @Default('') String searchText,
+    @Default(<AttentionView, AttentionFeedPage>{})
+    Map<AttentionView, AttentionFeedPage> pages,
+    @Default(0) int requestGeneration,
+    Object? headRefreshError,
+  }) = _AttentionFeedSession;
+
+  const AttentionFeedSession._();
+
+  String? get normalizedSearch {
+    final trimmed = searchText.trim();
+    return trimmed.isEmpty ? null : trimmed;
+  }
+}
+
+@freezed
 abstract class AttentionFeedSnapshot with _$AttentionFeedSnapshot {
   const factory AttentionFeedSnapshot({
     @Default(AttentionSummary()) AttentionSummary summary,
-    @Default(<AttentionView, AttentionFeedPage>{})
-    Map<AttentionView, AttentionFeedPage> pages,
-    @Default(AttentionView.all) AttentionView activeView,
-    Object? headRefreshError,
   }) = _AttentionFeedSnapshot;
 }

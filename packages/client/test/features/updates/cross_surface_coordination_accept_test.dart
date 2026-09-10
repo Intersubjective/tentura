@@ -6,6 +6,9 @@ import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import 'package:tentura/domain/attention/attention_case.dart';
 import 'package:tentura/domain/attention/entity/attention_feed.dart';
+import 'package:tentura/domain/attention/feed_session_registry.dart';
+import 'package:tentura/domain/attention/feed_session_registry.dart';
+import 'package:tentura/domain/attention/entity/attention_feed.dart';
 import 'package:tentura/domain/attention/entity/attention_receipt.dart';
 import 'package:tentura/domain/attention/entity/attention_summary.dart';
 import 'package:tentura/domain/attention/port/attention_account_port.dart';
@@ -55,8 +58,10 @@ void main() {
         accounts,
         sync.case_,
         noopBlockCase(),
+        FeedSessionRegistry(),
         Logger('cross-surface-accept'),
       );
+      attention.attachFeedSession(AttentionFeedDestinationId.activity);
       addTearDown(() async {
         await attention.dispose();
         await sync.port.dispose();

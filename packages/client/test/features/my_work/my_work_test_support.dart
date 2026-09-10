@@ -26,6 +26,7 @@ import 'package:tentura/features/my_work/domain/port/my_work_desk_preferences_po
 import 'package:tentura/features/evaluation/data/repository/evaluation_repository.dart';
 import 'package:tentura/features/evaluation/domain/entity/review_window_info.dart';
 import 'package:tentura/domain/attention/attention_case.dart';
+import 'package:tentura/domain/attention/feed_session_registry.dart';
 import 'package:tentura/domain/attention/entity/attention_feed.dart';
 import 'package:tentura/domain/attention/port/attention_account_port.dart';
 import 'package:tentura/domain/attention/port/attention_repository_port.dart';
@@ -85,6 +86,7 @@ AttentionCase buildStubAttentionCase({
     _StubAttentionAccounts(),
     buildTestRealtimeSync().case_,
     noopBlockCase(),
+    FeedSessionRegistry(),
     Logger('my-work-test-attention'),
     qaLatencyMeasurementEnabled: false,
   );

@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:logging/logging.dart';
 
 import 'package:tentura/domain/attention/attention_case.dart';
+import 'package:tentura/domain/attention/feed_session_registry.dart';
 import 'package:tentura/domain/attention/entity/attention_feed.dart';
 import 'package:tentura/domain/attention/entity/attention_summary.dart';
 import 'package:tentura/domain/attention/port/attention_account_port.dart';
@@ -32,8 +33,10 @@ void main() {
         accounts,
         sync.case_,
         noopBlockCase(),
+        FeedSessionRegistry(),
         Logger('cross-surface-updates'),
       );
+      attention.attachFeedSession(AttentionFeedDestinationId.activity);
       addTearDown(attention.dispose);
 
       accounts.emit('author');
@@ -66,10 +69,12 @@ void main() {
         accounts,
         sync.case_,
         noopBlockCase(),
+        FeedSessionRegistry(),
         Logger('cross-surface-feed'),
       );
       addTearDown(attention.dispose);
       final cubit = UpdatesFeedCubit(
+        destinationId: AttentionFeedDestinationId.activity,
         attention: attention,
         logger: Logger('cross-surface-feed'),
       );

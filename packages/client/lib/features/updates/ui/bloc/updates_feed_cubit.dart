@@ -14,27 +14,40 @@ export 'updates_feed_state.dart';
 
 /// Presentation-only projection of the domain-owned attention feed.
 final class UpdatesFeedCubit extends Cubit<UpdatesFeedState> {
-  UpdatesFeedCubit({AttentionCase? attention, Logger? logger})
-    : _attention = attention ?? GetIt.I<AttentionCase>(),
-      _logger = logger ?? GetIt.I<Logger>(),
-      super(const UpdatesFeedState()) {
-    _sub = _attention.feedPages.listen(_onSnapshot);
-    unawaited(_attention.refresh());
+  UpdatesFeedCubit({
+    required String destinationId,
+    AttentionCase? attention,
+    Logger? logger,
+  }) : _destinationId = destinationId,
+       _attention = attention ?? GetIt.I<AttentionCase>(),
+       _logger = logger ?? GetIt.I<Logger>(),
+       super(const UpdatesFeedState()) {
+    _attention.attachFeedSession(_destinationId);
+    _accountSub = _attention.feedPages.listen((_) => _projectFromDomain());
+    _sessionSub = _attention
+        .watchFeedSession(_destinationId)
+        .listen((_) => _projectFromDomain());
+    _projectFromDomain();
+    unawaited(_attention.refresh(destinationId: _destinationId));
   }
 
+  final String _destinationId;
   final AttentionCase _attention;
   final Logger _logger;
-  late final StreamSubscription<AttentionFeedSnapshot> _sub;
+  late final StreamSubscription<AttentionFeedSnapshot> _accountSub;
+  late final StreamSubscription<AttentionFeedSession> _sessionSub;
 
-  void _onSnapshot(AttentionFeedSnapshot snapshot) {
-    final page = snapshot.pages[snapshot.activeView];
+  void _projectFromDomain() {
+    final session = _attention.feedSession(_destinationId);
+    final page = session.pages[session.activeView];
     emit(
       state.copyWith(
-        view: snapshot.activeView,
-        summary: snapshot.summary,
+        view: session.activeView,
+        searchText: session.searchText,
+        summary: _attention.snapshot.summary,
         items: page?.items ?? const [],
         hasNextPage: page?.nextCursor?.isNotEmpty ?? false,
-        refreshError: snapshot.headRefreshError,
+        refreshError: session.headRefreshError,
         status: const StateIsSuccess(),
       ),
     );
@@ -50,15 +63,16 @@ final class UpdatesFeedCubit extends Cubit<UpdatesFeedState> {
         actionError: null,
       ),
     );
-    _attention.setActiveView(view);
+    _attention.setActiveView(_destinationId, view);
   }
 
-  void setSearch(String value) => _attention.setSearch(value);
+  void setSearch(String value) => _attention.setSearch(_destinationId, value);
 
   Future<void> refresh() async {
     emit(state.copyWith(refreshError: null));
     try {
-      await _attention.refresh();
+      await _attention.refresh(destinationId: _destinationId);
+      _projectFromDomain();
     } catch (error, stackTrace) {
       _logger.warning('Updates refresh failed', error, stackTrace);
       emit(state.copyWith(refreshError: error, status: const StateIsSuccess()));
@@ -68,7 +82,7 @@ final class UpdatesFeedCubit extends Cubit<UpdatesFeedState> {
   Future<void> loadNextPage() async {
     if (!state.hasNextPage) return;
     try {
-      await _attention.fetchNextPage();
+      await _attention.fetchNextPage(destinationId: _destinationId);
     } catch (error, stackTrace) {
       _logger.warning('Updates pagination failed', error, stackTrace);
       emit(state.copyWith(refreshError: error, status: const StateIsSuccess()));
@@ -117,7 +131,9 @@ final class UpdatesFeedCubit extends Cubit<UpdatesFeedState> {
 
   @override
   Future<void> close() async {
-    await _sub.cancel();
+    _attention.detachFeedSession(_destinationId);
+    await _accountSub.cancel();
+    await _sessionSub.cancel();
     return super.close();
   }
 }

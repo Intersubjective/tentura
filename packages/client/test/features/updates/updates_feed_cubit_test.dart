@@ -4,6 +4,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:logging/logging.dart';
 
 import 'package:tentura/domain/attention/attention_case.dart';
+import 'package:tentura/domain/attention/feed_session_registry.dart';
+import 'package:tentura/domain/attention/feed_session_registry.dart';
 import 'package:tentura/domain/attention/entity/attention_feed.dart';
 import 'package:tentura/domain/attention/entity/attention_receipt.dart';
 import 'package:tentura/domain/attention/entity/attention_summary.dart';
@@ -98,6 +100,7 @@ void main() {
       accounts,
       sync.case_,
       noopBlockCase(),
+      FeedSessionRegistry(),
       Logger('updates-feed-cubit-test'),
     );
   });
@@ -115,6 +118,7 @@ void main() {
     final retry = Completer<AttentionFeed>();
     repository.pendingFetches.addAll([initial, failing, retry]);
     cubit = UpdatesFeedCubit(
+      destinationId: AttentionFeedDestinationId.activity,
       attention: attention,
       logger: Logger('updates-feed-cubit-test'),
     );
@@ -126,8 +130,10 @@ void main() {
     expect(cubit.state.items, hasLength(1));
     expect(cubit.state.hasRefreshError, isFalse);
 
+    final refresh = cubit.refresh();
+    await _settle();
     failing.completeError(StateError('offline'));
-    await cubit.refresh();
+    await refresh;
     await _settle();
 
     expect(cubit.state.hasRefreshError, isTrue);

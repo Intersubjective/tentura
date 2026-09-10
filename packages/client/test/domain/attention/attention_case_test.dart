@@ -4,6 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:logging/logging.dart';
 
 import 'package:tentura/domain/attention/attention_case.dart';
+import 'package:tentura/domain/attention/feed_session_registry.dart';
 import 'package:tentura/domain/attention/attention_ack_store.dart';
 import 'package:tentura/domain/attention/entity/attention_feed.dart';
 import 'package:tentura/domain/attention/entity/attention_receipt.dart';
@@ -15,6 +16,11 @@ import 'package:tentura/domain/entity/realtime/realtime_entity_change.dart';
 
 import '../../support/test_realtime_sync.dart';
 import '../../features/block/support/controllable_block_case.dart';
+
+const _feedDest = AttentionFeedDestinationId.activity;
+
+AttentionFeedSession _feedSession(AttentionCase attention) =>
+    attention.feedSession(_feedDest);
 
 final class _Accounts implements AttentionAccountPort {
   final _changes = StreamController<String>.broadcast();
@@ -147,11 +153,13 @@ void main() {
     late _Accounts accounts;
     late TestRealtimeSyncPort realtimePort;
     late RealtimeSyncCase realtimeCase;
+    late FeedSessionRegistry feedSessions;
     late AttentionCase attention;
 
     setUp(() {
       repository = _Repository();
       accounts = _Accounts();
+      feedSessions = FeedSessionRegistry();
       final realtime = buildTestRealtimeSync();
       realtimePort = realtime.port;
       realtimeCase = realtime.case_;
@@ -160,8 +168,10 @@ void main() {
         accounts,
         realtimeCase,
         noopBlockCase(),
+        feedSessions,
         Logger('attention-case-test'),
       );
+      attention.attachFeedSession(_feedDest);
     });
 
     tearDown(() async {
@@ -256,7 +266,7 @@ void main() {
       await _settle();
 
       expect(
-        attention.snapshot.pages[AttentionView.all]!.items.map(
+        _feedSession(attention).pages[AttentionView.all]!.items.map(
           (item) => item.id,
         ),
         ['new-after-reconnect', 'existing'],
@@ -269,14 +279,17 @@ void main() {
       final first = Completer<AttentionFeed>();
       final second = Completer<AttentionFeed>();
       qaRepository.pendingFetches.addAll([first, second]);
+      final qaSessions = FeedSessionRegistry();
       final qaAttention = AttentionCase(
         qaRepository,
         qaAccounts,
         realtimeCase,
         noopBlockCase(),
+        qaSessions,
         Logger('attention-case-qa-latency-test'),
         qaLatencyMeasurementEnabled: true,
       );
+      qaAttention.attachFeedSession(_feedDest);
       addTearDown(qaAttention.dispose);
       addTearDown(qaAccounts.dispose);
       final samples = <AttentionHeadRefreshLatency>[];
@@ -315,13 +328,16 @@ void main() {
       final blockRepository = _Repository();
       final blockAccounts = _Accounts();
       final blockCase = ControllableBlockCase();
+      final blockSessions = FeedSessionRegistry();
       final blockAttention = AttentionCase(
         blockRepository,
         blockAccounts,
         realtimeCase,
         blockCase,
+        blockSessions,
         Logger('attention-case-block-test'),
       );
+      blockAttention.attachFeedSession(_feedDest);
       addTearDown(blockAttention.dispose);
       addTearDown(blockAccounts.dispose);
       addTearDown(blockCase.dispose);
@@ -354,7 +370,7 @@ void main() {
       await _settle();
       accounts.emit('account-b');
       await _settle();
-      expect(attention.snapshot.pages, isEmpty);
+      expect(_feedSession(attention).pages, isEmpty);
 
       stale.complete(_feed(items: [_receipt(id: 'from-a')]));
       await _settle();
@@ -362,7 +378,7 @@ void main() {
       fresh.complete(_feed(items: [_receipt(id: 'from-b')]));
       await _settle();
       expect(
-        attention.snapshot.pages[AttentionView.all]!.items.single.id,
+        _feedSession(attention).pages[AttentionView.all]!.items.single.id,
         'from-b',
       );
     });
@@ -383,7 +399,7 @@ void main() {
         final command = attention.markSeen(['receipt-1']);
         await _settle();
         expect(
-          attention.snapshot.pages[AttentionView.all]!.items.single.isSeen,
+          _feedSession(attention).pages[AttentionView.all]!.items.single.isSeen,
           isTrue,
         );
         expect(attention.snapshot.summary.unreadTotal, 0);
@@ -394,7 +410,7 @@ void main() {
         refresh.complete(_feed());
         await _settle();
         expect(
-          attention.snapshot.pages[AttentionView.all]!.items.single.isSeen,
+          _feedSession(attention).pages[AttentionView.all]!.items.single.isSeen,
           isTrue,
         );
       },
@@ -414,7 +430,7 @@ void main() {
         initial.complete(_feed(unread: 100, items: cached));
         await _settle();
 
-        attention.setActiveView(AttentionView.unread);
+        attention.setActiveView(_feedDest, AttentionView.unread);
         await _settle();
         unreadPage.complete(_feed(unread: 100, items: cached));
         await _settle();
@@ -425,7 +441,7 @@ void main() {
 
         expect(attention.snapshot.summary.unreadTotal, 99);
         expect(
-          attention.snapshot.pages[AttentionView.unread]!.items.map(
+          _feedSession(attention).pages[AttentionView.unread]!.items.map(
             (receipt) => receipt.id,
           ),
           isNot(contains('r0')),
@@ -456,7 +472,7 @@ void main() {
         final command = attention.markAllSeen();
         await _settle();
         expect(
-          attention.snapshot.pages[AttentionView.all]!.items.every(
+          _feedSession(attention).pages[AttentionView.all]!.items.every(
             (receipt) => receipt.isSeen,
           ),
           isTrue,
@@ -466,7 +482,7 @@ void main() {
         rejected.completeError(StateError('offline'));
         await expectLater(command, throwsStateError);
         expect(
-          attention.snapshot.pages[AttentionView.all]!.items.every(
+          _feedSession(attention).pages[AttentionView.all]!.items.every(
             (receipt) => !receipt.isSeen,
           ),
           isTrue,
@@ -488,7 +504,7 @@ void main() {
       final command = attention.markUnseen(['receipt-1']);
       await _settle();
       expect(
-        attention.snapshot.pages[AttentionView.all]!.items.single.isSeen,
+        _feedSession(attention).pages[AttentionView.all]!.items.single.isSeen,
         isFalse,
       );
       expect(attention.snapshot.summary.unreadTotal, 1);
@@ -496,7 +512,7 @@ void main() {
       rejected.completeError(StateError('offline'));
       await expectLater(command, throwsStateError);
       expect(
-        attention.snapshot.pages[AttentionView.all]!.items.single.isSeen,
+        _feedSession(attention).pages[AttentionView.all]!.items.single.isSeen,
         isTrue,
       );
       expect(attention.snapshot.summary.unreadTotal, 0);
@@ -534,7 +550,7 @@ void main() {
       await unseenCommand;
       await _settle();
       expect(
-        attention.snapshot.pages[AttentionView.all]!.items.single.isSeen,
+        _feedSession(attention).pages[AttentionView.all]!.items.single.isSeen,
         isFalse,
       );
     });
@@ -553,7 +569,7 @@ void main() {
       final command = attention.markUnseen(['receipt-1']);
       await _settle();
       expect(
-        attention.snapshot.pages[AttentionView.all]!.items.single.isSeen,
+        _feedSession(attention).pages[AttentionView.all]!.items.single.isSeen,
         isFalse,
       );
 
@@ -562,7 +578,7 @@ void main() {
       await command;
       await _settle();
       expect(
-        attention.snapshot.pages[AttentionView.all]!.items.single.isSeen,
+        _feedSession(attention).pages[AttentionView.all]!.items.single.isSeen,
         isTrue,
       );
       expect(attention.snapshot.summary.unreadTotal, 0);
@@ -596,7 +612,7 @@ void main() {
         await _settle();
         expect(attention.snapshot.summary.unreadTotal, 1);
         expect(
-          attention.snapshot.pages[AttentionView.all]!.items.single.isSeen,
+          _feedSession(attention).pages[AttentionView.all]!.items.single.isSeen,
           isFalse,
         );
 
@@ -613,7 +629,7 @@ void main() {
         await _settle();
         expect(attention.snapshot.summary.unreadTotal, 1);
         expect(
-          attention.snapshot.pages[AttentionView.all]!.items.single.isSeen,
+          _feedSession(attention).pages[AttentionView.all]!.items.single.isSeen,
           isFalse,
         );
 
@@ -625,7 +641,7 @@ void main() {
         await _settle();
         expect(attention.snapshot.summary.unreadTotal, 1);
         expect(
-          attention.snapshot.pages[AttentionView.all]!.items.single.isSeen,
+          _feedSession(attention).pages[AttentionView.all]!.items.single.isSeen,
           isFalse,
         );
       },
@@ -691,7 +707,7 @@ void main() {
       ]);
       expect(repository.markAllSeenCalls, 0);
       expect(
-        attention.snapshot.pages[AttentionView.all]!.items.single.isSeen,
+        _feedSession(attention).pages[AttentionView.all]!.items.single.isSeen,
         isTrue,
       );
       expect(attention.snapshot.summary.unreadTotal, 0);
@@ -704,7 +720,7 @@ void main() {
       afterAllSeen.complete(_feed(unread: 0, items: [_seenReceipt()]));
       await _settle();
       expect(
-        attention.snapshot.pages[AttentionView.all]!.items.single.isSeen,
+        _feedSession(attention).pages[AttentionView.all]!.items.single.isSeen,
         isTrue,
       );
       expect(attention.snapshot.summary.unreadTotal, 0);
@@ -733,11 +749,11 @@ void main() {
         await _settle();
         expect(repository.markAllSeenCalls, 1);
         expect(
-          attention.snapshot.pages[AttentionView.all]!.items.single.id,
+          _feedSession(attention).pages[AttentionView.all]!.items.single.id,
           'from-b',
         );
         expect(
-          attention.snapshot.pages[AttentionView.all]!.items.single.isSeen,
+          _feedSession(attention).pages[AttentionView.all]!.items.single.isSeen,
           isFalse,
         );
       },
@@ -794,7 +810,7 @@ void main() {
       );
       await _settle();
 
-      attention.setSearch('  needle  ');
+      attention.setSearch(_feedDest, '  needle  ');
       await _settle();
       searched.complete(
         AttentionFeed(
@@ -824,13 +840,16 @@ void main() {
         final secondRepository = _Repository();
         final secondAccounts = _Accounts();
         final secondRealtime = buildTestRealtimeSync();
+        final secondSessions = FeedSessionRegistry();
         final secondAttention = AttentionCase(
           secondRepository,
           secondAccounts,
           secondRealtime.case_,
           noopBlockCase(),
+          secondSessions,
           Logger('attention-case-second-client-test'),
         );
+        secondAttention.attachFeedSession(_feedDest);
         addTearDown(secondAttention.dispose);
         addTearDown(secondAccounts.dispose);
         addTearDown(secondRealtime.port.dispose);
@@ -864,8 +883,7 @@ void main() {
 
         expect(secondAttention.snapshot.summary.unreadTotal, 0);
         expect(
-          secondAttention
-              .snapshot
+          _feedSession(secondAttention)
               .pages[AttentionView.all]!
               .items
               .single

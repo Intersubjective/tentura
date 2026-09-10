@@ -18,6 +18,7 @@ import 'attention_ack_store.dart';
 import 'entity/attention_feed.dart';
 import 'entity/attention_receipt.dart';
 import 'entity/attention_summary.dart';
+import 'feed_session_registry.dart';
 import 'port/attention_account_port.dart';
 import 'port/attention_repository_port.dart';
 import 'qa_attention_latency_probe.dart';
@@ -43,6 +44,7 @@ final class AttentionCase {
     this._account,
     this._realtime,
     this._blockCase,
+    this._feedSessions,
     this._logger, {
     @ignoreParam @visibleForTesting bool? qaLatencyMeasurementEnabled,
   }) : _qaLatencyMeasurementEnabled =
@@ -57,6 +59,7 @@ final class AttentionCase {
   final AttentionAccountPort _account;
   final RealtimeSyncCase _realtime;
   final BlockCase _blockCase;
+  final FeedSessionRegistry _feedSessions;
   final Logger _logger;
   final bool _qaLatencyMeasurementEnabled;
   final AttentionAckStore _acks = AttentionAckStore();
@@ -71,9 +74,8 @@ final class AttentionCase {
   StreamSubscription<dynamic>? _blockSub;
   String _accountId = '';
   int _accountGeneration = 0;
-  bool _headRefreshInFlight = false;
-  bool _headRefreshQueued = false;
-  String? _search;
+  final Map<String, bool> _headRefreshInFlight = {};
+  final Map<String, bool> _headRefreshQueued = {};
   Future<void> _markAllSeenChain = Future.value();
   final Map<String, Future<void>> _ackChains = {};
   StreamController<AttentionHeadRefreshLatency>? _qaLatencySamples;
@@ -92,43 +94,79 @@ final class AttentionCase {
 
   AttentionFeedSnapshot get snapshot => _snapshot.value;
 
+  AttentionFeedSession feedSession(String destinationId) =>
+      _feedSessions.session(destinationId);
+
+  Stream<AttentionFeedSession> watchFeedSession(String destinationId) =>
+      _feedSessions.watch(destinationId);
+
+  void attachFeedSession(String destinationId) {
+    _feedSessions.attach(destinationId);
+  }
+
+  void detachFeedSession(String destinationId) {
+    _feedSessions.detach(destinationId);
+  }
+
   void _start() {
     _accountSub = _account.currentAccountChanges.listen(_onAccountChanged);
     _notificationSub = _realtime
         .changesFor(const {RealtimeEntityKind.notification})
-        .listen((_) => _requestHeadRefresh());
-    _catchUpSub = _realtime.catchUps.listen((_) => _requestHeadRefresh());
-    _blockSub = _blockCase.changes.listen((_) => _requestHeadRefresh());
+        .listen((_) => _requestHeadRefreshForAllAttached());
+    _catchUpSub = _realtime.catchUps.listen((_) => _requestHeadRefreshForAllAttached());
+    _blockSub = _blockCase.changes.listen((_) => _requestHeadRefreshForAllAttached());
   }
 
   void _onAccountChanged(String accountId) {
     if (accountId == _accountId) return;
     _accountId = accountId;
     _accountGeneration++;
-    _headRefreshQueued = false;
+    _headRefreshQueued.clear();
+    _headRefreshInFlight.clear();
     _receiptsById.clear();
     _ackChains.clear();
     _markAllSeenChain = Future.value();
     _acks.resetForAccount(accountId);
+    _feedSessions.resetForAccount();
     _emit(const AttentionFeedSnapshot());
-    if (accountId.isNotEmpty) unawaited(_requestHeadRefresh());
+    if (accountId.isNotEmpty) _requestHeadRefreshForAllAttached();
   }
 
-  void setActiveView(AttentionView view) {
-    if (snapshot.activeView == view) return;
-    _emit(snapshot.copyWith(activeView: view));
-    unawaited(_requestHeadRefresh());
+  void setActiveView(String destinationId, AttentionView view) {
+    final session = _feedSessions.session(destinationId);
+    if (session.activeView == view) return;
+    _feedSessions.update(
+      destinationId,
+      session.copyWith(
+        activeView: view,
+        requestGeneration: session.requestGeneration + 1,
+        headRefreshError: null,
+      ),
+    );
+    unawaited(_requestHeadRefresh(destinationId));
   }
 
-  void setSearch(String? value) {
+  void setSearch(String destinationId, String? value) {
     final normalized = value?.trim();
-    final next = normalized == null || normalized.isEmpty ? null : normalized;
-    if (_search == next) return;
-    _search = next;
-    unawaited(_requestHeadRefresh());
+    final next = normalized == null || normalized.isEmpty ? '' : normalized;
+    final session = _feedSessions.session(destinationId);
+    if (session.searchText == next) return;
+    _feedSessions.update(
+      destinationId,
+      session.copyWith(
+        searchText: next,
+        pages: const {},
+        requestGeneration: session.requestGeneration + 1,
+        headRefreshError: null,
+      ),
+    );
+    unawaited(_requestHeadRefresh(destinationId));
   }
 
-  Future<void> refresh() async => _requestHeadRefresh();
+  Future<void> refresh({
+    String destinationId = AttentionFeedDestinationId.activity,
+  }) async =>
+      _requestHeadRefresh(destinationId);
 
   /// Returns unread attention for candidate Beacons without assigning them to
   /// any presentation surface. Surface projection belongs to the client
@@ -141,19 +179,32 @@ final class AttentionCase {
   Future<Set<String>> liveObligationBeacons() =>
       _repository.liveObligationBeacons();
 
-  Future<void> fetchNextPage() async {
+  Future<void> fetchNextPage({
+    String destinationId = AttentionFeedDestinationId.activity,
+  }) async {
     if (_accountId.isEmpty) return;
-    final current = snapshot.pages[snapshot.activeView];
+    final session = _feedSessions.session(destinationId);
+    final view = session.activeView;
+    final search = session.normalizedSearch;
+    final current = session.pages[view];
     final cursor = current?.nextCursor;
     if (cursor == null || cursor.isEmpty) return;
-    final generation = _accountGeneration;
+    final accountGeneration = _accountGeneration;
+    final requestGeneration = session.requestGeneration;
     final feed = await _repository.fetch(
-      view: snapshot.activeView,
+      view: view,
       cursor: cursor,
-      search: _search,
+      search: search,
     );
-    if (generation != _accountGeneration) return;
-    _applyPage(feed, replaceHead: false);
+    if (accountGeneration != _accountGeneration) return;
+    final landed = _feedSessions.session(destinationId);
+    if (landed.requestGeneration != requestGeneration) return;
+    _applyPage(
+      destinationId,
+      feed,
+      view: view,
+      replaceHead: false,
+    );
   }
 
   Future<void> markSeen(Iterable<String> ids) async {
@@ -179,7 +230,7 @@ final class AttentionCase {
       _logger.warning('Attention mark-seen failed', error, stackTrace);
       rethrow;
     }
-    if (generation == _accountGeneration) unawaited(_requestHeadRefresh());
+    if (generation == _accountGeneration) _requestHeadRefreshForAllAttached();
   }
 
   Future<void> markUnseen(Iterable<String> ids) async {
@@ -212,7 +263,7 @@ final class AttentionCase {
       _logger.warning('Attention mark-unseen failed', error, stackTrace);
       rethrow;
     }
-    if (generation == _accountGeneration) unawaited(_requestHeadRefresh());
+    if (generation == _accountGeneration) _requestHeadRefreshForAllAttached();
   }
 
   Future<void> markAllSeen() async {
@@ -245,53 +296,87 @@ final class AttentionCase {
     });
     _markAllSeenChain = op.catchError((_) {});
     await op;
-    if (generation == _accountGeneration) unawaited(_requestHeadRefresh());
+    if (generation == _accountGeneration) _requestHeadRefreshForAllAttached();
   }
 
   Future<void> settle(String receiptId) async {
     final receipt = _receiptsById[receiptId];
     if (receipt == null || !receipt.isLiveObligation) return;
     await _repository.settle(receiptId: receiptId, kind: 'resolved');
-    await _requestHeadRefresh();
+    _requestHeadRefreshForAllAttached();
   }
 
-  Future<void> _requestHeadRefresh() async {
-    if (_accountId.isEmpty) return;
-    if (_headRefreshInFlight) {
-      _headRefreshQueued = true;
+  void _requestHeadRefreshForAllAttached() {
+    final attached = _feedSessions.attachedDestinationIds.toList();
+    if (attached.isEmpty) {
+      // The account-wide summary (unread badge) must keep converging even
+      // when no feed screen is mounted to attach a destination — nothing
+      // else refreshes `snapshot.summary`. Route through the default
+      // destination so its session exists and gets pre-warmed for when it
+      // is later attached.
+      unawaited(_requestHeadRefresh(AttentionFeedDestinationId.activity));
       return;
     }
-    _headRefreshInFlight = true;
-    final generation = _accountGeneration;
+    for (final destinationId in attached) {
+      unawaited(_requestHeadRefresh(destinationId));
+    }
+  }
+
+  Future<void> _requestHeadRefresh(String destinationId) async {
+    if (_accountId.isEmpty) return;
+    if (_headRefreshInFlight[destinationId] == true) {
+      _headRefreshQueued[destinationId] = true;
+      return;
+    }
+    _headRefreshInFlight[destinationId] = true;
+    final accountGeneration = _accountGeneration;
+    final session = _feedSessions.session(destinationId);
+    final requestGeneration = session.requestGeneration;
+    final view = session.activeView;
+    final search = session.normalizedSearch;
     try {
       final feed = await _repository.fetch(
-        view: snapshot.activeView,
-        search: _search,
+        view: view,
+        search: search,
       );
-      if (generation == _accountGeneration) _applyPage(feed, replaceHead: true);
+      if (accountGeneration != _accountGeneration) return;
+      final landed = _feedSessions.session(destinationId);
+      if (landed.requestGeneration != requestGeneration) return;
+      _applyPage(
+        destinationId,
+        feed,
+        view: view,
+        replaceHead: true,
+      );
     } catch (error, stackTrace) {
-      if (generation == _accountGeneration) {
-        _emit(snapshot.copyWith(headRefreshError: error));
-        _logger.warning('Attention head refresh failed', error, stackTrace);
-      }
+      if (accountGeneration != _accountGeneration) return;
+      final landed = _feedSessions.session(destinationId);
+      if (landed.requestGeneration != requestGeneration) return;
+      _feedSessions.update(
+        destinationId,
+        landed.copyWith(headRefreshError: error),
+      );
+      _logger.warning('Attention head refresh failed', error, stackTrace);
     } finally {
-      _headRefreshInFlight = false;
-      if (_headRefreshQueued) {
-        _headRefreshQueued = false;
-        unawaited(_requestHeadRefresh());
+      _headRefreshInFlight[destinationId] = false;
+      if (_headRefreshQueued[destinationId] == true) {
+        _headRefreshQueued[destinationId] = false;
+        unawaited(_requestHeadRefresh(destinationId));
       }
     }
   }
 
-  void _applyPage(AttentionFeed feed, {required bool replaceHead}) {
-    final view = snapshot.activeView;
-    final oldPage = snapshot.pages[view];
+  void _applyPage(
+    String destinationId,
+    AttentionFeed feed, {
+    required AttentionView view,
+    required bool replaceHead,
+  }) {
+    final session = _feedSessions.session(destinationId);
+    final oldPage = session.pages[view];
     for (final receipt in feed.page.items) {
       _receiptsById[receipt.id] = receipt;
     }
-    // A reconnect can replay an already-normalized GraphQL list entry. Receipt
-    // id is the feed's stable identity, so never project a repeated entry into
-    // the UI even when the transport response contains one.
     final incoming = _uniqueByReceiptId(
       feed.page.items.map(_acks.apply),
     );
@@ -304,11 +389,18 @@ final class AttentionCase {
               )
               .values
               .toList(growable: false);
-    final pages = Map<AttentionView, AttentionFeedPage>.from(snapshot.pages)
+    final pages = Map<AttentionView, AttentionFeedPage>.from(session.pages)
       ..[view] = AttentionFeedPage(
         items: items,
         nextCursor: feed.page.nextCursor,
       );
+    _feedSessions.update(
+      destinationId,
+      session.copyWith(
+        pages: pages,
+        headRefreshError: null,
+      ),
+    );
     _emit(
       snapshot.copyWith(
         summary: feed.summary.copyWith(
@@ -317,8 +409,6 @@ final class AttentionCase {
             feed.summary.unreadTotal + _acks.pendingUnreadDelta(_receiptsById),
           ),
         ),
-        pages: pages,
-        headRefreshError: null,
       ),
     );
     if (replaceHead) {
@@ -367,18 +457,22 @@ final class AttentionCase {
   }
 
   void _applyOptimisticAcks({int unreadDelta = 0, int? unreadTotal}) {
-    final pages = <AttentionView, AttentionFeedPage>{
-      for (final entry in snapshot.pages.entries)
-        entry.key: entry.value.copyWith(
-          items: [
-            for (final receipt in entry.value.items)
-              _acks.apply(_receiptsById[receipt.id] ?? receipt),
-          ].where((receipt) {
-            if (entry.key != AttentionView.unread) return true;
-            return !receipt.isSeen;
-          }).toList(growable: false),
-        ),
-    };
+    for (final destinationId in _feedSessions.attachedDestinationIds) {
+      final session = _feedSessions.session(destinationId);
+      final pages = <AttentionView, AttentionFeedPage>{
+        for (final entry in session.pages.entries)
+          entry.key: entry.value.copyWith(
+            items: [
+              for (final receipt in entry.value.items)
+                _acks.apply(_receiptsById[receipt.id] ?? receipt),
+            ].where((receipt) {
+              if (entry.key != AttentionView.unread) return true;
+              return !receipt.isSeen;
+            }).toList(growable: false),
+          ),
+      };
+      _feedSessions.update(destinationId, session.copyWith(pages: pages));
+    }
     final unread = math.max(
       0,
       unreadTotal ?? snapshot.summary.unreadTotal + unreadDelta,
@@ -386,7 +480,6 @@ final class AttentionCase {
     _emit(
       snapshot.copyWith(
         summary: snapshot.summary.copyWith(unreadTotal: unread),
-        pages: pages,
       ),
     );
   }
