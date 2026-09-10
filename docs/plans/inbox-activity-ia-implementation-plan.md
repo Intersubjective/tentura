@@ -1,6 +1,6 @@
 # Inbox → Activity: implementation plan
 
-Status: implementation plan, revision 6. Companion to [`inbox-activity-ia-architecture.md`](inbox-activity-ia-architecture.md), which is the authority on *what* is being built and *why*. This document owns *what has to exist first*, *in what order*, and *what breaks*.
+Status: implementation plan, revision 7. Companion to [`inbox-activity-ia-architecture.md`](inbox-activity-ia-architecture.md), which is the authority on *what* is being built and *why*. This document owns *what has to exist first*, *in what order*, and *what breaks*.
 
 Date: 2026-09-10. Repository baseline: `c6b24012d` plus this branch.
 
@@ -249,7 +249,7 @@ or route family.
    its acceptance is recorded in the journal. Shipping 09 early strands
    obligations that fall outside My Work's two existing sets — the failure the
    whole sequence exists to prevent.
-9. **UNIT 23 gates UNIT 24.** Removing the coordination-item feature before the
+9. **UNIT 23 gates UNIT 24A.** Removing the coordination-item feature before the
    NOW line is re-seated breaks a live product surface.
 10. Units 01–08 land behind the activation gate of UNIT 04 and must produce **no
     visible change**. If a unit in that range changes what a user sees, it is
@@ -282,7 +282,7 @@ REMAINING: <specific work, or none>
 | 08 | Client: My Work obligation view and settlement actions | §1 step 3 | 05, 06, 07 | `feat(client): needs-you view in my work` |
 | 09 | **Gate:** remove Needs you from Activity, flip the gate | §1 step 4 | 08 | `feat(client): move needs-you out of activity` |
 | 10 | Server: prompt-state projection with own authorization | §2.4 | 00 | `feat(server): expose authorized invite prompt states` |
-| 11 | Server: prompt invalidation in-transaction — m0166 | §2.4 | 10 | `fix(server): emit prompt invalidation atomically` |
+| 11 | Server: prompt invalidation in-transaction — m0165 | §2.4 | 10 | `fix(server): emit prompt invalidation atomically` |
 | 12 | Client: tri-state prompt projection | §2.4, arch §4.8 | 10, 11 | `feat(client): shared tri-state prompt projection` |
 | 13 | Client: Activity body — TabBar out, feed in | arch §4.1–4.2 | 09, 12 | `feat(client): make the feed the activity body` |
 | 14 | Client: triage row and triage route | arch §4.3 | 13 | `feat(client): activity triage summary and route` |
@@ -291,11 +291,13 @@ REMAINING: <specific work, or none>
 | 17 | Client: Watching and Rejected entries, forward intent | arch §4.7, §7 | 13 | `feat(client): reach watching from the activity overflow` |
 | 18 | Client: Activity badge | arch §6 | 14 | `feat(client): badge activity by pending triage` |
 | 19 | Client: rename to Activity | arch §9 | 13–18 | `feat(client): rename the inbox branch to activity` |
-| 20 | Server: `expired` kind — m0165, parser | §2.3 | 00 | `feat(server): add the expired settlement kind` |
+| 20 | Server: `expired` kind — m0166, parser | §2.3 | 00 | `feat(server): add the expired settlement kind` |
 | 21 | Server: expiry writer, backfill, reopen | §2.3 | 20 | `feat(server): settle review obligations on window close` |
 | 22 | Client: My Work obligation badge | §2.5 | 21, 08 | `feat(client): badge my work by live obligations` |
-| 23 | Re-seat the NOW line on `BeaconRoomState` | §4 step 1 | 00 | `refactor: move the now line off coordination items` |
-| 24 | Remove retired coordination machinery | §4 step 2 | 23 | `chore: remove retired ask/blocker/promise/plan code` |
+| 23 | Add the NOW write path on `BeaconRoomState`, delete nothing | §4 step 1 | 00 | `refactor: move the now line off coordination items` |
+| 24A | Migrate every consumer off retired coordination code | §4 step 2 | 23 | `refactor: rehome coordination-item consumers` |
+| 24B | Remove the endpoints, mutations and use cases | §4 step 2 | 24A | `chore: remove retired coordination endpoints` |
+| 24C | Delete the directories and the dead attention branches | §4 step 2 | 24B | `chore: remove retired ask/blocker/promise/plan code` |
 | 25 | Version bump, terminology, acceptance | arch §9 | all | `chore(client): release activity branch` |
 
 **Run these strictly in manifest order.** An earlier revision of this plan
@@ -844,7 +846,7 @@ cd packages/server && dart test -t pg -j 1 test/domain/use_case/invite_prompt_pr
 
 ---
 
-## UNIT 11 — Server: prompt invalidation, atomically (m0166)
+## UNIT 11 — Server: prompt invalidation, atomically (m0165)
 
 Implements §2.4.
 
@@ -907,6 +909,7 @@ packages/client/lib/domain/port/capability_repository_port.dart                 
 packages/client/lib/features/capability/data/repository/capability_repository.dart    edit
 packages/client/lib/features/updates/domain/use_case/invite_accepted_setup_case.dart  edit
 packages/client/lib/features/updates/domain/entity/prompt_projection.dart             new
+packages/client/lib/domain/entity/realtime/realtime_entity_change.dart                edit
 packages/client/lib/features/updates/ui/bloc/updates_feed_cubit.dart                  edit
 packages/client/lib/features/updates/ui/widget/invite_accepted_receipt_card.dart      edit
 packages/client/test/features/updates/invite_accepted_setup_sheet_test.dart           edit
@@ -931,12 +934,25 @@ UNIT 02 step 1. Three fakes implement the setup port and break when it grows:
    shared projection so a row cannot be demoted while its mounted action offers
    a stale choice.
 3. Subscribe to UNIT 11's invalidation and refetch the affected subjects.
+
+   **Subscribing is not enough: the wire value has no decoder yet.**
+   `RealtimeEntityKind.fromWire`
+   (`realtime_entity_change.dart:30-49`) does not know `"invite_seed_prompt"`,
+   so it returns `null` and `invalidation_service.dart:153-157` drops the
+   envelope before any listener sees it. Add the enum value
+   (`inviteSeedPrompt`) **and** its `fromWire` arm in the same unit. This is the
+   one defect in this plan that a green build hides: everything compiles, and
+   prompt state simply never converges on a second device.
 4. The feed never waits on this: it renders from receipts alone, prompt rows in
    chronological position, and only *known* states become pinning candidates
    (UNIT 15). Never render a prompt as **not pending** because its state is
    unknown.
 5. Tests: feed renders fully with the prompt fetch failing; a known state
-   promotes placement; `skip` elsewhere converges an already-mounted,
+   promotes placement; **an envelope carrying the literal wire string
+   `"invite_seed_prompt"` reaches the projection and updates a mounted row** —
+   assert through `RealtimeEntityKind.fromWire`, not by constructing the enum
+   value directly, or the decoder gap survives the test; `skip` elsewhere
+   converges an already-mounted,
    already-seen receipt's placement **and** its available action with no
    restart; unknown never reads as settled.
 
@@ -1312,7 +1328,7 @@ cd packages/client && flutter test test/
 
 ---
 
-## UNIT 20 — Server: the `expired` settlement kind (m0165)
+## UNIT 20 — Server: the `expired` settlement kind (m0166)
 
 Implements §2.3, part one. **Ship and deploy this before UNIT 21.**
 
@@ -1439,11 +1455,16 @@ packages/server/test/domain/use_case/review_obligation_backfill_pg_test.dart   n
 ```bash
 cd packages/server && dart run build_runner build -d
 cd packages/server && dart test -t pg -j 1 test/domain/use_case/review_obligation_settlement_pg_test.dart
+cd packages/server && dart test -t pg -j 1 test/domain/use_case/review_obligation_backfill_pg_test.dart
 ./scripts/check-custom-lints.sh packages/server
 ```
 
 **Acceptance:** an obligation nobody can discharge stops being counted, and no
-historical window is left pinning a Request forever.
+historical window is left pinning a Request forever. The backfill test is not
+optional and not deferrable to UNIT 22: it is the only thing that proves the
+historical sweep terminates. **Run it twice in the same test** — the second run
+must change zero rows. A backfill that is not idempotent will be re-run by
+someone during deployment and will re-settle rows a person has since reopened.
 
 ---
 
@@ -1499,16 +1520,19 @@ rather than assumed.
 
 ---
 
-## UNIT 23 — Re-seat the NOW line on `BeaconRoomState`
+## UNIT 23 — Add the NOW write path on `BeaconRoomState`
 
-Implements §4 step 1. **Gates UNIT 24.** Independent of every other unit.
+Implements §4 step 1. **Gates UNIT 24A.** Independent of every other unit.
+This unit **adds** a path and re-points its callers; the old one is removed in
+UNIT 24B.
 
 **Owns:**
 
 ```text
 packages/server/lib/domain/use_case/beacon_room_case.dart                    edit
+packages/server/lib/domain/port/beacon_room_repository_port.dart             edit
+packages/server/lib/data/repository/beacon_room_repository.dart              edit
 packages/server/lib/api/controllers/graphql/mutation/mutation_beacon_room.dart edit
-packages/server/lib/data/repository/coordination_item_repository.dart        edit
 packages/client/lib/features/beacon_threads/data/gql/room_now_line_update.graphql new
 packages/client/lib/features/beacon_threads/data/repository/beacon_threads_repository.dart edit
 packages/client/lib/features/beacon_threads/domain/use_case/beacon_threads_case.dart edit
@@ -1535,21 +1559,63 @@ packages/server/test/domain/use_case/room_now_line_pg_test.dart              new
    NOW's path" is false until **both** entry points and that repository write are
    re-seated.
 2. Give NOW its own mutation and use case writing `BeaconRoomState` directly.
-   Retire `UpdatePlanCase`, `publishRootPlan` and the client `updatePlan` chain.
+
+   **The port has no write for this.** `BeaconRoomRepositoryPort` exposes
+   `getBeaconRoomState(String beaconId)` (`:41`) and nothing that sets the
+   current line — every existing write goes through
+   `coordination_item_repository.dart`. Add to the port and its Drift
+   implementation:
+
+   ```dart
+   Future<void> setBeaconRoomCurrentLine({
+     required String beaconId,
+     required String text,
+     required String updatedBy,
+   });
+   ```
+
+   It must run inside the caller's transaction and through
+   `_db.withMutatingUser(updatedBy, ...)`, exactly as
+   `coordination_item_repository.dart:1108-1116` does today — that wrapper is
+   what row-level security depends on. `beacon_room_case.dart` reaches the port
+   as `_room` (`:71`).
 
    **The client needs a transport, not just a use case.** Today the call reaches
    the server through `CoordinationItemCase`
    (`beacon_threads_case.dart:309-321`); the replacement goes through
    `beacon_threads_repository.dart:25-41,45-60` with its own GraphQL document.
    A use-case method without that document and adapter is unreachable code.
-3. **Decide and record** whether NOW edits keep emitting `coordinationChanged`
-   receipts or gain their own event type (architecture §11.3). Either is
-   acceptable; leaving it undecided is not, because it determines what the
-   Activity feed shows for a NOW change.
-4. Existing root plan rows need a migration decision: this is a data-path change,
-   not only code. State what happens to them.
-5. Tests (`@Tags(['pg'])`): NOW round-trips without a coordination item; existing
-   rows behave per the decision in step 4; the room renders NOW unchanged.
+
+   **Delete nothing in this unit.** `UpdatePlanCase`, `publishRootPlan`, the port
+   method at `coordination_item_repository_port.dart:77` and the client
+   `updatePlan` chain all stay until UNIT 24B. They have live consumers —
+   `mutation_coordination_item.dart:15,21,32,90` injects and calls
+   `UpdatePlanCase`, and `update_plan_case_test.dart:12,30,34` constructs it —
+   so removing them here makes this unit's own Verify fail to compile.
+3. **Decided, do not re-open:** NOW keeps emitting `coordinationChanged`.
+   `AttentionIntentCase.coordinationChanged` (`attention_intent_case.dart:261-268`)
+   takes no item id, so nothing about the receipt is coordination-item shaped —
+   only the name is. The Activity feed keeps rendering NOW changes exactly as it
+   does today, and no new wire kind, copy or l10n key enters this unit.
+
+   The **source event key** is the part that must change. Today
+   `update_plan_case.dart:87-89` builds
+   `coordination_item:<item id>:plan_updated:<micros>`, which cannot be
+   constructed once no item exists. Use the room state's own identity:
+
+   ```text
+   beacon_room_state:<beaconId>:now_updated:<updatedAt.toUtc().microsecondsSinceEpoch>
+   ```
+4. **Decided, do not re-open:** existing root plan rows need no migration and no
+   backfill. NOW is already read from `BeaconRoomState`, not from the item —
+   `beacon_room_case.dart:594` and `:651` return `row.currentLine` /
+   `st?.currentLine` — and `publishRootPlan` has been mirroring the text into
+   that column all along (`coordination_item_repository.dart:1108-1116`). The
+   rows stay where they are and are removed from the read surface in UNIT 24A.
+5. Tests (`@Tags(['pg'])`): NOW round-trips through the new mutation with no
+   coordination item created; a Beacon whose current line was written by the old
+   plan path still renders it unchanged; the emitted receipt carries the new
+   source event key and a second identical edit collapses against it.
 
 **Verify:**
 
@@ -1562,61 +1628,158 @@ cd packages/client && flutter test test/features/beacon_threads/
 ./scripts/check-custom-lints.sh packages/client
 ```
 
-**Acceptance:** NOW works with no coordination-item code in its path. **Do not
-start UNIT 24 until this is `complete`** — reversing the order breaks a live
-surface.
+**Acceptance:** NOW writes through `BeaconRoomRepositoryPort` and creates no
+coordination-item row. The old path still exists and still compiles — that is
+intended, not an oversight. **Do not start UNIT 24A until this is `complete`**;
+reversing the order breaks a live surface.
 
 ---
 
-## UNIT 24 — Remove retired coordination machinery
+## UNIT 24A — Migrate every consumer off retired coordination code
 
-Implements §4 step 2. **Requires UNIT 23 `complete`.**
+Implements §4 step 2, first of three. **Requires UNIT 23 `complete`.**
+**Nothing is deleted in this unit.** Every consumer stops depending on the
+retired code while the retired code is still there, so this unit compiles at
+every point and the deletion units that follow are mechanical.
 
 **Owns:**
 
 ```text
-packages/server/lib/domain/use_case/coordination_item/            delete
-packages/server/lib/api/controllers/graphql/mutation/mutation_coordination_item.dart  delete
+packages/server/lib/api/controllers/graphql/query/coordination_item_maps.dart  new
+packages/server/lib/api/controllers/graphql/query/query_beacon_room.dart       edit
+packages/server/lib/api/controllers/graphql/query/query_coordination_item.dart edit
+packages/client/lib/features/my_work/domain/use_case/my_work_case.dart         edit
+packages/client/lib/features/beacon_threads/data/model/request_thread_model.dart edit
+packages/client/lib/features/beacon_threads/ui/widget/thread_detail.dart       edit
+packages/client/lib/features/beacon_threads/ui/widget/beacon_room_body.dart    edit
+packages/client/lib/features/beacon_view/ui/bloc/beacon_view_cubit.dart        edit
+```
+
+1. **Rehome the shared server mapper.** `coordinationItemWithCountsToMap` is
+   defined in `query_coordination_item.dart:152` but the **room** query uses it
+   too (`query_beacon_room.dart:170`). Deleting the coordination endpoint with
+   the mapper inside it breaks a query that has nothing to do with coordination
+   items. Move the function to `coordination_item_maps.dart` and re-point both
+   call sites, including `query_coordination_item.dart:75,147`.
+2. **Client UI consumers.** These import from `features/coordination_item/` and
+   are not themselves being deleted:
+   - `thread_detail.dart:19-21` — `ItemActionsCubit`, `ItemActionsState`,
+     `CoordinationItemOverflowMenu`, used at `:135` and `:352`;
+   - `beacon_room_body.dart:27,860` — `AskComposerSeed.fromMessage`;
+   - `beacon_view_cubit.dart:729-754`;
+   - `my_work_case.dart:15,57` — the injected `CoordinationItemCase`.
+
+   For each one, decide *migrate* or *remove the affordance* and do it now. Ask
+   composers and item actions are retired product surfaces
+   (`retiredCoordinationKinds`); removing the affordance is the expected answer
+   for `AskComposerSeed` and the item overflow menu. `my_work_case.dart` is the
+   one to look at before deciding — establish what it reads from
+   `CoordinationItemCase` and whether My Work still needs it at all.
+3. **The embedded `item` field.** Both the room query
+   (`query_beacon_room.dart:168-170`) and the threads list still return a
+   coordination item, and the client maps it in
+   `request_thread_model.dart:38-41` (`mapEmbeddedThreadItem`). Removing the
+   field is a **schema change**: refresh the SDL and re-run client codegen as in
+   UNIT 02 step 1, or Ferry keeps generating the old shape.
+4. Run server and client codegen.
+
+**Verify:**
+
+```bash
+cd packages/server && dart run build_runner build -d
+cd packages/client && dart run build_runner build -d
+cd packages/server && dart test -j 1
+cd packages/client && flutter test test/
+./scripts/check-custom-lints.sh packages/server
+./scripts/check-custom-lints.sh packages/client
+```
+
+**Acceptance:** no file outside `features/coordination_item/`,
+`use_case/coordination_item/` and their own tests imports retired coordination
+code. Grep proves it:
+
+```bash
+grep -rn "coordination_item" packages/client/lib packages/server/lib \
+  --include=*.dart | grep -v "/coordination_item/"
+```
+
+---
+
+## UNIT 24B — Remove the endpoints, mutations and use cases
+
+Implements §4 step 2, second of three. **Requires UNIT 24A `complete`.**
+
+**Owns:**
+
+```text
+packages/server/lib/domain/use_case/coordination_item/                              delete
+packages/server/lib/api/controllers/graphql/mutation/mutation_coordination_item.dart delete
+packages/server/lib/api/controllers/graphql/mutation/_mutations_all.dart            edit
+packages/server/lib/api/controllers/graphql/query/query_coordination_item.dart      delete
+packages/server/lib/api/controllers/graphql/query/_queries_all.dart                 edit
+packages/server/lib/domain/port/coordination_item_repository_port.dart              edit
+packages/server/lib/data/repository/coordination_item_repository.dart               edit
+packages/server/test/domain/use_case/coordination_item/                             delete
+```
+
+1. Delete the use-case directory, the mutation controller and the query
+   controller, then drop their registrations: `_mutations_all.dart:23,47` and
+   **`_queries_all.dart:13,25,53`**. Note there are **two** coordination imports
+   in the query registry — `query_coordination.dart` and
+   `query_coordination_item.dart`; check which of the two you are removing and
+   leave the other alone if it survives.
+2. Remove `publishRootPlan` from the port
+   (`coordination_item_repository_port.dart:77`) and its implementation
+   (`coordination_item_repository.dart:1075-1116`).
+3. **There is a second current-line write site.** The generic item update path
+   also syncs `beacon_room_states.current_line` when the item is a root open
+   plan (`coordination_item_repository.dart:537-550`). It dies with the mutation
+   controller, but confirm that by grep rather than by assumption — if any other
+   caller reaches it, NOW has two writers after UNIT 23.
+4. Delete the server tests that construct the removed use cases —
+   `test/domain/use_case/coordination_item/update_plan_case_test.dart:12,30,34`
+   is one; they are `import`-level breakages that fail the whole server suite,
+   not individual test failures.
+5. Re-run server codegen; DI will not compile until every registration is gone.
+
+**Verify:**
+
+```bash
+cd packages/server && dart run build_runner build -d
+cd packages/server && dart test -j 1
+./scripts/check-custom-lints.sh packages/server
+```
+
+**Acceptance:** the server has no coordination-item endpoint, use case or
+repository write, and NOW still round-trips (UNIT 23's PG test still passes).
+
+---
+
+## UNIT 24C — Delete the directories and the dead attention branches
+
+Implements §4 step 2, third of three. **Requires UNIT 24B `complete`.**
+
+**Owns:**
+
+```text
+packages/client/lib/features/coordination_item/                   delete
 packages/server/lib/domain/use_case/attention_intent_case.dart    edit
 packages/server/lib/domain/attention/attention_policy.dart        edit
-packages/client/lib/features/coordination_item/                   delete
 CONTEXT.md                                                        edit
 ```
 
-1. Ask, Blocker and Promise are in `retiredCoordinationKinds`; Plan is retired by
-   product decision, leaving `supportedCoordinationKinds` empty in practice.
-   Remove the use cases, their DI registrations and the mutation controller.
+1. Delete the client `features/coordination_item/`, including
+   `coordination_item_overflow_menu.dart:276` → `item_actions_cubit.dart:136` →
+   `remindItem`, the only live wire into `staleReminder`.
 2. Remove the `AttentionIntentCase` methods with no surviving caller —
    `needsMe`, `staleReminder`, `blockerChanged`, `commitmentChanged` — and the
    `commitmentRedirected` / `blockerOpened` branches of
-   `AttentionPolicy._requiresAction`.
-3. Remove the client `features/coordination_item/`, including
-   `coordination_item_overflow_menu.dart:276` → `item_actions_cubit.dart:136` →
-   `remindItem`, the only live wire into `staleReminder`.
-4. Remove the **Plan (coordination item)** entry from `CONTEXT.md` §Language,
+   `AttentionPolicy._requiresAction`. **Keep `coordinationChanged`**: UNIT 23
+   left NOW emitting it.
+3. Remove the **Plan (coordination item)** entry from `CONTEXT.md` §Language,
    which still describes it as a live structured object on an Items tab.
-5. **Persisted kind codes are never renumbered**, and existing rows stay. This is
+4. **Persisted kind codes are never renumbered**, and existing rows stay. This is
    a code and surface removal, not a data migration.
-6. **Deleting the directories leaves live imports behind, and codegen does not
-   repair ordinary source imports.** Handle each consumer explicitly, deciding
-   *migrate* or *delete* for every one:
-
-   | consumer | note |
-   |---|---|
-   | `server/.../mutation/_mutations_all.dart:23,47` | drop the import and the registration |
-   | `server/.../query/query_coordination_item.dart:4-5,19-24` | remove the endpoint |
-   | `client/.../my_work/domain/use_case/my_work_case.dart:15,57` | decide what My Work was using it for before deleting |
-   | `client/.../beacon_threads/data/model/request_thread_model.dart:1-2,38-41` | **decide the mapper's new home before removing the model it maps** |
-
-   Do this as **three separate commits with their own Verify runs** — consumer
-   migration, endpoint removal, directory deletion — so a mistake is bisectable
-   and each stage compiles on its own. A single commit deleting directories with
-   consumers still importing them cannot be bisected, and codegen will not repair
-   ordinary source imports.
-
-   One more consumer rev 5 missed: `beacon_view/ui/bloc/beacon_view_cubit.dart:729-754`.
-7. Re-run server and client codegen; DI will not compile until every registration
-   is gone.
 
 **Verify:**
 
