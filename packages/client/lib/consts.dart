@@ -37,6 +37,10 @@ const kPathComplaint = '/complaint';
 const kPathInbox = '/home/inbox';
 const kPathInboxRejected = '$kPathInbox/rejected';
 const kPathInboxTriage = '$kPathInbox/triage';
+const kPathInboxWatching = '$kPathInbox/watching';
+
+/// Query on [InboxWatchingRoute]: scroll to and highlight this beacon once.
+const kQueryInboxWatchingHighlight = 'highlightBeaconId';
 const kPathUpdates = '/home/updates';
 const kPathNotifications = '/notifications';
 const kPathNotificationSettings = '/settings/notifications';

@@ -3,7 +3,6 @@ import 'dart:async' show unawaited;
 import 'package:get_it/get_it.dart';
 import 'package:tentura/app/router/home_tab_branches.dart';
 import 'package:tentura/app/router/root_router.dart';
-import 'package:tentura/features/home/ui/bloc/home_tab_reselect_cubit.dart';
 import 'package:tentura/ui/message/action_message_base.dart';
 import 'package:tentura_root/domain/entity/localizable.dart';
 
@@ -144,13 +143,18 @@ final class ForwardLocationMessage extends LocalizableActionMessage {
 
   @override
   void Function() get onPressed => () {
-    GetIt.I<HomeTabReselectCubit>().requestInboxWatching(beaconId);
-    unawaited(
-      GetIt.I<RootRouter>().replaceAll([
-        HomeRoute(children: [inboxTabShell(children: [InboxRoute()])]),
-      ]),
-    );
+    unawaited(_openForwardedRequestInWatching(beaconId));
   };
+}
+
+Future<void> _openForwardedRequestInWatching(String beaconId) async {
+  final router = GetIt.I<RootRouter>();
+  await router.replaceAll([
+    HomeRoute(children: [inboxTabShell(children: [InboxRoute()])]),
+  ]);
+  await router.push(
+    InboxWatchingRoute(highlightBeaconId: beaconId),
+  );
 }
 
 /// Standalone forward success: ego home is My Work (author or active help offer).

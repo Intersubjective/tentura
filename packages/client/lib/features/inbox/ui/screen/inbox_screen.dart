@@ -249,25 +249,36 @@ class _InboxOverflowMenu extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = L10n.of(context)!;
 
-    return PopupMenuButton<String>(
-      icon: const Icon(Icons.more_vert),
-      tooltip: MaterialLocalizations.of(context).showMenuTooltip,
-      padding: EdgeInsets.zero,
-      constraints: BoxConstraints(
-        minWidth: context.tt.buttonHeight,
-        minHeight: context.tt.buttonHeight,
-      ),
-      onSelected: (value) {
-        if (value == 'rejected') {
-          unawaited(openInboxRejectedArchive(context));
-        }
+    return BlocSelector<InboxCubit, InboxState, int>(
+      selector: (state) => state.watching.length,
+      builder: (context, watchingCount) {
+        return PopupMenuButton<String>(
+          icon: const Icon(Icons.more_vert),
+          tooltip: MaterialLocalizations.of(context).showMenuTooltip,
+          padding: EdgeInsets.zero,
+          constraints: BoxConstraints(
+            minWidth: context.tt.buttonHeight,
+            minHeight: context.tt.buttonHeight,
+          ),
+          onSelected: (value) {
+            if (value == 'watching') {
+              unawaited(openInboxWatchingArchive(context));
+            } else if (value == 'rejected') {
+              unawaited(openInboxRejectedArchive(context));
+            }
+          },
+          itemBuilder: (context) => [
+            PopupMenuItem<String>(
+              value: 'watching',
+              child: Text('${l10n.inboxWatching} ($watchingCount)'),
+            ),
+            PopupMenuItem<String>(
+              value: 'rejected',
+              child: Text(l10n.inboxRejectedTitle),
+            ),
+          ],
+        );
       },
-      itemBuilder: (context) => [
-        PopupMenuItem<String>(
-          value: 'rejected',
-          child: Text(l10n.inboxRejectedTitle),
-        ),
-      ],
     );
   }
 }
@@ -276,6 +287,14 @@ class _InboxOverflowMenu extends StatelessWidget {
 Future<void> openInboxRejectedArchive(BuildContext context) async {
   final cubit = context.read<InboxCubit>();
   await context.router.push(const InboxRejectedRoute());
+  if (!context.mounted) return;
+  await cubit.fetch();
+}
+
+/// Pushes full-screen watching archive, then refreshes the tab inbox when popped.
+Future<void> openInboxWatchingArchive(BuildContext context) async {
+  final cubit = context.read<InboxCubit>();
+  await context.router.push(InboxWatchingRoute());
   if (!context.mounted) return;
   await cubit.fetch();
 }
