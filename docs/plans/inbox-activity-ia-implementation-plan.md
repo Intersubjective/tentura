@@ -946,13 +946,33 @@ Implements architecture §4.3.
 **Owns:**
 
 ```text
-packages/client/lib/features/inbox/ui/widget/inbox_triage_row.dart   new
+packages/client/lib/features/inbox/ui/widget/inbox_triage_row.dart    new
 packages/client/lib/features/inbox/ui/screen/inbox_triage_screen.dart new
+packages/client/lib/features/inbox/ui/widget/inbox_triage_list.dart   new
+packages/client/lib/features/inbox/ui/screen/inbox_screen.dart        edit
 packages/client/lib/app/router/root_router.dart                       edit
 packages/client/lib/consts.dart                                       edit
 packages/client/lib/ui/test_ids.dart                                  edit
+packages/client/lib/features/forward/ui/message/forward_messages.dart edit
+packages/client/l10n/app_en.arb                                       edit
+packages/client/l10n/app_ru.arb                                       edit
+packages/client/integration_test/support/e2e_test_helpers.dart        edit
 packages/client/test/features/inbox/inbox_triage_row_test.dart        new
 ```
+
+**Mounting and state ownership, fixed here rather than discovered:**
+
+- the row mounts in `inbox_screen.dart`, above the feed, inside the branch body;
+- the sort control and Needs-me list are private to `inbox_screen.dart` today
+  (`:424-451`, `:625-636`). Extract them into `inbox_triage_list.dart` and have
+  both the old call site and the new route use it — do not copy;
+- the route **creates its own `InboxCubit`**, following the precedent set by
+  Rejected (`inbox_rejected_screen.dart:19-27`), and is torn down with the route.
+  Sort and scroll live on the route, not on the branch;
+- add `goToInboxTriage()` to `e2e_test_helpers.dart` and re-point
+  `offerHelpFromInbox` / `openRequestFromInbox` (`:588-638`) through it. Nine
+  lifecycle specs depend on those helpers (§5) and they must pass in this unit,
+  not at UNIT 25.
 
 1. A **fixed-height row above the feed**, never a scroll region:
    0 pending → absent; 1 → the Request title on one ellipsized line;
@@ -1272,13 +1292,35 @@ packages/server/test/domain/use_case/review_obligation_settlement_pg_test.dart  
 3. This is a **system** settlement path — `attention_settlement_case.dart:26-28`
    is limited to the two user-driven values. Set `settled_at` (required by
    `settlement_facts_chk`) and preserve `seen_at` / `read_at` untouched.
-4. **Backfill, and it is not optional.** The sweep only visits `status = 0`
-   (`attention_expiry_repository.dart:19-23`) and the finalizer stops at
-   `evaluation_repository.dart:663-664`, so windows closed before this ships are
-   never revisited. Under architecture §8.1 their obligations would pin their
-   Requests into My Work permanently. Backfill once, in this unit.
-5. Tests (`@Tags(['pg'])`): finalized → `resolved`; unsent package containing a
+4. **Matching a receipt to its review package.** A `reviewOpened` receipt
+   carries the beacon and the recipient; the package is
+   `beacon_review_status` for that (beacon, reviewer) pair. Settle the receipts
+   whose (beacon, recipient) matches the package being finalized, and only those
+   — never settle by beacon alone, or one reviewer's finalize would settle
+   another's obligation. Record the exact predicate in the journal.
+
+5. **The system settlement path does not exist yet.** The current repository
+   method is recipient-driven (`attention_repository.dart:405-425`) and
+   `review_finalization_case.dart:37-59` has no settlement port injected. Add a
+   system-settlement port and inject it into the finalizer; do not reach for the
+   user-facing case (`attention_settlement_case.dart:26-28`), which is limited to
+   two values by design.
+
+6. **Backfill is a separate, re-runnable job — not a migration side effect.**
+   The sweep only visits `status = 0` (`attention_expiry_repository.dart:19-23`)
+   and the finalizer stops at `evaluation_repository.dart:663-664`, so windows
+   closed before this ships are never revisited. Under architecture §8.1 their
+   obligations would pin their Requests into My Work permanently. Give it its own
+   entry point, make it idempotent so a second run settles nothing new, and
+   record in the journal how it was invoked and how many rows it touched.
+
+7. **Confirm UNIT 20 is fully deployed before enabling the writer.** A server
+   still on the old build throws on the first `expired` row it reads
+   (`attention_models.dart:147-160`). Record the deployed revision in the
+   journal as evidence, not as an assumption.
+8. Tests (`@Tags(['pg'])`): finalized → `resolved`; unsent package containing a
    submitted target → `expired`, **not** `resolved`; reopen → `superseded`;
+   one reviewer's finalize leaves another reviewer's obligation live;
    seen and unseen receipts both settle; backfill covers a pre-existing closed
    window; `seen_at` and `read_at` survive.
 
