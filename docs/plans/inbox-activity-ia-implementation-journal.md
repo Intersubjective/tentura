@@ -92,3 +92,11 @@ FILES: packages/client/lib/features/my_work/domain/my_work_obligations_gate.dart
 FINDINGS: owns list omits `my_work_test_support.dart` and sibling my_work test tuple updates required by `MyWorkInitResult.obligationBeacons`; `my_work_cubit.dart` needed no edits (gate lives in `MyWorkCase`).
 DECISIONS: none
 REMAINING: none. Proceed to UNIT 05.
+
+## UNIT 05 — complete — 2026-09-10
+COMMITS: 9bfdcfd27 fix(client): archive revokes a source, not the row
+TESTS: `cd packages/client && flutter pub get --offline`; `cd packages/client && dart run build_runner build -d`; `cd packages/client && flutter test test/features/my_work/` — 113 passed; `./scripts/check-custom-lints.sh packages/client` — pass.
+FILES: packages/client/lib/features/my_work/ui/bloc/my_work_cubit.dart; packages/client/lib/features/my_work/domain/entity/my_work_card_view_model.dart; packages/client/lib/features/my_work/domain/derive_my_work_cards.dart; packages/client/lib/features/my_work/ui/widget/my_work_cards.dart; packages/client/test/features/my_work/my_work_archive_membership_test.dart; docs/plans/inbox-activity-ia-implementation-journal.md
+FINDINGS: UNIT 04 already added `sources` and `viewerArchived` on `MyWorkCardViewModel`; this unit wired archive revocation and `isArchived` without new Freezed fields.
+DECISIONS: `myWorkCardAfterArchiveRevocation` in `derive_my_work_cards.dart` is the shared desk projection for archive + obligation merge on reload.
+REMAINING: none. Proceed to UNIT 06.

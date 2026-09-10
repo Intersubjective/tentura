@@ -92,9 +92,7 @@ abstract class MyWorkCardViewModel with _$MyWorkCardViewModel {
 
   const MyWorkCardViewModel._();
 
-  bool get isArchived =>
-      kind == MyWorkCardKind.authoredArchived ||
-      kind == MyWorkCardKind.helpOfferedArchived;
+  bool get isArchived => viewerArchived;
 
   bool get isFinishedCard =>
       kind == MyWorkCardKind.authoredFinished ||

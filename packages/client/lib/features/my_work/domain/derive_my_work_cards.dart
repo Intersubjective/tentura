@@ -245,13 +245,22 @@ List<MyWorkCardViewModel> buildNonArchivedViewModels({
     final id = row.beacon.id;
     final existing = byId[id];
     if (existing != null) {
-      byId[id] = existing.copyWith(
+      final viewerArchived = row.viewerArchived || existing.viewerArchived;
+      var merged = existing.copyWith(
         sources: {
           ...existing.sources,
           MyWorkMembershipSource.obligation,
         },
-        viewerArchived: row.viewerArchived || existing.viewerArchived,
+        viewerArchived: viewerArchived,
       );
+      if (viewerArchived) {
+        merged =
+            myWorkCardAfterArchiveRevocation(
+              merged.copyWith(viewerArchived: false),
+            ) ??
+            merged;
+      }
+      byId[id] = merged;
     } else {
       byId[id] = _deriveObligation(
         beacon: row.beacon,
@@ -324,6 +333,48 @@ int countDraftMyWorkCards(List<MyWorkCardViewModel> nonArchivedCards) =>
         .length;
 
 int archivedCountHintFromInit(int archivedCountHint) => archivedCountHint;
+
+/// Revokes authored / help-offered membership after the viewer archives.
+///
+/// Returns `null` when no membership source remains (card leaves the desk).
+/// When [card] is already archived, returns it unchanged (idempotent).
+MyWorkCardViewModel? myWorkCardAfterArchiveRevocation(
+  MyWorkCardViewModel card,
+) {
+  if (card.viewerArchived) {
+    return card;
+  }
+  final nextSources = card.sources.difference({
+    MyWorkMembershipSource.authored,
+    MyWorkMembershipSource.helpOffered,
+  });
+  if (nextSources.isEmpty) {
+    return null;
+  }
+  if (nextSources.length == 1 &&
+      nextSources.single == MyWorkMembershipSource.obligation) {
+    return card.copyWith(
+      role: MyWorkCardRole.obligation,
+      kind: MyWorkCardKind.obligationArchived,
+      sources: nextSources,
+      viewerArchived: true,
+      showArchiveAffordance: false,
+      showReviewCta: false,
+      showCloseNowCta: false,
+      showReviewHelpOffersCta: false,
+      attentionChip: null,
+    );
+  }
+  return card.copyWith(
+    sources: nextSources,
+    viewerArchived: true,
+    showArchiveAffordance: false,
+    showReviewCta: false,
+    showCloseNowCta: false,
+    showReviewHelpOffersCta: false,
+    attentionChip: null,
+  );
+}
 
 /// Archived cards from lazy archived fetch.
 List<MyWorkCardViewModel> buildArchivedViewModels({

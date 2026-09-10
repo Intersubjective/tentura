@@ -7,6 +7,7 @@ import 'package:tentura/domain/entity/repository_event.dart';
 import 'package:tentura/features/beacon_threads/domain/entity/beacon_room_invalidation.dart';
 
 import 'package:tentura/features/my_work/domain/derive_my_work_cards.dart';
+import 'package:tentura/features/my_work/domain/entity/my_work_card_view_model.dart';
 import 'package:tentura/features/my_work/domain/use_case/my_work_case.dart';
 
 import 'my_work_state.dart';
@@ -224,9 +225,28 @@ class MyWorkCubit extends Cubit<MyWorkState> {
   }
 
   Future<void> archiveBeacon(String beaconId) async {
+    final cardIndex = state.nonArchivedCards.indexWhere(
+      (c) => c.beaconId == beaconId,
+    );
+    final card = cardIndex >= 0 ? state.nonArchivedCards[cardIndex] : null;
+    if (card != null && card.viewerArchived) {
+      return;
+    }
+
     await _myWorkCase.archiveBeacon(beaconId: beaconId, userId: _userId);
     _pendingDeskBeaconIds.remove(beaconId);
-    _removeBeaconFromState(beaconId);
+
+    final updated = card == null
+        ? null
+        : myWorkCardAfterArchiveRevocation(card);
+    if (updated == null) {
+      _removeBeaconFromState(beaconId);
+    } else if (cardIndex >= 0) {
+      final nextCards = List<MyWorkCardViewModel>.from(state.nonArchivedCards);
+      nextCards[cardIndex] = updated;
+      emit(state.copyWith(nonArchivedCards: nextCards));
+    }
+
     emit(
       state.copyWith(
         archivedCountHint: state.archivedCountHint + 1,

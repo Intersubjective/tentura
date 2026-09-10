@@ -201,7 +201,7 @@ Widget? _myWorkArchiveFooter(BuildContext context, MyWorkCardViewModel vm) {
   if (!vm.showArchiveAffordance) return null;
   final l10n = L10n.of(context)!;
   final cubit = context.read<MyWorkCubit>();
-  if (vm.isArchived) {
+  if (vm.viewerArchived) {
     return Align(
       alignment: Alignment.centerRight,
       child: TenturaTextAction(
