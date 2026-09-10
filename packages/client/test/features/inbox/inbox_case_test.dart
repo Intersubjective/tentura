@@ -113,6 +113,32 @@ void main() {
     });
   });
 
+  group('InboxCubit.dismissTombstone', () {
+    test('delegates to InboxCase and marks item dismissed locally', () async {
+      final tombstone = InboxItem(
+        beaconId: 'b-tomb',
+        latestForwardAt: DateTime.utc(2026),
+        status: InboxItemStatus.closedBeforeResponse,
+        beforeResponseTerminalAt: DateTime.now().toUtc().subtract(
+          const Duration(hours: 1),
+        ),
+      );
+      repo.fetchResult = [tombstone];
+      final cubit = InboxCubit(
+        userId: 'u1',
+        inboxCase: case_,
+        effects: FakeUiEffectPort(),
+      );
+      await cubit.stream.firstWhere((s) => s.isSuccess);
+
+      await cubit.dismissTombstone('b-tomb');
+
+      expect(repo.lastDismissTombstone?.beaconId, 'b-tomb');
+      expect(cubit.state.items.single.tombstoneDismissedAt, isNotNull);
+      await cubit.close();
+    });
+  });
+
   group('InboxCase.resolveRoomUnread', () {
     test('delegates to BeaconThreadsCase watermark resolution', () {
       final serverSeenAt = DateTime.utc(2026);

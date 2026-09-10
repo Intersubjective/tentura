@@ -222,3 +222,11 @@ FILES: packages/client/lib/features/updates/ui/widget/updates_feed_pane.dart; pa
 FINDINGS: none
 DECISIONS: none
 REMAINING: none
+
+## UNIT 16 — complete — 2026-09-10
+COMMITS: b7338ced0 feat(client): move resolved section into the feed scroll
+TESTS: `cd packages/client && flutter pub get --offline` — ok; `cd packages/client && flutter test test/features/inbox/ test/features/updates/` — 124 passed; `./scripts/check-custom-lints.sh packages/client` — pass.
+FILES: packages/client/lib/features/inbox/ui/widget/inbox_tombstone_section.dart; packages/client/lib/features/updates/ui/widget/updates_feed_pane.dart; packages/client/lib/features/inbox/ui/screen/inbox_screen.dart; packages/client/test/features/inbox/inbox_case_test.dart; docs/plans/inbox-activity-ia-implementation-journal.md
+FINDINGS: Plan Owns list omits `inbox_screen.dart` but wiring tombstones into the Inbox receipts feed requires passing `tombstonesLast24h` / `dismissTombstone` at that call site; `inbox_tombstone_card.dart` needed no edits. `inbox_triage_list.dart` still mounts always-expanded `buildInboxTombstoneSlivers` (pre-UNIT-16 triage layout) — not in this unit’s scope.
+DECISIONS: Tombstone dismissal remains on `InboxCubit.dismissTombstone` → `InboxCase.dismissTombstone` (repository persist + local `tombstoneDismissedAt`); the feed only receives an optional callback. Collapsed-by-default UI lives in `buildInboxTombstoneFeedSlivers`; All view only via `UpdatesFeedPane` + `AttentionView.all` gate.
+REMAINING: none

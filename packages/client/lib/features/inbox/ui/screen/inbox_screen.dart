@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/consts.dart';
@@ -225,7 +226,16 @@ Widget _inboxActivityFeedBody(BuildContext context) {
           create: (_) => UpdatesFeedCubit(
             destinationId: AttentionFeedDestinationId.activity,
           ),
-          child: const UpdatesFeedPane(),
+          child: BlocBuilder<InboxCubit, InboxState>(
+            buildWhen: (prev, curr) => prev.items != curr.items,
+            builder: (context, inboxState) {
+              final inboxCubit = context.read<InboxCubit>();
+              return UpdatesFeedPane(
+                resolvedTombstones: inboxState.tombstonesLast24h,
+                onDismissTombstone: inboxCubit.dismissTombstone,
+              );
+            },
+          ),
         ),
       ),
     ],

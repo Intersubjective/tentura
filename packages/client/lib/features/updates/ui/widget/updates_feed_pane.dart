@@ -9,6 +9,8 @@ import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/attention/entity/attention_feed.dart';
 import 'package:tentura/domain/attention/entity/attention_summary.dart';
 import 'package:tentura/domain/attention/entity/attention_receipt.dart';
+import 'package:tentura/features/inbox/domain/entity/inbox_item.dart';
+import 'package:tentura/features/inbox/ui/widget/inbox_tombstone_section.dart';
 import 'package:tentura/features/updates/domain/entity/prompt_projection.dart';
 import 'package:tentura/features/updates/updates_receipt_display_copy.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
@@ -33,6 +35,8 @@ class UpdatesFeedPane extends StatefulWidget {
     this.showTitleRow = false,
     this.offeredViews = kDefaultUpdatesFeedOfferedViews,
     this.showViewControl = true,
+    this.resolvedTombstones,
+    this.onDismissTombstone,
     super.key,
   });
 
@@ -44,6 +48,10 @@ class UpdatesFeedPane extends StatefulWidget {
   final bool showTitleRow;
   final List<AttentionView> offeredViews;
   final bool showViewControl;
+
+  /// Inbox-only resolved tombstones (All view); omit on Activity / My Work.
+  final List<InboxItem>? resolvedTombstones;
+  final void Function(String beaconId)? onDismissTombstone;
 
   @override
   State<UpdatesFeedPane> createState() => _UpdatesFeedPaneState();
@@ -198,20 +206,29 @@ class _UpdatesFeedPaneState extends State<UpdatesFeedPane>
         Expanded(
           child: BlocBuilder<UpdatesFeedCubit, UpdatesFeedState>(
             builder: (context, state) {
-              if (state.isLoading && state.isEmpty) {
-                return const Center(
-                  child: CircularProgressIndicator.adaptive(),
-                );
-              }
-              if (state.isEmpty) {
-                return _EmptyUpdates(view: state.view);
-              }
               final now = DateTime.now();
               final placement = computeInvitePromptPinPlacement(
                 items: state.items,
                 state: state,
                 now: now,
               );
+              final showResolvedTombstones =
+                  state.view == AttentionView.all &&
+                  widget.onDismissTombstone != null &&
+                  (widget.resolvedTombstones?.isNotEmpty ?? false);
+              final hasScrollBody = _updatesFeedHasScrollBody(
+                state: state,
+                placement: placement,
+                showResolvedTombstones: showResolvedTombstones,
+              );
+              if (state.isLoading && state.isEmpty && !hasScrollBody) {
+                return const Center(
+                  child: CircularProgressIndicator.adaptive(),
+                );
+              }
+              if (!hasScrollBody) {
+                return _EmptyUpdates(view: state.view);
+              }
               final chronologicalItems = state.items
                   .where((r) => !placement.liftedReceiptIds.contains(r.id))
                   .toList(growable: false);
@@ -258,6 +275,12 @@ class _UpdatesFeedPaneState extends State<UpdatesFeedPane>
                             ),
                           ),
                         ),
+                      ),
+                    if (showResolvedTombstones)
+                      ...buildInboxTombstoneFeedSlivers(
+                        context: context,
+                        tombstones: widget.resolvedTombstones!,
+                        onDismiss: widget.onDismissTombstone!,
                       ),
                     SliverList.builder(
                       itemCount: cells.length,
@@ -369,6 +392,18 @@ class _UpdatesFeedPaneState extends State<UpdatesFeedPane>
     unawaited(context.read<UpdatesFeedCubit>().markSeen(receipt.id));
     await GetIt.I<RootRouter>().openFromUpdate(receipt);
   }
+}
+
+bool _updatesFeedHasScrollBody({
+  required UpdatesFeedState state,
+  required InvitePromptPinPlacement placement,
+  required bool showResolvedTombstones,
+}) {
+  if (state.hasRefreshError) return true;
+  if (showResolvedTombstones) return true;
+  if (placement.pinnedReceipts.isNotEmpty) return true;
+  if (placement.collapsedCount >= 3) return true;
+  return !state.isEmpty;
 }
 
 String _labelForView(L10n l10n, AttentionView view) => switch (view) {
