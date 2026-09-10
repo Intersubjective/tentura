@@ -17,14 +17,13 @@ Coordination product for **Requests** (internally: **Beacons**), request **discu
 
 ## Language
 
-**Current line**:
-A short shared orientation string on a beacon’s room state: what is next, what is waited on, or the current coordination focus right now.
-_Avoid_: Plan (reserved for a future full checklist/route object and for coordination-item Plan entities).
+**Current line** (also **NOW**):
+A short shared orientation string on a beacon’s room state: what is next, what is waited on, or the current coordination focus right now. Written directly on `BeaconRoomState`; the coordination-item Plan entity that used to mirror this text was retired.
+_Avoid_: Plan (reserved for a future full checklist/route object).
 
 ## Relationships
 
 - A **Beacon** has at most one **current line** on **BeaconRoomState** (room-private).
-- Publishing or updating a root coordination **Plan** may sync text into the **current line**; they remain distinct concepts.
 
 ## Public web entry
 
@@ -133,7 +132,7 @@ Beacon invites are tracked in the **Friends → Invitations** surface, split int
 ## Room coordination UI
 
 **General-only discussion**:
-The product exposes only the **General** thread per request. Server thread machinery for scoped rows remains dormant; ask/promise/blocker coordination-item threads and their public mutations are retired. Plans, plan steps, facts, replies, mentions, polls, and attachments continue through General and retained coordination APIs where applicable.
+The product exposes only the **General** thread per request. Server thread machinery for scoped rows remains dormant; ask/promise/blocker coordination-item threads and their public mutations are retired, and the coordination-item Plan/plan-step endpoints are fully removed (NOW is written directly on `BeaconRoomState`, see **Current line** above). Facts, replies, mentions, polls, and attachments continue through General.
 
 **Child-request promotion** (from General):
 An admitted participant may promote a General message into a **child request** draft (or create a child directly). The source message keeps its bubble; a compact **child-request footer** on eligible messages links to the published child when readable. A separate **child created** hierarchy notice row records publication (`system_message_kind` + `system_payload.sourceMessageId`). One published child per source message; concurrent promotion resolves to the existing child.
