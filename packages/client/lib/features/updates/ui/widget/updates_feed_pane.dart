@@ -9,6 +9,7 @@ import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/attention/entity/attention_feed.dart';
 import 'package:tentura/domain/attention/entity/attention_summary.dart';
 import 'package:tentura/domain/attention/entity/attention_receipt.dart';
+import 'package:tentura/features/updates/domain/entity/prompt_projection.dart';
 import 'package:tentura/features/updates/updates_receipt_display_copy.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
@@ -280,12 +281,24 @@ class _UpdatesFeedPaneState extends State<UpdatesFeedPane> {
       );
     }
     if (isInviteAcceptedPresentationKey(receipt.presentationKey)) {
-      return InviteAcceptedReceiptCard(
-        key: ValueKey(receipt.id),
-        receipt: receipt,
-        onTap: onTap,
-        onMarkSeen: () => context.read<UpdatesFeedCubit>().markSeen(receipt.id),
-        onMarkUnseen: onMarkUnseen,
+      final subjectId = receipt.actorUserId ?? receipt.targetEntityId;
+      return BlocSelector<UpdatesFeedCubit, UpdatesFeedState, PromptProjection>(
+        selector: (state) => subjectId == null
+            ? const PromptProjection.unknown()
+            : state.promptProjectionFor(subjectId),
+        builder: (context, projection) {
+          final cubit = context.read<UpdatesFeedCubit>();
+          return InviteAcceptedReceiptCard(
+            key: ValueKey(receipt.id),
+            receipt: receipt,
+            promptProjection: projection,
+            onRetryPromptFetch: cubit.retryPromptFetch,
+            onPromptSettled: cubit.applyKnownPrompt,
+            onTap: onTap,
+            onMarkSeen: () => cubit.markSeen(receipt.id),
+            onMarkUnseen: onMarkUnseen,
+          );
+        },
       );
     }
     return UpdatesReceiptCard(

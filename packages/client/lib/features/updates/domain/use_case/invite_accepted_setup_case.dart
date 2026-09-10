@@ -12,6 +12,10 @@ abstract interface class InviteAcceptedSetupPort {
 
   Future<InviteSeedPromptState> fetchPrompt(String subjectId);
 
+  Future<Map<String, InviteSeedPromptState>> fetchPrompts(
+    Set<String> subjectIds,
+  );
+
   Future<void> rename({
     required String subjectId,
     required String privateName,
@@ -26,7 +30,7 @@ abstract interface class InviteAcceptedSetupPort {
 }
 
 /// Production implementation of the invite-accepted setup boundary.
-@singleton
+@Singleton(as: InviteAcceptedSetupPort)
 final class InviteAcceptedSetupCase implements InviteAcceptedSetupPort {
   InviteAcceptedSetupCase(
     this._profiles,
@@ -50,6 +54,11 @@ final class InviteAcceptedSetupCase implements InviteAcceptedSetupPort {
   @override
   Future<InviteSeedPromptState> fetchPrompt(String subjectId) =>
       _capabilities.fetchInviteSeedPromptState(subjectId);
+
+  @override
+  Future<Map<String, InviteSeedPromptState>> fetchPrompts(
+    Set<String> subjectIds,
+  ) => _capabilities.fetchInviteSeedPromptStates(subjectIds);
 
   @override
   Future<void> rename({

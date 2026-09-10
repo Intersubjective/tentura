@@ -10,10 +10,12 @@ import 'package:tentura/domain/attention/entity/attention_summary.dart';
 import 'package:tentura/domain/attention/feed_session_registry.dart';
 import 'package:tentura/domain/attention/port/attention_account_port.dart';
 import 'package:tentura/domain/attention/port/attention_repository_port.dart';
+import 'package:tentura/domain/use_case/realtime_sync_case.dart';
 import 'package:tentura/features/updates/ui/bloc/updates_feed_cubit.dart';
 
 import '../../features/block/support/controllable_block_case.dart';
 import '../../support/test_realtime_sync.dart';
+import 'support/noop_invite_setup_port.dart';
 
 final class _Accounts implements AttentionAccountPort {
   final _changes = StreamController<String>.broadcast();
@@ -91,13 +93,18 @@ void main() {
   late _Accounts accounts;
   late _Repository repository;
   late FeedSessionRegistry feedSessions;
+  late TestRealtimeSyncPort realtime;
+  late RealtimeSyncCase realtimeSync;
   late AttentionCase attention;
+  final setup = NoopInviteAcceptedSetupPort();
 
   setUp(() {
     accounts = _Accounts();
     repository = _Repository();
     feedSessions = FeedSessionRegistry();
     final sync = buildTestRealtimeSync();
+    realtime = sync.port;
+    realtimeSync = sync.case_;
     attention = AttentionCase(
       repository,
       accounts,
@@ -110,6 +117,7 @@ void main() {
 
   tearDown(() async {
     await attention.dispose();
+    await realtime.dispose();
     await accounts.close();
   });
 
@@ -129,11 +137,15 @@ void main() {
     final cubitA = UpdatesFeedCubit(
       destinationId: destA,
       attention: attention,
+      setup: setup,
+      realtime: realtimeSync,
       logger: Logger('session-a'),
     );
     final cubitB = UpdatesFeedCubit(
       destinationId: destB,
       attention: attention,
+      setup: setup,
+      realtime: realtimeSync,
       logger: Logger('session-b'),
     );
 
@@ -180,6 +192,8 @@ void main() {
     var cubit = UpdatesFeedCubit(
       destinationId: dest,
       attention: attention,
+      setup: setup,
+      realtime: realtimeSync,
       logger: Logger('session-remount'),
     );
     await _pump();
@@ -200,6 +214,8 @@ void main() {
     cubit = UpdatesFeedCubit(
       destinationId: dest,
       attention: attention,
+      setup: setup,
+      realtime: realtimeSync,
       logger: Logger('session-remount-2'),
     );
     await _pump();
@@ -223,6 +239,8 @@ void main() {
     final cubit = UpdatesFeedCubit(
       destinationId: dest,
       attention: attention,
+      setup: setup,
+      realtime: realtimeSync,
       logger: Logger('session-stale'),
     );
     accounts.emit('account-a');

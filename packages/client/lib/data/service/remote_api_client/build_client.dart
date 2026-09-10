@@ -318,6 +318,7 @@ class _V2RoutingLink extends Link {
     'RevokeAcknowledgement',
     'SetRoutingMute',
     'InviteSeedPromptState',
+    'InvitePromptStates',
     'InviteSeedPromptAnswer',
     'InviteSeedPromptSkip',
     'CoordinationItemList',

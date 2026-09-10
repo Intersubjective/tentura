@@ -4,18 +4,19 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:logging/logging.dart';
 
 import 'package:tentura/domain/attention/attention_case.dart';
-import 'package:tentura/domain/attention/feed_session_registry.dart';
-import 'package:tentura/domain/attention/feed_session_registry.dart';
 import 'package:tentura/domain/attention/entity/attention_feed.dart';
 import 'package:tentura/domain/attention/entity/attention_receipt.dart';
 import 'package:tentura/domain/attention/entity/attention_summary.dart';
+import 'package:tentura/domain/attention/feed_session_registry.dart';
 import 'package:tentura/domain/attention/port/attention_account_port.dart';
 import 'package:tentura/domain/attention/port/attention_repository_port.dart';
+import 'package:tentura/domain/use_case/realtime_sync_case.dart';
 import 'package:tentura/features/updates/ui/bloc/updates_feed_cubit.dart';
 import 'package:tentura/ui/bloc/state_base.dart';
 
 import '../../support/test_realtime_sync.dart';
 import '../block/support/controllable_block_case.dart';
+import 'support/noop_invite_setup_port.dart';
 
 final class _Accounts implements AttentionAccountPort {
   final _changes = StreamController<String>.broadcast();
@@ -87,6 +88,7 @@ void main() {
   late _Accounts accounts;
   late _Repository repository;
   late TestRealtimeSyncPort realtime;
+  late RealtimeSyncCase realtimeCase;
   late AttentionCase attention;
   late UpdatesFeedCubit cubit;
 
@@ -95,10 +97,11 @@ void main() {
     repository = _Repository();
     final sync = buildTestRealtimeSync();
     realtime = sync.port;
+    realtimeCase = sync.case_;
     attention = AttentionCase(
       repository,
       accounts,
-      sync.case_,
+      realtimeCase,
       noopBlockCase(),
       FeedSessionRegistry(),
       Logger('updates-feed-cubit-test'),
@@ -120,6 +123,8 @@ void main() {
     cubit = UpdatesFeedCubit(
       destinationId: AttentionFeedDestinationId.activity,
       attention: attention,
+      setup: NoopInviteAcceptedSetupPort(),
+      realtime: realtimeCase,
       logger: Logger('updates-feed-cubit-test'),
     );
     accounts.emit('account-a');

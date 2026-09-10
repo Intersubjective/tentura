@@ -4808,6 +4808,7 @@ type query_root {
   inviteGenealogyBetween(target_id: String!): v2_InviteGenealogy
   inviteGenealogyChildCounts(node_keys: [String!]): [v2_InviteGenealogyChildCount!]!
   inviteGenealogyChildren(after_created_at: String, after_node_key: String, limit: Int, node_key: String!): v2_InviteGenealogyChildrenPage
+  invitePromptStates(subjectIds: [String!]): [v2_v2_InviteSeedPromptState!]!
   inviteSeedPromptState(subjectId: String!): v2_v2_InviteSeedPromptState!
   liveObligationBeacons: [String!]!
   mutualFriends(id: String!): [v2_user!]

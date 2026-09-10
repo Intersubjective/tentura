@@ -65,6 +65,10 @@ abstract class CapabilityRepositoryPort {
 
   Future<InviteSeedPromptState> fetchInviteSeedPromptState(String subjectId);
 
+  Future<Map<String, InviteSeedPromptState>> fetchInviteSeedPromptStates(
+    Set<String> subjectIds,
+  );
+
   Future<void> inviteSeedPromptAnswer({
     required String subjectId,
     required List<String> slugs,

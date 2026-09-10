@@ -9,6 +9,7 @@ import 'package:tentura/domain/capability/invite_seed_prompt_state.dart';
 import 'package:tentura/domain/capability/prompt_state_value.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/capability/ui/widget/capability_chip_set.dart';
+import 'package:tentura/features/updates/domain/entity/prompt_projection.dart';
 import 'package:tentura/features/updates/domain/use_case/invite_accepted_setup_case.dart';
 import 'package:tentura/features/updates/ui/widget/invite_accepted_receipt_card.dart';
 import 'package:tentura/features/updates/ui/widget/invite_accepted_setup_sheet.dart';
@@ -104,6 +105,12 @@ final class _FakeSetupCase implements InviteAcceptedSetupPort {
     skipCalls++;
     if (skipError case final error?) throw error;
   }
+
+  @override
+  Future<Map<String, InviteSeedPromptState>> fetchPrompts(
+    Set<String> subjectIds,
+  ) async =>
+      {};
 }
 
 void main() {
@@ -121,9 +128,23 @@ void main() {
   Future<void> pumpCard(
     WidgetTester tester, {
     AttentionReceipt? receipt,
+    PromptProjection promptProjection = const PromptProjection.known(
+      InviteSeedPromptState(
+        inviterUserId: 'inviter-1',
+        inviteeUserId: 'invitee-1',
+        state: PromptStateValue.pending,
+      ),
+    ),
+    Future<void> Function(String subjectId)? onRetryPromptFetch,
     Size size = const Size(390, 844),
     bool settle = true,
   }) async {
+    var retryCalls = 0;
+    final retry =
+        onRetryPromptFetch ??
+        ((_) async {
+          retryCalls++;
+        });
     await tester.binding.setSurfaceSize(size);
     addTearDown(() => tester.binding.setSurfaceSize(null));
     await tester.pumpWidget(
@@ -136,12 +157,21 @@ void main() {
           data: MediaQueryData(size: size),
           child: TenturaResponsiveScope(
             child: Scaffold(
-              body: InviteAcceptedReceiptCard(
-                receipt: receipt ?? _inviteReceipt(),
-                setupCase: setupCase,
-                onTap: () => profileTaps++,
-                onMarkSeen: () async => markSeenCalls++,
-                onMarkUnseen: () {},
+              body: StatefulBuilder(
+                builder: (context, setState) {
+                  return InviteAcceptedReceiptCard(
+                    receipt: receipt ?? _inviteReceipt(),
+                    promptProjection: promptProjection,
+                    onRetryPromptFetch: retry,
+                    setupCase: setupCase,
+                    onTap: () => profileTaps++,
+                    onMarkSeen: () async => markSeenCalls++,
+                    onMarkUnseen: () {},
+                    onPromptSettled: (subjectId, state) {
+                      setState(() => promptProjection = PromptProjection.known(state));
+                    },
+                  );
+                },
               ),
             ),
           ),
@@ -222,7 +252,10 @@ void main() {
     for (final state in [PromptStateValue.answered, PromptStateValue.skipped]) {
       testWidgets('$state renders an ordinary card', (tester) async {
         setupCase.prompt = setupCase.prompt.copyWith(state: state);
-        await pumpCard(tester);
+        await pumpCard(
+          tester,
+          promptProjection: PromptProjection.known(setupCase.prompt),
+        );
 
         expect(find.text(l10n.inviteAcceptedSetupAddDetails), findsNothing);
         expect(find.text(l10n.inviteAcceptedSetupRetry), findsNothing);
@@ -231,18 +264,20 @@ void main() {
     }
 
     testWidgets('genuine prompt error exposes compact retry', (tester) async {
-      setupCase.promptError = Exception('offline');
-      await pumpCard(tester);
+      var retryCalls = 0;
+      await pumpCard(
+        tester,
+        promptProjection: const PromptProjection.failed(),
+        onRetryPromptFetch: (_) async => retryCalls++,
+      );
 
       expect(find.text(l10n.inviteAcceptedSetupRetry), findsOneWidget);
       expect(find.text(l10n.inviteSeedPromptLoadError), findsNothing);
 
-      setupCase.promptError = null;
       await tester.tap(find.text(l10n.inviteAcceptedSetupRetry));
       await tester.pumpAndSettle();
 
-      expect(setupCase.fetchPromptCalls, 2);
-      expect(find.text(l10n.inviteAcceptedSetupAddDetails), findsOneWidget);
+      expect(retryCalls, 1);
     });
 
     testWidgets('profile failure keeps fallback receipt copy without retry', (
@@ -252,7 +287,10 @@ void main() {
       setupCase.prompt = setupCase.prompt.copyWith(
         state: PromptStateValue.answered,
       );
-      await pumpCard(tester);
+      await pumpCard(
+        tester,
+        promptProjection: PromptProjection.known(setupCase.prompt),
+      );
 
       expect(find.text('Carol joined via your invitation'), findsOneWidget);
       expect(find.text('Carol is now on Tentura.'), findsOneWidget);
@@ -267,7 +305,11 @@ void main() {
       setupCase.prompt = setupCase.prompt.copyWith(
         state: PromptStateValue.answered,
       );
-      await pumpCard(tester, settle: false);
+      await pumpCard(
+        tester,
+        promptProjection: PromptProjection.known(setupCase.prompt),
+        settle: false,
+      );
 
       expect(find.text('Carol joined via your invitation'), findsOneWidget);
       completer.complete(

@@ -1,0 +1,8 @@
+query InvitePromptStates($subjectIds: [String!]!) {
+  invitePromptStates(subjectIds: $subjectIds) {
+    inviterUserId
+    inviteeUserId
+    state
+    slugs
+  }
+}

@@ -17,6 +17,7 @@ import 'package:tentura/ui/bloc/state_base.dart';
 import '../features/beacon_view/beacon_view_case_test_support.dart';
 import '../features/block/support/controllable_block_case.dart';
 import '../features/my_work/my_work_test_support.dart';
+import '../features/updates/support/noop_invite_setup_port.dart';
 import '../support/test_realtime_sync.dart';
 
 /// U7 evidence guard: the four #102 surfaces expose the shared realtime /
@@ -76,6 +77,8 @@ void main() {
       final cubit = UpdatesFeedCubit(
         destinationId: AttentionFeedDestinationId.activity,
         attention: attention,
+        setup: NoopInviteAcceptedSetupPort(),
+        realtime: sync.case_,
         logger: Logger('cross-surface-feed'),
       );
       addTearDown(cubit.close);

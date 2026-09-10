@@ -211,6 +211,7 @@ void main() {
           'relationship': RealtimeEntityKind.relationship,
           'profile': RealtimeEntityKind.profile,
           'notification': RealtimeEntityKind.notification,
+          'invite_seed_prompt': RealtimeEntityKind.inviteSeedPrompt,
         };
 
         for (final entry in wireKinds.entries) {

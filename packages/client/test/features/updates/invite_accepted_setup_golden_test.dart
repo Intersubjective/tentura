@@ -6,6 +6,7 @@ import 'package:tentura/domain/attention/entity/attention_receipt.dart';
 import 'package:tentura/domain/capability/invite_seed_prompt_state.dart';
 import 'package:tentura/domain/capability/prompt_state_value.dart';
 import 'package:tentura/domain/entity/profile.dart';
+import 'package:tentura/features/updates/domain/entity/prompt_projection.dart';
 import 'package:tentura/features/updates/domain/use_case/invite_accepted_setup_case.dart';
 import 'package:tentura/features/updates/ui/widget/invite_accepted_receipt_card.dart';
 import 'package:tentura/features/updates/ui/widget/invite_accepted_setup_sheet.dart';
@@ -44,6 +45,12 @@ final class _GoldenSetupCase implements InviteAcceptedSetupPort {
 
   @override
   Future<void> skip(String subjectId) async {}
+
+  @override
+  Future<Map<String, InviteSeedPromptState>> fetchPrompts(
+    Set<String> subjectIds,
+  ) async =>
+      {};
 }
 
 AttentionReceipt _receipt() => AttentionReceipt(
@@ -86,6 +93,9 @@ Future<void> _pumpCard(
                 key: const Key('card-golden'),
                 child: InviteAcceptedReceiptCard(
                   receipt: _receipt(),
+                  promptProjection: const PromptProjection.known(
+                    _GoldenSetupCase.prompt,
+                  ),
                   setupCase: _GoldenSetupCase(),
                   onTap: () {},
                   onMarkSeen: () async {},

@@ -58,6 +58,12 @@ final class _FakeSetupCase implements InviteAcceptedSetupPort {
   @override
   Future<InviteSeedPromptState> fetchPrompt(String subjectId) =>
       throw UnimplementedError();
+
+  @override
+  Future<Map<String, InviteSeedPromptState>> fetchPrompts(
+    Set<String> subjectIds,
+  ) async =>
+      {};
 }
 
 void main() {

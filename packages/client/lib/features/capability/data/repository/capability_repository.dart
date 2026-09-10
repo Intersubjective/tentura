@@ -21,6 +21,8 @@ import '../gql/_g/capability_set_viewer_visible.req.gql.dart';
 import '../gql/_g/forward_context_fetch.data.gql.dart';
 import '../gql/_g/forward_context_fetch.req.gql.dart';
 import '../gql/_g/invite_seed_prompt_answer.req.gql.dart';
+import '../gql/_g/invite_prompt_states.data.gql.dart';
+import '../gql/_g/invite_prompt_states.req.gql.dart';
 import '../gql/_g/invite_seed_prompt_fetch.data.gql.dart';
 import '../gql/_g/invite_seed_prompt_fetch.req.gql.dart';
 import '../gql/_g/invite_seed_prompt_skip.req.gql.dart';
@@ -349,6 +351,21 @@ class CapabilityRepository implements CapabilityRepositoryPort {
       .then(_inviteSeedPromptStateFromGql);
 
   @override
+  Future<Map<String, InviteSeedPromptState>> fetchInviteSeedPromptStates(
+    Set<String> subjectIds,
+  ) {
+    if (subjectIds.isEmpty) return Future.value(const {});
+    final ids = subjectIds.take(100).toList(growable: false);
+    return _remoteApiService
+        .request(
+          GInvitePromptStatesReq((r) => r..vars.subjectIds.addAll(ids)),
+        )
+        .firstWhere((e) => e.dataSource == DataSource.Link)
+        .then((r) => r.dataOrThrow(label: _label).invitePromptStates)
+        .then(_inviteSeedPromptStatesFromGql);
+  }
+
+  @override
   Future<void> inviteSeedPromptAnswer({
     required String subjectId,
     required List<String> slugs,
@@ -406,6 +423,22 @@ class CapabilityRepository implements CapabilityRepositoryPort {
     state: PromptStateValue.fromWire(row.state),
     slugs: row.slugs.toList(),
   );
+
+  InviteSeedPromptState _inviteSeedPromptStateFromBatchRow(
+    GInvitePromptStatesData_invitePromptStates row,
+  ) => InviteSeedPromptState(
+    inviterUserId: row.inviterUserId,
+    inviteeUserId: row.inviteeUserId,
+    state: PromptStateValue.fromWire(row.state),
+    slugs: row.slugs.toList(),
+  );
+
+  Map<String, InviteSeedPromptState> _inviteSeedPromptStatesFromGql(
+    BuiltList<GInvitePromptStatesData_invitePromptStates> rows,
+  ) => {
+    for (final row in rows)
+      row.inviteeUserId: _inviteSeedPromptStateFromBatchRow(row),
+  };
 
   static const _label = 'Capability';
 }

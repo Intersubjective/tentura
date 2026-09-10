@@ -8,6 +8,7 @@ import 'package:tentura/domain/attention/entity/attention_receipt.dart';
 import 'package:tentura/domain/capability/invite_seed_prompt_state.dart';
 import 'package:tentura/domain/capability/prompt_state_value.dart';
 import 'package:tentura/domain/entity/profile.dart';
+import 'package:tentura/features/updates/domain/entity/prompt_projection.dart';
 import 'package:tentura/features/updates/domain/use_case/invite_accepted_setup_case.dart';
 import 'package:tentura/features/updates/ui/widget/invite_accepted_setup_sheet.dart';
 import 'package:tentura/features/updates/ui/widget/updates_feed_tile.dart';
@@ -22,6 +23,9 @@ class InviteAcceptedReceiptCard extends StatefulWidget {
     required this.onTap,
     required this.onMarkSeen,
     required this.onMarkUnseen,
+    this.promptProjection = const PromptProjection.unknown(),
+    this.onRetryPromptFetch,
+    this.onPromptSettled,
     this.setupCase,
     super.key,
   });
@@ -30,6 +34,10 @@ class InviteAcceptedReceiptCard extends StatefulWidget {
   final VoidCallback onTap;
   final Future<void> Function() onMarkSeen;
   final VoidCallback onMarkUnseen;
+  final PromptProjection promptProjection;
+  final Future<void> Function(String subjectId)? onRetryPromptFetch;
+  final void Function(String subjectId, InviteSeedPromptState state)?
+  onPromptSettled;
   final InviteAcceptedSetupPort? setupCase;
 
   @override
@@ -40,14 +48,12 @@ class InviteAcceptedReceiptCard extends StatefulWidget {
 enum _PromptLoadPhase { notApplicable, loading, pending, settled, error }
 
 class _InviteAcceptedReceiptCardState extends State<InviteAcceptedReceiptCard> {
-  late _PromptLoadPhase _promptPhase;
-  InviteSeedPromptState? _promptState;
   Profile? _inviteeProfile;
   bool _openingSetup = false;
   bool _modalOutcomeMarkedSeen = false;
 
   InviteAcceptedSetupPort get _setupCase =>
-      widget.setupCase ?? GetIt.I<InviteAcceptedSetupCase>();
+      widget.setupCase ?? GetIt.I<InviteAcceptedSetupPort>();
 
   String? get _subjectId =>
       widget.receipt.actorUserId ?? widget.receipt.targetEntityId;
@@ -61,7 +67,7 @@ class _InviteAcceptedReceiptCardState extends State<InviteAcceptedReceiptCard> {
   @override
   void initState() {
     super.initState();
-    _startLoading();
+    _startProfileLoad();
   }
 
   @override
@@ -70,25 +76,17 @@ class _InviteAcceptedReceiptCardState extends State<InviteAcceptedReceiptCard> {
     if (oldWidget.receipt.id != widget.receipt.id ||
         oldWidget.receipt.presentationPayloadJson !=
             widget.receipt.presentationPayloadJson) {
-      _promptState = null;
       _inviteeProfile = null;
       _openingSetup = false;
       _modalOutcomeMarkedSeen = false;
-      _startLoading();
+      _startProfileLoad();
     }
   }
 
-  void _startLoading() {
-    _promptPhase = _isNewAccount
-        ? _PromptLoadPhase.loading
-        : _PromptLoadPhase.notApplicable;
+  void _startProfileLoad() {
     final subjectId = _subjectId;
-    if (subjectId == null || subjectId.isEmpty) {
-      _promptPhase = _PromptLoadPhase.notApplicable;
-      return;
-    }
+    if (subjectId == null || subjectId.isEmpty) return;
     unawaited(_loadProfile(subjectId));
-    if (_isNewAccount) unawaited(_loadPrompt(subjectId));
   }
 
   Future<void> _loadProfile(String subjectId) async {
@@ -101,32 +99,30 @@ class _InviteAcceptedReceiptCardState extends State<InviteAcceptedReceiptCard> {
     }
   }
 
-  Future<void> _loadPrompt(String subjectId) async {
-    if (mounted) {
-      setState(() => _promptPhase = _PromptLoadPhase.loading);
+  _PromptLoadPhase _promptPhase() {
+    if (!_isNewAccount || _subjectId == null) {
+      return _PromptLoadPhase.notApplicable;
     }
-    try {
-      final prompt = await _setupCase.fetchPrompt(subjectId);
-      if (!mounted || subjectId != _subjectId) return;
-      setState(() {
-        _promptState = prompt;
-        _promptPhase = prompt.state == PromptStateValue.pending
+    return switch (widget.promptProjection) {
+      PromptProjectionUnknown() => _PromptLoadPhase.loading,
+      PromptProjectionFailed() => _PromptLoadPhase.error,
+      PromptProjectionKnown(:final state) =>
+        state.state == PromptStateValue.pending
             ? _PromptLoadPhase.pending
-            : _PromptLoadPhase.settled;
-      });
-    } on Object {
-      if (!mounted || subjectId != _subjectId) return;
-      setState(() => _promptPhase = _PromptLoadPhase.error);
-    }
+            : _PromptLoadPhase.settled,
+    };
   }
 
   Future<void> _openSetup() async {
     final subjectId = _subjectId;
-    final prompt = _promptState;
+    final prompt = switch (widget.promptProjection) {
+      PromptProjectionKnown(:final state) => state,
+      _ => null,
+    };
     if (_openingSetup ||
         subjectId == null ||
         prompt == null ||
-        _promptPhase != _PromptLoadPhase.pending) {
+        _promptPhase() != _PromptLoadPhase.pending) {
       return;
     }
     final l10n = L10n.of(context)!;
@@ -150,15 +146,15 @@ class _InviteAcceptedReceiptCardState extends State<InviteAcceptedReceiptCard> {
       unawaited(_loadProfile(subjectId));
       return;
     }
-    setState(() {
-      _inviteeProfile = result.profile;
-      _promptState = prompt.copyWith(
+    setState(() => _inviteeProfile = result.profile);
+    widget.onPromptSettled?.call(
+      subjectId,
+      prompt.copyWith(
         state: result.action == InviteAcceptedSetupAction.saved
             ? PromptStateValue.answered
             : PromptStateValue.skipped,
-      );
-      _promptPhase = _PromptLoadPhase.settled;
-    });
+      ),
+    );
     await _markSeenForModalOutcome();
   }
 
@@ -183,15 +179,16 @@ class _InviteAcceptedReceiptCardState extends State<InviteAcceptedReceiptCard> {
     final receipt = widget.receipt;
     final l10n = L10n.of(context)!;
     final copy = _displayCopy(l10n);
+    final phase = _promptPhase();
     final Widget? action;
-    if (_promptPhase == _PromptLoadPhase.pending) {
+    if (phase == _PromptLoadPhase.pending) {
       action = TenturaTextAction(
         label: l10n.inviteAcceptedSetupAddDetails,
         semanticsIdentifier: TestIds.inviteAcceptedSetupOpen,
         flushStart: true,
         onPressed: _openingSetup ? null : _openSetup,
       );
-    } else if (_promptPhase == _PromptLoadPhase.error) {
+    } else if (phase == _PromptLoadPhase.error) {
       action = TenturaTextAction(
         label: l10n.inviteAcceptedSetupRetry,
         semanticsIdentifier: TestIds.inviteAcceptedSetupRetry,
@@ -199,7 +196,10 @@ class _InviteAcceptedReceiptCardState extends State<InviteAcceptedReceiptCard> {
         flushStart: true,
         onPressed: () {
           final subjectId = _subjectId;
-          if (subjectId != null) unawaited(_loadPrompt(subjectId));
+          final retry = widget.onRetryPromptFetch;
+          if (subjectId != null && retry != null) {
+            unawaited(retry(subjectId));
+          }
         },
       );
     } else {
