@@ -12,9 +12,10 @@ import 'package:tentura/ui/test_ids.dart';
 
 import 'support/e2e_test_helpers.dart';
 
-/// English [L10n.orientationWhereSemantics] for the Inbox nav row.
+/// English [L10n.orientationWhereSemantics] for the Activity nav row
+/// (`l10n.inbox`'s value; the nav label was renamed Inbox → Activity).
 const _inboxNavSemanticsLabel =
-    'Inbox: Requests your friends have forwarded to you.';
+    'Activity: Requests your friends have forwarded to you.';
 
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
@@ -35,7 +36,7 @@ void main() {
     await awaitActivationSettled(tester, fixture.authorUserId);
     await expectOrientationPanel(tester, visible: true);
 
-    await runE2eStep('Inbox nav row', () async {
+    await runE2eStep('Activity nav row', () async {
       await tapAndSettle(
         tester,
         find.bySemanticsLabel(_inboxNavSemanticsLabel),
