@@ -991,12 +991,14 @@ packages/client/test/features/inbox/inbox_triage_row_test.dart        new
 **Verify:**
 
 ```bash
+cd packages/client && flutter gen-l10n
 cd packages/client && dart run build_runner build -d
 cd packages/client && flutter test test/features/inbox/
 ./scripts/check-custom-lints.sh packages/client
 ```
 
-**Acceptance:** triage is reachable and bounded; no card renders inline.
+**Acceptance:** triage is reachable and bounded; no card renders inline, and the
+nine lifecycle specs still pass through the re-pointed helpers.
 
 ---
 
@@ -1010,8 +1012,14 @@ Implements architecture §5, §5.5.1.
 packages/client/lib/features/updates/ui/widget/updates_feed_pane.dart       edit
 packages/client/lib/features/updates/ui/widget/prompt_batch_sheet.dart      new
 packages/client/lib/ui/test_ids.dart                                        edit
+packages/client/l10n/app_en.arb                                             edit
+packages/client/l10n/app_ru.arb                                             edit
 packages/client/test/features/updates/prompt_pinning_test.dart              new
 ```
+
+The collapsed row's `N people joined via your invites — set up access` is a
+**plural** string: declare it with an ICU `plural` in both `.arb` files, with
+Russian's `one/few/many/other` forms, not a bare placeholder.
 
 1. Sliver order inside the feed scroll is fixed: **pinned prompts → resolved
    tombstones → chronological day groups**.
@@ -1033,6 +1041,7 @@ packages/client/test/features/updates/prompt_pinning_test.dart              new
 **Verify:**
 
 ```bash
+cd packages/client && flutter gen-l10n
 cd packages/client && flutter test test/features/updates/
 ./scripts/check-custom-lints.sh packages/client
 ```
@@ -1171,6 +1180,8 @@ this unit's own l10n keys (UNIT 19 owns only the rename).
 **Verify:**
 
 ```bash
+cd packages/client && flutter gen-l10n
+cd packages/client && dart run build_runner build -d
 cd packages/client && flutter test test/features/home/ test/
 ./scripts/check-custom-lints.sh packages/client
 ```
