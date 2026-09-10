@@ -1,6 +1,6 @@
 # Inbox → Activity: implementation plan
 
-Status: implementation plan, revision 3. Companion to [`inbox-activity-ia-architecture.md`](inbox-activity-ia-architecture.md), which is the authority on *what* is being built and *why*. This document owns *what has to exist first*, *in what order*, and *what breaks*.
+Status: implementation plan, revision 5. Companion to [`inbox-activity-ia-architecture.md`](inbox-activity-ia-architecture.md), which is the authority on *what* is being built and *why*. This document owns *what has to exist first*, *in what order*, and *what breaks*.
 
 Date: 2026-09-10. Repository baseline: `c6b24012d` plus this branch.
 
@@ -176,7 +176,7 @@ in-flight branch. Never renumber a landed migration.
 | field | shape | unit |
 |---|---|---|
 | `liveObligationBeacons` **new** | `[String!]!` — authorized beacon ids where the viewer holds `requires_action AND settlement_kind IS NULL` | 01 |
-| `invitePromptStates` **new** | `[InviteSeedPromptState!]!` for a set of subject ids, under the prompt endpoint's own authorization | 10 |
+| `invitePromptStates` **new** | `[v2_InviteSeedPromptState!]!` for a set of subject ids, under the prompt endpoint's own authorization. **The existing type is `v2_InviteSeedPromptState`** (`custom_types.dart:1010-1018`) — reuse it, do not declare a second | 10 |
 
 Both are **camelCase**, matching `custom_types.dart`. Neither is a Hasura
 table permission: `notification_outbox` is not registered in Hasura and must
@@ -213,9 +213,17 @@ or route family.
 
 ## 7. Executor contract
 
-1. Units in manifest order. Complete one unit, run its Verify block, append the
-   journal entry, make one focused commit, then the next.
-2. Preserve pre-existing modified and untracked files. Stage explicit paths only.
+1. Units in manifest order, **strictly sequential**. Complete one unit, run its
+   Verify block, append the journal entry, make one focused commit, then the next.
+   Do not parallelise: several units share `custom_types.dart`, `_migrations.dart`
+   and `attention_case.dart`, and the ordering is what keeps them from colliding.
+2. **An Owns list is a starting point, not an inventory.** It was written against
+   `992ffdcab` and files move. Before editing, confirm each path exists. If one
+   does not, or if the real wiring differs from what the unit describes, that is
+   rule 4 — stop and record `BLOCKED` with what you found. Do **not** search for
+   "the file it probably meant" and continue: a wrong guess here is how a whole
+   unit ends up in the wrong layer.
+11. Preserve pre-existing modified and untracked files. Stage explicit paths only.
 3. Create `docs/plans/inbox-activity-ia-implementation-journal.md` in UNIT 00.
 4. If live code contradicts a frozen contract, **stop that unit** and record
    `BLOCKED` with the contradicting evidence. Do not adapt the contract silently.
@@ -281,8 +289,12 @@ REMAINING: <specific work, or none>
 | 24 | Remove retired coordination machinery | §4 step 2 | 23 | `chore: remove retired ask/blocker/promise/plan code` |
 | 25 | Version bump, terminology, acceptance | arch §9 | all | `chore(client): release activity branch` |
 
-Parallelizable: {01, 03, 07, 10, 20, 23} may start together after 00.
-{13–18} are serial on 13. Everything else follows the depends-on column.
+**Run these strictly in manifest order.** An earlier revision of this plan
+declared {01, 03, 07, 10, 20, 23} parallelisable; that was wrong and is
+withdrawn — 01 and 10 both edit `custom_types.dart`, 03 and 20 both edit
+`_migrations.dart`, and 02 and 07 both edit `attention_case.dart`. The
+depends-on column records *why* an order exists; it does not license
+reordering the rest.
 
 ---
 
@@ -298,14 +310,24 @@ docs/plans/inbox-activity-ia-implementation-journal.md   new
    the two plan documents' revisions, and `flutter --version` / `dart --version`.
 2. Record the pre-existing modified and untracked files so a later unit can tell
    its own changes from the working tree it inherited.
+3. **Establish the Postgres preflight.** Seven later units verify with
+   `dart test -t pg`, and those tests **skip silently when the database is
+   unreachable** (`attention_repository_pg_test.dart:28-33`) — so exit code 0
+   proves nothing. Bring up a disposable database, apply migrations, and record
+   in the journal the connection target and a run that reports a **non-zero
+   number of executed tests**. From here on, a `-t pg` Verify line that reports
+   all-skipped is a **failed** unit, not a passed one. The existing connection
+   pattern is `test/support/beacon_hierarchy_fixture.dart:485-500`.
 
 **Verify:**
 
 ```bash
 git -C . status --short
+cd packages/server && dart test -t pg -j 1 test/data/repository/attention_repository_pg_test.dart
 ```
 
-**Acceptance:** journal exists with a baseline entry. No code touched.
+**Acceptance:** journal exists with a baseline entry, and the PG suite is proven
+to actually run. No code touched.
 
 ---
 
@@ -316,23 +338,34 @@ Implements §2.1.
 **Owns:**
 
 ```text
+packages/server/lib/domain/port/attention_query_port.dart              edit
 packages/server/lib/data/repository/attention_repository.dart          edit
-packages/server/lib/domain/port/attention_repository_port.dart         edit
-packages/server/lib/domain/use_case/attention_case.dart                edit
 packages/server/lib/api/controllers/graphql/query/query_attention.dart edit
-packages/server/lib/api/controllers/graphql/custom_types.dart          edit
+packages/server/test/api/controllers/graphql/attention_graphql_test.dart  edit
 packages/server/test/data/repository/attention_live_obligations_pg_test.dart  new
 ```
 
-1. Add `liveObligationBeacons({required String accountId})` to the repository,
-   returning distinct `beacon_id` values. Reuse the **authorized** CTE that
+**There is no server-side `AttentionCase` and no `attention_repository_port.dart`.**
+The live wiring is `AttentionQueryPort` (`attention_query_port.dart:5-22`) →
+`AttentionRepository` (its implementation) → `QueryAttention`
+(`query_attention.dart:12-15`, a `GqlNodeBase` holding the port). Follow that,
+and mirror `unreadForBeacons` at every layer.
+
+1. Add `liveObligationBeacons({required String accountId})` to
+   `AttentionQueryPort`, directly beside `unreadForBeacons` (`:17-22`), with the
+   same "no presentation concepts" contract in its doc comment.
+2. Implement it on `AttentionRepository`, reusing the **authorized** CTE that
    `unreadForBeacons` uses (`attention_repository.dart:24-48`) — do not write a
    second authorization path; the two must not be able to diverge. Filter
-   `requires_action AND settlement_kind IS NULL`. No `seen_at` condition: seen is
-   not settled.
-2. Thread it through the port and use case following the `unreadForBeacons`
-   shape exactly.
-3. Expose `liveObligationBeacons: [String!]!` on the attention query type.
+   `requires_action AND settlement_kind IS NULL`, select distinct `beacon_id`.
+   No `seen_at` condition: seen is not settled.
+3. Expose it on `QueryAttention` next to the `unreadForBeacons` resolver
+   (`query_attention.dart:34-40`). It returns `[String!]!`, a scalar list, so
+   **`custom_types.dart` needs no new object type** — do not add one.
+4. `attention_graphql_test.dart:19` holds a fake that `implements
+   AttentionQueryPort` with plain `implements`; adding a method to the port
+   breaks it. Update it in this unit — the mandatory lint gate analyses the whole
+   package (`scripts/check-custom-lints.sh:41-53`) and will stop you otherwise.
 4. Tests (`@Tags(['pg'])`): a live obligation appears; a settled one does not; a
    seen-but-unsettled one **does**; a receipt the viewer is not authorized for
    does not; two receipts on one Beacon yield **one** id.
@@ -359,14 +392,25 @@ Implements §2.1, client half.
 ```text
 packages/client/lib/features/attention/data/gql/attention_live_obligations.graphql  new
 packages/client/lib/domain/attention/port/attention_repository_port.dart            edit
+packages/client/lib/data/repository/attention_repository.dart                       edit
 packages/client/lib/domain/attention/attention_case.dart                            edit
+packages/client/test/domain/attention/attention_case_test.dart                      edit
 packages/client/test/domain/attention/attention_live_obligations_test.dart          new
 ```
 
-1. Add the query document and run codegen.
-2. Add `liveObligationBeacons()` to the port and `AttentionCase`, mirroring
-   `unreadForBeacons` including its batching (`_maxIdsPerRequest`) if the call
-   shape needs it.
+1. Add the query document. **Ferry generates from the local SDL**
+   (`packages/client/build.yaml:29-32`), so the server change of UNIT 01 does not
+   reach the client by itself: refresh the schema first (start the server, run
+   the schema fetcher — the overlay contract is pinned by
+   `test/data/gql/direct_v2_schema_overlay_test.dart:6-10`), *then* run codegen.
+   A unit that skips this fails with an unhelpful "unknown field".
+2. Add `liveObligationBeacons()` to the port, and implement it on the Ferry
+   adapter `data/repository/attention_repository.dart` beside `unreadForBeacons`
+   (`:101-111`) — the port alone is not a working call.
+3. Add the use-case method on `AttentionCase`, mirroring `unreadForBeacons`
+   including its batching if the call shape needs it.
+4. `attention_case_test.dart:30-87` holds a fake implementing the port; update it
+   here for the same reason as UNIT 01 step 4.
 3. Unit tests against a mocked port: empty, populated, error propagates rather
    than being swallowed into an empty set — an unavailable set must be
    distinguishable from an empty one (architecture §4.8).
@@ -425,13 +469,34 @@ Implements §3.1–3.2.
 **Owns:**
 
 ```text
+packages/client/lib/features/my_work/data/gql/my_work_fetch.graphql            edit
+packages/client/lib/features/my_work/domain/entity/my_work_fetch_types.dart    edit
 packages/client/lib/features/my_work/data/repository/my_work_repository.dart   edit
 packages/client/lib/features/my_work/domain/use_case/my_work_case.dart         edit
 packages/client/lib/features/my_work/domain/derive_my_work_cards.dart          edit
 packages/client/lib/features/my_work/domain/entity/my_work_card_view_model.dart edit
+packages/client/lib/features/my_work/ui/widget/my_work_cards.dart              edit
 packages/client/lib/features/my_work/ui/bloc/my_work_cubit.dart                edit
 packages/client/test/features/my_work/my_work_obligation_membership_test.dart  new
 ```
+
+**The role and kind enums have no room for this card, and that is a decision
+this unit must make rather than improvise.** `MyWorkCardRole` is
+`{authored, helpOffered}` and `MyWorkCardKind` is seven values drawn from those
+two families (`my_work_card_view_model.dart:15-24`), and `my_work_cards.dart:80-115`
+switches exhaustively on kind. The decision:
+
+| aspect | value |
+|---|---|
+| new role | `MyWorkCardRole.obligation` |
+| new kinds | `obligationActive`, `obligationArchived` |
+| rendering | reuse the `authoredActive` / `authoredArchived` card body; the title, status line and actions are the Request's, not the obligation's |
+| default filter | `obligationActive` passes; `obligationArchived` passes too, because archive must not hide an obligation (§3.4) |
+| when another source also holds the Beacon | the other source's kind wins; the obligation is one of the card's `sources`, not its identity |
+
+The switch in `my_work_cards.dart` is exhaustive, so adding kinds without adding
+arms will not compile — which is the desired failure, not a problem to route
+around.
 
 1. Add an **activation gate** — a single compile-time or DI-provided boolean,
    default off, named `kMyWorkObligationsEnabled`. Everything in units 04–08
@@ -439,8 +504,13 @@ packages/client/test/features/my_work/my_work_obligation_membership_test.dart  n
 2. Add the obligation beacon-id set as a third input alongside
    `authoredNonArchived` and `helpOfferedNonArchived`
    (`my_work_fetch.graphql:6-23`, repository `:41-54`, case `:114-124`).
-   An obligation-only Request needs its own Beacon fetch: it may be archived or
-   carry no active offer, so neither existing query returns it.
+   An obligation-only Request needs **its own Beacon fetch by id**: it may be
+   archived or carry no active offer, so neither existing query returns it. That
+   means a new query alias in `my_work_fetch.graphql` and a third field on
+   `my_work_fetch_types.dart:23-30`, which today carries exactly two sets.
+   The existing query separates sets by archive state (`:5-23,55-70`); the
+   obligation set must **not** be split that way — carry the viewer's archive
+   state as a field instead, which UNIT 05 then reads.
 3. **Membership becomes a set of sources**, not a flag. Give the card view model
    the sources it holds (`authored`, `helpOffered`, `obligation`).
    `derive_my_work_cards.dart:199-212` must emit **exactly one card per Beacon**
@@ -475,9 +545,14 @@ Implements §3.4.
 ```text
 packages/client/lib/features/my_work/ui/bloc/my_work_cubit.dart                 edit
 packages/client/lib/features/my_work/domain/entity/my_work_card_view_model.dart edit
+packages/client/lib/features/my_work/domain/derive_my_work_cards.dart           edit
 packages/client/lib/features/my_work/ui/widget/my_work_cards.dart               edit
 packages/client/test/features/my_work/my_work_archive_membership_test.dart      new
 ```
+
+`my_work_card_view_model.dart` is Freezed (`:13`), so this unit adds a field to a
+generated model and **must run codegen in its own Verify block** before its
+tests.
 
 1. `archiveBeacon` (`my_work_cubit.dart:226-233`) unconditionally calls
    `_removeBeaconFromState` (`:229`) and increments `archivedCountHint` (`:232`).
@@ -497,6 +572,7 @@ packages/client/test/features/my_work/my_work_archive_membership_test.dart      
 **Verify:**
 
 ```bash
+cd packages/client && dart run build_runner build -d
 cd packages/client && flutter test test/features/my_work/
 ./scripts/check-custom-lints.sh packages/client
 ```
@@ -551,9 +627,14 @@ Implements architecture §7. Independent of 01–06; may run in parallel.
 
 ```text
 packages/client/lib/domain/attention/attention_case.dart                 edit
+packages/client/lib/domain/attention/entity/attention_feed.dart          edit
 packages/client/lib/features/updates/ui/bloc/updates_feed_cubit.dart     edit
+packages/client/lib/features/updates/ui/bloc/updates_feed_state.dart     edit
+packages/client/lib/features/inbox/ui/screen/inbox_screen.dart           edit
 packages/client/test/features/updates/updates_feed_session_test.dart     new
 ```
+
+`updates_feed_state.dart` is Freezed; run codegen in the Verify block.
 
 1. `AttentionCase` is a singleton holding one `activeView` and one `_search`
    (`attention_case.dart:39,117`), and every `UpdatesFeedCubit` adopts that
@@ -562,6 +643,19 @@ packages/client/test/features/updates/updates_feed_session_test.dart     new
 2. Split by lifetime, not by widget: **receipts, acknowledgement and summary stay
    account-wide** on `AttentionCase`; **view selection, search text, page and
    cursor move to the cubit**, keyed by a destination id passed at construction.
+3. Fix these, rather than leaving them to be discovered mid-implementation:
+   - **response attribution.** `AttentionCase` applies a response against
+     `snapshot.activeView` at the time it lands (`attention_case.dart:255-305`).
+     With two sessions that silently mixes one destination's search results into
+     the other. Tag each request with a destination id **and a generation
+     counter**, and drop a response whose generation is stale.
+   - **cursor ownership.** A cursor belongs to a (destination, view, search)
+     triple. Changing search discards it.
+   - **lifetime.** State survives the cubit being disposed and remounted within
+     an account; an account switch discards it entirely.
+   - **existing call sites** move with the API: `attention_feed.dart:27-34`,
+     `updates_feed_state.dart:10-18`, and the construction at
+     `inbox_screen.dart:618-621`. Add them to this unit's Owns before starting.
 3. Tests: two cubits with different destination ids hold independent view and
    search; both observe the same receipt list and the same unread total; a
    round trip A → B → A restores A's view and search.
@@ -569,12 +663,14 @@ packages/client/test/features/updates/updates_feed_session_test.dart     new
 **Verify:**
 
 ```bash
-cd packages/client && flutter test test/features/updates/
+cd packages/client && dart run build_runner build -d
+cd packages/client && flutter test test/features/updates/ test/features/inbox/
 ./scripts/check-custom-lints.sh packages/client
 ```
 
-**Acceptance:** two feeds coexist without overwriting each other. Only one is
-mounted so far, so nothing visible changes.
+**Acceptance:** two feeds coexist without overwriting each other, and a response
+to one never lands in the other. Only one is mounted so far, so nothing visible
+changes.
 
 ---
 
@@ -594,6 +690,16 @@ packages/client/test/features/my_work/my_work_obligations_pane_test.dart      ne
 1. Mount a Needs-you view inside My Work, behind the UNIT 04 gate, using the
    per-destination session of UNIT 07 with its own destination id. It is backed
    by `AttentionView.needsYou`, which keeps its meaning.
+
+   **Each destination declares which views it offers**, rather than sharing one
+   three-way control: today the pane hardcodes three tabs and indexes
+   `AttentionView.values[index]` (`updates_feed_pane.dart:135-156`). Activity
+   offers `[all, unread]`; My Work offers `needsYou` **only**, with no view
+   control at all. Parameterise the pane on its allowed views.
+
+   The gate `kMyWorkObligationsEnabled` is declared **once**, in UNIT 04, as a
+   DI-provided boolean with a test override, and this unit and UNIT 09 read that
+   same declaration.
 2. Carry the **settlement actions** onto it. An obligation must be dischargeable
    where it now lives; a read-only list does not satisfy this unit.
 3. Test ids follow the dotted My Work convention (§6.4).
@@ -623,7 +729,7 @@ Implements §1 step 4. **Do not start until UNIT 08 is `complete` in the journal
 ```text
 packages/client/lib/features/updates/ui/widget/updates_feed_pane.dart      edit
 packages/client/lib/domain/attention/entity/attention_feed.dart            edit
-packages/client/test/features/updates/updates_feed_views_test.dart         edit
+packages/client/test/features/updates/updates_feed_views_test.dart         new
 ```
 
 1. Flip the UNIT 04 gate on by default.
@@ -654,12 +760,17 @@ Implements §2.4.
 **Owns:**
 
 ```text
+packages/server/lib/domain/port/invite_seed_prompt_port.dart                 edit
 packages/server/lib/data/repository/invite_seed_prompt_repository.dart       edit
 packages/server/lib/domain/use_case/invite_seed_attestation_case.dart        edit
-packages/server/lib/api/controllers/graphql/query/query_capability.dart      edit
-packages/server/lib/api/controllers/graphql/custom_types.dart                edit
+packages/server/lib/api/controllers/graphql/query/query_invite_seed_prompt.dart  edit
 packages/server/test/domain/use_case/invite_prompt_projection_pg_test.dart   new
 ```
+
+The endpoint is `query_invite_seed_prompt.dart:9-34`, **not** `query_capability.dart`,
+and the use case reaches storage through `invite_seed_prompt_port.dart:3-23` —
+adding a repository method without the port leaves the use case unable to call it.
+Reuse the existing `v2_InviteSeedPromptState` object type (§6.2); declare no new one.
 
 1. Add a batch read returning prompt states for a set of subject ids.
 2. **Authorization is not inherited from the receipt.** The current prompt read
@@ -668,7 +779,11 @@ packages/server/test/domain/use_case/invite_prompt_projection_pg_test.dart   new
    access policy checks only presentation shape (`m0117.dart:46`). Carry the
    prompt endpoint's own predicate into the projection. A blocked pair must get
    the **history receipt** and **no actionable prompt state**.
-3. Expose `invitePromptStates` per §6.2.
+3. Expose `invitePromptStates` on the existing prompt query node per §6.2. Fix
+   the argument shape here rather than leaving it to the executor:
+   `subjectIds: [String!]!`, **at most 100 per call** (matching the feed page
+   clamp), and a subject with no row is **absent from the result**, not an error
+   and not a synthesised `pending`.
 4. Tests (`@Tags(['pg'])`): batch returns states for authorized subjects;
    a blocked pair yields no state while the receipt remains readable;
    an unknown subject yields absence, not an error.
@@ -700,13 +815,23 @@ packages/server/test/domain/use_case/invite_prompt_invalidation_pg_test.dart  ne
 
 1. `answer` is wrapped in a transaction (`invite_seed_attestation_case.dart:70-82`);
    `skip` is a standalone write (`:86-95`). Both must emit a recipient-targeted
-   invalidation **inside the same transaction as the write**, using the existing
-   transactional realtime mechanism. A post-write emission leaves a window where
+   invalidation **inside the same transaction as the write**.
+
+   **The existing `emit_realtime_entity_change` does not satisfy this on its
+   own**: it catches a notification failure and returns with only a WARNING
+   (`m0133.dart:76-92`), as does the outbox trigger that would otherwise be the
+   model (`m0116.dart:119-124`). Delivery is therefore best-effort, and a
+   rollback test cannot detect the gap. Either propagate the failure so the
+   transaction aborts, or make the invalidation durable (a queued row the
+   delivery path drains). Choose one and record which. A post-write emission leaves a window where
    the state commits, the emission fails, and another connected device stays
    stale with no later event that would correct it.
-2. Tests (`@Tags(['pg'])`): rollback leaves neither the state change nor an
-   emission; a committed `skip` is observable on a second connected client with
-   no refetch trigger of its own; the same for `answer`.
+2. Fix the wire shape here so UNIT 12 has something to subscribe to: the
+   invalidation kind, the subject id it carries, and the recipient it targets.
+3. Tests (`@Tags(['pg'])`): rollback leaves neither the state change nor an
+   emission; **an injected notification failure rolls the prompt write back too**;
+   a committed `skip` is observable on a second connected client with no refetch
+   trigger of its own; the same for `answer`.
 
 **Verify:**
 
@@ -727,12 +852,23 @@ Implements §2.4 and architecture §4.8.
 **Owns:**
 
 ```text
+packages/client/lib/features/capability/data/gql/invite_prompt_states.graphql         new
+packages/client/lib/domain/port/capability_repository_port.dart                       edit
+packages/client/lib/features/capability/data/repository/capability_repository.dart    edit
 packages/client/lib/features/updates/domain/use_case/invite_accepted_setup_case.dart  edit
 packages/client/lib/features/updates/domain/entity/prompt_projection.dart             new
 packages/client/lib/features/updates/ui/bloc/updates_feed_cubit.dart                  edit
 packages/client/lib/features/updates/ui/widget/invite_accepted_receipt_card.dart      edit
+packages/client/test/features/updates/invite_accepted_setup_sheet_test.dart           edit
 packages/client/test/features/updates/prompt_projection_test.dart                     new
 ```
+
+The single-subject read runs `CapabilityRepositoryPort.fetchInviteSeedPromptState`
+(`capability_repository_port.dart:66`) → `capability_repository.dart:341-349`.
+The batch belongs on the same pair; adding it only to `InviteAcceptedSetupPort`
+leaves nothing that can talk to the server. Refresh the SDL and run codegen as in
+UNIT 02 step 1. `invite_accepted_setup_sheet_test.dart:15-61` fakes the setup
+port and breaks when the interface grows.
 
 1. Add `fetchPrompts(Set<String> subjectIds)` to `InviteAcceptedSetupPort`
    alongside the existing per-subject `fetchPrompt` (`:13`), backed by UNIT 10.
@@ -898,9 +1034,16 @@ packages/client/lib/features/updates/ui/widget/updates_feed_pane.dart    edit
 packages/client/test/features/inbox/inbox_case_test.dart                 edit
 ```
 
-1. Move the 24h resolved/tombstone section (`inbox_screen.dart:671-732`,
-   `inbox_state.dart:32-52`) into the feed scroll as the **second sliver**, on
-   the **All view only**, **collapsed by default** and expanding on tap.
+1. Move the 24h resolved/tombstone section (`inbox_screen.dart:671-732`, whose
+   dismiss callbacks are at `:719-728`, and `inbox_state.dart:32-52`) into the
+   feed scroll as the **second sliver**, on the **All view only**, **collapsed by
+   default** and expanding on tap.
+
+   **The feed returns an empty placeholder before it ever builds the
+   `CustomScrollView` when there are no receipts** (`updates_feed_pane.dart:168-178`).
+   With zero receipts and one tombstone, the section would therefore never
+   render. Build the scroll shell whenever *any* sliver has content, not only
+   when receipts do.
 2. It must not join the fixed chrome: at ~180–230dp a card it is unbounded.
 3. Dismissal rules and the 24h window are unchanged. Decide and record whether
    dismissal stays on `InboxCubit` — `inbox_case_test.dart:100-109` covers it.
@@ -974,11 +1117,25 @@ Implements architecture §6.
 ```text
 packages/client/lib/features/home/ui/widget/inbox_navbar_item.dart   edit
 packages/client/lib/features/home/ui/bloc/home_attention_state.dart  edit
+packages/client/lib/features/home/ui/bloc/home_attention_cubit.dart  edit
+packages/client/l10n/app_en.arb                                      edit
+packages/client/l10n/app_ru.arb                                      edit
 packages/client/test/features/home/inbox_navbar_item_test.dart       new
 ```
 
+`home_attention_state.dart` is Freezed; run codegen. The semantics strings are
+this unit's own l10n keys (UNIT 19 owns only the rename).
+
 1. Pending triage items > 0 → **numeric** badge with that count; else unread > 0
    → **dot**; never both.
+
+   **The state this reads does not exist yet.** `HomeAttentionState` holds Beacon
+   id *sets*, not counts (`home_attention_state.dart:13-20`), and its producer
+   only fetches unread for candidate Beacons (`home_attention_cubit.dart:140-159`).
+   This unit adds: the triage count, sourced from `InboxState.needsMe.length`
+   which `inbox_needs_me_reporter.dart:24-26` already reports; and an unread
+   signal for the badge. Add both to the state and its producer — they are part
+   of this unit's Owns, not a prerequisite someone else supplies.
 2. Prompts never contribute, at any count or freshness.
 3. Distinct accessible descriptions for the two states — "3 requests need your
    response" against "new activity". The badge is inside the `shell_counters`
@@ -1015,6 +1172,14 @@ packages/client/l10n/app_ru.arb                 edit
 CONTEXT.md                                      edit
 scripts/check-user-facing-terminology.sh        edit
 ```
+
+**Copy introduced by earlier units belongs to those units, not here.** UNITs 14,
+15 and 18 each add user-visible strings (the triage row, the collapsed prompt
+row and its count, the badge semantics). Each of those units owns its own
+`app_en.arb` / `app_ru.arb` keys and runs `flutter gen-l10n` in its own Verify
+block — `l10n.yaml:1-5` is the input contract. This unit owns the **rename**
+only, and the plural forms for any count string are fixed where the string is
+introduced.
 
 1. The nav label is the existing l10n key **`inbox`** — its *value* becomes
    `Activity` / «Активность». Do not add a key; do not rename identifiers.
@@ -1178,17 +1343,30 @@ Implements §4 step 1. **Gates UNIT 24.** Independent of every other unit.
 ```text
 packages/server/lib/domain/use_case/beacon_room_case.dart                    edit
 packages/server/lib/api/controllers/graphql/mutation/mutation_beacon_room.dart edit
+packages/server/lib/data/repository/coordination_item_repository.dart        edit
 packages/client/lib/features/beacon_threads/domain/use_case/beacon_threads_case.dart edit
 packages/client/lib/features/beacon_threads/ui/bloc/room_cubit.dart          edit
+packages/client/lib/features/beacon_view/ui/widget/beacon_now_surface.dart   edit
+packages/client/lib/features/beacon_view/ui/widget/beacon_current_line_sheet.dart edit
 packages/server/test/domain/use_case/room_now_line_pg_test.dart              new
 ```
 
 1. Today NOW is a **root `kindPlan` coordination item** whose text is synced onto
-   `BeaconRoomState`: `room_cubit.updatePlan` (`room_cubit.dart:738`) →
-   `beacon_threads_case.dart:315` → `CoordinationItemCase.updatePlan`
-   (`coordination_item_case.dart:203`) → server `UpdatePlanCase`, which calls
+   `BeaconRoomState`. There are **two live entry points**, and missing the second
+   is how this unit silently fails:
+   - the room: `room_cubit.updatePlan` (`room_cubit.dart:738`) →
+     `beacon_threads_case.dart:315` → `CoordinationItemCase.updatePlan`
+     (`coordination_item_case.dart:203`);
+   - the Request detail: `beacon_now_surface.dart:194-201` →
+     `beacon_current_line_sheet.dart:85-88` → the same
+     `CoordinationItemCase.updatePlan`.
+
+   Both reach server `UpdatePlanCase`, which calls
    `publishRootPlan(..., syncCurrentLineText:)` and emits `coordinationChanged`
-   (`update_plan_case.dart:65-82`).
+   (`update_plan_case.dart:65-82`); the write itself lands in
+   `coordination_item_repository.dart:1075-1116`. "No coordination-item code in
+   NOW's path" is false until **both** entry points and that repository write are
+   re-seated.
 2. Give NOW its own mutation and use case writing `BeaconRoomState` directly.
    Retire `UpdatePlanCase`, `publishRootPlan` and the client `updatePlan` chain.
 3. **Decide and record** whether NOW edits keep emitting `coordinationChanged`
@@ -1246,7 +1424,20 @@ CONTEXT.md                                                        edit
    which still describes it as a live structured object on an Items tab.
 5. **Persisted kind codes are never renumbered**, and existing rows stay. This is
    a code and surface removal, not a data migration.
-6. Re-run server and client codegen; DI will not compile until every registration
+6. **Deleting the directories leaves live imports behind, and codegen does not
+   repair ordinary source imports.** Handle each consumer explicitly, deciding
+   *migrate* or *delete* for every one:
+
+   | consumer | note |
+   |---|---|
+   | `server/.../mutation/_mutations_all.dart:23,47` | drop the import and the registration |
+   | `server/.../query/query_coordination_item.dart:4-5,19-24` | remove the endpoint |
+   | `client/.../my_work/domain/use_case/my_work_case.dart:15,57` | decide what My Work was using it for before deleting |
+   | `client/.../beacon_threads/data/model/request_thread_model.dart:1-2,38-41` | **decide the mapper's new home before removing the model it maps** |
+
+   Do this as three separate commits — consumer migration, endpoint removal,
+   directory deletion — so a mistake is bisectable.
+7. Re-run server and client codegen; DI will not compile until every registration
    is gone.
 
 **Verify:**
@@ -1274,6 +1465,14 @@ packages/client/pubspec.yaml         edit
 packages/client/web/index.html       edit
 docs/plans/inbox-activity-ia-implementation-journal.md   edit
 ```
+
+The integration helpers are **not** owned here — `goToInboxTriage()` and the
+re-pointing of `offerHelpFromInbox` / `openRequestFromInbox`
+(`integration_test/support/e2e_test_helpers.dart:588-638`) belong to **UNIT 14**,
+which is where the triage route appears. By this unit they must already work.
+The runner reuses an already-running server (`scripts/run_client_integration_web_local.sh:55-66`),
+so before the acceptance walk, confirm the server is on this branch's revision
+with its migrations applied — otherwise the walk validates the old build.
 
 1. Semver bump in `packages/client/pubspec.yaml` — this is a user-visible client
    change (AGENTS.md:33).
