@@ -1,6 +1,6 @@
 # Inbox → Activity: implementation plan
 
-Status: implementation plan, revision 7. Companion to [`inbox-activity-ia-architecture.md`](inbox-activity-ia-architecture.md), which is the authority on *what* is being built and *why*. This document owns *what has to exist first*, *in what order*, and *what breaks*.
+Status: implementation plan, revision 8. Companion to [`inbox-activity-ia-architecture.md`](inbox-activity-ia-architecture.md), which is the authority on *what* is being built and *why*. This document owns *what has to exist first*, *in what order*, and *what breaks*.
 
 Date: 2026-09-10. Repository baseline: `c6b24012d` plus this branch.
 
@@ -1540,6 +1540,7 @@ packages/client/lib/features/beacon_threads/ui/bloc/room_cubit.dart          edi
 packages/client/lib/features/beacon_view/ui/widget/beacon_now_surface.dart   edit
 packages/client/lib/features/beacon_view/ui/widget/beacon_current_line_sheet.dart edit
 packages/server/test/domain/use_case/room_now_line_pg_test.dart              new
+packages/server/test/architecture/transactional_attention_producer_inventory_test.dart edit
 ```
 
 1. Today NOW is a **root `kindPlan` coordination item** whose text is synced onto
@@ -1612,7 +1613,15 @@ packages/server/test/domain/use_case/room_now_line_pg_test.dart              new
    `st?.currentLine` — and `publishRootPlan` has been mirroring the text into
    that column all along (`coordination_item_repository.dart:1108-1116`). The
    rows stay where they are and are removed from the read surface in UNIT 24A.
-5. Tests (`@Tags(['pg'])`): NOW round-trips through the new mutation with no
+5. **Register the new producer in the architecture inventory.**
+   `transactional_attention_producer_inventory_test.dart:6` opens a map from a
+   path under `lib/domain/use_case/` to the tokens that file must contain, and
+   `:171-175` asserts by reading each file from disk. Add an entry for
+   `beacon_room_case.dart` requiring `runAction(` and `.coordinationChanged(`.
+   An unlisted producer is not a failure, so nothing tells you this was skipped —
+   the guarantee simply stops covering NOW. The old
+   `coordination_item/update_plan_case.dart` entry stays until UNIT 24B.
+6. Tests (`@Tags(['pg'])`): NOW round-trips through the new mutation with no
    coordination item created; a Beacon whose current line was written by the old
    plan path still renders it unchanged; the emitted receipt carries the new
    source event key and a second identical edit collapses against it.
@@ -1638,9 +1647,14 @@ reversing the order breaks a live surface.
 ## UNIT 24A — Migrate every consumer off retired coordination code
 
 Implements §4 step 2, first of three. **Requires UNIT 23 `complete`.**
-**Nothing is deleted in this unit.** Every consumer stops depending on the
-retired code while the retired code is still there, so this unit compiles at
-every point and the deletion units that follow are mechanical.
+
+**What "migrate" means here, precisely.** The retired *directories*, *endpoints*
+and their *registrations* all survive this unit — they are UNIT 24B's and 24C's
+to remove. What this unit does remove is **affordances** (a menu, a composer
+seed) and **schema fields** (the embedded `item`). So the unit is not
+"delete nothing"; it is "delete nothing that another unit owns". Every consumer
+stops depending on retired code while that code is still present, so the tree
+compiles at every point and the deletion units that follow are mechanical.
 
 **Owns:**
 
@@ -1648,12 +1662,21 @@ every point and the deletion units that follow are mechanical.
 packages/server/lib/api/controllers/graphql/query/coordination_item_maps.dart  new
 packages/server/lib/api/controllers/graphql/query/query_beacon_room.dart       edit
 packages/server/lib/api/controllers/graphql/query/query_coordination_item.dart edit
+packages/server/lib/api/controllers/graphql/custom_types.dart                  edit
+packages/server/lib/domain/port/coordination_item_repository_port.dart         edit
 packages/client/lib/features/my_work/domain/use_case/my_work_case.dart         edit
+packages/client/lib/features/my_work/data/repository/my_work_repository.dart   edit
+packages/client/lib/features/my_work/data/gql/my_work_coordination_activity.graphql delete
+packages/client/lib/features/my_work/domain/entity/my_work_card_view_model.dart edit
+packages/client/lib/features/beacon_threads/data/gql/beacon_threads_list.graphql edit
 packages/client/lib/features/beacon_threads/data/model/request_thread_model.dart edit
 packages/client/lib/features/beacon_threads/ui/widget/thread_detail.dart       edit
 packages/client/lib/features/beacon_threads/ui/widget/beacon_room_body.dart    edit
 packages/client/lib/features/beacon_view/ui/bloc/beacon_view_cubit.dart        edit
 ```
+
+`my_work_card_view_model.dart` was last touched by UNIT 04. Re-read it before
+editing; do not restore anything UNIT 04 removed.
 
 1. **Rehome the shared server mapper.** `coordinationItemWithCountsToMap` is
    defined in `query_coordination_item.dart:152` but the **room** query uses it
@@ -1669,18 +1692,50 @@ packages/client/lib/features/beacon_view/ui/bloc/beacon_view_cubit.dart        e
    - `beacon_view_cubit.dart:729-754`;
    - `my_work_case.dart:15,57` — the injected `CoordinationItemCase`.
 
-   For each one, decide *migrate* or *remove the affordance* and do it now. Ask
+   **One consumer is invisible to every import search: it is coupled over the
+   wire, not through Dart.** `my_work_repository.dart:45` **awaits**
+   `_fetchItemDiscussionActivity` during My Work's initial load; `:62-72` sends
+   `MyWorkCoordinationItemActivity`
+   (`my_work/data/gql/my_work_coordination_activity.graphql`), whose resolver is
+   `query_coordination_item.dart:79-98` — a file UNIT 24B deletes. Nothing in
+   Dart connects the two, so a clean `grep` for imports and a green build both
+   pass while My Work's initial load throws for every account that has a Beacon.
+
+   **Decided:** remove the whole chain rather than rehome it. With coordination
+   items gone there are no item discussions, so `lastCoordinationItemMessageAt`
+   can never be non-null again, and it has no reader — `my_work_case.dart:121-122`
+   is the only writer and nothing consumes the field
+   (`my_work_card_view_model.dart:70-71`). Remove, in this order: the `.graphql`
+   document, `_fetchItemDiscussionActivity` and its call site, the
+   `lastItemDiscussionMessageAtByBeaconId` record field, the `copyWith` in
+   `my_work_case.dart`, the Freezed field, the server field
+   (`custom_types.dart:1147`), the resolver, and the port method
+   (`coordination_item_repository_port.dart:71`). Then re-run codegen.
+
+   For each remaining one, decide *migrate* or *remove the affordance* and do it
+   now. Ask
    composers and item actions are retired product surfaces
    (`retiredCoordinationKinds`); removing the affordance is the expected answer
    for `AskComposerSeed` and the item overflow menu. `my_work_case.dart` is the
    one to look at before deciding — establish what it reads from
    `CoordinationItemCase` and whether My Work still needs it at all.
-3. **The embedded `item` field.** Both the room query
-   (`query_beacon_room.dart:168-170`) and the threads list still return a
-   coordination item, and the client maps it in
-   `request_thread_model.dart:38-41` (`mapEmbeddedThreadItem`). Removing the
-   field is a **schema change**: refresh the SDL and re-run client codegen as in
-   UNIT 02 step 1, or Ferry keeps generating the old shape.
+3. **The embedded `item` field — four edits in one fixed order.** Both the room
+   query (`query_beacon_room.dart:168-170`) and the threads list still return a
+   coordination item, and the client maps it in `request_thread_model.dart:38-41`
+   (`mapEmbeddedThreadItem`). Removing it is a **schema change**, and doing the
+   pieces out of order leaves either an invalid query document or a mapper
+   against a generated type that no longer has the field:
+
+   1. server type definition — drop `field('item', gqlTypeCoordinationItemRow)`
+      at `custom_types.dart:1179`, and the resolver's `'item':` entry at
+      `query_beacon_room.dart:168-170`;
+   2. client selection — drop the `item { … }` block at
+      `beacon_threads_list.graphql:24`;
+   3. refresh the SDL and re-run client codegen as in UNIT 02 step 1 — Ferry
+      reads the local SDL (`packages/client/build.yaml:29-32`), so skipping this
+      keeps the old generated shape and hides the change;
+   4. delete `mapEmbeddedThreadItem` and its callers, which only compile after
+      step 3 has regenerated the types.
 4. Run server and client codegen.
 
 **Verify:**
@@ -1694,14 +1749,25 @@ cd packages/client && flutter test test/
 ./scripts/check-custom-lints.sh packages/client
 ```
 
-**Acceptance:** no file outside `features/coordination_item/`,
-`use_case/coordination_item/` and their own tests imports retired coordination
-code. Grep proves it:
+**Acceptance:** the only surviving references to retired coordination code from
+outside the retired directories are the three that later units own — the two
+registrations (`_mutations_all.dart:23`, `_queries_all.dart:25`) and the
+rehomed mapper in `coordination_item_maps.dart`. Everything else is gone.
+
+Check it by listing the **importing** files, not the lines, and excluding the
+retired directories by their own paths — a filter on the string
+`/coordination_item/` throws away exactly the violations, because a violating
+line *is* an import of that path:
 
 ```bash
-grep -rn "coordination_item" packages/client/lib packages/server/lib \
-  --include=*.dart | grep -v "/coordination_item/"
+grep -rln -e "features/coordination_item/" -e "use_case/coordination_item/" \
+  packages/client/lib packages/server/lib --include=*.dart \
+  | grep -v -e "^packages/client/lib/features/coordination_item/" \
+            -e "^packages/server/lib/domain/use_case/coordination_item/"
 ```
+
+Expected output after this unit: `_mutations_all.dart` and `_queries_all.dart`,
+and nothing else.
 
 ---
 
@@ -1720,6 +1786,7 @@ packages/server/lib/api/controllers/graphql/query/_queries_all.dart             
 packages/server/lib/domain/port/coordination_item_repository_port.dart              edit
 packages/server/lib/data/repository/coordination_item_repository.dart               edit
 packages/server/test/domain/use_case/coordination_item/                             delete
+packages/server/test/architecture/transactional_attention_producer_inventory_test.dart edit
 ```
 
 1. Delete the use-case directory, the mutation controller and the query
@@ -1740,7 +1807,15 @@ packages/server/test/domain/use_case/coordination_item/                         
    `test/domain/use_case/coordination_item/update_plan_case_test.dart:12,30,34`
    is one; they are `import`-level breakages that fail the whole server suite,
    not individual test failures.
-5. Re-run server codegen; DI will not compile until every registration is gone.
+5. **One test reads the deleted files off disk rather than importing them.**
+   `transactional_attention_producer_inventory_test.dart:66-69` lists
+   `coordination_item/update_plan_case.dart` and `:171-175` does
+   `File('lib/domain/use_case/<key>').readAsStringSync()`. Deleting the directory
+   makes it throw, not fail an expectation, and it is in the `dart test -j 1`
+   run that gates this unit. Remove that entry and every other
+   `coordination_item/…` key in the same map; UNIT 23 already added the
+   replacement entry for `beacon_room_case.dart`.
+6. Re-run server codegen; DI will not compile until every registration is gone.
 
 **Verify:**
 
@@ -1763,8 +1838,10 @@ Implements §4 step 2, third of three. **Requires UNIT 24B `complete`.**
 
 ```text
 packages/client/lib/features/coordination_item/                   delete
+packages/client/test/features/coordination_item/                  delete
 packages/server/lib/domain/use_case/attention_intent_case.dart    edit
 packages/server/lib/domain/attention/attention_policy.dart        edit
+packages/server/test/domain/attention/attention_intent_case_test.dart edit
 CONTEXT.md                                                        edit
 ```
 
@@ -1776,6 +1853,13 @@ CONTEXT.md                                                        edit
    `commitmentRedirected` / `blockerOpened` branches of
    `AttentionPolicy._requiresAction`. **Keep `coordinationChanged`**: UNIT 23
    left NOW emitting it.
+
+   **Their tests go with them.** `attention_intent_case_test.dart:208-215` builds
+   a case per event type and calls `intents.needsMe(...)`; drop the rows for the
+   four removed methods and keep the rest of the table intact. Deleting the
+   client feature directory likewise orphans
+   `packages/client/test/features/coordination_item/coordination_item_case_test.dart:5-6`,
+   which imports it — delete that test with the code it covers.
 3. Remove the **Plan (coordination item)** entry from `CONTEXT.md` §Language,
    which still describes it as a live structured object on an Items tab.
 4. **Persisted kind codes are never renumbered**, and existing rows stay. This is
