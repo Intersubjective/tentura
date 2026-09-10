@@ -11,6 +11,9 @@ abstract interface class AttentionRepositoryPort {
   /// Returns the unread subset of a bounded set of authorized Beacon ids.
   Future<Set<String>> unreadForBeacons(Set<String> beaconIds);
 
+  /// Authorized beacon ids where the viewer holds an unsettled requires-action receipt.
+  Future<Set<String>> liveObligationBeacons();
+
   Future<int> markSeen(List<String> ids);
 
   Future<int> markUnseen(List<String> ids);

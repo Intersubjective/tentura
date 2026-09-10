@@ -108,6 +108,9 @@ final class ControllableAttentionRepository implements AttentionRepositoryPort {
       const {};
 
   @override
+  Future<Set<String>> liveObligationBeacons() async => const {};
+
+  @override
   Future<int> markAllSeen() async => 0;
 
   @override

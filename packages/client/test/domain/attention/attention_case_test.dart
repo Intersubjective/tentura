@@ -62,6 +62,9 @@ final class _Repository implements AttentionRepositoryPort {
   }
 
   @override
+  Future<Set<String>> liveObligationBeacons() async => const {};
+
+  @override
   Future<int> markAllSeen() {
     markAllSeenCalls++;
     return pendingMarkAllSeen.removeAt(0).future;

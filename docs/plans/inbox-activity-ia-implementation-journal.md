@@ -68,3 +68,11 @@ FILES: packages/server/lib/domain/port/attention_query_port.dart; packages/serve
 FINDINGS: none
 DECISIONS: extracted `_authorizedReceiptJoin` SQL fragment so `unreadForBeacons` and `liveObligationBeacons` share one authorization join path.
 REMAINING: none. Proceed to UNIT 02.
+
+## UNIT 02 — complete — 2026-09-10
+COMMITS: 347a18d1a feat(client): fetch live obligation beacons
+TESTS: `cd packages/client && flutter pub get --offline`; `cd packages/client && dart run build_runner build -d`; `cd packages/client && flutter test test/domain/attention/attention_live_obligations_test.dart` — 3 passed; `./scripts/check-custom-lints.sh packages/client` — pass.
+FILES: packages/client/lib/data/gql/schema.graphql; packages/client/lib/features/attention/data/gql/attention_live_obligations.graphql; packages/client/lib/domain/attention/port/attention_repository_port.dart; packages/client/lib/data/repository/attention_repository.dart; packages/client/lib/data/service/remote_api_client/build_client.dart; packages/client/lib/domain/attention/attention_case.dart; packages/client/test/domain/attention/attention_case_test.dart; packages/client/test/domain/attention/attention_live_obligations_test.dart; packages/client/test/architecture/cross_surface_subscription_test.dart; packages/client/test/features/home/home_attention_cubit_test.dart; packages/client/test/features/home/constellation_nav_test.dart; packages/client/test/ui/widget/tab_attention_scope_test.dart; packages/client/test/features/inbox/inbox_expanded_chrome_test.dart; packages/client/test/features/inbox/inbox_receipts_fold_test.dart; packages/client/test/features/updates/updates_feed_cubit_test.dart; packages/client/test/features/updates/updates_102_my_work_attention_test.dart; packages/client/test/features/updates/cross_surface_coordination_accept_test.dart; docs/plans/inbox-activity-ia-implementation-journal.md
+FINDINGS: unit owns list omits V2 direct-routing registration in `build_client.dart` (required alongside sibling `AttentionMarkers` per codegen.mdc).
+DECISIONS: registered `AttentionLiveObligations` in `_tenturaDirectOperationNames` so the Ferry adapter reaches the V2 field.
+REMAINING: none. Proceed to UNIT 03.

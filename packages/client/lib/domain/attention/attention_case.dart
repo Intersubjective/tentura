@@ -138,6 +138,9 @@ final class AttentionCase {
     return _repository.unreadForBeacons(beaconIds);
   }
 
+  Future<Set<String>> liveObligationBeacons() =>
+      _repository.liveObligationBeacons();
+
   Future<void> fetchNextPage() async {
     if (_accountId.isEmpty) return;
     final current = snapshot.pages[snapshot.activeView];

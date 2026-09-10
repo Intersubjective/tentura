@@ -272,6 +272,7 @@ class _V2RoutingLink extends Link {
     'SignOut',
     'AttentionFeed',
     'AttentionMarkers',
+    'AttentionLiveObligations',
     'AttentionMarkSeen',
     'AttentionMarkUnseen',
     'AttentionMarkAllSeen',

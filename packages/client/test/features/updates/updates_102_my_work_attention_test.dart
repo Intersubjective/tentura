@@ -46,6 +46,9 @@ final class _Repository implements AttentionRepositoryPort {
       unread.intersection(beaconIds);
 
   @override
+  Future<Set<String>> liveObligationBeacons() async => const {};
+
+  @override
   Future<int> markAllSeen() async => 0;
 
   @override

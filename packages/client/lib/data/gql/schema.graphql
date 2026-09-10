@@ -474,6 +474,7 @@ input beacon_bool_exp {
   help_offers: beacon_help_offer_bool_exp
   help_offers_aggregate: beacon_help_offer_aggregate_bool_exp
   id: String_comparison_exp
+  is_discoverable: Boolean_comparison_exp
   is_pinned: Boolean_comparison_exp
   lat: float8_comparison_exp
   lineage_parent_beacon_id: String_comparison_exp
@@ -1723,6 +1724,7 @@ input beacon_order_by {
   forward_edges_aggregate: beacon_forward_edge_aggregate_order_by
   help_offers_aggregate: beacon_help_offer_aggregate_order_by
   id: order_by
+  is_discoverable: order_by
   is_pinned: order_by
   lat: order_by
   lineage_parent_beacon_id: order_by
@@ -2403,6 +2405,9 @@ enum beacon_select_column {
   id
 
   """column name"""
+  is_discoverable
+
+  """column name"""
   lat
 
   """column name"""
@@ -2593,6 +2598,7 @@ input beacon_stream_cursor_value_input {
   description: String
   end_at: timestamptz
   id: String
+  is_discoverable: Boolean
   lat: float8
   lineage_parent_beacon_id: String
   lineage_root_beacon_id: String
@@ -4603,10 +4609,10 @@ type query_root {
   beacon_steward_by_pk(beacon_id: String!): beacon_steward
   blockInherited(originId: String!): [v2_user!]
   blockPreview(cascadeMode: Int, objectId: String!): v2_BlockPreview!
+  constellationField: v2_ConstellationField!
   coordinationItemsByBeacon(acceptedById: String, beaconId: String!, kind: Int, linkedParentItemId: String, rootOnly: Boolean, status: Int, targetPersonId: String): [v2_CoordinationItemRow!]
   coordinationMyResponsibilityItems(beaconId: String!): [v2_CoordinationItemRow!]
   coordinationResponsibilityBatch(beaconIds: [String!]): [v2_CoordinationResponsibilityBatchRow!]
-  constellationField: v2_ConstellationField!
 
   """
   fetch data from the table: "edge"
@@ -4803,6 +4809,7 @@ type query_root {
   inviteGenealogyChildCounts(node_keys: [String!]): [v2_InviteGenealogyChildCount!]!
   inviteGenealogyChildren(after_created_at: String, after_node_key: String, limit: Int, node_key: String!): v2_InviteGenealogyChildrenPage
   inviteSeedPromptState(subjectId: String!): v2_v2_InviteSeedPromptState!
+  liveObligationBeacons: [String!]!
   mutualFriends(id: String!): [v2_user!]
 
   """
@@ -6942,6 +6949,7 @@ type v2_Beacon {
   coverSource: Int!
   coverThumbImageId: String
   id: String!
+  isDiscoverable: Boolean!
   primaryNeedSlug: String
 }
 
@@ -7159,6 +7167,49 @@ type v2_BlockPreview {
   willWithdrawEdge: Boolean!
 }
 
+type v2_ConstellationEdge {
+  dst: String!
+  src: String!
+  tier: Int!
+}
+
+type v2_ConstellationField {
+  context: String!
+  edges: [v2_ConstellationEdge!]!
+  loadedAt: String!
+  peers: [v2_ConstellationPeer!]!
+  peersCapped: Boolean!
+  requests: [v2_ConstellationRequest!]!
+  requestsCapped: Boolean!
+}
+
+type v2_ConstellationPeer {
+  displayName: String
+  handle: String
+  id: String!
+  image: v2_image
+}
+
+type v2_ConstellationRequest {
+  addressLabel: String
+  authorId: String!
+  coverSource: Int!
+  coverThumb: v2_image
+  endAt: String
+  hasCoordinates: Boolean!
+  helpOfferCount: Int!
+  id: String!
+  isMine: Boolean!
+  needs: [String!]!
+  primaryNeedSlug: String
+  startAt: String
+  status: Int!
+  title: String!
+  viewerHasActiveHelpOffer: Boolean!
+  viewerHasForwardEdge: Boolean!
+  viewerIsRoomParticipant: Boolean!
+}
+
 input v2_Coordinates {
   lat: Float
   long: Float
@@ -7202,49 +7253,6 @@ type v2_CoordinationResponsibilityBatchRow {
   othersOpenCount: Int!
   promiseNew: Int!
   promiseOpen: Int!
-}
-
-type v2_ConstellationEdge {
-  dst: String!
-  src: String!
-  tier: Int!
-}
-
-type v2_ConstellationField {
-  context: String!
-  edges: [v2_ConstellationEdge!]!
-  loadedAt: String!
-  peers: [v2_ConstellationPeer!]!
-  peersCapped: Boolean!
-  requests: [v2_ConstellationRequest!]!
-  requestsCapped: Boolean!
-}
-
-type v2_ConstellationPeer {
-  displayName: String
-  handle: String
-  id: String!
-  image: v2_image
-}
-
-type v2_ConstellationRequest {
-  addressLabel: String
-  authorId: String!
-  coverSource: Int!
-  coverThumb: v2_image
-  endAt: String
-  hasCoordinates: Boolean!
-  helpOfferCount: Int!
-  id: String!
-  isMine: Boolean!
-  needs: [String!]!
-  primaryNeedSlug: String
-  startAt: String
-  status: Int!
-  title: String!
-  viewerHasActiveHelpOffer: Boolean!
-  viewerHasForwardEdge: Boolean!
-  viewerIsRoomParticipant: Boolean!
 }
 
 """An ISO-8601 Date."""
