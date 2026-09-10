@@ -16,7 +16,6 @@ import 'package:tentura_server/data/database/tentura_db.dart'
     hide isNotNull, isNull;
 import 'package:tentura_server/data/repository/attention_dispatch_repository.dart';
 import 'package:tentura_server/data/repository/beacon_access_repository.dart';
-import 'package:tentura_server/data/repository/beacon_repository.dart';
 import 'package:tentura_server/data/repository/beacon_room_notification_context_repository.dart';
 import 'package:tentura_server/data/repository/beacon_room_repository.dart';
 import 'package:tentura_server/data/repository/commitment_repository.dart';
@@ -37,7 +36,6 @@ import 'package:tentura_server/domain/port/upload_quota_repository_port.dart';
 import 'package:tentura_server/domain/policy/discussion_product_policy.dart';
 import 'package:tentura_server/domain/use_case/attention_intent_case.dart';
 import 'package:tentura_server/domain/use_case/beacon_room_case.dart';
-import 'package:tentura_server/domain/use_case/coordination_item/update_plan_case.dart';
 import 'package:tentura_server/domain/use_case/transactional_attention_case.dart';
 import 'package:tentura_server/env.dart';
 
@@ -58,7 +56,6 @@ Future<void> main() async {
     late BeaconRoomRepository roomRepo;
     late CoordinationItemRepository items;
     late BeaconRoomCase roomCase;
-    late UpdatePlanCase updatePlanCase;
     late AttentionDispatchRepository dispatch;
 
     const authorId = 'Unowlineauth1';
@@ -112,15 +109,6 @@ Future<void> main() async {
         unitOfWork,
         FakeBeaconHierarchyRepository(),
         const ProductionDiscussionProductPolicy(),
-        attentionIntents: attentionIntents,
-        attention: attention,
-        env: Env(environment: Environment.test),
-        logger: Logger('room_now_line_pg_test'),
-      );
-      updatePlanCase = UpdatePlanCase(
-        BeaconRepository(database),
-        items,
-        roomRepo,
         attentionIntents: attentionIntents,
         attention: attention,
         env: Env(environment: Environment.test),
@@ -219,22 +207,6 @@ WHERE beacon_id = @beaconId
         expect(await publishedPlanCount(), 0);
         final state = await roomRepo.getBeaconRoomState(beaconId);
         expect(state?.currentLine, 'Fresh NOW line');
-      },
-      skip: skipReason,
-    );
-
-    test(
-      'legacy updatePlan path still mirrors text into beacon_room_state',
-      () async {
-        await updatePlanCase.call(
-          userId: authorId,
-          beaconId: beaconId,
-          title: 'Legacy plan line',
-        );
-
-        expect(await publishedPlanCount(), 1);
-        final state = await roomRepo.getBeaconRoomState(beaconId);
-        expect(state?.currentLine, 'Legacy plan line');
       },
       skip: skipReason,
     );

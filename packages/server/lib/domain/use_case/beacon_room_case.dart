@@ -41,7 +41,7 @@ import 'package:tentura_server/utils/room_mention_utils.dart';
 import 'package:tentura_server/domain/use_case/attention_intent_case.dart';
 import 'package:tentura_server/domain/use_case/transactional_attention_case.dart';
 
-import 'coordination_item/coordination_room_access.dart';
+import 'coordination_room_access.dart';
 import '_use_case_base.dart';
 
 /// Room coordination: admission, steward, messages (server-side rules).

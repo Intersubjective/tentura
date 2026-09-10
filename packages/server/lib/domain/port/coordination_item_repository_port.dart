@@ -67,17 +67,6 @@ abstract class CoordinationItemRepositoryPort {
     required int excerptCharacters,
   });
 
-  /// Supersedes open root plans and creates a new root plan item.
-  Future<CoordinationItemRecord> publishRootPlan({
-    required String beaconId,
-    required String creatorId,
-    required String title,
-    String body = '',
-    String? targetPersonId,
-    String? linkedMessageId,
-    String? syncCurrentLineText,
-  });
-
   /// Child plan step under [parentItemId].
   Future<CoordinationItemRecord> addPlanStep({
     required String parentItemId,

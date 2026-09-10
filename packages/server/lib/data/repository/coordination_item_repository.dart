@@ -1031,56 +1031,6 @@ ORDER BY (tb.thread_id = 'general') DESC,
   }
 
   @override
-  Future<CoordinationItemRecord> publishRootPlan({
-    required String beaconId,
-    required String creatorId,
-    required String title,
-    String body = '',
-    String? targetPersonId,
-    String? linkedMessageId,
-    String? syncCurrentLineText,
-  }) async {
-    final openRootPlans = await (_db.select(_db.coordinationItems)
-          ..where((t) => t.beaconId.equals(beaconId))
-          ..where((t) => t.kind.equals(coordinationItemKindPlan))
-          ..where((t) => t.linkedParentItemId.isNull())
-          ..where((t) => t.status.equals(coordinationItemStatusOpen)))
-        .get();
-    for (final existing in openRootPlans) {
-      await updateStatus(
-        id: existing.id,
-        newStatus: coordinationItemStatusSuperseded,
-        actorId: creatorId,
-      );
-    }
-
-    final item = await create(
-      beaconId: beaconId,
-      kind: coordinationItemKindPlan,
-      creatorId: creatorId,
-      title: title,
-      body: body,
-      targetPersonId: targetPersonId,
-      linkedMessageId: linkedMessageId,
-    );
-
-    final planText = (syncCurrentLineText ?? title).trim();
-    if (planText.isNotEmpty) {
-      await _db.withMutatingUser(creatorId, () async {
-        await _db.into(_db.beaconRoomStates).insertOnConflictUpdate(
-              BeaconRoomStatesCompanion.insert(
-                beaconId: beaconId,
-                currentLine: Value(planText),
-                updatedBy: Value(creatorId),
-                updatedAt: Value(PgDateTime(DateTime.timestamp())),
-              ),
-            );
-      });
-    }
-    return item;
-  }
-
-  @override
   Future<CoordinationItemRecord> addPlanStep({
     required String parentItemId,
     required String creatorId,

@@ -9,7 +9,6 @@ import 'package:tentura_server/domain/port/room_message_snapshot_lookup_port.dar
 import 'package:tentura_server/domain/port/beacon_room_repository_port.dart';
 import 'package:tentura_server/domain/port/forward_candidate_context_repository_port.dart';
 import 'package:tentura_server/domain/use_case/beacon_room_case.dart';
-import 'package:tentura_server/domain/use_case/coordination_item/update_coordination_item_case.dart';
 import 'package:tentura_server/domain/use_case/forward_candidate_context_case.dart';
 
 import '../support/smoke_env.dart';
@@ -27,7 +26,7 @@ void main() {
       await configureDependencies(entry.$2);
 
       // Eager singleton — failed on c3ed42c7 dual-@LazySingleton bug.
-      expect(getIt.get<UpdateCoordinationItemCase>(), isNotNull);
+      expect(getIt.get<BeaconRoomCase>(), isNotNull);
 
       // Registration-only path: no live Postgres (CI). TaskWorker and
       // PgNotificationService connect on factory create — skip those unless PG

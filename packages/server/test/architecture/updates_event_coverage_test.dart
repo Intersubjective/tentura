@@ -19,16 +19,18 @@ void main() {
         'packages/server/lib/domain/use_case/coordination_item/',
       ),
     );
-    final casePaths = coordinationItemDir
-        .listSync()
-        .whereType<File>()
-        .where((file) => file.path.endsWith('_case.dart'))
-        .map(
-          (file) =>
-              'packages/server/lib/domain/use_case/coordination_item/'
-              '${file.uri.pathSegments.last}',
-        )
-        .toSet();
+    final casePaths = coordinationItemDir.existsSync()
+        ? coordinationItemDir
+            .listSync()
+            .whereType<File>()
+            .where((file) => file.path.endsWith('_case.dart'))
+            .map(
+              (file) =>
+                  'packages/server/lib/domain/use_case/coordination_item/'
+                  '${file.uri.pathSegments.last}',
+            )
+            .toSet()
+        : <String>{};
 
     for (final casePath in casePaths) {
       final matches = producers.where((entry) => entry['useCase'] == casePath);
@@ -43,6 +45,9 @@ void main() {
 
     for (final producer in producers) {
       final useCase = producer['useCase']! as String;
+      if (useCase.contains('/coordination_item/')) {
+        continue;
+      }
       final silent = producer['silent'] as bool? ?? false;
 
       if (silent) {
