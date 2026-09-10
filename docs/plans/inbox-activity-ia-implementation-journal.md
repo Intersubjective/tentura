@@ -100,3 +100,11 @@ FILES: packages/client/lib/features/my_work/ui/bloc/my_work_cubit.dart; packages
 FINDINGS: UNIT 04 already added `sources` and `viewerArchived` on `MyWorkCardViewModel`; this unit wired archive revocation and `isArchived` without new Freezed fields.
 DECISIONS: `myWorkCardAfterArchiveRevocation` in `derive_my_work_cards.dart` is the shared desk projection for archive + obligation merge on reload.
 REMAINING: none. Proceed to UNIT 06.
+
+## UNIT 06 — complete — 2026-09-10
+COMMITS: 62a68bd09 feat(client): refresh my work on obligation changes
+TESTS: `cd packages/client && flutter pub get --offline`; `cd packages/client && flutter test test/features/my_work/` — 117 passed; `./scripts/check-custom-lints.sh packages/client` — pass.
+FILES: packages/client/lib/features/my_work/ui/bloc/my_work_cubit.dart; packages/client/test/features/my_work/my_work_refresh_triggers_test.dart; docs/plans/inbox-activity-ia-implementation-journal.md
+FINDINGS: `BlockRepository` lives under `packages/client/lib/features/block/data/repository/block_repository.dart`, not `packages/client/lib/data/repository/block_repository.dart`.
+DECISIONS: wired notification and block invalidation in `MyWorkCubit` via optional `RealtimeSyncCase` / `BlockCase` constructor params (same pattern as `GraphCubit`), re-fetching the desk on each signal.
+REMAINING: none. Proceed to UNIT 07.

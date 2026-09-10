@@ -3,8 +3,11 @@ import 'dart:async';
 import 'package:get_it/get_it.dart';
 
 import 'package:tentura/domain/entity/beacon.dart';
+import 'package:tentura/domain/entity/realtime/realtime_entity_change.dart';
 import 'package:tentura/domain/entity/repository_event.dart';
+import 'package:tentura/domain/use_case/realtime_sync_case.dart';
 import 'package:tentura/features/beacon_threads/domain/entity/beacon_room_invalidation.dart';
+import 'package:tentura/features/block/domain/use_case/block_case.dart';
 
 import 'package:tentura/features/my_work/domain/derive_my_work_cards.dart';
 import 'package:tentura/features/my_work/domain/entity/my_work_card_view_model.dart';
@@ -20,6 +23,8 @@ class MyWorkCubit extends Cubit<MyWorkState> {
   MyWorkCubit({
     required this._userId,
     MyWorkCase? myWorkCase,
+    RealtimeSyncCase? realtimeSyncCase,
+    BlockCase? blockCase,
   }) : _myWorkCase = myWorkCase ?? GetIt.I<MyWorkCase>(),
        super(const MyWorkState()) {
     _beaconChanges = _myWorkCase.beaconChanges.listen(
@@ -50,6 +55,28 @@ class MyWorkCubit extends Cubit<MyWorkState> {
       (_) => _scheduleCatchUp(),
       cancelOnError: false,
     );
+    final realtime =
+        realtimeSyncCase ??
+        (GetIt.I.isRegistered<RealtimeSyncCase>()
+            ? GetIt.I<RealtimeSyncCase>()
+            : null);
+    if (realtime != null) {
+      _obligationNotificationChanges = realtime
+          .changesFor(const {RealtimeEntityKind.notification})
+          .listen(
+            (_) => unawaited(fetch(showLoading: false)),
+            cancelOnError: false,
+          );
+    }
+    final block =
+        blockCase ??
+        (GetIt.I.isRegistered<BlockCase>() ? GetIt.I<BlockCase>() : null);
+    if (block != null) {
+      _blockChanges = block.changes.listen(
+        (_) => unawaited(fetch(showLoading: false)),
+        cancelOnError: false,
+      );
+    }
     unawaited(fetch());
   }
 
@@ -88,6 +115,8 @@ class MyWorkCubit extends Cubit<MyWorkState> {
 
   late final StreamSubscription<void> _bookkeepingRefresh;
   late final StreamSubscription<void> _catchUps;
+  StreamSubscription<RealtimeEntityChange>? _obligationNotificationChanges;
+  StreamSubscription<dynamic>? _blockChanges;
 
   @override
   Future<void> close() async {
@@ -108,6 +137,8 @@ class MyWorkCubit extends Cubit<MyWorkState> {
     await _deskRelevantChanges.cancel();
     await _bookkeepingRefresh.cancel();
     await _catchUps.cancel();
+    await _obligationNotificationChanges?.cancel();
+    await _blockChanges?.cancel();
     return super.close();
   }
 
