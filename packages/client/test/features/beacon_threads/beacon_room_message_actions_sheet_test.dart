@@ -25,7 +25,6 @@ class _MockRoomCubit extends Mock implements RoomCubit {
   final RoomState _state;
 
   String? lastUpdatePlanLine;
-  String? lastUpdatePlanLinkedMessageId;
 
   @override
   RoomState get state => _state;
@@ -37,14 +36,8 @@ class _MockRoomCubit extends Mock implements RoomCubit {
   Future<void> markReadToBottom() async {}
 
   @override
-  Future<void> updatePlan(
-    String currentLine, {
-    String body = '',
-    String? targetPersonId,
-    String? linkedMessageId,
-  }) async {
+  Future<void> updatePlan(String currentLine) async {
     lastUpdatePlanLine = currentLine;
-    lastUpdatePlanLinkedMessageId = linkedMessageId;
   }
 }
 
@@ -239,21 +232,21 @@ void main() {
     },
   );
 
-  testWidgets('update plan from message saves via updatePlan with message id', (
-    tester,
-  ) async {
-    final l10n = lookupL10n(const Locale('en'));
-    final roomCubit = await pumpRoom(tester, width: 700);
+  testWidgets(
+    'update plan from message saves NOW line via updatePlan (no coordination item)',
+    (tester) async {
+      final l10n = lookupL10n(const Locale('en'));
+      final roomCubit = await pumpRoom(tester, width: 700);
 
-    await longPressMessageBody(tester, find.byType(RoomMessageTextBody));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text(l10n.beaconRoomActionUpdatePlanFromMessage));
-    await tester.pumpAndSettle();
+      await longPressMessageBody(tester, find.byType(RoomMessageTextBody));
+      await tester.pumpAndSettle();
+      await tester.tap(find.text(l10n.beaconRoomActionUpdatePlanFromMessage));
+      await tester.pumpAndSettle();
 
-    await tester.tap(find.widgetWithText(FilledButton, 'Save'));
-    await tester.pumpAndSettle();
+      await tester.tap(find.widgetWithText(FilledButton, 'Save'));
+      await tester.pumpAndSettle();
 
-    expect(roomCubit.lastUpdatePlanLine, 'Hello room');
-    expect(roomCubit.lastUpdatePlanLinkedMessageId, 'm1');
-  });
+      expect(roomCubit.lastUpdatePlanLine, 'Hello room');
+    },
+  );
 }

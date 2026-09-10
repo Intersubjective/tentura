@@ -4,10 +4,10 @@ import 'package:get_it/get_it.dart';
 
 import 'package:tentura/design_system/tentura_theme.dart';
 import 'package:tentura/features/beacon_view/ui/widget/beacon_current_line_sheet.dart';
-import 'package:tentura/features/coordination_item/domain/use_case/coordination_item_case.dart';
+import 'package:tentura/features/beacon_threads/domain/use_case/beacon_threads_case.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
-import '../beacon_threads/fake_coordination_item_case.dart';
+import '../beacon_threads/room_cubit_fakes.dart';
 
 Future<void> _pumpSheet(
   WidgetTester tester, {
@@ -40,17 +40,17 @@ Future<void> _pumpSheet(
 
 void main() {
   setUp(() {
-    if (GetIt.I.isRegistered<CoordinationItemCase>()) {
-      GetIt.I.unregister<CoordinationItemCase>();
+    if (GetIt.I.isRegistered<BeaconThreadsCase>()) {
+      GetIt.I.unregister<BeaconThreadsCase>();
     }
-    GetIt.I.registerSingleton<CoordinationItemCase>(
-      const FakeCoordinationItemCaseForRoom(),
+    GetIt.I.registerSingleton<BeaconThreadsCase>(
+      roomCubitMakeCase(FakeBeaconThreadsRepository(userId: 'user-1')),
     );
   });
 
   tearDown(() async {
-    if (GetIt.I.isRegistered<CoordinationItemCase>()) {
-      await GetIt.I.unregister<CoordinationItemCase>();
+    if (GetIt.I.isRegistered<BeaconThreadsCase>()) {
+      await GetIt.I.unregister<BeaconThreadsCase>();
     }
   });
 

@@ -912,7 +912,7 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
       ),
     );
     if (plan == null || plan.isEmpty || !context.mounted) return;
-    await cubit.updatePlan(plan, linkedMessageId: message.id);
+    await cubit.updatePlan(plan);
     widget.onCoordinationSaved?.call();
   }
 }

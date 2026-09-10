@@ -735,12 +735,7 @@ class RoomCubit extends Cubit<RoomState> {
     return [...messages, message];
   }
 
-  Future<void> updatePlan(
-    String currentLine, {
-    String body = '',
-    String? targetPersonId,
-    String? linkedMessageId,
-  }) async {
+  Future<void> updatePlan(String currentLine) async {
     // Optimistically reflect the new pinned plan/status line so the HUD strip
     // updates instantly; load() below reconciles (and restores on error).
     final optimisticRoomState = state.roomState?.copyWith(
@@ -753,20 +748,10 @@ class RoomCubit extends Cubit<RoomState> {
       ),
     );
     try {
-      if (linkedMessageId != null) {
-        await _case.updateRoomPlan(
-          beaconId: state.beaconId,
-          currentLine: currentLine,
-          body: body,
-          targetPersonId: targetPersonId,
-          linkedMessageId: linkedMessageId,
-        );
-      } else {
-        await _case.updateRoomNowLine(
-          beaconId: state.beaconId,
-          currentLine: currentLine,
-        );
-      }
+      await _case.updateRoomNowLine(
+        beaconId: state.beaconId,
+        currentLine: currentLine,
+      );
       await load();
     } on Object catch (e) {
       _showSnackError(e);

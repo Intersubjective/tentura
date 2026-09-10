@@ -549,7 +549,7 @@ BeaconActivityEvent _coordinationEvent({
 
 Future<void> _openActivitySheetFromOverflow(WidgetTester tester) async {
   final l10n = await L10n.delegate.load(const Locale('en'));
-  await tester.tap(find.byKey(TestIds.key(TestIds.beaconOverflowMenu)));
+  await tester.tap(find.byKey(TestIds.key(TestIds.beaconOverflowMenu)).last);
   await tester.pumpAndSettle();
   await tester.tap(find.text(l10n.labelBeaconTabLog).last);
   await tester.pump();
