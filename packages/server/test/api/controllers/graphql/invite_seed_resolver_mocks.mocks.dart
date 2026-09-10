@@ -76,6 +76,22 @@ class MockInviteSeedPromptPort extends _i1.Mock
           as _i3.Future<_i5.PromptState?>);
 
   @override
+  _i3.Future<List<_i5.PromptState>> statesForInvitees({
+    required String? inviterId,
+    required List<String>? inviteeIds,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#statesForInvitees, [], {
+              #inviterId: inviterId,
+              #inviteeIds: inviteeIds,
+            }),
+            returnValue: _i3.Future<List<_i5.PromptState>>.value(
+              <_i5.PromptState>[],
+            ),
+          )
+          as _i3.Future<List<_i5.PromptState>>);
+
+  @override
   _i3.Future<void> insertPending({
     required String? inviterId,
     required String? inviteeId,
