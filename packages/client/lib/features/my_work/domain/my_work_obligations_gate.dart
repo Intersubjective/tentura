@@ -3,13 +3,13 @@ import 'package:injectable/injectable.dart';
 
 /// Named injectable key for the My Work obligations activation gate.
 ///
-/// Default `false` until UNIT 09 flips it. Units 04–08 read this value.
+/// Default `true` since UNIT 09; tests may override via GetIt registration.
 const myWorkObligationsGate = 'myWorkObligationsGate';
 
 @module
 abstract class MyWorkObligationsGateModule {
   @Named(myWorkObligationsGate)
-  bool get enabled => false;
+  bool get enabled => true;
 }
 
 /// Whether the My Work obligations feed is mounted (UNIT 04 gate, flipped in UNIT 09).

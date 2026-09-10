@@ -21,7 +21,7 @@ import 'updates_feed_search_field.dart';
 import 'updates_receipt_card.dart';
 import 'updates_refresh_error_banner.dart';
 
-/// Shared Updates / receipts feed body (All / Unread / Needs you).
+/// Shared Updates / receipts feed body (All / Unread; Needs you in My Work only).
 ///
 /// Embedded inside Inbox's Receipts tab; [showTitleRow] hides the duplicate
 /// title when the parent screen already owns the tab strip.
@@ -36,7 +36,6 @@ class UpdatesFeedPane extends StatefulWidget {
   static const kDefaultUpdatesFeedOfferedViews = <AttentionView>[
     AttentionView.all,
     AttentionView.unread,
-    AttentionView.needsYou,
   ];
 
   final bool showTitleRow;
