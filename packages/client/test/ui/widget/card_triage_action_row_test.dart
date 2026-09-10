@@ -75,7 +75,7 @@ void main() {
                   onForward: () {},
                   onOfferHelp: () async {},
                   secondaryIcon: Icons.close,
-                  secondaryTooltip: 'Remove from inbox',
+                  secondaryTooltip: 'Remove from Activity',
                   onSecondary: () async {},
                 ),
               ),

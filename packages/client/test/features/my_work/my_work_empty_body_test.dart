@@ -36,10 +36,10 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('View Inbox (2)'), findsOneWidget);
+    expect(find.text('View Activity (2)'), findsOneWidget);
     expect(find.text('Create request'), findsOneWidget);
 
-    await tester.tap(find.text('View Inbox (2)'));
+    await tester.tap(find.text('View Activity (2)'));
     expect(inboxTapped, isTrue);
   });
 
@@ -70,10 +70,10 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Create request'), findsOneWidget);
-    expect(find.text('Go to Inbox'), findsOneWidget);
+    expect(find.text('Go to Activity'), findsOneWidget);
 
     await tester.tap(find.text('Create request'));
-    await tester.tap(find.text('Go to Inbox'));
+    await tester.tap(find.text('Go to Activity'));
     expect(createTapped, isTrue);
     expect(inboxTapped, isTrue);
   });

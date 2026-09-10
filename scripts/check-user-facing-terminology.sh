@@ -22,17 +22,22 @@ path, lang = sys.argv[1], sys.argv[2]
 data = json.load(open(path, encoding="utf-8"))
 beacon_re = re.compile(r"\b[Bb]eacon\b|\bbeacons\b|\bBeacons\b")
 room_re = re.compile(r"\b[Rr]oom\b|\broom\b")
+inbox_re = re.compile(r"\b[Ii]nbox\b")
 ru_beacon = re.compile(r"маяк", re.I)
 ru_room = re.compile(r"комнат", re.I)
+ru_inbox = re.compile(
+    r"Входящие|Входящих|\bвходящие\b|из входящих|во входящие",
+    re.I,
+)
 hits = []
 for k, v in data.items():
     if k.startswith("@") or not isinstance(v, str):
         continue
     if lang == "en":
-        if beacon_re.search(v) or room_re.search(v):
+        if beacon_re.search(v) or room_re.search(v) or inbox_re.search(v):
             hits.append(f"{path}: {k}: {v[:80]!r}")
     else:
-        if ru_beacon.search(v) or ru_room.search(v):
+        if ru_beacon.search(v) or ru_room.search(v) or ru_inbox.search(v):
             hits.append(f"{path}: {k}: {v[:80]!r}")
 print("\n".join(hits))
 PY
@@ -87,6 +92,9 @@ fi
 for f in AGENTS.md CONTEXT.md; do
   if ! grep -qE 'Terminology alias|Request \(internally: Beacon\)|internally: Beacon' "$f" 2>/dev/null; then
     warn_or_fail "$f missing terminology alias documentation"
+  fi
+  if ! grep -qE 'Activity \(internally: inbox\)|internally: inbox' "$f" 2>/dev/null; then
+    warn_or_fail "$f missing Activity/inbox terminology alias documentation"
   fi
 done
 

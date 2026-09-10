@@ -4,14 +4,16 @@ Coordination product for **Requests** (internally: **Beacons**), request **discu
 
 ## Terminology
 
-| Layer | Primary object | Coordination workspace |
-|-------|----------------|------------------------|
-| **User-facing** (UI, push, landing, l10n values) | **Request** / **Requests** | **discussion** |
-| **Internal** (code, DB, GraphQL, routes, technical docs) | **Beacon** / `beacon` | room / `beacon_room` |
+| Layer | Primary object | Coordination workspace | Home nav branch (forwards & receipts) |
+|-------|----------------|------------------------|---------------------------------------|
+| **User-facing** (UI, push, landing, l10n values) | **Request** / **Requests** | **discussion** | **Activity** / «Активность» |
+| **Internal** (code, DB, GraphQL, routes, technical docs) | **Beacon** / `beacon` | room / `beacon_room` | `inbox` |
 
 **Request (internally: Beacon)** is a help need that can be forwarded, committed to, coordinated, and closed. **Discussion (internally: room)** is the private coordination workspace on a request — the collective space you are admitted to. On request detail the **Chat** tab (`labelBeaconTabChat` / «Чат») is the short tab-label form of that workspace; **discussion** / **обсуждение** remains the general noun elsewhere. One conversation inside it is a **thread** / **тема**; the built-in thread is **General** / **Общее** (the only public conversation on each request). Retired ask/promise/blocker coordination-item threads are no longer a product surface; nested child requests replaced that model (see **Beacon nesting** below).
 
-**Forbidden:** a parallel `Request` domain entity, table, or route. User-visible copy must not say "beacon" or "room" as product nouns — use l10n and `scripts/check-user-facing-terminology.sh`.
+**Activity (internally: inbox)** is the home-tab branch for forwards you receive and notification receipts — the nav label is l10n key `inbox` (`Activity` / «Активность»).
+
+**Forbidden:** a parallel `Request` domain entity, table, or route. User-visible copy must not say "beacon", "room", or "inbox"/"Inbox"/«Входящие» as product nouns — use l10n and `scripts/check-user-facing-terminology.sh`.
 
 ## Language
 
@@ -202,7 +204,7 @@ Pure predicates (`everAcknowledged`, `currentStakeState`, `hasCurrentStake`) der
 
 **My desk** (user-facing; l10n `myWork`):
 The signed-in user's work inbox tab — beacons they **authored** or **help-offered** on, with filters and sort. Not the public beacon catalog or another user's profile beacons.
-_Avoid_: mixing with **Inbox** (forwards received from others).
+_Avoid_: mixing with **Activity** (forwards received from others; internally `inbox`).
 
 **Active filter** (default):
 Non-archived cards (excluding **drafts** and deleted). Beacons of any lifecycle the user has not archived — including review-window and finished beacons — appear here until the user archives them.

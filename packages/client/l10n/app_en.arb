@@ -963,7 +963,7 @@
   "@inviteAcceptBeaconTitle": {
     "context": "InvitationAcceptDialog"
   },
-  "inviteAcceptBeaconBody": "Accepting connects you with {name} and adds this request to your Inbox.",
+  "inviteAcceptBeaconBody": "Accepting connects you with {name} and adds this request to your Activity.",
   "@inviteAcceptBeaconBody": {
     "context": "InvitationAcceptDialog",
     "placeholders": {
@@ -1203,7 +1203,7 @@
   "@myField": {
     "context": "HomeScreen"
   },
-  "inbox": "Inbox",
+  "inbox": "Activity",
   "@inbox": {
     "context": "HomeScreen"
   },
@@ -2022,7 +2022,7 @@
   "@newStuffReasonCoordinationStatusChanged": {
     "context": "NewStuff dot — beacon-level coordination status"
   },
-  "inboxEmpty": "Inbox is empty",
+  "inboxEmpty": "Activity is empty",
   "@inboxEmpty": {
     "context": "InboxScreen"
   },
@@ -2113,7 +2113,7 @@
   "@inboxRejectedTitle": {
     "context": "InboxScreen"
   },
-  "inboxNeedsMeEmptyCalm": "Inbox is clear. New requests will appear here.",
+  "inboxNeedsMeEmptyCalm": "Activity is clear. New requests will appear here.",
   "@inboxNeedsMeEmptyCalm": {
     "context": "InboxScreen"
   },
@@ -2229,7 +2229,7 @@
   "@actionCantHelp": {
     "context": "InboxItemTile"
   },
-  "actionMoveToInbox": "Move to inbox",
+  "actionMoveToInbox": "Move to Activity",
   "@actionMoveToInbox": {
     "context": "InboxItemTile"
   },
@@ -2901,15 +2901,15 @@
   "@myWorkEmptyActiveTitle": {
     "context": "MyWorkScreen"
   },
-  "myWorkEmptyActiveBody": "My Work shows requests you authored or offered help on. Requests others forward to you appear in Inbox.",
+  "myWorkEmptyActiveBody": "My Work shows requests you authored or offered help on. Requests others forward to you appear in Activity.",
   "@myWorkEmptyActiveBody": {
     "context": "MyWorkScreen"
   },
-  "myWorkEmptyActiveInboxHint": "Forwarded requests waiting for you are in Inbox → Needs me.",
+  "myWorkEmptyActiveInboxHint": "Forwarded requests waiting for you are in Activity → Needs me.",
   "@myWorkEmptyActiveInboxHint": {
     "context": "MyWorkScreen"
   },
-  "myWorkEmptyActiveInboxPrimaryCta": "View Inbox ({count})",
+  "myWorkEmptyActiveInboxPrimaryCta": "View Activity ({count})",
   "@myWorkEmptyActiveInboxPrimaryCta": {
     "context": "MyWorkScreen",
     "placeholders": {
@@ -2922,7 +2922,7 @@
   "@myWorkEmptyActiveCreateCta": {
     "context": "MyWorkScreen"
   },
-  "myWorkEmptyActiveInboxCta": "Go to Inbox",
+  "myWorkEmptyActiveInboxCta": "Go to Activity",
   "@myWorkEmptyActiveInboxCta": {
     "context": "MyWorkScreen"
   },
@@ -5490,7 +5490,7 @@
   "@forwardReasonAheadHint": {
     "description": "Hint above forward composer before recipients are selected."
   },
-  "inboxDismissDialogTitle": "Remove from inbox?",
+  "inboxDismissDialogTitle": "Remove from Activity?",
   "@inboxDismissDialogTitle": {
     "description": "Title for the inbox dismiss (X) dialog — not the same as Can't help."
   },
@@ -5498,7 +5498,7 @@
   "@inboxDismissDialogHint": {
     "description": "Hint for the optional note when removing a beacon from inbox. The note is copied to the forward edge and is visible to whoever forwarded it."
   },
-  "inboxDismissTooltip": "Remove from inbox",
+  "inboxDismissTooltip": "Remove from Activity",
   "@inboxDismissTooltip": {
     "description": "Tooltip for the inbox card dismiss (X) control."
   },

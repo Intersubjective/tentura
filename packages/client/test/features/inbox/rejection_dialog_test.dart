@@ -34,7 +34,7 @@ void main() {
     await tester.tap(find.text('Open dialog'));
     await tester.pumpAndSettle();
 
-    expect(find.text('Remove from inbox?'), findsOneWidget);
+    expect(find.text('Remove from Activity?'), findsOneWidget);
 
     await tester.tap(find.text('Cancel'));
     await tester.pumpAndSettle();

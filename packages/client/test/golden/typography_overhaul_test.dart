@@ -417,7 +417,7 @@ class _BottomNavGoldenBody extends StatelessWidget {
         destinations: const [
           NavigationDestination(
             icon: Icon(Icons.inbox_outlined),
-            label: 'Inbox',
+            label: 'Activity',
           ),
           NavigationDestination(
             icon: Icon(Icons.work_outline),

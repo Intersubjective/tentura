@@ -67,12 +67,12 @@ void main() {
         onCreateBeacon: () => createTapped = true,
       );
 
-      expect(find.text('View Inbox (2)'), findsOneWidget);
+      expect(find.text('View Activity (2)'), findsOneWidget);
       expect(find.text('Create request'), findsOneWidget);
       expect(find.byType(TenturaCommandButton), findsOneWidget);
 
-      await tester.ensureVisible(find.text('View Inbox (2)'));
-      await tester.tap(find.text('View Inbox (2)'));
+      await tester.ensureVisible(find.text('View Activity (2)'));
+      await tester.tap(find.text('View Activity (2)'));
       await tester.pumpAndSettle();
       expect(inboxTapped, isTrue);
       expect(createTapped, isFalse);

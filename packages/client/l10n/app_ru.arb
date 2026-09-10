@@ -963,7 +963,7 @@
   "@inviteAcceptBeaconTitle": {
     "context": "InvitationAcceptDialog"
   },
-  "inviteAcceptBeaconBody": "Принятие свяжет вас с {name} и добавит этот запрос во «Входящие».",
+  "inviteAcceptBeaconBody": "Принятие свяжет вас с {name} и добавит этот запрос в «Активность».",
   "@inviteAcceptBeaconBody": {
     "context": "InvitationAcceptDialog",
     "placeholders": {
@@ -1203,7 +1203,7 @@
   "@myField": {
     "context": "HomeScreen"
   },
-  "inbox": "Входящие",
+  "inbox": "Активность",
   "@inbox": {
     "context": "HomeScreen"
   },
@@ -2022,7 +2022,7 @@
   "@newStuffReasonCoordinationStatusChanged": {
     "context": "NewStuff dot — beacon-level coordination status"
   },
-  "inboxEmpty": "Входящие пусты",
+  "inboxEmpty": "Активность пуста",
   "@inboxEmpty": {
     "context": "InboxScreen"
   },
@@ -2104,7 +2104,7 @@
   "@inboxRejectedTitle": {
     "context": "InboxScreen"
   },
-  "inboxNeedsMeEmptyCalm": "Входящие пусты. Новые запросы появятся здесь.",
+  "inboxNeedsMeEmptyCalm": "Активность пуста. Новые запросы появятся здесь.",
   "@inboxNeedsMeEmptyCalm": {
     "context": "InboxScreen"
   },
@@ -2220,7 +2220,7 @@
   "@actionCantHelp": {
     "context": "InboxItemTile"
   },
-  "actionMoveToInbox": "Вернуть во входящие",
+  "actionMoveToInbox": "Вернуть в активность",
   "@actionMoveToInbox": {
     "context": "InboxItemTile"
   },
@@ -2892,15 +2892,15 @@
   "@myWorkEmptyActiveTitle": {
     "context": "MyWorkScreen"
   },
-  "myWorkEmptyActiveBody": "«Мои дела» — запросы, которые вы создали или на которых предложили помощь. Пересланные вам запросы — во «Входящих».",
+  "myWorkEmptyActiveBody": "«Мои дела» — запросы, которые вы создали или на которых предложили помощь. Пересланные вам запросы — в «Активности».",
   "@myWorkEmptyActiveBody": {
     "context": "MyWorkScreen"
   },
-  "myWorkEmptyActiveInboxHint": "Пересланные запросы ждут вас во «Входящих» → «Нужно мне».",
+  "myWorkEmptyActiveInboxHint": "Пересланные запросы ждут вас в «Активности» → «Нужно мне».",
   "@myWorkEmptyActiveInboxHint": {
     "context": "MyWorkScreen"
   },
-  "myWorkEmptyActiveInboxPrimaryCta": "Открыть входящие ({count})",
+  "myWorkEmptyActiveInboxPrimaryCta": "Открыть активность ({count})",
   "@myWorkEmptyActiveInboxPrimaryCta": {
     "context": "MyWorkScreen",
     "placeholders": {
@@ -2913,7 +2913,7 @@
   "@myWorkEmptyActiveCreateCta": {
     "context": "MyWorkScreen"
   },
-  "myWorkEmptyActiveInboxCta": "Перейти во входящие",
+  "myWorkEmptyActiveInboxCta": "Перейти в активность",
   "@myWorkEmptyActiveInboxCta": {
     "context": "MyWorkScreen"
   },
@@ -5262,7 +5262,7 @@
   "@forwardReasonAheadHint": {
     "description": "Hint above forward composer before recipients are selected."
   },
-  "inboxDismissDialogTitle": "Убрать из входящих?",
+  "inboxDismissDialogTitle": "Убрать из активности?",
   "@inboxDismissDialogTitle": {
     "description": "Title for the inbox dismiss (X) dialog — not the same as Can't help."
   },
@@ -5270,7 +5270,7 @@
   "@inboxDismissDialogHint": {
     "description": "Hint for optional note when removing a beacon from inbox."
   },
-  "inboxDismissTooltip": "Убрать из входящих",
+  "inboxDismissTooltip": "Убрать из активности",
   "@inboxDismissTooltip": {
     "description": "Tooltip for the inbox card dismiss (X) control."
   },
