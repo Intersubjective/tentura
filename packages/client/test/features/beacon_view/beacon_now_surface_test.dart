@@ -27,7 +27,6 @@ import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import '../../domain/use_case/fake_beacon_hierarchy_ports.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
-import '../beacon_threads/fake_coordination_item_case.dart';
 import 'beacon_view_case_test_support.dart';
 
 class _NoopBeaconWritePort implements BeaconWritePort {

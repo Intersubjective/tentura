@@ -1,6 +1,0 @@
-mutation MarkBeaconItemsSeen($beaconId: String!) {
-  markBeaconItemsSeen(beaconId: $beaconId) {
-    beaconId
-    seenAt
-  }
-}

@@ -20,13 +20,11 @@ import 'package:tentura/features/beacon_threads/ui/widget/thread_detail.dart';
 import 'package:tentura/features/beacon_view/domain/use_case/beacon_view_case.dart';
 import 'package:tentura/features/beacon_view/ui/screen/beacon_view_host_screen.dart';
 import 'package:tentura/features/beacon_view/ui/util/beacon_room_navigation_scope.dart';
-import 'package:tentura/features/coordination_item/domain/use_case/coordination_item_case.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/effect/ui_effect_port.dart';
 
 import '../../ui/effect/fake_ui_effect_port.dart';
-import '../beacon_threads/fake_coordination_item_case.dart';
 import '../beacon_threads/room_cubit_fakes.dart';
 import 'beacon_view_case_test_support.dart';
 import 'beacon_view_screen_harness.dart';
@@ -135,12 +133,6 @@ class _MockProfileCubit extends Mock implements ProfileCubit {
 
 Future<void> _setupGetIt(_MessageTargetRepository repo) async {
   final getIt = GetIt.I;
-  if (getIt.isRegistered<CoordinationItemCase>()) {
-    await getIt.unregister<CoordinationItemCase>();
-  }
-  getIt.registerSingleton<CoordinationItemCase>(
-    const FakeCoordinationItemCaseForRoom(),
-  );
   if (!getIt.isRegistered<ImageRepository>()) {
     getIt.registerSingleton<ImageRepository>(ImageRepository());
   }
@@ -246,9 +238,6 @@ void main() {
 
   tearDown(() async {
     final getIt = GetIt.I;
-    if (getIt.isRegistered<CoordinationItemCase>()) {
-      await getIt.unregister<CoordinationItemCase>();
-    }
     if (getIt.isRegistered<ProfileCubit>()) {
       await getIt.unregister<ProfileCubit>();
     }

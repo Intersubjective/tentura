@@ -22,7 +22,6 @@ import '../entity/request_thread.dart';
 import '../entity/room_seen_outcome.dart';
 import '../entity/room_unread_snapshot.dart';
 import '../room_read_watermark_store.dart';
-import '../../../coordination_item/domain/use_case/coordination_item_case.dart';
 import '../../../polling/data/repository/polling_repository.dart';
 
 @singleton
@@ -33,7 +32,6 @@ final class BeaconThreadsCase extends UseCaseBase {
     this._polling,
     this._hints,
     this._watermark,
-    this._coordinationItemCase,
     this._realtimeSyncCase, {
     required super.env,
     required super.logger,
@@ -48,8 +46,6 @@ final class BeaconThreadsCase extends UseCaseBase {
   final BeaconRoomHintsRepository _hints;
 
   final RoomReadWatermarkStore _watermark;
-
-  final CoordinationItemCase _coordinationItemCase;
 
   final RealtimeSyncCase _realtimeSyncCase;
 
@@ -290,35 +286,12 @@ final class BeaconThreadsCase extends UseCaseBase {
   Future<BeaconRoomState> fetchBeaconRoomState(String beaconId) =>
       _room.fetchBeaconRoomState(beaconId);
 
-  Future<CoordinationItem?> fetchOpenCoordinationBlocker(
-    String beaconId,
-  ) async {
-    final items = await _coordinationItemCase.listByBeacon(
-      beaconId,
-      status: CoordinationItemStatus.open.value,
-      kind: CoordinationItemKind.blocker.value,
-    );
-    return items.firstOrNull;
-  }
+  Future<CoordinationItem?> fetchOpenCoordinationBlocker(String beaconId) async =>
+      null;
 
-  /// All coordination items for the beacon, with `messageCount`/`unreadCount`,
-  /// used to join thread reply counts onto room messages.
-  Future<List<CoordinationItem>> fetchCoordinationItems(String beaconId) =>
-      _coordinationItemCase.listByBeacon(beaconId);
-
-  Future<CoordinationItem> updateRoomPlan({
-    required String beaconId,
-    required String currentLine,
-    String body = '',
-    String? targetPersonId,
-    String? linkedMessageId,
-  }) => _coordinationItemCase.updatePlan(
-    beaconId: beaconId,
-    title: currentLine,
-    body: body,
-    targetPersonId: targetPersonId,
-    linkedMessageId: linkedMessageId,
-  );
+  /// Legacy item reply counts are no longer loaded; returns an empty list.
+  Future<List<CoordinationItem>> fetchCoordinationItems(String beaconId) async =>
+      const [];
 
   Future<void> updateRoomNowLine({
     required String beaconId,
@@ -328,8 +301,8 @@ final class BeaconThreadsCase extends UseCaseBase {
     text: currentLine,
   );
 
-  Future<CoordinationItem?> fetchCurrentCoordinationPlan(String beaconId) =>
-      _coordinationItemCase.fetchCurrentRootPlan(beaconId);
+  Future<CoordinationItem?> fetchCurrentCoordinationPlan(String beaconId) async =>
+      null;
 
   Future<List<BeaconFactCard>> fetchFactCards(String beaconId) =>
       _factCards.list(beaconId: beaconId);
@@ -389,58 +362,6 @@ final class BeaconThreadsCase extends UseCaseBase {
       return RoomSeenFailed(e);
     }
   }
-
-  Future<CoordinationItem> markAskFromMessage({
-    required String beaconId,
-    required String messageId,
-    required String title,
-    required String targetPersonId,
-    String body = '',
-    int? staleAfterDays,
-  }) => _coordinationItemCase.markAsk(
-    beaconId: beaconId,
-    title: title,
-    targetPersonId: targetPersonId,
-    body: body,
-    linkedMessageId: messageId,
-    staleAfterDays: staleAfterDays,
-  );
-
-  Future<CoordinationItem> markBlockerFromMessage({
-    required String beaconId,
-    required String messageId,
-    required String title,
-    String body = '',
-    String? targetPersonId,
-    int? staleAfterDays,
-  }) => _coordinationItemCase.markBlocker(
-    beaconId: beaconId,
-    title: title,
-    body: body,
-    targetPersonId: targetPersonId,
-    linkedMessageId: messageId,
-    staleAfterDays: staleAfterDays,
-  );
-
-  Future<CoordinationItem> createPromise({
-    required String beaconId,
-    required String title,
-    required String targetPersonId,
-    String body = '',
-    String? linkedMessageId,
-    int? staleAfterDays,
-  }) => _coordinationItemCase.createPromise(
-    beaconId: beaconId,
-    title: title,
-    targetPersonId: targetPersonId,
-    body: body,
-    linkedMessageId: linkedMessageId,
-    staleAfterDays: staleAfterDays,
-  );
-
-  Future<CoordinationItem> resolveCoordinationBlocker({
-    required String itemId,
-  }) => _coordinationItemCase.resolveBlocker(itemId: itemId);
 
   Future<bool> markMessageSemanticDone({
     required String beaconId,

@@ -34,7 +34,6 @@ import 'package:tentura/features/beacon_view/ui/widget/activity_list.dart';
 import 'package:tentura/features/beacon_view/ui/widget/beacon_activity_sheet.dart';
 import 'package:tentura/features/beacon_view/ui/widget/beacon_surface_tabs.dart';
 import 'package:tentura/features/beacon_view/ui/widget/beacon_view_constants.dart';
-import 'package:tentura/features/coordination_item/domain/use_case/coordination_item_case.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/bloc/state_base.dart';
@@ -45,7 +44,6 @@ import 'package:tentura_root/domain/entity/beacon_hierarchy_capabilities.dart';
 
 import '../../domain/use_case/fake_beacon_hierarchy_ports.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
-import '../beacon_threads/fake_coordination_item_case.dart';
 import '../beacon_threads/room_cubit_fakes.dart';
 
 const _kBeaconId = 'b-activity-sheet';
@@ -311,12 +309,6 @@ ThreadsState _threadsState({required List<RequestThread> threads}) =>
 
 Future<void> _setupGetIt() async {
   final getIt = GetIt.I;
-  if (getIt.isRegistered<CoordinationItemCase>()) {
-    await getIt.unregister<CoordinationItemCase>();
-  }
-  getIt.registerSingleton<CoordinationItemCase>(
-    const FakeCoordinationItemCaseForRoom(),
-  );
   if (!getIt.isRegistered<ImageRepository>()) {
     getIt.registerSingleton<ImageRepository>(ImageRepository());
   }

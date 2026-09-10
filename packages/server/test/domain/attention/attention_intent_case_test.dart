@@ -206,47 +206,6 @@ void main() {
           ),
         ),
         (
-          eventType: AttentionEventType.needsMe,
-          legacyKind: 'needsMe',
-          recipient: target,
-          build: (intents) => intents.needsMe(
-            beaconId: beacon,
-            actorUserId: actor,
-            targetUserId: target,
-            excerpt: 'Please decide',
-            coordinationItemId: item,
-            sourceEventKey: eventKey,
-          ),
-        ),
-        (
-          eventType: AttentionEventType.blockerOpened,
-          legacyKind: 'blockerOpened',
-          recipient: target,
-          build: (intents) => intents.blockerChanged(
-            beaconId: beacon,
-            actorUserId: actor,
-            excerpt: 'Blocked',
-            targetPersonId: target,
-            coordinationItemId: item,
-            resolved: false,
-            sourceEventKey: eventKey,
-          ),
-        ),
-        (
-          eventType: AttentionEventType.blockerResolved,
-          legacyKind: 'blockerResolved',
-          recipient: target,
-          build: (intents) => intents.blockerChanged(
-            beaconId: beacon,
-            actorUserId: actor,
-            excerpt: 'Resolved',
-            targetPersonId: target,
-            coordinationItemId: item,
-            resolved: true,
-            sourceEventKey: eventKey,
-          ),
-        ),
-        (
           eventType: AttentionEventType.promiseMade,
           legacyKind: 'promiseMade',
           recipient: target,
@@ -282,19 +241,6 @@ void main() {
             actorUserId: actor,
             planExcerpt: 'Next step',
             admittedUserIds: const ['member'],
-            sourceEventKey: eventKey,
-          ),
-        ),
-        (
-          eventType: AttentionEventType.staleReminder,
-          legacyKind: 'staleRemind',
-          recipient: target,
-          build: (intents) => intents.staleReminder(
-            beaconId: beacon,
-            actorUserId: actor,
-            targetPersonId: target,
-            excerpt: 'Still waiting',
-            coordinationItemId: item,
             sourceEventKey: eventKey,
           ),
         ),
@@ -652,48 +598,4 @@ void main() {
     });
   });
 
-  group('commitmentChanged', () {
-    test(
-      'accepted uses none collapse key and commitmentAccepted kind',
-      () async {
-        final intent = await harness.intents.commitmentChanged(
-          beaconId: beacon,
-          actorUserId: target,
-          transition: 'accepted',
-          excerpt: 'Need help',
-          targetPersonId: author,
-          coordinationItemId: item,
-          sourceEventKey: eventKey,
-        );
-
-        expect(intent.eventType, AttentionEventType.commitmentAccepted);
-        expect(intent.kind, NotificationKind.commitmentAccepted);
-        expect(intent.collapseKey, AttentionCollapseKey.none(eventKey));
-        expect(
-          intent.recipients.map((r) => r.recipientId),
-          contains(author),
-        );
-      },
-    );
-
-    test('redirected_to uses commitmentRedirected at high priority', () async {
-      final intent = await harness.intents.commitmentChanged(
-        beaconId: beacon,
-        actorUserId: actor,
-        transition: 'redirected_to',
-        excerpt: 'Need help',
-        targetPersonId: target,
-        coordinationItemId: item,
-        sourceEventKey: eventKey,
-      );
-
-      expect(intent.eventType, AttentionEventType.commitmentRedirected);
-      expect(intent.kind, NotificationKind.commitmentRedirected);
-      expect(intent.priority, NotificationPriority.high);
-      expect(
-        intent.recipients.map((r) => r.recipientId),
-        contains(target),
-      );
-    });
-  });
 }

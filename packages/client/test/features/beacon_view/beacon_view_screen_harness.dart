@@ -27,7 +27,6 @@ import 'package:tentura/features/beacon_threads/ui/widget/thread_detail.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_cubit.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_state.dart';
 import 'package:tentura/features/beacon_view/ui/screen/beacon_view_screen.dart';
-import 'package:tentura/features/coordination_item/domain/use_case/coordination_item_case.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/bloc/state_base.dart';
@@ -38,7 +37,6 @@ import 'package:tentura_root/domain/entity/beacon_hierarchy_capabilities.dart';
 
 import '../../domain/use_case/fake_beacon_hierarchy_ports.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
-import '../beacon_threads/fake_coordination_item_case.dart';
 import '../beacon_threads/room_cubit_fakes.dart';
 
 const kBeaconViewHarnessBeaconId = 'b-view-harness';
@@ -340,12 +338,6 @@ Future<void> registerBeaconViewHarnessGetIt({
   FakeBeaconThreadsRepository? roomRepo,
 }) async {
   final getIt = GetIt.I;
-  if (getIt.isRegistered<CoordinationItemCase>()) {
-    await getIt.unregister<CoordinationItemCase>();
-  }
-  getIt.registerSingleton<CoordinationItemCase>(
-    const FakeCoordinationItemCaseForRoom(),
-  );
   if (!getIt.isRegistered<ImageRepository>()) {
     getIt.registerSingleton<ImageRepository>(ImageRepository());
   }
@@ -381,9 +373,6 @@ Future<void> registerBeaconViewHarnessGetIt({
 
 Future<void> unregisterBeaconViewHarnessGetIt() async {
   final getIt = GetIt.I;
-  if (getIt.isRegistered<CoordinationItemCase>()) {
-    await getIt.unregister<CoordinationItemCase>();
-  }
   if (getIt.isRegistered<ProfileCubit>()) {
     await getIt.unregister<ProfileCubit>();
   }

@@ -13,9 +13,6 @@ import 'package:tentura/features/beacon_threads/domain/entity/beacon_room_invali
 import 'package:tentura/data/service/bookkeeping_refresh_signal.dart';
 import 'package:tentura/features/beacon_threads/domain/room_read_watermark_store.dart';
 import 'package:tentura/features/beacon_threads/domain/use_case/beacon_threads_case.dart';
-import 'package:tentura/domain/entity/coordination_responsibility.dart';
-import 'package:tentura/features/coordination_item/data/repository/coordination_item_repository.dart';
-import 'package:tentura/features/coordination_item/domain/use_case/coordination_item_case.dart';
 import 'package:tentura/features/forward/data/repository/forward_repository.dart';
 import 'package:tentura/features/forward/domain/entity/help_offer_event.dart';
 import 'package:tentura/features/inbox/domain/entity/inbox_room_card_hints.dart';
@@ -209,37 +206,6 @@ class FakeBeaconRepository implements BeaconRepository {
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
-class FakeCoordinationItemRepository implements CoordinationItemRepository {
-  Map<String, CoordinationResponsibility> responsibilityByBeaconId =
-      const <String, CoordinationResponsibility>{};
-
-  Object? fetchResponsibilityBatchError;
-
-  List<String>? fetchResponsibilityBatchBeaconIds;
-
-  @override
-  Future<Map<String, CoordinationResponsibility>> fetchResponsibilityBatch(
-    List<String> beaconIds,
-  ) async {
-    fetchResponsibilityBatchBeaconIds = List<String>.from(beaconIds);
-    final error = fetchResponsibilityBatchError;
-    if (error is Exception) {
-      throw error;
-    }
-    if (error is Error) {
-      throw error;
-    }
-    return {
-      for (final beaconId in beaconIds)
-        if (responsibilityByBeaconId.containsKey(beaconId))
-          beaconId: responsibilityByBeaconId[beaconId]!,
-    };
-  }
-
-  @override
-  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
-}
-
 class FakeRoomHints implements BeaconRoomHintsRepository {
   Map<String, InboxRoomCardHints> hintsByBeaconId =
       const <String, InboxRoomCardHints>{};
@@ -308,7 +274,6 @@ BeaconThreadsCase buildTestBeaconThreadsCase(
     FakePollingRepository(),
     hints,
     watermarkStore ?? RoomReadWatermarkStore.testing(),
-    CoordinationItemCase(FakeCoordinationItemRepository()),
     buildTestRealtimeSync().case_,
     env: const Env(),
     logger: Logger('test'),

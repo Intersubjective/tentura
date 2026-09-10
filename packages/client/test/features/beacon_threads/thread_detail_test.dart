@@ -26,7 +26,6 @@ import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_cubit.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_state.dart';
 import 'package:tentura/features/beacon_view/ui/util/beacon_room_lease.dart';
 import 'package:tentura/features/beacon_view/ui/widget/beacon_room_surface.dart';
-import 'package:tentura/features/coordination_item/domain/use_case/coordination_item_case.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/bloc/state_base.dart';
 import 'package:tentura/ui/effect/ui_effect_port.dart';
@@ -34,7 +33,6 @@ import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/test_ids.dart';
 import 'package:tentura/ui/widget/beacon_involved_people_face_pile.dart';
 
-import 'fake_coordination_item_case.dart';
 import 'room_cubit_fakes.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
 const _kBeaconId = 'b-detail-test';
@@ -267,9 +265,6 @@ Future<void> _setupGetIt() async {
   getIt.registerSingleton<ImageRepository>(ImageRepository());
   getIt.registerSingleton<ClipboardImageRepository>(
     ClipboardImageRepository(),
-  );
-  getIt.registerSingleton<CoordinationItemCase>(
-    const FakeCoordinationItemCaseForRoom(),
   );
   getIt.registerSingleton<BeaconThreadsCase>(
     roomCubitMakeCase(FakeBeaconThreadsRepository(userId: _kMyId)),

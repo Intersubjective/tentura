@@ -271,15 +271,7 @@ class AttentionPolicy {
     ),
     AttentionEventType.deadlineChanged ||
     AttentionEventType.deadlineReminder => false,
-    AttentionEventType.needsMe ||
-    AttentionEventType.staleReminder ||
     AttentionEventType.reviewOpened => true,
-    AttentionEventType.blockerOpened =>
-      reasons.contains(AttentionRecipientReason.affectedParticipant) ||
-          reasons.contains(AttentionRecipientReason.targetOfAsk),
-    AttentionEventType.commitmentRedirected => reasons.contains(
-      AttentionRecipientReason.targetOfAsk,
-    ),
     AttentionEventType.trustGivenChanged ||
     AttentionEventType.trustReceivedChanged => false,
     _ => false,

@@ -24,7 +24,6 @@ import 'package:tentura/features/beacon_threads/domain/entity/request_thread.dar
 import 'package:tentura/features/beacon_threads/domain/room_read_watermark_store.dart';
 import 'package:tentura/features/beacon_threads/domain/use_case/beacon_threads_case.dart';
 import 'package:tentura/features/beacon_threads/ui/bloc/room_cubit.dart';
-import 'package:tentura/features/coordination_item/domain/use_case/coordination_item_case.dart';
 
 import '../../ui/effect/fake_ui_effect_port.dart';
 import 'package:tentura/features/polling/data/repository/polling_repository.dart';
@@ -33,7 +32,6 @@ import 'package:tentura/ui/bloc/state_base.dart';
 import 'package:tentura/ui/effect/ui_effect_port.dart';
 
 import '../../support/test_realtime_sync.dart';
-import 'fake_coordination_item_case.dart';
 
 // ---------------------------------------------------------------------------
 // Fakes
@@ -196,7 +194,6 @@ final _testItemSync = CoordinationItemRoomSync();
 
 RoomCubit _roomCubit(
   _FakeBeaconThreadsRepository fakeRoom, {
-  CoordinationItemCase? coordinationCase,
   RealtimeSyncCase? realtimeSyncCase,
   PresenceRepository? presenceRepository,
   UiEffectPort? effects,
@@ -204,7 +201,6 @@ RoomCubit _roomCubit(
   beaconId: _kBeaconId,
   beaconRoomCase: _makeCase(
     fakeRoom,
-    coordinationCase: coordinationCase,
     realtimeSyncCase: realtimeSyncCase,
   ),
   coordinationItemRoomSync: _testItemSync,
@@ -223,7 +219,6 @@ PresenceRepository _fakePresenceRepository() => PresenceRepository(
 /// Creates a [BeaconThreadsCase] backed by [fakeRoom] and minimal stubs.
 BeaconThreadsCase _makeCase(
   _FakeBeaconThreadsRepository fakeRoom, {
-  CoordinationItemCase? coordinationCase,
   RealtimeSyncCase? realtimeSyncCase,
 }) => BeaconThreadsCase(
   fakeRoom,
@@ -231,7 +226,6 @@ BeaconThreadsCase _makeCase(
   _FakePollingRepository(),
   _FakeBeaconRoomHintsRepository(),
   RoomReadWatermarkStore.testing(),
-  coordinationCase ?? const FakeCoordinationItemCaseForRoom(),
   realtimeSyncCase ?? buildTestRealtimeSync().case_,
   env: const Env(),
   logger: Logger('test'),
@@ -650,7 +644,7 @@ void main() {
       },
     );
 
-    test('load() joins coordination reply counts onto messages', () async {
+    test('load() leaves legacy item reply counts at defaults', () async {
       _registerProfileCubit(_kMyUserId);
 
       final linked = RoomMessage(
@@ -670,31 +664,14 @@ void main() {
         ..participantLastSeenRoomAt = _kAnchorTime
         ..messages = [linked, _msg('plain', _kAnchorTime)];
 
-      final coordinationCase = FakeCoordinationItemCaseForRoom(
-        items: [
-          CoordinationItem(
-            id: 'item1',
-            beaconId: _kBeaconId,
-            kind: CoordinationItemKind.ask,
-            status: CoordinationItemStatus.open,
-            creatorId: 'other',
-            createdAt: _kAnchorTime,
-            updatedAt: _kAnchorTime,
-            messageCount: 3,
-            unreadCount: 1,
-          ),
-        ],
-      );
-
-      final cubit = _roomCubit(fakeRoom, coordinationCase: coordinationCase);
+      final cubit = _roomCubit(fakeRoom);
       addTearDown(cubit.close);
 
       await _awaitLoad(cubit);
 
       final joined = cubit.state.messages.firstWhere((m) => m.id == 'linked');
-      expect(joined.linkedItemMessageCount, 3);
-      expect(joined.linkedItemUnreadCount, 1);
-      expect(joined.linkedCoordinationItem?.hasUnread, isTrue);
+      expect(joined.linkedItemMessageCount, 0);
+      expect(joined.linkedItemUnreadCount, 0);
 
       final untouched = cubit.state.messages.firstWhere((m) => m.id == 'plain');
       expect(untouched.linkedItemMessageCount, 0);
@@ -901,7 +878,6 @@ void main() {
           _FakePollingRepository(),
           _FakeBeaconRoomHintsRepository(),
           watermark,
-          const FakeCoordinationItemCaseForRoom(),
           buildTestRealtimeSync().case_,
           env: const Env(),
           logger: Logger('test'),

@@ -33,7 +33,6 @@ import 'package:tentura/ui/effect/ui_effect_port.dart';
 
 import '../../support/test_realtime_sync.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
-import 'fake_coordination_item_case.dart';
 
 const kRoomCubitFakeBeaconId = 'b-send-test';
 const kRoomCubitFakeMyUserId = 'me-send';
@@ -266,7 +265,6 @@ BeaconThreadsCase roomCubitMakeCase(
   FakePollingRepository(),
   FakeBeaconRoomHintsRepository(),
   RoomReadWatermarkStore.testing(),
-  const FakeCoordinationItemCaseForRoom(),
   realtimeSyncCase ?? buildTestRealtimeSync().case_,
   env: const Env(),
   logger: Logger('test'),

@@ -17,8 +17,6 @@ import 'package:tentura/features/beacon_threads/domain/use_case/beacon_threads_c
 import 'package:tentura/features/polling/data/repository/polling_repository.dart';
 
 import '../../support/test_realtime_sync.dart';
-import 'fake_coordination_item_case.dart';
-
 void main() {
   late FakeBeaconThreadsRepository room;
   late RoomReadWatermarkStore watermark;
@@ -41,7 +39,6 @@ void main() {
       _FakePollingRepository(),
       _FakeBeaconRoomHintsRepository(),
       watermark,
-      const FakeCoordinationItemCaseForRoom(),
       realtimeSyncCase,
       env: const Env(),
       logger: Logger('test'),

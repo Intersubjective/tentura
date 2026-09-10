@@ -116,7 +116,7 @@
       "genericTriggerArgs": ["coordination_item"],
       "specializedPublishers": [],
       "impacts": ["items", "chat_thread", "request_detail", "inbox", "my_work"],
-      "tests": ["packages/client/test/features/coordination_item/coordination_item_case_test.dart"]
+      "tests": ["packages/client/test/architecture/realtime_entity_contract_impacts_test.dart"]
     },
     {
       "wireKind": "capability",

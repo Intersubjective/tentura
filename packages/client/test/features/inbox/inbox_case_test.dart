@@ -16,8 +16,6 @@ import 'package:tentura/domain/entity/realtime/realtime_entity_change.dart';
 import 'package:tentura/domain/port/realtime_sync_port.dart';
 import 'package:tentura/domain/use_case/realtime_sync_case.dart';
 import 'package:tentura/features/beacon_threads/domain/use_case/beacon_threads_case.dart';
-import 'package:tentura/features/coordination_item/data/repository/coordination_item_repository.dart';
-import 'package:tentura/features/coordination_item/domain/use_case/coordination_item_case.dart';
 import 'package:tentura/features/forward/data/repository/forward_repository.dart';
 import 'package:tentura/features/forward/domain/entity/help_offer_event.dart';
 import 'package:tentura/features/inbox/data/repository/inbox_repository.dart';
@@ -510,7 +508,6 @@ BeaconThreadsCase _buildTestBeaconThreadsCase({
   _FakePollingRepository(),
   _FakeRoomHints(),
   RoomReadWatermarkStore.testing(),
-  CoordinationItemCase(_FakeCoordinationItemRepository()),
   RealtimeSyncCase(_TestRealtimeSyncPort()),
   env: const Env(),
   logger: Logger('test'),
@@ -555,11 +552,6 @@ class _FakeFactCardRepository implements BeaconFactCardRepository {
 }
 
 class _FakePollingRepository implements PollingRepository {
-  @override
-  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
-}
-
-class _FakeCoordinationItemRepository implements CoordinationItemRepository {
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }

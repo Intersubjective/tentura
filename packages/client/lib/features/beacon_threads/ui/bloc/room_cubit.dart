@@ -1068,62 +1068,6 @@ class RoomCubit extends Cubit<RoomState> {
     }
   }
 
-  Future<void> markAskFromMessage({
-    required String messageId,
-    required String title,
-    required String targetPersonId,
-    String body = '',
-    int? staleAfterDays,
-  }) async {
-    emit(state.copyWith(status: const StateIsLoading()));
-    try {
-      await _case.markAskFromMessage(
-        beaconId: state.beaconId,
-        messageId: messageId,
-        title: title,
-        targetPersonId: targetPersonId,
-        body: body,
-        staleAfterDays: staleAfterDays,
-      );
-      await load();
-    } on Object catch (e) {
-      _showSnackError(e);
-    }
-  }
-
-  Future<void> markBlockerFromMessage({
-    required String messageId,
-    required String title,
-    String body = '',
-    String? targetPersonId,
-    int? staleAfterDays,
-  }) async {
-    emit(state.copyWith(status: const StateIsLoading()));
-    try {
-      await _case.markBlockerFromMessage(
-        beaconId: state.beaconId,
-        messageId: messageId,
-        title: title,
-        body: body,
-        targetPersonId: targetPersonId,
-        staleAfterDays: staleAfterDays,
-      );
-      await load();
-    } on Object catch (e) {
-      _showSnackError(e);
-    }
-  }
-
-  Future<void> resolveCoordinationBlocker({required String itemId}) async {
-    emit(state.copyWith(status: const StateIsLoading()));
-    try {
-      await _case.resolveCoordinationBlocker(itemId: itemId);
-      await load();
-    } on Object catch (e) {
-      _showSnackError(e);
-    }
-  }
-
   Future<void> markMessageSemanticDone({required String messageId}) async {
     emit(state.copyWith(status: const StateIsLoading()));
     try {

@@ -23,8 +23,6 @@ import 'package:tentura/features/beacon_view/data/repository/coordination_reposi
 import 'package:tentura/features/beacon_view/data/repository/beacon_display_repository.dart';
 import 'package:tentura/domain/entity/beacon_display_status_dto.dart';
 import 'package:tentura/features/beacon_view/domain/use_case/beacon_view_case.dart';
-import 'package:tentura/features/coordination_item/data/repository/coordination_item_repository.dart';
-import 'package:tentura/features/coordination_item/domain/use_case/coordination_item_case.dart';
 import 'package:tentura/features/evaluation/data/repository/evaluation_repository.dart';
 import 'package:tentura/features/evaluation/domain/entity/beacon_close_result.dart';
 import 'package:tentura/features/forward/data/repository/forward_repository.dart';
@@ -516,12 +514,6 @@ class FakeBeaconViewPollingRepository implements PollingRepository {
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
-class FakeBeaconViewCoordinationItemRepository
-    implements CoordinationItemRepository {
-  @override
-  dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
-}
-
 BeaconThreadsCase buildTestBeaconThreadsCaseForView(
   RoomReadWatermarkStore watermark, {
   FakeBeaconViewRoomRepository? room,
@@ -531,7 +523,6 @@ BeaconThreadsCase buildTestBeaconThreadsCaseForView(
   FakeBeaconViewPollingRepository(),
   FakeBeaconViewRoomHintsRepository(),
   watermark,
-  CoordinationItemCase(FakeBeaconViewCoordinationItemRepository()),
   buildTestRealtimeSync().case_,
   env: const Env(),
   logger: Logger('test'),

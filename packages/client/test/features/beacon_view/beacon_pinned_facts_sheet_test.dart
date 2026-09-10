@@ -14,7 +14,6 @@ import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/test_ids.dart';
 
 import '../../ui/effect/fake_ui_effect_port.dart';
-import '../beacon_threads/fake_coordination_item_case.dart';
 import 'beacon_view_case_test_support.dart';
 import 'beacon_view_initial_load_test.dart';
 

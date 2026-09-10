@@ -22,13 +22,11 @@ import 'package:tentura/features/beacon_threads/domain/entity/request_thread.dar
 import 'package:tentura/features/beacon_threads/domain/room_read_watermark_store.dart';
 import 'package:tentura/features/beacon_threads/domain/use_case/beacon_threads_case.dart';
 import 'package:tentura/features/beacon_threads/ui/bloc/threads_cubit.dart';
-import 'package:tentura/features/coordination_item/domain/use_case/coordination_item_case.dart';
 import 'package:tentura/features/polling/data/repository/polling_repository.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/bloc/state_base.dart';
 
 import '../../support/test_realtime_sync.dart';
-import 'fake_coordination_item_case.dart';
 
 const _kBeaconId = 'b-threads-test';
 const _kMyUserId = 'me-threads';
@@ -185,7 +183,6 @@ RequestThread _semanticThread({
 
 BeaconThreadsCase _makeCase(
   _FakeBeaconThreadsRepository repo, {
-  CoordinationItemCase? coordinationCase,
   RoomReadWatermarkStore? watermark,
 }) => BeaconThreadsCase(
   repo,
@@ -193,7 +190,6 @@ BeaconThreadsCase _makeCase(
   _FakePollingRepository(),
   _FakeBeaconRoomHintsRepository(),
   watermark ?? RoomReadWatermarkStore.testing(),
-  coordinationCase ?? const FakeCoordinationItemCaseForRoom(),
   buildTestRealtimeSync().case_,
   env: const Env(),
   logger: Logger('threads_cubit_test'),
@@ -216,13 +212,11 @@ void _registerProfileCubit(String userId) {
 
 ThreadsCubit _cubit({
   required _FakeBeaconThreadsRepository repo,
-  CoordinationItemCase? coordinationCase,
   RoomReadWatermarkStore? watermark,
 }) => ThreadsCubit(
   beaconId: _kBeaconId,
   beaconThreadsCase: _makeCase(
     repo,
-    coordinationCase: coordinationCase,
     watermark: watermark,
   ),
 );
