@@ -232,7 +232,7 @@ DECISIONS: Tombstone dismissal remains on `InboxCubit.dismissTombstone` → `Inb
 REMAINING: none
 
 ## UNIT 17 — complete — 2026-09-10
-COMMITS: 5eded9a8d feat(client): add Watching route and fix the forward intent
+COMMITS: 3cad50572c feat(client): add Watching route and fix the forward intent
 TESTS: `cd packages/client && flutter pub get --offline` — ok; `cd packages/client && dart run build_runner build -d` — ok; `cd packages/client && flutter test test/features/inbox/ test/features/forward/ test/features/home/home_tab_reselect_cubit_test.dart` — 260 passed; `./scripts/check-custom-lints.sh packages/client` — pass.
 FILES: packages/client/lib/features/inbox/ui/screen/inbox_watching_screen.dart (new); packages/client/lib/features/inbox/ui/screen/inbox_screen.dart; packages/client/lib/features/forward/ui/message/forward_messages.dart; packages/client/lib/app/router/root_router.dart; packages/client/lib/consts.dart; packages/client/test/features/inbox/inbox_watching_route_test.dart (new); docs/plans/inbox-activity-ia-implementation-journal.md
 FINDINGS: `InboxWatchingRoute` is non-const when optional query params exist — overflow `openInboxWatchingArchive` must not use `const`. Plan line refs for old Watching tab UI in `inbox_screen.dart` were already obsolete (UNIT 13).
