@@ -22,7 +22,6 @@ import '../../domain/entity/inbox_item.dart';
 import '../../domain/enum.dart';
 import '../bloc/inbox_cubit.dart';
 import 'inbox_item_tile.dart';
-import 'inbox_tombstone_section.dart';
 import 'rejection_dialog.dart';
 
 InboxSort inboxSortAfter(InboxSort current) => switch (current) {
@@ -122,14 +121,12 @@ class InboxTriageList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = L10n.of(context)!;
-    final tombstones = state.tombstonesLast24h;
     final needsMe = state.needsMe;
 
-    if (tombstones.isEmpty && needsMe.isEmpty) {
+    if (needsMe.isEmpty) {
       return _needsMeEmpty(context, l10n);
     }
 
-    final theme = Theme.of(context);
     final tt = context.tt;
 
     return RefreshIndicator.adaptive(
@@ -138,15 +135,8 @@ class InboxTriageList extends StatelessWidget {
         key: const PageStorageKey<String>('inbox-needs-me-scroll'),
         physics: const AlwaysScrollableScrollPhysics(),
         slivers: [
-          if (tombstones.isNotEmpty || needsMe.isNotEmpty)
-            SliverToBoxAdapter(child: SizedBox(height: tt.rowGap)),
-          ...buildInboxTombstoneSlivers(
-            context: context,
-            tombstones: tombstones,
-            onDismiss: inboxCubit.dismissTombstone,
-          ),
-          if (needsMe.isNotEmpty) ...[
-            SliverList.separated(
+          SliverToBoxAdapter(child: SizedBox(height: tt.rowGap)),
+          SliverList.separated(
               itemCount: needsMe.length,
               separatorBuilder: (_, _) => SizedBox(height: tt.rowGap),
               itemBuilder: (_, i) {
@@ -184,23 +174,6 @@ class InboxTriageList extends StatelessWidget {
                       : null,
                 );
               },
-            ),
-          ] else if (tombstones.isNotEmpty)
-            SliverToBoxAdapter(
-              child: Padding(
-                padding: EdgeInsets.only(
-                  left: tt.rowGap,
-                  right: tt.rowGap,
-                  bottom: tt.sectionGap,
-                ),
-                child: Text(
-                  l10n.inboxNeedsMeEmptyCalm,
-                  style: theme.textTheme.bodyMedium?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
-                  ),
-                  textAlign: TextAlign.center,
-                ),
-              ),
             ),
           SliverToBoxAdapter(child: SizedBox(height: tt.sectionGap)),
         ],
