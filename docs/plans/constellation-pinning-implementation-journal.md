@@ -62,7 +62,7 @@ tg_style_research.md
 | P06 Pure composition, budgets and layout | complete (accepted after C6 remediation) | P05 | see P06 C6 remediation |
 | P07 Graph gesture adapter | complete (accepted after C7 long-press remediation) | P06 | see P07 manager review |
 | P08 Placement orchestration and live reconciliation | complete (accepted after C7 remediation) | P07 | see P08 manager re-review |
-| P09 Map/Text controls, filters and status accessibility | complete | P08 | see P09 checkpoint |
+| P09 Map/Text controls, filters and status accessibility | complete (accepted) | P08 | see P09 manager review |
 | P10 End-to-end and failure acceptance | pending | P09 | — |
 | P11 Full verification and release preparation | pending | P10 | — |
 | P12 Product docs and coordinated activation | pending | P11 | — |
@@ -1048,3 +1048,25 @@ FINDINGS:
 - `constellation_body_test.dart` not in P09 focused suite; still may fail on stale l10n if run in isolation (pre-existing debt per P01 journal).
 
 REMAINING: P10 e2e / P11 full verification (out of P09 scope).
+
+### P09 — Manager review — 2026-09-11
+
+Independent focused suite (interaction + cubit + text + preview + legend) → 61 passed.
+
+Accepted. Pin here/Cancel, GraphView drag wiring, membership filters, shared status presenter, TestIds, en+ru copy, and Check widget coverage are in place.
+
+Residual, not blocking P09:
+
+- Open-status icon uses prescribed C2 `tt.border`, which is below 3:1 on bare `surface`. Saturated statuses + pin meet ≥3:1. Do not invent a parallel open-status color in P10.
+- `constellation_body_test.dart` remains pre-existing stale-l10n debt if run in isolation.
+
+STATUS: accepted
+
+COMMITS:
+- 356d1fa74 feat(client): add P09 constellation anchor l10n and test ids
+- 6371ca03c feat(client): add shared constellation request status presenter
+- 350a04298 feat(client): add constellation anchor controls and membership filters
+- ccdb0419f feat(client): wire P09 constellation map and text anchor UI
+- bd95ad265 test(client): cover P09 constellation anchor interaction UI
+
+REMAINING: **P10** e2e / multiclient. Process note: overseer stopped the leftover task-owned tentura-server on :2080 so the dedicated runner can own it.
