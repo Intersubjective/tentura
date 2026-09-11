@@ -80,6 +80,78 @@ void main() {
     });
 
     test(
+      'constellation_anchor always echoes to all actor sessions when echo disabled',
+      () async {
+        final dependencies = _Dependencies();
+        final handler = _EntityChangeHarness(
+          Env(realtimeActorEchoEnabled: false),
+          dependencies,
+        );
+        final actorSessionOne = _RecordingSession();
+        final actorSessionTwo = _RecordingSession();
+        final foreignSession = _RecordingSession();
+        await dependencies.authenticate(handler, actorSessionOne, _actorId);
+        await dependencies.authenticate(handler, actorSessionTwo, _actorId);
+        await dependencies.authenticate(handler, foreignSession, _affectedId);
+        actorSessionOne.sent.clear();
+        actorSessionTwo.sent.clear();
+        foreignSession.sent.clear();
+
+        await handler.fanOutEntityChange({
+          'entity': 'constellation_anchor',
+          'id': _actorId,
+          'event': 'update',
+          'actor_user_id': _actorId,
+          'user_ids': [_actorId],
+        });
+
+        expect(actorSessionOne.sent, hasLength(1));
+        expect(actorSessionTwo.sent, hasLength(1));
+        expect(foreignSession.sent, isEmpty);
+        final message =
+            jsonDecode(actorSessionOne.sent.single! as String) as Map;
+        final payload = message['payload'] as Map;
+        expect(payload['entity'], 'constellation_anchor');
+        expect(payload['id'], _actorId);
+        expect(payload['event'], 'update');
+        expect(payload['actor_user_id'], _actorId);
+        expect(payload.containsKey('target'), isFalse);
+        expect(payload.containsKey('position'), isFalse);
+        expect(payload.containsKey('title'), isFalse);
+        expect(payload.containsKey('revision'), isFalse);
+        expect(payload.containsKey('user_ids'), isFalse);
+      },
+    );
+
+    test(
+      'constellation_anchor echoes to all actor sessions when echo enabled',
+      () async {
+        final dependencies = _Dependencies();
+        final handler = _EntityChangeHarness(
+          Env(realtimeActorEchoEnabled: true),
+          dependencies,
+        );
+        final actorSessionOne = _RecordingSession();
+        final actorSessionTwo = _RecordingSession();
+        await dependencies.authenticate(handler, actorSessionOne, _actorId);
+        await dependencies.authenticate(handler, actorSessionTwo, _actorId);
+        actorSessionOne.sent.clear();
+        actorSessionTwo.sent.clear();
+
+        await handler.fanOutEntityChange({
+          'entity': 'constellation_anchor',
+          'id': _actorId,
+          'event': 'insert',
+          'actor_user_id': _actorId,
+          'user_ids': [_actorId],
+        });
+
+        expect(actorSessionOne.sent, hasLength(1));
+        expect(actorSessionTwo.sent, hasLength(1));
+      },
+    );
+
+    test(
       'enabled actor echo reaches actor and other affected sessions',
       () async {
         final dependencies = _Dependencies();

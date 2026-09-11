@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import '../session/websocket_session_handler_base.dart';
+import 'package:tentura_server/consts/realtime_consts.dart';
 import 'package:tentura_server/domain/entity/room_message_snapshot.dart';
 
 /// Fans out validated Postgres invalidation hints to isolate-local sessions.
@@ -34,7 +35,11 @@ base mixin WebsocketPathEntityChanges on WebsocketSessionHandlerBase {
     final sentSessions = <WebSocketSession>{};
     for (final userId in userIds) {
       if (userId is! String || userId.isEmpty || !seen.add(userId)) continue;
-      if (!env.realtimeActorEchoEnabled && userId == actorUserId) continue;
+      if (!env.realtimeActorEchoEnabled &&
+          userId == actorUserId &&
+          !kRealtimeAlwaysEchoKinds.contains(entity)) {
+        continue;
+      }
       for (final session in getSessionsByUserId(userId)) {
         sentSessions.add(session);
       }
