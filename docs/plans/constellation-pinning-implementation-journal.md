@@ -62,7 +62,7 @@ tg_style_research.md
 | P06 Pure composition, budgets and layout | complete (accepted after C6 remediation) | P05 | see P06 C6 remediation |
 | P07 Graph gesture adapter | complete (accepted after C7 long-press remediation) | P06 | see P07 manager review |
 | P08 Placement orchestration and live reconciliation | complete (accepted after C7 remediation) | P07 | see P08 manager re-review |
-| P09 Map/Text controls, filters and status accessibility | pending | P08 | — |
+| P09 Map/Text controls, filters and status accessibility | complete | P08 | see P09 checkpoint |
 | P10 End-to-end and failure acceptance | pending | P09 | — |
 | P11 Full verification and release preparation | pending | P10 | — |
 | P12 Product docs and coordinated activation | pending | P11 | — |
@@ -997,3 +997,54 @@ C8 unchanged and previously accepted.
 STATUS: accepted
 
 REMAINING: **P09** Map/Text controls, filters, status accessibility.
+
+### P09 — Map/Text controls, filters and status accessibility — 2026-09-11 (start)
+
+- Worker started fresh on `feature/pin_constellation` at `2c9a4a82a`.
+- Scope: P09 UI only (no P10 e2e, no version bump). Uses P08 placement API and P07 graph drag hooks; does not edit gesture implementation or Favorites/beacon_pinned.
+- Process baseline: no task-owned runners at start.
+
+### P09 — Map/Text controls, filters and status accessibility — 2026-09-11 (complete)
+
+- **Status presenter:** `constellation_request_status_marker.dart` validates raw status ∈ `{0,7,8,5,4,6}` before `BeaconStatus.fromSmallint`; unknown rejected; five tones/icons per C2; independent pin glyph (`push_pin`).
+- **Controls:** `constellation_anchor_controls.dart` — person-panel decorator, preview/text Pin/Unpin, map-only Pin here/Cancel bar; preview sheet re-provides `ConstellationCubit` to modal route.
+- **Filters:** membership `showClosed` / `participatedOnly` (default off, screen-session); hidden-pin count = server ∪ local eligible IDs; Clear resets membership + local defaults (Show closed stays off); disabled when already default.
+- **GraphView:** ego non-draggable; drag hooks wired to cubit; `nodePaintOrder` from anchor paint order; Escape + route deactivate cancel placement.
+- **Legend:** constellation mode adds five status rows + pin row.
+- **l10n:** en+ru Request terminology; stable `TestIds` for pin/unpin, Pin here, Cancel, filters, hidden count, markers.
+- Commands (serial, `--no-pub`):
+  - `cd packages/client && flutter gen-l10n` → exit 0
+  - `cd packages/client && flutter test --no-pub test/features/constellation/constellation_anchor_interaction_test.dart test/features/constellation/constellation_anchor_cubit_test.dart test/features/constellation/constellation_text_view_test.dart test/features/constellation/constellation_preview_test.dart test/features/graph/graph_legend_test.dart` → 61 passed
+
+STATUS: complete
+
+COMMITS: (this journal commit follows code commits)
+
+TESTS:
+- `cd packages/client && flutter gen-l10n` → exit 0
+- focused suite above → 61 passed
+
+FILES:
+- packages/client/l10n/app_en.arb, app_ru.arb
+- packages/client/lib/ui/test_ids.dart
+- packages/client/lib/features/constellation/ui/widget/constellation_request_status_marker.dart
+- packages/client/lib/features/constellation/ui/widget/constellation_anchor_controls.dart
+- packages/client/lib/features/constellation/ui/bloc/constellation_cubit.dart
+- packages/client/lib/features/constellation/ui/widget/constellation_filter_bar.dart
+- packages/client/lib/features/constellation/ui/widget/constellation_app_bar.dart
+- packages/client/lib/features/constellation/ui/widget/constellation_body.dart
+- packages/client/lib/features/constellation/ui/widget/constellation_text_view.dart
+- packages/client/lib/features/constellation/ui/widget/constellation_request_preview_sheet.dart
+- packages/client/lib/features/constellation/ui/widget/constellation_request_label.dart
+- packages/client/lib/features/constellation/ui/screen/constellation_screen.dart
+- packages/client/lib/features/graph/ui/widget/graph_legend_content.dart
+- packages/client/test/features/constellation/constellation_anchor_interaction_test.dart
+- packages/client/test/features/constellation/constellation_preview_test.dart
+- docs/plans/constellation-pinning-implementation-journal.md
+
+FINDINGS:
+- Preview bottom sheet route needs explicit `BlocProvider.value` for anchor Pin/Unpin (modal context is outside body providers).
+- `tt.border` open-status icon is the prescribed C2 tone but does not meet 3:1 on bare `surface`; contrast test asserts token binding for open and ≥3:1 for saturated statuses + pin.
+- `constellation_body_test.dart` not in P09 focused suite; still may fail on stale l10n if run in isolation (pre-existing debt per P01 journal).
+
+REMAINING: P10 e2e / P11 full verification (out of P09 scope).

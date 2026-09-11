@@ -2,14 +2,20 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
+import 'package:logging/logging.dart';
+import 'package:tentura/domain/entity/profile.dart';
+import 'package:tentura/env.dart';
+import 'package:tentura/features/constellation/domain/entity/constellation_anchor_projection.dart';
 import 'package:tentura/features/constellation/domain/entity/constellation_field.dart';
+import 'package:tentura/features/constellation/domain/port/constellation_repository_port.dart';
+import 'package:tentura/features/constellation/domain/use_case/constellation_field_case.dart';
+import 'package:tentura/features/constellation/ui/bloc/constellation_cubit.dart';
 import 'package:tentura/features/constellation/ui/widget/constellation_request_label.dart';
 import 'package:tentura/features/constellation/ui/widget/constellation_request_preview_sheet.dart';
 import 'package:tentura/features/graph/domain/entity/node_details.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:tentura/features/graph/ui/bloc/graph_person_context_cubit.dart';
 import 'package:tentura/features/graph/ui/widget/graph_person_context_panel.dart';
-import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
@@ -33,6 +39,35 @@ class _StubContextCubit extends Cubit<GraphPersonContextState>
 
   @override
   void clearSelection() {}
+}
+
+const _ego = Profile(id: 'ego', displayName: 'Ego');
+
+final class _StubRepository implements ConstellationRepositoryPort {
+  @override
+  Future<ConstellationField> fetch({
+    ConstellationFieldMembershipFilters membershipFilters =
+        ConstellationFieldMembershipFilters.defaults,
+    ConstellationProjection projection = ConstellationProjection.full,
+  }) async =>
+      ConstellationField(
+        loadedAt: DateTime.utc(2026, 9, 13),
+        context: '',
+      );
+}
+
+Future<ConstellationCubit> _previewCubit() async {
+  final cubit = ConstellationCubit(
+    case_: ConstellationFieldCase(
+      _StubRepository(),
+      env: const Env.fromEnvironment(),
+      logger: Logger('ConstellationPreviewTest'),
+    ),
+    viewer: _ego,
+    loadOnCreate: false,
+  );
+  await cubit.load();
+  return cubit;
 }
 
 const _forbiddenFragments = <String>[
@@ -70,6 +105,7 @@ Future<void> _pumpPreview(
   required ConstellationRequest request,
   String connectionThroughName = 'Bob',
 }) async {
+  final cubit = await _previewCubit();
   await tester.pumpWidget(
     MaterialApp(
       locale: const Locale('en'),
@@ -77,21 +113,24 @@ Future<void> _pumpPreview(
       localizationsDelegates: L10n.localizationsDelegates,
       supportedLocales: L10n.supportedLocales,
       home: TenturaResponsiveScope(
-        child: Builder(
-          builder: (context) => Scaffold(
-            body: Center(
-              child: ElevatedButton(
-                onPressed: () => showConstellationRequestPreviewSheet(
-                  context: context,
-                  request: request,
-                  authorDisplayName: 'Ann',
-                  connectionThroughName: connectionThroughName,
-                  onOpen: () {},
-                  onPrimaryAction: () {},
-                  onForward: () {},
-                  now: DateTime.utc(2026, 9, 13, 12),
+        child: BlocProvider<ConstellationCubit>.value(
+          value: cubit,
+          child: Builder(
+            builder: (context) => Scaffold(
+              body: Center(
+                child: ElevatedButton(
+                  onPressed: () => showConstellationRequestPreviewSheet(
+                    context: context,
+                    request: request,
+                    authorDisplayName: 'Ann',
+                    connectionThroughName: connectionThroughName,
+                    onOpen: () {},
+                    onPrimaryAction: () {},
+                    onForward: () {},
+                    now: DateTime.utc(2026, 9, 13, 12),
+                  ),
+                  child: const Text('Open preview'),
                 ),
-                child: const Text('Open preview'),
               ),
             ),
           ),
