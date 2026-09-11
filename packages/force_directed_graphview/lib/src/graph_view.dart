@@ -8,6 +8,7 @@ import 'package:force_directed_graphview/src/configuration.dart';
 import 'package:force_directed_graphview/src/util/extensions.dart';
 import 'package:force_directed_graphview/src/widget/graph_layout_view.dart';
 import 'package:force_directed_graphview/src/widget/inherited_configuration.dart';
+import 'package:force_directed_graphview/src/widget/node_drag_gesture.dart';
 import 'package:vector_math/vector_math_64.dart';
 
 part 'controller.dart';
@@ -36,6 +37,12 @@ class GraphView<N extends NodeBase, E extends EdgeBase<N>>
     this.maxScale = 2,
     this.layoutTransitionDuration = Duration.zero,
     this.layoutTransitionCurve = Curves.easeOutCubic,
+    this.canDragNode,
+    this.onNodeDragStart,
+    this.onNodeDragUpdate,
+    this.onNodeDragEnd,
+    this.onNodeDragCancel,
+    this.nodePaintOrder,
     super.key,
   });
 
@@ -86,6 +93,25 @@ class GraphView<N extends NodeBase, E extends EdgeBase<N>>
 
   /// Easing used for [layoutTransitionDuration].
   final Curve layoutTransitionCurve;
+
+  /// Optional predicate for draggable nodes when node-drag hooks are enabled.
+  final CanDragNodePredicate<N>? canDragNode;
+
+  /// Optional node-drag lifecycle hooks. When all are null the graph keeps the
+  /// stock [InteractiveViewer] behaviour.
+  final NodeDragStartCallback<N>? onNodeDragStart;
+
+  /// { @nodoc }
+  final NodeDragUpdateCallback<N>? onNodeDragUpdate;
+
+  /// { @nodoc }
+  final NodeDragEndCallback<N>? onNodeDragEnd;
+
+  /// { @nodoc }
+  final NodeDragCancelCallback<N>? onNodeDragCancel;
+
+  /// Optional shared paint/hit order. Later entries paint and hit-test on top.
+  final List<N>? nodePaintOrder;
 
   @override
   State<GraphView<N, E>> createState() => _GraphViewState<N, E>();
@@ -146,19 +172,102 @@ class _GraphViewState<N extends NodeBase, E extends EdgeBase<N>>
         layoutAlgorithm: widget.layoutAlgorithm,
         canvasBackgroundBuilder: widget.canvasBackgroundBuilder,
         builder: widget.builder,
+        canDragNodePredicate: widget.canDragNode == null
+            ? null
+            : (node) => widget.canDragNode!(node as N),
+        onNodeDragStart: widget.onNodeDragStart == null
+            ? null
+            : (node, position) =>
+                widget.onNodeDragStart!(node as N, position),
+        onNodeDragUpdate: widget.onNodeDragUpdate == null
+            ? null
+            : (node, position) =>
+                widget.onNodeDragUpdate!(node as N, position),
+        onNodeDragEnd: widget.onNodeDragEnd == null
+            ? null
+            : (node, position) => widget.onNodeDragEnd!(node as N, position),
+        onNodeDragCancel: widget.onNodeDragCancel == null
+            ? null
+            : (node) => widget.onNodeDragCancel!(node as N),
+        nodePaintOrder: widget.nodePaintOrder?.cast<NodeBase>(),
       ),
-      child: InteractiveViewer.builder(
+      child: _CameraGatedInteractiveViewer(
+        controller: widget.controller,
         transformationController: _transformationController,
-        maxScale: widget.maxScale,
         minScale: widget.minScale,
-        builder: (context, viewport) {
-          // Build method is not intended to produce any side effects,
-          // but viewport-producing code is internal to InteractiveViewer,
-          // so to avoid duplicating it, this little workaround is used.
-          widget.controller._updateViewport(viewport);
-          return const GraphLayoutView();
-        },
+        maxScale: widget.maxScale,
       ),
+    );
+  }
+}
+
+class _CameraGatedInteractiveViewer extends StatefulWidget {
+  const _CameraGatedInteractiveViewer({
+    required this.controller,
+    required this.transformationController,
+    required this.minScale,
+    required this.maxScale,
+  });
+
+  final GraphController controller;
+  final TransformationController transformationController;
+  final double minScale;
+  final double maxScale;
+
+  @override
+  State<_CameraGatedInteractiveViewer> createState() =>
+      _CameraGatedInteractiveViewerState();
+}
+
+class _CameraGatedInteractiveViewerState
+    extends State<_CameraGatedInteractiveViewer> {
+  var _cameraGated = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _cameraGated = widget.controller.isCameraGated;
+    widget.controller.addListener(_onControllerChanged);
+  }
+
+  @override
+  void didUpdateWidget(covariant _CameraGatedInteractiveViewer oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.controller != widget.controller) {
+      oldWidget.controller.removeListener(_onControllerChanged);
+      _cameraGated = widget.controller.isCameraGated;
+      widget.controller.addListener(_onControllerChanged);
+    }
+  }
+
+  @override
+  void dispose() {
+    widget.controller.removeListener(_onControllerChanged);
+    super.dispose();
+  }
+
+  void _onControllerChanged() {
+    final gated = widget.controller.isCameraGated;
+    if (gated == _cameraGated) {
+      return;
+    }
+    setState(() => _cameraGated = gated);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return InteractiveViewer.builder(
+      transformationController: widget.transformationController,
+      maxScale: widget.maxScale,
+      minScale: widget.minScale,
+      panEnabled: !_cameraGated,
+      scaleEnabled: !_cameraGated,
+      builder: (context, viewport) {
+        widget.controller._updateViewport(viewport);
+        return const NodeDragGesture(
+          child: GraphLayoutView(),
+        );
+      },
     );
   }
 }
