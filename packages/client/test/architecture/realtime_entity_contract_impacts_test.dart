@@ -124,6 +124,9 @@ const impactSubscribers = <String, List<String>>{
   'beacon_hierarchy_parent_reference': [
     'packages/client/lib/features/beacon_threads/ui/bloc/beacon_hierarchy_cubit.dart',
   ],
+  'constellation_anchors': [
+    'packages/client/lib/features/constellation/domain/use_case/constellation_anchor_case.dart',
+  ],
 };
 
 void main() {

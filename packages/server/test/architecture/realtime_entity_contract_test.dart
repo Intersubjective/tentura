@@ -18,6 +18,7 @@ void main() {
         'm0133.dart',
         'm0159.dart',
         'm0165.dart',
+        'm0167.dart',
       ])
         File.fromUri(
           repoRoot.uri.resolve(
@@ -71,6 +72,7 @@ void main() {
         'notify_beacon_hierarchy_admission_change',
         'notify_beacon_hierarchy_beacon_change',
         'notify_beacon_hierarchy_promotion_change',
+        'notify_constellation_anchor_change',
         'notify_invite_seed_prompt_state_change',
         'notify_notification_outbox_delete',
         'notify_notification_outbox_insert',

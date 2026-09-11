@@ -24,6 +24,7 @@ enum RealtimeEntityKind {
   profile,
   notification,
   beaconHierarchy,
+  constellationAnchor,
   inviteSeedPrompt,
   ;
 
@@ -47,6 +48,7 @@ enum RealtimeEntityKind {
     'profile' => RealtimeEntityKind.profile,
     'notification' => RealtimeEntityKind.notification,
     'beacon_hierarchy' => RealtimeEntityKind.beaconHierarchy,
+    'constellation_anchor' => RealtimeEntityKind.constellationAnchor,
     'invite_seed_prompt' => RealtimeEntityKind.inviteSeedPrompt,
     _ => null,
   };

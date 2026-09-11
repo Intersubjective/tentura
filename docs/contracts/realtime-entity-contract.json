@@ -196,6 +196,18 @@
       ]
     },
     {
+      "wireKind": "constellation_anchor",
+      "acceptedWireKinds": ["constellation_anchor"],
+      "clientKind": "constellationAnchor",
+      "genericTriggerArgs": [],
+      "specializedPublishers": ["notify_constellation_anchor_change"],
+      "impacts": ["constellation_anchors"],
+      "tests": [
+        "packages/client/test/features/constellation/constellation_anchor_case_test.dart",
+        "packages/client/test/features/constellation/constellation_anchor_cubit_test.dart"
+      ]
+    },
+    {
       "wireKind": "invite_seed_prompt",
       "acceptedWireKinds": ["invite_seed_prompt"],
       "clientKind": "inviteSeedPrompt",

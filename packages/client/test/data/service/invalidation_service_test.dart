@@ -212,6 +212,7 @@ void main() {
           'profile': RealtimeEntityKind.profile,
           'notification': RealtimeEntityKind.notification,
           'invite_seed_prompt': RealtimeEntityKind.inviteSeedPrompt,
+          'constellation_anchor': RealtimeEntityKind.constellationAnchor,
         };
 
         for (final entry in wireKinds.entries) {
