@@ -125,3 +125,43 @@ operational and product documentation only after those gates are accounted for.
 - Note: repo-wide `check-custom-lints.sh packages/client` still reports
   pre-existing unrelated analyzer errors (e.g. missing L10n getters); P01
   constellation stub overrides were updated.
+
+STATUS: complete
+
+COMMITS:
+- bab241abc feat(constellation): add P01 anchor domain types and contract fixtures
+
+TESTS:
+- `cd packages/client && flutter test test/features/constellation/constellation_anchor_domain_test.dart` → 31 passed
+- `cd packages/server && dart test test/domain/entity/constellation_anchor_domain_test.dart` → 30 passed
+- `cd packages/server && dart test test/domain/use_case/constellation_field_case_test.dart` → 13 passed
+- `dart analyze` on P01-owned client/server paths → exit 0 (info only)
+
+FILES:
+- packages/client/lib/features/constellation/domain/entity/constellation_anchor.dart
+- packages/client/lib/features/constellation/domain/entity/constellation_anchor_projection.dart
+- packages/client/lib/features/constellation/domain/entity/constellation_field.dart
+- packages/client/lib/features/constellation/domain/constellation_consts.dart
+- packages/client/lib/features/constellation/domain/port/constellation_repository_port.dart
+- packages/client/lib/features/constellation/data/repository/constellation_repository.dart
+- packages/client/test/features/constellation/constellation_anchor_*.dart
+- packages/client/test/features/constellation/constellation_*_test.dart (stub fetch signature)
+- packages/server/lib/domain/entity/constellation_anchor.dart
+- packages/server/lib/domain/entity/constellation_anchor_projection.dart
+- packages/server/lib/domain/entity/constellation_field.dart
+- packages/server/lib/domain/port/constellation_field_repository_port.dart
+- packages/server/lib/consts/constellation_consts.dart
+- packages/server/test/domain/entity/constellation_anchor_*.dart
+- docs/plans/constellation-pinning-implementation-journal.md
+
+FINDINGS:
+- `BigInt` / `static final` empty projection required because const defaults
+  cannot reference `BigInt.zero` or non-const `empty` singletons in Freezed.
+- Client `ConstellationField.anchorProjection` is nullable; use
+  `resolvedAnchorProjection` for empty-default semantics until P05 fills wire data.
+- `ConstellationFieldSnapshot` lost `const` constructor on server due to
+  non-const default anchor projection.
+- Revision `9007199254740992` (2^53) is valid and still JS-safe-integer; first
+  value strictly above 2^53 is `9007199254740993`.
+
+REMAINING: none for P01 (P02 migration/storage is next per plan).
