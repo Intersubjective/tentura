@@ -56,7 +56,7 @@ tg_style_research.md
 |---|---|---|---|
 | P01 Contract fixtures and domain types | complete | — | see checkpoint below |
 | P02 Migration and storage adapter | complete (concurrency-proof remediated) | P01 | see checkpoint below |
-| P03 Server membership and complete snapshot | complete | P02 | see checkpoint below |
+| P03 Server membership and complete snapshot | complete (remediated) | P02 | see checkpoint below |
 | P04 Authenticated V2 API | pending | P03 | — |
 | P05 Client wire adapters and server echo policy | pending | P04 | — |
 | P06 Pure composition, budgets and layout | pending | P05 | — |
@@ -317,6 +317,60 @@ FINDINGS:
   for pinned Beacon classification; wire mapping unchanged until P04.
 
 REMAINING: P04 GraphQL/API (`constellationField` args, anchor mutations, exception codes).
+
+### P03 remediation — manager review — 2026-09-11
+
+- **Finding 1 (ring/residual):** `_buildAnchorProjection` now unions
+  `resolution.ring` into support peers (excluding pinned people), expands path
+  `visiblePeerIds` with `pathHolderIds` for pinned closure, and loads author
+  profiles for pinned Requests. No fabricated trust edges for ring holders.
+- **Finding 2 (C2 coverage):** Added
+  `constellation_field_selection_test.dart` (lifecycle statuses 0/7/8/5/4/6,
+  dormant cancelled/unknown, `participatedOnly`) and disposable-DB
+  `constellation_viewer_participates_sql_test.dart` (author, commitment,
+  admission, participant, active offer, decline-only, forward-only exclusion).
+- **Finding 3 (`serverFilteredBeaconIds`):** PG proofs for sorted deduped
+  lifecycle filter-hidden IDs, cancelled dormant pins omitted from filter list,
+  `participatedOnly` filter-hidden vs visible transitions.
+- **Finding 4 (FULL/ANCHORS):** Orphan-author residual test runs both
+  projections; ANCHORS automatic arrays stay empty.
+- **Finding 5 (C4 cache):** PG readonly snapshot still skips cache writes;
+  added RW `person_are_mutually_visible_cached` population proof.
+- **Probe:** Removed global `constellationFieldSnapshotOpenProbe`; PG isolation
+  proof uses `@visibleForTesting snapshotOpenProbe` on
+  `ConstellationFieldRepository` only.
+- Commands (serial):
+  - `cd packages/server && dart test test/domain/use_case/constellation_field_case_test.dart -j 1` → 15 passed
+  - `cd packages/server && dart test test/data/repository/constellation_field_repository_pg_test.dart -j 1` → 22 passed
+  - `cd packages/server && dart test test/domain/constellation/constellation_field_selection_test.dart test/domain/constellation/constellation_viewer_participates_sql_test.dart test/domain/constellation/constellation_path_resolution_test.dart -j 1` → 17 passed
+  - `./scripts/check-custom-lints.sh packages/server` → exit 0
+
+STATUS: complete (remediated; prior 5ffaac2c8 / eea5dccaf superseded by 8867e7759)
+
+COMMITS:
+- 8867e7759 fix(server): remediate P03 anchor closure and C2 test coverage
+
+TESTS: see Commands above (all exit 0)
+
+FILES:
+- packages/server/lib/data/repository/constellation_field_repository.dart
+- packages/server/lib/data/repository/constellation_field_snapshot_reader.dart
+- packages/server/test/data/repository/constellation_field_repository_pg_test.dart
+- packages/server/test/domain/constellation/constellation_field_selection_test.dart
+- packages/server/test/domain/constellation/constellation_viewer_participates_sql_test.dart
+- packages/server/test/domain/constellation/constellation_path_resolution_test.dart
+
+FINDINGS:
+- Prior commits omitted ring holders from anchor support peers and did not union
+  holders into path visibility for closure edge filtering.
+- Participation SQL still treats any historical admission `action IN (0,1)` as
+  participation even after a later decline-only row; decline exclusion is
+  exercised only when no prior admit/accept row exists (matches live SQL).
+- Live PG `constellation_trust_edges` in the field-repository harness needs the
+  full merit/trust seed used in `constellation_trust_edges_pg_test.dart`; path
+  closure with support edges is covered in pure resolver tests instead.
+
+REMAINING: P04 GraphQL/API.
 
 ### P02 concurrency-proof remediation — 2026-09-11
 
