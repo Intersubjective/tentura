@@ -1,18 +1,29 @@
 import 'package:drift/drift.dart' show Variable;
 import 'package:injectable/injectable.dart';
-import 'package:postgres/postgres.dart' show ServerException;
-
 import 'package:tentura_server/domain/entity/constellation_anchor.dart';
 import 'package:tentura_server/domain/port/constellation_anchor_repository_port.dart';
 import 'package:tentura_server/utils/id.dart';
 
+import '../database/postgres_serialization_retry.dart';
 import '../database/tentura_db.dart' hide ConstellationAnchor;
+
+typedef ConstellationAnchorTransactionRetry =
+    Future<T> Function<T>(
+  Future<T> Function() action, {
+  int maxRetries,
+  bool Function(Object error)? isRetryable,
+});
 
 @LazySingleton(as: ConstellationAnchorRepositoryPort)
 class ConstellationAnchorRepository implements ConstellationAnchorRepositoryPort {
-  ConstellationAnchorRepository(this._db);
+  ConstellationAnchorRepository(
+    this._db, {
+    ConstellationAnchorTransactionRetry? transactionRetry,
+  }) : _transactionRetry =
+            transactionRetry ?? withPostgresDeadlockOrSerializationRetry;
 
   final TenturaDb _db;
+  final ConstellationAnchorTransactionRetry _transactionRetry;
 
   @override
   Future<ConstellationAnchorUpsertResult> upsertAnchor({
@@ -20,7 +31,7 @@ class ConstellationAnchorRepository implements ConstellationAnchorRepositoryPort
     required ConstellationAnchorTarget target,
     required ConstellationAnchorPosition position,
   }) =>
-      _withDeadlockRetry(
+      _transactionRetry(
         () => _db.withMutatingUser(
           viewerId,
           () => _upsertAnchor(
@@ -36,7 +47,7 @@ class ConstellationAnchorRepository implements ConstellationAnchorRepositoryPort
     required String viewerId,
     required ConstellationAnchorTarget target,
   }) =>
-      _withDeadlockRetry(
+      _transactionRetry(
         () => _db.withMutatingUser(
           viewerId,
           () => _deleteAnchor(viewerId: viewerId, target: target),
@@ -373,21 +384,4 @@ SELECT public.emit_realtime_entity_change_strict(
     );
   }
 
-  Future<T> _withDeadlockRetry<T>(Future<T> Function() action) async {
-    try {
-      return await action();
-    } on Object catch (error) {
-      if (!_isDeadlockOrSerialization(error)) {
-        rethrow;
-      }
-      return action();
-    }
-  }
-
-  bool _isDeadlockOrSerialization(Object error) {
-    if (error is ServerException) {
-      return error.code == '40P01' || error.code == '40001';
-    }
-    return false;
-  }
 }
