@@ -61,7 +61,7 @@ tg_style_research.md
 | P05 Client wire adapters and server echo policy | complete (accepted) | P04 | see P05a/P05b checkpoints |
 | P06 Pure composition, budgets and layout | complete (accepted after C6 remediation) | P05 | see P06 C6 remediation |
 | P07 Graph gesture adapter | complete (accepted after C7 long-press remediation) | P06 | see P07 manager review |
-| P08 Placement orchestration and live reconciliation | rejected (C8 accepted; C7 cubit remediation) | P07 | see P08 manager review |
+| P08 Placement orchestration and live reconciliation | complete (C8 accepted; C7 remediated) | P07 | see P08 C7 remediation |
 | P09 Map/Text controls, filters and status accessibility | pending | P08 | — |
 | P10 End-to-end and failure acceptance | pending | P09 | — |
 | P11 Full verification and release preparation | pending | P10 | — |
@@ -929,3 +929,45 @@ COMMITS reviewed:
 - 2ec4b2651 docs: record P08 constellation placement checkpoint with commit SHAs
 
 REMAINING: C7 cubit/case remediation worker, then P09.
+
+### P08 C7 remediation — 2026-09-11
+
+- Addressed all seven manager-review C7 gaps while keeping C8 unchanged.
+- **Case:** `syncMembershipFilters` + stored filters for websocket/catch-up ANCHORS;
+  `adoptConfirmedProjection` rejects older revisions; `onAccountChanged` returns a
+  single bumped generation.
+- **Cubit/state:** `hasPendingPlacementWrite` includes `draggingNew`; drop/confirm keep
+  `activePlacementTarget` through in-flight writes; per-target defer merge during
+  drag/provisional/pending write; stale FULL load keeps newer confirmed anchors;
+  FULL load uses snapshot `loadedAt` (no `asOfUtc` pin); selection reconciled against
+  composed eligible IDs; `syncPending` follows case on refresh hints.
+- Commands (serial, `--no-pub`):
+  - `cd packages/client && flutter test test/features/constellation/constellation_anchor_case_test.dart test/features/constellation/constellation_anchor_cubit_test.dart test/features/constellation/constellation_freshness_test.dart` → 33 passed
+
+STATUS: complete (pending manager re-review)
+
+COMMITS:
+- 14bf2e132 fix(client): remediate P08 C7 anchor case reconciliation
+- 658941d25 fix(client): remediate P08 C7 constellation placement cubit
+- f471e180a test(client): cover P08 C7 constellation anchor remediation
+
+TESTS:
+- `cd packages/client && flutter test --no-pub test/features/constellation/constellation_anchor_case_test.dart test/features/constellation/constellation_anchor_cubit_test.dart test/features/constellation/constellation_freshness_test.dart` → 33 passed
+
+FILES:
+- packages/client/lib/features/constellation/domain/use_case/constellation_anchor_case.dart
+- packages/client/lib/features/constellation/ui/bloc/constellation_cubit.dart
+- packages/client/lib/features/constellation/ui/bloc/constellation_state.dart
+- packages/client/test/features/constellation/constellation_anchor_case_test.dart
+- packages/client/test/features/constellation/constellation_anchor_cubit_test.dart
+- docs/plans/constellation-pinning-implementation-journal.md
+
+FINDINGS:
+- Per-target defer uses presentation baseline anchor coordinates while confirmed cache
+  still advances to the newest server revision.
+- Failed-write ANCHORS settle can apply before reconnect catch-up; cubit must mirror
+  `syncPending` from the case on refresh hints, not only on write outcomes.
+- `constellation_freshness_test.dart` optional-anchor cubit construction remains valid.
+
+REMAINING: P09 Map/Text controls and accessibility wiring (do not start until C7
+remediation is manager-accepted).
