@@ -1,11 +1,17 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/features/beacon/ui/widget/coordination_ui.dart';
 import 'package:tentura/features/constellation/domain/entity/constellation_field.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'constellation_anchor_controls.dart';
 import 'constellation_request_label.dart';
+import 'constellation_request_status_marker.dart';
+
+import '../../domain/entity/constellation_anchor.dart';
+import '../bloc/constellation_cubit.dart';
 
 /// Primary action label for the preview action matrix (held state × coverage).
 String constellationPreviewPrimaryActionLabel(
@@ -44,18 +50,22 @@ Future<void> showConstellationRequestPreviewSheet({
   VoidCallback? onForward,
   DateTime? now,
 }) {
+  final cubit = context.read<ConstellationCubit>();
   return showModalBottomSheet<void>(
     context: context,
     isScrollControlled: true,
     showDragHandle: true,
-    builder: (sheetContext) => ConstellationRequestPreviewSheet(
-      request: request,
-      authorDisplayName: authorDisplayName,
-      connectionThroughName: connectionThroughName,
-      onOpen: onOpen,
-      onPrimaryAction: onPrimaryAction,
-      onForward: onForward,
-      now: now,
+    builder: (sheetContext) => BlocProvider.value(
+      value: cubit,
+      child: ConstellationRequestPreviewSheet(
+        request: request,
+        authorDisplayName: authorDisplayName,
+        connectionThroughName: connectionThroughName,
+        onOpen: onOpen,
+        onPrimaryAction: onPrimaryAction,
+        onForward: onForward,
+        now: now,
+      ),
     ),
   );
 }
@@ -112,9 +122,31 @@ class ConstellationRequestPreviewSheet extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.stretch,
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text(
-              constellationNeedText(l10n, request),
-              style: theme.textTheme.titleMedium,
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Text(
+                    constellationNeedText(l10n, request),
+                    style: theme.textTheme.titleMedium,
+                  ),
+                ),
+                SizedBox(width: tt.tightGap),
+                BlocBuilder<ConstellationCubit, ConstellationState>(
+                  buildWhen: (previous, current) =>
+                      previous.graphRevision != current.graphRevision ||
+                      previous.field != current.field,
+                  builder: (context, _) {
+                    final cubit = context.read<ConstellationCubit>();
+                    return ConstellationRequestStatusMarker(
+                      rawStatus: request.status,
+                      isPinned: cubit.isAnchored(
+                        ConstellationAnchorTarget.beacon(request.id),
+                      ),
+                    );
+                  },
+                ),
+              ],
             ),
             if (heldAnnotation != null) ...[
               SizedBox(height: tt.tightGap),
@@ -188,6 +220,11 @@ class ConstellationRequestPreviewSheet extends StatelessWidget {
                 label: Text(l10n.labelForward),
               ),
             ],
+            SizedBox(height: tt.rowGap),
+            ConstellationAnchorTargetButton(
+              target: ConstellationAnchorTarget.beacon(request.id),
+              filled: true,
+            ),
           ],
         ),
       ),

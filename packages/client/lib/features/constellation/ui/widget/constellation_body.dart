@@ -4,6 +4,7 @@ import 'dart:math' as math;
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/semantics.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:force_directed_graphview/force_directed_graphview.dart';
 
@@ -23,13 +24,20 @@ import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/test_ids.dart';
 import 'package:tentura/ui/widget/linear_pi_active.dart';
 
+import '../../domain/entity/constellation_anchor.dart';
 import '../../domain/entity/constellation_field.dart';
 import '../bloc/constellation_cubit.dart';
+import 'constellation_anchor_controls.dart';
 import 'constellation_filter_bar.dart';
+import 'constellation_request_status_marker.dart';
 import 'constellation_overflow_group.dart';
 import 'constellation_request_label.dart';
 import 'constellation_request_preview_sheet.dart';
 import 'constellation_text_view.dart';
+
+class _CancelPlacementIntent extends Intent {
+  const _CancelPlacementIntent();
+}
 
 class ConstellationBody extends StatefulWidget {
   const ConstellationBody({
@@ -290,17 +298,20 @@ class _ConstellationBodyState extends State<ConstellationBody> {
     }
 
     final tt = context.tt;
-    final panel = GraphPersonContextPanel(
-      profile: profile,
-      focusedNode: UserNode(user: profile),
-      discoverableRequests: cubit.discoverableRequestsForPerson(personId),
-      requestsExpanded: state.expandedPersonIds.contains(personId),
-      onToggleRequestsExpanded: () =>
-          cubit.togglePersonRequestsExpanded(personId),
-      onDiscoverableRequestTap: (request) {
-        cubit.selectPerson(null);
-        cubit.selectRequest(request.id);
-      },
+    final panel = ConstellationPersonContextDecorator(
+      personId: personId,
+      child: GraphPersonContextPanel(
+        profile: profile,
+        focusedNode: UserNode(user: profile),
+        discoverableRequests: cubit.discoverableRequestsForPerson(personId),
+        requestsExpanded: state.expandedPersonIds.contains(personId),
+        onToggleRequestsExpanded: () =>
+            cubit.togglePersonRequestsExpanded(personId),
+        onDiscoverableRequestTap: (request) {
+          cubit.selectPerson(null);
+          cubit.selectRequest(request.id);
+        },
+      ),
     );
 
     if (context.windowClass == WindowClass.compact) {
@@ -384,7 +395,9 @@ class _ConstellationBodyState extends State<ConstellationBody> {
             previous.filterLocation != current.filterLocation ||
             previous.filterTiming != current.filterTiming ||
             previous.filterIncludeUnspecified !=
-                current.filterIncludeUnspecified,
+                current.filterIncludeUnspecified ||
+            previous.placementPhase != current.placementPhase ||
+            previous.membershipFilters != current.membershipFilters,
         builder: (context, state) {
           final cubit = context.read<ConstellationCubit>();
           final tt = context.tt;
@@ -433,7 +446,23 @@ class _ConstellationBodyState extends State<ConstellationBody> {
 
           final panelVisible = state.selectedPersonId != null;
 
-          return LayoutBuilder(
+          return Shortcuts(
+            shortcuts: const {
+              SingleActivator(LogicalKeyboardKey.escape):
+                  _CancelPlacementIntent(),
+            },
+            child: Actions(
+              actions: {
+                _CancelPlacementIntent: CallbackAction<_CancelPlacementIntent>(
+                  onInvoke: (_) {
+                    cubit.cancelPlacement();
+                    return null;
+                  },
+                ),
+              },
+              child: Focus(
+                autofocus: true,
+                child: LayoutBuilder(
             builder: (context, constraints) {
               _syncLabelBudget(
                 context,
@@ -481,6 +510,9 @@ class _ConstellationBodyState extends State<ConstellationBody> {
                 ],
               );
             },
+          ),
+              ),
+            ),
           );
         },
       ),
@@ -504,6 +536,51 @@ class _ConstellationBodyState extends State<ConstellationBody> {
                 maxScale: 3,
                 layoutAlgorithm: layoutAlgorithm,
                 layoutTransitionDuration: const Duration(milliseconds: 350),
+                canDragNode: cubit.canDragNode,
+                onNodeDragStart: (node, position) {
+                  final target = cubit.anchorTargetForNode(node);
+                  if (target == null) {
+                    return;
+                  }
+                  if (cubit.isAnchored(target)) {
+                    cubit.beginDragExisting(target: target);
+                  } else {
+                    cubit.beginDragNew(target: target);
+                  }
+                },
+                onNodeDragUpdate: (node, position) {
+                  cubit.updateDragPresentation(
+                    nodeId: node.id,
+                    sceneCentre: position,
+                  );
+                },
+                onNodeDragEnd: (node, position) {
+                  final target = cubit.anchorTargetForNode(node);
+                  if (target == null) {
+                    return;
+                  }
+                  switch (cubit.state.placementPhase) {
+                    case ConstellationPlacementPhase.draggingExisting:
+                      unawaited(
+                        cubit.onExistingNodeDrop(
+                          target: target,
+                          sceneCentre: position,
+                        ),
+                      );
+                    case ConstellationPlacementPhase.draggingNew:
+                      unawaited(
+                        cubit.onNewNodeDrop(
+                          target: target,
+                          sceneCentre: position,
+                        ),
+                      );
+                    case ConstellationPlacementPhase.idle:
+                    case ConstellationPlacementPhase.provisionalNew:
+                      break;
+                  }
+                },
+                onNodeDragCancel: (_) => cubit.onPointerCancelDuringDrag(),
+                nodePaintOrder: cubit.orderedNodesForPaint(),
                 builder: (context, child) => _MapOverflowOverlay(
                   cubit: cubit,
                   child: child,
@@ -535,20 +612,38 @@ class _ConstellationBodyState extends State<ConstellationBody> {
                   },
                 ),
                 nodeBuilder: (_, node) => switch (node) {
-                  FieldPersonNode(:final ring) => GraphNodeWidget(
-                    key: TestIds.key(TestIds.graphNode(node.id)),
-                    nodeDetails: node,
-                    hiddenNeighborCount: null,
-                    isOrigin: ring == 0,
-                    isFocused:
-                        panelVisible && node.id == state.selectedPersonId,
-                    onTap: () => _onNodeTap(context, cubit, node),
-                  ),
-                  FieldRequestNode() => GraphNodeWidget(
-                    key: TestIds.key(TestIds.graphNode(node.id)),
-                    nodeDetails: node,
-                    hiddenNeighborCount: null,
-                    onTap: () => _onNodeTap(context, cubit, node),
+                  FieldPersonNode(:final ring, :final person) =>
+                    _ConstellationMapNode(
+                      child: GraphNodeWidget(
+                        key: TestIds.key(TestIds.graphNode(node.id)),
+                        nodeDetails: node,
+                        hiddenNeighborCount: null,
+                        isOrigin: ring == 0,
+                        isFocused:
+                            panelVisible && node.id == state.selectedPersonId,
+                        onTap: () => _onNodeTap(context, cubit, node),
+                      ),
+                      markers: ConstellationRequestStatusMarker(
+                        rawStatus: null,
+                        isPinned: cubit.isAnchored(
+                          ConstellationAnchorTarget.person(person.id),
+                        ),
+                        showStatus: false,
+                      ),
+                    ),
+                  FieldRequestNode(:final request) => _ConstellationMapNode(
+                    child: GraphNodeWidget(
+                      key: TestIds.key(TestIds.graphNode(node.id)),
+                      nodeDetails: node,
+                      hiddenNeighborCount: null,
+                      onTap: () => _onNodeTap(context, cubit, node),
+                    ),
+                    markers: ConstellationRequestStatusMarker(
+                      rawStatus: request.status,
+                      isPinned: cubit.isAnchored(
+                        ConstellationAnchorTarget.beacon(request.id),
+                      ),
+                    ),
                   ),
                   _ => const SizedBox.shrink(),
                 },
@@ -587,6 +682,14 @@ class _ConstellationBodyState extends State<ConstellationBody> {
                 ),
               if (panelVisible)
                 _buildPersonContextOverlay(context, cubit, state),
+              Positioned(
+                left: 0,
+                right: 0,
+                bottom: 0,
+                child: ConstellationProvisionalPlacementBar(
+                  controller: cubit.graphController,
+                ),
+              ),
             ],
           );
   }
@@ -614,6 +717,32 @@ class _ConstellationBodyState extends State<ConstellationBody> {
     return ConstrainedBox(
       constraints: BoxConstraints(maxHeight: maxHeight),
       child: SingleChildScrollView(child: legend),
+    );
+  }
+}
+
+class _ConstellationMapNode extends StatelessWidget {
+  const _ConstellationMapNode({
+    required this.child,
+    required this.markers,
+  });
+
+  final Widget child;
+  final Widget markers;
+
+  @override
+  Widget build(BuildContext context) {
+    final tt = context.tt;
+    return Stack(
+      clipBehavior: Clip.none,
+      alignment: Alignment.center,
+      children: [
+        child,
+        Positioned(
+          bottom: -tt.iconSize,
+          child: markers,
+        ),
+      ],
     );
   }
 }

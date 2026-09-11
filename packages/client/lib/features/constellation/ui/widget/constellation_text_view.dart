@@ -5,10 +5,13 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
+import '../../domain/entity/constellation_anchor.dart';
 import '../../domain/entity/constellation_field.dart';
 import '../bloc/constellation_cubit.dart';
+import 'constellation_anchor_controls.dart';
 import 'constellation_overflow_group.dart';
 import 'constellation_request_label.dart';
+import 'constellation_request_status_marker.dart';
 
 /// Accessible list alternative to the constellation map (UX6 / §11.3).
 ///
@@ -287,6 +290,16 @@ class _RequestTile extends StatelessWidget {
       request,
       now: loadedAt,
     );
+    final cubit = context.read<ConstellationCubit>();
+    final isPinned = cubit.isAnchored(
+      ConstellationAnchorTarget.beacon(request.id),
+    );
+    final markerSemantics = constellationRequestMarkerSemantics(
+      l10n: l10n,
+      tt: tt,
+      rawStatus: request.status,
+      isPinned: isPinned,
+    );
 
     return Semantics(
       button: true,
@@ -295,6 +308,7 @@ class _RequestTile extends StatelessWidget {
         label,
         if (connectionLabel != null) connectionLabel,
         if (held != null) held,
+        ...markerSemantics,
       ].join('. '),
       child: Material(
         color: selected
@@ -310,9 +324,24 @@ class _RequestTile extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  label,
-                  style: theme.textTheme.bodyMedium,
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: Text(
+                        label,
+                        style: theme.textTheme.bodyMedium,
+                      ),
+                    ),
+                    ConstellationRequestStatusMarker(
+                      rawStatus: request.status,
+                      isPinned: isPinned,
+                    ),
+                  ],
+                ),
+                SizedBox(height: tt.tightGap),
+                ConstellationAnchorTargetButton(
+                  target: ConstellationAnchorTarget.beacon(request.id),
                 ),
                 if (connectionLabel != null) ...[
                   SizedBox(height: tt.tightGap),

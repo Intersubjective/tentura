@@ -10,6 +10,8 @@ import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/beacon_schedule_presenter.dart';
 import 'package:tentura/ui/utils/capability_tag_presenter.dart';
 
+import 'constellation_request_status_marker.dart';
+
 /// Short contribution text for a constellation request label or preview header.
 String constellationNeedText(L10n l10n, ConstellationRequest request) {
   final slug = request.primaryNeedSlug?.trim();
@@ -118,11 +120,13 @@ class ConstellationRequestLabel extends StatelessWidget {
   const ConstellationRequestLabel({
     required this.request,
     this.now,
+    this.isPinned = false,
     super.key,
   });
 
   final ConstellationRequest request;
   final DateTime? now;
+  final bool isPinned;
 
   @override
   Widget build(BuildContext context) {
@@ -150,6 +154,11 @@ class ConstellationRequestLabel extends StatelessWidget {
             textAlign: TextAlign.center,
           ),
         ],
+        SizedBox(height: context.tt.tightGap),
+        ConstellationRequestStatusMarker(
+          rawStatus: request.status,
+          isPinned: isPinned,
+        ),
       ],
     );
   }

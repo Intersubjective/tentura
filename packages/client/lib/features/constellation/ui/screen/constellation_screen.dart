@@ -66,6 +66,13 @@ class _ConstellationScreenState extends State<ConstellationScreen> {
   void _toggleLegend() => setState(() => _legendExpanded = !_legendExpanded);
 
   @override
+  void deactivate() {
+    final cubit = context.read<ConstellationCubit>();
+    cubit.onRouteLeave();
+    super.deactivate();
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: TenturaTopBar.of(

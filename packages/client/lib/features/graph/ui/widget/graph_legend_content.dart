@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'package:tentura/design_system/components/tentura_count_badge.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
+import 'package:tentura/features/constellation/ui/widget/constellation_request_status_marker.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/widget/contact_badge_legend.dart';
 
@@ -203,6 +204,54 @@ class GraphLegendContent extends StatelessWidget {
               ),
             ),
             l10n.graphLegendRequestNode,
+          ),
+          row(
+            const ConstellationRequestStatusMarker(
+              rawStatus: 0,
+              isPinned: false,
+              showPin: false,
+            ),
+            l10n.graphLegendConstellationRequestStatusOpen,
+          ),
+          row(
+            const ConstellationRequestStatusMarker(
+              rawStatus: 7,
+              isPinned: false,
+              showPin: false,
+            ),
+            l10n.graphLegendConstellationRequestStatusNeedsMoreHelp,
+          ),
+          row(
+            const ConstellationRequestStatusMarker(
+              rawStatus: 8,
+              isPinned: false,
+              showPin: false,
+            ),
+            l10n.graphLegendConstellationRequestStatusEnoughHelp,
+          ),
+          row(
+            const ConstellationRequestStatusMarker(
+              rawStatus: 5,
+              isPinned: false,
+              showPin: false,
+            ),
+            l10n.graphLegendConstellationRequestStatusWrappingUp,
+          ),
+          row(
+            const ConstellationRequestStatusMarker(
+              rawStatus: 4,
+              isPinned: false,
+              showPin: false,
+            ),
+            l10n.graphLegendConstellationRequestStatusClosed,
+          ),
+          row(
+            const ConstellationRequestStatusMarker(
+              rawStatus: null,
+              isPinned: true,
+              showStatus: false,
+            ),
+            l10n.graphLegendConstellationPinMarker,
           ),
         ]);
     }
