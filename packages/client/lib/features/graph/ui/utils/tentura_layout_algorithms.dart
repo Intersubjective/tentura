@@ -7,8 +7,10 @@ import 'package:force_directed_graphview/force_directed_graphview.dart';
 import '../../domain/entity/node_details.dart';
 import '../../domain/layout/layered_dag_positions.dart';
 import '../../domain/layout/radial_hop_positions.dart';
+import 'package:tentura/features/constellation/domain/constellation_anchor_composition.dart';
 import 'package:tentura/features/constellation/domain/constellation_layout.dart';
 import 'package:tentura/features/constellation/domain/constellation_path_resolution.dart';
+import 'package:tentura/features/constellation/domain/entity/constellation_anchor.dart';
 
 final class RadialHopLayoutAlgorithm implements GraphLayoutAlgorithm {
   const RadialHopLayoutAlgorithm({
@@ -195,6 +197,14 @@ final class ConstellationLayoutAlgorithm implements GraphLayoutAlgorithm {
     required this.maxHops,
     required this.visibleRequestsByAuthor,
     required this.egoOwnRequestIds,
+    this.pinnedPersonIds = const {},
+    this.pinnedRequestIds = const {},
+    this.supportPersonIds = const {},
+    this.anchorByNodeId = const {},
+    this.priorHints,
+    this.nodeSizes = const {},
+    this.spacing = 16,
+    this.viewportClass = ConstellationViewportClass.expanded,
   });
 
   final String egoId;
@@ -203,15 +213,14 @@ final class ConstellationLayoutAlgorithm implements GraphLayoutAlgorithm {
   final int maxHops;
   final Map<String, List<String>> visibleRequestsByAuthor;
   final Set<String> egoOwnRequestIds;
-
-  @override
-  Stream<GraphLayout> layout({
-    required Set<NodeBase> nodes,
-    required Set<EdgeBase> edges,
-    required Size size,
-  }) {
-    return Stream.value(_buildLayout(nodes: nodes, size: size));
-  }
+  final Set<String> pinnedPersonIds;
+  final Set<String> pinnedRequestIds;
+  final Set<String> supportPersonIds;
+  final Map<String, ConstellationAnchorPosition> anchorByNodeId;
+  final ConstellationLayoutPriorHints? priorHints;
+  final Map<String, ConstellationSize> nodeSizes;
+  final double spacing;
+  final ConstellationViewportClass viewportClass;
 
   @override
   Stream<GraphLayout> relayout({
@@ -220,30 +229,96 @@ final class ConstellationLayoutAlgorithm implements GraphLayoutAlgorithm {
     required Set<EdgeBase> edges,
     required Size size,
   }) {
-    return layout(nodes: nodes, edges: edges, size: size);
+    final mergedHints = _mergePriorHints(existingLayout, nodes);
+    return _layoutStream(
+      nodes: nodes,
+      size: size,
+      priorHints: mergedHints,
+    );
+  }
+
+  @override
+  Stream<GraphLayout> layout({
+    required Set<NodeBase> nodes,
+    required Set<EdgeBase> edges,
+    required Size size,
+  }) {
+    return _layoutStream(nodes: nodes, size: size, priorHints: priorHints);
+  }
+
+  Stream<GraphLayout> _layoutStream({
+    required Set<NodeBase> nodes,
+    required Size size,
+    ConstellationLayoutPriorHints? priorHints,
+  }) {
+    return Stream.value(
+      _buildLayout(
+        nodes: nodes,
+        size: size,
+        priorHints: priorHints,
+      ),
+    );
+  }
+
+  ConstellationLayoutPriorHints? _mergePriorHints(
+    GraphLayout existingLayout,
+    Set<NodeBase> nodes,
+  ) {
+    final positions = <String, ConstellationPoint>{};
+    final ring = <String, int>{};
+    for (final node in nodes) {
+      final id = (node as NodeDetails).id;
+      final offset = existingLayout.getPositionOrNull(node);
+      if (offset == null) {
+        continue;
+      }
+      positions[id] = (x: offset.dx, y: offset.dy);
+      if (priorHints?.ring.containsKey(id) ?? false) {
+        ring[id] = priorHints!.ring[id]!;
+      }
+    }
+    if (positions.isEmpty) {
+      return priorHints;
+    }
+    return (
+      positions: positions,
+      ring: {...?priorHints?.ring, ...ring},
+      viewportClass: viewportClass,
+    );
   }
 
   GraphLayout _buildLayout({
     required Set<NodeBase> nodes,
     required Size size,
+    ConstellationLayoutPriorHints? priorHints,
   }) {
     if (nodes.isEmpty) {
       return const GraphLayout.empty();
     }
 
-    final computed = computeConstellationLayout(
-      egoId: egoId,
-      paths: paths,
-      keptPeerIds: keptPeerIds,
-      maxHops: maxHops,
-      visibleRequestsByAuthor: visibleRequestsByAuthor,
-      egoOwnRequestIds: egoOwnRequestIds,
-      canvasSize: size,
+    final computed = computeConstellationPlacedLayout(
+      input: (
+        egoId: egoId,
+        paths: paths,
+        automaticKeptPeerIds: keptPeerIds,
+        pinnedPersonIds: pinnedPersonIds,
+        pinnedRequestIds: pinnedRequestIds,
+        supportPersonIds: supportPersonIds,
+        anchorByNodeId: anchorByNodeId,
+        priorHints: priorHints,
+        nodeSizes: nodeSizes,
+        satelliteRequestIdsByAuthor: visibleRequestsByAuthor,
+        requestAuthorById: const {},
+        egoOwnRequestIds: egoOwnRequestIds,
+        spacing: spacing,
+        maxHops: maxHops,
+        viewportClass: viewportClass,
+      ),
     );
 
     return _layoutFromPositions(
       nodes: nodes,
-      positions: computed.positions,
+      positions: constellationLayoutPointsToOffsets(computed.positions),
       canvasSize: size,
     );
   }
@@ -255,11 +330,34 @@ final class ConstellationLayoutAlgorithm implements GraphLayoutAlgorithm {
           runtimeType == other.runtimeType &&
           egoId == other.egoId &&
           maxHops == other.maxHops &&
+          spacing == other.spacing &&
+          viewportClass == other.viewportClass &&
           paths == other.paths &&
           const SetEquality<String>().equals(keptPeerIds, other.keptPeerIds) &&
           const SetEquality<String>().equals(
             egoOwnRequestIds,
             other.egoOwnRequestIds,
+          ) &&
+          const SetEquality<String>().equals(
+            pinnedPersonIds,
+            other.pinnedPersonIds,
+          ) &&
+          const SetEquality<String>().equals(
+            pinnedRequestIds,
+            other.pinnedRequestIds,
+          ) &&
+          const SetEquality<String>().equals(
+            supportPersonIds,
+            other.supportPersonIds,
+          ) &&
+          const MapEquality<String, ConstellationAnchorPosition>().equals(
+            anchorByNodeId,
+            other.anchorByNodeId,
+          ) &&
+          priorHints == other.priorHints &&
+          const MapEquality<String, ConstellationSize>().equals(
+            nodeSizes,
+            other.nodeSizes,
           ) &&
           const DeepCollectionEquality().equals(
             visibleRequestsByAuthor,
@@ -271,9 +369,19 @@ final class ConstellationLayoutAlgorithm implements GraphLayoutAlgorithm {
     runtimeType,
     egoId,
     maxHops,
+    spacing,
+    viewportClass,
     paths,
     const SetEquality<String>().hash(keptPeerIds),
     const SetEquality<String>().hash(egoOwnRequestIds),
+    const SetEquality<String>().hash(pinnedPersonIds),
+    const SetEquality<String>().hash(pinnedRequestIds),
+    const SetEquality<String>().hash(supportPersonIds),
+    const MapEquality<String, ConstellationAnchorPosition>().hash(
+      anchorByNodeId,
+    ),
+    priorHints,
+    const MapEquality<String, ConstellationSize>().hash(nodeSizes),
     const DeepCollectionEquality().hash(visibleRequestsByAuthor),
   );
 }
