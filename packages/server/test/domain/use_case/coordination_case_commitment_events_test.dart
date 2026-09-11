@@ -1,7 +1,6 @@
 import 'package:injectable/injectable.dart' show Environment;
 import 'package:logging/logging.dart';
 import 'package:mockito/mockito.dart';
-import 'package:mockito/mockito.dart';
 import 'package:test/test.dart';
 
 import '../../support/fake_beacon_hierarchy_repository.dart';
@@ -17,6 +16,7 @@ import 'package:tentura_server/domain/entity/help_offer_entity.dart';
 import 'package:tentura_server/domain/entity/user_entity.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/exception_codes.dart';
+import 'package:tentura_server/domain/port/attention_system_settlement_port.dart';
 import 'package:tentura_server/domain/port/evaluation_repository_port.dart';
 import 'package:tentura_server/domain/use_case/commitment_query_case.dart';
 import 'package:tentura_server/domain/use_case/coordination_case.dart';
@@ -31,9 +31,30 @@ import 'help_offer_case_mocks.mocks.dart';
 
 class _MinimalEvaluationRepo extends Fake implements EvaluationRepositoryPort {}
 
+class _RecordingAttentionSystemSettlement extends Fake
+    implements AttentionSystemSettlementPort {
+  final settleAuthorHelpOfferSubmittedCalls =
+      <({String beaconId, String authorAccountId, String helpOffererUserId})>[];
+
+  @override
+  Future<int> settleAuthorHelpOfferSubmitted({
+    required String beaconId,
+    required String authorAccountId,
+    required String helpOffererUserId,
+  }) async {
+    settleAuthorHelpOfferSubmittedCalls.add((
+      beaconId: beaconId,
+      authorAccountId: authorAccountId,
+      helpOffererUserId: helpOffererUserId,
+    ));
+    return 1;
+  }
+}
+
 void main() {
   const beaconId = 'B-commitment';
   const authorId = 'U-author';
+  const stewardId = 'U-steward';
   const helperId = 'U-helper';
   final now = DateTime.utc(2026);
 
@@ -76,12 +97,14 @@ void main() {
   late MockCoordinationRepositoryPort coordinationRepo;
   late MockBeaconRoomRepositoryPort roomRepo;
   late RecordingCommitmentRepository commitmentRepo;
+  late _RecordingAttentionSystemSettlement systemSettlement;
   late CommitmentQueryCase commitmentQueryCase;
   late TestAttentionHarness attention;
   late CoordinationCase case_;
 
   void buildCase() {
     attention = TestAttentionHarness();
+    systemSettlement = _RecordingAttentionSystemSettlement();
     commitmentQueryCase = CommitmentQueryCase(
       commitmentRepo,
       helpOfferRepo,
@@ -100,13 +123,14 @@ void main() {
       FakeBeaconHierarchyRepository(),
       attentionIntents: attention.intents,
       attention: attention.transactional,
+      attentionSystemSettlement: systemSettlement,
       guard: FakeBeaconAccessGuard(),
       env: Env(environment: Environment.test),
       logger: Logger('CoordinationCaseCommitmentEventsTest'),
     );
   }
 
-  void stubAdmissionPrereqs() {
+  void stubAdmissionPrereqs({String actorUserId = authorId}) {
     when(
       beaconRepo.getBeaconById(beaconId: beaconId),
     ).thenAnswer((_) async => beacon());
@@ -122,6 +146,11 @@ void main() {
         roomAccess: RoomAccessBits.requested,
       ),
     );
+    if (actorUserId != authorId) {
+      when(
+        roomRepo.isBeaconSteward(beaconId: beaconId, userId: actorUserId),
+      ).thenAnswer((_) async => true);
+    }
   }
 
   setUp(() {
@@ -159,6 +188,42 @@ void main() {
           actorUserId: authorId,
           kind: CommitmentEventKind.acknowledged,
           reason: null,
+        ),
+      ]);
+      expect(systemSettlement.settleAuthorHelpOfferSubmittedCalls, [
+        (
+          beaconId: beaconId,
+          authorAccountId: authorId,
+          helpOffererUserId: helperId,
+        ),
+      ]);
+    });
+
+    test(
+        'steward accept settles author help-offer with author account id',
+        () async {
+      stubAdmissionPrereqs(actorUserId: stewardId);
+      when(
+        coordinationRepo.acceptHelpOffer(
+          beaconId: beaconId,
+          offerUserId: helperId,
+          actorUserId: stewardId,
+        ),
+      ).thenAnswer(
+        (_) async => (status: BeaconStatus.open, statusChangedAt: now),
+      );
+
+      await case_.acceptHelpOffer(
+        beaconId: beaconId,
+        offerUserId: helperId,
+        actorUserId: stewardId,
+      );
+
+      expect(systemSettlement.settleAuthorHelpOfferSubmittedCalls, [
+        (
+          beaconId: beaconId,
+          authorAccountId: authorId,
+          helpOffererUserId: helperId,
         ),
       ]);
     });
@@ -216,6 +281,44 @@ void main() {
       );
 
       expect(commitmentRepo.recordCalls, isEmpty);
+      expect(systemSettlement.settleAuthorHelpOfferSubmittedCalls, [
+        (
+          beaconId: beaconId,
+          authorAccountId: authorId,
+          helpOffererUserId: helperId,
+        ),
+      ]);
+    });
+
+    test(
+        'steward decline settles author help-offer with author account id',
+        () async {
+      stubAdmissionPrereqs(actorUserId: stewardId);
+      when(
+        coordinationRepo.declineHelpOffer(
+          beaconId: beaconId,
+          offerUserId: helperId,
+          actorUserId: stewardId,
+          reason: 'no',
+        ),
+      ).thenAnswer(
+        (_) async => (status: BeaconStatus.open, statusChangedAt: now),
+      );
+
+      await case_.declineHelpOffer(
+        beaconId: beaconId,
+        offerUserId: helperId,
+        actorUserId: stewardId,
+        reason: 'no',
+      );
+
+      expect(systemSettlement.settleAuthorHelpOfferSubmittedCalls, [
+        (
+          beaconId: beaconId,
+          authorAccountId: authorId,
+          helpOffererUserId: helperId,
+        ),
+      ]);
     });
 
     test('decline after acknowledgement throws commitmentAlreadyAcknowledged',

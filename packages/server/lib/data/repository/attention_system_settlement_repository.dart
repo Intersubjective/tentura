@@ -59,10 +59,11 @@ WHERE outbox.occurrence_id = occ.id
         r'''
 UPDATE public.notification_outbox AS outbox
 SET
-  settlement_kind = 'resolved',
-  settled_at = now(),
+  settlement_kind = COALESCE(outbox.settlement_kind, 'resolved'),
+  settled_at = COALESCE(outbox.settled_at, now()),
   settled_by_user_id = NULL,
-  settled_by_occurrence_id = NULL
+  settled_by_occurrence_id = NULL,
+  seen_at = COALESCE(outbox.seen_at, now())
 FROM public.attention_occurrence AS occ
 WHERE outbox.occurrence_id = occ.id
   AND occ.event_type = $4
@@ -70,7 +71,7 @@ WHERE outbox.occurrence_id = occ.id
   AND outbox.account_id = $2
   AND outbox.target_entity_id = $3
   AND outbox.requires_action
-  AND outbox.settlement_kind IS NULL
+  AND (outbox.settlement_kind IS NULL OR outbox.seen_at IS NULL)
 ''',
         variables: [
           Variable<String>(beaconId),

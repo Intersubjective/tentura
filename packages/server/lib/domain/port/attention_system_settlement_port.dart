@@ -6,8 +6,9 @@ abstract class AttentionSystemSettlementPort {
   /// When review returns to open: prior reviewOpened obligations on this beacon.
   Future<int> supersedeReviewObligationsOnReopen(String beaconId);
 
-  /// After the author admits or declines a help offer: the review-offer obligation
-  /// no longer applies.
+  /// After the author (or steward) admits or declines a help offer: settle that
+  /// author's `helpOfferSubmitted` obligation and mark the matching receipt seen.
+  /// [authorAccountId] is the request author, not necessarily the admitting actor.
   Future<int> settleAuthorHelpOfferSubmitted({
     required String beaconId,
     required String authorAccountId,

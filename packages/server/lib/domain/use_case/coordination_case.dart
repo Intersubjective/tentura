@@ -323,7 +323,7 @@ final class CoordinationCase extends UseCaseBase {
     required String offerUserId,
     required String actorUserId,
   }) async {
-    await _prepareAdmissionAction(
+    final beacon = await _prepareAdmissionAction(
       beaconId: beaconId,
       offerUserId: offerUserId,
       actorUserId: actorUserId,
@@ -352,7 +352,7 @@ final class CoordinationCase extends UseCaseBase {
         );
         await _attentionSystemSettlement?.settleAuthorHelpOfferSubmitted(
           beaconId: beaconId,
-          authorAccountId: actorUserId,
+          authorAccountId: beacon.author.id,
           helpOffererUserId: offerUserId,
         );
         return _statusResult(beaconId, snap);
@@ -371,7 +371,7 @@ final class CoordinationCase extends UseCaseBase {
       beaconId: beaconId,
       userId: offerUserId,
     );
-    await _prepareAdmissionAction(
+    final beacon = await _prepareAdmissionAction(
       beaconId: beaconId,
       offerUserId: offerUserId,
       actorUserId: actorUserId,
@@ -409,7 +409,7 @@ final class CoordinationCase extends UseCaseBase {
         await transaction.record(intent);
         await _attentionSystemSettlement?.settleAuthorHelpOfferSubmitted(
           beaconId: beaconId,
-          authorAccountId: actorUserId,
+          authorAccountId: beacon.author.id,
           helpOffererUserId: offerUserId,
         );
         return _statusResult(beaconId, snap);

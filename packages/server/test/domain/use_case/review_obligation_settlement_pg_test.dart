@@ -287,7 +287,7 @@ WHERE outbox.beacon_id = '$_beaconId'
       expect(updated, 1);
 
       final helpRows = await writer.execute('''
-SELECT settlement_kind
+SELECT settlement_kind, seen_at
 FROM public.notification_outbox outbox
 JOIN public.attention_occurrence occ ON occ.id = outbox.occurrence_id
 WHERE outbox.beacon_id = '$_beaconId'
@@ -295,6 +295,120 @@ WHERE outbox.beacon_id = '$_beaconId'
   AND occ.event_type = 'helpOfferSubmitted'
 ''');
       expect(helpRows.single[0], 'resolved');
+      expect(helpRows.single[1], isNotNull);
+    }, skip: skipReason);
+
+    test(
+        'settleAuthorHelpOfferSubmitted preserves prior seen_at and leaves other offerers',
+        () async {
+      await dispatch.record(
+        await intents.helpOfferSubmitted(
+          beaconId: _beaconId,
+          helpOffererId: _reviewer1,
+          authorId: _authorId,
+          sourceEventKey: 'help_offer:other',
+        ),
+      );
+      await dispatch.record(
+        await intents.helpOfferSubmitted(
+          beaconId: _beaconId,
+          helpOffererId: _reviewer2,
+          authorId: _authorId,
+          sourceEventKey: 'help_offer:target',
+        ),
+      );
+      await writer.execute('''
+UPDATE public.notification_outbox AS outbox
+SET seen_at = '2026-07-17T10:00:00Z'::timestamptz
+FROM public.attention_occurrence AS occ
+WHERE outbox.occurrence_id = occ.id
+  AND occ.event_type = 'helpOfferSubmitted'
+  AND outbox.beacon_id = '$_beaconId'
+  AND outbox.account_id = '$_authorId'
+  AND outbox.target_entity_id = '$_reviewer2'
+''');
+
+      final updated = await systemSettlement.settleAuthorHelpOfferSubmitted(
+        beaconId: _beaconId,
+        authorAccountId: _authorId,
+        helpOffererUserId: _reviewer2,
+      );
+      expect(updated, 1);
+
+      final targetRows = await writer.execute('''
+SELECT settlement_kind, seen_at
+FROM public.notification_outbox outbox
+JOIN public.attention_occurrence occ ON occ.id = outbox.occurrence_id
+WHERE outbox.beacon_id = '$_beaconId'
+  AND outbox.account_id = '$_authorId'
+  AND outbox.target_entity_id = '$_reviewer2'
+  AND occ.event_type = 'helpOfferSubmitted'
+''');
+      expect(targetRows.single[0], 'resolved');
+      expect(
+        DateTime.parse(targetRows.single[1]!.toString()).toUtc(),
+        DateTime.utc(2026, 7, 17, 10),
+      );
+
+      final otherRows = await writer.execute('''
+SELECT settlement_kind, seen_at
+FROM public.notification_outbox outbox
+JOIN public.attention_occurrence occ ON occ.id = outbox.occurrence_id
+WHERE outbox.beacon_id = '$_beaconId'
+  AND outbox.account_id = '$_authorId'
+  AND outbox.target_entity_id = '$_reviewer1'
+  AND occ.event_type = 'helpOfferSubmitted'
+''');
+      expect(otherRows.single[0], isNull);
+      expect(otherRows.single[1], isNull);
+    }, skip: skipReason);
+
+    test(
+        'settleAuthorHelpOfferSubmitted marks already-settled unseen receipt seen',
+        () async {
+      await dispatch.record(
+        await intents.helpOfferSubmitted(
+          beaconId: _beaconId,
+          helpOffererId: _reviewer2,
+          authorId: _authorId,
+          sourceEventKey: 'help_offer:presettle',
+        ),
+      );
+      await writer.execute('''
+UPDATE public.notification_outbox AS outbox
+SET
+  settlement_kind = 'resolved',
+  settled_at = '2026-07-17T09:00:00Z'::timestamptz
+FROM public.attention_occurrence AS occ
+WHERE outbox.occurrence_id = occ.id
+  AND occ.event_type = 'helpOfferSubmitted'
+  AND outbox.beacon_id = '$_beaconId'
+  AND outbox.account_id = '$_authorId'
+  AND outbox.target_entity_id = '$_reviewer2'
+''');
+
+      final updated = await systemSettlement.settleAuthorHelpOfferSubmitted(
+        beaconId: _beaconId,
+        authorAccountId: _authorId,
+        helpOffererUserId: _reviewer2,
+      );
+      expect(updated, 1);
+
+      final helpRows = await writer.execute('''
+SELECT settlement_kind, settled_at, seen_at
+FROM public.notification_outbox outbox
+JOIN public.attention_occurrence occ ON occ.id = outbox.occurrence_id
+WHERE outbox.beacon_id = '$_beaconId'
+  AND outbox.account_id = '$_authorId'
+  AND outbox.target_entity_id = '$_reviewer2'
+  AND occ.event_type = 'helpOfferSubmitted'
+''');
+      expect(helpRows.single[0], 'resolved');
+      expect(
+        DateTime.parse(helpRows.single[1]!.toString()).toUtc(),
+        DateTime.utc(2026, 7, 17, 9),
+      );
+      expect(helpRows.single[2], isNotNull);
     }, skip: skipReason);
 
     test('settlement preserves seen_at and read_at', () async {
