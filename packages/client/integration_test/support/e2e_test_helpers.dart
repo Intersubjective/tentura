@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:js_interop';
-import 'dart:ui' show PlatformDispatcher;
+import 'dart:ui' show Offset, PlatformDispatcher;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -29,6 +29,10 @@ import 'package:tentura/features/graph/ui/bloc/graph_cubit.dart';
 import 'package:tentura/features/graph/ui/widget/graph_body.dart';
 import 'package:tentura/features/graph/ui/widget/graph_node_widget.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/features/constellation/domain/entity/constellation_anchor.dart';
+import 'package:tentura/features/constellation/ui/bloc/constellation_cubit.dart';
+import 'package:tentura/features/constellation/ui/bloc/constellation_state.dart';
+import 'package:tentura/features/constellation/ui/widget/constellation_body.dart';
 import 'package:tentura/ui/test_ids.dart';
 import 'package:tentura/ui/utils/capability_tag_presenter.dart';
 
@@ -1425,4 +1429,283 @@ Map<String, String> get _qaHeaders {
     throw StateError('QA_AUTH_TOKEN dart-define is required');
   }
   return {'Authorization': 'Bearer $token'};
+}
+
+String _escapeGraphQlString(String value) =>
+    value.replaceAll(r'\', r'\\').replaceAll('"', r'\"');
+
+ConstellationCubit readConstellationCubit(WidgetTester tester) =>
+    tester.element(find.byType(ConstellationBody)).read<ConstellationCubit>();
+
+Future<void> openConstellation(WidgetTester tester) async {
+  await goToPath(tester, kPathConstellation);
+  await pumpUntilVisible(
+    tester,
+    find.byKey(const Key('constellation.app_bar.view_mode')),
+    label: 'constellation view mode toggle',
+  );
+  await waitForConstellationLoaded(tester);
+}
+
+Future<void> waitForConstellationLoaded(WidgetTester tester) async {
+  await pumpUntil(
+    tester,
+    () => readConstellationCubit(tester).state.field != null,
+    label: 'constellation field loaded',
+    timeout: const Duration(seconds: 45),
+  );
+  await pumpBounded(tester);
+}
+
+Future<void> setConstellationViewMode(
+  WidgetTester tester,
+  ConstellationViewMode mode,
+) async {
+  readConstellationCubit(tester).setViewMode(mode);
+  await pumpBounded(tester, frames: 8);
+}
+
+Future<void> pinConstellationPersonFromMap(
+  WidgetTester tester,
+  String personId,
+) async {
+  await setConstellationViewMode(tester, ConstellationViewMode.map);
+  await selectConstellationPersonNode(tester, personId);
+  final pinButton = find.byKey(TestIds.key(TestIds.constellationPinTarget));
+  await pumpUntilVisible(tester, pinButton, label: 'constellation pin target');
+  await tapAndSettle(tester, pinButton);
+  await pumpUntil(
+    tester,
+    () => readConstellationCubit(tester).isAnchored(
+      ConstellationAnchorTarget.person(personId),
+    ),
+    label: 'person anchor confirmed',
+    timeout: const Duration(seconds: 20),
+  );
+}
+
+Future<void> pinConstellationRequestFromText(
+  WidgetTester tester,
+  String requestId,
+) async {
+  await setConstellationViewMode(tester, ConstellationViewMode.text);
+  final requestRow = find.byKey(Key('constellation.text.request.$requestId'));
+  await pumpUntilVisible(tester, requestRow, label: 'constellation text request');
+  final pinButton = find.descendant(
+    of: requestRow,
+    matching: find.byKey(TestIds.key(TestIds.constellationPinTarget)),
+  );
+  await tapAndSettle(tester, pinButton);
+  await pumpUntil(
+    tester,
+    () => readConstellationCubit(tester).isAnchored(
+      ConstellationAnchorTarget.beacon(requestId),
+    ),
+    label: 'request anchor confirmed',
+    timeout: const Duration(seconds: 20),
+  );
+}
+
+Future<void> unpinConstellationTarget(
+  WidgetTester tester,
+  ConstellationAnchorTarget target,
+) async {
+  final unpin = find.byKey(TestIds.key(TestIds.constellationUnpinTarget));
+  if (!finderHasMatch(unpin)) {
+    await setConstellationViewMode(tester, ConstellationViewMode.text);
+    await pumpUntilVisible(tester, unpin, label: 'constellation unpin target');
+  }
+  await tapAndSettle(tester, unpin);
+  await pumpUntil(
+    tester,
+    () => !readConstellationCubit(tester).isAnchored(target),
+    label: 'anchor removed locally',
+    timeout: const Duration(seconds: 20),
+  );
+}
+
+Future<void> selectConstellationPersonNode(
+  WidgetTester tester,
+  String personId,
+) async {
+  final cubit = readConstellationCubit(tester);
+  cubit.selectPerson(personId);
+  await pumpBounded(tester);
+}
+
+Future<void> moveConstellationAnchorViaCubit({
+  required WidgetTester tester,
+  required ConstellationAnchorTarget target,
+  required Offset sceneCentre,
+  bool confirmNewPin = false,
+}) async {
+  final cubit = readConstellationCubit(tester);
+  if (cubit.isAnchored(target)) {
+    cubit.beginDragExisting(target: target);
+    await cubit.onExistingNodeDrop(target: target, sceneCentre: sceneCentre);
+  } else {
+    cubit.beginDragNew(target: target);
+    await cubit.onNewNodeDrop(target: target, sceneCentre: sceneCentre);
+    if (confirmNewPin) {
+      await tapAndSettle(
+        tester,
+        find.byKey(TestIds.key(TestIds.constellationPinHere)),
+      );
+      await pumpUntil(
+        tester,
+        () => cubit.isAnchored(target),
+        label: 'confirmed new anchor',
+      );
+    }
+  }
+  await pumpBounded(tester, frames: 8);
+}
+
+Future<void> toggleConstellationShowClosed(WidgetTester tester) async {
+  await tapAndSettle(
+    tester,
+    find.byKey(TestIds.key(TestIds.constellationFilterShowClosed)),
+  );
+  await pumpBounded(tester, frames: 8);
+}
+
+Future<void> toggleConstellationParticipatedOnly(WidgetTester tester) async {
+  await tapAndSettle(
+    tester,
+    find.byKey(TestIds.key(TestIds.constellationFilterParticipatedOnly)),
+  );
+  await pumpBounded(tester, frames: 8);
+}
+
+Future<void> openConstellationFilters(WidgetTester tester) async {
+  await tapAndSettle(
+    tester,
+    find.byKey(const Key('constellation.app_bar.filters')),
+  );
+}
+
+Future<List<Map<String, dynamic>>> fetchConstellationAnchors({
+  bool showClosed = false,
+  bool participatedOnly = false,
+}) async {
+  final response = await _postGraphQl(
+    'query { constellationField(showClosed: $showClosed, participatedOnly: $participatedOnly, projection: ANCHORS) { anchorProjection { revision anchors { targetKind targetId xUnits yUnits coordinateSpaceVersion revision } } } }',
+  );
+  final errors = response['errors'];
+  if (errors != null) {
+    throw StateError('constellationField query failed: $errors');
+  }
+  final data = response['data'] as Map<String, dynamic>?;
+  final field = data?['constellationField'] as Map<String, dynamic>?;
+  final projection = field?['anchorProjection'] as Map<String, dynamic>?;
+  return (projection?['anchors'] as List?)?.cast<Map<String, dynamic>>() ??
+      const [];
+}
+
+Map<String, dynamic>? constellationAnchorByTarget(
+  List<Map<String, dynamic>> anchors, {
+  required String targetKind,
+  required String targetId,
+}) {
+  for (final anchor in anchors) {
+    if (anchor['targetKind'] == targetKind && anchor['targetId'] == targetId) {
+      return anchor;
+    }
+  }
+  return null;
+}
+
+Future<Map<String, dynamic>> upsertConstellationAnchor({
+  required String targetKind,
+  required String targetId,
+  required double xUnits,
+  required double yUnits,
+  int coordinateSpaceVersion = 1,
+}) async {
+  final response = await _postGraphQl(
+    'mutation { constellationAnchorUpsert(targetKind: $targetKind, targetId: "$targetId", xUnits: $xUnits, yUnits: $yUnits, coordinateSpaceVersion: $coordinateSpaceVersion) { anchor { targetKind targetId xUnits yUnits coordinateSpaceVersion revision } } }',
+  );
+  final errors = response['errors'];
+  if (errors != null) {
+    throw StateError('constellationAnchorUpsert failed: $errors');
+  }
+  final data = response['data'] as Map<String, dynamic>?;
+  final result = data?['constellationAnchorUpsert'] as Map<String, dynamic>?;
+  final anchor = result?['anchor'] as Map<String, dynamic>?;
+  if (anchor == null) {
+    throw StateError('constellationAnchorUpsert returned no anchor: $response');
+  }
+  return anchor;
+}
+
+Future<void> deleteConstellationAnchor({
+  required String targetKind,
+  required String targetId,
+}) async {
+  final response = await _postGraphQl(
+    'mutation { constellationAnchorDelete(targetKind: $targetKind, targetId: "$targetId") { targetKind targetId revision } }',
+  );
+  final errors = response['errors'];
+  if (errors != null) {
+    throw StateError('constellationAnchorDelete failed: $errors');
+  }
+}
+
+Future<String> createPublishedBeacon({
+  required String title,
+  String? description,
+}) async {
+  final body = description ?? title;
+  final response = await _postGraphQl(
+    'mutation { beaconCreate(title: "${_escapeGraphQlString(title)}", description: "${_escapeGraphQlString(body)}", draft: false) { id } }',
+  );
+  final errors = response['errors'];
+  if (errors != null) {
+    throw StateError('beaconCreate failed: $errors');
+  }
+  final data = response['data'] as Map<String, dynamic>?;
+  final id = (data?['beaconCreate'] as Map<String, dynamic>?)?['id'] as String?;
+  if (id == null || id.isEmpty) {
+    throw StateError('beaconCreate returned no id: $response');
+  }
+  return id;
+}
+
+Future<void> forwardBeaconTo({
+  required String beaconId,
+  required String recipientId,
+}) async {
+  final response = await _postGraphQl(
+    'mutation { beaconForward(id: "$beaconId", recipientIds: ["$recipientId"]) { deliveredRecipientIds } }',
+  );
+  final errors = response['errors'];
+  if (errors != null) {
+    throw StateError('beaconForward failed: $errors');
+  }
+}
+
+Future<void> closeBeaconForReview(String beaconId) async {
+  final response = await _postGraphQl(
+    'mutation { beaconClose(id: "$beaconId") { beaconId } }',
+  );
+  final errors = response['errors'];
+  if (errors != null) {
+    throw StateError('beaconClose failed: $errors');
+  }
+}
+
+Future<void> deleteBeaconById(String beaconId) async {
+  final response = await _postGraphQl(
+    'mutation { beaconDeleteById(id: "$beaconId") }',
+  );
+  final errors = response['errors'];
+  if (errors != null) {
+    throw StateError('beaconDeleteById failed: $errors');
+  }
+}
+
+Future<void> reloadConstellation(WidgetTester tester) async {
+  await goToPath(tester, kPathMyWork);
+  await pumpBounded(tester);
+  await openConstellation(tester);
 }
