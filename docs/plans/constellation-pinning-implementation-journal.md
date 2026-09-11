@@ -61,7 +61,7 @@ tg_style_research.md
 | P05 Client wire adapters and server echo policy | complete (accepted) | P04 | see P05a/P05b checkpoints |
 | P06 Pure composition, budgets and layout | complete (accepted after C6 remediation) | P05 | see P06 C6 remediation |
 | P07 Graph gesture adapter | complete (accepted after C7 long-press remediation) | P06 | see P07 manager review |
-| P08 Placement orchestration and live reconciliation | complete (C8 accepted; C7 remediated) | P07 | see P08 C7 remediation |
+| P08 Placement orchestration and live reconciliation | complete (accepted after C7 remediation) | P07 | see P08 manager re-review |
 | P09 Map/Text controls, filters and status accessibility | pending | P08 | — |
 | P10 End-to-end and failure acceptance | pending | P09 | — |
 | P11 Full verification and release preparation | pending | P10 | — |
@@ -971,3 +971,29 @@ FINDINGS:
 
 REMAINING: P09 Map/Text controls and accessibility wiring (do not start until C7
 remediation is manager-accepted).
+
+### P08 C7 remediation — Manager re-review — 2026-09-11
+
+Independent `flutter test --no-pub` on case/cubit/freshness → 33 passed.
+
+All seven reject items addressed:
+
+1. `hasPendingPlacementWrite` includes `draggingNew`; drop/confirm keep
+   `activePlacementTarget` through in-flight upsert; `_shouldDeferPlacementRefresh`
+   also keys off `hasPendingWrite`.
+2. Per-target presentation overlay: dragged/new target keeps baseline coords;
+   other anchors take the new confirmed revision; drag-time layout count stays
+   flat.
+3. `adoptConfirmedProjection` rejects older revisions; stale FULL after ANCHORS
+   keeps rev-2 coordinates.
+4. Case stores membership filters for websocket/catch-up ANCHORS.
+5. Selection cleared against `eligiblePersonIds` / `eligibleRequestIds`.
+6. Single `onAccountChanged` generation bump.
+7. Check tests: remote delete then drop, draggingNew deferral, exact failed-write
+   reconcile +1, offline catch-up, unpin 1/1, pinFromText, membership filter sync.
+
+C8 unchanged and previously accepted.
+
+STATUS: accepted
+
+REMAINING: **P09** Map/Text controls, filters, status accessibility.
