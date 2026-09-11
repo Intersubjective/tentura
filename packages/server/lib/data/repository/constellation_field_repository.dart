@@ -61,7 +61,8 @@ final class ConstellationFieldRepository
   ConstellationFieldRepository(
     this._database,
     this._profiles, {
-    @visibleForTesting Future<void> Function(TenturaDb db)? snapshotOpenProbe,
+    @ignoreParam @visibleForTesting
+    Future<void> Function(TenturaDb db)? snapshotOpenProbe,
   }) : _snapshotOpenProbe = snapshotOpenProbe;
 
   final TenturaDb _database;
