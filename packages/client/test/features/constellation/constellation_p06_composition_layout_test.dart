@@ -287,7 +287,54 @@ void main() {
         composed.anchorOverlay.supportPeers.map((p) => p.id),
         isNot(contains('bridge')),
       );
+      expect(
+        composed.anchorOverlay.supportPeers.map((p) => p.id),
+        contains('author-visible'),
+      );
       expect(composed.eligibleRequestIds, contains('B-visible'));
+    });
+
+    test('connected pinned Request author stays in overlay support without automatic peers', () {
+      final projection = ConstellationAnchorProjection(
+        revision: ConstellationAnchorRevision.zero,
+        anchors: [_beaconAnchor('B-pin', 1, 1)],
+        pinnedPeers: const [],
+        pinnedRequests: [
+          ConstellationRequest(
+            id: 'B-pin',
+            authorId: 'author-capped',
+            title: 'Pinned',
+            status: 0,
+          ),
+        ],
+        supportPeers: [ConstellationPerson(id: 'author-capped')],
+        supportEdges: [
+          ConstellationTrustEdgeEntity(src: _ego, dst: 'author-capped', tier: 1),
+        ],
+        serverFilteredBeaconIds: const [],
+        serverFilteredBeaconCount: 0,
+      );
+
+      final composed = composeConstellationPresentation(
+        viewerId: _ego,
+        field: _fieldWithPins(
+          automaticPeers: const [],
+          automaticRequests: const [],
+          projection: projection,
+        ),
+        localFilters: const (
+          capabilitySlugs: {},
+          location: LocationFilter.any,
+          timing: TimingFilterAny(),
+          includeUnspecified: true,
+        ),
+        asOfUtc: DateTime.utc(2026, 9, 11),
+        labelBudget: (perPerson: 3, total: 150),
+      );
+
+      expect(composed.anchorOverlay.supportPeers.map((p) => p.id), ['author-capped']);
+      expect(composed.keptPeerIds, contains('author-capped'));
+      expect(composed.eligibleRequestIds, contains('B-pin'));
     });
   });
 

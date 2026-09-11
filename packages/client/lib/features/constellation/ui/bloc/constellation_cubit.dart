@@ -1298,7 +1298,18 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
       return;
     }
 
-    final peersById = {for (final peer in field.peers) peer.id: peer};
+    final peersById = {
+      for (final peer in field.peers) peer.id: peer,
+    };
+    final overlay = composition?.anchorOverlay;
+    if (overlay != null) {
+      for (final peer in overlay.pinnedPeers) {
+        peersById.putIfAbsent(peer.id, () => peer);
+      }
+      for (final peer in overlay.supportPeers) {
+        peersById.putIfAbsent(peer.id, () => peer);
+      }
+    }
     final ConstellationLabelDisplayPlan plan;
     if (composition != null) {
       plan = composition.labelPlan;
@@ -1314,9 +1325,17 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     }
     final drawnRequestIds = plan.drawnRequestIds;
 
+    final requestsById = {
+      for (final request in field.requests) request.id: request,
+    };
+    if (overlay != null) {
+      for (final request in overlay.pinnedRequests) {
+        requestsById.putIfAbsent(request.id, () => request);
+      }
+    }
     final drawnRequests = [
-      for (final request in field.requests)
-        if (drawnRequestIds.contains(request.id)) request,
+      for (final id in drawnRequestIds)
+        if (requestsById[id] case final request?) request,
     ]..sort((a, b) => a.id.compareTo(b.id));
 
     layoutEgoId = _viewer.id;

@@ -10,6 +10,7 @@ import 'package:tentura/env.dart';
 import 'package:tentura/features/constellation/domain/entity/constellation_anchor.dart';
 import 'package:tentura/features/constellation/domain/entity/constellation_anchor_projection.dart';
 import 'package:tentura/features/constellation/domain/entity/constellation_field.dart';
+import 'package:tentura/features/graph/domain/entity/node_details.dart';
 import 'package:tentura/features/constellation/domain/port/constellation_anchor_repository_port.dart';
 import 'package:tentura/features/constellation/domain/port/constellation_repository_port.dart';
 import 'package:tentura/features/constellation/domain/use_case/constellation_anchor_case.dart';
@@ -40,22 +41,45 @@ ConstellationAnchor _anchor({
       placedAt: DateTime.utc(2026, 9, 11),
     );
 
+ConstellationAnchor _beaconAnchor({
+  required String beaconId,
+  required BigInt revision,
+  double x = 1,
+  double y = 2,
+}) =>
+    ConstellationAnchor(
+      target: ConstellationAnchorTarget.beacon(beaconId),
+      position: ConstellationAnchorPosition(
+        xUnits: x,
+        yUnits: y,
+        coordinateSpaceVersion: 1,
+      ),
+      revision: ConstellationAnchorRevision(revision),
+      placedAt: DateTime.utc(2026, 9, 11),
+    );
+
 ConstellationField _field({
   BigInt? revision,
   List<ConstellationAnchor> anchors = const [],
   List<ConstellationPerson> peers = const [],
+  List<ConstellationPerson>? pinnedPeers,
+  List<ConstellationRequest> pinnedRequests = const [],
+  List<ConstellationPerson> supportPeers = const [],
+  List<ConstellationTrustEdgeEntity> supportEdges = const [],
+  List<ConstellationRequest> requests = const [],
 }) =>
     ConstellationField(
       loadedAt: _loadedAt,
       context: '',
       peers: peers,
+      requests: requests,
       anchorProjection: ConstellationAnchorProjection(
         revision: ConstellationAnchorRevision(revision ?? BigInt.one),
         anchors: anchors,
-        pinnedPeers: peers,
-        pinnedRequests: const [],
-        supportPeers: const [],
-        supportEdges: const [],
+        pinnedPeers: pinnedPeers ?? peers,
+        pinnedRequests: pinnedRequests,
+        supportPeers: supportPeers,
+        supportEdges: supportEdges,
         serverFilteredBeaconIds: const [],
         serverFilteredBeaconCount: 0,
       ),
@@ -588,6 +612,105 @@ void main() {
       );
       await first;
       expect(harness.anchorRepo.upsertCount, 1);
+    });
+
+    test('Map builds overlay-only pinned Request author and attachment', () async {
+      const author = ConstellationPerson(id: 'author-capped', displayName: 'Author');
+      const request = ConstellationRequest(
+        id: 'B-pin',
+        authorId: 'author-capped',
+        title: 'Pinned',
+        status: 0,
+      );
+      final harness = await _harness(
+        fields: [
+          _field(
+            peers: const [],
+            pinnedPeers: const [],
+            requests: const [],
+            anchors: [_beaconAnchor(beaconId: 'B-pin', revision: BigInt.one)],
+            pinnedRequests: const [request],
+            supportPeers: const [author],
+            supportEdges: const [
+              ConstellationTrustEdgeEntity(src: 'ego', dst: 'author-capped', tier: 1),
+            ],
+          ),
+        ],
+      );
+      addTearDown(harness.cubit.close);
+
+      expect(harness.cubit.state.field!.peers, isEmpty);
+      expect(harness.cubit.state.field!.requests, isEmpty);
+      expect(
+        harness.cubit.graphController.nodes.whereType<FieldRequestNode>().map((n) => n.id),
+        contains('B-pin'),
+      );
+      expect(
+        harness.cubit.graphController.nodes.whereType<FieldPersonNode>().map((n) => n.id),
+        containsAll(['ego', 'author-capped']),
+      );
+      expect(
+        harness.cubit.graphController.edges.map((e) => (e.source.id, e.destination.id)),
+        contains(('author-capped', 'B-pin')),
+      );
+    });
+
+    test('ANCHORS overlay-only person appears without changing automatic snapshot', () async {
+      final loadedAt = _loadedAt;
+      final harness = await _harness(
+        fields: [
+          _field(peers: const [], anchors: const []),
+        ],
+      );
+      addTearDown(harness.cubit.close);
+      expect(harness.cubit.state.loadedAt, loadedAt);
+      expect(
+        harness.cubit.graphController.nodes.whereType<FieldPersonNode>().map((n) => n.id),
+        ['ego'],
+      );
+
+      harness.fieldRepo.fields.add(
+        _field(
+          revision: BigInt.two,
+          peers: const [],
+          pinnedPeers: const [ConstellationPerson(id: 'p-remote', displayName: 'Remote')],
+          anchors: [_anchor(personId: 'p-remote', revision: BigInt.two)],
+        ),
+      );
+      harness.port.emitChange(
+        const RealtimeEntityChange(
+          kind: RealtimeEntityKind.constellationAnchor,
+          aggregateId: 'ego',
+          operation: RealtimeOperation.update,
+          source: RealtimeChangeSource.serverInvalidation,
+        ),
+      );
+      await Future<void>.delayed(const Duration(milliseconds: 30));
+
+      expect(harness.cubit.state.field!.peers, isEmpty);
+      expect(harness.cubit.state.loadedAt, loadedAt);
+      expect(
+        harness.cubit.graphController.nodes.whereType<FieldPersonNode>().map((n) => n.id),
+        contains('p-remote'),
+      );
+
+      harness.fieldRepo.fields.add(
+        _field(revision: BigInt.from(3), peers: const [], anchors: const []),
+      );
+      harness.port.emitChange(
+        const RealtimeEntityChange(
+          kind: RealtimeEntityKind.constellationAnchor,
+          aggregateId: 'ego',
+          operation: RealtimeOperation.delete,
+          source: RealtimeChangeSource.serverInvalidation,
+        ),
+      );
+      await Future<void>.delayed(const Duration(milliseconds: 30));
+
+      expect(
+        harness.cubit.graphController.nodes.whereType<FieldPersonNode>().map((n) => n.id),
+        ['ego'],
+      );
     });
   });
 }

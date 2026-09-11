@@ -311,7 +311,6 @@ ConstellationAnchorOverlay _overlayForVisiblePins({
     ...resolution.keep.difference({
       viewerId,
       ...pinnedPeerIds,
-      ...visiblePinnedRequests.map((request) => request.authorId),
     }),
     ...ringResidualPeerIds,
   };
