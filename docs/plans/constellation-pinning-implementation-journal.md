@@ -61,7 +61,7 @@ tg_style_research.md
 | P05 Client wire adapters and server echo policy | complete (accepted) | P04 | see P05a/P05b checkpoints |
 | P06 Pure composition, budgets and layout | complete (accepted after C6 remediation) | P05 | see P06 C6 remediation |
 | P07 Graph gesture adapter | complete (accepted after C7 long-press remediation) | P06 | see P07 manager review |
-| P08 Placement orchestration and live reconciliation | pending | P07 | — |
+| P08 Placement orchestration and live reconciliation | complete | P07 | see P08 checkpoint |
 | P09 Map/Text controls, filters and status accessibility | pending | P08 | — |
 | P10 End-to-end and failure acceptance | pending | P09 | — |
 | P11 Full verification and release preparation | pending | P10 | — |
@@ -833,3 +833,63 @@ FINDINGS:
 - Next: **P08** placement orchestration / cubit / C8 realtime registration.
 
 REMAINING: P08. Do not start P09 in the P08 worker.
+
+### P08 — Placement orchestration and live reconciliation — 2026-09-11 (start)
+
+- Worker started on `feature/pin_constellation` at `e8a2e86b4`.
+- Scope: C7 state machine (case/cubit APIs, no P09 UI) + C8 realtime registration.
+- Process baseline: no task-owned Flutter :8888/server; pre-existing untracked list untouched.
+
+### P08 — Placement orchestration and live reconciliation — 2026-09-11 (complete)
+
+- **C8:** `RealtimeEntityKind.constellationAnchor` + `fromWire('constellation_anchor')`;
+  contract manifest entry; server migration list adds `m0167.dart` +
+  `notify_constellation_anchor_change`; client impact map →
+  `constellation_anchor_case.dart`; invalidation wireKinds test updated.
+- **Case:** new `ConstellationAnchorCase` — screen activate/deactivate,
+  aggregate-scoped subscription, coalesced in-flight ANCHORS + queued rerun,
+  reconnect catch-up, revision guards, upsert/delete with post-command ANCHORS
+  settle, sync-pending on failure.
+- **Cubit/state:** placement phases, composition retention on load, confirmed
+  projection merge on hints (no re-fetch loop), placement APIs for P09/tests,
+  drag presentation overlay (skip full rebuild while dragging), reconciliation
+  counter, filter/view cancel paths.
+- Commands (serial, `--no-pub`):
+  - `cd packages/client && flutter test test/features/constellation/constellation_anchor_case_test.dart test/features/constellation/constellation_anchor_cubit_test.dart` → 17 passed
+  - `cd packages/client && flutter test test/architecture/realtime_entity_contract_test.dart test/architecture/realtime_entity_contract_impacts_test.dart test/data/service/invalidation_service_test.dart` → passed
+  - `cd packages/server && dart test test/architecture/realtime_entity_contract_test.dart` → 1 passed
+  - `cd packages/client && flutter test test/features/constellation/constellation_freshness_test.dart` → 6 passed
+  - `constellation_body_test.dart` → load blocked by pre-existing stale l10n (unchanged debt)
+
+STATUS: complete
+
+COMMITS: (focused source commits follow)
+
+TESTS:
+- `cd packages/client && flutter test test/features/constellation/constellation_anchor_case_test.dart test/features/constellation/constellation_anchor_cubit_test.dart` → 17 passed
+- `cd packages/client && flutter test test/architecture/realtime_entity_contract_test.dart test/architecture/realtime_entity_contract_impacts_test.dart test/data/service/invalidation_service_test.dart` → passed
+- `cd packages/server && dart test test/architecture/realtime_entity_contract_test.dart` → 1 passed
+- `cd packages/client && flutter test test/features/constellation/constellation_freshness_test.dart` → 6 passed
+
+FILES:
+- packages/client/lib/domain/entity/realtime/realtime_entity_change.dart
+- docs/contracts/realtime-entity-contract.json
+- packages/server/test/architecture/realtime_entity_contract_test.dart
+- packages/client/test/architecture/realtime_entity_contract_impacts_test.dart
+- packages/client/test/data/service/invalidation_service_test.dart
+- packages/client/lib/features/constellation/domain/use_case/constellation_anchor_case.dart
+- packages/client/lib/features/constellation/ui/bloc/constellation_state.dart
+- packages/client/lib/features/constellation/ui/bloc/constellation_cubit.dart
+- packages/client/lib/features/constellation/ui/screen/constellation_screen.dart
+- packages/client/test/features/constellation/constellation_anchor_case_test.dart
+- packages/client/test/features/constellation/constellation_anchor_cubit_test.dart
+- docs/plans/constellation-pinning-implementation-journal.md
+
+FINDINGS:
+- Cubit must not call `refreshAnchors` on `refreshSignals` (case already fetched);
+  merge `confirmedProjection` only — otherwise infinite ANCHORS loop.
+- `deactivate()` must not bump load generation; only account/filter changes do.
+- P09 still owns Pin here/Cancel UI, filter bar, status marker, l10n, test_ids.
+- `di.config.dart` / freezed outputs regenerated locally, not committed.
+
+REMAINING: P09 Map/Text controls and accessibility wiring.

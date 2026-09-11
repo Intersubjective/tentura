@@ -1,0 +1,326 @@
+import 'dart:async';
+
+import 'package:flutter_test/flutter_test.dart';
+import 'package:logging/logging.dart';
+import 'package:tentura/domain/entity/realtime/realtime_entity_change.dart';
+import 'package:tentura/domain/use_case/realtime_sync_case.dart';
+import 'package:tentura/env.dart';
+import 'package:tentura/features/constellation/domain/entity/constellation_anchor.dart';
+import 'package:tentura/features/constellation/domain/entity/constellation_anchor_projection.dart';
+import 'package:tentura/features/constellation/domain/entity/constellation_field.dart';
+import 'package:tentura/features/constellation/domain/port/constellation_anchor_repository_port.dart';
+import 'package:tentura/features/constellation/domain/port/constellation_repository_port.dart';
+import 'package:tentura/features/constellation/domain/use_case/constellation_anchor_case.dart';
+
+import '../../support/test_realtime_sync.dart';
+
+const _viewer = 'ego';
+
+ConstellationAnchor _anchor({
+  required String personId,
+  required BigInt revision,
+  double x = 1,
+  double y = 2,
+}) =>
+    ConstellationAnchor(
+      target: ConstellationAnchorTarget.person(personId),
+      position: const ConstellationAnchorPosition(
+        xUnits: 1,
+        yUnits: 2,
+        coordinateSpaceVersion: 1,
+      ),
+      revision: ConstellationAnchorRevision(revision),
+      placedAt: DateTime.utc(2026, 9, 11),
+    );
+
+ConstellationAnchorProjection _projection({
+  required BigInt revision,
+  List<ConstellationAnchor> anchors = const [],
+}) =>
+    ConstellationAnchorProjection(
+      revision: ConstellationAnchorRevision(revision),
+      anchors: anchors,
+      pinnedPeers: const [],
+      pinnedRequests: const [],
+      supportPeers: const [],
+      supportEdges: const [],
+      serverFilteredBeaconIds: const [],
+      serverFilteredBeaconCount: 0,
+    );
+
+final class _FakeFieldRepository implements ConstellationRepositoryPort {
+  _FakeFieldRepository(this.projections);
+
+  final List<ConstellationAnchorProjection> projections;
+  int fetchCount = 0;
+  Completer<void> fetchGate = Completer<void>()..complete();
+
+  @override
+  Future<ConstellationField> fetch({
+    ConstellationFieldMembershipFilters membershipFilters =
+        ConstellationFieldMembershipFilters.defaults,
+    ConstellationProjection projection = ConstellationProjection.full,
+  }) async {
+    fetchCount++;
+    if (!fetchGate.isCompleted) {
+      await fetchGate.future;
+    }
+    final index = (fetchCount - 1).clamp(0, projections.length - 1);
+    return ConstellationField(
+      loadedAt: DateTime.utc(2026, 9, 11),
+      context: '',
+      anchorProjection: projections[index],
+    );
+  }
+}
+
+final class _FakeAnchorRepository implements ConstellationAnchorRepositoryPort {
+  Completer<void> upsertGate = Completer<void>()..complete();
+  Completer<void> deleteGate = Completer<void>()..complete();
+  int upsertCount = 0;
+  int deleteCount = 0;
+  Object? upsertError;
+  Object? deleteError;
+  ConstellationAnchorUpsertResult? upsertResult;
+  ConstellationAnchorDeleteResult? deleteResult;
+
+  @override
+  Future<ConstellationAnchorUpsertResult> upsert({
+    required ConstellationAnchorTarget target,
+    required ConstellationAnchorPosition position,
+  }) async {
+    upsertCount++;
+    await upsertGate.future;
+    if (upsertError != null) {
+      throw upsertError!;
+    }
+    return upsertResult ??
+        ConstellationAnchorUpsertResult(
+          anchor: ConstellationAnchor(
+            target: target,
+            position: position,
+            revision: ConstellationAnchorRevision(BigInt.two),
+            placedAt: DateTime.utc(2026, 9, 11, 1),
+          ),
+          revision: ConstellationAnchorRevision(BigInt.two),
+        );
+  }
+
+  @override
+  Future<ConstellationAnchorDeleteResult> delete({
+    required ConstellationAnchorTarget target,
+  }) async {
+    deleteCount++;
+    await deleteGate.future;
+    if (deleteError != null) {
+      throw deleteError!;
+    }
+    return deleteResult ??
+        ConstellationAnchorDeleteResult(
+          target: target,
+          revision: ConstellationAnchorRevision(BigInt.from(3)),
+        );
+  }
+}
+
+ConstellationAnchorCase _case({
+  required _FakeFieldRepository fieldRepo,
+  required _FakeAnchorRepository anchorRepo,
+  required RealtimeSyncCase realtime,
+}) =>
+    ConstellationAnchorCase(
+      fieldRepo,
+      anchorRepo,
+      realtime,
+      env: const Env.fromEnvironment(),
+      logger: Logger('ConstellationAnchorCaseTest'),
+    );
+
+void main() {
+  group('ConstellationAnchorCase', () {
+    late _FakeFieldRepository fieldRepo;
+    late _FakeAnchorRepository anchorRepo;
+    late TestRealtimeSyncPort port;
+    late RealtimeSyncCase realtime;
+    late ConstellationAnchorCase case_;
+
+    setUp(() {
+      fieldRepo = _FakeFieldRepository([
+        _projection(revision: BigInt.one),
+        _projection(
+          revision: BigInt.two,
+          anchors: [_anchor(personId: 'p1', revision: BigInt.two)],
+        ),
+      ]);
+      anchorRepo = _FakeAnchorRepository();
+      final sync = buildTestRealtimeSync();
+      port = sync.port;
+      realtime = sync.case_;
+      case_ = _case(fieldRepo: fieldRepo, anchorRepo: anchorRepo, realtime: realtime);
+      case_.activate(viewerAccountId: _viewer);
+      case_.adoptConfirmedProjection(_projection(revision: BigInt.one));
+    });
+
+    tearDown(() async {
+      case_.deactivate();
+      await case_.dispose();
+      await port.dispose();
+    });
+
+    test('subscribes only to constellation_anchor for viewer account', () async {
+      var hints = 0;
+      final sub = case_.refreshSignals.listen((_) => hints++);
+      port.emitChange(
+        const RealtimeEntityChange(
+          kind: RealtimeEntityKind.constellationAnchor,
+          aggregateId: 'other-viewer',
+          operation: RealtimeOperation.update,
+          source: RealtimeChangeSource.serverInvalidation,
+        ),
+      );
+      await Future<void>.delayed(Duration.zero);
+      expect(hints, 0);
+
+      port.emitChange(
+        const RealtimeEntityChange(
+          kind: RealtimeEntityKind.constellationAnchor,
+          aggregateId: _viewer,
+          operation: RealtimeOperation.update,
+          source: RealtimeChangeSource.serverInvalidation,
+        ),
+      );
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+      expect(hints, 1);
+      await sub.cancel();
+    });
+
+    test('coalesces in-flight ANCHORS to one fetch plus one queued rerun', () async {
+      fieldRepo.fetchGate = Completer<void>();
+      port.emitChange(
+        const RealtimeEntityChange(
+          kind: RealtimeEntityKind.constellationAnchor,
+          aggregateId: _viewer,
+          operation: RealtimeOperation.update,
+          source: RealtimeChangeSource.serverInvalidation,
+        ),
+      );
+      await Future<void>.delayed(Duration.zero);
+      expect(fieldRepo.fetchCount, 1);
+
+      port.emitChange(
+        const RealtimeEntityChange(
+          kind: RealtimeEntityKind.constellationAnchor,
+          aggregateId: _viewer,
+          operation: RealtimeOperation.update,
+          source: RealtimeChangeSource.serverInvalidation,
+        ),
+      );
+      fieldRepo.fetchGate.complete();
+      await Future<void>.delayed(const Duration(milliseconds: 30));
+      expect(fieldRepo.fetchCount, 2);
+    });
+
+    test('reconnect catch-up requests ANCHORS once', () async {
+      port.emitCatchUp(accountId: _viewer);
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+      expect(fieldRepo.fetchCount, 1);
+    });
+
+    test('equal revision still refreshes membership payload', () {
+      final incoming = _projection(
+        revision: BigInt.one,
+        anchors: [_anchor(personId: 'p1', revision: BigInt.one)],
+      );
+      expect(case_.applyIncomingProjection(incoming, generation: 1), isTrue);
+      expect(case_.confirmedProjection.anchors, hasLength(1));
+    });
+
+    test('discards older projection revisions', () {
+      final incoming = _projection(revision: BigInt.zero);
+      expect(case_.applyIncomingProjection(incoming, generation: 1), isFalse);
+    });
+
+    test('echo-before-response settles with ANCHORS fetch after upsert', () async {
+      anchorRepo.upsertGate = Completer<void>();
+      final target = ConstellationAnchorTarget.person('p1');
+      const position = ConstellationAnchorPosition(
+        xUnits: 0,
+        yUnits: 0,
+        coordinateSpaceVersion: 1,
+      );
+      final write = case_.upsert(
+        target: target,
+        position: position,
+        generation: 1,
+      );
+      port.emitChange(
+        const RealtimeEntityChange(
+          kind: RealtimeEntityKind.constellationAnchor,
+          aggregateId: _viewer,
+          operation: RealtimeOperation.update,
+          source: RealtimeChangeSource.serverInvalidation,
+        ),
+      );
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+      expect(fieldRepo.fetchCount, 1);
+
+      anchorRepo.upsertGate.complete();
+      final outcome = await write;
+      expect(outcome.kind, ConstellationAnchorWriteOutcomeKind.succeeded);
+      expect(anchorRepo.upsertCount, 1);
+      expect(fieldRepo.fetchCount, greaterThanOrEqualTo(2));
+    });
+
+    test('failed write fetches ANCHORS once and marks sync pending', () async {
+      anchorRepo.upsertError = StateError('network');
+      final outcome = await case_.upsert(
+        target: ConstellationAnchorTarget.person('p1'),
+        position: const ConstellationAnchorPosition(
+          xUnits: 0,
+          yUnits: 0,
+          coordinateSpaceVersion: 1,
+        ),
+        generation: 1,
+      );
+      expect(outcome.kind, ConstellationAnchorWriteOutcomeKind.failed);
+      expect(case_.syncPending, isTrue);
+      expect(anchorRepo.upsertCount, 1);
+      expect(fieldRepo.fetchCount, 1);
+    });
+
+    test('stale generation discards refresh and write results', () async {
+      case_.bindLoadGeneration(2);
+      final result = await case_.refreshAnchors(generation: 1);
+      expect(result, isNull);
+
+      final outcome = await case_.upsert(
+        target: ConstellationAnchorTarget.person('p1'),
+        position: const ConstellationAnchorPosition(
+          xUnits: 0,
+          yUnits: 0,
+          coordinateSpaceVersion: 1,
+        ),
+        generation: 1,
+      );
+      expect(outcome.kind, ConstellationAnchorWriteOutcomeKind.staleResponseDiscarded);
+      expect(anchorRepo.upsertCount, 0);
+    });
+
+    test('counts writes accurately', () async {
+      await case_.upsert(
+        target: ConstellationAnchorTarget.person('p1'),
+        position: const ConstellationAnchorPosition(
+          xUnits: 1,
+          yUnits: 1,
+          coordinateSpaceVersion: 1,
+        ),
+        generation: 1,
+      );
+      await case_.deleteAnchor(
+        target: ConstellationAnchorTarget.person('p1'),
+        generation: 1,
+      );
+      expect(case_.writeCount, 2);
+    });
+  });
+}
