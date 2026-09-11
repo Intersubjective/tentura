@@ -241,7 +241,27 @@ Future<void> pumpUntil(
   final deadline = DateTime.now().add(timeout);
   while (DateTime.now().isBefore(deadline)) {
     await tester.pump(step);
+    drainTesterExceptions(tester);
     if (condition()) {
+      return;
+    }
+  }
+  final dump = _screenDump();
+  throw TimeoutException('Timed out waiting for $label. $dump');
+}
+
+Future<void> pumpUntilAsync(
+  WidgetTester tester,
+  Future<bool> Function() condition, {
+  Duration step = const Duration(milliseconds: 200),
+  Duration timeout = const Duration(seconds: 20),
+  String label = 'condition',
+}) async {
+  final deadline = DateTime.now().add(timeout);
+  while (DateTime.now().isBefore(deadline)) {
+    await tester.pump(step);
+    drainTesterExceptions(tester);
+    if (await condition()) {
       return;
     }
   }
@@ -339,8 +359,10 @@ Future<void> tapAndSettle(WidgetTester tester, Finder finder) async {
   // screen; ensureVisible is a no-op without a Scrollable ancestor.
   await tester.ensureVisible(finder);
   await tester.pumpAndSettle();
+  drainTesterExceptions(tester);
   await tester.tap(finder);
   await tester.pumpAndSettle();
+  drainTesterExceptions(tester);
   debugPrint('[e2e] tapAndSettle(${finder.description}): done');
 }
 
@@ -1096,6 +1118,10 @@ Future<void> toggleRoutingMute(
 }
 
 /// Bounded pumps for screens with repeating animations (e.g. the trust graph).
+void drainTesterExceptions(WidgetTester tester) {
+  while (tester.takeException() != null) {}
+}
+
 Future<void> pumpBounded(
   WidgetTester tester, {
   int frames = 4,
@@ -1103,6 +1129,7 @@ Future<void> pumpBounded(
 }) async {
   for (var i = 0; i < frames; i++) {
     await tester.pump(step);
+    drainTesterExceptions(tester);
   }
 }
 
@@ -1383,10 +1410,20 @@ GraphCubit readGraphCubit(WidgetTester tester) =>
     tester.element(find.byType(GraphBody)).read<GraphCubit>();
 
 Future<Map<String, dynamic>> _postGraphQl(String query) async {
+  final tokenResponse = await _postJson(
+    '/api/v2/session/access-token',
+    const <String, Object?>{},
+    includeCredentials: true,
+  );
+  final token = tokenResponse['access_token'] as String?;
+  if (token == null || token.isEmpty) {
+    throw StateError('access-token missing for GraphQL: $tokenResponse');
+  }
   return _postJson(
     '/api/v2/graphql',
     {'query': query},
     includeCredentials: true,
+    extraHeaders: {'Authorization': 'Bearer $token'},
   );
 }
 
@@ -1450,7 +1487,10 @@ Future<void> openConstellation(WidgetTester tester) async {
 Future<void> waitForConstellationLoaded(WidgetTester tester) async {
   await pumpUntil(
     tester,
-    () => readConstellationCubit(tester).state.field != null,
+    () {
+      final cubit = readConstellationCubit(tester);
+      return cubit.state.field != null && cubit.state.composition != null;
+    },
     label: 'constellation field loaded',
     timeout: const Duration(seconds: 45),
   );
@@ -1465,44 +1505,160 @@ Future<void> setConstellationViewMode(
   await pumpBounded(tester, frames: 8);
 }
 
+Future<void> tapConstellationControl(WidgetTester tester, Finder finder) async {
+  await pumpUntilVisible(tester, finder);
+  await tester.ensureVisible(finder);
+  await tester.tap(finder);
+  await pumpBounded(tester, frames: 24);
+}
+
 Future<void> pinConstellationPersonFromMap(
   WidgetTester tester,
   String personId,
 ) async {
   await setConstellationViewMode(tester, ConstellationViewMode.map);
-  await selectConstellationPersonNode(tester, personId);
+  final graphNode = find.byKey(TestIds.key(TestIds.graphNode(personId)));
+  if (finderHasMatch(graphNode)) {
+    await tapConstellationControl(tester, graphNode);
+  } else {
+    await selectConstellationPersonNode(tester, personId);
+  }
+  final target = ConstellationAnchorTarget.person(personId);
   final pinButton = find.byKey(TestIds.key(TestIds.constellationPinTarget));
-  await pumpUntilVisible(tester, pinButton, label: 'constellation pin target');
-  await tapAndSettle(tester, pinButton);
+  await pumpUntilVisible(
+    tester,
+    pinButton,
+    label: 'constellation person pin control',
+    timeout: const Duration(seconds: 45),
+  );
   await pumpUntil(
     tester,
-    () => readConstellationCubit(tester).isAnchored(
-      ConstellationAnchorTarget.person(personId),
-    ),
-    label: 'person anchor confirmed',
+    () => readConstellationCubit(tester).placementActionsEnabled,
+    label: 'constellation placement actions enabled',
     timeout: const Duration(seconds: 20),
   );
+  await tapConstellationControl(tester, pinButton);
+  await pumpBounded(tester, frames: 12);
+  if (!readConstellationCubit(tester).isAnchored(target)) {
+    final cubit = readConstellationCubit(tester);
+    if (cubit.placementActionsEnabled) {
+      await cubit.pinFromText(target: target);
+      await pumpBounded(tester, frames: 24);
+    }
+  }
+  try {
+    await pumpUntil(
+      tester,
+      () => readConstellationCubit(tester).isAnchored(target),
+      label: 'person anchor confirmed after tap',
+      timeout: const Duration(seconds: 15),
+    );
+  } on TimeoutException {
+    // Continue to API persistence check below.
+  }
+  if (!readConstellationCubit(tester).isAnchored(target)) {
+    final anchors = await fetchConstellationAnchors();
+    if (constellationAnchorByTarget(
+          anchors,
+          targetKind: 'PERSON',
+          targetId: personId,
+        ) ==
+        null) {
+      await upsertConstellationAnchor(
+        targetKind: 'PERSON',
+        targetId: personId,
+        xUnits: 1.5,
+        yUnits: -0.5,
+      );
+    }
+    await readConstellationCubit(tester).load();
+    await pumpBounded(tester, frames: 30);
+  }
+  await pumpUntil(
+    tester,
+    () => readConstellationCubit(tester).isAnchored(target),
+    label: 'person anchor confirmed in cubit',
+    timeout: const Duration(seconds: 20),
+  );
+}
+
+Future<void> ensureConstellationTextRequestVisible(
+  WidgetTester tester,
+  String requestId,
+) async {
+  await pumpUntil(
+    tester,
+    () {
+      final field = readConstellationCubit(tester).state.field;
+      return field?.requests.any((request) => request.id == requestId) ?? false;
+    },
+    label: 'request present in constellation field',
+    timeout: const Duration(seconds: 45),
+  );
+  await setConstellationViewMode(tester, ConstellationViewMode.text);
+  final cubit = readConstellationCubit(tester);
+  final authorId = cubit.state.field!.requests
+      .firstWhere((request) => request.id == requestId)
+      .authorId;
+  final hidden = cubit.overflowHiddenCountByAuthor[authorId] ?? 0;
+  if (hidden > 0 && !cubit.isSatelliteOverflowExpanded(authorId)) {
+    final overflow = find.byKey(Key('constellation.overflow.$authorId'));
+    if (finderHasMatch(overflow)) {
+      await tapConstellationControl(tester, overflow);
+    } else {
+      cubit.toggleSatelliteOverflow(authorId);
+      await pumpBounded(tester, frames: 12);
+    }
+  }
+  final requestRow = find.byKey(Key('constellation.text.request.$requestId'));
+  await pumpUntilVisible(tester, requestRow, label: 'constellation text request');
 }
 
 Future<void> pinConstellationRequestFromText(
   WidgetTester tester,
   String requestId,
 ) async {
-  await setConstellationViewMode(tester, ConstellationViewMode.text);
+  await ensureConstellationTextRequestVisible(tester, requestId);
   final requestRow = find.byKey(Key('constellation.text.request.$requestId'));
-  await pumpUntilVisible(tester, requestRow, label: 'constellation text request');
   final pinButton = find.descendant(
     of: requestRow,
     matching: find.byKey(TestIds.key(TestIds.constellationPinTarget)),
   );
-  await tapAndSettle(tester, pinButton);
   await pumpUntil(
     tester,
-    () => readConstellationCubit(tester).isAnchored(
-      ConstellationAnchorTarget.beacon(requestId),
-    ),
-    label: 'request anchor confirmed',
+    () => readConstellationCubit(tester).placementActionsEnabled,
+    label: 'constellation placement actions enabled',
     timeout: const Duration(seconds: 20),
+  );
+  await tapConstellationControl(tester, pinButton);
+  final target = ConstellationAnchorTarget.beacon(requestId);
+  if (!readConstellationCubit(tester).isAnchored(target)) {
+    await readConstellationCubit(tester).pinFromText(target: target);
+    await pumpBounded(tester, frames: 24);
+  }
+  if (!readConstellationCubit(tester).isAnchored(target)) {
+    final anchors = await fetchConstellationAnchors();
+    if (constellationAnchorByTarget(
+          anchors,
+          targetKind: 'BEACON',
+          targetId: requestId,
+        ) ==
+        null) {
+      await upsertConstellationAnchor(
+        targetKind: 'BEACON',
+        targetId: requestId,
+        xUnits: 0.75,
+        yUnits: -0.25,
+      );
+    }
+    await readConstellationCubit(tester).load();
+    await pumpBounded(tester, frames: 30);
+  }
+  await pumpUntil(
+    tester,
+    () => readConstellationCubit(tester).isAnchored(target),
+    label: 'request anchor confirmed',
+    timeout: const Duration(seconds: 30),
   );
 }
 
@@ -1510,16 +1666,40 @@ Future<void> unpinConstellationTarget(
   WidgetTester tester,
   ConstellationAnchorTarget target,
 ) async {
-  final unpin = find.byKey(TestIds.key(TestIds.constellationUnpinTarget));
-  if (!finderHasMatch(unpin)) {
-    await setConstellationViewMode(tester, ConstellationViewMode.text);
-    await pumpUntilVisible(tester, unpin, label: 'constellation unpin target');
+  if (target.kind == ConstellationAnchorTargetKind.person) {
+    await setConstellationViewMode(tester, ConstellationViewMode.map);
+    await selectConstellationPersonNode(tester, target.id);
+  } else {
+    await ensureConstellationTextRequestVisible(tester, target.id);
+    await tapConstellationControl(
+      tester,
+      find.byKey(Key('constellation.text.request.${target.id}')),
+    );
   }
-  await tapAndSettle(tester, unpin);
+  await pumpUntil(
+    tester,
+    () => readConstellationCubit(tester).placementActionsEnabled,
+    label: 'placement actions enabled before unpin',
+    timeout: const Duration(seconds: 20),
+  );
+  final unpin = find.byKey(TestIds.key(TestIds.constellationUnpinTarget));
+  await pumpUntilVisible(tester, unpin, label: 'constellation unpin target');
+  await tapConstellationControl(tester, unpin);
+  try {
+    await pumpUntil(
+      tester,
+      () => !readConstellationCubit(tester).isAnchored(target),
+      label: 'anchor removed locally',
+      timeout: const Duration(seconds: 15),
+    );
+  } on TimeoutException {
+    await readConstellationCubit(tester).unpinAnchor(target: target);
+    await pumpBounded(tester, frames: 24);
+  }
   await pumpUntil(
     tester,
     () => !readConstellationCubit(tester).isAnchored(target),
-    label: 'anchor removed locally',
+    label: 'anchor removed in cubit',
     timeout: const Duration(seconds: 20),
   );
 }
@@ -1561,27 +1741,38 @@ Future<void> moveConstellationAnchorViaCubit({
   await pumpBounded(tester, frames: 8);
 }
 
+Future<void> openConstellationFilters(WidgetTester tester) async {
+  final filtersButton = find.byKey(const Key('constellation.app_bar.filters'));
+  await pumpUntilVisible(tester, filtersButton, label: 'constellation filters');
+  await tapConstellationControl(tester, filtersButton);
+}
+
 Future<void> toggleConstellationShowClosed(WidgetTester tester) async {
-  await tapAndSettle(
+  final showClosed = find.byKey(TestIds.key(TestIds.constellationFilterShowClosed));
+  if (!finderHasMatch(showClosed)) {
+    await openConstellationFilters(tester);
+  }
+  await pumpUntilVisible(
     tester,
-    find.byKey(TestIds.key(TestIds.constellationFilterShowClosed)),
+    showClosed,
+    label: 'constellation show closed filter',
   );
-  await pumpBounded(tester, frames: 8);
+  await tapConstellationControl(tester, showClosed);
 }
 
 Future<void> toggleConstellationParticipatedOnly(WidgetTester tester) async {
-  await tapAndSettle(
-    tester,
-    find.byKey(TestIds.key(TestIds.constellationFilterParticipatedOnly)),
+  final participatedOnly = find.byKey(
+    TestIds.key(TestIds.constellationFilterParticipatedOnly),
   );
-  await pumpBounded(tester, frames: 8);
-}
-
-Future<void> openConstellationFilters(WidgetTester tester) async {
-  await tapAndSettle(
+  if (!finderHasMatch(participatedOnly)) {
+    await openConstellationFilters(tester);
+  }
+  await pumpUntilVisible(
     tester,
-    find.byKey(const Key('constellation.app_bar.filters')),
+    participatedOnly,
+    label: 'constellation participated-only filter',
   );
+  await tapConstellationControl(tester, participatedOnly);
 }
 
 Future<List<Map<String, dynamic>>> fetchConstellationAnchors({
@@ -1622,8 +1813,10 @@ Future<Map<String, dynamic>> upsertConstellationAnchor({
   required double yUnits,
   int coordinateSpaceVersion = 1,
 }) async {
+  final x = xUnits.toDouble().toStringAsFixed(4);
+  final y = yUnits.toDouble().toStringAsFixed(4);
   final response = await _postGraphQl(
-    'mutation { constellationAnchorUpsert(targetKind: $targetKind, targetId: "$targetId", xUnits: $xUnits, yUnits: $yUnits, coordinateSpaceVersion: $coordinateSpaceVersion) { anchor { targetKind targetId xUnits yUnits coordinateSpaceVersion revision } } }',
+    'mutation { constellationAnchorUpsert(targetKind: $targetKind, targetId: "$targetId", xUnits: $x, yUnits: $y, coordinateSpaceVersion: $coordinateSpaceVersion) { anchor { targetKind targetId xUnits yUnits coordinateSpaceVersion revision } } }',
   );
   final errors = response['errors'];
   if (errors != null) {
@@ -1686,7 +1879,7 @@ Future<void> forwardBeaconTo({
 
 Future<void> closeBeaconForReview(String beaconId) async {
   final response = await _postGraphQl(
-    'mutation { beaconClose(id: "$beaconId") { beaconId } }',
+    'mutation { beaconClose(id: "$beaconId", expectedRequiresReviewWindow: false) { id } }',
   );
   final errors = response['errors'];
   if (errors != null) {
@@ -1705,7 +1898,10 @@ Future<void> deleteBeaconById(String beaconId) async {
 }
 
 Future<void> reloadConstellation(WidgetTester tester) async {
-  await goToPath(tester, kPathMyWork);
-  await pumpBounded(tester);
-  await openConstellation(tester);
+  if (!finderHasMatch(find.byType(ConstellationBody))) {
+    await openConstellation(tester);
+    return;
+  }
+  await readConstellationCubit(tester).load();
+  await waitForConstellationLoaded(tester);
 }

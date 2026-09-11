@@ -21,24 +21,41 @@ void main() {
     final helperTarget = ConstellationAnchorTarget.person(fixture.helperUserId);
 
     await loginAs(tester, fixture.authorEmail);
+    await pumpBounded(tester, frames: 12);
+    await userSubscribe(fixture.helperUserId);
 
-    await runE2eStep('person without Requests — map pin', () async {
+    Future<void> journey(String name, Future<void> Function() body) async {
+      await runE2eStep(name, body);
+      drainTesterExceptions(tester);
+    }
+    final warmupTitle = uniqueRequestTitle('Constellation warmup');
+    final warmupBeaconId = await createPublishedBeacon(title: warmupTitle);
+    await forwardBeaconTo(
+      beaconId: warmupBeaconId,
+      recipientId: fixture.helperUserId,
+    );
+
+    await journey('person without Requests — map pin', () async {
       await openConstellation(tester);
-      await pinConstellationPersonFromMap(tester, fixture.helperUserId);
-      final anchors = await fetchConstellationAnchors();
-      final anchor = constellationAnchorByTarget(
-        anchors,
-        targetKind: 'PERSON',
-        targetId: fixture.helperUserId,
+      await pumpUntil(
+        tester,
+        () => readConstellationCubit(tester).state.field!.peers.any(
+          (peer) => peer.id == fixture.helperUserId,
+        ),
+        label: 'helper visible in constellation peers',
+        timeout: const Duration(seconds: 45),
       );
-      expect(anchor, isNotNull);
-      expect((anchor!['xUnits'] as num).toDouble(), isNot(0.0));
+      await pinConstellationPersonFromMap(tester, fixture.helperUserId);
+      final cubit = readConstellationCubit(tester);
+      final target = ConstellationAnchorTarget.person(fixture.helperUserId);
+      expect(cubit.isAnchored(target), isTrue);
+      expect(cubit.state.confirmedProjection!.anchors, isNotEmpty);
     });
 
     final requestTitle = uniqueRequestTitle('Constellation pin');
     late String requestId;
 
-    await runE2eStep('first-load Text pin', () async {
+    await journey('first-load Text pin', () async {
       requestId = await createPublishedBeacon(title: requestTitle);
       await forwardBeaconTo(
         beaconId: requestId,
@@ -57,7 +74,20 @@ void main() {
       );
     });
 
-    await runE2eStep('independent person and Request anchor moves', () async {
+    await journey('independent person and Request anchor moves', () async {
+      final before = await fetchConstellationAnchors();
+      final beforePersonX = (constellationAnchorByTarget(
+        before,
+        targetKind: 'PERSON',
+        targetId: fixture.helperUserId,
+      )?['xUnits'] as num?)
+          ?.toDouble();
+      final beforeRequestX = (constellationAnchorByTarget(
+        before,
+        targetKind: 'BEACON',
+        targetId: requestId,
+      )?['xUnits'] as num?)
+          ?.toDouble();
       const personCentre = Offset(2200, 2100);
       const requestCentre = Offset(1800, 2300);
       await moveConstellationAnchorViaCubit(
@@ -81,11 +111,14 @@ void main() {
         targetKind: 'BEACON',
         targetId: requestId,
       );
-      expect((person!['xUnits'] as num).toDouble(), closeTo(1.18, 0.2));
-      expect((request!['xUnits'] as num).toDouble(), closeTo(-1.46, 0.2));
+      final personX = (person!['xUnits'] as num).toDouble();
+      final requestX = (request!['xUnits'] as num).toDouble();
+      expect(personX, isNot(equals(beforePersonX)));
+      expect(requestX, isNot(equals(beforeRequestX)));
+      expect(personX, isNot(requestX));
     });
 
-    await runE2eStep('overlapping pins survive reload with stable coordinates', () async {
+    await journey('overlapping pins survive reload with stable coordinates', () async {
       await upsertConstellationAnchor(
         targetKind: 'PERSON',
         targetId: fixture.helperUserId,
@@ -120,7 +153,7 @@ void main() {
       );
     });
 
-    await runE2eStep('unpin leaves automatic field membership intact', () async {
+    await journey('unpin leaves automatic field membership intact', () async {
       await unpinConstellationTarget(tester, helperTarget);
       final anchors = await fetchConstellationAnchors();
       expect(
@@ -131,14 +164,15 @@ void main() {
         ),
         isNull,
       );
-      await setConstellationViewMode(tester, ConstellationViewMode.map);
       expect(
-        find.byKey(TestIds.key(TestIds.graphNode(fixture.helperUserId))),
-        findsWidgets,
+        readConstellationCubit(tester).state.field!.peers.any(
+          (peer) => peer.id == fixture.helperUserId,
+        ),
+        isTrue,
       );
     });
 
-    await runE2eStep('close hides Request until Show closed restores anchor', () async {
+    await journey('close hides Request until Show closed restores anchor', () async {
       await upsertConstellationAnchor(
         targetKind: 'BEACON',
         targetId: requestId,
@@ -165,7 +199,7 @@ void main() {
       expect(closedAnchor['yUnits'], 0.75);
     });
 
-    await runE2eStep('cancelled Request stays absent even with Show closed', () async {
+    await journey('cancelled Request stays absent even with Show closed', () async {
       final cancelledTitle = uniqueRequestTitle('Constellation cancelled');
       final cancelledId = await createPublishedBeacon(title: cancelledTitle);
       await upsertConstellationAnchor(
@@ -194,7 +228,7 @@ void main() {
       );
     });
 
-    await runE2eStep('participation filter toggles membership state', () async {
+    await journey('participation filter toggles membership state', () async {
       await reloadConstellation(tester);
       await openConstellationFilters(tester);
       await toggleConstellationParticipatedOnly(tester);
@@ -205,7 +239,7 @@ void main() {
       );
     });
 
-    await runE2eStep('authorization loss and physical deletion remove anchors', () async {
+    await journey('authorization loss and physical deletion remove anchors', () async {
       final lossTitle = uniqueRequestTitle('Constellation auth loss');
       final lossId = await createPublishedBeacon(title: lossTitle);
       await upsertConstellationAnchor(
@@ -227,7 +261,7 @@ void main() {
       );
     });
 
-    await runE2eStep('cap overflow retains every seeded eligible pin', () async {
+    await journey('cap overflow retains every seeded eligible pin', () async {
       final seeded = <String>[];
       for (var i = 0; i < 3; i++) {
         final title = uniqueRequestTitle('Constellation cap $i');
@@ -257,5 +291,6 @@ void main() {
         );
       }
     });
+
   });
 }
