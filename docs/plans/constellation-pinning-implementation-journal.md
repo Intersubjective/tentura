@@ -342,4 +342,14 @@ REMAINING: none for P02 (P03 next).
 - Process audit after worker: no task-owned Cursor, Dart test/analyzer,
   Flutter, Chrome, WebDriver, or test-driver process remained. Pre-existing
   editor/browser services and an unrelated zombie audio helper were left
-  untouched.
+ untouched.
+
+### P02 manager review — 2026-09-11
+
+- Verdict: accepted. Reviewed `138e998b3`, `a3e829d1e`, `165b3e6fc`, `3c9f565e1`, and `7afc91d5f`; no generated source or pre-existing user work was staged. `7afc91d5f` removes the test-injection seam and exercises the repository's actual top-level retry through disposable PostgreSQL `40P01` triggers that fire after the anchor mutation begins. The nontransactional probe sequence proves two whole transactions: the first mutation rolls back its row, cursor and notification; the second succeeds. Its always-fail mode proves exhaustion leaves no partial anchor, cursor or notification. Update and delete mutation paths provide the two retry-victim directions; the remaining person/beacon cascade tests honestly assert concurrent completion without claiming nondeterministic PostgreSQL lock-victim selection.
+- Independently passed, one command at a time:
+  - `cd packages/server && dart test test/data/database/postgres_serialization_retry_test.dart -j 1` — 5 passed.
+  - `cd packages/server && dart test test/data/repository/constellation_anchor_repository_pg_test.dart -j 1` — 7 passed against a unique disposable database with in-test `SELECT current_database()` proof.
+  - `cd packages/server && dart test test/data/database/constellation_anchor_storage_pg_test.dart -j 1` — 18 passed.
+  - `./scripts/check-custom-lints.sh packages/server` — passed, custom-lint total 0.
+- Process audit after the final worker found an orphaned task-owned repository PG test; it was terminated with `SIGTERM` and subsequent audit found no task-owned Cursor runner, Dart test/analyzer, Flutter, browser-driver, or Chrome process. Pre-existing editor/browser services remain untouched.
