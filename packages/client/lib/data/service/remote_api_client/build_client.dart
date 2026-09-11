@@ -15,6 +15,8 @@ import 'package:tentura_root/consts.dart';
 
 import 'auth_link.dart';
 import 'auth_loss_classifier.dart';
+import 'package:tentura/features/constellation/data/model/constellation_error_mapper.dart';
+
 import 'beacon_hierarchy_error_mapper.dart';
 import 'v2_upload_multipart_link.dart';
 
@@ -78,6 +80,7 @@ Future<Client> buildClient({
                 );
               }
               throwIfBeaconHierarchyError(code, ext);
+              throwIfConstellationError(code, ext);
             }
             throw mapRemoteFailure(errs);
           }
