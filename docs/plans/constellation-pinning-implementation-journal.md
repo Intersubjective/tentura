@@ -60,7 +60,7 @@ tg_style_research.md
 | P04 Authenticated V2 API | complete (accepted) | P03 | see checkpoint below |
 | P05 Client wire adapters and server echo policy | complete (accepted) | P04 | see P05a/P05b checkpoints |
 | P06 Pure composition, budgets and layout | complete (accepted after C6 remediation) | P05 | see P06 C6 remediation |
-| P07 Graph gesture adapter | complete | P06 | see checkpoint below |
+| P07 Graph gesture adapter | complete (accepted after C7 long-press remediation) | P06 | see P07 manager review |
 | P08 Placement orchestration and live reconciliation | pending | P07 | — |
 | P09 Map/Text controls, filters and status accessibility | pending | P08 | — |
 | P10 End-to-end and failure acceptance | pending | P09 | — |
@@ -789,3 +789,47 @@ FINDINGS:
 
 REMAINING: P08 placement orchestration and live reconciliation (next per plan).
 Do not start P09 UI in the graph worker scope.
+
+### P07 — Manager review — 2026-09-11
+
+Independent `cd packages/force_directed_graphview && flutter test` at worker
+HEAD `522e9cc57`: 26 passed.
+
+Accepted after a small manager remediation of C7 long-press rules:
+
+- Worker packet otherwise matches P07: presentation overlay, optional
+  default-off drag hooks, shared paint/hit order, incident edges follow in the
+  same frame, zero global relayout per move, scale-before-capture, extra finger
+  after capture, remaining finger after primary lift, cancel/dispose cleanup.
+- Gesture implementation is `Listener` plus `_CameraGatedInteractiveViewer`
+  pan/scale gating (not a competing `GestureDetector` arena). That is accepted:
+  the canvas-level listener plus camera gate covers the C7 pointer-ownership
+  table, and wrapping `InteractiveViewer` in a blanket controller
+  `AnimatedBuilder` is unsafe (viewport `notifyListeners` during build).
+- Defect: pending **touch** capture ignored movement before the 500ms
+  long-press, so a one-finger pan on a node could still capture. Platform
+  long-press cancels after slop; manager fix cancels pending touch capture
+  when movement exceeds `kTouchSlop`, while mouse primary still captures after
+  slop. Added tests for still long-press capture and pre-long-press move
+  cancel.
+
+Independent re-run after remediation: `cd packages/force_directed_graphview && flutter test` → 28 passed.
+
+Do not commit Flutter's test-time `analysis_options.yaml` auto-upgrade.
+
+STATUS: accepted
+
+COMMITS:
+- 1486477fd feat(graph): add presentation-position overlay on GraphController
+- e781a9d33 feat(graph): add optional node-drag gesture and camera gating
+- 522e9cc57 test(graph): cover P07 node-drag gesture adapter
+- (manager remediation commit follows)
+
+TESTS:
+- `cd packages/force_directed_graphview && flutter test` → 28 passed
+
+FINDINGS:
+- `NodeBase.pinned` remains FR-layout only; persistence is P08.
+- Next: **P08** placement orchestration / cubit / C8 realtime registration.
+
+REMAINING: P08. Do not start P09 in the P08 worker.
