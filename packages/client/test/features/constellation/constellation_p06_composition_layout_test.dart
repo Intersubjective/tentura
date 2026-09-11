@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:tentura/features/constellation/domain/constellation_anchor_composition.dart';
@@ -13,6 +15,39 @@ import 'package:tentura/features/constellation/domain/entity/constellation_field
 
 const _ego = 'U_ego';
 const _spacing = 16.0;
+const _nodeSize = (width: 120.0, height: 120.0);
+
+double _intersectionAreaForTest({
+  required ConstellationPoint aCentre,
+  required ConstellationSize aSize,
+  required ConstellationPoint bCentre,
+  required ConstellationSize bSize,
+  double spacing = _spacing,
+}) {
+  final half = spacing / 2;
+  final a = constellationRenderedBounds(centre: aCentre, size: aSize);
+  final b = constellationRenderedBounds(centre: bCentre, size: bSize);
+  final inflatedA = (
+    left: a.left - half,
+    top: a.top - half,
+    right: a.right + half,
+    bottom: a.bottom + half,
+  );
+  final inflatedB = (
+    left: b.left - half,
+    top: b.top - half,
+    right: b.right + half,
+    bottom: b.bottom + half,
+  );
+  final left = math.max(inflatedA.left, inflatedB.left);
+  final top = math.max(inflatedA.top, inflatedB.top);
+  final right = math.min(inflatedA.right, inflatedB.right);
+  final bottom = math.min(inflatedA.bottom, inflatedB.bottom);
+  if (right <= left || bottom <= top) {
+    return 0;
+  }
+  return (right - left) * (bottom - top);
+}
 
 ConstellationField _fieldWithPins({
   required List<ConstellationPerson> automaticPeers,
@@ -445,6 +480,181 @@ void main() {
         );
         expect(constellationPointWithinEnvelope(point), isTrue);
       }
+    });
+
+    test('automatic person avoids pinned anchor without moving pin', () {
+      const pinnedAnchor = ConstellationAnchorPosition(
+        xUnits: 2,
+        yUnits: 0,
+        coordinateSpaceVersion: kConstellationCoordinateSpaceVersionV1,
+      );
+      final pinnedPoint = constellationV1AnchorToPoint(pinnedAnchor);
+      final paths = resolveConstellationPaths(
+        egoId: _ego,
+        visiblePeerIds: {'pinned-peer', 'auto-peer'},
+        holderIds: {'pinned-peer', 'auto-peer'},
+        edges: [
+          (src: _ego, dst: 'pinned-peer', tier: 1),
+          (src: _ego, dst: 'auto-peer', tier: 1),
+        ],
+      );
+
+      final layout = computeConstellationPlacedLayout(
+        input: (
+          egoId: _ego,
+          paths: paths,
+          automaticKeptPeerIds: {'pinned-peer', 'auto-peer'},
+          pinnedPersonIds: {'pinned-peer'},
+          pinnedRequestIds: const {},
+          supportPersonIds: const {},
+          anchorByNodeId: {'pinned-peer': pinnedAnchor},
+          priorHints: null,
+          nodeSizes: const {
+            'pinned-peer': _nodeSize,
+            'auto-peer': _nodeSize,
+          },
+          satelliteRequestIdsByAuthor: const {},
+          requestAuthorById: const <String, String>{},
+          egoOwnRequestIds: const {},
+          spacing: _spacing,
+          maxHops: 3,
+          viewportClass: ConstellationViewportClass.expanded,
+        ),
+      );
+
+      expect(layout.positions['pinned-peer'], pinnedPoint);
+      expect(layout.positions.containsKey('auto-peer'), isTrue);
+      expect(layout.positions['auto-peer'], isNot(equals(pinnedPoint)));
+      expect(
+        _intersectionAreaForTest(
+          aCentre: layout.positions['pinned-peer']!,
+          aSize: _nodeSize,
+          bCentre: layout.positions['auto-peer']!,
+          bSize: _nodeSize,
+        ),
+        0,
+      );
+    });
+
+    test('exhausted collision candidates still place automatic node', () {
+      final paths = resolveConstellationPaths(
+        egoId: _ego,
+        visiblePeerIds: {'pinned-peer', 'crowded-auto'},
+        holderIds: {'pinned-peer', 'crowded-auto'},
+        edges: [
+          (src: _ego, dst: 'pinned-peer', tier: 1),
+          (src: _ego, dst: 'crowded-auto', tier: 1),
+        ],
+      );
+      final baseline = computeConstellationPlacedLayout(
+        input: (
+          egoId: _ego,
+          paths: paths,
+          automaticKeptPeerIds: {'crowded-auto'},
+          pinnedPersonIds: const {},
+          pinnedRequestIds: const {},
+          supportPersonIds: const {},
+          anchorByNodeId: const {},
+          priorHints: null,
+          nodeSizes: const {'crowded-auto': _nodeSize},
+          satelliteRequestIdsByAuthor: const {},
+          requestAuthorById: const <String, String>{},
+          egoOwnRequestIds: const {},
+          spacing: _spacing,
+          maxHops: 3,
+          viewportClass: ConstellationViewportClass.expanded,
+        ),
+      );
+      final crowdedIdeal = baseline.positions['crowded-auto']!;
+      final pinnedAnchor = constellationPointToV1Anchor(crowdedIdeal);
+      final pinnedPoint = crowdedIdeal;
+
+      final layout = computeConstellationPlacedLayout(
+        input: (
+          egoId: _ego,
+          paths: paths,
+          automaticKeptPeerIds: {'pinned-peer', 'crowded-auto'},
+          pinnedPersonIds: {'pinned-peer'},
+          pinnedRequestIds: const {},
+          supportPersonIds: const {},
+          anchorByNodeId: {'pinned-peer': pinnedAnchor},
+          priorHints: null,
+          nodeSizes: const {
+            'pinned-peer': _nodeSize,
+            'crowded-auto': _nodeSize,
+          },
+          satelliteRequestIdsByAuthor: const {},
+          requestAuthorById: const <String, String>{},
+          egoOwnRequestIds: const {},
+          spacing: _spacing,
+          maxHops: 3,
+          viewportClass: ConstellationViewportClass.expanded,
+        ),
+      );
+
+      expect(layout.positions['pinned-peer'], pinnedPoint);
+      expect(layout.positions.containsKey('crowded-auto'), isTrue);
+      final overlap = _intersectionAreaForTest(
+        aCentre: layout.positions['pinned-peer']!,
+        aSize: _nodeSize,
+        bCentre: layout.positions['crowded-auto']!,
+        bSize: _nodeSize,
+      );
+      if (overlap == 0) {
+        expect(layout.positions['crowded-auto'], isNot(equals(crowdedIdeal)));
+      } else {
+        expect(overlap, greaterThan(0));
+      }
+    });
+
+    test('two automatic people do not stack when collision-free space exists', () {
+      final paths = resolveConstellationPaths(
+        egoId: _ego,
+        visiblePeerIds: {'peer-a', 'peer-b'},
+        holderIds: {'peer-a', 'peer-b'},
+        edges: [
+          (src: _ego, dst: 'peer-a', tier: 1),
+          (src: _ego, dst: 'peer-b', tier: 1),
+        ],
+      );
+
+      final layout = computeConstellationPlacedLayout(
+        input: (
+          egoId: _ego,
+          paths: paths,
+          automaticKeptPeerIds: {'peer-a', 'peer-b'},
+          pinnedPersonIds: const {},
+          pinnedRequestIds: const {},
+          supportPersonIds: const {},
+          anchorByNodeId: const {},
+          priorHints: null,
+          nodeSizes: const {
+            'peer-a': _nodeSize,
+            'peer-b': _nodeSize,
+          },
+          satelliteRequestIdsByAuthor: const {},
+          requestAuthorById: const <String, String>{},
+          egoOwnRequestIds: const {},
+          spacing: _spacing,
+          maxHops: 3,
+          viewportClass: ConstellationViewportClass.expanded,
+        ),
+      );
+
+      final a = layout.positions['peer-a'];
+      final b = layout.positions['peer-b'];
+      expect(a, isNotNull);
+      expect(b, isNotNull);
+      expect(a, isNot(equals(b)));
+      expect(
+        _intersectionAreaForTest(
+          aCentre: a!,
+          aSize: _nodeSize,
+          bCentre: b!,
+          bSize: _nodeSize,
+        ),
+        0,
+      );
     });
 
     test('prior hint applies only when viewport class matches', () {

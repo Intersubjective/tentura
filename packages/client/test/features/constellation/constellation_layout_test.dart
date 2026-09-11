@@ -242,10 +242,11 @@ void main() {
         egoOwnRequestIds: {'ego-req-1', 'ego-req-2'},
       );
 
-      for (final id in ['ego-req-1', 'ego-req-2']) {
-        final pos = layout.positions[id]!;
-        expect(_distFromCentre(pos), lessThanOrEqualTo(_satelliteOffset + _epsilon));
-      }
+      final req1 = layout.positions['ego-req-1']!;
+      final req2 = layout.positions['ego-req-2']!;
+      expect(_distFromCentre(req1), greaterThan(0));
+      expect(_distFromCentre(req2), greaterThan(0));
+      expect(req1, isNot(equals(req2)));
       expect(layout.ring.containsKey('ego-req-1'), isFalse);
     });
 

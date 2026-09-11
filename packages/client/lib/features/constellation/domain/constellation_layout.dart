@@ -238,20 +238,22 @@ ConstellationLayout computeConstellationPlacedLayout({
 
   void placeAutomatic(String nodeId, ConstellationPoint ideal) {
     final size = _sizeFor(nodeId, input.nodeSizes);
-    final parentId = _authorIdForRequest(
+    final authorId = _authorIdForRequest(
       nodeId: nodeId,
       satelliteRequestIdsByAuthor: input.satelliteRequestIdsByAuthor,
       requestAuthorById: input.requestAuthorById,
       egoOwnRequestIds: input.egoOwnRequestIds,
       egoId: input.egoId,
     );
-    final collisionIgnore = <String>{
-      input.egoId,
-      if (parentId != null) parentId,
-      if (parentId != null)
-        ...?input.satelliteRequestIdsByAuthor[parentId],
-      ...input.egoOwnRequestIds,
-    };
+    final collisionIgnore = _isAutomaticRequestNode(
+          nodeId: nodeId,
+          satelliteRequestIdsByAuthor: input.satelliteRequestIdsByAuthor,
+          requestAuthorById: input.requestAuthorById,
+          egoOwnRequestIds: input.egoOwnRequestIds,
+        ) &&
+            authorId != null
+        ? {authorId}
+        : const <String>{};
     final chosen = _chooseAutomaticPosition(
       nodeId: nodeId,
       ideal: ideal,
@@ -265,11 +267,9 @@ ConstellationLayout computeConstellationPlacedLayout({
       viewportClass: input.viewportClass,
       collisionIgnore: collisionIgnore,
     );
-    if (chosen != null) {
-      positions[nodeId] = chosen.point;
-      if (chosen.ring != null) {
-        ring[nodeId] = chosen.ring!;
-      }
+    positions[nodeId] = chosen.point;
+    if (chosen.ring != null) {
+      ring[nodeId] = chosen.ring!;
     }
   }
 
@@ -334,7 +334,27 @@ String? _authorIdForRequest({
   return null;
 }
 
-({ConstellationPoint point, int? ring})? _chooseAutomaticPosition({
+bool _isAutomaticRequestNode({
+  required String nodeId,
+  required Map<String, List<String>> satelliteRequestIdsByAuthor,
+  required Map<String, String> requestAuthorById,
+  required Set<String> egoOwnRequestIds,
+}) {
+  if (egoOwnRequestIds.contains(nodeId)) {
+    return true;
+  }
+  if (requestAuthorById.containsKey(nodeId)) {
+    return true;
+  }
+  for (final requestIds in satelliteRequestIdsByAuthor.values) {
+    if (requestIds.contains(nodeId)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+({ConstellationPoint point, int? ring}) _chooseAutomaticPosition({
   required String nodeId,
   required ConstellationPoint ideal,
   required ConstellationSize size,
@@ -356,24 +376,13 @@ String? _authorIdForRequest({
         nodeId: nodeId,
         hint: hint,
         size: size,
-        spacing: spacing,
-        placed: placed,
-        placedSizes: placedSizes,
         paths: paths,
         priorRing: priorHints.ring[nodeId],
-        ignore: collisionIgnore,
       )) {
     candidates.add(hint);
   }
 
-  if (_candidateValid(
-    ideal,
-    size: size,
-    spacing: spacing,
-    placed: placed,
-    placedSizes: placedSizes,
-    ignore: collisionIgnore,
-  )) {
+  if (_envelopeValid(ideal, size: size)) {
     candidates.add(ideal);
   }
 
@@ -390,42 +399,52 @@ String? _authorIdForRequest({
         x: ideal.x + math.cos(angle) * radius,
         y: ideal.y + math.sin(angle) * radius,
       );
-      if (_candidateValid(
-        candidate,
-        size: size,
-        spacing: spacing,
-        placed: placed,
-        placedSizes: placedSizes,
-        ignore: collisionIgnore,
-      )) {
+      if (_envelopeValid(candidate, size: size)) {
         candidates.add(candidate);
       }
     }
   }
 
-  if (candidates.isEmpty) {
-    return null;
-  }
-
-  var bestIndex = 0;
-  var bestScore = double.infinity;
-  for (var i = 0; i < candidates.length; i++) {
-    final score = _totalIntersectionArea(
-      candidate: candidates[i],
-      size: size,
-      spacing: spacing,
-      placed: placed,
-      placedSizes: placedSizes,
-      ignore: collisionIgnore,
-    );
-    if (score < bestScore || (score == bestScore && i < bestIndex)) {
-      bestScore = score;
-      bestIndex = i;
+  final chosenPoint = () {
+    if (candidates.isEmpty) {
+      return _clampAutomaticPointToEnvelopeAndCanvas(point: ideal, size: size);
     }
-  }
+
+    for (final candidate in candidates) {
+      if (_totalIntersectionArea(
+            candidate: candidate,
+            size: size,
+            spacing: spacing,
+            placed: placed,
+            placedSizes: placedSizes,
+            ignore: collisionIgnore,
+          ) ==
+          0) {
+        return candidate;
+      }
+    }
+
+    var bestIndex = 0;
+    var bestScore = double.infinity;
+    for (var i = 0; i < candidates.length; i++) {
+      final score = _totalIntersectionArea(
+        candidate: candidates[i],
+        size: size,
+        spacing: spacing,
+        placed: placed,
+        placedSizes: placedSizes,
+        ignore: collisionIgnore,
+      );
+      if (score < bestScore || (score == bestScore && i < bestIndex)) {
+        bestScore = score;
+        bestIndex = i;
+      }
+    }
+    return candidates[bestIndex];
+  }();
 
   return (
-    point: candidates[bestIndex],
+    point: chosenPoint,
     ring: priorHints?.ring[nodeId] ?? ring[nodeId],
   );
 }
@@ -434,62 +453,60 @@ bool _priorHintEligible({
   required String nodeId,
   required ConstellationPoint hint,
   required ConstellationSize size,
-  required double spacing,
-  required Map<String, ConstellationPoint> placed,
-  required Map<String, ConstellationSize> placedSizes,
   required ConstellationPathResolution paths,
   required int? priorRing,
-  Set<String> ignore = const {},
 }) {
   final currentRing = paths.depth[nodeId] ??
       (paths.ring.contains(nodeId) ? (paths.depth.values.fold(0, math.max) + 1) : null);
   if (priorRing != null && currentRing != null && priorRing != currentRing) {
     return false;
   }
-  return _candidateValid(
-    hint,
-    size: size,
-    spacing: spacing,
-    placed: placed,
-    placedSizes: placedSizes,
-    ignore: ignore,
-  );
+  return _envelopeValid(hint, size: size);
 }
 
-bool _candidateValid(
+bool _envelopeValid(
   ConstellationPoint centre, {
   required ConstellationSize size,
-  required double spacing,
-  required Map<String, ConstellationPoint> placed,
-  required Map<String, ConstellationSize> placedSizes,
-  Set<String> ignore = const {},
 }) {
   if (!constellationPointWithinEnvelope(centre)) {
     return false;
   }
   final bounds = constellationRenderedBounds(centre: centre, size: size);
-  if (!constellationBoundsWithinCanvas(bounds)) {
-    return false;
+  return constellationBoundsWithinCanvas(bounds);
+}
+
+ConstellationPoint _clampAutomaticPointToEnvelopeAndCanvas({
+  required ConstellationPoint point,
+  required ConstellationSize size,
+}) {
+  final anchor = constellationPointToV1Anchor(point);
+  final clampedUnits = (
+    xUnits: anchor.xUnits.clamp(
+      kConstellationCoordinateMinUnits,
+      kConstellationCoordinateMaxUnits,
+    ),
+    yUnits: anchor.yUnits.clamp(
+      kConstellationCoordinateMinUnits,
+      kConstellationCoordinateMaxUnits,
+    ),
+  );
+  var centre = constellationV1AnchorToPoint(
+    ConstellationAnchorPosition(
+      xUnits: clampedUnits.xUnits,
+      yUnits: clampedUnits.yUnits,
+      coordinateSpaceVersion: kConstellationCoordinateSpaceVersionV1,
+    ),
+  );
+  final halfW = size.width / 2;
+  final halfH = size.height / 2;
+  centre = (
+    x: centre.x.clamp(halfW, kConstellationCanvasExtent - halfW),
+    y: centre.y.clamp(halfH, kConstellationCanvasExtent - halfH),
+  );
+  if (_envelopeValid(centre, size: size)) {
+    return centre;
   }
-  for (final entry in placed.entries) {
-    if (ignore.contains(entry.key)) {
-      continue;
-    }
-    if (_intersectionArea(
-          a: _inflatedBounds(
-            constellationRenderedBounds(
-              centre: entry.value,
-              size: placedSizes[entry.key] ?? (width: 64, height: 64),
-            ),
-            spacing: spacing,
-          ),
-          b: _inflatedBounds(bounds, spacing: spacing),
-        ) >
-        0) {
-      return false;
-    }
-  }
-  return true;
+  return constellationCanvasCentrePoint();
 }
 
 double _totalIntersectionArea({
