@@ -3,12 +3,112 @@ import 'dart:ui' show Offset, Size;
 
 import 'package:tentura/features/graph/domain/layout/radial_hop_positions.dart';
 
+import 'constellation_anchor_composition.dart';
+import 'constellation_consts.dart';
 import 'constellation_path_resolution.dart';
+import 'entity/constellation_anchor.dart';
+
+typedef ConstellationPoint = ({double x, double y});
+typedef ConstellationSize = ({double width, double height});
+typedef ConstellationBounds = ({double left, double top, double right, double bottom});
 
 typedef ConstellationLayout = ({
-  Map<String, Offset> positions,
+  Map<String, ConstellationPoint> positions,
   Map<String, int> ring,
 });
+
+typedef ConstellationLayoutPriorHints = ({
+  Map<String, ConstellationPoint> positions,
+  Map<String, int> ring,
+  ConstellationViewportClass viewportClass,
+});
+
+typedef ConstellationPlacedLayoutInput = ({
+  String egoId,
+  ConstellationPathResolution paths,
+  Set<String> automaticKeptPeerIds,
+  Set<String> pinnedPersonIds,
+  Set<String> pinnedRequestIds,
+  Set<String> supportPersonIds,
+  Map<String, ConstellationAnchorPosition> anchorByNodeId,
+  ConstellationLayoutPriorHints? priorHints,
+  Map<String, ConstellationSize> nodeSizes,
+  Map<String, List<String>> satelliteRequestIdsByAuthor,
+  Map<String, String> requestAuthorById,
+  Set<String> egoOwnRequestIds,
+  double spacing,
+  int maxHops,
+  ConstellationViewportClass viewportClass,
+});
+
+const _kCandidateRadiiMultipliers = [1, 2, 3, 4];
+const _kCandidateAngleCount = 16;
+
+ConstellationPoint constellationCanvasCentrePoint() => (
+  x: kConstellationCanvasCentre,
+  y: kConstellationCanvasCentre,
+);
+
+ConstellationPoint constellationV1AnchorToPoint(
+  ConstellationAnchorPosition position,
+) {
+  final centre = constellationCanvasCentrePoint();
+  return (
+    x: centre.x + position.xUnits * kConstellationRingUnitPixels,
+    y: centre.y + position.yUnits * kConstellationRingUnitPixels,
+  );
+}
+
+ConstellationAnchorPosition constellationPointToV1Anchor(
+  ConstellationPoint point,
+) {
+  final centre = constellationCanvasCentrePoint();
+  return ConstellationAnchorPosition(
+    xUnits: (point.x - centre.x) / kConstellationRingUnitPixels,
+    yUnits: (point.y - centre.y) / kConstellationRingUnitPixels,
+    coordinateSpaceVersion: kConstellationCoordinateSpaceVersionV1,
+  );
+}
+
+bool constellationPointWithinEnvelope(ConstellationPoint centre) {
+  final normalized = constellationPointToV1Anchor(centre);
+  return ConstellationAnchorPosition.validate(
+        xUnits: normalized.xUnits,
+        yUnits: normalized.yUnits,
+        coordinateSpaceVersion: normalized.coordinateSpaceVersion,
+      )
+      is ConstellationAnchorPositionValid;
+}
+
+bool constellationBoundsWithinCanvas(ConstellationBounds bounds) {
+  return bounds.left >= 0 &&
+      bounds.top >= 0 &&
+      bounds.right <= kConstellationCanvasExtent &&
+      bounds.bottom <= kConstellationCanvasExtent;
+}
+
+ConstellationBounds constellationRenderedBounds({
+  required ConstellationPoint centre,
+  required ConstellationSize size,
+}) {
+  final halfW = size.width / 2;
+  final halfH = size.height / 2;
+  return (
+    left: centre.x - halfW,
+    top: centre.y - halfH,
+    right: centre.x + halfW,
+    bottom: centre.y + halfH,
+  );
+}
+
+Map<String, Offset> constellationLayoutPointsToOffsets(
+  Map<String, ConstellationPoint> positions,
+) {
+  return {
+    for (final entry in positions.entries)
+      entry.key: Offset(entry.value.x, entry.value.y),
+  };
+}
 
 ConstellationLayout computeConstellationLayout({
   required String egoId,
@@ -16,17 +116,459 @@ ConstellationLayout computeConstellationLayout({
   required Set<String> keptPeerIds,
   required Map<String, List<String>> visibleRequestsByAuthor,
   required Set<String> egoOwnRequestIds,
-  required Size canvasSize,
   int maxHops = 3,
-  double ringGap = 170,
+  double ringGap = kConstellationRingUnitPixels,
+  double residualRingFactor = 1.6,
+  double satelliteOffset = 56,
+  Map<String, ConstellationSize> nodeSizes = const {},
+  double spacing = 16,
+  Set<String> pinnedPersonIds = const {},
+  Set<String> pinnedRequestIds = const {},
+  Set<String> supportPersonIds = const {},
+  Map<String, ConstellationAnchorPosition> anchorByNodeId = const {},
+  ConstellationLayoutPriorHints? priorHints,
+  ConstellationViewportClass viewportClass = ConstellationViewportClass.expanded,
+}) {
+  return computeConstellationPlacedLayout(
+    input: (
+      egoId: egoId,
+      paths: paths,
+      automaticKeptPeerIds: keptPeerIds,
+      pinnedPersonIds: pinnedPersonIds,
+      pinnedRequestIds: pinnedRequestIds,
+      supportPersonIds: supportPersonIds,
+      anchorByNodeId: anchorByNodeId,
+      priorHints: priorHints,
+      nodeSizes: nodeSizes,
+      satelliteRequestIdsByAuthor: visibleRequestsByAuthor,
+      requestAuthorById: const {},
+      egoOwnRequestIds: egoOwnRequestIds,
+      spacing: spacing,
+      maxHops: maxHops,
+      viewportClass: viewportClass,
+    ),
+    ringGap: ringGap,
+    residualRingFactor: residualRingFactor,
+    satelliteOffset: satelliteOffset,
+  );
+}
+
+ConstellationLayout computeConstellationPlacedLayout({
+  required ConstellationPlacedLayoutInput input,
+  double ringGap = kConstellationRingUnitPixels,
   double residualRingFactor = 1.6,
   double satelliteOffset = 56,
 }) {
-  final centre = canvasSize.center(Offset.zero);
-  final positions = <String, Offset>{};
+  final centre = constellationCanvasCentrePoint();
+  final positions = <String, ConstellationPoint>{};
   final ring = <String, int>{};
 
-  // Pass 1 — person tree over paths.keep ∩ keptPeerIds; ego always included.
+  positions[input.egoId] = centre;
+  ring[input.egoId] = 0;
+
+  for (final personId in input.pinnedPersonIds) {
+    final anchor = input.anchorByNodeId[personId];
+    if (anchor == null) {
+      continue;
+    }
+    final point = constellationV1AnchorToPoint(anchor);
+    positions[personId] = point;
+    ring[personId] = input.paths.depth[personId] ??
+        (input.paths.ring.contains(personId)
+            ? input.maxHops + 1
+            : input.maxHops);
+  }
+
+  for (final requestId in input.pinnedRequestIds) {
+    final anchor = input.anchorByNodeId[requestId];
+    if (anchor == null) {
+      continue;
+    }
+    positions[requestId] = constellationV1AnchorToPoint(anchor);
+  }
+
+  final ideals = _computeSemanticIdeals(
+    egoId: input.egoId,
+    paths: input.paths,
+    keptPeerIds: input.automaticKeptPeerIds,
+    visibleRequestsByAuthor: input.satelliteRequestIdsByAuthor,
+    egoOwnRequestIds: input.egoOwnRequestIds,
+    centre: centre,
+    maxHops: input.maxHops,
+    ringGap: ringGap,
+    residualRingFactor: residualRingFactor,
+    satelliteOffset: satelliteOffset,
+    alreadyPlaced: positions.keys.toSet(),
+  );
+
+  final automaticPeople = [
+    for (final id in input.automaticKeptPeerIds)
+      if (!input.pinnedPersonIds.contains(id) &&
+          !input.supportPersonIds.contains(id))
+        id,
+  ]..sort();
+
+  final supportPeople = [
+    for (final id in input.supportPersonIds)
+      if (!input.pinnedPersonIds.contains(id)) id,
+  ]..sort();
+
+  final automaticRequests = <String>[];
+  final authors = input.satelliteRequestIdsByAuthor.keys.toList()..sort();
+  for (final author in authors) {
+    if (author == input.egoId) {
+      continue;
+    }
+    final requestIds = List<String>.from(
+      input.satelliteRequestIdsByAuthor[author] ?? const [],
+    )..sort();
+    for (final requestId in requestIds) {
+      if (!input.pinnedRequestIds.contains(requestId)) {
+        automaticRequests.add(requestId);
+      }
+    }
+  }
+
+  final egoRequests = List<String>.from(input.egoOwnRequestIds)..sort();
+  for (final requestId in egoRequests) {
+    if (!input.pinnedRequestIds.contains(requestId)) {
+      automaticRequests.add(requestId);
+    }
+  }
+
+  void placeAutomatic(String nodeId, ConstellationPoint ideal) {
+    final size = _sizeFor(nodeId, input.nodeSizes);
+    final parentId = _authorIdForRequest(
+      nodeId: nodeId,
+      satelliteRequestIdsByAuthor: input.satelliteRequestIdsByAuthor,
+      requestAuthorById: input.requestAuthorById,
+      egoOwnRequestIds: input.egoOwnRequestIds,
+      egoId: input.egoId,
+    );
+    final collisionIgnore = <String>{
+      input.egoId,
+      if (parentId != null) parentId,
+      if (parentId != null)
+        ...?input.satelliteRequestIdsByAuthor[parentId],
+      ...input.egoOwnRequestIds,
+    };
+    final chosen = _chooseAutomaticPosition(
+      nodeId: nodeId,
+      ideal: ideal,
+      size: size,
+      spacing: input.spacing,
+      placed: positions,
+      placedSizes: input.nodeSizes,
+      priorHints: input.priorHints,
+      paths: input.paths,
+      ring: ring,
+      viewportClass: input.viewportClass,
+      collisionIgnore: collisionIgnore,
+    );
+    if (chosen != null) {
+      positions[nodeId] = chosen.point;
+      if (chosen.ring != null) {
+        ring[nodeId] = chosen.ring!;
+      }
+    }
+  }
+
+  for (final personId in supportPeople) {
+    final ideal = ideals[personId];
+    if (ideal == null) {
+      continue;
+    }
+    placeAutomatic(personId, ideal);
+    ring[personId] = input.paths.depth[personId] ??
+        (input.paths.ring.contains(personId)
+            ? input.maxHops + 1
+            : input.maxHops);
+  }
+
+  for (final personId in automaticPeople) {
+    final ideal = ideals[personId];
+    if (ideal == null) {
+      continue;
+    }
+    placeAutomatic(personId, ideal);
+    ring[personId] = input.paths.depth[personId] ??
+        (input.paths.ring.contains(personId)
+            ? input.maxHops + 1
+            : input.maxHops);
+  }
+
+  for (final requestId in automaticRequests) {
+    final ideal = ideals[requestId];
+    if (ideal == null) {
+      continue;
+    }
+    placeAutomatic(requestId, ideal);
+  }
+
+  return (positions: positions, ring: ring);
+}
+
+ConstellationSize _sizeFor(String nodeId, Map<String, ConstellationSize> sizes) {
+  return sizes[nodeId] ?? (width: 64, height: 64);
+}
+
+String? _authorIdForRequest({
+  required String nodeId,
+  required Map<String, List<String>> satelliteRequestIdsByAuthor,
+  required Map<String, String> requestAuthorById,
+  required Set<String> egoOwnRequestIds,
+  required String egoId,
+}) {
+  if (egoOwnRequestIds.contains(nodeId)) {
+    return egoId;
+  }
+  final direct = requestAuthorById[nodeId];
+  if (direct != null) {
+    return direct;
+  }
+  for (final entry in satelliteRequestIdsByAuthor.entries) {
+    if (entry.value.contains(nodeId)) {
+      return entry.key;
+    }
+  }
+  return null;
+}
+
+({ConstellationPoint point, int? ring})? _chooseAutomaticPosition({
+  required String nodeId,
+  required ConstellationPoint ideal,
+  required ConstellationSize size,
+  required double spacing,
+  required Map<String, ConstellationPoint> placed,
+  required Map<String, ConstellationSize> placedSizes,
+  required ConstellationLayoutPriorHints? priorHints,
+  required ConstellationPathResolution paths,
+  required Map<String, int> ring,
+  required ConstellationViewportClass viewportClass,
+  Set<String> collisionIgnore = const {},
+}) {
+  final candidates = <ConstellationPoint>[];
+
+  final hint = priorHints?.positions[nodeId];
+  if (hint != null &&
+      priorHints!.viewportClass == viewportClass &&
+      _priorHintEligible(
+        nodeId: nodeId,
+        hint: hint,
+        size: size,
+        spacing: spacing,
+        placed: placed,
+        placedSizes: placedSizes,
+        paths: paths,
+        priorRing: priorHints.ring[nodeId],
+        ignore: collisionIgnore,
+      )) {
+    candidates.add(hint);
+  }
+
+  if (_candidateValid(
+    ideal,
+    size: size,
+    spacing: spacing,
+    placed: placed,
+    placedSizes: placedSizes,
+    ignore: collisionIgnore,
+  )) {
+    candidates.add(ideal);
+  }
+
+  final step = math.max(size.width, size.height) + spacing;
+  final radial = math.atan2(
+    ideal.y - constellationCanvasCentrePoint().y,
+    ideal.x - constellationCanvasCentrePoint().x,
+  );
+  for (final multiplier in _kCandidateRadiiMultipliers) {
+    final radius = step * multiplier;
+    for (var i = 0; i < _kCandidateAngleCount; i++) {
+      final angle = radial + (2 * math.pi / _kCandidateAngleCount) * i;
+      final candidate = (
+        x: ideal.x + math.cos(angle) * radius,
+        y: ideal.y + math.sin(angle) * radius,
+      );
+      if (_candidateValid(
+        candidate,
+        size: size,
+        spacing: spacing,
+        placed: placed,
+        placedSizes: placedSizes,
+        ignore: collisionIgnore,
+      )) {
+        candidates.add(candidate);
+      }
+    }
+  }
+
+  if (candidates.isEmpty) {
+    return null;
+  }
+
+  var bestIndex = 0;
+  var bestScore = double.infinity;
+  for (var i = 0; i < candidates.length; i++) {
+    final score = _totalIntersectionArea(
+      candidate: candidates[i],
+      size: size,
+      spacing: spacing,
+      placed: placed,
+      placedSizes: placedSizes,
+      ignore: collisionIgnore,
+    );
+    if (score < bestScore || (score == bestScore && i < bestIndex)) {
+      bestScore = score;
+      bestIndex = i;
+    }
+  }
+
+  return (
+    point: candidates[bestIndex],
+    ring: priorHints?.ring[nodeId] ?? ring[nodeId],
+  );
+}
+
+bool _priorHintEligible({
+  required String nodeId,
+  required ConstellationPoint hint,
+  required ConstellationSize size,
+  required double spacing,
+  required Map<String, ConstellationPoint> placed,
+  required Map<String, ConstellationSize> placedSizes,
+  required ConstellationPathResolution paths,
+  required int? priorRing,
+  Set<String> ignore = const {},
+}) {
+  final currentRing = paths.depth[nodeId] ??
+      (paths.ring.contains(nodeId) ? (paths.depth.values.fold(0, math.max) + 1) : null);
+  if (priorRing != null && currentRing != null && priorRing != currentRing) {
+    return false;
+  }
+  return _candidateValid(
+    hint,
+    size: size,
+    spacing: spacing,
+    placed: placed,
+    placedSizes: placedSizes,
+    ignore: ignore,
+  );
+}
+
+bool _candidateValid(
+  ConstellationPoint centre, {
+  required ConstellationSize size,
+  required double spacing,
+  required Map<String, ConstellationPoint> placed,
+  required Map<String, ConstellationSize> placedSizes,
+  Set<String> ignore = const {},
+}) {
+  if (!constellationPointWithinEnvelope(centre)) {
+    return false;
+  }
+  final bounds = constellationRenderedBounds(centre: centre, size: size);
+  if (!constellationBoundsWithinCanvas(bounds)) {
+    return false;
+  }
+  for (final entry in placed.entries) {
+    if (ignore.contains(entry.key)) {
+      continue;
+    }
+    if (_intersectionArea(
+          a: _inflatedBounds(
+            constellationRenderedBounds(
+              centre: entry.value,
+              size: placedSizes[entry.key] ?? (width: 64, height: 64),
+            ),
+            spacing: spacing,
+          ),
+          b: _inflatedBounds(bounds, spacing: spacing),
+        ) >
+        0) {
+      return false;
+    }
+  }
+  return true;
+}
+
+double _totalIntersectionArea({
+  required ConstellationPoint candidate,
+  required ConstellationSize size,
+  required double spacing,
+  required Map<String, ConstellationPoint> placed,
+  required Map<String, ConstellationSize> placedSizes,
+  Set<String> ignore = const {},
+}) {
+  final bounds = _inflatedBounds(
+    constellationRenderedBounds(centre: candidate, size: size),
+    spacing: spacing,
+  );
+  var total = 0.0;
+  for (final entry in placed.entries) {
+    if (ignore.contains(entry.key)) {
+      continue;
+    }
+    total += _intersectionArea(
+      a: bounds,
+      b: _inflatedBounds(
+        constellationRenderedBounds(
+          centre: entry.value,
+          size: placedSizes[entry.key] ?? (width: 64, height: 64),
+        ),
+        spacing: spacing,
+      ),
+    );
+  }
+  return total;
+}
+
+ConstellationBounds _inflatedBounds(
+  ConstellationBounds bounds, {
+  required double spacing,
+}) {
+  final half = spacing / 2;
+  return (
+    left: bounds.left - half,
+    top: bounds.top - half,
+    right: bounds.right + half,
+    bottom: bounds.bottom + half,
+  );
+}
+
+double _intersectionArea({
+  required ConstellationBounds a,
+  required ConstellationBounds b,
+}) {
+  final left = math.max(a.left, b.left);
+  final top = math.max(a.top, b.top);
+  final right = math.min(a.right, b.right);
+  final bottom = math.min(a.bottom, b.bottom);
+  if (right <= left || bottom <= top) {
+    return 0;
+  }
+  return (right - left) * (bottom - top);
+}
+
+Map<String, ConstellationPoint> _computeSemanticIdeals({
+  required String egoId,
+  required ConstellationPathResolution paths,
+  required Set<String> keptPeerIds,
+  required Map<String, List<String>> visibleRequestsByAuthor,
+  required Set<String> egoOwnRequestIds,
+  required ConstellationPoint centre,
+  required int maxHops,
+  required double ringGap,
+  required double residualRingFactor,
+  required double satelliteOffset,
+  required Set<String> alreadyPlaced,
+}) {
+  final ideals = <String, ConstellationPoint>{};
+  final canvasSize = (
+    width: kConstellationCanvasExtent,
+    height: kConstellationCanvasExtent,
+  );
+
   final treePeers = paths.keep.intersection(keptPeerIds);
   final children = <String, List<String>>{};
 
@@ -58,58 +600,73 @@ ConstellationLayout computeConstellationLayout({
   }
 
   assignEqualSectors(egoId, 0, 2 * math.pi);
-
-  positions[egoId] = centre;
-  ring[egoId] = 0;
+  ideals[egoId] = centre;
 
   for (final id in treePeers) {
+    if (alreadyPlaced.contains(id)) {
+      continue;
+    }
     final depth = paths.depth[id];
     if (depth == null) {
       continue;
     }
     final nodeAngle = angle[id] ?? 0;
     final radius = depth * ringGap;
-    final offset =
-        Offset(
-          math.cos(nodeAngle - math.pi / 2),
-          math.sin(nodeAngle - math.pi / 2),
-        ) *
-        radius;
-    positions[id] = clampLayoutPosition(centre + offset, canvasSize);
-    ring[id] = depth;
+    final offset = (
+      x: math.cos(nodeAngle - math.pi / 2) * radius,
+      y: math.sin(nodeAngle - math.pi / 2) * radius,
+    );
+    ideals[id] = _toPoint(
+      _clampLegacy(
+        (
+          x: centre.x + offset.x,
+          y: centre.y + offset.y,
+        ),
+        canvasSize,
+      ),
+    );
   }
 
-  // Pass 2 — residual ring: paths.ring ∩ keptPeerIds, evenly spaced by id.
-  final ringPeers = paths.ring.intersection(keptPeerIds).toList()
-    ..sort();
+  final ringPeers = paths.ring.intersection(keptPeerIds).toList()..sort();
   if (ringPeers.isNotEmpty) {
     final ringRadius = (maxHops + residualRingFactor) * ringGap;
     final step = 2 * math.pi / ringPeers.length;
     for (var i = 0; i < ringPeers.length; i++) {
-      final nodeAngle = step * i;
-      final offset =
-          Offset(
-            math.cos(nodeAngle - math.pi / 2),
-            math.sin(nodeAngle - math.pi / 2),
-          ) *
-          ringRadius;
       final id = ringPeers[i];
-      positions[id] = clampLayoutPosition(centre + offset, canvasSize);
-      ring[id] = maxHops + 1;
+      if (alreadyPlaced.contains(id)) {
+        continue;
+      }
+      final nodeAngle = step * i;
+      final offset = (
+        x: math.cos(nodeAngle - math.pi / 2) * ringRadius,
+        y: math.sin(nodeAngle - math.pi / 2) * ringRadius,
+      );
+      ideals[id] = _toPoint(
+        _clampLegacy(
+          (
+            x: centre.x + offset.x,
+            y: centre.y + offset.y,
+          ),
+          canvasSize,
+        ),
+      );
     }
   }
 
-  // Pass 3 — satellites along each author's radial direction (D16: ego off centre).
   final egoRequests = egoOwnRequestIds.toList()..sort();
   if (egoRequests.isNotEmpty) {
     final egoSatellites = localFanPositions(
-      parentPos: centre,
-      direction: branchUnitDirection(parentPos: centre),
+      parentPos: Offset(centre.x, centre.y),
+      direction: branchUnitDirection(parentPos: Offset(centre.x, centre.y)),
       childIds: egoRequests,
-      canvasSize: canvasSize,
+      canvasSize: Size(canvasSize.width, canvasSize.height),
       ringGap: satelliteOffset,
     );
-    positions.addAll(egoSatellites);
+    for (final entry in egoSatellites.entries) {
+      if (!alreadyPlaced.contains(entry.key)) {
+        ideals[entry.key] = (x: entry.value.dx, y: entry.value.dy);
+      }
+    }
   }
 
   final authors = visibleRequestsByAuthor.keys.toList()..sort();
@@ -117,8 +674,8 @@ ConstellationLayout computeConstellationLayout({
     if (author == egoId) {
       continue;
     }
-    final authorPos = positions[author];
-    if (authorPos == null) {
+    final authorPoint = ideals[author];
+    if (authorPoint == null) {
       continue;
     }
     final requestIds = List<String>.from(visibleRequestsByAuthor[author]!)
@@ -127,20 +684,68 @@ ConstellationLayout computeConstellationLayout({
       continue;
     }
 
-    final radial = authorPos - centre;
-    final direction = radial.distanceSquared < 1e-6
-        ? branchUnitDirection(parentPos: centre)
-        : radial / radial.distance;
+    final radial = (
+      x: authorPoint.x - centre.x,
+      y: authorPoint.y - centre.y,
+    );
+    final distance = math.sqrt(radial.x * radial.x + radial.y * radial.y);
+    final direction = distance < 1e-6
+        ? branchUnitDirection(parentPos: Offset(centre.x, centre.y))
+        : Offset(radial.x / distance, radial.y / distance);
 
     final satellites = localFanPositions(
-      parentPos: authorPos,
+      parentPos: Offset(authorPoint.x, authorPoint.y),
       direction: direction,
       childIds: requestIds,
-      canvasSize: canvasSize,
+      canvasSize: Size(canvasSize.width, canvasSize.height),
       ringGap: satelliteOffset,
     );
-    positions.addAll(satellites);
+    for (final entry in satellites.entries) {
+      if (!alreadyPlaced.contains(entry.key)) {
+        ideals[entry.key] = (x: entry.value.dx, y: entry.value.dy);
+      }
+    }
   }
 
-  return (positions: positions, ring: ring);
+  return ideals;
+}
+
+ConstellationPoint _toPoint(Offset offset) => (x: offset.dx, y: offset.dy);
+
+Offset _clampLegacy(ConstellationPoint point, ConstellationSize canvasSize) {
+  return clampLayoutPosition(
+    Offset(point.x, point.y),
+    Size(canvasSize.width, canvasSize.height),
+  );
+}
+
+/// Adapter for graph code that still consumes [Offset] positions.
+({Map<String, Offset> positions, Map<String, int> ring})
+computeConstellationLayoutWithOffsets({
+  required String egoId,
+  required ConstellationPathResolution paths,
+  required Set<String> keptPeerIds,
+  required Map<String, List<String>> visibleRequestsByAuthor,
+  required Set<String> egoOwnRequestIds,
+  required Size canvasSize,
+  int maxHops = 3,
+  double ringGap = kConstellationRingUnitPixels,
+  double residualRingFactor = 1.6,
+  double satelliteOffset = 56,
+}) {
+  final layout = computeConstellationLayout(
+    egoId: egoId,
+    paths: paths,
+    keptPeerIds: keptPeerIds,
+    visibleRequestsByAuthor: visibleRequestsByAuthor,
+    egoOwnRequestIds: egoOwnRequestIds,
+    maxHops: maxHops,
+    ringGap: ringGap,
+    residualRingFactor: residualRingFactor,
+    satelliteOffset: satelliteOffset,
+  );
+  return (
+    positions: constellationLayoutPointsToOffsets(layout.positions),
+    ring: layout.ring,
+  );
 }
