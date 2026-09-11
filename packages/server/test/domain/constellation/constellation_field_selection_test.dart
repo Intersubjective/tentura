@@ -94,4 +94,26 @@ void main() {
       );
     });
   });
+
+  group('shared beacon readability SQL', () {
+    test('stored-anchor readability has no status gate', () {
+      final sql = constellationBeaconContentReadableSql(
+        viewerParam: r'$1',
+        beaconAlias: 'b',
+      );
+      expect(sql, contains('published_at IS NOT NULL'));
+      expect(sql, contains('beacon_can_read_content'));
+      expect(sql, contains('block_hides'));
+      expect(sql, isNot(contains('status')));
+    });
+
+    test('upsert status restriction is explicit and uses eligible set', () {
+      final sql = constellationBeaconUpsertStatusSql(beaconAlias: 'b');
+      expect(sql, contains("b.status = ANY('{"));
+      for (final status in kConstellationUpsertEligibleBeaconStatuses) {
+        expect(sql, contains('$status'));
+      }
+      expect(sql, isNot(contains('1,')));
+    });
+  });
 }

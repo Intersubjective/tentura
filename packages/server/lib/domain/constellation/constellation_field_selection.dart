@@ -94,3 +94,22 @@ String constellationViewerParticipatesSql({
 )
 ''';
 }
+
+/// Publication + content-read + both block directions. Shared by stored-anchor
+/// authorization and upsert; upsert adds [constellationBeaconUpsertStatusSql].
+String constellationBeaconContentReadableSql({
+  required String viewerParam,
+  required String beaconAlias,
+}) {
+  return '''
+$beaconAlias.published_at IS NOT NULL
+  AND public.beacon_can_read_content($beaconAlias.id, $viewerParam)
+  AND NOT public.block_hides($viewerParam, $beaconAlias.user_id)
+  AND NOT public.block_hides($beaconAlias.user_id, $viewerParam)
+''';
+}
+
+String constellationBeaconUpsertStatusSql({required String beaconAlias}) {
+  final statuses = kConstellationUpsertEligibleBeaconStatuses.toList()..sort();
+  return "$beaconAlias.status = ANY('{${statuses.join(',')}}'::int[])";
+}

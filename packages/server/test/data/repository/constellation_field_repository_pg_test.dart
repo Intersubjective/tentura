@@ -115,6 +115,26 @@ ON CONFLICT (beacon_id, user_id) DO NOTHING
         ),
       );
 
+  Future<void> pinPerson({
+    required String personId,
+    double x = 0,
+    double y = 0,
+  }) =>
+      anchorRepository.upsertAnchor(
+        viewerId: egoId,
+        context: ctx,
+        target: ConstellationAnchorTarget.person(personId),
+        position: ConstellationAnchorPosition(
+          xUnits: x,
+          yUnits: y,
+          coordinateSpaceVersion: 1,
+        ),
+      );
+
+  Future<void> setBeaconStatus(String id, int status) => db.customStatement(
+        "UPDATE public.beacon SET status = $status WHERE id = '$id'",
+      );
+
   Future<int> visibilityCacheCount() async {
     final row = await db.customSelect(
       'SELECT count(*)::int AS c FROM public.person_mutual_visibility_cache',
@@ -566,26 +586,124 @@ ON CONFLICT (beacon_id, user_id) DO NOTHING
       }
     }, skip: skipReason);
 
+    test('connected pinned Request author is required support on ANCHORS',
+        () async {
+      const author = 'Ucfp03conn';
+      await insertUser(author);
+      await reciprocalTrust(egoId, author);
+      await insertBeacon(id: 'Bp03conn', authorId: author);
+      await insertHelpOffer(beaconId: 'Bp03conn', userId: egoId);
+      await pinBeacon(beaconId: 'Bp03conn', x: 1.5, y: -0.5);
+      final anchors = await readField(
+        viewerId: egoId,
+        projection: ConstellationProjection.anchors,
+      );
+      expect(anchors.anchorProjection.pinnedRequests.single.id, 'Bp03conn');
+      expect(
+        anchors.anchorProjection.pinnedPeers.map((p) => p.id),
+        isEmpty,
+      );
+      expect(
+        anchors.anchorProjection.supportPeers.map((p) => p.id),
+        [author],
+      );
+      expect(
+        anchors.anchorProjection.supportEdges.map((e) => (e.src, e.dst)),
+        contains((egoId, author)),
+      );
+    }, skip: skipReason);
+
+    test('independently pinned author is not duplicated as support', () async {
+      const author = 'Ucfp03both';
+      await insertUser(author);
+      await reciprocalTrust(egoId, author);
+      await insertBeacon(id: 'Bp03both', authorId: author);
+      await insertHelpOffer(beaconId: 'Bp03both', userId: egoId);
+      await pinPerson(personId: author, x: 2);
+      await pinBeacon(beaconId: 'Bp03both', x: 3);
+      final anchors = await readField(
+        viewerId: egoId,
+        projection: ConstellationProjection.anchors,
+      );
+      expect(anchors.anchorProjection.pinnedPeers.map((p) => p.id), [author]);
+      expect(anchors.anchorProjection.supportPeers.map((p) => p.id), isEmpty);
+    }, skip: skipReason);
+
+    test('pinning a person keeps that person unpinned Requests automatic',
+        () async {
+      const author = 'Ucfp03sibs';
+      await insertUser(author);
+      await reciprocalTrust(egoId, author);
+      await insertBeacon(id: 'Bp03sibA', authorId: author);
+      await insertBeacon(id: 'Bp03sibB', authorId: author);
+      await insertHelpOffer(beaconId: 'Bp03sibA', userId: egoId);
+      await insertHelpOffer(beaconId: 'Bp03sibB', userId: egoId);
+      final before = await readField(viewerId: egoId);
+      expect(
+        before.requests.map((r) => r.id),
+        containsAll(['Bp03sibA', 'Bp03sibB']),
+      );
+      await pinPerson(personId: author, x: 1);
+      final afterPerson = await readField(viewerId: egoId);
+      expect(
+        afterPerson.requests.map((r) => r.id),
+        containsAll(['Bp03sibA', 'Bp03sibB']),
+      );
+      await pinBeacon(beaconId: 'Bp03sibA', x: 2);
+      final afterRequest = await readField(viewerId: egoId);
+      expect(
+        afterRequest.anchorProjection.pinnedRequests.map((r) => r.id),
+        ['Bp03sibA'],
+      );
+      expect(afterRequest.requests.map((r) => r.id), contains('Bp03sibB'));
+      expect(afterRequest.requests.map((r) => r.id), isNot(contains('Bp03sibA')));
+    }, skip: skipReason);
+
     test('cancelled pinned Beacon stays dormant without filter-hidden leakage',
         () async {
       const author = 'Ucfp03cancel';
       await insertUser(author);
       await reciprocalTrust(egoId, author);
-      await insertBeacon(id: 'Bp03cancel', authorId: author, status: 1);
-      await anchorRepository.upsertAnchor(
-        viewerId: egoId,
-        context: ctx,
-        target: ConstellationAnchorTarget.beacon('Bp03cancel'),
-        position: const ConstellationAnchorPosition(
-          xUnits: 0,
-          yUnits: 0,
-          coordinateSpaceVersion: 1,
-        ),
-      );
+      await insertBeacon(id: 'Bp03cancel', authorId: author);
+      await insertHelpOffer(beaconId: 'Bp03cancel', userId: egoId);
+      await pinBeacon(beaconId: 'Bp03cancel', x: -1.25, y: 0.75);
+      await setBeaconStatus('Bp03cancel', 1);
+      for (final projection in ConstellationProjection.values) {
+        final snapshot = await readField(
+          viewerId: egoId,
+          projection: projection,
+        );
+        expect(snapshot.anchorProjection.anchors, hasLength(1));
+        expect(
+          snapshot.anchorProjection.anchors.single.position.xUnits,
+          -1.25,
+        );
+        expect(
+          snapshot.anchorProjection.anchors.single.position.yUnits,
+          0.75,
+        );
+        expect(snapshot.anchorProjection.pinnedRequests, isEmpty);
+        expect(snapshot.anchorProjection.serverFilteredBeaconIds, isEmpty);
+        expect(snapshot.anchorProjection.serverFilteredBeaconCount, 0);
+      }
+      await setBeaconStatus('Bp03cancel', 0);
+      final restored = await readField(viewerId: egoId);
+      expect(restored.anchorProjection.pinnedRequests.single.id, 'Bp03cancel');
+      expect(restored.anchorProjection.anchors.single.position.xUnits, -1.25);
+      expect(restored.anchorProjection.anchors.single.position.yUnits, 0.75);
+    }, skip: skipReason);
+
+    test('blocked pinned Beacon returns no authorized anchor', () async {
+      const author = 'Ucfp03block';
+      await insertUser(author);
+      await reciprocalTrust(egoId, author);
+      await insertBeacon(id: 'Bp03block', authorId: author);
+      await insertHelpOffer(beaconId: 'Bp03block', userId: egoId);
+      await pinBeacon(beaconId: 'Bp03block');
+      await insertBlock(egoId, author);
       final snapshot = await readField(viewerId: egoId);
       expect(snapshot.anchorProjection.anchors, isEmpty);
       expect(snapshot.anchorProjection.pinnedRequests, isEmpty);
-      expect(snapshot.anchorProjection.serverFilteredBeaconIds, isEmpty);
       expect(snapshot.anchorProjection.serverFilteredBeaconCount, 0);
     }, skip: skipReason);
 

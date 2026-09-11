@@ -1,5 +1,6 @@
 import 'package:drift/drift.dart' show Variable;
 
+import 'package:tentura_server/domain/constellation/constellation_field_selection.dart';
 import 'package:tentura_server/domain/entity/constellation_anchor.dart';
 
 import '../database/tentura_db.dart';
@@ -62,15 +63,12 @@ Future<bool> _beaconAuthorized(
 }) async {
   final row = await database
       .customSelect(
-        r'''
+        '''
 SELECT 1 AS ok
 FROM public.beacon b
-WHERE b.id = $2
-  AND b.published_at IS NOT NULL
-  AND b.status = ANY('{0,7,8,5,4,6}'::int[])
-  AND public.beacon_can_read_content(b.id, $1)
-  AND NOT public.block_hides($1, b.user_id)
-  AND NOT public.block_hides(b.user_id, $1)
+WHERE b.id = \$2
+  AND ${constellationBeaconContentReadableSql(viewerParam: r'$1', beaconAlias: 'b')}
+  AND ${constellationBeaconUpsertStatusSql(beaconAlias: 'b')}
 ''',
         variables: [
           Variable<String>(viewerId),

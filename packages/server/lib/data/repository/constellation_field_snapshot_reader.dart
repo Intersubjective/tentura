@@ -99,7 +99,6 @@ final class ConstellationFieldSnapshotReader {
       context: context,
       cap: kConstellationRequestCap,
       excludeBeaconIds: reservedBeaconIds,
-      excludeAuthorIds: reservedPeerIds,
       showClosed: params.filters.showClosed,
       participatedOnly: params.filters.participatedOnly,
     );
@@ -164,8 +163,12 @@ WHERE viewer_id = $1
     required String viewerId,
     required String context,
   }) async {
+    final beaconReadable = constellationBeaconContentReadableSql(
+      viewerParam: r'$1',
+      beaconAlias: 'b',
+    );
     final rows = await _database.customSelect(
-      r'''
+      '''
 SELECT
   ca.person_id,
   ca.beacon_id,
@@ -175,28 +178,24 @@ SELECT
   ca.revision::text AS revision,
   ca.placed_at
 FROM public.constellation_anchor ca
-WHERE ca.viewer_id = $1
+WHERE ca.viewer_id = \$1
   AND (
     (
       ca.person_id IS NOT NULL
-      AND ca.person_id <> $1
+      AND ca.person_id <> \$1
       AND EXISTS (
-        SELECT 1 FROM public.person_visible_peers_symmetric($1, $2) p
+        SELECT 1 FROM public.person_visible_peers_symmetric(\$1, \$2) p
         WHERE p.peer_id::text = ca.person_id
       )
-      AND NOT public.block_hides($1, ca.person_id)
-      AND NOT public.block_hides(ca.person_id, $1)
+      AND NOT public.block_hides(\$1, ca.person_id)
+      AND NOT public.block_hides(ca.person_id, \$1)
     )
     OR (
       ca.beacon_id IS NOT NULL
       AND EXISTS (
         SELECT 1 FROM public.beacon b
         WHERE b.id = ca.beacon_id
-          AND b.published_at IS NOT NULL
-          AND b.status = ANY('{0,7,8,5,4,6}'::int[])
-          AND public.beacon_can_read_content(b.id, $1)
-          AND NOT public.block_hides($1, b.user_id)
-          AND NOT public.block_hides(b.user_id, $1)
+          AND $beaconReadable
       )
     )
   )
@@ -348,7 +347,6 @@ ORDER BY ca.placed_at, COALESCE(ca.beacon_id, ca.person_id)
       ...resolution.keep.difference({
         viewerId,
         ...pinnedPeerIds,
-        ...pinnedRequests.map((r) => r.authorId),
       }),
       ...ringResidualPeerIds,
     }.toList()
@@ -473,10 +471,7 @@ SELECT $constellationRequestSelectColumns
 FROM public.beacon b
 LEFT JOIN public.image cover ON cover.id = b.cover_thumb_image_id
 WHERE b.id = ANY(\$2::text[])
-  AND b.published_at IS NOT NULL
-  AND public.beacon_can_read_content(b.id, \$1)
-  AND NOT public.block_hides(\$1, b.user_id)
-  AND NOT public.block_hides(b.user_id, \$1)
+  AND ${constellationBeaconContentReadableSql(viewerParam: r'$1', beaconAlias: 'b')}
 ORDER BY b.id
 ''',
       variables: [
@@ -531,7 +526,6 @@ ORDER BY b.id
     required String context,
     required int cap,
     required Set<String> excludeBeaconIds,
-    required Set<String> excludeAuthorIds,
     required bool showClosed,
     required bool participatedOnly,
   }) async {
@@ -555,14 +549,11 @@ LEFT JOIN public.image cover ON cover.id = b.cover_thumb_image_id
 WHERE b.user_id <> \$1
   AND b.is_discoverable
   AND b.status = ANY(\$3::int[])
-  AND b.published_at IS NOT NULL
-  AND NOT public.block_hides(\$1, b.user_id)
-  AND public.beacon_can_read_content(b.id, \$1)
+  AND ${constellationBeaconContentReadableSql(viewerParam: r'$1', beaconAlias: 'b')}
   AND NOT (b.id = ANY(\$4::text[]))
-  AND NOT (b.user_id = ANY(\$5::text[]))
   ${participation == null ? '' : 'AND ($participation)'}
 ORDER BY b.user_id, b.id
-LIMIT \$6
+LIMIT \$5
 ''',
       variables: [
         Variable.withString(viewerId),
@@ -570,9 +561,6 @@ LIMIT \$6
         Variable(TypedValue(Type.integerArray, statusArray)),
         Variable(
           TypedValue(Type.textArray, excludeBeaconIds.toList()..sort()),
-        ),
-        Variable(
-          TypedValue(Type.textArray, excludeAuthorIds.toList()..sort()),
         ),
         Variable.withInt(cap + 1),
       ],
