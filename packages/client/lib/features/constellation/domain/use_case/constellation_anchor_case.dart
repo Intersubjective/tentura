@@ -87,6 +87,9 @@ final class ConstellationAnchorCase extends UseCaseBase {
   ConstellationAnchorProjection _confirmed =
       ConstellationAnchorProjection.empty;
 
+  ConstellationFieldMembershipFilters _membershipFilters =
+      ConstellationFieldMembershipFilters.defaults;
+
   Future<void>? _anchorsRefreshInFlight;
   bool _anchorsRefreshQueued = false;
 
@@ -105,6 +108,8 @@ final class ConstellationAnchorCase extends UseCaseBase {
   bool get syncPending => _syncPending;
 
   bool get hasPendingWrite => _pendingWrite != null;
+
+  ConstellationAnchorTarget? get pendingWriteTarget => _pendingWrite?.target;
 
   @visibleForTesting
   int get writeCount => _writeCount;
@@ -147,11 +152,13 @@ final class ConstellationAnchorCase extends UseCaseBase {
     _catchUpSub = null;
   }
 
-  void onAccountChanged() {
+  /// Bumps load generation once and clears prior-account anchor state.
+  int onAccountChanged() {
     _confirmed = ConstellationAnchorProjection.empty;
     _syncPending = false;
     _pendingWrite = null;
-    _loadGeneration++;
+    _membershipFilters = ConstellationFieldMembershipFilters.defaults;
+    return ++_loadGeneration;
   }
 
   void bindLoadGeneration(int generation) {
@@ -160,10 +167,18 @@ final class ConstellationAnchorCase extends UseCaseBase {
 
   int bumpLoadGeneration() => ++_loadGeneration;
 
+  void syncMembershipFilters(ConstellationFieldMembershipFilters filters) {
+    _membershipFilters = filters;
+  }
+
   /// Seeds the confirmed cache from an accepted FULL snapshot.
-  void adoptConfirmedProjection(ConstellationAnchorProjection projection) {
+  bool adoptConfirmedProjection(ConstellationAnchorProjection projection) {
+    if (projection.revision.compareTo(_confirmed.revision) < 0) {
+      return false;
+    }
     _confirmed = projection;
     _syncPending = false;
+    return true;
   }
 
   /// Applies an ANCHORS-only fetch when [generation] still matches.
@@ -387,13 +402,13 @@ final class ConstellationAnchorCase extends UseCaseBase {
     if (!_screenActive) {
       return;
     }
-    unawaited(_refreshAnchorsOnce());
+    unawaited(_refreshAnchorsOnce(membershipFilters: _membershipFilters));
   }
 
   Future<void> _refreshAnchorsOnce({
-    ConstellationFieldMembershipFilters membershipFilters =
-        ConstellationFieldMembershipFilters.defaults,
+    ConstellationFieldMembershipFilters? membershipFilters,
   }) async {
+    final resolvedFilters = membershipFilters ?? _membershipFilters;
     final inFlight = _anchorsRefreshInFlight;
     if (inFlight != null) {
       _anchorsRefreshQueued = true;
@@ -403,7 +418,7 @@ final class ConstellationAnchorCase extends UseCaseBase {
     late final Future<void> future;
     future = _runAnchorsRefreshLoop(
       generation: generation,
-      membershipFilters: membershipFilters,
+      membershipFilters: resolvedFilters,
     ).whenComplete(() {
       if (identical(_anchorsRefreshInFlight, future)) {
         _anchorsRefreshInFlight = null;
