@@ -119,7 +119,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
        _viewer = viewer,
        _forwardRepositoryOverride = forwardRepository,
        super(const ConstellationState()) {
-    _anchorCase?.activate(viewerAccountId: viewer.id);
+    _anchorLifecycleToken = _anchorCase?.activate(viewerAccountId: viewer.id);
     _anchorRefreshSub = _anchorCase?.refreshSignals.listen(
       (_) => unawaited(_onAnchorRefreshHint()),
       cancelOnError: false,
@@ -135,6 +135,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
   final ForwardRepository? _forwardRepositoryOverride;
 
   StreamSubscription<void>? _anchorRefreshSub;
+  int? _anchorLifecycleToken;
   int _layoutReconciliationCount = 0;
   bool _suppressLateGestureEnd = false;
   String? _draggingNodeId;
@@ -172,7 +173,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
   @override
   Future<void> close() async {
     await _anchorRefreshSub?.cancel();
-    _anchorCase?.deactivate();
+    _anchorCase?.deactivate(token: _anchorLifecycleToken);
     return super.close();
   }
 
@@ -188,7 +189,6 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
         loadGeneration: generation,
       ),
     );
-    _anchorCase?.bindLoadGeneration(generation);
     _anchorCase?.syncMembershipFilters(state.membershipFilters);
     try {
       final resolved = await _case.load(
@@ -264,7 +264,8 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     _cancelUnsentPlacement(write: false);
     final generation =
         _anchorCase?.onAccountChanged() ?? state.loadGeneration + 1;
-    _anchorCase?.activate(viewerAccountId: _viewer.id);
+    _anchorLifecycleToken =
+        _anchorCase?.activate(viewerAccountId: _viewer.id) ?? generation;
     emit(
       state.copyWith(
         loadGeneration: generation,
@@ -440,7 +441,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     emit(state.copyWith(placementActionsEnabled: false));
     final outcome = await _anchorCase!.deleteAnchor(
       target: target,
-      generation: state.loadGeneration,
+      generation: _anchorCase!.lifecycleToken,
       membershipFilters: state.membershipFilters,
     );
     if (isClosed) {
@@ -478,7 +479,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     final outcome = await _anchorCase!.upsert(
       target: target,
       position: position,
-      generation: state.loadGeneration,
+      generation: _anchorCase!.lifecycleToken,
       membershipFilters: state.membershipFilters,
     );
     if (isClosed) {

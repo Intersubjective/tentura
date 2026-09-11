@@ -383,5 +383,112 @@ void main() {
       );
       expect(case_.writeCount, 2);
     });
+
+    test('queued refresh uses latest filters after an in-flight read', () async {
+      fieldRepo.fetchGate = Completer<void>();
+      port.emitChange(
+        const RealtimeEntityChange(
+          kind: RealtimeEntityKind.constellationAnchor,
+          aggregateId: _viewer,
+          operation: RealtimeOperation.update,
+          source: RealtimeChangeSource.serverInvalidation,
+        ),
+      );
+      await Future<void>.delayed(Duration.zero);
+      expect(fieldRepo.fetchCount, 1);
+      const nextFilters = ConstellationFieldMembershipFilters(showClosed: true);
+      case_.syncMembershipFilters(nextFilters);
+      port.emitChange(
+        const RealtimeEntityChange(
+          kind: RealtimeEntityKind.constellationAnchor,
+          aggregateId: _viewer,
+          operation: RealtimeOperation.update,
+          source: RealtimeChangeSource.serverInvalidation,
+        ),
+      );
+      fieldRepo.fetchGate.complete();
+      await Future<void>.delayed(const Duration(milliseconds: 30));
+      expect(fieldRepo.fetchCount, 2);
+      expect(fieldRepo.lastMembershipFilters, nextFilters);
+    });
+
+    test('activate for a new account accepts a lower revision', () {
+      case_.adoptConfirmedProjection(
+        _projection(
+          revision: BigInt.from(20),
+          anchors: [_anchor(personId: 'p1', revision: BigInt.from(20))],
+        ),
+      );
+      expect(case_.confirmedProjection.revision.value, BigInt.from(20));
+      case_.activate(viewerAccountId: 'other-account');
+      expect(case_.confirmedProjection.anchors, isEmpty);
+      expect(
+        case_.adoptConfirmedProjection(_projection(revision: BigInt.one)),
+        isTrue,
+      );
+      expect(case_.confirmedProjection.revision.value, BigInt.one);
+    });
+
+    test('stale deactivate does not detach the current screen', () async {
+      case_.deactivate(token: 0);
+      port.emitChange(
+        const RealtimeEntityChange(
+          kind: RealtimeEntityKind.constellationAnchor,
+          aggregateId: _viewer,
+          operation: RealtimeOperation.update,
+          source: RealtimeChangeSource.serverInvalidation,
+        ),
+      );
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+      expect(fieldRepo.fetchCount, 1);
+    });
+
+    test('deactivate does not drop an in-flight same-account write', () async {
+      anchorRepo.upsertGate = Completer<void>();
+      final write = case_.upsert(
+        target: ConstellationAnchorTarget.person('p1'),
+        position: const ConstellationAnchorPosition(
+          xUnits: 0,
+          yUnits: 0,
+          coordinateSpaceVersion: 1,
+        ),
+        generation: case_.lifecycleToken,
+      );
+      await Future<void>.delayed(Duration.zero);
+      expect(case_.hasPendingWrite, isTrue);
+      case_.deactivate(token: case_.lifecycleToken);
+      expect(case_.hasPendingWrite, isTrue);
+      anchorRepo.upsertGate.complete();
+      final outcome = await write;
+      expect(outcome.kind, ConstellationAnchorWriteOutcomeKind.succeeded);
+      expect(anchorRepo.upsertCount, 1);
+    });
+
+    test('second write is refused while one command is pending', () async {
+      anchorRepo.upsertGate = Completer<void>();
+      final first = case_.upsert(
+        target: ConstellationAnchorTarget.person('p1'),
+        position: const ConstellationAnchorPosition(
+          xUnits: 0,
+          yUnits: 0,
+          coordinateSpaceVersion: 1,
+        ),
+        generation: case_.lifecycleToken,
+      );
+      await Future<void>.delayed(Duration.zero);
+      final second = await case_.upsert(
+        target: ConstellationAnchorTarget.person('p2'),
+        position: const ConstellationAnchorPosition(
+          xUnits: 1,
+          yUnits: 1,
+          coordinateSpaceVersion: 1,
+        ),
+        generation: case_.lifecycleToken,
+      );
+      expect(second.kind, ConstellationAnchorWriteOutcomeKind.staleResponseDiscarded);
+      anchorRepo.upsertGate.complete();
+      await first;
+      expect(anchorRepo.upsertCount, 1);
+    });
   });
 }

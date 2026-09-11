@@ -92,6 +92,13 @@ final class ConstellationAnchorCase extends UseCaseBase {
 
   Future<void>? _anchorsRefreshInFlight;
   bool _anchorsRefreshQueued = false;
+  ConstellationFieldMembershipFilters _queuedFilters =
+      ConstellationFieldMembershipFilters.defaults;
+  String _queuedAccountId = '';
+  int _queuedLifecycleToken = 0;
+  int _queuedRequestSeq = 0;
+  int _anchorsRequestSeq = 0;
+  int _lastAppliedRequestSeq = 0;
 
   ConstellationAnchorPendingWrite? _pendingWrite;
   int _writeCount = 0;
@@ -117,52 +124,42 @@ final class ConstellationAnchorCase extends UseCaseBase {
   @visibleForTesting
   int get anchorsFetchCount => _anchorsFetchCount;
 
+  int get lifecycleToken => _loadGeneration;
+
   /// Subscribe before the initial FULL load (C7 / C8 screen lifecycle).
-  void activate({required String viewerAccountId}) {
-    if (_screenActive && _viewerAccountId == viewerAccountId) {
-      return;
+  int activate({required String viewerAccountId}) {
+    if (viewerAccountId != _viewerAccountId) {
+      _resetAccountOwnedState();
+      _loadGeneration++;
     }
-    deactivate();
-    _viewerAccountId = viewerAccountId;
-    _screenActive = true;
     if (_loadGeneration == 0) {
       _loadGeneration = 1;
     }
-    _changeSub = _realtimeSyncCase
-        .changesForAggregate(
-          kinds: const {RealtimeEntityKind.constellationAnchor},
-          aggregateId: viewerAccountId,
-        )
-        .listen((_) => _scheduleAnchorsRefresh(), cancelOnError: false);
-    _catchUpSub = _realtimeSyncCase.catchUps.listen(
-      (_) => unawaited(_refreshAnchorsOnce()),
-      cancelOnError: false,
-    );
+    _detachSubscriptions();
+    _viewerAccountId = viewerAccountId;
+    _screenActive = true;
+    _attachSubscriptions();
+    return _loadGeneration;
   }
 
-  void deactivate() {
+  void deactivate({int? token}) {
+    if (token != null && token != _loadGeneration) {
+      return;
+    }
     _screenActive = false;
-    _viewerAccountId = '';
-    _pendingWrite = null;
-    _anchorsRefreshQueued = false;
-    _anchorsRefreshInFlight = null;
-    unawaited(_changeSub?.cancel());
-    unawaited(_catchUpSub?.cancel());
-    _changeSub = null;
-    _catchUpSub = null;
+    _detachSubscriptions();
   }
 
   /// Bumps load generation once and clears prior-account anchor state.
   int onAccountChanged() {
-    _confirmed = ConstellationAnchorProjection.empty;
-    _syncPending = false;
-    _pendingWrite = null;
-    _membershipFilters = ConstellationFieldMembershipFilters.defaults;
+    _resetAccountOwnedState();
     return ++_loadGeneration;
   }
 
   void bindLoadGeneration(int generation) {
-    _loadGeneration = generation;
+    if (generation > _loadGeneration) {
+      _loadGeneration = generation;
+    }
   }
 
   int bumpLoadGeneration() => ++_loadGeneration;
@@ -171,14 +168,41 @@ final class ConstellationAnchorCase extends UseCaseBase {
     _membershipFilters = filters;
   }
 
+  void _resetAccountOwnedState() {
+    _confirmed = ConstellationAnchorProjection.empty;
+    _syncPending = false;
+    _pendingWrite = null;
+    _membershipFilters = ConstellationFieldMembershipFilters.defaults;
+    _lastAppliedRequestSeq = 0;
+  }
+
+  void _attachSubscriptions() {
+    final accountId = _viewerAccountId;
+    _changeSub = _realtimeSyncCase
+        .changesForAggregate(
+          kinds: const {RealtimeEntityKind.constellationAnchor},
+          aggregateId: accountId,
+        )
+        .listen((_) => _scheduleAnchorsRefresh(), cancelOnError: false);
+    _catchUpSub = _realtimeSyncCase.catchUps.listen(
+      (_) => unawaited(_refreshAnchorsOnce()),
+      cancelOnError: false,
+    );
+  }
+
+  void _detachSubscriptions() {
+    unawaited(_changeSub?.cancel());
+    unawaited(_catchUpSub?.cancel());
+    _changeSub = null;
+    _catchUpSub = null;
+  }
+
   /// Seeds the confirmed cache from an accepted FULL snapshot.
   bool adoptConfirmedProjection(ConstellationAnchorProjection projection) {
-    if (projection.revision.compareTo(_confirmed.revision) < 0) {
-      return false;
-    }
-    _confirmed = projection;
-    _syncPending = false;
-    return true;
+    return _applyIncomingProjection(
+      projection,
+      requestSeq: ++_anchorsRequestSeq,
+    );
   }
 
   /// Applies an ANCHORS-only fetch when [generation] still matches.
@@ -187,22 +211,17 @@ final class ConstellationAnchorCase extends UseCaseBase {
     ConstellationFieldMembershipFilters membershipFilters =
         ConstellationFieldMembershipFilters.defaults,
   }) async {
-    if (!_screenActive || generation != _loadGeneration) {
+    if (generation != _loadGeneration) {
       return null;
     }
-    final projection = await _fetchAnchorsProjection(
-      membershipFilters: membershipFilters,
-    );
-    if (!_screenActive || generation != _loadGeneration) {
+    _membershipFilters = membershipFilters;
+    await _refreshAnchorsOnce(membershipFilters: membershipFilters);
+    if (generation != _loadGeneration) {
       return null;
-    }
-    final applied = _applyIncomingProjection(projection);
-    if (applied) {
-      _refreshController.add(null);
     }
     return ConstellationAnchorsRefreshResult(
       projection: _confirmed,
-      applied: applied,
+      applied: true,
     );
   }
 
@@ -282,16 +301,18 @@ final class ConstellationAnchorCase extends UseCaseBase {
     required Future<T> Function() action,
     required bool Function(T result) adoptMutation,
   }) async {
-    if (!_screenActive || generation != _loadGeneration) {
+    if (generation != _loadGeneration || _pendingWrite != null) {
       return const ConstellationAnchorWriteOutcome(
         kind: ConstellationAnchorWriteOutcomeKind.staleResponseDiscarded,
       );
     }
+    final writeAccount = _viewerAccountId;
+    final writeToken = _loadGeneration;
     _pendingWrite = pending;
     _writeCount++;
     try {
       final mutation = await action();
-      if (!_screenActive || generation != _loadGeneration) {
+      if (writeAccount != _viewerAccountId || writeToken != _loadGeneration) {
         return const ConstellationAnchorWriteOutcome(
           kind: ConstellationAnchorWriteOutcomeKind.staleResponseDiscarded,
         );
@@ -314,7 +335,7 @@ final class ConstellationAnchorCase extends UseCaseBase {
       );
     } on Object catch (error, stackTrace) {
       logger.warning('Constellation anchor write failed', error, stackTrace);
-      if (!_screenActive || generation != _loadGeneration) {
+      if (writeAccount != _viewerAccountId || writeToken != _loadGeneration) {
         return const ConstellationAnchorWriteOutcome(
           kind: ConstellationAnchorWriteOutcomeKind.staleResponseDiscarded,
         );
@@ -338,18 +359,32 @@ final class ConstellationAnchorCase extends UseCaseBase {
     ConstellationAnchorProjection incoming, {
     required int generation,
   }) {
-    if (!_screenActive || generation != _loadGeneration) {
+    if (generation != _loadGeneration) {
       return false;
     }
-    return _applyIncomingProjection(incoming);
+    return _applyIncomingProjection(
+      incoming,
+      requestSeq: ++_anchorsRequestSeq,
+    );
   }
 
-  bool _applyIncomingProjection(ConstellationAnchorProjection incoming) {
+  bool _applyIncomingProjection(
+    ConstellationAnchorProjection incoming, {
+    int? requestSeq,
+  }) {
     final comparison = incoming.revision.compareTo(_confirmed.revision);
     if (comparison < 0) {
       return false;
     }
+    if (comparison == 0 &&
+        requestSeq != null &&
+        requestSeq < _lastAppliedRequestSeq) {
+      return false;
+    }
     _confirmed = incoming;
+    if (requestSeq != null) {
+      _lastAppliedRequestSeq = requestSeq;
+    }
     _syncPending = false;
     return true;
   }
@@ -399,54 +434,59 @@ final class ConstellationAnchorCase extends UseCaseBase {
   }
 
   void _scheduleAnchorsRefresh() {
-    if (!_screenActive) {
-      return;
-    }
     unawaited(_refreshAnchorsOnce(membershipFilters: _membershipFilters));
   }
 
   Future<void> _refreshAnchorsOnce({
     ConstellationFieldMembershipFilters? membershipFilters,
   }) async {
-    final resolvedFilters = membershipFilters ?? _membershipFilters;
+    _queuedFilters = membershipFilters ?? _membershipFilters;
+    _queuedAccountId = _viewerAccountId;
+    _queuedLifecycleToken = _loadGeneration;
+    _queuedRequestSeq = ++_anchorsRequestSeq;
+    _anchorsRefreshQueued = true;
     final inFlight = _anchorsRefreshInFlight;
     if (inFlight != null) {
-      _anchorsRefreshQueued = true;
       return inFlight;
     }
-    final generation = _loadGeneration;
     late final Future<void> future;
-    future = _runAnchorsRefreshLoop(
-      generation: generation,
-      membershipFilters: resolvedFilters,
-    ).whenComplete(() {
+    future = _runAnchorsRefreshLoop().whenComplete(() {
       if (identical(_anchorsRefreshInFlight, future)) {
         _anchorsRefreshInFlight = null;
+      }
+      if (_anchorsRefreshQueued) {
+        unawaited(_refreshAnchorsOnce(membershipFilters: _queuedFilters));
       }
     });
     _anchorsRefreshInFlight = future;
     return future;
   }
 
-  Future<void> _runAnchorsRefreshLoop({
-    required int generation,
-    required ConstellationFieldMembershipFilters membershipFilters,
-  }) async {
+  Future<void> _runAnchorsRefreshLoop() async {
     do {
       _anchorsRefreshQueued = false;
-      if (!_screenActive || generation != _loadGeneration) {
-        return;
+      final filters = _queuedFilters;
+      final account = _queuedAccountId;
+      final token = _queuedLifecycleToken;
+      final requestSeq = _queuedRequestSeq;
+      try {
+        final projection = await _fetchAnchorsProjection(
+          membershipFilters: filters,
+        );
+        if (account != _viewerAccountId || token != _loadGeneration) {
+          continue;
+        }
+        if (_applyIncomingProjection(projection, requestSeq: requestSeq)) {
+          _refreshController.add(null);
+        }
+      } on Object catch (error, stackTrace) {
+        logger.warning(
+          'Constellation ANCHORS refresh failed',
+          error,
+          stackTrace,
+        );
       }
-      final projection = await _fetchAnchorsProjection(
-        membershipFilters: membershipFilters,
-      );
-      if (!_screenActive || generation != _loadGeneration) {
-        return;
-      }
-      if (_applyIncomingProjection(projection)) {
-        _refreshController.add(null);
-      }
-    } while (_anchorsRefreshQueued && _screenActive && generation == _loadGeneration);
+    } while (_anchorsRefreshQueued);
   }
 
   Future<ConstellationAnchorProjection> _fetchAnchorsProjection({
