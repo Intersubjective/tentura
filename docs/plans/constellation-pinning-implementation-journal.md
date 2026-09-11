@@ -58,8 +58,8 @@ tg_style_research.md
 | P02 Migration and storage adapter | complete (concurrency-proof remediated) | P01 | see checkpoint below |
 | P03 Server membership and complete snapshot | complete (remediated) | P02 | see checkpoint below |
 | P04 Authenticated V2 API | complete (accepted) | P03 | see checkpoint below |
-| P05 Client wire adapters and server echo policy | complete | P04 | see P05a/P05b checkpoints |
-| P06 Pure composition, budgets and layout | pending | P05 | — |
+| P05 Client wire adapters and server echo policy | complete (accepted) | P04 | see P05a/P05b checkpoints |
+| P06 Pure composition, budgets and layout | in progress | P05 | — |
 | P07 Graph gesture adapter | pending | P06 | — |
 | P08 Placement orchestration and live reconciliation | pending | P07 | — |
 | P09 Map/Text controls, filters and status accessibility | pending | P08 | — |
@@ -625,3 +625,9 @@ FINDINGS:
 
 REMAINING: P06 pure composition/budgets/layout (next per plan). P08 owns realtime
 enum/manifest/contract subscriber wiring.
+
+### P05b manager review — 2026-09-11
+
+- Verdict: accepted. Reviewed `f6119fa47`–`d1a271184`. Schema is fetcher output; operations use stitched `v2_*` enums; FULL/ANCHORS routing and filter vars are real; malformed coordinates/revisions throw rather than clamp; codes `1700`–`1703` hook beside hierarchy mapping. No generated Ferry/`di.config.dart` committed. Pre-existing untracked paths untouched.
+- Independently passed: overlay + repository + error-mapper tests — 14 passed.
+- Process audit: tentura-server :2080 and Hasura remain up from manager prep (not killed). No task-owned Flutter/Chrome leftover. Next: **P06**.
