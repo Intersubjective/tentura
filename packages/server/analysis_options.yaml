@@ -31,8 +31,12 @@ analyzer:
     specify_nonobvious_property_types: ignore
     sort_constructors_first: ignore
   exclude:
+    - "**/_g/**"
+    - "**/*.gql.dart"
+    - "**/*.gql.g.dart"
     - "**/*.g.dart"
     - "**/*.gr.dart"
+    - "**/*.config.dart"
     - "**/*.schema.dart"
     - "**/*.freezed.dart"
     - build/**

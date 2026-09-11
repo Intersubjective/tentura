@@ -33,9 +33,15 @@ analyzer:
     specify_nonobvious_property_types: ignore
   exclude:
     - "../../.pub-cache/**"
+    - "**/_g/**"
     - "**/*.gql.dart"
     - "**/*.gql.g.dart"
+    - "**/*.g.dart"
+    - "**/*.gr.dart"
+    - "**/*.config.dart"
+    - "**/*.schema.dart"
     - "**/*.freezed.dart"
+    - "lib/ui/l10n/**"
     - "test/drift/**.dart"
     - build/**
     - android/**
