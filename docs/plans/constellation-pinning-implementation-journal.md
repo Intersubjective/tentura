@@ -59,7 +59,7 @@ tg_style_research.md
 | P03 Server membership and complete snapshot | complete (remediated) | P02 | see checkpoint below |
 | P04 Authenticated V2 API | complete (accepted) | P03 | see checkpoint below |
 | P05 Client wire adapters and server echo policy | complete (accepted) | P04 | see P05a/P05b checkpoints |
-| P06 Pure composition, budgets and layout | in progress (C6 collision fallback rejected) | P05 | see manager review |
+| P06 Pure composition, budgets and layout | complete (C6 remediated) | P05 | see P06 C6 remediation |
 | P07 Graph gesture adapter | pending | P06 | — |
 | P08 Placement orchestration and live reconciliation | pending | P07 | — |
 | P09 Map/Text controls, filters and status accessibility | pending | P08 | — |
@@ -691,3 +691,46 @@ REMAINING: P07 graph gesture adapter (next per plan). P08 cubit-realtime; P09 UI
 - C6 layout: **rejected**. `_chooseAutomaticPosition` treats any AABB intersection as invalid and returns `null` when the 64-candidate set is empty, so `placeAutomatic` **drops the node**. C6 requires envelope/canvas as hard validity, collision-free preference in order (hint → ideal → 64), then least total intersection with index tie-break, and **never drop a node**. There are no tests for collisions or exhausted candidates. `collisionIgnore` currently includes ego, author, all sibling satellites, and all ego-owned requests — too broad; pinned nodes must never be ignored.
 - Independently ran `constellation_p06_composition_layout_test.dart` + layout + graph algorithm tests; they pass but do not cover the missing C6 fallback.
 - Next: P06 C6 remediation only. Do not start P07.
+
+### P06 C6 remediation — 2026-09-11
+
+- Fixed `_chooseAutomaticPosition` / `placeAutomatic`: envelope+canvas hard validity;
+  ordered hint→ideal→64 candidates; first collision-free wins; else min total
+  intersection with index tie-break; envelope-empty automatic fallback clamps
+  ideal (never drops node).
+- Narrowed `collisionIgnore` to author-only for unpinned request satellites;
+  people ignore nothing (no ego/sibling/pinned bypass).
+- Added P06 collision/pin/no-drop/stacking tests; relaxed ego-satellite layout
+  test for sibling non-ignore (C6).
+- Commands (serial):
+  - `cd packages/client && flutter test test/features/constellation/constellation_p06_composition_layout_test.dart` → 16 passed
+  - `cd packages/client && flutter test test/features/constellation/constellation_layout_test.dart` → 10 passed
+  - `cd packages/client && flutter test test/features/graph/tentura_layout_algorithms_test.dart` → 11 passed
+
+STATUS: complete
+
+COMMITS:
+- 1327b223d fix(client): remediate P06 C6 automatic collision placement
+
+TESTS:
+- `cd packages/client && flutter test test/features/constellation/constellation_p06_composition_layout_test.dart` → 16 passed
+- `cd packages/client && flutter test test/features/constellation/constellation_layout_test.dart` → 10 passed
+- `cd packages/client && flutter test test/features/graph/tentura_layout_algorithms_test.dart` → 11 passed
+
+FILES:
+- packages/client/lib/features/constellation/domain/constellation_layout.dart
+- packages/client/test/features/constellation/constellation_p06_composition_layout_test.dart
+- packages/client/test/features/constellation/constellation_layout_test.dart
+- docs/plans/constellation-pinning-implementation-journal.md
+
+FINDINGS:
+- Prior `_candidateValid` mixed envelope and collision, returning null and
+  dropping automatic nodes when all 64 candidates collided.
+- Broad `collisionIgnore` (ego, siblings, all ego requests) hid real overlaps
+  with pins and other automatic nodes.
+- Exhausted-collision fixture with one pin at semantic ideal often still finds a
+  collision-free spiral candidate; no-drop + pin immutability are the critical
+  proofs.
+
+REMAINING: P07 graph gesture adapter (next per plan). Do not start P07+ in this
+worker scope.
