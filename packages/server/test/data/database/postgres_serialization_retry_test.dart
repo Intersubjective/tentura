@@ -15,7 +15,7 @@ Future<void> main() async {
     });
 
     test(
-      'rolls back first attempt then succeeds on exactly one retry',
+      'invokes action twice when first attempt throws retryable error',
       () async {
         var calls = 0;
         final result = await withPostgresDeadlockOrSerializationRetry(

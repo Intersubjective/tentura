@@ -2,6 +2,7 @@
 library;
 
 import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:injectable/injectable.dart' show Environment;
@@ -11,10 +12,11 @@ import 'package:test/test.dart';
 import 'package:tentura_server/consts/constellation_consts.dart';
 import 'package:tentura_server/data/database/migration/_migrations.dart';
 import 'package:tentura_server/data/database/tentura_db.dart' hide ConstellationAnchor;
-import 'package:tentura_server/data/database/postgres_serialization_retry.dart';
 import 'package:tentura_server/data/repository/constellation_anchor_repository.dart';
 import 'package:tentura_server/domain/entity/constellation_anchor.dart';
 import 'package:tentura_server/env.dart';
+
+import '../database/constellation_anchor_pg_retry_probe.dart';
 
 Future<void> main() async {
   final target = _DisposablePgTarget.fromEnvironment();
@@ -25,6 +27,10 @@ Future<void> main() async {
 
   group('constellation anchor repository concurrency', () {
     late Connection writer;
+    late Connection listener;
+    late StreamSubscription<String> notificationSubscription;
+    final notifications = <Map<String, dynamic>>[];
+
     late TenturaDb db1;
     late TenturaDb db2;
     late ConstellationAnchorRepository repo1;
@@ -40,6 +46,10 @@ Future<void> main() async {
           yUnits: y,
           coordinateSpaceVersion: kConstellationCoordinateSpaceVersionV1,
         );
+
+    List<Map<String, dynamic>> anchorNotifications() => notifications
+        .where((m) => m['entity'] == 'constellation_anchor')
+        .toList();
 
     setUpAll(() async {
       await target.recreate();
@@ -71,6 +81,18 @@ INSERT INTO public.beacon (
 ON CONFLICT DO NOTHING
 ''');
 
+      listener = await Connection.open(
+        target.databaseEnv.pgEndpoint,
+        settings: target.databaseEnv.pgEndpointSettings,
+      );
+      await listener.execute('LISTEN entity_changes');
+      notificationSubscription = listener.channels['entity_changes'].listen(
+        (payload) => notifications.add(
+          jsonDecode(payload) as Map<String, dynamic>,
+        ),
+      );
+      await _settleNotifications();
+
       db1 = TenturaDb(target.databaseEnv);
       db2 = TenturaDb(target.databaseEnv);
       repo1 = ConstellationAnchorRepository(db1);
@@ -91,9 +113,13 @@ INSERT INTO public.beacon (
 )
 ON CONFLICT (id) DO NOTHING
 ''');
+      notifications.clear();
+      await uninstallConstellationAnchorDeadlockProbe(writer);
     });
 
     tearDownAll(() async {
+      await notificationSubscription.cancel();
+      await listener.close();
       await db1.close();
       await db2.close();
       await writer.close();
@@ -251,7 +277,95 @@ WHERE viewer_id = '$viewer' AND person_id = '$extraPerson'
     );
 
     test(
-      'upsert is deadlock victim: first transaction rolls back then one retry succeeds',
+      'repository upsert retries once after SQLSTATE 40P01 post-mutation rollback',
+      () async {
+        await repo1.upsertAnchor(
+          viewerId: viewer,
+          target: ConstellationAnchorTarget.person(person),
+          position: pos(1, 1),
+        );
+        final revBefore = await repo1.readWatermark(viewer);
+        notifications.clear();
+        await installConstellationAnchorDeadlockProbe(
+          writer,
+          mode: ConstellationAnchorDeadlockProbeMode.failFirstMutation,
+        );
+        await resetConstellationAnchorDeadlockProbe(writer);
+
+        final result = await repo2.upsertAnchor(
+          viewerId: viewer,
+          target: ConstellationAnchorTarget.person(person),
+          position: pos(7, 7),
+        );
+
+        expect(result.anchor.position.xUnits, 7.0);
+        expect(
+          await readConstellationAnchorDeadlockProbeMutationSeq(writer),
+          2,
+        );
+        final revAfter = await repo1.readWatermark(viewer);
+        expect(revAfter.value, revBefore.value + BigInt.one);
+        await _settleNotifications();
+        expect(anchorNotifications().length, 1);
+        expect(anchorNotifications().single['event'], 'update');
+      },
+      timeout: const Timeout(Duration(seconds: 30)),
+    );
+
+    test(
+      'repository upsert retry exhaustion surfaces 40P01 with no partial commit',
+      () async {
+        await repo1.upsertAnchor(
+          viewerId: viewer,
+          target: ConstellationAnchorTarget.person(person),
+          position: pos(1, 1),
+        );
+        final revBefore = await repo1.readWatermark(viewer);
+        notifications.clear();
+        await installConstellationAnchorDeadlockProbe(
+          writer,
+          mode: ConstellationAnchorDeadlockProbeMode.failAlways,
+        );
+        await resetConstellationAnchorDeadlockProbe(writer);
+
+        await expectLater(
+          repo2.upsertAnchor(
+            viewerId: viewer,
+            target: ConstellationAnchorTarget.person(person),
+            position: pos(8, 8),
+          ),
+          throwsA(
+            predicate<Object>(
+              (e) => isServerExceptionSqlState(e, '40P01'),
+            ),
+          ),
+        );
+
+        expect(
+          await readConstellationAnchorDeadlockProbeMutationSeq(writer),
+          2,
+        );
+        final row = await writer.execute('''
+SELECT x_units::float8, revision::bigint
+FROM public.constellation_anchor
+WHERE viewer_id = '$viewer' AND person_id = '$person'
+''');
+        expect(row.single[0], 1.0);
+        final rowRevision = row.single[1];
+        final rowRev = rowRevision is BigInt
+            ? rowRevision
+            : BigInt.from(rowRevision as int);
+        expect(rowRev, revBefore.value);
+        final revAfter = await repo1.readWatermark(viewer);
+        expect(revAfter.value, revBefore.value);
+        await _settleNotifications();
+        expect(anchorNotifications(), isEmpty);
+      },
+      timeout: const Timeout(Duration(seconds: 30)),
+    );
+
+    test(
+      'repository deleteAnchor retries once after SQLSTATE 40P01 on row delete',
       () async {
         await repo1.upsertAnchor(
           viewerId: viewer,
@@ -259,213 +373,40 @@ WHERE viewer_id = '$viewer' AND person_id = '$extraPerson'
           position: pos(1, 1),
         );
         final revBefore = await repo1.readWatermark(viewer);
-        final anchorReady = Completer<void>();
-        final releaseAnchorLock = Completer<void>();
-
-        final blocker = await Connection.open(
-          target.databaseEnv.pgEndpoint,
-          settings: target.databaseEnv.pgEndpointSettings,
+        notifications.clear();
+        await installConstellationAnchorDeadlockProbe(
+          writer,
+          mode: ConstellationAnchorDeadlockProbeMode.failFirstMutation,
         );
-        try {
-          final holdAnchor = () async {
-            await blocker.execute('BEGIN');
-            await blocker.execute('''
-SELECT id FROM public.constellation_anchor
-WHERE viewer_id = '$viewer' AND beacon_id = '$beacon'
-FOR UPDATE
-''');
-            anchorReady.complete();
-            await releaseAnchorLock.future;
-            await blocker.execute('''
-SELECT viewer_id FROM public.constellation_anchor_cursor
-WHERE viewer_id = '$viewer'
-FOR UPDATE
-''');
-            await blocker.execute('COMMIT');
-          }();
+        await resetConstellationAnchorDeadlockProbe(writer);
 
-          await anchorReady.future;
-          final upsertFuture = repo2.upsertAnchor(
-            viewerId: viewer,
-            target: ConstellationAnchorTarget.beacon(beacon),
-            position: pos(9, 9),
-          );
-          await Future<void>.delayed(const Duration(milliseconds: 20));
-          releaseAnchorLock.complete();
-          await Future.wait([holdAnchor, upsertFuture]);
-
-          final row = await writer.execute('''
-SELECT x_units::float8, revision FROM public.constellation_anchor
-WHERE viewer_id = '$viewer' AND beacon_id = '$beacon'
-''');
-          expect(row.length, 1);
-          expect(row.single.first, 9.0);
-          final revAfter = await repo1.readWatermark(viewer);
-          expect(revAfter.value, greaterThan(revBefore.value));
-        } finally {
-          await blocker.close();
-        }
-      },
-      timeout: const Timeout(Duration(seconds: 30)),
-    );
-
-    test(
-      'cascade delete is deadlock victim without partial beacon removal',
-      () async {
-        await repo1.upsertAnchor(
+        await repo2.deleteAnchor(
           viewerId: viewer,
           target: ConstellationAnchorTarget.beacon(beacon),
-          position: pos(1, 1),
         );
-        final cursorReady = Completer<void>();
-        final releaseCursorLock = Completer<void>();
 
-        final blocker = await Connection.open(
-          target.databaseEnv.pgEndpoint,
-          settings: target.databaseEnv.pgEndpointSettings,
+        expect(
+          await readConstellationAnchorDeadlockProbeMutationSeq(writer),
+          2,
         );
-        try {
-          final holdCursor = () async {
-            await blocker.execute('BEGIN');
-            await blocker.execute('''
-SELECT viewer_id FROM public.constellation_anchor_cursor
-WHERE viewer_id = '$viewer'
-FOR UPDATE
-''');
-            cursorReady.complete();
-            await releaseCursorLock.future;
-            await blocker.execute('COMMIT');
-          }();
-
-          await cursorReady.future;
-          final deleteFuture = writer.execute(
-            "DELETE FROM public.beacon WHERE id = '$beacon'",
-          );
-          final upsertFuture = repo2.upsertAnchor(
-            viewerId: viewer,
-            target: ConstellationAnchorTarget.person(person),
-            position: pos(2, 2),
-          );
-          await Future<void>.delayed(const Duration(milliseconds: 20));
-          releaseCursorLock.complete();
-          await Future.wait([holdCursor, deleteFuture, upsertFuture]);
-
-          final beaconRows = await writer.execute('''
-SELECT count(*)::int FROM public.beacon WHERE id = '$beacon'
-''');
-          expect(beaconRows.single.single, 0);
-          final anchorRows = await writer.execute('''
+        final revAfter = await repo1.readWatermark(viewer);
+        expect(revAfter.value, revBefore.value + BigInt.one);
+        final anchorRows = await writer.execute('''
 SELECT count(*)::int FROM public.constellation_anchor
 WHERE viewer_id = '$viewer' AND beacon_id = '$beacon'
 ''');
-          expect(anchorRows.single.single, 0);
-        } finally {
-          await blocker.close();
-        }
+        expect(anchorRows.single.single, 0);
+        await _settleNotifications();
+        expect(anchorNotifications().length, 1);
+        expect(anchorNotifications().single['event'], 'delete');
       },
       timeout: const Timeout(Duration(seconds: 30)),
-    );
-
-    test(
-      'retry exhaustion leaves committed anchor state unchanged and emits nothing',
-      () async {
-        await repo1.upsertAnchor(
-          viewerId: viewer,
-          target: ConstellationAnchorTarget.person(person),
-          position: pos(1, 1),
-        );
-        final deadlock = await _captureDeadlockException(target.databaseEnv);
-        var attempts = 0;
-        final failingRepo = ConstellationAnchorRepository(
-          db1,
-          transactionRetry: <T>(
-            Future<T> Function() action, {
-            int maxRetries = 1,
-            bool Function(Object error)? isRetryable,
-          }) =>
-              withPostgresDeadlockOrSerializationRetry(
-                () async {
-                  attempts++;
-                  if (attempts <= 2) {
-                    throw deadlock;
-                  }
-                  return action();
-                },
-                maxRetries: maxRetries,
-                isRetryable: (_) => true,
-              ),
-        );
-        await expectLater(
-          failingRepo.upsertAnchor(
-            viewerId: viewer,
-            target: ConstellationAnchorTarget.person(person),
-            position: pos(8, 8),
-          ),
-          throwsA(predicate(isPostgresDeadlockOrSerializationFailure)),
-        );
-        expect(attempts, 2);
-        final row = await writer.execute('''
-SELECT x_units::float8 FROM public.constellation_anchor
-WHERE viewer_id = '$viewer' AND person_id = '$person'
-''');
-        expect(row.single.single, 1.0);
-      },
     );
   }, skip: skipReason);
 }
 
-Future<Object> _captureDeadlockException(Env env) async {
-  final a = await Connection.open(
-    env.pgEndpoint,
-    settings: env.pgEndpointSettings,
-  );
-  final b = await Connection.open(
-    env.pgEndpoint,
-    settings: env.pgEndpointSettings,
-  );
-  try {
-    await a.execute('BEGIN');
-    await b.execute('BEGIN');
-    await a.execute('SELECT pg_advisory_xact_lock(424242)');
-    await b.execute('SELECT pg_advisory_xact_lock(424243)');
-    Object? errA;
-    Object? errB;
-    await Future.wait([
-      () async {
-        try {
-          await a.execute('SELECT pg_advisory_xact_lock(424243)');
-        } on Object catch (error) {
-          errA = error;
-        }
-      }(),
-      () async {
-        try {
-          await b.execute('SELECT pg_advisory_xact_lock(424242)');
-        } on Object catch (error) {
-          errB = error;
-        }
-      }(),
-    ]);
-    final captured = errA ?? errB;
-    if (captured == null) {
-      throw StateError('expected deadlock');
-    }
-    expect(isPostgresDeadlockOrSerializationFailure(captured), isTrue);
-    return captured;
-  } finally {
-    try {
-      await a.execute('ROLLBACK');
-    } on Object {
-      // Transaction may already be aborted.
-    }
-    try {
-      await b.execute('ROLLBACK');
-    } on Object {
-      // Transaction may already be aborted.
-    }
-    await a.close();
-    await b.close();
-  }
+Future<void> _settleNotifications() async {
+  await Future<void>.delayed(const Duration(milliseconds: 50));
 }
 
 Future<bool> _canConnect(Env env) async {

@@ -7,23 +7,11 @@ import 'package:tentura_server/utils/id.dart';
 import '../database/postgres_serialization_retry.dart';
 import '../database/tentura_db.dart' hide ConstellationAnchor;
 
-typedef ConstellationAnchorTransactionRetry =
-    Future<T> Function<T>(
-  Future<T> Function() action, {
-  int maxRetries,
-  bool Function(Object error)? isRetryable,
-});
-
 @LazySingleton(as: ConstellationAnchorRepositoryPort)
 class ConstellationAnchorRepository implements ConstellationAnchorRepositoryPort {
-  ConstellationAnchorRepository(
-    this._db, {
-    ConstellationAnchorTransactionRetry? transactionRetry,
-  }) : _transactionRetry =
-            transactionRetry ?? withPostgresDeadlockOrSerializationRetry;
+  ConstellationAnchorRepository(this._db);
 
   final TenturaDb _db;
-  final ConstellationAnchorTransactionRetry _transactionRetry;
 
   @override
   Future<ConstellationAnchorUpsertResult> upsertAnchor({
@@ -31,7 +19,7 @@ class ConstellationAnchorRepository implements ConstellationAnchorRepositoryPort
     required ConstellationAnchorTarget target,
     required ConstellationAnchorPosition position,
   }) =>
-      _transactionRetry(
+      withPostgresDeadlockOrSerializationRetry(
         () => _db.withMutatingUser(
           viewerId,
           () => _upsertAnchor(
@@ -47,7 +35,7 @@ class ConstellationAnchorRepository implements ConstellationAnchorRepositoryPort
     required String viewerId,
     required ConstellationAnchorTarget target,
   }) =>
-      _transactionRetry(
+      withPostgresDeadlockOrSerializationRetry(
         () => _db.withMutatingUser(
           viewerId,
           () => _deleteAnchor(viewerId: viewerId, target: target),
