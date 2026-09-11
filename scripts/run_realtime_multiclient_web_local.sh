@@ -15,6 +15,8 @@ CHROMEDRIVER_DIR="$ROOT/.local/chromedriver"
 WEB_PORT=8888
 RUNS="${REALTIME_MULTICLIENT_RUNS:-5}"
 NEGATIVE_PROOFS="${REALTIME_MULTICLIENT_NEGATIVE_PROOFS:-true}"
+DRIVER="${REALTIME_MULTICLIENT_DRIVER:-realtime_multiclient_web_test.dart}"
+ACTOR_ECHO_ENABLED="${REALTIME_MULTICLIENT_ACTOR_ECHO_ENABLED:-true}"
 SESSION_ID="${REALTIME_MULTICLIENT_SESSION_ID:-$(date +%Y%m%d-%H%M%S)}"
 ARTIFACT_ROOT="${REALTIME_MULTICLIENT_ARTIFACT_ROOT:-$ROOT/reports/realtime-multiclient/$SESSION_ID}"
 ARTIFACT_ROOT="$(realpath -m "$ARTIFACT_ROOT")"
@@ -32,6 +34,11 @@ grep -qE '^QA_SIMPLE_LOGIN_MODE=true' "$ROOT/.env" || die ".env needs QA_SIMPLE_
 [[ "$RUNS" =~ ^[1-9][0-9]*$ ]] || die "REALTIME_MULTICLIENT_RUNS must be a positive integer"
 [[ "$NEGATIVE_PROOFS" == true || "$NEGATIVE_PROOFS" == false ]] \
   || die "REALTIME_MULTICLIENT_NEGATIVE_PROOFS must be true or false"
+[[ "$DRIVER" == realtime_multiclient_web_test.dart \
+  || "$DRIVER" == constellation_pinning_multiclient_web_test.dart ]] \
+  || die "REALTIME_MULTICLIENT_DRIVER must be realtime_multiclient_web_test.dart or constellation_pinning_multiclient_web_test.dart"
+[[ "$ACTOR_ECHO_ENABLED" == true || "$ACTOR_ECHO_ENABLED" == false ]] \
+  || die "REALTIME_MULTICLIENT_ACTOR_ECHO_ENABLED must be true or false"
 mkdir -p "$ARTIFACT_ROOT"
 
 STARTED_SERVER=""
@@ -64,8 +71,8 @@ if ! curl -sf -m 3 http://127.0.0.1:8080/healthz >/dev/null 2>&1; then
 fi
 curl -sf -m 2 http://127.0.0.1:8080/healthz >/dev/null || die "Hasura did not become healthy"
 
-log "starting Tentura server with attention shadow telemetry enabled"
-REALTIME_ACTOR_ECHO_ENABLED=true \
+log "starting Tentura server (actor_echo=$ACTOR_ECHO_ENABLED, attention shadow on)"
+REALTIME_ACTOR_ECHO_ENABLED="$ACTOR_ECHO_ENABLED" \
 ATTENTION_V1_SHADOW_ENABLED=true \
   nohup "$ROOT/scripts/run-server-local.sh" >"$SERVER_LOG" 2>&1 &
 STARTED_SERVER=$!
@@ -75,21 +82,26 @@ for _ in $(seq 1 90); do
 done
 curl -sf -m 2 http://127.0.0.1:2080/health >/dev/null || die "Tentura server did not become healthy"
 
+ACTOR_ECHO_JSON=false
+[[ "$ACTOR_ECHO_ENABLED" == true ]] && ACTOR_ECHO_JSON=true
 jq -n \
   --arg session_id "$SESSION_ID" \
   --arg git_revision "$(git -C "$ROOT" rev-parse HEAD)" \
   --argjson runs "$RUNS" \
   --argjson negative_proofs "$NEGATIVE_PROOFS" \
+  --arg driver "$DRIVER" \
+  --argjson actor_echo_enabled "$ACTOR_ECHO_JSON" \
   '{
     session_id: $session_id,
     git_revision: $git_revision,
+    realtime_multiclient_driver: $driver,
     realtime_multiclient_runs: $runs,
     negative_proofs: $negative_proofs,
     client: {updates_tab: "unconditional"},
     server: {
       attention_v1_new_producers: "unconditional",
       ATTENTION_V1_SHADOW_ENABLED: true,
-      REALTIME_ACTOR_ECHO_ENABLED: true
+      REALTIME_ACTOR_ECHO_ENABLED: $actor_echo_enabled
     }
   }' >"$ARTIFACT_ROOT/release-gates.json"
 
@@ -171,7 +183,7 @@ for run in $(seq 1 "$RUNS"); do
   QA_AUTH_TOKEN="$QA_AUTH_TOKEN" \
   REALTIME_MULTICLIENT_RUN_ID="$RUN_ID" \
   REALTIME_MULTICLIENT_ARTIFACT_DIR="$RUN_DIR" \
-    dart run test_driver/realtime_multiclient_web_test.dart
+    dart run "test_driver/$DRIVER"
 done
 
 jq -s '
@@ -186,7 +198,7 @@ jq -s '
   )
 ' "$ARTIFACT_ROOT"/run-*/timings.json >"$ARTIFACT_ROOT/timings-summary.json"
 
-if [[ "$NEGATIVE_PROOFS" == true ]]; then
+if [[ "$NEGATIVE_PROOFS" == true && "$DRIVER" == realtime_multiclient_web_test.dart ]]; then
   for disabled_path in live catch_up; do
     NEGATIVE_DIR="$ARTIFACT_ROOT/negative-$disabled_path"
     log "negative proof: disabling $disabled_path convergence"
@@ -194,7 +206,7 @@ if [[ "$NEGATIVE_PROOFS" == true ]]; then
       REALTIME_MULTICLIENT_RUN_ID="negative-$disabled_path-$(date +%s)" \
       REALTIME_MULTICLIENT_ARTIFACT_DIR="$NEGATIVE_DIR" \
       REALTIME_MULTICLIENT_DISABLE_PATH="$disabled_path" \
-        dart run test_driver/realtime_multiclient_web_test.dart; then
+        dart run "test_driver/$DRIVER"; then
       die "driver unexpectedly passed with $disabled_path disabled"
     fi
     log "expected failure observed with $disabled_path disabled"
