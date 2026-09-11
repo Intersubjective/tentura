@@ -55,7 +55,7 @@ tg_style_research.md
 | Packet | Status | Dependency | Evidence / commit |
 |---|---|---|---|
 | P01 Contract fixtures and domain types | complete | — | see checkpoint below |
-| P02 Migration and storage adapter | complete | P01 | see checkpoint below |
+| P02 Migration and storage adapter | complete (remediated) | P01 | see checkpoint below |
 | P03 Server membership and complete snapshot | pending | P02 | — |
 | P04 Authenticated V2 API | pending | P03 | — |
 | P05 Client wire adapters and server echo policy | pending | P04 | — |
@@ -224,6 +224,51 @@ FINDINGS:
   remain P08 per plan (trigger function lives in `m0167`).
 
 REMAINING: none for P02 (P03 field membership snapshot is next).
+
+### P02 remediation — 2026-09-11
+
+- Addressed reject gaps: explicit one-retry success + exhaustion (no third
+  attempt), both deadlock victim directions (orchestrated upsert vs cascade),
+  beacon + person target cascades, viewer/cursor deletion orders (account
+  cascade + cursor-missing anchor delete), person+beacon notification coverage.
+- Implementation: `withPostgresDeadlockOrSerializationRetry` in data layer;
+  repository uses it with optional `transactionRetry` injection for PG proofs
+  only. `ReadSnapshotPort` / `ReadSnapshotUnitOfWork` kept as thin C4 wrapper
+  over `TenturaDb.withReadSnapshot` (no conflict with future
+  `ConstellationFieldRepositoryPort.readSnapshot`).
+- Note: multi-anchor `DELETE FROM "user"` in one statement hit a live FK/cascade
+  interaction in local PG; acceptance uses per-row anchor deletes for dual-target
+  notification proof plus single-anchor viewer account delete.
+- Commands (serial):
+  - `cd packages/server && dart test test/data/database/postgres_serialization_retry_test.dart -j 1` → 5 passed
+  - `cd packages/server && dart test test/data/repository/constellation_anchor_repository_pg_test.dart -j 1` → 7 passed
+  - `cd packages/server && dart test test/data/database/constellation_anchor_storage_pg_test.dart -j 1` → 18 passed
+  - `./scripts/check-custom-lints.sh packages/server` → exit 0
+
+STATUS: complete
+
+COMMITS:
+- 165b3e6fc fix(server): centralize constellation anchor deadlock retry (C3)
+- 3c9f565e1 test(server): strengthen P02 constellation anchor PG and retry coverage
+
+TESTS: see Commands above (all exit 0)
+
+FILES:
+- packages/server/lib/data/database/postgres_serialization_retry.dart
+- packages/server/lib/data/repository/constellation_anchor_repository.dart
+- packages/server/test/data/database/postgres_serialization_retry_test.dart
+- packages/server/test/data/database/constellation_anchor_storage_pg_test.dart
+- packages/server/test/data/repository/constellation_anchor_repository_pg_test.dart
+
+FINDINGS:
+- Retry loop is now explicit `maxRetries = 1` (two attempts total); exhaustion
+  rethrows without calling the mutation closure again.
+- `transactionRetry` constructor hook is test-only wiring; Injectable default
+  path unchanged.
+- Bulk `DELETE` of multiple anchor rows produced fewer LISTEN events than
+  two single-row deletes in the PG harness (sequential deletes used).
+
+REMAINING: none for P02 remediation (P03 next).
 
 ### P01 manager review — 2026-09-11
 
