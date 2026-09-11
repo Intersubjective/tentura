@@ -109,6 +109,10 @@ ON CONFLICT (id) DO NOTHING
       await writer.execute('''
 TRUNCATE public.constellation_anchor, public.constellation_anchor_cursor CASCADE
 ''');
+      for (final id in [viewerA, viewerB, personP, personQ]) {
+        await seedUser(id);
+      }
+      await seedBeacon(beaconB, personP);
       notifications.clear();
     });
 
@@ -343,6 +347,26 @@ WHERE viewer_id = '$viewerA' AND person_id = '$personP'
       expect(coord.single.single, 1.0);
     });
 
+    test('target beacon cascade removes anchor without double cursor bump', () async {
+      await repository.upsertAnchor(
+        viewerId: viewerA,
+        target: ConstellationAnchorTarget.beacon(beaconB),
+        position: pos(1, 1),
+      );
+      final revBefore = await repository.readWatermark(viewerA);
+      notifications.clear();
+      await writer.execute("DELETE FROM public.beacon WHERE id = '$beaconB'");
+      await _settle();
+      final remaining = await writer.execute('''
+SELECT count(*)::int FROM public.constellation_anchor WHERE viewer_id = '$viewerA'
+''');
+      expect(remaining.single.single, 0);
+      final revAfter = await repository.readWatermark(viewerA);
+      expect(revAfter.value, greaterThan(revBefore.value));
+      expect(anchorNotifications().length, 1);
+      expect(anchorNotifications().single['event'], 'delete');
+    });
+
     test('target person cascade removes anchor without double cursor bump', () async {
       await repository.upsertAnchor(
         viewerId: viewerA,
@@ -376,7 +400,68 @@ SELECT count(*)::int FROM public.constellation_anchor WHERE viewer_id = '$viewer
 SELECT count(*)::int FROM public.constellation_anchor_cursor
 ''');
       expect(cursor.single.single, 0);
+      final anchors = await writer.execute('''
+SELECT count(*)::int FROM public.constellation_anchor WHERE viewer_id = '$viewerB'
+''');
+      expect(anchors.single.single, 0);
     });
+
+    test(
+      'anchor row delete with cursor already removed emits no notification',
+      () async {
+        await repository.upsertAnchor(
+          viewerId: viewerA,
+          target: ConstellationAnchorTarget.person(personP),
+          position: pos(1, 1),
+        );
+        notifications.clear();
+        await writer.execute('''
+DELETE FROM public.constellation_anchor_cursor WHERE viewer_id = '$viewerA'
+''');
+        await writer.execute('''
+DELETE FROM public.constellation_anchor
+WHERE viewer_id = '$viewerA' AND person_id = '$personP'
+''');
+        await _settle();
+        expect(anchorNotifications(), isEmpty);
+      },
+    );
+
+    test(
+      'person and beacon anchors each emit one delete notification on row cascade',
+      () async {
+        const extraBeacon = 'Bcaanchorbeac02';
+        await seedBeacon(extraBeacon, personQ);
+        await repository.upsertAnchor(
+          viewerId: viewerA,
+          target: ConstellationAnchorTarget.person(personP),
+          position: pos(1, 1),
+        );
+        await repository.upsertAnchor(
+          viewerId: viewerA,
+          target: ConstellationAnchorTarget.beacon(extraBeacon),
+          position: pos(2, 2),
+        );
+        notifications.clear();
+        await writer.execute('''
+DELETE FROM public.constellation_anchor
+WHERE viewer_id = '$viewerA' AND person_id = '$personP'
+''');
+        await writer.execute('''
+DELETE FROM public.constellation_anchor
+WHERE viewer_id = '$viewerA' AND beacon_id = '$extraBeacon'
+''');
+        await _waitUntil(() => anchorNotifications().length >= 2);
+        expect(
+          anchorNotifications().every((m) => m['event'] == 'delete'),
+          isTrue,
+        );
+        expect(
+          anchorNotifications().every((m) => m['id'] == viewerA),
+          isTrue,
+        );
+      },
+    );
 
     test('withReadSnapshot uses repeatable read readonly transaction', () async {
       String? isolation;
