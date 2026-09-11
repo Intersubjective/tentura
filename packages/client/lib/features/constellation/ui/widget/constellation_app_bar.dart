@@ -32,7 +32,8 @@ class ConstellationAppBarRow extends StatelessWidget {
           previous.filterLocation != current.filterLocation ||
           previous.filterTiming != current.filterTiming ||
           previous.filterIncludeUnspecified !=
-              current.filterIncludeUnspecified,
+              current.filterIncludeUnspecified ||
+          previous.membershipFilters != current.membershipFilters,
       builder: (context, state) {
         final cubit = context.read<ConstellationCubit>();
         final showLegend = state.viewMode == ConstellationViewMode.map;

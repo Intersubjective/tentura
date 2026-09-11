@@ -1,9 +1,12 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/capability/capability_tag.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/test_ids.dart';
 import 'package:tentura/ui/utils/capability_tag_presenter.dart';
 
 import '../../domain/constellation_filters.dart';
@@ -40,7 +43,10 @@ class _ConstellationFilterSheet extends StatelessWidget {
           previous.filterLocation != current.filterLocation ||
           previous.filterTiming != current.filterTiming ||
           previous.filterIncludeUnspecified !=
-              current.filterIncludeUnspecified,
+              current.filterIncludeUnspecified ||
+          previous.membershipFilters != current.membershipFilters ||
+          previous.field != current.field ||
+          previous.composition != current.composition,
       builder: (context, state) {
         final cubit = context.read<ConstellationCubit>();
         return ConstrainedBox(
@@ -59,12 +65,11 @@ class _ConstellationFilterSheet extends StatelessWidget {
                         style: Theme.of(context).textTheme.titleMedium,
                       ),
                     ),
-                    if (cubit.hasActiveFilters)
-                      TextButton(
-                        key: const Key('constellation.filter.sheet_clear'),
-                        onPressed: cubit.clearFilters,
-                        child: Text(l10n.constellationClearFilters),
-                      ),
+                    TextButton(
+                      key: const Key('constellation.filter.sheet_clear'),
+                      onPressed: cubit.canClearFilters ? cubit.clearFilters : null,
+                      child: Text(l10n.constellationClearFilters),
+                    ),
                   ],
                 ),
               ),
@@ -150,7 +155,7 @@ class ConstellationEmptyFilterBanner extends StatelessWidget {
                 ),
                 FilledButton.tonal(
                   key: const Key('constellation.filter.clear'),
-                  onPressed: cubit.clearFilters,
+                  onPressed: cubit.canClearFilters ? cubit.clearFilters : null,
                   child: Text(l10n.constellationClearFilters),
                 ),
               ],
@@ -174,12 +179,15 @@ class ConstellationFilterBar extends StatelessWidget {
           previous.filterTiming != current.filterTiming ||
           previous.filterIncludeUnspecified !=
               current.filterIncludeUnspecified ||
-          previous.field != current.field,
+          previous.membershipFilters != current.membershipFilters ||
+          previous.field != current.field ||
+          previous.composition != current.composition,
       builder: (context, state) {
         final cubit = context.read<ConstellationCubit>();
         final l10n = L10n.of(context)!;
         final tt = context.tt;
         final theme = Theme.of(context);
+        final hiddenCount = cubit.hiddenPinnedBeaconCount;
 
         return Material(
           color: Theme.of(context).colorScheme.surface,
@@ -187,6 +195,18 @@ class ConstellationFilterBar extends StatelessWidget {
             key: const Key('constellation.filter_bar'),
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              _MembershipFilters(cubit: cubit),
+              if (hiddenCount > 0) ...[
+                SizedBox(height: tt.tightGap),
+                Text(
+                  l10n.constellationHiddenPinsCount(hiddenCount),
+                  key: TestIds.key(TestIds.constellationHiddenPinsCount),
+                  style: theme.textTheme.bodySmall?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                ),
+              ],
+              SizedBox(height: tt.sectionGap),
               _CapabilityFilters(cubit: cubit),
               SizedBox(height: tt.tightGap),
               _LocationFilters(cubit: cubit),
@@ -319,6 +339,37 @@ class _NoticeCard extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+class _MembershipFilters extends StatelessWidget {
+  const _MembershipFilters({required this.cubit});
+
+  final ConstellationCubit cubit;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = L10n.of(context)!;
+    final state = cubit.state;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        SwitchListTile.adaptive(
+          key: TestIds.key(TestIds.constellationFilterShowClosed),
+          contentPadding: EdgeInsets.zero,
+          title: Text(l10n.constellationFilterShowClosed),
+          value: state.membershipFilters.showClosed,
+          onChanged: (value) => unawaited(cubit.setShowClosed(value)),
+        ),
+        SwitchListTile.adaptive(
+          key: TestIds.key(TestIds.constellationFilterParticipatedOnly),
+          contentPadding: EdgeInsets.zero,
+          title: Text(l10n.constellationFilterParticipatedOnly),
+          value: state.membershipFilters.participatedOnly,
+          onChanged: (value) => unawaited(cubit.setParticipatedOnly(value)),
+        ),
+      ],
     );
   }
 }

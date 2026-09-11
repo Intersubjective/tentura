@@ -715,7 +715,94 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
       state.filterCapabilitySlugs.isNotEmpty ||
       state.filterLocation != LocationFilter.any ||
       state.filterTiming is! TimingFilterAny ||
-      !state.filterIncludeUnspecified;
+      !state.filterIncludeUnspecified ||
+      state.membershipFilters.showClosed ||
+      state.membershipFilters.participatedOnly;
+
+  bool get canClearFilters => hasActiveFilters;
+
+  int get hiddenPinnedBeaconCount {
+    final composition = state.composition;
+    final projection = state.confirmedProjection;
+    if (composition == null || projection == null) {
+      return 0;
+    }
+    return {
+      ...projection.serverFilteredBeaconIds,
+      ...composition.locallyFilteredPinnedBeaconIds,
+    }.length;
+  }
+
+  bool isAnchored(ConstellationAnchorTarget target) {
+    final anchors =
+        state.composition?.anchorOverlay.anchors ??
+        state.confirmedProjection?.anchors ??
+        const <ConstellationAnchor>[];
+    return anchors.any((anchor) => anchor.target == target);
+  }
+
+  ConstellationAnchorTarget? anchorTargetForNode(NodeDetails node) =>
+      switch (node) {
+        FieldPersonNode(:final person) =>
+          person.id == viewerId ? null : ConstellationAnchorTarget.person(person.id),
+        FieldRequestNode(:final request) =>
+          ConstellationAnchorTarget.beacon(request.id),
+        _ => null,
+      };
+
+  bool canDragNode(NodeDetails node) {
+    if (anchorTargetForNode(node) == null) {
+      return false;
+    }
+    if (state.placementPhase == ConstellationPlacementPhase.provisionalNew) {
+      return false;
+    }
+    return placementActionsEnabled ||
+        state.placementPhase == ConstellationPlacementPhase.draggingExisting ||
+        state.placementPhase == ConstellationPlacementPhase.draggingNew;
+  }
+
+  List<NodeDetails> orderedNodesForPaint() {
+    final nodes = graphController.nodes.whereType<NodeDetails>().toList();
+    if (nodes.isEmpty) {
+      return nodes;
+    }
+    final anchors = [
+      ...?state.composition?.anchorOverlay.anchors,
+      ...?state.confirmedProjection?.anchors,
+    ];
+    final anchorByNodeId = constellationAnchorsByNodeId(anchors);
+    final anchored = <NodeDetails>[];
+    final unanchored = <NodeDetails>[];
+    for (final node in nodes) {
+      if (anchorByNodeId.containsKey(node.id)) {
+        anchored.add(node);
+      } else {
+        unanchored.add(node);
+      }
+    }
+    anchored.sort((a, b) {
+      final anchorA = anchorByNodeId[a.id]!;
+      final anchorB = anchorByNodeId[b.id]!;
+      return ConstellationAnchor.comparePaintOrder(anchorA, anchorB);
+    });
+    final ordered = [...unanchored, ...anchored];
+    final active = state.activePlacementTarget;
+    if (active != null &&
+        (state.placementPhase == ConstellationPlacementPhase.draggingExisting ||
+            state.placementPhase == ConstellationPlacementPhase.draggingNew ||
+            state.placementPhase == ConstellationPlacementPhase.provisionalNew)) {
+      final activeNode = ordered
+          .where((node) => node.id == active.graphNodeId)
+          .firstOrNull;
+      if (activeNode != null) {
+        ordered
+          ..remove(activeNode)
+          ..add(activeNode);
+      }
+    }
+    return ordered;
+  }
 
   bool get isFilteredResultEmpty {
     final field = state.field;
@@ -767,20 +854,59 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     _recomposeAndLayout();
   }
 
-  void clearFilters() {
-    if (isClosed) {
+  Future<void> setShowClosed(bool showClosed) async {
+    if (isClosed || state.membershipFilters.showClosed == showClosed) {
       return;
     }
     _cancelUnsentPlacement(write: false);
+    final filters = ConstellationFieldMembershipFilters(
+      showClosed: showClosed,
+      participatedOnly: state.membershipFilters.participatedOnly,
+    );
+    emit(state.copyWith(membershipFilters: filters));
+    _anchorCase?.syncMembershipFilters(filters);
+    await load();
+  }
+
+  Future<void> setParticipatedOnly(bool participatedOnly) async {
+    if (isClosed ||
+        state.membershipFilters.participatedOnly == participatedOnly) {
+      return;
+    }
+    _cancelUnsentPlacement(write: false);
+    final filters = ConstellationFieldMembershipFilters(
+      showClosed: state.membershipFilters.showClosed,
+      participatedOnly: participatedOnly,
+    );
+    emit(state.copyWith(membershipFilters: filters));
+    _anchorCase?.syncMembershipFilters(filters);
+    await load();
+  }
+
+  Future<void> clearFilters() async {
+    if (isClosed || !canClearFilters) {
+      return;
+    }
+    _cancelUnsentPlacement(write: false);
+    final hadMembershipFilters =
+        state.membershipFilters.showClosed ||
+        state.membershipFilters.participatedOnly;
+    const defaultMembership = ConstellationFieldMembershipFilters.defaults;
     emit(
       state.copyWith(
         filterCapabilitySlugs: const {},
         filterLocation: LocationFilter.any,
         filterTiming: const TimingFilterAny(),
         filterIncludeUnspecified: true,
+        membershipFilters: defaultMembership,
       ),
     );
-    _recomposeAndLayout();
+    _anchorCase?.syncMembershipFilters(defaultMembership);
+    if (hadMembershipFilters) {
+      await load();
+    } else {
+      _recomposeAndLayout();
+    }
   }
 
   void toggleSatelliteOverflow(String authorId) {
