@@ -47,6 +47,13 @@ VALUES ('$id', '$id', 'pk-$id', '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z')
 ON CONFLICT (id) DO NOTHING
 ''');
 
+    Future<void> reciprocalTrust(String a, String b) => writer.execute('''
+INSERT INTO public.vote_user (subject, object, amount, created_at, updated_at)
+VALUES ('$a', '$b', 1, '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z'),
+       ('$b', '$a', 1, '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z')
+ON CONFLICT (subject, object) DO UPDATE SET amount = EXCLUDED.amount
+''');
+
     Future<void> seedBeacon(String id, String authorId) => writer.execute('''
 INSERT INTO public.beacon (
   id, user_id, title, description, status, is_discoverable,
@@ -103,6 +110,9 @@ ON CONFLICT (id) DO NOTHING
         await seedUser(id);
       }
       await seedBeacon(beaconB, personP);
+      await reciprocalTrust(viewerA, personP);
+      await reciprocalTrust(viewerA, personQ);
+      await reciprocalTrust(viewerB, personQ);
     });
 
     setUp(() async {
@@ -206,11 +216,13 @@ INSERT INTO public.constellation_anchor (
       final p = pos(1, 1);
       await repository.upsertAnchor(
         viewerId: viewerA,
+        context: kConstellationContext,
         target: ConstellationAnchorTarget.person(personP),
         position: p,
       );
       await repository.upsertAnchor(
         viewerId: viewerB,
+        context: kConstellationContext,
         target: ConstellationAnchorTarget.person(personP),
         position: pos(2, 2),
       );
@@ -228,6 +240,7 @@ WHERE person_id = '$personP' ORDER BY viewer_id
       () async {
         await repository.upsertAnchor(
           viewerId: viewerA,
+        context: kConstellationContext,
           target: ConstellationAnchorTarget.person(personP),
           position: pos(1, 1),
         );
@@ -239,6 +252,7 @@ WHERE viewer_id = '$viewerA' AND person_id = '$personP'
         notifications.clear();
         final second = await repository.upsertAnchor(
           viewerId: viewerA,
+        context: kConstellationContext,
           target: ConstellationAnchorTarget.person(personP),
           position: pos(3, 3),
         );
@@ -260,16 +274,19 @@ WHERE viewer_id = '$viewerA' AND person_id = '$personP'
     test('placed_at is strictly increasing across rapid moves', () async {
       final a = await repository.upsertAnchor(
         viewerId: viewerA,
+        context: kConstellationContext,
         target: ConstellationAnchorTarget.person(personP),
         position: pos(1, 1),
       );
       final b = await repository.upsertAnchor(
         viewerId: viewerA,
+        context: kConstellationContext,
         target: ConstellationAnchorTarget.person(personQ),
         position: pos(2, 2),
       );
       final c = await repository.upsertAnchor(
         viewerId: viewerA,
+        context: kConstellationContext,
         target: ConstellationAnchorTarget.person(personP),
         position: pos(1.5, 1.5),
       );
@@ -281,6 +298,7 @@ WHERE viewer_id = '$viewerA' AND person_id = '$personP'
     test('delete existing row emits one lowercase delete notification', () async {
       await repository.upsertAnchor(
         viewerId: viewerA,
+        context: kConstellationContext,
         target: ConstellationAnchorTarget.person(personP),
         position: pos(1, 1),
       );
@@ -316,6 +334,7 @@ SELECT count(*)::int FROM public.constellation_anchor WHERE viewer_id = '$viewer
     test('aborted transaction emits no notification and rolls back cursor', () async {
       await repository.upsertAnchor(
         viewerId: viewerA,
+        context: kConstellationContext,
         target: ConstellationAnchorTarget.person(personP),
         position: pos(1, 1),
       );
@@ -350,6 +369,7 @@ WHERE viewer_id = '$viewerA' AND person_id = '$personP'
     test('target beacon cascade removes anchor without double cursor bump', () async {
       await repository.upsertAnchor(
         viewerId: viewerA,
+        context: kConstellationContext,
         target: ConstellationAnchorTarget.beacon(beaconB),
         position: pos(1, 1),
       );
@@ -370,6 +390,7 @@ SELECT count(*)::int FROM public.constellation_anchor WHERE viewer_id = '$viewer
     test('target person cascade removes anchor without double cursor bump', () async {
       await repository.upsertAnchor(
         viewerId: viewerA,
+        context: kConstellationContext,
         target: ConstellationAnchorTarget.person(personQ),
         position: pos(1, 1),
       );
@@ -390,6 +411,7 @@ SELECT count(*)::int FROM public.constellation_anchor WHERE viewer_id = '$viewer
     test('viewer delete removes cursor and anchors without recreate', () async {
       await repository.upsertAnchor(
         viewerId: viewerB,
+        context: kConstellationContext,
         target: ConstellationAnchorTarget.person(personP),
         position: pos(1, 1),
       );
@@ -411,6 +433,7 @@ SELECT count(*)::int FROM public.constellation_anchor WHERE viewer_id = '$viewer
       () async {
         await repository.upsertAnchor(
           viewerId: viewerA,
+        context: kConstellationContext,
           target: ConstellationAnchorTarget.person(personP),
           position: pos(1, 1),
         );
@@ -434,11 +457,13 @@ WHERE viewer_id = '$viewerA' AND person_id = '$personP'
         await seedBeacon(extraBeacon, personQ);
         await repository.upsertAnchor(
           viewerId: viewerA,
+        context: kConstellationContext,
           target: ConstellationAnchorTarget.person(personP),
           position: pos(1, 1),
         );
         await repository.upsertAnchor(
           viewerId: viewerA,
+        context: kConstellationContext,
           target: ConstellationAnchorTarget.beacon(extraBeacon),
           position: pos(2, 2),
         );

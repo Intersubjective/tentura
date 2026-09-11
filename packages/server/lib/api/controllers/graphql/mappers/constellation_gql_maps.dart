@@ -1,4 +1,7 @@
+import 'package:tentura_server/domain/entity/constellation_anchor.dart';
+import 'package:tentura_server/domain/entity/constellation_anchor_projection.dart';
 import 'package:tentura_server/domain/entity/constellation_field.dart';
+import 'package:tentura_server/domain/port/constellation_anchor_repository_port.dart';
 
 import 'gql_public_user_maps.dart';
 
@@ -12,6 +15,61 @@ Map<String, dynamic> constellationFieldToGqlMap(
   'requests': snapshot.requests.map(_requestToGqlMap).toList(growable: false),
   'peersCapped': snapshot.peersCapped,
   'requestsCapped': snapshot.requestsCapped,
+  'anchorProjection': constellationAnchorProjectionToGqlMap(
+    snapshot.anchorProjection,
+  ),
+};
+
+Map<String, dynamic> constellationAnchorProjectionToGqlMap(
+  ConstellationAnchorProjection projection,
+) => {
+  'revision': projection.revision.toDecimalString(),
+  'anchors': projection.anchors
+      .map(constellationAnchorToGqlMap)
+      .toList(growable: false),
+  'pinnedPeers': projection.pinnedPeers
+      .map(_peerToGqlMap)
+      .toList(growable: false),
+  'pinnedRequests': projection.pinnedRequests
+      .map(_requestToGqlMap)
+      .toList(growable: false),
+  'supportPeers': projection.supportPeers
+      .map(_peerToGqlMap)
+      .toList(growable: false),
+  'supportEdges': projection.supportEdges
+      .map(_edgeToGqlMap)
+      .toList(growable: false),
+  'serverFilteredBeaconIds': List<String>.from(
+    projection.serverFilteredBeaconIds,
+    growable: false,
+  ),
+  'serverFilteredBeaconCount': projection.serverFilteredBeaconCount,
+};
+
+Map<String, dynamic> constellationAnchorToGqlMap(ConstellationAnchor anchor) =>
+    {
+      'targetKind': anchor.target.kind.wireValue,
+      'targetId': anchor.target.id,
+      'xUnits': anchor.position.xUnits,
+      'yUnits': anchor.position.yUnits,
+      'coordinateSpaceVersion': anchor.position.coordinateSpaceVersion,
+      'revision': anchor.revision.toDecimalString(),
+      'placedAt': anchor.placedAt.toIso8601String(),
+    };
+
+Map<String, dynamic> constellationAnchorUpsertResultToGqlMap(
+  ConstellationAnchorUpsertResult result,
+) => {
+  'anchor': constellationAnchorToGqlMap(result.anchor),
+  'revision': result.watermark.revision.toDecimalString(),
+};
+
+Map<String, dynamic> constellationAnchorDeleteResultToGqlMap(
+  ConstellationAnchorDeleteResult result,
+) => {
+  'targetKind': result.target.kind.wireValue,
+  'targetId': result.target.id,
+  'revision': result.watermark.revision.toDecimalString(),
 };
 
 Map<String, dynamic> _peerToGqlMap(ConstellationPeerRecord peer) => {

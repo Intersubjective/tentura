@@ -30,6 +30,7 @@ class ConstellationAnchorDeleteResult {
 abstract interface class ConstellationAnchorRepositoryPort {
   Future<ConstellationAnchorUpsertResult> upsertAnchor({
     required String viewerId,
+    required String context,
     required ConstellationAnchorTarget target,
     required ConstellationAnchorPosition position,
   });

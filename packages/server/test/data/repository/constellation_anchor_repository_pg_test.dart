@@ -80,6 +80,12 @@ INSERT INTO public.beacon (
 )
 ON CONFLICT DO NOTHING
 ''');
+      await writer.execute('''
+INSERT INTO public.vote_user (subject, object, amount, created_at, updated_at)
+VALUES ('$viewer', '$person', 1, '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z'),
+       ('$person', '$viewer', 1, '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z')
+ON CONFLICT (subject, object) DO UPDATE SET amount = EXCLUDED.amount
+''');
 
       listener = await Connection.open(
         target.databaseEnv.pgEndpoint,
@@ -130,11 +136,13 @@ ON CONFLICT (id) DO NOTHING
       final results = await Future.wait([
         repo1.upsertAnchor(
           viewerId: viewer,
+        context: kConstellationContext,
           target: ConstellationAnchorTarget.person(person),
           position: pos(1, 1),
         ),
         repo2.upsertAnchor(
           viewerId: viewer,
+        context: kConstellationContext,
           target: ConstellationAnchorTarget.person(person),
           position: pos(2, 2),
         ),
@@ -157,11 +165,13 @@ WHERE viewer_id = '$viewer' AND person_id = '$person'
     test('delete-vs-move on different targets serializes under one cursor', () async {
       await repo1.upsertAnchor(
         viewerId: viewer,
+        context: kConstellationContext,
         target: ConstellationAnchorTarget.person(person),
         position: pos(1, 1),
       );
       await repo1.upsertAnchor(
         viewerId: viewer,
+        context: kConstellationContext,
         target: ConstellationAnchorTarget.beacon(beacon),
         position: pos(3, 3),
       );
@@ -173,6 +183,7 @@ WHERE viewer_id = '$viewer' AND person_id = '$person'
         ),
         repo2.upsertAnchor(
           viewerId: viewer,
+        context: kConstellationContext,
           target: ConstellationAnchorTarget.beacon(beacon),
           position: pos(4, 4),
         ),
@@ -195,11 +206,13 @@ WHERE viewer_id = '$viewer' AND beacon_id = '$beacon'
       () async {
         await repo1.upsertAnchor(
           viewerId: viewer,
+        context: kConstellationContext,
           target: ConstellationAnchorTarget.beacon(beacon),
           position: pos(1, 1),
         );
         await repo1.upsertAnchor(
           viewerId: viewer,
+        context: kConstellationContext,
           target: ConstellationAnchorTarget.person(person),
           position: pos(1, 1),
         );
@@ -208,6 +221,7 @@ WHERE viewer_id = '$viewer' AND beacon_id = '$beacon'
           writer.execute("DELETE FROM public.beacon WHERE id = '$beacon'"),
           repo2.upsertAnchor(
             viewerId: viewer,
+        context: kConstellationContext,
             target: ConstellationAnchorTarget.person(person),
             position: pos(2, 2),
           ),
@@ -237,16 +251,19 @@ ON CONFLICT DO NOTHING
 ''');
         await repo1.upsertAnchor(
           viewerId: viewer,
+        context: kConstellationContext,
           target: ConstellationAnchorTarget.person(person),
           position: pos(1, 1),
         );
         await repo1.upsertAnchor(
           viewerId: viewer,
+        context: kConstellationContext,
           target: ConstellationAnchorTarget.beacon(beacon),
           position: pos(1, 1),
         );
         await repo1.upsertAnchor(
           viewerId: viewer,
+        context: kConstellationContext,
           target: ConstellationAnchorTarget.person(extraPerson),
           position: pos(0, 0),
         );
@@ -257,6 +274,7 @@ ON CONFLICT DO NOTHING
           ),
           repo2.upsertAnchor(
             viewerId: viewer,
+        context: kConstellationContext,
             target: ConstellationAnchorTarget.beacon(beacon),
             position: pos(5, 5),
           ),
@@ -281,6 +299,7 @@ WHERE viewer_id = '$viewer' AND person_id = '$extraPerson'
       () async {
         await repo1.upsertAnchor(
           viewerId: viewer,
+        context: kConstellationContext,
           target: ConstellationAnchorTarget.person(person),
           position: pos(1, 1),
         );
@@ -294,6 +313,7 @@ WHERE viewer_id = '$viewer' AND person_id = '$extraPerson'
 
         final result = await repo2.upsertAnchor(
           viewerId: viewer,
+        context: kConstellationContext,
           target: ConstellationAnchorTarget.person(person),
           position: pos(7, 7),
         );
@@ -317,6 +337,7 @@ WHERE viewer_id = '$viewer' AND person_id = '$extraPerson'
       () async {
         await repo1.upsertAnchor(
           viewerId: viewer,
+        context: kConstellationContext,
           target: ConstellationAnchorTarget.person(person),
           position: pos(1, 1),
         );
@@ -331,6 +352,7 @@ WHERE viewer_id = '$viewer' AND person_id = '$extraPerson'
         await expectLater(
           repo2.upsertAnchor(
             viewerId: viewer,
+        context: kConstellationContext,
             target: ConstellationAnchorTarget.person(person),
             position: pos(8, 8),
           ),
@@ -369,6 +391,7 @@ WHERE viewer_id = '$viewer' AND person_id = '$person'
       () async {
         await repo1.upsertAnchor(
           viewerId: viewer,
+        context: kConstellationContext,
           target: ConstellationAnchorTarget.beacon(beacon),
           position: pos(1, 1),
         );

@@ -144,6 +144,31 @@ class InputFieldDatetime {
         );
 }
 
+class InputFieldFloat {
+  InputFieldFloat({required String fieldName})
+    : fieldNonNullable = GraphQLFieldInput(
+        fieldName,
+        graphQLFloat.nonNullable(),
+      );
+
+  final GraphQLFieldInput<double, double> fieldNonNullable;
+
+  double fromArgsNonNullable(Map<String, dynamic> args) {
+    final raw = args[fieldNonNullable.name];
+    if (raw is double) {
+      return raw;
+    }
+    if (raw is num) {
+      return raw.toDouble();
+    }
+    throw ArgumentError.value(
+      raw,
+      fieldNonNullable.name,
+      'required float argument is missing or invalid',
+    );
+  }
+}
+
 class InputFieldInt {
   InputFieldInt({required String fieldName})
     : fieldNullable = GraphQLFieldInput(

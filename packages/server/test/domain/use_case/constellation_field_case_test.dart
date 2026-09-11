@@ -240,7 +240,9 @@ void main() {
     });
 
     test('exposes no context argument in the schema', () {
-      expect(query.constellationField.inputs, isEmpty);
+      final argNames = query.constellationField.inputs.map((i) => i.name).toSet();
+      expect(argNames, containsAll(['showClosed', 'participatedOnly', 'projection']));
+      expect(argNames, isNot(contains('context')));
       expect(
         customTypes.any((type) => type.name == 'ConstellationField'),
         isTrue,
@@ -257,6 +259,9 @@ void main() {
     test('uses viewer identity only from JWT', () async {
       await query.constellationField.resolve!(null, {
         kGlobalInputQueryJwt: const JwtEntity(sub: 'Uviewer'),
+        'showClosed': false,
+        'participatedOnly': false,
+        'projection': 'FULL',
       });
 
       expect(repository.lastViewerId, 'Uviewer');

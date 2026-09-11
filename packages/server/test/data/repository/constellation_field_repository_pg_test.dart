@@ -106,6 +106,7 @@ ON CONFLICT (beacon_id, user_id) DO NOTHING
   }) =>
       anchorRepository.upsertAnchor(
         viewerId: egoId,
+        context: ctx,
         target: ConstellationAnchorTarget.beacon(beaconId),
         position: ConstellationAnchorPosition(
           xUnits: x,
@@ -400,6 +401,7 @@ ON CONFLICT (beacon_id, user_id) DO NOTHING
       await reciprocalTrust(egoId, peer);
       await anchorRepository.upsertAnchor(
         viewerId: egoId,
+        context: ctx,
         target: ConstellationAnchorTarget.person(peer),
         position: const ConstellationAnchorPosition(
           xUnits: 2,
@@ -425,6 +427,7 @@ ON CONFLICT (beacon_id, user_id) DO NOTHING
       await insertHelpOffer(beaconId: 'Bp03hidden', userId: egoId);
       await anchorRepository.upsertAnchor(
         viewerId: egoId,
+        context: ctx,
         target: ConstellationAnchorTarget.beacon('Bp03hidden'),
         position: const ConstellationAnchorPosition(
           xUnits: 1,
@@ -444,6 +447,7 @@ ON CONFLICT (beacon_id, user_id) DO NOTHING
       await reciprocalTrust(egoId, peer);
       await anchorRepository.upsertAnchor(
         viewerId: egoId,
+        context: ctx,
         target: ConstellationAnchorTarget.person(peer),
         position: const ConstellationAnchorPosition(
           xUnits: -3,
@@ -486,6 +490,7 @@ ON CONFLICT (beacon_id, user_id) DO NOTHING
       await insertHelpOffer(beaconId: 'Bp03wrap', userId: egoId);
       await anchorRepository.upsertAnchor(
         viewerId: egoId,
+        context: ctx,
         target: ConstellationAnchorTarget.beacon('Bp03wrap'),
         position: const ConstellationAnchorPosition(
           xUnits: 0,
@@ -507,6 +512,7 @@ ON CONFLICT (beacon_id, user_id) DO NOTHING
       await db.customStatement('TRUNCATE public.person_mutual_visibility_cache');
       await anchorRepository.upsertAnchor(
         viewerId: egoId,
+        context: ctx,
         target: ConstellationAnchorTarget.person(peer),
         position: const ConstellationAnchorPosition(
           xUnits: 0,
@@ -568,6 +574,7 @@ ON CONFLICT (beacon_id, user_id) DO NOTHING
       await insertBeacon(id: 'Bp03cancel', authorId: author, status: 1);
       await anchorRepository.upsertAnchor(
         viewerId: egoId,
+        context: ctx,
         target: ConstellationAnchorTarget.beacon('Bp03cancel'),
         position: const ConstellationAnchorPosition(
           xUnits: 0,

@@ -183,3 +183,23 @@ class CapabilityExceptionCodes extends ExceptionCodes {
   @override
   int get codeNumber => codeSpace + exceptionCode.index;
 }
+
+// Constellation pinning (C4)
+
+enum ConstellationExceptionCode {
+  invalidTarget,
+  invalidCoordinates,
+  unsupportedCoordinateSpace,
+  targetUnavailable,
+}
+
+class ConstellationExceptionCodes extends ExceptionCodes {
+  static const codeSpace = 1700;
+
+  const ConstellationExceptionCodes(this.exceptionCode);
+
+  final ConstellationExceptionCode exceptionCode;
+
+  @override
+  int get codeNumber => codeSpace + exceptionCode.index;
+}

@@ -1,11 +1,14 @@
 import 'package:drift/drift.dart' show Variable;
 import 'package:injectable/injectable.dart';
 import 'package:tentura_server/domain/entity/constellation_anchor.dart';
+import 'package:tentura_server/domain/exception.dart';
+import 'package:tentura_server/domain/exception_codes.dart';
 import 'package:tentura_server/domain/port/constellation_anchor_repository_port.dart';
 import 'package:tentura_server/utils/id.dart';
 
 import '../database/postgres_serialization_retry.dart';
 import '../database/tentura_db.dart' hide ConstellationAnchor;
+import 'constellation_anchor_upsert_authorization.dart';
 
 @LazySingleton(as: ConstellationAnchorRepositoryPort)
 class ConstellationAnchorRepository implements ConstellationAnchorRepositoryPort {
@@ -16,6 +19,7 @@ class ConstellationAnchorRepository implements ConstellationAnchorRepositoryPort
   @override
   Future<ConstellationAnchorUpsertResult> upsertAnchor({
     required String viewerId,
+    required String context,
     required ConstellationAnchorTarget target,
     required ConstellationAnchorPosition position,
   }) =>
@@ -24,6 +28,7 @@ class ConstellationAnchorRepository implements ConstellationAnchorRepositoryPort
           viewerId,
           () => _upsertAnchor(
             viewerId: viewerId,
+            context: context,
             target: target,
             position: position,
           ),
@@ -63,6 +68,7 @@ WHERE viewer_id = $1
 
   Future<ConstellationAnchorUpsertResult> _upsertAnchor({
     required String viewerId,
+    required String context,
     required ConstellationAnchorTarget target,
     required ConstellationAnchorPosition position,
   }) async {
@@ -70,6 +76,18 @@ WHERE viewer_id = $1
     _assertValidPosition(position);
 
     await _lockViewerCursor(viewerId);
+
+    final authorized = await isConstellationAnchorUpsertAuthorized(
+      _db,
+      viewerId: viewerId,
+      context: context,
+      target: target,
+    );
+    if (!authorized) {
+      throw ConstellationException(
+        constellationCode: ConstellationExceptionCode.targetUnavailable,
+      );
+    }
 
     final updated = await _updateExistingAnchor(
       viewerId: viewerId,
@@ -126,7 +144,9 @@ WHERE viewer_id = $1
       viewerId: viewerId,
     );
     if (validation is! ConstellationAnchorTargetValid) {
-      throw ArgumentError('invalid constellation anchor target');
+      throw ConstellationException(
+        constellationCode: ConstellationExceptionCode.invalidTarget,
+      );
     }
   }
 
@@ -136,8 +156,19 @@ WHERE viewer_id = $1
       yUnits: position.yUnits,
       coordinateSpaceVersion: position.coordinateSpaceVersion,
     );
-    if (validation is! ConstellationAnchorPositionValid) {
-      throw ArgumentError('invalid constellation anchor position');
+    switch (validation) {
+      case ConstellationAnchorPositionValid():
+        return;
+      case ConstellationAnchorPositionInvalid(:final reason):
+        throw ConstellationException(
+          constellationCode: switch (reason) {
+            ConstellationAnchorPositionInvalidReason.unsupportedCoordinateSpace =>
+              ConstellationExceptionCode.unsupportedCoordinateSpace,
+            ConstellationAnchorPositionInvalidReason.nonFinite ||
+            ConstellationAnchorPositionInvalidReason.outOfRange =>
+              ConstellationExceptionCode.invalidCoordinates,
+          },
+        );
     }
   }
 

@@ -478,3 +478,25 @@ final class HelpOfferCoordinationException extends ExceptionBase {
          description: description ?? coordinationCode.name,
        );
 }
+
+final class ConstellationException extends ExceptionBase {
+  ConstellationException({
+    required ConstellationExceptionCode constellationCode,
+    String? description,
+  }) : super(
+         code: ConstellationExceptionCodes(constellationCode),
+         description: description ?? _constellationDescription(constellationCode),
+       );
+}
+
+String _constellationDescription(ConstellationExceptionCode code) =>
+    switch (code) {
+      ConstellationExceptionCode.invalidTarget =>
+        'Invalid constellation anchor target',
+      ConstellationExceptionCode.invalidCoordinates =>
+        'Invalid constellation anchor coordinates',
+      ConstellationExceptionCode.unsupportedCoordinateSpace =>
+        'Unsupported coordinate space',
+      ConstellationExceptionCode.targetUnavailable =>
+        'Constellation anchor target unavailable',
+    };

@@ -27,6 +27,12 @@ List<GraphQLType<dynamic, dynamic>> get customTypes => [
   gqlTypeConstellationPeer,
   gqlTypeConstellationEdge,
   gqlTypeConstellationRequest,
+  gqlEnumConstellationProjection,
+  gqlEnumConstellationAnchorTargetKind,
+  gqlTypeConstellationAnchor,
+  gqlTypeConstellationAnchorProjection,
+  gqlTypeConstellationAnchorUpsertResult,
+  gqlTypeConstellationAnchorDeleteResult,
   gqlTypeConstellationField,
   gqlTypeMutualScore,
   gqlTypeImagePublic,
@@ -539,6 +545,95 @@ final gqlTypeConstellationRequest =
         field('coverThumb', gqlTypeImagePublic),
       ]);
 
+final gqlEnumConstellationProjection = enumTypeFromStrings(
+  'ConstellationProjection',
+  const ['FULL', 'ANCHORS'],
+);
+
+final gqlEnumConstellationAnchorTargetKind = enumTypeFromStrings(
+  'ConstellationAnchorTargetKind',
+  const ['PERSON', 'BEACON'],
+);
+
+final gqlTypeConstellationAnchor =
+    GraphQLObjectType(
+        'ConstellationAnchor',
+        null,
+      )
+      ..fields.addAll([
+        field(
+          'targetKind',
+          gqlEnumConstellationAnchorTargetKind.nonNullable(),
+        ),
+        field('targetId', graphQLString.nonNullable()),
+        field('xUnits', graphQLFloat.nonNullable()),
+        field('yUnits', graphQLFloat.nonNullable()),
+        field('coordinateSpaceVersion', graphQLInt.nonNullable()),
+        field('revision', graphQLString.nonNullable()),
+        field('placedAt', graphQLString.nonNullable()),
+      ]);
+
+final gqlTypeConstellationAnchorProjection =
+    GraphQLObjectType(
+        'ConstellationAnchorProjection',
+        null,
+      )
+      ..fields.addAll([
+        field('revision', graphQLString.nonNullable()),
+        field(
+          'anchors',
+          GraphQLListType(gqlTypeConstellationAnchor.nonNullable())
+              .nonNullable(),
+        ),
+        field(
+          'pinnedPeers',
+          GraphQLListType(gqlTypeConstellationPeer.nonNullable()).nonNullable(),
+        ),
+        field(
+          'pinnedRequests',
+          GraphQLListType(
+            gqlTypeConstellationRequest.nonNullable(),
+          ).nonNullable(),
+        ),
+        field(
+          'supportPeers',
+          GraphQLListType(gqlTypeConstellationPeer.nonNullable()).nonNullable(),
+        ),
+        field(
+          'supportEdges',
+          GraphQLListType(gqlTypeConstellationEdge.nonNullable()).nonNullable(),
+        ),
+        field(
+          'serverFilteredBeaconIds',
+          GraphQLListType(graphQLString.nonNullable()).nonNullable(),
+        ),
+        field('serverFilteredBeaconCount', graphQLInt.nonNullable()),
+      ]);
+
+final gqlTypeConstellationAnchorUpsertResult =
+    GraphQLObjectType(
+        'ConstellationAnchorUpsertResult',
+        null,
+      )
+      ..fields.addAll([
+        field('anchor', gqlTypeConstellationAnchor.nonNullable()),
+        field('revision', graphQLString.nonNullable()),
+      ]);
+
+final gqlTypeConstellationAnchorDeleteResult =
+    GraphQLObjectType(
+        'ConstellationAnchorDeleteResult',
+        null,
+      )
+      ..fields.addAll([
+        field(
+          'targetKind',
+          gqlEnumConstellationAnchorTargetKind.nonNullable(),
+        ),
+        field('targetId', graphQLString.nonNullable()),
+        field('revision', graphQLString.nonNullable()),
+      ]);
+
 /// Full constellation field snapshot for the JWT viewer.
 final gqlTypeConstellationField =
     GraphQLObjectType(
@@ -564,6 +659,10 @@ final gqlTypeConstellationField =
         ),
         field('peersCapped', graphQLBoolean.nonNullable()),
         field('requestsCapped', graphQLBoolean.nonNullable()),
+        field(
+          'anchorProjection',
+          gqlTypeConstellationAnchorProjection.nonNullable(),
+        ),
       ]);
 
 /// Return type for `userUpdate` / remote-schema mutations (minimal).
