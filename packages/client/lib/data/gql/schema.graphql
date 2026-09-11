@@ -3419,7 +3419,6 @@ type mutation_root {
   RoomMessageReactionToggle(beaconId: String!, emoji: String!, messageId: String!): Boolean!
   RoomPollCreate(allowRevote: Boolean, beaconId: String!, isAnonymous: Boolean, pollType: String, question: String!, variants: [String!]): v2_RoomMessageRow!
   acceptHelpOffer(id: String!, offerUserId: String!): v2_BeaconStatusResult!
-  addPlanStep(body: String, parentItemId: String!, title: String!): v2_CoordinationItemRow!
   attentionMarkAllSeen: Int!
   attentionMarkSeen(ids: [String!]): Int!
   attentionMarkUnseen(ids: [String!]): Int!
@@ -3451,6 +3450,8 @@ type mutation_root {
   capabilityPrivateLabelSet(slugs: [String!], subjectUserId: String!): Boolean!
   capabilitySetViewerVisible(slugs: [String!], subjectUserId: String!): Boolean!
   complaintCreate(details: String!, email: String!, id: String!, type: String!): Boolean!
+  constellationAnchorDelete(targetId: String!, targetKind: v2_ConstellationAnchorTargetKind!): v2_ConstellationAnchorDeleteResult!
+  constellationAnchorUpsert(coordinateSpaceVersion: Int!, targetId: String!, targetKind: v2_ConstellationAnchorTargetKind!, xUnits: Float!, yUnits: Float!): v2_ConstellationAnchorUpsertResult!
   contactDelete(subjectUserId: String!): Boolean!
   contactSet(contactName: String!, subjectUserId: String!): Boolean!
   declineHelpOffer(id: String!, offerUserId: String!, reason: String!): v2_BeaconStatusResult!
@@ -3640,14 +3641,11 @@ type mutation_root {
   invitationUpdate(addresseeName: String!, id: String!): v2_Invitation!
   inviteSeedPromptAnswer(slugs: [String!], subjectId: String!): Boolean!
   inviteSeedPromptSkip(subjectId: String!): Boolean!
-  markBeaconItemsSeen(beaconId: String!): v2_BeaconItemsSeenResult!
   meritrankInit(forceCalculate: Boolean): Int!
   notificationPreferencesUpdate(clearQuietHours: Boolean, clearSnooze: Boolean, emailCategories: [String!], emailDigest: String, locale: String, lockScreenSafe: Boolean, mutedInAppEventClasses: [String!], pushCategories: [String!], quietHoursEnd: Int, quietHoursStart: Int, snoozeUntil: String, tzOffsetMinutes: Int): v2_NotificationPreferences!
   pollingAct(pollingId: String!, score: Int, variantIds: [String!]): Boolean!
   releaseCommitment(id: String!, offerUserId: String!, reason: String!): v2_BeaconStatusResult!
-  remindCoordinationItem(itemId: String!): v2_CoordinationItemRow!
   removeFromRoom(id: String!, offerUserId: String!, reason: String!): v2_BeaconStatusResult!
-  resolvePlanStep(itemId: String!): v2_CoordinationItemRow!
   revokeAcknowledgement(beaconId: String!, slug: String!, subjectId: String!): Boolean!
   seedRoutingAttestation(slugs: [String!], subjectId: String!): Boolean!
   setBeaconStatus(id: String!, status: Int!): v2_BeaconStatusResult!
@@ -3658,8 +3656,6 @@ type mutation_root {
   signUp(authRequestToken: String!, displayName: String!, handle: String): v2_AuthResponse!
   trustForceRefreshAll: Boolean!
   trustForceRefreshStar(sourceUserId: String!): Boolean!
-  updateCoordinationItem(body: String, itemId: String!, title: String!): v2_CoordinationItemRow!
-  updateCoordinationPlan(beaconId: String!, body: String, linkedMessageId: String, targetPersonId: String, title: String!): v2_CoordinationItemRow!
 
   """
   update data of the table: "beacon_help_offer"
@@ -4610,10 +4606,7 @@ type query_root {
   beacon_steward_by_pk(beacon_id: String!): beacon_steward
   blockInherited(originId: String!): [v2_user!]
   blockPreview(cascadeMode: Int, objectId: String!): v2_BlockPreview!
-  constellationField: v2_ConstellationField!
-  coordinationItemsByBeacon(acceptedById: String, beaconId: String!, kind: Int, linkedParentItemId: String, rootOnly: Boolean, status: Int, targetPersonId: String): [v2_CoordinationItemRow!]
-  coordinationMyResponsibilityItems(beaconId: String!): [v2_CoordinationItemRow!]
-  coordinationResponsibilityBatch(beaconIds: [String!]): [v2_CoordinationResponsibilityBatchRow!]
+  constellationField(participatedOnly: Boolean! = false, projection: v2_ConstellationProjection! = FULL, showClosed: Boolean! = false): v2_ConstellationField!
 
   """
   fetch data from the table: "edge"
@@ -7061,11 +7054,6 @@ type v2_BeaconInvolvement {
   withdrawnIds: [String!]
 }
 
-type v2_BeaconItemsSeenResult {
-  beaconId: String!
-  seenAt: String!
-}
-
 type v2_BeaconLineageForwardSuggestions {
   rootBeaconId: String!
   sourceBeaconId: String!
@@ -7167,6 +7155,43 @@ type v2_BlockPreview {
   willWithdrawEdge: Boolean!
 }
 
+type v2_ConstellationAnchor {
+  coordinateSpaceVersion: Int!
+  placedAt: String!
+  revision: String!
+  targetId: String!
+  targetKind: v2_ConstellationAnchorTargetKind!
+  xUnits: Float!
+  yUnits: Float!
+}
+
+type v2_ConstellationAnchorDeleteResult {
+  revision: String!
+  targetId: String!
+  targetKind: v2_ConstellationAnchorTargetKind!
+}
+
+type v2_ConstellationAnchorProjection {
+  anchors: [v2_ConstellationAnchor!]!
+  pinnedPeers: [v2_ConstellationPeer!]!
+  pinnedRequests: [v2_ConstellationRequest!]!
+  revision: String!
+  serverFilteredBeaconCount: Int!
+  serverFilteredBeaconIds: [String!]!
+  supportEdges: [v2_ConstellationEdge!]!
+  supportPeers: [v2_ConstellationPeer!]!
+}
+
+enum v2_ConstellationAnchorTargetKind {
+  BEACON
+  PERSON
+}
+
+type v2_ConstellationAnchorUpsertResult {
+  anchor: v2_ConstellationAnchor!
+  revision: String!
+}
+
 type v2_ConstellationEdge {
   dst: String!
   src: String!
@@ -7174,6 +7199,7 @@ type v2_ConstellationEdge {
 }
 
 type v2_ConstellationField {
+  anchorProjection: v2_ConstellationAnchorProjection!
   context: String!
   edges: [v2_ConstellationEdge!]!
   loadedAt: String!
@@ -7188,6 +7214,11 @@ type v2_ConstellationPeer {
   handle: String
   id: String!
   image: v2_image
+}
+
+enum v2_ConstellationProjection {
+  ANCHORS
+  FULL
 }
 
 type v2_ConstellationRequest {
@@ -7213,46 +7244,6 @@ type v2_ConstellationRequest {
 input v2_Coordinates {
   lat: Float
   long: Float
-}
-
-type v2_CoordinationItemRow {
-  acceptedById: String
-  beaconId: String!
-  body: String!
-  cancelledAt: String
-  createdAt: String!
-  creatorId: String!
-  id: String!
-  kind: Int!
-  lastRemindedAt: String
-  lastSeenAt: String
-  linkedMessageId: String
-  linkedParentItemId: String
-  messageCount: Int!
-  ordering: Int!
-  published: Boolean!
-  resolvedAt: String
-  source: Int!
-  staleAfterDays: Int
-  staleAt: String
-  status: Int!
-  targetItemId: String
-  targetMessageId: String
-  targetPersonId: String
-  title: String!
-  unreadCount: Int!
-  updatedAt: String!
-}
-
-type v2_CoordinationResponsibilityBatchRow {
-  askNew: Int!
-  askOpen: Int!
-  beaconId: String!
-  blockerNew: Int!
-  blockerOpen: Int!
-  othersOpenCount: Int!
-  promiseNew: Int!
-  promiseOpen: Int!
 }
 
 """An ISO-8601 Date."""

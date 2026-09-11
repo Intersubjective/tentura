@@ -37,5 +37,34 @@ void main() {
     final userType = schema.substring(userStart, userEnd);
     expect(userType, contains('display_name: String!'));
     expect(userType, isNot(contains('displayName: String!')));
+
+    expect(
+      schema,
+      contains(
+        'constellationField(participatedOnly: Boolean! = false, '
+        'projection: v2_ConstellationProjection! = FULL, '
+        'showClosed: Boolean! = false): v2_ConstellationField!',
+      ),
+    );
+    expect(schema, contains('type v2_ConstellationAnchor {'));
+    expect(schema, contains('type v2_ConstellationAnchorProjection {'));
+    expect(schema, contains('enum v2_ConstellationProjection {'));
+    expect(schema, contains('enum v2_ConstellationAnchorTargetKind {'));
+    expect(
+      schema,
+      contains(
+        'constellationAnchorUpsert(coordinateSpaceVersion: Int!, '
+        'targetId: String!, targetKind: v2_ConstellationAnchorTargetKind!, '
+        'xUnits: Float!, yUnits: Float!): v2_ConstellationAnchorUpsertResult!',
+      ),
+    );
+    expect(
+      schema,
+      contains(
+        'constellationAnchorDelete(targetId: String!, '
+        'targetKind: v2_ConstellationAnchorTargetKind!): '
+        'v2_ConstellationAnchorDeleteResult!',
+      ),
+    );
   });
 }
