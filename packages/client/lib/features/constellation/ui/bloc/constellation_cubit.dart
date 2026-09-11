@@ -5,14 +5,21 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:force_directed_graphview/force_directed_graphview.dart';
 import 'package:get_it/get_it.dart';
+import 'package:meta/meta.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/beacon/domain/exception.dart';
 import 'package:tentura/features/forward/data/repository/forward_repository.dart';
 
+import '../../domain/constellation_anchor_composition.dart';
 import '../../domain/constellation_density.dart';
 import '../../domain/constellation_filters.dart';
+import '../../domain/constellation_layout.dart';
+import '../../domain/constellation_pin_position.dart';
+import '../../domain/entity/constellation_anchor.dart';
+import '../../domain/entity/constellation_anchor_projection.dart';
 import '../../domain/entity/constellation_field.dart';
+import '../../domain/use_case/constellation_anchor_case.dart';
 import '../../domain/use_case/constellation_field_case.dart';
 import '../../../graph/domain/entity/edge_details.dart';
 import '../../../graph/domain/entity/node_details.dart';
@@ -103,20 +110,34 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
   ConstellationCubit({
     required ConstellationFieldCase case_,
     required Profile viewer,
+    ConstellationAnchorCase? anchorCase,
     ForwardRepository? forwardRepository,
     bool loadOnCreate = true,
   }) : _case = case_,
+       _anchorCase = anchorCase,
        _viewer = viewer,
        _forwardRepositoryOverride = forwardRepository,
        super(const ConstellationState()) {
+    _anchorCase?.activate(viewerAccountId: viewer.id);
+    _anchorRefreshSub = _anchorCase?.refreshSignals.listen(
+      (_) => unawaited(_onAnchorRefreshHint()),
+      cancelOnError: false,
+    );
     if (loadOnCreate) {
       unawaited(load());
     }
   }
 
   final ConstellationFieldCase _case;
+  final ConstellationAnchorCase? _anchorCase;
   final Profile _viewer;
   final ForwardRepository? _forwardRepositoryOverride;
+
+  StreamSubscription<void>? _anchorRefreshSub;
+  int _layoutReconciliationCount = 0;
+  bool _suppressLateGestureEnd = false;
+  String? _draggingNodeId;
+  ConstellationLayoutPriorHints? _layoutPriorHints;
 
   ForwardRepository get _forwardRepository =>
       _forwardRepositoryOverride ?? GetIt.I<ForwardRepository>();
@@ -137,31 +158,71 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
   Size _labelBudgetViewport = const Size(1200, 900);
   double _labelBudgetTextScale = 1.0;
 
+  @visibleForTesting
+  int get layoutReconciliationCount => _layoutReconciliationCount;
+
+  @visibleForTesting
+  int get writeCount => _anchorCase?.writeCount ?? 0;
+
+  bool get placementActionsEnabled =>
+      state.placementActionsEnabled &&
+      !(_anchorCase?.hasPendingWrite ?? false);
+
+  @override
+  Future<void> close() async {
+    await _anchorRefreshSub?.cancel();
+    _anchorCase?.deactivate();
+    return super.close();
+  }
+
   Future<void> load() async {
     if (isClosed) {
       return;
     }
-    emit(state.copyWith(status: StateIsLoading(), loadError: null));
+    final generation = state.loadGeneration + 1;
+    emit(
+      state.copyWith(
+        status: StateIsLoading(),
+        loadError: null,
+        loadGeneration: generation,
+      ),
+    );
+    _anchorCase?.bindLoadGeneration(generation);
     try {
-      final resolved = await _case.load(viewerId: _viewer.id);
-      if (isClosed) {
+      final resolved = await _case.load(
+        viewerId: _viewer.id,
+        membershipFilters: state.membershipFilters,
+        localFilters: state.filters,
+        asOfUtc: state.loadedAt,
+        labelBudget: constellationLabelBudget(
+          viewport: _labelBudgetViewport,
+          textScaleFactor: _labelBudgetTextScale,
+        ),
+      );
+      if (isClosed || generation != state.loadGeneration) {
         return;
       }
+      _anchorCase?.adoptConfirmedProjection(
+        resolved.field.resolvedAnchorProjection,
+      );
       emit(
         state.copyWith(
           status: StateIsSuccess(),
           loadedAt: resolved.field.loadedAt,
           field: resolved.field,
+          composition: resolved.composition,
           paths: resolved.paths,
           keptPeerIds: resolved.keptPeerIds,
           capped: resolved.capped,
           loadError: null,
+          syncPending: _anchorCase?.syncPending ?? false,
+          placementActionsEnabled: true,
         ),
       );
       droppedHolderIds = resolved.droppedHolderIds;
-      _rebuildGraph();
+      _reconcileLayout();
     } on Object catch (error) {
-      if (isClosed) {
+      if (isClosed || generation != state.loadGeneration) {
         return;
       }
       emit(
@@ -177,6 +238,336 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
 
   Profile get viewer => _viewer;
 
+  Future<void> onAccountChanged() async {
+    if (isClosed) {
+      return;
+    }
+    _cancelUnsentPlacement(write: false);
+    _anchorCase?.onAccountChanged();
+    _anchorCase?.activate(viewerAccountId: _viewer.id);
+    final generation = _anchorCase?.bumpLoadGeneration() ?? state.loadGeneration + 1;
+    emit(
+      state.copyWith(
+        loadGeneration: generation,
+        field: null,
+        composition: null,
+        paths: null,
+        placementPhase: ConstellationPlacementPhase.idle,
+        activePlacementTarget: null,
+        deferredRefreshTarget: null,
+        placementFailureMessage: null,
+        syncPending: false,
+      ),
+    );
+  }
+
+  void beginDragExisting({
+    required ConstellationAnchorTarget target,
+  }) {
+    if (isClosed || !placementActionsEnabled) {
+      return;
+    }
+    _suppressLateGestureEnd = false;
+    _draggingNodeId = target.graphNodeId;
+    emit(
+      state.copyWith(
+        placementPhase: ConstellationPlacementPhase.draggingExisting,
+        activePlacementTarget: target,
+        placementFailureMessage: null,
+        placementActionsEnabled: false,
+      ),
+    );
+  }
+
+  void beginDragNew({required ConstellationAnchorTarget target}) {
+    if (isClosed || !placementActionsEnabled) {
+      return;
+    }
+    _suppressLateGestureEnd = false;
+    _draggingNodeId = target.graphNodeId;
+    emit(
+      state.copyWith(
+        placementPhase: ConstellationPlacementPhase.draggingNew,
+        activePlacementTarget: target,
+        placementFailureMessage: null,
+        placementActionsEnabled: false,
+      ),
+    );
+  }
+
+  void updateDragPresentation({
+    required String nodeId,
+    required Offset sceneCentre,
+  }) {
+    if (isClosed || _draggingNodeId != nodeId) {
+      return;
+    }
+    final node = graphController.nodes
+        .where((candidate) => candidate.id == nodeId)
+        .cast<NodeDetails?>()
+        .whereType<NodeDetails>()
+        .firstOrNull;
+    if (node == null) {
+      return;
+    }
+    graphController.setNodePresentationPosition(node, sceneCentre);
+  }
+
+  Future<void> onExistingNodeDrop({
+    required ConstellationAnchorTarget target,
+    required Offset sceneCentre,
+  }) async {
+    if (isClosed || _suppressLateGestureEnd) {
+      return;
+    }
+    final position = constellationPointToV1Anchor(
+      (x: sceneCentre.dx, y: sceneCentre.dy),
+    );
+    _clearDragPresentation(target.graphNodeId);
+    emit(
+      state.copyWith(
+        placementPhase: ConstellationPlacementPhase.idle,
+        activePlacementTarget: null,
+        placementActionsEnabled: false,
+      ),
+    );
+    await _submitUpsert(target: target, position: position);
+  }
+
+  Future<void> onNewNodeDrop({
+    required ConstellationAnchorTarget target,
+    required Offset sceneCentre,
+  }) async {
+    if (isClosed || _suppressLateGestureEnd) {
+      return;
+    }
+    updateDragPresentation(nodeId: target.graphNodeId, sceneCentre: sceneCentre);
+    emit(
+      state.copyWith(
+        placementPhase: ConstellationPlacementPhase.provisionalNew,
+        activePlacementTarget: target,
+        placementActionsEnabled: true,
+      ),
+    );
+  }
+
+  Future<void> confirmProvisionalPin({
+    required ConstellationAnchorTarget target,
+    required Offset sceneCentre,
+  }) async {
+    if (isClosed ||
+        state.placementPhase != ConstellationPlacementPhase.provisionalNew) {
+      return;
+    }
+    final position = constellationPointToV1Anchor(
+      (x: sceneCentre.dx, y: sceneCentre.dy),
+    );
+    _clearDragPresentation(target.graphNodeId);
+    emit(
+      state.copyWith(
+        placementPhase: ConstellationPlacementPhase.idle,
+        activePlacementTarget: null,
+        placementActionsEnabled: false,
+      ),
+    );
+    await _submitUpsert(target: target, position: position);
+  }
+
+  Future<void> pinFromText({required ConstellationAnchorTarget target}) async {
+    if (isClosed || !placementActionsEnabled) {
+      return;
+    }
+    final composition = state.composition;
+    if (composition == null) {
+      return;
+    }
+    final layoutInput = layoutInputFromComposition(
+      viewerId: _viewer.id,
+      composition: composition,
+      labelPlan: composition.labelPlan,
+      nodeSizes: const {},
+      spacing: 16,
+      priorHints: _layoutPriorHints,
+    );
+    final position = computeConstellationPinPosition(
+      target: target,
+      layoutInput: layoutInput,
+    );
+    if (position == null) {
+      return;
+    }
+    await _submitUpsert(target: target, position: position);
+  }
+
+  Future<void> unpinAnchor({required ConstellationAnchorTarget target}) async {
+    if (isClosed || !placementActionsEnabled || _anchorCase == null) {
+      return;
+    }
+    emit(state.copyWith(placementActionsEnabled: false));
+    final outcome = await _anchorCase!.deleteAnchor(
+      target: target,
+      generation: state.loadGeneration,
+      membershipFilters: state.membershipFilters,
+    );
+    if (isClosed) {
+      return;
+    }
+    await _applyWriteOutcome(outcome);
+  }
+
+  void cancelPlacement({bool suppressLateGestureEnd = true}) {
+    if (isClosed) {
+      return;
+    }
+    _cancelUnsentPlacement(
+      write: false,
+      suppressLateGestureEnd: suppressLateGestureEnd,
+    );
+  }
+
+  void onRouteLeave() => cancelPlacement();
+
+  void onPointerCancelDuringDrag() {
+    if (isClosed) {
+      return;
+    }
+    _cancelUnsentPlacement(write: false);
+  }
+
+  Future<void> _submitUpsert({
+    required ConstellationAnchorTarget target,
+    required ConstellationAnchorPosition position,
+  }) async {
+    if (_anchorCase == null) {
+      return;
+    }
+    final outcome = await _anchorCase!.upsert(
+      target: target,
+      position: position,
+      generation: state.loadGeneration,
+      membershipFilters: state.membershipFilters,
+    );
+    if (isClosed) {
+      return;
+    }
+    await _applyWriteOutcome(outcome);
+  }
+
+  Future<void> _applyWriteOutcome(ConstellationAnchorWriteOutcome outcome) async {
+    switch (outcome.kind) {
+      case ConstellationAnchorWriteOutcomeKind.succeeded:
+        await _mergeConfirmedProjection(outcome.projection);
+        emit(
+          state.copyWith(
+            placementFailureMessage: null,
+            syncPending: false,
+            placementActionsEnabled: true,
+          ),
+        );
+        _reconcileLayout();
+      case ConstellationAnchorWriteOutcomeKind.failed:
+        await _mergeConfirmedProjection(outcome.projection);
+        emit(
+          state.copyWith(
+            placementFailureMessage: outcome.failureMessage,
+            syncPending: _anchorCase?.syncPending ?? false,
+            placementActionsEnabled: true,
+          ),
+        );
+        _reconcileLayout();
+      case ConstellationAnchorWriteOutcomeKind.staleResponseDiscarded:
+        emit(state.copyWith(placementActionsEnabled: true));
+    }
+  }
+
+  Future<void> _onAnchorRefreshHint() async {
+    if (isClosed || _anchorCase == null) {
+      return;
+    }
+    final activeTarget = state.activePlacementTarget;
+    final deferPresentation =
+        activeTarget != null && state.hasPendingPlacementWrite;
+    await _mergeConfirmedProjection(_anchorCase!.confirmedProjection);
+    if (isClosed) {
+      return;
+    }
+    if (deferPresentation) {
+      emit(state.copyWith(deferredRefreshTarget: activeTarget));
+      return;
+    }
+    _reconcileLayout();
+  }
+
+  Future<void> _mergeConfirmedProjection(
+    ConstellationAnchorProjection? projection,
+  ) async {
+    final confirmed = projection ?? _anchorCase?.confirmedProjection;
+    final field = state.field;
+    if (confirmed == null || field == null) {
+      return;
+    }
+    final mergedField = field.copyWith(anchorProjection: confirmed);
+    final composition = composeConstellationPresentation(
+      viewerId: _viewer.id,
+      field: mergedField,
+      localFilters: state.filters,
+      asOfUtc: state.loadedAt ?? field.loadedAt,
+      labelBudget: constellationLabelBudget(
+        viewport: _labelBudgetViewport,
+        textScaleFactor: _labelBudgetTextScale,
+      ),
+      expandedSatelliteAuthorIds: expandedSatelliteAuthorIds,
+    );
+    emit(
+      state.copyWith(
+        field: mergedField,
+        composition: composition,
+        paths: composition.paths,
+        keptPeerIds: composition.keptPeerIds,
+        capped: composition.renderBudgetCapped,
+      ),
+    );
+    droppedHolderIds = composition.droppedHolderIds;
+  }
+
+  void _cancelUnsentPlacement({
+    required bool write,
+    bool suppressLateGestureEnd = true,
+  }) {
+    if (suppressLateGestureEnd) {
+      _suppressLateGestureEnd = true;
+    }
+    final target = state.activePlacementTarget;
+    if (target != null) {
+      _clearDragPresentation(target.graphNodeId);
+    }
+    _draggingNodeId = null;
+    emit(
+      state.copyWith(
+        placementPhase: ConstellationPlacementPhase.idle,
+        activePlacementTarget: null,
+        deferredRefreshTarget: null,
+        placementActionsEnabled: true,
+        placementFailureMessage: null,
+      ),
+    );
+    if (!write) {
+      _reconcileLayout();
+    }
+  }
+
+  void _clearDragPresentation(String nodeId) {
+    final node = graphController.nodes
+        .where((candidate) => candidate.id == nodeId)
+        .cast<NodeDetails?>()
+        .whereType<NodeDetails>()
+        .firstOrNull;
+    if (node != null) {
+      graphController.clearPresentationPosition(node);
+    }
+    _draggingNodeId = null;
+  }
+
   void selectRequest(String? requestId) {
     if (isClosed) {
       return;
@@ -188,6 +579,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     if (isClosed || state.viewMode == viewMode) {
       return;
     }
+    _cancelUnsentPlacement(write: false);
     emit(state.copyWith(viewMode: viewMode));
   }
 
@@ -197,7 +589,9 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
   }) {
     _labelBudgetViewport = viewport;
     _labelBudgetTextScale = textScaleFactor;
-    _rebuildGraph();
+    if (!state.hasPendingPlacementWrite) {
+      _reconcileLayout(deferAutomaticReflow: true);
+    }
   }
 
   bool get hasActiveFilters =>
@@ -224,38 +618,43 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     if (isClosed) {
       return;
     }
+    _cancelUnsentPlacement(write: false);
     emit(state.copyWith(filterCapabilitySlugs: slugs));
-    _rebuildGraph();
+    _recomposeAndLayout();
   }
 
   void setFilterLocation(LocationFilter location) {
     if (isClosed || state.filterLocation == location) {
       return;
     }
+    _cancelUnsentPlacement(write: false);
     emit(state.copyWith(filterLocation: location));
-    _rebuildGraph();
+    _recomposeAndLayout();
   }
 
   void setFilterTiming(TimingFilter timing) {
     if (isClosed || state.filterTiming == timing) {
       return;
     }
+    _cancelUnsentPlacement(write: false);
     emit(state.copyWith(filterTiming: timing));
-    _rebuildGraph();
+    _recomposeAndLayout();
   }
 
   void setFilterIncludeUnspecified(bool include) {
     if (isClosed || state.filterIncludeUnspecified == include) {
       return;
     }
+    _cancelUnsentPlacement(write: false);
     emit(state.copyWith(filterIncludeUnspecified: include));
-    _rebuildGraph();
+    _recomposeAndLayout();
   }
 
   void clearFilters() {
     if (isClosed) {
       return;
     }
+    _cancelUnsentPlacement(write: false);
     emit(
       state.copyWith(
         filterCapabilitySlugs: const {},
@@ -264,7 +663,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
         filterIncludeUnspecified: true,
       ),
     );
-    _rebuildGraph();
+    _recomposeAndLayout();
   }
 
   void toggleSatelliteOverflow(String authorId) {
@@ -276,7 +675,9 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     } else {
       expandedSatelliteAuthorIds.add(authorId);
     }
-    _rebuildGraph();
+    if (!state.hasPendingPlacementWrite) {
+      _recomposeAndLayout();
+    }
   }
 
   bool isSatelliteOverflowExpanded(String authorId) =>
@@ -586,9 +987,50 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     );
   }
 
+  void _recomposeAndLayout() {
+    final field = state.field;
+    if (field == null) {
+      return;
+    }
+    final composition = composeConstellationPresentation(
+      viewerId: _viewer.id,
+      field: field,
+      localFilters: state.filters,
+      asOfUtc: state.loadedAt ?? field.loadedAt,
+      labelBudget: constellationLabelBudget(
+        viewport: _labelBudgetViewport,
+        textScaleFactor: _labelBudgetTextScale,
+      ),
+      expandedSatelliteAuthorIds: expandedSatelliteAuthorIds,
+    );
+    emit(
+      state.copyWith(
+        composition: composition,
+        paths: composition.paths,
+        keptPeerIds: composition.keptPeerIds,
+        capped: composition.renderBudgetCapped,
+      ),
+    );
+    droppedHolderIds = composition.droppedHolderIds;
+    _reconcileLayout(deferAutomaticReflow: state.hasPendingPlacementWrite);
+  }
+
+  void _reconcileLayout({bool deferAutomaticReflow = false}) {
+    if (_draggingNodeId != null && deferAutomaticReflow) {
+      return;
+    }
+    _layoutReconciliationCount++;
+    _rebuildGraph();
+  }
+
   void _rebuildGraph() {
+    if (_draggingNodeId != null &&
+        state.placementPhase != ConstellationPlacementPhase.idle) {
+      return;
+    }
     final field = state.field;
     final paths = state.paths;
+    final composition = state.composition;
     if (field == null || paths == null) {
       graphController.clear();
       edgeKinds.clear();
@@ -597,7 +1039,19 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     }
 
     final peersById = {for (final peer in field.peers) peer.id: peer};
-    final plan = _displayPlan(field);
+    final ConstellationLabelDisplayPlan plan;
+    if (composition != null) {
+      plan = composition.labelPlan;
+    } else {
+      final legacy = _displayPlan(field);
+      plan = ConstellationLabelDisplayPlan(
+        drawnRequestIds: legacy.drawnRequestIds,
+        layoutRequestsByAuthor: legacy.layoutByAuthor,
+        egoOwnRequestIds: legacy.egoOwnRequestIds,
+        overflowHiddenCountByAuthor: legacy.overflowByAuthor,
+        pinnedRequestIds: const {},
+      );
+    }
     final drawnRequestIds = plan.drawnRequestIds;
 
     final drawnRequests = [
@@ -606,10 +1060,10 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     ]..sort((a, b) => a.id.compareTo(b.id));
 
     layoutEgoId = _viewer.id;
-    layoutVisibleRequestsByAuthor = plan.layoutByAuthor;
+    layoutVisibleRequestsByAuthor = plan.layoutRequestsByAuthor;
     layoutEgoOwnRequestIds = plan.egoOwnRequestIds;
     displayedRequestIds = plan.drawnRequestIds;
-    overflowHiddenCountByAuthor = plan.overflowByAuthor;
+    overflowHiddenCountByAuthor = plan.overflowHiddenCountByAuthor;
 
     final nodes = <NodeDetails>{};
     final edges = <EdgeDetails<NodeDetails>>{};
@@ -770,7 +1224,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
         field: field.copyWith(requests: requests),
       ),
     );
-    _rebuildGraph();
+    _recomposeAndLayout();
   }
 
   String _authorizationDeniedMessage(BeaconStatus status) => switch (status) {

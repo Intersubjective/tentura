@@ -9,6 +9,7 @@ import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/features/profile_view/domain/use_case/profile_view_case.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 
+import '../../domain/use_case/constellation_anchor_case.dart';
 import '../../domain/use_case/constellation_field_case.dart';
 import '../bloc/constellation_cubit.dart';
 import '../widget/constellation_app_bar.dart';
@@ -40,6 +41,7 @@ class ConstellationScreen extends StatefulWidget implements AutoRouteWrapper {
         return BlocProvider(
           create: (_) => ConstellationCubit(
             case_: GetIt.I<ConstellationFieldCase>(),
+            anchorCase: GetIt.I<ConstellationAnchorCase>(),
             viewer: viewer,
           ),
           child: BlocProvider(
