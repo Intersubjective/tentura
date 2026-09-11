@@ -54,6 +54,7 @@ final class _FakeFieldRepository implements ConstellationRepositoryPort {
   final List<ConstellationAnchorProjection> projections;
   int fetchCount = 0;
   Completer<void> fetchGate = Completer<void>()..complete();
+  ConstellationFieldMembershipFilters? lastMembershipFilters;
 
   @override
   Future<ConstellationField> fetch({
@@ -62,6 +63,7 @@ final class _FakeFieldRepository implements ConstellationRepositoryPort {
     ConstellationProjection projection = ConstellationProjection.full,
   }) async {
     fetchCount++;
+    lastMembershipFilters = membershipFilters;
     if (!fetchGate.isCompleted) {
       await fetchGate.future;
     }
@@ -304,6 +306,65 @@ void main() {
       );
       expect(outcome.kind, ConstellationAnchorWriteOutcomeKind.staleResponseDiscarded);
       expect(anchorRepo.upsertCount, 0);
+    });
+
+    test('adoptConfirmedProjection rejects stale FULL revision', () {
+      case_.adoptConfirmedProjection(
+        _projection(
+          revision: BigInt.two,
+          anchors: [_anchor(personId: 'p1', revision: BigInt.two)],
+        ),
+      );
+      final adopted = case_.adoptConfirmedProjection(
+        _projection(
+          revision: BigInt.one,
+          anchors: [_anchor(personId: 'p1', revision: BigInt.one, x: 9)],
+        ),
+      );
+      expect(adopted, isFalse);
+      expect(case_.confirmedProjection.revision.value, BigInt.two);
+      expect(case_.confirmedProjection.anchors.single.position.xUnits, 1);
+    });
+
+    test('websocket refresh uses synced membership filters', () async {
+      const filters = ConstellationFieldMembershipFilters(
+        showClosed: true,
+        participatedOnly: true,
+      );
+      case_.syncMembershipFilters(filters);
+      port.emitChange(
+        const RealtimeEntityChange(
+          kind: RealtimeEntityKind.constellationAnchor,
+          aggregateId: _viewer,
+          operation: RealtimeOperation.update,
+          source: RealtimeChangeSource.serverInvalidation,
+        ),
+      );
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+      expect(fieldRepo.lastMembershipFilters, filters);
+    });
+
+    test('offline failure clears sync pending after reconnect catch-up', () async {
+      anchorRepo.upsertError = StateError('network');
+      await case_.upsert(
+        target: ConstellationAnchorTarget.person('p1'),
+        position: const ConstellationAnchorPosition(
+          xUnits: 0,
+          yUnits: 0,
+          coordinateSpaceVersion: 1,
+        ),
+        generation: 1,
+      );
+      expect(case_.syncPending, isTrue);
+
+      fieldRepo.projections[1] = _projection(
+        revision: BigInt.from(3),
+        anchors: [_anchor(personId: 'p1', revision: BigInt.from(3))],
+      );
+      port.emitCatchUp(accountId: _viewer);
+      await Future<void>.delayed(const Duration(milliseconds: 30));
+      expect(case_.syncPending, isFalse);
+      expect(case_.confirmedProjection.revision.value, BigInt.from(3));
     });
 
     test('counts writes accurately', () async {
