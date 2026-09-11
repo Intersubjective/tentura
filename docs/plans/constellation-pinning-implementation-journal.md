@@ -58,7 +58,7 @@ tg_style_research.md
 | P02 Migration and storage adapter | complete (concurrency-proof remediated) | P01 | see checkpoint below |
 | P03 Server membership and complete snapshot | complete (remediated) | P02 | see checkpoint below |
 | P04 Authenticated V2 API | complete (accepted) | P03 | see checkpoint below |
-| P05 Client wire adapters and server echo policy | in progress (P05a echo) | P04 | — |
+| P05 Client wire adapters and server echo policy | in progress (P05b client wire) | P04 | P05a see checkpoint |
 | P06 Pure composition, budgets and layout | pending | P05 | — |
 | P07 Graph gesture adapter | pending | P06 | — |
 | P08 Placement orchestration and live reconciliation | pending | P07 | — |
@@ -509,3 +509,41 @@ REMAINING: none for P02 (P03 next).
 - Independently passed: `cd packages/server && dart test test/api/controllers/graphql/constellation_anchor_test.dart -j 1` — 15 passed.
 - Process audit before P05: docker has postgres + meritrank only; Hasura / tentura-server / Flutter :8888 are not running. No task-owned Cursor runner, Dart test, Flutter, WebDriver, or Chrome process. Pre-existing editor/browser services left untouched.
 - Next subunit: **P05a** server echo policy only (`kRealtimeAlwaysEchoKinds` + WS protocol tests). Client GraphQL / schema_fetcher / Ferry wait for **P05b** because Hasura is down and schema fetch needs a live P04 remote schema.
+
+### P05a — Server echo policy — 2026-09-11
+
+- Added `kRealtimeAlwaysEchoKinds = {'constellation_anchor'}` in
+  `packages/server/lib/consts/realtime_consts.dart`.
+- `websocket_path_entity_changes.dart`: skip actor recipients only when echo is
+  disabled **and** entity is not in `kRealtimeAlwaysEchoKinds`; recipient
+  validation/stripping and thin payload shape unchanged (no `user_ids` on wire).
+- WS protocol tests: `constellation_anchor` reaches both actor sessions with echo
+  false and true; foreign session excluded; payload limited to
+  `entity`/`id`/`event`/`actor_user_id`; existing beacon/forward echo policy
+  tests unchanged.
+- Commands (serial):
+  - `cd packages/server && dart test test/api/controllers/websocket/websocket_realtime_protocol_test.dart` → 12 passed
+  - `./scripts/check-custom-lints.sh packages/server` → exit 0
+
+STATUS: complete
+
+COMMITS:
+- 002599c6b feat(server): always echo constellation_anchor invalidations
+
+TESTS:
+- `cd packages/server && dart test test/api/controllers/websocket/websocket_realtime_protocol_test.dart` → 12 passed
+- `./scripts/check-custom-lints.sh packages/server` → exit 0
+
+FILES:
+- packages/server/lib/consts/realtime_consts.dart
+- packages/server/lib/api/controllers/websocket/path_handler/websocket_path_entity_changes.dart
+- packages/server/test/api/controllers/websocket/websocket_realtime_protocol_test.dart
+- docs/plans/constellation-pinning-implementation-journal.md
+
+FINDINGS:
+- Echo exemption is entity-kind scoped via a const set; no env flag change needed.
+- Private anchor fan-out still relies on publisher `user_ids: [viewer_id]`; the
+  handler never forwards `user_ids` in the client payload.
+
+REMAINING: P05b client GraphQL/Ferry wire adapters (schema_fetcher, repository
+ports); P08 for realtime enum/manifest/contract subscriber wiring per C8.
