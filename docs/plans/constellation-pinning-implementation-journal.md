@@ -61,7 +61,7 @@ tg_style_research.md
 | P05 Client wire adapters and server echo policy | complete (accepted) | P04 | see P05a/P05b checkpoints |
 | P06 Pure composition, budgets and layout | complete (accepted after C6 remediation) | P05 | see P06 C6 remediation |
 | P07 Graph gesture adapter | complete (accepted after C7 long-press remediation) | P06 | see P07 manager review |
-| P08 Placement orchestration and live reconciliation | complete | P07 | see P08 checkpoint |
+| P08 Placement orchestration and live reconciliation | rejected (C8 accepted; C7 cubit remediation) | P07 | see P08 manager review |
 | P09 Map/Text controls, filters and status accessibility | pending | P08 | — |
 | P10 End-to-end and failure acceptance | pending | P09 | — |
 | P11 Full verification and release preparation | pending | P10 | — |
@@ -897,3 +897,35 @@ FINDINGS:
 - `di.config.dart` / freezed outputs regenerated locally, not committed.
 
 REMAINING: P09 Map/Text controls and accessibility wiring.
+
+### P08 — Manager review — 2026-09-11
+
+Independent verification of worker tests: green.
+
+- `cd packages/client && flutter test --no-pub` on case/cubit + client architecture + invalidation → 44 passed
+- `cd packages/server && dart test test/architecture/realtime_entity_contract_test.dart` → 1 passed
+
+**C8 accepted:** `constellation_anchor` enum/fromWire, manifest, `m0167` publisher list, impact map to `constellation_anchor_case.dart`, invalidation wireKinds. Real subscriber, no dummy.
+
+**C7 rejected** — implementation and Check coverage gaps:
+
+1. `hasPendingPlacementWrite` omits `draggingNew`. Incoming refresh during new-node drag does not defer that target.
+2. `onExistingNodeDrop` / `confirmProvisionalPin` set `idle` and clear `activePlacementTarget` *before* the upsert returns, so in-flight writes are not treated as pending placement (C7: defer that target during pending write; one local write at a time).
+3. `adoptConfirmedProjection` on FULL load blindly overwrites. Stale FULL after a newer ANCHORS watermark can clobber confirmed anchors. Cubit test only covers stale FULL vs *generation* (account change), not vs revision.
+4. Websocket/catch-up `_refreshAnchorsOnce()` uses default membership filters; case does not store the cubit's current filters.
+5. Selected person/request is never cleared when the target leaves the composed result (P08: preserve if still visible, else clear).
+6. `onAccountChanged` double-bumps generation (`onAccountChanged()` then `bumpLoadGeneration()`).
+7. Missing Check tests: remote delete then drop (D26), stale FULL after ANCHORS, offline recovery until reconnect, unpin write/reconcile counts, `pinFromText` / `computeConstellationPinPosition`, `draggingNew` deferral, *exact* layout reconciliation counts (failed-write test uses `greaterThan`).
+
+Do not start P09 until this remediation is accepted.
+
+STATUS: rejected (C8 kept)
+
+COMMITS reviewed:
+- db03448d4 feat(client): register constellation_anchor realtime kind (C8)
+- 8735a507c feat(client): add constellation anchor case with live ANCHORS coalescing
+- 072227f81 feat(client): add P08 constellation placement orchestration in cubit
+- 6a88e781f test(client): cover P08 constellation anchor case and cubit reconciliation
+- 2ec4b2651 docs: record P08 constellation placement checkpoint with commit SHAs
+
+REMAINING: C7 cubit/case remediation worker, then P09.
