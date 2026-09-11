@@ -55,7 +55,7 @@ tg_style_research.md
 | Packet | Status | Dependency | Evidence / commit |
 |---|---|---|---|
 | P01 Contract fixtures and domain types | complete | — | see checkpoint below |
-| P02 Migration and storage adapter | pending | P01 | — |
+| P02 Migration and storage adapter | complete | P01 | see checkpoint below |
 | P03 Server membership and complete snapshot | pending | P02 | — |
 | P04 Authenticated V2 API | pending | P03 | — |
 | P05 Client wire adapters and server echo policy | pending | P04 | — |
@@ -165,6 +165,65 @@ FINDINGS:
   value strictly above 2^53 is `9007199254740993`.
 
 REMAINING: none for P01 (P02 migration/storage is next per plan).
+
+### P02 — Migration and storage adapter — 2026-09-11
+
+- `m0167`: `constellation_anchor` / `constellation_anchor_cursor` tables with
+  CHECK/FK/partial-unique indexes; `bump_constellation_anchor_revision` BEFORE
+  trigger; `notify_constellation_anchor_change` AFTER strict publisher;
+  `person_are_mutually_visible_cached` read-only cache-miss branch (C4).
+- Drift table sources registered on `TenturaDb`; `withReadSnapshot` helper and
+  `ReadSnapshotPort` / `ReadSnapshotUnitOfWork`.
+- `ConstellationAnchorRepositoryPort` + `ConstellationAnchorRepository`:
+  cursor-first `FOR UPDATE`, upsert/update-insert, idempotent absent delete with
+  single cursor bump + explicit `delete` publication, one top-level retry for
+  `40P01`/`40001`.
+- Deferred to P03/P04/P08: C2 upsert authorization, field membership, GraphQL,
+  realtime manifest/contract subscriber wiring.
+- Commands (serial):
+  - `cd packages/server && dart run build_runner build -d` → exit 0
+  - `cd packages/server && dart test test/data/database/constellation_anchor_storage_pg_test.dart -j 1` → 15 passed
+  - `cd packages/server && dart test test/data/repository/constellation_anchor_repository_pg_test.dart -j 1` → 3 passed
+  - `./scripts/check-custom-lints.sh packages/server` → OK (custom-lint total 0)
+- PostgreSQL: disposable DB names
+  `tentura_test_ca_*` / `tentura_test_carepo_*`; `SELECT current_database()`
+  asserted in storage setup; fresh migrate + upgrade from `0166` through `0167`.
+
+STATUS: complete
+
+COMMITS:
+- 138e998b3 feat(server): add constellation anchor storage migration m0167
+- (pending) feat(server): constellation anchor repository and PG acceptance
+
+TESTS:
+- `cd packages/server && dart test test/data/database/constellation_anchor_storage_pg_test.dart -j 1` → 15 passed
+- `cd packages/server && dart test test/data/repository/constellation_anchor_repository_pg_test.dart -j 1` → 3 passed
+- `./scripts/check-custom-lints.sh packages/server` → exit 0
+
+FILES:
+- packages/server/lib/data/database/migration/m0167.dart
+- packages/server/lib/data/database/migration/_migrations.dart
+- packages/server/lib/data/database/table/constellation_anchors.dart
+- packages/server/lib/data/database/table/constellation_anchor_cursors.dart
+- packages/server/lib/data/database/tentura_db.dart
+- packages/server/lib/domain/port/constellation_anchor_repository_port.dart
+- packages/server/lib/domain/port/read_snapshot_port.dart
+- packages/server/lib/data/repository/constellation_anchor_repository.dart
+- packages/server/lib/data/repository/read_snapshot_unit_of_work.dart
+- packages/server/test/data/database/constellation_anchor_storage_pg_test.dart
+- packages/server/test/data/repository/constellation_anchor_repository_pg_test.dart
+- docs/plans/constellation-pinning-implementation-journal.md
+
+FINDINGS:
+- Drift `customSelect` returns `placed_at` as a string; repository parses with
+  `DateTime.parse`.
+- Concurrent same-viewer mutations serialize on `constellation_anchor_cursor`
+  `FOR UPDATE`; beacon FK cascade vs cursor-first upsert needed repository
+  deadlock retry in at least one direction.
+- Realtime manifest / `realtime_entity_contract_test` publisher list updates
+  remain P08 per plan (trigger function lives in `m0167`).
+
+REMAINING: none for P02 (P03 field membership snapshot is next).
 
 ### P01 manager review — 2026-09-11
 
