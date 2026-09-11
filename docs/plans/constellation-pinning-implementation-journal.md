@@ -1228,3 +1228,22 @@ Commands (serial, `--no-pub` where noted):
 STATUS: complete (remediated)
 
 REMAINING: P11 full verification (not started).
+
+### Manager accept — P10 — 2026-09-12
+
+Independent review of [P10 e2e after R1-R7](7ad63c4a-d6f8-4bc9-bd5e-a2897504126b) @ `7d868000d`. The eight reject items from `1e70ab09b` are closed. R1–R7 overlay/support/lifecycle commits remain intact.
+
+Verified in source (not worker claims):
+
+1. `pinConstellationPersonFromMap` / `pinConstellationRequestFromText` wait for cubit persist only — no `upsertConstellationAnchor` fallback.
+2. Independent moves call `dragConstellationAnchorViaGraph` (GraphView long-press + `moveBy`); no cubit shortcut.
+3. Overlap journey asserts paint-order `topmostOverlappingConstellationTarget` then map tap → `selectedRequestId`.
+4. `proof.json` `ok` is `failure == null && failedJourneys.isEmpty`. Latest pass: `reports/realtime-multiclient/20260912-011925/run-1/proof.json`.
+5. Live two-browser pin is Text TestIds (`constellation.text.request.$id` + `constellation.pin_target`); peer observes `_peerShowsPinnedBeacon`. API upsert remains only in reconnect / stale-delete (allowed remote-device race).
+6. Integration `/tmp/constellation-pin-p10e.log` → PASS including logout. Graph `notifyListeners` defers during `persistentCallbacks` / `midFrameMicrotasks`; graph package 28 tests passed.
+7. `pinFromText` no longer falls back to `(0,0)`.
+8. Tier-1 `budgetExempt` / post-cap `keptPeerIds` bypass is gone.
+
+Honest BLOCKED (not counted PASS): map-pin WebDriver, touch arbitration, failed-mutation rollback (CanvasKit DOM). Residual, not a reject: unpin journey asserts automatic field membership, not the Favorites widget.
+
+Verdict: **accepted**. P11 may start. P12 not started.
