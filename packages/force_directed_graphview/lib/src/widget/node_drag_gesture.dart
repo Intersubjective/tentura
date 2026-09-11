@@ -134,19 +134,22 @@ class _NodeDragGestureState extends State<NodeDragGesture> {
       return;
     }
 
-    if (event.kind != PointerDeviceKind.mouse) {
-      return;
-    }
-
     final down = _pendingDownScene;
     if (down == null) {
       return;
     }
 
-    if ((event.localPosition - down).distance >= kTouchSlop) {
+    if ((event.localPosition - down).distance < kTouchSlop) {
+      return;
+    }
+
+    if (event.kind == PointerDeviceKind.mouse) {
       _captureNode(_pendingNode!, event.pointer, down);
       _updateCapturedPosition(event.localPosition);
+      return;
     }
+
+    _cancelPendingCapture();
   }
 
   void _onPointerUp(PointerUpEvent event) {

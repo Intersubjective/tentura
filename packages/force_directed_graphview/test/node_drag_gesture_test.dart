@@ -50,6 +50,60 @@ void main() {
     controller.dispose();
   });
 
+  testWidgets('touch long-press without movement captures the node',
+      (tester) async {
+    final controller = _TestHarness.newController();
+    Node<int>? dragged;
+
+    await _pumpGraph(
+      tester,
+      controller: controller,
+      onNodeDragStart: (node, _) => dragged = node,
+    );
+
+    final nodeCentre = _nodeCenter(tester, _TestHarness.bottom);
+    final gesture = await tester.createGesture(kind: PointerDeviceKind.touch);
+    await gesture.down(nodeCentre);
+    await tester.pump(const Duration(milliseconds: 500));
+    await tester.pump();
+
+    expect(dragged, _TestHarness.bottom);
+    expect(controller.isCameraGated, isTrue);
+
+    await gesture.up();
+    await tester.pump();
+    expect(controller.isCameraGated, isFalse);
+
+    controller.dispose();
+  });
+
+  testWidgets('touch movement before long-press cancels pending capture',
+      (tester) async {
+    final controller = _TestHarness.newController();
+    Node<int>? dragged;
+    var dragUpdates = 0;
+
+    await _pumpGraph(
+      tester,
+      controller: controller,
+      onNodeDragStart: (node, _) => dragged = node,
+      onNodeDragUpdate: (_, __) => dragUpdates++,
+    );
+
+    final nodeCentre = _nodeCenter(tester, _TestHarness.bottom);
+    final gesture = await tester.createGesture(kind: PointerDeviceKind.touch);
+    await gesture.down(nodeCentre);
+    await gesture.moveBy(Offset(kTouchSlop + 1, 0));
+    await tester.pump(const Duration(milliseconds: 600));
+
+    expect(dragged, isNull);
+    expect(dragUpdates, 0);
+    expect(controller.isCameraGated, isFalse);
+
+    await gesture.up();
+    controller.dispose();
+  });
+
   testWidgets('two-pointer scale before capture keeps camera and skips node drag',
       (tester) async {
     final controller = _TestHarness.newController();
