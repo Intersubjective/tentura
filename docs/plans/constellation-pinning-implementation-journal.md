@@ -58,7 +58,7 @@ tg_style_research.md
 | P02 Migration and storage adapter | complete (concurrency-proof remediated) | P01 | see checkpoint below |
 | P03 Server membership and complete snapshot | complete (remediated) | P02 | see checkpoint below |
 | P04 Authenticated V2 API | complete (accepted) | P03 | see checkpoint below |
-| P05 Client wire adapters and server echo policy | in progress (P05b client wire) | P04 | P05a see checkpoint |
+| P05 Client wire adapters and server echo policy | complete | P04 | see P05a/P05b checkpoints |
 | P06 Pure composition, budgets and layout | pending | P05 | — |
 | P07 Graph gesture adapter | pending | P06 | — |
 | P08 Placement orchestration and live reconciliation | pending | P07 | — |
@@ -557,3 +557,71 @@ ports); P08 for realtime enum/manifest/contract subscriber wiring per C8.
   recipient. Unrelated `beacon`/`forward` tests remain.
 - Independently passed: `cd packages/server && dart test test/api/controllers/websocket/websocket_realtime_protocol_test.dart` — 12 passed. `git diff --check` clean. No generated or pre-existing user paths staged.
 - Process audit: Hasura is up from manager prep; tentura-server not yet running. No task-owned test/Flutter/Chrome leftover from P05a. Next: **P05b** client wire + schema_fetcher.
+
+### P05b — Client GraphQL/Ferry wire adapters — 2026-09-11
+
+- Refreshed `schema.graphql` via `docker compose run --rm schema_fetcher` against
+  live Hasura (:8080) + tentura-server (:2080); overlay test asserts stitched
+  `v2_Constellation*` field/anchor types and mutations.
+- GraphQL operations: `ConstellationFieldFetch` (filters + projection vars +
+  `anchorProjection`), `ConstellationAnchorsFetch` (projection `ANCHORS`),
+  `ConstellationAnchorUpsert`, `ConstellationAnchorDelete`; all registered in
+  `_tenturaDirectOperationNames`.
+- Client domain exceptions `1700`–`1703`; `throwIfConstellationError` in
+  `build_client.dart` beside beacon hierarchy mapper.
+- `ConstellationRepository.fetch` routes FULL → FieldFetch, ANCHORS →
+  AnchorsFetch; sends `showClosed` / `participatedOnly`; maps
+  `anchorProjection` with strict revision/kind/coordinate parsing (no clamp).
+- New `ConstellationAnchorRepositoryPort` + repository (upsert/delete; no viewer
+  JWT arg); test env mock registered.
+- Ferry `build_runner` output and `di.config.dart` regenerated locally, not
+  committed.
+- Commands (serial):
+  - `cd packages/client && flutter test test/data/gql/direct_v2_schema_overlay_test.dart` → 1 passed
+  - `cd packages/client && flutter test test/features/constellation/constellation_repository_test.dart` → 11 passed
+  - `cd packages/client && flutter test test/features/constellation/constellation_error_mapper_test.dart` → 2 passed
+  - `./scripts/check-custom-lints.sh packages/client` → exit 0 (pre-existing unrelated analyzer infos; no new errors on owned paths)
+
+STATUS: complete
+
+COMMITS:
+- f6119fa47 feat(client): fetch constellation anchor GraphQL schema
+- 6ba1e4417 feat(client): add constellation anchor GraphQL operations
+- f5318d618 feat(client): wire constellation anchor repositories
+- 73bc25896 test(client): cover constellation anchor wire adapters
+
+TESTS:
+- `cd packages/client && flutter test test/data/gql/direct_v2_schema_overlay_test.dart` → 1 passed
+- `cd packages/client && flutter test test/features/constellation/constellation_repository_test.dart` → 11 passed
+- `cd packages/client && flutter test test/features/constellation/constellation_error_mapper_test.dart` → 2 passed
+- `./scripts/check-custom-lints.sh packages/client` → exit 0
+
+FILES:
+- packages/client/lib/data/gql/schema.graphql
+- packages/client/lib/data/service/remote_api_client/build_client.dart
+- packages/client/lib/features/constellation/data/gql/constellation_field_fetch.graphql
+- packages/client/lib/features/constellation/data/gql/constellation_anchors_fetch.graphql
+- packages/client/lib/features/constellation/data/gql/constellation_anchor_upsert.graphql
+- packages/client/lib/features/constellation/data/gql/constellation_anchor_delete.graphql
+- packages/client/lib/features/constellation/domain/exception.dart
+- packages/client/lib/features/constellation/domain/port/constellation_anchor_repository_port.dart
+- packages/client/lib/features/constellation/data/model/constellation_error_mapper.dart
+- packages/client/lib/features/constellation/data/model/constellation_field_mapper.dart
+- packages/client/lib/features/constellation/data/repository/constellation_repository.dart
+- packages/client/lib/features/constellation/data/repository/constellation_anchor_repository.dart
+- packages/client/lib/features/constellation/data/repository/constellation_anchor_repository_mock.dart
+- packages/client/test/data/gql/direct_v2_schema_overlay_test.dart
+- packages/client/test/features/constellation/constellation_repository_test.dart
+- packages/client/test/features/constellation/constellation_error_mapper_test.dart
+- docs/plans/constellation-pinning-implementation-journal.md
+
+FINDINGS:
+- Ferry generates distinct nested types for `anchorProjection.pinnedPeers` vs
+  top-level `peers`; shared field-level mappers avoid type mismatch.
+- `GConstellationFieldFetchReq()` without explicit `vars` fails after adding
+  required filter/projection variables; defaults live in GraphQL document, not
+  Dart builder.
+- Client realtime enum/manifest/subscriber unchanged per P08 boundary.
+
+REMAINING: P06 pure composition/budgets/layout (next per plan). P08 owns realtime
+enum/manifest/contract subscriber wiring.
