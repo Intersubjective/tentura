@@ -19,7 +19,6 @@ import 'package:tentura_server/domain/entity/gql_public/mutual_score_record.dart
 import 'package:tentura_server/domain/entity/gql_public/user_public_record.dart';
 import 'package:tentura_server/domain/entity/user_entity.dart';
 import 'package:tentura_server/domain/port/user_profile_batch_lookup_port.dart';
-import 'package:tentura_server/data/repository/constellation_field_snapshot_probe.dart';
 import 'package:tentura_server/domain/entity/constellation_anchor.dart';
 import 'package:tentura_server/domain/entity/constellation_anchor_projection.dart';
 import 'package:tentura_server/domain/port/constellation_anchor_repository_port.dart';
@@ -99,6 +98,28 @@ INSERT INTO public.beacon_help_offer (beacon_id, user_id, message, status, creat
 VALUES ('$beaconId', '$userId', 'offer', 0, '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z')
 ON CONFLICT (beacon_id, user_id) DO NOTHING
 ''');
+
+  Future<void> pinBeacon({
+    required String beaconId,
+    double x = 0,
+    double y = 0,
+  }) =>
+      anchorRepository.upsertAnchor(
+        viewerId: egoId,
+        target: ConstellationAnchorTarget.beacon(beaconId),
+        position: ConstellationAnchorPosition(
+          xUnits: x,
+          yUnits: y,
+          coordinateSpaceVersion: 1,
+        ),
+      );
+
+  Future<int> visibilityCacheCount() async {
+    final row = await db.customSelect(
+      'SELECT count(*)::int AS c FROM public.person_mutual_visibility_cache',
+    ).getSingle();
+    return row.read<int>('c');
+  }
 
   Future<ConstellationFieldSnapshot> loadField(String viewerId) =>
       case_.load(viewerId: viewerId, context: ctx);
@@ -348,19 +369,27 @@ ON CONFLICT (beacon_id, user_id) DO NOTHING
       await reciprocalTrust(egoId, peer);
       String? isolation;
       String? readOnly;
-      constellationFieldSnapshotOpenProbe = (db) async {
-        final iso = await db.customSelect(
-          "SELECT current_setting('transaction_isolation') AS v",
-        ).getSingle();
-        final ro = await db.customSelect(
-          "SELECT current_setting('transaction_read_only') AS v",
-        ).getSingle();
-        isolation = iso.read<String>('v');
-        readOnly = ro.read<String>('v');
-        await repository.peerProfiles(ids: {peer});
-      };
-      addTearDown(() => constellationFieldSnapshotOpenProbe = null);
-      await readField(viewerId: egoId);
+      late ConstellationFieldRepository probingRepo;
+      probingRepo = ConstellationFieldRepository(
+        db,
+        _PgProfileLookup(db),
+        snapshotOpenProbe: (probeDb) async {
+          final iso = await probeDb.customSelect(
+            "SELECT current_setting('transaction_isolation') AS v",
+          ).getSingle();
+          final ro = await probeDb.customSelect(
+            "SELECT current_setting('transaction_read_only') AS v",
+          ).getSingle();
+          isolation = iso.read<String>('v');
+          readOnly = ro.read<String>('v');
+          await probingRepo.peerProfiles(ids: {peer});
+        },
+      );
+      await probingRepo.readSnapshot(
+        viewerId: egoId,
+        context: ctx,
+        params: (filters: ConstellationFieldMembershipFilters.defaults, projection: ConstellationProjection.full),
+      );
       expect(isolation, contains('repeatable read'));
       expect(readOnly, 'on');
     }, skip: skipReason);
@@ -485,15 +514,128 @@ ON CONFLICT (beacon_id, user_id) DO NOTHING
           coordinateSpaceVersion: 1,
         ),
       );
-      final before = await db.customSelect(
-        'SELECT count(*)::int AS c FROM public.person_mutual_visibility_cache',
-      ).getSingle();
-      expect(before.read<int>('c'), 0);
+      expect(await visibilityCacheCount(), 0);
       await readField(viewerId: egoId);
-      final after = await db.customSelect(
-        'SELECT count(*)::int AS c FROM public.person_mutual_visibility_cache',
-      ).getSingle();
-      expect(after.read<int>('c'), 0);
+      expect(await visibilityCacheCount(), 0);
+    }, skip: skipReason);
+
+    test('read-write visibility lookup populates cache row', () async {
+      const peer = 'Ucfp03warm';
+      await insertUser(peer);
+      await reciprocalTrust(egoId, peer);
+      await db.customStatement('TRUNCATE public.person_mutual_visibility_cache');
+      expect(await visibilityCacheCount(), 0);
+      await db.customStatement(
+        "SELECT public.person_are_mutually_visible_cached('$egoId', '$peer', '$ctx')",
+      );
+      expect(await visibilityCacheCount(), greaterThan(0));
+    }, skip: skipReason);
+
+    test('pinned Beacon author without graph path is residual support peer',
+        () async {
+      const author = 'Ucfp03orphan';
+      await insertUser(author);
+      await insertBeacon(
+        id: 'Bp03orphan',
+        authorId: author,
+        isDiscoverable: false,
+      );
+      await insertHelpOffer(beaconId: 'Bp03orphan', userId: egoId);
+      await pinBeacon(beaconId: 'Bp03orphan');
+      for (final projection in ConstellationProjection.values) {
+        final snapshot = await readField(
+          viewerId: egoId,
+          projection: projection,
+        );
+        expect(snapshot.anchorProjection.pinnedRequests.single.id, 'Bp03orphan');
+        expect(
+          snapshot.anchorProjection.supportPeers.map((p) => p.id),
+          [author],
+        );
+        expect(snapshot.anchorProjection.supportEdges, isEmpty);
+        if (projection == ConstellationProjection.anchors) {
+          expect(snapshot.requests, isEmpty);
+          expect(snapshot.peers, isEmpty);
+        }
+      }
+    }, skip: skipReason);
+
+    test('cancelled pinned Beacon stays dormant without filter-hidden leakage',
+        () async {
+      const author = 'Ucfp03cancel';
+      await insertUser(author);
+      await reciprocalTrust(egoId, author);
+      await insertBeacon(id: 'Bp03cancel', authorId: author, status: 1);
+      await anchorRepository.upsertAnchor(
+        viewerId: egoId,
+        target: ConstellationAnchorTarget.beacon('Bp03cancel'),
+        position: const ConstellationAnchorPosition(
+          xUnits: 0,
+          yUnits: 0,
+          coordinateSpaceVersion: 1,
+        ),
+      );
+      final snapshot = await readField(viewerId: egoId);
+      expect(snapshot.anchorProjection.anchors, isEmpty);
+      expect(snapshot.anchorProjection.pinnedRequests, isEmpty);
+      expect(snapshot.anchorProjection.serverFilteredBeaconIds, isEmpty);
+      expect(snapshot.anchorProjection.serverFilteredBeaconCount, 0);
+    }, skip: skipReason);
+
+    test('serverFilteredBeaconIds dedupes and sorts lifecycle exclusions only',
+        () async {
+      const author = 'Ucfp03filter';
+      await insertUser(author);
+      await reciprocalTrust(egoId, author);
+      await insertBeacon(id: 'Bp03wrapA', authorId: author, status: 5);
+      await insertBeacon(id: 'Bp03wrapB', authorId: author, status: 5);
+      await insertHelpOffer(beaconId: 'Bp03wrapA', userId: egoId);
+      await insertHelpOffer(beaconId: 'Bp03wrapB', userId: egoId);
+      await pinBeacon(beaconId: 'Bp03wrapA');
+      await pinBeacon(beaconId: 'Bp03wrapB', x: 1);
+      final snapshot = await readField(viewerId: egoId);
+      expect(
+        snapshot.anchorProjection.serverFilteredBeaconIds,
+        ['Bp03wrapA', 'Bp03wrapB'],
+      );
+      expect(snapshot.anchorProjection.serverFilteredBeaconCount, 2);
+    }, skip: skipReason);
+
+    test('participatedOnly hides pinned Request without participation', () async {
+      const author = 'Ucfp03part';
+      await insertUser(author);
+      await reciprocalTrust(egoId, author);
+      await insertBeacon(id: 'Bp03part', authorId: author);
+      await pinBeacon(beaconId: 'Bp03part');
+      final hidden = await readField(
+        viewerId: egoId,
+        filters: const ConstellationFieldMembershipFilters(participatedOnly: true),
+      );
+      expect(hidden.anchorProjection.pinnedRequests, isEmpty);
+      expect(hidden.anchorProjection.serverFilteredBeaconIds, ['Bp03part']);
+
+      await insertHelpOffer(beaconId: 'Bp03part', userId: egoId);
+      final visible = await readField(
+        viewerId: egoId,
+        filters: const ConstellationFieldMembershipFilters(participatedOnly: true),
+      );
+      expect(visible.anchorProjection.pinnedRequests.single.id, 'Bp03part');
+      expect(visible.anchorProjection.serverFilteredBeaconIds, isEmpty);
+    }, skip: skipReason);
+
+    test('showClosed true reveals wrapping-up pinned Request', () async {
+      const author = 'Ucfp03show';
+      await insertUser(author);
+      await reciprocalTrust(egoId, author);
+      await insertBeacon(id: 'Bp03show', authorId: author, status: 5);
+      await insertHelpOffer(beaconId: 'Bp03show', userId: egoId);
+      await pinBeacon(beaconId: 'Bp03show');
+      final snapshot = await readField(
+        viewerId: egoId,
+        filters: const ConstellationFieldMembershipFilters(showClosed: true),
+      );
+      expect(snapshot.anchorProjection.pinnedRequests.single.status, 5);
+      expect(snapshot.anchorProjection.serverFilteredBeaconIds, isEmpty);
     }, skip: skipReason);
   });
 }

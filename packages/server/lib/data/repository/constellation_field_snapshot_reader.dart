@@ -13,14 +13,18 @@ import 'package:tentura_server/domain/port/user_profile_batch_lookup_port.dart';
 
 import '../database/tentura_db.dart' hide ConstellationAnchor;
 import 'constellation_field_repository.dart';
-import 'constellation_field_snapshot_probe.dart';
 
 /// Builds [ConstellationFieldSnapshot] inside an existing read snapshot transaction.
 final class ConstellationFieldSnapshotReader {
-  ConstellationFieldSnapshotReader(this._database, this._profiles);
+  ConstellationFieldSnapshotReader(
+    this._database,
+    this._profiles, {
+    Future<void> Function(TenturaDb db)? snapshotOpenProbe,
+  }) : _snapshotOpenProbe = snapshotOpenProbe;
 
   final TenturaDb _database;
   final UserProfileBatchLookup _profiles;
+  final Future<void> Function(TenturaDb db)? _snapshotOpenProbe;
 
   Future<ConstellationFieldSnapshot> read({
     required String viewerId,
@@ -28,7 +32,7 @@ final class ConstellationFieldSnapshotReader {
     required ConstellationFieldReadParams params,
   }) async {
     final loadedAt = DateTime.now().toUtc();
-    await constellationFieldSnapshotOpenProbe?.call(_database);
+    await _snapshotOpenProbe?.call(_database);
     if (viewerId.trim().isEmpty) {
       return ConstellationFieldSnapshot(
         loadedAt: loadedAt,
@@ -327,7 +331,7 @@ ORDER BY ca.placed_at, COALESCE(ca.beacon_id, ca.person_id)
 
     final resolution = resolveConstellationPaths(
       egoId: viewerId,
-      visiblePeerIds: visiblePeerIds,
+      visiblePeerIds: {...visiblePeerIds, ...pathHolderIds},
       holderIds: pathHolderIds,
       edges: [
         for (final edge in pathEdges)
@@ -335,16 +339,26 @@ ORDER BY ca.placed_at, COALESCE(ca.beacon_id, ca.person_id)
       ],
     );
 
-    final supportPeerIds = resolution.keep
-        .difference({
-          viewerId,
-          ...pinnedPeerIds,
-          ...pinnedRequests.map((r) => r.authorId),
-        })
-        .toList()
+    final ringResidualPeerIds = resolution.ring.difference({
+      viewerId,
+      ...pinnedPeerIds,
+    });
+
+    final supportPeerIds = {
+      ...resolution.keep.difference({
+        viewerId,
+        ...pinnedPeerIds,
+        ...pinnedRequests.map((r) => r.authorId),
+      }),
+      ...ringResidualPeerIds,
+    }.toList()
       ..sort();
 
-    final profileIds = {...pinnedPeerIds, ...supportPeerIds};
+    final profileIds = {
+      ...pinnedPeerIds,
+      ...supportPeerIds,
+      ...pinnedRequests.map((r) => r.authorId),
+    };
     final profiles = await _repo.peerProfiles(ids: profileIds);
     final profileById = {for (final p in profiles) p.id: p};
 

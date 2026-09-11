@@ -1,5 +1,6 @@
 import 'package:drift/drift.dart' hide Column;
 import 'package:injectable/injectable.dart';
+import 'package:meta/meta.dart';
 import 'package:postgres/postgres.dart' show Type, TypedValue;
 
 import 'package:tentura_server/domain/entity/constellation_anchor_projection.dart';
@@ -57,10 +58,15 @@ const constellationRequestSelectColumns = r'''
 )
 final class ConstellationFieldRepository
     implements ConstellationFieldRepositoryPort {
-  ConstellationFieldRepository(this._database, this._profiles);
+  ConstellationFieldRepository(
+    this._database,
+    this._profiles, {
+    @visibleForTesting Future<void> Function(TenturaDb db)? snapshotOpenProbe,
+  }) : _snapshotOpenProbe = snapshotOpenProbe;
 
   final TenturaDb _database;
   final UserProfileBatchLookup _profiles;
+  final Future<void> Function(TenturaDb db)? _snapshotOpenProbe;
 
   @override
   Future<ConstellationFieldSnapshot> readSnapshot({
@@ -69,7 +75,11 @@ final class ConstellationFieldRepository
     required ConstellationFieldReadParams params,
   }) {
     return _database.withReadSnapshot(
-      () => ConstellationFieldSnapshotReader(_database, _profiles).read(
+      () => ConstellationFieldSnapshotReader(
+        _database,
+        _profiles,
+        snapshotOpenProbe: _snapshotOpenProbe,
+      ).read(
         viewerId: viewerId,
         context: context,
         params: params,

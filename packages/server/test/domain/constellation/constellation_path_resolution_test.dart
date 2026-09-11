@@ -42,4 +42,32 @@ void main() {
     expect(result.ring, {'orphan'});
     expect(result.keep, isEmpty);
   });
+
+  test('anchor closure expands visible peers with path holders', () {
+    final holders = {'author'};
+    final visible = {'mid', ...holders};
+    final result = resolveConstellationPaths(
+      egoId: _ego,
+      visiblePeerIds: visible,
+      holderIds: holders,
+      edges: [
+        _e(_ego, 'mid', 1),
+        _e('mid', 'author', 1),
+      ],
+    );
+
+    expect(result.attributed, {'author'});
+    expect(result.keep, containsAll(['mid', 'author']));
+    expect(result.ring, isEmpty);
+
+    final supportEdges = constellationSupportEdges(
+      egoId: _ego,
+      resolution: result,
+      trustEdges: [
+        _e(_ego, 'mid', 1),
+        _e('mid', 'author', 1),
+      ],
+    );
+    expect(supportEdges, isNotEmpty);
+  });
 }
