@@ -193,7 +193,7 @@ STATUS: complete
 
 COMMITS:
 - 138e998b3 feat(server): add constellation anchor storage migration m0167
-- (pending) feat(server): constellation anchor repository and PG acceptance
+- a3e829d1e feat(server): add constellation anchor repository and PG tests
 
 TESTS:
 - `cd packages/server && dart test test/data/database/constellation_anchor_storage_pg_test.dart -j 1` → 15 passed
