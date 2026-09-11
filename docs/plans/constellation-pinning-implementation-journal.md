@@ -60,7 +60,7 @@ tg_style_research.md
 | P04 Authenticated V2 API | complete (accepted) | P03 | see checkpoint below |
 | P05 Client wire adapters and server echo policy | complete (accepted) | P04 | see P05a/P05b checkpoints |
 | P06 Pure composition, budgets and layout | complete (accepted after C6 remediation) | P05 | see P06 C6 remediation |
-| P07 Graph gesture adapter | in progress | P06 | — |
+| P07 Graph gesture adapter | complete | P06 | see checkpoint below |
 | P08 Placement orchestration and live reconciliation | pending | P07 | — |
 | P09 Map/Text controls, filters and status accessibility | pending | P08 | — |
 | P10 End-to-end and failure acceptance | pending | P09 | — |
@@ -740,3 +740,52 @@ worker scope.
 - Verdict: accepted. `_chooseAutomaticPosition` is non-null; envelope/canvas are hard validity; first collision-free in hint→ideal→64 order wins; else min intersection with index tie; `placeAutomatic` always writes a position. Request satellites ignore author only. Independently passed 16 P06 composition/layout tests including pin-avoidance, no-drop, and no-stacking.
 - Secondary: domain layout still imports `dart:ui` for satellite-fan Offset adapters; not blocking C6. Do not expand that in P07.
 - Next: **P07** graph gesture adapter.
+
+### P07 — Graph gesture adapter — 2026-09-11
+
+- `GraphController`: `setNodePresentationPosition` / clear helpers, `getPosition`
+  path for nodes/labels/edges, `orderedNodes`, scene/viewport conversion,
+  layout-animation stop on capture, `isCameraGated`, `relayoutInvocationCount`.
+- Optional default-off hooks on `GraphView`: drag callbacks, `canDragNode`,
+  `nodePaintOrder`; `NodeDragGesture` implements C7 pointer ownership (mouse
+  drag, touch long-press, two-pointer pre-capture scale win, post-capture
+  multi-touch retention, cancel/dispose cleanup).
+- `_CameraGatedInteractiveViewer` toggles `InteractiveViewer` pan/scale without
+  rebuilding on every viewport notification.
+- Commands (serial):
+  - `cd packages/force_directed_graphview && flutter test` → 26 passed
+- Scope boundary: no Constellation feature widgets/cubit/realtime (P08+).
+
+STATUS: complete
+
+COMMITS:
+- 1486477fd feat(graph): add presentation-position overlay on GraphController
+- e781a9d33 feat(graph): add optional node-drag gesture and camera gating
+- (this journal commit follows test commit)
+
+TESTS:
+- `cd packages/force_directed_graphview && flutter test` → 26 passed
+
+FILES:
+- packages/force_directed_graphview/lib/src/controller.dart
+- packages/force_directed_graphview/lib/src/configuration.dart
+- packages/force_directed_graphview/lib/src/graph_view.dart
+- packages/force_directed_graphview/lib/force_directed_graphview.dart
+- packages/force_directed_graphview/lib/src/widget/node_drag_gesture.dart
+- packages/force_directed_graphview/lib/src/widget/nodes_view.dart
+- packages/force_directed_graphview/lib/src/widget/labels_view.dart
+- packages/force_directed_graphview/lib/src/widget/edges_view.dart
+- packages/force_directed_graphview/test/node_drag_gesture_test.dart
+- docs/plans/constellation-pinning-implementation-journal.md
+
+FINDINGS:
+- `InteractiveViewer.builder` viewport updates call `notifyListeners` during
+  build; camera gating must listen with a narrow rebuild wrapper, not a blanket
+  `AnimatedBuilder` on the controller.
+- Edge geometry tests must assert on the moving endpoint (`destination` for
+  middle→bottom fixtures), not merely the dragged node centre on `source`.
+- `GraphViewConfiguration.canDragNode` field renamed internally to
+  `canDragNodePredicate` to avoid clashing with the predicate method.
+
+REMAINING: P08 placement orchestration and live reconciliation (next per plan).
+Do not start P09 UI in the graph worker scope.
