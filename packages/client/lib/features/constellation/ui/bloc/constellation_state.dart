@@ -71,6 +71,7 @@ abstract class ConstellationState extends StateBase with _$ConstellationState {
 
   bool get hasPendingPlacementWrite =>
       placementPhase == ConstellationPlacementPhase.draggingExisting ||
+      placementPhase == ConstellationPlacementPhase.draggingNew ||
       placementPhase == ConstellationPlacementPhase.provisionalNew;
 
   ConstellationFieldResolved? get resolvedField {

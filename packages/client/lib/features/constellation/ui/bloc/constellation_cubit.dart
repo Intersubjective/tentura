@@ -188,12 +188,12 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
       ),
     );
     _anchorCase?.bindLoadGeneration(generation);
+    _anchorCase?.syncMembershipFilters(state.membershipFilters);
     try {
       final resolved = await _case.load(
         viewerId: _viewer.id,
         membershipFilters: state.membershipFilters,
         localFilters: state.filters,
-        asOfUtc: state.loadedAt,
         labelBudget: constellationLabelBudget(
           viewport: _labelBudgetViewport,
           textScaleFactor: _labelBudgetTextScale,
@@ -202,24 +202,42 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
       if (isClosed || generation != state.loadGeneration) {
         return;
       }
-      _anchorCase?.adoptConfirmedProjection(
-        resolved.field.resolvedAnchorProjection,
+      final adopted = _anchorCase?.adoptConfirmedProjection(
+            resolved.field.resolvedAnchorProjection,
+          ) ??
+          true;
+      final confirmedProjection = _anchorCase?.confirmedProjection ??
+          resolved.field.resolvedAnchorProjection;
+      final loadedField = adopted
+          ? resolved.field
+          : resolved.field.copyWith(anchorProjection: confirmedProjection);
+      final composition = composeConstellationPresentation(
+        viewerId: _viewer.id,
+        field: loadedField,
+        localFilters: state.filters,
+        asOfUtc: loadedField.loadedAt,
+        labelBudget: constellationLabelBudget(
+          viewport: _labelBudgetViewport,
+          textScaleFactor: _labelBudgetTextScale,
+        ),
+        expandedSatelliteAuthorIds: expandedSatelliteAuthorIds,
       );
       emit(
         state.copyWith(
           status: StateIsSuccess(),
-          loadedAt: resolved.field.loadedAt,
-          field: resolved.field,
-          composition: resolved.composition,
-          paths: resolved.paths,
-          keptPeerIds: resolved.keptPeerIds,
-          capped: resolved.capped,
+          loadedAt: loadedField.loadedAt,
+          field: loadedField,
+          composition: composition,
+          paths: composition.paths,
+          keptPeerIds: composition.keptPeerIds,
+          capped: composition.renderBudgetCapped,
           loadError: null,
           syncPending: _anchorCase?.syncPending ?? false,
           placementActionsEnabled: true,
         ),
       );
-      droppedHolderIds = resolved.droppedHolderIds;
+      droppedHolderIds = composition.droppedHolderIds;
+      _reconcileSelection(composition);
       _reconcileLayout();
     } on Object catch (error) {
       if (isClosed || generation != state.loadGeneration) {
@@ -243,9 +261,9 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
       return;
     }
     _cancelUnsentPlacement(write: false);
-    _anchorCase?.onAccountChanged();
+    final generation =
+        _anchorCase?.onAccountChanged() ?? state.loadGeneration + 1;
     _anchorCase?.activate(viewerAccountId: _viewer.id);
-    final generation = _anchorCase?.bumpLoadGeneration() ?? state.loadGeneration + 1;
     emit(
       state.copyWith(
         loadGeneration: generation,
@@ -327,7 +345,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     emit(
       state.copyWith(
         placementPhase: ConstellationPlacementPhase.idle,
-        activePlacementTarget: null,
+        activePlacementTarget: target,
         placementActionsEnabled: false,
       ),
     );
@@ -366,7 +384,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     emit(
       state.copyWith(
         placementPhase: ConstellationPlacementPhase.idle,
-        activePlacementTarget: null,
+        activePlacementTarget: target,
         placementActionsEnabled: false,
       ),
     );
@@ -396,6 +414,12 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     if (position == null) {
       return;
     }
+    emit(
+      state.copyWith(
+        activePlacementTarget: target,
+        placementActionsEnabled: false,
+      ),
+    );
     await _submitUpsert(target: target, position: position);
   }
 
@@ -459,6 +483,9 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
         await _mergeConfirmedProjection(outcome.projection);
         emit(
           state.copyWith(
+            placementPhase: ConstellationPlacementPhase.idle,
+            activePlacementTarget: null,
+            deferredRefreshTarget: null,
             placementFailureMessage: null,
             syncPending: false,
             placementActionsEnabled: true,
@@ -469,6 +496,9 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
         await _mergeConfirmedProjection(outcome.projection);
         emit(
           state.copyWith(
+            placementPhase: ConstellationPlacementPhase.idle,
+            activePlacementTarget: null,
+            deferredRefreshTarget: null,
             placementFailureMessage: outcome.failureMessage,
             syncPending: _anchorCase?.syncPending ?? false,
             placementActionsEnabled: true,
@@ -476,37 +506,103 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
         );
         _reconcileLayout();
       case ConstellationAnchorWriteOutcomeKind.staleResponseDiscarded:
-        emit(state.copyWith(placementActionsEnabled: true));
+        emit(
+          state.copyWith(
+            placementPhase: ConstellationPlacementPhase.idle,
+            activePlacementTarget: null,
+            deferredRefreshTarget: null,
+            placementActionsEnabled: true,
+          ),
+        );
     }
+  }
+
+  bool _shouldDeferPlacementRefresh() {
+    final target = state.activePlacementTarget;
+    if (target == null) {
+      return false;
+    }
+    return state.hasPendingPlacementWrite || (_anchorCase?.hasPendingWrite ?? false);
   }
 
   Future<void> _onAnchorRefreshHint() async {
     if (isClosed || _anchorCase == null) {
       return;
     }
-    final activeTarget = state.activePlacementTarget;
-    final deferPresentation =
-        activeTarget != null && state.hasPendingPlacementWrite;
-    await _mergeConfirmedProjection(_anchorCase!.confirmedProjection);
+    final deferPresentation = _shouldDeferPlacementRefresh();
+    final deferTarget = deferPresentation ? state.activePlacementTarget : null;
+    await _mergeConfirmedProjection(
+      _anchorCase!.confirmedProjection,
+      deferTarget: deferTarget,
+    );
     if (isClosed) {
       return;
     }
     if (deferPresentation) {
-      emit(state.copyWith(deferredRefreshTarget: activeTarget));
+      emit(
+        state.copyWith(
+          deferredRefreshTarget: deferTarget,
+          syncPending: _anchorCase!.syncPending,
+        ),
+      );
       return;
     }
+    emit(
+      state.copyWith(
+        deferredRefreshTarget: null,
+        syncPending: _anchorCase!.syncPending,
+      ),
+    );
     _reconcileLayout();
   }
 
+  ConstellationAnchorProjection _presentationProjection(
+    ConstellationAnchorProjection incoming, {
+    ConstellationAnchorTarget? deferTarget,
+  }) {
+    if (deferTarget == null) {
+      return incoming;
+    }
+    final baseline = state.field?.resolvedAnchorProjection;
+    if (baseline == null) {
+      return incoming;
+    }
+    final baselineAnchor = baseline.anchors
+        .where((anchor) => anchor.target == deferTarget)
+        .firstOrNull;
+    if (baselineAnchor == null) {
+      return incoming;
+    }
+    final anchors = [
+      for (final anchor in incoming.anchors)
+        if (anchor.target == deferTarget) baselineAnchor else anchor,
+    ];
+    return ConstellationAnchorProjection(
+      revision: incoming.revision,
+      anchors: anchors,
+      pinnedPeers: incoming.pinnedPeers,
+      pinnedRequests: incoming.pinnedRequests,
+      supportPeers: incoming.supportPeers,
+      supportEdges: incoming.supportEdges,
+      serverFilteredBeaconIds: incoming.serverFilteredBeaconIds,
+      serverFilteredBeaconCount: incoming.serverFilteredBeaconCount,
+    );
+  }
+
   Future<void> _mergeConfirmedProjection(
-    ConstellationAnchorProjection? projection,
-  ) async {
+    ConstellationAnchorProjection? projection, {
+    ConstellationAnchorTarget? deferTarget,
+  }) async {
     final confirmed = projection ?? _anchorCase?.confirmedProjection;
     final field = state.field;
     if (confirmed == null || field == null) {
       return;
     }
-    final mergedField = field.copyWith(anchorProjection: confirmed);
+    final presentation = _presentationProjection(
+      confirmed,
+      deferTarget: deferTarget,
+    );
+    final mergedField = field.copyWith(anchorProjection: presentation);
     final composition = composeConstellationPresentation(
       viewerId: _viewer.id,
       field: mergedField,
@@ -528,6 +624,27 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
       ),
     );
     droppedHolderIds = composition.droppedHolderIds;
+    _reconcileSelection(composition);
+  }
+
+  void _reconcileSelection(ConstellationComposedPresentation composition) {
+    final selectedPersonId = state.selectedPersonId;
+    final selectedRequestId = state.selectedRequestId;
+    final clearPerson =
+        selectedPersonId != null &&
+        !composition.eligiblePersonIds.contains(selectedPersonId);
+    final clearRequest =
+        selectedRequestId != null &&
+        !composition.eligibleRequestIds.contains(selectedRequestId);
+    if (!clearPerson && !clearRequest) {
+      return;
+    }
+    emit(
+      state.copyWith(
+        selectedPersonId: clearPerson ? null : selectedPersonId,
+        selectedRequestId: clearRequest ? null : selectedRequestId,
+      ),
+    );
   }
 
   void _cancelUnsentPlacement({
@@ -1012,11 +1129,18 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
       ),
     );
     droppedHolderIds = composition.droppedHolderIds;
-    _reconcileLayout(deferAutomaticReflow: state.hasPendingPlacementWrite);
+    _reconcileSelection(composition);
+    _reconcileLayout(
+      deferAutomaticReflow:
+          state.hasPendingPlacementWrite || (_anchorCase?.hasPendingWrite ?? false),
+    );
   }
 
   void _reconcileLayout({bool deferAutomaticReflow = false}) {
-    if (_draggingNodeId != null && deferAutomaticReflow) {
+    if (deferAutomaticReflow &&
+        (state.hasPendingPlacementWrite ||
+            (_anchorCase?.hasPendingWrite ?? false) ||
+            _draggingNodeId != null)) {
       return;
     }
     _layoutReconciliationCount++;
