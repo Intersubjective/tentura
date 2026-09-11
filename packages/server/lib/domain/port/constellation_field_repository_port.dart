@@ -8,6 +8,14 @@ typedef ConstellationFieldReadParams = ({
 });
 
 abstract interface class ConstellationFieldRepositoryPort {
+  /// C4 read boundary: one repeatable-read snapshot for automatic field,
+  /// anchor projection, and revision watermark.
+  Future<ConstellationFieldSnapshot> readSnapshot({
+    required String viewerId,
+    required String context,
+    required ConstellationFieldReadParams params,
+  });
+
   /// The **graph** peer set: the first [cap] symmetric (D14) peers by id, via
   /// `person_visible_peers_symmetric`. `capped` is true iff more existed.
   /// These are the only ids edges may span.

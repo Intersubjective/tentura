@@ -74,6 +74,7 @@ class ConstellationRequestRecord {
     required this.helpOfferCount,
     this.coverSource = 0,
     this.coverThumb,
+    this.viewerParticipates,
   });
 
   final String id;
@@ -94,4 +95,6 @@ class ConstellationRequestRecord {
   /// Wire: 0 = photo, 1 = symbol (matches `beacon.cover_source`).
   final int coverSource;
   final ImagePublicRecord? coverThumb;
+  /// When set (pinned batch load), full C2 participation predicate; otherwise null.
+  final bool? viewerParticipates;
 }

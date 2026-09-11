@@ -1,16 +1,17 @@
 import 'package:drift/drift.dart' hide Column;
-import 'package:drift_postgres/drift_postgres.dart';
 import 'package:injectable/injectable.dart';
 import 'package:postgres/postgres.dart' show Type, TypedValue;
 
+import 'package:tentura_server/domain/entity/constellation_anchor_projection.dart';
 import 'package:tentura_server/domain/entity/constellation_field.dart';
 import 'package:tentura_server/domain/entity/gql_public/image_public_record.dart';
 import 'package:tentura_server/domain/port/constellation_field_repository_port.dart';
 import 'package:tentura_server/domain/port/user_profile_batch_lookup_port.dart';
 
 import '../database/tentura_db.dart';
+import 'constellation_field_snapshot_reader.dart';
 
-const _kRequestSelect = r'''
+const constellationRequestSelectColumns = r'''
   b.id,
   b.user_id AS author_id,
   b.title,
@@ -60,6 +61,21 @@ final class ConstellationFieldRepository
 
   final TenturaDb _database;
   final UserProfileBatchLookup _profiles;
+
+  @override
+  Future<ConstellationFieldSnapshot> readSnapshot({
+    required String viewerId,
+    required String context,
+    required ConstellationFieldReadParams params,
+  }) {
+    return _database.withReadSnapshot(
+      () => ConstellationFieldSnapshotReader(_database, _profiles).read(
+        viewerId: viewerId,
+        context: context,
+        params: params,
+      ),
+    );
+  }
 
   @override
   Future<({Set<String> ids, bool capped})> visibleGraphPeerIds({
@@ -142,7 +158,7 @@ ORDER BY src, dst, tier
     final rows = await _database
         .customSelect(
           '''
-SELECT $_kRequestSelect
+SELECT $constellationRequestSelectColumns
 FROM public.beacon b
 LEFT JOIN public.image cover ON cover.id = b.cover_thumb_image_id
 WHERE b.user_id = \$1
@@ -154,7 +170,7 @@ ORDER BY b.id
         )
         .get();
 
-    return rows.map(_readRequestRow).toList(growable: false);
+    return rows.map(readConstellationRequestRow).toList(growable: false);
   }
 
   @override
@@ -170,7 +186,7 @@ ORDER BY b.id
     final rows = await _database
         .customSelect(
           '''
-SELECT $_kRequestSelect
+SELECT $constellationRequestSelectColumns
 FROM public.person_visible_peers_symmetric(\$1, \$2) p
 INNER JOIN public.beacon b ON b.user_id = p.peer_id::text
 LEFT JOIN public.image cover ON cover.id = b.cover_thumb_image_id
@@ -191,7 +207,7 @@ LIMIT \$3
         )
         .get();
 
-    return rows.map(_readRequestRow).toList(growable: false);
+    return rows.map(readConstellationRequestRow).toList(growable: false);
   }
 
   @override
@@ -219,44 +235,48 @@ LIMIT \$3
           ),
     ];
   }
+}
 
-  ConstellationRequestRecord _readRequestRow(QueryRow row) {
-    ImagePublicRecord? coverThumb;
-    final coverId = row.readNullable<String>('cover_thumb_id');
-    if (coverId != null) {
-      coverThumb = ImagePublicRecord(
-        id: coverId,
-        hash: row.read<String>('cover_thumb_hash'),
-        height: row.read<int>('cover_thumb_height'),
-        width: row.read<int>('cover_thumb_width'),
-        authorId: row.read<String>('cover_thumb_author_id'),
-        createdAt: row.read<DateTime>('cover_thumb_created_at').toUtc(),
-      );
-    }
-
-    final needsRaw = row.read<String>('needs');
-    final needs = needsRaw.isEmpty
-        ? const <String>[]
-        : needsRaw.split(',').where((s) => s.isNotEmpty).toList();
-
-    return ConstellationRequestRecord(
-      id: row.read<String>('id'),
-      authorId: row.read<String>('author_id'),
-      title: row.read<String>('title'),
-      status: row.read<int>('status'),
-      needs: needs,
-      primaryNeedSlug: row.readNullable<String>('primary_need_slug'),
-      startAt: row.readNullable<DateTime>('start_at')?.toUtc(),
-      endAt: row.readNullable<DateTime>('end_at')?.toUtc(),
-      addressLabel: row.readNullable<String>('address_label'),
-      hasCoordinates: row.read<bool>('has_coordinates'),
-      isMine: row.read<bool>('is_mine'),
-      viewerHasActiveHelpOffer: row.read<bool>('viewer_has_active_help_offer'),
-      viewerIsRoomParticipant: row.read<bool>('viewer_is_room_participant'),
-      viewerHasForwardEdge: row.read<bool>('viewer_has_forward_edge'),
-      helpOfferCount: row.read<int>('help_offer_count'),
-      coverSource: row.read<int>('cover_source'),
-      coverThumb: coverThumb,
+ConstellationRequestRecord readConstellationRequestRow(
+  QueryRow row, {
+  bool? viewerParticipates,
+}) {
+  ImagePublicRecord? coverThumb;
+  final coverId = row.readNullable<String>('cover_thumb_id');
+  if (coverId != null) {
+    coverThumb = ImagePublicRecord(
+      id: coverId,
+      hash: row.read<String>('cover_thumb_hash'),
+      height: row.read<int>('cover_thumb_height'),
+      width: row.read<int>('cover_thumb_width'),
+      authorId: row.read<String>('cover_thumb_author_id'),
+      createdAt: row.read<DateTime>('cover_thumb_created_at').toUtc(),
     );
   }
+
+  final needsRaw = row.read<String>('needs');
+  final needs = needsRaw.isEmpty
+      ? const <String>[]
+      : needsRaw.split(',').where((s) => s.isNotEmpty).toList();
+
+  return ConstellationRequestRecord(
+    id: row.read<String>('id'),
+    authorId: row.read<String>('author_id'),
+    title: row.read<String>('title'),
+    status: row.read<int>('status'),
+    needs: needs,
+    primaryNeedSlug: row.readNullable<String>('primary_need_slug'),
+    startAt: row.readNullable<DateTime>('start_at')?.toUtc(),
+    endAt: row.readNullable<DateTime>('end_at')?.toUtc(),
+    addressLabel: row.readNullable<String>('address_label'),
+    hasCoordinates: row.read<bool>('has_coordinates'),
+    isMine: row.read<bool>('is_mine'),
+    viewerHasActiveHelpOffer: row.read<bool>('viewer_has_active_help_offer'),
+    viewerIsRoomParticipant: row.read<bool>('viewer_is_room_participant'),
+    viewerHasForwardEdge: row.read<bool>('viewer_has_forward_edge'),
+    helpOfferCount: row.read<int>('help_offer_count'),
+    coverSource: row.read<int>('cover_source'),
+    coverThumb: coverThumb,
+    viewerParticipates: viewerParticipates,
+  );
 }

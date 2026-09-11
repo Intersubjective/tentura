@@ -10,6 +10,7 @@ import 'package:tentura_server/api/controllers/graphql/input/_input_types.dart';
 import 'package:tentura_server/api/controllers/graphql/mappers/constellation_gql_maps.dart';
 import 'package:tentura_server/api/controllers/graphql/query/query_constellation_field.dart';
 import 'package:tentura_server/consts/constellation_consts.dart';
+import 'package:tentura_server/domain/entity/constellation_anchor_projection.dart';
 import 'package:tentura_server/domain/entity/constellation_field.dart';
 import 'package:tentura_server/domain/entity/gql_public/image_public_record.dart';
 import 'package:tentura_server/domain/entity/jwt_entity.dart';
@@ -40,6 +41,26 @@ void main() {
     expect(snapshot.peersCapped, isFalse);
     expect(snapshot.requestsCapped, isFalse);
     expect(repository.visibleGraphPeerCalls, 0);
+    expect(repository.readSnapshotCalls, 0);
+  });
+
+  test('load delegates to readSnapshot FULL', () async {
+    await case_.load(viewerId: 'Uviewer', context: 'ctx');
+    expect(repository.readSnapshotCalls, 1);
+    expect(repository.lastReadParams?.projection, ConstellationProjection.full);
+  });
+
+  test('ANCHORS readSnapshot skips automatic peer discovery', () async {
+    await case_.readSnapshot(
+      viewerId: 'Uviewer',
+      context: 'ctx',
+      params: (
+        filters: const ConstellationFieldMembershipFilters(),
+        projection: ConstellationProjection.anchors,
+      ),
+    );
+    expect(repository.visibleGraphPeerCalls, 0);
+    expect(repository.lastReadParams?.projection, ConstellationProjection.anchors);
   });
 
   test('peersCapped and requestsCapped reflect repository overflow', () async {
@@ -57,6 +78,7 @@ void main() {
     expect(snapshot.peersCapped, isTrue);
     expect(snapshot.requestsCapped, isTrue);
     expect(snapshot.requests, hasLength(kConstellationRequestCap));
+    expect(repository.readSnapshotCalls, 1);
   });
 
   test('ego own non-discoverable active request is present', () async {
@@ -299,10 +321,79 @@ final class _RecordingRepository implements ConstellationFieldRepositoryPort {
   List<ConstellationPeerRecord> stubPeerProfiles = const [];
 
   int visibleGraphPeerCalls = 0;
+  int readSnapshotCalls = 0;
+  ConstellationFieldReadParams? lastReadParams;
   String? lastViewerId;
   String? lastContext;
   int? lastDiscoverableCap;
   Set<String>? lastTrustEdgeNodeIds;
+
+  @override
+  Future<ConstellationFieldSnapshot> readSnapshot({
+    required String viewerId,
+    required String context,
+    required ConstellationFieldReadParams params,
+  }) async {
+    readSnapshotCalls++;
+    lastViewerId = viewerId;
+    lastContext = context;
+    lastReadParams = params;
+    if (params.projection == ConstellationProjection.anchors) {
+      return ConstellationFieldSnapshot(
+        loadedAt: DateTime.now().toUtc(),
+        context: context,
+        peers: const [],
+        edges: const [],
+        requests: const [],
+        peersCapped: false,
+        requestsCapped: false,
+        anchorProjection: ConstellationAnchorProjection.empty,
+      );
+    }
+    return loadViaLegacyQueries(viewerId: viewerId, context: context);
+  }
+
+  Future<ConstellationFieldSnapshot> loadViaLegacyQueries({
+    required String viewerId,
+    required String context,
+  }) async {
+    final graphPeers = await visibleGraphPeerIds(
+      viewerId: viewerId,
+      context: context,
+      cap: kConstellationPeerCap,
+    );
+    final ownRequests = await this.ownRequests(viewerId: viewerId);
+    final peerRequestsRaw = await discoverableRequests(
+      viewerId: viewerId,
+      context: context,
+      cap: kConstellationRequestCap,
+    );
+    final requestsCapped = peerRequestsRaw.length > kConstellationRequestCap;
+    final peerRequests = requestsCapped
+        ? peerRequestsRaw.sublist(0, kConstellationRequestCap)
+        : peerRequestsRaw;
+    final requests = [...ownRequests, ...peerRequests];
+    final edgeNodeIds = {...graphPeers.ids, viewerId};
+    final edges = await trustEdges(
+      viewerId: viewerId,
+      context: context,
+      nodeIds: edgeNodeIds,
+    );
+    final profileIds = {...graphPeers.ids};
+    for (final request in requests) {
+      profileIds.add(request.authorId);
+    }
+    final peers = await peerProfiles(ids: profileIds);
+    return ConstellationFieldSnapshot(
+      loadedAt: DateTime.now().toUtc(),
+      context: context,
+      peers: peers,
+      edges: edges,
+      requests: requests,
+      peersCapped: graphPeers.capped,
+      requestsCapped: requestsCapped,
+    );
+  }
 
   @override
   Future<({Set<String> ids, bool capped})> visibleGraphPeerIds({
