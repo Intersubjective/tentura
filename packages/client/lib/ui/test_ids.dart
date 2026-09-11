@@ -158,6 +158,17 @@ abstract final class TestIds {
   static const friendsMore = 'friends.more';
 
   static const constellationNavItem = 'constellation.nav_item';
+  static const constellationPinTarget = 'constellation.pin_target';
+  static const constellationUnpinTarget = 'constellation.unpin_target';
+  static const constellationPinHere = 'constellation.pin_here';
+  static const constellationCancelPlacement = 'constellation.cancel_placement';
+  static const constellationFilterShowClosed = 'constellation.filter.show_closed';
+  static const constellationFilterParticipatedOnly =
+      'constellation.filter.participated_only';
+  static const constellationHiddenPinsCount = 'constellation.hidden_pins_count';
+  static const constellationRequestStatusMarker =
+      'constellation.request_status_marker';
+  static const constellationPinMarker = 'constellation.pin_marker';
   static const myWorkFindWaysToHelp = 'my_work.find_ways_to_help';
 
   static const orientationPanel = 'orientation.panel';

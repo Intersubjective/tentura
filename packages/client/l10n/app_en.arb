@@ -1449,6 +1449,91 @@
   "@constellationPlainListNotice": {
     "context": "ConstellationTextView"
   },
+  "constellationFilterShowClosed": "Show closed",
+  "@constellationFilterShowClosed": {
+    "context": "ConstellationFilterBar"
+  },
+  "constellationFilterParticipatedOnly": "Only Requests I participated in",
+  "@constellationFilterParticipatedOnly": {
+    "context": "ConstellationFilterBar"
+  },
+  "constellationHiddenPinsCount": "{count, plural, =0{No hidden pins} one{1 hidden pin} other{{count} hidden pins}}",
+  "@constellationHiddenPinsCount": {
+    "context": "ConstellationFilterBar",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "constellationPinHere": "Pin here",
+  "@constellationPinHere": {
+    "context": "ConstellationAnchorControls"
+  },
+  "constellationCancelPlacement": "Cancel",
+  "@constellationCancelPlacement": {
+    "context": "ConstellationAnchorControls"
+  },
+  "constellationPinTarget": "Pin",
+  "@constellationPinTarget": {
+    "context": "ConstellationAnchorControls"
+  },
+  "constellationUnpinTarget": "Unpin",
+  "@constellationUnpinTarget": {
+    "context": "ConstellationAnchorControls"
+  },
+  "constellationRequestStatusOpen": "Open",
+  "@constellationRequestStatusOpen": {
+    "context": "ConstellationRequestStatusMarker"
+  },
+  "constellationRequestStatusNeedsMoreHelp": "Needs more help",
+  "@constellationRequestStatusNeedsMoreHelp": {
+    "context": "ConstellationRequestStatusMarker"
+  },
+  "constellationRequestStatusEnoughHelp": "Enough help",
+  "@constellationRequestStatusEnoughHelp": {
+    "context": "ConstellationRequestStatusMarker"
+  },
+  "constellationRequestStatusWrappingUp": "Wrapping up",
+  "@constellationRequestStatusWrappingUp": {
+    "context": "ConstellationRequestStatusMarker"
+  },
+  "constellationRequestStatusClosed": "Closed",
+  "@constellationRequestStatusClosed": {
+    "context": "ConstellationRequestStatusMarker"
+  },
+  "constellationPinMarkerSemantics": "Pinned",
+  "@constellationPinMarkerSemantics": {
+    "context": "ConstellationRequestStatusMarker"
+  },
+  "graphLegendConstellationRequestStatusTitle": "Request status",
+  "@graphLegendConstellationRequestStatusTitle": {
+    "description": "Constellation legend section for request lifecycle markers"
+  },
+  "graphLegendConstellationRequestStatusOpen": "Open",
+  "@graphLegendConstellationRequestStatusOpen": {
+    "description": "Constellation legend: open request status"
+  },
+  "graphLegendConstellationRequestStatusNeedsMoreHelp": "Needs more help",
+  "@graphLegendConstellationRequestStatusNeedsMoreHelp": {
+    "description": "Constellation legend: needs more help status"
+  },
+  "graphLegendConstellationRequestStatusEnoughHelp": "Enough help",
+  "@graphLegendConstellationRequestStatusEnoughHelp": {
+    "description": "Constellation legend: enough help status"
+  },
+  "graphLegendConstellationRequestStatusWrappingUp": "Wrapping up",
+  "@graphLegendConstellationRequestStatusWrappingUp": {
+    "description": "Constellation legend: wrapping up status"
+  },
+  "graphLegendConstellationRequestStatusClosed": "Closed",
+  "@graphLegendConstellationRequestStatusClosed": {
+    "description": "Constellation legend: closed request status"
+  },
+  "graphLegendConstellationPinMarker": "Pinned target",
+  "@graphLegendConstellationPinMarker": {
+    "description": "Constellation legend: pin marker on map and text views"
+  },
   "friends": "Friends",
   "@friends": {
     "context": "HomeScreen"

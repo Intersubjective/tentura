@@ -1449,6 +1449,91 @@
   "@constellationPlainListNotice": {
     "context": "ConstellationTextView"
   },
+  "constellationFilterShowClosed": "Показывать закрытые",
+  "@constellationFilterShowClosed": {
+    "context": "ConstellationFilterBar"
+  },
+  "constellationFilterParticipatedOnly": "Только запросы, в которых я участвовал",
+  "@constellationFilterParticipatedOnly": {
+    "context": "ConstellationFilterBar"
+  },
+  "constellationHiddenPinsCount": "{count, plural, =0{Нет скрытых закреплений} one{1 скрытое закрепление} few{{count} скрытых закрепления} many{{count} скрытых закреплений} other{{count} скрытых закреплений}}",
+  "@constellationHiddenPinsCount": {
+    "context": "ConstellationFilterBar",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "constellationPinHere": "Закрепить здесь",
+  "@constellationPinHere": {
+    "context": "ConstellationAnchorControls"
+  },
+  "constellationCancelPlacement": "Отмена",
+  "@constellationCancelPlacement": {
+    "context": "ConstellationAnchorControls"
+  },
+  "constellationPinTarget": "Закрепить",
+  "@constellationPinTarget": {
+    "context": "ConstellationAnchorControls"
+  },
+  "constellationUnpinTarget": "Открепить",
+  "@constellationUnpinTarget": {
+    "context": "ConstellationAnchorControls"
+  },
+  "constellationRequestStatusOpen": "Открыт",
+  "@constellationRequestStatusOpen": {
+    "context": "ConstellationRequestStatusMarker"
+  },
+  "constellationRequestStatusNeedsMoreHelp": "Нужна помощь",
+  "@constellationRequestStatusNeedsMoreHelp": {
+    "context": "ConstellationRequestStatusMarker"
+  },
+  "constellationRequestStatusEnoughHelp": "Достаточно помощи",
+  "@constellationRequestStatusEnoughHelp": {
+    "context": "ConstellationRequestStatusMarker"
+  },
+  "constellationRequestStatusWrappingUp": "Завершение",
+  "@constellationRequestStatusWrappingUp": {
+    "context": "ConstellationRequestStatusMarker"
+  },
+  "constellationRequestStatusClosed": "Закрыт",
+  "@constellationRequestStatusClosed": {
+    "context": "ConstellationRequestStatusMarker"
+  },
+  "constellationPinMarkerSemantics": "Закреплено",
+  "@constellationPinMarkerSemantics": {
+    "context": "ConstellationRequestStatusMarker"
+  },
+  "graphLegendConstellationRequestStatusTitle": "Статус запроса",
+  "@graphLegendConstellationRequestStatusTitle": {
+    "description": "Constellation legend section for request lifecycle markers"
+  },
+  "graphLegendConstellationRequestStatusOpen": "Открыт",
+  "@graphLegendConstellationRequestStatusOpen": {
+    "description": "Constellation legend: open request status"
+  },
+  "graphLegendConstellationRequestStatusNeedsMoreHelp": "Нужна помощь",
+  "@graphLegendConstellationRequestStatusNeedsMoreHelp": {
+    "description": "Constellation legend: needs more help status"
+  },
+  "graphLegendConstellationRequestStatusEnoughHelp": "Достаточно помощи",
+  "@graphLegendConstellationRequestStatusEnoughHelp": {
+    "description": "Constellation legend: enough help status"
+  },
+  "graphLegendConstellationRequestStatusWrappingUp": "Завершение",
+  "@graphLegendConstellationRequestStatusWrappingUp": {
+    "description": "Constellation legend: wrapping up status"
+  },
+  "graphLegendConstellationRequestStatusClosed": "Закрыт",
+  "@graphLegendConstellationRequestStatusClosed": {
+    "description": "Constellation legend: closed request status"
+  },
+  "graphLegendConstellationPinMarker": "Закреплённая цель",
+  "@graphLegendConstellationPinMarker": {
+    "description": "Constellation legend: pin marker on map and text views"
+  },
   "friends": "Друзья",
   "@friends": {
     "context": "HomeScreen"
