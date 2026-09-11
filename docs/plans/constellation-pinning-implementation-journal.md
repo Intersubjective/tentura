@@ -63,7 +63,7 @@ tg_style_research.md
 | P07 Graph gesture adapter | complete (accepted after C7 long-press remediation) | P06 | see P07 manager review |
 | P08 Placement orchestration and live reconciliation | complete (accepted after C7 remediation) | P07 | see P08 manager re-review |
 | P09 Map/Text controls, filters and status accessibility | complete (accepted) | P08 | see P09 manager review |
-| P10 End-to-end and failure acceptance | partial | P09 | see checkpoint below |
+| P10 End-to-end and failure acceptance | partial (manager rejected as complete) | P09 | see P10 manager review |
 | P11 Full verification and release preparation | pending | P10 | — |
 | P12 Product docs and coordinated activation | pending | P11 | — |
 
@@ -1134,3 +1134,24 @@ REMAINING (P10, not P11):
 - Clear integration `Multiple exceptions` teardown failure.
 - Multiclient: peer browser anchor convergence (live + reconnect + stale delete) — session GraphQL or realtime refresh gap.
 - Map-pin WebDriver journeys remain BLOCKED unless graph nodes export semantics.
+
+### P10 — Manager review — 2026-09-11
+
+Independent review of [P10 pinning e2e tests](4cedd12a-e735-4491-bd18-c9e264f6afd3). Harness + runner env + Semantics identifiers are a valid start. **Not accepted** against plan check: no API-only gesture substitute, no skipped journey counted as PASS.
+
+Defects (must remediate before P11):
+
+1. **API fallback counted as PASS.** `pinConstellationPersonFromMap` / `pinConstellationRequestFromText` call `upsertConstellationAnchor` after UI/cubit miss. Multiclient live pin does the same, then still times out on peer `_sessionHasAnchor`. Plan: QA APIs may prepare state; they cannot substitute the tested interaction.
+2. **Moves are cubit-driven**, not GraphView drag (`moveConstellationAnchorViaCubit`). WidgetTester can gesture the graph; WebDriver map-node BLOCKED is honest only for CanvasKit DOM.
+3. **Overlap journey** upserts identical coords then asserts server floats; no topmost hit after reload.
+4. **`proof.json` `ok: true` with FAIL journeys** — `ok` tracks outer crash only. Driver still throws; fix the flag.
+5. **Peer observation is wrong tool.** `BrowserSession.postGraphQl` (`constellationField` via in-page fetch) times out even after host-side API upsert. Existing realtime driver watches peer **TestIds**, not a second GraphQL. Do not raise timeouts.
+6. **Integration teardown** `Multiple exceptions (4)` (`/tmp/constellation-pin-it16.log`) — runner FAIL after journeys. Find the four async exceptions; do not swallow via `drainTesterExceptions` as acceptance.
+7. **Product `(0,0)` pinFromText fallback** (`constellation_cubit.dart`) contradicts C6: if `computeConstellationPinPosition` is null, disable Pin until FULL refresh — do not pin on ego.
+8. **Tier-1 `budgetExempt` + post-cap `keptPeerIds` union** can bypass render cap. Keep Semantics identifiers. Narrow composition so pin targets get a real layout coordinate; re-run P06 composition tests.
+
+Keep: runner `REALTIME_MULTICLIENT_DRIVER` / `ACTOR_ECHO`; TestId + Semantics; map-pin WebDriver BLOCKED; touch BLOCKED; `reports/` untracked.
+
+STATUS: rejected as complete; remaining P10
+
+REMAINING: P10 remediation worker. P11 not started.
