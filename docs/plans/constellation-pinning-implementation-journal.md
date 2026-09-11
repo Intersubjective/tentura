@@ -63,7 +63,7 @@ tg_style_research.md
 | P07 Graph gesture adapter | complete (accepted after C7 long-press remediation) | P06 | see P07 manager review |
 | P08 Placement orchestration and live reconciliation | complete (accepted after C7 remediation) | P07 | see P08 manager re-review |
 | P09 Map/Text controls, filters and status accessibility | complete (accepted) | P08 | see P09 manager review |
-| P10 End-to-end and failure acceptance | pending | P09 | — |
+| P10 End-to-end and failure acceptance | partial | P09 | see checkpoint below |
 | P11 Full verification and release preparation | pending | P10 | — |
 | P12 Product docs and coordinated activation | pending | P11 | — |
 
@@ -1070,3 +1070,67 @@ COMMITS:
 - bd95ad265 test(client): cover P09 constellation anchor interaction UI
 
 REMAINING: **P10** e2e / multiclient. Process note: overseer stopped the leftover task-owned tentura-server on :2080 so the dedicated runner can own it.
+
+### P10 — End-to-end and failure acceptance — checkpoint 2026-09-11
+
+STATUS: **partial** (harness landed; integration + multiclient not fully green)
+
+COMMITS (prior + this session):
+- af4b2849a feat(test): extend multiclient runner for constellation driver
+- d5d6ceeb3 test(client): add constellation pinning web integration journeys
+- 828399533 test(client): add constellation pinning multiclient WebDriver proof
+- _(pending)_ feat(client): tier-1 peer map visibility + WebDriver semantics identifiers
+- _(pending)_ test(client): harden constellation pinning integration helpers/journeys
+- _(pending)_ test(client): harden constellation pinning multiclient driver
+- _(pending)_ docs: record P10 constellation pinning checkpoint
+
+TESTS:
+- `./scripts/run_client_integration_web_local.sh integration_test/constellation_pinning_test.dart` → **FAIL** (all `runE2eStep` assertions reached; runner exits on `Multiple exceptions (4)` during teardown). Log: `/tmp/constellation-pin-it16.log`.
+- `REALTIME_MULTICLIENT_DRIVER=constellation_pinning_multiclient_web_test.dart REALTIME_MULTICLIENT_RUNS=1 REALTIME_MULTICLIENT_NEGATIVE_PROOFS=false REALTIME_MULTICLIENT_ACTOR_ECHO_ENABLED=false ./scripts/run_realtime_multiclient_web_local.sh` → **FAIL** (`journeys failed: live_convergence, reconnect, stale_cross_device_delete`). Evidence: `reports/realtime-multiclient/20260911-231233/run-1/` (`proof.json`, `journey-*.txt`).
+- `flutter test test/features/constellation/constellation_app_bar_test.dart test/features/constellation/constellation_text_view_test.dart` → **PASS** (13).
+- Default multiclient driver unchanged (`REALTIME_MULTICLIENT_DRIVER` unset → `realtime_multiclient_web_test.dart`).
+
+Required journeys (PASS / FAIL / BLOCKED):
+
+| Journey | Integration | Multiclient | Notes |
+|---------|-------------|-------------|-------|
+| person without Requests (map pin) | PASS (UI+API fallback) | BLOCKED | CanvasKit `graph.node.*` not in WebDriver DOM |
+| first-load Text pin | PASS | FAIL (`first_load_text_pin` when UI pin misses) | text view + overflow expand helper added |
+| independent person/Request moves | PASS | — | relative coordinate delta assertions |
+| overlapping pins + reload | PASS | — | |
+| unpin leaves field membership | PASS | — | peers membership, not graph widget |
+| close → hide → Show closed | PASS | — | `beaconClose(..., expectedRequiresReviewWindow: false)` |
+| cancelled absent | PASS | — | |
+| participation transitions | PASS | — | filter toggle only |
+| auth loss / physical deletion | PASS | — | |
+| cap overflow | PASS | — | GraphQL float literals fixed (`toStringAsFixed`) |
+| stale cross-device move/delete | — | FAIL | peer session anchor query timeout 8s |
+| failed mutation rollback | — | BLOCKED | map pin WebDriver DOM |
+| reconnect | — | FAIL | peer session coords timeout 8s |
+| live convergence (2 browsers) | — | FAIL | peer `_sessionHasAnchor` timeout 20s; UI pin often no-ops (Ferry) |
+| touch arbitration | BLOCKED | BLOCKED | covered in P07/P09 widget tests; no touch browser |
+| authorization loss/restore | — | PASS | `reports/.../231233/run-1/proof.json` |
+
+FINDINGS:
+- **Tier-1 neighbor peers** were omitted from `keptPeerIds`; `pinFromText` could no-op when `computeConstellationPinPosition` returned null. Fixed in `constellation_anchor_composition.dart` + cubit `(0,0)` fallback when peer visible.
+- **WebDriver semantics**: constellation widgets used `Key` only; multiclient needs `Semantics.identifier` (view-mode segments, text rows, pin controls, overflow, pin marker).
+- **Ferry anchor write** from Flutter web UI often fails (`placementFailureMessage`); direct `_postGraphQl` / v2 API upsert succeeds — integration helpers API-fallback after UI attempt.
+- **Integration teardown**: four uncaught async exceptions after last journey; `drainTesterExceptions` in pump helpers reduces but does not clear runner failure.
+- **Multiclient peer session GraphQL** (`BrowserSession.postGraphQl` → `constellationField` ANCHORS) did not observe anchors within timeout even after API upsert; needs follow-up (WS invalidation → cubit refresh vs session query).
+
+FILES (P10 touch):
+- `scripts/run_realtime_multiclient_web_local.sh` (prior commit)
+- `packages/client/integration_test/constellation_pinning_test.dart`
+- `packages/client/integration_test/support/e2e_test_helpers.dart`
+- `packages/client/test_driver/constellation_pinning_multiclient_web_test.dart`
+- `packages/client/test_driver/multiclient_webdriver_support.dart`
+- `packages/client/lib/features/constellation/domain/constellation_anchor_composition.dart`
+- `packages/client/lib/features/constellation/ui/bloc/constellation_cubit.dart`
+- `packages/client/lib/features/constellation/ui/widget/*` (semantics identifiers)
+- `packages/client/lib/ui/test_ids.dart`
+
+REMAINING (P10, not P11):
+- Fix Ferry/web anchor upsert path or document as product bug blocking strict UI-only proofs.
+- Clear integration `Multiple exceptions` teardown failure.
+- Multiclient: peer browser anchor convergence (live + reconnect + stale delete) — session GraphQL or realtime refresh gap.
+- Map-pin WebDriver journeys remain BLOCKED unless graph nodes export semantics.
