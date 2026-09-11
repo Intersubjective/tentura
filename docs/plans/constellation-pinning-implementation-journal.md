@@ -56,7 +56,7 @@ tg_style_research.md
 |---|---|---|---|
 | P01 Contract fixtures and domain types | complete | — | see checkpoint below |
 | P02 Migration and storage adapter | complete (concurrency-proof remediated) | P01 | see checkpoint below |
-| P03 Server membership and complete snapshot | pending | P02 | — |
+| P03 Server membership and complete snapshot | complete | P02 | see checkpoint below |
 | P04 Authenticated V2 API | pending | P03 | — |
 | P05 Client wire adapters and server echo policy | pending | P04 | — |
 | P06 Pure composition, budgets and layout | pending | P05 | — |
@@ -269,6 +269,54 @@ FINDINGS:
   two single-row deletes in the PG harness (sequential deletes used).
 
 REMAINING: none for P02 remediation (P03 next).
+
+### P03 — Server membership and complete snapshot — 2026-09-11
+
+- `ConstellationFieldRepositoryPort.readSnapshot` + `ConstellationFieldCase.readSnapshot`;
+  `load()` delegates to FULL/default filters.
+- `ConstellationFieldSnapshotReader` inside top-level `TenturaDb.withReadSnapshot`:
+  watermark, authorized dormant anchors, pinned layer, batch C2 participation SQL,
+  server filter IDs/count, support closure via shared
+  `constellation_path_resolution.dart` / `constellation_field_selection.dart`.
+- FULL composes automatic peers/requests excluding pinned/support budget charges;
+  ANCHORS returns empty automatic arrays without discovery SQL.
+- PG probe hook `constellation_field_snapshot_probe.dart` asserts repeatable-read/on
+  during snapshot reads including profile batch lookup in the same Drift zone.
+- Commands (serial):
+  - `cd packages/server && dart test test/domain/use_case/constellation_field_case_test.dart test/domain/constellation/constellation_path_resolution_test.dart -j 1` → 17 passed
+  - `cd packages/server && dart test test/data/repository/constellation_field_repository_pg_test.dart -j 1` → 16 passed
+  - `./scripts/check-custom-lints.sh packages/server` → exit 0
+
+STATUS: complete
+
+COMMITS:
+- 5ffaac2c8 feat(server): implement P03 constellation field read snapshot
+
+TESTS: see Commands above (all exit 0)
+
+FILES:
+- packages/server/lib/data/repository/constellation_field_repository.dart
+- packages/server/lib/data/repository/constellation_field_snapshot_reader.dart
+- packages/server/lib/data/repository/constellation_field_snapshot_probe.dart
+- packages/server/lib/domain/constellation/constellation_field_selection.dart
+- packages/server/lib/domain/constellation/constellation_path_resolution.dart
+- packages/server/lib/domain/port/constellation_field_repository_port.dart
+- packages/server/lib/domain/use_case/constellation_field_case.dart
+- packages/server/lib/domain/entity/constellation_field.dart
+- packages/server/test/data/repository/constellation_field_repository_pg_test.dart
+- packages/server/test/domain/use_case/constellation_field_case_test.dart
+- packages/server/test/domain/constellation/constellation_path_resolution_test.dart
+
+FINDINGS:
+- `beacon_can_read_content` still requires discoverability (or offer/participant/forward)
+  for peer Beacons; pinned/readable non-discoverable fixtures need an explicit read path
+  (help offer used in PG tests).
+- Non-discoverable automatic layer unchanged; pinned layer bypasses discoverability via
+  anchor authorization + read wall on pinned Beacon ids only.
+- `ConstellationRequestRecord.viewerParticipates` carries batch participation SQL results
+  for pinned Beacon classification; wire mapping unchanged until P04.
+
+REMAINING: P04 GraphQL/API (`constellationField` args, anchor mutations, exception codes).
 
 ### P02 concurrency-proof remediation — 2026-09-11
 
