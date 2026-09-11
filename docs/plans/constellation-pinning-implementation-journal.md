@@ -1079,10 +1079,10 @@ COMMITS (prior + this session):
 - af4b2849a feat(test): extend multiclient runner for constellation driver
 - d5d6ceeb3 test(client): add constellation pinning web integration journeys
 - 828399533 test(client): add constellation pinning multiclient WebDriver proof
-- _(pending)_ feat(client): tier-1 peer map visibility + WebDriver semantics identifiers
-- _(pending)_ test(client): harden constellation pinning integration helpers/journeys
-- _(pending)_ test(client): harden constellation pinning multiclient driver
-- _(pending)_ docs: record P10 constellation pinning checkpoint
+- 98ac22248 fix(client): expose constellation anchors for map and WebDriver
+- 68a5b6bf7 test(client): harden constellation pinning web integration journeys
+- 3f538db78 test(client): extend constellation pinning multiclient WebDriver proof
+- 51e047fe8 docs: record P10 constellation pinning checkpoint
 
 TESTS:
 - `./scripts/run_client_integration_web_local.sh integration_test/constellation_pinning_test.dart` → **FAIL** (all `runE2eStep` assertions reached; runner exits on `Multiple exceptions (4)` during teardown). Log: `/tmp/constellation-pin-it16.log`.
