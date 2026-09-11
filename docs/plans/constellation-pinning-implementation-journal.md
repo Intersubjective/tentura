@@ -863,7 +863,11 @@ REMAINING: P08. Do not start P09 in the P08 worker.
 
 STATUS: complete
 
-COMMITS: (focused source commits follow)
+COMMITS:
+- db03448d4 feat(client): register constellation_anchor realtime kind (C8)
+- 8735a507c feat(client): add constellation anchor case with live ANCHORS coalescing
+- 072227f81 feat(client): add P08 constellation placement orchestration in cubit
+- 6a88e781f test(client): cover P08 constellation anchor case and cubit reconciliation
 
 TESTS:
 - `cd packages/client && flutter test test/features/constellation/constellation_anchor_case_test.dart test/features/constellation/constellation_anchor_cubit_test.dart` → 17 passed
