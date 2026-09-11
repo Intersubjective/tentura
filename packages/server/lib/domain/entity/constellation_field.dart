@@ -1,10 +1,11 @@
 import 'package:meta/meta.dart';
 
+import 'constellation_anchor_projection.dart';
 import 'gql_public/image_public_record.dart';
 
 @immutable
 class ConstellationFieldSnapshot {
-  const ConstellationFieldSnapshot({
+  ConstellationFieldSnapshot({
     required this.loadedAt,
     required this.context,
     required this.peers,
@@ -12,7 +13,8 @@ class ConstellationFieldSnapshot {
     required this.requests,
     required this.peersCapped,
     required this.requestsCapped,
-  });
+    ConstellationAnchorProjection? anchorProjection,
+  }) : anchorProjection = anchorProjection ?? ConstellationAnchorProjection.empty;
 
   final DateTime loadedAt;
   final String context;
@@ -21,6 +23,7 @@ class ConstellationFieldSnapshot {
   final List<ConstellationRequestRecord> requests;
   final bool peersCapped;
   final bool requestsCapped;
+  final ConstellationAnchorProjection anchorProjection;
 }
 
 @immutable

@@ -1,4 +1,11 @@
+import 'package:tentura_server/domain/entity/constellation_anchor_projection.dart';
 import 'package:tentura_server/domain/entity/constellation_field.dart';
+
+/// Parameters for the C4 `readSnapshot` boundary (implemented in P03).
+typedef ConstellationFieldReadParams = ({
+  ConstellationFieldMembershipFilters filters,
+  ConstellationProjection projection,
+});
 
 abstract interface class ConstellationFieldRepositoryPort {
   /// The **graph** peer set: the first [cap] symmetric (D14) peers by id, via

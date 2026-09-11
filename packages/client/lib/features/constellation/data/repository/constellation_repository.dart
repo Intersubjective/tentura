@@ -3,6 +3,7 @@ import 'package:tentura_root/domain/entity/beacon_cover_source.dart';
 import 'package:tentura/data/model/image_model_v2.dart';
 import 'package:tentura/data/service/remote_api_service.dart';
 
+import '../../domain/entity/constellation_anchor_projection.dart';
 import '../../domain/entity/constellation_field.dart';
 import '../../domain/port/constellation_repository_port.dart';
 import '../gql/_g/constellation_field_fetch.data.gql.dart';
@@ -19,7 +20,11 @@ final class ConstellationRepository implements ConstellationRepositoryPort {
   final RemoteApiService _remoteApiService;
 
   @override
-  Future<ConstellationField> fetch() => _remoteApiService
+  Future<ConstellationField> fetch({
+    ConstellationFieldMembershipFilters membershipFilters =
+        ConstellationFieldMembershipFilters.defaults,
+    ConstellationProjection projection = ConstellationProjection.full,
+  }) => _remoteApiService
       .request(GConstellationFieldFetchReq())
       .firstWhere((response) => response.dataSource == DataSource.Link)
       .then((response) {

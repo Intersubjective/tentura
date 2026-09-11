@@ -10,6 +10,7 @@ import 'package:tentura/env.dart';
 import 'package:tentura/features/constellation/data/gql/_g/constellation_field_fetch.req.gql.dart';
 import 'package:tentura/features/constellation/data/repository/constellation_repository.dart';
 import 'package:tentura/features/constellation/domain/entity/constellation_field.dart';
+import 'package:tentura/features/constellation/domain/entity/constellation_anchor_projection.dart';
 import 'package:tentura/features/constellation/domain/port/constellation_repository_port.dart';
 import 'package:tentura/features/constellation/domain/use_case/constellation_field_case.dart';
 
@@ -39,7 +40,12 @@ final class _StubRepository implements ConstellationRepositoryPort {
   final ConstellationField field;
 
   @override
-  Future<ConstellationField> fetch() async => field;
+  Future<ConstellationField> fetch({
+    ConstellationFieldMembershipFilters membershipFilters =
+        ConstellationFieldMembershipFilters.defaults,
+    ConstellationProjection projection = ConstellationProjection.full,
+  }) async =>
+      field;
 }
 
 void main() {

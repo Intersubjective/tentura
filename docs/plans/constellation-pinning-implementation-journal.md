@@ -54,7 +54,7 @@ tg_style_research.md
 
 | Packet | Status | Dependency | Evidence / commit |
 |---|---|---|---|
-| P01 Contract fixtures and domain types | pending | — | — |
+| P01 Contract fixtures and domain types | complete | — | see checkpoint below |
 | P02 Migration and storage adapter | pending | P01 | — |
 | P03 Server membership and complete snapshot | pending | P02 | — |
 | P04 Authenticated V2 API | pending | P03 | — |
@@ -100,3 +100,28 @@ operational and product documentation only after those gates are accounted for.
   cleanup.
 - Decision: create the required journal before P01 so every fresh worker has
   shared state. Its initial setup is committed separately by the overseer.
+
+### P01 — Contract fixtures and domain types — 2026-09-11
+
+- Added client/server domain types: `ConstellationAnchorTarget` (sealed
+  person/beacon), `ConstellationAnchorPosition` validation, `BigInt` revision
+  parsing, `ConstellationAnchor`, projection mode, membership filters, anchor
+  projection shell, C2 beacon status sets, v1 geometry constants.
+- Extended `ConstellationField` / `ConstellationFieldSnapshot` with optional
+  anchor projection; client `ConstellationRepositoryPort.fetch` accepts filter
+  and projection parameters (ignored by repository until P05); server port
+  documents `ConstellationFieldReadParams` for P03.
+- Tests and serializable fixture maps for C1/C2 boundaries (coordinates,
+  revisions > 2^53, ego person, shared raw id / distinct typed keys, status
+  filters).
+- Commands:
+  - `cd packages/client && dart run build_runner build -d --build-filter="lib/features/constellation/domain/entity/*"` → exit 0 (8 outputs)
+  - `cd packages/client && flutter test test/features/constellation/constellation_anchor_domain_test.dart` → 31 passed
+  - `cd packages/server && dart test test/domain/entity/constellation_anchor_domain_test.dart` → 30 passed
+  - `cd packages/server && dart test test/domain/use_case/constellation_field_case_test.dart` → 13 passed
+  - `dart analyze` on P01-owned paths → no errors (info-level lints only)
+- Note: full `build_runner` for client was run once to refresh freezed for
+  `constellation_field`; `constellation_field.freezed.dart` is gitignored locally.
+- Note: repo-wide `check-custom-lints.sh packages/client` still reports
+  pre-existing unrelated analyzer errors (e.g. missing L10n getters); P01
+  constellation stub overrides were updated.

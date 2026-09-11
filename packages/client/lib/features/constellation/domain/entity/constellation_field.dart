@@ -2,6 +2,8 @@ import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:tentura_root/domain/entity/beacon_cover_source.dart';
 import 'package:tentura/domain/entity/image_entity.dart';
 
+import 'constellation_anchor_projection.dart';
+
 part 'constellation_field.freezed.dart';
 
 enum ConstellationHeldState {
@@ -22,7 +24,13 @@ abstract class ConstellationField with _$ConstellationField {
     @Default([]) List<ConstellationRequest> requests,
     @Default(false) bool peersCapped,
     @Default(false) bool requestsCapped,
+    ConstellationAnchorProjection? anchorProjection,
   }) = _ConstellationField;
+
+  const ConstellationField._();
+
+  ConstellationAnchorProjection get resolvedAnchorProjection =>
+      anchorProjection ?? ConstellationAnchorProjection.empty;
 }
 
 @freezed
