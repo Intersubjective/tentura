@@ -158,6 +158,12 @@ abstract final class TestIds {
   static const friendsMore = 'friends.more';
 
   static const constellationNavItem = 'constellation.nav_item';
+  static const constellationAppBarViewModeMap =
+      'constellation.app_bar.view_mode.map';
+  static const constellationAppBarViewModeText =
+      'constellation.app_bar.view_mode.text';
+  static String constellationTextRequest(String requestId) =>
+      'constellation.text.request.$requestId';
   static const constellationPinTarget = 'constellation.pin_target';
   static const constellationUnpinTarget = 'constellation.unpin_target';
   static const constellationPinHere = 'constellation.pin_here';

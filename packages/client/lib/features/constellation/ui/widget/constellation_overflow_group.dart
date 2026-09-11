@@ -34,6 +34,7 @@ class ConstellationOverflowGroup extends StatelessWidget {
     return Semantics(
       button: true,
       expanded: expanded,
+      identifier: 'constellation.overflow.$authorId',
       label: label,
       child: Material(
         key: Key('constellation.overflow.$authorId'),

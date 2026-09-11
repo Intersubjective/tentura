@@ -4,6 +4,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/test_ids.dart';
 
 import '../../domain/entity/constellation_anchor.dart';
 import '../../domain/entity/constellation_field.dart';
@@ -304,6 +305,7 @@ class _RequestTile extends StatelessWidget {
     return Semantics(
       button: true,
       selected: selected,
+      identifier: TestIds.constellationTextRequest(request.id),
       label: [
         label,
         if (connectionLabel != null) connectionLabel,

@@ -15,6 +15,7 @@ import '../../domain/constellation_anchor_composition.dart';
 import '../../domain/constellation_density.dart';
 import '../../domain/constellation_filters.dart';
 import '../../domain/constellation_layout.dart';
+import '../../domain/constellation_consts.dart';
 import '../../domain/constellation_pin_position.dart';
 import '../../domain/entity/constellation_anchor.dart';
 import '../../domain/entity/constellation_anchor_projection.dart';
@@ -407,12 +408,21 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
       spacing: 16,
       priorHints: _layoutPriorHints,
     );
-    final position = computeConstellationPinPosition(
+    var position = computeConstellationPinPosition(
       target: target,
       layoutInput: layoutInput,
     );
     if (position == null) {
-      return;
+      final peerVisible =
+          state.field?.peers.any((peer) => peer.id == target.id) ?? false;
+      if (!peerVisible) {
+        return;
+      }
+      position = const ConstellationAnchorPosition(
+        xUnits: 0,
+        yUnits: 0,
+        coordinateSpaceVersion: kConstellationCoordinateSpaceVersionV1,
+      );
     }
     emit(
       state.copyWith(

@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/test_ids.dart';
 
 import '../bloc/constellation_cubit.dart';
 import 'constellation_filter_bar.dart';
@@ -134,13 +135,19 @@ class _ConstellationViewModeToggle extends StatelessWidget {
           segments: [
             ButtonSegment(
               value: ConstellationViewMode.map,
-              icon: const Icon(TenturaIcons.graph),
+              icon: Semantics(
+                identifier: TestIds.constellationAppBarViewModeMap,
+                child: const Icon(TenturaIcons.graph),
+              ),
               label: showLabels ? Text(mapLabel) : null,
               tooltip: mapLabel,
             ),
             ButtonSegment(
               value: ConstellationViewMode.text,
-              icon: const Icon(Icons.view_list_outlined),
+              icon: Semantics(
+                identifier: TestIds.constellationAppBarViewModeText,
+                child: const Icon(Icons.view_list_outlined),
+              ),
               label: showLabels ? Text(textLabel) : null,
               tooltip: textLabel,
             ),

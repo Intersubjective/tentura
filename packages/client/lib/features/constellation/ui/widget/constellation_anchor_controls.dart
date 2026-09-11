@@ -51,18 +51,26 @@ class ConstellationAnchorTargetButton extends StatelessWidget {
             anchored ? TestIds.constellationUnpinTarget : TestIds.constellationPinTarget;
 
         if (filled) {
-          return FilledButton.icon(
+          return Semantics(
+            identifier: testId,
+            button: true,
+            child: FilledButton.icon(
+              key: TestIds.key(testId),
+              onPressed: onPressed,
+              icon: Icon(anchored ? Icons.push_pin_outlined : Icons.push_pin),
+              label: Text(label),
+            ),
+          );
+        }
+        return Semantics(
+          identifier: testId,
+          button: true,
+          child: OutlinedButton.icon(
             key: TestIds.key(testId),
             onPressed: onPressed,
             icon: Icon(anchored ? Icons.push_pin_outlined : Icons.push_pin),
             label: Text(label),
-          );
-        }
-        return OutlinedButton.icon(
-          key: TestIds.key(testId),
-          onPressed: onPressed,
-          icon: Icon(anchored ? Icons.push_pin_outlined : Icons.push_pin),
-          label: Text(label),
+          ),
         );
       },
     );

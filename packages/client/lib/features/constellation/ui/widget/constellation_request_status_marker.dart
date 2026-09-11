@@ -126,6 +126,7 @@ class ConstellationRequestStatusMarker extends StatelessWidget {
       }
       children.add(
         Semantics(
+          identifier: TestIds.constellationPinMarker,
           key: TestIds.key(TestIds.constellationPinMarker),
           label: l10n.constellationPinMarkerSemantics,
           child: Icon(
