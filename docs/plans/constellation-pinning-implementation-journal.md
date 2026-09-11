@@ -59,8 +59,8 @@ tg_style_research.md
 | P03 Server membership and complete snapshot | complete (remediated) | P02 | see checkpoint below |
 | P04 Authenticated V2 API | complete (accepted) | P03 | see checkpoint below |
 | P05 Client wire adapters and server echo policy | complete (accepted) | P04 | see P05a/P05b checkpoints |
-| P06 Pure composition, budgets and layout | complete (C6 remediated) | P05 | see P06 C6 remediation |
-| P07 Graph gesture adapter | pending | P06 | — |
+| P06 Pure composition, budgets and layout | complete (accepted after C6 remediation) | P05 | see P06 C6 remediation |
+| P07 Graph gesture adapter | in progress | P06 | — |
 | P08 Placement orchestration and live reconciliation | pending | P07 | — |
 | P09 Map/Text controls, filters and status accessibility | pending | P08 | — |
 | P10 End-to-end and failure acceptance | pending | P09 | — |
@@ -734,3 +734,9 @@ FINDINGS:
 
 REMAINING: P07 graph gesture adapter (next per plan). Do not start P07+ in this
 worker scope.
+
+### P06 C6 remediation manager review — 2026-09-11
+
+- Verdict: accepted. `_chooseAutomaticPosition` is non-null; envelope/canvas are hard validity; first collision-free in hint→ideal→64 order wins; else min intersection with index tie; `placeAutomatic` always writes a position. Request satellites ignore author only. Independently passed 16 P06 composition/layout tests including pin-avoidance, no-drop, and no-stacking.
+- Secondary: domain layout still imports `dart:ui` for satellite-fan Offset adapters; not blocking C6. Do not expand that in P07.
+- Next: **P07** graph gesture adapter.
