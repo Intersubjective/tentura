@@ -59,7 +59,7 @@ tg_style_research.md
 | P03 Server membership and complete snapshot | complete (remediated) | P02 | see checkpoint below |
 | P04 Authenticated V2 API | complete (accepted) | P03 | see checkpoint below |
 | P05 Client wire adapters and server echo policy | complete (accepted) | P04 | see P05a/P05b checkpoints |
-| P06 Pure composition, budgets and layout | in progress | P05 | — |
+| P06 Pure composition, budgets and layout | complete | P05 | see checkpoint below |
 | P07 Graph gesture adapter | pending | P06 | — |
 | P08 Placement orchestration and live reconciliation | pending | P07 | — |
 | P09 Map/Text controls, filters and status accessibility | pending | P08 | — |
@@ -631,3 +631,56 @@ enum/manifest/contract subscriber wiring.
 - Verdict: accepted. Reviewed `f6119fa47`–`d1a271184`. Schema is fetcher output; operations use stitched `v2_*` enums; FULL/ANCHORS routing and filter vars are real; malformed coordinates/revisions throw rather than clamp; codes `1700`–`1703` hook beside hierarchy mapping. No generated Ferry/`di.config.dart` committed. Pre-existing untracked paths untouched.
 - Independently passed: overlay + repository + error-mapper tests — 14 passed.
 - Process audit: tentura-server :2080 and Hasura remain up from manager prep (not killed). No task-owned Flutter/Chrome leftover. Next: **P06**.
+
+### P06 — Pure composition, budgets and layout — 2026-09-11 (in progress)
+
+- Worker started on `feature/pin_constellation` at `1e7e5d935`.
+- Scope: C5/C6 only — composition, cap/density budgets, pure layout, pin position,
+  layout algorithm anchors/hints; no P07 gesture, P08 cubit-realtime, P09 widgets.
+- Process baseline: no task-owned Flutter :8888, server, or test runners started yet.
+
+### P06 — Pure composition, budgets and layout — 2026-09-11 (complete)
+
+- Added `composeConstellationPresentation` (automatic layer + anchor overlay, cap/label
+  budgets, local-filter support recompute, Map/Text eligible-ID parity).
+- `ConstellationFieldCase.load` now passes membership filters/projection to fetch and
+  returns `ConstellationComposedPresentation`.
+- Pure layout: `ConstellationPoint`/`ConstellationSize` domain geometry, anchor hard
+  constraints, prior hints, 64-candidate collision resolution, v1 envelope/canvas checks.
+- Added `computeConstellationPinPosition` Text-first/density-excluded fallback (single
+  target, frozen peers).
+- `ConstellationLayoutAlgorithm` accepts anchors/hints and relayout merges prior positions.
+- Commands (serial):
+  - `cd packages/client && flutter test test/features/constellation/constellation_cap_policy_test.dart test/features/constellation/constellation_density_test.dart test/features/constellation/constellation_filters_test.dart test/features/constellation/constellation_path_resolution_test.dart test/features/constellation/constellation_layout_test.dart test/features/graph/tentura_layout_algorithms_test.dart test/features/constellation/constellation_p06_composition_layout_test.dart` → 85 passed
+  - `cd packages/client && flutter test test/features/constellation/constellation_repository_test.dart --name holderIds` → 1 passed
+
+STATUS: complete
+
+COMMITS: (this journal commit follows code commits)
+
+TESTS:
+- `cd packages/client && flutter test test/features/constellation/constellation_cap_policy_test.dart test/features/constellation/constellation_density_test.dart test/features/constellation/constellation_filters_test.dart test/features/constellation/constellation_path_resolution_test.dart test/features/constellation/constellation_layout_test.dart test/features/graph/tentura_layout_algorithms_test.dart test/features/constellation/constellation_p06_composition_layout_test.dart` → 85 passed
+- `cd packages/client && flutter test test/features/constellation/constellation_repository_test.dart --name holderIds` → 1 passed
+
+FILES:
+- packages/client/lib/features/constellation/domain/constellation_anchor_composition.dart
+- packages/client/lib/features/constellation/domain/constellation_pin_position.dart
+- packages/client/lib/features/constellation/domain/constellation_cap_policy.dart
+- packages/client/lib/features/constellation/domain/constellation_layout.dart
+- packages/client/lib/features/constellation/domain/constellation_path_resolution.dart
+- packages/client/lib/features/constellation/domain/use_case/constellation_field_case.dart
+- packages/client/lib/features/graph/ui/utils/tentura_layout_algorithms.dart
+- packages/client/test/features/constellation/constellation_p06_composition_layout_test.dart
+- packages/client/test/features/constellation/constellation_layout_test.dart
+- packages/client/test/features/constellation/constellation_density_widget_test.dart
+- docs/plans/constellation-pinning-implementation-journal.md
+
+FINDINGS:
+- Client support overlay recomputation must union projection edge endpoints into path
+  visibility; server projection alone is insufficient when automatic edges omit support.
+- Satellite/request placement ignores parent-author and sibling collisions so semantic
+  fan ideals remain stable near ego and authors.
+- `./scripts/check-custom-lints.sh packages/client` still exits non-zero on pre-existing
+  unrelated analyzer debt outside P06-owned paths; ReadLints on changed files is clean.
+
+REMAINING: P07 graph gesture adapter (next per plan). P08 cubit-realtime; P09 UI wiring.

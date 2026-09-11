@@ -138,11 +138,11 @@ Map<String, Offset> _personPositions(ConstellationCubit cubit) {
     keptPeerIds: resolved.keptPeerIds,
     visibleRequestsByAuthor: cubit.layoutVisibleRequestsByAuthor,
     egoOwnRequestIds: cubit.layoutEgoOwnRequestIds,
-    canvasSize: const Size(4096, 4096),
   );
   return {
     for (final entry in layout.positions.entries)
-      if (!entry.key.startsWith('req-')) entry.key: entry.value,
+      if (!entry.key.startsWith('req-'))
+        entry.key: Offset(entry.value.x, entry.value.y),
   };
 }
 

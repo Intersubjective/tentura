@@ -1,15 +1,14 @@
 import 'dart:math' as math;
-import 'dart:ui';
 
 import 'package:flutter_test/flutter_test.dart';
 
 import 'package:tentura/features/constellation/domain/constellation_cap_policy.dart';
+import 'package:tentura/features/constellation/domain/constellation_consts.dart';
 import 'package:tentura/features/constellation/domain/constellation_layout.dart';
 import 'package:tentura/features/constellation/domain/constellation_path_resolution.dart';
 
 const _ego = 'ego';
-const _canvas = Size(2400, 1800);
-const _ringGap = 170.0;
+const _ringGap = kConstellationRingUnitPixels;
 const _satelliteOffset = 56.0;
 const _epsilon = 1.0;
 
@@ -19,9 +18,20 @@ ConstellationEdgeRef _edge(String src, String dst, int tier) => (
   tier: tier,
 );
 
-Offset _centre() => _canvas.center(Offset.zero);
+ConstellationPoint _centre() => constellationCanvasCentrePoint();
 
-double _distFromCentre(Offset position) => (position - _centre()).distance;
+double _distFromCentre(ConstellationPoint position) {
+  final centre = _centre();
+  final dx = position.x - centre.x;
+  final dy = position.y - centre.y;
+  return math.sqrt(dx * dx + dy * dy);
+}
+
+double _distance(ConstellationPoint a, ConstellationPoint b) {
+  final dx = a.x - b.x;
+  final dy = a.y - b.y;
+  return math.sqrt(dx * dx + dy * dy);
+}
 
 ConstellationPathResolution _paths({
   Set<String> visiblePeerIds = const {},
@@ -54,7 +64,6 @@ ConstellationLayout _layout({
     keptPeerIds: keptPeerIds,
     visibleRequestsByAuthor: visibleRequestsByAuthor,
     egoOwnRequestIds: egoOwnRequestIds,
-    canvasSize: _canvas,
     maxHops: maxHops,
     ringGap: ringGap,
     residualRingFactor: residualRingFactor,
@@ -62,8 +71,8 @@ ConstellationLayout _layout({
   );
 }
 
-Map<String, Offset> _personPositions(ConstellationLayout layout) {
-  return Map<String, Offset>.from(layout.positions)
+Map<String, ConstellationPoint> _personPositions(ConstellationLayout layout) {
+  return Map<String, ConstellationPoint>.from(layout.positions)
     ..removeWhere((id, _) => id.startsWith('req'));
 }
 
@@ -99,7 +108,7 @@ void main() {
       expect(layout.ring['r'], 4);
 
       final reqPos = layout.positions['req-b1']!;
-      expect((reqPos - bPos).distance, lessThanOrEqualTo(_satelliteOffset + _epsilon));
+      expect(_distance(reqPos, bPos), lessThanOrEqualTo(_satelliteOffset + _epsilon));
     });
 
     test('satellite stability: extra satellites do not move people [R9]', () {
@@ -235,7 +244,7 @@ void main() {
 
       for (final id in ['ego-req-1', 'ego-req-2']) {
         final pos = layout.positions[id]!;
-        expect((pos - _centre()).distance, lessThanOrEqualTo(_satelliteOffset + _epsilon));
+        expect(_distFromCentre(pos), lessThanOrEqualTo(_satelliteOffset + _epsilon));
       }
       expect(layout.ring.containsKey('ego-req-1'), isFalse);
     });
@@ -337,7 +346,6 @@ void main() {
           'b': ['req-b1', 'req-b2'],
         },
         egoOwnRequestIds: {'ego-req-1', 'ego-req-2'},
-        canvasSize: _canvas,
       );
 
       expect(shuffled.positions, ordered.positions);
@@ -368,7 +376,8 @@ void main() {
   });
 }
 
-double _angleFromCentre(Offset position) {
-  final delta = position - _centre();
-  return math.atan2(delta.dy, delta.dx);
+double _angleFromCentre(ConstellationPoint position) {
+  final centre = _centre();
+  final delta = (x: position.x - centre.x, y: position.y - centre.y);
+  return math.atan2(delta.y, delta.x);
 }

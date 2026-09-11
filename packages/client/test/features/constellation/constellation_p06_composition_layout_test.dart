@@ -1,0 +1,634 @@
+import 'package:flutter_test/flutter_test.dart';
+
+import 'package:tentura/features/constellation/domain/constellation_anchor_composition.dart';
+import 'package:tentura/features/constellation/domain/constellation_consts.dart';
+import 'package:tentura/features/constellation/domain/constellation_density.dart';
+import 'package:tentura/features/constellation/domain/constellation_filters.dart';
+import 'package:tentura/features/constellation/domain/constellation_layout.dart';
+import 'package:tentura/features/constellation/domain/constellation_path_resolution.dart';
+import 'package:tentura/features/constellation/domain/constellation_pin_position.dart';
+import 'package:tentura/features/constellation/domain/entity/constellation_anchor.dart';
+import 'package:tentura/features/constellation/domain/entity/constellation_anchor_projection.dart';
+import 'package:tentura/features/constellation/domain/entity/constellation_field.dart';
+
+const _ego = 'U_ego';
+const _spacing = 16.0;
+
+ConstellationField _fieldWithPins({
+  required List<ConstellationPerson> automaticPeers,
+  required List<ConstellationRequest> automaticRequests,
+  required ConstellationAnchorProjection projection,
+}) {
+  return ConstellationField(
+    loadedAt: DateTime.utc(2026, 9, 11),
+    context: 'ctx',
+    peers: automaticPeers,
+    requests: automaticRequests,
+    anchorProjection: projection,
+  );
+}
+
+ConstellationAnchor _personAnchor(String personId, double x, double y) =>
+    ConstellationAnchor(
+      target: ConstellationAnchorTarget.person(personId),
+      position: ConstellationAnchorPosition(
+        xUnits: x,
+        yUnits: y,
+        coordinateSpaceVersion: kConstellationCoordinateSpaceVersionV1,
+      ),
+      revision: ConstellationAnchorRevision.zero,
+      placedAt: DateTime.utc(2026, 9, 11),
+    );
+
+ConstellationAnchor _beaconAnchor(String beaconId, double x, double y) =>
+    ConstellationAnchor(
+      target: ConstellationAnchorTarget.beacon(beaconId),
+      position: ConstellationAnchorPosition(
+        xUnits: x,
+        yUnits: y,
+        coordinateSpaceVersion: kConstellationCoordinateSpaceVersionV1,
+      ),
+      revision: ConstellationAnchorRevision.zero,
+      placedAt: DateTime.utc(2026, 9, 11, 0, 0, 1),
+    );
+
+void main() {
+  group('composeConstellationPresentation', () {
+    test('pinned people and support bypass peer cap budget', () {
+      final automaticPeers = List.generate(
+        kConstellationRenderPeerCap + 5,
+        (i) => ConstellationPerson(id: 'auto-$i'),
+      );
+      final projection = ConstellationAnchorProjection(
+        revision: ConstellationAnchorRevision.zero,
+        anchors: [_personAnchor('pinned-a', 1, 1), _personAnchor('pinned-b', -1, 0)],
+        pinnedPeers: [
+          ConstellationPerson(id: 'pinned-a'),
+          ConstellationPerson(id: 'pinned-b'),
+        ],
+        pinnedRequests: const [],
+        supportPeers: [ConstellationPerson(id: 'support-x')],
+        supportEdges: [
+          ConstellationTrustEdgeEntity(src: _ego, dst: 'support-x', tier: 1),
+          ConstellationTrustEdgeEntity(src: 'support-x', dst: 'pinned-a', tier: 1),
+        ],
+        serverFilteredBeaconIds: const [],
+        serverFilteredBeaconCount: 0,
+      );
+
+      final field = _fieldWithPins(
+        automaticPeers: automaticPeers,
+        automaticRequests: const [],
+        projection: projection,
+      );
+
+      final composed = composeConstellationPresentation(
+        viewerId: _ego,
+        field: field,
+        localFilters: const (
+          capabilitySlugs: {},
+          location: LocationFilter.any,
+          timing: TimingFilterAny(),
+          includeUnspecified: true,
+        ),
+        asOfUtc: field.loadedAt,
+        labelBudget: (perPerson: 3, total: 150),
+      );
+
+      expect(composed.eligiblePersonIds, containsAll(['pinned-a', 'pinned-b', 'support-x']));
+      expect(composed.keptPeerIds.length, lessThanOrEqualTo(kConstellationRenderPeerCap + 3));
+      expect(composed.keptPeerIds, containsAll(['pinned-a', 'pinned-b', 'support-x']));
+    });
+
+    test('pinned requests bypass label density budget', () {
+      final prolificAuthor = 'author-heavy';
+      final automaticRequests = [
+        for (var i = 0; i < 20; i++)
+          ConstellationRequest(
+            id: 'auto-req-$i',
+            authorId: prolificAuthor,
+            title: 'Auto $i',
+            status: 0,
+          ),
+      ];
+      final projection = ConstellationAnchorProjection(
+        revision: ConstellationAnchorRevision.zero,
+        anchors: [_beaconAnchor('pinned-req', 2, 2)],
+        pinnedPeers: const [],
+        pinnedRequests: [
+          ConstellationRequest(
+            id: 'pinned-req',
+            authorId: prolificAuthor,
+            title: 'Pinned',
+            status: 0,
+          ),
+        ],
+        supportPeers: [ConstellationPerson(id: prolificAuthor)],
+        supportEdges: [
+          ConstellationTrustEdgeEntity(src: _ego, dst: prolificAuthor, tier: 1),
+        ],
+        serverFilteredBeaconIds: const [],
+        serverFilteredBeaconCount: 0,
+      );
+
+      final composed = composeConstellationPresentation(
+        viewerId: _ego,
+        field: _fieldWithPins(
+          automaticPeers: [ConstellationPerson(id: prolificAuthor)],
+          automaticRequests: automaticRequests,
+          projection: projection,
+        ),
+        localFilters: const (
+          capabilitySlugs: {},
+          location: LocationFilter.any,
+          timing: TimingFilterAny(),
+          includeUnspecified: true,
+        ),
+        asOfUtc: DateTime.utc(2026, 9, 11),
+        labelBudget: (perPerson: 1, total: 2),
+      );
+
+      expect(composed.labelPlan.drawnRequestIds, contains('pinned-req'));
+      expect(composed.eligibleRequestIds, contains('pinned-req'));
+    });
+
+    test('Map/Text eligible request IDs stay aligned', () {
+      final projection = ConstellationAnchorProjection(
+        revision: ConstellationAnchorRevision.zero,
+        anchors: [_beaconAnchor('B1', 0, 0)],
+        pinnedPeers: const [],
+        pinnedRequests: [
+          ConstellationRequest(id: 'B1', authorId: 'author', title: 'Pinned', status: 0),
+        ],
+        supportPeers: [ConstellationPerson(id: 'author')],
+        supportEdges: [
+          ConstellationTrustEdgeEntity(src: _ego, dst: 'author', tier: 1),
+        ],
+        serverFilteredBeaconIds: const [],
+        serverFilteredBeaconCount: 0,
+      );
+      final composed = composeConstellationPresentation(
+        viewerId: _ego,
+        field: _fieldWithPins(
+          automaticPeers: [ConstellationPerson(id: 'author')],
+          automaticRequests: [
+            ConstellationRequest(id: 'B2', authorId: 'author', title: 'Auto', status: 0),
+          ],
+          projection: projection,
+        ),
+        localFilters: const (
+          capabilitySlugs: {},
+          location: LocationFilter.any,
+          timing: TimingFilterAny(),
+          includeUnspecified: true,
+        ),
+        asOfUtc: DateTime.utc(2026, 9, 11),
+        labelBudget: (perPerson: 3, total: 150),
+      );
+
+      expect(composed.eligibleRequestIds, composed.labelPlan.drawnRequestIds);
+    });
+
+    test('locally filtered pinned beacon releases support not needed elsewhere', () {
+      final projection = ConstellationAnchorProjection(
+        revision: ConstellationAnchorRevision.zero,
+        anchors: [
+          _beaconAnchor('B-hidden', 1, 1),
+          _beaconAnchor('B-visible', 2, 2),
+        ],
+        pinnedPeers: const [],
+        pinnedRequests: [
+          ConstellationRequest(
+            id: 'B-hidden',
+            authorId: 'author-hidden',
+            title: 'Hidden',
+            status: 0,
+            needs: ['alpha'],
+          ),
+          ConstellationRequest(
+            id: 'B-visible',
+            authorId: 'author-visible',
+            title: 'Visible',
+            status: 0,
+          ),
+        ],
+        supportPeers: [
+          ConstellationPerson(id: 'author-hidden'),
+          ConstellationPerson(id: 'author-visible'),
+          ConstellationPerson(id: 'bridge'),
+        ],
+        supportEdges: [
+          ConstellationTrustEdgeEntity(src: _ego, dst: 'bridge', tier: 1),
+          ConstellationTrustEdgeEntity(src: 'bridge', dst: 'author-hidden', tier: 1),
+          ConstellationTrustEdgeEntity(src: _ego, dst: 'author-visible', tier: 1),
+        ],
+        serverFilteredBeaconIds: const [],
+        serverFilteredBeaconCount: 0,
+      );
+
+      final composed = composeConstellationPresentation(
+        viewerId: _ego,
+        field: _fieldWithPins(
+          automaticPeers: const [],
+          automaticRequests: const [],
+          projection: projection,
+        ),
+        localFilters: (
+          capabilitySlugs: {'beta'},
+          location: LocationFilter.any,
+          timing: const TimingFilterAny(),
+          includeUnspecified: true,
+        ),
+        asOfUtc: DateTime.utc(2026, 9, 11),
+        labelBudget: (perPerson: 3, total: 150),
+      );
+
+      expect(composed.locallyFilteredPinnedBeaconIds, {'B-hidden'});
+      expect(
+        composed.anchorOverlay.supportPeers.map((p) => p.id),
+        isNot(contains('author-hidden')),
+      );
+      expect(
+        composed.anchorOverlay.supportPeers.map((p) => p.id),
+        isNot(contains('bridge')),
+      );
+      expect(composed.eligibleRequestIds, contains('B-visible'));
+    });
+  });
+
+  group('computeConstellationPlacedLayout', () {
+    ConstellationPathResolution _simplePaths() {
+      return resolveConstellationPaths(
+        egoId: _ego,
+        visiblePeerIds: {'peer-a', 'peer-b'},
+        holderIds: {'peer-a'},
+        edges: [(src: _ego, dst: 'peer-a', tier: 1)],
+      );
+    }
+
+    test('person and beacon anchors stay independent hard positions', () {
+      final paths = _simplePaths();
+      final layout = computeConstellationPlacedLayout(
+        input: (
+          egoId: _ego,
+          paths: paths,
+          automaticKeptPeerIds: {'peer-a'},
+          pinnedPersonIds: {'peer-b'},
+          pinnedRequestIds: {'B1'},
+          supportPersonIds: const {},
+          anchorByNodeId: {
+            'peer-b': ConstellationAnchorPosition(
+              xUnits: 4,
+              yUnits: -3,
+              coordinateSpaceVersion: kConstellationCoordinateSpaceVersionV1,
+            ),
+            'B1': ConstellationAnchorPosition(
+              xUnits: -2,
+              yUnits: 5,
+              coordinateSpaceVersion: kConstellationCoordinateSpaceVersionV1,
+            ),
+          },
+          priorHints: null,
+          nodeSizes: const {},
+          satelliteRequestIdsByAuthor: {'peer-a': ['B-auto']},
+          requestAuthorById: {'B-auto': 'peer-a'},
+          egoOwnRequestIds: const {},
+          spacing: _spacing,
+          maxHops: 3,
+          viewportClass: ConstellationViewportClass.expanded,
+        ),
+      );
+
+      expect(
+        layout.positions['peer-b'],
+        constellationV1AnchorToPoint(
+          ConstellationAnchorPosition(
+            xUnits: 4,
+            yUnits: -3,
+            coordinateSpaceVersion: kConstellationCoordinateSpaceVersionV1,
+          ),
+        ),
+      );
+      expect(
+        layout.positions['B1'],
+        constellationV1AnchorToPoint(
+          ConstellationAnchorPosition(
+            xUnits: -2,
+            yUnits: 5,
+            coordinateSpaceVersion: kConstellationCoordinateSpaceVersionV1,
+          ),
+        ),
+      );
+    });
+
+    test('exact overlapping anchors are preserved', () {
+      final layout = computeConstellationPlacedLayout(
+        input: (
+          egoId: _ego,
+          paths: _simplePaths(),
+          automaticKeptPeerIds: const {},
+          pinnedPersonIds: {'p1', 'p2'},
+          pinnedRequestIds: const {},
+          supportPersonIds: const {},
+          anchorByNodeId: {
+            'p1': const ConstellationAnchorPosition(
+              xUnits: 1,
+              yUnits: 1,
+              coordinateSpaceVersion: kConstellationCoordinateSpaceVersionV1,
+            ),
+            'p2': const ConstellationAnchorPosition(
+              xUnits: 1,
+              yUnits: 1,
+              coordinateSpaceVersion: kConstellationCoordinateSpaceVersionV1,
+            ),
+          },
+          priorHints: null,
+          nodeSizes: const {},
+          satelliteRequestIdsByAuthor: const {},
+          requestAuthorById: const <String, String>{},
+          egoOwnRequestIds: const {},
+          spacing: _spacing,
+          maxHops: 3,
+          viewportClass: ConstellationViewportClass.expanded,
+        ),
+      );
+
+      expect(layout.positions['p1'], layout.positions['p2']);
+    });
+
+    test('topology change keeps pinned coordinates', () {
+      final anchor = const ConstellationAnchorPosition(
+        xUnits: 3,
+        yUnits: -4,
+        coordinateSpaceVersion: kConstellationCoordinateSpaceVersionV1,
+      );
+      final beforePaths = resolveConstellationPaths(
+        egoId: _ego,
+        visiblePeerIds: {'peer-a'},
+        holderIds: {'peer-a'},
+        edges: [(src: _ego, dst: 'peer-a', tier: 1)],
+      );
+      final afterPaths = resolveConstellationPaths(
+        egoId: _ego,
+        visiblePeerIds: {'peer-a', 'peer-b'},
+        holderIds: {'peer-a', 'peer-b'},
+        edges: [
+          (src: _ego, dst: 'peer-a', tier: 1),
+          (src: _ego, dst: 'peer-b', tier: 1),
+        ],
+      );
+
+      ConstellationPlacedLayoutInput inputFor(
+        ConstellationPathResolution paths,
+      ) =>
+          (
+            egoId: _ego,
+            paths: paths,
+            automaticKeptPeerIds: paths.keep,
+            pinnedPersonIds: {'peer-a'},
+            pinnedRequestIds: const {},
+            supportPersonIds: const {},
+            anchorByNodeId: {'peer-a': anchor},
+            priorHints: null,
+            nodeSizes: const {},
+            satelliteRequestIdsByAuthor: const {},
+            requestAuthorById: const <String, String>{},
+            egoOwnRequestIds: const {},
+            spacing: _spacing,
+            maxHops: 3,
+            viewportClass: ConstellationViewportClass.expanded,
+          );
+
+      final before = computeConstellationPlacedLayout(input: inputFor(beforePaths));
+      final after = computeConstellationPlacedLayout(input: inputFor(afterPaths));
+
+      expect(after.positions['peer-a'], before.positions['peer-a']);
+      expect(after.positions['peer-a'], constellationV1AnchorToPoint(anchor));
+    });
+
+    test('layout is repeatable for identical input', () {
+      final input = (
+        egoId: _ego,
+        paths: _simplePaths(),
+        automaticKeptPeerIds: {'peer-a'},
+        pinnedPersonIds: const <String>{},
+        pinnedRequestIds: const <String>{},
+        supportPersonIds: const <String>{},
+        anchorByNodeId: const <String, ConstellationAnchorPosition>{},
+        priorHints: null,
+        nodeSizes: const {'peer-a': (width: 80.0, height: 80.0)},
+        satelliteRequestIdsByAuthor: const <String, List<String>>{},
+        requestAuthorById: const <String, String>{},
+        egoOwnRequestIds: const <String>{},
+        spacing: _spacing,
+        maxHops: 3,
+        viewportClass: ConstellationViewportClass.expanded,
+      );
+      final first = computeConstellationPlacedLayout(input: input);
+      final second = computeConstellationPlacedLayout(input: input);
+      expect(second.positions, first.positions);
+    });
+
+    test('all four envelope corners are accepted for anchors', () {
+      for (final corner in [
+        (x: -10.0, y: -10.0),
+        (x: -10.0, y: 10.0),
+        (x: 10.0, y: -10.0),
+        (x: 10.0, y: 10.0),
+      ]) {
+        final point = constellationV1AnchorToPoint(
+          ConstellationAnchorPosition(
+            xUnits: corner.x,
+            yUnits: corner.y,
+            coordinateSpaceVersion: kConstellationCoordinateSpaceVersionV1,
+          ),
+        );
+        expect(constellationPointWithinEnvelope(point), isTrue);
+      }
+    });
+
+    test('prior hint applies only when viewport class matches', () {
+      final paths = _simplePaths();
+      final hintPoint = (x: 2200.0, y: 2100.0);
+      final withHint = computeConstellationPlacedLayout(
+        input: (
+          egoId: _ego,
+          paths: paths,
+          automaticKeptPeerIds: {'peer-a'},
+          pinnedPersonIds: const {},
+          pinnedRequestIds: const {},
+          supportPersonIds: const {},
+          anchorByNodeId: const {},
+          priorHints: (
+            positions: {'peer-a': hintPoint},
+            ring: { 'peer-a': 1},
+            viewportClass: ConstellationViewportClass.compact,
+          ),
+          nodeSizes: const {'peer-a': (width: 64, height: 64)},
+          satelliteRequestIdsByAuthor: const {},
+          requestAuthorById: const <String, String>{},
+          egoOwnRequestIds: const {},
+          spacing: _spacing,
+          maxHops: 3,
+          viewportClass: ConstellationViewportClass.compact,
+        ),
+      );
+      final withoutHint = computeConstellationPlacedLayout(
+        input: (
+          egoId: _ego,
+          paths: paths,
+          automaticKeptPeerIds: {'peer-a'},
+          pinnedPersonIds: const {},
+          pinnedRequestIds: const {},
+          supportPersonIds: const {},
+          anchorByNodeId: const {},
+          priorHints: (
+            positions: {'peer-a': hintPoint},
+            ring: {'peer-a': 1},
+            viewportClass: ConstellationViewportClass.compact,
+          ),
+          nodeSizes: const {'peer-a': (width: 64, height: 64)},
+          satelliteRequestIdsByAuthor: const {},
+          requestAuthorById: const <String, String>{},
+          egoOwnRequestIds: const {},
+          spacing: _spacing,
+          maxHops: 3,
+          viewportClass: ConstellationViewportClass.expanded,
+        ),
+      );
+
+      expect(withHint.positions['peer-a'], hintPoint);
+      expect(withoutHint.positions['peer-a'], isNot(equals(hintPoint)));
+    });
+  });
+
+  group('computeConstellationPinPosition', () {
+    test('returns composed coordinate when already laid out', () {
+      final composed = composeConstellationPresentation(
+        viewerId: _ego,
+        field: _fieldWithPins(
+          automaticPeers: [ConstellationPerson(id: 'peer-a')],
+          automaticRequests: const [],
+          projection: ConstellationAnchorProjection(
+            revision: ConstellationAnchorRevision.zero,
+            anchors: [_personAnchor('peer-a', 2, -1)],
+            pinnedPeers: [ConstellationPerson(id: 'peer-a')],
+            pinnedRequests: const [],
+            supportPeers: const [],
+            supportEdges: const [],
+            serverFilteredBeaconIds: const [],
+            serverFilteredBeaconCount: 0,
+          ),
+        ),
+        localFilters: const (
+          capabilitySlugs: {},
+          location: LocationFilter.any,
+          timing: TimingFilterAny(),
+          includeUnspecified: true,
+        ),
+        asOfUtc: DateTime.utc(2026, 9, 11),
+        labelBudget: (perPerson: 3, total: 150),
+      );
+
+      final layoutInput = layoutInputFromComposition(
+        viewerId: _ego,
+        composition: composed,
+        labelPlan: composed.labelPlan,
+        nodeSizes: const {},
+        spacing: _spacing,
+      );
+
+      final pin = computeConstellationPinPosition(
+        target: ConstellationAnchorTarget.person('peer-a'),
+        layoutInput: layoutInput,
+      );
+
+      expect(pin?.xUnits, 2);
+      expect(pin?.yUnits, -1);
+    });
+
+    test('density-excluded beacon gets fallback without moving other nodes', () {
+      final author = 'author-a';
+      final hiddenBeacon = 'B-z-hidden';
+      final field = _fieldWithPins(
+        automaticPeers: [ConstellationPerson(id: author)],
+        automaticRequests: [
+          ConstellationRequest(
+            id: 'B-a-visible',
+            authorId: author,
+            title: 'Visible on map',
+            status: 0,
+          ),
+          ConstellationRequest(
+            id: hiddenBeacon,
+            authorId: author,
+            title: 'Hidden by density',
+            status: 0,
+          ),
+        ],
+        projection: ConstellationAnchorProjection.empty,
+      );
+
+      final composed = composeConstellationPresentation(
+        viewerId: _ego,
+        field: field,
+        localFilters: const (
+          capabilitySlugs: {},
+          location: LocationFilter.any,
+          timing: TimingFilterAny(),
+          includeUnspecified: true,
+        ),
+        asOfUtc: field.loadedAt,
+        labelBudget: (perPerson: 1, total: 1),
+      );
+
+      expect(composed.labelPlan.drawnRequestIds, contains('B-a-visible'));
+      expect(composed.labelPlan.drawnRequestIds, isNot(contains(hiddenBeacon)));
+
+      final layoutInput = layoutInputFromComposition(
+        viewerId: _ego,
+        composition: composed,
+        labelPlan: composed.labelPlan,
+        nodeSizes: {
+          author: (width: 72.0, height: 72.0),
+          'B-a-visible': (width: 72.0, height: 72.0),
+          hiddenBeacon: (width: 72.0, height: 72.0),
+        },
+        spacing: _spacing,
+        viewportClass: ConstellationViewportClass.compact,
+      );
+
+      final beforeLayout = computeConstellationPlacedLayout(input: layoutInput);
+      final fallback = computeConstellationPinPosition(
+        target: ConstellationAnchorTarget.beacon(hiddenBeacon),
+        layoutInput: layoutInput,
+      );
+      final afterLayout = computeConstellationPlacedLayout(input: layoutInput);
+
+      expect(fallback, isNotNull);
+      expect(afterLayout.positions, beforeLayout.positions);
+      expect(composed.anchorOverlay.anchors, isEmpty);
+    });
+
+    test('compact and expanded viewport round-trip normalized coordinates', () {
+      const anchor = ConstellationAnchorPosition(
+        xUnits: 5,
+        yUnits: -6,
+        coordinateSpaceVersion: kConstellationCoordinateSpaceVersionV1,
+      );
+      final point = constellationV1AnchorToPoint(anchor);
+      final roundTrip = constellationPointToV1Anchor(point);
+      expect(roundTrip.xUnits, closeTo(anchor.xUnits, 1e-9));
+      expect(roundTrip.yUnits, closeTo(anchor.yUnits, 1e-9));
+
+      expect(
+        constellationViewportClassForSize(width: 390),
+        ConstellationViewportClass.compact,
+      );
+      expect(
+        constellationViewportClassForSize(width: 1440),
+        ConstellationViewportClass.expanded,
+      );
+    });
+  });
+}
