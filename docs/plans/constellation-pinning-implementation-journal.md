@@ -165,3 +165,27 @@ FINDINGS:
   value strictly above 2^53 is `9007199254740993`.
 
 REMAINING: none for P01 (P02 migration/storage is next per plan).
+
+### P01 manager review — 2026-09-11
+
+- Verdict: accepted. `bab241abc` contains only P01 contract types, contract
+  fixtures, affected fake repository signatures, and the P01 journal record;
+  `145b9a982` records the final worker status. No generated source was staged.
+- Independently passed, one command at a time:
+  - `cd packages/client && flutter test test/features/constellation/constellation_anchor_domain_test.dart` — 31 passed.
+  - `cd packages/server && dart test test/domain/entity/constellation_anchor_domain_test.dart && dart test test/domain/use_case/constellation_field_case_test.dart` — 30 and 13 passed.
+  - `./scripts/check-custom-lints.sh packages/server` — custom-lint total 0, baseline 0.
+- Client custom-lint accounting is unchanged at 32, matching its baseline.
+  `./scripts/check-custom-lints.sh packages/client` exits 3 before the custom
+  count because generated client l10n is stale: five existing missing L10n
+  members in Inbox/Home/Updates widgets. These paths are outside P01 and are
+  neither caused nor fixed here; the final P11 gate remains blocked until the
+  client localization generation/state is repaired and rechecked.
+- Scope note: the client fetch and server field port only introduce typed
+  future read parameters; the client repository intentionally does not send
+  them until P05 and the server has no P03 snapshot implementation yet. This
+  is an explicit P01 seam, not a claim of live filter/projection behavior.
+- Process audit after worker: no task-owned Cursor, Dart test/analyzer,
+  Flutter, Chrome, WebDriver, or test-driver process remained. Pre-existing
+  editor/browser services and an unrelated zombie audio helper were left
+  untouched.
