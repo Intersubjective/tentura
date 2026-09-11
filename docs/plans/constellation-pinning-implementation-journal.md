@@ -59,7 +59,7 @@ tg_style_research.md
 | P03 Server membership and complete snapshot | complete (remediated) | P02 | see checkpoint below |
 | P04 Authenticated V2 API | complete (accepted) | P03 | see checkpoint below |
 | P05 Client wire adapters and server echo policy | complete (accepted) | P04 | see P05a/P05b checkpoints |
-| P06 Pure composition, budgets and layout | complete | P05 | see checkpoint below |
+| P06 Pure composition, budgets and layout | in progress (C6 collision fallback rejected) | P05 | see manager review |
 | P07 Graph gesture adapter | pending | P06 | — |
 | P08 Placement orchestration and live reconciliation | pending | P07 | — |
 | P09 Map/Text controls, filters and status accessibility | pending | P08 | — |
@@ -684,3 +684,10 @@ FINDINGS:
   unrelated analyzer debt outside P06-owned paths; ReadLints on changed files is clean.
 
 REMAINING: P07 graph gesture adapter (next per plan). P08 cubit-realtime; P09 UI wiring.
+
+### P06 manager review — 2026-09-11
+
+- C5 composition: accepted. Automatic vs overlay split, pin/support budget exemption, label bypass, Map/Text eligible-ID parity, support recompute without pruning automatic copies.
+- C6 layout: **rejected**. `_chooseAutomaticPosition` treats any AABB intersection as invalid and returns `null` when the 64-candidate set is empty, so `placeAutomatic` **drops the node**. C6 requires envelope/canvas as hard validity, collision-free preference in order (hint → ideal → 64), then least total intersection with index tie-break, and **never drop a node**. There are no tests for collisions or exhausted candidates. `collisionIgnore` currently includes ego, author, all sibling satellites, and all ego-owned requests — too broad; pinned nodes must never be ignored.
+- Independently ran `constellation_p06_composition_layout_test.dart` + layout + graph algorithm tests; they pass but do not cover the missing C6 fallback.
+- Next: P06 C6 remediation only. Do not start P07.
