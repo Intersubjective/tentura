@@ -1,14 +1,13 @@
 # import '/data/gql/image_model_v2.graphql'
 
-query ConstellationFieldFetch(
+query ConstellationAnchorsFetch(
   $showClosed: Boolean! = false
   $participatedOnly: Boolean! = false
-  $projection: v2_ConstellationProjection! = FULL
 ) {
   constellationField(
     showClosed: $showClosed
     participatedOnly: $participatedOnly
-    projection: $projection
+    projection: ANCHORS
   ) {
     loadedAt
     context

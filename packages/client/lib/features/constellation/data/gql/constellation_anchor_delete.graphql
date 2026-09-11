@@ -1,0 +1,13 @@
+mutation ConstellationAnchorDelete(
+  $targetKind: v2_ConstellationAnchorTargetKind!
+  $targetId: String!
+) {
+  constellationAnchorDelete(
+    targetKind: $targetKind
+    targetId: $targetId
+  ) {
+    targetKind
+    targetId
+    revision
+  }
+}

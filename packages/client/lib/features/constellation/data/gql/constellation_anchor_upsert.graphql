@@ -1,0 +1,26 @@
+mutation ConstellationAnchorUpsert(
+  $targetKind: v2_ConstellationAnchorTargetKind!
+  $targetId: String!
+  $xUnits: Float!
+  $yUnits: Float!
+  $coordinateSpaceVersion: Int!
+) {
+  constellationAnchorUpsert(
+    targetKind: $targetKind
+    targetId: $targetId
+    xUnits: $xUnits
+    yUnits: $yUnits
+    coordinateSpaceVersion: $coordinateSpaceVersion
+  ) {
+    revision
+    anchor {
+      targetKind
+      targetId
+      xUnits
+      yUnits
+      coordinateSpaceVersion
+      revision
+      placedAt
+    }
+  }
+}
