@@ -1155,3 +1155,18 @@ Keep: runner `REALTIME_MULTICLIENT_DRIVER` / `ACTOR_ECHO`; TestId + Semantics; m
 STATUS: rejected as complete; remaining P10
 
 REMAINING: P10 remediation worker. P11 not started.
+
+### P01–P09 adversarial review — applied 2026-09-12
+
+Source: `docs/plans/constellation-pinning-p01-p09-adversarial-review.md`. Findings R1–R7 verified against committed code and fixed in four focused commits. P10 WIP was stashed first so these could land cleanly.
+
+| Finding | Commit |
+|---------|--------|
+| R4 dormant stored anchors, R5 server support, R6 reserved-author Requests | `291c344c3` |
+| R5 client support + R1 overlay Map nodes | `ff1023481` |
+| R3 lifecycle token + R7 refresh coordinator | `ce43cdc6b` |
+| R2 mutation vs recovery-read outcomes | `630f9cad8` |
+
+Not applied as a DB fixture: “unknown status 99” — `beacon.status` CHECK is `{0,1,2,3,5,6,7,8}`. Cancelled (1) covers readable dormant; classification of 99 remains in `constellation_field_selection_test.dart`. Deleted (2) is unauthorized because `beacon_can_read_content` fails, which matches the keep-readability rule.
+
+P10 remains rejected until UI-only e2e/multiclient pass. P11 not started.
