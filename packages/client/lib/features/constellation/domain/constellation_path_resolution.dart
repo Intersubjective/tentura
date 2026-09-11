@@ -236,3 +236,38 @@ Map<String, List<String>> _buildAdjacency(Iterable<ConstellationEdgeRef> edges) 
   }
   return adj;
 }
+
+Set<ConstellationEdgeRef> constellationSupportEdges({
+  required String egoId,
+  required ConstellationPathResolution resolution,
+  required Iterable<ConstellationEdgeRef> trustEdges,
+}) {
+  final nodes = {...resolution.keep, egoId};
+  final deduped = <String, ConstellationEdgeRef>{};
+  for (final edge in trustEdges) {
+    if (!nodes.contains(edge.src) || !nodes.contains(edge.dst)) {
+      continue;
+    }
+    if (edge.src != egoId &&
+        edge.dst != egoId &&
+        !resolution.keep.contains(edge.src) &&
+        !resolution.keep.contains(edge.dst)) {
+      continue;
+    }
+    final key = '${edge.src}\0${edge.dst}\0${edge.tier}';
+    deduped[key] = edge;
+  }
+  final sorted = deduped.values.toList()
+    ..sort((a, b) {
+      final src = a.src.compareTo(b.src);
+      if (src != 0) {
+        return src;
+      }
+      final dst = a.dst.compareTo(b.dst);
+      if (dst != 0) {
+        return dst;
+      }
+      return a.tier.compareTo(b.tier);
+    });
+  return sorted.toSet();
+}

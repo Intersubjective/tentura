@@ -14,6 +14,7 @@ ConstellationResolvedField resolveAndCapConstellation({
   required Iterable<ConstellationEdgeRef> edges,
   required int cap,
   int maxHops = 3,
+  Set<String> budgetExemptPeerIds = const {},
 }) {
   final paths = resolveConstellationPaths(
     egoId: egoId,
@@ -27,6 +28,15 @@ ConstellationResolvedField resolveAndCapConstellation({
   final droppedHolderIds = <String>{};
   var remaining = cap;
 
+  for (final exempt in budgetExemptPeerIds) {
+    if (exempt == egoId) {
+      continue;
+    }
+    if (paths.keep.contains(exempt) || paths.ring.contains(exempt)) {
+      keptPeerIds.add(exempt);
+    }
+  }
+
   final attributedSorted = paths.attributed.toList()..sort();
   for (final holder in attributedSorted) {
     final chain = _ancestorChain(
@@ -35,9 +45,18 @@ ConstellationResolvedField resolveAndCapConstellation({
       egoId: egoId,
     );
     final missing = chain.difference(keptPeerIds);
-    if (missing.length <= remaining) {
-      keptPeerIds.addAll(missing);
-      remaining -= missing.length;
+    if (missing.isEmpty) {
+      continue;
+    }
+    final chargeable = missing.difference(budgetExemptPeerIds);
+    final free = missing.intersection(budgetExemptPeerIds);
+    keptPeerIds.addAll(free);
+    if (chargeable.isEmpty) {
+      continue;
+    }
+    if (chargeable.length <= remaining) {
+      keptPeerIds.addAll(chargeable);
+      remaining -= chargeable.length;
     } else {
       droppedHolderIds.add(holder);
     }
@@ -45,12 +64,14 @@ ConstellationResolvedField resolveAndCapConstellation({
 
   final ringSorted = paths.ring.toList()..sort();
   for (final holder in ringSorted) {
-    if (remaining <= 0) {
+    if (remaining <= 0 && !budgetExemptPeerIds.contains(holder)) {
       break;
     }
     if (!keptPeerIds.contains(holder)) {
       keptPeerIds.add(holder);
-      remaining -= 1;
+      if (!budgetExemptPeerIds.contains(holder)) {
+        remaining -= 1;
+      }
     }
   }
 
