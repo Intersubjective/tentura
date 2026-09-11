@@ -22,15 +22,21 @@ class NodesView extends StatelessWidget {
         }
 
         final visibleNodes = controller.getVisibleNodes();
-        final layout = controller.layout;
+        final orderedNodes = controller
+            .orderedNodes(
+              visibleNodes,
+              paintOrder: InheritedConfiguration.configurationOf(context)
+                  .nodePaintOrder,
+            )
+            .toList(growable: false);
 
         return CustomMultiChildLayout(
           delegate: _NodesLayoutDelegate(
-            nodes: visibleNodes,
-            layout: layout,
+            nodes: orderedNodes,
+            controller: controller,
           ),
           children: [
-            for (final node in visibleNodes)
+            for (final node in orderedNodes)
               LayoutId(
                 id: node,
                 child: RepaintBoundary(
@@ -47,11 +53,11 @@ class NodesView extends StatelessWidget {
 class _NodesLayoutDelegate extends MultiChildLayoutDelegate {
   _NodesLayoutDelegate({
     required this.nodes,
-    required this.layout,
+    required this.controller,
   });
 
-  final Set<NodeBase> nodes;
-  final GraphLayout layout;
+  final List<NodeBase> nodes;
+  final GraphController controller;
 
   @override
   void performLayout(Size size) {
@@ -60,7 +66,7 @@ class _NodesLayoutDelegate extends MultiChildLayoutDelegate {
       layoutChild(node, BoxConstraints.tight(sizeSquare));
       positionChild(
         node,
-        layout.getPosition(node) - sizeSquare.center(Offset.zero),
+        controller.getPosition(node) - sizeSquare.center(Offset.zero),
       );
     }
   }

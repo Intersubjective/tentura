@@ -47,15 +47,11 @@ class _EdgesPainter extends CustomPainter {
       return;
     }
 
-    final layout = controller.layout;
     final edges = controller.edges;
 
     for (final edge in edges) {
-      // A node added in the current frame has no position until the async
-      // relayout emits — skip its edges instead of hitting the null assert
-      // inside getPosition.
-      final source = layout.getPositionOrNull(edge.source);
-      final destination = layout.getPositionOrNull(edge.destination);
+      final source = controller.getPositionOrNull(edge.source);
+      final destination = controller.getPositionOrNull(edge.destination);
       if (source == null || destination == null) {
         continue;
       }

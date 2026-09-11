@@ -27,10 +27,15 @@ class LabelsView extends StatelessWidget {
         }
 
         final visibleNodes = controller.getVisibleNodes();
-        final layout = controller.layout;
+        final orderedNodes = controller
+            .orderedNodes(
+              visibleNodes,
+              paintOrder: configuration.nodePaintOrder,
+            )
+            .toList(growable: false);
 
         final nodeToLabel = {
-          for (final node in visibleNodes)
+          for (final node in orderedNodes)
             node: labelBuilder.build(context, node),
         };
 
@@ -38,7 +43,7 @@ class LabelsView extends StatelessWidget {
           delegate: _LabelsLayoutDelegate(
             labels: nodeToLabel,
             labelBuilder: labelBuilder,
-            layout: layout,
+            controller: controller,
           ),
           children: [
             for (final entry in nodeToLabel.entries)
@@ -59,12 +64,12 @@ class _LabelsLayoutDelegate extends MultiChildLayoutDelegate {
   _LabelsLayoutDelegate({
     required this.labels,
     required this.labelBuilder,
-    required this.layout,
+    required this.controller,
   });
 
   final Map<NodeBase, Widget> labels;
-  final GraphLayout layout;
   final LabelBuilder labelBuilder;
+  final GraphController controller;
 
   @override
   void performLayout(Size size) {
@@ -74,7 +79,7 @@ class _LabelsLayoutDelegate extends MultiChildLayoutDelegate {
       labelBuilder.performLayout(
         size,
         node,
-        layout.getPosition(node),
+        controller.getPosition(node),
         (constraints) => layoutChild(node, constraints),
         (offset) => positionChild(node, offset),
       );

@@ -21,6 +21,9 @@ class GraphController<N extends NodeBase, E extends EdgeBase<N>>
   var _centered = false;
   var _relayoutGeneration = 0;
   var _relayoutInFlight = false;
+  var _relayoutInvocationCount = 0;
+  final _presentationPositions = <N, Offset>{};
+  var _cameraGated = false;
   Ticker? _ticker;
   GraphLayout? _transitionFrom;
   GraphLayout? _transitionTarget;
@@ -61,6 +64,92 @@ class GraphController<N extends NodeBase, E extends EdgeBase<N>>
   /// True while relayout is in flight or a layout transition is animating.
   bool get isLayoutSettling => _relayoutInFlight || isLayoutTransitioning;
 
+  /// True while a node drag owns the pointer sequence and camera pan/zoom
+  /// should stay disabled.
+  bool get isCameraGated => _cameraGated;
+
+  /// Number of times [_relayout] has started. For tests only.
+  @visibleForTesting
+  int get relayoutInvocationCount => _relayoutInvocationCount;
+
+  /// Overrides the layout position of [node] for presentation only.
+  ///
+  /// Does not mutate the graph or trigger relayout. Stops any in-progress layout
+  /// transition animation.
+  void setNodePresentationPosition(NodeBase node, Offset position) {
+    final typedNode = _typedNode(node);
+    _stopLayoutAnimation();
+    _presentationPositions[typedNode] = position;
+    notifyListeners();
+  }
+
+  /// Clears the presentation override for [node], if any.
+  void clearPresentationPosition(NodeBase node) {
+    if (_presentationPositions.remove(_typedNode(node)) != null) {
+      notifyListeners();
+    }
+  }
+
+  /// Clears every presentation override.
+  void clearAllPresentationPositions() {
+    if (_presentationPositions.isEmpty) {
+      return;
+    }
+    _presentationPositions.clear();
+    notifyListeners();
+  }
+
+  /// Returns the displayed centre of [node], including any presentation override.
+  Offset getPosition(NodeBase node) =>
+      _presentationPositions[_typedNode(node)] ??
+      layout.getPosition(_typedNode(node));
+
+  /// Like [getPosition] but returns null when the node has no layout position.
+  Offset? getPositionOrNull(NodeBase node) =>
+      _presentationPositions[_typedNode(node)] ??
+      layout.getPositionOrNull(_typedNode(node));
+
+  /// Converts a point in viewport-local coordinates to canvas/scene space.
+  Offset viewportLocalToScene(Offset viewportLocal) {
+    final transformation = _transformationController;
+    if (transformation == null) {
+      return viewportLocal;
+    }
+    final matrix = transformation.value.clone()..invert();
+    return MatrixUtils.transformPoint(matrix, viewportLocal);
+  }
+
+  /// Converts a canvas/scene point to viewport-local coordinates.
+  Offset sceneToViewportLocal(Offset scene) {
+    final transformation = _transformationController;
+    if (transformation == null) {
+      return scene;
+    }
+    return MatrixUtils.transformPoint(transformation.value, scene);
+  }
+
+  /// Orders [nodes] for painting, labelling, and hit testing.
+  ///
+  /// When [paintOrder] is null or empty, iteration order is preserved.
+  Iterable<N> orderedNodes(
+    Iterable<N> nodes, {
+    List<NodeBase>? paintOrder,
+  }) {
+    if (paintOrder == null || paintOrder.isEmpty) {
+      return nodes;
+    }
+
+    final remaining = nodes.toSet();
+    final ordered = <N>[];
+    for (final node in paintOrder) {
+      if (node is N && remaining.remove(node)) {
+        ordered.add(node);
+      }
+    }
+    ordered.addAll(remaining);
+    return ordered;
+  }
+
   /// Updates the graph using [GraphMutator]. Initiates relayout.
   void mutate(void Function(GraphMutator<N, E> mutator) callback) {
     callback(GraphMutator<N, E>(this));
@@ -79,15 +168,18 @@ class GraphController<N extends NodeBase, E extends EdgeBase<N>>
     final layout = _layout;
     if (viewport == null || layout == null) return {};
     if (viewport == Rect.largest) {
-      return _nodes.where(layout.hasPosition).toSet();
+      return _nodes.where((node) => getPositionOrNull(node) != null).toSet();
     }
 
     return _nodes.where(
       (node) {
-        if (!layout.hasPosition(node)) return false;
+        final position = getPositionOrNull(node);
+        if (position == null) {
+          return false;
+        }
         return viewport.containsNode(
           node,
-          layout.getPosition(node),
+          position,
         );
       },
     ).toSet();
@@ -248,6 +340,7 @@ class GraphController<N extends NodeBase, E extends EdgeBase<N>>
       return;
     }
 
+    _relayoutInvocationCount++;
     final generation = ++_relayoutGeneration;
     _relayoutInFlight = true;
     notifyListeners();
@@ -281,6 +374,35 @@ class GraphController<N extends NodeBase, E extends EdgeBase<N>>
       }
     }
   }
+
+  void _stopLayoutAnimation() {
+    _ticker?.stop();
+    final target = _transitionTarget;
+    if (target != null) {
+      _layout = target;
+    }
+    _transitionFrom = null;
+    _transitionTarget = null;
+  }
+
+  void _setCameraGated(bool gated) {
+    if (_cameraGated == gated) {
+      return;
+    }
+    _cameraGated = gated;
+    notifyListeners();
+  }
+
+  /// Stops an in-progress layout transition without relayout.
+  ///
+  /// Used by the optional node-drag layer when a pointer capture begins.
+  void stopLayoutAnimationForInteraction() {
+    _stopLayoutAnimation();
+    notifyListeners();
+  }
+
+  /// Gates or releases camera pan/zoom for an active node-drag sequence.
+  void setCameraInteractionGated(bool gated) => _setCameraGated(gated);
 
   /// Single funnel through which every new layout reaches the renderer.
   void _publishLayout(GraphLayout next) {
@@ -522,6 +644,8 @@ class GraphController<N extends NodeBase, E extends EdgeBase<N>>
     _nodes.clear();
     _edges.clear();
     _layout = null;
+    _presentationPositions.clear();
+    _cameraGated = false;
     _transitionFrom = null;
     _transitionTarget = null;
     _ticker?.stop();
@@ -541,6 +665,13 @@ class GraphController<N extends NodeBase, E extends EdgeBase<N>>
   bool _hasNode(N node) => _nodes.contains(node);
 
   bool _hasEdge(E edge) => _edges.contains(edge);
+
+  N _typedNode(NodeBase node) {
+    if (!_hasNode(node as N)) {
+      throw ArgumentError.value(node, 'node', 'Node is not in the graph');
+    }
+    return node as N;
+  }
 }
 
 /// Wrapper around [GraphController] that allows
