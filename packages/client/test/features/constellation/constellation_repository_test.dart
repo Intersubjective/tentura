@@ -5,10 +5,13 @@ import 'package:ferry/ferry.dart'
 import 'package:flutter_test/flutter_test.dart';
 import 'package:gql_exec/gql_exec.dart' show Request, Response;
 import 'package:logging/logging.dart';
+import 'package:tentura/data/gql/_g/schema.schema.gql.dart';
 import 'package:tentura/data/service/remote_api_service.dart';
 import 'package:tentura/env.dart';
+import 'package:tentura/features/constellation/data/gql/_g/constellation_anchors_fetch.req.gql.dart';
 import 'package:tentura/features/constellation/data/gql/_g/constellation_field_fetch.req.gql.dart';
-import 'package:tentura/features/constellation/data/repository/constellation_repository.dart';
+import 'package:tentura/features/constellation/data/model/constellation_field_mapper.dart';
+import 'package:tentura/features/constellation/domain/entity/constellation_anchor.dart';
 import 'package:tentura/features/constellation/domain/entity/constellation_field.dart';
 import 'package:tentura/features/constellation/domain/entity/constellation_anchor_projection.dart';
 import 'package:tentura/features/constellation/domain/port/constellation_repository_port.dart';
@@ -48,67 +51,108 @@ final class _StubRepository implements ConstellationRepositoryPort {
       field;
 }
 
+Map<String, Object?> _fieldPayload({
+  bool includeAnchorProjection = false,
+  int edgeTier = 1,
+}) => {
+      '__typename': 'v2_ConstellationField',
+      'loadedAt': '2026-09-09T12:00:00.000Z',
+      'context': '',
+      'peersCapped': true,
+      'requestsCapped': false,
+      'peers': [
+        {
+          '__typename': 'v2_ConstellationPeer',
+          'id': 'peer-a',
+          'displayName': 'Alice',
+          'handle': '@alice',
+          'image': {
+            '__typename': 'v2_image',
+            'id': 'img-1',
+            'hash': 'hash-1',
+            'height': 100,
+            'width': 200,
+            'author_id': 'peer-a',
+            'created_at': '2026-09-01',
+          },
+        },
+      ],
+      'edges': [
+        {
+          '__typename': 'v2_ConstellationEdge',
+          'src': 'ego',
+          'dst': 'peer-a',
+          'tier': edgeTier,
+        },
+      ],
+      'requests': [
+        {
+          '__typename': 'v2_ConstellationRequest',
+          'id': 'req-1',
+          'authorId': 'peer-a',
+          'title': 'Need a drill',
+          'status': 0,
+          'needs': ['tools'],
+          'primaryNeedSlug': 'tools',
+          'startAt': '2026-09-10T10:00:00.000Z',
+          'endAt': null,
+          'addressLabel': 'Workshop',
+          'hasCoordinates': true,
+          'isMine': false,
+          'viewerHasActiveHelpOffer': true,
+          'viewerIsRoomParticipant': false,
+          'viewerHasForwardEdge': false,
+          'helpOfferCount': 2,
+          'coverSource': 0,
+          'coverThumb': null,
+        },
+      ],
+      if (includeAnchorProjection)
+        'anchorProjection': {
+          '__typename': 'v2_ConstellationAnchorProjection',
+          'revision': '9007199254740993',
+          'anchors': [
+            {
+              '__typename': 'v2_ConstellationAnchor',
+              'targetKind': 'PERSON',
+              'targetId': 'peer-a',
+              'xUnits': 1.5,
+              'yUnits': -2.25,
+              'coordinateSpaceVersion': 1,
+              'revision': '9007199254740993',
+              'placedAt': '2026-09-09T11:00:00.000Z',
+            },
+          ],
+          'pinnedPeers': [],
+          'pinnedRequests': [],
+          'supportPeers': [],
+          'supportEdges': [],
+          'serverFilteredBeaconIds': ['B_hidden'],
+          'serverFilteredBeaconCount': 1,
+        }
+      else
+        'anchorProjection': {
+          '__typename': 'v2_ConstellationAnchorProjection',
+          'revision': '0',
+          'anchors': [],
+          'pinnedPeers': [],
+          'pinnedRequests': [],
+          'supportPeers': [],
+          'supportEdges': [],
+          'serverFilteredBeaconIds': [],
+          'serverFilteredBeaconCount': 0,
+        },
+    };
+
 void main() {
-  group('ConstellationRepository', () {
+  group('ConstellationRepository mapping', () {
     test('maps constellationField payload to domain entities', () async {
       final client = Client(
         link: _FakeLink(
-          const Response(
+          Response(
             data: {
               '__typename': 'query_root',
-              'constellationField': {
-                '__typename': 'v2_ConstellationField',
-                'loadedAt': '2026-09-09T12:00:00.000Z',
-                'context': '',
-                'peersCapped': true,
-                'requestsCapped': false,
-                'peers': [
-                  {
-                    '__typename': 'v2_ConstellationPeer',
-                    'id': 'peer-a',
-                    'displayName': 'Alice',
-                    'handle': '@alice',
-                    'image': {
-                      '__typename': 'v2_image',
-                      'id': 'img-1',
-                      'hash': 'hash-1',
-                      'height': 100,
-                      'width': 200,
-                      'author_id': 'peer-a',
-                      'created_at': '2026-09-01',
-                    },
-                  },
-                ],
-                'edges': [
-                  {
-                    '__typename': 'v2_ConstellationEdge',
-                    'src': 'ego',
-                    'dst': 'peer-a',
-                    'tier': 1,
-                  },
-                ],
-                'requests': [
-                  {
-                    '__typename': 'v2_ConstellationRequest',
-                    'id': 'req-1',
-                    'authorId': 'peer-a',
-                    'title': 'Need a drill',
-                    'status': 0,
-                    'needs': ['tools'],
-                    'primaryNeedSlug': 'tools',
-                    'startAt': '2026-09-10T10:00:00.000Z',
-                    'endAt': null,
-                    'addressLabel': 'Workshop',
-                    'hasCoordinates': true,
-                    'isMine': false,
-                    'viewerHasActiveHelpOffer': true,
-                    'viewerIsRoomParticipant': false,
-                    'viewerHasForwardEdge': false,
-                    'helpOfferCount': 2,
-                    'coverThumb': null,
-                  },
-                ],
-              },
+              'constellationField': _fieldPayload(),
             },
             response: {},
           ),
@@ -117,9 +161,16 @@ void main() {
       );
 
       final response = await client
-          .request(GConstellationFieldFetchReq())
+          .request(
+            GConstellationFieldFetchReq((b) {
+              b.vars
+                ..showClosed = false
+                ..participatedOnly = false
+                ..projection = Gv2_ConstellationProjection.FULL;
+            }),
+          )
           .firstWhere((event) => event.dataSource == DataSource.Link);
-      final field = ConstellationRepository.mapConstellationField(
+      final field = mapConstellationFieldFromFieldFetch(
         response.dataOrThrow(label: 'test').constellationField,
       );
 
@@ -139,29 +190,13 @@ void main() {
       expect(field.requests.single.heldState, ConstellationHeldState.offered);
     });
 
-    test('rejects edge tier outside {1,2}', () async {
+    test('maps anchorProjection with precise revision and coordinates', () async {
       final client = Client(
         link: _FakeLink(
-          const Response(
+          Response(
             data: {
               '__typename': 'query_root',
-              'constellationField': {
-                '__typename': 'v2_ConstellationField',
-                'loadedAt': '2026-09-09T12:00:00.000Z',
-                'context': '',
-                'peersCapped': false,
-                'requestsCapped': false,
-                'peers': [],
-                'requests': [],
-                'edges': [
-                  {
-                    '__typename': 'v2_ConstellationEdge',
-                    'src': 'ego',
-                    'dst': 'peer-a',
-                    'tier': 3,
-                  },
-                ],
-              },
+              'constellationField': _fieldPayload(includeAnchorProjection: true),
             },
             response: {},
           ),
@@ -170,14 +205,149 @@ void main() {
       );
 
       final response = await client
-          .request(GConstellationFieldFetchReq())
+          .request(
+            GConstellationFieldFetchReq((b) {
+              b.vars
+                ..showClosed = false
+                ..participatedOnly = false
+                ..projection = Gv2_ConstellationProjection.FULL;
+            }),
+          )
+          .firstWhere((event) => event.dataSource == DataSource.Link);
+      final field = mapConstellationFieldFromFieldFetch(
+        response.dataOrThrow(label: 'test').constellationField,
+      );
+
+      final projection = field.anchorProjection!;
+      expect(
+        projection.revision.value,
+        BigInt.parse('9007199254740993'),
+      );
+      expect(projection.anchors, hasLength(1));
+      final anchor = projection.anchors.single;
+      expect(anchor.target, const ConstellationAnchorPersonTarget('peer-a'));
+      expect(anchor.position.xUnits, 1.5);
+      expect(anchor.position.yUnits, -2.25);
+      expect(anchor.revision.value, BigInt.parse('9007199254740993'));
+      expect(projection.serverFilteredBeaconIds, ['B_hidden']);
+      expect(projection.serverFilteredBeaconCount, 1);
+    });
+
+    test('rejects edge tier outside {1,2}', () async {
+      final client = Client(
+        link: _FakeLink(
+          Response(
+            data: {
+              '__typename': 'query_root',
+              'constellationField': _fieldPayload(edgeTier: 3),
+            },
+            response: {},
+          ),
+        ),
+        defaultFetchPolicies: _fetchPolicies,
+      );
+
+      final response = await client
+          .request(
+            GConstellationFieldFetchReq((b) {
+              b.vars
+                ..showClosed = false
+                ..participatedOnly = false
+                ..projection = Gv2_ConstellationProjection.FULL;
+            }),
+          )
           .firstWhere((event) => event.dataSource == DataSource.Link);
 
       expect(
-        () => ConstellationRepository.mapConstellationField(
+        () => mapConstellationFieldFromFieldFetch(
           response.dataOrThrow(label: 'test').constellationField,
         ),
         throwsA(isA<FormatException>()),
+      );
+    });
+
+    test('rejects malformed anchor revision', () {
+      expect(
+        () => mapWireAnchor(
+          targetKind: Gv2_ConstellationAnchorTargetKind.PERSON,
+          targetId: 'peer-a',
+          xUnits: 0,
+          yUnits: 0,
+          coordinateSpaceVersion: 1,
+          revision: '12abc',
+          placedAt: '2026-09-09T11:00:00.000Z',
+        ),
+        throwsA(isA<FormatException>()),
+      );
+    });
+
+    test('rejects malformed anchor coordinates without clamping', () {
+      expect(
+        () => mapWireAnchor(
+          targetKind: Gv2_ConstellationAnchorTargetKind.PERSON,
+          targetId: 'peer-a',
+          xUnits: 11,
+          yUnits: 0,
+          coordinateSpaceVersion: 1,
+          revision: '1',
+          placedAt: '2026-09-09T11:00:00.000Z',
+        ),
+        throwsA(isA<FormatException>()),
+      );
+    });
+
+  });
+
+  group('request routing', () {
+    test('FULL fetch carries filters and projection on ConstellationFieldFetch',
+        () {
+      final req = GConstellationFieldFetchReq((b) {
+        b.vars
+          ..showClosed = true
+          ..participatedOnly = true
+          ..projection = Gv2_ConstellationProjection.FULL;
+      });
+
+      expect(req.operation.operationName, 'ConstellationFieldFetch');
+      expect(req.vars.showClosed, isTrue);
+      expect(req.vars.participatedOnly, isTrue);
+      expect(req.vars.projection, Gv2_ConstellationProjection.FULL);
+      expect(
+        req.execRequest.variables,
+        containsPair('showClosed', true),
+      );
+      expect(
+        req.execRequest.variables,
+        containsPair('participatedOnly', true),
+      );
+      expect(
+        req.execRequest.variables['projection'],
+        'FULL',
+      );
+    });
+
+    test('ANCHORS fetch uses ConstellationAnchorsFetch with filters only', () {
+      final req = GConstellationAnchorsFetchReq((b) {
+        b.vars
+          ..showClosed = true
+          ..participatedOnly = false;
+      });
+
+      expect(req.operation.operationName, 'ConstellationAnchorsFetch');
+      expect(req.vars.showClosed, isTrue);
+      expect(req.vars.participatedOnly, isFalse);
+      expect(req.execRequest.variables.keys, containsAll(['showClosed', 'participatedOnly']));
+      expect(req.execRequest.variables.keys, isNot(contains('projection')));
+    });
+
+    test('projectionToWire maps domain enums to stitched values', () {
+      expect(
+        projectionToWire(ConstellationProjection.full),
+        Gv2_ConstellationProjection.FULL,
+      );
+      expect(
+        projectionToWire(ConstellationProjection.anchors),
+        Gv2_ConstellationProjection.ANCHORS,
       );
     });
   });
