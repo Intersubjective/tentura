@@ -55,7 +55,7 @@ tg_style_research.md
 | Packet | Status | Dependency | Evidence / commit |
 |---|---|---|---|
 | P01 Contract fixtures and domain types | complete | — | see checkpoint below |
-| P02 Migration and storage adapter | complete (remediated) | P01 | see checkpoint below |
+| P02 Migration and storage adapter | complete (concurrency-proof remediated) | P01 | see checkpoint below |
 | P03 Server membership and complete snapshot | pending | P02 | — |
 | P04 Authenticated V2 API | pending | P03 | — |
 | P05 Client wire adapters and server echo policy | pending | P04 | — |
@@ -269,6 +269,56 @@ FINDINGS:
   two single-row deletes in the PG harness (sequential deletes used).
 
 REMAINING: none for P02 remediation (P03 next).
+
+### P02 concurrency-proof remediation — 2026-09-11
+
+- Manager rejection (prior attempt): (A) upsert “deadlock victim” used 20 ms sleep
+  and final coordinates only—no proof retry ran or `40P01` occurred; (B) cascade
+  “deadlock victim” blocked cursor during delete/upsert without asserting
+  deadlock, rollback, or victim side; (C) retry exhaustion injected
+  `transactionRetry` before `withMutatingUser`, so no proof of post-mutation
+  rollback or unchanged cursor/row/NOTIFY; (D) helper unit test title claimed
+  “rolls back” without a transaction.
+- Fix: removed injectable `transactionRetry` seam from
+  `ConstellationAnchorRepository`; production keeps C3 semantics (`maxRetries =
+  1`, `40P01`/`40001` only, whole `withMutatingUser` action retried). PG proofs
+  use disposable DB + `p02_retry_probe` temp triggers raising SQLSTATE `40P01`
+  after anchor row mutation (`mutation_seq` asserts exactly two attempts).
+  Upsert fail-first + always-raise exhaustion assert `ServerException` `40P01`,
+  unchanged coordinates/revision/watermark, and zero `entity_changes` NOTIFY on
+  exhaustion; delete fail-first covers the inverse mutation path. Concurrent
+  beacon/person cascade tests remain integration coverage without labeling mere
+  waits as deadlocks (PostgreSQL does not deterministically pick cascade vs
+  cursor-first victim). Renamed helper unit test to describe retry invocation,
+  not rollback.
+- Commands (serial):
+  - `cd packages/server && dart test test/data/database/postgres_serialization_retry_test.dart -j 1` → 5 passed
+  - `cd packages/server && dart test test/data/repository/constellation_anchor_repository_pg_test.dart -j 1` → 7 passed
+  - `cd packages/server && dart test test/data/database/constellation_anchor_storage_pg_test.dart -j 1` → 18 passed
+  - `./scripts/check-custom-lints.sh packages/server` → exit 0
+
+STATUS: complete
+
+COMMITS: (this journal commit follows code commit)
+
+TESTS: see Commands above (all exit 0)
+
+FILES:
+- packages/server/lib/data/repository/constellation_anchor_repository.dart
+- packages/server/test/data/database/constellation_anchor_pg_retry_probe.dart
+- packages/server/test/data/database/postgres_serialization_retry_test.dart
+- packages/server/test/data/repository/constellation_anchor_repository_pg_test.dart
+- docs/plans/constellation-pinning-implementation-journal.md
+
+FINDINGS:
+- Synthetic `40P01` via `RAISE EXCEPTION USING ERRCODE = '40P01'` after
+  `bump_constellation_anchor_revision` work in the same transaction proves
+  rollback of cursor/row/notification before the repository’s single retry.
+- Lock-order victim selection for real FK cascades is not deterministic; honest
+  acceptance uses SQLSTATE probes on UPDATE and DELETE mutation paths plus
+  existing concurrent cascade completion tests.
+
+REMAINING: none for P02 (P03 next).
 
 ### P01 manager review — 2026-09-11
 
