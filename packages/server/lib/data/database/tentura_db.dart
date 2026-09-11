@@ -31,6 +31,8 @@ import 'table/beacon_help_offer_admission_events.dart';
 import 'table/capability_evidence_edges.dart';
 import 'table/capability_evidence_generations.dart';
 import 'table/capability_routing_mutes.dart';
+import 'table/constellation_anchor_cursors.dart';
+import 'table/constellation_anchors.dart';
 import 'table/beacon_commitment_events.dart';
 import 'table/beacon_help_offer_coordinations.dart';
 import 'table/beacon_evaluation_participants.dart';
@@ -123,6 +125,8 @@ part 'tentura_db.g.dart';
     BeaconRoomStates,
     BeaconStewards,
     Beacons,
+    ConstellationAnchorCursors,
+    ConstellationAnchors,
     Complaints,
     FcmTokens,
     Images,
@@ -218,6 +222,16 @@ class TenturaDb extends _$TenturaDb {
   }
 
   /// System-owned mutation transaction with an explicitly empty actor scope.
+  /// One PostgreSQL MVCC snapshot for repeatable-read field reads (C4).
+  Future<T> withReadSnapshot<T>(Future<T> Function() action) {
+    return transaction(() async {
+      await customStatement(
+        'SET TRANSACTION ISOLATION LEVEL REPEATABLE READ READ ONLY',
+      );
+      return action();
+    });
+  }
+
   Future<T> withMutatingSystem<T>(Future<T> Function() action) {
     final current = Zone.current[_mutatingTransactionZoneKey];
     if (current is _MutatingTransactionContext && identical(current.db, this)) {
