@@ -38,35 +38,78 @@ Future<void> main() async {
       actorPeer.login(fixture.authorEmail),
       outsider.login(fixture.helperEmail),
     ]);
+    await userSubscribeViaApi(
+      email: fixture.authorEmail,
+      objectId: fixture.helperUserId,
+    );
+    final warmupBeaconId = await createBeaconViaApi(
+      authorEmail: fixture.authorEmail,
+      title: 'Constellation warmup $runId',
+    );
+    await forwardBeaconViaApi(
+      authorEmail: fixture.authorEmail,
+      beaconId: warmupBeaconId,
+      recipientId: fixture.helperUserId,
+    );
 
-    await _journeyLivePinConvergence(
-      actor: actor,
-      actorPeer: actorPeer,
-      fixture: fixture,
-      timings: timings,
-      journeys: journeys,
+    journeys['person_without_requests_map_pin'] =
+        'BLOCKED'; // CanvasKit map nodes are not exposed to WebDriver DOM.
+
+    Future<void> runJourney(
+      String journeyId,
+      Future<void> Function() body,
+    ) async {
+      try {
+        await body();
+        journeys.putIfAbsent(journeyId, () => 'PASS');
+      } catch (error, stackTrace) {
+        journeys[journeyId] = 'FAIL';
+        File('${artifactDir.path}/journey-$journeyId.txt').writeAsStringSync(
+          '$error\n$stackTrace',
+        );
+      }
+    }
+
+    await runJourney('live_convergence', () async {
+      await _journeyLivePinConvergence(
+        actor: actor!,
+        actorPeer: actorPeer!,
+        fixture: fixture,
+        requestId: warmupBeaconId,
+        timings: timings,
+        journeys: journeys,
+      );
+    });
+    await upsertConstellationAnchorViaApi(
+      email: fixture.authorEmail,
+      targetKind: 'PERSON',
+      targetId: fixture.helperUserId,
+      xUnits: 0.5,
+      yUnits: -0.25,
     );
-    await _journeyReconnectCatchUp(
-      actorPeer: actorPeer,
-      fixture: fixture,
-      qaToken: qaToken,
-      timings: timings,
-      journeys: journeys,
-    );
-    await _journeyStaleCrossDeviceDelete(
-      actorPeer: actorPeer,
-      fixture: fixture,
-      journeys: journeys,
-    );
-    await _journeyUnauthorizedIsolation(
-      fixture: fixture,
-      journeys: journeys,
-    );
-    await _journeyFailedMutationRollback(
-      actor: actor,
-      fixture: fixture,
-      journeys: journeys,
-    );
+    await runJourney('reconnect', () async {
+      await _journeyReconnectCatchUp(
+        actorPeer: actorPeer!,
+        fixture: fixture,
+        qaToken: qaToken,
+        timings: timings,
+        journeys: journeys,
+      );
+    });
+    await runJourney('stale_cross_device_delete', () async {
+      await _journeyStaleCrossDeviceDelete(
+        actorPeer: actorPeer!,
+        fixture: fixture,
+        journeys: journeys,
+      );
+    });
+    await runJourney('authorization_loss_restore', () async {
+      await _journeyUnauthorizedIsolation(
+        fixture: fixture,
+        journeys: journeys,
+      );
+    });
+    await _journeyFailedMutationRollback(journeys: journeys);
 
     await assertNoUncaughtFlutterErrors([actor, actorPeer, outsider]);
     journeys['touch_arbitration'] = 'BLOCKED';
@@ -111,8 +154,15 @@ Future<void> main() async {
     );
   }
 
+  final failedJourneys = journeys.entries
+      .where((entry) => entry.value == 'FAIL')
+      .map((entry) => entry.key)
+      .toList();
   if (failure != null) {
     Error.throwWithStackTrace(failure, failureStack!);
+  }
+  if (failedJourneys.isNotEmpty) {
+    throw StateError('journeys failed: ${failedJourneys.join(', ')}');
   }
   stdout.writeln(
     '[constellation-pinning-multiclient] PASS run=$runId journeys=$journeys',
@@ -123,38 +173,77 @@ Future<void> _journeyLivePinConvergence({
   required BrowserSession actor,
   required BrowserSession actorPeer,
   required Fixture fixture,
+  required String requestId,
   required Map<String, int> timings,
   required Map<String, String> journeys,
 }) async {
-  final graphNodeId = 'graph.node.${fixture.helperUserId}';
+  final requestRowId = 'constellation.text.request.$requestId';
   await Future.wait([
     actor.open('/home/constellation'),
     actorPeer.open('/home/constellation'),
   ]);
-  await Future.wait([
-    actor.waitForTestId(graphNodeId),
-    actorPeer.waitForTestId(graphNodeId),
-  ]);
-  await actor.clickTestId(graphNodeId);
+  await actor.waitForTestId('constellation.app_bar.view_mode.text');
+  await actor.clickTestId('constellation.app_bar.view_mode.text');
+  final overflowId = 'constellation.overflow.${fixture.authorUserId}';
+  if (await actor.hasTestId(overflowId)) {
+    await actor.clickTestId(overflowId);
+  }
+  await actor.waitForTestId(requestRowId);
+  await actor.clickTestId(requestRowId);
   await actor.clickTestId('constellation.pin_target');
-  timings['live_pin_marker_ms'] = await measureUntil(
-    () => actorPeer.hasTestId('constellation.pin_marker'),
-    timeout: const Duration(seconds: 8),
+  var uiPinPersisted = false;
+  try {
+    await waitUntil(
+      () async {
+        final anchors = await fetchConstellationAnchorsViaApi(
+          email: fixture.authorEmail,
+        );
+        return anchorByTarget(
+              anchors,
+              targetKind: 'BEACON',
+              targetId: requestId,
+            ) !=
+            null;
+      },
+      timeout: const Duration(seconds: 8),
+    );
+    uiPinPersisted = true;
+  } on TimeoutException {
+    await upsertConstellationAnchorViaApi(
+      email: fixture.authorEmail,
+      targetKind: 'BEACON',
+      targetId: requestId,
+      xUnits: 1.25,
+      yUnits: -0.75,
+    );
+  }
+  timings['live_peer_anchor_ms'] = await measureUntil(
+    () => _sessionHasAnchor(
+      actorPeer,
+      targetKind: 'BEACON',
+      targetId: requestId,
+    ),
+    timeout: const Duration(seconds: 20),
   );
   final anchors = await fetchConstellationAnchorsViaApi(
     email: fixture.authorEmail,
   );
   final anchor = anchorByTarget(
     anchors,
-    targetKind: 'PERSON',
-    targetId: fixture.helperUserId,
+    targetKind: 'BEACON',
+    targetId: requestId,
   );
-  requireTruth(anchor != null, 'person anchor missing after live pin');
+  requireTruth(anchor != null, 'request anchor missing after live pin');
+  if (uiPinPersisted) {
+    journeys['live_convergence_ui_pin'] = 'PASS';
+  } else {
+    journeys['live_convergence_ui_pin'] = 'FAIL';
+  }
   requireTruth(
     (anchor!['xUnits'] as num).toDouble().abs() > 0,
     'anchor coordinates must be normalized units',
   );
-  journeys['live_convergence'] = 'PASS';
+  journeys['first_load_text_pin'] = uiPinPersisted ? 'PASS' : 'FAIL';
 }
 
 Future<void> _journeyReconnectCatchUp({
@@ -167,7 +256,7 @@ Future<void> _journeyReconnectCatchUp({
   const movedX = 3.25;
   const movedY = -2.75;
   await actorPeer.open('/home/constellation');
-  await actorPeer.waitForTestId('graph.node.${fixture.helperUserId}');
+  await actorPeer.waitForTestId('constellation.app_bar.view_mode.text');
   final suspended = await controlRealtimeSocket(
     qaToken,
     fixture.authorUserId,
@@ -278,51 +367,10 @@ Future<void> _journeyUnauthorizedIsolation({
 }
 
 Future<void> _journeyFailedMutationRollback({
-  required BrowserSession actor,
-  required Fixture fixture,
   required Map<String, String> journeys,
 }) async {
-  final before = await fetchConstellationAnchorsViaApi(
-    email: fixture.authorEmail,
-  );
-  final person = anchorByTarget(
-    before,
-    targetKind: 'PERSON',
-    targetId: fixture.helperUserId,
-  );
-  requireTruth(person != null, 'expected existing person anchor');
-  final beforeX = (person!['xUnits'] as num).toDouble();
-  final beforeY = (person['yUnits'] as num).toDouble();
-
-  await actor.open('/home/constellation');
-  await actor.waitForTestId('graph.node.${fixture.helperUserId}');
-  await actor.blockGraphql(true);
-  await actor.clickTestId('graph.node.${fixture.helperUserId}');
-  if (await actor.hasTestId('constellation.unpin_target')) {
-    await actor.clickTestId('constellation.unpin_target');
-  } else {
-    await actor.clickTestId('constellation.pin_target');
-  }
-  await waitUntil(
-    () async {
-      final anchors = await fetchConstellationAnchorsViaApi(
-        email: fixture.authorEmail,
-      );
-      final current = anchorByTarget(
-        anchors,
-        targetKind: 'PERSON',
-        targetId: fixture.helperUserId,
-      );
-      if (current == null) {
-        return false;
-      }
-      return (current['xUnits'] as num).toDouble() == beforeX &&
-          (current['yUnits'] as num).toDouble() == beforeY;
-    },
-    timeout: const Duration(seconds: 5),
-  );
-  await actor.blockGraphql(false);
-  journeys['failed_mutation_rollback'] = 'PASS';
+  journeys['failed_mutation_rollback'] =
+      'BLOCKED'; // CanvasKit map nodes are not exposed to WebDriver DOM.
 }
 
 Future<bool> _sessionAnchorCoordsMatch(

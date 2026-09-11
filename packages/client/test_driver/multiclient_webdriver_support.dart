@@ -559,6 +559,20 @@ Future<SocketControlResult> controlRealtimeSocket(
 String escapeGraphQlString(String value) =>
     value.replaceAll(r'\', r'\\').replaceAll('"', r'\"');
 
+Future<void> userSubscribeViaApi({
+  required String email,
+  required String objectId,
+}) async {
+  final response = await postGraphQlAuthenticated(
+    email: email,
+    query: 'mutation { userSubscribe(objectId: "$objectId") }',
+  );
+  final errors = response['errors'];
+  if (errors != null) {
+    throw StateError('userSubscribe failed: $errors');
+  }
+}
+
 Future<String> createBeaconViaApi({
   required String authorEmail,
   required String title,
@@ -794,10 +808,12 @@ Future<Map<String, dynamic>> upsertConstellationAnchorViaApi({
   required double yUnits,
   int coordinateSpaceVersion = 1,
 }) async {
+  final x = xUnits.toDouble().toStringAsFixed(4);
+  final y = yUnits.toDouble().toStringAsFixed(4);
   final response = await postGraphQlAuthenticated(
     email: email,
     query:
-        'mutation { constellationAnchorUpsert(targetKind: $targetKind, targetId: "$targetId", xUnits: $xUnits, yUnits: $yUnits, coordinateSpaceVersion: $coordinateSpaceVersion) { anchor { targetKind targetId xUnits yUnits coordinateSpaceVersion revision } revision } }',
+        'mutation { constellationAnchorUpsert(targetKind: $targetKind, targetId: "$targetId", xUnits: $x, yUnits: $y, coordinateSpaceVersion: $coordinateSpaceVersion) { anchor { targetKind targetId xUnits yUnits coordinateSpaceVersion revision } revision } }',
   );
   final errors = response['errors'];
   if (errors != null) {
