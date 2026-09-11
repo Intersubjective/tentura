@@ -57,8 +57,8 @@ tg_style_research.md
 | P01 Contract fixtures and domain types | complete | — | see checkpoint below |
 | P02 Migration and storage adapter | complete (concurrency-proof remediated) | P01 | see checkpoint below |
 | P03 Server membership and complete snapshot | complete (remediated) | P02 | see checkpoint below |
-| P04 Authenticated V2 API | complete | P03 | see checkpoint below |
-| P05 Client wire adapters and server echo policy | pending | P04 | — |
+| P04 Authenticated V2 API | complete (accepted) | P03 | see checkpoint below |
+| P05 Client wire adapters and server echo policy | in progress (P05a echo) | P04 | — |
 | P06 Pure composition, budgets and layout | pending | P05 | — |
 | P07 Graph gesture adapter | pending | P06 | — |
 | P08 Placement orchestration and live reconciliation | pending | P07 | — |
@@ -501,3 +501,11 @@ REMAINING: none for P02 (P03 next).
 - Verdict: accepted. Reviewed `5ffaac2c8` and remediation `8867e7759`: the reader uses C4's top-level read-only snapshot, applies C2 filters server-side, returns residual no-path pinned Request authors without invented support edges, and shares one projection reader for FULL and ANCHORS.
 - Independently passed serially: repository PG snapshot test (23), constellation selection/path/participation SQL tests, and `./scripts/check-custom-lints.sh packages/server` (custom-lint total 0).
 - Post-worker process audit found no task-owned runner, Dart test/analyzer, Flutter, WebDriver, or Chrome process. Pre-existing services and untracked paths remain untouched.
+
+### P04 manager review — 2026-09-11 (resume)
+
+- Overseer session resumed on `feature/pin_constellation` at `e08471f98`. Worktree is clean except the original untracked docs/secrets list. Live code already owns `m0167` and exception space `1700` for this feature.
+- Verdict: accepted. Reviewed `2080c78ed` / `e08471f98`. GraphQL field args, server-owned context, numeric-string codes `1700`–`1703`, and mutation result shapes match C4. No generated source or pre-existing user paths were staged.
+- Independently passed: `cd packages/server && dart test test/api/controllers/graphql/constellation_anchor_test.dart -j 1` — 15 passed.
+- Process audit before P05: docker has postgres + meritrank only; Hasura / tentura-server / Flutter :8888 are not running. No task-owned Cursor runner, Dart test, Flutter, WebDriver, or Chrome process. Pre-existing editor/browser services left untouched.
+- Next subunit: **P05a** server echo policy only (`kRealtimeAlwaysEchoKinds` + WS protocol tests). Client GraphQL / schema_fetcher / Ferry wait for **P05b** because Hasura is down and schema fetch needs a live P04 remote schema.
