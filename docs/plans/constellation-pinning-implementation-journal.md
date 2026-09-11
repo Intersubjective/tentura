@@ -547,3 +547,13 @@ FINDINGS:
 
 REMAINING: P05b client GraphQL/Ferry wire adapters (schema_fetcher, repository
 ports); P08 for realtime enum/manifest/contract subscriber wiring per C8.
+
+### P05a manager review — 2026-09-11
+
+- Verdict: accepted. Reviewed `002599c6b` / `4eb25e512`. Actor skip is
+  `echo disabled AND entity not in kRealtimeAlwaysEchoKinds`. Payload still
+  omits `user_ids`. Foreign-account exclusion is proven on the echo-disabled
+  path; echo-enabled uses `user_ids: [viewer]` so a foreign session is not a
+  recipient. Unrelated `beacon`/`forward` tests remain.
+- Independently passed: `cd packages/server && dart test test/api/controllers/websocket/websocket_realtime_protocol_test.dart` — 12 passed. `git diff --check` clean. No generated or pre-existing user paths staged.
+- Process audit: Hasura is up from manager prep; tentura-server not yet running. No task-owned test/Flutter/Chrome leftover from P05a. Next: **P05b** client wire + schema_fetcher.
