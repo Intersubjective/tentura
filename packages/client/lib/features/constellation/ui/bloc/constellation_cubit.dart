@@ -498,7 +498,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
             activePlacementTarget: null,
             deferredRefreshTarget: null,
             placementFailureMessage: null,
-            syncPending: false,
+            syncPending: _anchorCase?.syncPending ?? false,
             placementActionsEnabled: true,
           ),
         );

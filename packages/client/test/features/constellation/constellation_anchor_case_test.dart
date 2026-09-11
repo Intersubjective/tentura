@@ -55,6 +55,7 @@ final class _FakeFieldRepository implements ConstellationRepositoryPort {
   int fetchCount = 0;
   Completer<void> fetchGate = Completer<void>()..complete();
   ConstellationFieldMembershipFilters? lastMembershipFilters;
+  Object? fetchError;
 
   @override
   Future<ConstellationField> fetch({
@@ -64,6 +65,9 @@ final class _FakeFieldRepository implements ConstellationRepositoryPort {
   }) async {
     fetchCount++;
     lastMembershipFilters = membershipFilters;
+    if (fetchError != null) {
+      throw fetchError!;
+    }
     if (!fetchGate.isCompleted) {
       await fetchGate.future;
     }
@@ -288,6 +292,44 @@ void main() {
       expect(case_.syncPending, isTrue);
       expect(anchorRepo.upsertCount, 1);
       expect(fieldRepo.fetchCount, 1);
+    });
+
+    test('mutation and recovery failures still complete with sync pending', () async {
+      anchorRepo.upsertError = StateError('network');
+      fieldRepo.fetchError = StateError('offline');
+      final outcome = await case_.upsert(
+        target: ConstellationAnchorTarget.person('p1'),
+        position: const ConstellationAnchorPosition(
+          xUnits: 0,
+          yUnits: 0,
+          coordinateSpaceVersion: 1,
+        ),
+        generation: 1,
+      );
+      expect(outcome.kind, ConstellationAnchorWriteOutcomeKind.failed);
+      expect(outcome.projection, isNotNull);
+      expect(case_.syncPending, isTrue);
+      expect(case_.hasPendingWrite, isFalse);
+      expect(anchorRepo.upsertCount, 1);
+      expect(fieldRepo.fetchCount, 1);
+    });
+
+    test('successful mutation keeps confirmation when recovery read fails', () async {
+      fieldRepo.fetchError = StateError('offline');
+      final outcome = await case_.upsert(
+        target: ConstellationAnchorTarget.person('p1'),
+        position: const ConstellationAnchorPosition(
+          xUnits: 2,
+          yUnits: 3,
+          coordinateSpaceVersion: 1,
+        ),
+        generation: 1,
+      );
+      expect(outcome.kind, ConstellationAnchorWriteOutcomeKind.succeeded);
+      expect(case_.syncPending, isTrue);
+      expect(case_.hasPendingWrite, isFalse);
+      expect(case_.confirmedProjection.anchors, isNotEmpty);
+      expect(case_.confirmedProjection.anchors.single.position.xUnits, 2);
     });
 
     test('stale generation discards refresh and write results', () async {

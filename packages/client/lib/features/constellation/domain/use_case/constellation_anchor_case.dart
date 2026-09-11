@@ -310,37 +310,58 @@ final class ConstellationAnchorCase extends UseCaseBase {
     final writeToken = _loadGeneration;
     _pendingWrite = pending;
     _writeCount++;
+    var mutationSucceeded = false;
     try {
-      final mutation = await action();
-      if (writeAccount != _viewerAccountId || writeToken != _loadGeneration) {
-        return const ConstellationAnchorWriteOutcome(
-          kind: ConstellationAnchorWriteOutcomeKind.staleResponseDiscarded,
-        );
+      try {
+        final mutation = await action();
+        if (writeAccount != _viewerAccountId || writeToken != _loadGeneration) {
+          return const ConstellationAnchorWriteOutcome(
+            kind: ConstellationAnchorWriteOutcomeKind.staleResponseDiscarded,
+          );
+        }
+        mutationSucceeded = adoptMutation(mutation);
+      } on Object catch (error, stackTrace) {
+        logger.warning('Constellation anchor write failed', error, stackTrace);
+        if (writeAccount != _viewerAccountId || writeToken != _loadGeneration) {
+          return const ConstellationAnchorWriteOutcome(
+            kind: ConstellationAnchorWriteOutcomeKind.staleResponseDiscarded,
+          );
+        }
       }
-      final adopted = adoptMutation(mutation);
-      if (!adopted) {
-        await _refreshAnchorsOnce(
+
+      var recoveryFailed = false;
+      try {
+        final projection = await _fetchAnchorsProjection(
           membershipFilters: membershipFilters,
         );
+        if (writeAccount == _viewerAccountId && writeToken == _loadGeneration) {
+          _applyIncomingProjection(
+            projection,
+            requestSeq: ++_anchorsRequestSeq,
+          );
+        }
+      } on Object catch (error, stackTrace) {
+        logger.warning(
+          'Constellation anchor recovery read failed',
+          error,
+          stackTrace,
+        );
+        recoveryFailed = true;
+      }
+
+      if (writeAccount != _viewerAccountId || writeToken != _loadGeneration) {
         return ConstellationAnchorWriteOutcome(
           kind: ConstellationAnchorWriteOutcomeKind.staleResponseDiscarded,
           projection: _confirmed,
         );
       }
-      await _refreshAnchorsOnce(membershipFilters: membershipFilters);
-      _syncPending = false;
-      return ConstellationAnchorWriteOutcome(
-        kind: ConstellationAnchorWriteOutcomeKind.succeeded,
-        projection: _confirmed,
-      );
-    } on Object catch (error, stackTrace) {
-      logger.warning('Constellation anchor write failed', error, stackTrace);
-      if (writeAccount != _viewerAccountId || writeToken != _loadGeneration) {
-        return const ConstellationAnchorWriteOutcome(
-          kind: ConstellationAnchorWriteOutcomeKind.staleResponseDiscarded,
+      if (mutationSucceeded) {
+        _syncPending = recoveryFailed;
+        return ConstellationAnchorWriteOutcome(
+          kind: ConstellationAnchorWriteOutcomeKind.succeeded,
+          projection: _confirmed,
         );
       }
-      await _refreshAnchorsOnce(membershipFilters: membershipFilters);
       _syncPending = true;
       return ConstellationAnchorWriteOutcome(
         kind: ConstellationAnchorWriteOutcomeKind.failed,
