@@ -57,7 +57,7 @@ tg_style_research.md
 | P01 Contract fixtures and domain types | complete | — | see checkpoint below |
 | P02 Migration and storage adapter | complete (concurrency-proof remediated) | P01 | see checkpoint below |
 | P03 Server membership and complete snapshot | complete (remediated) | P02 | see checkpoint below |
-| P04 Authenticated V2 API | pending | P03 | — |
+| P04 Authenticated V2 API | complete | P03 | see checkpoint below |
 | P05 Client wire adapters and server echo policy | pending | P04 | — |
 | P06 Pure composition, budgets and layout | pending | P05 | — |
 | P07 Graph gesture adapter | pending | P06 | — |
@@ -371,6 +371,46 @@ FINDINGS:
   closure with support edges is covered in pure resolver tests instead.
 
 REMAINING: P04 GraphQL/API.
+
+### P04 — Authenticated V2 API — 2026-09-11
+
+- `constellationField(showClosed, participatedOnly, projection)` with server-owned
+  `kConstellationContext`; `anchorProjection` on wire; `FULL` / `ANCHORS` enum.
+- `constellationAnchorUpsert` / `constellationAnchorDelete` mutations;
+  `ConstellationAnchorCase`; codes `1700`–`1703` via `ConstellationException`.
+- Upsert authorization after cursor `FOR UPDATE` via shared C2 SQL helper
+  (`constellation_anchor_upsert_authorization.dart`); PG harness trust seeds.
+- Commands (serial):
+  - `cd packages/server && dart test test/api/controllers/graphql/constellation_anchor_test.dart -j 1` → 15 passed
+  - `cd packages/server && dart test test/domain/use_case/constellation_field_case_test.dart -j 1` → 15 passed
+  - `./scripts/check-custom-lints.sh packages/server` → exit 0
+
+STATUS: complete
+
+COMMITS:
+- 2080c78ed feat(server): add P04 constellation anchor V2 GraphQL API
+
+TESTS: see Commands above (all exit 0)
+
+FILES:
+- packages/server/lib/domain/use_case/constellation_anchor_case.dart
+- packages/server/lib/api/controllers/graphql/mutation/mutation_constellation_anchor.dart
+- packages/server/lib/api/controllers/graphql/query/query_constellation_field.dart
+- packages/server/lib/api/controllers/graphql/mappers/constellation_gql_maps.dart
+- packages/server/lib/api/controllers/graphql/custom_types.dart
+- packages/server/lib/domain/exception.dart
+- packages/server/lib/domain/exception_codes.dart
+- packages/server/lib/data/repository/constellation_anchor_repository.dart
+- packages/server/lib/data/repository/constellation_anchor_upsert_authorization.dart
+- packages/server/test/api/controllers/graphql/constellation_anchor_test.dart
+
+FINDINGS:
+- Isolated GraphQL test schema must not import full `queriesAll`/`mutationsAll`
+  (GetIt defaults); constellation-only `GraphQL` + `customTypes` suffices.
+- `di.config.dart` is gitignored; `ConstellationAnchorCase` registers via local
+  `build_runner` on deploy/CI codegen paths.
+
+REMAINING: P05 client wire adapters and server echo policy.
 
 ### P02 concurrency-proof remediation — 2026-09-11
 
