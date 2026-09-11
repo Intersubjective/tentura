@@ -178,6 +178,29 @@ final class BrowserSession {
 
   Future<bool> hasTestId(String id) async => await _elementByTestId(id) != null;
 
+  Future<bool> hasTestIdWithin({
+    required String rootTestId,
+    required String childTestId,
+  }) async {
+    final root = await _elementByTestId(rootTestId);
+    if (root == null) {
+      return false;
+    }
+    return await driver.execute(
+          '''
+      const root = arguments[0];
+      const wanted = arguments[1];
+      const matches = element => Array.from(element.attributes || []).some(
+        attr => attr.value === wanted,
+      );
+      const nodes = [root, ...root.querySelectorAll('*')];
+      return nodes.some(matches);
+    ''',
+          [root, childTestId],
+        ) ==
+        true;
+  }
+
   Future<void> waitForTestIdText(String id, String text) =>
       waitUntil(() => testIdTextContains(id, text));
 

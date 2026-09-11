@@ -409,21 +409,12 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
       spacing: 16,
       priorHints: _layoutPriorHints,
     );
-    var position = computeConstellationPinPosition(
+    final position = computeConstellationPinPosition(
       target: target,
       layoutInput: layoutInput,
     );
     if (position == null) {
-      final peerVisible =
-          state.field?.peers.any((peer) => peer.id == target.id) ?? false;
-      if (!peerVisible) {
-        return;
-      }
-      position = const ConstellationAnchorPosition(
-        xUnits: 0,
-        yUnits: 0,
-        coordinateSpaceVersion: kConstellationCoordinateSpaceVersionV1,
-      );
+      return;
     }
     emit(
       state.copyWith(
@@ -700,7 +691,12 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     if (isClosed) {
       return;
     }
-    emit(state.copyWith(selectedRequestId: requestId));
+    emit(
+      state.copyWith(
+        selectedRequestId: requestId,
+        selectedPersonId: requestId != null ? null : state.selectedPersonId,
+      ),
+    );
   }
 
   void setViewMode(ConstellationViewMode viewMode) {
@@ -750,6 +746,29 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
         state.confirmedProjection?.anchors ??
         const <ConstellationAnchor>[];
     return anchors.any((anchor) => anchor.target == target);
+  }
+
+  bool canPinTarget(ConstellationAnchorTarget target) {
+    if (isAnchored(target)) {
+      return true;
+    }
+    final composition = state.composition;
+    if (composition == null) {
+      return false;
+    }
+    final layoutInput = layoutInputFromComposition(
+      viewerId: _viewer.id,
+      composition: composition,
+      labelPlan: composition.labelPlan,
+      nodeSizes: const {},
+      spacing: 16,
+      priorHints: _layoutPriorHints,
+    );
+    return computeConstellationPinPosition(
+          target: target,
+          layoutInput: layoutInput,
+        ) !=
+        null;
   }
 
   ConstellationAnchorTarget? anchorTargetForNode(NodeDetails node) =>
@@ -1093,7 +1112,12 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     if (isClosed) {
       return;
     }
-    emit(state.copyWith(selectedPersonId: personId));
+    emit(
+      state.copyWith(
+        selectedPersonId: personId,
+        selectedRequestId: personId != null ? null : state.selectedRequestId,
+      ),
+    );
   }
 
   void togglePersonRequestsExpanded(String personId) {

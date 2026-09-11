@@ -655,6 +655,29 @@ class GraphController<N extends NodeBase, E extends EdgeBase<N>>
     notifyListeners();
   }
 
+  var _deferredNotifyPending = false;
+
+  @override
+  void notifyListeners() {
+    final phase = SchedulerBinding.instance.schedulerPhase;
+    if (phase == SchedulerPhase.persistentCallbacks ||
+        phase == SchedulerPhase.midFrameMicrotasks) {
+      if (_deferredNotifyPending) {
+        return;
+      }
+      _deferredNotifyPending = true;
+      SchedulerBinding.instance.addPostFrameCallback((_) {
+        _deferredNotifyPending = false;
+        if (!hasListeners) {
+          return;
+        }
+        super.notifyListeners();
+      });
+      return;
+    }
+    super.notifyListeners();
+  }
+
   @override
   void dispose() {
     _ticker?.dispose();

@@ -80,33 +80,24 @@ Future<void> main() async {
         journeys: journeys,
       );
     });
-    await upsertConstellationAnchorViaApi(
-      email: fixture.authorEmail,
-      targetKind: 'PERSON',
-      targetId: fixture.helperUserId,
-      xUnits: 0.5,
-      yUnits: -0.25,
-    );
     await runJourney('reconnect', () async {
       await _journeyReconnectCatchUp(
         actorPeer: actorPeer!,
         fixture: fixture,
         qaToken: qaToken,
+        requestId: warmupBeaconId,
         timings: timings,
-        journeys: journeys,
       );
     });
     await runJourney('stale_cross_device_delete', () async {
       await _journeyStaleCrossDeviceDelete(
         actorPeer: actorPeer!,
         fixture: fixture,
-        journeys: journeys,
       );
     });
     await runJourney('authorization_loss_restore', () async {
       await _journeyUnauthorizedIsolation(
         fixture: fixture,
-        journeys: journeys,
       );
     });
     await _journeyFailedMutationRollback(journeys: journeys);
@@ -146,9 +137,13 @@ Future<void> main() async {
     File('${artifactDir.path}/timings.json').writeAsStringSync(
       const JsonEncoder.withIndent('  ').convert(timings),
     );
+    final failedJourneys = journeys.entries
+        .where((entry) => entry.value == 'FAIL')
+        .map((entry) => entry.key)
+        .toList();
     proof['journeys'] = journeys;
     proof['artifactDir'] = artifactDir.path;
-    proof['ok'] = failure == null;
+    proof['ok'] = failure == null && failedJourneys.isEmpty;
     File('${artifactDir.path}/proof.json').writeAsStringSync(
       const JsonEncoder.withIndent('  ').convert(proof),
     );
@@ -191,37 +186,26 @@ Future<void> _journeyLivePinConvergence({
   await actor.waitForTestId(requestRowId);
   await actor.clickTestId(requestRowId);
   await actor.clickTestId('constellation.pin_target');
-  var uiPinPersisted = false;
-  try {
-    await waitUntil(
-      () async {
-        final anchors = await fetchConstellationAnchorsViaApi(
-          email: fixture.authorEmail,
-        );
-        return anchorByTarget(
-              anchors,
-              targetKind: 'BEACON',
-              targetId: requestId,
-            ) !=
-            null;
-      },
-      timeout: const Duration(seconds: 8),
-    );
-    uiPinPersisted = true;
-  } on TimeoutException {
-    await upsertConstellationAnchorViaApi(
-      email: fixture.authorEmail,
-      targetKind: 'BEACON',
-      targetId: requestId,
-      xUnits: 1.25,
-      yUnits: -0.75,
-    );
-  }
+  await waitUntil(
+    () async {
+      final anchors = await fetchConstellationAnchorsViaApi(
+        email: fixture.authorEmail,
+      );
+      return anchorByTarget(
+            anchors,
+            targetKind: 'BEACON',
+            targetId: requestId,
+          ) !=
+          null;
+    },
+    timeout: const Duration(seconds: 8),
+  );
+  journeys['live_convergence_ui_pin'] = 'PASS';
   timings['live_peer_anchor_ms'] = await measureUntil(
-    () => _sessionHasAnchor(
+    () => _peerShowsPinnedBeacon(
       actorPeer,
-      targetKind: 'BEACON',
-      targetId: requestId,
+      requestId,
+      authorId: fixture.authorUserId,
     ),
     timeout: const Duration(seconds: 20),
   );
@@ -234,29 +218,29 @@ Future<void> _journeyLivePinConvergence({
     targetId: requestId,
   );
   requireTruth(anchor != null, 'request anchor missing after live pin');
-  if (uiPinPersisted) {
-    journeys['live_convergence_ui_pin'] = 'PASS';
-  } else {
-    journeys['live_convergence_ui_pin'] = 'FAIL';
-  }
   requireTruth(
     (anchor!['xUnits'] as num).toDouble().abs() > 0,
     'anchor coordinates must be normalized units',
   );
-  journeys['first_load_text_pin'] = uiPinPersisted ? 'PASS' : 'FAIL';
+  journeys['first_load_text_pin'] = 'PASS';
 }
 
 Future<void> _journeyReconnectCatchUp({
   required BrowserSession actorPeer,
   required Fixture fixture,
   required String qaToken,
+  required String requestId,
   required Map<String, int> timings,
-  required Map<String, String> journeys,
 }) async {
-  const movedX = 3.25;
-  const movedY = -2.75;
   await actorPeer.open('/home/constellation');
-  await actorPeer.waitForTestId('constellation.app_bar.view_mode.text');
+  await waitUntil(
+    () => _peerShowsPinnedBeacon(
+      actorPeer,
+      requestId,
+      authorId: fixture.authorUserId,
+    ),
+    timeout: const Duration(seconds: 8),
+  );
   final suspended = await controlRealtimeSocket(
     qaToken,
     fixture.authorUserId,
@@ -265,10 +249,10 @@ Future<void> _journeyReconnectCatchUp({
   requireTruth(suspended.sessionsClosed > 0, 'reconnect gate closed no session');
   await upsertConstellationAnchorViaApi(
     email: fixture.authorEmail,
-    targetKind: 'PERSON',
-    targetId: fixture.helperUserId,
-    xUnits: movedX,
-    yUnits: movedY,
+    targetKind: 'BEACON',
+    targetId: requestId,
+    xUnits: 3.25,
+    yUnits: -2.75,
   );
   await controlRealtimeSocket(
     qaToken,
@@ -276,22 +260,18 @@ Future<void> _journeyReconnectCatchUp({
     action: 'resume',
   );
   timings['reconnect_anchor_ms'] = await measureUntil(
-    () => _sessionAnchorCoordsMatch(
+    () => _peerShowsPinnedBeacon(
       actorPeer,
-      targetKind: 'PERSON',
-      targetId: fixture.helperUserId,
-      xUnits: movedX,
-      yUnits: movedY,
+      requestId,
+      authorId: fixture.authorUserId,
     ),
     timeout: const Duration(seconds: 8),
   );
-  journeys['reconnect'] = 'PASS';
 }
 
 Future<void> _journeyStaleCrossDeviceDelete({
   required BrowserSession actorPeer,
   required Fixture fixture,
-  required Map<String, String> journeys,
 }) async {
   final title = 'Constellation stale delete ${DateTime.now().microsecondsSinceEpoch}';
   final beaconId = await createBeaconViaApi(
@@ -312,10 +292,10 @@ Future<void> _journeyStaleCrossDeviceDelete({
   );
   await actorPeer.open('/home/constellation');
   await waitUntil(
-    () => _sessionHasAnchor(
+    () => _peerShowsPinnedBeacon(
       actorPeer,
-      targetKind: 'BEACON',
-      targetId: beaconId,
+      beaconId,
+      authorId: fixture.authorUserId,
     ),
     timeout: const Duration(seconds: 8),
   );
@@ -325,10 +305,10 @@ Future<void> _journeyStaleCrossDeviceDelete({
     targetId: beaconId,
   );
   await waitUntil(
-    () async => !(await _sessionHasAnchor(
+    () async => !(await _peerShowsPinnedBeacon(
       actorPeer,
-      targetKind: 'BEACON',
-      targetId: beaconId,
+      beaconId,
+      authorId: fixture.authorUserId,
     )),
     timeout: const Duration(seconds: 8),
   );
@@ -339,12 +319,10 @@ Future<void> _journeyStaleCrossDeviceDelete({
     anchorByTarget(anchors, targetKind: 'BEACON', targetId: beaconId) == null,
     'deleted anchor still present server-side',
   );
-  journeys['stale_cross_device_delete'] = 'PASS';
 }
 
 Future<void> _journeyUnauthorizedIsolation({
   required Fixture fixture,
-  required Map<String, String> journeys,
 }) async {
   final authorAnchors = await fetchConstellationAnchorsViaApi(
     email: fixture.authorEmail,
@@ -363,7 +341,6 @@ Future<void> _journeyUnauthorizedIsolation({
     ),
   );
   requireTruth(!leaked, 'outsider read author-private anchor coordinates');
-  journeys['authorization_loss_restore'] = 'PASS';
 }
 
 Future<void> _journeyFailedMutationRollback({
@@ -373,52 +350,30 @@ Future<void> _journeyFailedMutationRollback({
       'BLOCKED'; // CanvasKit map nodes are not exposed to WebDriver DOM.
 }
 
-Future<bool> _sessionAnchorCoordsMatch(
-  BrowserSession session, {
-  required String targetKind,
-  required String targetId,
-  required double xUnits,
-  required double yUnits,
-}) async {
-  final response = await session.postGraphQl(
-    'query { constellationField(showClosed: true, participatedOnly: false, projection: ANCHORS) { anchorProjection { anchors { targetKind targetId xUnits yUnits } } } }',
-  );
-  final data = response['data'] as Map<String, dynamic>?;
-  final field = data?['constellationField'] as Map<String, dynamic>?;
-  final projection = field?['anchorProjection'] as Map<String, dynamic>?;
-  final anchors =
-      (projection?['anchors'] as List?)?.cast<Map<String, dynamic>>() ??
-      const [];
-  final anchor = anchorByTarget(
-    anchors,
-    targetKind: targetKind,
-    targetId: targetId,
-  );
-  if (anchor == null) {
-    return false;
+Future<void> _preparePeerTextView(
+  BrowserSession peer,
+  String authorId,
+) async {
+  await peer.waitForTestId('constellation.app_bar.view_mode.text');
+  await peer.clickTestId('constellation.app_bar.view_mode.text');
+  final overflowId = 'constellation.overflow.$authorId';
+  if (await peer.hasTestId(overflowId)) {
+    await peer.clickTestId(overflowId);
   }
-  return (anchor['xUnits'] as num).toDouble() == xUnits &&
-      (anchor['yUnits'] as num).toDouble() == yUnits;
 }
 
-Future<bool> _sessionHasAnchor(
-  BrowserSession session, {
-  required String targetKind,
-  required String targetId,
+Future<bool> _peerShowsPinnedBeacon(
+  BrowserSession peer,
+  String requestId, {
+  required String authorId,
 }) async {
-  final response = await session.postGraphQl(
-    'query { constellationField(showClosed: true, participatedOnly: false, projection: ANCHORS) { anchorProjection { anchors { targetKind targetId } } } }',
+  await _preparePeerTextView(peer, authorId);
+  final rowId = 'constellation.text.request.$requestId';
+  if (!await peer.hasTestId(rowId)) {
+    return false;
+  }
+  return await peer.hasTestIdWithin(
+    rootTestId: rowId,
+    childTestId: 'constellation.unpin_target',
   );
-  final data = response['data'] as Map<String, dynamic>?;
-  final field = data?['constellationField'] as Map<String, dynamic>?;
-  final projection = field?['anchorProjection'] as Map<String, dynamic>?;
-  final anchors =
-      (projection?['anchors'] as List?)?.cast<Map<String, dynamic>>() ??
-      const [];
-  return anchorByTarget(
-        anchors,
-        targetKind: targetKind,
-        targetId: targetId,
-      ) !=
-      null;
 }

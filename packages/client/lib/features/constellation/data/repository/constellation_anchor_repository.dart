@@ -1,3 +1,4 @@
+import 'package:ferry_exec/ferry_exec.dart';
 import 'package:injectable/injectable.dart';
 
 import 'package:tentura/data/service/remote_api_service.dart';
@@ -21,6 +22,11 @@ final class ConstellationAnchorRepository
 
   final RemoteApiService _remoteApiService;
 
+  /// Whole-number [double]s serialize as JSON integers on Flutter web; V2
+  /// `Float!` variables reject those values at parse time.
+  static double _graphQlFloatVariable(double value) =>
+      value == value.roundToDouble() ? value + 1e-9 : value;
+
   @override
   Future<ConstellationAnchorUpsertResult> upsert({
     required ConstellationAnchorTarget target,
@@ -32,8 +38,8 @@ final class ConstellationAnchorRepository
               b.vars
                 ..targetKind = targetKindToWire(target.kind)
                 ..targetId = target.id
-                ..xUnits = position.xUnits
-                ..yUnits = position.yUnits
+                ..xUnits = _graphQlFloatVariable(position.xUnits)
+                ..yUnits = _graphQlFloatVariable(position.yUnits)
                 ..coordinateSpaceVersion = position.coordinateSpaceVersion;
             }),
           )

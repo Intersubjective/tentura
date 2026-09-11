@@ -172,19 +172,6 @@ ConstellationComposedPresentation composeConstellationPresentation({
     ),
   ];
 
-  final tier1NeighborIds = <String>{};
-  for (final edge in automatic.edges) {
-    if (edge.tier != 1) {
-      continue;
-    }
-    if (edge.src == viewerId && edge.dst != viewerId) {
-      tier1NeighborIds.add(edge.dst);
-    }
-    if (edge.dst == viewerId && edge.src != viewerId) {
-      tier1NeighborIds.add(edge.src);
-    }
-  }
-
   final visiblePeerIds = {
     ...automatic.peers.map((peer) => peer.id),
     ...pinnedPeerIds,
@@ -197,10 +184,7 @@ ConstellationComposedPresentation composeConstellationPresentation({
     holderIds: holderIds,
     edges: mergedEdges,
     cap: kConstellationRenderPeerCap,
-    budgetExemptPeerIds: {
-      ...budgetExemptPeerIds,
-      ...tier1NeighborIds,
-    },
+    budgetExemptPeerIds: budgetExemptPeerIds,
   );
 
   final labelPlan = _buildLabelDisplayPlan(
@@ -217,7 +201,6 @@ ConstellationComposedPresentation composeConstellationPresentation({
   final keptPeerIds = {
     ...resolved.keptPeerIds,
     ...pinnedPeerIds,
-    ...tier1NeighborIds,
     for (final peer in anchorOverlay.supportPeers) peer.id,
   };
 

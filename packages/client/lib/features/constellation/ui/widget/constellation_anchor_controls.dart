@@ -31,12 +31,14 @@ class ConstellationAnchorTargetButton extends StatelessWidget {
           previous.placementPhase != current.placementPhase ||
           previous.placementActionsEnabled != current.placementActionsEnabled ||
           previous.graphRevision != current.graphRevision ||
-          previous.field != current.field,
+          previous.field != current.field ||
+          previous.composition != current.composition,
       builder: (context, state) {
         final cubit = context.read<ConstellationCubit>();
         final l10n = L10n.of(context)!;
         final anchored = cubit.isAnchored(target);
-        final enabled = cubit.placementActionsEnabled;
+        final enabled =
+            cubit.placementActionsEnabled && cubit.canPinTarget(target);
         final onPressed = enabled
             ? () {
                 if (anchored) {

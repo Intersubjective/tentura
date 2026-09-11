@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 
+import 'package:tentura/consts.dart';
 import 'package:tentura/features/constellation/domain/entity/constellation_anchor.dart';
 import 'package:tentura/features/constellation/ui/bloc/constellation_state.dart';
 import 'package:tentura/main.dart' as app;
@@ -13,6 +14,7 @@ void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
   testWidgets('constellation pinning acceptance journeys', (tester) async {
+    e2eDrainExceptions = false;
     await launchApp(app.main);
     await pumpBounded(tester);
 
@@ -26,7 +28,6 @@ void main() {
 
     Future<void> journey(String name, Future<void> Function() body) async {
       await runE2eStep(name, body);
-      drainTesterExceptions(tester);
     }
     final warmupTitle = uniqueRequestTitle('Constellation warmup');
     final warmupBeaconId = await createPublishedBeacon(title: warmupTitle);
@@ -43,6 +44,19 @@ void main() {
           (peer) => peer.id == fixture.helperUserId,
         ),
         label: 'helper visible in constellation peers',
+        timeout: const Duration(seconds: 45),
+      );
+      await reloadConstellation(tester);
+      await pumpUntil(
+        tester,
+        () => readConstellationCubit(tester).state.field!.edges.any(
+          (edge) =>
+              (edge.src == fixture.authorUserId &&
+                  edge.dst == fixture.helperUserId) ||
+              (edge.dst == fixture.authorUserId &&
+                  edge.src == fixture.helperUserId),
+        ),
+        label: 'helper trust edge visible in constellation field',
         timeout: const Duration(seconds: 45),
       );
       await pinConstellationPersonFromMap(tester, fixture.helperUserId);
@@ -88,17 +102,15 @@ void main() {
         targetId: requestId,
       )?['xUnits'] as num?)
           ?.toDouble();
-      const personCentre = Offset(2200, 2100);
-      const requestCentre = Offset(1800, 2300);
-      await moveConstellationAnchorViaCubit(
+      await dragConstellationAnchorViaGraph(
         tester: tester,
         target: helperTarget,
-        sceneCentre: personCentre,
+        dragDelta: const Offset(120, 80),
       );
-      await moveConstellationAnchorViaCubit(
+      await dragConstellationAnchorViaGraph(
         tester: tester,
         target: ConstellationAnchorTarget.beacon(requestId),
-        sceneCentre: requestCentre,
+        dragDelta: const Offset(-90, 110),
       );
       final anchors = await fetchConstellationAnchors();
       final person = constellationAnchorByTarget(
@@ -118,7 +130,7 @@ void main() {
       expect(personX, isNot(requestX));
     });
 
-    await journey('overlapping pins survive reload with stable coordinates', () async {
+    await journey('overlapping pins survive reload with topmost hit', () async {
       await upsertConstellationAnchor(
         targetKind: 'PERSON',
         targetId: fixture.helperUserId,
@@ -147,10 +159,22 @@ void main() {
       expect(person['yUnits'], 2.5);
       expect(request!['xUnits'], 2.5);
       expect(request['yUnits'], 2.5);
-      expect(
-        find.byKey(TestIds.key(TestIds.constellationPinMarker)),
-        findsWidgets,
+      final topmost = await topmostOverlappingConstellationTarget(
+        tester,
+        nodeIds: {fixture.helperUserId, requestId},
       );
+      expect(topmost, ConstellationAnchorTarget.beacon(requestId));
+      await setConstellationViewMode(tester, ConstellationViewMode.map);
+      final topmostNode = find.byKey(
+        TestIds.key(TestIds.graphNode(topmost.graphNodeId)),
+      );
+      await tapConstellationControl(tester, topmostNode.first);
+      final cubit = readConstellationCubit(tester);
+      expect(cubit.state.selectedRequestId, requestId);
+      expect(cubit.state.selectedPersonId, isNull);
+      await dismissConstellationRequestPreviewSheetIfPresent(tester);
+      cubit.selectRequest(null);
+      await pumpBounded(tester, frames: 12);
     });
 
     await journey('unpin leaves automatic field membership intact', () async {
@@ -292,5 +316,16 @@ void main() {
       }
     });
 
+    await dismissConstellationRequestPreviewSheetIfPresent(tester);
+    await goToPath(tester, kPathMyWork);
+    await pumpBounded(tester, frames: 24);
+    await logout(tester);
+    await pumpBounded(tester, frames: 48);
+    final leaked = <Object?>[];
+    Object? exception;
+    while ((exception = tester.takeException()) != null) {
+      leaked.add(exception);
+    }
+    expect(leaked, isEmpty, reason: 'uncaught async exceptions: $leaked');
   });
 }

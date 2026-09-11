@@ -248,10 +248,15 @@ class _CameraGatedInteractiveViewerState
 
   void _onControllerChanged() {
     final gated = widget.controller.isCameraGated;
-    if (gated == _cameraGated) {
+    if (gated == _cameraGated || !mounted) {
       return;
     }
-    setState(() => _cameraGated = gated);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || gated == _cameraGated) {
+        return;
+      }
+      setState(() => _cameraGated = gated);
+    });
   }
 
   @override

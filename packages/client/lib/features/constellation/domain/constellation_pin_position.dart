@@ -1,5 +1,6 @@
 import 'constellation_anchor_composition.dart';
 import 'constellation_layout.dart';
+import 'constellation_path_resolution.dart';
 import 'entity/constellation_anchor.dart';
 
 ConstellationAnchorPosition? computeConstellationPinPosition({
@@ -131,13 +132,36 @@ ConstellationPlacedLayoutInput layoutInputFromComposition({
       request.id: request.authorId,
   };
 
+  final pinLayoutPeerIds = {
+    ...composition.keptPeerIds,
+    for (final peer in composition.automatic.peers) peer.id,
+  };
+  final automaticKeptPeerIds = pinLayoutPeerIds.difference({
+    ...pinnedPersonIds,
+    ...supportPersonIds,
+  });
+  final holderIds = {
+    viewerId,
+    ...pinLayoutPeerIds,
+    for (final request in composition.anchorOverlay.pinnedRequests)
+      request.authorId,
+  };
+  final paths = resolveConstellationPaths(
+    egoId: viewerId,
+    visiblePeerIds: pinLayoutPeerIds,
+    holderIds: holderIds,
+    edges: [
+      for (final edge in composition.automatic.edges)
+        (src: edge.src, dst: edge.dst, tier: edge.tier),
+      for (final edge in composition.anchorOverlay.supportEdges)
+        (src: edge.src, dst: edge.dst, tier: edge.tier),
+    ],
+  );
+
   return (
     egoId: viewerId,
-    paths: composition.paths,
-    automaticKeptPeerIds: composition.keptPeerIds.difference({
-      ...pinnedPersonIds,
-      ...supportPersonIds,
-    }),
+    paths: paths,
+    automaticKeptPeerIds: automaticKeptPeerIds,
     pinnedPersonIds: pinnedPersonIds,
     pinnedRequestIds: pinnedRequestIds,
     supportPersonIds: supportPersonIds,

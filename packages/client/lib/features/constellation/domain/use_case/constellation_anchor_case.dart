@@ -9,6 +9,7 @@ import 'package:tentura/domain/use_case/use_case_base.dart';
 
 import '../entity/constellation_anchor.dart';
 import '../entity/constellation_anchor_projection.dart';
+import '../exception.dart';
 import '../port/constellation_anchor_repository_port.dart';
 import '../port/constellation_repository_port.dart';
 
@@ -311,6 +312,7 @@ final class ConstellationAnchorCase extends UseCaseBase {
     _pendingWrite = pending;
     _writeCount++;
     var mutationSucceeded = false;
+    Object? mutationError;
     try {
       try {
         final mutation = await action();
@@ -321,6 +323,7 @@ final class ConstellationAnchorCase extends UseCaseBase {
         }
         mutationSucceeded = adoptMutation(mutation);
       } on Object catch (error, stackTrace) {
+        mutationError = error;
         logger.warning('Constellation anchor write failed', error, stackTrace);
         if (writeAccount != _viewerAccountId || writeToken != _loadGeneration) {
           return const ConstellationAnchorWriteOutcome(
@@ -366,7 +369,9 @@ final class ConstellationAnchorCase extends UseCaseBase {
       return ConstellationAnchorWriteOutcome(
         kind: ConstellationAnchorWriteOutcomeKind.failed,
         projection: _confirmed,
-        failureMessage: 'Could not save constellation placement.',
+        failureMessage: mutationError is ConstellationException
+            ? (mutationError.message ?? 'Could not save constellation placement.')
+            : 'Could not save constellation placement.',
       );
     } finally {
       if (identical(_pendingWrite, pending)) {

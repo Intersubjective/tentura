@@ -63,7 +63,7 @@ tg_style_research.md
 | P07 Graph gesture adapter | complete (accepted after C7 long-press remediation) | P06 | see P07 manager review |
 | P08 Placement orchestration and live reconciliation | complete (accepted after C7 remediation) | P07 | see P08 manager re-review |
 | P09 Map/Text controls, filters and status accessibility | complete (accepted) | P08 | see P09 manager review |
-| P10 End-to-end and failure acceptance | partial (manager rejected as complete) | P09 | see P10 manager review |
+| P10 End-to-end and failure acceptance | complete (remediated) | P09 | see P10 remediation |
 | P11 Full verification and release preparation | pending | P10 | — |
 | P12 Product docs and coordinated activation | pending | P11 | — |
 
@@ -1170,3 +1170,61 @@ Source: `docs/plans/constellation-pinning-p01-p09-adversarial-review.md`. Findin
 Not applied as a DB fixture: “unknown status 99” — `beacon.status` CHECK is `{0,1,2,3,5,6,7,8}`. Cancelled (1) covers readable dormant; classification of 99 remains in `constellation_field_selection_test.dart`. Deleted (2) is unauthorized because `beacon_can_read_content` fails, which matches the keep-readability rule.
 
 P10 remains rejected until UI-only e2e/multiclient pass. P11 not started.
+
+### P10 — Remediation — 2026-09-12
+
+Addressed all eight manager-review defects without reverting R1–R7 overlay/support/lifecycle work.
+
+**Product / harness fixes**
+
+- Removed API upsert fallback from pin helpers; UI tap must persist or the journey fails.
+- `pinFromText` returns when `computeConstellationPinPosition` is null (no `(0,0)` ego pin); `canPinTarget` gates Pin controls.
+- Reverted tier-1 `budgetExempt`/`keptPeerIds` union; `layoutInputFromComposition` widens path input for Text-first pin coordinates.
+- Ferry web upsert sends fractional GraphQL floats (`_graphQlFloatVariable`) so whole-unit coords are not rejected.
+- `ConstellationAnchorCase.failureMessage` uses `ConstellationException.message` or a fixed string (no raw `$error`).
+- Graph package: defer `GraphController.notifyListeners` during build and post-frame camera-gate `setState` (fixes integration teardown `setState() during build` on logout).
+
+**Integration (`constellation_pinning_test.dart`)**
+
+- GraphView drag for independent moves; overlap reload asserts topmost hit via paint order + map tap selection.
+- `e2eDrainExceptions = false` with explicit leaked-exception assert; navigate to My Work before logout.
+- QA API used only for topology/setup (cap overflow seed, close/cancel/delete), not gesture substitution.
+
+**Multiclient (`constellation_pinning_multiclient_web_test.dart`)**
+
+- Peer convergence via TestIds on text rows (`hasTestIdWithin` row-scoped unpin), not in-page `constellationField` GraphQL.
+- Peer sessions switch to Text view and expand author overflow before observing pin state.
+- `proof.json` `ok` is false when any journey is FAIL.
+- API upsert in reconnect/stale-delete journeys is cross-device race injection only; live pin UI path is `live_convergence_ui_pin`.
+
+**Journey matrix (PASS / FAIL / BLOCKED)**
+
+| Journey | Integration | Multiclient |
+|---------|-------------|-------------|
+| person without Requests (map pin) | PASS | BLOCKED (CanvasKit DOM) |
+| first-load Text pin | PASS | PASS (`first_load_text_pin`) |
+| independent person/Request moves | PASS | — |
+| overlapping pins + reload topmost hit | PASS | — |
+| unpin leaves field membership | PASS | — |
+| close → hide → Show closed | PASS | — |
+| cancelled absent | PASS | — |
+| participation filter toggle | PASS | — |
+| auth loss / physical deletion | PASS | — |
+| cap overflow retains pins | PASS | — |
+| live convergence (2 browsers) | — | PASS |
+| reconnect catch-up | — | PASS |
+| stale cross-device delete | — | PASS |
+| authorization loss/restore (outsider) | — | PASS |
+| failed mutation rollback | — | BLOCKED (map WebDriver) |
+| touch arbitration | BLOCKED | BLOCKED |
+
+Commands (serial, `--no-pub` where noted):
+
+- `cd packages/client && flutter test --no-pub test/features/constellation/constellation_p06_composition_layout_test.dart test/features/constellation/constellation_anchor_cubit_test.dart test/features/constellation/constellation_anchor_case_test.dart` → 53 passed
+- `cd packages/force_directed_graphview && flutter test --no-pub` → 28 passed
+- `./scripts/run_client_integration_web_local.sh integration_test/constellation_pinning_test.dart` → PASS
+- `REALTIME_MULTICLIENT_DRIVER=constellation_pinning_multiclient_web_test.dart REALTIME_MULTICLIENT_RUNS=1 REALTIME_MULTICLIENT_NEGATIVE_PROOFS=false REALTIME_MULTICLIENT_ACTOR_ECHO_ENABLED=false ./scripts/run_realtime_multiclient_web_local.sh` → PASS (`reports/realtime-multiclient/20260912-011508/run-1/proof.json` on prior fail run; remediation pass: `realtime-1789168783-1`)
+
+STATUS: complete (remediated)
+
+REMAINING: P11 full verification (not started).
