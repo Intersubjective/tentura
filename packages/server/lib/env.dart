@@ -59,7 +59,12 @@ Duration? _parseEnvDuration(String? raw) {
 /// still send the retired mutations and render the retired UI, which no
 /// longer resolves against the current schema, so this gate must exclude
 /// clients built before that release shipped.
-const kDefaultMinClientVersion = '7.0.0';
+/// Raised to 7.6.0 for Constellation pinning (plan
+/// docs/plans/constellation-pinning-plan.md): account-owned anchor mutations,
+/// private anchor invalidations, and the map/text controls ship as one
+/// coordinated contract. The release deliberately does not support an older
+/// client against the new anchor surface.
+const kDefaultMinClientVersion = '7.6.0';
 
 class Env {
   Env({

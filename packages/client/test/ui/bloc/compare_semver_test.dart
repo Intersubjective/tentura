@@ -20,6 +20,11 @@ void main() {
       expect(compareSemver('1.2.3-rc.1', '1.2.3'), 0);
     });
 
+    test('treats the Constellation release gate as current only at 7.6.0', () {
+      expect(compareSemver('7.5.0', '7.6.0'), lessThan(0));
+      expect(compareSemver('7.6.0', '7.6.0'), 0);
+    });
+
     test('treats missing patch segments as zero', () {
       expect(compareSemver('1.2', '1.2.0'), 0);
       expect(compareSemver('1', '1.0.0'), 0);

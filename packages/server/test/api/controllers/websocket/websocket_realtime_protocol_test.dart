@@ -210,6 +210,10 @@ void main() {
         jsonDecode(session.sent.single! as String),
         containsPair('type', 'pong'),
       );
+      expect(
+        jsonDecode(session.sent.single! as String),
+        containsPair('min_client_version', kDefaultMinClientVersion),
+      );
     });
 
     test(
