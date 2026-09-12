@@ -32,7 +32,7 @@ The protected `packages/force_directed_graphview/analysis_options.yaml` change i
 | --- | --- | --- | --- |
 | M00 baseline behavior inventory | **accepted** | none | `test(graph): characterize scene identity and lifecycle` |
 | M01 pure scene value types | **accepted** | M00 accepted | `feat(graph): add stable scene identity values` |
-| M02 ID-keyed layout port and legacy adapter | pending | M01 accepted | `feat(graph): introduce id-keyed layout requests` |
+| M02 ID-keyed layout port and legacy adapter | **accepted** | M01 accepted | `feat(graph): introduce id-keyed layout requests` |
 | M03 scene controller plus legacy delegation | pending | M02 accepted | two focused commits in plan order |
 | M04 rendering, ordering, focus, gesture snapshots | pending | M03 accepted | focused renderer migration commits |
 | M05 Tentura graph layouts/adapters | pending | M04 accepted | one focused commit per algorithm/mode |
@@ -273,3 +273,63 @@ cd packages/force_directed_graphview && dart analyze --format machine
 ### Commit
 
 - **Subject:** `fix(graph): keep scene ticket ownership opaque`
+
+---
+
+## M02 — ID-keyed layout port and legacy adapter (worker: Composer 2.5, 2026-09-12)
+
+### Work
+
+- **A3:** `GraphLayoutNode`, `GraphLayoutEdge`, `GraphLayoutRequest`, `GraphLayoutFrame`, `SceneLayoutAlgorithm` (Flutter-free except legacy adapter `dart:ui` / `NodeBase`).
+- **A4 / R3:** `GraphLayoutFrameIngress` + `GraphLayoutFrameIngress.enforce` — stale ticket, partial/extra IDs, duplicate/backward sequence, post-terminal, non-finite positions; stream must end with exactly one accepted terminal frame. No controller lifecycle state (idle/running/holds) duplicated.
+- **`LegacyGraphLayoutAlgorithmAdapter`:** snapshot-bound wrapper for unchanged `GraphLayoutAlgorithm`; maps legacy yields to non-terminal ID frames + one terminal on close; validates `simulationFixed` ↔ `NodeBase.pinned`; converts `SceneLayout` previous hints to `GraphLayout` for relayout.
+- **`FruchtermanReingoldSceneLayoutAlgorithm`:** native scene FR with `graphNodeIdLayoutSeed` (opaque id, not payload hash); empty/zero-iteration terminal paths; self-loop attraction uses distance clamp (legacy FR attraction aligned).
+- **`layout_id_seed.dart`:** package-private seed helper (not barrel-exported).
+- **`GraphLayoutAlgorithm`:** signature untouched; production still uses legacy interface until M03/M05 migration.
+- **No** `GraphSceneController`, client migrations, or `graph_layout.dart` API changes (adapter converts at boundary).
+
+### Decisions
+
+- Frame validation lives in `graph_layout_frame_protocol.dart` for M03 reuse; algorithms emit protocol-shaped streams; ingress is the subscription boundary guard.
+- Native scene FR duplicates simulation math intentionally (minimal surgical diff vs extracting shared engine in M02).
+- `layout_id_seed` not exported from public barrel — only scene FR uses it today.
+
+### Verification
+
+```bash
+cd packages/force_directed_graphview && flutter test test/scene_layout_protocol_test.dart
+# exit 0, 17 tests passed
+
+cd packages/force_directed_graphview && flutter test
+# exit 0, 75 tests passed
+
+cd packages/force_directed_graphview && dart analyze --format machine
+# exit 0; pre-existing WARNINGs unchanged (controller.dart, node_drag_gesture_test.dart, …)
+# new layout files: INFO-only (PUBLIC_MEMBER_API_DOCS, DIRECTIVES_ORDERING, …)
+# one new WARNING fixed before commit: unused import in graph_layout_request.dart
+```
+
+Protected `analysis_options.yaml` not staged.
+
+### Changed paths (M02 commit)
+
+- `packages/force_directed_graphview/lib/force_directed_graphview.dart`
+- `packages/force_directed_graphview/lib/src/layout_algorithm/graph_layout_request.dart` (new)
+- `packages/force_directed_graphview/lib/src/layout_algorithm/scene_layout_algorithm.dart` (new)
+- `packages/force_directed_graphview/lib/src/layout_algorithm/graph_layout_frame_protocol.dart` (new)
+- `packages/force_directed_graphview/lib/src/layout_algorithm/layout_id_seed.dart` (new)
+- `packages/force_directed_graphview/lib/src/layout_algorithm/legacy_graph_layout_algorithm_adapter.dart` (new)
+- `packages/force_directed_graphview/lib/src/layout_algorithm/fruchterman_reingold_scene_layout_algorithm.dart` (new)
+- `packages/force_directed_graphview/lib/src/layout_algorithm/fruchterman_reingold_algorithm.dart` (attraction distance clamp)
+- `packages/force_directed_graphview/test/scene_layout_protocol_test.dart` (new)
+- `docs/plans/force-directed-graphview-scene-decoupling-implementation-journal.md`
+
+### Commit
+
+- **Subject:** `feat(graph): introduce id-keyed layout requests`
+
+---
+
+## Manager checkpoint — 2026-09-12 (post-M02)
+
+- **M02 accepted** — M03 is next (`feat(graph): add id-keyed scene controller`).

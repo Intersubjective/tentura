@@ -187,7 +187,7 @@ class FruchtermanReingoldAlgorithm implements GraphLayoutAlgorithm {
       final destPos = layoutBuilder.getNodePosition(edge.destination);
 
       final delta = sourcePos - destPos;
-      final distance = delta.distance;
+      final distance = clampDistance(delta.distance);
 
       final disp = (delta / distance) * attraction(distance);
       displacements[edge.source] = displacements[edge.source]! - disp;
