@@ -9,7 +9,6 @@ import 'package:tentura/features/constellation/domain/entity/constellation_ancho
 import 'package:tentura/features/constellation/domain/port/constellation_repository_port.dart';
 import 'package:tentura/features/constellation/domain/use_case/constellation_field_case.dart';
 import 'package:tentura/features/constellation/ui/bloc/constellation_cubit.dart';
-import 'package:tentura/features/constellation/ui/widget/constellation_anchor_controls.dart';
 import 'package:tentura/features/constellation/ui/widget/constellation_body.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:tentura/features/graph/ui/bloc/graph_person_context_cubit.dart';
@@ -426,22 +425,30 @@ void main() {
           ),
         );
 
-        // iPhone SE: compact maxHeight is 667 * 0.42 ≈ 280, matching the
-        // reported RenderFlex overflow on ConstellationPersonContextDecorator.
+        // iPhone SE: compact maxHeight is 667 * 0.42 ≈ 280.
         await _pumpBody(tester, cubit, size: const Size(375, 667));
 
         await tester.tap(_personNodeFinder('a'));
         await tester.pump();
 
-        expect(find.byType(ConstellationPersonContextDecorator), findsOneWidget);
+        final panel = find.byKey(TestIds.key(TestIds.graphPersonContextPanel));
+        final pin = find.byKey(TestIds.key(TestIds.constellationPinTarget));
+        expect(panel, findsOneWidget);
+        expect(pin, findsOneWidget);
+
+        final panelRect = tester.getRect(panel);
+        final pinRect = tester.getRect(pin);
         expect(
-          find.byKey(TestIds.key(TestIds.constellationPinTarget)),
-          findsOneWidget,
+          panelRect.inflate(0.5).contains(pinRect.topLeft),
+          isTrue,
+          reason: 'Pin control must sit on the person-card surface, not over the graph',
         );
         expect(
-          tester.getSize(find.byType(ConstellationPersonContextDecorator)).height,
-          lessThanOrEqualTo(667 * 0.42 + 1),
+          panelRect.inflate(0.5).contains(pinRect.bottomRight),
+          isTrue,
+          reason: 'Pin control must sit on the person-card surface, not over the graph',
         );
+        expect(panelRect.height, lessThanOrEqualTo(667 * 0.42 + 1));
         expect(tester.takeException(), isNull);
       },
     );

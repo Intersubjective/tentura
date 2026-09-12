@@ -298,19 +298,19 @@ class _ConstellationBodyState extends State<ConstellationBody> {
     }
 
     final tt = context.tt;
-    final panel = ConstellationPersonContextDecorator(
-      personId: personId,
-      child: GraphPersonContextPanel(
-        profile: profile,
-        focusedNode: UserNode(user: profile),
-        discoverableRequests: cubit.discoverableRequestsForPerson(personId),
-        requestsExpanded: state.expandedPersonIds.contains(personId),
-        onToggleRequestsExpanded: () =>
-            cubit.togglePersonRequestsExpanded(personId),
-        onDiscoverableRequestTap: (request) {
-          cubit.selectPerson(null);
-          cubit.selectRequest(request.id);
-        },
+    final panel = GraphPersonContextPanel(
+      profile: profile,
+      focusedNode: UserNode(user: profile),
+      discoverableRequests: cubit.discoverableRequestsForPerson(personId),
+      requestsExpanded: state.expandedPersonIds.contains(personId),
+      onToggleRequestsExpanded: () =>
+          cubit.togglePersonRequestsExpanded(personId),
+      onDiscoverableRequestTap: (request) {
+        cubit.selectPerson(null);
+        cubit.selectRequest(request.id);
+      },
+      footer: ConstellationAnchorTargetButton(
+        target: ConstellationAnchorTarget.person(personId),
       ),
     );
 

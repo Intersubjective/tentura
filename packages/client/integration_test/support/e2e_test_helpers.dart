@@ -32,7 +32,6 @@ import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/features/constellation/domain/entity/constellation_anchor.dart';
 import 'package:tentura/features/constellation/ui/bloc/constellation_cubit.dart';
 import 'package:tentura/features/constellation/ui/bloc/constellation_state.dart';
-import 'package:tentura/features/constellation/ui/widget/constellation_anchor_controls.dart';
 import 'package:tentura/features/constellation/ui/widget/constellation_body.dart';
 import 'package:tentura/ui/test_ids.dart';
 import 'package:tentura/ui/utils/capability_tag_presenter.dart';
@@ -1692,7 +1691,7 @@ Future<void> unpinConstellationTarget(
   );
   final Finder unpin = switch (target.kind) {
     ConstellationAnchorTargetKind.person => find.descendant(
-        of: find.byType(ConstellationPersonContextDecorator),
+        of: find.byKey(TestIds.key(TestIds.graphPersonContextPanel)),
         matching: find.byKey(TestIds.key(TestIds.constellationUnpinTarget)),
       ),
     ConstellationAnchorTargetKind.beacon => find.descendant(

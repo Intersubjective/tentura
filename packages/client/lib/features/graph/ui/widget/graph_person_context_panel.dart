@@ -30,6 +30,7 @@ class GraphPersonContextPanel extends StatelessWidget {
     this.requestsExpanded = false,
     this.onToggleRequestsExpanded,
     this.onDiscoverableRequestTap,
+    this.footer,
     super.key,
   });
 
@@ -43,6 +44,9 @@ class GraphPersonContextPanel extends StatelessWidget {
   final bool requestsExpanded;
   final VoidCallback? onToggleRequestsExpanded;
   final ValueChanged<ConstellationRequest>? onDiscoverableRequestTap;
+
+  /// Extra action drawn on the same card surface, below the scrollable body.
+  final Widget? footer;
 
   @override
   Widget build(BuildContext context) {
@@ -62,6 +66,111 @@ class GraphPersonContextPanel extends StatelessWidget {
     final canShowMore =
         !isLoading && canPageMore && hiddenNeighborCount > 0;
 
+    final body = Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            TenturaAvatar(
+              profile: profile,
+              sizeBucket: TenturaAvatarSize.medium,
+              withContactBadge: true,
+            ),
+            SizedBox(width: tt.avatarTextGap),
+            Expanded(
+              child: Text(
+                profile.displayLabel(l10n.unknownPerson),
+                style: theme.textTheme.titleMedium,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            FocusTraversalOrder(
+              order: const NumericFocusOrder(5),
+              child: IconButton(
+                key: TestIds.key(TestIds.graphPersonContextClose),
+                tooltip: l10n.buttonClose,
+                onPressed: contextCubit.dismiss,
+                icon: const Icon(Icons.close),
+              ),
+            ),
+          ],
+        ),
+        SizedBox(height: tt.rowGap),
+        _OtherProfileAvailabilityLine(
+          profile: profile,
+          todayUtc: todayUtc,
+        ),
+        _VisibilitySection(
+          l10n: l10n,
+          profile: profile,
+          policy: policy,
+        ),
+        if (discoverableRequests.isNotEmpty &&
+            onToggleRequestsExpanded != null) ...[
+          SizedBox(height: tt.sectionGap),
+          _DiscoverableRequestsSection(
+            l10n: l10n,
+            requests: discoverableRequests,
+            expanded: requestsExpanded,
+            onToggle: onToggleRequestsExpanded!,
+            onRequestTap: onDiscoverableRequestTap,
+          ),
+        ],
+        SizedBox(height: tt.sectionGap),
+        ..._buildActions(
+          context: context,
+          l10n: l10n,
+          policy: policy,
+          canShowMore: canShowMore,
+          hiddenCount: hiddenNeighborCount,
+          trustLoading: contextState.trustLoading,
+          focusedNode: focusedNode,
+          contextCubit: contextCubit,
+          onExpand: onExpand,
+        ),
+        if (contextState.trustError != null) ...[
+          SizedBox(height: tt.rowGap),
+          Text(
+            contextState.trustError.toString(),
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: scheme.error,
+            ),
+          ),
+        ],
+      ],
+    );
+
+    final Widget paddedBody;
+    if (footer == null) {
+      paddedBody = SingleChildScrollView(child: body);
+    } else {
+      paddedBody = LayoutBuilder(
+        builder: (context, constraints) {
+          final scroll = CustomScrollView(
+            shrinkWrap: true,
+            slivers: [
+              SliverToBoxAdapter(child: body),
+            ],
+          );
+          return Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              if (constraints.maxHeight.isFinite)
+                Flexible(child: scroll)
+              else
+                scroll,
+              SizedBox(height: tt.rowGap),
+              footer!,
+            ],
+          );
+        },
+      );
+    }
+
     return FocusTraversalGroup(
       policy: OrderedTraversalPolicy(),
       child: Material(
@@ -72,84 +181,7 @@ class GraphPersonContextPanel extends StatelessWidget {
         clipBehavior: Clip.antiAlias,
         child: Padding(
           padding: tt.cardPadding,
-          child: SingleChildScrollView(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    TenturaAvatar(
-                      profile: profile,
-                      sizeBucket: TenturaAvatarSize.medium,
-                      withContactBadge: true,
-                    ),
-                    SizedBox(width: tt.avatarTextGap),
-                    Expanded(
-                      child: Text(
-                        profile.displayLabel(l10n.unknownPerson),
-                        style: theme.textTheme.titleMedium,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
-                    FocusTraversalOrder(
-                      order: const NumericFocusOrder(5),
-                      child: IconButton(
-                        key: TestIds.key(TestIds.graphPersonContextClose),
-                        tooltip: l10n.buttonClose,
-                        onPressed: contextCubit.dismiss,
-                        icon: const Icon(Icons.close),
-                      ),
-                    ),
-                  ],
-                ),
-                SizedBox(height: tt.rowGap),
-                _OtherProfileAvailabilityLine(
-                  profile: profile,
-                  todayUtc: todayUtc,
-                ),
-                _VisibilitySection(
-                  l10n: l10n,
-                  profile: profile,
-                  policy: policy,
-                ),
-                if (discoverableRequests.isNotEmpty &&
-                    onToggleRequestsExpanded != null) ...[
-                  SizedBox(height: tt.sectionGap),
-                  _DiscoverableRequestsSection(
-                    l10n: l10n,
-                    requests: discoverableRequests,
-                    expanded: requestsExpanded,
-                    onToggle: onToggleRequestsExpanded!,
-                    onRequestTap: onDiscoverableRequestTap,
-                  ),
-                ],
-                SizedBox(height: tt.sectionGap),
-                ..._buildActions(
-                  context: context,
-                  l10n: l10n,
-                  policy: policy,
-                  canShowMore: canShowMore,
-                  hiddenCount: hiddenNeighborCount,
-                  trustLoading: contextState.trustLoading,
-                  focusedNode: focusedNode,
-                  contextCubit: contextCubit,
-                  onExpand: onExpand,
-                ),
-                if (contextState.trustError != null) ...[
-                  SizedBox(height: tt.rowGap),
-                  Text(
-                    contextState.trustError.toString(),
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: scheme.error,
-                    ),
-                  ),
-                ],
-              ],
-            ),
-          ),
+          child: paddedBody,
         ),
       ),
     );

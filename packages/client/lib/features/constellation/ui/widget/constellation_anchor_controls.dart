@@ -79,34 +79,6 @@ class ConstellationAnchorTargetButton extends StatelessWidget {
   }
 }
 
-/// Wraps [GraphPersonContextPanel] with constellation pin/unpin without editing it.
-class ConstellationPersonContextDecorator extends StatelessWidget {
-  const ConstellationPersonContextDecorator({
-    required this.personId,
-    required this.child,
-    super.key,
-  });
-
-  final String personId;
-  final Widget child;
-
-  @override
-  Widget build(BuildContext context) {
-    final tt = context.tt;
-    return Column(
-      mainAxisSize: MainAxisSize.min,
-      crossAxisAlignment: CrossAxisAlignment.stretch,
-      children: [
-        Flexible(child: child),
-        SizedBox(height: tt.rowGap),
-        ConstellationAnchorTargetButton(
-          target: ConstellationAnchorTarget.person(personId),
-        ),
-      ],
-    );
-  }
-}
-
 /// Map-only Pin here / Cancel overlay during [ConstellationPlacementPhase.provisionalNew].
 class ConstellationProvisionalPlacementBar extends StatelessWidget {
   const ConstellationProvisionalPlacementBar({
