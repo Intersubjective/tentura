@@ -28,3 +28,5 @@ export 'src/scene/scene_layout.dart';
 export 'src/scene/scene_presentation.dart';
 export 'src/scene/scene_snapshot.dart';
 export 'src/scene/scene_transition.dart';
+export 'src/scene/graph_layout_outcome.dart';
+export 'src/scene_controller.dart';
