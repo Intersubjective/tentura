@@ -1,6 +1,24 @@
 # Inbox → Activity: information architecture — architectural proposal
 
-Status: architectural proposal, revision 8. Not an implementation plan. No application, API, schema, or data changes are authorized by this document alone.
+Status: architectural proposal, revision 9. Not an implementation plan. No application, API, schema, or data changes are authorized by this document alone.
+
+> **Revision 9 (2026-09-12) — partly superseded by [`work-activity-redesign-plan.md`](work-activity-redesign-plan.md).** The product owner restated the principle behind the tabs: **My Work** holds everything where the viewer already has a responsibility toward others — obligations *and all updates about the Requests they are responsible for*. **Activity** holds **offers**: forwards, invite-accepted prompts and network news, where reacting is optional.
+>
+> | section here | status in rev 9 |
+> |---|---|
+> | §2 object classes, §2.1–§2.3 | **kept** |
+> | §2.4 News → Activity, §3 surface allocation | **superseded** — receipts route by *responsibility scope* (plan §3): about a Request in scope → My Work (on the card); everything else → Activity |
+> | §4.1 TabBar removed | kept |
+> | §4.2 body is the receipt feed; §4.3 fixed triage summary row; §4.4 sliver order; §4.5 24h tombstone section; §4.6 first-paint budget | **superseded** — Activity is one infinite scroll: unanswered forwards and open prompts **pinned** in «Для вас», answered forwards dropping to their chronological place with an outcome (tombstones become an outcome), then network news (plan §5) |
+> | §4.7 Watching as an Inbox-row collection | kept; watched-Request updates show on the item plus one aggregate stream row |
+> | §4.8 per-source loading | kept |
+> | §5 prompt-class rules | kept (forwards now follow the same pin/demote rule, without staleness) |
+> | §6 badges | **superseded for Activity** (dot only); My Work unchanged (number of live obligation receipts) |
+> | §7 navigation contracts | kept, amended: triage route removed; `/updates`, `/notifications` land on the notification history screen; notification-open picks the branch by surface |
+> | §8, §8.1 My Work obligation scope | kept; the "Needs you" feed view is rendered as obligation lines on Request cards, not a receipt list |
+> | §9 terminology | extended in `CONTEXT.md` (**For you** / «Для вас», **Notification history**) |
+>
+> Superseded sections below are marked inline and left unedited for the review record.
 
 Date: 2026-09-10. Repository baseline inspected: `c6b24012d`, plus this branch.
 
@@ -77,6 +95,8 @@ Note that a receipt is **not** an immutable event: an unseen receipt with a matc
 
 ## 3. Surface allocation
 
+> **Superseded in rev 9** — see [`work-activity-redesign-plan.md`](work-activity-redesign-plan.md) §3.
+
 | Class | Surface | Signal |
 |---|---|---|
 | Triage items (§2.1) | **Activity** | numeric badge |
@@ -91,6 +111,8 @@ This corrects a shipped defect. The feed's "Needs you" view (`updates_feed_pane.
 ## 4. The Activity branch
 
 **4.1 The TabBar is removed.** Three tabs, one of which is an event log, is the cause of the invisibility.
+
+> **§4.2–§4.6 superseded in rev 9** — see [`work-activity-redesign-plan.md`](work-activity-redesign-plan.md) §5. §4.7 and §4.8 stand.
 
 **4.2 The body is the feed**, chronological and day-grouped (`updates_day_groups.dart`). Its view control keeps **All / Unread** and loses **Needs you**, which moves to My Work with its meaning (§8).
 
@@ -237,6 +259,8 @@ The requirement this document owns is **observable**, not mechanical: *settling 
 Two things follow, and rev 5's "projection **or** batch + invalidation" phrasing wrongly made the second optional: state must be fresh **at read**, and something must **cause** a read — a join is fresh when fetched but does not fetch. Which mechanism satisfies each, the projection's own authorization predicate, and the acceptance wiring are the implementation plan's (§2.4). Authoritative storage alone does not prove convergence.
 
 ## 6. Badges
+
+> **Superseded in rev 9 for Activity** — dot only; see [`work-activity-redesign-plan.md`](work-activity-redesign-plan.md) D5. My Work's rule below stands.
 
 One indicator per destination, two states, priority-ordered.
 

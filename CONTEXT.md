@@ -4,14 +4,14 @@ Coordination product for **Requests** (internally: **Beacons**), request **discu
 
 ## Terminology
 
-| Layer | Primary object | Coordination workspace | Home nav branch (forwards & receipts) |
+| Layer | Primary object | Coordination workspace | Home nav branch (offers to you) |
 |-------|----------------|------------------------|---------------------------------------|
 | **User-facing** (UI, push, landing, l10n values) | **Request** / **Requests** | **discussion** | **Activity** / «Активность» |
 | **Internal** (code, DB, GraphQL, routes, technical docs) | **Beacon** / `beacon` | room / `beacon_room` | `inbox` |
 
 **Request (internally: Beacon)** is a help need that can be forwarded, committed to, coordinated, and closed. **Discussion (internally: room)** is the private coordination workspace on a request — the collective space you are admitted to. On request detail the **Chat** tab (`labelBeaconTabChat` / «Чат») is the short tab-label form of that workspace; **discussion** / **обсуждение** remains the general noun elsewhere. One conversation inside it is a **thread** / **тема**; the built-in thread is **General** / **Общее** (the only public conversation on each request). Retired ask/promise/blocker coordination-item threads are no longer a product surface; nested child requests replaced that model (see **Beacon nesting** below).
 
-**Activity (internally: inbox)** is the home-tab branch for forwards you receive and notification receipts — the nav label is l10n key `inbox` (`Activity` / «Активность»).
+**Activity (internally: inbox)** is the home-tab branch for **offers to you** — forwards you receive, invite-accepted capability prompts and network news — where reacting is optional. The nav label is l10n key `inbox` (`Activity` / «Активность»). Updates about Requests you are already responsible for belong to **My desk**, not here (see **Responsibility split**).
 
 **Forbidden:** a parallel `Request` domain entity, table, or route. User-visible copy must not say "beacon", "room", or "inbox"/"Inbox"/«Входящие» as product nouns — use l10n and `scripts/check-user-facing-terminology.sh`.
 
@@ -198,8 +198,22 @@ Pure predicates (`everAcknowledged`, `currentStakeState`, `hasCurrentStake`) der
 ## My desk (My Work)
 
 **My desk** (user-facing; l10n `myWork`):
-The signed-in user's work inbox tab — beacons they **authored** or **help-offered** on, with filters and sort. Not the public beacon catalog or another user's profile beacons.
-_Avoid_: mixing with **Activity** (forwards received from others; internally `inbox`).
+The signed-in user's work tab — beacons they **authored**, **help-offered** on, or hold a **live obligation** on, with filters and sort — together with **all updates about those beacons**, shown on their cards. Not the public beacon catalog or another user's profile beacons.
+_Avoid_: mixing with **Activity** (offers to you; internally `inbox`).
+
+**Responsibility split** (My desk vs Activity):
+The home tabs divide information by *responsibility*, not by object type. A beacon is in the viewer's **responsibility scope** when they authored it (any status except draft, **archived included**), hold an active help offer on it, or hold a live obligation on it. A notification receipt about a beacon in scope belongs to **My desk**; everything else addressed to the viewer belongs to **Activity**. Scope is evaluated when the receipt is read, never stored: offering help moves a forwarded request from Activity to My desk, and withdrawing moves it back. On overlap, My desk wins. Plan: [`docs/plans/work-activity-redesign-plan.md`](docs/plans/work-activity-redesign-plan.md).
+_Avoid_: showing a receipt about an in-scope beacon on Activity; rendering receipt rows on My desk instead of on the beacon's card; naming this concept `destination_kind` (that column is the deep-link target kind).
+
+**Needs you** / «Требует вас» (My desk section):
+Cards with at least one **live obligation** (`requires_action` and unsettled), shown first. The section count and the My desk nav badge count individual obligation **receipts**, not beacons.
+
+**For you** / «Для вас» (Activity section):
+The pinned zone at the top of Activity: every **unanswered forward** (Inbox `needsMe`, beacon not in scope) plus fresh pending invite prompts. An unanswered forward stays pinned regardless of age. Once acted on (offer help, forward, watch, dismiss), it drops to its **chronological place** (`latest_forward_at`) in the stream as a row showing the outcome. A request closed or deleted before the viewer answered is one such outcome, not a separate tombstone section.
+_Avoid_: «Предложения» / "Offers" as an Activity label — it collides with **help offer** («предложение помощи»); obligation wording such as «ждут вашего ответа» / "need your response" — reacting to an offer is optional.
+
+**Notification history** / «История уведомлений»:
+A secondary screen reached from Activity's overflow menu: the global chronological receipt list across both tabs, with All / Unread and search. Not a primary surface of either tab.
 
 **Active filter** (default):
 Non-archived cards (excluding **drafts** and deleted). Beacons of any lifecycle the user has not archived — including review-window and finished beacons — appear here until the user archives them.
