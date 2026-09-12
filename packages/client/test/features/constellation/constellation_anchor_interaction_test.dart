@@ -101,6 +101,7 @@ final class _HarnessAnchorRepository
   int upsertCount = 0;
   int deleteCount = 0;
   ConstellationAnchorPosition? lastPosition;
+  Completer<void>? upsertHold;
 
   @override
   Future<ConstellationAnchorUpsertResult> upsert({
@@ -109,6 +110,7 @@ final class _HarnessAnchorRepository
   }) async {
     upsertCount++;
     lastPosition = position;
+    await upsertHold?.future;
     return ConstellationAnchorUpsertResult(
       anchor: ConstellationAnchor(
         target: target,
@@ -329,6 +331,40 @@ void main() {
         closeTo(expected.yUnits, 1e-9),
       );
       expect(harness.cubit.isAnchored(target), isTrue);
+
+      final pinned = _requireNodeCentre(harness.cubit, 'p1');
+      expect(pinned.dx, closeTo(drop.dx, 1));
+      expect(pinned.dy, closeTo(drop.dy, 1));
+    });
+
+    testWidgets('Pin here does not snap back while the write is in flight', (
+      tester,
+    ) async {
+      final harness = await _harness();
+      addTearDown(harness.cubit.close);
+      await _pumpShell(tester, harness.cubit);
+
+      final original = _requireNodeCentre(harness.cubit, 'p1');
+      const drop = Offset(2800, 1600);
+      expect((original - drop).distance, greaterThan(200));
+
+      final target = ConstellationAnchorTarget.person('p1');
+      harness.cubit.beginDragNew(target: target);
+      await harness.cubit.onNewNodeDrop(target: target, sceneCentre: drop);
+      await tester.pump();
+
+      harness.anchorRepo.upsertHold = Completer<void>();
+      await tester.tap(find.byKey(TestIds.key(TestIds.constellationPinHere)));
+      await tester.pump();
+
+      expect(harness.anchorRepo.upsertCount, 1);
+      final whilePending = _requireNodeCentre(harness.cubit, 'p1');
+      expect(whilePending.dx, closeTo(drop.dx, 1));
+      expect(whilePending.dy, closeTo(drop.dy, 1));
+
+      harness.anchorRepo.upsertHold!.complete();
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
 
       final pinned = _requireNodeCentre(harness.cubit, 'p1');
       expect(pinned.dx, closeTo(drop.dx, 1));

@@ -388,7 +388,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     final position = constellationPointToV1Anchor(
       (x: sceneCentre.dx, y: sceneCentre.dy),
     );
-    _clearDragPresentation(target.graphNodeId);
+    _draggingNodeId = null;
     emit(
       state.copyWith(
         placementPhase: ConstellationPlacementPhase.idle,
@@ -430,7 +430,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     final position = constellationPointToV1Anchor(
       (x: sceneCentre.dx, y: sceneCentre.dy),
     );
-    _clearDragPresentation(target.graphNodeId);
+    _draggingNodeId = null;
     emit(
       state.copyWith(
         placementPhase: ConstellationPlacementPhase.idle,
