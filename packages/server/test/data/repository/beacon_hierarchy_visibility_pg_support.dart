@@ -5,6 +5,7 @@ import 'package:tentura_root/domain/entity/beacon_status.dart';
 import 'package:tentura_server/domain/entity/beacon_entity.dart';
 import 'package:tentura_server/domain/entity/user_entity.dart';
 import 'package:tentura_server/domain/port/beacon_access_guard.dart';
+import 'package:tentura_server/domain/port/beacon_repository_port.dart';
 import 'package:tentura_server/domain/port/evaluation_repository_port.dart';
 import 'package:tentura_server/domain/use_case/capability_case.dart';
 import 'package:tentura_server/domain/use_case/commitment_query_case.dart';
@@ -20,7 +21,9 @@ import '../../domain/use_case/invitation_case_mocks.mocks.dart'
     as invitation_mocks;
 import '../../support/fake_beacon_hierarchy_repository.dart';
 import '../../support/fake_user_block_repository.dart';
+import '../../support/beacon_hierarchy_fixture.dart';
 import '../../support/recording_commitment_repository.dart';
+import '../../support/test_attention_harness.dart';
 
 /// Wires production use cases with a real [BeaconAccessGuard] so hierarchy-only
 /// viewers hit the same `canReadContent` gates as production.
@@ -38,27 +41,41 @@ final class HierarchyOnlyViewerHarness {
   static final _env = Env(environment: Environment.test);
   static final _logger = Logger('HierarchyOnlyViewerHarness');
 
-  BeaconEntity _childBeacon() {
+  BeaconEntity _childBeacon({String authorId = BeaconHierarchyTopology.bobId}) {
     final now = DateTime.utc(2026, 1, 1);
     return BeaconEntity(
       id: childBeaconId,
       title: 'Child request',
-      author: const UserEntity(id: 'Uhierbob0001'),
+      author: UserEntity(id: authorId),
       createdAt: now,
       updatedAt: now,
       status: BeaconStatus.open,
     );
   }
 
-  HelpOfferCase buildHelpOfferCase() {
-    final beaconRepo = help_mocks.MockBeaconRepositoryPort();
-    when(
-      beaconRepo.getBeaconById(beaconId: childBeaconId),
-    ).thenAnswer((_) async => _childBeacon());
+  HelpOfferCase buildHelpOfferCase({
+    help_mocks.MockHelpOfferRepositoryPort? helpOfferRepo,
+    RecordingCommitmentRepository? commitmentRepo,
+    TestAttentionHarness? attention,
+    String lockedBeaconAuthorId = BeaconHierarchyTopology.bobId,
+  }) {
+    final child = _childBeacon(authorId: lockedBeaconAuthorId);
+    final beaconRepo = _HarnessChildBeaconRepo(child);
+    final help = helpOfferRepo ?? help_mocks.MockHelpOfferRepositoryPort();
+    if (helpOfferRepo == null) {
+      when(
+        help.hasActiveHelpOffer(
+          beaconId: childBeaconId,
+          userId: anyNamed('userId'),
+        ),
+      ).thenAnswer((_) async => false);
+    }
+    final commitment = commitmentRepo ?? RecordingCommitmentRepository();
+    final att = attention ?? TestAttentionHarness();
     return HelpOfferCase(
-      help_mocks.MockHelpOfferRepositoryPort(),
+      help,
       beaconRepo,
-      RecordingCommitmentRepository(),
+      commitment,
       help_mocks.MockInboxRepositoryPort(),
       CapabilityCase(
         help_mocks.MockPersonCapabilityEventRepositoryPort(),
@@ -66,8 +83,36 @@ final class HierarchyOnlyViewerHarness {
         logger: _logger,
       ),
       _access,
+      attentionIntents: att.intents,
+      attention: att.transactional,
       env: _env,
       logger: _logger,
+    );
+  }
+
+  HelpOfferCase buildHelpOfferCaseWithInjectedUpsertFailure({
+    required RecordingCommitmentRepository commitmentRepo,
+  }) {
+    final help = help_mocks.MockHelpOfferRepositoryPort();
+    when(
+      help.hasActiveHelpOffer(
+        beaconId: childBeaconId,
+        userId: anyNamed('userId'),
+      ),
+    ).thenAnswer((_) async => false);
+    when(
+      help.upsert(
+        beaconId: anyNamed('beaconId'),
+        userId: anyNamed('userId'),
+        message: anyNamed('message'),
+        helpTypes: anyNamed('helpTypes'),
+        offerKind: anyNamed('offerKind'),
+      ),
+    ).thenThrow(StateError('injected help offer upsert failure'));
+    return buildHelpOfferCase(
+      helpOfferRepo: help,
+      commitmentRepo: commitmentRepo,
+      lockedBeaconAuthorId: BeaconHierarchyTopology.aliceId,
     );
   }
 
@@ -121,3 +166,24 @@ final class HierarchyOnlyViewerHarness {
 
 final class _FakeEvaluationRepository extends Fake
     implements EvaluationRepositoryPort {}
+
+final class _HarnessChildBeaconRepo extends Fake implements BeaconRepositoryPort {
+  _HarnessChildBeaconRepo(this._child);
+
+  final BeaconEntity _child;
+
+  @override
+  Future<BeaconEntity> getBeaconById({
+    required String beaconId,
+    String? filterByUserId,
+  }) async =>
+      _child;
+
+  @override
+  Future<T> runInBeaconStateTransaction<T>({
+    required String beaconId,
+    required String userId,
+    required Future<T> Function(BeaconEntity locked) fn,
+  }) =>
+      fn(_child);
+}

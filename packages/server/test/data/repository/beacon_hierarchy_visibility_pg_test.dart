@@ -10,8 +10,10 @@ import 'package:tentura_server/data/repository/beacon_access_repository.dart';
 import 'package:tentura_server/data/repository/beacon_hierarchy_repository.dart';
 import 'package:tentura_server/domain/beacon_lineage_visibility.dart';
 import 'package:tentura_server/domain/exception.dart';
+import 'package:tentura_server/domain/exception_codes.dart';
 
 import '../../support/beacon_hierarchy_fixture.dart';
+import '../../support/recording_commitment_repository.dart';
 import 'beacon_hierarchy_pg_helpers.dart';
 import 'beacon_hierarchy_visibility_pg_support.dart';
 
@@ -305,6 +307,50 @@ ON CONFLICT DO NOTHING
           ),
           throwsA(isA<UnauthorizedException>()),
         );
+      });
+
+      test(
+        'help_offer_case content-authorized child owner passes canReadContent gate',
+        () async {
+          final childId = harness.childBeaconId;
+          final bobId = BeaconHierarchyTopology.bobId;
+          expect(
+            await access.canReadContent(beaconId: childId, viewerId: bobId),
+            isTrue,
+          );
+          final case_ = harness.buildHelpOfferCase();
+          await expectLater(
+            case_.offerHelp(beaconId: childId, userId: bobId),
+            throwsA(
+              isA<HelpOfferCoordinationException>().having(
+                (e) =>
+                    (e.code as HelpOfferCoordinationExceptionCodes)
+                        .exceptionCode,
+                'code',
+                HelpOfferCoordinationExceptionCode.authorCannotCommit,
+              ),
+            ),
+          );
+        },
+      );
+
+      test('help_offer_case rolls back commitment when upsert fails after guard',
+          () async {
+        final childId = harness.childBeaconId;
+        final bobId = BeaconHierarchyTopology.bobId;
+        expect(
+          await access.canReadContent(beaconId: childId, viewerId: bobId),
+          isTrue,
+        );
+        final commitmentRepo = RecordingCommitmentRepository();
+        final case_ = harness.buildHelpOfferCaseWithInjectedUpsertFailure(
+          commitmentRepo: commitmentRepo,
+        );
+        await expectLater(
+          case_.offerHelp(beaconId: childId, userId: bobId),
+          throwsA(isA<StateError>()),
+        );
+        expect(commitmentRepo.recordCalls, isEmpty);
       });
 
       test('forward_case forward cannot mint child content access', () async {

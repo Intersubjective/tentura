@@ -60,6 +60,11 @@ final class HelpOfferCase extends UseCaseBase {
         }
       }
     }
+    if (!await _guard.canReadContent(beaconId: beaconId, viewerId: userId)) {
+      throw const UnauthorizedException(
+        description: 'Viewer cannot read request content',
+      );
+    }
     await _attention!.runAction<void>(
       actorUserId: userId,
       action: (transaction) async {
