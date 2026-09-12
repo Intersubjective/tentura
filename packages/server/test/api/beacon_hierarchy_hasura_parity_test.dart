@@ -38,13 +38,13 @@ Future<void> main() async {
     late BeaconHierarchyFixture fixture;
     late AuthCase authCase;
     IsolatedHasuraSession? hasura;
+    var setupComplete = false;
 
     setUpAll(() async {
       if (skipReason != false) {
         return;
       }
       target = BeaconHierarchyDisposablePgTarget.fromEnvironment();
-      await target.recreate();
       final session = await openBeaconHierarchyPgSession(target);
       writer = session.writer;
       fixture = BeaconHierarchyFixture(writer: writer, db: session.db);
@@ -61,6 +61,7 @@ Future<void> main() async {
       );
       await startedHasura.applyRepoMetadata();
       hasura = startedHasura;
+      setupComplete = true;
     });
 
     tearDown(() async {
@@ -71,7 +72,7 @@ Future<void> main() async {
     });
 
     tearDownAll(() async {
-      if (skipReason != false) {
+      if (skipReason != false || !setupComplete) {
         return;
       }
       try {

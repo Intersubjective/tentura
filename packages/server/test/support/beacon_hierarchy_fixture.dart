@@ -497,6 +497,7 @@ Future<({Connection writer, TenturaDb db})> openBeaconHierarchyPgSession(
   Connection? writer;
   try {
     await withDisposablePgLifecycleLock(target.adminEnv, () async {
+      await target._recreateUnlocked();
       writer = await Connection.open(
         target.databaseEnv.pgEndpoint,
         settings: target.databaseEnv.pgEndpointSettings,
