@@ -97,7 +97,7 @@ class ConstellationPersonContextDecorator extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        child,
+        Flexible(child: child),
         SizedBox(height: tt.rowGap),
         ConstellationAnchorTargetButton(
           target: ConstellationAnchorTarget.person(personId),

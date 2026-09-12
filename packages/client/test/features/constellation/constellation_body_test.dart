@@ -9,6 +9,7 @@ import 'package:tentura/features/constellation/domain/entity/constellation_ancho
 import 'package:tentura/features/constellation/domain/port/constellation_repository_port.dart';
 import 'package:tentura/features/constellation/domain/use_case/constellation_field_case.dart';
 import 'package:tentura/features/constellation/ui/bloc/constellation_cubit.dart';
+import 'package:tentura/features/constellation/ui/widget/constellation_anchor_controls.dart';
 import 'package:tentura/features/constellation/ui/widget/constellation_body.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:tentura/features/graph/ui/bloc/graph_person_context_cubit.dart';
@@ -86,28 +87,36 @@ Future<ConstellationCubit> _loadCubit(ConstellationField field) async {
   return cubit;
 }
 
-Future<void> _pumpBody(WidgetTester tester, ConstellationCubit cubit) async {
-  await tester.binding.setSurfaceSize(const Size(1200, 900));
+Future<void> _pumpBody(
+  WidgetTester tester,
+  ConstellationCubit cubit, {
+  Size size = const Size(1200, 900),
+}) async {
+  await tester.binding.setSurfaceSize(size);
+  addTearDown(() => tester.binding.setSurfaceSize(null));
   await tester.pumpWidget(
     MaterialApp(
       locale: const Locale('en'),
       theme: TenturaTheme.light(),
       localizationsDelegates: L10n.localizationsDelegates,
       supportedLocales: L10n.supportedLocales,
-      home: TenturaResponsiveScope(
-        child: MultiBlocProvider(
-          providers: [
-            BlocProvider<ConstellationCubit>.value(value: cubit),
-            BlocProvider<GraphPersonContextCubit>(
-              create: (_) => _StubContextCubit(),
+      home: MediaQuery(
+        data: MediaQueryData(size: size),
+        child: TenturaResponsiveScope(
+          child: MultiBlocProvider(
+            providers: [
+              BlocProvider<ConstellationCubit>.value(value: cubit),
+              BlocProvider<GraphPersonContextCubit>(
+                create: (_) => _StubContextCubit(),
+              ),
+              BlocProvider<ScreenCubit>(
+                create: (_) => ScreenCubit(FakeUiEffectPort()),
+              ),
+            ],
+            child: ConstellationBody(
+              legendExpanded: false,
+              onToggleLegend: () {},
             ),
-            BlocProvider<ScreenCubit>(
-              create: (_) => ScreenCubit(FakeUiEffectPort()),
-            ),
-          ],
-          child: ConstellationBody(
-            legendExpanded: false,
-            onToggleLegend: () {},
           ),
         ),
       ),
@@ -394,5 +403,47 @@ void main() {
       expect(find.text('Ann'), findsWidgets);
       expect(find.textContaining('Show 1 request'), findsOneWidget);
     });
+
+    testWidgets(
+      'compact person panel with pin control does not overflow',
+      (tester) async {
+        final cubit = await _loadCubit(
+          ConstellationField(
+            loadedAt: DateTime.utc(2026, 9, 9),
+            context: '',
+            peers: [const ConstellationPerson(id: 'a', displayName: 'Ann')],
+            edges: [
+              const ConstellationTrustEdgeEntity(src: 'ego', dst: 'a', tier: 1),
+            ],
+            requests: [
+              const ConstellationRequest(
+                id: 'req-a',
+                authorId: 'a',
+                title: 'Need tools',
+                status: 0,
+              ),
+            ],
+          ),
+        );
+
+        // iPhone SE: compact maxHeight is 667 * 0.42 ≈ 280, matching the
+        // reported RenderFlex overflow on ConstellationPersonContextDecorator.
+        await _pumpBody(tester, cubit, size: const Size(375, 667));
+
+        await tester.tap(_personNodeFinder('a'));
+        await tester.pump();
+
+        expect(find.byType(ConstellationPersonContextDecorator), findsOneWidget);
+        expect(
+          find.byKey(TestIds.key(TestIds.constellationPinTarget)),
+          findsOneWidget,
+        );
+        expect(
+          tester.getSize(find.byType(ConstellationPersonContextDecorator)).height,
+          lessThanOrEqualTo(667 * 0.42 + 1),
+        );
+        expect(tester.takeException(), isNull);
+      },
+    );
   });
 }
