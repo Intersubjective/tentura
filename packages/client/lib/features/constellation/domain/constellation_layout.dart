@@ -199,6 +199,7 @@ ConstellationLayout computeConstellationPlacedLayout({
     residualRingFactor: residualRingFactor,
     satelliteOffset: satelliteOffset,
     alreadyPlaced: positions.keys.toSet(),
+    placed: positions,
   );
 
   final automaticPeople = [
@@ -579,6 +580,7 @@ Map<String, ConstellationPoint> _computeSemanticIdeals({
   required double residualRingFactor,
   required double satelliteOffset,
   required Set<String> alreadyPlaced,
+  required Map<String, ConstellationPoint> placed,
 }) {
   final ideals = <String, ConstellationPoint>{};
   final canvasSize = (
@@ -691,7 +693,7 @@ Map<String, ConstellationPoint> _computeSemanticIdeals({
     if (author == egoId) {
       continue;
     }
-    final authorPoint = ideals[author];
+    final authorPoint = ideals[author] ?? placed[author];
     if (authorPoint == null) {
       continue;
     }

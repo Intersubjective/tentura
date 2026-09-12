@@ -371,6 +371,65 @@ void main() {
       expect(pinned.dy, closeTo(drop.dy, 1));
     });
 
+    testWidgets('unpinning a beacon does not place it on ego', (tester) async {
+      final harness = await _harness(
+        fields: [
+          _field(
+            peers: const [
+              ConstellationPerson(id: 'p1', displayName: 'Peer'),
+            ],
+            requests: const [
+              ConstellationRequest(
+                id: 'req-1',
+                authorId: 'p1',
+                title: 'Need tools',
+                status: 0,
+              ),
+            ],
+            anchors: [
+              ConstellationAnchor(
+                target: ConstellationAnchorTarget.person('p1'),
+                position: const ConstellationAnchorPosition(
+                  xUnits: 4,
+                  yUnits: 0,
+                  coordinateSpaceVersion: 1,
+                ),
+                revision: ConstellationAnchorRevision(BigInt.one),
+                placedAt: _loadedAt,
+              ),
+              ConstellationAnchor(
+                target: ConstellationAnchorTarget.beacon('req-1'),
+                position: const ConstellationAnchorPosition(
+                  xUnits: -3,
+                  yUnits: 5,
+                  coordinateSpaceVersion: 1,
+                ),
+                revision: ConstellationAnchorRevision(BigInt.one),
+                placedAt: _loadedAt,
+              ),
+            ],
+          ),
+        ],
+      );
+      addTearDown(harness.cubit.close);
+      await _pumpShell(tester, harness.cubit);
+
+      final ego = _requireNodeCentre(harness.cubit, 'ego');
+      final pinned = _requireNodeCentre(harness.cubit, 'req-1');
+      expect((pinned - ego).distance, greaterThan(200));
+      expect(harness.cubit.isAnchored(ConstellationAnchorTarget.beacon('req-1')), isTrue);
+
+      await harness.cubit.unpinAnchor(
+        target: ConstellationAnchorTarget.beacon('req-1'),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
+
+      expect(harness.cubit.isAnchored(ConstellationAnchorTarget.beacon('req-1')), isFalse);
+      final unpinned = _requireNodeCentre(harness.cubit, 'req-1');
+      expect((unpinned - ego).distance, greaterThan(40));
+    });
+
     testWidgets('pinning a person does not move the camera', (tester) async {
       final harness = await _harness();
       addTearDown(harness.cubit.close);

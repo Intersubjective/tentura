@@ -403,6 +403,88 @@ void main() {
       );
     });
 
+    test('unpinned beacon of a pinned author is not placed on ego', () {
+      final paths = _simplePaths();
+      const personAnchor = ConstellationAnchorPosition(
+        xUnits: 4,
+        yUnits: 0,
+        coordinateSpaceVersion: kConstellationCoordinateSpaceVersionV1,
+      );
+      final layout = computeConstellationPlacedLayout(
+        input: (
+          egoId: _ego,
+          paths: paths,
+          automaticKeptPeerIds: {'peer-a'},
+          pinnedPersonIds: {'peer-a'},
+          pinnedRequestIds: const {},
+          supportPersonIds: const {},
+          anchorByNodeId: {'peer-a': personAnchor},
+          priorHints: null,
+          nodeSizes: const {},
+          satelliteRequestIdsByAuthor: const {
+            'peer-a': ['B1'],
+          },
+          requestAuthorById: const {'B1': 'peer-a'},
+          egoOwnRequestIds: const {},
+          spacing: _spacing,
+          maxHops: 3,
+          viewportClass: ConstellationViewportClass.expanded,
+        ),
+      );
+
+      final ego = constellationCanvasCentrePoint();
+      expect(layout.positions.containsKey('B1'), isTrue);
+      final beacon = layout.positions['B1']!;
+      final author = layout.positions['peer-a']!;
+      expect(
+        math.sqrt(
+          math.pow(beacon.x - ego.x, 2) + math.pow(beacon.y - ego.y, 2),
+        ),
+        greaterThan(40),
+      );
+      expect(
+        math.sqrt(
+          math.pow(beacon.x - author.x, 2) + math.pow(beacon.y - author.y, 2),
+        ),
+        lessThan(120),
+      );
+    });
+
+    test('unpinned beacon of an automatic author is not placed on ego', () {
+      final paths = _simplePaths();
+      final layout = computeConstellationPlacedLayout(
+        input: (
+          egoId: _ego,
+          paths: paths,
+          automaticKeptPeerIds: {'peer-a'},
+          pinnedPersonIds: const {},
+          pinnedRequestIds: const {},
+          supportPersonIds: const {},
+          anchorByNodeId: const {},
+          priorHints: null,
+          nodeSizes: const {},
+          satelliteRequestIdsByAuthor: const {
+            'peer-a': ['B1'],
+          },
+          requestAuthorById: const {'B1': 'peer-a'},
+          egoOwnRequestIds: const {},
+          spacing: _spacing,
+          maxHops: 3,
+          viewportClass: ConstellationViewportClass.expanded,
+        ),
+      );
+
+      final ego = constellationCanvasCentrePoint();
+      expect(layout.positions.containsKey('B1'), isTrue);
+      final beacon = layout.positions['B1']!;
+      expect(
+        math.sqrt(
+          math.pow(beacon.x - ego.x, 2) + math.pow(beacon.y - ego.y, 2),
+        ),
+        greaterThan(40),
+      );
+    });
+
     test('exact overlapping anchors are preserved', () {
       final layout = computeConstellationPlacedLayout(
         input: (
