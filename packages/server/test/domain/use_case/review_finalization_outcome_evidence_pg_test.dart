@@ -15,6 +15,7 @@ import 'package:tentura_server/data/repository/capability_evidence_repository.da
 import 'package:tentura_server/data/repository/evaluation_repository.dart';
 import 'package:tentura_server/data/repository/mutating_unit_of_work.dart';
 import 'package:tentura_server/domain/capability/capability_consts.dart';
+import 'package:tentura_server/domain/evaluation/beacon_evaluation_row_status.dart';
 import 'package:tentura_server/domain/evaluation/beacon_evaluation_value.dart';
 import 'package:tentura_server/domain/evaluation/evaluation_participant_role.dart';
 import 'package:tentura_server/domain/entity/review_finalization_result.dart';
@@ -128,6 +129,16 @@ WHERE beacon_id = 'Bcapc2bcn001'
       await target.drop();
     });
 
+    Future<void> markPackagesSent(Iterable<String> evaluatorIds) async {
+      for (final evaluatorId in evaluatorIds) {
+        await evalRepo.setReviewUserStatus(
+          beaconId: _beaconId,
+          userId: evaluatorId,
+          status: 2,
+        );
+      }
+    }
+
     Future<ReviewFinalizationResult> closeBeacon() =>
         finalizationCase.closeAndFinalize(
           _beaconId,
@@ -165,6 +176,7 @@ WHERE beacon_id = 'Bcapc2bcn001'
           note: 'no basis',
           ackTags: const ['manual_labour'],
         );
+        await markPackagesSent([_author, _committer1, _former]);
 
         await closeBeacon();
 
@@ -207,9 +219,11 @@ INSERT INTO public.beacon_evaluation_ack_tag (
 )
 ON CONFLICT DO NOTHING
 ''');
+        await markPackagesSent([_forwarder]);
 
         await closeBeacon();
 
+        expect(await _finalizedEvaluationCount(writer), 1);
         expect(await _outcomeLedgerCount(writer, _subject), 0);
       },
       skip: skipReason,
@@ -229,9 +243,11 @@ ON CONFLICT DO NOTHING
             ackTags: const ['transport'],
           );
         }
+        await markPackagesSent([_author, _committer1, _former]);
 
         await closeBeacon();
 
+        expect(await _finalizedEvaluationCount(writer), 3);
         expect(
           await _outcomeLedgerCount(writer, _subject, tag: 'transport'),
           3,
@@ -286,9 +302,16 @@ ON CONFLICT DO NOTHING
           note: 'd',
           ackTags: const ['cooking'],
         );
+        await markPackagesSent([
+          _author,
+          _committer1,
+          _former,
+          _committer2,
+        ]);
 
         await closeBeacon();
 
+        expect(await _finalizedEvaluationCount(writer), 4);
         final tags = await _outcomeTagsForSubject(writer, _subject);
         expect(tags, ['cooking', 'pets', 'transport']);
         expect(tags, isNot(contains('manual_labour')));
@@ -308,6 +331,7 @@ ON CONFLICT DO NOTHING
           note: 'once',
           ackTags: const ['transport'],
         );
+        await markPackagesSent([_author]);
 
         final first = await closeBeacon();
         expect(first.didClose, isTrue);
@@ -337,8 +361,10 @@ ON CONFLICT DO NOTHING
             ackTags: const ['transport'],
           );
         }
+        await markPackagesSent([_author, _committer1, _former]);
 
         await expectLater(closeBeacon(), completes);
+        expect(await _finalizedEvaluationCount(writer), 3);
         expect(await _outcomeLedgerCount(writer, _subject), 3);
       },
       skip: skipReason,
@@ -460,6 +486,15 @@ VALUES ('Bcapc2bcn001', '$evaluator', 0)
 ON CONFLICT DO NOTHING
 ''');
   }
+}
+
+Future<int> _finalizedEvaluationCount(Connection writer) async {
+  final rows = await writer.execute(
+    "SELECT count(*)::int FROM public.beacon_evaluation "
+    "WHERE beacon_id = 'Bcapc2bcn001' "
+    "AND status = ${BeaconEvaluationRowStatus.final_}",
+  );
+  return rows.single.single! as int;
 }
 
 Future<int> _outcomeLedgerCount(
