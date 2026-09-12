@@ -75,8 +75,9 @@ Future<void> _settle([int turns = 8]) async {
 
 Future<void> _pumpNavItem(
   WidgetTester tester,
-  HomeAttentionCubit home,
-) async {
+  HomeAttentionCubit home, {
+  bool selected = false,
+}) async {
   await tester.pumpWidget(
     BlocProvider<HomeAttentionCubit>.value(
       value: home,
@@ -85,8 +86,8 @@ Future<void> _pumpNavItem(
         theme: TenturaTheme.light(),
         localizationsDelegates: L10n.localizationsDelegates,
         supportedLocales: L10n.supportedLocales,
-        home: const Scaffold(
-          body: Center(child: InboxNavbarItem()),
+        home: Scaffold(
+          body: Center(child: InboxNavbarItem(selected: selected)),
         ),
       ),
     ),
@@ -246,7 +247,7 @@ void main() {
     await tester.pumpWidget(const SizedBox.shrink());
   });
 
-  testWidgets('hides badge on the active Activity tab', (tester) async {
+  testWidgets('keeps numeric badge on the active Activity tab', (tester) async {
     await _seedInboxAttention(
       home: home,
       accounts: accounts,
@@ -255,9 +256,11 @@ void main() {
       inboxBeaconIds: const {'B1'},
     );
     home.setActiveHomeTab(HomeTab.inbox);
-    await _pumpNavItem(tester, home);
+    await _pumpNavItem(tester, home, selected: true);
 
-    expect(find.byType(Badge), findsNothing);
+    expect(find.byType(Badge), findsOneWidget);
+    expect(_badgeLabelVisible(tester), isTrue);
+    expect(_badgeLabelText(tester), '1');
     await tester.pumpWidget(const SizedBox.shrink());
   });
 

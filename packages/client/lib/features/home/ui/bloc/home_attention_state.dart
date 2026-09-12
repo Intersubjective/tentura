@@ -49,8 +49,9 @@ abstract class HomeAttentionState with _$HomeAttentionState {
       activeHomeTab != HomeTab.inbox && inboxMarkerIds.isNotEmpty;
 
   /// Needs-me triage count for the Activity nav badge (Watching excluded).
-  bool get showInboxTriageBadge =>
-      activeHomeTab != HomeTab.inbox && inboxLoaded && inboxTriageCount > 0;
+  ///
+  /// Stays visible on the active tab: this is remaining work, not unseen.
+  bool get showInboxTriageBadge => inboxLoaded && inboxTriageCount > 0;
 
   /// Unread marker dot when no pending triage items are shown on the icon.
   bool get showInboxUnreadDot =>
@@ -60,6 +61,7 @@ abstract class HomeAttentionState with _$HomeAttentionState {
       activeHomeTab != HomeTab.work && myWorkMarkerIds.isNotEmpty;
 
   /// Live obligation receipt count for the My Work nav badge (not unseen-based).
-  bool get showMyWorkObligationBadge =>
-      activeHomeTab != HomeTab.work && myWorkObligationCount > 0;
+  ///
+  /// Stays visible on the active tab: this is remaining work, not unseen.
+  bool get showMyWorkObligationBadge => myWorkObligationCount > 0;
 }

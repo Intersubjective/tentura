@@ -21,7 +21,8 @@ class MyWorkNavbarItem extends StatelessWidget {
           return Badge(
             label: Text('$count'),
             isLabelVisible: true,
-            backgroundColor: scheme.primary,
+            backgroundColor: selected ? scheme.onPrimary : scheme.primary,
+            textColor: selected ? scheme.primary : scheme.onPrimary,
             child: icon,
           );
         },

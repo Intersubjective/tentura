@@ -38,7 +38,8 @@ class InboxNavbarItem extends StatelessWidget {
             child: Badge(
               label: Text('${view.triageCount}'),
               isLabelVisible: true,
-              backgroundColor: scheme.primary,
+              backgroundColor: selected ? scheme.onPrimary : scheme.primary,
+              textColor: selected ? scheme.primary : scheme.onPrimary,
               child: icon,
             ),
           );

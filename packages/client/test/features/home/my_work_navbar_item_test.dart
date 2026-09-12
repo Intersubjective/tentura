@@ -74,8 +74,9 @@ Future<void> _settle([int turns = 8]) async {
 
 Future<void> _pumpNavItem(
   WidgetTester tester,
-  HomeAttentionCubit home,
-) async {
+  HomeAttentionCubit home, {
+  bool selected = false,
+}) async {
   await tester.pumpWidget(
     BlocProvider<HomeAttentionCubit>.value(
       value: home,
@@ -84,8 +85,8 @@ Future<void> _pumpNavItem(
         theme: TenturaTheme.light(),
         localizationsDelegates: L10n.localizationsDelegates,
         supportedLocales: L10n.supportedLocales,
-        home: const Scaffold(
-          body: Center(child: MyWorkNavbarItem()),
+        home: Scaffold(
+          body: Center(child: MyWorkNavbarItem(selected: selected)),
         ),
       ),
     ),
@@ -162,16 +163,17 @@ void main() {
     unawaited(boot.attention.dispose());
   });
 
-  testWidgets('hides badge on the active My Work tab', (tester) async {
+  testWidgets('keeps numeric badge on the active My Work tab', (tester) async {
     final boot = await _bootHome(
       accounts: accounts,
       repository: repository,
       obligationCount: 2,
     );
     boot.home.setActiveHomeTab(HomeTab.work);
-    await _pumpNavItem(tester, boot.home);
+    await _pumpNavItem(tester, boot.home, selected: true);
 
-    expect(find.byType(Badge), findsNothing);
+    expect(find.byType(Badge), findsOneWidget);
+    expect(_badgeLabelText(tester), '2');
     await tester.pumpWidget(const SizedBox.shrink());
     unawaited(boot.home.close());
     unawaited(boot.attention.dispose());
