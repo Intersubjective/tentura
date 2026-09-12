@@ -31,7 +31,7 @@ The protected `packages/force_directed_graphview/analysis_options.yaml` change i
 | Unit | Status | Dependency | Required commit behavior |
 | --- | --- | --- | --- |
 | M00 baseline behavior inventory | **accepted** | none | `test(graph): characterize scene identity and lifecycle` |
-| M01 pure scene value types | pending | M00 accepted | `feat(graph): add stable scene identity values` |
+| M01 pure scene value types | **accepted** | M00 accepted | `feat(graph): add stable scene identity values` |
 | M02 ID-keyed layout port and legacy adapter | pending | M01 accepted | `feat(graph): introduce id-keyed layout requests` |
 | M03 scene controller plus legacy delegation | pending | M02 accepted | two focused commits in plan order |
 | M04 rendering, ordering, focus, gesture snapshots | pending | M03 accepted | focused renderer migration commits |
@@ -167,3 +167,65 @@ Production code: **no changes.**
 - Cursor CLI authenticated; exact non-fast `composer-2.5` is available.
 - **M00 accepted** — M01 is next (`feat(graph): add stable scene identity values`).
 - Existing graph package analysis produces pre-existing warnings/info. Do not alter the protected analysis-options file to affect that result.
+
+---
+
+## M01 — Pure scene value types (worker: Composer 2.5, 2026-09-12)
+
+### Work
+
+Additive pure-Dart scene layer (no Flutter imports in `lib/src/scene/`):
+
+- **A1:** `GraphNodeId` / `GraphEdgeId` typedefs; opaque string IDs.
+- **A2:** `GraphSceneNode`, `GraphSceneEdge`, `GraphTopology.fromEntries` with duplicate/empty ID and missing-endpoint validation; parallel edges and self-loops allowed.
+- **A5 (values only):** `SceneLayout`, `ScenePresentation` (+ `GraphPresentationHold`), `SceneTransition`, `GraphSceneSnapshot.resolvePosition` precedence (`override → transition → layout → seed`).
+- Supporting: `ScenePoint`, `SceneSize`, `GraphLayoutTicket.mint`, `GraphPresentationToken.mint`, internal `scene_collections.dart` (not exported).
+- Public exports added in `force_directed_graphview.dart`; legacy controller/widget APIs unchanged.
+
+### Decisions
+
+- `GraphLayoutTicket` / `GraphPresentationToken` minted via package-visible `.mint` factories for tests and future `GraphSceneController` (full ticket protocol deferred to M02).
+- `SceneTransition` included in M01 so snapshot precedence is testable without a controller.
+- Validation helpers use `void` return type (not `Never`) so success paths compile cleanly.
+
+### Verification
+
+```bash
+cd packages/force_directed_graphview && flutter test test/scene_values_test.dart
+# exit 0, 18 tests passed
+
+cd packages/force_directed_graphview && flutter test
+# exit 0, 58 tests passed (full package suite)
+
+cd packages/force_directed_graphview && dart analyze --format machine
+# exit 0; pre-existing warnings unchanged (controller.dart, tests, etc.)
+# new scene files: INFO-only (PUBLIC_MEMBER_API_DOCS, DIRECTIVES_ORDERING, …)
+```
+
+Protected `analysis_options.yaml` not staged. No production client changes.
+
+### Changed paths (M01 commit)
+
+- `packages/force_directed_graphview/lib/src/scene/graph_ids.dart` (new)
+- `packages/force_directed_graphview/lib/src/scene/scene_geometry.dart` (new)
+- `packages/force_directed_graphview/lib/src/scene/graph_topology.dart` (new)
+- `packages/force_directed_graphview/lib/src/scene/graph_layout_ticket.dart` (new)
+- `packages/force_directed_graphview/lib/src/scene/graph_presentation_token.dart` (new)
+- `packages/force_directed_graphview/lib/src/scene/scene_collections.dart` (new, package-private)
+- `packages/force_directed_graphview/lib/src/scene/scene_layout.dart` (new)
+- `packages/force_directed_graphview/lib/src/scene/scene_presentation.dart` (new)
+- `packages/force_directed_graphview/lib/src/scene/scene_transition.dart` (new)
+- `packages/force_directed_graphview/lib/src/scene/scene_snapshot.dart` (new)
+- `packages/force_directed_graphview/lib/force_directed_graphview.dart` (exports)
+- `packages/force_directed_graphview/test/scene_values_test.dart` (new)
+- `docs/plans/force-directed-graphview-scene-decoupling-implementation-journal.md` (this file)
+
+### Commit
+
+- **Subject:** `feat(graph): add stable scene identity values` — locate with `git log -1 --grep 'stable scene identity'`.
+
+---
+
+## Manager checkpoint — 2026-09-12 (post-M01)
+
+- **M01 accepted** — M02 is next (`feat(graph): introduce id-keyed layout requests`).
