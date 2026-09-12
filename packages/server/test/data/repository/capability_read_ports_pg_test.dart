@@ -1,14 +1,11 @@
 @Tags(['pg'])
 library;
 
-import 'dart:io';
-
 import 'package:injectable/injectable.dart' show Environment;
 import 'package:logging/logging.dart';
 import 'package:postgres/postgres.dart';
 import 'package:test/test.dart';
 
-import 'package:tentura_server/data/database/migration/_migrations.dart';
 import 'package:tentura_server/data/database/tentura_db.dart'
     hide isNotNull, isNull;
 import 'package:tentura_server/data/repository/capability_own_evidence_repository.dart';
@@ -20,6 +17,8 @@ import 'package:tentura_server/domain/capability/capability_evidence_models.dart
 import 'package:tentura_server/domain/invite_genealogy/invite_genealogy_node_key.dart';
 import 'package:tentura_server/domain/use_case/capability_telemetry_case.dart';
 import 'package:tentura_server/env.dart';
+
+import '../../support/disposable_pg_target.dart';
 
 const _ego = 'Ucapb2cego01';
 const _sub1 = 'Ucapb2csub01';
@@ -49,12 +48,16 @@ const _allIds = [
 ];
 
 Future<void> main() async {
-  final target = _DisposablePgTarget.fromEnvironment();
-  final reachable = await _canConnect(target.adminEnv);
+  final target = DisposablePgTarget.fromNamedEnvironment(
+    envVarName: 'TENTURA_CAPABILITY_READ_PORTS_TEST_DB',
+    defaultNamePrefix: 'tentura_test_cap_read',
+  );
+  final reachable = await canReachPostgresAdmin(target);
   final skipReason = reachable
       ? false
       : 'Postgres admin database not reachable for disposable test target';
 
+  late DisposablePgWriterSession session;
   late Connection writer;
   late TenturaDb database;
   late CapabilityOwnEvidenceRepository ownEvidenceRepo;
@@ -66,16 +69,13 @@ Future<void> main() async {
 
   if (skipReason == false) {
     setUpAll(() async {
-      await target.recreate();
-      writer = await Connection.open(
-        target.databaseEnv.pgEndpoint,
-        settings: target.databaseEnv.pgEndpointSettings,
+      session = await setUpDisposablePgWriter(
+        target: target,
+        createPgmer2Extension: true,
       );
-      await writer.execute('SET check_function_bodies = false');
-      await writer.execute('CREATE EXTENSION IF NOT EXISTS pgmer2');
-      await migrateDbSchema(writer);
+      writer = session.writer;
       testEnv = target.databaseEnv;
-      database = TenturaDb(target.databaseEnv);
+      database = openDisposablePgDatabase(target);
       ownEvidenceRepo = CapabilityOwnEvidenceRepository(database);
       muteRepo = RoutingMuteRepository(database);
       telemetryRepo = CapabilityTelemetryRepository(database);
@@ -95,9 +95,7 @@ Future<void> main() async {
     });
 
     tearDownAll(() async {
-      await database.close();
-      await writer.close();
-      await target.drop();
+      await tearDownDisposablePgWriter(session: session, drift: database);
     });
   }
 
@@ -936,96 +934,4 @@ Future<void> _cleanup(TenturaDb db) async {
   await db.customStatement(
     'DELETE FROM public."user" WHERE id IN ($idList)',
   );
-}
-
-Future<bool> _canConnect(Env env) async {
-  try {
-    final connection = await Connection.open(
-      env.pgEndpoint,
-      settings: env.pgEndpointSettings,
-    );
-    await connection.close();
-    return true;
-  } on Object {
-    return false;
-  }
-}
-
-class _DisposablePgTarget {
-  const _DisposablePgTarget({
-    required this.adminEnv,
-    required this.databaseEnv,
-    required this.databaseName,
-  });
-
-  factory _DisposablePgTarget.fromEnvironment() {
-    final host = Platform.environment['POSTGRES_HOST'] ?? '127.0.0.1';
-    final port =
-        int.tryParse(Platform.environment['POSTGRES_PORT'] ?? '') ?? 5432;
-    final username = Platform.environment['POSTGRES_USERNAME'] ?? 'postgres';
-    final password = Platform.environment['POSTGRES_PASSWORD'] ?? 'password';
-    final adminDatabase =
-        Platform.environment['POSTGRES_ADMIN_DBNAME'] ?? 'postgres';
-    final databaseName =
-        Platform.environment['TENTURA_CAPABILITY_READ_PORTS_TEST_DB'] ??
-        'tentura_test_cap_read_${pid}_${DateTime.timestamp().microsecondsSinceEpoch}';
-    if (!RegExp(r'^tentura_test_[a-z0-9_]+$').hasMatch(databaseName) ||
-        databaseName.length > 63) {
-      throw ArgumentError.value(
-        databaseName,
-        'TENTURA_CAPABILITY_READ_PORTS_TEST_DB',
-        'must match tentura_test_[a-z0-9_]+ and be at most 63 characters',
-      );
-    }
-
-    Env envFor(String database) => Env(
-      environment: Environment.test,
-      pgHost: host,
-      pgPort: port,
-      pgDatabase: database,
-      pgUsername: username,
-      pgPassword: password,
-      printEnv: false,
-      isDebugModeOn: false,
-    );
-
-    return _DisposablePgTarget(
-      adminEnv: envFor(adminDatabase),
-      databaseEnv: envFor(databaseName),
-      databaseName: databaseName,
-    );
-  }
-
-  final Env adminEnv;
-  final Env databaseEnv;
-  final String databaseName;
-
-  Future<void> recreate() async {
-    final connection = await Connection.open(
-      adminEnv.pgEndpoint,
-      settings: adminEnv.pgEndpointSettings,
-    );
-    try {
-      await connection.execute(
-        'DROP DATABASE IF EXISTS "$databaseName" WITH (FORCE)',
-      );
-      await connection.execute('CREATE DATABASE "$databaseName"');
-    } finally {
-      await connection.close();
-    }
-  }
-
-  Future<void> drop() async {
-    final connection = await Connection.open(
-      adminEnv.pgEndpoint,
-      settings: adminEnv.pgEndpointSettings,
-    );
-    try {
-      await connection.execute(
-        'DROP DATABASE IF EXISTS "$databaseName" WITH (FORCE)',
-      );
-    } finally {
-      await connection.close();
-    }
-  }
 }
