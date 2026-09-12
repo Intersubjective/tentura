@@ -167,6 +167,16 @@ Future<void> main() async {
       await target.drop();
     });
 
+    Future<void> markPackagesSent(Iterable<String> evaluatorIds) async {
+      for (final evaluatorId in evaluatorIds) {
+        await evalRepo.setReviewUserStatus(
+          beaconId: _beaconId,
+          userId: evaluatorId,
+          status: 2,
+        );
+      }
+    }
+
     test(
       'witness admission gates Tier B network-outcome band rows per ego',
       () async {
@@ -179,12 +189,23 @@ Future<void> main() async {
           note: 'thanks',
           ackTags: const [_tag],
         );
+        await markPackagesSent([_bob]);
         final closeResult = await finalizationCase.closeAndFinalize(
           _beaconId,
           reason: 'test',
           actorUserId: _bob,
         );
         expect(closeResult.didClose, isTrue);
+        expect(
+          await _outcomeEvidenceCount(
+            writer,
+            observerId: _bob,
+            subjectId: _carol,
+            tagSlug: _tag,
+          ),
+          1,
+          reason: 'finalized close must emit beacon-scoped outcome evidence',
+        );
 
         final aliceCandidates = await bandCandidateRepo.candidatesFor(
           egoId: _alice,
@@ -308,6 +329,31 @@ Future<List<WitnessWeight>> _loadWitnessWindow(
     weights: weights,
   );
   return weights;
+}
+
+Future<int> _outcomeEvidenceCount(
+  Connection writer, {
+  required String observerId,
+  required String subjectId,
+  required String tagSlug,
+}) async {
+  final row = await writer.execute(
+    Sql.named(r'''
+SELECT count(*)::int AS c
+FROM public.person_capability_event
+WHERE observer_user_id = @observer
+  AND subject_user_id = @subject
+  AND tag_slug = @tag
+  AND source_type = 3
+  AND deleted_at IS NULL
+'''),
+    parameters: {
+      'observer': observerId,
+      'subject': subjectId,
+      'tag': tagSlug,
+    },
+  );
+  return row.first.first as int;
 }
 
 Future<void> _seedTrustGraph(
