@@ -1352,3 +1352,7 @@ Independent review of [P11 verification gate](8974a694-7a6b-4799-bb94-c9532265f9
 **Remaining 30 full-suite failures** (sample): review-finalization ledger 0≠3, realtime_notification_migration LISTEN empty, migrant `RaceCondition` in setUpAll, Hasura parity, help_offer null-check, beacon cover / m0149 / person_visibility migrations. Not constellation-owned. They still block C8 per P11 contract.
 
 Verdict: constellation-owned P11 gates green after the setUp trust restore. **Release remains BLOCKED** (C8 `7.6.0` not applied). P12 not started.
+
+### Manager checkpoint — rejected P11 recovery worker — 2026-09-12
+
+Fresh Composer worker was stopped before a valid full PostgreSQL result. It created and migrated a disposable database, then invoked `dart test -t pg -j 1` without carrying `POSTGRES_DBNAME` into that command. The run was terminated after 86 passing and 17 failing tests, so it is not acceptance evidence and made no source, journal, or commit changes. Process audit after termination found no task-owned Dart test, analyzer, Flutter, Chrome, or Cursor worker process; pre-existing Chrome, Cursor, Dart language services, Docker, and PostgreSQL remain untouched. P11 stays blocked. A new worker must bind a proven disposable `POSTGRES_DBNAME` to the suite itself and preserve serial execution.
