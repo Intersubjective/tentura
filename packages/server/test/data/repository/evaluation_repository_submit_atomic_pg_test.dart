@@ -100,7 +100,10 @@ WHERE beacon_id = 'Bcapc1abcn01'
         expect(evalRow.single[0], 4);
         expect(evalRow.single[1], 'quality,speed');
         expect(evalRow.single[2], 'solid help');
-        expect(evalRow.single[3], 1);
+        expect(
+          evalRow.single[3],
+          BeaconEvaluationRowStatus.draft,
+        );
 
         final ackRows = await _ackTagsForTriple(
           writer,
@@ -109,6 +112,16 @@ WHERE beacon_id = 'Bcapc1abcn01'
           _subject,
         );
         expect(ackRows, ['pets', 'transport']);
+
+        final viaRepo = await repo.getEvaluation(
+          beaconId: _beacon1,
+          evaluatorId: _eval1,
+          evaluatedUserId: _subject,
+        );
+        expect(viaRepo, isNotNull);
+        expect(viaRepo!.status, BeaconEvaluationRowStatus.draft);
+        expect(viaRepo.ackTags, ackRows);
+        expect(await _ackTagCount(writer, _beacon1, _eval1, _subject), 2);
       },
       skip: skipReason,
     );
