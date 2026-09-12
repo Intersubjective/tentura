@@ -4,30 +4,40 @@ library;
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:injectable/injectable.dart' show Environment;
 import 'package:postgres/postgres.dart';
 import 'package:test/test.dart';
 
 import 'package:tentura_server/data/database/migration/_migrations.dart';
-import 'package:tentura_server/env.dart';
+
+import '../../support/disposable_pg_target.dart';
 
 Future<void> main() async {
-  final target = _DisposablePgTarget.fromEnvironment();
-  final reachable = await _canConnect(target.adminEnv);
+  final target = DisposablePgTarget.fromNamedEnvironment(
+    envVarName: 'TENTURA_USER_AVAILABILITY_MIGRATION_TEST_DB',
+    defaultNamePrefix: 'tentura_test_uavail',
+  );
+  final reachable = await canReachPostgresAdmin(target);
   final skipReason = reachable
       ? false
       : 'Postgres admin database not reachable for disposable test target';
 
+  Future<void> migrateLocked(Connection connection) async {
+    await withDisposablePgLifecycleLock(
+      target.adminEnv,
+      () => migrateDbSchema(connection),
+    );
+  }
+
   group('m0148 user_availability migration', () {
+    late DisposablePgWriterSession session;
     late Connection writer;
 
     setUpAll(() async {
-      await target.recreate();
-      writer = await Connection.open(
-        target.databaseEnv.pgEndpoint,
-        settings: target.databaseEnv.pgEndpointSettings,
-      );
-      await writer.execute('SET check_function_bodies = false');
+      if (skipReason != false) {
+        return;
+      }
+      session = await setUpDisposablePgWriter(target: target);
+      writer = session.writer;
     });
 
     tearDown(() async {
@@ -46,8 +56,10 @@ Future<void> main() async {
     });
 
     tearDownAll(() async {
-      await writer.close();
-      await target.drop();
+      if (skipReason != false) {
+        return;
+      }
+      await tearDownDisposablePgWriter(session: session);
     });
 
     test(
@@ -63,7 +75,7 @@ Future<void> main() async {
     test(
       'fresh schema creates logged user_availability, CHECK, index, and hidden function',
       () async {
-        await migrateDbSchema(writer);
+        await migrateLocked(writer);
         await _expectM0148Schema(writer);
       },
       skip: skipReason,
@@ -72,7 +84,7 @@ Future<void> main() async {
     test(
       'CHECK rejects empty rows; FK cascades; no per-user backfill',
       () async {
-        await migrateDbSchema(writer);
+        await migrateLocked(writer);
 
         await writer.execute(r'''
 INSERT INTO public."user" (id, display_name, public_key)
@@ -120,7 +132,7 @@ VALUES ('Um0148child', false, CURRENT_DATE + 7)
     test(
       'hidden_for_viewer delegates symmetric block_hides like user_presence',
       () async {
-        await migrateDbSchema(writer);
+        await migrateLocked(writer);
 
         const viewerId = 'Um0148viewer';
         const peerId = 'Um0148peer';
@@ -181,7 +193,7 @@ ON CONFLICT DO NOTHING
     test(
       'Hasura select filter hides expired pause-only rows but keeps limited+past',
       () async {
-        await migrateDbSchema(writer);
+        await migrateLocked(writer);
 
         const viewerId = 'Um0148read';
         final session = _sessionJson(viewerId);
@@ -228,7 +240,7 @@ ON CONFLICT DO NOTHING
     test(
       'Hasura now() filter matches UTC calendar date on this connection',
       () async {
-        await migrateDbSchema(writer);
+        await migrateLocked(writer);
 
         final parity = await writer.execute(r'''
 WITH samples AS (
@@ -265,7 +277,7 @@ FROM samples
     test(
       'upgrade from m0147 applies user_availability schema',
       () async {
-        await migrateDbSchema(writer);
+        await migrateLocked(writer);
         await _rollBackM0148ForTest(writer);
 
         await writer.execute(r'''
@@ -446,97 +458,5 @@ Future<void> _rollBackM0148ForTest(Connection connection) async {
     "DELETE FROM public.schema_version WHERE version = '0148'",
   ]) {
     await connection.execute(statement);
-  }
-}
-
-Future<bool> _canConnect(Env env) async {
-  try {
-    final connection = await Connection.open(
-      env.pgEndpoint,
-      settings: env.pgEndpointSettings,
-    );
-    await connection.close();
-    return true;
-  } on Object {
-    return false;
-  }
-}
-
-class _DisposablePgTarget {
-  const _DisposablePgTarget({
-    required this.adminEnv,
-    required this.databaseEnv,
-    required this.databaseName,
-  });
-
-  factory _DisposablePgTarget.fromEnvironment() {
-    final host = Platform.environment['POSTGRES_HOST'] ?? '127.0.0.1';
-    final port =
-        int.tryParse(Platform.environment['POSTGRES_PORT'] ?? '') ?? 5432;
-    final username = Platform.environment['POSTGRES_USERNAME'] ?? 'postgres';
-    final password = Platform.environment['POSTGRES_PASSWORD'] ?? 'password';
-    final adminDatabase =
-        Platform.environment['POSTGRES_ADMIN_DBNAME'] ?? 'postgres';
-    final databaseName =
-        Platform.environment['TENTURA_USER_AVAILABILITY_MIGRATION_TEST_DB'] ??
-        'tentura_test_uavail_${pid}_${DateTime.timestamp().microsecondsSinceEpoch}';
-    if (!RegExp(r'^tentura_test_[a-z0-9_]+$').hasMatch(databaseName) ||
-        databaseName.length > 63) {
-      throw ArgumentError.value(
-        databaseName,
-        'TENTURA_USER_AVAILABILITY_MIGRATION_TEST_DB',
-        'must match tentura_test_[a-z0-9_]+ and be at most 63 characters',
-      );
-    }
-
-    Env envFor(String database) => Env(
-      environment: Environment.test,
-      pgHost: host,
-      pgPort: port,
-      pgDatabase: database,
-      pgUsername: username,
-      pgPassword: password,
-      printEnv: false,
-      isDebugModeOn: false,
-    );
-
-    return _DisposablePgTarget(
-      adminEnv: envFor(adminDatabase),
-      databaseEnv: envFor(databaseName),
-      databaseName: databaseName,
-    );
-  }
-
-  final Env adminEnv;
-  final Env databaseEnv;
-  final String databaseName;
-
-  Future<void> recreate() async {
-    final connection = await Connection.open(
-      adminEnv.pgEndpoint,
-      settings: adminEnv.pgEndpointSettings,
-    );
-    try {
-      await connection.execute(
-        'DROP DATABASE IF EXISTS "$databaseName" WITH (FORCE)',
-      );
-      await connection.execute('CREATE DATABASE "$databaseName"');
-    } finally {
-      await connection.close();
-    }
-  }
-
-  Future<void> drop() async {
-    final connection = await Connection.open(
-      adminEnv.pgEndpoint,
-      settings: adminEnv.pgEndpointSettings,
-    );
-    try {
-      await connection.execute(
-        'DROP DATABASE IF EXISTS "$databaseName" WITH (FORCE)',
-      );
-    } finally {
-      await connection.close();
-    }
   }
 }
