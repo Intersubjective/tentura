@@ -16,6 +16,7 @@ import '../../domain/constellation_density.dart';
 import '../../domain/constellation_filters.dart';
 import '../../domain/constellation_layout.dart';
 import '../../domain/constellation_consts.dart';
+import '../../domain/constellation_path_resolution.dart';
 import '../../domain/constellation_pin_position.dart';
 import '../../domain/entity/constellation_anchor.dart';
 import '../../domain/entity/constellation_anchor_projection.dart';
@@ -24,6 +25,7 @@ import '../../domain/use_case/constellation_anchor_case.dart';
 import '../../domain/use_case/constellation_field_case.dart';
 import '../../../graph/domain/entity/edge_details.dart';
 import '../../../graph/domain/entity/node_details.dart';
+import '../../../graph/ui/utils/tentura_layout_algorithms.dart';
 import 'constellation_state.dart';
 
 export 'package:flutter_bloc/flutter_bloc.dart';
@@ -65,7 +67,8 @@ sealed class ConstellationRequestPreflight {
   }) = ConstellationRequestPreflightUnavailable;
 }
 
-final class ConstellationRequestPreflightReady extends ConstellationRequestPreflight {
+final class ConstellationRequestPreflightReady
+    extends ConstellationRequestPreflight {
   const ConstellationRequestPreflightReady({
     required this.request,
     required this.viewerHasActiveHelpOffer,
@@ -167,8 +170,48 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
   int get writeCount => _anchorCase?.writeCount ?? 0;
 
   bool get placementActionsEnabled =>
-      state.placementActionsEnabled &&
-      !(_anchorCase?.hasPendingWrite ?? false);
+      state.placementActionsEnabled && !(_anchorCase?.hasPendingWrite ?? false);
+
+  ConstellationLayoutAlgorithm get mapLayoutAlgorithm {
+    final overlay =
+        state.composition?.anchorOverlay ?? ConstellationAnchorOverlay.empty;
+    return ConstellationLayoutAlgorithm(
+      egoId: layoutEgoId.isEmpty ? _viewer.id : layoutEgoId,
+      paths:
+          state.paths ??
+          resolveConstellationPaths(
+            egoId: _viewer.id,
+            visiblePeerIds: const {},
+            holderIds: {_viewer.id},
+            edges: const [],
+          ),
+      keptPeerIds: state.keptPeerIds,
+      maxHops: kConstellationLayoutMaxHops,
+      visibleRequestsByAuthor: layoutVisibleRequestsByAuthor,
+      egoOwnRequestIds: layoutEgoOwnRequestIds,
+      pinnedPersonIds: {
+        for (final peer in overlay.pinnedPeers) peer.id,
+        for (final anchor in overlay.anchors)
+          if (anchor.target.kind == ConstellationAnchorTargetKind.person)
+            anchor.target.id,
+      },
+      pinnedRequestIds: {
+        for (final request in overlay.pinnedRequests) request.id,
+        for (final anchor in overlay.anchors)
+          if (anchor.target.kind == ConstellationAnchorTargetKind.beacon)
+            anchor.target.id,
+      },
+      supportPersonIds: {
+        for (final peer in overlay.supportPeers) peer.id,
+      },
+      anchorByNodeId: {
+        for (final entry in constellationAnchorsByNodeId(
+          overlay.anchors,
+        ).entries)
+          entry.key: entry.value.position,
+      },
+    );
+  }
 
   @override
   Future<void> close() async {
@@ -203,11 +246,13 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
       if (isClosed || generation != state.loadGeneration) {
         return;
       }
-      final adopted = _anchorCase?.adoptConfirmedProjection(
+      final adopted =
+          _anchorCase?.adoptConfirmedProjection(
             resolved.field.resolvedAnchorProjection,
           ) ??
           true;
-      final confirmedProjection = _anchorCase?.confirmedProjection ??
+      final confirmedProjection =
+          _anchorCase?.confirmedProjection ??
           resolved.field.resolvedAnchorProjection;
       final loadedField = adopted
           ? resolved.field
@@ -361,7 +406,10 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     if (isClosed || _suppressLateGestureEnd) {
       return;
     }
-    updateDragPresentation(nodeId: target.graphNodeId, sceneCentre: sceneCentre);
+    updateDragPresentation(
+      nodeId: target.graphNodeId,
+      sceneCentre: sceneCentre,
+    );
     emit(
       state.copyWith(
         placementPhase: ConstellationPlacementPhase.provisionalNew,
@@ -479,7 +527,9 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     await _applyWriteOutcome(outcome);
   }
 
-  Future<void> _applyWriteOutcome(ConstellationAnchorWriteOutcome outcome) async {
+  Future<void> _applyWriteOutcome(
+    ConstellationAnchorWriteOutcome outcome,
+  ) async {
     switch (outcome.kind) {
       case ConstellationAnchorWriteOutcomeKind.succeeded:
         await _mergeConfirmedProjection(outcome.projection);
@@ -524,7 +574,8 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     if (target == null) {
       return false;
     }
-    return state.hasPendingPlacementWrite || (_anchorCase?.hasPendingWrite ?? false);
+    return state.hasPendingPlacementWrite ||
+        (_anchorCase?.hasPendingWrite ?? false);
   }
 
   Future<void> _onAnchorRefreshHint() async {
@@ -774,9 +825,12 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
   ConstellationAnchorTarget? anchorTargetForNode(NodeDetails node) =>
       switch (node) {
         FieldPersonNode(:final person) =>
-          person.id == viewerId ? null : ConstellationAnchorTarget.person(person.id),
-        FieldRequestNode(:final request) =>
-          ConstellationAnchorTarget.beacon(request.id),
+          person.id == viewerId
+              ? null
+              : ConstellationAnchorTarget.person(person.id),
+        FieldRequestNode(:final request) => ConstellationAnchorTarget.beacon(
+          request.id,
+        ),
         _ => null,
       };
 
@@ -821,7 +875,8 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     if (active != null &&
         (state.placementPhase == ConstellationPlacementPhase.draggingExisting ||
             state.placementPhase == ConstellationPlacementPhase.draggingNew ||
-            state.placementPhase == ConstellationPlacementPhase.provisionalNew)) {
+            state.placementPhase ==
+                ConstellationPlacementPhase.provisionalNew)) {
       final activeNode = ordered
           .where((node) => node.id == active.graphNodeId)
           .firstOrNull;
@@ -1102,9 +1157,11 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     required ConstellationRequest freshRequest,
   }) {
     final snapshotOpen =
-        BeaconStatus.fromSmallint(snapshotRequest.status) != BeaconStatus.enoughHelp;
+        BeaconStatus.fromSmallint(snapshotRequest.status) !=
+        BeaconStatus.enoughHelp;
     final freshCovered =
-        BeaconStatus.fromSmallint(freshRequest.status) == BeaconStatus.enoughHelp;
+        BeaconStatus.fromSmallint(freshRequest.status) ==
+        BeaconStatus.enoughHelp;
     return snapshotOpen && freshCovered;
   }
 
@@ -1293,7 +1350,8 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     _reconcileSelection(composition);
     _reconcileLayout(
       deferAutomaticReflow:
-          state.hasPendingPlacementWrite || (_anchorCase?.hasPendingWrite ?? false),
+          state.hasPendingPlacementWrite ||
+          (_anchorCase?.hasPendingWrite ?? false),
     );
   }
 
@@ -1462,6 +1520,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     }
 
     graphController.clear(recenter: false);
+    graphController.useLayoutAlgorithm(mapLayoutAlgorithm);
     graphController.mutate((mutator) {
       for (final node in nodes) {
         mutator.addNode(node);
@@ -1532,9 +1591,8 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
   }
 
   String _authorizationDeniedMessage(BeaconStatus status) => switch (status) {
-    BeaconStatus.cancelled ||
-    BeaconStatus.closed ||
-    BeaconStatus.reviewOpen => 'This request is closed and no longer accepts help.',
+    BeaconStatus.cancelled || BeaconStatus.closed || BeaconStatus.reviewOpen =>
+      'This request is closed and no longer accepts help.',
     BeaconStatus.deleted => 'This request is no longer available.',
     BeaconStatus.draft => 'This request is not open yet.',
     _ => 'You can no longer act on this request.',

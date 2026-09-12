@@ -60,7 +60,11 @@ class _ConstellationBodyState extends State<ConstellationBody> {
   double? _lastLabelBudgetTextScale;
   String? _selectionUnavailableMessage;
 
-  void _syncLabelBudget(BuildContext context, ConstellationCubit cubit, Size viewport) {
+  void _syncLabelBudget(
+    BuildContext context,
+    ConstellationCubit cubit,
+    Size viewport,
+  ) {
     final scale = MediaQuery.textScalerOf(context).scale(14);
     if (_lastLabelBudgetViewport == viewport &&
         _lastLabelBudgetTextScale == scale) {
@@ -74,7 +78,11 @@ class _ConstellationBodyState extends State<ConstellationBody> {
     );
   }
 
-  void _onNodeTap(BuildContext context, ConstellationCubit cubit, NodeDetails node) {
+  void _onNodeTap(
+    BuildContext context,
+    ConstellationCubit cubit,
+    NodeDetails node,
+  ) {
     switch (node) {
       case FieldPersonNode(:final person):
         if (person.id == cubit.viewerId) {
@@ -145,11 +153,13 @@ class _ConstellationBodyState extends State<ConstellationBody> {
       ConstellationHeldState.offered => () => _openBeacon(context, request.id),
       ConstellationHeldState.none => () {
         Navigator.of(context).pop();
-        unawaited(_runOfferFlowAndMaybeReopenPreview(
-          context,
-          cubit,
-          request,
-        ));
+        unawaited(
+          _runOfferFlowAndMaybeReopenPreview(
+            context,
+            cubit,
+            request,
+          ),
+        );
       },
     };
   }
@@ -279,7 +289,9 @@ class _ConstellationBodyState extends State<ConstellationBody> {
   }
 
   void _showActionMessage(BuildContext context, String message) {
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(message)));
   }
 
   Widget _buildPersonContextOverlay(
@@ -363,7 +375,9 @@ class _ConstellationBodyState extends State<ConstellationBody> {
             final cubit = context.read<ConstellationCubit>();
             final request = cubit.requestById(requestId);
             if (request == null) {
-              final message = L10n.of(context)!.constellationSelectionUnavailable;
+              final message = L10n.of(
+                context,
+              )!.constellationSelectionUnavailable;
               setState(() => _selectionUnavailableMessage = message);
               SemanticsService.announce(message, TextDirection.ltr);
               cubit.selectRequest(null);
@@ -435,14 +449,7 @@ class _ConstellationBodyState extends State<ConstellationBody> {
             return const SizedBox.shrink();
           }
 
-          final layoutAlgorithm = ConstellationLayoutAlgorithm(
-            egoId: cubit.layoutEgoId,
-            paths: resolved.paths,
-            keptPeerIds: resolved.keptPeerIds,
-            maxHops: kConstellationLayoutMaxHops,
-            visibleRequestsByAuthor: cubit.layoutVisibleRequestsByAuthor,
-            egoOwnRequestIds: cubit.layoutEgoOwnRequestIds,
-          );
+          final layoutAlgorithm = cubit.mapLayoutAlgorithm;
 
           final panelVisible = state.selectedPersonId != null;
 
@@ -463,54 +470,58 @@ class _ConstellationBodyState extends State<ConstellationBody> {
               child: Focus(
                 autofocus: true,
                 child: LayoutBuilder(
-            builder: (context, constraints) {
-              _syncLabelBudget(
-                context,
-                cubit,
-                Size(constraints.maxWidth, constraints.maxHeight),
-              );
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  const ConstellationFieldNotices(),
-                  const ConstellationEmptyFilterBanner(),
-                  if (_selectionUnavailableMessage != null)
-                    Material(
-                      color: theme.colorScheme.errorContainer,
-                      child: Padding(
-                        padding: EdgeInsets.symmetric(
-                          horizontal: tt.screenHPadding,
-                          vertical: tt.tightGap,
-                        ),
-                        child: Text(
-                          _selectionUnavailableMessage!,
-                          key: const Key('constellation.selection_unavailable'),
-                          style: theme.textTheme.bodySmall?.copyWith(
-                            color: theme.colorScheme.onErrorContainer,
+                  builder: (context, constraints) {
+                    _syncLabelBudget(
+                      context,
+                      cubit,
+                      Size(constraints.maxWidth, constraints.maxHeight),
+                    );
+                    return Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        const ConstellationFieldNotices(),
+                        const ConstellationEmptyFilterBanner(),
+                        if (_selectionUnavailableMessage != null)
+                          Material(
+                            color: theme.colorScheme.errorContainer,
+                            child: Padding(
+                              padding: EdgeInsets.symmetric(
+                                horizontal: tt.screenHPadding,
+                                vertical: tt.tightGap,
+                              ),
+                              child: Text(
+                                _selectionUnavailableMessage!,
+                                key: const Key(
+                                  'constellation.selection_unavailable',
+                                ),
+                                style: theme.textTheme.bodySmall?.copyWith(
+                                  color: theme.colorScheme.onErrorContainer,
+                                ),
+                              ),
+                            ),
+                          ),
+                        Expanded(
+                          child: IndexedStack(
+                            index: state.viewMode == ConstellationViewMode.map
+                                ? 0
+                                : 1,
+                            sizing: StackFit.expand,
+                            children: [
+                              _buildGraphStack(
+                                context,
+                                cubit,
+                                state,
+                                layoutAlgorithm,
+                                panelVisible,
+                              ),
+                              const ConstellationTextView(),
+                            ],
                           ),
                         ),
-                      ),
-                    ),
-                  Expanded(
-                    child: IndexedStack(
-                      index: state.viewMode == ConstellationViewMode.map ? 0 : 1,
-                      sizing: StackFit.expand,
-                      children: [
-                        _buildGraphStack(
-                          context,
-                          cubit,
-                          state,
-                          layoutAlgorithm,
-                          panelVisible,
-                        ),
-                        const ConstellationTextView(),
                       ],
-                    ),
-                  ),
-                ],
-              );
-            },
-          ),
+                    );
+                  },
+                ),
               ),
             ),
           );
@@ -527,171 +538,169 @@ class _ConstellationBodyState extends State<ConstellationBody> {
     bool panelVisible,
   ) {
     return Stack(
-            fit: StackFit.expand,
-            children: [
-              GraphView<NodeDetails, EdgeDetails<NodeDetails>>(
-                controller: cubit.graphController,
-                canvasSize: ConstellationBody._canvasSize,
-                minScale: 0.1,
-                maxScale: 3,
-                layoutAlgorithm: layoutAlgorithm,
-                layoutTransitionDuration: const Duration(milliseconds: 350),
-                canDragNode: cubit.canDragNode,
-                onNodeDragStart: (node, position) {
-                  final target = cubit.anchorTargetForNode(node);
-                  if (target == null) {
-                    return;
-                  }
-                  if (cubit.isAnchored(target)) {
-                    cubit.beginDragExisting(target: target);
-                  } else {
-                    cubit.beginDragNew(target: target);
-                  }
-                },
-                onNodeDragUpdate: (node, position) {
-                  cubit.updateDragPresentation(
-                    nodeId: node.id,
+      fit: StackFit.expand,
+      children: [
+        GraphView<NodeDetails, EdgeDetails<NodeDetails>>(
+          controller: cubit.graphController,
+          canvasSize: ConstellationBody._canvasSize,
+          minScale: 0.1,
+          maxScale: 3,
+          layoutAlgorithm: layoutAlgorithm,
+          layoutTransitionDuration: const Duration(milliseconds: 350),
+          canDragNode: cubit.canDragNode,
+          onNodeDragStart: (node, position) {
+            final target = cubit.anchorTargetForNode(node);
+            if (target == null) {
+              return;
+            }
+            if (cubit.isAnchored(target)) {
+              cubit.beginDragExisting(target: target);
+            } else {
+              cubit.beginDragNew(target: target);
+            }
+          },
+          onNodeDragUpdate: (node, position) {
+            cubit.updateDragPresentation(
+              nodeId: node.id,
+              sceneCentre: position,
+            );
+          },
+          onNodeDragEnd: (node, position) {
+            final target = cubit.anchorTargetForNode(node);
+            if (target == null) {
+              return;
+            }
+            switch (cubit.state.placementPhase) {
+              case ConstellationPlacementPhase.draggingExisting:
+                unawaited(
+                  cubit.onExistingNodeDrop(
+                    target: target,
                     sceneCentre: position,
-                  );
-                },
-                onNodeDragEnd: (node, position) {
-                  final target = cubit.anchorTargetForNode(node);
-                  if (target == null) {
-                    return;
-                  }
-                  switch (cubit.state.placementPhase) {
-                    case ConstellationPlacementPhase.draggingExisting:
-                      unawaited(
-                        cubit.onExistingNodeDrop(
-                          target: target,
-                          sceneCentre: position,
-                        ),
-                      );
-                    case ConstellationPlacementPhase.draggingNew:
-                      unawaited(
-                        cubit.onNewNodeDrop(
-                          target: target,
-                          sceneCentre: position,
-                        ),
-                      );
-                    case ConstellationPlacementPhase.idle:
-                    case ConstellationPlacementPhase.provisionalNew:
-                      break;
-                  }
-                },
-                onNodeDragCancel: (_) => cubit.onPointerCancelDuringDrag(),
-                nodePaintOrder: cubit.orderedNodesForPaint(),
-                builder: (context, child) => _MapOverflowOverlay(
-                  cubit: cubit,
-                  child: child,
-                ),
-                edgePainter: ConstellationEdgePainter(
-                  edgeKinds: cubit.edgeKinds,
-                  colorScheme: Theme.of(context).colorScheme,
-                ),
-                labelBuilder: BottomLabelBuilder(
-                  labelSize: const Size(100, 20),
-                  builder: (_, node) => switch (node) {
-                    FieldPersonNode(:final person) => Text(
-                      person.shownName,
-                      textAlign: TextAlign.center,
-                      overflow: TextOverflow.ellipsis,
-                      style: TenturaText.labelSmall(
-                        Theme.of(context).colorScheme.onSurface,
-                      ),
-                    ),
-                    FieldRequestNode(:final request) => Text(
-                      request.title,
-                      textAlign: TextAlign.center,
-                      overflow: TextOverflow.ellipsis,
-                      style: TenturaText.labelSmall(
-                        Theme.of(context).colorScheme.onSurface,
-                      ),
-                    ),
-                    _ => const SizedBox.shrink(),
-                  },
-                ),
-                nodeBuilder: (_, node) => switch (node) {
-                  FieldPersonNode(:final ring, :final person) =>
-                    _ConstellationMapNode(
-                      child: GraphNodeWidget(
-                        key: TestIds.key(TestIds.graphNode(node.id)),
-                        nodeDetails: node,
-                        hiddenNeighborCount: null,
-                        isOrigin: ring == 0,
-                        isFocused:
-                            panelVisible && node.id == state.selectedPersonId,
-                        onTap: () => _onNodeTap(context, cubit, node),
-                      ),
-                      markers: ConstellationRequestStatusMarker(
-                        rawStatus: null,
-                        isPinned: cubit.isAnchored(
-                          ConstellationAnchorTarget.person(person.id),
-                        ),
-                        showStatus: false,
-                      ),
-                    ),
-                  FieldRequestNode(:final request) => _ConstellationMapNode(
-                    child: GraphNodeWidget(
-                      key: TestIds.key(TestIds.graphNode(node.id)),
-                      nodeDetails: node,
-                      hiddenNeighborCount: null,
-                      onTap: () => _onNodeTap(context, cubit, node),
-                    ),
-                    markers: ConstellationRequestStatusMarker(
-                      rawStatus: request.status,
-                      isPinned: cubit.isAnchored(
-                        ConstellationAnchorTarget.beacon(request.id),
-                      ),
-                    ),
                   ),
-                  _ => const SizedBox.shrink(),
-                },
+                );
+              case ConstellationPlacementPhase.draggingNew:
+                unawaited(
+                  cubit.onNewNodeDrop(
+                    target: target,
+                    sceneCentre: position,
+                  ),
+                );
+              case ConstellationPlacementPhase.idle:
+              case ConstellationPlacementPhase.provisionalNew:
+                break;
+            }
+          },
+          onNodeDragCancel: (_) => cubit.onPointerCancelDuringDrag(),
+          nodePaintOrder: cubit.orderedNodesForPaint(),
+          builder: (context, child) => _MapOverflowOverlay(
+            cubit: cubit,
+            child: child,
+          ),
+          edgePainter: ConstellationEdgePainter(
+            edgeKinds: cubit.edgeKinds,
+            colorScheme: Theme.of(context).colorScheme,
+          ),
+          labelBuilder: BottomLabelBuilder(
+            labelSize: const Size(100, 20),
+            builder: (_, node) => switch (node) {
+              FieldPersonNode(:final person) => Text(
+                person.shownName,
+                textAlign: TextAlign.center,
+                overflow: TextOverflow.ellipsis,
+                style: TenturaText.labelSmall(
+                  Theme.of(context).colorScheme.onSurface,
+                ),
               ),
-              Positioned(
-                top: 0,
-                left: 0,
-                right: 0,
-                child: LinearPiActive.builder(
+              FieldRequestNode(:final request) => Text(
+                request.title,
+                textAlign: TextAlign.center,
+                overflow: TextOverflow.ellipsis,
+                style: TenturaText.labelSmall(
+                  Theme.of(context).colorScheme.onSurface,
+                ),
+              ),
+              _ => const SizedBox.shrink(),
+            },
+          ),
+          nodeBuilder: (_, node) => switch (node) {
+            FieldPersonNode(:final ring, :final person) =>
+              _ConstellationMapNode(
+                child: GraphNodeWidget(
+                  key: TestIds.key(TestIds.graphNode(node.id)),
+                  nodeDetails: node,
+                  hiddenNeighborCount: null,
+                  isOrigin: ring == 0,
+                  isFocused: panelVisible && node.id == state.selectedPersonId,
+                  onTap: () => _onNodeTap(context, cubit, node),
+                ),
+                markers: ConstellationRequestStatusMarker(
+                  rawStatus: null,
+                  isPinned: cubit.isAnchored(
+                    ConstellationAnchorTarget.person(person.id),
+                  ),
+                  showStatus: false,
+                ),
+              ),
+            FieldRequestNode(:final request) => _ConstellationMapNode(
+              child: GraphNodeWidget(
+                key: TestIds.key(TestIds.graphNode(node.id)),
+                nodeDetails: node,
+                hiddenNeighborCount: null,
+                onTap: () => _onNodeTap(context, cubit, node),
+              ),
+              markers: ConstellationRequestStatusMarker(
+                rawStatus: request.status,
+                isPinned: cubit.isAnchored(
+                  ConstellationAnchorTarget.beacon(request.id),
+                ),
+              ),
+            ),
+            _ => const SizedBox.shrink(),
+          },
+        ),
+        Positioned(
+          top: 0,
+          left: 0,
+          right: 0,
+          child: LinearPiActive.builder(
+            context,
+            state.status is StateIsLoading,
+          ),
+        ),
+        if (widget.legendExpanded)
+          Positioned(
+            left: 0,
+            bottom: panelVisible && context.windowClass == WindowClass.compact
+                ? null
+                : 0,
+            top: panelVisible && context.windowClass == WindowClass.compact
+                ? 0
+                : null,
+            child: SafeArea(
+              top: panelVisible && context.windowClass == WindowClass.compact,
+              bottom:
+                  !(panelVisible && context.windowClass == WindowClass.compact),
+              right: false,
+              child: Padding(
+                padding: EdgeInsets.all(context.tt.rowGap),
+                child: _buildLegendPanel(
                   context,
-                  state.status is StateIsLoading,
+                  panelVisible: panelVisible,
                 ),
               ),
-              if (widget.legendExpanded)
-                Positioned(
-                  left: 0,
-                  bottom: panelVisible && context.windowClass == WindowClass.compact
-                      ? null
-                      : 0,
-                  top: panelVisible && context.windowClass == WindowClass.compact
-                      ? 0
-                      : null,
-                  child: SafeArea(
-                    top: panelVisible && context.windowClass == WindowClass.compact,
-                    bottom:
-                        !(panelVisible && context.windowClass == WindowClass.compact),
-                    right: false,
-                    child: Padding(
-                      padding: EdgeInsets.all(context.tt.rowGap),
-                      child: _buildLegendPanel(
-                        context,
-                        panelVisible: panelVisible,
-                      ),
-                    ),
-                  ),
-                ),
-              if (panelVisible)
-                _buildPersonContextOverlay(context, cubit, state),
-              Positioned(
-                left: 0,
-                right: 0,
-                bottom: 0,
-                child: ConstellationProvisionalPlacementBar(
-                  controller: cubit.graphController,
-                ),
-              ),
-            ],
-          );
+            ),
+          ),
+        if (panelVisible) _buildPersonContextOverlay(context, cubit, state),
+        Positioned(
+          left: 0,
+          right: 0,
+          bottom: 0,
+          child: ConstellationProvisionalPlacementBar(
+            controller: cubit.graphController,
+          ),
+        ),
+      ],
+    );
   }
 
   Widget _buildLegendPanel(

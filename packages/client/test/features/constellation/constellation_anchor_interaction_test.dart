@@ -11,6 +11,7 @@ import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/domain/entity/realtime/realtime_entity_change.dart';
 import 'package:tentura/domain/use_case/realtime_sync_case.dart';
 import 'package:tentura/env.dart';
+import 'package:tentura/features/constellation/domain/constellation_layout.dart';
 import 'package:tentura/features/constellation/domain/entity/constellation_anchor.dart';
 import 'package:tentura/features/constellation/domain/entity/constellation_anchor_projection.dart';
 import 'package:tentura/features/constellation/domain/entity/constellation_field.dart';
@@ -60,23 +61,22 @@ ConstellationField _field({
   List<ConstellationPerson> peers = const [],
   List<ConstellationRequest> requests = const [],
   List<String> serverFilteredBeaconIds = const [],
-}) =>
-    ConstellationField(
-      loadedAt: _loadedAt,
-      context: '',
-      peers: peers,
-      requests: requests,
-      anchorProjection: ConstellationAnchorProjection(
-        revision: ConstellationAnchorRevision(revision ?? BigInt.one),
-        anchors: anchors,
-        pinnedPeers: peers,
-        pinnedRequests: requests,
-        supportPeers: const [],
-        supportEdges: const [],
-        serverFilteredBeaconIds: serverFilteredBeaconIds,
-        serverFilteredBeaconCount: serverFilteredBeaconIds.length,
-      ),
-    );
+}) => ConstellationField(
+  loadedAt: _loadedAt,
+  context: '',
+  peers: peers,
+  requests: requests,
+  anchorProjection: ConstellationAnchorProjection(
+    revision: ConstellationAnchorRevision(revision ?? BigInt.one),
+    anchors: anchors,
+    pinnedPeers: peers,
+    pinnedRequests: requests,
+    supportPeers: const [],
+    supportEdges: const [],
+    serverFilteredBeaconIds: serverFilteredBeaconIds,
+    serverFilteredBeaconCount: serverFilteredBeaconIds.length,
+  ),
+);
 
 final class _HarnessFieldRepository implements ConstellationRepositoryPort {
   _HarnessFieldRepository(this.fields);
@@ -96,9 +96,11 @@ final class _HarnessFieldRepository implements ConstellationRepositoryPort {
   }
 }
 
-final class _HarnessAnchorRepository implements ConstellationAnchorRepositoryPort {
+final class _HarnessAnchorRepository
+    implements ConstellationAnchorRepositoryPort {
   int upsertCount = 0;
   int deleteCount = 0;
+  ConstellationAnchorPosition? lastPosition;
 
   @override
   Future<ConstellationAnchorUpsertResult> upsert({
@@ -106,6 +108,7 @@ final class _HarnessAnchorRepository implements ConstellationAnchorRepositoryPor
     required ConstellationAnchorPosition position,
   }) async {
     upsertCount++;
+    lastPosition = position;
     return ConstellationAnchorUpsertResult(
       anchor: ConstellationAnchor(
         target: target,
@@ -154,11 +157,14 @@ class _StubContextCubit extends Cubit<GraphPersonContextState>
   void clearSelection() {}
 }
 
-Future<({
-  ConstellationCubit cubit,
-  _HarnessFieldRepository fieldRepo,
-  _HarnessAnchorRepository anchorRepo,
-})> _harness({
+Future<
+  ({
+    ConstellationCubit cubit,
+    _HarnessFieldRepository fieldRepo,
+    _HarnessAnchorRepository anchorRepo,
+  })
+>
+_harness({
   List<ConstellationField>? fields,
 }) async {
   final fieldRepo = _HarnessFieldRepository(
@@ -247,6 +253,13 @@ Future<void> _pumpShell(
   await tester.pump(const Duration(milliseconds: 400));
 }
 
+Offset _requireNodeCentre(ConstellationCubit cubit, String id) {
+  final node = cubit.graphController.nodes.firstWhere(
+    (candidate) => candidate.id == id,
+  );
+  return cubit.graphController.getPosition(node);
+}
+
 void main() {
   group('Constellation anchor interaction', () {
     testWidgets('first pin uses Pin here confirmation', (tester) async {
@@ -266,7 +279,10 @@ void main() {
         harness.cubit.state.placementPhase,
         ConstellationPlacementPhase.provisionalNew,
       );
-      expect(find.byKey(TestIds.key(TestIds.constellationPinHere)), findsOneWidget);
+      expect(
+        find.byKey(TestIds.key(TestIds.constellationPinHere)),
+        findsOneWidget,
+      );
       expect(harness.anchorRepo.upsertCount, 0);
 
       await tester.tap(find.byKey(TestIds.key(TestIds.constellationPinHere)));
@@ -278,6 +294,45 @@ void main() {
         harness.cubit.state.placementPhase,
         ConstellationPlacementPhase.idle,
       );
+    });
+
+    testWidgets('Pin here keeps the node at the dragged scene position', (
+      tester,
+    ) async {
+      final harness = await _harness();
+      addTearDown(harness.cubit.close);
+      await _pumpShell(tester, harness.cubit);
+
+      final original = _requireNodeCentre(harness.cubit, 'p1');
+      const drop = Offset(2800, 1600);
+      expect((original - drop).distance, greaterThan(200));
+
+      final target = ConstellationAnchorTarget.person('p1');
+      harness.cubit.beginDragNew(target: target);
+      await harness.cubit.onNewNodeDrop(target: target, sceneCentre: drop);
+      await tester.pump();
+
+      expect(_requireNodeCentre(harness.cubit, 'p1'), drop);
+
+      await tester.tap(find.byKey(TestIds.key(TestIds.constellationPinHere)));
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
+
+      expect(harness.anchorRepo.upsertCount, 1);
+      final expected = constellationPointToV1Anchor((x: drop.dx, y: drop.dy));
+      expect(
+        harness.anchorRepo.lastPosition!.xUnits,
+        closeTo(expected.xUnits, 1e-9),
+      );
+      expect(
+        harness.anchorRepo.lastPosition!.yUnits,
+        closeTo(expected.yUnits, 1e-9),
+      );
+      expect(harness.cubit.isAnchored(target), isTrue);
+
+      final pinned = _requireNodeCentre(harness.cubit, 'p1');
+      expect(pinned.dx, closeTo(drop.dx, 1));
+      expect(pinned.dy, closeTo(drop.dy, 1));
     });
 
     testWidgets('pinning a person does not move the camera', (tester) async {
@@ -509,7 +564,9 @@ void main() {
       }
     });
 
-    testWidgets('compact and expanded layouts render filter bar', (tester) async {
+    testWidgets('compact and expanded layouts render filter bar', (
+      tester,
+    ) async {
       for (final size in [
         const Size(390, 844),
         const Size(1440, 900),

@@ -157,6 +157,15 @@ class GraphController<N extends NodeBase, E extends EdgeBase<N>>
     _relayout();
   }
 
+  /// Uses [algorithm] for the next [mutate] relayout.
+  ///
+  /// GraphView also applies its widget algorithm on configuration changes;
+  /// call this before [mutate] when the owner already knows the new layout
+  /// inputs and cannot wait for the next widget rebuild.
+  void useLayoutAlgorithm(GraphLayoutAlgorithm algorithm) {
+    _currentAlgorithm = algorithm;
+  }
+
   /// Returns s set of nodes that are currently visible on the screen
   /// according to the provided [LazyBuilding].
   ///
@@ -455,13 +464,11 @@ class GraphController<N extends NodeBase, E extends EdgeBase<N>>
   double _boundaryMinScale() {
     final pixel = _viewportPixelSize;
     final size = _currentSize;
-    if (pixel == null ||
-        size == null ||
-        size.width <= 0 ||
-        size.height <= 0) {
+    if (pixel == null || size == null || size.width <= 0 || size.height <= 0) {
       return _minScale;
     }
-    final floor = math.max(pixel.width / size.width, pixel.height / size.height);
+    final floor =
+        math.max(pixel.width / size.width, pixel.height / size.height);
     return math.max(_minScale, floor);
   }
 
