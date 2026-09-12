@@ -4,15 +4,28 @@ library;
 import 'dart:io';
 
 import 'package:injectable/injectable.dart' show Environment;
+import 'package:logging/logging.dart';
+import 'package:mockito/mockito.dart';
 import 'package:test/test.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import 'package:tentura_server/data/database/tentura_db.dart'
     hide isNotNull, isNull;
+import 'package:tentura_server/data/repository/attention_dispatch_repository.dart';
+import 'package:tentura_server/data/repository/beacon_hierarchy_outbox_repository.dart';
+import 'package:tentura_server/data/repository/mutating_unit_of_work.dart';
+import 'package:tentura_server/data/repository/mock/invite_seed_prompt_repository_mock.dart';
 import 'package:tentura_server/data/repository/user_block_repository.dart';
+import 'package:tentura_server/data/repository/user_repository.dart';
+import 'package:tentura_server/domain/port/invite_genealogy_repository_port.dart';
+import 'package:tentura_server/domain/port/trust_evidence_repository_port.dart';
+import 'package:tentura_server/domain/use_case/beacon_lifecycle_effects_case.dart';
+import 'package:tentura_server/domain/use_case/transactional_attention_case.dart';
+import 'package:tentura_server/domain/use_case/user_case.dart';
 import 'package:tentura_server/env.dart';
 
 import '../../support/pg_test_public_keys.dart';
+import '../../support/user_erasure_test_stack.dart';
 
 /// Direct block repository integration — spec §9.2 Group T-A.
 Future<void> main() async {
@@ -37,6 +50,7 @@ Future<void> main() async {
 
   late TenturaDb db;
   late UserBlockRepository repo;
+  late UserCase userCase;
 
   const aliceId = 'Ublkalice001';
   const bobId = 'Ublkbob00001';
@@ -58,9 +72,11 @@ ON CONFLICT (id) DO NOTHING
     required String authorId,
   }) => db.customStatement(
     '''
-INSERT INTO public.beacon (id, user_id, title, description, status, created_at, updated_at)
+INSERT INTO public.beacon (
+  id, user_id, title, description, status, created_at, updated_at, published_at
+)
 VALUES ('$id', '$authorId', '$id', '', ${BeaconStatus.open.smallintValue},
-  '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z')
+  '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z')
 ON CONFLICT (id) DO NOTHING
 ''',
   );
@@ -115,6 +131,10 @@ ON CONFLICT (id) DO NOTHING
       "('Fblkalice001', 'Fblkbob00001')",
     );
     await db.customStatement(
+      "DELETE FROM public.beacon_hierarchy_events "
+      "WHERE source_beacon_id IN ('$aliceBeaconId', '$bobBeaconId')",
+    );
+    await db.customStatement(
       "DELETE FROM public.beacon WHERE id IN ('$aliceBeaconId', '$bobBeaconId')",
     );
     await db.customStatement(
@@ -122,10 +142,32 @@ ON CONFLICT (id) DO NOTHING
     );
   }
 
+  UserCase buildAccountErasureUserCase(UserRepository users) {
+    final env = _testEnv();
+    final log = Logger('user_block_repository_pg_test');
+    final dispatch = AttentionDispatchRepository(db, log);
+    final unitOfWork = MutatingUnitOfWork(db);
+    final outbox = BeaconHierarchyOutboxRepository(db);
+    final lifecycleEffects = BeaconLifecycleEffectsCase(
+      outbox,
+      env: env,
+      logger: log,
+    );
+    final attention = TransactionalAttentionCase(unitOfWork, dispatch);
+    return buildUserErasureTestStack(
+      db: db,
+      userRepository: users,
+      lifecycleEffects: lifecycleEffects,
+      attention: attention,
+      logger: log,
+    ).userCase;
+  }
+
   if (skipReason == false) {
     setUpAll(() async {
       db = TenturaDb(_testEnv());
       repo = UserBlockRepository(_testEnv(), db);
+      userCase = buildAccountErasureUserCase(buildDefaultUserRepository(db));
     });
 
     tearDown(() => cleanup());
@@ -244,7 +286,7 @@ ON CONFLICT (id) DO NOTHING
     await seedPair();
     await repo.block(blockerId: aliceId, blockedId: bobId, cascadeMode: 0);
 
-    await db.customStatement('DELETE FROM public."user" WHERE id = \'$bobId\'');
+    expect(await userCase.deleteById(id: bobId), isTrue);
 
     final blocks = await db.customSelect(
       "SELECT 1 FROM public.user_block WHERE blocker_id = '$aliceId'",
@@ -256,6 +298,64 @@ ON CONFLICT (id) DO NOTHING
     ).get();
     expect(intents, isEmpty);
   }, skip: skipReason);
+
+  test(
+    'T-A7b: raw user delete without erasure violates beacon_owner_or_deleted_ck',
+    () async {
+      await seedPair();
+      await repo.block(blockerId: aliceId, blockedId: bobId, cascadeMode: 0);
+
+      await expectLater(
+        db.customStatement('DELETE FROM public."user" WHERE id = \'$bobId\''),
+        throwsA(anything),
+      );
+
+      final blocks = await db.customSelect(
+        "SELECT 1 FROM public.user_block WHERE blocker_id = '$aliceId'",
+      ).get();
+      expect(blocks, hasLength(1));
+    },
+    skip: skipReason,
+  );
+
+  test(
+    'T-A7c: failed account erasure rolls back block rows and owned beacon',
+    () async {
+      final env = _testEnv();
+      final failingUsers = _FailingUserRepository(
+        env,
+        db,
+        _NoopTrustEvidenceRepository(),
+        _NoopInviteGenealogyRepository(),
+        InviteSeedPromptRepositoryMock(),
+      );
+      failingUsers.failOnDelete = true;
+      final failingCase = buildAccountErasureUserCase(failingUsers);
+
+      await seedPair();
+      await repo.block(blockerId: aliceId, blockedId: bobId, cascadeMode: 0);
+
+      await expectLater(
+        failingCase.deleteById(id: bobId),
+        throwsA(isA<StateError>()),
+      );
+
+      final blocks = await db.customSelect(
+        "SELECT 1 FROM public.user_block WHERE blocker_id = '$aliceId'",
+      ).get();
+      expect(blocks, hasLength(1));
+
+      final bobBeacon = await db.customSelect(
+        "SELECT user_id, status FROM public.beacon WHERE id = '$bobBeaconId'",
+      ).getSingle();
+      expect(bobBeacon.read<String>('user_id'), bobId);
+      expect(
+        bobBeacon.read<int>('status'),
+        BeaconStatus.open.smallintValue,
+      );
+    },
+    skip: skipReason,
+  );
 
   test('T-A8: mutual direct blocks are independent', () async {
     await seedPair();
@@ -310,6 +410,32 @@ SELECT
   ).getSingle();
   return row.read<bool>('ok');
 }
+
+final class _FailingUserRepository extends UserRepository {
+  _FailingUserRepository(
+    super.env,
+    super.database,
+    super.trustEvidenceRepository,
+    super.inviteGenealogyRepository,
+    super.inviteSeedPrompt,
+  );
+
+  var failOnDelete = false;
+
+  @override
+  Future<void> deleteById({required String id}) async {
+    if (failOnDelete) {
+      throw StateError('injected user delete failure');
+    }
+    return super.deleteById(id: id);
+  }
+}
+
+final class _NoopTrustEvidenceRepository extends Fake
+    implements TrustEvidenceRepositoryPort {}
+
+final class _NoopInviteGenealogyRepository extends Fake
+    implements InviteGenealogyRepositoryPort {}
 
 Future<bool> _beaconVisibilityIncludesBlock(TenturaDb db) async {
   final row = await db.customSelect(
