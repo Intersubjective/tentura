@@ -5,7 +5,6 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:injectable/injectable.dart' show Environment;
 import 'package:postgres/postgres.dart';
 import 'package:test/test.dart';
 
@@ -18,14 +17,20 @@ import 'package:tentura_server/data/repository/read_snapshot_unit_of_work.dart';
 import 'package:tentura_server/domain/entity/constellation_anchor.dart';
 import 'package:tentura_server/env.dart';
 
+import '../../support/disposable_pg_target.dart';
+
 Future<void> main() async {
-  final target = _DisposablePgTarget.fromEnvironment();
-  final reachable = await _canConnect(target.adminEnv);
+  final target = DisposablePgTarget.fromNamedEnvironment(
+    envVarName: 'TENTURA_CONSTELLATION_ANCHOR_TEST_DB',
+    defaultNamePrefix: 'tentura_test_ca_anchor',
+  );
+  final reachable = await canReachPostgresAdmin(target);
   final skipReason = reachable
       ? false
       : 'Postgres admin database not reachable for disposable test target';
 
   group('constellation anchor storage P02', () {
+    late DisposablePgWriterSession session;
     late Connection writer;
     late Connection listener;
     late StreamSubscription<String> notificationSubscription;
@@ -77,17 +82,16 @@ ON CONFLICT (id) DO NOTHING
         .toList();
 
     setUpAll(() async {
-      await target.recreate();
-      writer = await Connection.open(
-        target.databaseEnv.pgEndpoint,
-        settings: target.databaseEnv.pgEndpointSettings,
+      if (skipReason != false) {
+        return;
+      }
+      session = await setUpDisposablePgWriter(
+        target: target,
+        createPgmer2Extension: true,
       );
+      writer = session.writer;
       final dbName = await writer.execute('SELECT current_database()');
       expect(dbName.single.single, target.databaseName);
-
-      await writer.execute('SET check_function_bodies = false');
-      await writer.execute('CREATE EXTENSION IF NOT EXISTS pgmer2');
-      await migrateDbSchema(writer);
 
       listener = await Connection.open(
         target.databaseEnv.pgEndpoint,
@@ -102,7 +106,7 @@ ON CONFLICT (id) DO NOTHING
       await _settle();
       notifications.clear();
 
-      db = TenturaDb(target.databaseEnv);
+      db = openDisposablePgDatabase(target);
       repository = ConstellationAnchorRepository(db);
       readSnapshots = ReadSnapshotUnitOfWork(db);
 
@@ -133,11 +137,12 @@ TRUNCATE public.constellation_anchor, public.constellation_anchor_cursor CASCADE
     });
 
     tearDownAll(() async {
+      if (skipReason != false) {
+        return;
+      }
       await notificationSubscription.cancel();
       await listener.close();
-      await db.close();
-      await writer.close();
-      await target.drop();
+      await tearDownDisposablePgWriter(session: session, drift: db);
     });
 
     test('coordinate CHECK rejects NaN and both infinities per axis', () async {
@@ -524,31 +529,58 @@ SELECT count(*)::int FROM public.constellation_anchor_cursor WHERE viewer_id = '
     });
 
     test('fresh migration through 0167 and upgrade from 0166 pre-feature', () async {
-      final upgradeTarget = _DisposablePgTarget.fromEnvironment(
-        suffix: '_upgrade',
+      final upgradeName = '${target.databaseName}_upgrade';
+      final upgradeTarget = DisposablePgTarget.fromNamedEnvironment(
+        envVarName: 'TENTURA_CONSTELLATION_ANCHOR_TEST_DB',
+        defaultNamePrefix: 'tentura_test_ca_anchor',
+        databaseNameOverride: upgradeName,
       );
-      await upgradeTarget.recreate();
-      final upWriter = await Connection.open(
-        upgradeTarget.databaseEnv.pgEndpoint,
-        settings: upgradeTarget.databaseEnv.pgEndpointSettings,
-      );
-      try {
-        await upWriter.execute('SET check_function_bodies = false');
-        await migrateDbSchemaThrough(upWriter, '0166');
-        final tables0166 = await upWriter.execute('''
-SELECT to_regclass('public.constellation_anchor')
-''');
-        expect(tables0166.single.single, isNull);
+      await withDisposablePgLifecycleLock(upgradeTarget.adminEnv, () async {
+        final adminConnection = await Connection.open(
+          upgradeTarget.adminEnv.pgEndpoint,
+          settings: upgradeTarget.adminEnv.pgEndpointSettings,
+        );
+        try {
+          await adminConnection.execute(
+            'DROP DATABASE IF EXISTS "$upgradeName" WITH (FORCE)',
+          );
+          await adminConnection.execute('CREATE DATABASE "$upgradeName"');
+        } finally {
+          await adminConnection.close();
+        }
 
-        await migrateDbSchemaThrough(upWriter, '0167');
-        final tables0167 = await upWriter.execute('''
+        final upWriter = await Connection.open(
+          upgradeTarget.databaseEnv.pgEndpoint,
+          settings: upgradeTarget.databaseEnv.pgEndpointSettings,
+        );
+        try {
+          await upWriter.execute('SET check_function_bodies = false');
+          await migrateDbSchemaThrough(upWriter, '0166');
+          final tables0166 = await upWriter.execute('''
 SELECT to_regclass('public.constellation_anchor')
 ''');
-        expect(tables0167.single.single, isNotNull);
-      } finally {
-        await upWriter.close();
-        await upgradeTarget.drop();
-      }
+          expect(tables0166.single.single, isNull);
+
+          await migrateDbSchemaThrough(upWriter, '0167');
+          final tables0167 = await upWriter.execute('''
+SELECT to_regclass('public.constellation_anchor')
+''');
+          expect(tables0167.single.single, isNotNull);
+        } finally {
+          await upWriter.close();
+          final dropConnection = await Connection.open(
+            upgradeTarget.adminEnv.pgEndpoint,
+            settings: upgradeTarget.adminEnv.pgEndpointSettings,
+          );
+          try {
+            await dropConnection.execute(
+              'DROP DATABASE IF EXISTS "$upgradeName" WITH (FORCE)',
+            );
+          } finally {
+            await dropConnection.close();
+          }
+        }
+      });
     });
 
     test(
@@ -615,97 +647,5 @@ Future<void> _waitUntil(
       fail('Condition was not met within $timeout');
     }
     await Future<void>.delayed(const Duration(milliseconds: 5));
-  }
-}
-
-Future<bool> _canConnect(Env env) async {
-  try {
-    final connection = await Connection.open(
-      env.pgEndpoint,
-      settings: env.pgEndpointSettings,
-    ).timeout(const Duration(seconds: 2));
-    await connection.close();
-    return true;
-  } on Object {
-    return false;
-  }
-}
-
-class _DisposablePgTarget {
-  const _DisposablePgTarget({
-    required this.adminEnv,
-    required this.databaseEnv,
-    required this.databaseName,
-  });
-
-  factory _DisposablePgTarget.fromEnvironment({String suffix = ''}) {
-    final host = Platform.environment['POSTGRES_HOST'] ?? '127.0.0.1';
-    final port =
-        int.tryParse(Platform.environment['POSTGRES_PORT'] ?? '') ?? 5432;
-    final username = Platform.environment['POSTGRES_USERNAME'] ?? 'postgres';
-    final password = Platform.environment['POSTGRES_PASSWORD'] ?? 'password';
-    final adminDatabase =
-        Platform.environment['POSTGRES_ADMIN_DBNAME'] ?? 'postgres';
-    final databaseName =
-        Platform.environment['TENTURA_CONSTELLATION_ANCHOR_TEST_DB'] ??
-        'tentura_test_ca_${pid}_${DateTime.timestamp().microsecondsSinceEpoch}$suffix';
-    if (!RegExp(r'^tentura_test_[a-z0-9_]+$').hasMatch(databaseName) ||
-        databaseName.length > 63) {
-      throw ArgumentError.value(
-        databaseName,
-        'TENTURA_CONSTELLATION_ANCHOR_TEST_DB',
-        'must match tentura_test_[a-z0-9_]+ and be at most 63 characters',
-      );
-    }
-
-    Env envFor(String database) => Env(
-      environment: Environment.test,
-      pgHost: host,
-      pgPort: port,
-      pgDatabase: database,
-      pgUsername: username,
-      pgPassword: password,
-      printEnv: false,
-      isDebugModeOn: false,
-    );
-
-    return _DisposablePgTarget(
-      adminEnv: envFor(adminDatabase),
-      databaseEnv: envFor(databaseName),
-      databaseName: databaseName,
-    );
-  }
-
-  final Env adminEnv;
-  final Env databaseEnv;
-  final String databaseName;
-
-  Future<void> recreate() async {
-    final connection = await Connection.open(
-      adminEnv.pgEndpoint,
-      settings: adminEnv.pgEndpointSettings,
-    );
-    try {
-      await connection.execute(
-        'DROP DATABASE IF EXISTS "$databaseName" WITH (FORCE)',
-      );
-      await connection.execute('CREATE DATABASE "$databaseName"');
-    } finally {
-      await connection.close();
-    }
-  }
-
-  Future<void> drop() async {
-    final connection = await Connection.open(
-      adminEnv.pgEndpoint,
-      settings: adminEnv.pgEndpointSettings,
-    );
-    try {
-      await connection.execute(
-        'DROP DATABASE IF EXISTS "$databaseName" WITH (FORCE)',
-      );
-    } finally {
-      await connection.close();
-    }
   }
 }
