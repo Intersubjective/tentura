@@ -1356,3 +1356,70 @@ Verdict: constellation-owned P11 gates green after the setUp trust restore. **Re
 ### Manager checkpoint — rejected P11 recovery worker — 2026-09-12
 
 Fresh Composer worker was stopped before a valid full PostgreSQL result. It created and migrated a disposable database, then invoked `dart test -t pg -j 1` without carrying `POSTGRES_DBNAME` into that command. The run was terminated after 86 passing and 17 failing tests, so it is not acceptance evidence and made no source, journal, or commit changes. Process audit after termination found no task-owned Dart test, analyzer, Flutter, Chrome, or Cursor worker process; pre-existing Chrome, Cursor, Dart language services, Docker, and PostgreSQL remain untouched. P11 stays blocked. A new worker must bind a proven disposable `POSTGRES_DBNAME` to the suite itself and preserve serial execution.
+
+### P11 — isolated PostgreSQL verification (valid serial run) — 2026-09-12
+
+Worker on `feature/pin_constellation` @ `6f98da872`. Scope: disposable DB + full
+`(cd packages/server && dart test -t pg -j 1)` only; no source edits.
+
+**Process (before):** `:5432` Postgres and `:8080` Hasura listening; docker
+`postgres` / `hasura` / `meritrank` up. No task-owned `dart test`, Flutter test,
+chromedriver, or integration runner. Pre-existing editor/browser/language services
+left untouched.
+
+**DB protocol:** `.env` loaded via `run-server-local.sh` read loop (not `source`).
+Disposable DB `tentura_test_p11_1789200177_1479254` created on docker `postgres`;
+`CREATE EXTENSION pgmer2`; `ALTER DATABASE … SET check_function_bodies TO false`;
+`migrate: schema upgrade complete`. `SELECT current_database()` matched disposable
+name (length 35). `POSTGRES_DBNAME` verified equal to disposable name immediately
+before suite (no secrets logged). Suite invoked as
+`POSTGRES_DBNAME="$DB" dart test -t pg -j 1` in the same shell after
+`export POSTGRES_DBNAME="$DB"`. Log: `/tmp/p11-pg-isolated-20260912-100257.log`
+(~11 min). Disposable DB dropped after journal draft.
+
+| Command | Result |
+|---------|--------|
+| `(cd packages/server && POSTGRES_DBNAME=<disposable> dart test -t pg -j 1)` | **FAIL** — **639 passed**, **0 skipped**, **30 failed** (exit 1) |
+
+**Constellation PG:** no `[E]` on any `constellation_*` / anchor storage / field /
+viewer-participates / GraphQL `constellation_anchor` path in this log.
+
+**Failure classification (30 cases; grouped by file):**
+
+| Group | Count | Class |
+|-------|------:|-------|
+| `review_finalization_outcome_evidence_pg_test.dart` (ledger 0≠3) | 3 | existing unrelated |
+| `forward_band_witness_admission_integration_pg_test.dart` | 1 | existing unrelated |
+| `realtime_notification_migration_test.dart` (empty LISTEN payloads; missing `notification_outbox` columns in incremental checks) | 13 | existing unrelated |
+| `beacon_cover_migration_test.dart` (`primary_need_slug` missing) | 1 | existing unrelated |
+| `m0149_resolution_removal_migration_test.dart` (`discussion_scope_disabled`) | 1 | existing unrelated |
+| `evaluation_repository_submit_atomic_pg_test.dart` (ack row 0≠1) | 1 | existing unrelated |
+| `attention_retention_pg_test.dart` (`RaceCondition` in setUpAll + tearDown cascade) | 2 | infrastructure (migrant `RaceCondition`) |
+| `obligation_scope_coincidence_pg_test.dart` (setUpAll `RaceCondition`) | 1 | infrastructure |
+| `forward_candidate_context_repository_pg_test.dart` (setUp/tearDown `RaceCondition`) | 2 | infrastructure |
+| `beacon_hierarchy_visibility_pg_test.dart` (`help_offer_case` null-check vs `UnauthorizedException`) | 1 | existing unrelated |
+| `beacon_threads_repository_pg_test.dart` (setUp/tearDown `RaceCondition`) | 2 | infrastructure |
+| `user_block_repository_pg_test.dart` (`beacon_owner_or_deleted_ck` on delete) | 1 | existing unrelated |
+| `beacon_hierarchy_hasura_parity_test.dart` (30s `TimeoutException`) | 1 | infrastructure |
+
+**Process (after):** no task-owned Dart test / Flutter test / chromedriver;
+Hasura/Postgres/docker unchanged.
+
+Verdict: **valid isolated serial PG evidence** (protocol satisfied). Full PG gate
+still **FAIL**; release **BLOCKED** for C8. Constellation-owned PG paths green.
+P12 not started.
+
+STATUS: release BLOCKED (full `dart test -t pg -j 1`).
+
+COMMITS: (journal checkpoint below).
+
+TESTS: 639 passed / 30 failed / 0 skipped — log path above.
+
+FILES: `docs/plans/constellation-pinning-implementation-journal.md` only.
+
+FINDINGS: failure set aligns with manager review “remaining 30” (not
+constellation regression); 4 `RaceCondition` setUp clusters + 1 Hasura parity
+timeout are infrastructure-class in this environment.
+
+REMAINING: remediate or accept pre-existing PG debt; then C8 7.6.0 + web artifacts;
+P12 not started.
