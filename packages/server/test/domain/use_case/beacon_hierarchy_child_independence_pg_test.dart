@@ -368,6 +368,7 @@ Future<void> main() async {
     late BeaconHierarchyFixture fixture;
     late _ChildIndependenceHarness harness;
     late Env env;
+    var setupComplete = false;
 
     setUpAll(() async {
       if (skipReason != false) {
@@ -381,10 +382,11 @@ Future<void> main() async {
       fixture = BeaconHierarchyFixture(writer: writer, db: session.db);
       env = target.databaseEnv;
       harness = _ChildIndependenceHarness.build(session.db, env);
+      setupComplete = true;
     });
 
     tearDown(() async {
-      if (skipReason != false) {
+      if (skipReason != false || !setupComplete) {
         return;
       }
       await _cleanupHierarchyEvents(writer);
@@ -393,7 +395,7 @@ Future<void> main() async {
     });
 
     tearDownAll(() async {
-      if (skipReason != false) {
+      if (skipReason != false || !setupComplete) {
         return;
       }
       await fixture.db.close();

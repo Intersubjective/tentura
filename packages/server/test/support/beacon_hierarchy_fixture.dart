@@ -11,6 +11,7 @@ import 'package:tentura_server/data/database/tentura_db.dart'
     hide isNotNull, isNull;
 import 'package:tentura_server/env.dart';
 
+import 'disposable_pg_target.dart';
 import 'pg_test_public_keys.dart';
 
 /// Canonical A→B→C plus A→D topology from nested-requests plan §3.2.
@@ -128,6 +129,14 @@ final class BeaconHierarchyDisposablePgTarget {
   final String databaseName;
 
   Future<void> recreate() async {
+    await withDisposablePgLifecycleLock(adminEnv, _recreateUnlocked);
+  }
+
+  Future<void> drop() async {
+    await withDisposablePgLifecycleLock(adminEnv, _dropUnlocked);
+  }
+
+  Future<void> _recreateUnlocked() async {
     final connection = await Connection.open(
       adminEnv.pgEndpoint,
       settings: adminEnv.pgEndpointSettings,
@@ -142,7 +151,7 @@ final class BeaconHierarchyDisposablePgTarget {
     }
   }
 
-  Future<void> drop() async {
+  Future<void> _dropUnlocked() async {
     final connection = await Connection.open(
       adminEnv.pgEndpoint,
       settings: adminEnv.pgEndpointSettings,
@@ -485,21 +494,31 @@ Future<bool> canConnectBeaconHierarchyPostgres() async {
 Future<({Connection writer, TenturaDb db})> openBeaconHierarchyPgSession(
   BeaconHierarchyDisposablePgTarget target,
 ) async {
-  final writer = await Connection.open(
-    target.databaseEnv.pgEndpoint,
-    settings: target.databaseEnv.pgEndpointSettings,
-  );
-  await writer.execute('SET check_function_bodies = false');
-  await migrateDbSchema(writer);
-  final db = TenturaDb(target.databaseEnv);
-  final currentDb = await writer.execute('SELECT current_database()');
-  final name = currentDb.first.first as String;
-  if (name != target.databaseName) {
-    throw StateError(
-      'Expected database ${target.databaseName}, connected to $name',
-    );
+  Connection? writer;
+  try {
+    await withDisposablePgLifecycleLock(target.adminEnv, () async {
+      writer = await Connection.open(
+        target.databaseEnv.pgEndpoint,
+        settings: target.databaseEnv.pgEndpointSettings,
+      );
+      await writer!.execute('SET check_function_bodies = false');
+      await migrateDbSchema(writer!);
+      final currentDb = await writer!.execute('SELECT current_database()');
+      final name = currentDb.first.first as String;
+      if (name != target.databaseName) {
+        throw StateError(
+          'Expected database ${target.databaseName}, connected to $name',
+        );
+      }
+    });
+    final db = TenturaDb(target.databaseEnv);
+    return (writer: writer!, db: db);
+  } on Object {
+    if (writer != null) {
+      await writer!.close();
+    }
+    rethrow;
   }
-  return (writer: writer, db: db);
 }
 
 String beaconHierarchyJson(Map<String, Object?> value) => jsonEncode(value);
