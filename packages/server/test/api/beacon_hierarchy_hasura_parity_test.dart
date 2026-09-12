@@ -15,6 +15,7 @@ import 'package:tentura_server/domain/use_case/auth_case.dart';
 import 'package:tentura_server/env.dart';
 
 import '../support/beacon_hierarchy_fixture.dart';
+import '../support/isolated_hasura_session.dart';
 import '../data/repository/beacon_hierarchy_pg_helpers.dart';
 
 /// Hasura read-side parity for hierarchy predicates (Task 03).
@@ -24,11 +25,11 @@ import '../data/repository/beacon_hierarchy_pg_helpers.dart';
 /// linked-detail projections (Task 10). Probes use real user-session JWTs.
 Future<void> main() async {
   final postgresReachable = await canConnectBeaconHierarchyPostgres();
-  final hasuraReachable = postgresReachable && await _canConnectHasura();
+  final dockerReachable = postgresReachable && await IsolatedHasuraSession.isDockerAvailable();
   final skipReason = !postgresReachable
       ? 'Postgres admin database not reachable'
-      : !hasuraReachable
-      ? 'local Hasura not reachable'
+      : !dockerReachable
+      ? 'Docker not available for isolated Hasura'
       : false;
 
   group('beacon hierarchy Hasura parity — disposable Postgres', () {
@@ -36,7 +37,7 @@ Future<void> main() async {
     late Connection writer;
     late BeaconHierarchyFixture fixture;
     late AuthCase authCase;
-    Map<String, dynamic>? originalHasuraSourceConfiguration;
+    IsolatedHasuraSession? hasura;
 
     setUpAll(() async {
       if (skipReason != false) {
@@ -47,15 +48,19 @@ Future<void> main() async {
       final session = await openBeaconHierarchyPgSession(target);
       writer = session.writer;
       fixture = BeaconHierarchyFixture(writer: writer, db: session.db);
+      final jwtKeys = _loadJwtKeysFromRepoDotEnv();
       authCase = AuthCase(
         _NoopUserRepository(),
         _NoopInvitationRepository(),
-        env: _authEnvForHasura(target),
+        env: _authEnvForHasura(target, jwtKeys),
         logger: Logger('BeaconHierarchyHasuraParityTest'),
       );
-      originalHasuraSourceConfiguration =
-          await _pointHasuraAtTestDatabase(target);
-      await _reloadHasuraMetadata();
+      final startedHasura = await IsolatedHasuraSession.start(
+        databaseEnv: target.databaseEnv,
+        jwtPublicPem: jwtKeys.publicKey,
+      );
+      await startedHasura.applyRepoMetadata();
+      hasura = startedHasura;
     });
 
     tearDown(() async {
@@ -70,9 +75,7 @@ Future<void> main() async {
         return;
       }
       try {
-        await _restoreHasuraSourceConfiguration(
-          originalHasuraSourceConfiguration,
-        );
+        await hasura?.stop();
       } finally {
         await fixture.db.close();
         await writer.close();
@@ -163,6 +166,7 @@ ON CONFLICT (id) DO UPDATE SET room_access = EXCLUDED.room_access
         final childId = BeaconHierarchyTopology.beaconB;
 
         final byPk = await _queryBeaconByPk(
+          hasuraUrl: hasura!.baseUrl,
           jwt: jwt,
           beaconId: childId,
           fields: 'id can_read_content',
@@ -170,6 +174,7 @@ ON CONFLICT (id) DO UPDATE SET room_access = EXCLUDED.room_access
         expect(byPk, isNull, reason: 'content row filter must hide child B');
 
         final contentRows = await _queryBeacons(
+          hasuraUrl: hasura!.baseUrl,
           jwt: jwt,
           where: '{can_read_content: {_eq: true}}',
           fields: 'id',
@@ -185,18 +190,15 @@ ON CONFLICT (id) DO UPDATE SET room_access = EXCLUDED.room_access
   });
 }
 
-final _hasuraUrl = Platform.environment['HASURA_URL'] ?? 'http://127.0.0.1:8080';
-final _hasuraAdminSecret =
-    Platform.environment['HASURA_GRAPHQL_ADMIN_SECRET'] ?? 'password';
-
 Future<List<Map<String, dynamic>>> _queryBeacons({
+  required String hasuraUrl,
   required String jwt,
   required String where,
   required String fields,
 }) async {
   final query = 'query { beacon(where: $where) { $fields } }';
   final response = await http.post(
-    Uri.parse('$_hasuraUrl/v1/graphql'),
+    Uri.parse('$hasuraUrl/v1/graphql'),
     headers: {
       'Content-Type': 'application/json',
       'Authorization': 'Bearer $jwt',
@@ -210,6 +212,7 @@ Future<List<Map<String, dynamic>>> _queryBeacons({
 }
 
 Future<Map<String, dynamic>?> _queryBeaconByPk({
+  required String hasuraUrl,
   required String jwt,
   required String beaconId,
   required String fields,
@@ -217,7 +220,7 @@ Future<Map<String, dynamic>?> _queryBeaconByPk({
   final query =
       'query { beacon_by_pk(id: "$beaconId") { $fields } }';
   final response = await http.post(
-    Uri.parse('$_hasuraUrl/v1/graphql'),
+    Uri.parse('$hasuraUrl/v1/graphql'),
     headers: {
       'Content-Type': 'application/json',
       'Authorization': 'Bearer $jwt',
@@ -230,101 +233,6 @@ Future<Map<String, dynamic>?> _queryBeaconByPk({
       as Map<String, dynamic>?;
 }
 
-Future<bool> _canConnectHasura() async {
-  try {
-    final response = await http
-        .post(
-          Uri.parse('$_hasuraUrl/v1/graphql'),
-          headers: {
-            'Content-Type': 'application/json',
-            'X-Hasura-Admin-Secret': _hasuraAdminSecret,
-          },
-          body: jsonEncode({'query': '{ __typename }'}),
-        )
-        .timeout(const Duration(seconds: 2));
-    return response.statusCode == 200;
-  } on Object catch (_) {
-    return false;
-  }
-}
-
-Future<Map<String, dynamic>?> _pointHasuraAtTestDatabase(
-  BeaconHierarchyDisposablePgTarget target,
-) async {
-  final database = target.databaseName;
-  if (database == 'postgres') return null;
-
-  final metadata = await _postHasuraMetadata('export_metadata');
-  final sources = metadata['sources']! as List;
-  final source = sources.cast<Map<String, dynamic>>().singleWhere(
-    (source) => source['name'] == 'postgres',
-  );
-  final original = Map<String, dynamic>.from(
-    source['configuration']! as Map<String, dynamic>,
-  );
-  final connectionInfo = Map<String, dynamic>.from(
-    original['connection_info']! as Map<String, dynamic>,
-  )..['database_url'] = _hasuraTestDatabaseUrl(target.databaseEnv);
-
-  await _postHasuraMetadata(
-    'pg_update_source',
-    args: {
-      'name': 'postgres',
-      'configuration': {'connection_info': connectionInfo},
-    },
-  );
-  return original;
-}
-
-Future<void> _restoreHasuraSourceConfiguration(
-  Map<String, dynamic>? configuration,
-) async {
-  if (configuration == null) return;
-  await _postHasuraMetadata(
-    'pg_update_source',
-    args: {'name': 'postgres', 'configuration': configuration},
-  );
-}
-
-Future<void> _reloadHasuraMetadata() async {
-  final metadataFile = File(
-    '${Directory.current.path}/../../hasura/metadata.json',
-  );
-  await _postHasuraMetadata(
-    'replace_metadata',
-    args: {
-      'allow_inconsistent_metadata': true,
-      'metadata': jsonDecode(metadataFile.readAsStringSync())['metadata'],
-    },
-  );
-}
-
-String _hasuraTestDatabaseUrl(Env env) => Uri(
-  scheme: 'postgres',
-  userInfo: '${env.pgUsername}:${env.pgPassword}',
-  host: env.pgHost,
-  port: env.pgPort,
-  path: env.pgDatabase,
-).toString();
-
-Future<Map<String, dynamic>> _postHasuraMetadata(
-  String type, {
-  Map<String, dynamic> args = const {},
-}) async {
-  final response = await http.post(
-    Uri.parse('$_hasuraUrl/v1/metadata'),
-    headers: {
-      'Content-Type': 'application/json',
-      'X-Hasura-Admin-Secret': _hasuraAdminSecret,
-    },
-    body: jsonEncode({'type': type, 'args': args}),
-  );
-  final body = jsonDecode(response.body) as Map<String, dynamic>;
-  expect(response.statusCode, 200, reason: body.toString());
-  expect(body['error'], isNull, reason: body.toString());
-  return body;
-}
-
 final class _NoopUserRepository implements UserRepositoryPort {
   @override
   dynamic noSuchMethod(Invocation invocation) => throw UnimplementedError();
@@ -335,8 +243,10 @@ final class _NoopInvitationRepository implements InvitationRepositoryPort {
   dynamic noSuchMethod(Invocation invocation) => throw UnimplementedError();
 }
 
-Env _authEnvForHasura(BeaconHierarchyDisposablePgTarget target) {
-  final jwtKeys = _loadJwtKeysFromRepoDotEnv();
+Env _authEnvForHasura(
+  BeaconHierarchyDisposablePgTarget target,
+  ({String publicKey, String privateKey}) jwtKeys,
+) {
   final base = target.databaseEnv;
   return Env(
     environment: base.environment,
