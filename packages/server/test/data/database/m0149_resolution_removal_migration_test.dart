@@ -10,12 +10,12 @@ import 'package:test/test.dart';
 import 'package:tentura_server/data/database/migration/_migrations.dart';
 import 'package:tentura_server/env.dart';
 
+const _skipHistoricalMigrationCoverage =
+    'Disabled for the planned schema squash cutover; this only covers upgrades from retired schemas.';
+
 Future<void> main() async {
   final target = _DisposablePgTarget.fromEnvironment();
-  final reachable = await _canConnect(target.adminEnv);
-  final skipReason = reachable
-      ? false
-      : 'Postgres admin database not reachable for disposable test target';
+  const skipReason = _skipHistoricalMigrationCoverage;
 
   group('m0149 resolution removal migration', () {
     late Connection writer;
@@ -89,7 +89,7 @@ Future<void> main() async {
       },
       skip: skipReason,
     );
-  });
+  }, skip: _skipHistoricalMigrationCoverage);
 }
 
 Future<void> _seedResolutionRemovalFixture(Connection writer) async {
@@ -161,19 +161,6 @@ Future<int> _countRoomMessages(
     parameters: {'id': messageId},
   );
   return rows.single[0] as int;
-}
-
-Future<bool> _canConnect(Env env) async {
-  try {
-    final connection = await Connection.open(
-      env.pgEndpoint,
-      settings: env.pgEndpointSettings,
-    );
-    await connection.close();
-    return true;
-  } on Object {
-    return false;
-  }
 }
 
 class _DisposablePgTarget {

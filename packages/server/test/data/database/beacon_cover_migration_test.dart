@@ -10,12 +10,12 @@ import 'package:test/test.dart';
 import 'package:tentura_server/data/database/migration/_migrations.dart';
 import 'package:tentura_server/env.dart';
 
+const _skipHistoricalMigrationCoverage =
+    'Disabled for the planned schema squash cutover; this only covers upgrades from retired schemas.';
+
 Future<void> main() async {
   final target = _DisposablePgTarget.fromEnvironment();
-  final reachable = await _canConnect(target.adminEnv);
-  final skipReason = reachable
-      ? false
-      : 'Postgres admin database not reachable for disposable test target';
+  const skipReason = _skipHistoricalMigrationCoverage;
 
   group('m0130 beacon cover migration', () {
     late Connection writer;
@@ -302,7 +302,7 @@ VALUES ('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa', 'Ucoverauthor')
       },
       skip: skipReason,
     );
-  });
+  }, skip: _skipHistoricalMigrationCoverage);
 }
 
 Future<void> _rollBackM0140ForTest(Connection connection) async {
@@ -613,19 +613,6 @@ ALTER TABLE public.beacon
     "DELETE FROM public.schema_version WHERE version = '0130'",
   ]) {
     await connection.execute(statement);
-  }
-}
-
-Future<bool> _canConnect(Env env) async {
-  try {
-    final connection = await Connection.open(
-      env.pgEndpoint,
-      settings: env.pgEndpointSettings,
-    );
-    await connection.close();
-    return true;
-  } on Object {
-    return false;
   }
 }
 

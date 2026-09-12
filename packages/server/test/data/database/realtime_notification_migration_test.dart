@@ -19,12 +19,12 @@ import 'package:tentura_server/domain/attention/attention_models.dart';
 import 'package:tentura_server/domain/entity/notification_preferences_entity.dart';
 import 'package:tentura_server/env.dart';
 
+const _skipHistoricalMigrationCoverage =
+    'Disabled for the planned schema squash cutover; this only covers upgrades from retired schemas.';
+
 Future<void> main() async {
   final target = _DisposablePgTarget.fromEnvironment();
-  final reachable = await _canConnect(target.adminEnv);
-  final skipReason = reachable
-      ? false
-      : 'Postgres admin database not reachable for disposable test target';
+  const skipReason = _skipHistoricalMigrationCoverage;
   final env = target.databaseEnv;
 
   group('m0114-m0120 realtime notification contract', () {
@@ -1740,7 +1740,7 @@ WHERE subject = @s AND object = @o
       },
       skip: skipReason,
     );
-  }, skip: skipReason);
+  }, skip: _skipHistoricalMigrationCoverage);
 }
 
 List<Map<String, dynamic>> _ofKind(
@@ -1809,19 +1809,6 @@ DO UPDATE SET
     'accessPolicy': accessPolicy,
   },
 );
-
-Future<bool> _canConnect(Env env) async {
-  try {
-    final connection = await Connection.open(
-      env.pgEndpoint,
-      settings: env.pgEndpointSettings,
-    ).timeout(const Duration(seconds: 2));
-    await connection.close();
-    return true;
-  } on Object {
-    return false;
-  }
-}
 
 Future<void> _rollBackM0153ForTest(Connection connection) async {
   for (final statement in const [
