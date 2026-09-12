@@ -4,23 +4,27 @@ library;
 import 'dart:io';
 
 import 'package:drift/drift.dart' show Variable;
-import 'package:injectable/injectable.dart' show Environment;
 import 'package:postgres/postgres.dart';
 import 'package:test/test.dart';
 
-import 'package:tentura_server/data/database/migration/_migrations.dart';
 import 'package:tentura_server/data/database/tentura_db.dart'
     hide isNotNull, isNull;
 import 'package:tentura_server/env.dart';
 
+import '../../support/disposable_pg_target.dart';
+
 /// Live Postgres proof of m0163a discoverability visibility cache (GATE-14.1).
 Future<void> main() async {
-  final target = _DisposablePgTarget.fromEnvironment();
-  final reachable = await _canConnect(target.adminEnv);
+  final target = DisposablePgTarget.fromNamedEnvironment(
+    envVarName: 'TENTURA_DISCOVERABILITY_CACHE_TEST_DB',
+    defaultNamePrefix: 'tentura_test_discov_cache',
+  );
+  final reachable = await canReachPostgresAdmin(target);
   final skipReason = reachable
       ? false
       : 'Postgres admin database not reachable for disposable test target';
 
+  late DisposablePgWriterSession session;
   late Connection writer;
   late TenturaDb db;
 
@@ -267,15 +271,12 @@ END;
 
   if (skipReason == false) {
     setUpAll(() async {
-      await target.recreate();
-      writer = await Connection.open(
-        target.databaseEnv.pgEndpoint,
-        settings: target.databaseEnv.pgEndpointSettings,
+      session = await setUpDisposablePgWriter(
+        target: target,
+        createPgmer2Extension: true,
       );
-      await writer.execute('SET check_function_bodies = false');
-      await writer.execute('CREATE EXTENSION IF NOT EXISTS pgmer2');
-      await migrateDbSchema(writer);
-      db = TenturaDb(target.databaseEnv);
+      writer = session.writer;
+      db = openDisposablePgDatabase(target);
       await installPamvCallCounter();
     });
 
@@ -287,9 +288,7 @@ END;
     });
 
     tearDownAll(() async {
-      await db.close();
-      await writer.close();
-      await target.drop();
+      await tearDownDisposablePgWriter(session: session, drift: db);
     });
   }
 
@@ -542,87 +541,4 @@ END;
     },
     skip: skipReason,
   );
-}
-
-Future<bool> _canConnect(Env env) async {
-  try {
-    final connection = await Connection.open(
-      env.pgEndpoint,
-      settings: env.pgEndpointSettings,
-    );
-    await connection.close();
-    return true;
-  } on Object {
-    return false;
-  }
-}
-
-final class _DisposablePgTarget {
-  _DisposablePgTarget({
-    required this.adminEnv,
-    required this.databaseEnv,
-    required this.databaseName,
-  });
-
-  factory _DisposablePgTarget.fromEnvironment() {
-    final host = Platform.environment['POSTGRES_HOST'] ?? '127.0.0.1';
-    final port =
-        int.tryParse(Platform.environment['POSTGRES_PORT'] ?? '') ?? 5432;
-    final username = Platform.environment['POSTGRES_USERNAME'] ?? 'postgres';
-    final password = Platform.environment['POSTGRES_PASSWORD'] ?? 'password';
-    final adminDatabase =
-        Platform.environment['POSTGRES_ADMIN_DBNAME'] ?? 'postgres';
-    final databaseName =
-        Platform.environment['TENTURA_DISCOVERABILITY_CACHE_TEST_DB'] ??
-        'tentura_test_discov_cache_${pid}_${DateTime.timestamp().microsecondsSinceEpoch}';
-
-    Env envFor(String database) => Env(
-      environment: Environment.test,
-      pgHost: host,
-      pgPort: port,
-      pgDatabase: database,
-      pgUsername: username,
-      pgPassword: password,
-      printEnv: false,
-      isDebugModeOn: false,
-    );
-    return _DisposablePgTarget(
-      adminEnv: envFor(adminDatabase),
-      databaseEnv: envFor(databaseName),
-      databaseName: databaseName,
-    );
-  }
-
-  final Env adminEnv;
-  final Env databaseEnv;
-  final String databaseName;
-
-  Future<void> recreate() async {
-    final connection = await Connection.open(
-      adminEnv.pgEndpoint,
-      settings: adminEnv.pgEndpointSettings,
-    );
-    try {
-      await connection.execute(
-        'DROP DATABASE IF EXISTS "$databaseName" WITH (FORCE)',
-      );
-      await connection.execute('CREATE DATABASE "$databaseName"');
-    } finally {
-      await connection.close();
-    }
-  }
-
-  Future<void> drop() async {
-    final connection = await Connection.open(
-      adminEnv.pgEndpoint,
-      settings: adminEnv.pgEndpointSettings,
-    );
-    try {
-      await connection.execute(
-        'DROP DATABASE IF EXISTS "$databaseName" WITH (FORCE)',
-      );
-    } finally {
-      await connection.close();
-    }
-  }
 }
