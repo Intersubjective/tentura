@@ -1,6 +1,16 @@
 # Constellation — discoverable field, edge semantics, and path explanation
 
-Status: architectural decision record and implementation outline. No schema, API, or client change is authorized by this document alone.
+> **Pinning update (2026-09-12):** This record remains normative for
+> discoverability, path selection, and the automatic field.
+> [`constellation-pinning-plan.md`](constellation-pinning-plan.md) supersedes
+> it for viewer-owned anchors, pin-aware request filters, lifecycle/pin
+> presentation, and the private `constellation_anchor` realtime exception.
+> Its snapshot-only rule still applies to discovery data; it does not prohibit
+> a viewer's own anchors from converging between their sessions.
+
+Status: historical architecture record for the automatic field. Its implemented
+discoverability and path decisions remain authoritative; the pinning plan owns
+the later personal-placement and private-realtime contracts.
 
 Date: 2026-09-07. UX amendment: 2026-09-08, incorporating the product owner's requested ten changes. **Implementation amendment: 2026-09-08** — approved by the plan owner following the adversarial review recorded in [`constellation-review-cursor-gpt.md`](constellation-review-cursor-gpt.md). It carries one override of a prior decision (**O1**, hops-first path key, §5), two corrections (**A2** no `ctx` on the wire, §12/U5; **A3** narrowed positional stability, §5.1), and three new decisions (**N1** symmetric peer set and its residual gap, §5; **N2** the peer cap as a guard rail with three disjoint holder-absence meanings, §5.2; **N3** the provider-neutral render seam, §12/U8). §14.2 gains items 6-8. **Consistency amendment: 2026-09-08 (plan revision 11)** — §5's clauses carry stable `ALG-…` identifiers, `ALG-PARENT` gains the parent-candidate guard the invariant proof depends on, `ALG-EGO` states ego's exclusion explicitly, **B** carries the publication conjunct, and §5.2 holds the one normative absence-semantics table; D11 is narrowed to content-wall parity. Repository baseline inspected for the original architecture: `fd69d499b`, including the then-current working tree. Latest migration in that inspection: `m0159`. The UX amendment is documentation only; it does not claim implementation or refresh that code audit.
 

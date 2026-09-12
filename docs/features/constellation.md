@@ -1,6 +1,6 @@
 # Constellation — product spec (as shipped)
 
-User-facing behavior of **Constellation**: an ego-centred map (and accessible text alternative) of the **discoverable field of active requests** among mutually visible peers. Internal wire name: `constellationField`. For architecture and algorithm contracts, see [`../plans/constellation-edge-semantics.md`](../plans/constellation-edge-semantics.md). For product direction, see [`../Tentura_current_status_quo.md`](../Tentura_current_status_quo.md).
+User-facing behavior of **Constellation**: an ego-centred map (and accessible text alternative) of the **discoverable field of active requests** among mutually visible peers, with a personal arrangement of pinned people and requests. Internal wire name: `constellationField`. For architecture and algorithm contracts, see [`../plans/constellation-edge-semantics.md`](../plans/constellation-edge-semantics.md). For product direction, see [`../Tentura_current_status_quo.md`](../Tentura_current_status_quo.md).
 
 ## What Constellation is
 
@@ -15,6 +15,8 @@ It is **not** a feed, ranking surface, or recommendation engine. It is a **snaps
 | **My Work** | Requests I authored or offered help on | Pull on my responsibility |
 
 A request can appear in Constellation **and** already be held (authored, offered on, forwarded, or joined as a participant). Field membership and held state are independent (D16).
+
+Alongside the automatic field, each account can pin a person or a request at a chosen map position. Pins are private presentation choices: they do not change discoverability, permissions, discussion admission, or anyone else's Constellation.
 
 ## Home navigation
 
@@ -46,6 +48,7 @@ Migrations: **m0160** (`is_discoverable`), **m0161** (symmetric visibility), **m
 
 - **Ego** sits at the centre; **people** occupy concentric rings outward by path depth.
 - Each person's **active discoverable requests** hang off them as satellite nodes.
+- **Pinned people and requests** retain the viewer's chosen positions across sessions and devices. Pinning a person does not pin or move that person's requests; each request has its own pin.
 - **Residual ring:** mutually visible peers with no drawable path within the hop cap still appear on an outer ring with their requests — tappable, but without a drawn explanation path (D3).
 - **Forward edges are never drawn** (D5). A forwarded request belongs in Inbox, not as a discovery path.
 
@@ -67,7 +70,16 @@ Tier-2 edges are visually distinct and carry **no label** about what evidence pr
 - **Filter bar** above the map: capability, location presence, timing, include-unspecified toggle.
 - **Overflow groups** per author when label budget hides satellites (`+N more`).
 - **Snapshot bar:** load timestamp, Map/Text switch, refresh control.
+- **Pin controls:** first placing an unpinned person or request asks for confirmation. Moving an already pinned target saves its final position on drop; unpin removes only that account's placement.
 - Actions revalidate current permissions and request state before offer/forward submission (UX8); stale snapshot shows recovery copy and refresh.
+
+### Pinned placement and request state
+
+Pins belong to the viewing account and describe a stable personal map. They may overlap; the most recently stored placement is drawn and tapped on top. A pin is not a saved request: **Favorites** and Constellation pins are independent actions.
+
+If a pinned request is temporarily outside the active field, its placement remains stored. **Show closed** can reveal readable wrapping-up and closed requests, while cancelled, deleted, unpublished, blocked, and otherwise unreadable requests never render. When an eligible request returns, it returns at its saved position. A pinned person may remain even when that person currently has no active readable requests.
+
+Request state is visible in both Map and Text views. The legend pairs each state with text and a non-colour marker: Open, Needs more help, Enough help, Wrapping up, and Closed. The pin glyph identifies placement only; it does not imply participation or priority.
 
 ### Filters (UX4)
 
@@ -75,8 +87,10 @@ Tier-2 edges are visually distinct and carry **no label** about what evidence pr
 - **Location** — filters on requests that **establish presence** via location fields (lat/long or address label). A request **without** location data is *unspecified*, never treated as "remote."
 - **Timing** — event (start set), deadline (end only), undated, or within-N-days variants where schedule data exists.
 - **Include unspecified** — whether requests missing filter-relevant data pass capability/location/timing filters.
+- **Show closed** — includes readable wrapping-up and closed requests; it does not include cancelled requests.
+- **Only Requests I participated in** — includes requests the viewer authored, currently or historically participated in, or has a valid pending help offer for. A forward by itself does not count; a declined offer without participation does not count.
 
-Filters preserve **unchanged person anchors**; they only affect which request satellites are drawn. Map and Text views expose the same eligible request ids for each filter state.
+Filters preserve person pins and stored request pins. A request filter can hide a pinned request without deleting its placement; the controls report how many pinned requests are currently hidden and offer a clear-filter action. Map and Text views expose the same eligible request ids for each filter state.
 
 There is **no effort filter** — effort is not a reliable authorized field in v1.
 
@@ -90,13 +104,14 @@ Within the **same sector** (same parent branch), person positions are stable acr
 
 ## Text view (UX6)
 
-Accessible alternative using the **same snapshot, filters, and request set** as the map — not a ranked list or infinite scroll. Plain-list mode (when peer cap truncates paths) suppresses per-request connection copy in text view only; the map still shows path notices with a link to switch views.
+Accessible alternative using the **same snapshot, filters, pins, and request set** as the map — not a ranked list or infinite scroll. Plain-list mode (when peer cap truncates paths) suppresses per-request connection copy in text view only; the map still shows path notices with a link to switch views. Text rows expose pin state and lifecycle state in their accessible labels.
 
 Keyboard and screen-reader users can complete the same filter, selection, preview, and view-mode tasks as on the map.
 
 ## Freshness (D15, UX8)
 
 - Field loads **once on open**; no realtime invalidation for discovery-only viewers.
+- Private anchor changes are the narrow exception: a pin, move, unpin, or target cascade refreshes the viewer's anchor projection so their own open Constellation sessions converge. It carries no newly authorized request or person data.
 - Snapshot timestamp is shown; user may refresh manually.
 - Before offer/forward, client preflights involvement and server validates `expectedOfferKind` inside the mutation transaction.
 - Coverage changes after snapshot (e.g. enoughHelp) prompt backup choice — never silent conversion.

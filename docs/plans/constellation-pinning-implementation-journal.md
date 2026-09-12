@@ -64,8 +64,8 @@ tg_style_research.md
 | P08 Placement orchestration and live reconciliation | complete (accepted after C7 remediation) | P07 | see P08 manager re-review |
 | P09 Map/Text controls, filters and status accessibility | complete (accepted) | P08 | see P09 manager review |
 | P10 End-to-end and failure acceptance | complete (remediated) | P09 | see P10 remediation |
-| P11 Full verification and release preparation | blocked (release) | P10 | see P11 checkpoint |
-| P12 Product docs and coordinated activation | pending | P11 | — |
+| P11 Full verification and release preparation | complete | P10 | P11 remediation acceptance, `91d9ad6bd` |
+| P12 Product docs and coordinated activation | ready for deployment | P11 | C8 release gate, web artifact, and documentation checkpoint below |
 
 ## Required process and verification discipline
 
@@ -2004,4 +2004,24 @@ Plan inventory (15 cases / 10 files) is closed via R02–R05 plus R06
 harness follow-ups. Residual risk: some PG tests still use a private
 `_DisposablePgTarget` copy; they did not fail this gate run.
 
-**P11 PostgreSQL remediation complete.** C8 / P12 not started.
+**P11 PostgreSQL remediation complete.**
+
+### P12 — release preparation and product documentation — 2026-09-12
+
+- Raised the client release to `7.6.0` and the server's baked
+  `kDefaultMinClientVersion` to the same value. The WebSocket pong contract
+  test proves the advertised default; the client semver test proves `7.5.0`
+  is below the gate while `7.6.0` is current.
+- Built one local WASM web artifact with `WEB_BUILD_ID=6e36bf4d3`. After the
+  normal trim, versioned-assets, and preload steps,
+  `verify_web_version_consistency.dart` passed for `7.6.0-6e36bf4d3`.
+- Updated the product spec, documentation index, and edge-semantics record for
+  personal pins, dormant anchors, pin-aware filters, lifecycle/pin legend,
+  Favorites independence, and the narrow private-anchor realtime exception.
+- Focused checks passed: server WebSocket protocol (12), client semver (6),
+  server and client custom-lint gates, and the preceding isolated PostgreSQL
+  full suite (`670 passed, 22 intentional squash-cutover skips, 0 failed`).
+
+**Status:** repository activation is ready for coordinated deployment. No
+production migration, server deployment, client publication, or production
+smoke test was performed in this repository step.
