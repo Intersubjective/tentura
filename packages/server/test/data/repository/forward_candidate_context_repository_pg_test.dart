@@ -25,11 +25,12 @@ Future<void> main() async {
       ? false
       : 'Postgres admin database not reachable for disposable test target';
 
-  late DisposablePgWriterSession session;
+  DisposablePgWriterSession? session;
   late Connection writer;
   late TenturaDb database;
   late ForwardCandidateContextRepository repository;
   late MeritrankRepository meritRank;
+  var pgSetupComplete = false;
 
   if (skipReason == false) {
     setUpAll(() async {
@@ -37,10 +38,11 @@ Future<void> main() async {
         target: target,
         createPgmer2Extension: true,
       );
-      writer = session.writer;
+      writer = session!.writer;
       database = openDisposablePgDatabase(target);
       repository = ForwardCandidateContextRepository(database);
       meritRank = MeritrankRepository(database);
+      pgSetupComplete = true;
     });
 
     setUp(() async {
@@ -55,7 +57,10 @@ Future<void> main() async {
     });
 
     tearDownAll(() async {
-      await tearDownDisposablePgWriter(session: session, drift: database);
+      if (!pgSetupComplete || session == null) {
+        return;
+      }
+      await tearDownDisposablePgWriter(session: session!, drift: database);
     });
   }
 

@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:injectable/injectable.dart' show Environment;
+import 'package:migrant_db_postgresql/migrant_db_postgresql.dart';
 import 'package:postgres/postgres.dart';
 
 import 'package:tentura_server/data/database/migration/_migrations.dart';
@@ -192,10 +193,13 @@ Future<DisposablePgWriterSession> setUpDisposablePgWriter({
     await withDisposablePgLifecycleLock(target.adminEnv, () async {
       await target._dropUnlocked();
     });
+    final detail = error is RaceCondition
+        ? '${error.message} (schema_version LOCK TABLE NOWAIT / version skew)'
+        : error;
     Error.throwWithStackTrace(
       StateError(
         'Disposable PostgreSQL setup failed for ${target.databaseName} '
-        '(${target.envVarName}): $error',
+        '(${target.envVarName}): $detail',
       ),
       stackTrace,
     );
