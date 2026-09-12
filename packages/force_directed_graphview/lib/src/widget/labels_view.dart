@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:force_directed_graphview/force_directed_graphview.dart';
+import 'package:force_directed_graphview/src/scene/graph_ids.dart';
+import 'package:force_directed_graphview/src/scene/scene_snapshot.dart';
+import 'package:force_directed_graphview/src/widget/graph_layout_view.dart';
 import 'package:force_directed_graphview/src/widget/inherited_configuration.dart';
 
 /// { @nodoc }
@@ -11,7 +14,6 @@ class LabelsView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final controller = InheritedConfiguration.controllerOf(context);
     final configuration = InheritedConfiguration.configurationOf(context);
     final labelBuilder = configuration.labelBuilder;
 
@@ -19,73 +21,68 @@ class LabelsView extends StatelessWidget {
       return const SizedBox();
     }
 
-    return AnimatedBuilder(
-      animation: controller,
-      builder: (context, _) {
-        if (!controller.canLayout) {
-          return const SizedBox();
-        }
+    final scope = GraphSceneRenderScope.of(context);
 
-        final visibleNodes = controller.getVisibleNodes();
-        final orderedNodes = controller
-            .orderedNodes(
-              visibleNodes,
-              paintOrder: configuration.nodePaintOrder,
-            )
-            .toList(growable: false);
+    final idToLabel = {
+      for (final id in scope.orderedNodeIds)
+        id: labelBuilder.build(
+          context,
+          scope.snapshot.topology.nodesById[id]!.payload,
+        ),
+    };
 
-        final nodeToLabel = {
-          for (final node in orderedNodes)
-            node: labelBuilder.build(context, node),
-        };
-
-        return CustomMultiChildLayout(
-          delegate: _LabelsLayoutDelegate(
-            labels: nodeToLabel,
-            labelBuilder: labelBuilder,
-            controller: controller,
+    return CustomMultiChildLayout(
+      delegate: _LabelsLayoutDelegate(
+        snapshot: scope.snapshot,
+        labels: idToLabel,
+        labelBuilder: labelBuilder,
+      ),
+      children: [
+        for (final entry in idToLabel.entries)
+          LayoutId(
+            id: entry.key,
+            child: RepaintBoundary(
+              key: ValueKey<String>('label-${entry.key}'),
+              child: entry.value,
+            ),
           ),
-          children: [
-            for (final entry in nodeToLabel.entries)
-              LayoutId(
-                id: entry.key,
-                child: RepaintBoundary(
-                  child: entry.value,
-                ),
-              ),
-          ],
-        );
-      },
+      ],
     );
   }
 }
 
 class _LabelsLayoutDelegate extends MultiChildLayoutDelegate {
   _LabelsLayoutDelegate({
+    required this.snapshot,
     required this.labels,
     required this.labelBuilder,
-    required this.controller,
   });
 
-  final Map<NodeBase, Widget> labels;
+  final GraphSceneSnapshot<NodeBase, EdgeBase> snapshot;
+  final Map<GraphNodeId, Widget> labels;
   final LabelBuilder labelBuilder;
-  final GraphController controller;
 
   @override
   void performLayout(Size size) {
     for (final entry in labels.entries) {
-      final node = entry.key;
+      final id = entry.key;
+      final node = snapshot.topology.nodesById[id]!.payload;
+      final point = snapshot.resolvePosition(id);
+      if (point == null) {
+        continue;
+      }
 
       labelBuilder.performLayout(
         size,
         node,
-        controller.getPosition(node),
-        (constraints) => layoutChild(node, constraints),
-        (offset) => positionChild(node, offset),
+        Offset(point.x, point.y),
+        (constraints) => layoutChild(id, constraints),
+        (offset) => positionChild(id, offset),
       );
     }
   }
 
   @override
-  bool shouldRelayout(covariant MultiChildLayoutDelegate oldDelegate) => true;
+  bool shouldRelayout(covariant _LabelsLayoutDelegate oldDelegate) =>
+      snapshot != oldDelegate.snapshot || labels != oldDelegate.labels;
 }

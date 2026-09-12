@@ -194,6 +194,126 @@ class GraphController<N extends NodeBase, E extends EdgeBase<N>>
     _currentAlgorithm = algorithm;
   }
 
+  /// Immutable scene state for one render, hit-test, or drag pass.
+  GraphSceneSnapshot<N, E> get renderSnapshot => _scene.snapshot;
+
+  /// Visible node ids for [snapshot], recomputed from resolved positions and
+  /// lazy viewport policy on every call.
+  Set<GraphNodeId> visibleNodeIds(GraphSceneSnapshot<N, E> snapshot) {
+    final viewport = _effectiveViewport;
+    if (!canLayout) {
+      return const {};
+    }
+    if (viewport == null) {
+      return {
+        for (final id in snapshot.topology.nodesById.keys)
+          if (snapshot.resolvePosition(id) != null) id,
+      };
+    }
+    if (viewport == Rect.largest) {
+      return {
+        for (final id in snapshot.topology.nodesById.keys)
+          if (snapshot.resolvePosition(id) != null) id,
+      };
+    }
+
+    final visible = <GraphNodeId>{};
+    for (final entry in snapshot.topology.nodesById.entries) {
+      final point = snapshot.resolvePosition(entry.key);
+      if (point == null) {
+        continue;
+      }
+      final center = Offset(point.x, point.y);
+      final radius = entry.value.size.width / 2;
+      final nodeRect = Rect.fromCircle(center: center, radius: radius);
+      if (nodeRect.overlaps(viewport)) {
+        visible.add(entry.key);
+      }
+    }
+    return visible;
+  }
+
+  /// Paint and hit-test order for visible nodes in [snapshot].
+  ///
+  /// [legacyPaintOrder] maps node-valued configuration to ids once at the
+  /// boundary. Active presentation overrides paint on top without mutating
+  /// topology.
+  List<GraphNodeId> orderedRenderNodeIds(
+    GraphSceneSnapshot<N, E> snapshot, {
+    List<NodeBase>? legacyPaintOrder,
+  }) {
+    final visible = visibleNodeIds(snapshot);
+    if (visible.isEmpty) {
+      return const [];
+    }
+
+    final ordered = <GraphNodeId>[];
+    final remaining = visible.toSet();
+
+    final configuredPaintOrder = snapshot.presentation.paintOrder;
+    if (legacyPaintOrder != null && legacyPaintOrder.isNotEmpty) {
+      for (final node in legacyPaintOrder) {
+        if (node is! N) {
+          continue;
+        }
+        final id = _nodeIdOf(node);
+        if (remaining.remove(id)) {
+          ordered.add(id);
+        }
+      }
+    } else if (configuredPaintOrder.isNotEmpty) {
+      for (final id in configuredPaintOrder) {
+        if (remaining.remove(id)) {
+          ordered.add(id);
+        }
+      }
+    }
+
+    for (final id in snapshot.topology.nodesById.keys) {
+      if (remaining.remove(id)) {
+        ordered.add(id);
+      }
+    }
+
+    for (final id in snapshot.presentation.overrides.keys) {
+      if (!visible.contains(id)) {
+        continue;
+      }
+      ordered
+        ..remove(id)
+        ..add(id);
+    }
+
+    return ordered;
+  }
+
+  /// Resolves the current payload for [id] at a compatibility boundary.
+  N? nodePayloadForId(GraphNodeId id) =>
+      _scene.snapshot.topology.nodesById[id]?.payload;
+
+  /// Starts a token-owned presentation drag for [node].
+  GraphPresentationToken beginNodePresentationDrag(N node, Offset position) {
+    _stopLayoutAnimation();
+    return _scene.beginPresentation(
+      _nodeIdOf(node),
+      ScenePoint(x: position.dx, y: position.dy),
+    );
+  }
+
+  /// Updates an active presentation drag identified by [token].
+  bool updateNodePresentationDrag(
+    GraphPresentationToken token,
+    Offset position,
+  ) =>
+      _scene.updatePresentation(
+        token,
+        ScenePoint(x: position.dx, y: position.dy),
+      );
+
+  /// Cancels an active presentation drag identified by [token].
+  bool cancelNodePresentationDrag(GraphPresentationToken token) =>
+      _scene.cancelPresentation(token);
+
   /// Returns s set of nodes that are currently visible on the screen
   /// according to the provided [LazyBuilding].
   ///
@@ -201,25 +321,10 @@ class GraphController<N extends NodeBase, E extends EdgeBase<N>>
   /// the current frame has no position until the async relayout emits, and
   /// rendering it would hit the null assert inside [GraphLayout.getPosition].
   Set<N> getVisibleNodes() {
-    final viewport = _effectiveViewport;
-    final layout = _layout;
-    if (viewport == null || layout == null) return {};
-    if (viewport == Rect.largest) {
-      return _nodes.where((node) => getPositionOrNull(node) != null).toSet();
-    }
-
-    return _nodes.where(
-      (node) {
-        final position = getPositionOrNull(node);
-        if (position == null) {
-          return false;
-        }
-        return viewport.containsNode(
-          node,
-          position,
-        );
-      },
-    ).toSet();
+    final snapshot = renderSnapshot;
+    return visibleNodeIds(snapshot)
+        .map((id) => snapshot.topology.nodesById[id]!.payload)
+        .toSet();
   }
 
   /// { @nodoc }

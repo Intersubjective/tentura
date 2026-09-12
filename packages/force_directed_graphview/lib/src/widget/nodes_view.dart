@@ -1,5 +1,8 @@
 import 'package:flutter/widgets.dart';
 import 'package:force_directed_graphview/force_directed_graphview.dart';
+import 'package:force_directed_graphview/src/scene/graph_ids.dart';
+import 'package:force_directed_graphview/src/scene/scene_snapshot.dart';
+import 'package:force_directed_graphview/src/widget/graph_layout_view.dart';
 import 'package:force_directed_graphview/src/widget/inherited_configuration.dart';
 
 /// { @nodoc }
@@ -11,66 +14,59 @@ class NodesView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final controller = InheritedConfiguration.controllerOf(context);
     final configuration = InheritedConfiguration.configurationOf(context);
+    final scope = GraphSceneRenderScope.of(context);
 
-    return AnimatedBuilder(
-      animation: controller,
-      builder: (context, _) {
-        if (!controller.canLayout) {
-          return const SizedBox();
-        }
-
-        final visibleNodes = controller.getVisibleNodes();
-        final orderedNodes = controller
-            .orderedNodes(
-              visibleNodes,
-              paintOrder: InheritedConfiguration.configurationOf(context)
-                  .nodePaintOrder,
-            )
-            .toList(growable: false);
-
-        return CustomMultiChildLayout(
-          delegate: _NodesLayoutDelegate(
-            nodes: orderedNodes,
-            controller: controller,
-          ),
-          children: [
-            for (final node in orderedNodes)
-              LayoutId(
-                id: node,
-                child: RepaintBoundary(
-                  child: configuration.nodeBuilder.build(context, node),
-                ),
+    return CustomMultiChildLayout(
+      delegate: _NodesLayoutDelegate(
+        snapshot: scope.snapshot,
+        orderedNodeIds: scope.orderedNodeIds,
+      ),
+      children: [
+        for (final id in scope.orderedNodeIds)
+          LayoutId(
+            id: id,
+            child: RepaintBoundary(
+              key: ValueKey<String>(id),
+              child: configuration.nodeBuilder.build(
+                context,
+                scope.snapshot.topology.nodesById[id]!.payload,
               ),
-          ],
-        );
-      },
+            ),
+          ),
+      ],
     );
   }
 }
 
 class _NodesLayoutDelegate extends MultiChildLayoutDelegate {
   _NodesLayoutDelegate({
-    required this.nodes,
-    required this.controller,
+    required this.snapshot,
+    required this.orderedNodeIds,
   });
 
-  final List<NodeBase> nodes;
-  final GraphController controller;
+  final GraphSceneSnapshot<NodeBase, EdgeBase> snapshot;
+  final List<GraphNodeId> orderedNodeIds;
 
   @override
   void performLayout(Size size) {
-    for (final node in nodes) {
-      final sizeSquare = Size.square(node.size);
-      layoutChild(node, BoxConstraints.tight(sizeSquare));
+    for (final id in orderedNodeIds) {
+      final sceneNode = snapshot.topology.nodesById[id];
+      final point = snapshot.resolvePosition(id);
+      if (sceneNode == null || point == null) {
+        continue;
+      }
+      final sizeSquare = Size.square(sceneNode.size.width);
+      layoutChild(id, BoxConstraints.tight(sizeSquare));
       positionChild(
-        node,
-        controller.getPosition(node) - sizeSquare.center(Offset.zero),
+        id,
+        Offset(point.x, point.y) - sizeSquare.center(Offset.zero),
       );
     }
   }
 
   @override
-  bool shouldRelayout(covariant MultiChildLayoutDelegate oldDelegate) => true;
+  bool shouldRelayout(covariant _NodesLayoutDelegate oldDelegate) =>
+      snapshot != oldDelegate.snapshot ||
+      orderedNodeIds != oldDelegate.orderedNodeIds;
 }

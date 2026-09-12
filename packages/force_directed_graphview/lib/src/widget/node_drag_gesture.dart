@@ -4,6 +4,9 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/widgets.dart';
 import 'package:force_directed_graphview/force_directed_graphview.dart';
 import 'package:force_directed_graphview/src/configuration.dart';
+import 'package:force_directed_graphview/src/scene/graph_ids.dart';
+import 'package:force_directed_graphview/src/scene/graph_presentation_token.dart';
+import 'package:force_directed_graphview/src/scene/scene_snapshot.dart';
 import 'package:force_directed_graphview/src/widget/inherited_configuration.dart';
 
 /// Optional node-drag and camera-gating layer for [GraphView].
@@ -26,12 +29,13 @@ class _NodeDragGestureState extends State<NodeDragGesture> {
 
   final _activePointers = <int>{};
 
-  NodeBase? _pendingNode;
+  GraphNodeId? _pendingNodeId;
   int? _pendingPointer;
   Offset? _pendingDownScene;
   Timer? _longPressTimer;
 
-  NodeBase? _capturedNode;
+  GraphNodeId? _capturedNodeId;
+  GraphPresentationToken? _captureToken;
   int? _capturePointer;
   Offset _grabOffset = Offset.zero;
 
@@ -49,14 +53,7 @@ class _NodeDragGestureState extends State<NodeDragGesture> {
   @override
   void dispose() {
     _longPressTimer?.cancel();
-    final node = _capturedNode;
-    _capturedNode = null;
-    _capturePointer = null;
-    if (node != null) {
-      _controller.setCameraInteractionGated(false);
-      _controller.clearPresentationPosition(node);
-      _configuration.onNodeDragCancel?.call(node);
-    }
+    _releaseCapture(notifyCancel: true);
     super.dispose();
   }
 
@@ -79,7 +76,7 @@ class _NodeDragGestureState extends State<NodeDragGesture> {
   void _onPointerDown(PointerDownEvent event) {
     _activePointers.add(event.pointer);
 
-    if (_capturedNode != null) {
+    if (_capturedNodeId != null) {
       return;
     }
 
@@ -93,12 +90,12 @@ class _NodeDragGestureState extends State<NodeDragGesture> {
       return;
     }
 
-    final node = _hitTestTopmostNode(event.localPosition);
-    if (node == null) {
+    final nodeId = _hitTestTopmostNodeId(event.localPosition);
+    if (nodeId == null) {
       return;
     }
 
-    _pendingNode = node;
+    _pendingNodeId = nodeId;
     _pendingPointer = event.pointer;
     _pendingDownScene = event.localPosition;
 
@@ -109,14 +106,14 @@ class _NodeDragGestureState extends State<NodeDragGesture> {
 
     _longPressTimer?.cancel();
     _longPressTimer = Timer(_longPressDuration, () {
-      if (_pendingPointer == event.pointer && _pendingNode == node) {
-        _captureNode(node, event.pointer, event.localPosition);
+      if (_pendingPointer == event.pointer && _pendingNodeId == nodeId) {
+        _captureNode(nodeId, event.pointer, event.localPosition);
       }
     });
   }
 
   void _onPointerMove(PointerMoveEvent event) {
-    if (_capturedNode != null) {
+    if (_capturedNodeId != null) {
       if (event.pointer != _capturePointer) {
         return;
       }
@@ -124,7 +121,7 @@ class _NodeDragGestureState extends State<NodeDragGesture> {
       return;
     }
 
-    if (_pendingNode == null || event.pointer != _pendingPointer) {
+    if (_pendingNodeId == null || event.pointer != _pendingPointer) {
       return;
     }
 
@@ -144,7 +141,7 @@ class _NodeDragGestureState extends State<NodeDragGesture> {
     }
 
     if (event.kind == PointerDeviceKind.mouse) {
-      _captureNode(_pendingNode!, event.pointer, down);
+      _captureNode(_pendingNodeId!, event.pointer, down);
       _updateCapturedPosition(event.localPosition);
       return;
     }
@@ -155,7 +152,7 @@ class _NodeDragGestureState extends State<NodeDragGesture> {
   void _onPointerUp(PointerUpEvent event) {
     _activePointers.remove(event.pointer);
 
-    if (_capturedNode != null) {
+    if (_capturedNodeId != null) {
       if (_activePointers.isEmpty) {
         _finishCapture();
       }
@@ -174,7 +171,7 @@ class _NodeDragGestureState extends State<NodeDragGesture> {
   void _onPointerCancel(PointerCancelEvent event) {
     _activePointers.remove(event.pointer);
 
-    if (_capturedNode != null && event.pointer == _capturePointer) {
+    if (_capturedNodeId != null && event.pointer == _capturePointer) {
       _releaseCapture(notifyCancel: true);
     } else if (_pendingPointer == event.pointer) {
       _cancelPendingCapture();
@@ -185,101 +182,158 @@ class _NodeDragGestureState extends State<NodeDragGesture> {
     }
   }
 
-  NodeBase? _hitTestTopmostNode(Offset scenePosition) {
+  _DragPassSnapshot _captureDragPassSnapshot() {
+    final snapshot = _controller.renderSnapshot;
+    return _DragPassSnapshot(
+      snapshot: snapshot,
+      orderedNodeIds: _controller.orderedRenderNodeIds(
+        snapshot,
+        legacyPaintOrder: _configuration.nodePaintOrder,
+      ),
+    );
+  }
+
+  GraphNodeId? _hitTestTopmostNodeId(Offset scenePosition) {
     if (!_controller.canLayout) {
       return null;
     }
 
-    final visibleNodes = _controller.getVisibleNodes();
-    final ordered = _controller
-        .orderedNodes(
-          visibleNodes,
-          paintOrder: _configuration.nodePaintOrder,
-        )
-        .toList(growable: false);
+    final pass = _captureDragPassSnapshot();
 
-    for (final node in ordered.reversed) {
-      if (!_configuration.isNodeDraggable(node)) {
+    for (final id in pass.orderedNodeIds.reversed) {
+      final sceneNode = pass.snapshot.topology.nodesById[id];
+      final point = pass.snapshot.resolvePosition(id);
+      if (sceneNode == null || point == null) {
         continue;
       }
-      final position = _controller.getPosition(node);
+      final payload = sceneNode.payload;
+      if (!_configuration.isNodeDraggable(payload)) {
+        continue;
+      }
+      final centre = Offset(point.x, point.y);
       final rect = Rect.fromCenter(
-        center: position,
-        width: node.size,
-        height: node.size,
+        center: centre,
+        width: sceneNode.size.width,
+        height: sceneNode.size.height,
       );
       if (rect.contains(scenePosition)) {
-        return node;
+        return id;
       }
     }
     return null;
   }
 
-  void _captureNode(NodeBase node, int pointer, Offset downScene) {
+  void _captureNode(GraphNodeId nodeId, int pointer, Offset downScene) {
     _longPressTimer?.cancel();
-    _pendingNode = null;
+    _pendingNodeId = null;
     _pendingPointer = null;
     _pendingDownScene = null;
 
     _controller.stopLayoutAnimationForInteraction();
-    final centre = _controller.getPosition(node);
+    final pass = _captureDragPassSnapshot();
+    final point = pass.snapshot.resolvePosition(nodeId);
+    if (point == null) {
+      return;
+    }
+    final centre = Offset(point.x, point.y);
 
-    _capturedNode = node;
+    _capturedNodeId = nodeId;
     _capturePointer = pointer;
     _grabOffset = downScene - centre;
     _controller.setCameraInteractionGated(true);
 
-    _configuration.onNodeDragStart?.call(node, centre);
+    final payload = _controller.nodePayloadForId(nodeId);
+    if (payload != null) {
+      _configuration.onNodeDragStart?.call(payload, centre);
+    }
   }
 
   void _updateCapturedPosition(Offset scenePosition) {
-    final node = _capturedNode;
-    if (node == null) {
+    final nodeId = _capturedNodeId;
+    if (nodeId == null) {
       return;
     }
 
     final centre = scenePosition - _grabOffset;
-    _controller.setNodePresentationPosition(node, centre);
-    _configuration.onNodeDragUpdate?.call(node, centre);
-  }
-
-  void _finishCapture() {
-    final node = _capturedNode;
-    if (node == null) {
+    final payload = _controller.nodePayloadForId(nodeId);
+    if (payload == null) {
       return;
     }
 
-    final position = _controller.getPosition(node);
-    _configuration.onNodeDragEnd?.call(node, position);
-    _capturedNode = null;
+    final token = _captureToken;
+    if (token == null) {
+      _captureToken = _controller.beginNodePresentationDrag(payload, centre);
+    } else {
+      _controller.updateNodePresentationDrag(token, centre);
+    }
+    _configuration.onNodeDragUpdate?.call(payload, centre);
+  }
+
+  void _finishCapture() {
+    final nodeId = _capturedNodeId;
+    if (nodeId == null) {
+      return;
+    }
+
+    final payload = _controller.nodePayloadForId(nodeId);
+    final position = payload == null
+        ? null
+        : _controller.getPosition(payload);
+
+    _capturedNodeId = null;
+    _captureToken = null;
     _capturePointer = null;
     _grabOffset = Offset.zero;
-    _controller.setCameraInteractionGated(false);
+
+    try {
+      if (payload != null && position != null) {
+        _configuration.onNodeDragEnd?.call(payload, position);
+      }
+    } finally {
+      _controller.setCameraInteractionGated(false);
+    }
   }
 
   void _releaseCapture({
     required bool notifyCancel,
   }) {
-    final node = _capturedNode;
-    _capturedNode = null;
+    final nodeId = _capturedNodeId;
+    _capturedNodeId = null;
+    _captureToken = null;
     _capturePointer = null;
     _grabOffset = Offset.zero;
-    _controller.setCameraInteractionGated(false);
 
-    if (node == null) {
+    if (nodeId == null) {
       return;
     }
 
-    if (notifyCancel) {
-      _controller.clearPresentationPosition(node);
-      _configuration.onNodeDragCancel?.call(node);
+    try {
+      if (notifyCancel) {
+        final payload = _controller.nodePayloadForId(nodeId);
+        if (payload != null) {
+          _controller.clearPresentationPosition(payload);
+          _configuration.onNodeDragCancel?.call(payload);
+        }
+      }
+    } finally {
+      _controller.setCameraInteractionGated(false);
     }
   }
 
   void _cancelPendingCapture() {
     _longPressTimer?.cancel();
-    _pendingNode = null;
+    _pendingNodeId = null;
     _pendingPointer = null;
     _pendingDownScene = null;
   }
+}
+
+final class _DragPassSnapshot {
+  const _DragPassSnapshot({
+    required this.snapshot,
+    required this.orderedNodeIds,
+  });
+
+  final GraphSceneSnapshot<NodeBase, EdgeBase> snapshot;
+  final List<GraphNodeId> orderedNodeIds;
 }

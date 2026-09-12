@@ -34,7 +34,7 @@ The protected `packages/force_directed_graphview/analysis_options.yaml` change i
 | M01 pure scene value types | **accepted** | M00 accepted | `feat(graph): add stable scene identity values` |
 | M02 ID-keyed layout port and legacy adapter | **accepted** | M01 accepted | `feat(graph): introduce id-keyed layout requests` |
 | M03 scene controller plus legacy delegation | **accepted** | M02 accepted | two focused commits in plan order |
-| M04 rendering, ordering, focus, gesture snapshots | pending | M03 accepted | focused renderer migration commits |
+| M04 rendering, ordering, focus, gesture snapshots | **accepted** | M03 accepted | focused renderer migration commits |
 | M05 Tentura graph layouts/adapters | pending | M04 accepted | one focused commit per algorithm/mode |
 | M06 Constellation migration and handoff | pending | M05 accepted | three focused commits in plan order |
 | M07 remove legacy architecture | pending | M06 and R8 pre-removal gate accepted | `refactor(graph): remove object-keyed layout compatibility` |
@@ -408,3 +408,40 @@ cd packages/force_directed_graphview && dart analyze --format machine
 ## Manager checkpoint — 2026-09-12 (post-M03)
 
 - **M03 accepted** — M04 is next (`refactor(graph): render and drag from stable scene snapshots`).
+
+---
+
+## M04 — Renderer snapshot pass (worker: Composer 2.5, 2026-09-12)
+
+### Work
+
+- **`GraphSceneRenderScope`:** one `GraphSceneSnapshot` + ordered node ids per `AnimatedBuilder` frame in `GraphLayoutView`.
+- **Nodes / labels / edges:** `LayoutId` uses `GraphNodeId`; layout and paint read `snapshot.resolvePosition`; payloads rebuilt from topology; edges resolve both endpoints from the same snapshot in one `CustomPainter.paint`.
+- **`GraphController`:** `renderSnapshot`, `visibleNodeIds`, `orderedRenderNodeIds`, token drag helpers, `nodePayloadForId`; lazy visibility recomputed from scene geometry (pre-viewport fallback for positioned nodes).
+- **`NodeDragGesture`:** captures id + presentation token; hit test uses the same snapshot order as paint; legacy callbacks resolve current payload by id; cancel/dispose use `clearPresentationPosition` + `try/finally` gate cleanup.
+
+### Verification
+
+```bash
+cd packages/force_directed_graphview && flutter test
+# exit 0, 91 passed
+
+cd packages/force_directed_graphview && dart analyze --format machine
+# exit 0; pre-existing WARNINGs unchanged
+```
+
+### Changed paths
+
+- `packages/force_directed_graphview/lib/src/graph_view.dart`
+- `packages/force_directed_graphview/lib/src/controller.dart` (part)
+- `packages/force_directed_graphview/lib/src/widget/graph_layout_view.dart`
+- `packages/force_directed_graphview/lib/src/widget/nodes_view.dart`
+- `packages/force_directed_graphview/lib/src/widget/labels_view.dart`
+- `packages/force_directed_graphview/lib/src/widget/edges_view.dart`
+- `packages/force_directed_graphview/lib/src/widget/node_drag_gesture.dart`
+- `packages/force_directed_graphview/test/scene_rendering_test.dart` (new)
+- `docs/plans/force-directed-graphview-scene-decoupling-implementation-journal.md`
+
+### Commit
+
+- **Subject:** `refactor(graph): render and drag from stable scene snapshots`
