@@ -1423,3 +1423,585 @@ timeout are infrastructure-class in this environment.
 
 REMAINING: remediate or accept pre-existing PG debt; then C8 7.6.0 + web artifacts;
 P12 not started.
+
+### P11 PostgreSQL remediation overseer — initialized — 2026-09-12
+
+**Objective/source:** Repair the 15 failures inventoried in
+[`postgres-p11-failures-remediation-plan.md`](postgres-p11-failures-remediation-plan.md),
+then reopen the isolated PostgreSQL P11 release gate. The plan reference to
+“R07” is treated as a typographical reference to R06: R06 is the final listed
+integration gate and C8 remains explicitly out of scope.
+
+**Manager state:** `feature/pin_constellation` at
+`5fb343ec5fdfbec1feeddd7bcde8ad0c4ad2464a`; Cursor CLI is authenticated and
+offers the required non-fast `composer-2.5` model. No worker has started.
+
+**Pre-existing worktree changes (preserved):** untracked `CLAUDE.local.md`,
+`dart-defines`, `PostgreSQL`, `key.fb`, `out.key`,
+`product_testing_compact_buglist.md`, `product_testing_detailed_report.md`,
+`tg_style_research.md`, and the existing untracked plan/document set reported
+by `git status --short` (including `docs/plans/algorithm-invariant-suites-plan.md`,
+`availability-*`, `graph-navigation-*`, `issue-100-*`, `issue-110-*`,
+`issue-115-*`, `issue-130-*`, `mention-without-handle-*`,
+`nested-requests-*`, `post-request-evaluation-detail-sheet-*`,
+`received-reviews-trust-changes-plan.md`, `request-threads-*`, and
+`subjective-help-tag-evidence-*`). These are not worker-owned.
+
+**Ordered manifest:** R01 focused reproduction (active); R02a review
+finalization; R02b forward-band admission; R02c atomic evaluation ack-tag;
+R03a hierarchy authorization; R03b blocked-user deletion; R04 attention,
+obligation, forward-candidate, and beacon-thread migration lifecycle; R05
+Hasura hierarchy parity; R06 serial groups, lint, and fresh full PG gate; final
+read-only Cursor review.
+
+**Commit rule:** user requires a focused local commit immediately after each
+fixed test-file contract and its focused verification, even when multiple
+repairs belong to the same plan track. Never commit the journal or pre-existing
+worktree files incidentally; no push.
+
+**Verification invariant:** each focused packet and final gate uses its own
+fresh disposable database, migrates it after `pgmer2` and
+`check_function_bodies = false` setup, proves `current_database()`, exports
+that same `POSTGRES_DBNAME` to both migration and test, and runs serially.
+
+### R01 (P11 evaluation/capability) — reusable harness checkpoint — 2026-09-12
+
+- Scope: focused reproduction only for the three evaluation/capability PG files
+  in `postgres-p11-failures-remediation-plan.md` inventory; no source edits.
+- Reusable invocation (outside repo):
+  `/tmp/tentura-r01-pg-evaluation-focused.sh` with session logs under
+  `/tmp/tentura-r01-pg-<SESSION_ID>/`. Loads `$ROOT/.env` via the same
+  line-by-line `export` loop as `scripts/run-server-local.sh` (never `source`;
+  credentials not logged). Admin SQL via `docker exec -i postgres psql`.
+- Per run: `provision_disposable_db` creates `tentura_test_r01_{roe|g3a|eval}_r{1|2}_<session>`,
+  `CREATE EXTENSION pgmer2`, `ALTER DATABASE … SET check_function_bodies TO false`,
+  `POSTGRES_DBNAME=<name> dart run tool/run_migrations_once.dart`, proves
+  `SELECT current_database()`, exports file-specific harness env
+  (`TENTURA_REVIEW_OUTCOME_TEST_DB` / `TENTURA_G3A_INTEGRATION_TEST_DB` /
+  `TENTURA_EVAL_ATOMIC_TEST_DB`), then
+  `(cd packages/server && dart test -t pg -j 1 --chain-stack-traces <file>)`.
+  Script drops only its own DB name after each run.
+- **Harness owns DB lifecycle (not `POSTGRES_DBNAME` alone):** each file’s
+  `_DisposablePgTarget.fromEnvironment()` reads a `TENTURA_*_TEST_DB` name (or
+  generates one), `setUpAll` calls `target.recreate()` (DROP/CREATE) and
+  `migrateDbSchema(writer)` inside the test process; `tearDownAll` calls
+  `target.drop()`. External pre-migrate proves migration protocol but is
+  superseded by in-test `recreate()` before cases run.
+- Proof run: `TENTURA_R01_SESSION_ID=20260912-r01 … provision-proof` →
+  `DISPOSABLE_DB=tentura_test_r01_proof_20260912_r01`,
+  `CURRENT_DATABASE_PROOF` matched; log `/tmp/tentura-r01-pg-20260912-r01/provision-proof.log`.
+
+### R01 (P11 evaluation/capability) — focused reproduction evidence — 2026-09-12
+
+Serial `run-all` with `TENTURA_R01_SESSION_ID=20260912-r01` (six runs: three
+files × two fresh DBs). Log root: `/tmp/tentura-r01-pg-20260912-r01/`. All six
+exits non-zero; **behavior failures reproduce on run 1** for each file.
+**Review run 2** hit `migrant_db_postgresql` `RaceCondition` in `setUpAll`
+(infrastructure-class; not the R02 contract under test).
+
+| File | Run | Log | Primary failure | Frozen acceptance assertion |
+|------|-----|-----|-----------------|----------------------------|
+| `review_finalization_outcome_evidence_pg_test.dart` | 1 | `…/review_finalization_outcome_evidence_pg_test_run1.log` | 3 failing cases | `_outcomeLedgerCount(subject, tag: 'transport') == 3` (lines 235–237); `_outcomeTagsForSubject == ['cooking','pets','transport']` (293); `_outcomeLedgerCount(subject) == 3` (342). SQL: `person_capability_event` `source_type = 3`, actual count 0 / tags `[]`. |
+| same | 2 | `…/review_finalization_outcome_evidence_pg_test_run2.log` | setUpAll `RaceCondition` | N/A (migration setup); tearDown `LateInitializationError` secondary. |
+| `forward_band_witness_admission_integration_pg_test.dart` | 1–2 | `…/forward_band_witness_admission_integration_pg_test_run{1,2}.log` | 1 case each | `aliceCarolRow` `hasLength(1)` with `ProjectionTier.networkOutcome` (line 236–237); actual `[]` (no Tier-B row for Carol). |
+| `evaluation_repository_submit_atomic_pg_test.dart` | 1–2 | `…/evaluation_repository_submit_atomic_pg_test_run{1,2}.log` | 1 case each | First submit: `beacon_evaluation.status == 1` for triple (line 103); actual `0`. (Evaluation row content assertions at 100–102 pass.) |
+
+**First frames:** assertion failures surface at test `expect` lines above; no
+production throw on the happy path. Closest production boundary for repair:
+`ReviewFinalizationCase.closeAndFinalize` → outcome ledger
+(`packages/server/lib/domain/use_case/evaluation/review_finalization_case.dart`);
+`ForwardBandCase.composeBand` / witness admission
+(`forward_band_case.dart`, `band_candidate_repository.dart`);
+`EvaluationRepository.submitEvaluationAtomic`
+(`packages/server/lib/data/repository/evaluation_repository.dart` ~303).
+
+**Reproducibility:** run 1 stable for all three behavior contracts on distinct
+disposable DBs (`tentura_test_r01_*_r1_20260912_r01`). Run 2 matches for
+forward/eval; review run 2 flaky on migration setup (`RaceCondition`) — treat
+as R04-class harness noise when back-to-back; behavior debt unchanged.
+
+**Focused commands (copy/paste):**
+
+```bash
+TENTURA_R01_SESSION_ID=20260912-r01 /tmp/tentura-r01-pg-evaluation-focused.sh run-one \
+  test/domain/use_case/review_finalization_outcome_evidence_pg_test.dart \
+  TENTURA_REVIEW_OUTCOME_TEST_DB 1
+# … run 2, and parallel invocations for g3a/eval with their TENTURA_* vars (see script run-all).
+```
+
+**Ownership (R02):** R02a `review_finalization_outcome_evidence_pg_test.dart` +
+`review_finalization_case.dart` / `capability_evidence_repository.dart`;
+R02b `forward_band_witness_admission_integration_pg_test.dart` +
+`forward_band_case.dart` / `band_candidate_repository.dart`; R02c
+`evaluation_repository_submit_atomic_pg_test.dart` +
+`evaluation_repository.dart`.
+
+STATUS: complete (R01 reproduction packet; no source repair)
+
+COMMITS: none
+
+TESTS:
+- `TENTURA_R01_SESSION_ID=20260912-r01 /tmp/tentura-r01-pg-evaluation-focused.sh provision-proof` → exit 0
+- `TENTURA_R01_SESSION_ID=20260912-r01 /tmp/tentura-r01-pg-evaluation-focused.sh run-all` → exit 1 (6/6 focused runs failed exit code; 5 behavior repros + 1 review migration RaceCondition on run 2)
+
+FILES:
+- `/tmp/tentura-r01-pg-evaluation-focused.sh`
+- `/tmp/tentura-r01-pg-20260912-r01/*.log`
+
+FINDINGS: see table above; aligns with valid full-suite journal
+(`639 passed / 30 failed`) evaluation/capability slice.
+
+REMAINING: R02 repairs per plan; R06 integration gate after all tracks; C8 out of scope.
+### Manager review — R01 evaluation/capability reproduction — 2026-09-12
+
+**Verdict:** accepted. Independently inspected the six retained focused logs plus
+the worker’s journal evidence. No repository source or test file changed, no
+commit was made, and git diff --check reports only a final blank-line warning
+in this manager journal.
+
+**Accepted contracts:** review-finalization outcome evidence is 0 rather than
+3 / expected tags; forward witness Tier-B row is absent; atomic first submit
+does not retain the expected ack status. The run-2 review migration
+RaceCondition is a separate R04 harness concern, not a reason to weaken or
+skip R02a. Proceed with R02a only; require one focused commit immediately after
+this one test-file contract is green.
+
+### R02a — review finalization outcome evidence contract — 2026-09-12
+
+**Checkpoint (in progress):** traced `ReviewFinalizationCase.closeAndFinalize` →
+`EvaluationRepository.closeReviewWindow` (`sent` CTE requires
+`beacon_review_status.status = 2`) → `_recordOutcomeEvidence` →
+`CapabilityEvidenceRepository.emitOutcomeEvidenceBatch` (`person_capability_event`
+`source_type = 3`). Production path intact; fixture called
+`submitEvaluationAtomic` (draft rows, status 0) then `closeAndFinalize` without
+sent packages, so close deleted unevaluated rows and emitted zero ledger events.
+
+**Repair:** test-only — `markPackagesSent` via `EvaluationRepository.setReviewUserStatus`
+(status 2) before `closeBeacon()`, mirroring
+`review_obligation_settlement_pg_test.dart`. Added `_finalizedEvaluationCount`
+regression guard so positive-emission cases cannot pass with zero finalized
+evaluations (silent ledger zero).
+
+**Verification:** disposable DB `tentura_test_r02a_r02a_20260912_110807`; log
+`/tmp/tentura-r02a-review-outcome-r02a_20260912_110807.log`; 6/6 passed.
+`./scripts/check-custom-lints.sh packages/server` OK; `git diff --check` clean
+on committed scope.
+
+STATUS: complete (R02a)
+
+COMMITS: `17b5c65f6` fix(server): seed sent review packages in outcome evidence PG test
+
+TESTS:
+- `(cd packages/server && TENTURA_REVIEW_OUTCOME_TEST_DB=tentura_test_r02a_r02a_20260912_110807 POSTGRES_DBNAME=… dart test -t pg -j 1 --chain-stack-traces test/domain/use_case/review_finalization_outcome_evidence_pg_test.dart)` → 6 passed
+- `./scripts/check-custom-lints.sh packages/server` → OK
+
+FILES: `packages/server/test/domain/use_case/review_finalization_outcome_evidence_pg_test.dart`
+
+FINDINGS: root cause = missing sent-package prerequisite in PG fixture, not
+missing capability write. C2 semantics preserved in production (non-positive,
+forwarder role, tag cap, idempotency, UoW nesting unchanged). Decision:
+**fixture** repair, not production.
+
+REMAINING: R02b forward-band witness admission; R02c atomic evaluation ack-tag;
+R03–R06 per `postgres-p11-failures-remediation-plan.md`.
+### Manager review — R02a review-finalization evidence — 2026-09-12
+
+**Verdict:** accepted. Commit 17b5c65f6 contains only the focused test fixture
+and stronger finalized-row guards. The production finalization/write path was
+correct; sent package status is a canonical prerequisite. Independent fresh DB
+run via the external harness proved the target before the test and passed 6/6:
+log /tmp/tentura-r01-pg-mra1789204200/review_finalization_outcome_evidence_pg_test_run1.log.
+The worker’s server custom-lint gate was green; commit diff and worktree scope
+were clean. Continue with R02b.
+
+### R02b — forward-band witness admission Tier-B contract — 2026-09-12
+
+**Trace:** `BandCandidateRepository.candidatesFor` and witness-window admission
+(Bob admitted for Alice, not Eve) already satisfied the frozen contract before
+`ForwardBandCase.composeBand`. Empty `aliceCarolRow` came from
+`CapabilityProjectionCase` network aggregation: no
+`person_capability_event` / rebuilt cells for observer Bob → subject Carol →
+tag `transport`, so `sOut` never crossed `kCapThetaOut` and Tier-B rows were
+absent despite valid candidates.
+
+**Root cause:** same sent-package prerequisite as R02a —
+`EvaluationRepository.closeReviewWindow` `sent` CTE (`beacon_review_status.status
+= 2`) gates `finalized` evaluations; fixture called `closeAndFinalize` after
+draft `submitEvaluationAtomic` only, so Bob’s positive ack was deleted on close
+and `_recordOutcomeEvidence` emitted nothing. Production witness-admission,
+block, rejection, mute, and forward-band composition predicates unchanged.
+
+**Repair:** test-only — `markPackagesSent([_bob])` before
+`closeAndFinalize`; `_outcomeEvidenceCount` regression guard (Bob/Carol/transport
+ledger row) before Tier-B band assertions.
+
+**Verification:** disposable DB
+`tentura_test_r01_g3a_r1_r02b_green_20260912_111053`; harness log
+`/tmp/tentura-r01-pg-r02b_green_20260912_111053/forward_band_witness_admission_integration_pg_test_run1.log`
+→ 1 passed. Pre-fix repro log
+`/tmp/tentura-r01-pg-r02b_20260912_111022/forward_band_witness_admission_integration_pg_test_run1.log`
+→ `aliceCarolRow` `[]`. Test file owns `setUpAll` `target.recreate()` +
+in-process migrate (not external `POSTGRES_DBNAME` alone). `./scripts/check-custom-lints.sh packages/server` OK.
+
+STATUS: complete (R02b)
+
+COMMITS: `5c4d0b843` fix(server): seed sent review packages in witness admission PG test
+
+TESTS:
+- `TENTURA_R01_SESSION_ID=r02b_green_20260912_111053 /tmp/tentura-r01-pg-evaluation-focused.sh run-one test/domain/use_case/forward_band_witness_admission_integration_pg_test.dart TENTURA_G3A_INTEGRATION_TEST_DB 1` → exit 0, 1 passed
+- `./scripts/check-custom-lints.sh packages/server` → OK
+
+FILES: `packages/server/test/domain/use_case/forward_band_witness_admission_integration_pg_test.dart`
+
+FINDINGS: fixture missing canonical sent-package step; preserved negative gates
+(Eve no Tier-B / Bob not admitted, routing mute strips network-outcome labels,
+band candidate block/rejection/forward exclusions untouched).
+
+REMAINING: R02c atomic evaluation ack-tag; R03–R06 per
+`postgres-p11-failures-remediation-plan.md`.
+### Manager review — R02b witness admission — 2026-09-12
+
+**Verdict:** accepted. Commit 5c4d0b843 changes only the G3a fixture and asserts
+the prerequisite person_capability_event before it tests Tier-B composition.
+Independent fresh DB run proved current_database identity and passed the
+contract: /tmp/tentura-r01-pg-mrb1789204320/forward_band_witness_admission_integration_pg_test_run1.log.
+Worker lint gate was green; diff had no whitespace errors. R02c is next.
+
+### R02c — atomic evaluation ack-tag row-status contract — 2026-09-12
+
+**Trace:** `EvaluationRepository.submitEvaluationAtomic` (advisory lock → open
+review window guard → upsert `beacon_evaluation` at
+`BeaconEvaluationRowStatus.draft` → delete/replace `beacon_evaluation_ack_tag`
+→ demote `beacon_review_status` 2→1). Matches draft-package-send product
+semantics (`aaa3595ae`); `upsertEvaluation` defaults to submitted for legacy
+paths; send/finalize uses `beacon_review_status` + `closeReviewWindow` `sent`
+CTE.
+
+**Root cause:** PG test first-submit case still asserted `beacon_evaluation.status
+== 1` (submitted) from pre–draft-package era; production and
+`evaluation_case_test` fake repo both persist draft (0). Ack-tag content
+assertions already passed — atomic replace semantics intact.
+
+**Repair:** test-only — expect `BeaconEvaluationRowStatus.draft` on first
+submit; regression via `getEvaluation` ack projection + `_ackTagCount == 2` at
+repository boundary.
+
+**Verification:** disposable DB
+`tentura_test_r01_eval_r1_r02c_green_20260912`; harness log
+`/tmp/tentura-r01-pg-r02c_green_20260912/evaluation_repository_submit_atomic_pg_test_run1.log`
+→ 8 passed. `./scripts/check-custom-lints.sh packages/server` OK;
+`git diff --check` clean on commit scope.
+
+STATUS: complete (R02c)
+
+COMMITS: `cc144385f` fix(server): align atomic evaluation PG test with draft row contract
+
+TESTS:
+- `TENTURA_R01_SESSION_ID=r02c_green_20260912 /tmp/tentura-r01-pg-evaluation-focused.sh run-one test/data/repository/evaluation_repository_submit_atomic_pg_test.dart TENTURA_EVAL_ATOMIC_TEST_DB 1` → exit 0, 8 passed
+
+FILES: `packages/server/test/data/repository/evaluation_repository_submit_atomic_pg_test.dart`
+
+FINDINGS: API contract = in-window atomic submit writes **draft** evaluation rows
+with replaced ack tags; **submitted** is not set until separate send/finalize
+flow; replacement on second submit unchanged (delete-all-then-insert ack rows).
+
+REMAINING: R03–R06 per `postgres-p11-failures-remediation-plan.md`.
+### Manager review — R02c and R02 track — 2026-09-12
+
+**Verdict:** accepted. Commit cc144385f corrects the stale submitted-status
+assertion without weakening the atomic ack-tag/replacement contract. Independent
+fresh DB proof and the nine-case suite passed at
+/tmp/tentura-r01-pg-mrc1789204560/evaluation_repository_submit_atomic_pg_test_run1.log.
+R02a/b/c are complete as separate focused commits: 17b5c65f6, 5c4d0b843, and
+cc144385f. The Drift multiple-database warnings are from deliberate concurrency
+coverage and did not fail the isolated serial runner. R03a may begin.
+
+### R03a — hierarchy-only viewer help offer authorization — 2026-09-12
+
+**Reproduction (frozen contract):** disposable DB
+`tentura_test_r01_bhvis_r1_r03a_repro_20260912`; log
+`/tmp/tentura-r01-pg-r03a_repro_20260912/beacon_hierarchy_visibility_run1.log`.
+`help_offer_case offerHelp and withdrawHelp` expected `UnauthorizedException`;
+got `_TypeError` null-check at `help_offer_case.dart:63` (`_attention!`) before
+`canReadContent` ran. First production frame: `HelpOfferCase.offerHelp`.
+
+**Root cause:** `HierarchyOnlyViewerHarness.buildHelpOfferCase` omitted optional
+`TransactionalAttentionCase` / `AttentionIntentCase` (production DI always
+wires them). `offerHelp` called `_attention!.runAction` before the content
+guard; denied hierarchy-only viewers hit null attention instead of
+`UnauthorizedException`. `withdraw` already checked `_guard.canReadContent`
+first.
+
+**Repair:** run `canReadContent` before `_attention!.runAction` in `offerHelp`
+(mirror `withdraw`); strengthen PG harness/tests for denied, permitted guard
+pass (`authorCannotCommit`), and rollback when upsert fails after guard.
+
+**Verification:** logs
+`/tmp/tentura-r01-pg-r03a_green2_20260912/help_offer_run1.log` (3 help_offer_case
+tests passed),
+`/tmp/tentura-r01-pg-r03a_green2_20260912/help_offer_run2_retry.log` (denied
+contract on second fresh DB). `./scripts/check-custom-lints.sh packages/server`
+OK.
+
+STATUS: complete (R03a)
+
+### R03b — blocked-user deletion / `beacon_owner_or_deleted_ck` — 2026-09-12
+
+**Reproduction (frozen contract):** disposable DB
+`tentura_test_r03b_repro1_20260912`; `SELECT current_database()` matched;
+migrations via `POSTGRES_DBNAME=<db> dart run tool/run_migrations_once.dart`.
+Focused:
+`(cd packages/server && POSTGRES_DBNAME=<db> dart test -t pg -j 1 --chain-stack-traces test/data/repository/user_block_repository_pg_test.dart --name T-A7)`.
+**Failure:** `Severity.error 23514` on `beacon_owner_or_deleted_ck` during
+`DELETE FROM public."user" WHERE id = 'Ublkbob00001'` (T-A7 line 247); first
+production frame: test harness raw SQL, not `UserErasureCase`. Failing beacon row:
+`Bblkbob00001` with `user_id` nulling via `ON DELETE SET NULL` while `status = 0`
+(open). **Persists on fresh DB** (run 1 above).
+
+**Contract read (Task 08 / m0157):** `UserRepository.deleteById` runs only after
+`UserErasureCase` tombstones or hard-deletes owned requests; raw user delete with
+a live owned open beacon is **invalid** — check constraint is working as designed.
+
+**Planned repair:** test-only — T-A7 uses canonical `UserCase.deleteById`,
+fixture seeds `published_at` so erasure owns published open rows; add denied
+(raw-delete constraint) and rollback (injected `deleteById` failure) assertions.
+No constraint weakening.
+
+**Verification:** disposable DBs
+`tentura_test_r03b_r03b_green_20260912_r1` and `_r2`; logs
+`/tmp/tentura-r03b-pg-r03b_green_20260912/user_block_repository_pg_test_run{1,2}.log`
+→ 11 passed each (`--chain-stack-traces`). Migration/current_database proof:
+`/tmp/tentura-r03b-pg-r03b_green_20260912/current_db_r{1,2}.txt`.
+`./scripts/check-custom-lints.sh packages/server` OK.
+
+STATUS: complete (R03b)
+
+COMMITS: `928edd8a1` (R03a, preserved); `37abab589` fix(server): align user-block PG deletion with account erasure contract
+
+TESTS:
+- `(cd packages/server && POSTGRES_DBNAME=tentura_test_r03b_r03b_green_20260912_r1 dart test -t pg -j 1 --chain-stack-traces test/data/repository/user_block_repository_pg_test.dart)` → 11 passed
+- same on `_r2` → 11 passed
+- `./scripts/check-custom-lints.sh packages/server` → OK
+
+FILES: `packages/server/test/data/repository/user_block_repository_pg_test.dart`
+
+FINDINGS: T-A7 failure was **invalid fixture** (raw `DELETE FROM "user"` bypassing
+§4.5 erasure); `beacon_owner_or_deleted_ck` correctly rejected
+`user_id IS NULL` + open status. Production `UserErasureCase` unchanged.
+Fixture seeds `published_at` so owned open rows enter erasure tombstone path;
+T-A7b documents denied raw delete; T-A7c documents txn rollback.
+
+REMAINING: R03a already complete; R04–R06 per
+`postgres-p11-failures-remediation-plan.md`.
+
+### R04 — disposable-database migration races (harness) — 2026-09-12
+
+**Reproduction (frozen contract):** back-to-back focused runs with a pinned
+disposable name reproduced `setUpAll` failures before source repair. Example:
+`TENTURA_OBLIGATION_SCOPE_TEST_DB=tentura_test_r04_obl_r04repro_obl_1789205132`
+run 1 log `/tmp/tentura-r04-r04repro_obl_1789205132/run1.log` →
+`migrant_db_postgresql` `RaceCondition` at `PostgreSQLGateway._apply`
+(`migrant_db_postgresql.dart:49`) during `migrateDbSchema(writer)`; run 2 on
+the same name passed (flake). Parallel external migrate + in-test lifecycle on
+one name: `/tmp/tentura-r04-repro-r04_repro_1789205562/test_parallel.log` → 5/5
+passed; `migrate_parallel.log` → external `run_migrations_once` lost with
+`RaceCondition` while the locked test harness won (no partial continuation).
+
+**Root cause:** duplicated per-file `_DisposablePgTarget` lifecycle called
+`recreate()` → raw `Connection` → `migrateDbSchema` without cross-process
+serialization. Concurrent migrators on the same disposable database contend on
+`LOCK TABLE public.schema_version IN EXCLUSIVE MODE NOWAIT` inside migrant
+(`55P03` → `RaceCondition('Another process is running')`) or hit version skew
+(`Expected version … but got …`). Not a non-idempotent migration statement;
+production migration SQL unchanged. Failed `setUpAll` also surfaced secondary
+`LateInitializationError` in tearDown when `session`/`database` were never
+assigned.
+
+**Repair:** test-only `packages/server/test/support/disposable_pg_target.dart` —
+validates `tentura_test_[a-z0-9_]+` names, wraps recreate → migrate →
+`current_database()` proof and Drift-close → writer-close → drop in
+`pg_advisory_lock(hashtext('tentura_disposable_pg_lifecycle'))` on the admin
+connection (no production migration retry, no timeout change). Wired the four
+R04 files; obligation/beacon/forward skip tearDown unless setup completed.
+
+**Verification:** session `r04_final_1789205444`; log root
+`/tmp/tentura-r04-final-r04_final_1789205444/`. Each file twice on distinct
+pinned DBs (`tentura_test_r04_{att,obl,fctx,bth}_r04_final_1789205444`) with
+`dart test -t pg -j 1 --chain-stack-traces` → all exit 0 (no `RaceCondition`).
+Serial single command over all four files → 26 passed
+(`all_four_serial.log`). `./scripts/check-custom-lints.sh packages/server` OK
+after each commit; `git diff --check` clean on committed scope.
+
+STATUS: complete (R04)
+
+COMMITS: `d2f10ff30`, `9daa32ded`, `86c8faf5c`, `9ee970c85`, `bf624eb7a`
+(preserved through `37abab589`)
+
+TESTS:
+- Per-file twice: logs under `/tmp/tentura-r04-final-r04_final_1789205444/*_run{1,2}.log`
+- `(cd packages/server && dart test -t pg -j 1 --chain-stack-traces test/data/repository/attention_retention_pg_test.dart test/data/repository/obligation_scope_coincidence_pg_test.dart test/data/repository/forward_candidate_context_repository_pg_test.dart test/data/repository/beacon_threads_repository_pg_test.dart)` → 26 passed (`all_four_serial.log`)
+
+FILES:
+- `packages/server/test/support/disposable_pg_target.dart`
+- `packages/server/test/data/repository/attention_retention_pg_test.dart`
+- `packages/server/test/data/repository/obligation_scope_coincidence_pg_test.dart`
+- `packages/server/test/data/repository/forward_candidate_context_repository_pg_test.dart`
+- `packages/server/test/data/repository/beacon_threads_repository_pg_test.dart`
+
+FINDINGS: harness duplication + concurrent `schema_version` migration sessions
+were the common cause across the four files; production migrations unchanged.
+
+REMAINING: R05 Hasura hierarchy parity; R06 integration gate per
+`postgres-p11-failures-remediation-plan.md`.
+
+### Manager review — R03/R04 prior-session packets — 2026-09-12
+
+**Verdict:** accepted as prior-session evidence. Current HEAD
+`bf624eb7a5c8c99dc6dc2750432b20e95a16446b` on `feature/pin_constellation`.
+Independent commit-scope inspection (no extra full PG rerun before R05):
+
+- R03a `928edd8a1` — `HelpOfferCase.offerHelp` now runs `canReadContent`
+  before `_attention!.runAction`; denied path is `UnauthorizedException`.
+- R03b `37abab589` — user-block T-A7 uses account-erasure contract; constraint
+  not disabled.
+- R04 `d2f10ff30` `9daa32ded` `86c8faf5c` `9ee970c85` `bf624eb7a` — test-only
+  `DisposablePgTarget` advisory-lock lifecycle; production migrations untouched.
+
+Worktree still has only the manager journal modification plus the original
+unrelated untracked files. R06 remains the independent full-suite recheck.
+
+**Ordered remaining:** R05 Hasura hierarchy parity (active); R06 serial groups,
+lint, and fresh `dart test -t pg -j 1` gate.
+
+**Commit rule (user):** focused local commit immediately after each fixed
+test-file contract. Never commit this journal or pre-existing worktree files
+incidentally; no push.
+
+### R05 worker checkpoint — 2026-09-12
+
+**Repro (disposable DB `tentura_test_r05_repro_*`, long-running Hasura :8080):**
+- `setUpAll` (~2s): `_pointHasuraAtTestDatabase` then `replace_metadata` completes.
+- Failure: `JWT user cannot read child beacon row…` — `TimeoutException` at 30s
+  (test default), not metadata API.
+- First production frame: test body `_queryBeacons` / `http.post` to
+  `HASURA_URL` default `http://127.0.0.1:8080/v1/graphql`.
+- Hasura source after `replace_metadata`: `from_env` → compose `postgres` DB,
+  **not** the seeded disposable DB (`pg_update_source` undone).
+- Root cause: `beacon(where: {can_read_content: {_eq: true}})` against the
+  large dev `postgres` catalog hangs ~30s; `beacon_by_pk` returns in ~40ms.
+  Remote schema `tentura` (:2080 down) is not on the query path.
+- Fix direction: isolated disposable Hasura (alternate port/container) wired to
+  the same disposable PG; do not mutate long-running :8080 source/metadata.
+
+### R05 worker complete — 2026-09-12
+
+**Fix:** `test/support/isolated_hasura_session.dart` starts a disposable
+`hasura/graphql-engine` container on a free localhost port (host network,
+`HASURA_GRAPHQL_SERVER_PORT`), `DATABASE_URL` = disposable PG, JWT
+`$.sub` claims path (compose `$$` escape). `replace_metadata` runs against the
+isolated endpoint only. Removed `_pointHasuraAtTestDatabase` /
+`_restoreHasuraSourceConfiguration` / `_reloadHasuraMetadata` on :8080.
+
+**GraphQL proof (hierarchy-only Frank JWT, disposable DB):**
+- `beacon_by_pk(id: BhierB…)` → `{"data":{"beacon_by_pk":null}}`, no `errors`.
+- `beacon(where:{can_read_content:{_eq:true}})` → `data.beacon` array without
+  child `BhierB…`, completes in <1s (was 30s timeout on dev `postgres`).
+
+**Tests (both exit 0, unique DBs, `-j 1 --chain-stack-traces`):**
+1. `TENTURA_BEACON_HIERARCHY_PG_TEST_DB=tentura_test_r05_fix1_*` → 2 passed (~3s)
+2. `TENTURA_BEACON_HIERARCHY_PG_TEST_DB=tentura_test_r05_fix2_*` → 2 passed (~3s)
+
+**Teardown audit:** no `tentura_test_hasura_*` containers after runs; long-running
+`hasura` on :8080 still healthy, source still `from_env` / user DB unchanged.
+
+**Lint:** `./scripts/check-custom-lints.sh packages/server` → OK (baseline 0).
+
+STATUS: complete (R05 unit)
+COMMITS: `6e274c1c8` test(server): isolate Hasura hierarchy parity
+REMAINING: R06 integration gate.
+
+### Manager review — R05 Hasura hierarchy parity — 2026-09-12
+
+**Verdict:** accepted. Commit `6e274c1c8` is test-only (`isolated_hasura_session.dart`
++ parity test). It no longer mutates compose Hasura `:8080`; metadata source
+in `hasura/metadata.json` stays `from_env`, so the isolated engine keeps the
+disposable `HASURA_GRAPHQL_DATABASE_URL`. Independent manager run
+`TENTURA_BEACON_HIERARCHY_PG_TEST_DB=tentura_test_r05_mgr_1789210472`
+`(cd packages/server && dart test -t pg -j 1 --chain-stack-traces test/api/beacon_hierarchy_hasura_parity_test.dart)`
+→ 2 passed, exit 0. No `tentura_test_hasura_*` leftovers; compose `hasura`
+still healthy on `:8080`. Frozen contract kept: hierarchy-only JWT cannot
+read child content row/listing; 30s timeout unchanged.
+
+**Next:** R06 serial groups + fresh full `dart test -t pg -j 1` gate. C8/P12
+remain out of scope.
+
+### R06 — P11 PostgreSQL integration gate — 2026-09-12
+
+**Serial groups (all exit 0, `-j 1 --chain-stack-traces`, test-owned disposable
+lifecycle — export env var + `POSTGRES_DBNAME`; do not pre-create DB for
+`DisposablePgTarget` files):**
+
+| Group | Tests | Example DB (no credentials) |
+|---|---|---|
+| A evaluation/capability | review_finalization (6), forward_band witness (1), eval atomic (9) | `tentura_test_r06_roe_*`, `tentura_test_r06_g3a_*`, `tentura_test_r06_eval_*` |
+| B auth/deletion | beacon_hierarchy_visibility (14), user_block (11) | `tentura_test_r06_bhvis_*`, `tentura_test_r06_ublock_*` |
+| C race harness | attention_retention (1), obligation_scope (5), forward_context (8), beacon_threads (12) | `tentura_test_r06_att_*`, `tentura_test_r06_obl_*`, … |
+| D Hasura parity | beacon_hierarchy_hasura_parity (2) | `tentura_test_r06_hasura_*` |
+
+**Full-suite race remediation (first full gate 645+22-30 exposed additional
+unlocked `_DisposablePgTarget` copies; fixed under R04 harness ownership):**
+- Wired shared `DisposablePgTarget` / hierarchy advisory lock to:
+  `capability_read_ports_pg_test.dart`, hierarchy fixture + child independence,
+  `discoverability_visibility_cache_pg_test.dart`, `settlement_notify_pg_test.dart`,
+  `m0148_user_availability_migration_test.dart`, `constellation_anchor_storage_pg_test.dart`,
+  `m0142_derived_tables_migration_test.dart`, `evaluation_repository_submit_atomic_pg_test.dart`,
+  `availability_read_parity_test.dart`; `openBeaconHierarchyPgSession` now
+  recreates+migrates under one lock (Hasura parity drops redundant pre-recreate).
+
+**Lint:** `./scripts/check-custom-lints.sh packages/server` → OK (baseline 0).
+
+**Full gate (acceptance):**
+```text
+DB=tentura_test_r06_full_r06_full5_1789214004
+PROOF=current_database matched
+(cd packages/server && POSTGRES_DBNAME=tentura_test_r06_full_r06_full5_1789214004 dart test -t pg -j 1)
+→ 670 passed, 22 skipped, 0 failed (exit 0)
+```
+Log: `/tmp/tentura-r06-pg-full.log`. Skips: 22 historical upgrade suites
+(`Disabled for the planned schema squash cutover`) — explained, not gate failures.
+
+**Process audit:** no dangling `tentura_test_hasura_*`; compose
+`postgres`/`hasura`/`meritrank` healthy; no task-owned `dart test` left.
+
+STATUS: complete (R06)
+
+COMMITS (R06 integration fixes atop `6e274c1c8`):
+- `7c19b7df7` test(server): stabilize capability read ports disposable PG lifecycle
+- `0584e8489` test(server): serialize beacon hierarchy PG migration lifecycle
+- `c9619af6b` test(server): stabilize discoverability cache disposable PG lifecycle
+- `ecf5c14b6` test(server): stabilize settlement notify disposable PG lifecycle
+- `637a74bcc` test(server): stabilize m0148 availability migration PG lifecycle
+- `6a1041d78` test(server): stabilize constellation anchor storage PG lifecycle
+- `aeaefdda3` test(server): stabilize m0142 derived tables migration PG lifecycle
+- `850fd7e63` test(server): recreate hierarchy PG inside migration lock
+- `1ec62a794` test(server): stabilize eval atomic submit disposable PG lifecycle
+- `fddffa49f` test(server): stabilize availability read parity PG lifecycle
+
+REMAINING: C8 versioning / web cache-buster / P12 out of scope per plan.
+P11 PostgreSQL gate green; release prep may proceed without this journal commit.
+
+### Manager review — R06 P11 PostgreSQL gate — 2026-09-12
+
+**Verdict:** accepted. Independently watched `/tmp/tentura-r06-pg-full.log`
+reach `670 passed, 22 skipped, All tests passed!` on
+`tentura_test_r06_full_r06_full5_1789214004`. All 22 skips are
+`Disabled for the planned schema squash cutover`. Independent
+`./scripts/check-custom-lints.sh packages/server` → tentura_lints total 0
+(baseline 0). No `tentura_test_hasura_*` leftovers; compose `hasura` still
+healthy on `:8080`. Pre-existing untracked files remain untouched.
+
+Plan inventory (15 cases / 10 files) is closed via R02–R05 plus R06
+harness follow-ups. Residual risk: some PG tests still use a private
+`_DisposablePgTarget` copy; they did not fail this gate run.
+
+**P11 PostgreSQL remediation complete.** C8 / P12 not started.
