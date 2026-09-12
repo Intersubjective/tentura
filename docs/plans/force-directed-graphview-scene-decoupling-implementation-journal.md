@@ -184,7 +184,7 @@ Additive pure-Dart scene layer (no Flutter imports in `lib/src/scene/`):
 
 ### Decisions
 
-- `GraphLayoutTicket` / `GraphPresentationToken` minted via package-visible `.mint` factories for tests and future `GraphSceneController` (full ticket protocol deferred to M02).
+- `GraphLayoutTicket` / `GraphPresentationToken` minted via in-package `mintGraphLayoutTicket` / `mintGraphPresentationToken` helpers (not exported from the public barrel); see M01 remediation below.
 - `SceneTransition` included in M01 so snapshot precedence is testable without a controller.
 - Validation helpers use `void` return type (not `Never`) so success paths compile cleanly.
 
@@ -229,3 +229,47 @@ Protected `analysis_options.yaml` not staged. No production client changes.
 ## Manager checkpoint — 2026-09-12 (post-M01)
 
 - **M01 accepted** — M02 is next (`feat(graph): introduce id-keyed layout requests`).
+
+---
+
+## M01 remediation — ticket/token ownership (worker: Composer 2.5, 2026-09-12)
+
+### Defect
+
+Public `GraphLayoutTicket.mint` and `GraphPresentationToken.mint` factories (commit `5dd46fb81`) let any consumer of `package:force_directed_graphview/force_directed_graphview.dart` forge controller-owned identities, violating plan A4 / R1 (private constructor; controller-minted owner).
+
+### Resolution
+
+- Removed public `.mint` constructors from both types (private `._` constructors unchanged).
+- Added `@internal` top-level `mintGraphLayoutTicket` and `mintGraphPresentationToken` in the same libraries as the types so they can call private constructors; **not** re-exported from `force_directed_graphview.dart` (`export … show GraphLayoutTicket` / `GraphPresentationToken` only).
+- Future `GraphSceneController` (M03) and package tests import `package:force_directed_graphview/src/scene/graph_layout_ticket.dart` (and presentation token library) for minting. Normal app callers using only the public barrel cannot mint tickets or tokens.
+
+Dart has no cross-library access to private constructors without same-library helpers; this is the minimal arrangement. Deep `src/` imports remain possible for determined callers; the contract enforced here is the supported public export surface.
+
+### Verification
+
+```bash
+cd packages/force_directed_graphview && flutter test test/scene_values_test.dart test/scene_identity_ownership_test.dart
+# exit 0, 20 tests passed
+
+cd packages/force_directed_graphview && flutter test
+# exit 0, 60 tests passed
+
+cd packages/force_directed_graphview && dart analyze --format machine
+# exit 0; pre-existing warnings unchanged; new scene mint docs: no new errors
+```
+
+`git diff --check`: clean (task-owned paths only).
+
+### Changed paths (remediation commit)
+
+- `packages/force_directed_graphview/lib/force_directed_graphview.dart`
+- `packages/force_directed_graphview/lib/src/scene/graph_layout_ticket.dart`
+- `packages/force_directed_graphview/lib/src/scene/graph_presentation_token.dart`
+- `packages/force_directed_graphview/test/scene_values_test.dart`
+- `packages/force_directed_graphview/test/scene_identity_ownership_test.dart` (new)
+- `docs/plans/force-directed-graphview-scene-decoupling-implementation-journal.md`
+
+### Commit
+
+- **Subject:** `fix(graph): keep scene ticket ownership opaque`

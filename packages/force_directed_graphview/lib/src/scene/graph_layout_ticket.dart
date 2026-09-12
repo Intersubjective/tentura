@@ -8,14 +8,6 @@ import 'package:meta/meta.dart';
 final class GraphLayoutTicket {
   GraphLayoutTicket._(this._owner, this.topologyRevision, this.generation);
 
-  /// Mints a ticket; production code should mint only from the scene controller.
-  factory GraphLayoutTicket.mint({
-    required Object owner,
-    required int topologyRevision,
-    required int generation,
-  }) =>
-      GraphLayoutTicket._(owner, topologyRevision, generation);
-
   final Object _owner;
   final int topologyRevision;
   final int generation;
@@ -35,3 +27,15 @@ final class GraphLayoutTicket {
   String toString() =>
       'GraphLayoutTicket(rev: $topologyRevision, gen: $generation)';
 }
+
+/// Mints a layout ticket for in-package scene controller and tests only.
+///
+/// Not exported from the package public entry library; import this library
+/// directly only from `lib/src/` or package tests.
+@internal
+GraphLayoutTicket mintGraphLayoutTicket({
+  required Object owner,
+  required int topologyRevision,
+  required int generation,
+}) =>
+    GraphLayoutTicket._(owner, topologyRevision, generation);

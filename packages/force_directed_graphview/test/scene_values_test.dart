@@ -1,5 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:force_directed_graphview/force_directed_graphview.dart';
+import 'package:force_directed_graphview/src/scene/graph_layout_ticket.dart'
+    show mintGraphLayoutTicket;
 
 void main() {
   final size = SceneSize(width: 40, height: 40);
@@ -139,7 +141,7 @@ void main() {
     });
 
     test('SceneLayout copies positions map', () {
-      final ticket = GraphLayoutTicket.mint(
+      final ticket = mintGraphLayoutTicket(
         owner: Object(),
         topologyRevision: 1,
         generation: 1,
@@ -182,12 +184,12 @@ void main() {
     test('GraphLayoutTicket distinguishes controller owners', () {
       final ownerA = Object();
       final ownerB = Object();
-      final t1 = GraphLayoutTicket.mint(
+      final t1 = mintGraphLayoutTicket(
         owner: ownerA,
         topologyRevision: 1,
         generation: 1,
       );
-      final t2 = GraphLayoutTicket.mint(
+      final t2 = mintGraphLayoutTicket(
         owner: ownerB,
         topologyRevision: 1,
         generation: 1,
@@ -205,7 +207,7 @@ void main() {
         nodes: [node('a')],
         edges: const [],
       );
-      ticket = GraphLayoutTicket.mint(
+      ticket = mintGraphLayoutTicket(
         owner: Object(),
         topologyRevision: 0,
         generation: 0,
