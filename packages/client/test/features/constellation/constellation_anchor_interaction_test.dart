@@ -280,6 +280,34 @@ void main() {
       );
     });
 
+    testWidgets('pinning a person does not move the camera', (tester) async {
+      final harness = await _harness();
+      addTearDown(harness.cubit.close);
+      await _pumpShell(tester, harness.cubit);
+
+      final controller = harness.cubit.graphController;
+      expect(controller.canLayout, isTrue);
+
+      const panTarget = Offset(2800, 2200);
+      controller.jumpToPosition(panTarget);
+      await tester.pump();
+
+      final screenBefore = controller.sceneToViewportLocal(panTarget);
+      expect(screenBefore.dx, inInclusiveRange(0, 1200));
+      expect(screenBefore.dy, inInclusiveRange(0, 900));
+
+      await harness.cubit.pinFromText(
+        target: ConstellationAnchorTarget.person('p1'),
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
+
+      expect(harness.anchorRepo.upsertCount, 1);
+      final screenAfter = controller.sceneToViewportLocal(panTarget);
+      expect(screenAfter.dx, closeTo(screenBefore.dx, 1));
+      expect(screenAfter.dy, closeTo(screenBefore.dy, 1));
+    });
+
     testWidgets('cancel provisional pin writes nothing', (tester) async {
       final harness = await _harness();
       addTearDown(harness.cubit.close);

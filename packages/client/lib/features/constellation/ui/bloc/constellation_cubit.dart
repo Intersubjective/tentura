@@ -1461,7 +1461,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
       );
     }
 
-    graphController.clear();
+    graphController.clear(recenter: false);
     graphController.mutate((mutator) {
       for (final node in nodes) {
         mutator.addNode(node);
