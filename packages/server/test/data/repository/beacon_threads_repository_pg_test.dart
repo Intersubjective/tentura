@@ -1,36 +1,37 @@
 @Tags(['pg'])
 library;
 
-import 'dart:io';
-
-import 'package:injectable/injectable.dart' show Environment;
 import 'package:postgres/postgres.dart';
 import 'package:test/test.dart';
 
 import 'package:tentura_server/consts/beacon_room_consts.dart';
 import 'package:tentura_server/consts/coordination_item_consts.dart';
-import 'package:tentura_server/data/database/migration/_migrations.dart';
 import 'package:tentura_server/data/database/tentura_db.dart'
     hide isNotNull, isNull;
 import 'package:tentura_server/data/repository/beacon_room_repository.dart';
 import 'package:tentura_server/data/repository/coordination_item_repository.dart';
 import 'package:tentura_server/domain/entity/beacon_thread_record.dart';
-import 'package:tentura_server/env.dart';
 
+import '../../support/disposable_pg_target.dart';
 import '../../support/pg_test_public_keys.dart';
 
 Future<void> main() async {
-  final target = _DisposablePgTarget.fromEnvironment();
-  final reachable = await _canConnect(target.adminEnv);
+  final target = DisposablePgTarget.fromNamedEnvironment(
+    envVarName: 'TENTURA_BEACON_THREADS_PG_TEST_DB',
+    defaultNamePrefix: 'tentura_test_bthreads',
+  );
+  final reachable = await canReachPostgresAdmin(target);
   final skipReason = reachable
       ? false
       : 'Postgres admin database not reachable for beacon threads PG test';
 
   group('CoordinationItemRepository.listThreads — disposable Postgres', () {
+    DisposablePgWriterSession? session;
     late Connection writer;
     late TenturaDb db;
     late CoordinationItemRepository items;
     late BeaconRoomRepository room;
+    var pgSetupComplete = false;
 
     const beaconId = 'Bthpg00000001';
     const memberId = 'Uthpgmember01';
@@ -41,13 +42,8 @@ Future<void> main() async {
       if (skipReason != false) {
         return;
       }
-      await target.recreate();
-      writer = await Connection.open(
-        target.databaseEnv.pgEndpoint,
-        settings: target.databaseEnv.pgEndpointSettings,
-      );
-      await writer.execute('SET check_function_bodies = false');
-      await migrateDbSchema(writer);
+      session = await setUpDisposablePgWriter(target: target);
+      writer = session!.writer;
       // This file fixtures retired/semantic thread-item-scoped rows directly
       // via raw SQL to prove dormant `listThreads` mechanics across all
       // historical kinds (0-9) — the m0156 general-only guard trigger
@@ -57,9 +53,10 @@ Future<void> main() async {
       await writer.execute(
         "SET tentura.discussion_internal_fixture = 'allow_non_general'",
       );
-      db = TenturaDb(target.databaseEnv);
+      db = openDisposablePgDatabase(target);
       items = CoordinationItemRepository(db);
       room = BeaconRoomRepository(db);
+      pgSetupComplete = true;
     });
 
     tearDown(() async {
@@ -99,12 +96,10 @@ Future<void> main() async {
     });
 
     tearDownAll(() async {
-      if (skipReason != false) {
+      if (skipReason != false || !pgSetupComplete || session == null) {
         return;
       }
-      await db.close();
-      await writer.close();
-      await target.drop();
+      await tearDownDisposablePgWriter(session: session!, drift: db);
     });
 
     Future<void> seedBaseUsersAndBeacon() async {
@@ -842,96 +837,4 @@ String _json(Map<String, Object?> value) {
   }
   buffer.write('}');
   return buffer.toString();
-}
-
-Future<bool> _canConnect(Env env) async {
-  try {
-    final connection = await Connection.open(
-      env.pgEndpoint,
-      settings: env.pgEndpointSettings,
-    );
-    await connection.close();
-    return true;
-  } on Object {
-    return false;
-  }
-}
-
-final class _DisposablePgTarget {
-  const _DisposablePgTarget({
-    required this.adminEnv,
-    required this.databaseEnv,
-    required this.databaseName,
-  });
-
-  factory _DisposablePgTarget.fromEnvironment() {
-    final host = Platform.environment['POSTGRES_HOST'] ?? '127.0.0.1';
-    final port =
-        int.tryParse(Platform.environment['POSTGRES_PORT'] ?? '') ?? 5432;
-    final username = Platform.environment['POSTGRES_USERNAME'] ?? 'postgres';
-    final password = Platform.environment['POSTGRES_PASSWORD'] ?? 'password';
-    final adminDatabase =
-        Platform.environment['POSTGRES_ADMIN_DBNAME'] ?? 'postgres';
-    final databaseName =
-        Platform.environment['TENTURA_BEACON_THREADS_PG_TEST_DB'] ??
-        'tentura_test_bthreads_${pid}_${DateTime.timestamp().microsecondsSinceEpoch}';
-    if (!RegExp(r'^tentura_test_[a-z0-9_]+$').hasMatch(databaseName) ||
-        databaseName.length > 63) {
-      throw ArgumentError.value(
-        databaseName,
-        'TENTURA_BEACON_THREADS_PG_TEST_DB',
-        'must match tentura_test_[a-z0-9_]+ and be at most 63 characters',
-      );
-    }
-
-    Env envFor(String database) => Env(
-      environment: Environment.test,
-      pgHost: host,
-      pgPort: port,
-      pgDatabase: database,
-      pgUsername: username,
-      pgPassword: password,
-      printEnv: false,
-      isDebugModeOn: false,
-    );
-
-    return _DisposablePgTarget(
-      adminEnv: envFor(adminDatabase),
-      databaseEnv: envFor(databaseName),
-      databaseName: databaseName,
-    );
-  }
-
-  final Env adminEnv;
-  final Env databaseEnv;
-  final String databaseName;
-
-  Future<void> recreate() async {
-    final connection = await Connection.open(
-      adminEnv.pgEndpoint,
-      settings: adminEnv.pgEndpointSettings,
-    );
-    try {
-      await connection.execute(
-        'DROP DATABASE IF EXISTS $databaseName WITH (FORCE)',
-      );
-      await connection.execute('CREATE DATABASE $databaseName');
-    } finally {
-      await connection.close();
-    }
-  }
-
-  Future<void> drop() async {
-    final connection = await Connection.open(
-      adminEnv.pgEndpoint,
-      settings: adminEnv.pgEndpointSettings,
-    );
-    try {
-      await connection.execute(
-        'DROP DATABASE IF EXISTS $databaseName WITH (FORCE)',
-      );
-    } finally {
-      await connection.close();
-    }
-  }
 }
