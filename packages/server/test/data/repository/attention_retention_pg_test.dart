@@ -1,14 +1,10 @@
 @Tags(['pg'])
 library;
 
-import 'dart:io';
-
-import 'package:injectable/injectable.dart' show Environment;
 import 'package:logging/logging.dart';
 import 'package:postgres/postgres.dart';
 import 'package:test/test.dart';
 
-import 'package:tentura_server/data/database/migration/_migrations.dart';
 import 'package:tentura_server/data/database/tentura_db.dart'
     hide isNotNull, isNull;
 import 'package:tentura_server/data/repository/attention_dispatch_repository.dart';
@@ -17,19 +13,24 @@ import 'package:tentura_server/data/repository/notification_outbox_repository.da
 import 'package:tentura_server/domain/attention/attention_models.dart';
 import 'package:tentura_server/domain/entity/notification_kind.dart';
 import 'package:tentura_server/domain/entity/notification_priority.dart';
-import 'package:tentura_server/env.dart';
+
+import '../../support/disposable_pg_target.dart';
 
 /// Retention must keep durable channel handoffs until they reach a terminal
 /// state. Once a receipt has been seen and emailed, m0125 lets retention
 /// remove terminal delivery jobs along with their receipt.
 Future<void> main() async {
-  final target = _DisposablePgTarget.fromEnvironment();
-  final reachable = await _canConnect(target.adminEnv);
+  final target = DisposablePgTarget.fromNamedEnvironment(
+    envVarName: 'TENTURA_ATTENTION_RETENTION_TEST_DB',
+    defaultNamePrefix: 'tentura_test_attretn',
+  );
+  final reachable = await canReachPostgresAdmin(target);
   final skipReason = reachable
       ? false
       : 'Postgres admin database not reachable for disposable test target';
 
   group('AttentionRetentionRepository deleteSettledOlderThan', () {
+    late DisposablePgWriterSession session;
     late Connection writer;
     late TenturaDb database;
     late NotificationOutboxRepository outbox;
@@ -37,15 +38,9 @@ Future<void> main() async {
     late MutatingUnitOfWork unitOfWork;
 
     setUpAll(() async {
-      await target.recreate();
-      writer = await Connection.open(
-        target.databaseEnv.pgEndpoint,
-        settings: target.databaseEnv.pgEndpointSettings,
-      );
-      await writer.execute('SET check_function_bodies = false');
-      await migrateDbSchema(writer);
-
-      database = TenturaDb(target.databaseEnv);
+      session = await setUpDisposablePgWriter(target: target);
+      writer = session.writer;
+      database = openDisposablePgDatabase(target);
       outbox = NotificationOutboxRepository(database);
       dispatch = AttentionDispatchRepository(database, Logger('attention_retention_pg_test'));
       unitOfWork = MutatingUnitOfWork(database);
@@ -57,9 +52,7 @@ VALUES ('Uattretactor', 'Retention actor', 'attention-retention-actor-key')
     });
 
     tearDownAll(() async {
-      await database.close();
-      await writer.close();
-      await target.drop();
+      await tearDownDisposablePgWriter(session: session, drift: database);
     });
 
     test(
@@ -237,103 +230,4 @@ WHERE source_event_key IN (
       },
     );
   }, skip: skipReason);
-}
-
-Future<bool> _canConnect(Env env) async {
-  try {
-    final connection = await Connection.open(
-      env.pgEndpoint,
-      settings: env.pgEndpointSettings,
-    ).timeout(const Duration(seconds: 2));
-    await connection.close();
-    return true;
-  } on Object {
-    return false;
-  }
-}
-
-class _DisposablePgTarget {
-  const _DisposablePgTarget({
-    required this.adminEnv,
-    required this.databaseEnv,
-    required this.databaseName,
-  });
-
-  factory _DisposablePgTarget.fromEnvironment() {
-    final host = Platform.environment['POSTGRES_HOST'] ?? '127.0.0.1';
-    final port =
-        int.tryParse(Platform.environment['POSTGRES_PORT'] ?? '') ?? 5432;
-    final username = Platform.environment['POSTGRES_USERNAME'] ?? 'postgres';
-    final password = Platform.environment['POSTGRES_PASSWORD'] ?? 'password';
-    final adminDatabase =
-        Platform.environment['POSTGRES_ADMIN_DBNAME'] ?? 'postgres';
-    final databaseName =
-        Platform.environment['TENTURA_ATTENTION_RETENTION_TEST_DB'] ??
-        'tentura_test_attretn_${pid}_${DateTime.timestamp().microsecondsSinceEpoch}';
-    if (!RegExp(r'^tentura_test_[a-z0-9_]+$').hasMatch(databaseName) ||
-        databaseName.length > 63) {
-      throw ArgumentError.value(
-        databaseName,
-        'TENTURA_ATTENTION_RETENTION_TEST_DB',
-        'must match tentura_test_[a-z0-9_]+ and be at most 63 characters',
-      );
-    }
-
-    Env envFor(String database) => Env(
-      environment: Environment.test,
-      pgHost: host,
-      pgPort: port,
-      pgDatabase: database,
-      pgUsername: username,
-      pgPassword: password,
-      printEnv: false,
-      isDebugModeOn: false,
-    );
-
-    return _DisposablePgTarget(
-      adminEnv: envFor(adminDatabase),
-      databaseEnv: envFor(databaseName),
-      databaseName: databaseName,
-    );
-  }
-
-  final Env adminEnv;
-  final Env databaseEnv;
-  final String databaseName;
-
-  Future<void> recreate() async {
-    final connection = await Connection.open(
-      adminEnv.pgEndpoint,
-      settings: adminEnv.pgEndpointSettings,
-    );
-    try {
-      await connection.execute(
-        'DROP DATABASE IF EXISTS "$databaseName" WITH (FORCE)',
-      );
-      await connection.execute('CREATE DATABASE "$databaseName"');
-    } finally {
-      await connection.close();
-    }
-  }
-
-  Future<void> drop() async {
-    final connection = await Connection.open(
-      adminEnv.pgEndpoint,
-      settings: adminEnv.pgEndpointSettings,
-    );
-    try {
-      await connection.execute(
-        'DROP DATABASE IF EXISTS "$databaseName" WITH (FORCE)',
-      );
-      final remaining = await connection.execute(
-        r'SELECT count(*)::int FROM pg_database WHERE datname = $1',
-        parameters: [databaseName],
-      );
-      if (remaining.single.single != 0) {
-        throw StateError('Disposable database was not dropped: $databaseName');
-      }
-    } finally {
-      await connection.close();
-    }
-  }
 }
