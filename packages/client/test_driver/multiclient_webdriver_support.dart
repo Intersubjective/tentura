@@ -118,21 +118,46 @@ final class BrowserSession {
     await editable.sendKeys(value);
   }
 
+  static const _staleElementRetryLimit = 5;
+
   Future<void> clickTestId(String id) async {
-    final element = await waitForTestId(id);
-    final resolved = await driver.execute(
-      '''
+    for (var attempt = 0; attempt < _staleElementRetryLimit; attempt++) {
+      final element = await waitForTestId(id);
+      try {
+        final resolved = await driver.execute(
+          '''
       const element = arguments[0];
       if (element.matches('[flt-tappable], button, a')) return element;
       return element.querySelector('[flt-tappable], button, a') || element;
     ''',
-      [element],
-    );
-    final target = resolved is WebElement ? resolved : element;
-    try {
-      await target.click();
-    } on WebDriverException {
-      await driver.execute('arguments[0].click();', [target]);
+          [element],
+        );
+        final target = resolved is WebElement ? resolved : element;
+        try {
+          await target.click();
+        } on WebDriverException catch (error) {
+          if (_isStaleElementReference(error)) {
+            if (attempt + 1 < _staleElementRetryLimit) continue;
+            rethrow;
+          }
+          try {
+            await driver.execute('arguments[0].click();', [target]);
+          } on WebDriverException catch (jsError) {
+            if (_isStaleElementReference(jsError) &&
+                attempt + 1 < _staleElementRetryLimit) {
+              continue;
+            }
+            rethrow;
+          }
+        }
+        return;
+      } on WebDriverException catch (error) {
+        if (_isStaleElementReference(error) &&
+            attempt + 1 < _staleElementRetryLimit) {
+          continue;
+        }
+        rethrow;
+      }
     }
   }
 
@@ -221,6 +246,12 @@ final class BrowserSession {
           [element, text],
         ) ==
         true;
+  }
+
+  bool _isStaleElementReference(Object error) {
+    if (error is! WebDriverException) return false;
+    final message = error.message?.toLowerCase() ?? '';
+    return message.contains('stale element');
   }
 
   Future<WebElement?> _elementByTestId(String id) async {
