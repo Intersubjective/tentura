@@ -5,7 +5,11 @@ import 'package:force_directed_graphview/force_directed_graphview.dart';
 void main() {
   testWidgets('graph interpolates towards a newly computed layout',
       (tester) async {
-    final controller = GraphController<Node<String>, Edge<Node<String>, void>>();
+    final controller = GraphController<Node<String>, Edge<Node<String>, void>>(
+      nodeIdOf: (node) => node.data,
+      edgeIdOf: (edge) =>
+          '${edge.source.hashCode}_${edge.destination.hashCode}',
+    );
     const a = Node<String>(data: 'a', size: 10);
     const b = Node<String>(data: 'b', size: 10);
 

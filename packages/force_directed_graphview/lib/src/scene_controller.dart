@@ -227,6 +227,20 @@ class GraphSceneController<N, E> with ChangeNotifier {
     return true;
   }
 
+  /// Removes every presentation override and hold.
+  void clearAllPresentationOverrides() {
+    _assertLive();
+    _assertNotNotifying();
+    if (_presentation.overrides.isEmpty && _presentation.holds.isEmpty) {
+      return;
+    }
+    _tokenNodes.clear();
+    _activePresentationTokenByNode.clear();
+    _presentation = ScenePresentation(paintOrder: _presentation.paintOrder);
+    _transition = null;
+    _commit();
+  }
+
   /// Cancels the active presentation override for [id], if any.
   bool clearPresentationForNode(GraphNodeId id) {
     final token = _activePresentationTokenByNode[id];
@@ -453,6 +467,10 @@ class GraphSceneController<N, E> with ChangeNotifier {
     _activeTicket = null;
     _layoutSubscription?.cancel();
     _layoutSubscription = null;
+    if (_layoutOutcome is GraphLayoutOutcomeRunning &&
+        _layout?.ticket == ticket) {
+      _layout = null;
+    }
     if (outcome != null) {
       _layoutOutcome = outcome;
     } else if (_layoutOutcome is GraphLayoutOutcomeRunning) {

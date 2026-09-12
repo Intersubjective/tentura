@@ -3,6 +3,19 @@ part of 'graph_view.dart';
 /// Controller to manipulate the [GraphView].
 class GraphController<N extends NodeBase, E extends EdgeBase<N>>
     with ChangeNotifier {
+  /// { @nodoc }
+  GraphController({
+    required GraphNodeIdResolver<N> nodeIdOf,
+    required GraphEdgeIdResolver<E> edgeIdOf,
+  })  : _nodeIdOf = nodeIdOf,
+        _edgeIdOf = edgeIdOf {
+    _scene.addListener(_onSceneStateChanged);
+  }
+
+  final GraphNodeIdResolver<N> _nodeIdOf;
+  final GraphEdgeIdResolver<E> _edgeIdOf;
+  final GraphSceneController<N, E> _scene = GraphSceneController<N, E>();
+
   final _nodes = <N>{};
   final _edges = <E>{};
 
@@ -19,10 +32,8 @@ class GraphController<N extends NodeBase, E extends EdgeBase<N>>
 
   Size? _currentSize;
   var _centered = false;
-  var _relayoutGeneration = 0;
   var _relayoutInFlight = false;
   var _relayoutInvocationCount = 0;
-  final _presentationPositions = <N, Offset>{};
   var _cameraGated = false;
   Ticker? _ticker;
   GraphLayout? _transitionFrom;
@@ -68,7 +79,17 @@ class GraphController<N extends NodeBase, E extends EdgeBase<N>>
   /// should stay disabled.
   bool get isCameraGated => _cameraGated;
 
-  /// Number of times [_relayout] has started. For tests only.
+  /// Stable node id resolver required for scene topology.
+  GraphNodeIdResolver<N> get nodeIdOf => _nodeIdOf;
+
+  /// Stable edge id resolver required for scene topology.
+  GraphEdgeIdResolver<E> get edgeIdOf => _edgeIdOf;
+
+  /// ID-keyed scene state owned by this controller.
+  @visibleForTesting
+  GraphSceneController<N, E> get scene => _scene;
+
+  /// Number of times [_requestSceneLayout] has started. For tests only.
   @visibleForTesting
   int get relayoutInvocationCount => _relayoutInvocationCount;
 
@@ -79,35 +100,41 @@ class GraphController<N extends NodeBase, E extends EdgeBase<N>>
   void setNodePresentationPosition(NodeBase node, Offset position) {
     final typedNode = _typedNode(node);
     _stopLayoutAnimation();
-    _presentationPositions[typedNode] = position;
-    notifyListeners();
+    _scene.beginPresentation(
+      _nodeIdOf(typedNode),
+      ScenePoint(x: position.dx, y: position.dy),
+    );
   }
 
   /// Clears the presentation override for [node], if any.
   void clearPresentationPosition(NodeBase node) {
-    if (_presentationPositions.remove(_typedNode(node)) != null) {
-      notifyListeners();
-    }
+    _scene.clearPresentationForNode(_nodeIdOf(_typedNode(node)));
   }
 
   /// Clears every presentation override.
   void clearAllPresentationPositions() {
-    if (_presentationPositions.isEmpty) {
-      return;
-    }
-    _presentationPositions.clear();
-    notifyListeners();
+    _scene.clearAllPresentationOverrides();
   }
 
   /// Returns the displayed centre of [node], including any presentation override.
-  Offset getPosition(NodeBase node) =>
-      _presentationPositions[_typedNode(node)] ??
-      layout.getPosition(_typedNode(node));
+  Offset getPosition(NodeBase node) {
+    final typedNode = _typedNode(node);
+    final point = _scene.resolvePosition(_nodeIdOf(typedNode));
+    if (point != null) {
+      return Offset(point.x, point.y);
+    }
+    return layout.getPosition(typedNode);
+  }
 
   /// Like [getPosition] but returns null when the node has no layout position.
-  Offset? getPositionOrNull(NodeBase node) =>
-      _presentationPositions[_typedNode(node)] ??
-      layout.getPositionOrNull(_typedNode(node));
+  Offset? getPositionOrNull(NodeBase node) {
+    final typedNode = _typedNode(node);
+    final point = _scene.resolvePosition(_nodeIdOf(typedNode));
+    if (point != null) {
+      return Offset(point.x, point.y);
+    }
+    return layout.getPositionOrNull(typedNode);
+  }
 
   /// Converts a point in viewport-local coordinates to canvas/scene space.
   Offset viewportLocalToScene(Offset viewportLocal) {
@@ -154,7 +181,8 @@ class GraphController<N extends NodeBase, E extends EdgeBase<N>>
   void mutate(void Function(GraphMutator<N, E> mutator) callback) {
     callback(GraphMutator<N, E>(this));
     _currentSize = _size?.resolve(nodes: nodes, edges: edges);
-    _relayout();
+    _applyTopologyFromController();
+    _requestSceneLayout();
   }
 
   /// Uses [algorithm] for the next [mutate] relayout.
@@ -340,48 +368,133 @@ class GraphController<N extends NodeBase, E extends EdgeBase<N>>
     _replaceNode(node, node.copyWithPinned(pinned) as N);
   }
 
-  Future<void> _relayout() async {
+  void _requestSceneLayout() {
     final currentAlgorithm = _currentAlgorithm;
     final currentSize = _currentSize;
-    final layout = _layout;
 
     if (currentAlgorithm == null || currentSize == null) {
       return;
     }
 
     _relayoutInvocationCount++;
-    final generation = ++_relayoutGeneration;
     _relayoutInFlight = true;
     notifyListeners();
-    final nodesSnapshot = Set<N>.of(_nodes);
-    final edgesSnapshot = Set<E>.of(_edges);
 
-    final layoutStream = layout == null
-        ? currentAlgorithm.layout(
-            nodes: nodesSnapshot,
-            edges: edgesSnapshot,
-            size: currentSize,
-          )
-        : currentAlgorithm.relayout(
-            existingLayout: layout,
-            nodes: nodesSnapshot,
-            edges: edgesSnapshot,
-            size: currentSize,
-          );
+    final adapter = LegacyGraphLayoutAlgorithmAdapter(
+      delegate: currentAlgorithm,
+      nodes: _nodes.cast<NodeBase>(),
+      edges: _edges.cast<EdgeBase>(),
+      nodeIdOf: (node) => _nodeIdOf(node as N),
+      edgeIdOf: (edge) => _edgeIdOf(edge as E),
+    );
 
-    try {
-      await for (final layout in layoutStream) {
-        if (generation != _relayoutGeneration) {
-          return;
-        }
-        _publishLayout(layout);
-      }
-    } finally {
-      if (generation == _relayoutGeneration) {
-        _relayoutInFlight = false;
-        notifyListeners();
-      }
+    _scene.requestLayout(
+      adapter,
+      canvasSize: SceneSize(
+        width: currentSize.width,
+        height: currentSize.height,
+      ),
+    );
+  }
+
+  void _onSceneStateChanged() {
+    _syncLegacyLayoutFromScene();
+    _relayoutInFlight = _scene.layoutOutcome is GraphLayoutOutcomeRunning;
+    final outcome = _scene.layoutOutcome;
+    if (outcome is GraphLayoutOutcomeSucceeded && !_centered && _layout != null) {
+      jumpToCenter();
+      _centered = true;
     }
+    notifyListeners();
+  }
+
+  void _syncLegacyLayoutFromScene() {
+    if (_nodes.isEmpty) {
+      _layout = null;
+      return;
+    }
+
+    final snapshot = _scene.snapshot;
+    final builder = GraphLayoutBuilder(nodes: _nodes);
+    for (final node in _nodes) {
+      final id = _nodeIdOf(node);
+      final point = snapshot.layout?.positions[id] ??
+          snapshot.transition?.positions[id] ??
+          snapshot.seedPositions[id];
+      if (point == null) {
+        return;
+      }
+      builder.setNodePosition(node, Offset(point.x, point.y));
+    }
+
+    final next = builder.build();
+    if (_transitionDuration == Duration.zero ||
+        _layout == null ||
+        _ticker == null) {
+      _layout = next;
+      return;
+    }
+    _publishLayout(next);
+  }
+
+  void _applyTopologyFromController({
+    Map<GraphNodeId, ScenePoint> initialPositions = const {},
+  }) {
+    if (_nodes.isEmpty) {
+      _scene.applyTopology(
+        GraphTopology<N, E>.fromEntries(
+          nodes: const [],
+          edges: const [],
+        ),
+      );
+      return;
+    }
+
+    _scene.applyTopology(
+      _topologyFromController(),
+      initialPositions: {
+        ..._canvasCenterSeedsForNewNodes(),
+        ...initialPositions,
+      },
+    );
+  }
+
+  Map<GraphNodeId, ScenePoint> _canvasCenterSeedsForNewNodes() {
+    final size = _currentSize;
+    if (size == null) {
+      return const {};
+    }
+    final previousIds = _scene.snapshot.topology.nodesById.keys.toSet();
+    final nextIds = _nodes.map(_nodeIdOf).toSet();
+    final added = nextIds.difference(previousIds);
+    if (added.isEmpty) {
+      return const {};
+    }
+    final center = ScenePoint(x: size.width / 2, y: size.height / 2);
+    return {for (final id in added) id: center};
+  }
+
+  GraphTopology<N, E> _topologyFromController() {
+    return GraphTopology.fromEntries(
+      nodes: [
+        for (final node in _nodes)
+          GraphSceneNode(
+            id: _nodeIdOf(node),
+            payload: node,
+            size: SceneSize(width: node.size, height: node.size),
+            simulationFixed: node.pinned,
+          ),
+      ],
+      edges: [
+        for (final edge in _edges)
+          GraphSceneEdge(
+            id: _edgeIdOf(edge),
+            sourceId: _nodeIdOf(edge.source),
+            destinationId: _nodeIdOf(edge.destination),
+            payload: edge,
+          ),
+      ],
+    );
   }
 
   void _stopLayoutAnimation() {
@@ -534,26 +647,8 @@ class GraphController<N extends NodeBase, E extends EdgeBase<N>>
     _currentAlgorithm = algorithm;
     _size = size;
     _currentSize = _size?.resolve(nodes: nodes, edges: edges);
-    final generation = ++_relayoutGeneration;
-    final nodesSnapshot = Set<N>.of(_nodes);
-    final edgesSnapshot = Set<E>.of(_edges);
-    final layoutStream = algorithm.layout(
-      nodes: nodesSnapshot,
-      edges: edgesSnapshot,
-      size: canvasSize,
-    );
-
-    await for (final layout in layoutStream) {
-      if (generation != _relayoutGeneration) {
-        return;
-      }
-      _publishLayout(layout);
-
-      if (!_centered) {
-        jumpToCenter();
-        _centered = true;
-      }
-    }
+    _applyTopologyFromController();
+    _requestSceneLayout();
   }
 
   void _updateViewport(Quad viewport) {
@@ -614,18 +709,19 @@ class GraphController<N extends NodeBase, E extends EdgeBase<N>>
       throw ArgumentError.value(node, 'node', 'Node is not in the graph');
     }
 
+    ScenePoint? retainedPosition;
+    final previousId = _nodeIdOf(node);
+    final resolved = _scene.resolvePosition(previousId);
+    if (resolved != null) {
+      retainedPosition = resolved;
+    } else if (_layout != null && _layout!.hasPosition(node)) {
+      final offset = _layout!.getPosition(node);
+      retainedPosition = ScenePoint(x: offset.dx, y: offset.dy);
+    }
+
     _nodes
       ..remove(node)
       ..add(newNode);
-
-    if (_layout != null) {
-      final position = _layout!.getPosition(node);
-      final builder = GraphLayoutBuilder.fromLayout(_layout!)
-        ..removeNode(node)
-        ..addNode(newNode)
-        ..setNodePosition(newNode, position);
-      _layout = builder.build();
-    }
 
     final edgesCopy = Set.of(_edges);
 
@@ -642,6 +738,11 @@ class GraphController<N extends NodeBase, E extends EdgeBase<N>>
       }
     }
 
+    final initialPositions = <GraphNodeId, ScenePoint>{};
+    if (retainedPosition != null) {
+      initialPositions[_nodeIdOf(newNode)] = retainedPosition;
+    }
+    _applyTopologyFromController(initialPositions: initialPositions);
     notifyListeners();
   }
 
@@ -651,7 +752,13 @@ class GraphController<N extends NodeBase, E extends EdgeBase<N>>
     _nodes.clear();
     _edges.clear();
     _layout = null;
-    _presentationPositions.clear();
+    _scene.applyTopology(
+      GraphTopology<N, E>.fromEntries(
+        nodes: const [],
+        edges: const [],
+      ),
+    );
+    _scene.clearAllPresentationOverrides();
     _cameraGated = false;
     _transitionFrom = null;
     _transitionTarget = null;
@@ -698,6 +805,8 @@ class GraphController<N extends NodeBase, E extends EdgeBase<N>>
 
   @override
   void dispose() {
+    _scene.removeListener(_onSceneStateChanged);
+    _scene.dispose();
     _ticker?.dispose();
     _ticker = null;
     super.dispose();

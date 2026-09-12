@@ -1,6 +1,12 @@
 import 'package:flutter/widgets.dart';
 import 'package:force_directed_graphview/force_directed_graphview.dart';
 
+/// Resolves a stable node id for scene topology and layout.
+typedef GraphNodeIdResolver<N extends NodeBase> = GraphNodeId Function(N node);
+
+/// Resolves a stable edge id for scene topology and layout.
+typedef GraphEdgeIdResolver<E extends EdgeBase> = GraphEdgeId Function(E edge);
+
 /// Called when a node drag is captured.
 typedef NodeDragStartCallback<N extends NodeBase> = void Function(
   N node,

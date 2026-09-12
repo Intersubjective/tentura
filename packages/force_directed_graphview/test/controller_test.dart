@@ -4,12 +4,13 @@ import 'dart:ui' show Offset, Size;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:force_directed_graphview/force_directed_graphview.dart';
+import 'support/int_graph_controller.dart';
 
 void main() {
-  late GraphController controller;
+  late GraphController<Node<int>, Edge<Node<int>, int>> controller;
 
   setUp(() {
-    controller = GraphController();
+    controller = testIntIntGraphController();
   });
 
   test('GraphController is empty by default', () {
@@ -77,7 +78,7 @@ void main() {
 
   testWidgets('fitToNodes on a laid-out graph does not throw', (tester) async {
     final graphController =
-        GraphController<Node<int>, Edge<Node<int>, void>>();
+        testIntGraphController();
     const near = Node<int>(data: 1, size: 50);
     const far = Node<int>(data: 2, size: 50);
 
@@ -122,7 +123,7 @@ void main() {
     addTearDown(tester.view.resetDevicePixelRatio);
 
     final graphController =
-        GraphController<Node<int>, Edge<Node<int>, void>>();
+        testIntGraphController();
     const near = Node<int>(data: 1, size: 50);
     const far = Node<int>(data: 2, size: 50);
 
@@ -176,7 +177,7 @@ void main() {
     addTearDown(tester.view.resetDevicePixelRatio);
 
     final graphController =
-        GraphController<Node<int>, Edge<Node<int>, void>>();
+        testIntGraphController();
     const near = Node<int>(data: 1, size: 50);
 
     await tester.pumpWidget(
@@ -216,7 +217,7 @@ void main() {
     addTearDown(tester.view.resetDevicePixelRatio);
 
     final graphController =
-        GraphController<Node<int>, Edge<Node<int>, void>>();
+        testIntGraphController();
     const near = Node<int>(data: 1, size: 50);
 
     await tester.pumpWidget(
@@ -280,7 +281,7 @@ void main() {
   testWidgets('clear resets layout and allows relayout after mutate',
       (tester) async {
     final graphController =
-        GraphController<Node<int>, Edge<Node<int>, void>>();
+        testIntGraphController();
     const node = Node<int>(data: 1, size: 50);
 
     await tester.pumpWidget(

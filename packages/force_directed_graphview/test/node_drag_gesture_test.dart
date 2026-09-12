@@ -5,13 +5,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:force_directed_graphview/force_directed_graphview.dart';
 import 'package:force_directed_graphview/src/widget/graph_layout_view.dart';
+import 'support/int_graph_controller.dart';
 
 void main() {
   const viewportSize = Size(800, 600);
   const canvasSize = Size(500, 500);
 
   test('orderedNodes respects optional paint order', () {
-    final controller = GraphController<Node<int>, Edge<Node<int>, void>>();
+    final controller = testIntGraphController();
     const a = Node<int>(data: 1, size: 10);
     const b = Node<int>(data: 2, size: 10);
     const c = Node<int>(data: 3, size: 10);
@@ -352,7 +353,7 @@ class _TestHarness {
   );
 
   static GraphController<Node<int>, Edge<Node<int>, int>> newController() =>
-      GraphController<Node<int>, Edge<Node<int>, int>>();
+      testIntIntGraphController();
 }
 
 Future<void> _pumpGraph(

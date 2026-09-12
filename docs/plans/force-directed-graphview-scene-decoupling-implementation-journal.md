@@ -33,7 +33,7 @@ The protected `packages/force_directed_graphview/analysis_options.yaml` change i
 | M00 baseline behavior inventory | **accepted** | none | `test(graph): characterize scene identity and lifecycle` |
 | M01 pure scene value types | **accepted** | M00 accepted | `feat(graph): add stable scene identity values` |
 | M02 ID-keyed layout port and legacy adapter | **accepted** | M01 accepted | `feat(graph): introduce id-keyed layout requests` |
-| M03 scene controller plus legacy delegation | **in progress** (M03a committed) | M02 accepted | two focused commits in plan order |
+| M03 scene controller plus legacy delegation | **accepted** | M02 accepted | two focused commits in plan order |
 | M04 rendering, ordering, focus, gesture snapshots | pending | M03 accepted | focused renderer migration commits |
 | M05 Tentura graph layouts/adapters | pending | M04 accepted | one focused commit per algorithm/mode |
 | M06 Constellation migration and handoff | pending | M05 accepted | three focused commits in plan order |
@@ -365,3 +365,46 @@ cd packages/force_directed_graphview && flutter test
 ### Commit
 
 - **Subject:** `feat(graph): add id-keyed scene controller`
+
+---
+
+## M03b — Legacy controller delegation (worker: Composer 2.5, 2026-09-12)
+
+### Work
+
+- **`GraphController`:** required `nodeIdOf` / `edgeIdOf` resolvers (`GraphNodeIdResolver` / `GraphEdgeIdResolver` in `configuration.dart`); owns single `GraphSceneController`; topology sync via `applyTopology` (no hidden relayout); layout only through `LegacyGraphLayoutAlgorithmAdapter` + `requestLayout`; legacy `GraphLayout` mirror excludes presentation overrides; canvas-center seeds for newly added nodes; `replaceNode` retains position via `initialPositions`; camera centering still explicit on first succeeded layout; removed parallel `_relayout` stream/`_relayoutGeneration`.
+- **Scene controller fix:** drop in-flight partial layout when superseding a running ticket (stale-stream contract).
+- **Tests:** `test/support/int_graph_controller.dart`; package tests updated for resolvers.
+
+### Verification
+
+```bash
+cd packages/force_directed_graphview && flutter test
+# exit 0, 87 passed
+
+cd packages/force_directed_graphview && dart analyze --format machine
+# exit 0; pre-existing WARNINGs unchanged
+```
+
+### Changed paths (M03b commit)
+
+- `packages/force_directed_graphview/lib/src/controller.dart`
+- `packages/force_directed_graphview/lib/src/graph_view.dart`
+- `packages/force_directed_graphview/lib/src/configuration.dart`
+- `packages/force_directed_graphview/lib/src/scene_controller.dart` (supersession partial-layout clear)
+- `packages/force_directed_graphview/test/support/int_graph_controller.dart` (new)
+- `packages/force_directed_graphview/test/controller_test.dart`
+- `packages/force_directed_graphview/test/layout_transition_test.dart`
+- `packages/force_directed_graphview/test/node_drag_gesture_test.dart`
+- `packages/force_directed_graphview/test/scene_contract_test.dart`
+- `docs/plans/force-directed-graphview-scene-decoupling-implementation-journal.md`
+
+### Commit
+
+- **Subject:** `refactor(graph): adapt legacy controller to scene state`
+
+---
+
+## Manager checkpoint — 2026-09-12 (post-M03)
+
+- **M03 accepted** — M04 is next (`refactor(graph): render and drag from stable scene snapshots`).

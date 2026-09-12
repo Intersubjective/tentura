@@ -4,6 +4,19 @@ import 'dart:ui' show Offset, Size;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:force_directed_graphview/force_directed_graphview.dart';
+import 'support/int_graph_controller.dart';
+
+GraphController<_LogicalIdNode, Edge<_LogicalIdNode, String>>
+    _logicalIdGraphController() => GraphController(
+      nodeIdOf: (node) => '${node.logicalId}@${identityHashCode(node)}',
+      edgeIdOf: (edge) => identityHashCode(edge).toString(),
+    );
+
+GraphController<Node<int>, Edge<Node<int>, String>> _intStringEdgeController() =>
+    GraphController(
+      nodeIdOf: testIntNodeId,
+      edgeIdOf: (edge) => (edge as Edge<Node<int>, String>).data,
+    );
 
 /// Mimics [NodeDetails]-style equality: stable [logicalId] for product identity,
 /// but `==`/`hashCode` also include mutable presentation fields.
@@ -53,7 +66,7 @@ void main() {
 
     test('GraphController allows two nodes with the same logicalId string', () {
       final controller =
-          GraphController<_LogicalIdNode, Edge<_LogicalIdNode, String>>();
+          _logicalIdGraphController();
       const first = _LogicalIdNode(logicalId: 'dup', display: 'a');
       const second = _LogicalIdNode(logicalId: 'dup', display: 'b');
 
@@ -69,7 +82,7 @@ void main() {
     testWidgets('replaceNode moves layout position to the replacement instance',
         (tester) async {
       final controller =
-          GraphController<_LogicalIdNode, Edge<_LogicalIdNode, String>>();
+          _logicalIdGraphController();
       const before = _LogicalIdNode(logicalId: 'n1', display: 'v1');
       const after = _LogicalIdNode(logicalId: 'n1', display: 'v2');
 
@@ -101,7 +114,7 @@ void main() {
 
   group('Node<int> identity (stable data key)', () {
     test('duplicate data rejects second addNode via Set equality', () {
-      final controller = GraphController<Node<int>, Edge<Node<int>, void>>();
+      final controller = testIntGraphController();
       const a = Node<int>(data: 1, size: 10);
       const b = Node<int>(data: 1, size: 10);
 
@@ -113,7 +126,7 @@ void main() {
     });
 
     test('replaceNode preserves layout position for new instance same data', () {
-      final controller = GraphController<Node<int>, Edge<Node<int>, void>>();
+      final controller = testIntGraphController();
       const before = Node<int>(data: 7, size: 10);
       final after = Node<int>(data: 7, size: 10, pinned: true);
 
@@ -130,7 +143,7 @@ void main() {
     const n2 = Node<int>(data: 2, size: 10);
 
     test('parallel edges with distinct edge data coexist', () {
-      final controller = GraphController<Node<int>, Edge<Node<int>, String>>();
+      final controller = _intStringEdgeController();
       final edgeA = Edge(source: n1, destination: n2, data: 'trust');
       final edgeB = Edge(source: n1, destination: n2, data: 'forward');
 
@@ -146,7 +159,7 @@ void main() {
     });
 
     test('identical edge instance is not duplicated in the edge set', () {
-      final controller = GraphController<Node<int>, Edge<Node<int>, String>>();
+      final controller = _intStringEdgeController();
       final edge = Edge(source: n1, destination: n2, data: 'x');
 
       controller.mutate((m) {
@@ -165,7 +178,7 @@ void main() {
     testWidgets('getPosition prefers presentation override over layout',
         (tester) async {
       final controller =
-          GraphController<Node<int>, Edge<Node<int>, void>>();
+          testIntGraphController();
       const node = Node<int>(data: 1, size: 50);
 
       await tester.pumpWidget(
@@ -193,7 +206,7 @@ void main() {
     testWidgets('clearPresentationPosition reverts to layout in one step',
         (tester) async {
       final controller =
-          GraphController<Node<int>, Edge<Node<int>, void>>();
+          testIntGraphController();
       const node = Node<int>(data: 1, size: 50);
 
       await tester.pumpWidget(
@@ -232,7 +245,7 @@ void main() {
       addTearDown(tester.view.resetDevicePixelRatio);
 
       final controller =
-          GraphController<Node<int>, Edge<Node<int>, void>>();
+          testIntGraphController();
       const node = Node<int>(data: 1, size: 50);
 
       await tester.pumpWidget(
@@ -273,7 +286,7 @@ void main() {
     testWidgets('superseding mutate ignores frames from an earlier relayout',
         (tester) async {
       final controller =
-          GraphController<Node<int>, Edge<Node<int>, void>>();
+          testIntGraphController();
       const n1 = Node<int>(data: 1, size: 10);
       const n2 = Node<int>(data: 2, size: 10);
 
@@ -306,8 +319,8 @@ void main() {
 
   group('independent controllers', () {
     test('presentation and topology are not shared across controllers', () {
-      final a = GraphController<Node<int>, Edge<Node<int>, void>>();
-      final b = GraphController<Node<int>, Edge<Node<int>, void>>();
+      final a = testIntGraphController();
+      final b = testIntGraphController();
       const node = Node<int>(data: 1, size: 10);
 
       a.mutate((m) => m.addNode(node));
