@@ -17,6 +17,7 @@ import 'package:tentura/domain/attention/entity/attention_summary.dart';
 import 'package:tentura/domain/attention/feed_session_registry.dart';
 import 'package:tentura/domain/attention/port/attention_account_port.dart';
 import 'package:tentura/domain/attention/port/attention_repository_port.dart';
+import 'package:tentura/domain/use_case/realtime_sync_case.dart';
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/features/beacon/data/repository/beacon_repository.dart';
 import 'package:tentura/features/evaluation/data/repository/evaluation_repository.dart';
@@ -32,12 +33,14 @@ import 'package:tentura/features/my_work/ui/screen/my_work_screen.dart';
 import 'package:tentura/features/my_work/ui/widget/my_work_obligations_pane.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
+import 'package:tentura/features/updates/domain/use_case/invite_accepted_setup_case.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/test_ids.dart';
 
 import '../../support/test_realtime_sync.dart';
 import '../block/support/controllable_block_case.dart';
+import '../updates/support/noop_invite_setup_port.dart';
 import 'my_work_test_support.dart';
 
 const _accountId = 'user-obligations-test';
@@ -169,22 +172,32 @@ void _registerGate(bool enabled) {
   GetIt.I.registerSingleton<bool>(enabled, instanceName: myWorkObligationsGate);
 }
 
-Future<({AttentionCase attention, _Accounts accounts})> _bootAttention(
-  _ObligationsFeedRepository repo,
-) async {
+Future<
+  ({
+    AttentionCase attention,
+    _Accounts accounts,
+    TestRealtimeSyncPort realtime,
+  })
+>
+_bootAttention(_ObligationsFeedRepository repo) async {
   final accounts = _Accounts();
+  final sync = buildTestRealtimeSync();
   final attention = AttentionCase(
     repo,
     accounts,
-    buildTestRealtimeSync().case_,
+    sync.case_,
     noopBlockCase(),
     FeedSessionRegistry(),
     Logger('my-work-obligations-pane-test'),
   );
   GetIt.I.registerSingleton<AttentionCase>(attention);
+  GetIt.I.registerSingleton<InviteAcceptedSetupPort>(
+    NoopInviteAcceptedSetupPort(),
+  );
+  GetIt.I.registerSingleton<RealtimeSyncCase>(sync.case_);
   accounts.emit(_accountId);
   await _drain();
-  return (attention: attention, accounts: accounts);
+  return (attention: attention, accounts: accounts, realtime: sync.port);
 }
 
 final class _TestProfileCubit extends Mock implements ProfileCubit {
@@ -279,6 +292,12 @@ void main() {
       final attention = GetIt.I<AttentionCase>();
       unawaited(attention.dispose());
       GetIt.I.unregister<AttentionCase>();
+    }
+    if (GetIt.I.isRegistered<InviteAcceptedSetupPort>()) {
+      GetIt.I.unregister<InviteAcceptedSetupPort>();
+    }
+    if (GetIt.I.isRegistered<RealtimeSyncCase>()) {
+      GetIt.I.unregister<RealtimeSyncCase>();
     }
   });
 

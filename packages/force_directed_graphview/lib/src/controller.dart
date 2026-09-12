@@ -659,23 +659,34 @@ class GraphController<N extends NodeBase, E extends EdgeBase<N>>
 
   @override
   void notifyListeners() {
-    final phase = SchedulerBinding.instance.schedulerPhase;
-    if (phase == SchedulerPhase.persistentCallbacks ||
-        phase == SchedulerPhase.midFrameMicrotasks) {
-      if (_deferredNotifyPending) {
-        return;
-      }
-      _deferredNotifyPending = true;
-      SchedulerBinding.instance.addPostFrameCallback((_) {
-        _deferredNotifyPending = false;
-        if (!hasListeners) {
+    final SchedulerBinding? binding = _schedulerBindingOrNull();
+    if (binding != null) {
+      final phase = binding.schedulerPhase;
+      if (phase == SchedulerPhase.persistentCallbacks ||
+          phase == SchedulerPhase.midFrameMicrotasks) {
+        if (_deferredNotifyPending) {
           return;
         }
-        super.notifyListeners();
-      });
-      return;
+        _deferredNotifyPending = true;
+        binding.addPostFrameCallback((_) {
+          _deferredNotifyPending = false;
+          if (!hasListeners) {
+            return;
+          }
+          super.notifyListeners();
+        });
+        return;
+      }
     }
     super.notifyListeners();
+  }
+
+  SchedulerBinding? _schedulerBindingOrNull() {
+    try {
+      return SchedulerBinding.instance;
+    } on Object {
+      return null;
+    }
   }
 
   @override

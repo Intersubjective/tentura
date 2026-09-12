@@ -64,7 +64,7 @@ tg_style_research.md
 | P08 Placement orchestration and live reconciliation | complete (accepted after C7 remediation) | P07 | see P08 manager re-review |
 | P09 Map/Text controls, filters and status accessibility | complete (accepted) | P08 | see P09 manager review |
 | P10 End-to-end and failure acceptance | complete (remediated) | P09 | see P10 remediation |
-| P11 Full verification and release preparation | pending | P10 | — |
+| P11 Full verification and release preparation | blocked (release) | P10 | see P11 checkpoint |
 | P12 Product docs and coordinated activation | pending | P11 | — |
 
 ## Required process and verification discipline
@@ -1247,3 +1247,91 @@ Verified in source (not worker claims):
 Honest BLOCKED (not counted PASS): map-pin WebDriver, touch arbitration, failed-mutation rollback (CanvasKit DOM). Residual, not a reject: unpin journey asserts automatic field membership, not the Favorites widget.
 
 Verdict: **accepted**. P11 may start. P12 not started.
+
+### P11 — Full verification and release preparation — 2026-09-12
+
+Worker on `feature/pin_constellation` @ `0b981d6f8`. Ports :8888/:2080 free at start;
+:8080 Hasura left running.
+
+**0. Process:** no unrelated user Chrome/Cursor killed; task-owned integration/multiclient
+runners exited cleanly.
+
+**1. Source verification (serial, repo root)**
+
+| Command | Result |
+|---------|--------|
+| `(cd packages/server && dart run build_runner build -d)` | exit 0 |
+| `(cd packages/client && flutter gen-l10n && dart run build_runner build -d)` | exit 0 |
+| server focused constellation_field + constellation_anchor GraphQL | 30 passed |
+| `(cd packages/server && dart test --exclude-tags pg)` | 1577 passed |
+| `(cd packages/client && flutter test test/features/constellation test/data/gql/direct_v2_schema_overlay_test.dart)` | 229 passed (after graph-controller fix) |
+| `(cd packages/force_directed_graphview && flutter test)` | 28 passed |
+| `(cd packages/tentura_lints && dart test)` | 18 passed |
+| `./scripts/check-custom-lints.sh packages/server` | OK (total 0) |
+| `./scripts/check-custom-lints.sh packages/client` | OK (total 32, baseline 32) |
+| `bash scripts/check-user-facing-terminology.sh` | ok |
+| `(cd packages/client && flutter test)` | 3101 passed, 29 skipped (after my_work GetIt fix) |
+| server `realtime_entity_contract_test` + `websocket_realtime_protocol_test` | 13 passed |
+| client `realtime_entity_contract*` + `constellation_anchor_case/cubit` | 39 passed (subset of full client run; not double-counted) |
+
+**Remediation during step 1 (not version bump):**
+
+- `GraphController.notifyListeners`: defer only when `SchedulerBinding` is initialized;
+  unit tests without Flutter binding no longer throw.
+- `my_work_obligations_pane_test.dart`: register `InviteAcceptedSetupPort` +
+  `RealtimeSyncCase` for `UpdatesFeedCubit` (pre-existing suite gap).
+- Constellation PG harness: seed `viewerB`↔`personP` trust and `extraPerson` votes for
+  P04 upsert authorization (tests predated C2 auth on `viewerB` paths).
+
+**2. PostgreSQL**
+
+Disposable DB `tentura_test_p11_1789170063_1065834` created via docker postgres;
+`CREATE EXTENSION pgmer2` + `ALTER DATABASE … SET check_function_bodies TO false`
+required before `dart run tool/run_migrations_once.dart` (bare tool fails on fresh DB
+without those). `migrate: schema upgrade complete`; `SELECT current_database()` matched
+disposable name. DB dropped after run.
+
+| Command | Result |
+|---------|--------|
+| `(cd packages/server && dart test -t pg -j 1)` | **FAIL** — 636 passed, 2 skipped, **34 failed** (`/tmp/p11-pg-tests-isolated.log`) |
+| Constellation PG bundle (storage + anchor repo + field repo) | 50 passed, **1 flaky** — `person and beacon anchors each emit one delete notification on row cascade` fails in bundle, passes alone (LISTEN timing) |
+
+Sample full-suite failures (not constellation-only): `review_finalization_outcome_evidence_pg_test` (ledger rows 0≠3), `realtime_notification_migration_test` (migration RaceCondition/setUpAll), `beacon_hierarchy_hasura_parity_test` (Hasura parity), `capability_cell_repository_pg_test` (setUpAll RaceCondition).
+
+**3. Browser (serial)**
+
+| Journey / runner | Result |
+|------------------|--------|
+| `./scripts/run_client_integration_web_local.sh integration_test/constellation_pinning_test.dart` | **PASS** (`/tmp/p11-constellation-pin-it.log`, logout included) |
+| multiclient `REALTIME_MULTICLIENT_DRIVER=constellation_pinning_multiclient_web_test.dart` … | **PASS** (`reports/realtime-multiclient/20260912-021216/run-1/proof.json` `ok: true`) |
+
+Multiclient journeys: `live_convergence_ui_pin`, `first_load_text_pin`, `live_convergence`,
+`reconnect`, `stale_cross_device_delete`, `authorization_loss_restore` **PASS**;
+`person_without_requests_map_pin`, `failed_mutation_rollback`, `touch_arbitration` **BLOCKED**
+(honest CanvasKit/touch limits; not reclassified).
+
+**4. C8 version:** **not applied** — full `dart test -t pg` gate failed; client remains **7.5.0**.
+
+STATUS: **release BLOCKED** (PG full suite); constellation source + browser gates green.
+
+COMMITS: (this session commit follows)
+
+TESTS: see tables above.
+
+FILES:
+- `packages/force_directed_graphview/lib/src/controller.dart`
+- `packages/client/test/features/my_work/my_work_obligations_pane_test.dart`
+- `packages/server/test/data/database/constellation_anchor_storage_pg_test.dart`
+- `packages/server/test/data/repository/constellation_anchor_repository_pg_test.dart`
+- `docs/plans/constellation-pinning-implementation-journal.md`
+
+FINDINGS:
+- P10 integration teardown fix (`notifyListeners` defer) broke non-widget unit tests until
+  binding guard added.
+- `run_migrations_once.dart` on empty disposable DB needs pgmer2 + `check_function_bodies=false`
+  (PG tests already do this inline; tool does not).
+- Full PG suite has 34 failures unrelated to constellation pinning acceptance paths;
+  blocks coordinated 7.6.0 gate per P11 contract.
+
+REMAINING: resolve full `dart test -t pg -j 1` (or document environment prerequisites),
+then C8 7.6.0 + web artifact verification; **P12 not started**.

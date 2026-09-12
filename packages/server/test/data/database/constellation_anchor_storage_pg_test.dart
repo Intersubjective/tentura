@@ -112,6 +112,7 @@ ON CONFLICT (id) DO NOTHING
       await seedBeacon(beaconB, personP);
       await reciprocalTrust(viewerA, personP);
       await reciprocalTrust(viewerA, personQ);
+      await reciprocalTrust(viewerB, personP);
       await reciprocalTrust(viewerB, personQ);
     });
 

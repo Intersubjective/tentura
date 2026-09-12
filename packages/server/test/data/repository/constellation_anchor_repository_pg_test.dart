@@ -249,6 +249,12 @@ INSERT INTO public."user" (id, display_name, public_key, created_at, updated_at)
 VALUES ('$extraPerson', '$extraPerson', 'pk3', '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z')
 ON CONFLICT DO NOTHING
 ''');
+        await writer.execute('''
+INSERT INTO public.vote_user (subject, object, amount, created_at, updated_at)
+VALUES ('$viewer', '$extraPerson', 1, '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z'),
+       ('$extraPerson', '$viewer', 1, '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z')
+ON CONFLICT (subject, object) DO UPDATE SET amount = EXCLUDED.amount
+''');
         await repo1.upsertAnchor(
           viewerId: viewer,
         context: kConstellationContext,
