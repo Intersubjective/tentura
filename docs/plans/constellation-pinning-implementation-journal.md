@@ -1335,3 +1335,20 @@ FINDINGS:
 
 REMAINING: resolve full `dart test -t pg -j 1` (or document environment prerequisites),
 then C8 7.6.0 + web artifact verification; **P12 not started**.
+
+### Manager review — P11 — 2026-09-12
+
+Independent review of [P11 verification gate](8974a694-7a6b-4799-bb94-c9532265f900) @ `e3079876c`. C8 skip is correct. P11 is **not** accepted as complete.
+
+**Accepted in `e3079876c`:** graph `notifyListeners` binding guard; my_work GetIt wiring; `viewerB`/`extraPerson` trust seeds (those 1703s were C2 upsert auth). Source/lint/client suite/browser evidence matches: integration `/tmp/p11-constellation-pin-it.log` PASS; `reports/realtime-multiclient/20260912-021216/run-1/proof.json` `ok: true`. BLOCKED map-pin/touch/failed-mutation not reclassified.
+
+**Rejected claims:**
+1. Cascade notification failure is not a LISTEN flake. After `target person cascade` deletes `personQ` (and `vote_user`), setUp recreated the user without trust. `extraBeacon` authored by `personQ` then failed `beacon_can_read_content` → **1703**. Reproduced after the seed commit: 17 pass / 1 fail (`1703` at storage test line 465).
+2. Full-suite log `/tmp/p11-pg-tests-isolated.log` was taken **before** the trust seeds; it is not evidence that constellation PG stayed red after `e3079876c`.
+3. Full `-t pg` was not re-run after seeds. CI pipeline does not run `-t pg`.
+
+**Fix (this review):** setUp restores the four `reciprocalTrust` pairs after `seedUser` so cascade-delete tests cannot poison later upserts. Focused re-run: `dart test -t pg -j 1 test/data/database/constellation_anchor_storage_pg_test.dart` → **18 passed**. Repository concurrency file was already green after `extraPerson` votes.
+
+**Remaining 30 full-suite failures** (sample): review-finalization ledger 0≠3, realtime_notification_migration LISTEN empty, migrant `RaceCondition` in setUpAll, Hasura parity, help_offer null-check, beacon cover / m0149 / person_visibility migrations. Not constellation-owned. They still block C8 per P11 contract.
+
+Verdict: constellation-owned P11 gates green after the setUp trust restore. **Release remains BLOCKED** (C8 `7.6.0` not applied). P12 not started.

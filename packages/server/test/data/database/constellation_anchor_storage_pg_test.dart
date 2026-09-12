@@ -124,6 +124,11 @@ TRUNCATE public.constellation_anchor, public.constellation_anchor_cursor CASCADE
         await seedUser(id);
       }
       await seedBeacon(beaconB, personP);
+      // Cascade-delete tests remove users (and vote_user). Restore C2 upsert auth.
+      await reciprocalTrust(viewerA, personP);
+      await reciprocalTrust(viewerA, personQ);
+      await reciprocalTrust(viewerB, personP);
+      await reciprocalTrust(viewerB, personQ);
       notifications.clear();
     });
 
