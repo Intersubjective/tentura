@@ -314,6 +314,7 @@ class _UpdatesFeedPaneState extends State<UpdatesFeedPane>
               day: cell.day!,
               now: DateTime.now(),
               l10n: l10n,
+              locale: Localizations.localeOf(context),
             ).toUpperCase(),
             style: TenturaText.typeLabel(context.tt.textFaint),
           ),

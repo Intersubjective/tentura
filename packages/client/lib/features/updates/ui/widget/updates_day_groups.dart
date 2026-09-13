@@ -1,6 +1,8 @@
+import 'package:flutter/material.dart';
+
 import 'package:tentura/domain/attention/entity/attention_receipt.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
-import 'package:tentura/ui/utils/ui_utils.dart';
+import 'package:tentura/ui/utils/schedule_date_format.dart';
 
 /// Groups [items] by local calendar day, preserving feed order.
 List<(DateTime day, List<AttentionReceipt> items)> groupUpdatesByLocalDay(
@@ -73,6 +75,7 @@ String updatesDayHeaderLabel({
   required DateTime day,
   required DateTime now,
   required L10n l10n,
+  Locale? locale,
 }) {
   final today = DateTime(now.year, now.month, now.day);
   final d = DateTime(day.year, day.month, day.day);
@@ -80,5 +83,6 @@ String updatesDayHeaderLabel({
   if (d == today.subtract(const Duration(days: 1))) {
     return l10n.beaconRoomDateYesterday;
   }
-  return dateFormatYMD(d);
+  final localeName = locale?.languageCode ?? 'en';
+  return formatScheduleDate(d, localeName: localeName, now: now);
 }

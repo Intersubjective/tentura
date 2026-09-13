@@ -95,8 +95,8 @@ void main() {
       l10n: l10n,
     );
 
-    expect(copy.headline, 'Garden cleanup');
-    expect(copy.body, 'Alex accepted your ask: Bring tools');
+    expect(copy.headline, 'Alex accepted your ask');
+    expect(copy.body, 'Garden cleanup');
   });
 
   test('feed row copy keeps trust excerpt after stripping request title', () {
@@ -109,10 +109,7 @@ void main() {
       l10n: l10n,
     );
 
-    expect(copy.headline, 'Move help this weekend');
-    expect(
-      copy.body,
-      'Trust in Alex increased: After the request closed, your trust shifted.',
-    );
+    expect(copy.headline, 'Trust in Alex increased');
+    expect(copy.body, 'Move help this weekend');
   });
 }

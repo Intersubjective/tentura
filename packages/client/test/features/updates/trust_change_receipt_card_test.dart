@@ -77,7 +77,13 @@ void main() {
   ) async {
     await pumpCard(tester, presentationKey: 'trust_given_changed_up');
 
-    expect(find.text('Trust in Alex increased: After "Move help this weekend" closed, your trust shifted.'), findsOneWidget);
+    expect(
+      find.text(
+        'Trust in Alex increased: After "Move help this weekend" closed, your trust shifted.',
+      ),
+      findsNothing,
+    );
+    expect(find.text('Trust in Alex increased'), findsOneWidget);
     expect(find.byIcon(TenturaIcons.arrowUp), findsOneWidget);
     expect(find.text('Move help this weekend'), findsOneWidget);
     expect(find.textContaining('ago'), findsOneWidget);

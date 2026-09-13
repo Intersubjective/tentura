@@ -1,8 +1,12 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:intl/date_symbol_data_local.dart';
+import 'package:intl/intl.dart';
 
 import 'package:tentura/domain/attention/entity/attention_feed.dart';
 import 'package:tentura/domain/attention/entity/attention_receipt.dart';
 import 'package:tentura/features/updates/ui/widget/updates_day_groups.dart';
+import 'package:tentura/ui/l10n/l10n_en.dart';
 
 AttentionReceipt _receipt({
   required String id,
@@ -22,6 +26,10 @@ AttentionReceipt _receipt({
 );
 
 void main() {
+  setUpAll(() async {
+    await initializeDateFormatting('en');
+  });
+
   test('groups by local day and keeps feed order', () {
     final late = DateTime(2026, 8, 5, 1);
     final earlySame = DateTime(2026, 8, 5, 23);
@@ -71,5 +79,51 @@ void main() {
     expect(cells[1].showDividerBelow, isTrue);
     expect(cells[2].showDividerBelow, isFalse);
     expect(cells[4].showDividerBelow, isFalse);
+  });
+
+  test('day header uses today and yesterday labels', () {
+    final l10n = L10nEn();
+    final now = DateTime(2026, 9, 14, 12);
+    expect(
+      updatesDayHeaderLabel(
+        day: DateTime(2026, 9, 14),
+        now: now,
+        l10n: l10n,
+      ),
+      l10n.beaconRoomDateToday,
+    );
+    expect(
+      updatesDayHeaderLabel(
+        day: DateTime(2026, 9, 13),
+        now: now,
+        l10n: l10n,
+      ),
+      l10n.beaconRoomDateYesterday,
+    );
+  });
+
+  test('day header uses locale MMMd and yMMMd when year differs', () {
+    final l10n = L10nEn();
+    final now = DateTime(2026, 9, 14);
+    final sameYear = DateTime(2026, 9, 6);
+    final priorYear = DateTime(2025, 9, 6);
+    expect(
+      updatesDayHeaderLabel(
+        day: sameYear,
+        now: now,
+        l10n: l10n,
+        locale: const Locale('en'),
+      ),
+      DateFormat.MMMd('en').format(sameYear),
+    );
+    expect(
+      updatesDayHeaderLabel(
+        day: priorYear,
+        now: now,
+        l10n: l10n,
+        locale: const Locale('en'),
+      ),
+      DateFormat.yMMMd('en').format(priorYear),
+    );
   });
 }

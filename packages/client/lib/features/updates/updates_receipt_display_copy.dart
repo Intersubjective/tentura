@@ -257,18 +257,19 @@ UpdatesFeedRowCopy resolveUpdatesFeedRowCopy({
     presentationPayloadJson,
   );
   final override = headlineOverride?.trim();
+  final eventTitle = title.trim().isEmpty ? fallback.title : title.trim();
   final headline = (override != null && override.isNotEmpty)
       ? override
-      : (beaconTitle != null && beaconTitle.isNotEmpty)
-      ? beaconTitle
-      : fallback.title;
+      : eventTitle;
 
-  final rawTitle = title.trim().isEmpty ? fallback.title : title.trim();
-  var excerpt = (bodyOverride ?? body).trim();
+  final bodyOverrideTrim = bodyOverride?.trim();
+  var excerpt = (bodyOverrideTrim != null && bodyOverrideTrim.isNotEmpty)
+      ? bodyOverrideTrim
+      : body.trim();
   if (excerpt.isEmpty) excerpt = fallback.body;
 
   for (final prefix in <String>{
-    if (headline.isNotEmpty) '$headline — ',
+    if (eventTitle.isNotEmpty) '$eventTitle — ',
     if (beaconTitle != null && beaconTitle.isNotEmpty) '$beaconTitle — ',
   }) {
     if (excerpt.startsWith(prefix)) {
@@ -277,22 +278,22 @@ UpdatesFeedRowCopy resolveUpdatesFeedRowCopy({
     }
   }
 
-  final alreadyPrefixed =
-      excerpt.startsWith('$rawTitle:') || excerpt.startsWith('$rawTitle：');
+  final subjectOverride = bodyOverrideTrim != null && bodyOverrideTrim.isNotEmpty
+      ? bodyOverrideTrim
+      : null;
   final String line2;
-  if (excerpt.isNotEmpty &&
+  if (subjectOverride != null && subjectOverride != headline) {
+    line2 = subjectOverride;
+  } else if (beaconTitle != null &&
+      beaconTitle.isNotEmpty &&
+      beaconTitle != headline) {
+    line2 = beaconTitle;
+  } else if (excerpt.isNotEmpty &&
       excerpt != headline &&
-      !rawTitle.contains(excerpt) &&
-      rawTitle.isNotEmpty &&
-      rawTitle != headline &&
-      !alreadyPrefixed) {
-    line2 = '$rawTitle: $excerpt';
-  } else if (excerpt.isNotEmpty && excerpt != headline) {
+      excerpt != eventTitle) {
     line2 = excerpt;
-  } else if (rawTitle.isNotEmpty && rawTitle != headline) {
-    line2 = rawTitle;
   } else {
-    line2 = excerpt == headline ? '' : excerpt;
+    line2 = '';
   }
 
   return UpdatesFeedRowCopy(headline: headline, body: line2);

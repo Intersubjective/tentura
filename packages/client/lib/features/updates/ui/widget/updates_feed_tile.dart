@@ -1,4 +1,8 @@
+import 'dart:async';
+
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/attention/entity/attention_receipt.dart';
@@ -41,6 +45,14 @@ UpdatesFeedGlyph updatesFeedGlyphFor(
     return UpdatesFeedGlyph(icon: TenturaIcons.profile, color: tt.good);
   }
   return switch (key) {
+    'request_status_changed' => UpdatesFeedGlyph(
+      icon: TenturaIcons.switcher,
+      color: tt.info,
+    ),
+    'offer_accepted' => UpdatesFeedGlyph(
+      icon: TenturaIcons.favorites,
+      color: tt.good,
+    ),
     'needs_me' ||
     'blocker_opened' ||
     'blocker_resolved' ||
@@ -51,7 +63,6 @@ UpdatesFeedGlyph updatesFeedGlyphFor(
     'commitment_cancelled' ||
     'commitment_redirected' ||
     'help_offer_submitted' ||
-    'offer_accepted' ||
     'offer_declined' ||
     'relay_received' => UpdatesFeedGlyph(
       icon: TenturaIcons.send,
@@ -66,7 +77,7 @@ UpdatesFeedGlyph updatesFeedGlyphFor(
 }
 
 /// Dense Updates feed row.
-class UpdatesFeedTile extends StatelessWidget {
+class UpdatesFeedTile extends StatefulWidget {
   const UpdatesFeedTile({
     required this.receipt,
     required this.onTap,
@@ -89,47 +100,161 @@ class UpdatesFeedTile extends StatelessWidget {
   final Widget? action;
 
   @override
+  State<UpdatesFeedTile> createState() => _UpdatesFeedTileState();
+}
+
+class _UpdatesFeedTileState extends State<UpdatesFeedTile> {
+  bool _hovering = false;
+
+  bool get _isUnread => !widget.receipt.isSeen;
+
+  void _markSeen() => widget.onMarkSeen();
+
+  void _markUnseen() => widget.onMarkUnseen();
+
+  void _showMarkMenu() {
+    final l10n = L10n.of(context)!;
+    final box = context.findRenderObject() as RenderBox?;
+    if (box == null) return;
+    final overlay = Overlay.of(context).context.findRenderObject() as RenderBox;
+    final origin = box.localToGlobal(Offset.zero, ancestor: overlay);
+    final position = RelativeRect.fromLTRB(
+      origin.dx,
+      origin.dy,
+      overlay.size.width - origin.dx - box.size.width,
+      overlay.size.height - origin.dy - box.size.height,
+    );
+    unawaited(
+      showMenu<void>(
+        context: context,
+        position: position,
+        items: [
+          if (_isUnread)
+            PopupMenuItem<void>(
+              onTap: _markSeen,
+              child: Text(l10n.updatesMarkSeen),
+            )
+          else
+            PopupMenuItem<void>(
+              onTap: _markUnseen,
+              child: Text(l10n.updatesMarkUnseen),
+            ),
+        ],
+      ),
+    );
+  }
+
+  @override
   Widget build(BuildContext context) {
     final l10n = L10n.of(context)!;
     final tt = context.tt;
     final scheme = Theme.of(context).colorScheme;
-    final isUnread = !receipt.isSeen;
+    final isUnread = _isUnread;
     final copy = resolveUpdatesFeedRowCopy(
-      title: receipt.title,
-      body: receipt.body,
-      presentationKey: receipt.presentationKey,
-      presentationPayloadJson: receipt.presentationPayloadJson,
+      title: widget.receipt.title,
+      body: widget.receipt.body,
+      presentationKey: widget.receipt.presentationKey,
+      presentationPayloadJson: widget.receipt.presentationPayloadJson,
       l10n: l10n,
-      headlineOverride: headlineOverride,
-      bodyOverride: bodyOverride,
+      headlineOverride: widget.headlineOverride,
+      bodyOverride: widget.bodyOverride,
     );
-    final glyph = updatesFeedGlyphFor(receipt, tt);
-    final localCreatedAt = receipt.createdAt.toLocal();
+    final glyph = updatesFeedGlyphFor(widget.receipt, tt);
+    final localCreatedAt = widget.receipt.createdAt.toLocal();
     final ageLabel = compactRelativeTimeAgo(
-      when: receipt.createdAt,
+      when: widget.receipt.createdAt,
       now: DateTime.now(),
       l10n: l10n,
     );
     final absoluteTime =
         '${dateFormatYMD(localCreatedAt)} ${timeFormatHm(localCreatedAt)}';
     final rowAction =
-        action ??
-        (receipt.isLiveObligation && onSettle != null
+        widget.action ??
+        (widget.receipt.isLiveObligation && widget.onSettle != null
             ? TenturaTextAction(
                 label: l10n.updatesMarkDone,
                 flushStart: true,
-                onPressed: onSettle,
+                onPressed: widget.onSettle,
               )
             : null);
 
+    final rowContent = Padding(
+      padding: tt.listRowPadding,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _LeadingGlyph(glyph: glyph, unread: isUnread),
+          SizedBox(width: tt.avatarTextGap),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Expanded(
+                      child: Text(
+                        copy.headline,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TenturaText.titleSmall(tt.text).copyWith(
+                          fontWeight: isUnread
+                              ? FontWeight.w600
+                              : FontWeight.w500,
+                        ),
+                      ),
+                    ),
+                    SizedBox(width: tt.iconTextGap),
+                    Tooltip(
+                      message: absoluteTime,
+                      child: Text(
+                        ageLabel,
+                        style: TenturaText.withTabular(
+                          TenturaText.bodySmall(tt.textFaint),
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+                if (copy.body.isNotEmpty)
+                  Text(
+                    copy.body,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: TenturaText.bodySmall(tt.textMuted),
+                  ),
+                if (rowAction != null) rowAction,
+              ],
+            ),
+          ),
+          _UpdatesFeedRowOverflow(
+            isUnread: isUnread,
+            markSeenLabel: l10n.updatesMarkSeen,
+            markUnseenLabel: l10n.updatesMarkUnseen,
+            onMarkSeen: _markSeen,
+            onMarkUnseen: _markUnseen,
+          ),
+        ],
+      ),
+    );
+
     return Semantics(
-      identifier: TestIds.updatesReceipt(receipt.id),
+      identifier: TestIds.updatesReceipt(widget.receipt.id),
       label: copy.headline,
       button: true,
       child: Material(
         color: Colors.transparent,
-        child: InkWell(
-          onTap: onTap,
+        child: _UpdatesFeedRowInteraction(
+          hovering: _hovering,
+          onHoverChanged: (hover) {
+            if (_hovering != hover) setState(() => _hovering = hover);
+          },
+          isUnread: isUnread,
+          markSeenLabel: l10n.updatesMarkSeen,
+          markUnseenLabel: l10n.updatesMarkUnseen,
+          onPrimaryTap: widget.onTap,
+          onMarkSeen: _markSeen,
+          onMarkUnseen: _markUnseen,
+          onShowMarkMenu: _showMarkMenu,
           overlayColor: WidgetStateProperty.resolveWith((states) {
             if (states.contains(WidgetState.pressed)) {
               return scheme.onSurface.withValues(alpha: 0.06);
@@ -139,66 +264,202 @@ class UpdatesFeedTile extends StatelessWidget {
             }
             return null;
           }),
-          child: Padding(
-            padding: tt.listRowPadding,
-            child: Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                _LeadingGlyph(glyph: glyph, unread: isUnread),
-                SizedBox(width: tt.avatarTextGap),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Text(
-                              copy.headline,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: TenturaText.titleSmall(tt.text).copyWith(
-                                fontWeight: isUnread
-                                    ? FontWeight.w600
-                                    : FontWeight.w500,
-                              ),
-                            ),
-                          ),
-                          SizedBox(width: tt.iconTextGap),
-                          Tooltip(
-                            message: absoluteTime,
-                            child: Text(
-                              ageLabel,
-                              style: TenturaText.withTabular(
-                                TenturaText.bodySmall(tt.textFaint),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      if (copy.body.isNotEmpty)
-                        Text(
-                          copy.body,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: TenturaText.bodySmall(tt.textMuted),
-                        ),
-                      if (rowAction != null) rowAction,
-                    ],
-                  ),
-                ),
-                _SeenTrailing(
-                  unread: isUnread,
-                  onMarkSeen: onMarkSeen,
-                  onMarkUnseen: onMarkUnseen,
-                  markSeenTooltip: l10n.updatesMarkSeen,
-                  markUnseenTooltip: l10n.updatesMarkUnseen,
-                ),
-              ],
-            ),
-          ),
+          child: rowContent,
         ),
       ),
+    );
+  }
+}
+
+/// Overflow + secondary-tap + hover toolbar for mark seen/unseen (never long-press alone).
+class _UpdatesFeedRowInteraction extends StatelessWidget {
+  const _UpdatesFeedRowInteraction({
+    required this.child,
+    required this.hovering,
+    required this.onHoverChanged,
+    required this.isUnread,
+    required this.markSeenLabel,
+    required this.markUnseenLabel,
+    required this.onPrimaryTap,
+    required this.onMarkSeen,
+    required this.onMarkUnseen,
+    required this.onShowMarkMenu,
+    required this.overlayColor,
+  });
+
+  final Widget child;
+  final bool hovering;
+  final ValueChanged<bool> onHoverChanged;
+  final bool isUnread;
+  final String markSeenLabel;
+  final String markUnseenLabel;
+  final VoidCallback onPrimaryTap;
+  final VoidCallback onMarkSeen;
+  final VoidCallback onMarkUnseen;
+  final VoidCallback onShowMarkMenu;
+  final WidgetStateProperty<Color?> overlayColor;
+
+  static const _touchOrStylus = {
+    PointerDeviceKind.touch,
+    PointerDeviceKind.stylus,
+  };
+
+  void _toggleSeen() {
+    if (isUnread) {
+      onMarkSeen();
+    } else {
+      onMarkUnseen();
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    Widget content = RawGestureDetector(
+      behavior: HitTestBehavior.opaque,
+      gestures: <Type, GestureRecognizerFactory>{
+        LongPressGestureRecognizer:
+            GestureRecognizerFactoryWithHandlers<LongPressGestureRecognizer>(
+              () => LongPressGestureRecognizer(supportedDevices: _touchOrStylus),
+              (r) => r
+                ..onLongPress = () {
+                  unawaited(HapticFeedback.selectionClick());
+                  onShowMarkMenu();
+                },
+            ),
+      },
+      child: InkWell(
+        onTap: onPrimaryTap,
+        overlayColor: overlayColor,
+        child: child,
+      ),
+    );
+
+    content = GestureDetector(
+      behavior: HitTestBehavior.deferToChild,
+      onSecondaryTap: _toggleSeen,
+      child: content,
+    );
+
+    return MouseRegion(
+      onEnter: (_) => onHoverChanged(true),
+      onExit: (_) => onHoverChanged(false),
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          content,
+          if (hovering)
+            Positioned(
+              top: 0,
+              right: 4,
+              child: _UpdatesFeedRowHoverToolbar(
+                isUnread: isUnread,
+                markSeenLabel: markSeenLabel,
+                markUnseenLabel: markUnseenLabel,
+                onMarkSeen: onMarkSeen,
+                onMarkUnseen: onMarkUnseen,
+                onMore: onShowMarkMenu,
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _UpdatesFeedRowHoverToolbar extends StatelessWidget {
+  const _UpdatesFeedRowHoverToolbar({
+    required this.isUnread,
+    required this.markSeenLabel,
+    required this.markUnseenLabel,
+    required this.onMarkSeen,
+    required this.onMarkUnseen,
+    required this.onMore,
+  });
+
+  final bool isUnread;
+  final String markSeenLabel;
+  final String markUnseenLabel;
+  final VoidCallback onMarkSeen;
+  final VoidCallback onMarkUnseen;
+  final VoidCallback onMore;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    return Material(
+      elevation: 2,
+      color: scheme.surfaceContainerHigh,
+      shape: const StadiumBorder(),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          IconButton(
+            visualDensity: VisualDensity.compact,
+            iconSize: 18,
+            constraints: const BoxConstraints(
+              minWidth: kMinInteractiveDimension,
+              minHeight: kMinInteractiveDimension,
+            ),
+            tooltip: isUnread ? markSeenLabel : markUnseenLabel,
+            icon: Icon(
+              isUnread ? Icons.visibility_outlined : Icons.visibility_off_outlined,
+            ),
+            onPressed: isUnread ? onMarkSeen : onMarkUnseen,
+          ),
+          IconButton(
+            visualDensity: VisualDensity.compact,
+            iconSize: 18,
+            constraints: const BoxConstraints(
+              minWidth: kMinInteractiveDimension,
+              minHeight: kMinInteractiveDimension,
+            ),
+            tooltip: markUnseenLabel,
+            icon: const Icon(Icons.more_horiz),
+            onPressed: onMore,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _UpdatesFeedRowOverflow extends StatelessWidget {
+  const _UpdatesFeedRowOverflow({
+    required this.isUnread,
+    required this.markSeenLabel,
+    required this.markUnseenLabel,
+    required this.onMarkSeen,
+    required this.onMarkUnseen,
+  });
+
+  final bool isUnread;
+  final String markSeenLabel;
+  final String markUnseenLabel;
+  final VoidCallback onMarkSeen;
+  final VoidCallback onMarkUnseen;
+
+  @override
+  Widget build(BuildContext context) {
+    return PopupMenuButton<void>(
+      tooltip: MaterialLocalizations.of(context).showMenuTooltip,
+      padding: EdgeInsets.zero,
+      constraints: const BoxConstraints(
+        minWidth: kMinInteractiveDimension,
+        minHeight: kMinInteractiveDimension,
+      ),
+      icon: const Icon(Icons.more_vert),
+      itemBuilder: (context) => [
+        if (isUnread)
+          PopupMenuItem<void>(
+            onTap: onMarkSeen,
+            child: Text(markSeenLabel),
+          )
+        else
+          PopupMenuItem<void>(
+            onTap: onMarkUnseen,
+            child: Text(markUnseenLabel),
+          ),
+      ],
     );
   }
 }
@@ -241,39 +502,6 @@ class _LeadingGlyph extends StatelessWidget {
             ),
         ],
       ),
-    );
-  }
-}
-
-class _SeenTrailing extends StatelessWidget {
-  const _SeenTrailing({
-    required this.unread,
-    required this.onMarkSeen,
-    required this.onMarkUnseen,
-    required this.markSeenTooltip,
-    required this.markUnseenTooltip,
-  });
-
-  final bool unread;
-  final VoidCallback onMarkSeen;
-  final VoidCallback onMarkUnseen;
-  final String markSeenTooltip;
-  final String markUnseenTooltip;
-
-  @override
-  Widget build(BuildContext context) {
-    final tt = context.tt;
-    if (unread) {
-      return IconButton(
-        tooltip: markSeenTooltip,
-        onPressed: onMarkSeen,
-        icon: Icon(Icons.radio_button_unchecked, color: tt.textFaint),
-      );
-    }
-    return IconButton(
-      tooltip: markUnseenTooltip,
-      onPressed: onMarkUnseen,
-      icon: Icon(Icons.check_circle, color: tt.good),
     );
   }
 }

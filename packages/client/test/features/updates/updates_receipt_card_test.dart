@@ -94,7 +94,7 @@ void main() {
     );
     await tester.pump();
 
-    expect(find.text('Alex accepted your ask: Bring tools'), findsOneWidget);
+    expect(find.text('Alex accepted your ask'), findsOneWidget);
     expect(find.text('Garden cleanup'), findsOneWidget);
     expect(find.textContaining('ago'), findsOneWidget);
   });
@@ -135,8 +135,10 @@ void main() {
       ),
     );
     await tester.pump();
-    expect(find.byIcon(Icons.radio_button_unchecked), findsOneWidget);
-    await tester.tap(find.byIcon(Icons.radio_button_unchecked));
+    expect(find.byIcon(Icons.radio_button_unchecked), findsNothing);
+    await tester.tap(find.byIcon(Icons.more_vert));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text(L10nEn().updatesMarkSeen));
     await tester.pump();
     expect(markedSeen, isTrue);
     expect(tapped, isFalse);
@@ -153,11 +155,11 @@ void main() {
       ),
     );
     await tester.pump();
-    expect(find.byIcon(Icons.check_circle), findsOneWidget);
-    expect(find.byIcon(Icons.radio_button_unchecked), findsNothing);
-    expect(find.byType(IconButton), findsOneWidget);
+    expect(find.byIcon(Icons.check_circle), findsNothing);
     tapped = false;
-    await tester.tap(find.byIcon(Icons.check_circle));
+    await tester.tap(find.byIcon(Icons.more_vert));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text(L10nEn().updatesMarkUnseen));
     await tester.pump();
     expect(markedUnseen, isTrue);
     expect(tapped, isFalse);
