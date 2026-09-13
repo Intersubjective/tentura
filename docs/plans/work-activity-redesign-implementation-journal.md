@@ -51,12 +51,33 @@ DECISIONS:
 
 REMAINING: none. Proceed to UNIT 01.
 
+## UNIT 01 — complete — 2026-09-13
+
+COMMITS:
+- `c37f34186` feat(server): add the responsibility scope function
+- `aa1f15b64` test(server): cover responsibility scope base membership
+
+TESTS:
+- `cd packages/server && dart test -t pg -j 1 test/data/repository/responsibility_scope_pg_test.dart` → **8/8 passed**
+- `./scripts/check-custom-lints.sh packages/server` → `0 (baseline: 0)` — OK
+
+FILES:
+- `packages/server/lib/data/database/migration/m0168.dart` (new)
+- `packages/server/lib/data/database/migration/_migrations.dart` (edit)
+- `packages/server/test/data/repository/responsibility_scope_pg_test.dart` (new)
+
+FINDINGS: none
+
+DECISIONS: none
+
+REMAINING: none. Proceed to UNIT 02.
+
 ## Ordered unit checklist
 
 | Unit | Status |
 |---|---|
 | 00 | complete (overseer, this entry) |
-| 01 | pending |
+| 01 | complete |
 | 02 | pending |
 | 03 | pending |
 | 04 | pending |
