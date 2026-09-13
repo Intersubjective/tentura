@@ -72,12 +72,14 @@ DECISIONS: none
 
 REMAINING: none. Proceed to UNIT 02.
 
+**Manager verdict: ACCEPTED.** Independently re-ran `dart test -t pg -j 1 test/data/repository/responsibility_scope_pg_test.dart` (8/8 passed) and `./scripts/check-custom-lints.sh packages/server` (0, baseline 0). Read both commits: `m0168.dart` matches §2.2's base-set definition verbatim (authored non-deleted ∪ active-help-offer non-deleted beacon), same style as `m0117.dart` (STABLE SECURITY INVOKER, search_path pinned). Test suite covers all 8 plan-listed membership cases using the established `DisposablePgTarget` pattern (already used by 5+ other pg test files, not invented). Commits are properly split (migration+registration, then tests, then journal). Nothing outside the Owns list touched. No leaked worker processes found.
+
 ## Ordered unit checklist
 
 | Unit | Status |
 |---|---|
 | 00 | complete (overseer, this entry) |
-| 01 | complete |
+| 01 | complete (accepted) |
 | 02 | pending |
 | 03 | pending |
 | 04 | pending |
