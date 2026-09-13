@@ -146,6 +146,31 @@ REMAINING: none. Proceed to UNIT 04.
 - The digest's extra `v.created_at > ii.latest_forward_at` join condition (excluding the very receipt that arrived at forward time from counting as "new" watched-item activity) is not explicitly specified either way in the plan, but is a sensible, defensible reading — not a contradiction of anything explicit — so left as-is.
 - No leaked worker processes; clean git status otherwise; commits appropriately split (repository change, tests, journal).
 
+## UNIT 04 — complete — 2026-09-14
+
+COMMITS:
+- `534d97ae0` feat(server): mark a request's receipts seen
+- `a4645c084` test(server): cover mark seen for beacon
+
+TESTS:
+- `cd packages/server && dart test -t pg -j 1 test/data/repository/attention_mark_seen_for_beacon_pg_test.dart` → **4/4 passed**
+- `cd packages/server && dart test test/api/controllers/graphql/attention_graphql_test.dart` → **12/12 passed**
+- `./scripts/check-custom-lints.sh packages/server` → `0 (baseline: 0)` — OK
+
+FILES:
+- `packages/server/lib/domain/port/attention_ack_port.dart`
+- `packages/server/lib/data/repository/attention_repository.dart`
+- `packages/server/lib/api/controllers/graphql/mutation/mutation_attention.dart`
+- `packages/server/test/data/repository/attention_mark_seen_for_beacon_pg_test.dart` (new)
+- `packages/server/test/api/controllers/graphql/attention_graphql_test.dart`
+
+FINDINGS:
+- The existing `markSeen` pg case in `attention_repository_pg_test.dart` does not assert `LISTEN entity_changes`; realtime coverage for `seen_at` follows `settlement_notify_pg_test.dart` / migration test patterns instead.
+
+DECISIONS: none
+
+REMAINING: none. Proceed to UNIT 05.
+
 ## Ordered unit checklist
 
 | Unit | Status |
@@ -154,7 +179,7 @@ REMAINING: none. Proceed to UNIT 04.
 | 01 | complete (accepted) |
 | 02 | complete (accepted) |
 | 03 | complete (accepted, one defect fixed by overseer) |
-| 04 | pending |
+| 04 | complete |
 | 05 | pending |
 | 06 | pending |
 | 07 | pending |
