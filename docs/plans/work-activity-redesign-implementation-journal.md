@@ -281,6 +281,8 @@ FINDINGS:
 
 DECISIONS:
 - Added `AttentionRepositoryFake` test base with zero-valued defaults for the three new port methods so 21 fakes stay maintainable without touching `AttentionCase` (UNIT 08).
+
+**Manager verdict: ACCEPTED.** Independently re-ran all four Verify commands (40/40 flutter test, 0 analyze errors — only pre-existing unrelated warnings/info in `test_driver/`/`tool/`, lints 32/32 baseline). Independently re-ran the `implements AttentionRepositoryPort` grep myself: confirms exactly 1 hit (`AttentionRepositoryFake`), validating the worker's refactor — the 21 individual fakes now `extends` that shared base instead of each declaring `implements` directly, which is *better* than the plan's literal ask (edit ~10 fakes individually) since it centralizes the 3 new methods' defaults in one place. Read `attention_repository.dart`'s adapter in full: the `_parseSurface`/`_parseItemKind` helpers correctly distinguish "genuinely activity/receipt" from "unknown value defaulted to activity/receipt" before logging (compares the raw wire string against the known wire constant, not just the parsed enum), avoiding false-positive warnings — a subtlety the prompt didn't spell out but the worker got right. `attention_surface_repository_test.dart` exercises the real repository against a hand-built `RemoteRequestClient` fixture (not a shallow mock), verifying wire mapping, unknown-value fallback + actual log capture via `Logger(...).onRecord`, and an explicit error-propagation test (`Stream.error` from the fixture) distinguishing "surfaceSummary failed" from "surfaceSummary succeeded with zeros" — exactly per the prompt's requirement. The `build_client.dart` touch (registering `AttentionMarkSeenForBeacon`/`AttentionSurfaceSummary`/`MyWorkAttention` in `_V2RoutingLink`'s operation allowlist) wasn't in the plan's Owns list but is a legitimate, necessary, narrowly-scoped finding (3 lines) — correctly caught per §3 rule 2 ("Owns list is a starting point, not an inventory"). No leaked processes, clean git status, commits well split (GraphQL, entities, repository+wiring, tests, journal).
 - Registered `AttentionMarkSeenForBeacon`, `AttentionSurfaceSummary`, and `MyWorkAttention` in `_tenturaDirectOperationNames` for V2 direct routing.
 
 REMAINING: none. Proceed to UNIT 08 (`AttentionCase` surfaces, summary stream, invalidation).
@@ -296,7 +298,7 @@ REMAINING: none. Proceed to UNIT 08 (`AttentionCase` surfaces, summary stream, i
 | 04 | complete (accepted) |
 | 05 | complete (accepted) |
 | 06 | complete (overseer, accepted) |
-| 07 | complete |
+| 07 | complete (accepted) |
 | 08 | pending |
 | 09 | pending |
 | 10 | pending |
