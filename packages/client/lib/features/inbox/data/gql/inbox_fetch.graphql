@@ -1,28 +1,11 @@
 # import '/data/gql/beacon_model.graphql'
+# import 'inbox_item_fields.graphql'
 
 query InboxFetch($userId: String!) {
   inbox_item(
     order_by: {latest_forward_at: desc}
     where: {beacon: {can_read_content: {_eq: true}}}
   ) {
-    beacon_id
-    context
-    forward_count
-    latest_forward_at
-    latest_note_preview
-    status
-    rejection_message
-    before_response_terminal_at
-    tombstone_dismissed_at
-    inbox_provenance_data
-    beacon {
-      ...BeaconModel
-      my_forward_edges: forward_edges(
-        where: {sender_id: {_eq: $userId}}
-        limit: 1
-      ) {
-        id
-      }
-    }
+    ...InboxItemFields
   }
 }

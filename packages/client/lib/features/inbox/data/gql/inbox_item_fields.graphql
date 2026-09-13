@@ -1,0 +1,23 @@
+# import '/data/gql/beacon_model.graphql'
+
+fragment InboxItemFields on inbox_item {
+  beacon_id
+  context
+  forward_count
+  latest_forward_at
+  latest_note_preview
+  status
+  rejection_message
+  before_response_terminal_at
+  tombstone_dismissed_at
+  inbox_provenance_data
+  beacon {
+    ...BeaconModel
+    my_forward_edges: forward_edges(
+      where: {sender_id: {_eq: $userId}}
+      limit: 1
+    ) {
+      id
+    }
+  }
+}
