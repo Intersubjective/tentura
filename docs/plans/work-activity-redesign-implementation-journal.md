@@ -429,6 +429,8 @@ DECISIONS:
 
 REMAINING: none. Proceed to UNIT 12.
 
+**Manager verdict: ACCEPTED.** Independently re-ran all three Verify commands (build_runner clean, 127/127 flutter test, lints 32/32 baseline). Confirmed via `git log` that `derive_my_work_cards.dart` was not touched by any commit in this unit (last touched by pre-existing, unrelated commits). The two-call attention-fetch design (once after desk load with only non-archived ids, again inside `_loadArchived`'s success path recomputing the full union once archived cards exist) is a sensible reading of "union of non-archived and archived" that avoids eagerly fetching archived-card attention on every desk load — each call still reads `state.nonArchivedCards`/`state.archivedCards` fresh at call time, so the second call genuinely covers the full union, and both are guarded by the same `_fetchSeq` staleness check the cubit already uses for card fetches. The `AttentionCase.myWorkAttention` passthrough and `MyWorkCase.loadMyWorkAttention`/`markSeenForBeacon` wiring weren't explicit in the plan's Owns list but are necessary, correctly-layered additions (`MyWorkCase` goes through `AttentionCase`, never the raw repository directly) — legitimate per §3 rule 2. Chunking at 500 mirrors the server-side guard exactly, with correct final-partial-chunk slicing. Failure path only changes `attentionLoaded`, leaving prior `attentionByBeacon` entries intact — correctly matches design §4.8's "unknown, not empty" requirement. `openedBeacon` zeroes only `unseenCount`, leaves `liveObligations`/`latestUnseen` untouched, and awaits `markSeenForBeacon` after the optimistic emit. All 5 required test scenarios present. No leaked processes, clean git status.
+
 ## Ordered unit checklist
 
 | Unit | Status |
@@ -444,7 +446,7 @@ REMAINING: none. Proceed to UNIT 12.
 | 08 | complete (accepted) |
 | 09 | complete (accepted) |
 | 10 | complete (accepted) |
-| 11 | complete |
+| 11 | complete (accepted) |
 | 12 | pending |
 | 13 | pending |
 | 14 | pending |
