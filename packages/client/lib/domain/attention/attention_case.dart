@@ -66,12 +66,23 @@ final class AttentionCase {
   final _snapshot = BehaviorSubject<AttentionFeedSnapshot>.seeded(
     const AttentionFeedSnapshot(),
   );
+  final _surfaceSummarySubject =
+      BehaviorSubject<AttentionSurfaceSummary>.seeded(
+        const AttentionSurfaceSummary(
+          activityUnreadTotal: 0,
+          myWorkUnreadTotal: 0,
+          needsYouTotal: 0,
+        ),
+      );
   final Map<String, AttentionReceipt> _receiptsById = {};
 
   StreamSubscription<String>? _accountSub;
   StreamSubscription<RealtimeEntityChange>? _notificationSub;
   StreamSubscription<RealtimeCatchUp>? _catchUpSub;
   StreamSubscription<dynamic>? _blockSub;
+  bool _surfaceSummaryRefreshInFlight = false;
+  bool _surfaceSummaryRefreshQueued = false;
+  int _surfaceSummaryRequestSerial = 0;
   String _accountId = '';
   int _accountGeneration = 0;
   final Map<String, bool> _headRefreshInFlight = {};
@@ -89,6 +100,9 @@ final class AttentionCase {
 
   Stream<AttentionSummary> get unreadSummary =>
       _snapshot.stream.map((snapshot) => snapshot.summary).distinct();
+
+  Stream<AttentionSurfaceSummary> get surfaceSummary =>
+      _surfaceSummarySubject.stream.distinct();
 
   Stream<AttentionFeedSnapshot> get feedPages => _snapshot.stream;
 
@@ -111,10 +125,30 @@ final class AttentionCase {
   void _start() {
     _accountSub = _account.currentAccountChanges.listen(_onAccountChanged);
     _notificationSub = _realtime
-        .changesFor(const {RealtimeEntityKind.notification})
-        .listen((_) => _requestHeadRefreshForAllAttached());
-    _catchUpSub = _realtime.catchUps.listen((_) => _requestHeadRefreshForAllAttached());
-    _blockSub = _blockCase.changes.listen((_) => _requestHeadRefreshForAllAttached());
+        .changesFor(const {
+          RealtimeEntityKind.notification,
+          RealtimeEntityKind.helpOffer,
+          RealtimeEntityKind.inboxItem,
+        })
+        .listen(_onRealtimeEntityChange);
+    _catchUpSub = _realtime.catchUps.listen((_) {
+      _requestHeadRefreshForAllAttached();
+      unawaited(_requestSurfaceSummaryRefresh());
+    });
+    _blockSub = _blockCase.changes.listen((_) {
+      _requestHeadRefreshForAllAttached();
+      unawaited(_requestSurfaceSummaryRefresh());
+    });
+  }
+
+  void _onRealtimeEntityChange(RealtimeEntityChange change) {
+    unawaited(_requestSurfaceSummaryRefresh());
+    if (change.kind == RealtimeEntityKind.helpOffer ||
+        change.kind == RealtimeEntityKind.inboxItem) {
+      _requestHeadRefreshForAttachedActivityStream();
+    } else {
+      _requestHeadRefreshForAllAttached();
+    }
   }
 
   void _onAccountChanged(String accountId) {
@@ -129,7 +163,18 @@ final class AttentionCase {
     _acks.resetForAccount(accountId);
     _feedSessions.resetForAccount();
     _emit(const AttentionFeedSnapshot());
-    if (accountId.isNotEmpty) _requestHeadRefreshForAllAttached();
+    _surfaceSummarySubject.add(
+      const AttentionSurfaceSummary(
+        activityUnreadTotal: 0,
+        myWorkUnreadTotal: 0,
+        needsYouTotal: 0,
+      ),
+    );
+    _surfaceSummaryRequestSerial = 0;
+    if (accountId.isNotEmpty) {
+      _requestHeadRefreshForAllAttached();
+      unawaited(_requestSurfaceSummaryRefresh());
+    }
   }
 
   void setActiveView(String destinationId, AttentionView view) {
@@ -195,6 +240,7 @@ final class AttentionCase {
       view: view,
       cursor: cursor,
       search: search,
+      surface: surfaceForDestination(destinationId),
     );
     if (accountGeneration != _accountGeneration) return;
     final landed = _feedSessions.session(destinationId);
@@ -212,8 +258,13 @@ final class AttentionCase {
     if (pending.isEmpty) return;
     final generation = _accountGeneration;
     final unreadDelta = _displayedUnreadCount(pending);
+    final surfaceDeltas = _surfaceUnreadDeltasForIds(pending, seen: false);
     final token = _acks.markSeen(pending);
     _applyOptimisticAcks(unreadDelta: -unreadDelta);
+    _applyOptimisticSurfaceSummary(
+      activityUnreadDelta: -surfaceDeltas.activity,
+      myWorkUnreadDelta: -surfaceDeltas.myWork,
+    );
     try {
       await _runAfterAckBarriers(pending, generation, () async {
         final still = pending.where((id) => _acks.hasToken(id, token)).toSet();
@@ -226,11 +277,18 @@ final class AttentionCase {
       if (generation == _accountGeneration) {
         _acks.discard(pending, token: token);
         _applyOptimisticAcks(unreadDelta: unreadDelta);
+        _applyOptimisticSurfaceSummary(
+          activityUnreadDelta: surfaceDeltas.activity,
+          myWorkUnreadDelta: surfaceDeltas.myWork,
+        );
       }
       _logger.warning('Attention mark-seen failed', error, stackTrace);
       rethrow;
     }
-    if (generation == _accountGeneration) _requestHeadRefreshForAllAttached();
+    if (generation == _accountGeneration) {
+      _requestHeadRefreshForAllAttached();
+      unawaited(_requestSurfaceSummaryRefresh());
+    }
   }
 
   Future<void> markUnseen(Iterable<String> ids) async {
@@ -238,8 +296,13 @@ final class AttentionCase {
     if (pending.isEmpty) return;
     final generation = _accountGeneration;
     final unreadDelta = _displayedSeenCount(pending);
+    final surfaceDeltas = _surfaceUnreadDeltasForIds(pending, seen: true);
     final token = _acks.markUnseen(pending);
     _applyOptimisticAcks(unreadDelta: unreadDelta);
+    _applyOptimisticSurfaceSummary(
+      activityUnreadDelta: surfaceDeltas.activity,
+      myWorkUnreadDelta: surfaceDeltas.myWork,
+    );
     try {
       await _runAfterAckBarriers(pending, generation, () async {
         final still = pending.where((id) => _acks.hasToken(id, token)).toSet();
@@ -251,6 +314,10 @@ final class AttentionCase {
         if (updated == 0) {
           _acks.discard(still, token: token);
           _applyOptimisticAcks(unreadDelta: -unreadDelta);
+          _applyOptimisticSurfaceSummary(
+            activityUnreadDelta: -surfaceDeltas.activity,
+            myWorkUnreadDelta: -surfaceDeltas.myWork,
+          );
           return;
         }
         _acks.markCommitted(still, token);
@@ -259,22 +326,97 @@ final class AttentionCase {
       if (generation == _accountGeneration) {
         _acks.discard(pending, token: token);
         _applyOptimisticAcks(unreadDelta: -unreadDelta);
+        _applyOptimisticSurfaceSummary(
+          activityUnreadDelta: -surfaceDeltas.activity,
+          myWorkUnreadDelta: -surfaceDeltas.myWork,
+        );
       }
       _logger.warning('Attention mark-unseen failed', error, stackTrace);
       rethrow;
     }
-    if (generation == _accountGeneration) _requestHeadRefreshForAllAttached();
+    if (generation == _accountGeneration) {
+      _requestHeadRefreshForAllAttached();
+      unawaited(_requestSurfaceSummaryRefresh());
+    }
   }
 
-  Future<void> markAllSeen() async {
+  Future<void> markSeenForBeacon(String beaconId) async {
+    if (beaconId.isEmpty) return;
+    final pending = _receiptsById.values
+        .where(
+          (receipt) =>
+              receipt.beaconId == beaconId && !_displaysSeen(receipt.id),
+        )
+        .map((receipt) => receipt.id)
+        .toSet();
+    final generation = _accountGeneration;
+    final unreadDelta = _displayedUnreadCount(pending);
+    final surfaceDeltas = _surfaceUnreadDeltasForIds(pending, seen: false);
+    final token = pending.isEmpty
+        ? null
+        : _acks.markSeen(pending);
+    if (token != null) {
+      _applyOptimisticAcks(unreadDelta: -unreadDelta);
+      _applyOptimisticSurfaceSummary(
+        activityUnreadDelta: -surfaceDeltas.activity,
+        myWorkUnreadDelta: -surfaceDeltas.myWork,
+      );
+    }
+    try {
+      await _runAfterAckBarriers(pending, generation, () async {
+        if (generation != _accountGeneration) return;
+        await _repository.markSeenForBeacon(beaconId);
+        if (generation != _accountGeneration) return;
+        if (token != null) {
+          _acks.markCommitted(pending, token);
+        }
+      });
+    } catch (error, stackTrace) {
+      if (generation == _accountGeneration && token != null) {
+        _acks.discard(pending, token: token);
+        _applyOptimisticAcks(unreadDelta: unreadDelta);
+        _applyOptimisticSurfaceSummary(
+          activityUnreadDelta: surfaceDeltas.activity,
+          myWorkUnreadDelta: surfaceDeltas.myWork,
+        );
+      }
+      _logger.warning(
+        'Attention mark-seen-for-beacon failed',
+        error,
+        stackTrace,
+      );
+      rethrow;
+    }
+    if (generation == _accountGeneration) {
+      _requestHeadRefreshForAllAttached();
+      unawaited(_requestSurfaceSummaryRefresh());
+    }
+  }
+
+  Future<void> markAllSeen({AttentionSurface? surface}) async {
     final ids = _receiptsById.values
         .where((receipt) => !_displaysSeen(receipt.id))
+        .where((receipt) => surface == null || receipt.surface == surface)
         .map((receipt) => receipt.id)
         .toSet();
     final generation = _accountGeneration;
     final previousUnread = snapshot.summary.unreadTotal;
+    final previousSurface = _surfaceSummarySubject.value;
     final token = _acks.markAllSeen(ids);
-    _applyOptimisticAcks(unreadTotal: 0);
+    final unreadDelta = _displayedUnreadCount(ids);
+    if (surface == null) {
+      _applyOptimisticAcks(unreadTotal: 0);
+    } else {
+      _applyOptimisticAcks(unreadDelta: -unreadDelta);
+    }
+    _applyOptimisticSurfaceSummary(
+      activityUnreadTotal: surface == null || surface == AttentionSurface.activity
+          ? 0
+          : null,
+      myWorkUnreadTotal: surface == null || surface == AttentionSurface.myWork
+          ? 0
+          : null,
+    );
     final previous = _markAllSeenChain;
     final op = previous.catchError((_) {}).then((_) async {
       await Future.wait([
@@ -282,13 +424,14 @@ final class AttentionCase {
       ]);
       if (generation != _accountGeneration) return;
       try {
-        await _repository.markAllSeen();
+        await _repository.markAllSeen(surface: surface);
         if (generation != _accountGeneration) return;
         _acks.markCommitted(ids, token);
       } catch (error, stackTrace) {
         if (generation == _accountGeneration) {
           _acks.discard(ids, token: token);
           _applyOptimisticAcks(unreadTotal: previousUnread);
+          _surfaceSummarySubject.add(previousSurface);
         }
         _logger.warning('Attention mark-all-seen failed', error, stackTrace);
         rethrow;
@@ -296,7 +439,10 @@ final class AttentionCase {
     });
     _markAllSeenChain = op.catchError((_) {});
     await op;
-    if (generation == _accountGeneration) _requestHeadRefreshForAllAttached();
+    if (generation == _accountGeneration) {
+      _requestHeadRefreshForAllAttached();
+      unawaited(_requestSurfaceSummaryRefresh());
+    }
   }
 
   Future<void> settle(String receiptId) async {
@@ -304,6 +450,44 @@ final class AttentionCase {
     if (receipt == null || !receipt.isLiveObligation) return;
     await _repository.settle(receiptId: receiptId, kind: 'resolved');
     _requestHeadRefreshForAllAttached();
+    unawaited(_requestSurfaceSummaryRefresh());
+  }
+
+  void _requestHeadRefreshForAttachedActivityStream() {
+    for (final destinationId in _feedSessions.attachedDestinationIds) {
+      if (destinationId == AttentionFeedDestinationId.activityStream) {
+        unawaited(_requestHeadRefresh(destinationId));
+      }
+    }
+  }
+
+  Future<void> _requestSurfaceSummaryRefresh() async {
+    if (_accountId.isEmpty) return;
+    if (_surfaceSummaryRefreshInFlight) {
+      _surfaceSummaryRefreshQueued = true;
+      return;
+    }
+    _surfaceSummaryRefreshInFlight = true;
+    final accountGeneration = _accountGeneration;
+    final requestSerial = ++_surfaceSummaryRequestSerial;
+    try {
+      final summary = await _repository.surfaceSummary();
+      if (accountGeneration != _accountGeneration) return;
+      if (requestSerial != _surfaceSummaryRequestSerial) return;
+      if (!_surfaceSummarySubject.isClosed) {
+        _surfaceSummarySubject.add(summary);
+      }
+    } catch (error, stackTrace) {
+      if (accountGeneration != _accountGeneration) return;
+      if (requestSerial != _surfaceSummaryRequestSerial) return;
+      _logger.warning('Attention surface summary failed', error, stackTrace);
+    } finally {
+      _surfaceSummaryRefreshInFlight = false;
+      if (_surfaceSummaryRefreshQueued) {
+        _surfaceSummaryRefreshQueued = false;
+        unawaited(_requestSurfaceSummaryRefresh());
+      }
+    }
   }
 
   void _requestHeadRefreshForAllAttached() {
@@ -338,6 +522,7 @@ final class AttentionCase {
       final feed = await _repository.fetch(
         view: view,
         search: search,
+        surface: surfaceForDestination(destinationId),
       );
       if (accountGeneration != _accountGeneration) return;
       final landed = _feedSessions.session(destinationId);
@@ -456,7 +641,55 @@ final class AttentionCase {
     return n;
   }
 
-  void _applyOptimisticAcks({int unreadDelta = 0, int? unreadTotal}) {
+  ({int activity, int myWork}) _surfaceUnreadDeltasForIds(
+    Iterable<String> ids, {
+    required bool seen,
+  }) {
+    var activity = 0;
+    var myWork = 0;
+    for (final id in ids) {
+      final displaysSeen = _displaysSeen(id);
+      if (seen && !displaysSeen) continue;
+      if (!seen && displaysSeen) continue;
+      final receipt = _receiptsById[id];
+      if (receipt == null) continue;
+      switch (receipt.surface) {
+        case AttentionSurface.activity:
+          activity++;
+        case AttentionSurface.myWork:
+          myWork++;
+      }
+    }
+    return (activity: activity, myWork: myWork);
+  }
+
+  void _applyOptimisticSurfaceSummary({
+    int activityUnreadDelta = 0,
+    int myWorkUnreadDelta = 0,
+    int? activityUnreadTotal,
+    int? myWorkUnreadTotal,
+    int? needsYouTotal,
+  }) {
+    final current = _surfaceSummarySubject.value;
+    if (!_surfaceSummarySubject.isClosed) {
+      _surfaceSummarySubject.add(
+        current.copyWith(
+          activityUnreadTotal:
+              activityUnreadTotal ??
+              math.max(0, current.activityUnreadTotal + activityUnreadDelta),
+          myWorkUnreadTotal:
+              myWorkUnreadTotal ??
+              math.max(0, current.myWorkUnreadTotal + myWorkUnreadDelta),
+          needsYouTotal: needsYouTotal ?? current.needsYouTotal,
+        ),
+      );
+    }
+  }
+
+  void _applyOptimisticAcks({
+    int unreadDelta = 0,
+    int? unreadTotal,
+  }) {
     for (final destinationId in _feedSessions.attachedDestinationIds) {
       final session = _feedSessions.session(destinationId);
       final pages = <AttentionView, AttentionFeedPage>{
@@ -531,5 +764,6 @@ final class AttentionCase {
     await _blockSub?.cancel();
     await _qaLatencySamples?.close();
     await _snapshot.close();
+    await _surfaceSummarySubject.close();
   }
 }
