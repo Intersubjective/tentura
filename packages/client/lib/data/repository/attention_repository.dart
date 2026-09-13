@@ -1,18 +1,25 @@
 import 'package:injectable/injectable.dart';
+import 'package:logging/logging.dart';
 
 import 'package:tentura/data/service/remote_api_client/remote_request_client.dart';
 import 'package:tentura/data/service/remote_api_service.dart';
 import 'package:tentura/domain/attention/entity/attention_feed.dart';
 import 'package:tentura/domain/attention/entity/attention_receipt.dart';
 import 'package:tentura/domain/attention/entity/attention_summary.dart';
+import 'package:tentura/domain/attention/entity/my_work_beacon_attention.dart';
 import 'package:tentura/domain/attention/port/attention_repository_port.dart';
+import 'package:tentura/features/attention/data/gql/_g/attention_feed.data.gql.dart';
 import 'package:tentura/features/attention/data/gql/_g/attention_feed.req.gql.dart';
 import 'package:tentura/features/attention/data/gql/_g/attention_mark_all_seen.req.gql.dart';
 import 'package:tentura/features/attention/data/gql/_g/attention_mark_seen.req.gql.dart';
+import 'package:tentura/features/attention/data/gql/_g/attention_mark_seen_for_beacon.req.gql.dart';
 import 'package:tentura/features/attention/data/gql/_g/attention_mark_unseen.req.gql.dart';
 import 'package:tentura/features/attention/data/gql/_g/attention_live_obligations.req.gql.dart';
 import 'package:tentura/features/attention/data/gql/_g/attention_markers.req.gql.dart';
 import 'package:tentura/features/attention/data/gql/_g/attention_settle.req.gql.dart';
+import 'package:tentura/features/attention/data/gql/_g/attention_surface_summary.req.gql.dart';
+import 'package:tentura/features/attention/data/gql/_g/my_work_attention.data.gql.dart';
+import 'package:tentura/features/attention/data/gql/_g/my_work_attention.req.gql.dart';
 
 @LazySingleton(
   as: AttentionRepositoryPort,
@@ -24,6 +31,7 @@ final class AttentionRepository implements AttentionRepositoryPort {
   final RemoteRequestClient _remoteClient;
 
   static const _label = 'Attention';
+  static final _log = Logger('AttentionRepository');
 
   @override
   Future<AttentionFeed> fetch({
@@ -31,6 +39,7 @@ final class AttentionRepository implements AttentionRepositoryPort {
     String? cursor,
     String? search,
     int limit = 50,
+    AttentionSurface? surface,
   }) async {
     final data = await _remoteClient
         .request(
@@ -39,7 +48,8 @@ final class AttentionRepository implements AttentionRepositoryPort {
               ..view = view.name
               ..cursor = cursor
               ..search = search
-              ..limit = limit,
+              ..limit = limit
+              ..surface = surface?.wireName,
           ),
         )
         .firstWhere((response) => response.dataSource == DataSource.Link)
@@ -53,39 +63,197 @@ final class AttentionRepository implements AttentionRepositoryPort {
       page: AttentionFeedPage(
         nextCursor: feed.page.nextCursor,
         items: _uniqueByReceiptId([
-          for (final item in feed.page.items)
-            AttentionReceipt(
-              id: item.id,
-              category: item.category,
-              kind: item.kind,
-              priority: item.priority,
-              title: item.title,
-              body: item.body,
-              actionUrl: item.actionUrl,
-              createdAt: DateTime.parse(item.createdAt),
-              seenAt: item.seenAt == null
-                  ? null
-                  : DateTime.tryParse(item.seenAt!),
-              collapsedCount: item.collapsedCount,
-              beaconId: item.beaconId,
-              coordinationItemId: item.coordinationItemId,
-              actorUserId: item.actorUserId,
-              sourceEventKey: item.sourceEventKey,
-              destinationKind: item.destinationKind,
-              targetEntityId: item.targetEntityId,
-              presentationKey: item.presentationKey,
-              presentationPayloadJson: item.presentationPayloadJson,
-              inAppPreferenceClass: item.inAppPreferenceClass,
-              requiresAction: item.requiresAction,
-              attentionThreadKey: item.attentionThreadKey,
-              settlementKind: item.settlementKind,
-              settledAt: item.settledAt == null
-                  ? null
-                  : DateTime.tryParse(item.settledAt!),
-            ),
+          for (final item in feed.page.items) _mapFeedReceipt(item),
         ]),
       ),
     );
+  }
+
+  AttentionReceipt _mapFeedReceipt(
+    GAttentionFeedData_attentionFeed_page_items item,
+  ) => _mapReceiptWire(
+    id: item.id,
+    category: item.category,
+    kind: item.kind,
+    priority: item.priority,
+    title: item.title,
+    body: item.body,
+    actionUrl: item.actionUrl,
+    createdAt: item.createdAt,
+    seenAt: item.seenAt,
+    collapsedCount: item.collapsedCount,
+    beaconId: item.beaconId,
+    coordinationItemId: item.coordinationItemId,
+    actorUserId: item.actorUserId,
+    sourceEventKey: item.sourceEventKey,
+    destinationKind: item.destinationKind,
+    targetEntityId: item.targetEntityId,
+    presentationKey: item.presentationKey,
+    presentationPayloadJson: item.presentationPayloadJson,
+    inAppPreferenceClass: item.inAppPreferenceClass,
+    requiresAction: item.requiresAction,
+    attentionThreadKey: item.attentionThreadKey,
+    settlementKind: item.settlementKind,
+    settledAt: item.settledAt,
+    surface: item.surface,
+    itemKind: item.itemKind,
+    forwardOutcome: item.forwardOutcome,
+    forwardCount: item.forwardCount,
+    digestCount: item.digestCount,
+  );
+
+  AttentionReceipt _mapMyWorkReceipt(
+    GMyWorkAttentionData_myWorkAttention_latestUnseen item,
+  ) => _mapReceiptWire(
+    id: item.id,
+    category: item.category,
+    kind: item.kind,
+    priority: item.priority,
+    title: item.title,
+    body: item.body,
+    actionUrl: item.actionUrl,
+    createdAt: item.createdAt,
+    seenAt: item.seenAt,
+    collapsedCount: item.collapsedCount,
+    beaconId: item.beaconId,
+    coordinationItemId: item.coordinationItemId,
+    actorUserId: item.actorUserId,
+    sourceEventKey: item.sourceEventKey,
+    destinationKind: item.destinationKind,
+    targetEntityId: item.targetEntityId,
+    presentationKey: item.presentationKey,
+    presentationPayloadJson: item.presentationPayloadJson,
+    inAppPreferenceClass: item.inAppPreferenceClass,
+    requiresAction: item.requiresAction,
+    attentionThreadKey: item.attentionThreadKey,
+    settlementKind: item.settlementKind,
+    settledAt: item.settledAt,
+    surface: item.surface,
+    itemKind: item.itemKind,
+    forwardOutcome: item.forwardOutcome,
+    forwardCount: item.forwardCount,
+    digestCount: item.digestCount,
+  );
+
+  AttentionReceipt _mapMyWorkObligationReceipt(
+    GMyWorkAttentionData_myWorkAttention_liveObligations item,
+  ) => _mapReceiptWire(
+    id: item.id,
+    category: item.category,
+    kind: item.kind,
+    priority: item.priority,
+    title: item.title,
+    body: item.body,
+    actionUrl: item.actionUrl,
+    createdAt: item.createdAt,
+    seenAt: item.seenAt,
+    collapsedCount: item.collapsedCount,
+    beaconId: item.beaconId,
+    coordinationItemId: item.coordinationItemId,
+    actorUserId: item.actorUserId,
+    sourceEventKey: item.sourceEventKey,
+    destinationKind: item.destinationKind,
+    targetEntityId: item.targetEntityId,
+    presentationKey: item.presentationKey,
+    presentationPayloadJson: item.presentationPayloadJson,
+    inAppPreferenceClass: item.inAppPreferenceClass,
+    requiresAction: item.requiresAction,
+    attentionThreadKey: item.attentionThreadKey,
+    settlementKind: item.settlementKind,
+    settledAt: item.settledAt,
+    surface: item.surface,
+    itemKind: item.itemKind,
+    forwardOutcome: item.forwardOutcome,
+    forwardCount: item.forwardCount,
+    digestCount: item.digestCount,
+  );
+
+  AttentionReceipt _mapReceiptWire({
+    required String id,
+    required String category,
+    required String kind,
+    required String priority,
+    required String title,
+    required String body,
+    required String actionUrl,
+    required String createdAt,
+    String? seenAt,
+    required int collapsedCount,
+    String? beaconId,
+    String? coordinationItemId,
+    String? actorUserId,
+    String? sourceEventKey,
+    String? destinationKind,
+    String? targetEntityId,
+    String? presentationKey,
+    required String presentationPayloadJson,
+    String? inAppPreferenceClass,
+    required bool requiresAction,
+    String? attentionThreadKey,
+    String? settlementKind,
+    String? settledAt,
+    required String surface,
+    required String itemKind,
+    String? forwardOutcome,
+    int? forwardCount,
+    int? digestCount,
+  }) {
+    final parsedSurface = _parseSurface(surface);
+    final parsedItemKind = _parseItemKind(itemKind);
+    final parsedForwardOutcome = AttentionForwardOutcome.fromWire(forwardOutcome);
+    if (forwardOutcome != null && parsedForwardOutcome == null) {
+      _log.warning(
+        '[$_label] unknown forwardOutcome wire value: $forwardOutcome',
+      );
+    }
+    return AttentionReceipt(
+      id: id,
+      category: category,
+      kind: kind,
+      priority: priority,
+      title: title,
+      body: body,
+      actionUrl: actionUrl,
+      createdAt: DateTime.parse(createdAt),
+      seenAt: seenAt == null ? null : DateTime.tryParse(seenAt),
+      collapsedCount: collapsedCount,
+      beaconId: beaconId,
+      coordinationItemId: coordinationItemId,
+      actorUserId: actorUserId,
+      sourceEventKey: sourceEventKey,
+      destinationKind: destinationKind,
+      targetEntityId: targetEntityId,
+      presentationKey: presentationKey,
+      presentationPayloadJson: presentationPayloadJson,
+      inAppPreferenceClass: inAppPreferenceClass,
+      requiresAction: requiresAction,
+      attentionThreadKey: attentionThreadKey,
+      settlementKind: settlementKind,
+      settledAt: settledAt == null ? null : DateTime.tryParse(settledAt),
+      surface: parsedSurface,
+      itemKind: parsedItemKind,
+      forwardOutcome: parsedForwardOutcome,
+      forwardCount: forwardCount,
+      digestCount: digestCount,
+    );
+  }
+
+  AttentionSurface _parseSurface(String wire) {
+    final parsed = AttentionSurface.fromWire(wire);
+    if (parsed == AttentionSurface.activity &&
+        wire != AttentionSurface.activityWire) {
+      _log.warning('[$_label] unknown surface wire value: $wire');
+    }
+    return parsed;
+  }
+
+  AttentionItemKind _parseItemKind(String wire) {
+    final parsed = AttentionItemKind.fromWire(wire);
+    if (parsed == AttentionItemKind.receipt &&
+        wire != AttentionItemKind.receiptWire) {
+      _log.warning('[$_label] unknown itemKind wire value: $wire');
+    }
+    return parsed;
   }
 
   List<AttentionReceipt> _uniqueByReceiptId(
@@ -146,12 +314,72 @@ final class AttentionRepository implements AttentionRepositoryPort {
   }
 
   @override
-  Future<int> markAllSeen() async {
+  Future<int> markAllSeen({AttentionSurface? surface}) async {
     final data = await _remoteClient
-        .request(GAttentionMarkAllSeenReq())
+        .request(
+          GAttentionMarkAllSeenReq(
+            (request) => request.vars.surface = surface?.wireName,
+          ),
+        )
         .firstWhere((response) => response.dataSource == DataSource.Link)
         .then((response) => response.dataOrThrow(label: _label));
     return data.attentionMarkAllSeen;
+  }
+
+  @override
+  Future<AttentionSurfaceSummary> surfaceSummary() async {
+    final data = await _remoteClient
+        .request(GAttentionSurfaceSummaryReq())
+        .firstWhere((response) => response.dataSource == DataSource.Link)
+        .then((response) => response.dataOrThrow(label: _label));
+    final summary = data.attentionSurfaceSummary;
+    return AttentionSurfaceSummary(
+      activityUnreadTotal: summary.activityUnreadTotal,
+      myWorkUnreadTotal: summary.myWorkUnreadTotal,
+      needsYouTotal: summary.needsYouTotal,
+    );
+  }
+
+  @override
+  Future<int> markSeenForBeacon(String beaconId) async {
+    final data = await _remoteClient
+        .request(
+          GAttentionMarkSeenForBeaconReq(
+            (request) => request.vars.beaconId = beaconId,
+          ),
+        )
+        .firstWhere((response) => response.dataSource == DataSource.Link)
+        .then((response) => response.dataOrThrow(label: _label));
+    return data.attentionMarkSeenForBeacon;
+  }
+
+  @override
+  Future<List<MyWorkBeaconAttention>> myWorkAttention(
+    Set<String> beaconIds,
+  ) async {
+    if (beaconIds.isEmpty) return const [];
+    final data = await _remoteClient
+        .request(
+          GMyWorkAttentionReq(
+            (request) => request.vars.beaconIds.addAll(beaconIds),
+          ),
+        )
+        .firstWhere((response) => response.dataSource == DataSource.Link)
+        .then((response) => response.dataOrThrow(label: _label));
+    return [
+      for (final row in data.myWorkAttention)
+        MyWorkBeaconAttention(
+          beaconId: row.beaconId,
+          unseenCount: row.unseenCount,
+          latestUnseen: row.latestUnseen == null
+              ? null
+              : _mapMyWorkReceipt(row.latestUnseen!),
+          liveObligations: [
+            for (final obligation in row.liveObligations)
+              _mapMyWorkObligationReceipt(obligation),
+          ],
+        ),
+    ];
   }
 
   @override
