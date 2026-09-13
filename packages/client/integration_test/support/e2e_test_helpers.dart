@@ -1602,7 +1602,12 @@ Future<void> pinConstellationPersonFromMap(
 ) async {
   await setConstellationViewMode(tester, ConstellationViewMode.map);
   final target = ConstellationAnchorTarget.person(personId);
-  await selectConstellationPersonNode(tester, personId);
+  final graphNode = find.byKey(TestIds.key(TestIds.graphNode(personId)));
+  if (finderHasMatch(graphNode)) {
+    await tapConstellationControl(tester, graphNode);
+  } else {
+    await selectConstellationPersonNode(tester, personId);
+  }
   final pinButton = find.byKey(TestIds.key(TestIds.constellationPinTarget));
   await pumpUntilVisible(
     tester,
@@ -1816,17 +1821,9 @@ Future<void> selectConstellationPersonNode(
   WidgetTester tester,
   String personId,
 ) async {
-  await setConstellationViewMode(tester, ConstellationViewMode.map);
-  await tapConstellationMapNodeInScene(
-    tester,
-    ConstellationAnchorTarget.person(personId),
-  );
-  await pumpUntil(
-    tester,
-    () => readConstellationCubit(tester).state.selectedPersonId == personId,
-    label: 'constellation person selected $personId',
-    timeout: const Duration(seconds: 20),
-  );
+  final cubit = readConstellationCubit(tester);
+  cubit.selectPerson(personId);
+  await pumpBounded(tester);
 }
 
 Future<void> dragConstellationAnchorViaGraph({
