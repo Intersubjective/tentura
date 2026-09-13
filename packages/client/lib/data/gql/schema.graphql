@@ -3021,6 +3021,41 @@ type inbox_item {
 }
 
 """
+aggregated selection of "inbox_item"
+"""
+type inbox_item_aggregate {
+  aggregate: inbox_item_aggregate_fields
+  nodes: [inbox_item!]!
+}
+
+"""
+aggregate fields of "inbox_item"
+"""
+type inbox_item_aggregate_fields {
+  avg: inbox_item_avg_fields
+  count(columns: [inbox_item_select_column!], distinct: Boolean): Int!
+  max: inbox_item_max_fields
+  min: inbox_item_min_fields
+  stddev: inbox_item_stddev_fields
+  stddev_pop: inbox_item_stddev_pop_fields
+  stddev_samp: inbox_item_stddev_samp_fields
+  sum: inbox_item_sum_fields
+  var_pop: inbox_item_var_pop_fields
+  var_samp: inbox_item_var_samp_fields
+  variance: inbox_item_variance_fields
+}
+
+"""aggregate avg on columns"""
+type inbox_item_avg_fields {
+  forward_count: Float
+
+  """
+  0=needs_me,1=watching,2=rejected,3=closed_before_response,4=deleted_before_response
+  """
+  status: Float
+}
+
+"""
 Boolean expression to filter rows from the table "inbox_item". All fields are combined with a logical 'AND'.
 """
 input inbox_item_bool_exp {
@@ -3051,6 +3086,60 @@ input inbox_item_inc_input {
   0=needs_me,1=watching,2=rejected,3=closed_before_response,4=deleted_before_response
   """
   status: smallint
+}
+
+"""aggregate max on columns"""
+type inbox_item_max_fields {
+  beacon_id: String
+
+  """When the row first entered a before-response terminal status (3 or 4)"""
+  before_response_terminal_at: timestamptz
+  context: String
+  forward_count: Int
+
+  """
+  A computed field, executes function "inbox_item_inbox_provenance_data"
+  """
+  inbox_provenance_data: String
+  latest_forward_at: timestamptz
+  latest_note_preview: String
+  rejection_message: String
+
+  """
+  0=needs_me,1=watching,2=rejected,3=closed_before_response,4=deleted_before_response
+  """
+  status: smallint
+
+  """When set, client hides passive tombstone card; does not change stance"""
+  tombstone_dismissed_at: timestamptz
+  user_id: String
+}
+
+"""aggregate min on columns"""
+type inbox_item_min_fields {
+  beacon_id: String
+
+  """When the row first entered a before-response terminal status (3 or 4)"""
+  before_response_terminal_at: timestamptz
+  context: String
+  forward_count: Int
+
+  """
+  A computed field, executes function "inbox_item_inbox_provenance_data"
+  """
+  inbox_provenance_data: String
+  latest_forward_at: timestamptz
+  latest_note_preview: String
+  rejection_message: String
+
+  """
+  0=needs_me,1=watching,2=rejected,3=closed_before_response,4=deleted_before_response
+  """
+  status: smallint
+
+  """When set, client hides passive tombstone card; does not change stance"""
+  tombstone_dismissed_at: timestamptz
+  user_id: String
 }
 
 """
@@ -3138,6 +3227,36 @@ input inbox_item_set_input {
   tombstone_dismissed_at: timestamptz
 }
 
+"""aggregate stddev on columns"""
+type inbox_item_stddev_fields {
+  forward_count: Float
+
+  """
+  0=needs_me,1=watching,2=rejected,3=closed_before_response,4=deleted_before_response
+  """
+  status: Float
+}
+
+"""aggregate stddev_pop on columns"""
+type inbox_item_stddev_pop_fields {
+  forward_count: Float
+
+  """
+  0=needs_me,1=watching,2=rejected,3=closed_before_response,4=deleted_before_response
+  """
+  status: Float
+}
+
+"""aggregate stddev_samp on columns"""
+type inbox_item_stddev_samp_fields {
+  forward_count: Float
+
+  """
+  0=needs_me,1=watching,2=rejected,3=closed_before_response,4=deleted_before_response
+  """
+  status: Float
+}
+
 """
 Streaming cursor of the table "inbox_item"
 """
@@ -3171,6 +3290,16 @@ input inbox_item_stream_cursor_value_input {
   user_id: String
 }
 
+"""aggregate sum on columns"""
+type inbox_item_sum_fields {
+  forward_count: Int
+
+  """
+  0=needs_me,1=watching,2=rejected,3=closed_before_response,4=deleted_before_response
+  """
+  status: smallint
+}
+
 input inbox_item_updates {
   """increments the numeric columns with given value of the filtered values"""
   _inc: inbox_item_inc_input
@@ -3180,6 +3309,36 @@ input inbox_item_updates {
 
   """filter the rows which have to be updated"""
   where: inbox_item_bool_exp!
+}
+
+"""aggregate var_pop on columns"""
+type inbox_item_var_pop_fields {
+  forward_count: Float
+
+  """
+  0=needs_me,1=watching,2=rejected,3=closed_before_response,4=deleted_before_response
+  """
+  status: Float
+}
+
+"""aggregate var_samp on columns"""
+type inbox_item_var_samp_fields {
+  forward_count: Float
+
+  """
+  0=needs_me,1=watching,2=rejected,3=closed_before_response,4=deleted_before_response
+  """
+  status: Float
+}
+
+"""aggregate variance on columns"""
+type inbox_item_variance_fields {
+  forward_count: Float
+
+  """
+  0=needs_me,1=watching,2=rejected,3=closed_before_response,4=deleted_before_response
+  """
+  status: Float
 }
 
 """
@@ -3419,8 +3578,9 @@ type mutation_root {
   RoomMessageReactionToggle(beaconId: String!, emoji: String!, messageId: String!): Boolean!
   RoomPollCreate(allowRevote: Boolean, beaconId: String!, isAnonymous: Boolean, pollType: String, question: String!, variants: [String!]): v2_RoomMessageRow!
   acceptHelpOffer(id: String!, offerUserId: String!): v2_BeaconStatusResult!
-  attentionMarkAllSeen: Int!
+  attentionMarkAllSeen(surface: String): Int!
   attentionMarkSeen(ids: [String!]): Int!
+  attentionMarkSeenForBeacon(beaconId: String!): Int!
   attentionMarkUnseen(ids: [String!]): Int!
   attentionSettle(kind: String!, receiptId: String!): Int!
   beaconAddImage(id: String!, image: v2_Upload = {}): v2_BeaconImageAdded!
@@ -4310,8 +4470,9 @@ type query_root {
   BeaconRoomStateGet(beaconId: String!): v2_BeaconRoomStateRow!
   InboxRoomContextBatch(beaconIds: [String!]): [v2_InboxRoomContextRow!]
   RoomMessageList(beaconId: String!, beforeIso: String, threadItemId: String): [v2_RoomMessageRow!]
-  attentionFeed(cursor: String, limit: Int, search: String, view: String!): v2_AttentionFeed!
+  attentionFeed(cursor: String, limit: Int, search: String, surface: String, view: String!): v2_AttentionFeed!
   attentionMarkers(beaconIds: [String!]): v2_AttentionMarkers!
+  attentionSurfaceSummary: v2_AttentionSurfaceSummary!
 
   """
   fetch data from the table: "beacon"
@@ -4752,6 +4913,26 @@ type query_root {
     where: inbox_item_bool_exp
   ): [inbox_item!]!
 
+  """
+  fetch aggregated fields from the table: "inbox_item"
+  """
+  inbox_item_aggregate(
+    """distinct select on columns"""
+    distinct_on: [inbox_item_select_column!]
+
+    """limit the number of rows returned"""
+    limit: Int
+
+    """skip the first n rows. Use only with order_by"""
+    offset: Int
+
+    """sort the rows by one or more columns"""
+    order_by: [inbox_item_order_by!]
+
+    """filter the rows returned"""
+    where: inbox_item_bool_exp
+  ): inbox_item_aggregate!
+
   """fetch data from the table: "inbox_item" using primary key columns"""
   inbox_item_by_pk(beacon_id: String!, user_id: String!): inbox_item
 
@@ -4855,6 +5036,7 @@ type query_root {
   myContacts: [v2_UserContact!]
   myPrivateLabelsForUser(subjectUserId: String!): [String!]
   myRoutingTags: [String!]!
+  myWorkAttention(beaconIds: [String!]): [v2_MyWorkBeaconAttention!]!
   myWorkLastActivityEvent(beaconIds: [String!]): [v2_MyWorkLastActivityEventRow!]
 
   """
@@ -5811,6 +5993,26 @@ type subscription_root {
     """filter the rows returned"""
     where: inbox_item_bool_exp
   ): [inbox_item!]!
+
+  """
+  fetch aggregated fields from the table: "inbox_item"
+  """
+  inbox_item_aggregate(
+    """distinct select on columns"""
+    distinct_on: [inbox_item_select_column!]
+
+    """limit the number of rows returned"""
+    limit: Int
+
+    """skip the first n rows. Use only with order_by"""
+    offset: Int
+
+    """sort the rows by one or more columns"""
+    order_by: [inbox_item_order_by!]
+
+    """filter the rows returned"""
+    where: inbox_item_bool_exp
+  ): inbox_item_aggregate!
 
   """fetch data from the table: "inbox_item" using primary key columns"""
   inbox_item_by_pk(beacon_id: String!, user_id: String!): inbox_item
@@ -6909,8 +7111,12 @@ type v2_AttentionReceipt {
   coordinationItemId: String
   createdAt: String!
   destinationKind: String
+  digestCount: Int
+  forwardCount: Int
+  forwardOutcome: String
   id: String!
   inAppPreferenceClass: String
+  itemKind: String!
   kind: String!
   presentationKey: String
   presentationPayloadJson: String!
@@ -6920,6 +7126,7 @@ type v2_AttentionReceipt {
   settledAt: String
   settlementKind: String
   sourceEventKey: String
+  surface: String!
   targetEntityId: String
   title: String!
 }
@@ -6927,6 +7134,12 @@ type v2_AttentionReceipt {
 type v2_AttentionSummary {
   needsYouTotal: Int!
   unreadTotal: Int!
+}
+
+type v2_AttentionSurfaceSummary {
+  activityUnreadTotal: Int!
+  myWorkUnreadTotal: Int!
+  needsYouTotal: Int!
 }
 
 type v2_AuthResponse {
@@ -7495,6 +7708,13 @@ type v2_MyForwardRecipient {
   readAt: String
   recipientId: String!
   recipientRejected: Boolean!
+}
+
+type v2_MyWorkBeaconAttention {
+  beaconId: String!
+  latestUnseen: v2_AttentionReceipt
+  liveObligations: [v2_AttentionReceipt!]!
+  unseenCount: Int!
 }
 
 type v2_MyWorkLastActivityEventRow {

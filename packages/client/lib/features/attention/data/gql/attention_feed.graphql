@@ -1,5 +1,5 @@
-query AttentionFeed($view: String!, $cursor: String, $search: String, $limit: Int) {
-  attentionFeed(view: $view, cursor: $cursor, search: $search, limit: $limit) {
+query AttentionFeed($view: String!, $cursor: String, $search: String, $limit: Int, $surface: String) {
+  attentionFeed(view: $view, cursor: $cursor, search: $search, limit: $limit, surface: $surface) {
     summary { unreadTotal needsYouTotal }
     page {
       nextCursor
@@ -9,6 +9,7 @@ query AttentionFeed($view: String!, $cursor: String, $search: String, $limit: In
         destinationKind targetEntityId presentationKey presentationPayloadJson
         inAppPreferenceClass
         requiresAction attentionThreadKey settlementKind settledAt
+        surface itemKind forwardOutcome forwardCount digestCount
       }
     }
   }

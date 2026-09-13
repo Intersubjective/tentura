@@ -1,0 +1,22 @@
+query MyWorkAttention($beaconIds: [String!]) {
+  myWorkAttention(beaconIds: $beaconIds) {
+    beaconId
+    unseenCount
+    latestUnseen {
+      id category kind priority title body actionUrl createdAt seenAt
+      collapsedCount beaconId coordinationItemId actorUserId sourceEventKey
+      destinationKind targetEntityId presentationKey presentationPayloadJson
+      inAppPreferenceClass
+      requiresAction attentionThreadKey settlementKind settledAt
+      surface itemKind forwardOutcome forwardCount digestCount
+    }
+    liveObligations {
+      id category kind priority title body actionUrl createdAt seenAt
+      collapsedCount beaconId coordinationItemId actorUserId sourceEventKey
+      destinationKind targetEntityId presentationKey presentationPayloadJson
+      inAppPreferenceClass
+      requiresAction attentionThreadKey settlementKind settledAt
+      surface itemKind forwardOutcome forwardCount digestCount
+    }
+  }
+}

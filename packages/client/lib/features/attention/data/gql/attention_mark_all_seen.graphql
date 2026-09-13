@@ -1,3 +1,3 @@
-mutation AttentionMarkAllSeen {
-  attentionMarkAllSeen
+mutation AttentionMarkAllSeen($surface: String) {
+  attentionMarkAllSeen(surface: $surface)
 }
