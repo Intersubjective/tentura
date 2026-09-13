@@ -1008,3 +1008,35 @@ cd packages/client && flutter test test/features/graph/graph_focus_path_visibili
 ```
 
 Protected `packages/force_directed_graphview/analysis_options.yaml` not staged.
+
+## Final acceptance — 2026-09-13
+
+All plan-owned implementation and acceptance gates are now complete.
+
+### Final verification
+
+- `cd packages/client && flutter test test/features/graph/graph_cubit_genealogy_test.dart test/features/graph/graph_focus_path_visibility_test.dart` — **PASS** after the final pin-payload reconcile fix.
+- `cd packages/client && flutter test` — **PASS**: 3123 passed, 29 skipped. Log: `/tmp/client-full-final-2.log`.
+- `./scripts/check-custom-lints.sh packages/client` — **PASS** after the final fix.
+- `git diff --check d84acc940..HEAD` — **PASS**.
+- Earlier package gate retained: `cd packages/force_directed_graphview && flutter test` — **PASS** (98 passed).
+- Earlier lint and terminology gates retained: `cd packages/tentura_lints && dart test`, `./scripts/check-custom-lints.sh packages/server`, and `bash scripts/check-user-facing-terminology.sh` — **PASS**.
+
+### Browser and multiclient evidence
+
+- Real-pointer browser proof passed through `./scripts/run_client_integration_web_local.sh integration_test/constellation_pinning_test.dart`; log: `/tmp/constellation-pin-overlap-pointer.log`.
+- The Chrome multiclient gate was run five times with:
+
+  ```bash
+  REALTIME_MULTICLIENT_DRIVER=constellation_pinning_multiclient_web_test.dart \
+  REALTIME_MULTICLIENT_ACTOR_ECHO_ENABLED=false \
+  ./scripts/run_realtime_multiclient_web_local.sh
+  ```
+
+  All five runs passed; log: `/tmp/constellation-multiclient-1.log`. The successful UI journeys cover live pin convergence, text-pin first load, reconnect convergence, stale cross-device delete, and authorization-loss restore. The runner explicitly reports `person_without_requests_map_pin`, `failed_mutation_rollback`, and `touch_arbitration` as blocked journeys; those are the allowed runner limitations recorded by the parent acceptance boundary.
+
+### Resource protocol
+
+Chrome-heavy runs were started one at a time after checking `MemAvailable`; task-owned Chrome work would be stopped if it fell below the agreed 5 GiB threshold. Ordinary unit/widget/lint work used normal parallelism. The final client suite began with 37 GiB available and ended with about 36 GiB available.
+
+`packages/force_directed_graphview/analysis_options.yaml` remains an unstaged pre-existing user change.
