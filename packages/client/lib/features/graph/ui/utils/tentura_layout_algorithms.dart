@@ -265,6 +265,191 @@ final class LayeredDagLayoutAlgorithm implements SceneLayoutAlgorithm {
   );
 }
 
+/// ID-keyed deterministic layout for the Constellation field map.
+final class ConstellationSceneLayoutAlgorithm implements SceneLayoutAlgorithm {
+  const ConstellationSceneLayoutAlgorithm({
+    required this.egoId,
+    required this.paths,
+    required this.keptPeerIds,
+    required this.maxHops,
+    required this.visibleRequestsByAuthor,
+    required this.egoOwnRequestIds,
+    this.pinnedPersonIds = const {},
+    this.pinnedRequestIds = const {},
+    this.supportPersonIds = const {},
+    this.anchorByNodeId = const {},
+    this.priorHints,
+    this.nodeSizes = const {},
+    this.spacing = 16,
+    this.viewportClass = ConstellationViewportClass.expanded,
+  });
+
+  final String egoId;
+  final ConstellationPathResolution paths;
+  final Set<String> keptPeerIds;
+  final int maxHops;
+  final Map<String, List<String>> visibleRequestsByAuthor;
+  final Set<String> egoOwnRequestIds;
+  final Set<String> pinnedPersonIds;
+  final Set<String> pinnedRequestIds;
+  final Set<String> supportPersonIds;
+  final Map<String, ConstellationAnchorPosition> anchorByNodeId;
+  final ConstellationLayoutPriorHints? priorHints;
+  final Map<String, ConstellationSize> nodeSizes;
+  final double spacing;
+  final ConstellationViewportClass viewportClass;
+
+  @override
+  Stream<GraphLayoutFrame> layout(GraphLayoutRequest request) async* {
+    yield _frame(request, _computePositions(request));
+  }
+
+  Map<GraphNodeId, ScenePoint> _computePositions(GraphLayoutRequest request) {
+    if (request.nodeIds.isEmpty) {
+      return const {};
+    }
+
+    final graphIdByDomain = tenturaGraphIdsByDomainId(request.nodeIds);
+    final mergedHints = _mergePriorHints(request);
+    final sizes = <String, ConstellationSize>{
+      ...nodeSizes,
+      for (final entry in graphIdByDomain.entries)
+        entry.key: (
+          width: request.nodesById[entry.value]!.size.width,
+          height: request.nodesById[entry.value]!.size.height,
+        ),
+    };
+
+    final domainPositions = _computeConstellationDomainPositions(
+      priorHints: mergedHints,
+      nodeSizes: sizes,
+    );
+
+    return _positionsFromDomainMap(
+      graphIdByDomain: graphIdByDomain,
+      domainPositions: domainPositions,
+      canvasSize: _canvasSize(request),
+    );
+  }
+
+  Map<String, Offset> _computeConstellationDomainPositions({
+    ConstellationLayoutPriorHints? priorHints,
+    required Map<String, ConstellationSize> nodeSizes,
+  }) {
+    final computed = computeConstellationPlacedLayout(
+      input: (
+        egoId: egoId,
+        paths: paths,
+        automaticKeptPeerIds: keptPeerIds,
+        pinnedPersonIds: pinnedPersonIds,
+        pinnedRequestIds: pinnedRequestIds,
+        supportPersonIds: supportPersonIds,
+        anchorByNodeId: anchorByNodeId,
+        priorHints: priorHints,
+        nodeSizes: nodeSizes,
+        satelliteRequestIdsByAuthor: visibleRequestsByAuthor,
+        requestAuthorById: const {},
+        egoOwnRequestIds: egoOwnRequestIds,
+        spacing: spacing,
+        maxHops: maxHops,
+        viewportClass: viewportClass,
+      ),
+    );
+    return constellationLayoutPointsToOffsets(computed.positions);
+  }
+
+  ConstellationLayoutPriorHints? _mergePriorHints(GraphLayoutRequest request) {
+    final previous = request.previous?.positions ?? const {};
+    if (previous.isEmpty) {
+      return priorHints;
+    }
+
+    final graphIdByDomain = tenturaGraphIdsByDomainId(request.nodeIds);
+    final positions = <String, ConstellationPoint>{};
+    final ring = <String, int>{...?priorHints?.ring};
+    for (final entry in graphIdByDomain.entries) {
+      final point = previous[entry.value];
+      if (point == null) {
+        continue;
+      }
+      positions[entry.key] = (x: point.x, y: point.y);
+      if (priorHints?.ring.containsKey(entry.key) ?? false) {
+        ring[entry.key] = priorHints!.ring[entry.key]!;
+      }
+    }
+    if (positions.isEmpty) {
+      return priorHints;
+    }
+    return (
+      positions: positions,
+      ring: ring,
+      viewportClass: viewportClass,
+    );
+  }
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is ConstellationSceneLayoutAlgorithm &&
+          runtimeType == other.runtimeType &&
+          egoId == other.egoId &&
+          maxHops == other.maxHops &&
+          spacing == other.spacing &&
+          viewportClass == other.viewportClass &&
+          paths == other.paths &&
+          const SetEquality<String>().equals(keptPeerIds, other.keptPeerIds) &&
+          const SetEquality<String>().equals(
+            egoOwnRequestIds,
+            other.egoOwnRequestIds,
+          ) &&
+          const SetEquality<String>().equals(
+            pinnedPersonIds,
+            other.pinnedPersonIds,
+          ) &&
+          const SetEquality<String>().equals(
+            pinnedRequestIds,
+            other.pinnedRequestIds,
+          ) &&
+          const SetEquality<String>().equals(
+            supportPersonIds,
+            other.supportPersonIds,
+          ) &&
+          const MapEquality<String, ConstellationAnchorPosition>().equals(
+            anchorByNodeId,
+            other.anchorByNodeId,
+          ) &&
+          priorHints == other.priorHints &&
+          const MapEquality<String, ConstellationSize>().equals(
+            nodeSizes,
+            other.nodeSizes,
+          ) &&
+          const DeepCollectionEquality().equals(
+            visibleRequestsByAuthor,
+            other.visibleRequestsByAuthor,
+          );
+
+  @override
+  int get hashCode => Object.hash(
+    runtimeType,
+    egoId,
+    maxHops,
+    spacing,
+    viewportClass,
+    paths,
+    const SetEquality<String>().hash(keptPeerIds),
+    const SetEquality<String>().hash(egoOwnRequestIds),
+    const SetEquality<String>().hash(pinnedPersonIds),
+    const SetEquality<String>().hash(pinnedRequestIds),
+    const SetEquality<String>().hash(supportPersonIds),
+    const MapEquality<String, ConstellationAnchorPosition>().hash(
+      anchorByNodeId,
+    ),
+    priorHints,
+    const MapEquality<String, ConstellationSize>().hash(nodeSizes),
+    const DeepCollectionEquality().hash(visibleRequestsByAuthor),
+  );
+}
+
 /// Deterministic three-pass layout for the Constellation field map.
 final class ConstellationLayoutAlgorithm implements GraphLayoutAlgorithm {
   const ConstellationLayoutAlgorithm({
