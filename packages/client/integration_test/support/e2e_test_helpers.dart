@@ -1536,14 +1536,16 @@ Finder _constellationGraphLayoutFinder() {
   );
 }
 
-/// Scene centre → global screen position (includes InteractiveViewer transform).
+/// Scene centre → global screen position (InteractiveViewer transform applied).
 Offset _globalForConstellationScene(WidgetTester tester, Offset scene) {
   final layoutFinder = _constellationGraphLayoutFinder();
   if (!finderHasMatch(layoutFinder)) {
     throw StateError('constellation GraphLayoutView not in tree');
   }
+  final cubit = readConstellationCubit(tester);
+  final viewportLocal = cubit.graphController.sceneToViewportLocal(scene);
   final box = tester.renderObject<RenderBox>(layoutFinder);
-  return box.localToGlobal(scene);
+  return box.localToGlobal(viewportLocal);
 }
 
 /// Pointer tap at a scene point so [NodeDragGesture] hit-tests and fires
@@ -1561,7 +1563,7 @@ Future<void> tapConstellationSceneCentre(
   );
   await tester.ensureVisible(layoutFinder);
   final global = _globalForConstellationScene(tester, scene);
-  final gesture = await tester.createGesture(kind: PointerDeviceKind.touch);
+  final gesture = await tester.createGesture(kind: PointerDeviceKind.mouse);
   await gesture.down(global);
   await tester.pump(const Duration(milliseconds: 50));
   await gesture.up();
@@ -1600,12 +1602,7 @@ Future<void> pinConstellationPersonFromMap(
 ) async {
   await setConstellationViewMode(tester, ConstellationViewMode.map);
   final target = ConstellationAnchorTarget.person(personId);
-  final graphNode = find.byKey(TestIds.key(TestIds.graphNode(personId)));
-  if (finderHasMatch(graphNode)) {
-    await tapConstellationControl(tester, graphNode);
-  } else {
-    await selectConstellationPersonNode(tester, personId);
-  }
+  await selectConstellationPersonNode(tester, personId);
   final pinButton = find.byKey(TestIds.key(TestIds.constellationPinTarget));
   await pumpUntilVisible(
     tester,
@@ -1819,9 +1816,17 @@ Future<void> selectConstellationPersonNode(
   WidgetTester tester,
   String personId,
 ) async {
-  final cubit = readConstellationCubit(tester);
-  cubit.selectPerson(personId);
-  await pumpBounded(tester);
+  await setConstellationViewMode(tester, ConstellationViewMode.map);
+  await tapConstellationMapNodeInScene(
+    tester,
+    ConstellationAnchorTarget.person(personId),
+  );
+  await pumpUntil(
+    tester,
+    () => readConstellationCubit(tester).state.selectedPersonId == personId,
+    label: 'constellation person selected $personId',
+    timeout: const Duration(seconds: 20),
+  );
 }
 
 Future<void> dragConstellationAnchorViaGraph({
