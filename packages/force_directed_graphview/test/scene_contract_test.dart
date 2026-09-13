@@ -4,7 +4,11 @@ import 'dart:ui' show Offset, Size;
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:force_directed_graphview/force_directed_graphview.dart';
+import 'package:force_directed_graphview/src/scene/graph_layout_ticket.dart'
+    show mintGraphLayoutTicket;
+import 'support/fixed_scene_layout.dart';
 import 'support/int_graph_controller.dart';
+import 'support/settle_graph_layout.dart';
 
 GraphController<_LogicalIdNode, Edge<_LogicalIdNode, String>>
     _logicalIdGraphController() => GraphController(
@@ -50,18 +54,30 @@ final class _LogicalIdNode extends NodeBase {
 
 void main() {
   group('logical id vs instance-keyed layout (M00 baseline)', () {
-    test('GraphLayout map misses equal logical id when payload fields differ', () {
+    test('scene layout misses equal logical id when payload instance differs', () {
       const before = _LogicalIdNode(logicalId: 'n1', display: 'v1');
       const after = _LogicalIdNode(logicalId: 'n1', display: 'v2');
       expect(before.logicalId, after.logicalId);
       expect(before, isNot(equals(after)));
 
-      final builder = GraphLayoutBuilder(nodes: {before})
-        ..setNodePosition(before, const Offset(100, 200));
-      final layout = builder.build();
+      final beforeId = '${before.logicalId}@${identityHashCode(before)}';
+      final afterId = '${after.logicalId}@${identityHashCode(after)}';
+      expect(beforeId, isNot(afterId));
 
-      expect(layout.getPositionOrNull(before), const Offset(100, 200));
-      expect(layout.getPositionOrNull(after), isNull);
+      final ticket = mintGraphLayoutTicket(
+        owner: Object(),
+        topologyRevision: 1,
+        generation: 1,
+      );
+      final layout = SceneLayout(
+        ticket: ticket,
+        revision: 1,
+        positions: {
+          beforeId: ScenePoint(x: 100, y: 200),
+        },
+      );
+      expect(layout.positions[beforeId], ScenePoint(x: 100, y: 200));
+      expect(layout.positions[afterId], isNull);
     });
 
     test('GraphController allows two nodes with the same logicalId string', () {
@@ -79,35 +95,19 @@ void main() {
       expect(controller.nodes, hasLength(2));
     });
 
-    testWidgets('replaceNode moves layout position to the replacement instance',
-        (tester) async {
-      final controller =
-          _logicalIdGraphController();
+    test('replaceNode seeds retained position for the replacement id', () {
+      final controller = _logicalIdGraphController();
       const before = _LogicalIdNode(logicalId: 'n1', display: 'v1');
       const after = _LogicalIdNode(logicalId: 'n1', display: 'v2');
 
-      await tester.pumpWidget(
-        MaterialApp(
-          home: GraphView<_LogicalIdNode, Edge<_LogicalIdNode, String>>(
-            controller: controller,
-            canvasSize: const GraphCanvasSize.fixed(Size(400, 400)),
-            layoutAlgorithm: _LogicalIdFixedLayout(
-              positions: {before: const Offset(42, 84)},
-            ),
-            nodeBuilder: (context, node) => const SizedBox.shrink(),
-          ),
-        ),
-      );
-
-      controller.mutate((m) => m.addNode(before));
-      await tester.pumpAndSettle();
+      controller.mutate((m) => m.addNode(before), requestLayout: false);
+      controller.beginNodePresentationDrag(before, const Offset(42, 84));
 
       controller.replaceNode(before, after);
 
       expect(controller.nodes.contains(after), isTrue);
       expect(controller.nodes.contains(before), isFalse);
-      expect(controller.layout.getPosition(after), const Offset(42, 84));
-
+      expect(controller.getPosition(after), const Offset(42, 84));
       controller.dispose();
     });
   });
@@ -186,24 +186,24 @@ void main() {
           home: GraphView<Node<int>, Edge<Node<int>, void>>(
             controller: controller,
             canvasSize: const GraphCanvasSize.fixed(Size(400, 400)),
-            layoutAlgorithm: const _FixedSingleNodeLayout(
-              position: Offset(10, 20),
-            ),
+            layoutAlgorithm: FixedSceneLayoutAlgorithm({
+              '1': ScenePoint(x: 10, y: 20),
+            }),
             nodeBuilder: (context, node) => const SizedBox.shrink(),
           ),
         ),
       );
 
       controller.mutate((m) => m.addNode(node));
-      await tester.pumpAndSettle();
+      await settleGraphLayout(tester, controller);
 
-      controller.setNodePresentationPosition(node, const Offset(9, 9));
+      controller.beginNodePresentationDrag(node, const Offset(9, 9));
       expect(controller.getPosition(node), const Offset(9, 9));
 
       controller.dispose();
     });
 
-    testWidgets('clearPresentationPosition reverts to layout in one step',
+    testWidgets('clearPresentationForNodeId reverts to layout in one step',
         (tester) async {
       final controller =
           testIntGraphController();
@@ -214,28 +214,28 @@ void main() {
           home: GraphView<Node<int>, Edge<Node<int>, void>>(
             controller: controller,
             canvasSize: const GraphCanvasSize.fixed(Size(400, 400)),
-            layoutAlgorithm: const _FixedSingleNodeLayout(
-              position: Offset(10, 20),
-            ),
+            layoutAlgorithm: FixedSceneLayoutAlgorithm({
+              '1': ScenePoint(x: 10, y: 20),
+            }),
             nodeBuilder: (context, node) => const SizedBox.shrink(),
           ),
         ),
       );
 
       controller.mutate((m) => m.addNode(node));
-      await tester.pumpAndSettle();
+      await settleGraphLayout(tester, controller);
 
       const override = Offset(300, 300);
-      controller.setNodePresentationPosition(node, override);
+      controller.beginNodePresentationDrag(node, override);
       expect(controller.getPosition(node), override);
 
-      controller.clearPresentationPosition(node);
+      controller.clearPresentationForNodeId('1');
       expect(controller.getPosition(node), const Offset(10, 20));
     });
   });
 
   group('camera preservation (current clear contract)', () {
-    testWidgets('clear(recenter: false) keeps zoom after rebuild mutate',
+    testWidgets('clear keeps zoom after rebuild mutate',
         (tester) async {
       const viewportW = 800.0;
       const viewportH = 600.0;
@@ -256,9 +256,9 @@ void main() {
             child: GraphView<Node<int>, Edge<Node<int>, void>>(
               controller: controller,
               canvasSize: const GraphCanvasSize.fixed(Size(500, 500)),
-              layoutAlgorithm: const _FixedSingleNodeLayout(
-                position: Offset(250, 250),
-              ),
+              layoutAlgorithm: FixedSceneLayoutAlgorithm({
+                '1': ScenePoint(x: 250, y: 250),
+              }),
               nodeBuilder: (context, node) => const SizedBox.shrink(),
             ),
           ),
@@ -266,15 +266,15 @@ void main() {
       );
 
       controller.mutate((m) => m.addNode(node));
-      await tester.pumpAndSettle();
+      await settleGraphLayout(tester, controller);
 
       controller.zoomBy(2.0);
       final scaleBeforeClear = controller.currentScale;
       expect(scaleBeforeClear, greaterThan(1.5));
 
-      controller.clear(recenter: false);
+      controller.clear();
       controller.mutate((m) => m.addNode(node));
-      await tester.pumpAndSettle();
+      await settleGraphLayout(tester, controller);
 
       expect(controller.currentScale, closeTo(scaleBeforeClear, 0.001));
 
@@ -296,8 +296,11 @@ void main() {
             controller: controller,
             canvasSize: const GraphCanvasSize.fixed(Size(400, 400)),
             layoutAlgorithm: _StaggeredStreamLayout(
-              first: const {1: Offset(10, 10)},
-              second: const {1: Offset(100, 100), 2: Offset(200, 200)},
+              first: {1: ScenePoint(x: 10, y: 10)},
+              second: {
+                1: ScenePoint(x: 100, y: 100),
+                2: ScenePoint(x: 200, y: 200),
+              },
             ),
             nodeBuilder: (context, node) => const SizedBox.shrink(),
           ),
@@ -308,10 +311,11 @@ void main() {
       await tester.pump();
 
       controller.mutate((m) => m.addNode(n2));
-      await tester.pumpAndSettle();
+      await tester.pump(const Duration(milliseconds: 60));
+      await settleGraphLayout(tester, controller);
 
-      expect(controller.layout.getPosition(n1), const Offset(100, 100));
-      expect(controller.layout.getPosition(n2), const Offset(200, 200));
+      expect(controller.getPosition(n1), const Offset(100, 100));
+      expect(controller.getPosition(n2), const Offset(200, 200));
 
       controller.dispose();
     });
@@ -324,119 +328,54 @@ void main() {
       const node = Node<int>(data: 1, size: 10);
 
       a.mutate((m) => m.addNode(node));
-      a.setNodePresentationPosition(node, const Offset(1, 1));
+      a.beginNodePresentationDrag(node, const Offset(1, 1));
 
       expect(b.nodes, isEmpty);
       expect(
         () => b.getPosition(node),
-        throwsA(isA<ArgumentError>()),
+        throwsA(isA<StateError>()),
       );
     });
   });
 }
 
-final class _LogicalIdFixedLayout implements GraphLayoutAlgorithm {
-  _LogicalIdFixedLayout({required this.positions});
-
-  final Map<_LogicalIdNode, Offset> positions;
-
-  @override
-  Stream<GraphLayout> layout({
-    required Set<NodeBase> nodes,
-    required Set<EdgeBase> edges,
-    required Size size,
-  }) {
-    final builder = GraphLayoutBuilder(nodes: {...nodes});
-    for (final node in nodes) {
-      if (node is _LogicalIdNode) {
-        builder.setNodePosition(node, positions[node] ?? Offset.zero);
-      }
-    }
-    return Stream.value(builder.build());
-  }
-
-  @override
-  Stream<GraphLayout> relayout({
-    required GraphLayout existingLayout,
-    required Set<NodeBase> nodes,
-    required Set<EdgeBase> edges,
-    required Size size,
-  }) =>
-      layout(nodes: nodes, edges: edges, size: size);
-}
-
-final class _FixedSingleNodeLayout implements GraphLayoutAlgorithm {
-  const _FixedSingleNodeLayout({required this.position});
-
-  final Offset position;
-
-  @override
-  Stream<GraphLayout> layout({
-    required Set<NodeBase> nodes,
-    required Set<EdgeBase> edges,
-    required Size size,
-  }) {
-    final builder = GraphLayoutBuilder(nodes: {...nodes});
-    for (final node in nodes) {
-      builder.setNodePosition(node, position);
-    }
-    return Stream.value(builder.build());
-  }
-
-  @override
-  Stream<GraphLayout> relayout({
-    required GraphLayout existingLayout,
-    required Set<NodeBase> nodes,
-    required Set<EdgeBase> edges,
-    required Size size,
-  }) =>
-      layout(nodes: nodes, edges: edges, size: size);
-}
-
-final class _StaggeredStreamLayout implements GraphLayoutAlgorithm {
+final class _StaggeredStreamLayout implements SceneLayoutAlgorithm {
   _StaggeredStreamLayout({
-    required Map<int, Offset> first,
-    required Map<int, Offset> second,
+    required Map<int, ScenePoint> first,
+    required Map<int, ScenePoint> second,
   })  : _first = first,
         _second = second;
 
-  final Map<int, Offset> _first;
-  final Map<int, Offset> _second;
+  final Map<int, ScenePoint> _first;
+  final Map<int, ScenePoint> _second;
 
   @override
-  Stream<GraphLayout> layout({
-    required Set<NodeBase> nodes,
-    required Set<EdgeBase> edges,
-    required Size size,
-  }) async* {
-    if (nodes.length == 1) {
-      yield _layoutFor(nodes, _first);
+  Stream<GraphLayoutFrame> layout(GraphLayoutRequest request) async* {
+    if (request.nodeIds.length == 1) {
+      yield _frameFor(request, _first, 0, false);
       await Future<void>.delayed(const Duration(milliseconds: 50));
-      yield _layoutFor(nodes, _first);
+      yield _frameFor(request, _first, 1, true);
       return;
     }
-    yield _layoutFor(nodes, _second);
+    yield _frameFor(request, _second, 0, true);
   }
 
-  @override
-  Stream<GraphLayout> relayout({
-    required GraphLayout existingLayout,
-    required Set<NodeBase> nodes,
-    required Set<EdgeBase> edges,
-    required Size size,
-  }) =>
-      layout(nodes: nodes, edges: edges, size: size);
-
-  GraphLayout _layoutFor(Set<NodeBase> nodes, Map<int, Offset> positions) {
-    final builder = GraphLayoutBuilder(nodes: {...nodes});
-    for (final node in nodes) {
-      if (node is Node<int>) {
-        builder.setNodePosition(
-          node,
-          positions[node.data] ?? Offset.zero,
-        );
-      }
+  GraphLayoutFrame _frameFor(
+    GraphLayoutRequest request,
+    Map<int, ScenePoint> positions,
+    int sequence,
+    bool terminal,
+  ) {
+    final resolved = <GraphNodeId, ScenePoint>{};
+    for (final id in request.nodeIds) {
+      final data = int.parse(id);
+      resolved[id] = positions[data] ?? ScenePoint(x: 0, y: 0);
     }
-    return builder.build();
+    return GraphLayoutFrame(
+      ticket: request.ticket,
+      sequence: sequence,
+      positions: resolved,
+      isTerminal: terminal,
+    );
   }
 }

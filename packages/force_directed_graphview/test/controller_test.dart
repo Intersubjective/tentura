@@ -87,7 +87,9 @@ void main() {
         home: GraphView<Node<int>, Edge<Node<int>, void>>(
           controller: graphController,
           canvasSize: const GraphCanvasSize.fixed(Size(500, 500)),
-          layoutAlgorithm: const FruchtermanReingoldAlgorithm(iterations: 1),
+          layoutAlgorithm: const FruchtermanReingoldSceneLayoutAlgorithm(
+            iterations: 1,
+          ),
           nodeBuilder: (context, node) => const SizedBox.shrink(),
         ),
       ),
@@ -139,7 +141,7 @@ void main() {
             ),
             minScale: widgetMinScale,
             maxScale: 3,
-            layoutAlgorithm: const _CornerFixedLayout(),
+            layoutAlgorithm: const _CornerFixedSceneLayout(),
             nodeBuilder: (context, node) => const SizedBox.shrink(),
           ),
         ),
@@ -188,7 +190,7 @@ void main() {
           child: GraphView<Node<int>, Edge<Node<int>, void>>(
             controller: graphController,
             canvasSize: const GraphCanvasSize.fixed(Size(500, 500)),
-            layoutAlgorithm: const _CornerFixedLayout(),
+            layoutAlgorithm: const _CornerFixedSceneLayout(),
             nodeBuilder: (context, node) => const SizedBox.shrink(),
           ),
         ),
@@ -228,7 +230,7 @@ void main() {
           child: GraphView<Node<int>, Edge<Node<int>, void>>(
             controller: graphController,
             canvasSize: const GraphCanvasSize.fixed(Size(500, 500)),
-            layoutAlgorithm: const _CornerFixedLayout(),
+            layoutAlgorithm: const _CornerFixedSceneLayout(),
             nodeBuilder: (context, node) => const SizedBox.shrink(),
           ),
         ),
@@ -243,7 +245,7 @@ void main() {
         find.byType(InteractiveViewer),
       );
       final matrix = viewer.transformationController!.value;
-      final position = graphController.layout.getPosition(near);
+      final position = graphController.getPosition(near);
       return MatrixUtils.transformPoint(matrix, position);
     }
 
@@ -289,7 +291,9 @@ void main() {
         home: GraphView<Node<int>, Edge<Node<int>, void>>(
           controller: graphController,
           canvasSize: const GraphCanvasSize.fixed(Size(500, 500)),
-          layoutAlgorithm: const FruchtermanReingoldAlgorithm(iterations: 1),
+          layoutAlgorithm: const FruchtermanReingoldSceneLayoutAlgorithm(
+            iterations: 1,
+          ),
           nodeBuilder: (context, node) => const SizedBox.shrink(),
         ),
       ),
@@ -310,35 +314,24 @@ void main() {
   });
 }
 
-final class _CornerFixedLayout implements GraphLayoutAlgorithm {
-  const _CornerFixedLayout();
+final class _CornerFixedSceneLayout implements SceneLayoutAlgorithm {
+  const _CornerFixedSceneLayout();
 
-  static GraphLayout _layout(Set<NodeBase> nodes) {
-    final builder = GraphLayoutBuilder(nodes: {...nodes});
-    final nodeList = nodes.toList();
-    if (nodeList.isNotEmpty) {
-      builder.setNodePosition(nodeList[0], const Offset(100, 100));
+  @override
+  Stream<GraphLayoutFrame> layout(GraphLayoutRequest request) async* {
+    final ids = request.nodeIds.toList()..sort();
+    final positions = <GraphNodeId, ScenePoint>{};
+    if (ids.isNotEmpty) {
+      positions[ids[0]] = ScenePoint(x: 100, y: 100);
     }
-    if (nodeList.length > 1) {
-      builder.setNodePosition(nodeList[1], const Offset(3900, 3900));
+    if (ids.length > 1) {
+      positions[ids[1]] = ScenePoint(x: 3900, y: 3900);
     }
-    return builder.build();
+    yield GraphLayoutFrame(
+      ticket: request.ticket,
+      sequence: 0,
+      positions: positions,
+      isTerminal: true,
+    );
   }
-
-  @override
-  Stream<GraphLayout> layout({
-    required Set<NodeBase> nodes,
-    required Set<EdgeBase> edges,
-    required Size size,
-  }) =>
-      Stream.value(_layout(nodes));
-
-  @override
-  Stream<GraphLayout> relayout({
-    required GraphLayout existingLayout,
-    required Set<NodeBase> nodes,
-    required Set<EdgeBase> edges,
-    required Size size,
-  }) =>
-      Stream.value(_layout(nodes));
 }

@@ -5,8 +5,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:force_directed_graphview/force_directed_graphview.dart';
 import 'package:force_directed_graphview/src/configuration.dart';
-import 'package:force_directed_graphview/src/layout_algorithm/bound_scene_layout_algorithm.dart';
-import 'package:force_directed_graphview/src/layout_algorithm/legacy_graph_layout_algorithm_adapter.dart';
 import 'package:force_directed_graphview/src/scene/graph_layout_outcome.dart';
 import 'package:force_directed_graphview/src/scene/graph_topology.dart';
 import 'package:force_directed_graphview/src/scene/scene_geometry.dart';
@@ -69,7 +67,7 @@ class GraphView<N extends NodeBase, E extends EdgeBase<N>>
   final GraphController<N, E> controller;
 
   /// The layout algorithm that is used to layout the graph.
-  final GraphLayoutAlgorithm layoutAlgorithm;
+  final SceneLayoutAlgorithm layoutAlgorithm;
 
   /// The size of the graph canvas. May exceed the size of the screen.
   final GraphCanvasSize canvasSize;
@@ -92,7 +90,7 @@ class GraphView<N extends NodeBase, E extends EdgeBase<N>>
   /// which reproduces the pre-transition behaviour.
   ///
   /// Only meaningful together with a layout algorithm that emits its **final**
-  /// layout once (e.g. `FruchtermanReingoldAlgorithm(showIterations: false)`).
+  /// layout once (e.g. `FruchtermanReingoldSceneLayoutAlgorithm(showIterations: false)`).
   /// An algorithm that streams intermediate iterations restarts the transition
   /// on every emission and will look wrong.
   final Duration layoutTransitionDuration;
@@ -117,7 +115,7 @@ class GraphView<N extends NodeBase, E extends EdgeBase<N>>
   final NodeDragCancelCallback<N>? onNodeDragCancel;
 
   /// Optional shared paint/hit order. Later entries paint and hit-test on top.
-  final List<N>? nodePaintOrder;
+  final List<GraphNodeId>? nodePaintOrder;
 
   @override
   State<GraphView<N, E>> createState() => _GraphViewState<N, E>();
@@ -195,7 +193,7 @@ class _GraphViewState<N extends NodeBase, E extends EdgeBase<N>>
         onNodeDragCancel: widget.onNodeDragCancel == null
             ? null
             : (node) => widget.onNodeDragCancel!(node as N),
-        nodePaintOrder: widget.nodePaintOrder?.cast<NodeBase>(),
+        nodePaintOrder: widget.nodePaintOrder,
       ),
       child: _CameraGatedInteractiveViewer(
         controller: widget.controller,

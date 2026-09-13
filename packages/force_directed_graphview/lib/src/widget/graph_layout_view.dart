@@ -61,7 +61,7 @@ class GraphLayoutView extends StatelessWidget {
         final snapshot = controller.renderSnapshot;
         final orderedNodeIds = controller.orderedRenderNodeIds(
           snapshot,
-          legacyPaintOrder: configuration.nodePaintOrder,
+          configuredPaintOrder: configuration.nodePaintOrder,
         );
 
         return GraphSceneRenderScope(

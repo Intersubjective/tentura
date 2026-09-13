@@ -1,48 +1,88 @@
-import 'dart:async';
-
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:force_directed_graphview/force_directed_graphview.dart';
+import 'package:force_directed_graphview/src/scene/graph_layout_ticket.dart'
+    show mintGraphLayoutTicket;
+
+GraphLayoutRequest _request({
+  required Object owner,
+  required Map<GraphNodeId, GraphLayoutNode> nodes,
+  Map<GraphEdgeId, GraphLayoutEdge> edges = const {},
+}) {
+  final ticket = mintGraphLayoutTicket(
+    owner: owner,
+    topologyRevision: 1,
+    generation: 1,
+  );
+  return GraphLayoutRequest(
+    ticket: ticket,
+    canvasSize: SceneSize(width: 500, height: 500),
+    nodesById: nodes,
+    edgesById: edges,
+  );
+}
+
+GraphLayoutNode _layoutNode(String id) => GraphLayoutNode(
+      id: id,
+      size: SceneSize(width: 100, height: 100),
+    );
 
 void main() {
-  const node1 = Node(data: 1, size: 100);
-  const node2 = Node(data: 2, size: 100);
-  const edge12 = Edge(source: node1, destination: node2, data: null);
+  final owner = Object();
 
-  test('layout completes when input node set is mutated mid-run', () async {
-    final mutableNodes = <NodeBase>{node1};
-    const algorithm = FruchtermanReingoldAlgorithm(
+  test('showIterations emits intermediate frames then completes', () async {
+    final request = _request(
+      owner: owner,
+      nodes: {
+        '1': _layoutNode('1'),
+        '2': _layoutNode('2'),
+      },
+      edges: {
+        'e': const GraphLayoutEdge(
+          id: 'e',
+          sourceId: '1',
+          destinationId: '2',
+        ),
+      },
+    );
+    const algorithm = FruchtermanReingoldSceneLayoutAlgorithm(
       iterations: 20,
       showIterations: true,
     );
 
-    var yieldedLayouts = 0;
-    await for (final _ in algorithm.layout(
-      nodes: mutableNodes,
-      edges: const {},
-      size: const Size(500, 500),
+    var yieldedFrames = 0;
+    await for (final frame in GraphLayoutFrameIngress.enforce(
+      algorithm.layout(request),
+      request,
     )) {
-      yieldedLayouts++;
-      if (yieldedLayouts == 1) {
-        mutableNodes.add(node2);
-      }
+      yieldedFrames++;
+      expect(frame.positions.keys, containsAll(['1', '2']));
     }
 
-    expect(yieldedLayouts, greaterThan(0));
+    expect(yieldedFrames, greaterThan(1));
   });
 
-  test('layout ignores edges whose endpoints are outside the snapshot', () async {
-    const algorithm = FruchtermanReingoldAlgorithm(iterations: 5);
+  test('terminal frame includes every requested node', () async {
+    const algorithm = FruchtermanReingoldSceneLayoutAlgorithm(iterations: 5);
+    final request = _request(
+      owner: owner,
+      nodes: {'1': _layoutNode('1')},
+      edges: {
+        'loop': const GraphLayoutEdge(
+          id: 'loop',
+          sourceId: '1',
+          destinationId: '1',
+        ),
+      },
+    );
 
-    final layouts = await algorithm
-        .layout(
-          nodes: {node1},
-          edges: {edge12},
-          size: const Size(500, 500),
-        )
-        .toList();
+    final terminal = await GraphLayoutFrameIngress.enforce(
+      algorithm.layout(request),
+      request,
+    ).last;
 
-    expect(layouts, isNotEmpty);
-    expect(layouts.last.hasPosition(node1), isTrue);
+    expect(terminal.isTerminal, isTrue);
+    expect(terminal.positions.keys, ['1']);
+    expect(terminal.positions['1']!.x.isFinite, isTrue);
+    expect(terminal.positions['1']!.y.isFinite, isTrue);
   });
 }

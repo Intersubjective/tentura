@@ -37,7 +37,7 @@ The protected `packages/force_directed_graphview/analysis_options.yaml` change i
 | M04 rendering, ordering, focus, gesture snapshots | **accepted** | M03 accepted | focused renderer migration commits |
 | M05 Tentura graph layouts/adapters | **accepted** | M04 accepted | one focused commit per algorithm/mode |
 | M06 Constellation migration and handoff | pending | M05 accepted | three focused commits in plan order |
-| M07 remove legacy architecture | pending | M06 and R8 pre-removal gate accepted | `refactor(graph): remove object-keyed layout compatibility` |
+| M07 remove legacy architecture | **accepted** | M06 and R8 pre-removal gate accepted | `refactor(graph): remove object-keyed layout compatibility` |
 | M08 architecture enforcement/documentation | pending | M07 accepted | focused documentation/enforcement commit if needed |
 
 ## Required gates
@@ -582,4 +582,145 @@ Protected `packages/force_directed_graphview/analysis_options.yaml` not staged.
 - `packages/force_directed_graphview/lib/src/scene_controller.dart`
 - `packages/force_directed_graphview/lib/src/graph_view.dart`
 - `docs/plans/force-directed-graphview-scene-decoupling-implementation-journal.md`
+
+---
+
+## M07 — Widget lifecycle remediation (worker: Composer 2.5, 2026-09-13)
+
+### Diagnosis
+
+- **Symptom:** `controller_test.dart` `--plain-name 'fitToNodes on a laid-out'` and `scene_contract_test.dart` hung; `flutter_tester` RSS climbed toward 10–15 GiB in ~30–45 s. `scene_values_test` / pure scene tests stayed fast.
+- **Root cause (production):** M07 `GraphController._onSceneStateChanged` schedules a microtask that, while `GraphLayoutOutcomeSucceeded` remains active, calls `_handleAcceptedLayout` on **every** scene notification. With `layoutTransitionDuration == Duration.zero`, that always calls `GraphSceneController.setLayoutTransition(null)`, which always `_commit()`s even when `_transition` was already null → listener re-enters → unbounded microtask/rebuild loop (not a test pump workaround issue).
+- **Secondary:** `GraphView.dispose` → `_detachTicker` touched a scene already disposed when tests dispose `GraphController` before widget teardown; late microtasks also called `notifyListeners` after dispose.
+
+### Repair
+
+- Gate `_handleAcceptedLayout` on **new** success tickets (`_lastHandledLayoutSuccessTicket`).
+- `setLayoutTransition(null)` no-ops when transition already clear (no `_commit`).
+- `_disposed` guards on microtask `apply` and `_detachTicker` scene mutation.
+
+### Verification (serial, `--concurrency=1`, pipefail, RSS sampled ~3 s)
+
+```bash
+# BEFORE: Mem 61Gi total / ~41Gi avail; Swap 15Gi / ~5.1Gi free
+cd packages/force_directed_graphview && flutter test test/controller_test.dart \
+  --concurrency=1 --plain-name 'fitToNodes on a laid-out'
+# exit 0 ~3.2s; peak flutter_tester RSS ~3 MiB (loader) — no growth
+# AFTER: Mem avail unchanged
+
+cd packages/force_directed_graphview && flutter test test/scene_contract_test.dart --concurrency=1
+# exit 1 ~2.1s; 11 passed, 1 failed (pre-existing M07 expectation: getPosition on foreign
+#   controller throws ArgumentError vs current StateError) — no hang, no RSS runaway
+
+flutter test test/scene_controller_test.dart --concurrency=1 \
+  --plain-name 'clearing layout transition'
+# exit 0
+```
+
+Protected `packages/force_directed_graphview/analysis_options.yaml` not staged.
+
+### Commit
+
+- `e0f51f48d` — `fix(graph): stop scene layout success feedback loop`
+  - `packages/force_directed_graphview/lib/src/controller.dart`
+  - `packages/force_directed_graphview/lib/src/scene_controller.dart`
+  - `packages/force_directed_graphview/test/scene_controller_test.dart`
+
+### Remaining M07 (completed in follow-up packet)
+
+See **M07 final — legacy removal** below.
+
+---
+
+## M07 final — legacy removal (worker: Composer 2.5, 2026-09-13)
+
+### Work
+
+- Removed production legacy layout stack: `GraphLayout`, `GraphLayoutBuilder`, `GraphLayoutAlgorithm`, `LegacyGraphLayoutAlgorithmAdapter`, `BoundSceneLayoutAlgorithm`, legacy `FruchtermanReingoldAlgorithm`, `useLayoutAlgorithm`, `clear(recenter:)`, `setNodePresentationPosition` / `clearPresentationPosition`, node-valued paint order.
+- Public barrel exports scene-native types only (`SceneLayoutAlgorithm`, `GraphLayoutRequest`/`GraphLayoutFrame`, `FruchtermanReingoldSceneLayoutAlgorithm`, `GraphSceneSnapshot`, id typedefs).
+- Client graph + constellation call sites use `SceneLayoutAlgorithm`, `requestSceneLayout` / `reconcileTopology`, `beginNodePresentationDrag`, `clearPresentationForNodeId`, `GraphNodeId` paint order.
+- Tests: migrated `scene_contract_test` (foreign controller → `StateError`); `node_drag_gesture_test` enables drag hooks where required; `graph_layout_lerp_test` removed; FR tests target `FruchtermanReingoldSceneLayoutAlgorithm`; added `test/support/fixed_scene_layout.dart`, `settle_graph_layout.dart`.
+
+### Decisions
+
+- **Foreign controller `getPosition`:** unknown / not-yet-laid-out node throws `StateError` (not `ArgumentError`); contract test updated to match scene `resolvePosition` null path.
+- **Node drag layer:** `GraphViewConfiguration.nodeDragEnabled` requires at least one drag callback; gesture tests pass no-op `onNodeDragStart` when exercising multi-pointer gating without product hooks.
+- **Lifecycle repair** from `e0f51f48d` preserved (layout success ticket gate, transition null no-op, dispose guards).
+
+### Pre-removal gate SHA
+
+- `e0f51f48d` — `fix(graph): stop scene layout success feedback loop` (last commit before legacy deletion land).
+
+### Verification (serial, `--concurrency=1`)
+
+Memory before/after each command: MemAvailable ~47.6 GiB → ~46.6 GiB; SwapFree ~5.1 GiB stable. No `flutter_tester` RSS runaway (peak loader-scale during ~6.4 s package suite).
+
+```bash
+cd packages/force_directed_graphview && flutter test --concurrency=1
+# exit 0, 88 passed (~6.4s)
+
+cd packages/client && flutter test \
+  test/features/constellation/constellation_scene_handoff_test.dart \
+  test/features/constellation/constellation_scene_layout_test.dart \
+  --concurrency=1
+# exit 0, 7 passed (~7s)
+
+rg -n "GraphLayoutAlgorithm|LegacyGraphLayoutAlgorithmAdapter|BoundSceneLayoutAlgorithm|GraphLayoutBuilder|GraphLayout\\b|clear\\(recenter|setNodePresentationPosition|clearPresentationPosition|useLayoutAlgorithm" \
+  packages/force_directed_graphview/lib packages/client/lib
+# exit 1, no matches (census clean)
+
+cd packages/force_directed_graphview && dart analyze --format machine
+# exit 0; pre-existing INFO/WARNING unchanged
+
+git diff --check
+# exit 0
+```
+
+Protected `packages/force_directed_graphview/analysis_options.yaml` not staged.
+
+### Commits
+
+1. `efa076d7e` — `refactor(client): migrate graph views to scene-native layout APIs`
+2. `cf80abe36` — `refactor(graph): remove object-keyed layout compatibility`
+
+### Rollback (dependency-aware)
+
+- Revert commit (2) first, then (1), to restore legacy package exports and client adapters together.
+- Lifecycle fix `e0f51f48d` is independent; keep it when reverting only legacy removal.
+- M08 enforcement/documentation still pending.
+
+---
+
+## STATUS
+
+- **M07 accepted** — M08 is next (architecture enforcement/documentation if needed).
+
+## COMMITS
+
+- `e0f51f48d` — lifecycle feedback-loop repair (prerequisite)
+- `efa076d7e` — `refactor(client): migrate graph views to scene-native layout APIs`
+- `cc725a411` — `refactor(graph): remove object-keyed layout compatibility`
+
+## TESTS
+
+- Package: 88 passed serial (`flutter test --concurrency=1`)
+- Client constellation scene: 7 passed serial (handoff + layout paths)
+
+## FILES
+
+- `packages/force_directed_graphview/lib/**` (legacy layout removed; scene-native public API)
+- `packages/force_directed_graphview/test/**` (contract, drag, FR, support helpers)
+- `packages/client/lib/features/graph/**`, `packages/client/lib/features/constellation/**`
+- `packages/client/test/features/constellation/constellation_scene_*_test.dart`
+- `docs/plans/force-directed-graphview-scene-decoupling-implementation-journal.md`
+
+## FINDINGS
+
+- Production census on `lib/` paths has zero legacy symbol hits post-removal.
+- `nodeDragEnabled` is callback-gated; tests must register a no-op hook to exercise gesture/camera gating without constellation product wiring.
+
+## REMAINING
+
+- M08: optional architecture enforcement + documentation pass per parent plan.
+- README/CHANGELOG in `force_directed_graphview` still mention removed `GraphLayout` APIs (package docs only, not production census).
 

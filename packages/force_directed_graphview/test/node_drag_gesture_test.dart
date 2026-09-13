@@ -5,26 +5,68 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:force_directed_graphview/force_directed_graphview.dart';
 import 'package:force_directed_graphview/src/widget/graph_layout_view.dart';
+import 'support/fixed_scene_layout.dart';
 import 'support/int_graph_controller.dart';
+import 'support/settle_graph_layout.dart';
 
 void main() {
   const viewportSize = Size(800, 600);
   const canvasSize = Size(500, 500);
 
-  test('orderedNodes respects optional paint order', () {
-    final controller = testIntGraphController();
+  testWidgets('orderedRenderNodeIds respects configured paint order',
+      (tester) async {
+    final controller = testIntIntGraphController();
     const a = Node<int>(data: 1, size: 10);
     const b = Node<int>(data: 2, size: 10);
     const c = Node<int>(data: 3, size: 10);
 
+    tester.view.physicalSize = const Size(800, 600);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+    addTearDown(tester.view.resetDevicePixelRatio);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: SizedBox(
+          width: 800,
+          height: 600,
+          child: GraphView<Node<int>, Edge<Node<int>, int>>(
+            controller: controller,
+            canvasSize: const GraphCanvasSize.fixed(Size(500, 500)),
+            layoutAlgorithm: FixedSceneLayoutAlgorithm({
+              '1': ScenePoint(x: 100, y: 100),
+              '2': ScenePoint(x: 200, y: 200),
+              '3': ScenePoint(x: 300, y: 300),
+            }),
+            nodeBuilder: (context, node) => SizedBox(
+              width: node.size,
+              height: node.size,
+            ),
+          ),
+        ),
+      ),
+    );
+
+    controller.mutate((m) {
+      m
+        ..addNode(a)
+        ..addNode(b)
+        ..addNode(c);
+    });
+    await settleGraphLayout(tester, controller);
+
+    controller.setNodePaintOrder(const ['3', '1']);
+    final snapshot = controller.renderSnapshot;
     final ordered = controller
-        .orderedNodes(
-          {a, b, c},
-          paintOrder: const [c, a],
+        .orderedRenderNodeIds(
+          snapshot,
+          configuredPaintOrder: const ['3', '1'],
         )
+        .map((id) => int.parse(id))
         .toList();
 
-    expect(ordered, [c, a, b]);
+    expect(ordered, [3, 1, 2]);
+    controller.dispose();
   });
 
   testWidgets('pan and zoom without node capture', (tester) async {
@@ -180,9 +222,7 @@ void main() {
     await _pumpGraph(
       tester,
       controller: controller,
-      onNodeDragUpdate: (node, position) {
-        controller.setNodePresentationPosition(node, position);
-      },
+      onNodeDragStart: (_, __) {},
     );
 
     final nodeCentre = _nodeCenter(tester, _TestHarness.bottom);
@@ -215,9 +255,6 @@ void main() {
       controller: controller,
       onNodeDragCancel: (node) => cancelled = node,
       onNodeDragEnd: (_, __) => endCount++,
-      onNodeDragUpdate: (node, position) {
-        controller.setNodePresentationPosition(node, position);
-      },
     );
 
     final nodeCentre = _nodeCenter(tester, _TestHarness.bottom);
@@ -225,9 +262,11 @@ void main() {
     await gesture.down(nodeCentre);
     await gesture.moveBy(const Offset(20, 0));
     await tester.pump();
+    final layoutPoint =
+        controller.renderSnapshot.layout!.positions['3']!;
     expect(
       controller.getPosition(_TestHarness.bottom),
-      isNot(controller.layout.getPosition(_TestHarness.bottom)),
+      isNot(Offset(layoutPoint.x, layoutPoint.y)),
     );
 
     await gesture.cancel();
@@ -237,7 +276,7 @@ void main() {
     expect(endCount, 0);
     expect(
       controller.getPosition(_TestHarness.bottom),
-      controller.layout.getPosition(_TestHarness.bottom),
+      Offset(layoutPoint.x, layoutPoint.y),
     );
 
     controller.dispose();
@@ -251,7 +290,7 @@ void main() {
       tester,
       controller: controller,
       layoutAlgorithm: const _OverlappingFixedLayout(),
-      nodePaintOrder: const [_TestHarness.bottom, _TestHarness.top],
+      nodePaintOrder: const ['3', '1'],
       onNodeDragStart: (node, _) => dragged = node,
     );
 
@@ -276,14 +315,13 @@ void main() {
       tester,
       controller: controller,
       edgePainter: recorder,
-      onNodeDragUpdate: (node, position) {
-        controller.setNodePresentationPosition(node, position);
-      },
+      onNodeDragStart: (_, __) {},
+      onNodeDragUpdate: (_, __) {},
     );
 
     final unrelatedBefore = recorder.snapshotFor(_TestHarness.unrelatedEdge);
     final nodeCentre = _nodeCenter(tester, _TestHarness.bottom);
-    final layoutCentre = controller.layout.getPosition(_TestHarness.bottom);
+    final layoutCentre = controller.getPosition(_TestHarness.bottom);
 
     final gesture = await tester.createGesture(kind: PointerDeviceKind.mouse);
     await gesture.down(nodeCentre);
@@ -312,13 +350,10 @@ void main() {
       tester,
       controller: controller,
       layoutAlgorithm: algorithm,
-      onNodeDragUpdate: (node, position) {
-        controller.setNodePresentationPosition(node, position);
-      },
     );
 
     final relayoutsAfterSetup = controller.relayoutInvocationCount;
-    final relayoutCallsAfterSetup = algorithm.relayoutCalls;
+    final layoutCallsAfterSetup = algorithm.layoutCalls;
     final nodeCentre = _nodeCenter(tester, _TestHarness.bottom);
     final gesture = await tester.createGesture(kind: PointerDeviceKind.mouse);
     await gesture.down(nodeCentre);
@@ -330,7 +365,7 @@ void main() {
     await tester.pump();
 
     expect(controller.relayoutInvocationCount, relayoutsAfterSetup);
-    expect(algorithm.relayoutCalls, relayoutCallsAfterSetup);
+    expect(algorithm.layoutCalls, layoutCallsAfterSetup);
 
     controller.dispose();
   });
@@ -359,13 +394,13 @@ class _TestHarness {
 Future<void> _pumpGraph(
   WidgetTester tester, {
   required GraphController<Node<int>, Edge<Node<int>, int>> controller,
-  GraphLayoutAlgorithm? layoutAlgorithm,
+  SceneLayoutAlgorithm? layoutAlgorithm,
   EdgePainter<Node<int>, Edge<Node<int>, int>>? edgePainter,
   NodeDragStartCallback<Node<int>>? onNodeDragStart,
   NodeDragUpdateCallback<Node<int>>? onNodeDragUpdate,
   NodeDragEndCallback<Node<int>>? onNodeDragEnd,
   NodeDragCancelCallback<Node<int>>? onNodeDragCancel,
-  List<Node<int>>? nodePaintOrder,
+  List<GraphNodeId>? nodePaintOrder,
 }) async {
   tester.view.physicalSize = const Size(800, 600);
   tester.view.devicePixelRatio = 1.0;
@@ -426,93 +461,71 @@ Offset _globalForScene(WidgetTester tester, Offset scene) {
   return box.localToGlobal(scene);
 }
 
-final class _OverlappingFixedLayout implements GraphLayoutAlgorithm {
+final class _OverlappingFixedLayout implements SceneLayoutAlgorithm {
   const _OverlappingFixedLayout();
 
   @override
-  Stream<GraphLayout> layout({
-    required Set<NodeBase> nodes,
-    required Set<EdgeBase> edges,
-    required Size size,
-  }) =>
-      Stream.value(_FixedLayout._build(nodes, overlapTopAndBottom: true));
-
-  @override
-  Stream<GraphLayout> relayout({
-    required GraphLayout existingLayout,
-    required Set<NodeBase> nodes,
-    required Set<EdgeBase> edges,
-    required Size size,
-  }) =>
-      Stream.value(_FixedLayout._build(nodes, overlapTopAndBottom: true));
+  Stream<GraphLayoutFrame> layout(GraphLayoutRequest request) async* {
+    yield GraphLayoutFrame(
+      ticket: request.ticket,
+      sequence: 0,
+      positions: _FixedLayout.positionsFor(
+        request.nodeIds,
+        overlapTopAndBottom: true,
+      ),
+      isTerminal: true,
+    );
+  }
 }
 
-final class _FixedLayout implements GraphLayoutAlgorithm {
+final class _FixedLayout implements SceneLayoutAlgorithm {
   const _FixedLayout();
 
-  static GraphLayout _build(
-    Set<NodeBase> nodes, {
+  static Map<GraphNodeId, ScenePoint> positionsFor(
+    Set<GraphNodeId> ids, {
     bool overlapTopAndBottom = false,
   }) {
-    final builder = GraphLayoutBuilder(nodes: {...nodes});
-    if (nodes.contains(_TestHarness.top)) {
-      builder.setNodePosition(
-        _TestHarness.top,
-        overlapTopAndBottom
-            ? const Offset(150, 250)
-            : const Offset(150, 150),
-      );
+    final positions = <GraphNodeId, ScenePoint>{};
+    if (ids.contains('1')) {
+      positions['1'] = overlapTopAndBottom
+          ? ScenePoint(x: 150, y: 250)
+          : ScenePoint(x: 150, y: 150);
     }
-    if (nodes.contains(_TestHarness.middle)) {
-      builder.setNodePosition(_TestHarness.middle, const Offset(250, 250));
+    if (ids.contains('2')) {
+      positions['2'] = ScenePoint(x: 250, y: 250);
     }
-    if (nodes.contains(_TestHarness.bottom)) {
-      builder.setNodePosition(_TestHarness.bottom, const Offset(150, 250));
+    if (ids.contains('3')) {
+      positions['3'] = ScenePoint(x: 150, y: 250);
     }
-    if (nodes.contains(_TestHarness.far)) {
-      builder.setNodePosition(_TestHarness.far, const Offset(400, 400));
+    if (ids.contains('4')) {
+      positions['4'] = ScenePoint(x: 400, y: 400);
     }
-    return builder.build();
+    return positions;
   }
 
   @override
-  Stream<GraphLayout> layout({
-    required Set<NodeBase> nodes,
-    required Set<EdgeBase> edges,
-    required Size size,
-  }) =>
-      Stream.value(_build(nodes));
-
-  @override
-  Stream<GraphLayout> relayout({
-    required GraphLayout existingLayout,
-    required Set<NodeBase> nodes,
-    required Set<EdgeBase> edges,
-    required Size size,
-  }) =>
-      Stream.value(_build(nodes));
+  Stream<GraphLayoutFrame> layout(GraphLayoutRequest request) async* {
+    yield GraphLayoutFrame(
+      ticket: request.ticket,
+      sequence: 0,
+      positions: positionsFor(request.nodeIds),
+      isTerminal: true,
+    );
+  }
 }
 
-final class _CountingLayoutAlgorithm implements GraphLayoutAlgorithm {
-  var relayoutCalls = 0;
+final class _CountingLayoutAlgorithm implements SceneLayoutAlgorithm {
+  var layoutCalls = 0;
 
   @override
-  Stream<GraphLayout> layout({
-    required Set<NodeBase> nodes,
-    required Set<EdgeBase> edges,
-    required Size size,
-  }) =>
-      Stream.value(_FixedLayout._build(nodes));
-
-  @override
-  Stream<GraphLayout> relayout({
-    required GraphLayout existingLayout,
-    required Set<NodeBase> nodes,
-    required Set<EdgeBase> edges,
-    required Size size,
-  }) {
-    relayoutCalls++;
-    return Stream.value(_FixedLayout._build(nodes));
+  Stream<GraphLayoutFrame> layout(GraphLayoutRequest request) async* {
+    layoutCalls++;
+    yield GraphLayoutFrame(
+      ticket: request.ticket,
+      sequence: 0,
+      positions: _FixedLayout.positionsFor(request.nodeIds),
+      isTerminal: true,
+    );
   }
 }
 

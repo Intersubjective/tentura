@@ -27,14 +27,14 @@ void main() {
     final snapshot = controller.renderSnapshot;
     final baseline = controller.orderedRenderNodeIds(
       snapshot,
-      legacyPaintOrder: const [c, a],
+      configuredPaintOrder: const ['3', '1'],
     );
     expect(baseline, ['3', '1', '2']);
 
     controller.beginNodePresentationDrag(b, const Offset(5, 5));
     final withOverride = controller.orderedRenderNodeIds(
       controller.renderSnapshot,
-      legacyPaintOrder: const [c, a],
+      configuredPaintOrder: const ['3', '1'],
     );
     expect(withOverride.last, '2');
 
@@ -171,35 +171,26 @@ Offset _sceneCentre(
   return box.localToGlobal(controller.getPosition(node));
 }
 
-final class _CentreLayout implements GraphLayoutAlgorithm {
+final class _CentreLayout implements SceneLayoutAlgorithm {
   const _CentreLayout();
 
   @override
-  Stream<GraphLayout> layout({
-    required Set<NodeBase> nodes,
-    required Set<EdgeBase> edges,
-    required Size size,
-  }) {
-    final builder = GraphLayoutBuilder(nodes: {...nodes});
-    var index = 0;
-    for (final node in nodes) {
-      builder.setNodePosition(
-        node,
-        Offset(120 + index * 80, 250),
+  Stream<GraphLayoutFrame> layout(GraphLayoutRequest request) async* {
+    final ids = request.nodeIds.toList()..sort();
+    final positions = <GraphNodeId, ScenePoint>{};
+    for (var index = 0; index < ids.length; index++) {
+      positions[ids[index]] = ScenePoint(
+        x: 120 + index * 80,
+        y: 250,
       );
-      index++;
     }
-    return Stream.value(builder.build());
+    yield GraphLayoutFrame(
+      ticket: request.ticket,
+      sequence: 0,
+      positions: positions,
+      isTerminal: true,
+    );
   }
-
-  @override
-  Stream<GraphLayout> relayout({
-    required GraphLayout existingLayout,
-    required Set<NodeBase> nodes,
-    required Set<EdgeBase> edges,
-    required Size size,
-  }) =>
-      layout(nodes: nodes, edges: edges, size: size);
 }
 
 final class _SameFrameEdgeRecorder

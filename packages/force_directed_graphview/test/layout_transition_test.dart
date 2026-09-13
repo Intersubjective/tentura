@@ -18,7 +18,9 @@ void main() {
         home: GraphView<Node<String>, Edge<Node<String>, void>>(
           controller: controller,
           canvasSize: const GraphCanvasSize.fixed(Size(500, 500)),
-          layoutAlgorithm: const FruchtermanReingoldAlgorithm(iterations: 1),
+          layoutAlgorithm: const FruchtermanReingoldSceneLayoutAlgorithm(
+            iterations: 1,
+          ),
           layoutTransitionDuration: const Duration(milliseconds: 300),
           nodeBuilder: (context, node) => const SizedBox.shrink(),
         ),
@@ -27,7 +29,7 @@ void main() {
 
     controller.mutate((m) => m..addNode(a));
     await tester.pumpAndSettle();
-    final first = controller.layout.getPosition(a);
+    final first = controller.getPosition(a);
 
     controller.mutate((m) => m..addNode(b));
     await tester.pump();
@@ -38,12 +40,12 @@ void main() {
 
     // Mid-transition the graph must be laid out and must not have snapped.
     expect(controller.canLayout, isTrue);
-    expect(controller.layout.hasPosition(a), isTrue);
+    expect(controller.getPositionOrNull(a), isNotNull);
 
     await tester.pumpAndSettle();
     expect(controller.isLayoutSettling, isFalse);
     expect(controller.isLayoutTransitioning, isFalse);
-    expect(controller.layout.hasPosition(b), isTrue);
+    expect(controller.getPositionOrNull(b), isNotNull);
     expect(first, isNotNull);
 
     controller.dispose();

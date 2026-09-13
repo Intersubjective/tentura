@@ -188,7 +188,7 @@ class _NodeDragGestureState extends State<NodeDragGesture> {
       snapshot: snapshot,
       orderedNodeIds: _controller.orderedRenderNodeIds(
         snapshot,
-        legacyPaintOrder: _configuration.nodePaintOrder,
+        configuredPaintOrder: _configuration.nodePaintOrder,
       ),
     );
   }
@@ -311,7 +311,7 @@ class _NodeDragGestureState extends State<NodeDragGesture> {
       if (notifyCancel) {
         final payload = _controller.nodePayloadForId(nodeId);
         if (payload != null) {
-          _controller.clearPresentationPosition(payload);
+          _controller.clearPresentationForNodeId(nodeId);
           _configuration.onNodeDragCancel?.call(payload);
         }
       }

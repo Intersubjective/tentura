@@ -1,6 +1,5 @@
 import 'dart:async';
 
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:force_directed_graphview/force_directed_graphview.dart';
 import 'package:force_directed_graphview/src/scene/graph_layout_ticket.dart'
@@ -290,110 +289,6 @@ void main() {
     });
   });
 
-  group('LegacyGraphLayoutAlgorithmAdapter', () {
-    test('wraps legacy FR with terminal frame protocol', () async {
-      const node1 = Node<String>(data: 'n1', size: 100);
-      const node2 = Node<String>(data: 'n2', size: 100);
-      const edge = Edge(
-        source: node1,
-        destination: node2,
-        data: 'e1',
-      );
-      const legacy = FruchtermanReingoldAlgorithm(
-        iterations: 4,
-        temperature: 40,
-        optimalDistance: 70,
-      );
-      final adapter = LegacyGraphLayoutAlgorithmAdapter(
-        delegate: legacy,
-        nodes: {node1, node2},
-        edges: {edge},
-        nodeIdOf: (n) => (n as Node<String>).data,
-        edgeIdOf: (e) => (e as Edge).data as String,
-      );
-      final request = GraphLayoutRequest(
-        ticket: mintGraphLayoutTicket(
-          owner: owner,
-          topologyRevision: 1,
-          generation: 1,
-        ),
-        canvasSize: SceneSize(width: 500, height: 500),
-        nodesById: {
-          'n1': GraphLayoutNode(
-            id: 'n1',
-            size: SceneSize(width: 100, height: 100),
-            simulationFixed: node1.pinned,
-          ),
-          'n2': GraphLayoutNode(
-            id: 'n2',
-            size: SceneSize(width: 100, height: 100),
-            simulationFixed: node2.pinned,
-          ),
-        },
-        edgesById: {
-          'e1': const GraphLayoutEdge(
-            id: 'e1',
-            sourceId: 'n1',
-            destinationId: 'n2',
-          ),
-        },
-      );
-
-      final frames = await GraphLayoutFrameIngress.enforce(
-        adapter.layout(request),
-        request,
-      ).toList();
-      expect(frames.last.isTerminal, isTrue);
-      expect(frames.last.positions.keys, containsAll(['n1', 'n2']));
-
-      final direct = await legacy
-          .layout(
-            nodes: {node1, node2},
-            edges: {edge},
-            size: const Size(500, 500),
-          )
-          .last;
-      expect(
-        frames.last.positions['n1']!.x,
-        closeTo(direct.getPosition(node1).dx, 0.001),
-      );
-      expect(
-        frames.last.positions['n1']!.y,
-        closeTo(direct.getPosition(node1).dy, 0.001),
-      );
-    });
-
-    test('maps pinned to simulationFixed mismatch as error', () async {
-      const node = Node<int>(data: 1, size: 50, pinned: true);
-      final adapter = LegacyGraphLayoutAlgorithmAdapter(
-        delegate: const FruchtermanReingoldAlgorithm(iterations: 0),
-        nodes: {node},
-        edges: {},
-        nodeIdOf: (n) => '1',
-        edgeIdOf: (_) => 'e',
-      );
-      final request = GraphLayoutRequest(
-        ticket: mintGraphLayoutTicket(
-          owner: owner,
-          topologyRevision: 1,
-          generation: 1,
-        ),
-        canvasSize: SceneSize(width: 100, height: 100),
-        nodesById: {
-          '1': GraphLayoutNode(
-            id: '1',
-            size: SceneSize(width: 50, height: 50),
-            simulationFixed: false,
-          ),
-        },
-        edgesById: {},
-      );
-      await expectLater(
-        adapter.layout(request),
-        emitsError(isA<ArgumentError>()),
-      );
-    });
-  });
 }
 
 final class _OneShotLayoutAlgorithm implements SceneLayoutAlgorithm {
