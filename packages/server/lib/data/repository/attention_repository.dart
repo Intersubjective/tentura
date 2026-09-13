@@ -706,6 +706,31 @@ WHERE outbox.account_id = $1
       );
 
   @override
+  Future<int> markSeenForBeacon({
+    required String accountId,
+    required String beaconId,
+  }) =>
+      _database.customUpdate(
+        '''
+UPDATE public.notification_outbox outbox
+SET
+  seen_at = COALESCE(outbox.seen_at, now())
+WHERE outbox.account_id = \$1
+  AND outbox.seen_at IS NULL
+  AND outbox.beacon_id = \$2
+  AND outbox.id IN (
+    SELECT receipt_id
+    FROM public.visible_attention_receipts(\$1)
+  )
+''',
+        variables: [
+          Variable<String>(accountId),
+          Variable<String>(beaconId),
+        ],
+        updateKind: UpdateKind.update,
+      );
+
+  @override
   Future<int> bridgeRoomWatermark({
     required String accountId,
     required String beaconId,

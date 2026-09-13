@@ -13,6 +13,11 @@ abstract interface class AttentionAckPort {
 
   Future<int> markAllSeen(String accountId, {AttentionSurface? surface});
 
+  Future<int> markSeenForBeacon({
+    required String accountId,
+    required String beaconId,
+  });
+
   Future<int> bridgeRoomWatermark({
     required String accountId,
     required String beaconId,

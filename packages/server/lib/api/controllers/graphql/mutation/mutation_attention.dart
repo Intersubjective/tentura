@@ -23,6 +23,7 @@ final class MutationAttention extends GqlNodeBase {
   List<GraphQLObjectField<dynamic, dynamic>> get all => [
     attentionMarkSeen,
     attentionMarkAllSeen,
+    attentionMarkSeenForBeacon,
     attentionMarkUnseen,
     attentionSettle,
   ];
@@ -77,7 +78,19 @@ final class MutationAttention extends GqlNodeBase {
         ),
       );
 
+  GraphQLObjectField<dynamic, dynamic> get attentionMarkSeenForBeacon =>
+      GraphQLObjectField(
+        'attentionMarkSeenForBeacon',
+        graphQLInt.nonNullable(),
+        arguments: [_beaconId.field],
+        resolve: (_, args) => _ack.markSeenForBeacon(
+          accountId: getCredentials(args).sub,
+          beaconId: _beaconId.fromArgsNonNullable(args),
+        ),
+      );
+
   static final _ids = InputFieldStringList(fieldName: 'ids');
+  static final _beaconId = InputFieldString(fieldName: 'beaconId');
   static final _receiptId = InputFieldString(fieldName: 'receiptId');
   static final _settlementKind = InputFieldString(fieldName: 'kind');
   static final _surface = InputFieldString(fieldName: 'surface');
