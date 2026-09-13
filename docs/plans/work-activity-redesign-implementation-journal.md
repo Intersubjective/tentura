@@ -601,6 +601,8 @@ DECISIONS:
 
 REMAINING: none. Proceed to UNIT 16 (mount widgets in `ActivityStreamView`).
 
+**Manager verdict: ACCEPTED.** Independently re-ran all four Verify commands (gen-l10n clean, 87/87 flutter test, lints 32/32 baseline, terminology OK). Confirmed the `inbox_card_actions.dart` extraction landed as its own isolated commit (3 files, pure move, no other unit's changes mixed in). Confirmed the `≤ 180` height assertion is a real programmatic check (`expect(box.size.height, lessThanOrEqualTo(180))`), not just a claim. Personally eyeballed three goldens: the 1.3×-scale forward offer card is compact with dismiss/avatar/title/why-line/actions all present and no overflow; the watching forward-row and not-interested forward-row (RU) show correctly differentiated per-outcome content — the not-interested row alone carries the blue "Вернуть" restore action, confirming outcome-specific action wiring is correct. The disclosed `body`-empty gap (synthetic forward items from UNIT 03 don't yet carry a forwarder-name field, so "From X" attribution will be blank on real data until a future unit adds it) is an honestly-flagged limitation of the server's current synthetic-item shape, not a defect in this unit's own delivered scope — noted for UNIT 22's final acceptance walkthrough. `activity-prompt-pin-$receiptId` was correctly verified to already exist (`TestIds.activityPromptPin`) rather than assumed. No leaked processes, clean git status, commits well split with the pure refactor landing first as instructed.
+
 ## Ordered unit checklist
 
 | Unit | Status |
@@ -620,7 +622,7 @@ REMAINING: none. Proceed to UNIT 16 (mount widgets in `ActivityStreamView`).
 | 12 | complete (accepted, real bug caught + fixed by worker) |
 | 13 | complete (accepted) |
 | 14 | complete (accepted) |
-| 15 | complete |
+| 15 | complete (accepted) |
 | 16 | pending |
 | 17 | pending |
 | 18 | pending |
