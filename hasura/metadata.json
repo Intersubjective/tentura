@@ -1905,7 +1905,8 @@
                         }
                       }
                     ]
-                  }
+                  },
+                  "allow_aggregations": true
                 }
               }
             ],
