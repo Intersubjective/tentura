@@ -476,6 +476,37 @@ REMAINING: none. Proceed to UNIT 13.
 
 **Manager verdict: ACCEPTED — real bug caught and fixed by the worker.** Independently re-ran all four Verify commands (gen-l10n clean, 154/154 flutter test, lints 32/32 baseline, terminology check OK). Confirmed `pubspec.yaml`/`web/index.html` both carry `7.6.9` consistently.
 
+## UNIT 13 — complete — 2026-09-14
+
+COMMITS:
+- `5a5385deb` feat(client): derive my work responsibility sections
+- `3934228e5` feat(client): section my work by responsibility
+- (this journal entry) docs: UNIT 13 my work sectioned body journal
+
+TESTS:
+- `cd packages/client && flutter gen-l10n` → exit 0
+- `cd packages/client && flutter test test/features/my_work/` → **162/162 passed**
+- `./scripts/check-custom-lints.sh packages/client` → `32 (baseline: 32)` — OK
+
+FILES:
+- `packages/client/lib/features/my_work/domain/derive_my_work_sections.dart` (new)
+- `packages/client/lib/features/my_work/ui/screen/my_work_screen.dart`
+- `packages/client/l10n/app_en.arb`, `app_ru.arb`
+- `packages/client/pubspec.yaml` (7.6.9 → 7.6.10), `web/index.html`
+- `packages/client/test/features/my_work/derive_my_work_sections_test.dart` (new)
+- `packages/client/test/features/my_work/my_work_sectioned_body_test.dart` (new)
+
+FINDINGS:
+- Section priority when classifying: live obligation wins over `isFinishedCard` — a finished request with a live obligation appears only under **Needs you**, never Finished.
+- Needs you header `count` is total live obligation receipts in that section (D4), not beacon/card count.
+- Within-section order preserves the desk sort order from `visibleCards` (stable partition of an already-sorted list).
+
+DECISIONS:
+- Redesign gate suppresses obligations pane and 2:3 split even when `myWorkObligationsGate` is on; legacy tree unchanged when redesign gate is off.
+- Finished section helper reuses existing `myWorkFinishedHint` (no new l10n key).
+
+REMAINING: none. Proceed to UNIT 14.
+
 The worker discovered that `AttentionCase.settle` early-returns when the receipt isn't in `_receiptsById` (the feed-session cache) — which My Work obligations never populate, since they arrive via `myWorkAttention`, not a mounted feed session. Calling the existing `settle` from the new "Done" button would have silently done nothing. Fix reviewed in full: `settle(receiptId)` keeps its exact original cache-check-then-delegate shape (zero behavior change for existing callers), and a new public `settleReceipt(receiptId)` holds the actual mutation + refresh side effects, which both paths now share. Correct, minimal, safe.
 
 The unplanned touch to `my_work_card_metadata_row.dart`/`beacon_hud_metadata_composer.dart` (suppressing the last-event HUD row under the gate so it doesn't duplicate the muted what's-new fallback) is equally clean: new parameter `hideLastEventMetadata` defaults `false`, and the one call site passes `readWorkActivityRedesignGateEnabled()` — with the gate off (`false`), the added `!hideLastEventMetadata &&` condition is always true, so gate-off behavior is provably unchanged.
@@ -499,7 +530,7 @@ Read the full `my_work_cards.dart` diff: every gating point is correct — `_myW
 | 10 | complete (accepted) |
 | 11 | complete (accepted) |
 | 12 | complete (accepted, real bug caught + fixed by worker) |
-| 13 | pending |
+| 13 | complete |
 | 14 | pending |
 | 15 | pending |
 | 16 | pending |
