@@ -320,6 +320,43 @@ REMAINING: none. Proceed to UNIT 09.
 
 **Manager verdict: ACCEPTED — exemplary unit.** Independently re-ran both Verify commands (54/54 flutter test, lints 32/32 baseline). Read the full `attention_case.dart` diff end to end: `_onRealtimeEntityChange` correctly triggers the surface-summary refresh unconditionally but branches the head-refresh scope (activity-stream-only for `helpOffer`/`inboxItem`, all-attached for plain `notification`) — exactly the required distinction. `_requestSurfaceSummaryRefresh` mirrors the file's existing in-flight-coalescing idiom (`_surfaceSummaryRefreshInFlight`/`Queued`) and adds a monotonic `_surfaceSummaryRequestSerial` guard alongside the existing account-generation guard, dropping stale responses on both axes. `markAllSeen({surface})` correctly zeroes only the requested surface's total (via `copyWith`'s null-means-unchanged convention) while leaving the other surface's total and `needsYouTotal` untouched, with correct rollback of the full previous surface-summary snapshot on failure. `_surfaceUnreadDeltasForIds` correctly keys optimistic adjustments off `receipt.surface`, applied symmetrically (apply on start, roll back exactly on failure) across `markSeen`/`markUnseen`/`markSeenForBeacon`. The new `_surfaceSummarySubject` is closed in `dispose()` (no stream leak). The round-trip test genuinely exercises `attachFeedSession`/`detachFeedSession` across `activityStream`→`history`→`activityStream` and asserts real session-state survival (`activeView`, `searchText`, cached page `nextCursor`) plus that the `history` fetch actually passed `surface: null` — not a shallow assertion. No leaked processes, clean git status (after the manifest.json fix above), commits well split.
 
+## UNIT 09 — complete — 2026-09-14
+
+COMMITS:
+- `b434994ba` feat(client): add work activity redesign gate
+- `5b5b0a250` feat(client): add section header and summary row
+- `84b1d804e` refactor(client): share attention summary row at call sites
+- (this entry) docs: UNIT 09 journal
+
+TESTS:
+- `cd packages/client && dart run build_runner build -d` → exit 0 (`WorkActivityRedesignGateModule` in generated `di.config.dart`)
+- `cd packages/client && flutter test test/design_system/ test/features/inbox/inbox_triage_row_test.dart` → **92/92 passed**
+- `./scripts/check-custom-lints.sh packages/client` → `32 (baseline: 32)` — OK
+- `cd packages/tentura_lints && dart test` → **18/18 passed**
+
+FILES:
+- `packages/client/lib/features/home/domain/work_activity_redesign_gate.dart` (new)
+- `packages/client/lib/design_system/components/tentura_section_header.dart` (new)
+- `packages/client/lib/design_system/components/tentura_attention_summary_row.dart` (new)
+- `packages/client/lib/design_system/tentura_design_system.dart`
+- `packages/client/lib/features/inbox/ui/widget/inbox_triage_row.dart`
+- `packages/client/lib/features/updates/ui/widget/updates_feed_pane.dart`
+- `packages/client/test/design_system/tentura_section_header_golden_test.dart` (new)
+- `packages/client/test/design_system/tentura_attention_summary_row_golden_test.dart` (new)
+- `packages/client/test/design_system/goldens/tentura_section_header_*.png` (9)
+- `packages/client/test/design_system/goldens/tentura_attention_summary_row_*.png` (9)
+
+FINDINGS:
+- `_CollapsedInvitePromptRow` had no trailing chevron; `showChevron: false` preserves the prior layout.
+- Section header label uses `tt.textFaint` (Activity day-header family); helper uses `tt.textMuted` per plan.
+- Component goldens were generated with `--update-goldens` but not manually eyeballed; refactor parity is backed by unchanged `inbox_triage_row_test.dart` and identical token/layout lift.
+
+DECISIONS:
+- `TenturaAttentionSummaryRow` optional `showChevron` and `maxLines` cover triage (1 line + chevron) vs collapsed prompt (2 lines, no chevron).
+- Section header padding: `top: sectionGap`, `bottom: tightGap`.
+
+REMAINING: none. Proceed to UNIT 10.
+
 ## Ordered unit checklist
 
 | Unit | Status |
@@ -333,7 +370,7 @@ REMAINING: none. Proceed to UNIT 09.
 | 06 | complete (overseer, accepted) |
 | 07 | complete (accepted) |
 | 08 | complete (accepted) |
-| 09 | pending |
+| 09 | complete |
 | 10 | pending |
 | 11 | pending |
 | 12 | pending |
