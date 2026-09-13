@@ -115,6 +115,39 @@ void main() {
     controller.dispose();
   });
 
+  testWidgets('touch long-press drag keeps the camera fixed', (tester) async {
+    final controller = _TestHarness.newController();
+    final updates = <Offset>[];
+
+    await _pumpGraph(
+      tester,
+      controller: controller,
+      onNodeDragUpdate: (_, position) => updates.add(position),
+    );
+
+    final nodeCentre = _nodeCenter(tester, _TestHarness.bottom);
+    final viewer = tester.widget<InteractiveViewer>(
+      find.byType(InteractiveViewer),
+    );
+    final cameraBefore = viewer.transformationController!.value.clone();
+    final gesture = await tester.createGesture(kind: PointerDeviceKind.touch);
+
+    await gesture.down(nodeCentre);
+    await tester.pump(const Duration(milliseconds: 500));
+    await tester.pump();
+    await gesture.moveBy(const Offset(80, 30));
+    await tester.pump();
+
+    expect(updates, isNotEmpty);
+    expect(
+      viewer.transformationController!.value.storage,
+      orderedEquals(cameraBefore.storage),
+    );
+
+    await gesture.up();
+    controller.dispose();
+  });
+
   testWidgets('touch movement before long-press cancels pending capture',
       (tester) async {
     final controller = _TestHarness.newController();

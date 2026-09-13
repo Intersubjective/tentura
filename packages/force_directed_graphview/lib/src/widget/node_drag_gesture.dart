@@ -1,5 +1,3 @@
-import 'dart:async';
-
 import 'package:flutter/gestures.dart';
 import 'package:flutter/widgets.dart';
 import 'package:force_directed_graphview/force_directed_graphview.dart';
@@ -25,15 +23,12 @@ class NodeDragGesture extends StatefulWidget {
 }
 
 class _NodeDragGestureState extends State<NodeDragGesture> {
-  static const _longPressDuration = Duration(milliseconds: 500);
-
   final _activePointers = <int>{};
 
   GraphNodeId? _pendingNodeId;
   int? _pendingPointer;
   Offset? _pendingDownScene;
   var _pendingDragged = false;
-  Timer? _longPressTimer;
 
   GraphNodeId? _capturedNodeId;
   GraphPresentationToken? _captureToken;
@@ -52,7 +47,8 @@ class _NodeDragGestureState extends State<NodeDragGesture> {
     final nextController = InheritedConfiguration.controllerOf(context);
     _configuration = InheritedConfiguration.configurationOf(context);
     if (!identical(_registeredAbortController, nextController)) {
-      _registeredAbortController?.unregisterGestureLifecycleAbort(_abortGestures);
+      _registeredAbortController
+          ?.unregisterGestureLifecycleAbort(_abortGestures);
       _registeredAbortController = nextController;
       nextController.registerGestureLifecycleAbort(_abortGestures);
     }
@@ -61,7 +57,6 @@ class _NodeDragGestureState extends State<NodeDragGesture> {
 
   @override
   void dispose() {
-    _longPressTimer?.cancel();
     _registeredAbortController?.unregisterGestureLifecycleAbort(_abortGestures);
     _registeredAbortController = null;
     _releaseCapture(notifyCancel: true);
@@ -79,13 +74,21 @@ class _NodeDragGestureState extends State<NodeDragGesture> {
       return widget.child;
     }
 
-    return Listener(
+    return GestureDetector(
       behavior: HitTestBehavior.translucent,
-      onPointerDown: _onPointerDown,
-      onPointerMove: _onPointerMove,
-      onPointerUp: _onPointerUp,
-      onPointerCancel: _onPointerCancel,
-      child: widget.child,
+      supportedDevices: const {
+        PointerDeviceKind.touch,
+        PointerDeviceKind.stylus,
+      },
+      onLongPressStart: _onTouchLongPressStart,
+      child: Listener(
+        behavior: HitTestBehavior.translucent,
+        onPointerDown: _onPointerDown,
+        onPointerMove: _onPointerMove,
+        onPointerUp: _onPointerUp,
+        onPointerCancel: _onPointerCancel,
+        child: widget.child,
+      ),
     );
   }
 
@@ -122,13 +125,23 @@ class _NodeDragGestureState extends State<NodeDragGesture> {
         event.buttons == kPrimaryMouseButton) {
       return;
     }
+  }
 
-    _longPressTimer?.cancel();
-    _longPressTimer = Timer(_longPressDuration, () {
-      if (_pendingPointer == event.pointer && _pendingNodeId == nodeId) {
-        _captureNode(nodeId, event.pointer, event.localPosition);
-      }
-    });
+  /// A [Listener] receives raw events but cannot win the gesture arena.
+  /// Recognizing this touch long-press prevents [InteractiveViewer] from
+  /// accepting the following pan while a node is being dragged.
+  void _onTouchLongPressStart(LongPressStartDetails details) {
+    final nodeId = _pendingNodeId;
+    final pointer = _pendingPointer;
+    final down = _pendingDownScene;
+    if (nodeId == null ||
+        pointer == null ||
+        down == null ||
+        _scaleBlocked ||
+        _activePointers.length != 1) {
+      return;
+    }
+    _captureNode(nodeId, pointer, down);
   }
 
   void _onPointerMove(PointerMoveEvent event) {
@@ -273,7 +286,6 @@ class _NodeDragGestureState extends State<NodeDragGesture> {
   }
 
   void _captureNode(GraphNodeId nodeId, int pointer, Offset downScene) {
-    _longPressTimer?.cancel();
     _pendingNodeId = null;
     _pendingPointer = null;
     _pendingDownScene = null;
@@ -317,7 +329,8 @@ class _NodeDragGestureState extends State<NodeDragGesture> {
     try {
       final token = _captureToken;
       if (token == null) {
-        _captureToken = _controller.beginNodePresentationDragForId(nodeId, centre);
+        _captureToken =
+            _controller.beginNodePresentationDragForId(nodeId, centre);
       } else {
         _controller.updateNodePresentationDrag(token, centre);
       }
@@ -378,7 +391,6 @@ class _NodeDragGestureState extends State<NodeDragGesture> {
   }
 
   void _cancelPendingCapture() {
-    _longPressTimer?.cancel();
     _pendingNodeId = null;
     _pendingPointer = null;
     _pendingDownScene = null;
