@@ -173,6 +173,36 @@ REMAINING: none. Proceed to UNIT 05.
 
 **Manager verdict: ACCEPTED.** Independently re-ran all three Verify commands (4/4 pg, 12/12 graphql, lints 0/0). `markSeenForBeacon` correctly mirrors pre-UNIT-02 `markAllSeen`'s simple shape — scoped only by `visible_attention_receipts`, no surface/scope CTE machinery pulled in, exactly as instructed. The pg test suite is thorough: authorization scoping, an explicit seen≠settled assertion (checks `settlement_kind`/`settled_at` stay NULL and `requires_action` stays true after marking seen), a hidden-beacon authorization case, and — better than what was asked — a genuine `LISTEN entity_changes` test that verifies the realtime trigger actually fires, rather than just inferring it from the existing `markSeen` test's pattern. No leaked processes, clean git status, commits well split.
 
+## UNIT 05 — complete — 2026-09-14
+
+COMMITS:
+- `7a6f3bf07` feat(server): expose per-request attention for my work
+- `dafc1f84e` test(server): cover my work attention projection
+
+TESTS:
+- `cd packages/server && dart run build_runner build -d` → exit 0
+- `cd packages/server && dart test -t pg -j 1 test/data/repository/my_work_attention_pg_test.dart` → **6/6 passed**
+- `cd packages/server && dart test test/api/controllers/graphql/attention_graphql_test.dart` → **13/13 passed**
+- `./scripts/check-custom-lints.sh packages/server` → `0 (baseline: 0)` — OK
+
+FILES:
+- `packages/server/lib/domain/attention/attention_models.dart`
+- `packages/server/lib/domain/port/attention_query_port.dart`
+- `packages/server/lib/data/repository/attention_repository.dart`
+- `packages/server/lib/api/controllers/graphql/custom_types.dart`
+- `packages/server/lib/api/controllers/graphql/query/query_attention.dart`
+- `packages/server/test/data/repository/my_work_attention_pg_test.dart` (new)
+- `packages/server/test/api/controllers/graphql/attention_graphql_test.dart`
+- `packages/server/test/domain/attention/legacy_canonical_compat_fixture_test.dart`
+
+FINDINGS:
+- Dart-side aggregation over one `scoped_receipts` SELECT keeps obligation ordering and `latestUnseen` exclusion logic aligned with design §4.2–§4.3 without duplicating `_mapRow` column lists in SQL json aggregates.
+
+DECISIONS:
+- Reuse `_visibleWithSurfaceCte` + `scoped_beacons` (`beaconIds ∩ scope`) rather than a third scope computation; emit beacons only when `unseenCount > 0` or ≥1 live obligation per §2.3.
+
+REMAINING: none. Proceed to UNIT 06.
+
 ## Ordered unit checklist
 
 | Unit | Status |
@@ -182,7 +212,7 @@ REMAINING: none. Proceed to UNIT 05.
 | 02 | complete (accepted) |
 | 03 | complete (accepted, one defect fixed by overseer) |
 | 04 | complete (accepted) |
-| 05 | pending |
+| 05 | complete |
 | 06 | pending |
 | 07 | pending |
 | 08 | pending |
