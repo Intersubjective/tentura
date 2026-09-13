@@ -15,6 +15,7 @@ import 'package:tentura/features/beacon_view/ui/util/help_offer_types_wire.dart'
 import 'package:tentura/features/graph/domain/entity/edge_details.dart';
 import 'package:tentura/features/graph/domain/entity/node_details.dart';
 import 'package:tentura/features/graph/ui/bloc/graph_person_context_cubit.dart';
+import 'package:tentura/features/graph/ui/utils/graph_scene_ids.dart';
 import 'package:tentura/features/graph/ui/utils/tentura_layout_algorithms.dart';
 import 'package:tentura/features/graph/ui/widget/graph_legend_mode.dart';
 import 'package:tentura/features/graph/ui/widget/graph_legend_panel.dart';
@@ -534,7 +535,7 @@ class _ConstellationBodyState extends State<ConstellationBody> {
     BuildContext context,
     ConstellationCubit cubit,
     ConstellationState state,
-    ConstellationLayoutAlgorithm layoutAlgorithm,
+    BoundSceneLayoutAlgorithm layoutAlgorithm,
     bool panelVisible,
   ) {
     return Stack(
@@ -830,7 +831,7 @@ class ConstellationEdgePainter
     required this.colorScheme,
   });
 
-  final Map<String, ConstellationEdgeKind> edgeKinds;
+  final Map<GraphEdgeId, ConstellationEdgeKind> edgeKinds;
   final ColorScheme colorScheme;
 
   static const _pathStroke = 2.0;
@@ -846,7 +847,15 @@ class ConstellationEdgePainter
     Offset src,
     Offset dst,
   ) {
-    final kind = edgeKinds['${edge.source.id}\0${edge.destination.id}'];
+    final pairSuffix =
+        '${tenturaGraphNodeId(edge.source)}->${tenturaGraphNodeId(edge.destination)}';
+    ConstellationEdgeKind? kind;
+    for (final entry in edgeKinds.entries) {
+      if (entry.key.endsWith(pairSuffix)) {
+        kind = entry.value;
+        break;
+      }
+    }
     if (kind == null) {
       return;
     }

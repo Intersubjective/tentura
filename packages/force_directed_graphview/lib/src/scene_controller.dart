@@ -362,6 +362,10 @@ class GraphSceneController<N, E> with ChangeNotifier {
 
   ScenePoint? resolvePosition(GraphNodeId id) => snapshot.resolvePosition(id);
 
+  /// Active presentation override token for [id], if any.
+  GraphPresentationToken? activePresentationTokenForNode(GraphNodeId id) =>
+      _activePresentationTokenByNode[id];
+
   @override
   void dispose() {
     if (_disposed) {

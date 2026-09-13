@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:force_directed_graphview/force_directed_graphview.dart';
 import 'package:force_directed_graphview/src/configuration.dart';
+import 'package:force_directed_graphview/src/layout_algorithm/bound_scene_layout_algorithm.dart';
 import 'package:force_directed_graphview/src/layout_algorithm/legacy_graph_layout_algorithm_adapter.dart';
 import 'package:force_directed_graphview/src/scene/graph_layout_outcome.dart';
 import 'package:force_directed_graphview/src/scene/graph_topology.dart';

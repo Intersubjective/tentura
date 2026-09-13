@@ -56,6 +56,19 @@ class _StubContextCubit extends Cubit<GraphPersonContextState>
 
 const _ego = Profile(id: 'ego', displayName: 'Ego');
 
+ConstellationEdgeKind? _edgeKindBetween(
+  ConstellationCubit cubit,
+  String srcId,
+  String dstId,
+) {
+  for (final entry in cubit.edgeKinds.entries) {
+    if (entry.key.contains(srcId) && entry.key.contains(dstId)) {
+      return entry.value;
+    }
+  }
+  return null;
+}
+
 final class _StubRepository implements ConstellationRepositoryPort {
   _StubRepository(this.field);
 
@@ -157,7 +170,7 @@ void main() {
         ),
       );
 
-      expect(cubit.edgeKinds['ego\0h'], ConstellationEdgeKind.ringStub);
+      expect(_edgeKindBetween(cubit, 'ego', 'h'), ConstellationEdgeKind.ringStub);
       expect(
         cubit.edgeKinds.entries.where(
           (entry) =>
@@ -193,8 +206,8 @@ void main() {
         ),
       );
 
-      expect(cubit.edgeKinds['ego\0a'], ConstellationEdgeKind.tier1Path);
-      expect(cubit.edgeKinds['a\0b'], ConstellationEdgeKind.tier2Path);
+      expect(_edgeKindBetween(cubit, 'ego', 'a'), ConstellationEdgeKind.tier1Path);
+      expect(_edgeKindBetween(cubit, 'a', 'b'), ConstellationEdgeKind.tier2Path);
     });
 
     test('attachment edge kind differs from path stroke kinds', () async {
@@ -217,9 +230,9 @@ void main() {
         ),
       );
 
-      expect(cubit.edgeKinds['a\0req-a'], ConstellationEdgeKind.attachment);
+      expect(_edgeKindBetween(cubit, 'a', 'req-a'), ConstellationEdgeKind.attachment);
       expect(
-        cubit.edgeKinds['a\0req-a'],
+        _edgeKindBetween(cubit, 'a', 'req-a'),
         isNot(anyOf(
           ConstellationEdgeKind.tier1Path,
           ConstellationEdgeKind.tier2Path,
@@ -289,7 +302,7 @@ void main() {
 
       expect(find.text('Need tools'), findsOneWidget);
       expect(
-        cubit.edgeKinds['a\0req-a'],
+        _edgeKindBetween(cubit, 'a', 'req-a'),
         ConstellationEdgeKind.attachment,
       );
     });

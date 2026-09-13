@@ -177,12 +177,123 @@ class GraphController<N extends NodeBase, E extends EdgeBase<N>>
     return ordered;
   }
 
-  /// Updates the graph using [GraphMutator]. Initiates relayout.
-  void mutate(void Function(GraphMutator<N, E> mutator) callback) {
+  /// Updates the graph using [GraphMutator]. Initiates relayout when topology
+  /// changes or [requestLayout] is true.
+  void mutate(
+    void Function(GraphMutator<N, E> mutator) callback, {
+    bool requestLayout = true,
+  }) {
     callback(GraphMutator<N, E>(this));
+    _commitTopologyChange(requestLayout: requestLayout);
+  }
+
+  /// Replaces nodes and edges by stable id without clearing the camera.
+  void reconcileTopology(
+    Set<N> targetNodes,
+    Set<E> targetEdges, {
+    bool requestLayout = false,
+    bool layoutOnTopologyChange = true,
+  }) {
+    _replaceNodeAndEdgeSets(targetNodes, targetEdges);
+    _commitTopologyChange(
+      requestLayout: requestLayout,
+      layoutOnTopologyChange: layoutOnTopologyChange,
+    );
+  }
+
+  /// Requests scene layout for the current topology and algorithm.
+  GraphLayoutTicket? requestSceneLayout({
+    Set<GraphPresentationToken> releaseOnTerminal = const {},
+  }) {
+    final currentAlgorithm = _currentAlgorithm;
+    final currentSize = _currentSize;
+    if (currentAlgorithm == null || currentSize == null || _nodes.isEmpty) {
+      return null;
+    }
+
+    _relayoutInvocationCount++;
+    _relayoutInFlight = true;
+    notifyListeners();
+
+    final sceneAlgorithm = _unwrapSceneLayoutAlgorithm(currentAlgorithm);
+    return _scene.requestLayout(
+      sceneAlgorithm,
+      canvasSize: SceneSize(
+        width: currentSize.width,
+        height: currentSize.height,
+      ),
+      releaseOnTerminal: releaseOnTerminal,
+    );
+  }
+
+  /// Active presentation drag token for [id], if any.
+  GraphPresentationToken? activePresentationTokenForNode(GraphNodeId id) =>
+      _scene.activePresentationTokenForNode(id);
+
+  void _commitTopologyChange({
+    required bool requestLayout,
+    bool layoutOnTopologyChange = true,
+  }) {
     _currentSize = _size?.resolve(nodes: nodes, edges: edges);
+    final revisionBefore = _scene.topologyRevision;
     _applyTopologyFromController();
-    _requestSceneLayout();
+    final topologyChanged = _scene.topologyRevision != revisionBefore;
+    if (requestLayout || (layoutOnTopologyChange && topologyChanged)) {
+      _requestSceneLayout();
+    } else {
+      notifyListeners();
+    }
+  }
+
+  void _replaceNodeAndEdgeSets(Set<N> targetNodes, Set<E> targetEdges) {
+    final targetNodesById = {for (final node in targetNodes) _nodeIdOf(node): node};
+    final targetEdgesById = {for (final edge in targetEdges) _edgeIdOf(edge): edge};
+
+    _nodes.removeWhere((node) => !targetNodesById.containsKey(_nodeIdOf(node)));
+    for (final entry in targetNodesById.entries) {
+      final existing = _nodes
+          .cast<N?>()
+          .where((node) => node != null && _nodeIdOf(node!) == entry.key)
+          .firstOrNull;
+      if (existing == null) {
+        _nodes.add(entry.value);
+      } else if (existing != entry.value) {
+        _nodes.remove(existing);
+        _nodes.add(entry.value);
+      }
+    }
+
+    _edges.removeWhere((edge) => !targetEdgesById.containsKey(_edgeIdOf(edge)));
+    for (final entry in targetEdgesById.entries) {
+      final existing = _edges
+          .cast<E?>()
+          .where((edge) => edge != null && _edgeIdOf(edge!) == entry.key)
+          .firstOrNull;
+      if (existing == null) {
+        _edges.add(entry.value);
+      } else if (existing != entry.value) {
+        _edges.remove(existing);
+        _edges.add(entry.value);
+      }
+    }
+  }
+
+  SceneLayoutAlgorithm _unwrapSceneLayoutAlgorithm(
+    GraphLayoutAlgorithm algorithm,
+  ) {
+    if (algorithm is BoundSceneLayoutAlgorithm) {
+      return algorithm.delegate;
+    }
+    if (algorithm is SceneLayoutAlgorithm) {
+      return algorithm as SceneLayoutAlgorithm;
+    }
+    return LegacyGraphLayoutAlgorithmAdapter(
+      delegate: algorithm,
+      nodes: _nodes.cast<NodeBase>(),
+      edges: _edges.cast<EdgeBase>(),
+      nodeIdOf: (node) => _nodeIdOf(node as N),
+      edgeIdOf: (edge) => _edgeIdOf(edge as E),
+    );
   }
 
   /// Uses [algorithm] for the next [mutate] relayout.
@@ -481,32 +592,7 @@ class GraphController<N extends NodeBase, E extends EdgeBase<N>>
       return;
     }
 
-    _relayoutInvocationCount++;
-    _relayoutInFlight = true;
-    notifyListeners();
-
-    final SceneLayoutAlgorithm sceneAlgorithm;
-    if (currentAlgorithm is BoundSceneLayoutAlgorithm) {
-      sceneAlgorithm = currentAlgorithm.delegate;
-    } else if (currentAlgorithm is SceneLayoutAlgorithm) {
-      sceneAlgorithm = currentAlgorithm as SceneLayoutAlgorithm;
-    } else {
-      sceneAlgorithm = LegacyGraphLayoutAlgorithmAdapter(
-        delegate: currentAlgorithm,
-        nodes: _nodes.cast<NodeBase>(),
-        edges: _edges.cast<EdgeBase>(),
-        nodeIdOf: (node) => _nodeIdOf(node as N),
-        edgeIdOf: (edge) => _edgeIdOf(edge as E),
-      );
-    }
-
-    _scene.requestLayout(
-      sceneAlgorithm,
-      canvasSize: SceneSize(
-        width: currentSize.width,
-        height: currentSize.height,
-      ),
-    );
+    requestSceneLayout();
   }
 
   void _onSceneStateChanged() {
