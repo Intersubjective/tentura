@@ -283,10 +283,15 @@ WHERE user_id = @userId AND beacon_id = @beaconId
           .single;
       expect(digest.id, 'watching-digest');
       expect(digest.digestCount, 1);
-      expect(
-        feed.page.items.where((item) => item.itemKind == AttentionItemKind.forward),
-        isEmpty,
-      );
+      // The individual forward row and the digest aggregate are independent
+      // representations (design plan §5.6): a watched beacon keeps its own
+      // "Вы наблюдаете" forward row at latest_forward_at regardless of
+      // whether it also contributes to the digest count.
+      final forwardRow = feed.page.items
+          .where((item) => item.itemKind == AttentionItemKind.forward)
+          .single;
+      expect(forwardRow.id, 'inbox:$_foreignBeaconId');
+      expect(forwardRow.forwardOutcome, 'watching');
     });
 
     test(
@@ -424,7 +429,19 @@ VALUES (@id, @authorId, @title, '', 0)
         surface: AttentionSurface.activity,
       );
       expect(feed.summary.unreadTotal, 2);
-      expect(feed.page.items, hasLength(2));
+      // The represented relay_received receipt is deduped out of the page,
+      // but its own forward row (unseen, since the beacon has a visible
+      // unseen relay receipt) and the watching digest are both independent
+      // rows on the page alongside the unrelated profile receipt (§5.6).
+      expect(feed.page.items, hasLength(3));
+      expect(
+        feed.page.items.map((item) => item.itemKind),
+        containsAll(<AttentionItemKind>[
+          AttentionItemKind.forward,
+          AttentionItemKind.watchingDigest,
+          AttentionItemKind.receipt,
+        ]),
+      );
     });
   }, skip: skipReason);
 }

@@ -261,17 +261,6 @@ page_stream AS (
         AND public.beacon_can_read_tombstone(ii.beacon_id, \$1)
       )
     )
-    AND NOT (
-      ii.status = 1
-      AND ii.beacon_id NOT IN (SELECT scope.beacon_id FROM scope)
-      AND EXISTS (
-        SELECT 1
-        FROM visible newer
-        WHERE newer.beacon_id = ii.beacon_id
-          AND newer.seen_at IS NULL
-          AND newer.created_at > ii.latest_forward_at
-      )
-    )
 
   UNION ALL
 
