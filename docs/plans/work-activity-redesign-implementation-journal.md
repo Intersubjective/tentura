@@ -108,13 +108,15 @@ DECISIONS: none
 
 REMAINING: none. Proceed to UNIT 03.
 
+**Manager verdict: ACCEPTED.** Independently re-ran all four Verify commands (28/28 pg, 15/15 graphql, lints 0/0, build_runner clean). Read the full `attention_repository.dart` diff: `scope` is built from `responsibility_scope_base_beacons` UNION obligation beacon ids taken from the SAME `visible_raw` CTE — no second `visible_attention_receipts` call, satisfying §2.2's hardest constraint. `surface` filter correctly threaded through `page`/`summary`/`markAllSeen` with `needs_you_total` left unfiltered. Cursor placeholder renumbering (surface inserted as `$4`, cursor bumped to `$5`/`$6`) is internally consistent. The pre-existing 17-test `attention_repository_pg_test.dart` suite is untouched and still green — strong evidence `surface: null` is byte-for-byte legacy behavior, as required. GraphQL layer correctly rejects `search` + `surface: activity` and unknown surface values (`ArgumentError`), and `markAllSeen` mutation reuses `QueryAttention.parseSurfaceArgument` rather than duplicating the parse. Grepped for `implements AttentionQueryPort|AttentionAckPort`: exactly 3 hits (the real repository + the 2 test fakes the plan named) — no missed fakes. Minor non-blocking style note: `markAllSeen`'s surface CTE duplicates `_visibleWithSurfaceCte`'s shape inline instead of reusing the constant (harmless, not worth a remediation round). No leaked processes, clean git status otherwise.
+
 ## Ordered unit checklist
 
 | Unit | Status |
 |---|---|
 | 00 | complete (overseer, this entry) |
 | 01 | complete (accepted) |
-| 02 | complete (this entry) |
+| 02 | complete (accepted) |
 | 03 | pending |
 | 04 | pending |
 | 05 | pending |
