@@ -19,13 +19,11 @@ class GraphController<N extends NodeBase, E extends EdgeBase<N>>
   final _nodes = <N>{};
   final _edges = <E>{};
 
-  GraphLayout? _layout;
-
   // Region of canvas that is building its nodes now
   Rect? _effectiveViewport;
   Rect? _actualViewport;
   Size? _viewportPixelSize;
-  GraphLayoutAlgorithm? _currentAlgorithm;
+  SceneLayoutAlgorithm? _currentAlgorithm;
   LazyBuilding? _lazyBuilding;
   TransformationController? _transformationController;
   GraphCanvasSize? _size;
@@ -34,10 +32,12 @@ class GraphController<N extends NodeBase, E extends EdgeBase<N>>
   var _centered = false;
   var _relayoutInFlight = false;
   var _relayoutInvocationCount = 0;
+  GraphLayoutTicket? _lastHandledLayoutSuccessTicket;
   var _cameraGated = false;
   Ticker? _ticker;
-  GraphLayout? _transitionFrom;
-  GraphLayout? _transitionTarget;
+  Map<GraphNodeId, ScenePoint>? _transitionFrom;
+  Map<GraphNodeId, ScenePoint>? _transitionTarget;
+  Map<GraphNodeId, ScenePoint>? _layoutTransitionCapture;
   Duration _transitionDuration = Duration.zero;
   Curve _transitionCurve = Curves.easeOutCubic;
   double _minScale = 0.5;
@@ -47,7 +47,7 @@ class GraphController<N extends NodeBase, E extends EdgeBase<N>>
   /// Set by the owner (e.g. "the node the user just expanded"). When the field
   /// is null, or the callback returns null, the new node appears directly at
   /// its final position.
-  Offset? Function(NodeBase node)? spawnPositionResolver;
+  Offset? Function(GraphNodeId nodeId)? spawnPositionResolver;
 
   /// { @nodoc }
   Set<N> get nodes => Set.unmodifiable(_nodes);
@@ -55,22 +55,33 @@ class GraphController<N extends NodeBase, E extends EdgeBase<N>>
   /// { @nodoc }
   Set<E> get edges => Set.unmodifiable(_edges);
 
-  /// Returns the current layout. Throws [StateError]
-  /// if the graph is not laid out yet.
-  GraphLayout get layout =>
-      _layout ?? (throw StateError('Graph is not laid out yet'));
-
   /// Return the current size of the graph canvas. Throws [StateError]
   /// if the size is not available yet.
   Size get canvasSize =>
       _currentSize ?? (throw StateError('Size is not available yet'));
 
   /// Checks whether the graph is laid out and the size is available.
-  bool get canLayout => _layout != null && _currentSize != null;
+  bool get canLayout {
+    if (_currentSize == null || _nodes.isEmpty) {
+      return false;
+    }
+    final snapshot = _scene.snapshot;
+    if (snapshot.layout == null) {
+      return false;
+    }
+    for (final id in snapshot.topology.nodesById.keys) {
+      if (snapshot.resolvePosition(id) == null) {
+        return false;
+      }
+    }
+    return true;
+  }
 
   /// True while a layout interpolation tween is running.
   bool get isLayoutTransitioning =>
-      _transitionFrom != null && _transitionTarget != null;
+      _transitionFrom != null &&
+      _transitionTarget != null &&
+      _scene.snapshot.transition != null;
 
   /// True while relayout is in flight or a layout transition is animating.
   bool get isLayoutSettling => _relayoutInFlight || isLayoutTransitioning;
@@ -93,22 +104,9 @@ class GraphController<N extends NodeBase, E extends EdgeBase<N>>
   @visibleForTesting
   int get relayoutInvocationCount => _relayoutInvocationCount;
 
-  /// Overrides the layout position of [node] for presentation only.
-  ///
-  /// Does not mutate the graph or trigger relayout. Stops any in-progress layout
-  /// transition animation.
-  void setNodePresentationPosition(NodeBase node, Offset position) {
-    final typedNode = _typedNode(node);
-    _stopLayoutAnimation();
-    _scene.beginPresentation(
-      _nodeIdOf(typedNode),
-      ScenePoint(x: position.dx, y: position.dy),
-    );
-  }
-
-  /// Clears the presentation override for [node], if any.
-  void clearPresentationPosition(NodeBase node) {
-    _scene.clearPresentationForNode(_nodeIdOf(_typedNode(node)));
+  /// Clears the presentation override for [id], if any.
+  void clearPresentationForNodeId(GraphNodeId id) {
+    _scene.clearPresentationForNode(id);
   }
 
   /// Clears every presentation override.
@@ -117,23 +115,59 @@ class GraphController<N extends NodeBase, E extends EdgeBase<N>>
   }
 
   /// Returns the displayed centre of [node], including any presentation override.
-  Offset getPosition(NodeBase node) {
-    final typedNode = _typedNode(node);
-    final point = _scene.resolvePosition(_nodeIdOf(typedNode));
-    if (point != null) {
-      return Offset(point.x, point.y);
+  Offset getPosition(N node) {
+    final point = _scene.resolvePosition(_nodeIdOf(node));
+    if (point == null) {
+      throw StateError('Node has no layout position yet');
     }
-    return layout.getPosition(typedNode);
+    return Offset(point.x, point.y);
   }
 
   /// Like [getPosition] but returns null when the node has no layout position.
-  Offset? getPositionOrNull(NodeBase node) {
-    final typedNode = _typedNode(node);
-    final point = _scene.resolvePosition(_nodeIdOf(typedNode));
-    if (point != null) {
-      return Offset(point.x, point.y);
+  Offset? getPositionOrNull(N node) {
+    final point = _scene.resolvePosition(_nodeIdOf(node));
+    if (point == null) {
+      return null;
     }
-    return layout.getPositionOrNull(typedNode);
+    return Offset(point.x, point.y);
+  }
+
+  /// Instantly centers the viewport on [id] when it has a resolved position.
+  FutureOr<void> jumpToNodeId(GraphNodeId id, {bool resetScale = false}) {
+    final point = _scene.resolvePosition(id);
+    if (point == null) {
+      throw StateError('Node $id is not laid out yet');
+    }
+    jumpToPosition(Offset(point.x, point.y), resetScale: resetScale);
+  }
+
+  /// Fits every node in [ids] that has a resolved position into the viewport.
+  void fitToNodeIds(Iterable<GraphNodeId> ids, {double padding = 48}) {
+    Rect? bounds;
+    final snapshot = _scene.snapshot;
+    for (final id in ids) {
+      final point = snapshot.resolvePosition(id);
+      final sceneNode = snapshot.topology.nodesById[id];
+      if (point == null || sceneNode == null) {
+        continue;
+      }
+      final radius = sceneNode.size.width / 2;
+      final nodeRect = Rect.fromCircle(
+        center: Offset(point.x, point.y),
+        radius: radius,
+      );
+      bounds = bounds == null ? nodeRect : bounds.expandToInclude(nodeRect);
+    }
+    if (bounds == null) {
+      return;
+    }
+    fitToRect(bounds, padding: padding);
+  }
+
+  /// Replaces configured paint/hit order for visible nodes.
+  void setNodePaintOrder(List<GraphNodeId> order) {
+    _scene.setPaintOrder(order);
+    notifyListeners();
   }
 
   /// Converts a point in viewport-local coordinates to canvas/scene space.
@@ -153,28 +187,6 @@ class GraphController<N extends NodeBase, E extends EdgeBase<N>>
       return scene;
     }
     return MatrixUtils.transformPoint(transformation.value, scene);
-  }
-
-  /// Orders [nodes] for painting, labelling, and hit testing.
-  ///
-  /// When [paintOrder] is null or empty, iteration order is preserved.
-  Iterable<N> orderedNodes(
-    Iterable<N> nodes, {
-    List<NodeBase>? paintOrder,
-  }) {
-    if (paintOrder == null || paintOrder.isEmpty) {
-      return nodes;
-    }
-
-    final remaining = nodes.toSet();
-    final ordered = <N>[];
-    for (final node in paintOrder) {
-      if (node is N && remaining.remove(node)) {
-        ordered.add(node);
-      }
-    }
-    ordered.addAll(remaining);
-    return ordered;
   }
 
   /// Updates the graph using [GraphMutator]. Initiates relayout when topology
@@ -211,13 +223,13 @@ class GraphController<N extends NodeBase, E extends EdgeBase<N>>
       return null;
     }
 
+    _layoutTransitionCapture = _captureDisplayedPositions();
     _relayoutInvocationCount++;
     _relayoutInFlight = true;
     notifyListeners();
 
-    final sceneAlgorithm = _unwrapSceneLayoutAlgorithm(currentAlgorithm);
     return _scene.requestLayout(
-      sceneAlgorithm,
+      currentAlgorithm,
       canvasSize: SceneSize(
         width: currentSize.width,
         height: currentSize.height,
@@ -278,30 +290,12 @@ class GraphController<N extends NodeBase, E extends EdgeBase<N>>
     }
   }
 
-  SceneLayoutAlgorithm _unwrapSceneLayoutAlgorithm(
-    GraphLayoutAlgorithm algorithm,
-  ) {
-    if (algorithm is BoundSceneLayoutAlgorithm) {
-      return algorithm.delegate;
-    }
-    if (algorithm is SceneLayoutAlgorithm) {
-      return algorithm as SceneLayoutAlgorithm;
-    }
-    return LegacyGraphLayoutAlgorithmAdapter(
-      delegate: algorithm,
-      nodes: _nodes.cast<NodeBase>(),
-      edges: _edges.cast<EdgeBase>(),
-      nodeIdOf: (node) => _nodeIdOf(node as N),
-      edgeIdOf: (edge) => _edgeIdOf(edge as E),
-    );
-  }
-
-  /// Uses [algorithm] for the next [mutate] relayout.
+  /// Uses [algorithm] for the next layout request.
   ///
   /// GraphView also applies its widget algorithm on configuration changes;
   /// call this before [mutate] when the owner already knows the new layout
   /// inputs and cannot wait for the next widget rebuild.
-  void useLayoutAlgorithm(GraphLayoutAlgorithm algorithm) {
+  void useSceneLayoutAlgorithm(SceneLayoutAlgorithm algorithm) {
     _currentAlgorithm = algorithm;
   }
 
@@ -346,12 +340,10 @@ class GraphController<N extends NodeBase, E extends EdgeBase<N>>
 
   /// Paint and hit-test order for visible nodes in [snapshot].
   ///
-  /// [legacyPaintOrder] maps node-valued configuration to ids once at the
-  /// boundary. Active presentation overrides paint on top without mutating
-  /// topology.
+  /// Active presentation overrides paint on top without mutating topology.
   List<GraphNodeId> orderedRenderNodeIds(
     GraphSceneSnapshot<N, E> snapshot, {
-    List<NodeBase>? legacyPaintOrder,
+    List<GraphNodeId>? configuredPaintOrder,
   }) {
     final visible = visibleNodeIds(snapshot);
     if (visible.isEmpty) {
@@ -361,19 +353,9 @@ class GraphController<N extends NodeBase, E extends EdgeBase<N>>
     final ordered = <GraphNodeId>[];
     final remaining = visible.toSet();
 
-    final configuredPaintOrder = snapshot.presentation.paintOrder;
-    if (legacyPaintOrder != null && legacyPaintOrder.isNotEmpty) {
-      for (final node in legacyPaintOrder) {
-        if (node is! N) {
-          continue;
-        }
-        final id = _nodeIdOf(node);
-        if (remaining.remove(id)) {
-          ordered.add(id);
-        }
-      }
-    } else if (configuredPaintOrder.isNotEmpty) {
-      for (final id in configuredPaintOrder) {
+    final paintOrder = configuredPaintOrder ?? snapshot.presentation.paintOrder;
+    if (paintOrder.isNotEmpty) {
+      for (final id in paintOrder) {
         if (remaining.remove(id)) {
           ordered.add(id);
         }
@@ -429,8 +411,7 @@ class GraphController<N extends NodeBase, E extends EdgeBase<N>>
   /// according to the provided [LazyBuilding].
   ///
   /// Nodes without a layout position are always excluded: a node added in
-  /// the current frame has no position until the async relayout emits, and
-  /// rendering it would hit the null assert inside [GraphLayout.getPosition].
+  /// the current frame has no position until the async relayout emits.
   Set<N> getVisibleNodes() {
     final snapshot = renderSnapshot;
     return visibleNodeIds(snapshot)
@@ -471,14 +452,13 @@ class GraphController<N extends NodeBase, E extends EdgeBase<N>>
       throw ArgumentError.value(node, 'node', 'Node is not in the graph');
     }
 
-    if (_layout == null) {
+    if (!canLayout) {
       await Future<void>.delayed(Duration.zero);
-
-      if (_layout == null) {
+      if (!canLayout) {
         throw StateError('Graph is not laid out yet');
       }
     }
-    jumpToPosition(_layout!.getPosition(node), resetScale: resetScale);
+    jumpToNodeId(_nodeIdOf(node), resetScale: resetScale);
   }
 
   /// Instantly zoom in by a given factor.
@@ -548,30 +528,8 @@ class GraphController<N extends NodeBase, E extends EdgeBase<N>>
 
   /// Fits every node of [nodes] that has a position into the viewport.
   /// Nodes without a position (not laid out yet) are ignored.
-  void fitToNodes(Iterable<NodeBase> nodes, {double padding = 48}) {
-    final layout = _layout;
-    if (layout == null) {
-      return;
-    }
-
-    Rect? bounds;
-    for (final node in nodes) {
-      final position = layout.getPositionOrNull(node);
-      if (position == null) {
-        continue;
-      }
-      final nodeRect = Rect.fromCenter(
-        center: position,
-        width: node.size,
-        height: node.size,
-      );
-      bounds = bounds == null ? nodeRect : bounds.expandToInclude(nodeRect);
-    }
-
-    if (bounds == null) {
-      return;
-    }
-    fitToRect(bounds, padding: padding);
+  void fitToNodes(Iterable<N> nodes, {double padding = 48}) {
+    fitToNodeIds(nodes.map(_nodeIdOf), padding: padding);
   }
 
   /// { @nodoc }
@@ -596,43 +554,73 @@ class GraphController<N extends NodeBase, E extends EdgeBase<N>>
   }
 
   void _onSceneStateChanged() {
-    _syncLegacyLayoutFromScene();
     _relayoutInFlight = _scene.layoutOutcome is GraphLayoutOutcomeRunning;
     final outcome = _scene.layoutOutcome;
-    if (outcome is GraphLayoutOutcomeSucceeded && !_centered && _layout != null) {
-      jumpToCenter();
-      _centered = true;
+    GraphLayoutTicket? successTicket;
+    Map<GraphNodeId, ScenePoint>? acceptedPositions;
+    if (outcome is GraphLayoutOutcomeSucceeded) {
+      successTicket = outcome.ticket;
+      final layout = _scene.snapshot.layout;
+      if (layout != null && layout.ticket == successTicket) {
+        acceptedPositions = layout.positions;
+      }
     }
-    notifyListeners();
-  }
+    final isNewLayoutSuccess = successTicket != null &&
+        successTicket != _lastHandledLayoutSuccessTicket;
+    final shouldCenterAfterLayout =
+        outcome is GraphLayoutOutcomeSucceeded && !_centered;
 
-  void _syncLegacyLayoutFromScene() {
-    if (_nodes.isEmpty) {
-      _layout = null;
-      return;
-    }
-
-    final snapshot = _scene.snapshot;
-    final builder = GraphLayoutBuilder(nodes: _nodes);
-    for (final node in _nodes) {
-      final id = _nodeIdOf(node);
-      final point = snapshot.layout?.positions[id] ??
-          snapshot.transition?.positions[id] ??
-          snapshot.seedPositions[id];
-      if (point == null) {
+    void apply() {
+      if (_disposed) {
         return;
       }
-      builder.setNodePosition(node, Offset(point.x, point.y));
+      if (isNewLayoutSuccess && acceptedPositions != null) {
+        _lastHandledLayoutSuccessTicket = successTicket;
+        _handleAcceptedLayout(acceptedPositions);
+      }
+      if (shouldCenterAfterLayout && canLayout) {
+        jumpToCenter();
+        _centered = true;
+      }
+      notifyListeners();
     }
 
-    final next = builder.build();
-    if (_transitionDuration == Duration.zero ||
-        _layout == null ||
-        _ticker == null) {
-      _layout = next;
+    scheduleMicrotask(apply);
+  }
+
+  void _handleAcceptedLayout(Map<GraphNodeId, ScenePoint> target) {
+    if (_transitionDuration == Duration.zero || _ticker == null) {
+      _scene.setLayoutTransition(null);
+      _transitionFrom = null;
+      _transitionTarget = null;
+      _layoutTransitionCapture = null;
       return;
     }
-    _publishLayout(next);
+
+    final from = _layoutTransitionCapture ?? _captureDisplayedPositions();
+    _layoutTransitionCapture = null;
+    if (from.isEmpty) {
+      _scene.setLayoutTransition(null);
+      return;
+    }
+    _transitionFrom = from;
+    _transitionTarget = target;
+    _scene.setLayoutTransition(from);
+    _ticker!
+      ..stop()
+      ..start();
+  }
+
+  Map<GraphNodeId, ScenePoint> _captureDisplayedPositions() {
+    final snapshot = _scene.snapshot;
+    final positions = <GraphNodeId, ScenePoint>{};
+    for (final id in snapshot.topology.nodesById.keys) {
+      final point = snapshot.resolvePosition(id);
+      if (point != null) {
+        positions[id] = point;
+      }
+    }
+    return positions;
   }
 
   void _applyTopologyFromController({
@@ -699,10 +687,11 @@ class GraphController<N extends NodeBase, E extends EdgeBase<N>>
     _ticker?.stop();
     final target = _transitionTarget;
     if (target != null) {
-      _layout = target;
+      _scene.setLayoutTransition(null);
     }
     _transitionFrom = null;
     _transitionTarget = null;
+    _layoutTransitionCapture = null;
   }
 
   void _setCameraGated(bool gated) {
@@ -724,24 +713,6 @@ class GraphController<N extends NodeBase, E extends EdgeBase<N>>
   /// Gates or releases camera pan/zoom for an active node-drag sequence.
   void setCameraInteractionGated(bool gated) => _setCameraGated(gated);
 
-  /// Single funnel through which every new layout reaches the renderer.
-  void _publishLayout(GraphLayout next) {
-    if (_transitionDuration == Duration.zero ||
-        _layout == null ||
-        _ticker == null) {
-      _layout = next;
-      notifyListeners();
-      return;
-    }
-
-    _transitionFrom = _layout;
-    _transitionTarget = next;
-    _ticker!
-      ..stop()
-      ..start();
-    notifyListeners();
-  }
-
   void _onTransitionTick(Duration elapsed) {
     final from = _transitionFrom;
     final target = _transitionTarget;
@@ -754,21 +725,39 @@ class GraphController<N extends NodeBase, E extends EdgeBase<N>>
     final t = total <= 0
         ? 1.0
         : (elapsed.inMicroseconds / total).clamp(0.0, 1.0).toDouble();
+    final eased = _transitionCurve.transform(t);
 
-    _layout = GraphLayout.lerp(
-      from,
-      target,
-      _transitionCurve.transform(t),
-      spawn: spawnPositionResolver,
-    );
+    final interpolated = <GraphNodeId, ScenePoint>{};
+    for (final entry in target.entries) {
+      final start = from[entry.key] ??
+          _spawnScenePoint(entry.key) ??
+          entry.value;
+      interpolated[entry.key] = ScenePoint(
+        x: start.x + (entry.value.x - start.x) * eased,
+        y: start.y + (entry.value.y - start.y) * eased,
+      );
+    }
+    _scene.setLayoutTransition(interpolated);
 
     if (t >= 1.0) {
-      _layout = target;
+      _scene.setLayoutTransition(null);
       _transitionFrom = null;
       _transitionTarget = null;
       _ticker?.stop();
     }
     notifyListeners();
+  }
+
+  ScenePoint? _spawnScenePoint(GraphNodeId id) {
+    final spawn = spawnPositionResolver;
+    if (spawn == null) {
+      return null;
+    }
+    final offset = spawn(id);
+    if (offset == null) {
+      return null;
+    }
+    return ScenePoint(x: offset.dx, y: offset.dy);
   }
 
   /// Minimum scale [InteractiveViewer] allows with [EdgeInsets.zero] margins.
@@ -814,16 +803,16 @@ class GraphController<N extends NodeBase, E extends EdgeBase<N>>
   void _detachTicker() {
     _ticker?.dispose();
     _ticker = null;
-    final target = _transitionTarget;
-    if (target != null) {
-      _layout = target;
+    if (!_disposed) {
+      _scene.setLayoutTransition(null);
     }
     _transitionFrom = null;
     _transitionTarget = null;
+    _layoutTransitionCapture = null;
   }
 
   Future<void> _applyConfiguration({
-    required GraphLayoutAlgorithm algorithm,
+    required SceneLayoutAlgorithm algorithm,
     required GraphCanvasSize size,
     required LazyBuilding lazyBuilding,
     required TransformationController transformationController,
@@ -912,9 +901,6 @@ class GraphController<N extends NodeBase, E extends EdgeBase<N>>
     final resolved = _scene.resolvePosition(previousId);
     if (resolved != null) {
       retainedPosition = resolved;
-    } else if (_layout != null && _layout!.hasPosition(node)) {
-      final offset = _layout!.getPosition(node);
-      retainedPosition = ScenePoint(x: offset.dx, y: offset.dy);
     }
 
     _nodes
@@ -944,12 +930,11 @@ class GraphController<N extends NodeBase, E extends EdgeBase<N>>
     notifyListeners();
   }
 
-  /// Removes every node and edge. When [recenter] is true the next layout
-  /// re-centres the viewport, as if the graph had just been created.
-  void clear({bool recenter = true}) {
+  /// Removes every node and edge without moving the camera.
+  void clear() {
     _nodes.clear();
     _edges.clear();
-    _layout = null;
+    _scene.setLayoutTransition(null);
     _scene.applyTopology(
       GraphTopology<N, E>.fromEntries(
         nodes: const [],
@@ -958,16 +943,21 @@ class GraphController<N extends NodeBase, E extends EdgeBase<N>>
     );
     _scene.clearAllPresentationOverrides();
     _cameraGated = false;
+    _lastHandledLayoutSuccessTicket = null;
     _transitionFrom = null;
     _transitionTarget = null;
+    _layoutTransitionCapture = null;
     _ticker?.stop();
-    if (recenter) {
-      _centered = false;
-    }
     notifyListeners();
   }
 
+  /// Allows the mounted view to perform one-time initial centering again.
+  void resetInitialCentering() {
+    _centered = false;
+  }
+
   var _deferredNotifyPending = false;
+  var _disposed = false;
 
   @override
   void notifyListeners() {
@@ -1003,6 +993,7 @@ class GraphController<N extends NodeBase, E extends EdgeBase<N>>
 
   @override
   void dispose() {
+    _disposed = true;
     _scene.removeListener(_onSceneStateChanged);
     _scene.dispose();
     _ticker?.dispose();
@@ -1014,12 +1005,6 @@ class GraphController<N extends NodeBase, E extends EdgeBase<N>>
 
   bool _hasEdge(E edge) => _edges.contains(edge);
 
-  N _typedNode(NodeBase node) {
-    if (!_hasNode(node as N)) {
-      throw ArgumentError.value(node, 'node', 'Node is not in the graph');
-    }
-    return node as N;
-  }
 }
 
 /// Wrapper around [GraphController] that allows

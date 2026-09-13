@@ -346,6 +346,25 @@ void main() {
     );
     expect(controller.resolvePosition('a'), ScenePoint(x: 3, y: 3));
   });
+
+  test('clearing layout transition does not re-notify when already clear', () {
+    final scene = GraphSceneController<String, String>();
+    var notifications = 0;
+    scene.addListener(() => notifications++);
+
+    scene.setLayoutTransition(null);
+    scene.setLayoutTransition(null);
+    expect(notifications, 0);
+
+    scene.setLayoutTransition({'n': ScenePoint(x: 1, y: 2)});
+    expect(notifications, 1);
+
+    scene.setLayoutTransition(null);
+    expect(notifications, 2);
+
+    scene.setLayoutTransition(null);
+    expect(notifications, 2);
+  });
 }
 
 final class _SlowLayoutAlgorithm implements SceneLayoutAlgorithm {

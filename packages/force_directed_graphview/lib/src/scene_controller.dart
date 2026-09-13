@@ -241,6 +241,33 @@ class GraphSceneController<N, E> with ChangeNotifier {
     _commit();
   }
 
+  /// Installs or clears displayed interpolation between layout frames.
+  void setLayoutTransition(Map<GraphNodeId, ScenePoint>? positions) {
+    _assertLive();
+    _assertNotNotifying();
+    if (positions == null) {
+      if (_transition == null) {
+        return;
+      }
+      _transition = null;
+    } else {
+      _transition = SceneTransition(positions: positions);
+    }
+    _commit();
+  }
+
+  /// Replaces configured paint/hit order for visible nodes.
+  void setPaintOrder(List<GraphNodeId> order) {
+    _assertLive();
+    _assertNotNotifying();
+    _presentation = ScenePresentation(
+      overrides: _presentation.overrides,
+      paintOrder: List<GraphNodeId>.from(order),
+      holds: _presentation.holds,
+    );
+    _commit();
+  }
+
   /// Cancels the active presentation override for [id], if any.
   bool clearPresentationForNode(GraphNodeId id) {
     final token = _activePresentationTokenByNode[id];
