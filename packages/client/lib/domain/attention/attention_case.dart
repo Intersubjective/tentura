@@ -456,6 +456,11 @@ final class AttentionCase {
   Future<void> settle(String receiptId) async {
     final receipt = _receiptsById[receiptId];
     if (receipt == null || !receipt.isLiveObligation) return;
+    await settleReceipt(receiptId);
+  }
+
+  Future<void> settleReceipt(String receiptId) async {
+    if (receiptId.isEmpty) return;
     await _repository.settle(receiptId: receiptId, kind: 'resolved');
     _requestHeadRefreshForAllAttached();
     unawaited(_requestSurfaceSummaryRefresh());

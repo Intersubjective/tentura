@@ -53,6 +53,8 @@ class StubAttentionRepository extends AttentionRepositoryFake {
 
   final markSeenForBeaconCalls = <String>[];
 
+  final settleCalls = <String>[];
+
   @override
   Future<List<MyWorkBeaconAttention>> myWorkAttention(
     Set<String> beaconIds,
@@ -102,8 +104,10 @@ class StubAttentionRepository extends AttentionRepositoryFake {
   Future<int> markUnseen(List<String> ids) async => throw UnimplementedError();
 
   @override
-  Future<int> settle({required String receiptId, required String kind}) async =>
-      throw UnimplementedError();
+  Future<int> settle({required String receiptId, required String kind}) async {
+    settleCalls.add(receiptId);
+    return 1;
+  }
 }
 
 class _StubAttentionAccounts implements AttentionAccountPort {

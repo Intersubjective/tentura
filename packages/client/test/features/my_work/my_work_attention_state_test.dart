@@ -205,4 +205,42 @@ void main() {
 
     await cubit.close();
   });
+
+  test('settleObligation removes receipt and calls settle', () async {
+    _registerWorkActivityRedesignGate(true);
+    final obligation = _receipt(id: 'r-settle', beaconId: 'b1');
+    final attentionRepo = StubAttentionRepository()
+      ..myWorkAttentionResult = [
+        MyWorkBeaconAttention(
+          beaconId: 'b1',
+          unseenCount: 0,
+          liveObligations: [obligation],
+        ),
+      ];
+    final repo = FakeMyWorkRepository()
+      ..initResult = (
+        authoredNonArchived: [Beacon.empty.copyWith(id: 'b1')],
+        helpOfferedNonArchived: const [],
+        obligationBeacons: const [],
+        archivedCountHint: 0,
+      );
+    final cubit = MyWorkCubit(
+      userId: 'user-1',
+      myWorkCase: buildTestMyWorkCase(
+        repo: repo,
+        attentionRepository: attentionRepo,
+      ),
+    );
+    await cubit.stream.firstWhere((s) => s.attentionLoaded);
+
+    await cubit.settleObligation('b1', 'r-settle');
+
+    expect(
+      cubit.state.attentionByBeacon['b1']!.liveObligations,
+      isEmpty,
+    );
+    expect(attentionRepo.settleCalls, ['r-settle']);
+
+    await cubit.close();
+  });
 }

@@ -36,6 +36,11 @@ abstract final class TestIds {
 
   static const myWorkObligationsPane = 'my_work.obligations.pane';
 
+  static String myWorkObligation(String receiptId) =>
+      'my_work.obligation.$receiptId';
+
+  static String myWorkWhatsNew(String beaconId) => 'my_work.whats_new.$beaconId';
+
   /// Stable Updates feed row identity for integration and WebDriver proofs.
   static String updatesReceipt(String receiptId) =>
       'updates-receipt-$receiptId';

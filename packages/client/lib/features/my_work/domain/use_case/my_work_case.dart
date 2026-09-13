@@ -203,6 +203,9 @@ final class MyWorkCase extends UseCaseBase {
   Future<void> markSeenForBeacon(String beaconId) =>
       _attentionCase.markSeenForBeacon(beaconId);
 
+  Future<void> settleObligationReceipt(String receiptId) =>
+      _attentionCase.settleReceipt(receiptId);
+
   Future<MyWorkDeskArchivedLoad> loadDeskArchived({
     required String userId,
   }) async {

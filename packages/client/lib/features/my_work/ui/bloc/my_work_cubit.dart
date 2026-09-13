@@ -432,6 +432,27 @@ class MyWorkCubit extends Cubit<MyWorkState> {
   bool _shouldShowArchivedLoadError() =>
       state.filter == MyWorkFilter.archived && state.archivedCards.isEmpty;
 
+  Future<void> settleObligation(String beaconId, String receiptId) async {
+    if (beaconId.isEmpty || receiptId.isEmpty) return;
+    final current = state.attentionByBeacon[beaconId];
+    if (current != null) {
+      emit(
+        state.copyWith(
+          attentionByBeacon: {
+            ...state.attentionByBeacon,
+            beaconId: current.copyWith(
+              liveObligations: [
+                for (final r in current.liveObligations)
+                  if (r.id != receiptId) r,
+              ],
+            ),
+          },
+        ),
+      );
+    }
+    await _myWorkCase.settleObligationReceipt(receiptId);
+  }
+
   Future<void> openedBeacon(String beaconId) async {
     if (beaconId.isEmpty) return;
     final current = state.attentionByBeacon[beaconId];

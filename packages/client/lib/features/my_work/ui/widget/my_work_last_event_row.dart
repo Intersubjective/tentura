@@ -27,12 +27,14 @@ class MyWorkLastEventBody extends StatefulWidget {
     required this.beacon,
     required this.viewModel,
     required this.currentUserId,
+    this.muted = false,
     super.key,
   });
 
   final Beacon beacon;
   final MyWorkCardViewModel viewModel;
   final String currentUserId;
+  final bool muted;
 
   @override
   State<MyWorkLastEventBody> createState() => _MyWorkLastEventBodyState();
@@ -69,9 +71,15 @@ class _MyWorkLastEventBodyState extends State<MyWorkLastEventBody> {
         now: now,
         l10n: l10n,
       );
+      final style = widget.muted
+          ? theme.textTheme.bodySmall!.copyWith(
+              height: 1.15,
+              color: scheme.onSurfaceVariant.withValues(alpha: 0.72),
+            )
+          : beaconCardUpdatedLineTextStyle(theme);
       return Text(
         l10n.myWorkUpdatedRelative(ago),
-        style: beaconCardUpdatedLineTextStyle(theme),
+        style: style,
         softWrap: true,
       );
     }
@@ -84,6 +92,7 @@ class _MyWorkLastEventBodyState extends State<MyWorkLastEventBody> {
       last: last,
       currentUserId: widget.currentUserId,
       now: now,
+      muted: widget.muted,
     );
   }
 }
@@ -97,6 +106,7 @@ class _EventLineBody extends StatelessWidget {
     required this.last,
     required this.currentUserId,
     required this.now,
+    this.muted = false,
   });
 
   final L10n l10n;
@@ -106,6 +116,7 @@ class _EventLineBody extends StatelessWidget {
   final MyWorkLastEvent last;
   final String currentUserId;
   final DateTime now;
+  final bool muted;
 
   @override
   Widget build(BuildContext context) {
@@ -119,13 +130,16 @@ class _EventLineBody extends StatelessWidget {
     final isSystemEvent = beaconLifecycleEventIsSystem(event);
 
     if (isSystemEvent) {
+      final systemColor = muted
+          ? scheme.onSurfaceVariant.withValues(alpha: 0.72)
+          : scheme.onSurfaceVariant;
       return Semantics(
         label: l10n.myWorkLastEventSystemSemantics(label, ago),
         child: Text(
           '$label, $ago',
           style: theme.textTheme.bodySmall!.copyWith(
             height: 1.15,
-            color: scheme.onSurfaceVariant,
+            color: systemColor,
           ),
           softWrap: true,
         ),
@@ -143,16 +157,19 @@ class _EventLineBody extends StatelessWidget {
       isAuthor ? l10n.myWorkLastEventAuthorSuffix : '',
     );
 
+    final baseVariant = muted
+        ? scheme.onSurfaceVariant.withValues(alpha: 0.72)
+        : scheme.onSurfaceVariant;
     final bodyStyle = theme.textTheme.bodySmall!.copyWith(
       height: 1.15,
-      color: scheme.onSurfaceVariant,
+      color: baseVariant,
     );
     final agoStyle = theme.textTheme.bodySmall!.copyWith(
       height: 1.15,
-      color: scheme.onSurfaceVariant.withValues(alpha: 0.85),
+      color: baseVariant.withValues(alpha: muted ? 0.85 : 0.85),
     );
     final youStyle = bodyStyle.copyWith(
-      color: scheme.primary,
+      color: muted ? baseVariant : scheme.primary,
       fontWeight: FontWeight.w500,
     );
 
