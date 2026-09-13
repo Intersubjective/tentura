@@ -357,6 +357,8 @@ DECISIONS:
 
 REMAINING: none. Proceed to UNIT 10.
 
+**Manager verdict: ACCEPTED, with one process gap closed by the overseer.** Independently re-ran all four Verify commands (build_runner clean, 92/92 flutter test, lints 32/32 baseline, tentura_lints 18/18). The worker honestly flagged in FINDINGS that it generated the 18 new golden PNGs via `--update-goldens` but did not eyeball them — a real gap against plan §3 rule 12 ("regenerate intentionally... then open and eyeball the PNG"), material here because these are first-generation goldens with no prior baseline to diff against, so eyeballing is the only way to catch a broken initial render. The overseer opened a representative sample (6 of 18: light/dark × en/ru × both components, plus the two 1.3×-scale variants) directly — all render as sane, correctly composed layouts (leading slot, label, chevron present/absent as expected per `showChevron`, no `RenderFlex` overflow artifacts) using the same box-glyph placeholder-font convention already used by this repo's other golden tests (verified against `test/golden/goldens/evaluation_impact_control_light_320.png`), confirming this isn't a font-loading regression specific to the new tests. Read the refactor diff for both re-pointed call sites in full: `inbox_triage_row.dart` and `updates_feed_pane.dart`'s collapsed prompt row are faithful, byte-for-byte-equivalent extractions into `TenturaAttentionSummaryRow` — identical `Material`/`InkWell`/test-id/sizing/padding/text-style, chevron correctly present for triage and correctly suppressed (`showChevron: false`) for the collapsed prompt row, matching its prior chevron-less layout. No leaked processes, clean git status, commits well split (the worker even self-corrected a journal commit-hash typo in a follow-up commit).
+
 ## Ordered unit checklist
 
 | Unit | Status |
@@ -370,7 +372,7 @@ REMAINING: none. Proceed to UNIT 10.
 | 06 | complete (overseer, accepted) |
 | 07 | complete (accepted) |
 | 08 | complete (accepted) |
-| 09 | complete |
+| 09 | complete (accepted) |
 | 10 | pending |
 | 11 | pending |
 | 12 | pending |
