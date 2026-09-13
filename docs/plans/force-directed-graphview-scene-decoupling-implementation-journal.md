@@ -681,7 +681,7 @@ Protected `packages/force_directed_graphview/analysis_options.yaml` not staged.
 ### Commits
 
 1. `efa076d7e` — `refactor(client): migrate graph views to scene-native layout APIs`
-2. `cf80abe36` — `refactor(graph): remove object-keyed layout compatibility`
+2. `f7dce7afd` — `refactor(graph): remove object-keyed layout compatibility`
 
 ### Rollback (dependency-aware)
 
@@ -699,7 +699,7 @@ Protected `packages/force_directed_graphview/analysis_options.yaml` not staged.
 
 - `e0f51f48d` — lifecycle feedback-loop repair (prerequisite)
 - `efa076d7e` — `refactor(client): migrate graph views to scene-native layout APIs`
-- `cc725a411` — `refactor(graph): remove object-keyed layout compatibility`
+- `f7dce7afd` — `refactor(graph): remove object-keyed layout compatibility`
 
 ## TESTS
 
