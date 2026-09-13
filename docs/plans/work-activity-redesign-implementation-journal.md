@@ -134,6 +134,18 @@ DECISIONS:
 
 REMAINING: none. Proceed to UNIT 04.
 
+**Manager review found one real defect, fixed directly (small/local/unambiguous — no remediation worker needed).** The worker's decision "suppress `watching` forward rows when the beacon has unseen visible receipts... so the stream shows one aggregate row instead of duplicate representations" contradicts design plan §5.6 explicitly: the mockup there shows a beacon's forward row («Вы наблюдаете») and the watching-digest aggregate row coexisting on the same day for the same underlying watched beacon — they are independent mechanisms (a permanent per-beacon outcome marker vs. an aggregate of watched beacons with unseen news), not mutually exclusive. Fixed directly:
+- Removed the `AND NOT (ii.status = 1 AND ... AND EXISTS (SELECT ... newer.created_at > ii.latest_forward_at))` suppression block from the forward-item WHERE clause in `attention_repository.dart`'s `_activityPageStreamCte`.
+- Flipped the two tests that encoded the wrong exclusivity: `'watching digest counts beacons not receipts'` now asserts the forward row for `_foreignBeaconId` IS present (outcome `'watching'`) alongside the digest, instead of asserting the forward-kind list is empty; `'unread_total includes receipts represented by forwards'` now expects 3 page items (forward + digest + unrelated profile receipt) instead of 2.
+- Re-ran all three related pg suites together: **39/39 passed** (11 activity stream + 11 surface + 17 existing repository, unchanged). Lints: `0 (baseline: 0)`.
+- Commit: `18d9a7295` fix(server): stop hiding a watching forward row behind the digest.
+
+**Everything else in UNIT 03 reviewed and ACCEPTED as delivered:**
+- The `relay_received`-only receipt-dedup condition (not all receipt kinds, contrary to a looser paraphrase in this journal's own UNIT 03 worker prompt) is *correct* — it matches design plan §5.6 verbatim: "`relay_received` receipts of any Beacon with an Inbox row are deduplicated into that row." Good catch by the worker; the overseer's own prompt for this unit had over-broadened this from the implementation-plan prose without cross-checking the authoritative design plan — worth remembering for later units' prompts.
+- Forward-outcome precedence, `id`/`created_at` framing, tombstone-copy handling, and the digest's `beacon_count` (not receipt count) all match §2.3/UNIT 03 exactly, independently re-read against the diff.
+- The digest's extra `v.created_at > ii.latest_forward_at` join condition (excluding the very receipt that arrived at forward time from counting as "new" watched-item activity) is not explicitly specified either way in the plan, but is a sensible, defensible reading — not a contradiction of anything explicit — so left as-is.
+- No leaked worker processes; clean git status otherwise; commits appropriately split (repository change, tests, journal).
+
 ## Ordered unit checklist
 
 | Unit | Status |
@@ -141,7 +153,7 @@ REMAINING: none. Proceed to UNIT 04.
 | 00 | complete (overseer, this entry) |
 | 01 | complete (accepted) |
 | 02 | complete (accepted) |
-| 03 | complete |
+| 03 | complete (accepted, one defect fixed by overseer) |
 | 04 | pending |
 | 05 | pending |
 | 06 | pending |
