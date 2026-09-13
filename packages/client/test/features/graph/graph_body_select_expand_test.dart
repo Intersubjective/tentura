@@ -14,6 +14,8 @@ import 'package:tentura/features/graph/domain/entity/graph_edge_colors.dart';
 import 'package:tentura/features/graph/domain/entity/graph_mode.dart';
 import 'package:tentura/features/graph/domain/entity/node_details.dart';
 import 'package:tentura/features/graph/ui/bloc/graph_cubit.dart';
+
+import 'scene_layout_test_support.dart';
 import 'package:tentura/features/graph/ui/widget/graph_scaffold.dart';
 import 'package:tentura/features/graph/ui/widget/graph_node_widget.dart';
 import 'package:tentura/features/profile/domain/port/profile_repository_port.dart';
@@ -39,7 +41,7 @@ class _TrackingForwardsCubit extends Cubit<GraphState> implements GraphCubit {
 
   @override
   final graphController =
-      GraphController<NodeDetails, EdgeDetails<NodeDetails>>();
+      testGraphController();
 
   int jumpToEgoCalls = 0;
   int resetToEgoCalls = 0;
@@ -127,6 +129,11 @@ Future<_TrackingForwardsCubit> _pumpForwardsGraphBody(
   );
   await tester.pump();
   await _settleGraph(tester);
+
+  final meNode = UserNode(user: _me);
+  cubit.graphController.mutate((mutator) => mutator.addNode(meNode));
+  await _settleGraph(tester);
+
   return cubit;
 }
 

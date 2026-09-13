@@ -13,6 +13,8 @@ import 'package:tentura/features/graph/domain/entity/graph_mode.dart';
 import 'package:tentura/features/graph/domain/entity/node_details.dart';
 import 'package:tentura/features/graph/ui/bloc/graph_cubit.dart';
 import 'package:tentura/features/graph/ui/bloc/graph_person_context_cubit.dart';
+
+import 'scene_layout_test_support.dart';
 import 'package:tentura/features/graph/ui/widget/graph_person_context_panel.dart';
 import 'package:tentura/domain/util/availability_presets.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
@@ -41,8 +43,7 @@ class _StubGraphCubit extends Cubit<GraphState> implements GraphCubit {
   GraphMode get mode => GraphMode.trust;
 
   @override
-  final graphController =
-      GraphController<NodeDetails, EdgeDetails<NodeDetails>>();
+  final graphController = testGraphController();
 
   @override
   bool canPageMore(String id) => canPageMoreFor[id] ?? false;

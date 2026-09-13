@@ -9,6 +9,8 @@ import 'package:tentura/features/graph/domain/entity/edge_details.dart';
 import 'package:tentura/features/graph/domain/entity/graph_mode.dart';
 import 'package:tentura/features/graph/domain/entity/node_details.dart';
 import 'package:tentura/features/graph/ui/bloc/graph_cubit.dart';
+
+import 'scene_layout_test_support.dart';
 import 'package:tentura/features/graph/ui/widget/graph_scaffold.dart';
 import 'package:tentura/features/graph/ui/widget/graph_legend_content.dart';
 import 'package:tentura/features/graph/ui/widget/graph_legend_edge_swatch.dart';
@@ -43,8 +45,7 @@ class _StubGraphCubit extends Cubit<GraphState> implements GraphCubit {
       : GraphMode.trust;
 
   @override
-  final graphController =
-      GraphController<NodeDetails, EdgeDetails<NodeDetails>>();
+  final graphController = testGraphController();
 
   @override
   void jumpToEgo({bool resetScale = false}) {}

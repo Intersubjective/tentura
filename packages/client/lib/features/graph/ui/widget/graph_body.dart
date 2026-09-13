@@ -65,14 +65,20 @@ class GraphBodyState extends State<GraphBody>
   GraphLayoutAlgorithm get _layoutAlgorithm {
     switch (_graphCubit.mode) {
       case GraphMode.genealogy:
-        return const LayeredDagLayoutAlgorithm(rootIds: {});
+        return BoundSceneLayoutAlgorithm(
+          const LayeredDagLayoutAlgorithm(rootIds: {}),
+        );
       case GraphMode.forwards:
-        return LayeredDagLayoutAlgorithm(
-          rootIds: _graphCubit.forwardsRootIds,
+        return BoundSceneLayoutAlgorithm(
+          LayeredDagLayoutAlgorithm(
+            rootIds: _graphCubit.forwardsRootIds,
+          ),
         );
       case GraphMode.trust:
-        return RadialHopLayoutAlgorithm(
-          rootId: _graphCubit.state.me.id,
+        return BoundSceneLayoutAlgorithm(
+          RadialHopLayoutAlgorithm(
+            rootId: _graphCubit.state.me.id,
+          ),
         );
       case GraphMode.constellation:
         throw UnsupportedError(

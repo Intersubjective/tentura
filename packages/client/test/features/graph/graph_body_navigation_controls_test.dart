@@ -15,6 +15,8 @@ import 'package:tentura/features/graph/domain/entity/graph_edge_colors.dart';
 import 'package:tentura/features/graph/domain/entity/graph_mode.dart';
 import 'package:tentura/features/graph/domain/entity/node_details.dart';
 import 'package:tentura/features/graph/ui/bloc/graph_cubit.dart';
+
+import 'scene_layout_test_support.dart';
 import 'package:tentura/features/graph/ui/widget/graph_scaffold.dart';
 import 'package:tentura/features/graph/ui/widget/graph_node_widget.dart';
 import 'package:tentura/features/profile/domain/port/profile_repository_port.dart';
@@ -70,8 +72,7 @@ class _StubGraphCubit extends Cubit<GraphState> implements GraphCubit {
       : GraphMode.trust;
 
   @override
-  final graphController =
-      GraphController<NodeDetails, EdgeDetails<NodeDetails>>();
+  final graphController = testGraphController();
 
   @override
   bool get canPopFocus => state.focusPathDepth > 1;

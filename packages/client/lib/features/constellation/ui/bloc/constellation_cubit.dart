@@ -147,8 +147,10 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
   ForwardRepository get _forwardRepository =>
       _forwardRepositoryOverride ?? GetIt.I<ForwardRepository>();
 
-  final graphController =
-      GraphController<NodeDetails, EdgeDetails<NodeDetails>>();
+  final graphController = GraphController<NodeDetails, EdgeDetails<NodeDetails>>(
+    nodeIdOf: (node) => node.id,
+    edgeIdOf: (edge) => 'd:${edge.source.id}->${edge.destination.id}',
+  );
 
   final Map<String, ConstellationEdgeKind> edgeKinds = {};
 

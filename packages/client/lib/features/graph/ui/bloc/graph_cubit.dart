@@ -3,6 +3,7 @@
 
 import 'dart:async';
 import 'dart:developer' as developer;
+import 'dart:ui' show Offset;
 import 'package:get_it/get_it.dart';
 import 'package:force_directed_graphview/force_directed_graphview.dart';
 
@@ -32,6 +33,7 @@ import '../../domain/entity/edge_directed.dart';
 import '../../domain/forward_graph_focus_rules.dart';
 import '../../domain/prune_directed_paths.dart';
 import '../../domain/entity/node_details.dart';
+import '../utils/graph_scene_ids.dart';
 import 'graph_state.dart';
 
 export 'package:flutter_bloc/flutter_bloc.dart';
@@ -141,8 +143,10 @@ class GraphCubit extends Cubit<GraphState> {
   ForwardsGraphViewerRole? get helpOffererViewerRole =>
       state.helpOffererViewerRole;
 
-  final graphController =
-      GraphController<NodeDetails, EdgeDetails<NodeDetails>>();
+  final graphController = GraphController<NodeDetails, EdgeDetails<NodeDetails>>(
+    nodeIdOf: tenturaGraphNodeId,
+    edgeIdOf: tenturaGraphEdgeId,
+  );
 
   final UserNode _egoNode;
 
@@ -285,13 +289,7 @@ class GraphCubit extends Cubit<GraphState> {
   void jumpToEgo({bool resetScale = false}) {
     final node = genealogyMode ? _nodes[state.egoNodeId] : _egoNode;
     if (node == null) return;
-    if (!graphController.canLayout ||
-        !graphController.layout.hasPosition(node)) {
-      return;
-    }
-    unawaited(
-      Future.value(graphController.jumpToNode(node, resetScale: resetScale)),
-    );
+    _jumpToNodeByStableId(node, resetScale: resetScale);
   }
 
   /// True when [id] owns the active spotlight (including trust overview).
@@ -393,10 +391,8 @@ class GraphCubit extends Cubit<GraphState> {
     _recomputeVisibility();
     unawaited(_ensureVisibleStructuralEdges());
     final node = _nodes[previous];
-    if (node != null &&
-        graphController.canLayout &&
-        graphController.layout.hasPosition(node)) {
-      unawaited(Future.value(graphController.jumpToNode(node)));
+    if (node != null) {
+      _jumpToNodeByStableId(node);
     }
   }
 
@@ -934,25 +930,7 @@ class GraphCubit extends Cubit<GraphState> {
       if (helpOffererFocusUserId != null && state.focus.isNotEmpty) {
         final focusNode = _nodes[state.focus];
         if (focusNode != null) {
-          // `jumpToNode` expects the *same instance* that the graph controller
-          // currently tracks positions for. When `NodeDetails` instances get
-          // replaced in `_nodes` (pinned/help-offerer highlight), passing a stale
-          // instance can crash the layout with a null position.
-          NodeDetails? controllerNode;
-          for (final n in graphController.nodes) {
-            if (n.id == focusNode.id) {
-              controllerNode = n;
-              break;
-            }
-          }
-          final nodeToJump = controllerNode ?? focusNode;
-          final canLayout = graphController.canLayout;
-          final hasPosition =
-              canLayout && graphController.layout.hasPosition(nodeToJump);
-          if (!hasPosition) {
-            return;
-          }
-          await Future.value(graphController.jumpToNode(nodeToJump));
+          _jumpToNodeByStableId(focusNode);
         }
       }
     } catch (e) {
@@ -1110,10 +1088,32 @@ class GraphCubit extends Cubit<GraphState> {
     if (_helpOffererIds.isEmpty) return;
     for (final id in _helpOffererIds) {
       final node = _nodes[id];
-      if (node is UserNode && !node.isHelpOfferer) {
-        _nodes[id] = node.copyWithIsHelpOfferer(true);
+      if (node is! UserNode || node.isHelpOfferer) {
+        continue;
+      }
+      final updated = node.copyWithIsHelpOfferer(true);
+      _nodes[id] = updated;
+      final onGraph = graphController.nodePayloadForId(tenturaGraphNodeId(node));
+      if (onGraph != null && graphController.nodes.contains(onGraph)) {
+        graphController.replaceNode(onGraph, updated);
       }
     }
+  }
+
+  void _jumpToNodeByStableId(NodeDetails node, {bool resetScale = false}) {
+    final graphId = tenturaGraphNodeId(node);
+    final onGraph = graphController.nodePayloadForId(graphId) ?? node;
+    if (!graphController.canLayout) {
+      return;
+    }
+    if (graphController.renderSnapshot.resolvePosition(graphId) == null) {
+      return;
+    }
+    unawaited(
+      Future.value(
+        graphController.jumpToNode(onGraph, resetScale: resetScale),
+      ),
+    );
   }
 
   Future<void> _fetchGenealogyChildCounts(
@@ -1402,7 +1402,12 @@ class GraphCubit extends Cubit<GraphState> {
     graphController.spawnPositionResolver = (node) {
       final focusNode = _nodes[state.focus];
       if (focusNode == null || !graphController.canLayout) return null;
-      return graphController.layout.getPositionOrNull(focusNode);
+      final focusId = tenturaGraphNodeId(focusNode);
+      final point = graphController.renderSnapshot.resolvePosition(focusId);
+      if (point == null) {
+        return null;
+      }
+      return Offset(point.x, point.y);
     };
 
     final focusId = state.focus;

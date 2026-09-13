@@ -5,11 +5,19 @@ import 'package:tentura/domain/entity/profile.dart';
 
 import 'package:tentura/features/graph/domain/entity/node_details.dart';
 
+GraphNodeId _testNodeId(NodeBase node) => 'n:${identityHashCode(node)}';
+
+GraphEdgeId _testEdgeId(EdgeBase edge) =>
+    'e:${identityHashCode(edge.source)}->${identityHashCode(edge.destination)}';
+
 void main() {
-  late GraphController controller;
+  late GraphController<Node<UserNode>, Edge<Node<UserNode>, Object?>> controller;
 
   setUp(() {
-    controller = GraphController();
+    controller = GraphController(
+      nodeIdOf: _testNodeId,
+      edgeIdOf: _testEdgeId,
+    );
   });
 
   test('GraphController is empty by default', () {

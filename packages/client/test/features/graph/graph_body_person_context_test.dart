@@ -18,6 +18,8 @@ import 'package:tentura/features/graph/domain/entity/graph_edge_colors.dart';
 import 'package:tentura/features/graph/domain/entity/graph_mode.dart';
 import 'package:tentura/features/graph/domain/entity/node_details.dart';
 import 'package:tentura/features/graph/ui/bloc/graph_cubit.dart';
+
+import 'scene_layout_test_support.dart';
 import 'package:tentura/features/graph/ui/bloc/graph_person_context_cubit.dart';
 import 'package:tentura/features/graph/ui/widget/graph_body.dart';
 import 'package:tentura/features/graph/ui/widget/graph_legend_panel.dart';
@@ -167,8 +169,7 @@ class _TrackingForwardsCubit extends Cubit<GraphState> implements GraphCubit {
   GraphMode get mode => GraphMode.forwards;
 
   @override
-  final graphController =
-      GraphController<NodeDetails, EdgeDetails<NodeDetails>>();
+  final graphController = testGraphController();
 
   @override
   Set<String> get forwardsRootIds => const {};
@@ -195,8 +196,7 @@ class _GenealogyStubCubit extends Cubit<GraphState> implements GraphCubit {
   GraphMode get mode => GraphMode.genealogy;
 
   @override
-  final graphController =
-      GraphController<NodeDetails, EdgeDetails<NodeDetails>>();
+  final graphController = testGraphController();
 
   @override
   Set<String> get forwardsRootIds => const {};
