@@ -397,6 +397,38 @@ REMAINING: none. Proceed to UNIT 11.
 
 **Manager verdict: ACCEPTED.** Independently re-ran both Verify commands (87/87 flutter test, lints 32/32 baseline). Read the full `updates_feed_tile.dart` gesture-handling diff against `room_message_tile.dart`: near-exact structural match — same `_touchOrStylus` device-restricted `LongPressGestureRecognizer`, same `onSecondaryTap` pattern, same `MouseRegion`-based hover toolbar with the identical rationale comment about hover only firing for pointer devices. Long-press opens the same overflow menu reachable via the always-visible overflow button and the hover toolbar — never the sole affordance, satisfying "never long-press alone." Confirmed `formatScheduleDate` (reused from `schedule_date_format.dart`, not reinvented) implements exactly the `DateFormat.MMMd` / `DateFormat.yMMMd`-when-year-differs rule. Read the `resolveUpdatesFeedRowCopy` diff: headline is now unconditionally the event title (previously it could be overridden by `beaconTitle`, which was the bug this unit fixes); the supporting line now prioritizes `bodyOverride` → `beaconTitle` (subject) → excerpt — the correct swapped priority. The unrequested `pubspec.yaml`/`web/index.html` version bump (7.6.7→7.6.8) is correct per AGENTS.md's unconditional invariant ("user-visible client changes require a semver bump... web cache-buster must ship with every version bump") since this is the one real user-visible pre-flip change — verified both files carry the same `7.6.8`. Personally opened all three regenerated golden PNGs: clean compositions, no `RenderFlex` overflow artifacts, glyph/unread-dot/headline/subject/overflow-icon all present as described, matching the worker's own eyeball notes (which were explicit and accurate, unlike UNIT 09's gap). No leaked processes, clean git status.
 
+## UNIT 11 — complete — 2026-09-14
+
+COMMITS:
+- `4d75afc19` feat(client): load per-request attention in my work
+- `de01d7ed4` test(client): cover my work attention state
+- (pending) docs: UNIT 11 journal
+
+TESTS:
+- `cd packages/client && dart run build_runner build -d` → exit 0
+- `cd packages/client && flutter test test/features/my_work/` → **127/127 passed**
+- `./scripts/check-custom-lints.sh packages/client` → `32 (baseline: 32)` — OK
+
+FILES:
+- `packages/client/lib/features/my_work/ui/bloc/my_work_state.dart`
+- `packages/client/lib/features/my_work/ui/bloc/my_work_cubit.dart`
+- `packages/client/lib/features/my_work/domain/use_case/my_work_case.dart`
+- `packages/client/lib/domain/attention/attention_case.dart`
+- `packages/client/test/features/my_work/my_work_attention_state_test.dart` (new)
+- `packages/client/test/features/my_work/my_work_test_support.dart`
+
+FINDINGS:
+- Card load path uses `loadDeskInit` + `loadReviewWindows` (not legacy names from plan line refs).
+- Stale attention drops reuse cubit field `_fetchSeq` (same guard as desk card fetch in `_runFetch` / `_loadArchived`).
+- Chunking at 500 lives on `MyWorkCase._maxAttentionIdsPerRequest`, mirroring `HomeAttentionCubit._maxIdsPerRequest` loop shape.
+
+DECISIONS:
+- Attention fetch runs after successful desk emit and again after `_loadArchived` completes so archived beacon ids join the union.
+- Failed attention sets `attentionLoaded: false` only — prior `attentionByBeacon` entries are left intact (§4.8 unknown, not empty-loaded).
+- `openedBeacon` optimistically zeroes `unseenCount` only; `liveObligations` and `latestUnseen` unchanged.
+
+REMAINING: none. Proceed to UNIT 12.
+
 ## Ordered unit checklist
 
 | Unit | Status |
@@ -412,7 +444,7 @@ REMAINING: none. Proceed to UNIT 11.
 | 08 | complete (accepted) |
 | 09 | complete (accepted) |
 | 10 | complete (accepted) |
-| 11 | pending |
+| 11 | complete |
 | 12 | pending |
 | 13 | pending |
 | 14 | pending |
