@@ -348,30 +348,43 @@ class GraphSceneController<N, E> with ChangeNotifier {
     final request = _buildLayoutRequest(ticket, canvasSize);
     _layoutOutcome = GraphLayoutOutcomeRunning(ticket);
 
-    final stream = GraphLayoutFrameIngress.enforce(
-      algorithm.layout(request),
-      request,
-    );
+    Stream<GraphLayoutFrame> stream;
+    try {
+      stream = GraphLayoutFrameIngress.enforce(
+        algorithm.layout(request),
+        request,
+      );
+    } catch (error, stackTrace) {
+      _failLayout(ticket, error, stackTrace);
+      _commit();
+      return ticket;
+    }
 
-    _layoutSubscription = stream.listen(
-      (frame) => _onLayoutFrame(ticket, frame, releaseOnTerminal),
-      onError: (Object error, StackTrace stackTrace) {
-        _failLayout(ticket, error, stackTrace);
-      },
-      onDone: () {
-        if (_activeTicket == ticket &&
-            _layoutOutcome is GraphLayoutOutcomeRunning) {
-          _failLayout(
-            ticket,
-            GraphLayoutFrameProtocolException(
-              'stream closed without terminal frame',
-            ),
-            StackTrace.current,
-          );
-        }
-      },
-      cancelOnError: true,
-    );
+    try {
+      _layoutSubscription = stream.listen(
+        (frame) => _onLayoutFrame(ticket, frame, releaseOnTerminal),
+        onError: (Object error, StackTrace stackTrace) {
+          _failLayout(ticket, error, stackTrace);
+        },
+        onDone: () {
+          if (_activeTicket == ticket &&
+              _layoutOutcome is GraphLayoutOutcomeRunning) {
+            _failLayout(
+              ticket,
+              GraphLayoutFrameProtocolException(
+                'stream closed without terminal frame',
+              ),
+              StackTrace.current,
+            );
+          }
+        },
+        cancelOnError: true,
+      );
+    } catch (error, stackTrace) {
+      _failLayout(ticket, error, stackTrace);
+      _commit();
+      return ticket;
+    }
 
     _commit();
     return ticket;
