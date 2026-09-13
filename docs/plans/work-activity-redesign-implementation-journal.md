@@ -316,6 +316,10 @@ DECISIONS:
 
 REMAINING: none. Proceed to UNIT 09.
 
+**Environment note:** found `packages/client/web/manifest.json` showing as modified in this worktree (build-hook auto-sync of the `version` field, per AGENTS.md — deliberately `skip-worktree` in the primary checkout, but that index bit isn't inherited by `git worktree add`). Applied `git update-index --skip-worktree` here too so it stops appearing as noise for future units. Not part of UNIT 08's work.
+
+**Manager verdict: ACCEPTED — exemplary unit.** Independently re-ran both Verify commands (54/54 flutter test, lints 32/32 baseline). Read the full `attention_case.dart` diff end to end: `_onRealtimeEntityChange` correctly triggers the surface-summary refresh unconditionally but branches the head-refresh scope (activity-stream-only for `helpOffer`/`inboxItem`, all-attached for plain `notification`) — exactly the required distinction. `_requestSurfaceSummaryRefresh` mirrors the file's existing in-flight-coalescing idiom (`_surfaceSummaryRefreshInFlight`/`Queued`) and adds a monotonic `_surfaceSummaryRequestSerial` guard alongside the existing account-generation guard, dropping stale responses on both axes. `markAllSeen({surface})` correctly zeroes only the requested surface's total (via `copyWith`'s null-means-unchanged convention) while leaving the other surface's total and `needsYouTotal` untouched, with correct rollback of the full previous surface-summary snapshot on failure. `_surfaceUnreadDeltasForIds` correctly keys optimistic adjustments off `receipt.surface`, applied symmetrically (apply on start, roll back exactly on failure) across `markSeen`/`markUnseen`/`markSeenForBeacon`. The new `_surfaceSummarySubject` is closed in `dispose()` (no stream leak). The round-trip test genuinely exercises `attachFeedSession`/`detachFeedSession` across `activityStream`→`history`→`activityStream` and asserts real session-state survival (`activeView`, `searchText`, cached page `nextCursor`) plus that the `history` fetch actually passed `surface: null` — not a shallow assertion. No leaked processes, clean git status (after the manifest.json fix above), commits well split.
+
 ## Ordered unit checklist
 
 | Unit | Status |
@@ -328,7 +332,7 @@ REMAINING: none. Proceed to UNIT 09.
 | 05 | complete (accepted) |
 | 06 | complete (overseer, accepted) |
 | 07 | complete (accepted) |
-| 08 | complete |
+| 08 | complete (accepted) |
 | 09 | pending |
 | 10 | pending |
 | 11 | pending |
