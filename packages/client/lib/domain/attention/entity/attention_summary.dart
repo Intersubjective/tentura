@@ -9,3 +9,12 @@ abstract class AttentionSummary with _$AttentionSummary {
     @Default(0) int needsYouTotal,
   }) = _AttentionSummary;
 }
+
+@freezed
+abstract class AttentionSurfaceSummary with _$AttentionSurfaceSummary {
+  const factory AttentionSurfaceSummary({
+    required int activityUnreadTotal,
+    required int myWorkUnreadTotal,
+    required int needsYouTotal,
+  }) = _AttentionSurfaceSummary;
+}

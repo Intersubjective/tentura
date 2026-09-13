@@ -7,6 +7,59 @@ part 'attention_feed.freezed.dart';
 
 enum AttentionView { all, unread, needsYou }
 
+enum AttentionSurface {
+  myWork,
+  activity;
+
+  static const myWorkWire = 'myWork';
+  static const activityWire = 'activity';
+
+  String get wireName => switch (this) {
+    AttentionSurface.myWork => myWorkWire,
+    AttentionSurface.activity => activityWire,
+  };
+
+  static AttentionSurface fromWire(String wire) {
+    switch (wire) {
+      case myWorkWire:
+        return AttentionSurface.myWork;
+      case activityWire:
+        return AttentionSurface.activity;
+      default:
+        return AttentionSurface.activity;
+    }
+  }
+}
+
+enum AttentionItemKind {
+  receipt,
+  forward,
+  watchingDigest;
+
+  static const receiptWire = 'receipt';
+  static const forwardWire = 'forward';
+  static const watchingDigestWire = 'watchingDigest';
+
+  String get wireName => switch (this) {
+    AttentionItemKind.receipt => receiptWire,
+    AttentionItemKind.forward => forwardWire,
+    AttentionItemKind.watchingDigest => watchingDigestWire,
+  };
+
+  static AttentionItemKind fromWire(String wire) {
+    switch (wire) {
+      case receiptWire:
+        return AttentionItemKind.receipt;
+      case forwardWire:
+        return AttentionItemKind.forward;
+      case watchingDigestWire:
+        return AttentionItemKind.watchingDigest;
+      default:
+        return AttentionItemKind.receipt;
+    }
+  }
+}
+
 /// Stable ids for independently mounted feed destinations (Activity, My Work, …).
 abstract final class AttentionFeedDestinationId {
   static const activity = 'activity_feed';

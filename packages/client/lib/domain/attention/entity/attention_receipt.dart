@@ -1,6 +1,36 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 
+import 'attention_feed.dart';
+
 part 'attention_receipt.freezed.dart';
+
+enum AttentionForwardOutcome {
+  helping,
+  watching,
+  notInterested,
+  closedBeforeResponse,
+  deletedBeforeResponse;
+
+  static AttentionForwardOutcome? fromWire(String? wire) {
+    if (wire == null) return null;
+    return switch (wire) {
+      'helping' => AttentionForwardOutcome.helping,
+      'watching' => AttentionForwardOutcome.watching,
+      'notInterested' => AttentionForwardOutcome.notInterested,
+      'closedBeforeResponse' => AttentionForwardOutcome.closedBeforeResponse,
+      'deletedBeforeResponse' => AttentionForwardOutcome.deletedBeforeResponse,
+      _ => null,
+    };
+  }
+
+  String get wireName => switch (this) {
+    AttentionForwardOutcome.helping => 'helping',
+    AttentionForwardOutcome.watching => 'watching',
+    AttentionForwardOutcome.notInterested => 'notInterested',
+    AttentionForwardOutcome.closedBeforeResponse => 'closedBeforeResponse',
+    AttentionForwardOutcome.deletedBeforeResponse => 'deletedBeforeResponse',
+  };
+}
 
 @freezed
 abstract class AttentionReceipt with _$AttentionReceipt {
@@ -24,6 +54,11 @@ abstract class AttentionReceipt with _$AttentionReceipt {
     String? targetEntityId,
     String? presentationKey,
     String? inAppPreferenceClass,
+    required AttentionSurface surface,
+    @Default(AttentionItemKind.receipt) AttentionItemKind itemKind,
+    AttentionForwardOutcome? forwardOutcome,
+    int? forwardCount,
+    int? digestCount,
     @Default(false) bool requiresAction,
     String? attentionThreadKey,
     String? settlementKind,
