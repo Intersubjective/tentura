@@ -3441,6 +3441,39 @@
       }
     }
   },
+  "activityForwardOutcomeHelping": "You're helping",
+  "@activityForwardOutcomeHelping": {
+    "context": "InboxScreen"
+  },
+  "activityForwardOutcomeWatching": "You're watching",
+  "@activityForwardOutcomeWatching": {
+    "context": "InboxScreen"
+  },
+  "activityForwardOutcomeNotInterested": "Not interested",
+  "@activityForwardOutcomeNotInterested": {
+    "context": "InboxScreen"
+  },
+  "activityForwardOutcomeClosed": "Closed before you answered",
+  "@activityForwardOutcomeClosed": {
+    "context": "InboxScreen"
+  },
+  "activityForwardOutcomeDeleted": "No longer available",
+  "@activityForwardOutcomeDeleted": {
+    "context": "InboxScreen"
+  },
+  "activityForwardRestore": "Restore",
+  "@activityForwardRestore": {
+    "context": "InboxScreen"
+  },
+  "activityWatchingDigest": "{count, plural, one{{count} request you watch was updated} other{{count} requests you watch were updated}}",
+  "@activityWatchingDigest": {
+    "context": "InboxScreen",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "myWorkEditDraft": "Edit draft",
   "@myWorkEditDraft": {
     "context": "MyWorkScreen"

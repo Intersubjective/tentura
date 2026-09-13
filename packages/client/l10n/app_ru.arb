@@ -3432,6 +3432,39 @@
       }
     }
   },
+  "activityForwardOutcomeHelping": "Вы помогаете",
+  "@activityForwardOutcomeHelping": {
+    "context": "InboxScreen"
+  },
+  "activityForwardOutcomeWatching": "Вы наблюдаете",
+  "@activityForwardOutcomeWatching": {
+    "context": "InboxScreen"
+  },
+  "activityForwardOutcomeNotInterested": "Не интересно",
+  "@activityForwardOutcomeNotInterested": {
+    "context": "InboxScreen"
+  },
+  "activityForwardOutcomeClosed": "Закрыт до вашего ответа",
+  "@activityForwardOutcomeClosed": {
+    "context": "InboxScreen"
+  },
+  "activityForwardOutcomeDeleted": "Больше недоступен",
+  "@activityForwardOutcomeDeleted": {
+    "context": "InboxScreen"
+  },
+  "activityForwardRestore": "Вернуть",
+  "@activityForwardRestore": {
+    "context": "InboxScreen"
+  },
+  "activityWatchingDigest": "{count, plural, one{Обновился {count} запрос, за которым вы наблюдаете} few{Обновились {count} запроса, за которыми вы наблюдаете} many{Обновились {count} запросов, за которыми вы наблюдаете} other{Обновились {count} запроса, за которыми вы наблюдаете}}",
+  "@activityWatchingDigest": {
+    "context": "InboxScreen",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "myWorkEditDraft": "Редактировать черновик",
   "@myWorkEditDraft": {
     "context": "MyWorkScreen"
