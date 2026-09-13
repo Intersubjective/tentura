@@ -171,6 +171,7 @@ part 'm0164.dart';
 part 'm0165.dart';
 part 'm0166.dart';
 part 'm0167.dart';
+part 'm0168.dart';
 
 final _allMigrations = <Migration>[
   m0001,
@@ -341,6 +342,7 @@ final _allMigrations = <Migration>[
   m0165,
   m0166,
   m0167,
+  m0168,
 ];
 
 Future<void> migrateDbSchema(Connection connection) =>
