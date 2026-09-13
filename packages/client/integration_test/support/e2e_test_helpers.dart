@@ -25,6 +25,7 @@ import 'package:tentura/features/forward/ui/bloc/forward_cubit.dart';
 import 'package:tentura/domain/entity/room_message.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/room_message_tile.dart';
 import 'package:force_directed_graphview/force_directed_graphview.dart';
+import 'package:force_directed_graphview/src/widget/graph_layout_view.dart';
 import 'package:tentura/features/graph/domain/entity/node_details.dart';
 import 'package:tentura/features/constellation/ui/utils/constellation_graph_scene.dart';
 import 'package:tentura/features/graph/ui/bloc/graph_cubit.dart';
@@ -1528,6 +1529,45 @@ Future<void> tapConstellationControl(WidgetTester tester, Finder finder) async {
   await pumpBounded(tester, frames: 24);
 }
 
+Finder _constellationGraphLayoutFinder() {
+  return find.descendant(
+    of: find.byType(ConstellationBody),
+    matching: find.byType(GraphLayoutView),
+  );
+}
+
+/// Scene centre → global screen position (includes InteractiveViewer transform).
+Offset _globalForConstellationScene(WidgetTester tester, Offset scene) {
+  final layoutFinder = _constellationGraphLayoutFinder();
+  if (!finderHasMatch(layoutFinder)) {
+    throw StateError('constellation GraphLayoutView not in tree');
+  }
+  final box = tester.renderObject<RenderBox>(layoutFinder);
+  return box.localToGlobal(scene);
+}
+
+/// Pointer tap at a scene point so [NodeDragGesture] hit-tests and fires
+/// [GraphView.onNodeTap] (CanvasKit / web integration safe).
+Future<void> tapConstellationSceneCentre(
+  WidgetTester tester,
+  Offset scene,
+) async {
+  final layoutFinder = _constellationGraphLayoutFinder();
+  await pumpUntilVisible(
+    tester,
+    layoutFinder,
+    label: 'constellation map graph layout',
+    timeout: const Duration(seconds: 45),
+  );
+  await tester.ensureVisible(layoutFinder);
+  final global = _globalForConstellationScene(tester, scene);
+  final gesture = await tester.createGesture(kind: PointerDeviceKind.touch);
+  await gesture.down(global);
+  await tester.pump(const Duration(milliseconds: 50));
+  await gesture.up();
+  await pumpBounded(tester, frames: 24);
+}
+
 /// Scene-coordinate tap for overlapping map nodes (CanvasKit-safe).
 Future<void> tapConstellationMapNodeInScene(
   WidgetTester tester,
@@ -1551,8 +1591,7 @@ Future<void> tapConstellationMapNodeInScene(
     throw StateError('no scene position for constellation node $graphId');
   }
   final scene = Offset(point.x, point.y);
-  cubit.selectMapNodeAtSceneCentre(scene);
-  await pumpBounded(tester, frames: 24);
+  await tapConstellationSceneCentre(tester, scene);
 }
 
 Future<void> pinConstellationPersonFromMap(

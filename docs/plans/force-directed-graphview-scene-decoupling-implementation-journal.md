@@ -906,3 +906,27 @@ cd packages/client && flutter test test/features/constellation/constellation_lay
 grep -E 'MemAvailable|SwapFree' /proc/meminfo | head -2
 # exit 0 — 3 passed
 ```
+
+## Astra P1 browser evidence remediation (pointer tap) — 2026-09-13
+
+### Work
+
+- Integration helper `tapConstellationMapNodeInScene` no longer calls `ConstellationCubit.selectMapNodeAtSceneCentre`. It resolves the node scene centre, maps through the mounted `GraphLayoutView` (`localToGlobal`, including `InteractiveViewer` transform), and dispatches a touch down/up so `NodeDragGesture` hit-tests paint order and fires `GraphView.onNodeTap`.
+- `tapConstellationSceneCentre` exposes the same pointer path for a raw scene point (shared overlap coordinates).
+- `constellation_pinning_test.dart` overlap journey asserts person and request nodes share the same scene centre before the pointer tap; selection still expects topmost beacon via cubit state after real interaction.
+
+### Verification (serial `--concurrency=1`, MemAvailable/SwapFree logged)
+
+```bash
+grep -E 'MemAvailable|SwapFree' /proc/meminfo | head -2
+cd packages/force_directed_graphview && flutter test test/node_drag_gesture_test.dart --plain-name 'topmost overlap tap' --concurrency=1
+# 1 passed
+grep -E 'MemAvailable|SwapFree' /proc/meminfo | head -2
+cd packages/client && flutter test test/features/constellation/constellation_scene_handoff_test.dart --plain-name 'overlapping pinned beacon tap' --concurrency=1 --dart-define=ENV=test
+# 1 passed
+grep -E 'MemAvailable|SwapFree' /proc/meminfo | head -2
+```
+
+**Browser integration:** **BLOCKED** — no local stack (`:8888` / `:2080` / `:9443` not listening). Did not run `./scripts/run_client_integration_web_local.sh integration_test/constellation_pinning_test.dart`.
+
+Protected `packages/force_directed_graphview/analysis_options.yaml` not staged.

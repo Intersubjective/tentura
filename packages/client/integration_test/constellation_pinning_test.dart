@@ -5,6 +5,7 @@ import 'package:integration_test/integration_test.dart';
 import 'package:tentura/consts.dart';
 import 'package:tentura/features/constellation/domain/entity/constellation_anchor.dart';
 import 'package:tentura/features/constellation/ui/bloc/constellation_state.dart';
+import 'package:tentura/features/constellation/ui/utils/constellation_graph_scene.dart';
 import 'package:tentura/main.dart' as app;
 import 'package:tentura/ui/test_ids.dart';
 
@@ -165,6 +166,23 @@ void main() {
       );
       expect(topmost, ConstellationAnchorTarget.beacon(requestId));
       await setConstellationViewMode(tester, ConstellationViewMode.map);
+      final cubitBeforeTap = readConstellationCubit(tester);
+      final personScene =
+          cubitBeforeTap.graphController.renderSnapshot.resolvePosition(
+        constellationGraphNodeIdForTarget(
+          ConstellationAnchorTarget.person(fixture.helperUserId),
+        ),
+      );
+      final requestScene =
+          cubitBeforeTap.graphController.renderSnapshot.resolvePosition(
+        constellationGraphNodeIdForTarget(
+          ConstellationAnchorTarget.beacon(requestId),
+        ),
+      );
+      expect(personScene, isNotNull);
+      expect(requestScene, isNotNull);
+      expect(personScene!.x, closeTo(requestScene!.x, 1));
+      expect(personScene.y, closeTo(requestScene.y, 1));
       await tapConstellationMapNodeInScene(tester, topmost);
       final cubit = readConstellationCubit(tester);
       expect(cubit.state.selectedRequestId, requestId);
