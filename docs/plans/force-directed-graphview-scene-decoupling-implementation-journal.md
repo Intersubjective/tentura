@@ -838,3 +838,23 @@ grep -E 'MemAvailable|SwapFree' /proc/meminfo | head -2
 ```
 
 Protected `packages/force_directed_graphview/analysis_options.yaml` not staged.
+
+### P2 verification remediation (2026-09-13)
+
+- **Hang root cause (recovery widget test):** `ConstellationCubit` default `loadOnCreate: true` raced with explicit `await cubit.load()`, doubling layout/reconcile work and risking stuck `flutter_tester` under serial load. Harness now passes `loadOnCreate: false` (matches `constellation_scene_handoff_test.dart`).
+- **Test harness:** dropped fixed 400 ms pump; layout progress uses bounded `tester.pump(16 ms)` frames only. Second-failure case pumps 24 frames with stable `relayoutInvocationCount` after the failure message is surfaced.
+- **Scene lifecycle test:** malformed-stream case waits via `Future.microtask` spin (no `Future.delayed`).
+
+```bash
+grep -E 'MemAvailable|SwapFree' /proc/meminfo | head -2
+cd packages/force_directed_graphview && flutter test test/scene_controller_layout_lifecycle_test.dart --concurrency=1
+pgrep -a flutter_tester || true
+grep -E 'MemAvailable|SwapFree' /proc/meminfo | head -2
+cd packages/client && flutter test test/features/constellation/constellation_layout_failure_recovery_test.dart --concurrency=1
+pgrep -a flutter_tester || true
+grep -E 'MemAvailable|SwapFree' /proc/meminfo | head -2
+cd packages/client && flutter test test/features/constellation/constellation_scene_handoff_test.dart --concurrency=1
+pgrep -a flutter_tester || true
+grep -E 'MemAvailable|SwapFree' /proc/meminfo | head -2
+# graph 3 passed; client recovery 3 passed; client handoff 5 passed; no flutter_tester after each command
+```

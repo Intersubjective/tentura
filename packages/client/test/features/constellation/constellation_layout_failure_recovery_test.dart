@@ -153,11 +153,31 @@ Future<void> _settleGraphLayoutFailureMessage(
   WidgetTester tester,
   ConstellationCubit cubit,
 ) async {
-  for (var i = 0; i < 30; i++) {
+  for (var i = 0; i < 60; i++) {
     await tester.pump(const Duration(milliseconds: 16));
     if (cubit.state.graphLayoutFailureMessage != null) {
       return;
     }
+  }
+  expect(
+    cubit.state.graphLayoutFailureMessage,
+    isNotNull,
+    reason: 'graph layout failure message was not surfaced',
+  );
+}
+
+Future<void> _pumpFramesWithoutRelayout(
+  WidgetTester tester,
+  ConstellationCubit cubit,
+  int frameCount, {
+  required int relayoutCountBaseline,
+}) async {
+  for (var i = 0; i < frameCount; i++) {
+    await tester.pump(const Duration(milliseconds: 16));
+    expect(
+      cubit.graphController.relayoutInvocationCount,
+      relayoutCountBaseline,
+    );
   }
 }
 
@@ -165,10 +185,8 @@ Future<void> _pumpConstellationMap(
   WidgetTester tester,
   ConstellationCubit cubit,
 ) async {
-  tester.view.physicalSize = const Size(1200, 900);
-  tester.view.devicePixelRatio = 1.0;
-  addTearDown(tester.view.resetPhysicalSize);
-  addTearDown(tester.view.resetDevicePixelRatio);
+  await tester.binding.setSurfaceSize(const Size(1200, 900));
+  addTearDown(() => tester.binding.setSurfaceSize(null));
 
   await tester.pumpWidget(
     MaterialApp(
@@ -198,7 +216,6 @@ Future<void> _pumpConstellationMap(
     ),
   );
   await tester.pump();
-  await tester.pump(const Duration(milliseconds: 400));
 }
 
 Future<ConstellationCubit> _loadedCubit(WidgetTester tester) async {
@@ -219,6 +236,7 @@ Future<ConstellationCubit> _loadedCubit(WidgetTester tester) async {
       logger: Logger('ConstellationLayoutFailureRecoveryTest'),
     ),
     forwardRepository: _FakeForwardRepository(),
+    loadOnCreate: false,
   );
   await cubit.load();
   await _pumpConstellationMap(tester, cubit);
@@ -226,6 +244,7 @@ Future<ConstellationCubit> _loadedCubit(WidgetTester tester) async {
   expect(
     cubit.graphController.scene.layoutOutcome,
     isA<GraphLayoutOutcomeSucceeded>(),
+    reason: 'initial constellation layout did not succeed',
   );
   return cubit;
 }
@@ -249,6 +268,7 @@ void main() {
       expect(
         cubit.graphController.scene.layoutOutcome,
         isA<GraphLayoutOutcomeSucceeded>(),
+        reason: 'recovery layout did not succeed',
       );
       expect(cubit.state.graphLayoutFailureMessage, isNull);
       expect(
@@ -275,8 +295,12 @@ void main() {
       );
 
       final countAfterFailure = cubit.graphController.relayoutInvocationCount;
-      await tester.pump(const Duration(milliseconds: 50));
-      expect(cubit.graphController.relayoutInvocationCount, countAfterFailure);
+      await _pumpFramesWithoutRelayout(
+        tester,
+        cubit,
+        24,
+        relayoutCountBaseline: countAfterFailure,
+      );
     });
 
     testWidgets('retryGraphLayoutAfterFailure clears failure and relayouts',

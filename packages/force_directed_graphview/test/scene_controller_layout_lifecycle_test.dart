@@ -112,7 +112,12 @@ void main() {
       _MalformedThenTerminalAlgorithm(),
       canvasSize: canvas,
     );
-    await Future<void>.delayed(const Duration(milliseconds: 10));
+    for (var i = 0; i < 50; i++) {
+      if (controller.layoutOutcome is GraphLayoutOutcomeFailed) {
+        break;
+      }
+      await Future<void>.microtask(() {});
+    }
     expect(controller.layoutOutcome, isA<GraphLayoutOutcomeFailed>());
     expect(controller.snapshot.presentation.overrides['a'], ScenePoint(x: 7, y: 8));
   });
