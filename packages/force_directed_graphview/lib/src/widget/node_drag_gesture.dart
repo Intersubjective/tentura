@@ -74,13 +74,21 @@ class _NodeDragGestureState extends State<NodeDragGesture> {
       return widget.child;
     }
 
-    return GestureDetector(
+    return RawGestureDetector(
       behavior: HitTestBehavior.translucent,
-      supportedDevices: const {
-        PointerDeviceKind.touch,
-        PointerDeviceKind.stylus,
+      gestures: {
+        _NodeDragPanGestureRecognizer:
+            GestureRecognizerFactoryWithHandlers<_NodeDragPanGestureRecognizer>(
+          () => _NodeDragPanGestureRecognizer(
+            canStart: _canStartTouchNodeDrag,
+          ),
+          (recognizer) {
+            recognizer
+              ..canStart = _canStartTouchNodeDrag
+              ..onStart = _onTouchNodeDragStart;
+          },
+        ),
       },
-      onLongPressStart: _onTouchLongPressStart,
       child: Listener(
         behavior: HitTestBehavior.translucent,
         onPointerDown: _onPointerDown,
@@ -127,10 +135,25 @@ class _NodeDragGestureState extends State<NodeDragGesture> {
     }
   }
 
-  /// A [Listener] receives raw events but cannot win the gesture arena.
-  /// Recognizing this touch long-press prevents [InteractiveViewer] from
-  /// accepting the following pan while a node is being dragged.
-  void _onTouchLongPressStart(LongPressStartDetails details) {
+  bool _canStartTouchNodeDrag(PointerDownEvent event) {
+    // Keep every added touch in our already-won arena until the drag ends.
+    // Camera gating rebuilds after a frame; allowing the viewer to recognize
+    // a new pointer before then would still move the camera during a drag.
+    if (_capturedNodeId != null) return true;
+    if (!_configuration.nodeDragEnabled ||
+        _scaleBlocked ||
+        _activePointers.length >= 2) {
+      return false;
+    }
+    final nodeId = _pendingNodeId;
+    final payload =
+        nodeId == null ? null : _controller.nodePayloadForId(nodeId);
+    return payload != null && _configuration.isNodeDraggable(payload);
+  }
+
+  /// This recognizer joins the arena only for a draggable node. It therefore
+  /// wins an actual node drag while an empty canvas remains available for pan.
+  void _onTouchNodeDragStart(DragStartDetails details) {
     final nodeId = _pendingNodeId;
     final pointer = _pendingPointer;
     final down = _pendingDownScene;
@@ -142,6 +165,7 @@ class _NodeDragGestureState extends State<NodeDragGesture> {
       return;
     }
     _captureNode(nodeId, pointer, down);
+    _updateCapturedPosition(details.localPosition);
   }
 
   void _onPointerMove(PointerMoveEvent event) {
@@ -172,15 +196,15 @@ class _NodeDragGestureState extends State<NodeDragGesture> {
       return;
     }
 
-    _pendingDragged = true;
-
     if (event.kind == PointerDeviceKind.mouse) {
+      _pendingDragged = true;
       _captureNode(_pendingNodeId!, event.pointer, down);
       _updateCapturedPosition(event.localPosition);
       return;
     }
 
-    _cancelPendingCapture();
+    // The touch-only pan recognizer captures this gesture once it crosses
+    // slop. Do not cancel the pending node from this raw event first.
   }
 
   void _onPointerUp(PointerUpEvent event) {
@@ -406,4 +430,29 @@ final class _DragPassSnapshot {
 
   final GraphSceneSnapshot<Object?, Object?> snapshot;
   final List<GraphNodeId> orderedNodeIds;
+}
+
+final class _NodeDragPanGestureRecognizer extends PanGestureRecognizer {
+  _NodeDragPanGestureRecognizer({required this.canStart})
+      : super(
+          supportedDevices: const {
+            PointerDeviceKind.touch,
+            PointerDeviceKind.stylus,
+          },
+        );
+
+  bool Function(PointerDownEvent event) canStart;
+
+  @override
+  bool isPointerAllowed(PointerEvent event) {
+    if (event is! PointerDownEvent) return false;
+    if (!canStart(event)) {
+      // A second finger must release a pending node drag to the enclosing
+      // scale recognizer. Refusing only the new pointer leaves the first
+      // pointer in the arena and can still steal the pinch as a node pan.
+      resolve(GestureDisposition.rejected);
+      return false;
+    }
+    return super.isPointerAllowed(event);
+  }
 }

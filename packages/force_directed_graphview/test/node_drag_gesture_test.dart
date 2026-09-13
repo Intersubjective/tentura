@@ -74,21 +74,33 @@ void main() {
       onNodeDragUpdate: (_, __) => dragUpdates++,
     );
 
-    final emptyCanvasPoint = _globalForScene(tester, const Offset(40, 40));
-    await tester.dragFrom(emptyCanvasPoint, const Offset(80, 40));
+    final viewer =
+        tester.widget<InteractiveViewer>(find.byType(InteractiveViewer));
+    viewer.transformationController!.value = Matrix4.identity()
+      ..translateByDouble(-100, -100, 0, 1)
+      ..scaleByDouble(2, 2, 1, 1);
+    await tester.pump();
+    final cameraBefore = viewer.transformationController!.value.clone();
+    final emptyCanvasPoint = _globalForScene(tester, const Offset(80, 80));
+    final gesture = await tester.createGesture(kind: PointerDeviceKind.touch);
+    await gesture.down(emptyCanvasPoint);
+    await gesture.moveBy(const Offset(50, 20));
+    await gesture.moveBy(const Offset(30, 20));
+    await gesture.up();
     await tester.pumpAndSettle();
 
+    expect(viewer.transformationController!.value, isNot(cameraBefore));
     expect(dragUpdates, 0);
     expect(controller.isCameraGated, isFalse);
 
     final scaleBefore = controller.currentScale;
-    controller.zoomBy(1.2);
-    expect(controller.currentScale, greaterThan(scaleBefore));
+    controller.zoomBy(0.8);
+    expect(controller.currentScale, lessThan(scaleBefore));
 
     controller.dispose();
   });
 
-  testWidgets('touch long-press without movement captures the node',
+  testWidgets('touch hold without movement does not capture the node',
       (tester) async {
     final controller = _TestHarness.newController();
     Node<int>? dragged;
@@ -105,8 +117,8 @@ void main() {
     await tester.pump(const Duration(milliseconds: 500));
     await tester.pump();
 
-    expect(dragged, _TestHarness.bottom);
-    expect(controller.isCameraGated, isTrue);
+    expect(dragged, isNull);
+    expect(controller.isCameraGated, isFalse);
 
     await gesture.up();
     await tester.pump();
@@ -115,7 +127,8 @@ void main() {
     controller.dispose();
   });
 
-  testWidgets('touch long-press drag keeps the camera fixed', (tester) async {
+  testWidgets('touch drag without a hold keeps the camera fixed',
+      (tester) async {
     final controller = _TestHarness.newController();
     final updates = <Offset>[];
 
@@ -133,7 +146,7 @@ void main() {
     final gesture = await tester.createGesture(kind: PointerDeviceKind.touch);
 
     await gesture.down(nodeCentre);
-    await tester.pump(const Duration(milliseconds: 500));
+
     await tester.pump();
     await gesture.moveBy(const Offset(80, 30));
     await tester.pump();
@@ -148,8 +161,109 @@ void main() {
     controller.dispose();
   });
 
-  testWidgets('touch movement before long-press cancels pending capture',
+  testWidgets('touch drag after camera zoom uses scene coordinates',
       (tester) async {
+    final controller = _TestHarness.newController();
+    await _pumpGraph(
+      tester,
+      controller: controller,
+      onNodeDragUpdate: (_, __) {},
+    );
+    final viewer =
+        tester.widget<InteractiveViewer>(find.byType(InteractiveViewer));
+    viewer.transformationController!.value = Matrix4.identity()
+      ..translateByDouble(30, 40, 0, 1)
+      ..scaleByDouble(1.5, 1.5, 1, 1);
+    await tester.pump();
+    final cameraBefore = viewer.transformationController!.value.clone();
+    final sceneBefore = testNodePosition(controller, _TestHarness.bottom);
+    final gesture = await tester.createGesture(kind: PointerDeviceKind.touch);
+    await gesture.down(_nodeCenter(tester, _TestHarness.bottom));
+    await gesture.moveBy(const Offset(60, 30));
+    await gesture.moveBy(const Offset(30, 15));
+    await tester.pump();
+    expect(testNodePosition(controller, _TestHarness.bottom),
+        sceneBefore + const Offset(60, 30));
+    expect(viewer.transformationController!.value.storage,
+        orderedEquals(cameraBefore.storage));
+    await gesture.up();
+    controller.dispose();
+  });
+
+  testWidgets('touch node drag does not emit a tap', (tester) async {
+    final controller = _TestHarness.newController();
+    var taps = 0;
+    await _pumpGraph(
+      tester,
+      controller: controller,
+      onNodeDragUpdate: (_, __) {},
+      onNodeTap: (_) => taps++,
+    );
+    final gesture = await tester.createGesture(kind: PointerDeviceKind.touch);
+    final nodeCentre = _nodeCenter(tester, _TestHarness.bottom);
+    await gesture.down(nodeCentre);
+    await gesture.moveBy(const Offset(70, 30));
+    await gesture.up();
+    expect(taps, 0);
+    await tester.pump();
+    final tap = await tester.createGesture(kind: PointerDeviceKind.touch);
+    await tap.down(_nodeCenter(tester, _TestHarness.bottom));
+    await tap.moveBy(const Offset(2, 2));
+    await tap.up();
+    expect(taps, 1);
+    controller.dispose();
+  });
+
+  testWidgets('touch on a node in a tap-only graph pans the camera',
+      (tester) async {
+    final controller = _TestHarness.newController();
+    await _pumpGraph(tester, controller: controller, onNodeTap: (_) {});
+    final viewer =
+        tester.widget<InteractiveViewer>(find.byType(InteractiveViewer));
+    viewer.transformationController!.value = Matrix4.identity()
+      ..translateByDouble(-100, -100, 0, 1)
+      ..scaleByDouble(2, 2, 1, 1);
+    await tester.pump();
+    final cameraBefore = viewer.transformationController!.value.clone();
+    final gesture = await tester.createGesture(kind: PointerDeviceKind.touch);
+    await gesture.down(_nodeCenter(tester, _TestHarness.bottom));
+    await gesture.moveBy(const Offset(70, 30));
+    await gesture.moveBy(const Offset(50, 20));
+    await tester.pump();
+    expect(controller.isCameraGated, isFalse);
+    expect(viewer.transformationController!.value, isNot(cameraBefore));
+    await gesture.up();
+    controller.dispose();
+  });
+
+  testWidgets('second touch after capture cannot move camera before a frame',
+      (tester) async {
+    final controller = _TestHarness.newController();
+    await _pumpGraph(tester,
+        controller: controller, onNodeDragUpdate: (_, __) {});
+    final viewer =
+        tester.widget<InteractiveViewer>(find.byType(InteractiveViewer));
+    viewer.transformationController!.value = Matrix4.identity()
+      ..translateByDouble(-100, -100, 0, 1)
+      ..scaleByDouble(2, 2, 1, 1);
+    await tester.pump();
+    final cameraBefore = viewer.transformationController!.value.clone();
+    final point = _nodeCenter(tester, _TestHarness.bottom);
+    final first = await tester.createGesture(kind: PointerDeviceKind.touch);
+    await first.down(point);
+    await first.moveBy(const Offset(50, 0));
+    final second = await tester.createGesture(kind: PointerDeviceKind.touch);
+    await second.down(point + const Offset(20, 20));
+    await second.moveBy(const Offset(50, 0));
+    await second.moveBy(const Offset(20, 0));
+    expect(viewer.transformationController!.value.storage,
+        orderedEquals(cameraBefore.storage));
+    await first.up();
+    await second.up();
+    controller.dispose();
+  });
+
+  testWidgets('touch movement immediately captures the node', (tester) async {
     final controller = _TestHarness.newController();
     Node<int>? dragged;
     var dragUpdates = 0;
@@ -164,18 +278,19 @@ void main() {
     final nodeCentre = _nodeCenter(tester, _TestHarness.bottom);
     final gesture = await tester.createGesture(kind: PointerDeviceKind.touch);
     await gesture.down(nodeCentre);
-    await gesture.moveBy(Offset(kTouchSlop + 1, 0));
-    await tester.pump(const Duration(milliseconds: 600));
+    await gesture.moveBy(Offset(kPanSlop + 1, 0));
+    await tester.pump();
 
-    expect(dragged, isNull);
-    expect(dragUpdates, 0);
-    expect(controller.isCameraGated, isFalse);
+    expect(dragged, _TestHarness.bottom);
+    expect(dragUpdates, greaterThan(0));
+    expect(controller.isCameraGated, isTrue);
 
     await gesture.up();
     controller.dispose();
   });
 
-  testWidgets('two-pointer scale before capture keeps camera and skips node drag',
+  testWidgets(
+      'two-pointer pinch before capture zooms camera and skips node drag',
       (tester) async {
     final controller = _TestHarness.newController();
     Node<int>? dragged;
@@ -195,7 +310,13 @@ void main() {
 
     final gestureB = await tester.createGesture(kind: PointerDeviceKind.touch);
     await gestureB.down(nodeCentre + const Offset(40, 0));
-    await tester.pump(const Duration(milliseconds: 600));
+    final initialScale = controller.currentScale;
+    await gestureA.moveBy(const Offset(-50, 0));
+    await gestureB.moveBy(const Offset(50, 0));
+    await gestureA.moveBy(const Offset(-30, 0));
+    await gestureB.moveBy(const Offset(30, 0));
+    await tester.pump();
+    expect(controller.currentScale, greaterThan(initialScale));
 
     expect(dragged, isNull);
     expect(dragUpdates, 0);
@@ -206,7 +327,8 @@ void main() {
     controller.dispose();
   });
 
-  testWidgets('additional finger after capture keeps node ownership', (tester) async {
+  testWidgets('additional finger after capture keeps node ownership',
+      (tester) async {
     final controller = _TestHarness.newController();
     final updates = <Offset>[];
 
@@ -231,7 +353,8 @@ void main() {
     await primary.moveBy(const Offset(30, 0));
     await tester.pump();
     expect(updates.length, greaterThan(1));
-    expect(testNodePosition(controller, _TestHarness.bottom).dx, greaterThan(130));
+    expect(
+        testNodePosition(controller, _TestHarness.bottom).dx, greaterThan(130));
 
     await primary.up();
     expect(controller.isCameraGated, isTrue);
@@ -243,7 +366,8 @@ void main() {
     controller.dispose();
   });
 
-  testWidgets('remaining finger after primary lift keeps camera gated until release',
+  testWidgets(
+      'remaining finger after primary lift keeps camera gated until release',
       (tester) async {
     final controller = _TestHarness.newController();
 
@@ -273,7 +397,8 @@ void main() {
     controller.dispose();
   });
 
-  testWidgets('pointer cancel clears presentation and notifies cancel', (tester) async {
+  testWidgets('pointer cancel clears presentation and notifies cancel',
+      (tester) async {
     final controller = _TestHarness.newController();
     Node<int>? cancelled;
     var endCount = 0;
@@ -290,8 +415,7 @@ void main() {
     await gesture.down(nodeCentre);
     await gesture.moveBy(const Offset(20, 0));
     await tester.pump();
-    final layoutPoint =
-        controller.renderSnapshot.layout!.positions['3']!;
+    final layoutPoint = controller.renderSnapshot.layout!.positions['3']!;
     expect(
       testNodePosition(controller, _TestHarness.bottom),
       isNot(Offset(layoutPoint.x, layoutPoint.y)),
@@ -457,7 +581,8 @@ void main() {
     },
   );
 
-  testWidgets('drag updates only moved node and incident edge geometry in one frame',
+  testWidgets(
+      'drag updates only moved node and incident edge geometry in one frame',
       (tester) async {
     final controller = _TestHarness.newController();
     final recorder = _EdgeGeometryRecorder();
@@ -597,8 +722,7 @@ Future<void> _pumpGraph(
   await tester.pumpAndSettle();
 }
 
-Offset _nodeCenter(WidgetTester tester, Node<int> node) =>
-    _globalForScene(
+Offset _nodeCenter(WidgetTester tester, Node<int> node) => _globalForScene(
       tester,
       testNodePosition(_controllerFromTester(tester), node),
     );
@@ -606,7 +730,8 @@ Offset _nodeCenter(WidgetTester tester, Node<int> node) =>
 GraphController<Node<int>, Edge<Node<int>, int>> _controllerFromTester(
   WidgetTester tester,
 ) {
-  final element = tester.element(find.byType(GraphView<Node<int>, Edge<Node<int>, int>>));
+  final element =
+      tester.element(find.byType(GraphView<Node<int>, Edge<Node<int>, int>>));
   final state = element as StatefulElement;
   final graphView = state.widget as GraphView<Node<int>, Edge<Node<int>, int>>;
   return graphView.controller;
