@@ -13,11 +13,14 @@ import 'package:tentura/ui/widget/screen_load_error_panel.dart';
 import 'package:tentura/ui/widget/show_anchored_popup_menu.dart';
 
 import 'package:tentura/features/home/domain/entity/home_activation.dart';
+import 'package:tentura/features/home/domain/work_activity_redesign_gate.dart';
 import 'package:tentura/features/home/ui/bloc/home_activation_cubit.dart';
 import 'package:tentura/features/home/ui/bloc/home_attention_cubit.dart';
 import 'package:tentura/features/home/ui/widget/home_orientation_panel.dart';
 import 'package:tentura/features/inbox/ui/bloc/inbox_operational_cubit.dart';
 
+import 'package:tentura/features/my_work/domain/derive_my_work_sections.dart';
+import 'package:tentura/features/my_work/domain/entity/my_work_card_view_model.dart';
 import 'package:tentura/features/my_work/domain/my_work_obligations_gate.dart';
 
 import '../bloc/my_work_cubit.dart';
@@ -58,6 +61,7 @@ class _MyWorkScreenState extends State<MyWorkScreen> {
       onPressed: () => context.read<ScreenCubit>().showBeaconCreate(),
       icon: const Icon(Icons.add),
     );
+    final redesignEnabled = readWorkActivityRedesignGateEnabled();
     const overflowMenu = _MyWorkOverflowMenu();
 
     return BlocListener<HomeTabReselectCubit, HomeTabReselectState>(
@@ -96,7 +100,12 @@ class _MyWorkScreenState extends State<MyWorkScreen> {
                     );
                   },
                 ),
-          actions: useCompactTopBar ? null : [createButton, overflowMenu],
+          actions: useCompactTopBar
+              ? null
+              : [
+                  createButton,
+                  if (!redesignEnabled) overflowMenu,
+                ],
           // NavigationToolbar balances its middle against the full trailing
           // action width. With filter + sort in the middle and two actions at
           // 390px, that can leave only a few pixels for the middle Row. The
@@ -108,7 +117,7 @@ class _MyWorkScreenState extends State<MyWorkScreen> {
                     const Expanded(child: _MyWorkFilterMenu()),
                     const _MyWorkSortButton(),
                     createButton,
-                    overflowMenu,
+                    if (!redesignEnabled) overflowMenu,
                   ],
                 )
               : null,
@@ -340,6 +349,10 @@ class _MyWorkBody extends StatelessWidget {
         p.archivedCards != c.archivedCards) {
       return true;
     }
+    if (p.attentionByBeacon != c.attentionByBeacon ||
+        p.attentionLoaded != c.attentionLoaded) {
+      return true;
+    }
     return false;
   }
 
@@ -349,6 +362,7 @@ class _MyWorkBody extends StatelessWidget {
     final cubit = context.read<MyWorkCubit>();
     final tt = context.tt;
     final obligationsGateEnabled = readMyWorkObligationsGateEnabled();
+    final redesignEnabled = readWorkActivityRedesignGateEnabled();
 
     return BlocListener<MyWorkCubit, MyWorkState>(
       listenWhen: (previous, current) =>
@@ -371,7 +385,7 @@ class _MyWorkBody extends StatelessWidget {
             tt: tt,
             scrollController: listScrollController,
           );
-          if (!obligationsGateEnabled) {
+          if (!obligationsGateEnabled || redesignEnabled) {
             return TenturaContentColumn(child: listBody);
           }
           return TenturaContentColumn(
@@ -437,7 +451,9 @@ class _MyWorkListBody extends StatelessWidget {
       );
     }
     final cards = state.visibleCards;
+    final redesignEnabled = readWorkActivityRedesignGateEnabled();
     final showFinishedHint =
+        !redesignEnabled &&
         !state.finishedArchiveHintDismissed &&
         (state.filter == MyWorkFilter.active ||
             state.filter == MyWorkFilter.all) &&
@@ -521,6 +537,22 @@ class _MyWorkListBody extends StatelessWidget {
         },
       );
     }
+    if (redesignEnabled) {
+      return RefreshIndicator.adaptive(
+        onRefresh: cubit.fetch,
+        child: CustomScrollView(
+          controller: scrollController,
+          physics: const AlwaysScrollableScrollPhysics(),
+          slivers: _myWorkRedesignSlivers(
+            context: context,
+            l10n: l10n,
+            tt: tt,
+            state: state,
+            cards: cards,
+          ),
+        ),
+      );
+    }
     return RefreshIndicator.adaptive(
       onRefresh: cubit.fetch,
       child: ListView.separated(
@@ -537,16 +569,88 @@ class _MyWorkListBody extends StatelessWidget {
           }
           final cardIndex = showFinishedHint ? i - 1 : i;
           final vm = cards[cardIndex];
-          return BlocSelector<HomeAttentionCubit, HomeAttentionState, bool>(
-            selector: (state) => state.isMyWorkBeaconMarked(vm.beaconId),
-            builder: (_, attentionMarked) => MyWorkCardRouter(
-              key: ValueKey('${vm.kind.name}-${vm.beaconId}'),
-              vm: vm,
-              attentionMarked: attentionMarked,
-            ),
-          );
+          return _myWorkCardTile(context: context, vm: vm);
         },
       ),
     );
   }
+}
+
+List<Widget> _myWorkRedesignSlivers({
+  required BuildContext context,
+  required L10n l10n,
+  required TenturaTokens tt,
+  required MyWorkState state,
+  required List<MyWorkCardViewModel> cards,
+}) {
+  final sections = deriveMyWorkSections(
+    cards: cards,
+    attentionByBeacon: state.attentionByBeacon,
+    filter: state.filter,
+  );
+  final slivers = <Widget>[
+    SliverPadding(
+      padding: EdgeInsets.only(top: tt.rowGap),
+      sliver: const SliverToBoxAdapter(child: SizedBox.shrink()),
+    ),
+  ];
+  for (final group in sections) {
+    if (group.section != MyWorkDeskSection.unlabeled) {
+      final headerLabel = switch (group.section) {
+        MyWorkDeskSection.needsYou => l10n.myWorkSectionNeedsYou,
+        MyWorkDeskSection.inProgress => l10n.myWorkSectionInProgress,
+        MyWorkDeskSection.finished => l10n.myWorkSectionFinished,
+        MyWorkDeskSection.unlabeled => '',
+      };
+      final count = group.section == MyWorkDeskSection.needsYou
+          ? myWorkNeedsYouObligationReceiptCount(
+              group.cards,
+              state.attentionByBeacon,
+            )
+          : null;
+      final helper = group.section == MyWorkDeskSection.finished
+          ? l10n.myWorkFinishedHint
+          : null;
+      slivers.add(
+        SliverToBoxAdapter(
+          child: TenturaSectionHeader(
+            label: headerLabel,
+            count: count,
+            helperText: helper,
+          ),
+        ),
+      );
+    }
+    slivers.add(
+      SliverList.separated(
+        itemCount: group.cards.length,
+        separatorBuilder: (_, _) => SizedBox(height: tt.rowGap),
+        itemBuilder: (context, index) {
+          final vm = group.cards[index];
+          return _myWorkCardTile(context: context, vm: vm);
+        },
+      ),
+    );
+  }
+  slivers.add(
+    SliverPadding(
+      padding: EdgeInsets.only(bottom: tt.rowGap),
+      sliver: const SliverToBoxAdapter(child: SizedBox.shrink()),
+    ),
+  );
+  return slivers;
+}
+
+Widget _myWorkCardTile({
+  required BuildContext context,
+  required MyWorkCardViewModel vm,
+}) {
+  return BlocSelector<HomeAttentionCubit, HomeAttentionState, bool>(
+    selector: (state) => state.isMyWorkBeaconMarked(vm.beaconId),
+    builder: (_, attentionMarked) => MyWorkCardRouter(
+      key: ValueKey('${vm.kind.name}-${vm.beaconId}'),
+      vm: vm,
+      attentionMarked: attentionMarked,
+    ),
+  );
 }

@@ -4464,6 +4464,18 @@
   },
   "myWorkFinishedStatusClosed": "Закрыт",
   "myWorkFinishedStatusCancelled": "Отменён",
+  "myWorkSectionNeedsYou": "Требует вас",
+  "@myWorkSectionNeedsYou": {
+    "description": "My Work section header when live obligations are present"
+  },
+  "myWorkSectionInProgress": "В работе",
+  "@myWorkSectionInProgress": {
+    "description": "My Work section header for active requests without live obligations"
+  },
+  "myWorkSectionFinished": "Завершённые",
+  "@myWorkSectionFinished": {
+    "description": "My Work section header for finished requests without live obligations"
+  },
   "myWorkFinishedHint": "Завершённые запросы остаются здесь, пока вы их не архивируете.",
   "myWorkStatusWrappingUp": "Завершение",
   "myWorkStatusCancelled": "Отменён",

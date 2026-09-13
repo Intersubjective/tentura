@@ -4505,6 +4505,18 @@
   },
   "myWorkFinishedStatusClosed": "Closed",
   "myWorkFinishedStatusCancelled": "Cancelled",
+  "myWorkSectionNeedsYou": "Needs you",
+  "@myWorkSectionNeedsYou": {
+    "description": "My Work section header when live obligations are present"
+  },
+  "myWorkSectionInProgress": "In progress",
+  "@myWorkSectionInProgress": {
+    "description": "My Work section header for active requests without live obligations"
+  },
+  "myWorkSectionFinished": "Finished",
+  "@myWorkSectionFinished": {
+    "description": "My Work section header for finished requests without live obligations"
+  },
   "myWorkFinishedHint": "Finished requests stay here until you archive them.",
   "myWorkStatusWrappingUp": "Wrapping up",
   "myWorkStatusCancelled": "Cancelled",
