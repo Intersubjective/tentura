@@ -31,12 +31,31 @@ bool isBenignSentryThrowable(Object? error) {
   return isBenignSentryExceptionText(error.toString());
 }
 
+/// Flutter web: a pointer packet hit-tests a render box before first layout.
+///
+/// Matches both `RenderBox was not laid out` and the gestures-library
+/// assertion `Cannot hit test a render box that has never been laid out`.
+bool isBenignUnlaidOutPointerHitTest(FlutterErrorDetails details) {
+  final library = details.library?.toLowerCase() ?? '';
+  final context = details.context?.toDescription().toLowerCase() ?? '';
+  return _isUnlaidOutHitTest(
+    exceptionText: details.exceptionAsString(),
+    library: library,
+    context: context,
+  );
+}
+
 /// Whether [event] should be dropped in `beforeSend`.
 ///
 /// Includes exception-text matches and the Flutter web hit-test race
-/// (`RenderBox was not laid out` while handling a pointer packet).
+/// (`RenderBox was not laid out` / `never been laid out` while handling a
+/// pointer packet).
 bool isBenignSentryEvent(SentryEvent event, Hint hint) {
   final synthetic = hint.get(TypeCheckHint.syntheticException);
+  if (synthetic is FlutterErrorDetails &&
+      isBenignUnlaidOutPointerHitTest(synthetic)) {
+    return true;
+  }
   if (isBenignSentryThrowable(synthetic)) {
     return true;
   }
@@ -76,22 +95,24 @@ bool isBenignSentryEvent(SentryEvent event, Hint hint) {
 /// Flutter web: a pointer packet hit-tests a Listener / barrier before the
 /// first layout. Same class as TENTURA-CLIENT-2J / -12 / -28.
 ///
-/// Requires both "was not laid out" and gestures/pointer-packet context so
-/// genuine layout failures (`during layout`, rendering library) still report.
+/// Requires both an unlaid-out hit-test message and gestures/pointer-packet
+/// context so genuine layout failures (`during layout`, rendering library)
+/// still report.
 bool _isBenignUnlaidOutHitTest(SentryEvent event, Hint hint) {
   final exceptionTexts = <String>[];
-  final hitTestMeta = <String>[];
+  final libraries = <String>[];
+  final contexts = <String>[];
 
   final synthetic = hint.get(TypeCheckHint.syntheticException);
   if (synthetic is FlutterErrorDetails) {
     exceptionTexts.add(synthetic.exception.toString());
     final library = synthetic.library;
     if (library != null) {
-      hitTestMeta.add(library);
+      libraries.add(library);
     }
     final context = synthetic.context?.toDescription();
     if (context != null) {
-      hitTestMeta.add(context);
+      contexts.add(context);
     }
   }
 
@@ -100,10 +121,10 @@ bool _isBenignUnlaidOutHitTest(SentryEvent event, Hint hint) {
     final library = details['library'];
     final context = details['context'];
     if (library is String) {
-      hitTestMeta.add(library);
+      libraries.add(library);
     }
     if (context is String) {
-      hitTestMeta.add(context);
+      contexts.add(context);
     }
   }
 
@@ -113,11 +134,24 @@ bool _isBenignUnlaidOutHitTest(SentryEvent event, Hint hint) {
     }
   }
 
-  final exceptionBlob = exceptionTexts.join('\n').toLowerCase();
-  if (!exceptionBlob.contains('was not laid out')) {
+  return _isUnlaidOutHitTest(
+    exceptionText: exceptionTexts.join('\n'),
+    library: libraries.join('\n'),
+    context: contexts.join('\n'),
+  );
+}
+
+bool _isUnlaidOutHitTest({
+  required String exceptionText,
+  required String library,
+  required String context,
+}) {
+  final exceptionBlob = exceptionText.toLowerCase();
+  if (!exceptionBlob.contains('was not laid out') &&
+      !exceptionBlob.contains('never been laid out')) {
     return false;
   }
-  final metaBlob = hitTestMeta.join('\n').toLowerCase();
+  final metaBlob = '$library\n$context'.toLowerCase();
   return metaBlob.contains('gestures') ||
       metaBlob.contains('pointer data packet');
 }

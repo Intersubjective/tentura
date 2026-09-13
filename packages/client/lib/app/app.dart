@@ -34,6 +34,7 @@ import 'platform/lifecycle_handler.dart';
 import 'platform/orientation_policy.dart';
 import 'router/root_router.dart';
 import 'debug_error_overlay.dart';
+import 'tentura_widgets_binding.dart';
 
 class App extends StatelessWidget {
   static Future<void> runner({
@@ -41,7 +42,7 @@ class App extends StatelessWidget {
     bool useSentryWidget = false,
   }) async {
     FlutterNativeSplash.preserve(
-      widgetsBinding: WidgetsFlutterBinding.ensureInitialized(),
+      widgetsBinding: TenturaWidgetsBinding.ensureInitialized(),
     );
     assertWebBuildConfig();
     // Portrait on phone-sized native windows; PWA uses manifest.json. See docs/tentura-design-system.md § Orientation policy.

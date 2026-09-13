@@ -5,6 +5,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:tentura/ui/utils/copy_text_to_clipboard.dart';
 
+import 'sentry/sentry_benign_filter.dart';
+
 class DebugErrorStore extends ChangeNotifier {
   DebugErrorStore._();
 
@@ -18,8 +20,10 @@ class DebugErrorStore extends ChangeNotifier {
     final text = details ?? '$error\n\n$stack';
     _lastError = text;
 
-    debugPrint('\n========== FLUTTER ERROR ==========\n$text\n===================================\n',
-        wrapWidth: 1024);
+    debugPrint(
+      '\n========== FLUTTER ERROR ==========\n$text\n===================================\n',
+      wrapWidth: 1024,
+    );
 
     // Defer overlay rebuild so layout/paint errors do not schedule a build
     // during the same frame (FlutterError → report → notifyListeners).
@@ -36,6 +40,10 @@ class DebugErrorStore extends ChangeNotifier {
 
 void installDebugErrorHandlers() {
   FlutterError.onError = (details) {
+    if (isBenignUnlaidOutPointerHitTest(details)) {
+      return;
+    }
+
     FlutterError.presentError(details);
 
     DebugErrorStore.instance.report(
