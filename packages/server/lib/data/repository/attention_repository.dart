@@ -127,6 +127,205 @@ SELECT * FROM summary
     );
   }
 
+  static const _visibleStreamColumns = '''
+    v.id,
+    v.account_id,
+    v.category,
+    v.kind,
+    v.priority,
+    v.title,
+    v.body,
+    v.action_url,
+    v.created_at,
+    v.collapsed_count,
+    v.beacon_id,
+    v.coordination_item_id,
+    v.actor_user_id,
+    v.seen_at,
+    v.source_event_key,
+    v.destination_kind,
+    v.target_entity_id,
+    v.presentation_key,
+    v.presentation_payload,
+    v.in_app_preference_class,
+    v.suppression_class,
+    v.access_policy,
+    v.requires_action,
+    v.attention_thread_key,
+    v.settlement_kind,
+    v.settled_at,
+    v.settled_by_user_id,
+    v.settled_by_occurrence_id,
+    v.tombstone_copy,
+    v.surface''';
+
+  static const _activityPageStreamCte = '''
+page_stream AS (
+  SELECT
+    $_visibleStreamColumns,
+    'receipt'::text AS item_kind,
+    NULL::text AS forward_outcome,
+    NULL::int AS forward_count,
+    NULL::int AS digest_count
+  FROM visible v
+  WHERE v.surface = 'activity'
+    AND (
+      v.beacon_id IS NULL
+      OR v.presentation_key IS DISTINCT FROM 'relay_received'
+      OR NOT EXISTS (
+        SELECT 1
+        FROM public.inbox_item ii
+        WHERE ii.user_id = \$1
+          AND ii.beacon_id = v.beacon_id
+      )
+    )
+
+  UNION ALL
+
+  SELECT
+    ('inbox:' || ii.beacon_id) AS id,
+    \$1::text AS account_id,
+    'coordination'::text AS category,
+    'newRelay'::text AS kind,
+    'normal'::text AS priority,
+    CASE
+      WHEN public.beacon_can_read_content(ii.beacon_id, \$1)
+      THEN COALESCE(b.title, '')
+      ELSE ''::text
+    END AS title,
+    ''::text AS body,
+    ('/#/view?id=' || ii.beacon_id) AS action_url,
+    ii.latest_forward_at AS created_at,
+    0 AS collapsed_count,
+    ii.beacon_id,
+    NULL::text AS coordination_item_id,
+    NULL::text AS actor_user_id,
+    CASE
+      WHEN ii.beacon_id IN (SELECT scope.beacon_id FROM scope)
+      THEN ii.latest_forward_at
+      WHEN EXISTS (
+        SELECT 1
+        FROM visible relay
+        WHERE relay.beacon_id = ii.beacon_id
+          AND relay.seen_at IS NULL
+          AND relay.presentation_key = 'relay_received'
+      )
+      THEN NULL::timestamptz
+      ELSE ii.latest_forward_at
+    END AS seen_at,
+    NULL::text AS source_event_key,
+    'beacon'::text AS destination_kind,
+    ii.beacon_id AS target_entity_id,
+    'relay_received'::text AS presentation_key,
+    '{}'::jsonb AS presentation_payload,
+    NULL::text AS in_app_preference_class,
+    'standard'::text AS suppression_class,
+    'beacon_content'::text AS access_policy,
+    false AS requires_action,
+    NULL::text AS attention_thread_key,
+    NULL::text AS settlement_kind,
+    NULL::timestamptz AS settled_at,
+    NULL::text AS settled_by_user_id,
+    NULL::text AS settled_by_occurrence_id,
+    (
+      NOT public.beacon_can_read_content(ii.beacon_id, \$1)
+      AND NOT (
+        ii.status IN (3, 4)
+        AND public.beacon_can_read_tombstone(ii.beacon_id, \$1)
+      )
+    ) AS tombstone_copy,
+    'activity'::text AS surface,
+    'forward'::text AS item_kind,
+    CASE
+      WHEN ii.beacon_id IN (SELECT scope.beacon_id FROM scope) THEN 'helping'
+      WHEN ii.status = 1 THEN 'watching'
+      WHEN ii.status = 2 THEN 'notInterested'
+      WHEN ii.status = 3 THEN 'closedBeforeResponse'
+      WHEN ii.status = 4 THEN 'deletedBeforeResponse'
+      ELSE NULL::text
+    END AS forward_outcome,
+    ii.forward_count AS forward_count,
+    NULL::int AS digest_count
+  FROM public.inbox_item ii
+  JOIN public.beacon b ON b.id = ii.beacon_id
+  WHERE ii.user_id = \$1
+    AND ii.tombstone_dismissed_at IS NULL
+    AND (
+      ii.status <> 0
+      OR ii.beacon_id IN (SELECT scope.beacon_id FROM scope)
+    )
+    AND (
+      public.beacon_can_read_content(ii.beacon_id, \$1)
+      OR (
+        ii.status IN (3, 4)
+        AND public.beacon_can_read_tombstone(ii.beacon_id, \$1)
+      )
+    )
+    AND NOT (
+      ii.status = 1
+      AND ii.beacon_id NOT IN (SELECT scope.beacon_id FROM scope)
+      AND EXISTS (
+        SELECT 1
+        FROM visible newer
+        WHERE newer.beacon_id = ii.beacon_id
+          AND newer.seen_at IS NULL
+          AND newer.created_at > ii.latest_forward_at
+      )
+    )
+
+  UNION ALL
+
+  SELECT
+    'watching-digest'::text AS id,
+    \$1::text AS account_id,
+    'ambient'::text AS category,
+    'roomActivityLowPriority'::text AS kind,
+    'low'::text AS priority,
+    ''::text AS title,
+    ''::text AS body,
+    ''::text AS action_url,
+    digest.max_created_at AS created_at,
+    0 AS collapsed_count,
+    NULL::text AS beacon_id,
+    NULL::text AS coordination_item_id,
+    NULL::text AS actor_user_id,
+    NULL::timestamptz AS seen_at,
+    NULL::text AS source_event_key,
+    NULL::text AS destination_kind,
+    NULL::text AS target_entity_id,
+    'request_status_changed'::text AS presentation_key,
+    '{}'::jsonb AS presentation_payload,
+    NULL::text AS in_app_preference_class,
+    'standard'::text AS suppression_class,
+    'legacy'::text AS access_policy,
+    false AS requires_action,
+    NULL::text AS attention_thread_key,
+    NULL::text AS settlement_kind,
+    NULL::timestamptz AS settled_at,
+    NULL::text AS settled_by_user_id,
+    NULL::text AS settled_by_occurrence_id,
+    false AS tombstone_copy,
+    'activity'::text AS surface,
+    'watchingDigest'::text AS item_kind,
+    NULL::text AS forward_outcome,
+    NULL::int AS forward_count,
+    digest.beacon_count AS digest_count
+  FROM (
+    SELECT
+      MAX(v.created_at) AS max_created_at,
+      COUNT(DISTINCT ii.beacon_id)::int AS beacon_count
+    FROM public.inbox_item ii
+    INNER JOIN visible v
+      ON v.beacon_id = ii.beacon_id
+     AND v.seen_at IS NULL
+     AND v.created_at > ii.latest_forward_at
+    WHERE ii.user_id = \$1
+      AND ii.status = 1
+      AND ii.beacon_id NOT IN (SELECT scope.beacon_id FROM scope)
+  ) digest
+  WHERE digest.beacon_count > 0
+)''';
+
   @override
   Future<AttentionFeed> attentionFeed({
     required String accountId,
@@ -144,34 +343,50 @@ SELECT * FROM summary
       Variable<String>(surface?.name),
     ];
     final cursorClause = StringBuffer();
+    final streamAlias = surface == AttentionSurface.activity ? 'stream' : 'visible';
     if (cursor != null) {
       variables
         ..add(Variable<String>(cursor.createdAt.toUtc().toIso8601String()))
         ..add(Variable<String>(cursor.id));
       cursorClause.write(
-        r'''
+        '''
 AND (
-  visible.created_at < $5::timestamptz
-  OR (visible.created_at = $5::timestamptz AND visible.id < $6)
+  $streamAlias.created_at < \$5::timestamptz
+  OR ($streamAlias.created_at = \$5::timestamptz AND $streamAlias.id < \$6)
 )''',
       );
     }
     variables.add(Variable<int>(boundedLimit + 1));
     final limitParameter = '\$${variables.length}';
 
-    final rows = await _database.customSelect(
-      '''
-WITH $_visibleWithSurfaceCte,
-summary AS (
-  SELECT COUNT(*) FILTER (
-    WHERE seen_at IS NULL
-      AND (\$4::text IS NULL OR surface = \$4)
-  )::int AS unread_total,
-  COUNT(*) FILTER (
-    WHERE requires_action AND settlement_kind IS NULL
-  )::int AS needs_you_total
-  FROM visible
-),
+    final pageCte = surface == AttentionSurface.activity
+        ? '''
+$_activityPageStreamCte,
+page AS (
+  SELECT stream.*
+  FROM page_stream stream
+  WHERE (
+    \$2 = 'all'
+    OR (\$2 = 'unread' AND stream.seen_at IS NULL)
+    OR (\$2 = 'needsYou' AND stream.requires_action
+        AND stream.settlement_kind IS NULL)
+  )
+  AND (
+    \$3::text IS NULL
+    OR to_tsvector(
+      'simple',
+      coalesce(stream.presentation_payload ->> 'eventType', '') || ' ' ||
+      coalesce(stream.presentation_payload ->> 'beaconId', '') || ' ' ||
+      coalesce(stream.presentation_payload ->> 'coordinationItemId', '') || ' ' ||
+      coalesce(stream.presentation_payload ->> 'targetEntityId', '') || ' ' ||
+      coalesce(stream.presentation_payload ->> 'messageId', '')
+    ) @@ websearch_to_tsquery('simple', \$3)
+  )
+  $cursorClause
+  ORDER BY stream.created_at DESC, stream.id DESC
+  LIMIT $limitParameter
+)'''
+        : '''
 page AS (
   SELECT visible.*
   FROM visible
@@ -196,7 +411,22 @@ page AS (
     $cursorClause
   ORDER BY visible.created_at DESC, visible.id DESC
   LIMIT $limitParameter
-)
+)''';
+
+    final rows = await _database.customSelect(
+      '''
+WITH $_visibleWithSurfaceCte,
+summary AS (
+  SELECT COUNT(*) FILTER (
+    WHERE seen_at IS NULL
+      AND (\$4::text IS NULL OR surface = \$4)
+  )::int AS unread_total,
+  COUNT(*) FILTER (
+    WHERE requires_action AND settlement_kind IS NULL
+  )::int AS needs_you_total
+  FROM visible
+),
+$pageCte
 SELECT summary.unread_total, summary.needs_you_total, page.*
 FROM summary
 LEFT JOIN LATERAL (SELECT * FROM page) page ON true
@@ -290,7 +520,12 @@ ORDER BY page.created_at DESC NULLS LAST, page.id DESC NULLS LAST
         'settled_by_occurrence_id',
       ),
       surface: attentionSurfaceFromWireName(row.read<String>('surface')),
-      itemKind: AttentionItemKind.receipt,
+      itemKind: row.data['item_kind'] == null
+          ? AttentionItemKind.receipt
+          : attentionItemKindFromWireName(row.read<String>('item_kind')),
+      forwardOutcome: row.readNullable<String>('forward_outcome'),
+      forwardCount: row.readNullable<int>('forward_count'),
+      digestCount: row.readNullable<int>('digest_count'),
     );
   }
 
