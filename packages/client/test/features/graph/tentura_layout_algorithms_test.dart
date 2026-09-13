@@ -7,7 +7,10 @@ import 'package:force_directed_graphview/force_directed_graphview.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/graph/domain/entity/edge_details.dart';
 import 'package:tentura/features/graph/domain/entity/node_details.dart';
+import 'package:tentura/features/graph/ui/utils/graph_scene_ids.dart';
 import 'package:tentura/features/graph/ui/utils/tentura_layout_algorithms.dart';
+
+import 'scene_layout_test_support.dart';
 
 void main() {
   const canvasSize = Size(500, 500);
@@ -37,18 +40,8 @@ void main() {
     );
   }
 
-  Future<GraphLayout> layoutOnce(
-    GraphLayoutAlgorithm algorithm, {
-    required Set<NodeDetails> nodes,
-    required Set<EdgeDetails<NodeDetails>> edges,
-  }) async {
-    final stream = algorithm.layout(
-      nodes: nodes,
-      edges: edges,
-      size: canvasSize,
-    );
-    return stream.first;
-  }
+  ScenePoint pointFor(NodeDetails node, Map<GraphNodeId, ScenePoint> positions) =>
+      positions[tenturaGraphNodeId(node)]!;
 
   group('RadialHopLayoutAlgorithm', () {
     test('equal instances compare equal', () {
@@ -71,21 +64,55 @@ void main() {
       final nodes = {nodeA, nodeB, nodeC};
       final edges = {edge('a', 'b'), edge('b', 'c')};
 
-      final initial = await layoutOnce(
+      final initial = await layoutPositionsOnce(
         algorithm,
         nodes: nodes,
         edges: edges,
       );
-      final again = await algorithm.relayout(
-        existingLayout: initial,
+      final again = await layoutPositionsOnce(
+        algorithm,
         nodes: nodes,
         edges: edges,
-        size: canvasSize,
-      ).first;
+        previous: sceneLayoutFromPositions(initial),
+      );
 
       for (final node in nodes) {
-        expect(again.getPosition(node), initial.getPosition(node));
+        expect(pointFor(node, again), pointFor(node, initial));
       }
+    });
+
+    test('payload replacement keeps positions under the same graph id', () async {
+      const algorithm = RadialHopLayoutAlgorithm(rootId: 'a');
+      final nodes = {nodeA, nodeB};
+      final edges = {edge('a', 'b')};
+      final initial = await layoutPositionsOnce(
+        algorithm,
+        nodes: nodes,
+        edges: edges,
+      );
+
+      final refreshedB = UserNode(
+        user: Profile(id: 'b', displayName: 'Renamed'),
+        size: nodeB.size,
+      );
+      final refreshedNodes = {nodeA, refreshedB};
+      final afterRefresh = await layoutPositionsOnce(
+        algorithm,
+        nodes: refreshedNodes,
+        edges: {
+          EdgeDetails(
+            source: nodeA,
+            destination: refreshedB,
+            color: Colors.blue,
+          ),
+        },
+        previous: sceneLayoutFromPositions(initial),
+      );
+
+      expect(
+        pointFor(refreshedB, afterRefresh),
+        pointFor(nodeB, initial),
+      );
     });
 
     test('relayout keeps existing nodes pinned when the set shrinks', () async {
@@ -93,134 +120,119 @@ void main() {
       final nodes = {nodeA, nodeB, nodeC};
       final edges = {edge('a', 'b'), edge('a', 'c')};
 
-      final initial = await layoutOnce(
+      final initial = await layoutPositionsOnce(
         algorithm,
         nodes: nodes,
         edges: edges,
       );
-      final shrunk = await algorithm
-          .relayout(
-            existingLayout: initial,
-            nodes: {nodeA, nodeB},
-            edges: {edge('a', 'b')},
-            size: canvasSize,
-          )
-          .first;
+      final shrunk = await layoutPositionsOnce(
+        algorithm,
+        nodes: {nodeA, nodeB},
+        edges: {edge('a', 'b')},
+        previous: sceneLayoutFromPositions(initial),
+      );
 
-      expect(shrunk.getPosition(nodeA), initial.getPosition(nodeA));
-      expect(shrunk.getPosition(nodeB), initial.getPosition(nodeB));
+      expect(pointFor(nodeA, shrunk), pointFor(nodeA, initial));
+      expect(pointFor(nodeB, shrunk), pointFor(nodeB, initial));
     });
 
     test('relayout parks new children along the pinned branch direction', () async {
       const algorithm = RadialHopLayoutAlgorithm(rootId: 'a', ringGap: 170);
       final nodes = {nodeA, nodeB};
-      // Place A→B going straight down so the fan must continue that heading.
       const parentPos = Offset(250, 100);
       const childPos = Offset(250, 200);
-      final pinned = GraphLayoutBuilder(nodes: nodes)
-        ..setNodePosition(nodeA, parentPos)
-        ..setNodePosition(nodeB, childPos);
-      final existing = pinned.build();
+      final previous = sceneLayoutFromPositions({
+        tenturaGraphNodeId(nodeA): ScenePoint(x: parentPos.dx, y: parentPos.dy),
+        tenturaGraphNodeId(nodeB): ScenePoint(x: childPos.dx, y: childPos.dy),
+      });
 
-      final grown = await algorithm
-          .relayout(
-            existingLayout: existing,
-            nodes: {nodeA, nodeB, nodeC},
-            edges: {edge('a', 'b'), edge('b', 'c')},
-            size: canvasSize,
-          )
-          .first;
+      final grown = await layoutPositionsOnce(
+        algorithm,
+        nodes: {nodeA, nodeB, nodeC},
+        edges: {edge('a', 'b'), edge('b', 'c')},
+        previous: previous,
+      );
 
-      expect(grown.getPosition(nodeB), childPos);
-      final c = grown.getPosition(nodeC);
-      // Single child continues straight down by ringGap.
-      expect(c.dx, closeTo(childPos.dx, 1));
-      expect(c.dy, closeTo(childPos.dy + 170, 1));
+      expect(pointFor(nodeB, grown).y, closeTo(childPos.dy, 1));
+      final c = pointFor(nodeC, grown);
+      expect(c.x, closeTo(childPos.dx, 1));
+      expect(c.y, closeTo(childPos.dy + 170, 1));
     });
 
     test('relayout fans multiple siblings locally around the parent', () async {
       const algorithm = RadialHopLayoutAlgorithm(rootId: 'a', ringGap: 170);
-      final nodes = {nodeA, nodeB};
-      final pinned = GraphLayoutBuilder(nodes: nodes)
-        ..setNodePosition(nodeA, const Offset(250, 100))
-        ..setNodePosition(nodeB, const Offset(250, 200));
-      final existing = pinned.build();
+      final previous = sceneLayoutFromPositions({
+        tenturaGraphNodeId(nodeA): ScenePoint(x: 250, y: 100),
+        tenturaGraphNodeId(nodeB): ScenePoint(x: 250, y: 200),
+      });
 
-      final grown = await algorithm
-          .relayout(
-            existingLayout: existing,
-            nodes: {nodeA, nodeB, nodeC, nodeD},
-            edges: {
-              edge('a', 'b'),
-              edge('b', 'c'),
-              edge('b', 'd'),
-            },
-            size: canvasSize,
-          )
-          .first;
+      final grown = await layoutPositionsOnce(
+        algorithm,
+        nodes: {nodeA, nodeB, nodeC, nodeD},
+        edges: {
+          edge('a', 'b'),
+          edge('b', 'c'),
+          edge('b', 'd'),
+        },
+        previous: previous,
+      );
 
-      final b = grown.getPosition(nodeB);
-      final c = grown.getPosition(nodeC);
-      final d = grown.getPosition(nodeD);
-      expect((c - b).distance, closeTo(170, 1));
-      expect((d - b).distance, closeTo(170, 1));
-      // Both stay below the parent (branch was downward).
-      expect(c.dy, greaterThan(b.dy));
-      expect(d.dy, greaterThan(b.dy));
-      // And near each other — not opposite sides of the canvas.
-      expect((c - d).distance, lessThan(200));
+      final b = pointFor(nodeB, grown);
+      final c = pointFor(nodeC, grown);
+      final d = pointFor(nodeD, grown);
+      expect(_distance(b, c), closeTo(170, 1));
+      expect(_distance(b, d), closeTo(170, 1));
+      expect(c.y, greaterThan(b.y));
+      expect(d.y, greaterThan(b.y));
+      expect(_distance(c, d), lessThan(200));
     });
 
     test('repeated expand re-fans all siblings without overlap', () async {
       const algorithm = RadialHopLayoutAlgorithm(rootId: 'a', ringGap: 170);
-      final pinned = GraphLayoutBuilder(nodes: {nodeA, nodeB})
-        ..setNodePosition(nodeA, const Offset(250, 100))
-        ..setNodePosition(nodeB, const Offset(250, 200));
-      final existing = pinned.build();
+      final previous = sceneLayoutFromPositions({
+        tenturaGraphNodeId(nodeA): ScenePoint(x: 250, y: 100),
+        tenturaGraphNodeId(nodeB): ScenePoint(x: 250, y: 200),
+      });
 
-      final firstBatch = await algorithm
-          .relayout(
-            existingLayout: existing,
-            nodes: {nodeA, nodeB, nodeC, nodeD},
-            edges: {
-              edge('a', 'b'),
-              edge('b', 'c'),
-              edge('b', 'd'),
-            },
-            size: canvasSize,
-          )
-          .first;
+      final firstBatch = await layoutPositionsOnce(
+        algorithm,
+        nodes: {nodeA, nodeB, nodeC, nodeD},
+        edges: {
+          edge('a', 'b'),
+          edge('b', 'c'),
+          edge('b', 'd'),
+        },
+        previous: previous,
+      );
 
-      final secondBatch = await algorithm
-          .relayout(
-            existingLayout: firstBatch,
-            nodes: {nodeA, nodeB, nodeC, nodeD, nodeE, nodeF},
-            edges: {
-              edge('a', 'b'),
-              edge('b', 'c'),
-              edge('b', 'd'),
-              edge('b', 'e'),
-              edge('b', 'f'),
-            },
-            size: canvasSize,
-          )
-          .first;
+      final secondBatch = await layoutPositionsOnce(
+        algorithm,
+        nodes: {nodeA, nodeB, nodeC, nodeD, nodeE, nodeF},
+        edges: {
+          edge('a', 'b'),
+          edge('b', 'c'),
+          edge('b', 'd'),
+          edge('b', 'e'),
+          edge('b', 'f'),
+        },
+        previous: sceneLayoutFromPositions(firstBatch),
+      );
 
-      final b = secondBatch.getPosition(nodeB);
+      final b = pointFor(nodeB, secondBatch);
       final positions = [
-        secondBatch.getPosition(nodeC),
-        secondBatch.getPosition(nodeD),
-        secondBatch.getPosition(nodeE),
-        secondBatch.getPosition(nodeF),
+        pointFor(nodeC, secondBatch),
+        pointFor(nodeD, secondBatch),
+        pointFor(nodeE, secondBatch),
+        pointFor(nodeF, secondBatch),
       ];
 
       for (final pos in positions) {
-        expect((pos - b).distance, closeTo(170, 1));
+        expect(_distance(b, pos), closeTo(170, 1));
       }
       for (var i = 0; i < positions.length; i++) {
         for (var j = i + 1; j < positions.length; j++) {
           expect(
-            (positions[i] - positions[j]).distance,
+            _distance(positions[i], positions[j]),
             greaterThan(20),
             reason: 'siblings must not overlap after incremental expand',
           );
@@ -237,32 +249,34 @@ void main() {
         edge('a', 'c'),
         edge('a', 'd'),
       };
-      final cold = await algorithm
-          .layout(nodes: nodes, edges: edges, size: largeCanvas)
-          .first;
+      final cold = await layoutPositionsOnce(
+        algorithm,
+        nodes: nodes,
+        edges: edges,
+        canvasSize: largeCanvas,
+      );
 
-      final pinned = GraphLayoutBuilder(nodes: {nodeA, nodeB})
-        ..setNodePosition(nodeA, cold.getPosition(nodeA))
-        ..setNodePosition(nodeB, cold.getPosition(nodeB));
-      final existing = pinned.build();
+      final pinned = sceneLayoutFromPositions({
+        tenturaGraphNodeId(nodeA): pointFor(nodeA, cold),
+        tenturaGraphNodeId(nodeB): pointFor(nodeB, cold),
+      });
 
-      final grown = await algorithm
-          .relayout(
-            existingLayout: existing,
-            nodes: nodes,
-            edges: edges,
-            size: largeCanvas,
-          )
-          .first;
+      final grown = await layoutPositionsOnce(
+        algorithm,
+        nodes: nodes,
+        edges: edges,
+        canvasSize: largeCanvas,
+        previous: pinned,
+      );
 
-      expect(grown.getPosition(nodeC), cold.getPosition(nodeC));
-      expect(grown.getPosition(nodeD), cold.getPosition(nodeD));
+      expect(pointFor(nodeC, grown), pointFor(nodeC, cold));
+      expect(pointFor(nodeD, grown), pointFor(nodeD, cold));
       final centre = largeCanvas.center(Offset.zero);
-      final c = grown.getPosition(nodeC);
-      final d = grown.getPosition(nodeD);
-      expect((c - centre).distance, closeTo(170, 1));
-      expect((d - centre).distance, closeTo(170, 1));
-      expect(c.dy == centre.dy || d.dy == centre.dy, isFalse);
+      final c = pointFor(nodeC, grown);
+      final d = pointFor(nodeD, grown);
+      expect(_distanceScene(c, centre), closeTo(170, 1));
+      expect(_distanceScene(d, centre), closeTo(170, 1));
+      expect(c.y == centre.dy || d.y == centre.dy, isFalse);
     });
 
     test('every input node has a position', () async {
@@ -270,14 +284,14 @@ void main() {
       final nodes = {nodeA, nodeB};
       final edges = {edge('a', 'b')};
 
-      final layout = await layoutOnce(
+      final layout = await layoutPositionsOnce(
         algorithm,
         nodes: nodes,
         edges: edges,
       );
 
       for (final node in nodes) {
-        expect(layout.hasPosition(node), isTrue);
+        expect(layout.containsKey(tenturaGraphNodeId(node)), isTrue);
       }
     });
   });
@@ -305,20 +319,20 @@ void main() {
       final nodes = {nodeA, nodeB, nodeC};
       final edges = {edge('a', 'b'), edge('b', 'c')};
 
-      final initial = await layoutOnce(
+      final initial = await layoutPositionsOnce(
         algorithm,
         nodes: nodes,
         edges: edges,
       );
-      final again = await algorithm.relayout(
-        existingLayout: initial,
+      final again = await layoutPositionsOnce(
+        algorithm,
         nodes: nodes,
         edges: edges,
-        size: canvasSize,
-      ).first;
+        previous: sceneLayoutFromPositions(initial),
+      );
 
       for (final node in nodes) {
-        expect(again.getPosition(node), initial.getPosition(node));
+        expect(pointFor(node, again), pointFor(node, initial));
       }
     });
 
@@ -327,15 +341,21 @@ void main() {
       final nodes = {nodeA, nodeB};
       final edges = {edge('a', 'b')};
 
-      final layout = await layoutOnce(
+      final layout = await layoutPositionsOnce(
         algorithm,
         nodes: nodes,
         edges: edges,
       );
 
       for (final node in nodes) {
-        expect(layout.hasPosition(node), isTrue);
+        expect(layout.containsKey(tenturaGraphNodeId(node)), isTrue);
       }
     });
   });
 }
+
+double _distance(ScenePoint a, ScenePoint b) =>
+    Offset(a.x - b.x, a.y - b.y).distance;
+
+double _distanceScene(ScenePoint point, Offset center) =>
+    Offset(point.x - center.dx, point.y - center.dy).distance;

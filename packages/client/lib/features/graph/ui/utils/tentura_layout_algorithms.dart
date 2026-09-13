@@ -7,70 +7,100 @@ import 'package:force_directed_graphview/force_directed_graphview.dart';
 import '../../domain/entity/node_details.dart';
 import '../../domain/layout/layered_dag_positions.dart';
 import '../../domain/layout/radial_hop_positions.dart';
+import 'graph_scene_ids.dart';
 import 'package:tentura/features/constellation/domain/constellation_anchor_composition.dart';
 import 'package:tentura/features/constellation/domain/constellation_layout.dart';
 import 'package:tentura/features/constellation/domain/constellation_path_resolution.dart';
 import 'package:tentura/features/constellation/domain/entity/constellation_anchor.dart';
 
-final class RadialHopLayoutAlgorithm implements GraphLayoutAlgorithm {
+final class RadialHopLayoutAlgorithm implements SceneLayoutAlgorithm {
   const RadialHopLayoutAlgorithm({
     required this.rootId,
     this.ringGap = 170,
   });
 
+  /// Layout domain id of the radial root (typically the viewer user id).
   final String rootId;
   final double ringGap;
 
   @override
-  Stream<GraphLayout> layout({
-    required Set<NodeBase> nodes,
-    required Set<EdgeBase> edges,
-    required Size size,
-  }) {
-    return Stream.value(_buildLayout(nodes: nodes, edges: edges, size: size));
+  Stream<GraphLayoutFrame> layout(GraphLayoutRequest request) async* {
+    yield _frame(request, _computePositions(request));
   }
 
-  @override
-  Stream<GraphLayout> relayout({
-    required GraphLayout existingLayout,
-    required Set<NodeBase> nodes,
-    required Set<EdgeBase> edges,
-    required Size size,
-  }) {
-    // Keep already-placed nodes. Park newcomers in a local fan around their
-    // real parent, continuing parent−grandparent so expand does not reuse
-    // global radial sectors (which fling siblings across the canvas).
-    final hop = _computeHop(nodes: nodes, edges: edges, size: size);
-    final placed = <String, Offset>{};
-    final byId = <String, NodeBase>{
-      for (final node in nodes) (node as NodeDetails).id: node,
-    };
-    final fallback = size.center(Offset.zero);
+  Map<GraphNodeId, ScenePoint> _computePositions(GraphLayoutRequest request) {
+    if (request.nodeIds.isEmpty) {
+      return const {};
+    }
 
-    for (final node in nodes) {
-      final kept = existingLayout.getPositionOrNull(node);
+    final graphIdByDomain = tenturaGraphIdsByDomainId(request.nodeIds);
+    final domainNodeIds = graphIdByDomain.keys.toSet();
+    final domainEdges = _domainEdges(request);
+    final size = _canvasSize(request);
+
+    final hop = computeRadialHopLayout(
+      nodeIds: domainNodeIds,
+      edges: domainEdges,
+      rootId: rootId,
+      canvasSize: size,
+      ringGap: ringGap,
+    );
+
+    final previous = request.previous?.positions ?? const {};
+    if (previous.isEmpty) {
+      return _positionsFromDomainMap(
+        graphIdByDomain: graphIdByDomain,
+        domainPositions: hop.positions,
+        canvasSize: size,
+      );
+    }
+
+    return _relayoutPositions(
+      request: request,
+      graphIdByDomain: graphIdByDomain,
+      hop: hop,
+      canvasSize: size,
+      previous: previous,
+    );
+  }
+
+  Map<GraphNodeId, ScenePoint> _relayoutPositions({
+    required GraphLayoutRequest request,
+    required Map<String, GraphNodeId> graphIdByDomain,
+    required RadialHopLayout hop,
+    required Size canvasSize,
+    required Map<GraphNodeId, ScenePoint> previous,
+  }) {
+    final placed = <String, ScenePoint>{};
+    final fallback = _centerPoint(canvasSize);
+
+    for (final entry in graphIdByDomain.entries) {
+      final graphId = entry.value;
+      final kept = previous[graphId];
       if (kept != null) {
-        placed[(node as NodeDetails).id] = kept;
+        placed[entry.key] = kept;
       }
     }
 
     final newcomersByParent = <String, List<String>>{};
     final orphanIds = <String>[];
-    for (final node in nodes) {
-      final id = (node as NodeDetails).id;
-      if (placed.containsKey(id)) {
+    for (final domainId in graphIdByDomain.keys) {
+      if (placed.containsKey(domainId)) {
         continue;
       }
-      final parentId = hop.parent[id];
+      final parentId = hop.parent[domainId];
       if (parentId == null) {
-        orphanIds.add(id);
+        orphanIds.add(domainId);
         continue;
       }
-      newcomersByParent.putIfAbsent(parentId, () => []).add(id);
+      newcomersByParent.putIfAbsent(parentId, () => []).add(domainId);
     }
 
     for (final id in orphanIds) {
-      placed[id] = hop.positions[id] ?? fallback;
+      final offset = hop.positions[id];
+      placed[id] = offset == null
+          ? fallback
+          : ScenePoint(x: offset.dx, y: offset.dy);
     }
 
     final parentIds = newcomersByParent.keys.toList()
@@ -80,100 +110,81 @@ final class RadialHopLayoutAlgorithm implements GraphLayoutAlgorithm {
         return da.compareTo(db);
       });
 
-    final rootPos = placed[rootId] ?? hop.positions[rootId] ?? fallback;
+    final rootPos = placed[rootId] ??
+        _sceneFromOffset(hop.positions[rootId]) ??
+        fallback;
 
     for (final parentId in parentIds) {
-      final childIds = byId.keys
+      final childDomainIds = graphIdByDomain.keys
           .where((id) => hop.parent[id] == parentId)
           .toList()
         ..sort();
 
       if (parentId == rootId) {
-        for (final childId in childIds) {
-          placed[childId] = hop.positions[childId] ?? fallback;
+        for (final childId in childDomainIds) {
+          final offset = hop.positions[childId];
+          placed[childId] = offset == null
+              ? fallback
+              : ScenePoint(x: offset.dx, y: offset.dy);
         }
         continue;
       }
 
-      final parentPos =
-          placed[parentId] ?? hop.positions[parentId] ?? fallback;
+      final parentPos = placed[parentId] ??
+          _sceneFromOffset(hop.positions[parentId]) ??
+          fallback;
       final grandparentId = hop.parent[parentId];
       final grandparentPos = grandparentId == null
           ? null
-          : (placed[grandparentId] ?? hop.positions[grandparentId]);
+          : (placed[grandparentId] ??
+              _sceneFromOffset(hop.positions[grandparentId]));
       final direction = branchUnitDirection(
-        parentPos: parentPos,
-        grandparentPos: grandparentPos,
-        rootPos: rootPos,
+        parentPos: Offset(parentPos.x, parentPos.y),
+        grandparentPos: grandparentPos == null
+            ? null
+            : Offset(grandparentPos.x, grandparentPos.y),
+        rootPos: Offset(rootPos.x, rootPos.y),
       );
-      final maxChildSize = childIds
-          .map((id) => (byId[id]! as NodeDetails).size)
+      final maxChildSize = childDomainIds
+          .map(
+            (id) => request.nodesById[graphIdByDomain[id]!]!.size.height,
+          )
           .fold(0.0, math.max);
       final minChord = math.max(
         amenityChordForRingGap(ringGap),
         maxChildSize + kFanSizePadding,
       );
       final fan = localFanPositions(
-        parentPos: parentPos,
+        parentPos: Offset(parentPos.x, parentPos.y),
         direction: direction,
-        childIds: childIds,
-        canvasSize: size,
+        childIds: childDomainIds,
+        canvasSize: canvasSize,
         ringGap: ringGap,
         minChord: minChord,
         rMax: ringGap * kFanRadiusMultiplier,
       );
-      placed.addAll(fan);
+      for (final entry in fan.entries) {
+        placed[entry.key] = ScenePoint(x: entry.value.dx, y: entry.value.dy);
+      }
     }
 
-    final builder = GraphLayoutBuilder(nodes: nodes);
-    for (final entry in byId.entries) {
-      builder.setNodePosition(
-        entry.value,
-        placed[entry.key] ?? fallback,
-      );
+    final positions = <GraphNodeId, ScenePoint>{};
+    for (final entry in graphIdByDomain.entries) {
+      positions[entry.value] =
+          placed[entry.key] ?? fallback;
     }
-    return Stream.value(builder.build());
+    return positions;
   }
 
-  GraphLayout _buildLayout({
-    required Set<NodeBase> nodes,
-    required Set<EdgeBase> edges,
-    required Size size,
-  }) {
-    if (nodes.isEmpty) {
-      return const GraphLayout.empty();
+  Set<(String, String)> _domainEdges(GraphLayoutRequest request) {
+    final edges = <(String, String)>{};
+    for (final edge in request.edgesById.values) {
+      edges.add((
+        tenturaLayoutDomainId(edge.sourceId),
+        tenturaLayoutDomainId(edge.destinationId),
+      ));
     }
-
-    final hop = _computeHop(nodes: nodes, edges: edges, size: size);
-    return _layoutFromPositions(
-      nodes: nodes,
-      positions: hop.positions,
-      canvasSize: size,
-    );
-  }
-
-  RadialHopLayout _computeHop({
-    required Set<NodeBase> nodes,
-    required Set<EdgeBase> edges,
-    required Size size,
-  }) {
-    final nodeIds = nodes.map((node) => (node as NodeDetails).id).toSet();
-    final edgeIds = edges
-        .map(
-          (edge) => (
-            (edge.source as NodeDetails).id,
-            (edge.destination as NodeDetails).id,
-          ),
-        )
-        .toSet();
-
-    return computeRadialHopLayout(
-      nodeIds: nodeIds,
-      edges: edgeIds,
-      rootId: rootId,
-      canvasSize: size,
-      ringGap: ringGap,
-    );
+    return edges;
   }
 
   @override
@@ -186,6 +197,72 @@ final class RadialHopLayoutAlgorithm implements GraphLayoutAlgorithm {
 
   @override
   int get hashCode => Object.hash(runtimeType, rootId, ringGap);
+}
+
+final class LayeredDagLayoutAlgorithm implements SceneLayoutAlgorithm {
+  const LayeredDagLayoutAlgorithm({
+    required this.rootIds,
+    this.layerGap = 150,
+    this.columnGap = 130,
+  });
+
+  final Set<String> rootIds;
+  final double layerGap;
+  final double columnGap;
+
+  @override
+  Stream<GraphLayoutFrame> layout(GraphLayoutRequest request) async* {
+    yield _frame(request, _computePositions(request));
+  }
+
+  Map<GraphNodeId, ScenePoint> _computePositions(GraphLayoutRequest request) {
+    if (request.nodeIds.isEmpty) {
+      return const {};
+    }
+
+    final graphIdByDomain = tenturaGraphIdsByDomainId(request.nodeIds);
+    final domainNodeIds = graphIdByDomain.keys.toSet();
+    final domainEdges = <(String, String)>{
+      for (final edge in request.edgesById.values)
+        (
+          tenturaLayoutDomainId(edge.sourceId),
+          tenturaLayoutDomainId(edge.destinationId),
+        ),
+    };
+    final size = _canvasSize(request);
+
+    final positions = layeredDagPositions(
+      nodeIds: domainNodeIds,
+      edges: domainEdges,
+      rootIds: rootIds,
+      canvasSize: size,
+      layerGap: layerGap,
+      columnGap: columnGap,
+    );
+
+    return _positionsFromDomainMap(
+      graphIdByDomain: graphIdByDomain,
+      domainPositions: positions,
+      canvasSize: size,
+    );
+  }
+
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      other is LayeredDagLayoutAlgorithm &&
+          runtimeType == other.runtimeType &&
+          layerGap == other.layerGap &&
+          columnGap == other.columnGap &&
+          const SetEquality<String>().equals(rootIds, other.rootIds);
+
+  @override
+  int get hashCode => Object.hash(
+    runtimeType,
+    layerGap,
+    columnGap,
+    const SetEquality<String>().hash(rootIds),
+  );
 }
 
 /// Deterministic three-pass layout for the Constellation field map.
@@ -316,7 +393,7 @@ final class ConstellationLayoutAlgorithm implements GraphLayoutAlgorithm {
       ),
     );
 
-    return _layoutFromPositions(
+    return _legacyLayoutFromPositions(
       nodes: nodes,
       positions: constellationLayoutPointsToOffsets(computed.positions),
       canvasSize: size,
@@ -386,90 +463,44 @@ final class ConstellationLayoutAlgorithm implements GraphLayoutAlgorithm {
   );
 }
 
-final class LayeredDagLayoutAlgorithm implements GraphLayoutAlgorithm {
-  const LayeredDagLayoutAlgorithm({
-    required this.rootIds,
-    this.layerGap = 150,
-    this.columnGap = 130,
-  });
-
-  final Set<String> rootIds;
-  final double layerGap;
-  final double columnGap;
-
-  @override
-  Stream<GraphLayout> layout({
-    required Set<NodeBase> nodes,
-    required Set<EdgeBase> edges,
-    required Size size,
-  }) {
-    return Stream.value(_buildLayout(nodes: nodes, edges: edges, size: size));
-  }
-
-  @override
-  Stream<GraphLayout> relayout({
-    required GraphLayout existingLayout,
-    required Set<NodeBase> nodes,
-    required Set<EdgeBase> edges,
-    required Size size,
-  }) {
-    return layout(nodes: nodes, edges: edges, size: size);
-  }
-
-  GraphLayout _buildLayout({
-    required Set<NodeBase> nodes,
-    required Set<EdgeBase> edges,
-    required Size size,
-  }) {
-    if (nodes.isEmpty) {
-      return const GraphLayout.empty();
-    }
-
-    final nodeIds = nodes.map((node) => (node as NodeDetails).id).toSet();
-    final edgeIds = edges
-        .map(
-          (edge) => (
-            (edge.source as NodeDetails).id,
-            (edge.destination as NodeDetails).id,
-          ),
-        )
-        .toSet();
-
-    final positions = layeredDagPositions(
-      nodeIds: nodeIds,
-      edges: edgeIds,
-      rootIds: rootIds,
-      canvasSize: size,
-      layerGap: layerGap,
-      columnGap: columnGap,
-    );
-
-    return _layoutFromPositions(
-      nodes: nodes,
+GraphLayoutFrame _frame(
+  GraphLayoutRequest request,
+  Map<GraphNodeId, ScenePoint> positions,
+) =>
+    GraphLayoutFrame(
+      ticket: request.ticket,
+      sequence: 0,
       positions: positions,
-      canvasSize: size,
+      isTerminal: true,
     );
-  }
 
-  @override
-  bool operator ==(Object other) =>
-      identical(this, other) ||
-      other is LayeredDagLayoutAlgorithm &&
-          runtimeType == other.runtimeType &&
-          layerGap == other.layerGap &&
-          columnGap == other.columnGap &&
-          const SetEquality<String>().equals(rootIds, other.rootIds);
+Size _canvasSize(GraphLayoutRequest request) => Size(
+  request.canvasSize.width,
+  request.canvasSize.height,
+);
 
-  @override
-  int get hashCode => Object.hash(
-    runtimeType,
-    layerGap,
-    columnGap,
-    const SetEquality<String>().hash(rootIds),
-  );
+ScenePoint _centerPoint(Size canvasSize) {
+  final center = canvasSize.center(Offset.zero);
+  return ScenePoint(x: center.dx, y: center.dy);
 }
 
-GraphLayout _layoutFromPositions({
+ScenePoint? _sceneFromOffset(Offset? offset) =>
+    offset == null ? null : ScenePoint(x: offset.dx, y: offset.dy);
+
+Map<GraphNodeId, ScenePoint> _positionsFromDomainMap({
+  required Map<String, GraphNodeId> graphIdByDomain,
+  required Map<String, Offset> domainPositions,
+  required Size canvasSize,
+}) {
+  final fallback = _centerPoint(canvasSize);
+  return {
+    for (final entry in graphIdByDomain.entries)
+      entry.value:
+          _sceneFromOffset(domainPositions[entry.key]) ?? fallback,
+  };
+}
+
+GraphLayout _legacyLayoutFromPositions({
   required Set<NodeBase> nodes,
   required Map<String, Offset> positions,
   required Size canvasSize,
