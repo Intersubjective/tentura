@@ -525,11 +525,12 @@ void main() {
         genealogyMode: true,
         focus: 'Gpeer',
       );
-      cubit.graphController.mutate((mutator) {
-        mutator.addNode(
+      cubit.graphController.reconcileTopology(
+        {
           const GenealogyUserNode(nodeKey: 'Gpeer', user: liveUser),
-        );
-      });
+        },
+        const {},
+      );
       await _pumpStubGraphBody(tester, cubit: cubit);
 
       _expectGenealogyModeControls(tester, withProfile: true);
@@ -552,9 +553,7 @@ void main() {
         forwardsGraphBeaconId: 'Btest',
         focus: 'Upeer',
       );
-      cubit.graphController.mutate((mutator) {
-        mutator.addNode(UserNode(user: peer));
-      });
+      cubit.graphController.reconcileTopology({UserNode(user: peer)}, const {});
       await _pumpStubGraphBody(tester, cubit: cubit);
 
       _expectForwardsModeControls(tester, withProfile: true);
@@ -567,8 +566,8 @@ void main() {
         forwardsGraphBeaconId: 'Btest',
         focus: 'Btest',
       );
-      cubit.graphController.mutate((mutator) {
-        mutator.addNode(
+      cubit.graphController.reconcileTopology(
+        {
           BeaconNode(
             beacon: Beacon(
               id: 'Btest',
@@ -578,8 +577,9 @@ void main() {
               updatedAt: DateTime.utc(2026),
             ),
           ),
-        );
-      });
+        },
+        const {},
+      );
       await _pumpStubGraphBody(tester, cubit: cubit);
 
       _expectForwardsModeControls(tester, withOpenBeacon: true);

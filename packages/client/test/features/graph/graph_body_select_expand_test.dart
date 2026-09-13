@@ -131,7 +131,7 @@ Future<_TrackingForwardsCubit> _pumpForwardsGraphBody(
   await _settleGraph(tester);
 
   final meNode = UserNode(user: _me);
-  cubit.graphController.mutate((mutator) => mutator.addNode(meNode));
+  cubit.graphController.reconcileTopology({meNode}, const {});
   await _settleGraph(tester);
 
   return cubit;

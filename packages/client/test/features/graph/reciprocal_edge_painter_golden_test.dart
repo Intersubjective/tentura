@@ -17,7 +17,7 @@ class _ReciprocalEdgeGoldenPainter extends CustomPainter {
   });
 
   final AnimatedHighlightedEdgePainter painter;
-  final EdgeDetails<NodeDetails> edge;
+  final EdgeDetails edge;
   final Offset src;
   final Offset dst;
 

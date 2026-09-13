@@ -1,23 +1,18 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:force_directed_graphview/force_directed_graphview.dart';
 
 import 'package:tentura/domain/entity/profile.dart';
 
+import 'package:tentura/features/graph/domain/entity/edge_details.dart';
 import 'package:tentura/features/graph/domain/entity/node_details.dart';
-
-GraphNodeId _testNodeId(NodeBase node) => 'n:${identityHashCode(node)}';
-
-GraphEdgeId _testEdgeId(EdgeBase edge) =>
-    'e:${identityHashCode(edge.source)}->${identityHashCode(edge.destination)}';
+import 'package:tentura/features/graph/ui/utils/graph_scene_ids.dart';
 
 void main() {
-  late GraphController<Node<UserNode>, Edge<Node<UserNode>, Object?>> controller;
+  late GraphController<NodeDetails, EdgeDetails> controller;
 
   setUp(() {
-    controller = GraphController(
-      nodeIdOf: _testNodeId,
-      edgeIdOf: _testEdgeId,
-    );
+    controller = createTenturaGraphController();
   });
 
   test('GraphController is empty by default', () {
@@ -25,75 +20,27 @@ void main() {
     expect(controller.edges, isEmpty);
   });
 
-  const node1 = Node(
-    data: UserNode(
-      user: Profile(id: 'U1'),
-    ),
-    size: 100,
-  );
-  const node2 = Node(
-    data: UserNode(
-      user: Profile(id: 'U2'),
-    ),
-    size: 100,
-  );
-  const edge12 = Edge(
+  final node1 = UserNode(user: Profile(id: 'U1'));
+  final node2 = UserNode(user: Profile(id: 'U2'));
+  final edge12 = EdgeDetails(
     source: node1,
     destination: node2,
-    data: null,
+    color: const Color(0xFF000000),
   );
 
-  test('Add and remove node', () {
-    controller.mutate((mutator) => mutator.addNode(node1));
+  test('reconcileTopology adds and removes nodes', () {
+    controller.reconcileTopology({node1}, const {});
     expect(controller.nodes.contains(node1), true);
 
-    controller.mutate((mutator) => mutator.removeNode(node1));
-    expect(controller.nodes.contains(node1), false);
+    controller.reconcileTopology(const {}, const {});
+    expect(controller.nodes, isEmpty);
   });
 
-  test('Add and remove edge', () {
-    controller.mutate((mutator) {
-      mutator
-        ..addNode(node1)
-        ..addNode(node2)
-        ..addEdge(edge12);
-    });
-
+  test('reconcileTopology adds and removes edges', () {
+    controller.reconcileTopology({node1, node2}, {edge12});
     expect(controller.edges.contains(edge12), true);
 
-    controller.mutate((mutator) => mutator.removeEdge(edge12));
-    expect(controller.edges.contains(edge12), false);
-  });
-
-  test('Throws when adding existing node', () {
-    controller.mutate((mutator) => mutator.addNode(node1));
-
-    expect(
-      () => controller.mutate((mutator) => mutator.addNode(node1)),
-      throwsA(isInstanceOf<StateError>()),
-    );
-  });
-
-  test('Throws when removing non-existing node', () {
-    expect(
-      () => controller.mutate((mutator) => mutator.removeNode(node1)),
-      throwsA(isInstanceOf<StateError>()),
-    );
-  });
-
-  test('Throws when adding edge with non-existing node', () {
-    controller.mutate((mutator) => mutator.addNode(node1));
-
-    expect(
-      () => controller.mutate((mutator) => mutator.addEdge(edge12)),
-      throwsA(isInstanceOf<StateError>()),
-    );
-  });
-
-  test('Throws when removing non-existing edge', () {
-    expect(
-      () => controller.mutate((mutator) => mutator.removeEdge(edge12)),
-      throwsA(isInstanceOf<StateError>()),
-    );
+    controller.reconcileTopology({node1, node2}, const {});
+    expect(controller.edges, isEmpty);
   });
 }

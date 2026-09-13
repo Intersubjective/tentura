@@ -146,7 +146,7 @@ void main() {
     (tester) async {
       final cubit = await _pumpGraphBody(tester, genealogyMode: true);
       const node = GenealogyUserNode(nodeKey: 'Gviewer', user: _viewer);
-      cubit.graphController.mutate((mutator) => mutator.addNode(node));
+      cubit.graphController.reconcileTopology({node}, const {});
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 50));
 

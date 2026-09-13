@@ -263,7 +263,14 @@ void main() {
       cubit.requestConstellationLayoutForTest(
         algorithm: _SyncThrowLayoutAlgorithm(),
       );
-      await _settleSceneLayoutSucceeded(tester, cubit.graphController.scene);
+      await tester.pump();
+      for (var i = 0; i < 40; i++) {
+        await tester.pump(const Duration(milliseconds: 16));
+        if (cubit.graphController.scene.layoutOutcome
+            is GraphLayoutOutcomeSucceeded) {
+          break;
+        }
+      }
 
       expect(
         cubit.graphController.scene.layoutOutcome,
@@ -287,6 +294,7 @@ void main() {
       cubit.requestConstellationLayoutForTest(
         algorithm: _SyncThrowLayoutAlgorithm(),
       );
+      await tester.pump();
       await _settleGraphLayoutFailureMessage(tester, cubit);
 
       expect(
@@ -312,6 +320,7 @@ void main() {
       cubit.requestConstellationLayoutForTest(
         algorithm: _SyncThrowLayoutAlgorithm(),
       );
+      await tester.pump();
       await _settleGraphLayoutFailureMessage(tester, cubit);
       expect(cubit.state.graphLayoutFailureMessage, isNotNull);
 

@@ -829,7 +829,10 @@ void main() {
           updatedAt: DateTime.utc(2024),
         ),
       );
-      harness.graphCubit.graphController.mutate((m) => m..addNode(beaconNode));
+      harness.graphCubit.graphController.reconcileTopology(
+        {...harness.graphCubit.graphController.nodes, beaconNode},
+        harness.graphCubit.graphController.edges,
+      );
       harness.graphCubit.selectNode(beaconNode);
       await _settleGraph(tester);
 

@@ -858,3 +858,38 @@ pgrep -a flutter_tester || true
 grep -E 'MemAvailable|SwapFree' /proc/meminfo | head -2
 # graph 3 passed; client recovery 3 passed; client handoff 5 passed; no flutter_tester after each command
 ```
+
+## R8 — Legacy API removal (Astra P2 reject remediation, worker: Composer 2.5, 2026-09-13)
+
+### Work
+
+- Removed `NodeBase`/`EdgeBase` generic bounds; payloads are plain `N`/`E` with explicit `GraphNodeSizeResolver`, simulation-fixed, and edge endpoint resolvers on `GraphController`.
+- Deleted legacy controller APIs: `mutate`, `GraphMutator`, `replaceNode`, `setPinned`, `jumpToNode`, `fitToNodes`, `getPosition`/`getPositionOrNull`, `beginNodePresentationDrag`, `useSceneLayoutAlgorithm`.
+- ID-native replacements: `reconcileTopology`, `jumpToNodeId`, `fitToNodeIds`, `getPositionForId`/`getPositionOrNullForId`, `beginNodePresentationDragForId`.
+- Removed `GraphViewConfiguration.layoutAlgorithm` (single authority: `GraphView.layoutAlgorithm` → `_applyConfiguration`, with `runtimeType` change detection).
+- Client `NodeDetails`/`EdgeDetails` no longer extend package bases; `createTenturaGraphController()` factory; graph/constellation call sites migrated.
+- Constellation layout requests: `graphSceneLayoutAlgorithm` + `graphRevision` emit (no `useSceneLayoutAlgorithm`); post-frame layout handoff after reconcile.
+
+### Verification (serial `--concurrency=1`, MemAvailable ~39.8 GiB / SwapFree ~7.5 GiB start)
+
+```bash
+cd packages/force_directed_graphview && flutter test --concurrency=1
+# exit 0, 98 passed (~7.4s)
+
+cd packages/force_directed_graphview && flutter test test/scene_controller_layout_lifecycle_test.dart --concurrency=1
+# exit 0, 3 passed
+
+cd packages/client && flutter test test/features/constellation/constellation_scene_handoff_test.dart test/features/graph/graph_profile_projection_patch_test.dart test/features/constellation/constellation_scene_layout_test.dart --concurrency=1
+# exit 0, 18 passed
+
+cd packages/client && flutter test test/features/constellation/constellation_layout_failure_recovery_test.dart --concurrency=1
+# exit 1 — 3 failed (owned-layout recovery after removing useSceneLayoutAlgorithm; see REMAINING)
+```
+
+Protected `packages/force_directed_graphview/analysis_options.yaml` not staged.
+
+### Commits
+
+1. `refactor(graph): remove legacy controller and NodeBase bounds`
+2. `refactor(client): migrate graph callers to scene id APIs`
+```

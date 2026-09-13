@@ -162,10 +162,14 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
   ForwardRepository get _forwardRepository =>
       _forwardRepositoryOverride ?? GetIt.I<ForwardRepository>();
 
-  late final GraphController<NodeDetails, EdgeDetails<NodeDetails>>
-      graphController = GraphController<NodeDetails, EdgeDetails<NodeDetails>>(
+  late final GraphController<NodeDetails, EdgeDetails> graphController =
+      GraphController(
         nodeIdOf: tenturaGraphNodeId,
         edgeIdOf: (edge) => constellationEdgeIdForEdge(edge, edgeKinds.keys),
+        nodeSizeOf: (node) => node.size,
+        nodeSimulationFixedOf: (node) => node.pinned,
+        edgeSourceOf: (edge) => edge.source,
+        edgeDestinationOf: (edge) => edge.destination,
       );
 
   final Map<GraphEdgeId, ConstellationEdgeKind> edgeKinds = {};
@@ -189,6 +193,9 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
 
   bool get placementActionsEnabled =>
       state.placementActionsEnabled && !(_anchorCase?.hasPendingWrite ?? false);
+
+  SceneLayoutAlgorithm get graphSceneLayoutAlgorithm =>
+      testSceneLayoutAlgorithmOverride ?? constellationSceneLayoutAlgorithm;
 
   ConstellationSceneLayoutAlgorithm get constellationSceneLayoutAlgorithm {
     final overlay =
@@ -261,14 +268,12 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
   void requestConstellationLayoutForTest({
     SceneLayoutAlgorithm? algorithm,
   }) {
-    if (algorithm != null) {
-      graphController.useSceneLayoutAlgorithm(algorithm);
-    }
+    testSceneLayoutAlgorithmOverride = algorithm;
     _awaitingConstellationLayoutOutcome = true;
     _scheduleLayoutRecoveryAfterRebuild = false;
-    graphController.requestSceneLayout(
-      releaseOnTerminal: _activePresentationReleaseTokens(),
-    );
+    if (!isClosed) {
+      emit(state.copyWith(graphRevision: state.graphRevision + 1));
+    }
   }
 
   void _onGraphSceneLayoutOutcomeChanged() {
@@ -308,6 +313,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     }
 
     _layoutRecoveryAttempted = true;
+    testSceneLayoutAlgorithmOverride = null;
     unawaited(_recoverGraphLayoutFromConfirmedProjection());
   }
 
@@ -501,7 +507,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     if (token != null) {
       graphController.updateNodePresentationDrag(token, sceneCentre);
     } else {
-      graphController.beginNodePresentationDrag(node, sceneCentre);
+      graphController.beginNodePresentationDragForId(graphId, sceneCentre);
     }
   }
 
@@ -516,8 +522,8 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
       return;
     }
     if (graphController.activePresentationTokenForNode(graphId) == null) {
-      graphController.beginNodePresentationDrag(
-        node,
+      graphController.beginNodePresentationDragForId(
+        graphId,
         Offset(point.x, point.y),
       );
     }
@@ -1640,7 +1646,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     overflowHiddenCountByAuthor = plan.overflowHiddenCountByAuthor;
 
     final nodes = <NodeDetails>{};
-    final edges = <EdgeDetails<NodeDetails>>{};
+    final edges = <EdgeDetails>{};
     edgeKinds.clear();
 
     nodes.add(
@@ -1735,17 +1741,20 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
       );
     }
 
-    graphController.useSceneLayoutAlgorithm(
-      testSceneLayoutAlgorithmOverride ?? constellationSceneLayoutAlgorithm,
-    );
     graphController.reconcileTopology(
       nodes,
       edges,
       requestLayout: false,
       layoutOnTopologyChange: false,
     );
-    _requestConstellationLayoutHandoff();
     emit(state.copyWith(graphRevision: state.graphRevision + 1));
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!isClosed) {
+          _requestConstellationLayoutHandoff();
+        }
+      });
+    });
   }
 
   void _requestConstellationLayoutHandoff() {

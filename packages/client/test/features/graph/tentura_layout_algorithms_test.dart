@@ -32,7 +32,7 @@ void main() {
     _ => throw ArgumentError.value(id),
   };
 
-  EdgeDetails<NodeDetails> edge(String srcId, String dstId) {
+  EdgeDetails edge(String srcId, String dstId) {
     return EdgeDetails(
       source: nodeById(srcId),
       destination: nodeById(dstId),

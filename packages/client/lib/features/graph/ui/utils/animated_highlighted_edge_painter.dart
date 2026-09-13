@@ -8,7 +8,7 @@ import '../../domain/entity/edge_details.dart';
 import '../../domain/entity/node_details.dart';
 
 class AnimatedHighlightedEdgePainter
-    implements AnimatedEdgePainter<NodeDetails, EdgeDetails<NodeDetails>> {
+    implements AnimatedEdgePainter<NodeDetails, EdgeDetails> {
   const AnimatedHighlightedEdgePainter({
     required this.animation,
     required this.highlightRadius,
@@ -38,7 +38,7 @@ class AnimatedHighlightedEdgePainter
   @override
   void paint(
     Canvas canvas,
-    EdgeDetails<NodeDetails> edge,
+    EdgeDetails edge,
     Offset src,
     Offset dst,
   ) {
@@ -89,7 +89,7 @@ class AnimatedHighlightedEdgePainter
     Canvas canvas, {
     required Offset src,
     required Offset dst,
-    required EdgeDetails<NodeDetails> edge,
+    required EdgeDetails edge,
     required double animationShifted,
   }) {
     final transparent = edge.color.withValues(alpha: 0);

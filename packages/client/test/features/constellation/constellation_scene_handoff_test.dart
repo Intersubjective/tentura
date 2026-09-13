@@ -259,17 +259,12 @@ Future<void> _pumpConstellationMap(
 }
 
 void _requestLayoutHandoff(
-  GraphController<NodeDetails, EdgeDetails<NodeDetails>> controller, {
+  ConstellationCubit cubit, {
   required GraphNodeId handoffGraphId,
   required SceneLayoutAlgorithm algorithm,
 }) {
-  final releaseOnTerminal = <GraphPresentationToken>{};
-  final token = controller.activePresentationTokenForNode(handoffGraphId);
-  if (token != null) {
-    releaseOnTerminal.add(token);
-  }
-  controller.useSceneLayoutAlgorithm(algorithm);
-  controller.requestSceneLayout(releaseOnTerminal: releaseOnTerminal);
+  cubit.testSceneLayoutAlgorithmOverride = algorithm;
+  cubit.requestConstellationLayoutForTest(algorithm: algorithm);
 }
 
 final class _TerminalAtAlgorithm implements SceneLayoutAlgorithm {
@@ -338,7 +333,7 @@ final class _SlowLayoutAlgorithm implements SceneLayoutAlgorithm {
 
 Future<void> _settleLayout(
   WidgetTester tester,
-  GraphSceneController<NodeDetails, EdgeDetails<NodeDetails>> scene,
+  GraphSceneController<NodeDetails, EdgeDetails> scene,
 ) async {
   for (var i = 0; i < 50; i++) {
     if (scene.layoutOutcome is! GraphLayoutOutcomeRunning) {
@@ -404,7 +399,7 @@ void main() {
       expect(dragPoint.y, closeTo(dragCentre.dy, 1));
 
       var notifications = 0;
-      GraphSceneSnapshot<NodeDetails, EdgeDetails<NodeDetails>>? lastSnapshot;
+      GraphSceneSnapshot<NodeDetails, EdgeDetails>? lastSnapshot;
       controller.addListener(() {
         notifications++;
         lastSnapshot = controller.renderSnapshot;
@@ -443,13 +438,14 @@ void main() {
       expect(node, isNotNull);
 
       const dragCentre = Offset(2500, 2600);
-      final token = controller.beginNodePresentationDrag(node!, dragCentre);
+      final token = controller.beginNodePresentationDragForId(graphId, dragCentre);
 
       _requestLayoutHandoff(
-        controller,
+        cubit,
         handoffGraphId: graphId,
         algorithm: _MalformedThenTerminalAlgorithm(),
       );
+      await tester.pump();
       await _settleLayout(tester, controller.scene);
 
       expect(controller.scene.layoutOutcome, isA<GraphLayoutOutcomeFailed>());
@@ -471,19 +467,20 @@ void main() {
       final controller = cubit.graphController;
       final node = controller.nodePayloadForId(graphId)!;
       const dragCentre = Offset(2400, 2500);
-      final token = controller.beginNodePresentationDrag(node, dragCentre);
+      final token = controller.beginNodePresentationDragForId(graphId, dragCentre);
 
       final slow = _SlowLayoutAlgorithm();
       _requestLayoutHandoff(
-        controller,
+        cubit,
         handoffGraphId: graphId,
         algorithm: slow,
       );
 
-      controller.useSceneLayoutAlgorithm(
-        _TerminalAtAlgorithm({graphId: ScenePoint(x: 1, y: 1)}),
+      _requestLayoutHandoff(
+        cubit,
+        handoffGraphId: graphId,
+        algorithm: _TerminalAtAlgorithm({graphId: ScenePoint(x: 1, y: 1)}),
       );
-      controller.requestSceneLayout();
       await tester.pump(const Duration(milliseconds: 30));
 
       expect(controller.activePresentationTokenForNode(graphId), token);

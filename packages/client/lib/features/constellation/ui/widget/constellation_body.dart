@@ -442,7 +442,7 @@ class _ConstellationBodyState extends State<ConstellationBody> {
             return const SizedBox.shrink();
           }
 
-          final layoutAlgorithm = cubit.constellationSceneLayoutAlgorithm;
+          final layoutAlgorithm = cubit.graphSceneLayoutAlgorithm;
 
           final panelVisible = state.selectedPersonId != null;
 
@@ -533,7 +533,7 @@ class _ConstellationBodyState extends State<ConstellationBody> {
     return Stack(
       fit: StackFit.expand,
       children: [
-        GraphView<NodeDetails, EdgeDetails<NodeDetails>>(
+        GraphView<NodeDetails, EdgeDetails>(
           controller: cubit.graphController,
           canvasSize: ConstellationBody._canvasSize,
           minScale: 0.1,
@@ -785,7 +785,9 @@ class _MapOverflowOverlay extends StatelessWidget {
         continue;
       }
 
-      final position = cubit.graphController.getPositionOrNull(personNode);
+      final position = cubit.graphController.getPositionOrNullForId(
+        tenturaGraphNodeId(personNode),
+      );
       if (position == null) {
         continue;
       }
@@ -817,7 +819,7 @@ class _MapOverflowOverlay extends StatelessWidget {
 }
 
 class ConstellationEdgePainter
-    implements EdgePainter<NodeDetails, EdgeDetails<NodeDetails>> {
+    implements EdgePainter<NodeDetails, EdgeDetails> {
   const ConstellationEdgePainter({
     required this.edgeKinds,
     required this.colorScheme,
@@ -835,7 +837,7 @@ class ConstellationEdgePainter
   @override
   void paint(
     Canvas canvas,
-    EdgeDetails<NodeDetails> edge,
+    EdgeDetails edge,
     Offset src,
     Offset dst,
   ) {

@@ -12,6 +12,7 @@ import 'package:tentura/domain/entity/realtime/realtime_entity_change.dart';
 import 'package:tentura/domain/use_case/realtime_sync_case.dart';
 import 'package:tentura/env.dart';
 import 'package:tentura/features/constellation/domain/constellation_layout.dart';
+import 'package:tentura/features/graph/ui/utils/graph_scene_ids.dart';
 import 'package:tentura/features/constellation/domain/entity/constellation_anchor.dart';
 import 'package:tentura/features/constellation/domain/entity/constellation_anchor_projection.dart';
 import 'package:tentura/features/constellation/domain/entity/constellation_field.dart';
@@ -259,7 +260,7 @@ Offset _requireNodeCentre(ConstellationCubit cubit, String id) {
   final node = cubit.graphController.nodes.firstWhere(
     (candidate) => candidate.id == id,
   );
-  return cubit.graphController.getPosition(node);
+  return cubit.graphController.getPositionForId(tenturaGraphNodeId(node));
 }
 
 void main() {

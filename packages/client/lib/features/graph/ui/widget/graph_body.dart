@@ -307,7 +307,7 @@ class GraphBodyState extends State<GraphBody>
   }
 
   Widget _buildGraphView(GraphState graphState) =>
-      GraphView<NodeDetails, EdgeDetails<NodeDetails>>(
+      GraphView<NodeDetails, EdgeDetails>(
         controller: _graphCubit.graphController,
         canvasSize: widget.canvasSize,
         minScale: widget.scaleRange.dx,

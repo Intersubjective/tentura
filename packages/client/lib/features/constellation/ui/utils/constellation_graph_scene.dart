@@ -31,7 +31,7 @@ GraphNodeId constellationGraphNodeIdForDomain(String domainNodeId) {
 
 /// Resolves the semantic edge id registered in [knownEdgeIds].
 GraphEdgeId constellationEdgeIdForEdge(
-  EdgeDetails<NodeDetails> edge,
+  EdgeDetails edge,
   Iterable<GraphEdgeId> knownEdgeIds,
 ) {
   final pairSuffix =

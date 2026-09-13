@@ -193,7 +193,7 @@ GraphCubit _cubit({
   effects: FakeUiEffectPort(),
 );
 
-EdgeDetails<NodeDetails> _edgeDetails(
+EdgeDetails _edgeDetails(
   GraphCubit cubit,
   String src,
   String dst,

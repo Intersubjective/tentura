@@ -1,6 +1,4 @@
 import 'package:flutter/foundation.dart';
-import 'package:force_directed_graphview/force_directed_graphview.dart'
-    show NodeBase;
 
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/profile.dart';
@@ -8,11 +6,15 @@ import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/constellation/domain/entity/constellation_field.dart';
 
 @immutable
-sealed class NodeDetails extends NodeBase {
+sealed class NodeDetails {
   const NodeDetails({
-    super.size = 40,
-    super.pinned,
+    this.size = 40,
+    this.pinned = false,
   });
+
+  final double size;
+
+  final bool pinned;
 
   @override
   NodeDetails copyWithPinned(bool isPinned);

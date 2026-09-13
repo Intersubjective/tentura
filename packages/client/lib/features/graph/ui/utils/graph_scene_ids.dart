@@ -38,7 +38,7 @@ String tenturaLayoutDomainId(GraphNodeId graphNodeId) {
 }
 
 /// Directed trust/forwards/genealogy edge identity (style-independent).
-GraphEdgeId tenturaGraphEdgeId(EdgeDetails<NodeDetails> edge) {
+GraphEdgeId tenturaGraphEdgeId(EdgeDetails edge) {
   final sourceId = tenturaGraphNodeId(edge.source);
   final destinationId = tenturaGraphNodeId(edge.destination);
   return 'd:$sourceId->$destinationId';
@@ -61,3 +61,13 @@ Map<String, GraphNodeId> tenturaGraphIdsByDomainId(
   }
   return byDomain;
 }
+
+GraphController<NodeDetails, EdgeDetails> createTenturaGraphController() =>
+    GraphController(
+      nodeIdOf: tenturaGraphNodeId,
+      edgeIdOf: tenturaGraphEdgeId,
+      nodeSizeOf: (node) => node.size,
+      nodeSimulationFixedOf: (node) => node.pinned,
+      edgeSourceOf: (edge) => edge.source,
+      edgeDestinationOf: (edge) => edge.destination,
+    );

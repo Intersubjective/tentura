@@ -1,17 +1,19 @@
 import 'package:flutter/material.dart';
-import 'package:force_directed_graphview/force_directed_graphview.dart'
-    show EdgeBase, NodeBase;
+
+import 'node_details.dart';
 
 @immutable
-final class EdgeDetails<N extends NodeBase> extends EdgeBase<N> {
+final class EdgeDetails {
   const EdgeDetails({
-    required super.source,
-    required super.destination,
+    required this.source,
+    required this.destination,
     required this.color,
     this.strokeWidth = 2,
     this.isReciprocal = false,
   });
 
+  final NodeDetails source;
+  final NodeDetails destination;
   final Color color;
   final double strokeWidth;
   final bool isReciprocal;
@@ -35,10 +37,9 @@ final class EdgeDetails<N extends NodeBase> extends EdgeBase<N> {
           color == other.color &&
           isReciprocal == other.isReciprocal;
 
-  @override
-  EdgeDetails<N> replaceNode({
-    N? source,
-    N? destination,
+  EdgeDetails copyWith({
+    NodeDetails? source,
+    NodeDetails? destination,
     double? strokeWidth,
     Color? color,
     bool? isReciprocal,

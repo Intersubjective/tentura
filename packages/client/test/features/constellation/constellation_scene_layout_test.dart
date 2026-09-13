@@ -82,7 +82,6 @@ void main() {
   group('constellation graph reconciliation', () {
     test('reconcileTopology preserves camera and replaces payload by id', () {
       final controller = testGraphController();
-      controller.useSceneLayoutAlgorithm(algorithm);
       final edge = EdgeDetails(
         source: egoNode,
         destination: peerNode,
@@ -95,7 +94,6 @@ void main() {
         requestLayout: false,
         layoutOnTopologyChange: false,
       );
-      controller.requestSceneLayout();
       expect(controller.nodes.length, 2);
 
       final refreshedPeer = FieldPersonNode(

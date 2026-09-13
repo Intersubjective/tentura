@@ -13,6 +13,7 @@ import 'package:tentura/features/graph/domain/entity/edge_directed.dart';
 import 'package:tentura/features/graph/domain/entity/graph_edge_colors.dart';
 import 'package:tentura/features/graph/domain/entity/node_details.dart';
 import 'package:tentura/features/graph/ui/bloc/graph_cubit.dart';
+import 'package:tentura/features/graph/ui/utils/graph_scene_ids.dart';
 import 'package:tentura/features/graph/ui/widget/graph_scaffold.dart';
 import 'package:tentura/features/invite_genealogy/data/repository/invite_genealogy_repository.dart';
 import 'package:tentura/features/invite_genealogy/domain/entity/invite_genealogy_graph.dart';
@@ -503,8 +504,8 @@ void main() {
     final fetchCount = profileRepo.fetchedIds.length;
 
     final aliceBefore = _liveNode(cubit, 'Ualice');
-  final positionBefore = cubit.graphController.getPosition(
-    aliceBefore,
+  final positionBefore = cubit.graphController.getPositionForId(
+    tenturaGraphNodeId(aliceBefore),
   );
     final edgesBefore = _edgePairs(cubit);
 
@@ -513,7 +514,7 @@ void main() {
     final aliceAfter = _liveNode(cubit, 'Ualice');
     expect(aliceAfter, isNot(same(aliceBefore)));
   expect(
-    cubit.graphController.getPosition(aliceAfter),
+    cubit.graphController.getPositionForId(tenturaGraphNodeId(aliceAfter)),
     positionBefore,
   );
     expect(_edgePairs(cubit), edgesBefore);

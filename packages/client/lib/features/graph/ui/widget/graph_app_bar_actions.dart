@@ -29,7 +29,7 @@ class GraphAppBarActions extends StatefulWidget {
 }
 
 class _GraphAppBarActionsState extends State<GraphAppBarActions> {
-  GraphController<NodeDetails, EdgeDetails<NodeDetails>>? _controller;
+  GraphController<NodeDetails, EdgeDetails>? _controller;
 
   @override
   void dispose() {
@@ -55,7 +55,7 @@ class _GraphAppBarActionsState extends State<GraphAppBarActions> {
   }
 
   void _attachController(
-    GraphController<NodeDetails, EdgeDetails<NodeDetails>> controller,
+    GraphController<NodeDetails, EdgeDetails> controller,
   ) {
     if (_controller == controller) {
       return;

@@ -143,10 +143,7 @@ class GraphCubit extends Cubit<GraphState> {
   ForwardsGraphViewerRole? get helpOffererViewerRole =>
       state.helpOffererViewerRole;
 
-  final graphController = GraphController<NodeDetails, EdgeDetails<NodeDetails>>(
-    nodeIdOf: tenturaGraphNodeId,
-    edgeIdOf: tenturaGraphEdgeId,
-  );
+  final graphController = createTenturaGraphController();
 
   final UserNode _egoNode;
 
@@ -463,7 +460,7 @@ class GraphCubit extends Cubit<GraphState> {
       final controllerNode = _controllerNodeById(entry.key);
       if (controllerNode != null &&
           graphController.nodes.contains(controllerNode)) {
-        graphController.replaceNode(controllerNode, replacement);
+        _refreshControllerNodePayload(controllerNode.id, replacement);
       }
     }
   }
@@ -477,8 +474,10 @@ class GraphCubit extends Cubit<GraphState> {
         if (edge.destination.id == _focusRootId) ids.add(edge.source.id);
       }
     }
-    graphController.fitToNodes(
-      graphController.nodes.where((n) => ids.contains(n.id)),
+    graphController.fitToNodeIds(
+      graphController.nodes
+          .where((n) => ids.contains(n.id))
+          .map(tenturaGraphNodeId),
     );
   }
 
@@ -504,7 +503,7 @@ class GraphCubit extends Cubit<GraphState> {
       final controllerNode = _controllerNodeById(entry.key);
       if (controllerNode != null &&
           graphController.nodes.contains(controllerNode)) {
-        graphController.replaceNode(controllerNode, updated);
+        _refreshControllerNodePayload(controllerNode.id, updated);
       }
     }
   }
@@ -515,7 +514,7 @@ class GraphCubit extends Cubit<GraphState> {
     final pinnedNode = _pinnedCopyIfNeeded(controllerNode);
     if (!controllerNode.pinned &&
         graphController.nodes.contains(controllerNode)) {
-      graphController.replaceNode(controllerNode, pinnedNode);
+      _refreshControllerNodePayload(controllerNode.id, pinnedNode);
     }
     _nodes[controllerNode.id] = pinnedNode;
     return pinnedNode;
@@ -1095,7 +1094,7 @@ class GraphCubit extends Cubit<GraphState> {
       _nodes[id] = updated;
       final onGraph = graphController.nodePayloadForId(tenturaGraphNodeId(node));
       if (onGraph != null && graphController.nodes.contains(onGraph)) {
-        graphController.replaceNode(onGraph, updated);
+        _refreshControllerNodePayload(id, updated);
       }
     }
   }
@@ -1109,10 +1108,15 @@ class GraphCubit extends Cubit<GraphState> {
     if (graphController.renderSnapshot.resolvePosition(graphId) == null) {
       return;
     }
-    unawaited(
-      Future.value(
-        graphController.jumpToNode(onGraph, resetScale: resetScale),
-      ),
+    graphController.jumpToNodeId(graphId, resetScale: resetScale);
+  }
+
+  void _refreshControllerNodePayload(String id, NodeDetails replacement) {
+    graphController.reconcileTopology(
+      graphController.nodes.map((n) => n.id == id ? replacement : n).toSet(),
+      graphController.edges.toSet(),
+      requestLayout: false,
+      layoutOnTopologyChange: false,
     );
   }
 
@@ -1216,39 +1220,39 @@ class GraphCubit extends Cubit<GraphState> {
       return;
     }
     _captureEndpointTotals(edges);
-    graphController.mutate((mutator) {
-      for (final e in edges) {
-        if (state.positiveOnly && e.weight < 0) {
-          continue;
-        }
-        final src = _nodeForGraph(e.src);
-        if (src == null) {
-          continue;
-        }
-        final dst = _nodeForGraph(e.dst);
-        if (dst == null) {
-          continue;
-        }
-        if (!mutator.controller.nodes.contains(src)) {
-          mutator.addNode(src);
-        }
-        if (!mutator.controller.nodes.contains(dst)) {
-          mutator.addNode(dst);
-        }
-        final endpointKey = (src.id, dst.id);
-        if (src.id != dst.id && _addedEdgeEndpoints.add(endpointKey)) {
-          mutator.addEdge(_buildEdgeDetails(e, src, dst));
-        }
+    final targetNodes = graphController.nodes
+        .map((node) => _nodes[node.id] ?? node)
+        .toSet();
+    final targetEdges = graphController.edges.toSet();
+    for (final e in edges) {
+      if (state.positiveOnly && e.weight < 0) {
+        continue;
       }
+      final src = _nodeForGraph(e.src);
+      if (src == null) {
+        continue;
+      }
+      final dst = _nodeForGraph(e.dst);
+      if (dst == null) {
+        continue;
+      }
+      targetNodes.add(src);
+      targetNodes.add(dst);
+      final endpointKey = (src.id, dst.id);
+      if (src.id != dst.id && _addedEdgeEndpoints.add(endpointKey)) {
+        targetEdges.add(_buildEdgeDetails(e, src, dst));
+      }
+    }
 
-      if (!mutator.controller.nodes.contains(_egoNode)) {
-        mutator.addNode(_egoNode);
-      }
-      final focusNode = _nodeForGraph(state.focus);
-      if (focusNode != null && !mutator.controller.nodes.contains(focusNode)) {
-        mutator.addNode(focusNode);
-      }
-    });
+    if (!targetNodes.any((node) => node.id == _egoNode.id)) {
+      targetNodes.add(_egoNode);
+    }
+    final focusNode = _nodeForGraph(state.focus);
+    if (focusNode != null &&
+        !targetNodes.any((node) => node.id == focusNode.id)) {
+      targetNodes.add(focusNode);
+    }
+    graphController.reconcileTopology(targetNodes, targetEdges);
     _emitHiddenNeighborCounts();
   }
 
@@ -1353,7 +1357,7 @@ class GraphCubit extends Cubit<GraphState> {
     _recomputeVisibility();
   }
 
-  EdgeDetails<NodeDetails> _buildEdgeDetails(
+  EdgeDetails _buildEdgeDetails(
     EdgeDirected e,
     NodeDetails src,
     NodeDetails dst,
@@ -1364,7 +1368,7 @@ class GraphCubit extends Cubit<GraphState> {
         e.branch == GenealogyEdgeBranch.target;
     final touchesEgo = egoId.isNotEmpty && (src.id == egoId || dst.id == egoId);
     final isTrustGraph = mode == GraphMode.trust;
-    return EdgeDetails<NodeDetails>(
+    return EdgeDetails(
       source: src,
       destination: dst,
       strokeWidth: branchHighlighted || touchesEgo ? 3 : 2,
@@ -1433,46 +1437,40 @@ class GraphCubit extends Cubit<GraphState> {
         }
       }
     }
-    graphController.mutate((mutator) {
-      for (final node in List.of(graphController.nodes)) {
-        if (node.id != rootId && !visibleNodeIds.contains(node.id)) {
-          mutator.removeNode(node); // cascades to remove touching edges
-        }
+    final liveNodes = <String, NodeDetails>{};
+    final targetNodes = <NodeDetails>{};
+    for (final node in graphController.nodes) {
+      if (node.id != rootId && !visibleNodeIds.contains(node.id)) {
+        continue;
       }
-      for (final edge in List.of(graphController.edges)) {
-        final key = (edge.source.id, edge.destination.id);
-        if (!visibleEdges.containsKey(key) || !_shouldRenderEdge(key)) {
-          mutator.removeEdge(edge);
-        }
+      final payload = _nodeForGraph(node.id) ?? node;
+      targetNodes.add(payload);
+      liveNodes[node.id] = payload;
+    }
+    for (final id in visibleNodeIds) {
+      if (liveNodes.containsKey(id)) {
+        continue;
       }
-      final liveNodes = <String, NodeDetails>{
-        for (final n in graphController.nodes) n.id: n,
-      };
-      for (final id in visibleNodeIds) {
-        if (liveNodes.containsKey(id)) {
-          continue;
-        }
-        final node = _nodeForGraph(id);
-        if (node != null) {
-          mutator.addNode(node);
-          liveNodes[id] = node;
-        }
+      final node = _nodeForGraph(id);
+      if (node != null) {
+        targetNodes.add(node);
+        liveNodes[id] = node;
       }
-      final liveEdgeKeys = <(String, String)>{
-        for (final e in graphController.edges) (e.source.id, e.destination.id),
-      };
-      for (final entry in visibleEdges.entries) {
-        if (!_shouldRenderEdge(entry.key) || liveEdgeKeys.contains(entry.key)) {
-          continue;
-        }
-        final src = liveNodes[entry.key.$1];
-        final dst = liveNodes[entry.key.$2];
-        if (src == null || dst == null) {
-          continue;
-        }
-        mutator.addEdge(_buildEdgeDetails(entry.value, src, dst));
+    }
+
+    final targetEdges = <EdgeDetails>{};
+    for (final entry in visibleEdges.entries) {
+      if (!_shouldRenderEdge(entry.key)) {
+        continue;
       }
-    });
+      final src = liveNodes[entry.key.$1];
+      final dst = liveNodes[entry.key.$2];
+      if (src == null || dst == null) {
+        continue;
+      }
+      targetEdges.add(_buildEdgeDetails(entry.value, src, dst));
+    }
+    graphController.reconcileTopology(targetNodes, targetEdges);
     _emitHiddenNeighborCounts();
   }
 }

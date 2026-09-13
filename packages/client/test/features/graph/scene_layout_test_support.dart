@@ -10,15 +10,12 @@ import 'package:tentura/features/graph/ui/utils/graph_scene_ids.dart';
 
 final Object _testLayoutTicketOwner = Object();
 
-GraphController<NodeDetails, EdgeDetails<NodeDetails>> testGraphController() =>
-    GraphController<NodeDetails, EdgeDetails<NodeDetails>>(
-      nodeIdOf: tenturaGraphNodeId,
-      edgeIdOf: tenturaGraphEdgeId,
-    );
+GraphController<NodeDetails, EdgeDetails> testGraphController() =>
+    createTenturaGraphController();
 
 GraphLayoutRequest sceneLayoutRequest({
   required Set<NodeDetails> nodes,
-  required Set<EdgeDetails<NodeDetails>> edges,
+  required Set<EdgeDetails> edges,
   SceneLayout? previous,
   Size canvasSize = const Size(500, 500),
 }) {
@@ -70,7 +67,7 @@ SceneLayout sceneLayoutFromPositions(
 Future<Map<GraphNodeId, ScenePoint>> layoutPositionsOnce(
   SceneLayoutAlgorithm algorithm, {
   required Set<NodeDetails> nodes,
-  required Set<EdgeDetails<NodeDetails>> edges,
+  required Set<EdgeDetails> edges,
   SceneLayout? previous,
   Size canvasSize = const Size(500, 500),
 }) async {
