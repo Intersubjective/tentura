@@ -203,6 +203,8 @@ DECISIONS:
 
 REMAINING: none. Proceed to UNIT 06.
 
+**Manager verdict: ACCEPTED.** Independently re-ran all three Verify commands (6/6 pg, 13/13 graphql, lints 0/0). `myWorkAttention` correctly reuses `_visibleWithSurfaceCte` (one call to `visible_attention_receipts`, no second authorization path), restricts to `scope ∩ beaconIds`, and does aggregation (grouping, `unseenCount`, `latestUnseen` exclusion, `liveObligations` ordering, non-empty-only emission) in Dart over one SQL round trip rather than raw SQL aggregates — a reasonable reading of "one statement" that reuses the existing `_mapRow` mapping instead of duplicating column lists in a json_agg. `isUnread`/`isLiveObligation` are pre-existing model getters with exactly the right semantics, not reinvented. GraphQL layer matches the frozen `MyWorkBeaconAttention` shape and the ≤500 guard mirrors `attentionMarkers`' style. pg suite covers all 5 plan-specified cases plus an empty-input edge case. No leaked processes, clean git status, commits well split. This closes out every attention-repository server unit (01–05) cleanly.
+
 ## Ordered unit checklist
 
 | Unit | Status |
@@ -212,7 +214,7 @@ REMAINING: none. Proceed to UNIT 06.
 | 02 | complete (accepted) |
 | 03 | complete (accepted, one defect fixed by overseer) |
 | 04 | complete (accepted) |
-| 05 | complete |
+| 05 | complete (accepted) |
 | 06 | pending |
 | 07 | pending |
 | 08 | pending |
