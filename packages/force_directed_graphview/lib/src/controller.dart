@@ -27,6 +27,8 @@ class GraphController<N extends NodeBase, E extends EdgeBase<N>>
   LazyBuilding? _lazyBuilding;
   TransformationController? _transformationController;
   GraphCanvasSize? _size;
+  Size? _lastViewportSceneSize;
+  Size? _lastLayoutConstraints;
 
   Size? _currentSize;
   var _centered = false;
@@ -38,6 +40,9 @@ class GraphController<N extends NodeBase, E extends EdgeBase<N>>
   Map<GraphNodeId, ScenePoint>? _transitionFrom;
   Map<GraphNodeId, ScenePoint>? _transitionTarget;
   Map<GraphNodeId, ScenePoint>? _layoutTransitionCapture;
+  GraphLayoutTicket? _transitionLayoutTicket;
+  Object? _viewOwner;
+  VoidCallback? _gestureAbortCallback;
   Duration _transitionDuration = Duration.zero;
   Curve _transitionCurve = Curves.easeOutCubic;
   double _minScale = 0.5;
@@ -386,7 +391,7 @@ class GraphController<N extends NodeBase, E extends EdgeBase<N>>
 
   /// Starts a token-owned presentation drag for [node].
   GraphPresentationToken beginNodePresentationDrag(N node, Offset position) {
-    _stopLayoutAnimation();
+    _freezeLayoutTransitionAtDisplay();
     return _scene.beginPresentation(
       _nodeIdOf(node),
       ScenePoint(x: position.dx, y: position.dy),
@@ -428,6 +433,7 @@ class GraphController<N extends NodeBase, E extends EdgeBase<N>>
   ///
   /// When [resetScale] is true, zoom is restored to 1.0 (the default).
   void jumpToPosition(Offset position, {bool resetScale = false}) {
+    _abortActiveGesturesIfCameraGated();
     final controller = _transformationController;
     final pixel = _viewportPixelSize;
     if (controller == null || pixel == null) {
@@ -473,6 +479,7 @@ class GraphController<N extends NodeBase, E extends EdgeBase<N>>
       throw ArgumentError.value(factor, 'factor', 'Factor must be > 0');
     }
 
+    _abortActiveGesturesIfCameraGated();
     final controller = _transformationController;
     final viewport = _actualViewport;
     if (controller == null || viewport == null) {
@@ -499,6 +506,7 @@ class GraphController<N extends NodeBase, E extends EdgeBase<N>>
 
   /// Fits [rect] (in canvas coordinates) into the viewport.
   void fitToRect(Rect rect, {double padding = 48}) {
+    _abortActiveGesturesIfCameraGated();
     final transformation = _transformationController;
     final pixel = _viewportPixelSize;
     if (transformation == null || pixel == null) {
@@ -570,6 +578,13 @@ class GraphController<N extends NodeBase, E extends EdgeBase<N>>
     final shouldCenterAfterLayout =
         outcome is GraphLayoutOutcomeSucceeded && !_centered;
 
+    if (isNewLayoutSuccess) {
+      _ticker?.stop();
+      _transitionFrom = null;
+      _transitionTarget = null;
+      _transitionLayoutTicket = null;
+    }
+
     void apply() {
       if (_disposed) {
         return;
@@ -589,10 +604,12 @@ class GraphController<N extends NodeBase, E extends EdgeBase<N>>
   }
 
   void _handleAcceptedLayout(Map<GraphNodeId, ScenePoint> target) {
+    _ticker?.stop();
     if (_transitionDuration == Duration.zero || _ticker == null) {
       _scene.setLayoutTransition(null);
       _transitionFrom = null;
       _transitionTarget = null;
+      _transitionLayoutTicket = null;
       _layoutTransitionCapture = null;
       return;
     }
@@ -601,10 +618,12 @@ class GraphController<N extends NodeBase, E extends EdgeBase<N>>
     _layoutTransitionCapture = null;
     if (from.isEmpty) {
       _scene.setLayoutTransition(null);
+      _transitionLayoutTicket = null;
       return;
     }
     _transitionFrom = from;
     _transitionTarget = target;
+    _transitionLayoutTicket = _scene.snapshot.layout?.ticket;
     _scene.setLayoutTransition(from);
     _ticker!
       ..stop()
@@ -683,14 +702,19 @@ class GraphController<N extends NodeBase, E extends EdgeBase<N>>
     );
   }
 
-  void _stopLayoutAnimation() {
+  void _freezeLayoutTransitionAtDisplay() {
     _ticker?.stop();
-    final target = _transitionTarget;
-    if (target != null) {
-      _scene.setLayoutTransition(null);
+    if (_transitionFrom != null ||
+        _transitionTarget != null ||
+        _scene.snapshot.transition != null) {
+      final displayed = _captureDisplayedPositions();
+      if (displayed.isNotEmpty) {
+        _scene.setLayoutTransition(displayed);
+      }
     }
     _transitionFrom = null;
     _transitionTarget = null;
+    _transitionLayoutTicket = null;
     _layoutTransitionCapture = null;
   }
 
@@ -706,7 +730,7 @@ class GraphController<N extends NodeBase, E extends EdgeBase<N>>
   ///
   /// Used by the optional node-drag layer when a pointer capture begins.
   void stopLayoutAnimationForInteraction() {
-    _stopLayoutAnimation();
+    _freezeLayoutTransitionAtDisplay();
     notifyListeners();
   }
 
@@ -718,6 +742,16 @@ class GraphController<N extends NodeBase, E extends EdgeBase<N>>
     final target = _transitionTarget;
     if (from == null || target == null) {
       _ticker?.stop();
+      return;
+    }
+
+    final activeLayoutTicket = _scene.snapshot.layout?.ticket;
+    if (_transitionLayoutTicket != null &&
+        activeLayoutTicket != _transitionLayoutTicket) {
+      _ticker?.stop();
+      _transitionFrom = null;
+      _transitionTarget = null;
+      _transitionLayoutTicket = null;
       return;
     }
 
@@ -743,6 +777,7 @@ class GraphController<N extends NodeBase, E extends EdgeBase<N>>
       _scene.setLayoutTransition(null);
       _transitionFrom = null;
       _transitionTarget = null;
+      _transitionLayoutTicket = null;
       _ticker?.stop();
     }
     notifyListeners();
@@ -800,18 +835,84 @@ class GraphController<N extends NodeBase, E extends EdgeBase<N>>
     return transformation.value.getMaxScaleOnAxis();
   }
 
-  void _detachTicker() {
+  /// Wired by [NodeDragGesture]; not for app callers.
+  void registerGestureLifecycleAbort(VoidCallback abort) {
+    _gestureAbortCallback = abort;
+  }
+
+  /// Wired by [NodeDragGesture]; not for app callers.
+  void unregisterGestureLifecycleAbort(VoidCallback abort) {
+    if (identical(_gestureAbortCallback, abort)) {
+      _gestureAbortCallback = null;
+    }
+  }
+
+  void _abortActiveGestures() {
+    _gestureAbortCallback?.call();
+  }
+
+  void _abortActiveGesturesIfCameraGated() {
+    if (_cameraGated) {
+      _abortActiveGestures();
+    }
+  }
+
+  void _abortViewGesturesForOwner(Object viewOwner) {
+    if (_viewOwner != null && !identical(_viewOwner, viewOwner)) {
+      return;
+    }
+    _abortActiveGestures();
+    _clearInteractionPresentationIfGated();
+  }
+
+  void _detachViewBinding(Object viewOwner) {
+    if (_viewOwner != null && !identical(_viewOwner, viewOwner)) {
+      return;
+    }
+    _abortActiveGestures();
+    _clearInteractionPresentationIfGated();
+    _viewOwner = null;
+    _gestureAbortCallback = null;
+    _setCameraGated(false);
+    _lastLayoutConstraints = null;
+    _lastViewportSceneSize = null;
+    _detachTransitionTicker();
+  }
+
+  void _clearInteractionPresentationIfGated() {
+    if (!_cameraGated) {
+      return;
+    }
+    _scene.clearAllPresentationOverrides();
+  }
+
+  void _onLayoutConstraintsChanged(Size constraints) {
+    if (_lastLayoutConstraints != null &&
+        _lastLayoutConstraints != constraints) {
+      _abortActiveGestures();
+      _clearInteractionPresentationIfGated();
+    }
+    _lastLayoutConstraints = constraints;
+  }
+
+  /// Exposes layout-constraint resize handling for package tests.
+  @visibleForTesting
+  void handleLayoutConstraintsChangedForTesting(Size constraints) =>
+      _onLayoutConstraintsChanged(constraints);
+
+  void _detachTransitionTicker() {
     _ticker?.dispose();
     _ticker = null;
-    if (!_disposed) {
-      _scene.setLayoutTransition(null);
-    }
+    _transformationController = null;
+    _viewportPixelSize = null;
     _transitionFrom = null;
     _transitionTarget = null;
+    _transitionLayoutTicket = null;
     _layoutTransitionCapture = null;
   }
 
   Future<void> _applyConfiguration({
+    required Object viewOwner,
     required SceneLayoutAlgorithm algorithm,
     required GraphCanvasSize size,
     required LazyBuilding lazyBuilding,
@@ -822,6 +923,13 @@ class GraphController<N extends NodeBase, E extends EdgeBase<N>>
     required double minScale,
     required double maxScale,
   }) async {
+    if (_viewOwner != null && !identical(_viewOwner, viewOwner)) {
+      throw StateError(
+        'GraphController is already attached to another GraphView',
+      );
+    }
+    _viewOwner = viewOwner;
+
     _transitionDuration = transitionDuration;
     _transitionCurve = transitionCurve;
     _minScale = minScale;
@@ -840,9 +948,20 @@ class GraphController<N extends NodeBase, E extends EdgeBase<N>>
 
   void _updateViewport(Quad viewport) {
     final rect = viewport.toRect();
+    final sceneSize = Size(rect.width, rect.height);
+    if (_lastViewportSceneSize != null && _lastViewportSceneSize != sceneSize) {
+      _abortActiveGestures();
+    }
+    _lastViewportSceneSize = sceneSize;
     _actualViewport = rect;
     final scale = _transformationController?.value.getMaxScaleOnAxis() ?? 1.0;
+    final previousPixel = _viewportPixelSize;
     _viewportPixelSize = Size(rect.width * scale, rect.height * scale);
+    if (previousPixel != null &&
+        (previousPixel.width != _viewportPixelSize!.width ||
+            previousPixel.height != _viewportPixelSize!.height)) {
+      _abortActiveGestures();
+    }
     final actualViewport = rect;
     final newEffectiveViewport = switch (_lazyBuilding) {
       LazyBuildingViewport(scale: final scale) => actualViewport.scale(scale),
@@ -946,6 +1065,7 @@ class GraphController<N extends NodeBase, E extends EdgeBase<N>>
     _lastHandledLayoutSuccessTicket = null;
     _transitionFrom = null;
     _transitionTarget = null;
+    _transitionLayoutTicket = null;
     _layoutTransitionCapture = null;
     _ticker?.stop();
     notifyListeners();

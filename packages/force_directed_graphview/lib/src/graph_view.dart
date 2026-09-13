@@ -138,6 +138,9 @@ class _GraphViewState<N extends NodeBase, E extends EdgeBase<N>>
   @override
   void didUpdateWidget(covariant GraphView<N, E> oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (widget.controller != oldWidget.controller) {
+      oldWidget.controller._detachViewBinding(this);
+    }
     if (widget.controller != oldWidget.controller ||
         widget.layoutAlgorithm != oldWidget.layoutAlgorithm ||
         widget.canvasSize != oldWidget.canvasSize ||
@@ -149,7 +152,14 @@ class _GraphViewState<N extends NodeBase, E extends EdgeBase<N>>
   }
 
   void _initController() {
+    if (widget.controller._viewOwner != null &&
+        !identical(widget.controller._viewOwner, this)) {
+      throw StateError(
+        'GraphController is already attached to another GraphView',
+      );
+    }
     widget.controller._applyConfiguration(
+      viewOwner: this,
       algorithm: widget.layoutAlgorithm,
       size: widget.canvasSize,
       lazyBuilding: widget.lazyBuilding,
@@ -163,8 +173,14 @@ class _GraphViewState<N extends NodeBase, E extends EdgeBase<N>>
   }
 
   @override
+  void deactivate() {
+    widget.controller._abortViewGesturesForOwner(this);
+    super.deactivate();
+  }
+
+  @override
   void dispose() {
-    widget.controller._detachTicker();
+    widget.controller._detachViewBinding(this);
     _transformationController.dispose();
     super.dispose();
   }
@@ -272,16 +288,21 @@ class _CameraGatedInteractiveViewerState
 
   @override
   Widget build(BuildContext context) {
-    return InteractiveViewer.builder(
-      transformationController: widget.transformationController,
-      maxScale: widget.maxScale,
-      minScale: widget.minScale,
-      panEnabled: !_cameraGated,
-      scaleEnabled: !_cameraGated,
-      builder: (context, viewport) {
-        widget.controller._updateViewport(viewport);
-        return const NodeDragGesture(
-          child: GraphLayoutView(),
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        widget.controller._onLayoutConstraintsChanged(constraints.biggest);
+        return InteractiveViewer.builder(
+          transformationController: widget.transformationController,
+          maxScale: widget.maxScale,
+          minScale: widget.minScale,
+          panEnabled: !_cameraGated,
+          scaleEnabled: !_cameraGated,
+          builder: (context, viewport) {
+            widget.controller._updateViewport(viewport);
+            return const NodeDragGesture(
+              child: GraphLayoutView(),
+            );
+          },
         );
       },
     );

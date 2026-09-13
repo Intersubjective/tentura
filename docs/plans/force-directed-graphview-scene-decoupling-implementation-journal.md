@@ -795,6 +795,23 @@ Protected `packages/force_directed_graphview/analysis_options.yaml` not staged.
 
 - Parent Constellation plan browser/multi-client gates remain as previously recorded (P10/P11); not re-run in M08 unless client contracts change.
 
+## P1 — Astra quality review remediation (R4/R5) — 2026-09-13
+
+### Work
+
+- **R4:** `_freezeLayoutTransitionAtDisplay` stops layout tweens at the displayed snapshot (no target snap) for drag capture and `beginNodePresentationDrag`. Layout-success handling stops the ticker before stale `_onTransitionTick` frames can reapply an old transition map after terminal `releaseOnTerminal`.
+- **R5:** `GraphView` view binding — one live `GraphController` per mounted view (second attach throws `StateError`). Controller swap/unmount detaches ticker/transformation, aborts gestures, and clears gated presentation. `LayoutBuilder` + viewport size changes abort active capture. `NodeDragGesture` registers lifecycle abort; drag start/update hooks use try/catch with gate cleanup; programmatic camera moves cancel gated capture.
+
+### Verification (serial `--concurrency=1`, MemAvailable/SwapFree logged per test in `graph_view_p1_remediation_test.dart`)
+
+```bash
+cd packages/force_directed_graphview && flutter test test/graph_view_p1_remediation_test.dart --concurrency=1
+cd packages/force_directed_graphview && flutter test --concurrency=1
+# 98 passed (~7s)
+```
+
+Protected `packages/force_directed_graphview/analysis_options.yaml` not staged.
+
 ### Final acceptance after overlap-selection remediation (2026-09-13)
 
 - `8c2c3b0e4` repaired the final scene-ID migration regression: Constellation paint order uses the actual graph node IDs, overlay Requests resolve for selection, and `GraphView` dispatches an ID-based scene hit-test tap.

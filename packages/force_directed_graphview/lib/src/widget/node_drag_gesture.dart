@@ -43,19 +43,34 @@ class _NodeDragGestureState extends State<NodeDragGesture> {
   var _scaleBlocked = false;
   late GraphController _controller;
   late GraphViewConfiguration _configuration;
+  GraphController? _registeredAbortController;
+  late final VoidCallback _abortGestures = _abortActiveGestures;
 
   @override
   void didChangeDependencies() {
     super.didChangeDependencies();
-    _controller = InheritedConfiguration.controllerOf(context);
+    final nextController = InheritedConfiguration.controllerOf(context);
     _configuration = InheritedConfiguration.configurationOf(context);
+    if (!identical(_registeredAbortController, nextController)) {
+      _registeredAbortController?.unregisterGestureLifecycleAbort(_abortGestures);
+      _registeredAbortController = nextController;
+      nextController.registerGestureLifecycleAbort(_abortGestures);
+    }
+    _controller = nextController;
   }
 
   @override
   void dispose() {
     _longPressTimer?.cancel();
+    _registeredAbortController?.unregisterGestureLifecycleAbort(_abortGestures);
+    _registeredAbortController = null;
     _releaseCapture(notifyCancel: true);
     super.dispose();
+  }
+
+  void _abortActiveGestures() {
+    _cancelPendingCapture();
+    _releaseCapture(notifyCancel: true);
   }
 
   @override
@@ -276,9 +291,14 @@ class _NodeDragGestureState extends State<NodeDragGesture> {
     _grabOffset = downScene - centre;
     _controller.setCameraInteractionGated(true);
 
-    final payload = _controller.nodePayloadForId(nodeId);
-    if (payload != null) {
-      _configuration.onNodeDragStart?.call(payload, centre);
+    try {
+      final payload = _controller.nodePayloadForId(nodeId);
+      if (payload != null) {
+        _configuration.onNodeDragStart?.call(payload, centre);
+      }
+    } catch (_) {
+      _releaseCapture(notifyCancel: true);
+      rethrow;
     }
   }
 
@@ -294,13 +314,18 @@ class _NodeDragGestureState extends State<NodeDragGesture> {
       return;
     }
 
-    final token = _captureToken;
-    if (token == null) {
-      _captureToken = _controller.beginNodePresentationDrag(payload, centre);
-    } else {
-      _controller.updateNodePresentationDrag(token, centre);
+    try {
+      final token = _captureToken;
+      if (token == null) {
+        _captureToken = _controller.beginNodePresentationDrag(payload, centre);
+      } else {
+        _controller.updateNodePresentationDrag(token, centre);
+      }
+      _configuration.onNodeDragUpdate?.call(payload, centre);
+    } catch (_) {
+      _releaseCapture(notifyCancel: true);
+      rethrow;
     }
-    _configuration.onNodeDragUpdate?.call(payload, centre);
   }
 
   void _finishCapture() {
