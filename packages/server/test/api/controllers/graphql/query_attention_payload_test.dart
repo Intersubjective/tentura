@@ -103,4 +103,5 @@ AttentionReceipt _receipt(Map<String, Object?> presentationPayload) =>
       suppressionClass: AttentionSuppressionClass.standard,
       accessPolicy: AttentionAccessPolicy.beaconContent,
       presentationPayload: presentationPayload,
+      surface: AttentionSurface.myWork,
     );

@@ -37,6 +37,7 @@ class _FakeQuery implements AttentionQueryPort {
     suppressionClass: AttentionSuppressionClass.standard,
     accessPolicy: AttentionAccessPolicy.beaconContent,
     presentationPayload: const {'eventType': 'coordinationChanged'},
+    surface: AttentionSurface.myWork,
   );
 
   @override
@@ -45,6 +46,7 @@ class _FakeQuery implements AttentionQueryPort {
     required AttentionFeedView view,
     AttentionCursor? cursor,
     String? search,
+    AttentionSurface? surface,
     int limit = 50,
   }) async {
     this.accountId = accountId;
@@ -60,6 +62,18 @@ class _FakeQuery implements AttentionQueryPort {
           id: 'N0',
         ),
       ),
+    );
+  }
+
+  @override
+  Future<AttentionSurfaceSummary> surfaceSummary({
+    required String accountId,
+  }) async {
+    this.accountId = accountId;
+    return const AttentionSurfaceSummary(
+      activityUnreadTotal: 0,
+      myWorkUnreadTotal: 1,
+      needsYouTotal: 0,
     );
   }
 
@@ -89,7 +103,7 @@ class _FakeAck implements AttentionAckPort {
   List<String>? ids;
 
   @override
-  Future<int> markAllSeen(String accountId) async {
+  Future<int> markAllSeen(String accountId, {AttentionSurface? surface}) async {
     this.accountId = accountId;
     return 3;
   }

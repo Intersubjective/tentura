@@ -119,6 +119,7 @@ AttentionReceipt _receipt({
   destinationKind: destinationKind,
   targetEntityId: targetEntityId,
   presentationKey: presentationKey,
+  surface: AttentionSurface.activity,
 );
 
 final class _FixtureQuery implements AttentionQueryPort {
@@ -132,10 +133,20 @@ final class _FixtureQuery implements AttentionQueryPort {
     required AttentionFeedView view,
     AttentionCursor? cursor,
     String? search,
+    AttentionSurface? surface,
     int limit = 50,
   }) async => AttentionFeed(
     summary: const AttentionSummary(unreadTotal: 1),
     page: AttentionPage(items: [receipt]),
+  );
+
+  @override
+  Future<AttentionSurfaceSummary> surfaceSummary({
+    required String accountId,
+  }) async => const AttentionSurfaceSummary(
+    activityUnreadTotal: 0,
+    myWorkUnreadTotal: 0,
+    needsYouTotal: 0,
   );
 
   @override
