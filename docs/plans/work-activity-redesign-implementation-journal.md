@@ -240,6 +240,51 @@ REMAINING: none. Proceed to UNIT 07 (first client unit).
 
 Note: `myWorkAttention`'s GraphQL argument is `beaconIds: [String!]` (nullable at the schema level, not `[String!]!` as §2.3's shorthand suggests) — this is not a UNIT 05 defect, it's the pre-existing shared `InputFieldStringList` field also used by `attentionMarkers`, with non-null enforcement happening at the resolver via `fromArgsNonNullable` rather than at the wire type. UNIT 05 correctly reused the existing convention rather than diverging. UNIT 05's ACCEPTED verdict stands.
 
+## UNIT 07 — complete — 2026-09-14
+
+COMMITS:
+- `540816d4a` feat(client): refresh attention GraphQL for surfaces
+- `673e6633f` feat(client): add attention surface domain models
+- `6f39bb013` feat(client): read attention by surface
+- `5abd52643` test(client): cover attention surface repository mapping
+- (this journal entry) docs: UNIT 07 journal
+
+TESTS:
+- `COMPOSE_PROJECT_NAME=tentura docker compose run --rm schema_fetcher` → SDL diff includes `attentionSurfaceSummary`, `myWorkAttention`, `attentionMarkSeenForBeacon`, receipt `surface`/`itemKind`/`forwardOutcome`/`forwardCount`/`digestCount`
+- `cd packages/client && dart run build_runner build -d` → exit 0
+- `cd packages/client && flutter test test/domain/attention/ test/data/gql/direct_v2_schema_overlay_test.dart` → **40/40 passed**
+- `cd packages/client && flutter analyze --no-fatal-warnings --no-fatal-infos` → **0 errors**
+- `./scripts/check-custom-lints.sh packages/client` → `32 (baseline: 32)` — OK
+
+FILES:
+- `packages/client/lib/data/gql/schema.graphql`
+- `packages/client/lib/features/attention/data/gql/attention_feed.graphql`
+- `packages/client/lib/features/attention/data/gql/attention_mark_all_seen.graphql`
+- `packages/client/lib/features/attention/data/gql/attention_surface_summary.graphql`
+- `packages/client/lib/features/attention/data/gql/attention_mark_seen_for_beacon.graphql`
+- `packages/client/lib/features/attention/data/gql/my_work_attention.graphql`
+- `packages/client/lib/domain/attention/entity/attention_feed.dart`
+- `packages/client/lib/domain/attention/entity/attention_receipt.dart`
+- `packages/client/lib/domain/attention/entity/attention_summary.dart`
+- `packages/client/lib/domain/attention/entity/my_work_beacon_attention.dart`
+- `packages/client/lib/domain/attention/port/attention_repository_port.dart`
+- `packages/client/lib/data/repository/attention_repository.dart`
+- `packages/client/lib/data/service/remote_api_client/build_client.dart`
+- `packages/client/test/support/attention_repository_fake_base.dart` (new shared stub defaults)
+- `packages/client/test/domain/attention/attention_surface_repository_test.dart` (new)
+- Port fakes updated (**21** classes extending `AttentionRepositoryFake`; Mockito `AttentionRepositoryMock` unchanged): `test/architecture/cross_surface_subscription_test.dart`, `test/domain/attention/attention_case_test.dart`, `test/domain/attention/attention_live_obligations_test.dart`, `test/features/home/constellation_nav_test.dart`, `test/features/home/home_attention_cubit_test.dart`, `test/features/home/inbox_navbar_item_test.dart`, `test/features/home/my_work_navbar_item_test.dart`, `test/features/inbox/inbox_expanded_chrome_test.dart`, `test/features/inbox/inbox_receipts_fold_test.dart`, `test/features/inbox/inbox_watching_route_test.dart`, `test/features/my_work/my_work_obligations_pane_test.dart`, `test/features/my_work/my_work_scope_coincidence_test.dart`, `test/features/my_work/my_work_test_support.dart`, `test/features/updates/cross_surface_coordination_accept_test.dart`, `test/features/updates/prompt_pinning_test.dart`, `test/features/updates/prompt_projection_test.dart`, `test/features/updates/updates_102_my_work_attention_test.dart`, `test/features/updates/updates_feed_cubit_test.dart`, `test/features/updates/updates_feed_session_test.dart`, `test/features/updates/updates_feed_views_test.dart`, `test/ui/widget/tab_attention_scope_test.dart`
+- Additional test fixtures touched for required `AttentionReceipt.surface` (updates/inbox golden and card tests, `destination_map_test.dart`, `legacy_receipt_client_fixture_test.dart`)
+
+FINDINGS:
+- `grep -rn "implements AttentionRepositoryPort" packages/client/test packages/client/integration_test` → **21** manual fakes + **1** Mockito mock (`AttentionRepositoryMock`); integration_test has **0** implementers.
+- Unknown `surface`/`itemKind` wire strings map to `activity`/`receipt` with `Logger('AttentionRepository').warning` (same `logging` package pattern as `RemoteRepository`).
+
+DECISIONS:
+- Added `AttentionRepositoryFake` test base with zero-valued defaults for the three new port methods so 21 fakes stay maintainable without touching `AttentionCase` (UNIT 08).
+- Registered `AttentionMarkSeenForBeacon`, `AttentionSurfaceSummary`, and `MyWorkAttention` in `_tenturaDirectOperationNames` for V2 direct routing.
+
+REMAINING: none. Proceed to UNIT 08 (`AttentionCase` surfaces, summary stream, invalidation).
+
 ## Ordered unit checklist
 
 | Unit | Status |
@@ -251,7 +296,7 @@ Note: `myWorkAttention`'s GraphQL argument is `beaconIds: [String!]` (nullable a
 | 04 | complete (accepted) |
 | 05 | complete (accepted) |
 | 06 | complete (overseer, accepted) |
-| 07 | pending |
+| 07 | complete |
 | 08 | pending |
 | 09 | pending |
 | 10 | pending |
