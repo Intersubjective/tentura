@@ -485,16 +485,23 @@ class GraphController<N extends NodeBase, E extends EdgeBase<N>>
     _relayoutInFlight = true;
     notifyListeners();
 
-    final adapter = LegacyGraphLayoutAlgorithmAdapter(
-      delegate: currentAlgorithm,
-      nodes: _nodes.cast<NodeBase>(),
-      edges: _edges.cast<EdgeBase>(),
-      nodeIdOf: (node) => _nodeIdOf(node as N),
-      edgeIdOf: (edge) => _edgeIdOf(edge as E),
-    );
+    final SceneLayoutAlgorithm sceneAlgorithm;
+    if (currentAlgorithm is BoundSceneLayoutAlgorithm) {
+      sceneAlgorithm = currentAlgorithm.delegate;
+    } else if (currentAlgorithm is SceneLayoutAlgorithm) {
+      sceneAlgorithm = currentAlgorithm as SceneLayoutAlgorithm;
+    } else {
+      sceneAlgorithm = LegacyGraphLayoutAlgorithmAdapter(
+        delegate: currentAlgorithm,
+        nodes: _nodes.cast<NodeBase>(),
+        edges: _edges.cast<EdgeBase>(),
+        nodeIdOf: (node) => _nodeIdOf(node as N),
+        edgeIdOf: (edge) => _edgeIdOf(edge as E),
+      );
+    }
 
     _scene.requestLayout(
-      adapter,
+      sceneAlgorithm,
       canvasSize: SceneSize(
         width: currentSize.width,
         height: currentSize.height,

@@ -11,6 +11,7 @@ export 'src/layout_algorithm/graph_layout_algorithm.dart';
 export 'src/layout_algorithm/graph_layout_frame_protocol.dart';
 export 'src/layout_algorithm/graph_layout_request.dart';
 export 'src/layout_algorithm/legacy_graph_layout_algorithm_adapter.dart';
+export 'src/layout_algorithm/bound_scene_layout_algorithm.dart';
 export 'src/layout_algorithm/scene_layout_algorithm.dart';
 export 'src/model/edge.dart';
 export 'src/model/graph_canvas_size.dart';
