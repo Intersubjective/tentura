@@ -236,6 +236,10 @@ DECISIONS:
 
 REMAINING: none. Proceed to UNIT 07 (first client unit).
 
+**Environment maintenance before client work (overseer, not a plan unit):** the background API server in this worktree had been running continuously since UNIT 00's bootstrap — a long-lived Dart process, so none of UNITs 01–06's server code changes (including the `m0168` migration) were actually loaded. Restarted it (`./scripts/run-server-local.sh`, confirmed port 2080 listening again) and confirmed `m0168`'s function now exists in the live dev database (`postgres`, not `tentura` — see UNIT 06's finding). Re-applied Hasura metadata (`is_consistent: true`). Ran `COMPOSE_PROJECT_NAME=tentura docker compose run --rm schema_fetcher` as a dry-run check: confirmed the refreshed SDL now contains `attentionSurfaceSummary`, `myWorkAttention(beaconIds: [String!])`, `attentionMarkSeenForBeacon(beaconId: String!): Int!`, and `surface`/`itemKind`/`forwardOutcome` on the receipt type — exactly the frozen §2.3 shapes. **Reverted that regenerated `schema.graphql` afterward** (`git checkout --`) since committing it is explicitly UNIT 07's own first step, not the overseer's to pre-empt — UNIT 07 must run this same refresh itself per §3 rule 5 and commit the result as part of its own work.
+
+Note: `myWorkAttention`'s GraphQL argument is `beaconIds: [String!]` (nullable at the schema level, not `[String!]!` as §2.3's shorthand suggests) — this is not a UNIT 05 defect, it's the pre-existing shared `InputFieldStringList` field also used by `attentionMarkers`, with non-null enforcement happening at the resolver via `fromArgsNonNullable` rather than at the wire type. UNIT 05 correctly reused the existing convention rather than diverging. UNIT 05's ACCEPTED verdict stands.
+
 ## Ordered unit checklist
 
 | Unit | Status |
