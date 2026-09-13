@@ -12,7 +12,7 @@ import 'package:tentura/ui/l10n/l10n.dart';
 import '../../domain/entity/inbox_item.dart';
 import '../bloc/inbox_cubit.dart';
 import '../widget/inbox_item_tile.dart';
-import '../widget/inbox_triage_list.dart';
+import '../widget/inbox_card_actions.dart';
 import '../widget/rejection_dialog.dart';
 
 @RoutePage()
