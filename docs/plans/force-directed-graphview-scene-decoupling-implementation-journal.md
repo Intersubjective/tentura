@@ -893,3 +893,16 @@ Protected `packages/force_directed_graphview/analysis_options.yaml` not staged.
 1. `refactor(graph): remove legacy controller and NodeBase bounds`
 2. `refactor(client): migrate graph callers to scene id APIs`
 ```
+
+### P2 recovery race remediation (R8 follow-up, worker: Composer 2.5, 2026-09-13)
+
+- **Root cause:** R8 routed algorithms through `GraphView.layoutAlgorithm` + `graphRevision`, but `requestConstellationLayoutForTest` wrote the throw algorithm into `testSceneLayoutAlgorithmOverride` and recovery cleared that field — so the one-shot recovery rebuild always used the real algorithm while the “second failure” harness override was wiped. Stale post-frame owned-layout callbacks and recovery handoffs scheduled before exhaustion could also relayout after the failure message.
+- **Fix:** `_ephemeralOwnedLayoutAlgorithm` for one-shot owned test requests; persistent `testSceneLayoutAlgorithmOverride` only for multi-failure harness; post-frame owned `requestSceneLayout` skipped once ephemeral is cleared; single post-frame topology handoff with generation invalidation when recovery is exhausted; `_rebuildGraph` handoff one frame after `graphRevision` (not double-nested).
+- **Tests:** recovery file asserts owned `GraphLayoutOutcomeFailed` before success, terminal failed outcome when exhausted, and stable `relayoutInvocationCount` after layout-transition tail.
+
+```bash
+grep -E 'MemAvailable|SwapFree' /proc/meminfo | head -2
+cd packages/client && flutter test test/features/constellation/constellation_layout_failure_recovery_test.dart --concurrency=1
+grep -E 'MemAvailable|SwapFree' /proc/meminfo | head -2
+# exit 0 — 3 passed
+```

@@ -159,6 +159,11 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
   @visibleForTesting
   SceneLayoutAlgorithm? testSceneLayoutAlgorithmOverride;
 
+  /// One-shot algorithm for an owned layout request (tests); not used after recovery.
+  SceneLayoutAlgorithm? _ephemeralOwnedLayoutAlgorithm;
+
+  int _layoutHandoffGeneration = 0;
+
   ForwardRepository get _forwardRepository =>
       _forwardRepositoryOverride ?? GetIt.I<ForwardRepository>();
 
@@ -195,7 +200,9 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
       state.placementActionsEnabled && !(_anchorCase?.hasPendingWrite ?? false);
 
   SceneLayoutAlgorithm get graphSceneLayoutAlgorithm =>
-      testSceneLayoutAlgorithmOverride ?? constellationSceneLayoutAlgorithm;
+      _ephemeralOwnedLayoutAlgorithm ??
+      testSceneLayoutAlgorithmOverride ??
+      constellationSceneLayoutAlgorithm;
 
   ConstellationSceneLayoutAlgorithm get constellationSceneLayoutAlgorithm {
     final overlay =
@@ -268,11 +275,22 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
   void requestConstellationLayoutForTest({
     SceneLayoutAlgorithm? algorithm,
   }) {
-    testSceneLayoutAlgorithmOverride = algorithm;
+    _ephemeralOwnedLayoutAlgorithm = algorithm;
     _awaitingConstellationLayoutOutcome = true;
     _scheduleLayoutRecoveryAfterRebuild = false;
     if (!isClosed) {
       emit(state.copyWith(graphRevision: state.graphRevision + 1));
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (isClosed ||
+            _ephemeralOwnedLayoutAlgorithm == null ||
+            state.graphLayoutFailureMessage != null) {
+          return;
+        }
+        _awaitingConstellationLayoutOutcome = true;
+        graphController.requestSceneLayout(
+          releaseOnTerminal: _activePresentationReleaseTokens(),
+        );
+      });
     }
   }
 
@@ -304,6 +322,8 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     }
 
     if (_layoutRecoveryAttempted) {
+      _layoutHandoffGeneration++;
+      _scheduleLayoutRecoveryAfterRebuild = false;
       emit(
         state.copyWith(
           graphLayoutFailureMessage: kConstellationGraphLayoutFailureMessage,
@@ -313,7 +333,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     }
 
     _layoutRecoveryAttempted = true;
-    testSceneLayoutAlgorithmOverride = null;
+    _ephemeralOwnedLayoutAlgorithm = null;
     unawaited(_recoverGraphLayoutFromConfirmedProjection());
   }
 
@@ -1748,12 +1768,12 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
       layoutOnTopologyChange: false,
     );
     emit(state.copyWith(graphRevision: state.graphRevision + 1));
+    final handoffGeneration = ++_layoutHandoffGeneration;
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (!isClosed) {
-          _requestConstellationLayoutHandoff();
-        }
-      });
+      if (isClosed || handoffGeneration != _layoutHandoffGeneration) {
+        return;
+      }
+      _requestConstellationLayoutHandoff();
     });
   }
 

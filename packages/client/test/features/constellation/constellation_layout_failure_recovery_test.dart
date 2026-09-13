@@ -264,14 +264,24 @@ void main() {
         algorithm: _SyncThrowLayoutAlgorithm(),
       );
       await tester.pump();
+      var sawOwnedFailure = false;
       for (var i = 0; i < 40; i++) {
         await tester.pump(const Duration(milliseconds: 16));
+        if (cubit.graphController.scene.layoutOutcome
+            is GraphLayoutOutcomeFailed) {
+          sawOwnedFailure = true;
+        }
         if (cubit.graphController.scene.layoutOutcome
             is GraphLayoutOutcomeSucceeded) {
           break;
         }
       }
 
+      expect(
+        sawOwnedFailure,
+        isTrue,
+        reason: 'owned sync failure should surface before recovery succeeds',
+      );
       expect(
         cubit.graphController.scene.layoutOutcome,
         isA<GraphLayoutOutcomeSucceeded>(),
@@ -301,7 +311,16 @@ void main() {
         cubit.state.graphLayoutFailureMessage,
         kConstellationGraphLayoutFailureMessage,
       );
+      expect(
+        cubit.graphController.scene.layoutOutcome,
+        isA<GraphLayoutOutcomeFailed>(),
+        reason: 'exhausted recovery should leave a terminal failed outcome',
+      );
 
+      // Let layout-transition tail (350 ms) finish before asserting no relayout loop.
+      for (var i = 0; i < 30; i++) {
+        await tester.pump(const Duration(milliseconds: 16));
+      }
       final countAfterFailure = cubit.graphController.relayoutInvocationCount;
       await _pumpFramesWithoutRelayout(
         tester,
