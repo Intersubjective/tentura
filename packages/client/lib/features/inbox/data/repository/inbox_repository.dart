@@ -8,7 +8,9 @@ import 'package:tentura/data/service/remote_api_service.dart';
 import '../../domain/entity/inbox_item.dart';
 import '../../domain/entity/inbox_provenance.dart';
 import '../../domain/enum.dart';
+import '../gql/_g/activity_offers.req.gql.dart';
 import '../gql/_g/inbox_fetch.req.gql.dart';
+import '../gql/_g/inbox_item_fields.data.gql.dart';
 import '../gql/_g/inbox_item_status_for_beacon.req.gql.dart';
 import '../gql/_g/inbox_set_status.req.gql.dart';
 import '../gql/_g/inbox_tombstone_dismiss.req.gql.dart';
@@ -25,6 +27,11 @@ class InboxRepository {
 
   final _localMutationController = StreamController<void>.broadcast();
 
+  /// Sentinel cursor for the first paged open-forwards fetch.
+  static final activityOffersFirstPageAt = DateTime.utc(9999, 12, 31);
+
+  static const activityOffersPageSize = 20;
+
   /// Fires after a successful local [setStatus] (e.g. from beacon detail).
   Stream<void> get localMutations => _localMutationController.stream;
 
@@ -38,10 +45,104 @@ class InboxRepository {
         .request(GInboxFetchReq((r) => r..vars.userId = userId))
         .firstWhere((e) => e.dataSource == DataSource.Link)
         .then((r) => r.dataOrThrow(label: _label).inbox_item);
-    final hints = await _roomHints.fetchByBeaconIds(
-      rows.map((e) => e.beacon_id),
+    return _mapInboxItemRows(rows, userId);
+  }
+
+  Future<({List<InboxItem> page, int totalCount})> fetchActivityOffersFirstPage({
+    required String userId,
+    int limit = activityOffersPageSize,
+  }) async {
+    final data = await _fetchActivityOffersPageRaw(
+      userId: userId,
+      at: activityOffersFirstPageAt,
+      id: '',
+      limit: limit,
+      includeAggregate: true,
     );
-    return rows
+    final page = await _mapInboxItemRows(data.rows, userId);
+    return (page: page, totalCount: data.totalCount ?? 0);
+  }
+
+  Future<List<InboxItem>> fetchActivityOffersPage({
+    required String userId,
+    required DateTime cursorAt,
+    required String cursorBeaconId,
+    int limit = activityOffersPageSize,
+  }) async {
+    final data = await _fetchActivityOffersPageRaw(
+      userId: userId,
+      at: cursorAt,
+      id: cursorBeaconId,
+      limit: limit,
+      includeAggregate: false,
+    );
+    return _mapInboxItemRows(data.rows, userId);
+  }
+
+  Future<int> fetchOpenForwardsCount() async {
+    final aggregate = await _remoteApiService
+        .request(GActivityOffersCountReq())
+        .firstWhere((e) => e.dataSource == DataSource.Link)
+        .then((r) => r.dataOrThrow(label: _label).inbox_item_aggregate);
+    return aggregate.aggregate?.count ?? 0;
+  }
+
+  Future<InboxItem?> fetchOpenForwardForBeacon({
+    required String userId,
+    required String beaconId,
+  }) async {
+    final rows = await _remoteApiService
+        .request(
+          GActivityOfferForBeaconReq(
+            (r) => r
+              ..vars.userId = userId
+              ..vars.beaconId = beaconId,
+          ),
+        )
+        .firstWhere((e) => e.dataSource == DataSource.Link)
+        .then((r) => r.dataOrThrow(label: _label).inbox_item);
+    if (rows.isEmpty) return null;
+    final mapped = await _mapInboxItemRows(rows, userId);
+    return mapped.first;
+  }
+
+  Future<({List<GInboxItemFields> rows, int? totalCount})>
+  _fetchActivityOffersPageRaw({
+    required String userId,
+    required DateTime at,
+    required String id,
+    required int limit,
+    required bool includeAggregate,
+  }) async {
+    final response = await _remoteApiService
+        .request(
+          GActivityOffersReq(
+            (r) => r
+              ..vars.userId = userId
+              ..vars.at = at
+              ..vars.id = id
+              ..vars.limit = limit,
+          ),
+        )
+        .firstWhere((e) => e.dataSource == DataSource.Link)
+        .then((r) => r.dataOrThrow(label: _label));
+    return (
+      rows: response.inbox_item.toList(growable: false),
+      totalCount: includeAggregate
+          ? response.inbox_item_aggregate.aggregate?.count
+          : null,
+    );
+  }
+
+  Future<List<InboxItem>> _mapInboxItemRows(
+    Iterable<GInboxItemFields> rows,
+    String userId,
+  ) async {
+    final rowList = rows.toList(growable: false);
+    final hints = await _roomHints.fetchByBeaconIds(
+      rowList.map((e) => e.beacon_id),
+    );
+    return rowList
         .map(
           (e) => InboxItem(
             beaconId: e.beacon_id,

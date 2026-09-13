@@ -77,6 +77,33 @@ final class InboxCase extends UseCaseBase {
   Future<List<InboxItem>> fetch({required String userId}) =>
       _repository.fetch(userId: userId);
 
+  Future<({List<InboxItem> page, int totalCount})> fetchActivityOffersFirstPage({
+    required String userId,
+    int limit = InboxRepository.activityOffersPageSize,
+  }) => _repository.fetchActivityOffersFirstPage(userId: userId, limit: limit);
+
+  Future<List<InboxItem>> fetchActivityOffersPage({
+    required String userId,
+    required DateTime cursorAt,
+    required String cursorBeaconId,
+    int limit = InboxRepository.activityOffersPageSize,
+  }) => _repository.fetchActivityOffersPage(
+    userId: userId,
+    cursorAt: cursorAt,
+    cursorBeaconId: cursorBeaconId,
+    limit: limit,
+  );
+
+  Future<int> fetchOpenForwardsCount() => _repository.fetchOpenForwardsCount();
+
+  Future<InboxItem?> fetchOpenForwardForBeacon({
+    required String userId,
+    required String beaconId,
+  }) => _repository.fetchOpenForwardForBeacon(
+    userId: userId,
+    beaconId: beaconId,
+  );
+
   Future<void> setStatus({
     required String beaconId,
     required InboxItemStatus status,

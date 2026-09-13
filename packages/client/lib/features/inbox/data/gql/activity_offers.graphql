@@ -1,0 +1,54 @@
+# import '/data/gql/beacon_model.graphql'
+# import 'inbox_item_fields.graphql'
+
+query ActivityOffers(
+  $userId: String!
+  $at: timestamptz!
+  $id: String!
+  $limit: Int!
+) {
+  inbox_item(
+    where: {
+      status: {_eq: 0}
+      beacon: {can_read_content: {_eq: true}}
+      _or: [
+        {latest_forward_at: {_lt: $at}}
+        {latest_forward_at: {_eq: $at}, beacon_id: {_lt: $id}}
+      ]
+    }
+    order_by: [{latest_forward_at: desc}, {beacon_id: desc}]
+    limit: $limit
+  ) {
+    ...InboxItemFields
+  }
+  inbox_item_aggregate(
+    where: {status: {_eq: 0}, beacon: {can_read_content: {_eq: true}}}
+  ) {
+    aggregate {
+      count
+    }
+  }
+}
+
+query ActivityOffersCount {
+  inbox_item_aggregate(
+    where: {status: {_eq: 0}, beacon: {can_read_content: {_eq: true}}}
+  ) {
+    aggregate {
+      count
+    }
+  }
+}
+
+query ActivityOfferForBeacon($userId: String!, $beaconId: String!) {
+  inbox_item(
+    where: {
+      beacon_id: {_eq: $beaconId}
+      status: {_eq: 0}
+      beacon: {can_read_content: {_eq: true}}
+    }
+    limit: 1
+  ) {
+    ...InboxItemFields
+  }
+}
