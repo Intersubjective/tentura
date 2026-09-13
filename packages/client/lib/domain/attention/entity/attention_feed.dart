@@ -64,6 +64,24 @@ enum AttentionItemKind {
 abstract final class AttentionFeedDestinationId {
   static const activity = 'activity_feed';
   static const myWorkObligations = 'my_work_obligations_feed';
+  static const activityStream = 'activity_stream';
+  static const history = 'notification_history';
+}
+
+/// Repository surface filter for a mounted feed destination.
+///
+/// Unknown destination ids use unscoped fetches (`null`) until registered here.
+AttentionSurface? surfaceForDestination(String destinationId) {
+  switch (destinationId) {
+    case AttentionFeedDestinationId.activityStream:
+      return AttentionSurface.activity;
+    case AttentionFeedDestinationId.history:
+    case AttentionFeedDestinationId.activity:
+    case AttentionFeedDestinationId.myWorkObligations:
+      return null;
+    default:
+      return null;
+  }
 }
 
 @freezed
