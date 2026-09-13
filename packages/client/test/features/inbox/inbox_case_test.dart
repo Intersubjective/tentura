@@ -513,6 +513,8 @@ BeaconThreadsCase _buildTestBeaconThreadsCase({
   logger: Logger('test'),
 );
 
+BeaconThreadsCase buildTestBeaconThreadsCase() => _buildTestBeaconThreadsCase();
+
 class _FakeRoomHints implements BeaconRoomHintsRepository {
   @override
   Future<Map<String, InboxRoomCardHints>> fetchByBeaconIds(
@@ -630,6 +632,72 @@ class FakeInboxRepository implements InboxRepository {
       beaconId: beaconId,
       dismissedAt: dismissedAt,
     );
+  }
+
+  List<InboxItem> activityOffersPages = const [];
+  int activityOffersPageCalls = 0;
+  ({
+    DateTime cursorAt,
+    String cursorBeaconId,
+    int limit,
+  })?
+  lastActivityOffersPageArgs;
+
+  int openForwardsCount = 0;
+  bool failOpenForwardsCount = false;
+  int openForwardsCountCalls = 0;
+
+  final openForwardByBeacon = <String, InboxItem?>{};
+  int openForwardForBeaconCalls = 0;
+
+  @override
+  Future<({List<InboxItem> page, int totalCount})> fetchActivityOffersFirstPage({
+    required String userId,
+    int limit = 20,
+  }) async {
+    return (page: activityOffersPages, totalCount: openForwardsCount);
+  }
+
+  @override
+  Future<List<InboxItem>> fetchActivityOffersPage({
+    required String userId,
+    required DateTime cursorAt,
+    required String cursorBeaconId,
+    int limit = 20,
+  }) async {
+    activityOffersPageCalls++;
+    lastActivityOffersPageArgs = (
+      cursorAt: cursorAt,
+      cursorBeaconId: cursorBeaconId,
+      limit: limit,
+    );
+    return activityOffersPages;
+  }
+
+  @override
+  Future<int> fetchOpenForwardsCount() async {
+    openForwardsCountCalls++;
+    if (failOpenForwardsCount) {
+      throw StateError('count offline');
+    }
+    return openForwardsCount;
+  }
+
+  @override
+  Future<InboxItem?> fetchOpenForwardForBeacon({
+    required String userId,
+    required String beaconId,
+  }) async {
+    openForwardForBeaconCalls++;
+    if (openForwardByBeacon.containsKey(beaconId)) {
+      return openForwardByBeacon[beaconId];
+    }
+    for (final item in activityOffersPages) {
+      if (item.beaconId == beaconId) {
+        return item;
+      }
+    }
+    return null;
   }
 
   @override
