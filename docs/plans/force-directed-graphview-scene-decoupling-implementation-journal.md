@@ -534,7 +534,19 @@ Protected `packages/force_directed_graphview/analysis_options.yaml` not staged.
 - **`constellation_graph_scene.dart`:** stable [GraphNodeId]/[GraphEdgeId] helpers (`c:<kind>:…` semantic edge ids).
 - **`GraphController`:** `reconcileTopology`, `requestSceneLayout(releaseOnTerminal:)`, `activePresentationTokenForNode`; `mutate` skips relayout on payload-only topology; constellation uses `layoutOnTopologyChange: false` + explicit layout request.
 - **`ConstellationCubit`:** `reconcileTopology` instead of `clear`+`mutate`; [tenturaGraphNodeId] resolvers; placement handoff via `_placementHandoffGraphId` + `releaseOnTerminal`; drag presentation via scene tokens (gesture + programmatic test path).
-- **Tests:** `constellation_scene_layout_test.dart`; body tests updated for semantic edge-id keys.
+- **Tests:** `constellation_scene_layout_test.dart`; body tests updated for semantic edge-id keys; `constellation_scene_handoff_test.dart` (terminal handoff release, failure/supersession hold, reconcileTopology while dragging).
+
+### M06 handoff test recovery (worker: Composer 2.5, 2026-09-13)
+
+- **Symptom:** `constellation_scene_handoff_test.dart` hung until default widget-test timeout (~30s+) on layout-failure and supersession cases.
+- **Cause:** `_settleLayout` used `Future.delayed` without advancing `WidgetTester` fake async; layout stream completion never observed under `testWidgets`.
+- **Fix (test-only):** pass `WidgetTester` into `_settleLayout` and `await tester.pump(...)`; supersession mid-flight wait uses `tester.pump` instead of bare `Future.delayed`.
+- **Not a production lifecycle bug:** package `scene_controller_test.dart` already settles with real async; constellation proof unchanged (matching-ticket terminal releases override atomically; malformed/superseded layouts retain presentation).
+
+```bash
+cd packages/client && flutter test test/features/constellation/constellation_scene_handoff_test.dart
+# exit 0, 4 passed (~4s)
+```
 
 ### Verification
 
@@ -564,6 +576,7 @@ Protected `packages/force_directed_graphview/analysis_options.yaml` not staged.
 - `packages/client/lib/features/constellation/ui/bloc/constellation_cubit.dart`
 - `packages/client/lib/features/constellation/ui/widget/constellation_body.dart`
 - `packages/client/test/features/constellation/constellation_scene_layout_test.dart` (new)
+- `packages/client/test/features/constellation/constellation_scene_handoff_test.dart` (new)
 - `packages/client/test/features/constellation/constellation_body_test.dart`
 - `packages/force_directed_graphview/lib/src/controller.dart`
 - `packages/force_directed_graphview/lib/src/scene_controller.dart`
