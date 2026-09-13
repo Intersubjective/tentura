@@ -187,6 +187,18 @@ final gqlTypeAttentionMarkers = GraphQLObjectType('AttentionMarkers', null)
     ),
   ]);
 
+final gqlTypeMyWorkBeaconAttention =
+    GraphQLObjectType('MyWorkBeaconAttention', null)
+      ..fields.addAll([
+        field('beaconId', graphQLString.nonNullable()),
+        field('unseenCount', graphQLInt.nonNullable()),
+        field('latestUnseen', gqlTypeAttentionReceipt),
+        field(
+          'liveObligations',
+          GraphQLListType(gqlTypeAttentionReceipt.nonNullable()).nonNullable(),
+        ),
+      ]);
+
 /// Payload returned by `RoomMessageCreate`.
 final gqlTypeRoomMessageCreatePayload =
     GraphQLObjectType('RoomMessageCreatePayload', null)

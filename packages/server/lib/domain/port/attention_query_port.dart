@@ -32,4 +32,11 @@ abstract interface class AttentionQueryPort {
   Future<Set<String>> liveObligationBeacons({
     required String accountId,
   });
+
+  /// Per-request My Work attention for Beacons in the caller's responsibility
+  /// scope. Omits Beacons with no unseen receipts and no live obligations.
+  Future<List<MyWorkBeaconAttention>> myWorkAttention({
+    required String accountId,
+    required Set<String> beaconIds,
+  });
 }

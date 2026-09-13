@@ -66,6 +66,84 @@ WHERE receipt.requires_action
     return {for (final row in rows) row.read<String>('beacon_id')};
   }
 
+  @override
+  Future<List<MyWorkBeaconAttention>> myWorkAttention({
+    required String accountId,
+    required Set<String> beaconIds,
+  }) async {
+    if (beaconIds.isEmpty) {
+      return const [];
+    }
+    final ids = beaconIds.toList(growable: false);
+    final placeholders = List.generate(
+      ids.length,
+      (index) => '\$${index + 2}',
+    ).join(',');
+    final rows = await _database
+        .customSelect(
+          '''
+WITH $_visibleWithSurfaceCte,
+scoped_beacons AS (
+  SELECT scope.beacon_id
+  FROM scope
+  WHERE scope.beacon_id IN ($placeholders)
+),
+scoped_receipts AS (
+  SELECT v.*
+  FROM visible v
+  INNER JOIN scoped_beacons sb ON sb.beacon_id = v.beacon_id
+  WHERE v.surface = 'myWork'
+)
+SELECT * FROM scoped_receipts
+ORDER BY beacon_id, created_at DESC, id DESC
+''',
+          variables: [
+            Variable<String>(accountId),
+            ...ids.map(Variable<String>.new),
+          ],
+        )
+        .get();
+
+    final byBeacon = <String, List<AttentionReceipt>>{};
+    for (final row in rows) {
+      final receipt = _mapRow(row);
+      final beaconId = receipt.beaconId;
+      if (beaconId == null) {
+        continue;
+      }
+      byBeacon.putIfAbsent(beaconId, () => []).add(receipt);
+    }
+
+    final results = <MyWorkBeaconAttention>[];
+    for (final entry in byBeacon.entries) {
+      final receipts = entry.value;
+      final unseenCount = receipts.where((receipt) => receipt.isUnread).length;
+      final liveObligations = [
+        for (final receipt in receipts)
+          if (receipt.isLiveObligation) receipt,
+      ];
+      if (unseenCount == 0 && liveObligations.isEmpty) {
+        continue;
+      }
+      AttentionReceipt? latestUnseen;
+      for (final receipt in receipts) {
+        if (receipt.isUnread && !receipt.isLiveObligation) {
+          latestUnseen = receipt;
+          break;
+        }
+      }
+      results.add(
+        MyWorkBeaconAttention(
+          beaconId: entry.key,
+          unseenCount: unseenCount,
+          latestUnseen: latestUnseen,
+          liveObligations: liveObligations,
+        ),
+      );
+    }
+    return results;
+  }
+
   static const _visibleWithSurfaceCte = '''
 visible_raw AS (
   SELECT outbox.*, authorized.tombstone_copy

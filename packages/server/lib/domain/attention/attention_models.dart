@@ -371,3 +371,13 @@ abstract class AttentionSurfaceSummary with _$AttentionSurfaceSummary {
     required int needsYouTotal,
   }) = _AttentionSurfaceSummary;
 }
+
+@freezed
+abstract class MyWorkBeaconAttention with _$MyWorkBeaconAttention {
+  const factory MyWorkBeaconAttention({
+    required String beaconId,
+    required int unseenCount,
+    AttentionReceipt? latestUnseen,
+    required List<AttentionReceipt> liveObligations,
+  }) = _MyWorkBeaconAttention;
+}

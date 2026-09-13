@@ -18,6 +18,7 @@ final class QueryAttention extends GqlNodeBase {
     attentionFeed,
     attentionSurfaceSummary,
     attentionMarkers,
+    myWorkAttention,
     liveObligationBeacons,
   ];
 
@@ -70,6 +71,41 @@ final class QueryAttention extends GqlNodeBase {
           return {
             'unreadBeaconIds': unreadBeaconIds.toList()..sort(),
           };
+        },
+      );
+
+  GraphQLObjectField<dynamic, dynamic> get myWorkAttention =>
+      GraphQLObjectField(
+        'myWorkAttention',
+        GraphQLListType(gqlTypeMyWorkBeaconAttention.nonNullable()).nonNullable(),
+        arguments: [_beaconIds.field],
+        resolve: (_, args) async {
+          final beaconIds = _beaconIds.fromArgsNonNullable(args).toSet();
+          if (beaconIds.length > 500) {
+            throw ArgumentError.value(
+              beaconIds.length,
+              'beaconIds',
+              'must contain at most 500 unique ids',
+            );
+          }
+          final projections = await _query.myWorkAttention(
+            accountId: getCredentials(args).sub,
+            beaconIds: beaconIds,
+          );
+          return [
+            for (final projection in projections)
+              {
+                'beaconId': projection.beaconId,
+                'unseenCount': projection.unseenCount,
+                'latestUnseen': projection.latestUnseen == null
+                    ? null
+                    : _mapReceipt(projection.latestUnseen!),
+                'liveObligations': [
+                  for (final obligation in projection.liveObligations)
+                    _mapReceipt(obligation),
+                ],
+              },
+          ];
         },
       );
 
