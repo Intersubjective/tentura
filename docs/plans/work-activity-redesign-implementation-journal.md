@@ -359,6 +359,42 @@ REMAINING: none. Proceed to UNIT 10.
 
 **Manager verdict: ACCEPTED, with one process gap closed by the overseer.** Independently re-ran all four Verify commands (build_runner clean, 92/92 flutter test, lints 32/32 baseline, tentura_lints 18/18). The worker honestly flagged in FINDINGS that it generated the 18 new golden PNGs via `--update-goldens` but did not eyeball them — a real gap against plan §3 rule 12 ("regenerate intentionally... then open and eyeball the PNG"), material here because these are first-generation goldens with no prior baseline to diff against, so eyeballing is the only way to catch a broken initial render. The overseer opened a representative sample (6 of 18: light/dark × en/ru × both components, plus the two 1.3×-scale variants) directly — all render as sane, correctly composed layouts (leading slot, label, chevron present/absent as expected per `showChevron`, no `RenderFlex` overflow artifacts) using the same box-glyph placeholder-font convention already used by this repo's other golden tests (verified against `test/golden/goldens/evaluation_impact_control_light_320.png`), confirming this isn't a font-loading regression specific to the new tests. Read the refactor diff for both re-pointed call sites in full: `inbox_triage_row.dart` and `updates_feed_pane.dart`'s collapsed prompt row are faithful, byte-for-byte-equivalent extractions into `TenturaAttentionSummaryRow` — identical `Material`/`InkWell`/test-id/sizing/padding/text-style, chevron correctly present for triage and correctly suppressed (`showChevron: false`) for the collapsed prompt row, matching its prior chevron-less layout. No leaked processes, clean git status, commits well split (the worker even self-corrected a journal commit-hash typo in a follow-up commit).
 
+## UNIT 10 — complete — 2026-09-14
+
+COMMITS:
+- `609b103e4` fix(client): clarify notification rows
+
+TESTS:
+- `cd packages/client && flutter test test/features/updates/` → **87/87 passed**
+- `./scripts/check-custom-lints.sh packages/client` → `32 (baseline: 32)` — OK
+- `cd packages/client && flutter test --update-goldens test/features/updates/updates_feed_tile_golden_test.dart test/features/updates/invite_accepted_setup_golden_test.dart` → **6/6 passed** (goldens regenerated before final test run)
+
+FILES:
+- `packages/client/lib/features/updates/ui/widget/updates_feed_tile.dart`
+- `packages/client/lib/features/updates/ui/widget/updates_day_groups.dart`
+- `packages/client/lib/features/updates/ui/widget/updates_feed_pane.dart`
+- `packages/client/lib/features/updates/updates_receipt_display_copy.dart`
+- `packages/client/pubspec.yaml` (7.6.7 → 7.6.8)
+- `packages/client/web/index.html` (`flutter_bootstrap.js?v=7.6.8`)
+- `packages/client/test/features/updates/updates_day_groups_test.dart`
+- `packages/client/test/features/updates/updates_receipt_display_copy_test.dart`
+- `packages/client/test/features/updates/updates_receipt_card_test.dart`
+- `packages/client/test/features/updates/trust_change_receipt_card_test.dart`
+- `packages/client/test/features/updates/goldens/updates_dense_row_dark_compact.png`
+- `packages/client/test/features/updates/goldens/invite_accepted_compact_card_light.png`
+- `packages/client/test/features/updates/goldens/invite_accepted_compact_card_dark.png`
+
+FINDINGS:
+- `updatesFeedGlyphFor` already mapped trust directions, `mutual_connection_formed`, `offer_accepted` (in send group), and `relay_received` (`TenturaIcons.send` forward glyph); added explicit `request_status_changed` (`TenturaIcons.switcher`) and split `offer_accepted` to `TenturaIcons.favorites`.
+- Day headers reuse `formatScheduleDate` from `schedule_date_format.dart` (same `MMMd` / `yMMMd` year rule as beacon schedule copy).
+- Eyeballed regenerated row goldens: `updates_dense_row_dark_compact.png` shows event headline (“Asked of you”), subject line (“Garden cleanup”), send glyph with unread dot, trailing `more_vert` (no hollow seen toggle), and “Mark done” action; `invite_accepted_compact_card_dark.png` shows profile glyph, unread dot, overflow menu, and unchanged invite-specific headline/body overrides (person name + setup CTA).
+
+DECISIONS:
+- Mark seen/unseen: overflow `PopupMenuButton`, desktop secondary-tap toggles, touch long-press opens the same menu (alongside overflow/hover — not long-press alone), hover toolbar with visibility + more (mirrors `room_message_tile.dart` pattern).
+- `resolveUpdatesFeedRowCopy`: headline = server event title (or override); supporting line = `beaconTitle` from payload when present.
+
+REMAINING: none. Proceed to UNIT 11.
+
 ## Ordered unit checklist
 
 | Unit | Status |
@@ -373,7 +409,7 @@ REMAINING: none. Proceed to UNIT 10.
 | 07 | complete (accepted) |
 | 08 | complete (accepted) |
 | 09 | complete (accepted) |
-| 10 | pending |
+| 10 | complete |
 | 11 | pending |
 | 12 | pending |
 | 13 | pending |
