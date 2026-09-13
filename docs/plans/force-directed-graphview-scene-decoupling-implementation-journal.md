@@ -794,3 +794,11 @@ Protected `packages/force_directed_graphview/analysis_options.yaml` not staged.
 ## REMAINING
 
 - Parent Constellation plan browser/multi-client gates remain as previously recorded (P10/P11); not re-run in M08 unless client contracts change.
+
+### Final acceptance after overlap-selection remediation (2026-09-13)
+
+- `8c2c3b0e4` repaired the final scene-ID migration regression: Constellation paint order uses the actual graph node IDs, overlay Requests resolve for selection, and `GraphView` dispatches an ID-based scene hit-test tap.
+- The single-client browser journey passed serially: `./scripts/run_client_integration_web_local.sh integration_test/constellation_pinning_test.dart`.
+- The actor-echo-disabled multiclient gate passed five serial runs: `REALTIME_MULTICLIENT_DRIVER=constellation_pinning_multiclient_web_test.dart REALTIME_MULTICLIENT_ACTOR_ECHO_ENABLED=false ./scripts/run_realtime_multiclient_web_local.sh`. Required live convergence, reconnect, stale-delete, and authorization-loss journeys passed. Hardware-only journeys remain explicitly blocked.
+- Final serial verification passed: graph package suite; client suite (`3124 passed, 29 skipped`); client and server custom lint gates; `packages/tentura_lints` tests; terminology check; and `git diff --check d84acc940..HEAD`.
+- Rollback: revert `8c2c3b0e4` first, then M08 (`a5aaa2d14`), M07 deletion (`f7dce7afd`), and its client migration (`efa076d7e`) only as a dependency-aware sequence. Keep the independent lifecycle repair `e0f51f48d` unless that behavior itself must be reverted.
