@@ -8,6 +8,7 @@ import 'package:tentura/domain/entity/repository_event.dart';
 import 'package:tentura/domain/use_case/realtime_sync_case.dart';
 import 'package:tentura/features/beacon_threads/domain/entity/beacon_room_invalidation.dart';
 import 'package:tentura/features/block/domain/use_case/block_case.dart';
+import 'package:tentura/features/home/domain/work_activity_redesign_gate.dart';
 
 import 'package:tentura/features/my_work/domain/derive_my_work_cards.dart';
 import 'package:tentura/features/my_work/domain/entity/my_work_card_view_model.dart';
@@ -234,6 +235,7 @@ class MyWorkCubit extends Cubit<MyWorkState> {
           ),
         );
         _schedulePendingRetryIfNeeded(stillPending);
+        await _loadAttentionIfEnabled(seq);
         if (filterBefore == MyWorkFilter.archived) {
           emit(state.copyWith(archivedFetchInProgress: true));
           unawaited(_loadArchived(seq));
@@ -339,6 +341,7 @@ class MyWorkCubit extends Cubit<MyWorkState> {
           status: const StateIsSuccess(),
         ),
       );
+      await _loadAttentionIfEnabled(seq);
     } catch (e) {
       if (isClosed || seq != _fetchSeq) {
         return;
@@ -428,4 +431,62 @@ class MyWorkCubit extends Cubit<MyWorkState> {
 
   bool _shouldShowArchivedLoadError() =>
       state.filter == MyWorkFilter.archived && state.archivedCards.isEmpty;
+
+  Future<void> openedBeacon(String beaconId) async {
+    if (beaconId.isEmpty) return;
+    final current = state.attentionByBeacon[beaconId];
+    if (current != null && current.unseenCount > 0) {
+      emit(
+        state.copyWith(
+          attentionByBeacon: {
+            ...state.attentionByBeacon,
+            beaconId: current.copyWith(unseenCount: 0),
+          },
+        ),
+      );
+    }
+    await _myWorkCase.markSeenForBeacon(beaconId);
+  }
+
+  Future<void> _loadAttentionIfEnabled(int seq) async {
+    if (!readWorkActivityRedesignGateEnabled()) {
+      return;
+    }
+    final beaconIds = {
+      for (final c in state.nonArchivedCards) c.beaconId,
+      for (final c in state.archivedCards) c.beaconId,
+    };
+    if (beaconIds.isEmpty) {
+      if (isClosed || seq != _fetchSeq) {
+        return;
+      }
+      emit(
+        state.copyWith(
+          attentionByBeacon: const {},
+          attentionLoaded: true,
+        ),
+      );
+      return;
+    }
+    emit(state.copyWith(attentionLoaded: false));
+    try {
+      final attentionByBeacon = await _myWorkCase.loadMyWorkAttention(
+        beaconIds,
+      );
+      if (isClosed || seq != _fetchSeq) {
+        return;
+      }
+      emit(
+        state.copyWith(
+          attentionByBeacon: attentionByBeacon,
+          attentionLoaded: true,
+        ),
+      );
+    } catch (_) {
+      if (isClosed || seq != _fetchSeq) {
+        return;
+      }
+      emit(state.copyWith(attentionLoaded: false));
+    }
+  }
 }

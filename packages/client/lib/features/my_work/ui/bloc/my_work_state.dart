@@ -1,3 +1,4 @@
+import 'package:tentura/domain/attention/entity/my_work_beacon_attention.dart';
 import 'package:tentura/ui/bloc/state_base.dart';
 
 import 'package:tentura/features/my_work/domain/derive_my_work_cards.dart';
@@ -25,6 +26,8 @@ abstract class MyWorkState extends StateBase with _$MyWorkState {
     @Default(false) bool finishedArchiveHintDismissed,
     @Default(StateIsLoading()) StateStatus status,
     Object? loadError,
+    @Default({}) Map<String, MyWorkBeaconAttention> attentionByBeacon,
+    @Default(false) bool attentionLoaded,
   }) = _MyWorkState;
 
   const MyWorkState._();

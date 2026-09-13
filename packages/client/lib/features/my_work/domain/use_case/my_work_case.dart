@@ -4,6 +4,7 @@ import 'package:injectable/injectable.dart';
 
 import 'package:tentura/data/service/bookkeeping_refresh_signal.dart';
 import 'package:tentura/domain/attention/attention_case.dart';
+import 'package:tentura/domain/attention/entity/my_work_beacon_attention.dart';
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 import 'package:tentura/domain/entity/repository_event.dart';
@@ -31,6 +32,8 @@ import '../port/my_work_desk_preferences_port.dart';
 
 @singleton
 final class MyWorkCase extends UseCaseBase {
+  static const _maxAttentionIdsPerRequest = 500;
+
   MyWorkCase(
     this._repository,
     this._archiveRepository,
@@ -171,6 +174,34 @@ final class MyWorkCase extends UseCaseBase {
             : card,
     ];
   }
+
+  Future<Map<String, MyWorkBeaconAttention>> loadMyWorkAttention(
+    Set<String> beaconIds,
+  ) async {
+    if (beaconIds.isEmpty) {
+      return const {};
+    }
+    final ids = beaconIds.toList(growable: false);
+    final byBeacon = <String, MyWorkBeaconAttention>{};
+    for (
+      var offset = 0;
+      offset < ids.length;
+      offset += _maxAttentionIdsPerRequest
+    ) {
+      final nextOffset = offset + _maxAttentionIdsPerRequest;
+      final end = nextOffset < ids.length ? nextOffset : ids.length;
+      final rows = await _attentionCase.myWorkAttention(
+        ids.sublist(offset, end).toSet(),
+      );
+      for (final row in rows) {
+        byBeacon[row.beaconId] = row;
+      }
+    }
+    return byBeacon;
+  }
+
+  Future<void> markSeenForBeacon(String beaconId) =>
+      _attentionCase.markSeenForBeacon(beaconId);
 
   Future<MyWorkDeskArchivedLoad> loadDeskArchived({
     required String userId,

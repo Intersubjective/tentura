@@ -18,6 +18,7 @@ import 'attention_ack_store.dart';
 import 'entity/attention_feed.dart';
 import 'entity/attention_receipt.dart';
 import 'entity/attention_summary.dart';
+import 'entity/my_work_beacon_attention.dart';
 import 'feed_session_registry.dart';
 import 'port/attention_account_port.dart';
 import 'port/attention_repository_port.dart';
@@ -223,6 +224,13 @@ final class AttentionCase {
 
   Future<Set<String>> liveObligationBeacons() =>
       _repository.liveObligationBeacons();
+
+  Future<List<MyWorkBeaconAttention>> myWorkAttention(Set<String> beaconIds) {
+    if (beaconIds.isEmpty) {
+      return Future.value(const []);
+    }
+    return _repository.myWorkAttention(beaconIds);
+  }
 
   Future<void> fetchNextPage({
     String destinationId = AttentionFeedDestinationId.activity,
