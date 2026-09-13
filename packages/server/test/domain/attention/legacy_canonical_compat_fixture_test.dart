@@ -159,4 +159,10 @@ final class _FixtureQuery implements AttentionQueryPort {
   Future<Set<String>> liveObligationBeacons({
     required String accountId,
   }) async => const {};
+
+  @override
+  Future<List<MyWorkBeaconAttention>> myWorkAttention({
+    required String accountId,
+    required Set<String> beaconIds,
+  }) async => const [];
 }

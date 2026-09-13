@@ -96,6 +96,16 @@ class _FakeQuery implements AttentionQueryPort {
     this.accountId = accountId;
     return liveObligationBeaconIds;
   }
+
+  @override
+  Future<List<MyWorkBeaconAttention>> myWorkAttention({
+    required String accountId,
+    required Set<String> beaconIds,
+  }) async {
+    this.accountId = accountId;
+    this.beaconIds = beaconIds;
+    return const [];
+  }
 }
 
 class _FakeAck implements AttentionAckPort {
@@ -264,6 +274,30 @@ void main() {
       {
         'unreadBeaconIds': ['B1'],
       },
+    );
+    expect(query.accountId, 'U1');
+    expect(query.beaconIds, {'B1', 'B2'});
+    expect(
+      () => field.resolve!(null, {
+        ...auth,
+        'beaconIds': List.generate(501, (index) => 'B$index'),
+      }),
+      throwsA(isA<ArgumentError>()),
+    );
+  });
+
+  test('myWorkAttention scopes and bounds candidate Beacon ids', () async {
+    final query = _FakeQuery();
+    final field = QueryAttention(
+      query: query,
+    ).all.singleWhere((field) => field.name == 'myWorkAttention');
+
+    expect(
+      await field.resolve!(null, {
+        ...auth,
+        'beaconIds': ['B1', 'B2'],
+      }),
+      isEmpty,
     );
     expect(query.accountId, 'U1');
     expect(query.beaconIds, {'B1', 'B2'});
