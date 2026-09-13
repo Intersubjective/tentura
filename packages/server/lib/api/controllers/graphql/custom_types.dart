@@ -143,7 +143,20 @@ final gqlTypeAttentionReceipt = GraphQLObjectType('AttentionReceipt', null)
     field('attentionThreadKey', graphQLString),
     field('settlementKind', graphQLString),
     field('settledAt', graphQLString),
+    field('surface', graphQLString.nonNullable()),
+    field('itemKind', graphQLString.nonNullable()),
+    field('forwardOutcome', graphQLString),
+    field('forwardCount', graphQLInt),
+    field('digestCount', graphQLInt),
   ]);
+
+final gqlTypeAttentionSurfaceSummary =
+    GraphQLObjectType('AttentionSurfaceSummary', null)
+      ..fields.addAll([
+        field('activityUnreadTotal', graphQLInt.nonNullable()),
+        field('myWorkUnreadTotal', graphQLInt.nonNullable()),
+        field('needsYouTotal', graphQLInt.nonNullable()),
+      ]);
 
 final gqlTypeAttentionSummary = GraphQLObjectType('AttentionSummary', null)
   ..fields.addAll([

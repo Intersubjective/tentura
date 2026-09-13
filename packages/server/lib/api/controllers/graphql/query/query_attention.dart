@@ -16,9 +16,26 @@ final class QueryAttention extends GqlNodeBase {
 
   List<GraphQLObjectField<dynamic, dynamic>> get all => [
     attentionFeed,
+    attentionSurfaceSummary,
     attentionMarkers,
     liveObligationBeacons,
   ];
+
+  GraphQLObjectField<dynamic, dynamic> get attentionSurfaceSummary =>
+      GraphQLObjectField(
+        'attentionSurfaceSummary',
+        gqlTypeAttentionSurfaceSummary.nonNullable(),
+        resolve: (_, args) async {
+          final summary = await _query.surfaceSummary(
+            accountId: getCredentials(args).sub,
+          );
+          return {
+            'activityUnreadTotal': summary.activityUnreadTotal,
+            'myWorkUnreadTotal': summary.myWorkUnreadTotal,
+            'needsYouTotal': summary.needsYouTotal,
+          };
+        },
+      );
 
   GraphQLObjectField<dynamic, dynamic> get liveObligationBeacons =>
       GraphQLObjectField(
@@ -63,14 +80,25 @@ final class QueryAttention extends GqlNodeBase {
       _view.field,
       _cursor.fieldNullable,
       _search.fieldNullable,
+      _surface.fieldNullable,
       _limit.fieldNullable,
     ],
     resolve: (_, args) async {
+      final parsedSurface = _parseSurface(_surface.fromArgs(args));
+      final parsedSearch = _parseSearch(_search.fromArgs(args));
+      if (parsedSurface == AttentionSurface.activity && parsedSearch != null) {
+        throw ArgumentError.value(
+          parsedSearch,
+          'search',
+          'must be null when surface is activity',
+        );
+      }
       final feed = await _query.attentionFeed(
         accountId: getCredentials(args).sub,
         view: _parseView(_view.fromArgsNonNullable(args)),
         cursor: _decodeCursor(_cursor.fromArgs(args)),
-        search: _parseSearch(_search.fromArgs(args)),
+        search: parsedSearch,
+        surface: parsedSurface,
         limit: _limit.fromArgs(args) ?? 50,
       );
       return {
@@ -93,8 +121,25 @@ final class QueryAttention extends GqlNodeBase {
   static final _view = InputFieldString(fieldName: 'view');
   static final _cursor = InputFieldString(fieldName: 'cursor');
   static final _search = InputFieldString(fieldName: 'search');
+  static final _surface = InputFieldString(fieldName: 'surface');
   static final _limit = InputFieldInt(fieldName: 'limit');
   static final _beaconIds = InputFieldStringList(fieldName: 'beaconIds');
+
+  static AttentionSurface? parseSurfaceArgument(String? value) =>
+      _parseSurface(value);
+
+  static AttentionSurface? _parseSurface(String? value) {
+    if (value == null) return null;
+    return switch (value) {
+      'myWork' => AttentionSurface.myWork,
+      'activity' => AttentionSurface.activity,
+      _ => throw ArgumentError.value(
+        value,
+        'surface',
+        "must be 'myWork' or 'activity'",
+      ),
+    };
+  }
 
   static AttentionFeedView _parseView(String value) => switch (value) {
     'all' => AttentionFeedView.all,
@@ -203,6 +248,11 @@ final class QueryAttention extends GqlNodeBase {
       'attentionThreadKey': receipt.attentionThreadKey,
       'settlementKind': receipt.settlementKind?.wireName,
       'settledAt': receipt.settledAt?.toUtc().toIso8601String(),
+      'surface': receipt.surface.name,
+      'itemKind': receipt.itemKind.name,
+      'forwardOutcome': receipt.forwardOutcome,
+      'forwardCount': receipt.forwardCount,
+      'digestCount': receipt.digestCount,
     };
   }
 }

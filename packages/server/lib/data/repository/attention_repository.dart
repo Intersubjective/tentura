@@ -66,12 +66,74 @@ WHERE receipt.requires_action
     return {for (final row in rows) row.read<String>('beacon_id')};
   }
 
+  static const _visibleWithSurfaceCte = '''
+visible_raw AS (
+  SELECT outbox.*, authorized.tombstone_copy
+  FROM public.visible_attention_receipts(\$1) authorized
+  JOIN public.notification_outbox outbox
+    ON outbox.id = authorized.receipt_id
+),
+scope AS (
+  SELECT beacon_id FROM public.responsibility_scope_base_beacons(\$1)
+  UNION
+  SELECT DISTINCT visible_raw.beacon_id
+  FROM visible_raw
+  WHERE visible_raw.requires_action
+    AND visible_raw.settlement_kind IS NULL
+    AND visible_raw.beacon_id IS NOT NULL
+),
+visible AS (
+  SELECT
+    visible_raw.*,
+    CASE
+      WHEN visible_raw.beacon_id IS NOT NULL
+       AND visible_raw.beacon_id IN (SELECT scope.beacon_id FROM scope)
+      THEN 'myWork'
+      ELSE 'activity'
+    END AS surface
+  FROM visible_raw
+)''';
+
+  @override
+  Future<AttentionSurfaceSummary> surfaceSummary({
+    required String accountId,
+  }) async {
+    final row = await _database
+        .customSelect(
+          '''
+WITH $_visibleWithSurfaceCte,
+summary AS (
+  SELECT
+    COUNT(*) FILTER (
+      WHERE seen_at IS NULL AND surface = 'activity'
+    )::int AS activity_unread_total,
+    COUNT(*) FILTER (
+      WHERE seen_at IS NULL AND surface = 'myWork'
+    )::int AS my_work_unread_total,
+    COUNT(*) FILTER (
+      WHERE requires_action AND settlement_kind IS NULL
+    )::int AS needs_you_total
+  FROM visible
+)
+SELECT * FROM summary
+''',
+          variables: [Variable<String>(accountId)],
+        )
+        .getSingle();
+    return AttentionSurfaceSummary(
+      activityUnreadTotal: row.read<int>('activity_unread_total'),
+      myWorkUnreadTotal: row.read<int>('my_work_unread_total'),
+      needsYouTotal: row.read<int>('needs_you_total'),
+    );
+  }
+
   @override
   Future<AttentionFeed> attentionFeed({
     required String accountId,
     required AttentionFeedView view,
     AttentionCursor? cursor,
     String? search,
+    AttentionSurface? surface,
     int limit = 50,
   }) async {
     final boundedLimit = limit.clamp(1, 100);
@@ -79,6 +141,7 @@ WHERE receipt.requires_action
       Variable<String>(accountId),
       Variable<String>(view.name),
       Variable<String>(search),
+      Variable<String>(surface?.name),
     ];
     final cursorClause = StringBuffer();
     if (cursor != null) {
@@ -88,8 +151,8 @@ WHERE receipt.requires_action
       cursorClause.write(
         r'''
 AND (
-  visible.created_at < $4::timestamptz
-  OR (visible.created_at = $4::timestamptz AND visible.id < $5)
+  visible.created_at < $5::timestamptz
+  OR (visible.created_at = $5::timestamptz AND visible.id < $6)
 )''',
       );
     }
@@ -98,15 +161,11 @@ AND (
 
     final rows = await _database.customSelect(
       '''
-WITH visible AS (
-  SELECT outbox.*, authorized.tombstone_copy
-  FROM public.visible_attention_receipts(\$1) authorized
-  JOIN public.notification_outbox outbox
-    ON outbox.id = authorized.receipt_id
-),
+WITH $_visibleWithSurfaceCte,
 summary AS (
   SELECT COUNT(*) FILTER (
     WHERE seen_at IS NULL
+      AND (\$4::text IS NULL OR surface = \$4)
   )::int AS unread_total,
   COUNT(*) FILTER (
     WHERE requires_action AND settlement_kind IS NULL
@@ -133,6 +192,7 @@ page AS (
       coalesce(visible.presentation_payload ->> 'messageId', '')
     ) @@ websearch_to_tsquery('simple', \$3)
   )
+  AND (\$4::text IS NULL OR visible.surface = \$4)
     $cursorClause
   ORDER BY visible.created_at DESC, visible.id DESC
   LIMIT $limitParameter
@@ -229,6 +289,8 @@ ORDER BY page.created_at DESC NULLS LAST, page.id DESC NULLS LAST
       settledByOccurrenceId: row.readNullable<String>(
         'settled_by_occurrence_id',
       ),
+      surface: attentionSurfaceFromWireName(row.read<String>('surface')),
+      itemKind: AttentionItemKind.receipt,
     );
   }
 
@@ -369,21 +431,55 @@ WHERE outbox.account_id = \$1
   }
 
   @override
-  Future<int> markAllSeen(String accountId) => _database.customUpdate(
-    r'''
+  Future<int> markAllSeen(String accountId, {AttentionSurface? surface}) =>
+      _database.customUpdate(
+        r'''
+WITH visible_raw AS (
+  SELECT outbox.*
+  FROM public.visible_attention_receipts($1) authorized
+  JOIN public.notification_outbox outbox
+    ON outbox.id = authorized.receipt_id
+),
+scope AS (
+  SELECT beacon_id FROM public.responsibility_scope_base_beacons($1)
+  UNION
+  SELECT DISTINCT visible_raw.beacon_id
+  FROM visible_raw
+  WHERE visible_raw.requires_action
+    AND visible_raw.settlement_kind IS NULL
+    AND visible_raw.beacon_id IS NOT NULL
+),
+visible AS (
+  SELECT
+    visible_raw.id,
+    visible_raw.seen_at,
+    CASE
+      WHEN visible_raw.beacon_id IS NOT NULL
+       AND visible_raw.beacon_id IN (SELECT scope.beacon_id FROM scope)
+      THEN 'myWork'
+      ELSE 'activity'
+    END AS surface
+  FROM visible_raw
+),
+targets AS (
+  SELECT id
+  FROM visible
+  WHERE seen_at IS NULL
+    AND ($2::text IS NULL OR surface = $2)
+)
 UPDATE public.notification_outbox outbox
 SET
   seen_at = COALESCE(outbox.seen_at, now())
+FROM targets
 WHERE outbox.account_id = $1
-  AND outbox.seen_at IS NULL
-  AND outbox.id IN (
-    SELECT receipt_id
-    FROM public.visible_attention_receipts($1)
-  )
+  AND outbox.id = targets.id
 ''',
-    variables: [Variable<String>(accountId)],
-    updateKind: UpdateKind.update,
-  );
+        variables: [
+          Variable<String>(accountId),
+          Variable<String>(surface?.name),
+        ],
+        updateKind: UpdateKind.update,
+      );
 
   @override
   Future<int> bridgeRoomWatermark({

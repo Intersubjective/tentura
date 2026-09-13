@@ -2,8 +2,10 @@ import 'package:tentura_server/domain/port/attention_ack_port.dart';
 import 'package:tentura_server/domain/attention/attention_models.dart';
 import 'package:tentura_server/domain/use_case/attention_settlement_case.dart';
 
+import '../custom_types.dart';
 import '../gql_nodel_base.dart';
 import '../input/_input_types.dart';
+import '../query/query_attention.dart';
 
 final class MutationAttention extends GqlNodeBase {
   MutationAttention({
@@ -68,12 +70,17 @@ final class MutationAttention extends GqlNodeBase {
       GraphQLObjectField(
         'attentionMarkAllSeen',
         graphQLInt.nonNullable(),
-        resolve: (_, args) => _ack.markAllSeen(getCredentials(args).sub),
+        arguments: [_surface.fieldNullable],
+        resolve: (_, args) => _ack.markAllSeen(
+          getCredentials(args).sub,
+          surface: QueryAttention.parseSurfaceArgument(_surface.fromArgs(args)),
+        ),
       );
 
   static final _ids = InputFieldStringList(fieldName: 'ids');
   static final _receiptId = InputFieldString(fieldName: 'receiptId');
   static final _settlementKind = InputFieldString(fieldName: 'kind');
+  static final _surface = InputFieldString(fieldName: 'surface');
 
   GraphQLObjectField<dynamic, dynamic> get attentionSettle =>
       GraphQLObjectField(
