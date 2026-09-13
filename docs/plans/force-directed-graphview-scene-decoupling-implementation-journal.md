@@ -35,7 +35,7 @@ The protected `packages/force_directed_graphview/analysis_options.yaml` change i
 | M02 ID-keyed layout port and legacy adapter | **accepted** | M01 accepted | `feat(graph): introduce id-keyed layout requests` |
 | M03 scene controller plus legacy delegation | **accepted** | M02 accepted | two focused commits in plan order |
 | M04 rendering, ordering, focus, gesture snapshots | **accepted** | M03 accepted | focused renderer migration commits |
-| M05 Tentura graph layouts/adapters | pending | M04 accepted | one focused commit per algorithm/mode |
+| M05 Tentura graph layouts/adapters | **accepted** | M04 accepted | one focused commit per algorithm/mode |
 | M06 Constellation migration and handoff | pending | M05 accepted | three focused commits in plan order |
 | M07 remove legacy architecture | pending | M06 and R8 pre-removal gate accepted | `refactor(graph): remove object-keyed layout compatibility` |
 | M08 architecture enforcement/documentation | pending | M07 accepted | focused documentation/enforcement commit if needed |
@@ -445,3 +445,82 @@ cd packages/force_directed_graphview && dart analyze --format machine
 ### Commit
 
 - **Subject:** `refactor(graph): render and drag from stable scene snapshots`
+
+---
+
+## Manager checkpoint — 2026-09-13 (post-M04)
+
+- **M04 accepted** at `649e04978` — M05 is next (Tentura layout algorithms and graph adapters).
+
+---
+
+## M05 — Tentura graph layouts/adapters (worker: Composer 2.5, 2026-09-13)
+
+### Work
+
+- **`BoundSceneLayoutAlgorithm`:** legacy [GraphLayoutAlgorithm] handle wrapping native [SceneLayoutAlgorithm] delegates; controller unwraps before [requestLayout] (no dual `layout` signature clash on Tentura algorithms).
+- **`graph_scene_ids.dart`:** kind-prefixed injective [GraphNodeId] / [GraphEdgeId] at the UI boundary; domain id decode for radial/DAG pure helpers.
+- **`RadialHopLayoutAlgorithm` / `LayeredDagLayoutAlgorithm`:** [SceneLayoutAlgorithm] only — ID-keyed [GraphLayoutRequest] frames, prior [SceneLayout] relayout for radial expand fans; no [NodeDetails] `==` / `hashCode` / presentation identity in layout.
+- **`GraphCubit` / `GraphBody`:** [tenturaGraphNodeId] / [tenturaGraphEdgeId] on [GraphController]; [_jumpToNodeByStableId], [renderSnapshot] spawn resolver, help-offerer [replaceNode] by id; [BoundSceneLayoutAlgorithm] for trust/forwards/genealogy widget algorithms.
+- **Constellation (adapter-only):** required id resolvers on [GraphController] for shared package API; no topology/handoff migration (M06).
+- **Tests:** [graph_scene_ids_test.dart], scene layout test support, migrated [tentura_layout_algorithms_test.dart] (payload replacement + layout modes), stub [testGraphController] across graph widget tests.
+
+### Decisions
+
+- Layered DAG and radial hop share one [tentura_layout_algorithms.dart] commit because both live in the same file; cubit/body wiring is a separate commit.
+- [ConstellationLayoutAlgorithm] remains legacy [GraphLayoutAlgorithm] until M06a.
+
+### Verification
+
+```bash
+cd packages/force_directed_graphview && flutter test
+# exit 0, 91 passed
+
+cd packages/force_directed_graphview && dart analyze --format machine
+# exit 0; pre-existing WARNINGs unchanged
+
+cd packages/client && flutter test test/features/graph/graph_scene_ids_test.dart \
+  test/features/graph/tentura_layout_algorithms_test.dart \
+  test/graph_controller_test.dart \
+  test/features/graph/graph_body_select_expand_test.dart \
+  test/features/graph/forward_graph_focus_rules_test.dart \
+  test/features/graph/graph_body_navigation_controls_test.dart \
+  test/features/graph/graph_cubit_genealogy_test.dart \
+  test/features/graph/graph_body_genealogy_test.dart
+# exit 0, 70 passed
+
+./scripts/check-custom-lints.sh packages/client
+# exit 0 (baseline ratchet; no new errors in owned paths)
+```
+
+Protected `packages/force_directed_graphview/analysis_options.yaml` not staged.
+
+### Commits
+
+1. `feat(graph): add bound scene layout algorithm handle` — `a915ccc1c`
+2. `refactor(client): define stable graph scene ids at ui boundary` — `83220c079`
+3. `refactor(client): migrate radial-hop layout to id-keyed scene port` — `2e3f2d4c6` (includes layered DAG in same file)
+4. `refactor(client): wire graph modes to stable scene ids` — `2be9bae3a`
+
+### Changed paths (M05)
+
+- `packages/force_directed_graphview/lib/src/layout_algorithm/bound_scene_layout_algorithm.dart` (new)
+- `packages/force_directed_graphview/lib/force_directed_graphview.dart`
+- `packages/force_directed_graphview/lib/src/controller.dart`
+- `packages/client/lib/features/graph/ui/utils/graph_scene_ids.dart` (new)
+- `packages/client/lib/features/graph/ui/utils/tentura_layout_algorithms.dart`
+- `packages/client/lib/features/graph/ui/bloc/graph_cubit.dart`
+- `packages/client/lib/features/graph/ui/widget/graph_body.dart`
+- `packages/client/lib/features/constellation/ui/bloc/constellation_cubit.dart` (resolvers only)
+- `packages/client/test/features/graph/graph_scene_ids_test.dart` (new)
+- `packages/client/test/features/graph/scene_layout_test_support.dart` (new)
+- `packages/client/test/features/graph/tentura_layout_algorithms_test.dart`
+- `packages/client/test/graph_controller_test.dart`
+- graph widget stub tests listed in commit 4
+
+---
+
+## Manager checkpoint — 2026-09-13 (post-M05)
+
+- **M05 accepted** — M06 is next (Constellation topology and placement handoff).
+
