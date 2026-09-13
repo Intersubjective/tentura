@@ -1,0 +1,26 @@
+import 'package:freezed_annotation/freezed_annotation.dart';
+import 'package:tentura/ui/bloc/state_base.dart';
+
+import '../../domain/entity/inbox_item.dart';
+
+export 'package:tentura/ui/bloc/state_base.dart';
+
+part 'activity_offers_state.freezed.dart';
+
+@freezed
+abstract class ActivityOffersState extends StateBase with _$ActivityOffersState {
+  const factory ActivityOffersState({
+    @Default([]) List<InboxItem> items,
+    int? totalCount,
+    @Default(false) bool countLoadFailed,
+    @Default(false) bool pageLoadFailed,
+    @Default(true) bool hasMore,
+    @Default(false) bool loadingMore,
+    @Default(<String>{}) Set<String> heldBackIds,
+    @Default(<String>{}) Set<String> unseenBeaconIds,
+    @Default(false) bool unseenQueryComplete,
+    @Default(StateIsLoading()) StateStatus status,
+  }) = _ActivityOffersState;
+
+  const ActivityOffersState._();
+}
