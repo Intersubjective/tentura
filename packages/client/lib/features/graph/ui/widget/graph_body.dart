@@ -62,23 +62,17 @@ class GraphBodyState extends State<GraphBody>
     GraphMode.constellation => GraphLegendMode.constellation,
   };
 
-  GraphLayoutAlgorithm get _layoutAlgorithm {
+  SceneLayoutAlgorithm get _layoutAlgorithm {
     switch (_graphCubit.mode) {
       case GraphMode.genealogy:
-        return BoundSceneLayoutAlgorithm(
-          const LayeredDagLayoutAlgorithm(rootIds: {}),
-        );
+        return const LayeredDagLayoutAlgorithm(rootIds: {});
       case GraphMode.forwards:
-        return BoundSceneLayoutAlgorithm(
-          LayeredDagLayoutAlgorithm(
-            rootIds: _graphCubit.forwardsRootIds,
-          ),
+        return LayeredDagLayoutAlgorithm(
+          rootIds: _graphCubit.forwardsRootIds,
         );
       case GraphMode.trust:
-        return BoundSceneLayoutAlgorithm(
-          RadialHopLayoutAlgorithm(
-            rootId: _graphCubit.state.me.id,
-          ),
+        return RadialHopLayoutAlgorithm(
+          rootId: _graphCubit.state.me.id,
         );
       case GraphMode.constellation:
         throw UnsupportedError(

@@ -450,7 +450,7 @@ class _ConstellationBodyState extends State<ConstellationBody> {
             return const SizedBox.shrink();
           }
 
-          final layoutAlgorithm = cubit.mapLayoutAlgorithm;
+          final layoutAlgorithm = cubit.constellationSceneLayoutAlgorithm;
 
           final panelVisible = state.selectedPersonId != null;
 
@@ -535,7 +535,7 @@ class _ConstellationBodyState extends State<ConstellationBody> {
     BuildContext context,
     ConstellationCubit cubit,
     ConstellationState state,
-    BoundSceneLayoutAlgorithm layoutAlgorithm,
+    SceneLayoutAlgorithm layoutAlgorithm,
     bool panelVisible,
   ) {
     return Stack(
@@ -592,7 +592,7 @@ class _ConstellationBodyState extends State<ConstellationBody> {
             }
           },
           onNodeDragCancel: (_) => cubit.onPointerCancelDuringDrag(),
-          nodePaintOrder: cubit.orderedNodesForPaint(),
+          nodePaintOrder: cubit.orderedNodeIdsForPaint(),
           builder: (context, child) => _MapOverflowOverlay(
             cubit: cubit,
             child: child,
@@ -772,7 +772,6 @@ class _MapOverflowOverlay extends StatelessWidget {
       return child;
     }
 
-    final layout = cubit.graphController.layout;
     final overlays = <Widget>[];
 
     for (final entry in cubit.overflowHiddenCountByAuthor.entries) {
@@ -793,7 +792,7 @@ class _MapOverflowOverlay extends StatelessWidget {
         continue;
       }
 
-      final position = layout.getPositionOrNull(personNode);
+      final position = cubit.graphController.getPositionOrNull(personNode);
       if (position == null) {
         continue;
       }

@@ -216,7 +216,7 @@ void _requestLayoutHandoff(
   if (token != null) {
     releaseOnTerminal.add(token);
   }
-  controller.useLayoutAlgorithm(BoundSceneLayoutAlgorithm(algorithm));
+  controller.useSceneLayoutAlgorithm(algorithm);
   controller.requestSceneLayout(releaseOnTerminal: releaseOnTerminal);
 }
 
@@ -401,10 +401,8 @@ void main() {
         algorithm: slow,
       );
 
-      controller.useLayoutAlgorithm(
-        BoundSceneLayoutAlgorithm(
-          _TerminalAtAlgorithm({graphId: ScenePoint(x: 1, y: 1)}),
-        ),
+      controller.useSceneLayoutAlgorithm(
+        _TerminalAtAlgorithm({graphId: ScenePoint(x: 1, y: 1)}),
       );
       controller.requestSceneLayout();
       await tester.pump(const Duration(milliseconds: 30));

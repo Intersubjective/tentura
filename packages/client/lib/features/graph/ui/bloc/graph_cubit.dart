@@ -1399,7 +1399,7 @@ class GraphCubit extends Cubit<GraphState> {
   /// to ancestors already on the canvas). Pure filter over [_allEdges] —
   /// hidden data stays cached, so backtracking re-reveals without a refetch.
   void _recomputeVisibility() {
-    graphController.spawnPositionResolver = (node) {
+    graphController.spawnPositionResolver = (_) {
       final focusNode = _nodes[state.focus];
       if (focusNode == null || !graphController.canLayout) return null;
       final focusId = tenturaGraphNodeId(focusNode);

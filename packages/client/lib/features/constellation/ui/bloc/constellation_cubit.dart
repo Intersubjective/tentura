@@ -178,10 +178,6 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
   bool get placementActionsEnabled =>
       state.placementActionsEnabled && !(_anchorCase?.hasPendingWrite ?? false);
 
-  BoundSceneLayoutAlgorithm get mapLayoutAlgorithm {
-    return BoundSceneLayoutAlgorithm(constellationSceneLayoutAlgorithm);
-  }
-
   ConstellationSceneLayoutAlgorithm get constellationSceneLayoutAlgorithm {
     final overlay =
         state.composition?.anchorOverlay ?? ConstellationAnchorOverlay.empty;
@@ -768,10 +764,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     final graphId = target != null && target.graphNodeId == nodeId
         ? constellationGraphNodeIdForTarget(target)
         : constellationGraphNodeIdForDomain(nodeId);
-    final node = graphController.nodePayloadForId(graphId);
-    if (node != null) {
-      graphController.clearPresentationPosition(node);
-    }
+    graphController.clearPresentationForNodeId(graphId);
     _draggingNodeId = null;
     _placementHandoffGraphId = null;
   }
@@ -882,6 +875,12 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     return placementActionsEnabled ||
         state.placementPhase == ConstellationPlacementPhase.draggingExisting ||
         state.placementPhase == ConstellationPlacementPhase.draggingNew;
+  }
+
+  List<GraphNodeId> orderedNodeIdsForPaint() {
+    return orderedNodesForPaint()
+        .map((node) => constellationGraphNodeIdForDomain(node.id))
+        .toList();
   }
 
   List<NodeDetails> orderedNodesForPaint() {
@@ -1409,7 +1408,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     final paths = state.paths;
     final composition = state.composition;
     if (field == null || paths == null) {
-      graphController.clear(recenter: false);
+      graphController.clear();
       edgeKinds.clear();
       overflowHiddenCountByAuthor = const {};
       return;
@@ -1557,7 +1556,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
       );
     }
 
-    graphController.useLayoutAlgorithm(mapLayoutAlgorithm);
+    graphController.useSceneLayoutAlgorithm(constellationSceneLayoutAlgorithm);
     graphController.reconcileTopology(
       nodes,
       edges,
