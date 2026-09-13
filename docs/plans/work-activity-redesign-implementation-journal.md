@@ -517,6 +517,43 @@ REMAINING: none. Proceed to UNIT 14.
 
 **Manager verdict: ACCEPTED.** Independently re-ran all three Verify commands (gen-l10n clean, 162/162 flutter test, lints 32/32 baseline); confirmed `pubspec.yaml`/`web/index.html` both carry `7.6.10`. Read `derive_my_work_sections.dart` in full: pure, well-documented (doc comment states the exact priority: live obligation → Needs you, else finished → Finished, else In progress, matching FINDINGS), reuses the real `card.isFinishedCard` rather than reinventing, correctly handles the drafts/archived unlabeled-section case via an exhaustive `MyWorkFilter` switch. Read the `my_work_screen.dart` diff: every gate check reduces to the original expression when `redesignEnabled` is false (`!redesignEnabled && overflowMenu` inclusion, `!obligationsGateEnabled || redesignEnabled` for the 2:3-split suppression, `showFinishedHint`'s added `!redesignEnabled &&` term) — the legacy `ListView.separated` path is preserved verbatim below the new early-return, with only the per-item builder extracted into a shared `_myWorkCardTile` helper called identically from both paths (a pure refactor, not a behavior change). Section header `count` is wired from `myWorkNeedsYouObligationReceiptCount` (receipts, not cards) only for Needs You, and `helperText` from the existing `myWorkFinishedHint` only for Finished — both correct. Independently read the two most load-bearing tests: `'redesign on: first card fully visible on first paint'` pumps at 1.3× text scale with both gates on and asserts the actual rendered `Rect` of the first `MyWorkCardRouter` fits the viewport plus that `MyWorkObligationsPane` is absent — a genuine widget-level assertion, not a code read; `'redesign off: obligations pane still mounts when gate on'` asserts the legacy pane by key with the redesign gate off and the (separate) obligations gate on, directly proving the two gates don't interfere. No leaked processes, clean git status otherwise, commits well split.
 
+## UNIT 14 — complete — 2026-09-14
+
+COMMITS:
+- `a807aea66` refactor(client): extract inbox item GraphQL fields fragment
+- `8ffe28e64` feat(client): page open forwards for activity data layer
+- `c5727edbb` feat(client): add activity offers cubit for pinned forwards
+- `ecae0b237` test(client): cover activity offers cubit paging and live updates
+- (this journal entry) docs: UNIT 14 activity offers cubit journal
+
+TESTS:
+- `cd packages/client && dart run build_runner build -d` → exit 0
+- `cd packages/client && flutter test test/features/inbox/activity_offers_cubit_test.dart` → **8/8 passed**
+- `./scripts/check-custom-lints.sh packages/client` → `32 (baseline: 32)` — OK
+
+FILES:
+- `packages/client/lib/features/inbox/data/gql/inbox_item_fields.graphql` (new)
+- `packages/client/lib/features/inbox/data/gql/inbox_fetch.graphql`
+- `packages/client/lib/features/inbox/data/gql/activity_offers.graphql` (new)
+- `packages/client/lib/features/inbox/data/repository/inbox_repository.dart`
+- `packages/client/lib/features/inbox/domain/use_case/inbox_case.dart`
+- `packages/client/lib/features/inbox/ui/bloc/activity_offers_cubit.dart` (new)
+- `packages/client/lib/features/inbox/ui/bloc/activity_offers_state.dart` (new)
+- `packages/client/test/features/inbox/activity_offers_cubit_test.dart` (new)
+- `packages/client/test/features/inbox/inbox_case_test.dart`
+
+FINDINGS:
+- Ferry codegen emits shared `GInboxItemFields` so InboxFetch and ActivityOffers rows map through one `_mapInboxItemRows` helper.
+- Plan names `deskRelevantChanges` / `helpOfferChanges` match `InboxCase` getters at `inbox_case.dart:49-73` (unchanged names).
+
+DECISIONS:
+- Demotion signal for UNIT 17: `ActivityOffersCubit.demotedBeaconIds` as `Stream<String>` (beacon id), not a sealed effect type.
+- `loadFirst()` loads page rows and aggregate count in parallel so count failures set `countLoadFailed` without coercing to `0`.
+- Held-back live arrivals store full `InboxItem` in cubit-private maps; state exposes `heldBackIds` only for pill count.
+- `InboxCubit` left untouched (still feeds Watching / Rejected / legacy Activity UI).
+
+REMAINING: none. Proceed to UNIT 15.
+
 ## Ordered unit checklist
 
 | Unit | Status |
@@ -535,7 +572,7 @@ REMAINING: none. Proceed to UNIT 14.
 | 11 | complete (accepted) |
 | 12 | complete (accepted, real bug caught + fixed by worker) |
 | 13 | complete (accepted) |
-| 14 | pending |
+| 14 | complete |
 | 15 | pending |
 | 16 | pending |
 | 17 | pending |
