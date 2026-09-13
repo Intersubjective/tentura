@@ -222,8 +222,9 @@ class GraphController<N, E> with ChangeNotifier {
   /// Requests scene layout for the current topology and algorithm.
   GraphLayoutTicket? requestSceneLayout({
     Set<GraphPresentationToken> releaseOnTerminal = const {},
+    SceneLayoutAlgorithm? algorithm,
   }) {
-    final currentAlgorithm = _currentAlgorithm;
+    final currentAlgorithm = algorithm ?? _currentAlgorithm;
     final currentSize = _currentSize;
     if (currentAlgorithm == null || currentSize == null || _nodes.isEmpty) {
       return null;

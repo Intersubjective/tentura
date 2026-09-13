@@ -264,7 +264,10 @@ void _requestLayoutHandoff(
   required SceneLayoutAlgorithm algorithm,
 }) {
   cubit.testSceneLayoutAlgorithmOverride = algorithm;
-  cubit.requestConstellationLayoutForTest(algorithm: algorithm);
+  cubit.requestConstellationLayoutForTest(
+    algorithm: algorithm,
+    bumpGraphRevision: false,
+  );
 }
 
 final class _TerminalAtAlgorithm implements SceneLayoutAlgorithm {
@@ -446,6 +449,7 @@ void main() {
         algorithm: _MalformedThenTerminalAlgorithm(),
       );
       await tester.pump();
+      await tester.pump(const Duration(milliseconds: 16));
       await _settleLayout(tester, controller.scene);
 
       expect(controller.scene.layoutOutcome, isA<GraphLayoutOutcomeFailed>());
@@ -476,10 +480,11 @@ void main() {
         algorithm: slow,
       );
 
+      final supersedingSlow = _SlowLayoutAlgorithm();
       _requestLayoutHandoff(
         cubit,
         handoffGraphId: graphId,
-        algorithm: _TerminalAtAlgorithm({graphId: ScenePoint(x: 1, y: 1)}),
+        algorithm: supersedingSlow,
       );
       await tester.pump(const Duration(milliseconds: 30));
 
@@ -493,6 +498,7 @@ void main() {
       expect(controller.renderSnapshot.presentation.overrides, isEmpty);
 
       slow.completer.complete();
+      supersedingSlow.completer.complete();
       await _settleLayout(tester, controller.scene);
     });
 

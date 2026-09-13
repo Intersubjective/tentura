@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:ui' show Offset, Size;
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:force_directed_graphview/force_directed_graphview.dart';
@@ -42,6 +43,14 @@ enum ConstellationEdgeKind {
 }
 
 const kConstellationLayoutMaxHops = 3;
+
+void _runAfterNextFrame(void Function() callback) {
+  if (BindingBase.debugBindingType() != null) {
+    WidgetsBinding.instance.addPostFrameCallback((_) => callback());
+  } else {
+    callback();
+  }
+}
 
 /// Server `HelpOfferCoordinationExceptionCode.offerKindChanged` wire code.
 const kOfferKindChangedCoordinationCode = 1516;
@@ -274,24 +283,29 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
   @visibleForTesting
   void requestConstellationLayoutForTest({
     SceneLayoutAlgorithm? algorithm,
+    bool bumpGraphRevision = true,
   }) {
     _ephemeralOwnedLayoutAlgorithm = algorithm;
     _awaitingConstellationLayoutOutcome = true;
     _scheduleLayoutRecoveryAfterRebuild = false;
-    if (!isClosed) {
-      emit(state.copyWith(graphRevision: state.graphRevision + 1));
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (isClosed ||
-            _ephemeralOwnedLayoutAlgorithm == null ||
-            state.graphLayoutFailureMessage != null) {
-          return;
-        }
-        _awaitingConstellationLayoutOutcome = true;
-        graphController.requestSceneLayout(
-          releaseOnTerminal: _activePresentationReleaseTokens(),
-        );
-      });
+    if (isClosed) {
+      return;
     }
+    if (bumpGraphRevision) {
+      emit(state.copyWith(graphRevision: state.graphRevision + 1));
+    }
+    _runAfterNextFrame(() {
+      if (isClosed ||
+          _ephemeralOwnedLayoutAlgorithm == null ||
+          state.graphLayoutFailureMessage != null) {
+        return;
+      }
+      _awaitingConstellationLayoutOutcome = true;
+      graphController.requestSceneLayout(
+        releaseOnTerminal: _activePresentationReleaseTokens(),
+        algorithm: graphSceneLayoutAlgorithm,
+      );
+    });
   }
 
   void _onGraphSceneLayoutOutcomeChanged() {
@@ -318,6 +332,11 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
       return;
     }
     if (state.graphLayoutFailureMessage != null) {
+      return;
+    }
+    final presentation = graphController.renderSnapshot.presentation;
+    if (presentation.holds.isNotEmpty || presentation.overrides.isNotEmpty) {
+      _ephemeralOwnedLayoutAlgorithm = null;
       return;
     }
 
@@ -1769,7 +1788,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     );
     emit(state.copyWith(graphRevision: state.graphRevision + 1));
     final handoffGeneration = ++_layoutHandoffGeneration;
-    WidgetsBinding.instance.addPostFrameCallback((_) {
+    _runAfterNextFrame(() {
       if (isClosed || handoffGeneration != _layoutHandoffGeneration) {
         return;
       }
@@ -1792,7 +1811,10 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
       }
     }
     _awaitingConstellationLayoutOutcome = true;
-    graphController.requestSceneLayout(releaseOnTerminal: releaseOnTerminal);
+    graphController.requestSceneLayout(
+      releaseOnTerminal: releaseOnTerminal,
+      algorithm: graphSceneLayoutAlgorithm,
+    );
   }
 
   /// [Profile.isMutuallyVisible] (and the "closed eye" copy it drives in the

@@ -36,7 +36,7 @@ The protected `packages/force_directed_graphview/analysis_options.yaml` change i
 | M03 scene controller plus legacy delegation | **accepted** | M02 accepted | two focused commits in plan order |
 | M04 rendering, ordering, focus, gesture snapshots | **accepted** | M03 accepted | focused renderer migration commits |
 | M05 Tentura graph layouts/adapters | **accepted** | M04 accepted | one focused commit per algorithm/mode |
-| M06 Constellation migration and handoff | pending | M05 accepted | three focused commits in plan order |
+| M06 Constellation migration and handoff | **accepted** (regression repair 2026-09-13) | M05 accepted | three focused commits in plan order |
 | M07 remove legacy architecture | **accepted** | M06 and R8 pre-removal gate accepted | `refactor(graph): remove object-keyed layout compatibility` |
 | M08 architecture enforcement/documentation | **accepted** | M07 accepted | `docs(graph): record stable scene architecture` |
 
@@ -758,7 +758,7 @@ Protected `packages/force_directed_graphview/analysis_options.yaml` not staged.
 
 ## STATUS
 
-- **complete** — M00–M08 accepted on `feature/pin_constellation`.
+- **in progress** — M00–M08 implementation packets are accepted; final browser, multiclient, and full verification acceptance remains open.
 
 ## COMMITS
 
@@ -812,14 +812,12 @@ cd packages/force_directed_graphview && flutter test --concurrency=1
 
 Protected `packages/force_directed_graphview/analysis_options.yaml` not staged.
 
-### Final acceptance after overlap-selection remediation (2026-09-13)
+### Superseded acceptance record (2026-09-13)
 
-- `8c2c3b0e4` repaired the final scene-ID migration regression: Constellation paint order uses the actual graph node IDs, overlay Requests resolve for selection, and `GraphView` dispatches an ID-based scene hit-test tap.
-- The single-client browser journey passed serially: `./scripts/run_client_integration_web_local.sh integration_test/constellation_pinning_test.dart`.
-- The actor-echo-disabled multiclient gate passed five serial runs: `REALTIME_MULTICLIENT_DRIVER=constellation_pinning_multiclient_web_test.dart REALTIME_MULTICLIENT_ACTOR_ECHO_ENABLED=false ./scripts/run_realtime_multiclient_web_local.sh`. Required live convergence, reconnect, stale-delete, and authorization-loss journeys passed. Hardware-only journeys remain explicitly blocked.
-- Final serial verification passed: graph package suite; client suite (`3124 passed, 29 skipped`); client and server custom lint gates; `packages/tentura_lints` tests; terminology check; and `git diff --check d84acc940..HEAD`.
-- Rollback: revert `8c2c3b0e4` first, then M08 (`a5aaa2d14`), M07 deletion (`f7dce7afd`), and its client migration (`efa076d7e`) only as a dependency-aware sequence. Keep the independent lifecycle repair `e0f51f48d` unless that behavior itself must be reverted.
+The earlier claims of five successful multiclient runs and a complete final verification matrix have no preserved current-run evidence. They are withdrawn and must not be used for acceptance.
 
+- The `8c2c3b0e4` scene-ID selection repair remains implementation history.
+- The actor-echo-disabled multiclient gate and the final paced test/lint matrix remain open.
 ## P2 — Astra layout lifecycle remediation (R3/R4) — 2026-09-13
 
 ### Work
@@ -927,7 +925,7 @@ cd packages/client && flutter test test/features/constellation/constellation_sce
 grep -E 'MemAvailable|SwapFree' /proc/meminfo | head -2
 ```
 
-**Browser integration:** **BLOCKED** — no local stack (`:8888` / `:2080` / `:9443` not listening). Did not run `./scripts/run_client_integration_web_local.sh integration_test/constellation_pinning_test.dart`.
+**Browser integration:** This earlier blocked attempt is superseded by the successful 2026-09-13 pointer-coordinate run recorded below.
 
 Protected `packages/force_directed_graphview/analysis_options.yaml` not staged.
 
@@ -937,13 +935,59 @@ Protected `packages/force_directed_graphview/analysis_options.yaml` not staged.
 
 **Fix:** Map scene centres with `GraphLayoutView.localToGlobal(scene)` only (matches `node_drag_gesture_test.dart` `_globalForScene`). Debug-only `assert` logs scene vs mis-mapped viewport globals when they diverge.
 
-**Proof (serial `--concurrency=1`, MemAvailable ~39.8 GiB → ~37.0 GiB / SwapFree ~7.87 GiB):**
+**Proof (serial `--concurrency=1`, memory checked before each command):**
 
 ```bash
-grep -E 'MemAvailable|SwapFree' /proc/meminfo | head -2
-cd packages/force_directed_graphview && flutter test test/node_drag_gesture_test.dart --plain-name 'node tap after camera pan' --plain-name 'overlap tap after camera pan' --concurrency=1
-grep -E 'MemAvailable|SwapFree' /proc/meminfo | head -2
+cd packages/force_directed_graphview
+flutter test test/node_drag_gesture_test.dart --plain-name 'node tap after camera pan uses GraphLayoutView scene localToGlobal' --concurrency=1
+# 1 passed
+flutter test test/node_drag_gesture_test.dart --plain-name 'overlap tap after camera pan misses when scene is mis-mapped' --concurrency=1
+# 1 passed
+
+cd /home/vader/MY_SRC/tentura
 ./scripts/run_client_integration_web_local.sh integration_test/constellation_pinning_test.dart 2>&1 | tee /tmp/constellation-pin-overlap-pointer.log
-grep -E 'MemAvailable|SwapFree' /proc/meminfo | head -2
-# graph 2 passed; browser overlap journey PASS (log: /tmp/constellation-pin-overlap-pointer.log)
+# [integration] PASS: integration_test/constellation_pinning_test.dart
+# [integration] all 1 integration test file(s) passed
 ```
+
+**Memory protocol:** serial Chrome-heavy commands; sample `MemAvailable` and `SwapFree` before starting each command and stop only task-owned processes if `MemAvailable` falls below the agreed 5 GiB threshold. Ordinary tests and lint checks use their normal parallelism.
+
+### M06 constellation regression repair — scene-ID handoff (worker: Composer 2.5, 2026-09-13)
+
+**Symptoms after scene-ID migration:** 16 failing constellation tests — `WidgetsBinding` not initialized in pure cubit tests; `constellation_scene_handoff_test.dart` expected `GraphLayoutOutcomeFailed` but saw `GraphLayoutOutcomeSucceeded`; supersession case threw `partialOrExtraPositions` / lost presentation token.
+
+**Root causes**
+
+1. `_rebuildGraph` / `requestConstellationLayoutForTest` used `WidgetsBinding.instance` unconditionally → pure cubit/freshness tests crashed without a binding.
+2. Owned-layout failure with active drag presentation triggered automatic projection recovery, replacing a terminal **Failed** scene outcome with a succeeding constellation relayout.
+3. `GraphController.requestSceneLayout` always used the GraphView-attached `_currentAlgorithm`, so test/ephemeral owned algorithms were ignored unless the widget rebuilt.
+4. Handoff harness `bumpGraphRevision` on owned test layout re-ran `GraphView._initController` relayout (constellation success) racing the malformed failure proof; supersession test used an instant terminal algorithm that released presentation on success.
+
+**Fixes**
+
+- `_runAfterNextFrame` defers handoff when a binding exists, runs immediately in unit tests.
+- Skip owned-layout auto-recovery when presentation **holds** or **overrides** are non-empty (failed handoff keeps drag semantics).
+- `requestSceneLayout({ algorithm })` optional override; constellation cubit passes `graphSceneLayoutAlgorithm` for handoff and owned test requests.
+- `requestConstellationLayoutForTest(..., bumpGraphRevision: false)` for handoff tests; supersession uses a second `_SlowLayoutAlgorithm` instead of partial single-node terminal.
+
+**Verification (serial)**
+
+```bash
+cd packages/client && flutter test test/features/constellation/constellation_anchor_cubit_test.dart
+# exit 0
+
+cd packages/client && flutter test test/features/constellation/constellation_scene_handoff_test.dart
+# exit 0, 5 passed
+
+cd packages/client && flutter test test/features/constellation/
+# exit 0, 248 passed
+```
+
+Protected `packages/force_directed_graphview/analysis_options.yaml` not staged.
+
+### Current final-acceptance state (2026-09-13)
+
+- Browser pointer proof: **PASS** (the exact log above).
+- Multiclient gate: **not yet run in this acceptance pass**.
+- Full test/lint matrix: **in progress**.
+- Overall plan status: **in progress** until both remaining gates produce current evidence.
