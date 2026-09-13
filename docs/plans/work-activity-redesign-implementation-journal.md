@@ -554,6 +554,8 @@ DECISIONS:
 
 REMAINING: none. Proceed to UNIT 15.
 
+**Manager verdict: ACCEPTED.** Independently re-ran all three Verify commands (build_runner clean, 8/8 flutter test, lints 32/32 baseline). Confirmed via `git diff --stat` against the pre-unit HEAD that `inbox_cubit.dart` was not touched at all. The `$userId` variable declared-but-unused in `activity_offers.graphql` matches a pre-existing convention already present in `inbox_fetch.graphql` (Hasura's row permission does the actual scoping; the variable isn't a new oddity this unit introduced). Read the full `ActivityOffersCubit` implementation: `loadFirst()` fetches the page and count in parallel with independent try/catch, nulling `totalCount` AND setting `countLoadFailed` on failure (doubly distinguishing failure from zero); `loadMore()` uses the last item's `(latestForwardAt, beaconId)` as the next cursor with a defensive de-dupe on merge; `_upsertOpenForward`/`_demoteBeacon` correctly move ids between `items` and the held-back bucket depending on `_scrolledAway`, and `_demoteBeacon` only emits on `demotedBeaconIds` when the beacon was actually present (no spurious signals); `_refreshUnseenDots` chunks at 500 with its own generation guard, independent of the page-load generation. Two nice, safe additions beyond the literal ask: a 50ms per-beacon debounce on realtime-triggered refetches, and a separate lightweight `ActivityOffersCount` query used for the live "refresh totalCount on every change" path instead of re-paging. Verified the tie-break test's `_PagingRepo` fake genuinely implements keyset-cursor slicing (locates the `(cursorAt, cursorBeaconId)` row and returns everything after it) rather than returning canned pages — a real test, not a vacuous one. All 8 tests map 1:1 to the plan's required scenarios. No leaked processes, clean git status, commits well split (fragment extraction as its own commit).
+
 ## Ordered unit checklist
 
 | Unit | Status |
@@ -572,7 +574,7 @@ REMAINING: none. Proceed to UNIT 15.
 | 11 | complete (accepted) |
 | 12 | complete (accepted, real bug caught + fixed by worker) |
 | 13 | complete (accepted) |
-| 14 | complete |
+| 14 | complete (accepted) |
 | 15 | pending |
 | 16 | pending |
 | 17 | pending |
