@@ -326,7 +326,7 @@ COMMITS:
 - `b434994ba` feat(client): add work activity redesign gate
 - `5b5b0a250` feat(client): add section header and summary row
 - `84b1d804e` refactor(client): share attention summary row at call sites
-- (this entry) docs: UNIT 09 journal
+- `b324ccfaf` docs: record UNIT 09 redesign gate and DS components
 
 TESTS:
 - `cd packages/client && dart run build_runner build -d` → exit 0 (`WorkActivityRedesignGateModule` in generated `di.config.dart`)
