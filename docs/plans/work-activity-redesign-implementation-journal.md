@@ -402,7 +402,7 @@ REMAINING: none. Proceed to UNIT 11.
 COMMITS:
 - `4d75afc19` feat(client): load per-request attention in my work
 - `de01d7ed4` test(client): cover my work attention state
-- (pending) docs: UNIT 11 journal
+- `331a76bab` docs: UNIT 11 my work attention state journal
 
 TESTS:
 - `cd packages/client && dart run build_runner build -d` → exit 0
