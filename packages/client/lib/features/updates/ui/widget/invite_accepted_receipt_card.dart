@@ -11,6 +11,8 @@ import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/updates/domain/entity/prompt_projection.dart';
 import 'package:tentura/features/updates/domain/use_case/invite_accepted_setup_case.dart';
 import 'package:tentura/features/updates/ui/widget/invite_accepted_setup_sheet.dart';
+import 'package:tentura/design_system/components/tentura_avatar.dart';
+import 'package:tentura/features/inbox/ui/widget/activity_offer_bounded_shell.dart';
 import 'package:tentura/features/updates/ui/widget/updates_feed_tile.dart';
 import 'package:tentura/features/updates/updates_receipt_display_copy.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
@@ -27,6 +29,7 @@ class InviteAcceptedReceiptCard extends StatefulWidget {
     this.onRetryPromptFetch,
     this.onPromptSettled,
     this.setupCase,
+    this.activityOfferBoundedShell = false,
     super.key,
   });
 
@@ -39,6 +42,9 @@ class InviteAcceptedReceiptCard extends StatefulWidget {
   final void Function(String subjectId, InviteSeedPromptState state)?
   onPromptSettled;
   final InviteAcceptedSetupPort? setupCase;
+
+  /// When true, render inside [ActivityOfferBoundedShell] (Activity pinned zone).
+  final bool activityOfferBoundedShell;
 
   @override
   State<InviteAcceptedReceiptCard> createState() =>
@@ -204,6 +210,35 @@ class _InviteAcceptedReceiptCardState extends State<InviteAcceptedReceiptCard> {
       );
     } else {
       action = null;
+    }
+
+    if (widget.activityOfferBoundedShell) {
+      final subjectId = _subjectId;
+      final profile =
+          _inviteeProfile ??
+          (subjectId != null
+              ? Profile(id: subjectId, displayName: copy.title)
+              : null);
+      final tt = context.tt;
+      return ActivityOfferBoundedShell(
+        leading: profile != null
+            ? TenturaAvatar(
+                profile: profile,
+                sizeBucket: TenturaAvatarSize.medium,
+              )
+            : SizedBox.square(dimension: tt.avatarSize),
+        headline: copy.title,
+        whyLine: copy.body,
+        createdAt: receipt.createdAt,
+        showUnseenDot: !receipt.isSeen,
+        onBodyTap: widget.onTap,
+        footer: action != null
+            ? Padding(
+                padding: EdgeInsets.only(left: tt.tightGap),
+                child: action,
+              )
+            : null,
+      );
     }
 
     return UpdatesFeedTile(

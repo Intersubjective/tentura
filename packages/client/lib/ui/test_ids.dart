@@ -25,6 +25,13 @@ abstract final class TestIds {
 
   static const activityPromptCollapsed = 'activity-prompt-collapsed';
 
+  static String activityOffer(String beaconId) => 'activity-offer-$beaconId';
+
+  static String activityForwardRow(String beaconId) =>
+      'activity-forward-row-$beaconId';
+
+  static const activityWatchingDigest = 'activity-watching-digest';
+
   static const inboxOfferHelp = 'inbox.offer_help';
   static const inboxForward = 'inbox.forward';
   static const inboxDismiss = 'inbox.dismiss';
