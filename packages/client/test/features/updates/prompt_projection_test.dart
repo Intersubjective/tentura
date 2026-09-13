@@ -10,6 +10,7 @@ import 'package:tentura/domain/attention/entity/attention_summary.dart';
 import 'package:tentura/domain/attention/feed_session_registry.dart';
 import 'package:tentura/domain/attention/port/attention_account_port.dart';
 import 'package:tentura/domain/attention/port/attention_repository_port.dart';
+import '../../support/attention_repository_fake_base.dart';
 import 'package:tentura/domain/capability/invite_seed_prompt_state.dart';
 import 'package:tentura/domain/capability/prompt_state_value.dart';
 import 'package:tentura/domain/entity/realtime/realtime_entity_change.dart';
@@ -33,7 +34,7 @@ final class _Accounts implements AttentionAccountPort {
   Future<void> close() => _changes.close();
 }
 
-final class _Repository implements AttentionRepositoryPort {
+final class _Repository extends AttentionRepositoryFake {
   final pendingFetches = <Completer<AttentionFeed>>[];
 
   @override
@@ -42,6 +43,7 @@ final class _Repository implements AttentionRepositoryPort {
     String? cursor,
     String? search,
     int limit = 50,
+    AttentionSurface? surface,
   }) =>
       pendingFetches.removeAt(0).future;
 
@@ -52,7 +54,7 @@ final class _Repository implements AttentionRepositoryPort {
   Future<Set<String>> liveObligationBeacons() async => const {};
 
   @override
-  Future<int> markAllSeen() async => 0;
+  Future<int> markAllSeen({AttentionSurface? surface}) async => 0;
 
   @override
   Future<int> markSeen(List<String> ids) async => 0;
@@ -102,6 +104,7 @@ AttentionReceipt _inviteReceipt({String id = 'receipt-invite-1'}) =>
       collapsedCount: 1,
       presentationKey: 'invite_accepted',
       presentationPayloadJson: '{"inviteOrigin":"new_account"}',
+      surface: AttentionSurface.activity,
       actorUserId: 'invitee-1',
       targetEntityId: 'invitee-1',
     );

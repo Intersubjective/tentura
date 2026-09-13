@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:tentura/consts.dart';
 import 'package:tentura/domain/attention/destination_map.dart';
+import 'package:tentura/domain/attention/entity/attention_feed.dart';
 import 'package:tentura/domain/attention/entity/attention_receipt.dart';
 import 'package:tentura/features/beacon_threads/domain/entity/request_thread.dart';
 
@@ -21,6 +22,7 @@ void main() {
     createdAt: DateTime.utc(2026),
     collapsedCount: 1,
     presentationPayloadJson: '{}',
+    surface: AttentionSurface.activity,
     beaconId: beaconId,
     destinationKind: destinationKind,
     targetEntityId: targetEntityId,

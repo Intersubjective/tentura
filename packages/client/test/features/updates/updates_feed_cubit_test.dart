@@ -10,6 +10,7 @@ import 'package:tentura/domain/attention/entity/attention_summary.dart';
 import 'package:tentura/domain/attention/feed_session_registry.dart';
 import 'package:tentura/domain/attention/port/attention_account_port.dart';
 import 'package:tentura/domain/attention/port/attention_repository_port.dart';
+import '../../support/attention_repository_fake_base.dart';
 import 'package:tentura/domain/use_case/realtime_sync_case.dart';
 import 'package:tentura/features/updates/ui/bloc/updates_feed_cubit.dart';
 import 'package:tentura/ui/bloc/state_base.dart';
@@ -29,7 +30,7 @@ final class _Accounts implements AttentionAccountPort {
   Future<void> close() => _changes.close();
 }
 
-final class _Repository implements AttentionRepositoryPort {
+final class _Repository extends AttentionRepositoryFake {
   final pendingFetches = <Completer<AttentionFeed>>[];
 
   @override
@@ -38,6 +39,7 @@ final class _Repository implements AttentionRepositoryPort {
     String? cursor,
     String? search,
     int limit = 50,
+    AttentionSurface? surface,
   }) => pendingFetches.removeAt(0).future;
 
   @override
@@ -47,7 +49,7 @@ final class _Repository implements AttentionRepositoryPort {
   Future<Set<String>> liveObligationBeacons() async => const {};
 
   @override
-  Future<int> markAllSeen() async => 0;
+  Future<int> markAllSeen({AttentionSurface? surface}) async => 0;
 
   @override
   Future<int> markSeen(List<String> ids) async => 0;
@@ -71,6 +73,7 @@ AttentionReceipt _receipt({String id = 'receipt-1'}) => AttentionReceipt(
   createdAt: DateTime.utc(2026),
   collapsedCount: 1,
   presentationPayloadJson: '{}',
+  surface: AttentionSurface.activity,
 );
 
 AttentionFeed _feed({List<AttentionReceipt>? items}) => AttentionFeed(

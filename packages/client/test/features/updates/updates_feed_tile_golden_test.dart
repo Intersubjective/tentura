@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/attention/entity/attention_receipt.dart';
+import 'package:tentura/domain/attention/entity/attention_feed.dart';
 import 'package:tentura/features/updates/ui/widget/updates_feed_app_bar.dart';
 import 'package:tentura/features/updates/ui/widget/updates_receipt_card.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
@@ -20,6 +21,7 @@ AttentionReceipt _unreadObligation() => AttentionReceipt(
   collapsedCount: 1,
   presentationKey: 'needs_me',
   presentationPayloadJson: '{"beaconTitle":"Garden cleanup"}',
+  surface: AttentionSurface.activity,
   beaconId: 'b1',
   requiresAction: true,
 );

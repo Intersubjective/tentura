@@ -13,6 +13,7 @@ import 'package:tentura/domain/attention/entity/attention_summary.dart';
 import 'package:tentura/domain/attention/feed_session_registry.dart';
 import 'package:tentura/domain/attention/port/attention_account_port.dart';
 import 'package:tentura/domain/attention/port/attention_repository_port.dart';
+import '../../support/attention_repository_fake_base.dart';
 import 'package:tentura/features/home/ui/bloc/home_attention_cubit.dart';
 import 'package:tentura/features/home/ui/widget/my_work_navbar_item.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
@@ -31,7 +32,7 @@ final class _Accounts implements AttentionAccountPort {
   Future<void> close() => _changes.close();
 }
 
-final class _Repository implements AttentionRepositoryPort {
+final class _Repository extends AttentionRepositoryFake {
   int needsYouTotal = 0;
 
   @override
@@ -40,6 +41,7 @@ final class _Repository implements AttentionRepositoryPort {
     String? cursor,
     String? search,
     int limit = 50,
+    AttentionSurface? surface,
   }) async => AttentionFeed(
     summary: AttentionSummary(needsYouTotal: needsYouTotal),
     page: const AttentionFeedPage(),
@@ -53,7 +55,7 @@ final class _Repository implements AttentionRepositoryPort {
   Future<Set<String>> liveObligationBeacons() async => const {};
 
   @override
-  Future<int> markAllSeen() async => 0;
+  Future<int> markAllSeen({AttentionSurface? surface}) async => 0;
 
   @override
   Future<int> markSeen(List<String> ids) async => 0;

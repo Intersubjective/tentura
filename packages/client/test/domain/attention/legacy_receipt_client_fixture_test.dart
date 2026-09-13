@@ -128,6 +128,11 @@ Map<String, dynamic> _wireReceipt() => {
   'attentionThreadKey': null,
   'settlementKind': null,
   'settledAt': null,
+  'surface': 'activity',
+  'itemKind': 'receipt',
+  'forwardOutcome': null,
+  'forwardCount': null,
+  'digestCount': null,
 };
 
 final class _FixtureRemoteClient implements RemoteRequestClient {

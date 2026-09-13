@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/attention/entity/attention_receipt.dart';
+import 'package:tentura/domain/attention/entity/attention_feed.dart';
 import 'package:tentura/features/updates/ui/widget/trust_change_receipt_card.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/l10n/l10n_en.dart';
@@ -28,6 +29,7 @@ AttentionReceipt _trustReceipt({
       collapsedCount: 1,
       presentationKey: presentationKey,
       presentationPayloadJson: presentationPayloadJson,
+      surface: AttentionSurface.activity,
       beaconId: beaconId,
       actorUserId: 'actor-1',
       seenAt: seenAt ?? DateTime.utc(2026, 8, 4),

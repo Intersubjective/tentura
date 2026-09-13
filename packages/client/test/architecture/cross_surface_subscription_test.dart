@@ -9,6 +9,7 @@ import 'package:tentura/domain/attention/entity/attention_feed.dart';
 import 'package:tentura/domain/attention/entity/attention_summary.dart';
 import 'package:tentura/domain/attention/port/attention_account_port.dart';
 import 'package:tentura/domain/attention/port/attention_repository_port.dart';
+import '../support/attention_repository_fake_base.dart';
 import 'package:tentura/domain/entity/realtime/realtime_entity_change.dart';
 import 'package:tentura/features/beacon_threads/domain/entity/beacon_room_invalidation.dart';
 import 'package:tentura/features/updates/ui/bloc/updates_feed_cubit.dart';
@@ -201,7 +202,7 @@ final class _RecordingAccounts implements AttentionAccountPort {
   void emit(String accountId) => _changes.add(accountId);
 }
 
-final class _RecordingAttentionRepository implements AttentionRepositoryPort {
+final class _RecordingAttentionRepository extends AttentionRepositoryFake {
   int fetchCalls = 0;
 
   @override
@@ -210,6 +211,7 @@ final class _RecordingAttentionRepository implements AttentionRepositoryPort {
     String? cursor,
     String? search,
     int limit = 50,
+    AttentionSurface? surface,
   }) async {
     fetchCalls++;
     return AttentionFeed(
@@ -226,7 +228,7 @@ final class _RecordingAttentionRepository implements AttentionRepositoryPort {
   Future<Set<String>> liveObligationBeacons() async => const {};
 
   @override
-  Future<int> markAllSeen() async => 0;
+  Future<int> markAllSeen({AttentionSurface? surface}) async => 0;
 
   @override
   Future<int> markSeen(List<String> ids) async => 0;

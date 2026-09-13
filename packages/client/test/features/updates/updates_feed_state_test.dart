@@ -20,6 +20,7 @@ void main() {
         createdAt: DateTime.utc(2026),
         collapsedCount: 1,
         presentationPayloadJson: '{}',
+        surface: AttentionSurface.activity,
       );
       final state = UpdatesFeedState(
         view: AttentionView.unread,

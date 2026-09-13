@@ -13,6 +13,7 @@ import 'package:tentura/domain/attention/entity/attention_summary.dart';
 import 'package:tentura/domain/attention/feed_session_registry.dart';
 import 'package:tentura/domain/attention/port/attention_account_port.dart';
 import 'package:tentura/domain/attention/port/attention_repository_port.dart';
+import '../../support/attention_repository_fake_base.dart';
 import 'package:tentura/domain/entity/realtime/realtime_catch_up.dart';
 import 'package:tentura/domain/use_case/realtime_sync_case.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
@@ -93,7 +94,7 @@ final class ControllableAttentionAccounts implements AttentionAccountPort {
   Future<void> dispose() => _changes.close();
 }
 
-final class ControllableAttentionRepository implements AttentionRepositoryPort {
+final class ControllableAttentionRepository extends AttentionRepositoryFake {
   final List<Completer<AttentionFeed>> pendingFetches = [];
 
   @override
@@ -102,6 +103,7 @@ final class ControllableAttentionRepository implements AttentionRepositoryPort {
     String? cursor,
     String? search,
     int limit = 50,
+    AttentionSurface? surface,
   }) => pendingFetches.removeAt(0).future;
 
   @override
@@ -112,7 +114,7 @@ final class ControllableAttentionRepository implements AttentionRepositoryPort {
   Future<Set<String>> liveObligationBeacons() async => const {};
 
   @override
-  Future<int> markAllSeen() async => 0;
+  Future<int> markAllSeen({AttentionSurface? surface}) async => 0;
 
   @override
   Future<int> markSeen(List<String> ids) async => 0;
@@ -142,6 +144,7 @@ AttentionFeed buildAttentionFeed({int unread = 1}) => AttentionFeed(
         createdAt: DateTime.utc(2026),
         collapsedCount: 1,
         presentationPayloadJson: '{}',
+        surface: AttentionSurface.activity,
       ),
     ],
   ),

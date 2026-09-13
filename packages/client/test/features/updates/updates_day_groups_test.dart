@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:tentura/domain/attention/entity/attention_feed.dart';
 import 'package:tentura/domain/attention/entity/attention_receipt.dart';
 import 'package:tentura/features/updates/ui/widget/updates_day_groups.dart';
 
@@ -17,6 +18,7 @@ AttentionReceipt _receipt({
   createdAt: createdAt,
   collapsedCount: 1,
   presentationPayloadJson: '{}',
+  surface: AttentionSurface.activity,
 );
 
 void main() {

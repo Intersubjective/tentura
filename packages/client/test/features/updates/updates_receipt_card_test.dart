@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/attention/entity/attention_receipt.dart';
+import 'package:tentura/domain/attention/entity/attention_feed.dart';
 import 'package:tentura/features/updates/ui/widget/updates_feed_tile.dart';
 import 'package:tentura/features/updates/ui/widget/updates_receipt_card.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
@@ -30,6 +31,7 @@ AttentionReceipt _receipt({
       collapsedCount: 1,
       presentationKey: presentationKey,
       presentationPayloadJson: presentationPayloadJson,
+      surface: AttentionSurface.activity,
       beaconId: beaconId,
       actorUserId: 'actor-1',
       requiresAction: requiresAction,

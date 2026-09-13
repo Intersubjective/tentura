@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/attention/entity/attention_receipt.dart';
+import 'package:tentura/domain/attention/entity/attention_feed.dart';
 import 'package:tentura/domain/capability/invite_seed_prompt_state.dart';
 import 'package:tentura/domain/capability/prompt_state_value.dart';
 import 'package:tentura/domain/entity/profile.dart';
@@ -65,6 +66,7 @@ AttentionReceipt _receipt() => AttentionReceipt(
   collapsedCount: 1,
   presentationKey: 'invite_accepted',
   presentationPayloadJson: '{"inviteOrigin":"new_account"}',
+  surface: AttentionSurface.activity,
   actorUserId: 'invitee-1',
   targetEntityId: 'invitee-1',
 );
