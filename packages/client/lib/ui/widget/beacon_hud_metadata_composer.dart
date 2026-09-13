@@ -25,6 +25,7 @@ List<BeaconHudMetadataEntry> buildMyWorkHudMetadataEntries(
   required Beacon beacon,
   required MyWorkCardViewModel viewModel,
   required String currentUserId,
+  bool hideLastEventMetadata = false,
 }) {
   final l10n = L10n.of(context)!;
   final tt = context.tt;
@@ -135,7 +136,8 @@ List<BeaconHudMetadataEntry> buildMyWorkHudMetadataEntries(
     }
   }
 
-  if (!hideCoordinationHud &&
+  if (!hideLastEventMetadata &&
+      !hideCoordinationHud &&
       myWorkLastEventMetadataVisible(
         beacon: beacon,
         viewModel: viewModel,

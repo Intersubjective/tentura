@@ -3407,6 +3407,31 @@
   "@myWorkReviewCta": {
     "context": "MyWorkScreen"
   },
+  "myWorkObligationDone": "Готово",
+  "@myWorkObligationDone": {
+    "context": "MyWorkScreen"
+  },
+  "myWorkObligationMore": "{count, plural, one{ещё {count}} other{ещё {count}}}",
+  "@myWorkObligationMore": {
+    "context": "MyWorkScreen",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "myWorkWhatsNew": "{count, plural, one{{count} новых · {headline}} other{{count} новых · {headline}}}",
+  "@myWorkWhatsNew": {
+    "context": "MyWorkScreen",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "headline": {
+        "type": "String"
+      }
+    }
+  },
   "myWorkEditDraft": "Редактировать черновик",
   "@myWorkEditDraft": {
     "context": "MyWorkScreen"

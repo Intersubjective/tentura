@@ -3416,6 +3416,31 @@
   "@myWorkReviewCta": {
     "context": "MyWorkScreen"
   },
+  "myWorkObligationDone": "Done",
+  "@myWorkObligationDone": {
+    "context": "MyWorkScreen"
+  },
+  "myWorkObligationMore": "{count, plural, one{{count} more} other{{count} more}}",
+  "@myWorkObligationMore": {
+    "context": "MyWorkScreen",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "myWorkWhatsNew": "{count, plural, one{{count} new · {headline}} other{{count} new · {headline}}}",
+  "@myWorkWhatsNew": {
+    "context": "MyWorkScreen",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "headline": {
+        "type": "String"
+      }
+    }
+  },
   "myWorkEditDraft": "Edit draft",
   "@myWorkEditDraft": {
     "context": "MyWorkScreen"
