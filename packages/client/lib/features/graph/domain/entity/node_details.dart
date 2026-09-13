@@ -38,7 +38,8 @@ sealed class NodeDetails {
       score.hashCode ^
       rScore.hashCode ^
       userId.hashCode ^
-      hasImage.hashCode;
+      hasImage.hashCode ^
+      pinned.hashCode;
 
   @override
   bool operator ==(Object other) =>
@@ -50,7 +51,8 @@ sealed class NodeDetails {
           score == other.score &&
           rScore == other.rScore &&
           userId == other.userId &&
-          hasImage == other.hasImage;
+          hasImage == other.hasImage &&
+          pinned == other.pinned;
 }
 
 final class UserNode extends NodeDetails {

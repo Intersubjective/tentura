@@ -991,3 +991,20 @@ Protected `packages/force_directed_graphview/analysis_options.yaml` not staged.
 - Multiclient gate: **not yet run in this acceptance pass**.
 - Full test/lint matrix: **in progress**.
 - Overall plan status: **in progress** until both remaining gates produce current evidence.
+
+### Focus-path pin regression after scene-ID reconcile (2026-09-13)
+
+**Symptoms (full client suite):** `graph_cubit_genealogy_test` parent-chain pin assertion saw `{true, false}` instead of `{true}`; `graph_focus_path_visibility_test` pinned ids were `{Ume}` instead of `{Ume, Ub, Ue}`.
+
+**Root cause:** `GraphController.reconcileTopology` replaces payloads only when `existing != entry.value`. `NodeDetails.==` ignored `pinned`, so `_syncFocusPathPins` / `_recomputeVisibility` pin updates were dropped while scene topology still keyed by stable graph node ids (more reconcile traffic after scene-ID migration).
+
+**Fix:** Include `pinned` in `NodeDetails` equality + `hashCode`. Test: `graph_scene_ids_test` edge stub uses `EdgeDetails.copyWith` (legacy `replaceNode` removed).
+
+```bash
+cd packages/client && flutter test test/features/graph/graph_cubit_genealogy_test.dart --plain-name 'genealogy parent-chain nodes pin on first exploration tap'
+cd packages/client && flutter test test/features/graph/graph_focus_path_visibility_test.dart --plain-name 'previously focused nodes stay pinned'
+./scripts/check-custom-lints.sh packages/client
+# all exit 0
+```
+
+Protected `packages/force_directed_graphview/analysis_options.yaml` not staged.

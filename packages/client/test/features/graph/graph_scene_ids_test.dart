@@ -48,7 +48,7 @@ void main() {
       color: const Color(0xFF0000FF),
       strokeWidth: 2,
     );
-    final thick = thin.replaceNode(strokeWidth: 5);
+    final thick = thin.copyWith(strokeWidth: 5);
     expect(tenturaGraphEdgeId(thin), tenturaGraphEdgeId(thick));
   });
 }
