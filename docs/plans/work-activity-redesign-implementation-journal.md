@@ -474,6 +474,14 @@ DECISIONS:
 
 REMAINING: none. Proceed to UNIT 13.
 
+**Manager verdict: ACCEPTED — real bug caught and fixed by the worker.** Independently re-ran all four Verify commands (gen-l10n clean, 154/154 flutter test, lints 32/32 baseline, terminology check OK). Confirmed `pubspec.yaml`/`web/index.html` both carry `7.6.9` consistently.
+
+The worker discovered that `AttentionCase.settle` early-returns when the receipt isn't in `_receiptsById` (the feed-session cache) — which My Work obligations never populate, since they arrive via `myWorkAttention`, not a mounted feed session. Calling the existing `settle` from the new "Done" button would have silently done nothing. Fix reviewed in full: `settle(receiptId)` keeps its exact original cache-check-then-delegate shape (zero behavior change for existing callers), and a new public `settleReceipt(receiptId)` holds the actual mutation + refresh side effects, which both paths now share. Correct, minimal, safe.
+
+The unplanned touch to `my_work_card_metadata_row.dart`/`beacon_hud_metadata_composer.dart` (suppressing the last-event HUD row under the gate so it doesn't duplicate the muted what's-new fallback) is equally clean: new parameter `hideLastEventMetadata` defaults `false`, and the one call site passes `readWorkActivityRedesignGateEnabled()` — with the gate off (`false`), the added `!hideLastEventMetadata &&` condition is always true, so gate-off behavior is provably unchanged.
+
+Read the full `my_work_cards.dart` diff: every gating point is correct — `_myWorkAttentionMarker`/`hasReviewCta`/`vm.showReviewCta` conditions reduce to their exact original expressions when the gate is off; `_openBeacon`/`_openBeaconOrSelect` only call the new `openedBeacon` inside a gate-on check, the router push itself stays unconditional; `_myWorkCardAttentionSection` renders `SizedBox.shrink()` when the gate is off. Mounted consistently across all five card kinds. Personally opened the 5-obligations-collapsed golden: exactly 3 full obligation rows with trailing "Done" actions plus a shorter "2 more" row beneath — matches spec and the worker's own description, no overflow artifacts. No leaked processes, clean git status, commits well split.
+
 ## Ordered unit checklist
 
 | Unit | Status |
@@ -490,7 +498,7 @@ REMAINING: none. Proceed to UNIT 13.
 | 09 | complete (accepted) |
 | 10 | complete (accepted) |
 | 11 | complete (accepted) |
-| 12 | complete |
+| 12 | complete (accepted, real bug caught + fixed by worker) |
 | 13 | pending |
 | 14 | pending |
 | 15 | pending |
