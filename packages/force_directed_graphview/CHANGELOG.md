@@ -1,3 +1,12 @@
+## 0.6.2+tentura.3 (Tentura fork)
+
+- **Scene-native API only:** ID-keyed `GraphSceneController`, `SceneLayoutAlgorithm`,
+  `GraphLayoutRequest` / `GraphLayoutFrame`, and ticket/token presentation lifecycle.
+- **Removed** object-keyed `GraphLayout`, legacy `GraphLayoutAlgorithm`, compatibility
+  adapters, `clear(recenter:)`, and node-instance presentation APIs (see package README).
+- Documented scene/domain boundary, layout ticket rules, and Constellation adapter
+  expectations in README.
+
 ## 0.6.2+tentura.2 (Tentura fork)
 
 - Fix `jumpToPosition` / `jumpToNode(resetScale: true)` to center nodes using the

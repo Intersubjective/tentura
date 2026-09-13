@@ -2025,3 +2025,23 @@ harness follow-ups. Residual risk: some PG tests still use a private
 **Status:** repository activation is ready for coordinated deployment. No
 production migration, server deployment, client publication, or production
 smoke test was performed in this repository step.
+
+### Scene decoupling M08 — graph architecture enforcement — 2026-09-13
+
+**Accepted evidence** (parent plan
+[`force-directed-graphview-scene-decoupling-plan.md`](force-directed-graphview-scene-decoupling-plan.md),
+journal
+[`force-directed-graphview-scene-decoupling-implementation-journal.md`](force-directed-graphview-scene-decoupling-implementation-journal.md)):
+
+- M07 removed object-keyed layout compatibility; M08 documented the stable
+  scene API in `packages/force_directed_graphview/README.md` and CHANGELOG
+  `0.6.2+tentura.3`.
+- Constellation domain import boundary:
+  `packages/client/test/architecture/constellation_domain_graph_boundary_test.dart`
+  (no `package:flutter/` or `force_directed_graphview` under
+  `lib/features/constellation/domain`; deliberate violation fails, removal passes).
+- C6 cross-reference added in `constellation-pinning-plan.md` for post-migration
+  ticket/token presentation (replaces historical `setNodePresentationPosition`
+  wording in shipped code).
+- Commit subject: `docs(graph): record stable scene architecture` (see scene
+  decoupling journal for exact hash, tests, and memory samples).

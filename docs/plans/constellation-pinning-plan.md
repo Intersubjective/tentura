@@ -609,6 +609,8 @@ For each automatic node: try a prior hint only if parent, ring and viewport clas
 
 In the local graph package add optional, default-off node-drag callbacks, camera-interaction gating, scene-coordinate conversion and `GraphController.setNodePresentationPosition` (single-node layout override, not `mutate`/relayout). Use it for drag frames and attached edges only. Feed one shared node order to painting, labels and hit testing. Existing trust/forward/genealogy callers retain current behavior when hooks are absent.
 
+**Post-migration (scene decoupling M07–M08):** production uses ID-keyed `GraphSceneController` presentation tokens and layout tickets instead of `setNodePresentationPosition` / object-keyed layout. Constellation domain purity and the scene/domain split are documented and checked in [`force-directed-graphview-scene-decoupling-plan.md`](force-directed-graphview-scene-decoupling-plan.md) and `packages/force_directed_graphview/README.md`.
+
 ### C7 — Interaction and reconciliation state machine
 
 Feature state stores `confirmedProjection`, `projectionRevision`, typed pending command, account/load generations, and placement state `idle | draggingExisting | draggingNew | provisionalNew`. One local placement/write is active at a time; disable other pin/move/unpin actions while its request is pending, but leave camera and navigation usable. No per-frame HTTP calls.

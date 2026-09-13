@@ -38,7 +38,7 @@ The protected `packages/force_directed_graphview/analysis_options.yaml` change i
 | M05 Tentura graph layouts/adapters | **accepted** | M04 accepted | one focused commit per algorithm/mode |
 | M06 Constellation migration and handoff | pending | M05 accepted | three focused commits in plan order |
 | M07 remove legacy architecture | **accepted** | M06 and R8 pre-removal gate accepted | `refactor(graph): remove object-keyed layout compatibility` |
-| M08 architecture enforcement/documentation | pending | M07 accepted | focused documentation/enforcement commit if needed |
+| M08 architecture enforcement/documentation | **accepted** | M07 accepted | `docs(graph): record stable scene architecture` |
 
 ## Required gates
 
@@ -691,36 +691,106 @@ Protected `packages/force_directed_graphview/analysis_options.yaml` not staged.
 
 ---
 
+## M08 — Architecture enforcement and documentation (worker: Composer 2.5, 2026-09-13)
+
+### Work
+
+- **`packages/force_directed_graphview/README.md`:** final scene API — layers, ticket/frame lifecycle, resolved-position precedence, explicit camera, M07 compatibility removal list (no legacy `GraphLayout` examples).
+- **`packages/force_directed_graphview/CHANGELOG.md`:** `0.6.2+tentura.3` entry for scene-native surface and removal notes.
+- **`packages/client/test/architecture/constellation_domain_graph_boundary_test.dart`:** static import guard for `lib/features/constellation/domain` — forbids `package:flutter/` and `package:force_directed_graphview` (allows existing `dart:ui` geometry per C6).
+- **`docs/plans/constellation-pinning-plan.md`:** C6 cross-reference to scene decoupling plan + package README (post-migration pointer only).
+- **M07 review defect:** removed trailing blank line at EOF on this journal and `tentura_layout_algorithms.dart` so `git diff --check d84acc940..HEAD` is clean.
+
+### Boundary violation proof (architecture test)
+
+Deliberate violation (not committed):
+
+```bash
+# prepend to lib/features/constellation/domain/constellation_density.dart:
+# import 'package:force_directed_graphview/force_directed_graphview.dart';
+cd packages/client && flutter test test/architecture/constellation_domain_graph_boundary_test.dart --concurrency=1
+# → failed: must not import force_directed_graphview
+
+# remove the line → same command → passed
+```
+
+### Verification (serial, `--concurrency=1`, memory recorded per command)
+
+MemAvailable ~46.9–47.4 GiB; SwapFree ~5.50 GiB stable (above 35 GiB gate).
+
+```bash
+# deliberate violation (prepend force_directed_graphview import to constellation_density.dart)
+cd packages/client && flutter test test/architecture/constellation_domain_graph_boundary_test.dart --concurrency=1
+# exit 1 — failed: must not import force_directed_graphview
+
+cd packages/client && flutter test test/architecture/constellation_domain_graph_boundary_test.dart --concurrency=1
+# exit 0, 1 passed (~2.3s)
+
+git diff --check d84acc940..HEAD
+# exit 0 (after EOF fix in this commit)
+```
+
+Protected `packages/force_directed_graphview/analysis_options.yaml` not staged.
+
+### Changed paths (M08 commit)
+
+- `packages/force_directed_graphview/README.md`
+- `packages/force_directed_graphview/CHANGELOG.md`
+- `packages/client/test/architecture/constellation_domain_graph_boundary_test.dart` (new)
+- `docs/plans/force-directed-graphview-scene-decoupling-implementation-journal.md`
+- `docs/plans/constellation-pinning-plan.md` (C6 cross-reference)
+- `docs/plans/constellation-pinning-implementation-journal.md` (M08 evidence)
+- `packages/client/lib/features/graph/ui/utils/tentura_layout_algorithms.dart` (EOF whitespace only)
+
+### Commit
+
+- **Subject:** `docs(graph): record stable scene architecture` — locate with `git log -1 --grep 'record stable scene architecture'`.
+
+### Rollback
+
+- Revert the M08 commit only; M07 scene-native code and client adapters remain. Re-run `constellation_domain_graph_boundary_test.dart` after revert to confirm the check is removed.
+
+---
+
+## Manager checkpoint — 2026-09-13 (post-M08)
+
+- **M08 accepted** — scene decoupling plan complete per completion criteria (documentation + boundary check; broad browser/PG gates deferred to parent Constellation plan where already accepted).
+
 ## STATUS
 
-- **M07 accepted** — M08 is next (architecture enforcement/documentation if needed).
+- **complete** — M00–M08 accepted on `feature/pin_constellation`.
 
 ## COMMITS
 
 - `e0f51f48d` — lifecycle feedback-loop repair (prerequisite)
 - `efa076d7e` — `refactor(client): migrate graph views to scene-native layout APIs`
 - `f7dce7afd` — `refactor(graph): remove object-keyed layout compatibility`
+- M08 — `docs(graph): record stable scene architecture` (`git log -1 --grep 'record stable scene architecture'`)
 
 ## TESTS
 
-- Package: 88 passed serial (`flutter test --concurrency=1`)
-- Client constellation scene: 7 passed serial (handoff + layout paths)
+- Package: 88 passed serial (`flutter test --concurrency=1`) — M07 evidence
+- Client constellation scene: 7 passed serial (handoff + layout paths) — M07 evidence
+- M08: `git diff --check d84acc940..HEAD`; architecture boundary test; deliberate violation probe (journal)
 
 ## FILES
 
 - `packages/force_directed_graphview/lib/**` (legacy layout removed; scene-native public API)
+- `packages/force_directed_graphview/README.md`, `CHANGELOG.md`
 - `packages/force_directed_graphview/test/**` (contract, drag, FR, support helpers)
 - `packages/client/lib/features/graph/**`, `packages/client/lib/features/constellation/**`
+- `packages/client/test/architecture/constellation_domain_graph_boundary_test.dart`
 - `packages/client/test/features/constellation/constellation_scene_*_test.dart`
 - `docs/plans/force-directed-graphview-scene-decoupling-implementation-journal.md`
+- `docs/plans/constellation-pinning-plan.md` (C6 xref)
+- `docs/plans/constellation-pinning-implementation-journal.md`
 
 ## FINDINGS
 
 - Production census on `lib/` paths has zero legacy symbol hits post-removal.
 - `nodeDragEnabled` is callback-gated; tests must register a no-op hook to exercise gesture/camera gating without constellation product wiring.
+- Constellation domain still uses `dart:ui` `Offset`/`Size` for pure layout geometry; M08 check targets Flutter widgets and `force_directed_graphview` only.
 
 ## REMAINING
 
-- M08: optional architecture enforcement + documentation pass per parent plan.
-- README/CHANGELOG in `force_directed_graphview` still mention removed `GraphLayout` APIs (package docs only, not production census).
-
+- Parent Constellation plan browser/multi-client gates remain as previously recorded (P10/P11); not re-run in M08 unless client contracts change.

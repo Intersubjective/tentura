@@ -486,4 +486,3 @@ Map<GraphNodeId, ScenePoint> _positionsFromDomainMap({
           _sceneFromOffset(domainPositions[entry.key]) ?? fallback,
   };
 }
-
