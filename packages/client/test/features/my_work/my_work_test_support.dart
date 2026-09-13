@@ -25,6 +25,7 @@ import 'package:tentura/features/evaluation/domain/entity/review_window_info.dar
 import 'package:tentura/domain/attention/attention_case.dart';
 import 'package:tentura/domain/attention/feed_session_registry.dart';
 import 'package:tentura/domain/attention/entity/attention_feed.dart';
+import 'package:tentura/domain/attention/entity/my_work_beacon_attention.dart';
 import 'package:tentura/domain/attention/port/attention_account_port.dart';
 import 'package:tentura/domain/attention/port/attention_repository_port.dart';
 import '../../support/attention_repository_fake_base.dart';
@@ -39,6 +40,40 @@ import '../../support/test_realtime_sync.dart';
 
 class StubAttentionRepository extends AttentionRepositoryFake {
   Set<String> obligationBeaconIds = const {};
+
+  int myWorkAttentionCallCount = 0;
+
+  List<Set<String>> myWorkAttentionCalls = [];
+
+  Duration myWorkAttentionDelay = Duration.zero;
+
+  Object? myWorkAttentionError;
+
+  List<MyWorkBeaconAttention> myWorkAttentionResult = const [];
+
+  final markSeenForBeaconCalls = <String>[];
+
+  @override
+  Future<List<MyWorkBeaconAttention>> myWorkAttention(
+    Set<String> beaconIds,
+  ) async {
+    myWorkAttentionCallCount++;
+    myWorkAttentionCalls.add(beaconIds);
+    if (myWorkAttentionDelay > Duration.zero) {
+      await Future<void>.delayed(myWorkAttentionDelay);
+    }
+    final error = myWorkAttentionError;
+    if (error != null) {
+      throw error;
+    }
+    return myWorkAttentionResult;
+  }
+
+  @override
+  Future<int> markSeenForBeacon(String beaconId) async {
+    markSeenForBeaconCalls.add(beaconId);
+    return 0;
+  }
 
   @override
   Future<Set<String>> liveObligationBeacons() async => obligationBeaconIds;
@@ -112,6 +147,8 @@ class FakeMyWorkRepository implements MyWorkRepository {
 
   Duration fetchInitDelay = Duration.zero;
 
+  Duration fetchArchivedDelay = Duration.zero;
+
   @override
   Future<MyWorkInitResult> fetchInit({
     required String userId,
@@ -130,8 +167,12 @@ class FakeMyWorkRepository implements MyWorkRepository {
   }
 
   @override
-  Future<MyWorkArchivedResult> fetchArchived({required String userId}) async =>
-      archivedResult;
+  Future<MyWorkArchivedResult> fetchArchived({required String userId}) async {
+    if (fetchArchivedDelay > Duration.zero) {
+      await Future<void>.delayed(fetchArchivedDelay);
+    }
+    return archivedResult;
+  }
 
   @override
   Future<Map<String, MyWorkLastEvent?>> fetchLastActivityEventsByBeaconId(
