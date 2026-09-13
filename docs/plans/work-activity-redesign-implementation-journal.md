@@ -74,13 +74,47 @@ REMAINING: none. Proceed to UNIT 02.
 
 **Manager verdict: ACCEPTED.** Independently re-ran `dart test -t pg -j 1 test/data/repository/responsibility_scope_pg_test.dart` (8/8 passed) and `./scripts/check-custom-lints.sh packages/server` (0, baseline 0). Read both commits: `m0168.dart` matches §2.2's base-set definition verbatim (authored non-deleted ∪ active-help-offer non-deleted beacon), same style as `m0117.dart` (STABLE SECURITY INVOKER, search_path pinned). Test suite covers all 8 plan-listed membership cases using the established `DisposablePgTarget` pattern (already used by 5+ other pg test files, not invented). Commits are properly split (migration+registration, then tests, then journal). Nothing outside the Owns list touched. No leaked worker processes found.
 
+## UNIT 02 — complete — 2026-09-13
+
+COMMITS:
+- `136479ca2` feat(server): add attention surface model and port contracts
+- `d88d79225` feat(server): scope attention reads by surface
+- `a83ffbbe6` test(server): cover attention surface reads and mark-all
+
+TESTS:
+- `cd packages/server && dart run build_runner build -d` → exit 0
+- `cd packages/server && dart test -t pg -j 1 test/data/repository/attention_surface_pg_test.dart test/data/repository/attention_repository_pg_test.dart` → **28/28 passed** (11 surface + 17 existing repository)
+- `cd packages/server && dart test test/api/controllers/graphql/attention_graphql_test.dart test/api/controllers/graphql/query_attention_payload_test.dart` → **15/15 passed**
+- `./scripts/check-custom-lints.sh packages/server` → `0 (baseline: 0)` — OK
+
+FILES:
+- `packages/server/lib/domain/attention/attention_models.dart`
+- `packages/server/lib/domain/port/attention_query_port.dart`
+- `packages/server/lib/domain/port/attention_ack_port.dart`
+- `packages/server/lib/data/repository/attention_repository.dart`
+- `packages/server/lib/api/controllers/graphql/custom_types.dart`
+- `packages/server/lib/api/controllers/graphql/query/query_attention.dart`
+- `packages/server/lib/api/controllers/graphql/mutation/mutation_attention.dart`
+- `packages/server/test/api/controllers/graphql/attention_graphql_test.dart`
+- `packages/server/test/api/controllers/graphql/query_attention_payload_test.dart`
+- `packages/server/test/domain/attention/legacy_canonical_compat_fixture_test.dart`
+- `packages/server/test/data/repository/attention_surface_pg_test.dart` (new)
+
+FINDINGS:
+- Foreign-beacon obligation/pg fixtures need a read path (e.g. `beacon_forward_edge`) so receipts pass `visible_attention_receipts` before surface is asserted.
+- `attention_models.freezed.dart` / `di.config.dart` are gitignored in this worktree; run `build_runner` after checkout.
+
+DECISIONS: none
+
+REMAINING: none. Proceed to UNIT 03.
+
 ## Ordered unit checklist
 
 | Unit | Status |
 |---|---|
 | 00 | complete (overseer, this entry) |
 | 01 | complete (accepted) |
-| 02 | pending |
+| 02 | complete (this entry) |
 | 03 | pending |
 | 04 | pending |
 | 05 | pending |
