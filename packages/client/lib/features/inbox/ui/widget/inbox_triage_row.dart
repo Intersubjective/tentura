@@ -3,7 +3,6 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 
 import 'package:tentura/app/router/root_router.dart';
-import 'package:tentura/design_system/components/tentura_avatar.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/my_work/ui/widget/compact_forwarder_avatars.dart';
@@ -38,8 +37,6 @@ class _InboxTriageRowBody extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final tt = context.tt;
     final l10n = L10n.of(context)!;
     final count = needsMe.length;
 
@@ -50,49 +47,21 @@ class _InboxTriageRowBody extends StatelessWidget {
     final profiles = _avatarProfiles(needsMe);
     final overflowCount = count > 3 ? count - 3 : 0;
 
-    return Semantics(
-      button: true,
-      label: count == 1 ? label : l10n.activityTriageRequestsNeedResponse(count),
-      child: Material(
-        color: scheme.surfaceContainerLow,
-        borderRadius: BorderRadius.circular(tt.cardRadius),
-        child: InkWell(
-          key: TestIds.key(TestIds.activityTriageRow),
-          borderRadius: BorderRadius.circular(tt.cardRadius),
-          onTap: () => unawaited(context.router.push(const InboxTriageRoute())),
-          child: SizedBox(
-            height: tt.buttonHeight + tt.tightGap,
-            child: Padding(
-              padding: EdgeInsets.symmetric(horizontal: tt.rowGap),
-              child: Row(
-                children: [
-                  if (count > 1 && profiles.isNotEmpty) ...[
-                    CompactForwarderAvatars(
-                      profiles: profiles,
-                      overflowCount: overflowCount,
-                      sizeBucket: TenturaAvatarSize.small,
-                    ),
-                    SizedBox(width: tt.tightGap * 2),
-                  ],
-                  Expanded(
-                    child: Text(
-                      label,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TenturaText.titleSmall(scheme.onSurface),
-                    ),
-                  ),
-                  Icon(
-                    Icons.chevron_right,
-                    color: scheme.onSurfaceVariant,
-                    size: tt.iconSize,
-                  ),
-                ],
-              ),
-            ),
-          ),
-        ),
-      ),
+    return TenturaAttentionSummaryRow(
+      label: label,
+      maxLines: 1,
+      semanticsLabel: count == 1
+          ? label
+          : l10n.activityTriageRequestsNeedResponse(count),
+      inkWellKey: TestIds.key(TestIds.activityTriageRow),
+      onTap: () => unawaited(context.router.push(const InboxTriageRoute())),
+      leading: count > 1 && profiles.isNotEmpty
+          ? CompactForwarderAvatars(
+              profiles: profiles,
+              overflowCount: overflowCount,
+              sizeBucket: TenturaAvatarSize.small,
+            )
+          : null,
     );
   }
 }

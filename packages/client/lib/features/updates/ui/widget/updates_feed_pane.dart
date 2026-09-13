@@ -473,7 +473,6 @@ class _CollapsedInvitePromptRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
     final tt = context.tt;
     final l10n = L10n.of(context)!;
     final label = l10n.activityPromptCollapsedBatch(count);
@@ -485,33 +484,13 @@ class _CollapsedInvitePromptRow extends StatelessWidget {
         tt.listRowPadding.right,
         tt.tightGap,
       ),
-      child: Semantics(
-        button: true,
+      child: TenturaAttentionSummaryRow(
         label: label,
-        child: Material(
-          color: scheme.surfaceContainerLow,
-          borderRadius: BorderRadius.circular(tt.cardRadius),
-          child: InkWell(
-            key: TestIds.key(TestIds.activityPromptCollapsed),
-            borderRadius: BorderRadius.circular(tt.cardRadius),
-            onTap: onOpenBatch,
-            child: SizedBox(
-              height: tt.buttonHeight + tt.tightGap,
-              child: Padding(
-                padding: EdgeInsets.symmetric(horizontal: tt.rowGap),
-                child: Align(
-                  alignment: Alignment.centerLeft,
-                  child: Text(
-                    label,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: TenturaText.titleSmall(scheme.onSurface),
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ),
+        maxLines: 2,
+        showChevron: false,
+        semanticsLabel: label,
+        inkWellKey: TestIds.key(TestIds.activityPromptCollapsed),
+        onTap: onOpenBatch,
       ),
     );
   }
