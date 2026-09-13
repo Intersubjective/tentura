@@ -9,118 +9,31 @@ import 'package:tentura/domain/attention/attention_ack_store.dart';
 import 'package:tentura/domain/attention/entity/attention_feed.dart';
 import 'package:tentura/domain/attention/entity/attention_receipt.dart';
 import 'package:tentura/domain/attention/entity/attention_summary.dart';
-import 'package:tentura/domain/attention/port/attention_account_port.dart';
-import 'package:tentura/domain/attention/port/attention_repository_port.dart';
-import '../../support/attention_repository_fake_base.dart';
 import 'package:tentura/domain/use_case/realtime_sync_case.dart';
 import 'package:tentura/domain/entity/realtime/realtime_entity_change.dart';
 
 import '../../support/test_realtime_sync.dart';
 import '../../features/block/support/controllable_block_case.dart';
+import 'attention_case_test_support.dart';
 
-const _feedDest = AttentionFeedDestinationId.activity;
+const _feedDest = attentionCaseTestFeedDest;
 
 AttentionFeedSession _feedSession(AttentionCase attention) =>
-    attention.feedSession(_feedDest);
+    attentionCaseTestFeedSession(attention);
 
-final class _Accounts implements AttentionAccountPort {
-  final _changes = StreamController<String>.broadcast();
-
-  @override
-  Stream<String> get currentAccountChanges => _changes.stream;
-
-  void emit(String accountId) => _changes.add(accountId);
-
-  Future<void> dispose() => _changes.close();
-}
-
-final class _Repository extends AttentionRepositoryFake {
-  final List<Completer<AttentionFeed>> pendingFetches = [];
-  final List<Completer<int>> pendingMarkSeen = [];
-  final List<Completer<int>> pendingMarkUnseen = [];
-  final List<Completer<int>> pendingMarkAllSeen = [];
-  final List<List<String>> markSeenCalls = [];
-  final List<List<String>> markUnseenCalls = [];
-  int markAllSeenCalls = 0;
-  final List<Completer<int>> pendingSettles = [];
-  final List<({String receiptId, String kind})> settles = [];
-  final List<({AttentionView view, String? cursor, String? search})> fetches =
-      [];
-  final List<Set<String>> markerQueries = [];
-  Set<String> unreadBeaconIds = const {};
-  int fetchCalls = 0;
-
-  @override
-  Future<AttentionFeed> fetch({
-    required AttentionView view,
-    String? cursor,
-    String? search,
-    int limit = 50,
-    AttentionSurface? surface,
-  }) {
-    fetchCalls++;
-    fetches.add((view: view, cursor: cursor, search: search));
-    return pendingFetches.removeAt(0).future;
-  }
-
-  @override
-  Future<Set<String>> unreadForBeacons(Set<String> beaconIds) async {
-    markerQueries.add(Set<String>.from(beaconIds));
-    return unreadBeaconIds.intersection(beaconIds);
-  }
-
-  @override
-  Future<Set<String>> liveObligationBeacons() async => const {};
-
-  @override
-  Future<int> markAllSeen({AttentionSurface? surface}) {
-    markAllSeenCalls++;
-    return pendingMarkAllSeen.removeAt(0).future;
-  }
-
-  @override
-  Future<int> markSeen(List<String> ids) {
-    markSeenCalls.add(List<String>.from(ids));
-    return pendingMarkSeen.removeAt(0).future;
-  }
-
-  @override
-  Future<int> markUnseen(List<String> ids) {
-    markUnseenCalls.add(List<String>.from(ids));
-    return pendingMarkUnseen.removeAt(0).future;
-  }
-
-  @override
-  Future<int> settle({required String receiptId, required String kind}) {
-    settles.add((receiptId: receiptId, kind: kind));
-    return pendingSettles.removeAt(0).future;
-  }
-}
+typedef _Accounts = AttentionCaseTestAccounts;
+typedef _Repository = AttentionCaseTestRepository;
 
 AttentionFeed _feed({int unread = 1, List<AttentionReceipt>? items}) =>
-    AttentionFeed(
-      summary: AttentionSummary(unreadTotal: unread),
-      page: AttentionFeedPage(items: items ?? [_receipt()]),
-    );
+    attentionCaseTestFeed(unread: unread, items: items);
 
-AttentionReceipt _receipt({String id = 'receipt-1'}) => AttentionReceipt(
-  id: id,
-  category: 'asksOfMe',
-  kind: 'needsMe',
-  priority: 'normal',
-  title: 'Title',
-  body: 'Body',
-  actionUrl: '/#/',
-  createdAt: DateTime.utc(2026),
-  collapsedCount: 1,
-  presentationPayloadJson: '{}',
-  surface: AttentionSurface.activity,
-);
+AttentionReceipt _receipt({String id = 'receipt-1'}) =>
+    attentionCaseTestReceipt(id: id);
 
 AttentionReceipt _seenReceipt({String id = 'receipt-1'}) =>
-    _receipt(id: id).copyWith(seenAt: DateTime.utc(2026, 1, 2));
+    attentionCaseTestSeenReceipt(id: id);
 
-Future<void> _settle() => Future<void>.delayed(Duration.zero);
+Future<void> _settle() => attentionCaseTestSettle();
 
 void main() {
   test('ack store overlays unseen until that generation confirms', () {
@@ -831,9 +744,24 @@ void main() {
       await loadNext;
 
       expect(repository.fetches, [
-        (view: AttentionView.all, cursor: null, search: null),
-        (view: AttentionView.all, cursor: null, search: 'needle'),
-        (view: AttentionView.all, cursor: 'page-two', search: 'needle'),
+        (
+          view: AttentionView.all,
+          cursor: null,
+          search: null,
+          surface: null,
+        ),
+        (
+          view: AttentionView.all,
+          cursor: null,
+          search: 'needle',
+          surface: null,
+        ),
+        (
+          view: AttentionView.all,
+          cursor: 'page-two',
+          search: 'needle',
+          surface: null,
+        ),
       ]);
     });
 
