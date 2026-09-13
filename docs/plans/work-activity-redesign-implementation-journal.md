@@ -431,6 +431,49 @@ REMAINING: none. Proceed to UNIT 12.
 
 **Manager verdict: ACCEPTED.** Independently re-ran all three Verify commands (build_runner clean, 127/127 flutter test, lints 32/32 baseline). Confirmed via `git log` that `derive_my_work_cards.dart` was not touched by any commit in this unit (last touched by pre-existing, unrelated commits). The two-call attention-fetch design (once after desk load with only non-archived ids, again inside `_loadArchived`'s success path recomputing the full union once archived cards exist) is a sensible reading of "union of non-archived and archived" that avoids eagerly fetching archived-card attention on every desk load — each call still reads `state.nonArchivedCards`/`state.archivedCards` fresh at call time, so the second call genuinely covers the full union, and both are guarded by the same `_fetchSeq` staleness check the cubit already uses for card fetches. The `AttentionCase.myWorkAttention` passthrough and `MyWorkCase.loadMyWorkAttention`/`markSeenForBeacon` wiring weren't explicit in the plan's Owns list but are necessary, correctly-layered additions (`MyWorkCase` goes through `AttentionCase`, never the raw repository directly) — legitimate per §3 rule 2. Chunking at 500 mirrors the server-side guard exactly, with correct final-partial-chunk slicing. Failure path only changes `attentionLoaded`, leaving prior `attentionByBeacon` entries intact — correctly matches design §4.8's "unknown, not empty" requirement. `openedBeacon` zeroes only `unseenCount`, leaves `liveObligations`/`latestUnseen` untouched, and awaits `markSeenForBeacon` after the optimistic emit. All 5 required test scenarios present. No leaked processes, clean git status.
 
+## UNIT 12 — complete — 2026-09-14
+
+COMMITS:
+- `34577d77d` feat(client): add my work obligation and whats-new widgets
+- `61ae295c2` feat(client): show obligations and news on my work cards
+- (this journal entry) docs: UNIT 12 my work card obligations journal
+
+TESTS:
+- `cd packages/client && flutter gen-l10n` → exit 0
+- `cd packages/client && flutter test test/features/my_work/` → **154/154 passed**
+- `./scripts/check-custom-lints.sh packages/client` → `32 (baseline: 32)` — OK
+- `bash scripts/check-user-facing-terminology.sh` → OK
+
+FILES:
+- `packages/client/lib/features/my_work/ui/widget/my_work_obligation_block.dart` (new)
+- `packages/client/lib/features/my_work/ui/widget/my_work_whats_new_row.dart` (new)
+- `packages/client/lib/features/my_work/ui/widget/my_work_cards.dart`
+- `packages/client/lib/features/my_work/ui/widget/my_work_last_event_row.dart`
+- `packages/client/lib/features/my_work/ui/widget/my_work_card_metadata_row.dart`
+- `packages/client/lib/ui/widget/beacon_hud_metadata_composer.dart`
+- `packages/client/lib/domain/attention/attention_case.dart` (`settleReceipt`)
+- `packages/client/lib/features/my_work/domain/use_case/my_work_case.dart`
+- `packages/client/lib/features/my_work/ui/bloc/my_work_cubit.dart`
+- `packages/client/lib/ui/test_ids.dart`
+- `packages/client/l10n/app_en.arb`, `app_ru.arb`
+- `packages/client/pubspec.yaml` (7.6.8 → 7.6.9), `web/index.html`
+- `packages/client/test/features/my_work/my_work_obligation_block_golden_test.dart` (new)
+- `packages/client/test/features/my_work/my_work_whats_new_row_test.dart` (new)
+- `packages/client/test/features/my_work/goldens/my_work_obligation_block_*.png` (17)
+- `packages/client/test/features/my_work/goldens/my_work_whats_new_*.png` (9)
+
+FINDINGS:
+- `AttentionCase.settle` no-ops when the receipt is not in the feed cache; My Work uses new `settleReceipt` → repository directly (same refresh side effects as feed settle).
+- Actor label on obligation lines uses first-token of `title` for known `presentationKey` values (server often puts display name in title).
+- Eyeballed goldens: 5-obligation collapsed (light EN) shows three Anna obligation lines with trailing Done, then “2 more” expand row; whats-new emphasis (light EN) shows semibold “3 new · I will bring tools tomorrow” single line.
+- Gate off: existing **154** my_work tests unchanged in behavior (redesign widgets mount only when `readWorkActivityRedesignGateEnabled()` is true).
+
+DECISIONS:
+- Hide HUD last-event metadata when redesign gate is on so the whats-new row (muted last-event fallback) does not duplicate the metadata table row.
+- Review help-offers / review CTAs move to `FilledButton.tonal` inside `MyWorkObligationBlock` when gate is on; footer CTAs for those flags are suppressed.
+
+REMAINING: none. Proceed to UNIT 13.
+
 ## Ordered unit checklist
 
 | Unit | Status |
@@ -447,7 +490,7 @@ REMAINING: none. Proceed to UNIT 12.
 | 09 | complete (accepted) |
 | 10 | complete (accepted) |
 | 11 | complete (accepted) |
-| 12 | pending |
+| 12 | complete |
 | 13 | pending |
 | 14 | pending |
 | 15 | pending |
