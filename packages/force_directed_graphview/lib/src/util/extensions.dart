@@ -18,15 +18,6 @@ extension QuadExtension on Quad {
 }
 
 extension RectExtension on Rect {
-  bool containsNode(NodeBase node, Offset position) {
-    final nodeRect = Rect.fromCircle(
-      center: position,
-      radius: node.size / 2,
-    );
-
-    return nodeRect.overlaps(this);
-  }
-
   /// Scale the rect from the center
   Rect scale(double scale) {
     final center = this.center;

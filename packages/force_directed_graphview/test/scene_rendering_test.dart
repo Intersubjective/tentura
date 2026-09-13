@@ -16,12 +16,7 @@ void main() {
     const c = Node<int>(data: 3, size: 10);
 
     await _pumpMinimalGraph(tester, controller: controller);
-    controller.mutate((m) {
-      m
-        ..addNode(a)
-        ..addNode(b)
-        ..addNode(c);
-    });
+    controller.reconcileTopology({a, b, c}, const {});
     await tester.pumpAndSettle();
 
     final snapshot = controller.renderSnapshot;
@@ -31,7 +26,7 @@ void main() {
     );
     expect(baseline, ['3', '1', '2']);
 
-    controller.beginNodePresentationDrag(b, const Offset(5, 5));
+    controller.beginNodePresentationDragForId(testIntNodeId(b), const Offset(5, 5));
     final withOverride = controller.orderedRenderNodeIds(
       controller.renderSnapshot,
       configuredPaintOrder: const ['3', '1'],
@@ -48,11 +43,11 @@ void main() {
     const replacement = Node<int>(data: 1, size: 60);
 
     await _pumpMinimalGraph(tester, controller: controller);
-    controller.mutate((m) => m.addNode(initial));
+    testAddNode(controller, initial);
     await tester.pumpAndSettle();
     expect(find.text('size-40.0'), findsOneWidget);
 
-    controller.replaceNode(initial, replacement);
+    controller.reconcileTopology({replacement}, controller.edges);
     await tester.pumpAndSettle();
     expect(find.text('size-60.0'), findsOneWidget);
     expect(find.text('size-40.0'), findsNothing);
@@ -79,12 +74,7 @@ void main() {
       data: 10,
     );
 
-    controller.mutate((m) {
-      m
-        ..addNode(source)
-        ..addNode(destination)
-        ..addEdge(edge);
-    });
+    controller.reconcileTopology({source, destination}, {edge});
     await tester.pumpAndSettle();
 
     expect(recorder.frameCount, greaterThan(0));
@@ -107,7 +97,7 @@ void main() {
     );
 
     const node = Node<int>(data: 7, size: 80);
-    controller.mutate((m) => m.addNode(node));
+    testAddNode(controller, node);
     await tester.pumpAndSettle();
 
     final centre = _sceneCentre(tester, controller, node);
@@ -168,7 +158,7 @@ Offset _sceneCentre(
   Node<int> node,
 ) {
   final box = tester.renderObject<RenderBox>(find.byType(GraphLayoutView));
-  return box.localToGlobal(controller.getPosition(node));
+  return box.localToGlobal(testNodePosition(controller, node));
 }
 
 final class _CentreLayout implements SceneLayoutAlgorithm {

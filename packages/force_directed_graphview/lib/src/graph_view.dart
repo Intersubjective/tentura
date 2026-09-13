@@ -24,8 +24,7 @@ typedef ChildBuilder = Widget Function(
 );
 
 /// A widget that displays a graph.
-class GraphView<N extends NodeBase, E extends EdgeBase<N>>
-    extends StatefulWidget {
+class GraphView<N, E> extends StatefulWidget {
   /// { @nodoc }
   const GraphView({
     required this.nodeBuilder,
@@ -125,8 +124,8 @@ class GraphView<N extends NodeBase, E extends EdgeBase<N>>
   State<GraphView<N, E>> createState() => _GraphViewState<N, E>();
 }
 
-class _GraphViewState<N extends NodeBase, E extends EdgeBase<N>>
-    extends State<GraphView<N, E>> with TickerProviderStateMixin {
+class _GraphViewState<N, E> extends State<GraphView<N, E>>
+    with TickerProviderStateMixin {
   final _transformationController = TransformationController();
 
   @override
@@ -143,6 +142,7 @@ class _GraphViewState<N extends NodeBase, E extends EdgeBase<N>>
     }
     if (widget.controller != oldWidget.controller ||
         widget.layoutAlgorithm != oldWidget.layoutAlgorithm ||
+        widget.layoutAlgorithm.runtimeType != oldWidget.layoutAlgorithm.runtimeType ||
         widget.canvasSize != oldWidget.canvasSize ||
         widget.lazyBuilding != oldWidget.lazyBuilding ||
         widget.layoutTransitionDuration != oldWidget.layoutTransitionDuration ||
@@ -193,7 +193,6 @@ class _GraphViewState<N extends NodeBase, E extends EdgeBase<N>>
         nodeBuilder: DefaultNodeBuilder<N>(builder: widget.nodeBuilder),
         edgePainter: widget.edgePainter,
         labelBuilder: widget.labelBuilder,
-        layoutAlgorithm: widget.layoutAlgorithm,
         canvasBackgroundBuilder: widget.canvasBackgroundBuilder,
         builder: widget.builder,
         canDragNodePredicate: widget.canDragNode == null

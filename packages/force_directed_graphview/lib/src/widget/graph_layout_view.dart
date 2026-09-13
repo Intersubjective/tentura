@@ -18,7 +18,7 @@ class GraphSceneRenderScope extends InheritedWidget {
   });
 
   /// Scene revision captured once per layout pass.
-  final GraphSceneSnapshot<NodeBase, EdgeBase> snapshot;
+  final GraphSceneSnapshot<Object?, Object?> snapshot;
 
   /// Visible node ids in paint/hit order (later ids are on top).
   final List<GraphNodeId> orderedNodeIds;

@@ -1,19 +1,30 @@
 part of 'graph_view.dart';
 
 /// Controller to manipulate the [GraphView].
-class GraphController<N extends NodeBase, E extends EdgeBase<N>>
-    with ChangeNotifier {
+class GraphController<N, E> with ChangeNotifier {
   /// { @nodoc }
   GraphController({
     required GraphNodeIdResolver<N> nodeIdOf,
     required GraphEdgeIdResolver<E> edgeIdOf,
+    required GraphNodeSizeResolver<N> nodeSizeOf,
+    required GraphNodeSimulationFixedResolver<N> nodeSimulationFixedOf,
+    required GraphEdgeSourceResolver<E, N> edgeSourceOf,
+    required GraphEdgeDestinationResolver<E, N> edgeDestinationOf,
   })  : _nodeIdOf = nodeIdOf,
-        _edgeIdOf = edgeIdOf {
+        _edgeIdOf = edgeIdOf,
+        _nodeSizeOf = nodeSizeOf,
+        _nodeSimulationFixedOf = nodeSimulationFixedOf,
+        _edgeSourceOf = edgeSourceOf,
+        _edgeDestinationOf = edgeDestinationOf {
     _scene.addListener(_onSceneStateChanged);
   }
 
   final GraphNodeIdResolver<N> _nodeIdOf;
   final GraphEdgeIdResolver<E> _edgeIdOf;
+  final GraphNodeSizeResolver<N> _nodeSizeOf;
+  final GraphNodeSimulationFixedResolver<N> _nodeSimulationFixedOf;
+  final GraphEdgeSourceResolver<E, N> _edgeSourceOf;
+  final GraphEdgeDestinationResolver<E, N> _edgeDestinationOf;
   final GraphSceneController<N, E> _scene = GraphSceneController<N, E>();
 
   final _nodes = <N>{};
@@ -119,18 +130,18 @@ class GraphController<N extends NodeBase, E extends EdgeBase<N>>
     _scene.clearAllPresentationOverrides();
   }
 
-  /// Returns the displayed centre of [node], including any presentation override.
-  Offset getPosition(N node) {
-    final point = _scene.resolvePosition(_nodeIdOf(node));
+  /// Returns the displayed centre of [id], including any presentation override.
+  Offset getPositionForId(GraphNodeId id) {
+    final point = _scene.resolvePosition(id);
     if (point == null) {
-      throw StateError('Node has no layout position yet');
+      throw StateError('Node $id has no layout position yet');
     }
     return Offset(point.x, point.y);
   }
 
-  /// Like [getPosition] but returns null when the node has no layout position.
-  Offset? getPositionOrNull(N node) {
-    final point = _scene.resolvePosition(_nodeIdOf(node));
+  /// Like [getPositionForId] but returns null when the node has no layout position.
+  Offset? getPositionOrNullForId(GraphNodeId id) {
+    final point = _scene.resolvePosition(id);
     if (point == null) {
       return null;
     }
@@ -194,16 +205,6 @@ class GraphController<N extends NodeBase, E extends EdgeBase<N>>
     return MatrixUtils.transformPoint(transformation.value, scene);
   }
 
-  /// Updates the graph using [GraphMutator]. Initiates relayout when topology
-  /// changes or [requestLayout] is true.
-  void mutate(
-    void Function(GraphMutator<N, E> mutator) callback, {
-    bool requestLayout = true,
-  }) {
-    callback(GraphMutator<N, E>(this));
-    _commitTopologyChange(requestLayout: requestLayout);
-  }
-
   /// Replaces nodes and edges by stable id without clearing the camera.
   void reconcileTopology(
     Set<N> targetNodes,
@@ -251,7 +252,7 @@ class GraphController<N extends NodeBase, E extends EdgeBase<N>>
     required bool requestLayout,
     bool layoutOnTopologyChange = true,
   }) {
-    _currentSize = _size?.resolve(nodes: nodes, edges: edges);
+    _currentSize = _size?.resolve(nodeSizes: _nodes.map(_nodeSizeOf));
     final revisionBefore = _scene.topologyRevision;
     _applyTopologyFromController();
     final topologyChanged = _scene.topologyRevision != revisionBefore;
@@ -293,15 +294,6 @@ class GraphController<N extends NodeBase, E extends EdgeBase<N>>
         _edges.add(entry.value);
       }
     }
-  }
-
-  /// Uses [algorithm] for the next layout request.
-  ///
-  /// GraphView also applies its widget algorithm on configuration changes;
-  /// call this before [mutate] when the owner already knows the new layout
-  /// inputs and cannot wait for the next widget rebuild.
-  void useSceneLayoutAlgorithm(SceneLayoutAlgorithm algorithm) {
-    _currentAlgorithm = algorithm;
   }
 
   /// Immutable scene state for one render, hit-test, or drag pass.
@@ -389,11 +381,14 @@ class GraphController<N extends NodeBase, E extends EdgeBase<N>>
   N? nodePayloadForId(GraphNodeId id) =>
       _scene.snapshot.topology.nodesById[id]?.payload;
 
-  /// Starts a token-owned presentation drag for [node].
-  GraphPresentationToken beginNodePresentationDrag(N node, Offset position) {
+  /// Starts a token-owned presentation drag for [id].
+  GraphPresentationToken beginNodePresentationDragForId(
+    GraphNodeId id,
+    Offset position,
+  ) {
     _freezeLayoutTransitionAtDisplay();
     return _scene.beginPresentation(
-      _nodeIdOf(node),
+      id,
       ScenePoint(x: position.dx, y: position.dy),
     );
   }
@@ -448,23 +443,6 @@ class GraphController<N extends NodeBase, E extends EdgeBase<N>>
       ..scale(matrixScale)
       ..translate(-position.dx, -position.dy);
     _syncActualViewportFromPixelSize();
-  }
-
-  /// Instantly jumps to the given node placing it in the center of the screen.
-  ///
-  /// When [resetScale] is true, zoom is restored to 1.0 (the default).
-  FutureOr<void> jumpToNode(N node, {bool resetScale = false}) async {
-    if (!_hasNode(node)) {
-      throw ArgumentError.value(node, 'node', 'Node is not in the graph');
-    }
-
-    if (!canLayout) {
-      await Future<void>.delayed(Duration.zero);
-      if (!canLayout) {
-        throw StateError('Graph is not laid out yet');
-      }
-    }
-    jumpToNodeId(_nodeIdOf(node), resetScale: resetScale);
   }
 
   /// Instantly zoom in by a given factor.
@@ -532,22 +510,6 @@ class GraphController<N extends NodeBase, E extends EdgeBase<N>>
       ..scale(scale)
       ..translate(-center.dx, -center.dy);
     _syncActualViewportFromPixelSize();
-  }
-
-  /// Fits every node of [nodes] that has a position into the viewport.
-  /// Nodes without a position (not laid out yet) are ignored.
-  void fitToNodes(Iterable<N> nodes, {double padding = 48}) {
-    fitToNodeIds(nodes.map(_nodeIdOf), padding: padding);
-  }
-
-  /// { @nodoc }
-  void replaceNode(N node, N newNode) {
-    _replaceNode(node, newNode);
-  }
-
-  /// { @nodoc }
-  void setPinned(N node, bool pinned) {
-    _replaceNode(node, node.copyWithPinned(pinned) as N);
   }
 
   void _requestSceneLayout() {
@@ -686,16 +648,19 @@ class GraphController<N extends NodeBase, E extends EdgeBase<N>>
           GraphSceneNode(
             id: _nodeIdOf(node),
             payload: node,
-            size: SceneSize(width: node.size, height: node.size),
-            simulationFixed: node.pinned,
+            size: SceneSize(
+              width: _nodeSizeOf(node),
+              height: _nodeSizeOf(node),
+            ),
+            simulationFixed: _nodeSimulationFixedOf(node),
           ),
       ],
       edges: [
         for (final edge in _edges)
           GraphSceneEdge(
             id: _edgeIdOf(edge),
-            sourceId: _nodeIdOf(edge.source),
-            destinationId: _nodeIdOf(edge.destination),
+            sourceId: _nodeIdOf(_edgeSourceOf(edge)),
+            destinationId: _nodeIdOf(_edgeDestinationOf(edge)),
             payload: edge,
           ),
       ],
@@ -941,7 +906,7 @@ class GraphController<N extends NodeBase, E extends EdgeBase<N>>
     _transformationController = transformationController;
     _currentAlgorithm = algorithm;
     _size = size;
-    _currentSize = _size?.resolve(nodes: nodes, edges: edges);
+    _currentSize = _size?.resolve(nodeSizes: _nodes.map(_nodeSizeOf));
     _applyTopologyFromController();
     _requestSceneLayout();
   }
@@ -990,13 +955,15 @@ class GraphController<N extends NodeBase, E extends EdgeBase<N>>
     if (!_hasNode(node)) {
       throw StateError('Node $node is not in the graph');
     }
-    _edges
-        .removeWhere((edge) => edge.source == node || edge.destination == node);
+    _edges.removeWhere(
+      (edge) =>
+          _edgeSourceOf(edge) == node || _edgeDestinationOf(edge) == node,
+    );
     _nodes.remove(node);
   }
 
   void _addEdge(E edge) {
-    if (!_hasNode(edge.source) || !_hasNode(edge.destination)) {
+    if (!_hasNode(_edgeSourceOf(edge)) || !_hasNode(_edgeDestinationOf(edge))) {
       throw StateError('Source or destination node is not in the graph');
     }
     _edges.add(edge);
@@ -1007,46 +974,6 @@ class GraphController<N extends NodeBase, E extends EdgeBase<N>>
       throw StateError('Edge $edge is not in the graph');
     }
     _edges.remove(edge);
-  }
-
-  /// Pins or unpins the node. Pinned nodes should not be affected by layout.
-  void _replaceNode(N node, N newNode) {
-    if (!_hasNode(node)) {
-      throw ArgumentError.value(node, 'node', 'Node is not in the graph');
-    }
-
-    ScenePoint? retainedPosition;
-    final previousId = _nodeIdOf(node);
-    final resolved = _scene.resolvePosition(previousId);
-    if (resolved != null) {
-      retainedPosition = resolved;
-    }
-
-    _nodes
-      ..remove(node)
-      ..add(newNode);
-
-    final edgesCopy = Set.of(_edges);
-
-    for (final edge in edgesCopy) {
-      if (edge.source == node) {
-        _edges
-          ..remove(edge)
-          ..add(edge.replaceNode(source: newNode) as E);
-      }
-      if (edge.destination == node) {
-        _edges
-          ..remove(edge)
-          ..add(edge.replaceNode(destination: newNode) as E);
-      }
-    }
-
-    final initialPositions = <GraphNodeId, ScenePoint>{};
-    if (retainedPosition != null) {
-      initialPositions[_nodeIdOf(newNode)] = retainedPosition;
-    }
-    _applyTopologyFromController(initialPositions: initialPositions);
-    notifyListeners();
   }
 
   /// Removes every node and edge without moving the camera.
@@ -1124,40 +1051,4 @@ class GraphController<N extends NodeBase, E extends EdgeBase<N>>
   bool _hasNode(N node) => _nodes.contains(node);
 
   bool _hasEdge(E edge) => _edges.contains(edge);
-
-}
-
-/// Wrapper around [GraphController] that allows
-/// changing the graph in a batch to avoid unnecessary rebuilds.
-class GraphMutator<N extends NodeBase, E extends EdgeBase<N>> {
-  /// { @nodoc }
-  GraphMutator(this.controller);
-
-  /// { @nodoc }
-  final GraphController controller;
-
-  /// { @nodoc }
-  void addNode(N node) {
-    controller._addNode(node);
-  }
-
-  /// { @nodoc }
-  void addEdge(E edge) {
-    controller._addEdge(edge);
-  }
-
-  /// { @nodoc }
-  void removeNode(N node) {
-    controller._removeNode(node);
-  }
-
-  /// { @nodoc }
-  void removeEdge(E edge) {
-    controller._removeEdge(edge);
-  }
-
-  /// { @nodoc }
-  void clear() {
-    controller.clear();
-  }
 }

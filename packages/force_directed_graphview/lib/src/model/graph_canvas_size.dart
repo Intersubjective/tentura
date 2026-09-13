@@ -1,8 +1,6 @@
 import 'dart:math';
 import 'dart:ui';
 
-import 'package:force_directed_graphview/src/model/edge.dart';
-import 'package:force_directed_graphview/src/model/node.dart';
 import 'package:meta/meta.dart';
 
 /// Defines the size of the graph canvas. Note that this size won't change
@@ -18,10 +16,7 @@ sealed class GraphCanvasSize {
       GraphCanvasSizeProportional;
 
   /// Resolves the size of the graph canvas.
-  Size resolve({
-    required Set<NodeBase> nodes,
-    required Set<EdgeBase> edges,
-  });
+  Size resolve({required Iterable<double> nodeSizes});
 }
 
 /// {@template fixed_graph_view_size}
@@ -36,12 +31,7 @@ final class GraphCanvasSizeFixed implements GraphCanvasSize {
   final Size size;
 
   @override
-  Size resolve({
-    required Set<NodeBase> nodes,
-    required Set<EdgeBase> edges,
-  }) {
-    return size;
-  }
+  Size resolve({required Iterable<double> nodeSizes}) => size;
 
   @override
   int get hashCode => size.hashCode;
@@ -68,13 +58,10 @@ final class GraphCanvasSizeProportional implements GraphCanvasSize {
   final double areaFactor;
 
   @override
-  Size resolve({
-    required Set<NodeBase> nodes,
-    required Set<EdgeBase> edges,
-  }) {
-    final area = nodes.fold<double>(
+  Size resolve({required Iterable<double> nodeSizes}) {
+    final area = nodeSizes.fold<double>(
       0,
-      (area, node) => area + pow(node.size, 2),
+      (sum, size) => sum + pow(size, 2),
     );
 
     return Size.square(sqrt(area * areaFactor));

@@ -2,13 +2,13 @@ import 'package:flutter/widgets.dart';
 import 'package:force_directed_graphview/force_directed_graphview.dart';
 
 /// Callback for building a widget for a node
-typedef NodeViewBuilder<N extends NodeBase> = Widget Function(
+typedef NodeViewBuilder<N> = Widget Function(
   BuildContext context,
   N node,
 );
 
 /// Dumb implementation of [NodeBuilder].
-final class DefaultNodeBuilder<N extends NodeBase> implements NodeBuilder<N> {
+final class DefaultNodeBuilder<N> implements NodeBuilder<N> {
   /// { @nodoc }
   DefaultNodeBuilder({
     required this.builder,

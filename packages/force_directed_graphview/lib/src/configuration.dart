@@ -7,6 +7,18 @@ typedef GraphNodeIdResolver<N> = GraphNodeId Function(N node);
 /// Resolves a stable edge id for scene topology and layout.
 typedef GraphEdgeIdResolver<E> = GraphEdgeId Function(E edge);
 
+/// Resolves layout node size from a payload.
+typedef GraphNodeSizeResolver<N> = double Function(N node);
+
+/// Resolves whether a node is fixed during force-directed simulation.
+typedef GraphNodeSimulationFixedResolver<N> = bool Function(N node);
+
+/// Resolves an edge source payload.
+typedef GraphEdgeSourceResolver<E, N> = N Function(E edge);
+
+/// Resolves an edge destination payload.
+typedef GraphEdgeDestinationResolver<E, N> = N Function(E edge);
+
 /// Called when a node drag is captured.
 typedef NodeDragStartCallback<N> = void Function(
   N node,
@@ -44,7 +56,6 @@ class GraphViewConfiguration {
     required this.nodeBuilder,
     required this.edgePainter,
     required this.labelBuilder,
-    required this.layoutAlgorithm,
     required this.canvasBackgroundBuilder,
     required this.builder,
     this.canDragNodePredicate,
@@ -71,10 +82,7 @@ class GraphViewConfiguration {
   /// { @nodoc }
   final ChildBuilder? builder;
 
-  /// { @nodoc }
-  final SceneLayoutAlgorithm layoutAlgorithm;
-
-  /// Optional predicate for draggable nodes. Defaults to `node.size > 0`.
+  /// Optional predicate for draggable nodes. Defaults to allowing drag.
   final CanDragNodePredicate<dynamic>? canDragNodePredicate;
 
   /// Optional node-drag lifecycle hooks. When all are null the graph keeps the
@@ -110,10 +118,5 @@ class GraphViewConfiguration {
   bool isNodeDraggable(dynamic node) =>
       (canDragNodePredicate ?? _defaultCanDragNode)(node);
 
-  static bool _defaultCanDragNode(dynamic node) {
-    if (node is NodeBase) {
-      return node.size > 0;
-    }
-    return true;
-  }
+  static bool _defaultCanDragNode(dynamic node) => true;
 }

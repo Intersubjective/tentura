@@ -3,7 +3,7 @@ import 'package:force_directed_graphview/force_directed_graphview.dart';
 
 /// A painter for painting edges as lines. Draws a straight line between
 @immutable
-final class LineEdgePainter<N extends NodeBase, E extends EdgeBase<N>>
+final class LineEdgePainter<N, E>
     implements EdgePainter<N, E> {
   /// { @nodoc }
   const LineEdgePainter({

@@ -47,12 +47,7 @@ void main() {
       ),
     );
 
-    controller.mutate((m) {
-      m
-        ..addNode(a)
-        ..addNode(b)
-        ..addNode(c);
-    });
+    controller.reconcileTopology({a, b, c}, const {});
     await settleGraphLayout(tester, controller);
 
     controller.setNodePaintOrder(const ['3', '1']);
@@ -203,7 +198,7 @@ void main() {
     await primary.moveBy(const Offset(30, 0));
     await tester.pump();
     expect(updates.length, greaterThan(1));
-    expect(controller.getPosition(_TestHarness.bottom).dx, greaterThan(130));
+    expect(testNodePosition(controller, _TestHarness.bottom).dx, greaterThan(130));
 
     await primary.up();
     expect(controller.isCameraGated, isTrue);
@@ -265,7 +260,7 @@ void main() {
     final layoutPoint =
         controller.renderSnapshot.layout!.positions['3']!;
     expect(
-      controller.getPosition(_TestHarness.bottom),
+      testNodePosition(controller, _TestHarness.bottom),
       isNot(Offset(layoutPoint.x, layoutPoint.y)),
     );
 
@@ -275,7 +270,7 @@ void main() {
     expect(cancelled, _TestHarness.bottom);
     expect(endCount, 0);
     expect(
-      controller.getPosition(_TestHarness.bottom),
+      testNodePosition(controller, _TestHarness.bottom),
       Offset(layoutPoint.x, layoutPoint.y),
     );
 
@@ -345,21 +340,21 @@ void main() {
 
     final unrelatedBefore = recorder.snapshotFor(_TestHarness.unrelatedEdge);
     final nodeCentre = _nodeCenter(tester, _TestHarness.bottom);
-    final layoutCentre = controller.getPosition(_TestHarness.bottom);
+    final layoutCentre = testNodePosition(controller, _TestHarness.bottom);
 
     final gesture = await tester.createGesture(kind: PointerDeviceKind.mouse);
     await gesture.down(nodeCentre);
     await gesture.moveBy(const Offset(35, 0));
     await tester.pump();
 
-    final movedCentre = controller.getPosition(_TestHarness.bottom);
+    final movedCentre = testNodePosition(controller, _TestHarness.bottom);
     final incident = recorder.lastFrameFor(_TestHarness.edge);
     final unrelatedAfter = recorder.snapshotFor(_TestHarness.unrelatedEdge);
 
     expect(movedCentre.dx, greaterThan(layoutCentre.dx));
     expect(movedCentre.dy, closeTo(layoutCentre.dy, 0.01));
     expect(incident.destination, movedCentre);
-    expect(incident.source, controller.getPosition(_TestHarness.middle));
+    expect(incident.source, testNodePosition(controller, _TestHarness.middle));
     expect(unrelatedAfter, unrelatedBefore);
 
     await gesture.up();
@@ -458,20 +453,23 @@ Future<void> _pumpGraph(
     ),
   );
 
-  controller.mutate((m) {
-    m
-      ..addNode(_TestHarness.top)
-      ..addNode(_TestHarness.middle)
-      ..addNode(_TestHarness.bottom)
-      ..addNode(_TestHarness.far)
-      ..addEdge(_TestHarness.edge)
-      ..addEdge(_TestHarness.unrelatedEdge);
-  });
+  controller.reconcileTopology(
+    {
+      _TestHarness.top,
+      _TestHarness.middle,
+      _TestHarness.bottom,
+      _TestHarness.far,
+    },
+    {_TestHarness.edge, _TestHarness.unrelatedEdge},
+  );
   await tester.pumpAndSettle();
 }
 
 Offset _nodeCenter(WidgetTester tester, Node<int> node) =>
-    _globalForScene(tester, _controllerFromTester(tester).getPosition(node));
+    _globalForScene(
+      tester,
+      testNodePosition(_controllerFromTester(tester), node),
+    );
 
 GraphController<Node<int>, Edge<Node<int>, int>> _controllerFromTester(
   WidgetTester tester,

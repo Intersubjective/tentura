@@ -12,30 +12,51 @@ import 'support/settle_graph_layout.dart';
 
 GraphController<_LogicalIdNode, Edge<_LogicalIdNode, String>>
     _logicalIdGraphController() => GraphController(
+      nodeIdOf: (node) => node.logicalId,
+      edgeIdOf: (edge) => identityHashCode(edge).toString(),
+      nodeSizeOf: (node) => node.size,
+      nodeSimulationFixedOf: (node) => node.pinned,
+      edgeSourceOf: (edge) => edge.source,
+      edgeDestinationOf: (edge) => edge.destination,
+    );
+
+GraphController<_LogicalIdNode, Edge<_LogicalIdNode, String>>
+    _instanceKeyedLogicalIdController() => GraphController(
       nodeIdOf: (node) => '${node.logicalId}@${identityHashCode(node)}',
       edgeIdOf: (edge) => identityHashCode(edge).toString(),
+      nodeSizeOf: (node) => node.size,
+      nodeSimulationFixedOf: (node) => node.pinned,
+      edgeSourceOf: (edge) => edge.source,
+      edgeDestinationOf: (edge) => edge.destination,
     );
 
 GraphController<Node<int>, Edge<Node<int>, String>> _intStringEdgeController() =>
     GraphController(
       nodeIdOf: testIntNodeId,
       edgeIdOf: (edge) => (edge as Edge<Node<int>, String>).data,
+      nodeSizeOf: (node) => node.size,
+      nodeSimulationFixedOf: (node) => node.pinned,
+      edgeSourceOf: (edge) => edge.source,
+      edgeDestinationOf: (edge) => edge.destination,
     );
+
+GraphNodeId _logicalNodeId(_LogicalIdNode node) => node.logicalId;
 
 /// Mimics [NodeDetails]-style equality: stable [logicalId] for product identity,
 /// but `==`/`hashCode` also include mutable presentation fields.
-final class _LogicalIdNode extends NodeBase {
+final class _LogicalIdNode {
   const _LogicalIdNode({
     required this.logicalId,
     required this.display,
-    super.size = 40,
-    super.pinned = false,
+    this.size = 40,
+    this.pinned = false,
   });
 
   final String logicalId;
   final String display;
+  final double size;
+  final bool pinned;
 
-  @override
   _LogicalIdNode copyWithPinned(bool pinned) =>
       _LogicalIdNode(logicalId: logicalId, display: display, size: size, pinned: pinned);
 
@@ -80,60 +101,60 @@ void main() {
       expect(layout.positions[afterId], isNull);
     });
 
-    test('GraphController allows two nodes with the same logicalId string', () {
-      final controller =
-          _logicalIdGraphController();
+    test('instance-keyed controller allows two nodes with the same logicalId string',
+        () {
+      final controller = _instanceKeyedLogicalIdController();
       const first = _LogicalIdNode(logicalId: 'dup', display: 'a');
       const second = _LogicalIdNode(logicalId: 'dup', display: 'b');
 
-      controller.mutate((m) {
-        m
-          ..addNode(first)
-          ..addNode(second);
-      });
+      controller.reconcileTopology({first, second}, const {});
 
       expect(controller.nodes, hasLength(2));
     });
 
-    test('replaceNode seeds retained position for the replacement id', () {
+    test('reconcileTopology refreshes payload by stable id and keeps presentation',
+        () {
       final controller = _logicalIdGraphController();
       const before = _LogicalIdNode(logicalId: 'n1', display: 'v1');
       const after = _LogicalIdNode(logicalId: 'n1', display: 'v2');
 
-      controller.mutate((m) => m.addNode(before), requestLayout: false);
-      controller.beginNodePresentationDrag(before, const Offset(42, 84));
+      controller.reconcileTopology({before}, const {}, requestLayout: false);
+      controller.beginNodePresentationDragForId(
+        _logicalNodeId(before),
+        const Offset(42, 84),
+      );
 
-      controller.replaceNode(before, after);
+      controller.reconcileTopology({after}, const {}, requestLayout: false);
 
-      expect(controller.nodes.contains(after), isTrue);
-      expect(controller.nodes.contains(before), isFalse);
-      expect(controller.getPosition(after), const Offset(42, 84));
+      expect(controller.nodes.single, after);
+      expect(
+        controller.getPositionForId(_logicalNodeId(after)),
+        const Offset(42, 84),
+      );
       controller.dispose();
     });
   });
 
   group('Node<int> identity (stable data key)', () {
-    test('duplicate data rejects second addNode via Set equality', () {
+    test('reconcileTopology keeps one node for duplicate stable id', () {
       final controller = testIntGraphController();
       const a = Node<int>(data: 1, size: 10);
       const b = Node<int>(data: 1, size: 10);
 
-      controller.mutate((m) => m.addNode(a));
-      expect(
-        () => controller.mutate((m) => m.addNode(b)),
-        throwsA(isInstanceOf<StateError>()),
-      );
+      testAddNode(controller, a);
+      controller.reconcileTopology({b}, controller.edges);
+      expect(controller.nodes, hasLength(1));
+      expect(controller.nodes.single.pinned, isFalse);
     });
 
-    test('replaceNode preserves layout position for new instance same data', () {
+    test('reconcileTopology updates payload for the same stable id', () {
       final controller = testIntGraphController();
       const before = Node<int>(data: 7, size: 10);
       final after = Node<int>(data: 7, size: 10, pinned: true);
 
-      controller.mutate((m) => m.addNode(before));
-      controller.replaceNode(before, after);
+      testAddNode(controller, before);
+      controller.reconcileTopology({after}, controller.edges);
 
-      // Without an accepted async layout, replaceNode still updates membership.
       expect(controller.nodes.single, after);
     });
   });
@@ -147,13 +168,7 @@ void main() {
       final edgeA = Edge(source: n1, destination: n2, data: 'trust');
       final edgeB = Edge(source: n1, destination: n2, data: 'forward');
 
-      controller.mutate((m) {
-        m
-          ..addNode(n1)
-          ..addNode(n2)
-          ..addEdge(edgeA)
-          ..addEdge(edgeB);
-      });
+      controller.reconcileTopology({n1, n2}, {edgeA, edgeB});
 
       expect(controller.edges, hasLength(2));
     });
@@ -162,13 +177,7 @@ void main() {
       final controller = _intStringEdgeController();
       final edge = Edge(source: n1, destination: n2, data: 'x');
 
-      controller.mutate((m) {
-        m
-          ..addNode(n1)
-          ..addNode(n2)
-          ..addEdge(edge)
-          ..addEdge(edge);
-      });
+      controller.reconcileTopology({n1, n2}, {edge});
 
       expect(controller.edges, hasLength(1));
     });
@@ -194,11 +203,11 @@ void main() {
         ),
       );
 
-      controller.mutate((m) => m.addNode(node));
+      testAddNode(controller, node);
       await settleGraphLayout(tester, controller);
 
-      controller.beginNodePresentationDrag(node, const Offset(9, 9));
-      expect(controller.getPosition(node), const Offset(9, 9));
+      controller.beginNodePresentationDragForId(testIntNodeId(node), const Offset(9, 9));
+      expect(testNodePosition(controller, node), const Offset(9, 9));
 
       controller.dispose();
     });
@@ -222,15 +231,15 @@ void main() {
         ),
       );
 
-      controller.mutate((m) => m.addNode(node));
+      testAddNode(controller, node);
       await settleGraphLayout(tester, controller);
 
       const override = Offset(300, 300);
-      controller.beginNodePresentationDrag(node, override);
-      expect(controller.getPosition(node), override);
+      controller.beginNodePresentationDragForId(testIntNodeId(node), override);
+      expect(testNodePosition(controller, node), override);
 
       controller.clearPresentationForNodeId('1');
-      expect(controller.getPosition(node), const Offset(10, 20));
+      expect(testNodePosition(controller, node), const Offset(10, 20));
     });
   });
 
@@ -265,7 +274,7 @@ void main() {
         ),
       );
 
-      controller.mutate((m) => m.addNode(node));
+      testAddNode(controller, node);
       await settleGraphLayout(tester, controller);
 
       controller.zoomBy(2.0);
@@ -273,7 +282,7 @@ void main() {
       expect(scaleBeforeClear, greaterThan(1.5));
 
       controller.clear();
-      controller.mutate((m) => m.addNode(node));
+      testAddNode(controller, node);
       await settleGraphLayout(tester, controller);
 
       expect(controller.currentScale, closeTo(scaleBeforeClear, 0.001));
@@ -307,15 +316,15 @@ void main() {
         ),
       );
 
-      controller.mutate((m) => m.addNode(n1));
+      testAddNode(controller, n1);
       await tester.pump();
 
-      controller.mutate((m) => m.addNode(n2));
+      testAddNode(controller, n2);
       await tester.pump(const Duration(milliseconds: 60));
       await settleGraphLayout(tester, controller);
 
-      expect(controller.getPosition(n1), const Offset(100, 100));
-      expect(controller.getPosition(n2), const Offset(200, 200));
+      expect(testNodePosition(controller, n1), const Offset(100, 100));
+      expect(testNodePosition(controller, n2), const Offset(200, 200));
 
       controller.dispose();
     });
@@ -327,12 +336,12 @@ void main() {
       final b = testIntGraphController();
       const node = Node<int>(data: 1, size: 10);
 
-      a.mutate((m) => m.addNode(node));
-      a.beginNodePresentationDrag(node, const Offset(1, 1));
+      testAddNode(a, node);
+      a.beginNodePresentationDragForId(testIntNodeId(node), const Offset(1, 1));
 
       expect(b.nodes, isEmpty);
       expect(
-        () => b.getPosition(node),
+        () => b.getPositionForId(testIntNodeId(node)),
         throwsA(isA<StateError>()),
       );
     });

@@ -42,7 +42,7 @@ class _EdgesPainter extends CustomPainter {
     required Listenable repaint,
   }) : super(repaint: Listenable.merge([repaint, animation]));
 
-  final GraphSceneSnapshot<NodeBase, EdgeBase> snapshot;
+  final GraphSceneSnapshot<Object?, Object?> snapshot;
   final GraphViewConfiguration configuration;
   final Animation<double>? animation;
 

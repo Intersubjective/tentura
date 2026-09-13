@@ -58,7 +58,7 @@ class _LabelsLayoutDelegate extends MultiChildLayoutDelegate {
     required this.labelBuilder,
   });
 
-  final GraphSceneSnapshot<NodeBase, EdgeBase> snapshot;
+  final GraphSceneSnapshot<Object?, Object?> snapshot;
   final Map<GraphNodeId, Widget> labels;
   final LabelBuilder labelBuilder;
 
@@ -75,6 +75,7 @@ class _LabelsLayoutDelegate extends MultiChildLayoutDelegate {
       labelBuilder.performLayout(
         size,
         node,
+        snapshot.topology.nodesById[id]!.size.width,
         Offset(point.x, point.y),
         (constraints) => layoutChild(id, constraints),
         (offset) => positionChild(id, offset),

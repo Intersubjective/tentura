@@ -3,7 +3,7 @@ import 'package:force_directed_graphview/force_directed_graphview.dart';
 
 /// A painter for drawing a moving dash line between nodes.
 @immutable
-final class AnimatedDashEdgePainter<N extends NodeBase, E extends EdgeBase<N>>
+final class AnimatedDashEdgePainter<N, E>
     implements AnimatedEdgePainter<N, E> {
   /// { @nodoc }
   const AnimatedDashEdgePainter({

@@ -17,7 +17,7 @@ final class GraphLayoutNode {
   final GraphNodeId id;
   final SceneSize size;
 
-  /// When true, force-directed steps must not move this node ([NodeBase.pinned]
+  /// When true, force-directed steps must not move this node (pinned in layout input).
   /// in the legacy adapter).
   final bool simulationFixed;
 

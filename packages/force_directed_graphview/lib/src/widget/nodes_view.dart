@@ -45,7 +45,7 @@ class _NodesLayoutDelegate extends MultiChildLayoutDelegate {
     required this.orderedNodeIds,
   });
 
-  final GraphSceneSnapshot<NodeBase, EdgeBase> snapshot;
+  final GraphSceneSnapshot<Object?, Object?> snapshot;
   final List<GraphNodeId> orderedNodeIds;
 
   @override

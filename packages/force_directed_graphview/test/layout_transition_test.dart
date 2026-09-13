@@ -2,20 +2,18 @@ import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:force_directed_graphview/force_directed_graphview.dart';
 
+import 'support/int_graph_controller.dart';
+
 void main() {
   testWidgets('graph interpolates towards a newly computed layout',
       (tester) async {
-    final controller = GraphController<Node<String>, Edge<Node<String>, void>>(
-      nodeIdOf: (node) => node.data,
-      edgeIdOf: (edge) =>
-          '${edge.source.hashCode}_${edge.destination.hashCode}',
-    );
-    const a = Node<String>(data: 'a', size: 10);
-    const b = Node<String>(data: 'b', size: 10);
+    final controller = testIntGraphController();
+    const a = Node<int>(data: 1, size: 10);
+    const b = Node<int>(data: 2, size: 10);
 
     await tester.pumpWidget(
       MaterialApp(
-        home: GraphView<Node<String>, Edge<Node<String>, void>>(
+        home: GraphView<Node<int>, Edge<Node<int>, void>>(
           controller: controller,
           canvasSize: const GraphCanvasSize.fixed(Size(500, 500)),
           layoutAlgorithm: const FruchtermanReingoldSceneLayoutAlgorithm(
@@ -27,25 +25,30 @@ void main() {
       ),
     );
 
-    controller.mutate((m) => m..addNode(a));
+    testAddNode(controller, a);
     await tester.pumpAndSettle();
-    final first = controller.getPosition(a);
+    final first = testNodePosition(controller, a);
 
-    controller.mutate((m) => m..addNode(b));
+    testAddNode(controller, b);
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 150));
 
     expect(controller.isLayoutSettling, isTrue);
     expect(controller.isLayoutTransitioning, isTrue);
 
-    // Mid-transition the graph must be laid out and must not have snapped.
     expect(controller.canLayout, isTrue);
-    expect(controller.getPositionOrNull(a), isNotNull);
+    expect(
+      controller.getPositionOrNullForId(testIntNodeId(a)),
+      isNotNull,
+    );
 
     await tester.pumpAndSettle();
     expect(controller.isLayoutSettling, isFalse);
     expect(controller.isLayoutTransitioning, isFalse);
-    expect(controller.getPositionOrNull(b), isNotNull);
+    expect(
+      controller.getPositionOrNullForId(testIntNodeId(b)),
+      isNotNull,
+    );
     expect(first, isNotNull);
 
     controller.dispose();

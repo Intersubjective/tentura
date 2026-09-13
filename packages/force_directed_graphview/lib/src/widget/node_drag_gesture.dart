@@ -317,7 +317,7 @@ class _NodeDragGestureState extends State<NodeDragGesture> {
     try {
       final token = _captureToken;
       if (token == null) {
-        _captureToken = _controller.beginNodePresentationDrag(payload, centre);
+        _captureToken = _controller.beginNodePresentationDragForId(nodeId, centre);
       } else {
         _controller.updateNodePresentationDrag(token, centre);
       }
@@ -335,9 +335,7 @@ class _NodeDragGestureState extends State<NodeDragGesture> {
     }
 
     final payload = _controller.nodePayloadForId(nodeId);
-    final position = payload == null
-        ? null
-        : _controller.getPosition(payload);
+    final position = _controller.getPositionOrNullForId(nodeId);
 
     _capturedNodeId = null;
     _captureToken = null;
@@ -394,6 +392,6 @@ final class _DragPassSnapshot {
     required this.orderedNodeIds,
   });
 
-  final GraphSceneSnapshot<NodeBase, EdgeBase> snapshot;
+  final GraphSceneSnapshot<Object?, Object?> snapshot;
   final List<GraphNodeId> orderedNodeIds;
 }

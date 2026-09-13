@@ -3,8 +3,7 @@ import 'package:force_directed_graphview/src/model/edge.dart';
 import 'package:force_directed_graphview/src/model/node.dart';
 
 /// Interface for painting edges.
-abstract interface class EdgePainter<N extends NodeBase,
-    E extends EdgeBase<N>> {
+abstract interface class EdgePainter<N, E> {
   /// Paints the edge between [sourcePosition] and [destinationPosition].
   void paint(
     Canvas canvas,
@@ -15,8 +14,7 @@ abstract interface class EdgePainter<N extends NodeBase,
 }
 
 /// Interface for painting animated edges.
-abstract interface class AnimatedEdgePainter<N extends NodeBase,
-    E extends EdgeBase<N>> implements EdgePainter<N, E> {
+abstract interface class AnimatedEdgePainter<N, E> implements EdgePainter<N, E> {
   /// Animation used to paint the edge.
   Animation<double> get animation;
 }

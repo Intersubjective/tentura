@@ -91,16 +91,16 @@ void main() {
       transitionDuration: const Duration(milliseconds: 400),
     );
 
-    controller.mutate((m) => m..addNode(a));
+    testAddNode(controller, a);
     await settleGraphLayout(tester, controller);
-    final settledA = controller.getPosition(a);
+    final settledA = testNodePosition(controller, a);
 
-    controller.mutate((m) => m..addNode(b));
+    testAddNode(controller, b);
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 80));
     expect(controller.isLayoutTransitioning, isTrue);
 
-    final midA = controller.getPosition(a);
+    final midA = testNodePosition(controller, a);
     expect(midA, isNot(equals(settledA)));
 
     final box = tester.renderObject<RenderBox>(find.byType(GraphLayoutView));
@@ -110,7 +110,7 @@ void main() {
     await gesture.moveBy(const Offset(12, 0));
     await tester.pump();
 
-    final capturedA = controller.getPosition(a);
+    final capturedA = testNodePosition(controller, a);
     expect(capturedA.dx, greaterThan(midA.dx - 1));
     final layoutTarget = controller.renderSnapshot.layout!.positions['1']!;
     expect(
@@ -142,11 +142,11 @@ void main() {
       transitionDuration: const Duration(milliseconds: 300),
     );
 
-    controller.mutate((m) => m..addNode(node));
+    testAddNode(controller, node);
     await settleGraphLayout(tester, controller);
 
-    final token = controller.beginNodePresentationDrag(
-      node,
+    final token = controller.beginNodePresentationDragForId(testIntNodeId(
+      node),
       const Offset(50, 50),
     );
     controller.requestSceneLayout(releaseOnTerminal: {token});
@@ -158,7 +158,7 @@ void main() {
       }
     }
 
-    expect(controller.getPosition(node), const Offset(10, 10));
+    expect(testNodePosition(controller, node), const Offset(10, 10));
     expect(controller.renderSnapshot.presentation.overrides, isEmpty);
     expect(controller.renderSnapshot.transition, isNull);
 
@@ -178,10 +178,10 @@ void main() {
       onNodeDragCancel: (_) => cancelCount++,
     );
 
-    first.mutate((m) => m..addNode(const Node<int>(data: 1, size: 80)));
+    testAddNode(first, const Node<int>(data: 1, size: 80));
     await settleGraphLayout(tester, first);
 
-    final centre = first.getPosition(const Node<int>(data: 1, size: 80));
+    final centre = testNodePosition(first, const Node<int>(data: 1, size: 80));
     final box = tester.renderObject<RenderBox>(find.byType(GraphLayoutView));
     final global = box.localToGlobal(centre);
     final gesture = await tester.createGesture(kind: PointerDeviceKind.mouse);
@@ -195,7 +195,7 @@ void main() {
       second,
       onNodeDragCancel: (_) => cancelCount++,
     );
-    second.mutate((m) => m..addNode(const Node<int>(data: 1, size: 80)));
+    testAddNode(second, const Node<int>(data: 1, size: 80));
     await settleGraphLayout(tester, second);
 
     expect(cancelCount, 1);
@@ -219,10 +219,10 @@ void main() {
       onNodeDragStart: (node, _) => started = node,
     );
 
-    first.mutate((m) => m..addNode(const Node<int>(data: 1, size: 80)));
+    testAddNode(first, const Node<int>(data: 1, size: 80));
     await settleGraphLayout(tester, first);
 
-    final centre = first.getPosition(const Node<int>(data: 1, size: 80));
+    final centre = testNodePosition(first, const Node<int>(data: 1, size: 80));
     final box = tester.renderObject<RenderBox>(find.byType(GraphLayoutView));
     final gesture = await tester.createGesture(kind: PointerDeviceKind.touch);
     await gesture.down(box.localToGlobal(centre));
@@ -247,7 +247,7 @@ void main() {
   testWidgets('rejects two live GraphViews on one controller', (tester) async {
     _logMemory('before two live views');
     final controller = testIntIntGraphController();
-    controller.mutate((m) => m..addNode(const Node<int>(data: 1, size: 40)));
+    testAddNode(controller, const Node<int>(data: 1, size: 40));
 
     await tester.pumpWidget(
       MaterialApp(
@@ -311,10 +311,10 @@ void main() {
       controller,
       onNodeDragCancel: (_) => cancelled = true,
     );
-    controller.mutate((m) => m..addNode(const Node<int>(data: 1, size: 80)));
+    testAddNode(controller, const Node<int>(data: 1, size: 80));
     await settleGraphLayout(tester, controller);
 
-    final centre = controller.getPosition(const Node<int>(data: 1, size: 80));
+    final centre = testNodePosition(controller, const Node<int>(data: 1, size: 80));
     final box = tester.renderObject<RenderBox>(find.byType(GraphLayoutView));
     final gesture = await tester.createGesture(kind: PointerDeviceKind.mouse);
     await gesture.down(box.localToGlobal(centre));
@@ -373,10 +373,10 @@ void main() {
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
 
-    controller.mutate((m) => m..addNode(const Node<int>(data: 1, size: 80)));
+    testAddNode(controller, const Node<int>(data: 1, size: 80));
     await settleGraphLayout(tester, controller);
 
-    final centre = controller.getPosition(const Node<int>(data: 1, size: 80));
+    final centre = testNodePosition(controller, const Node<int>(data: 1, size: 80));
     final box = tester.renderObject<RenderBox>(find.byType(GraphLayoutView));
     final gesture = await tester.createGesture(kind: PointerDeviceKind.mouse);
     await gesture.down(box.localToGlobal(centre));
@@ -409,10 +409,10 @@ void main() {
       controller,
       onNodeDragStart: (_, __) => throw StateError('boom'),
     );
-    controller.mutate((m) => m..addNode(const Node<int>(data: 1, size: 80)));
+    testAddNode(controller, const Node<int>(data: 1, size: 80));
     await settleGraphLayout(tester, controller);
 
-    final centre = controller.getPosition(const Node<int>(data: 1, size: 80));
+    final centre = testNodePosition(controller, const Node<int>(data: 1, size: 80));
     final box = tester.renderObject<RenderBox>(find.byType(GraphLayoutView));
     final gesture = await tester.createGesture(kind: PointerDeviceKind.mouse);
     await gesture.down(box.localToGlobal(centre));
@@ -439,10 +439,10 @@ void main() {
       controller,
       onNodeDragCancel: (_) => cancelled = true,
     );
-    controller.mutate((m) => m..addNode(const Node<int>(data: 1, size: 80)));
+    testAddNode(controller, const Node<int>(data: 1, size: 80));
     await settleGraphLayout(tester, controller);
 
-    final centre = controller.getPosition(const Node<int>(data: 1, size: 80));
+    final centre = testNodePosition(controller, const Node<int>(data: 1, size: 80));
     final box = tester.renderObject<RenderBox>(find.byType(GraphLayoutView));
     final gesture = await tester.createGesture(kind: PointerDeviceKind.mouse);
     await gesture.down(box.localToGlobal(centre));
