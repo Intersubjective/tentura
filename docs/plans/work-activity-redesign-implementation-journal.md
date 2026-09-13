@@ -556,6 +556,51 @@ REMAINING: none. Proceed to UNIT 15.
 
 **Manager verdict: ACCEPTED.** Independently re-ran all three Verify commands (build_runner clean, 8/8 flutter test, lints 32/32 baseline). Confirmed via `git diff --stat` against the pre-unit HEAD that `inbox_cubit.dart` was not touched at all. The `$userId` variable declared-but-unused in `activity_offers.graphql` matches a pre-existing convention already present in `inbox_fetch.graphql` (Hasura's row permission does the actual scoping; the variable isn't a new oddity this unit introduced). Read the full `ActivityOffersCubit` implementation: `loadFirst()` fetches the page and count in parallel with independent try/catch, nulling `totalCount` AND setting `countLoadFailed` on failure (doubly distinguishing failure from zero); `loadMore()` uses the last item's `(latestForwardAt, beaconId)` as the next cursor with a defensive de-dupe on merge; `_upsertOpenForward`/`_demoteBeacon` correctly move ids between `items` and the held-back bucket depending on `_scrolledAway`, and `_demoteBeacon` only emits on `demotedBeaconIds` when the beacon was actually present (no spurious signals); `_refreshUnseenDots` chunks at 500 with its own generation guard, independent of the page-load generation. Two nice, safe additions beyond the literal ask: a 50ms per-beacon debounce on realtime-triggered refetches, and a separate lightweight `ActivityOffersCount` query used for the live "refresh totalCount on every change" path instead of re-paging. Verified the tie-break test's `_PagingRepo` fake genuinely implements keyset-cursor slicing (locates the `(cursorAt, cursorBeaconId)` row and returns everything after it) rather than returning canned pages — a real test, not a vacuous one. All 8 tests map 1:1 to the plan's required scenarios. No leaked processes, clean git status, commits well split (fragment extraction as its own commit).
 
+## UNIT 15 — complete — 2026-09-14
+
+COMMITS:
+- `b27369bff` refactor(client): extract inbox card actions for reuse
+- `398e3cbd2` feat(client): add activity forward and digest copy keys
+- `5d024a80f` feat(client): add activity offer, forward, and digest rows
+- `cdcf36a4d` test(client): golden-test activity offer and forward rows
+- (this journal entry) docs: UNIT 15 activity offer and stream rows journal
+
+TESTS:
+- `cd packages/client && flutter gen-l10n` → exit 0
+- `cd packages/client && flutter test test/features/inbox/` → **87/87 passed**
+- `./scripts/check-custom-lints.sh packages/client` → `32 (baseline: 32)` — OK
+- `bash scripts/check-user-facing-terminology.sh` → OK
+
+FILES:
+- `packages/client/lib/features/inbox/ui/widget/inbox_card_actions.dart` (new, from triage list)
+- `packages/client/lib/features/inbox/ui/widget/inbox_triage_list.dart`
+- `packages/client/lib/features/inbox/ui/screen/inbox_watching_screen.dart`
+- `packages/client/lib/features/inbox/ui/widget/activity_offer_bounded_shell.dart` (new)
+- `packages/client/lib/features/inbox/ui/widget/activity_offer_card.dart` (new)
+- `packages/client/lib/features/inbox/ui/widget/activity_forward_row.dart` (new)
+- `packages/client/lib/features/inbox/ui/widget/activity_watching_digest_row.dart` (new)
+- `packages/client/lib/features/inbox/ui/widget/inbox_forward_attribution_copy.dart` (new)
+- `packages/client/lib/features/inbox/ui/widget/activity_forward_outcome_copy.dart` (new)
+- `packages/client/lib/features/updates/ui/widget/invite_accepted_receipt_card.dart`
+- `packages/client/lib/ui/test_ids.dart`
+- `packages/client/l10n/app_en.arb`, `app_ru.arb`
+- `packages/client/test/features/inbox/activity_offer_card_golden_test.dart` (new)
+- `packages/client/test/features/inbox/activity_forward_row_golden_test.dart` (new)
+- `packages/client/test/features/inbox/goldens/activity_*.png` (34)
+
+FINDINGS:
+- `activity-prompt-pin-$receiptId` already existed on `TestIds.activityPromptPin`; prompt variant keeps it via `KeyedSubtree`.
+- Stream forward rows have no forwarder name on the server payload yet (`body` empty); row headline uses `receipt.body` as sender name when present, else title only — goldens pass sender via `body`.
+- Forward-row relay phrasing reuses `inboxFromForwarder` / `inboxFromForwarderPlus` (offer why-line) rather than a new «переслал(а)» key.
+- Eyeballed goldens: `activity_offer_card_forward_with_help_light_en.png` shows dismiss ✕, avatar, two-line title, “From Anna +2” why-line, unseen dot, age, tonal Offer Help, Forward, Watch; `activity_forward_row_helping_light_en.png` shows send glyph, “Garden cleanup — From Gleb”, outcome “You’re helping”, age.
+- Forward offer card at 1.3× text scale stays ≤ 180 logical px (asserted in test).
+
+DECISIONS:
+- `ActivityOfferBoundedShell` shared by forward offers and `InviteAcceptedReceiptCard` (`activityOfferBoundedShell: true`) to avoid duplicating prompt setup logic.
+- `ActivityWatchingDigestRow` has no golden in this unit (plan goldens focused on offer card + forward outcomes); widget is thin wrapper over `TenturaAttentionSummaryRow`.
+
+REMAINING: none. Proceed to UNIT 16 (mount widgets in `ActivityStreamView`).
+
 ## Ordered unit checklist
 
 | Unit | Status |
@@ -575,7 +620,7 @@ REMAINING: none. Proceed to UNIT 15.
 | 12 | complete (accepted, real bug caught + fixed by worker) |
 | 13 | complete (accepted) |
 | 14 | complete (accepted) |
-| 15 | pending |
+| 15 | complete |
 | 16 | pending |
 | 17 | pending |
 | 18 | pending |
