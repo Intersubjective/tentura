@@ -433,6 +433,8 @@ class GraphSceneController<N, E> with ChangeNotifier {
       if (hold?.ticket == frame.ticket && hold?.token == token) {
         overrides.remove(nodeId);
         holds.remove(nodeId);
+        _activePresentationTokenByNode.remove(nodeId);
+        _tokenNodes.remove(token);
       }
     }
 
