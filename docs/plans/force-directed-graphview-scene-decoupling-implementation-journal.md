@@ -524,3 +524,49 @@ Protected `packages/force_directed_graphview/analysis_options.yaml` not staged.
 
 - **M05 accepted** — M06 is next (Constellation topology and placement handoff).
 
+---
+
+## M06 — Constellation topology and placement handoff (worker: Composer 2.5, 2026-09-13)
+
+### Work
+
+- **`ConstellationSceneLayoutAlgorithm`:** native [SceneLayoutAlgorithm] over `computeConstellationPlacedLayout`; terminal [GraphLayoutFrame] only; prior hints from [GraphLayoutRequest.previous]; no normalized coordinates in scene.
+- **`constellation_graph_scene.dart`:** stable [GraphNodeId]/[GraphEdgeId] helpers (`c:<kind>:…` semantic edge ids).
+- **`GraphController`:** `reconcileTopology`, `requestSceneLayout(releaseOnTerminal:)`, `activePresentationTokenForNode`; `mutate` skips relayout on payload-only topology; constellation uses `layoutOnTopologyChange: false` + explicit layout request.
+- **`ConstellationCubit`:** `reconcileTopology` instead of `clear`+`mutate`; [tenturaGraphNodeId] resolvers; placement handoff via `_placementHandoffGraphId` + `releaseOnTerminal`; drag presentation via scene tokens (gesture + programmatic test path).
+- **Tests:** `constellation_scene_layout_test.dart`; body tests updated for semantic edge-id keys.
+
+### Verification
+
+```bash
+cd packages/force_directed_graphview && flutter test
+# exit 0, 91 passed
+
+cd packages/client && flutter test test/features/constellation/
+# exit 0, 238 passed
+
+./scripts/check-custom-lints.sh packages/client
+# exit 0 (baseline 32; no new custom-rule growth)
+```
+
+Protected `packages/force_directed_graphview/analysis_options.yaml` not staged.
+
+### Commits
+
+1. `refactor(client): adapt constellation layout to graph scene`
+2. `refactor(client): reconcile constellation topology by stable id`
+3. `refactor(client): hand off drag presentation by layout ticket`
+
+### Changed paths (M06)
+
+- `packages/client/lib/features/graph/ui/utils/tentura_layout_algorithms.dart`
+- `packages/client/lib/features/constellation/ui/utils/constellation_graph_scene.dart` (new)
+- `packages/client/lib/features/constellation/ui/bloc/constellation_cubit.dart`
+- `packages/client/lib/features/constellation/ui/widget/constellation_body.dart`
+- `packages/client/test/features/constellation/constellation_scene_layout_test.dart` (new)
+- `packages/client/test/features/constellation/constellation_body_test.dart`
+- `packages/force_directed_graphview/lib/src/controller.dart`
+- `packages/force_directed_graphview/lib/src/scene_controller.dart`
+- `packages/force_directed_graphview/lib/src/graph_view.dart`
+- `docs/plans/force-directed-graphview-scene-decoupling-implementation-journal.md`
+

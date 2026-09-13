@@ -25,7 +25,9 @@ import '../../domain/use_case/constellation_anchor_case.dart';
 import '../../domain/use_case/constellation_field_case.dart';
 import '../../../graph/domain/entity/edge_details.dart';
 import '../../../graph/domain/entity/node_details.dart';
+import '../../../graph/ui/utils/graph_scene_ids.dart';
 import '../../../graph/ui/utils/tentura_layout_algorithms.dart';
+import '../utils/constellation_graph_scene.dart';
 import 'constellation_state.dart';
 
 export 'package:flutter_bloc/flutter_bloc.dart';
@@ -142,17 +144,19 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
   int _layoutReconciliationCount = 0;
   bool _suppressLateGestureEnd = false;
   String? _draggingNodeId;
+  GraphNodeId? _placementHandoffGraphId;
   ConstellationLayoutPriorHints? _layoutPriorHints;
 
   ForwardRepository get _forwardRepository =>
       _forwardRepositoryOverride ?? GetIt.I<ForwardRepository>();
 
-  final graphController = GraphController<NodeDetails, EdgeDetails<NodeDetails>>(
-    nodeIdOf: (node) => node.id,
-    edgeIdOf: (edge) => 'd:${edge.source.id}->${edge.destination.id}',
-  );
+  late final GraphController<NodeDetails, EdgeDetails<NodeDetails>>
+      graphController = GraphController<NodeDetails, EdgeDetails<NodeDetails>>(
+        nodeIdOf: tenturaGraphNodeId,
+        edgeIdOf: (edge) => constellationEdgeIdForEdge(edge, edgeKinds.keys),
+      );
 
-  final Map<String, ConstellationEdgeKind> edgeKinds = {};
+  final Map<GraphEdgeId, ConstellationEdgeKind> edgeKinds = {};
 
   String layoutEgoId = '';
   Map<String, List<String>> layoutVisibleRequestsByAuthor = const {};
@@ -174,10 +178,14 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
   bool get placementActionsEnabled =>
       state.placementActionsEnabled && !(_anchorCase?.hasPendingWrite ?? false);
 
-  ConstellationLayoutAlgorithm get mapLayoutAlgorithm {
+  BoundSceneLayoutAlgorithm get mapLayoutAlgorithm {
+    return BoundSceneLayoutAlgorithm(constellationSceneLayoutAlgorithm);
+  }
+
+  ConstellationSceneLayoutAlgorithm get constellationSceneLayoutAlgorithm {
     final overlay =
         state.composition?.anchorOverlay ?? ConstellationAnchorOverlay.empty;
-    return ConstellationLayoutAlgorithm(
+    return ConstellationSceneLayoutAlgorithm(
       egoId: layoutEgoId.isEmpty ? _viewer.id : layoutEgoId,
       paths:
           state.paths ??
@@ -336,6 +344,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     }
     _suppressLateGestureEnd = false;
     _draggingNodeId = target.graphNodeId;
+    _beginDragPresentation(target);
     emit(
       state.copyWith(
         placementPhase: ConstellationPlacementPhase.draggingExisting,
@@ -352,6 +361,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     }
     _suppressLateGestureEnd = false;
     _draggingNodeId = target.graphNodeId;
+    _beginDragPresentation(target);
     emit(
       state.copyWith(
         placementPhase: ConstellationPlacementPhase.draggingNew,
@@ -369,15 +379,38 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     if (isClosed || _draggingNodeId != nodeId) {
       return;
     }
-    final node = graphController.nodes
-        .where((candidate) => candidate.id == nodeId)
-        .cast<NodeDetails?>()
-        .whereType<NodeDetails>()
-        .firstOrNull;
+    final target = state.activePlacementTarget;
+    final graphId = target != null && target.graphNodeId == nodeId
+        ? constellationGraphNodeIdForTarget(target)
+        : constellationGraphNodeIdForDomain(nodeId);
+    final node = graphController.nodePayloadForId(graphId);
     if (node == null) {
       return;
     }
-    graphController.setNodePresentationPosition(node, sceneCentre);
+    final token = graphController.activePresentationTokenForNode(graphId);
+    if (token != null) {
+      graphController.updateNodePresentationDrag(token, sceneCentre);
+    } else {
+      graphController.beginNodePresentationDrag(node, sceneCentre);
+    }
+  }
+
+  void _beginDragPresentation(ConstellationAnchorTarget target) {
+    final graphId = constellationGraphNodeIdForTarget(target);
+    final node = graphController.nodePayloadForId(graphId);
+    if (node == null) {
+      return;
+    }
+    final point = graphController.renderSnapshot.resolvePosition(graphId);
+    if (point == null) {
+      return;
+    }
+    if (graphController.activePresentationTokenForNode(graphId) == null) {
+      graphController.beginNodePresentationDrag(
+        node,
+        Offset(point.x, point.y),
+      );
+    }
   }
 
   Future<void> onExistingNodeDrop({
@@ -390,6 +423,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     final position = constellationPointToV1Anchor(
       (x: sceneCentre.dx, y: sceneCentre.dy),
     );
+    _placementHandoffGraphId = constellationGraphNodeIdForTarget(target);
     _draggingNodeId = null;
     emit(
       state.copyWith(
@@ -432,6 +466,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     final position = constellationPointToV1Anchor(
       (x: sceneCentre.dx, y: sceneCentre.dy),
     );
+    _placementHandoffGraphId = constellationGraphNodeIdForTarget(target);
     _draggingNodeId = null;
     emit(
       state.copyWith(
@@ -729,15 +764,16 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
   }
 
   void _clearDragPresentation(String nodeId) {
-    final node = graphController.nodes
-        .where((candidate) => candidate.id == nodeId)
-        .cast<NodeDetails?>()
-        .whereType<NodeDetails>()
-        .firstOrNull;
+    final target = state.activePlacementTarget;
+    final graphId = target != null && target.graphNodeId == nodeId
+        ? constellationGraphNodeIdForTarget(target)
+        : constellationGraphNodeIdForDomain(nodeId);
+    final node = graphController.nodePayloadForId(graphId);
     if (node != null) {
       graphController.clearPresentationPosition(node);
     }
     _draggingNodeId = null;
+    _placementHandoffGraphId = null;
   }
 
   void selectRequest(String? requestId) {
@@ -1369,15 +1405,11 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
   }
 
   void _rebuildGraph() {
-    if (_draggingNodeId != null &&
-        state.placementPhase != ConstellationPlacementPhase.idle) {
-      return;
-    }
     final field = state.field;
     final paths = state.paths;
     final composition = state.composition;
     if (field == null || paths == null) {
-      graphController.clear();
+      graphController.clear(recenter: false);
       edgeKinds.clear();
       overflowHiddenCountByAuthor = const {};
       return;
@@ -1487,7 +1519,11 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
         },
       );
       edges.add(edge);
-      edgeKinds['$srcId\0$dstId'] = kind;
+      edgeKinds[constellationSceneEdgeId(
+        kindName: kind.name,
+        source: src,
+        destination: dst,
+      )] = kind;
     }
 
     for (final child in paths.keep.intersection(state.keptPeerIds)) {
@@ -1521,17 +1557,28 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
       );
     }
 
-    graphController.clear(recenter: false);
     graphController.useLayoutAlgorithm(mapLayoutAlgorithm);
-    graphController.mutate((mutator) {
-      for (final node in nodes) {
-        mutator.addNode(node);
-      }
-      for (final edge in edges) {
-        mutator.addEdge(edge);
-      }
-    });
+    graphController.reconcileTopology(
+      nodes,
+      edges,
+      requestLayout: false,
+      layoutOnTopologyChange: false,
+    );
+    _requestConstellationLayoutHandoff();
     emit(state.copyWith(graphRevision: state.graphRevision + 1));
+  }
+
+  void _requestConstellationLayoutHandoff() {
+    final handoffGraphId = _placementHandoffGraphId;
+    _placementHandoffGraphId = null;
+    final releaseOnTerminal = <GraphPresentationToken>{};
+    if (handoffGraphId != null) {
+      final token = graphController.activePresentationTokenForNode(handoffGraphId);
+      if (token != null) {
+        releaseOnTerminal.add(token);
+      }
+    }
+    graphController.requestSceneLayout(releaseOnTerminal: releaseOnTerminal);
   }
 
   /// [Profile.isMutuallyVisible] (and the "closed eye" copy it drives in the
