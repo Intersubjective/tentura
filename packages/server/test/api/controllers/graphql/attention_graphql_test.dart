@@ -101,6 +101,7 @@ class _FakeQuery implements AttentionQueryPort {
 class _FakeAck implements AttentionAckPort {
   String? accountId;
   List<String>? ids;
+  String? beaconId;
 
   @override
   Future<int> markAllSeen(String accountId, {AttentionSurface? surface}) async {
@@ -126,6 +127,16 @@ class _FakeAck implements AttentionAckPort {
     this.accountId = accountId;
     this.ids = ids;
     return ids.length;
+  }
+
+  @override
+  Future<int> markSeenForBeacon({
+    required String accountId,
+    required String beaconId,
+  }) async {
+    this.accountId = accountId;
+    this.beaconId = beaconId;
+    return 2;
   }
 
   @override
@@ -263,6 +274,22 @@ void main() {
       }),
       throwsA(isA<ArgumentError>()),
     );
+  });
+
+  test('attentionMarkSeenForBeacon scopes beaconId to the account', () async {
+    final ack = _FakeAck();
+    final field = MutationAttention(ack: ack).all.singleWhere(
+      (mutation) => mutation.name == 'attentionMarkSeenForBeacon',
+    );
+    expect(
+      await field.resolve!(null, {
+        ...auth,
+        'beaconId': 'B1',
+      }),
+      2,
+    );
+    expect(ack.accountId, 'U1');
+    expect(ack.beaconId, 'B1');
   });
 
   test('attentionMarkSeen scopes ids and caps the request at 200', () async {
