@@ -1536,16 +1536,32 @@ Finder _constellationGraphLayoutFinder() {
   );
 }
 
-/// Scene centre → global screen position (InteractiveViewer transform applied).
+/// Scene centre → global screen position for [NodeDragGesture] hit testing.
+///
+/// [NodeDragGesture] receives [PointerDownEvent.localPosition] in
+/// [GraphLayoutView] scene space (inside [InteractiveViewer]'s child). Map scene
+/// points with [RenderBox.localToGlobal], not [GraphController.sceneToViewportLocal].
 Offset _globalForConstellationScene(WidgetTester tester, Offset scene) {
   final layoutFinder = _constellationGraphLayoutFinder();
   if (!finderHasMatch(layoutFinder)) {
     throw StateError('constellation GraphLayoutView not in tree');
   }
-  final cubit = readConstellationCubit(tester);
-  final viewportLocal = cubit.graphController.sceneToViewportLocal(scene);
   final box = tester.renderObject<RenderBox>(layoutFinder);
-  return box.localToGlobal(viewportLocal);
+  final global = box.localToGlobal(scene);
+  assert(() {
+    final cubit = readConstellationCubit(tester);
+    final viewportLocal = cubit.graphController.sceneToViewportLocal(scene);
+    if ((viewportLocal - scene).distance > 1) {
+      final misMapped = box.localToGlobal(viewportLocal);
+      debugPrint(
+        '[e2e] constellation scene map scene=$scene '
+        'viewportLocal=$viewportLocal globalViaScene=$global '
+        'globalViaViewportMisMap=$misMapped',
+      );
+    }
+    return true;
+  }());
+  return global;
 }
 
 /// Pointer tap at a scene point so [NodeDragGesture] hit-tests and fires

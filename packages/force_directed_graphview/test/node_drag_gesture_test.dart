@@ -325,6 +325,105 @@ void main() {
     controller.dispose();
   });
 
+  testWidgets(
+    'node tap after camera pan uses GraphLayoutView scene localToGlobal',
+    (tester) async {
+      final controller = _TestHarness.newController();
+      Node<int>? tapped;
+
+      await _pumpGraph(
+        tester,
+        controller: controller,
+        onNodeTap: (node) => tapped = node,
+      );
+
+      controller.jumpToPosition(const Offset(320, 280));
+      await tester.pump();
+
+      final scene = testNodePosition(controller, _TestHarness.bottom);
+      final viewportMapped = controller.sceneToViewportLocal(scene);
+      expect(
+        (viewportMapped - scene).distance,
+        greaterThan(40),
+        reason: 'camera must be non-identity for this proof',
+      );
+
+      final box = tester.renderObject<RenderBox>(find.byType(GraphLayoutView));
+      expect(
+        box.globalToLocal(box.localToGlobal(viewportMapped)),
+        viewportMapped,
+      );
+      expect(
+        (box.globalToLocal(box.localToGlobal(scene)) - scene).distance,
+        lessThan(0.5),
+      );
+
+      final gesture = await tester.createGesture(kind: PointerDeviceKind.mouse);
+      await gesture.down(box.localToGlobal(viewportMapped));
+      await tester.pump();
+      await gesture.up();
+      await tester.pump();
+      expect(
+        tapped,
+        _TestHarness.middle,
+        reason: 'viewport-local mis-map hits a different node centre',
+      );
+
+      tapped = null;
+      await gesture.down(box.localToGlobal(scene));
+      await tester.pump();
+      await gesture.up();
+      await tester.pump();
+
+      expect(tapped, _TestHarness.bottom);
+
+      controller.dispose();
+    },
+  );
+
+  testWidgets(
+    'overlap tap after camera pan misses when scene is mis-mapped',
+    (tester) async {
+      final controller = _TestHarness.newController();
+      Node<int>? tapped;
+
+      await _pumpGraph(
+        tester,
+        controller: controller,
+        layoutAlgorithm: const _OverlappingFixedLayout(),
+        nodePaintOrder: const ['3', '1'],
+        onNodeTap: (node) => tapped = node,
+      );
+
+      final scene = testNodePosition(controller, _TestHarness.bottom);
+      controller.jumpToPosition(scene);
+      await tester.pump();
+
+      final viewportMapped = controller.sceneToViewportLocal(scene);
+      expect((viewportMapped - scene).distance, greaterThan(40));
+
+      final box = tester.renderObject<RenderBox>(find.byType(GraphLayoutView));
+      final gesture = await tester.createGesture(kind: PointerDeviceKind.mouse);
+      await gesture.down(box.localToGlobal(viewportMapped));
+      await tester.pump();
+      await gesture.up();
+      await tester.pump();
+      expect(
+        tapped,
+        isNull,
+        reason: 'mis-mapped pointer must miss stacked overlap centres',
+      );
+
+      await gesture.down(box.localToGlobal(scene));
+      await tester.pump();
+      await gesture.up();
+      await tester.pump();
+      expect(tapped, _TestHarness.top);
+
+      controller.dispose();
+    },
+  );
+
   testWidgets('drag updates only moved node and incident edge geometry in one frame',
       (tester) async {
     final controller = _TestHarness.newController();

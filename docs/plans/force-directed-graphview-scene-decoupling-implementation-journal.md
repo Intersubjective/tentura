@@ -930,3 +930,20 @@ grep -E 'MemAvailable|SwapFree' /proc/meminfo | head -2
 **Browser integration:** **BLOCKED** — no local stack (`:8888` / `:2080` / `:9443` not listening). Did not run `./scripts/run_client_integration_web_local.sh integration_test/constellation_pinning_test.dart`.
 
 Protected `packages/force_directed_graphview/analysis_options.yaml` not staged.
+
+### Overlap pointer coordinate remediation (2026-09-13)
+
+**Root cause:** `NodeDragGesture` hit-tests `PointerDownEvent.localPosition` in **GraphLayoutView scene space** (child of `InteractiveViewer.builder`). `_globalForConstellationScene` incorrectly fed `sceneToViewportLocal(scene)` into `GraphLayoutView.localToGlobal`, which double-applies the camera transform whenever the constellation map camera is non-identity (typical after `jumpToPosition` / fit). Mis-mapped globals miss stacked overlap centres → `selectedRequestId` stayed null.
+
+**Fix:** Map scene centres with `GraphLayoutView.localToGlobal(scene)` only (matches `node_drag_gesture_test.dart` `_globalForScene`). Debug-only `assert` logs scene vs mis-mapped viewport globals when they diverge.
+
+**Proof (serial `--concurrency=1`, MemAvailable ~39.8 GiB → ~37.0 GiB / SwapFree ~7.87 GiB):**
+
+```bash
+grep -E 'MemAvailable|SwapFree' /proc/meminfo | head -2
+cd packages/force_directed_graphview && flutter test test/node_drag_gesture_test.dart --plain-name 'node tap after camera pan' --plain-name 'overlap tap after camera pan' --concurrency=1
+grep -E 'MemAvailable|SwapFree' /proc/meminfo | head -2
+./scripts/run_client_integration_web_local.sh integration_test/constellation_pinning_test.dart 2>&1 | tee /tmp/constellation-pin-overlap-pointer.log
+grep -E 'MemAvailable|SwapFree' /proc/meminfo | head -2
+# graph 2 passed; browser overlap journey PASS (log: /tmp/constellation-pin-overlap-pointer.log)
+```
