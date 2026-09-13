@@ -819,3 +819,22 @@ Protected `packages/force_directed_graphview/analysis_options.yaml` not staged.
 - The actor-echo-disabled multiclient gate passed five serial runs: `REALTIME_MULTICLIENT_DRIVER=constellation_pinning_multiclient_web_test.dart REALTIME_MULTICLIENT_ACTOR_ECHO_ENABLED=false ./scripts/run_realtime_multiclient_web_local.sh`. Required live convergence, reconnect, stale-delete, and authorization-loss journeys passed. Hardware-only journeys remain explicitly blocked.
 - Final serial verification passed: graph package suite; client suite (`3124 passed, 29 skipped`); client and server custom lint gates; `packages/tentura_lints` tests; terminology check; and `git diff --check d84acc940..HEAD`.
 - Rollback: revert `8c2c3b0e4` first, then M08 (`a5aaa2d14`), M07 deletion (`f7dce7afd`), and its client migration (`efa076d7e`) only as a dependency-aware sequence. Keep the independent lifecycle repair `e0f51f48d` unless that behavior itself must be reverted.
+
+## P2 — Astra layout lifecycle remediation (R3/R4) — 2026-09-13
+
+### Work
+
+- **R3 (`scene_controller.dart`):** synchronous `algorithm.layout` throws and synchronous `listen` failures route through `_failLayout` → `GraphLayoutOutcomeFailed`, active ticket cleared, listeners notified; presentation overrides/holds untouched.
+- **R4 (Constellation):** cubit observes owned `requestSceneLayout` outcomes only (`_awaitingConstellationLayoutOutcome`); one recovery rebuild from `confirmedProjection` with presentation tokens on the recovery ticket; second failure sets `graphLayoutFailureMessage` with `retryGraphLayoutAfterFailure` / `cancelGraphLayoutFailure` (no auto loop). Direct controller handoff tests (non-owned requests) unchanged.
+
+### Verification (serial `--concurrency=1`, MemAvailable/SwapFree logged in test files)
+
+```bash
+grep -E 'MemAvailable|SwapFree' /proc/meminfo | head -2
+cd packages/force_directed_graphview && flutter test test/scene_controller_layout_lifecycle_test.dart --concurrency=1
+cd packages/client && flutter test test/features/constellation/constellation_layout_failure_recovery_test.dart test/features/constellation/constellation_scene_handoff_test.dart --concurrency=1
+grep -E 'MemAvailable|SwapFree' /proc/meminfo | head -2
+# graph 3 passed; client 8 passed (3 recovery + 5 handoff regression)
+```
+
+Protected `packages/force_directed_graphview/analysis_options.yaml` not staged.

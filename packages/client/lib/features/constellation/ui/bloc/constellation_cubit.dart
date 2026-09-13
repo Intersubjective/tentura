@@ -46,6 +46,10 @@ const kConstellationLayoutMaxHops = 3;
 /// Server `HelpOfferCoordinationExceptionCode.offerKindChanged` wire code.
 const kOfferKindChangedCoordinationCode = 1516;
 
+/// User-visible copy when graph layout recovery is exhausted (tests assert this).
+const kConstellationGraphLayoutFailureMessage =
+    'Could not refresh the map layout. Try again or keep the current view.';
+
 enum ConstellationRequestPreflightOutcome {
   ready,
   authorizationDenied,
@@ -129,6 +133,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
       (_) => unawaited(_onAnchorRefreshHint()),
       cancelOnError: false,
     );
+    graphController.scene.addListener(_onGraphSceneLayoutOutcomeChanged);
     if (loadOnCreate) {
       unawaited(load());
     }
@@ -146,6 +151,13 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
   String? _draggingNodeId;
   GraphNodeId? _placementHandoffGraphId;
   ConstellationLayoutPriorHints? _layoutPriorHints;
+  bool _awaitingConstellationLayoutOutcome = false;
+  bool _layoutRecoveryAttempted = false;
+  bool _dispatchingLayoutRecovery = false;
+  bool _scheduleLayoutRecoveryAfterRebuild = false;
+
+  @visibleForTesting
+  SceneLayoutAlgorithm? testSceneLayoutAlgorithmOverride;
 
   ForwardRepository get _forwardRepository =>
       _forwardRepositoryOverride ?? GetIt.I<ForwardRepository>();
@@ -221,9 +233,111 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
 
   @override
   Future<void> close() async {
+    graphController.scene.removeListener(_onGraphSceneLayoutOutcomeChanged);
     await _anchorRefreshSub?.cancel();
     _anchorCase?.deactivate(token: _anchorLifecycleToken);
     return super.close();
+  }
+
+  void retryGraphLayoutAfterFailure() {
+    if (isClosed || state.graphLayoutFailureMessage == null) {
+      return;
+    }
+    _layoutRecoveryAttempted = false;
+    emit(state.copyWith(graphLayoutFailureMessage: null));
+    _awaitingConstellationLayoutOutcome = true;
+    _scheduleLayoutRecoveryAfterRebuild = true;
+    _reconcileLayout();
+  }
+
+  void cancelGraphLayoutFailure() {
+    if (isClosed || state.graphLayoutFailureMessage == null) {
+      return;
+    }
+    emit(state.copyWith(graphLayoutFailureMessage: null));
+  }
+
+  @visibleForTesting
+  void requestConstellationLayoutForTest({
+    SceneLayoutAlgorithm? algorithm,
+  }) {
+    if (algorithm != null) {
+      graphController.useSceneLayoutAlgorithm(algorithm);
+    }
+    _awaitingConstellationLayoutOutcome = true;
+    _scheduleLayoutRecoveryAfterRebuild = false;
+    graphController.requestSceneLayout(
+      releaseOnTerminal: _activePresentationReleaseTokens(),
+    );
+  }
+
+  void _onGraphSceneLayoutOutcomeChanged() {
+    if (isClosed || _dispatchingLayoutRecovery) {
+      return;
+    }
+    final outcome = graphController.scene.layoutOutcome;
+    if (outcome is GraphLayoutOutcomeRunning) {
+      return;
+    }
+    if (!_awaitingConstellationLayoutOutcome) {
+      return;
+    }
+    _awaitingConstellationLayoutOutcome = false;
+
+    if (outcome is GraphLayoutOutcomeSucceeded) {
+      _layoutRecoveryAttempted = false;
+      if (state.graphLayoutFailureMessage != null) {
+        emit(state.copyWith(graphLayoutFailureMessage: null));
+      }
+      return;
+    }
+    if (outcome is! GraphLayoutOutcomeFailed) {
+      return;
+    }
+    if (state.graphLayoutFailureMessage != null) {
+      return;
+    }
+
+    if (_layoutRecoveryAttempted) {
+      emit(
+        state.copyWith(
+          graphLayoutFailureMessage: kConstellationGraphLayoutFailureMessage,
+        ),
+      );
+      return;
+    }
+
+    _layoutRecoveryAttempted = true;
+    unawaited(_recoverGraphLayoutFromConfirmedProjection());
+  }
+
+  Future<void> _recoverGraphLayoutFromConfirmedProjection() async {
+    if (isClosed) {
+      return;
+    }
+    _dispatchingLayoutRecovery = true;
+    try {
+      await _mergeConfirmedProjection(_anchorCase?.confirmedProjection);
+    } finally {
+      _dispatchingLayoutRecovery = false;
+    }
+    if (isClosed) {
+      return;
+    }
+    _scheduleLayoutRecoveryAfterRebuild = true;
+    _awaitingConstellationLayoutOutcome = true;
+    _reconcileLayout();
+  }
+
+  Set<GraphPresentationToken> _activePresentationReleaseTokens() {
+    final releaseOnTerminal = <GraphPresentationToken>{};
+    for (final id in graphController.renderSnapshot.topology.nodesById.keys) {
+      final token = graphController.activePresentationTokenForNode(id);
+      if (token != null) {
+        releaseOnTerminal.add(token);
+      }
+    }
+    return releaseOnTerminal;
   }
 
   Future<void> load() async {
@@ -1621,7 +1735,9 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
       );
     }
 
-    graphController.useSceneLayoutAlgorithm(constellationSceneLayoutAlgorithm);
+    graphController.useSceneLayoutAlgorithm(
+      testSceneLayoutAlgorithmOverride ?? constellationSceneLayoutAlgorithm,
+    );
     graphController.reconcileTopology(
       nodes,
       edges,
@@ -1635,13 +1751,18 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
   void _requestConstellationLayoutHandoff() {
     final handoffGraphId = _placementHandoffGraphId;
     _placementHandoffGraphId = null;
+    final recovery = _scheduleLayoutRecoveryAfterRebuild;
+    _scheduleLayoutRecoveryAfterRebuild = false;
     final releaseOnTerminal = <GraphPresentationToken>{};
-    if (handoffGraphId != null) {
+    if (recovery) {
+      releaseOnTerminal.addAll(_activePresentationReleaseTokens());
+    } else if (handoffGraphId != null) {
       final token = graphController.activePresentationTokenForNode(handoffGraphId);
       if (token != null) {
         releaseOnTerminal.add(token);
       }
     }
+    _awaitingConstellationLayoutOutcome = true;
     graphController.requestSceneLayout(releaseOnTerminal: releaseOnTerminal);
   }
 

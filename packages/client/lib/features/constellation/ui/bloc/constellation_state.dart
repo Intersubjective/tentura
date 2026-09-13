@@ -53,6 +53,7 @@ abstract class ConstellationState extends StateBase with _$ConstellationState {
     ConstellationAnchorTarget? activePlacementTarget,
     ConstellationAnchorTarget? deferredRefreshTarget,
     String? placementFailureMessage,
+    String? graphLayoutFailureMessage,
     @Default(false) bool syncPending,
     @Default(false) bool placementActionsEnabled,
   }) = _ConstellationState;
