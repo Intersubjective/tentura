@@ -9,8 +9,12 @@ abstract interface class AttentionQueryPort {
     required AttentionFeedView view,
     AttentionCursor? cursor,
     String? search,
+    AttentionSurface? surface,
     int limit = 50,
   });
+
+  /// Per-surface unread totals and the global needs-you count from one snapshot.
+  Future<AttentionSurfaceSummary> surfaceSummary({required String accountId});
 
   /// Authorized unread attention for a bounded set of Beacon ids.
   ///

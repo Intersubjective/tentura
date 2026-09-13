@@ -1,3 +1,5 @@
+import 'package:tentura_server/domain/attention/attention_models.dart';
+
 abstract interface class AttentionAckPort {
   Future<int> markSeen({
     required String accountId,
@@ -9,7 +11,7 @@ abstract interface class AttentionAckPort {
     required List<String> ids,
   });
 
-  Future<int> markAllSeen(String accountId);
+  Future<int> markAllSeen(String accountId, {AttentionSurface? surface});
 
   Future<int> bridgeRoomWatermark({
     required String accountId,

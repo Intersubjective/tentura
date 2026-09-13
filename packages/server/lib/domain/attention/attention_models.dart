@@ -144,6 +144,16 @@ AttentionDestinationKind attentionDestinationKindFromWireName(String value) =>
 
 enum AttentionFeedView { all, unread, needsYou }
 
+enum AttentionSurface { myWork, activity }
+
+AttentionSurface attentionSurfaceFromWireName(String value) =>
+    AttentionSurface.values.firstWhere((surface) => surface.name == value);
+
+enum AttentionItemKind { receipt, forward, watchingDigest }
+
+AttentionItemKind attentionItemKindFromWireName(String value) =>
+    AttentionItemKind.values.firstWhere((kind) => kind.name == value);
+
 enum AttentionSettlementKind {
   resolved,
   dismissed,
@@ -308,6 +318,11 @@ abstract class AttentionReceipt with _$AttentionReceipt {
     DateTime? settledAt,
     String? settledByUserId,
     String? settledByOccurrenceId,
+    required AttentionSurface surface,
+    @Default(AttentionItemKind.receipt) AttentionItemKind itemKind,
+    String? forwardOutcome,
+    int? forwardCount,
+    int? digestCount,
   }) = _AttentionReceipt;
 
   const AttentionReceipt._();
@@ -346,4 +361,13 @@ abstract class AttentionFeed with _$AttentionFeed {
     required AttentionSummary summary,
     required AttentionPage page,
   }) = _AttentionFeed;
+}
+
+@freezed
+abstract class AttentionSurfaceSummary with _$AttentionSurfaceSummary {
+  const factory AttentionSurfaceSummary({
+    required int activityUnreadTotal,
+    required int myWorkUnreadTotal,
+    required int needsYouTotal,
+  }) = _AttentionSurfaceSummary;
 }
