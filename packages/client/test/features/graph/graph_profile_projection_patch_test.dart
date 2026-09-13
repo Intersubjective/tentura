@@ -503,19 +503,19 @@ void main() {
     final fetchCount = profileRepo.fetchedIds.length;
 
     final aliceBefore = _liveNode(cubit, 'Ualice');
-    final positionBefore = cubit.graphController.layout.getPosition(
-      aliceBefore,
-    );
+  final positionBefore = cubit.graphController.getPosition(
+    aliceBefore,
+  );
     final edgesBefore = _edgePairs(cubit);
 
     cubit.patchLoadedProfile(alice.copyWith(myVote: 1));
 
     final aliceAfter = _liveNode(cubit, 'Ualice');
     expect(aliceAfter, isNot(same(aliceBefore)));
-    expect(
-      cubit.graphController.layout.getPosition(aliceAfter),
-      positionBefore,
-    );
+  expect(
+    cubit.graphController.getPosition(aliceAfter),
+    positionBefore,
+  );
     expect(_edgePairs(cubit), edgesBefore);
     expect(profileRepo.fetchedIds.length, fetchCount);
   });
