@@ -24,7 +24,9 @@ import 'package:tentura/features/beacon_create/ui/dialog/beacon_send_confirmatio
 import 'package:tentura/features/forward/ui/bloc/forward_cubit.dart';
 import 'package:tentura/domain/entity/room_message.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/room_message_tile.dart';
+import 'package:force_directed_graphview/force_directed_graphview.dart';
 import 'package:tentura/features/graph/domain/entity/node_details.dart';
+import 'package:tentura/features/constellation/ui/utils/constellation_graph_scene.dart';
 import 'package:tentura/features/graph/ui/bloc/graph_cubit.dart';
 import 'package:tentura/features/graph/ui/widget/graph_body.dart';
 import 'package:tentura/features/graph/ui/widget/graph_node_widget.dart';
@@ -1523,6 +1525,33 @@ Future<void> tapConstellationControl(WidgetTester tester, Finder finder) async {
   await pumpUntilVisible(tester, target);
   await tester.ensureVisible(target);
   await tester.tap(target);
+  await pumpBounded(tester, frames: 24);
+}
+
+/// Scene-coordinate tap for overlapping map nodes (CanvasKit-safe).
+Future<void> tapConstellationMapNodeInScene(
+  WidgetTester tester,
+  ConstellationAnchorTarget target,
+) async {
+  await setConstellationViewMode(tester, ConstellationViewMode.map);
+  await pumpBounded(tester, frames: 24);
+  final cubit = readConstellationCubit(tester);
+  final graphId = constellationGraphNodeIdForTarget(target);
+  await pumpUntil(
+    tester,
+    () =>
+        cubit.graphController.renderSnapshot.resolvePosition(graphId) != null &&
+        cubit.graphController.scene.layoutOutcome
+            is GraphLayoutOutcomeSucceeded,
+    label: 'constellation scene layout for $graphId',
+    timeout: const Duration(seconds: 45),
+  );
+  final point = cubit.graphController.renderSnapshot.resolvePosition(graphId);
+  if (point == null) {
+    throw StateError('no scene position for constellation node $graphId');
+  }
+  final scene = Offset(point.x, point.y);
+  cubit.selectMapNodeAtSceneCentre(scene);
   await pumpBounded(tester, frames: 24);
 }
 

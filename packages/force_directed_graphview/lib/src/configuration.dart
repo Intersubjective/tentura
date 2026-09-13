@@ -28,6 +28,9 @@ typedef NodeDragEndCallback<N> = void Function(
 /// Called when a node drag is cancelled without a successful drop write.
 typedef NodeDragCancelCallback<N> = void Function(N node);
 
+/// Called when a pointer releases over a node without starting a drag.
+typedef NodeTapCallback<N> = void Function(N node);
+
 /// Returns whether [node] may be dragged when node-drag hooks are enabled.
 typedef CanDragNodePredicate<N> = bool Function(N node);
 
@@ -49,6 +52,7 @@ class GraphViewConfiguration {
     this.onNodeDragUpdate,
     this.onNodeDragEnd,
     this.onNodeDragCancel,
+    this.onNodeTap,
     this.nodePaintOrder,
   });
 
@@ -86,6 +90,9 @@ class GraphViewConfiguration {
   /// { @nodoc }
   final NodeDragCancelCallback<dynamic>? onNodeDragCancel;
 
+  /// Optional short-press selection hook using scene hit order.
+  final NodeTapCallback<dynamic>? onNodeTap;
+
   /// Optional shared paint/hit order. Later entries paint and hit-test on top.
   final List<GraphNodeId>? nodePaintOrder;
 
@@ -95,6 +102,9 @@ class GraphViewConfiguration {
       onNodeDragUpdate != null ||
       onNodeDragEnd != null ||
       onNodeDragCancel != null;
+
+  /// Whether the node pointer layer is active.
+  bool get nodePointerLayerEnabled => nodeDragEnabled || onNodeTap != null;
 
   /// Returns whether [node] may be dragged.
   bool isNodeDraggable(dynamic node) =>

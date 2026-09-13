@@ -165,10 +165,7 @@ void main() {
       );
       expect(topmost, ConstellationAnchorTarget.beacon(requestId));
       await setConstellationViewMode(tester, ConstellationViewMode.map);
-      final topmostNode = find.byKey(
-        TestIds.key(TestIds.graphNode(topmost.graphNodeId)),
-      );
-      await tapConstellationControl(tester, topmostNode.first);
+      await tapConstellationMapNodeInScene(tester, topmost);
       final cubit = readConstellationCubit(tester);
       expect(cubit.state.selectedRequestId, requestId);
       expect(cubit.state.selectedPersonId, isNull);

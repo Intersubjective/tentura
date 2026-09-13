@@ -46,6 +46,7 @@ class GraphView<N extends NodeBase, E extends EdgeBase<N>>
     this.onNodeDragUpdate,
     this.onNodeDragEnd,
     this.onNodeDragCancel,
+    this.onNodeTap,
     this.nodePaintOrder,
     super.key,
   });
@@ -113,6 +114,9 @@ class GraphView<N extends NodeBase, E extends EdgeBase<N>>
 
   /// { @nodoc }
   final NodeDragCancelCallback<N>? onNodeDragCancel;
+
+  /// Optional short-press hook using scene paint/hit order (not widget z-order).
+  final NodeTapCallback<N>? onNodeTap;
 
   /// Optional shared paint/hit order. Later entries paint and hit-test on top.
   final List<GraphNodeId>? nodePaintOrder;
@@ -193,6 +197,9 @@ class _GraphViewState<N extends NodeBase, E extends EdgeBase<N>>
         onNodeDragCancel: widget.onNodeDragCancel == null
             ? null
             : (node) => widget.onNodeDragCancel!(node as N),
+        onNodeTap: widget.onNodeTap == null
+            ? null
+            : (node) => widget.onNodeTap!(node as N),
         nodePaintOrder: widget.nodePaintOrder,
       ),
       child: _CameraGatedInteractiveViewer(

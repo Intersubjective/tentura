@@ -306,6 +306,30 @@ void main() {
     controller.dispose();
   });
 
+  testWidgets('topmost overlap tap follows shared paint order', (tester) async {
+    final controller = _TestHarness.newController();
+    Node<int>? tapped;
+
+    await _pumpGraph(
+      tester,
+      controller: controller,
+      layoutAlgorithm: const _OverlappingFixedLayout(),
+      nodePaintOrder: const ['3', '1'],
+      onNodeTap: (node) => tapped = node,
+    );
+
+    final overlap = _nodeCenter(tester, _TestHarness.bottom);
+    final gesture = await tester.createGesture(kind: PointerDeviceKind.mouse);
+    await gesture.down(overlap);
+    await tester.pump();
+    await gesture.up();
+    await tester.pump();
+
+    expect(tapped, _TestHarness.top);
+
+    controller.dispose();
+  });
+
   testWidgets('drag updates only moved node and incident edge geometry in one frame',
       (tester) async {
     final controller = _TestHarness.newController();
@@ -400,6 +424,7 @@ Future<void> _pumpGraph(
   NodeDragUpdateCallback<Node<int>>? onNodeDragUpdate,
   NodeDragEndCallback<Node<int>>? onNodeDragEnd,
   NodeDragCancelCallback<Node<int>>? onNodeDragCancel,
+  NodeTapCallback<Node<int>>? onNodeTap,
   List<GraphNodeId>? nodePaintOrder,
 }) async {
   tester.view.physicalSize = const Size(800, 600);
@@ -422,6 +447,7 @@ Future<void> _pumpGraph(
           onNodeDragUpdate: onNodeDragUpdate,
           onNodeDragEnd: onNodeDragEnd,
           onNodeDragCancel: onNodeDragCancel,
+          onNodeTap: onNodeTap,
           nodeBuilder: (context, node) => SizedBox(
             width: node.size,
             height: node.size,

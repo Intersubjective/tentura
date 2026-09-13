@@ -84,20 +84,12 @@ class _ConstellationBodyState extends State<ConstellationBody> {
     ConstellationCubit cubit,
     NodeDetails node,
   ) {
-    switch (node) {
-      case FieldPersonNode(:final person):
-        if (person.id == cubit.viewerId) {
-          return;
-        }
-        cubit.selectPerson(person.id);
-        context.read<GraphPersonContextCubit>().selectProfile(
-          person,
-          intentional: true,
-        );
-      case FieldRequestNode(:final request):
-        cubit.selectRequest(request.id);
-      default:
-        break;
+    cubit.selectMapNode(node);
+    if (node case FieldPersonNode(:final person) when person.id != cubit.viewerId) {
+      context.read<GraphPersonContextCubit>().selectProfile(
+        person,
+        intentional: true,
+      );
     }
   }
 
@@ -592,6 +584,7 @@ class _ConstellationBodyState extends State<ConstellationBody> {
             }
           },
           onNodeDragCancel: (_) => cubit.onPointerCancelDuringDrag(),
+          onNodeTap: (node) => _onNodeTap(context, cubit, node),
           nodePaintOrder: cubit.orderedNodeIdsForPaint(),
           builder: (context, child) => _MapOverflowOverlay(
             cubit: cubit,

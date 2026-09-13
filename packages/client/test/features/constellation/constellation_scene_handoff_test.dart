@@ -26,6 +26,7 @@ import 'package:tentura/features/graph/ui/utils/graph_scene_ids.dart';
 import 'package:tentura/features/graph/ui/utils/tentura_layout_algorithms.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/test_ids.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
 import '../../support/test_realtime_sync.dart';
@@ -139,24 +140,16 @@ class _StubContextCubit extends Cubit<GraphPersonContextState>
   void clearSelection() {}
 }
 
-Future<ConstellationCubit> _loadedCubit() async {
+Future<ConstellationCubit> _loadedCubitForField(ConstellationField field) async {
   final sync = buildTestRealtimeSync();
   final cubit = ConstellationCubit(
     case_: ConstellationFieldCase(
-      _HarnessFieldRepository(
-        _field(
-          anchors: [_anchor(personId: 'p1')],
-        ),
-      ),
+      _HarnessFieldRepository(field),
       env: const Env.fromEnvironment(),
       logger: Logger('ConstellationSceneHandoffTest'),
     ),
     anchorCase: ConstellationAnchorCase(
-      _HarnessFieldRepository(
-        _field(
-          anchors: [_anchor(personId: 'p1')],
-        ),
-      ),
+      _HarnessFieldRepository(field),
       _HarnessAnchorRepository(),
       sync.case_,
       env: const Env.fromEnvironment(),
@@ -168,6 +161,65 @@ Future<ConstellationCubit> _loadedCubit() async {
   );
   await cubit.load();
   return cubit;
+}
+
+ConstellationField _overlappingPinnedField() {
+  const peer = ConstellationPerson(id: 'p1', displayName: 'Peer');
+  const request = ConstellationRequest(
+    id: 'B-overlap',
+    authorId: 'p1',
+    title: 'Overlap',
+    status: 0,
+  );
+  final placedAt = _loadedAt;
+  return ConstellationField(
+    loadedAt: _loadedAt,
+    context: '',
+    peers: [peer],
+    requests: [request],
+    edges: const [
+      ConstellationTrustEdgeEntity(src: 'ego', dst: 'p1', tier: 1),
+    ],
+    anchorProjection: ConstellationAnchorProjection(
+      revision: ConstellationAnchorRevision(BigInt.one),
+      anchors: [
+        ConstellationAnchor(
+          target: ConstellationAnchorTarget.person('p1'),
+          position: const ConstellationAnchorPosition(
+            xUnits: 2.5,
+            yUnits: 2.5,
+            coordinateSpaceVersion: 1,
+          ),
+          revision: ConstellationAnchorRevision(BigInt.one),
+          placedAt: placedAt,
+        ),
+        ConstellationAnchor(
+          target: ConstellationAnchorTarget.beacon('B-overlap'),
+          position: const ConstellationAnchorPosition(
+            xUnits: 2.5,
+            yUnits: 2.5,
+            coordinateSpaceVersion: 1,
+          ),
+          revision: ConstellationAnchorRevision(BigInt.two),
+          placedAt: placedAt.add(const Duration(seconds: 1)),
+        ),
+      ],
+      pinnedPeers: [peer],
+      pinnedRequests: [request],
+      supportPeers: const [],
+      supportEdges: const [],
+      serverFilteredBeaconIds: const [],
+      serverFilteredBeaconCount: 0,
+    ),
+  );
+}
+
+Future<ConstellationCubit> _loadedCubit() async {
+  return _loadedCubitForField(
+    _field(
+      anchors: [_anchor(personId: 'p1')],
+    ),
+  );
 }
 
 Future<void> _pumpConstellationMap(
@@ -297,6 +349,33 @@ Future<void> _settleLayout(
 }
 
 void main() {
+  group('constellation map selection', () {
+    testWidgets('overlapping pinned beacon tap selects request', (tester) async {
+      final cubit = await _loadedCubitForField(_overlappingPinnedField());
+      addTearDown(cubit.close);
+      await _pumpConstellationMap(tester, cubit);
+
+      final topmost = cubit.orderedNodesForPaint().reversed.firstWhere(
+        (node) => node.id == 'B-overlap' || node.id == 'p1',
+      );
+      expect(
+        cubit.anchorTargetForNode(topmost),
+        ConstellationAnchorTarget.beacon('B-overlap'),
+      );
+
+      final graphId = constellationGraphNodeIdForTarget(
+        ConstellationAnchorTarget.beacon('B-overlap'),
+      );
+      final point = cubit.graphController.renderSnapshot.resolvePosition(graphId);
+      expect(point, isNotNull);
+      cubit.selectMapNodeAtSceneCentre(Offset(point!.x, point.y));
+      await tester.pump(const Duration(milliseconds: 300));
+
+      expect(cubit.state.selectedRequestId, 'B-overlap');
+      expect(cubit.state.selectedPersonId, isNull);
+    });
+  });
+
   group('constellation placement handoff', () {
     testWidgets('successful drop releases presentation on terminal layout',
         (tester) async {

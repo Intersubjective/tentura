@@ -2045,3 +2045,26 @@ journal
   wording in shipped code).
 - Commit subject: `docs(graph): record stable scene architecture` (see scene
   decoupling journal for exact hash, tests, and memory samples).
+
+### Browser overlap selection regression (M07/M08 scene ids) — 2026-09-13
+
+**Symptom:** `./scripts/run_client_integration_web_local.sh integration_test/constellation_pinning_test.dart` failed at overlap journey line 173: `selectedRequestId` null after topmost pinned beacon tap.
+
+**Root cause (layered):**
+
+1. `orderedNodeIdsForPaint()` mapped every node through `constellationGraphNodeIdForDomain` (`fp:<id>`), so beacon paint/hit order used `fp:<beaconId>` while scene topology registers `fr:<beaconId>` — overlap stack order diverged from C1 paint order.
+2. `requestById` only searched `field.requests`; overlay-only pinned requests made the preview listener clear selection immediately after tap.
+3. CanvasKit web integration cannot rely on widget `tester.tap` at overlapping graph nodes; overlap journey now uses scene-centre selection (`selectMapNodeAtSceneCentre`) aligned with `GraphView.onNodeTap` hit order.
+
+**Fix:** `tenturaGraphNodeId` in paint order; `requestById` overlay fallback; `selectMapNode` / scene hit-test API on cubit; `GraphView.onNodeTap` in graph package; integration helper `tapConstellationMapNodeInScene`.
+
+**Tests (serial, `--concurrency=1`):**
+
+| Step | MemAvailable / SwapFree (before→after) | Result |
+|------|----------------------------------------|--------|
+| `flutter test test/features/constellation/constellation_anchor_cubit_test.dart --name orderedNodeIdsForPaint` | 46Gi / 7.1Gi → 45Gi / 7.1Gi | pass |
+| `flutter test test/features/constellation/constellation_scene_handoff_test.dart --name overlapping` | 46Gi / 7.1Gi | pass |
+| `force_directed_graphview` `node_drag_gesture_test.dart --name overlap tap` | — | pass |
+| `./scripts/run_client_integration_web_local.sh integration_test/constellation_pinning_test.dart` | 46Gi / 7.1Gi → 46Gi / 7.2Gi | **PASS** |
+
+STATUS: overlap browser regression fixed.

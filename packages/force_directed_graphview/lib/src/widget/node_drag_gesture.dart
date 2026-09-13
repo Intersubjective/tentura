@@ -32,6 +32,7 @@ class _NodeDragGestureState extends State<NodeDragGesture> {
   GraphNodeId? _pendingNodeId;
   int? _pendingPointer;
   Offset? _pendingDownScene;
+  var _pendingDragged = false;
   Timer? _longPressTimer;
 
   GraphNodeId? _capturedNodeId;
@@ -59,7 +60,7 @@ class _NodeDragGestureState extends State<NodeDragGesture> {
 
   @override
   Widget build(BuildContext context) {
-    if (!_configuration.nodeDragEnabled) {
+    if (!_configuration.nodePointerLayerEnabled) {
       return widget.child;
     }
 
@@ -90,7 +91,9 @@ class _NodeDragGestureState extends State<NodeDragGesture> {
       return;
     }
 
-    final nodeId = _hitTestTopmostNodeId(event.localPosition);
+    final nodeId = _configuration.onNodeTap != null
+        ? _hitTestTopmostVisibleNodeId(event.localPosition)
+        : _hitTestTopmostNodeId(event.localPosition);
     if (nodeId == null) {
       return;
     }
@@ -98,6 +101,7 @@ class _NodeDragGestureState extends State<NodeDragGesture> {
     _pendingNodeId = nodeId;
     _pendingPointer = event.pointer;
     _pendingDownScene = event.localPosition;
+    _pendingDragged = false;
 
     if (event.kind == PointerDeviceKind.mouse &&
         event.buttons == kPrimaryMouseButton) {
@@ -140,6 +144,8 @@ class _NodeDragGestureState extends State<NodeDragGesture> {
       return;
     }
 
+    _pendingDragged = true;
+
     if (event.kind == PointerDeviceKind.mouse) {
       _captureNode(_pendingNodeId!, event.pointer, down);
       _updateCapturedPosition(event.localPosition);
@@ -160,7 +166,18 @@ class _NodeDragGestureState extends State<NodeDragGesture> {
     }
 
     if (_pendingPointer == event.pointer) {
+      final nodeId = _pendingNodeId;
+      final dragged = _pendingDragged;
       _cancelPendingCapture();
+      if (nodeId != null &&
+          !dragged &&
+          _configuration.onNodeTap != null &&
+          _capturedNodeId == null) {
+        final payload = _controller.nodePayloadForId(nodeId);
+        if (payload != null) {
+          _configuration.onNodeTap!.call(payload);
+        }
+      }
     }
 
     if (_activePointers.isEmpty) {
@@ -194,6 +211,23 @@ class _NodeDragGestureState extends State<NodeDragGesture> {
   }
 
   GraphNodeId? _hitTestTopmostNodeId(Offset scenePosition) {
+    return _hitTestTopmostNodeIdInSnapshot(
+      scenePosition,
+      draggableOnly: true,
+    );
+  }
+
+  GraphNodeId? _hitTestTopmostVisibleNodeId(Offset scenePosition) {
+    return _hitTestTopmostNodeIdInSnapshot(
+      scenePosition,
+      draggableOnly: false,
+    );
+  }
+
+  GraphNodeId? _hitTestTopmostNodeIdInSnapshot(
+    Offset scenePosition, {
+    required bool draggableOnly,
+  }) {
     if (!_controller.canLayout) {
       return null;
     }
@@ -207,7 +241,7 @@ class _NodeDragGestureState extends State<NodeDragGesture> {
         continue;
       }
       final payload = sceneNode.payload;
-      if (!_configuration.isNodeDraggable(payload)) {
+      if (draggableOnly && !_configuration.isNodeDraggable(payload)) {
         continue;
       }
       final centre = Offset(point.x, point.y);
@@ -325,6 +359,7 @@ class _NodeDragGestureState extends State<NodeDragGesture> {
     _pendingNodeId = null;
     _pendingPointer = null;
     _pendingDownScene = null;
+    _pendingDragged = false;
   }
 }
 

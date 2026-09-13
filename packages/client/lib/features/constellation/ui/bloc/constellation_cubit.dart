@@ -1,5 +1,5 @@
 import 'dart:async';
-import 'dart:ui' show Size;
+import 'dart:ui' show Offset, Size;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -878,9 +878,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
   }
 
   List<GraphNodeId> orderedNodeIdsForPaint() {
-    return orderedNodesForPaint()
-        .map((node) => constellationGraphNodeIdForDomain(node.id))
-        .toList();
+    return orderedNodesForPaint().map(tenturaGraphNodeId).toList();
   }
 
   List<NodeDetails> orderedNodesForPaint() {
@@ -1202,6 +1200,57 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     return snapshotOpen && freshCovered;
   }
 
+  NodeDetails? mapNodeAtSceneCentre(Offset sceneCentre) {
+    final controller = graphController;
+    if (!controller.canLayout) {
+      return null;
+    }
+    final snapshot = controller.renderSnapshot;
+    for (final graphId in orderedNodeIdsForPaint().reversed) {
+      final point = snapshot.resolvePosition(graphId);
+      final sceneNode = snapshot.topology.nodesById[graphId];
+      if (point == null || sceneNode == null) {
+        continue;
+      }
+      final rect = Rect.fromCenter(
+        center: Offset(point.x, point.y),
+        width: sceneNode.size.width,
+        height: sceneNode.size.height,
+      );
+      if (rect.contains(sceneCentre)) {
+        final payload = controller.nodePayloadForId(graphId);
+        if (payload is NodeDetails) {
+          return payload;
+        }
+      }
+    }
+    return null;
+  }
+
+  void selectMapNode(NodeDetails node) {
+    if (isClosed) {
+      return;
+    }
+    switch (node) {
+      case FieldPersonNode(:final person):
+        if (person.id == viewerId) {
+          return;
+        }
+        selectPerson(person.id);
+      case FieldRequestNode(:final request):
+        selectRequest(request.id);
+      default:
+        break;
+    }
+  }
+
+  void selectMapNodeAtSceneCentre(Offset sceneCentre) {
+    final node = mapNodeAtSceneCentre(sceneCentre);
+    if (node != null) {
+      selectMapNode(node);
+    }
+  }
+
   void selectPerson(String? personId) {
     if (isClosed) {
       return;
@@ -1235,6 +1284,22 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     for (final request in field.requests) {
       if (request.id == requestId) {
         return request;
+      }
+    }
+    final overlay = state.composition?.anchorOverlay;
+    if (overlay != null) {
+      for (final request in overlay.pinnedRequests) {
+        if (request.id == requestId) {
+          return request;
+        }
+      }
+    }
+    final projection = field.anchorProjection;
+    if (projection != null) {
+      for (final request in projection.pinnedRequests) {
+        if (request.id == requestId) {
+          return request;
+        }
       }
     }
     return null;

@@ -11,6 +11,7 @@ import 'package:tentura/features/constellation/domain/entity/constellation_ancho
 import 'package:tentura/features/constellation/domain/entity/constellation_anchor_projection.dart';
 import 'package:tentura/features/constellation/domain/entity/constellation_field.dart';
 import 'package:tentura/features/graph/domain/entity/node_details.dart';
+import 'package:tentura/features/graph/ui/utils/graph_scene_ids.dart';
 import 'package:tentura/features/constellation/domain/port/constellation_anchor_repository_port.dart';
 import 'package:tentura/features/constellation/domain/port/constellation_repository_port.dart';
 import 'package:tentura/features/constellation/domain/use_case/constellation_anchor_case.dart';
@@ -653,6 +654,95 @@ void main() {
         harness.cubit.graphController.edges.map((e) => (e.source.id, e.destination.id)),
         contains(('author-capped', 'B-pin')),
       );
+    });
+
+    test('orderedNodeIdsForPaint uses scene graph ids with beacon topmost', () async {
+      const peer = ConstellationPerson(id: 'p-overlap', displayName: 'Peer');
+      const request = ConstellationRequest(
+        id: 'B-overlap',
+        authorId: 'p-overlap',
+        title: 'Overlap',
+        status: 0,
+      );
+      final placedAt = DateTime.utc(2026, 9, 11);
+      final harness = await _harness(
+        fields: [
+          _field(
+            peers: [peer],
+            requests: [request],
+            anchors: [
+              ConstellationAnchor(
+                target: ConstellationAnchorTarget.person('p-overlap'),
+                position: const ConstellationAnchorPosition(
+                  xUnits: 2.5,
+                  yUnits: 2.5,
+                  coordinateSpaceVersion: 1,
+                ),
+                revision: ConstellationAnchorRevision(BigInt.one),
+                placedAt: placedAt,
+              ),
+              ConstellationAnchor(
+                target: ConstellationAnchorTarget.beacon('B-overlap'),
+                position: const ConstellationAnchorPosition(
+                  xUnits: 2.5,
+                  yUnits: 2.5,
+                  coordinateSpaceVersion: 1,
+                ),
+                revision: ConstellationAnchorRevision(BigInt.two),
+                placedAt: placedAt.add(const Duration(seconds: 1)),
+              ),
+            ],
+          ),
+        ],
+      );
+      addTearDown(harness.cubit.close);
+
+      final paintIds = harness.cubit.orderedNodeIdsForPaint();
+      final controller = harness.cubit.graphController;
+      for (final id in paintIds) {
+        expect(controller.nodePayloadForId(id), isNotNull, reason: id);
+      }
+      expect(
+        paintIds.last,
+        '${TenturaGraphNodeKind.fieldRequest}:B-overlap',
+      );
+      expect(
+        paintIds,
+        contains('${TenturaGraphNodeKind.fieldPerson}:p-overlap'),
+      );
+      expect(
+        paintIds.where((id) => id.startsWith('${TenturaGraphNodeKind.fieldPerson}:')),
+        isNot(contains('${TenturaGraphNodeKind.fieldPerson}:B-overlap')),
+      );
+    });
+
+    test('requestById resolves overlay-only pinned requests', () async {
+      const request = ConstellationRequest(
+        id: 'B-pin',
+        authorId: 'author-capped',
+        title: 'Pinned',
+        status: 0,
+      );
+      final harness = await _harness(
+        fields: [
+          _field(
+            peers: const [],
+            pinnedPeers: const [],
+            requests: const [],
+            anchors: [_beaconAnchor(beaconId: 'B-pin', revision: BigInt.one)],
+            pinnedRequests: const [request],
+            supportPeers: const [
+              ConstellationPerson(id: 'author-capped', displayName: 'Author'),
+            ],
+            supportEdges: const [
+              ConstellationTrustEdgeEntity(src: 'ego', dst: 'author-capped', tier: 1),
+            ],
+          ),
+        ],
+      );
+      addTearDown(harness.cubit.close);
+
+      expect(harness.cubit.requestById('B-pin'), request);
     });
 
     test('ANCHORS overlay-only person appears without changing automatic snapshot', () async {
