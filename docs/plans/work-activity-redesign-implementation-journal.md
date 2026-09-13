@@ -171,6 +171,8 @@ DECISIONS: none
 
 REMAINING: none. Proceed to UNIT 05.
 
+**Manager verdict: ACCEPTED.** Independently re-ran all three Verify commands (4/4 pg, 12/12 graphql, lints 0/0). `markSeenForBeacon` correctly mirrors pre-UNIT-02 `markAllSeen`'s simple shape — scoped only by `visible_attention_receipts`, no surface/scope CTE machinery pulled in, exactly as instructed. The pg test suite is thorough: authorization scoping, an explicit seen≠settled assertion (checks `settlement_kind`/`settled_at` stay NULL and `requires_action` stays true after marking seen), a hidden-beacon authorization case, and — better than what was asked — a genuine `LISTEN entity_changes` test that verifies the realtime trigger actually fires, rather than just inferring it from the existing `markSeen` test's pattern. No leaked processes, clean git status, commits well split.
+
 ## Ordered unit checklist
 
 | Unit | Status |
@@ -179,7 +181,7 @@ REMAINING: none. Proceed to UNIT 05.
 | 01 | complete (accepted) |
 | 02 | complete (accepted) |
 | 03 | complete (accepted, one defect fixed by overseer) |
-| 04 | complete |
+| 04 | complete (accepted) |
 | 05 | pending |
 | 06 | pending |
 | 07 | pending |
