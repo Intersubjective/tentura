@@ -287,6 +287,35 @@ DECISIONS:
 
 REMAINING: none. Proceed to UNIT 08 (`AttentionCase` surfaces, summary stream, invalidation).
 
+## UNIT 08 — complete — 2026-09-14
+
+COMMITS:
+- `949fe7c94` feat(client): add attention feed destination surface mapping
+- `cdb7a19b8` feat(client): surface-aware attention sessions
+- `b3a8912a1` test(client): cover attention surface sessions and summary
+- (this journal entry) docs: UNIT 08 journal
+
+TESTS:
+- `cd packages/client && flutter test test/domain/attention/` → **54/54 passed**
+- `./scripts/check-custom-lints.sh packages/client` → `32 (baseline: 32)` — OK
+
+FILES:
+- `packages/client/lib/domain/attention/entity/attention_feed.dart`
+- `packages/client/lib/domain/attention/attention_case.dart`
+- `packages/client/test/domain/attention/attention_case_test.dart`
+- `packages/client/test/domain/attention/attention_case_test_support.dart` (new)
+- `packages/client/test/domain/attention/attention_surfaces_test.dart` (new)
+
+FINDINGS:
+- Reused existing methods: `_requestHeadRefresh`, `_requestHeadRefreshForAllAttached`, `_applyOptimisticAcks`, `_runAfterAckBarriers`, `_onAccountChanged`, `_displayedUnreadCount` / `_displaysSeen`.
+- New helpers: `_requestSurfaceSummaryRefresh`, `_requestHeadRefreshForAttachedActivityStream`, `_onRealtimeEntityChange`, `_applyOptimisticSurfaceSummary`, `_surfaceUnreadDeltasForIds`; surface summary guarded by `_surfaceSummaryRequestSerial` (same stale-drop pattern as `session.requestGeneration` on head refresh).
+- Unknown destination ids map to `null` surface (unscoped fetch), matching legacy destinations.
+
+DECISIONS:
+- Extracted `AttentionCaseTestRepository` / shared fixtures to `attention_case_test_support.dart` so `attention_surfaces_test.dart` can share the case-test fake without importing private types.
+
+REMAINING: none. Proceed to UNIT 09.
+
 ## Ordered unit checklist
 
 | Unit | Status |
@@ -299,7 +328,7 @@ REMAINING: none. Proceed to UNIT 08 (`AttentionCase` surfaces, summary stream, i
 | 05 | complete (accepted) |
 | 06 | complete (overseer, accepted) |
 | 07 | complete (accepted) |
-| 08 | pending |
+| 08 | complete |
 | 09 | pending |
 | 10 | pending |
 | 11 | pending |
