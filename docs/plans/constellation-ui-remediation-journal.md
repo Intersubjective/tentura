@@ -39,7 +39,7 @@ Orchestration: Claude (overseer) drives one fresh Cursor `composer-2.5` worker p
 | R04b satellite geometry + crossing preference + R04 tests (split of R04, part 2) | R04a | done | f2146021e, 7a4362fe5, bb8b3adf5 | accepted — plan R04 (UI-01/UI-02/UI-05/UI-11) closed; independently ramped verification (layout_test 25 → algorithms/scene_layout 17 → p06/density 30 → full constellation 301 pass) checking memory at each step; architecture boundary + lints clean (30/30, no drift); diff reviewed — ego-direction bisector, footprint-aware fan spacing (empty-footprints no-op preserved), and crossing preference (correctly uses body boxes not footprints, a deliberate and correct deviation from my literal prompt wording) all match plan §3.5; no test thresholds needed changing |
 | R05 edge legibility | R02 | done | 3d19ea4eb, 499631ba5, 9586255a1, 811a8fd1d | accepted — UI-06 closed; independently re-ran the new edge-style/painter/legend tests, full `test/features/constellation` (306 pass) and `test/features/graph` (218 pass), lints clean (30/30, no drift); diff reviewed — `edgeKindByPair` O(1) lookup with duplicate-key assert, `RepaintingEdgePainter` wired to `cameraRevision`, `effectiveWidth` screen-constant scaling matches spec, legend now derives both color AND dash from the same `constellationEdgeStyle` function the painter uses (fixes the 5/4 vs 6/4 drift the plan flagged) |
 | R06 targeting + semantics | R02, R03b | done | 2be7cb2da, 00f05299f, a0f7df364, ddce9b16d | accepted — UI-07 closed; independently re-ran the 20 new tap-dispatch/semantics/gating tests, full `test/features/constellation` (314 pass), `test/features/graph` (218 pass), lints clean (30/30, no drift); diff reviewed — double-dispatch removed via `onTap: null` + a `Semantics` wrapper with correct ego special-case (no button/onTap/click cursor), combined semantic label matches spec exactly; bonus find — `graphController.setCameraInteractionGated` was never actually called during placement drags (a real pre-existing gap the gating test exposed), now fixed at all 3 drag-lifecycle points |
-| R07 camera recovery + app bar | R02, R03b | in progress | | |
+| R07 camera recovery + app bar | R02, R03b | done | da326749b, 444b00129, 18a58555c, fee4de447, c9066c367 | |
 | R08 integrate, verify, release | R00–R07 (R04→R04a+R04b done, R03→R03a+R03b done) | pending | | |
 
 ## Verification commands (plan §5.3, run serially)
@@ -410,3 +410,46 @@ flutter test
 **Decisions:** Ego nodes use `Semantics` without `onTap`/`button`; request nodes set `isFocused` from `selectedRequestId`.
 
 **Remaining:** Manager verdict; R07+.
+
+### R07 — worker — checkpoint
+
+- ARB `constellationFitAll` + `TestIds.constellationFitAll` / `constellationCenterOnMe` were already present uncommitted from a prior partial attempt; wired through l10n gen and UI.
+- `fitWholeField` / `centerOnEgo` on cubit; footprint union via new `constellationPlacedNodeBounds`; `ConstellationCameraControls` + top-right stack wiring with shared `cameraViewportInsets`.
+- App bar: `Icons.legend_toggle` replaces map icons; `_labelsFit` uses `textScaler` + `textDirection`.
+- Deviation: plan §4 R07 app-bar Row layout prose (Expanded+Flexible only) does not match live row (title + legend slot + filters + Flexible toggle) — left structure unchanged per step 5.
+- Deviation: at 375 px full app bar width, view-mode text labels remain icon-only (insufficient `Flexible` width); tests assert no overflow + tooltips at 375×1.0/1.3 and label text at 900×1.3.
+
+### R07 — worker — final
+
+**Status:** complete
+
+**Commits:** `da326749b` l10n/test ids; `444b00129` camera controls; `18a58555c` app bar fixes; `fee4de447` tests; `c9066c367` journal
+
+**Changed files:**
+- `packages/client/l10n/app_en.arb`, `app_ru.arb`
+- `packages/client/lib/ui/test_ids.dart`
+- `packages/client/lib/features/constellation/domain/constellation_layout.dart`
+- `packages/client/lib/features/constellation/ui/bloc/constellation_cubit.dart`
+- `packages/client/lib/features/constellation/ui/widget/constellation_camera_controls.dart` (new)
+- `packages/client/lib/features/constellation/ui/widget/constellation_body.dart`
+- `packages/client/lib/features/constellation/ui/widget/constellation_app_bar.dart`
+- `packages/client/test/features/constellation/constellation_camera_controls_test.dart` (new)
+- `packages/client/test/features/constellation/constellation_app_bar_test.dart`
+- `docs/plans/constellation-ui-remediation-journal.md`
+
+**Tests:**
+- `cd packages/client && flutter gen-l10n` — ok
+- `cd packages/client && flutter test test/features/constellation/constellation_camera_controls_test.dart test/features/constellation/constellation_app_bar_test.dart` — pass
+- `cd packages/client && flutter test test/features/constellation` — 322 passed
+- `cd packages/client && flutter test test/features/graph test/features/home/constellation_nav_test.dart test/design_system` — 316 passed
+- `bash scripts/check-user-facing-terminology.sh` — ok
+- `./scripts/check-custom-lints.sh packages/client` — 30/30, no drift
+
+**§5.2 gate self-check (R07 / UI-08):**
+- **No auto-fit on open / filter / expand / mode switch:** `constellation_camera_controls_test` records transform across `toggleSatelliteOverflow`, filter change, map↔text, and `load()` — unchanged; cubit has no camera calls on those paths (confirmed grep).
+- **Camera recovery:** fit-all and center-on-ego widget tests with viewport insets excluding control column; disabled during `draggingExisting`.
+- **App bar:** legend no longer uses map icon; view-mode fit check is text-scale aware.
+
+**Decisions:** Reused `graphCenterView` for center tooltip; People-graph `IconButton` pattern adapted as `IconButton.filledTonal` column. Single-node bounds use same footprint union path (no crash).
+
+**Remaining:** Manager verdict; R08 integrate/verify/release.
