@@ -12,11 +12,14 @@ import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura/features/home/ui/bloc/home_tab_reselect_cubit.dart';
 import 'package:tentura/features/home/ui/bloc/home_attention_cubit.dart';
 import 'package:tentura/features/updates/ui/bloc/updates_feed_cubit.dart';
-import 'package:tentura/features/updates/ui/widget/updates_feed_pane.dart';
-
+import 'package:tentura/features/home/domain/work_activity_redesign_gate.dart';
+import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import '../../domain/enum.dart';
+import '../bloc/activity_offers_cubit.dart';
 import '../bloc/inbox_cubit.dart';
+import '../widget/activity_stream_view.dart';
 import '../widget/inbox_triage_row.dart';
+import 'package:tentura/features/updates/ui/widget/updates_feed_pane.dart';
 
 @RoutePage()
 class InboxScreen extends StatefulWidget {
@@ -215,6 +218,27 @@ class _InboxFeedKeepAliveState extends State<_InboxFeedKeepAlive>
 }
 
 Widget _inboxActivityFeedBody(BuildContext context) {
+  if (readWorkActivityRedesignGateEnabled()) {
+    final userId = context.read<ProfileCubit>().state.profile.id;
+    return MultiBlocProvider(
+      providers: [
+        BlocProvider(
+          create: (context) {
+            final cubit = ActivityOffersCubit(userId: userId);
+            unawaited(cubit.loadFirst());
+            return cubit;
+          },
+        ),
+        BlocProvider(
+          create: (_) => UpdatesFeedCubit(
+            destinationId: AttentionFeedDestinationId.activityStream,
+          ),
+        ),
+      ],
+      child: const ActivityStreamView(),
+    );
+  }
+
   final tt = context.tt;
   return Column(
     crossAxisAlignment: CrossAxisAlignment.stretch,
