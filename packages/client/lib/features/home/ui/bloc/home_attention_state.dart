@@ -20,6 +20,10 @@ abstract class HomeAttentionState with _$HomeAttentionState {
     @Default(false) bool myWorkLoaded,
     @Default(false) bool markerQueryComplete,
     @Default(HomeTab.work) HomeTab activeHomeTab,
+    @Default(0) int activityUnreadTotal,
+    @Default(0) int myWorkUnreadTotal,
+    @Default(0) int surfaceNeedsYouTotal,
+    @Default(false) bool surfaceSummaryLoaded,
   }) = _HomeAttentionState;
 
   const HomeAttentionState._();
@@ -64,4 +68,21 @@ abstract class HomeAttentionState with _$HomeAttentionState {
   ///
   /// Stays visible on the active tab: this is remaining work, not unseen.
   bool get showMyWorkObligationBadge => myWorkObligationCount > 0;
+
+  /// Work / Activity redesign (D5): Activity nav is a dot only, hidden on tab.
+  bool get showRedesignActivityUnreadDot =>
+      surfaceSummaryLoaded &&
+      activityUnreadTotal > 0 &&
+      activeHomeTab != HomeTab.inbox;
+
+  /// Redesign (D4): live obligation receipts on My Work; visible on active tab.
+  bool get showRedesignMyWorkObligationBadge =>
+      surfaceSummaryLoaded && surfaceNeedsYouTotal > 0;
+
+  /// Redesign: unseen My Work receipts when no live obligations remain.
+  bool get showRedesignMyWorkUnreadDot =>
+      surfaceSummaryLoaded &&
+      surfaceNeedsYouTotal == 0 &&
+      myWorkUnreadTotal > 0 &&
+      activeHomeTab != HomeTab.work;
 }

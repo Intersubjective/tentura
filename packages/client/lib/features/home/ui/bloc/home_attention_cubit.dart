@@ -34,6 +34,7 @@ final class HomeAttentionCubit extends Cubit<HomeAttentionState> {
     _obligationSummarySub = _attention.unreadSummary.listen(
       _onObligationSummary,
     );
+    _surfaceSummarySub = _attention.surfaceSummary.listen(_onSurfaceSummary);
   }
 
   static const _maxIdsPerRequest = 500;
@@ -45,6 +46,7 @@ final class HomeAttentionCubit extends Cubit<HomeAttentionState> {
   late final StreamSubscription<String> _accountSub;
   late final StreamSubscription<Object?> _attentionSub;
   late final StreamSubscription<AttentionSummary> _obligationSummarySub;
+  late final StreamSubscription<AttentionSurfaceSummary> _surfaceSummarySub;
 
   String _accountId = '';
   int _accountGeneration = 0;
@@ -130,6 +132,23 @@ final class HomeAttentionCubit extends Cubit<HomeAttentionState> {
       HomeAttentionState(
         activeHomeTab: state.activeHomeTab,
         myWorkObligationCount: 0,
+      ),
+    );
+  }
+
+  void _onSurfaceSummary(AttentionSurfaceSummary summary) {
+    if (state.activityUnreadTotal == summary.activityUnreadTotal &&
+        state.myWorkUnreadTotal == summary.myWorkUnreadTotal &&
+        state.surfaceNeedsYouTotal == summary.needsYouTotal &&
+        state.surfaceSummaryLoaded) {
+      return;
+    }
+    emit(
+      state.copyWith(
+        activityUnreadTotal: summary.activityUnreadTotal,
+        myWorkUnreadTotal: summary.myWorkUnreadTotal,
+        surfaceNeedsYouTotal: summary.needsYouTotal,
+        surfaceSummaryLoaded: true,
       ),
     );
   }
@@ -236,6 +255,7 @@ final class HomeAttentionCubit extends Cubit<HomeAttentionState> {
     await _accountSub.cancel();
     await _attentionSub.cancel();
     await _obligationSummarySub.cancel();
+    await _surfaceSummarySub.cancel();
     return super.close();
   }
 }
