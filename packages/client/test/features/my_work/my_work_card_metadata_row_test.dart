@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:get_it/get_it.dart';
+
+import 'package:tentura/features/home/domain/work_activity_redesign_gate.dart';
 
 import 'package:tentura/design_system/tentura_theme.dart';
 import 'package:tentura/design_system/tentura_icons.dart';
@@ -26,6 +29,21 @@ MyWorkCardViewModel _viewModel(Beacon beacon) => MyWorkCardViewModel(
   kind: MyWorkCardKind.authoredActive,
   beacon: beacon,
 );
+
+void _pinLegacyRedesignGate() {
+  if (GetIt.I.isRegistered<bool>(instanceName: workActivityRedesignGate)) {
+    GetIt.I.unregister<bool>(instanceName: workActivityRedesignGate);
+  }
+  GetIt.I.registerSingleton<bool>(
+    false,
+    instanceName: workActivityRedesignGate,
+  );
+  addTearDown(() {
+    if (GetIt.I.isRegistered<bool>(instanceName: workActivityRedesignGate)) {
+      GetIt.I.unregister<bool>(instanceName: workActivityRedesignGate);
+    }
+  });
+}
 
 void main() {
   testWidgets('bare people strip accepts less than one avatar width', (
@@ -72,6 +90,7 @@ void main() {
   testWidgets('metadata row shows schedule and location at 360px', (
     tester,
   ) async {
+    _pinLegacyRedesignGate();
     final beacon = Beacon.empty.copyWith(
       id: 'b1',
       author: const Profile(id: 'a1', displayName: 'Alice'),
@@ -225,6 +244,7 @@ void main() {
   testWidgets('segment YOU icon x-aligns with NOW and last-event icons', (
     tester,
   ) async {
+    _pinLegacyRedesignGate();
     const authorId = 'author1';
     final beacon = Beacon.empty.copyWith(
       id: 'b-align',

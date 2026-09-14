@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:get_it/get_it.dart';
 import 'package:mockito/mockito.dart';
+
+import 'package:tentura/features/home/domain/work_activity_redesign_gate.dart';
 
 import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/consts.dart';
@@ -42,6 +45,19 @@ void main() {
   testWidgets('tapping a My Work card pushes a routed BeaconViewRoute', (
     tester,
   ) async {
+    if (GetIt.I.isRegistered<bool>(instanceName: workActivityRedesignGate)) {
+      GetIt.I.unregister<bool>(instanceName: workActivityRedesignGate);
+    }
+    GetIt.I.registerSingleton<bool>(
+      false,
+      instanceName: workActivityRedesignGate,
+    );
+    addTearDown(() {
+      if (GetIt.I.isRegistered<bool>(instanceName: workActivityRedesignGate)) {
+        GetIt.I.unregister<bool>(instanceName: workActivityRedesignGate);
+      }
+    });
+
     final beacon = Beacon.empty.copyWith(
       id: 'b-my-work-nav',
       title: 'My Work nav request',

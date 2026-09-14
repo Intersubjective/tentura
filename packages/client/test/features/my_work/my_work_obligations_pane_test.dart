@@ -28,6 +28,7 @@ import 'package:tentura/features/home/ui/bloc/home_activation_cubit.dart';
 import 'package:tentura/features/home/ui/bloc/home_attention_cubit.dart';
 import 'package:tentura/features/home/ui/bloc/home_tab_reselect_cubit.dart';
 import 'package:tentura/features/inbox/ui/bloc/inbox_operational_cubit.dart';
+import 'package:tentura/features/home/domain/work_activity_redesign_gate.dart';
 import 'package:tentura/features/my_work/domain/my_work_obligations_gate.dart';
 import 'package:tentura/features/my_work/ui/bloc/my_work_cubit.dart';
 import 'package:tentura/features/my_work/ui/screen/my_work_screen.dart';
@@ -175,6 +176,22 @@ void _registerGate(bool enabled) {
   GetIt.I.registerSingleton<bool>(enabled, instanceName: myWorkObligationsGate);
 }
 
+void _registerRedesignGate(bool enabled) {
+  if (GetIt.I.isRegistered<bool>(instanceName: workActivityRedesignGate)) {
+    GetIt.I.unregister<bool>(instanceName: workActivityRedesignGate);
+  }
+  GetIt.I.registerSingleton<bool>(
+    enabled,
+    instanceName: workActivityRedesignGate,
+  );
+}
+
+void _unregisterRedesignGate() {
+  if (GetIt.I.isRegistered<bool>(instanceName: workActivityRedesignGate)) {
+    GetIt.I.unregister<bool>(instanceName: workActivityRedesignGate);
+  }
+}
+
 Future<
   ({
     AttentionCase attention,
@@ -264,6 +281,7 @@ Future<void> _pumpMyWorkScreen(
 
 void main() {
   setUp(() {
+    _registerRedesignGate(false);
     if (!GetIt.I.isRegistered<Logger>()) {
       GetIt.I.registerSingleton<Logger>(Logger('my-work-obligations-pane'));
     }
@@ -291,6 +309,7 @@ void main() {
     if (GetIt.I.isRegistered<bool>(instanceName: myWorkObligationsGate)) {
       GetIt.I.unregister<bool>(instanceName: myWorkObligationsGate);
     }
+    _unregisterRedesignGate();
     if (GetIt.I.isRegistered<AttentionCase>()) {
       final attention = GetIt.I<AttentionCase>();
       unawaited(attention.dispose());
