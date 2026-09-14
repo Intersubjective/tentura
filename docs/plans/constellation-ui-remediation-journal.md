@@ -22,6 +22,7 @@ Orchestration: Claude (overseer) drives one fresh Cursor `composer-2.5` worker p
 - **D-M1 (constellation_body_test.dart is off-limits).** It carries pre-existing uncommitted edits from other work. Plan steps that say "move `_pumpBody` from `constellation_body_test.dart`" or "widget test in `constellation_body_test.dart`" are redirected: the shared helper lives in the new fixture file (duplicated, not moved), and new tests go into new test files. Do not modify `constellation_body_test.dart` until the owner commits those edits.
 - **D-M2 (§6.1.1 compact Field nav label).** Default kept: no change to `home_screen.dart` / `home_bottom_navigation_bar.dart`.
 - **D-M3 (§6.1.2 per-author density).** Formula unchanged; owner note only.
+- **D-M4 (R03 split).** Plan unit R03 is too large for one reliable Cursor turn (9 steps: new pure-geometry module, tap resolver, overlay widget wiring, badge redesign, footprint-metric plumbing, plus its own large test suite). Split into **R03a** (pure-Dart `constellation_presentation_frame.dart` + tap resolver + overflow-chip sizing helper + tokens — plan R03 steps 1-4, unit-tested in isolation, no widget-tree wiring) and **R03b** (wire the overlay into `constellation_body.dart`, remove `_MapOverflowOverlay`, redesign pin/status badges as top-corner badges, plumb footprint metrics to the cubit — plan R03 steps 5-9, plus the full plan-R03 widget test suite). R04 now depends on R03b instead of R03.
 
 ## Unit checklist
 
@@ -30,8 +31,9 @@ Orchestration: Claude (overseer) drives one fresh Cursor `composer-2.5` worker p
 | R00 fixture + baseline | — | done | c690eca44, 47e9bf065 | accepted — smoke test independently re-run (pass), `git diff --check` clean, no leaked test processes |
 | R01 label budget (ships alone) | R00 | done | 4dcca824a, 9843bb9d1 | accepted — independently re-ran full `test/features/constellation` (265 pass), `test/features/graph test/features/home` (pass), `check-custom-lints.sh packages/client` (30/30, no drift); diff reviewed, matches UI-09/UI-10 fix design; `_MapOverflowOverlay` `ListenableBuilder` addition is a reasonable documented deviation, superseded by R03 |
 | R02 graph package seams | R01 landed | done | baea36507, b03f9e598, d9dadf575, bcf3d20f1, 6b6b25c6b | accepted — independently re-ran the 5 targeted package tests, full package suite (112 pass), `dart analyze` (0 errors, pre-existing INFO-only), and `test/features/graph` on client (217 pass, compatibility gate); diff reviewed — camera-revision listener rebind/dispose is correct, tap-hit-tester shares one drag-pass snapshot for body+tap as required, RepaintingEdgePainter generalization is minimal and correct; zero client files touched |
-| R03 screen-space labels/chips/badges | R02 | in progress | | |
-| R04 collision-aware Request placement | R03 | pending | | |
+| R03a presentation-frame + tap-resolver (split of R03, part 1) | R02 | in progress | | |
+| R03b wire overlay + badges + R03 tests (split of R03, part 2) | R03a | pending | | |
+| R04 collision-aware Request placement | R03b | pending | | |
 | R05 edge legibility | R02 | pending | | |
 | R06 targeting + semantics | R02, R03 | pending | | |
 | R07 camera recovery + app bar | R02, R03 | pending | | |
