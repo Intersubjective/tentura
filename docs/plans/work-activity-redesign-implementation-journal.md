@@ -829,6 +829,8 @@ REMAINING: Web integration suite (`./scripts/run_client_integration_web_local.sh
 
 **Manager verdict: ACCEPTED — the gate is now on by default.** Independently re-ran the full suite (3287 passed, 29 skipped, 0 failed, exit 0) and lints (32/32 baseline). All 22 originally-failing tests were categorized "pinned-to-legacy" — sound, since every one of them specifically exercised legacy-only surfaces (the obligations pane, triage chrome, pre-D5 navbar rules) that UNIT 21 hasn't removed yet; none needed a behavior-expectation change since the redesign's actual behavior was already fully built and accepted across UNITs 09-19. The one additional fix found via the full-suite rerun (`home_tab_branch_routing_test`, correctly categorized "updated-to-new") reflects UNIT 20's own redirect change, not a pre-existing test's wrong assumption. Read the `goToInboxTriage` diff: it now navigates to `kPathInbox` and waits on either a specific offer card or the "for you" header via `find.bySemanticsIdentifier` (correcting an assumption that these were `ValueKey`s) — `offerHelpFromInbox`/`openRequestFromInbox` pick up the fix automatically since they call the same function, and no other integration_test file bypassed the helper to hit the old triage route directly. Read the new `work_activity_first_paint_test.dart`: all three tests use real `Rect` assertions plus explicit `findsNothing` checks for the legacy pane, `UpdatesFeedTile` widgets on My Work, and any `myWork`-surface receipt row on Activity (the precise, correct operationalization of design §9.1's type-purity rule) — every test runs at 360×640 with 1.3× text scale baked in, the harder constraint case, satisfying the plan's exact acceptance wording. Correctly noted that `integration_test/` files aren't exercised by the plain `flutter test` run used for verification — their correctness is still unproven pending the actual e2e suite, which the overseer will now run as the deferred follow-up. No leaked processes, clean git status, commits focused and well-categorized.
 
+**Web e2e follow-up (overseer):** ran the four required journeys via `./scripts/run_client_integration_web_local.sh`: `request_lifecycle_create_forward_inbox_test.dart` PASS, `request_lifecycle_offer_admit_chat_test.dart` PASS, `request_lifecycle_closed_to_archive_test.dart` PASS, `tab_attention_forced_background_test.dart` FAIL on first run — `TimeoutException: Timed out waiting for goToPath(/home/updates)`, with the log showing the app had actually already landed correctly on `/home/inbox/history` with the expected content (unread receipt, notification history title, etc.) — the app itself was correct; `goToPath`'s own URL-match wait was racing UNIT 20's own `kPathUpdates → kPathInboxHistory` redirect and would never match the pre-redirect URL. Fixed directly (`15e7ff40c`): navigate to `kPathInboxHistory` directly instead of the now-redirecting `kPathUpdates`. Re-ran that one file in isolation: PASS. No leaked chromedriver/chrome processes after either run. All four required UNIT 20 e2e journeys now pass.
+
 ## Ordered unit checklist
 
 | Unit | Status |
@@ -853,7 +855,7 @@ REMAINING: Web integration suite (`./scripts/run_client_integration_web_local.sh
 | 17 | complete (accepted, hang diagnosed+fixed by overseer) |
 | 18 | complete (accepted) |
 | 19 | complete (accepted) — all pre-flip units done |
-| 20 | complete (accepted) — gate now on by default; web e2e run next |
+| 20 | complete (accepted) — gate on by default; all 4 required e2e journeys pass |
 | 21 | pending |
 | 22 | pending |
 
