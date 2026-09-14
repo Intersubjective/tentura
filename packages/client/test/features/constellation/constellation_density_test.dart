@@ -28,6 +28,30 @@ void main() {
       expect(budget, (perPerson: 3, total: 150));
     });
 
+    test('phone viewport 375x547 at ratio 1.0', () {
+      final budget = constellationLabelBudget(
+        viewport: _viewport(width: 375, height: 547),
+        textScaleFactor: 1.0,
+      );
+      expect(budget, (perPerson: 1, total: 28));
+    });
+
+    test('phone viewport 375x547 at ratio 1.3', () {
+      final budget = constellationLabelBudget(
+        viewport: _viewport(width: 375, height: 547),
+        textScaleFactor: 1.3,
+      );
+      expect(budget, (perPerson: 1, total: 21));
+    });
+
+    test('phone viewport 375x547 at ratio 14 (legacy UI-09 bug)', () {
+      final budget = constellationLabelBudget(
+        viewport: _viewport(width: 375, height: 547),
+        textScaleFactor: 14,
+      );
+      expect(budget, (perPerson: 1, total: 2));
+    });
+
     test('smaller viewport lowers the budget monotonically', () {
       final large = constellationLabelBudget(
         viewport: _viewport(width: 1200, height: 900),

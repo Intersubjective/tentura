@@ -7,6 +7,7 @@ const _kMaxLabelsTotal = 150;
 const _kReferenceViewportWidth = 1200.0;
 const _kReferenceViewportHeight = 900.0;
 
+/// [textScaleFactor] is a dimensionless ratio; 1.0 = default text size.
 ConstellationLabelBudget constellationLabelBudget({
   required Size viewport,
   required double textScaleFactor,

@@ -61,22 +61,26 @@ class _ConstellationBodyState extends State<ConstellationBody> {
   double? _lastLabelBudgetTextScale;
   String? _selectionUnavailableMessage;
 
-  void _syncLabelBudget(
-    BuildContext context,
-    ConstellationCubit cubit,
-    Size viewport,
-  ) {
-    final scale = MediaQuery.textScalerOf(context).scale(14);
+  void _scheduleLabelBudgetSync(BuildContext context, Size viewport) {
+    final style = TenturaText.labelSmall(Theme.of(context).colorScheme.onSurface);
+    final reference = style.fontSize!;
+    final ratio = MediaQuery.textScalerOf(context).scale(reference) / reference;
     if (_lastLabelBudgetViewport == viewport &&
-        _lastLabelBudgetTextScale == scale) {
+        _lastLabelBudgetTextScale == ratio) {
       return;
     }
     _lastLabelBudgetViewport = viewport;
-    _lastLabelBudgetTextScale = scale;
-    cubit.updateLabelBudgetContext(
-      viewport: viewport,
-      textScaleFactor: scale,
-    );
+    _lastLabelBudgetTextScale = ratio;
+    final cubit = context.read<ConstellationCubit>();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) {
+        return;
+      }
+      cubit.updateLabelBudgetContext(
+        viewport: viewport,
+        textScaleFactor: ratio,
+      );
+    });
   }
 
   void _onNodeTap(
@@ -406,70 +410,70 @@ class _ConstellationBodyState extends State<ConstellationBody> {
             previous.placementPhase != current.placementPhase ||
             previous.membershipFilters != current.membershipFilters,
         builder: (context, state) {
-          final cubit = context.read<ConstellationCubit>();
-          final tt = context.tt;
-          final theme = Theme.of(context);
+          return LayoutBuilder(
+            builder: (context, constraints) {
+              _scheduleLabelBudgetSync(
+                context,
+                Size(constraints.maxWidth, constraints.maxHeight),
+              );
+              final cubit = context.read<ConstellationCubit>();
+              final tt = context.tt;
+              final theme = Theme.of(context);
 
-          if (state.status is StateIsLoading && state.field == null) {
-            return Stack(
-              fit: StackFit.expand,
-              children: [
-                const Center(child: CircularProgressIndicator()),
-                Positioned(
-                  top: 0,
-                  left: 0,
-                  right: 0,
-                  child: LinearPiActive.builder(context, true),
-                ),
-              ],
-            );
-          }
+              if (state.status is StateIsLoading && state.field == null) {
+                return Stack(
+                  fit: StackFit.expand,
+                  children: [
+                    const Center(child: CircularProgressIndicator()),
+                    Positioned(
+                      top: 0,
+                      left: 0,
+                      right: 0,
+                      child: LinearPiActive.builder(context, true),
+                    ),
+                  ],
+                );
+              }
 
-          if (state.loadError != null && state.field == null) {
-            return Center(
-              child: Padding(
-                padding: EdgeInsets.symmetric(horizontal: tt.screenHPadding),
-                child: Text(
-                  state.loadError.toString(),
-                  style: Theme.of(context).textTheme.bodyMedium,
-                ),
-              ),
-            );
-          }
+              if (state.loadError != null && state.field == null) {
+                return Center(
+                  child: Padding(
+                    padding: EdgeInsets.symmetric(horizontal: tt.screenHPadding),
+                    child: Text(
+                      state.loadError.toString(),
+                      style: Theme.of(context).textTheme.bodyMedium,
+                    ),
+                  ),
+                );
+              }
 
-          final resolved = state.resolvedField;
-          if (resolved == null || cubit.layoutEgoId.isEmpty) {
-            return const SizedBox.shrink();
-          }
+              final resolved = state.resolvedField;
+              if (resolved == null || cubit.layoutEgoId.isEmpty) {
+                return const SizedBox.shrink();
+              }
 
-          final layoutAlgorithm = cubit.graphSceneLayoutAlgorithm;
+              final layoutAlgorithm = cubit.graphSceneLayoutAlgorithm;
 
-          final panelVisible = state.selectedPersonId != null;
+              final panelVisible = state.selectedPersonId != null;
 
-          return Shortcuts(
-            shortcuts: const {
-              SingleActivator(LogicalKeyboardKey.escape):
-                  _CancelPlacementIntent(),
-            },
-            child: Actions(
-              actions: {
-                _CancelPlacementIntent: CallbackAction<_CancelPlacementIntent>(
-                  onInvoke: (_) {
-                    cubit.cancelPlacement();
-                    return null;
+              return Shortcuts(
+                shortcuts: const {
+                  SingleActivator(LogicalKeyboardKey.escape):
+                      _CancelPlacementIntent(),
+                },
+                child: Actions(
+                  actions: {
+                    _CancelPlacementIntent:
+                        CallbackAction<_CancelPlacementIntent>(
+                      onInvoke: (_) {
+                        cubit.cancelPlacement();
+                        return null;
+                      },
+                    ),
                   },
-                ),
-              },
-              child: Focus(
-                autofocus: true,
-                child: LayoutBuilder(
-                  builder: (context, constraints) {
-                    _syncLabelBudget(
-                      context,
-                      cubit,
-                      Size(constraints.maxWidth, constraints.maxHeight),
-                    );
-                    return Column(
+                  child: Focus(
+                    autofocus: true,
+                    child: Column(
                       crossAxisAlignment: CrossAxisAlignment.stretch,
                       children: [
                         const ConstellationFieldNotices(),
@@ -512,11 +516,11 @@ class _ConstellationBodyState extends State<ConstellationBody> {
                           ),
                         ),
                       ],
-                    );
-                  },
+                    ),
+                  ),
                 ),
-              ),
-            ),
+              );
+            },
           );
         },
       ),
@@ -746,6 +750,13 @@ class _MapOverflowOverlay extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    return ListenableBuilder(
+      listenable: cubit.graphController,
+      builder: (context, _) => _buildWithLayout(context),
+    );
+  }
+
+  Widget _buildWithLayout(BuildContext context) {
     if (!cubit.graphController.canLayout) {
       return child;
     }

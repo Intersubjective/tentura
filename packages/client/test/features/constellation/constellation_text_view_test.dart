@@ -197,6 +197,8 @@ Future<void> _pumpBody(WidgetTester tester, ConstellationCubit cubit) async {
     ),
   );
   await tester.pump();
+  // ConstellationBody applies label budget in a post-frame callback (R01).
+  await tester.pump();
   await tester.pump(const Duration(milliseconds: 400));
 }
 

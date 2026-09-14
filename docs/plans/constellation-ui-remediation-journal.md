@@ -106,3 +106,38 @@ flutter test
 **Decisions:** `kRefEgo.displayName` = `Vadim` per plan; tier-1 edges one direction `ego → peer` matching existing widget tests; long titles for `req-ego-4`..`6` are synthetic mixed-script strings (plan did not spell exact copy).
 
 **Remaining:** R01+ units per checklist.
+
+### R01 — worker — checkpoint
+
+- Implemented post-frame `_scheduleLabelBudgetSync` (ratio from `TenturaText.labelSmall` / 13), outer `LayoutBuilder` on all `BlocBuilder` branches, cubit `_currentLabelBudget` / `_appliedLabelBudget`, recompose on budget change with placement deferral.
+- Deviation: plan did not mention `_MapOverflowOverlay` needing `ListenableBuilder` on `graphController` — without it, overflow chips did not appear after async layout once budget sync moved off the build path (`constellation_text_view_test` caught this).
+- D-M1: widget text-scale tests in `constellation_label_budget_widget_test.dart`; `constellation_body_test.dart` untouched.
+- `constellation_text_view_test._pumpBody`: extra `pump()` for post-frame budget callback.
+
+### R01 — worker — final
+
+**Status:** complete
+
+**Commits:** (filled after `git commit`)
+
+**Changed files:**
+- `packages/client/lib/features/constellation/ui/widget/constellation_body.dart`
+- `packages/client/lib/features/constellation/ui/bloc/constellation_cubit.dart`
+- `packages/client/lib/features/constellation/domain/constellation_density.dart`
+- `packages/client/test/features/constellation/constellation_density_test.dart`
+- `packages/client/test/features/constellation/constellation_label_budget_context_test.dart` (new)
+- `packages/client/test/features/constellation/constellation_label_budget_widget_test.dart` (new)
+- `packages/client/test/features/constellation/constellation_tab_reselect_test.dart`
+- `packages/client/test/features/constellation/constellation_text_view_test.dart`
+- `packages/client/test/features/constellation/fixtures/constellation_reference_fixture.dart`
+- `docs/plans/constellation-ui-remediation-journal.md`
+
+**Tests:**
+- `cd packages/client && flutter test test/features/constellation/constellation_density_test.dart test/features/constellation/constellation_label_budget_context_test.dart test/features/constellation/constellation_label_budget_widget_test.dart test/features/constellation/constellation_tab_reselect_test.dart` — pass
+- `cd packages/client && flutter test test/features/constellation` — 265 passed
+- `cd packages/client && flutter test test/features/graph test/features/home` — pass
+- `./scripts/check-custom-lints.sh packages/client` — pass
+
+**Decisions:** Formula table verified unchanged (375×547 @1.0 → (1,28), etc.). No client version bump per unit instructions.
+
+**Remaining:** Manager commit hash + verdict; R02+.

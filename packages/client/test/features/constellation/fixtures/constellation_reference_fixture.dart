@@ -213,10 +213,12 @@ Future<FakeUiEffectPort> pumpConstellationBody(
   ConstellationCubit cubit, {
   Size size = const Size(375, 547),
   double textScale = 1.0,
+  TextScaler? textScaler,
   Locale locale = const Locale('ru'),
   ThemeData? theme,
   FakeUiEffectPort? effects,
 }) async {
+  final resolvedScaler = textScaler ?? TextScaler.linear(textScale);
   await tester.binding.setSurfaceSize(size);
   addTearDown(() => tester.binding.setSurfaceSize(null));
   final fx = effects ?? FakeUiEffectPort();
@@ -229,7 +231,7 @@ Future<FakeUiEffectPort> pumpConstellationBody(
       home: MediaQuery(
         data: MediaQueryData(
           size: size,
-          textScaler: TextScaler.linear(textScale),
+          textScaler: resolvedScaler,
         ),
         child: TenturaResponsiveScope(
           child: MultiBlocProvider(

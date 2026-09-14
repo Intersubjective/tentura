@@ -18,6 +18,7 @@ import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
 import '../../ui/effect/fake_ui_effect_port.dart';
+import 'fixtures/constellation_reference_fixture.dart';
 
 const _ego = Profile(id: 'ego', displayName: 'Ego');
 
@@ -128,6 +129,74 @@ void main() {
       }
 
       expect(repository.fetchCount, 2);
+    },
+  );
+
+  testWidgets(
+    'reselect reload keeps overflow counts after phone label budget sync',
+    (tester) async {
+      final field = constellationReferenceField();
+      final repository = _CountingRepository(field);
+      final cubit = ConstellationCubit(
+        case_: ConstellationFieldCase(
+          repository,
+          env: const Env.fromEnvironment(),
+          logger: Logger('ConstellationTabReselectOverflowTest'),
+        ),
+        viewer: kRefEgo,
+      );
+      addTearDown(cubit.close);
+      await cubit.stream.firstWhere((state) => state.status is StateIsSuccess);
+
+      final reselect = HomeTabReselectCubit();
+      addTearDown(reselect.close);
+
+      await tester.pumpWidget(
+        MaterialApp(
+          locale: const Locale('ru'),
+          theme: TenturaTheme.light(),
+          localizationsDelegates: L10n.localizationsDelegates,
+          supportedLocales: L10n.supportedLocales,
+          home: MediaQuery(
+            data: const MediaQueryData(
+              size: Size(375, 547),
+              textScaler: TextScaler.linear(1.0),
+            ),
+            child: TenturaResponsiveScope(
+              child: MultiBlocProvider(
+                providers: [
+                  BlocProvider<ConstellationCubit>.value(value: cubit),
+                  BlocProvider<HomeTabReselectCubit>.value(value: reselect),
+                  BlocProvider<GraphPersonContextCubit>(
+                    create: (_) => _StubContextCubit(),
+                  ),
+                  BlocProvider<ScreenCubit>(
+                    create: (_) => ScreenCubit(FakeUiEffectPort()),
+                  ),
+                ],
+                child: const ConstellationScreen(),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+      await tester.pump();
+      for (var i = 0; i < 10; i++) {
+        await tester.pump(const Duration(milliseconds: 50));
+      }
+
+      final before = Map<String, int>.from(cubit.overflowHiddenCountByAuthor);
+      expect(before, isNotEmpty);
+
+      reselect.bump(HomeTab.constellation);
+      await tester.pump();
+      for (var i = 0; i < 40 && repository.fetchCount < 2; i++) {
+        await tester.pump(const Duration(milliseconds: 50));
+      }
+
+      expect(repository.fetchCount, 2);
+      expect(cubit.overflowHiddenCountByAuthor, before);
     },
   );
 }

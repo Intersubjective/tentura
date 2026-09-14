@@ -199,6 +199,11 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
 
   Size _labelBudgetViewport = const Size(1200, 900);
   double _labelBudgetTextScale = 1.0;
+  ConstellationLabelBudget? _appliedLabelBudget;
+  bool _labelBudgetRecomposePending = false;
+
+  @visibleForTesting
+  double get labelBudgetTextScaleForTest => _labelBudgetTextScale;
 
   @visibleForTesting
   int get layoutReconciliationCount => _layoutReconciliationCount;
@@ -407,14 +412,12 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     );
     _anchorCase?.syncMembershipFilters(state.membershipFilters);
     try {
+      final labelBudget = _currentLabelBudget();
       final resolved = await _case.load(
         viewerId: _viewer.id,
         membershipFilters: state.membershipFilters,
         localFilters: state.filters,
-        labelBudget: constellationLabelBudget(
-          viewport: _labelBudgetViewport,
-          textScaleFactor: _labelBudgetTextScale,
-        ),
+        labelBudget: labelBudget,
       );
       if (isClosed || generation != state.loadGeneration) {
         return;
@@ -435,10 +438,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
         field: loadedField,
         localFilters: state.filters,
         asOfUtc: loadedField.loadedAt,
-        labelBudget: constellationLabelBudget(
-          viewport: _labelBudgetViewport,
-          textScaleFactor: _labelBudgetTextScale,
-        ),
+        labelBudget: labelBudget,
         expandedSatelliteAuthorIds: expandedSatelliteAuthorIds,
       );
       emit(
@@ -874,10 +874,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
       field: mergedField,
       localFilters: state.filters,
       asOfUtc: state.loadedAt ?? field.loadedAt,
-      labelBudget: constellationLabelBudget(
-        viewport: _labelBudgetViewport,
-        textScaleFactor: _labelBudgetTextScale,
-      ),
+      labelBudget: _currentLabelBudget(),
       expandedSatelliteAuthorIds: expandedSatelliteAuthorIds,
     );
     emit(
@@ -891,6 +888,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     );
     droppedHolderIds = composition.droppedHolderIds;
     _reconcileSelection(composition);
+    _labelBudgetRecomposePending = false;
   }
 
   void _reconcileSelection(ConstellationComposedPresentation composition) {
@@ -939,7 +937,12 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
       ),
     );
     if (!write) {
-      _reconcileLayout();
+      if (_labelBudgetRecomposePending) {
+        _labelBudgetRecomposePending = false;
+        _recomposeAndLayout();
+      } else {
+        _reconcileLayout();
+      }
     }
   }
 
@@ -977,11 +980,41 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     required Size viewport,
     required double textScaleFactor,
   }) {
+    assert(
+      textScaleFactor > 0 && textScaleFactor <= 4,
+      'textScaleFactor is a dimensionless ratio, not a font size',
+    );
+    if (isClosed || viewport.isEmpty || !viewport.isFinite) {
+      return;
+    }
     _labelBudgetViewport = viewport;
     _labelBudgetTextScale = textScaleFactor;
-    if (!state.hasPendingPlacementWrite) {
-      _reconcileLayout(deferAutomaticReflow: true);
+    final next = constellationLabelBudget(
+      viewport: viewport,
+      textScaleFactor: textScaleFactor,
+    );
+    if (next == _appliedLabelBudget || state.field == null) {
+      return;
     }
+    if (_placementBusy) {
+      _labelBudgetRecomposePending = true;
+      return;
+    }
+    _recomposeAndLayout();
+  }
+
+  bool get _placementBusy =>
+      state.hasPendingPlacementWrite ||
+      (_anchorCase?.hasPendingWrite ?? false) ||
+      _draggingNodeId != null;
+
+  ConstellationLabelBudget _currentLabelBudget() {
+    final budget = constellationLabelBudget(
+      viewport: _labelBudgetViewport,
+      textScaleFactor: _labelBudgetTextScale,
+    );
+    _appliedLabelBudget = budget;
+    return budget;
   }
 
   bool get hasActiveFilters =>
@@ -1565,10 +1598,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
       }
     }
 
-    final budget = constellationLabelBudget(
-      viewport: _labelBudgetViewport,
-      textScaleFactor: _labelBudgetTextScale,
-    );
+    final budget = _currentLabelBudget();
     final allocated = allocateVisibleRequests(
       requestIdsByAuthor: filteredByAuthor,
       budget: budget,
@@ -1613,10 +1643,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
       field: field,
       localFilters: state.filters,
       asOfUtc: state.loadedAt ?? field.loadedAt,
-      labelBudget: constellationLabelBudget(
-        viewport: _labelBudgetViewport,
-        textScaleFactor: _labelBudgetTextScale,
-      ),
+      labelBudget: _currentLabelBudget(),
       expandedSatelliteAuthorIds: expandedSatelliteAuthorIds,
     );
     emit(
