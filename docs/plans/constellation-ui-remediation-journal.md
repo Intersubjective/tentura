@@ -64,7 +64,7 @@ flutter test
 
 ## Open decisions / blockers
 
-- None blocking at start.
+- **R03b launch blocked (2026-09-14 ~20:24-20:35).** Six consecutive attempts to launch the R03b Cursor worker were killed by an external "system is running low on memory" guard, even though `/proc/meminfo`/`free -h` showed ~30GB `MemAvailable` and load <1.0 immediately after every kill (raw `MemFree` hovered at 6-7GB with 24GB reclaimable cache each time — possibly the guard thresholds on raw free rather than available memory, unconfirmed). One attempt (of six) ran long enough to make real progress before also being killed. No leaked cursor-agent processes and no corrupted git state resulted. A small, safe, additive partial edit from the killed attempt is left uncommitted in `constellation_anchor_composition.dart` (adds `expandedExtraCountByAuthor` field with a default — matches plan R03 step 5's first move) and is intentionally kept for the next attempt to build on rather than discarded. Filed as harness feedback (SendFeedback). Next step: retry R03b once conditions look stable, or ask the owner if other memory-heavy applications should be closed first.
 
 ## Entries
 
