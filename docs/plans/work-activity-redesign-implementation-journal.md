@@ -636,11 +636,46 @@ DECISIONS:
 - Per-source failure: offers use inline retry row; stream keeps `UpdatesRefreshErrorBanner` — neither blocks the other.
 
 REMAINING:
-- UNIT 17: live-arrival pill, demotion motion, snackbar scroll-to-row (consumes `demotedBeaconIds` + `setScrolledAway` already wired).
 - UNIT 18: Activity chrome (title, mark-all scoped to activity, notification history route).
 - UNIT 19: nav indicators / surface-aware open.
 
 **Environment note:** two leaked processes from this worker's own verification runs were still alive well after the worker itself exited — an orphaned `rg` pipeline (PID 44759/44760, watching test output) and a live `flutter test test/features/inbox/activity_stream_view_test.dart` process tree (44758 + `frontend_server_aot` + `flutter_tester` children). Both killed by the overseer before review. Not a correctness issue, just cleanup hygiene.
+
+## UNIT 17 — complete — 2026-09-14
+
+COMMITS:
+- `5aea8f17c` feat(client): add activity live arrival and demotion copy
+- `0ef8237c5` feat(client): demote answered forwards into the stream
+- `aa34780b7` test(client): cover activity live arrival and demotion motion
+- `6369aff86` docs: UNIT 17 live arrival and demotion motion journal
+
+TESTS:
+- `cd packages/client && flutter gen-l10n` → exit 0
+- `cd packages/client && flutter test test/features/inbox/activity_live_motion_test.dart` → **5/5 passed**
+- `cd packages/client && flutter test test/features/inbox/` → **98/98 passed**
+- `cd packages/client && flutter test test/features/updates/` → **87/87 passed**
+- `./scripts/check-custom-lints.sh packages/client` → `32 (baseline: 32)` — OK
+
+FILES:
+- `packages/client/lib/features/inbox/ui/bloc/activity_offers_cubit.dart`
+- `packages/client/lib/features/inbox/ui/bloc/activity_offers_state.dart`
+- `packages/client/lib/features/inbox/ui/widget/activity_stream_view.dart`
+- `packages/client/l10n/app_en.arb`, `app_ru.arb`
+- `packages/client/lib/ui/test_ids.dart`
+- `packages/client/pubspec.yaml` (7.6.11 → 7.6.12), `web/index.html`
+- `packages/client/test/features/inbox/activity_live_motion_test.dart` (new)
+
+FINDINGS:
+- Overseer pre-fixes (not this worker): removed a FakeAsync `_boot()` delay loop that never called `tester.pump()`; changed the scrolled-away layout reference from `activityForYouHeader` (scrolled off-screen) to `activityOffer('fill-2')`.
+- Snackbar copy is rendered via `showSnackBar` → `RichText`/`TextSpan`, so `find.text('Перемещено в ленту')` misses; tests assert `SnackBar` + `RichText.toPlainText()` instead.
+- Pre-scroll by −1200px before Watch tapped `B-far` off the top (lazy list → 0 widgets); scenario fixed by watching at offset 0 while the demoted forward row remains deep in the combined pinned + stream list (snackbar path).
+- `_scrollToForwardBeacon` now steps/jumps the `ScrollController` when the forward row receipt exists but the lazy row is not built yet; tests use `disableAnimations` + `SnackBarAction.onPressed()` (snackbar below the 400px surface) and `scrollUntilVisible` only if the row is still off-screen after the action increases scroll offset.
+
+DECISIONS:
+- `pendingMovedToStreamBeaconId` + `stageMovedToStreamNudge` / `clearMovedToStreamNudge` on `ActivityOffersCubit` (view-owned snackbar, cubit-owned pending flag).
+- Held-back pill uses `activityNewItemsPill` / `TestIds.activityNewItemsPill`; moved nudge uses `activityMovedToStream` / `activityShowInStream`.
+
+REMAINING: none. Proceed to UNIT 18.
 
 **Manager verdict: ACCEPTED — the largest unit in the plan, held up well.** Independently re-ran all three Verify commands (gen-l10n clean, 180/180 flutter test, lints 32/32 baseline). The server-side-exclusion question from the prompt was answered correctly and with real investigation: UNIT 03 already excludes open forwards from the activity-surface receipt stream server-side and dedupes `relay_received` receipts into the forward representation, so no redundant client-side dedup was needed for offers — the worker correctly kept only the pre-existing `computeInvitePromptPinPlacement`/`liftedReceiptIds` mechanism, which is a distinct concern (invite prompts, not open forwards). Read the two most load-bearing tests in full: `'stream pagination waits until offers hasMore is false'` genuinely exercises the pinned-then-stream sequencing (flings to bottom, confirms the offers source pages first via call counts, then exhausts the offers pages and confirms the stream source only THEN starts paginating); `'60 offers and 120 stream items scroll without duplicate keys'` checks for duplicate visible keys after EVERY one of 80 incremental scroll passes, not just the final state — stronger than what was asked. The gate-mounting diff in `inbox_screen.dart` is a clean early-return: gate on returns `ActivityStreamView`, gate off falls through unconditionally to the exact untouched legacy `Column` body. `setScrolledAway`/`demotedBeaconIds` wiring is left cleanly in place for UNIT 17 to build on, as instructed, without extra unrequested behavior. No leaked processes remain (see environment note above), clean git status, commits well split.
 
@@ -665,7 +700,7 @@ REMAINING:
 | 14 | complete (accepted) |
 | 15 | complete (accepted) |
 | 16 | complete (accepted) |
-| 17 | pending |
+| 17 | complete (this entry) |
 | 18 | pending |
 | 19 | pending |
 | 20 | pending |
