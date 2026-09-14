@@ -831,6 +831,74 @@ REMAINING: Web integration suite (`./scripts/run_client_integration_web_local.sh
 
 **Web e2e follow-up (overseer):** ran the four required journeys via `./scripts/run_client_integration_web_local.sh`: `request_lifecycle_create_forward_inbox_test.dart` PASS, `request_lifecycle_offer_admit_chat_test.dart` PASS, `request_lifecycle_closed_to_archive_test.dart` PASS, `tab_attention_forced_background_test.dart` FAIL on first run — `TimeoutException: Timed out waiting for goToPath(/home/updates)`, with the log showing the app had actually already landed correctly on `/home/inbox/history` with the expected content (unread receipt, notification history title, etc.) — the app itself was correct; `goToPath`'s own URL-match wait was racing UNIT 20's own `kPathUpdates → kPathInboxHistory` redirect and would never match the pre-redirect URL. Fixed directly (`15e7ff40c`): navigate to `kPathInboxHistory` directly instead of the now-redirecting `kPathUpdates`. Re-ran that one file in isolation: PASS. No leaked chromedriver/chrome processes after either run. All four required UNIT 20 e2e journeys now pass.
 
+## UNIT 21 — complete — 2026-09-14
+
+COMMITS: (see final STATUS block — worker resumed after SIGTERM; lib cleanup was already present uncommitted from prior session)
+
+TESTS:
+- `cd packages/client && dart run build_runner build -d` → OK
+- `cd packages/client && flutter gen-l10n` → OK
+- `cd packages/client && flutter analyze --no-fatal-warnings --no-fatal-infos` → 0 errors
+- `cd packages/client && flutter test` → **3246 passed, 29 skipped, 0 failed**
+- `./scripts/check-custom-lints.sh packages/client` → 30/30 baseline OK (baseline ratcheted 32→30)
+- `bash scripts/check-user-facing-terminology.sh` → ok
+- `grep -rn "InboxTriageRoute|MyWorkObligationsPane|InboxSort|workActivityRedesignGate|myWorkObligationsGate" packages/client/lib packages/client/test` → **(no output, exit 1)**
+
+FILES (lib deletions — prior worker + this unit verify):
+- Deleted: `work_activity_redesign_gate.dart`, `my_work_obligations_gate.dart`, `my_work_obligations_pane.dart`, `my_work_finished_status_row.dart`, `inbox_triage_*`, `inbox_tombstone_*`, `inbox_triage_screen.dart`
+- Edited: attention feed destinations, home/inbox/my_work surfaces, router `kPathInboxTriage` redirect, test_ids, etc. (full list in git)
+
+FILES (test — decision table):
+
+| Test file | Decision | Reasoning |
+|---|---|---|
+| `inbox_navbar_item_test.dart` | delete whole file | All six tests were UNIT-20 pinned legacy triage/unread navbar rules; redesign rules covered in `work_activity_nav_indicators_test.dart`. |
+| `my_work_scope_coincidence_test.dart` | delete whole file | All three tests pinned legacy obligations-pane/badge coupling. |
+| `my_work_card_router_navigation_test.dart` | delete whole file | Single test pinned legacy card tap chrome. |
+| `my_work_obligations_pane_test.dart` | already deleted (prior) | Pane removed. |
+| `inbox_expanded_chrome_test.dart` | delete whole file | All three tests pinned legacy `UpdatesFeedPane` expanded chrome. |
+| `inbox_merit_rank_sort_test.dart` | already deleted (prior) | `InboxSort` removed. |
+| `inbox_triage_row_test.dart` | already deleted (prior) | Triage row removed. |
+| `my_work_navbar_item_test.dart` | rewrite | Surface-summary-driven badges (replaces `myWorkObligations` feed bootstrapping). |
+| `home_attention_cubit_test.dart` | adapt | Obligation count → `surfaceNeedsYouTotal` / `showRedesignMyWorkObligationBadge`. |
+| `constellation_nav_test.dart` | adapt + delete legacy assertions | Removed gate/triage seeding; constellation still has no badge. |
+| `work_activity_nav_indicators_test.dart` | adapt | Dropped gate helpers, legacy getter test, gate-off `openFromUpdate` test. |
+| `work_activity_first_paint_test.dart` | adapt | Removed obligations gate DI; dropped `MyWorkObligationsPane` finder. |
+| `my_work_sectioned_body_test.dart` | adapt | Removed gate helpers + legacy pane test; kept redesign section tests. |
+| `my_work_attention_state_test.dart` | adapt | Removed gate-off test; attention hydration always on. |
+| `my_work_card_metadata_row_test.dart` | delete 2 tests | UNIT-20 pinned legacy metadata (`hideLastEventMetadata` gate-off). |
+| `my_work_cubit_test.dart` | delete 4 tests | `finishedArchiveHintDismissed` / dismiss API removed. |
+| `my_work_case_load_desk_test.dart` | adapt | Removed `finishedArchiveHintDismissed` assertions. |
+| `my_work_test_support.dart` | adapt | Dropped `obligationsGateEnabled` from `buildTestMyWorkCase`. |
+| `my_work_obligation_membership_test.dart` | delete 1 test | Gate-off obligation ignore test obsolete. |
+| `my_work_archive_membership_test.dart` | adapt | Removed `obligationsGateEnabled` named args. |
+| `my_work_refresh_triggers_test.dart` | adapt | Same. |
+| `activity_chrome_test.dart` | adapt | Removed gate-off test, `InboxSort` fake, gate DI. |
+| `activity_stream_view_test.dart` | adapt | Removed gate-off triage/`UpdatesFeedPane` test. |
+| `activity_live_motion_test.dart` | adapt | Removed `setSort` fake override. |
+| `inbox_watching_route_test.dart` | adapt | Register `InboxCase` for `ActivityStreamView`; kept Watching overflow tests. |
+| `attention_surfaces_test.dart` | adapt | `activity` → `activityStream`; drop legacy destination expectations. |
+| `attention_case_test.dart` | adapt | Search pagination expects `AttentionSurface.activity` for stream dest. |
+| `attention_case_test_support.dart` | adapt | Default feed dest `activityStream`. |
+| `cross_surface_subscription_test.dart` | adapt | `activityStream` destination id. |
+| `updates_feed_*` / `prompt_*` / `cross_surface_*` | adapt | Destination id migrations; delete obligations pane widget test in `updates_feed_views_test.dart`. |
+| `inbox_receipts_fold_test.dart` | adapt | `activityStream` id. |
+
+L10N removed (both `app_en.arb` + `app_ru.arb`): `inboxTabNeedsMe`, `inboxSortRecent`, `inboxSortMeritRank`, `inboxSortDeadline`, `inboxSortMenuTitle`. **Kept** `activityTriageRequestsNeedResponse` (still used by `tentura_attention_summary_row_golden_test.dart`).
+
+CONTEXT.md: Finished card — one-time dismissible hint → persistent Finished-section helper (`myWorkFinishedHint`).
+
+FINDINGS:
+- Resumed worker inherited complete `lib/` cleanup; only `test/**` + l10n + docs remained.
+- `inbox_watching_route_test` needed `InboxCase` GetIt registration after Activity stream became default inbox body.
+- Custom lint debt dropped 2 with test import cleanup (`custom-lint-baseline.txt` 32→30).
+
+DECISIONS:
+- Deleted UNIT-20 pinned legacy tests outright rather than rewriting to redesign equivalents where `work_activity_nav_indicators_test` / first-paint tests already cover the shipped behavior.
+- `activityTriageRequestsNeedResponse` retained despite “triage” in the key name (design-system golden dependency).
+
+REMAINING: none for UNIT 21 acceptance grep/suite gate.
+
 ## Ordered unit checklist
 
 | Unit | Status |
@@ -856,7 +924,7 @@ REMAINING: Web integration suite (`./scripts/run_client_integration_web_local.sh
 | 18 | complete (accepted) |
 | 19 | complete (accepted) — all pre-flip units done |
 | 20 | complete (accepted) — gate on by default; all 4 required e2e journeys pass |
-| 21 | pending |
+| 21 | complete |
 | 22 | pending |
 
 ## Unresolved decisions and blockers
