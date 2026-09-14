@@ -767,7 +767,7 @@ COMMITS:
 - `b891cd55d` test: expect /home/updates to land on notification history
 - `12225ffbf` test(integration): navigate Activity via offer stream helpers
 - `5a434dcb7` test: add work activity first-paint proofs at 360×640
-- `7c3b9d0e0` docs: UNIT 20 flip journal
+- `e76c54e03` docs: UNIT 20 flip journal
 
 TESTS:
 - `cd packages/client && dart run build_runner build -d` → OK
