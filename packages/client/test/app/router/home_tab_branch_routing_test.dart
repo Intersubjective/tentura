@@ -321,18 +321,14 @@ void main() {
     expect(find.text('inbox-root'), findsOneWidget);
   });
 
-  testWidgets('legacy /home/updates deep link lands on Inbox receipts tab', (
-    tester,
-  ) async {
-    await pumpRouter(tester, initialPath: kPathUpdates);
-    await tester.pumpAndSettle();
+  testWidgets(
+    'legacy /home/updates deep link lands on notification history',
+    (tester) async {
+      await pumpRouter(tester, initialPath: kPathUpdates);
+      await tester.pumpAndSettle();
 
-    final tabs = router.innerRouterOf<TabsRouter>(HomeRoute.name)!;
-    expect(tabs.activeIndex, HomeTabSpec.forTab(HomeTab.inbox).index);
-    expect(
-      router.navigationHistory.urlState.url,
-      '$kPathInbox?$kQueryHomeTab=$kInboxTabReceipts',
-    );
-    expect(find.text('inbox-root'), findsOneWidget);
-  });
+      expect(router.navigationHistory.urlState.url, kPathInboxHistory);
+      expect(find.text('updates-root'), findsOneWidget);
+    },
+  );
 }
