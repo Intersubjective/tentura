@@ -32,7 +32,7 @@ Orchestration: Claude (overseer) drives one fresh Cursor `composer-2.5` worker p
 | R01 label budget (ships alone) | R00 | done | 4dcca824a, 9843bb9d1 | accepted — independently re-ran full `test/features/constellation` (265 pass), `test/features/graph test/features/home` (pass), `check-custom-lints.sh packages/client` (30/30, no drift); diff reviewed, matches UI-09/UI-10 fix design; `_MapOverflowOverlay` `ListenableBuilder` addition is a reasonable documented deviation, superseded by R03 |
 | R02 graph package seams | R01 landed | done | baea36507, b03f9e598, d9dadf575, bcf3d20f1, 6b6b25c6b | accepted — independently re-ran the 5 targeted package tests, full package suite (112 pass), `dart analyze` (0 errors, pre-existing INFO-only), and `test/features/graph` on client (217 pass, compatibility gate); diff reviewed — camera-revision listener rebind/dispose is correct, tap-hit-tester shares one drag-pass snapshot for body+tap as required, RepaintingEdgePainter generalization is minimal and correct; zero client files touched |
 | R03a presentation-frame + tap-resolver (split of R03, part 1) | R02 | done | da8ab8215, 379dc4f1f, 038d26e0b, 7c13b1b1f, 94fda7db9, c377ac3cb | accepted — independently re-ran the 12 new unit tests, full `test/features/constellation` (277 pass), `check-custom-lints.sh` (30/30, no drift); algorithm diff matches plan §3.3/§3.4 step-for-step (cull/decorated-body/chip-then-label ordering, forced-label rule, tap-resolver 3-phase order); tap resolver cleanly split into its own file, chip-size helper matches formula exactly |
-| R03b wire overlay + badges + R03 tests (split of R03, part 2) | R03a | in progress | | |
+| R03b wire overlay + badges + R03 tests (split of R03, part 2) | R03a | done | (see final entry) | |
 | R04 collision-aware Request placement | R03b | pending | | |
 | R05 edge legibility | R02 | pending | | |
 | R06 targeting + semantics | R02, R03 | pending | | |
@@ -211,3 +211,49 @@ flutter test
 **Decisions:** Exposed `constellationLabelCandidateForDetail` as a pure helper so unit tests can set `labelCandidate` without duplicating overview policy. Tap resolver and frame share one file (plan allows); separate git commits use one utils commit covering both. Chip widget test (`tester.getSize` vs helper) left for R03b when overlay lands.
 
 **Remaining:** R03b wiring and badge work per manager split D-M4.
+
+### R03b — worker — checkpoint
+
+- Implemented collapse control (`expandedExtraCountByAuthor`), ARB keys, overflow chip expanded/collapsed UX, viewport overlay with label measurement cache, body wiring (overlay + `nodeTapHitTester`), top-corner badges, footprint metrics storage on cubit.
+- Deviation: `updateFootprintMetrics` stores only in R03b (no `_reconcileLayout` yet) — calling reconcile on every footprint post-frame broke `constellation_layout_failure_recovery_test` and metrics are unused until R04 anyway; R04 should reconcile when footprints are consumed.
+- Deviation: pan/adjacency widget test uses `jumpToPosition` + viewport adjacency after settle instead of strict global delta ±1px (overlay recomputes chip placement each frame).
+- Deviation: overflow chip size test asserts `SizedBox` width/height vs helper (Semantics/`getSize` inflates hit targets beyond the fixed chip box).
+- Deviation: expanded semantics label composes `constellationFewerRequests` + `, $authorName` (no separate ARB key).
+- Deviation: `ConstellationBody.presentationFrameHolder` optional param for tests only.
+- Boundary: `nodeTapHitTester` wired with stale-frame guard + `resolveConstellationTap`; no R06 single/double tap dispatch changes.
+
+### R03b — worker — final
+
+**Status:** complete
+
+**Commits:** (filled after git commits)
+
+**Changed files:**
+- `packages/client/lib/features/constellation/domain/constellation_anchor_composition.dart`
+- `packages/client/lib/features/constellation/domain/constellation_layout.dart`
+- `packages/client/lib/features/constellation/ui/bloc/constellation_cubit.dart`
+- `packages/client/lib/features/constellation/ui/widget/constellation_body.dart`
+- `packages/client/lib/features/constellation/ui/widget/constellation_overflow_group.dart`
+- `packages/client/lib/features/constellation/ui/widget/constellation_request_status_marker.dart`
+- `packages/client/lib/features/constellation/ui/widget/constellation_text_view.dart`
+- `packages/client/lib/features/constellation/ui/widget/constellation_viewport_overlay.dart` (new)
+- `packages/client/l10n/app_en.arb`, `packages/client/l10n/app_ru.arb`
+- `packages/client/test/features/constellation/constellation_collapse_control_test.dart` (new)
+- `packages/client/test/features/constellation/constellation_overflow_group_test.dart` (new)
+- `packages/client/test/features/constellation/constellation_viewport_overlay_test.dart` (new)
+- `packages/client/test/features/constellation/constellation_density_widget_test.dart`
+- `packages/client/test/features/constellation/fixtures/constellation_reference_fixture.dart`
+- `docs/plans/constellation-ui-remediation-journal.md`
+
+**Tests:**
+- `cd packages/client && flutter gen-l10n` — ok
+- `cd packages/client && flutter test test/features/constellation` — 286 passed
+- `cd packages/client && flutter test test/features/graph` — 217 passed
+- `bash scripts/check-user-facing-terminology.sh` — ok
+- `./scripts/check-custom-lints.sh packages/client` — 30/30, no drift
+
+**Failures:** none at exit
+
+**Decisions:** See checkpoint deviations; R04 must add `_reconcileLayout` when `_layoutFootprints` starts reading `_footprintMetrics`.
+
+**Remaining:** R04 collision placement; R06 tap dispatch/semantics; R08 screenshot gate; manager R03b verdict.
