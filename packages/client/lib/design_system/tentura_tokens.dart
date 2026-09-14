@@ -58,6 +58,8 @@ class TenturaTokens extends ThemeExtension<TenturaTokens> {
     required this.unreadDotSize,
     required this.graphPersonContextWidth,
     required this.graphPersonContextCompactMaxHeightFraction,
+    required this.graphLabelMaxWidthPerson,
+    required this.graphLabelMaxWidthRequest,
     required this.tabCompactWidth,
   });
 
@@ -153,6 +155,12 @@ class TenturaTokens extends ThemeExtension<TenturaTokens> {
   /// Max height fraction for the compact bottom person context card.
   final double graphPersonContextCompactMaxHeightFraction;
 
+  /// Max outer width for a Constellation person label plate (viewport px at scale 1).
+  final double graphLabelMaxWidthPerson;
+
+  /// Max outer width for a Constellation Request label plate (viewport px at scale 1).
+  final double graphLabelMaxWidthRequest;
+
   /// Fixed width for icon-only compact tabs at the end of a tab row.
   final double tabCompactWidth;
 
@@ -204,6 +212,8 @@ class TenturaTokens extends ThemeExtension<TenturaTokens> {
     unreadDotSize: TenturaSpacing.unreadDot,
     graphPersonContextWidth: 320,
     graphPersonContextCompactMaxHeightFraction: 0.42,
+    graphLabelMaxWidthPerson: 120,
+    graphLabelMaxWidthRequest: 144,
     tabCompactWidth: TenturaSpacing.tabCompact,
   );
 
@@ -255,6 +265,8 @@ class TenturaTokens extends ThemeExtension<TenturaTokens> {
     unreadDotSize: TenturaSpacing.unreadDot,
     graphPersonContextWidth: 320,
     graphPersonContextCompactMaxHeightFraction: 0.42,
+    graphLabelMaxWidthPerson: 120,
+    graphLabelMaxWidthRequest: 144,
     tabCompactWidth: TenturaSpacing.tabCompact,
   );
 
@@ -427,6 +439,8 @@ class TenturaTokens extends ThemeExtension<TenturaTokens> {
     double? unreadDotSize,
     double? graphPersonContextWidth,
     double? graphPersonContextCompactMaxHeightFraction,
+    double? graphLabelMaxWidthPerson,
+    double? graphLabelMaxWidthRequest,
     double? tabCompactWidth,
   }) {
     return TenturaTokens(
@@ -482,6 +496,10 @@ class TenturaTokens extends ThemeExtension<TenturaTokens> {
       graphPersonContextCompactMaxHeightFraction:
           graphPersonContextCompactMaxHeightFraction ??
           this.graphPersonContextCompactMaxHeightFraction,
+      graphLabelMaxWidthPerson:
+          graphLabelMaxWidthPerson ?? this.graphLabelMaxWidthPerson,
+      graphLabelMaxWidthRequest:
+          graphLabelMaxWidthRequest ?? this.graphLabelMaxWidthRequest,
       tabCompactWidth: tabCompactWidth ?? this.tabCompactWidth,
     );
   }
@@ -566,6 +584,16 @@ class TenturaTokens extends ThemeExtension<TenturaTokens> {
       graphPersonContextCompactMaxHeightFraction: lerpDouble(
         graphPersonContextCompactMaxHeightFraction,
         other.graphPersonContextCompactMaxHeightFraction,
+        t,
+      )!,
+      graphLabelMaxWidthPerson: lerpDouble(
+        graphLabelMaxWidthPerson,
+        other.graphLabelMaxWidthPerson,
+        t,
+      )!,
+      graphLabelMaxWidthRequest: lerpDouble(
+        graphLabelMaxWidthRequest,
+        other.graphLabelMaxWidthRequest,
         t,
       )!,
       tabCompactWidth: lerpDouble(tabCompactWidth, other.tabCompactWidth, t)!,
