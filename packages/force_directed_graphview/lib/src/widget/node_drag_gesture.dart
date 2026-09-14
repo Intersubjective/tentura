@@ -26,6 +26,7 @@ class _NodeDragGestureState extends State<NodeDragGesture> {
   final _activePointers = <int>{};
 
   GraphNodeId? _pendingNodeId;
+  GraphNodeId? _pendingTapNodeId;
   int? _pendingPointer;
   Offset? _pendingDownScene;
   var _pendingDragged = false;
@@ -117,14 +118,28 @@ class _NodeDragGestureState extends State<NodeDragGesture> {
       return;
     }
 
-    final nodeId = _configuration.onNodeTap != null
-        ? _hitTestTopmostVisibleNodeId(event.localPosition)
-        : _hitTestTopmostNodeId(event.localPosition);
-    if (nodeId == null) {
+    final pos = event.localPosition;
+    final pass = _captureDragPassSnapshot();
+    final bodyId = _configuration.onNodeTap != null
+        ? _hitTestTopmostNodeIdInSnapshot(
+            pos,
+            pass,
+            draggableOnly: false,
+          )
+        : _hitTestTopmostNodeIdInSnapshot(
+            pos,
+            pass,
+            draggableOnly: true,
+          );
+    final tapId =
+        _configuration.nodeTapHitTester?.call(pos, pass.orderedNodeIds) ??
+            bodyId;
+    if (bodyId == null && tapId == null) {
       return;
     }
 
-    _pendingNodeId = nodeId;
+    _pendingNodeId = bodyId;
+    _pendingTapNodeId = tapId;
     _pendingPointer = event.pointer;
     _pendingDownScene = event.localPosition;
     _pendingDragged = false;
@@ -169,6 +184,17 @@ class _NodeDragGestureState extends State<NodeDragGesture> {
   }
 
   void _onPointerMove(PointerMoveEvent event) {
+    if (_pendingNodeId == null &&
+        _pendingTapNodeId != null &&
+        event.pointer == _pendingPointer) {
+      final down = _pendingDownScene;
+      if (down != null &&
+          (event.localPosition - down).distance >= kTouchSlop) {
+        _cancelPendingCapture();
+        return;
+      }
+    }
+
     if (_capturedNodeId != null) {
       if (event.pointer != _capturePointer) {
         return;
@@ -218,7 +244,7 @@ class _NodeDragGestureState extends State<NodeDragGesture> {
     }
 
     if (_pendingPointer == event.pointer) {
-      final nodeId = _pendingNodeId;
+      final nodeId = _pendingTapNodeId ?? _pendingNodeId;
       final dragged = _pendingDragged;
       _cancelPendingCapture();
       if (nodeId != null &&
@@ -262,29 +288,14 @@ class _NodeDragGestureState extends State<NodeDragGesture> {
     );
   }
 
-  GraphNodeId? _hitTestTopmostNodeId(Offset scenePosition) {
-    return _hitTestTopmostNodeIdInSnapshot(
-      scenePosition,
-      draggableOnly: true,
-    );
-  }
-
-  GraphNodeId? _hitTestTopmostVisibleNodeId(Offset scenePosition) {
-    return _hitTestTopmostNodeIdInSnapshot(
-      scenePosition,
-      draggableOnly: false,
-    );
-  }
-
   GraphNodeId? _hitTestTopmostNodeIdInSnapshot(
-    Offset scenePosition, {
+    Offset scenePosition,
+    _DragPassSnapshot pass, {
     required bool draggableOnly,
   }) {
     if (!_controller.canLayout) {
       return null;
     }
-
-    final pass = _captureDragPassSnapshot();
 
     for (final id in pass.orderedNodeIds.reversed) {
       final sceneNode = pass.snapshot.topology.nodesById[id];
@@ -416,6 +427,7 @@ class _NodeDragGestureState extends State<NodeDragGesture> {
 
   void _cancelPendingCapture() {
     _pendingNodeId = null;
+    _pendingTapNodeId = null;
     _pendingPointer = null;
     _pendingDownScene = null;
     _pendingDragged = false;

@@ -645,6 +645,89 @@ void main() {
 
     controller.dispose();
   });
+
+  testWidgets('nodeTapHitTester resolves tap below body without starting drag',
+      (tester) async {
+    final controller = _TestHarness.newController();
+    Node<int>? tapped;
+    Node<int>? dragStarted;
+
+    const bottomId = '3';
+    NodeTapHitTester hitTester = (scenePosition, orderedIds) {
+      final centre = testNodePosition(controller, _TestHarness.bottom);
+      final bodyBottom = centre.dy + _TestHarness.bottom.size / 2;
+      final tapZone = Offset(centre.dx, bodyBottom + 30);
+      if ((scenePosition - tapZone).distance < 1) {
+        return bottomId;
+      }
+      return null;
+    };
+
+    await _pumpGraph(
+      tester,
+      controller: controller,
+      onNodeTap: (node) => tapped = node,
+      onNodeDragStart: (node, _) => dragStarted = node,
+      nodeTapHitTester: hitTester,
+    );
+
+    final centre = testNodePosition(controller, _TestHarness.bottom);
+    final bodyBottom = centre.dy + _TestHarness.bottom.size / 2;
+    final tapScene = Offset(centre.dx, bodyBottom + 30);
+    final tapGlobal = _globalForScene(tester, tapScene);
+
+    final tapGesture = await tester.createGesture(kind: PointerDeviceKind.touch);
+    await tapGesture.down(tapGlobal);
+    await tapGesture.up();
+    await tester.pump();
+
+    expect(tapped, _TestHarness.bottom);
+    expect(dragStarted, isNull);
+    tapped = null;
+
+    final viewer =
+        tester.widget<InteractiveViewer>(find.byType(InteractiveViewer));
+    viewer.transformationController!.value = Matrix4.identity()
+      ..translateByDouble(-100, -100, 0, 1)
+      ..scaleByDouble(2, 2, 1, 1);
+    await tester.pump();
+    final cameraBefore = viewer.transformationController!.value.clone();
+    final dragGlobal = _globalForScene(tester, tapScene);
+
+    final dragGesture =
+        await tester.createGesture(kind: PointerDeviceKind.touch);
+    await dragGesture.down(dragGlobal);
+    await dragGesture.moveBy(const Offset(70, 30));
+    await dragGesture.moveBy(const Offset(50, 20));
+    await tester.pump();
+
+    expect(dragStarted, isNull);
+    expect(viewer.transformationController!.value, isNot(cameraBefore));
+    await dragGesture.up();
+
+    controller.dispose();
+  });
+
+  testWidgets('nodeTapHitTester that returns null keeps body tap selection',
+      (tester) async {
+    final controller = _TestHarness.newController();
+    Node<int>? tapped;
+
+    await _pumpGraph(
+      tester,
+      controller: controller,
+      onNodeTap: (node) => tapped = node,
+      nodeTapHitTester: (_, __) => null,
+    );
+
+    final tapGesture = await tester.createGesture(kind: PointerDeviceKind.touch);
+    await tapGesture.down(_nodeCenter(tester, _TestHarness.bottom));
+    await tapGesture.up();
+    await tester.pump();
+
+    expect(tapped, _TestHarness.bottom);
+    controller.dispose();
+  });
 }
 
 class _TestHarness {
@@ -677,6 +760,7 @@ Future<void> _pumpGraph(
   NodeDragEndCallback<Node<int>>? onNodeDragEnd,
   NodeDragCancelCallback<Node<int>>? onNodeDragCancel,
   NodeTapCallback<Node<int>>? onNodeTap,
+  NodeTapHitTester? nodeTapHitTester,
   List<GraphNodeId>? nodePaintOrder,
 }) async {
   tester.view.physicalSize = const Size(800, 600);
@@ -700,6 +784,7 @@ Future<void> _pumpGraph(
           onNodeDragEnd: onNodeDragEnd,
           onNodeDragCancel: onNodeDragCancel,
           onNodeTap: onNodeTap,
+          nodeTapHitTester: nodeTapHitTester,
           nodeBuilder: (context, node) => SizedBox(
             width: node.size,
             height: node.size,

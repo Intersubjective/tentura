@@ -43,6 +43,12 @@ typedef NodeDragCancelCallback<N> = void Function(N node);
 /// Called when a pointer releases over a node without starting a drag.
 typedef NodeTapCallback<N> = void Function(N node);
 
+/// Optional override for which node a tap resolves to (scene coordinates).
+typedef NodeTapHitTester = GraphNodeId? Function(
+  Offset scenePosition,
+  List<GraphNodeId> orderedNodeIds,
+);
+
 /// Returns whether [node] may be dragged when node-drag hooks are enabled.
 typedef CanDragNodePredicate<N> = bool Function(N node);
 
@@ -64,6 +70,7 @@ class GraphViewConfiguration {
     this.onNodeDragEnd,
     this.onNodeDragCancel,
     this.onNodeTap,
+    this.nodeTapHitTester,
     this.nodePaintOrder,
   });
 
@@ -100,6 +107,9 @@ class GraphViewConfiguration {
 
   /// Optional short-press selection hook using scene hit order.
   final NodeTapCallback<dynamic>? onNodeTap;
+
+  /// Optional tap target resolver; defaults to the body hit-test result.
+  final NodeTapHitTester? nodeTapHitTester;
 
   /// Optional shared paint/hit order. Later entries paint and hit-test on top.
   final List<GraphNodeId>? nodePaintOrder;
