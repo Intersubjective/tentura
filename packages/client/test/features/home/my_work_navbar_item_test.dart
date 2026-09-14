@@ -3,9 +3,11 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:get_it/get_it.dart';
 import 'package:logging/logging.dart';
 
 import 'package:tentura/app/router/home_tab_branches.dart';
+import 'package:tentura/features/home/domain/work_activity_redesign_gate.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/attention/attention_case.dart';
 import 'package:tentura/domain/attention/entity/attention_feed.dart';
@@ -71,6 +73,22 @@ final class _Repository extends AttentionRepositoryFake {
 Future<void> _settle([int turns = 8]) async {
   for (var i = 0; i < turns; i++) {
     await Future<void>.microtask(() {});
+  }
+}
+
+void _registerRedesignGate(bool enabled) {
+  if (GetIt.I.isRegistered<bool>(instanceName: workActivityRedesignGate)) {
+    GetIt.I.unregister<bool>(instanceName: workActivityRedesignGate);
+  }
+  GetIt.I.registerSingleton<bool>(
+    enabled,
+    instanceName: workActivityRedesignGate,
+  );
+}
+
+void _unregisterRedesignGate() {
+  if (GetIt.I.isRegistered<bool>(instanceName: workActivityRedesignGate)) {
+    GetIt.I.unregister<bool>(instanceName: workActivityRedesignGate);
   }
 }
 
@@ -141,12 +159,14 @@ void main() {
   late _Repository repository;
 
   setUp(() {
+    _registerRedesignGate(false);
     accounts = _Accounts();
     repository = _Repository();
   });
 
   tearDown(() async {
     await accounts.close();
+    _unregisterRedesignGate();
   });
 
   testWidgets('shows numeric badge for live obligations', (tester) async {

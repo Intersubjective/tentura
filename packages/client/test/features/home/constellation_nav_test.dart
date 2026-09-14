@@ -22,6 +22,7 @@ import 'package:tentura/domain/attention/port/attention_repository_port.dart';
 import '../../support/attention_repository_fake_base.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/auth/ui/bloc/auth_cubit.dart';
+import 'package:tentura/features/home/domain/work_activity_redesign_gate.dart';
 import 'package:tentura/features/home/ui/bloc/home_attention_cubit.dart';
 import 'package:tentura/features/home/ui/bloc/post_join_navigation_cubit.dart';
 import 'package:tentura/features/home/ui/widget/constellation_navbar_item.dart';
@@ -140,6 +141,22 @@ PageInfo _labelPage(String name, String label) => PageInfo(
 Future<void> _settle([int turns = 8]) async {
   for (var i = 0; i < turns; i++) {
     await Future<void>.microtask(() {});
+  }
+}
+
+void _registerRedesignGate(bool enabled) {
+  if (GetIt.I.isRegistered<bool>(instanceName: workActivityRedesignGate)) {
+    GetIt.I.unregister<bool>(instanceName: workActivityRedesignGate);
+  }
+  GetIt.I.registerSingleton<bool>(
+    enabled,
+    instanceName: workActivityRedesignGate,
+  );
+}
+
+void _unregisterRedesignGate() {
+  if (GetIt.I.isRegistered<bool>(instanceName: workActivityRedesignGate)) {
+    GetIt.I.unregister<bool>(instanceName: workActivityRedesignGate);
   }
 }
 
@@ -519,6 +536,8 @@ void main() {
       (
         tester,
       ) async {
+        _registerRedesignGate(false);
+        addTearDown(_unregisterRedesignGate);
         for (final useSideNav in [true, false]) {
           await _pumpHomeChrome(
             tester,
