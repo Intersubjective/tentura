@@ -249,6 +249,9 @@ ConstellationLayout computeConstellationPlacedLayout({
     ringGap: ringGap,
     residualRingFactor: residualRingFactor,
     satelliteOffset: satelliteOffset,
+    spacing: input.spacing,
+    nodeSizes: input.nodeSizes,
+    footprints: input.footprints,
     alreadyPlaced: positions.keys.toSet(),
     placed: positions,
   );
@@ -326,6 +329,11 @@ ConstellationLayout computeConstellationPlacedLayout({
     final requestFootprint = isRequest
         ? (input.footprints[nodeId] ?? _symmetricBodyFootprint(size))
         : null;
+    final requestAuthorId = isRequest
+        ? (input.egoOwnRequestIds.contains(nodeId)
+            ? input.egoId
+            : input.requestAuthorById[nodeId])
+        : null;
     final chosen = _chooseAutomaticPosition(
       nodeId: nodeId,
       ideal: ideal,
@@ -340,6 +348,7 @@ ConstellationLayout computeConstellationPlacedLayout({
       isRequest: isRequest,
       requestFootprint: requestFootprint,
       obstacles: obstacles,
+      requestAuthorId: requestAuthorId,
     );
     positions[nodeId] = chosen.point;
     if (chosen.ring != null) {
@@ -421,6 +430,7 @@ bool _isAutomaticRequestNode({
   bool isRequest = false,
   ConstellationFootprint? requestFootprint,
   Map<String, ConstellationBounds> obstacles = const {},
+  String? requestAuthorId,
 }) {
   final effectiveSize = isRequest && requestFootprint != null
       ? (
@@ -475,6 +485,7 @@ bool _isAutomaticRequestNode({
     }
 
     if (isRequest && requestFootprint != null) {
+      final zeroOverlap = <ConstellationPoint>[];
       for (final candidate in candidates) {
         if (_totalObstacleIntersectionArea(
               candidate: candidate,
@@ -483,8 +494,31 @@ bool _isAutomaticRequestNode({
               obstacles: obstacles,
             ) ==
             0) {
-          return candidate;
+          zeroOverlap.add(candidate);
         }
+      }
+      if (zeroOverlap.isNotEmpty) {
+        final authorCentre = requestAuthorId != null
+            ? placed[requestAuthorId]
+            : null;
+        if (authorCentre != null) {
+          final authorOffset = Offset(authorCentre.x, authorCentre.y);
+          for (final candidate in zeroOverlap) {
+            if (!_attachmentSegmentCrossesBody(
+              authorCentre: authorOffset,
+              candidateCentre: Offset(candidate.x, candidate.y),
+              placed: placed,
+              placedSizes: placedSizes,
+              skipNodeIds: {
+                nodeId,
+                if (requestAuthorId != null) requestAuthorId,
+              },
+            )) {
+              return candidate;
+            }
+          }
+        }
+        return zeroOverlap.first;
       }
 
       var bestIndex = 0;
@@ -727,6 +761,144 @@ double _intersectionArea({
   return (right - left) * (bottom - top);
 }
 
+@visibleForTesting
+({Offset direction, double gap}) constellationEgoSatelliteDirection(
+  List<double> depthOneAngles,
+) {
+  if (depthOneAngles.isEmpty) {
+    return (direction: const Offset(0, 1), gap: 2 * math.pi);
+  }
+  final normalized = depthOneAngles
+      .map((a) => a % (2 * math.pi))
+      .map((a) => a < 0 ? a + 2 * math.pi : a)
+      .toList()
+    ..sort();
+  var bestGapStart = 0;
+  var bestGap = -1.0;
+  for (var i = 0; i < normalized.length; i++) {
+    final next = normalized[(i + 1) % normalized.length];
+    final wrap = i == normalized.length - 1;
+    final gap = wrap
+        ? (next + 2 * math.pi) - normalized[i]
+        : next - normalized[i];
+    if (gap > bestGap) {
+      bestGap = gap;
+      bestGapStart = i;
+    }
+  }
+  final start = normalized[bestGapStart];
+  final mid = start + bestGap / 2;
+  return (direction: Offset(math.cos(mid), math.sin(mid)), gap: bestGap);
+}
+
+bool _segmentIntersectsRect(Offset a, Offset b, ConstellationBounds r) {
+  final dx = b.dx - a.dx;
+  final dy = b.dy - a.dy;
+  const eps = 1e-9;
+  var t0 = 0.0;
+  var t1 = 1.0;
+
+  bool clip(double p, double q) {
+    if (p.abs() < eps) {
+      return q >= 0;
+    }
+    final r = q / p;
+    if (p < 0) {
+      if (r > t1) {
+        return false;
+      }
+      if (r > t0) {
+        t0 = r;
+      }
+    } else {
+      if (r < t0) {
+        return false;
+      }
+      if (r < t1) {
+        t1 = r;
+      }
+    }
+    return true;
+  }
+
+  if (!clip(-dx, a.dx - r.left)) {
+    return false;
+  }
+  if (!clip(dx, r.right - a.dx)) {
+    return false;
+  }
+  if (!clip(-dy, a.dy - r.top)) {
+    return false;
+  }
+  if (!clip(dy, r.bottom - a.dy)) {
+    return false;
+  }
+  return t0 <= t1;
+}
+
+bool _attachmentSegmentCrossesBody({
+  required Offset authorCentre,
+  required Offset candidateCentre,
+  required Map<String, ConstellationPoint> placed,
+  required Map<String, ConstellationSize> placedSizes,
+  required Set<String> skipNodeIds,
+}) {
+  for (final entry in placed.entries) {
+    if (skipNodeIds.contains(entry.key)) {
+      continue;
+    }
+    final body = constellationRenderedBounds(
+      centre: entry.value,
+      size: _sizeFor(entry.key, placedSizes),
+    );
+    if (_segmentIntersectsRect(authorCentre, candidateCentre, body)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+({
+  double ringGap,
+  double minChord,
+  double? maxFanRadians,
+})? _footprintAwareFanParams({
+  required String authorId,
+  required List<String> sortedRequestIds,
+  required Map<String, ConstellationFootprint> footprints,
+  required Map<String, ConstellationSize> nodeSizes,
+  required double satelliteOffset,
+  required double spacing,
+  double? egoAngularGap,
+}) {
+  if (footprints.isEmpty || sortedRequestIds.isEmpty) {
+    return null;
+  }
+  final firstId = sortedRequestIds.first;
+  final requestFootprint = footprints[firstId] ??
+      _symmetricBodyFootprint(_sizeFor(firstId, nodeSizes));
+  final requestHalfExtent = math.max(
+    math.max(requestFootprint.left, requestFootprint.right),
+    math.max(requestFootprint.top, requestFootprint.bottom),
+  );
+  final authorSize = _sizeFor(authorId, nodeSizes);
+  final authorBodyRadius =
+      math.max(authorSize.width, authorSize.height) / 2;
+  final radius = math.max(
+    satelliteOffset,
+    authorBodyRadius + spacing + requestHalfExtent,
+  );
+  final minChord = requestFootprint.left + requestFootprint.right + spacing;
+  final maxFanRadians = egoAngularGap != null
+      ? math.min(kDefaultMaxFanRadians, egoAngularGap * 0.8)
+      : null;
+  return (
+    ringGap: radius,
+    minChord: minChord,
+    maxFanRadians: maxFanRadians,
+  );
+}
+
 Map<String, ConstellationPoint> _computeSemanticIdeals({
   required String egoId,
   required ConstellationPathResolution paths,
@@ -738,6 +910,9 @@ Map<String, ConstellationPoint> _computeSemanticIdeals({
   required double ringGap,
   required double residualRingFactor,
   required double satelliteOffset,
+  required double spacing,
+  required Map<String, ConstellationSize> nodeSizes,
+  required Map<String, ConstellationFootprint> footprints,
   required Set<String> alreadyPlaced,
   required Map<String, ConstellationPoint> placed,
 }) {
@@ -831,14 +1006,31 @@ Map<String, ConstellationPoint> _computeSemanticIdeals({
     }
   }
 
+  final depthOneAngles = [
+    for (final id in treePeers)
+      if (paths.depth[id] == 1) (angle[id] ?? 0) - math.pi / 2,
+  ];
+  final egoFanHeading = constellationEgoSatelliteDirection(depthOneAngles);
+
   final egoRequests = egoOwnRequestIds.toList()..sort();
   if (egoRequests.isNotEmpty) {
+    final fanOverrides = _footprintAwareFanParams(
+      authorId: egoId,
+      sortedRequestIds: egoRequests,
+      footprints: footprints,
+      nodeSizes: nodeSizes,
+      satelliteOffset: satelliteOffset,
+      spacing: spacing,
+      egoAngularGap: egoFanHeading.gap,
+    );
     final egoSatellites = localFanPositions(
       parentPos: Offset(centre.x, centre.y),
-      direction: branchUnitDirection(parentPos: Offset(centre.x, centre.y)),
+      direction: egoFanHeading.direction,
       childIds: egoRequests,
       canvasSize: Size(canvasSize.width, canvasSize.height),
-      ringGap: satelliteOffset,
+      ringGap: fanOverrides?.ringGap ?? satelliteOffset,
+      minChord: fanOverrides?.minChord,
+      maxFanRadians: fanOverrides?.maxFanRadians ?? kDefaultMaxFanRadians,
     );
     for (final entry in egoSatellites.entries) {
       if (!alreadyPlaced.contains(entry.key)) {
@@ -871,12 +1063,21 @@ Map<String, ConstellationPoint> _computeSemanticIdeals({
         ? branchUnitDirection(parentPos: Offset(centre.x, centre.y))
         : Offset(radial.x / distance, radial.y / distance);
 
+    final fanOverrides = _footprintAwareFanParams(
+      authorId: author,
+      sortedRequestIds: requestIds,
+      footprints: footprints,
+      nodeSizes: nodeSizes,
+      satelliteOffset: satelliteOffset,
+      spacing: spacing,
+    );
     final satellites = localFanPositions(
       parentPos: Offset(authorPoint.x, authorPoint.y),
       direction: direction,
       childIds: requestIds,
       canvasSize: Size(canvasSize.width, canvasSize.height),
-      ringGap: satelliteOffset,
+      ringGap: fanOverrides?.ringGap ?? satelliteOffset,
+      minChord: fanOverrides?.minChord,
     );
     for (final entry in satellites.entries) {
       if (!alreadyPlaced.contains(entry.key)) {
