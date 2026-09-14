@@ -7,10 +7,12 @@ import 'package:logging/logging.dart';
 
 import 'package:tentura/consts.dart';
 import 'package:tentura/domain/attention/destination_map.dart';
+import 'package:tentura/domain/attention/entity/attention_feed.dart';
 import 'package:tentura/domain/attention/entity/attention_receipt.dart';
 import 'package:tentura/app/platform/landing_redirect.dart';
 
 import 'package:tentura/features/auth/ui/bloc/auth_cubit.dart';
+import 'package:tentura/features/home/domain/work_activity_redesign_gate.dart';
 import 'package:tentura/features/home/ui/bloc/home_tab_reselect_cubit.dart';
 import 'package:tentura/features/home/ui/bloc/post_join_navigation_cubit.dart';
 import 'package:tentura/features/settings/ui/bloc/settings_cubit.dart';
@@ -548,6 +550,7 @@ class RootRouter extends RootStackRouter {
   Future<void> openFromNotificationLink(
     String rawLink, {
     bool preferUpdatesBranch = false,
+    HomeTab? preferHomeTab,
   }) async {
     if (rawLink.isEmpty) return;
 
@@ -563,23 +566,21 @@ class RootRouter extends RootStackRouter {
     final browseStack = buildBrowseDeepLinkStack(normalized);
     final tabs = innerRouterOf<TabsRouter>(HomeRoute.name);
     if (tabs == null && browseStack != null) {
-      final home = preferUpdatesBranch
-          ? HomeRoute(
-              children: [
-                inboxTabShell(
-                  children: [
-                    InboxRoute(initialTab: kInboxTabReceipts),
-                  ],
-                ),
-              ],
-            )
-          : browseStack.home;
+      final preferredHome = _coldStartHomeForTab(
+        preferUpdatesBranch: preferUpdatesBranch,
+        preferHomeTab: preferHomeTab,
+      );
+      final home = preferredHome ?? browseStack.home;
       await replaceAll([home, browseStack.detail]);
       return;
     }
-    if (preferUpdatesBranch && tabs != null) {
-      tabs.setActiveIndex(HomeTabSpec.forTab(HomeTab.inbox).index);
-      GetIt.I<HomeTabReselectCubit>().requestInboxReceipts();
+    final branchTab = preferHomeTab ??
+        (preferUpdatesBranch ? HomeTab.inbox : null);
+    if (branchTab != null && tabs != null) {
+      tabs.setActiveIndex(HomeTabSpec.forTab(branchTab).index);
+      if (branchTab == HomeTab.inbox) {
+        GetIt.I<HomeTabReselectCubit>().requestInboxReceipts();
+      }
     }
 
     final query = normalized.queryParameters.isEmpty
@@ -590,11 +591,41 @@ class RootRouter extends RootStackRouter {
     );
   }
 
-  Future<void> openFromUpdate(AttentionReceipt receipt) =>
-      openFromNotificationLink(
-        attentionDestination(receipt).toString(),
-        preferUpdatesBranch: true,
-      );
+  PageRouteInfo? _coldStartHomeForTab({
+    required bool preferUpdatesBranch,
+    HomeTab? preferHomeTab,
+  }) {
+    final tab = preferHomeTab ?? (preferUpdatesBranch ? HomeTab.inbox : null);
+    if (tab == null) return null;
+    return switch (tab) {
+      HomeTab.inbox => HomeRoute(
+          children: [
+            inboxTabShell(
+              children: [
+                InboxRoute(initialTab: kInboxTabReceipts),
+              ],
+            ),
+          ],
+        ),
+      HomeTab.work => HomeRoute(
+          children: [
+            workTabShell(children: [MyWorkRoute()]),
+          ],
+        ),
+      _ => null,
+    };
+  }
+
+  Future<void> openFromUpdate(AttentionReceipt receipt) {
+    final link = attentionDestination(receipt).toString();
+    if (readWorkActivityRedesignGateEnabled()) {
+      final branchTab = receipt.surface == AttentionSurface.myWork
+          ? HomeTab.work
+          : HomeTab.inbox;
+      return openFromNotificationLink(link, preferHomeTab: branchTab);
+    }
+    return openFromNotificationLink(link, preferUpdatesBranch: true);
+  }
 
   /// Activates Network and opens the Invitations tab on [FriendsRoute].
   ///
