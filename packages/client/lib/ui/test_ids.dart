@@ -18,8 +18,6 @@ abstract final class TestIds {
   static String forwardRecipientCheckbox(String userId) =>
       'forward.recipient.checkbox.$userId';
 
-  static const activityTriageRow = 'activity-triage-row';
-
   static String activityPromptPin(String receiptId) =>
       'activity-prompt-pin-$receiptId';
 
@@ -44,8 +42,6 @@ abstract final class TestIds {
 
   static String myWorkCloseNow(String beaconId) =>
       'my_work.close_now.$beaconId';
-
-  static const myWorkObligationsPane = 'my_work.obligations.pane';
 
   static String myWorkObligation(String receiptId) =>
       'my_work.obligation.$receiptId';

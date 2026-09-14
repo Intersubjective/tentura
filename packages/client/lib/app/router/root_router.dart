@@ -12,7 +12,6 @@ import 'package:tentura/domain/attention/entity/attention_receipt.dart';
 import 'package:tentura/app/platform/landing_redirect.dart';
 
 import 'package:tentura/features/auth/ui/bloc/auth_cubit.dart';
-import 'package:tentura/features/home/domain/work_activity_redesign_gate.dart';
 import 'package:tentura/features/home/ui/bloc/home_tab_reselect_cubit.dart';
 import 'package:tentura/features/home/ui/bloc/post_join_navigation_cubit.dart';
 import 'package:tentura/features/settings/ui/bloc/settings_cubit.dart';
@@ -175,10 +174,7 @@ class RootRouter extends RootStackRouter {
       page: InboxRejectedRoute.page,
       path: kPathInboxRejected,
     ),
-    AutoRoute(
-      page: InboxTriageRoute.page,
-      path: kPathInboxTriage,
-    ),
+    RedirectRoute(path: kPathInboxTriage, redirectTo: kPathInbox),
     AutoRoute(
       page: InboxWatchingRoute.page,
       path: kPathInboxWatching,
@@ -618,13 +614,10 @@ class RootRouter extends RootStackRouter {
 
   Future<void> openFromUpdate(AttentionReceipt receipt) {
     final link = attentionDestination(receipt).toString();
-    if (readWorkActivityRedesignGateEnabled()) {
-      final branchTab = receipt.surface == AttentionSurface.myWork
-          ? HomeTab.work
-          : HomeTab.inbox;
-      return openFromNotificationLink(link, preferHomeTab: branchTab);
-    }
-    return openFromNotificationLink(link, preferUpdatesBranch: true);
+    final branchTab = receipt.surface == AttentionSurface.myWork
+        ? HomeTab.work
+        : HomeTab.inbox;
+    return openFromNotificationLink(link, preferHomeTab: branchTab);
   }
 
   /// Activates Network and opens the Invitations tab on [FriendsRoute].

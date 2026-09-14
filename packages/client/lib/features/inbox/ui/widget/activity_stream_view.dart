@@ -29,7 +29,9 @@ import 'activity_watching_digest_row.dart';
 
 /// Activity redesign body: pinned offers, then activity-surface stream (§5).
 class ActivityStreamView extends StatefulWidget {
-  const ActivityStreamView({super.key});
+  const ActivityStreamView({this.scrollController, super.key});
+
+  final ScrollController? scrollController;
 
   /// One bounded offer card height (UNIT 15); scroll past → held-back live arrivals.
   static const scrolledAwayThreshold = 180.0;
@@ -42,7 +44,8 @@ class ActivityStreamView extends StatefulWidget {
 
 class _ActivityStreamViewState extends State<ActivityStreamView>
     with WidgetsBindingObserver {
-  final _scrollController = ScrollController();
+  late final ScrollController _scrollController;
+  var _ownsScrollController = false;
   final _offerSnapshot = <String, InboxItem>{};
   final _exitingOffers = <String, InboxItem>{};
   final _enteringForwardBeacons = <String>{};
@@ -54,6 +57,12 @@ class _ActivityStreamViewState extends State<ActivityStreamView>
   @override
   void initState() {
     super.initState();
+    if (widget.scrollController != null) {
+      _scrollController = widget.scrollController!;
+    } else {
+      _scrollController = ScrollController();
+      _ownsScrollController = true;
+    }
     WidgetsBinding.instance.addObserver(this);
     _scrollController.addListener(_onScroll);
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -305,9 +314,10 @@ class _ActivityStreamViewState extends State<ActivityStreamView>
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
     unawaited(_demotedSub?.cancel());
-    _scrollController
-      ..removeListener(_onScroll)
-      ..dispose();
+    _scrollController.removeListener(_onScroll);
+    if (_ownsScrollController) {
+      _scrollController.dispose();
+    }
     super.dispose();
   }
 

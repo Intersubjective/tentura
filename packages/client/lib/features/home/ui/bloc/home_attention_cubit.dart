@@ -24,16 +24,9 @@ export 'home_attention_state.dart';
 final class HomeAttentionCubit extends Cubit<HomeAttentionState> {
   HomeAttentionCubit(AttentionCase attention, this._account, this._logger)
     : _attention = attention,
-      super(
-        HomeAttentionState(
-          myWorkObligationCount: attention.snapshot.summary.needsYouTotal,
-        ),
-      ) {
+      super(const HomeAttentionState()) {
     _accountSub = _account.currentAccountChanges.listen(_onAccountChanged);
     _attentionSub = _attention.feedPages.listen((_) => _invalidateMarkers());
-    _obligationSummarySub = _attention.unreadSummary.listen(
-      _onObligationSummary,
-    );
     _surfaceSummarySub = _attention.surfaceSummary.listen(_onSurfaceSummary);
   }
 
@@ -45,7 +38,6 @@ final class HomeAttentionCubit extends Cubit<HomeAttentionState> {
 
   late final StreamSubscription<String> _accountSub;
   late final StreamSubscription<Object?> _attentionSub;
-  late final StreamSubscription<AttentionSummary> _obligationSummarySub;
   late final StreamSubscription<AttentionSurfaceSummary> _surfaceSummarySub;
 
   String _accountId = '';
@@ -81,25 +73,6 @@ final class HomeAttentionCubit extends Cubit<HomeAttentionState> {
     unawaited(_refreshMarkers());
   }
 
-  void reportInboxTriageCount({
-    required String accountId,
-    required int triageCount,
-    required bool loaded,
-  }) {
-    if (accountId.isEmpty || accountId != _accountId) return;
-    final count = loaded ? triageCount : 0;
-    if (state.inboxTriageCount == count &&
-        state.inboxLoaded == loaded) {
-      return;
-    }
-    emit(
-      state.copyWith(
-        inboxTriageCount: count,
-        inboxLoaded: loaded,
-      ),
-    );
-  }
-
   void reportMyWorkSnapshot({
     required String accountId,
     required Set<String> beaconIds,
@@ -131,7 +104,6 @@ final class HomeAttentionCubit extends Cubit<HomeAttentionState> {
     emit(
       HomeAttentionState(
         activeHomeTab: state.activeHomeTab,
-        myWorkObligationCount: 0,
       ),
     );
   }
@@ -151,12 +123,6 @@ final class HomeAttentionCubit extends Cubit<HomeAttentionState> {
         surfaceSummaryLoaded: true,
       ),
     );
-  }
-
-  void _onObligationSummary(AttentionSummary summary) {
-    final count = summary.needsYouTotal;
-    if (state.myWorkObligationCount == count) return;
-    emit(state.copyWith(myWorkObligationCount: count));
   }
 
   void _invalidateMarkers() {
@@ -254,7 +220,6 @@ final class HomeAttentionCubit extends Cubit<HomeAttentionState> {
   Future<void> close() async {
     await _accountSub.cancel();
     await _attentionSub.cancel();
-    await _obligationSummarySub.cancel();
     await _surfaceSummarySub.cancel();
     return super.close();
   }

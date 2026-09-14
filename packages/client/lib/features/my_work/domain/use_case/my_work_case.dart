@@ -27,7 +27,6 @@ import '../derive_my_work_cards.dart';
 import '../entity/my_work_card_view_model.dart';
 import '../entity/my_work_desk_load_types.dart';
 import '../entity/my_work_fetch_types.dart';
-import '../my_work_obligations_gate.dart';
 import '../port/my_work_desk_preferences_port.dart';
 
 @singleton
@@ -46,8 +45,7 @@ final class MyWorkCase extends UseCaseBase {
     this._evaluationRepository,
     this._realtimeSyncCase,
     this._bookkeepingRefreshSignal,
-    this._attentionCase,
-    @Named(myWorkObligationsGate) this._obligationsGateEnabled, {
+    this._attentionCase, {
     required super.env,
     required super.logger,
   });
@@ -73,8 +71,6 @@ final class MyWorkCase extends UseCaseBase {
 
   final AttentionCase _attentionCase;
 
-  final bool _obligationsGateEnabled;
-
   Stream<RepositoryEvent<Beacon>> get beaconChanges =>
       _beaconRepository.changes;
 
@@ -96,9 +92,7 @@ final class MyWorkCase extends UseCaseBase {
   Stream<void> get catchUps => _realtimeSyncCase.catchUps.map((_) {});
 
   Future<MyWorkInitResult> fetchInit({required String userId}) async {
-    final obligationBeaconIds = _obligationsGateEnabled
-        ? await _attentionCase.liveObligationBeacons()
-        : const <String>{};
+    final obligationBeaconIds = await _attentionCase.liveObligationBeacons();
     return _repository.fetchInit(
       userId: userId,
       obligationBeaconIds: obligationBeaconIds.toList(),
@@ -113,13 +107,9 @@ final class MyWorkCase extends UseCaseBase {
     required String userId,
   }) async {
     await _archiveRepository.archive(beaconId);
-    await _deskPreferences.setFinishedArchiveHintDismissed(userId: userId);
     // Notify mounted desk (e.g. under Home while request detail is on root stack).
     _bookkeepingRefreshSignal.notify();
   }
-
-  Future<void> dismissFinishedArchiveHint({required String userId}) =>
-      _deskPreferences.setFinishedArchiveHintDismissed(userId: userId);
 
   Future<void> unarchiveBeacon({
     required String beaconId,
@@ -128,21 +118,16 @@ final class MyWorkCase extends UseCaseBase {
 
   Future<MyWorkDeskInitLoad> loadDeskInit({required String userId}) async {
     final init = await fetchInit(userId: userId);
-    final obligationBeacons = _obligationsGateEnabled
-        ? init.obligationBeacons
-        : const <MyWorkObligationRow>[];
+    final obligationBeacons = init.obligationBeacons;
     final nonArchived = buildNonArchivedViewModels(
       authoredNonArchived: init.authoredNonArchived,
       helpOfferedNonArchived: init.helpOfferedNonArchived,
       obligationBeacons: obligationBeacons,
     );
     final enriched = await _enrichDeskCards(nonArchived);
-    final finishedArchiveHintDismissed = await _deskPreferences
-        .isFinishedArchiveHintDismissed(userId: userId);
     return (
       nonArchivedCards: enriched,
       archivedCountHint: init.archivedCountHint,
-      finishedArchiveHintDismissed: finishedArchiveHintDismissed,
     );
   }
 

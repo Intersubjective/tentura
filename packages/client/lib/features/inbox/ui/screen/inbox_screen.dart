@@ -15,14 +15,10 @@ import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura/features/home/ui/bloc/home_tab_reselect_cubit.dart';
 import 'package:tentura/features/home/ui/bloc/home_attention_cubit.dart';
 import 'package:tentura/features/updates/ui/bloc/updates_feed_cubit.dart';
-import 'package:tentura/features/home/domain/work_activity_redesign_gate.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
-import '../../domain/enum.dart';
 import '../bloc/activity_offers_cubit.dart';
 import '../bloc/inbox_cubit.dart';
 import '../widget/activity_stream_view.dart';
-import '../widget/inbox_triage_row.dart';
-import 'package:tentura/features/updates/ui/widget/updates_feed_pane.dart';
 
 @RoutePage()
 class InboxScreen extends StatefulWidget {
@@ -39,6 +35,7 @@ class InboxScreen extends StatefulWidget {
 
 class _InboxScreenState extends State<InboxScreen> {
   var _lastHandledReceiptsOpenCount = 0;
+  final ScrollController _activityScrollController = ScrollController();
 
   @override
   void initState() {
@@ -46,6 +43,12 @@ class _InboxScreenState extends State<InboxScreen> {
     if (widget.initialTab == kInboxTabReceipts) {
       _lastHandledReceiptsOpenCount = -1;
     }
+  }
+
+  @override
+  void dispose() {
+    _activityScrollController.dispose();
+    super.dispose();
   }
 
   void _consumeReceiptsIntentIfNeeded(BuildContext context) {
@@ -57,19 +60,26 @@ class _InboxScreenState extends State<InboxScreen> {
     _lastHandledReceiptsOpenCount = reselect.inboxReceiptsOpenCount;
   }
 
+  void _scrollActivityFeedToTop() {
+    if (!_activityScrollController.hasClients) return;
+    unawaited(
+      _activityScrollController.animateTo(
+        0,
+        duration: const Duration(milliseconds: 250),
+        curve: Curves.easeOut,
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    final inboxCubit = context.read<InboxCubit>();
-
     return _InboxReceiptsIntentBinder(
       onFirstFrame: _consumeReceiptsIntentIfNeeded,
       child: _InboxMovedSnackBarDismisser(
         child: BlocListener<HomeTabReselectCubit, HomeTabReselectState>(
           listenWhen: (prev, curr) =>
               prev.inboxReselectCount != curr.inboxReselectCount,
-          listener: (context, _) {
-            inboxCubit.setSort(InboxSort.recent);
-          },
+          listener: (context, _) => _scrollActivityFeedToTop(),
           child: BlocListener<HomeTabReselectCubit, HomeTabReselectState>(
             listenWhen: (prev, curr) =>
                 prev.inboxReceiptsOpenCount != curr.inboxReceiptsOpenCount,
@@ -102,8 +112,6 @@ class _InboxScreenState extends State<InboxScreen> {
                 builder: (context) {
                   final scheme = Theme.of(context).colorScheme;
                   final l10n = L10n.of(context)!;
-                  final redesignEnabled =
-                      readWorkActivityRedesignGateEnabled();
                   final useExpandedPane =
                       context.windowClass == WindowClass.expanded;
                   final tt = context.tt;
@@ -117,16 +125,14 @@ class _InboxScreenState extends State<InboxScreen> {
                           ? TenturaTopBarAlignment.fullWidth
                           : TenturaTopBarAlignment.content,
                       title: Text(
-                        redesignEnabled ? l10n.inbox : l10n.updatesTitle,
+                        l10n.inbox,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: TenturaText.titleLarge(scheme.onPrimary),
                       ),
-                      actions: [
-                        if (redesignEnabled) const _ActivityMarkAllSeenButton(),
-                        _InboxOverflowMenu(
-                          showNotificationHistory: redesignEnabled,
-                        ),
+                      actions: const [
+                        _ActivityMarkAllSeenButton(),
+                        _InboxOverflowMenu(showNotificationHistory: true),
                       ],
                     ),
                     body: SafeArea(
@@ -135,7 +141,10 @@ class _InboxScreenState extends State<InboxScreen> {
                       ),
                       child: TenturaContentColumn(
                         child: _InboxFeedKeepAlive(
-                          child: _inboxActivityFeedBody(context),
+                          child: _inboxActivityFeedBody(
+                            context,
+                            scrollController: _activityScrollController,
+                          ),
                         ),
                       ),
                     ),
@@ -225,52 +234,27 @@ class _InboxFeedKeepAliveState extends State<_InboxFeedKeepAlive>
   }
 }
 
-Widget _inboxActivityFeedBody(BuildContext context) {
-  if (readWorkActivityRedesignGateEnabled()) {
-    final userId = context.read<ProfileCubit>().state.profile.id;
-    return MultiBlocProvider(
-      providers: [
-        BlocProvider(
-          create: (context) {
-            final cubit = ActivityOffersCubit(userId: userId);
-            unawaited(cubit.loadFirst());
-            return cubit;
-          },
-        ),
-        BlocProvider(
-          create: (_) => UpdatesFeedCubit(
-            destinationId: AttentionFeedDestinationId.activityStream,
-          ),
-        ),
-      ],
-      child: const ActivityStreamView(),
-    );
-  }
-
-  final tt = context.tt;
-  return Column(
-    crossAxisAlignment: CrossAxisAlignment.stretch,
-    children: [
-      const InboxTriageRow(),
-      SizedBox(height: tt.tightGap),
-      Expanded(
-        child: BlocProvider(
-          create: (_) => UpdatesFeedCubit(
-            destinationId: AttentionFeedDestinationId.activity,
-          ),
-          child: BlocBuilder<InboxCubit, InboxState>(
-            buildWhen: (prev, curr) => prev.items != curr.items,
-            builder: (context, inboxState) {
-              final inboxCubit = context.read<InboxCubit>();
-              return UpdatesFeedPane(
-                resolvedTombstones: inboxState.tombstonesLast24h,
-                onDismissTombstone: inboxCubit.dismissTombstone,
-              );
-            },
-          ),
+Widget _inboxActivityFeedBody(
+  BuildContext context, {
+  required ScrollController scrollController,
+}) {
+  final userId = context.read<ProfileCubit>().state.profile.id;
+  return MultiBlocProvider(
+    providers: [
+      BlocProvider(
+        create: (context) {
+          final cubit = ActivityOffersCubit(userId: userId);
+          unawaited(cubit.loadFirst());
+          return cubit;
+        },
+      ),
+      BlocProvider(
+        create: (_) => UpdatesFeedCubit(
+          destinationId: AttentionFeedDestinationId.activityStream,
         ),
       ),
     ],
+    child: ActivityStreamView(scrollController: scrollController),
   );
 }
 

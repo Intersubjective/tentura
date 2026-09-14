@@ -210,7 +210,7 @@ final class AttentionCase {
   }
 
   Future<void> refresh({
-    String destinationId = AttentionFeedDestinationId.activity,
+    String destinationId = AttentionFeedDestinationId.activityStream,
   }) async =>
       _requestHeadRefresh(destinationId);
 
@@ -233,7 +233,7 @@ final class AttentionCase {
   }
 
   Future<void> fetchNextPage({
-    String destinationId = AttentionFeedDestinationId.activity,
+    String destinationId = AttentionFeedDestinationId.activityStream,
   }) async {
     if (_accountId.isEmpty) return;
     final session = _feedSessions.session(destinationId);
@@ -511,7 +511,7 @@ final class AttentionCase {
       // else refreshes `snapshot.summary`. Route through the default
       // destination so its session exists and gets pre-warmed for when it
       // is later attached.
-      unawaited(_requestHeadRefresh(AttentionFeedDestinationId.activity));
+      unawaited(_requestHeadRefresh(AttentionFeedDestinationId.activityStream));
       return;
     }
     for (final destinationId in attached) {

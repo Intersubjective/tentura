@@ -23,7 +23,6 @@ abstract class MyWorkState extends StateBase with _$MyWorkState {
     @Default(false) bool nonArchivedProjectionLoaded,
     @Default(MyWorkFilter.active) MyWorkFilter filter,
     @Default(MyWorkSort.recent) MyWorkSort sort,
-    @Default(false) bool finishedArchiveHintDismissed,
     @Default(StateIsLoading()) StateStatus status,
     Object? loadError,
     @Default({}) Map<String, MyWorkBeaconAttention> attentionByBeacon,

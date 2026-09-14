@@ -62,8 +62,6 @@ enum AttentionItemKind {
 
 /// Stable ids for independently mounted feed destinations (Activity, My Work, …).
 abstract final class AttentionFeedDestinationId {
-  static const activity = 'activity_feed';
-  static const myWorkObligations = 'my_work_obligations_feed';
   static const activityStream = 'activity_stream';
   static const history = 'notification_history';
 }
@@ -76,8 +74,6 @@ AttentionSurface? surfaceForDestination(String destinationId) {
     case AttentionFeedDestinationId.activityStream:
       return AttentionSurface.activity;
     case AttentionFeedDestinationId.history:
-    case AttentionFeedDestinationId.activity:
-    case AttentionFeedDestinationId.myWorkObligations:
       return null;
     default:
       return null;

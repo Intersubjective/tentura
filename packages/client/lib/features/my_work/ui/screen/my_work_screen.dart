@@ -13,7 +13,6 @@ import 'package:tentura/ui/widget/screen_load_error_panel.dart';
 import 'package:tentura/ui/widget/show_anchored_popup_menu.dart';
 
 import 'package:tentura/features/home/domain/entity/home_activation.dart';
-import 'package:tentura/features/home/domain/work_activity_redesign_gate.dart';
 import 'package:tentura/features/home/ui/bloc/home_activation_cubit.dart';
 import 'package:tentura/features/home/ui/bloc/home_attention_cubit.dart';
 import 'package:tentura/features/home/ui/widget/home_orientation_panel.dart';
@@ -21,13 +20,9 @@ import 'package:tentura/features/inbox/ui/bloc/inbox_operational_cubit.dart';
 
 import 'package:tentura/features/my_work/domain/derive_my_work_sections.dart';
 import 'package:tentura/features/my_work/domain/entity/my_work_card_view_model.dart';
-import 'package:tentura/features/my_work/domain/my_work_obligations_gate.dart';
-
 import '../bloc/my_work_cubit.dart';
 import '../widget/my_work_cards.dart';
 import '../widget/my_work_empty_body.dart';
-import '../widget/my_work_finished_status_row.dart';
-import '../widget/my_work_obligations_pane.dart';
 
 @RoutePage()
 class MyWorkScreen extends StatefulWidget implements AutoRouteWrapper {
@@ -61,9 +56,6 @@ class _MyWorkScreenState extends State<MyWorkScreen> {
       onPressed: () => context.read<ScreenCubit>().showBeaconCreate(),
       icon: const Icon(Icons.add),
     );
-    final redesignEnabled = readWorkActivityRedesignGateEnabled();
-    const overflowMenu = _MyWorkOverflowMenu();
-
     return BlocListener<HomeTabReselectCubit, HomeTabReselectState>(
       listenWhen: (prev, curr) =>
           prev.myWorkReselectCount != curr.myWorkReselectCount,
@@ -100,12 +92,7 @@ class _MyWorkScreenState extends State<MyWorkScreen> {
                     );
                   },
                 ),
-          actions: useCompactTopBar
-              ? null
-              : [
-                  createButton,
-                  if (!redesignEnabled) overflowMenu,
-                ],
+          actions: useCompactTopBar ? null : [createButton],
           // NavigationToolbar balances its middle against the full trailing
           // action width. With filter + sort in the middle and two actions at
           // 390px, that can leave only a few pixels for the middle Row. The
@@ -117,7 +104,6 @@ class _MyWorkScreenState extends State<MyWorkScreen> {
                     const Expanded(child: _MyWorkFilterMenu()),
                     const _MyWorkSortButton(),
                     createButton,
-                    if (!redesignEnabled) overflowMenu,
                   ],
                 )
               : null,
@@ -129,37 +115,6 @@ class _MyWorkScreenState extends State<MyWorkScreen> {
           ),
         ),
       ),
-    );
-  }
-}
-
-class _MyWorkOverflowMenu extends StatelessWidget {
-  const _MyWorkOverflowMenu();
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = L10n.of(context)!;
-    final tt = context.tt;
-
-    return PopupMenuButton<String>(
-      icon: const Icon(Icons.more_vert),
-      tooltip: MaterialLocalizations.of(context).showMenuTooltip,
-      padding: EdgeInsets.zero,
-      constraints: BoxConstraints(
-        minWidth: tt.buttonHeight,
-        minHeight: tt.buttonHeight,
-      ),
-      onSelected: (value) {
-        if (value == 'archive') {
-          context.read<MyWorkCubit>().setFilter(MyWorkFilter.archived);
-        }
-      },
-      itemBuilder: (context) => [
-        PopupMenuItem<String>(
-          value: 'archive',
-          child: Text(l10n.myWorkOverflowArchive),
-        ),
-      ],
     );
   }
 }
@@ -341,8 +296,7 @@ class _MyWorkBody extends StatelessWidget {
       return true;
     }
     if (p.draftCount != c.draftCount ||
-        p.archivedCountHint != c.archivedCountHint ||
-        p.finishedArchiveHintDismissed != c.finishedArchiveHintDismissed) {
+        p.archivedCountHint != c.archivedCountHint) {
       return true;
     }
     if (p.nonArchivedCards != c.nonArchivedCards ||
@@ -361,9 +315,6 @@ class _MyWorkBody extends StatelessWidget {
     final l10n = L10n.of(context)!;
     final cubit = context.read<MyWorkCubit>();
     final tt = context.tt;
-    final obligationsGateEnabled = readMyWorkObligationsGateEnabled();
-    final redesignEnabled = readWorkActivityRedesignGateEnabled();
-
     return BlocListener<MyWorkCubit, MyWorkState>(
       listenWhen: (previous, current) =>
           current.hasError && previous.loadError != current.loadError,
@@ -385,23 +336,7 @@ class _MyWorkBody extends StatelessWidget {
             tt: tt,
             scrollController: listScrollController,
           );
-          if (!obligationsGateEnabled || redesignEnabled) {
-            return TenturaContentColumn(child: listBody);
-          }
-          return TenturaContentColumn(
-            child: Column(
-              children: [
-                const Expanded(
-                  flex: 2,
-                  child: MyWorkObligationsPane(),
-                ),
-                Expanded(
-                  flex: 3,
-                  child: listBody,
-                ),
-              ],
-            ),
-          );
+          return TenturaContentColumn(child: listBody);
         },
       ),
     );
@@ -451,13 +386,6 @@ class _MyWorkListBody extends StatelessWidget {
       );
     }
     final cards = state.visibleCards;
-    final redesignEnabled = readWorkActivityRedesignGateEnabled();
-    final showFinishedHint =
-        !redesignEnabled &&
-        !state.finishedArchiveHintDismissed &&
-        (state.filter == MyWorkFilter.active ||
-            state.filter == MyWorkFilter.all) &&
-        cards.any((c) => c.isFinishedCard);
     if (cards.isEmpty) {
       return BlocSelector<
         HomeActivationCubit,
@@ -537,40 +465,18 @@ class _MyWorkListBody extends StatelessWidget {
         },
       );
     }
-    if (redesignEnabled) {
-      return RefreshIndicator.adaptive(
-        onRefresh: cubit.fetch,
-        child: CustomScrollView(
-          controller: scrollController,
-          physics: const AlwaysScrollableScrollPhysics(),
-          slivers: _myWorkRedesignSlivers(
-            context: context,
-            l10n: l10n,
-            tt: tt,
-            state: state,
-            cards: cards,
-          ),
-        ),
-      );
-    }
     return RefreshIndicator.adaptive(
       onRefresh: cubit.fetch,
-      child: ListView.separated(
+      child: CustomScrollView(
         controller: scrollController,
-        padding: EdgeInsets.symmetric(vertical: tt.rowGap),
         physics: const AlwaysScrollableScrollPhysics(),
-        itemCount: cards.length + (showFinishedHint ? 1 : 0),
-        separatorBuilder: (_, _) => SizedBox(height: tt.rowGap),
-        itemBuilder: (_, i) {
-          if (showFinishedHint && i == 0) {
-            return MyWorkFinishedArchiveHint(
-              onDismiss: cubit.dismissFinishedArchiveHint,
-            );
-          }
-          final cardIndex = showFinishedHint ? i - 1 : i;
-          final vm = cards[cardIndex];
-          return _myWorkCardTile(context: context, vm: vm);
-        },
+        slivers: _myWorkRedesignSlivers(
+          context: context,
+          l10n: l10n,
+          tt: tt,
+          state: state,
+          cards: cards,
+        ),
       ),
     );
   }

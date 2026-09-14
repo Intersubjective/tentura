@@ -8,7 +8,6 @@ import 'package:tentura/domain/entity/repository_event.dart';
 import 'package:tentura/domain/use_case/realtime_sync_case.dart';
 import 'package:tentura/features/beacon_threads/domain/entity/beacon_room_invalidation.dart';
 import 'package:tentura/features/block/domain/use_case/block_case.dart';
-import 'package:tentura/features/home/domain/work_activity_redesign_gate.dart';
 
 import 'package:tentura/features/my_work/domain/derive_my_work_cards.dart';
 import 'package:tentura/features/my_work/domain/entity/my_work_card_view_model.dart';
@@ -229,7 +228,6 @@ class MyWorkCubit extends Cubit<MyWorkState> {
             nonArchivedProjectionLoaded: true,
             nonArchivedCards: merged,
             archivedCountHint: init.archivedCountHint,
-            finishedArchiveHintDismissed: init.finishedArchiveHintDismissed,
             archivedCards: const [],
             archivedDataFetched: false,
           ),
@@ -284,7 +282,6 @@ class MyWorkCubit extends Cubit<MyWorkState> {
       state.copyWith(
         archivedCountHint: state.archivedCountHint + 1,
         archivedDataFetched: false,
-        finishedArchiveHintDismissed: true,
       ),
     );
   }
@@ -302,12 +299,6 @@ class MyWorkCubit extends Cubit<MyWorkState> {
       ),
     );
     unawaited(fetch());
-  }
-
-  Future<void> dismissFinishedArchiveHint() async {
-    if (state.finishedArchiveHintDismissed) return;
-    emit(state.copyWith(finishedArchiveHintDismissed: true));
-    await _myWorkCase.dismissFinishedArchiveHint(userId: _userId);
   }
 
   void setFilter(MyWorkFilter filter) {
@@ -470,9 +461,6 @@ class MyWorkCubit extends Cubit<MyWorkState> {
   }
 
   Future<void> _loadAttentionIfEnabled(int seq) async {
-    if (!readWorkActivityRedesignGateEnabled()) {
-      return;
-    }
     final beaconIds = {
       for (final c in state.nonArchivedCards) c.beaconId,
       for (final c in state.archivedCards) c.beaconId,

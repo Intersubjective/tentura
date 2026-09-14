@@ -1,18 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
-import 'package:tentura/features/home/domain/work_activity_redesign_gate.dart';
 import 'package:tentura/features/home/ui/bloc/home_attention_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
 typedef _MyWorkNavBadgeView = ({
   int obligationCount,
-  bool showLegacyObligationBadge,
-  bool showRedesignObligationBadge,
-  bool showRedesignUnreadDot,
+  bool showObligationBadge,
+  bool showUnreadDot,
 });
 
-/// My Work tab icon with a live-obligation count badge.
+/// My Work tab icon with live-obligation count or unread dot.
 class MyWorkNavbarItem extends StatelessWidget {
   const MyWorkNavbarItem({super.key, this.selected = false});
 
@@ -21,29 +19,17 @@ class MyWorkNavbarItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = L10n.of(context)!;
-    final redesignEnabled = readWorkActivityRedesignGateEnabled();
     return BlocSelector<HomeAttentionCubit, HomeAttentionState, _MyWorkNavBadgeView>(
-      selector: (state) {
-        final obligationCount = redesignEnabled
-            ? state.surfaceNeedsYouTotal
-            : (state.showMyWorkObligationBadge
-                  ? state.myWorkObligationCount
-                  : 0);
-        return (
-          obligationCount: obligationCount,
-          showLegacyObligationBadge:
-              !redesignEnabled && state.showMyWorkObligationBadge,
-          showRedesignObligationBadge:
-              redesignEnabled && state.showRedesignMyWorkObligationBadge,
-          showRedesignUnreadDot:
-              redesignEnabled && state.showRedesignMyWorkUnreadDot,
-        );
-      },
+      selector: (state) => (
+        obligationCount: state.surfaceNeedsYouTotal,
+        showObligationBadge: state.showRedesignMyWorkObligationBadge,
+        showUnreadDot: state.showRedesignMyWorkUnreadDot,
+      ),
       builder: (context, view) {
         final scheme = Theme.of(context).colorScheme;
         final icon = Icon(selected ? Icons.work : Icons.work_outline);
 
-        if (view.showLegacyObligationBadge || view.showRedesignObligationBadge) {
+        if (view.showObligationBadge) {
           final count = view.obligationCount;
           final badge = Badge(
             label: Text('$count'),
@@ -52,17 +38,14 @@ class MyWorkNavbarItem extends StatelessWidget {
             textColor: selected ? scheme.primary : scheme.onPrimary,
             child: icon,
           );
-          if (view.showRedesignObligationBadge) {
-            return Semantics(
-              label: l10n.myWorkNavBadgeObligations(count),
-              excludeSemantics: true,
-              child: badge,
-            );
-          }
-          return badge;
+          return Semantics(
+            label: l10n.myWorkNavBadgeObligations(count),
+            excludeSemantics: true,
+            child: badge,
+          );
         }
 
-        if (view.showRedesignUnreadDot) {
+        if (view.showUnreadDot) {
           return Semantics(
             label: l10n.activityNavBadgeNewActivity,
             identifier: 'my-work-surface-unread-dot',

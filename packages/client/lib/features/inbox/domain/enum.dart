@@ -33,9 +33,3 @@ InboxItemStatus inboxItemStatusFromSmallint(int value) => switch (value) {
   4 => InboxItemStatus.deletedBeforeResponse,
   _ => InboxItemStatus.needsMe,
 };
-
-enum InboxSort {
-  recent,
-  meritRank,
-  deadline,
-}

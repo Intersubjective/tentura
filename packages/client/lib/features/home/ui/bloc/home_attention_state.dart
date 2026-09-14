@@ -12,8 +12,6 @@ part 'home_attention_state.freezed.dart';
 abstract class HomeAttentionState with _$HomeAttentionState {
   const factory HomeAttentionState({
     @Default({}) Set<String> inboxBeaconIds,
-    @Default(0) int inboxTriageCount,
-    @Default(0) int myWorkObligationCount,
     @Default({}) Set<String> myWorkBeaconIds,
     @Default({}) Set<String> unreadBeaconIds,
     @Default(false) bool inboxLoaded,
@@ -52,34 +50,20 @@ abstract class HomeAttentionState with _$HomeAttentionState {
   bool get hasInboxDot =>
       activeHomeTab != HomeTab.inbox && inboxMarkerIds.isNotEmpty;
 
-  /// Needs-me triage count for the Activity nav badge (Watching excluded).
-  ///
-  /// Stays visible on the active tab: this is remaining work, not unseen.
-  bool get showInboxTriageBadge => inboxLoaded && inboxTriageCount > 0;
-
-  /// Unread marker dot when no pending triage items are shown on the icon.
-  bool get showInboxUnreadDot =>
-      inboxTriageCount == 0 && hasInboxDot;
-
   bool get hasMyWorkDot =>
       activeHomeTab != HomeTab.work && myWorkMarkerIds.isNotEmpty;
 
-  /// Live obligation receipt count for the My Work nav badge (not unseen-based).
-  ///
-  /// Stays visible on the active tab: this is remaining work, not unseen.
-  bool get showMyWorkObligationBadge => myWorkObligationCount > 0;
-
-  /// Work / Activity redesign (D5): Activity nav is a dot only, hidden on tab.
+  /// Activity nav is a dot only, hidden on the active tab.
   bool get showRedesignActivityUnreadDot =>
       surfaceSummaryLoaded &&
       activityUnreadTotal > 0 &&
       activeHomeTab != HomeTab.inbox;
 
-  /// Redesign (D4): live obligation receipts on My Work; visible on active tab.
+  /// Live obligation receipts on My Work; visible on active tab.
   bool get showRedesignMyWorkObligationBadge =>
       surfaceSummaryLoaded && surfaceNeedsYouTotal > 0;
 
-  /// Redesign: unseen My Work receipts when no live obligations remain.
+  /// Unseen My Work receipts when no live obligations remain.
   bool get showRedesignMyWorkUnreadDot =>
       surfaceSummaryLoaded &&
       surfaceNeedsYouTotal == 0 &&

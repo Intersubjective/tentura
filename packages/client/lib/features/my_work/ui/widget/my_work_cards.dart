@@ -19,7 +19,6 @@ import 'package:tentura/domain/entity/beacon_coordination_phase.dart';
 import 'package:tentura/features/beacon/ui/dialog/beacon_close_confirm_dialog.dart';
 import 'package:tentura/features/beacon/ui/util/beacon_lifecycle_ui.dart';
 import 'package:tentura/domain/attention/entity/attention_receipt.dart';
-import 'package:tentura/features/home/domain/work_activity_redesign_gate.dart';
 import 'package:tentura/features/my_work/ui/bloc/my_work_cubit.dart';
 import 'package:tentura/features/my_work/ui/widget/my_work_obligation_block.dart';
 import 'package:tentura/features/my_work/ui/widget/my_work_whats_new_row.dart';
@@ -132,9 +131,7 @@ class MyWorkCardRouter extends StatelessWidget {
 }
 
 void _openBeacon(BuildContext context, String id) {
-  if (readWorkActivityRedesignGateEnabled()) {
-    unawaited(context.read<MyWorkCubit>().openedBeacon(id));
-  }
+  unawaited(context.read<MyWorkCubit>().openedBeacon(id));
   unawaited(
     context.router.push(BeaconViewRoute(id: id, entry: kBeaconEntryMyWork)),
   );
@@ -147,9 +144,7 @@ void _openBeaconOrSelect(
   String? peopleTabAttention,
 }) {
   if (viewTab != null || peopleTabAttention != null) {
-    if (readWorkActivityRedesignGateEnabled()) {
-      unawaited(context.read<MyWorkCubit>().openedBeacon(vm.beaconId));
-    }
+    unawaited(context.read<MyWorkCubit>().openedBeacon(vm.beaconId));
     unawaited(
       context.router.push(
         BeaconViewRoute(
@@ -165,21 +160,13 @@ void _openBeaconOrSelect(
   _openBeacon(context, vm.beaconId);
 }
 
-Widget? _myWorkAttentionMarker({required bool attentionMarked}) {
-  if (readWorkActivityRedesignGateEnabled()) {
-    return null;
-  }
-  return attentionMarked ? const AttentionMarker() : null;
-}
+Widget? _myWorkAttentionMarker({required bool attentionMarked}) => null;
 
 Widget _myWorkCardAttentionSection(
   BuildContext context, {
   required MyWorkCardViewModel vm,
   required String currentUserId,
 }) {
-  if (!readWorkActivityRedesignGateEnabled()) {
-    return const SizedBox.shrink();
-  }
   return BlocSelector<
     MyWorkCubit,
     MyWorkState,
@@ -313,8 +300,7 @@ class _AuthoredActiveCard extends StatelessWidget {
       roomSubtitle: vm.roomInboxSubtitle.isEmpty ? null : vm.roomInboxSubtitle,
     );
 
-    final redesignGateOn = readWorkActivityRedesignGateEnabled();
-    final hasReviewCta = vm.showReviewHelpOffersCta && !redesignGateOn;
+    final hasReviewCta = false;
     final needsForwardCta = myWorkNeedsForwardCta(vm);
     final showCloseNowCta = vm.showCloseNowCta;
     final phaseAction = myWorkEffectivePrimaryAction(
@@ -550,19 +536,10 @@ class _HelpOfferedActiveCard extends StatelessWidget {
       roomSubtitle: vm.roomInboxSubtitle.isEmpty ? null : vm.roomInboxSubtitle,
     );
 
-    final redesignGateOn = readWorkActivityRedesignGateEnabled();
     return BeaconCardShell(
       onTap: () => _openBeaconOrSelect(context, vm),
       marker: _myWorkAttentionMarker(attentionMarked: attentionMarked),
-      footer: vm.showReviewCta && !redesignGateOn
-          ? Align(
-              alignment: Alignment.centerRight,
-              child: TenturaCommandButton(
-                label: l10n.myWorkReviewCta,
-                onPressed: () => _openReviewContributions(context, b.id),
-              ),
-            )
-          : null,
+      footer: null,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

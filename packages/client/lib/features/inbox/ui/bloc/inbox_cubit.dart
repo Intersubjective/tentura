@@ -270,10 +270,6 @@ class InboxCubit extends Cubit<InboxState> {
     }
   }
 
-  void setSort(InboxSort sort) {
-    emit(state.copyWith(sort: sort));
-  }
-
   Future<void> setWatching(String beaconId) async {
     await _updateStatus(beaconId, InboxItemStatus.watching);
   }

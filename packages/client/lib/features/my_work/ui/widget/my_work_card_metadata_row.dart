@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 
 import 'package:tentura/domain/entity/beacon.dart';
-import 'package:tentura/features/home/domain/work_activity_redesign_gate.dart';
 import 'package:tentura/features/my_work/domain/entity/my_work_card_view_model.dart';
 import 'package:tentura/ui/widget/beacon_hud_metadata_composer.dart';
 import 'package:tentura/ui/widget/beacon_hud_metadata_table.dart';
@@ -28,7 +27,7 @@ class MyWorkCardMetadataRow extends StatelessWidget {
         beacon: beacon,
         viewModel: viewModel,
         currentUserId: currentUserId,
-        hideLastEventMetadata: readWorkActivityRedesignGateEnabled(),
+        hideLastEventMetadata: true,
       ),
     );
   }
