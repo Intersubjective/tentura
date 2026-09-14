@@ -11,6 +11,7 @@ class TenturaCommandButton extends StatelessWidget {
     this.onPressed,
     this.icon,
     this.selected = false,
+    this.minInteractive = false,
   });
 
   final String label;
@@ -18,14 +19,18 @@ class TenturaCommandButton extends StatelessWidget {
   final Widget? icon;
   final bool selected;
 
+  /// When true, min height is [kMinInteractiveDimension] (48) instead of 40.
+  final bool minInteractive;
+
   @override
   Widget build(BuildContext context) {
     final tt = context.tt;
     final color = tt.info;
+    final minHeight = minInteractive ? kMinInteractiveDimension : 40.0;
     return OutlinedButton(
       onPressed: onPressed,
       style: OutlinedButton.styleFrom(
-        minimumSize: const Size(0, 40),
+        minimumSize: Size(0, minHeight),
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
         side: BorderSide(
           color: selected ? color : tt.skyBorder,

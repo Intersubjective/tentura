@@ -41,6 +41,7 @@ import 'package:tentura/features/beacon_threads/domain/exception/beacon_fact_pin
 import 'package:tentura/features/beacon_threads/ui/message/beacon_room_fact_messages.dart';
 import '../message/help_offer_messages.dart';
 import 'beacon_view_state.dart';
+import 'timeline_help_offer_mapping.dart';
 
 export 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -769,30 +770,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
       })
     >
     helpOffers,
-  ) => [
-    for (final c in helpOffers)
-      TimelineHelpOffer(
-        user: c.user,
-        message: c.message,
-        createdAt: c.createdAt,
-        updatedAt: c.updatedAt,
-        isWithdrawn: c.status == 1,
-        helpType: c.helpType,
-        coordinationResponse: CoordinationResponseType.tryFromInt(
-          c.responseType,
-        ),
-        withdrawReason: c.withdrawReason,
-        roomAccess: c.roomAccess,
-        admissionAction: HelpOfferAdmissionAction.tryFromInt(
-          c.admissionAction,
-        ),
-        lastDeclineReason: c.lastDeclineReason,
-        lastRemoveReason: c.lastRemoveReason,
-        stakeState: CommitmentStakeState.fromInt(c.stakeState),
-        offerKind: c.offerKind,
-        isDirectAuthorForward: c.isDirectAuthorForward,
-      ),
-  ];
+  ) => timelineHelpOffersFromRemote(helpOffers);
 
   Future<void> _refreshBeaconRoomCue(String beaconId) async {
     final cue = await _case.fetchRoomStateIfAllowed(beaconId);
@@ -1035,30 +1013,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
           .where((c) => c.status == 0)
           .any((c) => c.userId == myUserId);
 
-      final helpOffersList = <TimelineHelpOffer>[
-        for (final c in helpOffers)
-          TimelineHelpOffer(
-            user: c.user,
-            message: c.message,
-            createdAt: c.createdAt,
-            updatedAt: c.updatedAt,
-            isWithdrawn: c.status == 1,
-            helpType: c.helpType,
-            coordinationResponse: CoordinationResponseType.tryFromInt(
-              c.responseType,
-            ),
-            withdrawReason: c.withdrawReason,
-            roomAccess: c.roomAccess,
-            admissionAction: HelpOfferAdmissionAction.tryFromInt(
-              c.admissionAction,
-            ),
-            lastDeclineReason: c.lastDeclineReason,
-            lastRemoveReason: c.lastRemoveReason,
-            stakeState: CommitmentStakeState.fromInt(c.stakeState),
-            offerKind: c.offerKind,
-            isDirectAuthorForward: c.isDirectAuthorForward,
-          ),
-      ];
+      final helpOffersList = timelineHelpOffersFromRemote(helpOffers);
 
       final helpOfferTimeline = <TimelineEntry>[
         for (final c in helpOffers)

@@ -424,7 +424,20 @@ class MyWorkCubit extends Cubit<MyWorkState> {
       state.filter == MyWorkFilter.archived && state.archivedCards.isEmpty;
 
   Future<void> settleObligation(String beaconId, String receiptId) async {
-    if (beaconId.isEmpty || receiptId.isEmpty) return;
+    await settleObligations(beaconId, [receiptId]);
+  }
+
+  /// Settles every [receiptIds] for [beaconId] (grouped sub-card Done).
+  Future<void> settleObligations(
+    String beaconId,
+    List<String> receiptIds,
+  ) async {
+    if (beaconId.isEmpty || receiptIds.isEmpty) return;
+    final ids = {
+      for (final id in receiptIds)
+        if (id.isNotEmpty) id,
+    };
+    if (ids.isEmpty) return;
     final current = state.attentionByBeacon[beaconId];
     if (current != null) {
       emit(
@@ -434,14 +447,19 @@ class MyWorkCubit extends Cubit<MyWorkState> {
             beaconId: current.copyWith(
               liveObligations: [
                 for (final r in current.liveObligations)
-                  if (r.id != receiptId) r,
+                  if (!ids.contains(r.id)) r,
               ],
             ),
           },
         ),
       );
     }
-    await _myWorkCase.settleObligationReceipt(receiptId);
+    try {
+      await _myWorkCase.settleObligationReceipts(ids.toList());
+    } catch (_) {
+      await fetch(showLoading: false);
+      rethrow;
+    }
   }
 
   Future<void> openedBeacon(String beaconId) async {

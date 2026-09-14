@@ -2,6 +2,7 @@ import 'dart:async';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/consts.dart';
@@ -19,6 +20,7 @@ import 'package:tentura/domain/entity/beacon_coordination_phase.dart';
 import 'package:tentura/features/beacon/ui/dialog/beacon_close_confirm_dialog.dart';
 import 'package:tentura/features/beacon/ui/util/beacon_lifecycle_ui.dart';
 import 'package:tentura/domain/attention/entity/attention_receipt.dart';
+import 'package:tentura/features/beacon_view/ui/sheet/help_offer_tile_sheet.dart';
 import 'package:tentura/features/my_work/ui/bloc/my_work_cubit.dart';
 import 'package:tentura/features/my_work/ui/widget/my_work_obligation_block.dart';
 import 'package:tentura/features/my_work/ui/widget/my_work_whats_new_row.dart';
@@ -30,7 +32,6 @@ import 'package:tentura/features/beacon/data/repository/beacon_repository.dart';
 import 'package:tentura/features/evaluation/data/repository/evaluation_repository.dart';
 import 'package:tentura/features/my_work/domain/entity/my_work_card_view_model.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
-import 'package:tentura/features/home/ui/widget/attention_marker.dart';
 
 bool myWorkCloseBeaconEnabled(MyWorkCardViewModel vm) =>
     vm.beacon.status == BeaconStatus.open && vm.displayStatus != null;
@@ -162,7 +163,8 @@ void _openBeaconOrSelect(
 
 Widget? _myWorkAttentionMarker({required bool attentionMarked}) => null;
 
-Widget _myWorkCardAttentionSection(
+/// What's-new / last-event row — stays inside the card [InkWell] child.
+Widget _myWorkWhatsNewSection(
   BuildContext context, {
   required MyWorkCardViewModel vm,
   required String currentUserId,
@@ -170,43 +172,77 @@ Widget _myWorkCardAttentionSection(
   return BlocSelector<
     MyWorkCubit,
     MyWorkState,
-    ({List<AttentionReceipt> obligations, int unseenCount, AttentionReceipt? latestUnseen})?
+    ({int unseenCount, AttentionReceipt? latestUnseen})?
   >(
     selector: (state) {
       final attention = state.attentionByBeacon[vm.beaconId];
-      if (attention == null) {
-        return null;
-      }
+      if (attention == null) return null;
       return (
-        obligations: attention.liveObligations,
         unseenCount: attention.unseenCount,
         latestUnseen: attention.latestUnseen,
       );
     },
     builder: (context, data) {
-      final obligations = data?.obligations ?? const <AttentionReceipt>[];
-      final unseenCount = data?.unseenCount ?? 0;
-      final latestUnseen = data?.latestUnseen;
-      return Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          MyWorkObligationBlock(
-            vm: vm,
-            obligations: obligations,
-            onReviewHelpOffers: () => _openBeaconReviewHelpOffers(context, vm),
-            onReviewContributions: () =>
-                _openReviewContributions(context, vm.beaconId),
-          ),
-          MyWorkWhatsNewRow(
-            beacon: vm.beacon,
-            viewModel: vm,
-            currentUserId: currentUserId,
-            unseenCount: unseenCount,
-            latestUnseen: latestUnseen,
-          ),
-        ],
+      return MyWorkWhatsNewRow(
+        beacon: vm.beacon,
+        viewModel: vm,
+        currentUserId: currentUserId,
+        unseenCount: data?.unseenCount ?? 0,
+        latestUnseen: data?.latestUnseen,
       );
     },
+  );
+}
+
+/// Composes shell footer: obligations first, then existing controls.
+/// Returns null only when every section is absent (D-SC8).
+Widget? _composeMyWorkFooter(
+  BuildContext context, {
+  required MyWorkCardViewModel vm,
+  Widget? existingFooter,
+  bool suppressReviewHelpOffersFallback = false,
+  bool suppressReviewFallback = false,
+}) {
+  final obligations = context.select(
+    (MyWorkCubit c) =>
+        c.state.attentionByBeacon[vm.beaconId]?.liveObligations ??
+        const <AttentionReceipt>[],
+  );
+  final showObligations = myWorkObligationBlockVisible(
+    vm: vm,
+    obligations: obligations,
+    suppressReviewHelpOffersFallback: suppressReviewHelpOffersFallback,
+    suppressReviewFallback: suppressReviewFallback,
+  );
+  if (!showObligations && existingFooter == null) {
+    return null;
+  }
+  final tt = context.tt;
+  return Column(
+    mainAxisSize: MainAxisSize.min,
+    crossAxisAlignment: CrossAxisAlignment.stretch,
+    children: [
+      if (showObligations)
+        MyWorkObligationBlock(
+          vm: vm,
+          obligations: obligations,
+          suppressReviewHelpOffersFallback: suppressReviewHelpOffersFallback,
+          suppressReviewFallback: suppressReviewFallback,
+          onReviewHelpOffers: () => _openBeaconReviewHelpOffers(context, vm),
+          onReviewContributions: () =>
+              _openReviewContributions(context, vm.beaconId),
+          onRespondHelpOffer: (offererId) => unawaited(
+            showHelpOfferTileSheetFromDesk(
+              context: context,
+              beaconId: vm.beaconId,
+              offerUserId: offererId,
+              beacon: vm.beacon,
+            ),
+          ),
+        ),
+      if (showObligations && existingFooter != null) SizedBox(height: tt.rowGap),
+      if (existingFooter != null) existingFooter,
+    ],
   );
 }
 
@@ -363,6 +399,8 @@ class _AuthoredActiveCard extends StatelessWidget {
                 onPressed: () => switch (phaseAction) {
                   BeaconPhasePrimaryAction.reviewOffers =>
                     _openBeaconReviewHelpOffers(context, vm),
+                  BeaconPhasePrimaryAction.reviewContributions =>
+                    _openReviewContributions(context, vm.beaconId),
                   BeaconPhasePrimaryAction.forward => b.allowsForward
                       ? unawaited(
                           context.router.push(
@@ -416,7 +454,15 @@ class _AuthoredActiveCard extends StatelessWidget {
     return BeaconCardShell(
       onTap: () => _openBeaconOrSelect(context, vm),
       marker: _myWorkAttentionMarker(attentionMarked: attentionMarked),
-      footer: footerActions,
+      footer: _composeMyWorkFooter(
+        context,
+        vm: vm,
+        existingFooter: footerActions,
+        suppressReviewHelpOffersFallback:
+            phaseAction == BeaconPhasePrimaryAction.reviewOffers,
+        suppressReviewFallback:
+            phaseAction == BeaconPhasePrimaryAction.reviewContributions,
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -504,7 +550,7 @@ class _AuthoredActiveCard extends StatelessWidget {
             viewModel: vm,
             currentUserId: currentUserId,
           ),
-          _myWorkCardAttentionSection(
+          _myWorkWhatsNewSection(
             context,
             vm: vm,
             currentUserId: currentUserId,
@@ -539,7 +585,7 @@ class _HelpOfferedActiveCard extends StatelessWidget {
     return BeaconCardShell(
       onTap: () => _openBeaconOrSelect(context, vm),
       marker: _myWorkAttentionMarker(attentionMarked: attentionMarked),
-      footer: null,
+      footer: _composeMyWorkFooter(context, vm: vm),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -575,7 +621,7 @@ class _HelpOfferedActiveCard extends StatelessWidget {
             viewModel: vm,
             currentUserId: currentUserId,
           ),
-          _myWorkCardAttentionSection(
+          _myWorkWhatsNewSection(
             context,
             vm: vm,
             currentUserId: currentUserId,
@@ -612,22 +658,26 @@ class _DraftAuthoredCard extends StatelessWidget {
       muted: true,
       onTap: () => _openEditDraft(context, b.id),
       marker: _myWorkAttentionMarker(attentionMarked: attentionMarked),
-      footer: Wrap(
-        alignment: WrapAlignment.end,
-        crossAxisAlignment: WrapCrossAlignment.center,
-        spacing: context.tt.rowGap,
-        runSpacing: context.tt.tightGap,
-        children: [
-          TenturaTextAction(
-            label: l10n.myWorkEditDraft,
-            onPressed: () => _openEditDraft(context, b.id),
-          ),
-          TenturaCommandButton(
-            label: l10n.myWorkSendDraft,
-            icon: const Icon(Icons.send_outlined),
-            onPressed: () => _openSendDraft(context, b.id),
-          ),
-        ],
+      footer: _composeMyWorkFooter(
+        context,
+        vm: vm,
+        existingFooter: Wrap(
+          alignment: WrapAlignment.end,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          spacing: context.tt.rowGap,
+          runSpacing: context.tt.tightGap,
+          children: [
+            TenturaTextAction(
+              label: l10n.myWorkEditDraft,
+              onPressed: () => _openEditDraft(context, b.id),
+            ),
+            TenturaCommandButton(
+              label: l10n.myWorkSendDraft,
+              icon: const Icon(Icons.send_outlined),
+              onPressed: () => _openSendDraft(context, b.id),
+            ),
+          ],
+        ),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -657,7 +707,7 @@ class _DraftAuthoredCard extends StatelessWidget {
               color: theme.colorScheme.onSurfaceVariant,
             ),
           ),
-          _myWorkCardAttentionSection(
+          _myWorkWhatsNewSection(
             context,
             vm: vm,
             currentUserId: currentUserId,
@@ -694,7 +744,11 @@ class _FinishedAuthoredCard extends StatelessWidget {
       muted: true,
       onTap: () => _openBeaconOrSelect(context, vm),
       marker: _myWorkAttentionMarker(attentionMarked: attentionMarked),
-      footer: _myWorkArchiveFooter(context, vm),
+      footer: _composeMyWorkFooter(
+        context,
+        vm: vm,
+        existingFooter: _myWorkArchiveFooter(context, vm),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -782,7 +836,7 @@ class _FinishedAuthoredCard extends StatelessWidget {
             viewModel: vm,
             currentUserId: currentUserId,
           ),
-          _myWorkCardAttentionSection(
+          _myWorkWhatsNewSection(
             context,
             vm: vm,
             currentUserId: currentUserId,
@@ -817,7 +871,11 @@ class _FinishedHelpOfferedCard extends StatelessWidget {
       muted: true,
       onTap: () => _openBeaconOrSelect(context, vm),
       marker: _myWorkAttentionMarker(attentionMarked: attentionMarked),
-      footer: _myWorkArchiveFooter(context, vm),
+      footer: _composeMyWorkFooter(
+        context,
+        vm: vm,
+        existingFooter: _myWorkArchiveFooter(context, vm),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -853,7 +911,7 @@ class _FinishedHelpOfferedCard extends StatelessWidget {
             viewModel: vm,
             currentUserId: currentUserId,
           ),
-          _myWorkCardAttentionSection(
+          _myWorkWhatsNewSection(
             context,
             vm: vm,
             currentUserId: currentUserId,

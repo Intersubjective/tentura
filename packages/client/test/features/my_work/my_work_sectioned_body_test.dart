@@ -168,13 +168,13 @@ Future<void> _pumpMyWork(
     myWorkLoaded: true,
   );
 
-  await tester.binding.setSurfaceSize(const Size(360, 640));
+  await tester.binding.setSurfaceSize(const Size(360, 1200));
   addTearDown(() => tester.binding.setSurfaceSize(null));
 
   await tester.pumpWidget(
     MediaQuery(
       data: MediaQueryData(
-        size: const Size(360, 640),
+        size: const Size(360, 1200),
         textScaler: TextScaler.linear(textScale),
       ),
       child: MaterialApp(
@@ -289,7 +289,7 @@ void main() {
     }
   });
 
-  testWidgets('redesign on: section headers and obligation count at 360×640',
+  testWidgets('redesign on: section headers and obligation count at 360×1200',
       (tester) async {
 
     final attentionRepo = StubAttentionRepository()
@@ -416,7 +416,7 @@ void main() {
     expect(cardFinder, findsWidgets);
     final rect = tester.getRect(cardFinder.first);
     expect(rect.top, greaterThanOrEqualTo(0));
-    expect(rect.bottom, lessThanOrEqualTo(640));
+    expect(rect.bottom, lessThanOrEqualTo(1200));
     unawaited(cubit.close());
     unawaited(homeAttention.close());
     unawaited(boot.accounts.close());

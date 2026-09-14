@@ -13,6 +13,7 @@ class TenturaTechCard extends StatelessWidget {
     this.showShadow = false,
     this.surfaceOverride,
     this.borderOverride,
+    this.radius,
   });
 
   final Widget child;
@@ -27,6 +28,9 @@ class TenturaTechCard extends StatelessWidget {
   /// When non-null, used instead of the default hairline border color.
   final Color? borderOverride;
 
+  /// When non-null, used instead of [TenturaTokens.cardRadius].
+  final double? radius;
+
   @override
   Widget build(BuildContext context) {
     final tt = context.tt;
@@ -40,7 +44,7 @@ class TenturaTechCard extends StatelessWidget {
           ? Colors.black.withValues(alpha: 0.04)
           : Colors.transparent,
       shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(tt.cardRadius),
+        borderRadius: BorderRadius.circular(radius ?? tt.cardRadius),
         side: BorderSide(color: borderColor),
       ),
       clipBehavior: Clip.antiAlias,
@@ -70,6 +74,7 @@ class TenturaTechCardStatic extends StatelessWidget {
     this.showShadow = false,
     this.surfaceOverride,
     this.borderOverride,
+    this.radius,
   });
 
   final Widget child;
@@ -83,6 +88,9 @@ class TenturaTechCardStatic extends StatelessWidget {
   /// When non-null, used instead of the default hairline border color.
   final Color? borderOverride;
 
+  /// When non-null, used instead of [TenturaTokens.cardRadius].
+  final double? radius;
+
   @override
   Widget build(BuildContext context) {
     final tt = context.tt;
@@ -93,7 +101,7 @@ class TenturaTechCardStatic extends StatelessWidget {
     return DecoratedBox(
       decoration: BoxDecoration(
         color: surfaceOverride ?? tt.surface,
-        borderRadius: BorderRadius.circular(tt.cardRadius),
+        borderRadius: BorderRadius.circular(radius ?? tt.cardRadius),
         border: Border.all(color: borderColor),
         boxShadow: showShadow
             ? const [

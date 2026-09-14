@@ -14,6 +14,7 @@ class TenturaTextAction extends StatelessWidget {
     this.icon,
     this.semanticsIdentifier,
     this.flushStart = false,
+    this.minInteractive = false,
   });
 
   final String label;
@@ -25,17 +26,22 @@ class TenturaTextAction extends StatelessWidget {
   /// Zero start padding so the label aligns with body text above it.
   final bool flushStart;
 
+  /// When true, uses [kMinInteractiveDimension] (48) instead of the dense 44
+  /// minimum — for obligation / nested-card actions that must meet a11y floors.
+  final bool minInteractive;
+
   @override
   Widget build(BuildContext context) {
     final tt = context.tt;
     final color = _toneToColor(tt, tone);
+    final minSide = minInteractive ? kMinInteractiveDimension : 44.0;
     final button = TextButton(
       onPressed: onPressed,
       style: TextButton.styleFrom(
         padding: flushStart
             ? const EdgeInsetsDirectional.only(end: 12, top: 10, bottom: 10)
             : const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-        minimumSize: const Size(44, 44),
+        minimumSize: Size(minSide, minSide),
         tapTargetSize: MaterialTapTargetSize.shrinkWrap,
         foregroundColor: color,
         alignment: flushStart

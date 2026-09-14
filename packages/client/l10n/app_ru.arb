@@ -3401,6 +3401,14 @@
   "@myWorkObligationDone": {
     "context": "MyWorkScreen"
   },
+  "myWorkObligationRespond": "Ответить",
+  "@myWorkObligationRespond": {
+    "context": "MyWorkScreen"
+  },
+  "myWorkObligationOfferMissing": "Это предложение помощи больше недоступно.",
+  "@myWorkObligationOfferMissing": {
+    "context": "MyWorkScreen"
+  },
   "myWorkObligationMore": "{count, plural, one{ещё {count}} other{ещё {count}}}",
   "@myWorkObligationMore": {
     "context": "MyWorkScreen",

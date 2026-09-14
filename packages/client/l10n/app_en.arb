@@ -3410,6 +3410,14 @@
   "@myWorkObligationDone": {
     "context": "MyWorkScreen"
   },
+  "myWorkObligationRespond": "Respond",
+  "@myWorkObligationRespond": {
+    "context": "MyWorkScreen"
+  },
+  "myWorkObligationOfferMissing": "This help offer is no longer available.",
+  "@myWorkObligationOfferMissing": {
+    "context": "MyWorkScreen"
+  },
   "myWorkObligationMore": "{count, plural, one{{count} more} other{{count} more}}",
   "@myWorkObligationMore": {
     "context": "MyWorkScreen",

@@ -205,4 +205,43 @@ void main() {
 
     await cubit.close();
   });
+
+  test('settleObligations removes all grouped ids and settles each', () async {
+    final a = _receipt(id: 'r-a', beaconId: 'b1');
+    final b = _receipt(id: 'r-b', beaconId: 'b1');
+    final leftover = _receipt(id: 'r-c', beaconId: 'b1');
+    final attentionRepo = StubAttentionRepository()
+      ..myWorkAttentionResult = [
+        MyWorkBeaconAttention(
+          beaconId: 'b1',
+          unseenCount: 0,
+          liveObligations: [a, b, leftover],
+        ),
+      ];
+    final repo = FakeMyWorkRepository()
+      ..initResult = (
+        authoredNonArchived: [Beacon.empty.copyWith(id: 'b1')],
+        helpOfferedNonArchived: const [],
+        obligationBeacons: const [],
+        archivedCountHint: 0,
+      );
+    final cubit = MyWorkCubit(
+      userId: 'user-1',
+      myWorkCase: buildTestMyWorkCase(
+        repo: repo,
+        attentionRepository: attentionRepo,
+      ),
+    );
+    await cubit.stream.firstWhere((s) => s.attentionLoaded);
+
+    await cubit.settleObligations('b1', ['r-a', 'r-b']);
+
+    expect(
+      cubit.state.attentionByBeacon['b1']!.liveObligations.map((r) => r.id),
+      ['r-c'],
+    );
+    expect(attentionRepo.settleCalls, ['r-a', 'r-b']);
+
+    await cubit.close();
+  });
 }

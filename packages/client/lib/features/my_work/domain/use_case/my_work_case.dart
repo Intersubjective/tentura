@@ -191,6 +191,13 @@ final class MyWorkCase extends UseCaseBase {
   Future<void> settleObligationReceipt(String receiptId) =>
       _attentionCase.settleReceipt(receiptId);
 
+  Future<void> settleObligationReceipts(List<String> receiptIds) async {
+    for (final id in receiptIds) {
+      if (id.isEmpty) continue;
+      await _attentionCase.settleReceipt(id);
+    }
+  }
+
   Future<MyWorkDeskArchivedLoad> loadDeskArchived({
     required String userId,
   }) async {

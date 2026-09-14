@@ -46,6 +46,9 @@ abstract final class TestIds {
   static String myWorkObligation(String receiptId) =>
       'my_work.obligation.$receiptId';
 
+  static String myWorkObligationDone(String receiptId) =>
+      'my_work.obligation_done.$receiptId';
+
   static String myWorkWhatsNew(String beaconId) => 'my_work.whats_new.$beaconId';
 
   /// Stable Updates feed row identity for integration and WebDriver proofs.

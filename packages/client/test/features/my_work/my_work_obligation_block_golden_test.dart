@@ -121,7 +121,7 @@ void main() {
           'obligation block $suffix ${brightness.name} ${locale.languageCode}',
           (tester) async {
             final obligations = List.generate(count, _obligationLine);
-            final height = count == 0 ? 120.0 : 80.0 + count.clamp(0, 3) * 36;
+            final height = count == 0 ? 120.0 : 100.0 + count.clamp(0, 3) * 110;
             await _pumpObligationGolden(
               tester,
               size: Size(width, height),
@@ -142,7 +142,7 @@ void main() {
     final obligations = List.generate(5, _obligationLine);
     await _pumpObligationGolden(
       tester,
-      size: const Size(width, 200),
+      size: const Size(width, 420),
       locale: const Locale('en'),
       brightness: Brightness.light,
       obligations: obligations,
