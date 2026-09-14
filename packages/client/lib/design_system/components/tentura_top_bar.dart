@@ -124,23 +124,39 @@ class TenturaTopBar extends StatelessWidget implements PreferredSizeWidget {
         ? scheme.onPrimary
         : scheme.onSurface;
 
-    return AppBar(
-      backgroundColor: bg,
-      foregroundColor: fg,
-      iconTheme: IconThemeData(color: fg),
-      surfaceTintColor: Colors.transparent,
-      elevation: 0,
-      scrolledUnderElevation: 0,
-      toolbarHeight: toolbarHeight,
-      automaticallyImplyLeading: false,
-      titleSpacing: 0,
-      title: SizedBox(
-        height: toolbarHeight,
-        child: _aligned(
-          _contentRow(),
-        ),
+    final barIconTheme = IconThemeData(color: fg);
+    // M3 IconButton ignores [IconTheme] when [IconButtonTheme.style] is null.
+    // AppBar then does `iconButtonTheme.style?.copyWith(...)`, which stays null
+    // and action icons fall back to onSurfaceVariant (black in light, pale in
+    // dark). Seed a non-null style so both leading and actions pick up [fg].
+    final barIconButtonTheme = IconButtonThemeData(
+      style: IconButton.styleFrom(
+        foregroundColor: fg,
+        disabledForegroundColor: fg.withValues(alpha: 0.38),
       ),
-      bottom: _bottom(),
+    );
+
+    return IconButtonTheme(
+      data: barIconButtonTheme,
+      child: AppBar(
+        backgroundColor: bg,
+        foregroundColor: fg,
+        iconTheme: barIconTheme,
+        actionsIconTheme: barIconTheme,
+        surfaceTintColor: Colors.transparent,
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        toolbarHeight: toolbarHeight,
+        automaticallyImplyLeading: false,
+        titleSpacing: 0,
+        title: SizedBox(
+          height: toolbarHeight,
+          child: _aligned(
+            _contentRow(),
+          ),
+        ),
+        bottom: _bottom(),
+      ),
     );
   }
 

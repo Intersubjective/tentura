@@ -115,4 +115,67 @@ void main() {
       findsNothing,
     );
   });
+
+  testWidgets(
+    'Read all uses info tone, not app-bar onSurface, in both themes',
+    (
+      tester,
+    ) async {
+      Future<Color?> paintedReadAllColor(ThemeData theme) async {
+        await tester.pumpWidget(
+          MaterialApp(
+            theme: theme,
+            localizationsDelegates: L10n.localizationsDelegates,
+            home: MediaQuery(
+              data: const MediaQueryData(size: Size(360, 800)),
+              child: TenturaResponsiveScope(
+                child: Builder(
+                  builder: (context) => Scaffold(
+                    appBar: TenturaTopBar.of(
+                      context,
+                      title: const SizedBox.shrink(),
+                      row: UpdatesFeedAppBarRow(
+                        title: 'Updates',
+                        markAllLabel: 'Read all',
+                        hasUnread: true,
+                        onMarkAll: () {},
+                        showSearchIcon: true,
+                        searchOpen: false,
+                        onSearchPressed: () {},
+                        searchTooltip: 'Search',
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        );
+        await tester.pump();
+        final richText = tester.widget<RichText>(
+          find.descendant(
+            of: find.widgetWithText(TextButton, 'Read all'),
+            matching: find.byType(RichText),
+          ),
+        );
+        return (richText.text as TextSpan).style?.color;
+      }
+
+      final lightInfo = TenturaTheme.light().extension<TenturaTokens>()!.info;
+      final lightOnSurface = TenturaTheme.light().colorScheme.onSurface;
+      final darkInfo = TenturaTheme.dark().extension<TenturaTokens>()!.info;
+      final darkOnSurface = TenturaTheme.dark().colorScheme.onSurface;
+
+      final lightColor = await paintedReadAllColor(TenturaTheme.light());
+      expect(lightColor, lightInfo);
+      expect(lightColor, isNot(lightOnSurface));
+
+      await tester.pumpWidget(const SizedBox.shrink());
+      await tester.pump();
+
+      final darkColor = await paintedReadAllColor(TenturaTheme.dark());
+      expect(darkColor, darkInfo);
+      expect(darkColor, isNot(darkOnSurface));
+    },
+  );
 }

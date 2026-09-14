@@ -34,6 +34,50 @@ void main() {
     expect(appBar.titleSpacing, 0);
   });
 
+  testWidgets('primary top bar action icons use onPrimary in both themes', (
+    tester,
+  ) async {
+    Future<Color?> actionForeground(ThemeData theme) async {
+      await tester.pumpWidget(
+        MaterialApp(
+          theme: theme,
+          home: MediaQuery(
+            data: const MediaQueryData(size: Size(390, 240)),
+            child: TenturaResponsiveScope(
+              child: Builder(
+                builder: (context) => Scaffold(
+                  appBar: TenturaTopBar.of(
+                    context,
+                    tone: TenturaTopBarTone.primary,
+                    title: const Text('Updates'),
+                    actions: [
+                      IconButton(
+                        onPressed: () {},
+                        icon: const Icon(Icons.done_all),
+                      ),
+                    ],
+                  ),
+                  body: const SizedBox(),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pump();
+      final iconContext = tester.element(find.byIcon(Icons.done_all));
+      final style = IconButtonTheme.of(iconContext).style;
+      return style?.foregroundColor?.resolve(const <WidgetState>{});
+    }
+
+    final lightOnPrimary = TenturaTheme.light().colorScheme.onPrimary;
+    final darkOnPrimary = TenturaTheme.dark().colorScheme.onPrimary;
+    expect(await actionForeground(TenturaTheme.light()), lightOnPrimary);
+    await tester.pumpWidget(const SizedBox.shrink());
+    await tester.pump();
+    expect(await actionForeground(TenturaTheme.dark()), darkOnPrimary);
+  });
+
   testWidgets('TenturaTopBar reserves progress height', (tester) async {
     late PreferredSizeWidget bar;
 
