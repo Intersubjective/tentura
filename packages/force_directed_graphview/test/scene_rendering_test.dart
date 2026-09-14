@@ -113,6 +113,39 @@ void main() {
     expect(endCount, 0);
     controller.dispose();
   });
+
+  testWidgets('RepaintingEdgePainter repaint listenable triggers another paint',
+      (tester) async {
+    final controller = testIntIntGraphController();
+    final repaint = ChangeNotifier();
+    final painter = _CountingRepaintingEdgePainter(repaint);
+
+    await _pumpMinimalGraph(
+      tester,
+      controller: controller,
+      edgePainter: painter,
+    );
+
+    const source = Node<int>(data: 1, size: 40);
+    const destination = Node<int>(data: 2, size: 40);
+    const edge = Edge<Node<int>, int>(
+      source: source,
+      destination: destination,
+      data: 10,
+    );
+
+    controller.reconcileTopology({source, destination}, {edge});
+    await tester.pumpAndSettle();
+
+    final countAfterLayout = painter.paintCount;
+    expect(countAfterLayout, greaterThan(0));
+
+    repaint.notifyListeners();
+    await tester.pump();
+
+    expect(painter.paintCount, greaterThan(countAfterLayout));
+    controller.dispose();
+  });
 }
 
 Future<void> _pumpMinimalGraph(
@@ -180,6 +213,26 @@ final class _CentreLayout implements SceneLayoutAlgorithm {
       positions: positions,
       isTerminal: true,
     );
+  }
+}
+
+final class _CountingRepaintingEdgePainter
+    implements RepaintingEdgePainter<Node<int>, Edge<Node<int>, int>> {
+  _CountingRepaintingEdgePainter(this.repaint);
+
+  @override
+  final Listenable repaint;
+
+  var paintCount = 0;
+
+  @override
+  void paint(
+    Canvas canvas,
+    Edge<Node<int>, int> edge,
+    Offset sourcePosition,
+    Offset destinationPosition,
+  ) {
+    paintCount++;
   }
 }
 

@@ -23,8 +23,9 @@ class EdgesView extends StatelessWidget {
         painter: _EdgesPainter(
           snapshot: scope.snapshot,
           configuration: configuration,
-          animation: switch (configuration.edgePainter) {
+          extraRepaint: switch (configuration.edgePainter) {
             AnimatedEdgePainter(:final animation) => animation,
+            RepaintingEdgePainter(:final repaint) => repaint,
             _ => null,
           },
           repaint: controller,
@@ -38,13 +39,13 @@ class _EdgesPainter extends CustomPainter {
   _EdgesPainter({
     required this.snapshot,
     required this.configuration,
-    required this.animation,
+    required this.extraRepaint,
     required Listenable repaint,
-  }) : super(repaint: Listenable.merge([repaint, animation]));
+  }) : super(repaint: Listenable.merge([repaint, extraRepaint]));
 
   final GraphSceneSnapshot<Object?, Object?> snapshot;
   final GraphViewConfiguration configuration;
-  final Animation<double>? animation;
+  final Listenable? extraRepaint;
 
   @override
   void paint(Canvas canvas, Size size) {
