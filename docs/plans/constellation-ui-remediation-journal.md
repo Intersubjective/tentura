@@ -226,7 +226,7 @@ flutter test
 
 **Status:** complete
 
-**Commits:** (filled after git commits)
+**Commits:** `185d5af80` feat(client): add author collapse control; `c1e8b9ad8` viewport overlay; `24a9abe90` wire graph stack; `cc16577de` top-corner badges; `2a0dff449` footprint metrics; `09fea0d8e` tests; `c4addd3af` journal
 
 **Changed files:**
 - `packages/client/lib/features/constellation/domain/constellation_anchor_composition.dart`
