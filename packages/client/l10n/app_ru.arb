@@ -2211,6 +2211,16 @@
     "context": "InboxNavbarItem",
     "description": "Accessibility label for the Activity nav icon unread dot"
   },
+  "myWorkNavBadgeObligations": "{count, plural, one{1 обязательство} few{{count} обязательства} many{{count} обязательств} other{{count} обязательств}}",
+  "@myWorkNavBadgeObligations": {
+    "context": "MyWorkNavbarItem",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    },
+    "description": "Accessibility label for the My Work nav icon obligation count badge"
+  },
   "activityPromptCollapsedBatch": "{count, plural, one{1 человек присоединился по вашим приглашениям — настройте доступ} few{{count} человека присоединились по вашим приглашениям — настройте доступ} many{{count} человек присоединились по вашим приглашениям — настройте доступ} other{{count} человек присоединились по вашим приглашениям — настройте доступ}}",
   "@activityPromptCollapsedBatch": {
     "context": "UpdatesFeedPane",

@@ -2220,6 +2220,16 @@
     "context": "InboxNavbarItem",
     "description": "Accessibility label for the Activity nav icon unread dot"
   },
+  "myWorkNavBadgeObligations": "{count, plural, one{1 obligation} other{{count} obligations}}",
+  "@myWorkNavBadgeObligations": {
+    "context": "MyWorkNavbarItem",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    },
+    "description": "Accessibility label for the My Work nav icon obligation count badge"
+  },
   "activityPromptCollapsedBatch": "{count, plural, one{1 person joined via your invite — set up access} other{{count} people joined via your invites — set up access}}",
   "@activityPromptCollapsedBatch": {
     "context": "UpdatesFeedPane",

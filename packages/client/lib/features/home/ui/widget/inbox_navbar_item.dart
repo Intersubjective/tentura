@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import 'package:tentura/features/home/domain/work_activity_redesign_gate.dart';
 import 'package:tentura/features/home/ui/bloc/home_attention_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
 typedef _InboxNavBadgeView = ({
   bool showTriage,
   bool showUnreadDot,
+  bool showRedesignUnreadDot,
   int triageCount,
   int unreadMarkerCount,
 });
@@ -20,10 +22,13 @@ class InboxNavbarItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final l10n = L10n.of(context)!;
+    final redesignEnabled = readWorkActivityRedesignGateEnabled();
     return BlocSelector<HomeAttentionCubit, HomeAttentionState, _InboxNavBadgeView>(
       selector: (state) => (
-        showTriage: state.showInboxTriageBadge,
-        showUnreadDot: state.showInboxUnreadDot,
+        showTriage: !redesignEnabled && state.showInboxTriageBadge,
+        showUnreadDot: !redesignEnabled && state.showInboxUnreadDot,
+        showRedesignUnreadDot:
+            redesignEnabled && state.showRedesignActivityUnreadDot,
         triageCount: state.inboxTriageCount,
         unreadMarkerCount: state.inboxMarkerIds.length,
       ),
@@ -45,11 +50,13 @@ class InboxNavbarItem extends StatelessWidget {
           );
         }
 
-        if (view.showUnreadDot) {
+        if (view.showUnreadDot || view.showRedesignUnreadDot) {
           final unread = view.unreadMarkerCount;
           return Semantics(
             label: l10n.activityNavBadgeNewActivity,
-            identifier: 'updates-unread-count-$unread',
+            identifier: redesignEnabled
+                ? 'activity-surface-unread-dot'
+                : 'updates-unread-count-$unread',
             child: Badge(
               isLabelVisible: true,
               backgroundColor: scheme.primary,
@@ -59,7 +66,9 @@ class InboxNavbarItem extends StatelessWidget {
         }
 
         return Semantics(
-          identifier: 'updates-unread-count-0',
+          identifier: redesignEnabled
+              ? 'activity-surface-unread-count-0'
+              : 'updates-unread-count-0',
           child: icon,
         );
       },
