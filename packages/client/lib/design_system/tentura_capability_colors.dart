@@ -52,6 +52,7 @@ class TenturaCapabilityColors extends ThemeExtension<TenturaCapabilityColors> {
     required this.care,
     required this.resources,
     required this.technical,
+    required this.rpg,
     required this.special,
   });
 
@@ -61,6 +62,7 @@ class TenturaCapabilityColors extends ThemeExtension<TenturaCapabilityColors> {
   final CapabilitySwatch care;
   final CapabilitySwatch resources;
   final CapabilitySwatch technical;
+  final CapabilitySwatch rpg;
   final CapabilitySwatch special;
 
   /// Exact light palette from the cover/capability colour plan.
@@ -88,6 +90,10 @@ class TenturaCapabilityColors extends ThemeExtension<TenturaCapabilityColors> {
     technical: CapabilitySwatch(
       container: Color(0xFFF5F5F4),
       onContainer: Color(0xFF44403C),
+    ),
+    rpg: CapabilitySwatch(
+      container: Color(0xFFFFFBEB),
+      onContainer: Color(0xFF78350F),
     ),
     special: CapabilitySwatch(
       container: Color(0xFFF1F5F9),
@@ -121,6 +127,10 @@ class TenturaCapabilityColors extends ThemeExtension<TenturaCapabilityColors> {
       container: Color(0xFF292524),
       onContainer: Color(0xFFD6D3D1),
     ),
+    rpg: CapabilitySwatch(
+      container: Color(0xFF3B2710),
+      onContainer: Color(0xFFFBBF24),
+    ),
     special: CapabilitySwatch(
       container: Color(0xFF273240),
       onContainer: Color(0xFFCBD5E1),
@@ -134,6 +144,7 @@ class TenturaCapabilityColors extends ThemeExtension<TenturaCapabilityColors> {
         CapabilityGroup.care => care,
         CapabilityGroup.resources => resources,
         CapabilityGroup.technical => technical,
+        CapabilityGroup.rpg => rpg,
         CapabilityGroup.special => special,
       };
 
@@ -145,6 +156,7 @@ class TenturaCapabilityColors extends ThemeExtension<TenturaCapabilityColors> {
     CapabilitySwatch? care,
     CapabilitySwatch? resources,
     CapabilitySwatch? technical,
+    CapabilitySwatch? rpg,
     CapabilitySwatch? special,
   }) =>
       TenturaCapabilityColors(
@@ -154,6 +166,7 @@ class TenturaCapabilityColors extends ThemeExtension<TenturaCapabilityColors> {
         care: care ?? this.care,
         resources: resources ?? this.resources,
         technical: technical ?? this.technical,
+        rpg: rpg ?? this.rpg,
         special: special ?? this.special,
       );
 
@@ -171,6 +184,7 @@ class TenturaCapabilityColors extends ThemeExtension<TenturaCapabilityColors> {
       care: CapabilitySwatch.lerp(care, other.care, t),
       resources: CapabilitySwatch.lerp(resources, other.resources, t),
       technical: CapabilitySwatch.lerp(technical, other.technical, t),
+      rpg: CapabilitySwatch.lerp(rpg, other.rpg, t),
       special: CapabilitySwatch.lerp(special, other.special, t),
     );
   }

@@ -56,6 +56,7 @@ const _capabilityGroupLabels = [
   'Care & support',
   'Resources',
   'Technical',
+  'RPG',
   'Help that does not fit another category',
 ];
 

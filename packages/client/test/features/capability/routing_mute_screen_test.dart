@@ -152,9 +152,9 @@ Finder _transportSwitch(L10n l10n) =>
 void main() {
   final l10n = lookupL10n(const Locale('en'));
 
-  testWidgets('renders all 37 capability mute toggles with an empty muted set', (
-    tester,
-  ) async {
+    testWidgets('renders all capability mute toggles with an empty muted set', (
+      tester,
+    ) async {
     await _pumpRoutingMuteScreen(tester);
 
     expect(find.text(l10n.routingMuteScreenTitle), findsOneWidget);

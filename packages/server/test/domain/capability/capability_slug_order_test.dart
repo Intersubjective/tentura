@@ -5,9 +5,9 @@ import 'package:tentura_server/domain/capability/capability_tag.dart';
 
 void main() {
   group('shared capability slug order', () {
-    test('has exactly 37 slugs', () {
-      expect(kCapabilitySlugOrder, hasLength(37));
-      expect(kCapabilitySlugOrder.toSet(), hasLength(37));
+    test('has exactly 47 slugs', () {
+      expect(kCapabilitySlugOrder, hasLength(47));
+      expect(kCapabilitySlugOrder.toSet(), hasLength(47));
     });
 
     test('server allowed set equals ordered list', () {

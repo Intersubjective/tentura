@@ -384,6 +384,7 @@ String _capabilityGroupLabelFor(String slug) {
     CapabilityGroup.care => 'Care & support',
     CapabilityGroup.resources => 'Resources',
     CapabilityGroup.technical => 'Technical',
+    CapabilityGroup.rpg => 'RPG',
     CapabilityGroup.special => 'Other',
     null => throw ArgumentError('unknown capability slug: $slug'),
   };

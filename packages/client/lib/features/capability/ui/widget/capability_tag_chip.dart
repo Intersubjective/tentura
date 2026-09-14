@@ -88,6 +88,7 @@ class CapabilityTagFilterChip extends StatelessWidget {
         CapabilityGroup.care => l10n.capabilityGroupCare,
         CapabilityGroup.resources => l10n.capabilityGroupResources,
         CapabilityGroup.technical => l10n.capabilityGroupTechnical,
+        CapabilityGroup.rpg => l10n.capabilityGroupRpg,
         CapabilityGroup.special => l10n.capabilityGroupSpecial,
       };
 }

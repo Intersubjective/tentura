@@ -42,6 +42,8 @@ void main() {
       expect(TenturaCapabilityColors.light.resources.onContainer, const Color(0xFF115E59));
       expect(TenturaCapabilityColors.light.technical.container, const Color(0xFFF5F5F4));
       expect(TenturaCapabilityColors.light.technical.onContainer, const Color(0xFF44403C));
+      expect(TenturaCapabilityColors.light.rpg.container, const Color(0xFFFFFBEB));
+      expect(TenturaCapabilityColors.light.rpg.onContainer, const Color(0xFF78350F));
       expect(TenturaCapabilityColors.light.special.container, const Color(0xFFF1F5F9));
       expect(TenturaCapabilityColors.light.special.onContainer, const Color(0xFF475569));
     });
@@ -59,6 +61,8 @@ void main() {
       expect(TenturaCapabilityColors.dark.resources.onContainer, const Color(0xFF5EEAD4));
       expect(TenturaCapabilityColors.dark.technical.container, const Color(0xFF292524));
       expect(TenturaCapabilityColors.dark.technical.onContainer, const Color(0xFFD6D3D1));
+      expect(TenturaCapabilityColors.dark.rpg.container, const Color(0xFF3B2710));
+      expect(TenturaCapabilityColors.dark.rpg.onContainer, const Color(0xFFFBBF24));
       expect(TenturaCapabilityColors.dark.special.container, const Color(0xFF273240));
       expect(TenturaCapabilityColors.dark.special.onContainer, const Color(0xFFCBD5E1));
     });

@@ -107,6 +107,7 @@ class CapabilityChipSet extends StatelessWidget {
         CapabilityGroup.care => l10n.capabilityGroupCare,
         CapabilityGroup.resources => l10n.capabilityGroupResources,
         CapabilityGroup.technical => l10n.capabilityGroupTechnical,
+        CapabilityGroup.rpg => l10n.capabilityGroupRpg,
         CapabilityGroup.special => l10n.capabilityGroupSpecial,
       };
 
@@ -135,6 +136,7 @@ class CapabilityChipSet extends StatelessWidget {
         CapabilityGroup.care => l10n.capabilityGroupCareDescription,
         CapabilityGroup.resources => l10n.capabilityGroupResourcesDescription,
         CapabilityGroup.technical => l10n.capabilityGroupTechnicalDescription,
+        CapabilityGroup.rpg => l10n.capabilityGroupRpgDescription,
         CapabilityGroup.special => l10n.capabilityGroupSpecialDescription,
       };
 }
@@ -181,7 +183,7 @@ class _GroupSection extends StatelessWidget {
       id: group.name,
       initiallyExpanded: initiallyExpanded,
       // Collapsed groups must not keep chip Wrap in the tree — with the
-      // default maintainState:true, opening browse built all ~37 FilterChips
+      // default maintainState:true, opening browse built all FilterChips
       // at once and froze the UI for a noticeable beat (no network involved).
       maintainState: false,
       title: Row(

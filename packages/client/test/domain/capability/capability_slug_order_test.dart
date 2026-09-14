@@ -6,16 +6,16 @@ import 'package:tentura_root/domain/entity/beacon_cover_source.dart';
 
 void main() {
   group('shared capability slug order', () {
-    test('has exactly 37 slugs matching CapabilityTag enum order', () {
-      expect(kCapabilitySlugOrder, hasLength(37));
+    test('has exactly 47 slugs matching CapabilityTag enum order', () {
+      expect(kCapabilitySlugOrder, hasLength(47));
       expect(
         kCapabilitySlugOrder,
         equals([for (final tag in CapabilityTag.values) tag.slug]),
       );
     });
 
-    test('client enum covers seven groups', () {
-      expect(CapabilityGroup.values, hasLength(7));
+    test('client enum covers eight groups', () {
+      expect(CapabilityGroup.values, hasLength(8));
       final groups = {for (final tag in CapabilityTag.values) tag.group};
       expect(groups, unorderedEquals(CapabilityGroup.values));
     });

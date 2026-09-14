@@ -5,5 +5,6 @@ enum CapabilityGroup {
   care,
   resources,
   technical,
+  rpg,
   special,
 }

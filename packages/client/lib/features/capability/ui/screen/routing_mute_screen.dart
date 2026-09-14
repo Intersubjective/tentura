@@ -149,6 +149,7 @@ class _GroupSection extends StatelessWidget {
         CapabilityGroup.care => l10n.capabilityGroupCare,
         CapabilityGroup.resources => l10n.capabilityGroupResources,
         CapabilityGroup.technical => l10n.capabilityGroupTechnical,
+        CapabilityGroup.rpg => l10n.capabilityGroupRpg,
         CapabilityGroup.special => l10n.capabilityGroupSpecial,
       };
 
@@ -161,6 +162,7 @@ class _GroupSection extends StatelessWidget {
         CapabilityGroup.care => l10n.capabilityGroupCareDescription,
         CapabilityGroup.resources => l10n.capabilityGroupResourcesDescription,
         CapabilityGroup.technical => l10n.capabilityGroupTechnicalDescription,
+        CapabilityGroup.rpg => l10n.capabilityGroupRpgDescription,
         CapabilityGroup.special => l10n.capabilityGroupSpecialDescription,
       };
 }
