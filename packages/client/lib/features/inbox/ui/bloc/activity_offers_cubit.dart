@@ -150,6 +150,16 @@ final class ActivityOffersCubit extends Cubit<ActivityOffersState> {
     }
   }
 
+  void stageMovedToStreamNudge(String beaconId) {
+    if (beaconId.isEmpty) return;
+    emit(state.copyWith(pendingMovedToStreamBeaconId: beaconId));
+  }
+
+  void clearMovedToStreamNudge() {
+    if (state.pendingMovedToStreamBeaconId == null) return;
+    emit(state.copyWith(pendingMovedToStreamBeaconId: null));
+  }
+
   void revealHeldBack() {
     if (state.heldBackIds.isEmpty) return;
     final ids = state.heldBackIds;

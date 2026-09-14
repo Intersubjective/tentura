@@ -19,7 +19,9 @@ import 'package:tentura/features/updates/ui/widget/updates_feed_tile.dart';
 import 'package:tentura/features/updates/ui/widget/updates_refresh_error_banner.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/test_ids.dart';
+import 'package:tentura/ui/utils/ui_utils.dart';
 
+import '../../domain/entity/inbox_item.dart';
 import '../bloc/activity_offers_cubit.dart';
 import 'activity_forward_row.dart';
 import 'activity_offer_card.dart';
@@ -32,6 +34,8 @@ class ActivityStreamView extends StatefulWidget {
   /// One bounded offer card height (UNIT 15); scroll past → held-back live arrivals.
   static const scrolledAwayThreshold = 180.0;
 
+  static const demotionMotionDuration = Duration(milliseconds: 225);
+
   @override
   State<ActivityStreamView> createState() => _ActivityStreamViewState();
 }
@@ -39,13 +43,27 @@ class ActivityStreamView extends StatefulWidget {
 class _ActivityStreamViewState extends State<ActivityStreamView>
     with WidgetsBindingObserver {
   final _scrollController = ScrollController();
+  final _offerSnapshot = <String, InboxItem>{};
+  final _exitingOffers = <String, InboxItem>{};
+  final _enteringForwardBeacons = <String>{};
+  final _forwardRowKeys = <String, GlobalKey>{};
+
   var _lastScrolledAway = false;
+  StreamSubscription<String>? _demotedSub;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
     _scrollController.addListener(_onScroll);
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _demotedSub = context
+          .read<ActivityOffersCubit>()
+          .demotedBeaconIds
+          .listen(_onDemotedBeacon);
+      _syncScrollAwayFromOffset();
+    });
   }
 
   @override
@@ -53,6 +71,14 @@ class _ActivityStreamViewState extends State<ActivityStreamView>
     if (state == AppLifecycleState.resumed && mounted) {
       setState(() {});
     }
+  }
+
+  void _syncScrollAwayFromOffset() {
+    if (!_scrollController.hasClients) return;
+    final scrolledAway =
+        _scrollController.offset > ActivityStreamView.scrolledAwayThreshold;
+    _lastScrolledAway = scrolledAway;
+    context.read<ActivityOffersCubit>().setScrolledAway(scrolledAway);
   }
 
   void _onScroll() {
@@ -63,6 +89,192 @@ class _ActivityStreamViewState extends State<ActivityStreamView>
     if (scrolledAway == _lastScrolledAway) return;
     _lastScrolledAway = scrolledAway;
     context.read<ActivityOffersCubit>().setScrolledAway(scrolledAway);
+  }
+
+  void _rememberOffers(ActivityOffersState offersState) {
+    for (final item in offersState.items) {
+      _offerSnapshot[item.beaconId] = item;
+    }
+  }
+
+  void _onDemotedBeacon(String beaconId) {
+    final item = _offerSnapshot[beaconId];
+    if (item != null) {
+      setState(() => _exitingOffers[beaconId] = item);
+      final animate = !MediaQuery.disableAnimationsOf(context);
+      if (!animate) {
+        _finishPinnedExit(beaconId);
+      }
+    }
+    unawaited(_refreshStreamAfterDemotion(beaconId));
+  }
+
+  Future<void> _refreshStreamAfterDemotion(String beaconId) async {
+    final streamCubit = context.read<UpdatesFeedCubit>();
+    await streamCubit.refresh();
+    if (!mounted) return;
+    await _resolveDemotedForwardPlacement(beaconId);
+  }
+
+  void _finishPinnedExit(String beaconId) {
+    if (!_exitingOffers.containsKey(beaconId)) return;
+    setState(() => _exitingOffers.remove(beaconId));
+  }
+
+  void _finishForwardReveal(String beaconId) {
+    if (!_enteringForwardBeacons.contains(beaconId)) return;
+    setState(() => _enteringForwardBeacons.remove(beaconId));
+  }
+
+  AttentionReceipt? _forwardReceiptForBeacon(
+    UpdatesFeedState streamState,
+    String beaconId,
+  ) {
+    for (final receipt in streamState.items) {
+      if (receipt.itemKind != AttentionItemKind.forward) continue;
+      if (receipt.beaconId == beaconId) return receipt;
+    }
+    return null;
+  }
+
+  bool _isForwardRowInViewport(String beaconId) {
+    final key = _forwardRowKeys[beaconId];
+    final rowContext = key?.currentContext;
+    if (rowContext == null) return false;
+    final renderObject = rowContext.findRenderObject();
+    if (renderObject is! RenderBox || !renderObject.hasSize) return false;
+
+    final scrollContext = _scrollController.position.context.storageContext;
+    final scrollBox = scrollContext.findRenderObject();
+    if (scrollBox is! RenderBox || !scrollBox.hasSize) return false;
+
+    final rowTop = renderObject.localToGlobal(Offset.zero).dy;
+    final rowBottom = rowTop + renderObject.size.height;
+    final viewTop = scrollBox.localToGlobal(Offset.zero).dy;
+    final viewBottom = viewTop + scrollBox.size.height;
+    return rowBottom > viewTop && rowTop < viewBottom;
+  }
+
+  Future<void> _resolveDemotedForwardPlacement(String beaconId) async {
+    final streamCubit = context.read<UpdatesFeedCubit>();
+    final offersCubit = context.read<ActivityOffersCubit>();
+
+    for (var pass = 0; pass < 40 && mounted; pass++) {
+      final receipt = _forwardReceiptForBeacon(streamCubit.state, beaconId);
+      if (receipt == null) {
+        if (!streamCubit.state.hasNextPage) break;
+        await streamCubit.loadNextPage();
+        await _waitForLayout();
+        continue;
+      }
+
+      await _waitForLayout();
+      if (!mounted) return;
+      if (_isForwardRowInViewport(beaconId)) {
+        final animate = !MediaQuery.disableAnimationsOf(context);
+        if (animate) {
+          setState(() => _enteringForwardBeacons.add(beaconId));
+        }
+        return;
+      }
+      offersCubit.stageMovedToStreamNudge(beaconId);
+      return;
+    }
+
+    if (mounted && _forwardReceiptForBeacon(streamCubit.state, beaconId) != null) {
+      offersCubit.stageMovedToStreamNudge(beaconId);
+    }
+  }
+
+  Future<void> _waitForLayout() async {
+    await WidgetsBinding.instance.endOfFrame;
+    if (mounted) {
+      await WidgetsBinding.instance.endOfFrame;
+    }
+  }
+
+  Future<void> _scrollToForwardBeacon(String beaconId) async {
+    final streamCubit = context.read<UpdatesFeedCubit>();
+    for (var pass = 0; pass < 40 && mounted; pass++) {
+      await _waitForLayout();
+      final key = _forwardRowKeys[beaconId];
+      final rowContext = key?.currentContext;
+      if (rowContext != null) {
+        await Scrollable.ensureVisible(
+          rowContext,
+          duration: MediaQuery.disableAnimationsOf(context)
+              ? Duration.zero
+              : const Duration(milliseconds: 300),
+          alignment: 0.1,
+        );
+        return;
+      }
+      if (_forwardReceiptForBeacon(streamCubit.state, beaconId) == null &&
+          streamCubit.state.hasNextPage) {
+        await streamCubit.loadNextPage();
+        continue;
+      }
+      if (_forwardReceiptForBeacon(streamCubit.state, beaconId) != null) {
+        await _waitForLayout();
+        final retryContext = _forwardRowKeys[beaconId]?.currentContext;
+        if (retryContext != null) {
+          await Scrollable.ensureVisible(
+            retryContext,
+            duration: MediaQuery.disableAnimationsOf(context)
+                ? Duration.zero
+                : const Duration(milliseconds: 300),
+            alignment: 0.1,
+          );
+          return;
+        }
+        if (_scrollController.hasClients) {
+          final position = _scrollController.position;
+          if (position.pixels < position.maxScrollExtent) {
+            final stepTarget = (position.pixels + position.viewportDimension * 0.85)
+                .clamp(0.0, position.maxScrollExtent);
+            if (MediaQuery.disableAnimationsOf(context)) {
+              _scrollController.jumpTo(stepTarget);
+            } else {
+              await _scrollController.animateTo(
+                stepTarget,
+                duration: const Duration(milliseconds: 300),
+                curve: Curves.easeOut,
+              );
+            }
+            continue;
+          }
+          // Lazy stream rows may still be unbuilt at max extent; nudge once more.
+          if (_forwardRowKeys[beaconId]?.currentContext == null &&
+              position.maxScrollExtent > 0) {
+            if (MediaQuery.disableAnimationsOf(context)) {
+              _scrollController.jumpTo(position.maxScrollExtent);
+            } else {
+              await _scrollController.animateTo(
+                position.maxScrollExtent,
+                duration: const Duration(milliseconds: 300),
+                curve: Curves.easeOut,
+              );
+            }
+            continue;
+          }
+        }
+        return;
+      }
+      break;
+    }
+  }
+
+  void _onNewItemsPillTap() {
+    unawaited(
+      _scrollController.animateTo(
+        0,
+        duration: MediaQuery.disableAnimationsOf(context)
+            ? Duration.zero
+            : const Duration(milliseconds: 300),
+        curve: Curves.easeOut,
+      ),
+    );
+    context.read<ActivityOffersCubit>().revealHeldBack();
   }
 
   void _loadMoreWhenNeeded() {
@@ -86,9 +298,13 @@ class _ActivityStreamViewState extends State<ActivityStreamView>
     ]);
   }
 
+  GlobalKey _forwardRowKey(String beaconId) =>
+      _forwardRowKeys.putIfAbsent(beaconId, GlobalKey.new);
+
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    unawaited(_demotedSub?.cancel());
     _scrollController
       ..removeListener(_onScroll)
       ..dispose();
@@ -97,19 +313,104 @@ class _ActivityStreamViewState extends State<ActivityStreamView>
 
   @override
   Widget build(BuildContext context) {
-    return BlocBuilder<ActivityOffersCubit, ActivityOffersState>(
-      builder: (context, offersState) {
-        return BlocBuilder<UpdatesFeedCubit, UpdatesFeedState>(
-          builder: (context, streamState) {
-            return _ActivityStreamScrollBody(
-              scrollController: _scrollController,
-              offersState: offersState,
-              streamState: streamState,
-              onRefresh: _refreshBoth,
-            );
-          },
+    return BlocListener<ActivityOffersCubit, ActivityOffersState>(
+      listenWhen: (previous, current) =>
+          current.pendingMovedToStreamBeaconId != null &&
+          previous.pendingMovedToStreamBeaconId !=
+              current.pendingMovedToStreamBeaconId,
+      listener: (context, state) {
+        final beaconId = state.pendingMovedToStreamBeaconId;
+        if (beaconId == null) return;
+        final l10n = L10n.of(context)!;
+        showSnackBar(
+          context,
+          text: l10n.activityMovedToStream,
+          action: SnackBarAction(
+            label: l10n.activityShowInStream,
+            onPressed: () => unawaited(_scrollToForwardBeacon(beaconId)),
+          ),
         );
+        context.read<ActivityOffersCubit>().clearMovedToStreamNudge();
       },
+      child: BlocBuilder<ActivityOffersCubit, ActivityOffersState>(
+        builder: (context, offersState) {
+          _rememberOffers(offersState);
+          return BlocBuilder<UpdatesFeedCubit, UpdatesFeedState>(
+            builder: (context, streamState) {
+              return Stack(
+                clipBehavior: Clip.none,
+                children: [
+                  _ActivityStreamScrollBody(
+                    scrollController: _scrollController,
+                    offersState: offersState,
+                    streamState: streamState,
+                    onRefresh: _refreshBoth,
+                    exitingOffers: _exitingOffers,
+                    onPinnedExitComplete: _finishPinnedExit,
+                    enteringForwardBeacons: _enteringForwardBeacons,
+                    onForwardRevealComplete: _finishForwardReveal,
+                    forwardRowKeyFor: _forwardRowKey,
+                  ),
+                  if (offersState.heldBackIds.isNotEmpty)
+                    _ActivityNewItemsPill(
+                      count: offersState.heldBackIds.length,
+                      onTap: _onNewItemsPillTap,
+                    ),
+                ],
+              );
+            },
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _ActivityNewItemsPill extends StatelessWidget {
+  const _ActivityNewItemsPill({
+    required this.count,
+    required this.onTap,
+  });
+
+  final int count;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = L10n.of(context)!;
+    final tt = context.tt;
+    final scheme = Theme.of(context).colorScheme;
+
+    return Positioned(
+      top: tt.tightGap,
+      left: tt.listRowPadding.left,
+      right: tt.listRowPadding.right,
+      child: Center(
+        child: Material(
+          color: scheme.primaryContainer,
+          elevation: 2,
+          borderRadius: BorderRadius.circular(tt.cardRadius),
+          child: InkWell(
+            onTap: onTap,
+            borderRadius: BorderRadius.circular(tt.cardRadius),
+            child: Semantics(
+              identifier: TestIds.activityNewItemsPill,
+              button: true,
+              label: l10n.activityNewItemsPill(count),
+              child: Padding(
+                padding: EdgeInsets.symmetric(
+                  horizontal: tt.rowGap,
+                  vertical: tt.tightGap,
+                ),
+                child: Text(
+                  l10n.activityNewItemsPill(count),
+                  style: TenturaText.labelLarge(scheme.onPrimaryContainer),
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
     );
   }
 }
@@ -120,12 +421,22 @@ class _ActivityStreamScrollBody extends StatelessWidget {
     required this.offersState,
     required this.streamState,
     required this.onRefresh,
+    required this.exitingOffers,
+    required this.onPinnedExitComplete,
+    required this.enteringForwardBeacons,
+    required this.onForwardRevealComplete,
+    required this.forwardRowKeyFor,
   });
 
   final ScrollController scrollController;
   final ActivityOffersState offersState;
   final UpdatesFeedState streamState;
   final Future<void> Function() onRefresh;
+  final Map<String, InboxItem> exitingOffers;
+  final void Function(String beaconId) onPinnedExitComplete;
+  final Set<String> enteringForwardBeacons;
+  final void Function(String beaconId) onForwardRevealComplete;
+  final GlobalKey Function(String beaconId) forwardRowKeyFor;
 
   @override
   Widget build(BuildContext context) {
@@ -134,6 +445,7 @@ class _ActivityStreamScrollBody extends StatelessWidget {
     final now = DateTime.now();
     final streamCubit = context.read<UpdatesFeedCubit>();
     final inboxCubit = context.read<InboxCubit>();
+    final animateMotion = !MediaQuery.disableAnimationsOf(context);
 
     final placement = computeInvitePromptPinPlacement(
       items: streamState.items,
@@ -197,17 +509,38 @@ class _ActivityStreamScrollBody extends StatelessWidget {
             ),
           ),
         SliverList.builder(
-          itemCount: offersState.items.length,
+          itemCount: offersState.items.length + exitingOffers.length,
           itemBuilder: (context, index) {
-            final item = offersState.items[index];
+            if (index < offersState.items.length) {
+              final item = offersState.items[index];
+              final showDot = offersState.unseenQueryComplete &&
+                  offersState.unseenBeaconIds.contains(item.beaconId);
+              return KeyedSubtree(
+                key: ValueKey('offer-${item.beaconId}'),
+                child: ActivityOfferCard.forward(
+                  item: item,
+                  inboxCubit: inboxCubit,
+                  showUnseenDot: showDot,
+                ),
+              );
+            }
+            final exitEntry =
+                exitingOffers.entries.elementAt(index - offersState.items.length);
+            final beaconId = exitEntry.key;
+            final item = exitEntry.value;
             final showDot = offersState.unseenQueryComplete &&
-                offersState.unseenBeaconIds.contains(item.beaconId);
+                offersState.unseenBeaconIds.contains(beaconId);
+            final card = ActivityOfferCard.forward(
+              item: item,
+              inboxCubit: inboxCubit,
+              showUnseenDot: showDot,
+            );
             return KeyedSubtree(
-              key: ValueKey('offer-${item.beaconId}'),
-              child: ActivityOfferCard.forward(
-                item: item,
-                inboxCubit: inboxCubit,
-                showUnseenDot: showDot,
+              key: ValueKey('offer-exit-$beaconId'),
+              child: _ActivitySizeFadeCollapse(
+                animate: animateMotion,
+                onComplete: () => onPinnedExitComplete(beaconId),
+                child: card,
               ),
             );
           },
@@ -232,6 +565,10 @@ class _ActivityStreamScrollBody extends StatelessWidget {
             cell: streamCells[index],
             streamCubit: streamCubit,
             inboxCubit: inboxCubit,
+            enteringForwardBeacons: enteringForwardBeacons,
+            onForwardRevealComplete: onForwardRevealComplete,
+            forwardRowKeyFor: forwardRowKeyFor,
+            animateMotion: animateMotion,
           );
         },
       ),
@@ -243,6 +580,148 @@ class _ActivityStreamScrollBody extends StatelessWidget {
         controller: scrollController,
         physics: const AlwaysScrollableScrollPhysics(),
         slivers: slivers,
+      ),
+    );
+  }
+}
+
+class _ActivitySizeFadeCollapse extends StatefulWidget {
+  const _ActivitySizeFadeCollapse({
+    required this.animate,
+    required this.onComplete,
+    required this.child,
+  });
+
+  final bool animate;
+  final VoidCallback onComplete;
+  final Widget child;
+
+  @override
+  State<_ActivitySizeFadeCollapse> createState() =>
+      _ActivitySizeFadeCollapseState();
+}
+
+class _ActivitySizeFadeCollapseState extends State<_ActivitySizeFadeCollapse>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+  var _completed = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: ActivityStreamView.demotionMotionDuration,
+    );
+    if (!widget.animate) {
+      _complete();
+      return;
+    }
+    unawaited(
+      _controller.forward().then((_) {
+        if (mounted) _complete();
+      }),
+    );
+  }
+
+  void _complete() {
+    if (_completed) return;
+    _completed = true;
+    widget.onComplete();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!widget.animate) {
+      return const SizedBox.shrink();
+    }
+    final animation = CurvedAnimation(
+      parent: _controller,
+      curve: Curves.easeInOut,
+    );
+    return SizeTransition(
+      sizeFactor: animation,
+      axisAlignment: -1,
+      child: FadeTransition(
+        opacity: Tween<double>(begin: 1, end: 0).animate(animation),
+        child: widget.child,
+      ),
+    );
+  }
+}
+
+class _ActivitySizeFadeReveal extends StatefulWidget {
+  const _ActivitySizeFadeReveal({
+    required this.animate,
+    required this.onComplete,
+    required this.child,
+  });
+
+  final bool animate;
+  final VoidCallback onComplete;
+  final Widget child;
+
+  @override
+  State<_ActivitySizeFadeReveal> createState() => _ActivitySizeFadeRevealState();
+}
+
+class _ActivitySizeFadeRevealState extends State<_ActivitySizeFadeReveal>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _controller;
+  var _completed = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = AnimationController(
+      vsync: this,
+      duration: ActivityStreamView.demotionMotionDuration,
+    );
+    if (!widget.animate) {
+      _complete();
+      return;
+    }
+    _controller.value = 0;
+    unawaited(
+      _controller.forward().then((_) {
+        if (mounted) _complete();
+      }),
+    );
+  }
+
+  void _complete() {
+    if (_completed) return;
+    _completed = true;
+    widget.onComplete();
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (!widget.animate) {
+      return widget.child;
+    }
+    final animation = CurvedAnimation(
+      parent: _controller,
+      curve: Curves.easeInOut,
+    );
+    return SizeTransition(
+      sizeFactor: animation,
+      axisAlignment: -1,
+      child: FadeTransition(
+        opacity: Tween<double>(begin: 0, end: 1).animate(animation),
+        child: widget.child,
       ),
     );
   }
@@ -293,11 +772,19 @@ class _ActivityStreamCell extends StatelessWidget {
     required this.cell,
     required this.streamCubit,
     required this.inboxCubit,
+    required this.enteringForwardBeacons,
+    required this.onForwardRevealComplete,
+    required this.forwardRowKeyFor,
+    required this.animateMotion,
   });
 
   final UpdatesFeedCell cell;
   final UpdatesFeedCubit streamCubit;
   final InboxCubit inboxCubit;
+  final Set<String> enteringForwardBeacons;
+  final void Function(String beaconId) onForwardRevealComplete;
+  final GlobalKey Function(String beaconId) forwardRowKeyFor;
+  final bool animateMotion;
 
   @override
   Widget build(BuildContext context) {
@@ -339,7 +826,7 @@ class _ActivityStreamCell extends StatelessWidget {
     switch (receipt.itemKind) {
       case AttentionItemKind.forward:
         final beaconId = receipt.beaconId ?? '';
-        return ActivityForwardRow(
+        final row = ActivityForwardRow(
           key: ValueKey(receipt.id),
           receipt: receipt,
           onOpenBeacon: onOpen,
@@ -353,6 +840,18 @@ class _ActivityStreamCell extends StatelessWidget {
                       AttentionForwardOutcome.deletedBeforeResponse
               ? () => unawaited(streamCubit.markSeen(receipt.id))
               : null,
+        );
+        final keyed = KeyedSubtree(
+          key: forwardRowKeyFor(beaconId),
+          child: row,
+        );
+        if (!enteringForwardBeacons.contains(beaconId)) {
+          return keyed;
+        }
+        return _ActivitySizeFadeReveal(
+          animate: animateMotion,
+          onComplete: () => onForwardRevealComplete(beaconId),
+          child: keyed,
         );
       case AttentionItemKind.watchingDigest:
         return ActivityWatchingDigestRow(

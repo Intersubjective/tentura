@@ -17,6 +17,7 @@ abstract class ActivityOffersState extends StateBase with _$ActivityOffersState 
     @Default(true) bool hasMore,
     @Default(false) bool loadingMore,
     @Default(<String>{}) Set<String> heldBackIds,
+    String? pendingMovedToStreamBeaconId,
     @Default(<String>{}) Set<String> unseenBeaconIds,
     @Default(false) bool unseenQueryComplete,
     @Default(StateIsLoading()) StateStatus status,

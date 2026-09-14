@@ -27,6 +27,8 @@ abstract final class TestIds {
 
   static const activityForYouHeader = 'activity-for-you-header';
 
+  static const activityNewItemsPill = 'activity-new-items-pill';
+
   static String activityOffer(String beaconId) => 'activity-offer-$beaconId';
 
   static String activityForwardRow(String beaconId) =>
