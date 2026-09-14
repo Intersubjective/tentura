@@ -177,3 +177,37 @@ flutter test
 **Decisions:** Tap-only pending clears on `kTouchSlop` before other move handling; drags still require painted body (`_pendingNodeId`). Default `viewportInsets` / `maxScale` / absent `nodeTapHitTester` preserve prior matrices and hit paths (regression test on legacy matrix).
 
 **Remaining:** Manager verdict; R03+.
+
+### R03a — worker — checkpoint
+
+- Added `graphLabelMaxWidthPerson` / `graphLabelMaxWidthRequest` tokens (5 sites each).
+- Implemented pure `constellation_presentation_frame.dart`: detail hysteresis, `constellationLabelCandidateForDetail` helper (R03b sets `labelCandidate` on inputs using this policy), 6-step frame algorithm, `ConstellationPresentationFrameHolder`, and `resolveConstellationTap` (§3.4 order).
+- Added `constellationOverflowChipSize` + `SizedBox.fromSize` wrap on `ConstellationOverflowGroup` (plan R03 step 4 partial — widget test for chip size deferred to R03b per plan step 4’s widget assertion).
+- Unit tests in `constellation_presentation_frame_test.dart` (12 cases); full `test/features/constellation` green.
+
+### R03a — worker — final
+
+**Status:** complete
+
+**Commits:** (filled after git commit)
+
+**Changed files:**
+- `packages/client/lib/design_system/tentura_tokens.dart`
+- `packages/client/lib/features/constellation/ui/utils/constellation_presentation_frame.dart` (new)
+- `packages/client/lib/features/constellation/ui/widget/constellation_overflow_group.dart`
+- `packages/client/test/features/constellation/constellation_presentation_frame_test.dart` (new)
+- `docs/plans/constellation-ui-remediation-journal.md`
+
+**Tests:**
+- `cd packages/client && flutter test test/features/constellation/constellation_presentation_frame_test.dart` — 12 passed
+- `cd packages/client && flutter test test/features/constellation` — all passed
+- `./scripts/check-custom-lints.sh packages/client` — pass (no baseline drift)
+
+**Plan R03 coverage (this unit):**
+- Done: step 1 (tokens), step 2 (frame module §3.3 + holder), step 4 partial (`constellationOverflowChipSize` + fixed chip size; no widget size test yet).
+- Tap resolution §3.4 in the same utils file (plan step 2 sibling).
+- Deferred to **R03b:** steps 3 (label measurement helper in overlay), 4 widget test, 5–9 (collapse ARB/cubit, overlay widget, body wiring, badges, footprint metrics), and plan R03 widget/integration tests.
+
+**Decisions:** Exposed `constellationLabelCandidateForDetail` as a pure helper so unit tests can set `labelCandidate` without duplicating overview policy. Tap resolver and frame share one file (plan allows); separate git commits use one utils commit covering both. Chip widget test (`tester.getSize` vs helper) left for R03b when overlay lands.
+
+**Remaining:** R03b wiring and badge work per manager split D-M4.
