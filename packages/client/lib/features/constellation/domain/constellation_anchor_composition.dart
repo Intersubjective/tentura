@@ -84,6 +84,33 @@ class ConstellationLabelDisplayPlan {
   final Map<String, int> expandedExtraCountByAuthor;
 }
 
+/// Drawn, non-pinned satellite requests used for scene layout (UI-11).
+({Map<String, List<String>> byAuthor, Set<String> egoOwn})
+constellationDrawnSatellites(
+  ConstellationLabelDisplayPlan plan,
+) {
+  final byAuthor = <String, List<String>>{};
+  for (final entry in plan.layoutRequestsByAuthor.entries) {
+    final drawn = [
+      for (final id in entry.value)
+        if (plan.drawnRequestIds.contains(id) &&
+            !plan.pinnedRequestIds.contains(id))
+          id,
+    ];
+    if (drawn.isNotEmpty) {
+      byAuthor[entry.key] = drawn;
+    }
+  }
+  final egoOwn = plan.egoOwnRequestIds
+      .where(
+        (id) =>
+            plan.drawnRequestIds.contains(id) &&
+            !plan.pinnedRequestIds.contains(id),
+      )
+      .toSet();
+  return (byAuthor: byAuthor, egoOwn: egoOwn);
+}
+
 @immutable
 class ConstellationComposedPresentation {
   const ConstellationComposedPresentation({

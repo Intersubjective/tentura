@@ -59,6 +59,7 @@ ConstellationPlacedLayoutInput? _scratchInputAddingTarget({
               spacing: layoutInput.spacing,
               maxHops: layoutInput.maxHops,
               viewportClass: layoutInput.viewportClass,
+              footprints: layoutInput.footprints,
             ),
     ConstellationAnchorBeaconTarget(:final id) => () {
         final authorId = layoutInput.requestAuthorById[id];
@@ -90,6 +91,7 @@ ConstellationPlacedLayoutInput? _scratchInputAddingTarget({
           spacing: layoutInput.spacing,
           maxHops: layoutInput.maxHops,
           viewportClass: layoutInput.viewportClass,
+          footprints: layoutInput.footprints,
         );
       }(),
   };
@@ -103,6 +105,7 @@ ConstellationPlacedLayoutInput layoutInputFromComposition({
   required double spacing,
   ConstellationLayoutPriorHints? priorHints,
   ConstellationViewportClass viewportClass = ConstellationViewportClass.expanded,
+  Map<String, ConstellationFootprint> footprints = const {},
 }) {
   final anchorByNodeId = constellationAnchorsByNodeId(
     composition.anchorOverlay.anchors,
@@ -117,13 +120,7 @@ ConstellationPlacedLayoutInput layoutInputFromComposition({
     for (final peer in composition.anchorOverlay.supportPeers) peer.id,
   };
 
-  final visibleByAuthor = <String, List<String>>{};
-  for (final entry in labelPlan.layoutRequestsByAuthor.entries) {
-    visibleByAuthor[entry.key] = [
-      for (final id in entry.value)
-        if (labelPlan.drawnRequestIds.contains(id)) id,
-    ];
-  }
+  final drawnSatellites = constellationDrawnSatellites(labelPlan);
 
   final requestAuthorById = {
     for (final request in composition.automatic.requests)
@@ -171,11 +168,12 @@ ConstellationPlacedLayoutInput layoutInputFromComposition({
     },
     priorHints: priorHints,
     nodeSizes: nodeSizes,
-    satelliteRequestIdsByAuthor: visibleByAuthor,
+    satelliteRequestIdsByAuthor: drawnSatellites.byAuthor,
     requestAuthorById: requestAuthorById,
-    egoOwnRequestIds: labelPlan.egoOwnRequestIds,
+    egoOwnRequestIds: drawnSatellites.egoOwn,
     spacing: spacing,
     maxHops: 3,
     viewportClass: viewportClass,
+    footprints: footprints,
   );
 }
