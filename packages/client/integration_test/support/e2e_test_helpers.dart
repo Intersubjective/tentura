@@ -616,9 +616,23 @@ Future<String> createAndForwardRequest(
   return title;
 }
 
-Future<void> goToInboxTriage(WidgetTester tester) async {
-  await goToPath(tester, kPathInboxTriage);
+Future<void> goToInboxTriage(
+  WidgetTester tester, {
+  String? beaconId,
+}) async {
+  await goToPath(tester, kPathInbox);
   await tester.pumpAndSettle();
+  if (beaconId != null) {
+    await pumpUntilVisible(
+      tester,
+      find.bySemanticsIdentifier(TestIds.activityOffer(beaconId)),
+    );
+  } else {
+    await pumpUntilVisible(
+      tester,
+      find.bySemanticsIdentifier(TestIds.activityForYouHeader),
+    );
+  }
 }
 
 Future<void> offerHelpFromInbox(
