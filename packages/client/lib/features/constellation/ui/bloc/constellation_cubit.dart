@@ -196,6 +196,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
   Set<String> displayedRequestIds = const {};
   Map<String, int> overflowHiddenCountByAuthor = const {};
   Map<String, int> expandedExtraCountByAuthor = const {};
+  Map<String, ConstellationFootprint> layoutFootprints = const {};
   final Set<String> expandedSatelliteAuthorIds = {};
 
   Size _labelBudgetViewport = const Size(1200, 900);
@@ -263,6 +264,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
           entry.key: entry.value.position,
       },
       forgetPriorHintNodeIds: _forgetPriorHintNodeIds,
+      footprints: layoutFootprints,
     );
   }
 
@@ -639,6 +641,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
       nodeSizes: const {},
       spacing: 16,
       priorHints: _layoutPriorHints,
+      footprints: layoutFootprints,
     );
     final position = computeConstellationPinPosition(
       target: target,
@@ -1010,7 +1013,13 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
       return;
     }
     _footprintMetrics = metrics;
-    // R04 will consume metrics and reconcile layout; R03b only stores them.
+    if (_ephemeralOwnedLayoutAlgorithm != null || _dispatchingLayoutRecovery) {
+      return;
+    }
+    if (_awaitingConstellationLayoutOutcome) {
+      return;
+    }
+    _reconcileLayout(deferAutomaticReflow: true);
   }
 
   @visibleForTesting
@@ -1020,6 +1029,37 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
       state.hasPendingPlacementWrite ||
       (_anchorCase?.hasPendingWrite ?? false) ||
       _draggingNodeId != null;
+
+  Map<String, ConstellationFootprint> _layoutFootprintsForNodes({
+    required ConstellationLabelDisplayPlan plan,
+    required Set<String> personIds,
+    required Set<String> requestIds,
+  }) {
+    final metrics = _footprintMetrics;
+    if (metrics == null) {
+      return const {};
+    }
+    final footprints = <String, ConstellationFootprint>{};
+    for (final id in personIds) {
+      footprints[id] = constellationNodeFootprint(
+        kind: ConstellationFootprintKind.person,
+        bodySize: 40,
+        hasAuthorChip:
+            plan.overflowHiddenCountByAuthor.containsKey(id) ||
+            plan.expandedExtraCountByAuthor.containsKey(id),
+        metrics: metrics,
+      );
+    }
+    for (final id in requestIds) {
+      footprints[id] = constellationNodeFootprint(
+        kind: ConstellationFootprintKind.request,
+        bodySize: 36,
+        hasAuthorChip: false,
+        metrics: metrics,
+      );
+    }
+    return footprints;
+  }
 
   ConstellationLabelBudget _currentLabelBudget() {
     final budget = constellationLabelBudget(
@@ -1075,6 +1115,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
       nodeSizes: const {},
       spacing: 16,
       priorHints: _layoutPriorHints,
+      footprints: layoutFootprints,
     );
     return computeConstellationPinPosition(
           target: target,
@@ -1740,11 +1781,32 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     ]..sort((a, b) => a.id.compareTo(b.id));
 
     layoutEgoId = _viewer.id;
-    layoutVisibleRequestsByAuthor = plan.layoutRequestsByAuthor;
-    layoutEgoOwnRequestIds = plan.egoOwnRequestIds;
+    final drawnSatellites = constellationDrawnSatellites(plan);
+    layoutVisibleRequestsByAuthor = drawnSatellites.byAuthor;
+    layoutEgoOwnRequestIds = drawnSatellites.egoOwn;
     displayedRequestIds = plan.drawnRequestIds;
     overflowHiddenCountByAuthor = plan.overflowHiddenCountByAuthor;
     expandedExtraCountByAuthor = plan.expandedExtraCountByAuthor;
+
+    final personIdsForFootprints = {
+      _viewer.id,
+      ...state.keptPeerIds,
+      if (overlay != null) ...[
+        for (final peer in overlay.pinnedPeers) peer.id,
+        for (final peer in overlay.supportPeers) peer.id,
+      ],
+    };
+    final requestIdsForFootprints = {
+      ...drawnSatellites.byAuthor.values.expand((ids) => ids),
+      ...drawnSatellites.egoOwn,
+      if (overlay != null)
+        for (final request in overlay.pinnedRequests) request.id,
+    };
+    layoutFootprints = _layoutFootprintsForNodes(
+      plan: plan,
+      personIds: personIdsForFootprints,
+      requestIds: requestIdsForFootprints,
+    );
 
     final nodes = <NodeDetails>{};
     final edges = <EdgeDetails>{};
