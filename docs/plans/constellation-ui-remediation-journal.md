@@ -27,8 +27,8 @@ Orchestration: Claude (overseer) drives one fresh Cursor `composer-2.5` worker p
 
 | Unit | Depends on | Status | Commits | Manager verdict |
 |---|---|---|---|---|
-| R00 fixture + baseline | — | done | c690eca44 | |
-| R01 label budget (ships alone) | R00 | pending | | |
+| R00 fixture + baseline | — | done | c690eca44, 47e9bf065 | accepted — smoke test independently re-run (pass), `git diff --check` clean, no leaked test processes |
+| R01 label budget (ships alone) | R00 | in progress | | |
 | R02 graph package seams | R01 landed | pending | | |
 | R03 screen-space labels/chips/badges | R02 | pending | | |
 | R04 collision-aware Request placement | R03 | pending | | |
