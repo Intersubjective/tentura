@@ -11,6 +11,7 @@ import 'package:tentura/features/constellation/domain/entity/constellation_field
 import 'package:tentura/features/constellation/domain/port/constellation_repository_port.dart';
 import 'package:tentura/features/constellation/domain/use_case/constellation_field_case.dart';
 import 'package:tentura/features/constellation/ui/bloc/constellation_cubit.dart';
+import 'package:tentura/features/constellation/ui/utils/constellation_tap_resolver.dart';
 import 'package:tentura/features/constellation/ui/widget/constellation_body.dart';
 import 'package:tentura/features/graph/ui/bloc/graph_person_context_cubit.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
@@ -217,6 +218,8 @@ Future<FakeUiEffectPort> pumpConstellationBody(
   Locale locale = const Locale('ru'),
   ThemeData? theme,
   FakeUiEffectPort? effects,
+  ConstellationPresentationFrameHolder? presentationFrameHolder,
+  TextDirection textDirection = TextDirection.ltr,
 }) async {
   final resolvedScaler = textScaler ?? TextScaler.linear(textScale);
   await tester.binding.setSurfaceSize(size);
@@ -228,25 +231,29 @@ Future<FakeUiEffectPort> pumpConstellationBody(
       theme: theme ?? TenturaTheme.light(),
       localizationsDelegates: L10n.localizationsDelegates,
       supportedLocales: L10n.supportedLocales,
-      home: MediaQuery(
-        data: MediaQueryData(
-          size: size,
-          textScaler: resolvedScaler,
-        ),
-        child: TenturaResponsiveScope(
-          child: MultiBlocProvider(
-            providers: [
-              BlocProvider<ConstellationCubit>.value(value: cubit),
-              BlocProvider<GraphPersonContextCubit>(
-                create: (_) => _StubContextCubit(),
+      home: Directionality(
+        textDirection: textDirection,
+        child: MediaQuery(
+          data: MediaQueryData(
+            size: size,
+            textScaler: resolvedScaler,
+          ),
+          child: TenturaResponsiveScope(
+            child: MultiBlocProvider(
+              providers: [
+                BlocProvider<ConstellationCubit>.value(value: cubit),
+                BlocProvider<GraphPersonContextCubit>(
+                  create: (_) => _StubContextCubit(),
+                ),
+                BlocProvider<ScreenCubit>(
+                  create: (_) => ScreenCubit(fx),
+                ),
+              ],
+              child: ConstellationBody(
+                legendExpanded: false,
+                onToggleLegend: () {},
+                presentationFrameHolder: presentationFrameHolder,
               ),
-              BlocProvider<ScreenCubit>(
-                create: (_) => ScreenCubit(fx),
-              ),
-            ],
-            child: ConstellationBody(
-              legendExpanded: false,
-              onToggleLegend: () {},
             ),
           ),
         ),
