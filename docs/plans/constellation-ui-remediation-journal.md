@@ -38,7 +38,7 @@ Orchestration: Claude (overseer) drives one fresh Cursor `composer-2.5` worker p
 | R04a drawn-only set + footprints + obstacles (split of R04, part 1) | R03b | done | eb87660b6, 77ad4c7cb, 1f249a958, 93e61f416 | accepted — independently ramped verification (layout_test → algorithms/scene_layout → p06/density/recovery → full constellation suite, 293 pass) checking memory at each step per D-M6; architecture boundary test + lints clean (30/30, no drift); diff reviewed — obstacle model correct (people path bit-for-bit unchanged via untouched `_totalIntersectionArea`, requests test full footprint against `obstacles` including own author), `footprints` joins `==`/`hashCode` on `ConstellationSceneLayoutAlgorithm`, `constellationFootprintOverlaps` matches spec; the one changed test threshold (120→150) is a documented, expected consequence of removing the author exemption, not a loosened pin/person guard |
 | R04b satellite geometry + crossing preference + R04 tests (split of R04, part 2) | R04a | done | f2146021e, 7a4362fe5, bb8b3adf5 | accepted — plan R04 (UI-01/UI-02/UI-05/UI-11) closed; independently ramped verification (layout_test 25 → algorithms/scene_layout 17 → p06/density 30 → full constellation 301 pass) checking memory at each step; architecture boundary + lints clean (30/30, no drift); diff reviewed — ego-direction bisector, footprint-aware fan spacing (empty-footprints no-op preserved), and crossing preference (correctly uses body boxes not footprints, a deliberate and correct deviation from my literal prompt wording) all match plan §3.5; no test thresholds needed changing |
 | R05 edge legibility | R02 | done | 3d19ea4eb, 499631ba5, 9586255a1, 811a8fd1d | accepted — UI-06 closed; independently re-ran the new edge-style/painter/legend tests, full `test/features/constellation` (306 pass) and `test/features/graph` (218 pass), lints clean (30/30, no drift); diff reviewed — `edgeKindByPair` O(1) lookup with duplicate-key assert, `RepaintingEdgePainter` wired to `cameraRevision`, `effectiveWidth` screen-constant scaling matches spec, legend now derives both color AND dash from the same `constellationEdgeStyle` function the painter uses (fixes the 5/4 vs 6/4 drift the plan flagged) |
-| R06 targeting + semantics | R02, R03b | in progress | | |
+| R06 targeting + semantics | R02, R03b | done | pending | |
 | R07 camera recovery + app bar | R02, R03b | pending | | |
 | R08 integrate, verify, release | R00–R07 (R04→R04a+R04b done, R03→R03a+R03b done) | pending | | |
 
@@ -370,3 +370,43 @@ flutter test
 **Decisions:** Legend dashed swatch was 5/4 vs painter 6/4; both now read `constellationEdgeStyle`. `_trim` applies to all edge kinds (drops attachment-only 15% dst gap). Screenshots skipped (contrast unit tests cover visibility gate).
 
 **Remaining:** Manager verdict; R06+.
+
+### R06 — worker — checkpoint
+
+- Verified R03b `nodeTapHitTester` + stale-frame guard unchanged in `_buildGraphStack`.
+- Removed `GraphNodeWidget.onTap` double dispatch; outer `Semantics` + `ExcludeSemantics` wrapper with `constellationNodeSemanticLabel`.
+- Deviation: widget `tapAt` on label plates did not drive `onNodeTap` in tests; label→node routing covered by existing `resolveConstellationTap` unit test; expanded/overlap tap geometry covered in `constellation_presentation_frame_test.dart`.
+- Deviation: `beginDragExisting`/`beginDragNew` now call `setCameraInteractionGated(true)` and `_cancelUnsentPlacement` clears it — plan assumed gesture-only gating but acceptance test drives cubit API directly.
+
+### R06 — worker — final
+
+**Status:** complete
+
+**Commits:** (pending hash after commit)
+
+**Changed files:**
+- `packages/client/lib/features/constellation/ui/widget/constellation_body.dart`
+- `packages/client/lib/features/constellation/ui/widget/constellation_node_semantics.dart` (new)
+- `packages/client/lib/features/constellation/ui/bloc/constellation_cubit.dart`
+- `packages/client/test/features/constellation/constellation_node_tap_dispatch_test.dart` (new)
+- `packages/client/test/features/constellation/constellation_presentation_frame_test.dart`
+- `docs/plans/constellation-ui-remediation-journal.md`
+
+**Tests:**
+- `cd packages/client && flutter test test/features/constellation/constellation_node_tap_dispatch_test.dart` — pass
+- `cd packages/client && flutter test test/features/constellation` — 314 passed
+- `cd packages/client && flutter test test/features/graph` — 218 passed
+- `./scripts/check-custom-lints.sh packages/client` — 30/30, no drift
+
+**Plan R06 acceptance:**
+- Single dispatch: widget test counts `selectProfile` once on person tap.
+- Expanded target: unit test `21px outside body radius still hits expanded tap target`.
+- Label tap → preview: `resolveConstellationTap` label-over-body test + request body tap opens preview sheet widget test.
+- Pan from label: widget test (camera revision increases, placement idle).
+- Overlapping pins: unit paint-order + `ConstellationAnchor.comparePaintOrder` tests.
+- Semantics: combined label on node (`req-sm-1` + Open status), one semantics label finder.
+- Gating: `beginDragExisting` gates camera; `cancelPlacement` clears.
+
+**Decisions:** Ego nodes use `Semantics` without `onTap`/`button`; request nodes set `isFocused` from `selectedRequestId`.
+
+**Remaining:** Manager verdict; R07+.

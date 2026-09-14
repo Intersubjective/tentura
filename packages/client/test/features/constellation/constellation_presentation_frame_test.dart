@@ -263,6 +263,27 @@ void main() {
       ]);
       expect(resolveConstellationTap(frame, const Offset(390, 390)), isNull);
     });
+
+    test('21px outside body radius still hits expanded tap target (R06)', () {
+      final centre = const Offset(200, 200);
+      final frame = compute(nodes: [
+        node(id: 'req', centre: centre, bodyDiameter: 40),
+      ]);
+      final body = frame.bodies['req']!;
+      final p = body.center + const Offset(21, 0);
+      expect(body.contains(p), isFalse);
+      expect(frame.tapTargets['req']!.contains(p), isTrue);
+      expect(resolveConstellationTap(frame, p), 'req');
+    });
+
+    test('overlapping nodes at same centre prefer later paint order (D21)', () {
+      final centre = const Offset(200, 200);
+      final frame = compute(nodes: [
+        node(id: 'req-in-1', centre: centre),
+        node(id: 'req-in-2', centre: centre),
+      ]);
+      expect(resolveConstellationTap(frame, centre), 'req-in-2');
+    });
   });
 
   group('nextConstellationDetailLevel', () {
