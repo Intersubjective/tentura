@@ -91,8 +91,17 @@ apply_hasura_metadata() {
   echo "Pulling Hasura metadata apply image ($apply_image)..."
   docker pull "$apply_image"
 
+  # Right after `docker compose up` recreates the backend network from
+  # scratch, Hasura's own outbound DNS resolution of sibling container names
+  # (needed to validate the `tentura` remote schema as part of applying this
+  # metadata) can lag Docker's embedded DNS server by more than the old 3x5s
+  # budget — seen failing 3/3 in CI with a `getAddrInfo`/"Temporary failure in
+  # name resolution" transport error even though every container's own
+  # healthcheck had already reported healthy. Give it more time to settle.
+  local max_attempts=8
+  local retry_delay=8
   echo "Applying Hasura metadata via network $BACKEND_NETWORK..."
-  for attempt in 1 2 3; do
+  for attempt in $(seq 1 "$max_attempts"); do
     set +e
     output="$(docker run --rm \
       --network "$BACKEND_NETWORK" \
@@ -119,13 +128,13 @@ apply_hasura_metadata() {
       exit 1
     fi
 
-    if [[ "$attempt" -lt 3 ]]; then
-      echo "Hasura metadata apply attempt $attempt failed (transport); retrying in 5s..." >&2
-      sleep 5
+    if [[ "$attempt" -lt "$max_attempts" ]]; then
+      echo "Hasura metadata apply attempt $attempt/$max_attempts failed (transport); retrying in ${retry_delay}s..." >&2
+      sleep "$retry_delay"
     fi
   done
 
-  echo "Error: Hasura metadata apply failed after 3 attempts." >&2
+  echo "Error: Hasura metadata apply failed after $max_attempts attempts." >&2
   exit 1
 }
 
