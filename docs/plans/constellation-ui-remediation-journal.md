@@ -270,7 +270,7 @@ flutter test
 
 **Status:** complete
 
-**Commits:** (see COMMITS in worker exit message)
+**Commits:** `eb87660b6` refactor drawn-only helper; `77ad4c7cb` footprints + obstacles + `constellationFootprintOverlaps`; `1f249a958` cubit footprint plumbing; `93e61f416` tests + journal
 
 **Changed files:**
 - `packages/client/lib/features/constellation/domain/constellation_anchor_composition.dart`
