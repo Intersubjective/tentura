@@ -3,18 +3,15 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:get_it/get_it.dart';
 import 'package:logging/logging.dart';
 
 import 'package:tentura/app/router/home_tab_branches.dart';
-import 'package:tentura/features/home/domain/work_activity_redesign_gate.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/attention/attention_case.dart';
 import 'package:tentura/domain/attention/entity/attention_feed.dart';
 import 'package:tentura/domain/attention/entity/attention_summary.dart';
 import 'package:tentura/domain/attention/feed_session_registry.dart';
 import 'package:tentura/domain/attention/port/attention_account_port.dart';
-import 'package:tentura/domain/attention/port/attention_repository_port.dart';
 import '../../support/attention_repository_fake_base.dart';
 import 'package:tentura/features/home/ui/bloc/home_attention_cubit.dart';
 import 'package:tentura/features/home/ui/widget/my_work_navbar_item.dart';
@@ -35,7 +32,15 @@ final class _Accounts implements AttentionAccountPort {
 }
 
 final class _Repository extends AttentionRepositoryFake {
-  int needsYouTotal = 0;
+  AttentionSurfaceSummary surfaceSummaryValue = const AttentionSurfaceSummary(
+    activityUnreadTotal: 0,
+    myWorkUnreadTotal: 0,
+    needsYouTotal: 0,
+  );
+
+  @override
+  Future<AttentionSurfaceSummary> surfaceSummary() async =>
+      surfaceSummaryValue;
 
   @override
   Future<AttentionFeed> fetch({
@@ -44,10 +49,11 @@ final class _Repository extends AttentionRepositoryFake {
     String? search,
     int limit = 50,
     AttentionSurface? surface,
-  }) async => AttentionFeed(
-    summary: AttentionSummary(needsYouTotal: needsYouTotal),
-    page: const AttentionFeedPage(),
-  );
+  }) async =>
+      const AttentionFeed(
+        summary: AttentionSummary(),
+        page: AttentionFeedPage(),
+      );
 
   @override
   Future<Set<String>> unreadForBeacons(Set<String> beaconIds) async =>
@@ -70,26 +76,34 @@ final class _Repository extends AttentionRepositoryFake {
       0;
 }
 
-Future<void> _settle([int turns = 8]) async {
-  for (var i = 0; i < turns; i++) {
-    await Future<void>.microtask(() {});
+Future<void> _settle(WidgetTester tester, [int pumps = 24]) async {
+  for (var i = 0; i < pumps; i++) {
+    await tester.pump();
   }
 }
 
-void _registerRedesignGate(bool enabled) {
-  if (GetIt.I.isRegistered<bool>(instanceName: workActivityRedesignGate)) {
-    GetIt.I.unregister<bool>(instanceName: workActivityRedesignGate);
-  }
-  GetIt.I.registerSingleton<bool>(
-    enabled,
-    instanceName: workActivityRedesignGate,
+Future<HomeAttentionCubit> _bootHome({
+  required _Accounts accounts,
+  required _Repository repository,
+  required WidgetTester tester,
+}) async {
+  final sync = buildTestRealtimeSync();
+  final attention = AttentionCase(
+    repository,
+    accounts,
+    sync.case_,
+    noopBlockCase(),
+    FeedSessionRegistry(),
+    Logger('my-work-navbar-item-test'),
   );
-}
-
-void _unregisterRedesignGate() {
-  if (GetIt.I.isRegistered<bool>(instanceName: workActivityRedesignGate)) {
-    GetIt.I.unregister<bool>(instanceName: workActivityRedesignGate);
-  }
+  final home = HomeAttentionCubit(
+    attention,
+    accounts,
+    Logger('my-work-navbar-item-test'),
+  );
+  accounts.emit('U1');
+  await _settle(tester);
+  return home;
 }
 
 Future<void> _pumpNavItem(
@@ -121,97 +135,69 @@ String? _badgeLabelText(WidgetTester tester) {
   return null;
 }
 
-Future<({HomeAttentionCubit home, AttentionCase attention})> _bootHome({
-  required _Accounts accounts,
-  required _Repository repository,
-  required int obligationCount,
-}) async {
-  repository.needsYouTotal = obligationCount;
-  final sync = buildTestRealtimeSync();
-  final attention = AttentionCase(
-    repository,
-    accounts,
-    sync.case_,
-    noopBlockCase(),
-    FeedSessionRegistry(),
-    Logger('my-work-navbar-item-test'),
-  );
-  attention.attachFeedSession(AttentionFeedDestinationId.myWorkObligations);
-  attention.setActiveView(
-    AttentionFeedDestinationId.myWorkObligations,
-    AttentionView.needsYou,
-  );
-  accounts.emit('U1');
-  await attention.refresh(
-    destinationId: AttentionFeedDestinationId.myWorkObligations,
-  );
-  await _settle(20);
-  final home = HomeAttentionCubit(
-    attention,
-    accounts,
-    Logger('my-work-navbar-item-test'),
-  );
-  return (home: home, attention: attention);
-}
-
 void main() {
   late _Accounts accounts;
   late _Repository repository;
 
   setUp(() {
-    _registerRedesignGate(false);
     accounts = _Accounts();
     repository = _Repository();
   });
 
   tearDown(() async {
     await accounts.close();
-    _unregisterRedesignGate();
   });
 
   testWidgets('shows numeric badge for live obligations', (tester) async {
-    final boot = await _bootHome(
+    repository.surfaceSummaryValue = const AttentionSurfaceSummary(
+      activityUnreadTotal: 0,
+      myWorkUnreadTotal: 0,
+      needsYouTotal: 4,
+    );
+    final home = await _bootHome(
       accounts: accounts,
       repository: repository,
-      obligationCount: 4,
+      tester: tester,
     );
-    boot.home.setActiveHomeTab(HomeTab.inbox);
-    await _pumpNavItem(tester, boot.home);
+    home.setActiveHomeTab(HomeTab.inbox);
+    await _pumpNavItem(tester, home);
 
     expect(find.byType(Badge), findsOneWidget);
     expect(_badgeLabelText(tester), '4');
     await tester.pumpWidget(const SizedBox.shrink());
-    unawaited(boot.home.close());
-    unawaited(boot.attention.dispose());
+    unawaited(home.close());
   });
 
   testWidgets('keeps numeric badge on the active My Work tab', (tester) async {
-    final boot = await _bootHome(
+    repository.surfaceSummaryValue = const AttentionSurfaceSummary(
+      activityUnreadTotal: 0,
+      myWorkUnreadTotal: 0,
+      needsYouTotal: 2,
+    );
+    final home = await _bootHome(
       accounts: accounts,
       repository: repository,
-      obligationCount: 2,
+      tester: tester,
     );
-    boot.home.setActiveHomeTab(HomeTab.work);
-    await _pumpNavItem(tester, boot.home, selected: true);
+    home.setActiveHomeTab(HomeTab.work);
+    await _pumpNavItem(tester, home, selected: true);
 
     expect(find.byType(Badge), findsOneWidget);
     expect(_badgeLabelText(tester), '2');
     await tester.pumpWidget(const SizedBox.shrink());
-    unawaited(boot.home.close());
-    unawaited(boot.attention.dispose());
+    unawaited(home.close());
   });
 
   testWidgets('shows no badge when obligation count is zero', (tester) async {
-    final boot = await _bootHome(
+    final home = await _bootHome(
       accounts: accounts,
       repository: repository,
-      obligationCount: 0,
+      tester: tester,
     );
-    await _pumpNavItem(tester, boot.home);
+    await _pumpNavItem(tester, home);
 
     expect(find.byType(Badge), findsNothing);
     await tester.pumpWidget(const SizedBox.shrink());
-    unawaited(boot.home.close());
-    unawaited(boot.attention.dispose());
+    unawaited(home.close());
   });
 }

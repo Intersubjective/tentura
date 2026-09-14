@@ -1,10 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:get_it/get_it.dart';
-
-import 'package:tentura/features/home/domain/work_activity_redesign_gate.dart';
-
 import 'package:tentura/design_system/tentura_theme.dart';
 import 'package:tentura/design_system/tentura_icons.dart';
 import 'package:tentura/domain/entity/beacon.dart';
@@ -29,21 +25,6 @@ MyWorkCardViewModel _viewModel(Beacon beacon) => MyWorkCardViewModel(
   kind: MyWorkCardKind.authoredActive,
   beacon: beacon,
 );
-
-void _pinLegacyRedesignGate() {
-  if (GetIt.I.isRegistered<bool>(instanceName: workActivityRedesignGate)) {
-    GetIt.I.unregister<bool>(instanceName: workActivityRedesignGate);
-  }
-  GetIt.I.registerSingleton<bool>(
-    false,
-    instanceName: workActivityRedesignGate,
-  );
-  addTearDown(() {
-    if (GetIt.I.isRegistered<bool>(instanceName: workActivityRedesignGate)) {
-      GetIt.I.unregister<bool>(instanceName: workActivityRedesignGate);
-    }
-  });
-}
 
 void main() {
   testWidgets('bare people strip accepts less than one avatar width', (
@@ -85,72 +66,6 @@ void main() {
       21,
     );
     expect(find.byType(OverlappingPeopleAvatars), findsOneWidget);
-  });
-
-  testWidgets('metadata row shows schedule and location at 360px', (
-    tester,
-  ) async {
-    _pinLegacyRedesignGate();
-    final beacon = Beacon.empty.copyWith(
-      id: 'b1',
-      author: const Profile(id: 'a1', displayName: 'Alice'),
-      helpOfferCount: 1,
-      helpOfferUsers: const [Profile(id: 'h1', displayName: 'Bob')],
-      startAt: DateTime.utc(2099, 12, 20, 12),
-      endAt: DateTime.utc(2099, 12, 25, 12),
-      coordinates: const Coordinates(lat: 52.52, long: 13.405),
-      createdAt: DateTime(2026, 6, 10, 9),
-      updatedAt: DateTime(2026, 6, 10, 10),
-    );
-
-    await tester.pumpWidget(
-      MaterialApp(
-        theme: TenturaTheme.light(),
-        localizationsDelegates: L10n.localizationsDelegates,
-        supportedLocales: L10n.supportedLocales,
-        locale: const Locale('en'),
-        home: MediaQuery(
-          data: const MediaQueryData(size: Size(360, 800)),
-          child: Scaffold(
-            body: Center(
-              child: SizedBox(
-                width: 360,
-                child: MyWorkCardMetadataRow(
-                  beacon: beacon,
-                  viewModel: _viewModel(beacon),
-                  currentUserId: 'viewer',
-                ),
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-    await tester.pumpAndSettle();
-
-    expect(find.textContaining('updated'), findsOneWidget);
-    expect(find.byIcon(Icons.event_outlined), findsOneWidget);
-    expect(find.byIcon(BeaconHudRowIcons.people), findsOneWidget);
-    expect(find.byType(MyWorkCardMetadataRow), findsOneWidget);
-    expect(find.byType(BeaconCompactMetadataStrip), findsOneWidget);
-
-    final strip = find.byType(BeaconCompactMetadataStrip);
-    final pileRect = tester.getRect(
-      find.descendant(
-        of: strip,
-        matching: find.byType(OverlappingPeopleAvatars),
-      ),
-    );
-    final scheduleX = tester
-        .getTopLeft(
-          find.descendant(
-            of: strip,
-            matching: find.byIcon(Icons.event_outlined),
-          ),
-        )
-        .dx;
-    expect(scheduleX, greaterThan(pileRect.right));
-    expect(scheduleX, greaterThan(180));
   });
 
   testWidgets('metadata row renders stored address label for a location', (
@@ -239,71 +154,6 @@ void main() {
     final nowX = tester.getTopLeft(find.byIcon(BeaconHudRowIcons.now)).dx;
     final youX = tester.getTopLeft(find.byIcon(BeaconHudRowIcons.you)).dx;
     expect(nowX, youX);
-  });
-
-  testWidgets('segment YOU icon x-aligns with NOW and last-event icons', (
-    tester,
-  ) async {
-    _pinLegacyRedesignGate();
-    const authorId = 'author1';
-    final beacon = Beacon.empty.copyWith(
-      id: 'b-align',
-      author: const Profile(id: authorId, displayName: 'Alice'),
-      createdAt: DateTime(2026, 6, 10, 9),
-      updatedAt: DateTime(2026, 6, 12, 9),
-    );
-    final last = MyWorkLastEvent(
-      event: BeaconActivityEvent(
-        id: 'e1',
-        beaconId: beacon.id,
-        visibility: 0,
-        type: BeaconActivityEventTypeBits.beaconPublished,
-        createdAt: DateTime.now().subtract(const Duration(hours: 3)),
-        actorId: authorId,
-      ),
-      actor: const Profile(id: authorId, displayName: 'Alice'),
-    );
-
-    await tester.pumpWidget(
-      MaterialApp(
-        theme: TenturaTheme.light(),
-        localizationsDelegates: L10n.localizationsDelegates,
-        supportedLocales: L10n.supportedLocales,
-        locale: const Locale('en'),
-        home: MediaQuery(
-          data: const MediaQueryData(size: Size(360, 800)),
-          child: Scaffold(
-            body: Center(
-              child: SizedBox(
-                width: 360,
-                child: MyWorkCardMetadataRow(
-                  beacon: beacon,
-                  viewModel: _viewModel(beacon).copyWith(
-                    roomCurrentLine: 'Enough help — in motion',
-                    youResponsibility: CoordinationResponsibility(
-                      beaconId: beacon.id,
-                      promiseOpen: 1,
-                      promiseNew: 1,
-                    ),
-                    lastActivityEvent: last,
-                  ),
-                  currentUserId: 'viewer',
-                ),
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-    await tester.pumpAndSettle();
-
-    final nowX = tester.getTopLeft(find.byIcon(BeaconHudRowIcons.now)).dx;
-    final youX = tester.getTopLeft(find.byIcon(BeaconHudRowIcons.you)).dx;
-    final historyX = tester
-        .getTopLeft(find.byIcon(BeaconHudRowIcons.lastEvent))
-        .dx;
-    expect(nowX, youX);
-    expect(nowX, historyX);
   });
 
   testWidgets('hidden YOU row omitted on compact width with empty obligation', (

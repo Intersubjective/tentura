@@ -102,7 +102,6 @@ void main() {
       myWorkCase: buildTestMyWorkCase(
         repo: repo,
         attentionRepository: attentionRepo,
-        obligationsGateEnabled: true,
         realtimeSyncCase: realtimeCase,
       ),
       realtimeSyncCase: realtimeCase,

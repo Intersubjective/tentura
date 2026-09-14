@@ -17,7 +17,6 @@ import 'package:tentura/domain/attention/entity/attention_summary.dart';
 import 'package:tentura/domain/attention/feed_session_registry.dart';
 import 'package:tentura/domain/attention/port/attention_account_port.dart';
 import 'package:tentura/features/auth/ui/bloc/auth_cubit.dart';
-import 'package:tentura/features/home/domain/work_activity_redesign_gate.dart';
 import 'package:tentura/features/home/ui/bloc/home_attention_cubit.dart';
 import 'package:tentura/features/home/ui/bloc/home_tab_reselect_cubit.dart';
 import 'package:tentura/features/home/ui/bloc/post_join_navigation_cubit.dart';
@@ -80,22 +79,6 @@ final class _SurfaceRepository extends AttentionRepositoryFake {
   @override
   Future<int> settle({required String receiptId, required String kind}) async =>
       0;
-}
-
-void _registerRedesignGate(bool enabled) {
-  if (GetIt.I.isRegistered<bool>(instanceName: workActivityRedesignGate)) {
-    GetIt.I.unregister<bool>(instanceName: workActivityRedesignGate);
-  }
-  GetIt.I.registerSingleton<bool>(
-    enabled,
-    instanceName: workActivityRedesignGate,
-  );
-}
-
-void _unregisterRedesignGate() {
-  if (GetIt.I.isRegistered<bool>(instanceName: workActivityRedesignGate)) {
-    GetIt.I.unregister<bool>(instanceName: workActivityRedesignGate);
-  }
 }
 
 Future<void> _settle([int turns = 12]) async {
@@ -321,25 +304,6 @@ void main() {
       });
     }
 
-    test('legacy getters unchanged when surface fields are set', () {
-      final state = _redesignState(
-        activityUnread: 9,
-        myWorkUnread: 9,
-        needsYou: 9,
-        activeTab: HomeTab.inbox,
-      ).copyWith(
-        inboxTriageCount: 2,
-        inboxLoaded: true,
-        myWorkObligationCount: 4,
-        unreadBeaconIds: {'B1'},
-        inboxBeaconIds: {'B1'},
-        myWorkBeaconIds: const {},
-        markerQueryComplete: true,
-      );
-      expect(state.showInboxTriageBadge, isTrue);
-      expect(state.showInboxUnreadDot, isFalse);
-      expect(state.showMyWorkObligationBadge, isTrue);
-    });
   });
 
   group('HomeAttentionCubit surface summary', () {
@@ -473,7 +437,6 @@ void main() {
       if (GetIt.I.isRegistered<HomeTabReselectCubit>()) {
         GetIt.I.unregister<HomeTabReselectCubit>();
       }
-      _unregisterRedesignGate();
     });
 
     Future<void> pumpOnWorkTab(WidgetTester tester) async {
@@ -498,7 +461,6 @@ void main() {
     testWidgets('gate on: activity surface selects Activity branch', (
       tester,
     ) async {
-      _registerRedesignGate(true);
       await pumpOnWorkTab(tester);
       final tabs = router.innerRouterOf<TabsRouter>(HomeRoute.name)!;
       expect(tabs.activeIndex, HomeTabSpec.forTab(HomeTab.work).index);
@@ -515,7 +477,6 @@ void main() {
     });
 
     testWidgets('gate on: myWork surface selects Work branch', (tester) async {
-      _registerRedesignGate(true);
       await pumpOnWorkTab(tester);
       final tabs = router.innerRouterOf<TabsRouter>(HomeRoute.name)!;
 
@@ -530,21 +491,5 @@ void main() {
       expect(find.text('profile:U2'), findsOneWidget);
     });
 
-    testWidgets('gate off: preferUpdatesBranch still selects Activity', (
-      tester,
-    ) async {
-      _registerRedesignGate(false);
-      await pumpOnWorkTab(tester);
-      final tabs = router.innerRouterOf<TabsRouter>(HomeRoute.name)!;
-
-      unawaited(
-        router.openFromUpdate(_updateReceipt(surface: AttentionSurface.myWork)),
-      );
-      for (var i = 0; i < 16; i++) {
-        await tester.pump();
-      }
-
-      expect(tabs.activeIndex, HomeTabSpec.forTab(HomeTab.inbox).index);
-    });
   });
 }

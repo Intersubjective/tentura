@@ -25,16 +25,13 @@ import 'package:tentura/features/beacon/data/repository/beacon_repository.dart';
 import 'package:tentura/features/evaluation/data/repository/evaluation_repository.dart';
 import 'package:tentura/features/home/domain/entity/home_activation.dart';
 import 'package:tentura/features/home/domain/port/home_orientation_preferences_port.dart';
-import 'package:tentura/features/home/domain/work_activity_redesign_gate.dart';
 import 'package:tentura/features/home/ui/bloc/home_activation_cubit.dart';
 import 'package:tentura/features/home/ui/bloc/home_attention_cubit.dart';
 import 'package:tentura/features/home/ui/bloc/home_tab_reselect_cubit.dart';
 import 'package:tentura/features/inbox/ui/bloc/inbox_operational_cubit.dart';
-import 'package:tentura/features/my_work/domain/my_work_obligations_gate.dart';
 import 'package:tentura/features/my_work/ui/bloc/my_work_cubit.dart';
 import 'package:tentura/features/my_work/ui/screen/my_work_screen.dart';
 import 'package:tentura/features/my_work/ui/widget/my_work_cards.dart';
-import 'package:tentura/features/my_work/ui/widget/my_work_obligations_pane.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/features/updates/domain/use_case/invite_accepted_setup_case.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
@@ -50,23 +47,6 @@ import 'my_work_test_support.dart';
 const _accountId = 'user-sectioned-body';
 const _beaconActive = 'beacon-active';
 const _beaconNeedsYou = 'beacon-needs-you';
-
-void _registerRedesignGate(bool enabled) {
-  if (GetIt.I.isRegistered<bool>(instanceName: workActivityRedesignGate)) {
-    GetIt.I.unregister<bool>(instanceName: workActivityRedesignGate);
-  }
-  GetIt.I.registerSingleton<bool>(
-    enabled,
-    instanceName: workActivityRedesignGate,
-  );
-}
-
-void _registerObligationsGate(bool enabled) {
-  if (GetIt.I.isRegistered<bool>(instanceName: myWorkObligationsGate)) {
-    GetIt.I.unregister<bool>(instanceName: myWorkObligationsGate);
-  }
-  GetIt.I.registerSingleton<bool>(enabled, instanceName: myWorkObligationsGate);
-}
 
 final class _Accounts implements AttentionAccountPort {
   final _changes = StreamController<String>.broadcast();
@@ -290,12 +270,6 @@ void main() {
   });
 
   tearDown(() async {
-    if (GetIt.I.isRegistered<bool>(instanceName: workActivityRedesignGate)) {
-      GetIt.I.unregister<bool>(instanceName: workActivityRedesignGate);
-    }
-    if (GetIt.I.isRegistered<bool>(instanceName: myWorkObligationsGate)) {
-      GetIt.I.unregister<bool>(instanceName: myWorkObligationsGate);
-    }
     if (GetIt.I.isRegistered<AttentionCase>()) {
       final attention = GetIt.I<AttentionCase>();
       unawaited(attention.dispose());
@@ -317,8 +291,6 @@ void main() {
 
   testWidgets('redesign on: section headers and obligation count at 360×640',
       (tester) async {
-    _registerRedesignGate(true);
-    _registerObligationsGate(true);
 
     final attentionRepo = StubAttentionRepository()
       ..myWorkAttentionResult = [
@@ -355,7 +327,6 @@ void main() {
       myWorkCase: buildTestMyWorkCase(
         repo: myWorkRepo,
         attentionCase: boot.attention,
-        obligationsGateEnabled: true,
       ),
     );
 
@@ -363,8 +334,6 @@ void main() {
 
     expect(find.textContaining('NEEDS YOU · 3'), findsOneWidget);
     expect(find.textContaining('IN PROGRESS'), findsOneWidget);
-    expect(find.byType(MyWorkObligationsPane), findsNothing);
-
     unawaited(cubit.close());
     unawaited(homeAttention.close());
     unawaited(boot.accounts.close());
@@ -372,8 +341,6 @@ void main() {
 
   testWidgets('redesign on: no Needs you header when zero obligations',
       (tester) async {
-    _registerRedesignGate(true);
-    _registerObligationsGate(false);
 
     final attentionRepo = StubAttentionRepository()
       ..myWorkAttentionResult = const [];
@@ -412,8 +379,6 @@ void main() {
 
   testWidgets('redesign on: first card fully visible on first paint',
       (tester) async {
-    _registerRedesignGate(true);
-    _registerObligationsGate(true);
 
     final attentionRepo = StubAttentionRepository()
       ..myWorkAttentionResult = const [];
@@ -432,7 +397,6 @@ void main() {
       myWorkCase: buildTestMyWorkCase(
         repo: myWorkRepo,
         attentionCase: boot.attention,
-        obligationsGateEnabled: true,
       ),
     );
     final homeAttention = HomeAttentionCubit(
@@ -453,48 +417,6 @@ void main() {
     final rect = tester.getRect(cardFinder.first);
     expect(rect.top, greaterThanOrEqualTo(0));
     expect(rect.bottom, lessThanOrEqualTo(640));
-    expect(find.byType(MyWorkObligationsPane), findsNothing);
-
-    unawaited(cubit.close());
-    unawaited(homeAttention.close());
-    unawaited(boot.accounts.close());
-  });
-
-  testWidgets('redesign off: obligations pane still mounts when gate on',
-      (tester) async {
-    _registerRedesignGate(false);
-    _registerObligationsGate(true);
-
-    final repo = _ObligationsFeedRepository(
-      liveReceipts: [_obligation('r-live', _beaconNeedsYou)],
-    );
-    final boot = await _bootAttention(repo);
-    final myWorkRepo = FakeMyWorkRepository()
-      ..initResult = (
-        authoredNonArchived: [_beacon(_beaconActive, 'Active')],
-        helpOfferedNonArchived: const [],
-        obligationBeacons: const [],
-        archivedCountHint: 0,
-      );
-
-    final cubit = MyWorkCubit(
-      userId: _accountId,
-      myWorkCase: buildTestMyWorkCase(
-        repo: myWorkRepo,
-        attentionCase: boot.attention,
-        obligationsGateEnabled: true,
-      ),
-    );
-    final homeAttention = HomeAttentionCubit(
-      boot.attention,
-      boot.accounts,
-      Logger('legacy-pane'),
-    );
-
-    await _pumpMyWork(tester, cubit: cubit, homeAttention: homeAttention);
-
-    expect(find.byKey(const Key(TestIds.myWorkObligationsPane)), findsOneWidget);
-
     unawaited(cubit.close());
     unawaited(homeAttention.close());
     unawaited(boot.accounts.close());

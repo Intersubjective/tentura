@@ -31,6 +31,11 @@ final class _Accounts implements AttentionAccountPort {
 final class _Repository extends AttentionRepositoryFake {
   Set<String> unread = const {};
   int needsYouTotal = 0;
+  AttentionSurfaceSummary surfaceSummaryValue = const AttentionSurfaceSummary(
+    activityUnreadTotal: 0,
+    myWorkUnreadTotal: 0,
+    needsYouTotal: 0,
+  );
   bool failMarkers = false;
   final markerQueries = <Set<String>>[];
   final pendingMarkers = <Completer<Set<String>>>[];
@@ -54,6 +59,10 @@ final class _Repository extends AttentionRepositoryFake {
     if (failMarkers) return Future.error(StateError('offline'));
     return Future.value(unread.intersection(beaconIds));
   }
+
+  @override
+  Future<AttentionSurfaceSummary> surfaceSummary() async =>
+      surfaceSummaryValue;
 
   @override
   Future<Set<String>> liveObligationBeacons() async => const {};
@@ -206,29 +215,18 @@ void main() {
     },
   );
 
-  test('tracks live obligation count from account-wide unreadSummary', () async {
-    repository.needsYouTotal = 3;
-    final attentionWithFeed = attention;
-    attentionWithFeed.attachFeedSession(
-      AttentionFeedDestinationId.myWorkObligations,
-    );
-    attentionWithFeed.setActiveView(
-      AttentionFeedDestinationId.myWorkObligations,
-      AttentionView.needsYou,
+  test('maps surface summary needsYouTotal into nav state', () async {
+    repository.surfaceSummaryValue = const AttentionSurfaceSummary(
+      activityUnreadTotal: 0,
+      myWorkUnreadTotal: 0,
+      needsYouTotal: 3,
     );
     accounts.emit('U1');
-    await attentionWithFeed.refresh(
-      destinationId: AttentionFeedDestinationId.myWorkObligations,
-    );
     await _settle(20);
-    final obligationHome = HomeAttentionCubit(
-      attentionWithFeed,
-      accounts,
-      Logger('home-attention-test-obligations'),
-    );
 
-    expect(obligationHome.state.myWorkObligationCount, 3);
-    unawaited(obligationHome.close());
+    expect(home.state.surfaceSummaryLoaded, isTrue);
+    expect(home.state.surfaceNeedsYouTotal, 3);
+    expect(home.state.showRedesignMyWorkObligationBadge, isTrue);
   });
 
   test('chunks the candidate union at the server request bound', () async {

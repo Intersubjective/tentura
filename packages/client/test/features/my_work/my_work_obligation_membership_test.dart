@@ -89,37 +89,8 @@ void main() {
     });
   });
 
-  group('MyWorkCase activation gate', () {
-    test('gate off ignores live obligations and passes empty ids to fetch', () async {
-      final attentionRepo = StubAttentionRepository()
-        ..obligationBeaconIds = {'would-appear'};
-      final repo = FakeMyWorkRepository()
-        ..initResult = (
-          authoredNonArchived: [_beacon('keep')],
-          helpOfferedNonArchived: const [],
-          obligationBeacons: [
-            (beacon: _beacon('would-appear'), viewerArchived: false),
-          ],
-          archivedCountHint: 0,
-        );
-      final case_ = buildTestMyWorkCase(
-        repo: repo,
-        attentionRepository: attentionRepo,
-        obligationsGateEnabled: false,
-      );
-
-      final desk = await case_.loadDeskInit(userId: 'u1');
-      expect(repo.lastObligationBeaconIds, isEmpty);
-      expect(desk.nonArchivedCards.map((c) => c.beaconId), ['keep']);
-      expect(
-        desk.nonArchivedCards.every(
-          (c) => !c.sources.contains(MyWorkMembershipSource.obligation),
-        ),
-        isTrue,
-      );
-    });
-
-    test('gate on admits obligation-backed cards from fetch', () async {
+  group('MyWorkCase obligation membership', () {
+    test('admits obligation-backed cards from fetch', () async {
       final attentionRepo = StubAttentionRepository()
         ..obligationBeaconIds = {'obl-only'};
       final repo = FakeMyWorkRepository()
@@ -134,7 +105,6 @@ void main() {
       final case_ = buildTestMyWorkCase(
         repo: repo,
         attentionRepository: attentionRepo,
-        obligationsGateEnabled: true,
       );
 
       final desk = await case_.loadDeskInit(userId: 'u1');

@@ -1,11 +1,9 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:get_it/get_it.dart';
 
 import 'package:tentura/domain/attention/entity/attention_feed.dart';
 import 'package:tentura/domain/attention/entity/attention_receipt.dart';
 import 'package:tentura/domain/attention/entity/my_work_beacon_attention.dart';
 import 'package:tentura/domain/entity/beacon.dart';
-import 'package:tentura/features/home/domain/work_activity_redesign_gate.dart';
 import 'package:tentura/features/my_work/ui/bloc/my_work_cubit.dart';
 
 import 'my_work_test_support.dart';
@@ -29,40 +27,8 @@ AttentionReceipt _receipt({
       beaconId: beaconId,
     );
 
-void _registerWorkActivityRedesignGate(bool enabled) {
-  if (GetIt.I.isRegistered<bool>(instanceName: workActivityRedesignGate)) {
-    GetIt.I.unregister<bool>(instanceName: workActivityRedesignGate);
-  }
-  GetIt.I.registerSingleton<bool>(
-    enabled,
-    instanceName: workActivityRedesignGate,
-  );
-}
-
 void main() {
-  tearDown(() {
-    if (GetIt.I.isRegistered<bool>(instanceName: workActivityRedesignGate)) {
-      GetIt.I.unregister<bool>(instanceName: workActivityRedesignGate);
-    }
-  });
-
-  test('gate off does not call myWorkAttention', () async {
-    _registerWorkActivityRedesignGate(false);
-    final attentionRepo = StubAttentionRepository();
-    final cubit = MyWorkCubit(
-      userId: 'user-1',
-      myWorkCase: buildTestMyWorkCase(attentionRepository: attentionRepo),
-    );
-
-    await cubit.stream.firstWhere((s) => s.isSuccess);
-    expect(attentionRepo.myWorkAttentionCallCount, 0);
-    expect(cubit.state.attentionLoaded, isFalse);
-
-    await cubit.close();
-  });
-
-  test('gate on populates attentionByBeacon and attentionLoaded', () async {
-    _registerWorkActivityRedesignGate(true);
+  test('populates attentionByBeacon and attentionLoaded', () async {
     final attentionRepo = StubAttentionRepository()
       ..myWorkAttentionResult = [
         const MyWorkBeaconAttention(
@@ -94,7 +60,6 @@ void main() {
   });
 
   test('stale attention response is dropped', () async {
-    _registerWorkActivityRedesignGate(true);
     final attentionRepo = StubAttentionRepository()
       ..myWorkAttentionResult = [
         const MyWorkBeaconAttention(
@@ -140,7 +105,6 @@ void main() {
   });
 
   test('failed attention fetch keeps cards and attentionLoaded false', () async {
-    _registerWorkActivityRedesignGate(true);
     final attentionRepo = StubAttentionRepository()
       ..myWorkAttentionError = Exception('attention failed');
     final repo = FakeMyWorkRepository()
@@ -167,7 +131,6 @@ void main() {
   });
 
   test('openedBeacon zeroes unseenCount and calls markSeenForBeacon', () async {
-    _registerWorkActivityRedesignGate(true);
     final obligation = _receipt(id: 'r1', beaconId: 'b1');
     final latest = _receipt(id: 'r2', beaconId: 'b1');
     final attentionRepo = StubAttentionRepository()
@@ -207,7 +170,6 @@ void main() {
   });
 
   test('settleObligation removes receipt and calls settle', () async {
-    _registerWorkActivityRedesignGate(true);
     final obligation = _receipt(id: 'r-settle', beaconId: 'b1');
     final attentionRepo = StubAttentionRepository()
       ..myWorkAttentionResult = [

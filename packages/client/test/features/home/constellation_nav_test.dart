@@ -22,7 +22,6 @@ import 'package:tentura/domain/attention/port/attention_repository_port.dart';
 import '../../support/attention_repository_fake_base.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/auth/ui/bloc/auth_cubit.dart';
-import 'package:tentura/features/home/domain/work_activity_redesign_gate.dart';
 import 'package:tentura/features/home/ui/bloc/home_attention_cubit.dart';
 import 'package:tentura/features/home/ui/bloc/post_join_navigation_cubit.dart';
 import 'package:tentura/features/home/ui/widget/constellation_navbar_item.dart';
@@ -87,6 +86,15 @@ final class _Accounts implements AttentionAccountPort {
 
 final class _Repository extends AttentionRepositoryFake {
   Set<String> unread = const {};
+  AttentionSurfaceSummary surfaceSummaryValue = const AttentionSurfaceSummary(
+    activityUnreadTotal: 1,
+    myWorkUnreadTotal: 1,
+    needsYouTotal: 0,
+  );
+
+  @override
+  Future<AttentionSurfaceSummary> surfaceSummary() async =>
+      surfaceSummaryValue;
 
   @override
   Future<AttentionFeed> fetch({
@@ -144,22 +152,6 @@ Future<void> _settle([int turns = 8]) async {
   }
 }
 
-void _registerRedesignGate(bool enabled) {
-  if (GetIt.I.isRegistered<bool>(instanceName: workActivityRedesignGate)) {
-    GetIt.I.unregister<bool>(instanceName: workActivityRedesignGate);
-  }
-  GetIt.I.registerSingleton<bool>(
-    enabled,
-    instanceName: workActivityRedesignGate,
-  );
-}
-
-void _unregisterRedesignGate() {
-  if (GetIt.I.isRegistered<bool>(instanceName: workActivityRedesignGate)) {
-    GetIt.I.unregister<bool>(instanceName: workActivityRedesignGate);
-  }
-}
-
 Future<HomeAttentionCubit> _seedAttentionCubit({
   required _Accounts accounts,
   required _Repository repository,
@@ -181,11 +173,6 @@ Future<HomeAttentionCubit> _seedAttentionCubit({
   repository.unread = {'inbox-b1', 'work-b1'};
   accounts.emit('U1');
   await _settle();
-  cubit.reportInboxTriageCount(
-    accountId: 'U1',
-    triageCount: 1,
-    loaded: true,
-  );
   cubit.reportInboxSnapshot(
     accountId: 'U1',
     beaconIds: {'inbox-b1'},
@@ -532,12 +519,10 @@ void main() {
     });
 
     testWidgets(
-      'anti-feed: constellation nav item has no badge while others do',
+      'constellation nav item has no badge while sibling tabs can',
       (
         tester,
       ) async {
-        _registerRedesignGate(false);
-        addTearDown(_unregisterRedesignGate);
         for (final useSideNav in [true, false]) {
           await _pumpHomeChrome(
             tester,
@@ -550,23 +535,12 @@ void main() {
           );
           attention.setActiveHomeTab(HomeTab.constellation);
 
-          expect(attention.state.hasMyWorkDot, isTrue);
-          expect(attention.state.hasInboxDot, isTrue);
-
           final constellationIcon = find.byKey(
             TestIds.key(TestIds.constellationNavItem),
           );
           expect(constellationIcon, findsOneWidget);
           expect(_navItemShowsBadge(tester, constellationIcon), isFalse);
 
-          expect(
-            _navItemShowsBadge(tester, find.byType(MyWorkNavbarItem)),
-            isFalse,
-          );
-          expect(
-            _navItemShowsBadge(tester, find.byType(InboxNavbarItem)),
-            isTrue,
-          );
         }
       },
     );

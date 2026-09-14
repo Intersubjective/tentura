@@ -63,7 +63,6 @@ void main() {
         myWorkCase: buildTestMyWorkCase(
           repo: repo,
           attentionRepository: attentionRepo,
-          obligationsGateEnabled: true,
         ),
       );
       await cubit.stream.firstWhere((s) => s.isSuccess);
@@ -99,7 +98,6 @@ void main() {
         userId: 'user-1',
         myWorkCase: buildTestMyWorkCase(
           repo: repo,
-          obligationsGateEnabled: true,
           attentionRepository: StubAttentionRepository()
             ..obligationBeaconIds = {'both'},
         ),
@@ -130,7 +128,6 @@ void main() {
         myWorkCase: buildTestMyWorkCase(
           repo: repo,
           attentionRepository: attentionRepo,
-          obligationsGateEnabled: true,
         ),
       );
       await cubit.stream.firstWhere((s) => s.isSuccess);
@@ -167,7 +164,6 @@ void main() {
         myWorkCase: buildTestMyWorkCase(
           repo: repo,
           attentionRepository: attentionRepo,
-          obligationsGateEnabled: true,
         ),
       );
       await cubit.stream.firstWhere((s) => s.isSuccess);

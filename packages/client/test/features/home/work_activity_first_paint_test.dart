@@ -36,11 +36,9 @@ import 'package:tentura/features/inbox/ui/bloc/inbox_cubit.dart';
 import 'package:tentura/features/inbox/ui/bloc/inbox_operational_cubit.dart';
 import 'package:tentura/features/inbox/ui/screen/inbox_screen.dart';
 import 'package:tentura/features/inbox/ui/widget/activity_offer_card.dart';
-import 'package:tentura/features/my_work/domain/my_work_obligations_gate.dart';
 import 'package:tentura/features/my_work/ui/bloc/my_work_cubit.dart';
 import 'package:tentura/features/my_work/ui/screen/my_work_screen.dart';
 import 'package:tentura/features/my_work/ui/widget/my_work_cards.dart';
-import 'package:tentura/features/my_work/ui/widget/my_work_obligations_pane.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/features/updates/domain/use_case/invite_accepted_setup_case.dart';
 import 'package:tentura/features/updates/ui/widget/updates_feed_tile.dart';
@@ -74,8 +72,6 @@ class _HarnessRouter extends Mock implements StackRouter {}
 class _TestInboxCubit extends Cubit<InboxState> implements InboxCubit {
   _TestInboxCubit(super.initial);
 
-  @override
-  void setSort(InboxSort sort) {}
 
   @override
   void clearPendingMovedNudge() {}
@@ -286,11 +282,6 @@ Future<void> _pumpMyWorkShell(WidgetTester tester) async {
       EvaluationRepositoryMock(),
     );
   }
-  if (GetIt.I.isRegistered<bool>(instanceName: myWorkObligationsGate)) {
-    GetIt.I.unregister<bool>(instanceName: myWorkObligationsGate);
-  }
-  GetIt.I.registerSingleton<bool>(true, instanceName: myWorkObligationsGate);
-
   final attentionRepo = _PurityAttentionRepo();
   final accounts = _Accounts();
   final sync = buildTestRealtimeSync();
@@ -330,7 +321,6 @@ Future<void> _pumpMyWorkShell(WidgetTester tester) async {
     myWorkCase: buildTestMyWorkCase(
       repo: myWorkRepo,
       attentionCase: attention,
-      obligationsGateEnabled: true,
     ),
   );
   final homeAttention = HomeAttentionCubit(
@@ -478,9 +468,6 @@ Future<void> _pumpActivityShell(WidgetTester tester) async {
 
 void main() {
   tearDown(() async {
-    if (GetIt.I.isRegistered<bool>(instanceName: myWorkObligationsGate)) {
-      GetIt.I.unregister<bool>(instanceName: myWorkObligationsGate);
-    }
     if (GetIt.I.isRegistered<BeaconRepository>()) {
       GetIt.I.unregister<BeaconRepository>();
     }
@@ -515,7 +502,6 @@ void main() {
     final rect = tester.getRect(cardFinder.first);
     expect(rect.top, greaterThanOrEqualTo(0));
     expect(rect.bottom, lessThanOrEqualTo(_viewport.height));
-    expect(find.byType(MyWorkObligationsPane), findsNothing);
     expect(find.byType(UpdatesFeedTile), findsNothing);
     expect(find.text('Standalone obligation receipt'), findsNothing);
   });

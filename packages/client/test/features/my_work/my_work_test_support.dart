@@ -354,7 +354,6 @@ MyWorkCase buildTestMyWorkCase({
   RealtimeSyncCase? realtimeSyncCase,
   AttentionCase? attentionCase,
   StubAttentionRepository? attentionRepository,
-  bool obligationsGateEnabled = false,
 }) {
   final hints = roomHints ?? FakeRoomHints();
   final prefs = deskPreferences ?? FakeMyWorkDeskPreferencesPort();
@@ -380,7 +379,6 @@ MyWorkCase buildTestMyWorkCase({
     bookkeepingRefreshSignal ?? BookkeepingRefreshSignal(),
     attentionCase ??
         buildStubAttentionCase(repository: attentionRepository),
-    obligationsGateEnabled,
     env: const Env(),
     logger: Logger('test'),
   );
