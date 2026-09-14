@@ -38,7 +38,7 @@ Orchestration: Claude (overseer) drives one fresh Cursor `composer-2.5` worker p
 | R04a drawn-only set + footprints + obstacles (split of R04, part 1) | R03b | done | eb87660b6, 77ad4c7cb, 1f249a958, 93e61f416 | accepted — independently ramped verification (layout_test → algorithms/scene_layout → p06/density/recovery → full constellation suite, 293 pass) checking memory at each step per D-M6; architecture boundary test + lints clean (30/30, no drift); diff reviewed — obstacle model correct (people path bit-for-bit unchanged via untouched `_totalIntersectionArea`, requests test full footprint against `obstacles` including own author), `footprints` joins `==`/`hashCode` on `ConstellationSceneLayoutAlgorithm`, `constellationFootprintOverlaps` matches spec; the one changed test threshold (120→150) is a documented, expected consequence of removing the author exemption, not a loosened pin/person guard |
 | R04b satellite geometry + crossing preference + R04 tests (split of R04, part 2) | R04a | done | f2146021e, 7a4362fe5, bb8b3adf5 | accepted — plan R04 (UI-01/UI-02/UI-05/UI-11) closed; independently ramped verification (layout_test 25 → algorithms/scene_layout 17 → p06/density 30 → full constellation 301 pass) checking memory at each step; architecture boundary + lints clean (30/30, no drift); diff reviewed — ego-direction bisector, footprint-aware fan spacing (empty-footprints no-op preserved), and crossing preference (correctly uses body boxes not footprints, a deliberate and correct deviation from my literal prompt wording) all match plan §3.5; no test thresholds needed changing |
 | R05 edge legibility | R02 | done | 3d19ea4eb, 499631ba5, 9586255a1, 811a8fd1d | accepted — UI-06 closed; independently re-ran the new edge-style/painter/legend tests, full `test/features/constellation` (306 pass) and `test/features/graph` (218 pass), lints clean (30/30, no drift); diff reviewed — `edgeKindByPair` O(1) lookup with duplicate-key assert, `RepaintingEdgePainter` wired to `cameraRevision`, `effectiveWidth` screen-constant scaling matches spec, legend now derives both color AND dash from the same `constellationEdgeStyle` function the painter uses (fixes the 5/4 vs 6/4 drift the plan flagged) |
-| R06 targeting + semantics | R02, R03b | done | pending | |
+| R06 targeting + semantics | R02, R03b | done | 2be7cb2da, 00f05299f, a0f7df364, ddce9b16d | |
 | R07 camera recovery + app bar | R02, R03b | pending | | |
 | R08 integrate, verify, release | R00–R07 (R04→R04a+R04b done, R03→R03a+R03b done) | pending | | |
 
@@ -382,7 +382,7 @@ flutter test
 
 **Status:** complete
 
-**Commits:** (pending hash after commit)
+**Commits:** `2be7cb2da` fix(client): dispatch once (UI-07); `00f05299f` fix(client): camera gate on placement drag; `a0f7df364` test(client): R06 tests; `ddce9b16d` docs(plan): journal final
 
 **Changed files:**
 - `packages/client/lib/features/constellation/ui/widget/constellation_body.dart`
