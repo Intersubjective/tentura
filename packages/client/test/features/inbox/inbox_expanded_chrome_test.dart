@@ -18,6 +18,7 @@ import '../../support/attention_repository_fake_base.dart';
 import 'package:tentura/domain/use_case/realtime_sync_case.dart';
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/profile.dart';
+import 'package:tentura/features/home/domain/work_activity_redesign_gate.dart';
 import 'package:tentura/features/home/ui/bloc/home_attention_cubit.dart';
 import 'package:tentura/features/home/ui/bloc/home_tab_reselect_cubit.dart';
 import 'package:tentura/features/inbox/domain/entity/inbox_item.dart';
@@ -156,11 +157,22 @@ InboxItem _needsItem() {
   );
 }
 
+void _registerRedesignGate(bool enabled) {
+  if (GetIt.I.isRegistered<bool>(instanceName: workActivityRedesignGate)) {
+    GetIt.I.unregister<bool>(instanceName: workActivityRedesignGate);
+  }
+  GetIt.I.registerSingleton<bool>(
+    enabled,
+    instanceName: workActivityRedesignGate,
+  );
+}
+
 Future<void> _pumpInbox(
   WidgetTester tester, {
   required Size logicalSize,
   required _HarnessRouter router,
 }) async {
+  _registerRedesignGate(false);
   tester.view.physicalSize = logicalSize;
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.resetPhysicalSize);
@@ -197,6 +209,9 @@ Future<void> _pumpInbox(
   );
   GetIt.I.registerSingleton<RealtimeSyncCase>(sync.case_);
   addTearDown(() {
+    if (GetIt.I.isRegistered<bool>(instanceName: workActivityRedesignGate)) {
+      GetIt.I.unregister<bool>(instanceName: workActivityRedesignGate);
+    }
     if (GetIt.I.isRegistered<AttentionCase>()) {
       GetIt.I.unregister<AttentionCase>();
     }

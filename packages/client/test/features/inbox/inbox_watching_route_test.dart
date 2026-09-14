@@ -20,6 +20,7 @@ import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/domain/use_case/realtime_sync_case.dart';
 import 'package:tentura/features/forward/ui/message/forward_messages.dart';
+import 'package:tentura/features/home/domain/work_activity_redesign_gate.dart';
 import 'package:tentura/features/home/ui/bloc/home_attention_cubit.dart';
 import 'package:tentura/features/home/ui/bloc/home_tab_reselect_cubit.dart';
 import 'package:tentura/features/inbox/domain/entity/inbox_item.dart';
@@ -198,11 +199,22 @@ InboxItem _watchingItem(
   );
 }
 
+void _registerRedesignGate(bool enabled) {
+  if (GetIt.I.isRegistered<bool>(instanceName: workActivityRedesignGate)) {
+    GetIt.I.unregister<bool>(instanceName: workActivityRedesignGate);
+  }
+  GetIt.I.registerSingleton<bool>(
+    enabled,
+    instanceName: workActivityRedesignGate,
+  );
+}
+
 Future<void> _pumpInboxOverflow(
   WidgetTester tester, {
   required _HarnessRouter router,
   required List<InboxItem> items,
 }) async {
+  _registerRedesignGate(false);
   final inboxCubit = _TestInboxCubit(
     InboxState(
       items: items,
@@ -235,6 +247,9 @@ Future<void> _pumpInboxOverflow(
   );
   GetIt.I.registerSingleton<RealtimeSyncCase>(sync.case_);
   addTearDown(() {
+    if (GetIt.I.isRegistered<bool>(instanceName: workActivityRedesignGate)) {
+      GetIt.I.unregister<bool>(instanceName: workActivityRedesignGate);
+    }
     if (GetIt.I.isRegistered<AttentionCase>()) {
       GetIt.I.unregister<AttentionCase>();
     }
