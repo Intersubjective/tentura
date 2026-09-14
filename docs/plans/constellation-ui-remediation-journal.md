@@ -31,7 +31,7 @@ Orchestration: Claude (overseer) drives one fresh Cursor `composer-2.5` worker p
 | R00 fixture + baseline | — | done | c690eca44, 47e9bf065 | accepted — smoke test independently re-run (pass), `git diff --check` clean, no leaked test processes |
 | R01 label budget (ships alone) | R00 | done | 4dcca824a, 9843bb9d1 | accepted — independently re-ran full `test/features/constellation` (265 pass), `test/features/graph test/features/home` (pass), `check-custom-lints.sh packages/client` (30/30, no drift); diff reviewed, matches UI-09/UI-10 fix design; `_MapOverflowOverlay` `ListenableBuilder` addition is a reasonable documented deviation, superseded by R03 |
 | R02 graph package seams | R01 landed | done | baea36507, b03f9e598, d9dadf575, bcf3d20f1, 6b6b25c6b | accepted — independently re-ran the 5 targeted package tests, full package suite (112 pass), `dart analyze` (0 errors, pre-existing INFO-only), and `test/features/graph` on client (217 pass, compatibility gate); diff reviewed — camera-revision listener rebind/dispose is correct, tap-hit-tester shares one drag-pass snapshot for body+tap as required, RepaintingEdgePainter generalization is minimal and correct; zero client files touched |
-| R03a presentation-frame + tap-resolver (split of R03, part 1) | R02 | in progress | | |
+| R03a presentation-frame + tap-resolver (split of R03, part 1) | R02 | done | da8ab8215, 379dc4f1f, 038d26e0b, 7c13b1b1f, 94fda7db9 | |
 | R03b wire overlay + badges + R03 tests (split of R03, part 2) | R03a | pending | | |
 | R04 collision-aware Request placement | R03b | pending | | |
 | R05 edge legibility | R02 | pending | | |
@@ -189,7 +189,7 @@ flutter test
 
 **Status:** complete
 
-**Commits:** (filled after git commit)
+**Commits:** `da8ab8215` feat(client): add graph label max-width tokens; `379dc4f1f` feat(client): add Constellation viewport presentation-frame algorithm; `038d26e0b` feat(client): add Constellation tap resolver; `7c13b1b1f` feat(client): add overflow chip size helper; `94fda7db9` test(client): add Constellation presentation frame unit tests
 
 **Changed files:**
 - `packages/client/lib/design_system/tentura_tokens.dart`
