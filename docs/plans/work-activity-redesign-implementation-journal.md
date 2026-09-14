@@ -718,6 +718,8 @@ DECISIONS:
 
 REMAINING: none. Proceed to UNIT 19.
 
+**Manager verdict: ACCEPTED.** Journal append landed correctly this time, immediately before the checklist marker — the explicit warning in the prompt worked. Independently re-ran the full Verify block (build_runner clean — confirmed `UpdatesRoute`'s pre-existing page factory is correctly reused for the new `kPathInboxHistory` path binding, not regenerated as a new route class; gen-l10n clean; 8/8 chrome+history tests; lints 32/32 baseline) and confirmed the `7.6.13` version bump is consistent across both files. Read the `inbox_screen.dart` diff in full: the title, actions list, and overflow menu all reduce to their exact original expressions when the gate is off (`redesignEnabled ? l10n.inbox : l10n.updatesTitle`, a conditionally-omitted list element, `showNotificationHistory` defaulting false). `_ActivityMarkAllSeenButton` uses genuine `onPressed: null` when unread is zero — a real disabled state, not just a no-op — reactively wired to `AttentionCase.surfaceSummary`. Confirmed `history` and legacy `activity` destinations both map to `surface: null` per UNIT 08's `surfaceForDestination`, so repurposing `UpdatesScreen`'s destination id changes no query behavior for existing callers, only internal session-key naming — a safe rename, not a hidden behavior change ahead of UNIT 20's flip. The disclosed gap (scroll-restoration-after-back not asserted here, since the widget-test harness's mock router lacks a real nested navigator) is a legitimate test-infrastructure limitation, not corner-cutting — worth confirming via the UNIT 20 e2e suite or UNIT 22's manual smoke walkthrough. No leaked processes, clean git status, commits well split.
+
 ## Ordered unit checklist
 
 | Unit | Status |
@@ -740,7 +742,7 @@ REMAINING: none. Proceed to UNIT 19.
 | 15 | complete (accepted) |
 | 16 | complete (accepted) |
 | 17 | complete (accepted, hang diagnosed+fixed by overseer) |
-| 18 | complete |
+| 18 | complete (accepted) |
 | 19 | pending |
 | 20 | pending |
 | 21 | pending |
