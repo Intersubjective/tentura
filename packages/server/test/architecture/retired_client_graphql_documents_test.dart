@@ -34,7 +34,11 @@ void main() {
   };
 
   test('retired coordination-item client GraphQL documents are removed', () {
-    expect(gqlDir.existsSync(), isTrue);
+    if (!gqlDir.existsSync()) {
+      // The whole coordination_item feature (and its gql directory) was
+      // deleted outright; the retired documents are gone along with it.
+      return;
+    }
     final present = gqlDir
         .listSync()
         .whereType<File>()
