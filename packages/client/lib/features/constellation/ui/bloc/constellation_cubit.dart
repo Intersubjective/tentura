@@ -189,6 +189,9 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
 
   final Map<GraphEdgeId, ConstellationEdgeKind> edgeKinds = {};
 
+  /// O(1) kind lookup for edge painting (`srcGraphId->dstGraphId`).
+  final Map<String, ConstellationEdgeKind> edgeKindByPair = {};
+
   String layoutEgoId = '';
   Map<String, List<String>> layoutVisibleRequestsByAuthor = const {};
   Set<String> layoutEgoOwnRequestIds = const {};
@@ -1735,6 +1738,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     if (field == null || paths == null) {
       graphController.clear();
       edgeKinds.clear();
+      edgeKindByPair.clear();
       overflowHiddenCountByAuthor = const {};
       expandedExtraCountByAuthor = const {};
       return;
@@ -1811,6 +1815,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     final nodes = <NodeDetails>{};
     final edges = <EdgeDetails>{};
     edgeKinds.clear();
+    edgeKindByPair.clear();
 
     nodes.add(
       FieldPersonNode(
@@ -1871,6 +1876,10 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
         source: src,
         destination: dst,
       )] = kind;
+      final pairKey =
+          '${tenturaGraphNodeId(src)}->${tenturaGraphNodeId(dst)}';
+      assert(!edgeKindByPair.containsKey(pairKey));
+      edgeKindByPair[pairKey] = kind;
     }
 
     for (final child in paths.keep.intersection(state.keptPeerIds)) {

@@ -28,6 +28,7 @@ import 'package:tentura/ui/widget/linear_pi_active.dart';
 import '../../domain/entity/constellation_anchor.dart';
 import '../../domain/entity/constellation_field.dart';
 import '../bloc/constellation_cubit.dart';
+import '../utils/constellation_edge_style.dart';
 import '../utils/constellation_tap_resolver.dart';
 import 'constellation_anchor_controls.dart';
 import 'constellation_filter_bar.dart';
@@ -672,8 +673,11 @@ class _ConstellationBodyState extends State<ConstellationBody> {
             );
           },
           edgePainter: ConstellationEdgePainter(
-            edgeKinds: cubit.edgeKinds,
-            colorScheme: Theme.of(context).colorScheme,
+            edgeKindByPair: cubit.edgeKindByPair,
+            tt: context.tt,
+            scheme: Theme.of(context).colorScheme,
+            repaint: cubit.graphController.cameraRevision,
+            cameraScale: () => cubit.graphController.cameraScale,
           ),
           labelBuilder: null,
           nodeBuilder: (_, node) {
@@ -851,20 +855,27 @@ class _ConstellationMapNode extends StatelessWidget {
 }
 
 class ConstellationEdgePainter
-    implements EdgePainter<NodeDetails, EdgeDetails> {
+    implements RepaintingEdgePainter<NodeDetails, EdgeDetails> {
   const ConstellationEdgePainter({
-    required this.edgeKinds,
-    required this.colorScheme,
+    required this.edgeKindByPair,
+    required this.tt,
+    required this.scheme,
+    required this.repaint,
+    required this.cameraScale,
   });
 
-  final Map<GraphEdgeId, ConstellationEdgeKind> edgeKinds;
-  final ColorScheme colorScheme;
+  final Map<String, ConstellationEdgeKind> edgeKindByPair;
+  final TenturaTokens tt;
+  final ColorScheme scheme;
+  @override
+  final Listenable repaint;
+  final double Function() cameraScale;
 
-  static const _pathStroke = 2.0;
-  static const _attachmentStroke = 1.5;
-  static const _stubStroke = 1.5;
-  static const _dashLength = 6.0;
-  static const _dashGap = 4.0;
+  @visibleForTesting
+  static double effectiveWidth(double width, double cameraScale) {
+    final k = cameraScale < 1 ? 1 / cameraScale : 1.0;
+    return width * k;
+  }
 
   @override
   void paint(
@@ -873,72 +884,72 @@ class ConstellationEdgePainter
     Offset src,
     Offset dst,
   ) {
-    final pairSuffix =
+    final pairKey =
         '${tenturaGraphNodeId(edge.source)}->${tenturaGraphNodeId(edge.destination)}';
-    ConstellationEdgeKind? kind;
-    for (final entry in edgeKinds.entries) {
-      if (entry.key.endsWith(pairSuffix)) {
-        kind = entry.value;
-        break;
-      }
-    }
+    final kind = edgeKindByPair[pairKey];
     if (kind == null) {
       return;
     }
 
+    final style = constellationEdgeStyle(kind, tt, scheme);
+    final scale = cameraScale();
+    final strokeWidth = effectiveWidth(style.width, scale);
+    final dashLength = style.dash == 0 ? 0.0 : effectiveWidth(style.dash, scale);
+    final dashGap = style.gap == 0 ? 0.0 : effectiveWidth(style.gap, scale);
+
+    final sourceRadius = edge.source.size / 2;
+    final destinationRadius = edge.destination.size / 2;
+    final trimmed = _trim(
+      src: src,
+      dst: dst,
+      srcInset: sourceRadius + 2,
+      dstInset: destinationRadius + 2,
+    );
+
     final paint = Paint()
+      ..color = style.color
+      ..strokeWidth = strokeWidth
       ..style = PaintingStyle.stroke
       ..strokeCap = StrokeCap.round
       ..isAntiAlias = true;
 
-    switch (kind) {
-      case ConstellationEdgeKind.tier1Path:
-        paint
-          ..color = colorScheme.outline
-          ..strokeWidth = _pathStroke;
-        canvas.drawLine(src, dst, paint);
-      case ConstellationEdgeKind.tier2Path:
-        paint
-          ..color = colorScheme.outlineVariant
-          ..strokeWidth = _pathStroke;
-        _drawDashedLine(canvas, src, dst, paint);
-      case ConstellationEdgeKind.attachment:
-        paint
-          ..color = colorScheme.secondary
-          ..strokeWidth = _attachmentStroke;
-        final trimmed = _trimAttachmentLine(
-          src: src,
-          dst: dst,
-          sourceRadius: edge.source.size / 2,
-          destinationRadius: edge.destination.size / 2,
-        );
-        canvas.drawLine(trimmed.$1, trimmed.$2, paint);
-      case ConstellationEdgeKind.ringStub:
-        paint
-          ..color = colorScheme.outlineVariant.withValues(alpha: 0.7)
-          ..strokeWidth = _stubStroke;
-        _drawDashedLine(canvas, src, dst, paint);
+    if (dashLength <= 0) {
+      canvas.drawLine(trimmed.$1, trimmed.$2, paint);
+    } else {
+      _drawDashedLine(
+        canvas,
+        trimmed.$1,
+        trimmed.$2,
+        paint,
+        dashLength: dashLength,
+        dashGap: dashGap,
+      );
     }
   }
 
-  (Offset, Offset) _trimAttachmentLine({
+  (Offset, Offset) _trim({
     required Offset src,
     required Offset dst,
-    required double sourceRadius,
-    required double destinationRadius,
+    required double srcInset,
+    required double dstInset,
   }) {
     final delta = dst - src;
     final length = delta.distance;
-    if (length <= sourceRadius + destinationRadius) {
+    if (length <= srcInset + dstInset) {
       return (src, dst);
     }
     final direction = delta / length;
-    final start = src + direction * (sourceRadius + 2);
-    final end = dst - direction * (destinationRadius + length * 0.15);
-    return (start, end);
+    return (src + direction * srcInset, dst - direction * dstInset);
   }
 
-  void _drawDashedLine(Canvas canvas, Offset src, Offset dst, Paint paint) {
+  void _drawDashedLine(
+    Canvas canvas,
+    Offset src,
+    Offset dst,
+    Paint paint, {
+    required double dashLength,
+    required double dashGap,
+  }) {
     final delta = dst - src;
     final length = delta.distance;
     if (length <= 0) {
@@ -947,13 +958,13 @@ class ConstellationEdgePainter
     final direction = delta / length;
     var travelled = 0.0;
     while (travelled < length) {
-      final dashEnd = math.min(travelled + _dashLength, length);
+      final dashEnd = math.min(travelled + dashLength, length);
       canvas.drawLine(
         src + direction * travelled,
         src + direction * dashEnd,
         paint,
       );
-      travelled += _dashLength + _dashGap;
+      travelled += dashLength + dashGap;
     }
   }
 }
