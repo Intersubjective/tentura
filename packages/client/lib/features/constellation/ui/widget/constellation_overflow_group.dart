@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
@@ -5,6 +7,27 @@ import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
 import '../bloc/constellation_cubit.dart';
+
+/// Measured size of [ConstellationOverflowGroup] for a [label] at the current
+/// theme, tokens, and text scaler — matches the widget layout math.
+Size constellationOverflowChipSize(BuildContext context, String label) {
+  final tt = context.tt;
+  final theme = Theme.of(context);
+  final textScaler = MediaQuery.textScalerOf(context);
+  final style = theme.textTheme.labelLarge;
+  final textPainter = TextPainter(
+    text: TextSpan(text: label, style: style),
+    maxLines: 1,
+    textDirection: Directionality.of(context),
+    textScaler: textScaler,
+  )..layout();
+  final textWidth = textPainter.width;
+  final textHeight = textPainter.height;
+  final width =
+      2 * tt.screenHPadding + tt.iconSize + tt.iconTextGap + textWidth;
+  final height = math.max(tt.buttonHeight, textHeight + 2 * tt.tightGap);
+  return Size(width, height);
+}
 
 /// Labelled expansion control for a person's request satellites hidden by the
 /// label budget. A secondary tap on the author node may toggle the same state.
@@ -30,25 +53,23 @@ class ConstellationOverflowGroup extends StatelessWidget {
     final cubit = context.read<ConstellationCubit>();
     final expanded = cubit.isSatelliteOverflowExpanded(authorId);
     final label = l10n.constellationMoreRequests(hiddenCount);
+    final chipSize = constellationOverflowChipSize(context, label);
 
     return Semantics(
       button: true,
       expanded: expanded,
       identifier: 'constellation.overflow.$authorId',
       label: label,
-      child: Material(
-        key: Key('constellation.overflow.$authorId'),
-        color: theme.colorScheme.surfaceContainerHighest,
-        borderRadius: BorderRadius.circular(tt.cardRadius),
-        child: InkWell(
-          onTap: () => cubit.toggleSatelliteOverflow(authorId),
-          onSecondaryTap: () => cubit.toggleSatelliteOverflow(authorId),
+      child: SizedBox.fromSize(
+        size: chipSize,
+        child: Material(
+          key: Key('constellation.overflow.$authorId'),
+          color: theme.colorScheme.surfaceContainerHighest,
           borderRadius: BorderRadius.circular(tt.cardRadius),
-          child: ConstrainedBox(
-            constraints: BoxConstraints(
-              minHeight: tt.buttonHeight,
-              minWidth: tt.buttonHeight,
-            ),
+          child: InkWell(
+            onTap: () => cubit.toggleSatelliteOverflow(authorId),
+            onSecondaryTap: () => cubit.toggleSatelliteOverflow(authorId),
+            borderRadius: BorderRadius.circular(tt.cardRadius),
             child: Padding(
               padding: EdgeInsets.symmetric(
                 horizontal: tt.screenHPadding,
