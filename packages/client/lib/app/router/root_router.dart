@@ -190,7 +190,7 @@ class RootRouter extends RootStackRouter {
 
     RedirectRoute(
       path: kPathUpdates,
-      redirectTo: '$kPathInbox?$kQueryHomeTab=$kInboxTabReceipts',
+      redirectTo: kPathInboxHistory,
     ),
 
     RedirectRoute(path: kPathNotifications, redirectTo: kPathUpdates),
