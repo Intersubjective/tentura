@@ -29,7 +29,7 @@ Orchestration: Claude (overseer) drives one fresh Cursor `composer-2.5` worker p
 |---|---|---|---|---|
 | R00 fixture + baseline | — | done | c690eca44, 47e9bf065 | accepted — smoke test independently re-run (pass), `git diff --check` clean, no leaked test processes |
 | R01 label budget (ships alone) | R00 | done | 4dcca824a, 9843bb9d1 | accepted — independently re-ran full `test/features/constellation` (265 pass), `test/features/graph test/features/home` (pass), `check-custom-lints.sh packages/client` (30/30, no drift); diff reviewed, matches UI-09/UI-10 fix design; `_MapOverflowOverlay` `ListenableBuilder` addition is a reasonable documented deviation, superseded by R03 |
-| R02 graph package seams | R01 landed | done | baea36507, b03f9e598, d9dadf575, 8c0f3e2a1 | |
+| R02 graph package seams | R01 landed | done | baea36507, b03f9e598, d9dadf575, bcf3d20f1 | |
 | R03 screen-space labels/chips/badges | R02 | pending | | |
 | R04 collision-aware Request placement | R03 | pending | | |
 | R05 edge legibility | R02 | pending | | |
@@ -152,7 +152,7 @@ flutter test
 
 **Status:** complete
 
-**Commits:** `baea36507` feat(graph): expose camera revision, scale, and viewport-aware fit/jump; `b03f9e598` feat(graph): add opt-in node tap hit tester seam; `d9dadf575` feat(graph): add RepaintingEdgePainter interface; `8c0f3e2a1` docs(plan): R02 graph package seams journal
+**Commits:** `baea36507` feat(graph): expose camera revision, scale, and viewport-aware fit/jump; `b03f9e598` feat(graph): add opt-in node tap hit tester seam; `d9dadf575` feat(graph): add RepaintingEdgePainter interface; `bcf3d20f1` docs(plan): R02 graph package seams journal
 
 **Changed files:**
 - `packages/force_directed_graphview/lib/src/controller.dart`
