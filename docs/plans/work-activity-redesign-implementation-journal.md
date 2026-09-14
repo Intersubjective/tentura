@@ -640,6 +640,10 @@ REMAINING:
 - UNIT 18: Activity chrome (title, mark-all scoped to activity, notification history route).
 - UNIT 19: nav indicators / surface-aware open.
 
+**Environment note:** two leaked processes from this worker's own verification runs were still alive well after the worker itself exited — an orphaned `rg` pipeline (PID 44759/44760, watching test output) and a live `flutter test test/features/inbox/activity_stream_view_test.dart` process tree (44758 + `frontend_server_aot` + `flutter_tester` children). Both killed by the overseer before review. Not a correctness issue, just cleanup hygiene.
+
+**Manager verdict: ACCEPTED — the largest unit in the plan, held up well.** Independently re-ran all three Verify commands (gen-l10n clean, 180/180 flutter test, lints 32/32 baseline). The server-side-exclusion question from the prompt was answered correctly and with real investigation: UNIT 03 already excludes open forwards from the activity-surface receipt stream server-side and dedupes `relay_received` receipts into the forward representation, so no redundant client-side dedup was needed for offers — the worker correctly kept only the pre-existing `computeInvitePromptPinPlacement`/`liftedReceiptIds` mechanism, which is a distinct concern (invite prompts, not open forwards). Read the two most load-bearing tests in full: `'stream pagination waits until offers hasMore is false'` genuinely exercises the pinned-then-stream sequencing (flings to bottom, confirms the offers source pages first via call counts, then exhausts the offers pages and confirms the stream source only THEN starts paginating); `'60 offers and 120 stream items scroll without duplicate keys'` checks for duplicate visible keys after EVERY one of 80 incremental scroll passes, not just the final state — stronger than what was asked. The gate-mounting diff in `inbox_screen.dart` is a clean early-return: gate on returns `ActivityStreamView`, gate off falls through unconditionally to the exact untouched legacy `Column` body. `setScrolledAway`/`demotedBeaconIds` wiring is left cleanly in place for UNIT 17 to build on, as instructed, without extra unrequested behavior. No leaked processes remain (see environment note above), clean git status, commits well split.
+
 ## Ordered unit checklist
 
 | Unit | Status |
@@ -660,7 +664,7 @@ REMAINING:
 | 13 | complete (accepted) |
 | 14 | complete (accepted) |
 | 15 | complete (accepted) |
-| 16 | complete |
+| 16 | complete (accepted) |
 | 17 | pending |
 | 18 | pending |
 | 19 | pending |
