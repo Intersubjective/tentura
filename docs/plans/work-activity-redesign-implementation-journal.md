@@ -720,6 +720,39 @@ REMAINING: none. Proceed to UNIT 19.
 
 **Manager verdict: ACCEPTED.** Journal append landed correctly this time, immediately before the checklist marker — the explicit warning in the prompt worked. Independently re-ran the full Verify block (build_runner clean — confirmed `UpdatesRoute`'s pre-existing page factory is correctly reused for the new `kPathInboxHistory` path binding, not regenerated as a new route class; gen-l10n clean; 8/8 chrome+history tests; lints 32/32 baseline) and confirmed the `7.6.13` version bump is consistent across both files. Read the `inbox_screen.dart` diff in full: the title, actions list, and overflow menu all reduce to their exact original expressions when the gate is off (`redesignEnabled ? l10n.inbox : l10n.updatesTitle`, a conditionally-omitted list element, `showNotificationHistory` defaulting false). `_ActivityMarkAllSeenButton` uses genuine `onPressed: null` when unread is zero — a real disabled state, not just a no-op — reactively wired to `AttentionCase.surfaceSummary`. Confirmed `history` and legacy `activity` destinations both map to `surface: null` per UNIT 08's `surfaceForDestination`, so repurposing `UpdatesScreen`'s destination id changes no query behavior for existing callers, only internal session-key naming — a safe rename, not a hidden behavior change ahead of UNIT 20's flip. The disclosed gap (scroll-restoration-after-back not asserted here, since the widget-test harness's mock router lacks a real nested navigator) is a legitimate test-infrastructure limitation, not corner-cutting — worth confirming via the UNIT 20 e2e suite or UNIT 22's manual smoke walkthrough. No leaked processes, clean git status, commits well split.
 
+## UNIT 19 — complete — 2026-09-14
+
+COMMITS:
+- `7109b7d42` feat(client): feed home attention from surface summary
+- `2586ad4c5` feat(client): badge by responsibility surface in nav
+- `447b7f886` feat(client): open updates on the receipt surface branch
+- `1839b3524` test(client): cover surface nav indicators and openFromUpdate
+- (this journal entry) docs: UNIT 19 nav indicators journal
+
+TESTS:
+- `cd packages/client && flutter test test/features/home/` → **87/87 passed**
+- `./scripts/check-custom-lints.sh packages/client` → `32 (baseline: 32)` — OK
+
+FILES:
+- `packages/client/lib/features/home/ui/bloc/home_attention_state.dart`
+- `packages/client/lib/features/home/ui/bloc/home_attention_cubit.dart`
+- `packages/client/lib/features/home/ui/widget/inbox_navbar_item.dart`
+- `packages/client/lib/features/home/ui/widget/my_work_navbar_item.dart`
+- `packages/client/lib/app/router/root_router.dart`
+- `packages/client/l10n/app_en.arb`, `app_ru.arb`
+- `packages/client/pubspec.yaml` (7.6.13 → 7.6.14), `web/index.html`
+- `packages/client/test/features/home/work_activity_nav_indicators_test.dart` (new)
+
+FINDINGS:
+- `AttentionSurfaceSummary.needsYouTotal` is stored as `surfaceNeedsYouTotal` so gate-off `myWorkObligationCount` (from `unreadSummary`) stays independent.
+- Full nav-bar widget tests with a live `AttentionCase` hung under `testWidgets` (infinite async work); indicator rules are covered via state getters, cubit surface-summary mapping, existing gate-off navbar tests, and router branch tests.
+
+DECISIONS:
+- Added `myWorkNavBadgeObligations` l10n for obligation-count semantics vs `activityNavBadgeNewActivity` on dots.
+- `openFromNotificationLink` accepts optional `preferHomeTab` for gate-on surface routing; gate off keeps `preferUpdatesBranch`.
+
+REMAINING: none. Proceed to UNIT 20.
+
 ## Ordered unit checklist
 
 | Unit | Status |
@@ -743,7 +776,7 @@ REMAINING: none. Proceed to UNIT 19.
 | 16 | complete (accepted) |
 | 17 | complete (accepted, hang diagnosed+fixed by overseer) |
 | 18 | complete (accepted) |
-| 19 | pending |
+| 19 | complete |
 | 20 | pending |
 | 21 | pending |
 | 22 | pending |
