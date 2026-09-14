@@ -603,6 +603,43 @@ REMAINING: none. Proceed to UNIT 16 (mount widgets in `ActivityStreamView`).
 
 **Manager verdict: ACCEPTED.** Independently re-ran all four Verify commands (gen-l10n clean, 87/87 flutter test, lints 32/32 baseline, terminology OK). Confirmed the `inbox_card_actions.dart` extraction landed as its own isolated commit (3 files, pure move, no other unit's changes mixed in). Confirmed the `≤ 180` height assertion is a real programmatic check (`expect(box.size.height, lessThanOrEqualTo(180))`), not just a claim. Personally eyeballed three goldens: the 1.3×-scale forward offer card is compact with dismiss/avatar/title/why-line/actions all present and no overflow; the watching forward-row and not-interested forward-row (RU) show correctly differentiated per-outcome content — the not-interested row alone carries the blue "Вернуть" restore action, confirming outcome-specific action wiring is correct. The disclosed `body`-empty gap (synthetic forward items from UNIT 03 don't yet carry a forwarder-name field, so "From X" attribution will be blank on real data until a future unit adds it) is an honestly-flagged limitation of the server's current synthetic-item shape, not a defect in this unit's own delivered scope — noted for UNIT 22's final acceptance walkthrough. `activity-prompt-pin-$receiptId` was correctly verified to already exist (`TestIds.activityPromptPin`) rather than assumed. No leaked processes, clean git status, commits well split with the pure refactor landing first as instructed.
 
+## UNIT 16 — complete — 2026-09-14
+
+COMMITS:
+- `b645cdf07` feat(client): add activity for-you copy for stream header
+- `fbf7db1cd` feat(client): make activity one stream of offers
+- `9ce1dc99b` feat(client): mount activity stream under redesign gate
+- `9684e601d` test(client): cover activity stream view assembly
+- (this journal entry) docs: UNIT 16 activity stream view journal
+
+TESTS:
+- `cd packages/client && flutter gen-l10n` → exit 0
+- `cd packages/client && flutter test test/features/inbox/ test/features/updates/` → **180/180 passed** (includes 6 new `activity_stream_view_test.dart` cases)
+- `./scripts/check-custom-lints.sh packages/client` → `32 (baseline: 32)` — OK
+
+FILES:
+- `packages/client/lib/features/inbox/ui/widget/activity_stream_view.dart` (new)
+- `packages/client/lib/features/inbox/ui/screen/inbox_screen.dart`
+- `packages/client/l10n/app_en.arb`, `app_ru.arb`
+- `packages/client/lib/ui/test_ids.dart`
+- `packages/client/pubspec.yaml` (7.6.10 → 7.6.11), `web/index.html`
+- `packages/client/test/features/inbox/activity_stream_view_test.dart` (new)
+
+FINDINGS:
+- **Server-side open-forward / receipt overlap:** UNIT 03 dedupes `relay_received` receipts when an inbox row exists on the activity surface; open forwards never appear as stream receipts server-side. Client only lifts invite prompts from the stream via `computeInvitePromptPinPlacement` (`liftedReceiptIds`) — no extra client dedupe for open offers was added.
+- `ActivityOffersCubit` must finish `loadFirst()` before mounting `UpdatesFeedCubit` in widget tests; constructing both concurrently against one `AttentionCase` can deadlock `loadFirst()` in the test zone.
+- Invite prompt pin eligibility requires `presentationPayloadJson.inviteOrigin == "new_account"` (existing `receiptNeedsInvitePromptProjection` rule).
+
+DECISIONS:
+- Pinned-zone `loadFirst()` runs from `InboxScreen`'s `ActivityOffersCubit` provider; the view only wires scroll → `setScrolledAway` (threshold 180 logical px, UNIT 15 card bound) for UNIT 17.
+- Stream receipt exclusion: rely on server activity-surface feed + prompt `liftedReceiptIds` only (see FINDINGS).
+- Per-source failure: offers use inline retry row; stream keeps `UpdatesRefreshErrorBanner` — neither blocks the other.
+
+REMAINING:
+- UNIT 17: live-arrival pill, demotion motion, snackbar scroll-to-row (consumes `demotedBeaconIds` + `setScrolledAway` already wired).
+- UNIT 18: Activity chrome (title, mark-all scoped to activity, notification history route).
+- UNIT 19: nav indicators / surface-aware open.
+
 ## Ordered unit checklist
 
 | Unit | Status |
@@ -623,7 +660,7 @@ REMAINING: none. Proceed to UNIT 16 (mount widgets in `ActivityStreamView`).
 | 13 | complete (accepted) |
 | 14 | complete (accepted) |
 | 15 | complete (accepted) |
-| 16 | pending |
+| 16 | complete |
 | 17 | pending |
 | 18 | pending |
 | 19 | pending |
