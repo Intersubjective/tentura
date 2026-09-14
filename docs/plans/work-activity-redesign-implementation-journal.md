@@ -683,6 +683,41 @@ REMAINING: none. Proceed to UNIT 18.
 
 **Manager verdict: ACCEPTED.** Independently re-ran the full Verify block plus a regression check (5/5 `activity_live_motion_test.dart`, 98/98 `test/features/inbox/`, 87/87 `test/features/updates/`, lints 32/32 baseline, gen-l10n clean) after confirming zero leaked test processes beforehand. Read `_scrollToForwardBeacon` in full: bounded on every axis that matters — a hard 40-pass cap, a `mounted` check, `hasNextPage` gating further page loads, and `position.pixels < position.maxScrollExtent` gating the manual step-scroll fallback for the lazy-list-not-yet-built edge case — no infinite-loop risk. The `pendingMovedToStreamBeaconId` / `stageMovedToStreamNudge` split (cubit owns the pending flag, view owns the actual SnackBar) is a clean, correctly-layered design. Version bump (`7.6.12`) consistent between `pubspec.yaml` and `web/index.html`. Fixed a recurring journal-ordering artifact (the recovery worker's append again displaced the UNIT 16 manager-verdict paragraph, as UNIT 13's worker once did) — restored, no content lost. No leaked processes, clean git status, commits focused (copy, feature, tests, journal).
 
+## UNIT 18 — complete — 2026-09-14
+
+COMMITS:
+- `002ba4fc9` feat(client): add notification history route and screen
+- `faeed8311` feat(client): activity chrome behind redesign gate
+- `95ad63faf` test(client): cover activity chrome and notification history
+- (this journal entry) docs: UNIT 18 activity chrome and history journal
+
+TESTS:
+- `cd packages/client && dart run build_runner build -d` → exit 0
+- `cd packages/client && flutter gen-l10n` → exit 0
+- `cd packages/client && flutter test test/features/inbox/activity_chrome_test.dart test/features/updates/notification_history_screen_test.dart` → **8/8 passed**
+- `./scripts/check-custom-lints.sh packages/client` → `32 (baseline: 32)` — OK
+
+FILES:
+- `packages/client/lib/consts.dart`
+- `packages/client/lib/app/router/root_router.dart`
+- `packages/client/lib/features/inbox/ui/screen/inbox_screen.dart`
+- `packages/client/lib/features/updates/ui/screen/updates_screen.dart`
+- `packages/client/l10n/app_en.arb`, `app_ru.arb`
+- `packages/client/pubspec.yaml` (7.6.12 → 7.6.13), `web/index.html`
+- `packages/client/test/features/inbox/activity_chrome_test.dart` (new)
+- `packages/client/test/features/updates/notification_history_screen_test.dart` (new)
+
+FINDINGS:
+- `UpdatesRoute` was already generated in `root_router.gr.dart` but unregistered until this unit; `kPathUpdates` redirect left unchanged for UNIT 20.
+- Activity scroll restoration after history back is not asserted here: it depends on `PageStorageKey` + real stack pop via AutoRoute; widget tests use a mock router without a nested navigator, so that behavior is deferred (likely integration or UNIT 19+).
+- Gated mark-all-seen reads `AttentionCase.surfaceSummary` (`activityUnreadTotal`), not feed-session `unreadTotal`, so it stays correct when the stream body is activity-scoped.
+
+DECISIONS:
+- History overflow entry and mark-all button only when `readWorkActivityRedesignGateEnabled()`; gate-off overflow unchanged.
+- `openNotificationHistory` pushes `UpdatesRoute` (same as plan’s generated route type).
+
+REMAINING: none. Proceed to UNIT 19.
+
 ## Ordered unit checklist
 
 | Unit | Status |
@@ -705,7 +740,7 @@ REMAINING: none. Proceed to UNIT 18.
 | 15 | complete (accepted) |
 | 16 | complete (accepted) |
 | 17 | complete (accepted, hang diagnosed+fixed by overseer) |
-| 18 | pending |
+| 18 | complete |
 | 19 | pending |
 | 20 | pending |
 | 21 | pending |
