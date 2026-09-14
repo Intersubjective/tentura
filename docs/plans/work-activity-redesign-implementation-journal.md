@@ -757,6 +757,76 @@ REMAINING: none. Proceed to UNIT 20.
 
 **Manager verdict: ACCEPTED.** Independently re-ran the full `test/features/home/` suite (87/87, no hangs, ~6s) and lints (32/32 baseline) after confirming zero leaked processes. Journal landed correctly, immediately before the checklist marker. Read the navbar item diffs in full: every gate-off condition reduces to its exact original expression (`!redesignEnabled && state.showInboxTriageBadge`, etc.); specifically checked whether `showLegacyObligationBadge` could ever be true while the obligation count is 0 (which would show a stray "0" badge instead of the old icon-only state) — it can't, since `showMyWorkObligationBadge` is literally defined as `myWorkObligationCount > 0`, so the two can never disagree. Read the `openFromUpdate`/`root_router.dart` diff: gate off calls the byte-identical original `openFromNotificationLink(link, preferUpdatesBranch: true)`; gate on computes the branch from `receipt.surface` via a new `preferHomeTab` parameter that's additive, not a replacement, so no other caller is affected. No leaked processes remain, clean git status, commits well split. This closes out every pre-flip unit (00-19).
 
+## UNIT 20 — complete — 2026-09-14
+
+COMMITS:
+- `d58fc8626` feat(client): ship the work/activity redesign (overseer: gate default on, `kPathUpdates` → `kPathInboxHistory`)
+- `105d71c53` test: pin home navbar tests to legacy gate-off badge rules
+- `4f89c9738` test: pin legacy my work widget tests to gate off
+- `8dfd7d354` test: pin legacy inbox chrome tests to gate off
+- `b891cd55d` test: expect /home/updates to land on notification history
+- `12225ffbf` test(integration): navigate Activity via offer stream helpers
+- `5a434dcb7` test: add work activity first-paint proofs at 360×640
+- `7c3b9d0e0` docs: UNIT 20 flip journal
+
+TESTS:
+- `cd packages/client && dart run build_runner build -d` → OK
+- `cd packages/client && flutter test` → **3287 passed, 29 skipped, 0 failed** (was 22 failed before fixes; +1 routing fallout fixed)
+- `./scripts/check-custom-lints.sh packages/client` → `32 (baseline: 32)` OK
+
+FILES:
+- `packages/client/lib/features/home/domain/work_activity_redesign_gate.dart` (overseer)
+- `packages/client/lib/app/router/root_router.dart` (overseer)
+- `packages/client/integration_test/support/e2e_test_helpers.dart`
+- `packages/client/test/features/home/inbox_navbar_item_test.dart`
+- `packages/client/test/features/home/my_work_navbar_item_test.dart`
+- `packages/client/test/features/home/constellation_nav_test.dart`
+- `packages/client/test/features/my_work/my_work_scope_coincidence_test.dart`
+- `packages/client/test/features/my_work/my_work_obligations_pane_test.dart`
+- `packages/client/test/features/my_work/my_work_card_router_navigation_test.dart`
+- `packages/client/test/features/my_work/my_work_card_metadata_row_test.dart`
+- `packages/client/test/features/inbox/inbox_watching_route_test.dart`
+- `packages/client/test/features/inbox/inbox_expanded_chrome_test.dart`
+- `packages/client/test/app/router/home_tab_branch_routing_test.dart`
+- `packages/client/test/features/home/work_activity_first_paint_test.dart` (new)
+
+FINDINGS:
+- Default gate-on without GetIt override made `readWorkActivityRedesignGateEnabled()` true in widget tests; legacy-only surfaces (obligations pane, triage chrome, pre-D5 navbar rules) needed explicit `workActivityRedesignGate=false`.
+- `MyWorkCardMetadataRow` hides last-event metadata when redesign is on (`hideLastEventMetadata`), so metadata alignment tests must stay on the legacy gate.
+- Activity offer cards expose `TestIds.activityOffer` as a **semantics identifier**, not a `ValueKey`; e2e/helpers must use `find.bySemanticsIdentifier`.
+- Full-suite fallout: `home_tab_branch_routing_test` still expected the pre-UNIT-20 `/home/updates` → inbox receipts redirect.
+
+DECISIONS (rule 8 — all 22 overseer-listed failures):
+| Test | Category | Rationale |
+|---|---|---|
+| `my_work_scope_coincidence_test`: badge count matches mounted obligation rows | pinned-to-legacy | Exercises obligations pane + legacy badge coupling; pane absent when redesign on. |
+| `my_work_scope_coincidence_test`: multiplicity (two live receipts…) | pinned-to-legacy | Same legacy pane/badge contract. |
+| `my_work_scope_coincidence_test`: settling one of two obligations… | pinned-to-legacy | Same legacy pane/badge contract. |
+| `my_work_obligations_pane_test`: gate on lists live obligations in the feed | pinned-to-legacy | Tests `myWorkObligationsGate` + **legacy** obligations pane (UNIT 21 delete target). |
+| `my_work_obligations_pane_test`: settling an obligation removes it from the pane… | pinned-to-legacy | Same legacy pane behavior. |
+| `my_work_card_router_navigation_test`: tapping card pushes BeaconViewRoute | pinned-to-legacy | Legacy card chrome exposes tappable title; redesign card layout differs. |
+| `my_work_card_metadata_row_test`: metadata row at 360px | pinned-to-legacy | Asserts last-event/updated metadata hidden when redesign on. |
+| `my_work_card_metadata_row_test`: segment YOU icon x-aligns… | pinned-to-legacy | Same `hideLastEventMetadata` gate coupling. |
+| `inbox_watching_route_test`: overflow opens Watching… | pinned-to-legacy | Legacy inbox overflow chrome (pre–Activity stream shell). |
+| `inbox_watching_route_test`: highlightBeaconId selects row once | pinned-to-legacy | Pump helper shared with legacy `InboxScreen` path; gate off for consistency. |
+| `inbox_expanded_chrome_test`: expanded list host TopBar… | pinned-to-legacy | Asserts legacy `UpdatesFeedPane` expanded chrome. |
+| `inbox_expanded_chrome_test`: expanded screen keeps feed body mounted | pinned-to-legacy | Same legacy feed body. |
+| `inbox_expanded_chrome_test`: regular width host TopBar… | pinned-to-legacy | Same legacy feed body. |
+| `my_work_navbar_item_test`: shows numeric badge for live obligations | pinned-to-legacy | Pre–UNIT 19 obligation count via `needsYou` feed, not `surfaceNeedsYouTotal`. |
+| `my_work_navbar_item_test`: keeps numeric badge on active My Work tab | pinned-to-legacy | Same legacy navbar rule. |
+| `inbox_navbar_item_test`: shows numeric badge for pending triage | pinned-to-legacy | Legacy triage-count badge (D5 dot-only applies gate-on). |
+| `inbox_navbar_item_test`: shows dot when only unread markers | pinned-to-legacy | Legacy unread-dot semantics. |
+| `inbox_navbar_item_test`: shows nothing when triage and unread zero | pinned-to-legacy | Legacy badge hide rule. |
+| `inbox_navbar_item_test`: triage count wins over unread dot | pinned-to-legacy | Legacy precedence rule. |
+| `inbox_navbar_item_test`: keeps numeric badge on active Activity tab | pinned-to-legacy | Legacy triage badge on selected tab. |
+| `inbox_navbar_item_test`: semantics differ between triage and unread dot | pinned-to-legacy | Legacy a11y labels for triage vs unread. |
+| `constellation_nav_test`: anti-feed constellation has no badge while others do | pinned-to-legacy | Legacy dot/badge mix on non-constellation items (UNIT 19 rules are gate-on). |
+
+Additional full-suite fix (not in overseer list of 22):
+| `home_tab_branch_routing_test`: legacy `/home/updates` deep link | updated-to-new | UNIT 20 redirect chain: `kPathUpdates` → `kPathInboxHistory` (`UpdatesRoute`), not inbox receipts query. |
+
+REMAINING: Web integration suite (`./scripts/run_client_integration_web_local.sh`) deferred to overseer follow-up after this unit is accepted. UNIT 21 legacy cleanup next.
+
 ## Ordered unit checklist
 
 | Unit | Status |
@@ -781,7 +851,7 @@ REMAINING: none. Proceed to UNIT 20.
 | 17 | complete (accepted, hang diagnosed+fixed by overseer) |
 | 18 | complete (accepted) |
 | 19 | complete (accepted) — all pre-flip units done |
-| 20 | pending |
+| 20 | complete |
 | 21 | pending |
 | 22 | pending |
 
