@@ -29,7 +29,7 @@ Orchestration: Claude (overseer) drives one fresh Cursor `composer-2.5` worker p
 |---|---|---|---|---|
 | R00 fixture + baseline | — | done | c690eca44, 47e9bf065 | accepted — smoke test independently re-run (pass), `git diff --check` clean, no leaked test processes |
 | R01 label budget (ships alone) | R00 | done | 4dcca824a, 9843bb9d1 | accepted — independently re-ran full `test/features/constellation` (265 pass), `test/features/graph test/features/home` (pass), `check-custom-lints.sh packages/client` (30/30, no drift); diff reviewed, matches UI-09/UI-10 fix design; `_MapOverflowOverlay` `ListenableBuilder` addition is a reasonable documented deviation, superseded by R03 |
-| R02 graph package seams | R01 landed | in progress | | |
+| R02 graph package seams | R01 landed | done | baea36507, b03f9e598, d9dadf575, 8c0f3e2a1 | |
 | R03 screen-space labels/chips/badges | R02 | pending | | |
 | R04 collision-aware Request placement | R03 | pending | | |
 | R05 edge legibility | R02 | pending | | |
@@ -141,3 +141,37 @@ flutter test
 **Decisions:** Formula table verified unchanged (375×547 @1.0 → (1,28), etc.). No client version bump per unit instructions.
 
 **Remaining:** Manager commit hash + verdict; R02+.
+
+### R02 — worker — checkpoint
+
+- Implemented camera `cameraRevision` / `cameraScale` / `viewportSize`, viewport-aware `fitToRect` / `jumpToPosition`, `NodeTapHitTester`, and `RepaintingEdgePainter` in `packages/force_directed_graphview` only.
+- Deviation: `fitToRect` uses `rawScale.clamp(min(minBound, maxBound), max(minBound, maxBound))` so an explicit `maxScale` below the InteractiveViewer boundary floor does not throw (plan prose used bare `clamp` which fails when `maxScale < _boundaryMinScale()`).
+- Reverted unintended `analysis_options.yaml` exclude block auto-added by `flutter test` (not part of R02).
+
+### R02 — worker — final
+
+**Status:** complete
+
+**Commits:** `baea36507` feat(graph): expose camera revision, scale, and viewport-aware fit/jump; `b03f9e598` feat(graph): add opt-in node tap hit tester seam; `d9dadf575` feat(graph): add RepaintingEdgePainter interface; `8c0f3e2a1` docs(plan): R02 graph package seams journal
+
+**Changed files:**
+- `packages/force_directed_graphview/lib/src/controller.dart`
+- `packages/force_directed_graphview/lib/src/configuration.dart`
+- `packages/force_directed_graphview/lib/src/graph_view.dart`
+- `packages/force_directed_graphview/lib/src/widget/node_drag_gesture.dart`
+- `packages/force_directed_graphview/lib/src/edge_painter/edge_painter.dart`
+- `packages/force_directed_graphview/lib/src/widget/edges_view.dart`
+- `packages/force_directed_graphview/test/controller_test.dart`
+- `packages/force_directed_graphview/test/node_drag_gesture_test.dart`
+- `packages/force_directed_graphview/test/scene_rendering_test.dart`
+- `docs/plans/constellation-ui-remediation-journal.md`
+
+**Tests:**
+- `cd packages/force_directed_graphview && flutter test test/controller_test.dart test/node_drag_gesture_test.dart test/scene_rendering_test.dart test/scene_layout_protocol_test.dart test/scene_controller_layout_lifecycle_test.dart` — pass (55 tests)
+- `cd packages/force_directed_graphview && flutter test` — pass (112 tests)
+- `cd packages/force_directed_graphview && dart analyze --format machine` — exit 2 (pre-existing warnings/info only; no new errors in owned files)
+- `cd packages/client && flutter test test/features/graph` — pass
+
+**Decisions:** Tap-only pending clears on `kTouchSlop` before other move handling; drags still require painted body (`_pendingNodeId`). Default `viewportInsets` / `maxScale` / absent `nodeTapHitTester` preserve prior matrices and hit paths (regression test on legacy matrix).
+
+**Remaining:** Manager verdict; R03+.
