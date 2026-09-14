@@ -68,14 +68,15 @@ Tier-2 edges are visually distinct and carry **no label** about what evidence pr
 - Tap a **request** → preview sheet (need, timing, coverage, connection copy, held-state actions).
 - Tap a **person** → person panel with their discoverable requests (expand/collapse per person).
 - **Filter bar** above the map: capability, location presence, timing, include-unspecified toggle.
-- **Overflow groups** per author when label budget hides satellites (`+N more`).
+- **Overflow groups** per author when label budget hides satellites (`+N more`); an expanded author's group becomes a **"Show fewer"** control so expansion is reversible from the map itself.
 - **Snapshot bar:** load timestamp, Map/Text switch, refresh control.
+- **Camera recovery:** "Show whole field" fits every currently placed node into view (never above scale 1.0); "Center view" recentres on the viewer at scale 1.0. Neither moves pins, filters, selection, or expansion state. Opening the Field, changing filters, expanding/collapsing an author, and switching Map/Text never move the camera on their own.
 - **Pin controls:** dropping an unpinned person or request pins it immediately at the drop coordinate. Moving an already pinned target saves its final position on drop; unpin removes only that account's placement and re-layouts that node into the automatic layer.
 - Actions revalidate current permissions and request state before offer/forward submission (UX8); stale snapshot shows recovery copy and refresh.
 
 ### Pinned placement and request state
 
-Pins belong to the viewing account and describe a stable personal map. They may overlap; the most recently stored placement is drawn and tapped on top. A pin is not a saved request: **Favorites** and Constellation pins are independent actions.
+Pins belong to the viewing account and describe a stable personal map. They may overlap; the most recently stored placement is drawn and tapped on top. This overlap allowance is for pins only — automatic placement keeps every unpinned node's readable footprint (body, label, badges) clear of avoidable overlap with other placed nodes, including its own author. A pin is not a saved request: **Favorites** and Constellation pins are independent actions.
 
 If a pinned request is temporarily outside the active field, its placement remains stored. **Show closed** can reveal readable wrapping-up and closed requests, while cancelled, deleted, unpublished, blocked, and otherwise unreadable requests never render. When an eligible request returns, it returns at its saved position. A pinned person may remain even when that person currently has no active readable requests.
 
@@ -96,7 +97,9 @@ There is **no effort filter** — effort is not a reliable authorized field in v
 
 ### Density (UX5)
 
-Label budget scales with viewport area and text scale factor. When the budget is exceeded, requests group under per-author overflow controls. Field-level notices explain peer cap, request cap, and client render cap when truncation applies.
+Label budget scales with viewport area and a dimensionless text-scale ratio (not a font size), and is applied consistently to every composition — the first load and every later recompose (filter change, expand/collapse, tab reselect) use the same budget. When the budget is exceeded, requests group under per-author overflow controls. Field-level notices explain peer cap, request cap, and client render cap when truncation applies.
+
+Labels, overflow chips, and the pin/status badges render as a screen-space overlay layer above the camera-transformed graph, so they stay at their configured size (and text stays legible) regardless of camera zoom. Pin and status badges sit at the node's top corners and never cover its label.
 
 ### Positional stability (narrowed A3)
 
@@ -154,6 +157,8 @@ Shipped behavior deliberately excludes or narrows the following. Do not "fix" th
 7. **Stage-2 reachability cost (`ALG-STAGE2`)** — a holder whose only route needs a tier-2 (`T`) node at a ring other than its explicit-trust depth-1 falls to the **residual ring** although a path exists, because one person is never drawn at two rings.
 8. **No remote filter** — location fields establish **presence** only; absence of location means *unspecified*, never "remote."
 9. **Discoverability toggle on view screen** — authors reach the control via create/edit (`BeaconCreateRoute(editId:)`); published request view does not mount `BeaconDiscoverabilityControl` yet. Reusable widget exists for a future mount.
+
+**Follow-ups (deferred, not narrowed contracts):** general edge-detour routing (labels moved to an opaque screen-space layer instead, so edges never show through label text — automatic placement still prefers candidates whose attachment line does not cross another body, but full rerouting around obstacles is out of scope for this pass).
 
 ## Related docs
 
