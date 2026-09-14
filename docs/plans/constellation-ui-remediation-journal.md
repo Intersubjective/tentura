@@ -37,7 +37,7 @@ Orchestration: Claude (overseer) drives one fresh Cursor `composer-2.5` worker p
 | R03b wire overlay + badges + R03 tests (split of R03, part 2) | R03a | done | 185d5af80, c1e8b9ad8, 24a9abe90, cc16577de, 2a0dff449, 09fea0d8e, c4addd3af, 9838597fd | accepted — independently re-ran the 9 new UI-03/UI-13/UI-14 tests, full `test/features/constellation` (286 pass), `test/features/graph` (217 pass), terminology + lint gates clean (30/30, no drift); diff reviewed — `_MapOverflowOverlay` fully removed, `labelBuilder: null`, badges use `PositionedDirectional` with no `bottom:` offset anywhere, `nodeTapHitTester` stale-frame guard matches §3.4, unknown-status suppresses the status badge; `updateFootprintMetrics` deliberately stores-only (no reconcile) with the follow-up flagged for R04 |
 | R04a drawn-only set + footprints + obstacles (split of R04, part 1) | R03b | done | eb87660b6, 77ad4c7cb, 1f249a958, 93e61f416 | accepted — independently ramped verification (layout_test → algorithms/scene_layout → p06/density/recovery → full constellation suite, 293 pass) checking memory at each step per D-M6; architecture boundary test + lints clean (30/30, no drift); diff reviewed — obstacle model correct (people path bit-for-bit unchanged via untouched `_totalIntersectionArea`, requests test full footprint against `obstacles` including own author), `footprints` joins `==`/`hashCode` on `ConstellationSceneLayoutAlgorithm`, `constellationFootprintOverlaps` matches spec; the one changed test threshold (120→150) is a documented, expected consequence of removing the author exemption, not a loosened pin/person guard |
 | R04b satellite geometry + crossing preference + R04 tests (split of R04, part 2) | R04a | done | f2146021e, 7a4362fe5, bb8b3adf5 | accepted — plan R04 (UI-01/UI-02/UI-05/UI-11) closed; independently ramped verification (layout_test 25 → algorithms/scene_layout 17 → p06/density 30 → full constellation 301 pass) checking memory at each step; architecture boundary + lints clean (30/30, no drift); diff reviewed — ego-direction bisector, footprint-aware fan spacing (empty-footprints no-op preserved), and crossing preference (correctly uses body boxes not footprints, a deliberate and correct deviation from my literal prompt wording) all match plan §3.5; no test thresholds needed changing |
-| R05 edge legibility | R02 | pending | | |
+| R05 edge legibility | R02 | done | 3d19ea4eb, 499631ba5, 9586255a1 | |
 | R06 targeting + semantics | R02, R03b | pending | | |
 | R07 camera recovery + app bar | R02, R03b | pending | | |
 | R08 integrate, verify, release | R00–R07 (R04→R04a+R04b done, R03→R03a+R03b done) | pending | | |
@@ -338,3 +338,35 @@ flutter test
 **Decisions:** Full-layout “mean satellite angle in gap” deferred to pure-helper + single-peer opposite-direction test (path-resolution fixture for multi-peer layout was brittle in isolation). Expanded-author overlap variant not added — representative `_referenceLikeInput` uses `in` author chip via `hasAuthorChip: true` on `in` footprint.
 
 **Remaining:** Manager verdict; R05+.
+
+### R05 — worker — checkpoint
+
+- Confirmed R02 landed: `RepaintingEdgePainter<N,E>` with `Listenable repaint`; `GraphController.cameraRevision` (`ValueListenable<int>`) and `cameraScale` getter match journal.
+- Deviation: old ring-stub edges used `outlineVariant` at 70% alpha; R05 spec unifies path/stub colour to `tt.graphEdgePath` with distinct dash patterns (2/4 vs 6/4) instead of alpha fade.
+
+### R05 — worker — final
+
+**Status:** complete
+
+**Commits:** `3d19ea4eb` feat(client): add graphEdgePath design token; `499631ba5` feat(client): derive Constellation edge styling from shared tokens; `9586255a1` fix(client): keep Constellation legend dash pattern in sync with the edge painter
+
+**Changed files:**
+- `packages/client/lib/design_system/tentura_tokens.dart`
+- `packages/client/lib/features/constellation/ui/utils/constellation_edge_style.dart` (new)
+- `packages/client/lib/features/constellation/ui/widget/constellation_body.dart`
+- `packages/client/lib/features/constellation/ui/bloc/constellation_cubit.dart`
+- `packages/client/lib/features/graph/ui/widget/graph_legend_content.dart`
+- `packages/client/test/features/constellation/constellation_edge_style_test.dart` (new)
+- `packages/client/test/features/constellation/constellation_edge_painter_test.dart` (new)
+- `packages/client/test/features/graph/graph_legend_test.dart`
+- `docs/plans/constellation-ui-remediation-journal.md`
+
+**Tests:**
+- `cd packages/client && flutter test test/features/constellation/constellation_edge_style_test.dart test/features/constellation/constellation_edge_painter_test.dart` — pass
+- `cd packages/client && flutter test test/features/constellation` — 306 passed
+- `cd packages/client && flutter test test/features/graph` — 218 passed
+- `./scripts/check-custom-lints.sh packages/client` — 30/30, no drift
+
+**Decisions:** Legend dashed swatch was 5/4 vs painter 6/4; both now read `constellationEdgeStyle`. `_trim` applies to all edge kinds (drops attachment-only 15% dst gap). Screenshots skipped (contrast unit tests cover visibility gate).
+
+**Remaining:** Manager verdict; R06+.
