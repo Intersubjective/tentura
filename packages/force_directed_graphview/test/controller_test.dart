@@ -229,6 +229,181 @@ void main() {
 
     graphController.dispose();
   });
+
+  testWidgets('cameraRevision increments after jumpToPosition and zoomBy',
+      (tester) async {
+    final graphController = testIntGraphController();
+    const node = Node<int>(data: 1, size: 50);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: SizedBox(
+          width: 800,
+          height: 600,
+          child: GraphView<Node<int>, Edge<Node<int>, void>>(
+            controller: graphController,
+            canvasSize: const GraphCanvasSize.fixed(Size(500, 500)),
+            layoutAlgorithm: const _CornerFixedSceneLayout(),
+            nodeBuilder: (context, node) => const SizedBox.shrink(),
+          ),
+        ),
+      ),
+    );
+
+    testAddNode(graphController, node);
+    await tester.pumpAndSettle();
+
+    final revisionAfterLayout = graphController.cameraRevision.value;
+    graphController.jumpToPosition(const Offset(120, 80));
+    await tester.pump();
+    expect(graphController.cameraRevision.value, greaterThan(revisionAfterLayout));
+
+    final revisionAfterJump = graphController.cameraRevision.value;
+    graphController.zoomBy(1.1);
+    await tester.pump();
+    expect(graphController.cameraRevision.value, greaterThan(revisionAfterJump));
+
+    graphController.dispose();
+  });
+
+  testWidgets('cameraScale matches transformation matrix scale', (tester) async {
+    final graphController = testIntGraphController();
+    const node = Node<int>(data: 1, size: 50);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: GraphView<Node<int>, Edge<Node<int>, void>>(
+          controller: graphController,
+          canvasSize: const GraphCanvasSize.fixed(Size(500, 500)),
+          layoutAlgorithm: const _CornerFixedSceneLayout(),
+          nodeBuilder: (context, node) => const SizedBox.shrink(),
+        ),
+      ),
+    );
+
+    testAddNode(graphController, node);
+    await tester.pumpAndSettle();
+
+    graphController.zoomIn(1.5);
+    await tester.pump();
+
+    final viewer =
+        tester.widget<InteractiveViewer>(find.byType(InteractiveViewer));
+    expect(
+      graphController.cameraScale,
+      closeTo(
+        viewer.transformationController!.value.getMaxScaleOnAxis(),
+        1e-9,
+      ),
+    );
+
+    graphController.dispose();
+  });
+
+  testWidgets(
+      'fitToRect with viewportInsets and maxScale centers in usable region',
+      (tester) async {
+    final graphController = testIntGraphController();
+    const node = Node<int>(data: 1, size: 50);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: SizedBox(
+          width: 800,
+          height: 600,
+          child: GraphView<Node<int>, Edge<Node<int>, void>>(
+            controller: graphController,
+            minScale: 0.1,
+            maxScale: 2,
+            canvasSize: const GraphCanvasSize.fixed(Size(2000, 2000)),
+            layoutAlgorithm: const _CornerFixedSceneLayout(),
+            nodeBuilder: (context, node) => const SizedBox.shrink(),
+          ),
+        ),
+      ),
+    );
+
+    testAddNode(graphController, node);
+    await tester.pumpAndSettle();
+
+    final target =
+        Rect.fromCenter(center: const Offset(200, 150), width: 400, height: 300);
+    graphController.fitToRect(
+      target,
+      viewportInsets: const EdgeInsets.only(right: 100),
+      maxScale: 1.0,
+    );
+    await tester.pump();
+
+    final mapped = graphController.sceneToViewportLocal(target.center);
+    const usableCentre = Offset(350, 300);
+    expect(mapped.dx, closeTo(usableCentre.dx, 0.5));
+    expect(mapped.dy, closeTo(usableCentre.dy, 0.5));
+    expect(graphController.cameraScale, lessThanOrEqualTo(1.0));
+
+    graphController.dispose();
+  });
+
+  testWidgets('default fitToRect and jumpToPosition match legacy matrix formula',
+      (tester) async {
+    final graphController = testIntGraphController();
+    const node = Node<int>(data: 1, size: 50);
+
+    await tester.pumpWidget(
+      MaterialApp(
+        home: SizedBox(
+          width: 800,
+          height: 600,
+          child: GraphView<Node<int>, Edge<Node<int>, void>>(
+            controller: graphController,
+            minScale: 0.5,
+            maxScale: 2,
+            canvasSize: const GraphCanvasSize.fixed(Size(500, 500)),
+            layoutAlgorithm: const _CornerFixedSceneLayout(),
+            nodeBuilder: (context, node) => const SizedBox.shrink(),
+          ),
+        ),
+      ),
+    );
+
+    testAddNode(graphController, node);
+    await tester.pumpAndSettle();
+
+    final viewer =
+        tester.widget<InteractiveViewer>(find.byType(InteractiveViewer));
+    final transform = viewer.transformationController!;
+
+    final fitRect =
+        Rect.fromCenter(center: const Offset(180, 220), width: 100, height: 80);
+    const fitPadding = 48.0;
+    final padded = fitRect.inflate(fitPadding);
+    final pixel = graphController.viewportSize!;
+    final legacyFitScale = math
+        .min(pixel.width / padded.width, pixel.height / padded.height)
+        .clamp(0.5, 2.0)
+        .toDouble();
+    final legacyFit = Matrix4.identity()
+      ..translate(pixel.width / 2, pixel.height / 2)
+      ..scale(legacyFitScale)
+      ..translate(-padded.center.dx, -padded.center.dy);
+
+    graphController.fitToRect(fitRect, padding: fitPadding);
+    await tester.pump();
+    expect(transform.value.storage, legacyFit.storage);
+
+    const jumpTarget = Offset(90, 110);
+    final currentScale = transform.value.getMaxScaleOnAxis();
+    final legacyJump = Matrix4.identity()
+      ..translate(pixel.width / 2, pixel.height / 2)
+      ..scale(currentScale)
+      ..translate(-jumpTarget.dx, -jumpTarget.dy);
+
+    graphController.jumpToPosition(jumpTarget);
+    await tester.pump();
+    expect(transform.value.storage, legacyJump.storage);
+
+    graphController.dispose();
+  });
 }
 
 final class _CornerFixedSceneLayout implements SceneLayoutAlgorithm {

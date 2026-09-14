@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:math' as math;
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
 import 'package:force_directed_graphview/force_directed_graphview.dart';
@@ -46,6 +47,7 @@ class GraphView<N, E> extends StatefulWidget {
     this.onNodeDragEnd,
     this.onNodeDragCancel,
     this.onNodeTap,
+    this.nodeTapHitTester,
     this.nodePaintOrder,
     super.key,
   });
@@ -116,6 +118,9 @@ class GraphView<N, E> extends StatefulWidget {
 
   /// Optional short-press hook using scene paint/hit order (not widget z-order).
   final NodeTapCallback<N>? onNodeTap;
+
+  /// Optional tap target resolver; defaults to the body hit-test result.
+  final NodeTapHitTester? nodeTapHitTester;
 
   /// Optional shared paint/hit order. Later entries paint and hit-test on top.
   final List<GraphNodeId>? nodePaintOrder;
@@ -215,6 +220,7 @@ class _GraphViewState<N, E> extends State<GraphView<N, E>>
         onNodeTap: widget.onNodeTap == null
             ? null
             : (node) => widget.onNodeTap!(node as N),
+        nodeTapHitTester: widget.nodeTapHitTester,
         nodePaintOrder: widget.nodePaintOrder,
       ),
       child: _CameraGatedInteractiveViewer(

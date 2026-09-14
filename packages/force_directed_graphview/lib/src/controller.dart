@@ -37,6 +37,7 @@ class GraphController<N, E> with ChangeNotifier {
   SceneLayoutAlgorithm? _currentAlgorithm;
   LazyBuilding? _lazyBuilding;
   TransformationController? _transformationController;
+  final ValueNotifier<int> _cameraRevision = ValueNotifier<int>(0);
   GraphCanvasSize? _size;
   Size? _lastViewportSceneSize;
   Size? _lastLayoutConstraints;
@@ -115,6 +116,16 @@ class GraphController<N, E> with ChangeNotifier {
   /// ID-keyed scene state owned by this controller.
   @visibleForTesting
   GraphSceneController<N, E> get scene => _scene;
+
+  /// Increments on every camera transform change (pan/zoom/fit/jump).
+  ValueListenable<int> get cameraRevision => _cameraRevision;
+
+  /// Current uniform camera scale; 1.0 before a view is attached.
+  double get cameraScale =>
+      _transformationController?.value.getMaxScaleOnAxis() ?? 1.0;
+
+  /// Viewport size in logical pixels, or null before the first layout.
+  Size? get viewportSize => _viewportPixelSize;
 
   /// Number of times [_requestSceneLayout] has started. For tests only.
   @visibleForTesting
@@ -428,7 +439,11 @@ class GraphController<N, E> with ChangeNotifier {
   /// Instantly jumps to the given position on canvas.
   ///
   /// When [resetScale] is true, zoom is restored to 1.0 (the default).
-  void jumpToPosition(Offset position, {bool resetScale = false}) {
+  void jumpToPosition(
+    Offset position, {
+    bool resetScale = false,
+    EdgeInsets viewportInsets = EdgeInsets.zero,
+  }) {
     _abortActiveGesturesIfCameraGated();
     final controller = _transformationController;
     final pixel = _viewportPixelSize;
@@ -438,9 +453,11 @@ class GraphController<N, E> with ChangeNotifier {
 
     final oldScale = controller.value.getMaxScaleOnAxis();
     final matrixScale = resetScale ? 1.0 : oldScale;
+    final usable = _usableViewportRect(pixel, viewportInsets);
+    final centre = usable.center;
 
     controller.value = Matrix4.identity()
-      ..translate(pixel.width / 2, pixel.height / 2)
+      ..translate(centre.dx, centre.dy)
       ..scale(matrixScale)
       ..translate(-position.dx, -position.dy);
     _syncActualViewportFromPixelSize();
@@ -484,7 +501,12 @@ class GraphController<N, E> with ChangeNotifier {
   }
 
   /// Fits [rect] (in canvas coordinates) into the viewport.
-  void fitToRect(Rect rect, {double padding = 48}) {
+  void fitToRect(
+    Rect rect, {
+    double padding = 48,
+    EdgeInsets viewportInsets = EdgeInsets.zero,
+    double? maxScale,
+  }) {
     _abortActiveGesturesIfCameraGated();
     final transformation = _transformationController;
     final pixel = _viewportPixelSize;
@@ -497,20 +519,49 @@ class GraphController<N, E> with ChangeNotifier {
       return;
     }
 
-    final viewportWidth = pixel.width;
-    final viewportHeight = pixel.height;
-
-    final scale = math
-        .min(viewportWidth / padded.width, viewportHeight / padded.height)
-        .clamp(_boundaryMinScale(), _maxScale)
+    final usable = _usableViewportRect(pixel, viewportInsets);
+    final minBound = _boundaryMinScale();
+    final maxBound =
+        maxScale == null ? _maxScale : math.min(maxScale, _maxScale);
+    final rawScale = math.min(
+      usable.width / padded.width,
+      usable.height / padded.height,
+    );
+    final scale = rawScale
+        .clamp(math.min(minBound, maxBound), math.max(minBound, maxBound))
         .toDouble();
 
     final center = padded.center;
+    final usableCentre = usable.center;
     transformation.value = Matrix4.identity()
-      ..translate(viewportWidth / 2, viewportHeight / 2)
+      ..translate(usableCentre.dx, usableCentre.dy)
       ..scale(scale)
       ..translate(-center.dx, -center.dy);
     _syncActualViewportFromPixelSize();
+  }
+
+  Rect _usableViewportRect(Size pixel, EdgeInsets viewportInsets) {
+    final usable = Rect.fromLTRB(
+      viewportInsets.left,
+      viewportInsets.top,
+      pixel.width - viewportInsets.right,
+      pixel.height - viewportInsets.bottom,
+    );
+    if (usable.width <= 0 || usable.height <= 0) {
+      return Offset.zero & pixel;
+    }
+    return usable;
+  }
+
+  void _onCameraChanged() => _cameraRevision.value++;
+
+  void _bindTransformationController(TransformationController controller) {
+    if (identical(_transformationController, controller)) {
+      return;
+    }
+    _transformationController?.removeListener(_onCameraChanged);
+    _transformationController = controller;
+    _transformationController?.addListener(_onCameraChanged);
   }
 
   void _requestSceneLayout() {
@@ -869,6 +920,7 @@ class GraphController<N, E> with ChangeNotifier {
   void _detachTransitionTicker() {
     _ticker?.dispose();
     _ticker = null;
+    _transformationController?.removeListener(_onCameraChanged);
     _transformationController = null;
     _viewportPixelSize = null;
     _transitionFrom = null;
@@ -904,7 +956,7 @@ class GraphController<N, E> with ChangeNotifier {
     _ticker = vsync.createTicker(_onTransitionTick);
 
     _lazyBuilding = lazyBuilding;
-    _transformationController = transformationController;
+    _bindTransformationController(transformationController);
     _currentAlgorithm = algorithm;
     _size = size;
     _currentSize = _size?.resolve(nodeSizes: _nodes.map(_nodeSizeOf));
@@ -1042,10 +1094,12 @@ class GraphController<N, E> with ChangeNotifier {
   @override
   void dispose() {
     _disposed = true;
+    _transformationController?.removeListener(_onCameraChanged);
     _scene.removeListener(_onSceneStateChanged);
     _scene.dispose();
     _ticker?.dispose();
     _ticker = null;
+    _cameraRevision.dispose();
     super.dispose();
   }
 
