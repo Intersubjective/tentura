@@ -34,6 +34,7 @@ import 'constellation_anchor_controls.dart';
 import 'constellation_filter_bar.dart';
 import 'constellation_overflow_group.dart';
 import 'constellation_request_status_marker.dart';
+import 'constellation_node_semantics.dart';
 import 'constellation_request_label.dart';
 import 'constellation_request_preview_sheet.dart';
 import 'constellation_text_view.dart';
@@ -684,36 +685,36 @@ class _ConstellationBodyState extends State<ConstellationBody> {
             final l10n = L10n.of(context)!;
             final tt = context.tt;
             final scheme = Theme.of(context).colorScheme;
-            return switch (node) {
-              FieldPersonNode(:final ring, :final person) =>
-                _ConstellationMapNode(
-                  child: GraphNodeWidget(
-                    key: TestIds.key(TestIds.graphNode(node.id)),
-                    nodeDetails: node,
-                    hiddenNeighborCount: null,
-                    isOrigin: ring == 0,
-                    isFocused: panelVisible && node.id == state.selectedPersonId,
-                    onTap: () => _onNodeTap(context, cubit, node),
-                  ),
-                  pinBadge: cubit.isAnchored(
-                    ConstellationAnchorTarget.person(person.id),
-                  )
-                      ? ExcludeSemantics(
-                          child: ConstellationMarkerBadge.pin(
-                            l10n: l10n,
-                            tt: tt,
-                            scheme: scheme,
-                          ),
-                        )
-                      : null,
-                  statusBadge: null,
+            final mapNode = switch (node) {
+              FieldPersonNode(:final ring, :final person) => _ConstellationMapNode(
+                child: GraphNodeWidget(
+                  key: TestIds.key(TestIds.graphNode(node.id)),
+                  nodeDetails: node,
+                  hiddenNeighborCount: null,
+                  isOrigin: ring == 0,
+                  isFocused: panelVisible && node.id == state.selectedPersonId,
+                  onTap: null,
                 ),
+                pinBadge: cubit.isAnchored(
+                  ConstellationAnchorTarget.person(person.id),
+                )
+                    ? ExcludeSemantics(
+                        child: ConstellationMarkerBadge.pin(
+                          l10n: l10n,
+                          tt: tt,
+                          scheme: scheme,
+                        ),
+                      )
+                    : null,
+                statusBadge: null,
+              ),
               FieldRequestNode(:final request) => _ConstellationMapNode(
                 child: GraphNodeWidget(
                   key: TestIds.key(TestIds.graphNode(node.id)),
                   nodeDetails: node,
                   hiddenNeighborCount: null,
-                  onTap: () => _onNodeTap(context, cubit, node),
+                  isFocused: state.selectedRequestId == request.id,
+                  onTap: null,
                 ),
                 pinBadge: cubit.isAnchored(
                   ConstellationAnchorTarget.beacon(request.id),
@@ -745,6 +746,17 @@ class _ConstellationBodyState extends State<ConstellationBody> {
               ),
               _ => const SizedBox.shrink(),
             };
+            if (mapNode is! _ConstellationMapNode) {
+              return mapNode;
+            }
+            return _wrapConstellationMapNodeSemantics(
+              context: context,
+              cubit: cubit,
+              state: state,
+              node: node,
+              panelVisible: panelVisible,
+              mapNode: mapNode,
+            );
           },
         ),
         Positioned.fill(
@@ -787,6 +799,42 @@ class _ConstellationBodyState extends State<ConstellationBody> {
           ),
         if (panelVisible) _buildPersonContextOverlay(context, cubit, state),
       ],
+    );
+  }
+
+  Widget _wrapConstellationMapNodeSemantics({
+    required BuildContext context,
+    required ConstellationCubit cubit,
+    required ConstellationState state,
+    required NodeDetails node,
+    required bool panelVisible,
+    required _ConstellationMapNode mapNode,
+  }) {
+    final l10n = L10n.of(context)!;
+    final tt = context.tt;
+    final isEgo = switch (node) {
+      FieldPersonNode(:final person) => person.id == cubit.viewerId,
+      _ => false,
+    };
+    final selected = switch (node) {
+      FieldPersonNode() => panelVisible && node.id == state.selectedPersonId,
+      FieldRequestNode(:final request) => state.selectedRequestId == request.id,
+      _ => false,
+    };
+    return Semantics(
+      button: !isEgo,
+      selected: selected,
+      label: constellationNodeSemanticLabel(
+        l10n: l10n,
+        tt: tt,
+        cubit: cubit,
+        node: node,
+      ),
+      onTap: isEgo ? null : () => _onNodeTap(context, cubit, node),
+      child: MouseRegion(
+        cursor: isEgo ? MouseCursor.defer : SystemMouseCursors.click,
+        child: ExcludeSemantics(child: mapNode),
+      ),
     );
   }
 
