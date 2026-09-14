@@ -281,6 +281,7 @@ final class ConstellationSceneLayoutAlgorithm implements SceneLayoutAlgorithm {
     this.forgetPriorHintNodeIds = const {},
     this.priorHints,
     this.nodeSizes = const {},
+    this.footprints = const {},
     this.spacing = 16,
     this.viewportClass = ConstellationViewportClass.expanded,
   });
@@ -299,6 +300,7 @@ final class ConstellationSceneLayoutAlgorithm implements SceneLayoutAlgorithm {
   final Set<String> forgetPriorHintNodeIds;
   final ConstellationLayoutPriorHints? priorHints;
   final Map<String, ConstellationSize> nodeSizes;
+  final Map<String, ConstellationFootprint> footprints;
   final double spacing;
   final ConstellationViewportClass viewportClass;
 
@@ -356,6 +358,7 @@ final class ConstellationSceneLayoutAlgorithm implements SceneLayoutAlgorithm {
         spacing: spacing,
         maxHops: maxHops,
         viewportClass: viewportClass,
+        footprints: footprints,
       ),
     );
     return constellationLayoutPointsToOffsets(computed.positions);
@@ -433,6 +436,10 @@ final class ConstellationSceneLayoutAlgorithm implements SceneLayoutAlgorithm {
             nodeSizes,
             other.nodeSizes,
           ) &&
+          const MapEquality<String, ConstellationFootprint>().equals(
+            footprints,
+            other.footprints,
+          ) &&
           const DeepCollectionEquality().equals(
             visibleRequestsByAuthor,
             other.visibleRequestsByAuthor,
@@ -457,6 +464,7 @@ final class ConstellationSceneLayoutAlgorithm implements SceneLayoutAlgorithm {
     ),
     priorHints,
     const MapEquality<String, ConstellationSize>().hash(nodeSizes),
+    const MapEquality<String, ConstellationFootprint>().hash(footprints),
     const DeepCollectionEquality().hash(visibleRequestsByAuthor),
   );
 }

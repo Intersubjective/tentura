@@ -1,6 +1,7 @@
 import 'dart:math' as math;
 import 'dart:ui' show Offset, Size;
 
+import 'package:meta/meta.dart';
 import 'package:tentura/features/graph/domain/layout/radial_hop_positions.dart';
 
 import 'constellation_anchor_composition.dart';
@@ -23,6 +24,42 @@ typedef ConstellationFootprintMetrics = ({
   double chipHeight,
   double badgeOverhang,
 });
+
+typedef ConstellationFootprint = ({
+  double left,
+  double top,
+  double right,
+  double bottom,
+});
+
+enum ConstellationFootprintKind { person, request }
+
+ConstellationFootprint constellationNodeFootprint({
+  required ConstellationFootprintKind kind,
+  required double bodySize,
+  required bool hasAuthorChip,
+  required ConstellationFootprintMetrics metrics,
+}) {
+  final r = bodySize / 2;
+  final labelW = kind == ConstellationFootprintKind.person
+      ? metrics.personLabelWidth
+      : metrics.requestLabelWidth;
+  final labelH = kind == ConstellationFootprintKind.person
+      ? metrics.personLabelHeight
+      : metrics.requestLabelHeight;
+  var half = math.max(r + metrics.badgeOverhang, labelW / 2);
+  var bottom = r + metrics.labelGap + labelH;
+  if (hasAuthorChip) {
+    bottom += metrics.labelGap + metrics.chipHeight;
+    half = math.max(half, metrics.chipWidth / 2);
+  }
+  return (
+    left: half,
+    top: r + metrics.badgeOverhang,
+    right: half,
+    bottom: bottom,
+  );
+}
 
 typedef ConstellationLayout = ({
   Map<String, ConstellationPoint> positions,
@@ -51,6 +88,7 @@ typedef ConstellationPlacedLayoutInput = ({
   double spacing,
   int maxHops,
   ConstellationViewportClass viewportClass,
+  Map<String, ConstellationFootprint> footprints,
 });
 
 const _kCandidateRadiiMultipliers = [1, 2, 3, 4];
@@ -158,6 +196,7 @@ ConstellationLayout computeConstellationLayout({
       spacing: spacing,
       maxHops: maxHops,
       viewportClass: viewportClass,
+      footprints: const {},
     ),
     ringGap: ringGap,
     residualRingFactor: residualRingFactor,
@@ -249,24 +288,44 @@ ConstellationLayout computeConstellationPlacedLayout({
     }
   }
 
+  final obstacles = <String, ConstellationBounds>{};
+
+  void recordPlacedObstacle(String nodeId, ConstellationPoint point) {
+    final footprint = input.footprints[nodeId];
+    obstacles[nodeId] = footprint != null
+        ? _absoluteFootprintBounds(centre: point, footprint: footprint)
+        : constellationRenderedBounds(
+            centre: point,
+            size: _sizeFor(nodeId, input.nodeSizes),
+          );
+  }
+
+  recordPlacedObstacle(input.egoId, centre);
+
+  for (final personId in input.pinnedPersonIds) {
+    final point = positions[personId];
+    if (point != null) {
+      recordPlacedObstacle(personId, point);
+    }
+  }
+  for (final requestId in input.pinnedRequestIds) {
+    final point = positions[requestId];
+    if (point != null) {
+      recordPlacedObstacle(requestId, point);
+    }
+  }
+
   void placeAutomatic(String nodeId, ConstellationPoint ideal) {
     final size = _sizeFor(nodeId, input.nodeSizes);
-    final authorId = _authorIdForRequest(
+    final isRequest = _isAutomaticRequestNode(
       nodeId: nodeId,
       satelliteRequestIdsByAuthor: input.satelliteRequestIdsByAuthor,
       requestAuthorById: input.requestAuthorById,
       egoOwnRequestIds: input.egoOwnRequestIds,
-      egoId: input.egoId,
     );
-    final collisionIgnore = _isAutomaticRequestNode(
-          nodeId: nodeId,
-          satelliteRequestIdsByAuthor: input.satelliteRequestIdsByAuthor,
-          requestAuthorById: input.requestAuthorById,
-          egoOwnRequestIds: input.egoOwnRequestIds,
-        ) &&
-            authorId != null
-        ? {authorId}
-        : const <String>{};
+    final requestFootprint = isRequest
+        ? (input.footprints[nodeId] ?? _symmetricBodyFootprint(size))
+        : null;
     final chosen = _chooseAutomaticPosition(
       nodeId: nodeId,
       ideal: ideal,
@@ -278,12 +337,15 @@ ConstellationLayout computeConstellationPlacedLayout({
       paths: input.paths,
       ring: ring,
       viewportClass: input.viewportClass,
-      collisionIgnore: collisionIgnore,
+      isRequest: isRequest,
+      requestFootprint: requestFootprint,
+      obstacles: obstacles,
     );
     positions[nodeId] = chosen.point;
     if (chosen.ring != null) {
       ring[nodeId] = chosen.ring!;
     }
+    recordPlacedObstacle(nodeId, chosen.point);
   }
 
   for (final personId in supportPeople) {
@@ -325,28 +387,6 @@ ConstellationSize _sizeFor(String nodeId, Map<String, ConstellationSize> sizes) 
   return sizes[nodeId] ?? (width: 64, height: 64);
 }
 
-String? _authorIdForRequest({
-  required String nodeId,
-  required Map<String, List<String>> satelliteRequestIdsByAuthor,
-  required Map<String, String> requestAuthorById,
-  required Set<String> egoOwnRequestIds,
-  required String egoId,
-}) {
-  if (egoOwnRequestIds.contains(nodeId)) {
-    return egoId;
-  }
-  final direct = requestAuthorById[nodeId];
-  if (direct != null) {
-    return direct;
-  }
-  for (final entry in satelliteRequestIdsByAuthor.entries) {
-    if (entry.value.contains(nodeId)) {
-      return entry.key;
-    }
-  }
-  return null;
-}
-
 bool _isAutomaticRequestNode({
   required String nodeId,
   required Map<String, List<String>> satelliteRequestIdsByAuthor,
@@ -378,8 +418,16 @@ bool _isAutomaticRequestNode({
   required ConstellationPathResolution paths,
   required Map<String, int> ring,
   required ConstellationViewportClass viewportClass,
-  Set<String> collisionIgnore = const {},
+  bool isRequest = false,
+  ConstellationFootprint? requestFootprint,
+  Map<String, ConstellationBounds> obstacles = const {},
 }) {
+  final effectiveSize = isRequest && requestFootprint != null
+      ? (
+          width: requestFootprint.left + requestFootprint.right,
+          height: requestFootprint.top + requestFootprint.bottom,
+        )
+      : size;
   final candidates = <ConstellationPoint>[];
 
   final hint = priorHints?.positions[nodeId];
@@ -388,18 +436,18 @@ bool _isAutomaticRequestNode({
       _priorHintEligible(
         nodeId: nodeId,
         hint: hint,
-        size: size,
+        size: effectiveSize,
         paths: paths,
         priorRing: priorHints.ring[nodeId],
       )) {
     candidates.add(hint);
   }
 
-  if (_envelopeValid(ideal, size: size)) {
+  if (_envelopeValid(ideal, size: effectiveSize)) {
     candidates.add(ideal);
   }
 
-  final step = math.max(size.width, size.height) + spacing;
+  final step = math.max(effectiveSize.width, effectiveSize.height) + spacing;
   final radial = math.atan2(
     ideal.y - constellationCanvasCentrePoint().y,
     ideal.x - constellationCanvasCentrePoint().x,
@@ -412,7 +460,7 @@ bool _isAutomaticRequestNode({
         x: ideal.x + math.cos(angle) * radius,
         y: ideal.y + math.sin(angle) * radius,
       );
-      if (_envelopeValid(candidate, size: size)) {
+      if (_envelopeValid(candidate, size: effectiveSize)) {
         candidates.add(candidate);
       }
     }
@@ -420,7 +468,40 @@ bool _isAutomaticRequestNode({
 
   final chosenPoint = () {
     if (candidates.isEmpty) {
-      return _clampAutomaticPointToEnvelopeAndCanvas(point: ideal, size: size);
+      return _clampAutomaticPointToEnvelopeAndCanvas(
+        point: ideal,
+        size: effectiveSize,
+      );
+    }
+
+    if (isRequest && requestFootprint != null) {
+      for (final candidate in candidates) {
+        if (_totalObstacleIntersectionArea(
+              candidate: candidate,
+              footprint: requestFootprint,
+              spacing: spacing,
+              obstacles: obstacles,
+            ) ==
+            0) {
+          return candidate;
+        }
+      }
+
+      var bestIndex = 0;
+      var bestScore = double.infinity;
+      for (var i = 0; i < candidates.length; i++) {
+        final score = _totalObstacleIntersectionArea(
+          candidate: candidates[i],
+          footprint: requestFootprint,
+          spacing: spacing,
+          obstacles: obstacles,
+        );
+        if (score < bestScore || (score == bestScore && i < bestIndex)) {
+          bestScore = score;
+          bestIndex = i;
+        }
+      }
+      return candidates[bestIndex];
     }
 
     for (final candidate in candidates) {
@@ -430,7 +511,6 @@ bool _isAutomaticRequestNode({
             spacing: spacing,
             placed: placed,
             placedSizes: placedSizes,
-            ignore: collisionIgnore,
           ) ==
           0) {
         return candidate;
@@ -446,7 +526,6 @@ bool _isAutomaticRequestNode({
         spacing: spacing,
         placed: placed,
         placedSizes: placedSizes,
-        ignore: collisionIgnore,
       );
       if (score < bestScore || (score == bestScore && i < bestIndex)) {
         bestScore = score;
@@ -528,7 +607,6 @@ double _totalIntersectionArea({
   required double spacing,
   required Map<String, ConstellationPoint> placed,
   required Map<String, ConstellationSize> placedSizes,
-  Set<String> ignore = const {},
 }) {
   final bounds = _inflatedBounds(
     constellationRenderedBounds(centre: candidate, size: size),
@@ -536,9 +614,6 @@ double _totalIntersectionArea({
   );
   var total = 0.0;
   for (final entry in placed.entries) {
-    if (ignore.contains(entry.key)) {
-      continue;
-    }
     total += _intersectionArea(
       a: bounds,
       b: _inflatedBounds(
@@ -551,6 +626,78 @@ double _totalIntersectionArea({
     );
   }
   return total;
+}
+
+double _totalObstacleIntersectionArea({
+  required ConstellationPoint candidate,
+  required ConstellationFootprint footprint,
+  required double spacing,
+  required Map<String, ConstellationBounds> obstacles,
+}) {
+  final bounds = _inflatedBounds(
+    _absoluteFootprintBounds(centre: candidate, footprint: footprint),
+    spacing: spacing,
+  );
+  var total = 0.0;
+  for (final obstacle in obstacles.values) {
+    total += _intersectionArea(
+      a: bounds,
+      b: _inflatedBounds(obstacle, spacing: spacing),
+    );
+  }
+  return total;
+}
+
+ConstellationFootprint _symmetricBodyFootprint(ConstellationSize size) {
+  final halfW = size.width / 2;
+  final halfH = size.height / 2;
+  return (left: halfW, top: halfH, right: halfW, bottom: halfH);
+}
+
+ConstellationBounds _absoluteFootprintBounds({
+  required ConstellationPoint centre,
+  required ConstellationFootprint footprint,
+}) {
+  return (
+    left: centre.x - footprint.left,
+    top: centre.y - footprint.top,
+    right: centre.x + footprint.right,
+    bottom: centre.y + footprint.bottom,
+  );
+}
+
+@visibleForTesting
+Set<(String, String)> constellationFootprintOverlaps(
+  ConstellationPlacedLayoutInput input,
+  ConstellationLayout layout,
+) {
+  final pinned = {...input.pinnedPersonIds, ...input.pinnedRequestIds};
+  final ids = layout.positions.keys.toList()..sort();
+  final overlaps = <(String, String)>{};
+
+  ConstellationBounds boundsFor(String id) {
+    final centre = layout.positions[id]!;
+    final footprint = input.footprints[id];
+    if (footprint != null) {
+      return _absoluteFootprintBounds(centre: centre, footprint: footprint);
+    }
+    final nodeSize = _sizeFor(id, input.nodeSizes);
+    return constellationRenderedBounds(centre: centre, size: nodeSize);
+  }
+
+  for (var i = 0; i < ids.length; i++) {
+    for (var j = i + 1; j < ids.length; j++) {
+      final a = ids[i];
+      final b = ids[j];
+      if (pinned.contains(a) && pinned.contains(b)) {
+        continue;
+      }
+      if (_intersectionArea(a: boundsFor(a), b: boundsFor(b)) > 0) {
+        overlaps.add(a.compareTo(b) < 0 ? (a, b) : (b, a));
+      }
+    }
+  }
+  return overlaps;
 }
 
 ConstellationBounds _inflatedBounds(
