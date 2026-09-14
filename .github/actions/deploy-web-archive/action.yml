@@ -63,6 +63,15 @@ runs:
             scripts/hasura_apply_metadata.sh \
             deploy@"$VPS_HOST":/opt/tentura/scripts/hasura_apply_metadata.sh
 
+        # deploy.sh itself — previously never synced, so fixes to it (e.g. the
+        # Hasura metadata-apply retry budget) silently had no effect until
+        # someone manually refreshed the copy already sitting on the VPS.
+        scp -i ~/.ssh/deploy_key \
+            -o StrictHostKeyChecking=accept-new \
+            -o LogLevel=ERROR \
+            deploy.sh \
+            deploy@"$VPS_HOST":/opt/tentura/deploy.sh
+
     - name: Deploy to VPS
       shell: bash
       env:
