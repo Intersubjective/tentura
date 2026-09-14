@@ -67,3 +67,42 @@ flutter test
 ## Entries
 
 <!-- Workers append entries below, newest last. Format: `### <unit> — <worker|manager> — <checkpoint|final|verdict>` -->
+
+### R00 — worker — checkpoint
+
+- Implemented `fixtures/constellation_reference_fixture.dart` and smoke test per plan §4 R00; duplicated `_pumpBody` / stub patterns (D-M1: did not touch `constellation_body_test.dart` or `constellation_density_widget_test.dart`).
+- Optional pinning: `constellationReferenceField(anchors: …)` sets `ConstellationAnchorProjection` (same shape as `constellation_anchor_interaction_test.dart` `_field`). R03 can pass e.g. `ConstellationAnchorTarget.beacon('req-in-2')` and `ConstellationAnchorTarget.person('am')`.
+- Deviation: plan prose “move helper / keep old tests calling shared helper” overridden by D-M1 — no imports refactored in existing tests.
+
+### R00 — worker — final
+
+**Status:** complete
+
+**Commits:** (filled after `git commit`)
+
+**Changed files:**
+- `packages/client/test/features/constellation/fixtures/constellation_reference_fixture.dart` (new)
+- `packages/client/test/features/constellation/constellation_reference_fixture_smoke_test.dart` (new)
+- `docs/plans/constellation-ui-remediation-journal.md`
+
+**Tests:**
+- `cd packages/client && flutter test test/features/constellation/constellation_reference_fixture_smoke_test.dart` — pass
+- `cd packages/client && flutter test test/features/constellation` — 256 passed
+- `./scripts/check-custom-lints.sh packages/client` — pass (no baseline drift)
+
+**Baseline record (375×547, `locale: ru`, `textScale: 1.0`, reference field default `egoRequestCount: 6`):**
+
+| Metric | Plan expectation | Measured (HEAD with UI-09 unfixed) |
+|---|---|---|
+| Label budget `textScaleFactor` passed to cubit | 14.0 (UI-09 bug) | **14.0** — from `MediaQuery.textScalerOf(context).scale(14)` in `constellation_body._syncLabelBudget` |
+| Derived `constellationLabelBudget` at that scale | (1, 2) per R01 table | **(perPerson: 1, total: 2)** |
+| `overflowHiddenCountByAuthor` after first load | `{ego: 3}` | **`{ego: 3}`** |
+| After `toggleSatelliteOverflow('in')` ×2 (body still pumped) | ego → 5 (UI-10) | **`{ego: 5, in: 2, sm: 1}`** — ego 5 matches UI-10 proof; `in`/`sm` counts reflect expanded satellite overflow state |
+| `BottomLabelBuilder.labelSize` | — | **`Size(100, 20)`** (`constellation_body.dart`) |
+| Overflow chip vs `req-ego-*` body rects | — | Chip `Rect.fromLTRB(107.5, 341.5, 242.5, 385.5)`; only **req-ego-1** has a body in the tree (`Rect.fromLTRB(229.9, 290.4, 265.9, 326.4)`); **no intersection**. req-ego-2..6 not in widget tree (label budget hides them). |
+| `pumpAndSettle` on smoke/baseline pump | — | **Completed** (no perpetual-animation timeout in temp capture) |
+| Browser screenshot (plan step 4) | optional R00 | **skipped** (manager R08) |
+
+**Decisions:** `kRefEgo.displayName` = `Vadim` per plan; tier-1 edges one direction `ego → peer` matching existing widget tests; long titles for `req-ego-4`..`6` are synthetic mixed-script strings (plan did not spell exact copy).
+
+**Remaining:** R01+ units per checklist.
