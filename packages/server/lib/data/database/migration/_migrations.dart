@@ -335,9 +335,15 @@ final _allMigrations = <Migration>[
   m0159,
   m0160,
   m0161,
+  // m0163a runs before m0162: m0162's beacon_can_read_content body calls
+  // person_are_mutually_visible_cached, which m0163a creates. Postgres
+  // validates LANGUAGE sql/plpgsql function bodies at CREATE time by default
+  // (check_function_bodies=on) — only the test harness's disposable Postgres
+  // target disables that check, which is why this ordering bug never
+  // surfaced until a real (non-test) migration run hit it.
+  m0163a,
   m0162,
   m0163,
-  m0163a,
   m0164,
   m0165,
   m0166,
