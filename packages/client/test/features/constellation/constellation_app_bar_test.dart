@@ -65,16 +65,18 @@ Future<void> _pumpAppBar(
   required ConstellationCubit cubit,
   required Size size,
   bool legendExpanded = false,
+  Locale locale = const Locale('en'),
+  TextScaler textScaler = TextScaler.noScaling,
 }) async {
   await tester.binding.setSurfaceSize(size);
   await tester.pumpWidget(
     MaterialApp(
-      locale: const Locale('en'),
+      locale: locale,
       theme: TenturaTheme.light(),
       localizationsDelegates: L10n.localizationsDelegates,
       supportedLocales: L10n.supportedLocales,
       home: MediaQuery(
-        data: MediaQueryData(size: size),
+        data: MediaQueryData(size: size, textScaler: textScaler),
         child: TenturaResponsiveScope(
           child: BlocProvider.value(
             value: cubit,
@@ -177,6 +179,97 @@ void main() {
 
       expect(find.text('Map'), findsOneWidget);
       expect(find.text('Text'), findsOneWidget);
+      await cubit.close();
+    });
+
+    testWidgets('text scale 1.3 at wide width keeps map/text labels', (
+      tester,
+    ) async {
+      final cubit = await _loadCubit();
+      await _pumpAppBar(
+        tester,
+        cubit: cubit,
+        size: const Size(900, 800),
+        textScaler: TextScaler.linear(1.3),
+      );
+      expect(tester.takeException(), isNull);
+      expect(find.text('Map'), findsOneWidget);
+      expect(find.text('Text'), findsOneWidget);
+      await cubit.close();
+    });
+
+    testWidgets('375px width at text scale 1.0 and 1.3 has no layout exception', (
+      tester,
+    ) async {
+      for (final locale in [const Locale('en'), const Locale('ru')]) {
+        for (final scale in [1.0, 1.3]) {
+          final cubit = await _loadCubit();
+          await _pumpAppBar(
+            tester,
+            cubit: cubit,
+            size: const Size(375, 800),
+            textScaler: TextScaler.linear(scale),
+            locale: locale,
+          );
+          expect(tester.takeException(), isNull);
+          final toggle = tester.widget<SegmentedButton<ConstellationViewMode>>(
+            find.byKey(const Key('constellation.app_bar.view_mode')),
+          );
+          for (final segment in toggle.segments) {
+            expect(segment.tooltip, isNotNull);
+          }
+          await cubit.close();
+        }
+      }
+    });
+
+    testWidgets('text scale 2.0 has no overflow and segment tooltips remain', (
+      tester,
+    ) async {
+      final cubit = await _loadCubit();
+      await tester.binding.setSurfaceSize(const Size(375, 800));
+      await tester.pumpWidget(
+        MaterialApp(
+          locale: const Locale('en'),
+          theme: TenturaTheme.light(),
+          localizationsDelegates: L10n.localizationsDelegates,
+          supportedLocales: L10n.supportedLocales,
+          home: MediaQuery(
+            data: MediaQueryData(
+              size: const Size(375, 800),
+              textScaler: TextScaler.linear(2.0),
+            ),
+            child: TenturaResponsiveScope(
+              child: BlocProvider.value(
+                value: cubit,
+                child: Builder(
+                  builder: (context) => Scaffold(
+                    appBar: TenturaTopBar.of(
+                      context,
+                      title: const SizedBox.shrink(),
+                      row: ConstellationAppBarRow(
+                        legendExpanded: false,
+                        onToggleLegend: () {},
+                      ),
+                    ),
+                    body: const SizedBox.expand(),
+                  ),
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+      await tester.pumpAndSettle();
+      expect(tester.takeException(), isNull);
+      final toggle = tester.widget<SegmentedButton<ConstellationViewMode>>(
+        find.byKey(const Key('constellation.app_bar.view_mode')),
+      );
+      expect(toggle.segments.length, 2);
+      for (final segment in toggle.segments) {
+        expect(segment.tooltip, isNotNull);
+        expect(segment.tooltip!.isNotEmpty, isTrue);
+      }
       await cubit.close();
     });
   });
