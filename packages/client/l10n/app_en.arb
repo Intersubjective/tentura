@@ -1353,6 +1353,21 @@
       }
     }
   },
+  "constellationFewerRequests": "Show fewer",
+  "@constellationFewerRequests": {
+    "context": "ConstellationOverflowGroup"
+  },
+  "constellationMoreRequestsByAuthor": "{count, plural, one{1 more request by {name}} other{{count} more requests by {name}}}",
+  "@constellationMoreRequestsByAuthor": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "name": {
+        "type": "String"
+      }
+    }
+  },
   "constellationIncludeUnspecified": "Include unspecified",
   "@constellationIncludeUnspecified": {
     "context": "ConstellationFilterBar"

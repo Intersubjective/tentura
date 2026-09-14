@@ -236,6 +236,7 @@ class _PersonRequestGroup extends StatelessWidget {
                 alignment: Alignment.centerLeft,
                 child: ConstellationOverflowGroup(
                   authorId: authorId,
+                  authorName: displayName,
                   hiddenCount: hiddenCount,
                 ),
               ),

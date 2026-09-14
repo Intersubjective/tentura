@@ -7,6 +7,7 @@ import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
 import '../bloc/constellation_cubit.dart';
+import '../bloc/constellation_state.dart';
 
 /// Measured size of [ConstellationOverflowGroup] for a [label] at the current
 /// theme, tokens, and text scaler — matches the widget layout math.
@@ -34,36 +35,53 @@ Size constellationOverflowChipSize(BuildContext context, String label) {
 class ConstellationOverflowGroup extends StatelessWidget {
   const ConstellationOverflowGroup({
     required this.authorId,
+    required this.authorName,
     required this.hiddenCount,
     super.key,
   });
 
   final String authorId;
+  final String authorName;
   final int hiddenCount;
 
   @override
   Widget build(BuildContext context) {
-    if (hiddenCount <= 0) {
+    return BlocBuilder<ConstellationCubit, ConstellationState>(
+      buildWhen: (previous, current) =>
+          previous.composition != current.composition ||
+          previous.graphRevision != current.graphRevision,
+      builder: (context, state) => _buildChip(context),
+    );
+  }
+
+  Widget _buildChip(BuildContext context) {
+    final cubit = context.read<ConstellationCubit>();
+    final expanded = cubit.isSatelliteOverflowExpanded(authorId);
+    if (!expanded && hiddenCount <= 0) {
       return const SizedBox.shrink();
     }
 
     final l10n = L10n.of(context)!;
     final tt = context.tt;
     final theme = Theme.of(context);
-    final cubit = context.read<ConstellationCubit>();
-    final expanded = cubit.isSatelliteOverflowExpanded(authorId);
-    final label = l10n.constellationMoreRequests(hiddenCount);
+    final label = expanded
+        ? l10n.constellationFewerRequests
+        : l10n.constellationMoreRequests(hiddenCount);
+    final semanticsLabel = expanded
+        ? '${l10n.constellationFewerRequests}, $authorName'
+        : l10n.constellationMoreRequestsByAuthor(hiddenCount, authorName);
     final chipSize = constellationOverflowChipSize(context, label);
 
     return Semantics(
       button: true,
       expanded: expanded,
       identifier: 'constellation.overflow.$authorId',
-      label: label,
-      child: SizedBox.fromSize(
-        size: chipSize,
+      label: semanticsLabel,
+      child: SizedBox(
+        key: Key('constellation.overflow.$authorId'),
+        width: chipSize.width,
+        height: chipSize.height,
         child: Material(
-          key: Key('constellation.overflow.$authorId'),
           color: theme.colorScheme.surfaceContainerHighest,
           borderRadius: BorderRadius.circular(tt.cardRadius),
           child: InkWell(

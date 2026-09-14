@@ -195,12 +195,14 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
   Set<String> droppedHolderIds = const {};
   Set<String> displayedRequestIds = const {};
   Map<String, int> overflowHiddenCountByAuthor = const {};
+  Map<String, int> expandedExtraCountByAuthor = const {};
   final Set<String> expandedSatelliteAuthorIds = {};
 
   Size _labelBudgetViewport = const Size(1200, 900);
   double _labelBudgetTextScale = 1.0;
   ConstellationLabelBudget? _appliedLabelBudget;
   bool _labelBudgetRecomposePending = false;
+  ConstellationFootprintMetrics? _footprintMetrics;
 
   @visibleForTesting
   double get labelBudgetTextScaleForTest => _labelBudgetTextScale;
@@ -1003,6 +1005,17 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     _recomposeAndLayout();
   }
 
+  void updateFootprintMetrics(ConstellationFootprintMetrics metrics) {
+    if (isClosed || _footprintMetrics == metrics) {
+      return;
+    }
+    _footprintMetrics = metrics;
+    // R04 will consume metrics and reconcile layout; R03b only stores them.
+  }
+
+  @visibleForTesting
+  ConstellationFootprintMetrics? get footprintMetricsForTest => _footprintMetrics;
+
   bool get _placementBusy =>
       state.hasPendingPlacementWrite ||
       (_anchorCase?.hasPendingWrite ?? false) ||
@@ -1682,6 +1695,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
       graphController.clear();
       edgeKinds.clear();
       overflowHiddenCountByAuthor = const {};
+      expandedExtraCountByAuthor = const {};
       return;
     }
 
@@ -1730,6 +1744,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     layoutEgoOwnRequestIds = plan.egoOwnRequestIds;
     displayedRequestIds = plan.drawnRequestIds;
     overflowHiddenCountByAuthor = plan.overflowHiddenCountByAuthor;
+    expandedExtraCountByAuthor = plan.expandedExtraCountByAuthor;
 
     final nodes = <NodeDetails>{};
     final edges = <EdgeDetails>{};

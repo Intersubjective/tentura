@@ -1353,6 +1353,21 @@
       }
     }
   },
+  "constellationFewerRequests": "Свернуть",
+  "@constellationFewerRequests": {
+    "context": "ConstellationOverflowGroup"
+  },
+  "constellationMoreRequestsByAuthor": "{count, plural, one{Ещё {count} запрос от {name}} few{Ещё {count} запроса от {name}} many{Ещё {count} запросов от {name}} other{Ещё {count} запроса от {name}}}",
+  "@constellationMoreRequestsByAuthor": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "name": {
+        "type": "String"
+      }
+    }
+  },
   "constellationIncludeUnspecified": "Включать не указанные",
   "@constellationIncludeUnspecified": {
     "context": "ConstellationFilterBar"

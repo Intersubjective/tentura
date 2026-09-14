@@ -554,7 +554,11 @@ void main() {
         width: 400,
         textScale: 1.0,
         extra: [
-          ConstellationOverflowGroup(authorId: 'a', hiddenCount: 3),
+          ConstellationOverflowGroup(
+            authorId: 'a',
+            authorName: 'Author A',
+            hiddenCount: 3,
+          ),
         ],
       );
 

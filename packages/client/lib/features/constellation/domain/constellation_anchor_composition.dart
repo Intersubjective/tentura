@@ -73,6 +73,7 @@ class ConstellationLabelDisplayPlan {
     required this.egoOwnRequestIds,
     required this.overflowHiddenCountByAuthor,
     required this.pinnedRequestIds,
+    this.expandedExtraCountByAuthor = const {},
   });
 
   final Set<String> drawnRequestIds;
@@ -80,6 +81,7 @@ class ConstellationLabelDisplayPlan {
   final Set<String> egoOwnRequestIds;
   final Map<String, int> overflowHiddenCountByAuthor;
   final Set<String> pinnedRequestIds;
+  final Map<String, int> expandedExtraCountByAuthor;
 }
 
 @immutable
@@ -411,6 +413,7 @@ ConstellationLabelDisplayPlan _buildLabelDisplayPlan({
 
   final drawn = <String>{...pinnedRequestIds};
   final overflow = <String, int>{};
+  final expandedExtra = <String, int>{};
 
   for (final entry in filteredByAuthor.entries) {
     final authorId = entry.key;
@@ -420,6 +423,11 @@ ConstellationLabelDisplayPlan _buildLabelDisplayPlan({
       visibleIds
         ..clear()
         ..addAll(automaticIds);
+      final allocatedCount = (allocated[authorId] ?? const []).length;
+      final extra = automaticIds.length - allocatedCount;
+      if (extra > 0) {
+        expandedExtra[authorId] = extra;
+      }
     }
     final hidden = automaticIds.length - visibleIds.length;
     if (hidden > 0) {
@@ -442,6 +450,7 @@ ConstellationLabelDisplayPlan _buildLabelDisplayPlan({
     },
     overflowHiddenCountByAuthor: overflow,
     pinnedRequestIds: pinnedRequestIds,
+    expandedExtraCountByAuthor: expandedExtra,
   );
 }
 
