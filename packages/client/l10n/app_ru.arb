@@ -1228,6 +1228,11 @@
     "description": "App bar title on the Field (Constellation) screen",
     "context": "ConstellationScreen"
   },
+  "constellationFitAll": "Показать всё поле",
+  "@constellationFitAll": {
+    "description": "Tooltip for the Field map control that fits every visible node into view",
+    "context": "ConstellationScreen"
+  },
   "constellationNavLabel": "Моё поле",
   "@constellationNavLabel": {
     "description": "Side-nav / accessibility label for the Field tab (bottom bar is icon-only)",

@@ -188,6 +188,8 @@ abstract final class TestIds {
   static const constellationRequestStatusMarker =
       'constellation.request_status_marker';
   static const constellationPinMarker = 'constellation.pin_marker';
+  static const constellationFitAll = 'constellation.camera.fit_all';
+  static const constellationCenterOnMe = 'constellation.camera.center_on_me';
   static const myWorkFindWaysToHelp = 'my_work.find_ways_to_help';
 
   static const orientationPanel = 'orientation.panel';
