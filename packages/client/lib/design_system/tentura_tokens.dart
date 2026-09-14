@@ -18,6 +18,7 @@ class TenturaTokens extends ThemeExtension<TenturaTokens> {
     required this.text,
     required this.textMuted,
     required this.textFaint,
+    required this.graphEdgePath,
     required this.info,
     required this.good,
     required this.warn,
@@ -71,6 +72,9 @@ class TenturaTokens extends ThemeExtension<TenturaTokens> {
   final Color text;
   final Color textMuted;
   final Color textFaint;
+
+  /// Constellation / graph person-path edge stroke (tier-1/2/stub).
+  final Color graphEdgePath;
 
   /// Info / mine / edit (sky family).
   final Color info;
@@ -172,6 +176,7 @@ class TenturaTokens extends ThemeExtension<TenturaTokens> {
     text: TenturaPalette.text,
     textMuted: TenturaPalette.textMuted,
     textFaint: TenturaPalette.textFaint,
+    graphEdgePath: TenturaPalette.textMuted,
     info: TenturaPalette.sky,
     good: TenturaPalette.emerald,
     warn: TenturaPalette.amber,
@@ -225,6 +230,7 @@ class TenturaTokens extends ThemeExtension<TenturaTokens> {
     text: TenturaPalette.textDark,
     textMuted: TenturaPalette.textMutedDark,
     textFaint: TenturaPalette.textFaintDark,
+    graphEdgePath: TenturaPalette.textMutedDark,
     info: TenturaPalette.skyDark,
     good: TenturaPalette.emeraldDark,
     warn: TenturaPalette.amberDark,
@@ -398,6 +404,7 @@ class TenturaTokens extends ThemeExtension<TenturaTokens> {
     Color? text,
     Color? textMuted,
     Color? textFaint,
+    Color? graphEdgePath,
     Color? info,
     Color? good,
     Color? warn,
@@ -451,6 +458,7 @@ class TenturaTokens extends ThemeExtension<TenturaTokens> {
       text: text ?? this.text,
       textMuted: textMuted ?? this.textMuted,
       textFaint: textFaint ?? this.textFaint,
+      graphEdgePath: graphEdgePath ?? this.graphEdgePath,
       info: info ?? this.info,
       good: good ?? this.good,
       warn: warn ?? this.warn,
@@ -522,6 +530,7 @@ class TenturaTokens extends ThemeExtension<TenturaTokens> {
       text: Color.lerp(text, other.text, t)!,
       textMuted: Color.lerp(textMuted, other.textMuted, t)!,
       textFaint: Color.lerp(textFaint, other.textFaint, t)!,
+      graphEdgePath: Color.lerp(graphEdgePath, other.graphEdgePath, t)!,
       info: Color.lerp(info, other.info, t)!,
       good: Color.lerp(good, other.good, t)!,
       warn: Color.lerp(warn, other.warn, t)!,
