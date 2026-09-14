@@ -192,8 +192,6 @@ class _TestInboxCubit extends Cubit<InboxState> implements InboxCubit {
   final _ControllableForwardRepo? forwardRepo;
   final _MotionFeedRepo? feedRepo;
 
-  @override
-  void setSort(InboxSort sort) {}
 
   @override
   void clearPendingMovedNudge() {}

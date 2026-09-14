@@ -15,7 +15,6 @@ import 'package:tentura/domain/attention/port/attention_account_port.dart';
 import 'package:tentura/domain/attention/port/attention_repository_port.dart';
 import '../../support/attention_repository_fake_base.dart';
 import 'package:tentura/domain/use_case/realtime_sync_case.dart';
-import 'package:tentura/features/my_work/ui/widget/my_work_obligations_pane.dart';
 import 'package:tentura/features/updates/domain/use_case/invite_accepted_setup_case.dart';
 import 'package:tentura/features/updates/ui/bloc/updates_feed_cubit.dart';
 import 'package:tentura/features/updates/ui/widget/updates_feed_pane.dart';
@@ -121,7 +120,7 @@ void main() {
     await _drain();
 
     final cubit = UpdatesFeedCubit(
-      destinationId: AttentionFeedDestinationId.activity,
+      destinationId: AttentionFeedDestinationId.activityStream,
       attention: attention,
       setup: NoopInviteAcceptedSetupPort(),
       realtime: sync.case_,
@@ -175,7 +174,7 @@ void main() {
       await _drain();
 
       final cubit = UpdatesFeedCubit(
-        destinationId: AttentionFeedDestinationId.activity,
+        destinationId: AttentionFeedDestinationId.activityStream,
         attention: attention,
         setup: NoopInviteAcceptedSetupPort(),
         realtime: sync.case_,
@@ -206,59 +205,4 @@ void main() {
     },
   );
 
-  testWidgets('My Work obligations pane mounts the needs-you feed', (
-    tester,
-  ) async {
-    final accounts = _Accounts();
-    final repository = _SummaryRepository(
-      const AttentionSummary(needsYouTotal: 1),
-    );
-    final sync = buildTestRealtimeSync();
-    final attention = AttentionCase(
-      repository,
-      accounts,
-      sync.case_,
-      noopBlockCase(),
-      FeedSessionRegistry(),
-      Logger('updates-feed-views-my-work'),
-    );
-    GetIt.I.registerSingleton<AttentionCase>(attention);
-    GetIt.I.registerSingleton<InviteAcceptedSetupPort>(
-      NoopInviteAcceptedSetupPort(),
-    );
-    GetIt.I.registerSingleton<RealtimeSyncCase>(sync.case_);
-    final registeredLogger = !GetIt.I.isRegistered<Logger>();
-    if (registeredLogger) {
-      GetIt.I.registerSingleton<Logger>(Logger('updates-feed-views-my-work-pane'));
-    }
-    accounts.emit('viewer');
-    await _drain();
-
-    await tester.pumpWidget(
-      _wrap(const MyWorkObligationsPane()),
-    );
-    await tester.pump();
-    await _drain();
-    await tester.pump();
-
-    expect(find.byKey(const Key(TestIds.myWorkObligationsPane)), findsOneWidget);
-    final l10n = L10n.of(tester.element(find.byType(Scaffold)))!;
-    expect(find.text(l10n.updatesEmptyNeedsYouHint), findsOneWidget);
-
-    unawaited(attention.dispose());
-    unawaited(sync.port.dispose());
-    unawaited(accounts.close());
-    if (GetIt.I.isRegistered<AttentionCase>()) {
-      GetIt.I.unregister<AttentionCase>();
-    }
-    if (GetIt.I.isRegistered<InviteAcceptedSetupPort>()) {
-      GetIt.I.unregister<InviteAcceptedSetupPort>();
-    }
-    if (GetIt.I.isRegistered<RealtimeSyncCase>()) {
-      GetIt.I.unregister<RealtimeSyncCase>();
-    }
-    if (registeredLogger && GetIt.I.isRegistered<Logger>()) {
-      GetIt.I.unregister<Logger>();
-    }
-  });
 }

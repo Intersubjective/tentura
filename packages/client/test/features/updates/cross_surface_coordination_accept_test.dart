@@ -57,7 +57,7 @@ void main() {
         FeedSessionRegistry(),
         Logger('cross-surface-accept'),
       );
-      attention.attachFeedSession(AttentionFeedDestinationId.activity);
+      attention.attachFeedSession(AttentionFeedDestinationId.activityStream);
       addTearDown(() async {
         await attention.dispose();
         await sync.port.dispose();

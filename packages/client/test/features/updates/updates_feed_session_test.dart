@@ -126,8 +126,8 @@ void main() {
 
   test('destinations keep independent view and search but share unread total',
       () async {
-    const destA = AttentionFeedDestinationId.activity;
-    const destB = AttentionFeedDestinationId.myWorkObligations;
+    const destA = AttentionFeedDestinationId.activityStream;
+    const destB = AttentionFeedDestinationId.history;
 
     accounts.emit('account-a');
     await _pump();
@@ -182,7 +182,7 @@ void main() {
 
   test('dispose and remount restores prior view and search for a destination',
       () async {
-    const dest = AttentionFeedDestinationId.activity;
+    const dest = AttentionFeedDestinationId.activityStream;
 
     accounts.emit('account-a');
     await _pump();
@@ -232,7 +232,7 @@ void main() {
   });
 
   test('stale fetch does not apply after view changes bump generation', () async {
-    const dest = AttentionFeedDestinationId.activity;
+    const dest = AttentionFeedDestinationId.activityStream;
 
     final initial = Completer<AttentionFeed>();
     final staleUnread = Completer<AttentionFeed>();

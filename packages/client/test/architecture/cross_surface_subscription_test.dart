@@ -38,7 +38,7 @@ void main() {
         FeedSessionRegistry(),
         Logger('cross-surface-updates'),
       );
-      attention.attachFeedSession(AttentionFeedDestinationId.activity);
+      attention.attachFeedSession(AttentionFeedDestinationId.activityStream);
       addTearDown(attention.dispose);
 
       accounts.emit('author');
@@ -76,7 +76,7 @@ void main() {
       );
       addTearDown(attention.dispose);
       final cubit = UpdatesFeedCubit(
-        destinationId: AttentionFeedDestinationId.activity,
+        destinationId: AttentionFeedDestinationId.activityStream,
         attention: attention,
         setup: NoopInviteAcceptedSetupPort(),
         realtime: sync.case_,

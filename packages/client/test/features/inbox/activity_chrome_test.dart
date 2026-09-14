@@ -18,7 +18,6 @@ import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/domain/use_case/realtime_sync_case.dart';
 import 'package:tentura/features/forward/data/repository/forward_repository.dart';
 import 'package:tentura/features/forward/domain/entity/help_offer_event.dart';
-import 'package:tentura/features/home/domain/work_activity_redesign_gate.dart';
 import 'package:tentura/features/home/ui/bloc/home_attention_cubit.dart';
 import 'package:tentura/features/home/ui/bloc/home_tab_reselect_cubit.dart';
 import 'package:tentura/features/inbox/domain/enum.dart';
@@ -26,7 +25,6 @@ import 'package:tentura/features/inbox/domain/use_case/inbox_case.dart';
 import 'package:tentura/features/inbox/ui/bloc/inbox_cubit.dart';
 import 'package:tentura/features/inbox/ui/screen/inbox_screen.dart';
 import 'package:tentura/features/inbox/ui/widget/activity_stream_view.dart';
-import 'package:tentura/features/inbox/ui/widget/inbox_triage_row.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/features/updates/domain/use_case/invite_accepted_setup_case.dart';
 import 'package:tentura/features/updates/ui/widget/updates_feed_pane.dart';
@@ -61,8 +59,6 @@ class _HarnessRouter extends Mock implements StackRouter {
 class _TestInboxCubit extends Cubit<InboxState> implements InboxCubit {
   _TestInboxCubit(super.initial);
 
-  @override
-  void setSort(InboxSort sort) {}
 
   @override
   void clearPendingMovedNudge() {}
@@ -190,19 +186,8 @@ class _ChromeAttentionRepo extends AttentionRepositoryFake {
       0;
 }
 
-void _registerRedesignGate(bool enabled) {
-  if (GetIt.I.isRegistered<bool>(instanceName: workActivityRedesignGate)) {
-    GetIt.I.unregister<bool>(instanceName: workActivityRedesignGate);
-  }
-  GetIt.I.registerSingleton<bool>(
-    enabled,
-    instanceName: workActivityRedesignGate,
-  );
-}
-
 Future<void> _pumpInbox(
   WidgetTester tester, {
-  required bool redesignEnabled,
   required _ChromeAttentionRepo attentionRepo,
   required _HarnessRouter router,
 }) async {
@@ -211,8 +196,6 @@ Future<void> _pumpInbox(
   tester.view.devicePixelRatio = 1;
   addTearDown(tester.view.resetPhysicalSize);
   addTearDown(tester.view.resetDevicePixelRatio);
-
-  _registerRedesignGate(redesignEnabled);
 
   final accounts = _Accounts();
   final sync = buildTestRealtimeSync();
@@ -310,23 +293,13 @@ Future<void> _pumpInbox(
 }
 
 void main() {
-  tearDown(() {
-    if (GetIt.I.isRegistered<bool>(instanceName: workActivityRedesignGate)) {
-      GetIt.I.unregister<bool>(instanceName: workActivityRedesignGate);
-    }
-  });
 
   testWidgets('gate on: top bar uses Activity title and mark-all control', (
     tester,
   ) async {
     final repo = _ChromeAttentionRepo(activityUnread: 2);
     final router = _HarnessRouter();
-    await _pumpInbox(
-      tester,
-      redesignEnabled: true,
-      attentionRepo: repo,
-      router: router,
-    );
+    await _pumpInbox(tester, attentionRepo: repo, router: router);
 
     final l10n = L10nEn();
     expect(find.text(l10n.inbox), findsOneWidget);
@@ -339,7 +312,6 @@ void main() {
     expect(markAll.onPressed, isNotNull);
 
     expect(find.byType(ActivityStreamView), findsOneWidget);
-    expect(find.byType(InboxTriageRow), findsNothing);
   });
 
   testWidgets('gate on: mark-all is disabled when activity unread is zero', (
@@ -347,7 +319,6 @@ void main() {
   ) async {
     await _pumpInbox(
       tester,
-      redesignEnabled: true,
       attentionRepo: _ChromeAttentionRepo(activityUnread: 0),
       router: _HarnessRouter(),
     );
@@ -364,7 +335,6 @@ void main() {
     final repo = _ChromeAttentionRepo(activityUnread: 3);
     await _pumpInbox(
       tester,
-      redesignEnabled: true,
       attentionRepo: repo,
       router: _HarnessRouter(),
     );
@@ -384,7 +354,6 @@ void main() {
     final router = _HarnessRouter();
     await _pumpInbox(
       tester,
-      redesignEnabled: true,
       attentionRepo: _ChromeAttentionRepo(),
       router: router,
     );
@@ -399,25 +368,4 @@ void main() {
     expect(router.lastPush, isA<UpdatesRoute>());
   });
 
-  testWidgets('gate off: legacy title and no mark-all in top bar', (
-    tester,
-  ) async {
-    await _pumpInbox(
-      tester,
-      redesignEnabled: false,
-      attentionRepo: _ChromeAttentionRepo(),
-      router: _HarnessRouter(),
-    );
-
-    final l10n = L10nEn();
-    expect(find.text(l10n.updatesTitle), findsOneWidget);
-    expect(find.text(l10n.inbox), findsNothing);
-    expect(find.byIcon(Icons.done_all), findsNothing);
-    expect(find.byType(UpdatesFeedPane), findsOneWidget);
-    expect(find.byType(ActivityStreamView), findsNothing);
-
-    await tester.tap(find.byIcon(Icons.more_vert));
-    await tester.pumpAndSettle();
-    expect(find.text(l10n.notificationHistoryTitle), findsNothing);
-  });
 }

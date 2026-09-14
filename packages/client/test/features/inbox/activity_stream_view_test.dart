@@ -23,7 +23,6 @@ import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/domain/use_case/realtime_sync_case.dart';
 import 'package:tentura/features/forward/data/repository/forward_repository.dart';
 import 'package:tentura/features/forward/domain/entity/help_offer_event.dart';
-import 'package:tentura/features/home/domain/work_activity_redesign_gate.dart';
 import 'package:tentura/features/home/ui/bloc/home_attention_cubit.dart';
 import 'package:tentura/features/home/ui/bloc/home_tab_reselect_cubit.dart';
 import 'package:tentura/features/inbox/domain/entity/inbox_item.dart';
@@ -35,7 +34,6 @@ import 'package:tentura/features/inbox/ui/widget/activity_forward_row.dart';
 import 'package:tentura/features/inbox/ui/widget/activity_offer_card.dart';
 import 'package:tentura/features/inbox/ui/widget/activity_stream_view.dart';
 import 'package:tentura/features/inbox/ui/widget/activity_watching_digest_row.dart';
-import 'package:tentura/features/inbox/ui/widget/inbox_triage_row.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/features/updates/domain/use_case/invite_accepted_setup_case.dart';
 import 'package:tentura/features/updates/ui/bloc/updates_feed_cubit.dart';
@@ -63,8 +61,6 @@ class _MockRootRouter extends Mock implements RootRouter {}
 class _TestInboxCubit extends Cubit<InboxState> implements InboxCubit {
   _TestInboxCubit(super.initial);
 
-  @override
-  void setSort(InboxSort sort) {}
 
   @override
   void clearPendingMovedNudge() {}
@@ -427,22 +423,8 @@ double _top(Finder finder, WidgetTester tester) {
   return tester.getRect(finder).top;
 }
 
-void _registerRedesignGate(bool enabled) {
-  if (GetIt.I.isRegistered<bool>(instanceName: workActivityRedesignGate)) {
-    GetIt.I.unregister<bool>(instanceName: workActivityRedesignGate);
-  }
-  GetIt.I.registerSingleton<bool>(
-    enabled,
-    instanceName: workActivityRedesignGate,
-  );
-}
 
 void main() {
-  tearDown(() {
-    if (GetIt.I.isRegistered<bool>(instanceName: workActivityRedesignGate)) {
-      GetIt.I.unregister<bool>(instanceName: workActivityRedesignGate);
-    }
-  });
 
   testWidgets('render order: header, prompt, offer, then stream', (tester) async {
     final inboxRepo = FakeInboxRepository()
@@ -632,95 +614,6 @@ void main() {
     expect(seenStream.length, 120);
   });
 
-  testWidgets('gate off keeps legacy triage row and UpdatesFeedPane', (
-    tester,
-  ) async {
-    _registerRedesignGate(false);
-
-    final inboxCubit = _TestInboxCubit(
-      InboxState(
-        items: [_offerItem('legacy')],
-        status: const StateIsSuccess(),
-        projectionLoaded: true,
-      ),
-    );
-
-    final accounts = _Accounts();
-    accounts.emit('viewer');
-    final sync = buildTestRealtimeSync();
-    final attentionCase = AttentionCase(
-      _EmptyFeedRepo(),
-      accounts,
-      sync.case_,
-      noopBlockCase(),
-      FeedSessionRegistry(),
-      Logger('gate-off'),
-    );
-    GetIt.I.registerSingleton<AttentionCase>(attentionCase);
-    GetIt.I.registerSingleton<InviteAcceptedSetupPort>(
-      NoopInviteAcceptedSetupPort(),
-    );
-    GetIt.I.registerSingleton<RealtimeSyncCase>(sync.case_);
-    final logger = Logger('gate-off-test');
-    if (!GetIt.I.isRegistered<Logger>()) {
-      GetIt.I.registerSingleton<Logger>(logger);
-    }
-    addTearDown(() {
-      if (GetIt.I.isRegistered<AttentionCase>()) {
-        GetIt.I.unregister<AttentionCase>();
-      }
-      if (GetIt.I.isRegistered<InviteAcceptedSetupPort>()) {
-        GetIt.I.unregister<InviteAcceptedSetupPort>();
-      }
-      if (GetIt.I.isRegistered<RealtimeSyncCase>()) {
-        GetIt.I.unregister<RealtimeSyncCase>();
-      }
-    });
-
-    final homeAttention = HomeAttentionCubit(
-      attentionCase,
-      accounts,
-      Logger('gate-off'),
-    );
-
-    await tester.pumpWidget(
-      StackRouterScope(
-        controller: _HarnessRouter(),
-        stateHash: 0,
-        child: MultiBlocProvider(
-          providers: [
-            BlocProvider<InboxCubit>.value(value: inboxCubit),
-            BlocProvider<HomeAttentionCubit>.value(value: homeAttention),
-            BlocProvider(create: (_) => HomeTabReselectCubit()),
-            BlocProvider<ProfileCubit>.value(value: _TestProfileCubit()),
-            BlocProvider(create: (_) => ScreenCubit.local()),
-          ],
-          child: MaterialApp(
-            locale: const Locale('en'),
-            theme: TenturaTheme.light(),
-            localizationsDelegates: L10n.localizationsDelegates,
-            supportedLocales: L10n.supportedLocales,
-            home: const MediaQuery(
-              data: MediaQueryData(size: Size(800, 800)),
-              child: TenturaResponsiveScope(child: InboxScreen()),
-            ),
-          ),
-        ),
-      ),
-    );
-    await tester.pump();
-    for (var i = 0; i < 3; i++) {
-      await tester.pump(const Duration(milliseconds: 100));
-    }
-
-    expect(find.byType(InboxTriageRow), findsOneWidget);
-    expect(find.byType(UpdatesFeedPane), findsOneWidget);
-    expect(find.byType(ActivityStreamView), findsNothing);
-
-    unawaited(homeAttention.close());
-    unawaited(attentionCase.dispose());
-    unawaited(accounts.close());
-  });
 }
 
 final class _Accounts implements AttentionAccountPort {

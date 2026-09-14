@@ -101,7 +101,7 @@ void main() {
       FeedSessionRegistry(),
       Logger('inbox-receipts-read-state-test'),
     );
-    attention.attachFeedSession(AttentionFeedDestinationId.activity);
+    attention.attachFeedSession(AttentionFeedDestinationId.activityStream);
     if (GetIt.I.isRegistered<AttentionCase>()) {
       GetIt.I.unregister<AttentionCase>();
     }
@@ -148,7 +148,7 @@ void main() {
     expect(attention.snapshot.summary.unreadTotal, 0);
     expect(
       attention
-          .feedSession(AttentionFeedDestinationId.activity)
+          .feedSession(AttentionFeedDestinationId.activityStream)
           .pages[AttentionView.all]!
           .items
           .single

@@ -41,13 +41,8 @@ void main() {
       );
     });
 
-    test('maps history and legacy destinations to unscoped fetch', () {
+    test('maps history to unscoped fetch', () {
       expect(surfaceForDestination(AttentionFeedDestinationId.history), isNull);
-      expect(surfaceForDestination(AttentionFeedDestinationId.activity), isNull);
-      expect(
-        surfaceForDestination(AttentionFeedDestinationId.myWorkObligations),
-        isNull,
-      );
     });
 
     test('unknown destination ids use unscoped fetch', () {
@@ -116,7 +111,7 @@ void main() {
     });
 
     test('refreshes on notification events', () async {
-      attention.attachFeedSession(AttentionFeedDestinationId.activity);
+      attention.attachFeedSession(AttentionFeedDestinationId.activityStream);
       await signInAndCompleteHead();
       final summary = Completer<AttentionSurfaceSummary>();
       repository.pendingSurfaceSummaries.add(summary);
@@ -135,7 +130,7 @@ void main() {
     });
 
     test('refreshes on helpOffer events', () async {
-      attention.attachFeedSession(AttentionFeedDestinationId.activity);
+      attention.attachFeedSession(AttentionFeedDestinationId.activityStream);
       await signInAndCompleteHead();
       final summary = Completer<AttentionSurfaceSummary>();
       repository.pendingSurfaceSummaries.add(summary);
@@ -154,7 +149,7 @@ void main() {
     });
 
     test('refreshes on inboxItem events', () async {
-      attention.attachFeedSession(AttentionFeedDestinationId.activity);
+      attention.attachFeedSession(AttentionFeedDestinationId.activityStream);
       await signInAndCompleteHead();
       final summary = Completer<AttentionSurfaceSummary>();
       repository.pendingSurfaceSummaries.add(summary);
@@ -173,7 +168,7 @@ void main() {
     });
 
     test('refreshes on catch-up', () async {
-      attention.attachFeedSession(AttentionFeedDestinationId.activity);
+      attention.attachFeedSession(AttentionFeedDestinationId.activityStream);
       await signInAndCompleteHead();
       final summary = Completer<AttentionSurfaceSummary>();
       repository.pendingSurfaceSummaries.add(summary);
@@ -196,7 +191,7 @@ void main() {
       );
       final blockSummaries = <AttentionSurfaceSummary>[];
       blockAttention.surfaceSummary.listen(blockSummaries.add);
-      blockAttention.attachFeedSession(AttentionFeedDestinationId.activity);
+      blockAttention.attachFeedSession(AttentionFeedDestinationId.activityStream);
       addTearDown(blockAttention.dispose);
       addTearDown(blockCase.dispose);
 
@@ -221,7 +216,7 @@ void main() {
     });
 
     test('refreshes after mark-seen ack', () async {
-      attention.attachFeedSession(AttentionFeedDestinationId.activity);
+      attention.attachFeedSession(AttentionFeedDestinationId.activityStream);
       final initial = Completer<AttentionFeed>();
       final afterAckHead = Completer<AttentionFeed>();
       final initialSummary = Completer<AttentionSurfaceSummary>();
@@ -249,7 +244,7 @@ void main() {
     });
 
     test('drops stale surface summary responses', () async {
-      attention.attachFeedSession(AttentionFeedDestinationId.activity);
+      attention.attachFeedSession(AttentionFeedDestinationId.activityStream);
       final head = Completer<AttentionFeed>();
       final stale = Completer<AttentionSurfaceSummary>();
       final fresh = Completer<AttentionSurfaceSummary>();
@@ -280,7 +275,6 @@ void main() {
       await attention.dispose();
       const streamDest = AttentionFeedDestinationId.activityStream;
       const historyDest = AttentionFeedDestinationId.history;
-      const legacyDest = AttentionFeedDestinationId.activity;
       final scopedAttention = AttentionCase(
         repository,
         accounts,
@@ -291,19 +285,16 @@ void main() {
       );
       scopedAttention.attachFeedSession(streamDest);
       scopedAttention.attachFeedSession(historyDest);
-      scopedAttention.attachFeedSession(legacyDest);
       addTearDown(scopedAttention.dispose);
 
       final streamHead = Completer<AttentionFeed>();
-      final legacyHead = Completer<AttentionFeed>();
       final historyHead = Completer<AttentionFeed>();
       final signInSummary = Completer<AttentionSurfaceSummary>();
-      repository.pendingFetches.addAll([streamHead, legacyHead, historyHead]);
+      repository.pendingFetches.addAll([streamHead, historyHead]);
       repository.pendingSurfaceSummaries.add(signInSummary);
       accounts.emit('account-a');
       await attentionCaseTestSettle();
       streamHead.complete(attentionCaseTestFeed());
-      legacyHead.complete(attentionCaseTestFeed());
       historyHead.complete(attentionCaseTestFeed());
       signInSummary.complete(_surfaceSummary());
       await attentionCaseTestSettle();
@@ -437,7 +428,7 @@ void main() {
     );
 
     test('mark-seen adjusts surface totals by receipt surface', () async {
-      attention.attachFeedSession(AttentionFeedDestinationId.activity);
+      attention.attachFeedSession(AttentionFeedDestinationId.activityStream);
       final initial = Completer<AttentionFeed>();
       final initialSummary = Completer<AttentionSurfaceSummary>();
       repository.pendingFetches.add(initial);

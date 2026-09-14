@@ -8,7 +8,7 @@ import 'package:tentura/domain/attention/port/attention_account_port.dart';
 
 import '../../support/attention_repository_fake_base.dart';
 
-const attentionCaseTestFeedDest = AttentionFeedDestinationId.activity;
+const attentionCaseTestFeedDest = AttentionFeedDestinationId.activityStream;
 
 AttentionFeedSession attentionCaseTestFeedSession(AttentionCase attention) =>
     attention.feedSession(attentionCaseTestFeedDest);

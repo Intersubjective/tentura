@@ -20,7 +20,6 @@ import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/domain/use_case/realtime_sync_case.dart';
 import 'package:tentura/features/forward/ui/message/forward_messages.dart';
-import 'package:tentura/features/home/domain/work_activity_redesign_gate.dart';
 import 'package:tentura/features/home/ui/bloc/home_attention_cubit.dart';
 import 'package:tentura/features/home/ui/bloc/home_tab_reselect_cubit.dart';
 import 'package:tentura/features/inbox/domain/entity/inbox_item.dart';
@@ -38,6 +37,12 @@ import 'package:tentura/ui/l10n/l10n.dart';
 import '../../support/test_realtime_sync.dart';
 import '../block/support/controllable_block_case.dart';
 import '../updates/support/noop_invite_setup_port.dart';
+import 'inbox_case_test.dart'
+    show
+        FakeInboxRepository,
+        buildTestBeaconThreadsCase,
+        buildTestInboxCase;
+import 'package:tentura/features/inbox/domain/use_case/inbox_case.dart';
 
 class _HarnessRouter extends Mock implements StackRouter {
   int pushCount = 0;
@@ -91,8 +96,6 @@ class _RecordingRootRouter extends Mock implements RootRouter {
 class _TestInboxCubit extends Cubit<InboxState> implements InboxCubit {
   _TestInboxCubit(super.initial);
 
-  @override
-  void setSort(InboxSort sort) => emit(state.copyWith(sort: sort));
 
   @override
   void clearPendingMovedNudge() {
@@ -199,22 +202,12 @@ InboxItem _watchingItem(
   );
 }
 
-void _registerRedesignGate(bool enabled) {
-  if (GetIt.I.isRegistered<bool>(instanceName: workActivityRedesignGate)) {
-    GetIt.I.unregister<bool>(instanceName: workActivityRedesignGate);
-  }
-  GetIt.I.registerSingleton<bool>(
-    enabled,
-    instanceName: workActivityRedesignGate,
-  );
-}
 
 Future<void> _pumpInboxOverflow(
   WidgetTester tester, {
   required _HarnessRouter router,
   required List<InboxItem> items,
 }) async {
-  _registerRedesignGate(false);
   final inboxCubit = _TestInboxCubit(
     InboxState(
       items: items,
@@ -242,13 +235,18 @@ Future<void> _pumpInboxOverflow(
     GetIt.I.unregister<AttentionCase>();
   }
   GetIt.I.registerSingleton<AttentionCase>(attentionCase);
+  final inboxCase = buildTestInboxCase(
+    FakeInboxRepository(),
+    buildTestBeaconThreadsCase(),
+  );
+  GetIt.I.registerSingleton<InboxCase>(inboxCase);
   GetIt.I.registerSingleton<InviteAcceptedSetupPort>(
     NoopInviteAcceptedSetupPort(),
   );
   GetIt.I.registerSingleton<RealtimeSyncCase>(sync.case_);
   addTearDown(() {
-    if (GetIt.I.isRegistered<bool>(instanceName: workActivityRedesignGate)) {
-      GetIt.I.unregister<bool>(instanceName: workActivityRedesignGate);
+    if (GetIt.I.isRegistered<InboxCase>()) {
+      GetIt.I.unregister<InboxCase>();
     }
     if (GetIt.I.isRegistered<AttentionCase>()) {
       GetIt.I.unregister<AttentionCase>();

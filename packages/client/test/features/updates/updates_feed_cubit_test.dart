@@ -124,7 +124,7 @@ void main() {
     final retry = Completer<AttentionFeed>();
     repository.pendingFetches.addAll([initial, failing, retry]);
     cubit = UpdatesFeedCubit(
-      destinationId: AttentionFeedDestinationId.activity,
+      destinationId: AttentionFeedDestinationId.activityStream,
       attention: attention,
       setup: NoopInviteAcceptedSetupPort(),
       realtime: realtimeCase,

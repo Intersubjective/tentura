@@ -168,7 +168,7 @@ void main() {
       repository.pendingFetches.add(initial);
       setup.throwOnBatch = true;
       cubit = UpdatesFeedCubit(
-        destinationId: AttentionFeedDestinationId.activity,
+        destinationId: AttentionFeedDestinationId.activityStream,
         attention: attention,
         setup: setup,
         realtime: realtimeSync,
@@ -199,7 +199,7 @@ void main() {
         ),
       };
       cubit = UpdatesFeedCubit(
-        destinationId: AttentionFeedDestinationId.activity,
+        destinationId: AttentionFeedDestinationId.activityStream,
         attention: attention,
         setup: setup,
         realtime: realtimeSync,
@@ -236,7 +236,7 @@ void main() {
         ),
       };
       cubit = UpdatesFeedCubit(
-        destinationId: AttentionFeedDestinationId.activity,
+        destinationId: AttentionFeedDestinationId.activityStream,
         attention: attention,
         setup: setup,
         realtime: realtimeSync,

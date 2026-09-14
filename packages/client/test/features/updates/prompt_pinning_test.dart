@@ -328,7 +328,7 @@ void main() {
 
       final setup = _FakeSetupPort(batchResult: prompts);
       final cubit = UpdatesFeedCubit(
-        destinationId: AttentionFeedDestinationId.activity,
+        destinationId: AttentionFeedDestinationId.activityStream,
         attention: attention,
         setup: setup,
         realtime: sync.case_,

@@ -748,19 +748,19 @@ void main() {
           view: AttentionView.all,
           cursor: null,
           search: null,
-          surface: null,
+          surface: AttentionSurface.activity,
         ),
         (
           view: AttentionView.all,
           cursor: null,
           search: 'needle',
-          surface: null,
+          surface: AttentionSurface.activity,
         ),
         (
           view: AttentionView.all,
           cursor: 'page-two',
           search: 'needle',
-          surface: null,
+          surface: AttentionSurface.activity,
         ),
       ]);
     });
