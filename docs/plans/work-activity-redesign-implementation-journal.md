@@ -753,6 +753,10 @@ DECISIONS:
 
 REMAINING: none. Proceed to UNIT 20.
 
+**Process note (overseer):** this worker's own background test runs left a leaked `flutter test test/features/home/` process running well after it should have moved on (same class of hygiene issue as prior units) — killed before review. The worker's FINDINGS candidly report that a full nav-bar widget test wired to a live `AttentionCase` hung under `testWidgets` for the same FakeAsync reason as UNIT 17's bug, and it correctly worked around this by testing at the state/cubit/router level instead of forcing a full widget tree — the decision logic (the actually risky part) is thoroughly covered; the widget layer is a thin, low-risk translation of state to a dot/number/hidden badge.
+
+**Manager verdict: ACCEPTED.** Independently re-ran the full `test/features/home/` suite (87/87, no hangs, ~6s) and lints (32/32 baseline) after confirming zero leaked processes. Journal landed correctly, immediately before the checklist marker. Read the navbar item diffs in full: every gate-off condition reduces to its exact original expression (`!redesignEnabled && state.showInboxTriageBadge`, etc.); specifically checked whether `showLegacyObligationBadge` could ever be true while the obligation count is 0 (which would show a stray "0" badge instead of the old icon-only state) — it can't, since `showMyWorkObligationBadge` is literally defined as `myWorkObligationCount > 0`, so the two can never disagree. Read the `openFromUpdate`/`root_router.dart` diff: gate off calls the byte-identical original `openFromNotificationLink(link, preferUpdatesBranch: true)`; gate on computes the branch from `receipt.surface` via a new `preferHomeTab` parameter that's additive, not a replacement, so no other caller is affected. No leaked processes remain, clean git status, commits well split. This closes out every pre-flip unit (00-19).
+
 ## Ordered unit checklist
 
 | Unit | Status |
@@ -776,7 +780,7 @@ REMAINING: none. Proceed to UNIT 20.
 | 16 | complete (accepted) |
 | 17 | complete (accepted, hang diagnosed+fixed by overseer) |
 | 18 | complete (accepted) |
-| 19 | complete |
+| 19 | complete (accepted) — all pre-flip units done |
 | 20 | pending |
 | 21 | pending |
 | 22 | pending |
