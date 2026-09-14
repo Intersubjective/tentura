@@ -57,7 +57,10 @@ void main() {
 
       await logout(tester);
       await loginAs(tester, fixture.authorEmail);
-      await goToPath(tester, kPathUpdates);
+      // kPathUpdates now redirects to kPathInboxHistory (UNIT 20); navigate
+      // to the canonical path directly so goToPath's URL wait doesn't race
+      // the redirect.
+      await goToPath(tester, kPathInboxHistory);
 
       // Real receipt must land in AttentionCase before we assert the adapter.
       await pumpUntil(
