@@ -40,7 +40,7 @@ Orchestration: Claude (overseer) drives one fresh Cursor `composer-2.5` worker p
 | R05 edge legibility | R02 | done | 3d19ea4eb, 499631ba5, 9586255a1, 811a8fd1d | accepted — UI-06 closed; independently re-ran the new edge-style/painter/legend tests, full `test/features/constellation` (306 pass) and `test/features/graph` (218 pass), lints clean (30/30, no drift); diff reviewed — `edgeKindByPair` O(1) lookup with duplicate-key assert, `RepaintingEdgePainter` wired to `cameraRevision`, `effectiveWidth` screen-constant scaling matches spec, legend now derives both color AND dash from the same `constellationEdgeStyle` function the painter uses (fixes the 5/4 vs 6/4 drift the plan flagged) |
 | R06 targeting + semantics | R02, R03b | done | 2be7cb2da, 00f05299f, a0f7df364, ddce9b16d | accepted — UI-07 closed; independently re-ran the 20 new tap-dispatch/semantics/gating tests, full `test/features/constellation` (314 pass), `test/features/graph` (218 pass), lints clean (30/30, no drift); diff reviewed — double-dispatch removed via `onTap: null` + a `Semantics` wrapper with correct ego special-case (no button/onTap/click cursor), combined semantic label matches spec exactly; bonus find — `graphController.setCameraInteractionGated` was never actually called during placement drags (a real pre-existing gap the gating test exposed), now fixed at all 3 drag-lifecycle points |
 | R07 camera recovery + app bar | R02, R03b | done | da326749b, 444b00129, 18a58555c, fee4de447, e9ff66ad3, 20a39380b, ef689b5b7 | accepted — UI-08 closed; independently re-ran camera-controls (5) + app-bar (7) tests, full `test/features/constellation` (322 pass), `test/features/graph test/features/home/constellation_nav_test.dart test/design_system` (316 pass), terminology + lints clean (30/30, no drift); manager fix `ef689b5b7`: `centerOnEgo` hand-built the ego's graph node id (`'fp:\${_viewer.id}'`) instead of using `tenturaGraphNodeId`, violating an explicit codebase invariant though correct today — replaced with a topology lookup + the canonical helper, re-verified; `Icons.legend_toggle` confirmed present in the pinned SDK, `_labelsFit` now text-scale/RTL aware, camera-control insets correctly avoid both the panel and themselves |
-| R08 integrate, verify, release | R00–R07 (R04→R04a+R04b done, R03→R03a+R03b done) | pending | | |
+| R08 integrate, verify, release | R00–R07 (R04→R04a+R04b done, R03→R03a+R03b done) | done | 78844822e, e5bf190bf | accepted with a disclosed gap — see final entry: full local suites + lints + terminology + docs + version bump all done and green; browser-level proof not obtained (port 8888 conflict with the user's own dev server; the plan's browser test file was never authored by any unit) |
 
 ## Verification commands (plan §5.3, run serially)
 
@@ -67,7 +67,8 @@ flutter test
 
 ## Open decisions / blockers
 
-- **R03b launch blocked (2026-09-14 ~20:24-20:35).** Six consecutive attempts to launch the R03b Cursor worker were killed by an external "system is running low on memory" guard, even though `/proc/meminfo`/`free -h` showed ~30GB `MemAvailable` and load <1.0 immediately after every kill (raw `MemFree` hovered at 6-7GB with 24GB reclaimable cache each time — possibly the guard thresholds on raw free rather than available memory, unconfirmed). One attempt (of six) ran long enough to make real progress before also being killed. No leaked cursor-agent processes and no corrupted git state resulted. A small, safe, additive partial edit from the killed attempt is left uncommitted in `constellation_anchor_composition.dart` (adds `expandedExtraCountByAuthor` field with a default — matches plan R03 step 5's first move) and is intentionally kept for the next attempt to build on rather than discarded. Filed as harness feedback (SendFeedback). Next step: retry R03b once conditions look stable, or ask the owner if other memory-heavy applications should be closed first.
+- **R03b launch blocked (2026-09-14 ~20:24-20:35) — RESOLVED.** Six consecutive attempts to launch the R03b Cursor worker were killed by an external "system is running low on memory" guard, even though `/proc/meminfo`/`free -h` showed ~30GB `MemAvailable` and load <1.0 immediately after every kill (raw `MemFree` hovered at 6-7GB with 24GB reclaimable cache each time). Filed as harness feedback (SendFeedback). Resolved by adding an explicit test/lint parallelism guard to the shared worker prompt (D-M6) — attempt 9 (and every unit after) succeeded. Recurred intermittently on R04b/R05/R07 launches (1-3 extra retries each, same symptom, same fix: retry once memory looks stable) but never blocked a unit for more than a few minutes after D-M6 landed.
+- **R08 browser-level proof not obtained (2026-09-15).** Plan §5.4 calls for `integration_test/constellation_readability_test.dart` exercising the UI-01/02/03/05/06/07/08/11/13/14 fixes end-to-end in a real browser — no R00-R07 unit was asked to author this file, so it does not exist. `integration_test/constellation_pinning_test.dart` (pre-existing, D20-D23 coverage) does exist; local infra (Postgres/Hasura/MeritRank) and `tentura-server` were already running, but `./scripts/run_client_integration_web_local.sh` refused to proceed because port 8888 is held by the user's own long-running `flutter run -d web-server` session — stopping that without asking was out of scope for this session. Net effect: every UI-0x fix below is verified at the widget-test level (hundreds of tests per unit, independently re-run and diff-reviewed) but NOT at the full-browser level the plan's completion bar (§6.3) distinguishes. Not marked "passed" for browser proof; see the completion table.
 
 ## Entries
 
@@ -453,3 +454,48 @@ flutter test
 **Decisions:** Reused `graphCenterView` for center tooltip; People-graph `IconButton` pattern adapted as `IconButton.filledTonal` column. Single-node bounds use same footprint union path (no crash).
 
 **Remaining:** Manager verdict; R08 integrate/verify/release.
+
+### R08 — manager — final
+
+**Status:** complete, with one disclosed gap (browser-level proof — see "Open decisions / blockers").
+
+**Work performed directly by the manager (no Cursor worker — this unit is integration/verification/release, not new feature code):**
+
+1. **Full local verification matrix** (plan §5.3), run serially, one heavy process at a time:
+   - `packages/force_directed_graphview`: `flutter test` (full package) — **112/112 passed**; `dart analyze --format machine` — **0 errors**.
+   - `packages/client`: `flutter test` (full package, every feature, not just constellation/graph/home/design_system) — **3339 passed, 29 skipped (pre-existing), 0 failed**.
+   - `bash scripts/check-user-facing-terminology.sh` — ok.
+   - `./scripts/check-custom-lints.sh packages/client` — 30/30, no baseline drift (re-confirmed after the docs/version commits, which touch no Dart).
+   - `git diff --check` across the whole plan range — clean, no whitespace errors.
+   - No leaked test/analyzer processes at any point (checked after every unit throughout R00-R07 and again here).
+2. **Manager remediation carried over from R07's review:** `ef689b5b7` (hand-built graph node id → canonical `tenturaGraphNodeId`), independently re-verified.
+3. **`docs/features/constellation.md` updated** (`78844822e`): density uses a text-scale ratio applied to every composition; overflow chips can collapse; labels/badges are a screen-space overlay layer that stays legible at any camera scale; camera recovery controls documented; the "pins may overlap" note is scoped to say automatic placement guarantees no avoidable overlap; a Follow-ups line records general edge-detour routing as deferred (§0.3.1). D20-D23 left unchanged, as required.
+4. **Version bump** (`e5bf190bf`): `packages/client/pubspec.yaml` `7.8.0 → 7.8.1` (patch, per repository convention for a client-only fix/feature batch); `packages/client/web/index.html`'s `flutter_bootstrap.js?v=` synced to `7.8.1` in the same commit (verified no test hardcodes the old version string).
+5. **Browser integration attempt:** local infra (Postgres/Hasura/MeritRank, already running and healthy) and `tentura-server` (:2080, already running) needed no bring-up. `chromedriver` started cleanly. `./scripts/run_client_integration_web_local.sh integration_test/constellation_pinning_test.dart` refused to proceed: port 8888 is held by the user's own long-running `flutter run -d web-server` session (pre-existing, not started by this plan). Stopping the user's own dev server without asking was judged out of scope. No processes were left running from this attempt (`chromedriver`/`flutter_tester` both confirmed absent afterward). `integration_test/constellation_readability_test.dart` — the browser journey plan §5.4 describes — was never authored by any R00-R07 unit; writing it plus standing up a full browser run is deferred, not silently skipped (see "Open decisions / blockers").
+6. **No server minimum-version change** — no protocol change in this plan, confirmed (no `packages/server` file was touched by any unit R00-R07).
+7. Working tree is committed at every step; no uncommitted plan-owned changes remain. Pre-existing unrelated files (`constellation_body_test.dart`, `home_tab_branch_routing_test.dart`, the many untracked docs/plans/*.md, etc.) are untouched throughout, confirmed via `git status --short` at this final checkpoint.
+
+**Completion table (plan §6.3 — UI-01 to UI-14):**
+
+| Finding | Status | Evidence |
+|---|---|---|
+| UI-01 overflow chip overlaps Request | **passed** (widget-level) | R04 obstacle model + R03a/R03b overlay chip placement; `constellationFootprintOverlaps` empty on the reference fixture (R04a/R04b tests) |
+| UI-02 edges run through labels | **passed** (widget-level) | R03a/R03b screen-space label layer is opaque and drawn above the transformed graph; R04 footprint-aware placement |
+| UI-03 graph labels shrink with camera zoom | **passed** (widget-level) | R03b `ConstellationViewportOverlay`; direct regression test (`sm label stays readable after zoom (UI-03)`) |
+| UI-04 Request titles cut off | **passed** (widget-level) | R03a/R03b two-line label plates sized from real text measurement (`measureConstellationLabelPlate`) |
+| UI-05 satellites crowd below the ego | **passed** (widget-level) | R04b `constellationEgoSatelliteDirection` (largest-angular-gap bisector) + footprint-aware fan spacing |
+| UI-06 pale connections vs. dark attachments | **passed** (widget-level) | R05 `constellationEdgeStyle`; contrast test asserts ≥3:1 against `bg` in both themes |
+| UI-07 small/hard-to-tap nodes, double dispatch | **passed** (widget-level) | R03a expanded tap targets (48px min) + R06 single-dispatch fix; 20 new R06 tests including the exact double-dispatch regression |
+| UI-08 no camera recovery; cryptic legend icon | **passed** (widget-level) | R07 `ConstellationCameraControls` (fit-all / center) + `Icons.legend_toggle`; 12 new R07 tests |
+| UI-09 label budget receives a font size | **passed** | R01, `constellation_density_test.dart` table |
+| UI-10 budget applied late/inconsistently | **passed** | R01, `constellation_label_budget_context_test.dart` (the exact UI-10 regression case) |
+| UI-11 hidden Requests take up layout space | **passed** | R04a `constellationDrawnSatellites`; drawn-only layout set test |
+| UI-12 overflow chips drift from author | **passed** | R03b: `_MapOverflowOverlay` removed, chips now live in the per-frame screen-space overlay |
+| UI-13 no way to collapse an expanded author | **passed** | R03b `expandedExtraCountByAuthor` + "Show fewer" chip state; collapse-control test |
+| UI-14 pin/status markers cover the label | **passed** (widget-level) | R03b top-corner `PositionedDirectional` badges, no `bottom:` offset; direct regression tests (LTR + RTL) |
+
+**Every row above is "passed at the widget-test level, independently re-verified by the manager against the live diff" — NONE has a browser-level (`integration_test/`) artifact**, per the disclosed gap. This is weaker than the plan's full completion bar ("Passing a source review or focused suite alone does not establish browser or release acceptance" — §6.3) but is the strongest evidence obtainable this session without either (a) stopping the user's own dev server, or (b) authoring a net-new integration test file, both judged out of scope for an unattended continuation.
+
+**Total added test coverage across R00-R08:** `packages/client` full suite grew from a pre-plan baseline (not separately measured) to 3339 passing tests; the `constellation` feature folder alone grew from 256 (R00 baseline) to 322 (after R07).
+
+**Remaining for the owner:** (1) decide whether to stop the local dev server and run the two existing/new browser integration tests, or accept widget-level verification as sufficient for this release; (2) if browser proof is wanted, `integration_test/constellation_readability_test.dart` still needs to be authored (plan §5.4 lists the exact journeys); (3) normal release process — this plan intentionally leaves the diff uncommitted-to-remote (no push, no deploy) per its own constraints.
