@@ -27,7 +27,7 @@ Orchestration: Claude (overseer) drives one fresh Cursor `composer-2.5` worker p
 
 | Unit | Depends on | Status | Commits | Manager verdict |
 |---|---|---|---|---|
-| R00 fixture + baseline | — | pending | | |
+| R00 fixture + baseline | — | done | c690eca44 | |
 | R01 label budget (ships alone) | R00 | pending | | |
 | R02 graph package seams | R01 landed | pending | | |
 | R03 screen-space labels/chips/badges | R02 | pending | | |
@@ -78,7 +78,7 @@ flutter test
 
 **Status:** complete
 
-**Commits:** (filled after `git commit`)
+**Commits:** `c690eca44` test(client): add Constellation reference fixture for UI remediation
 
 **Changed files:**
 - `packages/client/test/features/constellation/fixtures/constellation_reference_fixture.dart` (new)
