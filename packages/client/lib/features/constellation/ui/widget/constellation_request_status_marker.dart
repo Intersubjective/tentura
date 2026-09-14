@@ -172,3 +172,111 @@ List<String> constellationRequestMarkerSemantics({
   }
   return parts;
 }
+
+/// Scene-space overhang for top-corner pin/status badges (see UI-14).
+double constellationMarkerBadgeOverhang(TenturaTokens tt) {
+  final badgeDiameter = tt.iconSize * 0.85 + 2 * tt.tightGap;
+  return badgeDiameter / 3;
+}
+
+/// Single-glyph map badge (pin or request status); row widget stays for text/legend.
+class ConstellationMarkerBadge extends StatelessWidget {
+  const ConstellationMarkerBadge._({
+    required this.child,
+    required this.semanticsLabel,
+    required this.semanticsKey,
+    this.semanticsIdentifier,
+  });
+
+  factory ConstellationMarkerBadge.pin({
+    required L10n l10n,
+    required TenturaTokens tt,
+    required ColorScheme scheme,
+  }) {
+    final size = tt.iconSize * 0.85;
+    return ConstellationMarkerBadge._(
+      semanticsKey: TestIds.key(TestIds.constellationPinMarker),
+      semanticsIdentifier: TestIds.constellationPinMarker,
+      semanticsLabel: l10n.constellationPinMarkerSemantics,
+      child: _badgeShell(
+        scheme: scheme,
+        tt: tt,
+        child: Icon(
+          Icons.push_pin,
+          size: size,
+          color: tt.info,
+        ),
+      ),
+    );
+  }
+
+  factory ConstellationMarkerBadge.status({
+    required int rawStatus,
+    required L10n l10n,
+    required TenturaTokens tt,
+    required ColorScheme scheme,
+  }) {
+    final presentation = constellationRequestStatusPresentation(
+      rawStatus: rawStatus,
+      l10n: l10n,
+      tt: tt,
+    );
+    if (presentation == null) {
+      return ConstellationMarkerBadge._(
+        semanticsKey: null,
+        semanticsLabel: '',
+        child: const SizedBox.shrink(),
+      );
+    }
+    final size = tt.iconSize * 0.85;
+    return ConstellationMarkerBadge._(
+      semanticsKey: TestIds.key(TestIds.constellationRequestStatusMarker),
+      semanticsLabel: presentation.label,
+      child: _badgeShell(
+        scheme: scheme,
+        tt: tt,
+        child: Icon(
+          presentation.icon,
+          size: size,
+          color: presentation.color,
+        ),
+      ),
+    );
+  }
+
+  final Widget child;
+  final String semanticsLabel;
+  final Key? semanticsKey;
+  final String? semanticsIdentifier;
+
+  static Widget _badgeShell({
+    required ColorScheme scheme,
+    required TenturaTokens tt,
+    required Widget child,
+  }) {
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: scheme.surface,
+        shape: BoxShape.circle,
+        border: Border.all(color: scheme.outlineVariant),
+      ),
+      child: Padding(
+        padding: EdgeInsets.all(tt.tightGap),
+        child: child,
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    if (semanticsKey == null) {
+      return child;
+    }
+    return Semantics(
+      identifier: semanticsIdentifier,
+      key: semanticsKey,
+      label: semanticsLabel,
+      child: child,
+    );
+  }
+}
