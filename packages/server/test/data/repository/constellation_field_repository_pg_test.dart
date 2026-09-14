@@ -270,6 +270,26 @@ ON CONFLICT (beacon_id, user_id) DO NOTHING
       expect(rows.single.id, 'Bmine001');
     }, skip: skipReason);
 
+    test('own request with start_at does not throw FormatException', () async {
+      await insertBeacon(
+        id: 'Bstartat001',
+        authorId: egoId,
+        isDiscoverable: false,
+      );
+      await db.customStatement('''
+UPDATE public.beacon
+SET start_at = '2026-05-18T00:00:00Z',
+    end_at = '2026-05-19T00:00:00Z'
+WHERE id = 'Bstartat001'
+''');
+
+      final rows = await repository.ownRequests(viewerId: egoId);
+
+      expect(rows.single.id, 'Bstartat001');
+      expect(rows.single.startAt, DateTime.utc(2026, 5, 18));
+      expect(rows.single.endAt, DateTime.utc(2026, 5, 19));
+    }, skip: skipReason);
+
     test('blocked author outside graph prefix — author blocks viewer', () async {
       for (var i = 0; i < kConstellationPeerCap; i++) {
         final id = 'Ucfgraph${i.toString().padLeft(3, '0')}';

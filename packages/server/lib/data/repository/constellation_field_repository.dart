@@ -1,4 +1,5 @@
 import 'package:drift/drift.dart' hide Column;
+import 'package:drift_postgres/drift_postgres.dart';
 import 'package:injectable/injectable.dart';
 import 'package:meta/meta.dart';
 import 'package:postgres/postgres.dart' show Type, TypedValue;
@@ -61,7 +62,8 @@ final class ConstellationFieldRepository
   ConstellationFieldRepository(
     this._database,
     this._profiles, {
-    @ignoreParam @visibleForTesting
+    @ignoreParam
+    @visibleForTesting
     Future<void> Function(TenturaDb db)? snapshotOpenProbe,
   }) : _snapshotOpenProbe = snapshotOpenProbe;
 
@@ -76,15 +78,16 @@ final class ConstellationFieldRepository
     required ConstellationFieldReadParams params,
   }) {
     return _database.withReadSnapshot(
-      () => ConstellationFieldSnapshotReader(
-        _database,
-        _profiles,
-        snapshotOpenProbe: _snapshotOpenProbe,
-      ).read(
-        viewerId: viewerId,
-        context: context,
-        params: params,
-      ),
+      () =>
+          ConstellationFieldSnapshotReader(
+            _database,
+            _profiles,
+            snapshotOpenProbe: _snapshotOpenProbe,
+          ).read(
+            viewerId: viewerId,
+            context: context,
+            params: params,
+          ),
     );
   }
 
@@ -248,6 +251,21 @@ LIMIT \$3
   }
 }
 
+/// Drift's `read<DateTime>` treats customSelect `timestamptz` as unix seconds
+/// and `int.parse`s the driver's `DateTime.toString()` (`yyyy-mm-dd hh:mm:ss.mmmZ`).
+DateTime? readCustomSelectTimestamptz(Object? value) {
+  if (value == null) {
+    return null;
+  }
+  if (value is DateTime) {
+    return value.toUtc();
+  }
+  if (value is PgDateTime) {
+    return value.dateTime.toUtc();
+  }
+  return DateTime.parse(value.toString()).toUtc();
+}
+
 ConstellationRequestRecord readConstellationRequestRow(
   QueryRow row, {
   bool? viewerParticipates,
@@ -261,7 +279,9 @@ ConstellationRequestRecord readConstellationRequestRow(
       height: row.read<int>('cover_thumb_height'),
       width: row.read<int>('cover_thumb_width'),
       authorId: row.read<String>('cover_thumb_author_id'),
-      createdAt: row.read<DateTime>('cover_thumb_created_at').toUtc(),
+      createdAt: readCustomSelectTimestamptz(
+        row.data['cover_thumb_created_at'],
+      )!,
     );
   }
 
@@ -277,8 +297,8 @@ ConstellationRequestRecord readConstellationRequestRow(
     status: row.read<int>('status'),
     needs: needs,
     primaryNeedSlug: row.readNullable<String>('primary_need_slug'),
-    startAt: row.readNullable<DateTime>('start_at')?.toUtc(),
-    endAt: row.readNullable<DateTime>('end_at')?.toUtc(),
+    startAt: readCustomSelectTimestamptz(row.data['start_at']),
+    endAt: readCustomSelectTimestamptz(row.data['end_at']),
     addressLabel: row.readNullable<String>('address_label'),
     hasCoordinates: row.read<bool>('has_coordinates'),
     isMine: row.read<bool>('is_mine'),
