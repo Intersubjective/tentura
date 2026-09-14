@@ -14,6 +14,8 @@ import 'scene_layout_test_support.dart';
 import 'package:tentura/features/graph/ui/widget/graph_scaffold.dart';
 import 'package:tentura/features/graph/ui/widget/graph_legend_content.dart';
 import 'package:tentura/features/graph/ui/widget/graph_legend_edge_swatch.dart';
+import 'package:tentura/features/constellation/ui/bloc/constellation_cubit.dart';
+import 'package:tentura/features/constellation/ui/utils/constellation_edge_style.dart';
 import 'package:tentura/features/graph/ui/widget/graph_legend_mode.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
@@ -222,6 +224,26 @@ void main() {
     expect(find.textContaining('help on this forward'), findsOneWidget);
     expect(find.textContaining('more neighbors'), findsNothing);
     expect(find.textContaining('negative connection'), findsNothing);
+  });
+
+  testWidgets('constellation tier-1 swatch matches shared edge style', (
+    tester,
+  ) async {
+    await _pumpLegendContent(tester, GraphLegendMode.constellation);
+
+    final context = tester.element(find.byType(GraphLegendContent));
+    final theme = Theme.of(context);
+    final tt = theme.extension<TenturaTokens>()!;
+    final expected = constellationEdgeStyle(
+      ConstellationEdgeKind.tier1Path,
+      tt,
+      theme.colorScheme,
+    ).color;
+
+    final swatch = tester.widget<GraphLegendEdgeSwatch>(
+      find.byType(GraphLegendEdgeSwatch).first,
+    );
+    expect(swatch.color, expected);
   });
 
   testWidgets('genealogy legend shows branch colors and hidden children', (

@@ -3,6 +3,8 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 
 import 'package:tentura/design_system/components/tentura_count_badge.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
+import 'package:tentura/features/constellation/ui/bloc/constellation_cubit.dart';
+import 'package:tentura/features/constellation/ui/utils/constellation_edge_style.dart';
 import 'package:tentura/features/constellation/ui/widget/constellation_request_status_marker.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/widget/contact_badge_legend.dart';
@@ -101,21 +103,47 @@ class GraphLegendContent extends StatelessWidget {
         ),
         row(l10n.graphLegendEdgeGenealogyNeutral, edgeColors.neutral),
       ],
-      GraphLegendMode.constellation => [
-        row(l10n.graphLegendConstellationDirectConnection, scheme.outline),
-        _ConstellationDashedEdgeRow(
-          label: l10n.graphLegendConstellationIndirectConnection,
-          color: scheme.outlineVariant,
-        ),
-        _ConstellationAttachmentEdgeRow(
-          label: l10n.graphLegendConstellationRequestLink,
-          color: scheme.secondary,
-        ),
-        _ConstellationDashedEdgeRow(
-          label: l10n.graphLegendConstellationWiderNetworkReach,
-          color: scheme.outlineVariant,
-        ),
-      ],
+      GraphLegendMode.constellation => () {
+        final tier1Style = constellationEdgeStyle(
+          ConstellationEdgeKind.tier1Path,
+          tt,
+          scheme,
+        );
+        final tier2Style = constellationEdgeStyle(
+          ConstellationEdgeKind.tier2Path,
+          tt,
+          scheme,
+        );
+        final attachmentStyle = constellationEdgeStyle(
+          ConstellationEdgeKind.attachment,
+          tt,
+          scheme,
+        );
+        final ringStubStyle = constellationEdgeStyle(
+          ConstellationEdgeKind.ringStub,
+          tt,
+          scheme,
+        );
+        return [
+          row(
+            l10n.graphLegendConstellationDirectConnection,
+            tier1Style.color,
+            strokeWidth: tier1Style.width,
+          ),
+          _ConstellationDashedEdgeRow(
+            label: l10n.graphLegendConstellationIndirectConnection,
+            style: tier2Style,
+          ),
+          _ConstellationAttachmentEdgeRow(
+            label: l10n.graphLegendConstellationRequestLink,
+            style: attachmentStyle,
+          ),
+          _ConstellationDashedEdgeRow(
+            label: l10n.graphLegendConstellationWiderNetworkReach,
+            style: ringStubStyle,
+          ),
+        ];
+      }(),
     };
   }
 
@@ -487,11 +515,11 @@ class _RatingArcSwatchPainter extends CustomPainter {
 class _ConstellationDashedEdgeRow extends StatelessWidget {
   const _ConstellationDashedEdgeRow({
     required this.label,
-    required this.color,
+    required this.style,
   });
 
   final String label;
-  final Color color;
+  final ConstellationEdgeStyle style;
 
   @override
   Widget build(BuildContext context) {
@@ -501,7 +529,7 @@ class _ConstellationDashedEdgeRow extends StatelessWidget {
       child: _LegendRow(
         swatch: CustomPaint(
           size: Size(tt.avatarSize, tt.iconSize),
-          painter: _ConstellationDashedSwatchPainter(color: color),
+          painter: _ConstellationDashedSwatchPainter(style: style),
         ),
         label: label,
       ),
@@ -510,18 +538,18 @@ class _ConstellationDashedEdgeRow extends StatelessWidget {
 }
 
 class _ConstellationDashedSwatchPainter extends CustomPainter {
-  const _ConstellationDashedSwatchPainter({required this.color});
+  const _ConstellationDashedSwatchPainter({required this.style});
 
-  final Color color;
+  final ConstellationEdgeStyle style;
 
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      ..color = color
-      ..strokeWidth = 2
+      ..color = style.color
+      ..strokeWidth = style.width
       ..style = PaintingStyle.stroke;
-    const dash = 5.0;
-    const gap = 4.0;
+    final dash = style.dash;
+    final gap = style.gap;
     var x = 0.0;
     final y = size.height / 2;
     while (x < size.width) {
@@ -533,17 +561,17 @@ class _ConstellationDashedSwatchPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(covariant _ConstellationDashedSwatchPainter oldDelegate) =>
-      oldDelegate.color != color;
+      oldDelegate.style != style;
 }
 
 class _ConstellationAttachmentEdgeRow extends StatelessWidget {
   const _ConstellationAttachmentEdgeRow({
     required this.label,
-    required this.color,
+    required this.style,
   });
 
   final String label;
-  final Color color;
+  final ConstellationEdgeStyle style;
 
   @override
   Widget build(BuildContext context) {
@@ -553,7 +581,7 @@ class _ConstellationAttachmentEdgeRow extends StatelessWidget {
       child: _LegendRow(
         swatch: CustomPaint(
           size: Size(tt.avatarSize * 0.6, tt.iconSize),
-          painter: _ConstellationAttachmentSwatchPainter(color: color),
+          painter: _ConstellationAttachmentSwatchPainter(style: style),
         ),
         label: label,
       ),
@@ -562,15 +590,15 @@ class _ConstellationAttachmentEdgeRow extends StatelessWidget {
 }
 
 class _ConstellationAttachmentSwatchPainter extends CustomPainter {
-  const _ConstellationAttachmentSwatchPainter({required this.color});
+  const _ConstellationAttachmentSwatchPainter({required this.style});
 
-  final Color color;
+  final ConstellationEdgeStyle style;
 
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()
-      ..color = color
-      ..strokeWidth = 1.5
+      ..color = style.color
+      ..strokeWidth = style.width
       ..strokeCap = StrokeCap.round
       ..style = PaintingStyle.stroke;
     final start = Offset(size.width * 0.15, size.height / 2);
@@ -581,5 +609,6 @@ class _ConstellationAttachmentSwatchPainter extends CustomPainter {
   @override
   bool shouldRepaint(
     covariant _ConstellationAttachmentSwatchPainter oldDelegate,
-  ) => oldDelegate.color != color;
+  ) =>
+      oldDelegate.style != style;
 }
