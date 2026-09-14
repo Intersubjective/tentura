@@ -3486,6 +3486,10 @@
   "@activityShowInStream": {
     "context": "InboxScreen"
   },
+  "notificationHistoryTitle": "Notification history",
+  "@notificationHistoryTitle": {
+    "context": "UpdatesScreen"
+  },
   "activityWatchingDigest": "{count, plural, one{{count} request you watch was updated} other{{count} requests you watch were updated}}",
   "@activityWatchingDigest": {
     "context": "InboxScreen",
