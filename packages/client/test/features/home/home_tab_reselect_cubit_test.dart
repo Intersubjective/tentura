@@ -32,5 +32,19 @@ void main() {
       expect(cubit.state.inboxWatchingBeaconId, isNull);
       expect(cubit.state.inboxWatchingOpenCount, 1);
     });
+
+    test('bump constellation increments reselect count', () {
+      final cubit = HomeTabReselectCubit();
+      addTearDown(cubit.close);
+
+      cubit.bump(HomeTab.constellation);
+      expect(cubit.state.constellationReselectCount, 1);
+
+      cubit.bump(HomeTab.work);
+      expect(cubit.state.constellationReselectCount, 1);
+
+      cubit.bump(HomeTab.constellation);
+      expect(cubit.state.constellationReselectCount, 2);
+    });
   });
 }

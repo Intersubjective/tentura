@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:auto_route/auto_route.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
@@ -5,6 +7,7 @@ import 'package:get_it/get_it.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/features/graph/ui/bloc/graph_person_context_cubit.dart';
+import 'package:tentura/features/home/ui/bloc/home_tab_reselect_cubit.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/features/profile_view/domain/use_case/profile_view_case.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
@@ -74,20 +77,27 @@ class _ConstellationScreenState extends State<ConstellationScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: TenturaTopBar.of(
-        context,
-        alignment: TenturaTopBarAlignment.content,
-        title: const SizedBox.shrink(),
-        row: ConstellationAppBarRow(
-          legendExpanded: _legendExpanded,
-          onToggleLegend: _toggleLegend,
+    return BlocListener<HomeTabReselectCubit, HomeTabReselectState>(
+      listenWhen: (prev, curr) =>
+          prev.constellationReselectCount != curr.constellationReselectCount,
+      listener: (context, _) {
+        unawaited(context.read<ConstellationCubit>().load());
+      },
+      child: Scaffold(
+        appBar: TenturaTopBar.of(
+          context,
+          alignment: TenturaTopBarAlignment.content,
+          title: const SizedBox.shrink(),
+          row: ConstellationAppBarRow(
+            legendExpanded: _legendExpanded,
+            onToggleLegend: _toggleLegend,
+          ),
         ),
-      ),
-      body: TenturaFullBleed(
-        child: ConstellationBody(
-          legendExpanded: _legendExpanded,
-          onToggleLegend: _toggleLegend,
+        body: TenturaFullBleed(
+          child: ConstellationBody(
+            legendExpanded: _legendExpanded,
+            onToggleLegend: _toggleLegend,
+          ),
         ),
       ),
     );

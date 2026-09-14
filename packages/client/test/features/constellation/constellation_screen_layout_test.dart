@@ -13,6 +13,7 @@ import 'package:tentura/features/constellation/ui/bloc/constellation_cubit.dart'
 import 'package:tentura/features/constellation/ui/screen/constellation_screen.dart';
 import 'package:tentura/features/constellation/ui/widget/constellation_body.dart';
 import 'package:tentura/features/graph/ui/bloc/graph_person_context_cubit.dart';
+import 'package:tentura/features/home/ui/bloc/home_tab_reselect_cubit.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
@@ -30,8 +31,7 @@ final class _StubRepository implements ConstellationRepositoryPort {
     ConstellationFieldMembershipFilters membershipFilters =
         ConstellationFieldMembershipFilters.defaults,
     ConstellationProjection projection = ConstellationProjection.full,
-  }) async =>
-      field;
+  }) async => field;
 }
 
 class _StubContextCubit extends Cubit<GraphPersonContextState>
@@ -103,6 +103,7 @@ Future<void> _pumpScreen(
           child: MultiBlocProvider(
             providers: [
               BlocProvider<ConstellationCubit>.value(value: cubit),
+              BlocProvider(create: (_) => HomeTabReselectCubit()),
               BlocProvider<GraphPersonContextCubit>(
                 create: (_) => _StubContextCubit(),
               ),
@@ -138,7 +139,10 @@ void main() {
         final columnRight = columnLeft + contentMaxWidth;
         final toggle = find.byKey(const Key('constellation.app_bar.view_mode'));
         final filters = find.byKey(const Key('constellation.app_bar.filters'));
-        expect(tester.getRect(toggle).right, lessThanOrEqualTo(columnRight + 1));
+        expect(
+          tester.getRect(toggle).right,
+          lessThanOrEqualTo(columnRight + 1),
+        );
         expect(
           tester.getRect(toggle).left,
           greaterThanOrEqualTo(columnLeft - 1),
