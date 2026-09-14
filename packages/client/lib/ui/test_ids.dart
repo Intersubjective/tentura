@@ -25,6 +25,8 @@ abstract final class TestIds {
 
   static const activityPromptCollapsed = 'activity-prompt-collapsed';
 
+  static const activityForYouHeader = 'activity-for-you-header';
+
   static String activityOffer(String beaconId) => 'activity-offer-$beaconId';
 
   static String activityForwardRow(String beaconId) =>

@@ -3465,6 +3465,10 @@
   "@activityForwardRestore": {
     "context": "InboxScreen"
   },
+  "activityForYouTitle": "For you",
+  "@activityForYouTitle": {
+    "context": "InboxScreen"
+  },
   "activityWatchingDigest": "{count, plural, one{{count} request you watch was updated} other{{count} requests you watch were updated}}",
   "@activityWatchingDigest": {
     "context": "InboxScreen",
