@@ -515,6 +515,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     _suppressLateGestureEnd = false;
     _draggingNodeId = target.graphNodeId;
     _beginDragPresentation(target);
+    graphController.setCameraInteractionGated(true);
     emit(
       state.copyWith(
         placementPhase: ConstellationPlacementPhase.draggingExisting,
@@ -532,6 +533,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     _suppressLateGestureEnd = false;
     _draggingNodeId = target.graphNodeId;
     _beginDragPresentation(target);
+    graphController.setCameraInteractionGated(true);
     emit(
       state.copyWith(
         placementPhase: ConstellationPlacementPhase.draggingNew,
@@ -935,6 +937,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
       _clearDragPresentation(target.graphNodeId);
     }
     _draggingNodeId = null;
+    graphController.setCameraInteractionGated(false);
     emit(
       state.copyWith(
         placementPhase: ConstellationPlacementPhase.idle,
@@ -1469,6 +1472,8 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     return snapshotOpen && freshCovered;
   }
 
+  /// Body-only hit test for widget tests; production taps use [GraphView.nodeTapHitTester]
+  /// and [resolveConstellationTap].
   NodeDetails? mapNodeAtSceneCentre(Offset sceneCentre) {
     final controller = graphController;
     if (!controller.canLayout) {
