@@ -31,6 +31,7 @@ import '../bloc/constellation_cubit.dart';
 import '../utils/constellation_edge_style.dart';
 import '../utils/constellation_tap_resolver.dart';
 import 'constellation_anchor_controls.dart';
+import 'constellation_camera_controls.dart';
 import 'constellation_filter_bar.dart';
 import 'constellation_overflow_group.dart';
 import 'constellation_request_status_marker.dart';
@@ -611,6 +612,16 @@ class _ConstellationBodyState extends State<ConstellationBody> {
     SceneLayoutAlgorithm layoutAlgorithm,
     bool panelVisible,
   ) {
+    final cameraInsets = ConstellationCameraControls.cameraViewportInsets(
+      context,
+      personPanelVisible: panelVisible,
+    );
+    final tt = context.tt;
+    final cameraRightInset = panelVisible &&
+            context.windowClass != WindowClass.compact
+        ? tt.screenHPadding + tt.graphPersonContextWidth + tt.screenHPadding
+        : tt.screenHPadding;
+
     return Stack(
       fit: StackFit.expand,
       children: [
@@ -774,6 +785,24 @@ class _ConstellationBodyState extends State<ConstellationBody> {
             state.status is StateIsLoading,
           ),
         ),
+        Positioned(
+          top: 0,
+          right: 0,
+          child: SafeArea(
+            left: false,
+            bottom: false,
+            child: Padding(
+              padding: EdgeInsets.only(
+                top: tt.rowGap,
+                right: cameraRightInset,
+              ),
+              child: ConstellationCameraControls(
+                cubit: cubit,
+                viewportInsets: cameraInsets,
+              ),
+            ),
+          ),
+        ),
         if (widget.legendExpanded)
           Positioned(
             left: 0,
@@ -789,7 +818,7 @@ class _ConstellationBodyState extends State<ConstellationBody> {
                   !(panelVisible && context.windowClass == WindowClass.compact),
               right: false,
               child: Padding(
-                padding: EdgeInsets.all(context.tt.rowGap),
+                padding: EdgeInsets.all(tt.rowGap),
                 child: _buildLegendPanel(
                   context,
                   panelVisible: panelVisible,

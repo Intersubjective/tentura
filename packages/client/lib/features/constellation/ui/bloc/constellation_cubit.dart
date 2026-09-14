@@ -1,5 +1,5 @@
 import 'dart:async';
-import 'dart:ui' show Offset, Size;
+import 'dart:ui' show Offset, Rect, Size;
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -985,6 +985,66 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     }
     _cancelUnsentPlacement(write: false);
     emit(state.copyWith(viewMode: viewMode));
+  }
+
+  void fitWholeField({required EdgeInsets insets}) {
+    if (!graphController.canLayout ||
+        state.placementPhase != ConstellationPlacementPhase.idle) {
+      return;
+    }
+    final snapshot = graphController.renderSnapshot;
+    Rect? bounds;
+    for (final entry in snapshot.topology.nodesById.entries) {
+      final graphId = entry.key;
+      final point = snapshot.resolvePosition(graphId);
+      if (point == null) {
+        continue;
+      }
+      final centre = (x: point.x, y: point.y);
+      final sceneNode = entry.value;
+      final nodeBounds = constellationPlacedNodeBounds(
+        centre: centre,
+        footprint: layoutFootprints[graphId],
+        size: (
+          width: sceneNode.size.width,
+          height: sceneNode.size.height,
+        ),
+      );
+      final rect = Rect.fromLTRB(
+        nodeBounds.left,
+        nodeBounds.top,
+        nodeBounds.right,
+        nodeBounds.bottom,
+      );
+      bounds = bounds == null ? rect : bounds.expandToInclude(rect);
+    }
+    if (bounds == null) {
+      return;
+    }
+    graphController.fitToRect(
+      bounds,
+      padding: kMinInteractiveDimension,
+      viewportInsets: insets,
+      maxScale: 1.0,
+    );
+  }
+
+  void centerOnEgo({required EdgeInsets insets}) {
+    if (!graphController.canLayout ||
+        state.placementPhase != ConstellationPlacementPhase.idle) {
+      return;
+    }
+    final egoGraphId =
+        '${TenturaGraphNodeKind.fieldPerson}:${_viewer.id}';
+    final point = graphController.renderSnapshot.resolvePosition(egoGraphId);
+    if (point == null) {
+      return;
+    }
+    graphController.jumpToPosition(
+      Offset(point.x, point.y),
+      resetScale: true,
+      viewportInsets: insets,
+    );
   }
 
   void updateLabelBudgetContext({

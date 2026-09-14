@@ -151,6 +151,18 @@ ConstellationBounds constellationRenderedBounds({
   );
 }
 
+/// Scene-space bounds for a placed node (footprint when known, else body only).
+ConstellationBounds constellationPlacedNodeBounds({
+  required ConstellationPoint centre,
+  ConstellationFootprint? footprint,
+  required ConstellationSize size,
+}) {
+  if (footprint != null) {
+    return _absoluteFootprintBounds(centre: centre, footprint: footprint);
+  }
+  return constellationRenderedBounds(centre: centre, size: size);
+}
+
 Map<String, Offset> constellationLayoutPointsToOffsets(
   Map<String, ConstellationPoint> positions,
 ) {
