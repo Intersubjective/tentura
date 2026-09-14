@@ -163,6 +163,7 @@ Future<T> withDisposablePgLifecycleLock<T>(
 Future<DisposablePgWriterSession> setUpDisposablePgWriter({
   required DisposablePgTarget target,
   bool createPgmer2Extension = false,
+  String? lastInclusiveVersion,
 }) async {
   Connection? writer;
   try {
@@ -176,7 +177,11 @@ Future<DisposablePgWriterSession> setUpDisposablePgWriter({
       if (createPgmer2Extension) {
         await writer!.execute('CREATE EXTENSION IF NOT EXISTS pgmer2');
       }
-      await migrateDbSchema(writer!);
+      if (lastInclusiveVersion == null) {
+        await migrateDbSchema(writer!);
+      } else {
+        await migrateDbSchemaThrough(writer!, lastInclusiveVersion);
+      }
       final current = await writer!.execute('SELECT current_database()');
       final name = current.first.first as String;
       if (name != target.databaseName) {

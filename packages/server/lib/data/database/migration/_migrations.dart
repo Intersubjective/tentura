@@ -164,6 +164,7 @@ part 'm0158.dart';
 part 'm0159.dart';
 part 'm0160.dart';
 part 'm0161.dart';
+part 'm0161a.dart';
 part 'm0162.dart';
 part 'm0163.dart';
 part 'm0163a.dart';
@@ -172,6 +173,7 @@ part 'm0165.dart';
 part 'm0166.dart';
 part 'm0167.dart';
 part 'm0168.dart';
+part 'm0169.dart';
 
 final _allMigrations = <Migration>[
   m0001,
@@ -335,21 +337,22 @@ final _allMigrations = <Migration>[
   m0159,
   m0160,
   m0161,
-  // m0163a runs before m0162: m0162's beacon_can_read_content body calls
-  // person_are_mutually_visible_cached, which m0163a creates. Postgres
-  // validates LANGUAGE sql/plpgsql function bodies at CREATE time by default
-  // (check_function_bodies=on) — only the test harness's disposable Postgres
-  // target disables that check, which is why this ordering bug never
-  // surfaced until a real (non-test) migration run hit it.
-  m0163a,
+  // migrant selects the first version strictly greater than the current stamp.
+  // Keep the cache prerequisite before 0162 in both list and string order.
+  m0161a,
   m0162,
   m0163,
+  m0163a,
   m0164,
   m0165,
   m0166,
   m0167,
   m0168,
+  m0169,
 ];
+
+/// Test inventory in the exact order passed to migrant.
+List<Migration> get migrationsForTesting => List.unmodifiable(_allMigrations);
 
 Future<void> migrateDbSchema(Connection connection) =>
     Database(PostgreSQLGateway(connection)).upgrade(InMemory(_allMigrations));

@@ -33,7 +33,7 @@ CREATE OR REPLACE FUNCTION public.bump_direct_trust_version()
 $$;
 ''',
   r'''
-CREATE TRIGGER vote_user_bump_direct_trust_version
+CREATE OR REPLACE TRIGGER vote_user_bump_direct_trust_version
   AFTER INSERT OR UPDATE OR DELETE ON public.vote_user
   FOR EACH STATEMENT EXECUTE FUNCTION public.bump_direct_trust_version();
 ''',
