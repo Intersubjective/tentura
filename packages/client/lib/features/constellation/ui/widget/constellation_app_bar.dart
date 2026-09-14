@@ -61,9 +61,7 @@ class ConstellationAppBarRow extends StatelessWidget {
                     ? l10n.graphLegendClose
                     : l10n.graphLegendOpen,
                 onPressed: onToggleLegend,
-                icon: Icon(
-                  legendExpanded ? Icons.map : Icons.map_outlined,
-                ),
+                icon: const Icon(Icons.legend_toggle),
                 constraints: BoxConstraints(
                   minWidth: tt.buttonHeight,
                   minHeight: tt.buttonHeight,
@@ -174,17 +172,27 @@ class _ConstellationViewModeToggle extends StatelessWidget {
         Theme.of(context).textTheme.labelMedium ?? const TextStyle();
     final iconSize = IconTheme.of(context).size ?? 24;
     final gap = context.tt.iconTextGap;
+    final textScaler = MediaQuery.textScalerOf(context);
+    final textDirection = Directionality.of(context);
     // Two segments + divider + outer padding allowance.
     const chrome = 48.0;
-    final mapW = _measure(mapLabel, style) + iconSize + gap;
-    final textW = _measure(textLabel, style) + iconSize + gap;
+    final mapW =
+        _measure(mapLabel, style, textScaler, textDirection) + iconSize + gap;
+    final textW =
+        _measure(textLabel, style, textScaler, textDirection) + iconSize + gap;
     return mapW + textW + chrome <= maxWidth;
   }
 
-  static double _measure(String text, TextStyle style) {
+  static double _measure(
+    String text,
+    TextStyle style,
+    TextScaler textScaler,
+    TextDirection textDirection,
+  ) {
     final painter = TextPainter(
       text: TextSpan(text: text, style: style),
-      textDirection: TextDirection.ltr,
+      textDirection: textDirection,
+      textScaler: textScaler,
       maxLines: 1,
     )..layout();
     return painter.width;
