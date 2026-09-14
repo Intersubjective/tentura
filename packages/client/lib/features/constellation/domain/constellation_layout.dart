@@ -12,6 +12,18 @@ typedef ConstellationPoint = ({double x, double y});
 typedef ConstellationSize = ({double width, double height});
 typedef ConstellationBounds = ({double left, double top, double right, double bottom});
 
+/// Screen-space label/chip/badge sizes at readable scale (R03 → R04 footprints).
+typedef ConstellationFootprintMetrics = ({
+  double labelGap,
+  double personLabelWidth,
+  double personLabelHeight,
+  double requestLabelWidth,
+  double requestLabelHeight,
+  double chipWidth,
+  double chipHeight,
+  double badgeOverhang,
+});
+
 typedef ConstellationLayout = ({
   Map<String, ConstellationPoint> positions,
   Map<String, int> ring,
