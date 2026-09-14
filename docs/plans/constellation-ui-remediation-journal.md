@@ -189,7 +189,7 @@ flutter test
 
 **Status:** complete
 
-**Commits:** `da8ab8215` feat(client): add graph label max-width tokens; `379dc4f1f` feat(client): add Constellation viewport presentation-frame algorithm; `038d26e0b` feat(client): add Constellation tap resolver; `7c13b1b1f` feat(client): add overflow chip size helper; `94fda7db9` test(client): add Constellation presentation frame unit tests
+**Commits:** `da8ab8215` feat(client): add graph label max-width tokens; `379dc4f1f` feat(client): add Constellation viewport presentation-frame algorithm; `038d26e0b` feat(client): add Constellation tap resolver; `7c13b1b1f` feat(client): add overflow chip size helper; `94fda7db9` test(client): add Constellation presentation frame unit tests; `94369b571` docs(plan): R03a presentation frame journal final
 
 **Changed files:**
 - `packages/client/lib/design_system/tentura_tokens.dart`
