@@ -118,7 +118,7 @@ flutter test
 
 **Status:** complete
 
-**Commits:** (filled after `git commit`)
+**Commits:** `4dcca824a` fix(client): recompose constellation label budget on viewport and text scale
 
 **Changed files:**
 - `packages/client/lib/features/constellation/ui/widget/constellation_body.dart`
