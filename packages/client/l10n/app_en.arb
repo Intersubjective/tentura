@@ -1466,14 +1466,6 @@
       }
     }
   },
-  "constellationPinHere": "Pin here",
-  "@constellationPinHere": {
-    "context": "ConstellationAnchorControls"
-  },
-  "constellationCancelPlacement": "Cancel",
-  "@constellationCancelPlacement": {
-    "context": "ConstellationAnchorControls"
-  },
   "constellationPinTarget": "Pin",
   "@constellationPinTarget": {
     "context": "ConstellationAnchorControls"

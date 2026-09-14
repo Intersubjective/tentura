@@ -70,7 +70,7 @@ Tier-2 edges are visually distinct and carry **no label** about what evidence pr
 - **Filter bar** above the map: capability, location presence, timing, include-unspecified toggle.
 - **Overflow groups** per author when label budget hides satellites (`+N more`).
 - **Snapshot bar:** load timestamp, Map/Text switch, refresh control.
-- **Pin controls:** first placing an unpinned person or request asks for confirmation. Moving an already pinned target saves its final position on drop; unpin removes only that account's placement.
+- **Pin controls:** dropping an unpinned person or request pins it immediately at the drop coordinate. Moving an already pinned target saves its final position on drop; unpin removes only that account's placement and re-layouts that node into the automatic layer.
 - Actions revalidate current permissions and request state before offer/forward submission (UX8); stale snapshot shows recovery copy and refresh.
 
 ### Pinned placement and request state

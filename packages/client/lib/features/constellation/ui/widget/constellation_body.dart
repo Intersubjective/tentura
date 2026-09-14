@@ -565,21 +565,14 @@ class _ConstellationBodyState extends State<ConstellationBody> {
             }
             switch (cubit.state.placementPhase) {
               case ConstellationPlacementPhase.draggingExisting:
+              case ConstellationPlacementPhase.draggingNew:
                 unawaited(
                   cubit.onExistingNodeDrop(
                     target: target,
                     sceneCentre: position,
                   ),
                 );
-              case ConstellationPlacementPhase.draggingNew:
-                unawaited(
-                  cubit.onNewNodeDrop(
-                    target: target,
-                    sceneCentre: position,
-                  ),
-                );
               case ConstellationPlacementPhase.idle:
-              case ConstellationPlacementPhase.provisionalNew:
                 break;
             }
           },
@@ -685,14 +678,6 @@ class _ConstellationBodyState extends State<ConstellationBody> {
             ),
           ),
         if (panelVisible) _buildPersonContextOverlay(context, cubit, state),
-        Positioned(
-          left: 0,
-          right: 0,
-          bottom: 0,
-          child: ConstellationProvisionalPlacementBar(
-            controller: cubit.graphController,
-          ),
-        ),
       ],
     );
   }

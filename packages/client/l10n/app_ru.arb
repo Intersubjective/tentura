@@ -1466,14 +1466,6 @@
       }
     }
   },
-  "constellationPinHere": "Закрепить здесь",
-  "@constellationPinHere": {
-    "context": "ConstellationAnchorControls"
-  },
-  "constellationCancelPlacement": "Отмена",
-  "@constellationCancelPlacement": {
-    "context": "ConstellationAnchorControls"
-  },
   "constellationPinTarget": "Закрепить",
   "@constellationPinTarget": {
     "context": "ConstellationAnchorControls"

@@ -278,6 +278,7 @@ final class ConstellationSceneLayoutAlgorithm implements SceneLayoutAlgorithm {
     this.pinnedRequestIds = const {},
     this.supportPersonIds = const {},
     this.anchorByNodeId = const {},
+    this.forgetPriorHintNodeIds = const {},
     this.priorHints,
     this.nodeSizes = const {},
     this.spacing = 16,
@@ -294,6 +295,8 @@ final class ConstellationSceneLayoutAlgorithm implements SceneLayoutAlgorithm {
   final Set<String> pinnedRequestIds;
   final Set<String> supportPersonIds;
   final Map<String, ConstellationAnchorPosition> anchorByNodeId;
+  /// Domain ids that must not reuse session inertia from a former pin.
+  final Set<String> forgetPriorHintNodeIds;
   final ConstellationLayoutPriorHints? priorHints;
   final Map<String, ConstellationSize> nodeSizes;
   final double spacing;
@@ -368,6 +371,9 @@ final class ConstellationSceneLayoutAlgorithm implements SceneLayoutAlgorithm {
     final positions = <String, ConstellationPoint>{};
     final ring = <String, int>{...?priorHints?.ring};
     for (final entry in graphIdByDomain.entries) {
+      if (forgetPriorHintNodeIds.contains(entry.key)) {
+        continue;
+      }
       final point = previous[entry.value];
       if (point == null) {
         continue;
@@ -414,6 +420,10 @@ final class ConstellationSceneLayoutAlgorithm implements SceneLayoutAlgorithm {
             supportPersonIds,
             other.supportPersonIds,
           ) &&
+          const SetEquality<String>().equals(
+            forgetPriorHintNodeIds,
+            other.forgetPriorHintNodeIds,
+          ) &&
           const MapEquality<String, ConstellationAnchorPosition>().equals(
             anchorByNodeId,
             other.anchorByNodeId,
@@ -441,6 +451,7 @@ final class ConstellationSceneLayoutAlgorithm implements SceneLayoutAlgorithm {
     const SetEquality<String>().hash(pinnedPersonIds),
     const SetEquality<String>().hash(pinnedRequestIds),
     const SetEquality<String>().hash(supportPersonIds),
+    const SetEquality<String>().hash(forgetPriorHintNodeIds),
     const MapEquality<String, ConstellationAnchorPosition>().hash(
       anchorByNodeId,
     ),

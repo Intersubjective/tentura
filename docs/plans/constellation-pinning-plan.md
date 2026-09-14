@@ -192,15 +192,16 @@ cancel.
 Rejected: disabling camera pan/zoom for the entire placement mode. That makes
 placement across a large mobile canvas impractical.
 
-### D17 — First placement requires explicit confirmation
+### D17 — Drop commits a pin immediately
 
-Dropping an unpinned person or Request creates a provisional local position,
-not a persisted anchor. Camera controls resume immediately, and the viewer can
-either choose **Pin here** or cancel. **Pin here** creates the server anchor;
-cancel or leaving placement restores the computed layout position.
+Dropping an unpinned person or Request performs one optimistic server upsert at
+the drop coordinate — the same commit-on-drop contract as moving an already
+pinned object (D15). There is no provisional local-only state and no **Pin here
+/ Cancel** confirmation bar.
 
-This deliberate first-pin confirmation protects against an accidental node drag.
-Subsequent movement of an already pinned object follows D15 and commits on drop.
+Pointer cancel during an in-progress drag aborts without a write. After drop,
+the only undo is **Unpin**. Envelope validation remains on the drag path (D32);
+confirmation was never the envelope gate.
 
 ### D18 — A captured node drag owns the touch sequence
 
@@ -239,7 +240,7 @@ Automatic layout still treats pinned nodes as obstacles when placing unpinned
 nodes. It must not resolve overlap between pinned anchors by moving either one.
 
 Rejected: snapping the dragged node to the nearest collision-free position or
-returning it to its prior/provisional position after an overlapping drop.
+returning it to its prior position after an overlapping drop.
 
 ### D21 — Overlap uses ordinary topmost interaction
 
@@ -413,6 +414,11 @@ soft layout hints when their semantic parent/ring is unchanged and they do not
 conflict with a hard anchor. This reduces avoidable movement without promising
 cross-device equality for automatic nodes.
 
+A just-unpinned node is **not** eligible for session inertia from its former
+anchor coordinate: layout forgets that node's prior hint until a layout
+outcome is accepted, so unpin immediately reflows it into the automatic layer.
+Other automatic nodes keep their session hints.
+
 Only anchors persist. Session-local automatic positions are never uploaded, and
 the pure layout contract remains deterministic for a given complete input,
 including any explicit prior-layout hints.
@@ -420,10 +426,9 @@ including any explicit prior-layout hints.
 ### D34 — Dragging never continuously reflows the field
 
 During a node drag, only the dragged node and its incident edge geometry update;
-other nodes do not chase the pointer. Dropping an already pinned node applies
-its new anchor optimistically and triggers one automatic-layer reconciliation.
-For first placement, the provisional drop does not reflow other nodes; the one
-reconciliation happens only after **Pin here** is invoked optimistically.
+other nodes do not chase the pointer. Dropping a node — whether first pin or
+move of an existing pin — applies its new anchor optimistically and triggers
+one automatic-layer reconciliation (D15 / D17).
 
 If persistence fails, restoring the latest server-confirmed anchor under D15
 and D26 triggers one corresponding reconciliation. There is no continuous
@@ -497,7 +502,7 @@ D1–D37 remain binding. C1–C8 below resolve implementation details; execute P
 - V1 conversion is `renderCentre + (xUnits, yUnits) * 170`; inverse subtracts ego centre and divides by `170`. Positive x is right, positive y is down. Keep a `4096 × 4096` canvas and centre `(2048,2048)` on every viewport. Camera zoom is independent. Named geometry constants belong in `constellation_consts.dart`; these are coordinate units, not UI styling tokens.
 - Nodes remain reachable at all four envelope edges, with rendered bounds and a design-system spacing margin inside camera extent. Clamp the *dragged centre* during pointer movement, before displaying it; never snap on drop. Maintain pointer-to-centre grab offset.
 - Server revision is an account-wide monotonically increasing PostgreSQL `bigint`, encoded as a decimal **String** on GraphQL and parsed as `BigInt` on clients (no GraphQL Int or JS-safe-number assumption). It orders updates and deletions; revision `0` means no mutations yet.
-- Stable ascending paint order: unanchored nodes, then confirmed anchors sorted by `(placedAt, targetKind, targetId)`; later entries paint/hit-test on top. Kind tie-break is lexical (`BEACON`, then `PERSON`), ID is lexical. Active drag/provisional/pending placement paints above confirmed anchors. Selection never reorders. Ego has no drag/pin action.
+- Stable ascending paint order: unanchored nodes, then confirmed anchors sorted by `(placedAt, targetKind, targetId)`; later entries paint/hit-test on top. Kind tie-break is lexical (`BEACON`, then `PERSON`), ID is lexical. Active drag/pending placement paints above confirmed anchors. Selection never reorders. Ego has no drag/pin action.
 
 ### C2 — Authorization, filters and participation
 
@@ -613,22 +618,21 @@ In the local graph package add optional, default-off node-drag callbacks, camera
 
 ### C7 — Interaction and reconciliation state machine
 
-Feature state stores `confirmedProjection`, `projectionRevision`, typed pending command, account/load generations, and placement state `idle | draggingExisting | draggingNew | provisionalNew`. One local placement/write is active at a time; disable other pin/move/unpin actions while its request is pending, but leave camera and navigation usable. No per-frame HTTP calls.
+Feature state stores `confirmedProjection`, `projectionRevision`, typed pending command, account/load generations, and placement state `idle | draggingExisting | draggingNew`. One local placement/write is active at a time; disable other pin/move/unpin actions while its request is pending, but leave camera and navigation usable. No per-frame HTTP calls.
 
 | Event | Required transition |
 |---|---|
 | Touch long-press or mouse primary drag on non-ego node | Capture node after platform gesture slop/long-press rules; freeze current scene transform, preserve grab offset; `draggingExisting` if anchored, otherwise `draggingNew` |
-| Two-pointer scale wins before capture | Camera owns sequence; no node movement or provisional state |
+| Two-pointer scale wins before capture | Camera owns sequence; no node movement |
 | Extra pointer after node capture | Node retains ownership; ignore extra pointers for movement; keep camera gated until every pointer in that sequence lifts/cancels |
 | Existing-node drop | Upsert final position once, optimistic anchor/top order, one automatic reconciliation; restore camera when sequence is fully released |
-| New-node drop | Enter `provisionalNew`, display Pin here/Cancel, zero writes and zero global reconciliation; camera resumes after sequence release |
-| Pin here | Upsert once, optimistic anchor and one reconciliation |
-| Cancel / Escape / route leave / switch to Text / filter or FULL refresh during placement | Cancel unsent placement, restore newest confirmed/computed position, no write; suppress late gesture-end callback |
+| New-node drop | Same as existing-node drop: upsert once at drop coordinates, optimistic anchor, one automatic reconciliation; camera resumes after sequence release |
+| Cancel / Escape / route leave / switch to Text / filter change during drag | Cancel unsent drag, restore newest confirmed/computed position, no write; suppress late gesture-end callback. While a write is in flight after drop, cancel/Escape/filters are no-ops for placement |
 | Pointer cancel / viewport geometry change during drag | Cancel drag safely and wait for pointer release before rearming camera; no write |
-| Unpin | Optimistic remove + one reconciliation, submit one delete; never touch Favorites |
+| Unpin | Optimistic remove + forget that node's prior-layout hint + one reconciliation, submit one delete; never touch Favorites |
 | Text Pin | Use `computeConstellationPinPosition` below even if Map was never mounted; submit one upsert (the button is explicit confirmation). Never derive coordinates from list order |
 
-| Incoming anchor refresh during drag/provisional/pending write | Update confirmed cache/watermark, defer presentation for that target only; apply confirmed positions for other targets immediately, without automatic-layer reflow until placement ends |
+| Incoming anchor refresh during drag/pending write | Update confirmed cache/watermark, defer presentation for that target only; apply confirmed positions for other targets immediately, without automatic-layer reflow until placement ends |
 | Successful command | Adopt returned authoritative value only if not older than newest confirmed revision; fetch ANCHORS to settle concurrent deletion or remote movement |
 | Failed command | Fetch ANCHORS once, restore newest confirmed state, one rollback reconciliation, one localized failure message; if offline, restore last known confirmation and mark sync pending until reconnect |
 
@@ -714,17 +718,17 @@ Implement optional C6 hooks, deterministic paint/hit order and the C7 pointer ow
 
 Implement the complete C7 state machine through use cases; now register C8 enum/fromWire, manifest, publisher migration list and impacts together with the real subscriber and test files. Maintain one confirmed cache, optimistic overlay, generation guards and deferred target update. Replace `_rebuildGraph` clear/re-add behavior during drag with the presentation-position hook; full rebuild occurs only at defined reconciliation points. Preserve selected node if still visible; clear selection when its target leaves the composed result.
 
-**Check:** new `test/features/constellation/constellation_anchor_case_test.dart` and `constellation_anchor_cubit_test.dart`, using completers to invert response order. Cover remote move during drag, remote delete then drop, echo-before-response, stale FULL after ANCHORS, equal-revision permission refresh, failed/ambiguous write, offline recovery, provisional cancellation, double confirmation, account change and route disposal. Count writes and layout reconciliations exactly. Run the C8 server/client realtime manifest, impact and cross-surface subscription tests; no missing test paths, dummy subscribers or unrelated anchor-triggered reloads.
+**Check:** new `test/features/constellation/constellation_anchor_case_test.dart` and `constellation_anchor_cubit_test.dart`, using completers to invert response order. Cover remote move during drag, remote delete then drop, echo-before-response, stale FULL after ANCHORS, equal-revision permission refresh, failed/ambiguous write, offline recovery, cancel during drag, cancel no-op while write pending, account change and route disposal. Count writes and layout reconciliations exactly. Run the C8 server/client realtime manifest, impact and cross-surface subscription tests; no missing test paths, dummy subscribers or unrelated anchor-triggered reloads.
 
 ### P09 — Map/Text controls, filters and status accessibility
 
 **Files:** `F/ui/widget/constellation_body.dart`, `constellation_text_view.dart`, `constellation_filter_bar.dart`, `constellation_request_label.dart`, `constellation_request_preview_sheet.dart`; new `constellation_anchor_controls.dart`, `constellation_request_status_marker.dart`; graph `graph_legend_content.dart`; `C/ui/test_ids.dart`; both `packages/client/l10n/app_{en,ru}.arb`.
 
-Read `material-3-flutter`, design-system rules/docs before widget edits. Use existing identity tile inside a Constellation-specific status/pin decorator; do not change Favorites or global Beacon tile semantics. Expose Pin/Unpin in person panel, Request preview and Text rows; Map-only placement confirmation is Pin here/Cancel. Existing anchors drag directly. Add Show closed, Only Requests I participated in, hidden-pin plural message and Clear filters with C4 behavior. Filter preferences are screen-session state, default off on reopen; only anchors persist across devices.
+Read `material-3-flutter`, design-system rules/docs before widget edits. Use existing identity tile inside a Constellation-specific status/pin decorator; do not change Favorites or global Beacon tile semantics. Expose Pin/Unpin in person panel, Request preview and Text rows; map drop commits a pin immediately (no Pin here/Cancel bar). Existing anchors drag directly. Add Show closed, Only Requests I participated in, hidden-pin plural message and Clear filters with C4 behavior. Filter preferences are screen-session state, default off on reopen; only anchors persist across devices.
 
-Map status/pin legend and Text semantics share one status presenter. Use `context.tt` semantic tones, sizing/spacing and `TenturaText`; add named design-system tokens only if no existing token fits. Labels/actions localized in both languages. Add stable IDs for target pin/unpin, Pin here, Cancel, filters, hidden count, state marker and pin marker; do not locate by translated text in browser tests.
+Map status/pin legend and Text semantics share one status presenter. Use `context.tt` semantic tones, sizing/spacing and `TenturaText`; add named design-system tokens only if no existing token fits. Labels/actions localized in both languages. Add stable IDs for target pin/unpin, filters, hidden count, state marker and pin marker; do not locate by translated text in browser tests.
 
-**Check:** body/filter/text/preview widget tests and new `constellation_anchor_interaction_test.dart`: first pin confirmation, no unintentional save, keyboard cancellation, Text-first pin, dormant count, clear defaults, five distinct status cues plus independent pin marker, legacy status 4 decoded as Closed and unknown status rejected rather than painted Open, semantics at text scale 1 and 2, compact 390×844 and expanded 1440×900. Verify chosen foreground/background contrast ≥4.5:1 for text and ≥3:1 for meaningful graphical markers. No accessibility claim for two-dimensional keyboard repositioning (D25).
+**Check:** body/filter/text/preview widget tests and new `constellation_anchor_interaction_test.dart`: immediate first drop pin, in-flight hold, failed-write restore, Escape/filter no-op while write pending, Text-first pin, dormant count, clear defaults, five distinct status cues plus independent pin marker, legacy status 4 decoded as Closed and unknown status rejected rather than painted Open, semantics at text scale 1 and 2, compact 390×844 and expanded 1440×900. Verify chosen foreground/background contrast ≥4.5:1 for text and ≥3:1 for meaningful graphical markers. No accessibility claim for two-dimensional keyboard repositioning (D25).
 
 ### P10 — End-to-end and failure acceptance
 

@@ -77,6 +77,74 @@ void main() {
       );
       expect(second[tenturaGraphNodeId(refreshedPeer)], first[tenturaGraphNodeId(peerNode)]);
     });
+
+    test('forgetPriorHintNodeIds participates in equality', () {
+      final withForget = ConstellationSceneLayoutAlgorithm(
+        egoId: egoId,
+        paths: paths,
+        keptPeerIds: const {'peer-a'},
+        maxHops: 3,
+        visibleRequestsByAuthor: const {},
+        egoOwnRequestIds: const {},
+        forgetPriorHintNodeIds: const {'peer-a'},
+      );
+      expect(withForget, isNot(equals(algorithm)));
+      expect(
+        withForget,
+        equals(
+          ConstellationSceneLayoutAlgorithm(
+            egoId: egoId,
+            paths: paths,
+            keptPeerIds: const {'peer-a'},
+            maxHops: 3,
+            visibleRequestsByAuthor: const {},
+            egoOwnRequestIds: const {},
+            forgetPriorHintNodeIds: const {'peer-a'},
+          ),
+        ),
+      );
+    });
+
+    test('forgetPriorHintNodeIds skips previous-position inertia', () async {
+      final first = await layoutPositionsOnce(
+        algorithm,
+        nodes: {egoNode, peerNode},
+        edges: const {},
+        canvasSize: const Size(4200, 4200),
+      );
+      final ignoring = ConstellationSceneLayoutAlgorithm(
+        egoId: egoId,
+        paths: paths,
+        keptPeerIds: const {'peer-a'},
+        maxHops: 3,
+        visibleRequestsByAuthor: const {},
+        egoOwnRequestIds: const {},
+        forgetPriorHintNodeIds: const {'peer-a'},
+      );
+      final farPrevious = sceneLayoutFromPositions({
+        tenturaGraphNodeId(egoNode): first[tenturaGraphNodeId(egoNode)]!,
+        tenturaGraphNodeId(peerNode): ScenePoint(x: 500, y: 500),
+      });
+      final keptFar = await layoutPositionsOnce(
+        algorithm,
+        nodes: {egoNode, peerNode},
+        edges: const {},
+        previous: farPrevious,
+        canvasSize: const Size(4200, 4200),
+      );
+      final forgotFar = await layoutPositionsOnce(
+        ignoring,
+        nodes: {egoNode, peerNode},
+        edges: const {},
+        previous: farPrevious,
+        canvasSize: const Size(4200, 4200),
+      );
+      expect(keptFar[tenturaGraphNodeId(peerNode)]!.x, closeTo(500, 1));
+      expect(
+        forgotFar[tenturaGraphNodeId(peerNode)]!.x,
+        isNot(closeTo(500, 1)),
+      );
+    });
   });
 
   group('constellation graph reconciliation', () {

@@ -181,8 +181,6 @@ abstract final class TestIds {
       'constellation.text.request.$requestId';
   static const constellationPinTarget = 'constellation.pin_target';
   static const constellationUnpinTarget = 'constellation.unpin_target';
-  static const constellationPinHere = 'constellation.pin_here';
-  static const constellationCancelPlacement = 'constellation.cancel_placement';
   static const constellationFilterShowClosed = 'constellation.filter.show_closed';
   static const constellationFilterParticipatedOnly =
       'constellation.filter.participated_only';

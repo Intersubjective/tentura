@@ -22,7 +22,6 @@ enum ConstellationPlacementPhase {
   idle,
   draggingExisting,
   draggingNew,
-  provisionalNew,
 }
 
 @freezed
@@ -72,8 +71,7 @@ abstract class ConstellationState extends StateBase with _$ConstellationState {
 
   bool get hasPendingPlacementWrite =>
       placementPhase == ConstellationPlacementPhase.draggingExisting ||
-      placementPhase == ConstellationPlacementPhase.draggingNew ||
-      placementPhase == ConstellationPlacementPhase.provisionalNew;
+      placementPhase == ConstellationPlacementPhase.draggingNew;
 
   ConstellationFieldResolved? get resolvedField {
     final loadedField = field;

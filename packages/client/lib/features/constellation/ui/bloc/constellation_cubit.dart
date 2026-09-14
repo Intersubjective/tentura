@@ -160,6 +160,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
   String? _draggingNodeId;
   GraphNodeId? _placementHandoffGraphId;
   ConstellationLayoutPriorHints? _layoutPriorHints;
+  Set<String> _forgetPriorHintNodeIds = {};
   bool _awaitingConstellationLayoutOutcome = false;
   bool _layoutRecoveryAttempted = false;
   bool _dispatchingLayoutRecovery = false;
@@ -201,6 +202,9 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
 
   @visibleForTesting
   int get layoutReconciliationCount => _layoutReconciliationCount;
+
+  @visibleForTesting
+  Set<String> get forgetPriorHintNodeIdsForTest => _forgetPriorHintNodeIds;
 
   @visibleForTesting
   int get writeCount => _anchorCase?.writeCount ?? 0;
@@ -251,6 +255,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
         ).entries)
           entry.key: entry.value.position,
       },
+      forgetPriorHintNodeIds: _forgetPriorHintNodeIds,
     );
   }
 
@@ -323,6 +328,9 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
 
     if (outcome is GraphLayoutOutcomeSucceeded) {
       _layoutRecoveryAttempted = false;
+      if (_forgetPriorHintNodeIds.isNotEmpty) {
+        _forgetPriorHintNodeIds = {};
+      }
       if (state.graphLayoutFailureMessage != null) {
         emit(state.copyWith(graphLayoutFailureMessage: null));
       }
@@ -471,7 +479,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     if (isClosed) {
       return;
     }
-    _cancelUnsentPlacement(write: false);
+    _cancelUnsentPlacement(write: false, force: true);
     final generation =
         _anchorCase?.onAccountChanged() ?? state.loadGeneration + 1;
     _anchorLifecycleToken =
@@ -575,6 +583,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     if (isClosed || _suppressLateGestureEnd) {
       return;
     }
+    _holdDropPresentation(target: target, sceneCentre: sceneCentre);
     final position = constellationPointToV1Anchor(
       (x: sceneCentre.dx, y: sceneCentre.dy),
     );
@@ -594,43 +603,23 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     required ConstellationAnchorTarget target,
     required Offset sceneCentre,
   }) async {
-    if (isClosed || _suppressLateGestureEnd) {
-      return;
-    }
-    updateDragPresentation(
-      nodeId: target.graphNodeId,
-      sceneCentre: sceneCentre,
-    );
-    emit(
-      state.copyWith(
-        placementPhase: ConstellationPlacementPhase.provisionalNew,
-        activePlacementTarget: target,
-        placementActionsEnabled: true,
-      ),
-    );
+    await onExistingNodeDrop(target: target, sceneCentre: sceneCentre);
   }
 
-  Future<void> confirmProvisionalPin({
+  void _holdDropPresentation({
     required ConstellationAnchorTarget target,
     required Offset sceneCentre,
-  }) async {
-    if (isClosed ||
-        state.placementPhase != ConstellationPlacementPhase.provisionalNew) {
+  }) {
+    final graphId = constellationGraphNodeIdForTarget(target);
+    if (graphController.nodePayloadForId(graphId) == null) {
       return;
     }
-    final position = constellationPointToV1Anchor(
-      (x: sceneCentre.dx, y: sceneCentre.dy),
-    );
-    _placementHandoffGraphId = constellationGraphNodeIdForTarget(target);
-    _draggingNodeId = null;
-    emit(
-      state.copyWith(
-        placementPhase: ConstellationPlacementPhase.idle,
-        activePlacementTarget: target,
-        placementActionsEnabled: false,
-      ),
-    );
-    await _submitUpsert(target: target, position: position);
+    final token = graphController.activePresentationTokenForNode(graphId);
+    if (token != null) {
+      graphController.updateNodePresentationDrag(token, sceneCentre);
+    } else {
+      graphController.beginNodePresentationDragForId(graphId, sceneCentre);
+    }
   }
 
   Future<void> pinFromText({required ConstellationAnchorTarget target}) async {
@@ -724,6 +713,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
   ) async {
     switch (outcome.kind) {
       case ConstellationAnchorWriteOutcomeKind.succeeded:
+        _noteDisappearedAnchors(outcome.projection);
         await _mergeConfirmedProjection(outcome.projection);
         emit(
           state.copyWith(
@@ -737,6 +727,12 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
         );
         _reconcileLayout();
       case ConstellationAnchorWriteOutcomeKind.failed:
+        _noteDisappearedAnchors(outcome.projection);
+        final handoffGraphId = _placementHandoffGraphId;
+        _placementHandoffGraphId = null;
+        if (handoffGraphId != null) {
+          graphController.clearPresentationForNodeId(handoffGraphId);
+        }
         await _mergeConfirmedProjection(outcome.projection);
         emit(
           state.copyWith(
@@ -759,6 +755,28 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
           ),
         );
     }
+  }
+
+  void _noteDisappearedAnchors(ConstellationAnchorProjection? incoming) {
+    final previousAnchors =
+        state.composition?.anchorOverlay.anchors ??
+        state.confirmedProjection?.anchors ??
+        const <ConstellationAnchor>[];
+    if (previousAnchors.isEmpty) {
+      return;
+    }
+    final incomingIds = {
+      for (final anchor in incoming?.anchors ?? const <ConstellationAnchor>[])
+        anchor.target.id,
+    };
+    final forgotten = <String>{
+      for (final anchor in previousAnchors)
+        if (!incomingIds.contains(anchor.target.id)) anchor.target.id,
+    };
+    if (forgotten.isEmpty) {
+      return;
+    }
+    _forgetPriorHintNodeIds = {..._forgetPriorHintNodeIds, ...forgotten};
   }
 
   bool _shouldDeferPlacementRefresh() {
@@ -843,6 +861,9 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     if (confirmed == null || field == null) {
       return;
     }
+    if (deferTarget == null) {
+      _noteDisappearedAnchors(confirmed);
+    }
     final presentation = _presentationProjection(
       confirmed,
       deferTarget: deferTarget,
@@ -895,7 +916,11 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
   void _cancelUnsentPlacement({
     required bool write,
     bool suppressLateGestureEnd = true,
+    bool force = false,
   }) {
+    if (!force && (_anchorCase?.hasPendingWrite ?? false)) {
+      return;
+    }
     if (suppressLateGestureEnd) {
       _suppressLateGestureEnd = true;
     }
@@ -1028,9 +1053,6 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     if (anchorTargetForNode(node) == null) {
       return false;
     }
-    if (state.placementPhase == ConstellationPlacementPhase.provisionalNew) {
-      return false;
-    }
     return placementActionsEnabled ||
         state.placementPhase == ConstellationPlacementPhase.draggingExisting ||
         state.placementPhase == ConstellationPlacementPhase.draggingNew;
@@ -1068,9 +1090,7 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     final active = state.activePlacementTarget;
     if (active != null &&
         (state.placementPhase == ConstellationPlacementPhase.draggingExisting ||
-            state.placementPhase == ConstellationPlacementPhase.draggingNew ||
-            state.placementPhase ==
-                ConstellationPlacementPhase.provisionalNew)) {
+            state.placementPhase == ConstellationPlacementPhase.draggingNew)) {
       final activeNode = ordered
           .where((node) => node.id == active.graphNodeId)
           .firstOrNull;

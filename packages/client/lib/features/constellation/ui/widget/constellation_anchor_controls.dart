@@ -1,13 +1,8 @@
 import 'dart:async';
-import 'dart:ui' show Offset;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
-import 'package:force_directed_graphview/force_directed_graphview.dart';
 
-import 'package:tentura/design_system/tentura_design_system.dart';
-import 'package:tentura/features/graph/domain/entity/node_details.dart';
-import 'package:tentura/features/graph/ui/utils/graph_scene_ids.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/test_ids.dart';
 
@@ -77,98 +72,5 @@ class ConstellationAnchorTargetButton extends StatelessWidget {
         );
       },
     );
-  }
-}
-
-/// Map-only Pin here / Cancel overlay during [ConstellationPlacementPhase.provisionalNew].
-class ConstellationProvisionalPlacementBar extends StatelessWidget {
-  const ConstellationProvisionalPlacementBar({
-    required this.controller,
-    super.key,
-  });
-
-  final GraphController<NodeDetails, dynamic> controller;
-
-  @override
-  Widget build(BuildContext context) {
-    return BlocBuilder<ConstellationCubit, ConstellationState>(
-      buildWhen: (previous, current) =>
-          previous.placementPhase != current.placementPhase ||
-          previous.activePlacementTarget != current.activePlacementTarget,
-      builder: (context, state) {
-        if (state.placementPhase != ConstellationPlacementPhase.provisionalNew ||
-            state.activePlacementTarget == null) {
-          return const SizedBox.shrink();
-        }
-        final cubit = context.read<ConstellationCubit>();
-        final l10n = L10n.of(context)!;
-        final tt = context.tt;
-        final target = state.activePlacementTarget!;
-
-        return SafeArea(
-          top: false,
-          child: Padding(
-            padding: EdgeInsets.all(tt.screenHPadding),
-            child: Material(
-              elevation: 4,
-              borderRadius: BorderRadius.circular(tt.cardRadius),
-              color: Theme.of(context).colorScheme.surfaceContainerHigh,
-              child: Padding(
-                padding: tt.cardPadding,
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: FilledButton(
-                        key: TestIds.key(TestIds.constellationPinHere),
-                        onPressed: () {
-                          final centre = _sceneCentreForTarget(
-                            controller: controller,
-                            target: target,
-                          );
-                          if (centre == null) {
-                            return;
-                          }
-                          unawaited(
-                            cubit.confirmProvisionalPin(
-                              target: target,
-                              sceneCentre: centre,
-                            ),
-                          );
-                        },
-                        child: Text(l10n.constellationPinHere),
-                      ),
-                    ),
-                    SizedBox(width: tt.rowGap),
-                    Expanded(
-                      child: OutlinedButton(
-                        key: TestIds.key(TestIds.constellationCancelPlacement),
-                        onPressed: cubit.cancelPlacement,
-                        child: Text(l10n.constellationCancelPlacement),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
-        );
-      },
-    );
-  }
-
-  Offset? _sceneCentreForTarget({
-    required GraphController<NodeDetails, dynamic> controller,
-    required ConstellationAnchorTarget target,
-  }) {
-    for (final node in controller.nodes) {
-      if (node.id != target.graphNodeId) {
-        continue;
-      }
-      if (node is! NodeDetails) {
-        return null;
-      }
-      return controller.getPositionForId(tenturaGraphNodeId(node));
-    }
-    return null;
   }
 }

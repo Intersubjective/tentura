@@ -226,24 +226,39 @@ void main() {
       expect(harness.cubit.state.composition!.anchorOverlay.anchors, hasLength(1));
     });
 
-    test('provisional cancel restores idle without writes', () async {
+    test('cancel during drag restores idle without writes', () async {
       final harness = await _harness();
       addTearDown(harness.cubit.close);
       final target = ConstellationAnchorTarget.person('p1');
 
       harness.cubit.beginDragNew(target: target);
-      await harness.cubit.onNewNodeDrop(
-        target: target,
-        sceneCentre: const Offset(2100, 2100),
-      );
       expect(
         harness.cubit.state.placementPhase,
-        ConstellationPlacementPhase.provisionalNew,
+        ConstellationPlacementPhase.draggingNew,
       );
 
       harness.cubit.cancelPlacement();
       expect(harness.cubit.state.placementPhase, ConstellationPlacementPhase.idle);
       expect(harness.anchorRepo.upsertCount, 0);
+    });
+
+    test('cancel after drop while write pending does not clear presentation', () async {
+      final harness = await _harness();
+      addTearDown(harness.cubit.close);
+      harness.anchorRepo.upsertGate = Completer<void>();
+      final target = ConstellationAnchorTarget.person('p1');
+      final drop = harness.cubit.onExistingNodeDrop(
+        target: target,
+        sceneCentre: const Offset(2100, 2100),
+      );
+      await Future<void>.delayed(Duration.zero);
+
+      harness.cubit.cancelPlacement();
+      expect(harness.anchorRepo.upsertCount, 1);
+
+      harness.anchorRepo.upsertGate.complete();
+      await drop;
+      expect(harness.cubit.isAnchored(target), isTrue);
     });
 
     test('remote move during drag defers active target and skips layout', () async {
@@ -595,22 +610,31 @@ void main() {
       expect(harness.cubit.state.field, isNull);
     });
 
-    test('double provisional confirmation only writes once when guarded', () async {
-      final harness = await _harness();
+    test('overlapping drops while write pending discard the second write', () async {
+      final harness = await _harness(
+        fields: [
+          _field(
+            peers: const [
+              ConstellationPerson(id: 'p1', displayName: 'Peer 1'),
+              ConstellationPerson(id: 'p2', displayName: 'Peer 2'),
+            ],
+            anchors: const [],
+          ),
+        ],
+      );
       addTearDown(harness.cubit.close);
+      harness.anchorRepo.upsertGate = Completer<void>();
       final target = ConstellationAnchorTarget.person('p2');
+      final first = harness.cubit.onNewNodeDrop(
+        target: target,
+        sceneCentre: const Offset(2100, 2100),
+      );
+      await Future<void>.delayed(Duration.zero);
       await harness.cubit.onNewNodeDrop(
         target: target,
-        sceneCentre: const Offset(2100, 2100),
+        sceneCentre: const Offset(2200, 2200),
       );
-      final first = harness.cubit.confirmProvisionalPin(
-        target: target,
-        sceneCentre: const Offset(2100, 2100),
-      );
-      await harness.cubit.confirmProvisionalPin(
-        target: target,
-        sceneCentre: const Offset(2100, 2100),
-      );
+      harness.anchorRepo.upsertGate.complete();
       await first;
       expect(harness.anchorRepo.upsertCount, 1);
     });

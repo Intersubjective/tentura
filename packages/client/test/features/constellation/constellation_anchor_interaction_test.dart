@@ -103,6 +103,7 @@ final class _HarnessAnchorRepository
   int deleteCount = 0;
   ConstellationAnchorPosition? lastPosition;
   Completer<void>? upsertHold;
+  Object? upsertError;
 
   @override
   Future<ConstellationAnchorUpsertResult> upsert({
@@ -112,6 +113,9 @@ final class _HarnessAnchorRepository
     upsertCount++;
     lastPosition = position;
     await upsertHold?.future;
+    if (upsertError != null) {
+      throw upsertError!;
+    }
     return ConstellationAnchorUpsertResult(
       anchor: ConstellationAnchor(
         target: target,
@@ -265,30 +269,18 @@ Offset _requireNodeCentre(ConstellationCubit cubit, String id) {
 
 void main() {
   group('Constellation anchor interaction', () {
-    testWidgets('first pin uses Pin here confirmation', (tester) async {
+    testWidgets('first drop pins immediately without Pin here bar', (
+      tester,
+    ) async {
       final harness = await _harness();
       addTearDown(harness.cubit.close);
       await _pumpShell(tester, harness.cubit);
 
       final target = ConstellationAnchorTarget.person('p1');
-      harness.cubit.beginDragNew(target: target);
       await harness.cubit.onNewNodeDrop(
         target: target,
         sceneCentre: const Offset(2100, 2100),
       );
-      await tester.pump();
-
-      expect(
-        harness.cubit.state.placementPhase,
-        ConstellationPlacementPhase.provisionalNew,
-      );
-      expect(
-        find.byKey(TestIds.key(TestIds.constellationPinHere)),
-        findsOneWidget,
-      );
-      expect(harness.anchorRepo.upsertCount, 0);
-
-      await tester.tap(find.byKey(TestIds.key(TestIds.constellationPinHere)));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 50));
 
@@ -297,9 +289,11 @@ void main() {
         harness.cubit.state.placementPhase,
         ConstellationPlacementPhase.idle,
       );
+      expect(find.text('Pin here'), findsNothing);
+      expect(harness.cubit.isAnchored(target), isTrue);
     });
 
-    testWidgets('Pin here keeps the node at the dragged scene position', (
+    testWidgets('first drop keeps the node at the dragged scene position', (
       tester,
     ) async {
       final harness = await _harness();
@@ -311,13 +305,7 @@ void main() {
       expect((original - drop).distance, greaterThan(200));
 
       final target = ConstellationAnchorTarget.person('p1');
-      harness.cubit.beginDragNew(target: target);
       await harness.cubit.onNewNodeDrop(target: target, sceneCentre: drop);
-      await tester.pump();
-
-      expect(_requireNodeCentre(harness.cubit, 'p1'), drop);
-
-      await tester.tap(find.byKey(TestIds.key(TestIds.constellationPinHere)));
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 400));
 
@@ -338,9 +326,7 @@ void main() {
       expect(pinned.dy, closeTo(drop.dy, 1));
     });
 
-    testWidgets('Pin here does not snap back while the write is in flight', (
-      tester,
-    ) async {
+    testWidgets('in-flight first drop does not snap back', (tester) async {
       final harness = await _harness();
       addTearDown(harness.cubit.close);
       await _pumpShell(tester, harness.cubit);
@@ -350,12 +336,11 @@ void main() {
       expect((original - drop).distance, greaterThan(200));
 
       final target = ConstellationAnchorTarget.person('p1');
-      harness.cubit.beginDragNew(target: target);
-      await harness.cubit.onNewNodeDrop(target: target, sceneCentre: drop);
-      await tester.pump();
-
       harness.anchorRepo.upsertHold = Completer<void>();
-      await tester.tap(find.byKey(TestIds.key(TestIds.constellationPinHere)));
+      final pending = harness.cubit.onNewNodeDrop(
+        target: target,
+        sceneCentre: drop,
+      );
       await tester.pump();
 
       expect(harness.anchorRepo.upsertCount, 1);
@@ -364,12 +349,40 @@ void main() {
       expect(whilePending.dy, closeTo(drop.dy, 1));
 
       harness.anchorRepo.upsertHold!.complete();
+      await pending;
       await tester.pump();
       await tester.pump(const Duration(milliseconds: 400));
 
       final pinned = _requireNodeCentre(harness.cubit, 'p1');
       expect(pinned.dx, closeTo(drop.dx, 1));
       expect(pinned.dy, closeTo(drop.dy, 1));
+    });
+
+    testWidgets('failed first pin restores automatic position', (tester) async {
+      final harness = await _harness();
+      addTearDown(harness.cubit.close);
+      await _pumpShell(tester, harness.cubit);
+
+      final original = _requireNodeCentre(harness.cubit, 'p1');
+      const drop = Offset(2800, 1600);
+      expect((original - drop).distance, greaterThan(200));
+
+      harness.anchorRepo.upsertError = StateError('failed');
+      await harness.cubit.onNewNodeDrop(
+        target: ConstellationAnchorTarget.person('p1'),
+        sceneCentre: drop,
+      );
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
+
+      expect(harness.cubit.state.placementFailureMessage, isNotNull);
+      expect(
+        harness.cubit.isAnchored(ConstellationAnchorTarget.person('p1')),
+        isFalse,
+      );
+      final restored = _requireNodeCentre(harness.cubit, 'p1');
+      expect(restored.dx, closeTo(original.dx, 2));
+      expect(restored.dy, closeTo(original.dy, 2));
     });
 
     testWidgets('unpinning a beacon does not place it on ego', (tester) async {
@@ -423,12 +436,22 @@ void main() {
       await harness.cubit.unpinAnchor(
         target: ConstellationAnchorTarget.beacon('req-1'),
       );
+      expect(
+        harness.cubit.forgetPriorHintNodeIdsForTest,
+        contains('req-1'),
+      );
+      expect(
+        harness.cubit.constellationSceneLayoutAlgorithm.forgetPriorHintNodeIds,
+        contains('req-1'),
+      );
       await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
       await tester.pump(const Duration(milliseconds: 400));
 
       expect(harness.cubit.isAnchored(ConstellationAnchorTarget.beacon('req-1')), isFalse);
       final unpinned = _requireNodeCentre(harness.cubit, 'req-1');
       expect((unpinned - ego).distance, greaterThan(40));
+      expect((unpinned - pinned).distance, greaterThan(40));
     });
 
     testWidgets('pinning a person does not move the camera', (tester) async {
@@ -459,22 +482,14 @@ void main() {
       expect(screenAfter.dy, closeTo(screenBefore.dy, 1));
     });
 
-    testWidgets('cancel provisional pin writes nothing', (tester) async {
+    testWidgets('pointer cancel during drag writes nothing', (tester) async {
       final harness = await _harness();
       addTearDown(harness.cubit.close);
       await _pumpShell(tester, harness.cubit);
 
       final target = ConstellationAnchorTarget.person('p1');
       harness.cubit.beginDragNew(target: target);
-      await harness.cubit.onNewNodeDrop(
-        target: target,
-        sceneCentre: const Offset(2100, 2100),
-      );
-      await tester.pump();
-
-      await tester.tap(
-        find.byKey(TestIds.key(TestIds.constellationCancelPlacement)),
-      );
+      harness.cubit.onPointerCancelDuringDrag();
       await tester.pump();
 
       expect(harness.anchorRepo.upsertCount, 0);
@@ -484,27 +499,70 @@ void main() {
       );
     });
 
-    testWidgets('escape cancels provisional placement', (tester) async {
+    testWidgets('escape after drop while write pending does not snap back', (
+      tester,
+    ) async {
       final harness = await _harness();
       addTearDown(harness.cubit.close);
       await _pumpShell(tester, harness.cubit);
 
+      const drop = Offset(2800, 1600);
       final target = ConstellationAnchorTarget.person('p1');
-      harness.cubit.beginDragNew(target: target);
-      await harness.cubit.onNewNodeDrop(
+      harness.anchorRepo.upsertHold = Completer<void>();
+      final pending = harness.cubit.onNewNodeDrop(
         target: target,
-        sceneCentre: const Offset(2100, 2100),
+        sceneCentre: drop,
       );
       await tester.pump();
 
       await tester.sendKeyEvent(LogicalKeyboardKey.escape);
       await tester.pump();
 
-      expect(harness.anchorRepo.upsertCount, 0);
-      expect(
-        harness.cubit.state.placementPhase,
-        ConstellationPlacementPhase.idle,
+      final whilePending = _requireNodeCentre(harness.cubit, 'p1');
+      expect(whilePending.dx, closeTo(drop.dx, 1));
+      expect(whilePending.dy, closeTo(drop.dy, 1));
+      expect(harness.anchorRepo.upsertCount, 1);
+
+      harness.anchorRepo.upsertHold!.complete();
+      await pending;
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
+
+      final pinned = _requireNodeCentre(harness.cubit, 'p1');
+      expect(pinned.dx, closeTo(drop.dx, 1));
+      expect(pinned.dy, closeTo(drop.dy, 1));
+    });
+
+    testWidgets('filter change during in-flight drop does not snap back', (
+      tester,
+    ) async {
+      final harness = await _harness();
+      addTearDown(harness.cubit.close);
+      await _pumpShell(tester, harness.cubit);
+
+      const drop = Offset(2800, 1600);
+      harness.anchorRepo.upsertHold = Completer<void>();
+      final pending = harness.cubit.onNewNodeDrop(
+        target: ConstellationAnchorTarget.person('p1'),
+        sceneCentre: drop,
       );
+      await tester.pump();
+
+      harness.cubit.setFilterIncludeUnspecified(false);
+      await tester.pump();
+
+      final whilePending = _requireNodeCentre(harness.cubit, 'p1');
+      expect(whilePending.dx, closeTo(drop.dx, 1));
+      expect(whilePending.dy, closeTo(drop.dy, 1));
+
+      harness.anchorRepo.upsertHold!.complete();
+      await pending;
+      await tester.pump();
+      await tester.pump(const Duration(milliseconds: 400));
+
+      final pinned = _requireNodeCentre(harness.cubit, 'p1');
+      expect(pinned.dx, closeTo(drop.dx, 1));
+      expect(pinned.dy, closeTo(drop.dy, 1));
     });
 
     testWidgets('text-first pin submits one upsert', (tester) async {
