@@ -1034,9 +1034,20 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
         state.placementPhase != ConstellationPlacementPhase.idle) {
       return;
     }
-    final egoGraphId =
-        '${TenturaGraphNodeKind.fieldPerson}:${_viewer.id}';
-    final point = graphController.renderSnapshot.resolvePosition(egoGraphId);
+    NodeDetails? egoNode;
+    for (final candidate in graphController.renderSnapshot.topology.nodesById.values) {
+      final payload = candidate.payload;
+      if (payload is FieldPersonNode && payload.person.id == _viewer.id) {
+        egoNode = payload;
+        break;
+      }
+    }
+    if (egoNode == null) {
+      return;
+    }
+    final point = graphController.renderSnapshot.resolvePosition(
+      tenturaGraphNodeId(egoNode),
+    );
     if (point == null) {
       return;
     }
