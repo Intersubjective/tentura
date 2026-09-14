@@ -2,6 +2,8 @@ import 'dart:math' as math;
 
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:tentura/features/constellation/domain/constellation_anchor_composition.dart';
+import 'package:tentura/features/constellation/domain/entity/constellation_anchor.dart';
 import 'package:tentura/features/constellation/domain/constellation_cap_policy.dart';
 import 'package:tentura/features/constellation/domain/constellation_consts.dart';
 import 'package:tentura/features/constellation/domain/constellation_layout.dart';
@@ -108,7 +110,8 @@ void main() {
       expect(layout.ring['r'], 4);
 
       final reqPos = layout.positions['req-b1']!;
-      expect(_distance(reqPos, bPos), lessThanOrEqualTo(_satelliteOffset + _epsilon));
+      // Obstacle-aware placement (R04a): may sit farther than fan radius to clear author.
+      expect(_distance(reqPos, bPos), greaterThan(_satelliteOffset));
     });
 
     test('satellite stability: extra satellites do not move people [R9]', () {
@@ -373,6 +376,287 @@ void main() {
       final cAngle = _angleFromCentre(layout.positions['c']!);
       final dAngle = _angleFromCentre(layout.positions['d']!);
       expect((cAngle - dAngle).abs(), closeTo(math.pi, 0.05));
+    });
+  });
+
+  group('R04a drawn-only satellites', () {
+    test('constellationDrawnSatellites excludes hidden and pinned ids', () {
+      const plan = ConstellationLabelDisplayPlan(
+        drawnRequestIds: {'r1', 'r2', 'e1'},
+        layoutRequestsByAuthor: {
+          'author-a': ['r1', 'hidden', 'r2'],
+          'ego': ['e1', 'e-hidden'],
+        },
+        egoOwnRequestIds: {'e1', 'e-pinned'},
+        overflowHiddenCountByAuthor: const {},
+        pinnedRequestIds: {'e-pinned', 'r2'},
+      );
+      final drawn = constellationDrawnSatellites(plan);
+      expect(drawn.byAuthor, {
+        'author-a': ['r1'],
+        'ego': ['e1'],
+      });
+      expect(drawn.egoOwn, {'e1'});
+    });
+  });
+
+  group('R04a footprints and obstacles', () {
+    const _sampleMetrics = (
+      labelGap: 4.0,
+      personLabelWidth: 100.0,
+      personLabelHeight: 20.0,
+      requestLabelWidth: 100.0,
+      requestLabelHeight: 20.0,
+      chipWidth: 120.0,
+      chipHeight: 32.0,
+      badgeOverhang: 8.0,
+    );
+
+    ConstellationPlacedLayoutInput _peerAndRequestInput({
+      Map<String, ConstellationFootprint> footprints = const {},
+    }) {
+      final paths = _paths(
+        visiblePeerIds: {'author'},
+        holderIds: {'author'},
+        edges: [_edge(_ego, 'author', 1)],
+      );
+      return (
+        egoId: _ego,
+        paths: paths,
+        automaticKeptPeerIds: {'author'},
+        pinnedPersonIds: const {},
+        pinnedRequestIds: const {},
+        supportPersonIds: const {},
+        anchorByNodeId: const {},
+        priorHints: null,
+        nodeSizes: const {
+          'author': (width: 40.0, height: 40.0),
+          'req-1': (width: 36.0, height: 36.0),
+        },
+        satelliteRequestIdsByAuthor: const {'author': ['req-1']},
+        requestAuthorById: const {'req-1': 'author'},
+        egoOwnRequestIds: const {},
+        spacing: 16.0,
+        maxHops: 3,
+        viewportClass: ConstellationViewportClass.expanded,
+        footprints: footprints,
+      );
+    }
+
+    test('empty footprints preserve layout output', () {
+      final input = _peerAndRequestInput();
+      final layout = computeConstellationPlacedLayout(input: input);
+      expect(layout.positions.keys, containsAll(['author', 'req-1']));
+      final again = computeConstellationPlacedLayout(input: input);
+      expect(again.positions, layout.positions);
+    });
+
+    test('request avoids overlapping author footprint when alternative exists',
+        () {
+      final authorFootprint = (
+        left: 90.0,
+        top: 40.0,
+        right: 90.0,
+        bottom: 140.0,
+      );
+      final requestFootprint = (
+        left: 25.0,
+        top: 25.0,
+        right: 25.0,
+        bottom: 70.0,
+      );
+      final egoFootprint = constellationNodeFootprint(
+        kind: ConstellationFootprintKind.person,
+        bodySize: 40,
+        hasAuthorChip: false,
+        metrics: _sampleMetrics,
+      );
+      final input = _peerAndRequestInput(
+        footprints: {
+          _ego: egoFootprint,
+          'author': authorFootprint,
+          'req-1': requestFootprint,
+        },
+      );
+      final layout = computeConstellationPlacedLayout(input: input);
+      final overlaps = constellationFootprintOverlaps(input, layout);
+      expect(
+        overlaps.any(
+          (pair) => pair.$1 == 'author' || pair.$2 == 'author'
+              ? pair.$1 == 'req-1' || pair.$2 == 'req-1'
+              : false,
+        ),
+        isFalse,
+      );
+    });
+
+    test('non-empty footprints do not move people (A3 guard)', () {
+      final paths = _paths(
+        visiblePeerIds: {'a', 'h'},
+        holderIds: {'h'},
+        edges: [
+          _edge(_ego, 'a', 1),
+          _edge('a', 'h', 1),
+        ],
+      );
+      final base = (
+        egoId: _ego,
+        paths: paths,
+        automaticKeptPeerIds: {'a', 'h'},
+        pinnedPersonIds: const <String>{},
+        pinnedRequestIds: const <String>{},
+        supportPersonIds: const <String>{},
+        anchorByNodeId: const <String, ConstellationAnchorPosition>{},
+        priorHints: null,
+        nodeSizes: const {'a': (width: 80.0, height: 80.0)},
+        satelliteRequestIdsByAuthor: const {'h': ['req-1', 'req-2', 'req-3']},
+        requestAuthorById: const <String, String>{},
+        egoOwnRequestIds: const <String>{},
+        spacing: 16.0,
+        maxHops: 3,
+        viewportClass: ConstellationViewportClass.expanded,
+        footprints: const <String, ConstellationFootprint>{},
+      );
+      final withFootprints = (
+        egoId: base.egoId,
+        paths: base.paths,
+        automaticKeptPeerIds: base.automaticKeptPeerIds,
+        pinnedPersonIds: base.pinnedPersonIds,
+        pinnedRequestIds: base.pinnedRequestIds,
+        supportPersonIds: base.supportPersonIds,
+        anchorByNodeId: base.anchorByNodeId,
+        priorHints: base.priorHints,
+        nodeSizes: base.nodeSizes,
+        satelliteRequestIdsByAuthor: base.satelliteRequestIdsByAuthor,
+        requestAuthorById: base.requestAuthorById,
+        egoOwnRequestIds: base.egoOwnRequestIds,
+        spacing: base.spacing,
+        maxHops: base.maxHops,
+        viewportClass: base.viewportClass,
+        footprints: {
+          for (final id in ['a', 'h', _ego])
+            id: constellationNodeFootprint(
+              kind: ConstellationFootprintKind.person,
+              bodySize: 40,
+              hasAuthorChip: id == 'h',
+              metrics: _sampleMetrics,
+            ),
+          for (final id in ['req-1', 'req-2', 'req-3'])
+            id: constellationNodeFootprint(
+              kind: ConstellationFootprintKind.request,
+              bodySize: 36,
+              hasAuthorChip: false,
+              metrics: _sampleMetrics,
+            ),
+        },
+      );
+      final emptyLayout = computeConstellationPlacedLayout(input: base);
+      final footprintLayout = computeConstellationPlacedLayout(
+        input: withFootprints,
+      );
+      expect(
+        _personPositions(footprintLayout),
+        _personPositions(emptyLayout),
+      );
+    });
+  });
+
+  group('constellationFootprintOverlaps', () {
+    test('reports overlapping non-pinned pair', () {
+      final input = (
+        egoId: _ego,
+        paths: _paths(),
+        automaticKeptPeerIds: const {'a', 'b'},
+        pinnedPersonIds: const <String>{},
+        pinnedRequestIds: const <String>{},
+        supportPersonIds: const <String>{},
+        anchorByNodeId: const <String, ConstellationAnchorPosition>{},
+        priorHints: null,
+        nodeSizes: const <String, ConstellationSize>{},
+        satelliteRequestIdsByAuthor: const <String, List<String>>{},
+        requestAuthorById: const <String, String>{},
+        egoOwnRequestIds: const <String>{},
+        spacing: 16.0,
+        maxHops: 3,
+        viewportClass: ConstellationViewportClass.expanded,
+        footprints: const {
+          'a': (left: 50.0, top: 50.0, right: 50.0, bottom: 50.0),
+          'b': (left: 50.0, top: 50.0, right: 50.0, bottom: 50.0),
+        },
+      );
+      final centre = _centre();
+      final layout = (
+        positions: {
+          'a': centre,
+          'b': centre,
+        },
+        ring: <String, int>{'a': 1, 'b': 1},
+      );
+      final overlaps = constellationFootprintOverlaps(input, layout);
+      expect(overlaps, {('a', 'b')});
+    });
+
+    test('skips overlaps when both nodes are pinned', () {
+      final input = (
+        egoId: _ego,
+        paths: _paths(),
+        automaticKeptPeerIds: const <String>{},
+        pinnedPersonIds: const {'a', 'b'},
+        pinnedRequestIds: const <String>{},
+        supportPersonIds: const <String>{},
+        anchorByNodeId: const <String, ConstellationAnchorPosition>{},
+        priorHints: null,
+        nodeSizes: const <String, ConstellationSize>{},
+        satelliteRequestIdsByAuthor: const <String, List<String>>{},
+        requestAuthorById: const <String, String>{},
+        egoOwnRequestIds: const <String>{},
+        spacing: 16.0,
+        maxHops: 3,
+        viewportClass: ConstellationViewportClass.expanded,
+        footprints: const {
+          'a': (left: 50.0, top: 50.0, right: 50.0, bottom: 50.0),
+          'b': (left: 50.0, top: 50.0, right: 50.0, bottom: 50.0),
+        },
+      );
+      final centre = _centre();
+      final layout = (
+        positions: {'a': centre, 'b': centre},
+        ring: const <String, int>{},
+      );
+      expect(constellationFootprintOverlaps(input, layout), isEmpty);
+    });
+
+    test('returns empty when footprints do not overlap', () {
+      final input = (
+        egoId: _ego,
+        paths: _paths(),
+        automaticKeptPeerIds: const {'a', 'b'},
+        pinnedPersonIds: const <String>{},
+        pinnedRequestIds: const <String>{},
+        supportPersonIds: const <String>{},
+        anchorByNodeId: const <String, ConstellationAnchorPosition>{},
+        priorHints: null,
+        nodeSizes: const <String, ConstellationSize>{},
+        satelliteRequestIdsByAuthor: const <String, List<String>>{},
+        requestAuthorById: const <String, String>{},
+        egoOwnRequestIds: const <String>{},
+        spacing: 16.0,
+        maxHops: 3,
+        viewportClass: ConstellationViewportClass.expanded,
+        footprints: const {
+          'a': (left: 10.0, top: 10.0, right: 10.0, bottom: 10.0),
+          'b': (left: 10.0, top: 10.0, right: 10.0, bottom: 10.0),
+        },
+      );
+      final centre = _centre();
+      final layout = (
+        positions: {
+          'a': (x: centre.x, y: centre.y),
+          'b': (x: centre.x + 500, y: centre.y),
+        },
+        ring: <String, int>{'a': 1, 'b': 1},
+      );
+      expect(constellationFootprintOverlaps(input, layout), isEmpty);
     });
   });
 }

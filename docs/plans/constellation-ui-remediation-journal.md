@@ -35,7 +35,7 @@ Orchestration: Claude (overseer) drives one fresh Cursor `composer-2.5` worker p
 | R02 graph package seams | R01 landed | done | baea36507, b03f9e598, d9dadf575, bcf3d20f1, 6b6b25c6b | accepted — independently re-ran the 5 targeted package tests, full package suite (112 pass), `dart analyze` (0 errors, pre-existing INFO-only), and `test/features/graph` on client (217 pass, compatibility gate); diff reviewed — camera-revision listener rebind/dispose is correct, tap-hit-tester shares one drag-pass snapshot for body+tap as required, RepaintingEdgePainter generalization is minimal and correct; zero client files touched |
 | R03a presentation-frame + tap-resolver (split of R03, part 1) | R02 | done | da8ab8215, 379dc4f1f, 038d26e0b, 7c13b1b1f, 94fda7db9, c377ac3cb | accepted — independently re-ran the 12 new unit tests, full `test/features/constellation` (277 pass), `check-custom-lints.sh` (30/30, no drift); algorithm diff matches plan §3.3/§3.4 step-for-step (cull/decorated-body/chip-then-label ordering, forced-label rule, tap-resolver 3-phase order); tap resolver cleanly split into its own file, chip-size helper matches formula exactly |
 | R03b wire overlay + badges + R03 tests (split of R03, part 2) | R03a | done | 185d5af80, c1e8b9ad8, 24a9abe90, cc16577de, 2a0dff449, 09fea0d8e, c4addd3af, 9838597fd | accepted — independently re-ran the 9 new UI-03/UI-13/UI-14 tests, full `test/features/constellation` (286 pass), `test/features/graph` (217 pass), terminology + lint gates clean (30/30, no drift); diff reviewed — `_MapOverflowOverlay` fully removed, `labelBuilder: null`, badges use `PositionedDirectional` with no `bottom:` offset anywhere, `nodeTapHitTester` stale-frame guard matches §3.4, unknown-status suppresses the status badge; `updateFootprintMetrics` deliberately stores-only (no reconcile) with the follow-up flagged for R04 |
-| R04a drawn-only set + footprints + obstacles (split of R04, part 1) | R03b | in progress | | |
+| R04a drawn-only set + footprints + obstacles (split of R04, part 1) | R03b | done | (see final entry) | pending review |
 | R04b satellite geometry + crossing preference + R04 tests (split of R04, part 2) | R04a | pending | | |
 | R05 edge legibility | R02 | pending | | |
 | R06 targeting + semantics | R02, R03b | pending | | |
@@ -260,3 +260,41 @@ flutter test
 **Decisions:** See checkpoint deviations; R04 must add `_reconcileLayout` when `_layoutFootprints` starts reading `_footprintMetrics`.
 
 **Remaining:** R04 collision placement; R06 tap dispatch/semantics; R08 screenshot gate; manager R03b verdict.
+
+### R04a — worker — checkpoint
+
+- Added `constellationDrawnSatellites` and wired cubit `layoutVisibleRequestsByAuthor` / `layoutEgoOwnRequestIds` plus `layoutInputFromComposition` (UI-11). `_scratchInputAddingTarget` unchanged — pin-from-text still injects hidden targets into `satelliteRequestIdsByAuthor` outside the drawn set.
+- `updateFootprintMetrics` reconciles when metrics change, but skips while `_awaitingConstellationLayoutOutcome`, `_ephemeralOwnedLayoutAlgorithm`, or `_dispatchingLayoutRecovery` (R03b recovery test regressed without these guards; deferred relayout when metrics arrive mid-layout handoff).
+
+### R04a — worker — final
+
+**Status:** complete
+
+**Commits:** (see COMMITS in worker exit message)
+
+**Changed files:**
+- `packages/client/lib/features/constellation/domain/constellation_anchor_composition.dart`
+- `packages/client/lib/features/constellation/domain/constellation_layout.dart`
+- `packages/client/lib/features/constellation/domain/constellation_pin_position.dart`
+- `packages/client/lib/features/constellation/ui/bloc/constellation_cubit.dart`
+- `packages/client/lib/features/graph/ui/utils/tentura_layout_algorithms.dart`
+- `packages/client/test/features/constellation/constellation_layout_test.dart`
+- `packages/client/test/features/constellation/constellation_p06_composition_layout_test.dart`
+- `docs/plans/constellation-ui-remediation-journal.md`
+
+**Tests:**
+- `cd packages/client && flutter test test/features/constellation/constellation_layout_test.dart` — 17 passed
+- `cd packages/client && flutter test test/features/graph/tentura_layout_algorithms_test.dart test/features/constellation/constellation_scene_layout_test.dart` — 17 passed
+- `cd packages/client && flutter test test/features/constellation/constellation_p06_composition_layout_test.dart test/features/constellation/constellation_density_test.dart` — passed
+- `cd packages/client && flutter test test/features/constellation` — 293 passed
+- `cd packages/client && flutter test test/features/constellation/constellation_layout_failure_recovery_test.dart` — 3 passed
+- `cd packages/client && flutter test test/architecture/constellation_domain_graph_boundary_test.dart` — 1 passed
+- `./scripts/check-custom-lints.sh packages/client` — 30/30, no drift
+
+**Test expectation updates (author obstacle model, not regressions):**
+- `constellation_layout_test.dart` R10: req–author distance was `≤57` at fan radius; now `>56` (observed ~136) because requests collide against author obstacles.
+- `constellation_p06_composition_layout_test.dart` pinned-author beacon: author distance bound `120` → `150` (observed 136).
+
+**Decisions:** Request automatic placement always uses obstacle map (author exemption removed) even when `footprints` is empty (symmetric body fallback). People placement path unchanged (A3). `ConstellationFootprint` record asymmetry matches label/badge extensions from `constellationNodeFootprint`.
+
+**Remaining:** R04b (ego-fan geometry, attachment-crossing preference, full plan-R04 acceptance tests).

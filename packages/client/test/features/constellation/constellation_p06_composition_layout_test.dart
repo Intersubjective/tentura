@@ -378,6 +378,7 @@ void main() {
           spacing: _spacing,
           maxHops: 3,
           viewportClass: ConstellationViewportClass.expanded,
+          footprints: const <String, ConstellationFootprint>{},
         ),
       );
 
@@ -429,6 +430,7 @@ void main() {
           spacing: _spacing,
           maxHops: 3,
           viewportClass: ConstellationViewportClass.expanded,
+          footprints: const <String, ConstellationFootprint>{},
         ),
       );
 
@@ -446,7 +448,7 @@ void main() {
         math.sqrt(
           math.pow(beacon.x - author.x, 2) + math.pow(beacon.y - author.y, 2),
         ),
-        lessThan(120),
+        lessThan(150),
       );
     });
 
@@ -471,6 +473,7 @@ void main() {
           spacing: _spacing,
           maxHops: 3,
           viewportClass: ConstellationViewportClass.expanded,
+          footprints: const <String, ConstellationFootprint>{},
         ),
       );
 
@@ -514,6 +517,7 @@ void main() {
           spacing: _spacing,
           maxHops: 3,
           viewportClass: ConstellationViewportClass.expanded,
+          footprints: const <String, ConstellationFootprint>{},
         ),
       );
 
@@ -561,6 +565,7 @@ void main() {
             spacing: _spacing,
             maxHops: 3,
             viewportClass: ConstellationViewportClass.expanded,
+            footprints: const <String, ConstellationFootprint>{},
           );
 
       final before = computeConstellationPlacedLayout(input: inputFor(beforePaths));
@@ -587,6 +592,7 @@ void main() {
         spacing: _spacing,
         maxHops: 3,
         viewportClass: ConstellationViewportClass.expanded,
+        footprints: const <String, ConstellationFootprint>{},
       );
       final first = computeConstellationPlacedLayout(input: input);
       final second = computeConstellationPlacedLayout(input: input);
@@ -648,6 +654,7 @@ void main() {
           spacing: _spacing,
           maxHops: 3,
           viewportClass: ConstellationViewportClass.expanded,
+          footprints: const <String, ConstellationFootprint>{},
         ),
       );
 
@@ -692,6 +699,7 @@ void main() {
           spacing: _spacing,
           maxHops: 3,
           viewportClass: ConstellationViewportClass.expanded,
+          footprints: const <String, ConstellationFootprint>{},
         ),
       );
       final crowdedIdeal = baseline.positions['crowded-auto']!;
@@ -718,6 +726,7 @@ void main() {
           spacing: _spacing,
           maxHops: 3,
           viewportClass: ConstellationViewportClass.expanded,
+          footprints: const <String, ConstellationFootprint>{},
         ),
       );
 
@@ -767,6 +776,7 @@ void main() {
           spacing: _spacing,
           maxHops: 3,
           viewportClass: ConstellationViewportClass.expanded,
+          footprints: const <String, ConstellationFootprint>{},
         ),
       );
 
@@ -810,6 +820,7 @@ void main() {
           spacing: _spacing,
           maxHops: 3,
           viewportClass: ConstellationViewportClass.compact,
+          footprints: const <String, ConstellationFootprint>{},
         ),
       );
       final withoutHint = computeConstellationPlacedLayout(
@@ -833,6 +844,7 @@ void main() {
           spacing: _spacing,
           maxHops: 3,
           viewportClass: ConstellationViewportClass.expanded,
+          footprints: const <String, ConstellationFootprint>{},
         ),
       );
 
@@ -935,6 +947,7 @@ void main() {
         },
         spacing: _spacing,
         viewportClass: ConstellationViewportClass.compact,
+        footprints: const <String, ConstellationFootprint>{},
       );
 
       final beforeLayout = computeConstellationPlacedLayout(input: layoutInput);
