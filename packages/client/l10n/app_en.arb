@@ -3469,6 +3469,23 @@
   "@activityForYouTitle": {
     "context": "InboxScreen"
   },
+  "activityNewItemsPill": "{count, plural, one{1 new} other{{count} new}} ↑",
+  "@activityNewItemsPill": {
+    "context": "InboxScreen",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "activityMovedToStream": "Moved to the stream",
+  "@activityMovedToStream": {
+    "context": "InboxScreen"
+  },
+  "activityShowInStream": "Show",
+  "@activityShowInStream": {
+    "context": "InboxScreen"
+  },
   "activityWatchingDigest": "{count, plural, one{{count} request you watch was updated} other{{count} requests you watch were updated}}",
   "@activityWatchingDigest": {
     "context": "InboxScreen",

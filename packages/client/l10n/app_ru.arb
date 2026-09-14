@@ -3460,6 +3460,23 @@
   "@activityForYouTitle": {
     "context": "InboxScreen"
   },
+  "activityNewItemsPill": "{count, plural, one{{count} новое} few{{count} новых} many{{count} новых} other{{count} новых}} ↑",
+  "@activityNewItemsPill": {
+    "context": "InboxScreen",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
+  "activityMovedToStream": "Перемещено в ленту",
+  "@activityMovedToStream": {
+    "context": "InboxScreen"
+  },
+  "activityShowInStream": "Показать",
+  "@activityShowInStream": {
+    "context": "InboxScreen"
+  },
   "activityWatchingDigest": "{count, plural, one{Обновился {count} запрос, за которым вы наблюдаете} few{Обновились {count} запроса, за которыми вы наблюдаете} many{Обновились {count} запросов, за которыми вы наблюдаете} other{Обновились {count} запроса, за которыми вы наблюдаете}}",
   "@activityWatchingDigest": {
     "context": "InboxScreen",
