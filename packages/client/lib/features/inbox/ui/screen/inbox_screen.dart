@@ -2,11 +2,14 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
+import 'package:get_it/get_it.dart';
 
 import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/consts.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
+import 'package:tentura/domain/attention/attention_case.dart';
 import 'package:tentura/domain/attention/entity/attention_feed.dart';
+import 'package:tentura/domain/attention/entity/attention_summary.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura/features/home/ui/bloc/home_tab_reselect_cubit.dart';
@@ -99,6 +102,8 @@ class _InboxScreenState extends State<InboxScreen> {
                 builder: (context) {
                   final scheme = Theme.of(context).colorScheme;
                   final l10n = L10n.of(context)!;
+                  final redesignEnabled =
+                      readWorkActivityRedesignGateEnabled();
                   final useExpandedPane =
                       context.windowClass == WindowClass.expanded;
                   final tt = context.tt;
@@ -112,13 +117,16 @@ class _InboxScreenState extends State<InboxScreen> {
                           ? TenturaTopBarAlignment.fullWidth
                           : TenturaTopBarAlignment.content,
                       title: Text(
-                        l10n.updatesTitle,
+                        redesignEnabled ? l10n.inbox : l10n.updatesTitle,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: TenturaText.titleLarge(scheme.onPrimary),
                       ),
-                      actions: const [
-                        _InboxOverflowMenu(),
+                      actions: [
+                        if (redesignEnabled) const _ActivityMarkAllSeenButton(),
+                        _InboxOverflowMenu(
+                          showNotificationHistory: redesignEnabled,
+                        ),
                       ],
                     ),
                     body: SafeArea(
@@ -266,8 +274,41 @@ Widget _inboxActivityFeedBody(BuildContext context) {
   );
 }
 
+class _ActivityMarkAllSeenButton extends StatelessWidget {
+  const _ActivityMarkAllSeenButton();
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = L10n.of(context)!;
+    final attention = GetIt.I<AttentionCase>();
+
+    return StreamBuilder<AttentionSurfaceSummary>(
+      stream: attention.surfaceSummary,
+      initialData: const AttentionSurfaceSummary(
+        activityUnreadTotal: 0,
+        myWorkUnreadTotal: 0,
+        needsYouTotal: 0,
+      ),
+      builder: (context, snapshot) {
+        final unread = snapshot.data?.activityUnreadTotal ?? 0;
+        return IconButton(
+          icon: const Icon(Icons.done_all),
+          tooltip: l10n.updatesMarkAllSeen,
+          onPressed: unread > 0
+              ? () => unawaited(
+                    attention.markAllSeen(surface: AttentionSurface.activity),
+                  )
+              : null,
+        );
+      },
+    );
+  }
+}
+
 class _InboxOverflowMenu extends StatelessWidget {
-  const _InboxOverflowMenu();
+  const _InboxOverflowMenu({this.showNotificationHistory = false});
+
+  final bool showNotificationHistory;
 
   @override
   Widget build(BuildContext context) {
@@ -289,6 +330,8 @@ class _InboxOverflowMenu extends StatelessWidget {
               unawaited(openInboxWatchingArchive(context));
             } else if (value == 'rejected') {
               unawaited(openInboxRejectedArchive(context));
+            } else if (value == 'history') {
+              unawaited(openNotificationHistory(context));
             }
           },
           itemBuilder: (context) => [
@@ -300,6 +343,11 @@ class _InboxOverflowMenu extends StatelessWidget {
               value: 'rejected',
               child: Text(l10n.inboxRejectedTitle),
             ),
+            if (showNotificationHistory)
+              PopupMenuItem<String>(
+                value: 'history',
+                child: Text(l10n.notificationHistoryTitle),
+              ),
           ],
         );
       },
@@ -321,4 +369,9 @@ Future<void> openInboxWatchingArchive(BuildContext context) async {
   await context.router.push(InboxWatchingRoute());
   if (!context.mounted) return;
   await cubit.fetch();
+}
+
+/// Pushes the all-surfaces notification history screen.
+Future<void> openNotificationHistory(BuildContext context) async {
+  await context.router.push(const UpdatesRoute());
 }
