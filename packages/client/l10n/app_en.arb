@@ -2178,22 +2178,6 @@
   "@inboxWatching": {
     "context": "InboxScreen"
   },
-  "inboxSortRecent": "Recent",
-  "@inboxSortRecent": {
-    "context": "InboxScreen"
-  },
-  "inboxSortMeritRank": "MR Score",
-  "@inboxSortMeritRank": {
-    "context": "InboxScreen"
-  },
-  "inboxSortDeadline": "Deadline",
-  "@inboxSortDeadline": {
-    "context": "InboxScreen"
-  },
-  "inboxSortMenuTitle": "Sort by",
-  "@inboxSortMenuTitle": {
-    "context": "InboxScreen"
-  },
   "inboxRejectedTitle": "Rejected",
   "@inboxRejectedTitle": {
     "context": "InboxScreen"
@@ -2238,10 +2222,6 @@
         "type": "int"
       }
     }
-  },
-  "inboxTabNeedsMe": "Needs me",
-  "@inboxTabNeedsMe": {
-    "context": "InboxScreen"
   },
   "inboxTabWatching": "Watching",
   "@inboxTabWatching": {

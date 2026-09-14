@@ -2169,22 +2169,6 @@
   "@inboxWatching": {
     "context": "InboxScreen"
   },
-  "inboxSortRecent": "Недавние",
-  "@inboxSortRecent": {
-    "context": "InboxScreen"
-  },
-  "inboxSortMeritRank": "MR рейтинг",
-  "@inboxSortMeritRank": {
-    "context": "InboxScreen"
-  },
-  "inboxSortDeadline": "Дедлайн",
-  "@inboxSortDeadline": {
-    "context": "InboxScreen"
-  },
-  "inboxSortMenuTitle": "Сортировка",
-  "@inboxSortMenuTitle": {
-    "context": "InboxScreen"
-  },
   "inboxRejectedTitle": "Отклонённые",
   "@inboxRejectedTitle": {
     "context": "InboxScreen"
@@ -2229,10 +2213,6 @@
         "type": "int"
       }
     }
-  },
-  "inboxTabNeedsMe": "Ждёт меня",
-  "@inboxTabNeedsMe": {
-    "context": "InboxScreen"
   },
   "inboxTabWatching": "Наблюдаю",
   "@inboxTabWatching": {
