@@ -6,7 +6,7 @@ issue: 146
 
 # Shared-context visibility — architecture
 
-**Status:** architecture **rev 3**, ready for implementation
+**Status:** architecture **rev 4**, ready for implementation
 ([implementation plan](issue-146-shared-context-visibility-implementation-plan.md)). Shape only, with no file-by-file
 task list. The product decisions in §2 are binding. A later
 `issue-146-shared-context-visibility-implementation-plan.md` will turn §9 into tasks.
@@ -327,8 +327,8 @@ enforcement adapter, and a parity test keeps the two from drifting.
     automatically, with no metadata change.
   - `beacon_effective_admission(b, v)` ≡ level ≤ 1.
   - `beacon_can_read_involvement` keeps its explicit involved-set conjunct (§5).
-  - `beacon_can_read_linked_detail` becomes an alias of `beacon_can_read_content`, and
-    is dropped after the minimum client version passes (§9).
+  - `beacon_can_read_linked_detail` and its Hasura computed field are **dropped** in
+    phase 2. No legacy client needs them (§9).
 - `beacon_access_reasons(b, v) → int` (bitmask) evaluates **every** clause. It is used
   only for single-request projections that explain "why you see this", never inside
   row filters.
@@ -463,13 +463,14 @@ My Work, profile lists, notifications) before and after the change.
 |---|---|---|
 | **0** | §3.3 defects: parent-reference direction, `beaconChildren` authorization and per-child filter, profile copy, the observer view not fetching member-only data. | Bug fixes only. Independent of D1–D4. |
 | **1** | Domain `BeaconAccess` / `BeaconRights` / `PersonVisibility`, the SQL clause catalog, the `beacon_member` view, and composed predicates that **reproduce today's behavior exactly**. Move use cases to the rights table. Add parity and S4 tests. | None (proved by parity). |
-| **2** | `beacon_ancestor` + backfill, context reasons in the catalog, the widened `can_read_content`, the linked-detail alias. | D1, D2, D5, D6. |
+| **2** | `beacon_ancestor` + backfill, context reasons in the catalog, the widened `can_read_content`, dropping linked-detail. | D1, D2, D5, D6. |
 | **3** | `person_bond`, the `personVisible` consumers (§6.2), the `person_visibility` computed field. | D3, D4. |
 | **4** | Client access modes, reason banner, eye and copy from server facts, realtime invalidation. | UX. |
 
-The minimum client version goes up with phase 2 or 4. Old clients never read
-`access_level`, and they would render a context observer as a member whose member-only
-calls fail. `can_read_linked_detail` is dropped once the minimum passes phase 4.
+**No legacy-client support.** There are no production users, and the web build is the
+only client. All phases ship as one release: one client version bump, and
+`kDefaultMinClientVersion` raised to exactly that version. The design therefore has
+no compatibility shims, kept aliases or soft-fail responses for old clients.
 
 ## 10. Superseded decisions and documents to update
 
@@ -492,7 +493,7 @@ calls fail. `can_read_linked_detail` is dropped once the minimum passes phase 4.
 | The widened row filter slows every `beacon` read | The context clauses run last in the `CASE`. They are driven from V's memberships through PK probes, and phase 2 is gated on EXPLAIN ANALYZE of hot queries. |
 | Forward reach grows: context observers and bonded collaborators can forward | Intended (D2, D3). The recipient still has to pass `personVisible`, and `allowsForward` still applies. The bond expires. |
 | Large efforts: a root with many subtrees exposes every root-level child to every root member | Intended by D1 (immediate children of your node). Grandchildren still need membership. |
-| Old clients see an observer as a member | Minimum client version bump (§9). |
+| Browsers still running a pre-release build | `kDefaultMinClientVersion` = release version forces a reload (§9). |
 | Involvement leaks through content-only gates (§3.3/4) get wider audiences | Move those gates to `BeaconRights` in phase 1, before phase 2 widens anything. |
 
 ## 12. Out of scope
@@ -514,6 +515,8 @@ calls fail. `can_read_linked_detail` is dropped once the minimum passes phase 4.
   (high) the parent reference must authorize the child before revealing its parent,
   §7.4, S4-09a; (medium) involvement is a separate fact set, because a forward
   *sender* is involved without an access reason, §4.1, §5 ‡, §7.1.
+- **rev 4** (2026-09-15): no legacy-client support (product owner). Linked-detail is
+  dropped in phase 2, one release with a mandatory minimum client version raise (§9).
 - **rev 3** (2026-09-15): implementation plan written. Deferred: the per-use-case
   `BeaconRights` refactor (§7.1 note), capability projection on the bond (§6.2),
   realtime neighbourhood invalidation and naming the related request in the banner

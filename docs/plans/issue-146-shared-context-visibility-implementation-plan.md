@@ -6,12 +6,18 @@ issue: 146
 
 # Shared-context visibility — implementation plan
 
-**Status:** rev 1, ready for execution. No implementation performed yet.
+**Status:** rev 2, ready for execution. No implementation performed yet.
+
+**No legacy-client support.** Tentura has no production users. The web build is the
+only client, and `kDefaultMinClientVersion` forces every browser onto the released
+version (T16). So nothing in this plan keeps old clients working: no compatibility
+shims, no aliases kept "for old clients", no soft-fail responses chosen for
+compatibility. Server and client changes ship together in one release.
 **Date:** 2026-09-15. **Live-code baseline:** `8b62f67eb` plus the working tree of
 branch `issue-146-shared-context-visibility`.
 **Architecture (binding):**
 [`issue-146-shared-context-visibility-architecture.md`](issue-146-shared-context-visibility-architecture.md)
-(rev 3). Decisions D1–D8 live there. This plan does not re-decide them.
+(rev 4). Decisions D1–D8 live there. This plan does not re-decide them.
 **Issue:** [#146](https://github.com/Intersubjective/tentura/issues/146).
 
 ---
@@ -152,7 +158,7 @@ Steps:
    - `S/domain/use_case/beacon_fact_card_case.dart`: `list`.
    - `S/domain/beacon_visibility.dart`: `BeaconVisibility.canReadLinkedDetail`.
    - `MIG/_migrations.dart`: last entry of `_allMigrations` is `m0169`.
-3. Record the highest migration number. Tasks below use `m0170`, `m0171`, `m0172`. If
+3. Record the highest migration number. Tasks below use `m0170`–`m0173`. If
    those are taken, use the next free numbers, and record the mapping in the journal.
 4. Start local infra (§0.2). Run the baseline suites and record the counts:
    - `ST/domain/beacon_visibility_test.dart`, `ST/domain/beacon_hierarchy_policy_test.dart`
@@ -264,15 +270,18 @@ Files: `S/domain/use_case/coordination_case.dart`,
 `ST/domain/use_case/` (find them with `grep -rl "helpOffersWithCoordination\|BeaconFactCardCase" packages/server/test`).
 
 Steps:
-1. `CoordinationCase.helpOffersWithCoordination`: keep the existing `canReadContent`
-   check (throw `UnauthorizedException` when false). Directly after it, add:
+1. `CoordinationCase.helpOffersWithCoordination`: replace the existing
+   `canReadContent` check with an involvement check:
    ```dart
    if (!await _guard.canReadInvolvement(beaconId: beaconId, viewerId: viewerId)) {
-     return const [];
+     throw const UnauthorizedException(
+       description: 'Viewer cannot read request involvement',
+     );
    }
    ```
-   Returning an empty list, instead of throwing, keeps old clients working: they
-   call this for every readable request.
+   `can_read_involvement` already implies content read (m0124), so one check is
+   enough. T04 makes the client stop calling this for uninvolved viewers. T03 and T04
+   ship in the same release, so no client ever sees the new error in normal use.
 2. `BeaconFactCardCase.list`: at the top, require content read. Inject
    `BeaconAccessGuard` if the class does not have it yet. The constructor is
    `@Injectable`, so run server `build_runner` afterwards. Add:
@@ -285,13 +294,14 @@ Steps:
 3. Update the test doubles and mocks (`dart run build_runner build -d` in
    `packages/server` regenerates `*.mocks.dart`).
 4. Unit tests:
-   - content reader without involvement gets `[]` from `helpOffersWithCoordination`;
+   - a content reader without involvement gets `UnauthorizedException` from
+     `helpOffersWithCoordination`;
    - an involved viewer still gets rows;
    - a stranger gets `UnauthorizedException` from both methods.
 5. Superseded pg test: `beacon_hierarchy_visibility_pg_test.dart` › group
    "non-transitivity …" › `coordination_case helpOffersWithCoordination`. It stays a
-   refusal for a hierarchy-only viewer (still unauthorized in phase 0). Do not change
-   it now; T09 revisits it.
+   refusal for a hierarchy-only viewer, now through the involvement gate. It must
+   still pass unchanged.
 
 Done when: unit tests pass, the pg hierarchy suite is unchanged-green, and lints are
 clean. Commit: `fix(server): gate help-offer list by involvement and facts by content`.
@@ -352,8 +362,8 @@ Steps:
    asserts that the three case methods are never called and that the state loads
    successfully.
 
-Client version bump: patch bump in `packages/client/pubspec.yaml`, and sync
-`packages/client/web/index.html` `flutter_bootstrap.js?v=` (AGENTS.md invariant).
+No version bump here. The whole issue ships as one release with a single bump
+and a raised minimum client version (T16).
 
 Done when: client tests for the touched features pass, client lints are clean,
 terminology check passes, and the Hasura parity test still passes (`-t pg`). Commit:
@@ -631,8 +641,9 @@ Steps:
 2. Schema: add `access_level: Int` and `access_reasons: Int` to `type beacon` (and to
    the bool_exp/order_by types, mirroring `can_read_content`).
 3. Fragment `BeaconModel`: add `access_level` and `access_reasons`.
-4. Entity `Beacon`: add `BeaconAccessLevel? accessLevel` (null = unknown, for example
-   in older cached data) and `@Default(0) int accessReasons`. Import from
+4. Entity `Beacon`: add `BeaconAccessLevel? accessLevel` (null only for `Beacon`
+   values built locally without a server fetch, for example in create flows and test
+   fixtures; every `BeaconModel` fetch sets it) and `@Default(0) int accessReasons`. Import from
    `package:tentura_root/domain/entity/beacon_access.dart`. Mapper:
    `accessLevel: i.access_level == null ? null : BeaconAccessLevel.fromInt(i.access_level)`,
    `accessReasons: i.access_reasons ?? 0`. Run `build_runner`.
@@ -784,7 +795,8 @@ Append to `m0171`:
    SELECT public.beacon_can_read_content(p_beacon_id, p_viewer_id);
    $$;
    ```
-   Do not drop it: the Hasura computed field and old clients reference it.
+   The alias only keeps T01/T02 server code and the existing tests working until T10.
+   T10 removes every caller and drops it.
 4. **Register** `m0171` (`part` + `_allMigrations`).
 
 Dart:
@@ -827,7 +839,8 @@ Tests:
      - group `non-transitivity — production call sites refuse hierarchy-only viewer`
        → rename to `hierarchy context observer is an ordinary observer (D2)`. Help
        offer, forward, lineage and invitation now **succeed** for an open-family child.
-       `helpOffersWithCoordination` returns `[]` (T03 behavior) and does not throw;
+       `helpOffersWithCoordination` still throws `UnauthorizedException`, because a
+       context observer is not involved (T03);
      - `forward_case forward cannot mint child content access` → now asserts the
        forward succeeds and the recipient becomes a `forwarded` observer. The recipient
        gains **no** context bits (S4-10: context comes only from membership);
@@ -839,7 +852,8 @@ Tests:
      `canReadContent`).
    - `ST/api/beacon_hierarchy_hasura_parity_test.dart`: a user-session
      `beacon_by_pk` for bob on A now returns the row, with `access_level = 2` and
-     `access_reasons = 128`.
+     `access_reasons = 128`. The same test must stop asserting the
+     `can_read_linked_detail` metadata field; T10 removes it.
 9. Extend the T06 parity test to set context facts from the fixture. SQL reasons must
    still equal `BeaconAccessPolicy.reasons`.
 10. **Performance gate.** On a local DB with the hierarchy fixture plus `seed_society`
@@ -863,7 +877,8 @@ recorded, and lints are clean. Commit T08 + T09 together:
 Files: `S/data/repository/beacon_hierarchy_repository.dart`,
 `S/domain/policy/beacon_hierarchy_policy.dart`, `S/domain/beacon_visibility.dart`,
 `S/domain/port/beacon_access_guard.dart`, `S/data/repository/beacon_access_repository.dart`,
-and their tests and mocks.
+`hasura/metadata.json`, new `MIG/m0172.dart` (+ registration), and their tests and
+mocks. T11's bond migration is therefore `m0173`.
 
 Steps:
 1. In `listChildren` and `loadParentReference`, replace every
@@ -884,7 +899,23 @@ Steps:
    `BeaconLinkedDetailVisibilityFacts`, `BeaconAccessGuard.canReadLinkedDetail`, and
    `BeaconAccessRepository.canReadLinkedDetail`. Then delete the tests that only
    covered them (their behavior is now covered by T09's tests). Regenerate mocks.
-   Keep the SQL alias function; T16 decides when it is dropped.
+4a. **Drop the linked-detail SQL and Hasura field.**
+   - `hasura/metadata.json`: remove the `can_read_linked_detail` entry from table
+     `beacon` → `computed_fields`. It is not in any role's permission list. Afterwards
+     `grep -n can_read_linked_detail hasura/metadata.json` must print nothing.
+   - `MIG/m0172.dart`:
+     ```sql
+     DROP FUNCTION IF EXISTS public.beacon_get_can_read_linked_detail(public.beacon, json);
+     DROP FUNCTION IF EXISTS public.beacon_can_read_linked_detail(text, text);
+     ```
+   - Remove `can_read_linked_detail` from `C/data/gql/schema.graphql` (type, bool_exp
+     and order_by entries). The client never selects it; confirm with
+     `grep -rn can_read_linked_detail packages/client/lib --include=*.graphql --include=*.dart | grep -v _g/`.
+   - Delete or update every server test that still references the function or field
+     (`grep -rn "linked_detail\|LinkedDetail" packages/server`).
+   - Deploy order is safe: `deploy.sh` starts the server, which runs migrations, and
+     then applies `hasura/metadata.json`. Locally, apply the metadata right after the
+     migration (`./scripts/hasura_apply_metadata.sh`).
 4. If `BeaconHierarchyPolicy.isAdmittedToImmediateParent` or
    `isAdmittedToImmediatePublishedChild` have no production callers left
    (`grep -rn` in `S/`), delete them with their tests. Otherwise leave them.
@@ -893,8 +924,10 @@ Steps:
    `grep -rn "canCreateChild\|canListChildren" packages/client/lib`, and record any
    surprise.
 
-Done when: server unit and pg suites for hierarchy/visibility pass and lints are
-clean. Commit: `refactor(server): hierarchy reads use the unified content predicate`.
+Done when: server unit and pg suites for hierarchy/visibility pass, the Hasura
+metadata applies with no inconsistencies, no reference to `linked_detail` remains
+outside migration history (`m0155`, `m0171`) and docs, and lints are clean. Commit:
+`refactor: hierarchy reads use the unified content predicate; drop linked-detail`.
 
 ---
 
@@ -902,7 +935,7 @@ clean. Commit: `refactor(server): hierarchy reads use the unified content predic
 
 ### T11 — Bond SQL and server consumers
 
-Files: new `MIG/m0172.dart` (+ registration); `S/domain/port/person_visibility_repository_port.dart`
+Files: new `MIG/m0173.dart` (+ registration); `S/domain/port/person_visibility_repository_port.dart`
 (find it with `grep -rn "abstract class PersonVisibilityRepositoryPort" packages/server/lib`);
 `S/data/repository/person_visibility_repository.dart`;
 `S/domain/port/forward_candidates_repository_port.dart` (find it the same way);
@@ -912,7 +945,7 @@ Files: new `MIG/m0172.dart` (+ registration); `S/domain/port/person_visibility_r
 `S/api/controllers/graphql/custom_types.dart` (`gqlTypeUserPublic`);
 `S/api/controllers/graphql/mappers/gql_public_user_maps.dart`; tests.
 
-`m0172` SQL:
+`m0173` SQL:
 
 ```sql
 CREATE OR REPLACE FUNCTION public.person_bond(a_id text, b_id text)
@@ -1151,13 +1184,13 @@ Steps:
    "Child-only admittee viewing parent content" with context-observer rows. Replace
    the "Linked-detail predicate" section with an "Access level and reasons" section:
    the bit table from §0.4 and the rights table from architecture §5. Update "Source
-   files" (m0170–m0172).
+   files" (m0170–m0173).
 3. `CONTEXT.md`: in § Beacon visibility & sharing, add the context reasons to the
    list, and replace § Linked-detail visibility with a short "Shared context" paragraph
    (hierarchy reasons + bond, with D4).
 4. Nested plan §3.2: add one line at the top of §3.2: "Superseded by
    issue-146 shared-context visibility architecture (D1/D2)."
-5. Architecture doc: status → `implemented (rev 3)` once T16 passes.
+5. Architecture doc: status → `implemented (rev 4)` once T16 passes.
 
 Done when: the docs render (Markdown tables intact) and terminology check passes.
 Commit: `docs: record shared-context visibility (ADR 0008 amendment B)`.
@@ -1168,11 +1201,13 @@ Commit: `docs: record shared-context visibility (ADR 0008 amendment B)`.
 
 Steps:
 1. Bump the client version: **minor** in `packages/client/pubspec.yaml` (new
-   user-visible capability). Sync `packages/client/web/index.html` `?v=`.
-2. **Minimum client version: ask the product owner before changing it.** Recommended:
-   raise `kDefaultMinClientVersion` in `S/env.dart` to the T04 client version. That
-   version is the first one that skips involvement fetches for observers. Record the
-   decision in the journal. If raising, follow `DEV_GUIDELINES.md` § Client version gate.
+   user-visible capability). Sync `packages/client/web/index.html` `?v=`. This is the
+   only client version bump in the whole issue.
+2. **Raise the minimum client version (mandatory).** Set `kDefaultMinClientVersion`
+   in `S/env.dart` to exactly the version from step 1. Sync `.env.example` if it has
+   the commented example. Follow `DEV_GUIDELINES.md` § Client version gate. This is
+   what allows the plan to skip legacy-client support: after deploy, every browser
+   reloads onto the new build.
 3. Full verification (§0.2): server unit suite, the server pg suites touched by this
    plan, client full suite (45m timeout), both lint runs, terminology check.
 4. Manual QA on the local stack (`local-debug` skill): reproduce the #146 scenarios
@@ -1184,10 +1219,7 @@ Steps:
    - after the parent closes (review window finished), the bond line disappears,
      unless the reviews created trust.
    Use Playwright `browser_snapshot`, not repeated screenshots.
-5. Record the SQL alias decision: `beacon_can_read_linked_detail` and its Hasura
-   computed field may be dropped only after the minimum client version passes T04.
-   Open a follow-up issue instead of dropping it here.
-6. Update the journal with final results and mark the architecture doc implemented.
+5. Update the journal with final results and mark the architecture doc implemented.
 
 Done when: every check passes, and QA scenarios 1–4 are confirmed in the journal.
 Commit: `chore(client): release shared-context visibility`.
@@ -1217,8 +1249,11 @@ Commit: `chore(client): release shared-context visibility`.
   fetch. Only live refresh of an already-open screen is missing.
 - Naming the related request in the reason banner (§7.5).
 - Bond in the graph person panel and in Constellation.
-- Dropping `beacon_can_read_linked_detail` (T16 step 5).
 
 ## Appendix C — Change log
 
 - **rev 1** (2026-09-15): initial plan against architecture rev 3.
+- **rev 2** (2026-09-15): no legacy-client support (product owner). The involvement
+  gate now throws instead of returning `[]`. `beacon_can_read_linked_detail` and its
+  Hasura field are dropped in T10 (new `m0172`; the bond migration moves to `m0173`).
+  One client version bump, and a mandatory minimum client version raise, in T16.
