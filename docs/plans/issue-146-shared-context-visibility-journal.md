@@ -65,7 +65,7 @@
 |---|---|
 | done | **T00** preflight (this unit) |
 | done (`335402368`) | **T01** beaconChildren auth |
-| pending | **T02** parent reference auth |
+| done (`1f1ce43bc`) | **T02** parent reference auth |
 | pending | **T03** close involvement leaks |
 | pending | **T04** client copy + no involvement fetch |
 | pending | **T05** access enums + pure policy |
@@ -290,3 +290,113 @@ cd packages/server && ../../scripts/run_with_test_cleanup.sh --timeout 20m -- \
 | `check-custom-lints.sh packages/server` | — | — | — | 0 (`tentura_lints` total 0, baseline 0 OK) |
 
 - **Verdict:** **pass** — T01 “Done when” satisfied; ready for T02.
+
+---
+
+## T02 — Scout (read-only)
+
+- **UNIT_BASE:** `ef63fbc53c2c7dd81bc47dc84c0f92ffcaa01a05` (= `HEAD` at scout time)
+- **Task:** T02 — `beaconParentReference` / `loadParentReference` authorize child + parent
+
+### Live code vs plan
+
+| Topic | Plan | Live @ UNIT_BASE |
+|---|---|---|
+| `loadParentReference` child gate | `beacon_can_read_content(child, viewer)` → `none` | **Missing** — loads parent id first, never checks child read |
+| Parent gate | `beacon_can_read_linked_detail(parent, viewer)` → `available` with id+title | Uses `_loadAdmissionFacts` + `BeaconHierarchyPolicy.isAdmittedToImmediateParent` (effective admission on **parent only**) → **bob on B gets `unavailable`** (#146 bug) |
+| Deleted parent | `unavailable` | Policy path: `resolveParentReference` maps deleted → `unavailable` ✓ (new path must keep `parent.status == deleted` → `unavailable` before linked_detail) |
+| SQL predicates | `(p_beacon_id text, p_viewer_id text) RETURNS boolean` | **`m0169`** `beacon_can_read_content`; **`m0155`** `beacon_can_read_linked_detail` (delegates to content + one-edge child/parent admission branches) |
+| `_predicate` helper | Mirror `BeaconAccessRepository._callPredicate` | `BeaconAccessRepository` uses `getSingle()` + `read<bool>('allowed')`; `listChildren` inlines linked_detail (T01) — T02 adds repo-private `_predicate(fn, beaconId, viewerId)` per plan |
+| `loadImmediateParentBeaconId` | Plan name | **Exists** @ L278 — `SELECT parent_beacon_id FROM beacon WHERE id = $1` |
+| `_loadBeaconRow` | Plan name | **Exists** @ L321 — `id, user_id, title, status` |
+| `BeaconParentReference` | `none` / `unavailable` / `available`+fields | `lib/domain/entity/beacon_parent_reference.dart` — static `none`, `unavailable`; enum `BeaconParentReferenceState` |
+| Constructor / guard injection | No `BeaconAccessGuard` in repository | `BeaconHierarchyRepository(this._database)` only — auth via SQL predicates ✓ |
+| Policy cleanup | Leave `resolveParentReference` / `isAdmittedToImmediateParent` | Still used only from `loadParentReference` today — after T02, **unused in repo** but do not delete (T10) |
+
+### Fixture notes (A→B→C, A→D)
+
+- Admissions: **alice→A**, **bob→B**, **carol→C** (`beacon_hierarchy_fixture.dart` `_seedAdmissions`).
+- **Bob** is the #146 scenario-1 viewer: `beacon_effective_admission(A, bob)=false`, `beacon_can_read_content(B, bob)=true`, `beacon_can_read_linked_detail(A, bob)=true` (child-admission branch in m0155).
+- **Stranger to B:** reuse **`daveId`** (T01 pattern) — no content/linked_detail on B or A; parent exists on B.
+- **Reads B, no path to A:** insert `beacon_forward_edge` on **B** with `recipient_id=daveId` (pattern: fixture `_seedForwardToAliceForB` / `issue_145_stale_child_invite_pg_test.dart` INSERT). Preconditions: `beacon_can_read_content(B, dave)=true`, `beacon_can_read_linked_detail(A, dave)=false`.
+- Parent title for bob assertion: seeded **`Request A`** for `beaconA`.
+
+### Implementer brief (Opus, low effort)
+
+1. **Commit 1 (test-first):** `fix(server): authorize both ends of the parent reference` — add `packages/server/test/data/repository/beacon_parent_reference_authorization_pg_test.dart` (`@Tags(['pg'])`), copy disposable setup from `beacon_children_authorization_pg_test.dart` (`seedTree` = `seedFullTopology` + `seedPublishedHierarchyTree` + participant re-seed). Three tests with SQL preconditions where non-obvious.
+2. **Commit 2 (same commit OK):** In `beacon_hierarchy_repository.dart` only `loadParentReference` + new private `Future<bool> _predicate(String fn, String beaconId, String viewerId)` — exact body from plan §T02 step 1; use `BeaconStatus.fromSmallint(parent.status) == BeaconStatus.deleted` (status **2** per §0.4). Drop `_loadAdmissionFacts` / policy calls from `loadParentReference` only.
+3. **Do not** touch `listChildren`, `beacon_hierarchy_policy.dart`, GraphQL resolvers.
+
+### TEST_CMD
+
+```bash
+cd packages/server && ../../scripts/run_with_test_cleanup.sh --timeout 20m -- \
+  dart test -t pg test/data/repository/beacon_parent_reference_authorization_pg_test.dart
+
+cd packages/server && ../../scripts/run_with_test_cleanup.sh --timeout 20m -- \
+  dart test -t pg test/data/repository/beacon_hierarchy_visibility_pg_test.dart
+
+cd packages/server && ../../scripts/run_with_test_cleanup.sh --timeout 20m -- \
+  dart test -t pg test/data/repository/beacon_children_authorization_pg_test.dart
+
+cd packages/server && ../../scripts/run_with_test_cleanup.sh --timeout 20m -- \
+  dart test -t pg test/data/repository/beacon_hierarchy_repository_pg_test.dart
+
+cd packages/server && ../../scripts/run_with_test_cleanup.sh --timeout 20m -- \
+  dart test -t pg test/api/beacon_hierarchy_hasura_parity_test.dart
+
+./scripts/run_with_test_cleanup.sh --timeout 10m -- ./scripts/check-custom-lints.sh packages/server
+```
+
+### RISKS
+
+- **`beacon_hierarchy_graphql_contract_test.dart`** › `beaconParentReference: unauthorized viewer` uses **`eveId`** on child **B**; eve cannot `beacon_can_read_content(B, eve)` → T02 returns **`none`**, test expects **`unavailable`**. File is **out of T02 touch scope** — full “Done when” may fail CI until contract test is updated in a follow-up or scope exception.
+- Architecture §7.4 long-term target uses `beacon_can_read_content` on **parent**; **T02 plan explicitly uses `beacon_can_read_linked_detail` on parent** — do not alias (T09/T10).
+- Per-file `-t pg` only (T00 flake).
+
+- **Next (implementer):** land T02, journal inner log, mark T02 done.
+
+---
+
+## T02 — inner (implementer) — BLOCKED on scope
+
+- **No commit.** HEAD stays `ef63fbc53`. Work is left **uncommitted** in the tree (backup `/tmp/issue146-T02.patch`):
+  - `packages/server/lib/data/repository/beacon_hierarchy_repository.dart`: `loadParentReference` rewritten per plan §T02 step 1; new private `_predicate` (mirror of `BeaconAccessRepository._callPredicate`). `listChildren` and policy untouched.
+  - new `packages/server/test/data/repository/beacon_parent_reference_authorization_pg_test.dart` (bob → available `Request A`; dave stranger → none; dave as forward recipient of B → unavailable, with SQL preconditions).
+  - `beacon_hierarchy_graphql_contract_test.dart`: eve test renamed to `viewer who cannot read the child gets no reference`, expects `none` (eve confirmed stranger to B).
+- **Tests (each its own wrapped `dart test -t pg`):**
+
+| File | RED (pre-fix) | GREEN (post-fix) |
+|---|---|---|
+| `beacon_parent_reference_authorization_pg_test.dart` (new) | +1 −2 (bob got `unavailable`; dave got `unavailable` not `none`; forward case already passed) | +3 −0 |
+| `beacon_hierarchy_visibility_pg_test.dart` | — | +14 −0 |
+| `beacon_children_authorization_pg_test.dart` | — | +4 −0 |
+| `beacon_hierarchy_repository_pg_test.dart` | — | +7 −0 |
+| `api/beacon_hierarchy_hasura_parity_test.dart` | — | +2 −0 |
+| `api/beacon_hierarchy_graphql_contract_test.dart` | baseline +11 −0 | **+10 −1** |
+| `check-custom-lints.sh packages/server` | — | total 0 (baseline 0) OK |
+
+- **Blocker:** `beacon_hierarchy_graphql_contract_test.dart` › `beaconParentReference: admitted viewer sees the parent link` now gets `none` (was `available`). In that test `seedPublishedHierarchyTree` recreates B, which drops the fixture forward edge `FhierfwdB01` (frank→alice on B) and there is no re-seed of participants; alice is admitted to A only, so `beacon_can_read_content(B, alice)` is false and S4-09a correctly returns `none`. The brief declared this test "unaffected" and untouchable. Parent-member reads of children (contextChild) only arrive in T08+T09.
+- **Needs overseer decision (one of):** (a) under plan §0 "Superseded tests", give alice a real read path to B in that test (e.g. re-seed the forward edge or admit her to B) and keep `available` — preserves the test's intent; (b) change it to expect `none` until T09 and rename; then commit `fix(server): authorize both ends of the parent reference`.
+
+---
+
+## T02 — inner (implementer) — resumed, done
+
+- **Decision (overseer):** superseded-test rule (plan §0 rule 7). `beaconParentReference: admitted viewer sees the parent link` now authenticates as **bob** instead of alice; name kept; comment rewritten to the S4-09a rule (viewer must read child B; parent then gated by `beacon_can_read_linked_detail` on A). Expectation unchanged (`available`, `beaconId == beaconA`).
+- **Verified bob's access holds after re-seed:** `seedPublishedHierarchyTree` DELETE+INSERT of B cascades away `PhierbobB01`, but re-inserts B with `ownerId: bobId`, so bob reads B as **owner**; he has no participant row on A. The comment therefore says "bob owns B" rather than "admitted".
+- **Commit:** `1f1ce43bc` `fix(server): authorize both ends of the parent reference` (repo `loadParentReference` + `_predicate`, new `beacon_parent_reference_authorization_pg_test.dart`, contract-test eve rename + bob fix).
+- **Tests (each its own wrapped `dart test -t pg`), all GREEN:**
+
+| File | Result |
+|---|---|
+| `beacon_parent_reference_authorization_pg_test.dart` | +3 −0 |
+| `api/beacon_hierarchy_graphql_contract_test.dart` | +11 −0 |
+| `beacon_hierarchy_visibility_pg_test.dart` | +14 −0 |
+| `beacon_children_authorization_pg_test.dart` | +4 −0 |
+| `beacon_hierarchy_repository_pg_test.dart` | +7 −0 |
+| `api/beacon_hierarchy_hasura_parity_test.dart` | +2 −0 |
+| `check-custom-lints.sh packages/server` | total 0 (baseline 0) OK |
+
+- **Note:** `BeaconHierarchyPolicy.resolveParentReference` / `isAdmittedToImmediateParent` and repo `_loadAdmissionFacts` are no longer called from `loadParentReference`; left in place per scout (cleanup is T10).
+- **Next:** T03
