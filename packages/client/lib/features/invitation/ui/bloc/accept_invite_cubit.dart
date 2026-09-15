@@ -48,6 +48,17 @@ class AcceptInviteCubit extends Cubit<AcceptInviteState> {
   final UiEffectPort _effects;
 
   final PostJoinNavigationCubit _postJoinNavigation;
+  int _previewGeneration = 0;
+
+  static const _previewAuthRetryDelays = [
+    Duration(milliseconds: 250),
+    Duration(milliseconds: 500),
+    Duration(seconds: 1),
+    Duration(seconds: 2),
+    Duration(seconds: 2),
+    Duration(seconds: 2),
+    Duration(seconds: 2),
+  ];
 
   void _emitSnackError(Object error) {
     _effects.emit(ShowError(error));
@@ -57,6 +68,8 @@ class AcceptInviteCubit extends Cubit<AcceptInviteState> {
   }
 
   Future<void> start(String rawCode) async {
+    if (isClosed) return;
+    final generation = ++_previewGeneration;
     final hadTrailingDash = inviteCodeHadTrailingDash(rawCode);
     final code = normalizeInviteCode(rawCode);
     emit(AcceptInviteState(code: code));
@@ -68,13 +81,27 @@ class AcceptInviteCubit extends Cubit<AcceptInviteState> {
       );
       return;
     }
-    try {
-      final preview = await _repository.fetchInvitePreview(code);
-      await _handlePreview(code, preview);
-    } on InvitationAuthLost {
-      _bounceUnauthenticated(code);
-    } catch (e) {
-      _emitSnackError(e);
+    for (var attempt = 0; ; attempt++) {
+      if (isClosed || generation != _previewGeneration) return;
+      try {
+        final preview = await _repository.fetchInvitePreview(code);
+        if (isClosed || generation != _previewGeneration) return;
+        await _handlePreview(code, preview);
+        return;
+      } on InvitationAuthLost catch (e) {
+        if (isClosed || generation != _previewGeneration) return;
+        // Cold-start auth can become ready after the first preview. Only a
+        // successful anonymous preview is evidence that signup is needed.
+        if (attempt == _previewAuthRetryDelays.length) {
+          _emitSnackError(e);
+          return;
+        }
+        await Future<void>.delayed(_previewAuthRetryDelays[attempt]);
+      } catch (e) {
+        if (isClosed || generation != _previewGeneration) return;
+        _emitSnackError(e);
+        return;
+      }
     }
   }
 
