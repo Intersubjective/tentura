@@ -2,6 +2,7 @@ import 'package:injectable/injectable.dart';
 import 'package:tentura_server/domain/entity/beacon_entity.dart';
 import 'package:tentura_server/domain/port/beacon_access_guard.dart';
 import 'package:tentura_server/domain/port/beacon_repository_port.dart';
+import 'package:tentura_server/domain/port/beacon_room_repository_port.dart';
 import 'package:tentura_server/domain/port/help_offer_repository_port.dart';
 import 'package:tentura_server/domain/commitment/commitment_event_kind.dart';
 import 'package:tentura_server/domain/port/commitment_repository_port.dart';
@@ -27,13 +28,16 @@ final class HelpOfferCase extends UseCaseBase {
     this._inboxRepository,
     this._capabilityCase,
     this._guard, {
+    required BeaconRoomRepositoryPort roomRepository,
     AttentionIntentCase? attentionIntents,
     TransactionalAttentionCase? attention,
     required super.env,
     required super.logger,
-  }) : _attentionIntents = attentionIntents,
+  }) : _roomRepository = roomRepository,
+       _attentionIntents = attentionIntents,
        _attention = attention;
 
+  final BeaconRoomRepositoryPort _roomRepository;
   final HelpOfferRepositoryPort _helpOfferRepository;
   final BeaconRepositoryPort _beaconRepository;
   final CommitmentRepositoryPort _commitmentRepository;
@@ -236,6 +240,11 @@ final class HelpOfferCase extends UseCaseBase {
           userId: userId,
           message: message,
           withdrawReason: withdrawReason,
+        );
+        await _roomRepository.revokeOfferUserBeaconRoomAccess(
+          beaconId: beaconId,
+          offerUserId: userId,
+          authorUserId: userId,
         );
         final beaconAfter = await _beaconRepository.getBeaconById(
           beaconId: beaconId,

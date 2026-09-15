@@ -76,6 +76,21 @@ class HelpOfferRepository implements HelpOfferRepositoryPort {
   });
 
   @override
+  Future<void> deactivate({
+    required String beaconId,
+    required String userId,
+  }) async {
+    await _database.managers.beaconHelpOffers
+        .filter((e) => e.beaconId.id(beaconId) & e.userId.id(userId))
+        .update(
+          (o) => o(
+            status: const Value(1),
+            updatedAt: Value(PgDateTime(DateTime.timestamp())),
+          ),
+        );
+  }
+
+  @override
   Future<List<HelpOfferEntity>> fetchByBeaconId(String beaconId) =>
       _database.managers.beaconHelpOffers
           .filter((e) => e.beaconId.id(beaconId) & e.status.equals(0))

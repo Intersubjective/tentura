@@ -83,6 +83,7 @@ final class HierarchyOnlyViewerHarness {
         logger: _logger,
       ),
       _access,
+      roomRepository: help_mocks.MockBeaconRoomRepositoryPort(),
       attentionIntents: att.intents,
       attention: att.transactional,
       env: _env,

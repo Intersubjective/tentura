@@ -17,6 +17,9 @@ abstract class HelpOfferRepositoryPort {
     String message = '',
   });
 
+  /// Ends the active offer grant without changing its message or exit reason.
+  Future<void> deactivate({required String beaconId, required String userId});
+
   Future<List<HelpOfferEntity>> fetchByBeaconId(String beaconId);
 
   Future<List<HelpOfferEntity>> fetchAllByBeaconId(String beaconId);

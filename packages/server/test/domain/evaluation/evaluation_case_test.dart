@@ -3848,6 +3848,11 @@ final class _SingleCommitterHelpOfferRepo implements HelpOfferRepositoryPort {
   final HelpOfferEntity _offer;
 
   @override
+  Future<void> deactivate({required String beaconId, required String userId}) async {
+    throw UnimplementedError();
+  }
+
+  @override
   Future<List<HelpOfferEntity>> fetchByBeaconId(String beaconId) async => [
     _offer,
   ];

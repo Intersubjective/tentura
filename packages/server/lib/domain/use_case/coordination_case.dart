@@ -399,6 +399,15 @@ final class CoordinationCase extends UseCaseBase {
           actorUserId: actorUserId,
           reason: trimmedReason,
         );
+        await _helpOfferRepository.deactivate(
+          beaconId: beaconId,
+          userId: offerUserId,
+        );
+        await _beaconRoomRepository.revokeOfferUserBeaconRoomAccess(
+          beaconId: beaconId,
+          offerUserId: offerUserId,
+          authorUserId: actorUserId,
+        );
         if (hadAcknowledged) {
           await _recordSoftenedIfTransition(
             beaconId: beaconId,

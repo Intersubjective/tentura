@@ -77,6 +77,14 @@ final class EmptyGraphCoordinationRepository
 /// Minimal fakes so `EvaluationParticipantGraphBuilder` returns an empty graph.
 final class EmptyGraphHelpOfferRepository implements HelpOfferRepositoryPort {
   @override
+  Future<void> deactivate({
+    required String beaconId,
+    required String userId,
+  }) async {
+    throw UnimplementedError();
+  }
+
+  @override
   Future<void> upsert({
     required String beaconId,
     required String userId,
@@ -415,6 +423,11 @@ final class ConfigurableGraphHelpOfferRepository
   ConfigurableGraphHelpOfferRepository(this._offers);
 
   final List<HelpOfferEntity> _offers;
+
+  @override
+  Future<void> deactivate({required String beaconId, required String userId}) async {
+    throw UnimplementedError();
+  }
 
   @override
   Future<List<HelpOfferEntity>> fetchByBeaconId(String beaconId) async =>

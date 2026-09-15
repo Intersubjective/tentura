@@ -104,6 +104,18 @@ final class InMemoryHelpOfferRepository implements HelpOfferRepositoryPort {
   }
 
   @override
+  Future<void> deactivate({
+    required String beaconId,
+    required String userId,
+  }) async {
+    final key = _key(beaconId, userId);
+    final existing = _offers[key];
+    if (existing != null) {
+      _offers[key] = existing.copyWith(status: 1, updatedAt: _clock());
+    }
+  }
+
+  @override
   Future<List<HelpOfferEntity>> fetchByBeaconId(String beaconId) async =>
       _offers.values
           .where((o) => o.beaconId == beaconId && o.isActive)
@@ -520,6 +532,7 @@ final class CommitmentGatesHarness {
       _inboxRepo,
       capabilityCase,
       FakeBeaconAccessGuard(),
+      roomRepository: _roomRepo,
       attentionIntents: attention.intents,
       attention: attention.transactional,
       env: Env(environment: Environment.test),

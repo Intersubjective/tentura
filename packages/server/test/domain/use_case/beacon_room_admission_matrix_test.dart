@@ -1,3 +1,6 @@
+import 'package:tentura_server/domain/use_case/beacon_fact_card_case.dart';
+import 'package:tentura_server/domain/port/help_offer_repository_port.dart';
+import 'package:tentura_server/domain/beacon_visibility.dart';
 import 'package:injectable/injectable.dart' show Environment;
 import 'package:logging/logging.dart';
 import 'package:mockito/mockito.dart';
@@ -54,7 +57,7 @@ final _now = DateTime.utc(2025);
 
 CommitmentQueryCase _commitmentQueryCase(
   CommitmentRepositoryPort commitmentRepo,
-  MockHelpOfferRepositoryPort helpOfferRepo,
+  HelpOfferRepositoryPort helpOfferRepo,
 ) =>
     CommitmentQueryCase(
       commitmentRepo,
@@ -132,7 +135,266 @@ class _MinimalUploadQuota extends Fake implements UploadQuotaRepositoryPort {}
 
 class _MinimalEvaluationRepo extends Fake implements EvaluationRepositoryPort {}
 
+// Stateful offer storage: declining must deactivate the content/involvement grant.
+class _ExitOffers extends Fake implements HelpOfferRepositoryPort {
+  bool active = true;
+
+  @override
+  Future<List<HelpOfferEntity>> fetchByBeaconId(String beaconId) async =>
+      active ? [_activeOffer()] : [];
+
+  @override
+  Future<void> withdraw({
+    required String beaconId,
+    required String userId,
+    required String withdrawReason,
+    String message = '',
+  }) async {
+    active = false;
+  }
+
+  @override
+  Future<void> deactivate({
+    required String beaconId,
+    required String userId,
+  }) async {
+    active = false;
+  }
+}
+
 void main() {
+  group('exited helpers have external-viewer access (#144)', () {
+    for (final withdraw in [true, false]) {
+      test(
+        withdraw ? 'accept and admit then leave' : 'author declines offer',
+        () async {
+          final beaconRepo = MockBeaconRepositoryPort();
+          final offers = _ExitOffers();
+          final coordinationRepo = MockCoordinationRepositoryPort();
+          final room = MockBeaconRoomRepositoryPort();
+          final inbox = MockInboxRepositoryPort();
+          final commitments = RecordingCommitmentRepository();
+          final attention = TestAttentionHarness();
+          var admission = RoomAccessBits.requested;
+          var watching = true;
+          when(
+            beaconRepo.getBeaconById(beaconId: _beaconId),
+          ).thenAnswer((_) async => _beacon());
+          when(
+            room.isBeaconAuthor(beaconId: _beaconId, userId: _helperId),
+          ).thenAnswer((_) async => false);
+          when(
+            room.isBeaconAuthor(beaconId: _beaconId, userId: _authorId),
+          ).thenAnswer((_) async => true);
+          when(
+            room.isBeaconSteward(beaconId: _beaconId, userId: _authorId),
+          ).thenAnswer((_) async => false);
+          when(
+            room.isBeaconSteward(beaconId: _beaconId, userId: _helperId),
+          ).thenAnswer((_) async => false);
+          when(
+            room.findParticipant(beaconId: _beaconId, userId: _helperId),
+          ).thenAnswer(
+            (_) async => testBeaconParticipant(
+              beaconId: _beaconId,
+              userId: _helperId,
+              roomAccess: admission,
+            ),
+          );
+          when(
+            room.revokeOfferUserBeaconRoomAccess(
+              beaconId: _beaconId,
+              offerUserId: _helperId,
+              authorUserId: anyNamed('authorUserId'),
+            ),
+          ).thenAnswer((_) async {
+            admission = RoomAccessBits.none;
+          });
+          when(
+            room.admitParticipant(
+              beaconId: _beaconId,
+              participantUserId: _helperId,
+              actorUserId: _authorId,
+            ),
+          ).thenAnswer((_) async {
+            admission = RoomAccessBits.admitted;
+          });
+          when(
+            inbox.upsertWatchingForSender(
+              senderId: _helperId,
+              beaconId: _beaconId,
+              touchForwardOrdering: false,
+            ),
+          ).thenAnswer((_) async {
+            watching = true;
+          });
+          when(
+            coordinationRepo.acceptHelpOffer(
+              beaconId: _beaconId,
+              offerUserId: _helperId,
+              actorUserId: _authorId,
+            ),
+          ).thenAnswer(
+            (_) async => (status: BeaconStatus.open, statusChangedAt: null),
+          );
+          when(
+            coordinationRepo.declineHelpOffer(
+              beaconId: _beaconId,
+              offerUserId: _helperId,
+              actorUserId: _authorId,
+              reason: 'capacity',
+            ),
+          ).thenAnswer(
+            (_) async => (status: BeaconStatus.open, statusChangedAt: null),
+          );
+          final coordination = CoordinationCase(
+            beaconRepo,
+            offers,
+            coordinationRepo,
+            room,
+            _MinimalEvaluationRepo(),
+            FakeUserBlockRepository(),
+            commitments,
+            _commitmentQueryCase(commitments, offers),
+            FakeBeaconHierarchyRepository(),
+            attentionIntents: attention.intents,
+            attention: attention.transactional,
+            guard: FakeBeaconAccessGuard(),
+            env: Env(environment: Environment.test),
+            logger: Logger('ExitAccessTest'),
+          );
+          final discussion = BeaconRoomCase(
+            room,
+            _MinimalCoordinationItems(),
+            _MinimalFactCards(),
+            _MinimalImages(),
+            _MinimalTasks(),
+            _MinimalRemoteStorage(),
+            _MinimalPolling(),
+            _MinimalUploadQuota(),
+            FakeUserBlockRepository(),
+            PassThroughMutatingUnitOfWork(),
+            FakeBeaconHierarchyRepository(),
+            const ProductionDiscussionProductPolicy(),
+            attentionIntents: attention.intents,
+            attention: attention.transactional,
+            env: Env(environment: Environment.test),
+            logger: Logger('ExitAccessTest'),
+          );
+          if (withdraw) {
+            await coordination.acceptHelpOffer(
+              beaconId: _beaconId,
+              offerUserId: _helperId,
+              actorUserId: _authorId,
+            );
+            await discussion.admit(
+              beaconId: _beaconId,
+              participantUserId: _helperId,
+              actorUserId: _authorId,
+            );
+            expect(admission, RoomAccessBits.admitted);
+            watching = false;
+            final helper = HelpOfferCase(
+              offers,
+              beaconRepo,
+              commitments,
+              inbox,
+              CapabilityCase(
+                MockPersonCapabilityEventRepositoryPort(),
+                env: Env(environment: Environment.test),
+                logger: Logger('ExitAccessTest'),
+              ),
+              FakeBeaconAccessGuard(),
+              roomRepository: room,
+              attentionIntents: attention.intents,
+              attention: attention.transactional,
+              env: Env(environment: Environment.test),
+              logger: Logger('ExitAccessTest'),
+            );
+            await helper.withdraw(
+              beaconId: _beaconId,
+              userId: _helperId,
+              withdrawReason: 'other',
+            );
+          } else {
+            await coordination.declineHelpOffer(
+              beaconId: _beaconId,
+              offerUserId: _helperId,
+              actorUserId: _authorId,
+              reason: 'capacity',
+            );
+          }
+          expect(
+            offers.active,
+            isFalse,
+            reason: 'An exited offer grants no helper privileges',
+          );
+          expect(admission, RoomAccessBits.none);
+          expect(watching, isTrue);
+          for (final forwarded in [false, true]) {
+            BeaconContentVisibilityFacts facts({required bool exited}) =>
+                BeaconContentVisibilityFacts(
+                  status: BeaconStatus.open,
+                  isAuthor: false,
+                  hasActiveForwardEdgeAsRecipient: forwarded,
+                  isRoomAdmittedOrSteward:
+                      exited && admission == RoomAccessBits.admitted,
+                  isActiveHelpOfferer: exited && offers.active,
+                  isDiscoverable: false,
+                  isPublished: true,
+                  isMutuallyVisibleWithAuthor: false,
+                );
+            expect(
+              BeaconVisibility.canReadContent(facts(exited: true)),
+              BeaconVisibility.canReadContent(facts(exited: false)),
+            );
+            bool involvement({required bool exited}) =>
+                BeaconVisibility.canReadInvolvement(
+                  BeaconInvolvementVisibilityFacts(
+                    contentFacts: facts(exited: exited),
+                    isOnActiveForwardEdge: forwarded,
+                    isActiveHelpOfferer: exited && offers.active,
+                    isRoomAdmittedOrSteward:
+                        exited && admission == RoomAccessBits.admitted,
+                  ),
+                );
+            expect(involvement(exited: true), involvement(exited: false));
+          }
+          await expectLater(
+            discussion.createMessage(
+              beaconId: _beaconId,
+              userId: _helperId,
+              body: 'stale client',
+            ),
+            throwsA(isA<UnauthorizedException>()),
+          );
+          final facts = BeaconFactCardCase(
+            _MinimalFactCards(), room, FakeBeaconHierarchyRepository(),
+            env: Env(environment: Environment.test), logger: Logger('ExitAccessTest'),
+          );
+          await expectLater(facts.pin(
+            beaconId: _beaconId, userId: _helperId,
+            factText: 'stale client', visibility: 0,
+          ), throwsA(isA<UnauthorizedException>()));
+          if (withdraw) {
+            verify(
+              inbox.upsertWatchingForSender(
+                senderId: _helperId,
+                beaconId: _beaconId,
+                touchForwardOrdering: false,
+              ),
+            ).called(1);
+            expect(
+              commitments.recordCalls.last.kind,
+              CommitmentEventKind.withdrawnByHelper,
+            );
+          }
+        },
+      );
+    }
+  });
+
+
   group('room admission matrix (COV-051)', () {
     group('BeaconRoomCase.admit — actor matrix', () {
       late _AdmitStubRoom room;
@@ -861,6 +1123,7 @@ void main() {
           inboxRepo,
           capabilityCase,
           FakeBeaconAccessGuard(),
+        roomRepository: roomRepo,
           attentionIntents: attention.intents,
           attention: attention.transactional,
           env: Env(environment: Environment.test),

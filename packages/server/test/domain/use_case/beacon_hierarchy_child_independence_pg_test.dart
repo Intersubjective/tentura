@@ -238,6 +238,7 @@ final class _ChildIndependenceHarness {
         InboxRepository(db),
         capabilityCase,
         access,
+        roomRepository: room,
         attentionIntents: attentionIntents,
         attention: attention,
         env: env,

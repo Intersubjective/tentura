@@ -177,6 +177,7 @@ ON CONFLICT (id) DO UPDATE SET status = EXCLUDED.status
           InboxRepository(db),
           capabilityCase,
           access,
+          roomRepository: room,
           attentionIntents: attentionIntents,
           attention: attention,
           env: env,
