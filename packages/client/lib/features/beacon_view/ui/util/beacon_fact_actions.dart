@@ -16,6 +16,7 @@ Future<void> showBeaconFactActions(
   return showFactActionsHostSheet(
     pageContext,
     fact: fact,
+    canMutate: cubit.state.beacon.status.allowsDiscussionWrites,
     onCorrect: ({required factCardId, required newText}) =>
         cubit.correctFact(factCardId: factCardId, newText: newText),
     onRemove: ({required factCardId}) => cubit.removeFact(factCardId: factCardId),

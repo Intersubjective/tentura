@@ -87,13 +87,26 @@ class BeaconViewHostScreen extends StatelessWidget implements AutoRouteWrapper {
                 create: (_) => ThreadHostCubit(beaconId: id),
               ),
             ],
-            child: _BeaconViewMessageCanonicalizer(
-              beaconId: id,
-              threadId: threadId,
-              messageId: messageId,
-              isDeepLink: isDeepLink,
-              entry: entry,
-              child: this,
+            child: Builder(
+              builder: (context) => BlocListener<BeaconViewCubit, BeaconViewState>(
+                listenWhen: (p, c) =>
+                    c.beaconContentLoaded &&
+                    (p.beaconContentLoaded != c.beaconContentLoaded ||
+                        p.beacon.status != c.beacon.status),
+                listener: (context, state) {
+                  context.read<ThreadHostCubit>().syncBeaconStatus(
+                    state.beacon.status,
+                  );
+                },
+                child: _BeaconViewMessageCanonicalizer(
+                  beaconId: id,
+                  threadId: threadId,
+                  messageId: messageId,
+                  isDeepLink: isDeepLink,
+                  entry: entry,
+                  child: this,
+                ),
+              ),
             ),
           ),
         );

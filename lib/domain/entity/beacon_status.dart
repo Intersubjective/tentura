@@ -38,6 +38,13 @@ enum BeaconStatus {
 
   bool get isFinished => this == cancelled || this == closed;
 
+  /// Ordinary discussion writes (messages, reactions, polls, facts).
+  ///
+  /// Spells closed/cancelled/deleted explicitly — do not reuse [isTerminal],
+  /// which is for coordination / status-menu and may diverge.
+  bool get allowsDiscussionWrites =>
+      this != closed && this != cancelled && this != deleted;
+
   bool get allowsCoordination => isOpenFamily || this == reviewOpen;
 
   bool get allowsForward => isOpenFamily;

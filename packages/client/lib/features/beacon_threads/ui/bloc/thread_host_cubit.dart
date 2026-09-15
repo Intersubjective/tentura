@@ -1,5 +1,7 @@
 import 'package:flutter/widgets.dart';
 
+import 'package:tentura_root/domain/entity/beacon_status.dart';
+
 import 'package:tentura/features/beacon_threads/domain/entity/request_thread.dart';
 
 import 'room_cubit.dart';
@@ -26,10 +28,22 @@ class ThreadHostCubit extends Cubit<ThreadHostState> {
   final RoomCubitFactory _factory;
 
   RoomCubit? _roomCubit;
+
+  /// Cached after [BeaconViewCubit] content load; never seeded from placeholder.
+  BeaconStatus? _beaconStatus;
   Future<void> _switchTail = Future<void>.value();
   int _windowClassTransitionGeneration = 0;
 
   RoomCubit? get roomCubit => _roomCubit;
+
+  /// Push lifecycle status into the active room cubit (and cache for rebuilds).
+  void syncBeaconStatus(BeaconStatus status) {
+    _beaconStatus = status;
+    final room = _roomCubit;
+    if (room != null && !room.isClosed) {
+      room.syncBeaconStatus(status);
+    }
+  }
 
   void _cancelWindowClassTransition() {
     _windowClassTransitionGeneration++;
@@ -69,6 +83,10 @@ class ThreadHostCubit extends Cubit<ThreadHostState> {
         threadItemId: null,
         initialUnreadAnchorAt: thread.lastSeenAt,
       );
+      final cached = _beaconStatus;
+      if (cached != null) {
+        _roomCubit!.syncBeaconStatus(cached);
+      }
       emit(
         state.copyWith(
           openThreadId: RequestThread.generalId,

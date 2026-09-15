@@ -8,7 +8,5 @@ abstract final class BeaconRoomLifecycleWritePolicy {
   BeaconRoomLifecycleWritePolicy._();
 
   static bool blocksOrdinaryUserWrites(BeaconStatus status) =>
-      status == BeaconStatus.closed ||
-      status == BeaconStatus.cancelled ||
-      status == BeaconStatus.deleted;
+      !status.allowsDiscussionWrites;
 }

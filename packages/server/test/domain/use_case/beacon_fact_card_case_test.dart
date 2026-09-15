@@ -9,7 +9,9 @@ import 'package:tentura_server/domain/entity/beacon_fact_card_entity.dart';
 import 'package:tentura_server/domain/entity/beacon_room_record.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/port/beacon_fact_card_repository_port.dart';
+import 'package:tentura_server/domain/port/beacon_hierarchy_repository_port.dart';
 import 'package:tentura_server/domain/port/beacon_room_repository_port.dart';
+import 'package:tentura_root/domain/entity/beacon_status.dart';
 import 'package:tentura_server/domain/use_case/beacon_fact_card_case.dart';
 import 'package:tentura_server/env.dart';
 
@@ -157,9 +159,18 @@ class _StubRoom extends Fake implements BeaconRoomRepositoryPort {
       };
 }
 
+
+class _StubHierarchy extends Fake implements BeaconHierarchyRepositoryPort {
+  BeaconStatus? status = BeaconStatus.open;
+
+  @override
+  Future<BeaconStatus?> loadBeaconStatus(String beaconId) async => status;
+}
+
 void main() {
   late _StubFacts facts;
   late _StubRoom room;
+  late _StubHierarchy hierarchy;
   late BeaconFactCardCase case_;
 
   void grantAdmittedAccess() {
@@ -187,9 +198,11 @@ void main() {
   setUp(() {
     facts = _StubFacts();
     room = _StubRoom();
+    hierarchy = _StubHierarchy();
     case_ = BeaconFactCardCase(
       facts,
       room,
+      hierarchy,
       env: Env(environment: Environment.test),
       logger: Logger('BeaconFactCardCaseTest'),
     );
@@ -497,6 +510,57 @@ void main() {
       final rows = await case_.list(beaconId: _beaconId, userId: _userId);
 
       expect(rows, hasLength(1));
+    });
+  });
+
+  group('BeaconFactCardCase lifecycle write policy', () {
+    test('pin rejects closed request', () async {
+      hierarchy.status = BeaconStatus.closed;
+
+      await expectLater(
+        case_.pin(
+          beaconId: _beaconId,
+          factText: 'hello',
+          visibility: BeaconFactCardVisibilityBits.public,
+          userId: _userId,
+        ),
+        throwsA(
+          isA<BeaconCreateException>().having(
+            (e) => e.description,
+            'description',
+            'Discussion is read-only for this request',
+          ),
+        ),
+      );
+      expect(facts.lastPinnedText, isNull);
+    });
+
+    test('correct rejects cancelled request', () async {
+      hierarchy.status = BeaconStatus.cancelled;
+
+      await expectLater(
+        case_.correct(
+          factCardId: _factId,
+          beaconId: _beaconId,
+          actorUserId: _userId,
+          newText: 'x',
+        ),
+        throwsA(isA<BeaconCreateException>()),
+      );
+    });
+
+    test('pin allows wrapping-up request', () async {
+      hierarchy.status = BeaconStatus.reviewOpen;
+
+      final r = await case_.pin(
+        beaconId: _beaconId,
+        factText: 'still open',
+        visibility: BeaconFactCardVisibilityBits.public,
+        userId: _userId,
+      );
+
+      expect(r['id'], _factId);
+      expect(facts.lastPinnedText, 'still open');
     });
   });
 }

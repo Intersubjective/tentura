@@ -71,7 +71,7 @@ class RoomMessageTile extends StatelessWidget {
   const RoomMessageTile({
     required this.message,
     required this.myProfile,
-    required this.onToggleReaction,
+    this.onToggleReaction,
     this.onActionsPressed,
     this.onReplyPressed,
     this.onJumpToReply,
@@ -137,7 +137,7 @@ class RoomMessageTile extends StatelessWidget {
   final Future<void> Function(RoomMessageAttachment attachment)?
   onOpenFileAttachment;
 
-  final Future<void> Function(String messageId, String emoji) onToggleReaction;
+  final Future<void> Function(String messageId, String emoji)? onToggleReaction;
 
   final Future<void> Function(
     String pollingId,
@@ -946,12 +946,16 @@ class RoomMessageTile extends StatelessWidget {
     final openItemCb = linkedCoord == null
         ? null
         : _coordinationItemTap(context, linkedCoord);
-    void quickReactCb() => unawaited(
-      onToggleReaction(
-        message.id,
-        BeaconRoomMessageReaction.quickPickerEmojis.first,
-      ),
-    );
+    void Function()? quickReactCb;
+    final toggleReaction = onToggleReaction;
+    if (toggleReaction != null) {
+      quickReactCb = () => unawaited(
+        toggleReaction(
+          message.id,
+          BeaconRoomMessageReaction.quickPickerEmojis.first,
+        ),
+      );
+    }
 
     final bubbleBg = isMine ? tt.info.withValues(alpha: 0.18) : tt.surface;
     final bubbleBorder = isMine ? tt.skyBorder : tt.borderSubtle;
@@ -1533,7 +1537,7 @@ class _MessageLifecycleFooter extends StatelessWidget {
   final L10n l10n;
   final bool showCoordinationFooter;
   final bool showMarkDone;
-  final Future<void> Function(String messageId, String emoji) onToggleReaction;
+  final Future<void> Function(String messageId, String emoji)? onToggleReaction;
   final VoidCallback? onOpenItem;
   final String? editedSuffix;
   final bool hideTimestamp;
@@ -1783,9 +1787,14 @@ class _MessageLifecycleFooter extends StatelessWidget {
                           constrainedAxis: Axis.vertical,
                           alignment: Alignment.centerLeft,
                           child: InkWell(
-                            onTap: () => unawaited(
-                              onToggleReaction(message.id, entry.key),
-                            ),
+                            onTap: onToggleReaction == null
+                                ? null
+                                : () => unawaited(
+                                    onToggleReaction!(
+                                      message.id,
+                                      entry.key,
+                                    ),
+                                  ),
                             onLongPress:
                                 (message.reactors[entry.key]?.isNotEmpty ??
                                     false)

@@ -20,6 +20,7 @@ Future<void> showFactActionsSheet(
   return showFactActionsHostSheet(
     context,
     fact: fact,
+    canMutate: cubit.state.canWriteDiscussion,
     onCorrect: ({required factCardId, required newText}) =>
         cubit.correctFact(factCardId: factCardId, newText: newText),
     onRemove: ({required factCardId}) => cubit.removeFact(factCardId: factCardId),
@@ -47,6 +48,7 @@ Future<void> showFactActionsHostSheet(
   })
   onSetVisibility,
   void Function(String messageId)? onJumpToSource,
+  bool canMutate = true,
 }) {
   final l10n = L10n.of(context)!;
   final pageCtx = context;
@@ -72,42 +74,44 @@ Future<void> showFactActionsHostSheet(
                 style: Theme.of(ctx).textTheme.titleMedium,
               ),
             ),
-            ListTile(
-              leading: const Icon(Icons.edit_outlined),
-              title: Text(l10n.beaconRoomFactCardActionEdit),
-              onTap: () {
-                Navigator.pop(ctx);
-                unawaited(_showEditFactSheet(pageCtx, fact, onCorrect));
-              },
-            ),
-            if (fact.visibility == BeaconFactCardVisibilityBits.room)
+            if (canMutate) ...[
               ListTile(
-                leading: const Icon(Icons.public_outlined),
-                title: Text(l10n.beaconRoomFactCardActionMakePublic),
+                leading: const Icon(Icons.edit_outlined),
+                title: Text(l10n.beaconRoomFactCardActionEdit),
                 onTap: () {
                   Navigator.pop(ctx);
-                  unawaited(
-                    onSetVisibility(
-                      factCardId: fact.id,
-                      visibility: BeaconFactCardVisibilityBits.public,
-                    ),
-                  );
-                },
-              )
-            else
-              ListTile(
-                leading: const Icon(Icons.lock_outline),
-                title: Text(l10n.beaconRoomFactCardActionMakePrivate),
-                onTap: () {
-                  Navigator.pop(ctx);
-                  unawaited(
-                    onSetVisibility(
-                      factCardId: fact.id,
-                      visibility: BeaconFactCardVisibilityBits.room,
-                    ),
-                  );
+                  unawaited(_showEditFactSheet(pageCtx, fact, onCorrect));
                 },
               ),
+              if (fact.visibility == BeaconFactCardVisibilityBits.room)
+                ListTile(
+                  leading: const Icon(Icons.public_outlined),
+                  title: Text(l10n.beaconRoomFactCardActionMakePublic),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    unawaited(
+                      onSetVisibility(
+                        factCardId: fact.id,
+                        visibility: BeaconFactCardVisibilityBits.public,
+                      ),
+                    );
+                  },
+                )
+              else
+                ListTile(
+                  leading: const Icon(Icons.lock_outline),
+                  title: Text(l10n.beaconRoomFactCardActionMakePrivate),
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    unawaited(
+                      onSetVisibility(
+                        factCardId: fact.id,
+                        visibility: BeaconFactCardVisibilityBits.room,
+                      ),
+                    );
+                  },
+                ),
+            ],
             ListTile(
               leading: const Icon(Icons.message_outlined),
               title: Text(l10n.beaconRoomFactCardActionJumpToSource),
@@ -140,20 +144,21 @@ Future<void> showFactActionsHostSheet(
                 );
               },
             ),
-            ListTile(
-              leading: Icon(
-                Icons.push_pin_outlined,
-                color: Theme.of(ctx).colorScheme.error,
+            if (canMutate)
+              ListTile(
+                leading: Icon(
+                  Icons.push_pin_outlined,
+                  color: Theme.of(ctx).colorScheme.error,
+                ),
+                title: Text(
+                  l10n.beaconRoomFactCardActionRemove,
+                  style: TextStyle(color: Theme.of(ctx).colorScheme.error),
+                ),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  unawaited(_confirmRemoveFact(pageCtx, fact, l10n, onRemove));
+                },
               ),
-              title: Text(
-                l10n.beaconRoomFactCardActionRemove,
-                style: TextStyle(color: Theme.of(ctx).colorScheme.error),
-              ),
-              onTap: () {
-                Navigator.pop(ctx);
-                unawaited(_confirmRemoveFact(pageCtx, fact, l10n, onRemove));
-              },
-            ),
           ],
         ),
       ),

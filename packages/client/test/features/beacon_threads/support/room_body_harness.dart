@@ -5,6 +5,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get_it/get_it.dart';
 import 'package:mockito/mockito.dart';
+import 'package:tentura_root/domain/entity/beacon_status.dart';
 import 'package:tentura_root/domain/enums.dart';
 
 import 'package:tentura/data/repository/clipboard_image_repository.dart';
@@ -200,6 +201,8 @@ RoomState roomBodyState({
   RoomMessage? replyTarget,
   String? scrollToMessageId,
   List<String> pinnedJumpMessageIds = const [],
+  /// Loaded-room harness default is writable; pass null/closed to lock.
+  BeaconStatus? beaconStatus = BeaconStatus.open,
 }) {
   return RoomState(
     beaconId: beaconId,
@@ -209,5 +212,6 @@ RoomState roomBodyState({
     replyTarget: replyTarget,
     scrollToMessageId: scrollToMessageId,
     pinnedJumpMessageIds: pinnedJumpMessageIds,
+    beaconStatus: beaconStatus,
   );
 }

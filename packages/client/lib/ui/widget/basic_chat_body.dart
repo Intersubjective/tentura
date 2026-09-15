@@ -62,6 +62,7 @@ class BasicChatBody extends StatefulWidget {
     this.clipboardImageRepository,
     this.enableComposerAttachments = true,
     this.enableParticipantMentions = true,
+    this.composerReadOnlyHint,
     this.jumpFabHeroTag = 'basic_chat_jump_latest',
     this.onScrollToPromoteSource,
     this.onOpenCoordinationItem,
@@ -140,6 +141,9 @@ class BasicChatBody extends StatefulWidget {
   final bool enableComposerAttachments;
 
   final bool enableParticipantMentions;
+
+  /// When non-null, the composer is visible but disabled and shows this hint.
+  final String? composerReadOnlyHint;
 
   /// Distinct [FloatingActionButton.small] hero tag when multiple chat bodies
   /// might exist in the same navigator context.
@@ -514,7 +518,7 @@ class BasicChatBodyState extends State<BasicChatBody> {
                             onActionsPressed: widget.onMessageActions,
                             onReplyPressed: widget.onReply,
                             onJumpToReply: widget.onJumpToReply,
-                            onToggleReaction: toggle ?? ((_, _) async {}),
+                            onToggleReaction: toggle,
                             onOpenFileAttachment: widget.onOpenFileAttachment,
                             participants: widget.participants,
                             onVotePoll: vote == null
@@ -612,6 +616,7 @@ class BasicChatBodyState extends State<BasicChatBody> {
                         enableAttachments: widget.enableComposerAttachments,
                         enableParticipantMentions:
                             widget.enableParticipantMentions,
+                        readOnlyHint: widget.composerReadOnlyHint,
                         replyTarget: widget.replyTarget,
                         onCancelReply: widget.onCancelReply,
                       )
@@ -636,6 +641,7 @@ class BeaconRoomComposer extends StatefulWidget {
     required this.participants,
     this.enableAttachments = true,
     this.enableParticipantMentions = true,
+    this.readOnlyHint,
     this.replyTarget,
     this.onCancelReply,
     super.key,
@@ -662,6 +668,9 @@ class BeaconRoomComposer extends StatefulWidget {
   final bool enableAttachments;
 
   final bool enableParticipantMentions;
+
+  /// Non-null ⇒ composer is locked; also used as the disabled field hint.
+  final String? readOnlyHint;
 
   final RoomMessage? replyTarget;
 
@@ -717,7 +726,11 @@ class _BeaconRoomComposerState extends State<BeaconRoomComposer> {
       return _recordComposerEscapeResult(KeyEventResult.ignored);
     }
     if (key == LogicalKeyboardKey.keyV && _isPasteShortcutPressed()) {
-      if (widget.enableAttachments && !widget.isSending && !_submitting) {
+      final readOnly = widget.readOnlyHint != null;
+      if (widget.enableAttachments &&
+          !readOnly &&
+          !widget.isSending &&
+          !_submitting) {
         unawaited(_pasteImage(fromKeyboard: true));
       }
       // Let the text field's own paste run too, so text clipboards still work.
@@ -1107,7 +1120,7 @@ class _BeaconRoomComposerState extends State<BeaconRoomComposer> {
   }
 
   Future<void> _submit() async {
-    if (_submitting) {
+    if (widget.readOnlyHint != null || _submitting) {
       return;
     }
     final body = _text.text;
@@ -1216,12 +1229,13 @@ class _BeaconRoomComposerState extends State<BeaconRoomComposer> {
   }
 
   Widget _attachMenuButton(L10n l10n, ThemeData theme, bool busy) {
+    final readOnly = widget.readOnlyHint != null;
     return PopupMenuButton<String>(
       key: const ValueKey('attach'),
       tooltip: l10n.beaconRoomAttachMenuTooltip,
-      enabled: !busy && _remainingSlots > 0,
+      enabled: !busy && !readOnly && _remainingSlots > 0,
       onSelected: (v) async {
-        if (busy) {
+        if (busy || readOnly) {
           return;
         }
         if (v == 'img') {
@@ -1320,9 +1334,12 @@ class _BeaconRoomComposerState extends State<BeaconRoomComposer> {
   Widget build(BuildContext context) {
     final l10n = L10n.of(context)!;
     final theme = Theme.of(context);
+    final readOnly = widget.readOnlyHint != null;
     final busy = widget.isSending || _submitting;
+    final locked = busy || readOnly;
     final isCompact = context.windowClass == WindowClass.compact;
-    final showAttach = widget.enableAttachments && !(isCompact && _hasText);
+    final showAttach =
+        widget.enableAttachments && !readOnly && !(isCompact && _hasText);
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -1333,7 +1350,7 @@ class _BeaconRoomComposerState extends State<BeaconRoomComposer> {
             target: widget.replyTarget!,
             onCancelReply: widget.onCancelReply,
           ),
-        if (widget.enableAttachments && _pending.isNotEmpty)
+        if (widget.enableAttachments && !readOnly && _pending.isNotEmpty)
           Padding(
             padding: const EdgeInsets.only(bottom: kSpacingSmall),
             child: SingleChildScrollView(
@@ -1368,8 +1385,9 @@ class _BeaconRoomComposerState extends State<BeaconRoomComposer> {
                     controller: _text,
                     focusNode: _composerFocus,
                     decoration: InputDecoration(
-                      hintText: l10n.beaconRoomMessageHint,
-                      suffixIcon: widget.enableAttachments
+                      hintText:
+                          widget.readOnlyHint ?? l10n.beaconRoomMessageHint,
+                      suffixIcon: widget.enableAttachments && !readOnly
                           ? AnimatedSwitcher(
                               duration: const Duration(milliseconds: 180),
                               switchInCurve: Curves.easeOut,
@@ -1385,7 +1403,7 @@ class _BeaconRoomComposerState extends State<BeaconRoomComposer> {
                     minLines: 1,
                     maxLines: 4,
                     textInputAction: TextInputAction.send,
-                    enabled: !busy,
+                    enabled: !locked,
                     onTapAlwaysCalled: true,
                     onTap: _requestComposerKeyboardFromTap,
                     onSubmitted: (_) {
@@ -1415,7 +1433,7 @@ class _BeaconRoomComposerState extends State<BeaconRoomComposer> {
                 child: IconButton(
                   key: TestIds.key(TestIds.roomMessageSend),
                   icon: const Icon(Icons.send_rounded),
-                  onPressed: busy ? null : () => unawaited(_submit()),
+                  onPressed: locked ? null : () => unawaited(_submit()),
                 ),
               ),
             ),

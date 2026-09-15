@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:uuid/uuid.dart';
 
+import 'package:tentura_root/domain/entity/beacon_status.dart';
 import 'package:tentura_root/domain/entity/localizable.dart';
 import 'package:tentura/data/repository/presence_repository.dart';
 import 'package:tentura/domain/entity/beacon_fact_card.dart';
@@ -25,6 +26,7 @@ import '../../domain/entity/room_seen_outcome.dart';
 import '../../domain/exception/beacon_fact_already_pinned_exception.dart';
 import '../../domain/use_case/beacon_threads_case.dart';
 import '../message/beacon_room_fact_messages.dart';
+import '../message/discussion_read_only_message.dart';
 import '../util/room_reply_excerpt.dart';
 import 'room_message_reaction_local.dart';
 import 'room_state.dart';
@@ -96,6 +98,46 @@ class RoomCubit extends Cubit<RoomState> {
     if (!isClosed) {
       emit(state.copyWith(status: const StateIsSuccess(), loadError: null));
     }
+  }
+
+  /// Sync lifecycle from [BeaconViewCubit] (via [ThreadHostCubit]). Clears an
+  /// in-progress reply when writes become locked.
+  void syncBeaconStatus(BeaconStatus status) {
+    if (isClosed) return;
+    final wasWritable = state.canWriteDiscussion;
+    final clearReply =
+        wasWritable && !status.allowsDiscussionWrites && state.replyTarget != null;
+    emit(
+      state.copyWith(
+        beaconStatus: status,
+        replyTarget: clearReply ? null : state.replyTarget,
+      ),
+    );
+  }
+
+  /// Null status → let the server decide (tests / before content load).
+  bool get _blocksDiscussionWrite {
+    final s = state.beaconStatus;
+    if (s == null) return false;
+    return !s.allowsDiscussionWrites;
+  }
+
+  bool get _blocksPlanUpdate {
+    final s = state.beaconStatus;
+    if (s == null) return false;
+    return !s.allowsCoordination || !state.isPlanEditor;
+  }
+
+  bool _rejectIfDiscussionReadOnly() {
+    if (!_blocksDiscussionWrite) return false;
+    _showMessage(const DiscussionReadOnlyMessage());
+    return true;
+  }
+
+  bool _rejectIfPlanUpdateBlocked() {
+    if (!_blocksPlanUpdate) return false;
+    _showMessage(const DiscussionPlanUpdateBlockedMessage());
+    return true;
   }
 
   late final StreamSubscription<BeaconRoomInvalidation> _refreshSub;
@@ -736,6 +778,7 @@ class RoomCubit extends Cubit<RoomState> {
   }
 
   Future<void> updatePlan(String currentLine) async {
+    if (_rejectIfPlanUpdateBlocked()) return;
     // Optimistically reflect the new pinned plan/status line so the HUD strip
     // updates instantly; load() below reconciles (and restores on error).
     final optimisticRoomState = state.roomState?.copyWith(
@@ -763,6 +806,7 @@ class RoomCubit extends Cubit<RoomState> {
     required String factText,
     required int visibility,
   }) async {
+    if (_rejectIfDiscussionReadOnly()) return;
     final existing = state.factCards
         .where(
           (f) => f.sourceMessageId == sourceMessageId,
@@ -806,6 +850,7 @@ class RoomCubit extends Cubit<RoomState> {
     required String factCardId,
     required String newText,
   }) async {
+    if (_rejectIfDiscussionReadOnly()) return;
     emit(state.copyWith(status: const StateIsLoading()));
     try {
       await _case.correctFact(
@@ -821,6 +866,7 @@ class RoomCubit extends Cubit<RoomState> {
   }
 
   Future<void> removeFact({required String factCardId}) async {
+    if (_rejectIfDiscussionReadOnly()) return;
     emit(state.copyWith(status: const StateIsLoading()));
     try {
       await _case.removeFact(
@@ -838,6 +884,7 @@ class RoomCubit extends Cubit<RoomState> {
     required String factCardId,
     required int visibility,
   }) async {
+    if (_rejectIfDiscussionReadOnly()) return;
     emit(state.copyWith(status: const StateIsLoading()));
     try {
       await _case.setFactVisibility(
@@ -857,6 +904,7 @@ class RoomCubit extends Cubit<RoomState> {
     List<RoomPendingUpload> uploads = const [],
     List<CommittedMention> explicitMentions = const [],
   }) async {
+    if (_rejectIfDiscussionReadOnly()) return false;
     final trimmed = body.trim();
     if (trimmed.isEmpty && uploads.isEmpty) {
       return false;
@@ -976,6 +1024,7 @@ class RoomCubit extends Cubit<RoomState> {
     required String messageId,
     required String emoji,
   }) async {
+    if (_rejectIfDiscussionReadOnly()) return;
     final idx = state.messages.indexWhere((m) => m.id == messageId);
     final previousMessages = idx >= 0
         ? List<RoomMessage>.from(state.messages)
@@ -1011,6 +1060,7 @@ class RoomCubit extends Cubit<RoomState> {
     required String messageId,
     required String newBody,
   }) async {
+    if (_rejectIfDiscussionReadOnly()) return;
     emit(state.copyWith(status: const StateIsLoading()));
     try {
       await _case.editMessage(
@@ -1025,6 +1075,7 @@ class RoomCubit extends Cubit<RoomState> {
   }
 
   Future<void> deleteMessage({required String messageId}) async {
+    if (_rejectIfDiscussionReadOnly()) return;
     final previousMessages = List<RoomMessage>.from(state.messages);
     final previousReplyTarget = state.replyTarget;
     final previousPinnedJumpIds = state.pinnedJumpMessageIds;
@@ -1069,6 +1120,7 @@ class RoomCubit extends Cubit<RoomState> {
   }
 
   Future<void> markMessageSemanticDone({required String messageId}) async {
+    if (_rejectIfDiscussionReadOnly()) return;
     emit(state.copyWith(status: const StateIsLoading()));
     try {
       await _case.markMessageSemanticDone(
@@ -1087,6 +1139,7 @@ class RoomCubit extends Cubit<RoomState> {
     required List<String> variantIds,
     int? score,
   }) async {
+    if (_rejectIfDiscussionReadOnly()) return;
     final idx = state.messages.indexWhere((m) => m.id == messageId);
     List<RoomMessage>? previousMessages;
     if (idx >= 0) {
@@ -1132,6 +1185,7 @@ class RoomCubit extends Cubit<RoomState> {
     bool isAnonymous = true,
     bool allowRevote = true,
   }) async {
+    if (_rejectIfDiscussionReadOnly()) return;
     emit(state.copyWith(status: const StateIsLoading()));
     try {
       await _case.createPoll(

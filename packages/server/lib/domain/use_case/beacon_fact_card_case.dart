@@ -1,12 +1,12 @@
-import 'dart:async';
-
 import 'package:injectable/injectable.dart';
 
 import 'package:tentura_server/domain/port/beacon_fact_card_repository_port.dart';
+import 'package:tentura_server/domain/port/beacon_hierarchy_repository_port.dart';
 import 'package:tentura_server/domain/port/beacon_room_repository_port.dart';
 import 'package:tentura_server/consts/beacon_fact_card_consts.dart';
 import 'package:tentura_server/consts/beacon_room_consts.dart';
 import 'package:tentura_server/domain/exception.dart';
+import 'package:tentura_server/domain/policy/beacon_room_lifecycle_write_policy.dart';
 
 import '_use_case_base.dart';
 
@@ -14,7 +14,8 @@ import '_use_case_base.dart';
 final class BeaconFactCardCase extends UseCaseBase {
   BeaconFactCardCase(
     this._facts,
-    this._room, {
+    this._room,
+    this._hierarchyRepository, {
     required super.env,
     required super.logger,
   });
@@ -22,6 +23,8 @@ final class BeaconFactCardCase extends UseCaseBase {
   final BeaconFactCardRepositoryPort _facts;
 
   final BeaconRoomRepositoryPort _room;
+
+  final BeaconHierarchyRepositoryPort _hierarchyRepository;
 
   Future<bool> _canUseRoom({
     required String beaconId,
@@ -50,6 +53,16 @@ final class BeaconFactCardCase extends UseCaseBase {
     }
   }
 
+  Future<void> _rejectOrdinaryUserWritesForLifecycle(String beaconId) async {
+    final status = await _hierarchyRepository.loadBeaconStatus(beaconId);
+    if (status != null &&
+        BeaconRoomLifecycleWritePolicy.blocksOrdinaryUserWrites(status)) {
+      throw const BeaconCreateException(
+        description: 'Discussion is read-only for this request',
+      );
+    }
+  }
+
   Future<Map<String, Object?>> pin({
     required String beaconId,
     required String factText,
@@ -58,6 +71,7 @@ final class BeaconFactCardCase extends UseCaseBase {
     String? sourceMessageId,
   }) async {
     await _ensureRoomAccess(beaconId: beaconId, userId: userId);
+    await _rejectOrdinaryUserWritesForLifecycle(beaconId);
     if (sourceMessageId != null) {
       final dup = await _facts.findNonRemovedBySourceMessage(
         beaconId: beaconId,
@@ -86,6 +100,7 @@ final class BeaconFactCardCase extends UseCaseBase {
     required String newText,
   }) async {
     await _ensureRoomAccess(beaconId: beaconId, userId: actorUserId);
+    await _rejectOrdinaryUserWritesForLifecycle(beaconId);
     await _facts.correct(
       factCardId: factCardId,
       beaconId: beaconId,
@@ -101,6 +116,7 @@ final class BeaconFactCardCase extends UseCaseBase {
     required String actorUserId,
   }) async {
     await _ensureRoomAccess(beaconId: beaconId, userId: actorUserId);
+    await _rejectOrdinaryUserWritesForLifecycle(beaconId);
     await _facts.remove(
       factCardId: factCardId,
       beaconId: beaconId,
@@ -116,6 +132,7 @@ final class BeaconFactCardCase extends UseCaseBase {
     required int visibility,
   }) async {
     await _ensureRoomAccess(beaconId: beaconId, userId: actorUserId);
+    await _rejectOrdinaryUserWritesForLifecycle(beaconId);
     await _facts.setVisibility(
       factCardId: factCardId,
       beaconId: beaconId,

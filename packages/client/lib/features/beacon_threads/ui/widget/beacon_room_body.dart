@@ -179,11 +179,13 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
             p.pendingMarkSeen != c.pendingMarkSeen ||
             p.status != c.status ||
             p.hasError != c.hasError ||
-            p.replyTarget?.id != c.replyTarget?.id,
+            p.replyTarget?.id != c.replyTarget?.id ||
+            p.beaconStatus != c.beaconStatus,
         builder: (context, state) {
           final cubit = context.read<RoomCubit>();
           final isThreadMode = state.threadItemId != null;
           final err = state.loadError?.toString() ?? '';
+          final canWrite = state.canWriteDiscussion;
           final showPinnedNow =
               !isThreadMode &&
               beaconRoomShowsPinnedNow(
@@ -195,7 +197,7 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
             header: showPinnedNow
                 ? _PinnedNowRow(
                     state: state,
-                    onEdit: _roomCanCreatePromise(cubit)
+                    onEdit: state.canUpdatePlan
                         ? () => unawaited(
                             _showPlanUpdateSheet(context, cubit, l10n),
                           )
@@ -220,26 +222,30 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
               msg,
               isThreadMode: isThreadMode,
             ),
-            onReply: cubit.startReplyTo,
+            onReply: canWrite ? cubit.startReplyTo : null,
             onJumpToReply: (id) => unawaited(cubit.jumpToRepliedMessage(id)),
             replyTarget: state.replyTarget,
             onCancelReply: cubit.cancelReply,
-            onToggleReaction: (messageId, emoji) => cubit.toggleReaction(
-              messageId: messageId,
-              emoji: emoji,
-            ),
+            onToggleReaction: canWrite
+                ? (messageId, emoji) => cubit.toggleReaction(
+                    messageId: messageId,
+                    emoji: emoji,
+                  )
+                : null,
             onOpenFileAttachment: (a) => openRoomFileAttachment(
               context,
               l10n,
               a,
             ),
-            onVotePoll: (messageId, pollingId, variantIds, {score}) =>
-                cubit.votePoll(
-                  messageId: messageId,
-                  pollingId: pollingId,
-                  variantIds: variantIds,
-                  score: score,
-                ),
+            onVotePoll: canWrite
+                ? (messageId, pollingId, variantIds, {score}) =>
+                      cubit.votePoll(
+                        messageId: messageId,
+                        pollingId: pollingId,
+                        variantIds: variantIds,
+                        score: score,
+                      )
+                : null,
             onSend: widget.enableComposer
                 ? (body, uploads) => cubit.sendMessage(
                     body: body,
@@ -253,6 +259,8 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
                     explicitMentions: mentions,
                   )
                 : null,
+            composerReadOnlyHint:
+                canWrite ? null : l10n.beaconRoomMessageReadOnlyHint,
             imageRepository: GetIt.I<ImageRepository>(),
             clipboardImageRepository: GetIt.I<ClipboardImageRepository>(),
             jumpFabHeroTag: 'beacon_room_jump_latest',
@@ -320,6 +328,7 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
     RoomMessage message, {
     bool isThreadMode = false,
   }) {
+    final canWrite = cubit.state.canWriteDiscussion;
     final pf = cubit.state.factForRoomMessage(message);
     final showFactInMenu =
         !isThreadMode && !_suppressesRichMessageActions(message);
@@ -329,6 +338,7 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
     // only plain, non-system messages offer the "Turn into…" verbs.
     final linkedItem = message.linkedCoordinationItem;
     final showCreateChild =
+        canWrite &&
         !isThreadMode &&
         linkedItem == null &&
         !_suppressesRichMessageActions(message);
@@ -379,50 +389,51 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
                           style: Theme.of(ctx).textTheme.titleMedium,
                         ),
                       ),
-                      Padding(
-                        padding: EdgeInsets.symmetric(
-                          horizontal: tt.screenHPadding,
-                        ),
-                        child: Wrap(
-                          spacing: tt.rowGap,
-                          runSpacing: tt.rowGap,
-                          children: [
-                            for (final emoji
-                                in BeaconRoomMessageReaction.quickPickerEmojis)
-                              InkWell(
-                                customBorder: const CircleBorder(),
-                                onTap: () {
-                                  Navigator.pop(ctx);
-                                  unawaited(
-                                    cubit.toggleReaction(
-                                      messageId: message.id,
-                                      emoji: emoji,
+                      if (canWrite)
+                        Padding(
+                          padding: EdgeInsets.symmetric(
+                            horizontal: tt.screenHPadding,
+                          ),
+                          child: Wrap(
+                            spacing: tt.rowGap,
+                            runSpacing: tt.rowGap,
+                            children: [
+                              for (final emoji
+                                  in BeaconRoomMessageReaction.quickPickerEmojis)
+                                InkWell(
+                                  customBorder: const CircleBorder(),
+                                  onTap: () {
+                                    Navigator.pop(ctx);
+                                    unawaited(
+                                      cubit.toggleReaction(
+                                        messageId: message.id,
+                                        emoji: emoji,
+                                      ),
+                                    );
+                                  },
+                                  child: DecoratedBox(
+                                    decoration: BoxDecoration(
+                                      shape: BoxShape.circle,
+                                      border: Border.all(
+                                        color: viewerReactions.contains(emoji)
+                                            ? tt.skyBorder
+                                            : Colors.transparent,
+                                        width: 1.5,
+                                      ),
                                     ),
-                                  );
-                                },
-                                child: DecoratedBox(
-                                  decoration: BoxDecoration(
-                                    shape: BoxShape.circle,
-                                    border: Border.all(
-                                      color: viewerReactions.contains(emoji)
-                                          ? tt.skyBorder
-                                          : Colors.transparent,
-                                      width: 1.5,
-                                    ),
-                                  ),
-                                  child: Padding(
-                                    padding: EdgeInsets.all(tt.rowGap),
-                                    child: Text(
-                                      emoji,
-                                      style: theme.textTheme.titleMedium,
+                                    child: Padding(
+                                      padding: EdgeInsets.all(tt.rowGap),
+                                      child: Text(
+                                        emoji,
+                                        style: theme.textTheme.titleMedium,
+                                      ),
                                     ),
                                   ),
                                 ),
-                              ),
-                          ],
+                            ],
+                          ),
                         ),
-                      ),
-                      if (RoomCubit.canReplyTo(message))
+                      if (canWrite && RoomCubit.canReplyTo(message))
                         ListTile(
                           leading: const Icon(Icons.reply_outlined),
                           title: Text(l10n.beaconRoomActionReply),
@@ -504,7 +515,7 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
                         ),
                       ],
                       // ── Fact pin (state-aware). ──
-                      if (showFactInMenu && pf == null)
+                      if (canWrite && showFactInMenu && pf == null)
                         ListTile(
                           leading: const Icon(Icons.fact_check_outlined),
                           title: Text(l10n.beaconRoomActionPinFact),
@@ -536,7 +547,7 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
                             );
                           },
                         ),
-                      if (showFactInMenu && pf != null)
+                      if (canWrite && showFactInMenu && pf != null)
                         ListTile(
                           leading: Icon(
                             Icons.push_pin_outlined,
@@ -569,7 +580,7 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
                           },
                         ),
                       // ── Destructive (own message), divided off and last. ──
-                      if (isOwnMessage && showFactInMenu) ...[
+                      if (canWrite && isOwnMessage && showFactInMenu) ...[
                         const Divider(height: 1),
                         ListTile(
                           leading: const Icon(Icons.edit_outlined),
@@ -773,23 +784,6 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
     );
   }
 
-  bool _roomCanCreatePromise(RoomCubit cubit) {
-    final myUserId = cubit.state.myUserId;
-    if (myUserId.isEmpty) return false;
-    BeaconParticipant? myParticipant;
-    for (final p in cubit.state.participants) {
-      if (p.userId == myUserId) {
-        myParticipant = p;
-        break;
-      }
-    }
-    if (myParticipant == null) return false;
-    if (myParticipant.role == BeaconParticipantRoleBits.author ||
-        myParticipant.role == BeaconParticipantRoleBits.steward) {
-      return true;
-    }
-    return myParticipant.roomAccess == RoomAccessBits.admitted;
-  }
 
   void _openChildRequestComposerFromMessage(
     BuildContext context,

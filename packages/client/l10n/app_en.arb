@@ -4898,6 +4898,10 @@
   "beaconRelationNoTrail": "No forward chain recorded for you.",
   "beaconRoomTitle": "General",
   "beaconRoomMessageHint": "Write a message…",
+  "beaconRoomMessageReadOnlyHint": "This discussion is read-only",
+  "@beaconRoomMessageReadOnlyHint": {
+    "context": "Disabled composer placeholder when the request discussion no longer accepts ordinary writes"
+  },
   "beaconRoomOpen": "General",
   "beaconRoomBackToChat": "Back to Threads",
   "@beaconRoomBackToChat": {

@@ -4861,6 +4861,10 @@
   "beaconRelationNoTrail": "Для вас нет записанной цепочки пересылок.",
   "beaconRoomTitle": "Общее",
   "beaconRoomMessageHint": "Напишите сообщение…",
+  "beaconRoomMessageReadOnlyHint": "Это обсуждение доступно только для чтения",
+  "@beaconRoomMessageReadOnlyHint": {
+    "context": "Disabled composer placeholder when the request discussion no longer accepts ordinary writes"
+  },
   "beaconRoomOpen": "Общее",
   "beaconRoomBackToChat": "К темам",
   "@beaconRoomBackToChat": {

@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/mockito.dart';
+import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import 'package:tentura/domain/entity/coordination_item.dart';
 import 'package:tentura/features/beacon_threads/domain/entity/request_thread.dart';
@@ -24,9 +25,11 @@ class RecordingRoomCubit extends Mock implements RoomCubit {
          unreadAnchorAt: initialUnreadAnchorAt,
        );
 
-  final RoomState _state;
+  RoomState _state;
   final Completer<void> closeCompleter;
   int closeCallCount = 0;
+  int syncBeaconStatusCalls = 0;
+  BeaconStatus? lastSyncedStatus;
   bool _isClosed = false;
 
   @override
@@ -37,6 +40,13 @@ class RecordingRoomCubit extends Mock implements RoomCubit {
 
   @override
   bool get isClosed => _isClosed;
+
+  @override
+  void syncBeaconStatus(BeaconStatus status) {
+    syncBeaconStatusCalls++;
+    lastSyncedStatus = status;
+    _state = _state.copyWith(beaconStatus: status);
+  }
 
   @override
   Future<void> close() async {
@@ -249,6 +259,31 @@ void main() {
       expect(host.roomCubit, isNull);
       expect(owned.closeCallCount, 1);
 
+      await host.close();
+    });
+
+    test('select re-applies cached beaconStatus before switching clears', () async {
+      final recorder = RoomCubitFactoryRecorder();
+      final host = _host(recorder: recorder);
+
+      host.syncBeaconStatus(BeaconStatus.closed);
+      await host.select(_generalThread());
+
+      final first = recorder.created.single;
+      expect(first.syncBeaconStatusCalls, 1);
+      expect(first.lastSyncedStatus, BeaconStatus.closed);
+      expect(first.state.beaconStatus, BeaconStatus.closed);
+      expect(first.state.canWriteDiscussion, isFalse);
+
+      final secondSelect = host.select(_generalThread());
+      first.closeCompleter.complete();
+      await secondSelect;
+
+      final second = recorder.created.last;
+      expect(second.syncBeaconStatusCalls, 1);
+      expect(second.state.beaconStatus, BeaconStatus.closed);
+
+      second.closeCompleter.complete();
       await host.close();
     });
 

@@ -1,10 +1,10 @@
 import 'dart:async';
-import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import 'package:flutter/material.dart';
+import 'package:tentura_root/domain/entity/beacon_status.dart';
+
 import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
-import 'package:tentura/domain/entity/beacon_room_consts.dart';
 import 'package:tentura/domain/entity/coordination_item.dart';
 import 'package:tentura/features/beacon/ui/dialog/beacon_delete_dialog.dart';
 import 'package:tentura/features/beacon/ui/util/beacon_delete_ui.dart';
@@ -288,6 +288,7 @@ VoidCallback? beaconViewRoomCreatePollAction({
   required bool inRoomSurface,
 }) {
   if (!inRoomSurface || roomCubit == null || roomCubit.isClosed) return null;
+  if (!roomCubit.state.canWriteDiscussion) return null;
   return () => unawaited(showBeaconRoomPollSheet(context, cubit: roomCubit));
 }
 
@@ -299,18 +300,7 @@ VoidCallback? beaconViewRoomUpdatePlanAction({
   required bool inRoomSurface,
 }) {
   if (!inRoomSurface || roomCubit == null || roomCubit.isClosed) return null;
-  final myUserId = roomCubit.state.myUserId;
-  if (myUserId.isEmpty) return null;
-  var canEdit = false;
-  for (final p in roomCubit.state.participants) {
-    if (p.userId == myUserId) {
-      canEdit = p.role == BeaconParticipantRoleBits.author ||
-          p.role == BeaconParticipantRoleBits.steward ||
-          p.roomAccess == RoomAccessBits.admitted;
-      break;
-    }
-  }
-  if (!canEdit) return null;
+  if (!roomCubit.state.canUpdatePlan) return null;
   final l10n = L10n.of(context)!;
   return () =>
       unawaited(showBeaconRoomUpdatePlanSheet(context, roomCubit, l10n));

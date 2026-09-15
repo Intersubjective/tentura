@@ -38,6 +38,7 @@ import 'package:tentura/features/evaluation/domain/entity/review_window_info.dar
 import '../../domain/use_case/beacon_view_case.dart';
 import 'package:tentura/features/beacon/domain/exception.dart';
 import 'package:tentura/features/beacon_threads/domain/exception/beacon_fact_pin_after_message_exception.dart';
+import 'package:tentura/features/beacon_threads/ui/message/discussion_read_only_message.dart';
 import 'package:tentura/features/beacon_threads/ui/message/beacon_room_fact_messages.dart';
 import '../message/help_offer_messages.dart';
 import 'beacon_view_state.dart';
@@ -104,6 +105,12 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
     if (!isClosed) {
       emit(state.copyWith(status: const StateIsSuccess(), loadError: null));
     }
+  }
+
+  bool _rejectIfDiscussionReadOnly() {
+    if (state.beacon.status.allowsDiscussionWrites) return false;
+    _effects.emit(const ShowMessage(DiscussionReadOnlyMessage()));
+    return true;
   }
 
   late final StreamSubscription<String> _forwardChangesSub;
@@ -855,6 +862,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
     required String factCardId,
     required String newText,
   }) async {
+    if (_rejectIfDiscussionReadOnly()) return;
     try {
       await _case.correctFact(
         beaconId: state.beacon.id,
@@ -869,6 +877,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
   }
 
   Future<void> removeFact({required String factCardId}) async {
+    if (_rejectIfDiscussionReadOnly()) return;
     try {
       await _case.removeFact(
         beaconId: state.beacon.id,
@@ -885,6 +894,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
     required String factCardId,
     required int visibility,
   }) async {
+    if (_rejectIfDiscussionReadOnly()) return;
     try {
       await _case.setFactVisibility(
         beaconId: state.beacon.id,
@@ -904,6 +914,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
     required int visibility,
     List<RoomPendingUpload> uploads = const [],
   }) async {
+    if (_rejectIfDiscussionReadOnly()) return false;
     try {
       await _case.pinFactFromComposer(
         beaconId: state.beacon.id,

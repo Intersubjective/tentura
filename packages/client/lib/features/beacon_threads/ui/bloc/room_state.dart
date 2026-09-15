@@ -1,3 +1,5 @@
+import 'package:tentura_root/domain/entity/beacon_status.dart';
+
 import 'package:tentura/domain/entity/beacon_fact_card.dart';
 import 'package:tentura/domain/entity/beacon_participant.dart';
 import 'package:tentura/domain/entity/beacon_room_consts.dart';
@@ -27,6 +29,10 @@ abstract class RoomState extends StateBase with _$RoomState {
     BeaconRoomState? roomState,
     CoordinationItem? openCoordinationBlocker,
     CoordinationItem? currentCoordinationPlan,
+
+    /// Synced from [BeaconViewCubit] via [ThreadHostCubit]; null until content
+    /// has loaded. Unknown is locked for UI (see [canWriteDiscussion]).
+    BeaconStatus? beaconStatus,
     @Default(StateIsSuccess()) StateStatus status,
 
     /// Message the composer is replying to; null when reply mode is off.
@@ -48,6 +54,28 @@ abstract class RoomState extends StateBase with _$RoomState {
   const RoomState._();
 
   bool get hasError => loadError != null;
+
+  /// Ordinary discussion writes. Unknown ([beaconStatus] null) is locked.
+  bool get canWriteDiscussion =>
+      beaconStatus != null && beaconStatus!.allowsDiscussionWrites;
+
+  /// Author / steward / admitted may edit the plan when coordination is allowed.
+  bool get isPlanEditor {
+    if (myUserId.isEmpty) return false;
+    for (final p in participants) {
+      if (p.userId != myUserId) continue;
+      if (p.role == BeaconParticipantRoleBits.author ||
+          p.role == BeaconParticipantRoleBits.steward) {
+        return true;
+      }
+      return p.roomAccess == RoomAccessBits.admitted;
+    }
+    return false;
+  }
+
+  /// Plan / NOW-line updates. Unknown locked; uses [allowsCoordination].
+  bool get canUpdatePlan =>
+      (beaconStatus?.allowsCoordination ?? false) && isPlanEditor;
 
   bool _isUnreadForViewer(RoomMessage m, DateTime? anchor) {
     if (pinnedJumpMessageIds.contains(m.id)) {

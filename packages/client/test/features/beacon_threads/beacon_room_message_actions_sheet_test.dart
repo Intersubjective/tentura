@@ -3,6 +3,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get_it/get_it.dart';
 import 'package:mockito/mockito.dart';
+import 'package:tentura_root/domain/entity/beacon_status.dart';
 import 'package:tentura_root/domain/enums.dart';
 
 import 'package:tentura/data/repository/clipboard_image_repository.dart';
@@ -86,6 +87,7 @@ void main() {
     final state = RoomState(
       beaconId: 'b1',
       myUserId: viewer.id,
+      beaconStatus: BeaconStatus.open,
       messages:
           messages ??
           [
