@@ -7,6 +7,7 @@ import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/beacon_fact_card.dart';
 import 'package:tentura/domain/entity/beacon_activity_event.dart';
 import 'package:tentura/domain/entity/beacon_participant.dart';
+import 'package:tentura/domain/entity/beacon_room_state.dart';
 import 'package:tentura/domain/entity/repository_event.dart';
 import 'package:tentura/env.dart';
 import 'package:tentura/domain/entity/profile.dart';
@@ -422,10 +423,17 @@ class FakeBeaconViewRoomRepository implements BeaconThreadsRepository {
   FakeBeaconViewRoomRepository({
     this.enrichmentDelay = Duration.zero,
     this.participants = const [],
-  });
+    BeaconRoomState? roomState,
+  }) : roomState = roomState ??
+            BeaconRoomState(
+              beaconId: '',
+              updatedAt: DateTime.utc(2026, 9, 15),
+            );
 
   Duration enrichmentDelay;
   List<BeaconParticipant> participants;
+  BeaconRoomState roomState;
+  int fetchBeaconRoomStateCalls = 0;
   String nextMessageId = 'Mcreated01';
   Object? createError;
   final createdMessages =
@@ -465,6 +473,12 @@ class FakeBeaconViewRoomRepository implements BeaconThreadsRepository {
   Future<List<BeaconParticipant>> fetchParticipants(String beaconId) async {
     await Future<void>.delayed(enrichmentDelay);
     return participants;
+  }
+
+  @override
+  Future<BeaconRoomState> fetchBeaconRoomState(String beaconId) async {
+    fetchBeaconRoomStateCalls++;
+    return roomState.copyWith(beaconId: beaconId);
   }
 
   @override

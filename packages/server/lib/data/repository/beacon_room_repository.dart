@@ -1060,6 +1060,16 @@ class BeaconRoomRepository implements BeaconRoomRepositoryPort {
               updatedAt: Value(PgDateTime(DateTime.timestamp())),
             ),
           );
+      // Plan-only edits have no coordination item change to invalidate NOW.
+      // Publish the existing request refresh hint atomically with the write.
+      await _db.customStatement(
+        r'''
+SELECT public.emit_realtime_entity_change(
+  'beacon', $1, 'update', public.realtime_beacon_recipients($1)
+)
+''',
+        [beaconId],
+      );
     });
   }
 
