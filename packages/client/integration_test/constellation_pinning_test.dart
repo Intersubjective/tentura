@@ -166,6 +166,12 @@ void main() {
       );
       expect(topmost, ConstellationAnchorTarget.beacon(requestId));
       await setConstellationViewMode(tester, ConstellationViewMode.map);
+      // Reload preserves the camera. Fixed scene coordinates can be outside
+      // the body and project into shell chrome; bring both pins into view.
+      await tapConstellationControl(
+        tester,
+        find.byKey(TestIds.key(TestIds.constellationFitAll)),
+      );
       final cubitBeforeTap = readConstellationCubit(tester);
       final personScene =
           cubitBeforeTap.graphController.renderSnapshot.resolvePosition(
