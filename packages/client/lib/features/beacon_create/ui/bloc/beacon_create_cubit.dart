@@ -74,6 +74,8 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
 
   bool _autosaveArmed = false;
 
+  bool _autosaveAfterInFlight = false;
+
   BeaconSaveCommand? _exactRetrySnapshot;
 
   Future<void> _initChildComposer() async {
@@ -196,12 +198,21 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
 
   Future<void> _quietPersist() async {
     if (!_shouldQuietPersist) return;
-    if (state.isAutosaving) return;
+    if (state.isAutosaving) {
+      // Issue #164: re-run once the in-flight persist lands, or an edit made
+      // meanwhile (e.g. an image removal) would never be saved.
+      _autosaveAfterInFlight = true;
+      return;
+    }
     await saveDraft(
       context: _autosaveContext,
       showMessage: false,
       quiet: true,
     );
+    if (_autosaveAfterInFlight && !isClosed) {
+      _autosaveAfterInFlight = false;
+      _scheduleAutosave();
+    }
   }
 
   @override
@@ -287,17 +298,70 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
     Beacon beacon,
     List<ImageEntity> published, {
     ImageEntity? coverThumb,
-  }) => from.copyWith(
-    images: published,
-    coverKey: beacon.coverImage?.key,
-    coverSource: beacon.coverSource,
-    coverThumb: coverThumb ?? beacon.coverThumb,
-    initialServerImageIds: {
+    BeaconSaveCommand? sent,
+  }) {
+    final serverIds = {
       for (final img in published)
         if (img.id.isNotEmpty) img.id,
-    },
-    status: const StateIsSuccess(),
-  );
+    };
+    if (sent != null && _mediaDiverged(from, sent)) {
+      return _mergeStaleMedia(from, sent, published, coverThumb, serverIds);
+    }
+    return from.copyWith(
+      images: published,
+      coverKey: beacon.coverImage?.key,
+      coverSource: beacon.coverSource,
+      coverThumb: coverThumb ?? beacon.coverThumb,
+      initialServerImageIds: serverIds,
+      status: const StateIsSuccess(),
+    );
+  }
+
+  /// Issue #164: media edited locally while [sent] was in flight.
+  static bool _mediaDiverged(BeaconCreateState local, BeaconSaveCommand sent) {
+    if (local.coverKey != sent.coverKey ||
+        local.coverThumb?.key != sent.coverThumb?.key ||
+        local.coverSource != sent.coverSource ||
+        local.images.length != sent.images.length) {
+      return true;
+    }
+    for (var i = 0; i < local.images.length; i++) {
+      if (local.images[i].key != sent.images[i].key) return true;
+    }
+    return false;
+  }
+
+  /// Keeps the newer local media (removals, reorder, cover choice) and only
+  /// adopts server ids for images that [sent] staged, so the follow-up save
+  /// neither restores deleted images nor re-uploads staged ones.
+  static BeaconCreateState _mergeStaleMedia(
+    BeaconCreateState local,
+    BeaconSaveCommand sent,
+    List<ImageEntity> published,
+    ImageEntity? publishedThumb,
+    Set<String> serverIds,
+  ) {
+    // Reconcile keeps `published` index-aligned with `sent.images`.
+    final staged = <String, ImageEntity>{
+      if (published.length == sent.images.length)
+        for (var i = 0; i < published.length; i++)
+          sent.images[i].key: published[i],
+    };
+    final localCover = local.coverKey;
+    final localThumb = local.coverThumb;
+    return local.copyWith(
+      images: [for (final img in local.images) staged[img.key] ?? img],
+      coverKey: localCover == null
+          ? null
+          : staged[localCover]?.key ?? localCover,
+      coverThumb:
+          localThumb != null && localThumb.key == sent.coverThumb?.key
+          ? publishedThumb ?? localThumb
+          : localThumb,
+      initialServerImageIds: serverIds,
+      status: const StateIsSuccess(),
+    );
+  }
 
   ///
   ///
@@ -732,6 +796,7 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
     }
     try {
       final BeaconSaveResult result;
+      final BeaconSaveCommand sent;
       if (_usesChildSaveFlow) {
         final childCommand = _childSaveCommand(
           context: context,
@@ -739,13 +804,18 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
           draftSafeTitle: true,
           draft: true,
         )!;
-        _rememberExactRetrySnapshot(childCommand.saveCommand);
+        sent = childCommand.saveCommand;
+        _rememberExactRetrySnapshot(sent);
         result = await _hierarchyCase!.ensureChildDraft(childCommand);
         _clearExactRetrySnapshot();
       } else {
-        result = await _case.create(
-          _command(context: context, id: '', draftSafeTitle: true, draft: true),
+        sent = _command(
+          context: context,
+          id: '',
+          draftSafeTitle: true,
+          draft: true,
         );
+        result = await _case.create(sent);
       }
       if (!isClosed) {
         emit(
@@ -759,6 +829,7 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
             result.beacon,
             result.images,
             coverThumb: result.coverThumb,
+            sent: sent,
           ),
         );
       }
@@ -828,20 +899,21 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
     }
     try {
       final BeaconSaveResult result;
+      final BeaconSaveCommand sent;
       if (state.isChildMode) {
         final childCommand = _childSaveCommand(
           context: context,
           id: existing,
           draftSafeTitle: true,
         )!;
+        sent = childCommand.saveCommand;
         result = state.clientCommandId != null
             ? await _hierarchyCase!.saveChildDraft(childCommand)
-            : await _case.saveDraft(childCommand.saveCommand);
+            : await _case.saveDraft(sent);
         _clearExactRetrySnapshot();
       } else {
-        result = await _case.saveDraft(
-          _command(context: context, id: existing, draftSafeTitle: true),
-        );
+        sent = _command(context: context, id: existing, draftSafeTitle: true);
+        result = await _case.saveDraft(sent);
       }
       if (!isClosed) {
         emit(
@@ -853,6 +925,7 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
             result.beacon,
             result.images,
             coverThumb: result.coverThumb,
+            sent: sent,
           ),
         );
       }

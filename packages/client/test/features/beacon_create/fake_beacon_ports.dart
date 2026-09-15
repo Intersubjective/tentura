@@ -143,6 +143,9 @@ class FakeBeaconWritePort implements BeaconWritePort {
   /// When set, [create] waits until this completes (overlapping create tests).
   Completer<void>? createHold;
 
+  /// When set, [setMedia] waits until this completes (in-flight reconcile races).
+  Completer<void>? setMediaHold;
+
   /// Fails the nth (0-based) `stageImage` attempt.
   int? failStageAtCall;
   Exception? stageError;
@@ -226,6 +229,10 @@ class FakeBeaconWritePort implements BeaconWritePort {
     required String? coverThumbImageId,
     required BeaconCoverSource coverSource,
   }) async {
+    final hold = setMediaHold;
+    if (hold != null) {
+      await hold.future;
+    }
     final call = setMediaCalls.length;
     setMediaCalls.add(
       SetMediaCall(
