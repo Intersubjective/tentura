@@ -37,8 +37,11 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
     String? editBeaconIdToLoad,
     UiEffectPort? effects,
   }) : _case = beaconCreateCase ?? GetIt.I<BeaconCreateCase>(),
-       _hierarchyCase = hierarchyCase ??
-           (childCreationContext != null ? GetIt.I<BeaconHierarchyCase>() : null),
+       _hierarchyCase =
+           hierarchyCase ??
+           (childCreationContext != null
+               ? GetIt.I<BeaconHierarchyCase>()
+               : null),
        _effects = effects ?? GetIt.I<UiEffectPort>(),
        super(
          BeaconCreateState(
@@ -67,6 +70,10 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
   final UiEffectPort _effects;
 
   Completer<String?>? _draftCreateInFlight;
+
+  /// Latch for [saveEdit]: overlapping calls join the in-flight persist
+  /// instead of starting a second update (GitHub #174 double-tap).
+  Future<void>? _saveEditInFlight;
 
   Timer? _autosaveTimer;
 
@@ -354,8 +361,7 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
       coverKey: localCover == null
           ? null
           : staged[localCover]?.key ?? localCover,
-      coverThumb:
-          localThumb != null && localThumb.key == sent.coverThumb?.key
+      coverThumb: localThumb != null && localThumb.key == sent.coverThumb?.key
           ? publishedThumb ?? localThumb
           : localThumb,
       initialServerImageIds: serverIds,
@@ -822,7 +828,9 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
           _applyServerMedia(
             state.copyWith(
               draftId: result.beacon.id,
-              clientCommandId: _usesChildSaveFlow ? null : state.clientCommandId,
+              clientCommandId: _usesChildSaveFlow
+                  ? null
+                  : state.clientCommandId,
               isAutosaving: false,
               lastAutosavedAt: DateTime.timestamp(),
             ),
@@ -1016,6 +1024,21 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
   Future<void> saveEdit({
     required String context,
     bool navigateBack = true,
+  }) {
+    final inFlight = _saveEditInFlight;
+    if (inFlight != null) return inFlight;
+    final run = _saveEdit(context: context, navigateBack: navigateBack);
+    _saveEditInFlight = run;
+    return run.whenComplete(() {
+      if (identical(_saveEditInFlight, run)) {
+        _saveEditInFlight = null;
+      }
+    });
+  }
+
+  Future<void> _saveEdit({
+    required String context,
+    required bool navigateBack,
   }) async {
     final id = state.editId ?? (state.isLive ? state.draftId : null);
     if (id == null || id.isEmpty) {

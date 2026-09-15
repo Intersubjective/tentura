@@ -515,7 +515,10 @@ class _BeaconCreateScreenState extends State<BeaconCreateScreen> {
                               context: contextName,
                             );
                           },
-                    child: Text(l10n.buttonSaveChanges),
+                    child: _SaveChangesLabel(
+                      isSaving: state.isLoading,
+                      label: l10n.buttonSaveChanges,
+                    ),
                   ),
                 );
               }
@@ -560,7 +563,10 @@ class _BeaconCreateScreenState extends State<BeaconCreateScreen> {
                                           navigateBack: false,
                                         );
                                       },
-                                child: Text(l10n.buttonSaveChanges),
+                                child: _SaveChangesLabel(
+                                  isSaving: state.isLoading,
+                                  label: l10n.buttonSaveChanges,
+                                ),
                               ),
                             ),
                           ),
@@ -591,7 +597,10 @@ class _BeaconCreateScreenState extends State<BeaconCreateScreen> {
                                   navigateBack: false,
                                 );
                               },
-                        child: Text(l10n.buttonSaveChanges),
+                        child: _SaveChangesLabel(
+                          isSaving: state.isLoading,
+                          label: l10n.buttonSaveChanges,
+                        ),
                       ),
                     )
                   else
@@ -706,6 +715,36 @@ class _BeaconCreateScreenState extends State<BeaconCreateScreen> {
         beaconId: draftId,
         onSendRequest: () => unawaited(_sendRequest()),
       ),
+    );
+  }
+}
+
+/// Save Changes label with an in-button spinner while the Request persists,
+/// so a slow save reads as busy rather than an ignored tap (GitHub #174).
+class _SaveChangesLabel extends StatelessWidget {
+  const _SaveChangesLabel({
+    required this.isSaving,
+    required this.label,
+  });
+
+  final bool isSaving;
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    if (!isSaving) return Text(label);
+    final tt = context.tt;
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        SizedBox.square(
+          dimension: tt.iconSize,
+          child: const CircularProgressIndicator.adaptive(strokeWidth: 2),
+        ),
+        SizedBox(width: tt.rowGap),
+        Flexible(child: Text(label, overflow: TextOverflow.ellipsis)),
+      ],
     );
   }
 }
