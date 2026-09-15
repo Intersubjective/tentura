@@ -48,6 +48,8 @@ class _InfoTabState extends State<InfoTab> with StringInputValidator {
   bool _didOpenCoverInitially = false;
   bool _titleBlurred = false;
   bool _descriptionBlurred = false;
+  bool _titleHadFocus = false;
+  bool _descriptionHadFocus = false;
 
   late final _l10n = L10n.of(context)!;
 
@@ -92,14 +94,20 @@ class _InfoTabState extends State<InfoTab> with StringInputValidator {
     }
   }
 
+  // FocusNode listeners also fire on non-focus changes (e.g. canRequestFocus),
+  // so latch "blurred" only on a real focused → unfocused transition.
   void _onTitleFocusChange() {
-    if (!_titleFocus.hasFocus && mounted) {
+    final hadFocus = _titleHadFocus;
+    _titleHadFocus = _titleFocus.hasFocus;
+    if (hadFocus && !_titleFocus.hasFocus && mounted) {
       setState(() => _titleBlurred = true);
     }
   }
 
   void _onDescriptionFocusChange() {
-    if (!_descriptionFocus.hasFocus && mounted) {
+    final hadFocus = _descriptionHadFocus;
+    _descriptionHadFocus = _descriptionFocus.hasFocus;
+    if (hadFocus && !_descriptionFocus.hasFocus && mounted) {
       setState(() => _descriptionBlurred = true);
     }
   }
