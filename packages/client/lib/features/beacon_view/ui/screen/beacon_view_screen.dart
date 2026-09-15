@@ -1185,44 +1185,10 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
                                             preferredWidth:
                                                 _roomPaneWidthOverride,
                                           );
-                                      final managementOverflow =
-                                          showBeaconContent
-                                          ? beaconViewAppBarOverflow(
-                                              context: context,
-                                              state: state,
-                                              cubit: beaconViewCubit,
-                                              screenCubit: screenCubit,
-                                              l10n: l10n,
-                                              inRoomSurface: false,
-                                              roomCubit: context
-                                                  .read<ThreadHostCubit>()
-                                                  .roomCubit,
-                                              onItemsTabRefresh:
-                                                  _refreshThreadsTab,
-                                              onActivityLog: () => unawaited(
-                                                _openActivitySheet(),
-                                              ),
-                                              onAuthorManageStatus: () async {
-                                                await beaconViewCubit
-                                                    .refreshReviewWindowInfo();
-                                                if (!context.mounted) return;
-                                                await showBeaconViewUpdateStatusSheet(
-                                                  context,
-                                                  beaconViewCubit.state,
-                                                  beaconViewCubit,
-                                                  onOpenPeopleTab: () =>
-                                                      _switchToSurface(
-                                                        BeaconSurface.people,
-                                                      ),
-                                                  onOpenGeneralThread: () =>
-                                                      unawaited(
-                                                        _openGeneralThread(),
-                                                      ),
-                                                );
-                                              },
-                                            )
-                                          : const SizedBox.shrink();
-                                      final roomOverflow = showBeaconContent
+                                      // #168: one ⋮ for the whole split
+                                      // header — request management and
+                                      // discussion actions share it.
+                                      final splitOverflow = showBeaconContent
                                           ? beaconViewAppBarOverflow(
                                               context: context,
                                               state: state,
@@ -1230,6 +1196,7 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
                                               screenCubit: screenCubit,
                                               l10n: l10n,
                                               inRoomSurface: true,
+                                              combineSplitPanes: true,
                                               roomCubit: context
                                                   .read<ThreadHostCubit>()
                                                   .roomCubit,
@@ -1281,7 +1248,6 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
                                                       l10n: l10n,
                                                     ),
                                                   ),
-                                                  managementOverflow,
                                                 ],
                                               ),
                                             ),
@@ -1294,7 +1260,7 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
                                               hostState: hostState,
                                               beaconState: state,
                                               l10n: l10n,
-                                              overflow: roomOverflow,
+                                              overflow: splitOverflow,
                                             ),
                                           ),
                                         ],

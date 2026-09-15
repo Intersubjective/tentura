@@ -327,28 +327,32 @@ Widget beaconViewAppBarOverflow({
   required bool inRoomSurface,
   required VoidCallback onItemsTabRefresh,
   RoomCubit? roomCubit,
+  /// Expanded split (#168): a single header ⋮ serves both the request pane
+  /// and the discussion pane, so it carries both action sets.
+  bool combineSplitPanes = false,
 }) {
   final b = state.beacon;
   final beaconId = b.id;
   final hideOfferHelpWithdraw = hideOfferHelpWithdrawFromOverflow(state);
-  final showBeaconManagementOverflow = !inRoomSurface;
+  final showBeaconManagementOverflow = !inRoomSurface || combineSplitPanes;
+  final showRoomActions = inRoomSurface || combineSplitPanes;
   final onCreatePromise = beaconViewRoomCreatePromiseAction(
     context: context,
     state: state,
     beaconViewCubit: cubit,
     beaconId: beaconId,
     onSaved: onItemsTabRefresh,
-    inRoomSurface: inRoomSurface,
+    inRoomSurface: showRoomActions,
   );
   final onCreatePoll = beaconViewRoomCreatePollAction(
     context: context,
     roomCubit: roomCubit,
-    inRoomSurface: inRoomSurface,
+    inRoomSurface: showRoomActions,
   );
   final onUpdatePlan = beaconViewRoomUpdatePlanAction(
     context: context,
     roomCubit: roomCubit,
-    inRoomSurface: inRoomSurface,
+    inRoomSurface: showRoomActions,
   );
   // Overflow is only mounted when request content is loaded (see call sites).
   final onForward = beaconViewForwardOverflowAction(
