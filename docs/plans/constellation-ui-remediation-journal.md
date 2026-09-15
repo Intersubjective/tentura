@@ -521,3 +521,12 @@ The user stopped their own dev session, freeing port 8888. Ran `integration_test
 **Disposition:** `constellation_pinning_test.dart` and `constellation_body_test.dart`/`node_drag_gesture.dart`/`e2e_test_helpers.dart` are unchanged from their pre-investigation committed state (all temporary diagnostics reverted via `git checkout --`, verified with `git status`/`git diff --stat`). No process or port leaks (`tentura-server`, chromedriver, worktree all torn down and confirmed absent). `integration_test/constellation_readability_test.dart` (plan §5.4) remains unauthored — the original R08 gap stands.
 
 **Recommendation for the owner:** (1) fix the confirmed `onExistingNodeDrop` gating bug (small, independent, safe); (2) separately, give the Constellation graph's camera/viewport-insets machinery awareness of the bottom nav bar's height (or move the nav bar's hit-testing behind the graph in this specific case, or fit-bounds away from that band) so no automatic or pinned placement can end up hit-test-shadowed by chrome outside the graph's own subtree; (3) re-run `constellation_pinning_test.dart` after either fix to confirm it passes.
+
+## Post-plan bug-fix pass (2026-09-15)
+
+Per owner instruction: route the fix for both confirmed bugs above through Astra (codex CLI, gpt-6-astra) rather than Cursor, since both are gesture-lifecycle/browser-viewport class defects; then use a fresh Cursor composer-2.5 worker to drive verification (including re-running the browser integration test) afterward, to conserve Astra's budget. This is a direct follow-up, not a renumbered plan unit.
+
+| Step | Status | Notes |
+|---|---|---|
+| Astra: fix camera-gating leak (bug 1) + bottom-nav viewport mismatch (bug 2) | in progress | |
+| Cursor: verify both fixes + re-run constellation_pinning_test.dart | pending | |
