@@ -716,6 +716,13 @@ class _BeaconRoomComposerState extends State<BeaconRoomComposer> {
       }
       return _recordComposerEscapeResult(KeyEventResult.ignored);
     }
+    if (key == LogicalKeyboardKey.keyV && _isPasteShortcutPressed()) {
+      if (widget.enableAttachments && !widget.isSending && !_submitting) {
+        unawaited(_pasteImage(fromKeyboard: true));
+      }
+      // Let the text field's own paste run too, so text clipboards still work.
+      return KeyEventResult.ignored;
+    }
     if (_overlaySuggestions.isEmpty) {
       return KeyEventResult.ignored;
     }
@@ -741,6 +748,22 @@ class _BeaconRoomComposerState extends State<BeaconRoomComposer> {
       _acceptSelectedMentionSuggestion();
     });
     return KeyEventResult.handled;
+  }
+
+  /// Cmd+V on Apple platforms, Ctrl+V elsewhere (no Shift/Alt).
+  bool _isPasteShortcutPressed() {
+    final keyboard = HardwareKeyboard.instance;
+    final isApple =
+        defaultTargetPlatform == TargetPlatform.macOS ||
+        defaultTargetPlatform == TargetPlatform.iOS;
+    final primary = isApple
+        ? keyboard.isMetaPressed
+        : keyboard.isControlPressed;
+    final other = isApple ? keyboard.isControlPressed : keyboard.isMetaPressed;
+    return primary &&
+        !other &&
+        !keyboard.isShiftPressed &&
+        !keyboard.isAltPressed;
   }
 
   void _moveMentionHighlight(int delta) {
@@ -1008,8 +1031,12 @@ class _BeaconRoomComposerState extends State<BeaconRoomComposer> {
     }
   }
 
-  Future<void> _pasteImage() async {
-    if (_remainingSlots <= 0) {
+  /// Reads an image from the clipboard into the pending attachments.
+  ///
+  /// [fromKeyboard] is Ctrl/Cmd+V in the composer: the text field pastes text
+  /// in parallel, so stay silent unless the clipboard actually held an image.
+  Future<void> _pasteImage({bool fromKeyboard = false}) async {
+    if (!fromKeyboard && _remainingSlots <= 0) {
       _snack(
         L10n.of(context)!.beaconRoomAttachmentsTooMany(
           kMaxRoomMessageAttachments,
@@ -1027,12 +1054,16 @@ class _BeaconRoomComposerState extends State<BeaconRoomComposer> {
         case ClipboardImageReadOutcome.found:
           _tryAdd(result.upload!);
         case ClipboardImageReadOutcome.notFound:
-          _snack(l10n.beaconRoomAttachPasteImageNotFound);
+          if (!fromKeyboard) {
+            _snack(l10n.beaconRoomAttachPasteImageNotFound);
+          }
         case ClipboardImageReadOutcome.unsupported:
-          _snack(l10n.beaconRoomAttachPasteImageUnsupported);
+          if (!fromKeyboard) {
+            _snack(l10n.beaconRoomAttachPasteImageUnsupported);
+          }
       }
     } on Object catch (_) {
-      if (!mounted) {
+      if (!mounted || fromKeyboard) {
         return;
       }
       _snack(l10n.beaconRoomAttachPasteImageReadFailed);
