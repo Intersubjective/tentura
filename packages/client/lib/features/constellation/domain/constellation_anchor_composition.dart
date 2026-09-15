@@ -85,16 +85,22 @@ class ConstellationLabelDisplayPlan {
 }
 
 /// Drawn, non-pinned satellite requests used for scene layout (UI-11).
+///
+/// [hardPinnedRequestIds] are requests with a stored anchor coordinate. Prefer
+/// this over [ConstellationLabelDisplayPlan.pinnedRequestIds] when the
+/// projection may list a request as pinned without an anchor (those must still
+/// receive automatic seats).
 ({Map<String, List<String>> byAuthor, Set<String> egoOwn})
 constellationDrawnSatellites(
-  ConstellationLabelDisplayPlan plan,
-) {
+  ConstellationLabelDisplayPlan plan, {
+  Set<String>? hardPinnedRequestIds,
+}) {
+  final excludePinned = hardPinnedRequestIds ?? plan.pinnedRequestIds;
   final byAuthor = <String, List<String>>{};
   for (final entry in plan.layoutRequestsByAuthor.entries) {
     final drawn = [
       for (final id in entry.value)
-        if (plan.drawnRequestIds.contains(id) &&
-            !plan.pinnedRequestIds.contains(id))
+        if (plan.drawnRequestIds.contains(id) && !excludePinned.contains(id))
           id,
     ];
     if (drawn.isNotEmpty) {
@@ -104,8 +110,7 @@ constellationDrawnSatellites(
   final egoOwn = plan.egoOwnRequestIds
       .where(
         (id) =>
-            plan.drawnRequestIds.contains(id) &&
-            !plan.pinnedRequestIds.contains(id),
+            plan.drawnRequestIds.contains(id) && !excludePinned.contains(id),
       )
       .toSet();
   return (byAuthor: byAuthor, egoOwn: egoOwn);
@@ -216,6 +221,12 @@ ConstellationComposedPresentation composeConstellationPresentation({
     budgetExemptPeerIds: budgetExemptPeerIds,
   );
 
+  final keptPeerIds = {
+    ...resolved.keptPeerIds,
+    ...pinnedPeerIds,
+    for (final peer in anchorOverlay.supportPeers) peer.id,
+  };
+
   final labelPlan = _buildLabelDisplayPlan(
     viewerId: viewerId,
     automatic: automatic,
@@ -225,13 +236,8 @@ ConstellationComposedPresentation composeConstellationPresentation({
     labelBudget: labelBudget,
     expandedSatelliteAuthorIds: expandedSatelliteAuthorIds,
     locallyFilteredPinnedBeaconIds: locallyFilteredPinnedBeaconIds,
+    authorEligibleIds: {viewerId, ...keptPeerIds},
   );
-
-  final keptPeerIds = {
-    ...resolved.keptPeerIds,
-    ...pinnedPeerIds,
-    for (final peer in anchorOverlay.supportPeers) peer.id,
-  };
 
   final eligiblePersonIds = {
     viewerId,
@@ -387,6 +393,7 @@ ConstellationLabelDisplayPlan _buildLabelDisplayPlan({
   required ConstellationLabelBudget labelBudget,
   required Set<String> expandedSatelliteAuthorIds,
   required Set<String> locallyFilteredPinnedBeaconIds,
+  required Set<String> authorEligibleIds,
 }) {
   final allByAuthor = <String, List<String>>{};
   for (final request in automatic.requests) {
@@ -423,13 +430,28 @@ ConstellationLabelDisplayPlan _buildLabelDisplayPlan({
   };
 
   final filteredByAuthor = <String, List<String>>{};
+  final authorDroppedOverflow = <String, int>{};
   for (final entry in allByAuthor.entries) {
+    final authorId = entry.key;
+    final authorKept = authorEligibleIds.contains(authorId);
     final ids = [
       for (final id in entry.value)
-        if (filteredIds.contains(id) && !pinnedRequestIds.contains(id)) id,
+        if (filteredIds.contains(id) &&
+            !pinnedRequestIds.contains(id) &&
+            authorKept)
+          id,
     ];
+    if (!authorKept) {
+      final dropped = [
+        for (final id in entry.value)
+          if (filteredIds.contains(id) && !pinnedRequestIds.contains(id)) id,
+      ];
+      if (dropped.isNotEmpty) {
+        authorDroppedOverflow[authorId] = dropped.length;
+      }
+    }
     if (ids.isNotEmpty) {
-      filteredByAuthor[entry.key] = ids;
+      filteredByAuthor[authorId] = ids;
     }
   }
 
@@ -439,7 +461,7 @@ ConstellationLabelDisplayPlan _buildLabelDisplayPlan({
   );
 
   final drawn = <String>{...pinnedRequestIds};
-  final overflow = <String, int>{};
+  final overflow = <String, int>{...authorDroppedOverflow};
   final expandedExtra = <String, int>{};
 
   for (final entry in filteredByAuthor.entries) {
@@ -458,7 +480,7 @@ ConstellationLabelDisplayPlan _buildLabelDisplayPlan({
     }
     final hidden = automaticIds.length - visibleIds.length;
     if (hidden > 0) {
-      overflow[authorId] = hidden;
+      overflow[authorId] = (overflow[authorId] ?? 0) + hidden;
     }
     drawn.addAll(visibleIds);
   }

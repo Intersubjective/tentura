@@ -60,20 +60,26 @@ ConstellationField _field({
   BigInt? revision,
   List<ConstellationAnchor> anchors = const [],
   List<ConstellationPerson> peers = const [],
+  List<ConstellationPerson>? pinnedPeers,
   List<ConstellationRequest> requests = const [],
+  List<ConstellationRequest>? pinnedRequests,
+  List<ConstellationTrustEdgeEntity> edges = const [],
+  List<ConstellationPerson> supportPeers = const [],
+  List<ConstellationTrustEdgeEntity> supportEdges = const [],
   List<String> serverFilteredBeaconIds = const [],
 }) => ConstellationField(
   loadedAt: _loadedAt,
   context: '',
   peers: peers,
   requests: requests,
+  edges: edges,
   anchorProjection: ConstellationAnchorProjection(
     revision: ConstellationAnchorRevision(revision ?? BigInt.one),
     anchors: anchors,
-    pinnedPeers: peers,
-    pinnedRequests: requests,
-    supportPeers: const [],
-    supportEdges: const [],
+    pinnedPeers: pinnedPeers ?? peers,
+    pinnedRequests: pinnedRequests ?? requests,
+    supportPeers: supportPeers,
+    supportEdges: supportEdges,
     serverFilteredBeaconIds: serverFilteredBeaconIds,
     serverFilteredBeaconCount: serverFilteredBeaconIds.length,
   ),
@@ -514,6 +520,97 @@ void main() {
       expect((unpinned - ego).distance, greaterThan(40));
       expect((unpinned - pinned).distance, greaterThan(40));
     });
+
+    testWidgets(
+      'unpinning a request with an automatic author reflows to author fan',
+      (tester) async {
+        const peer = ConstellationPerson(id: 'p1', displayName: 'Peer');
+        const request = ConstellationRequest(
+          id: 'req-1',
+          authorId: 'p1',
+          title: 'Need tools',
+          status: 0,
+        );
+        const edges = [
+          ConstellationTrustEdgeEntity(src: 'ego', dst: 'p1', tier: 1),
+        ];
+        final beaconAnchor = ConstellationAnchor(
+          target: ConstellationAnchorTarget.beacon('req-1'),
+          position: const ConstellationAnchorPosition(
+            xUnits: -3,
+            yUnits: 5,
+            coordinateSpaceVersion: 1,
+          ),
+          revision: ConstellationAnchorRevision(BigInt.one),
+          placedAt: _loadedAt,
+        );
+
+        final oracle = await _harness(
+          fields: [
+            _field(
+              peers: const [peer],
+              requests: const [request],
+              edges: edges,
+              pinnedPeers: const [],
+              pinnedRequests: const [],
+              anchors: const [],
+            ),
+          ],
+        );
+        addTearDown(oracle.cubit.close);
+        await _pumpShell(tester, oracle.cubit);
+        final expected = _requireNodeCentre(oracle.cubit, 'req-1');
+        final expectedAuthor = _requireNodeCentre(oracle.cubit, 'p1');
+        final egoOracle = _requireNodeCentre(oracle.cubit, 'ego');
+        expect((expected - egoOracle).distance, greaterThan(40));
+        expect((expected - expectedAuthor).distance, lessThan(150));
+
+        final harness = await _harness(
+          fields: [
+            _field(
+              peers: const [peer],
+              requests: const [request],
+              edges: edges,
+              pinnedPeers: const [],
+              pinnedRequests: const [request],
+              anchors: [beaconAnchor],
+            ),
+          ],
+        );
+        addTearDown(harness.cubit.close);
+        await _pumpShell(tester, harness.cubit);
+
+        final ego = _requireNodeCentre(harness.cubit, 'ego');
+        final pinned = _requireNodeCentre(harness.cubit, 'req-1');
+        expect((pinned - ego).distance, greaterThan(200));
+        expect(
+          harness.cubit.isAnchored(ConstellationAnchorTarget.beacon('req-1')),
+          isTrue,
+        );
+
+        await harness.cubit.unpinAnchor(
+          target: ConstellationAnchorTarget.beacon('req-1'),
+        );
+        await tester.pump();
+        await tester.pump(const Duration(milliseconds: 400));
+        await tester.pump(const Duration(milliseconds: 400));
+
+        expect(
+          harness.cubit.isAnchored(ConstellationAnchorTarget.beacon('req-1')),
+          isFalse,
+        );
+        final unpinned = _requireNodeCentre(harness.cubit, 'req-1');
+        final author = _requireNodeCentre(harness.cubit, 'p1');
+        expect(
+          (unpinned - ego).distance,
+          greaterThan(40),
+          reason: 'unpinned request must not sit on ego/canvas centre',
+        );
+        expect((unpinned - author).distance, lessThan(150));
+        expect(unpinned.dx, closeTo(expected.dx, 1));
+        expect(unpinned.dy, closeTo(expected.dy, 1));
+      },
+    );
 
     testWidgets('pinning a person does not move the camera', (tester) async {
       final harness = await _harness();

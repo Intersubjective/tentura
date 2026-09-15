@@ -195,6 +195,12 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
   String layoutEgoId = '';
   Map<String, List<String>> layoutVisibleRequestsByAuthor = const {};
   Set<String> layoutEgoOwnRequestIds = const {};
+  Set<String> layoutPinnedPersonIds = const {};
+  Set<String> layoutPinnedRequestIds = const {};
+  Set<String> layoutSupportPersonIds = const {};
+  Map<String, ConstellationAnchorPosition> layoutAnchorByNodeId = const {};
+  Set<String> layoutKeptPeerIds = const {};
+  ConstellationPathResolution? layoutPaths;
   Set<String> droppedHolderIds = const {};
   Set<String> displayedRequestIds = const {};
   Map<String, int> overflowHiddenCountByAuthor = const {};
@@ -229,11 +235,10 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
       constellationSceneLayoutAlgorithm;
 
   ConstellationSceneLayoutAlgorithm get constellationSceneLayoutAlgorithm {
-    final overlay =
-        state.composition?.anchorOverlay ?? ConstellationAnchorOverlay.empty;
     return ConstellationSceneLayoutAlgorithm(
       egoId: layoutEgoId.isEmpty ? _viewer.id : layoutEgoId,
       paths:
+          layoutPaths ??
           state.paths ??
           resolveConstellationPaths(
             egoId: _viewer.id,
@@ -241,31 +246,15 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
             holderIds: {_viewer.id},
             edges: const [],
           ),
-      keptPeerIds: state.keptPeerIds,
+      keptPeerIds:
+          layoutKeptPeerIds.isEmpty ? state.keptPeerIds : layoutKeptPeerIds,
       maxHops: kConstellationLayoutMaxHops,
       visibleRequestsByAuthor: layoutVisibleRequestsByAuthor,
       egoOwnRequestIds: layoutEgoOwnRequestIds,
-      pinnedPersonIds: {
-        for (final peer in overlay.pinnedPeers) peer.id,
-        for (final anchor in overlay.anchors)
-          if (anchor.target.kind == ConstellationAnchorTargetKind.person)
-            anchor.target.id,
-      },
-      pinnedRequestIds: {
-        for (final request in overlay.pinnedRequests) request.id,
-        for (final anchor in overlay.anchors)
-          if (anchor.target.kind == ConstellationAnchorTargetKind.beacon)
-            anchor.target.id,
-      },
-      supportPersonIds: {
-        for (final peer in overlay.supportPeers) peer.id,
-      },
-      anchorByNodeId: {
-        for (final entry in constellationAnchorsByNodeId(
-          overlay.anchors,
-        ).entries)
-          entry.key: entry.value.position,
-      },
+      pinnedPersonIds: layoutPinnedPersonIds,
+      pinnedRequestIds: layoutPinnedRequestIds,
+      supportPersonIds: layoutSupportPersonIds,
+      anchorByNodeId: layoutAnchorByNodeId,
       forgetPriorHintNodeIds: _forgetPriorHintNodeIds,
       footprints: layoutFootprints,
     );
@@ -1863,7 +1852,33 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     ]..sort((a, b) => a.id.compareTo(b.id));
 
     layoutEgoId = _viewer.id;
-    final drawnSatellites = constellationDrawnSatellites(plan);
+    layoutPaths = paths;
+    layoutKeptPeerIds = state.keptPeerIds;
+    final anchors = overlay?.anchors ?? const <ConstellationAnchor>[];
+    // Hard pins only: ids with an anchor coordinate. Peers listed as pinned
+    // without a person anchor must not block automatic placement.
+    layoutPinnedPersonIds = {
+      for (final anchor in anchors)
+        if (anchor.target.kind == ConstellationAnchorTargetKind.person)
+          anchor.target.id,
+    };
+    layoutPinnedRequestIds = {
+      for (final anchor in anchors)
+        if (anchor.target.kind == ConstellationAnchorTargetKind.beacon)
+          anchor.target.id,
+    };
+    layoutSupportPersonIds = {
+      if (overlay != null)
+        for (final peer in overlay.supportPeers) peer.id,
+    };
+    layoutAnchorByNodeId = {
+      for (final entry in constellationAnchorsByNodeId(anchors).entries)
+        entry.key: entry.value.position,
+    };
+    final drawnSatellites = constellationDrawnSatellites(
+      plan,
+      hardPinnedRequestIds: layoutPinnedRequestIds,
+    );
     layoutVisibleRequestsByAuthor = drawnSatellites.byAuthor;
     layoutEgoOwnRequestIds = drawnSatellites.egoOwn;
     displayedRequestIds = plan.drawnRequestIds;
@@ -1872,17 +1887,14 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
 
     final personIdsForFootprints = {
       _viewer.id,
-      ...state.keptPeerIds,
-      if (overlay != null) ...[
-        for (final peer in overlay.pinnedPeers) peer.id,
-        for (final peer in overlay.supportPeers) peer.id,
-      ],
+      ...layoutKeptPeerIds,
+      ...layoutPinnedPersonIds,
+      ...layoutSupportPersonIds,
     };
     final requestIdsForFootprints = {
       ...drawnSatellites.byAuthor.values.expand((ids) => ids),
       ...drawnSatellites.egoOwn,
-      if (overlay != null)
-        for (final request in overlay.pinnedRequests) request.id,
+      ...layoutPinnedRequestIds,
     };
     layoutFootprints = _layoutFootprintsForNodes(
       plan: plan,

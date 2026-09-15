@@ -187,6 +187,133 @@ void main() {
       expect(composed.eligibleRequestIds, contains('pinned-req'));
     });
 
+    test('after unpin, request re-enters ordinary label budget', () {
+      const authorId = 'author-budget';
+      const reqPinned = 'req-a';
+      const reqSibling = 'req-b';
+      final requests = [
+        const ConstellationRequest(
+          id: reqPinned,
+          authorId: authorId,
+          title: 'A',
+          status: 0,
+        ),
+        const ConstellationRequest(
+          id: reqSibling,
+          authorId: authorId,
+          title: 'B',
+          status: 0,
+        ),
+      ];
+      const filters = (
+        capabilitySlugs: <String>{},
+        location: LocationFilter.any,
+        timing: TimingFilterAny(),
+        includeUnspecified: true,
+      );
+      const budget = (perPerson: 1, total: 1);
+
+      final pinned = composeConstellationPresentation(
+        viewerId: _ego,
+        field: _fieldWithPins(
+          automaticPeers: const [ConstellationPerson(id: authorId)],
+          automaticRequests: requests,
+          projection: ConstellationAnchorProjection(
+            revision: ConstellationAnchorRevision.zero,
+            anchors: [_beaconAnchor(reqPinned, 1, 1)],
+            pinnedPeers: const [],
+            pinnedRequests: [requests.first],
+            supportPeers: const [ConstellationPerson(id: authorId)],
+            supportEdges: const [
+              ConstellationTrustEdgeEntity(src: _ego, dst: authorId, tier: 1),
+            ],
+            serverFilteredBeaconIds: const [],
+            serverFilteredBeaconCount: 0,
+          ),
+        ),
+        localFilters: filters,
+        asOfUtc: DateTime.utc(2026, 9, 11),
+        labelBudget: budget,
+      );
+      expect(pinned.labelPlan.drawnRequestIds, contains(reqPinned));
+
+      final unpinned = composeConstellationPresentation(
+        viewerId: _ego,
+        field: _fieldWithPins(
+          automaticPeers: const [ConstellationPerson(id: authorId)],
+          automaticRequests: requests,
+          projection: ConstellationAnchorProjection.empty,
+        ),
+        localFilters: filters,
+        asOfUtc: DateTime.utc(2026, 9, 11),
+        labelBudget: budget,
+      );
+      expect(unpinned.labelPlan.drawnRequestIds.length, 1);
+      expect(unpinned.labelPlan.overflowHiddenCountByAuthor[authorId], 1);
+      expect(
+        unpinned.labelPlan.drawnRequestIds.contains(reqPinned) &&
+            unpinned.labelPlan.drawnRequestIds.contains(reqSibling),
+        isFalse,
+      );
+    });
+
+    test('request of author dropped by peer cap is not drawn', () {
+      final fillerPeers = [
+        for (var i = 0; i < kConstellationRenderPeerCap; i++)
+          ConstellationPerson(id: 'auto-${i.toString().padLeft(3, '0')}'),
+      ];
+      const droppedAuthor = ConstellationPerson(id: 'zzz-author');
+      final automaticPeers = [...fillerPeers, droppedAuthor];
+      final edges = [
+        for (final peer in automaticPeers)
+          ConstellationTrustEdgeEntity(src: _ego, dst: peer.id, tier: 1),
+      ];
+      // Every peer is a request author so each charges the attributed holder
+      // budget; zzz-author sorts last and is dropped when cap is full.
+      final requests = [
+        for (final peer in fillerPeers)
+          ConstellationRequest(
+            id: 'req-${peer.id}',
+            authorId: peer.id,
+            title: 'Filler',
+            status: 0,
+          ),
+        const ConstellationRequest(
+          id: 'req-dropped-author',
+          authorId: 'zzz-author',
+          title: 'Orphaned by cap',
+          status: 0,
+        ),
+      ];
+      final field = ConstellationField(
+        loadedAt: DateTime.utc(2026, 9, 11),
+        context: 'ctx',
+        peers: automaticPeers,
+        requests: requests,
+        edges: edges,
+        anchorProjection: ConstellationAnchorProjection.empty,
+      );
+      final composed = composeConstellationPresentation(
+        viewerId: _ego,
+        field: field,
+        localFilters: const (
+          capabilitySlugs: {},
+          location: LocationFilter.any,
+          timing: TimingFilterAny(),
+          includeUnspecified: true,
+        ),
+        asOfUtc: field.loadedAt,
+        labelBudget: (perPerson: 3, total: 500),
+      );
+
+      expect(composed.keptPeerIds, isNot(contains('zzz-author')));
+      expect(
+        composed.labelPlan.drawnRequestIds,
+        isNot(contains('req-dropped-author')),
+      );
+      expect(composed.labelPlan.overflowHiddenCountByAuthor['zzz-author'], 1);
+    });
+
     test('Map/Text eligible request IDs stay aligned', () {
       final projection = ConstellationAnchorProjection(
         revision: ConstellationAnchorRevision.zero,

@@ -6,6 +6,7 @@ import 'package:force_directed_graphview/force_directed_graphview.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/constellation/domain/constellation_path_resolution.dart';
 import 'package:tentura/features/constellation/domain/entity/constellation_anchor.dart';
+import 'package:tentura/features/constellation/domain/entity/constellation_field.dart';
 import 'package:tentura/features/constellation/ui/utils/constellation_graph_scene.dart';
 import 'package:tentura/features/graph/domain/entity/edge_details.dart';
 import 'package:tentura/features/graph/domain/entity/node_details.dart';
@@ -145,6 +146,78 @@ void main() {
         isNot(closeTo(500, 1)),
       );
     });
+
+    test(
+      'forgotten prior centre seed reflows request near author, not ego',
+      () async {
+        final requestPaths = resolveConstellationPaths(
+          egoId: egoId,
+          visiblePeerIds: const {'peer-a'},
+          holderIds: {egoId, 'peer-a'},
+          edges: const [(src: egoId, dst: 'peer-a', tier: 1)],
+        );
+        final requestNode = FieldRequestNode(
+          request: const ConstellationRequest(
+            id: 'req-1',
+            authorId: 'peer-a',
+            title: 'Need tools',
+            status: 0,
+          ),
+        );
+        final withRequest = ConstellationSceneLayoutAlgorithm(
+          egoId: egoId,
+          paths: requestPaths,
+          keptPeerIds: const {'peer-a'},
+          maxHops: 3,
+          visibleRequestsByAuthor: const {
+            'peer-a': ['req-1'],
+          },
+          egoOwnRequestIds: const {},
+          forgetPriorHintNodeIds: const {'req-1'},
+        );
+        final baseline = await layoutPositionsOnce(
+          withRequest,
+          nodes: {egoNode, peerNode, requestNode},
+          edges: const {},
+          canvasSize: const Size(4200, 4200),
+        );
+        final ego = baseline[tenturaGraphNodeId(egoNode)]!;
+        final baselineRequest = baseline[tenturaGraphNodeId(requestNode)]!;
+        expect(
+          (Offset(baselineRequest.x, baselineRequest.y) -
+                  Offset(ego.x, ego.y))
+              .distance,
+          greaterThan(40),
+          reason: 'baseline auto-layout must not seat request on ego',
+        );
+        final centreSeed = ScenePoint(x: ego.x, y: ego.y);
+        final previous = sceneLayoutFromPositions({
+          tenturaGraphNodeId(egoNode): ego,
+          tenturaGraphNodeId(peerNode):
+              baseline[tenturaGraphNodeId(peerNode)]!,
+          tenturaGraphNodeId(requestNode): centreSeed,
+        });
+        final positions = await layoutPositionsOnce(
+          withRequest,
+          nodes: {egoNode, peerNode, requestNode},
+          edges: const {},
+          previous: previous,
+          canvasSize: const Size(4200, 4200),
+        );
+        final author = positions[tenturaGraphNodeId(peerNode)]!;
+        final request = positions[tenturaGraphNodeId(requestNode)]!;
+        expect(
+          (Offset(request.x, request.y) - Offset(ego.x, ego.y)).distance,
+          greaterThan(40),
+        );
+        expect(
+          (Offset(request.x, request.y) - Offset(author.x, author.y)).distance,
+          lessThan(150),
+        );
+        expect(request.x, closeTo(baselineRequest.x, 1));
+        expect(request.y, closeTo(baselineRequest.y, 1));
+      },
+    );
   });
 
   group('constellation graph reconciliation', () {

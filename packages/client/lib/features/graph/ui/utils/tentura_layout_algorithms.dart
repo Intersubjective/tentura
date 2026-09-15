@@ -330,11 +330,74 @@ final class ConstellationSceneLayoutAlgorithm implements SceneLayoutAlgorithm {
       nodeSizes: sizes,
     );
 
-    return _positionsFromDomainMap(
+    return _constellationPositionsFromDomainMap(
       graphIdByDomain: graphIdByDomain,
       domainPositions: domainPositions,
-      canvasSize: _canvasSize(request),
+      request: request,
     );
+  }
+
+  /// Prefer domain layout, then author seat, then prior layout — never canvas
+  /// centre (that coincides with ego and is the unpin failure mode).
+  Map<GraphNodeId, ScenePoint> _constellationPositionsFromDomainMap({
+    required Map<String, GraphNodeId> graphIdByDomain,
+    required Map<String, Offset> domainPositions,
+    required GraphLayoutRequest request,
+  }) {
+    final previous = request.previous?.positions ?? const {};
+    final authorByRequestId = <String, String>{
+      for (final requestId in egoOwnRequestIds) requestId: egoId,
+      for (final entry in visibleRequestsByAuthor.entries)
+        for (final requestId in entry.value) requestId: entry.key,
+    };
+    final result = <GraphNodeId, ScenePoint>{};
+    for (final entry in graphIdByDomain.entries) {
+      final domainId = entry.key;
+      final graphId = entry.value;
+      final fromDomain = _sceneFromOffset(domainPositions[domainId]);
+      if (fromDomain != null) {
+        result[graphId] = fromDomain;
+        continue;
+      }
+      if (domainId == egoId) {
+        result[graphId] = _centerPoint(_canvasSize(request));
+        continue;
+      }
+      final authorId = authorByRequestId[domainId];
+      final authorOffset =
+          authorId == null ? null : domainPositions[authorId];
+      if (authorOffset != null) {
+        result[graphId] = ScenePoint(x: authorOffset.dx, y: authorOffset.dy);
+        continue;
+      }
+      if (!forgetPriorHintNodeIds.contains(domainId)) {
+        final prior = previous[graphId];
+        if (prior != null) {
+          result[graphId] = prior;
+          continue;
+        }
+      }
+      final authorPrior = authorId == null
+          ? null
+          : previous[graphIdByDomain[authorId]];
+      if (authorPrior != null) {
+        result[graphId] = authorPrior;
+        continue;
+      }
+      // Last resort for release: keep prior pin rather than ego centre when
+      // forget set already cleared; otherwise omit (node may briefly vanish).
+      final prior = previous[graphId];
+      if (prior != null) {
+        result[graphId] = prior;
+        continue;
+      }
+      assert(
+        false,
+        'Constellation layout missing position for $domainId '
+        '(graph $graphId); refusing canvas-centre fallback',
+      );
+    }
+    return result;
   }
 
   Map<String, Offset> _computeConstellationDomainPositions({

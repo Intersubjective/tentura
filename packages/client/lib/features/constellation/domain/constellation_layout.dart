@@ -254,8 +254,8 @@ ConstellationLayout computeConstellationPlacedLayout({
     egoId: input.egoId,
     paths: input.paths,
     keptPeerIds: input.automaticKeptPeerIds,
-    visibleRequestsByAuthor: input.satelliteRequestIdsByAuthor,
-    egoOwnRequestIds: input.egoOwnRequestIds,
+    visibleRequestsByAuthor: const {},
+    egoOwnRequestIds: const {},
     centre: centre,
     maxHops: input.maxHops,
     ringGap: ringGap,
@@ -268,16 +268,18 @@ ConstellationLayout computeConstellationPlacedLayout({
     placed: positions,
   );
 
+  bool isHardPinnedPerson(String id) =>
+      input.pinnedPersonIds.contains(id) &&
+      input.anchorByNodeId.containsKey(id);
+
   final automaticPeople = [
     for (final id in input.automaticKeptPeerIds)
-      if (!input.pinnedPersonIds.contains(id) &&
-          !input.supportPersonIds.contains(id))
-        id,
+      if (!isHardPinnedPerson(id) && !input.supportPersonIds.contains(id)) id,
   ]..sort();
 
   final supportPeople = [
     for (final id in input.supportPersonIds)
-      if (!input.pinnedPersonIds.contains(id)) id,
+      if (!isHardPinnedPerson(id)) id,
   ]..sort();
 
   final automaticRequests = <String>[];
@@ -393,8 +395,31 @@ ConstellationLayout computeConstellationPlacedLayout({
             : input.maxHops);
   }
 
+  // Request fans from placed author seats (not pre-placement ideals), so
+  // session inertia on the author does not leave satellites at a stale seat.
+  final requestIdeals = _computeSemanticIdeals(
+    egoId: input.egoId,
+    paths: input.paths,
+    keptPeerIds: input.automaticKeptPeerIds,
+    visibleRequestsByAuthor: input.satelliteRequestIdsByAuthor,
+    egoOwnRequestIds: input.egoOwnRequestIds,
+    centre: centre,
+    maxHops: input.maxHops,
+    ringGap: ringGap,
+    residualRingFactor: residualRingFactor,
+    satelliteOffset: satelliteOffset,
+    spacing: input.spacing,
+    nodeSizes: input.nodeSizes,
+    footprints: input.footprints,
+    alreadyPlaced: {
+      for (final id in positions.keys)
+        if (!automaticRequests.contains(id)) id,
+    },
+    placed: positions,
+  );
+
   for (final requestId in automaticRequests) {
-    final ideal = ideals[requestId];
+    final ideal = requestIdeals[requestId];
     if (ideal == null) {
       continue;
     }
@@ -1056,7 +1081,7 @@ Map<String, ConstellationPoint> _computeSemanticIdeals({
     if (author == egoId) {
       continue;
     }
-    final authorPoint = ideals[author] ?? placed[author];
+    final authorPoint = placed[author] ?? ideals[author];
     if (authorPoint == null) {
       continue;
     }
