@@ -190,37 +190,31 @@ LIMIT $2
     required String childBeaconId,
     required String viewerId,
   }) async {
+    // A viewer who cannot read the child learns nothing about its parent.
+    if (!await _predicate(
+      'beacon_can_read_content',
+      childBeaconId,
+      viewerId,
+    )) {
+      return BeaconParentReference.none;
+    }
     final parentId = await loadImmediateParentBeaconId(childBeaconId);
     if (parentId == null) {
       return BeaconParentReference.none;
     }
     final parent = await _loadBeaconRow(parentId);
-    if (parent == null) {
+    if (parent == null ||
+        BeaconStatus.fromSmallint(parent.status) == BeaconStatus.deleted) {
       return BeaconParentReference.unavailable;
     }
-    final parentStatus = BeaconStatus.fromSmallint(parent.status);
-    final viewerAdmission = await _loadAdmissionFacts(
-      beaconId: parentId,
-      viewerId: viewerId,
-      ownerId: parent.ownerId,
-    );
-    final linkedAuthorized = BeaconHierarchyPolicy.isAdmittedToImmediateParent(
-      BeaconImmediateParentLinkFacts(
-        parentStatus: parentStatus,
-        viewerEffectivelyAdmittedToParent:
-            BeaconHierarchyPolicy.hasEffectiveAdmission(viewerAdmission),
-        isBlockedByParentOwner: viewerAdmission.isBlockedByOwner,
-      ),
-    );
-    return BeaconHierarchyPolicy.resolveParentReference(
-      BeaconParentReferenceFacts(
-        hasParent: true,
-        parentStatus: parentStatus,
-        parentLinkedDetailAuthorized: linkedAuthorized,
-        parentBeaconId: linkedAuthorized ? parentId : null,
-        parentTitle: linkedAuthorized ? parent.title : null,
-      ),
-    );
+    if (await _predicate('beacon_can_read_linked_detail', parentId, viewerId)) {
+      return BeaconParentReference(
+        state: BeaconParentReferenceState.available,
+        beaconId: parentId,
+        title: parent.title,
+      );
+    }
+    return BeaconParentReference.unavailable;
   }
 
   @override
@@ -339,6 +333,23 @@ WHERE id = $1
       title: row.read<String>('title'),
       status: row.read<int>('status'),
     );
+  }
+
+  Future<bool> _predicate(
+    String functionName,
+    String beaconId,
+    String viewerId,
+  ) async {
+    final row = await _database
+        .customSelect(
+          'SELECT public.$functionName(\$1, \$2) AS allowed',
+          variables: [
+            Variable<String>(beaconId),
+            Variable<String>(viewerId),
+          ],
+        )
+        .getSingle();
+    return row.read<bool>('allowed');
   }
 
   Future<BeaconEffectiveAdmissionFacts> _loadAdmissionFacts({

@@ -266,7 +266,7 @@ WHERE parent_beacon_id = ANY(@topologyIds)
       );
     }, skip: skipReason);
 
-    test('beaconParentReference: unauthorized viewer gets an unavailable reference', () async {
+    test('beaconParentReference: viewer who cannot read the child gets no reference', () async {
       await fixture.seedFullTopology();
       await seedPublishedHierarchyTree(writer);
 
@@ -278,7 +278,7 @@ WHERE parent_beacon_id = ANY(@topologyIds)
         'beaconId': BeaconHierarchyTopology.beaconB,
       }) as Map<String, dynamic>;
 
-      expect(result['state'], 'unavailable');
+      expect(result['state'], 'none');
       expect(result['beaconId'], isNull);
     }, skip: skipReason);
 
@@ -286,13 +286,14 @@ WHERE parent_beacon_id = ANY(@topologyIds)
       await fixture.seedFullTopology();
       await seedPublishedHierarchyTree(writer);
 
-      // Alice is admitted to beaconA; the one-edge grant requires admission
-      // to the PARENT (A), not the child (B) whose reference is requested.
+      // The viewer must first be able to read the child B itself (bob owns
+      // B and is not a member of A); the parent reference is then available
+      // because bob can read A via `beacon_can_read_linked_detail`.
       final field = query.all.singleWhere(
         (f) => f.name == 'beaconParentReference',
       );
       final result = await field.resolve!(null, {
-        ...authAs(BeaconHierarchyTopology.aliceId),
+        ...authAs(BeaconHierarchyTopology.bobId),
         'beaconId': BeaconHierarchyTopology.beaconB,
       }) as Map<String, dynamic>;
 
