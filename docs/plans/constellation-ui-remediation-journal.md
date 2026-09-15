@@ -529,7 +529,7 @@ Per owner instruction: route the fix for both confirmed bugs above through Astra
 | Step | Status | Notes |
 |---|---|---|
 | Astra: fix camera-gating leak (bug 1) + bottom-nav viewport mismatch (bug 2) | done | accepted — bug 1 commit `d438db0c2` independently re-verified (21/21 new+existing anchor-interaction tests, full constellation folder 328 pass, lints 30/30 no drift); bug 2 turned out to be a test-setup gap, not a product bug (Astra corrected the manager's viewport-sizing hypothesis with direct evidence: `GraphController.viewportSize` exactly matches the rendered body, which Scaffold correctly constrains above the nav bar) — Astra's uncommitted work (new `constellation_viewport_chrome_test.dart` + amended pinning journey) reviewed and independently verified, then committed by the manager as `132615351` since Astra hit its usage quota (documented, real unavailability — not a runner bug this time) before its own commit step |
-| Cursor: drive the real browser integration test after both fixes | in progress | |
+| Cursor: drive the real browser integration test after both fixes | **PASSED** | `./scripts/run_client_integration_web_local.sh integration_test/constellation_pinning_test.dart` — `result {"result":"true","failureDetails":[]}`, exit 0, ~154s runtime, clean process teardown confirmed (no leaked chromedriver/flutter_tester/tentura-server, ports 2080/8888/4444 free afterward). The exact journey that previously failed deterministically (`selectedRequestId` null after tapping overlapping pins) now passes with commits `d438db0c2` + `132615351`. Manager independently re-confirmed clean process/port/git state after the worker exited. |
 
 ### Astra — bug fix pass
 
