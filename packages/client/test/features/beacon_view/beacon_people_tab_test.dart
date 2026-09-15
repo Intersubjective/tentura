@@ -100,7 +100,9 @@ void main() {
     );
   });
 
-  testWidgets('People tab shows willing to help fold with count', (tester) async {
+  testWidgets('People tab shows willing to help fold with count', (
+    tester,
+  ) async {
     await tester.pumpWidget(
       _wrapPeople(
         BeaconPeopleTabBody(
@@ -159,19 +161,143 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(find.text('Forwards (1)'), findsOneWidget);
+    expect(find.text('Forwards (0)'), findsOneWidget);
     expect(find.text('please help'), findsNothing);
     final graphButtons = find.byWidgetPredicate(
       (w) => w is IconButton && w.tooltip == 'Track of forwards',
     );
     expect(graphButtons, findsOneWidget);
 
-    await tester.tap(find.text('Forwards (1)'));
+    await tester.tap(find.text('Forwards (0)'));
     await tester.pumpAndSettle();
 
     expect(cubit.loadForwardsCalls, 1);
-    expect(find.text('please help'), findsOneWidget);
+    expect(find.text('please help'), findsNothing);
+    expect(find.text('Helper'), findsOneWidget);
   });
+
+  for (final bucket in ['active', 'willing', 'not fitting', 'backup']) {
+    for (final inbound in [false, true]) {
+      testWidgets(
+        '$bucket person appears once with ${inbound ? 'inbound' : 'outgoing'} forwards',
+        (tester) async {
+          await tester.binding.setSurfaceSize(const Size(800, 1600));
+          addTearDown(() => tester.binding.setSurfaceSize(null));
+          const helper = Profile(id: 'h1', displayName: 'Helper');
+          const author = Profile(id: 'auth', displayName: 'Author');
+          _state = _peopleState(
+            helpOffers: [
+              TimelineHelpOffer(
+                user: helper,
+                message: 'I can help',
+                createdAt: _t,
+                updatedAt: _t,
+                offerKind: bucket == 'backup' ? 1 : 0,
+                roomAccess: bucket == 'active' ? RoomAccessBits.admitted : null,
+                coordinationResponse: bucket == 'not fitting'
+                    ? CoordinationResponseType.notSuitable
+                    : null,
+              ),
+              // Backup offers must not duplicate a higher-priority primary offer.
+              TimelineHelpOffer(
+                user: helper,
+                message: 'Backup',
+                createdAt: _t,
+                updatedAt: _t,
+                offerKind: 1,
+              ),
+            ],
+            viewerForwardEdges: [
+              ForwardEdge(
+                id: 'e1',
+                beaconId: 'B1',
+                createdAt: _t,
+                sender: inbound ? helper : author,
+                recipient: inbound ? author : helper,
+                note: 'please help',
+              ),
+            ],
+            forwardsLoaded: true,
+          );
+          await tester.pumpWidget(
+            _wrapPeople(
+              BeaconPeopleTabBody(
+                state: _state,
+                beaconViewCubit: _MockBeaconViewCubit(),
+                l10n: lookupL10n(const Locale('en')),
+              ),
+            ),
+          );
+          await tester.pumpAndSettle();
+          await tester.tap(find.textContaining('Forwards ('));
+          await tester.pumpAndSettle();
+          if (bucket == 'not fitting') {
+            await tester.tap(find.text('Not fitting (1)'));
+            await tester.pumpAndSettle();
+          }
+          expect(find.text('Helper'), findsOneWidget);
+          expect(find.text('Forwards (0)'), findsOneWidget);
+          expect(find.text('please help'), findsNothing);
+        },
+      );
+    }
+  }
+
+  testWidgets(
+    'forward-only recipients remain unique and move to Active after offering help',
+    (tester) async {
+      await tester.binding.setSurfaceSize(const Size(800, 1600));
+      addTearDown(() => tester.binding.setSurfaceSize(null));
+      const helper = Profile(id: 'h1', displayName: 'Helper');
+      final edges = [
+        for (final id in ['e1', 'e2'])
+          ForwardEdge(
+            id: id,
+            beaconId: 'B1',
+            createdAt: _t,
+            sender: const Profile(id: 'auth', displayName: 'Author'),
+            recipient: helper,
+            note: 'please help',
+          ),
+      ];
+      Future<void> render(List<TimelineHelpOffer> offers) async {
+        _state = _peopleState(
+          helpOffers: offers,
+          viewerForwardEdges: edges,
+          forwardsLoaded: true,
+        );
+        await tester.pumpWidget(
+          _wrapPeople(
+            BeaconPeopleTabBody(
+              state: _state,
+              beaconViewCubit: _MockBeaconViewCubit(),
+              l10n: lookupL10n(const Locale('en')),
+            ),
+          ),
+        );
+        await tester.pumpAndSettle();
+      }
+
+      await render([]);
+      await tester.tap(find.textContaining('Forwards ('));
+      await tester.pumpAndSettle();
+      expect(find.text('Helper'), findsOneWidget);
+      expect(find.text('Forwards (1)'), findsOneWidget);
+      await render([
+        TimelineHelpOffer(
+          user: helper,
+          message: 'I can help',
+          createdAt: _t,
+          updatedAt: _t,
+          roomAccess: RoomAccessBits.admitted,
+        ),
+      ]);
+      expect(find.text('Helper'), findsOneWidget);
+      expect(find.text('Active helpers (2)'), findsOneWidget);
+      expect(find.text('Forwards (0)'), findsOneWidget);
+      expect(find.text('please help'), findsNothing);
+    },
+  );
 
   testWidgets('expanding Forwards does not collapse Active helpers', (
     tester,

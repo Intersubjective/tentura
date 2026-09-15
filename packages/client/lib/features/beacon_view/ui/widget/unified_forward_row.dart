@@ -20,20 +20,23 @@ class UnifiedForwardRow extends StatelessWidget {
     this.inboundSender,
     this.inboundNote,
     this.outboundEdge,
+    this.showSender = true,
     this.involvementHelpOfferedIds,
     this.involvementWatchingIds,
     this.involvementOnwardForwarderIds,
     super.key,
   }) : assert(
-          (inboundSender != null && inboundNote != null && outboundEdge == null) ||
-              (outboundEdge != null &&
-                  inboundSender == null &&
-                  inboundNote == null &&
-                  involvementHelpOfferedIds != null &&
-                  involvementWatchingIds != null &&
-                  involvementOnwardForwarderIds != null),
-          'Use .inbound or .outgoing factory with matching optional fields',
-        );
+         (inboundSender != null &&
+                 inboundNote != null &&
+                 outboundEdge == null) ||
+             (outboundEdge != null &&
+                 inboundSender == null &&
+                 inboundNote == null &&
+                 involvementHelpOfferedIds != null &&
+                 involvementWatchingIds != null &&
+                 involvementOnwardForwarderIds != null),
+         'Use .inbound or .outgoing factory with matching optional fields',
+       );
 
   factory UnifiedForwardRow.inbound({
     required Profile sender,
@@ -41,14 +44,13 @@ class UnifiedForwardRow extends StatelessWidget {
     required String viewerUserId,
     List<String> reasonSlugs = const [],
     Key? key,
-  }) =>
-      UnifiedForwardRow._(
-        viewerUserId: viewerUserId,
-        reasonSlugs: reasonSlugs,
-        inboundSender: sender,
-        inboundNote: note,
-        key: key,
-      );
+  }) => UnifiedForwardRow._(
+    viewerUserId: viewerUserId,
+    reasonSlugs: reasonSlugs,
+    inboundSender: sender,
+    inboundNote: note,
+    key: key,
+  );
 
   factory UnifiedForwardRow.outgoing({
     required ForwardEdge edge,
@@ -56,18 +58,19 @@ class UnifiedForwardRow extends StatelessWidget {
     required Set<String> helpOffered,
     required Set<String> watching,
     required Set<String> onward,
+    bool showSender = true,
     List<String> reasonSlugs = const [],
     Key? key,
-  }) =>
-      UnifiedForwardRow._(
-        viewerUserId: viewerUserId,
-        reasonSlugs: reasonSlugs,
-        outboundEdge: edge,
-        involvementHelpOfferedIds: helpOffered,
-        involvementWatchingIds: watching,
-        involvementOnwardForwarderIds: onward,
-        key: key,
-      );
+  }) => UnifiedForwardRow._(
+    viewerUserId: viewerUserId,
+    reasonSlugs: reasonSlugs,
+    outboundEdge: edge,
+    showSender: showSender,
+    involvementHelpOfferedIds: helpOffered,
+    involvementWatchingIds: watching,
+    involvementOnwardForwarderIds: onward,
+    key: key,
+  );
 
   final String viewerUserId;
   final List<String> reasonSlugs;
@@ -76,6 +79,9 @@ class UnifiedForwardRow extends StatelessWidget {
   final String? inboundNote;
 
   final ForwardEdge? outboundEdge;
+
+  /// People lists show only the recipient; the viewer is the implicit sender.
+  final bool showSender;
   final Set<String>? involvementHelpOfferedIds;
   final Set<String>? involvementWatchingIds;
   final Set<String>? involvementOnwardForwarderIds;
@@ -101,8 +107,11 @@ class UnifiedForwardRow extends StatelessWidget {
     L10n l10n,
   ) {
     final sender = inboundSender!;
-    final displayName =
-        SelfUserHighlight.displayName(l10n, sender, viewerUserId).trim();
+    final displayName = SelfUserHighlight.displayName(
+      l10n,
+      sender,
+      viewerUserId,
+    ).trim();
     final note = inboundNote!.trim();
 
     final header = Row(
@@ -152,33 +161,35 @@ class UnifiedForwardRow extends StatelessWidget {
 
     final header = Row(
       children: [
-        _AvatarRinged(
-          profile: sender,
-          viewerUserId: viewerUserId,
-          size: _kAvatarSize,
-        ),
-        const SizedBox(width: 4),
-        Flexible(
-          child: Text(
-            SelfUserHighlight.displayName(l10n, sender, viewerUserId),
-            style: SelfUserHighlight.nameStyle(
-              theme,
-              baseName,
-              SelfUserHighlight.profileIsSelf(sender, viewerUserId),
+        if (showSender) ...[
+          _AvatarRinged(
+            profile: sender,
+            viewerUserId: viewerUserId,
+            size: _kAvatarSize,
+          ),
+          const SizedBox(width: 4),
+          Flexible(
+            child: Text(
+              SelfUserHighlight.displayName(l10n, sender, viewerUserId),
+              style: SelfUserHighlight.nameStyle(
+                theme,
+                baseName,
+                SelfUserHighlight.profileIsSelf(sender, viewerUserId),
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              textAlign: TextAlign.start,
             ),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            textAlign: TextAlign.start,
           ),
-        ),
-        Padding(
-          padding: EdgeInsets.symmetric(horizontal: context.tt.tightGap * 2),
-          child: Icon(
-            Icons.arrow_forward,
-            size: 14,
-            color: scheme.onSurfaceVariant,
+          Padding(
+            padding: EdgeInsets.symmetric(horizontal: context.tt.tightGap * 2),
+            child: Icon(
+              Icons.arrow_forward,
+              size: 14,
+              color: scheme.onSurfaceVariant,
+            ),
           ),
-        ),
+        ],
         _AvatarRinged(
           profile: recipient,
           viewerUserId: viewerUserId,
@@ -341,8 +352,9 @@ class _ReactionLine extends StatelessWidget {
     final effectiveTextColor = textColor ?? scheme.onSurfaceVariant;
     final textAlign = alignEnd ? TextAlign.end : TextAlign.start;
     return Row(
-      mainAxisAlignment:
-          alignEnd ? MainAxisAlignment.end : MainAxisAlignment.start,
+      mainAxisAlignment: alignEnd
+          ? MainAxisAlignment.end
+          : MainAxisAlignment.start,
       children: [
         Icon(
           icon,

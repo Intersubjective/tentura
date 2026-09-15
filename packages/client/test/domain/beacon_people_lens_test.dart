@@ -43,16 +43,38 @@ BeaconPeopleHelpOfferInput _offer({
   required String userId,
   CoordinationResponseType? response,
   int? roomAccess,
-}) =>
-    BeaconPeopleHelpOfferInput(
-      userId: userId,
-      profile: Profile(id: userId, displayName: userId),
-      isWithdrawn: false,
-      roomAccess: roomAccess,
-      coordinationResponse: response,
-    );
+}) => BeaconPeopleHelpOfferInput(
+  userId: userId,
+  profile: Profile(id: userId, displayName: userId),
+  isWithdrawn: false,
+  roomAccess: roomAccess,
+  coordinationResponse: response,
+);
 
 void main() {
+  test('each user has one helper bucket with not fitting before pending', () {
+    for (final reverse in [false, true]) {
+      final offers = [
+        _offer(userId: 'h1'),
+        _offer(userId: 'h1', response: CoordinationResponseType.notSuitable),
+        _offer(userId: 'h1'),
+        _offer(userId: 'h2'),
+        _offer(userId: 'h2'),
+        _offer(userId: 'h3', response: CoordinationResponseType.notSuitable),
+        _offer(userId: 'h3', roomAccess: RoomAccessBits.admitted),
+      ];
+      final sections = classifyBeaconPeopleSections(
+        beacon: _beacon(authorId: 'auth'),
+        helpOffers: reverse ? offers.reversed.toList() : offers,
+        roomParticipants: const [],
+        viewerUserId: 'auth',
+      );
+      expect(sections.activeHelpers.map((r) => r.userId), ['auth', 'h3']);
+      expect(sections.notFitting.map((r) => r.userId), ['h1']);
+      expect(sections.willingToHelp.map((r) => r.userId), ['h2']);
+    }
+  });
+
   test('author is always first in active helpers', () {
     final sections = classifyBeaconPeopleSections(
       beacon: _beacon(authorId: 'auth'),

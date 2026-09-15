@@ -24,11 +24,11 @@ List<BeaconParticipant> beaconParticipantsVisibleForViewer({
   final viewerAuthor = viewerUserId == authorUserId;
   final viewerSteward = mine?.role == BeaconParticipantRoleBits.steward;
   final viewerAdmitted = mine?.roomAccess == RoomAccessBits.admitted;
-  final fullLens =
-      viewerAdmitted || viewerAuthor || viewerSteward;
+  final fullLens = viewerAdmitted || viewerAuthor || viewerSteward;
 
-  final filtered = participants
-      .where((p) => p.roomAccess != RoomAccessBits.left);
+  final filtered = participants.where(
+    (p) => p.roomAccess != RoomAccessBits.left,
+  );
 
   if (fullLens) {
     final list = filtered.toList(growable: false)
@@ -121,20 +121,25 @@ BeaconPeopleSections classifyBeaconPeopleSections({
 
   final activeHelpers = <BeaconPeopleRow>[
     rowFor(authorId, isAuthor: true),
-    for (final uid in admittedUserIds.where((id) => id != authorId).toList()
-      ..sort(
-        (a, b) => profileFor(a).displayName.compareTo(profileFor(b).displayName),
-      ))
+    for (final uid
+        in admittedUserIds.where((id) => id != authorId).toList()..sort(
+          (a, b) =>
+              profileFor(a).displayName.compareTo(profileFor(b).displayName),
+        ))
       rowFor(uid, isAuthor: false),
   ];
 
   final willingToHelp = <BeaconPeopleRow>[];
   final notFitting = <BeaconPeopleRow>[];
+  final notFittingUserIds = {
+    for (final ho in helpOffers)
+      if (!ho.isWithdrawn && ho.coordinationResponse != null) ho.userId,
+  };
+  final assignedUserIds = {authorId, ...admittedUserIds};
   for (final ho in helpOffers) {
-    if (ho.isWithdrawn || ho.userId == authorId) continue;
-    if (admittedUserIds.contains(ho.userId)) continue;
+    if (ho.isWithdrawn || !assignedUserIds.add(ho.userId)) continue;
     final row = rowFor(ho.userId, isAuthor: false);
-    if (ho.coordinationResponse == null) {
+    if (!notFittingUserIds.contains(ho.userId)) {
       willingToHelp.add(row);
     } else {
       notFitting.add(row);

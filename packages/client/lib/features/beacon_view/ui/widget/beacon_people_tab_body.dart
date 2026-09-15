@@ -6,6 +6,7 @@ import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura/domain/entity/beacon_people_lens.dart';
 import 'package:tentura/domain/entity/beacon_people_row.dart';
+import 'package:tentura/domain/entity/beacon_room_consts.dart';
 import 'package:tentura/domain/entity/commitment_stake_state.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_cubit.dart';
 import 'package:tentura/features/beacon_view/ui/dialog/help_offer_admission_reason_dialog.dart';
@@ -19,7 +20,7 @@ import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/widget/accordion_expansion.dart';
 import 'package:tentura/ui/widget/focus_flash_highlight.dart';
 
-/// PageStorage / ExpansionTile id for the People-tab Forwards fold (not exclusive).
+/// PageStorage / ExpansionTile id for the People-tab Forwards fold (exclusive by userId).
 const _forwardsFoldId = 'forwards';
 
 class BeaconPeopleTabBody extends StatelessWidget {
@@ -132,16 +133,14 @@ class BeaconPeopleTabBody extends StatelessWidget {
         ],
       );
     }
-    final withdrawn = state.helpOffers
-        .where((c) => c.isWithdrawn)
-        .toList(growable: false);
-
-    final backupOffers = state.helpOffers
-        .where((c) => !c.isWithdrawn && c.offerKind == 1)
-        .toList(growable: false);
 
     final helpOfferInputs = state.helpOffers
-        .where((c) => c.offerKind == 0)
+        .where(
+          (c) =>
+              c.offerKind == 0 ||
+              c.roomAccess == RoomAccessBits.admitted ||
+              c.coordinationResponse != null,
+        )
         .map(
           (c) => BeaconPeopleHelpOfferInput(
             userId: c.user.id,
@@ -162,6 +161,33 @@ class BeaconPeopleTabBody extends StatelessWidget {
       roomParticipants: state.roomParticipants,
       viewerUserId: state.myProfile.id,
     );
+
+    // A person belongs to their highest-priority section, never to two rows.
+    final assignedUserIds = {
+      for (final row in sections.activeHelpers) row.userId,
+      for (final row in sections.notFitting) row.userId,
+      for (final row in sections.willingToHelp) row.userId,
+    };
+    final backupOffers = state.helpOffers
+        .where(
+          (c) =>
+              !c.isWithdrawn &&
+              c.offerKind == 1 &&
+              assignedUserIds.add(c.user.id),
+        )
+        .toList(growable: false);
+    final withdrawn = state.helpOffers
+        .where((c) => c.isWithdrawn && assignedUserIds.add(c.user.id))
+        .toList(growable: false);
+    final viewerId = state.myProfile.id;
+    final forwardEdges = state.viewerForwardEdges
+        .where((edge) {
+          final personId = edge.sender.id == viewerId
+              ? edge.recipient.id
+              : edge.sender.id;
+          return assignedUserIds.add(personId);
+        })
+        .toList(growable: false);
 
     bool isDirectAuthorForward(String userId) {
       for (final c in state.helpOffers) {
@@ -330,7 +356,7 @@ class BeaconPeopleTabBody extends StatelessWidget {
         : tt.buttonHeight;
 
     final forwardsTitle = state.forwardsLoaded
-        ? '${l10n.labelForwards} (${state.viewerForwardEdges.length})'
+        ? '${l10n.labelForwards} (${forwardEdges.length})'
         : l10n.labelForwards;
 
     final List<Widget> forwardsChildren;
@@ -344,8 +370,7 @@ class BeaconPeopleTabBody extends StatelessWidget {
         ),
       ];
     } else if (state.forwardsLoaded) {
-      final edges = state.viewerForwardEdges;
-      final viewerId = state.myProfile.id;
+      final edges = forwardEdges;
       if (edges.isEmpty) {
         forwardsChildren = [
           Text(
@@ -360,13 +385,15 @@ class BeaconPeopleTabBody extends StatelessWidget {
           for (final e in edges)
             e.sender.id == viewerId
                 ? UnifiedForwardRow.outgoing(
+                    showSender: false,
                     edge: e,
                     viewerUserId: viewerId,
                     helpOffered: state.involvementHelpOfferedIds,
                     watching: state.involvementWatchingIds,
                     onward: state.involvementOnwardForwarderIds,
                     reasonSlugs:
-                        state.forwardReasonSlugs['${e.sender.id}__${e.recipient.id}'] ??
+                        state
+                            .forwardReasonSlugs['${e.sender.id}__${e.recipient.id}'] ??
                         const [],
                   )
                 : UnifiedForwardRow.inbound(
@@ -374,7 +401,8 @@ class BeaconPeopleTabBody extends StatelessWidget {
                     note: e.note,
                     viewerUserId: viewerId,
                     reasonSlugs:
-                        state.forwardReasonSlugs['${e.sender.id}__${e.recipient.id}'] ??
+                        state
+                            .forwardReasonSlugs['${e.sender.id}__${e.recipient.id}'] ??
                         const [],
                   ),
         ];
