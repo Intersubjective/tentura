@@ -528,5 +528,96 @@ Per owner instruction: route the fix for both confirmed bugs above through Astra
 
 | Step | Status | Notes |
 |---|---|---|
-| Astra: fix camera-gating leak (bug 1) + bottom-nav viewport mismatch (bug 2) | in progress | |
-| Cursor: verify both fixes + re-run constellation_pinning_test.dart | pending | |
+| Astra: fix camera-gating leak (bug 1) + bottom-nav viewport mismatch (bug 2) | done | accepted — bug 1 commit `d438db0c2` independently re-verified (21/21 new+existing anchor-interaction tests, full constellation folder 328 pass, lints 30/30 no drift); bug 2 turned out to be a test-setup gap, not a product bug (Astra corrected the manager's viewport-sizing hypothesis with direct evidence: `GraphController.viewportSize` exactly matches the rendered body, which Scaffold correctly constrains above the nav bar) — Astra's uncommitted work (new `constellation_viewport_chrome_test.dart` + amended pinning journey) reviewed and independently verified, then committed by the manager as `132615351` since Astra hit its usage quota (documented, real unavailability — not a runner bug this time) before its own commit step |
+| Cursor: drive the real browser integration test after both fixes | in progress | |
+
+### Astra — bug fix pass
+
+Direct follow-up on 2026-09-15; no R00–R08 unit reopened.
+
+**Bug 1 — fixed.** Confirmed the manager's camera-gating leak. Both drag starts
+set the gate; the normal drop previously returned placement to idle without
+clearing it. `onNewNodeDrop` delegates to `onExistingNodeDrop`. The latter now
+clears the gate when the pointer drag ends, immediately before its optimistic
+idle emit and before awaiting the write. This single transition covers pending,
+successful, failed, and discarded responses without tying camera interaction to
+network completion. Cancellation and presentation-handoff behavior are unchanged.
+
+Four new widget cases in `constellation_anchor_interaction_test.dart` use the
+real `ConstellationAnchorCase` with the existing repository fake: existing-person
+and new-Request drags, each with success and failure. They assert the controller
+gate and the mounted `InteractiveViewer` pan/scale flags during drag, while a
+controlled write is pending, and after completion; success/rollback is also
+checked. The existing cancel-path gating test remains intact. The camera widget
+applies gate notifications after a frame, so the tests pump its scheduled rebuild.
+
+**Bug 2 — viewport hypothesis corrected; interaction setup fixed.** No
+full-window-versus-body viewport sizing defect was found. `GraphView` forwards
+`LayoutBuilder.constraints.biggest` to the controller, and `_updateViewport`
+recovers the pixel viewport from the `InteractiveViewer` scene quad and scale.
+The compact home Scaffold reserves the bottom bar, and the nested Constellation
+Scaffold reserves its app bar. Relevant `MediaQuery` height reads size sheets or
+person-context panels, not the graph viewport. Subtracting `bottomNavHeight`
+again would double-count chrome already excluded by Scaffold.
+
+The initial camera centers the canvas once at 1x; it does not fit every anchor.
+Reload preserves that camera. Scene (2473, 2473) is 425 pixels below/right of the
+ego. A mathematically correct transform can map this **offscreen** scene point
+into the bottom-nav screen band. `RenderBox.localToGlobal` converts coordinates;
+it does not guarantee that the converted point is inside the clipped graph
+viewport. Likewise, `ensureVisible(GraphLayoutView)` does not reveal an arbitrary
+scene point inside an InteractiveViewer. The overlap journey omitted that
+visibility precondition. It now invokes the existing Fit All UI control before
+tapping the fixed overlapping pins, without changing their scene coordinates,
+paint order, or the no-auto-fit-on-open/reload contract.
+
+`constellation_viewport_chrome_test.dart` mounts the real Constellation body and
+`HomeBottomNavigationBar` in nested Scaffolds at logical sizes 390×950 and
+390×1300. It verifies controller viewport dimensions equal the rendered body,
+not the window, and the body's bottom equals the nav's top. After horizontal-only
+centering, the shorter body is (0,56)–(390,886): the fixed pin maps to y=896,
+outside the body and inside the nav, and a real tap activates the nav. At the
+taller height the body ends at y=1236 and the pin is inside it. At both heights,
+Fit All brings the same unchanged overlapping pins inside the graph; a real tap
+selects the later-painted Request without activating navigation. A second real
+tap with the pin 32 pixels above the body bottom also selects the Request.
+
+This reproduces and explains the manager's observed nav hit without a viewport
+mismatch. The earlier browser-window enlargement is not sufficient evidence of
+Flutter's actual logical body bounds or its retained transform; that particular
+browser sizing observation was not remeasured in this pass. Chrome confirmation
+of the amended journey remains assigned to the separate browser worker.
+
+**Verification:** all commands below run serially, with no concurrency flags.
+Before stepping up, checked `awk '/MemAvailable/ {print}' /proc/meminfo` and
+`ps -eo pid,comm,rss --sort=-rss | head -n 12`; available memory stayed above
+26 GiB. The resident 3 GB Dart process was verified as Serena's language server;
+only one test/analyzer verification command was active at a time.
+
+- `cd packages/client && flutter test test/features/constellation/constellation_anchor_interaction_test.dart` — **passed, 21 tests** (four new regressions).
+- `cd packages/client && flutter test test/features/constellation/constellation_viewport_chrome_test.dart` — **passed, 2 tests**.
+- `cd packages/client && flutter test test/features/constellation` — **passed, 328 tests**, including the pre-existing cancel gating, camera stability, pin placement, labels, badges, and overlays.
+- `cd packages/client && flutter test test/features/graph test/features/home` — **passed, 301 tests**.
+
+Initial fixture iterations exposed a missing post-frame pump in the gate test,
+required fixture fields/imports, equal anchor timestamps giving the person top
+paint order, and the need to dismiss the actual Request preview between taps.
+Those test-fixture issues were resolved before the final focused and folder runs.
+The browser integration runner was not invoked. No client version bump or push.
+Unrelated tracked tests and pre-existing untracked files were not edited or staged.
+
+- `cat scripts/custom-lint-baseline.txt` — client baseline **30**, unchanged.
+- `./scripts/check-custom-lints.sh packages/client` — **passed**, **30/30** custom
+  violations (21 `no_raw_edge_insets`, 9 `no_raw_border_radius`). Final analyzer
+  output contains 2290 existing warnings/infos, so this is a passing ratchet,
+  not a claim of a diagnostic-free repository. Two new viewport-test infos were
+  removed; the focused viewport file passed again (2 tests), then the package
+  lint gate passed again. No diagnostics remain in the new viewport test.
+- `git diff --check` — **passed**.
+
+**Commits:** camera lifecycle fix and its four regressions committed separately
+as `d438db0c2` (`fix(client): clear Constellation camera gating when a drag ends`).
+The overlap journey correction, viewport/chrome widget regressions, and this
+appendix form the separate follow-up test commit. Both carry the requested
+co-author/session trailers. **Remaining:** the assigned browser worker must run
+`constellation_pinning_test.dart`; no browser result is claimed here.
