@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:injectable/injectable.dart';
 import 'package:tentura_root/domain/entity/beacon_child_command_outcome.dart';
 import 'package:tentura_root/domain/entity/beacon_creation_context.dart';
@@ -112,6 +114,13 @@ class BeaconHierarchyCase {
   final BeaconChildCommandStorePort _commandStore;
   final RealtimeSyncCase _realtimeSyncCase;
 
+  // Lives with this singleton; mounted hierarchy consumers cancel their own
+  // subscriptions when closed.
+  final _localHierarchyChanges = StreamController<String>.broadcast();
+
+  Stream<void> localHierarchyChangesFor(String beaconId) =>
+      _localHierarchyChanges.stream.where((id) => id == beaconId).map((_) {});
+
   Stream<RealtimeEntityChange> hierarchyChangesFor(String beaconId) =>
       _realtimeSyncCase.changesForAggregate(
         kinds: const {RealtimeEntityKind.beaconHierarchy},
@@ -201,6 +210,16 @@ class BeaconHierarchyCase {
   }) async {
     try {
       await _beacons.publishDraft(beaconId);
+      // The author must converge even if the server hint is delayed or missed.
+      final parentBeaconId = switch (command.creationContext) {
+        BeaconCreationContextChild(:final parentBeaconId) => parentBeaconId,
+        BeaconCreationContextPromotedChild(:final parentBeaconId) =>
+          parentBeaconId,
+        BeaconCreationContextStandalone() => null,
+      };
+      if (parentBeaconId != null) {
+        _localHierarchyChanges.add(parentBeaconId);
+      }
       await _commandStore.clear(command.creationContext);
     } on BeaconSourceAlreadyPromotedException catch (e) {
       // The real-world trigger for alreadyPromoted (plan §3.4.6): a

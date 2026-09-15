@@ -24,6 +24,9 @@ class BeaconHierarchyCubit extends Cubit<BeaconHierarchyState> {
         .hierarchyChangesFor(_beaconId)
         .listen(_onHierarchyChanged);
     _catchUpsSub = _hierarchy.catchUps.listen((_) => _scheduleSilentRefresh());
+    _localHierarchyChangesSub = _hierarchy
+        .localHierarchyChangesFor(_beaconId)
+        .listen((_) => _scheduleSilentRefresh());
   }
 
   static const _refreshDebounce = Duration(milliseconds: 100);
@@ -33,6 +36,7 @@ class BeaconHierarchyCubit extends Cubit<BeaconHierarchyState> {
 
   late final StreamSubscription<RealtimeEntityChange> _hierarchyChangesSub;
   late final StreamSubscription<void> _catchUpsSub;
+  late final StreamSubscription<void> _localHierarchyChangesSub;
 
   Timer? _refreshTimer;
   bool _refreshInFlight = false;
@@ -412,6 +416,7 @@ class BeaconHierarchyCubit extends Cubit<BeaconHierarchyState> {
   Future<void> close() async {
     _refreshTimer?.cancel();
     await _hierarchyChangesSub.cancel();
+    await _localHierarchyChangesSub.cancel();
     await _catchUpsSub.cancel();
     return super.close();
   }
