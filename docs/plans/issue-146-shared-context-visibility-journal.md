@@ -269,3 +269,24 @@ cd packages/server && ../../scripts/run_with_test_cleanup.sh --timeout 20m -- \
   - Each red failure is genuine behavior (preconditions pass); the alice-positive assertion alone would already pass pre-fix, so it's paired with the bob assertion in the same test.
   - No flake this run with per-file invocations.
 - **Next:** T02
+
+---
+
+## T01 — verify (read-only)
+
+- **Range reviewed:** `d0e34d442a36de8b8903ba5e6439fe3acdbd1c17..HEAD` (`335402368`, `48b7fa789`); worktree dirty paths unchanged vs T00 pre-existing list (no T01 edits there).
+- **Commits:** `335402368` = repository + new pg test only (2 files). `48b7fa789` = journal only. Focused ✓
+- **Scope:** `listChildren` hunk only in `beacon_hierarchy_repository.dart`; `loadParentReference` untouched ✓. No changes to existing pg test files (only new `beacon_children_authorization_pg_test.dart`) ✓. No deleted/loosened assertions in committed range ✓
+- **Plan SQL (T01 §steps 1–3):** parent preflight `beacon_can_read_linked_detail($1,$2)` → empty `BeaconHierarchyPage`; viewer appended after cursor vars with `$${variables.length}`; WHERE adds `NOT block_hides(b.user_id,$V)`, `(status <> 2 AND linked_detail(child)) OR (status = 2 AND effective_admission($1,$V))` after status `IN` and before cursor clause ✓
+- **Stranger test:** uses `daveId` with explicit `linked_detail(A,dave)=false` precondition — correct given fixture help offer on A for `frankId` (not rationalization) ✓
+- **Independent TEST_CMD re-run (2026-09-15 verify):**
+
+| Command | Passed | Failed | Skipped | Exit |
+|---|---|---|---|---|
+| `beacon_children_authorization_pg_test.dart` | 4 | 0 | 0 | 0 |
+| `beacon_hierarchy_repository_pg_test.dart` | 7 | 0 | 0 | 0 |
+| `beacon_hierarchy_visibility_pg_test.dart` | 14 | 0 | 0 | 0 |
+| `beacon_hierarchy_hasura_parity_test.dart` | 2 | 0 | 0 | 0 |
+| `check-custom-lints.sh packages/server` | — | — | — | 0 (`tentura_lints` total 0, baseline 0 OK) |
+
+- **Verdict:** **pass** — T01 “Done when” satisfied; ready for T02.
