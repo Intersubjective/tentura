@@ -278,13 +278,15 @@ final class InvitationCase extends UseCaseBase {
         description: 'Cannot accept your own invite',
       );
     }
+    if (invitation.beaconId != null &&
+        (invitation.isAccepted || invitation.isExpired)) {
+      throw IdNotFoundException(id: code);
+    }
     if (await _friendshipLookup.isReciprocalSubscribe(
       viewerId: userId,
       peerId: invitation.issuer.id,
     )) {
-      if (invitation.beaconId != null &&
-          !invitation.isAccepted &&
-          !invitation.isExpired) {
+      if (invitation.beaconId != null) {
         return _acceptAndRecord(
           invitation: invitation,
           userId: userId,

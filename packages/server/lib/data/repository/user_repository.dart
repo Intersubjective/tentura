@@ -119,6 +119,9 @@ class UserRepository implements UserRepositoryPort {
     required String recipientId,
     required String? parentForwardEdgeId,
   }) async {
+    if (!await _lockActiveInviteParentChain(parentForwardEdgeId)) {
+      throw IdNotFoundException(id: parentForwardEdgeId!);
+    }
     if (senderId == recipientId) return;
     final existing = await _database.managers.beaconForwardEdges
         .filter(
@@ -143,6 +146,26 @@ class UserRepository implements UserRepositoryPort {
           ),
           onConflict: DoNothing(),
         );
+  }
+
+  /// Called inside the accepting transaction. Keep every ancestor locked until
+  /// commit so a concurrent leave cannot invalidate admission before insertion.
+  Future<bool> _lockActiveInviteParentChain(String? parentEdgeId) async {
+    final visited = <String>{};
+    var edgeId = parentEdgeId;
+    while (edgeId != null) {
+      if (!visited.add(edgeId)) return false;
+      final edge = await _database
+          .customSelect(
+            'SELECT parent_edge_id, cancelled_at IS NULL AS active '
+            r'FROM public.beacon_forward_edge WHERE id = $1 FOR UPDATE',
+            variables: [Variable<String>(edgeId)],
+          )
+          .getSingleOrNull();
+      if (edge == null || !edge.read<bool>('active')) return false;
+      edgeId = edge.readNullable<String>('parent_edge_id');
+    }
+    return true;
   }
 
   // TBD: move to SQL
@@ -853,6 +876,11 @@ class UserRepository implements UserRepositoryPort {
         .add(_env.invitationTTL)
         .isBefore(DateTime.timestamp())) {
       throw const InvitationWrongException(description: 'Invitation expired!');
+    }
+
+    if (invitation.beaconId != null &&
+        !await _lockActiveInviteParentChain(invitation.parentForwardEdgeId)) {
+      return false;
     }
 
     // Claim the row first, atomically — everything below is a side effect

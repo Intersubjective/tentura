@@ -531,6 +531,37 @@ void main() {
       expect(attention.recorded[1].actorUserId, issuerId);
     });
 
+    test(
+      'consumed child beacon invite, already friends -> IdNotFoundException '
+      '(issue #145 stale invite must not re-admit)',
+      () async {
+        stubGetById(
+          invitation(
+            invited: const UserEntity(id: 'Ujoiner'),
+            beaconId: 'Bchild',
+          ),
+        );
+        when(
+          friendshipLookup.isReciprocalSubscribe(
+            viewerId: 'Ujoiner',
+            peerId: issuerId,
+          ),
+        ).thenAnswer((_) async => true);
+
+        await expectLater(
+          case_.acceptAsExisting(code: 'Iabc', userId: 'Ujoiner'),
+          throwsA(isA<IdNotFoundException>()),
+        );
+        verifyNever(
+          userRepo.bindMutual(
+            invitationId: anyNamed('invitationId'),
+            userId: anyNamed('userId'),
+            bindFriendship: anyNamed('bindFriendship'),
+          ),
+        );
+      },
+    );
+
     test('beacon-only accept does not emit inviteAccepted', () async {
       stubGetById(invitation(beaconId: 'Bbeacon'));
       when(beaconRepo.getBeaconById(beaconId: 'Bbeacon')).thenAnswer(
