@@ -252,6 +252,19 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
       return;
     }
 
+    // A child Request opened from its parent (#154): when the stack cannot
+    // pop (e.g. after close/complete), return to the parent Request detail
+    // instead of dropping to the home tab root list.
+    final lineageParentId = context
+        .read<BeaconViewCubit>()
+        .state
+        .beacon
+        .lineageParentBeaconId;
+    if (lineageParentId != null && lineageParentId.isNotEmpty) {
+      unawaited(router.root.replacePath('$kPathBeaconView/$lineageParentId'));
+      return;
+    }
+
     // In deep-linked direct detail views we still want the back button to go back.
     // However, if we pop, we would pop out of the app.
     // Since we are inside Inbox, let's navigate to Inbox Route instead.
