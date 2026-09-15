@@ -706,6 +706,7 @@ class _BeaconRoomBodyState extends State<BeaconRoomBody> {
       ),
     );
     if (newBody == null || !context.mounted) return;
+    _basicChatKey.currentState?.focusComposer();
     if (newBody.isEmpty) return;
     if (newBody == message.body) return;
     await cubit.editMessage(

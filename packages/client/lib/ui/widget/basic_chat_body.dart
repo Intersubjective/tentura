@@ -213,6 +213,10 @@ class BasicChatBodyState extends State<BasicChatBody> {
   /// Scrolls so the row with [id] is on screen. Off-screen rows may not be
   /// built yet, so we jump `ScrollController` to an estimated offset and
   /// retry across frames (same idea as [_viewportScrollAttempt]).
+  /// Returns keyboard focus to the discussion composer (e.g. after an edit
+  /// sheet closes) so the user can keep typing without clicking.
+  void focusComposer() => _composerKey.currentState?.requestComposerFocus();
+
   Future<bool> scrollToMessage(String id) async {
     for (var pass = 0; pass < _kScrollToMessageMaxPasses; pass++) {
       if (!mounted) {
@@ -1098,12 +1102,26 @@ class _BeaconRoomComposerState extends State<BeaconRoomComposer> {
       _removeOverlay();
       _text.clear();
       setState(_pending.clear);
+      // The field is disabled while sending, which drops its focus; restore
+      // it once re-enabled so type → send → type works without a click.
+      requestComposerFocus();
     } on Object catch (_) {
     } finally {
       if (mounted) {
         setState(() => _submitting = false);
       }
     }
+  }
+
+  /// Requests composer focus after the next frame, once the field is enabled
+  /// again and any closing route has released focus.
+  void requestComposerFocus() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || _composerFocus.hasFocus) {
+        return;
+      }
+      _composerFocus.requestFocus();
+    });
   }
 
   /// Once the composer gains focus on native platforms, ensure the platform
@@ -1357,13 +1375,17 @@ class _BeaconRoomComposerState extends State<BeaconRoomComposer> {
                 ),
               ),
             ),
-            Semantics(
-              identifier: TestIds.roomMessageSend,
-              button: true,
-              child: IconButton(
-                key: TestIds.key(TestIds.roomMessageSend),
-                icon: const Icon(Icons.send_rounded),
-                onPressed: busy ? null : () => unawaited(_submit()),
+            // Part of the field's tap region so tapping Send does not count
+            // as a tap outside the composer (which would unfocus it).
+            TextFieldTapRegion(
+              child: Semantics(
+                identifier: TestIds.roomMessageSend,
+                button: true,
+                child: IconButton(
+                  key: TestIds.key(TestIds.roomMessageSend),
+                  icon: const Icon(Icons.send_rounded),
+                  onPressed: busy ? null : () => unawaited(_submit()),
+                ),
               ),
             ),
           ],
