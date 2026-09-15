@@ -16,7 +16,7 @@ Always:
 - Keep dependency direction inward: domain owns ports and transaction scope; data implements adapters; controllers and UI remain thin.
 - For destructive transitions, prove audience/state capture ordering explicitly. For authorization/privacy work, use the existing canonical guard functions and add negative tests.
 - For migrations, prove forward application, rollback-binary compatibility where promised, trigger/index predicates, idempotence, and actual PostgreSQL behavior.
-- Add failure-injection, concurrency, and integration tests proportional to the risk. Static analysis alone is never acceptance for reliability work.
+- Add failure-injection, concurrency, and integration tests proportional to the risk. Static analysis alone is never acceptance for reliability work. Wrap local `flutter test` / `dart test` with `scripts/run_with_test_cleanup.sh` (AGENTS.md § Verify).
 - Preserve unrelated changes; use apply_patch; never edit generated files directly; do not stage or commit unless explicitly asked.
 - Return an evidence ledger: invariants, files changed, tests and runtime proof, compatibility result, known limitations, and reviewer focus areas.
 

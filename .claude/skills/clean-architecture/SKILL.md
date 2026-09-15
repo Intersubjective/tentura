@@ -71,7 +71,7 @@ repositories.
   register with `env: [Environment.test], order: 1`.
 - Constructor injection preferred; `@FactoryMethod()` for async init.
 - After DI changes: run build_runner; client tests need
-  `flutter test --dart-define=ENV=test`.
+  `flutter test --dart-define=ENV=test` (wrap with `scripts/run_with_test_cleanup.sh`, AGENTS.md § Verify).
 
 ## Canonical examples (read, don't copy)
 
@@ -85,7 +85,8 @@ repositories.
    imports).
 2. `dart analyze` (server) / `flutter analyze --no-fatal-warnings
    --no-fatal-infos` (client) — note: `tentura_lints` custom rules don't fire
-   under CLI analyze; the real gate is `cd packages/tentura_lints && dart test`.
+   under CLI analyze; the real gate is wrapped
+   `cd packages/tentura_lints && ../../scripts/run_with_test_cleanup.sh --timeout 10m -- dart test`.
 3. If you spot codebase patterns consistently diverging from these rules,
    tell the user and suggest updating `architecture.mdc` — don't silently
    fork the convention.

@@ -39,13 +39,30 @@ Orientation and feature specs live under [`docs/`](docs/) — start at [`docs/RE
 
 ## Verify
 
+Local/agent test runs **must** go through `scripts/run_with_test_cleanup.sh`.
+It time-bounds the command, SIGKILLs hung descendants, and deletes
+unreferenced `/tmp/flutter_tools.*` + `/tmp/dart_test.kernel.*` (those live
+on a RAM tmpfs). CI does **not** use it (ephemeral runners). Do not wrap
+`flutter run` or `scripts/run_client_integration_web_local.sh`.
+
 ```bash
-cd packages/tentura_lints && dart test                                   # custom lint rules
-./scripts/check-custom-lints.sh packages/client                          # analyzer + tentura_lints gate
-./scripts/check-custom-lints.sh packages/server
-cd packages/client && flutter test
-cd packages/client && flutter test --update-goldens <path>               # regenerate a golden intentionally
+# sweep leftovers from a killed agent, no new tests
+./scripts/run_with_test_cleanup.sh --sweep-only
+
+cd packages/tentura_lints && ../../scripts/run_with_test_cleanup.sh --timeout 10m -- dart test
+./scripts/run_with_test_cleanup.sh --timeout 10m -- ./scripts/check-custom-lints.sh packages/client
+./scripts/run_with_test_cleanup.sh --timeout 10m -- ./scripts/check-custom-lints.sh packages/server
+cd packages/client && ../../scripts/run_with_test_cleanup.sh --timeout 45m -- \
+  flutter test --dart-define=ENV=test --dart-define-from-file=env/test.env
+cd packages/client && ../../scripts/run_with_test_cleanup.sh --timeout 20m -- \
+  flutter test --update-goldens <path>   # regenerate a golden intentionally
+cd packages/server && ../../scripts/run_with_test_cleanup.sh --timeout 20m -- \
+  dart test --exclude-tags pg
 ```
+
+Never start a bare `flutter test` / `dart test` / `dart analyze` in the
+background. Default suite timeout is 45m (`--timeout`); override shorter
+for a single file. Wrapper self-check: `bash scripts/run_with_test_cleanup_selftest.sh`.
 
 > Do **not** use `flutter analyze` to check `tentura_lints` rules — it does not load analyzer
 > plugins and always reports them clean. Nor `dart analyze <subdir>`: plugin diagnostics only

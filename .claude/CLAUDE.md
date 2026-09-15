@@ -16,6 +16,14 @@ Client UI must go through the Material 3 design system — invoke the `material-
 
 **Terminology:** users see **Request** / **Chat**; code paths stay `beacon_view`, `beacon_room`, etc. See [`.cursor/rules/terminology.mdc`](../.cursor/rules/terminology.mdc).
 
+## Local tests
+
+Wrap every `flutter test` / `dart test` / `check-custom-lints.sh` with
+[`scripts/run_with_test_cleanup.sh`](../scripts/run_with_test_cleanup.sh).
+Bare test processes survive Claude Code SIGKILL and leave RAM-backed
+`/tmp/flutter_tools.*` tails. Copy-paste commands: `AGENTS.md` § Verify.
+Do not wrap `flutter run`. CI stays unwrapped.
+
 ## Claude-specific tooling
 
 - **Serena MCP:** call `activate_project` with `tentura` if no project is active; use `list_memories` / `read_memory` / `write_memory` for durable cross-session notes.

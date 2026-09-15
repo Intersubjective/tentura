@@ -1,0 +1,20 @@
+---
+description: Local tests must use run_with_test_cleanup.sh so hung testers and tmpfs tails cannot outlive the agent
+alwaysApply: true
+---
+
+# Local test cleanup
+
+Do **not** invoke bare `flutter test`, `dart test`, or `dart analyze` in this repo from a Cursor agent. Wrap them:
+
+```bash
+./scripts/run_with_test_cleanup.sh --timeout 45m -- <command>
+```
+
+From a package dir: `../../scripts/run_with_test_cleanup.sh --timeout 10m -- dart test`.
+
+After a killed session, or before a large suite: `./scripts/run_with_test_cleanup.sh --sweep-only`.
+
+Do **not** wrap `flutter run` or `scripts/run_client_integration_web_local.sh`. Do **not** add this wrapper to CI.
+
+Canonical commands: `AGENTS.md` § Verify. Why: hung `flutter_tester` / `frontend_server` and leftover `/tmp/flutter_tools.*` on the RAM tmpfs survive SIGKILL'd agent shells.

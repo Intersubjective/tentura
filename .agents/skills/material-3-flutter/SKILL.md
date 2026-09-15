@@ -94,8 +94,9 @@ Design-system files and the package's own `test/` tree are exempt.
 
 1. `cd packages/client && flutter analyze --no-fatal-warnings --no-fatal-infos`
    — no new violations in files you touched.
-2. `cd packages/client && flutter test` — green.
+2. Wrap client tests (never bare `flutter test`):
+   `cd packages/client && ../../scripts/run_with_test_cleanup.sh --timeout 45m -- flutter test` — green.
 3. For a new/changed **reusable** component, add or update a golden/widget test
    (pattern: `test/features/inbox/inbox_item_tile_golden_test.dart`). Regenerate
-   intentionally with `flutter test --update-goldens <path>` and eyeball the PNG.
-4. If you added a token or lint, run `cd packages/tentura_lints && dart test`.
+   intentionally with `../../scripts/run_with_test_cleanup.sh --timeout 20m -- flutter test --update-goldens <path>` and eyeball the PNG.
+4. If you added a token or lint, wrap `cd packages/tentura_lints && ../../scripts/run_with_test_cleanup.sh --timeout 10m -- dart test`.
