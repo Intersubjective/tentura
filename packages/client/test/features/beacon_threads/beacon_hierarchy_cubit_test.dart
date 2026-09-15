@@ -108,6 +108,7 @@ void main() {
       expect(cubit.state.canCreateChild, isTrue);
       expect(cubit.state.active.items, isEmpty);
       expect(cubit.state.finished.items, isEmpty);
+      expect(cubit.state.deleted.items, isEmpty);
     });
 
     test('active group error does not clear finished group', () async {
@@ -159,7 +160,7 @@ void main() {
       expect(cubit.state.active.hasMore, isFalse);
     });
 
-    test('deleted tombstones are listed when expanded', () async {
+    test('deleted tombstones are loaded with other groups', () async {
       final port = FakeBeaconHierarchyRepositoryPort(
         childrenByGroup: {
           BeaconHierarchyChildGroup.deleted: BeaconHierarchyPage(
@@ -171,13 +172,11 @@ void main() {
       addTearDown(cubit.close);
 
       await cubit.load();
-      expect(cubit.state.deleted.items, isEmpty);
+      expect(cubit.state.deleted.items.single.isTombstone, isTrue);
+      expect(cubit.state.deleted.expanded, isFalse);
 
       cubit.setDeletedExpanded(true);
-      await Future<void>.delayed(const Duration(milliseconds: 20));
-
       expect(cubit.state.deleted.expanded, isTrue);
-      expect(cubit.state.deleted.items.single.isTombstone, isTrue);
     });
 
     test('parent reference states', () async {

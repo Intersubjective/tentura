@@ -132,6 +132,7 @@ void main() {
     final l10n = await L10n.delegate.load(const Locale('en'));
     expect(find.text(l10n.beaconChildRequestsEmpty), findsOneWidget);
     expect(find.text(l10n.beaconCreateChildRequest), findsOneWidget);
+    expect(find.text(l10n.beaconChildRequestsDeletedTitle), findsNothing);
   });
 
   testWidgets('terminal parent hides create action but lists children', (
@@ -169,6 +170,38 @@ void main() {
     final l10n = await L10n.delegate.load(const Locale('en'));
     expect(find.text(l10n.beaconCreateChildRequest), findsNothing);
     expect(find.text('Still readable'), findsOneWidget);
+    expect(find.text(l10n.beaconChildRequestsDeletedTitle), findsNothing);
+  });
+
+  testWidgets('deleted fold is shown only when tombstones exist', (
+    tester,
+  ) async {
+    final cubit = BeaconHierarchyCubit(
+      beaconId: 'parent-1',
+      hierarchyCase: _hierarchyCase(
+        FakeBeaconHierarchyRepositoryPort(
+          childrenByGroup: {
+            BeaconHierarchyChildGroup.deleted: BeaconHierarchyPage(
+              summaries: [_summary(id: 'gone', tombstone: true)],
+            ),
+          },
+        ),
+      ),
+    );
+    addTearDown(cubit.close);
+
+    await tester.pumpWidget(
+      _wrap(
+        hierarchyCubit: cubit,
+        child: BeaconChildRequestsSection(beaconState: _beaconState()),
+      ),
+    );
+    await cubit.load();
+    await tester.pumpAndSettle();
+
+    final l10n = await L10n.delegate.load(const Locale('en'));
+    expect(find.text(l10n.beaconChildRequestsDeletedTitle), findsOneWidget);
+    expect(find.text(l10n.beaconDeletedChild), findsNothing);
   });
 
   testWidgets('deleted tombstone card is not tappable', (tester) async {

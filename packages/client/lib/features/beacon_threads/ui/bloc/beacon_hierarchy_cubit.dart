@@ -128,6 +128,12 @@ class BeaconHierarchyCubit extends Cubit<BeaconHierarchyState> {
         generation: generation,
         reset: true,
       );
+      if (generation != _loadGeneration || isClosed) return;
+      await _loadGroup(
+        BeaconHierarchyChildGroup.deleted,
+        generation: generation,
+        reset: true,
+      );
     } on Object catch (e) {
       if (generation != _loadGeneration || isClosed) return;
       emit(
@@ -255,6 +261,13 @@ class BeaconHierarchyCubit extends Cubit<BeaconHierarchyState> {
       if (generation != _loadGeneration || isClosed) return;
       await _loadGroup(
         BeaconHierarchyChildGroup.finished,
+        generation: generation,
+        reset: true,
+        silent: true,
+      );
+      if (generation != _loadGeneration || isClosed) return;
+      await _loadGroup(
+        BeaconHierarchyChildGroup.deleted,
         generation: generation,
         reset: true,
         silent: true,

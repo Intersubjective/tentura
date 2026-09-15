@@ -55,6 +55,7 @@ class BeaconChildRequestsSection extends StatelessWidget {
         final allEmpty =
             !hierarchyState.active.loading &&
             !hierarchyState.finished.loading &&
+            !hierarchyState.deleted.loading &&
             !hasAnyChild;
 
         return Column(
@@ -210,6 +211,10 @@ class _DeletedChildGroupSection extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (slice.items.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
     final l10n = L10n.of(context)!;
     final tt = context.tt;
     final cubit = context.read<BeaconHierarchyCubit>();
@@ -228,31 +233,17 @@ class _DeletedChildGroupSection extends StatelessWidget {
           ),
           leading: const Icon(Icons.delete_outline),
           children: [
-            if (slice.loading && slice.items.isEmpty)
+            for (final summary in slice.items)
               Padding(
-                padding: EdgeInsets.symmetric(vertical: tt.tightGap),
-                child: const Center(
-                  child: CircularProgressIndicator.adaptive(),
-                ),
-              )
-            else if (slice.error != null && slice.items.isEmpty)
-              _GroupErrorRow(
-                onRetry: () => cubit.refreshGroup(
-                  BeaconHierarchyChildGroup.deleted,
-                ),
-              )
-            else
-              for (final summary in slice.items)
-                Padding(
-                  padding: EdgeInsets.only(bottom: tt.cardGap),
-                  child: BeaconChildRequestCard(
-                    key: TestIds.key(
-                      TestIds.childRequestCard(summary.beaconId),
-                    ),
-                    summary: summary,
+                padding: EdgeInsets.only(bottom: tt.cardGap),
+                child: BeaconChildRequestCard(
+                  key: TestIds.key(
+                    TestIds.childRequestCard(summary.beaconId),
                   ),
+                  summary: summary,
                 ),
-            if (slice.error != null && slice.items.isNotEmpty)
+              ),
+            if (slice.error != null)
               _GroupErrorRow(
                 onRetry: () => cubit.refreshGroup(
                   BeaconHierarchyChildGroup.deleted,
