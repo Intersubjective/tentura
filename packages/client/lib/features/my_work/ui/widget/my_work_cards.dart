@@ -253,7 +253,7 @@ void _openBeaconReviewHelpOffers(
   _openBeaconOrSelect(
     context,
     vm,
-    viewTab: 'help_offers',
+    viewTab: kBeaconViewTabHelpOffers,
     peopleTabAttention: '1',
   );
 }

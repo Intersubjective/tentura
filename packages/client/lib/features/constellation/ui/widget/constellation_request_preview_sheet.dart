@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 
+import 'package:tentura/consts.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/features/beacon/ui/widget/coordination_ui.dart';
 import 'package:tentura/features/constellation/domain/entity/constellation_field.dart';
@@ -31,6 +32,10 @@ String constellationPreviewPrimaryActionLabel(
     },
   };
 }
+
+/// People tab when the viewer already holds an offer (edit on the card).
+String? constellationHeldOpenViewTab(ConstellationHeldState held) =>
+    held == ConstellationHeldState.offered ? kBeaconViewTabPeople : null;
 
 /// Whether [Forward] is shown as a permitted secondary action.
 bool constellationPreviewShowsForward(ConstellationRequest request) {

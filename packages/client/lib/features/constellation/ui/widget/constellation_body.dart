@@ -212,8 +212,14 @@ class _ConstellationBodyState extends State<ConstellationBody> {
     cubit.selectRequest(null);
   }
 
-  void _openBeacon(BuildContext context, String beaconId) {
-    unawaited(context.router.push(BeaconViewRoute(id: beaconId)));
+  void _openBeacon(
+    BuildContext context,
+    String beaconId, {
+    String? viewTab,
+  }) {
+    unawaited(
+      context.router.push(BeaconViewRoute(id: beaconId, viewTab: viewTab)),
+    );
   }
 
   VoidCallback _primaryActionForRequest(
@@ -224,8 +230,12 @@ class _ConstellationBodyState extends State<ConstellationBody> {
     return switch (request.heldState) {
       ConstellationHeldState.mine ||
       ConstellationHeldState.participant ||
-      ConstellationHeldState.forwarded ||
-      ConstellationHeldState.offered => () => _openBeacon(context, request.id),
+      ConstellationHeldState.forwarded => () => _openBeacon(context, request.id),
+      ConstellationHeldState.offered => () => _openBeacon(
+        context,
+        request.id,
+        viewTab: constellationHeldOpenViewTab(request.heldState),
+      ),
       ConstellationHeldState.none => () {
         Navigator.of(context).pop();
         unawaited(

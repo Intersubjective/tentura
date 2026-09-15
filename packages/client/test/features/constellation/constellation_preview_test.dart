@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 
+import 'package:tentura/consts.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:logging/logging.dart';
 import 'package:tentura/domain/entity/profile.dart';
@@ -211,6 +212,15 @@ void main() {
         );
       }
     }
+  });
+
+  test('Edit help offer from constellation opens People tab', () {
+    expect(
+      constellationHeldOpenViewTab(ConstellationHeldState.offered),
+      kBeaconViewTabPeople,
+    );
+    expect(constellationHeldOpenViewTab(ConstellationHeldState.none), isNull);
+    expect(constellationHeldOpenViewTab(ConstellationHeldState.mine), isNull);
   });
 
   group('CTA dedup', () {

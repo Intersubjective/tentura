@@ -15,6 +15,7 @@ import 'package:tentura/features/forward/domain/entity/forward_edge.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/test_ids.dart';
 
 class _MockProfileCubit extends Mock implements ProfileCubit {
   @override
@@ -442,5 +443,42 @@ void main() {
     expect(directTop, lessThan(laterTop));
 
     await tester.binding.setSurfaceSize(null);
+  });
+
+  testWidgets('own offer edit sheet starts with previous text (#147)', (
+    tester,
+  ) async {
+    const helper = Profile(id: 'h1', displayName: 'Helper');
+    const firstText = 'I can help Monday morning';
+    _state = _peopleState(
+      helpOffers: [
+        TimelineHelpOffer(
+          user: helper,
+          message: firstText,
+          createdAt: _t,
+          updatedAt: _t,
+        ),
+      ],
+    ).copyWith(myProfile: helper);
+    final cubit = _MockBeaconViewCubit();
+
+    await tester.pumpWidget(
+      _wrapPeople(
+        BeaconPeopleTabBody(
+          state: _state,
+          beaconViewCubit: cubit,
+          l10n: lookupL10n(const Locale('en')),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('edit'));
+    await tester.pumpAndSettle();
+
+    final field = tester.widget<TextField>(
+      find.byKey(TestIds.key(TestIds.helpOfferMessage)),
+    );
+    expect(field.controller?.text, firstText);
   });
 }

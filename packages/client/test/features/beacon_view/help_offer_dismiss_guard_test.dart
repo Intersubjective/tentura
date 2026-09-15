@@ -98,4 +98,34 @@ void main() {
 
     expect(find.byType(HelpOfferMessageDialog), findsNothing);
   });
+
+  testWidgets('edit dialog starts with previous offer text', (tester) async {
+    await tester.pumpWidget(
+      MaterialApp(
+        locale: const Locale('en'),
+        localizationsDelegates: L10n.localizationsDelegates,
+        supportedLocales: L10n.supportedLocales,
+        theme: TenturaTheme.light(),
+        home: Scaffold(
+          body: Builder(
+            builder: (context) => TextButton(
+              onPressed: () => HelpOfferMessageDialog.show(
+                context,
+                title: 'Update your offer',
+                hintText: 'Your message',
+                initialText: 'I can help Monday morning',
+              ),
+              child: const Text('open'),
+            ),
+          ),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('open'));
+    await tester.pumpAndSettle();
+
+    final field = tester.widget<TextField>(find.byType(TextField).first);
+    expect(field.controller?.text, 'I can help Monday morning');
+  });
 }

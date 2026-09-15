@@ -104,13 +104,19 @@ const kQueryBeaconViewTab = 'tab';
 /// [kQueryBeaconViewTab] value — open the NOW surface.
 const kBeaconViewTabNow = 'now';
 
+/// [kQueryBeaconViewTab] value — open the People surface.
+const kBeaconViewTabPeople = 'people';
+
+/// Legacy People-tab alias used by My Work “review offers” deep links.
+const kBeaconViewTabHelpOffers = 'help_offers';
+
 /// [kQueryBeaconViewTab] value — open the Chat surface (expanded split selection).
 const kBeaconViewTabThreads = 'threads';
 
 /// Expanded split / deep-link thread selection (`general` or item id).
 const kQueryThreadId = 'thread';
 
-/// When truthy with [kQueryBeaconViewTab]=`help_offers`, pulse/highlight the People tab until interaction.
+/// When truthy with [kQueryBeaconViewTab]=`people` or `help_offers`, pulse/highlight the People tab until interaction.
 const kQueryBeaconPeopleTabAttention = 'people_tab_attention';
 
 /// Exact directed Chat message to hydrate and scroll to from an Updates receipt.

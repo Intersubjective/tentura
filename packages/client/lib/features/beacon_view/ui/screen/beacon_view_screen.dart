@@ -40,27 +40,6 @@ bool _beaconPeopleTabAttentionQueryTruthy(String? v) {
   return s == '1' || s == 'true' || s == 'yes';
 }
 
-/// Query [kQueryBeaconViewTab] → [BeaconSurface].
-BeaconSurface _beaconViewSurface(String? viewTab) {
-  switch (viewTab) {
-    case kBeaconViewTabNow:
-      return BeaconSurface.now;
-    case 'people':
-      return BeaconSurface.people;
-    case 'log':
-      return BeaconSurface.now;
-    case kBeaconViewTabThreads:
-      return BeaconSurface.room;
-    default:
-      return BeaconSurface.now;
-  }
-}
-
-String _beaconSurfaceViewTab(BeaconSurface surface) => switch (surface) {
-  BeaconSurface.now => kBeaconViewTabNow,
-  BeaconSurface.room => kBeaconViewTabThreads,
-  BeaconSurface.people => 'people',
-};
 
 /// Expanded thread split when the list has rows — not gated on room navigation.
 bool beaconViewUsesExpandedThreadSplit({
@@ -377,7 +356,7 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
   }) {
     return context.router.replacePath(
       _beaconViewPath(
-        viewTab: _beaconSurfaceViewTab(surface),
+        viewTab: beaconSurfaceViewTab(surface),
         threadId: threadId,
       ),
     );
@@ -571,7 +550,7 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
   @override
   void initState() {
     super.initState();
-    _selectedSurface = _beaconViewSurface(widget.viewTab);
+    _selectedSurface = beaconViewSurfaceForTab(widget.viewTab);
     _peopleTabAttentionActive =
         _beaconPeopleTabAttentionQueryTruthy(widget.peopleTabAttention) &&
         _selectedSurface == BeaconSurface.people;
@@ -599,7 +578,7 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
       _didOpenActivitySheetForLogTab = false;
     }
     if (oldWidget.viewTab != widget.viewTab) {
-      _selectedSurface = _beaconViewSurface(widget.viewTab);
+      _selectedSurface = beaconViewSurfaceForTab(widget.viewTab);
       if (widget.viewTab == 'log') {
         _maybeOpenActivitySheetForLogTab();
       }
