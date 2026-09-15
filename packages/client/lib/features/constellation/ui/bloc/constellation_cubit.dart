@@ -598,6 +598,8 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
     );
     _placementHandoffGraphId = constellationGraphNodeIdForTarget(target);
     _draggingNodeId = null;
+    // The pointer drag has ended; the write may still be pending or fail.
+    graphController.setCameraInteractionGated(false);
     emit(
       state.copyWith(
         placementPhase: ConstellationPlacementPhase.idle,

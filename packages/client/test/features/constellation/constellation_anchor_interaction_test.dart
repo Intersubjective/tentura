@@ -268,6 +268,67 @@ Offset _requireNodeCentre(ConstellationCubit cubit, String id) {
 }
 
 void main() {
+  for (final isNew in [false, true]) {
+    for (final fails in [false, true]) {
+      testWidgets(
+        '${isNew ? "new" : "existing"} drop restores camera before '
+        '${fails ? "failed" : "successful"} write',
+        (tester) async {
+          final harness = await _harness();
+          addTearDown(harness.cubit.close);
+          addTearDown(() => tester.binding.setSurfaceSize(null));
+          await _pumpShell(tester, harness.cubit);
+          final cubit = harness.cubit;
+          final target = isNew
+              ? ConstellationAnchorTarget.beacon('req-1')
+              : ConstellationAnchorTarget.person('p1');
+          final hold = Completer<void>();
+          harness.anchorRepo.upsertHold = hold;
+          if (fails) harness.anchorRepo.upsertError = StateError('failed');
+
+          if (isNew) {
+            cubit.beginDragNew(target: target);
+          } else {
+            cubit.beginDragExisting(target: target);
+          }
+          await tester.pump();
+          await tester.pump();
+          expect(cubit.graphController.isCameraGated, isTrue);
+          InteractiveViewer viewer() => tester.widget<InteractiveViewer>(
+            find.byType(InteractiveViewer),
+          );
+          expect(viewer().panEnabled, isFalse);
+          expect(viewer().scaleEnabled, isFalse);
+
+          const drop = Offset(2100, 2100);
+          final pending = isNew
+              ? cubit.onNewNodeDrop(target: target, sceneCentre: drop)
+              : cubit.onExistingNodeDrop(target: target, sceneCentre: drop);
+          await tester.pump();
+          await tester.pump();
+          expect(harness.anchorRepo.upsertCount, 1);
+          expect(cubit.state.placementPhase, ConstellationPlacementPhase.idle);
+          expect(cubit.graphController.isCameraGated, isFalse);
+          expect(viewer().panEnabled, isTrue);
+          expect(viewer().scaleEnabled, isTrue);
+
+          hold.complete();
+          await pending;
+          await tester.pump();
+          await tester.pump(const Duration(milliseconds: 400));
+          expect(cubit.graphController.isCameraGated, isFalse);
+          expect(viewer().panEnabled, isTrue);
+          expect(viewer().scaleEnabled, isTrue);
+          expect(cubit.isAnchored(target), !fails);
+          expect(
+            cubit.state.placementFailureMessage,
+            fails ? isNotNull : isNull,
+          );
+        },
+      );
+    }
+  }
+
   group('Constellation anchor interaction', () {
     testWidgets('first drop pins immediately without Pin here bar', (
       tester,
