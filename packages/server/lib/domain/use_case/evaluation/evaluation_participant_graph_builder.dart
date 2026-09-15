@@ -104,6 +104,8 @@ final class EvaluationParticipantGraphBuilder {
       });
 
     for (final userId in sortedEverAck) {
+      // The author already has a canonical participant row, even if committed.
+      if (userId == authorId) continue;
       final offer = offerByUser[userId];
       if (offer == null) continue;
 

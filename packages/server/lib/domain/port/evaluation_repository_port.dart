@@ -33,6 +33,8 @@ abstract class EvaluationRepositoryPort {
 
   Future<BeaconReviewWindowRecord?> getReviewWindow(String beaconId);
 
+  /// Inserts or refreshes the participant keyed by (beaconId, userId).
+  /// Repeated calls update the role, contribution summary, and causal hint.
   Future<void> insertParticipant({
     required String beaconId,
     required String userId,

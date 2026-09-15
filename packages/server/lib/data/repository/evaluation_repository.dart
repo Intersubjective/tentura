@@ -61,7 +61,7 @@ class EvaluationRepository implements EvaluationRepositoryPort {
     required String causalHint,
   }) => _db
       .into(_db.beaconEvaluationParticipants)
-      .insert(
+      .insertOnConflictUpdate(
         BeaconEvaluationParticipantsCompanion.insert(
           beaconId: beaconId,
           userId: userId,

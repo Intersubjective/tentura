@@ -510,6 +510,49 @@ class _FakeEvaluationRepository implements EvaluationRepositoryPort {
   }
 }
 
+String _participantRowKey(String beaconId, String userId) =>
+    '$beaconId|$userId';
+
+/// Models the participant port upsert while retaining orphan rows for issue #143.
+final class _ParticipantPkeyEnforcingEvaluationRepository
+    extends _FakeEvaluationRepository {
+  final _insertedKeys = <String>{};
+
+  /// Orphan rows left in DB when scaffolding delete does not clear participants.
+  final orphanParticipantKeys = <String>{};
+
+  final insertParticipantCalls = <
+    ({String beaconId, String userId})
+  >[];
+
+  void seedOrphanParticipant({
+    required String beaconId,
+    required String userId,
+  }) {
+    orphanParticipantKeys.add(_participantRowKey(beaconId, userId));
+  }
+
+  @override
+  Future<void> deleteReviewScaffoldingForBeacon(String beaconId) async {
+    await super.deleteReviewScaffoldingForBeacon(beaconId);
+    _insertedKeys.removeWhere((key) => key.startsWith('$beaconId|'));
+  }
+
+  @override
+  Future<void> insertParticipant({
+    required String beaconId,
+    required String userId,
+    required int role,
+    required String contributionSummary,
+    required String causalHint,
+  }) async {
+    insertParticipantCalls.add((beaconId: beaconId, userId: userId));
+    final key = _participantRowKey(beaconId, userId);
+    orphanParticipantKeys.remove(key);
+    _insertedKeys.add(key);
+  }
+}
+
 class _FakeReviewFinalization implements ReviewFinalizationPort {
   final closeAndFinalizeCalls =
       <
@@ -3665,6 +3708,137 @@ void main() {
       );
       expect(localReviewFinalization.closeAndFinalizeCalls, hasLength(1));
     });
+  });
+
+  group('beaconClose participant row idempotency (issue #143)', () {
+    late _TransactionStubBeaconRepo beaconRepo;
+
+    EvaluationCase buildReviewOpenCloseCase({
+      required EvaluationRepositoryPort evalRepo,
+      required HelpOfferRepositoryPort helpOfferRepo,
+      required CommitmentRepositoryPort commitmentRepo,
+    }) {
+      beaconRepo = _TransactionStubBeaconRepo(
+        BeaconEntity(
+          id: beaconId,
+          title: 't',
+          author: UserEntity(id: userId),
+          createdAt: DateTime.timestamp(),
+          updatedAt: DateTime.timestamp(),
+          status: BeaconStatus.open,
+        ),
+      );
+      final forwardRepo = EmptyGraphForwardEdgeRepository();
+      final graphBuilder = EvaluationParticipantGraphBuilder(
+        commitmentRepo,
+        helpOfferRepo,
+        forwardRepo,
+        StubUserRepository('User'),
+      );
+      return buildTestEvaluationCase(
+        beaconRepo: beaconRepo,
+        forwardRepo: forwardRepo,
+        evalRepo: evalRepo,
+        userProfileBatchLookup: StubUserProfileBatchLookup('User'),
+        graphBuilder: graphBuilder,
+        attention: attention,
+        expirySweep: expirySweep,
+        commitmentRepo: commitmentRepo,
+        helpOfferRepo: helpOfferRepo,
+      );
+    }
+
+    test(
+      'closes into review when orphan participant row already exists',
+      () async {
+        final now = DateTime.utc(2025);
+        final evalRepo = _ParticipantPkeyEnforcingEvaluationRepository()
+          ..seedOrphanParticipant(beaconId: beaconId, userId: 'helper1');
+        final helpOfferRepo = _SingleCommitterHelpOfferRepo(
+          HelpOfferEntity(
+            beaconId: beaconId,
+            userId: 'helper1',
+            createdAt: now,
+            updatedAt: now,
+          ),
+        );
+        final commitmentRepo = acknowledgedCommitterCommitmentRepo(
+          beaconId: beaconId,
+          helperId: 'helper1',
+          authorId: userId,
+          baseTime: now,
+        );
+        final localCase = buildReviewOpenCloseCase(
+          evalRepo: evalRepo,
+          helpOfferRepo: helpOfferRepo,
+          commitmentRepo: commitmentRepo,
+        );
+
+        final result = await localCase.beaconClose(
+          beaconId: beaconId,
+          userId: userId,
+          expectedRequiresReviewWindow: true,
+        );
+
+        expect(result.status, BeaconStatus.reviewOpen.smallintValue);
+        expect(result.closesAt, isNotNull);
+        expect(
+          beaconRepo.statusTransitions.last.toStatus,
+          BeaconStatus.reviewOpen,
+        );
+        expect(evalRepo.deleteScaffoldingCalls, 1);
+        expect(evalRepo.insertReviewWindowCalls, 1);
+        expect(
+          evalRepo.insertParticipantCalls
+              .where((call) => call.userId == 'helper1')
+              .length,
+          1,
+        );
+      },
+    );
+
+    test(
+      'inserts each participant user at most once when author is also committer',
+      () async {
+        final now = DateTime.utc(2025);
+        final evalRepo = _ParticipantPkeyEnforcingEvaluationRepository();
+        final helpOfferRepo = _SingleCommitterHelpOfferRepo(
+          HelpOfferEntity(
+            beaconId: beaconId,
+            userId: userId,
+            createdAt: now,
+            updatedAt: now,
+          ),
+        );
+        final commitmentRepo = acknowledgedCommitterCommitmentRepo(
+          beaconId: beaconId,
+          helperId: userId,
+          authorId: userId,
+          baseTime: now,
+        );
+        final localCase = buildReviewOpenCloseCase(
+          evalRepo: evalRepo,
+          helpOfferRepo: helpOfferRepo,
+          commitmentRepo: commitmentRepo,
+        );
+
+        final result = await localCase.beaconClose(
+          beaconId: beaconId,
+          userId: userId,
+          expectedRequiresReviewWindow: true,
+        );
+
+        expect(result.status, BeaconStatus.reviewOpen.smallintValue);
+        expect(evalRepo.insertReviewWindowCalls, 1);
+        expect(
+          evalRepo.insertParticipantCalls
+              .where((call) => call.userId == userId)
+              .length,
+          1,
+          reason: 'beaconClose must not insert the same user twice',
+        );
+      },
+    );
   });
 }
 
