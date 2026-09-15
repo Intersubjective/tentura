@@ -227,7 +227,9 @@ class _BeaconCreateScreenState extends State<BeaconCreateScreen> {
     await BeaconSendConfirmationDialog.show(context, outcome: outcome);
     if (!mounted) return;
     if (!outcome.failed) {
-      await context.router.maybePop();
+      final id = _beaconCreateCubit.state.draftId;
+      if (id == null || id.isEmpty) return;
+      await popCreateAndOpenLiveBeacon(context.router, beaconId: id);
     }
   }
 

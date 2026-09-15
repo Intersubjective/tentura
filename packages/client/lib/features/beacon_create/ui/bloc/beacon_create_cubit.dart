@@ -921,6 +921,7 @@ class BeaconCreateCubit extends Cubit<BeaconCreateState> {
 
         await saveDraft(context: context, showMessage: false);
         await _case.publishDraft(draftId);
+        emit(state.copyWith(isLive: true));
       }
 
       await forwardCubit.forward();
