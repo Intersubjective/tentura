@@ -6,7 +6,14 @@ import '../tentura_tokens.dart';
 
 enum TenturaTopBarTone { primary, surface }
 
-enum TenturaTopBarAlignment { content, fullWidth }
+enum TenturaTopBarAlignment {
+  content,
+  fullWidth,
+
+  /// No horizontal screen padding: a custom [TenturaTopBar.row] owns its
+  /// insets so split headers can share the body's pane edges.
+  edgeToEdge,
+}
 
 class TenturaTopBar extends StatelessWidget implements PreferredSizeWidget {
   factory TenturaTopBar.of(
@@ -249,6 +256,9 @@ class TenturaTopBar extends StatelessWidget implements PreferredSizeWidget {
   }
 
   Widget _aligned(Widget child) {
+    if (alignment == TenturaTopBarAlignment.edgeToEdge) {
+      return child;
+    }
     var current = child;
     if (alignment == TenturaTopBarAlignment.content &&
         contentMaxWidth != null) {

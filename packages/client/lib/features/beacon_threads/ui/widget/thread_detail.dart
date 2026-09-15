@@ -149,33 +149,45 @@ class ThreadDetailAppBarTitle extends StatelessWidget {
   const ThreadDetailAppBarTitle({
     required this.title,
     required this.subtitle,
+    this.trailing,
+    this.padding = EdgeInsetsDirectional.zero,
     super.key,
   });
 
   final String title;
   final Widget subtitle;
 
+  /// Pane-level actions (e.g. the split header ⋮) kept inside the title so
+  /// the discussion header spans exactly the discussion pane.
+  final Widget? trailing;
+
+  final EdgeInsetsGeometry padding;
+
   @override
   Widget build(BuildContext context) {
     final scheme = Theme.of(context).colorScheme;
-    return Row(
-      children: [
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Text(
-                title,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TenturaText.titleSmall(scheme.onSurface),
-              ),
-              subtitle,
-            ],
+    return Padding(
+      padding: padding,
+      child: Row(
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TenturaText.titleSmall(scheme.onSurface),
+                ),
+                subtitle,
+              ],
+            ),
           ),
-        ),
-      ],
+          ?trailing,
+        ],
+      ),
     );
   }
 }
@@ -188,6 +200,8 @@ class ThreadDetailGeneralTitle extends StatelessWidget {
     required this.involvedProfiles,
     required this.currentUserId,
     this.onFacePileTap,
+    this.trailing,
+    this.padding = EdgeInsetsDirectional.zero,
     super.key,
   });
 
@@ -196,6 +210,8 @@ class ThreadDetailGeneralTitle extends StatelessWidget {
   final List<Profile> involvedProfiles;
   final String currentUserId;
   final VoidCallback? onFacePileTap;
+  final Widget? trailing;
+  final EdgeInsetsGeometry padding;
 
   @override
   Widget build(BuildContext context) {
@@ -218,6 +234,8 @@ class ThreadDetailGeneralTitle extends StatelessWidget {
     return ThreadDetailAppBarTitle(
       title: title,
       subtitle: pile,
+      trailing: trailing,
+      padding: padding,
     );
   }
 }
