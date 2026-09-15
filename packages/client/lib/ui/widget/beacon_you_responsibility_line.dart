@@ -132,15 +132,17 @@ class BeaconYouResponsibilityLine extends StatelessWidget {
     BuildContext context,
     L10n l10n,
   ) {
+    final cue = openBlocker;
+    if (cue == null) return null;
+
     if (!shouldShowBlockedYouSegment(
       phaseResult: phaseResult,
-      openBlocker: openBlocker,
+      openBlocker: cue,
       viewerUserId: viewerUserId,
       responsibility: responsibility,
     )) {
       return null;
     }
-    final cue = openBlocker!;
     final raiser = cue.raiser;
     final name = raiser?.shownName ?? '';
     final elapsed = formatCompactDurationRemaining(

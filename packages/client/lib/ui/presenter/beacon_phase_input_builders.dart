@@ -142,6 +142,9 @@ bool blockerOpenTargetsViewer({
   required OpenBlockerCue? openBlocker,
   required String viewerUserId,
 }) {
+  // Responsibility counts can outlive the blocker cue after review submission.
+  if (openBlocker == null) return false;
+
   if (responsibility != null && responsibility.blockerOpen > 0) {
     return true;
   }
