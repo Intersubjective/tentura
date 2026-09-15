@@ -64,7 +64,7 @@
 | Status | Task |
 |---|---|
 | done | **T00** preflight (this unit) |
-| pending | **T01** beaconChildren auth |
+| done (`335402368`) | **T01** beaconChildren auth |
 | pending | **T02** parent reference auth |
 | pending | **T03** close involvement leaks |
 | pending | **T04** client copy + no involvement fetch |
@@ -178,3 +178,94 @@ Recorded because the combined run flaked; serial runs establish whether suites a
 - **Deviations:** Combined `-t pg` three-file run hit migration `RaceCondition` once; per-file serial baselines all pass
 - **Commit:** (not created in scout pass — implementer commit: `docs: start issue-146 implementation journal`)
 - **Next:** **T01**
+
+---
+
+## T01 — Scout (read-only)
+
+- **UNIT_BASE:** `d0e34d442a36de8b8903ba5e6439fe3acdbd1c17` (matches `HEAD` at scout time)
+- **Task:** T01 — `beaconChildren` / `listChildren` parent gate + per-child SQL filter
+
+### Live code vs plan assumptions
+
+| Topic | Plan | Live @ UNIT_BASE |
+|---|---|---|
+| `listChildren` uses `viewerId` | Must gate on viewer | Param exists; **never referenced** in method body (bug confirmed) |
+| GraphQL `beaconChildren` | Implied server gate | `query_beacon_hierarchy.dart` passes `getCredentials(args).sub` into `listChildren` — fix belongs in repository only |
+| Empty unauthorized page | `const BeaconHierarchyPage(summaries: [])` | Entity at `R/domain/entity/beacon_hierarchy_page.dart` — `summaries` required, `nextCursor` optional (default null) ✓ |
+| SQL predicates | `beacon_can_read_linked_detail`, `block_hides`, `beacon_effective_admission` | All defined in migrations **`m0155`** (`beacon_can_read_linked_detail`, `beacon_effective_admission`) and **`m0135`** (`block_hides`); used elsewhere (e.g. `BeaconAccessRepository._callPredicate`) ✓ |
+| Test file | `beacon_hierarchy_repository_pg_test.dart` or new `beacon_children_authorization_pg_test.dart` | **`beacon_hierarchy_repository_pg_test.dart` exists** with pagination/group tests using `aliceId`/`bobId` only (no auth regression tests yet). **`beacon_hierarchy_visibility_pg_test.dart`** exercises predicates + `loadParentReference` but **not** `listChildren` |
+| Fixture topology | A→B→C, A→D | `BeaconHierarchyFixture` + `BeaconHierarchyTopology` in `ST/support/beacon_hierarchy_fixture.dart`; tree via `seedPublishedHierarchyTree` in `beacon_hierarchy_pg_helpers.dart` ✓ |
+| Bind params | Viewer index `$3` / `$5` with cursor; compute via `variables.length + 1` | Current query: `$1` parent, `$2` limit, optional `$3`/`$4` cursor — viewer must be appended **after** cursor vars when present |
+| Resolver change | Not listed | **None required** — authorization entirely in `listChildren` |
+
+### Architecture vs implementation plan (follow the plan in phase 0)
+
+- **§7.4 (rev 4)** names `BeaconRights.canListChildren` on the parent and **`beacon_can_read_content(child, viewer)`** per row, with deleted rows under **`canReadTombstone`**. **T01 explicitly overrides that for phase 0:** parent gate + non-deleted child filter use **`beacon_can_read_linked_detail`**; deleted-group branch uses **`beacon_effective_admission(parent, viewer)`** when `b.status = 2`, not `beacon_can_read_tombstone(child, viewer)`. T09/T10 migrate to widened content + drop linked-detail (plan §T08–T10).
+- **§3.3/2** says resolver/`listChildren` “never use `viewerId`” — **half true:** resolver passes it; repository ignores it.
+- **§3.2 table** says child list relies on “client asks capabilities first” — capabilities are separate; **unauthorized listing is still a server bug** regardless of client.
+
+### Implementer brief (Opus)
+
+1. **Single commit** (`fix(server): authorize beaconChildren by viewer`).
+2. At start of `listChildren`, `SELECT public.beacon_can_read_linked_detail($1,$2)`; if false, return empty page (no throw).
+3. Append `Variable<String>(viewerId)` to the existing `variables` list; inject `$V` into `WHERE` exactly as plan step 3 (`block_hides` on child owner; linked_detail for non-deleted; parent `beacon_effective_admission` for status 2). Status `2` = deleted per §0.4.
+4. Reuse SQL call pattern from `BeaconAccessRepository` (`customSelect` + `read<bool>('allowed')`). T02 will add `_predicate` helper in the same file — optional duplicate for T01, not required.
+5. **Pg tests** (`@Tags(['pg'])`): copy disposable-DB setup from `beacon_hierarchy_repository_pg_test.dart` or `beacon_hierarchy_visibility_pg_test.dart` (`BeaconHierarchyDisposablePgTarget`, `seedFullTopology`, `seedPublishedHierarchyTree`, `_reseedParticipantsAfterHierarchyTree` pattern from visibility test).
+   - `frankId` without participant on A → `listChildren` on A `active` → empty summaries.
+   - `aliceId` on A `active` → contains `beaconB` and `beaconD` (not `beaconC` — not direct child).
+   - `carolId` admitted to A + `user_block` hiding D's owner (`eveId`) → page must not include `beaconD` (mirror block tests in visibility pg file).
+   - Deleted child under A: insert or use helper with `BeaconStatus.deleted`; `aliceId` + `BeaconHierarchyChildGroup.deleted` sees tombstone; `frankId` stranger sees empty deleted group.
+6. **Red test meaningful:** **yes** — today `frankId` would receive published children for parent A; new stranger test fails before repository change, passes after.
+7. **Regression:** existing `beacon_hierarchy_repository_pg_test.dart` pagination test should stay green (uses authorized `aliceId`). Run visibility + hasura parity pg suites serially if combined run flakes (T00 journal).
+
+### TEST_CMD (smallest first, after implementation)
+
+```bash
+cd packages/server && ../../scripts/run_with_test_cleanup.sh --timeout 20m -- \
+  dart test -t pg test/data/repository/beacon_children_authorization_pg_test.dart
+# — or the path chosen if tests live in beacon_hierarchy_repository_pg_test.dart
+
+cd packages/server && ../../scripts/run_with_test_cleanup.sh --timeout 20m -- \
+  dart test -t pg test/data/repository/beacon_hierarchy_repository_pg_test.dart
+
+cd packages/server && ../../scripts/run_with_test_cleanup.sh --timeout 20m -- \
+  dart test -t pg test/data/repository/beacon_hierarchy_visibility_pg_test.dart
+
+cd packages/server && ../../scripts/run_with_test_cleanup.sh --timeout 20m -- \
+  dart test -t pg test/api/beacon_hierarchy_hasura_parity_test.dart
+
+./scripts/run_with_test_cleanup.sh --timeout 10m -- ./scripts/check-custom-lints.sh packages/server
+```
+
+### RISKS noted for implementer
+
+- Combined three-file `-t pg` run flaked once in T00 (`RaceCondition` in `migrateDbSchema`); prefer **one dart test invocation per file**.
+- Deleted-group SQL branch ≠ `beacon_can_read_tombstone` — **by plan**, not oversight.
+- Pagination/`LIMIT $2` applies **after** filters; if `first+1` rows shrink, cursor behavior should remain correct but worth sanity-checking in tests if adding many hidden children.
+
+- **Next (implementer):** land T01 commit, journal task log, mark T01 done in checklist.
+
+---
+
+## T01 — inner (implementer)
+
+- **Commit:** `335402368` `fix(server): authorize beaconChildren by viewer` (body `issue-146 T01`)
+- **Files:** `packages/server/lib/data/repository/beacon_hierarchy_repository.dart` (`listChildren` only); new `packages/server/test/data/repository/beacon_children_authorization_pg_test.dart`
+- **Change:** parent gate `beacon_can_read_linked_detail(parent, viewer)` → empty page (no throw); viewer bound as `$${variables.length}` after optional cursor vars; row filter `NOT block_hides(child_owner, viewer)` + linked_detail for non-deleted / parent `beacon_effective_admission` for `status = 2`, inserted after status filter, before cursor SQL.
+- **Tests (each file its own `dart test -t pg` invocation, wrapped):**
+
+| File | RED (pre-fix) | GREEN |
+|---|---|---|
+| `beacon_children_authorization_pg_test.dart` (new) | +0 −4 | +4 −0 |
+| `beacon_hierarchy_repository_pg_test.dart` | — | +7 −0 |
+| `beacon_hierarchy_visibility_pg_test.dart` | — | +14 −0 |
+| `api/beacon_hierarchy_hasura_parity_test.dart` | — | +2 −0 |
+| `check-custom-lints.sh packages/server` | — | total 0 (baseline 0) OK |
+
+- **Findings:**
+  - `frankId` is **not** a stranger to A in the fixture: his help offer on A makes `beacon_can_read_linked_detail(A, frank)` true. Stranger case uses **`daveId`** (owner of C only; no admission/offer/forward on A or B), with an in-test precondition assert.
+  - "Reads A but not admitted" is reachable: **bob** (admitted to child B → linked_detail on A via child branch) and **frank** (help offer). Tests assert bob sees only B (not sibling D) in `active` and neither bob nor frank sees the deleted tombstone; alice (admitted) does.
+  - Each red failure is genuine behavior (preconditions pass); the alice-positive assertion alone would already pass pre-fix, so it's paired with the bob assertion in the same test.
+  - No flake this run with per-file invocations.
+- **Next:** T02
