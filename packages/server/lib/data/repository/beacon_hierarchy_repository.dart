@@ -72,6 +72,19 @@ class BeaconHierarchyRepository implements BeaconHierarchyRepositoryPort {
       expectedParentId: parentBeaconId,
       expectedGroup: group,
     );
+    final parentReadable = await _database
+        .customSelect(
+          r'SELECT public.beacon_can_read_linked_detail($1, $2) AS allowed',
+          variables: [
+            Variable<String>(parentBeaconId),
+            Variable<String>(viewerId),
+          ],
+        )
+        .getSingle();
+    if (!parentReadable.read<bool>('allowed')) {
+      return const BeaconHierarchyPage(summaries: []);
+    }
+
     final statusFilter = _statusSqlForGroup(group);
     final variables = <Variable>[
       Variable<String>(parentBeaconId),
@@ -88,6 +101,18 @@ class BeaconHierarchyRepository implements BeaconHierarchyRepositoryPort {
         Variable<String>(cursor.beaconId),
       ]);
     }
+    variables.add(Variable<String>(viewerId));
+    final viewer = '\$${variables.length}';
+    // Deleted children are unreadable on their own; admitted parent viewers
+    // still see the tombstone.
+    final visibilitySql =
+        '''
+  AND NOT public.block_hides(b.user_id, $viewer)
+  AND (
+    (b.status <> 2 AND public.beacon_can_read_linked_detail(b.id, $viewer))
+    OR (b.status = 2 AND public.beacon_effective_admission(\$1, $viewer))
+  )
+''';
 
     final query =
         r'''
@@ -106,6 +131,7 @@ WHERE b.parent_beacon_id = $1
         statusFilter +
         r''')
 ''' +
+        visibilitySql +
         cursorSql +
         r'''
 ORDER BY b.published_at DESC, b.id DESC
