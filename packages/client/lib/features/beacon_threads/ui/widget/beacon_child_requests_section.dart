@@ -58,6 +58,11 @@ class BeaconChildRequestsSection extends StatelessWidget {
             !hierarchyState.deleted.loading &&
             !hasAnyChild;
 
+        final wide = context.windowClass != WindowClass.compact;
+        final onCreateChild = () => context.router.push(
+          BeaconCreateRoute(parentBeaconId: beaconState.beacon.id),
+        );
+
         return Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
@@ -68,19 +73,27 @@ class BeaconChildRequestsSection extends StatelessWidget {
                   child: Text(
                     l10n.beaconChildRequestsTitle,
                     style: theme.textTheme.titleSmall,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
                 if (showCreate)
-                  BeaconHudActionButton(
-                    key: TestIds.key(TestIds.childRequestCreate),
-                    icon: Icons.add,
-                    label: l10n.beaconCreateChildRequest,
-                    onPressed: () => context.router.push(
-                      BeaconCreateRoute(
-                        parentBeaconId: beaconState.beacon.id,
+                  if (wide)
+                    Flexible(
+                      child: BeaconHudActionButton(
+                        key: TestIds.key(TestIds.childRequestCreate),
+                        icon: Icons.add,
+                        label: l10n.beaconCreateChildRequest,
+                        onPressed: onCreateChild,
                       ),
+                    )
+                  else
+                    BeaconHudIconActionButton(
+                      key: TestIds.key(TestIds.childRequestCreate),
+                      icon: Icons.add,
+                      tooltip: l10n.beaconCreateChildRequest,
+                      onPressed: onCreateChild,
                     ),
-                  ),
               ],
             ),
             if (!showCreate && !beaconState.beacon.status.allowsCoordination)

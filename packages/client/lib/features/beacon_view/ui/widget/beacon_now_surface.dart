@@ -3,6 +3,8 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 
+import 'package:tentura/design_system/tentura_design_system.dart';
+import 'package:tentura/ui/widget/beacon_hud_row_lead.dart';
 import 'package:tentura/domain/entity/coordination_item.dart';
 import 'package:tentura/features/beacon/ui/widget/beacon_lineage_parent_link.dart';
 import 'package:tentura/features/beacon_threads/ui/bloc/beacon_hierarchy_cubit.dart';
@@ -54,6 +56,7 @@ class BeaconNowSurface extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = L10n.of(context)!;
     final scheme = Theme.of(context).colorScheme;
+    final tt = context.tt;
 
     return BlocBuilder<BeaconViewCubit, BeaconViewState>(
       bloc: beaconViewCubit,
@@ -225,8 +228,14 @@ class BeaconNowSurface extends StatelessWidget {
             ),
             if (admitted) ...[
               const SliverToBoxAdapter(child: _HierarchyBootstrap()),
-              SliverToBoxAdapter(
-                child: BeaconChildRequestsSection(beaconState: state),
+              SliverPadding(
+                padding: EdgeInsets.only(
+                  left: tt.screenHPadding + kBeaconHudRowLeadWidth,
+                  right: tt.screenHPadding,
+                ),
+                sliver: SliverToBoxAdapter(
+                  child: BeaconChildRequestsSection(beaconState: state),
+                ),
               ),
             ],
             const SliverFillRemaining(
