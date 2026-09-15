@@ -133,6 +133,10 @@ class TrackingBeaconRepository implements BeaconRepository {
     );
   }
 
+  void emitUpdate(Beacon beacon) {
+    _changes.add(RepositoryEventUpdate(beacon));
+  }
+
   @override
   Future<void> dispose() => _changes.close();
 

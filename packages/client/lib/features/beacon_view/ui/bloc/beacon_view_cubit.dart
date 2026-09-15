@@ -70,7 +70,8 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
     );
     _beaconChangesSub = _case.beaconChanges.listen(
       (event) {
-        if (event is RepositoryEventInvalidate<Beacon>) {
+        if (event is RepositoryEventInvalidate<Beacon> ||
+            event is RepositoryEventUpdate<Beacon>) {
           _requestFullRefreshFor(event.id);
         }
       },
@@ -652,6 +653,14 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
 
   void _onRoomInvalidation(BeaconRoomInvalidation inv) {
     if (isClosed || inv.beaconId != state.beacon.id) return;
+    // Room kinds with request_detail impact must also converge the beacon
+    // lifecycle and its derived header context, not just the room slices.
+    if (inv.entityType == BeaconRoomEntityType.coordinationItem ||
+        inv.entityType == BeaconRoomEntityType.participant ||
+        inv.entityType == BeaconRoomEntityType.factCard) {
+      _requestFullRefresh();
+      return;
+    }
     if (_fetchInProgress) {
       _pendingRoomTypes.add(inv.entityType);
       return;
