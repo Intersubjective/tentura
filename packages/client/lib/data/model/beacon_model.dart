@@ -1,5 +1,6 @@
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/coordinates.dart';
+import 'package:tentura_root/domain/entity/beacon_access.dart';
 import 'package:tentura_root/domain/entity/beacon_cover_source.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 import '../gql/_g/beacon_model.data.gql.dart';
@@ -56,6 +57,10 @@ extension type const BeaconModel(GBeaconModel i) implements GBeaconModel {
       lineageRootBeaconId: i.lineage_root_beacon_id,
       canReadContent: i.can_read_content ?? true,
       canReadInvolvement: i.can_read_involvement ?? true,
+      accessLevel: i.access_level == null
+          ? null
+          : BeaconAccessLevel.fromInt(i.access_level),
+      accessReasons: i.access_reasons ?? 0,
       isDiscoverable: i.is_discoverable ?? true,
     );
   }

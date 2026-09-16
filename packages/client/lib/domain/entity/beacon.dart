@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:freezed_annotation/freezed_annotation.dart';
+import 'package:tentura_root/domain/entity/beacon_access.dart';
 import 'package:tentura_root/domain/entity/beacon_cover_source.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 
@@ -77,6 +78,13 @@ abstract class Beacon with _$Beacon implements Likable, Scorable {
 
     /// Hasura computed field: viewer may see who is involved
     @Default(true) bool canReadInvolvement,
+
+    /// Hasura computed field: viewer's access level. Null only for locally
+    /// built values (create flows, fixtures); every server fetch sets it.
+    BeaconAccessLevel? accessLevel,
+
+    /// Hasura computed field: bitmask of [BeaconAccessReason] values.
+    @Default(0) int accessReasons,
 
     /// Whether the request may appear in others' constellation field (opt-out).
     @Default(true) bool isDiscoverable,

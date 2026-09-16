@@ -19,6 +19,15 @@ scalar _text
 columns and relationships of "beacon"
 """
 type beacon {
+  """
+  A computed field, executes function "beacon_get_access_level"
+  """
+  access_level: Int
+
+  """
+  A computed field, executes function "beacon_get_access_reasons"
+  """
+  access_reasons: Int
   address_label: String
 
   """An object relationship"""
@@ -457,6 +466,8 @@ input beacon_bool_exp {
   _and: [beacon_bool_exp!]
   _not: beacon_bool_exp
   _or: [beacon_bool_exp!]
+  access_level: Int_comparison_exp
+  access_reasons: Int_comparison_exp
   address_label: String_comparison_exp
   author: user_bool_exp
   beacon_archiveds: beacon_archived_bool_exp
@@ -1709,6 +1720,8 @@ input beacon_min_order_by {
 
 """Ordering options when selecting data from "beacon"."""
 input beacon_order_by {
+  access_level: order_by
+  access_reasons: order_by
   address_label: order_by
   author: user_order_by
   beacon_archiveds_aggregate: beacon_archived_aggregate_order_by

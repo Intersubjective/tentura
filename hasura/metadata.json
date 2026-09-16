@@ -226,6 +226,28 @@
                 }
               },
               {
+                "name": "access_level",
+                "definition": {
+                  "function": {
+                    "name": "beacon_get_access_level",
+                    "schema": "public"
+                  },
+                  "session_argument": "hasura_session",
+                  "table_argument": "beacon_row"
+                }
+              },
+              {
+                "name": "access_reasons",
+                "definition": {
+                  "function": {
+                    "name": "beacon_get_access_reasons",
+                    "schema": "public"
+                  },
+                  "session_argument": "hasura_session",
+                  "table_argument": "beacon_row"
+                }
+              },
+              {
                 "name": "effective_admission",
                 "definition": {
                   "function": {
@@ -270,7 +292,9 @@
                     "is_pinned",
                     "my_vote",
                     "can_read_content",
-                    "can_read_involvement"
+                    "can_read_involvement",
+                    "access_level",
+                    "access_reasons"
                   ],
                   "filter": {
                     "can_read_content": {
