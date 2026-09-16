@@ -59,5 +59,6 @@ fragment BeaconModel on beacon {
     }
   }
   can_read_content
+  can_read_involvement
   is_discoverable
 }

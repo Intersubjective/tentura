@@ -1690,7 +1690,7 @@
   "@profileVisibilityMutual": {
     "context": "ProfileViewBody — mutual visibility summary"
   },
-  "profileVisibilityYouCanSee": "You can see {name}",
+  "profileVisibilityYouCanSee": "{name} is in your trust network",
   "@profileVisibilityYouCanSee": {
     "context": "ProfileViewBody — viewer-direction visibility",
     "placeholders": {
@@ -1699,7 +1699,7 @@
       }
     }
   },
-  "profileVisibilityCantSeeYou": "{name} can't see you yet",
+  "profileVisibilityCantSeeYou": "You aren't in {name}'s trust network yet",
   "@profileVisibilityCantSeeYou": {
     "context": "ProfileViewBody — missing reverse visibility",
     "placeholders": {
@@ -1708,7 +1708,7 @@
       }
     }
   },
-  "profileVisibilityTheyCanSeeYou": "{name} can see you",
+  "profileVisibilityTheyCanSeeYou": "You're in {name}'s trust network",
   "@profileVisibilityTheyCanSeeYou": {
     "context": "ProfileViewBody — subject-direction visibility",
     "placeholders": {
@@ -1717,7 +1717,7 @@
       }
     }
   },
-  "profileVisibilityYouDontSeeThem": "You don't currently see {name}",
+  "profileVisibilityYouDontSeeThem": "{name} isn't in your trust network yet",
   "@profileVisibilityYouDontSeeThem": {
     "context": "ProfileViewBody — missing forward visibility",
     "placeholders": {

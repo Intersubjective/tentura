@@ -269,7 +269,8 @@
                   "computed_fields": [
                     "is_pinned",
                     "my_vote",
-                    "can_read_content"
+                    "can_read_content",
+                    "can_read_involvement"
                   ],
                   "filter": {
                     "can_read_content": {

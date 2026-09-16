@@ -978,15 +978,48 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
         );
       }
 
+      // Observers without involvement access must not request who is involved.
+      final skipInvolvement = !beacon.canReadInvolvement;
       final results = await Future.wait([
-        _case.fetchHelpOffersWithCoordination(
-          beaconId: beaconId,
-        ),
+        if (skipInvolvement)
+          Future.value(const <
+                ({
+                  String beaconId,
+                  String userId,
+                  Profile user,
+                  String message,
+                  String? helpType,
+                  int status,
+                  String? withdrawReason,
+                  DateTime createdAt,
+                  DateTime updatedAt,
+                  int? responseType,
+                  DateTime? responseUpdatedAt,
+                  String? responseAuthorUserId,
+                  int? roomAccess,
+                  int? admissionAction,
+                  String? lastDeclineReason,
+                  String? lastRemoveReason,
+                  int stakeState,
+                  int offerKind,
+                  bool isDirectAuthorForward,
+                })
+              >[])
+        else
+          _case.fetchHelpOffersWithCoordination(
+            beaconId: beaconId,
+          ),
         _case.fetchInboxContextForBeacon(beaconId),
         _case.fetchFactCards(beaconId),
         _case.fetchRoomParticipants(beaconId),
-        _case.fetchRoomStateIfAllowed(beaconId),
-        _case.fetchRoomActivityEvents(beaconId),
+        if (skipInvolvement)
+          Future<BeaconRoomState?>.value()
+        else
+          _case.fetchRoomStateIfAllowed(beaconId),
+        if (skipInvolvement)
+          Future.value(const <BeaconActivityEvent>[])
+        else
+          _case.fetchRoomActivityEvents(beaconId),
         _case.fetchDisplayStatus(beaconId),
       ]);
 

@@ -139,6 +139,11 @@ type beacon {
   A computed field, executes function "beacon_get_can_read_content"
   """
   can_read_content: Boolean
+
+  """
+  A computed field, executes function "beacon_get_can_read_involvement"
+  """
+  can_read_involvement: Boolean
   context: String
   cover_image_id: uuid
   cover_source: smallint!
@@ -462,6 +467,7 @@ input beacon_bool_exp {
   beacon_room_state: beacon_room_state_bool_exp
   beacon_steward: beacon_steward_bool_exp
   can_read_content: Boolean_comparison_exp
+  can_read_involvement: Boolean_comparison_exp
   context: String_comparison_exp
   cover_image_id: uuid_comparison_exp
   cover_source: smallint_comparison_exp
@@ -1713,6 +1719,7 @@ input beacon_order_by {
   beacon_room_state_aggregate: beacon_room_state_aggregate_order_by
   beacon_steward_aggregate: beacon_steward_aggregate_order_by
   can_read_content: order_by
+  can_read_involvement: order_by
   context: order_by
   cover_image_id: order_by
   cover_source: order_by

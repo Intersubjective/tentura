@@ -75,6 +75,9 @@ abstract class Beacon with _$Beacon implements Likable, Scorable {
     /// Hasura computed field: viewer may read beacon content (open / commit surfaces).
     @Default(true) bool canReadContent,
 
+    /// Hasura computed field: viewer may see who is involved
+    @Default(true) bool canReadInvolvement,
+
     /// Whether the request may appear in others' constellation field (opt-out).
     @Default(true) bool isDiscoverable,
   }) = _Beacon;

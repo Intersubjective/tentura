@@ -67,25 +67,25 @@ void main() {
     expect(ru.trustThisUser, 'Доверять этому пользователю');
     expect(en.profileVisibilityMutual, 'Two-way visibility');
     expect(ru.profileVisibilityMutual, 'Двусторонняя видимость');
-    expect(en.profileVisibilityYouCanSee('Ada'), 'You can see Ada');
-    expect(ru.profileVisibilityYouCanSee('Ada'), 'Вы видите Ada');
+    expect(en.profileVisibilityYouCanSee('Ada'), 'Ada is in your trust network');
+    expect(ru.profileVisibilityYouCanSee('Ada'), 'Пользователь Ada — в вашей сети доверия');
     expect(
       en.profileVisibilityCantSeeYou('Ada'),
-      "Ada can't see you yet",
+      "You aren't in Ada's trust network yet",
     );
     expect(
       ru.profileVisibilityCantSeeYou('Ada'),
-      'Ada пока не видит вас',
+      'Вас пока нет в сети доверия пользователя Ada',
     );
-    expect(en.profileVisibilityTheyCanSeeYou('Ada'), 'Ada can see you');
-    expect(ru.profileVisibilityTheyCanSeeYou('Ada'), 'Ada видит вас');
+    expect(en.profileVisibilityTheyCanSeeYou('Ada'), "You're in Ada's trust network");
+    expect(ru.profileVisibilityTheyCanSeeYou('Ada'), 'Вы — в сети доверия пользователя Ada');
     expect(
       en.profileVisibilityYouDontSeeThem('Ada'),
-      "You don't currently see Ada",
+      "Ada isn't in your trust network yet",
     );
     expect(
       ru.profileVisibilityYouDontSeeThem('Ada'),
-      'Сейчас вы не видите Ada',
+      'Пользователя Ada пока нет в вашей сети доверия',
     );
     expect(en.profileVisibilityNeither, 'No two-way visibility');
     expect(ru.profileVisibilityNeither, 'Нет двусторонней видимости');

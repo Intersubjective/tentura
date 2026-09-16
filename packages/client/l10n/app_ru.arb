@@ -1690,7 +1690,7 @@
   "@profileVisibilityMutual": {
     "context": "ProfileViewBody — mutual visibility summary"
   },
-  "profileVisibilityYouCanSee": "Вы видите {name}",
+  "profileVisibilityYouCanSee": "Пользователь {name} — в вашей сети доверия",
   "@profileVisibilityYouCanSee": {
     "context": "ProfileViewBody — viewer-direction visibility",
     "placeholders": {
@@ -1699,7 +1699,7 @@
       }
     }
   },
-  "profileVisibilityCantSeeYou": "{name} пока не видит вас",
+  "profileVisibilityCantSeeYou": "Вас пока нет в сети доверия пользователя {name}",
   "@profileVisibilityCantSeeYou": {
     "context": "ProfileViewBody — missing reverse visibility",
     "placeholders": {
@@ -1708,7 +1708,7 @@
       }
     }
   },
-  "profileVisibilityTheyCanSeeYou": "{name} видит вас",
+  "profileVisibilityTheyCanSeeYou": "Вы — в сети доверия пользователя {name}",
   "@profileVisibilityTheyCanSeeYou": {
     "context": "ProfileViewBody — subject-direction visibility",
     "placeholders": {
@@ -1717,7 +1717,7 @@
       }
     }
   },
-  "profileVisibilityYouDontSeeThem": "Сейчас вы не видите {name}",
+  "profileVisibilityYouDontSeeThem": "Пользователя {name} пока нет в вашей сети доверия",
   "@profileVisibilityYouDontSeeThem": {
     "context": "ProfileViewBody — missing forward visibility",
     "placeholders": {
