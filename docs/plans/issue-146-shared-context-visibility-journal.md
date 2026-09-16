@@ -67,7 +67,7 @@
 | done (`335402368`) | **T01** beaconChildren auth |
 | done (`1f1ce43bc`) | **T02** parent reference auth |
 | done (86f32279f) | **T03** close involvement leaks |
-| pending | **T04** client copy + no involvement fetch |
+| done (a0ff4912c) | **T04** client copy + no involvement fetch |
 | pending | **T05** access enums + pure policy |
 | pending | **T06** SQL member view/reasons/level |
 | pending | **T07** expose access level+reasons |
@@ -573,3 +573,81 @@ cd packages/server && ../../scripts/run_with_test_cleanup.sh --timeout 20m -- \
 | `check-custom-lints.sh packages/server` | — | — | 0 | 0 (`tentura_lints` 0/0) |
 
 - **Verdict:** **pass** — plan T03 “Done when” met; proceed T04 after journal commit.
+
+---
+
+## T04 — Scout (read-only)
+
+- **UNIT_BASE:** `b81c38b71ece8836e3a4ef71d7684712835a54e0` (= `HEAD` at scout time)
+- **Task:** T04 — honest profile trust-network copy; expose `can_read_involvement`; skip involvement fetches in `BeaconViewCubit` for observers
+
+### Live code vs plan
+
+| Topic | Plan | Live @ UNIT_BASE |
+|---|---|---|
+| l10n four keys | Trust-network copy (§7.6 table) | `app_en.arb` / `app_ru.arb` still use visibility wording (“You can see {name}”, “can't see you yet”, etc.) @ ~L1693–L1720 |
+| Hasura `beacon` computed_fields (`user`) | Append `can_read_involvement` | `computed_fields`: `is_pinned`, `my_vote`, `can_read_content` only @ `metadata.json` ~L269–273; field **defined** on table @ L207–215 |
+| `help_offers` select filter | — | Already filters `beacon.can_read_involvement = true` @ L1502–1507 (metadata ahead of beacon row exposure) |
+| `schema.graphql` | Add `can_read_involvement` to `beacon`, `beacon_bool_exp`, `beacon_order_by` | **Absent** — only `can_read_content` @ L139–141, L464, L1715 |
+| `BeaconModel` fragment | Below `can_read_content` | Only `can_read_content` @ `beacon_model.graphql` L61 |
+| `Beacon` entity | `canReadInvolvement` default true | Only `canReadContent` @ `beacon.dart` L75–76 |
+| `BeaconModel.toEntity` | `canReadInvolvement: i.can_read_involvement ?? true` | Only `canReadContent` @ `beacon_model.dart` L57 |
+| Cubit involvement fetches | Skip 3 futures when `!beacon.canReadInvolvement` | `_fetchBeaconByIdWithTimeline` always calls all 7 @ `beacon_view_cubit.dart` L981–990 |
+| Tests with old copy literals | grep four patterns | **Only** `packages/client/test/l10n/issue_100_wu13_localization_test.dart` (L70–87). `profile_view_body_action_policy_test.dart` uses `l10n.profileVisibility*` — no hardcoded old EN strings |
+| Version bump | None (T16) | N/A |
+
+### `_fetchBeaconByIdWithTimeline` — exact `Future.wait` contract
+
+List order (unchanged); replace **indices 0, 4, 5** when `!beacon.canReadInvolvement`:
+
+| Index | Live call | Stand-in |
+|---|---|---|
+| 0 | `_case.fetchHelpOffersWithCoordination(beaconId: beaconId)` | `Future.value(const <({String beaconId, String userId, Profile user, String message, String? helpType, int status, String? withdrawReason, DateTime createdAt, DateTime updatedAt, int? responseType, DateTime? responseUpdatedAt, String? responseAuthorUserId, int? roomAccess, int? admissionAction, String? lastDeclineReason, String? lastRemoveReason, int stakeState, int offerKind, bool isDirectAuthorForward})>[])` — same record shape as cast @ L993–1017 |
+| 1–3, 6 | inbox, fact cards, room participants, display status | **Still call** |
+| 4 | `_case.fetchRoomStateIfAllowed(beaconId)` | `Future<BeaconRoomState?>.value()` → `null` |
+| 5 | `_case.fetchRoomActivityEvents(beaconId)` | `Future.value(const <BeaconActivityEvent>[])` |
+
+Casts @ L993–1029 stay as-is. `fetchOpenCoordinationBlocker` only runs when `beaconRoomCue != null` (L1030–1032) — skipped when room state stand-in is null.
+
+Case delegation for spies: `fetchHelpOffersWithCoordination` → `CoordinationRepository`; `fetchRoomStateIfAllowed` → `_beaconRoomCase.fetchBeaconRoomState`; `fetchRoomActivityEvents` → `_activityEvents.list`.
+
+### New cubit test pattern
+
+Mirror `beacon_view_initial_load_test.dart`: `buildTestBeaconViewCase` + `TrackingBeaconRepository` returning `Beacon(..., canReadContent: true, canReadInvolvement: false)`. Count via fakes: `FakeBeaconViewRoomRepository.fetchBeaconRoomStateCalls` (exists); subclass `FakeBeaconViewCoordinationRepository` / `FakeBeaconViewActivityEventRepository` in the **new test file** for help-offer and activity `list` call counts (do not edit unrelated client tests). Assert `beaconContextLoaded` and all three counts `== 0`.
+
+### Schema hand-edit template (mirror `can_read_content`)
+
+`type beacon` after L141:
+
+```graphql
+  """
+  A computed field, executes function "beacon_get_can_read_involvement"
+  """
+  can_read_involvement: Boolean
+```
+
+`beacon_bool_exp`: `can_read_involvement: Boolean_comparison_exp` after L464.  
+`beacon_order_by`: `can_read_involvement: order_by` after L1715.
+
+### Implementer brief (Opus, low effort)
+
+**One commit:** `fix(client): honest trust-network copy; skip involvement fetches for observers`.
+
+1. l10n values only (four keys) → `flutter gen-l10n` → update `issue_100_wu13_localization_test.dart` expectations to plan EN/RU table → `bash scripts/check-user-facing-terminology.sh`.
+2. `hasura/metadata.json` append `"can_read_involvement"` to `beacon` `user` `select_permissions[0].permission.computed_fields` (after `can_read_content`). Optional local `./scripts/hasura_apply_metadata.sh` (not required for CI unit tests).
+3. `schema.graphql` + `beacon_model.graphql` fragment field → `beacon.dart` + `beacon_model.dart` mapper → `cd packages/client && dart run build_runner build -d` (Freezed + Ferry).
+4. `beacon_view_cubit.dart` conditional futures (use local `final skipInvolvement = !beacon.canReadInvolvement` before `Future.wait`).
+5. New test e.g. `beacon_view_involvement_fetch_gate_test.dart` beside `beacon_view_initial_load_test.dart`.
+
+**Do not:** bump `pubspec.yaml`, add `access_level`/`access_reasons`, touch server T01–T03 files, edit `.serena/project.yml` or the two in-progress constellation/router tests.
+
+- **Next (implementer):** land T04 commit, journal inner log, mark T04 done.
+
+## T04 — Inner (implementer, Opus 5)
+
+- **Commit:** `a0ff4912c` fix(client): honest trust-network copy; skip involvement fetches for observers
+- **Changes:** 4 EN/RU profile visibility values; `can_read_involvement` exposed to `user` role on `beacon` (metadata.json computed_fields only, filter untouched); schema.graphql (type/bool_exp/order_by) + BeaconModel fragment; `Beacon.canReadInvolvement` (`@Default(true)`, mapper `?? true`); cubit `skipInvolvement` swaps help-offer coordination / room state / room activity futures for typed no-op stand-ins (order + casts unchanged).
+- **Test:** new `beacon_view_involvement_fetch_gate_test.dart` (test-local counting subclasses; observer case asserts 0/0/0 calls + content loaded + fact cards fetched; control case asserts involved viewer still fetches). RED verified by disabling the gate (1 fail) → GREEN restored.
+- **Verify:** gen-l10n ok; terminology ok; build_runner ok (generated files gitignored, no diff); flutter test 4 files +31 all passed; check-custom-lints client OK (30/30 baseline); server pg `beacon_hierarchy_hasura_parity_test` +2 passed.
+- **Not done:** `./scripts/hasura_apply_metadata.sh` not run (optional); no version bump (T16).
+- **Next:** T04 verify.
