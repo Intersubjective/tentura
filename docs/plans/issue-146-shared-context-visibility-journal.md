@@ -76,7 +76,7 @@
 | done (`a3adbd47d`) | **T11** bond SQL + server consumers |
 | done (`70b34aabd`) | **T12** personSharedContexts query |
 | done (`a3c2acd38`) | **T13** client bond-aware profile |
-| pending | **T14** observer reason banner |
+| done (`79368c25c`) | **T14** observer reason banner |
 | pending | **T15** docs |
 | pending | **T16** release gate |
 
@@ -1768,3 +1768,52 @@ grep -rn 'linked_detail\|LinkedDetail' packages/server/lib packages/server/test 
 | `check-custom-lints.sh packages/client` | **30 vs baseline 30**, OK |
 
 - **Verdict:** **pass** — T13 “Done when” satisfied; proceed **T14**. **Advisory:** AGENTS.md expects client semver + web cache-buster for user-visible changes; deferred to T16 per inner — not a T13 plan blocker.
+
+---
+
+## T14 — Scout (read-only)
+
+- **UNIT_BASE:** `f41db90734473a985a7fa831ec702e09704524d0` (= `HEAD` at scout time)
+- **Dependencies landed:** T05 `lib/domain/entity/beacon_access.dart` (`BeaconAccessLevel`, `BeaconAccessReason.decode(int mask)`, bits 64/128 context); T07 `Beacon.accessLevel` (`BeaconAccessLevel?`, null = local-only) + `accessReasons` (`@Default(0) int`); `BeaconModel.toEntity()` maps Hasura `access_level` / `access_reasons` (null level → null, null reasons → 0).
+- **l10n:** `requestAccessViaRelatedRequest` **does not exist** in `app_en.arb` / `app_ru.arb` yet — this unit **adds** it with plan copy (EN/RU). Run `flutter gen-l10n` + `bash scripts/check-user-facing-terminology.sh`.
+- **Mirror target:** `ClosedRequestBanner` — early `SizedBox.shrink()`; `Padding(bottom: tt.cardGap)`; `TenturaTechCard`; `Row` + `Icon(..., size: tt.iconSize, color: scheme.onSurfaceVariant)` + `SizedBox(width: tt.iconTextGap)` + copy via `TenturaText.bodySmall(scheme.onSurfaceVariant)` (no CTA / no `LayoutBuilder` needed — single line).
+- **Placement:** `beacon_operational_header_card.dart` column `children` — insert **immediately after** `ClosedRequestBanner(beacon: state.beacon)` (line ~93), before `BeaconHudMetadataTable`.
+- **Priority (multi-bit):** evaluate in plan order on `BeaconAccessReason.decode(beacon.accessReasons)` — `applied` → hide; `forwarded` → hide; `contextChild` **or** `contextAncestor` → show generic line; `discovered` → hide; else hide. Example: mask `16|64` → hide (applied wins); mask `64|32` → show (context before discovered).
+- **Null safety:** `accessLevel != BeaconAccessLevel.observer` (including **null**) → shrink; do not call decode for non-observers (optional early exit before decode).
+- **Test pattern:** copy `closed_request_banner_test.dart` — `_beacon` helper with `Profile` author; `MaterialApp` + `TenturaTheme.light()` + `L10n` delegates + `TenturaResponsiveScope`; pump widget in fixed width `SizedBox`.
+- **Bitmask fixtures:** author `accessLevel: author`; member `accessLevel: member`; forwarded-only observer `accessLevel: observer`, `accessReasons: 8`; context observer `accessLevel: observer`, `accessReasons: 64` (or `128`); optional regression `accessReasons: 16|64` → hidden.
+- **Version / server:** no `pubspec.yaml` / `web/index.html` / server edits (T16 release); no touch T13 profile/forward bond files.
+- **Next:** T14 implementer (Opus 5 low) — brief in scout session output
+
+---
+
+## T14 — Inner (Opus 5 low)
+
+- **Commit:** `79368c25c` feat(client): explain hierarchy-context access on the request view (5 files).
+- **Added:** `requestAccessViaRelatedRequest` EN/RU arb keys; `RequestAccessReasonBanner` (mirrors `ClosedRequestBanner`: `Padding(bottom: tt.cardGap)` + `TenturaTechCard` + `Row(Icon(info_outline, tt.iconSize, onSurfaceVariant), SizedBox(tt.iconTextGap), Expanded(Text bodySmall))`); wired after `ClosedRequestBanner` in `beacon_operational_header_card.dart`.
+- **Priority:** non-observer/null level → hide; applied or forwarded → hide; contextChild/contextAncestor → show; else hide. The ordered checks are folded into one condition (same result).
+- **TEST_RED:** new test file failed to load (widget missing) — 0 passed, 1 load failure.
+- **TEST_GREEN:** 8 new tests (context child/ancestor shown; member+context, author, null level, forwarded-only, applied|context hidden; discovered|context shown) + closed banner 3 → **11/11**. Terminology **ok**. Custom lints **30 vs baseline 30**, OK.
+- **Findings:** `dart format` would re-wrap pre-existing lines in `beacon_operational_header_card.dart`; left alone (brief: don't restructure). Generated l10n output is untracked/ignored (only arb files committed). Journal is not in the feat commit (brief asked for one commit).
+- **Next:** T14 verify
+
+---
+
+## T14 — Verify (read-only)
+
+- **Range:** `f41db90734473a985a7fa831ec702e09704524d0..79368c25c` — **5 files** only (widget, header wire + import, both arbs, widget test). **No** `packages/server/`, **no** T13 profile/forward files, **no** change to pre-existing dirty tests in commit (`home_tab_branch_routing_test`, `constellation_body_test` still dirty in worktree only).
+- **Logic:** combined guard `applied || forwarded || !(contextChild || contextAncestor)` on observer level is equivalent to plan priority — show iff observer ∧ context bit ∧ ¬applied ∧ ¬forwarded; `discovered`-only (32) and empty mask hide; `32|64` shows (context before discovered).
+- **Design system:** `tt.cardGap`, `tt.iconSize`, `tt.iconTextGap`, `TenturaText.bodySmall(scheme.onSurfaceVariant)`, `TenturaTechCard` — same token family as `ClosedRequestBanner` (no raw colors/sizes/insets in new widget).
+- **Placement:** `RequestAccessReasonBanner` immediately after `ClosedRequestBanner` in header column; header diff is **+2 lines** only.
+- **l10n:** EN/RU strings match plan exactly; `@requestAccessViaRelatedRequest` metadata present in both arbs.
+- **Null `accessLevel`:** widget guard `!= observer` → shrink; test `hidden without a server access level` pumps null+64 → findsNothing.
+- **Tests re-run (independent):**
+
+| Command | Result |
+|---|---|
+| `flutter gen-l10n` (client) | exit **0** |
+| `check-user-facing-terminology.sh` | **ok** |
+| `flutter test` `request_access_reason_banner_test.dart` | **8/8** passed |
+| `check-custom-lints.sh packages/client` | **30 vs baseline 30**, OK |
+
+- **Verdict:** **pass** — T14 “Done when” satisfied; proceed **T15**.
