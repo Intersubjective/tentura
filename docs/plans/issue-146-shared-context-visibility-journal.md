@@ -77,7 +77,7 @@
 | done (`70b34aabd`) | **T12** personSharedContexts query |
 | done (`a3c2acd38`) | **T13** client bond-aware profile |
 | done (`79368c25c`) | **T14** observer reason banner |
-| pending | **T15** docs |
+| done (`49d4a419d`) | **T15** docs |
 | pending | **T16** release gate |
 
 ---
@@ -1817,3 +1817,37 @@ grep -rn 'linked_detail\|LinkedDetail' packages/server/lib packages/server/test 
 | `check-custom-lints.sh packages/client` | **30 vs baseline 30**, OK |
 
 - **Verdict:** **pass** — T14 “Done when” satisfied; proceed **T15**.
+
+---
+
+## T15 — Scout (read-only)
+
+- **UNIT_BASE:** `0a6581b25b90df7bb2ec6bbfa982c8cd3a885430`
+- **Scope:** docs-only — four paths per plan (`docs/adr/0008-beacon-visibility-and-invite-sharing.md`, `docs/beacon-visibility-matrix.md`, `CONTEXT.md`, `docs/plans/nested-requests-implementation-plan.md` §3.2). **Do not** edit `docs/plans/issue-146-shared-context-visibility-architecture.md` status (T16 sets `implemented (rev 4)`); confirmed architecture front matter still `status: draft` and body **rev 4, ready for implementation**.
+- **Live doc anchors verified:** ADR ends at line 56 with “Related: beacon nesting”; matrix content-read rows 42–43 and `## Linked-detail predicate` § lines 45–59; CONTEXT `## Beacon visibility & sharing` + `**Linked-detail visibility**` block lines 118–120; nested plan `### 3.2 Authorization matrix` — insert supersession line immediately after that heading, before “Define `effectiveAdmission`…”.
+- **Brief:** delivered in overseer/scout session output (Opus 5 low inner worker).
+- **Next:** T15 inner — one commit `docs: record shared-context visibility (ADR 0008 amendment B)`; journal append in T15 inner or verify pass (not in feat commit unless worker chooses post-verify).
+
+---
+
+## T15 — Verify (read-only)
+
+- **Range:** `0a6581b25b90df7bb2ec6bbfa982c8cd3a885430..49d4a419d` — **4 files only** (`CONTEXT.md`, ADR 0008, `beacon-visibility-matrix.md`, `nested-requests-implementation-plan.md`). **No** code/test/migration/config. Architecture doc **no diff** in range; front matter still `status: draft`.
+- **Terminology:** `check-user-facing-terminology.sh` → **ok**.
+- **Tables:** column-count scan on ADR + matrix → **no mismatches**; header/separator rows present on all tables touched.
+- **ADR Amendment B:** D1–D8 condense architecture §2.2/§2.3 without meaning drift; nesting last sentence replaced per plan; `### Context/Decision/Consequences` (Amendment A uses bold inline labels — minor style variance only).
+- **Matrix tables:** bit + rights **rows** match plan §0.4 / architecture §5; footnotes and access-level prose **shortened** (not byte-identical to sources). Top **Sources:** line still m0098/m0123 only (known omission).
+- **Untracked plans:** all other `docs/plans/*.md` remain `??`; only `nested-requests-implementation-plan.md` newly tracked via full-file add (plan-sanctioned).
+- **Verdict:** **pass** — T15 “Done when” satisfied; proceed **T16**.
+
+---
+
+## T15 — Inner (Opus 5 low)
+
+- **Commit:** `49d4a419d` docs: record shared-context visibility (ADR 0008 amendment B) — 4 files.
+- **ADR 0008:** appended Amendment B (Context / Decision D1–D8 / Consequences); replaced the last sentence of "Related: beacon nesting" with a pointer to Amendment B.
+- **Matrix:** swapped the two parent/child content-read rows for ✅ context rows; replaced the Linked-detail section with "Access level and reasons" (bit table + rights table); updated the two parent/child Involvement rows to D2 observer semantics; Source files now list the access policy and m0170–m0173 (m0155 kept only as history).
+- **CONTEXT.md:** added the context bullet; replaced Linked-detail visibility with Shared context (+ bond, D4).
+- **Nested plan:** added a supersession line at the top of §3.2. The file was **untracked** before this commit, so the commit adds all 621 lines (content unchanged apart from that line).
+- **Verify:** terminology check **ok**; tables re-read and intact. Architecture doc untouched (T16).
+- **Next:** T15 verify
