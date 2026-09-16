@@ -32,6 +32,7 @@ import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/effect/ui_effect.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
+import '../../support/fake_person_shared_context_port.dart';
 import '../../support/test_realtime_sync.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
 import '../auth/auth_test_helpers.dart';
@@ -326,6 +327,7 @@ class _BlockedProfileHarness {
       capabilities,
       contactsCase,
       realtimeCase,
+      FakePersonSharedContextPort(),
       env: const Env(),
       logger: Logger('test'),
     );

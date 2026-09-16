@@ -3,7 +3,15 @@ import 'package:tentura/domain/util/availability_presets.dart';
 
 enum PersonPrimaryAction { none, trust, sendRequest }
 
-enum PersonVisibilityState { neither, viewerOnly, subjectOnly, mutual }
+enum PersonVisibilityState {
+  neither,
+  viewerOnly,
+  subjectOnly,
+  mutual,
+
+  /// Trust is not mutual, but viewer and subject share an active Request.
+  sharedContext,
+}
 
 /// Pure policy for person-profile primary and secondary actions (#100).
 class PersonActionPolicy {
@@ -25,9 +33,15 @@ class PersonActionPolicy {
     required bool isSelf,
     required bool isBlocked,
     DateTime? todayUtc,
+    bool sharesActiveContext = false,
   }) {
     final effectiveTodayUtc = todayUtc ?? availabilityTodayUtc();
-    final base = _baseFrom(profile, isSelf: isSelf, isBlocked: isBlocked);
+    final base = _baseFrom(
+      profile,
+      isSelf: isSelf,
+      isBlocked: isBlocked,
+      sharesActiveContext: sharesActiveContext,
+    );
     if (isSelf ||
         isBlocked ||
         !profile.availability.blocksNewRequestsOn(effectiveTodayUtc)) {
@@ -53,18 +67,22 @@ class PersonActionPolicy {
     Profile profile, {
     required bool isSelf,
     required bool isBlocked,
+    required bool sharesActiveContext,
   }) {
     final viewerExplicitlyTrustsSubject = profile.viewerExplicitlyTrustsSubject;
     final subjectExplicitlyTrustsViewer = profile.subjectExplicitlyTrustsViewer;
     final viewerCanSeeSubject = profile.viewerCanSeeSubject;
     final subjectCanSeeViewer = profile.subjectCanSeeViewer;
-    final isMutuallyVisible = profile.isMutuallyVisible;
+    final trustMutual = profile.isMutuallyVisible;
+    final isMutuallyVisible = trustMutual || sharesActiveContext;
 
-    final visibilityState = _visibilityState(
-      isMutuallyVisible: isMutuallyVisible,
-      viewerCanSeeSubject: viewerCanSeeSubject,
-      subjectCanSeeViewer: subjectCanSeeViewer,
-    );
+    final visibilityState = !trustMutual && sharesActiveContext
+        ? PersonVisibilityState.sharedContext
+        : _visibilityState(
+            isMutuallyVisible: trustMutual,
+            viewerCanSeeSubject: viewerCanSeeSubject,
+            subjectCanSeeViewer: subjectCanSeeViewer,
+          );
 
     if (isSelf || isBlocked) {
       return PersonActionPolicy._(

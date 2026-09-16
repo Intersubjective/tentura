@@ -9,6 +9,7 @@ fragment UserPublicModel on v2_user {
   my_vote
   trusts_viewer
   is_mutual_friend
+  shares_active_context
   image {
     ...ImageModelV2
   }

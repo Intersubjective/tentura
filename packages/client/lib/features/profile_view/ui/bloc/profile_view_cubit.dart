@@ -122,6 +122,7 @@ class ProfileViewCubit extends Cubit<ProfileViewState> {
           profile: snapshot.profile,
           cues: snapshot.cues,
           subjectiveTags: snapshot.subjectiveTags,
+          sharedContexts: snapshot.sharedContexts,
         ),
       );
       _hasLoaded = true;

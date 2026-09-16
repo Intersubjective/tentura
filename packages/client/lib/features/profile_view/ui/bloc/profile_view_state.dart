@@ -3,6 +3,8 @@ import 'package:tentura/domain/capability/tag_projection.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/ui/bloc/state_base.dart';
 
+import '../../domain/port/person_shared_context_port.dart';
+
 part 'profile_view_state.freezed.dart';
 
 @freezed
@@ -12,6 +14,7 @@ abstract class ProfileViewState extends StateBase with _$ProfileViewState {
     @Default(StateIsSuccess()) StateStatus status,
     @Default(PersonCapabilityCues.empty) PersonCapabilityCues cues,
     @Default([]) List<TagProjection> subjectiveTags,
+    @Default([]) List<PersonSharedContext> sharedContexts,
     Object? loadError,
     Profile? blockedProfile,
   }) = _ProfileViewState;

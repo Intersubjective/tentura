@@ -41,6 +41,7 @@ import 'package:tentura/features/contacts/domain/use_case/contacts_case.dart';
 import 'package:tentura/features/like/data/repository/like_remote_repository.dart';
 import 'package:tentura/features/profile_view/domain/use_case/profile_view_case.dart';
 
+import '../../support/fake_person_shared_context_port.dart';
 import '../../support/test_realtime_sync.dart';
 import '../auth/auth_test_helpers.dart';
 import '../contacts/contacts_case_test.dart';
@@ -130,6 +131,7 @@ ProfileViewCase _profileViewCase() {
     _FakeCapabilityRepository(),
     contactsCase,
     realtime.case_,
+    FakePersonSharedContextPort(),
     env: const Env(),
     logger: Logger('test'),
   );

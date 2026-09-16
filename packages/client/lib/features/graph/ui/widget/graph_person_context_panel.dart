@@ -63,8 +63,7 @@ class GraphPersonContextPanel extends StatelessWidget {
       isBlocked: false,
       todayUtc: todayUtc,
     );
-    final canShowMore =
-        !isLoading && canPageMore && hiddenNeighborCount > 0;
+    final canShowMore = !isLoading && canPageMore && hiddenNeighborCount > 0;
 
     final body = Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -364,7 +363,10 @@ class _VisibilitySection extends StatelessWidget {
         l10n.profileVisibilityTheyCanSeeYou(name),
         l10n.profileVisibilityYouDontSeeThem(name),
       ],
-      PersonVisibilityState.neither => [l10n.profileVisibilityNeither],
+      // issue-146: bond not shown here yet; the panel never passes
+      // sharesActiveContext, so this state is unreachable.
+      PersonVisibilityState.neither ||
+      PersonVisibilityState.sharedContext => [l10n.profileVisibilityNeither],
     };
   }
 
@@ -447,9 +449,7 @@ class _DiscoverableRequestsSection extends StatelessWidget {
           for (final request in requests) ...[
             _DiscoverableRequestRow(
               request: request,
-              onTap: onRequestTap == null
-                  ? null
-                  : () => onRequestTap!(request),
+              onTap: onRequestTap == null ? null : () => onRequestTap!(request),
             ),
             SizedBox(height: tt.tightGap),
           ],

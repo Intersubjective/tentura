@@ -23,6 +23,7 @@ import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/features/capability/ui/widget/capability_cue_strip.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 
+import '../../domain/port/person_shared_context_port.dart';
 import '../bloc/profile_view_cubit.dart';
 import '../dialog/edit_capabilities_dialog.dart';
 import 'edit_seed_suggestion_section.dart';
@@ -36,12 +37,17 @@ class ProfileViewBody extends StatelessWidget {
   Widget build(BuildContext context) {
     final l10n = L10n.of(context)!;
     final theme = Theme.of(context);
-    return BlocSelector<ProfileViewCubit, ProfileViewState, Profile>(
-      selector: (state) => state.profile,
-      builder: (context, profile) => SliverToBoxAdapter(
+    return BlocSelector<
+      ProfileViewCubit,
+      ProfileViewState,
+      (Profile, List<PersonSharedContext>)
+    >(
+      selector: (state) => (state.profile, state.sharedContexts),
+      builder: (context, selected) => SliverToBoxAdapter(
         child: BlocSelector<ProfileCubit, ProfileState, String>(
           selector: (s) => s.profile.id,
           builder: (context, myId) {
+            final (profile, sharedContexts) = selected;
             final isSelf = profile.id.isNotEmpty && profile.id == myId;
             final todayUtc = availabilityTodayUtc();
             final policy = PersonActionPolicy.from(
@@ -49,6 +55,7 @@ class ProfileViewBody extends StatelessWidget {
               isSelf: isSelf,
               isBlocked: false,
               todayUtc: todayUtc,
+              sharesActiveContext: sharedContexts.isNotEmpty,
             );
 
             return Column(
@@ -100,6 +107,7 @@ class ProfileViewBody extends StatelessWidget {
                     l10n: l10n,
                     profile: profile,
                     policy: policy,
+                    sharedContexts: sharedContexts,
                   ),
                   _ProfilePrimaryAction(
                     l10n: l10n,
@@ -250,11 +258,13 @@ class _ProfileVisibilitySection extends StatelessWidget {
     required this.l10n,
     required this.profile,
     required this.policy,
+    required this.sharedContexts,
   });
 
   final L10n l10n;
   final Profile profile;
   final PersonActionPolicy policy;
+  final List<PersonSharedContext> sharedContexts;
 
   List<String> _directionalLines() {
     final name = profile.shownName;
@@ -269,6 +279,10 @@ class _ProfileVisibilitySection extends StatelessWidget {
         l10n.profileVisibilityYouDontSeeThem(name),
       ],
       PersonVisibilityState.neither => [l10n.profileVisibilityNeither],
+      PersonVisibilityState.sharedContext => [
+        l10n.profileVisibilitySharedContext(sharedContexts.first.title),
+        l10n.profileVisibilitySharedContextNote,
+      ],
     };
   }
 
@@ -459,7 +473,11 @@ class _SeenHelpingWithSection extends StatelessWidget {
       selector: (state) => state.subjectiveTags.isNotEmpty,
       builder: (context, showStrip) {
         if (!showStrip) return const SizedBox.shrink();
-        return BlocSelector<ProfileViewCubit, ProfileViewState, List<TagProjection>>(
+        return BlocSelector<
+          ProfileViewCubit,
+          ProfileViewState,
+          List<TagProjection>
+        >(
           selector: (state) => state.subjectiveTags,
           builder: (context, subjectiveTags) => Padding(
             padding: kPaddingSmallT,

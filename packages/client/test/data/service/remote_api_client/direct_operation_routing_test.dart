@@ -51,5 +51,9 @@ void main() {
     test('ForwardCandidateContextFetch routes to Tentura V2', () {
       expect(isTenturaDirectOperation('ForwardCandidateContextFetch'), isTrue);
     });
+
+    test('PersonSharedContexts routes to Tentura V2', () {
+      expect(isTenturaDirectOperation('PersonSharedContexts'), isTrue);
+    });
   });
 }

@@ -386,4 +386,53 @@ void main() {
       expect(policy.showSecondaryTrust, isFalse);
     });
   });
+
+  group('PersonActionPolicy — co-participant bond (issue-146)', () {
+    test('bond-only peer is sharedContext and mutually visible', () {
+      final policy = PersonActionPolicy.from(
+        _profile(),
+        isSelf: false,
+        isBlocked: false,
+        sharesActiveContext: true,
+      );
+      expect(policy.visibilityState, PersonVisibilityState.sharedContext);
+      expect(policy.isMutuallyVisible, isTrue);
+      expect(policy.canDirectSendRequest, isTrue);
+      expect(policy.primaryAction, PersonPrimaryAction.sendRequest);
+    });
+
+    test('bond with one-way trust is still sharedContext', () {
+      final policy = PersonActionPolicy.from(
+        _profile(myVote: 1, score: 1),
+        isSelf: false,
+        isBlocked: false,
+        sharesActiveContext: true,
+      );
+      expect(policy.visibilityState, PersonVisibilityState.sharedContext);
+      expect(policy.isMutuallyVisible, isTrue);
+    });
+
+    test('no bond keeps today\'s trust-only behavior', () {
+      final policy = PersonActionPolicy.from(
+        _profile(),
+        isSelf: false,
+        isBlocked: false,
+      );
+      expect(policy.visibilityState, PersonVisibilityState.neither);
+      expect(policy.isMutuallyVisible, isFalse);
+    });
+
+    for (final bond in [true, false]) {
+      test('mutual trust wins regardless of bond=$bond', () {
+        final policy = PersonActionPolicy.from(
+          _profile(score: 1, rScore: 1),
+          isSelf: false,
+          isBlocked: false,
+          sharesActiveContext: bond,
+        );
+        expect(policy.visibilityState, PersonVisibilityState.mutual);
+        expect(policy.isMutuallyVisible, isTrue);
+      });
+    }
+  });
 }

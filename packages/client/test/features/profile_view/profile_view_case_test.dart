@@ -19,11 +19,43 @@ import 'package:tentura/features/profile/domain/port/profile_repository_port.dar
 import 'package:tentura/features/profile_view/domain/use_case/profile_view_case.dart';
 import 'package:tentura/ui/model/person_action_policy.dart';
 
+import '../../support/fake_person_shared_context_port.dart';
 import '../../support/test_realtime_sync.dart';
 import '../auth/auth_test_helpers.dart';
 import '../contacts/contacts_case_test.dart';
 
 void main() {
+  group('ProfileViewCase.load shared contexts (issue-146)', () {
+    late _Harness harness;
+
+    setUp(() => harness = _Harness());
+
+    tearDown(() => harness.dispose());
+
+    test('loads shared contexts into the snapshot', () async {
+      harness.sharedContexts.contexts = [
+        (beaconId: 'B1', title: 'Fix the roof'),
+      ];
+
+      final snapshot = await harness.case_.load('U-target');
+
+      expect(snapshot.sharedContexts, [
+        (beaconId: 'B1', title: 'Fix the roof'),
+      ]);
+    });
+
+    test('failing shared-context fetch still loads the profile', () async {
+      harness
+        ..profiles.byId['U-target'] = _profile(displayName: 'Peer')
+        ..sharedContexts.error = StateError('boom');
+
+      final snapshot = await harness.case_.load('U-target');
+
+      expect(snapshot.profile.displayName, 'Peer');
+      expect(snapshot.sharedContexts, isEmpty);
+    });
+  });
+
   group('ProfileViewCase authoritative relationship mutations', () {
     late _Harness harness;
 
@@ -157,6 +189,7 @@ final class _Harness {
       capabilities,
       contactsCase,
       realtimeCase,
+      sharedContexts,
       env: const Env(),
       logger: Logger('test'),
     );
@@ -165,6 +198,7 @@ final class _Harness {
   final authLocal = StreamingAuthLocal();
   final contactsRepository = FakeContactsRepository();
   final contactStore = ContactNameStore();
+  final sharedContexts = FakePersonSharedContextPort();
   late final _FakeProfileRepository profiles;
   late final _FakeLikeRepository likes;
   final capabilities = _FakeCapabilityRepository();

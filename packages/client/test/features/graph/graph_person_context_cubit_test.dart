@@ -28,6 +28,7 @@ import 'package:tentura/features/profile/domain/port/profile_repository_port.dar
 import 'package:tentura/features/profile_view/domain/use_case/profile_view_case.dart';
 import 'package:tentura/ui/model/person_action_policy.dart';
 
+import '../../support/fake_person_shared_context_port.dart';
 import '../../support/test_realtime_sync.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
 import '../auth/auth_test_helpers.dart';
@@ -340,6 +341,7 @@ final class _Harness {
       capabilities,
       contactsCase,
       realtimeCase,
+      FakePersonSharedContextPort(),
       env: const Env(),
       logger: Logger('test'),
     );

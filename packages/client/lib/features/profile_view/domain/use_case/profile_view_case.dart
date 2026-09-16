@@ -12,10 +12,13 @@ import 'package:tentura/features/contacts/domain/use_case/contacts_case.dart';
 import 'package:tentura/features/like/data/repository/like_remote_repository.dart';
 import 'package:tentura/features/profile/domain/port/profile_repository_port.dart';
 
+import '../port/person_shared_context_port.dart';
+
 typedef ProfileViewSnapshot = ({
   Profile profile,
   PersonCapabilityCues cues,
   List<TagProjection> subjectiveTags,
+  List<PersonSharedContext> sharedContexts,
 });
 
 /// Owns the authoritative public-profile projection.
@@ -26,7 +29,8 @@ final class ProfileViewCase extends UseCaseBase {
     this._likes,
     this._capabilities,
     this._contacts,
-    this._realtime, {
+    this._realtime,
+    this._sharedContexts, {
     required super.env,
     required super.logger,
   });
@@ -36,6 +40,7 @@ final class ProfileViewCase extends UseCaseBase {
   final CapabilityRepositoryPort _capabilities;
   final ContactsCase _contacts;
   final RealtimeSyncCase _realtime;
+  final PersonSharedContextPort _sharedContexts;
 
   Stream<void> projectionChanges(String profileId) => MergeStream<void>([
     _realtime
@@ -62,15 +67,30 @@ final class ProfileViewCase extends UseCaseBase {
       _capabilities.fetchCues(profileId),
     ]);
     var subjectiveTags = <TagProjection>[];
-    try {
-      subjectiveTags = await _capabilities.fetchSubjectiveTags(profileId);
-    } catch (_) {
-      // Non-critical: witness projection is best-effort enhancement.
-    }
+    var sharedContexts = <PersonSharedContext>[];
+    await Future.wait([
+      () async {
+        try {
+          subjectiveTags = await _capabilities.fetchSubjectiveTags(profileId);
+        } catch (_) {
+          // Non-critical: witness projection is best-effort enhancement.
+        }
+      }(),
+      () async {
+        try {
+          sharedContexts = await _sharedContexts.fetchSharedContexts(
+            profileId,
+          );
+        } catch (_) {
+          // Non-critical: co-participant bond line is best-effort enhancement.
+        }
+      }(),
+    ]);
     return (
       profile: applyContactOverlay(results[0] as Profile),
       cues: results[1] as PersonCapabilityCues,
       subjectiveTags: subjectiveTags,
+      sharedContexts: sharedContexts,
     );
   }
 

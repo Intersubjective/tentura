@@ -22,6 +22,7 @@ import 'package:tentura/features/profile_view/domain/use_case/profile_view_case.
 import 'package:tentura/features/profile_view/ui/bloc/profile_view_cubit.dart';
 import 'package:tentura/ui/model/person_action_policy.dart';
 
+import '../../support/fake_person_shared_context_port.dart';
 import '../block/support/controllable_block_case.dart';
 
 import '../../support/test_realtime_sync.dart';
@@ -285,6 +286,7 @@ final class _ProfileViewHarness {
       capabilities,
       contactsCase,
       realtimeCase,
+      FakePersonSharedContextPort(),
       env: const Env(),
       logger: Logger('test'),
     );

@@ -5086,6 +5086,7 @@ type query_root {
   notificationPreferences: v2_NotificationPreferences!
   personCapabilityCues(subjectUserId: String!): v2_v2_PersonCapabilityCuesPayload!
   personFriendContextBatch(subjectUserIds: [String!]): [v2_v2_PersonFriendContext!]
+  personSharedContexts(userId: String!): [v2_PersonSharedContext!]!
   personTopCapabilitiesBatch(limit: Int, prioritizeSlugs: [String!], subjectUserIds: [String!]): [v2_v2_PersonTopCapabilities!]
 
   """
@@ -7762,6 +7763,11 @@ type v2_NotificationPreferences {
   tzOffsetMinutes: Int!
 }
 
+type v2_PersonSharedContext {
+  beaconId: String!
+  title: String!
+}
+
 type v2_ReviewWindowStatus {
   beaconId: String!
   beaconTitle: String!
@@ -7856,6 +7862,7 @@ type v2_user {
   is_mutual_friend: Boolean!
   my_vote: Int
   scores: [v2_mutual_score!]
+  shares_active_context: Boolean
   trusts_viewer: Boolean!
   user_availability: v2_user_availability
   user_presence: v2_user_presence

@@ -31,6 +31,9 @@ abstract class Profile with _$Profile implements Likable, Scorable {
     @Default(0) int myVote,
     @Default(false) bool subjectExplicitlyTrustsViewer,
     @Default(false) bool isMutualFriend,
+
+    /// Viewer and subject share an active Request (co-participant bond).
+    @Default(false) bool sharesActiveContext,
     ImageEntity? image,
     UserPresenceStatus? presenceStatus,
     DateTime? presenceLastSeenAt,

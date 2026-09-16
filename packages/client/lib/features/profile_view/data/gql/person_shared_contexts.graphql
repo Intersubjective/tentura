@@ -1,0 +1,6 @@
+query PersonSharedContexts($userId: String!) {
+  personSharedContexts(userId: $userId) {
+    beaconId
+    title
+  }
+}

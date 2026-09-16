@@ -24,6 +24,7 @@ import 'package:tentura/features/like/data/repository/like_remote_repository.dar
 import 'package:tentura/features/profile/domain/port/profile_repository_port.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/domain/util/availability_presets.dart';
+import 'package:tentura/features/profile_view/domain/port/person_shared_context_port.dart';
 import 'package:tentura/features/profile_view/domain/use_case/profile_view_case.dart';
 import 'package:tentura/features/profile_view/ui/bloc/profile_view_cubit.dart';
 import 'package:tentura/features/profile_view/ui/widget/profile_view_body.dart';
@@ -31,6 +32,7 @@ import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/effect/ui_effect.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
+import '../../support/fake_person_shared_context_port.dart';
 import '../../support/test_realtime_sync.dart';
 import '../../ui/effect/fake_ui_effect_port.dart';
 import '../auth/auth_test_helpers.dart';
@@ -58,13 +60,17 @@ void main() {
       WidgetTester tester, {
       required Profile subject,
       required Profile viewer,
+      List<PersonSharedContext> sharedContexts = const [],
+      Locale locale = const Locale('en'),
     }) async {
       harness.start(id: subject.id, autoFetch: false);
-      harness.cubit.emit(ProfileViewState(profile: subject));
+      harness.cubit.emit(
+        ProfileViewState(profile: subject, sharedContexts: sharedContexts),
+      );
 
       await tester.pumpWidget(
         MaterialApp(
-          locale: const Locale('en'),
+          locale: locale,
           theme: TenturaTheme.light(),
           localizationsDelegates: L10n.localizationsDelegates,
           supportedLocales: L10n.supportedLocales,
@@ -94,6 +100,53 @@ void main() {
 
     int countFilledButtons(WidgetTester tester) =>
         tester.widgetList<FilledButton>(find.byType(FilledButton)).length;
+
+    for (final locale in const [Locale('en'), Locale('ru')]) {
+      testWidgets(
+        'bond-only peer shows shared-context lines and Send (${locale.languageCode})',
+        (tester) async {
+          const viewer = Profile(id: 'U-viewer', displayName: 'Viewer');
+          const subject = Profile(id: 'U-peer', displayName: 'Peer');
+          await pumpBody(
+            tester,
+            subject: subject,
+            viewer: viewer,
+            locale: locale,
+            sharedContexts: const [
+              (beaconId: 'B1', title: 'Fix the roof'),
+              (beaconId: 'B2', title: 'Second'),
+            ],
+          );
+
+          final l10n = lookupL10n(locale);
+          expect(
+            find.text(l10n.profileVisibilitySharedContext('Fix the roof')),
+            findsOneWidget,
+          );
+          expect(
+            find.text(l10n.profileVisibilitySharedContextNote),
+            findsOneWidget,
+          );
+          expect(find.text(l10n.profileVisibilityNeither), findsNothing);
+          expect(find.text(l10n.profileSendRequestTo), findsOneWidget);
+        },
+      );
+    }
+
+    testWidgets('no shared context keeps trust-only visibility line', (
+      tester,
+    ) async {
+      const viewer = Profile(id: 'U-viewer', displayName: 'Viewer');
+      const subject = Profile(id: 'U-peer', displayName: 'Peer');
+      await pumpBody(tester, subject: subject, viewer: viewer);
+
+      final l10n = lookupL10n(const Locale('en'));
+      expect(find.text(l10n.profileVisibilityNeither), findsOneWidget);
+      expect(
+        find.text(l10n.profileVisibilitySharedContextNote),
+        findsNothing,
+      );
+    });
 
     testWidgets('self profile hides policy actions', (tester) async {
       const viewer = Profile(id: 'U-self', displayName: 'Self');
@@ -289,7 +342,10 @@ void main() {
         await pumpBody(tester, subject: subject, viewer: viewer);
 
         final l10n = lookupL10n(const Locale('en'));
-        expect(find.textContaining('Not taking new requests until'), findsOneWidget);
+        expect(
+          find.textContaining('Not taking new requests until'),
+          findsOneWidget,
+        );
         expect(find.text(l10n.profileSendRequestTo), findsNothing);
         expect(find.text(l10n.profileRequestOptions), findsNothing);
         expect(find.text(l10n.profileRequestUnavailable), findsNothing);
@@ -314,7 +370,10 @@ void main() {
         await pumpBody(tester, subject: subject, viewer: viewer);
 
         final l10n = lookupL10n(const Locale('en'));
-        expect(find.textContaining('Not taking new requests until'), findsOneWidget);
+        expect(
+          find.textContaining('Not taking new requests until'),
+          findsOneWidget,
+        );
         expect(find.text(l10n.profileRequestUnavailable), findsNothing);
         expect(find.text(l10n.profileRequestOptions), findsNothing);
         expect(find.text(l10n.profileSendRequestTo), findsNothing);
@@ -323,26 +382,29 @@ void main() {
       },
     );
 
-    testWidgets('paused subject-only keeps Trust primary without request options', (
-      tester,
-    ) async {
-      final todayUtc = availabilityTodayUtc();
-      const viewer = Profile(id: 'U-viewer', displayName: 'Viewer');
-      final subject = Profile(
-        id: 'U-peer',
-        displayName: 'Peer',
-        rScore: 1,
-        availability: Availability(
-          resumeOn: todayUtc.add(const Duration(days: 3)),
-        ),
-      );
-      await pumpBody(tester, subject: subject, viewer: viewer);
+    testWidgets(
+      'paused subject-only keeps Trust primary without request options',
+      (
+        tester,
+      ) async {
+        final todayUtc = availabilityTodayUtc();
+        const viewer = Profile(id: 'U-viewer', displayName: 'Viewer');
+        final subject = Profile(
+          id: 'U-peer',
+          displayName: 'Peer',
+          rScore: 1,
+          availability: Availability(
+            resumeOn: todayUtc.add(const Duration(days: 3)),
+          ),
+        );
+        await pumpBody(tester, subject: subject, viewer: viewer);
 
-      final l10n = lookupL10n(const Locale('en'));
-      expect(find.text(l10n.trustThisUser), findsOneWidget);
-      expect(find.text(l10n.profileRequestOptions), findsNothing);
-      expect(find.text(l10n.profileSendRequestTo), findsNothing);
-    });
+        final l10n = lookupL10n(const Locale('en'));
+        expect(find.text(l10n.trustThisUser), findsOneWidget);
+        expect(find.text(l10n.profileRequestOptions), findsNothing);
+        expect(find.text(l10n.profileSendRequestTo), findsNothing);
+      },
+    );
   });
 }
 
@@ -384,6 +446,7 @@ class _ProfileViewBodyHarness {
       capabilities,
       contactsCase,
       realtimeCase,
+      sharedContexts,
       env: const Env(),
       logger: Logger('test'),
     );
@@ -392,6 +455,7 @@ class _ProfileViewBodyHarness {
   final authLocal = StreamingAuthLocal();
   final contactsRepository = FakeContactsRepository();
   final contactStore = ContactNameStore();
+  final sharedContexts = FakePersonSharedContextPort();
   final profiles = _FakeProfileRepository();
   final likes = _FakeLikeRepository();
   final capabilities = _FakeCapabilityRepository();

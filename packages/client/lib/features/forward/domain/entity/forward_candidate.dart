@@ -32,7 +32,8 @@ abstract class ForwardCandidate with _$ForwardCandidate {
 
   String get displayName => profile.displayName;
 
-  bool get isReachable => profile.isMutuallyVisible;
+  bool get isReachable =>
+      profile.isMutuallyVisible || profile.sharesActiveContext;
 
   double get mrScore => profile.score;
 

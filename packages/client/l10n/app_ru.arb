@@ -1730,6 +1730,19 @@
   "@profileVisibilityNeither": {
     "context": "ProfileViewBody — neither direction visible"
   },
+  "profileVisibilitySharedContext": "Вы работаете вместе над «{title}»",
+  "@profileVisibilitySharedContext": {
+    "context": "ProfileViewBody — visibility via a shared active Request (co-participant bond)",
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "profileVisibilitySharedContextNote": "Вы видите друг друга, пока не закончатся отзывы по этому запросу.",
+  "@profileVisibilitySharedContextNote": {
+    "context": "ProfileViewBody — explains the co-participant bond lasts until the Request review window closes"
+  },
   "profileRequestUnavailable": "Запрос недоступен",
   "@profileRequestUnavailable": {
     "context": "ProfileViewBody — direct send blocked for one-way visibility"

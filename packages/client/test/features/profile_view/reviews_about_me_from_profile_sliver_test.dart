@@ -25,6 +25,7 @@ import 'package:tentura/ui/bloc/state_base.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/widget/linear_pi_active.dart';
 
+import '../../support/fake_person_shared_context_port.dart';
 import '../auth/auth_test_helpers.dart';
 import '../block/support/controllable_block_case.dart';
 import '../contacts/contacts_case_test.dart';
@@ -98,6 +99,7 @@ ProfileViewCubit _profileViewCubit(String displayName) {
     _StubCapabilityRepository(),
     contactsCase,
     realtime.case_,
+    FakePersonSharedContextPort(),
     env: const Env(),
     logger: Logger('test'),
   );
