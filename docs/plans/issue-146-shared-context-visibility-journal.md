@@ -651,3 +651,25 @@ Mirror `beacon_view_initial_load_test.dart`: `buildTestBeaconViewCase` + `Tracki
 - **Verify:** gen-l10n ok; terminology ok; build_runner ok (generated files gitignored, no diff); flutter test 4 files +31 all passed; check-custom-lints client OK (30/30 baseline); server pg `beacon_hierarchy_hasura_parity_test` +2 passed.
 - **Not done:** `./scripts/hasura_apply_metadata.sh` not run (optional); no version bump (T16).
 - **Next:** T04 verify.
+
+---
+
+## T04 — verify (read-only)
+
+- **Range reviewed:** `b81c38b71ece8836e3a4ef71d7684712835a54e0..HEAD` (`a0ff4912c` implementation, `f06dcce92` journal). Pre-existing dirty worktree (`.serena/project.yml`, constellation/router tests) unchanged by T04 commits ✓. No `packages/server/` or `pubspec.yaml` / `web/index.html` in range ✓. No `access_level` / `access_reasons` in `packages/client/lib` ✓.
+- **l10n:** Four EN/RU **values** match plan §T04 table exactly (keys/placeholder metadata unchanged); `issue_100_wu13_localization_test.dart` expectations aligned ✓.
+- **Hasura metadata:** Only `computed_fields` append on `beacon` `user` select; `filter` still `can_read_content` only ✓.
+- **GraphQL / entity:** `can_read_involvement` mirrored next to `can_read_content` in schema + fragment; `canReadInvolvement` `@Default(true)` + mapper `?? true` adjacent to `canReadContent` ✓.
+- **Cubit:** `skipInvolvement = !beacon.canReadInvolvement` gates **only** indices 0/4/5 in `Future.wait` (help offers, room state, activity); stand-ins match cast types; list length/order and `results[n]` casts unchanged ✓. `fetchOpenCoordinationBlocker` still guarded by `beaconRoomCue != null` — not a fourth explicit gate; null room-state stand-in skips it for observers only ✓. Positive test (`canReadInvolvement: true`) still hits all three repos ✓.
+- **TEST_CMD re-run (2026-09-16 verify):**
+
+| Command | Passed | Failed | Exit |
+|---|---|---|---|
+| `flutter gen-l10n` | — | — | 0 |
+| `check-user-facing-terminology.sh` | — | — | 0 (`ok`) |
+| `build_runner build -d` (client) | — | — | 0 (0 outputs; already current) |
+| flutter test (4 files) | 31 | 0 | 0 |
+| `check-custom-lints.sh packages/client` | — | — | 0 (30/30 baseline OK) |
+| `beacon_hierarchy_hasura_parity_test.dart` (`-t pg`) | 2 | 0 | 0 |
+
+- **Verdict:** **pass** — T04 “Done when” satisfied; proceed **T05**.
