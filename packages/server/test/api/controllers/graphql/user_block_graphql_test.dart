@@ -335,6 +335,7 @@ void main() {
             'my_vote': null,
             'is_mutual_friend': false,
             'trusts_viewer': false,
+            'shares_active_context': false,
             'image': null,
             'scores': <Map<String, dynamic>>[],
             'user_presence': null,
