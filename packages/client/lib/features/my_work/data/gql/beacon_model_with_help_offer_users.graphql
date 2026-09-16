@@ -1,8 +1,8 @@
-# import '/data/gql/beacon_model.graphql'
+# import '/features/beacon/data/gql/beacon_model_with_admitted_helpers.graphql'
 # import '/data/gql/user_model.graphql'
 
 fragment BeaconModelWithHelpOfferUsers on beacon {
-  ...BeaconModel
+  ...BeaconModelWithAdmittedHelpers
   help_offers(
     where: { status: { _eq: 0 } }
     order_by: { updated_at: desc }

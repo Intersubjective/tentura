@@ -48,7 +48,8 @@ List<BeaconHudMetadataEntry> buildMyWorkHudMetadataEntries(
 
   if (BeaconCompactMetadataStrip.hasVisibleContent(
     beacon: beacon,
-    involvedProfiles: beacon.helpOfferUsers,
+    involvedProfiles: beacon.admittedHelperUsers,
+    helperCount: beacon.admittedHelperCount,
   )) {
     entries.add(
       BeaconHudMetadataEntry(
@@ -56,7 +57,8 @@ List<BeaconHudMetadataEntry> buildMyWorkHudMetadataEntries(
         semanticsLabel: l10n.beaconHudPeopleRowSemantics,
         body: BeaconCompactMetadataStrip(
           beacon: beacon,
-          involvedProfiles: beacon.helpOfferUsers,
+          involvedProfiles: beacon.admittedHelperUsers,
+          helperCount: beacon.admittedHelperCount,
           currentUserId: currentUserId,
         ),
       ),

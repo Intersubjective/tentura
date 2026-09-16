@@ -65,11 +65,68 @@ String participantDisplayTitle({
       : '${participant.userId.substring(0, 8)}…';
 }
 
+/// Active-helpers fold from the admitted-helper Hasura projection.
+///
+/// Author first (starred), then roster profiles (non-author). Optional
+/// [helpOffers] / [roomParticipants] enrich member/author rows only.
+List<BeaconPeopleRow> activeHelpersFromAdmittedRoster({
+  required Beacon beacon,
+  required List<Profile> admittedHelpers,
+  List<BeaconPeopleHelpOfferInput> helpOffers = const [],
+  List<BeaconParticipant> roomParticipants = const [],
+}) {
+  final authorId = beacon.author.id;
+  final participantByUserId = {
+    for (final p in roomParticipants) p.userId: p,
+  };
+  final helpOfferByUserId = {
+    for (final ho in helpOffers)
+      if (!ho.isWithdrawn) ho.userId: ho,
+  };
+
+  Profile profileFor(String userId, Profile? rosterProfile) {
+    if (userId == authorId) return beacon.author;
+    if (rosterProfile != null && rosterProfile.displayName.isNotEmpty) {
+      return rosterProfile;
+    }
+    final ho = helpOfferByUserId[userId];
+    if (ho != null && ho.profile.displayName.isNotEmpty) {
+      return ho.profile;
+    }
+    final p = participantByUserId[userId];
+    if (p != null && p.userTitle.trim().isNotEmpty) {
+      return Profile(id: userId, displayName: p.userTitle.trim());
+    }
+    return rosterProfile ?? Profile(id: userId);
+  }
+
+  final helpers = [...admittedHelpers]
+    ..sort((a, b) => a.displayName.compareTo(b.displayName));
+
+  return [
+    BeaconPeopleRow(
+      userId: authorId,
+      profile: beacon.author,
+      participant: participantByUserId[authorId],
+      isAuthor: true,
+    ),
+    for (final helper in helpers)
+      if (helper.id != authorId)
+        BeaconPeopleRow(
+          userId: helper.id,
+          profile: profileFor(helper.id, helper),
+          participant: participantByUserId[helper.id],
+          isAuthor: false,
+        ),
+  ];
+}
+
 BeaconPeopleSections classifyBeaconPeopleSections({
   required Beacon beacon,
   required List<BeaconPeopleHelpOfferInput> helpOffers,
   required List<BeaconParticipant> roomParticipants,
   required String viewerUserId,
+  List<Profile> admittedHelpers = const [],
 }) {
   final authorId = beacon.author.id;
   final visibleParticipants = beaconParticipantsVisibleForViewer(
@@ -78,15 +135,30 @@ BeaconPeopleSections classifyBeaconPeopleSections({
     authorUserId: authorId,
   );
 
-  final admittedUserIds = <String>{};
-  for (final p in visibleParticipants) {
-    if (p.roomAccess == RoomAccessBits.admitted) {
-      admittedUserIds.add(p.userId);
+  final activeHelpers = admittedHelpers.isNotEmpty
+      ? activeHelpersFromAdmittedRoster(
+          beacon: beacon,
+          admittedHelpers: admittedHelpers,
+          helpOffers: helpOffers,
+          roomParticipants: visibleParticipants,
+        )
+      : null;
+
+  final admittedUserIds = <String>{
+    if (activeHelpers != null)
+      for (final row in activeHelpers)
+        if (!row.isAuthor) row.userId,
+  };
+  if (activeHelpers == null) {
+    for (final p in visibleParticipants) {
+      if (p.roomAccess == RoomAccessBits.admitted) {
+        admittedUserIds.add(p.userId);
+      }
     }
-  }
-  for (final ho in helpOffers) {
-    if (!ho.isWithdrawn && ho.roomAccess == RoomAccessBits.admitted) {
-      admittedUserIds.add(ho.userId);
+    for (final ho in helpOffers) {
+      if (!ho.isWithdrawn && ho.roomAccess == RoomAccessBits.admitted) {
+        admittedUserIds.add(ho.userId);
+      }
     }
   }
 
@@ -119,15 +191,17 @@ BeaconPeopleSections classifyBeaconPeopleSections({
         isAuthor: isAuthor,
       );
 
-  final activeHelpers = <BeaconPeopleRow>[
-    rowFor(authorId, isAuthor: true),
-    for (final uid
-        in admittedUserIds.where((id) => id != authorId).toList()..sort(
-          (a, b) =>
-              profileFor(a).displayName.compareTo(profileFor(b).displayName),
-        ))
-      rowFor(uid, isAuthor: false),
-  ];
+  final resolvedActiveHelpers =
+      activeHelpers ??
+      [
+        rowFor(authorId, isAuthor: true),
+        for (final uid
+            in admittedUserIds.where((id) => id != authorId).toList()..sort(
+              (a, b) =>
+                  profileFor(a).displayName.compareTo(profileFor(b).displayName),
+            ))
+          rowFor(uid, isAuthor: false),
+      ];
 
   final willingToHelp = <BeaconPeopleRow>[];
   final notFitting = <BeaconPeopleRow>[];
@@ -135,7 +209,10 @@ BeaconPeopleSections classifyBeaconPeopleSections({
     for (final ho in helpOffers)
       if (!ho.isWithdrawn && ho.coordinationResponse != null) ho.userId,
   };
-  final assignedUserIds = {authorId, ...admittedUserIds};
+  final assignedUserIds = {
+    authorId,
+    ...admittedUserIds,
+  };
   for (final ho in helpOffers) {
     if (ho.isWithdrawn || !assignedUserIds.add(ho.userId)) continue;
     final row = rowFor(ho.userId, isAuthor: false);
@@ -147,7 +224,7 @@ BeaconPeopleSections classifyBeaconPeopleSections({
   }
 
   return BeaconPeopleSections(
-    activeHelpers: activeHelpers,
+    activeHelpers: resolvedActiveHelpers,
     willingToHelp: willingToHelp,
     notFitting: notFitting,
   );

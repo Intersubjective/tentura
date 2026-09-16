@@ -79,6 +79,9 @@ abstract class Beacon with _$Beacon implements Likable, Scorable {
     /// Hasura computed field: viewer may see who is involved
     @Default(true) bool canReadInvolvement,
 
+    /// Hasura computed field: viewer may list admitted helpers (level ≤ 2).
+    @Default(true) bool canReadAdmittedHelpers,
+
     /// Hasura computed field: viewer's access level. Null only for locally
     /// built values (create flows, fixtures); every server fetch sets it.
     BeaconAccessLevel? accessLevel,
@@ -88,6 +91,12 @@ abstract class Beacon with _$Beacon implements Likable, Scorable {
 
     /// Whether the request may appear in others' constellation field (opt-out).
     @Default(true) bool isDiscoverable,
+
+    /// Preview of admitted-helper profiles (author excluded) when fetched.
+    @Default([]) List<Profile> admittedHelperUsers,
+
+    /// Total admitted helpers (non-author); used for face-pile overflow.
+    @Default(0) int admittedHelperCount,
   }) = _Beacon;
 
   const Beacon._();

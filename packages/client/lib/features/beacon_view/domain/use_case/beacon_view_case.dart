@@ -274,6 +274,15 @@ final class BeaconViewCase extends UseCaseBase {
   Future<Beacon> fetchBeaconById(String beaconId) =>
       _beaconRepository.fetchBeaconById(beaconId);
 
+  /// Complete admitted-helper roster (People tab); empty when unavailable.
+  Future<List<Profile>> fetchAdmittedHelpers(String beaconId) async {
+    try {
+      return await _beaconRepository.fetchAdmittedHelpers(beaconId);
+    } on Object catch (_) {
+      return const [];
+    }
+  }
+
   Future<List<BeaconFactCard>> fetchFactCards(String beaconId) async {
     try {
       return await _factCards.list(beaconId: beaconId);

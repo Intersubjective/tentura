@@ -199,6 +199,7 @@ class ThreadDetailGeneralTitle extends StatelessWidget {
     required this.beacon,
     required this.involvedProfiles,
     required this.currentUserId,
+    this.helperCount,
     this.onFacePileTap,
     this.trailing,
     this.padding = EdgeInsetsDirectional.zero,
@@ -208,6 +209,9 @@ class ThreadDetailGeneralTitle extends StatelessWidget {
   final String title;
   final Beacon beacon;
   final List<Profile> involvedProfiles;
+  /// Total admitted helpers (excluding author). When set, overflow uses
+  /// author + helpers − visible instead of [involvedProfiles.length].
+  final int? helperCount;
   final String currentUserId;
   final VoidCallback? onFacePileTap;
   final Widget? trailing;
@@ -220,6 +224,7 @@ class ThreadDetailGeneralTitle extends StatelessWidget {
       beacon: beacon,
       involvedProfiles: involvedProfiles,
       currentUserId: currentUserId,
+      helperCount: helperCount,
       onTap: onFacePileTap,
     );
     if (onFacePileTap != null) {

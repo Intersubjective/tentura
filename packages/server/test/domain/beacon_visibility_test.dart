@@ -283,6 +283,33 @@ void main() {
     });
   });
 
+  group('BeaconVisibility.canReadAdmittedHelpers', () {
+    test('matches content for discover and context observers', () {
+      final discover = _content(isMutuallyVisibleWithAuthor: true);
+      final context = _content(isMemberOfImmediateParent: true);
+      expect(BeaconVisibility.canReadAdmittedHelpers(discover), isTrue);
+      expect(BeaconVisibility.canReadAdmittedHelpers(context), isTrue);
+      expect(
+        BeaconVisibility.canReadInvolvement(_involvement(contentFacts: discover)),
+        isFalse,
+      );
+      expect(
+        BeaconVisibility.canReadInvolvement(_involvement(contentFacts: context)),
+        isFalse,
+      );
+    });
+
+    test('stranger and deleted deny admitted helpers', () {
+      expect(BeaconVisibility.canReadAdmittedHelpers(_content()), isFalse);
+      expect(
+        BeaconVisibility.canReadAdmittedHelpers(
+          _content(status: BeaconStatus.deleted, isAuthor: true),
+        ),
+        isFalse,
+      );
+    });
+  });
+
   group('BeaconVisibility.canReadTombstone', () {
     test('non-deleted beacon never tombstones', () {
       expect(

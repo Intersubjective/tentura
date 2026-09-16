@@ -133,6 +133,11 @@ abstract final class BeaconVisibility {
         facts.isRoomAdmittedOrSteward;
   }
 
+  /// Public admitted-helper roster (face pile / Active helpers). Same audience
+  /// as content (level ≤ 2). Does not grant involvement or room access.
+  static bool canReadAdmittedHelpers(BeaconContentVisibilityFacts facts) =>
+      canReadContent(facts);
+
   /// Generic deleted-state UX only — never authorizes normal content columns.
   static bool canReadTombstone(BeaconTombstoneFacts facts) {
     if (facts.status != BeaconStatus.deleted) {

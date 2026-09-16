@@ -124,6 +124,21 @@
                 }
               },
               {
+                "name": "admitted_helpers",
+                "using": {
+                  "manual_configuration": {
+                    "column_mapping": {
+                      "id": "beacon_id"
+                    },
+                    "insertion_order": null,
+                    "remote_table": {
+                      "name": "beacon_admitted_helper",
+                      "schema": "public"
+                    }
+                  }
+                }
+              },
+              {
                 "name": "beacon_images",
                 "using": {
                   "foreign_key_constraint_on": {
@@ -215,6 +230,17 @@
                 }
               },
               {
+                "name": "can_read_admitted_helpers",
+                "definition": {
+                  "function": {
+                    "name": "beacon_get_can_read_admitted_helpers",
+                    "schema": "public"
+                  },
+                  "session_argument": "hasura_session",
+                  "table_argument": "beacon_row"
+                }
+              },
+              {
                 "name": "access_level",
                 "definition": {
                   "function": {
@@ -282,6 +308,7 @@
                     "my_vote",
                     "can_read_content",
                     "can_read_involvement",
+                    "can_read_admitted_helpers",
                     "access_level",
                     "access_reasons"
                   ],
@@ -358,6 +385,74 @@
                   }
                 },
                 "comment": ""
+              }
+            ]
+          },
+          {
+            "table": {
+              "name": "beacon_admitted_helper",
+              "schema": "public"
+            },
+            "object_relationships": [
+              {
+                "name": "beacon",
+                "using": {
+                  "manual_configuration": {
+                    "column_mapping": {
+                      "beacon_id": "id"
+                    },
+                    "insertion_order": null,
+                    "remote_table": {
+                      "name": "beacon",
+                      "schema": "public"
+                    }
+                  }
+                }
+              },
+              {
+                "name": "user",
+                "using": {
+                  "manual_configuration": {
+                    "column_mapping": {
+                      "user_id": "id"
+                    },
+                    "insertion_order": null,
+                    "remote_table": {
+                      "name": "user",
+                      "schema": "public"
+                    }
+                  }
+                }
+              }
+            ],
+            "select_permissions": [
+              {
+                "role": "user",
+                "permission": {
+                  "columns": [
+                    "beacon_id",
+                    "user_id"
+                  ],
+                  "filter": {
+                    "_and": [
+                      {
+                        "beacon": {
+                          "can_read_admitted_helpers": {
+                            "_eq": true
+                          }
+                        }
+                      },
+                      {
+                        "user": {
+                          "hidden_for_viewer": {
+                            "_eq": false
+                          }
+                        }
+                      }
+                    ]
+                  },
+                  "allow_aggregations": true
+                }
               }
             ]
           },
@@ -1476,7 +1571,11 @@
                       "_and": [
                         {
                           "status": {
-                            "_in": [0, 7, 8]
+                            "_in": [
+                              0,
+                              7,
+                              8
+                            ]
                           }
                         },
                         {
@@ -1540,7 +1639,11 @@
                   "check": {
                     "beacon": {
                       "status": {
-                        "_in": [0, 7, 8]
+                        "_in": [
+                          0,
+                          7,
+                          8
+                        ]
                       }
                     }
                   }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:mockito/mockito.dart';
+import 'package:tentura_root/domain/entity/beacon_access.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/entity/beacon.dart';
@@ -49,8 +50,11 @@ BeaconViewState _peopleState({
   List<TimelineHelpOffer> helpOffers = const [],
   List<BeaconParticipant> roomParticipants = const [],
   List<ForwardEdge> viewerForwardEdges = const [],
+  List<Profile> admittedHelperRoster = const [],
+  BeaconAccessLevel? accessLevel,
   bool forwardsLoaded = false,
   bool forwardsLoading = false,
+  Profile? myProfile,
 }) {
   return BeaconViewState(
     beacon: Beacon(
@@ -59,11 +63,13 @@ BeaconViewState _peopleState({
       author: const Profile(id: 'auth', displayName: 'Author'),
       createdAt: _t,
       updatedAt: _t,
+      accessLevel: accessLevel,
     ),
-    myProfile: const Profile(id: 'auth', displayName: 'Author'),
+    myProfile: myProfile ?? const Profile(id: 'auth', displayName: 'Author'),
     helpOffers: helpOffers,
     roomParticipants: roomParticipants,
     viewerForwardEdges: viewerForwardEdges,
+    admittedHelperRoster: admittedHelperRoster,
     forwardsLoaded: forwardsLoaded,
     forwardsLoading: forwardsLoading,
   );
@@ -122,6 +128,46 @@ void main() {
     final forwardsTop = tester.getTopLeft(find.text('Forwards')).dy;
     final helpersTop = tester.getTopLeft(find.text('Active helpers (1)')).dy;
     expect(forwardsTop, lessThan(helpersTop));
+  });
+
+  testWidgets('observer People tab shows only read-only Active helpers', (
+    tester,
+  ) async {
+    _state = _peopleState(
+      accessLevel: BeaconAccessLevel.observer,
+      myProfile: const Profile(id: 'obs', displayName: 'Observer'),
+      admittedHelperRoster: const [
+        Profile(id: 'h1', displayName: 'Helper One'),
+        Profile(id: 'h2', displayName: 'Helper Two'),
+      ],
+      helpOffers: [
+        TimelineHelpOffer(
+          user: const Profile(id: 'w1', displayName: 'Willing'),
+          message: 'I can help',
+          createdAt: _t,
+          updatedAt: _t,
+        ),
+      ],
+    );
+
+    await tester.pumpWidget(
+      _wrapPeople(
+        BeaconPeopleTabBody(
+          state: _state,
+          beaconViewCubit: _MockBeaconViewCubit(),
+          l10n: lookupL10n(const Locale('en')),
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Active helpers (3)'), findsOneWidget);
+    expect(find.text('Author'), findsOneWidget);
+    expect(find.text('Helper One'), findsOneWidget);
+    expect(find.text('Helper Two'), findsOneWidget);
+    expect(find.text('Forwards'), findsNothing);
+    expect(find.textContaining('Willing to help'), findsNothing);
+    expect(find.text('Willing'), findsNothing);
   });
 
   testWidgets('Forwards fold starts closed and expand loads forwards', (

@@ -1,0 +1,16 @@
+# import '/data/gql/beacon_model.graphql'
+# import '/data/gql/user_model.graphql'
+
+fragment BeaconModelWithAdmittedHelpers on beacon {
+  ...BeaconModel
+  admitted_helpers(order_by: { user_id: asc }, limit: 3) {
+    user {
+      ...UserModel
+    }
+  }
+  admitted_helpers_aggregate {
+    aggregate {
+      count
+    }
+  }
+}

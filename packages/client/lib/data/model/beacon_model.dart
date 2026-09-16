@@ -57,6 +57,7 @@ extension type const BeaconModel(GBeaconModel i) implements GBeaconModel {
       lineageRootBeaconId: i.lineage_root_beacon_id,
       canReadContent: i.can_read_content ?? true,
       canReadInvolvement: i.can_read_involvement ?? true,
+      canReadAdmittedHelpers: i.can_read_admitted_helpers ?? true,
       accessLevel: i.access_level == null
           ? null
           : BeaconAccessLevel.fromInt(i.access_level),

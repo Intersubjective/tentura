@@ -20,6 +20,7 @@ class BeaconCompactMetadataStrip extends StatelessWidget {
     required this.beacon,
     required this.involvedProfiles,
     required this.currentUserId,
+    this.helperCount,
     this.onFacePileTap,
     this.includeScheduleAndLocation = true,
     super.key,
@@ -28,6 +29,9 @@ class BeaconCompactMetadataStrip extends StatelessWidget {
   final Beacon beacon;
   final List<Profile> involvedProfiles;
   final String currentUserId;
+
+  /// Non-author helper total for face-pile overflow.
+  final int? helperCount;
   final VoidCallback? onFacePileTap;
 
   /// When false, only the face pile is shown (beacon HUD defers schedule/location
@@ -37,17 +41,20 @@ class BeaconCompactMetadataStrip extends StatelessWidget {
   static bool hasVisibleContent({
     required Beacon beacon,
     required List<Profile> involvedProfiles,
+    int? helperCount,
     bool includeScheduleAndLocation = true,
   }) {
+    final count = helperCount ?? involvedProfiles.length;
     final display = beaconInvolvedPeopleDisplay(
       author: beacon.author,
       helpOfferUsers: involvedProfiles,
-      helpOfferCount: involvedProfiles.length,
+      helpOfferCount: count,
     );
     if (!includeScheduleAndLocation) {
       return BeaconInvolvedPeopleFacePile.hasVisibleProfiles(
         beacon: beacon,
         involvedProfiles: involvedProfiles,
+        helperCount: count,
       );
     }
     final hasPile = display.visible.isNotEmpty;
@@ -61,6 +68,7 @@ class BeaconCompactMetadataStrip extends StatelessWidget {
     if (!hasVisibleContent(
       beacon: beacon,
       involvedProfiles: involvedProfiles,
+      helperCount: helperCount,
       includeScheduleAndLocation: includeScheduleAndLocation,
     )) {
       return const SizedBox.shrink();
@@ -69,12 +77,14 @@ class BeaconCompactMetadataStrip extends StatelessWidget {
     final pile = BeaconInvolvedPeopleFacePile(
       beacon: beacon,
       involvedProfiles: involvedProfiles,
+      helperCount: helperCount,
       currentUserId: currentUserId,
       onTap: onFacePileTap,
     );
     final hasPile = BeaconInvolvedPeopleFacePile.hasVisibleProfiles(
       beacon: beacon,
       involvedProfiles: involvedProfiles,
+      helperCount: helperCount,
     );
     final hasSchedule =
         includeScheduleAndLocation && beacon.hasScheduleDates;

@@ -123,7 +123,9 @@ class TrackingBeaconRepository implements BeaconRepository {
   final publishDraftCalls = <String>[];
   final refreshAndNotifyCalls = <String>[];
   int fetchByIdCalls = 0;
+  int fetchAdmittedHelpersCalls = 0;
   Future<Beacon> Function(String id)? fetchByIdHandler;
+  Future<List<Profile>> Function(String id)? fetchAdmittedHelpersHandler;
 
   @override
   Stream<RepositoryEvent<Beacon>> get changes => _changes.stream;
@@ -148,6 +150,15 @@ class TrackingBeaconRepository implements BeaconRepository {
       return fetchByIdHandler!(id);
     }
     throw UnimplementedError('fetchBeaconById');
+  }
+
+  @override
+  Future<List<Profile>> fetchAdmittedHelpers(String id) async {
+    fetchAdmittedHelpersCalls++;
+    if (fetchAdmittedHelpersHandler != null) {
+      return fetchAdmittedHelpersHandler!(id);
+    }
+    return const [];
   }
 
   @override
@@ -434,6 +445,7 @@ class FakeBeaconViewRoomRepository implements BeaconThreadsRepository {
   List<BeaconParticipant> participants;
   BeaconRoomState roomState;
   int fetchBeaconRoomStateCalls = 0;
+  int fetchParticipantsCalls = 0;
   String nextMessageId = 'Mcreated01';
   Object? createError;
   final createdMessages =
@@ -471,6 +483,7 @@ class FakeBeaconViewRoomRepository implements BeaconThreadsRepository {
 
   @override
   Future<List<BeaconParticipant>> fetchParticipants(String beaconId) async {
+    fetchParticipantsCalls++;
     await Future<void>.delayed(enrichmentDelay);
     return participants;
   }

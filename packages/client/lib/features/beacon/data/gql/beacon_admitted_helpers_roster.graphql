@@ -1,0 +1,12 @@
+# import '/data/gql/user_model.graphql'
+
+query BeaconAdmittedHelpersRoster($id: String!) {
+  beacon_by_pk(id: $id) {
+    id
+    admitted_helpers(order_by: { user_id: asc }) {
+      user {
+        ...UserModel
+      }
+    }
+  }
+}

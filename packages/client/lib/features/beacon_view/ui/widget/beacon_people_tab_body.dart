@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:tentura_root/domain/entity/beacon_access.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
@@ -19,6 +20,8 @@ import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/widget/accordion_expansion.dart';
 import 'package:tentura/ui/widget/focus_flash_highlight.dart';
+import 'package:tentura/ui/widget/self_aware_profile_avatar.dart';
+import 'package:tentura/ui/widget/self_user_highlight.dart';
 
 /// PageStorage / ExpansionTile id for the People-tab Forwards fold (exclusive by userId).
 const _forwardsFoldId = 'forwards';
@@ -155,11 +158,52 @@ class BeaconPeopleTabBody extends StatelessWidget {
         )
         .toList(growable: false);
 
+    final isObserver = beacon.accessLevel == BeaconAccessLevel.observer;
+
+    if (isObserver) {
+      final observerRows = activeHelpersFromAdmittedRoster(
+        beacon: beacon,
+        admittedHelpers: state.admittedHelperRoster,
+      );
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          AccordionExpansionGroup(
+            accordionMode: false,
+            child: AccordionExpansionTile(
+              id: BeaconPeopleAccordionSection.activeHelpers,
+              initiallyExpanded: true,
+              title: Text(
+                '${l10n.beaconPeopleLensActiveHelpersHeading} (${observerRows.length})',
+                style: theme.textTheme.titleSmall,
+              ),
+              children: [
+                for (var i = 0; i < observerRows.length; i++) ...[
+                  if (i != 0) const SizedBox(height: 12),
+                  focusWrap(
+                    observerRows[i].userId,
+                    _ObserverActiveHelperTile(
+                      row: observerRows[i],
+                      viewerId: state.myProfile.id,
+                      onOpenProfile: () => context
+                          .read<ScreenCubit>()
+                          .showProfile(observerRows[i].userId),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+        ],
+      );
+    }
+
     final sections = classifyBeaconPeopleSections(
       beacon: beacon,
       helpOffers: helpOfferInputs,
       roomParticipants: state.roomParticipants,
       viewerUserId: state.myProfile.id,
+      admittedHelpers: state.admittedHelperRoster,
     );
 
     // A person belongs to their highest-priority section, never to two rows.
@@ -531,6 +575,56 @@ class BeaconPeopleTabBody extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+/// Read-only Active helper row for observers (no offer actions / forward path).
+class _ObserverActiveHelperTile extends StatelessWidget {
+  const _ObserverActiveHelperTile({
+    required this.row,
+    required this.viewerId,
+    required this.onOpenProfile,
+  });
+
+  final BeaconPeopleRow row;
+  final String viewerId;
+  final VoidCallback onOpenProfile;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = L10n.of(context)!;
+    final theme = Theme.of(context);
+    final name = SelfUserHighlight.displayName(l10n, row.profile, viewerId);
+    final nameStyle = SelfUserHighlight.nameStyle(
+      theme,
+      theme.textTheme.titleSmall,
+      SelfUserHighlight.profileIsSelf(row.profile, viewerId),
+    );
+
+    return TenturaTechCardStatic(
+      showShadow: true,
+      child: InkWell(
+        onTap: onOpenProfile,
+        borderRadius: BorderRadius.circular(TenturaRadii.card),
+        child: Row(
+          children: [
+            SelfAwareAvatar.medium(
+              profile: row.profile,
+              showAuthorStar: row.isAuthor,
+            ),
+            SizedBox(width: context.tt.rowGap),
+            Expanded(
+              child: Text(
+                name,
+                style: nameStyle,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

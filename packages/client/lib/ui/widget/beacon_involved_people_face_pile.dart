@@ -7,12 +7,13 @@ import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/widget/overlapping_people_avatars.dart';
 
-/// Overlapping mini-avatars for author + active help-offerers (HUD strip / General card).
+/// Overlapping mini-avatars for author + admitted helpers (HUD strip / General card).
 class BeaconInvolvedPeopleFacePile extends StatelessWidget {
   const BeaconInvolvedPeopleFacePile({
     required this.beacon,
     required this.involvedProfiles,
     required this.currentUserId,
+    this.helperCount,
     this.onTap,
     super.key,
   });
@@ -20,16 +21,20 @@ class BeaconInvolvedPeopleFacePile extends StatelessWidget {
   final Beacon beacon;
   final List<Profile> involvedProfiles;
   final String currentUserId;
+
+  /// Non-author helper total for overflow. Defaults to [involvedProfiles.length].
+  final int? helperCount;
   final VoidCallback? onTap;
 
   static bool hasVisibleProfiles({
     required Beacon beacon,
     required List<Profile> involvedProfiles,
+    int? helperCount,
   }) {
     final display = beaconInvolvedPeopleDisplay(
       author: beacon.author,
       helpOfferUsers: involvedProfiles,
-      helpOfferCount: involvedProfiles.length,
+      helpOfferCount: helperCount ?? involvedProfiles.length,
     );
     return display.visible.isNotEmpty;
   }
@@ -41,7 +46,7 @@ class BeaconInvolvedPeopleFacePile extends StatelessWidget {
     final display = beaconInvolvedPeopleDisplay(
       author: beacon.author,
       helpOfferUsers: involvedProfiles,
-      helpOfferCount: involvedProfiles.length,
+      helpOfferCount: helperCount ?? involvedProfiles.length,
     );
     if (display.visible.isEmpty) {
       return const SizedBox.shrink();

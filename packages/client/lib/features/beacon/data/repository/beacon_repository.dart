@@ -6,8 +6,10 @@ import 'package:tentura/consts.dart';
 import 'package:tentura/data/gql/_g/schema.schema.gql.dart';
 import 'package:tentura/data/gql/tentura_v2_upload.dart';
 import 'package:tentura/data/model/beacon_model.dart';
+import 'package:tentura/data/model/user_model.dart';
 import 'package:tentura/data/service/remote_api_service.dart';
 import 'package:tentura/domain/entity/beacon.dart';
+import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/domain/entity/realtime/realtime_entity_change.dart';
 import 'package:tentura/domain/entity/repository_event.dart';
 import 'package:tentura/domain/port/beacon_write_port.dart';
@@ -17,10 +19,12 @@ import 'package:tentura_root/domain/entity/beacon_cover_source.dart';
 import 'package:tentura/domain/entity/image_entity.dart';
 
 import '../../domain/exception.dart';
+import '../model/beacon_model_with_admitted_helpers.dart';
 import '../gql/_g/beacon_add_image.req.gql.dart';
 import '../gql/_g/beacon_create.req.gql.dart';
 import '../gql/_g/beacon_fork.req.gql.dart';
 import '../gql/_g/beacon_fetch_by_id.req.gql.dart';
+import '../gql/_g/beacon_admitted_helpers_roster.req.gql.dart';
 import '../gql/_g/beacon_delete_by_id.req.gql.dart';
 import '../gql/_g/beacon_remove_image.req.gql.dart';
 import '../gql/_g/beacon_set_media.req.gql.dart';
@@ -120,8 +124,27 @@ class BeaconRepository implements BeaconWritePort {
   Future<Beacon> fetchBeaconById(String id) => _remoteApiService
       .request(GBeaconFetchByIdReq((b) => b.vars.id = id))
       .firstWhere((e) => e.dataSource == DataSource.Link)
-      .then((r) => r.dataOrThrow(label: _label).beacon_by_pk as BeaconModel?)
+      .then(
+        (r) =>
+            r.dataOrThrow(label: _label).beacon_by_pk
+                as BeaconModelWithAdmittedHelpers?,
+      )
       .then((v) => v == null ? throw BeaconFetchException(id) : v.toEntity());
+
+  /// Full admitted-helper roster (no preview limit) for the People tab.
+  Future<List<Profile>> fetchAdmittedHelpers(String id) => _remoteApiService
+      .request(GBeaconAdmittedHelpersRosterReq((b) => b.vars.id = id))
+      .firstWhere((e) => e.dataSource == DataSource.Link)
+      .then((r) {
+        final beacon = r
+            .dataOrThrow(label: _label)
+            .beacon_by_pk;
+        if (beacon == null) return const <Profile>[];
+        return [
+          for (final row in beacon.admitted_helpers)
+            (row.user as UserModel).toEntity(),
+        ];
+      });
 
   /// Server-side lineage fork → new DRAFT; refetch full beacon via Hasura.
   Future<Beacon> fork(String sourceId) async {

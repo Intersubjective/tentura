@@ -246,6 +246,13 @@ abstract class BeaconViewState extends StateBase with _$BeaconViewState {
 
     /// True after [roomParticipants] has been populated at least once this load.
     @Default(false) bool roomParticipantsLoaded,
+
+    /// Full admitted-helper roster from Hasura (author excluded).
+    @Default([]) List<Profile> admittedHelperRoster,
+
+    /// True after [admittedHelperRoster] has been fetched this load.
+    @Default(false) bool admittedHelpersLoaded,
+
     BeaconRoomState? beaconRoomCue,
     CoordinationItem? openCoordinationBlocker,
 

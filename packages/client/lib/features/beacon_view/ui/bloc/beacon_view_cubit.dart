@@ -978,8 +978,13 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
         );
       }
 
-      // Observers without involvement access must not request who is involved.
+      // Involvement (offers / Plan activity) stays behind canReadInvolvement.
+      // Room participants / room state / Chat-adjacent APIs are member/author only.
+      // Null accessLevel (fixtures / local) keeps legacy full-fetch behavior.
       final skipInvolvement = !beacon.canReadInvolvement;
+      final isMember = beacon.accessLevel?.isMember ?? true;
+      final skipRoom = !isMember;
+      final canReadAdmittedHelpers = beacon.canReadAdmittedHelpers;
       final results = await Future.wait([
         if (skipInvolvement)
           Future.value(const <
@@ -1011,16 +1016,23 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
           ),
         _case.fetchInboxContextForBeacon(beaconId),
         _case.fetchFactCards(beaconId),
-        _case.fetchRoomParticipants(beaconId),
-        if (skipInvolvement)
+        if (skipRoom)
+          Future.value(const <BeaconParticipant>[])
+        else
+          _case.fetchRoomParticipants(beaconId),
+        if (skipRoom)
           Future<BeaconRoomState?>.value()
         else
           _case.fetchRoomStateIfAllowed(beaconId),
-        if (skipInvolvement)
+        if (skipRoom || skipInvolvement)
           Future.value(const <BeaconActivityEvent>[])
         else
           _case.fetchRoomActivityEvents(beaconId),
         _case.fetchDisplayStatus(beaconId),
+        if (canReadAdmittedHelpers)
+          _case.fetchAdmittedHelpers(beaconId)
+        else
+          Future.value(const <Profile>[]),
       ]);
 
       final helpOffers =
@@ -1060,6 +1072,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
       final beaconRoomCue = results[4] as BeaconRoomState?;
       final roomActivityEvents = results[5]! as List<BeaconActivityEvent>;
       final displayStatus = results[6] as BeaconDisplayStatusDto?;
+      final admittedHelperRoster = results[7]! as List<Profile>;
       final openCoordinationBlocker = beaconRoomCue != null
           ? await _case.fetchOpenCoordinationBlocker(beaconId)
           : null;
@@ -1109,6 +1122,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
       }
 
       _hydratePinnedFactsSeen(beaconId, factCards);
+      final clearForwards = skipRoom && wasForwardsLoaded;
       emit(
         state.copyWith(
           beacon: beacon,
@@ -1121,14 +1135,35 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
           factCards: factCards,
           pinnedFactsSeenAt: _case.pinnedFactsSeenAt(beaconId, myUserId),
           roomParticipants: roomParticipants,
-          roomParticipantsLoaded: true,
+          roomParticipantsLoaded: !skipRoom,
+          admittedHelperRoster: admittedHelperRoster,
+          admittedHelpersLoaded: canReadAdmittedHelpers,
           beaconRoomCue: beaconRoomCue,
           openCoordinationBlocker: openCoordinationBlocker,
           roomActivityEvents: roomActivityEvents,
           showDraftEvaluationCta: showDraftEvaluationCta,
           reviewWindowInfo: reviewWindowInfo,
           displayStatus: displayStatus,
-          forwardsLoaded: wasForwardsLoaded,
+          forwardsLoaded: clearForwards ? false : wasForwardsLoaded,
+          myForwards: clearForwards ? const [] : state.myForwards,
+          viewerForwardEdges: clearForwards
+              ? const []
+              : state.viewerForwardEdges,
+          forwardReasonSlugs: clearForwards
+              ? const {}
+              : state.forwardReasonSlugs,
+          involvementHelpOfferedIds: clearForwards
+              ? const {}
+              : state.involvementHelpOfferedIds,
+          involvementWatchingIds: clearForwards
+              ? const {}
+              : state.involvementWatchingIds,
+          involvementOnwardForwarderIds: clearForwards
+              ? const {}
+              : state.involvementOnwardForwarderIds,
+          involvementRejectedIds: clearForwards
+              ? const {}
+              : state.involvementRejectedIds,
           beaconContentLoaded: true,
           beaconContextLoaded: true,
           beaconUnavailable: false,
@@ -1136,7 +1171,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
           status: StateStatus.isSuccess,
         ),
       );
-      if (wasForwardsLoaded) {
+      if (!skipRoom && wasForwardsLoaded) {
         unawaited(_refreshForwards(beaconId, myUserId));
       }
     } catch (e) {
@@ -1172,7 +1207,8 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
 
   /// Lazy-load forwards subsection (People tab). Cached for cubit lifetime.
   Future<void> loadForwards() async {
-    if (state.forwardsLoaded || state.forwardsLoading) return;
+    final isMember = state.beacon.accessLevel?.isMember ?? true;
+    if (!isMember || state.forwardsLoaded || state.forwardsLoading) return;
     emit(state.copyWith(forwardsLoading: true));
     try {
       final beaconId = state.beacon.id;
@@ -1238,6 +1274,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
     state.beacon.author.id,
     for (final offer in state.helpOffers) offer.user.id,
     for (final participant in state.roomParticipants) participant.userId,
+    for (final helper in state.admittedHelperRoster) helper.id,
     for (final edge in state.viewerForwardEdges) ...{
       edge.sender.id,
       edge.recipient.id,

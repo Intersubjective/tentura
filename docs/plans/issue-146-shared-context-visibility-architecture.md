@@ -110,6 +110,7 @@ a different set of predicates:
 | level ≤1 | `beacon_effective_admission` (m0155); `_canUseRoom` in `beacon_room_case.dart` / `beacon_fact_card_case.dart`; `BeaconHierarchyPolicy.hasEffectiveAdmission` |
 | level ≤2 | `beacon_can_read_content` (m0169 body); Dart `BeaconVisibility.canReadContent` |
 | involvement | `beacon_can_read_involvement` (m0124) = content ∧ (author ∨ forward edge either side ∨ active help offer ∨ admitted) |
+| admitted helpers | `beacon_can_read_admitted_helpers` (m0174) = `beacon_can_read_content`; view `beacon_admitted_helper` |
 | hierarchy | `beacon_can_read_linked_detail` (m0155); Dart `BeaconVisibility.canReadLinkedDetail` |
 | person visibility | `person_are_mutually_visible` (m0161); the client derives its own copy from raw scores in `Profile.isMutuallyVisible` |
 
@@ -234,6 +235,7 @@ Every other row states today's behavior explicitly.
 | Right | L0 | L1 | L2 forwarded | L2 applied | L2 discovered | L2 context* | L3 |
 |---|:-:|:-:|:-:|:-:|:-:|:-:|:-:|
 | Read details, images, public facts | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ *(new)* | ❌ |
+| Read admitted helpers (face pile / Active helpers) | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ |
 | Read room-only facts, discussion, Plan | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
 | Apply (offer help), open-family only | — | — | ✅ | (already) | ✅ | ✅ *(new, D2)* | ❌ |
 | Forward / invite, `allowsForward` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ *(new, D2)* | ❌ |
@@ -250,11 +252,16 @@ P, every child qualifies through `contextChild`.
 forward edge (§4.1). The involvement row is computed from involvement facts, not from
 reasons, which preserves today's m0124 behavior.
 
+**Admitted helpers** is a named content-audience right (`canReadAdmittedHelpers` /
+`beacon_can_read_admitted_helpers`, m0174): same audience as content (level ≤ 2).
+Payload is who is already admitted as a helper (`room_access = 3`, not author), shown
+on the face pile and the Active helpers fold. It does **not** widen involvement.
+
 **Involvement stays closed to context observers.** They see *that* the child exists
 and what it asks for. Who offered help, who forwarded it and who declined stay with
 the involved set. This matches the nested plan's product choice: "one-edge hierarchy
 access exposes ordinary request details, without discussion admission or involvement
-visibility."
+visibility." Observers may still fetch the public admitted-helpers projection (§7.5).
 
 ## 6. Person visibility
 
@@ -394,11 +401,15 @@ enforcement adapter, and a parity test keeps the two from drifting.
 - The beacon view renders by `access_level`:
   - **member** (0/1): today's full view;
   - **observer** (2): details, public facts, parent link and accessible children,
-    plus a primary **Offer help** CTA while open-family, and Forward;
+    plus a primary **Offer help** CTA while open-family, and Forward; Active helpers
+    from the admitted-helpers projection (read-only);
   - **stranger**: the existing unavailable state.
-- **The observer view must not fetch member-only data.** No room, Plan, People or
-  help-offer queries. The mixed Sentry group `TENTURA-CLIENT-2T` ("Discussion is
-  read-only", `notEligible`) is this mistake, already happening for discover observers.
+- **The observer view must not fetch member-only data.** No room, Plan, help-offer,
+  or forwards queries. Exception: observers **may** fetch the public admitted-helpers
+  projection (`beacon_admitted_helper` / `can_read_admitted_helpers`) and render the
+  Active helpers fold read-only. The mixed Sentry group `TENTURA-CLIENT-2T`
+  ("Discussion is read-only", `notEligible`) is the room-fetch mistake, already
+  happening for discover observers.
 - The reason banner, from `access_reasons`: «Вы видите этот запрос как участник
   «{A}»» for context, «Вам переслал {name}» for forwarded, and so on. It reuses the
   #78 principle that access should be explainable.

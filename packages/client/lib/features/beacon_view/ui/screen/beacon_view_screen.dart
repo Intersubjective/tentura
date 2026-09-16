@@ -878,7 +878,8 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
     return ThreadDetailGeneralTitle(
       title: threadGeneralAppBarTitle(l10n, beaconState.beacon),
       beacon: beaconState.beacon,
-      involvedProfiles: beaconState.activeHelpOfferUsers,
+      involvedProfiles: beaconState.beacon.admittedHelperUsers,
+      helperCount: beaconState.beacon.admittedHelperCount,
       currentUserId: beaconState.myProfile.id,
       padding: padding,
       trailing: overflow,
@@ -897,7 +898,8 @@ class _BeaconViewScreenState extends State<BeaconViewScreen> {
       return ThreadDetailGeneralTitle(
         title: threadGeneralAppBarTitle(l10n, state.beacon),
         beacon: state.beacon,
-        involvedProfiles: state.activeHelpOfferUsers,
+        involvedProfiles: state.beacon.admittedHelperUsers,
+        helperCount: state.beacon.admittedHelperCount,
         currentUserId: state.myProfile.id,
         onFacePileTap: () => _switchToSurface(BeaconSurface.people),
       );

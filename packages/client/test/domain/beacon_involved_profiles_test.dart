@@ -39,16 +39,19 @@ void main() {
     expect(display.overflow, 1);
   });
 
-  test('involvedPeopleDisplayFromOrdered respects explicit totalCount', () {
-    final profiles = [
-      const Profile(id: 'a', displayName: 'A'),
-      const Profile(id: 'b', displayName: 'B'),
+  test('beaconInvolvedPeopleDisplay with five helpers shows +3 overflow', () {
+    const author = Profile(id: 'a', displayName: 'Author');
+    final preview = [
+      const Profile(id: 'h1', displayName: 'H1'),
+      const Profile(id: 'h2', displayName: 'H2'),
     ];
-    final display = involvedPeopleDisplayFromOrdered(
-      ordered: profiles,
-      totalCount: 6,
+    final display = beaconInvolvedPeopleDisplay(
+      author: author,
+      helpOfferUsers: preview,
+      helpOfferCount: 5,
     );
-    expect(display.visible.length, 2);
-    expect(display.overflow, 4);
+    // Author + 2 preview helpers = 3 visible; total 1+5=6 → overflow +3.
+    expect(display.visible.map((p) => p.id).toList(), ['a', 'h1', 'h2']);
+    expect(display.overflow, 3);
   });
 }

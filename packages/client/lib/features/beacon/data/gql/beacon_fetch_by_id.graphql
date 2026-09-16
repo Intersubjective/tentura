@@ -1,7 +1,7 @@
-# import '/data/gql/beacon_model.graphql'
+# import '/features/beacon/data/gql/beacon_model_with_admitted_helpers.graphql'
 
 query BeaconFetchById($id: String!) {
   beacon_by_pk(id: $id) {
-    ...BeaconModel
+    ...BeaconModelWithAdmittedHelpers
   }
 }

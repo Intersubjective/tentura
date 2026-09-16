@@ -71,6 +71,7 @@ Level = 0 if bit 0; else 1 if bits 1-2; else 2 if bits 3-7; else 3.
 | Right | L0 | L1 | L2 forwarded | L2 applied | L2 discovered | L2 context* | L3 |
 |---|:-:|:-:|:-:|:-:|:-:|:-:|:-:|
 | Read details, images, public facts | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ *(new)* | ❌ |
+| Read admitted helpers (face pile / Active helpers roster) | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ |
 | Read room-only facts, discussion, Plan | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
 | Apply (offer help), open-family only | — | — | ✅ | (already) | ✅ | ✅ *(new, D2)* | ❌ |
 | Forward / invite, `allowsForward` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ *(new, D2)* | ❌ |
@@ -83,6 +84,8 @@ Level = 0 if bit 0; else 1 if bits 1-2; else 2 if bits 3-7; else 3.
 \* `contextAncestor` or `contextChild`.
 † Children filtered per child by the same access function.
 ‡ Unless otherwise involved (e.g. forward sender).
+
+**Admitted helpers** (`canReadAdmittedHelpers` / `beacon_can_read_admitted_helpers`, m0174) follows content audience (level ≤ 2): who is already admitted as a helper (`room_access = 3`, not author), plus the author on the face pile / Active helpers fold. It is **not** involvement — offer notes, unacked applicants, forward chain, Chat, and Plan stay behind existing gates.
 
 Context observers (either context bit) get content read and D2 observer
 operations; involvement stays closed unless separate involvement facts
