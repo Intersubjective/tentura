@@ -74,7 +74,7 @@
 | done | **T08+T09** ancestor closure + widened content read (one migration, one commit) |
 | done (`ffc232a3f`) | **T10** unify hierarchy predicate, drop linked-detail |
 | done (`a3adbd47d`) | **T11** bond SQL + server consumers |
-| pending | **T12** personSharedContexts query |
+| done (`70b34aabd`) | **T12** personSharedContexts query |
 | pending | **T13** client bond-aware profile |
 | pending | **T14** observer reason banner |
 | pending | **T15** docs |
@@ -1671,3 +1671,48 @@ grep -rn 'linked_detail\|LinkedDetail' packages/server/lib packages/server/test 
   - ForwardCase-path stubs/fakes renamed to `personVisiblePeerIds` in `forward_case_auth_test`, `forward_case_test`, `beacon_hierarchy_visibility_pg_support`, `forward_reason_reconciliation_pg_test`, `forward_delivery_result_test`; capability-projection stubs stay on `mutuallyVisiblePeerIds`.
   - This journal update is left uncommitted (single-commit brief; hash only known after commit).
 - **Next:** T11 verify
+
+---
+
+## T12 — Scout (read-only)
+
+- **UNIT_BASE:** `1267d2589ed17d440f0066e836bf6dc254ec13f5` (= `HEAD` at scout time; T11 journal commit on branch)
+- **Task:** V2 root query `personSharedContexts` — `PersonContextCase` + `QueryPersonSharedContexts` + `gqlTypePersonSharedContext`; no SQL/repo changes (T11 `sharedContexts` port method is the data source)
+- **Template:** `QueryBeaconHierarchy.beaconParentReference` (constructor optional port/case + `GetIt.I<>`, `InputFieldString` arg, `getCredentials(args).sub`, `GraphQLObjectField` on `all` getter) — but **separate file** per plan (`query_person_shared_contexts.dart`), list return type like `QueryMutualFriends.mutualFriends`
+- **Contract test:** **not** `beacon_hierarchy_graphql_contract_test.dart` style (`@Tags(['pg'])`, real Postgres). Plan step 4 = schema exposure + resolver with **mocked** `PersonContextCase` → follow `user_block_graphql_test.dart` / `query_capability_projection_test.dart` (no `pg` tag, `--exclude-tags pg`)
+- **Port signature (T11):** `Future<List<({String beaconId, String title})>> sharedContexts({required String viewerId, required String peerId})`
+- **Resolver self-view:** return `[]` when `viewerId == userId` **before** calling case (repo also returns `[]` for self, but plan requires resolver guard)
+- **Next:** T12 implementer (Opus 5 low) — full brief in scout session output
+
+---
+
+## T12 — Verify (read-only)
+
+- **Range:** `1267d2589ed17d440f0066e836bf6dc254ec13f5..70b34aabd` (`feat(server): personSharedContexts query`, body `issue-146 T12`)
+- **Commit scope:** 5 files only — `person_context_case.dart`, `query_person_shared_contexts.dart`, `_queries_all.dart`, `custom_types.dart`, `person_shared_contexts_graphql_contract_test.dart`; **no** `packages/client/`, migrations, Hasura, or T11 port/repo paths in diff
+- **Resolver:** `viewerId == peerId` → `return const <Map<String, String>>[]` **before** `_personContextCase.sharedContexts` (`query_person_shared_contexts.dart` L27–31)
+- **GraphQL:** `[PersonSharedContext!]!` via `GraphQLListType(gqlTypePersonSharedContext.nonNullable()).nonNullable()`; maps use `beaconId` / `title`
+- **Case:** thin delegate to `PersonVisibilityRepositoryPort.sharedContexts` only
+- **Contract test:** no `@Tags(['pg'])`; fake port + real case; self → empty + `port.calls` empty; peer → mapped list + `(viewerId: 'viewer', peerId: 'peer')`
+- **custom_types.dart:** unrelated reflows on `gqlTypeConstellationAnchorProjection` / `gqlTypeBeaconHierarchyPage` are formatting-only (confirmed in `git show` diff)
+
+### Tests re-run (independent)
+
+| Command | Result |
+|---|---|
+| `dart run build_runner build -d` (server) | exit **0** |
+| `dart test --exclude-tags pg test/api/person_shared_contexts_graphql_contract_test.dart` | **4/4** passed |
+| `check-custom-lints.sh packages/server` | **0 vs baseline 0**, OK |
+
+- **Verdict:** **pass** — T12 “Done when” satisfied; proceed **T13**.
+
+---
+
+## T12 — inner (Claude Opus 5)
+
+- **UNIT_BASE:** `1267d2589` → **commit `70b34aabd`** `feat(server): personSharedContexts query` (body `issue-146 T12`). Not pushed.
+- **Done:** `PersonContextCase` (`@Injectable(order: 2)`, wraps `PersonVisibilityRepositoryPort.sharedContexts`); `QueryPersonSharedContexts` (`[PersonSharedContext!]!`, `userId: String!`, self → `[]` without calling the case); `gqlTypePersonSharedContext` in `customTypes` after `gqlTypePersonFriendContext`; registered in `_queries_all.dart`. `build_runner` run (DI, gitignored).
+- **Red:** new contract test failed to load (missing files).
+- **Green:** `person_shared_contexts_graphql_contract_test.dart --exclude-tags pg` **4/4**; `check-custom-lints.sh packages/server` **0 vs baseline 0**.
+- **Findings:** `PersonContextCase` is a `final class`, so the test can't subclass it; it builds a real case over a hand-written fake port (`implements` + `noSuchMethod`) that records calls. `dart format` also re-wrapped some existing lines in `custom_types.dart`; these are layout-only changes.
+- **Next:** T12 verify
