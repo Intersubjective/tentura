@@ -66,7 +66,7 @@
 | done | **T00** preflight (this unit) |
 | done (`335402368`) | **T01** beaconChildren auth |
 | done (`1f1ce43bc`) | **T02** parent reference auth |
-| pending | **T03** close involvement leaks |
+| done (86f32279f) | **T03** close involvement leaks |
 | pending | **T04** client copy + no involvement fetch |
 | pending | **T05** access enums + pure policy |
 | pending | **T06** SQL member view/reasons/level |
@@ -399,4 +399,177 @@ cd packages/server && ../../scripts/run_with_test_cleanup.sh --timeout 20m -- \
 | `check-custom-lints.sh packages/server` | total 0 (baseline 0) OK |
 
 - **Note:** `BeaconHierarchyPolicy.resolveParentReference` / `isAdmittedToImmediateParent` and repo `_loadAdmissionFacts` are no longer called from `loadParentReference`; left in place per scout (cleanup is T10).
-- **Next:** T03
+- **Next:** T03 (implementer)
+
+---
+
+## T03 — Scout (read-only)
+
+- **UNIT_BASE:** `0f9f4dbb20587da5622f863cc2d1026c452dcded` (= `HEAD` at scout time)
+- **Task:** T03 — close involvement leaks in content-only gates (`helpOffersWithCoordination`, `BeaconFactCardCase.list`)
+
+### Live code vs plan
+
+| Topic | Plan | Live @ UNIT_BASE |
+|---|---|---|
+| `helpOffersWithCoordination` gate | `canReadInvolvement` → `'Viewer cannot read request involvement'` | **`canReadContent`** → `'Viewer cannot read request content'` @ `coordination_case.dart` L103–107 |
+| `BeaconFactCardCase.list` gate | Top-of-method `canReadContent` via injected `_guard` | **No guard** — only room-visibility filter (`_canUseRoom` / `BeaconFactCardVisibilityBits.room`) @ L145–191 |
+| `BeaconFactCardCase` DI | Inject `BeaconAccessGuard`; regen `build_runner` | Constructor has facts/room/hierarchy + env/logger only; `di.config.dart` L1513–1520 has **no** `BeaconAccessGuard` param |
+| `CoordinationCase` DI | Already has guard | `required BeaconAccessGuard guard` ✓ — no DI regen for coordination |
+| m0124 implication | One involvement check enough | `beacon_can_read_involvement` = `beacon_can_read_content` **AND** involved-set EXISTS (author, forward sender/recipient, active help offer, steward/admitted participant) — involvement ⇒ content ✓ |
+| Pure-policy analogue | Discover observer reads content, not involvement | `BeaconVisibility.canReadInvolvement` requires content then excludes discover-only path (`beacon_visibility.dart` L127–134) — unit tests should use `FakeBeaconAccessGuard(contentAllowed: true, involvementAllowed: false)` |
+| Unit test files (grep) | `ST/domain/use_case/` | **`beacon_fact_card_case_test.dart`** (Fake stubs, no guard today). **`beacon_room_admission_matrix_test.dart`** — `helpOffersWithCoordination` redaction test + gate throw @ L1083 (`contentAllowed: false`). **No** dedicated `coordination_case_*` file for this gate |
+| Pg regression | `beacon_hierarchy_visibility_pg_test.dart` › non-transitivity › `coordination_case helpOffersWithCoordination` | Frank admitted **parent A only** (`admitFrankToParentAOnly`); on child **B**: `canReadContent`=false, `canReadLinkedDetail`=true (L172–186). Real `BeaconAccessRepository` in harness — refusal should remain after gate swap |
+| `HierarchyOnlyViewerHarness` comment | — | Still says “`canReadContent` gates” (L28–29) — stale after T03 for coordination only; file **not** in T03 edit list |
+
+### Implementer brief (Opus, low effort)
+
+**One commit:** `fix(server): gate help-offer list by involvement and facts by content` (plan “Done when”).
+
+1. **Test-first (coordination):** Add a focused group (new `coordination_case_help_offers_access_gate_test.dart` or extend `beacon_room_admission_matrix_test.dart` — prefer small new file to avoid bloating matrix):
+   - `FakeBeaconAccessGuard(contentAllowed: true, involvementAllowed: false)` → `helpOffersWithCoordination` throws `UnauthorizedException` with description **`Viewer cannot read request involvement`** (stub repo so gate is hit before I/O).
+   - Default guard (both true) + stubbed rows → involved viewer (e.g. author `_authorId` pattern from matrix) still returns rows.
+   - `involvementAllowed: false` (content irrelevant) → stranger throws same involvement message.
+   - **Fix regression:** matrix test L1083 `buildSut(guard: FakeBeaconAccessGuard(contentAllowed: false))` must become **`involvementAllowed: false`** (with `contentAllowed: true` if you want to prove involvement is the gate); otherwise post-change test stays green while not exercising the new check.
+2. **Production:** `coordination_case.dart` — swap gate per plan step 1 (exact exception string).
+3. **Test-first (fact card):** In `beacon_fact_card_case_test.dart`:
+   - Introduce `FakeBeaconAccessGuard` in `setUp` (default `contentAllowed: true`) passed into `BeaconFactCardCase` constructor.
+   - New test: `contentAllowed: false` → `list` throws `'Viewer cannot read request content'` **before** public-only rows (today `denyRoomAccess` + public fact returns 1 row — that scenario stays valid when guard content true).
+4. **Production:** `beacon_fact_card_case.dart` — add `required BeaconAccessGuard guard`, `_guard` field, top-of-`list` check per plan step 2; **do not** change room-visibility loop.
+5. **Codegen:** `cd packages/server && dart run build_runner build -d` — updates `lib/app/di.config.dart` to pass `gh<BeaconAccessGuard>()` into `BeaconFactCardCase` (no new `@GenerateMocks` unless you choose Mockito for fact-card tests; `FakeBeaconAccessGuard` matches existing coordination tests).
+6. **Pg regression (read-only file):** Run single-file `beacon_hierarchy_visibility_pg_test.dart` — group `non-transitivity — production call sites refuse hierarchy-only viewer` › `coordination_case helpOffersWithCoordination` must stay green (Frank still lacks involvement on B).
+
+### TEST_CMD
+
+```bash
+cd packages/server && ../../scripts/run_with_test_cleanup.sh --timeout 20m -- \
+  dart test --exclude-tags pg test/domain/use_case/beacon_fact_card_case_test.dart
+
+cd packages/server && ../../scripts/run_with_test_cleanup.sh --timeout 20m -- \
+  dart test --exclude-tags pg test/domain/use_case/beacon_room_admission_matrix_test.dart
+
+# if new coordination gate file added, run it too:
+cd packages/server && ../../scripts/run_with_test_cleanup.sh --timeout 20m -- \
+  dart test --exclude-tags pg test/domain/use_case/coordination_case_help_offers_access_gate_test.dart
+
+cd packages/server && ../../scripts/run_with_test_cleanup.sh --timeout 20m -- \
+  dart test -t pg test/data/repository/beacon_hierarchy_visibility_pg_test.dart
+
+./scripts/run_with_test_cleanup.sh --timeout 10m -- ./scripts/check-custom-lints.sh packages/server
+```
+
+### RISKS
+
+- **`beacon_room_admission_matrix_test.dart` L1083** — must retarget fake guard to **`involvementAllowed: false`** or CI fails silently on wrong gate.
+- **Existing fact-card list tests** — all construct `BeaconFactCardCase` without guard; constructor change breaks compile until tests + `build_runner` land together.
+- **Frank / hierarchy-only pg** — passes today via **content** denial; after T03 via **involvement** denial — verify SQL: `beacon_can_read_involvement(B, frank)` false (content already false). No pg file edit expected.
+- **m0124 vs Dart discoverability** — SQL `beacon_can_read_content` in m0124 may not include D11 discover path; involvement leak fix for discover observers is still correct at use-case layer using guard/SQL as deployed — do not widen scope to migration changes.
+- **No `BeaconFactCardCase` pg test** in non-transitivity group — content gate on facts is unit-test-only in this unit.
+
+- **Next (implementer):** land T03 commit, journal inner log, mark T03 done.
+
+---
+
+## T03 — Scout (read-only)
+
+- **UNIT_BASE:** `0f9f4dbb20587da5622f863cc2d1026c452dcded` (= `HEAD` at scout time)
+- **Task:** T03 — close involvement leaks in content-only gates (`helpOffersWithCoordination`, `BeaconFactCardCase.list`)
+
+### Live code vs plan
+
+| Topic | Plan | Live @ UNIT_BASE |
+|---|---|---|
+| `helpOffersWithCoordination` gate | `canReadInvolvement` → `'Viewer cannot read request involvement'` | **`canReadContent`** → `'Viewer cannot read request content'` @ `coordination_case.dart` L103–107 |
+| `BeaconFactCardCase.list` gate | Top-of-method `canReadContent` via injected `_guard` | **No guard** — only room-visibility filter (`_canUseRoom` / `BeaconFactCardVisibilityBits.room`) @ L145–191 |
+| `BeaconFactCardCase` DI | Inject `BeaconAccessGuard`; regen `build_runner` | Constructor has facts/room/hierarchy + env/logger only; `di.config.dart` L1513–1520 has **no** `BeaconAccessGuard` param |
+| `CoordinationCase` DI | Already has guard | `required BeaconAccessGuard guard` ✓ — no DI regen for coordination |
+| m0124 implication | One involvement check enough | `beacon_can_read_involvement` = `beacon_can_read_content` **AND** involved-set EXISTS (author, forward sender/recipient, active help offer, steward/admitted participant) — involvement ⇒ content ✓ |
+| Pure-policy analogue | Discover observer reads content, not involvement | `BeaconVisibility.canReadInvolvement` requires content then excludes discover-only path (`beacon_visibility.dart` L127–134) — unit tests should use `FakeBeaconAccessGuard(contentAllowed: true, involvementAllowed: false)` |
+| Unit test files (grep) | `ST/domain/use_case/` | **`beacon_fact_card_case_test.dart`** (Fake stubs, no guard today). **`beacon_room_admission_matrix_test.dart`** — `helpOffersWithCoordination` redaction test + gate throw @ L1083 (`contentAllowed: false`). **No** dedicated `coordination_case_*` file for this gate |
+| Pg regression | `beacon_hierarchy_visibility_pg_test.dart` › non-transitivity › `coordination_case helpOffersWithCoordination` | Frank admitted **parent A only** (`admitFrankToParentAOnly`); on child **B**: `canReadContent`=false, `canReadLinkedDetail`=true (L172–186). Real `BeaconAccessRepository` in harness — refusal should remain after gate swap |
+| `HierarchyOnlyViewerHarness` comment | — | Still says “`canReadContent` gates” (L28–29) — stale after T03 for coordination only; file **not** in T03 edit list |
+
+### Implementer brief (Opus, low effort)
+
+**One commit:** `fix(server): gate help-offer list by involvement and facts by content` (plan “Done when”).
+
+1. **Test-first (coordination):** Add a focused group (new `coordination_case_help_offers_access_gate_test.dart` or extend `beacon_room_admission_matrix_test.dart` — prefer small new file to avoid bloating matrix):
+   - `FakeBeaconAccessGuard(contentAllowed: true, involvementAllowed: false)` → `helpOffersWithCoordination` throws `UnauthorizedException` with description **`Viewer cannot read request involvement`** (stub repo so gate is hit before I/O).
+   - Default guard (both true) + stubbed rows → involved viewer (e.g. author `_authorId` pattern from matrix) still returns rows.
+   - `involvementAllowed: false` (content irrelevant) → stranger throws same involvement message.
+   - **Fix regression:** matrix test L1083 `buildSut(guard: FakeBeaconAccessGuard(contentAllowed: false))` must become **`involvementAllowed: false`** (with `contentAllowed: true` if you want to prove involvement is the gate); otherwise post-change test stays green while not exercising the new check.
+2. **Production:** `coordination_case.dart` — swap gate per plan step 1 (exact exception string).
+3. **Test-first (fact card):** In `beacon_fact_card_case_test.dart`:
+   - Introduce `FakeBeaconAccessGuard` in `setUp` (default `contentAllowed: true`) passed into `BeaconFactCardCase` constructor.
+   - New test: `contentAllowed: false` → `list` throws `'Viewer cannot read request content'` **before** public-only rows (today `denyRoomAccess` + public fact returns 1 row — that scenario stays valid when guard content true).
+4. **Production:** `beacon_fact_card_case.dart` — add `required BeaconAccessGuard guard`, `_guard` field, top-of-`list` check per plan step 2; **do not** change room-visibility loop.
+5. **Codegen:** `cd packages/server && dart run build_runner build -d` — updates `lib/app/di.config.dart` to pass `gh<BeaconAccessGuard>()` into `BeaconFactCardCase` (no new `@GenerateMocks` unless you choose Mockito for fact-card tests; `FakeBeaconAccessGuard` matches existing coordination tests).
+6. **Pg regression (read-only file):** Run single-file `beacon_hierarchy_visibility_pg_test.dart` — group `non-transitivity — production call sites refuse hierarchy-only viewer` › `coordination_case helpOffersWithCoordination` must stay green (Frank still lacks involvement on B).
+
+### TEST_CMD
+
+```bash
+cd packages/server && ../../scripts/run_with_test_cleanup.sh --timeout 20m -- \
+  dart test --exclude-tags pg test/domain/use_case/beacon_fact_card_case_test.dart
+
+cd packages/server && ../../scripts/run_with_test_cleanup.sh --timeout 20m -- \
+  dart test --exclude-tags pg test/domain/use_case/beacon_room_admission_matrix_test.dart
+
+# if new coordination gate file added, run it too:
+cd packages/server && ../../scripts/run_with_test_cleanup.sh --timeout 20m -- \
+  dart test --exclude-tags pg test/domain/use_case/coordination_case_help_offers_access_gate_test.dart
+
+cd packages/server && ../../scripts/run_with_test_cleanup.sh --timeout 20m -- \
+  dart test -t pg test/data/repository/beacon_hierarchy_visibility_pg_test.dart
+
+./scripts/run_with_test_cleanup.sh --timeout 10m -- ./scripts/check-custom-lints.sh packages/server
+```
+
+Optional broader unit sweep after green focused files:
+
+```bash
+cd packages/server && ../../scripts/run_with_test_cleanup.sh --timeout 20m -- \
+  dart test --exclude-tags pg test/domain/use_case/
+```
+
+### RISKS
+
+- **`beacon_room_admission_matrix_test.dart` L1083** — must retarget fake guard to **`involvementAllowed: false`** or CI fails silently on wrong gate.
+- **Existing fact-card list tests** — all construct `BeaconFactCardCase` without guard; constructor change breaks compile until tests + `build_runner` land together.
+- **Frank / hierarchy-only pg** — passes today via **content** denial; after T03 via **involvement** denial — verify SQL: `beacon_can_read_involvement(B, frank)` false (content already false). No pg file edit expected.
+- **m0124 vs Dart discoverability** — SQL `beacon_can_read_content` in m0124 may not include D11 discover path; involvement leak fix for discover observers is still correct at use-case layer using guard/SQL as deployed — do not widen scope to migration changes.
+- **No `BeaconFactCardCase` pg test** in non-transitivity group — content gate on facts is unit-test-only in this unit.
+
+- **Next (implementer):** land T03 commit, journal inner log, mark T03 done.
+
+## T03 — Inner (implementer)
+
+- **Commit:** `86f32279f` fix(server): gate help-offer list by involvement and facts by content (`issue-146 T03`).
+- **Coordination tests:** folded into `beacon_room_admission_matrix_test.dart` (no new file). The old `contentAllowed: false` check at ~L1083 now runs as two checks: (a) `involvementAllowed: false` with content still readable → `'Viewer cannot read request involvement'`; this was a genuine red against the old code (the call returned rows); (b) stranger (content and involvement both false) → `UnauthorizedException`. Author/helper/outsider row checks still pass with the default guard.
+- **Fact-card tests:** `beacon_fact_card_case_test.dart` now passes `FakeBeaconAccessGuard` to the case. New test: stranger (`contentAllowed = false`) → `'Viewer cannot read request content'`, and `listForBeacon` is never called (the stub now counts calls). The red was a compile failure caused by the new constructor argument. The existing "non-admitted user sees only public facts" test is unchanged and still green.
+- **Production:** `coordination_case.dart` now makes a single `canReadInvolvement` check. `beacon_fact_card_case.dart` injects `BeaconAccessGuard` (4th positional argument) and checks it at the top of `list`; the room-visibility loop is unchanged. Also updated the matrix file's exit-access `BeaconFactCardCase(...)` construction.
+- **DI:** `build_runner build -d` wires `gh<BeaconAccessGuard>()` into the case. `lib/app/di.config.dart` is gitignored, so it is not in the commit.
+- **Verify:** fact_card 22 pass, matrix 19 pass, `beacon_hierarchy_visibility_pg_test.dart` 14 pass (including coordination hierarchy-only refusal), `check-custom-lints` server OK (0/0).
+- **Note:** the `HierarchyOnlyViewerHarness` comment about "`canReadContent` gates" is out of date for coordination; the file was untouchable here.
+- **Next:** T04.
+
+---
+
+## T03 — verify (read-only)
+
+- **Range reviewed:** `0f9f4dbb20587da5622f863cc2d1026c452dcded..86f32279f` (4 files only). Pre-existing dirty worktree (`.serena/project.yml`, client tests) not touched by commit ✓; `beacon_hierarchy_repository.dart` not in range ✓.
+- **Production gates (direct read):**
+  - `helpOffersWithCoordination`: exactly one `_guard.canReadInvolvement` check; old `canReadContent` removed (not duplicated elsewhere in that method) ✓
+  - `BeaconFactCardCase.list`: `canReadContent` gate before `final admitted = …`; remainder of method byte-identical to UNIT_BASE (`diff` empty from `final admitted` through closing brace) ✓
+- **Regression trap:** matrix ~L1084–1096 `FakeBeaconAccessGuard(involvementAllowed: false)` with default `contentAllowed: true` on `_outsiderId` + exact involvement message — meaningful red for old content-only gate ✓. Fact-card stranger test uses `contentAllowed: false` (old gate would also refuse; correct signal for fact-card leak is `listForBeaconCalls == 0`).
+- **Involved viewer rows:** same matrix test still loads author/helper/outsider rows under default guard before gate assertions ✓.
+- **TEST_CMD re-run (2026-09-16):**
+
+| Command | + | − | Failed | Exit |
+|---|---|---|---|---|
+| `beacon_fact_card_case_test.dart` | 22 | 0 | 0 | 0 |
+| `beacon_room_admission_matrix_test.dart` | 19 | 0 | 0 | 0 |
+| `beacon_hierarchy_visibility_pg_test.dart` (`-t pg`) | 14 | 0 | 0 | 0 (1st run: +0 −2 `setUpAll` RaceCondition; immediate retry green) |
+| `check-custom-lints.sh packages/server` | — | — | 0 | 0 (`tentura_lints` 0/0) |
+
+- **Verdict:** **pass** — plan T03 “Done when” met; proceed T04 after journal commit.
