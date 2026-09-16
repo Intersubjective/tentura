@@ -7119,11 +7119,11 @@ type v2_AttentionMarkers {
 }
 
 type v2_AttentionPage {
-  items: [v2_AttentionReceipt!]!
+  items: [AttentionReceipt!]!
   nextCursor: String
 }
 
-type v2_AttentionReceipt {
+type AttentionReceipt {
   actionUrl: String!
   actorUserId: String
   attentionThreadKey: String
@@ -7137,7 +7137,7 @@ type v2_AttentionReceipt {
   digestCount: Int
   eventTotal: Int
   eventUnseenCount: Int
-  eventsPreview: [v2_AttentionReceipt!]!
+  eventsPreview: [AttentionReceipt!]!
   forwardCount: Int
   forwardOutcome: String
   id: String!
@@ -7160,7 +7160,7 @@ type v2_AttentionReceipt {
 type v2_ActivityBeaconAttention {
   beaconId: String!
   eventTotal: Int!
-  events: [v2_AttentionReceipt!]!
+  events: [AttentionReceipt!]!
   latestAt: String!
   nextCursor: String
   unseenCount: Int!
@@ -7177,7 +7177,7 @@ type v2_ActivityOfferSortRow {
   effectiveActivityAt: String!
   eventTotal: Int!
   eventUnseenCount: Int!
-  eventsPreview: [v2_AttentionReceipt!]!
+  eventsPreview: [AttentionReceipt!]!
   latestForwardAt: String!
   unseen: Boolean!
 }
@@ -7763,8 +7763,8 @@ type v2_MyForwardRecipient {
 
 type v2_MyWorkBeaconAttention {
   beaconId: String!
-  latestUnseen: v2_AttentionReceipt
-  liveObligations: [v2_AttentionReceipt!]!
+  latestUnseen: AttentionReceipt
+  liveObligations: [AttentionReceipt!]!
   unseenCount: Int!
 }
 
