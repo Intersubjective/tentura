@@ -127,7 +127,7 @@ ON CONFLICT (id) DO NOTHING
       );
       expect(
         await sqlPredicate(
-          'beacon_can_read_linked_detail',
+          'beacon_can_read_content',
           BeaconHierarchyTopology.beaconA,
           strangerId,
         ),

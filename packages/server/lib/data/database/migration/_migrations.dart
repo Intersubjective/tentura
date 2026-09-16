@@ -176,6 +176,7 @@ part 'm0168.dart';
 part 'm0169.dart';
 part 'm0170.dart';
 part 'm0171.dart';
+part 'm0172.dart';
 
 final _allMigrations = <Migration>[
   m0001,
@@ -353,6 +354,7 @@ final _allMigrations = <Migration>[
   m0169,
   m0170,
   m0171,
+  m0172,
 ];
 
 /// Test inventory in the exact order passed to migrant.

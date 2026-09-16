@@ -113,7 +113,7 @@ ON CONFLICT (id) DO UPDATE SET room_access = EXCLUDED.room_access
       }
     }
 
-    test('metadata exposes linked-detail fields without parent relationships', () {
+    test('metadata exposes effective_admission without parent relationships', () {
       final metadataFile = File(
         '${Directory.current.path}/../../hasura/metadata.json',
       );
@@ -129,10 +129,8 @@ ON CONFLICT (id) DO UPDATE SET room_access = EXCLUDED.room_access
           (beaconTable['computed_fields'] as List<dynamic>)
               .map((entry) => (entry as Map<String, dynamic>)['name'] as String)
               .toSet();
-      expect(
-        computed,
-        containsAll(['can_read_linked_detail', 'effective_admission']),
-      );
+      expect(computed, contains('effective_admission'));
+      expect(computed, isNot(contains('can_read_linked_detail')));
 
       final permission =
           (beaconTable['select_permissions'] as List<dynamic>).single
@@ -141,11 +139,6 @@ ON CONFLICT (id) DO UPDATE SET room_access = EXCLUDED.room_access
           (permission['permission'] as Map<String, dynamic>)['filter']
               as Map<String, dynamic>;
       expect(filter['can_read_content'], {'_eq': true});
-      expect(
-        (permission['permission'] as Map<String, dynamic>)['computed_fields'],
-        isNot(contains('can_read_linked_detail')),
-        reason: 'linked-detail tier is not exposed on the content select path',
-      );
 
       final relationships =
           (beaconTable['object_relationships'] as List<dynamic>? ?? const [])

@@ -5,13 +5,11 @@ class FakeBeaconAccessGuard implements BeaconAccessGuard {
     this.contentAllowed = true,
     this.involvementAllowed = true,
     this.tombstoneAllowed = false,
-    this.linkedDetailAllowed = false,
   });
 
   bool contentAllowed;
   bool involvementAllowed;
   bool tombstoneAllowed;
-  bool linkedDetailAllowed;
 
   @override
   Future<bool> canReadContent({
@@ -33,11 +31,4 @@ class FakeBeaconAccessGuard implements BeaconAccessGuard {
     required String viewerId,
   }) async =>
       tombstoneAllowed;
-
-  @override
-  Future<bool> canReadLinkedDetail({
-    required String beaconId,
-    required String viewerId,
-  }) async =>
-      linkedDetailAllowed;
 }

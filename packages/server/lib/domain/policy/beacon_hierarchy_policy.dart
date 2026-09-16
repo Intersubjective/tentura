@@ -21,43 +21,19 @@ class BeaconEffectiveAdmissionFacts {
   final bool isBlockedByOwner;
 }
 
-/// Facts for the parent→child one-edge grant.
-class BeaconImmediateParentLinkFacts {
-  const BeaconImmediateParentLinkFacts({
-    required this.parentStatus,
-    required this.viewerEffectivelyAdmittedToParent,
-    required this.isBlockedByParentOwner,
-  });
-
-  final BeaconStatus parentStatus;
-  final bool viewerEffectivelyAdmittedToParent;
-  final bool isBlockedByParentOwner;
-}
-
-/// Facts for the child→parent one-edge grant.
-class BeaconImmediateChildLinkFacts {
-  const BeaconImmediateChildLinkFacts({
-    required this.childStatus,
-    required this.viewerEffectivelyAdmittedToChild,
-    required this.isBlockedByChildOwner,
-  });
-
-  final BeaconStatus childStatus;
-  final bool viewerEffectivelyAdmittedToChild;
-  final bool isBlockedByChildOwner;
-}
-
 /// Parent-side capability inputs for list/create hints.
 class BeaconHierarchyCapabilityFacts {
   const BeaconHierarchyCapabilityFacts({
     required this.admission,
     required this.parentStatus,
     required this.parentHasKnownOwner,
+    required this.viewerCanReadParentContent,
   });
 
   final BeaconEffectiveAdmissionFacts admission;
   final BeaconStatus parentStatus;
   final bool parentHasKnownOwner;
+  final bool viewerCanReadParentContent;
 }
 
 /// Parent-reference resolution inputs for child detail headers.
@@ -90,49 +66,9 @@ abstract final class BeaconHierarchyPolicy {
         facts.isAdmittedParticipant;
   }
 
-  /// One-edge grant: viewer is effectively admitted to the adjacent parent.
-  ///
-  /// The adjacent parent must be published (non-draft) and not deleted.
-  /// Closed/cancelled parents may still grant the link read.
-  static bool isAdmittedToImmediateParent(
-    BeaconImmediateParentLinkFacts facts,
-  ) {
-    if (facts.isBlockedByParentOwner) {
-      return false;
-    }
-    if (facts.parentStatus == BeaconStatus.draft ||
-        facts.parentStatus == BeaconStatus.deleted) {
-      return false;
-    }
-    return facts.viewerEffectivelyAdmittedToParent;
-  }
-
-  /// One-edge grant: viewer is effectively admitted to the adjacent child.
-  ///
-  /// The adjacent child must be published (non-draft) and not deleted.
-  static bool isAdmittedToImmediatePublishedChild(
-    BeaconImmediateChildLinkFacts facts,
-  ) {
-    if (facts.isBlockedByChildOwner) {
-      return false;
-    }
-    if (facts.childStatus == BeaconStatus.draft ||
-        facts.childStatus == BeaconStatus.deleted) {
-      return false;
-    }
-    return facts.viewerEffectivelyAdmittedToChild;
-  }
-
   static BeaconHierarchyCapabilities resolveCapabilities(
     BeaconHierarchyCapabilityFacts facts,
   ) {
-    if (!hasEffectiveAdmission(facts.admission)) {
-      return const BeaconHierarchyCapabilities(
-        canListChildren: false,
-        canCreateChild: false,
-        denialCode: BeaconHierarchyDenialCode.notAdmitted,
-      );
-    }
     if (facts.parentStatus == BeaconStatus.draft) {
       return const BeaconHierarchyCapabilities(
         canListChildren: false,
@@ -145,6 +81,13 @@ abstract final class BeaconHierarchyPolicy {
         canListChildren: false,
         canCreateChild: false,
         denialCode: BeaconHierarchyDenialCode.parentDeleted,
+      );
+    }
+    if (!hasEffectiveAdmission(facts.admission)) {
+      return BeaconHierarchyCapabilities(
+        canListChildren: facts.viewerCanReadParentContent,
+        canCreateChild: false,
+        denialCode: BeaconHierarchyDenialCode.notAdmitted,
       );
     }
     if (facts.admission.isBlockedByOwner) {

@@ -159,12 +159,6 @@ class _AllowGuard implements BeaconAccessGuard {
     required String beaconId,
     required String viewerId,
   }) async => allowed;
-
-  @override
-  Future<bool> canReadLinkedDetail({
-    required String beaconId,
-    required String viewerId,
-  }) async => allowed;
 }
 
 void main() {

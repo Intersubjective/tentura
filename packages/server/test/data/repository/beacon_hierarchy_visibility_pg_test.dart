@@ -194,10 +194,6 @@ ON CONFLICT (id) DO UPDATE SET room_access = EXCLUDED.room_access
           BeaconAccessReason.contextChild.bit,
         );
         expect(
-          await access.canReadLinkedDetail(beaconId: childId, viewerId: viewerId),
-          isTrue,
-        );
-        expect(
           await effectiveAdmission(childId, viewerId),
           isFalse,
           reason: 'no transitive effective admission',

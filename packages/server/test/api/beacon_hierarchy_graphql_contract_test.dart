@@ -33,6 +33,7 @@ import 'package:tentura_server/env.dart';
 
 import '../support/beacon_hierarchy_fixture.dart';
 import '../support/fake_user_block_repository.dart';
+import '../support/pg_test_public_keys.dart';
 import '../data/repository/beacon_hierarchy_pg_helpers.dart';
 
 final class _NoopTrustEvidenceRepository implements TrustEvidenceRepositoryPort {
@@ -197,7 +198,7 @@ WHERE parent_beacon_id = ANY(@topologyIds)
     }, skip: skipReason);
 
     test(
-      'beaconHierarchyCapabilities: non-admitted viewer is denied with notAdmitted',
+      'beaconHierarchyCapabilities: context observer can list but not create',
       () async {
         await fixture.seedFullTopology();
         await seedPublishedHierarchyTree(writer);
@@ -207,6 +208,40 @@ WHERE parent_beacon_id = ANY(@topologyIds)
         );
         final result = await field.resolve!(null, {
           ...authAs(BeaconHierarchyTopology.eveId),
+          'beaconId': BeaconHierarchyTopology.beaconA,
+        }) as Map<String, dynamic>;
+
+        expect(result['canListChildren'], isTrue);
+        expect(result['canCreateChild'], isFalse);
+        expect(result['denialCode'], 'notAdmitted');
+      },
+      skip: skipReason,
+    );
+
+    test(
+      'beaconHierarchyCapabilities: stranger who cannot read parent is denied',
+      () async {
+        await fixture.seedFullTopology();
+        await seedPublishedHierarchyTree(writer);
+
+        const strangerId = 'Uhierstranger';
+        await writer.execute(
+          Sql.named(r'''
+INSERT INTO public."user" (id, display_name, public_key, created_at, updated_at)
+VALUES (@id, @id, @publicKey, '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z')
+ON CONFLICT (id) DO NOTHING
+'''),
+          parameters: {
+            'id': strangerId,
+            'publicKey': pgTestPublicKey('stranger', 2),
+          },
+        );
+
+        final field = query.all.singleWhere(
+          (f) => f.name == 'beaconHierarchyCapabilities',
+        );
+        final result = await field.resolve!(null, {
+          ...authAs(strangerId),
           'beaconId': BeaconHierarchyTopology.beaconA,
         }) as Map<String, dynamic>;
 
@@ -288,7 +323,7 @@ WHERE parent_beacon_id = ANY(@topologyIds)
 
       // The viewer must first be able to read the child B itself (bob owns
       // B and is not a member of A); the parent reference is then available
-      // because bob can read A via `beacon_can_read_linked_detail`.
+      // because bob can read A via hierarchy context in `beacon_can_read_content`.
       final field = query.all.singleWhere(
         (f) => f.name == 'beaconParentReference',
       );

@@ -92,9 +92,6 @@ Future<void> main() async {
   Future<bool> canReadContent(String beaconId, String viewerId) =>
       access.canReadContent(beaconId: beaconId, viewerId: viewerId);
 
-  Future<bool> canReadLinkedDetail(String beaconId, String viewerId) =>
-      access.canReadLinkedDetail(beaconId: beaconId, viewerId: viewerId);
-
   group('issue #145 stale child invite after parent leave', () {
     test(
       'after child invite consumed, leaving parent must drop parent linked access',
@@ -176,12 +173,6 @@ WHERE id = '$parentEdgeId'
           isFalse,
           reason: 'guest left parent forward edge on parent beacon',
         );
-        expect(
-          await canReadLinkedDetail(parentId, guestId),
-          isFalse,
-          reason:
-              'child membership must not keep parent hierarchy access after leave',
-        );
       },
       skip: skipReason,
     );
@@ -258,11 +249,6 @@ WHERE id = '$parentEdgeId'
           isFalse,
           reason: 'guest left parent (inbound forward cancelled)',
         );
-        expect(
-          await canReadLinkedDetail(parentId, guestId),
-          isFalse,
-          reason: 'no child admission yet',
-        );
 
         expect(
           await userRepo.bindMutual(
@@ -279,11 +265,6 @@ WHERE id = '$parentEdgeId'
           await canReadContent(parentId, guestId),
           isFalse,
           reason: 'stale child invite must not recreate parent forward edge',
-        );
-        expect(
-          await canReadLinkedDetail(parentId, guestId),
-          isFalse,
-          reason: 'child join via stale invite must not imply parent access',
         );
       },
       skip: skipReason,

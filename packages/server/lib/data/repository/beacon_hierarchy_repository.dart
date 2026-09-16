@@ -50,11 +50,17 @@ class BeaconHierarchyRepository implements BeaconHierarchyRepositoryPort {
       viewerId: viewerId,
       ownerId: parent.ownerId,
     );
+    final viewerCanReadParentContent = await _predicate(
+      'beacon_can_read_content',
+      parentBeaconId,
+      viewerId,
+    );
     return BeaconHierarchyPolicy.resolveCapabilities(
       BeaconHierarchyCapabilityFacts(
         admission: admission,
         parentStatus: BeaconStatus.fromSmallint(parent.status),
         parentHasKnownOwner: parent.ownerId.isNotEmpty,
+        viewerCanReadParentContent: viewerCanReadParentContent,
       ),
     );
   }
@@ -74,7 +80,7 @@ class BeaconHierarchyRepository implements BeaconHierarchyRepositoryPort {
     );
     final parentReadable = await _database
         .customSelect(
-          r'SELECT public.beacon_can_read_linked_detail($1, $2) AS allowed',
+          r'SELECT public.beacon_can_read_content($1, $2) AS allowed',
           variables: [
             Variable<String>(parentBeaconId),
             Variable<String>(viewerId),
@@ -109,7 +115,7 @@ class BeaconHierarchyRepository implements BeaconHierarchyRepositoryPort {
         '''
   AND NOT public.block_hides(b.user_id, $viewer)
   AND (
-    (b.status <> 2 AND public.beacon_can_read_linked_detail(b.id, $viewer))
+    (b.status <> 2 AND public.beacon_can_read_content(b.id, $viewer))
     OR (b.status = 2 AND public.beacon_effective_admission(\$1, $viewer))
   )
 ''';
@@ -207,7 +213,7 @@ LIMIT $2
         BeaconStatus.fromSmallint(parent.status) == BeaconStatus.deleted) {
       return BeaconParentReference.unavailable;
     }
-    if (await _predicate('beacon_can_read_linked_detail', parentId, viewerId)) {
+    if (await _predicate('beacon_can_read_content', parentId, viewerId)) {
       return BeaconParentReference(
         state: BeaconParentReferenceState.available,
         beaconId: parentId,

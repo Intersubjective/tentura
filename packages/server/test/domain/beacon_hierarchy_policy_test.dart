@@ -74,134 +74,52 @@ void main() {
     });
   });
 
-  group('BeaconHierarchyPolicy A/B/C/D topology one-edge reads', () {
-    test('Alice admitted only to A reads B and D via parent edge, not C', () {
-      final aliceToB = BeaconImmediateParentLinkFacts(
-        parentStatus: BeaconStatus.open,
-        viewerEffectivelyAdmittedToParent: true,
-        isBlockedByParentOwner: false,
-      );
-      final aliceToD = BeaconImmediateParentLinkFacts(
-        parentStatus: BeaconStatus.open,
-        viewerEffectivelyAdmittedToParent: true,
-        isBlockedByParentOwner: false,
-      );
-      final aliceToC = BeaconImmediateParentLinkFacts(
-        parentStatus: BeaconStatus.open,
-        viewerEffectivelyAdmittedToParent: false,
-        isBlockedByParentOwner: false,
-      );
-
-      expect(BeaconHierarchyPolicy.isAdmittedToImmediateParent(aliceToB), isTrue);
-      expect(BeaconHierarchyPolicy.isAdmittedToImmediateParent(aliceToD), isTrue);
-      expect(BeaconHierarchyPolicy.isAdmittedToImmediateParent(aliceToC), isFalse);
-      expect(
-        BeaconHierarchyTopology.beaconB,
-        isNot(BeaconHierarchyTopology.beaconC),
-      );
-    });
-
-    test('Carol admitted only to C reads B via child edge, not A', () {
-      final carolToB = BeaconImmediateChildLinkFacts(
-        childStatus: BeaconStatus.open,
-        viewerEffectivelyAdmittedToChild: true,
-        isBlockedByChildOwner: false,
-      );
-      final carolToA = BeaconImmediateChildLinkFacts(
-        childStatus: BeaconStatus.open,
-        viewerEffectivelyAdmittedToChild: false,
-        isBlockedByChildOwner: false,
-      );
-
-      expect(
-        BeaconHierarchyPolicy.isAdmittedToImmediatePublishedChild(carolToB),
-        isTrue,
-      );
-      expect(
-        BeaconHierarchyPolicy.isAdmittedToImmediatePublishedChild(carolToA),
-        isFalse,
-      );
-    });
-
-    test('draft and deleted adjacent grantors never grant one-edge reads', () {
-      for (final status in [BeaconStatus.draft, BeaconStatus.deleted]) {
-        expect(
-          BeaconHierarchyPolicy.isAdmittedToImmediateParent(
-            BeaconImmediateParentLinkFacts(
-              parentStatus: status,
-              viewerEffectivelyAdmittedToParent: true,
-              isBlockedByParentOwner: false,
-            ),
-          ),
-          isFalse,
-          reason: 'parent $status',
-        );
-        expect(
-          BeaconHierarchyPolicy.isAdmittedToImmediatePublishedChild(
-            BeaconImmediateChildLinkFacts(
-              childStatus: status,
-              viewerEffectivelyAdmittedToChild: true,
-              isBlockedByChildOwner: false,
-            ),
-          ),
-          isFalse,
-          reason: 'child $status',
-        );
-      }
-    });
-
-    test('blocks suppress one-edge reads in both directions', () {
-      expect(
-        BeaconHierarchyPolicy.isAdmittedToImmediateParent(
-          const BeaconImmediateParentLinkFacts(
-            parentStatus: BeaconStatus.open,
-            viewerEffectivelyAdmittedToParent: true,
-            isBlockedByParentOwner: true,
-          ),
-        ),
-        isFalse,
-      );
-      expect(
-        BeaconHierarchyPolicy.isAdmittedToImmediatePublishedChild(
-          const BeaconImmediateChildLinkFacts(
-            childStatus: BeaconStatus.open,
-            viewerEffectivelyAdmittedToChild: true,
-            isBlockedByChildOwner: true,
-          ),
-        ),
-        isFalse,
-      );
-    });
-
-    test('closed/cancelled adjacent nodes may still grant link reads', () {
-      for (final status in [BeaconStatus.closed, BeaconStatus.cancelled]) {
-        expect(
-          BeaconHierarchyPolicy.isAdmittedToImmediateParent(
-            BeaconImmediateParentLinkFacts(
-              parentStatus: status,
-              viewerEffectivelyAdmittedToParent: true,
-              isBlockedByParentOwner: false,
-            ),
-          ),
-          isTrue,
-          reason: 'parent $status',
-        );
-      }
-    });
-  });
-
   group('BeaconHierarchyPolicy capabilities and parent reference', () {
-    test('non-admitted viewer cannot list or create', () {
+    test('stranger who cannot read parent content cannot list or create', () {
       final caps = BeaconHierarchyPolicy.resolveCapabilities(
         BeaconHierarchyCapabilityFacts(
           admission: _admission(),
           parentStatus: BeaconStatus.open,
           parentHasKnownOwner: true,
+          viewerCanReadParentContent: false,
         ),
       );
       expect(caps.canListChildren, isFalse);
       expect(caps.canCreateChild, isFalse);
       expect(caps.denialCode, BeaconHierarchyDenialCode.notAdmitted);
+    });
+
+    test('observer who reads parent content can list but not create', () {
+      final caps = BeaconHierarchyPolicy.resolveCapabilities(
+        BeaconHierarchyCapabilityFacts(
+          admission: _admission(),
+          parentStatus: BeaconStatus.open,
+          parentHasKnownOwner: true,
+          viewerCanReadParentContent: true,
+        ),
+      );
+      expect(caps.canListChildren, isTrue);
+      expect(caps.canCreateChild, isFalse);
+      expect(caps.denialCode, BeaconHierarchyDenialCode.notAdmitted);
+    });
+
+    test('draft and deleted parents deny observers before admission', () {
+      for (final (status, code) in [
+        (BeaconStatus.draft, BeaconHierarchyDenialCode.parentDraft),
+        (BeaconStatus.deleted, BeaconHierarchyDenialCode.parentDeleted),
+      ]) {
+        final caps = BeaconHierarchyPolicy.resolveCapabilities(
+          BeaconHierarchyCapabilityFacts(
+            admission: _admission(),
+            parentStatus: status,
+            parentHasKnownOwner: true,
+            viewerCanReadParentContent: true,
+          ),
+        );
+        expect(caps.canListChildren, isFalse, reason: '$status');
+        expect(caps.canCreateChild, isFalse, reason: '$status');
+        expect(caps.denialCode, code, reason: '$status');
+      }
     });
 
     test('admitted eligible parent lists but terminal parent denies create', () {
@@ -210,6 +128,7 @@ void main() {
           admission: _admission(isAdmittedParticipant: true),
           parentStatus: BeaconStatus.open,
           parentHasKnownOwner: true,
+          viewerCanReadParentContent: true,
         ),
       );
       expect(openCaps.canListChildren, isTrue);
@@ -221,6 +140,7 @@ void main() {
           admission: _admission(isAdmittedParticipant: true),
           parentStatus: BeaconStatus.closed,
           parentHasKnownOwner: true,
+          viewerCanReadParentContent: true,
         ),
       );
       expect(closedCaps.canListChildren, isTrue);
@@ -360,38 +280,7 @@ void main() {
     });
   });
 
-  group('BeaconVisibility linked detail does not widen content or involvement', () {
-    test('hierarchy-only viewer reads linked detail but not content', () {
-      final facts = BeaconLinkedDetailVisibilityFacts(
-        contentFacts: _content(),
-        isAdmittedToImmediateParent: true,
-        isAdmittedToImmediatePublishedChild: false,
-      );
-      expect(BeaconVisibility.canReadContent(facts.contentFacts), isFalse);
-      expect(BeaconVisibility.canReadLinkedDetail(facts), isTrue);
-    });
-
-    test('one-edge grant does not add involvement graph access', () {
-      final content = _content();
-      final linked = BeaconLinkedDetailVisibilityFacts(
-        contentFacts: content,
-        isAdmittedToImmediateParent: true,
-        isAdmittedToImmediatePublishedChild: false,
-      );
-      expect(BeaconVisibility.canReadLinkedDetail(linked), isTrue);
-      expect(
-        BeaconVisibility.canReadInvolvement(
-          BeaconInvolvementVisibilityFacts(
-            contentFacts: content,
-            isOnActiveForwardEdge: false,
-            isActiveHelpOfferer: false,
-            isRoomAdmittedOrSteward: false,
-          ),
-        ),
-        isFalse,
-      );
-    });
-
+  group('BeaconHierarchyPolicy deleted child tombstone', () {
     test('deleted child tombstone card uses parent admission without content', () {
       expect(
         BeaconHierarchyPolicy.canReadDeletedChildTombstoneCard(
