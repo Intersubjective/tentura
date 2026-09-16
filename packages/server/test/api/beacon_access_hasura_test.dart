@@ -110,7 +110,10 @@ ON CONFLICT DO NOTHING
       );
       expect(row, {
         'access_level': 2,
-        'access_reasons': 8,
+        // forwarded (8) | contextAncestor (128): dave also owns descendant
+        // C (B -> C via seedPublishedHierarchyTree), so since issue-146 T09
+        // he is a context-ancestor observer of B independent of the forward.
+        'access_reasons': 136,
         'can_read_involvement': true,
       });
     }, skip: skipReason);
