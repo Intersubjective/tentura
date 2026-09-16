@@ -70,7 +70,7 @@
 | done (a0ff4912c) | **T04** client copy + no involvement fetch |
 | done (46a394b4b) | **T05** access enums + pure policy |
 | done (7e1700366) | **T06** SQL member view/reasons/level |
-| pending | **T07** expose access level+reasons |
+| done (892452a10) | **T07** expose access level+reasons |
 | pending | **T08+T09** ancestor closure + widened content read (one migration, one commit) |
 | pending | **T10** unify hierarchy predicate, drop linked-detail |
 | pending | **T11** bond SQL + server consumers |
@@ -952,3 +952,126 @@ Grep: **no** `beacon_member`, `beacon_access_reasons`, or `beacon_access_level` 
   - `beacon_effective_admission` ignores status, so a steward/admitted row on a **draft** gives admission=true but level=3. Production drafts have `published_at = NULL` (`BeaconRepository.create`), and room/steward/forward/offer rows need a published request, so the draft fixture is unpublished and relationship-free (author/stranger/trusted/blocked facts only). The plan's "non-deleted ⇒ level≤1 ⇔ admission" invariant only holds for realistic drafts; T08+ should keep that in mind if admission is ever evaluated on drafts.
   - `beacon_steward` PK is `beacon_id` (one steward per beacon).
   - `pgTestPublicKey` uses only a 2-char namespace tag and slots 1–9 → the 10th user rolls over to namespace `ad`.
+
+---
+
+## T07 — Scout (read-only)
+
+- **UNIT_BASE:** `5f0e142f6e6179a9354b29987c7f583a0fd4c1fb` (= `HEAD` at scout time)
+- **Task:** T07 — wire `beacon_get_access_level` / `beacon_get_access_reasons` into Hasura metadata; client schema/fragment/entity; pg Hasura test with user JWT (no UI)
+
+### Live code vs plan
+
+| Topic | Plan | Live @ UNIT_BASE |
+|---|---|---|
+| SQL wrappers | `beacon_get_access_level` / `beacon_get_access_reasons` in m0170 | Present @ `packages/server/lib/data/database/migration/m0170.dart` L100–111 ✓ |
+| Hasura `beacon.computed_fields` | Add `access_level`, `access_reasons` like `can_read_linked_detail` | Has `can_read_linked_detail` @ L217–227; **no** `access_*` entries |
+| `user` `computed_fields` | Append `access_level`, `access_reasons` next to T04’s `can_read_involvement` | Array @ L269–274: `is_pinned`, `my_vote`, `can_read_content`, `can_read_involvement` only |
+| `schema.graphql` | `access_level` / `access_reasons` on `beacon`, `beacon_bool_exp`, `beacon_order_by` | **Absent**; `can_read_involvement` @ L143–146, bool_exp L469–470, order_by L1721–1722 |
+| Int computed-field template | Mirror `my_vote` | `my_vote: Int` + doc comment @ L223–226; `Int_comparison_exp` / `order_by` @ L489, L1740 |
+| `BeaconModel` fragment | Add both fields | Ends with `can_read_content`, `can_read_involvement` @ `beacon_model.graphql` L61–62 |
+| `Beacon` entity | `BeaconAccessLevel? accessLevel`, `@Default(0) int accessReasons` | Only `canReadContent` / `canReadInvolvement` @ `beacon.dart` L75–79 |
+| Mapper | `fromInt` + `?? 0` | `beacon_model.dart` L57–58 — no access fields |
+| Root import path | `package:tentura_root/domain/entity/beacon_access.dart` | Same pattern as `beacon_status.dart` in `beacon.dart` / `beacon_model.dart` ✓ |
+| Client `access_*` grep | — | **Zero** matches under `packages/client` ✓ |
+| Hasura pg harness | User JWT, not admin | `beacon_hierarchy_hasura_parity_test.dart`: `IsolatedHasuraSession.start` → `applyRepoMetadata()` (reads repo `hasura/metadata.json`), `authCase.issueAccessToken(userId)`, `_queryBeaconByPk` with `Authorization: Bearer` ✓ |
+| Plan author fixture `reasons = 1` | Author row | **Trap:** `seedFullTopology` admits **alice→A** and **bob→B** (`_seedAdmissions`) → SQL mask **5** (author\|admitted), not **1**. Use **owner without admitted row** (e.g. **eve on `beaconD`**) or omit participant re-seed for the author assertion |
+
+### m0124 involvement (forward recipient `true`)
+
+`beacon_can_read_involvement` = `beacon_can_read_content` **AND** (author **OR** forward sender/recipient **OR** active offer **OR** steward/admitted participant) @ `m0124.dart` L52–76. Forward **recipient** is in the forward-edge branch → **`can_read_involvement` true** when content is readable (dave on B with bob→dave forward matches `beacon_parent_reference_authorization_pg_test.dart` preconditions).
+
+### Implementer brief (Opus 5, low effort)
+
+**One commit — message exactly:** `feat: expose beacon access level and reasons` (**no** `(server)` / `(client)` scope prefix; single commit spans Hasura + client + server test).
+
+1. **Red — pg:** Add test (prefer new `packages/server/test/api/beacon_access_hasura_test.dart` cloned from parity harness: disposable PG, `IsolatedHasuraSession`, JWT). Cases:
+   - **Forward recipient:** `seedFullTopology` + `seedPublishedHierarchyTree` + re-seed bob/carol/alice participants (copy `beacon_parent_reference_authorization_pg_test.dart` `seedTree`); INSERT forward `bobId` → `daveId` on `beaconB`; JWT `daveId`; `beacon_by_pk` fields `access_level access_reasons can_read_involvement` → **2, 8, true**.
+   - **Author:** `seedFullTopology()` only; JWT **`eveId`** on **`beaconD`** (owner, no admitted participant on D) → **0, 1, true**. (Do **not** use alice on A unless you drop her participant row — mask would be 5.)
+2. **Metadata:** In `hasura/metadata.json`, append two `computed_fields` entries after `can_read_linked_detail` (same JSON shape as L217–227): `access_level` → `beacon_get_access_level`, `access_reasons` → `beacon_get_access_reasons`. Append both names to `user` `select_permissions[0].permission.computed_fields` after `can_read_involvement`. **Do not** change `filter` (`can_read_content` only).
+3. **Green pg:** Re-run test — isolated Hasura picks up metadata via `applyRepoMetadata()` (no `hasura_apply_metadata.sh` required for this suite).
+4. **Client schema:** Hand-edit `schema.graphql` — three sites, doc comments like `my_vote`, function names `beacon_get_access_level` / `beacon_get_access_reasons`, types `Int` / `Int_comparison_exp` / `order_by`. Place `access_level` & `access_reasons` adjacent to other access computeds (`can_read_*` block) or alphabetically in bool_exp (before `address_label`).
+5. **Fragment:** `beacon_model.graphql` — add `access_level` and `access_reasons` after `can_read_involvement`.
+6. **Entity + mapper:** `beacon.dart` import `beacon_access.dart`; fields after `canReadInvolvement`. `beacon_model.dart` mapper per plan. **`cd packages/client && dart run build_runner build -d`** (Freezed + Ferry).
+7. **Verify:** `check-custom-lints.sh` both packages; regression `beacon_hierarchy_hasura_parity_test.dart` (`-t pg`, per-file invocation).
+
+**Do not:** UI/cubit usage of new fields; `m0170`; `beacon_access_policy.dart` / `beacon_access.dart`; version bump; `hasura_apply_metadata.sh` unless manually exercising compose Hasura on :8080.
+
+### TEST_CMD
+
+```bash
+# After implementation (test-first: run once RED before metadata/client, then GREEN)
+
+cd /home/vader/MY_SRC/tentura/packages/server && ../../scripts/run_with_test_cleanup.sh --timeout 20m -- \
+  dart test -t pg test/api/beacon_access_hasura_test.dart
+
+cd /home/vader/MY_SRC/tentura/packages/server && ../../scripts/run_with_test_cleanup.sh --timeout 20m -- \
+  dart test -t pg test/api/beacon_hierarchy_hasura_parity_test.dart
+
+cd /home/vader/MY_SRC/tentura/packages/client && ../../scripts/run_with_test_cleanup.sh --timeout 15m -- \
+  dart run build_runner build -d
+
+cd /home/vader/MY_SRC/tentura && ./scripts/run_with_test_cleanup.sh --timeout 10m -- \
+  ./scripts/check-custom-lints.sh packages/server
+
+cd /home/vader/MY_SRC/tentura && ./scripts/run_with_test_cleanup.sh --timeout 10m -- \
+  ./scripts/check-custom-lints.sh packages/client
+```
+
+Optional local compose (not required for pg test): `./scripts/hasura_apply_metadata.sh` after metadata edit.
+
+### RISKS
+
+- **Author `access_reasons == 1`:** Default hierarchy fixture owners alice/bob also have `room_access = 3` participant rows → bitmask **5**; use **eve/`beaconD`** or strip participant for the author case.
+- **Isolated vs compose Hasura:** Pg tests reload metadata from disk at `applyRepoMetadata()` — editing `metadata.json` is sufficient; long-running :8080 needs `hasura_apply_metadata.sh` only for manual QA.
+- **Row visibility:** `beacon_by_pk` still gated by `can_read_content` filter — forward recipient and author must have content access (dave forward on B; eve owns D).
+- **Parity metadata test:** Existing parity test asserts `can_read_linked_detail` **not** in user `computed_fields`; optional follow-up assert `access_level`/`access_reasons` **are** listed (only if extending that file).
+- **Freezed:** New nullable `accessLevel` defaults null for local `Beacon(...)`; no mass test edits expected if defaults hold.
+
+- **Next (implementer):** land T07 commit, journal inner log, mark T07 done.
+
+---
+
+## T07 — inner (implementer)
+
+- **Commit:** `892452a10` `feat: expose beacon access level and reasons` (body `issue-146 T07`; no scope prefix)
+- **Files (6 in commit):** `hasura/metadata.json`, client schema/fragment/entity/mapper, new `beacon_access_hasura_test.dart`
+- **RED/GREEN:** Hasura test failed on missing GraphQL fields pre-metadata; 2/2 green post. Parity 2/2. `build_runner` OK. Lints server 0/0, client 30/30.
+- **Fixture notes:** Author case uses **eve/`beaconD`** (scout trap avoided). Forward case: no participant re-seed — `seedPublishedHierarchyTree` DELETE cascades B’s participant/help rows; dave gets forward edge only → mask **8**.
+- **Next:** T07 verify
+
+---
+
+## T07 — verify (read-only)
+
+- **Range reviewed:** `5f0e142f6e6179a9354b29987c7f583a0fd4c1fb..HEAD` — **single commit** `892452a10`, 6 files (+267/−1), no `m0170`/policy/UI/cubit/version bump ✓
+- **Metadata:** `access_level` / `access_reasons` computed_field definitions match `can_read_linked_detail` shape (`function` + `session_argument: hasura_session` + `table_argument: beacon_row`); appended to `user` `computed_fields` after `can_read_involvement`; `filter` still `can_read_content: {_eq: true}` only ✓
+- **Client:** `schema.graphql` Int fields + bool_exp/order_by; fragment after `can_read_involvement`; `BeaconAccessLevel? accessLevel`, `@Default(0) accessReasons`; import `package:tentura_root/domain/entity/beacon_access.dart` (same as `beacon_status`) ✓
+- **UI wiring:** `grep accessLevel|accessReasons` under `packages/client` — only `beacon.dart` + `beacon_model.dart` ✓
+- **Fixture correctness (read `beacon_hierarchy_fixture.dart` + test):** Eve owns D, no `_seedAdmissions` row for eve on D; after tree re-insert, cascades clear carol’s D offer/participant — author-only mask **1**. Dave on B: not owner/admitted/offerer; tree delete clears alice’s B offer; test INSERT bob→dave → **8** only ✓
+- **Worktree integrity:** `git stash list` unchanged pattern (no new stash from T07); pre-existing modified tests still **+32** / **+54** line stats on router + constellation files ✓
+- **TEST_CMD re-run (2026-09-16 verify):**
+
+| Command | + | − | Failed | Exit | Notes |
+|---|---|---|---|---|---|
+| `beacon_access_hasura_test.dart` (`-t pg`) | 2 | 0 | 0 | 0 | 1st run: +2 −0 then `PathNotFoundException` on kernel copy (exit 255); immediate retry green |
+| `beacon_hierarchy_hasura_parity_test.dart` (`-t pg`) | 2 | 0 | 0 | 0 | |
+| `build_runner build -d` (client) | — | — | — | 0 | 0 outputs (current) |
+| `check-custom-lints.sh packages/server` | — | — | 0 | 0 | total 0, baseline 0 OK |
+| `check-custom-lints.sh packages/client` | — | — | 0 | 0 | total 30, baseline 30 OK |
+
+- **Verdict:** **pass** — T07 “Done when” satisfied; proceed **T08+T09** (or journal commit).
+
+## T07 — Inner (Opus 5)
+
+- **Commit:** `892452a10` feat: expose beacon access level and reasons (body `issue-146 T07`; no scope prefix; server + client in one commit).
+- **Files:** `hasura/metadata.json`, `C/data/gql/schema.graphql`, `C/data/gql/beacon_model.graphql`, `C/domain/entity/beacon.dart`, `C/data/model/beacon_model.dart`, `ST/api/beacon_access_hasura_test.dart` (new).
+- **Red:** `beacon_access_hasura_test.dart` 0/2 — `field 'access_level' not found in type: 'beacon'` (validation-failed).
+- **Green:** `beacon_access_hasura_test.dart` 2/2 (dave on B via bob→dave forward → 2/8/true; eve on D → 0/1/true; real user JWT). `beacon_hierarchy_hasura_parity_test.dart` 2/2. Client `build_runner build -d` OK (4571 outputs). `check-custom-lints.sh`: server 0 (baseline 0), client 30 (baseline 30).
+- **Findings:**
+  - Generated Freezed/Ferry output is gitignored (`packages/client/.gitignore`: `**.freezed.dart`, `**_g/`) → no generated diffs to commit.
+  - The forward-recipient case needed no participant re-seed; `seedFullTopology` + `seedPublishedHierarchyTree` + the forward edge was enough.
+  - Schema fields placed alphabetically before `address_label` in `type beacon` / `beacon_bool_exp` / `beacon_order_by`.
+  - `dart analyze` on `beacon_model.dart` shows `dead_code`/`dead_null_aware_expression` on the existing `is_discoverable ?? true` line (not added by T07).
+  - `BeaconAccessLevel.fromInt` already takes `int?`, so the mapper's null check is only there to keep `accessLevel` null (the plan's wording).
+  - Operator slip: a `git stash -- <2 client files>` was run by mistake and popped right away; the working tree was restored before the commit, and no other stash entries were touched.
