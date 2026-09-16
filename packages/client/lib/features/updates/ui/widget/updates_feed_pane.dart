@@ -321,10 +321,14 @@ class _UpdatesFeedPaneState extends State<UpdatesFeedPane>
         unawaited(context.read<UpdatesFeedCubit>().markUnseen(receipt.id));
     void onSettle() =>
         unawaited(context.read<UpdatesFeedCubit>().settle(receipt.id));
+    final actors = context.read<UpdatesFeedCubit>().state.actors;
+    final actorId = receipt.actorUserId?.trim() ?? '';
+    final actor = actorId.isEmpty ? null : actors[actorId];
     if (isTrustChangePresentationKey(receipt.presentationKey)) {
       return TrustChangeReceiptCard(
         key: ValueKey(receipt.id),
         receipt: receipt,
+        actor: actor,
         onTap: onTap,
         onMarkSeen: onMarkSeen,
         onMarkUnseen: onMarkUnseen,
@@ -355,6 +359,7 @@ class _UpdatesFeedPaneState extends State<UpdatesFeedPane>
     return UpdatesReceiptCard(
       key: ValueKey(receipt.id),
       receipt: receipt,
+      actor: actor,
       onTap: onTap,
       onMarkSeen: onMarkSeen,
       onMarkUnseen: onMarkUnseen,

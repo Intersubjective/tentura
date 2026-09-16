@@ -3,10 +3,15 @@ import 'dart:async';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 
+import 'package:tentura/design_system/components/tentura_avatar.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/attention/entity/attention_receipt.dart';
+import 'package:tentura/domain/contacts/contact_name_overlay.dart';
+import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/updates/updates_receipt_display_copy.dart';
+import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/test_ids.dart';
 import 'package:tentura/ui/utils/relative_time.dart';
@@ -87,6 +92,7 @@ class UpdatesFeedTile extends StatefulWidget {
     this.headlineOverride,
     this.bodyOverride,
     this.action,
+    this.actor,
     super.key,
   });
 
@@ -98,6 +104,10 @@ class UpdatesFeedTile extends StatefulWidget {
   final String? headlineOverride;
   final String? bodyOverride;
   final Widget? action;
+
+  /// When non-null, leading shows a tappable [TenturaAvatar.medium] instead of
+  /// the type glyph. Must sit outside the row [InkWell].
+  final Profile? actor;
 
   @override
   State<UpdatesFeedTile> createState() => _UpdatesFeedTileState();
@@ -178,93 +188,114 @@ class _UpdatesFeedTileState extends State<UpdatesFeedTile> {
               )
             : null);
 
-    final rowContent = Padding(
-      padding: tt.listRowPadding,
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _LeadingGlyph(glyph: glyph, unread: isUnread),
-          SizedBox(width: tt.avatarTextGap),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
+    final profile = widget.actor == null
+        ? null
+        : profileWithContactOverlay(widget.actor!);
+    final shownName = profile?.shownName.trim() ?? '';
+    final headline = copy.headline;
+    final showActorNamePrefix =
+        shownName.isNotEmpty && shownName != headline.trim();
+
+    final leading = profile != null
+        ? _LeadingAvatar(profile: profile, unread: isUnread)
+        : _LeadingGlyph(glyph: glyph, unread: isUnread);
+
+    final bodyColumn = Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            Expanded(
+              child: Text.rich(
+                TextSpan(
+                  style: TenturaText.titleSmall(tt.text).copyWith(
+                    fontWeight: isUnread ? FontWeight.w600 : FontWeight.w500,
+                  ),
                   children: [
-                    Expanded(
-                      child: Text(
-                        copy.headline,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TenturaText.titleSmall(tt.text).copyWith(
-                          fontWeight: isUnread
-                              ? FontWeight.w600
-                              : FontWeight.w500,
-                        ),
+                    if (showActorNamePrefix) ...[
+                      TextSpan(text: shownName),
+                      TextSpan(
+                        text: ' · ',
+                        style: TenturaText.bodySmall(tt.textFaint),
                       ),
-                    ),
-                    SizedBox(width: tt.iconTextGap),
-                    Tooltip(
-                      message: absoluteTime,
-                      child: Text(
-                        ageLabel,
-                        style: TenturaText.withTabular(
-                          TenturaText.bodySmall(tt.textFaint),
-                        ),
-                      ),
-                    ),
+                    ],
+                    TextSpan(text: headline),
                   ],
                 ),
-                if (copy.body.isNotEmpty)
-                  Text(
-                    copy.body,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: TenturaText.bodySmall(tt.textMuted),
-                  ),
-                if (rowAction != null) rowAction,
-              ],
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+              ),
             ),
+            SizedBox(width: tt.iconTextGap),
+            Tooltip(
+              message: absoluteTime,
+              child: Text(
+                ageLabel,
+                style: TenturaText.withTabular(
+                  TenturaText.bodySmall(tt.textFaint),
+                ),
+              ),
+            ),
+          ],
+        ),
+        if (copy.body.isNotEmpty)
+          Text(
+            copy.body,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: TenturaText.bodySmall(tt.textMuted),
           ),
-          _UpdatesFeedRowOverflow(
-            isUnread: isUnread,
-            markSeenLabel: l10n.updatesMarkSeen,
-            markUnseenLabel: l10n.updatesMarkUnseen,
-            onMarkSeen: _markSeen,
-            onMarkUnseen: _markUnseen,
-          ),
-        ],
-      ),
+        if (rowAction != null) rowAction,
+      ],
     );
 
     return Semantics(
       identifier: TestIds.updatesReceipt(widget.receipt.id),
-      label: copy.headline,
+      label: showActorNamePrefix ? '$shownName · $headline' : headline,
       button: true,
       child: Material(
         color: Colors.transparent,
-        child: _UpdatesFeedRowInteraction(
-          hovering: _hovering,
-          onHoverChanged: (hover) {
-            if (_hovering != hover) setState(() => _hovering = hover);
-          },
-          isUnread: isUnread,
-          markSeenLabel: l10n.updatesMarkSeen,
-          markUnseenLabel: l10n.updatesMarkUnseen,
-          onPrimaryTap: widget.onTap,
-          onMarkSeen: _markSeen,
-          onMarkUnseen: _markUnseen,
-          onShowMarkMenu: _showMarkMenu,
-          overlayColor: WidgetStateProperty.resolveWith((states) {
-            if (states.contains(WidgetState.pressed)) {
-              return scheme.onSurface.withValues(alpha: 0.06);
-            }
-            if (states.contains(WidgetState.hovered)) {
-              return scheme.onSurface.withValues(alpha: 0.03);
-            }
-            return null;
-          }),
-          child: rowContent,
+        child: Padding(
+          padding: tt.listRowPadding,
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              leading,
+              SizedBox(width: tt.avatarTextGap),
+              Expanded(
+                child: _UpdatesFeedRowInteraction(
+                  hovering: _hovering,
+                  onHoverChanged: (hover) {
+                    if (_hovering != hover) setState(() => _hovering = hover);
+                  },
+                  isUnread: isUnread,
+                  markSeenLabel: l10n.updatesMarkSeen,
+                  markUnseenLabel: l10n.updatesMarkUnseen,
+                  onPrimaryTap: widget.onTap,
+                  onMarkSeen: _markSeen,
+                  onMarkUnseen: _markUnseen,
+                  onShowMarkMenu: _showMarkMenu,
+                  overlayColor: WidgetStateProperty.resolveWith((states) {
+                    if (states.contains(WidgetState.pressed)) {
+                      return scheme.onSurface.withValues(alpha: 0.06);
+                    }
+                    if (states.contains(WidgetState.hovered)) {
+                      return scheme.onSurface.withValues(alpha: 0.03);
+                    }
+                    return null;
+                  }),
+                  child: bodyColumn,
+                ),
+              ),
+              _UpdatesFeedRowOverflow(
+                isUnread: isUnread,
+                markSeenLabel: l10n.updatesMarkSeen,
+                markUnseenLabel: l10n.updatesMarkUnseen,
+                onMarkSeen: _markSeen,
+                onMarkUnseen: _markUnseen,
+              ),
+            ],
+          ),
         ),
       ),
     );
@@ -486,6 +517,43 @@ class _LeadingGlyph extends StatelessWidget {
             child: Center(
               child: Icon(glyph.icon, size: tt.iconSize, color: glyph.color),
             ),
+          ),
+          if (unread)
+            Positioned(
+              right: 0,
+              top: 0,
+              child: DecoratedBox(
+                decoration: BoxDecoration(
+                  color: tt.info,
+                  shape: BoxShape.circle,
+                  border: Border.all(color: tt.bg, width: tt.tightGap),
+                ),
+                child: SizedBox.square(dimension: tt.unreadDotSize),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _LeadingAvatar extends StatelessWidget {
+  const _LeadingAvatar({required this.profile, required this.unread});
+
+  final Profile profile;
+  final bool unread;
+
+  @override
+  Widget build(BuildContext context) {
+    final tt = context.tt;
+    return SizedBox.square(
+      dimension: tt.avatarSize,
+      child: Stack(
+        clipBehavior: Clip.none,
+        children: [
+          TenturaAvatar.medium(
+            profile: profile,
+            onTap: () => context.read<ScreenCubit>().showProfile(profile.id),
           ),
           if (unread)
             Positioned(

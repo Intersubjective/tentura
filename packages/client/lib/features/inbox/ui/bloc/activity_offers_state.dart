@@ -1,5 +1,6 @@
 import 'package:freezed_annotation/freezed_annotation.dart';
 import 'package:tentura/domain/attention/entity/attention_receipt.dart';
+import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/ui/bloc/state_base.dart';
 
 import '../../domain/entity/inbox_item.dart';
@@ -33,6 +34,7 @@ abstract class ActivityOffersState extends StateBase with _$ActivityOffersState 
     @Default(false) bool unseenQueryComplete,
     @Default(<String, ActivityOfferBeaconMeta>{})
     Map<String, ActivityOfferBeaconMeta> eventsByBeacon,
+    @Default(<String, Profile>{}) Map<String, Profile> actors,
     String? offersNextCursor,
     @Default(StateIsLoading()) StateStatus status,
   }) = _ActivityOffersState;

@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:get_it/get_it.dart';
 
 import 'package:auto_route/auto_route.dart';
@@ -17,6 +18,7 @@ import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/updates/domain/entity/prompt_projection.dart';
 import 'package:tentura/features/updates/domain/use_case/invite_accepted_setup_case.dart';
 import 'package:tentura/features/updates/ui/widget/invite_accepted_receipt_card.dart';
+import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/test_ids.dart';
 
@@ -37,6 +39,7 @@ class ActivityOfferCard extends StatelessWidget {
     required this.inboxCubit,
     required this.showUnseenDot,
     this.eventsMeta,
+    this.actors = const {},
     super.key,
   })  : _variant = _Variant.forward,
         receipt = null,
@@ -62,13 +65,15 @@ class ActivityOfferCard extends StatelessWidget {
         item = null,
         inboxCubit = null,
         showUnseenDot = false,
-        eventsMeta = null;
+        eventsMeta = null,
+        actors = const {};
 
   final _Variant _variant;
   final InboxItem? item;
   final InboxCubit? inboxCubit;
   final bool showUnseenDot;
   final ActivityOfferBeaconMeta? eventsMeta;
+  final Map<String, Profile> actors;
   final AttentionReceipt? receipt;
   final VoidCallback? onTap;
   final Future<void> Function() onMarkSeen;
@@ -88,6 +93,7 @@ class ActivityOfferCard extends StatelessWidget {
         inboxCubit: inboxCubit!,
         showUnseenDot: showUnseenDot,
         eventsMeta: eventsMeta,
+        actors: actors,
       ),
       _Variant.prompt => KeyedSubtree(
         key: TestIds.key(TestIds.activityPromptPin(receipt!.id)),
@@ -119,6 +125,7 @@ class _ForwardOfferCard extends StatelessWidget {
     required this.inboxCubit,
     required this.showUnseenDot,
     this.eventsMeta,
+    this.actors = const {},
     super.key,
   });
 
@@ -126,6 +133,7 @@ class _ForwardOfferCard extends StatelessWidget {
   final InboxCubit inboxCubit;
   final bool showUnseenDot;
   final ActivityOfferBeaconMeta? eventsMeta;
+  final Map<String, Profile> actors;
 
   Future<void> _openBeacon(BuildContext context) async {
     final beaconId = item.beaconId;
@@ -178,6 +186,7 @@ class _ForwardOfferCard extends StatelessWidget {
             eventTotal: eventsMeta!.eventTotal,
             eventsPreview: eventsMeta!.eventsPreview,
             beaconId: item.beaconId,
+            actors: actors,
             onMarkSeen: (id) => unawaited(attention.markSeen([id])),
           );
 
@@ -229,9 +238,9 @@ class _ForwardOfferCard extends StatelessWidget {
       identifier: TestIds.activityOffer(item.beaconId),
       child: ActivityOfferBoundedShell(
         leading: profile != null
-            ? TenturaAvatar(
+            ? TenturaAvatar.medium(
                 profile: profile,
-                sizeBucket: TenturaAvatarSize.medium,
+                onTap: () => context.read<ScreenCubit>().showProfile(profile.id),
               )
             : SizedBox.square(dimension: tt.avatarSize),
         headline: beacon.title,

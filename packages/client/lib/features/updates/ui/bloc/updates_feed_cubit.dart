@@ -3,10 +3,13 @@ import 'dart:async';
 import 'package:get_it/get_it.dart';
 import 'package:logging/logging.dart';
 
+import 'package:tentura/domain/attention/attention_actor_ids.dart';
+import 'package:tentura/domain/attention/attention_actor_profiles_case.dart';
 import 'package:tentura/domain/attention/attention_case.dart';
 import 'package:tentura/domain/attention/entity/attention_feed.dart';
 import 'package:tentura/domain/attention/entity/attention_receipt.dart';
 import 'package:tentura/domain/capability/invite_seed_prompt_state.dart';
+import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/domain/entity/realtime/realtime_entity_change.dart';
 import 'package:tentura/domain/use_case/realtime_sync_case.dart';
 import 'package:tentura/features/updates/domain/entity/prompt_projection.dart';
@@ -25,11 +28,14 @@ final class UpdatesFeedCubit extends Cubit<UpdatesFeedState> {
     AttentionView? pinnedView,
     AttentionCase? attention,
     InviteAcceptedSetupPort? setup,
+    AttentionActorProfilesCase? actorProfiles,
     RealtimeSyncCase? realtime,
     Logger? logger,
   }) : _destinationId = destinationId,
        _attention = attention ?? GetIt.I<AttentionCase>(),
        _setup = setup ?? GetIt.I<InviteAcceptedSetupPort>(),
+       _actorProfiles =
+           actorProfiles ?? GetIt.I<AttentionActorProfilesCase>(),
        _realtime = realtime ?? GetIt.I<RealtimeSyncCase>(),
        _logger = logger ?? GetIt.I<Logger>(),
        super(const UpdatesFeedState()) {
@@ -51,12 +57,14 @@ final class UpdatesFeedCubit extends Cubit<UpdatesFeedState> {
   final String _destinationId;
   final AttentionCase _attention;
   final InviteAcceptedSetupPort _setup;
+  final AttentionActorProfilesCase _actorProfiles;
   final RealtimeSyncCase _realtime;
   final Logger _logger;
   late final StreamSubscription<AttentionFeedSnapshot> _accountSub;
   late final StreamSubscription<AttentionFeedSession> _sessionSub;
   late final StreamSubscription<RealtimeEntityChange> _promptInvalidationSub;
   int _promptFetchEpoch = 0;
+  int _actorsGeneration = 0;
 
   void _projectFromDomain() {
     final session = _attention.feedSession(_destinationId);
@@ -74,6 +82,31 @@ final class UpdatesFeedCubit extends Cubit<UpdatesFeedState> {
       ),
     );
     _schedulePromptSync(items);
+    unawaited(_hydrateActors(items));
+  }
+
+  Future<void> _hydrateActors(List<AttentionReceipt> items) async {
+    final ids = attentionActorIds(items);
+    if (ids.isEmpty) {
+      if (state.actors.isNotEmpty) {
+        emit(state.copyWith(actors: const {}));
+      }
+      return;
+    }
+    final generation = ++_actorsGeneration;
+    try {
+      final resolved = await _actorProfiles.resolve(ids);
+      if (isClosed || generation != _actorsGeneration) return;
+      final next = <String, Profile>{
+        ...state.actors,
+        ...resolved,
+      };
+      // Drop actors no longer referenced by the visible page.
+      next.removeWhere((id, _) => !ids.contains(id));
+      emit(state.copyWith(actors: next));
+    } on Object catch (error, stackTrace) {
+      _logger.warning('Actor profile hydrate failed', error, stackTrace);
+    }
   }
 
   void _onPromptInvalidation(RealtimeEntityChange change) {

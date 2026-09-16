@@ -534,6 +534,7 @@ class _ActivityStreamScrollBody extends StatelessWidget {
                   inboxCubit: inboxCubit,
                   showUnseenDot: showDot,
                   eventsMeta: offersState.eventsByBeacon[item.beaconId],
+                  actors: offersState.actors,
                 ),
               );
             }
@@ -548,6 +549,7 @@ class _ActivityStreamScrollBody extends StatelessWidget {
               inboxCubit: inboxCubit,
               showUnseenDot: showDot,
               eventsMeta: offersState.eventsByBeacon[beaconId],
+              actors: offersState.actors,
             );
             return KeyedSubtree(
               key: ValueKey('offer-exit-$beaconId'),
@@ -853,6 +855,7 @@ class _ActivityStreamCell extends StatelessWidget {
         final row = ActivityForwardRow(
           key: ValueKey(receipt.id),
           receipt: receipt,
+          actors: streamCubit.state.actors,
           onOpenBeacon: () => unawaited(onOpenParent()),
           onMarkEventSeen: (id) => unawaited(streamCubit.markSeen(id)),
           onRestore: receipt.forwardOutcome ==
@@ -892,43 +895,48 @@ class _ActivityStreamCell extends StatelessWidget {
           if (!context.mounted) return;
           await GetIt.I<RootRouter>().openFromUpdate(receipt);
         }
-        return Material(
-          color: Colors.transparent,
-          child: InkWell(
-            onTap: () => unawaited(onOpenRequestActivity()),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                UpdatesFeedTile(
-                  key: ValueKey(receipt.id),
-                  receipt: receipt,
-                  onTap: () => unawaited(onOpenRequestActivity()),
-                  onMarkSeen: () => streamCubit.markSeen(receipt.id),
-                  onMarkUnseen: () => streamCubit.markUnseen(receipt.id),
-                  onSettle: null,
-                ),
-                if (receipt.eventsPreview.isNotEmpty)
-                  Padding(
-                    padding: EdgeInsets.symmetric(
-                      horizontal: context.tt.listRowPadding.left,
-                    ),
-                    child: ActivityEventSubcardBlock(
-                      eventTotal:
-                          receipt.eventTotal ?? receipt.eventsPreview.length,
-                      eventsPreview: receipt.eventsPreview,
-                      beaconId: beaconId,
-                      onMarkSeen: (id) => unawaited(streamCubit.markSeen(id)),
-                    ),
-                  ),
-              ],
+        final actorId = receipt.actorUserId?.trim() ?? '';
+        final actor = actorId.isEmpty
+            ? null
+            : streamCubit.state.actors[actorId];
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            UpdatesFeedTile(
+              key: ValueKey(receipt.id),
+              receipt: receipt,
+              actor: actor,
+              onTap: () => unawaited(onOpenRequestActivity()),
+              onMarkSeen: () => streamCubit.markSeen(receipt.id),
+              onMarkUnseen: () => streamCubit.markUnseen(receipt.id),
+              onSettle: null,
             ),
-          ),
+            if (receipt.eventsPreview.isNotEmpty)
+              Padding(
+                padding: EdgeInsets.symmetric(
+                  horizontal: context.tt.listRowPadding.left,
+                ),
+                child: ActivityEventSubcardBlock(
+                  eventTotal:
+                      receipt.eventTotal ?? receipt.eventsPreview.length,
+                  eventsPreview: receipt.eventsPreview,
+                  beaconId: beaconId,
+                  actors: streamCubit.state.actors,
+                  onMarkSeen: (id) => unawaited(streamCubit.markSeen(id)),
+                ),
+              ),
+          ],
         );
       case AttentionItemKind.receipt:
+        final actorId = receipt.actorUserId?.trim() ?? '';
+        final actor = actorId.isEmpty
+            ? null
+            : streamCubit.state.actors[actorId];
         return UpdatesFeedTile(
           key: ValueKey(receipt.id),
           receipt: receipt,
+          actor: actor,
           onTap: () => unawaited(onOpenParent()),
           onMarkSeen: () => streamCubit.markSeen(receipt.id),
           onMarkUnseen: () => streamCubit.markUnseen(receipt.id),

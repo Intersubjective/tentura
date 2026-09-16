@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:get_it/get_it.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
@@ -15,6 +16,7 @@ import 'package:tentura/design_system/components/tentura_avatar.dart';
 import 'package:tentura/features/inbox/ui/widget/activity_offer_bounded_shell.dart';
 import 'package:tentura/features/updates/ui/widget/updates_feed_tile.dart';
 import 'package:tentura/features/updates/updates_receipt_display_copy.dart';
+import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/test_ids.dart';
 
@@ -222,9 +224,10 @@ class _InviteAcceptedReceiptCardState extends State<InviteAcceptedReceiptCard> {
       final tt = context.tt;
       return ActivityOfferBoundedShell(
         leading: profile != null
-            ? TenturaAvatar(
+            ? TenturaAvatar.medium(
                 profile: profile,
-                sizeBucket: TenturaAvatarSize.medium,
+                onTap: () =>
+                    context.read<ScreenCubit>().showProfile(profile.id),
               )
             : SizedBox.square(dimension: tt.avatarSize),
         headline: copy.title,
@@ -243,6 +246,7 @@ class _InviteAcceptedReceiptCardState extends State<InviteAcceptedReceiptCard> {
 
     return UpdatesFeedTile(
       receipt: receipt,
+      actor: _inviteeProfile,
       onTap: widget.onTap,
       onMarkSeen: () => unawaited(widget.onMarkSeen()),
       onMarkUnseen: widget.onMarkUnseen,

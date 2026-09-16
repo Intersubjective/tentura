@@ -75,6 +75,11 @@ class ActivityOfferBoundedShell extends StatelessWidget {
                       ),
                     ),
                   ),
+                Padding(
+                  padding: EdgeInsets.only(top: tt.tightGap),
+                  child: leading,
+                ),
+                SizedBox(width: tt.avatarTextGap),
                 Expanded(
                   child: InkWell(
                     onTap: onBodyTap,
@@ -84,71 +89,62 @@ class ActivityOfferBoundedShell extends StatelessWidget {
                         top: tt.tightGap,
                         right: tt.tightGap,
                       ),
-                      child: Row(
+                      child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          leading,
-                          SizedBox(width: tt.avatarTextGap),
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Row(
-                                  children: [
-                                    Expanded(
-                                      child: Text(
-                                        headline,
-                                        maxLines: 2,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: TenturaText.titleSmall(
-                                          scheme.onSurface,
-                                        ).copyWith(
-                                          fontWeight: showUnseenDot
-                                              ? FontWeight.w600
-                                              : FontWeight.w500,
-                                        ),
-                                      ),
-                                    ),
-                                    if (showUnseenDot) ...[
-                                      SizedBox(width: tt.iconTextGap),
-                                      DecoratedBox(
-                                        decoration: BoxDecoration(
-                                          color: tt.info,
-                                          shape: BoxShape.circle,
-                                          border: Border.all(
-                                            color: scheme.surfaceContainerLow,
-                                            width: tt.tightGap,
-                                          ),
-                                        ),
-                                        child: SizedBox.square(
-                                          dimension: tt.unreadDotSize,
-                                        ),
-                                      ),
-                                    ],
-                                    SizedBox(width: tt.iconTextGap),
-                                    Tooltip(
-                                      message: absoluteTime,
-                                      child: Text(
-                                        ageLabel,
-                                        style: TenturaText.withTabular(
-                                          TenturaText.bodySmall(tt.textFaint),
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                                if (whyLine.isNotEmpty) ...[
-                                  SizedBox(height: tt.tightGap),
-                                  Text(
-                                    whyLine,
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: TenturaText.bodySmall(tt.textMuted),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: Text(
+                                  headline,
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TenturaText.titleSmall(
+                                    scheme.onSurface,
+                                  ).copyWith(
+                                    fontWeight: showUnseenDot
+                                        ? FontWeight.w600
+                                        : FontWeight.w500,
                                   ),
-                                ],
+                                ),
+                              ),
+                              if (showUnseenDot) ...[
+                                SizedBox(width: tt.iconTextGap),
+                                DecoratedBox(
+                                  decoration: BoxDecoration(
+                                    color: tt.info,
+                                    shape: BoxShape.circle,
+                                    border: Border.all(
+                                      color: scheme.surfaceContainerLow,
+                                      width: tt.tightGap,
+                                    ),
+                                  ),
+                                  child: SizedBox.square(
+                                    dimension: tt.unreadDotSize,
+                                  ),
+                                ),
                               ],
-                            ),
+                              SizedBox(width: tt.iconTextGap),
+                              Tooltip(
+                                message: absoluteTime,
+                                child: Text(
+                                  ageLabel,
+                                  style: TenturaText.withTabular(
+                                    TenturaText.bodySmall(tt.textFaint),
+                                  ),
+                                ),
+                              ),
+                            ],
                           ),
+                          if (whyLine.isNotEmpty) ...[
+                            SizedBox(height: tt.tightGap),
+                            Text(
+                              whyLine,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TenturaText.bodySmall(tt.textMuted),
+                            ),
+                          ],
                         ],
                       ),
                     ),

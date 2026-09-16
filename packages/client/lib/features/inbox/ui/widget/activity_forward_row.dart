@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/attention/entity/attention_receipt.dart';
+import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/updates/ui/widget/updates_feed_tile.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/test_ids.dart';
@@ -21,6 +22,7 @@ class ActivityForwardRow extends StatelessWidget {
     this.onRestore,
     this.onHide,
     this.onMarkEventSeen,
+    this.actors = const {},
     super.key,
   });
 
@@ -29,6 +31,7 @@ class ActivityForwardRow extends StatelessWidget {
   final VoidCallback? onRestore;
   final VoidCallback? onHide;
   final ValueChanged<String>? onMarkEventSeen;
+  final Map<String, Profile> actors;
 
   @override
   Widget build(BuildContext context) {
@@ -77,6 +80,7 @@ class ActivityForwardRow extends StatelessWidget {
               eventTotal: receipt.eventTotal ?? receipt.eventsPreview.length,
               eventsPreview: receipt.eventsPreview,
               beaconId: beaconId,
+              actors: actors,
               onMarkSeen: onMarkEventSeen ?? (_) {},
             ),
           );

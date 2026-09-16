@@ -1,6 +1,7 @@
 import 'package:tentura/domain/attention/entity/attention_feed.dart';
 import 'package:tentura/domain/attention/entity/attention_receipt.dart';
 import 'package:tentura/domain/attention/entity/attention_summary.dart';
+import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/updates/domain/entity/prompt_projection.dart';
 import 'package:tentura/ui/bloc/state_base.dart';
 
@@ -15,6 +16,7 @@ abstract class UpdatesFeedState extends StateBase with _$UpdatesFeedState {
     @Default(<AttentionReceipt>[]) List<AttentionReceipt> items,
     @Default(<String, PromptProjection>{})
     Map<String, PromptProjection> promptProjections,
+    @Default(<String, Profile>{}) Map<String, Profile> actors,
     @Default(false) bool hasNextPage,
     @Default(StateIsLoading()) StateStatus status,
     Object? refreshError,

@@ -2,8 +2,12 @@ import 'dart:async';
 
 import 'package:get_it/get_it.dart';
 
+import 'package:tentura/domain/attention/attention_actor_ids.dart';
+import 'package:tentura/domain/attention/attention_actor_profiles_case.dart';
 import 'package:tentura/domain/attention/attention_case.dart';
 import 'package:tentura/domain/attention/entity/activity_offer_sort_row.dart';
+import 'package:tentura/domain/attention/entity/attention_receipt.dart';
+import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/forward/domain/entity/help_offer_event.dart';
 
 import '../../domain/entity/inbox_item.dart';
@@ -19,10 +23,13 @@ final class ActivityOffersCubit extends Cubit<ActivityOffersState> {
     required String userId,
     InboxCase? inboxCase,
     AttentionCase? attentionCase,
+    AttentionActorProfilesCase? actorProfiles,
     int pageSize = 20,
   }) : _userId = userId,
        _inboxCase = inboxCase ?? GetIt.I<InboxCase>(),
        _attention = attentionCase ?? GetIt.I<AttentionCase>(),
+       _actorProfiles =
+           actorProfiles ?? GetIt.I<AttentionActorProfilesCase>(),
        _demotedController = StreamController<String>.broadcast(),
        _pageSize = pageSize,
        super(const ActivityOffersState()) {
@@ -44,6 +51,7 @@ final class ActivityOffersCubit extends Cubit<ActivityOffersState> {
   final String _userId;
   final InboxCase _inboxCase;
   final AttentionCase _attention;
+  final AttentionActorProfilesCase _actorProfiles;
   final StreamController<String> _demotedController;
   final _heldBackItems = <String, InboxItem>{};
   final _deskRelevantTimers = <String, Timer>{};
@@ -52,6 +60,7 @@ final class ActivityOffersCubit extends Cubit<ActivityOffersState> {
   bool _scrolledAway = false;
   int _loadGeneration = 0;
   int _unseenGeneration = 0;
+  int _actorsGeneration = 0;
 
   late final StreamSubscription<String> _deskRelevantChanges;
   late final StreamSubscription<HelpOfferEvent> _helpOfferChanges;
@@ -91,6 +100,9 @@ final class ActivityOffersCubit extends Cubit<ActivityOffersState> {
     final hasMore = !pageFailed &&
         nextCursor != null &&
         nextCursor.isNotEmpty;
+    final eventsByBeacon = pageFailed
+        ? state.eventsByBeacon
+        : _metaFromSortRows(resolvedPage?.items ?? const []);
     emit(
       state.copyWith(
         items: pageFailed ? state.items : page,
@@ -99,15 +111,14 @@ final class ActivityOffersCubit extends Cubit<ActivityOffersState> {
         pageLoadFailed: pageFailed,
         hasMore: hasMore,
         offersNextCursor: pageFailed ? state.offersNextCursor : nextCursor,
-        eventsByBeacon: pageFailed
-            ? state.eventsByBeacon
-            : _metaFromSortRows(resolvedPage?.items ?? const []),
+        eventsByBeacon: eventsByBeacon,
         loadingMore: false,
         status: const StateIsSuccess(),
       ),
     );
     if (!pageFailed) {
       unawaited(_refreshUnseenDots());
+      unawaited(_hydrateActors(eventsByBeacon));
     }
   }
 
@@ -134,19 +145,21 @@ final class ActivityOffersCubit extends Cubit<ActivityOffersState> {
           if (!existingIds.contains(item.beaconId)) item,
       ];
       final nextCursor = offerPage.nextCursor;
+      final eventsByBeacon = {
+        ...state.eventsByBeacon,
+        ..._metaFromSortRows(offerPage.items),
+      };
       emit(
         state.copyWith(
           items: merged,
-          eventsByBeacon: {
-            ...state.eventsByBeacon,
-            ..._metaFromSortRows(offerPage.items),
-          },
+          eventsByBeacon: eventsByBeacon,
           offersNextCursor: nextCursor,
           hasMore: nextCursor != null && nextCursor.isNotEmpty,
           loadingMore: false,
         ),
       );
       unawaited(_refreshUnseenDots());
+      unawaited(_hydrateActors(eventsByBeacon));
     } catch (_) {
       if (isClosed) return;
       emit(state.copyWith(loadingMore: false, pageLoadFailed: true));
@@ -365,6 +378,34 @@ final class ActivityOffersCubit extends Cubit<ActivityOffersState> {
         unseen: row.unseen,
       ),
   };
+
+  Future<void> _hydrateActors(
+    Map<String, ActivityOfferBeaconMeta> eventsByBeacon,
+  ) async {
+    final previews = <AttentionReceipt>[
+      for (final meta in eventsByBeacon.values) ...meta.eventsPreview,
+    ];
+    final ids = attentionActorIds(previews);
+    if (ids.isEmpty) {
+      if (state.actors.isNotEmpty) {
+        emit(state.copyWith(actors: const {}));
+      }
+      return;
+    }
+    final generation = ++_actorsGeneration;
+    try {
+      final resolved = await _actorProfiles.resolve(ids);
+      if (isClosed || generation != _actorsGeneration) return;
+      final next = <String, Profile>{
+        ...state.actors,
+        ...resolved,
+      };
+      next.removeWhere((id, _) => !ids.contains(id));
+      emit(state.copyWith(actors: next));
+    } on Object {
+      // Avatar hydrate is best-effort; keep glyph fallback.
+    }
+  }
 
   @override
   Future<void> close() async {

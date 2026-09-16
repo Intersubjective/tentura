@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'package:tentura/domain/attention/entity/attention_receipt.dart';
+import 'package:tentura/domain/entity/profile.dart';
 
 import 'updates_feed_tile.dart';
 
@@ -12,6 +13,7 @@ class TrustChangeReceiptCard extends StatelessWidget {
     required this.onMarkSeen,
     required this.onMarkUnseen,
     required this.onSettle,
+    this.actor,
     super.key,
   });
 
@@ -20,10 +22,12 @@ class TrustChangeReceiptCard extends StatelessWidget {
   final VoidCallback onMarkSeen;
   final VoidCallback onMarkUnseen;
   final VoidCallback onSettle;
+  final Profile? actor;
 
   @override
   Widget build(BuildContext context) => UpdatesFeedTile(
     receipt: receipt,
+    actor: actor,
     onTap: onTap,
     onMarkSeen: onMarkSeen,
     onMarkUnseen: onMarkUnseen,

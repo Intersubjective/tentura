@@ -1,13 +1,20 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:get_it/get_it.dart';
 
+import 'package:tentura/design_system/components/tentura_avatar.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
+import 'package:tentura/domain/attention/attention_actor_ids.dart';
+import 'package:tentura/domain/attention/attention_actor_profiles_case.dart';
 import 'package:tentura/domain/attention/attention_case.dart';
 import 'package:tentura/domain/attention/entity/attention_receipt.dart';
+import 'package:tentura/domain/contacts/contact_name_overlay.dart';
+import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/updates/updates_receipt_display_copy.dart';
 import 'package:tentura/features/updates/ui/widget/updates_feed_tile.dart';
+import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/relative_time.dart';
 
@@ -17,6 +24,7 @@ class ActivityEventSubcardBlock extends StatefulWidget {
     required this.eventTotal,
     required this.eventsPreview,
     required this.onMarkSeen,
+    this.actors = const {},
     this.beaconId,
     super.key,
   });
@@ -24,6 +32,9 @@ class ActivityEventSubcardBlock extends StatefulWidget {
   final int eventTotal;
   final List<AttentionReceipt> eventsPreview;
   final ValueChanged<String> onMarkSeen;
+
+  /// Actor profiles keyed by user id (from owning cubit).
+  final Map<String, Profile> actors;
 
   /// When set, «ещё N» can load older children via [AttentionCase.activityAttention].
   final String? beaconId;
@@ -39,6 +50,7 @@ class _ActivityEventSubcardBlockState extends State<ActivityEventSubcardBlock> {
   late List<AttentionReceipt> _events = List<AttentionReceipt>.of(
     widget.eventsPreview,
   );
+  late Map<String, Profile> _actors = Map<String, Profile>.of(widget.actors);
 
   @override
   void didUpdateWidget(covariant ActivityEventSubcardBlock oldWidget) {
@@ -47,6 +59,12 @@ class _ActivityEventSubcardBlockState extends State<ActivityEventSubcardBlock> {
         oldWidget.eventsPreview != widget.eventsPreview &&
         !_loadingMore) {
       _events = List<AttentionReceipt>.of(widget.eventsPreview);
+    }
+    if (oldWidget.actors != widget.actors) {
+      _actors = {
+        ..._actors,
+        ...widget.actors,
+      };
     }
   }
 
@@ -77,6 +95,7 @@ class _ActivityEventSubcardBlockState extends State<ActivityEventSubcardBlock> {
             padding: EdgeInsets.only(top: tt.tightGap),
             child: _EventSubcard(
               receipt: receipt,
+              actor: _actorFor(receipt),
               bodyStyle: bodyStyle,
               ageStyle: ageStyle,
               l10n: l10n,
@@ -97,6 +116,12 @@ class _ActivityEventSubcardBlockState extends State<ActivityEventSubcardBlock> {
           ),
       ],
     );
+  }
+
+  Profile? _actorFor(AttentionReceipt receipt) {
+    final id = receipt.actorUserId?.trim() ?? '';
+    if (id.isEmpty) return null;
+    return _actors[id];
   }
 
   Future<void> _expand() async {
@@ -121,8 +146,17 @@ class _ActivityEventSubcardBlockState extends State<ActivityEventSubcardBlock> {
         for (final event in page.events)
           if (!seen.contains(event.id)) event,
       ];
+      final missingIds = attentionActorIds(merged).difference(_actors.keys.toSet());
+      var actors = _actors;
+      if (missingIds.isNotEmpty) {
+        final resolved =
+            await GetIt.I<AttentionActorProfilesCase>().resolve(missingIds);
+        if (!mounted) return;
+        actors = {..._actors, ...resolved};
+      }
       setState(() {
         _events = merged;
+        _actors = actors;
         _loadingMore = false;
       });
     } catch (_) {
@@ -140,9 +174,11 @@ class _EventSubcard extends StatelessWidget {
     required this.ageStyle,
     required this.l10n,
     required this.onMarkSeen,
+    this.actor,
   });
 
   final AttentionReceipt receipt;
+  final Profile? actor;
   final TextStyle bodyStyle;
   final TextStyle ageStyle;
   final L10n l10n;
@@ -165,36 +201,52 @@ class _EventSubcard extends StatelessWidget {
       l10n: l10n,
     );
     final eventCopy = copy.headline.isNotEmpty ? copy.headline : copy.body;
+    final profile = actor == null ? null : profileWithContactOverlay(actor!);
+    final shownName = profile?.shownName.trim() ?? '';
+    final showName = shownName.isNotEmpty;
+    final showEvent =
+        eventCopy.isNotEmpty && (!showName || eventCopy != shownName);
+
+    final leading = profile != null
+        ? TenturaAvatar.medium(
+            profile: profile,
+            onTap: () => context.read<ScreenCubit>().showProfile(profile.id),
+          )
+        : SizedBox.square(
+            dimension: tt.avatarSize,
+            child: Icon(
+              glyph.icon,
+              size: tt.iconSize,
+              color: glyph.color,
+            ),
+          );
 
     return Material(
       color: Colors.transparent,
-      child: InkWell(
-        onTap: onMarkSeen,
-        borderRadius: BorderRadius.circular(TenturaRadii.cardDense),
-        child: TenturaTechCardStatic(
-          surfaceOverride: tt.bg,
-          borderOverride: tt.borderSubtle,
-          radius: TenturaRadii.cardDense,
-          padding: EdgeInsets.all(tt.cardGap),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              SizedBox.square(
-                dimension: tt.avatarSize,
-                child: Icon(
-                  glyph.icon,
-                  size: tt.iconSize,
-                  color: glyph.color,
-                ),
-              ),
-              SizedBox(width: tt.avatarTextGap),
-              Expanded(
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          leading,
+          SizedBox(width: tt.avatarTextGap),
+          Expanded(
+            child: InkWell(
+              onTap: onMarkSeen,
+              borderRadius: BorderRadius.circular(TenturaRadii.cardDense),
+              child: TenturaTechCardStatic(
+                surfaceOverride: tt.bg,
+                borderOverride: tt.borderSubtle,
+                radius: TenturaRadii.cardDense,
+                padding: EdgeInsets.all(tt.cardGap),
                 child: Text.rich(
                   TextSpan(
                     style: bodyStyle,
                     children: [
-                      TextSpan(text: eventCopy),
-                      TextSpan(text: ' · ', style: ageStyle),
+                      if (showName) TextSpan(text: shownName),
+                      if (showName && showEvent)
+                        TextSpan(text: ' · ', style: ageStyle),
+                      if (showEvent) TextSpan(text: eventCopy),
+                      if (showName || showEvent)
+                        TextSpan(text: ' · ', style: ageStyle),
                       TextSpan(text: age, style: ageStyle),
                     ],
                   ),
@@ -202,9 +254,9 @@ class _EventSubcard extends StatelessWidget {
                   overflow: TextOverflow.ellipsis,
                 ),
               ),
-            ],
+            ),
           ),
-        ),
+        ],
       ),
     );
   }
