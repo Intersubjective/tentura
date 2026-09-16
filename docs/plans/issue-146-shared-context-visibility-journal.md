@@ -72,7 +72,7 @@
 | done (7e1700366) | **T06** SQL member view/reasons/level |
 | done (892452a10) | **T07** expose access level+reasons |
 | done | **T08+T09** ancestor closure + widened content read (one migration, one commit) |
-| pending | **T10** unify hierarchy predicate, drop linked-detail |
+| done (`ffc232a3f`) | **T10** unify hierarchy predicate, drop linked-detail |
 | pending | **T11** bond SQL + server consumers |
 | pending | **T12** personSharedContexts query |
 | pending | **T13** client bond-aware profile |
@@ -1427,3 +1427,149 @@ independently verifiable.
 
 **Commit:** `feat(server): hierarchy context grants observer access (issue #146)`,
 body `issue-146 T08+T09`.
+
+---
+
+## T10 — Scout (read-only)
+
+- **UNIT_BASE:** `2451f3c15fa0327cec4a19ae51a129decb2c957c` (= `HEAD` at scout time)
+- **Task:** T10 — hierarchy endpoints use unified `beacon_can_read_content`; drop linked-detail SQL/Dart/Hasura
+
+### Migration slot
+
+| Check | Result |
+|---|---|
+| `m0172.dart` on disk | **Absent** — free for T10 |
+| `m0173.dart` on disk | **Absent** — reserved for T11 (do not touch) |
+| `_allMigrations` tail | `m0170`, `m0171` only |
+
+### Live `beacon_hierarchy_repository.dart` linked-detail call sites (replace → `beacon_can_read_content`)
+
+| Location | Current |
+|---|---|
+| `listChildren` L77 | `SELECT public.beacon_can_read_linked_detail($1, $2)` parent preflight |
+| `listChildren` L112 | `public.beacon_can_read_linked_detail(b.id, $viewer)` per non-deleted child |
+| `loadParentReference` L210 | `_predicate('beacon_can_read_linked_detail', parentId, viewerId)` (child gate already `beacon_can_read_content` @ L194–198) |
+
+`loadCapabilities` (L37–59): still calls only `_loadAdmissionFacts` + `resolveCapabilities` — **no** `viewerCanReadParentContent` yet.
+
+### Capabilities policy delta
+
+`BeaconHierarchyCapabilityFacts` (`beacon_hierarchy_policy.dart` L51–61): add `required bool viewerCanReadParentContent`.
+
+`resolveCapabilities` (L126–172): **reorder** — plan requires **draft** and **deleted** checks **before** the non-admitted branch. Today non-admitted is first (L129–134). New non-admitted return: `canListChildren: facts.viewerCanReadParentContent`, `canCreateChild: false`, `denialCode: notAdmitted`. Admitted path (L158–171) unchanged.
+
+`beacon_hierarchy_policy_test.dart` L194–204: rename/extend **`non-admitted viewer cannot list or create`** → observer with `viewerCanReadParentContent: true` lists but cannot create.
+
+### Linked-detail Dart deletion targets
+
+| File | Remove |
+|---|---|
+| `beacon_visibility.dart` | `BeaconLinkedDetailVisibilityFacts`, `BeaconVisibility.canReadLinkedDetail` (L71–157) |
+| `beacon_access_guard.dart` | `canReadLinkedDetail` |
+| `beacon_access_repository.dart` | `canReadLinkedDetail` override |
+
+`beacon_visibility_test.dart`: **no** `LinkedDetail` references (T09 covers content grants).
+
+### Policy dead code (plan step 4)
+
+| Symbol | `packages/server/lib` callers after linked-detail removal |
+|---|---|
+| `isAdmittedToImmediateParent` / `isAdmittedToImmediatePublishedChild` | **None** (only `beacon_visibility.dart` linked-detail path today) → **delete methods** + `BeaconImmediateParentLinkFacts` / `BeaconImmediateChildLinkFacts` if unused, and policy tests in group `A/B/C/D topology one-edge reads` (L77–190) |
+| `resolveParentReference` / `BeaconParentReferenceFacts` | **None** in `lib/` (repo uses SQL since T02) — **not** named in T10 delete list; optional leave or delete with L231–262 tests only if worker wants zero dead policy |
+
+### Client / schema
+
+- `grep -rn can_read_linked_detail packages/client/lib --include='*.graphql' --include='*.dart' | grep -v _g/` → **empty** (no client selects field).
+- `packages/client/lib/data/gql/schema.graphql` → **already has no** `can_read_linked_detail` (noop for step 4a schema edit; still run grep after codegen if touched).
+- Client hierarchy UI: `canListChildren` / `canCreateChild` only in `beacon_hierarchy_cubit.dart`, `beacon_hierarchy_state.dart`, `beacon_child_requests_section.dart`, `beacon_hierarchy_repository.dart`, `beacon_hierarchy_capabilities.graphql` — **no surprises**; no client code changes expected.
+
+### Hasura + SQL drop
+
+- `hasura/metadata.json` L217–227: remove `can_read_linked_detail` computed_field; post-edit `grep -n can_read_linked_detail hasura/metadata.json` must be empty.
+- `m0172.dart`: DROP `beacon_get_can_read_linked_detail(beacon, json)` and `beacon_can_read_linked_detail(text, text)`; register in `_migrations.dart` after `m0171`.
+- History retained in `m0155`, `m0171` (comments/SQL); live DB drops in m0172.
+
+### Server test files referencing `linked_detail` / `LinkedDetail` (all must update or drop)
+
+**Production-adjacent / pg / api**
+
+1. `test/data/repository/beacon_children_authorization_pg_test.dart` — precondition SQL fn name L130
+2. `test/data/repository/beacon_parent_reference_authorization_pg_test.dart` — L190
+3. `test/data/repository/beacon_hierarchy_visibility_pg_test.dart` — `access.canReadLinkedDetail` L197 (assert `canReadContent` only or drop redundant expect)
+4. `test/data/repository/issue_145_stale_child_invite_pg_test.dart` — local helper + expectations L95–96, 180, 262, 284 → `canReadContent` on parent
+5. `test/api/beacon_hierarchy_hasura_parity_test.dart` — metadata test L116–147: stop expecting `can_read_linked_detail` in computed_fields set
+6. `test/api/beacon_hierarchy_graphql_contract_test.dart` — comment L291 only
+
+**Unit / policy**
+
+7. `test/domain/beacon_hierarchy_policy_test.dart` — capabilities test L194+; delete groups `A/B/C/D topology one-edge reads` (L77–190), `BeaconVisibility linked detail does not widen…` (L363–393); keep tombstone test L395+
+8. `test/domain/beacon_lineage_visibility_test.dart` — test name mentions `canReadLinkedDetail` (L34); body likely fine — update name/comment only
+
+**Support / mocks (regenerate after guard API change)**
+
+9. `test/support/fake_beacon_access_guard.dart` — remove `linkedDetailAllowed` + method
+10. `test/support/block_aware_beacon_access_guard.dart` — remove override
+11. `test/domain/use_case/beacon_case_fork_media_test.dart` — `_AllowGuard.canReadLinkedDetail`
+12. `test/domain/use_case/forward_band_case_mocks.mocks.dart` — **regen** via `dart run build_runner build -d` in `packages/server`
+
+**Migrations (do not edit except new m0172)**
+
+- `lib/data/database/migration/m0155.dart`, `m0170.dart`, `m0171.dart` — historical references only
+
+### Implementer brief (Opus, low effort)
+
+**One commit:** `refactor: hierarchy reads use the unified content predicate; drop linked-detail`
+
+1. **Test-first:** `beacon_hierarchy_policy_test.dart` — observer `viewerCanReadParentContent: true`, not admitted → `canListChildren` true, `canCreateChild` false.
+2. **Policy + repo:** `viewerCanReadParentContent` on facts; `resolveCapabilities` reorder; `loadCapabilities` calls `_predicate('beacon_can_read_content', parentBeaconId, viewerId)`.
+3. **Repo SQL:** three `linked_detail` → `beacon_can_read_content` in `listChildren` + `loadParentReference`.
+4. **Delete** linked-detail Dart API; strip test support/mocks; `build_runner -d` in server.
+5. **`m0172` + metadata**; fix all 12 test paths above; pg tests use `beacon_can_read_content` in SQL preconditions where they used `beacon_can_read_linked_detail`.
+6. **Delete** `isAdmittedToImmediateParent` / `isAdmittedToImmediatePublishedChild` (+ fact classes if orphaned) per plan step 4.
+7. Locally: migrate then `./scripts/hasura_apply_metadata.sh`.
+
+**TEST_CMD:**
+
+```bash
+cd packages/server && ../../scripts/run_with_test_cleanup.sh --timeout 20m -- dart test test/domain/beacon_hierarchy_policy_test.dart test/domain/beacon_visibility_test.dart
+cd packages/server && ../../scripts/run_with_test_cleanup.sh --timeout 45m -- dart test -t pg test/data/repository/beacon_children_authorization_pg_test.dart test/data/repository/beacon_parent_reference_authorization_pg_test.dart test/data/repository/beacon_hierarchy_visibility_pg_test.dart test/api/beacon_hierarchy_hasura_parity_test.dart test/api/beacon_hierarchy_graphql_contract_test.dart test/data/repository/issue_145_stale_child_invite_pg_test.dart
+../../scripts/run_with_test_cleanup.sh --timeout 10m -- ./scripts/check-custom-lints.sh packages/server
+grep -rn 'linked_detail\|LinkedDetail' packages/server/lib packages/server/test hasura/metadata.json | grep -v m0155 | grep -v m0171 || true
+```
+
+- **Next:** T10 implementer (Opus low)
+
+---
+
+## T10 — inner (implementer, Composer 2.5 substitute) — done
+
+- **UNIT_BASE:** `2451f3c15fa0327cec4a19ae51a129decb2c957c`
+- **Substitute:** Opus 5 inner layer hit usage limit after partial TDD red on `beacon_hierarchy_policy_test.dart`; continued from that checkpoint.
+- **Commit:** `ffc232a3f` — `refactor: hierarchy reads use the unified content predicate; drop linked-detail` (body `issue-146 T10`).
+
+### Changes
+
+- `BeaconHierarchyCapabilityFacts.viewerCanReadParentContent`; `resolveCapabilities` runs draft/deleted before non-admitted; observers list, cannot create.
+- `loadCapabilities` + hierarchy SQL/parent-reference gates use `beacon_can_read_content` only.
+- Removed `canReadLinkedDetail` / `BeaconLinkedDetailVisibilityFacts` / one-edge admission helpers from policy.
+- `m0172` drops linked-detail SQL; Hasura `can_read_linked_detail` computed field removed.
+
+### Tests (wrapped `dart test`)
+
+| Suite | Result |
+|---|---|
+| `beacon_hierarchy_policy_test.dart` + `beacon_visibility_test.dart` | 45 passed |
+| `beacon_children_authorization_pg_test.dart` | 4 passed |
+| `beacon_parent_reference_authorization_pg_test.dart` | 3 passed |
+| `beacon_hierarchy_visibility_pg_test.dart` | 14 passed |
+| `beacon_hierarchy_hasura_parity_test.dart` | 2 passed |
+| `beacon_hierarchy_graphql_contract_test.dart` | 12 passed (split capabilities: context observer vs inserted stranger) |
+| `issue_145_stale_child_invite_pg_test.dart` | 2 passed |
+| `check-custom-lints.sh packages/server` | OK |
+
+### Notes
+
+- Client `grep can_read_linked_detail` on `packages/client/lib` → empty.
+- Post-T10 `grep linked_detail\|LinkedDetail` still hits `parentLinkedDetailAuthorized` on dead `resolveParentReference` facts (out of scope rename), `m0172` DROP strings, and parity negative assertion — not live linked-detail API.
+- **Next:** T11 implementer
