@@ -75,7 +75,7 @@
 | done (`ffc232a3f`) | **T10** unify hierarchy predicate, drop linked-detail |
 | done (`a3adbd47d`) | **T11** bond SQL + server consumers |
 | done (`70b34aabd`) | **T12** personSharedContexts query |
-| pending | **T13** client bond-aware profile |
+| done (`a3c2acd38`) | **T13** client bond-aware profile |
 | pending | **T14** observer reason banner |
 | pending | **T15** docs |
 | pending | **T16** release gate |
@@ -1716,3 +1716,33 @@ grep -rn 'linked_detail\|LinkedDetail' packages/server/lib packages/server/test 
 - **Green:** `person_shared_contexts_graphql_contract_test.dart --exclude-tags pg` **4/4**; `check-custom-lints.sh packages/server` **0 vs baseline 0**.
 - **Findings:** `PersonContextCase` is a `final class`, so the test can't subclass it; it builds a real case over a hand-written fake port (`implements` + `noSuchMethod`) that records calls. `dart format` also re-wrapped some existing lines in `custom_types.dart`; these are layout-only changes.
 - **Next:** T12 verify
+
+---
+
+## T13 — Scout (read-only)
+
+- **UNIT_BASE:** `3c59d6c5e10cdd4247a48abe7376cac4cfbeb97f` (= `HEAD` at scout time; T12 commit `70b34aabd` on branch)
+- **Server contract (T11/T12, do not edit):** V2 `user.shares_active_context` (nullable bool); root `personSharedContexts(userId: String!): [PersonSharedContext!]!` with `{ beaconId, title }`; self → `[]`.
+- **Client `schema.graphql` (hand-add until next Hasura fetch):** insert `personSharedContexts(userId: String!): [v2_PersonSharedContext!]!` on `query_root` next to `personFriendContextBatch` (~5087); add `type v2_PersonSharedContext { beaconId: String! title: String! }` near other `v2_` types (~7850); add `shares_active_context: Boolean` on `type v2_user` (currently ends at `user_presence` — no field yet). **Stitching:** server type `PersonSharedContext` → client `v2_PersonSharedContext` (single prefix; contrast `v2_PersonFriendContext` server name → `v2_v2_PersonFriendContext` in schema). Do **not** use `v2_v2_` for PersonSharedContext.
+- **Direct V2 routing:** add `'PersonSharedContexts'` to `_tenturaDirectOperationNames` after `'PersonFriendContextBatch'` (~320); operation name must match `.graphql` `query PersonSharedContexts`.
+- **Port/repo template:** `ForwardCandidateContextRepository` + port (`@LazySingleton(as: Port)`); plan asks `@Singleton(as: PersonSharedContextPort)` on `person_shared_context_repository.dart`. `MutualFriendsRepository` shows Ferry `request` + `dataOrThrow` shape but no port. Return type `List<({String beaconId, String title})>` from port method (name implementer choice, e.g. `fetchSharedContexts(String userId)`).
+- **`ProfileViewCase.load`:** mirror subjectiveTags best-effort — `var sharedContexts = …`; `try { sharedContexts = await _port… } catch (_) {}`; extend typedef `ProfileViewSnapshot` + `ProfileViewState`/`ProfileViewCubit.fetch` emit path with `sharedContexts`.
+- **`PersonActionPolicy`:** add optional `sharesActiveContext = false` to `from` → pass into `_baseFrom`. Compute `trustMutual = profile.isMutuallyVisible`; policy `isMutuallyVisible = trustMutual || sharesActiveContext`; `visibilityState = sharedContext` when `!trustMutual && sharesActiveContext`, else existing `_visibilityState(...)` (pass **trust** mutual flag, not augmented). Bond-only then hits `if (isMutuallyVisible)` branch (Send primary) — intentional per plan widening.
+- **`profile_view_body.dart`:** today builds `PersonActionPolicy.from(profile, …)` without bond; must pass `sharesActiveContext: sharedContexts.isNotEmpty` and feed first title into `_ProfileVisibilitySection` for `sharedContext` switch case (two l10n lines). Eye icon uses `policy.isMutuallyVisible` (opens for bond).
+- **Exhaustive switches:** adding `PersonVisibilityState.sharedContext` **breaks compile** in `profile_view_body.dart` and `graph_person_context_panel.dart` (`_directionalLines` switches). Graph panel must **not** pass `sharesActiveContext` (trust-only); add `sharedContext` case mapping to trust-only copy (e.g. same lines as `neither` or re-derive from profile trust fields) — optional `// issue-146: bond not shown here yet` comment only.
+- **`user_public_model` path:** `packages/client/lib/data/gql/user_public_model.graphql` (not under `data/model/`). Profile main fetch uses Hasura `UserModel` on `user` — bond flag for forwarding comes via `UserPublicModel` on `forwardCandidates` only.
+- **Tests (plan):** `ForwardCandidate.isReachable` bond-only; `ProfileViewCase` load + failing shared-context fetch → `[]`; widget test for shared-context visibility line — extend `profile_view_body_action_policy_test.dart` / `profile_view_case_test.dart`; add `person_action_policy_test.dart` bond rows; optional `direct_operation_routing_test.dart` for `PersonSharedContexts`.
+- **Codegen / gates:** client `build_runner`, `flutter gen-l10n`, `check-user-facing-terminology.sh`, `check-custom-lints.sh packages/client`. **Version:** AGENTS.md requires client semver + `web/index.html` cache-buster for user-visible changes; plan T16 does release minor — recommend at least **patch** bump in T13 commit.
+- **Next:** T13 implementer (Opus 5 low) — full brief in scout session output
+
+---
+
+## T13 — inner (Claude Opus 5)
+
+- **UNIT_BASE:** `3c59d6c5e` → **commit `a3c2acd38`** `feat(client): show co-participant bond on profile and in forwarding` (body `issue-146 T13`). Not pushed. No version bump (T16 does it).
+- **Done:** schema stitching (`v2_user.shares_active_context`, `personSharedContexts` root field, `v2_PersonSharedContext` with a single prefix, sorted between `v2_NotificationPreferences` and `v2_ReviewWindowStatus`); `PersonSharedContexts` operation + direct-V2 routing; `PersonSharedContextPort` (`typedef PersonSharedContext = ({String beaconId, String title})`, `fetchSharedContexts(userId)`); `PersonSharedContextRepository` (`@Singleton`, dev/prod) + test-env `PersonSharedContextRepositoryMock` (returns `[]`); `ProfileViewCase` gains a 6th positional port and fetches subjective tags + shared contexts in parallel, each best-effort → `ProfileViewSnapshot/State.sharedContexts`; `Profile.sharesActiveContext` via `UserPublicModel`; `ForwardCandidate.isReachable` ORs the bond; `PersonActionPolicy.from(sharesActiveContext:)` → `PersonVisibilityState.sharedContext` (trust-only mutual still feeds `_visibilityState`); profile body shows the two EN/RU lines from the first context's title.
+- **Graph panel:** `sharedContext` shares the `neither` arm (unreachable there because the panel never passes the flag); it has the `issue-146` comment. Only two exhaustive switches existed (profile body, graph panel).
+- **Tests:** new `test/support/fake_person_shared_context_port.dart`; 8 `ProfileViewCase(...)` test constructions updated; new `forward_candidate_reachability_test.dart`; bond cases in policy, case (fetch throws → `[]`, profile still loads), body widget (EN+RU lines, Send primary), routing tests.
+- **Red/green:** the code was written before the tests (not strictly red-first). Green: the mandated 6-file run **96/96**; the broader profile_view/ + graph person-context run **155/155**; `check-custom-lints.sh packages/client` **30 vs baseline 30** OK; terminology ok; build_runner + gen-l10n ok.
+- **Findings:** `dart format` re-wrapped some existing lines in touched files (graph panel, seen-helping strip test, action-policy test); these are layout-only changes. Format-only changes to untouched files were reverted. The profile body `BlocSelector` now selects the `(profile, sharedContexts)` record.
+- **Next:** T13 verify
