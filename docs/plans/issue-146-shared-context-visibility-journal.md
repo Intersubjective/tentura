@@ -69,7 +69,7 @@
 | done (86f32279f) | **T03** close involvement leaks |
 | done (a0ff4912c) | **T04** client copy + no involvement fetch |
 | done (46a394b4b) | **T05** access enums + pure policy |
-| pending | **T06** SQL member view/reasons/level |
+| done (7e1700366) | **T06** SQL member view/reasons/level |
 | pending | **T07** expose access level+reasons |
 | pending | **T08+T09** ancestor closure + widened content read (one migration, one commit) |
 | pending | **T10** unify hierarchy predicate, drop linked-detail |
@@ -874,3 +874,81 @@ cd /home/vader/MY_SRC/tentura && ./scripts/run_with_test_cleanup.sh --timeout 10
 - **Green:** root 2/2 (256 round-trips + 9 levels); server 2/2 (16384-case sweep incl. 2048 parity cases; 40960 single-fact flips for S4-01), <1s test time.
 - **Lints:** `check-custom-lints.sh packages/server` → total 0 (baseline 0), OK.
 - **Notes:** `BeaconStatus` has no `isDraft`/`isDeleted` getters — policy uses `== BeaconStatus.draft/deleted` (same as `BeaconVisibility`). Parity mapping onto `BeaconContentVisibilityFacts` complete (8 fields; steward‖admitted → `isRoomAdmittedOrSteward`, trust → `isMutuallyVisibleWithAuthor`). `dart format` would re-indent the verbatim `fromInt` switch in `beacon_access.dart`; left verbatim per brief.
+
+---
+
+## T06 — Scout (read-only)
+
+- **UNIT_BASE:** `f1d9e510bde9bc7e8d90c771f070e6791c6de50d` (= `HEAD` at scout time)
+- **Task:** T06 — `beacon_member` view, `beacon_access_reasons` / `beacon_access_level`, Hasura wrappers; parity pg test
+
+### Migration slot
+
+| Check | Result |
+|---|---|
+| `m0170` on disk | **Absent** — still free (T00 mapping holds) |
+| `_migrations.dart` tail | `part 'm0169.dart';` / list ends `m0169` — append `m0170` after |
+
+### Index grep (`ON public.beacon (user_id` in `MIG/*.dart`)
+
+| File | Line | Index |
+|---|---|---|
+| `m0160.dart` | 18–20 | `beacon_discoverable_author_idx ON public.beacon (user_id) WHERE is_discoverable AND status IN (0, 7, 8) AND published_at IS NOT NULL` |
+
+**No** `beacon_user_id_published_idx`. Per plan T06 (“If it does, drop step 5”): **omit migration statement #5** — an index on `beacon(user_id)` already exists (narrower partial). Record in commit message body if desired.
+
+### `setBeaconSteward` write pattern (`beacon_room_repository.dart` L1076–1098)
+
+1. `INSERT … ON CONFLICT UPDATE` into `beacon_steward` for `(beacon_id, stewardUserId)`.
+2. `UPDATE beacon_participant SET role = BeaconParticipantRoleBits.steward` for **existing** row matching `(beaconId, stewardUserId)` — **does not insert** a participant.
+
+Parity fixtures for steward viewers must **INSERT both** `beacon_steward` **and** `beacon_participant` with `role = 1` (or insert participant then call `setBeaconSteward`).
+
+### vs `beacon_access_sql_parity_test.dart`
+
+That file uses shared `TenturaDb` + `migrateDbSchema` + `Uvisparity*` ids; tests `beacon_can_read_content` / involvement / tombstone vs `BeaconVisibility`. **No** `beacon_access_level` / `beacon_member`. Plan names **new** `beacon_access_level_parity_pg_test.dart` — use **`BeaconHierarchyDisposablePgTarget`** + `openBeaconHierarchyPgSession` (same as `beacon_hierarchy_visibility_pg_test.dart`), not extend the old parity file.
+
+### Hasura wrapper mirror
+
+Copy shape from `m0155.dart` `beacon_get_can_read_linked_detail` (table `beacon_row`, `hasura_session` → `x-hasura-user-id`); T06 plan SQL delegates to `beacon_access_level` / `beacon_access_reasons`.
+
+### Live SQL
+
+Grep: **no** `beacon_member`, `beacon_access_reasons`, or `beacon_access_level` in repo yet — T06 is first wiring.
+
+- **Next (implementer):** land T06 per brief below, journal inner log, mark T06 done.
+
+---
+
+## T06 — verify (read-only)
+
+- **Range reviewed:** `f1d9e510bde9bc7e8d90c771f070e6791c6de50d..7e1700366` (3 files). Pre-existing dirty worktree unchanged by commit ✓
+- **Commit:** `7e1700366` `feat(server): add beacon_member view and access level SQL` — body `issue-146 T06`, index-skip note ✓
+- **`m0170.dart` vs plan SQL:** Statements 1–3 byte-match plan §T06. Statement 4 split into two migration strings (lines 98–111); SQL text of both `CREATE OR REPLACE FUNCTION` bodies matches plan (comment retained on first wrapper only). **No** statement 5 / `beacon_user_id_published_idx` ✓
+- **`_migrations.dart`:** `part 'm0170.dart';` + `m0170` after `m0169` ✓
+- **Untouchables:** No changes to `beacon_access_policy.dart`, `beacon_access.dart`, Hasura, client, repos/guards/use cases in range ✓
+- **Parity test:** 10 personas (`_author` … `_blocked`); 8×8 status×persona loop; `isMemberOfImmediateParent`/`isMemberOfDescendant` always `false`; draft beacon relationship-free; `beacon_member` draft/deleted/blocked cases present ✓
+- **Draft / `beacon_effective_admission`:** `m0155` `beacon_effective_admission` has **no** `b.status` filter (author/steward/participant only). Mismatch with `beacon_access_level` on draft+membership is **pre-existing**, not introduced by T06; test avoids by seeding draft without steward/participant/forward/offer rows (matches create path: `published_at` null, no room graph). Not a T06 acceptance gap.
+- **TEST_CMD re-run (2026-09-16 verify):**
+
+| Command | + | − | Failed | Exit |
+|---|---|---|---|---|
+| `beacon_access_level_parity_pg_test.dart` (`-t pg`) | 3 | 0 | 0 | 0 |
+| `beacon_access_sql_parity_test.dart` (`-t pg`) | 12 | 0 | 0 | 0 |
+| `check-custom-lints.sh packages/server` | — | — | 0 | 0 (`tentura_lints` 0/0 OK) |
+
+- **Verdict:** **pass** — T06 “Done when” satisfied; mark T06 done in checklist when journal committed.
+
+## T06 — Inner (Opus 5)
+
+- **Commit:** `7e1700366` feat(server): add beacon_member view and access level SQL (body `issue-146 T06`; notes the step-5 index omission).
+- **Files:** `MIG/m0170.dart`, `MIG/_migrations.dart` (part + list), `ST/data/repository/beacon_access_level_parity_pg_test.dart`.
+- **Red:** parity test 0/3 — `function public.beacon_access_reasons(unknown, unknown) does not exist`, `relation "public.beacon_member" does not exist`.
+- **Green:** parity test 3/3 (10 personas × all 8 `BeaconStatus` values: reasons == policy, level == policy, level≤2 ⇔ can_read_content, non-deleted level≤1 ⇔ effective_admission; beacon_member open/draft/deleted/blocked). `beacon_access_sql_parity_test.dart` 12/12. `check-custom-lints.sh packages/server` total 0 (baseline 0).
+- **Step 5 (index):** omitted — `m0160` `beacon_discoverable_author_idx` already covers `beacon(user_id)`.
+- **Findings:**
+  - Statement 4 (two `CREATE FUNCTION`s) had to be two migration strings — migrant rejects multiple commands in one prepared statement. SQL text otherwise verbatim.
+  - Fixture: changing one beacon's status in place trips the `inbox_item` tombstone trigger → seeded one beacon per status instead.
+  - `beacon_effective_admission` ignores status, so a steward/admitted row on a **draft** gives admission=true but level=3. Production drafts have `published_at = NULL` (`BeaconRepository.create`), and room/steward/forward/offer rows need a published request, so the draft fixture is unpublished and relationship-free (author/stranger/trusted/blocked facts only). The plan's "non-deleted ⇒ level≤1 ⇔ admission" invariant only holds for realistic drafts; T08+ should keep that in mind if admission is ever evaluated on drafts.
+  - `beacon_steward` PK is `beacon_id` (one steward per beacon).
+  - `pgTestPublicKey` uses only a 2-char namespace tag and slots 1–9 → the 10th user rolls over to namespace `ad`.
