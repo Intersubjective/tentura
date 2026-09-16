@@ -68,6 +68,7 @@ List<GraphQLType<dynamic, dynamic>> get customTypes => [
   gqlTypeForwardReasonRow,
   gqlTypePersonTopCapabilities,
   gqlTypePersonFriendContext,
+  gqlTypePersonSharedContext,
   gqlTypeTagProjection,
   gqlTypeForwardBandRow,
   gqlTypeInviteSeedPromptState,
@@ -607,8 +608,9 @@ final gqlTypeConstellationAnchorProjection =
         field('revision', graphQLString.nonNullable()),
         field(
           'anchors',
-          GraphQLListType(gqlTypeConstellationAnchor.nonNullable())
-              .nonNullable(),
+          GraphQLListType(
+            gqlTypeConstellationAnchor.nonNullable(),
+          ).nonNullable(),
         ),
         field(
           'pinnedPeers',
@@ -1112,6 +1114,13 @@ final gqlTypePersonFriendContext =
         field('coInvolvedBeaconsCount', graphQLInt.nonNullable()),
       ]);
 
+final gqlTypePersonSharedContext =
+    GraphQLObjectType('PersonSharedContext', null)
+      ..fields.addAll([
+        field('beaconId', graphQLString.nonNullable()),
+        field('title', graphQLString.nonNullable()),
+      ]);
+
 final gqlTypeTagProjection = GraphQLObjectType('v2_TagProjection', null)
   ..fields.addAll([
     field('subjectUserId', graphQLString.nonNullable()),
@@ -1350,14 +1359,17 @@ final gqlTypeBeaconHierarchySummary =
         field('isTombstone', graphQLBoolean.nonNullable()),
       ]);
 
-final gqlTypeBeaconHierarchyPage = GraphQLObjectType('BeaconHierarchyPage', null)
-  ..fields.addAll([
-    field(
-      'summaries',
-      GraphQLListType(gqlTypeBeaconHierarchySummary.nonNullable()).nonNullable(),
-    ),
-    field('nextCursor', graphQLString),
-  ]);
+final gqlTypeBeaconHierarchyPage =
+    GraphQLObjectType('BeaconHierarchyPage', null)
+      ..fields.addAll([
+        field(
+          'summaries',
+          GraphQLListType(
+            gqlTypeBeaconHierarchySummary.nonNullable(),
+          ).nonNullable(),
+        ),
+        field('nextCursor', graphQLString),
+      ]);
 
 final gqlTypeBeaconHierarchyCapabilities =
     GraphQLObjectType('BeaconHierarchyCapabilities', null)
