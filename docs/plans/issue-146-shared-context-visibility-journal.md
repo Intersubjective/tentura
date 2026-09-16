@@ -73,7 +73,7 @@
 | done (892452a10) | **T07** expose access level+reasons |
 | done | **T08+T09** ancestor closure + widened content read (one migration, one commit) |
 | done (`ffc232a3f`) | **T10** unify hierarchy predicate, drop linked-detail |
-| pending | **T11** bond SQL + server consumers |
+| done (`a3adbd47d`) | **T11** bond SQL + server consumers |
 | pending | **T12** personSharedContexts query |
 | pending | **T13** client bond-aware profile |
 | pending | **T14** observer reason banner |
@@ -1611,3 +1611,63 @@ grep -rn 'linked_detail\|LinkedDetail' packages/server/lib packages/server/test 
 `grep -rn 'linked_detail\|LinkedDetail' packages/server/lib packages/server/test hasura/metadata.json` → only `m0155`/`m0170`/`m0171` history, `m0172` DROP lines, dead `parentLinkedDetailAuthorized` + its unit tests, parity `isNot(contains('can_read_linked_detail'))`. No production linked-detail consumers.
 
 - **Verdict:** **pass** — T10 acceptance met; ready for T11.
+
+---
+
+## T11 — Scout (read-only)
+
+- **UNIT_BASE:** `56da48c2bea2896ec9f238ccb720d2d7082ddbe7` (= `HEAD` at scout time; matches overseer `UNIT_BASE`)
+- **Task:** Bond SQL (`m0173`) + `PersonVisibilityRepositoryPort` widen + `ForwardCase` / `ForwardCandidatesCase` + `UserPublicRecord` / GQL field `shares_active_context` + pg/unit tests (S4-12, S4-13)
+- **Migration slot:** `m0173.dart` **absent** on disk; `_allMigrations` ends at `m0172` — **next free = m0173** ✓
+- **Scout brief:** see agent output in session (full SQL verbatim, STEPS, TEST_CMD, RISKS for Opus 5 implementer)
+- **Live-code notes:**
+  - `ForwardCase` recipient gate at **line 236–246** uses `mutuallyVisiblePeerIds`; already injects `PersonVisibilityRepositoryPort` — switch call only.
+  - `ForwardCandidatesCase` has **no** `PersonVisibilityRepositoryPort`; constructor is `(ForwardCandidatesRepositoryPort, UserProfileBatchLookup)` — **DI + `build_runner` required**. **Bug:** `if (peers.isEmpty) return const []` at lines 34–36 must not run before bond merge (bond-only picker case).
+  - `ForwardCandidatePeerRow` constructor confirmed: `peerId`, `forwardMr`, `reverseMr`, `viewerTrusts`, `trustsViewer` (all required).
+  - `kForwardCandidatesWrapSql` stays trust-only (`person_are_mutually_visible`) — correct per D4; bond merge is Dart-only in the case.
+  - Plan lists `forward_candidates_repository_port.dart` / `forward_candidates_repository.dart` in Files header but **no Dart edits** in task body — leave unchanged unless implementer discovers a gap.
+- **Next (implementer):** Opus 5 low effort — follow brief; commit `feat(server): co-participant bond widens person visibility for forwarding`
+
+---
+
+## T11 — Verify (read-only)
+
+- **UNIT_BASE:** `56da48c2bea2896ec9f238ccb720d2d7082ddbe7` → **commit:** `a3adbd47d` (`feat(server): co-participant bond widens person visibility for forwarding`, body `issue-146 T11`)
+- **Scope:** `git show a3adbd47d --name-only` → **20 files**, all under `packages/server/`; **no** `packages/client/`; **no** diff on `m0170.dart` / `m0171.dart` vs `56da48c2..a3adbd47d`
+- **SQL:** `m0173.dart` bodies match plan verbatim (`person_bond`, `person_bond_peers`, `person_shared_contexts`; status `IN (0, 5, 7, 8)`); registered as `m0173` after `m0172` in `_migrations.dart`
+- **D4 / S4-13:** `person_bond_pg_test.dart` — bonded viewer+author on shared open request; unrelated beacon `is_discoverable: true`, `published_at`, status 0; `vote_user` cleared in `setUp`; asserts `person_are_mutually_visible` false, `beacon_can_read_content` false, `beacon_access_reasons & 32 = 0`; control that shared beacon stays readable ✓
+- **Use cases:** `ForwardCase` recipient gate → `personVisiblePeerIds` only (plus unrelated one-line logger format in `_logForwardBandConversion`); `ForwardCandidatesCase` fetches bond after trust, merges bond-only rows, early return only when **both** lists empty; `sharesActiveContext` via `_withSharedContext` for all `bondPeerIds` ✓
+- **§6.2 deferred:** `capability_projection_case.dart` unchanged; still `mutuallyVisiblePeerIds`; mock file regen only for new port methods
+- **DI:** `di.config.dart` gitignored (`**.config.dart`); worktree has `PersonVisibilityRepositoryPort` wired into `ForwardCandidatesCase` (local `build_runner` expected)
+- **Inner FINDINGS confirmed:** `beacon_member` author↔participant block drops helper membership → bond with other members ends (T06 semantics); first pg failure was test expectation, not SQL
+
+### Tests re-run (independent)
+
+| Command | Result |
+|---|---|
+| `person_bond_pg_test.dart` `-t pg` | **9/9** passed (1st run: all green then exit **255** kernel-copy flake; after `--sweep-only` retry: **9/9**, exit **0**) |
+| 5 named unit files `--exclude-tags pg` | **76/76** passed |
+| `person_visibility_repository_pg_test.dart` `-t pg` | **3/3** passed |
+| `check-custom-lints.sh packages/server` | **0 vs baseline 0**, OK |
+
+- **Verdict:** **pass** — T11 “Done when” satisfied; proceed **T12**.
+
+---
+
+## T11 — inner (Claude Opus 5)
+
+- **UNIT_BASE:** `56da48c2bea2896ec9f238ccb720d2d7082ddbe7` → **commit `a3adbd47d`** `feat(server): co-participant bond widens person visibility for forwarding` (body `issue-146 T11`). Not pushed.
+- **Done:** `m0173` (`person_bond`, `person_bond_peers`, `person_shared_contexts`, verbatim SQL) registered after `m0172`; `PersonVisibilityRepositoryPort` + impl gain `bondPeerIds` / `personVisiblePeerIds` (trust ∪ bond) / `sharedContexts`; `ForwardCase` recipient gate → `personVisiblePeerIds` (message unchanged); `ForwardCandidatesCase` injects the port, drops the pre-bond early return, appends bond-only zero-MR rows after the unchanged trust rows, flags every bonded peer `sharesActiveContext`; `UserPublicRecord.sharesActiveContext` (default false); nullable GQL `shares_active_context` + mapper. `build_runner` run (DI + mocks).
+- **Untouched (D4):** `m0170`/`m0171`, `person_are_mutually_visible`, `person_visible_peers_symmetric`, `constellation_trust_edges`, `forward_candidates_sql.dart`, `CapabilityProjectionCase._canViewSubject`. No T12 query.
+- **Red:** unit files failed to load (missing `personVisiblePeerIds` / 3rd ctor arg) before implementation.
+- **Green:**
+  - `person_bond_pg_test.dart -t pg` **9/9** (S4-12 lifetime/leave/block/symmetry/peers parity/shared contexts cap 20; S4-13 D4 proof: bonded viewer cannot read author's discoverable unrelated request, bit 32 = 0)
+  - unit set (forward_candidates_case, forward_case, forward_case_auth, query_forward_candidates, gql_public_user_maps) **76/76**; plus forward_delivery_result, forward_band_case, capability_projection_case in a wider run **100/100**
+  - `person_visibility_repository_pg_test.dart -t pg` **3/3**; `forward_reason_reconciliation_pg_test` + `beacon_hierarchy_visibility_pg_test` **23/23**
+  - `check-custom-lints.sh packages/server` **0 vs baseline 0**
+- **Findings:**
+  - `beacon_member` drops a participant when a block exists between that participant and the request author, so an author↔helper block also ends the helper's bond with every other member of that request. The first pg run failed on my hard-coded expectation; I corrected the fixture expectation (SQL unchanged).
+  - `UserPublicRecord` has no `copyWith`; the case rebuilds flagged records via a private `_withSharedContext`.
+  - ForwardCase-path stubs/fakes renamed to `personVisiblePeerIds` in `forward_case_auth_test`, `forward_case_test`, `beacon_hierarchy_visibility_pg_support`, `forward_reason_reconciliation_pg_test`, `forward_delivery_result_test`; capability-projection stubs stay on `mutuallyVisiblePeerIds`.
+  - This journal update is left uncommitted (single-commit brief; hash only known after commit).
+- **Next:** T11 verify
