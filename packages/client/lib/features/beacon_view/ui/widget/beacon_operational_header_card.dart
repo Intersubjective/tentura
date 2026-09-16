@@ -21,6 +21,7 @@ import 'package:tentura/ui/widget/beacon_hud_row_lead.dart';
 import 'beacon_hud_action_button.dart';
 import 'beacon_hud_author_act_block.dart';
 import 'closed_request_banner.dart';
+import 'request_access_reason_banner.dart';
 
 /// Compact HUD header: metadata strip, NOW/YOU, action rail.
 class BeaconOperationalHeaderCard extends StatelessWidget {
@@ -91,6 +92,7 @@ class BeaconOperationalHeaderCard extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           ClosedRequestBanner(beacon: state.beacon),
+          RequestAccessReasonBanner(beacon: state.beacon),
           BeaconHudMetadataTable(
             buildEntries: (rowWidth) => buildBeaconViewHudMetadataEntries(
               context,

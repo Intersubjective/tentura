@@ -2615,6 +2615,10 @@
   "@requestClosedBannerBody": {
     "context": "Supporting text of the non-dismissible banner on closed requests (status 6)"
   },
+  "requestAccessViaRelatedRequest": "You can see this request because you take part in a related request.",
+  "@requestAccessViaRelatedRequest": {
+    "context": "One-line banner on the request view for observers whose access comes only from a related (parent/child) request"
+  },
   "beaconForwardToPersonTitle": "Forward to {name}",
   "@beaconForwardToPersonTitle": {
     "context": "PersonForwardScreen app bar title",
