@@ -1746,3 +1746,25 @@ grep -rn 'linked_detail\|LinkedDetail' packages/server/lib packages/server/test 
 - **Red/green:** the code was written before the tests (not strictly red-first). Green: the mandated 6-file run **96/96**; the broader profile_view/ + graph person-context run **155/155**; `check-custom-lints.sh packages/client` **30 vs baseline 30** OK; terminology ok; build_runner + gen-l10n ok.
 - **Findings:** `dart format` re-wrapped some existing lines in touched files (graph panel, seen-helping strip test, action-policy test); these are layout-only changes. Format-only changes to untouched files were reverted. The profile body `BlocSelector` now selects the `(profile, sharedContexts)` record.
 - **Next:** T13 verify
+
+---
+
+## T13 — Verify (read-only)
+
+- **Range:** `3c59d6c5e10cdd4247a48abe7376cac4cfbeb97f..d7b358c58` (`a3c2acd38` feat + `d7b358c58` journal). **30** client files in feat commit; **no** `packages/server/`, **no** `pubspec.yaml` / `web/index.html`, **no** T14 banner file, **no** touch of pre-existing dirty tests (`home_tab_branch_routing_test`, `constellation_body_test`).
+- **Schema:** `shares_active_context: Boolean` on `v2_user`; root `personSharedContexts(userId: String!): [v2_PersonSharedContext!]!` after `personFriendContextBatch`; `type v2_PersonSharedContext { beaconId title }` — matches server/T12 contract.
+- **Policy:** `_baseFrom` uses `trustMutual = profile.isMutuallyVisible` for `_visibilityState`; augmented `isMutuallyVisible = trustMutual || sharesActiveContext`; `sharedContext` only when `!trustMutual && sharesActiveContext` — confirmed in diff.
+- **Graph panel:** sole `PersonActionPolicy.from` omits `sharesActiveContext` (defaults false); `sharedContext` switch arm aliases `neither` copy + comment; no call site passes bond flag (grep).
+- **L10n:** EN/RU strings match plan (`profileVisibilitySharedContext`, `profileVisibilitySharedContextNote`).
+- **Test genuineness (no captured red run):** `forward_candidate_reachability_test` bond case would fail pre-T13 (`isReachable` was trust-only); policy bond-only case would fail (was `neither`/Trust); case load tests fail without port + try/catch; widget test fails without `sharedContext` UI + `sharesActiveContext` wiring (asserts exact l10n + Send, not `neither`).
+- **Tests re-run (independent):**
+
+| Command | Result |
+|---|---|
+| `dart run build_runner build -d` (client) | exit **0** |
+| `flutter gen-l10n` | exit **0** |
+| `check-user-facing-terminology.sh` | **ok** |
+| flutter test (6 paths + `forward_candidate_reachability_test.dart`) | **96/96** passed |
+| `check-custom-lints.sh packages/client` | **30 vs baseline 30**, OK |
+
+- **Verdict:** **pass** — T13 “Done when” satisfied; proceed **T14**. **Advisory:** AGENTS.md expects client semver + web cache-buster for user-visible changes; deferred to T16 per inner — not a T13 plan blocker.
