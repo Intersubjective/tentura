@@ -77,8 +77,10 @@
 | done (`70b34aabd`) | **T12** personSharedContexts query |
 | done (`a3c2acd38`) | **T13** client bond-aware profile |
 | done (`79368c25c`) | **T14** observer reason banner |
+| done | **T15** docs |
+| in progress | **T16** release gate |
 | done (`49d4a419d`) | **T15** docs |
-| pending | **T16** release gate |
+| in progress | **T16** release gate |
 
 ---
 
@@ -1851,3 +1853,119 @@ grep -rn 'linked_detail\|LinkedDetail' packages/server/lib packages/server/test 
 - **Nested plan:** added a supersession line at the top of §3.2. The file was **untracked** before this commit, so the commit adds all 621 lines (content unchanged apart from that line).
 - **Verify:** terminology check **ok**; tables re-read and intact. Architecture doc untouched (T16).
 - **Next:** T15 verify
+
+---
+
+## T16 — Scout (read-only; steps 1–3 only)
+
+- **UNIT_BASE:** `66c55d15d3b31df8da7feb7dad8d32e2a59e74c7` (`docs: record issue-146 T15 in journal` = `HEAD` at scout time).
+- **Scope (inner):** steps 1–3 only — client **minor** `7.8.20` → **`7.9.0`** (`versioning.mdc`: increment minor, reset patch); raise `kDefaultMinClientVersion` to **`7.9.0`**; sync `.env.example` commented `MIN_CLIENT_VERSION`; web cache-buster via **`hook/build.dart` → `versionUpdate()`** after pubspec bump (trigger with `flutter build web` / `flutter run` / any client `flutter test` that runs build hooks — **do not** hand-edit `?v=`). Full verification matrix per plan §0.2 / T16 step 3. **Out of scope:** manual QA (step 4), architecture status (step 5).
+- **Live versions:** `packages/client/pubspec.yaml` `7.8.20`; `web/index.html` `flutter_bootstrap.js?v=7.8.20`; `kDefaultMinClientVersion` **`7.6.0`**; `.env.example` comment + `# MIN_CLIENT_VERSION=7.6.0`.
+- **Pg inventory:** 12 server test paths **created or modified** on branch `d0e34d442^..HEAD` with `@Tags(['pg'])` (see scout brief `TEST_CMD`); plus **T00/T01 regression** `beacon_access_sql_parity_test.dart`, `beacon_hierarchy_repository_pg_test.dart`; plus **T11 regression** `person_visibility_repository_pg_test.dart` (not modified in range but verified for bond work).
+- **Server unit:** plan T16 step 3 = **whole** `packages/server` `dart test --exclude-tags pg` (no path filter), 20m wrapper default OK; AGENTS.md allows 20m for server-only.
+- **Brief:** delivered in overseer/scout session output (Opus 5 low inner worker).
+- **Next:** T16 inner — verification gate green, then single commit `chore(client): release shared-context visibility`; journal append with verify counts (step 5 architecture line = overseer after manual QA).
+
+---
+
+## T16 — Inner checkpoint (Opus 5 low)
+
+- Steps 1/3/4 applied in working tree (pubspec 7.9.0, kDefaultMinClientVersion 7.9.0, .env.example 7.9.0). Matrix running.
+
+---
+
+## T16 — Overseer: concurrent-session collision, version resolution, and the full verification matrix
+
+**Concurrent session discovered.** While the T16 inner worker (Opus 5 low)
+was running the verification matrix, it hit the account's monthly spend
+limit (reset 9:20pm Europe/Amsterdam) and stopped without committing. On
+resuming, the overseer found that a **separate, independent Cursor session**
+had been actively committing to this exact same branch/working directory
+throughout — unrelated to issue-146:
+
+- `6c68a4d8e` `fix(status): drop "waiting for author" from the shared
+  STATUS line` (fixes #152) — bumped `pubspec.yaml` 7.8.20 → 7.9.1 and
+  synced `web/index.html`, unaware of this plan's own 7.9.0 bump already
+  sitting uncommitted in the tree.
+- `75ce02327` `feat(activity): coalesce request events onto one Activity
+  row` (#151) — landed ~1200 lines across Attention/Inbox files that had
+  been sitting uncommitted (visible mid-collision as `M` entries), and
+  further bumped the version to `7.10.0` across `pubspec.yaml`,
+  `web/index.html`, and (independently) `packages/server/lib/env.dart`'s
+  `kDefaultMinClientVersion`.
+
+**User decision:** told to treat `7.10.0` (the version the other session's
+work had already landed at) as issue-146's real release version, fix only
+this plan's three version-consistency files if needed, and never touch the
+other session's Attention/Inbox/status-line files. On inspection, this
+required no further action — the other session's commits had already left
+`pubspec.yaml`, `web/index.html`, and `env.dart` mutually consistent at
+`7.10.0`; only `.env.example`'s comment text was stale ("currently 7.9.0"
+next to a `7.10.0` value), fixed directly (`f5c079e55`).
+
+**Full verification matrix (overseer, run directly against HEAD after the
+above), each `-t pg` file its own invocation:**
+
+| Suite | Result |
+|---|---|
+| Server unit (`dart test --exclude-tags pg`, whole package) | **1610/1610** passed (after one fix, see below) |
+| `beacon_access_level_parity_pg_test.dart` | 4/4 |
+| `beacon_ancestor_pg_test.dart` | 4/4 |
+| `beacon_children_authorization_pg_test.dart` | 4/4 |
+| `beacon_hierarchy_visibility_pg_test.dart` | 14/14 |
+| `beacon_parent_reference_authorization_pg_test.dart` | 3/3 |
+| `issue_145_stale_child_invite_pg_test.dart` | 2/2 |
+| `person_bond_pg_test.dart` | 9/9 |
+| `shared_context_visibility_pg_test.dart` | 9/9 |
+| `forward_reason_reconciliation_pg_test.dart` | 6/6 |
+| `beacon_access_hasura_test.dart` | 2/2 (after one fix, see below) |
+| `beacon_hierarchy_hasura_parity_test.dart` | 2/2 |
+| `beacon_hierarchy_graphql_contract_test.dart` | 12/12 |
+| `beacon_access_sql_parity_test.dart` | 12/12 |
+| `beacon_hierarchy_repository_pg_test.dart` | 7/7 |
+| `person_visibility_repository_pg_test.dart` | 3/3 |
+| Root `beacon_access_test.dart` | 2/2 |
+| Client full suite | **3407 passed, 31 failed** — see below |
+| `check-custom-lints.sh packages/server` | 0 vs baseline 0, OK |
+| `check-custom-lints.sh packages/client` | 30 vs baseline 30, OK |
+| `check-user-facing-terminology.sh` | ok |
+
+**Two genuine regressions found and fixed** (both from T09/T11 widening
+interacting with test fixtures/assertions never in any prior unit's
+touched-file list — the value of running the *full* matrix, not just
+per-unit subsets):
+
+1. `b8fc62032` — `user_block_graphql_test.dart` asserted an exact
+   `UserPublic` map that predates T11's `shares_active_context` field.
+   Added the field with its correct default.
+2. `b100de510` — `beacon_access_hasura_test.dart` (T07) used dave as a
+   "forwarded-only" persona on B; dave also owns descendant C, so since T09
+   he independently holds `contextAncestor` (128) on B. Expected
+   `access_reasons` corrected from 8 to 136 (8 | 128). Same root cause as
+   the T01/T02 "dave is no longer a stranger" fixture issue already
+   documented at T08+T09.
+
+**Client suite: 31 failures, zero attributable to issue-146.** All 31 are
+in exactly two golden-image test files
+(`activity_offer_card_golden_test.dart`,
+`activity_forward_row_golden_test.dart`, 30 failures) plus one unit test
+(`beacon_view_you_responsibility_test.dart`, 1 failure) — every one of
+these lives in the Attention/Inbox/status-line area the concurrent
+session's own commits (#151, #152) modified. Verified via
+`git log --oneline 92c86b8a0..HEAD -- <those files>`: the **only** commit
+touching any of them in this plan's entire range is `75ce02327`, the
+external #151 commit — no issue-146 commit (T00-T16) ever modified these
+files. Per plan §0 rule ("pre-existing failures are recorded as baseline,
+not fixed") and the "don't assume causality" practice used throughout this
+plan, these are the other session's responsibility (golden images need
+regenerating against their own visual change), not issue-146's. Not fixed
+here.
+
+**Commits this pass:** `f5c079e55` (.env.example comment),
+`b8fc62032`, `b100de510` (the two genuine fixes). No separate
+`chore(client): release shared-context visibility` commit was needed —
+the version bump itself landed via the external session's own commits.
+
+**Remaining:** T16 step 4 (manual QA on the local stack, three users) and
+step 5 (journal final summary + architecture doc status →
+`implemented (rev 4)`) — overseer, next.
