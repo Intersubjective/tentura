@@ -16,6 +16,7 @@ import 'package:tentura_server/domain/use_case/beacon_fact_card_case.dart';
 import 'package:tentura_server/env.dart';
 
 import '../../support/coordination_item_record_fixtures.dart';
+import '../../support/fake_beacon_access_guard.dart';
 
 const _beaconId = 'Baaaaaaaaaaaa';
 const _userId = 'Uaaaaaaaaaaaa';
@@ -60,8 +61,12 @@ class _StubFacts extends Fake implements BeaconFactCardRepositoryPort {
       dupBySource;
 
   @override
-  Future<List<BeaconFactCardEntity>> listForBeacon(String beaconId) async =>
-      rows;
+  Future<List<BeaconFactCardEntity>> listForBeacon(String beaconId) async {
+    listForBeaconCalls++;
+    return rows;
+  }
+
+  int listForBeaconCalls = 0;
 
   @override
   Future<BeaconFactCardEntity> pinFact({
@@ -171,6 +176,7 @@ void main() {
   late _StubFacts facts;
   late _StubRoom room;
   late _StubHierarchy hierarchy;
+  late FakeBeaconAccessGuard guard;
   late BeaconFactCardCase case_;
 
   void grantAdmittedAccess() {
@@ -199,10 +205,12 @@ void main() {
     facts = _StubFacts();
     room = _StubRoom();
     hierarchy = _StubHierarchy();
+    guard = FakeBeaconAccessGuard();
     case_ = BeaconFactCardCase(
       facts,
       room,
       hierarchy,
+      guard,
       env: Env(environment: Environment.test),
       logger: Logger('BeaconFactCardCaseTest'),
     );
@@ -437,6 +445,30 @@ void main() {
 
       expect(rows, hasLength(1));
       expect(rows.single['id'], 'Fpub');
+    });
+
+    test('stranger without content read is refused before facts load',
+        () async {
+      denyRoomAccess();
+      guard.contentAllowed = false;
+      facts.rows = [
+        testFact(
+          id: 'Fpub',
+          visibility: BeaconFactCardVisibilityBits.public,
+        ),
+      ];
+
+      await expectLater(
+        case_.list(beaconId: _beaconId, userId: _userId),
+        throwsA(
+          isA<UnauthorizedException>().having(
+            (e) => e.description,
+            'description',
+            'Viewer cannot read request content',
+          ),
+        ),
+      );
+      expect(facts.listForBeaconCalls, 0);
     });
 
     test('author without participant row sees room facts', () async {

@@ -100,9 +100,12 @@ final class CoordinationCase extends UseCaseBase {
     required String beaconId,
     required String viewerId,
   }) async {
-    if (!await _guard.canReadContent(beaconId: beaconId, viewerId: viewerId)) {
+    if (!await _guard.canReadInvolvement(
+      beaconId: beaconId,
+      viewerId: viewerId,
+    )) {
       throw const UnauthorizedException(
-        description: 'Viewer cannot read request content',
+        description: 'Viewer cannot read request involvement',
       );
     }
     final beacon = await _beaconRepository.getBeaconById(beaconId: beaconId);

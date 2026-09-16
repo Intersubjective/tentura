@@ -370,6 +370,7 @@ void main() {
           );
           final facts = BeaconFactCardCase(
             _MinimalFactCards(), room, FakeBeaconHierarchyRepository(),
+            FakeBeaconAccessGuard(),
             env: Env(environment: Environment.test), logger: Logger('ExitAccessTest'),
           );
           await expectLater(facts.pin(
@@ -1080,11 +1081,33 @@ void main() {
         expect(helperRows.single.lastDeclineReason, 'private reason');
         expect(outsiderRows.single.lastDeclineReason, isNull);
 
-        buildSut(guard: FakeBeaconAccessGuard(contentAllowed: false));
+        // Content-readable but not involved: the gate must check involvement.
+        buildSut(guard: FakeBeaconAccessGuard(involvementAllowed: false));
         await expectLater(
           sut.helpOffersWithCoordination(
             beaconId: _beaconId,
-            viewerId: _helperId,
+            viewerId: _outsiderId,
+          ),
+          throwsA(
+            isA<UnauthorizedException>().having(
+              (e) => e.description,
+              'description',
+              'Viewer cannot read request involvement',
+            ),
+          ),
+        );
+
+        // Stranger: neither content nor involvement.
+        buildSut(
+          guard: FakeBeaconAccessGuard(
+            contentAllowed: false,
+            involvementAllowed: false,
+          ),
+        );
+        await expectLater(
+          sut.helpOffersWithCoordination(
+            beaconId: _beaconId,
+            viewerId: _outsiderId,
           ),
           throwsA(isA<UnauthorizedException>()),
         );

@@ -1,5 +1,6 @@
 import 'package:injectable/injectable.dart';
 
+import 'package:tentura_server/domain/port/beacon_access_guard.dart';
 import 'package:tentura_server/domain/port/beacon_fact_card_repository_port.dart';
 import 'package:tentura_server/domain/port/beacon_hierarchy_repository_port.dart';
 import 'package:tentura_server/domain/port/beacon_room_repository_port.dart';
@@ -15,7 +16,8 @@ final class BeaconFactCardCase extends UseCaseBase {
   BeaconFactCardCase(
     this._facts,
     this._room,
-    this._hierarchyRepository, {
+    this._hierarchyRepository,
+    this._guard, {
     required super.env,
     required super.logger,
   });
@@ -25,6 +27,8 @@ final class BeaconFactCardCase extends UseCaseBase {
   final BeaconRoomRepositoryPort _room;
 
   final BeaconHierarchyRepositoryPort _hierarchyRepository;
+
+  final BeaconAccessGuard _guard;
 
   Future<bool> _canUseRoom({
     required String beaconId,
@@ -146,6 +150,11 @@ final class BeaconFactCardCase extends UseCaseBase {
     required String beaconId,
     required String userId,
   }) async {
+    if (!await _guard.canReadContent(beaconId: beaconId, viewerId: userId)) {
+      throw const UnauthorizedException(
+        description: 'Viewer cannot read request content',
+      );
+    }
     final admitted = await _canUseRoom(beaconId: beaconId, userId: userId);
     final rows = await _facts.listForBeacon(beaconId);
     final sourceIdsForAttachments = <String>[
