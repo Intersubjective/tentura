@@ -1,13 +1,15 @@
 ---
-status: draft
+status: implemented (rev 4)
 kind: architecture
 issue: 146
 ---
 
 # Shared-context visibility — architecture
 
-**Status:** architecture **rev 4**, ready for implementation
-([implementation plan](issue-146-shared-context-visibility-implementation-plan.md)). Shape only, with no file-by-file
+**Status:** **implemented (rev 4)** — T00-T16 landed and verified; see
+[implementation plan](issue-146-shared-context-visibility-implementation-plan.md)
+and its [journal](issue-146-shared-context-visibility-journal.md) for the
+full record. Shape only, with no file-by-file
 task list. The product decisions in §2 are binding. A later
 `issue-146-shared-context-visibility-implementation-plan.md` will turn §9 into tasks.
 

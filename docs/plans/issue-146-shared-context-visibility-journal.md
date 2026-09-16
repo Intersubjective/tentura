@@ -77,10 +77,8 @@
 | done (`70b34aabd`) | **T12** personSharedContexts query |
 | done (`a3c2acd38`) | **T13** client bond-aware profile |
 | done (`79368c25c`) | **T14** observer reason banner |
-| done | **T15** docs |
-| in progress | **T16** release gate |
 | done (`49d4a419d`) | **T15** docs |
-| in progress | **T16** release gate |
+| done | **T16** release gate |
 
 ---
 
@@ -1969,3 +1967,111 @@ the version bump itself landed via the external session's own commits.
 **Remaining:** T16 step 4 (manual QA on the local stack, three users) and
 step 5 (journal final summary + architecture doc status →
 `implemented (rev 4)`) — overseer, next.
+
+---
+
+## T16 — Step 4: manual QA on the local stack (overseer, Playwright + direct SQL)
+
+**Stack:** Docker infra (Postgres/Hasura/MeritRank) was already running,
+shared with the concurrent external session. Server (:2080), Flutter web
+dev server (:8888) were restarted fresh by the overseer to pick up this
+plan's migrations (through m0173) and Hasura metadata changes (dropped
+`can_read_linked_detail`, added `personSharedContexts`/`access_level`/
+`access_reasons`/`shares_active_context`). Caddy (:9443) required `sudo`
+with no TTY available to this session — the user started it manually.
+
+**Two environment issues found and fixed, both pre-existing staleness, not
+issue-146 defects:**
+1. Hasura's live metadata predated this session's changes —
+   `can_read_involvement` (T04) wasn't exposed to the `user` role yet,
+   causing "field not found" on every beacon fetch. Fixed with
+   `./scripts/hasura_apply_metadata.sh` (0 inconsistent objects after).
+2. Hasura's cached remote-schema introspection of the restarted Tentura
+   server was stale, causing a transient "Type coercion error" on
+   `helpOffersWithCoordination`. Fixed by reloading the remote schema
+   (`reload_remote_schema` on `tentura`). A second, unrelated occurrence of
+   a similarly-worded error was traced to the QA fixture's own beacon IDs
+   being 12 characters instead of the app's required 13 — a self-inflicted
+   test-data artifact, not a real defect; not fixed (fixture-only, deleted
+   with the rest of the QA data below).
+
+**Scenario setup:** three QA users via `QA_SIMPLE_LOGIN_MODE` instant
+login (`qa-parent-helper`, `qa-child-helper`, `qa-third`); parent request A
+authored by `qa-third` with `qa-parent-helper` admitted; child request B
+(`parent_beacon_id = A`) also authored by `qa-third` with `qa-child-helper`
+admitted — seeded directly via SQL (same shape as this plan's pg-test
+fixtures) rather than walking the full offer/admit UI flow for three users.
+
+**All four plan-specified scenarios confirmed, driven live through
+Playwright against the real browser + stack:**
+
+1. **Parent helper opens the child as an observer.** `qa-parent-helper`
+   (admitted to A only) opened B and saw: the exact T14 banner text "You
+   can see this request because you take part in a related request.",
+   working "Offer Help" and "Forward" buttons (D2), and the parent-link
+   chip back to A.
+2. **Child helper opens the parent from the child header.** `qa-child-helper`
+   (admitted to B only, no direct relationship to A) opened B and, after
+   the async `loadParentReference` fetch resolved, saw a working "Parent
+   request QA Parent Request A" link — confirmed via both the UI and a
+   direct `beaconParentReference` GraphQL call (`state: available`).
+3. **Co-participant profiles show "working together."** `qa-parent-helper`
+   viewing `qa-third`'s profile (both members of open A, zero trust between
+   them) saw: `Trust: none`, an **open** eye badge ("you and this person
+   have two-way visibility and can forward requests"), and the exact T13
+   copy — `"You're working together on «QA Parent Request A»"` +
+   `"You can see each other until reviews for this request close."` — plus
+   "Send a request" as the primary action (the intended bond-driven
+   widening).
+4. **Bond disappears after the request closes.** Set A's status to
+   `closed` (6) directly; `person_bond` immediately returned `false` at the
+   SQL level, and the profile UI (after reload) correctly dropped to
+   `Trust: none` / **closed** eye badge / "No two-way visibility" — the
+   bond line was gone, matching D3 exactly (no reviews were created in this
+   QA pass, so no residual trust to preserve visibility).
+
+**Cleanup:** all QA-created rows (2 beacons, 2 participants, 3 users)
+deleted directly via SQL after the pass; nothing else on the shared stack
+touched. Local server/Flutter/Caddy processes were left running (the user
+may still want them).
+
+---
+
+## T16 — Step 5: plan closure
+
+- Architecture doc status changed `draft` → `implemented (rev 4)`
+  (this commit).
+- **All 16 plan units (T00-T16) are done and independently verified**, each
+  through the overseer-sandwich process: scout brief → inner
+  implementation (test-first) → independent verify on the scout's own
+  chat → overseer line-by-line review of the diff → commit. Two units
+  needed escalation beyond the routine path: T08+T09 (performance-gate
+  failure → user-directed escalation to Astra/codex, which correctly
+  diagnosed and fixed a `beacon_member`-view-expansion cost and proved
+  equivalence with an 810-pair differential audit) and T10 (Opus usage-limit
+  interruption → degraded to a fresh Composer 2.5 implementer per the
+  skill's unavailability path, which turned out to still be running when
+  the overseer mistakenly believed it had been stopped — no work was lost,
+  see the T10 entries above for the full account).
+- T16's own regression sweep found and fixed two more genuine gaps beyond
+  any single unit's own test list — both from earlier widenings
+  interacting with tests that predated them, not from T16's own changes:
+  `user_block_graphql_test.dart` (T11's `shares_active_context` field) and
+  `beacon_access_hasura_test.dart` (T09's `contextAncestor` grant reaching
+  a T07-era fixture actor). This is exactly the value the plan's mandatory
+  full-matrix release gate is for.
+- A separate, independent Cursor session was found actively committing
+  unrelated work (#151, #152) to this same branch throughout T16 — handled
+  by preserving all of its work untouched and reconciling only the version
+  numbers it collided with (final: `7.10.0`, per user decision).
+- Client suite: 3407 passed, 31 failed, all 31 confirmed (via git history
+  on the specific files) to belong to the other session's unrelated changes,
+  not this plan.
+- Manual QA (above): all four scenarios pass end-to-end on the real stack.
+
+**Issue #146 is implemented and verified.** Deferred-by-design, per the
+architecture doc's own Appendix B and rev 3/4 change log (not gaps in this
+implementation): the per-use-case `BeaconRights` refactor, capability
+projection on the bond, realtime neighbourhood invalidation, naming the
+related request in the reason banner, and bond visibility in the graph
+person-context panel / Constellation.
