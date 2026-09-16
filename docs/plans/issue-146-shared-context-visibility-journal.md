@@ -1573,3 +1573,41 @@ grep -rn 'linked_detail\|LinkedDetail' packages/server/lib packages/server/test 
 - Client `grep can_read_linked_detail` on `packages/client/lib` → empty.
 - Post-T10 `grep linked_detail\|LinkedDetail` still hits `parentLinkedDetailAuthorized` on dead `resolveParentReference` facts (out of scope rename), `m0172` DROP strings, and parity negative assertion — not live linked-detail API.
 - **Next:** T11 implementer
+
+---
+
+## T10 — verify (read-only overseer)
+
+- **Range:** `2451f3c15fa0327cec4a19ae51a129decb2c957c..efac89367` (`ffc232a3f` impl, `efac89367` journal)
+- **Worktree:** clean for T10 paths; pre-existing dirty files unchanged (`.serena/project.yml`, two client tests, untracked docs/keys per T00 list).
+
+### Code review (spot-check)
+
+| Check | Result |
+|---|---|
+| `resolveCapabilities` order | draft → deleted → non-admitted (`canListChildren: viewerCanReadParentContent`) → blocked → admitted path unchanged ✓ |
+| `beacon_hierarchy_repository.dart` | All three SQL gates use `beacon_can_read_content`; `loadCapabilities` passes `viewerCanReadParentContent` from `_predicate` ✓ |
+| Dart linked-detail API | Gone from `lib/` (`grep canReadLinkedDetail` / `isAdmittedToImmediate*` empty) ✓ |
+| `m0172` | Two `DROP FUNCTION` statements only; `_migrations.dart` registers `m0172`; `m0155`/`m0170`/`m0171` byte-unchanged ✓ |
+| `hasura/metadata.json` | Only removal of `can_read_linked_detail` computed_field block; `grep -n can_read_linked_detail` empty ✓ |
+| Contract personas | **eve:** author of published child **D** under **A**, not in `_seedAdmissions` for A → T09 context-ancestor read on A, not admitted → list true / create false ✓. **Uhierstranger:** fresh `INSERT` user, no tree edges → `canListChildren` false ✓ (same rigor as T08+T09 stranger fix) |
+| Commits | Impl commit message matches plan; journal-only second commit ✓ |
+
+### Tests re-run (independent)
+
+| Command | Result |
+|---|---|
+| `beacon_hierarchy_policy_test.dart` + `beacon_visibility_test.dart` | **45/45** passed |
+| `beacon_children_authorization_pg_test.dart` `-t pg` | **4/4** passed |
+| `beacon_parent_reference_authorization_pg_test.dart` `-t pg` | **3/3** passed |
+| `beacon_hierarchy_visibility_pg_test.dart` `-t pg` | **14/14** passed |
+| `beacon_hierarchy_hasura_parity_test.dart` `-t pg` | **2/2** passed |
+| `beacon_hierarchy_graphql_contract_test.dart` `-t pg` | **12/12** passed |
+| `issue_145_stale_child_invite_pg_test.dart` `-t pg` | **2/2** passed |
+| `check-custom-lints.sh packages/server` | **0 vs baseline 0**, OK |
+
+### Grep residual
+
+`grep -rn 'linked_detail\|LinkedDetail' packages/server/lib packages/server/test hasura/metadata.json` → only `m0155`/`m0170`/`m0171` history, `m0172` DROP lines, dead `parentLinkedDetailAuthorized` + its unit tests, parity `isNot(contains('can_read_linked_detail'))`. No production linked-detail consumers.
+
+- **Verdict:** **pass** — T10 acceptance met; ready for T11.
