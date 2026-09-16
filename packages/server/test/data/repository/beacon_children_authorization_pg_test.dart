@@ -10,6 +10,7 @@ import 'package:tentura_server/consts/beacon_room_consts.dart';
 import 'package:tentura_server/data/repository/beacon_hierarchy_repository.dart';
 
 import '../../support/beacon_hierarchy_fixture.dart';
+import '../../support/pg_test_public_keys.dart';
 import 'beacon_hierarchy_pg_helpers.dart';
 
 Future<void> main() async {
@@ -109,22 +110,34 @@ ON CONFLICT (id) DO UPDATE SET room_access = EXCLUDED.room_access
 
     test('stranger who cannot read the parent gets an empty page', () async {
       await seedTree();
-      // Dave owns grandchild C but has no admission, help offer or forward
-      // touching A or B.
-      const daveId = BeaconHierarchyTopology.daveId;
+      // Dave owns grandchild C, a descendant of A, so since issue-146 T09 he
+      // reads A via contextAncestor — he is no longer a genuine stranger to
+      // A. Use a freshly seeded user with no relationship to the tree at all.
+      const strangerId = 'Uhierstranger';
+      await writer.execute(
+        Sql.named(r'''
+INSERT INTO public."user" (id, display_name, public_key, created_at, updated_at)
+VALUES (@id, @id, @publicKey, '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z')
+ON CONFLICT (id) DO NOTHING
+'''),
+        parameters: {
+          'id': strangerId,
+          'publicKey': pgTestPublicKey('stranger', 1),
+        },
+      );
       expect(
         await sqlPredicate(
           'beacon_can_read_linked_detail',
           BeaconHierarchyTopology.beaconA,
-          daveId,
+          strangerId,
         ),
         isFalse,
-        reason: 'precondition: dave has no access to A',
+        reason: 'precondition: the fresh stranger has no access to A',
       );
 
       final page = await repository.listChildren(
         parentBeaconId: BeaconHierarchyTopology.beaconA,
-        viewerId: daveId,
+        viewerId: strangerId,
         group: BeaconHierarchyChildGroup.active,
         first: 20,
       );

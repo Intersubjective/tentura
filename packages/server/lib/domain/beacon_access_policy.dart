@@ -3,10 +3,8 @@ import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 /// Typed inputs for [BeaconAccessPolicy] (issue #146 architecture §2.1).
 ///
-/// Phase-1 contract: callers pass `false` for [isMemberOfImmediateParent] and
-/// [isMemberOfDescendant] until T09 wires the hierarchy-context SQL. Passing
-/// `true` before then has no live caller and only affects this pure
-/// function's output.
+/// Context facts [isMemberOfImmediateParent] and [isMemberOfDescendant] are
+/// live from m0171 (`beacon_ancestor` + `beacon_access_reasons` bits 64/128).
 class BeaconAccessFacts {
   const BeaconAccessFacts({
     required this.status,

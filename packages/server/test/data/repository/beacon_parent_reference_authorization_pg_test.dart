@@ -9,6 +9,7 @@ import 'package:tentura_server/consts/beacon_room_consts.dart';
 import 'package:tentura_server/data/repository/beacon_hierarchy_repository.dart';
 
 import '../../support/beacon_hierarchy_fixture.dart';
+import '../../support/pg_test_public_keys.dart';
 import 'beacon_hierarchy_pg_helpers.dart';
 
 Future<void> main() async {
@@ -81,6 +82,27 @@ ON CONFLICT (id) DO UPDATE SET room_access = EXCLUDED.room_access
       }
     }
 
+    // Every persona in BeaconHierarchyTopology ends up a member of some
+    // beacon in the A/B/C/D tree once issue-146 T09's contextChild/
+    // contextAncestor grants apply (e.g. dave owns grandchild C, a
+    // descendant of both A and B). Use a freshly seeded, wholly unconnected
+    // user for tests that need a genuine stranger to the whole tree.
+    Future<String> seedStranger() async {
+      const strangerId = 'Uhierstranger';
+      await writer.execute(
+        Sql.named(r'''
+INSERT INTO public."user" (id, display_name, public_key, created_at, updated_at)
+VALUES (@id, @id, @publicKey, '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z')
+ON CONFLICT (id) DO NOTHING
+'''),
+        parameters: {
+          'id': strangerId,
+          'publicKey': pgTestPublicKey('stranger', 1),
+        },
+      );
+      return strangerId;
+    }
+
     Future<bool> sqlPredicate(String fn, String beaconId, String viewerId) async {
       final row = await writer.execute(
         Sql.named('SELECT public.$fn(@beaconId, @viewerId)'),
@@ -116,20 +138,20 @@ ON CONFLICT (id) DO UPDATE SET room_access = EXCLUDED.room_access
 
     test('viewer who cannot read B gets no reference', () async {
       await seedTree();
-      // Dave owns grandchild C but has no admission, help offer or forward
-      // touching B.
-      const daveId = BeaconHierarchyTopology.daveId;
+      // A fresh, wholly unconnected stranger has no admission, help offer,
+      // forward or membership touching B (or anything in the tree).
+      final strangerId = await seedStranger();
       expect(
         await sqlPredicate(
           'beacon_can_read_content',
           BeaconHierarchyTopology.beaconB,
-          daveId,
+          strangerId,
         ),
         isFalse,
-        reason: 'precondition: dave cannot read B',
+        reason: 'precondition: the stranger cannot read B',
       );
 
-      final ref = await parentOfB(daveId);
+      final ref = await parentOfB(strangerId);
       expect(ref.state, BeaconParentReferenceState.none);
       expect(ref.beaconId, isNull);
       expect(ref.title, isNull);
@@ -137,7 +159,7 @@ ON CONFLICT (id) DO UPDATE SET room_access = EXCLUDED.room_access
 
     test('forward recipient of B with no path to A gets an unavailable reference', () async {
       await seedTree();
-      const daveId = BeaconHierarchyTopology.daveId;
+      final strangerId = await seedStranger();
       await writer.execute(
         Sql.named('''
 INSERT INTO public.beacon_forward_edge (
@@ -151,29 +173,29 @@ ON CONFLICT DO NOTHING
         parameters: {
           'beaconId': BeaconHierarchyTopology.beaconB,
           'senderId': BeaconHierarchyTopology.bobId,
-          'recipientId': daveId,
+          'recipientId': strangerId,
         },
       );
       expect(
         await sqlPredicate(
           'beacon_can_read_content',
           BeaconHierarchyTopology.beaconB,
-          daveId,
+          strangerId,
         ),
         isTrue,
-        reason: 'precondition: the forward lets dave read B',
+        reason: 'precondition: the forward lets the stranger read B',
       );
       expect(
         await sqlPredicate(
           'beacon_can_read_linked_detail',
           BeaconHierarchyTopology.beaconA,
-          daveId,
+          strangerId,
         ),
         isFalse,
-        reason: 'precondition: dave has no path to A',
+        reason: 'precondition: the stranger has no path to A',
       );
 
-      final ref = await parentOfB(daveId);
+      final ref = await parentOfB(strangerId);
       expect(ref.state, BeaconParentReferenceState.unavailable);
       expect(ref.beaconId, isNull);
       expect(ref.title, isNull);

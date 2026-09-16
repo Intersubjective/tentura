@@ -26,6 +26,24 @@ const _withdrawn = 'Uaclpwithdrawn';
 const _trusted = 'Uaclptrusted';
 const _stranger = 'Uaclpstranger';
 const _blocked = 'Uaclpblocked';
+const _ctxParent = 'Uaclpctxpar';
+const _ctxChild = 'Uaclpctxchild';
+const _ctxBoth = 'Uaclpctxboth';
+
+/// Hierarchy context family per status: root R (open) → M (the status under
+/// test) → leaf K (open). Context viewers are admitted to R and/or K.
+String _ctxRoot(BeaconStatus s) => 'Bactxr${s.smallintValue}';
+String _ctxMiddle(BeaconStatus s) => 'Bactxm${s.smallintValue}';
+String _ctxLeaf(BeaconStatus s) => 'Bactxk${s.smallintValue}';
+
+/// Context viewer → (admitted to R, admitted to K, blocked by the owner).
+const _ctxViewers = <String, (bool, bool, bool)>{
+  _ctxParent: (true, false, false),
+  _ctxChild: (false, true, false),
+  _ctxBoth: (true, true, false),
+  _stranger: (false, false, false),
+  _blocked: (false, true, true),
+};
 
 /// Known relationship facts per persona on every non-draft seeded beacon.
 typedef _Persona = ({
@@ -93,6 +111,7 @@ Future<void> main() async {
       writer = session.writer;
       await session.db.close();
       await _seed(writer);
+      await _seedContext(writer);
     });
 
     tearDownAll(() async {
@@ -182,6 +201,92 @@ Future<void> main() async {
             }
           }
         }
+      },
+      skip: skipReason,
+    );
+
+    test(
+      'hierarchy context reasons/level match BeaconAccessPolicy '
+      'for every middle status',
+      () async {
+        Future<Object?> at(String fn, String beaconId, String viewerId) async {
+          final rows = await writer.execute(
+            Sql.named('SELECT public.$fn(@b, @v)'),
+            parameters: {'b': beaconId, 'v': viewerId},
+          );
+          return rows.first.first;
+        }
+
+        var contextBitsSeen = 0;
+        for (final status in BeaconStatus.values) {
+          final middlePublished = status != BeaconStatus.draft;
+          for (final MapEntry(key: viewer, value: (inRoot, inLeaf, blocked))
+              in _ctxViewers.entries) {
+            // Members of R/K only count while the owner does not block them.
+            final rootMember = inRoot && !blocked;
+            final leafMember = inLeaf && !blocked;
+            final cases = <(String, BeaconAccessFacts)>[
+              (
+                _ctxRoot(status),
+                _ctxFacts(
+                  status: BeaconStatus.open,
+                  isBlocked: blocked,
+                  isAdmitted: inRoot,
+                  isPublished: true,
+                  isMemberOfImmediateParent: false,
+                  isMemberOfDescendant: leafMember,
+                ),
+              ),
+              (
+                _ctxMiddle(status),
+                _ctxFacts(
+                  status: status,
+                  isBlocked: blocked,
+                  isAdmitted: false,
+                  isPublished: middlePublished,
+                  isMemberOfImmediateParent: rootMember,
+                  isMemberOfDescendant: leafMember,
+                ),
+              ),
+              (
+                _ctxLeaf(status),
+                _ctxFacts(
+                  status: BeaconStatus.open,
+                  isBlocked: blocked,
+                  isAdmitted: inLeaf,
+                  isPublished: true,
+                  isMemberOfImmediateParent: false,
+                  isMemberOfDescendant: false,
+                ),
+              ),
+            ];
+            for (final (beaconId, facts) in cases) {
+              final label = '$viewer @ $beaconId';
+              final reasons =
+                  (await at('beacon_access_reasons', beaconId, viewer))! as int;
+              expect(reasons, BeaconAccessPolicy.reasons(facts), reason: label);
+              expect(
+                await at('beacon_access_level', beaconId, viewer),
+                BeaconAccessPolicy.level(facts).value,
+                reason: label,
+              );
+              expect(
+                await at('beacon_can_read_content', beaconId, viewer),
+                BeaconAccessPolicy.level(facts).canReadContent,
+                reason: 'content $label',
+              );
+              contextBitsSeen |= reasons &
+                  (BeaconAccessReason.contextChild.bit |
+                      BeaconAccessReason.contextAncestor.bit);
+            }
+          }
+        }
+        expect(
+          contextBitsSeen,
+          BeaconAccessReason.contextChild.bit |
+              BeaconAccessReason.contextAncestor.bit,
+          reason: 'fixture must exercise both context bits',
+        );
       },
       skip: skipReason,
     );
@@ -338,4 +443,92 @@ VALUES (@t, @a, 1, now(), now()), (@a, @t, 1, now(), now())
     ),
     parameters: {'a': _author, 'v': _blocked},
   );
+}
+
+BeaconAccessFacts _ctxFacts({
+  required BeaconStatus status,
+  required bool isBlocked,
+  required bool isAdmitted,
+  required bool isPublished,
+  required bool isMemberOfImmediateParent,
+  required bool isMemberOfDescendant,
+}) => BeaconAccessFacts(
+  status: status,
+  isBlocked: isBlocked,
+  isAuthor: false,
+  isSteward: false,
+  isAdmitted: isAdmitted,
+  hasActiveForwardEdgeAsRecipient: false,
+  isActiveHelpOfferer: false,
+  isDiscoverable: true,
+  isPublished: isPublished,
+  isTrustVisibleWithAuthor: false,
+  isMemberOfImmediateParent: isMemberOfImmediateParent,
+  isMemberOfDescendant: isMemberOfDescendant,
+);
+
+Future<void> _seedContext(Connection writer) async {
+  for (final (i, id) in [_ctxParent, _ctxChild, _ctxBoth].indexed) {
+    await writer.execute(
+      Sql.named('''
+INSERT INTO public."user" (id, display_name, public_key, created_at, updated_at)
+VALUES (@id, @id, @key, '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z')
+'''),
+      parameters: {'id': id, 'key': pgTestPublicKey('cx', i + 1)},
+    );
+  }
+  Future<void> insertBeacon(String id, String? parentId) => writer.execute(
+    Sql.named('''
+INSERT INTO public.beacon (
+  id, user_id, title, description, status, is_discoverable, parent_beacon_id,
+  published_at, created_at, updated_at
+) VALUES (
+  @id, @author, 'Access context parity', '', 0, true, @parent,
+  '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z'
+)
+'''),
+    parameters: {'id': id, 'author': _author, 'parent': parentId},
+  );
+  for (final status in BeaconStatus.values) {
+    final root = _ctxRoot(status);
+    final middle = _ctxMiddle(status);
+    final leaf = _ctxLeaf(status);
+    await insertBeacon(root, null);
+    // Children need a published parent, so M gets its status after K exists.
+    await insertBeacon(middle, root);
+    await insertBeacon(leaf, middle);
+    await writer.execute(
+      Sql.named('''
+UPDATE public.beacon
+SET status = @status::smallint,
+    published_at = CASE WHEN @status::smallint = 3 THEN NULL ELSE published_at END
+WHERE id = @id
+'''),
+      parameters: {'id': middle, 'status': status.smallintValue},
+    );
+    for (final MapEntry(key: viewer, value: (inRoot, inLeaf, _))
+        in _ctxViewers.entries) {
+      for (final (beaconId, admitted) in [(root, inRoot), (leaf, inLeaf)]) {
+        if (!admitted) {
+          continue;
+        }
+        await writer.execute(
+          Sql.named('''
+INSERT INTO public.beacon_participant (
+  id, beacon_id, user_id, role, status, room_access, created_at, updated_at
+) VALUES (
+  @id, @b, @u, 0, 0, @access,
+  '2026-01-01T00:00:00Z', '2026-01-01T00:00:00Z'
+)
+'''),
+          parameters: {
+            'id': 'P$beaconId$viewer',
+            'b': beaconId,
+            'u': viewer,
+            'access': RoomAccessBits.admitted,
+          },
+        );
+      }
+    }
+  }
 }

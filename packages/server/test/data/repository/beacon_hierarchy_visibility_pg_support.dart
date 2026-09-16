@@ -3,6 +3,9 @@ import 'package:logging/logging.dart';
 import 'package:mockito/mockito.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 import 'package:tentura_server/domain/entity/beacon_entity.dart';
+import 'package:tentura_server/domain/entity/forward_batch_create_result.dart';
+import 'package:tentura_server/domain/entity/forward_edge_created.dart';
+import 'package:tentura_server/domain/entity/invitation_entity.dart';
 import 'package:tentura_server/domain/entity/user_entity.dart';
 import 'package:tentura_server/domain/port/beacon_access_guard.dart';
 import 'package:tentura_server/domain/port/beacon_repository_port.dart';
@@ -25,8 +28,11 @@ import '../../support/beacon_hierarchy_fixture.dart';
 import '../../support/recording_commitment_repository.dart';
 import '../../support/test_attention_harness.dart';
 
-/// Wires production use cases with a real [BeaconAccessGuard] so hierarchy-only
-/// viewers hit the same `canReadContent` gates as production.
+/// Wires production use cases with a real [BeaconAccessGuard] so hierarchy
+/// context viewers hit the same `canReadContent` gates as production.
+///
+/// Downstream ports are stubbed for the success path, so a call that passes
+/// the guard completes without touching the database.
 final class HierarchyOnlyViewerHarness {
   HierarchyOnlyViewerHarness({
     required BeaconAccessGuard access,
@@ -69,21 +75,54 @@ final class HierarchyOnlyViewerHarness {
           userId: anyNamed('userId'),
         ),
       ).thenAnswer((_) async => false);
+      when(
+        help.upsert(
+          beaconId: anyNamed('beaconId'),
+          userId: anyNamed('userId'),
+          message: anyNamed('message'),
+          helpTypes: anyNamed('helpTypes'),
+          offerKind: anyNamed('offerKind'),
+        ),
+      ).thenAnswer((_) async {});
+      when(
+        help.withdraw(
+          beaconId: anyNamed('beaconId'),
+          userId: anyNamed('userId'),
+          message: anyNamed('message'),
+          withdrawReason: anyNamed('withdrawReason'),
+        ),
+      ).thenAnswer((_) async {});
     }
+    final inbox = help_mocks.MockInboxRepositoryPort();
+    when(
+      inbox.upsertWatchingForSender(
+        senderId: anyNamed('senderId'),
+        beaconId: anyNamed('beaconId'),
+        touchForwardOrdering: anyNamed('touchForwardOrdering'),
+      ),
+    ).thenAnswer((_) async {});
+    final room = help_mocks.MockBeaconRoomRepositoryPort();
+    when(
+      room.revokeOfferUserBeaconRoomAccess(
+        beaconId: anyNamed('beaconId'),
+        offerUserId: anyNamed('offerUserId'),
+        authorUserId: anyNamed('authorUserId'),
+      ),
+    ).thenAnswer((_) async {});
     final commitment = commitmentRepo ?? RecordingCommitmentRepository();
     final att = attention ?? TestAttentionHarness();
     return HelpOfferCase(
       help,
       beaconRepo,
       commitment,
-      help_mocks.MockInboxRepositoryPort(),
+      inbox,
       CapabilityCase(
         help_mocks.MockPersonCapabilityEventRepositoryPort(),
         env: _env,
         logger: _logger,
       ),
       _access,
-      roomRepository: help_mocks.MockBeaconRoomRepositoryPort(),
+      roomRepository: room,
       attentionIntents: att.intents,
       attention: att.transactional,
       env: _env,
@@ -117,32 +156,152 @@ final class HierarchyOnlyViewerHarness {
     );
   }
 
-  ForwardCase buildForwardCase() => ForwardCase(
-    forward_mocks.MockForwardEdgeRepositoryPort(),
-    forward_mocks.MockForwardAttributionRepositoryPort(),
-    forward_mocks.MockHelpOfferRepositoryPort(),
-    forward_mocks.MockInboxRepositoryPort(),
-    forward_mocks.MockCapabilityEvidencePort(),
-    forward_mocks.MockBeaconRepositoryPort(),
-    FakeUserBlockRepository(),
-    forward_mocks.MockPersonVisibilityRepositoryPort(),
-    _access,
-    env: _env,
-    logger: _logger,
-  );
+  /// [onEdgesCreated] receives the recipients a successful forward would
+  /// insert, so a pg test can persist the same edges.
+  ForwardCase buildForwardCase({
+    Future<void> Function(List<String> recipientIds)? onEdgesCreated,
+    String authorId = BeaconHierarchyTopology.bobId,
+  }) {
+    final edges = forward_mocks.MockForwardEdgeRepositoryPort();
+    when(
+      edges.fetchActiveInboundEdges(
+        beaconId: anyNamed('beaconId'),
+        recipientId: anyNamed('recipientId'),
+      ),
+    ).thenAnswer((_) async => []);
+    when(
+      edges.lockActiveInboundEdges(
+        beaconId: anyNamed('beaconId'),
+        recipientId: anyNamed('recipientId'),
+      ),
+    ).thenAnswer((_) async => []);
+    when(
+      edges.countPriorOutgoingBatches(
+        beaconId: anyNamed('beaconId'),
+        senderId: anyNamed('senderId'),
+        batchId: anyNamed('batchId'),
+      ),
+    ).thenAnswer((_) async => 0);
+    when(
+      edges.createBatch(
+        beaconId: anyNamed('beaconId'),
+        senderId: anyNamed('senderId'),
+        recipientIds: anyNamed('recipientIds'),
+        batchId: anyNamed('batchId'),
+        noteForRecipient: anyNamed('noteForRecipient'),
+        context: anyNamed('context'),
+        parentEdgeId: anyNamed('parentEdgeId'),
+        onAfterEdgesInserted: anyNamed('onAfterEdgesInserted'),
+      ),
+    ).thenAnswer((invocation) async {
+      final recipientIds =
+          invocation.namedArguments[#recipientIds] as List<String>;
+      await onEdgesCreated?.call(recipientIds);
+      final onAfter =
+          invocation.namedArguments[#onAfterEdgesInserted]
+              as Future<void> Function()?;
+      await onAfter?.call();
+      return ForwardBatchCreateResult(
+        createdEdges: [
+          for (var i = 0; i < recipientIds.length; i++)
+            ForwardEdgeCreated(edgeId: 'E${i + 1}', recipientId: recipientIds[i]),
+        ],
+        availabilitySkippedRecipientIds: const [],
+      );
+    });
+    final help = forward_mocks.MockHelpOfferRepositoryPort();
+    when(
+      help.hasActiveHelpOffer(
+        beaconId: anyNamed('beaconId'),
+        userId: anyNamed('userId'),
+      ),
+    ).thenAnswer((_) async => false);
+    final inbox = forward_mocks.MockInboxRepositoryPort();
+    when(
+      inbox.upsertWatchingForSender(
+        senderId: anyNamed('senderId'),
+        beaconId: anyNamed('beaconId'),
+        context: anyNamed('context'),
+      ),
+    ).thenAnswer((_) async {});
+    final beacons = forward_mocks.MockBeaconRepositoryPort();
+    when(
+      beacons.getBeaconById(beaconId: anyNamed('beaconId')),
+    ).thenAnswer((_) async => _childBeacon(authorId: authorId));
+    final visibility = forward_mocks.MockPersonVisibilityRepositoryPort();
+    when(
+      visibility.mutuallyVisiblePeerIds(
+        viewerId: anyNamed('viewerId'),
+        peerIds: anyNamed('peerIds'),
+        context: anyNamed('context'),
+      ),
+    ).thenAnswer(
+      (invocation) async =>
+          (invocation.namedArguments[#peerIds] as Iterable<String>).toSet(),
+    );
+    final att = TestAttentionHarness();
+    return ForwardCase(
+      edges,
+      forward_mocks.MockForwardAttributionRepositoryPort(),
+      help,
+      inbox,
+      forward_mocks.MockCapabilityEvidencePort(),
+      beacons,
+      FakeUserBlockRepository(),
+      visibility,
+      _access,
+      attentionIntents: att.intents,
+      attention: att.transactional,
+      env: _env,
+      logger: _logger,
+    );
+  }
 
-  InvitationCase buildInvitationCase() => InvitationCase(
-    invitation_mocks.MockInvitationRepositoryPort(),
-    invitation_mocks.MockUserRepositoryPort(),
-    invitation_mocks.MockBeaconRepositoryPort(),
-    invitation_mocks.MockVoteUserFriendshipLookupPort(),
-    invitation_mocks.MockUserContactRepositoryPort(),
-    _access,
-    help_mocks.MockForwardEdgeRepositoryPort(),
-    FakeUserBlockRepository(),
-    env: _env,
-    logger: _logger,
-  );
+  InvitationCase buildInvitationCase({
+    String authorId = BeaconHierarchyTopology.bobId,
+  }) {
+    final invitations = invitation_mocks.MockInvitationRepositoryPort();
+    when(
+      invitations.create(
+        issuerId: anyNamed('issuerId'),
+        addresseeName: anyNamed('addresseeName'),
+        beaconId: anyNamed('beaconId'),
+        parentForwardEdgeId: anyNamed('parentForwardEdgeId'),
+      ),
+    ).thenAnswer((invocation) async {
+      final now = DateTime.utc(2026, 1, 1);
+      return InvitationEntity(
+        id: 'Ihierinvite01',
+        issuer: UserEntity(id: invocation.namedArguments[#issuerId] as String),
+        beaconId: invocation.namedArguments[#beaconId] as String?,
+        createdAt: now,
+        updatedAt: now,
+      );
+    });
+    final beacons = invitation_mocks.MockBeaconRepositoryPort();
+    when(
+      beacons.getBeaconById(beaconId: anyNamed('beaconId')),
+    ).thenAnswer((_) async => _childBeacon(authorId: authorId));
+    final edges = help_mocks.MockForwardEdgeRepositoryPort();
+    when(
+      edges.fetchActiveInboundEdges(
+        beaconId: anyNamed('beaconId'),
+        recipientId: anyNamed('recipientId'),
+      ),
+    ).thenAnswer((_) async => []);
+    return InvitationCase(
+      invitations,
+      invitation_mocks.MockUserRepositoryPort(),
+      beacons,
+      invitation_mocks.MockVoteUserFriendshipLookupPort(),
+      invitation_mocks.MockUserContactRepositoryPort(),
+      _access,
+      edges,
+      FakeUserBlockRepository(),
+      env: _env,
+      logger: _logger,
+    );
+  }
 
   CoordinationCase buildCoordinationCase() => CoordinationCase(
     help_mocks.MockBeaconRepositoryPort(),

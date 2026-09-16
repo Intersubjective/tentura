@@ -20,9 +20,9 @@ import '../data/repository/beacon_hierarchy_pg_helpers.dart';
 
 /// Hasura read-side parity for hierarchy predicates (Task 03).
 ///
-/// Default `beacon` select permissions remain `can_read_content`-gated; this
-/// test proves that contract is unchanged while computed fields exist for later
-/// linked-detail projections (Task 10). Probes use real user-session JWTs.
+/// Default `beacon` select permissions remain `can_read_content`-gated; since
+/// m0171 that predicate includes hierarchy context grants (issue #146 T09).
+/// Probes use real user-session JWTs.
 Future<void> main() async {
   final postgresReachable = await canConnectBeaconHierarchyPostgres();
   final dockerReachable = postgresReachable && await IsolatedHasuraSession.isDockerAvailable();
@@ -158,33 +158,49 @@ ON CONFLICT (id) DO UPDATE SET room_access = EXCLUDED.room_access
     });
 
     test(
-      'JWT user cannot read child beacon row via unchanged content permission',
+      'JWT context observer reads hierarchy rows via widened content permission',
       () async {
         await seedTreeAndAdmitFrankToA();
-        final jwt = authCase
+        final frankJwt = authCase
             .issueAccessToken(BeaconHierarchyTopology.frankId)
             .rawToken;
         final childId = BeaconHierarchyTopology.beaconB;
 
-        final byPk = await _queryBeaconByPk(
+        final child = await _queryBeaconByPk(
           hasuraUrl: hasura!.baseUrl,
-          jwt: jwt,
+          jwt: frankJwt,
           beaconId: childId,
-          fields: 'id can_read_content',
+          fields: 'id can_read_content access_level access_reasons',
         );
-        expect(byPk, isNull, reason: 'content row filter must hide child B');
+        expect(child, {
+          'id': childId,
+          'can_read_content': true,
+          'access_level': 2,
+          'access_reasons': 64,
+        }, reason: 'parent member reads child B (contextChild)');
 
         final contentRows = await _queryBeacons(
           hasuraUrl: hasura!.baseUrl,
-          jwt: jwt,
+          jwt: frankJwt,
           where: '{can_read_content: {_eq: true}}',
           fields: 'id',
         );
-        expect(
-          contentRows.map((row) => row['id']),
-          isNot(contains(childId)),
-          reason: 'hierarchy-only viewer must not gain child content listing',
+        expect(contentRows.map((row) => row['id']), contains(childId));
+
+        final bobJwt = authCase
+            .issueAccessToken(BeaconHierarchyTopology.bobId)
+            .rawToken;
+        final parent = await _queryBeaconByPk(
+          hasuraUrl: hasura!.baseUrl,
+          jwt: bobJwt,
+          beaconId: BeaconHierarchyTopology.beaconA,
+          fields: 'id access_level access_reasons',
         );
+        expect(parent, {
+          'id': BeaconHierarchyTopology.beaconA,
+          'access_level': 2,
+          'access_reasons': 128,
+        }, reason: 'child member reads parent A (contextAncestor)');
       },
       skip: skipReason,
     );

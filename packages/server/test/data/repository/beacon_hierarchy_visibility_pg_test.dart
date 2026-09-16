@@ -5,6 +5,7 @@ import 'dart:async';
 
 import 'package:postgres/postgres.dart';
 import 'package:test/test.dart';
+import 'package:tentura_root/domain/entity/beacon_access.dart';
 import 'package:tentura_server/consts/beacon_room_consts.dart';
 import 'package:tentura_server/data/repository/beacon_access_repository.dart';
 import 'package:tentura_server/data/repository/beacon_hierarchy_repository.dart';
@@ -169,8 +170,16 @@ ON CONFLICT (id) DO UPDATE SET room_access = EXCLUDED.room_access
       );
     }, skip: skipReason);
 
+    Future<int> accessReasons(String beaconId, String viewerId) async {
+      final row = await writer.execute(
+        Sql.named('SELECT public.beacon_access_reasons(@beaconId, @viewerId)'),
+        parameters: {'beaconId': beaconId, 'viewerId': viewerId},
+      );
+      return row.first.first! as int;
+    }
+
     test(
-      'hierarchy-only viewer gets linked detail on child but not content',
+      'parent member reads child content through context grant',
       () async {
         await seedTree();
         await admitFrankToParentAOnly();
@@ -179,7 +188,11 @@ ON CONFLICT (id) DO UPDATE SET room_access = EXCLUDED.room_access
         final viewerId = BeaconHierarchyTopology.frankId;
 
         expect(await access.canReadContent(beaconId: childId, viewerId: viewerId),
-            isFalse);
+            isTrue);
+        expect(
+          await accessReasons(childId, viewerId),
+          BeaconAccessReason.contextChild.bit,
+        );
         expect(
           await access.canReadLinkedDetail(beaconId: childId, viewerId: viewerId),
           isTrue,
@@ -193,7 +206,7 @@ ON CONFLICT (id) DO UPDATE SET room_access = EXCLUDED.room_access
       skip: skipReason,
     );
 
-    test('block hides linked detail in both directions', () async {
+    test('block hides context content in both directions', () async {
       await seedTree();
       await admitFrankToParentAOnly();
 
@@ -210,7 +223,7 @@ ON CONFLICT DO NOTHING
         parameters: {'blocker': bobId, 'blocked': frankId},
       );
       expect(
-        await access.canReadLinkedDetail(beaconId: childId, viewerId: frankId),
+        await access.canReadContent(beaconId: childId, viewerId: frankId),
         isFalse,
         reason: 'child owner blocked viewer',
       );
@@ -227,13 +240,13 @@ ON CONFLICT DO NOTHING
         parameters: {'blocker': frankId, 'blocked': bobId},
       );
       expect(
-        await access.canReadLinkedDetail(beaconId: childId, viewerId: frankId),
+        await access.canReadContent(beaconId: childId, viewerId: frankId),
         isFalse,
         reason: 'viewer blocked child owner',
       );
     }, skip: skipReason);
 
-    test('revoked parent admission removes linked detail without residue', () async {
+    test('revoked parent admission removes context content without residue', () async {
       await seedTree();
       await admitFrankToParentAOnly();
 
@@ -241,7 +254,7 @@ ON CONFLICT DO NOTHING
       final frankId = BeaconHierarchyTopology.frankId;
 
       expect(
-        await access.canReadLinkedDetail(beaconId: childId, viewerId: frankId),
+        await access.canReadContent(beaconId: childId, viewerId: frankId),
         isTrue,
       );
 
@@ -249,35 +262,49 @@ ON CONFLICT DO NOTHING
         "DELETE FROM public.beacon_participant WHERE id = 'PhierfrankA01'",
       );
       expect(
-        await access.canReadLinkedDetail(beaconId: childId, viewerId: frankId),
+        await access.canReadContent(beaconId: childId, viewerId: frankId),
         isFalse,
       );
-      expect(await access.canReadContent(beaconId: childId, viewerId: frankId),
-          isFalse);
+      expect(await accessReasons(childId, frankId), 0);
     }, skip: skipReason);
 
-    test('no transitive linked-detail grant across grandchild', () async {
-      await seedTree();
-      await admitFrankToParentAOnly();
+    test(
+      'context reaches one level down but any level up',
+      () async {
+        await seedTree();
+        await admitFrankToParentAOnly();
 
-      final grandchildId = BeaconHierarchyTopology.beaconC;
-      final frankId = BeaconHierarchyTopology.frankId;
+        final grandparentId = BeaconHierarchyTopology.beaconA;
+        final grandchildId = BeaconHierarchyTopology.beaconC;
+        final frankId = BeaconHierarchyTopology.frankId;
+        final carolId = BeaconHierarchyTopology.carolId;
 
-      expect(
-        await access.canReadLinkedDetail(
-          beaconId: grandchildId,
-          viewerId: frankId,
-        ),
-        isFalse,
-      );
-      expect(
-        await access.canReadContent(beaconId: grandchildId, viewerId: frankId),
-        isFalse,
-      );
-    }, skip: skipReason);
+        expect(
+          await access.canReadContent(
+            beaconId: grandchildId,
+            viewerId: frankId,
+          ),
+          isFalse,
+          reason: 'grandparent member does not see grandchild',
+        );
+        expect(await accessReasons(grandchildId, frankId), 0);
+        expect(
+          await access.canReadContent(
+            beaconId: grandparentId,
+            viewerId: carolId,
+          ),
+          isTrue,
+          reason: 'grandchild member sees grandparent (contextAncestor)',
+        );
+        expect(
+          await accessReasons(grandparentId, carolId),
+          BeaconAccessReason.contextAncestor.bit,
+        );
+      },
+      skip: skipReason,
+    );
 
-    group('non-transitivity — production call sites refuse hierarchy-only viewer',
-        () {
+    group('hierarchy context observer is an ordinary observer (D2)', () {
       late HierarchyOnlyViewerHarness harness;
 
       setUp(() async {
@@ -290,22 +317,16 @@ ON CONFLICT DO NOTHING
         );
       });
 
-      test('help_offer_case offerHelp and withdrawHelp', () async {
+      test('help_offer_case offerHelp and withdrawHelp succeed', () async {
         final case_ = harness.buildHelpOfferCase();
-        await expectLater(
-          case_.offerHelp(
-            beaconId: harness.childBeaconId,
-            userId: harness.hierarchyOnlyViewerId,
-          ),
-          throwsA(isA<UnauthorizedException>()),
+        await case_.offerHelp(
+          beaconId: harness.childBeaconId,
+          userId: harness.hierarchyOnlyViewerId,
         );
-        await expectLater(
-          case_.withdraw(
-            beaconId: harness.childBeaconId,
-            userId: harness.hierarchyOnlyViewerId,
-            withdrawReason: 'other',
-          ),
-          throwsA(isA<UnauthorizedException>()),
+        await case_.withdraw(
+          beaconId: harness.childBeaconId,
+          userId: harness.hierarchyOnlyViewerId,
+          withdrawReason: 'other',
         );
       });
 
@@ -353,42 +374,67 @@ ON CONFLICT DO NOTHING
         expect(commitmentRepo.recordCalls, isEmpty);
       });
 
-      test('forward_case forward cannot mint child content access', () async {
-        final case_ = harness.buildForwardCase();
-        await expectLater(
-          case_.forward(
-            beaconId: harness.childBeaconId,
-            senderId: harness.hierarchyOnlyViewerId,
-            recipientIds: [BeaconHierarchyTopology.carolId],
-          ),
-          throwsA(isA<UnauthorizedException>()),
+      test('forward_case forward makes recipient a forwarded observer only',
+          () async {
+        // eve owns sibling D only, so she has no context on B.
+        final recipientId = BeaconHierarchyTopology.eveId;
+        final childId = harness.childBeaconId;
+        final senderId = harness.hierarchyOnlyViewerId;
+        expect(await accessReasons(childId, recipientId), 0);
+        final case_ = harness.buildForwardCase(
+          onEdgesCreated: (recipientIds) async {
+            for (final id in recipientIds) {
+              await writer.execute(
+                Sql.named(r'''
+INSERT INTO public.beacon_forward_edge (
+  id, beacon_id, sender_id, recipient_id, created_at
+) VALUES (
+  'FhierctxB02', @beaconId, @senderId, @recipientId, '2026-01-02T00:00:00Z'
+)
+'''),
+                parameters: {
+                  'beaconId': childId,
+                  'senderId': senderId,
+                  'recipientId': id,
+                },
+              );
+            }
+          },
+        );
+        final result = await case_.forward(
+          beaconId: childId,
+          senderId: senderId,
+          recipientIds: [recipientId],
+        );
+        expect(result.deliveredRecipientIds, [recipientId]);
+        expect(
+          await accessReasons(childId, recipientId),
+          BeaconAccessReason.forwarded.bit,
+          reason: 'S4-10: forwarding never grants context bits',
         );
       });
 
-      test('assertBeaconLineageSourceVisible', () async {
-        await expectLater(
-          assertBeaconLineageSourceVisible(
-            guard: access,
-            beaconId: harness.childBeaconId,
-            userId: harness.hierarchyOnlyViewerId,
-          ),
-          throwsA(isA<BeaconCreateException>()),
+      test('assertBeaconLineageSourceVisible accepts context observer',
+          () async {
+        await assertBeaconLineageSourceVisible(
+          guard: access,
+          beaconId: harness.childBeaconId,
+          userId: harness.hierarchyOnlyViewerId,
         );
       });
 
-      test('invitation_case create with beacon scope', () async {
+      test('invitation_case create with beacon scope succeeds', () async {
         final case_ = harness.buildInvitationCase();
-        await expectLater(
-          case_.create(
-            userId: harness.hierarchyOnlyViewerId,
-            addresseeName: 'target',
-            beaconId: harness.childBeaconId,
-          ),
-          throwsA(isA<UnauthorizedException>()),
+        final invitation = await case_.create(
+          userId: harness.hierarchyOnlyViewerId,
+          addresseeName: 'target',
+          beaconId: harness.childBeaconId,
         );
+        expect(invitation.beaconId, harness.childBeaconId);
       });
 
-      test('coordination_case helpOffersWithCoordination', () async {
+      test('coordination_case helpOffersWithCoordination still refuses '
+          'an uninvolved context observer', () async {
         final case_ = harness.buildCoordinationCase();
         await expectLater(
           case_.helpOffersWithCoordination(

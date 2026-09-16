@@ -11,6 +11,8 @@ class BeaconContentVisibilityFacts {
     required this.isDiscoverable,
     required this.isPublished,
     required this.isMutuallyVisibleWithAuthor,
+    this.isMemberOfImmediateParent = false,
+    this.isMemberOfDescendant = false,
   });
 
   final BeaconStatus status;
@@ -21,6 +23,12 @@ class BeaconContentVisibilityFacts {
   final bool isDiscoverable;
   final bool isPublished;
   final bool isMutuallyVisibleWithAuthor;
+
+  /// Published child whose immediate parent has the viewer as a member (D1).
+  final bool isMemberOfImmediateParent;
+
+  /// Published beacon with the viewer as a member of some descendant (D1).
+  final bool isMemberOfDescendant;
 }
 
 /// Typed inputs for [BeaconVisibility.canReadInvolvement].
@@ -101,7 +109,9 @@ abstract final class BeaconVisibility {
 
   /// Normal beacon content read — never authorizes deleted rows or drafts
   /// for non-authors. Discoverability grants read to mutually visible peers
-  /// on published open-family beacons (D11); involvement is separate.
+  /// on published open-family beacons (D11); members of the immediate parent
+  /// or of a descendant read published hierarchy context (D1, m0171);
+  /// involvement is separate.
   static bool canReadContent(BeaconContentVisibilityFacts facts) {
     if (facts.status == BeaconStatus.draft) {
       return facts.isAuthor;
@@ -115,6 +125,8 @@ abstract final class BeaconVisibility {
     return facts.hasActiveForwardEdgeAsRecipient ||
         facts.isRoomAdmittedOrSteward ||
         facts.isActiveHelpOfferer ||
+        (facts.isPublished && facts.isMemberOfImmediateParent) ||
+        (facts.isPublished && facts.isMemberOfDescendant) ||
         (facts.isDiscoverable &&
             facts.isPublished &&
             facts.status.isOpenFamily &&

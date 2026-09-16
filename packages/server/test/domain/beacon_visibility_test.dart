@@ -12,6 +12,8 @@ BeaconContentVisibilityFacts _content({
   bool isDiscoverable = true,
   bool isPublished = true,
   bool isMutuallyVisibleWithAuthor = false,
+  bool isMemberOfImmediateParent = false,
+  bool isMemberOfDescendant = false,
 }) =>
     BeaconContentVisibilityFacts(
       status: status,
@@ -22,6 +24,8 @@ BeaconContentVisibilityFacts _content({
       isDiscoverable: isDiscoverable,
       isPublished: isPublished,
       isMutuallyVisibleWithAuthor: isMutuallyVisibleWithAuthor,
+      isMemberOfImmediateParent: isMemberOfImmediateParent,
+      isMemberOfDescendant: isMemberOfDescendant,
     );
 
 BeaconInvolvementVisibilityFacts _involvement({
@@ -344,46 +348,70 @@ void main() {
     });
   });
 
-  group('BeaconVisibility.canReadLinkedDetail', () {
-    test('one-edge parent grant does not change canReadContent', () {
-      final content = _content();
-      final linked = BeaconLinkedDetailVisibilityFacts(
-        contentFacts: content,
-        isAdmittedToImmediateParent: true,
-        isAdmittedToImmediatePublishedChild: false,
+  group('BeaconVisibility.canReadContent — hierarchy context facts', () {
+    test('parent member reads a published child', () {
+      expect(BeaconVisibility.canReadContent(_content()), isFalse);
+      expect(
+        BeaconVisibility.canReadContent(
+          _content(isMemberOfImmediateParent: true),
+        ),
+        isTrue,
       );
-      expect(BeaconVisibility.canReadContent(content), isFalse);
-      expect(BeaconVisibility.canReadLinkedDetail(linked), isTrue);
     });
 
-    test('one-edge child grant does not change canReadInvolvement', () {
-      final content = _content();
+    test('descendant member reads a published ancestor', () {
+      expect(
+        BeaconVisibility.canReadContent(_content(isMemberOfDescendant: true)),
+        isTrue,
+      );
+    });
+
+    test('context grants content but not involvement', () {
+      final content = _content(
+        isMemberOfImmediateParent: true,
+        isMemberOfDescendant: true,
+      );
+      expect(BeaconVisibility.canReadContent(content), isTrue);
       expect(
         BeaconVisibility.canReadInvolvement(
           _involvement(contentFacts: content),
         ),
         isFalse,
       );
-      expect(
-        BeaconVisibility.canReadLinkedDetail(
-          BeaconLinkedDetailVisibilityFacts(
-            contentFacts: content,
-            isAdmittedToImmediateParent: false,
-            isAdmittedToImmediatePublishedChild: true,
-          ),
-        ),
-        isTrue,
-      );
     });
 
-    test('ordinary content access still satisfies linked detail', () {
-      final content = _content(isRoomAdmittedOrSteward: true);
+    test('context requires a published beacon', () {
+      for (final facts in [
+        _content(isPublished: false, isMemberOfImmediateParent: true),
+        _content(isPublished: false, isMemberOfDescendant: true),
+      ]) {
+        expect(BeaconVisibility.canReadContent(facts), isFalse);
+      }
+    });
+
+    test('context never opens drafts or deleted beacons', () {
+      for (final status in [BeaconStatus.draft, BeaconStatus.deleted]) {
+        expect(
+          BeaconVisibility.canReadContent(
+            _content(
+              status: status,
+              isMemberOfImmediateParent: true,
+              isMemberOfDescendant: true,
+            ),
+          ),
+          isFalse,
+          reason: status.name,
+        );
+      }
+    });
+
+    test('context applies to non-open-family published beacons', () {
       expect(
-        BeaconVisibility.canReadLinkedDetail(
-          BeaconLinkedDetailVisibilityFacts(
-            contentFacts: content,
-            isAdmittedToImmediateParent: false,
-            isAdmittedToImmediatePublishedChild: false,
+        BeaconVisibility.canReadContent(
+          _content(
+            status: BeaconStatus.closed,
+            isDiscoverable: false,
+            isMemberOfDescendant: true,
           ),
         ),
         isTrue,
