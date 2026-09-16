@@ -6,6 +6,8 @@ enum BeaconDisplayPhase {
   wrappingUp,
   needsMoreHelp,
   enoughHelpInMotion,
+  /// Retained for GraphQL `byName` compat. Not derived: unreviewed offers
+  /// stay on YOU/ACT (`reviewOffers`), not the shared STATUS line.
   offersAwaitingAuthor,
   coordinating,
   lookingForHelpers,
@@ -145,45 +147,30 @@ BeaconDisplayStatusResult _deriveCoordination(BeaconDisplayStatusInput input) {
     );
   }
 
-  if (input.hasUnreviewedOffers) {
-    return BeaconDisplayStatusResult(
-      phase: BeaconDisplayPhase.offersAwaitingAuthor,
-      slot2Kind: BeaconDisplaySlot2Kind.freshness,
-      suggestedAction: BeaconDisplayPrimaryAction.reviewOffers,
-      lastActivityAt: activityAt,
-    );
-  }
-
+  final BeaconDisplayStatusResult shared;
   if (input.status == BeaconStatus.needsMoreHelp) {
-    return BeaconDisplayStatusResult(
+    shared = BeaconDisplayStatusResult(
       phase: BeaconDisplayPhase.needsMoreHelp,
       slot2Kind: BeaconDisplaySlot2Kind.freshness,
       suggestedAction: BeaconDisplayPrimaryAction.offerHelp,
       lastActivityAt: activityAt,
     );
-  }
-
-  if (input.status == BeaconStatus.enoughHelp) {
-    return BeaconDisplayStatusResult(
+  } else if (input.status == BeaconStatus.enoughHelp) {
+    shared = BeaconDisplayStatusResult(
       phase: BeaconDisplayPhase.enoughHelpInMotion,
       slot2Kind: BeaconDisplaySlot2Kind.freshness,
       suggestedAction: BeaconDisplayPrimaryAction.none,
       lastActivityAt: activityAt,
     );
-  }
-
-  if (input.hasOpenRoomAsks ||
-      (input.helpOfferCount > 0 && !input.hasUnreviewedOffers)) {
-    return BeaconDisplayStatusResult(
+  } else if (input.hasOpenRoomAsks || input.helpOfferCount > 0) {
+    shared = BeaconDisplayStatusResult(
       phase: BeaconDisplayPhase.coordinating,
       slot2Kind: BeaconDisplaySlot2Kind.freshness,
       suggestedAction: BeaconDisplayPrimaryAction.none,
       lastActivityAt: activityAt,
     );
-  }
-
-  if (input.helpOfferCount == 0) {
-    return BeaconDisplayStatusResult(
+  } else {
+    shared = BeaconDisplayStatusResult(
       phase: BeaconDisplayPhase.lookingForHelpers,
       slot2Kind: BeaconDisplaySlot2Kind.noOffersYet,
       suggestedAction: BeaconDisplayPrimaryAction.forward,
@@ -191,11 +178,11 @@ BeaconDisplayStatusResult _deriveCoordination(BeaconDisplayStatusInput input) {
     );
   }
 
-  return BeaconDisplayStatusResult(
-    phase: BeaconDisplayPhase.coordinating,
-    slot2Kind: BeaconDisplaySlot2Kind.freshness,
-    suggestedAction: BeaconDisplayPrimaryAction.none,
-    lastActivityAt: activityAt,
+  // Unreviewed offers are the author's YOU/ACT obligation, not a shared
+  // STATUS verb — every coordination-tier viewer sees the same phase.
+  return _withUnreviewedOfferAction(
+    shared,
+    unreviewed: input.hasUnreviewedOffers,
   );
 }
 
@@ -271,5 +258,20 @@ BeaconDisplayStatusResult _floor(DateTime? lastActivityAt) {
     phase: BeaconDisplayPhase.openFloor,
     suggestedAction: BeaconDisplayPrimaryAction.none,
     lastActivityAt: lastActivityAt,
+  );
+}
+
+BeaconDisplayStatusResult _withUnreviewedOfferAction(
+  BeaconDisplayStatusResult result, {
+  required bool unreviewed,
+}) {
+  if (!unreviewed) return result;
+  return BeaconDisplayStatusResult(
+    phase: result.phase,
+    slot2Kind: result.slot2Kind,
+    suggestedAction: BeaconDisplayPrimaryAction.reviewOffers,
+    reviewClosesAt: result.reviewClosesAt,
+    lastActivityAt: result.lastActivityAt,
+    lifecycleEndedAt: result.lifecycleEndedAt,
   );
 }

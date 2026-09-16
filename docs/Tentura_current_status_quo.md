@@ -116,7 +116,7 @@ The author signals **coverage/fit** via beacon status and **per-offer responses*
 
 **Chat admission is always explicit** — offering help or receiving a direct forward does **not** auto-admit. Accepting with an acknowledging response (`useful` / `needCoordination`) grants Chat access together with committer stake.
 
-Status includes phases such as: no offers yet, offers awaiting author review, more/different help needed, enough help in motion.
+Status includes phases such as: no offers yet, coordinating the plan, more/different help needed, enough help in motion. Unreviewed offers stay on the author's YOU/ACT (`Review offers`), not the shared STATUS line.
 
 At **enough help**, new offers are **not blocked** — they are submitted as **backup offers** (secondary coordination; the primary public action for uninvolved viewers becomes **Offer as backup**, with **Forward** available as a persistent secondary control in Request chrome). The author coordinates openly across primary and backup offers.
 

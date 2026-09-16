@@ -223,7 +223,7 @@ void main() {
       expect(result.single.tier, BeaconDisplayTier.coordination);
     });
 
-    test('wires hasUnreviewedOffers into offersAwaitingAuthor', () async {
+    test('wires hasUnreviewedOffers into reviewOffers without STATUS phase', () async {
       when(helpOfferRepo.fetchByBeaconId(beaconId)).thenAnswer(
         (_) async => [
           HelpOfferEntity(
@@ -240,7 +240,8 @@ void main() {
         viewerId: authorId,
       );
 
-      expect(result.single.phase, BeaconDisplayPhase.offersAwaitingAuthor);
+      expect(result.single.phase, BeaconDisplayPhase.coordinating);
+      expect(result.single.phase, isNot(BeaconDisplayPhase.offersAwaitingAuthor));
       expect(
         result.single.suggestedAction,
         BeaconDisplayPrimaryAction.reviewOffers,
@@ -265,7 +266,7 @@ void main() {
       );
     });
 
-    test('backup offer without response does not trigger offersAwaitingAuthor',
+    test('backup offer without response does not suggest reviewOffers',
         () async {
       when(beaconRepo.getBeaconById(beaconId: beaconId)).thenAnswer(
         (_) async => openBeacon(status: BeaconStatus.enoughHelp),
@@ -288,7 +289,10 @@ void main() {
       );
 
       expect(result.single.phase, BeaconDisplayPhase.enoughHelpInMotion);
-      expect(result.single.phase, isNot(BeaconDisplayPhase.offersAwaitingAuthor));
+      expect(
+        result.single.suggestedAction,
+        isNot(BeaconDisplayPrimaryAction.reviewOffers),
+      );
     });
 
     test('reviewOpen fetches review window closesAt', () async {

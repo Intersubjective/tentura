@@ -63,17 +63,16 @@ Data / Server
 |----------|-------|-------|---------|
 | 1 | blocked | clearing needed | open + open blocker |
 | 2 | wrappingUp | review countdown | reviewOpen |
-| 3 | offersAwaitingAuthor | freshness | unreviewed offers |
-| 4 | needsMoreHelp | freshness | open-family beacon status = more help needed |
-| 5 | enoughHelpInMotion | freshness | open-family beacon status = enough help in motion |
-| 6 | coordinating | freshness | reviewed / room asks |
-| 7 | lookingForHelpers | no offers yet | open + 0 offers |
+| 3 | needsMoreHelp | freshness | open-family beacon status = more help needed |
+| 4 | enoughHelpInMotion | freshness | open-family beacon status = enough help in motion |
+| 5 | coordinating | freshness | offers and/or open room asks |
+| 6 | lookingForHelpers | no offers yet | open + 0 offers |
 | terminal | closed / cancelled | lifecycle ended at | lifecycle terminal |
 | floor | draft / open | — | gap |
 
-Ordering aligns with product status quo section 8.2: new offers remain reviewable even when the beacon has enough help in motion.
+Unreviewed help offers do **not** change STATUS. They set `suggestedAction: reviewOffers` (author YOU/ACT only). STATUS stays the shared lifecycle verb so every coordination-tier viewer reads the same line.
 
-**Public tier** maps from `beacon.publicStatus` — never exposes `Offers awaiting author`.
+**Public tier** maps from `beacon.publicStatus` — same shared verbs; no author-only STATUS copy.
 
 ---
 
@@ -107,7 +106,7 @@ Rule: **inventory = content; situation = tone.**
 | Phase | Tone |
 |-------|------|
 | `blocked`, `needsMoreHelp` | `warn` |
-| `offersAwaitingAuthor`, `wrappingUp`, `lookingForHelpers` | `info` |
+| `wrappingUp`, `lookingForHelpers` | `info` |
 | `enoughHelpInMotion` | `good` |
 | `coordinating`, `closed`, `cancelled`, `draft`, `openFloor` | `neutral` |
 

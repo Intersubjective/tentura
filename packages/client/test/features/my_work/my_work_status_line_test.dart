@@ -46,7 +46,7 @@ void main() {
     );
   }
 
-  testWidgets('authored open neutral with offers shows offers awaiting author', (
+  testWidgets('authored open with unanswered offers shows coordinating', (
     tester,
   ) async {
     final l10n = await loadL10n(tester);
@@ -67,8 +67,10 @@ void main() {
     final expected = expectedFromPresenter(l10n, vm, now: now);
     expect(line.isEmpty, isFalse);
     expect(line.slot1, expected.slot1);
+    expect(line.slot1, contains(l10n.beaconPhaseCoordinating));
+    expect(line.slot1, isNot(contains(l10n.beaconPhaseOffersAwaitingAuthor)));
     expect(line.slot2, expected.slot2);
-    expect(line.tone, TenturaTone.info);
+    expect(line.tone, TenturaTone.neutral);
   });
 
   testWidgets('authored open needsMoreHelp shows phase status line', (

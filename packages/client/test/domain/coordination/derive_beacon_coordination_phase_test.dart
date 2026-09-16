@@ -24,7 +24,7 @@ Beacon _beacon({
 );
 
 void main() {
-  test('enoughHelp with unanswered offers is offersAwaitingAuthor', () {
+  test('enoughHelp with unanswered offers stays enoughHelpInMotion', () {
     final beacon = _beacon(
       status: BeaconStatus.enoughHelp,
       helpOfferCount: 3,
@@ -38,14 +38,14 @@ void main() {
         hasUnreviewedOffers: beaconHasUnreviewedOffers(beacon),
       ),
     );
-    expect(result.phase, BeaconCoordinationPhase.offersAwaitingAuthor);
+    expect(result.phase, BeaconCoordinationPhase.enoughHelpInMotion);
     expect(result.slot2Kind, BeaconPhaseSlot2Kind.freshness);
     expect(result.suggestedAction, BeaconPhasePrimaryAction.reviewOffers);
-    expect(result.rowHarmony.suppressYouAwaitingAuthor, isTrue);
+    expect(result.rowHarmony.suppressYouAwaitingAuthor, isFalse);
   });
 
   test(
-    'offersAwaitingAuthor with stale activity uses freshness quiet days',
+    'enoughHelp with unanswered offers and stale activity uses freshness',
     () {
       final now = DateTime.utc(2026, 6, 20, 12);
       final updatedAt = now.subtract(const Duration(days: 3));
@@ -62,8 +62,9 @@ void main() {
           hasUnreviewedOffers: beaconHasUnreviewedOffers(beacon),
         ),
       );
-      expect(result.phase, BeaconCoordinationPhase.offersAwaitingAuthor);
+      expect(result.phase, BeaconCoordinationPhase.enoughHelpInMotion);
       expect(result.slot2Kind, BeaconPhaseSlot2Kind.freshness);
+      expect(result.suggestedAction, BeaconPhasePrimaryAction.reviewOffers);
       expect(result.lastActivityAt, updatedAt);
     },
   );
@@ -122,6 +123,24 @@ void main() {
     expect(result.phase, BeaconCoordinationPhase.blocked);
     expect(result.slot2Kind, BeaconPhaseSlot2Kind.blockerNeedsClearing);
     expect(result.rowHarmony.showBlockedTitleInNowSubline, isTrue);
+  });
+
+  test('open with unanswered offers is coordinating not awaiting author', () {
+    final beacon = _beacon(
+      helpOfferCount: 2,
+      unansweredHelpOfferCount: 2,
+    );
+    final result = deriveBeaconCoordinationPhase(
+      BeaconCoordinationPhaseInput(
+        beacon: beacon,
+        tier: BeaconVisibilityTier.coordination,
+        now: _t,
+        hasUnreviewedOffers: beaconHasUnreviewedOffers(beacon),
+      ),
+    );
+    expect(result.phase, BeaconCoordinationPhase.coordinating);
+    expect(result.phase, isNot(BeaconCoordinationPhase.offersAwaitingAuthor));
+    expect(result.suggestedAction, BeaconPhasePrimaryAction.reviewOffers);
   });
 
   test('public tier never exposes offersAwaitingAuthor', () {

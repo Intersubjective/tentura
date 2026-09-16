@@ -24,7 +24,7 @@ void main() {
       expect(r.phase, BeaconDisplayPhase.needsMoreHelp);
     });
 
-    test('enoughHelp with unreviewed offers is offersAwaitingAuthor', () {
+    test('enoughHelp with unreviewed offers stays enoughHelpInMotion', () {
       final r = deriveBeaconDisplayStatus(
         BeaconDisplayStatusInput(
           status: BeaconStatus.enoughHelp,
@@ -33,7 +33,8 @@ void main() {
           helpOfferCount: 2,
         ),
       );
-      expect(r.phase, BeaconDisplayPhase.offersAwaitingAuthor);
+      expect(r.phase, BeaconDisplayPhase.enoughHelpInMotion);
+      expect(r.phase, isNot(BeaconDisplayPhase.offersAwaitingAuthor));
       expect(r.suggestedAction, BeaconDisplayPrimaryAction.reviewOffers);
     });
 

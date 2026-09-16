@@ -6,6 +6,8 @@ enum BeaconCoordinationPhase {
   wrappingUp,
   needsMoreHelp,
   enoughHelpInMotion,
+  /// Retained for GraphQL `byName` compat. Not derived: unreviewed offers
+  /// stay on YOU/ACT (`reviewOffers`), not the shared STATUS line.
   offersAwaitingAuthor,
   coordinating,
   lookingForHelpers,

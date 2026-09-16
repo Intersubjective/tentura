@@ -126,7 +126,7 @@ void main() {
     tester,
   ) async {
     const phaseStatus = BeaconPhaseStatusPresentation(
-      slot1: 'Ждут автора',
+      slot1: 'Согласование',
       slot2: 'акт. сегодня · ещё одна длинная часть статуса',
       slot1Tone: TenturaTone.info,
       slot2Tone: TenturaTone.good,
@@ -166,7 +166,7 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    final statusFinder = find.textContaining('Ждут автора');
+    final statusFinder = find.textContaining('Согласование');
     expect(statusFinder, findsOneWidget);
     final statusRender = tester.renderObject<RenderParagraph>(statusFinder);
     expect(statusRender.maxLines, isNull);

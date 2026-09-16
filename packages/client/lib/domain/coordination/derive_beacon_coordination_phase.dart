@@ -89,50 +89,34 @@ BeaconCoordinationPhaseResult _deriveCoordinationTier(
 
   final unreviewed =
       input.hasUnreviewedOffers || beaconHasUnreviewedOffers(beacon);
-  if (unreviewed) {
-    return BeaconCoordinationPhaseResult(
-      phase: BeaconCoordinationPhase.offersAwaitingAuthor,
-      slot2Kind: BeaconPhaseSlot2Kind.freshness,
-      suggestedAction: BeaconPhasePrimaryAction.reviewOffers,
-      rowHarmony: const BeaconPhaseRowHarmony(
-        suppressYouAwaitingAuthor: true,
-      ),
-      lastActivityAt: activityAt,
-    );
-  }
 
+  final BeaconCoordinationPhaseResult shared;
   if (status == BeaconStatus.needsMoreHelp) {
-    return BeaconCoordinationPhaseResult(
+    shared = BeaconCoordinationPhaseResult(
       phase: BeaconCoordinationPhase.needsMoreHelp,
       slot2Kind: BeaconPhaseSlot2Kind.freshness,
       suggestedAction: BeaconPhasePrimaryAction.offerHelp,
       rowHarmony: BeaconPhaseRowHarmony.empty,
       lastActivityAt: activityAt,
     );
-  }
-
-  if (status == BeaconStatus.enoughHelp) {
-    return BeaconCoordinationPhaseResult(
+  } else if (status == BeaconStatus.enoughHelp) {
+    shared = BeaconCoordinationPhaseResult(
       phase: BeaconCoordinationPhase.enoughHelpInMotion,
       slot2Kind: BeaconPhaseSlot2Kind.freshness,
       suggestedAction: BeaconPhasePrimaryAction.none,
       rowHarmony: BeaconPhaseRowHarmony.empty,
       lastActivityAt: activityAt,
     );
-  }
-
-  if (input.hasOpenRoomAsks || (beacon.helpOfferCount > 0 && !unreviewed)) {
-    return BeaconCoordinationPhaseResult(
+  } else if (input.hasOpenRoomAsks || beacon.helpOfferCount > 0) {
+    shared = BeaconCoordinationPhaseResult(
       phase: BeaconCoordinationPhase.coordinating,
       slot2Kind: BeaconPhaseSlot2Kind.freshness,
       suggestedAction: BeaconPhasePrimaryAction.none,
       rowHarmony: BeaconPhaseRowHarmony.empty,
       lastActivityAt: activityAt,
     );
-  }
-
-  if (beacon.helpOfferCount == 0) {
-    return BeaconCoordinationPhaseResult(
+  } else {
+    shared = BeaconCoordinationPhaseResult(
       phase: BeaconCoordinationPhase.lookingForHelpers,
       slot2Kind: BeaconPhaseSlot2Kind.noOffersYet,
       suggestedAction: BeaconPhasePrimaryAction.forward,
@@ -141,13 +125,9 @@ BeaconCoordinationPhaseResult _deriveCoordinationTier(
     );
   }
 
-  return BeaconCoordinationPhaseResult(
-    phase: BeaconCoordinationPhase.coordinating,
-    slot2Kind: BeaconPhaseSlot2Kind.freshness,
-    suggestedAction: BeaconPhasePrimaryAction.none,
-    rowHarmony: BeaconPhaseRowHarmony.empty,
-    lastActivityAt: activityAt,
-  );
+  // Unreviewed offers are the author's YOU/ACT obligation, not a shared
+  // STATUS verb — every coordination-tier viewer sees the same phase.
+  return _withUnreviewedOfferAction(shared, unreviewed: unreviewed);
 }
 
 BeaconCoordinationPhaseResult _derivePublicTier(
@@ -240,6 +220,22 @@ BeaconCoordinationPhaseResult _floor(DateTime? lastActivityAt) {
     suggestedAction: BeaconPhasePrimaryAction.none,
     rowHarmony: BeaconPhaseRowHarmony.empty,
     lastActivityAt: lastActivityAt,
+  );
+}
+
+BeaconCoordinationPhaseResult _withUnreviewedOfferAction(
+  BeaconCoordinationPhaseResult result, {
+  required bool unreviewed,
+}) {
+  if (!unreviewed) return result;
+  return BeaconCoordinationPhaseResult(
+    phase: result.phase,
+    slot2Kind: result.slot2Kind,
+    suggestedAction: BeaconPhasePrimaryAction.reviewOffers,
+    rowHarmony: result.rowHarmony,
+    reviewClosesAt: result.reviewClosesAt,
+    lastActivityAt: result.lastActivityAt,
+    lifecycleEndedAt: result.lifecycleEndedAt,
   );
 }
 

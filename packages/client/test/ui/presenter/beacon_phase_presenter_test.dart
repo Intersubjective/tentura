@@ -113,7 +113,7 @@ void main() {
     expect(pres.statusLine, isNot(contains(',')));
   });
 
-  test('offers awaiting author slot2 active today uses good tone', () {
+  test('coordinating with unreviewed offers uses good freshness slot2', () {
     final now = DateTime.utc(2026, 6, 20, 12);
     final beacon = _beacon().copyWith(
       helpOfferCount: 2,
@@ -128,7 +128,9 @@ void main() {
       ),
     );
     final pres = formatBeaconPhaseStatus(_l10n, result, now: now);
-    expect(pres.slot1Tone, TenturaTone.info);
+    expect(result.phase, BeaconCoordinationPhase.coordinating);
+    expect(result.suggestedAction, BeaconPhasePrimaryAction.reviewOffers);
+    expect(pres.slot1Tone, TenturaTone.neutral);
     expect(pres.slot2Tone, TenturaTone.good);
   });
 
@@ -161,7 +163,7 @@ void main() {
     expect(pres.slot2Tone, TenturaTone.warn);
   });
 
-  test('offers awaiting author includes active today when updated today', () {
+  test('coordinating with unreviewed offers includes active today', () {
     final now = DateTime.utc(2026, 6, 20, 12);
     final beacon = _beacon().copyWith(
       helpOfferCount: 2,
@@ -176,12 +178,13 @@ void main() {
       ),
     );
     final pres = formatBeaconPhaseStatus(_l10n, result, now: now);
-    expect(pres.statusLine, contains(_l10n.beaconPhaseOffersAwaitingAuthor));
+    expect(pres.statusLine, contains(_l10n.beaconPhaseCoordinating));
+    expect(pres.statusLine, isNot(contains(_l10n.beaconPhaseOffersAwaitingAuthor)));
     expect(pres.statusLine, contains(_l10n.beaconPhaseActiveToday));
-    expect(pres.tone, TenturaTone.info);
+    expect(pres.tone, TenturaTone.neutral);
   });
 
-  test('offers awaiting author includes quiet days when stale', () {
+  test('coordinating with unreviewed offers includes quiet days when stale', () {
     final now = DateTime.utc(2026, 6, 20, 12);
     final beacon = _beacon().copyWith(
       helpOfferCount: 2,
@@ -196,9 +199,10 @@ void main() {
       ),
     );
     final pres = formatBeaconPhaseStatus(_l10n, result, now: now);
-    expect(pres.statusLine, contains(_l10n.beaconPhaseOffersAwaitingAuthor));
+    expect(pres.statusLine, contains(_l10n.beaconPhaseCoordinating));
+    expect(pres.statusLine, isNot(contains(_l10n.beaconPhaseOffersAwaitingAuthor)));
     expect(pres.statusLine, contains(_l10n.beaconPhaseQuietForDays(5)));
-    expect(pres.tone, TenturaTone.info);
+    expect(pres.tone, TenturaTone.neutral);
   });
 
   test('ru enough help in motion uses compact status line', () {
