@@ -68,7 +68,7 @@
 | done (`1f1ce43bc`) | **T02** parent reference auth |
 | done (86f32279f) | **T03** close involvement leaks |
 | done (a0ff4912c) | **T04** client copy + no involvement fetch |
-| pending | **T05** access enums + pure policy |
+| done (46a394b4b) | **T05** access enums + pure policy |
 | pending | **T06** SQL member view/reasons/level |
 | pending | **T07** expose access level+reasons |
 | pending | **T08+T09** ancestor closure + widened content read (one migration, one commit) |
@@ -673,3 +673,204 @@ Mirror `beacon_view_initial_load_test.dart`: `buildTestBeaconViewCase` + `Tracki
 | `beacon_hierarchy_hasura_parity_test.dart` (`-t pg`) | 2 | 0 | 0 |
 
 - **Verdict:** **pass** — T04 “Done when” satisfied; proceed **T05**.
+
+---
+
+## T05 — Scout (read-only)
+
+- **UNIT_BASE:** `8dccbe2703bfe688b0501270b24edce00b13a641` (= `HEAD` at scout time)
+- **Task:** T05 — shared access enums (`tentura_root`) + pure `BeaconAccessPolicy` (server); parity vs `BeaconVisibility.canReadContent`; no wiring.
+
+### Live code vs plan
+
+| Topic | Plan | Live @ UNIT_BASE |
+|---|---|---|
+| `beacon_access.dart` | New under `R/domain/entity/` | **Absent** — create `lib/domain/entity/beacon_access.dart` |
+| `beacon_access_policy.dart` | New `S/domain/` | **Absent** |
+| `BeaconContentVisibilityFacts` fields | 8 fields for parity mapping | Exact names @ `packages/server/lib/domain/beacon_visibility.dart` L4–23 — **no `isBlocked`** (blocks applied before facts in SQL; parity only when `isBlocked == false`) |
+| Parity mapping | `isRoomAdmittedOrSteward = isSteward \|\| isAdmitted`; `isMutuallyVisibleWithAuthor = isTrustVisibleWithAuthor`; others 1:1 | Live uses `isMutuallyVisibleWithAuthor` on facts type; policy facts use `isTrustVisibleWithAuthor` per plan ✓ |
+| Open-family for `discovered` | `status.isOpenFamily` | `BeaconStatus.isOpenFamily` getter @ `lib/domain/entity/beacon_status.dart` L31 (`openFamilyValues = {0,7,8}`) — **not** named `isOpenFamily` on a separate helper |
+| `allowsCoordination` (§0.4 bond) | {0,5,7,8} | `BeaconStatus.allowsCoordination` = `isOpenFamily \|\| reviewOpen` @ L48 — **not used in T05 `discovered` rule** (discover uses `isOpenFamily` only, matching `BeaconVisibility.canReadContent` L118–121) |
+| `BeaconStatus` sweep | 8 enum values | `open, cancelled, deleted, draft, reviewOpen, closed, needsMoreHelp, enoughHelp` @ `beacon_status.dart` |
+| Root tests | `R/test/domain/entity/beacon_access_test.dart` | Pattern: `test/domain/entity/beacon_status_discussion_writes_test.dart` imports `package:tentura_root/...` + `package:test/test.dart` |
+| Server policy tests | `ST/domain/beacon_access_policy_test.dart` | Mirror style of `beacon_visibility_test.dart` (`_content` helper already exists there — **new file**, do not edit `beacon_visibility_test.dart`) |
+| CI / wiring | None | Nothing imports new types yet (T06–T07) ✓ |
+
+### Verbatim `lib/domain/entity/beacon_access.dart` (from plan §T05 step 1 — paste as-is)
+
+```dart
+/// Viewer's access level to one request (issue #146 architecture §2.1).
+enum BeaconAccessLevel {
+  author(0),
+  member(1),
+  observer(2),
+  stranger(3);
+
+  const BeaconAccessLevel(this.value);
+  final int value;
+
+  static BeaconAccessLevel fromInt(int? v) => switch (v) {
+    0 => author,
+    1 => member,
+    2 => observer,
+    _ => stranger,
+  };
+
+  bool get canReadContent => value <= 2;
+  bool get isMember => value <= 1;
+}
+
+/// Why the viewer has access. Bit values are persisted contracts (never renumber).
+enum BeaconAccessReason {
+  author(1),
+  steward(2),
+  admitted(4),
+  forwarded(8),
+  applied(16),
+  discovered(32),
+  contextChild(64),
+  contextAncestor(128);
+
+  const BeaconAccessReason(this.bit);
+  final int bit;
+
+  static Set<BeaconAccessReason> decode(int mask) =>
+      {for (final r in values) if (mask & r.bit != 0) r};
+
+  static int encode(Iterable<BeaconAccessReason> reasons) =>
+      reasons.fold(0, (m, r) => m | r.bit);
+}
+
+BeaconAccessLevel beaconAccessLevelFromReasons(int mask) {
+  if (mask & 1 != 0) return BeaconAccessLevel.author;
+  if (mask & (2 | 4) != 0) return BeaconAccessLevel.member;
+  if (mask & (8 | 16 | 32 | 64 | 128) != 0) return BeaconAccessLevel.observer;
+  return BeaconAccessLevel.stranger;
+}
+```
+
+**Sanity vs §0.4:** bit table and level derivation match (author=1, steward=2, admitted=4, forwarded=8, applied=16, discovered=32, contextChild=64, contextAncestor=128; level 0/1/2/3 from bits 0 / 1–2 / 3–7 / none).
+
+### `BeaconAccessPolicy` — exact `reasons` logic (plan §T05 step 2)
+
+`BeaconAccessFacts` — `const` class, all **required**: `BeaconStatus status`, `bool isBlocked`, `bool isAuthor`, `bool isSteward`, `bool isAdmitted`, `bool hasActiveForwardEdgeAsRecipient`, `bool isActiveHelpOfferer`, `bool isDiscoverable`, `bool isPublished`, `bool isTrustVisibleWithAuthor`, `bool isMemberOfImmediateParent`, `bool isMemberOfDescendant`.
+
+`abstract final class BeaconAccessPolicy` with private constructor pattern like `BeaconVisibility`:
+
+1. If `f.isBlocked` → return `0`.
+2. Else if `f.status == BeaconStatus.draft` → return `f.isAuthor ? BeaconAccessReason.author.bit : 0`.
+3. Else if `f.status == BeaconStatus.deleted` → return `0`.
+4. Else OR bits:
+   - `author` if `f.isAuthor`;
+   - `steward` if `f.isSteward`;
+   - `admitted` if `f.isAdmitted`;
+   - `forwarded` if `f.hasActiveForwardEdgeAsRecipient`;
+   - `applied` if `f.isActiveHelpOfferer`;
+   - `discovered` if `f.isDiscoverable && f.isPublished && f.status.isOpenFamily && f.isTrustVisibleWithAuthor`;
+   - `contextChild` if `f.isPublished && f.isMemberOfImmediateParent`;
+   - `contextAncestor` if `f.isPublished && f.isMemberOfDescendant`.
+
+`static BeaconAccessLevel level(BeaconAccessFacts f) => beaconAccessLevelFromReasons(reasons(f));`
+
+**Doc comment on `BeaconAccessPolicy`:** phase-1 callers pass `false` for `isMemberOfImmediateParent` and `isMemberOfDescendant` until T09 (context reasons never set in production until then).
+
+**Imports:** `package:tentura_root/domain/entity/beacon_access.dart`, `package:tentura_root/domain/entity/beacon_status.dart`.
+
+### Parity helper (for exhaustive test)
+
+When `!f.isBlocked && !f.isMemberOfImmediateParent && !f.isMemberOfDescendant`:
+
+```dart
+BeaconContentVisibilityFacts(
+  status: f.status,
+  isAuthor: f.isAuthor,
+  hasActiveForwardEdgeAsRecipient: f.hasActiveForwardEdgeAsRecipient,
+  isRoomAdmittedOrSteward: f.isSteward || f.isAdmitted,
+  isActiveHelpOfferer: f.isActiveHelpOfferer,
+  isDiscoverable: f.isDiscoverable,
+  isPublished: f.isPublished,
+  isMutuallyVisibleWithAuthor: f.isTrustVisibleWithAuthor,
+)
+```
+
+Assert `BeaconAccessPolicy.level(f).canReadContent == BeaconVisibility.canReadContent(...)`.
+
+### Exhaustive sweep (16384 cases)
+
+- Nested loops: 11 booleans (bit index 0..10 for the list above) × `BeaconStatus.values` (8).
+- **S4-11:** For each case where **only** context could fire (`isMemberOfImmediateParent` or `isMemberOfDescendant` true, all membership/observer reason facts false, `!isBlocked`, status not draft/deleted): `level(f).value > 1` (never author/member from context alone).
+- **S4-02:** `isBlocked` → `level == stranger`.
+- **Draft/deleted:** `status == draft` → level ∈ {author, stranger}; `status == deleted` → stranger.
+- **Parity:** as above when context false and not blocked.
+- **S4-01:** With `isBlocked == false`, for each baseline `f`, for each of the 10 non-block booleans, compare `level(f)` vs `level(f with that bool true)` — `newLevel.value <= oldLevel.value` (more facts never worsen access).
+
+**Performance:** 16k × cheap int/bool logic — expect **&lt;1s** on CI; no concern.
+
+### Implementer brief (Opus 5, low effort)
+
+**One commit:** `feat(server): add explicit beacon access level policy` (body `issue-146 T05`). Stage only the four new files.
+
+1. **Red — root:** Add `beacon_access_test.dart` (will not compile until entity file exists — acceptable); then add `beacon_access.dart` verbatim; green root test.
+2. **Red — server:** Add `beacon_access_policy_test.dart` with exhaustive sweep + invariants; then `beacon_access_policy.dart`; green server test.
+3. **Verify:** commands below + `check-custom-lints.sh` only if analyzer complains (new domain files should be clean).
+
+**Red meaningful:** **yes** — policy test parity line fails until `BeaconAccessPolicy` matches `BeaconVisibility`; root round-trip fails without entity.
+
+### TEST_CMD
+
+```bash
+cd /home/vader/MY_SRC/tentura && ./scripts/run_with_test_cleanup.sh --timeout 10m -- \
+  dart test test/domain/entity/beacon_access_test.dart
+
+cd /home/vader/MY_SRC/tentura/packages/server && ../../scripts/run_with_test_cleanup.sh --timeout 10m -- \
+  dart test --exclude-tags pg test/domain/beacon_access_policy_test.dart
+
+cd /home/vader/MY_SRC/tentura && ./scripts/run_with_test_cleanup.sh --timeout 10m -- \
+  ./scripts/check-custom-lints.sh packages/server
+```
+
+### RISKS
+
+- **Steward vs admitted split:** Policy sets separate bits; parity **must** OR them for `isRoomAdmittedOrSteward` — easy to wire 1:1 wrongly.
+- **`discovered` vs `allowsCoordination`:** §0.4 mentions bond statuses including `reviewOpen(5)`; **discovered** reason uses **`isOpenFamily` only** — same as live `canReadContent` (closed/reviewOpen/cancelled do not get discover path).
+- **Deleted author:** Policy `reasons` → 0 → stranger → `canReadContent` false; matches `BeaconVisibility` (author cannot read deleted via content predicate).
+- **Monotonicity with draft/deleted early returns:** Run S4-01 only when `isBlocked == false`; flipping facts under draft/deleted may not change level — still must not increase level number.
+
+- **Next (implementer):** land T05 commit, journal inner log, mark T05 done.
+
+---
+
+## T05 — inner (implementer)
+
+- **Commit:** `46a394b4b` `feat(server): add explicit beacon access level policy` (body `issue-146 T05`)
+- **Files (4):** `lib/domain/entity/beacon_access.dart`, `test/domain/entity/beacon_access_test.dart`, `packages/server/lib/domain/beacon_access_policy.dart`, `packages/server/test/domain/beacon_access_policy_test.dart`
+- **Tests:** root 2/2; server policy 2/2; `check-custom-lints.sh packages/server` 0/0 OK
+- **Next:** T05 verify
+
+---
+
+## T05 — verify (read-only)
+
+- **Range reviewed:** `8dccbe2703bfe688b0501270b24edce00b13a641..46a394b4b` — **4 files only**, +290 lines, no other paths in commit ✓
+- **`beacon_access.dart` vs plan §T05 step 1:** Semantically identical contract — bit values 1/2/4/8/16/32/64/128; `fromInt`/`canReadContent`/`isMember`; `beaconAccessLevelFromReasons` branches `&1`, `&(2|4)`, `&(8|16|32|64|128)`, else stranger. Whitespace/indent differs from markdown fence only ✓
+- **`BeaconAccessPolicy.reasons`:** Order blocked→0; `draft`→author bit or 0; `deleted`→0; else OR eight conditions. **`discovered`** uses `f.status.isOpenFamily` (L64), not `allowsCoordination` ✓. Phase-1 doc comment on facts ✓. `level` → `beaconAccessLevelFromReasons(reasons(f))` ✓
+- **Exhaustive test:** `1 << 11` × `BeaconStatus.values` (8) with `expect(cases, 16384)` ✓. Parity calls **`BeaconVisibility.canReadContent(_visibilityFacts(f))`** (live import), mapping `isRoomAdmittedOrSteward = isSteward || isAdmitted`, `isMutuallyVisibleWithAuthor = isTrustVisibleWithAuthor` ✓; 2048 parity rows (`!blocked` ∧ context bits clear = 256×8). **S4-01:** `isBlocked` skipped; single-bit flip `v | (1<<i)` for `i in 1..10`; `after <= before` on `.value`; `expect(flips, 40960)` ✓
+- **Wiring:** Grep — only the four new files reference `beacon_access` / `beacon_access_policy` ✓
+- **TEST_CMD re-run (2026-09-16 verify):**
+
+| Command | + | − | Failed | Exit |
+|---|---|---|---|---|
+| `dart test test/domain/entity/beacon_access_test.dart` (repo root) | 2 | 0 | 0 | 0 |
+| `dart test --exclude-tags pg test/domain/beacon_access_policy_test.dart` | 2 | 0 | 0 | 0 |
+| `check-custom-lints.sh packages/server` | — | — | 0 | 0 (total 0, baseline 0 OK) |
+
+- **Verdict:** **pass** — T05 “Done when” satisfied; proceed **T06**.
+
+## T05 — Inner (Opus 5)
+
+- **Commit:** `46a394b4b` feat(server): add explicit beacon access level policy (body `issue-146 T05`).
+- **Files:** `lib/domain/entity/beacon_access.dart` (verbatim), `test/domain/entity/beacon_access_test.dart`, `packages/server/lib/domain/beacon_access_policy.dart`, `packages/server/test/domain/beacon_access_policy_test.dart`.
+- **Red:** both tests failed at load before their source files existed.
+- **Green:** root 2/2 (256 round-trips + 9 levels); server 2/2 (16384-case sweep incl. 2048 parity cases; 40960 single-fact flips for S4-01), <1s test time.
+- **Lints:** `check-custom-lints.sh packages/server` → total 0 (baseline 0), OK.
+- **Notes:** `BeaconStatus` has no `isDraft`/`isDeleted` getters — policy uses `== BeaconStatus.draft/deleted` (same as `BeaconVisibility`). Parity mapping onto `BeaconContentVisibilityFacts` complete (8 fields; steward‖admitted → `isRoomAdmittedOrSteward`, trust → `isMutuallyVisibleWithAuthor`). `dart format` would re-indent the verbatim `fromInt` switch in `beacon_access.dart`; left verbatim per brief.
