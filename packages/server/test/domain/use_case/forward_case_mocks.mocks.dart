@@ -1365,4 +1365,45 @@ class MockPersonVisibilityRepositoryPort extends _i1.Mock
             returnValue: _i3.Future<Set<String>>.value(<String>{}),
           )
           as _i3.Future<Set<String>>);
+
+  @override
+  _i3.Future<Set<String>> bondPeerIds({required String? viewerId}) =>
+      (super.noSuchMethod(
+            Invocation.method(#bondPeerIds, [], {#viewerId: viewerId}),
+            returnValue: _i3.Future<Set<String>>.value(<String>{}),
+          )
+          as _i3.Future<Set<String>>);
+
+  @override
+  _i3.Future<Set<String>> personVisiblePeerIds({
+    required String? viewerId,
+    required Iterable<String>? peerIds,
+    required String? context,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#personVisiblePeerIds, [], {
+              #viewerId: viewerId,
+              #peerIds: peerIds,
+              #context: context,
+            }),
+            returnValue: _i3.Future<Set<String>>.value(<String>{}),
+          )
+          as _i3.Future<Set<String>>);
+
+  @override
+  _i3.Future<List<({String beaconId, String title})>> sharedContexts({
+    required String? viewerId,
+    required String? peerId,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#sharedContexts, [], {
+              #viewerId: viewerId,
+              #peerId: peerId,
+            }),
+            returnValue:
+                _i3.Future<List<({String beaconId, String title})>>.value(
+                  <({String beaconId, String title})>[],
+                ),
+          )
+          as _i3.Future<List<({String beaconId, String title})>>);
 }

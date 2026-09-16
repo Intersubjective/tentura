@@ -230,7 +230,7 @@ final class HierarchyOnlyViewerHarness {
     ).thenAnswer((_) async => _childBeacon(authorId: authorId));
     final visibility = forward_mocks.MockPersonVisibilityRepositoryPort();
     when(
-      visibility.mutuallyVisiblePeerIds(
+      visibility.personVisiblePeerIds(
         viewerId: anyNamed('viewerId'),
         peerIds: anyNamed('peerIds'),
         context: anyNamed('context'),

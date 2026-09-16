@@ -233,13 +233,12 @@ final class ForwardCase extends UseCaseBase {
     );
 
     if (recipients.isNotEmpty) {
-      final mutuallyVisible = await _personVisibilityRepository
-          .mutuallyVisiblePeerIds(
-            viewerId: senderId,
-            peerIds: recipients,
-            context: visibilityContext,
-          );
-      if (recipients.any((id) => !mutuallyVisible.contains(id))) {
+      final visible = await _personVisibilityRepository.personVisiblePeerIds(
+        viewerId: senderId,
+        peerIds: recipients,
+        context: visibilityContext,
+      );
+      if (recipients.any((id) => !visible.contains(id))) {
         throw const UnauthorizedException(
           description: 'Direct request routing requires mutual visibility',
         );
@@ -352,9 +351,7 @@ final class ForwardCase extends UseCaseBase {
       buckets[key] = (buckets[key] ?? 0) + 1;
     }
     if (buckets.isEmpty) return;
-    final summary = buckets.entries
-        .map((e) => '${e.key}=${e.value}')
-        .join(' ');
+    final summary = buckets.entries.map((e) => '${e.key}=${e.value}').join(' ');
     logger.info('forward_band_conversion beacon=$beaconId $summary');
   }
 

@@ -9,4 +9,22 @@ abstract class PersonVisibilityRepositoryPort {
     required Iterable<String> peerIds,
     required String context,
   });
+
+  /// Peers sharing an active request (open / reviewOpen / needsMoreHelp /
+  /// enoughHelp) with [viewerId], minus blocks (`person_bond_peers`).
+  Future<Set<String>> bondPeerIds({required String viewerId});
+
+  /// Peers in [peerIds] that are mutually visible (trust) OR bonded to
+  /// [viewerId]. Used for forwarding only; the bond never feeds discovery (D4).
+  Future<Set<String>> personVisiblePeerIds({
+    required String viewerId,
+    required Iterable<String> peerIds,
+    required String context,
+  });
+
+  /// Active requests shared by [viewerId] and [peerId] (at most 20).
+  Future<List<({String beaconId, String title})>> sharedContexts({
+    required String viewerId,
+    required String peerId,
+  });
 }

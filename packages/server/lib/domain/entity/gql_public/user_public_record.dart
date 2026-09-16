@@ -17,6 +17,7 @@ class UserPublicRecord {
     this.myVote,
     this.isMutualFriend = false,
     this.subjectExplicitlyTrustsViewer = false,
+    this.sharesActiveContext = false,
     this.image,
     this.scores = const [],
     this.userPresence,
@@ -39,6 +40,10 @@ class UserPublicRecord {
   /// Subject has a positive `vote_user` edge toward the viewing user (matches
   /// Hasura `user.trusts_viewer`).
   final bool subjectExplicitlyTrustsViewer;
+
+  /// Viewer and subject share an active request (co-participant bond, m0173).
+  /// Only set by forward candidates; other producers leave it false.
+  final bool sharesActiveContext;
   final ImagePublicRecord? image;
   final List<MutualScoreRecord> scores;
   final UserPresenceRecord? userPresence;

@@ -134,7 +134,7 @@ void main() {
       );
     });
     when(
-      personVisibilityRepo.mutuallyVisiblePeerIds(
+      personVisibilityRepo.personVisiblePeerIds(
         viewerId: anyNamed('viewerId'),
         peerIds: anyNamed('peerIds'),
         context: anyNamed('context'),
@@ -176,9 +176,9 @@ void main() {
   });
 
   group('forward — mutual visibility authorization', () {
-    void stubMutuallyVisible(Set<String> ids) {
+    void stubPersonVisible(Set<String> ids) {
       when(
-        personVisibilityRepo.mutuallyVisiblePeerIds(
+        personVisibilityRepo.personVisiblePeerIds(
           viewerId: anyNamed('viewerId'),
           peerIds: anyNamed('peerIds'),
           context: anyNamed('context'),
@@ -190,7 +190,7 @@ void main() {
     }
 
     test('authorized set inserts all remaining recipients', () async {
-      stubMutuallyVisible({'R1', 'R2'});
+      stubPersonVisible({'R1', 'R2'});
 
       await case_.forward(
         senderId: 'U1',
@@ -215,8 +215,68 @@ void main() {
       expect(captured, ['R1', 'R2']);
     });
 
+    test('bond-only recipient is accepted via person visibility', () async {
+      // Rbond shares an active request with U1 but has no trust edge; the
+      // widened check (trust ∪ bond) admits it.
+      stubPersonVisible({'Rbond'});
+
+      await case_.forward(
+        senderId: 'U1',
+        beaconId: 'B1',
+        recipientIds: ['Rbond'],
+      );
+
+      verifyNever(
+        personVisibilityRepo.mutuallyVisiblePeerIds(
+          viewerId: anyNamed('viewerId'),
+          peerIds: anyNamed('peerIds'),
+          context: anyNamed('context'),
+        ),
+      );
+      final captured =
+          verify(
+                forwardEdgeRepo.createBatch(
+                  beaconId: anyNamed('beaconId'),
+                  senderId: anyNamed('senderId'),
+                  recipientIds: captureAnyNamed('recipientIds'),
+                  batchId: anyNamed('batchId'),
+                  noteForRecipient: anyNamed('noteForRecipient'),
+                  context: anyNamed('context'),
+                  parentEdgeId: anyNamed('parentEdgeId'),
+                  onAfterEdgesInserted: anyNamed('onAfterEdgesInserted'),
+                ),
+              ).captured.single
+              as List<String>;
+      expect(captured, ['Rbond']);
+    });
+
+    test('stranger mixed with a bond recipient still rejects', () async {
+      stubPersonVisible({'Rbond'});
+
+      await expectLater(
+        case_.forward(
+          senderId: 'U1',
+          beaconId: 'B1',
+          recipientIds: ['Rbond', 'Rstranger'],
+        ),
+        throwsA(isA<UnauthorizedException>()),
+      );
+      verifyNever(
+        forwardEdgeRepo.createBatch(
+          beaconId: anyNamed('beaconId'),
+          senderId: anyNamed('senderId'),
+          recipientIds: anyNamed('recipientIds'),
+          batchId: anyNamed('batchId'),
+          noteForRecipient: anyNamed('noteForRecipient'),
+          context: anyNamed('context'),
+          parentEdgeId: anyNamed('parentEdgeId'),
+          onAfterEdgesInserted: anyNamed('onAfterEdgesInserted'),
+        ),
+      );
+    });
+
     test('one-way outgoing trust rejects without side effects', () async {
-      stubMutuallyVisible({});
+      stubPersonVisible({});
 
       await expectLater(
         case_.forward(
@@ -257,7 +317,7 @@ void main() {
     });
 
     test('one-way outgoing MR rejects', () async {
-      stubMutuallyVisible({});
+      stubPersonVisible({});
 
       await expectLater(
         case_.forward(
@@ -288,7 +348,7 @@ void main() {
     });
 
     test('one-way incoming trust rejects', () async {
-      stubMutuallyVisible({});
+      stubPersonVisible({});
 
       await expectLater(
         case_.forward(
@@ -307,7 +367,7 @@ void main() {
     });
 
     test('one-way incoming MR rejects', () async {
-      stubMutuallyVisible({});
+      stubPersonVisible({});
 
       await expectLater(
         case_.forward(
@@ -326,7 +386,7 @@ void main() {
     });
 
     test('explicit mutual trust authorizes', () async {
-      stubMutuallyVisible({'Rtrust'});
+      stubPersonVisible({'Rtrust'});
 
       await case_.forward(
         senderId: 'U1',
@@ -349,7 +409,7 @@ void main() {
     });
 
     test('mutual positive MR authorizes', () async {
-      stubMutuallyVisible({'Rmr'});
+      stubPersonVisible({'Rmr'});
 
       await case_.forward(
         senderId: 'U1',
@@ -374,7 +434,7 @@ void main() {
     // Port is stubbed: this checks the gate, not SQL. m0151 no longer treats
     // trustOut+mrIn as mutual; a stubbed-true id still authorizes.
     test('mixed trust and MR mechanisms authorize', () async {
-      stubMutuallyVisible({'Rmixed'});
+      stubPersonVisible({'Rmixed'});
 
       await case_.forward(
         senderId: 'U1',
@@ -397,7 +457,7 @@ void main() {
     });
 
     test('mixed authorized and unauthorized batch inserts neither', () async {
-      stubMutuallyVisible({'Rok'});
+      stubPersonVisible({'Rok'});
 
       await expectLater(
         case_.forward(
@@ -428,7 +488,7 @@ void main() {
     });
 
     test('authorization uses context coalesced to empty string', () async {
-      stubMutuallyVisible({'R1'});
+      stubPersonVisible({'R1'});
 
       await case_.forward(
         senderId: 'U1',
@@ -438,7 +498,7 @@ void main() {
       );
 
       verify(
-        personVisibilityRepo.mutuallyVisiblePeerIds(
+        personVisibilityRepo.personVisiblePeerIds(
           viewerId: 'U1',
           peerIds: ['R1'],
           context: '',
@@ -462,7 +522,7 @@ void main() {
       'blocked recipients stay hidden without leaking relationship state',
       () async {
         userBlocks.blockPair('U1', 'Rblocked');
-        stubMutuallyVisible({'Rok'});
+        stubPersonVisible({'Rok'});
 
         await case_.forward(
           senderId: 'U1',
@@ -486,7 +546,7 @@ void main() {
                 as List<String>;
         expect(captured, ['Rok']);
         verify(
-          personVisibilityRepo.mutuallyVisiblePeerIds(
+          personVisibilityRepo.personVisiblePeerIds(
             viewerId: 'U1',
             peerIds: ['Rok'],
             context: '',

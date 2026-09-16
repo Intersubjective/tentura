@@ -744,6 +744,7 @@ final gqlTypeUserPublic = GraphQLObjectType('user', null)
     field('my_vote', graphQLInt),
     field('is_mutual_friend', graphQLBoolean.nonNullable()),
     field('trusts_viewer', graphQLBoolean.nonNullable()),
+    field('shares_active_context', graphQLBoolean),
     field('image', gqlTypeImagePublic),
     field(
       'scores',

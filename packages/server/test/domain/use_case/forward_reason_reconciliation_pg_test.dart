@@ -350,7 +350,7 @@ Future<bool> _canConnect(Env env) async {
 
 class _AllVisiblePeers extends Fake implements PersonVisibilityRepositoryPort {
   @override
-  Future<Set<String>> mutuallyVisiblePeerIds({
+  Future<Set<String>> personVisiblePeerIds({
     required String viewerId,
     required Iterable<String> peerIds,
     required String context,

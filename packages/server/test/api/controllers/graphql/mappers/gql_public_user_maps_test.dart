@@ -80,6 +80,18 @@ void main() {
       );
       final map = userPublicToGqlMap(user);
       expect(map['user_availability'], isNull);
+      expect(map['shares_active_context'], isFalse);
+    });
+
+    test('bonded user emits shares_active_context', () {
+      const user = UserPublicRecord(
+        id: 'U1',
+        displayName: 'Alice',
+        description: 'bio',
+        sharesActiveContext: true,
+        userAvailability: null,
+      );
+      expect(userPublicToGqlMap(user)['shares_active_context'], isTrue);
     });
 
     test('limited user emits is_limited without instant fields', () {

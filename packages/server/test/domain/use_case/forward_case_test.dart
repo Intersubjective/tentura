@@ -186,7 +186,7 @@ void main() {
     ).thenAnswer((_) async {});
 
     when(
-      personVisibilityRepo.mutuallyVisiblePeerIds(
+      personVisibilityRepo.personVisiblePeerIds(
         viewerId: anyNamed('viewerId'),
         peerIds: anyNamed('peerIds'),
         context: anyNamed('context'),

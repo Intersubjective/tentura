@@ -10,6 +10,7 @@ import 'package:tentura_server/domain/entity/jwt_entity.dart';
 import 'package:tentura_server/domain/entity/user_entity.dart';
 import 'package:tentura_server/domain/exception.dart';
 import 'package:tentura_server/domain/port/forward_candidates_repository_port.dart';
+import 'package:tentura_server/domain/port/person_visibility_repository_port.dart';
 import 'package:tentura_server/domain/port/user_profile_batch_lookup_port.dart';
 import 'package:tentura_server/domain/use_case/forward_candidates_case.dart';
 import 'package:tentura_server/env.dart';
@@ -19,14 +20,17 @@ void main() {
   const auth = {kGlobalInputQueryJwt: JwtEntity(sub: 'Uviewer')};
 
   late _FakePeers peers;
+  late _FakeBonds bonds;
   late QueryForwardCandidates query;
 
   setUp(() {
     peers = _FakePeers();
+    bonds = _FakeBonds();
     query = QueryForwardCandidates(
       forwardCandidatesCase: ForwardCandidatesCase(
         peers,
         _PassthroughProfiles(),
+        bonds,
         env: Env(environment: Environment.test),
         logger: Logger('QueryForwardCandidatesTest'),
       ),
@@ -61,6 +65,17 @@ void main() {
     expect(rows, hasLength(1));
     expect(rows.single['id'], 'Upeer');
     expect(rows.single['my_vote'], 1);
+    expect(rows.single['shares_active_context'], isFalse);
+  });
+
+  test('exposes shares_active_context for bond-only peers', () async {
+    bonds.ids = {'Ubond'};
+    final rows =
+        await query.forwardCandidates.resolve!(null, {...auth, 'context': ''})
+            as List<Map<String, dynamic>>;
+
+    expect(rows.map((row) => row['id']), ['Ubond']);
+    expect(rows.single['shares_active_context'], isTrue);
   });
 
   test('rejects unauthenticated calls', () async {
@@ -70,6 +85,17 @@ void main() {
       throwsA(isA<UnauthorizedException>()),
     );
   });
+}
+
+class _FakeBonds implements PersonVisibilityRepositoryPort {
+  Set<String> ids = const {};
+
+  @override
+  Future<Set<String>> bondPeerIds({required String viewerId}) async => ids;
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) =>
+      throw UnimplementedError(invocation.memberName.toString());
 }
 
 class _FakePeers implements ForwardCandidatesRepositoryPort {
@@ -88,10 +114,11 @@ class _FakePeers implements ForwardCandidatesRepositoryPort {
 
 class _PassthroughProfiles implements UserProfileBatchLookup {
   @override
-  Future<Map<String, UserEntity>> userEntitiesByIds(Iterable<String> ids) async =>
-      {
-        for (final id in ids) id: UserEntity(id: id, displayName: id),
-      };
+  Future<Map<String, UserEntity>> userEntitiesByIds(
+    Iterable<String> ids,
+  ) async => {
+    for (final id in ids) id: UserEntity(id: id, displayName: id),
+  };
 
   @override
   Future<Map<String, UserPublicRecord>> userPublicRecordsByIds({

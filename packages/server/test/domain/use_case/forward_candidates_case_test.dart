@@ -7,6 +7,7 @@ import 'package:tentura_server/domain/entity/gql_public/mutual_score_record.dart
 import 'package:tentura_server/domain/entity/gql_public/user_public_record.dart';
 import 'package:tentura_server/domain/entity/user_entity.dart';
 import 'package:tentura_server/domain/port/forward_candidates_repository_port.dart';
+import 'package:tentura_server/domain/port/person_visibility_repository_port.dart';
 import 'package:tentura_server/domain/port/user_profile_batch_lookup_port.dart';
 import 'package:tentura_server/domain/use_case/forward_candidates_case.dart';
 import 'package:tentura_server/env.dart';
@@ -14,14 +15,17 @@ import 'package:tentura_server/env.dart';
 void main() {
   late _FakePeers peers;
   late _RecordingProfiles profiles;
+  late _FakeBonds bonds;
   late ForwardCandidatesCase case_;
 
   setUp(() {
     peers = _FakePeers();
     profiles = _RecordingProfiles();
+    bonds = _FakeBonds();
     case_ = ForwardCandidatesCase(
       peers,
       profiles,
+      bonds,
       env: Env(environment: Environment.test),
       logger: Logger('ForwardCandidatesCaseTest'),
     );
@@ -43,6 +47,7 @@ void main() {
     expect(result, isEmpty);
     expect(peers.fetchCalls, 0);
     expect(profiles.lookupCalls, 0);
+    expect(bonds.calls, 0);
   });
 
   test('overlays my_vote and scores from the peers row', () async {
@@ -111,6 +116,78 @@ void main() {
 
     expect(result.map((row) => row.id), ['U2', 'U1']);
   });
+
+  test('bond-only peers are candidates even with no trust peers', () async {
+    bonds.ids = {'Ubond'};
+
+    final result = await case_.fetch(viewerId: 'Uviewer', context: '');
+
+    expect(bonds.lastViewerId, 'Uviewer');
+    expect(result.map((row) => row.id), ['Ubond']);
+    expect(result.single.sharesActiveContext, isTrue);
+    expect(result.single.myVote, 0);
+    expect(result.single.isMutualFriend, isFalse);
+    expect(result.single.scores.single.dstScore, 0);
+    expect(result.single.scores.single.srcScore, 0);
+  });
+
+  test(
+    'merges bond peers after trust rows and flags every bonded peer',
+    () async {
+      peers.rows = const [
+        ForwardCandidatePeerRow(
+          peerId: 'Uboth',
+          forwardMr: 0.5,
+          reverseMr: 0.3,
+          viewerTrusts: true,
+          trustsViewer: true,
+        ),
+        ForwardCandidatePeerRow(
+          peerId: 'Utrust',
+          forwardMr: 0.2,
+          reverseMr: 0.2,
+          viewerTrusts: true,
+          trustsViewer: true,
+        ),
+      ];
+      bonds.ids = {'Ubond', 'Uboth'};
+
+      final result = await case_.fetch(viewerId: 'Uviewer', context: '');
+
+      expect(result.map((row) => row.id), ['Uboth', 'Utrust', 'Ubond']);
+      expect(result.map((row) => row.sharesActiveContext), [true, false, true]);
+      // Trust row data stays unchanged for a peer that is also bonded.
+      expect(result[0].myVote, 1);
+      expect(result[0].isMutualFriend, isTrue);
+      expect(result[0].scores.single.dstScore, 0.5);
+      expect(result[2].myVote, 0);
+      expect(profiles.lastViewerTrusts, {'Uboth', 'Utrust'});
+    },
+  );
+
+  test('no trust and no bond peers returns empty', () async {
+    final result = await case_.fetch(viewerId: 'Uviewer', context: '');
+
+    expect(result, isEmpty);
+    expect(bonds.calls, 1);
+  });
+}
+
+class _FakeBonds implements PersonVisibilityRepositoryPort {
+  Set<String> ids = const {};
+  int calls = 0;
+  String? lastViewerId;
+
+  @override
+  Future<Set<String>> bondPeerIds({required String viewerId}) async {
+    calls++;
+    lastViewerId = viewerId;
+    return ids;
+  }
+
+  @override
+  dynamic noSuchMethod(Invocation invocation) =>
+      throw UnimplementedError(invocation.memberName.toString());
 }
 
 class _FakePeers implements ForwardCandidatesRepositoryPort {
@@ -139,10 +216,11 @@ class _RecordingProfiles implements UserProfileBatchLookup {
   Set<String>? lastReciprocal;
 
   @override
-  Future<Map<String, UserEntity>> userEntitiesByIds(Iterable<String> ids) async =>
-      {
-        for (final id in ids) id: UserEntity(id: id, displayName: id),
-      };
+  Future<Map<String, UserEntity>> userEntitiesByIds(
+    Iterable<String> ids,
+  ) async => {
+    for (final id in ids) id: UserEntity(id: id, displayName: id),
+  };
 
   @override
   Future<Map<String, UserPublicRecord>> userPublicRecordsByIds({
