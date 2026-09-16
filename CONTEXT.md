@@ -105,7 +105,8 @@ A beacon's content is visible to viewer V iff any of:
 - V is the **author**;
 - V has an active (non-cancelled) **forward edge** as recipient;
 - V is a **room-admitted participant** or active **help-offerer**;
-- the beacon is **discoverable** (`is_discoverable`), in an active open-family status (`open`, `needsMoreHelp`, or `enoughHelp`), **published**, with a resolved author, and V is **mutually visible** with the author (symmetric peer predicate, global context `ctx = ''`).
+- the beacon is **discoverable** (`is_discoverable`), in an active open-family status (`open`, `needsMoreHelp`, or `enoughHelp`), **published**, with a resolved author, and V is **mutually visible** with the author (symmetric peer predicate, global context `ctx = ''`);
+- V is a member (author, steward, or room-admitted) of the request's immediate published parent (`contextChild`), or of some descendant such that the target is an ancestor (`contextAncestor`) — observer level only; see **Shared context** below.
 
 **Drafts** are always author-only. **Deleted** beacons never expose normal content to non-authors; use generic tombstones only. **MeritRank is never a visibility gate by itself** — it participates only inside the symmetric mutual-visibility predicate and as the forwarding-candidate gate.
 
@@ -115,9 +116,9 @@ Implemented by `beacon_can_read_content` (migrations **m0136** body + **m0162** 
 
 _Avoid_: treating a beacon id/URL as a read capability; using MeritRank score or path distance alone to decide who can read a beacon; conflating field membership with forwarding endorsement.
 
-**Linked-detail visibility** (hierarchy one-edge reads only):
-Separate from content read: V may read authorized child-card / parent-reference projections when V has effective admission to the adjacent published non-deleted parent or child, even without full content read on that node. This predicate does **not** grant discussion admission, involvement visibility, forwarding, help offers, invitations, or fork rights on the linked beacon.
-_Avoid_: adding hierarchy reasons to `canReadContent`; treating a parent-only admittee as a child participant.
+**Shared context** (hierarchy observer access, issue #146):
+Membership (level ≤1) on request N grants observer read on every immediate child of N and every ancestor of N, via `contextChild` / `contextAncestor` in `beacon_can_read_content` / `BeaconAccessPolicy`. Context observers may apply, forward, invite, and fork like other level-2 viewers (D2); they do not get discussion, Plan, or involvement visibility unless separately admitted or involved. Grants last while membership on N holds (D5, D6); blocks override (D8). **Co-participant bond:** two members of the same open-family or `reviewOpen` request are mutually visible as people (`person_bond` / server `person_visibility`) until the request leaves that window or membership ends (D3); the bond never feeds discoverability or D11 — only trust visibility does (D4).
+_Avoid_: treating parentage as admission; expecting discovery to open because you worked together on another request.
 
 **Involvement visibility** (who can see WHO is involved):
 The forwarder chain, "not interested" rejections, help-offerers, watchers, and onward-forwarders of a non-deleted beacon are visible to **involved** users only (author + anyone on a forward edge + help-offerers/room participants).

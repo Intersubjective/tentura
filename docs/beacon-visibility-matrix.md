@@ -39,24 +39,54 @@
 | Vote-mutual or one-way friend of author (trust only) | ❌ |
 | MR-connected (but not otherwise involved) | ❌ |
 | Bridge / indirect friend | ❌ |
-| **Parent-only admittee** viewing **child** content | ❌ |
-| **Child-only admittee** viewing **parent** content (no other path) | ❌ |
+| **Parent member** (effective admission to parent) viewing **child** content (`contextChild` only) | ✅ |
+| **Child member** viewing **parent** or other **ancestor** (`contextAncestor` only) | ✅ |
 
-## Linked-detail predicate (hierarchy one-edge reads)
+## Access level and reasons
 
-`beacon_can_read_linked_detail(beacon_id, viewer_id)` — a **narrower** predicate for child-card, child-detail summary, and parent-reference projections only. Implemented in migration `m0155` and `BeaconVisibility.canReadLinkedDetail`. **Does not modify** `beacon_can_read_content`.
+Four access levels (0 author, 1 member, 2 observer, 3 stranger).
+Reasons explain why a level-2 viewer sees a request; they drive UI copy
+and some rights (see rights table). Canonical SQL: `beacon_access_level`,
+`beacon_access_reasons` (bitmask); domain: `BeaconAccessPolicy` in
+`packages/server/lib/domain/beacon_access_policy.dart`.
 
-| Condition | Linked detail readable? |
-|-----------|:------------------------:|
-| `can_read_content` already true | ✅ |
-| Effective admission to **immediate published non-deleted parent** (viewing child) | ✅ |
-| Effective admission to **one immediate published non-deleted child** (viewing parent) | ✅ |
-| Parent-only admittee needs child **discussion** / General messages | ❌ (use child admission) |
-| Hierarchy-only viewer may **forward** / **offer help** / **invite** / **fork** linked beacon | ❌ (`canReadContent` unchanged) |
-| **Deleted child** card for admitted parent viewer (not blocked by child owner) | Tombstone via `canReadTombstone`, not normal deleted content |
-| Ancestor **hierarchy notice** payload to child-only participant | Structural ids only — no private ancestor title/body |
+### Access-reason bitmask
 
-Ordering: block restriction → draft/deleted restriction → ordinary `can_read_content` → one-edge parent/child admission on the adjacent node only (non-recursive).
+| Bit | Value | Reason |
+|---|---|---|
+| 0 | 1 | author |
+| 1 | 2 | steward (`beacon_steward` row, or participant `role = 1`) |
+| 2 | 4 | admitted (participant `room_access = 3`) |
+| 3 | 8 | forwarded (active inbound forward edge) |
+| 4 | 16 | applied (active help offer, `status = 0`) |
+| 5 | 32 | discovered (D11, trust-only) |
+| 6 | 64 | contextChild (member of the immediate parent), from phase 2 |
+| 7 | 128 | contextAncestor (member of some descendant), from phase 2 |
+
+Access level: 0 author, 1 member, 2 observer, 3 stranger.
+Level = 0 if bit 0; else 1 if bits 1-2; else 2 if bits 3-7; else 3.
+
+### Rights by level and reason
+
+| Right | L0 | L1 | L2 forwarded | L2 applied | L2 discovered | L2 context* | L3 |
+|---|:-:|:-:|:-:|:-:|:-:|:-:|:-:|
+| Read details, images, public facts | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ *(new)* | ❌ |
+| Read room-only facts, discussion, Plan | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| Apply (offer help), open-family only | — | — | ✅ | (already) | ✅ | ✅ *(new, D2)* | ❌ |
+| Forward / invite, `allowsForward` | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ *(new, D2)* | ❌ |
+| Fork as lineage source | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ *(new, D2)* | ❌ |
+| Involvement (forward chain, offerers, rejections) | ✅ | ✅ | ✅ | ✅ | ❌‡ | ❌‡ | ❌ |
+| List children | ✅ | ✅ | ✅ filtered† | ✅ filtered† | ✅ filtered† | ✅ filtered† | ❌ |
+| Create child | ✅ | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| Parent reference shown as a link | if level(parent) ≤ 2 | ← same | ← | ← | ← | ← | ❌ |
+
+\* `contextAncestor` or `contextChild`.
+† Children filtered per child by the same access function.
+‡ Unless otherwise involved (e.g. forward sender).
+
+Context observers (either context bit) get content read and D2 observer
+operations; involvement stays closed unless separate involvement facts
+apply.
 
 ---
 
@@ -91,8 +121,8 @@ The three profile surfaces + "open detail" + "can forward" for each relationship
 | **Withdrawn help offerer** | — | — | ❌ | ❌ | ❌ |
 | **Steward** | If P = author | If you forwarded to P | If both offered | ✅ | ✅ open-family only |
 | **Room-admitted participant** (`room_access = 3`) | If P = author | If you forwarded to P | If both offered | ✅ | ✅ open-family only |
-| **Parent admittee, child not admitted** | If P = parent author | If you forwarded to child | — | ❌ on child content; ✅ child **card** via linked detail | ❌ on child |
-| **Child admittee, parent not admitted** | — | — | — | ✅ on child; ❌ on parent content unless one-edge linked detail | ✅ on child only |
+| **Parent member, child not admitted** (`contextChild`) | If P = parent author | If you forwarded to child | — | ✅ on child as observer; no child discussion/Plan/involvement unless separately admitted or involved | ✅ on child, open-family only (D2) |
+| **Child member, ancestor not admitted** (`contextAncestor`) | — | — | — | ✅ on child; ✅ on parent and other ancestors as observer; no ancestor discussion/Plan/involvement unless separately admitted or involved | ✅ on child and ancestors, open-family only (D2) |
 | **Room participant, not admitted** | — | — | — | ❌ | ❌ |
 | **Invite not yet accepted** | ❌ | ❌ | ❌ | Preview only (`canPreviewInvite`) | — |
 | **After invite accepted** (creates forward edge) | — | — | — | ✅ (now a recipient) | ✅ open-family only |
@@ -162,10 +192,12 @@ Per-candidate **selectability** (`ForwardCandidate.canForwardTo`):
 | What | File |
 |------|------|
 | Content-read predicate (Dart) | `packages/server/lib/domain/beacon_visibility.dart` |
-| Linked-detail predicate (Dart) | `packages/server/lib/domain/beacon_visibility.dart` (`canReadLinkedDetail`) |
-| Content-read predicate (SQL) | `packages/server/lib/data/database/migration/m0098.dart`, `m0123.dart` |
-| Linked-detail predicate (SQL) | `packages/server/lib/data/database/migration/m0155.dart` |
-| Hasura computed fields wiring | `packages/server/lib/data/database/migration/m0099.dart`, `m0155.dart` (`can_read_linked_detail`, `effective_admission`) |
+| Access policy (Dart) | `packages/server/lib/domain/beacon_access_policy.dart` |
+| Content-read + reasons + level (SQL) | `packages/server/lib/data/database/migration/m0098.dart`, `m0123.dart`, `m0170.dart`, `m0171.dart` |
+| Ancestor closure (SQL) | `packages/server/lib/data/database/migration/m0171.dart` |
+| Drop linked-detail predicate (SQL) | `packages/server/lib/data/database/migration/m0172.dart` (history: added in `m0155.dart`) |
+| Co-participant bond (SQL) | `packages/server/lib/data/database/migration/m0173.dart` (`person_bond`, `person_bond_peers`) |
+| Hasura computed fields wiring | `packages/server/lib/data/database/migration/m0099.dart` |
 | Product summary | `CONTEXT.md` § "Beacon visibility & sharing" |
 | ADR | `docs/adr/0008-beacon-visibility-and-invite-sharing.md` |
 | Profile involved-requests query | `packages/client/lib/features/beacon/data/gql/beacons_involved_with_author.graphql` |

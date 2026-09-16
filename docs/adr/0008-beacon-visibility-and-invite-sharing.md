@@ -53,4 +53,39 @@ This ADR reverses that: beacon and involvement reads become **relationship-scope
 
 This ADR governs **relationship-scoped read access** to beacon content and involvement. It does **not** define parent/child request nesting.
 
-**Beacon nesting** (implemented separately; `parent_beacon_id`, nested-requests plan) is a distinct mechanism from ADR 0004 **fork lineage** (`lineage_parent_beacon_id`, `beaconFork`, `beaconLineageForwardSuggestions`). Lineage records “created from a previous beacon” for one user's local memory; nesting records an immutable parent reference for navigation and lifecycle notices. A child may have both a nesting parent and separate lineage pointers after a fork. Hierarchy one-edge reads use `beacon_can_read_linked_detail` / `canReadLinkedDetail` and intentionally do **not** widen `beacon_can_read_content` defined in this ADR.
+**Beacon nesting** (implemented separately; `parent_beacon_id`, nested-requests plan) is a distinct mechanism from ADR 0004 **fork lineage** (`lineage_parent_beacon_id`, `beaconFork`, `beaconLineageForwardSuggestions`). Lineage records “created from a previous beacon” for one user's local memory; nesting records an immutable parent reference for navigation and lifecycle notices. A child may have both a nesting parent and separate lineage pointers after a fork. Shared parent/child visibility for admitted members is defined in **Amendment B** below (`contextChild` / `contextAncestor` as ordinary content-read reasons); the former linked-detail split is removed.
+
+## Amendment B (2026-09-16): shared-context visibility (#146)
+
+### Context
+
+Product testing on 2026-09-14 found that nested requests did not work as shared work. Admission to one node did not open adjacent parent or child content, and the separate `beacon_can_read_linked_detail` predicate produced "listed but cannot open" failures. Co-participants of the same request also could not see each other as people until trust or reviews created visibility.
+
+Issue #146 fixes this across migrations `m0170`–`m0173`.
+
+### Decision
+
+**D1 — Hierarchy scope is ancestors plus immediate children.** A member (level ≤1) of request N is an observer of every ancestor of N, up to the root, and of every immediate child of N. Siblings, grandchildren and other branches get nothing from this rule.
+
+**D2 — Context observers are ordinary observers.** They may apply, forward, invite and fork under the same lifecycle checks as any level-2 viewer. There is no weaker observer class.
+
+**D3 — The co-participant bond lasts until the review window ends.** Two members of the same request are mutually visible as people while the request is open-family or `reviewOpen`. The bond ends when the request is closed, cancelled or deleted, or when either person stops being a member. After that, only trust (for example, trust created by reviews) decides visibility between them.
+
+**D4 — The bond never feeds discovery.** The D11 clause (discoverable request + mutual visibility with its author ⇒ observer) keeps using trust visibility only. Working with someone on one request does not open their other discoverable requests.
+
+**D5 — The hierarchy grant lasts as long as membership.** The D1 grant holds while V is a member of N, whatever N's lifecycle; a closed or cancelled N still grants it.
+
+**D6 — Only membership grants context.** Context grants come from membership (level ≤1) only, never from observation (level 2).
+
+**D7 — Four levels stay.** Parentage never grants level 1; only the author or stewards admit.
+
+**D8 — Blocks override every reason**, for requests and for people alike.
+
+### Consequences
+
+- `beacon_can_read_content` is widened with the `contextChild` and `contextAncestor` reasons (`m0170`, `m0171` ancestor closure). The separate linked-detail predicate is dropped (`m0172`).
+- Context observers have the same observer rights as forward and discovery observers (D2). They do not get discussion, Plan or involvement visibility unless separately admitted or involved.
+- `person_bond` (`m0173`) and server `personVisible` drive profile and forward-picker visibility between co-participants.
+- Discovery (D11) stays trust-only (D4).
+- Decision 2's content-read parity now covers the widened access level and reasons.
+- The nested-requests plan's one-edge split (§3.2) is superseded.
