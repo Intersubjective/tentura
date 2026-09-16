@@ -9,6 +9,7 @@ import '../../domain/entity/inbox_item.dart';
 import '../../domain/entity/inbox_provenance.dart';
 import '../../domain/enum.dart';
 import '../gql/_g/activity_offers.req.gql.dart';
+import '../gql/_g/activity_offers_hydrate.req.gql.dart';
 import '../gql/_g/inbox_fetch.req.gql.dart';
 import '../gql/_g/inbox_item_fields.data.gql.dart';
 import '../gql/_g/inbox_item_status_for_beacon.req.gql.dart';
@@ -85,6 +86,24 @@ class InboxRepository {
         .firstWhere((e) => e.dataSource == DataSource.Link)
         .then((r) => r.dataOrThrow(label: _label).inbox_item_aggregate);
     return aggregate.aggregate?.count ?? 0;
+  }
+
+  Future<List<InboxItem>> fetchInboxItemsForBeacons({
+    required String userId,
+    required List<String> beaconIds,
+  }) async {
+    if (beaconIds.isEmpty) return const [];
+    final rows = await _remoteApiService
+        .request(
+          GActivityOffersHydrateReq(
+            (r) => r
+              ..vars.userId = userId
+              ..vars.beaconIds.addAll(beaconIds),
+          ),
+        )
+        .firstWhere((e) => e.dataSource == DataSource.Link)
+        .then((r) => r.dataOrThrow(label: _label).inbox_item);
+    return _mapInboxItemRows(rows, userId);
   }
 
   Future<InboxItem?> fetchOpenForwardForBeacon({

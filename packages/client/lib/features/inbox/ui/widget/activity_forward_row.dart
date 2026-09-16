@@ -10,6 +10,7 @@ import 'package:tentura/ui/test_ids.dart';
 import 'package:tentura/ui/utils/relative_time.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 
+import 'activity_event_subcard_block.dart';
 import 'activity_forward_outcome_copy.dart';
 
 /// Compact answered-forward row in the Activity stream (design §5.1 / §5.2).
@@ -19,6 +20,7 @@ class ActivityForwardRow extends StatelessWidget {
     required this.onOpenBeacon,
     this.onRestore,
     this.onHide,
+    this.onMarkEventSeen,
     super.key,
   });
 
@@ -26,6 +28,7 @@ class ActivityForwardRow extends StatelessWidget {
   final VoidCallback onOpenBeacon;
   final VoidCallback? onRestore;
   final VoidCallback? onHide;
+  final ValueChanged<String>? onMarkEventSeen;
 
   @override
   Widget build(BuildContext context) {
@@ -63,17 +66,36 @@ class ActivityForwardRow extends StatelessWidget {
         trailingAction = null;
     }
 
+    final eventsBlock = receipt.eventsPreview.isEmpty
+        ? null
+        : Padding(
+            padding: EdgeInsets.only(
+              left: tt.listRowPadding.left,
+              right: tt.listRowPadding.right,
+            ),
+            child: ActivityEventSubcardBlock(
+              eventTotal: receipt.eventTotal ?? receipt.eventsPreview.length,
+              eventsPreview: receipt.eventsPreview,
+              beaconId: beaconId,
+              onMarkSeen: onMarkEventSeen ?? (_) {},
+            ),
+          );
+
     return Semantics(
       identifier: TestIds.activityForwardRow(beaconId),
       button: true,
       label: headline,
       child: Material(
         color: Colors.transparent,
-        child: InkWell(
-          onTap: onOpenBeacon,
-          child: Padding(
-            padding: tt.listRowPadding,
-            child: Row(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            InkWell(
+              onTap: onOpenBeacon,
+              child: Padding(
+                padding: tt.listRowPadding,
+                child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 SizedBox.square(
@@ -137,7 +159,10 @@ class ActivityForwardRow extends StatelessWidget {
                 ),
               ],
             ),
-          ),
+              ),
+            ),
+            if (eventsBlock != null) eventsBlock,
+          ],
         ),
       ),
     );

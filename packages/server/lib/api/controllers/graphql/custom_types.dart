@@ -119,8 +119,9 @@ final gqlTypeNotificationPreferences =
         field('locale', graphQLString.nonNullable()),
       ]);
 
-final gqlTypeAttentionReceipt = GraphQLObjectType('AttentionReceipt', null)
-  ..fields.addAll([
+final GraphQLObjectType gqlTypeAttentionReceipt = () {
+  final type = GraphQLObjectType('AttentionReceipt', null);
+  type.fields.addAll([
     field('id', graphQLString.nonNullable()),
     field('category', graphQLString.nonNullable()),
     field('kind', graphQLString.nonNullable()),
@@ -149,8 +150,15 @@ final gqlTypeAttentionReceipt = GraphQLObjectType('AttentionReceipt', null)
     field('forwardOutcome', graphQLString),
     field('forwardCount', graphQLInt),
     field('digestCount', graphQLInt),
+    field('eventTotal', graphQLInt),
+    field('eventUnseenCount', graphQLInt),
+    field(
+      'eventsPreview',
+      GraphQLListType(type.nonNullable()).nonNullable(),
+    ),
   ]);
-
+  return type;
+}();
 final gqlTypeAttentionSurfaceSummary =
     GraphQLObjectType('AttentionSurfaceSummary', null)
       ..fields.addAll([
@@ -198,6 +206,45 @@ final gqlTypeMyWorkBeaconAttention =
           'liveObligations',
           GraphQLListType(gqlTypeAttentionReceipt.nonNullable()).nonNullable(),
         ),
+      ]);
+
+final gqlTypeActivityOfferSortRow =
+    GraphQLObjectType('ActivityOfferSortRow', null)
+      ..fields.addAll([
+        field('beaconId', graphQLString.nonNullable()),
+        field('effectiveActivityAt', graphQLString.nonNullable()),
+        field('latestForwardAt', graphQLString.nonNullable()),
+        field('unseen', graphQLBoolean.nonNullable()),
+        field('eventTotal', graphQLInt.nonNullable()),
+        field('eventUnseenCount', graphQLInt.nonNullable()),
+        field(
+          'eventsPreview',
+          GraphQLListType(gqlTypeAttentionReceipt.nonNullable()).nonNullable(),
+        ),
+      ]);
+
+final gqlTypeActivityOfferPage = GraphQLObjectType('ActivityOfferPage', null)
+  ..fields.addAll([
+    field(
+      'items',
+      GraphQLListType(gqlTypeActivityOfferSortRow.nonNullable()).nonNullable(),
+    ),
+    field('totalCount', graphQLInt.nonNullable()),
+    field('nextCursor', graphQLString),
+  ]);
+
+final gqlTypeActivityBeaconAttention =
+    GraphQLObjectType('ActivityBeaconAttention', null)
+      ..fields.addAll([
+        field('beaconId', graphQLString.nonNullable()),
+        field('eventTotal', graphQLInt.nonNullable()),
+        field('unseenCount', graphQLInt.nonNullable()),
+        field('latestAt', graphQLString.nonNullable()),
+        field(
+          'events',
+          GraphQLListType(gqlTypeAttentionReceipt.nonNullable()).nonNullable(),
+        ),
+        field('nextCursor', graphQLString),
       ]);
 
 /// Payload returned by `RoomMessageCreate`.

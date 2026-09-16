@@ -3,13 +3,18 @@ import 'package:logging/logging.dart';
 
 import 'package:tentura/data/service/remote_api_client/remote_request_client.dart';
 import 'package:tentura/data/service/remote_api_service.dart';
+import 'package:tentura/domain/attention/entity/activity_beacon_attention.dart';
+import 'package:tentura/domain/attention/entity/activity_offer_sort_row.dart';
 import 'package:tentura/domain/attention/entity/attention_feed.dart';
 import 'package:tentura/domain/attention/entity/attention_receipt.dart';
 import 'package:tentura/domain/attention/entity/attention_summary.dart';
 import 'package:tentura/domain/attention/entity/my_work_beacon_attention.dart';
 import 'package:tentura/domain/attention/port/attention_repository_port.dart';
+import 'package:tentura/features/attention/data/gql/_g/activity_attention.req.gql.dart';
+import 'package:tentura/features/attention/data/gql/_g/activity_offers_v2.req.gql.dart';
 import 'package:tentura/features/attention/data/gql/_g/attention_feed.data.gql.dart';
 import 'package:tentura/features/attention/data/gql/_g/attention_feed.req.gql.dart';
+import 'package:tentura/features/attention/data/gql/_g/attention_receipt_fields.data.gql.dart';
 import 'package:tentura/features/attention/data/gql/_g/attention_mark_all_seen.req.gql.dart';
 import 'package:tentura/features/attention/data/gql/_g/attention_mark_seen.req.gql.dart';
 import 'package:tentura/features/attention/data/gql/_g/attention_mark_seen_for_beacon.req.gql.dart';
@@ -71,7 +76,17 @@ final class AttentionRepository implements AttentionRepositoryPort {
 
   AttentionReceipt _mapFeedReceipt(
     GAttentionFeedData_attentionFeed_page_items item,
-  ) => _mapReceiptWire(
+  ) => _mapReceiptFields(
+    item,
+    eventsPreview: [
+      for (final preview in item.eventsPreview) _mapReceiptFields(preview),
+    ],
+  );
+
+  AttentionReceipt _mapReceiptFields(
+    GAttentionReceiptFields item, {
+    List<AttentionReceipt> eventsPreview = const [],
+  }) => _mapReceiptWire(
     id: item.id,
     category: item.category,
     kind: item.kind,
@@ -100,6 +115,9 @@ final class AttentionRepository implements AttentionRepositoryPort {
     forwardOutcome: item.forwardOutcome,
     forwardCount: item.forwardCount,
     digestCount: item.digestCount,
+    eventTotal: item.eventTotal,
+    eventUnseenCount: item.eventUnseenCount,
+    eventsPreview: eventsPreview,
   );
 
   AttentionReceipt _mapMyWorkReceipt(
@@ -197,6 +215,9 @@ final class AttentionRepository implements AttentionRepositoryPort {
     String? forwardOutcome,
     int? forwardCount,
     int? digestCount,
+    int? eventTotal,
+    int? eventUnseenCount,
+    List<AttentionReceipt> eventsPreview = const [],
   }) {
     final parsedSurface = _parseSurface(surface);
     final parsedItemKind = _parseItemKind(itemKind);
@@ -235,6 +256,9 @@ final class AttentionRepository implements AttentionRepositoryPort {
       forwardOutcome: parsedForwardOutcome,
       forwardCount: forwardCount,
       digestCount: digestCount,
+      eventTotal: eventTotal,
+      eventUnseenCount: eventUnseenCount,
+      eventsPreview: eventsPreview,
     );
   }
 
@@ -380,6 +404,73 @@ final class AttentionRepository implements AttentionRepositoryPort {
           ],
         ),
     ];
+  }
+
+  @override
+  Future<ActivityOfferPage> activityOffers({
+    String? cursor,
+    int limit = 20,
+  }) async {
+    final data = await _remoteClient
+        .request(
+          GActivityOffersV2Req(
+            (request) => request.vars
+              ..cursor = cursor
+              ..limit = limit,
+          ),
+        )
+        .firstWhere((response) => response.dataSource == DataSource.Link)
+        .then((response) => response.dataOrThrow(label: _label));
+    final page = data.activityOffers;
+    return ActivityOfferPage(
+      totalCount: page.totalCount,
+      nextCursor: page.nextCursor,
+      items: [
+        for (final row in page.items)
+          ActivityOfferSortRow(
+            beaconId: row.beaconId,
+            effectiveActivityAt: DateTime.parse(row.effectiveActivityAt),
+            latestForwardAt: DateTime.parse(row.latestForwardAt),
+            unseen: row.unseen,
+            eventTotal: row.eventTotal,
+            eventUnseenCount: row.eventUnseenCount,
+            eventsPreview: [
+              for (final preview in row.eventsPreview)
+                _mapReceiptFields(preview),
+            ],
+          ),
+      ],
+    );
+  }
+
+  @override
+  Future<ActivityBeaconAttention> activityAttention({
+    required String beaconId,
+    String? cursor,
+    int limit = 20,
+  }) async {
+    final data = await _remoteClient
+        .request(
+          GActivityAttentionReq(
+            (request) => request.vars
+              ..beaconId = beaconId
+              ..cursor = cursor
+              ..limit = limit,
+          ),
+        )
+        .firstWhere((response) => response.dataSource == DataSource.Link)
+        .then((response) => response.dataOrThrow(label: _label));
+    final page = data.activityAttention;
+    return ActivityBeaconAttention(
+      beaconId: page.beaconId,
+      eventTotal: page.eventTotal,
+      unseenCount: page.unseenCount,
+      latestAt: DateTime.parse(page.latestAt),
+      nextCursor: page.nextCursor,
+      events: [
+        for (final event in page.events) _mapReceiptFields(event),
+      ],
+    );
   }
 
   @override

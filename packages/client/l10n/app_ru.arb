@@ -3517,6 +3517,15 @@
       }
     }
   },
+  "activityEventMore": "{count, plural, one{ещё {count}} few{ещё {count}} many{ещё {count}} other{ещё {count}}}",
+  "@activityEventMore": {
+    "context": "InboxScreen",
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "myWorkEditDraft": "Редактировать черновик",
   "@myWorkEditDraft": {
     "context": "MyWorkScreen"

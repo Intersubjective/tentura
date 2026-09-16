@@ -63,6 +63,9 @@ abstract class AttentionReceipt with _$AttentionReceipt {
     String? attentionThreadKey,
     String? settlementKind,
     DateTime? settledAt,
+    int? eventTotal,
+    int? eventUnseenCount,
+    @Default([]) List<AttentionReceipt> eventsPreview,
   }) = _AttentionReceipt;
 
   const AttentionReceipt._();

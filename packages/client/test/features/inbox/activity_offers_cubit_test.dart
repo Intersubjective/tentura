@@ -18,6 +18,7 @@ import 'package:tentura/features/inbox/ui/bloc/activity_offers_cubit.dart';
 import '../../support/attention_repository_fake_base.dart';
 import '../../support/test_realtime_sync.dart';
 import '../block/support/controllable_block_case.dart';
+import 'activity_offers_test_support.dart';
 import 'inbox_case_test.dart'
     show FakeInboxRepository, buildTestBeaconThreadsCase, buildTestInboxCase;
 
@@ -39,7 +40,7 @@ final class _Accounts implements AttentionAccountPort {
   Stream<String> get currentAccountChanges => const Stream.empty();
 }
 
-class _AttentionRepo extends AttentionRepositoryFake {
+class _AttentionRepo extends ConfigurableActivityOffersAttentionRepo {
   Set<String> unread = const {};
 
   @override
@@ -104,42 +105,6 @@ final class _ForwardRepo implements ForwardRepository {
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
-final class _PagingRepo extends FakeInboxRepository {
-  _PagingRepo(this.allOffers);
-
-  final List<InboxItem> allOffers;
-  static const pageSize = 2;
-
-  @override
-  Future<List<InboxItem>> fetchActivityOffersPage({
-    required String userId,
-    required DateTime cursorAt,
-    required String cursorBeaconId,
-    int limit = 20,
-  }) async {
-    activityOffersPageCalls++;
-    lastActivityOffersPageArgs = (
-      cursorAt: cursorAt,
-      cursorBeaconId: cursorBeaconId,
-      limit: limit,
-    );
-    var start = 0;
-    if (cursorBeaconId.isNotEmpty) {
-      start = allOffers.indexWhere(
-            (e) =>
-                e.latestForwardAt == cursorAt && e.beaconId == cursorBeaconId,
-          ) +
-          1;
-    }
-    if (start < 0 || start >= allOffers.length) return const [];
-    final end = (start + limit).clamp(0, allOffers.length);
-    return allOffers.sublist(start, end);
-  }
-
-  @override
-  Future<int> fetchOpenForwardsCount() async => allOffers.length;
-}
-
 void main() {
   late FakeInboxRepository repo;
   late _ForwardRepo forwardRepo;
@@ -150,11 +115,12 @@ void main() {
 
   ActivityOffersCubit buildCubit({
     FakeInboxRepository? inboxRepo,
+    _AttentionRepo? attention,
     int pageSize = 20,
   }) {
     final sync = buildTestRealtimeSync();
-    attention = AttentionCase(
-      attentionRepo,
+    final attentionCase = AttentionCase(
+      attention ?? attentionRepo,
       _Accounts(),
       sync.case_,
       noopBlockCase(),
@@ -170,7 +136,7 @@ void main() {
     return ActivityOffersCubit(
       userId: 'u1',
       inboxCase: inboxCase,
-      attentionCase: attention,
+      attentionCase: attentionCase,
       pageSize: pageSize,
     );
   }
@@ -188,35 +154,59 @@ void main() {
   });
 
   group('paging', () {
-    test('tie-break on latest_forward_at avoids duplicates and gaps', () async {
+    test('loadMore uses V2 nextCursor not item latestForwardAt', () async {
+      const opaqueCursor = 'v2-cursor-not-latest-forward-at';
       final at = DateTime.utc(2026, 3, 1, 12);
-      final offers = [
+      final first = [
         _offer('B3', at),
         _offer('B2', at),
+      ];
+      final second = [
         _offer('B1', at),
         _offer('B0', at.subtract(const Duration(hours: 1))),
       ];
-      final pagingRepo = _PagingRepo(offers);
-      cubit = buildCubit(inboxRepo: pagingRepo, pageSize: _PagingRepo.pageSize);
+      wireActivityOffersV2(
+        inbox: repo,
+        attention: attentionRepo,
+        items: [...first, ...second],
+        nextCursor: opaqueCursor,
+        totalCount: 4,
+      );
+      attentionRepo.offerRows = [
+        for (final item in first) activityOfferSortRow(item),
+      ];
+      attentionRepo.secondOfferRows = [
+        for (final item in second) activityOfferSortRow(item),
+      ];
+      attentionRepo.secondOffersNextCursor = null;
+      cubit = buildCubit(pageSize: 2);
 
       await cubit.loadFirst();
-      expect(cubit.state.items.map((e) => e.beaconId), ['B3', 'B2']);
-      expect(cubit.state.totalCount, 4);
-      expect(cubit.state.hasMore, isTrue);
+      expect(cubit.state.offersNextCursor, opaqueCursor);
+      final reordered = [
+        cubit.state.items.last,
+        ...cubit.state.items.sublist(0, cubit.state.items.length - 1),
+      ];
+      cubit.emit(cubit.state.copyWith(items: reordered));
 
       await cubit.loadMore();
-      expect(cubit.state.items.map((e) => e.beaconId), ['B3', 'B2', 'B1', 'B0']);
-      expect(cubit.state.hasMore, isTrue);
-
-      await cubit.loadMore();
+      expect(attentionRepo.lastActivityOffersCursor, opaqueCursor);
+      expect(
+        attentionRepo.lastActivityOffersCursor,
+        isNot(cubit.state.items.last.latestForwardAt.toIso8601String()),
+      );
+      expect(
+        cubit.state.items.map((e) => e.beaconId).toSet(),
+        {'B3', 'B2', 'B1', 'B0'},
+      );
       expect(cubit.state.hasMore, isFalse);
-      expect(cubit.state.items.map((e) => e.beaconId).toSet().length, 4);
     });
   });
 
   group('live arrival', () {
     test('inserts at top when not scrolled away', () async {
-      repo.activityOffersPages = [_offer('B1', DateTime.utc(2026, 1, 1))];
+      final first = [_offer('B1', DateTime.utc(2026, 1, 1))];
+      wireActivityOffersV2(inbox: repo, attention: attentionRepo, items: first);
       repo.openForwardsCount = 1;
       cubit = buildCubit();
 
@@ -232,7 +222,8 @@ void main() {
     });
 
     test('held back while scrolled away until revealHeldBack', () async {
-      repo.activityOffersPages = [_offer('B1', DateTime.utc(2026, 1, 1))];
+      final first = [_offer('B1', DateTime.utc(2026, 1, 1))];
+      wireActivityOffersV2(inbox: repo, attention: attentionRepo, items: first);
       repo.openForwardsCount = 1;
       cubit = buildCubit();
 
@@ -255,7 +246,11 @@ void main() {
 
   group('demotion', () {
     test('watch removes row and emits demotedBeaconIds', () async {
-      repo.activityOffersPages = [_offer('B1', DateTime.utc(2026))];
+      wireActivityOffersV2(
+        inbox: repo,
+        attention: attentionRepo,
+        items: [_offer('B1', DateTime.utc(2026))],
+      );
       repo.openForwardsCount = 1;
       cubit = buildCubit();
 
@@ -273,7 +268,11 @@ void main() {
     });
 
     test('reject demotes via help-offer stream', () async {
-      repo.activityOffersPages = [_offer('B2', DateTime.utc(2026))];
+      wireActivityOffersV2(
+        inbox: repo,
+        attention: attentionRepo,
+        items: [_offer('B2', DateTime.utc(2026))],
+      );
       repo.openForwardsCount = 1;
       cubit = buildCubit();
 
@@ -291,7 +290,11 @@ void main() {
     });
 
     test('restored rejected re-upserts through open-forward refetch', () async {
-      repo.activityOffersPages = [_offer('B3', DateTime.utc(2026))];
+      wireActivityOffersV2(
+        inbox: repo,
+        attention: attentionRepo,
+        items: [_offer('B3', DateTime.utc(2026))],
+      );
       repo.openForwardsCount = 1;
       cubit = buildCubit();
 
@@ -314,27 +317,41 @@ void main() {
   group('totalCount', () {
     test('reflects aggregate before all pages are loaded', () async {
       final at = DateTime.utc(2026, 3, 1);
-      final pagingRepo = _PagingRepo([
-        _offer('B2', at),
-        _offer('B1', at),
-        _offer('B0', at.subtract(const Duration(hours: 1))),
-      ]);
-      cubit = buildCubit(inboxRepo: pagingRepo, pageSize: _PagingRepo.pageSize);
+      final first = [_offer('B2', at), _offer('B1', at)];
+      final second = [_offer('B0', at.subtract(const Duration(hours: 1)))];
+      wireActivityOffersV2(
+        inbox: repo,
+        attention: attentionRepo,
+        items: first,
+        nextCursor: 'more',
+        totalCount: 3,
+      );
+      attentionRepo.secondOfferRows = [
+        for (final item in second) activityOfferSortRow(item),
+      ];
+      cubit = buildCubit(pageSize: 2);
 
       await cubit.loadFirst();
       expect(cubit.state.items.length, 2);
       expect(cubit.state.totalCount, 3);
     });
 
-    test('failed count fetch is distinct from zero', () async {
-      repo.activityOffersPages = [_offer('B1', DateTime.utc(2026))];
-      repo.failOpenForwardsCount = true;
+    test('failed offers fetch leaves count from prior success', () async {
+      wireActivityOffersV2(
+        inbox: repo,
+        attention: attentionRepo,
+        items: [_offer('B1', DateTime.utc(2026))],
+        nextCursor: 'more',
+      );
       cubit = buildCubit();
 
       await cubit.loadFirst();
+      expect(cubit.state.totalCount, 1);
 
-      expect(cubit.state.countLoadFailed, isTrue);
-      expect(cubit.state.totalCount, isNull);
+      attentionRepo.failActivityOffers = true;
+      await cubit.loadMore();
+      expect(cubit.state.pageLoadFailed, isTrue);
+      expect(cubit.state.totalCount, 1);
     });
   });
 }

@@ -19,6 +19,8 @@ final class QueryAttention extends GqlNodeBase {
     attentionSurfaceSummary,
     attentionMarkers,
     myWorkAttention,
+    activityOffers,
+    activityAttention,
     liveObligationBeacons,
   ];
 
@@ -109,6 +111,79 @@ final class QueryAttention extends GqlNodeBase {
         },
       );
 
+  GraphQLObjectField<dynamic, dynamic> get activityOffers =>
+      GraphQLObjectField(
+        'activityOffers',
+        gqlTypeActivityOfferPage.nonNullable(),
+        arguments: [_cursor.fieldNullable, _limit.fieldNullable],
+        resolve: (_, args) async {
+          final page = await _query.activityOffers(
+            accountId: getCredentials(args).sub,
+            cursor: _decodeCursor(_cursor.fromArgs(args)),
+            limit: _limit.fromArgs(args) ?? 20,
+          );
+          return {
+            'items': [
+              for (final item in page.items)
+                {
+                  'beaconId': item.beaconId,
+                  'effectiveActivityAt':
+                      item.effectiveActivityAt.toUtc().toIso8601String(),
+                  'latestForwardAt':
+                      item.latestForwardAt.toUtc().toIso8601String(),
+                  'unseen': item.unseen,
+                  'eventTotal': item.eventTotal,
+                  'eventUnseenCount': item.eventUnseenCount,
+                  'eventsPreview': [
+                    for (final event in item.eventsPreview) _mapReceipt(event),
+                  ],
+                },
+            ],
+            'totalCount': page.totalCount,
+            'nextCursor': page.nextCursor == null
+                ? null
+                : _encodeCursor(page.nextCursor!),
+          };
+        },
+      );
+
+  GraphQLObjectField<dynamic, dynamic> get activityAttention =>
+      GraphQLObjectField(
+        'activityAttention',
+        gqlTypeActivityBeaconAttention.nonNullable(),
+        arguments: [
+          _beaconId.field,
+          _cursor.fieldNullable,
+          _limit.fieldNullable,
+        ],
+        resolve: (_, args) async {
+          final beaconId = _beaconId.fromArgsNonNullable(args);
+          if (beaconId.isEmpty || beaconId.length > 64) {
+            throw ArgumentError.value(
+              beaconId,
+              'beaconId',
+              'must be a non-empty id of at most 64 characters',
+            );
+          }
+          final page = await _query.activityAttention(
+            accountId: getCredentials(args).sub,
+            beaconId: beaconId,
+            cursor: _decodeCursor(_cursor.fromArgs(args)),
+            limit: _limit.fromArgs(args) ?? 20,
+          );
+          return {
+            'beaconId': page.beaconId,
+            'eventTotal': page.eventTotal,
+            'unseenCount': page.unseenCount,
+            'latestAt': page.latestAt.toUtc().toIso8601String(),
+            'events': [for (final event in page.events) _mapReceipt(event)],
+            'nextCursor': page.nextCursor == null
+                ? null
+                : _encodeCursor(page.nextCursor!),
+          };
+        },
+      );
+
   GraphQLObjectField<dynamic, dynamic> get attentionFeed => GraphQLObjectField(
     'attentionFeed',
     gqlTypeAttentionFeed.nonNullable(),
@@ -160,6 +235,7 @@ final class QueryAttention extends GqlNodeBase {
   static final _surface = InputFieldString(fieldName: 'surface');
   static final _limit = InputFieldInt(fieldName: 'limit');
   static final _beaconIds = InputFieldStringList(fieldName: 'beaconIds');
+  static final _beaconId = InputFieldString(fieldName: 'beaconId');
 
   static AttentionSurface? parseSurfaceArgument(String? value) =>
       _parseSurface(value);
@@ -289,6 +365,11 @@ final class QueryAttention extends GqlNodeBase {
       'forwardOutcome': receipt.forwardOutcome,
       'forwardCount': receipt.forwardCount,
       'digestCount': receipt.digestCount,
+      'eventTotal': receipt.eventTotal,
+      'eventUnseenCount': receipt.eventUnseenCount,
+      'eventsPreview': [
+        for (final event in receipt.eventsPreview) _mapReceipt(event),
+      ],
     };
   }
 }

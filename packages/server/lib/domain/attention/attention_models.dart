@@ -149,10 +149,17 @@ enum AttentionSurface { myWork, activity }
 AttentionSurface attentionSurfaceFromWireName(String value) =>
     AttentionSurface.values.firstWhere((surface) => surface.name == value);
 
-enum AttentionItemKind { receipt, forward, watchingDigest }
+enum AttentionItemKind { receipt, forward, watchingDigest, requestActivity }
 
 AttentionItemKind attentionItemKindFromWireName(String value) =>
-    AttentionItemKind.values.firstWhere((kind) => kind.name == value);
+    AttentionItemKind.values.firstWhere(
+      (kind) => kind.name == value,
+      orElse: () => AttentionItemKind.receipt,
+    );
+
+/// Newest-first preview size embedded on grouped Activity rows (regular/expanded
+/// visible cap). Compact UI shows the first of these.
+const kActivityEventPreviewCap = 3;
 
 enum AttentionSettlementKind {
   resolved,
@@ -323,6 +330,12 @@ abstract class AttentionReceipt with _$AttentionReceipt {
     String? forwardOutcome,
     int? forwardCount,
     int? digestCount,
+    /// Total represented Activity child events (grouped rows only).
+    int? eventTotal,
+    /// Unseen count among represented Activity children (grouped rows only).
+    int? eventUnseenCount,
+    /// Newest-first preview of child events (cap [kActivityEventPreviewCap]).
+    @Default(<AttentionReceipt>[]) List<AttentionReceipt> eventsPreview,
   }) = _AttentionReceipt;
 
   const AttentionReceipt._();
@@ -380,4 +393,39 @@ abstract class MyWorkBeaconAttention with _$MyWorkBeaconAttention {
     AttentionReceipt? latestUnseen,
     required List<AttentionReceipt> liveObligations,
   }) = _MyWorkBeaconAttention;
+}
+
+@freezed
+abstract class ActivityBeaconAttention with _$ActivityBeaconAttention {
+  const factory ActivityBeaconAttention({
+    required String beaconId,
+    required int eventTotal,
+    required int unseenCount,
+    required DateTime latestAt,
+    required List<AttentionReceipt> events,
+    AttentionCursor? nextCursor,
+  }) = _ActivityBeaconAttention;
+}
+
+@freezed
+abstract class ActivityOfferPage with _$ActivityOfferPage {
+  const factory ActivityOfferPage({
+    required List<ActivityOfferSortRow> items,
+    required int totalCount,
+    AttentionCursor? nextCursor,
+  }) = _ActivityOfferPage;
+}
+
+/// Server-ordered «For you» row. Client hydrates InboxItem details separately.
+@freezed
+abstract class ActivityOfferSortRow with _$ActivityOfferSortRow {
+  const factory ActivityOfferSortRow({
+    required String beaconId,
+    required DateTime effectiveActivityAt,
+    required DateTime latestForwardAt,
+    required bool unseen,
+    required int eventTotal,
+    required int eventUnseenCount,
+    @Default(<AttentionReceipt>[]) List<AttentionReceipt> eventsPreview,
+  }) = _ActivityOfferSortRow;
 }

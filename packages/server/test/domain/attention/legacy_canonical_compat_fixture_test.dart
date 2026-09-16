@@ -165,4 +165,25 @@ final class _FixtureQuery implements AttentionQueryPort {
     required String accountId,
     required Set<String> beaconIds,
   }) async => const [];
+
+  @override
+  Future<ActivityOfferPage> activityOffers({
+    required String accountId,
+    AttentionCursor? cursor,
+    int limit = 20,
+  }) async => const ActivityOfferPage(items: [], totalCount: 0);
+
+  @override
+  Future<ActivityBeaconAttention> activityAttention({
+    required String accountId,
+    required String beaconId,
+    AttentionCursor? cursor,
+    int limit = 20,
+  }) async => ActivityBeaconAttention(
+    beaconId: beaconId,
+    eventTotal: 0,
+    unseenCount: 0,
+    latestAt: DateTime.utc(2026),
+    events: const [],
+  );
 }

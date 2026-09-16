@@ -7,6 +7,7 @@ import 'package:get_it/get_it.dart';
 import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/design_system/components/tentura_attention_summary_row.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
+import 'package:tentura/domain/attention/attention_case.dart';
 import 'package:tentura/domain/attention/entity/attention_feed.dart';
 import 'package:tentura/domain/attention/entity/attention_receipt.dart';
 import 'package:tentura/features/inbox/ui/bloc/inbox_cubit.dart';
@@ -23,6 +24,7 @@ import 'package:tentura/ui/utils/ui_utils.dart';
 
 import '../../domain/entity/inbox_item.dart';
 import '../bloc/activity_offers_cubit.dart';
+import 'activity_event_subcard_block.dart';
 import 'activity_forward_row.dart';
 import 'activity_offer_card.dart';
 import 'activity_watching_digest_row.dart';
@@ -531,6 +533,7 @@ class _ActivityStreamScrollBody extends StatelessWidget {
                   item: item,
                   inboxCubit: inboxCubit,
                   showUnseenDot: showDot,
+                  eventsMeta: offersState.eventsByBeacon[item.beaconId],
                 ),
               );
             }
@@ -544,6 +547,7 @@ class _ActivityStreamScrollBody extends StatelessWidget {
               item: item,
               inboxCubit: inboxCubit,
               showUnseenDot: showDot,
+              eventsMeta: offersState.eventsByBeacon[beaconId],
             );
             return KeyedSubtree(
               key: ValueKey('offer-exit-$beaconId'),
@@ -832,14 +836,25 @@ class _ActivityStreamCell extends StatelessWidget {
   }
 
   Widget _streamRow(BuildContext context, AttentionReceipt receipt) {
-    void onOpen() => unawaited(_openReceipt(context, receipt));
+    Future<void> onOpenParent() async {
+      final beaconId = receipt.beaconId;
+      if (beaconId != null && beaconId.isNotEmpty) {
+        await GetIt.I<AttentionCase>().markSeenForBeacon(beaconId);
+      } else {
+        unawaited(streamCubit.markSeen(receipt.id));
+      }
+      if (!context.mounted) return;
+      await GetIt.I<RootRouter>().openFromUpdate(receipt);
+    }
+
     switch (receipt.itemKind) {
       case AttentionItemKind.forward:
         final beaconId = receipt.beaconId ?? '';
         final row = ActivityForwardRow(
           key: ValueKey(receipt.id),
           receipt: receipt,
-          onOpenBeacon: onOpen,
+          onOpenBeacon: () => unawaited(onOpenParent()),
+          onMarkEventSeen: (id) => unawaited(streamCubit.markSeen(id)),
           onRestore: receipt.forwardOutcome ==
                   AttentionForwardOutcome.notInterested
               ? () => unawaited(inboxCubit.unreject(beaconId))
@@ -868,11 +883,53 @@ class _ActivityStreamCell extends StatelessWidget {
           key: ValueKey(receipt.id),
           count: receipt.digestCount ?? 0,
         );
+      case AttentionItemKind.requestActivity:
+        final beaconId = receipt.beaconId ?? '';
+        Future<void> onOpenRequestActivity() async {
+          if (beaconId.isNotEmpty) {
+            await GetIt.I<AttentionCase>().markSeenForBeacon(beaconId);
+          }
+          if (!context.mounted) return;
+          await GetIt.I<RootRouter>().openFromUpdate(receipt);
+        }
+        return Material(
+          color: Colors.transparent,
+          child: InkWell(
+            onTap: () => unawaited(onOpenRequestActivity()),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                UpdatesFeedTile(
+                  key: ValueKey(receipt.id),
+                  receipt: receipt,
+                  onTap: () => unawaited(onOpenRequestActivity()),
+                  onMarkSeen: () => streamCubit.markSeen(receipt.id),
+                  onMarkUnseen: () => streamCubit.markUnseen(receipt.id),
+                  onSettle: null,
+                ),
+                if (receipt.eventsPreview.isNotEmpty)
+                  Padding(
+                    padding: EdgeInsets.symmetric(
+                      horizontal: context.tt.listRowPadding.left,
+                    ),
+                    child: ActivityEventSubcardBlock(
+                      eventTotal:
+                          receipt.eventTotal ?? receipt.eventsPreview.length,
+                      eventsPreview: receipt.eventsPreview,
+                      beaconId: beaconId,
+                      onMarkSeen: (id) => unawaited(streamCubit.markSeen(id)),
+                    ),
+                  ),
+              ],
+            ),
+          ),
+        );
       case AttentionItemKind.receipt:
         return UpdatesFeedTile(
           key: ValueKey(receipt.id),
           receipt: receipt,
-          onTap: onOpen,
+          onTap: () => unawaited(onOpenParent()),
           onMarkSeen: () => streamCubit.markSeen(receipt.id),
           onMarkUnseen: () => streamCubit.markUnseen(receipt.id),
           onSettle: receipt.isLiveObligation
@@ -886,7 +943,13 @@ class _ActivityStreamCell extends StatelessWidget {
     BuildContext context,
     AttentionReceipt receipt,
   ) async {
-    unawaited(streamCubit.markSeen(receipt.id));
+    final beaconId = receipt.beaconId;
+    if (beaconId != null && beaconId.isNotEmpty) {
+      await GetIt.I<AttentionCase>().markSeenForBeacon(beaconId);
+    } else {
+      unawaited(streamCubit.markSeen(receipt.id));
+    }
+    if (!context.mounted) return;
     await GetIt.I<RootRouter>().openFromUpdate(receipt);
   }
 }

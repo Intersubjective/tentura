@@ -1,15 +1,15 @@
+#import 'attention_receipt_fields.graphql'
+
 query AttentionFeed($view: String!, $cursor: String, $search: String, $limit: Int, $surface: String) {
   attentionFeed(view: $view, cursor: $cursor, search: $search, limit: $limit, surface: $surface) {
     summary { unreadTotal needsYouTotal }
     page {
       nextCursor
       items {
-        id category kind priority title body actionUrl createdAt seenAt
-        collapsedCount beaconId coordinationItemId actorUserId sourceEventKey
-        destinationKind targetEntityId presentationKey presentationPayloadJson
-        inAppPreferenceClass
-        requiresAction attentionThreadKey settlementKind settledAt
-        surface itemKind forwardOutcome forwardCount digestCount
+        ...AttentionReceiptFields
+        eventsPreview {
+          ...AttentionReceiptFields
+        }
       }
     }
   }

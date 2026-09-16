@@ -15,6 +15,8 @@ import 'package:tentura/domain/use_case/realtime_sync_case.dart';
 import 'package:tentura/features/block/domain/use_case/block_case.dart';
 
 import 'attention_ack_store.dart';
+import 'entity/activity_beacon_attention.dart';
+import 'entity/activity_offer_sort_row.dart';
 import 'entity/attention_feed.dart';
 import 'entity/attention_receipt.dart';
 import 'entity/attention_summary.dart';
@@ -231,6 +233,23 @@ final class AttentionCase {
     }
     return _repository.myWorkAttention(beaconIds);
   }
+
+  Future<ActivityOfferPage> activityOffers({
+    String? cursor,
+    int limit = 20,
+  }) =>
+      _repository.activityOffers(cursor: cursor, limit: limit);
+
+  Future<ActivityBeaconAttention> activityAttention({
+    required String beaconId,
+    String? cursor,
+    int limit = 20,
+  }) =>
+      _repository.activityAttention(
+        beaconId: beaconId,
+        cursor: cursor,
+        limit: limit,
+      );
 
   Future<void> fetchNextPage({
     String destinationId = AttentionFeedDestinationId.activityStream,

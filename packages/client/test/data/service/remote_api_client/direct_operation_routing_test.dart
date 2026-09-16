@@ -55,5 +55,10 @@ void main() {
     test('PersonSharedContexts routes to Tentura V2', () {
       expect(isTenturaDirectOperation('PersonSharedContexts'), isTrue);
     });
+
+    test('Activity coalesce attention ops route to Tentura V2', () {
+      expect(isTenturaDirectOperation('ActivityOffersV2'), isTrue);
+      expect(isTenturaDirectOperation('ActivityAttention'), isTrue);
+    });
   });
 }

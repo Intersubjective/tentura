@@ -50,6 +50,7 @@ import 'package:tentura/ui/test_ids.dart';
 import '../../support/attention_repository_fake_base.dart';
 import '../../support/test_realtime_sync.dart';
 import '../block/support/controllable_block_case.dart';
+import '../inbox/activity_offers_test_support.dart';
 import '../inbox/inbox_case_test.dart'
     show
         FakeInboxRepository,
@@ -167,7 +168,7 @@ final class _FakeOrientationPrefs implements HomeOrientationPreferencesPort {
   Future<void> setDebugOverride(OrientationDebugOverride value) async {}
 }
 
-class _PurityAttentionRepo extends AttentionRepositoryFake {
+class _PurityAttentionRepo extends ConfigurableActivityOffersAttentionRepo {
   @override
   Future<AttentionFeed> fetch({
     required AttentionView view,
@@ -392,9 +393,36 @@ Future<void> _pumpActivityShell(WidgetTester tester) async {
   accounts.emit(_accountId);
   await _drain();
 
-  final inboxRepo = FakeInboxRepository()
-    ..activityOffersPages = [_offerItem()]
-    ..openForwardsCount = 1;
+  final inboxRepo = FakeInboxRepository();
+  final offer = _offerItem();
+  wireActivityOffersV2(
+    inbox: inboxRepo,
+    attention: attentionRepo,
+    items: [offer],
+    totalCount: 1,
+  );
+  attentionRepo.offerRows = [
+    activityOfferSortRow(
+      offer,
+      eventTotal: 1,
+      eventsPreview: [
+        AttentionReceipt(
+          id: 'offer-event',
+          category: 'requestProgress',
+          kind: 'requestStatusChanged',
+          priority: 'normal',
+          title: 'Status changed',
+          body: 'Body',
+          actionUrl: '/#/',
+          createdAt: DateTime.utc(2026, 6, 19),
+          collapsedCount: 1,
+          presentationPayloadJson: '{}',
+          surface: AttentionSurface.activity,
+          beaconId: _offerBeacon,
+        ),
+      ],
+    ),
+  ];
   final inboxCase = buildTestInboxCase(
     inboxRepo,
     buildTestBeaconThreadsCase(),

@@ -210,7 +210,7 @@ _Avoid_: showing a receipt about an in-scope beacon on Activity; rendering recei
 Cards with at least one **live obligation** (`requires_action` and unsettled), shown first. The section count and the My desk nav badge count individual obligation **receipts**, not beacons.
 
 **For you** / «Для вас» (Activity section):
-The pinned zone at the top of Activity: every **unanswered forward** (Inbox `needsMe`, beacon not in scope) plus fresh pending invite prompts. An unanswered forward stays pinned regardless of age. Once acted on (offer help, forward, watch, dismiss), it drops to its **chronological place** (`latest_forward_at`) in the stream as a row showing the outcome. A request closed or deleted before the viewer answered is one such outcome, not a separate tombstone section.
+The pinned zone at the top of Activity: every **unanswered forward** (Inbox `needsMe`, beacon not in scope) plus fresh pending invite prompts. An unanswered forward stays pinned regardless of age. Once acted on (offer help, forward, watch, dismiss), it drops to its **chronological place** (`effectiveActivityAt`) in the stream as a row showing the outcome. A request closed or deleted before the viewer answered is one such outcome, not a separate tombstone section.
 _Avoid_: «Предложения» / "Offers" as an Activity label — it collides with **help offer** («предложение помощи»); obligation wording such as «ждут вашего ответа» / "need your response" — reacting to an offer is optional.
 
 **Notification history** / «История уведомлений»:

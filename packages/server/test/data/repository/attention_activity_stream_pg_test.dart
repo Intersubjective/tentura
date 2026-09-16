@@ -443,6 +443,236 @@ VALUES (@id, @authorId, @title, '', 0)
         ]),
       );
     });
+
+    test('two status events without inbox coalesce to requestActivity', () async {
+      await _ensureForwardPath(writer, beaconId: _foreignBeaconId);
+      await _insertStatusReceipt(
+        writer,
+        id: 'NactstA001',
+        beaconId: _foreignBeaconId,
+        createdAt: '2026-08-10T10:00:00Z',
+      );
+      await _insertStatusReceipt(
+        writer,
+        id: 'NactstA002',
+        beaconId: _foreignBeaconId,
+        createdAt: '2026-08-10T12:00:00Z',
+      );
+      // Forward edges auto-create an open inbox row; remove it so events have
+      // no eligible representative and must coalesce onto requestActivity.
+      await writer.execute(
+        Sql.named(
+          'DELETE FROM public.inbox_item WHERE user_id = @u AND beacon_id = @b',
+        ),
+        parameters: {'u': _viewerId, 'b': _foreignBeaconId},
+      );
+
+      final feed = await query.attentionFeed(
+        accountId: _viewerId,
+        view: AttentionFeedView.all,
+        surface: AttentionSurface.activity,
+      );
+      final grouped = feed.page.items
+          .where((item) => item.itemKind == AttentionItemKind.requestActivity)
+          .toList();
+      expect(grouped, hasLength(1));
+      expect(grouped.single.id, 'activity-beacon:$_foreignBeaconId');
+      expect(
+        grouped.single.createdAt.toUtc().toIso8601String(),
+        '2026-08-10T12:00:00.000Z',
+      );
+      expect(grouped.single.eventTotal, 2);
+      expect(grouped.single.eventsPreview, hasLength(2));
+      expect(
+        feed.page.items
+            .where((item) => item.itemKind == AttentionItemKind.receipt),
+        isEmpty,
+      );
+    });
+
+    test('distinct beacons stay distinct requestActivity rows', () async {
+      await _ensureForwardPath(writer, beaconId: _foreignBeaconId);
+      await writer.execute(
+        Sql.named('''
+INSERT INTO public.beacon (id, user_id, title, description, status)
+VALUES (@id, @authorId, 'Foreign2', 'Foreign request 2', 0)
+ON CONFLICT DO NOTHING
+'''),
+        parameters: {'id': _foreignBeacon2Id, 'authorId': _authorId},
+      );
+      await _ensureForwardPath(writer, beaconId: _foreignBeacon2Id);
+      await _insertStatusReceipt(
+        writer,
+        id: 'NactstB001',
+        beaconId: _foreignBeaconId,
+        createdAt: '2026-08-11T10:00:00Z',
+      );
+      await _insertStatusReceipt(
+        writer,
+        id: 'NactstB002',
+        beaconId: _foreignBeacon2Id,
+        createdAt: '2026-08-11T11:00:00Z',
+      );
+      await writer.execute(
+        Sql.named(
+          'DELETE FROM public.inbox_item WHERE user_id = @u',
+        ),
+        parameters: {'u': _viewerId},
+      );
+
+      final feed = await query.attentionFeed(
+        accountId: _viewerId,
+        view: AttentionFeedView.all,
+        surface: AttentionSurface.activity,
+      );
+      final grouped = feed.page.items
+          .where((item) => item.itemKind == AttentionItemKind.requestActivity)
+          .toList();
+      expect(grouped.map((e) => e.beaconId).toSet(), {
+        _foreignBeaconId,
+        _foreignBeacon2Id,
+      });
+    });
+
+    test('status event merges into forward and bumps created_at', () async {
+      await _upsertInbox(
+        writer,
+        beaconId: _foreignBeaconId,
+        status: 1,
+        latestForwardAt: '2026-08-12T08:00:00Z',
+      );
+      await _insertRelayReceipt(
+        writer,
+        id: 'NactstC001',
+        beaconId: _foreignBeaconId,
+        createdAt: '2026-08-12T08:00:00Z',
+      );
+      await _insertStatusReceipt(
+        writer,
+        id: 'NactstC002',
+        beaconId: _foreignBeaconId,
+        createdAt: '2026-08-12T14:00:00Z',
+      );
+      await writer.execute(
+        Sql.named(
+          "UPDATE public.notification_outbox SET seen_at = now() WHERE id = 'NactstC001'",
+        ),
+      );
+
+      final feed = await query.attentionFeed(
+        accountId: _viewerId,
+        view: AttentionFeedView.all,
+        surface: AttentionSurface.activity,
+      );
+      final forward = feed.page.items
+          .where((item) => item.id == 'inbox:$_foreignBeaconId')
+          .single;
+      expect(forward.itemKind, AttentionItemKind.forward);
+      expect(
+        forward.createdAt.toUtc().toIso8601String(),
+        '2026-08-12T14:00:00.000Z',
+      );
+      expect(forward.isUnread, isTrue);
+      expect(forward.eventTotal, 1);
+      expect(
+        feed.page.items.where(
+          (item) =>
+              item.itemKind == AttentionItemKind.receipt &&
+              item.beaconId == _foreignBeaconId,
+        ),
+        isEmpty,
+      );
+    });
+
+    test('helping forward has zero Activity event children', () async {
+      await _upsertInbox(
+        writer,
+        beaconId: _foreignBeaconId,
+        status: 0,
+        latestForwardAt: '2026-08-13T08:00:00Z',
+      );
+      await _insertHelpOffer(writer, beaconId: _foreignBeaconId, status: 0);
+      await _insertStatusReceipt(
+        writer,
+        id: 'NactstD001',
+        beaconId: _foreignBeaconId,
+        createdAt: '2026-08-13T09:00:00Z',
+      );
+
+      final forward = await _singleActivityItem(query);
+      expect(forward.forwardOutcome, 'helping');
+      expect(forward.eventTotal, 0);
+      expect(forward.eventsPreview, isEmpty);
+    });
+
+    test('dismissed tombstone does not resurrect as requestActivity', () async {
+      await _ensureForwardPath(writer, beaconId: _closedBeaconId);
+      await _upsertInbox(
+        writer,
+        beaconId: _closedBeaconId,
+        status: 1,
+        latestForwardAt: '2026-08-14T08:00:00Z',
+      );
+      await writer.execute(
+        Sql.named(
+          'SELECT public.inbox_item_apply_tombstone_after_withdraw(@userId, @beaconId)',
+        ),
+        parameters: {'userId': _viewerId, 'beaconId': _closedBeaconId},
+      );
+      await writer.execute(
+        Sql.named('''
+UPDATE public.inbox_item
+SET tombstone_dismissed_at = now()
+WHERE user_id = @userId AND beacon_id = @beaconId
+'''),
+        parameters: {'userId': _viewerId, 'beaconId': _closedBeaconId},
+      );
+      await _insertStatusReceipt(
+        writer,
+        id: 'NactstE001',
+        beaconId: _closedBeaconId,
+        createdAt: '2026-08-14T09:00:00Z',
+      );
+
+      final feed = await query.attentionFeed(
+        accountId: _viewerId,
+        view: AttentionFeedView.all,
+        surface: AttentionSurface.activity,
+      );
+      expect(feed.page.items, isEmpty);
+    });
+
+    test('activityOffers orders by effectiveActivityAt not latest_forward_at',
+        () async {
+      await _ensureForwardPath(writer, beaconId: _foreignBeaconId);
+      await _ensureForwardPath(writer, beaconId: _closedBeaconId);
+      await _upsertInbox(
+        writer,
+        beaconId: _foreignBeaconId,
+        status: 0,
+        latestForwardAt: '2026-08-15T08:00:00Z',
+      );
+      await _insertStatusReceipt(
+        writer,
+        id: 'NactstF001',
+        beaconId: _foreignBeaconId,
+        createdAt: '2026-08-15T20:00:00Z',
+      );
+      await _upsertInbox(
+        writer,
+        beaconId: _closedBeaconId,
+        status: 0,
+        latestForwardAt: '2026-08-15T12:00:00Z',
+      );
+
+      final page = await query.activityOffers(accountId: _viewerId, limit: 10);
+      expect(page.items.map((e) => e.beaconId).toList(), [
+        _foreignBeaconId,
+        _closedBeaconId,
+      ]);
+      expect(page.items.first.eventTotal, 1);
+      expect(page.items.first.eventsPreview, hasLength(1));
+    });
   }, skip: skipReason);
 }
 
@@ -460,6 +690,7 @@ const _viewerId = 'Uactstream01';
 const _authorId = 'Uactstream02';
 const _ownedBeaconId = 'Bactstreamown';
 const _foreignBeaconId = 'Bactstreamfor';
+const _foreignBeacon2Id = 'Bactstreamfo2';
 const _closedBeaconId = 'Bactstreamcls';
 const _deletedBeaconId = 'Bactstreamdel';
 
@@ -558,6 +789,41 @@ INSERT INTO public.notification_outbox (
     'accountId': _viewerId,
     'dedupKey': 'dedup-$id',
     'createdAt': createdAt,
+    'beaconId': beaconId,
+    'sourceEventKey': 'source-$id',
+  },
+);
+
+Future<void> _insertStatusReceipt(
+  Connection writer, {
+  required String id,
+  required String beaconId,
+  required String createdAt,
+  bool seen = false,
+}) => writer.execute(
+  Sql.named('''
+INSERT INTO public.notification_outbox (
+  id, account_id, category, kind, priority,
+  title, body, action_url, dedup_key, created_at, seen_at,
+  beacon_id, source_event_key,
+  destination_kind, presentation_key, presentation_payload,
+  suppression_class, access_policy
+) VALUES (
+  @id, @accountId, 'coordination', 'coordinationChanged', 'normal',
+  'Status changed', 'Body', '/attention', @dedupKey,
+  CAST(@createdAt AS timestamptz),
+  CASE WHEN @seen THEN CAST(@createdAt AS timestamptz) ELSE NULL END,
+  @beaconId, @sourceEventKey,
+  'beacon', 'request_status_changed', '{"eventType":"fixture"}'::jsonb,
+  'standard', 'beacon_content'
+)
+'''),
+  parameters: {
+    'id': id,
+    'accountId': _viewerId,
+    'dedupKey': 'dedup-$id',
+    'createdAt': createdAt,
+    'seen': seen,
     'beaconId': beaconId,
     'sourceEventKey': 'source-$id',
   },

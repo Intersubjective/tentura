@@ -276,6 +276,8 @@ class _V2RoutingLink extends Link {
     'UserAvailabilitySetLimited',
     'SignIn',
     'SignOut',
+    'ActivityAttention',
+    'ActivityOffersV2',
     'AttentionFeed',
     'AttentionMarkers',
     'AttentionLiveObligations',

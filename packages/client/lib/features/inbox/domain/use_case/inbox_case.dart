@@ -104,6 +104,14 @@ final class InboxCase extends UseCaseBase {
     beaconId: beaconId,
   );
 
+  Future<List<InboxItem>> fetchInboxItemsForBeacons({
+    required String userId,
+    required List<String> beaconIds,
+  }) => _repository.fetchInboxItemsForBeacons(
+    userId: userId,
+    beaconIds: beaconIds,
+  );
+
   Future<void> setStatus({
     required String beaconId,
     required InboxItemStatus status,

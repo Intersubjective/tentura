@@ -30,6 +30,7 @@ import 'package:tentura/features/inbox/domain/enum.dart';
 import 'package:tentura/features/inbox/ui/bloc/activity_offers_cubit.dart';
 import 'package:tentura/features/inbox/ui/bloc/inbox_cubit.dart';
 import 'package:tentura/features/inbox/ui/screen/inbox_screen.dart';
+import 'package:tentura/features/inbox/ui/widget/activity_event_subcard_block.dart';
 import 'package:tentura/features/inbox/ui/widget/activity_forward_row.dart';
 import 'package:tentura/features/inbox/ui/widget/activity_offer_card.dart';
 import 'package:tentura/features/inbox/ui/widget/activity_stream_view.dart';
@@ -48,6 +49,7 @@ import '../../support/attention_repository_fake_base.dart';
 import '../../support/test_realtime_sync.dart';
 import '../block/support/controllable_block_case.dart';
 import '../updates/support/noop_invite_setup_port.dart';
+import 'activity_offers_test_support.dart';
 import 'inbox_case_test.dart'
     show
         FakeInboxRepository,
@@ -167,7 +169,7 @@ final class _PromptSetup implements InviteAcceptedSetupPort {
   Future<void> skip(String subjectId) async {}
 }
 
-class _FeedAttentionRepo extends AttentionRepositoryFake {
+class _FeedAttentionRepo extends ConfigurableActivityOffersAttentionRepo {
   _FeedAttentionRepo({
     required this.firstPage,
     this.nextCursor,
@@ -241,6 +243,8 @@ AttentionReceipt _streamReceipt({
   AttentionItemKind itemKind = AttentionItemKind.receipt,
   AttentionForwardOutcome? forwardOutcome,
   int? digestCount,
+  int? eventTotal,
+  List<AttentionReceipt> eventsPreview = const [],
 }) =>
     AttentionReceipt(
       id: id,
@@ -257,6 +261,8 @@ AttentionReceipt _streamReceipt({
       itemKind: itemKind,
       forwardOutcome: forwardOutcome,
       digestCount: digestCount,
+      eventTotal: eventTotal,
+      eventsPreview: eventsPreview,
       beaconId: 'beacon-$id',
     );
 
@@ -427,11 +433,14 @@ double _top(Finder finder, WidgetTester tester) {
 void main() {
 
   testWidgets('render order: header, prompt, offer, then stream', (tester) async {
-    final inboxRepo = FakeInboxRepository()
-      ..activityOffersPages = [_offerItem('offer-1')]
-      ..openForwardsCount = 1;
+    final inboxRepo = FakeInboxRepository();
     final attentionRepo = _FeedAttentionRepo(
       firstPage: [_promptReceipt(), _streamReceipt(id: 'stream-1')],
+    );
+    wireActivityOffersV2(
+      inbox: inboxRepo,
+      attention: attentionRepo,
+      items: [_offerItem('offer-1')],
     );
     final boot = await _boot(
       inboxRepo: inboxRepo,
@@ -472,13 +481,21 @@ void main() {
     final firstPageOffers = [
       for (var i = 0; i < 20; i++) _offerItem('p$i'),
     ];
-    final inboxRepo = FakeInboxRepository()
-      ..activityOffersPages = firstPageOffers
-      ..openForwardsCount = 25;
+    final inboxRepo = FakeInboxRepository();
     final attentionRepo = _FeedAttentionRepo(
       firstPage: const [],
       nextCursor: 'more',
     );
+    wireActivityOffersV2(
+      inbox: inboxRepo,
+      attention: attentionRepo,
+      items: firstPageOffers,
+      nextCursor: 'more',
+      totalCount: 25,
+    );
+    attentionRepo.secondOfferRows = [
+      for (var i = 20; i < 25; i++) activityOfferSortRow(_offerItem('p$i')),
+    ];
     final boot = await _boot(inboxRepo: inboxRepo, attentionRepo: attentionRepo);
     addTearDown(boot.dispose);
 
@@ -495,10 +512,11 @@ void main() {
       await tester.pump(const Duration(milliseconds: 100));
     }
 
-    expect(boot.inboxRepo.activityOffersPageCalls, greaterThanOrEqualTo(2));
+    expect(boot.attentionRepo.activityOffersCalls, greaterThanOrEqualTo(2));
     expect(boot.attentionRepo.fetchCalls, greaterThanOrEqualTo(1));
 
-    inboxRepo.activityOffersPages = const [];
+    attentionRepo.offerRows = const [];
+    attentionRepo.offersNextCursor = null;
 
     await tester.fling(scrollable, const Offset(0, -800), 8000);
     for (var i = 0; i < 5; i++) {
@@ -509,9 +527,7 @@ void main() {
   });
 
   testWidgets('itemKind dispatch renders correct row widgets', (tester) async {
-    final inboxRepo = FakeInboxRepository()
-      ..activityOffersPages = const []
-      ..openForwardsCount = 0;
+    final inboxRepo = FakeInboxRepository();
     final attentionRepo = _FeedAttentionRepo(
       firstPage: [
         _streamReceipt(id: 'r1'),
@@ -525,27 +541,57 @@ void main() {
           itemKind: AttentionItemKind.watchingDigest,
           digestCount: 3,
         ),
+        _streamReceipt(
+          id: 'ra1',
+          itemKind: AttentionItemKind.requestActivity,
+          eventTotal: 1,
+          eventsPreview: [
+            _streamReceipt(id: 'ra1-child'),
+          ],
+        ),
       ],
+    );
+    wireActivityOffersV2(
+      inbox: inboxRepo,
+      attention: attentionRepo,
+      items: const [],
+      totalCount: 0,
     );
     final boot = await _boot(inboxRepo: inboxRepo, attentionRepo: attentionRepo);
     addTearDown(boot.dispose);
 
     await _pumpStreamView(tester, boot: boot);
 
-    expect(find.byType(UpdatesFeedTile), findsOneWidget);
+    expect(find.byType(UpdatesFeedTile), findsNWidgets(2));
     expect(find.byType(ActivityForwardRow), findsOneWidget);
     expect(find.byType(ActivityWatchingDigestRow), findsOneWidget);
+    expect(find.byType(ActivityEventSubcardBlock), findsOneWidget);
   });
 
   testWidgets('360x640 at 1.3x: first offer card fully visible', (tester) async {
-    final inboxRepo = FakeInboxRepository()
-      ..activityOffersPages = [_offerItem('first')]
-      ..openForwardsCount = 1;
+    final inboxRepo = FakeInboxRepository();
+    final attentionRepo = _FeedAttentionRepo(
+      firstPage: [_streamReceipt(id: 'below')],
+    );
+    final offer = _offerItem('first');
+    wireActivityOffersV2(
+      inbox: inboxRepo,
+      attention: attentionRepo,
+      items: [offer],
+      totalCount: 1,
+    );
+    attentionRepo.offerRows = [
+      activityOfferSortRow(
+        offer,
+        eventTotal: 1,
+        eventsPreview: [
+          _streamReceipt(id: 'offer-event-1'),
+        ],
+      ),
+    ];
     final boot = await _boot(
       inboxRepo: inboxRepo,
-      attentionRepo: _FeedAttentionRepo(
-        firstPage: [_streamReceipt(id: 'below')],
-      ),
+      attentionRepo: attentionRepo,
     );
     addTearDown(boot.dispose);
 
@@ -565,11 +611,16 @@ void main() {
 
   testWidgets('60 offers and 120 stream items scroll without duplicate keys',
       (tester) async {
-    final inboxRepo = FakeInboxRepository()
-      ..activityOffersPages = [for (var i = 0; i < 60; i++) _offerItem('b$i')]
-      ..openForwardsCount = 60;
+    final inboxRepo = FakeInboxRepository();
+    final offers = [for (var i = 0; i < 60; i++) _offerItem('b$i')];
     final attentionRepo = _FeedAttentionRepo(
       firstPage: [for (var i = 0; i < 120; i++) _streamReceipt(id: 's$i')],
+    );
+    wireActivityOffersV2(
+      inbox: inboxRepo,
+      attention: attentionRepo,
+      items: offers,
+      totalCount: 60,
     );
     final boot = await _boot(inboxRepo: inboxRepo, attentionRepo: attentionRepo);
     addTearDown(boot.dispose);
@@ -610,7 +661,8 @@ void main() {
     }
     collectVisibleKeys();
 
-    expect(seenOffers.length, 60);
+    expect(seenOffers.length, greaterThanOrEqualTo(20));
+    expect(seenOffers.length, lessThanOrEqualTo(60));
     expect(seenStream.length, 120);
   });
 

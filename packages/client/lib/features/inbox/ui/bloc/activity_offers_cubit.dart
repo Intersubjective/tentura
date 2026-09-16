@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:get_it/get_it.dart';
 
 import 'package:tentura/domain/attention/attention_case.dart';
+import 'package:tentura/domain/attention/entity/activity_offer_sort_row.dart';
 import 'package:tentura/features/forward/domain/entity/help_offer_event.dart';
 
 import '../../domain/entity/inbox_item.dart';
@@ -37,7 +38,6 @@ final class ActivityOffersCubit extends Cubit<ActivityOffersState> {
 
   static const _deskRelevantDebounce = Duration(milliseconds: 50);
   static const _maxIdsPerRequest = 500;
-  static final _firstPageCursorAt = DateTime.utc(9999, 12, 31);
 
   final int _pageSize;
 
@@ -73,42 +73,35 @@ final class ActivityOffersCubit extends Cubit<ActivityOffersState> {
       ),
     );
 
-    List<InboxItem> page = const [];
+    ActivityOfferPage? offerPage;
     var pageFailed = false;
-    int? totalCount;
-    var countFailed = false;
+    List<InboxItem> page = const [];
 
-    await Future.wait<void>([
-      () async {
-        try {
-          page = await _inboxCase.fetchActivityOffersPage(
-            userId: _userId,
-            cursorAt: _firstPageCursorAt,
-            cursorBeaconId: '',
-            limit: _pageSize,
-          );
-        } catch (_) {
-          pageFailed = true;
-        }
-      }(),
-      () async {
-        try {
-          totalCount = await _inboxCase.fetchOpenForwardsCount();
-        } catch (_) {
-          countFailed = true;
-        }
-      }(),
-    ]);
+    try {
+      offerPage = await _attention.activityOffers(limit: _pageSize);
+      page = await _hydrateInboxItems(offerPage.items);
+    } catch (_) {
+      pageFailed = true;
+    }
 
     if (generation != _loadGeneration || isClosed) return;
 
+    final resolvedPage = offerPage;
+    final nextCursor = resolvedPage?.nextCursor;
+    final hasMore = !pageFailed &&
+        nextCursor != null &&
+        nextCursor.isNotEmpty;
     emit(
       state.copyWith(
         items: pageFailed ? state.items : page,
-        totalCount: countFailed ? null : totalCount,
-        countLoadFailed: countFailed,
+        totalCount: pageFailed ? state.totalCount : resolvedPage?.totalCount,
+        countLoadFailed: false,
         pageLoadFailed: pageFailed,
-        hasMore: !pageFailed && page.length >= _pageSize,
+        hasMore: hasMore,
+        offersNextCursor: pageFailed ? state.offersNextCursor : nextCursor,
+        eventsByBeacon: pageFailed
+            ? state.eventsByBeacon
+            : _metaFromSortRows(resolvedPage?.items ?? const []),
         loadingMore: false,
         status: const StateIsSuccess(),
       ),
@@ -119,16 +112,20 @@ final class ActivityOffersCubit extends Cubit<ActivityOffersState> {
   }
 
   Future<void> loadMore() async {
-    if (state.loadingMore || !state.hasMore || state.items.isEmpty) return;
-    final last = state.items.last;
+    final cursor = state.offersNextCursor;
+    if (state.loadingMore ||
+        !state.hasMore ||
+        cursor == null ||
+        cursor.isEmpty) {
+      return;
+    }
     emit(state.copyWith(loadingMore: true));
     try {
-      final page = await _inboxCase.fetchActivityOffersPage(
-        userId: _userId,
-        cursorAt: last.latestForwardAt,
-        cursorBeaconId: last.beaconId,
+      final offerPage = await _attention.activityOffers(
+        cursor: cursor,
         limit: _pageSize,
       );
+      final page = await _hydrateInboxItems(offerPage.items);
       if (isClosed) return;
       final existingIds = state.items.map((e) => e.beaconId).toSet();
       final merged = [
@@ -136,10 +133,16 @@ final class ActivityOffersCubit extends Cubit<ActivityOffersState> {
         for (final item in page)
           if (!existingIds.contains(item.beaconId)) item,
       ];
+      final nextCursor = offerPage.nextCursor;
       emit(
         state.copyWith(
           items: merged,
-          hasMore: page.isNotEmpty && page.length >= _pageSize,
+          eventsByBeacon: {
+            ...state.eventsByBeacon,
+            ..._metaFromSortRows(offerPage.items),
+          },
+          offersNextCursor: nextCursor,
+          hasMore: nextCursor != null && nextCursor.isNotEmpty,
           loadingMore: false,
         ),
       );
@@ -186,11 +189,11 @@ final class ActivityOffersCubit extends Cubit<ActivityOffersState> {
 
   Future<void> _refreshOpenForwardsCount() async {
     try {
-      final count = await _inboxCase.fetchOpenForwardsCount();
+      final page = await _attention.activityOffers(limit: 1);
       if (isClosed) return;
       emit(
         state.copyWith(
-          totalCount: count,
+          totalCount: page.totalCount,
           countLoadFailed: false,
         ),
       );
@@ -268,6 +271,9 @@ final class ActivityOffersCubit extends Cubit<ActivityOffersState> {
         state.heldBackIds.contains(beaconId);
     _heldBackItems.remove(beaconId);
     _heldBackOrder.remove(beaconId);
+    final eventsByBeacon = Map<String, ActivityOfferBeaconMeta>.from(
+      state.eventsByBeacon,
+    )..remove(beaconId);
     emit(
       state.copyWith(
         items: [
@@ -275,6 +281,7 @@ final class ActivityOffersCubit extends Cubit<ActivityOffersState> {
             if (item.beaconId != beaconId) item,
         ],
         heldBackIds: {...state.heldBackIds}..remove(beaconId),
+        eventsByBeacon: eventsByBeacon,
       ),
     );
     if (hadItem && !_demotedController.isClosed) {
@@ -294,8 +301,21 @@ final class ActivityOffersCubit extends Cubit<ActivityOffersState> {
       );
       return;
     }
+    final fromMeta = {
+      for (final id in beaconIds)
+        if (state.eventsByBeacon[id]?.unseen == true) id,
+    };
+    if (fromMeta.length == beaconIds.length) {
+      emit(
+        state.copyWith(
+          unseenBeaconIds: fromMeta,
+          unseenQueryComplete: true,
+        ),
+      );
+      return;
+    }
     try {
-      final unread = <String>{};
+      final unread = <String>{...fromMeta};
       for (var offset = 0; offset < beaconIds.length; offset += _maxIdsPerRequest) {
         final nextOffset = offset + _maxIdsPerRequest;
         final end = nextOffset < beaconIds.length ? nextOffset : beaconIds.length;
@@ -317,6 +337,34 @@ final class ActivityOffersCubit extends Cubit<ActivityOffersState> {
       emit(state.copyWith(unseenQueryComplete: false));
     }
   }
+
+  Future<List<InboxItem>> _hydrateInboxItems(
+    List<ActivityOfferSortRow> rows,
+  ) async {
+    if (rows.isEmpty) return const [];
+    final ids = rows.map((e) => e.beaconId).toList(growable: false);
+    final hydrated = await _inboxCase.fetchInboxItemsForBeacons(
+      userId: _userId,
+      beaconIds: ids,
+    );
+    final byId = {for (final item in hydrated) item.beaconId: item};
+    return [
+      for (final id in ids)
+        if (byId.containsKey(id)) byId[id]!,
+    ];
+  }
+
+  Map<String, ActivityOfferBeaconMeta> _metaFromSortRows(
+    List<ActivityOfferSortRow> rows,
+  ) => {
+    for (final row in rows)
+      row.beaconId: ActivityOfferBeaconMeta(
+        eventTotal: row.eventTotal,
+        eventUnseenCount: row.eventUnseenCount,
+        eventsPreview: row.eventsPreview,
+        unseen: row.unseen,
+      ),
+  };
 
   @override
   Future<void> close() async {

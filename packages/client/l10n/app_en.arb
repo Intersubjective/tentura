@@ -3518,6 +3518,14 @@
     "context": "UpdatesScreen"
   },
   "activityWatchingDigest": "{count, plural, one{{count} request you watch was updated} other{{count} requests you watch were updated}}",
+  "activityEventMore": "{count, plural, one{1 more update} other{{count} more updates}}",
+  "@activityEventMore": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "@activityWatchingDigest": {
     "context": "InboxScreen",
     "placeholders": {

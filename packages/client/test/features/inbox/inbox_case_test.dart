@@ -683,6 +683,22 @@ class FakeInboxRepository implements InboxRepository {
     return openForwardsCount;
   }
 
+  Map<String, InboxItem> inboxItemsByBeacon = {};
+
+  @override
+  Future<List<InboxItem>> fetchInboxItemsForBeacons({
+    required String userId,
+    required List<String> beaconIds,
+  }) async {
+    return [
+      for (final id in beaconIds)
+        if (inboxItemsByBeacon.containsKey(id))
+          inboxItemsByBeacon[id]!
+        else
+          ...activityOffersPages.where((e) => e.beaconId == id),
+    ];
+  }
+
   @override
   Future<InboxItem?> fetchOpenForwardForBeacon({
     required String userId,

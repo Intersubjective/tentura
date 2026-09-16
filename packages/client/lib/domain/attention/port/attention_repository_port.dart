@@ -1,3 +1,5 @@
+import '../entity/activity_beacon_attention.dart';
+import '../entity/activity_offer_sort_row.dart';
 import '../entity/attention_feed.dart';
 import '../entity/attention_summary.dart';
 import '../entity/my_work_beacon_attention.dart';
@@ -28,6 +30,17 @@ abstract interface class AttentionRepositoryPort {
   Future<int> markSeenForBeacon(String beaconId);
 
   Future<List<MyWorkBeaconAttention>> myWorkAttention(Set<String> beaconIds);
+
+  Future<ActivityOfferPage> activityOffers({
+    String? cursor,
+    int limit = 20,
+  });
+
+  Future<ActivityBeaconAttention> activityAttention({
+    required String beaconId,
+    String? cursor,
+    int limit = 20,
+  });
 
   Future<int> settle({required String receiptId, required String kind});
 }

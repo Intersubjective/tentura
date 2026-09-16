@@ -1,0 +1,9 @@
+fragment AttentionReceiptFields on v2_AttentionReceipt {
+  id category kind priority title body actionUrl createdAt seenAt
+  collapsedCount beaconId coordinationItemId actorUserId sourceEventKey
+  destinationKind targetEntityId presentationKey presentationPayloadJson
+  inAppPreferenceClass
+  requiresAction attentionThreadKey settlementKind settledAt
+  surface itemKind forwardOutcome forwardCount digestCount
+  eventTotal eventUnseenCount
+}

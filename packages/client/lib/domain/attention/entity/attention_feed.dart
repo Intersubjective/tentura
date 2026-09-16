@@ -34,16 +34,19 @@ enum AttentionSurface {
 enum AttentionItemKind {
   receipt,
   forward,
-  watchingDigest;
+  watchingDigest,
+  requestActivity;
 
   static const receiptWire = 'receipt';
   static const forwardWire = 'forward';
   static const watchingDigestWire = 'watchingDigest';
+  static const requestActivityWire = 'requestActivity';
 
   String get wireName => switch (this) {
     AttentionItemKind.receipt => receiptWire,
     AttentionItemKind.forward => forwardWire,
     AttentionItemKind.watchingDigest => watchingDigestWire,
+    AttentionItemKind.requestActivity => requestActivityWire,
   };
 
   static AttentionItemKind fromWire(String wire) {
@@ -54,6 +57,8 @@ enum AttentionItemKind {
         return AttentionItemKind.forward;
       case watchingDigestWire:
         return AttentionItemKind.watchingDigest;
+      case requestActivityWire:
+        return AttentionItemKind.requestActivity;
       default:
         return AttentionItemKind.receipt;
     }

@@ -4490,6 +4490,8 @@ type query_root {
   BeaconRoomStateGet(beaconId: String!): v2_BeaconRoomStateRow!
   InboxRoomContextBatch(beaconIds: [String!]): [v2_InboxRoomContextRow!]
   RoomMessageList(beaconId: String!, beforeIso: String, threadItemId: String): [v2_RoomMessageRow!]
+  activityAttention(beaconId: String!, cursor: String, limit: Int): v2_ActivityBeaconAttention!
+  activityOffers(cursor: String, limit: Int): v2_ActivityOfferPage!
   attentionFeed(cursor: String, limit: Int, search: String, surface: String, view: String!): v2_AttentionFeed!
   attentionMarkers(beaconIds: [String!]): v2_AttentionMarkers!
   attentionSurfaceSummary: v2_AttentionSurfaceSummary!
@@ -7133,6 +7135,9 @@ type v2_AttentionReceipt {
   createdAt: String!
   destinationKind: String
   digestCount: Int
+  eventTotal: Int
+  eventUnseenCount: Int
+  eventsPreview: [v2_AttentionReceipt!]!
   forwardCount: Int
   forwardOutcome: String
   id: String!
@@ -7150,6 +7155,31 @@ type v2_AttentionReceipt {
   surface: String!
   targetEntityId: String
   title: String!
+}
+
+type v2_ActivityBeaconAttention {
+  beaconId: String!
+  eventTotal: Int!
+  events: [v2_AttentionReceipt!]!
+  latestAt: String!
+  nextCursor: String
+  unseenCount: Int!
+}
+
+type v2_ActivityOfferPage {
+  items: [v2_ActivityOfferSortRow!]!
+  nextCursor: String
+  totalCount: Int!
+}
+
+type v2_ActivityOfferSortRow {
+  beaconId: String!
+  effectiveActivityAt: String!
+  eventTotal: Int!
+  eventUnseenCount: Int!
+  eventsPreview: [v2_AttentionReceipt!]!
+  latestForwardAt: String!
+  unseen: Boolean!
 }
 
 type v2_AttentionSummary {

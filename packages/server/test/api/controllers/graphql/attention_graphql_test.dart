@@ -106,6 +106,35 @@ class _FakeQuery implements AttentionQueryPort {
     this.beaconIds = beaconIds;
     return const [];
   }
+
+  @override
+  Future<ActivityOfferPage> activityOffers({
+    required String accountId,
+    AttentionCursor? cursor,
+    int limit = 20,
+  }) async {
+    this.accountId = accountId;
+    this.cursor = cursor;
+    return const ActivityOfferPage(items: [], totalCount: 0);
+  }
+
+  @override
+  Future<ActivityBeaconAttention> activityAttention({
+    required String accountId,
+    required String beaconId,
+    AttentionCursor? cursor,
+    int limit = 20,
+  }) async {
+    this.accountId = accountId;
+    this.cursor = cursor;
+    return ActivityBeaconAttention(
+      beaconId: beaconId,
+      eventTotal: 0,
+      unseenCount: 0,
+      latestAt: DateTime.utc(2026),
+      events: const [],
+    );
+  }
 }
 
 class _FakeAck implements AttentionAckPort {

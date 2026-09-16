@@ -1,0 +1,14 @@
+#import 'attention_receipt_fields.graphql'
+
+query ActivityAttention($beaconId: String!, $cursor: String, $limit: Int) {
+  activityAttention(beaconId: $beaconId, cursor: $cursor, limit: $limit) {
+    beaconId
+    eventTotal
+    unseenCount
+    latestAt
+    nextCursor
+    events {
+      ...AttentionReceiptFields
+    }
+  }
+}

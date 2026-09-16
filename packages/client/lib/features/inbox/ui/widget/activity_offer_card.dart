@@ -22,7 +22,9 @@ import 'package:tentura/ui/test_ids.dart';
 
 import '../../domain/entity/inbox_item.dart';
 import '../../domain/entity/inbox_provenance.dart';
+import '../bloc/activity_offers_state.dart';
 import '../bloc/inbox_cubit.dart';
+import 'activity_event_subcard_block.dart';
 import 'activity_offer_bounded_shell.dart';
 import 'inbox_card_actions.dart';
 import 'inbox_forward_attribution_copy.dart';
@@ -34,6 +36,7 @@ class ActivityOfferCard extends StatelessWidget {
     required this.item,
     required this.inboxCubit,
     required this.showUnseenDot,
+    this.eventsMeta,
     super.key,
   })  : _variant = _Variant.forward,
         receipt = null,
@@ -58,12 +61,14 @@ class ActivityOfferCard extends StatelessWidget {
   })  : _variant = _Variant.prompt,
         item = null,
         inboxCubit = null,
-        showUnseenDot = false;
+        showUnseenDot = false,
+        eventsMeta = null;
 
   final _Variant _variant;
   final InboxItem? item;
   final InboxCubit? inboxCubit;
   final bool showUnseenDot;
+  final ActivityOfferBeaconMeta? eventsMeta;
   final AttentionReceipt? receipt;
   final VoidCallback? onTap;
   final Future<void> Function() onMarkSeen;
@@ -82,6 +87,7 @@ class ActivityOfferCard extends StatelessWidget {
         item: item!,
         inboxCubit: inboxCubit!,
         showUnseenDot: showUnseenDot,
+        eventsMeta: eventsMeta,
       ),
       _Variant.prompt => KeyedSubtree(
         key: TestIds.key(TestIds.activityPromptPin(receipt!.id)),
@@ -112,12 +118,14 @@ class _ForwardOfferCard extends StatelessWidget {
     required this.item,
     required this.inboxCubit,
     required this.showUnseenDot,
+    this.eventsMeta,
     super.key,
   });
 
   final InboxItem item;
   final InboxCubit inboxCubit;
   final bool showUnseenDot;
+  final ActivityOfferBeaconMeta? eventsMeta;
 
   Future<void> _openBeacon(BuildContext context) async {
     final beaconId = item.beaconId;
@@ -162,7 +170,18 @@ class _ForwardOfferCard extends StatelessWidget {
     final showOfferHelp = inboxCardAllowsOfferHelp(item);
     final allowsForward = beacon.allowsForward;
 
-    final footer = Padding(
+    final attention = GetIt.I<AttentionCase>();
+    final eventsBlock = eventsMeta == null ||
+            eventsMeta!.eventsPreview.isEmpty
+        ? null
+        : ActivityEventSubcardBlock(
+            eventTotal: eventsMeta!.eventTotal,
+            eventsPreview: eventsMeta!.eventsPreview,
+            beaconId: item.beaconId,
+            onMarkSeen: (id) => unawaited(attention.markSeen([id])),
+          );
+
+    final actions = Padding(
       padding: EdgeInsets.only(left: tt.tightGap),
       child: Wrap(
         spacing: tt.rowGap,
@@ -195,6 +214,15 @@ class _ForwardOfferCard extends StatelessWidget {
           ),
         ],
       ),
+    );
+
+    final footer = Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        if (eventsBlock != null) eventsBlock,
+        actions,
+      ],
     );
 
     return Semantics(

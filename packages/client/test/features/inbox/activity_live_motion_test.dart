@@ -36,6 +36,7 @@ import '../../support/attention_repository_fake_base.dart';
 import '../../support/test_realtime_sync.dart';
 import '../block/support/controllable_block_case.dart';
 import '../updates/support/noop_invite_setup_port.dart';
+import 'activity_offers_test_support.dart';
 import 'inbox_case_test.dart'
     show FakeInboxRepository, buildTestBeaconThreadsCase, buildTestInboxCase;
 
@@ -81,7 +82,7 @@ final class _ControllableForwardRepo implements ForwardRepository {
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
 }
 
-class _MotionFeedRepo extends AttentionRepositoryFake {
+class _MotionFeedRepo extends ConfigurableActivityOffersAttentionRepo {
   _MotionFeedRepo({this.streamHead = const []});
 
   List<AttentionReceipt> streamHead;
@@ -378,10 +379,13 @@ void main() {
     tester,
   ) async {
     final forwardRepo = _ControllableForwardRepo();
-    final inboxRepo = FakeInboxRepository()
-      ..activityOffersPages = [_offerItem('B1')]
-      ..openForwardsCount = 1;
+    final inboxRepo = FakeInboxRepository();
     final feedRepo = _MotionFeedRepo();
+    wireActivityOffersV2(
+      inbox: inboxRepo,
+      attention: feedRepo,
+      items: [_offerItem('B1')],
+    );
     final boot = await _boot(
       inboxRepo: inboxRepo,
       feedRepo: feedRepo,
@@ -407,14 +411,19 @@ void main() {
     tester,
   ) async {
     final forwardRepo = _ControllableForwardRepo();
-    final inboxRepo = FakeInboxRepository()
-      ..activityOffersPages = [
-        _offerItem('B1'),
-        for (var i = 0; i < 25; i++) _offerItem('fill-$i'),
-      ]
-      ..openForwardsCount = 26;
+    final inboxRepo = FakeInboxRepository();
+    final fillOffers = [
+      _offerItem('B1'),
+      for (var i = 0; i < 25; i++) _offerItem('fill-$i'),
+    ];
     final feedRepo = _MotionFeedRepo(
       streamHead: [for (var i = 0; i < 30; i++) _streamReceipt('s$i')],
+    );
+    wireActivityOffersV2(
+      inbox: inboxRepo,
+      attention: feedRepo,
+      items: fillOffers,
+      totalCount: 26,
     );
     final boot = await _boot(
       inboxRepo: inboxRepo,
@@ -462,10 +471,13 @@ void main() {
     const beaconId = 'B-watch';
     final forwardRepo = _ControllableForwardRepo();
     final inboxRepo = FakeInboxRepository()
-      ..activityOffersPages = [_offerItem(beaconId)]
-      ..openForwardsCount = 1
       ..openForwardByBeacon[beaconId] = _offerItem(beaconId);
     final feedRepo = _MotionFeedRepo();
+    wireActivityOffersV2(
+      inbox: inboxRepo,
+      attention: feedRepo,
+      items: [_offerItem(beaconId)],
+    );
     final boot = await _boot(
       inboxRepo: inboxRepo,
       feedRepo: feedRepo,
@@ -506,10 +518,13 @@ void main() {
     const beaconId = 'B-fast';
     final forwardRepo = _ControllableForwardRepo();
     final inboxRepo = FakeInboxRepository()
-      ..activityOffersPages = [_offerItem(beaconId)]
-      ..openForwardsCount = 1
       ..openForwardByBeacon[beaconId] = _offerItem(beaconId);
     final feedRepo = _MotionFeedRepo();
+    wireActivityOffersV2(
+      inbox: inboxRepo,
+      attention: feedRepo,
+      items: [_offerItem(beaconId)],
+    );
     final boot = await _boot(
       inboxRepo: inboxRepo,
       feedRepo: feedRepo,
@@ -544,14 +559,19 @@ void main() {
     const beaconId = 'B-far';
     final forwardRepo = _ControllableForwardRepo();
     final inboxRepo = FakeInboxRepository()
-      ..activityOffersPages = [
-        _offerItem(beaconId),
-        for (var i = 0; i < 30; i++) _offerItem('pad-$i'),
-      ]
-      ..openForwardsCount = 31
       ..openForwardByBeacon[beaconId] = _offerItem(beaconId);
+    final padOffers = [
+      _offerItem(beaconId),
+      for (var i = 0; i < 30; i++) _offerItem('pad-$i'),
+    ];
     final feedRepo = _MotionFeedRepo(
       streamHead: [for (var i = 0; i < 40; i++) _streamReceipt('far-$i')],
+    );
+    wireActivityOffersV2(
+      inbox: inboxRepo,
+      attention: feedRepo,
+      items: padOffers,
+      totalCount: 31,
     );
     final boot = await _boot(
       inboxRepo: inboxRepo,

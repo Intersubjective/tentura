@@ -39,4 +39,23 @@ abstract interface class AttentionQueryPort {
     required String accountId,
     required Set<String> beaconIds,
   });
+
+  /// Pinned «For you» offers ordered by [effectiveActivityAt] desc.
+  ///
+  /// Cursor is `(effectiveActivityAt, beaconId)` and is independent of any
+  /// client-side display reordering.
+  Future<ActivityOfferPage> activityOffers({
+    required String accountId,
+    AttentionCursor? cursor,
+    int limit = 20,
+  });
+
+  /// Older Activity child events for one beacon (expand-more after the
+  /// page-embedded preview). Cursor is `(createdAt, id)` on child receipts.
+  Future<ActivityBeaconAttention> activityAttention({
+    required String accountId,
+    required String beaconId,
+    AttentionCursor? cursor,
+    int limit = 20,
+  });
 }
