@@ -22,7 +22,7 @@ void main() {
     tester,
   ) async {
     await launchApp(app.main);
-    await tester.pumpAndSettle();
+    await pumpSettleBounded(tester);
 
     final fixture = await bootstrapFixture(
       runId: uniqueRunId('offer-admit'),

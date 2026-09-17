@@ -184,6 +184,53 @@ WHERE id = @childId
       expect(jsonEncode(payload), isNot(contains('Updated secret title')));
     });
 
+    test('published child description change notifies parent and child',
+        () async {
+      await seedTree();
+      notifications.clear();
+      await writer.execute(
+        Sql.named(r'''
+UPDATE public.beacon
+SET description = 'Updated secret description'
+WHERE id = @childId
+'''),
+        parameters: {'childId': BeaconHierarchyTopology.beaconB},
+      );
+      final parentChanges = await waitForKind(
+        'beacon_hierarchy',
+        aggregateId: BeaconHierarchyTopology.beaconA,
+      );
+      final childChanges = await waitForKind(
+        'beacon_hierarchy',
+        aggregateId: BeaconHierarchyTopology.beaconB,
+      );
+      expect(parentChanges, isNotEmpty);
+      expect(childChanges, isNotEmpty);
+      expect(
+        jsonEncode([...parentChanges, ...childChanges]),
+        isNot(contains('Updated secret description')),
+      );
+    });
+
+    test('owner display name change notifies owned beacon hierarchy', () async {
+      await seedTree();
+      notifications.clear();
+      await writer.execute(
+        Sql.named(r'''
+UPDATE public."user"
+SET display_name = 'Alice Renamed'
+WHERE id = @userId
+'''),
+        parameters: {'userId': BeaconHierarchyTopology.aliceId},
+      );
+      final changes = await waitForKind(
+        'beacon_hierarchy',
+        aggregateId: BeaconHierarchyTopology.beaconA,
+      );
+      expect(changes, isNotEmpty);
+      expect(jsonEncode(changes), isNot(contains('Alice Renamed')));
+    });
+
     test('participant revocation includes revoked account for cache eviction',
         () async {
       await seedTree();

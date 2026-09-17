@@ -40,7 +40,7 @@ void main() {
     tester,
   ) async {
     await launchApp(app.main);
-    await tester.pumpAndSettle();
+    await pumpSettleBounded(tester);
 
     final fixture = await bootstrapFixture(runId: uniqueRunId('beacon-cover'));
     final title = uniqueRequestTitle('IT cover');
@@ -61,7 +61,7 @@ void main() {
       title: title,
       description: 'Integration test cover request for $title',
     );
-    await tester.pumpAndSettle();
+    await pumpSettleBounded(tester);
 
     // Two capabilities: canonical order makes `transport` the primary and
     // `tools` the alternative the author can switch to.

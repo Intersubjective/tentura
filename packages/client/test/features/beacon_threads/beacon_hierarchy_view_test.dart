@@ -215,6 +215,7 @@ void main() {
         home: Scaffold(
           body: BeaconChildRequestCard(
             summary: _summary(id: 'gone', tombstone: true),
+            currentUserId: 'viewer',
           ),
         ),
       ),

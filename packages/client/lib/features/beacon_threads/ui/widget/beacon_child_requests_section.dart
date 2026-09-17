@@ -121,14 +121,19 @@ class BeaconChildRequestsSection extends StatelessWidget {
               title: l10n.beaconChildRequestsActiveTitle,
               group: BeaconHierarchyChildGroup.active,
               slice: hierarchyState.active,
+              currentUserId: beaconState.myProfile.id,
             ),
             _ChildGroupSection(
               key: TestIds.key(TestIds.childRequestsFinished),
               title: l10n.beaconChildRequestsFinishedTitle,
               group: BeaconHierarchyChildGroup.finished,
               slice: hierarchyState.finished,
+              currentUserId: beaconState.myProfile.id,
             ),
-            _DeletedChildGroupSection(slice: hierarchyState.deleted),
+            _DeletedChildGroupSection(
+              slice: hierarchyState.deleted,
+              currentUserId: beaconState.myProfile.id,
+            ),
           ],
         );
       },
@@ -141,12 +146,14 @@ class _ChildGroupSection extends StatelessWidget {
     required this.title,
     required this.group,
     required this.slice,
+    required this.currentUserId,
     super.key,
   });
 
   final String title;
   final BeaconHierarchyChildGroup group;
   final BeaconHierarchyGroupSlice slice;
+  final String currentUserId;
 
   @override
   Widget build(BuildContext context) {
@@ -182,6 +189,7 @@ class _ChildGroupSection extends StatelessWidget {
               child: BeaconChildRequestCard(
                 key: TestIds.key(TestIds.childRequestCard(summary.beaconId)),
                 summary: summary,
+                currentUserId: currentUserId,
               ),
             ),
           if (slice.error != null)
@@ -218,9 +226,13 @@ class _ChildGroupSection extends StatelessWidget {
 }
 
 class _DeletedChildGroupSection extends StatelessWidget {
-  const _DeletedChildGroupSection({required this.slice});
+  const _DeletedChildGroupSection({
+    required this.slice,
+    required this.currentUserId,
+  });
 
   final BeaconHierarchyGroupSlice slice;
+  final String currentUserId;
 
   @override
   Widget build(BuildContext context) {
@@ -254,6 +266,7 @@ class _DeletedChildGroupSection extends StatelessWidget {
                     TestIds.childRequestCard(summary.beaconId),
                   ),
                   summary: summary,
+                  currentUserId: currentUserId,
                 ),
               ),
             if (slice.error != null)

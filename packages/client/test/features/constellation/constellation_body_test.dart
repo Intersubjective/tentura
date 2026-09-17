@@ -13,7 +13,9 @@ import 'package:tentura/features/constellation/ui/widget/constellation_body.dart
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:tentura/features/graph/ui/bloc/graph_person_context_cubit.dart';
 import 'package:tentura/features/graph/ui/widget/graph_node_widget.dart';
+import 'package:tentura/consts.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
+import 'package:tentura/ui/effect/ui_effect.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/test_ids.dart';
 
@@ -99,13 +101,15 @@ Future<ConstellationCubit> _loadCubit(ConstellationField field) async {
   return cubit;
 }
 
-Future<void> _pumpBody(
+Future<FakeUiEffectPort> _pumpBody(
   WidgetTester tester,
   ConstellationCubit cubit, {
   Size size = const Size(1200, 900),
+  FakeUiEffectPort? effects,
 }) async {
   await tester.binding.setSurfaceSize(size);
   addTearDown(() => tester.binding.setSurfaceSize(null));
+  final fx = effects ?? FakeUiEffectPort();
   await tester.pumpWidget(
     MaterialApp(
       locale: const Locale('en'),
@@ -122,7 +126,7 @@ Future<void> _pumpBody(
                 create: (_) => _StubContextCubit(),
               ),
               BlocProvider<ScreenCubit>(
-                create: (_) => ScreenCubit(FakeUiEffectPort()),
+                create: (_) => ScreenCubit(fx),
               ),
             ],
             child: ConstellationBody(
@@ -136,6 +140,7 @@ Future<void> _pumpBody(
   );
   await tester.pump();
   await tester.pump(const Duration(milliseconds: 400));
+  return fx;
 }
 
 Finder _requestNodeFinder() => find.byKey(TestIds.key(TestIds.graphNode('req-a')));
@@ -463,6 +468,51 @@ void main() {
         );
         expect(panelRect.height, lessThanOrEqualTo(667 * 0.42 + 1));
         expect(tester.takeException(), isNull);
+      },
+    );
+
+    testWidgets(
+      'tapping Profile on the person panel emits profile navigation',
+      (tester) async {
+        final cubit = await _loadCubit(
+          ConstellationField(
+            loadedAt: DateTime.utc(2026, 9, 9),
+            context: '',
+            peers: [const ConstellationPerson(id: 'a', displayName: 'Ann')],
+            edges: [
+              const ConstellationTrustEdgeEntity(src: 'ego', dst: 'a', tier: 1),
+            ],
+            requests: [
+              const ConstellationRequest(
+                id: 'req-a',
+                authorId: 'a',
+                title: 'Need tools',
+                status: 0,
+              ),
+            ],
+          ),
+        );
+
+        final effects = await _pumpBody(
+          tester,
+          cubit,
+          size: const Size(1200, 900),
+        );
+
+        await tester.tap(_personNodeFinder('a'));
+        await tester.pump();
+
+        final profileButton = find.byKey(
+          TestIds.key(TestIds.graphPersonContextViewProfile),
+        );
+        expect(profileButton, findsOneWidget);
+        await tester.tap(profileButton);
+        await tester.pump();
+
+        expect(
+          effects.emitted.whereType<NavigatePush>().map((e) => e.path).toList(),
+          ['$kPathProfileView/a'],
+        );
       },
     );
   });

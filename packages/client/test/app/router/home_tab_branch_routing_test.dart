@@ -72,6 +72,7 @@ void main() {
   late PageInfo inboxPage;
   late PageInfo updatesPage;
   late PageInfo friendsPage;
+  late PageInfo constellationPage;
   late PageInfo mePage;
   late PageInfo profilePage;
   late PageInfo beaconViewPage;
@@ -89,6 +90,7 @@ void main() {
     inboxPage = InboxRoute.page;
     updatesPage = UpdatesRoute.page;
     friendsPage = FriendsRoute.page;
+    constellationPage = ConstellationRoute.page;
     mePage = ProfileRoute.page;
     profilePage = ProfileViewRoute.page;
     beaconViewPage = BeaconViewRoute.page;
@@ -108,6 +110,10 @@ void main() {
     InboxRoute.page = _labelPage(InboxRoute.name, 'inbox-root');
     UpdatesRoute.page = _labelPage(UpdatesRoute.name, 'updates-root');
     FriendsRoute.page = _labelPage(FriendsRoute.name, 'network-root');
+    ConstellationRoute.page = _labelPage(
+      ConstellationRoute.name,
+      'constellation-root',
+    );
     ProfileRoute.page = _labelPage(ProfileRoute.name, 'me-root');
     ProfileViewRoute.page = PageInfo(
       ProfileViewRoute.name,
@@ -161,6 +167,7 @@ void main() {
     InboxRoute.page = inboxPage;
     UpdatesRoute.page = updatesPage;
     FriendsRoute.page = friendsPage;
+    ConstellationRoute.page = constellationPage;
     ProfileRoute.page = mePage;
     ProfileViewRoute.page = profilePage;
     BeaconViewRoute.page = beaconViewPage;
@@ -217,6 +224,31 @@ void main() {
       expect(_countRoutePages(router.routes, name), 1, reason: name);
     }
   });
+
+  testWidgets(
+    'pushPath profile from constellation tab opens root ProfileView',
+    (tester) async {
+      await pumpRouter(tester, initialPath: kPathConstellation);
+      expect(find.text('constellation-root'), findsOneWidget);
+
+      final failures = <Object>[];
+      unawaited(
+        router.pushPath(
+          '$kPathProfileView/U2',
+          includePrefixMatches: true,
+          onFailure: failures.add,
+        ),
+      );
+      await tester.pumpAndSettle();
+
+      expect(failures, isEmpty, reason: '$failures');
+      expect(find.text('profile:U2'), findsOneWidget);
+      expect(router.stackData.map((data) => data.name), [
+        HomeRoute.name,
+        ProfileViewRoute.name,
+      ]);
+    },
+  );
 
   testWidgets('warm Home to root detail preserves active tab after Back', (
     tester,

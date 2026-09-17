@@ -32,6 +32,18 @@ import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/test_ids.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 
+/// True when [message] is a `childCreated` notice whose promotion source is
+/// already in [loadedMessageIds] — the source bubble owns the preview card.
+bool isRedundantChildCreatedNotice(
+  RoomMessage message,
+  Set<String> loadedMessageIds,
+) {
+  final payload = message.hierarchyPayload;
+  if (payload is! RoomMessageHierarchyChildCreated) return false;
+  final sourceMessageId = payload.sourceMessageId;
+  return sourceMessageId != null && loadedMessageIds.contains(sourceMessageId);
+}
+
 /// Shared chat surface: scroll + message list + composer. Cubit-agnostic;
 /// callers supply data and callbacks.
 class BasicChatBody extends StatefulWidget {
@@ -448,12 +460,47 @@ class BasicChatBodyState extends State<BasicChatBody> {
     // carries `sourceMessageId`. Derive the reverse mapping once per build
     // so each tile can find its own promoted-child footer target, if any.
     final promotedChildBySourceMessageId = <String, String>{};
+    final loadedMessageIds = <String>{};
     for (final m in messages) {
+      loadedMessageIds.add(m.id);
       final payload = m.hierarchyPayload;
       if (payload is RoomMessageHierarchyChildCreated) {
         final sourceMessageId = payload.sourceMessageId;
         if (sourceMessageId != null) {
           promotedChildBySourceMessageId[sourceMessageId] = payload.childBeaconId;
+        }
+      }
+    }
+
+    // When the promotion source is in this loaded page, the source bubble
+    // already carries the preview footer — hide the sibling notice card so
+    // we never show two full cards for one publication. Keep building the
+    // reverse map from the full list so pagination / source-missing stays
+    // correct when the notice is the only row present.
+    final visibleMessages = [
+      for (final m in messages)
+        if (!isRedundantChildCreatedNotice(m, loadedMessageIds)) m,
+    ];
+
+    // If the unread band targeted a skipped notice, attach it to the next
+    // visible row so we do not drop the band entirely.
+    var unreadBandMessageId = widget.firstUnreadMessageId;
+    if (unreadBandMessageId != null) {
+      final unreadIdx = messages.indexWhere((m) => m.id == unreadBandMessageId);
+      if (unreadIdx >= 0 &&
+          isRedundantChildCreatedNotice(
+            messages[unreadIdx],
+            loadedMessageIds,
+          )) {
+        unreadBandMessageId = null;
+        for (var j = unreadIdx + 1; j < messages.length; j++) {
+          if (!isRedundantChildCreatedNotice(
+            messages[j],
+            loadedMessageIds,
+          )) {
+            unreadBandMessageId = messages[j].id;
+            break;
+          }
         }
       }
     }
@@ -481,13 +528,14 @@ class BasicChatBodyState extends State<BasicChatBody> {
                         // poll) doesn't sit flush against the composer, which
                         // made its tap target compete with the text field.
                         padding: const EdgeInsets.only(bottom: kSpacingSmall),
-                        itemCount: messages.length,
+                        itemCount: visibleMessages.length,
                         itemBuilder: (context, i) {
-                          final m = messages[i];
-                          final prev = i == 0 ? null : messages[i - 1];
-                          final next = i + 1 >= messages.length
+                          final m = visibleMessages[i];
+                          final prev =
+                              i == 0 ? null : visibleMessages[i - 1];
+                          final next = i + 1 >= visibleMessages.length
                               ? null
-                              : messages[i + 1];
+                              : visibleMessages[i + 1];
                           final dateChanged =
                               prev == null ||
                               !roomMessageSameLocalDay(
@@ -495,11 +543,10 @@ class BasicChatBodyState extends State<BasicChatBody> {
                                 m.createdAt,
                               );
                           final unreads = widget.unreadCount;
-                          final unreadId = widget.firstUnreadMessageId;
                           final showUnreadBand =
                               unreads > 0 &&
-                              unreadId != null &&
-                              m.id == unreadId;
+                              unreadBandMessageId != null &&
+                              m.id == unreadBandMessageId;
 
                           final toggle = widget.onToggleReaction;
                           final vote = widget.onVotePoll;

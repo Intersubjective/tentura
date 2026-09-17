@@ -1,26 +1,32 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:get_it/get_it.dart';
 import 'package:mockito/mockito.dart';
+import 'package:tentura_root/domain/entity/beacon_hierarchy_owner_summary.dart';
+import 'package:tentura_root/domain/entity/beacon_hierarchy_summary.dart';
+import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/design_system/tentura_theme.dart';
-import 'package:tentura/domain/entity/beacon.dart';
-import 'package:tentura/domain/port/beacon_write_port.dart';
+import 'package:tentura/domain/entity/profile.dart';
+import 'package:tentura/domain/use_case/beacon_create_case.dart';
+import 'package:tentura/domain/use_case/beacon_hierarchy_case.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/beacon_child_promotion_footer.dart';
+import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
-class _FakeBeaconWritePort extends Mock implements BeaconWritePort {
-  Beacon? beaconToReturn;
-  Object? errorToThrow;
-  var fetchCallCount = 0;
+import '../../domain/use_case/fake_beacon_hierarchy_ports.dart';
+import '../../features/beacon_create/fake_beacon_ports.dart';
+
+class _MockProfileCubit extends Mock implements ProfileCubit {
+  @override
+  ProfileState get state => const ProfileState(
+    profile: Profile(id: 'viewer', displayName: 'Me'),
+  );
 
   @override
-  Future<Beacon> fetchBeaconById(String id) async {
-    fetchCallCount++;
-    if (errorToThrow != null) throw errorToThrow!;
-    return beaconToReturn!;
-  }
+  Stream<ProfileState> get stream => Stream<ProfileState>.value(state);
 }
 
 class _HarnessRouter extends Mock implements StackRouter {
@@ -38,16 +44,57 @@ class _HarnessRouter extends Mock implements StackRouter {
   }
 }
 
+BeaconHierarchySummary _summary({
+  required String id,
+  required String title,
+  bool tombstone = false,
+}) => BeaconHierarchySummary(
+  beaconId: id,
+  title: tombstone ? null : title,
+  owner: tombstone
+      ? null
+      : const BeaconHierarchyOwnerSummary(
+          id: 'author-1',
+          displayName: 'Alice',
+        ),
+  status: BeaconStatus.open,
+  publishedAt: DateTime.utc(2026, 1, 1),
+  isTombstone: tombstone,
+);
+
+({FakeBeaconHierarchyRepositoryPort port, BeaconHierarchyCase case_})
+_registerHierarchy({
+  Map<String, BeaconHierarchySummary?>? previews,
+  Object? error,
+}) {
+  final port = FakeBeaconHierarchyRepositoryPort()
+    ..childPreviewError = error;
+  if (previews != null) {
+    port.childPreviews.addAll(previews);
+  }
+  final case_ = buildBeaconHierarchyCaseForTest(
+    port,
+    createCase: BeaconCreateCase(FakeBeaconWritePort(), FakeBeaconImagePort()),
+    beacons: FakeBeaconWritePort(),
+    commandStore: InMemoryBeaconChildCommandStore(),
+  );
+  GetIt.I.registerSingleton<BeaconHierarchyCase>(case_);
+  return (port: port, case_: case_);
+}
+
 Widget _harness(Widget child, {required StackRouter router}) =>
     StackRouterScope(
       controller: router,
       stateHash: 0,
-      child: MaterialApp(
-        theme: TenturaTheme.light(),
-        localizationsDelegates: L10n.localizationsDelegates,
-        supportedLocales: L10n.supportedLocales,
-        locale: const Locale('en'),
-        home: Scaffold(body: child),
+      child: BlocProvider<ProfileCubit>.value(
+        value: _MockProfileCubit(),
+        child: MaterialApp(
+          theme: TenturaTheme.light(),
+          localizationsDelegates: L10n.localizationsDelegates,
+          supportedLocales: L10n.supportedLocales,
+          locale: const Locale('en'),
+          home: Scaffold(body: child),
+        ),
       ),
     );
 
@@ -63,12 +110,11 @@ void main() {
   testWidgets('accessible child shows title and navigates on tap', (
     tester,
   ) async {
-    final port = _FakeBeaconWritePort()
-      ..beaconToReturn = Beacon.empty.copyWith(
-        id: 'child-1',
-        title: 'Fix the fence',
-      );
-    GetIt.I.registerSingleton<BeaconWritePort>(port);
+    final registered = _registerHierarchy(
+      previews: {
+        'child-1': _summary(id: 'child-1', title: 'Fix the fence'),
+      },
+    );
     final router = _HarnessRouter();
 
     await tester.pumpWidget(
@@ -80,7 +126,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Fix the fence'), findsOneWidget);
-    expect(port.fetchCallCount, 1);
+    expect(registered.port.fetchChildPreviewCallCount, 1);
 
     await tester.tap(find.text('Fix the fence'));
     await tester.pump();
@@ -94,8 +140,7 @@ void main() {
   testWidgets('inaccessible child renders a safe state with no leaked title', (
     tester,
   ) async {
-    final port = _FakeBeaconWritePort()..errorToThrow = Exception('not found');
-    GetIt.I.registerSingleton<BeaconWritePort>(port);
+    _registerHierarchy(error: Exception('not found'));
     final router = _HarnessRouter();
 
     await tester.pumpWidget(
@@ -118,8 +163,9 @@ void main() {
   testWidgets('deleted child (null row) renders the same safe state', (
     tester,
   ) async {
-    final port = _FakeBeaconWritePort()..errorToThrow = Exception('deleted');
-    GetIt.I.registerSingleton<BeaconWritePort>(port);
+    _registerHierarchy(
+      previews: {'child-deleted': null},
+    );
     final router = _HarnessRouter();
 
     await tester.pumpWidget(
@@ -134,15 +180,41 @@ void main() {
     expect(find.text(l10n.beaconChildFooterUnavailable), findsOneWidget);
   });
 
-  testWidgets('rendering the footer never calls anything beyond fetchBeaconById', (
+  testWidgets('tombstone child renders unavailable without leaking title', (
     tester,
   ) async {
-    // BeaconWritePort has no seen/watermark surface at all — resolving the
-    // child via fetchBeaconById alone is structurally incapable of marking
-    // it seen. Assert the footer calls exactly that one method once.
-    final port = _FakeBeaconWritePort()
-      ..beaconToReturn = Beacon.empty.copyWith(id: 'child-1', title: 'X');
-    GetIt.I.registerSingleton<BeaconWritePort>(port);
+    _registerHierarchy(
+      previews: {
+        'child-tomb': _summary(
+          id: 'child-tomb',
+          title: 'Secret',
+          tombstone: true,
+        ),
+      },
+    );
+    final router = _HarnessRouter();
+
+    await tester.pumpWidget(
+      _harness(
+        const BeaconChildPromotionFooter(childBeaconId: 'child-tomb'),
+        router: router,
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    final l10n = await L10n.delegate.load(const Locale('en'));
+    expect(find.text(l10n.beaconChildFooterUnavailable), findsOneWidget);
+    expect(find.text('Secret'), findsNothing);
+  });
+
+  testWidgets('rendering the footer only calls fetchChildPreview', (
+    tester,
+  ) async {
+    final registered = _registerHierarchy(
+      previews: {
+        'child-1': _summary(id: 'child-1', title: 'X'),
+      },
+    );
 
     await tester.pumpWidget(
       _harness(
@@ -152,15 +224,18 @@ void main() {
     );
     await tester.pumpAndSettle();
 
-    expect(port.fetchCallCount, 1);
+    expect(registered.port.fetchChildPreviewCallCount, 1);
   });
 
   testWidgets('re-fetches when childBeaconId changes rather than caching', (
     tester,
   ) async {
-    final port = _FakeBeaconWritePort()
-      ..beaconToReturn = Beacon.empty.copyWith(id: 'child-1', title: 'First');
-    GetIt.I.registerSingleton<BeaconWritePort>(port);
+    final registered = _registerHierarchy(
+      previews: {
+        'child-1': _summary(id: 'child-1', title: 'First'),
+        'child-2': _summary(id: 'child-2', title: 'Second'),
+      },
+    );
 
     await tester.pumpWidget(
       _harness(
@@ -171,7 +246,6 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('First'), findsOneWidget);
 
-    port.beaconToReturn = Beacon.empty.copyWith(id: 'child-2', title: 'Second');
     await tester.pumpWidget(
       _harness(
         const BeaconChildPromotionFooter(childBeaconId: 'child-2'),
@@ -182,6 +256,6 @@ void main() {
 
     expect(find.text('Second'), findsOneWidget);
     expect(find.text('First'), findsNothing);
-    expect(port.fetchCallCount, 2);
+    expect(registered.port.fetchChildPreviewCallCount, 2);
   });
 }

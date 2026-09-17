@@ -1400,10 +1400,24 @@ final gqlTypeBeaconHierarchySummary =
       ..fields.addAll([
         field('beaconId', graphQLString.nonNullable()),
         field('title', graphQLString),
+        field('description', graphQLString),
         field('owner', gqlTypeBeaconHierarchyOwnerSummary),
         field('status', graphQLInt.nonNullable()),
         field('publishedAt', graphQLString.nonNullable()),
+        field('statusChangedAt', graphQLString),
         field('isTombstone', graphQLBoolean.nonNullable()),
+        field('coverSource', graphQLInt.nonNullable()),
+        field('coverImageId', graphQLString),
+        field('coverThumbImageId', graphQLString),
+        field('primaryNeedSlug', graphQLString),
+        field('needs', graphQLString.nonNullable()),
+        field(
+          'admittedHelperPreviews',
+          GraphQLListType(
+            gqlTypeBeaconHierarchyOwnerSummary.nonNullable(),
+          ).nonNullable(),
+        ),
+        field('admittedHelperCount', graphQLInt.nonNullable()),
       ]);
 
 final gqlTypeBeaconHierarchyPage =

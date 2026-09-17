@@ -4342,6 +4342,15 @@
   "beaconHierarchyNoticeUnknown": "Request activity",
   "beaconPromotionAlreadyExists": "This message was already promoted to a child request",
   "beaconChildFooterUnavailable": "Request unavailable",
+  "beaconChildCardWithHelper": "With {name}",
+  "@beaconChildCardWithHelper": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    },
+    "description": "Child request card: one admitted helper display name"
+  },
   "threadGeneralTitle": "General",
   "threadClosedFoldTitle": "Closed ({count})",
   "@threadClosedFoldTitle": {

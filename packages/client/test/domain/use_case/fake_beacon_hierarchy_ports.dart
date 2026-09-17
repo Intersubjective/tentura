@@ -4,6 +4,7 @@ import 'package:tentura_root/domain/entity/beacon_hierarchy_capabilities.dart';
 import 'package:tentura_root/domain/entity/beacon_hierarchy_child_group.dart';
 import 'package:tentura_root/domain/entity/beacon_hierarchy_owner_summary.dart';
 import 'package:tentura_root/domain/entity/beacon_hierarchy_page.dart';
+import 'package:tentura_root/domain/entity/beacon_hierarchy_summary.dart';
 import 'package:tentura_root/domain/entity/beacon_parent_reference.dart';
 import 'package:tentura_root/domain/entity/beacon_promotion_source.dart';
 import 'package:tentura_root/domain/entity/coordinates.dart';
@@ -60,6 +61,11 @@ class FakeBeaconHierarchyRepositoryPort implements BeaconHierarchyRepositoryPort
 
   String? lastClientCommandId;
 
+  /// Single-id preview map (null value = authorized miss / deleted).
+  final childPreviews = <String, BeaconHierarchySummary?>{};
+  Object? childPreviewError;
+  var fetchChildPreviewCallCount = 0;
+
   @override
   Future<BeaconHierarchyCapabilities> fetchCapabilities({
     required String beaconId,
@@ -87,6 +93,18 @@ class FakeBeaconHierarchyRepositoryPort implements BeaconHierarchyRepositoryPort
     required String beaconId,
   }) async =>
       parentReference;
+
+  @override
+  Future<BeaconHierarchySummary?> fetchChildPreview({
+    required String beaconId,
+  }) async {
+    fetchChildPreviewCallCount++;
+    if (childPreviewError != null) throw childPreviewError!;
+    if (childPreviews.containsKey(beaconId)) {
+      return childPreviews[beaconId];
+    }
+    return null;
+  }
 
   @override
   Future<BeaconPromotionSource> fetchPromotionSource({

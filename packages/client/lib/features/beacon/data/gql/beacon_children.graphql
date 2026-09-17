@@ -14,10 +14,23 @@ query BeaconChildren(
     summaries {
       beaconId
       title
+      description
       status
       publishedAt
+      statusChangedAt
       isTombstone
+      coverSource
+      coverImageId
+      coverThumbImageId
+      primaryNeedSlug
+      needs
+      admittedHelperCount
       owner {
+        id
+        displayName
+        avatarImageId
+      }
+      admittedHelperPreviews {
         id
         displayName
         avatarImageId

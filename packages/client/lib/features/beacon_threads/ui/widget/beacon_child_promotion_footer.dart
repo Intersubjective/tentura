@@ -1,20 +1,22 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:get_it/get_it.dart';
+import 'package:tentura_root/domain/entity/beacon_hierarchy_summary.dart';
 
 import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
-import 'package:tentura/domain/entity/beacon.dart';
-import 'package:tentura/domain/port/beacon_write_port.dart';
+import 'package:tentura/domain/use_case/beacon_hierarchy_case.dart';
+import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/widget/beacon_card_primitives.dart';
+import 'package:tentura/ui/widget/beacon_request_preview_identity.dart';
 
-/// A separate footer attached to the parent's promoted source message,
-/// pointing at the promoted child (plan §6.2). Never a faux source-author
-/// message or a duplicate inline request card. Resolves the child through
-/// an ordinary, guarded single-beacon read — an inaccessible or deleted
-/// child renders a safe, non-leaking state (no title/avatar/body), never
-/// an error. Reflects current state reactively; never caches across a
-/// changed [childBeaconId].
+/// Footer / notice card for a promoted child — same projection as Now list.
+///
+/// Resolves via [BeaconHierarchyCase.fetchChildPreview] (not involvement).
+/// Refetches on hierarchy invalidation / catch-up; evicts when access is lost.
 class BeaconChildPromotionFooter extends StatefulWidget {
   const BeaconChildPromotionFooter({required this.childBeaconId, super.key});
 
@@ -27,27 +29,102 @@ class BeaconChildPromotionFooter extends StatefulWidget {
 
 class _BeaconChildPromotionFooterState
     extends State<BeaconChildPromotionFooter> {
-  late Future<Beacon?> _future;
+  static const _reloadDebounce = Duration(milliseconds: 150);
+
+  BeaconHierarchySummary? _summary;
+  var _loaded = false;
+  var _loadInFlight = false;
+  var _reloadQueued = false;
+  int _generation = 0;
+  Timer? _reloadTimer;
+  StreamSubscription<Object?>? _hierarchySub;
+  StreamSubscription<void>? _catchUpSub;
+  StreamSubscription<void>? _localSub;
 
   @override
   void initState() {
     super.initState();
-    _load();
+    unawaited(_load());
+    _subscribe();
   }
 
   @override
   void didUpdateWidget(covariant BeaconChildPromotionFooter oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (oldWidget.childBeaconId != widget.childBeaconId) {
-      _load();
+      _hierarchySub?.cancel();
+      _localSub?.cancel();
+      _reloadTimer?.cancel();
+      _summary = null;
+      _loaded = false;
+      _subscribe();
+      unawaited(_load());
     }
   }
 
-  void _load() {
-    _future = GetIt.I<BeaconWritePort>()
-        .fetchBeaconById(widget.childBeaconId)
-        .then<Beacon?>((b) => b)
-        .catchError((Object _) => null);
+  @override
+  void dispose() {
+    _reloadTimer?.cancel();
+    _hierarchySub?.cancel();
+    _catchUpSub?.cancel();
+    _localSub?.cancel();
+    super.dispose();
+  }
+
+  void _subscribe() {
+    final hierarchy = GetIt.I<BeaconHierarchyCase>();
+    _hierarchySub = hierarchy
+        .hierarchyChangesFor(widget.childBeaconId)
+        .listen((_) => _scheduleReload());
+    _localSub = hierarchy
+        .localHierarchyChangesFor(widget.childBeaconId)
+        .listen((_) => _scheduleReload());
+    _catchUpSub ??= hierarchy.catchUps.listen((_) => _scheduleReload());
+  }
+
+  void _scheduleReload() {
+    if (!mounted) return;
+    _reloadTimer?.cancel();
+    _reloadTimer = Timer(_reloadDebounce, () {
+      if (mounted) unawaited(_load());
+    });
+  }
+
+  Future<void> _load() async {
+    if (_loadInFlight) {
+      _reloadQueued = true;
+      return;
+    }
+    _loadInFlight = true;
+    _reloadQueued = false;
+    final gen = ++_generation;
+    final childId = widget.childBeaconId;
+    try {
+      final summary = await GetIt.I<BeaconHierarchyCase>().fetchChildPreview(
+        beaconId: childId,
+      );
+      if (!mounted || gen != _generation || childId != widget.childBeaconId) {
+        return;
+      }
+      setState(() {
+        _summary = summary;
+        _loaded = true;
+      });
+    } catch (_) {
+      if (!mounted || gen != _generation || childId != widget.childBeaconId) {
+        return;
+      }
+      setState(() {
+        _summary = null;
+        _loaded = true;
+      });
+    } finally {
+      _loadInFlight = false;
+      if (_reloadQueued && mounted) {
+        _reloadQueued = false;
+        _scheduleReload();
+      }
+    }
   }
 
   @override
@@ -56,60 +133,46 @@ class _BeaconChildPromotionFooterState
     final tt = context.tt;
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
+    final currentUserId = context.read<ProfileCubit>().state.profile.id;
 
-    return FutureBuilder<Beacon?>(
-      future: _future,
-      builder: (context, snapshot) {
-        if (snapshot.connectionState != ConnectionState.done) {
-          return const SizedBox.shrink();
-        }
-        final beacon = snapshot.data;
-        if (beacon == null) {
-          return Semantics(
-            container: true,
-            label: l10n.beaconChildFooterUnavailable,
-            child: BeaconCardShell(
-              muted: true,
-              child: Padding(
-                padding: EdgeInsets.symmetric(vertical: tt.tightGap),
-                child: Text(
-                  l10n.beaconChildFooterUnavailable,
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: scheme.onSurfaceVariant,
-                  ),
-                ),
-              ),
-            ),
-          );
-        }
-        final title = beacon.title.trim().isNotEmpty
-            ? beacon.title.trim()
-            : l10n.beaconUntitled;
-        return BeaconCardShell(
-          onTap: () => context.router.push(BeaconViewRoute(id: beacon.id)),
-          tapSemanticsLabel: title,
-          child: Row(
-            children: [
-              Icon(
-                Icons.subdirectory_arrow_right,
-                size: 16,
+    if (!_loaded) {
+      return const SizedBox.shrink();
+    }
+
+    final summary = _summary;
+    if (summary == null || summary.isTombstone) {
+      return Semantics(
+        container: true,
+        label: l10n.beaconChildFooterUnavailable,
+        child: BeaconCardShell(
+          muted: true,
+          child: Padding(
+            padding: EdgeInsets.symmetric(vertical: tt.tightGap),
+            child: Text(
+              l10n.beaconChildFooterUnavailable,
+              style: theme.textTheme.bodySmall?.copyWith(
                 color: scheme.onSurfaceVariant,
               ),
-              SizedBox(width: tt.iconTextGap),
-              Expanded(
-                child: Text(
-                  title,
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: scheme.onSurface,
-                  ),
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-            ],
+            ),
           ),
-        );
-      },
+        ),
+      );
+    }
+
+    final data = BeaconRequestPreviewData.fromHierarchySummary(
+      l10n,
+      summary,
+      now: DateTime.now(),
+    );
+    return BeaconCardShell(
+      onTap: () => context.router.push(BeaconViewRoute(id: summary.beaconId)),
+      tapSemanticsLabel: data.title,
+      child: BeaconRequestPreviewIdentity(
+        data: data,
+        currentUserId: currentUserId,
+        showDescription: true,
+        titleMaxLines: 2,
+      ),
     );
   }
 }

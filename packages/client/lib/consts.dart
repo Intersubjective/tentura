@@ -150,7 +150,9 @@ const kServerName = String.fromEnvironment('SERVER_NAME');
 ///   post-sign-out redirect) are suppressed — they unload the page, which
 ///   kills an integration_test run mid-flight;
 /// - the startup `ensureSemantics()` call is skipped — its SemanticsHandle is
-///   never disposed, which fails flutter_test's end-of-test verification.
+///   never disposed, which fails flutter_test's end-of-test verification;
+/// - [MediaQueryData.disableAnimations] is forced on so repeating progress /
+///   attention animations cannot hang [WidgetTester.pumpAndSettle].
 const kQaIntegrationTestMode = bool.fromEnvironment(
   'QA_INTEGRATION_TEST_MODE',
 );

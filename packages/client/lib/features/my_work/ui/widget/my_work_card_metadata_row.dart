@@ -5,18 +5,22 @@ import 'package:tentura/features/my_work/domain/entity/my_work_card_view_model.d
 import 'package:tentura/ui/widget/beacon_hud_metadata_composer.dart';
 import 'package:tentura/ui/widget/beacon_hud_metadata_table.dart';
 
-/// My Work list card metadata: face pile + schedule countdown + location.
+/// My Work list card metadata: schedule countdown + location (+ optional people).
 class MyWorkCardMetadataRow extends StatelessWidget {
   const MyWorkCardMetadataRow({
     required this.beacon,
     required this.viewModel,
     required this.currentUserId,
+    this.hidePeople = false,
     super.key,
   });
 
   final Beacon beacon;
   final MyWorkCardViewModel viewModel;
   final String currentUserId;
+
+  /// When true, people/face-pile is omitted (shared preview already shows it).
+  final bool hidePeople;
 
   @override
   Widget build(BuildContext context) {
@@ -28,6 +32,7 @@ class MyWorkCardMetadataRow extends StatelessWidget {
         viewModel: viewModel,
         currentUserId: currentUserId,
         hideLastEventMetadata: true,
+        hidePeople: hidePeople,
       ),
     );
   }

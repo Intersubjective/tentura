@@ -197,6 +197,7 @@ class _V2RoutingLink extends Link {
     'BeaconChildCreate',
     'BeaconHierarchyCapabilities',
     'BeaconChildren',
+    'BeaconChildPreview',
     'BeaconParentReference',
     'BeaconPromotionSource',
     'BeaconFork',

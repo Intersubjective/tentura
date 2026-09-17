@@ -4330,6 +4330,15 @@
   "beaconHierarchyNoticeUnknown": "Активность запроса",
   "beaconPromotionAlreadyExists": "Это сообщение уже преобразовано в дочерний запрос",
   "beaconChildFooterUnavailable": "Запрос недоступен",
+  "beaconChildCardWithHelper": "С {name}",
+  "@beaconChildCardWithHelper": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      }
+    },
+    "description": "Child request card: one admitted helper display name"
+  },
   "threadGeneralTitle": "Общее",
   "threadClosedFoldTitle": "Закрытые ({count})",
   "@threadClosedFoldTitle": {

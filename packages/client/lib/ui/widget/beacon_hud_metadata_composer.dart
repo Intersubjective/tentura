@@ -26,6 +26,7 @@ List<BeaconHudMetadataEntry> buildMyWorkHudMetadataEntries(
   required MyWorkCardViewModel viewModel,
   required String currentUserId,
   bool hideLastEventMetadata = false,
+  bool hidePeople = false,
 }) {
   final l10n = L10n.of(context)!;
   final tt = context.tt;
@@ -46,11 +47,12 @@ List<BeaconHudMetadataEntry> buildMyWorkHudMetadataEntries(
       helperOfferState != null &&
       helperOfferResponseStateHasStandingMessage(helperOfferState);
 
-  if (BeaconCompactMetadataStrip.hasVisibleContent(
-    beacon: beacon,
-    involvedProfiles: beacon.admittedHelperUsers,
-    helperCount: beacon.admittedHelperCount,
-  )) {
+  if (!hidePeople &&
+      BeaconCompactMetadataStrip.hasVisibleContent(
+        beacon: beacon,
+        involvedProfiles: beacon.admittedHelperUsers,
+        helperCount: beacon.admittedHelperCount,
+      )) {
     entries.add(
       BeaconHudMetadataEntry(
         icon: BeaconHudRowIcons.people,

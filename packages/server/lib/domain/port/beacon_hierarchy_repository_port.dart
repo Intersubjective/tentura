@@ -1,6 +1,7 @@
 import 'package:tentura_root/domain/entity/beacon_hierarchy_capabilities.dart';
 import 'package:tentura_root/domain/entity/beacon_hierarchy_child_group.dart';
 import 'package:tentura_root/domain/entity/beacon_hierarchy_page.dart';
+import 'package:tentura_root/domain/entity/beacon_hierarchy_summary.dart';
 import 'package:tentura_root/domain/entity/beacon_parent_reference.dart';
 import 'package:tentura_root/domain/entity/beacon_promotion_source.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
@@ -22,6 +23,13 @@ abstract class BeaconHierarchyRepositoryPort {
     required BeaconHierarchyChildGroup group,
     required int first,
     String? after,
+  });
+
+  /// Single-child authorized preview using the same projection as [listChildren].
+  /// Returns null when the viewer cannot read content or the row is a tombstone.
+  Future<BeaconHierarchySummary?> loadChildPreview({
+    required String beaconId,
+    required String viewerId,
   });
 
   Future<BeaconParentReference> loadParentReference({

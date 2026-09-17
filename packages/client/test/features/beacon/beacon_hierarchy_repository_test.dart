@@ -79,24 +79,49 @@ void main() {
                     '__typename': 'v2_BeaconHierarchySummary',
                     'beaconId': 'Bchild0000001',
                     'title': 'Fix the fence',
+                    'description': 'Please help',
                     'status': 0,
                     'publishedAt': '2026-08-01T00:00:00.000Z',
+                    'statusChangedAt': null,
                     'isTombstone': false,
+                    'coverSource': 0,
+                    'coverImageId': null,
+                    'coverThumbImageId': null,
+                    'primaryNeedSlug': null,
+                    'needs': '',
+                    'admittedHelperCount': 1,
                     'owner': {
                       '__typename': 'v2_BeaconHierarchyOwnerSummary',
                       'id': 'Uowner0000001',
                       'displayName': 'Owner One',
                       'avatarImageId': null,
                     },
+                    'admittedHelperPreviews': [
+                      {
+                        '__typename': 'v2_BeaconHierarchyOwnerSummary',
+                        'id': 'Uhelper000001',
+                        'displayName': 'Helper One',
+                        'avatarImageId': null,
+                      },
+                    ],
                   },
                   {
                     '__typename': 'v2_BeaconHierarchySummary',
                     'beaconId': 'Bchild0000002',
                     'title': null,
+                    'description': null,
                     'status': 2,
                     'publishedAt': '2026-08-02T00:00:00.000Z',
+                    'statusChangedAt': null,
                     'isTombstone': true,
+                    'coverSource': 0,
+                    'coverImageId': null,
+                    'coverThumbImageId': null,
+                    'primaryNeedSlug': null,
+                    'needs': '',
+                    'admittedHelperCount': 0,
                     'owner': null,
+                    'admittedHelperPreviews': <Map<String, Object?>>[],
                   },
                 ],
               },
@@ -122,9 +147,17 @@ void main() {
       expect(page.summaries, hasLength(2));
       expect(page.summaries.first.owner?.displayName, 'Owner One');
       expect(page.summaries.first.status, BeaconStatus.open);
+      expect(page.summaries.first.description, 'Please help');
+      expect(page.summaries.first.admittedHelperCount, 1);
+      expect(
+        page.summaries.first.admittedHelperPreviews.single.displayName,
+        'Helper One',
+      );
       expect(page.summaries.last.owner, isNull);
       expect(page.summaries.last.isTombstone, isTrue);
       expect(page.summaries.last.title, isNull);
+      expect(page.summaries.last.description, isNull);
+      expect(page.summaries.last.admittedHelperPreviews, isEmpty);
     });
 
     test('mapParentReference success for each state', () async {

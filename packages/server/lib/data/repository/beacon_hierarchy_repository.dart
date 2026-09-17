@@ -1,6 +1,7 @@
 import 'package:drift/drift.dart';
 import 'package:injectable/injectable.dart';
 import 'package:postgres/postgres.dart' show TypedValue, Type;
+import 'package:tentura_root/domain/entity/beacon_cover_source.dart';
 import 'package:tentura_root/domain/entity/beacon_hierarchy_capabilities.dart';
 import 'package:tentura_root/domain/entity/beacon_hierarchy_child_group.dart';
 import 'package:tentura_root/domain/entity/beacon_hierarchy_owner_summary.dart';
@@ -125,10 +126,18 @@ class BeaconHierarchyRepository implements BeaconHierarchyRepositoryPort {
 SELECT
   b.id,
   b.title,
+  b.description,
   b.status,
   b.published_at,
+  b.status_changed_at,
   b.user_id,
-  u.display_name
+  u.display_name,
+  u.image_id::text AS avatar_image_id,
+  b.cover_source,
+  b.cover_image_id::text AS cover_image_id,
+  b.cover_thumb_image_id::text AS cover_thumb_image_id,
+  b.primary_need_slug,
+  b.needs
 FROM public.beacon b
 LEFT JOIN public."user" u ON u.id = b.user_id
 WHERE b.parent_beacon_id = $1
@@ -153,26 +162,17 @@ LIMIT $2
 
     final hasMore = rows.length > first;
     final pageRows = hasMore ? rows.sublist(0, first) : rows;
+    final helpersByBeacon = await _loadAdmittedHelperPreviews(
+      pageRows
+          .where(
+            (row) =>
+                row.read<int>('status') != BeaconStatus.deleted.smallintValue,
+          )
+          .map((row) => row.read<String>('id'))
+          .toList(growable: false),
+    );
     final summaries = pageRows
-        .map(
-          (row) => BeaconHierarchySummary(
-            beaconId: row.read<String>('id'),
-            title: row.read<int>('status') == BeaconStatus.deleted.smallintValue
-                ? null
-                : row.read<String>('title'),
-            owner: row.readNullable<String>('user_id') == null
-                ? null
-                : BeaconHierarchyOwnerSummary(
-                    id: row.read<String>('user_id'),
-                    displayName: row.read<String>('display_name'),
-                  ),
-            status: BeaconStatus.fromSmallint(row.read<int>('status')),
-            publishedAt: DateTime.parse(
-              row.read<String>('published_at'),
-            ).toUtc(),
-            isTombstone: row.read<int>('status') == BeaconStatus.deleted.smallintValue,
-          ),
-        )
+        .map((row) => _mapChildSummaryRow(row, helpersByBeacon))
         .toList();
 
     String? nextCursor;
@@ -189,6 +189,58 @@ LIMIT $2
     }
 
     return BeaconHierarchyPage(summaries: summaries, nextCursor: nextCursor);
+  }
+
+  @override
+  Future<BeaconHierarchySummary?> loadChildPreview({
+    required String beaconId,
+    required String viewerId,
+  }) async {
+    if (!await _predicate('beacon_can_read_content', beaconId, viewerId)) {
+      return null;
+    }
+    final rows = await _database
+        .customSelect(
+          r'''
+SELECT
+  b.id,
+  b.title,
+  b.description,
+  b.status,
+  b.published_at,
+  b.status_changed_at,
+  b.user_id,
+  u.display_name,
+  u.image_id::text AS avatar_image_id,
+  b.cover_source,
+  b.cover_image_id::text AS cover_image_id,
+  b.cover_thumb_image_id::text AS cover_thumb_image_id,
+  b.primary_need_slug,
+  b.needs
+FROM public.beacon b
+LEFT JOIN public."user" u ON u.id = b.user_id
+WHERE b.id = $1
+  AND b.published_at IS NOT NULL
+  AND NOT public.block_hides(b.user_id, $2)
+''',
+          variables: [
+            Variable<String>(beaconId),
+            Variable<String>(viewerId),
+          ],
+        )
+        .get();
+    if (rows.isEmpty) {
+      return null;
+    }
+    final row = rows.single;
+    final isTombstone =
+        row.read<int>('status') == BeaconStatus.deleted.smallintValue;
+    if (isTombstone) {
+      // Tombstones are list-only; single-id preview stays non-leaking.
+      return null;
+    }
+    final helpersByBeacon = await _loadAdmittedHelperPreviews([beaconId]);
+    return _mapChildSummaryRow(row, helpersByBeacon);
   }
 
   @override
@@ -405,6 +457,134 @@ SELECT
         BeaconHierarchyChildGroup.deleted => '2',
       };
 
+  BeaconHierarchySummary _mapChildSummaryRow(
+    QueryRow row,
+    Map<String, _AdmittedHelperBatch> helpersByBeacon,
+  ) {
+    final status = BeaconStatus.fromSmallint(row.read<int>('status'));
+    final isTombstone = status == BeaconStatus.deleted;
+    if (isTombstone) {
+      return BeaconHierarchySummary(
+        beaconId: row.read<String>('id'),
+        status: status,
+        publishedAt: DateTime.parse(row.read<String>('published_at')).toUtc(),
+        isTombstone: true,
+      );
+    }
+
+    final needsRaw = row.readNullable<String>('needs') ?? '';
+    final needs = {
+      if (needsRaw.isNotEmpty) ...needsRaw.split(','),
+    };
+    final helpers = helpersByBeacon[row.read<String>('id')];
+    final ownerId = row.readNullable<String>('user_id');
+    return BeaconHierarchySummary(
+      beaconId: row.read<String>('id'),
+      title: row.read<String>('title'),
+      description: row.readNullable<String>('description'),
+      owner: ownerId == null
+          ? null
+          : BeaconHierarchyOwnerSummary(
+              id: ownerId,
+              displayName: row.read<String>('display_name'),
+              avatarImageId: row.readNullable<String>('avatar_image_id'),
+            ),
+      status: status,
+      publishedAt: DateTime.parse(row.read<String>('published_at')).toUtc(),
+      isTombstone: false,
+      coverSource: BeaconCoverSource.fromWireOrPhoto(
+        row.readNullable<int>('cover_source'),
+      ),
+      coverImageId: row.readNullable<String>('cover_image_id'),
+      coverThumbImageId: row.readNullable<String>('cover_thumb_image_id'),
+      primaryNeedSlug: row.readNullable<String>('primary_need_slug'),
+      needs: needs,
+      statusChangedAt: row.readNullable<String>('status_changed_at') == null
+          ? null
+          : DateTime.parse(row.read<String>('status_changed_at')).toUtc(),
+      admittedHelperPreviews: helpers?.previews ?? const [],
+      admittedHelperCount: helpers?.totalCount ?? 0,
+    );
+  }
+
+  /// Batch-load admitted helpers for a page of child ids (author excluded).
+  Future<Map<String, _AdmittedHelperBatch>> _loadAdmittedHelperPreviews(
+    List<String> beaconIds,
+  ) async {
+    if (beaconIds.isEmpty) {
+      return const {};
+    }
+    final countRows = await _database
+        .customSelect(
+          r'''
+SELECT h.beacon_id, COUNT(*)::int AS total
+FROM public.beacon_admitted_helper h
+WHERE h.beacon_id = ANY($1)
+GROUP BY h.beacon_id
+''',
+          variables: [
+            Variable(TypedValue(Type.textArray, beaconIds)),
+          ],
+        )
+        .get();
+    final totals = <String, int>{
+      for (final row in countRows)
+        row.read<String>('beacon_id'): row.read<int>('total'),
+    };
+
+    final previewRows = await _database
+        .customSelect(
+          r'''
+SELECT
+  ranked.beacon_id,
+  ranked.user_id,
+  ranked.display_name,
+  ranked.avatar_image_id
+FROM (
+  SELECT
+    h.beacon_id,
+    h.user_id,
+    u.display_name,
+    u.image_id::text AS avatar_image_id,
+    ROW_NUMBER() OVER (
+      PARTITION BY h.beacon_id
+      ORDER BY h.user_id ASC
+    ) AS rn
+  FROM public.beacon_admitted_helper h
+  JOIN public."user" u ON u.id = h.user_id
+  WHERE h.beacon_id = ANY($1)
+) ranked
+WHERE ranked.rn <= 3
+ORDER BY ranked.beacon_id, ranked.user_id
+''',
+          variables: [
+            Variable(TypedValue(Type.textArray, beaconIds)),
+          ],
+        )
+        .get();
+
+    final previews = <String, List<BeaconHierarchyOwnerSummary>>{};
+    for (final row in previewRows) {
+      final beaconId = row.read<String>('beacon_id');
+      previews
+          .putIfAbsent(beaconId, () => <BeaconHierarchyOwnerSummary>[])
+          .add(
+            BeaconHierarchyOwnerSummary(
+              id: row.read<String>('user_id'),
+              displayName: row.read<String>('display_name'),
+              avatarImageId: row.readNullable<String>('avatar_image_id'),
+            ),
+          );
+    }
+
+    return {
+      for (final id in beaconIds)
+        id: _AdmittedHelperBatch(
+          previews: previews[id] ?? const [],
+          totalCount: totals[id] ?? 0,
+        ),
+    };
+  }
 }
 
 final class _BeaconRow {
@@ -419,4 +599,14 @@ final class _BeaconRow {
   final String ownerId;
   final String title;
   final int status;
+}
+
+final class _AdmittedHelperBatch {
+  const _AdmittedHelperBatch({
+    required this.previews,
+    required this.totalCount,
+  });
+
+  final List<BeaconHierarchyOwnerSummary> previews;
+  final int totalCount;
 }

@@ -6,6 +6,7 @@ import 'package:tentura_root/domain/entity/beacon_creation_context.dart';
 import 'package:tentura_root/domain/entity/beacon_hierarchy_capabilities.dart';
 import 'package:tentura_root/domain/entity/beacon_hierarchy_child_group.dart';
 import 'package:tentura_root/domain/entity/beacon_hierarchy_page.dart';
+import 'package:tentura_root/domain/entity/beacon_hierarchy_summary.dart';
 import 'package:tentura_root/domain/entity/beacon_parent_reference.dart';
 import 'package:tentura_root/domain/entity/beacon_promotion_source.dart';
 import 'package:uuid/uuid.dart';
@@ -148,6 +149,11 @@ class BeaconHierarchyCase {
         first: first,
         after: after,
       );
+
+  Future<BeaconHierarchySummary?> fetchChildPreview({
+    required String beaconId,
+  }) =>
+      _hierarchy.fetchChildPreview(beaconId: beaconId);
 
   Future<BeaconParentReference> fetchParentReference({
     required String beaconId,

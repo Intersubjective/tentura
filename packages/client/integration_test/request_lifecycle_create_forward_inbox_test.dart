@@ -10,7 +10,7 @@ void main() {
 
   testWidgets('create, publish, forward, and reach inbox', (tester) async {
     await launchApp(app.main);
-    await tester.pumpAndSettle();
+    await pumpSettleBounded(tester);
 
     final fixture = await bootstrapFixture(
       runId: uniqueRunId('create-forward'),

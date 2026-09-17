@@ -1,15 +1,38 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:get_it/get_it.dart';
+import 'package:mockito/mockito.dart';
+import 'package:tentura_root/domain/entity/beacon_hierarchy_owner_summary.dart';
+import 'package:tentura_root/domain/entity/beacon_hierarchy_summary.dart';
+import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import 'package:tentura/design_system/tentura_theme.dart';
 import 'package:tentura/design_system/components/tentura_avatar.dart';
 import 'package:tentura/domain/entity/beacon_room_consts.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/domain/entity/room_message.dart';
+import 'package:tentura/domain/use_case/beacon_create_case.dart';
+import 'package:tentura/domain/use_case/beacon_hierarchy_case.dart';
+import 'package:tentura/features/beacon_threads/ui/widget/beacon_child_promotion_footer.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/beacon_hierarchy_notice.dart';
+import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+
+import '../../domain/use_case/fake_beacon_hierarchy_ports.dart';
+import '../../features/beacon_create/fake_beacon_ports.dart';
+
+class _MockProfileCubit extends Mock implements ProfileCubit {
+  @override
+  ProfileState get state => const ProfileState(
+    profile: Profile(id: 'viewer', displayName: 'Me'),
+  );
+
+  @override
+  Stream<ProfileState> get stream => Stream<ProfileState>.value(state);
+}
 
 RoomMessage _message({
   required String body,
@@ -26,17 +49,28 @@ RoomMessage _message({
   systemPayloadJson: payload == null ? null : jsonEncode(payload),
 );
 
-Widget _harness(RoomMessage message) => MaterialApp(
-  theme: TenturaTheme.light(),
-  localizationsDelegates: L10n.localizationsDelegates,
-  supportedLocales: L10n.supportedLocales,
-  locale: const Locale('en'),
-  home: Scaffold(
-    body: BeaconHierarchyNotice(message: message),
+Widget _harness(RoomMessage message) => BlocProvider<ProfileCubit>.value(
+  value: _MockProfileCubit(),
+  child: MaterialApp(
+    theme: TenturaTheme.light(),
+    localizationsDelegates: L10n.localizationsDelegates,
+    supportedLocales: L10n.supportedLocales,
+    locale: const Locale('en'),
+    home: Scaffold(
+      body: BeaconHierarchyNotice(message: message),
+    ),
   ),
 );
 
 void main() {
+  setUp(() async {
+    await GetIt.I.reset();
+  });
+
+  tearDown(() async {
+    await GetIt.I.reset();
+  });
+
   group('isHierarchyNoticeRow', () {
     test('true for both known discriminator values', () {
       expect(
@@ -94,9 +128,33 @@ void main() {
       expect(find.text(dated), findsOneWidget);
     });
 
-    testWidgets('creation notice shows fixed copy, ignoring empty body', (
+    testWidgets('standalone creation notice renders the authorized preview card', (
       tester,
     ) async {
+      final port = FakeBeaconHierarchyRepositoryPort()
+        ..childPreviews['child-1'] = BeaconHierarchySummary(
+          beaconId: 'child-1',
+          title: 'Nested ask',
+          owner: const BeaconHierarchyOwnerSummary(
+            id: 'author-1',
+            displayName: 'Alice',
+          ),
+          status: BeaconStatus.open,
+          publishedAt: DateTime.utc(2026, 1, 1),
+          isTombstone: false,
+        );
+      GetIt.I.registerSingleton<BeaconHierarchyCase>(
+        buildBeaconHierarchyCaseForTest(
+          port,
+          createCase: BeaconCreateCase(
+            FakeBeaconWritePort(),
+            FakeBeaconImagePort(),
+          ),
+          beacons: FakeBeaconWritePort(),
+          commandStore: InMemoryBeaconChildCommandStore(),
+        ),
+      );
+
       await tester.pumpWidget(
         _harness(
           _message(
@@ -110,10 +168,12 @@ void main() {
           ),
         ),
       );
-      await tester.pump();
+      await tester.pumpAndSettle();
 
+      expect(find.byType(BeaconChildPromotionFooter), findsOneWidget);
+      expect(find.text('Nested ask'), findsOneWidget);
       final l10n = await L10n.delegate.load(const Locale('en'));
-      expect(find.text(l10n.beaconHierarchyNoticeChildCreated), findsOneWidget);
+      expect(find.text(l10n.beaconHierarchyNoticeChildCreated), findsNothing);
     });
 
     testWidgets('unparseable payload falls back to generic, non-actionable text', (

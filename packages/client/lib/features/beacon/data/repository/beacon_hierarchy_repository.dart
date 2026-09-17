@@ -2,6 +2,7 @@ import 'package:injectable/injectable.dart';
 import 'package:meta/meta.dart';
 
 import 'package:tentura_root/domain/entity/beacon_child_command_outcome.dart';
+import 'package:tentura_root/domain/entity/beacon_cover_source.dart';
 import 'package:tentura_root/domain/entity/beacon_hierarchy_capabilities.dart';
 import 'package:tentura_root/domain/entity/beacon_hierarchy_child_group.dart';
 import 'package:tentura_root/domain/entity/beacon_hierarchy_denial_code.dart';
@@ -19,6 +20,8 @@ import 'package:tentura/features/beacon/domain/port/beacon_hierarchy_repository_
 
 import '../gql/_g/beacon_child_create.data.gql.dart';
 import '../gql/_g/beacon_child_create.req.gql.dart';
+import '../gql/_g/beacon_child_preview.data.gql.dart';
+import '../gql/_g/beacon_child_preview.req.gql.dart';
 import '../gql/_g/beacon_children.data.gql.dart';
 import '../gql/_g/beacon_children.req.gql.dart';
 import '../gql/_g/beacon_hierarchy_capabilities.data.gql.dart';
@@ -97,6 +100,7 @@ class BeaconHierarchyRepository implements BeaconHierarchyRepositoryPort {
   ) => BeaconHierarchySummary(
     beaconId: row.beaconId,
     title: row.title,
+    description: row.description,
     owner: row.owner == null
         ? null
         : BeaconHierarchyOwnerSummary(
@@ -107,6 +111,75 @@ class BeaconHierarchyRepository implements BeaconHierarchyRepositoryPort {
     status: BeaconStatus.fromSmallint(row.status),
     publishedAt: DateTime.parse(row.publishedAt),
     isTombstone: row.isTombstone,
+    coverSource: BeaconCoverSource.fromWireOrPhoto(row.coverSource),
+    coverImageId: row.coverImageId,
+    coverThumbImageId: row.coverThumbImageId,
+    primaryNeedSlug: row.primaryNeedSlug,
+    needs: {
+      if (row.needs.isNotEmpty) ...row.needs.split(','),
+    },
+    statusChangedAt: row.statusChangedAt == null
+        ? null
+        : DateTime.parse(row.statusChangedAt!),
+    admittedHelperPreviews: [
+      for (final h in row.admittedHelperPreviews)
+        BeaconHierarchyOwnerSummary(
+          id: h.id,
+          displayName: h.displayName,
+          avatarImageId: h.avatarImageId,
+        ),
+    ],
+    admittedHelperCount: row.admittedHelperCount,
+  );
+
+  @override
+  Future<BeaconHierarchySummary?> fetchChildPreview({
+    required String beaconId,
+  }) async {
+    final data = await _remoteApiService
+        .request(GBeaconChildPreviewReq((b) => b.vars.beaconId = beaconId))
+        .firstWhere((e) => e.dataSource == DataSource.Link)
+        .then((r) => r.dataOrThrow(label: _label).beaconChildPreview);
+    if (data == null) return null;
+    return mapChildPreview(data);
+  }
+
+  @visibleForTesting
+  static BeaconHierarchySummary mapChildPreview(
+    GBeaconChildPreviewData_beaconChildPreview row,
+  ) => BeaconHierarchySummary(
+    beaconId: row.beaconId,
+    title: row.title,
+    description: row.description,
+    owner: row.owner == null
+        ? null
+        : BeaconHierarchyOwnerSummary(
+            id: row.owner!.id,
+            displayName: row.owner!.displayName,
+            avatarImageId: row.owner!.avatarImageId,
+          ),
+    status: BeaconStatus.fromSmallint(row.status),
+    publishedAt: DateTime.parse(row.publishedAt),
+    isTombstone: row.isTombstone,
+    coverSource: BeaconCoverSource.fromWireOrPhoto(row.coverSource),
+    coverImageId: row.coverImageId,
+    coverThumbImageId: row.coverThumbImageId,
+    primaryNeedSlug: row.primaryNeedSlug,
+    needs: {
+      if (row.needs.isNotEmpty) ...row.needs.split(','),
+    },
+    statusChangedAt: row.statusChangedAt == null
+        ? null
+        : DateTime.parse(row.statusChangedAt!),
+    admittedHelperPreviews: [
+      for (final h in row.admittedHelperPreviews)
+        BeaconHierarchyOwnerSummary(
+          id: h.id,
+          displayName: h.displayName,
+          avatarImageId: h.avatarImageId,
+        ),
+    ],
+    admittedHelperCount: row.admittedHelperCount,
   );
 
   @override

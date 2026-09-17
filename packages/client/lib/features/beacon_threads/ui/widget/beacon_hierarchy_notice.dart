@@ -4,12 +4,15 @@ import 'package:tentura/design_system/tentura_tokens.dart';
 import 'package:tentura/domain/entity/beacon_room_consts.dart';
 import 'package:tentura/domain/entity/room_message.dart';
 import 'package:tentura/domain/entity/room_message_hierarchy_payload.dart';
+import 'package:tentura/features/beacon_threads/ui/widget/beacon_child_promotion_footer.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
-/// Renders a hierarchy creation/lifecycle notice using the same centered,
-/// person-free chrome as the existing participant-admission notice
-/// (plan §6.2). An unknown/unparseable payload renders generic,
-/// non-actionable system-event text rather than failing to build.
+/// Hierarchy lifecycle/creation notices in parent Chat.
+///
+/// Standalone `childCreated` (no source bubble in this page, or source-less
+/// create) renders the same authorized preview card as Now. Lifecycle notices
+/// stay person-free one-liners. Callers that already show a source-message
+/// footer must skip the notice row (see [BasicChatBody]).
 class BeaconHierarchyNotice extends StatelessWidget {
   const BeaconHierarchyNotice({required this.message, super.key});
 
@@ -33,10 +36,25 @@ class BeaconHierarchyNotice extends StatelessWidget {
             : TenturaTokens.light);
 
     final payload = message.hierarchyPayload;
+    if (payload is RoomMessageHierarchyChildCreated) {
+      return Padding(
+        padding: EdgeInsets.fromLTRB(
+          tt.screenHPadding,
+          tt.tightGap / 2,
+          tt.screenHPadding,
+          tt.tightGap / 2,
+        ),
+        child: BeaconChildPromotionFooter(
+          childBeaconId: payload.childBeaconId,
+        ),
+      );
+    }
+
     final line = switch (payload) {
-      RoomMessageHierarchyChildCreated() => l10n.beaconHierarchyNoticeChildCreated,
       RoomMessageHierarchyLifecycle() => message.body,
       null => l10n.beaconHierarchyNoticeUnknown,
+      RoomMessageHierarchyChildCreated() =>
+        l10n.beaconHierarchyNoticeChildCreated,
     };
 
     return Padding(

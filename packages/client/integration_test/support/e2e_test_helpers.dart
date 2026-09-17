@@ -6,6 +6,7 @@ import 'dart:ui' show Offset, PlatformDispatcher, PointerDeviceKind;
 import 'package:flutter/material.dart';
 import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:integration_test/integration_test.dart';
 import 'package:web/web.dart' as web;
 
 import 'package:tentura/app/router/root_router.dart';
@@ -64,10 +65,17 @@ String uniqueRequestTitle(String prefix) =>
 /// friends); if they stay overridden, the test binding's failure reporting
 /// asserts (binding.dart `_pendingExceptionDetails`) and a failing test hangs
 /// `flutter drive` forever instead of failing cleanly.
+///
+/// Also forces [FakeAccessibilityFeatures.disableAnimations] so widgets that
+/// use [AnimationController.repeat] (e.g. [LinearPiActive]) do not prevent
+/// [WidgetTester.pumpAndSettle] from completing.
 Future<void> launchApp(Future<void> Function() start) async {
   final originalOnError = FlutterError.onError;
   final originalPlatformOnError = PlatformDispatcher.instance.onError;
   final originalErrorWidgetBuilder = ErrorWidget.builder;
+  final binding = IntegrationTestWidgetsFlutterBinding.instance;
+  binding.platformDispatcher.accessibilityFeaturesTestValue =
+      const FakeAccessibilityFeatures(disableAnimations: true);
   await start();
   FlutterError.onError = originalOnError;
   PlatformDispatcher.instance.onError = originalPlatformOnError;
@@ -353,6 +361,37 @@ Future<void> pumpUntilVisible(
   label: label ?? 'visible(${finder.description})',
 );
 
+/// Bounded settle for web integration tests.
+///
+/// [WidgetTester.pumpAndSettle] never returns while any
+/// [AnimationController.repeat] ticker is mounted (default 10‑minute timeout).
+/// Prefer this helper: it waits for a short idle streak of stable transient
+/// callback counts, then returns even if a loading bar is still repeating.
+Future<void> pumpSettleBounded(
+  WidgetTester tester, {
+  Duration step = const Duration(milliseconds: 100),
+  Duration timeout = const Duration(seconds: 20),
+}) async {
+  final wallEnd = DateTime.now().add(timeout);
+  await tester.pump();
+  var stable = 0;
+  var lastCallbacks = tester.binding.transientCallbackCount;
+  while (DateTime.now().isBefore(wallEnd)) {
+    await tester.pump(step);
+    drainTesterExceptions(tester);
+    final callbacks = tester.binding.transientCallbackCount;
+    // Infinite progress tickers keep a constant non-zero callback count.
+    // Treat "unchanged for 3 steps" as settled enough for interaction.
+    if (callbacks == lastCallbacks) {
+      stable++;
+      if (stable >= 3) return;
+    } else {
+      stable = 0;
+      lastCallbacks = callbacks;
+    }
+  }
+}
+
 Future<void> tapAndSettle(WidgetTester tester, Finder finder) async {
   // finder.description, not $finder: toString() evaluates the finder and
   // throws "Bad state: No element" for empty `.first`-style finders.
@@ -361,10 +400,10 @@ Future<void> tapAndSettle(WidgetTester tester, Finder finder) async {
   // Long scrollables (e.g. the evaluation sheet) can keep the target off
   // screen; ensureVisible is a no-op without a Scrollable ancestor.
   await tester.ensureVisible(finder);
-  await tester.pumpAndSettle();
+  await pumpSettleBounded(tester);
   drainTesterExceptions(tester);
   await tester.tap(finder);
-  await tester.pumpAndSettle();
+  await pumpSettleBounded(tester);
   drainTesterExceptions(tester);
   debugPrint('[e2e] tapAndSettle(${finder.description}): done');
 }
@@ -394,7 +433,7 @@ Future<void> dismissOkDialogIfPresent(WidgetTester tester) async {
   final okFinder = find.text('OK');
   if (okFinder.evaluate().isNotEmpty) {
     await tester.tap(okFinder.first);
-    await tester.pumpAndSettle();
+    await pumpSettleBounded(tester);
   }
 }
 
@@ -433,7 +472,7 @@ Future<void> _createRequestToRecipientsTab(
   await pumpUntilVisible(tester, titleField);
   debugPrint('[e2e] create: entering title');
   await tester.tap(titleField);
-  await tester.pumpAndSettle();
+  await pumpSettleBounded(tester);
   await tester.enterText(titleField, title);
   await tester.enterText(
     find.byKey(TestIds.key(TestIds.requestDescription)),
@@ -444,7 +483,21 @@ Future<void> _createRequestToRecipientsTab(
     title: title,
     description: description,
   );
-  await tester.pumpAndSettle();
+  await pumpSettleBounded(tester);
+  // Bounded settle no longer idles for the 1s autosave debounce; flush so
+  // Recipients (which requires a persisted draft id) does not race it.
+  final formBody = find.byKey(const Key('BeaconCreate.FormBody'));
+  await pumpUntilVisible(tester, formBody);
+  await tester.element(formBody).read<BeaconCreateCubit>().flushAutosave();
+  await pumpUntil(
+    tester,
+    () {
+      final cubit = tester.element(formBody).read<BeaconCreateCubit>();
+      return cubit.state.draftId?.isNotEmpty ?? false;
+    },
+    timeout: const Duration(seconds: 45),
+    label: 'draft id after flushAutosave',
+  );
 
   if (needSlug != null) {
     await tapAndSettle(tester, find.text('Requirements').first);
@@ -466,7 +519,6 @@ Future<void> _createRequestToRecipientsTab(
     // Flush needs before Recipients: draft autosave from the title alone
     // creates an empty-needs draft; opening Recipients immediately then
     // loads an empty forward band (no "Seen helping with …").
-    final formBody = find.byKey(const Key('BeaconCreate.FormBody'));
     await pumpUntilVisible(tester, formBody);
     final createCubit = tester.element(formBody).read<BeaconCreateCubit>();
     await pumpUntil(
@@ -622,7 +674,7 @@ Future<void> goToInboxTriage(
   String? beaconId,
 }) async {
   await goToPath(tester, kPathInbox);
-  await tester.pumpAndSettle();
+  await pumpSettleBounded(tester);
   if (beaconId != null) {
     await pumpUntilVisible(
       tester,
@@ -653,7 +705,7 @@ Future<void> offerHelpFromInbox(
     find.byKey(TestIds.key(TestIds.helpOfferMessage)),
     'I can help with $capabilitySlug',
   );
-  await tester.pumpAndSettle();
+  await pumpSettleBounded(tester);
   await tapAndSettle(
     tester,
     find.byKey(TestIds.key(TestIds.helpOfferBrowseCategories)),
@@ -662,7 +714,7 @@ Future<void> offerHelpFromInbox(
     find.byKey(TestIds.key(TestIds.helpOfferSearch)),
     capabilitySlug,
   );
-  await tester.pumpAndSettle();
+  await pumpSettleBounded(tester);
   await tapAndSettle(
     tester,
     find.byKey(TestIds.key(TestIds.capabilityChip(capabilitySlug))).first,
@@ -755,7 +807,7 @@ Future<void> endHelperParticipation(
   final reasonField = find.byKey(TestIds.key(TestIds.admissionReasonInput));
   await pumpUntilVisible(tester, reasonField);
   await tester.enterText(reasonField, 'Integration cleanup');
-  await tester.pumpAndSettle();
+  await pumpSettleBounded(tester);
   await tapAndSettle(
     tester,
     find.byKey(TestIds.key(TestIds.admissionReasonSubmit)),
@@ -1116,7 +1168,7 @@ Future<void> reviewParticipant(
       reason: 'reopened review sheet must show Save',
     );
     Navigator.of(tester.element(reopenedSaveButton)).pop();
-    await tester.pumpAndSettle();
+    await pumpSettleBounded(tester);
     await pumpUntil(tester, () => reopenedSaveButton.evaluate().isEmpty);
   }
 }

@@ -2,6 +2,7 @@ import 'package:mockito/mockito.dart';
 import 'package:tentura_root/domain/entity/beacon_hierarchy_capabilities.dart';
 import 'package:tentura_root/domain/entity/beacon_hierarchy_child_group.dart';
 import 'package:tentura_root/domain/entity/beacon_hierarchy_page.dart';
+import 'package:tentura_root/domain/entity/beacon_hierarchy_summary.dart';
 import 'package:tentura_root/domain/entity/beacon_parent_reference.dart';
 import 'package:tentura_root/domain/entity/beacon_promotion_source.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
@@ -32,6 +33,13 @@ class FakeBeaconHierarchyRepository implements BeaconHierarchyRepositoryPort {
     required BeaconHierarchyChildGroup group,
     required int first,
     String? after,
+  }) =>
+      throw UnimplementedError();
+
+  @override
+  Future<BeaconHierarchySummary?> loadChildPreview({
+    required String beaconId,
+    required String viewerId,
   }) =>
       throw UnimplementedError();
 

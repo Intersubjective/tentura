@@ -50,7 +50,7 @@ ON CONFLICT (id) DO NOTHING
 '''),
           parameters: {
             'id': id,
-            'publicKey': kBeaconHierarchyPgTestPublicKeys[i],
+            'publicKey': pgTestPublicKey('admhlp', i + 1),
           },
         );
       }

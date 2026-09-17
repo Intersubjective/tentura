@@ -4693,6 +4693,7 @@ type query_root {
     where: beacon_bool_exp
   ): [beacon!]!
   beaconChildren(after: String, first: Int, group: String!, parentBeaconId: String!): v2_BeaconHierarchyPage!
+  beaconChildPreview(beaconId: String!): v2_BeaconHierarchySummary
   beaconDisplayStatuses(beaconIds: [String!]): [v2_BeaconDisplayStatus!]
   beaconEligibleInboundForwards(id: String!): [v2_ForwardInboundEdge!]
   beaconForwardGraph(id: String!): v2_ForwardGraphResult!
@@ -7506,11 +7507,20 @@ type v2_BeaconHierarchyPage {
 }
 
 type v2_BeaconHierarchySummary {
+  admittedHelperCount: Int!
+  admittedHelperPreviews: [v2_BeaconHierarchyOwnerSummary!]!
   beaconId: String!
+  coverImageId: String
+  coverSource: Int!
+  coverThumbImageId: String
+  description: String
   isTombstone: Boolean!
+  needs: String!
   owner: v2_BeaconHierarchyOwnerSummary
+  primaryNeedSlug: String
   publishedAt: String!
   status: Int!
+  statusChangedAt: String
   title: String
 }
 

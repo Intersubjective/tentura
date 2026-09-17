@@ -34,7 +34,7 @@ void main() {
       );
 
       await launchApp(app.main);
-      await tester.pumpAndSettle();
+      await pumpSettleBounded(tester);
 
       final fixture = await bootstrapFixture(
         runId: uniqueRunId('tab-attn-bg'),

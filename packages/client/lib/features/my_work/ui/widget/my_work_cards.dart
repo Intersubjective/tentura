@@ -13,6 +13,7 @@ import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura/features/my_work/ui/widget/my_work_card_metadata_row.dart';
 import 'package:tentura/features/my_work/ui/widget/my_work_status_line.dart';
 import 'package:tentura/ui/widget/beacon_card_primitives.dart';
+import 'package:tentura/ui/widget/beacon_request_preview_identity.dart';
 import 'package:tentura/ui/presenter/beacon_phase_cta.dart';
 import 'package:tentura/ui/presenter/beacon_phase_presenter.dart';
 import 'package:tentura/ui/test_ids.dart';
@@ -288,6 +289,30 @@ void _openReviewContributions(BuildContext context, String id) {
   return (phaseStatus: pres);
 }
 
+Widget _myWorkSharedPreviewHeader(
+  BuildContext context, {
+  required MyWorkCardViewModel vm,
+  required String currentUserId,
+  required BeaconPhaseStatusPresentation? phaseStatus,
+  required Widget menu,
+  String? statusSemanticsIdentifier,
+}) {
+  final l10n = L10n.of(context)!;
+  final data = BeaconRequestPreviewData.fromBeacon(
+    l10n,
+    vm.beacon,
+    now: DateTime.now(),
+    phaseStatus: phaseStatus,
+  );
+  return BeaconRequestPreviewIdentity(
+    data: data,
+    currentUserId: currentUserId,
+    trailing: menu,
+    titleMaxLines: 1,
+    statusSemanticsIdentifier: statusSemanticsIdentifier,
+  );
+}
+
 Widget? _myWorkArchiveFooter(BuildContext context, MyWorkCardViewModel vm) {
   if (!vm.showArchiveAffordance) return null;
   final l10n = L10n.of(context)!;
@@ -466,9 +491,10 @@ class _AuthoredActiveCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          BeaconCardHeaderRow(
-            beacon: b,
-            titleMaxLines: 1,
+          _myWorkSharedPreviewHeader(
+            context,
+            vm: vm,
+            currentUserId: currentUserId,
             phaseStatus: headerStatus.phaseStatus,
             statusSemanticsIdentifier: TestIds.myWorkRoomStatus(b.id),
             menu: BeaconOverflowMenu(
@@ -549,6 +575,7 @@ class _AuthoredActiveCard extends StatelessWidget {
             beacon: b,
             viewModel: vm,
             currentUserId: currentUserId,
+            hidePeople: true,
           ),
           _myWorkWhatsNewSection(
             context,
@@ -589,9 +616,10 @@ class _HelpOfferedActiveCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          BeaconCardHeaderRow(
-            beacon: b,
-            titleMaxLines: 1,
+          _myWorkSharedPreviewHeader(
+            context,
+            vm: vm,
+            currentUserId: currentUserId,
             phaseStatus: headerStatus.phaseStatus,
             statusSemanticsIdentifier: TestIds.myWorkRoomStatus(b.id),
             menu: BeaconOverflowMenu(
@@ -620,6 +648,7 @@ class _HelpOfferedActiveCard extends StatelessWidget {
             beacon: b,
             viewModel: vm,
             currentUserId: currentUserId,
+            hidePeople: true,
           ),
           _myWorkWhatsNewSection(
             context,
@@ -682,9 +711,10 @@ class _DraftAuthoredCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          BeaconCardHeaderRow(
-            beacon: b,
-            titleMaxLines: 1,
+          _myWorkSharedPreviewHeader(
+            context,
+            vm: vm,
+            currentUserId: currentUserId,
             phaseStatus: headerStatus.phaseStatus,
             statusSemanticsIdentifier: TestIds.myWorkRoomStatus(b.id),
             menu: BeaconOverflowMenu(
@@ -699,6 +729,7 @@ class _DraftAuthoredCard extends StatelessWidget {
             beacon: b,
             viewModel: vm,
             currentUserId: currentUserId,
+            hidePeople: true,
           ),
           const SizedBox(height: kSpacingSmall),
           Text(
@@ -752,9 +783,10 @@ class _FinishedAuthoredCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          BeaconCardHeaderRow(
-            beacon: b,
-            titleMaxLines: 1,
+          _myWorkSharedPreviewHeader(
+            context,
+            vm: vm,
+            currentUserId: currentUserId,
             phaseStatus: headerStatus.phaseStatus,
             statusSemanticsIdentifier: TestIds.myWorkRoomStatus(b.id),
             menu: BeaconOverflowMenu(
@@ -835,6 +867,7 @@ class _FinishedAuthoredCard extends StatelessWidget {
             beacon: b,
             viewModel: vm,
             currentUserId: currentUserId,
+            hidePeople: true,
           ),
           _myWorkWhatsNewSection(
             context,
@@ -879,9 +912,10 @@ class _FinishedHelpOfferedCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          BeaconCardHeaderRow(
-            beacon: b,
-            titleMaxLines: 1,
+          _myWorkSharedPreviewHeader(
+            context,
+            vm: vm,
+            currentUserId: currentUserId,
             phaseStatus: headerStatus.phaseStatus,
             statusSemanticsIdentifier: TestIds.myWorkRoomStatus(b.id),
             menu: BeaconOverflowMenu(
@@ -910,6 +944,7 @@ class _FinishedHelpOfferedCard extends StatelessWidget {
             beacon: b,
             viewModel: vm,
             currentUserId: currentUserId,
+            hidePeople: true,
           ),
           _myWorkWhatsNewSection(
             context,

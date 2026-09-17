@@ -209,12 +209,23 @@ Map<String, dynamic> beaconHierarchySummaryToGqlMap(
 ) => {
   'beaconId': summary.beaconId,
   'title': summary.title,
+  'description': summary.description,
   'owner': summary.owner == null
       ? null
       : beaconHierarchyOwnerSummaryToGqlMap(summary.owner!),
   'status': summary.status.smallintValue,
   'publishedAt': summary.publishedAt.toUtc().toIso8601String(),
+  'statusChangedAt': summary.statusChangedAt?.toUtc().toIso8601String(),
   'isTombstone': summary.isTombstone,
+  'coverSource': summary.coverSource.wireValue,
+  'coverImageId': summary.coverImageId,
+  'coverThumbImageId': summary.coverThumbImageId,
+  'primaryNeedSlug': summary.primaryNeedSlug,
+  'needs': summary.needs.join(','),
+  'admittedHelperPreviews': summary.admittedHelperPreviews
+      .map(beaconHierarchyOwnerSummaryToGqlMap)
+      .toList(),
+  'admittedHelperCount': summary.admittedHelperCount,
 };
 
 Map<String, dynamic> beaconHierarchyPageToGqlMap(BeaconHierarchyPage page) => {

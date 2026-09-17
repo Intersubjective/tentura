@@ -25,6 +25,7 @@ final class QueryBeaconHierarchy extends GqlNodeBase {
   List<GraphQLObjectField<dynamic, dynamic>> get all => [
     beaconHierarchyCapabilities,
     beaconChildren,
+    beaconChildPreview,
     beaconParentReference,
     beaconPromotionSource,
   ];
@@ -64,6 +65,23 @@ final class QueryBeaconHierarchy extends GqlNodeBase {
             after: _after.fromArgs(args),
           );
           return beaconHierarchyPageToGqlMap(page);
+        },
+      );
+
+  GraphQLObjectField<dynamic, dynamic> get beaconChildPreview =>
+      GraphQLObjectField(
+        'beaconChildPreview',
+        gqlTypeBeaconHierarchySummary,
+        arguments: [_beaconId.field],
+        resolve: (_, args) async {
+          final viewerId = getCredentials(args).sub;
+          final preview = await _hierarchyRepository.loadChildPreview(
+            beaconId: _beaconId.fromArgsNonNullable(args),
+            viewerId: viewerId,
+          );
+          return preview == null
+              ? null
+              : beaconHierarchySummaryToGqlMap(preview);
         },
       );
 

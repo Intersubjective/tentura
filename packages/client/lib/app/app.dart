@@ -140,7 +140,10 @@ class App extends StatelessWidget {
               if (child == null) {
                 return const SizedBox();
               }
-              return MultiBlocProvider(
+              // Live web integration bindings do not honor
+              // FakeAccessibilityFeatures; force reduced motion so repeating
+              // progress/attention animations cannot hang pumpAndSettle.
+              final content = MultiBlocProvider(
                 providers: [
                   BlocProvider.value(
                     value: GetIt.I<ScreenCubit>(),
@@ -233,6 +236,15 @@ class App extends StatelessWidget {
                     ),
                   ),
                 ),
+              );
+              if (!kQaIntegrationTestMode) {
+                return content;
+              }
+              return MediaQuery(
+                data: MediaQuery.of(context).copyWith(
+                  disableAnimations: true,
+                ),
+                child: content,
               );
             },
           );

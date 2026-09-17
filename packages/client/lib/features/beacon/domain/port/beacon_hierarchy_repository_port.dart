@@ -2,6 +2,7 @@ import 'package:tentura_root/domain/entity/beacon_child_command_outcome.dart';
 import 'package:tentura_root/domain/entity/beacon_hierarchy_capabilities.dart';
 import 'package:tentura_root/domain/entity/beacon_hierarchy_child_group.dart';
 import 'package:tentura_root/domain/entity/beacon_hierarchy_page.dart';
+import 'package:tentura_root/domain/entity/beacon_hierarchy_summary.dart';
 import 'package:tentura_root/domain/entity/beacon_parent_reference.dart';
 import 'package:tentura_root/domain/entity/beacon_promotion_source.dart';
 import 'package:tentura_root/domain/entity/coordinates.dart';
@@ -24,7 +25,7 @@ class BeaconChildCreateOutcome {
 /// Client-side V2 hierarchy transport (plan §3.5 API surface). Pure domain
 /// values in, pure domain values out — no raw GraphQL/Ferry types cross this
 /// boundary, and no unrestricted raw parent/child relationship query exists
-/// beyond the five specified operations.
+/// beyond the specified operations.
 abstract class BeaconHierarchyRepositoryPort {
   Future<BeaconHierarchyCapabilities> fetchCapabilities({
     required String beaconId,
@@ -35,6 +36,11 @@ abstract class BeaconHierarchyRepositoryPort {
     required BeaconHierarchyChildGroup group,
     int first = 20,
     String? after,
+  });
+
+  /// Same projection as [fetchChildren] for one child (Chat promotion footer).
+  Future<BeaconHierarchySummary?> fetchChildPreview({
+    required String beaconId,
   });
 
   Future<BeaconParentReference> fetchParentReference({

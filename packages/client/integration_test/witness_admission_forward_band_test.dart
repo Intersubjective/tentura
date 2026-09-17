@@ -14,7 +14,7 @@ void main() {
     'witness admission gates the forward band; mute removes it (G3b)',
     (tester) async {
       await launchApp(app.main);
-      await tester.pumpAndSettle();
+      await pumpSettleBounded(tester);
 
       final runId = uniqueRunId('g3b');
       final fixture = await bootstrapWitnessFixture(runId: runId);
@@ -105,7 +105,7 @@ void main() {
         title: uniqueRequestTitle('IT G3b eve view'),
         needSlug: 'transport',
       );
-      await tester.pumpAndSettle();
+      await pumpSettleBounded(tester);
       expect(find.textContaining('Seen helping with'), findsNothing);
 
       // Carol mutes `transport` via the real F5 settings screen — Alice's
@@ -126,7 +126,7 @@ void main() {
         title: uniqueRequestTitle('IT G3b alice after mute'),
         needSlug: 'transport',
       );
-      await tester.pumpAndSettle();
+      await pumpSettleBounded(tester);
       expect(find.textContaining('Seen helping with'), findsNothing);
     },
   );
