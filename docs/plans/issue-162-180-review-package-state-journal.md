@@ -643,3 +643,88 @@ Verdict: **accepted**. Astra inner (slot A1) + overseer D17 fixture widen `d98a2
 UNIT_BASE: `d98a2e50b`
 Inner: Opus 5 low. Not Astra.
 Live-code note: `reopenFromReview` currently builds `requestStatusChanged` then `downgradeSubmittedReviewsToDraft` → `deleteReviewScaffoldingForBeacon` → `supersedeReviewObligationsOnReopen`. Status list must be read **before** the delete.
+
+### scout — 2026-09-18 — UNIT 06
+
+STATUS: complete
+
+BRIEF: **D15** — when the author calls `reopenFromReview`, every **enrolled** reviewer (`beacon_review_status` row via `listReviewStatusesForBeacon`) gets an informational `AttentionEventType.reviewWindowCancelled` Updates card; the acting author does not. Observable acceptance: (1) with two enrolled reviewers (one sent `status==2`, one not), `TestAttentionHarness.recorded` contains exactly one `reviewWindowCancelled` intent whose `recipients` are both reviewer ids; (2) if the author is also enrolled, they are not among those recipients; (3) `supersedeReviewObligationsOnReopen` still runs (outstanding `reviewOpened` obligation cleared — today a no-op fake returns `0`, test should use a counting fake and assert one call / non-zero return when wired); (4) existing reopen scaffolding behavior unchanged (`downgradeSubmittedReviewsToDraft`, `deleteReviewScaffoldingForBeacon`, status transition to `open`). Policy: `requiresAction false`, `presentationKey review_window_cancelled`, `NotificationCategory.unblocksMe`, `AttentionSuppressionClass.standard`, `_accessPolicy` same branch as `reviewOpened`; **destination** per plan is `AttentionDestinationKind.beacon` + `role.beaconId` (not `review` — differs from `reviewOpened` / `reviewAllPackagesIn`). Intent builder: copy `reviewOpened` (`attention_intent_case.dart:323–341`) — `Set<String> recipientUserIds`, `NotificationPriority.high`, `resolveContext: false`. **Do not** add a `fromBeaconNotification` special case like UNIT 05: actor is the author, recipients are other enrolled ids; `BeaconNotificationRecipientResolver` already skips `userId == actor` (`beacon_notification_recipient_resolver.dart:33–34`), so explicitly subtracting `userId` from the enrolled set is sufficient and safer for tests.
+
+**Live `reopenFromReview`** (`evaluation_case.dart:396–478` at `6a1306bbe`): inside `_runStatusAction` → `runInBeaconStateTransaction`; after reopen-cap check, builds `requestStatusChanged` intent (not yet recorded); then downgrade → delete → `supersedeReviewObligationsOnReopen` → `recordBeaconStatusTransition` → `incrementReviewReopenCount`; **only** `transaction.record(requestStatusChanged)` at `:469–471`. Insert **after** cap check, **before** `downgradeSubmittedReviewsToDraft`: `statuses = await listReviewStatusesForBeacon(beaconId)`; `recipientUserIds = statuses.keys.where((id) => id != userId).toSet()`; build `reviewWindowCancelled` intent when `transaction != null`; at end `record` **both** intents (mirror `beaconClose` two-record pattern at `:329–337`). Plan “Read first” omits the existing `requestStatusChanged` prelude — live order is intent build → mutations → dual record.
+
+**`sourceEventKey`:** plan silent; recommend deterministic
+`'review_window_cancelled:$beaconId:${w.openedAt.toUtc().toIso8601String()}'`
+(window row `w` already loaded) — journal choice for idempotent retry, analogous to UNIT 05 `review_all_in:…:openedAt`.
+
+**Contract:** append `eventTypes` row + `producers[]` row (`useCase: packages/server/lib/domain/use_case/evaluation_case.dart`, `eventType: reviewWindowCancelled`, `producer: EvaluationCase.reopenFromReview` in `eventTypes`, `destinationFamily: beacon`, `muteability: standard`, `coveringTest: evaluation_case_test.dart`); mirror into `_expectedEventTypes` after `reviewAllPackagesIn`. **`recipientCategory`:** plan does not fix a token — use `review_participant` (enrolled reviewers) or `admitted_participants` (parallel to `reviewOpened`); contract test only requires non-empty string.
+
+**Actor / resolver:** confirmed — no UNIT 05-style bypass. `reviewAllPackagesIn` branch at `:901–909` must remain untouched.
+
+**Tests (existing):** `group('reopenFromReview')` (`evaluation_case_test.dart:2558`) has scaffolding + reopen-limit only; no attention assertions. Seed `evalRepo.reviewStatusesResult` (fake `:497–498`; **not** cleared by `deleteReviewScaffoldingForBeacon`, which only nulls `reviewWindowResult`). Reuse top-level `attention` `TestAttentionHarness` like `beaconClose` (`:2899` expects 2 events). For supersede: local `buildTestEvaluationCase(..., attentionSystemSettlement: countingFake)` pattern from finalize settlement test (`:948–970`); extend or sibling fake with `supersedeCalls` — default `_RecordingPackageSendSettlement.supersedeReviewObligationsOnReopen` returns `0` without counting.
+
+**Owns vs CI (same class as UNIT 05):** `attention_policy_test.dart` `_fixtureFor` throws on unknown contract names; `attention_intent_case_test.dart` inventory `every non-pending compact-contract type has a migrated fixture` — **not** in UNIT 06 Owns. Overseer must widen for `'reviewWindowCancelled'` fixture in both (policy: `reviewParticipant` reasons + `_baseRole`; intent: clone `reviewOpened` fixture block ~145–156 with `reviewWindowCancelled` builder, single `target` recipient).
+
+STEPS (commit-sized, Opus 5 low inner):
+1. **Attention surface** — `attention_models.dart`: `reviewWindowCancelled` after `reviewAllPackagesIn`. `attention_policy.dart`: six switches per BRIEF (`_suppression` with `reviewAllPackagesIn` standard group; `_destination` **new** `beacon` case, do not extend `review` pair at `:235–239`). `attention_intent_case.dart`: `reviewWindowCancelled` builder (plan step 2 literal shape = `reviewOpened` + new enum). Red meaningful: **no** (compile-only until contract/tests).
+2. **Contract** — `updates-event-contract.json` + `updates_event_contract_test.dart` `_expectedEventTypes` insert. Red meaningful: **yes** — contract test fails until JSON + Dart row land together.
+3. **Tests (red)** — `evaluation_case_test.dart` `group('reopenFromReview')`: three plan-named tests + policy projections optional but UNIT 05 pattern asserts `presentationKey` / `destination.kind` / `requiresAction` on cancel intent. Expect `attention.recorded` length **2** (`requestStatusChanged` + `reviewWindowCancelled`) for happy path. Red meaningful: **yes** — zero `reviewWindowCancelled` before step 4.
+4. **Production** — `reopenFromReview` list + dual `record` as BRIEF. Keep `supersedeReviewObligationsOnReopen` after delete, unchanged. Red meaningful: step 3 green.
+
+**Overseer widen (D17, after step 2 or with step 4 green):** `attention_policy_test.dart` + `attention_intent_case_test.dart` fixtures; then full non-PG server suite if desired (not in mandatory TEST_CMD).
+
+TEST_CMD:
+```bash
+cd packages/server && ../../scripts/run_with_test_cleanup.sh --timeout 20m -- dart test test/domain/evaluation/evaluation_case_test.dart test/architecture/updates_event_contract_test.dart --exclude-tags pg
+```
+```bash
+cd packages/server && ../../scripts/run_with_test_cleanup.sh --timeout 10m -- dart test test/domain/attention/attention_policy_test.dart test/domain/attention/attention_intent_case_test.dart --exclude-tags pg
+```
+(second command after overseer widens fixture Owns)
+
+UNTOUCHABLE: journal pre-existing dirty/untracked (`.serena/project.yml`, constellation journal, other `docs/plans/*`, keys, `image_cropper_for_web/build`, etc.); generated files; **client**; UNIT 05 `fromBeaconNotification` author branch; do not push.
+
+RISKS:
+- **Plan Read first vs live:** reopen order includes `requestStatusChanged` intent build before downgrade — not contradicted by steps 3–4, but don’t drop it.
+- **Destination family:** UNIT 06 explicitly `beacon` not `review` — client UNIT 14 maps `review_window_cancelled` to request copy; aligns with `AttentionDestinationKind.beacon`.
+- **Dual record timing:** intents can be built pre-mutation and recorded post-mutation inside the same `runAction` transaction (current `requestStatusChanged` pattern) — statuses must be **read** pre-delete, not **recorded** pre-delete.
+- **Empty enrolled set:** only author in status map → cancel intent with zero recipients; not covered by the three named tests.
+- **Policy `_suppression`:** `reviewOpened` is `mandatory` in the shared OR-group (`:65–67`); new event must **not** join that group — use `reviewAllPackagesIn` / `standard` branch (`:82–84`).
+- **Full CI without fixture widen:** `attention_policy_test` + intent inventory red despite passing UNIT TEST_CMD — same gap UNIT 05 hit; overseer widen required before merge.
+- **Supersede test oracle:** production uses `?.` — null settlement port skips; test must inject a fake to prove call happens (return `1` to match “one outstanding obligation” wording).
+- **Line refs:** `reopenFromReview` `:396`; `reviewOpened` intent `:323`; policy switches `:65–319`; `listReviewStatusesForBeacon` in `_canCloseNow` `:595` — stable at `6a1306bbe`.
+
+### inner — 2026-09-18 — UNIT 06 (Opus 5 low)
+
+STATUS: complete
+
+STEPS:
+1. `cffaa7652` — `reviewWindowCancelled` enum value after `reviewAllPackagesIn`; six `attention_policy.dart` switches (`standard` suppression joined to the `reviewAllPackagesIn`/`deadlineChanged` branch — **not** the `reviewOpened` mandatory OR-group; `unblocksMe`; `reviewOpened` access-policy branch; **new** `AttentionDestinationKind.beacon` case, `review` pair untouched; `requiresAction false`; `'review_window_cancelled'`); intent builder cloned from `reviewOpened` (`Set<String> recipientUserIds`, `NotificationPriority.high`, `resolveContext: false`). RED n/a (compile-only); `dart analyze lib` zero errors.
+2. `95589a22d` — contract `eventTypes` + `producers` rows (`recipientCategory: review_participant`, `destinationFamily: beacon`, `muteability: standard`, producer `EvaluationCase.reopenFromReview`) + `_expectedEventTypes` row after `reviewAllPackagesIn` + `attention_policy_test.dart` `_fixtureFor` fixture (`reviewParticipant` + `_baseRole`). **TEST_RED** `+0 -1` (Dart row added before JSON) → GREEN `+24`.
+3+4. `4fc40f415` — three plan-named tests in `group('reopenFromReview')` folded with production (tree never left red; **TEST_RED recorded first: `+90 -2`**). Production: `listReviewStatusesForBeacon` + `recipientUserIds = keys.where(id != userId).toSet()` inserted after the reopen-cap check and **before** `downgradeSubmittedReviewsToDraft`; `reviewWindowCancelled` intent built when `transaction != null`; dual `transaction.record` at the end (mirrors `beaconClose`). `supersedeReviewObligationsOnReopen` left after the delete, unchanged. GREEN `+92`.
+5. `83a9ac601` — `attention_intent_case_test.dart` inventory fixture (separate record cloned from `reviewOpened`, `recipient: target`). Second TEST_CMD GREEN `+57`.
+
+`sourceEventKey` (overseer choice, plan silent): `review_window_cancelled:$beaconId:${w.openedAt.toUtc().toIso8601String()}` using the already-loaded window row `w`; asserted in the first test.
+
+TESTS:
+- TEST_CMD 1 (`evaluation_case_test` + `updates_event_contract_test`, `--exclude-tags pg`): **+92**.
+- TEST_CMD 2 (`attention_policy_test` + `attention_intent_case_test`): **+57**.
+- Final combined four-file run: **+149**, all passed.
+- `dart analyze` on `evaluation_case.dart` + `evaluation_case_test.dart`: zero errors.
+
+FILES:
+- `packages/server/lib/domain/attention/attention_models.dart`, `.../attention_policy.dart`
+- `packages/server/lib/domain/use_case/attention_intent_case.dart`, `.../evaluation_case.dart`
+- `docs/contracts/updates-event-contract.json`
+- `packages/server/test/architecture/updates_event_contract_test.dart`
+- `packages/server/test/domain/attention/attention_policy_test.dart`, `.../attention_intent_case_test.dart`
+- `packages/server/test/domain/evaluation/evaluation_case_test.dart` (+ `_CountingReopenSettlement` fake subclassing `_RecordingPackageSendSettlement`)
+
+FINDINGS:
+- The plan-named test *"reopen still supersedes the one outstanding obligation"* was **green on first run** — production already called `supersedeReviewObligationsOnReopen`; the injected `_CountingReopenSettlement` (returns `1`, records calls) turns it into a genuine regression guard rather than a no-op assertion against the default fake's uncounted `0`.
+- `AttentionDispatchIntent` recipients carry `reasons`/`role`, not projections, so the policy assertions go through `const AttentionPolicy().project(...)` (UNIT 05 pattern) rather than reading fields off the recipient.
+- One `reviewWindowCancelled` intent with two recipients (not two intents), per BRIEF; happy path `attention.recorded` length **2**.
+- Untouched as required: `_canCloseNow`, `requestStatusChanged`, UNIT 05 `fromBeaconNotification` `reviewAllPackagesIn` author branch, client, generated files, pre-existing dirty/untracked files.
+
+REMAINING:
+- Empty-enrolled-set case (only the author in the status map → cancel intent with zero recipients) still uncovered by the three named tests — scout-flagged risk, no plan requirement.
+- Nothing pushed; no PG-tagged coverage added for this unit.
