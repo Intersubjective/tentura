@@ -1,6 +1,25 @@
 @Tags(['pg'])
 library;
 
+import 'package:logging/logging.dart';
+import 'package:mockito/mockito.dart';
+import 'package:tentura_root/domain/entity/beacon_status.dart';
+import 'package:tentura_server/data/repository/attention_dispatch_repository.dart';
+import 'package:tentura_server/data/repository/beacon_repository.dart';
+import 'package:tentura_server/data/repository/mutating_unit_of_work.dart';
+import 'package:tentura_server/domain/port/attention_expiry_repository_port.dart';
+import 'package:tentura_server/domain/port/review_finalization_port.dart';
+import 'package:tentura_server/domain/use_case/attention_expiry_sweep_case.dart';
+import 'package:tentura_server/domain/use_case/commitment_query_case.dart';
+import 'package:tentura_server/domain/use_case/evaluation/evaluation_draft_purger.dart';
+import 'package:tentura_server/domain/use_case/evaluation/evaluation_participant_graph_builder.dart';
+import 'package:tentura_server/domain/use_case/evaluation_case.dart';
+import 'package:tentura_server/domain/use_case/transactional_attention_case.dart';
+import '../../domain/evaluation/evaluation_graph_test_repos.dart';
+import '../../support/beacon_lifecycle_effects_test_support.dart';
+import '../../support/fake_beacon_hierarchy_repository.dart';
+import '../../support/test_attention_harness.dart';
+import '../../support/recording_commitment_repository.dart';
 import 'package:postgres/postgres.dart';
 import 'package:test/test.dart';
 
@@ -58,6 +77,101 @@ WHERE table_schema = 'public'
 
     tearDownAll(() async {
       await tearDownDisposablePgWriter(session: session, drift: database);
+    });
+
+    test('two simultaneous last sends emit one notification', () async {
+      await _seedRequiredPackages(writer);
+      final evaluationCase = _buildEvaluationCase(database, repo, target);
+      final window = (await repo.getReviewWindow(_beacon))!;
+      final sourceEventKey =
+          'review_all_in:$_beacon:${window.openedAt.toUtc().toIso8601String()}';
+
+      // Both actions are launched together. The shared Drift connection
+      // serializes their real mutating transactions, as in the server.
+      expect(
+        await Future.wait([
+          evaluationCase.evaluationFinalize(beaconId: _beacon, userId: _author),
+          evaluationCase.evaluationFinalize(
+            beaconId: _beacon,
+            userId: _reviewer,
+          ),
+        ]),
+        [true, true],
+      );
+      expect(await _nudgeCount(writer, sourceEventKey), 1);
+      final receipts = await writer.execute(
+        r'''SELECT r.account_id, r.requires_action, o.actor_user_id
+              FROM public.notification_outbox r
+              JOIN public.attention_occurrence o ON o.id = r.occurrence_id
+              WHERE o.source_event_key = $1''',
+        parameters: [sourceEventKey],
+      );
+      expect(receipts, hasLength(1));
+      expect(receipts.single, [_author, false, _author]);
+
+      // A different last sender after an edit must replay the same stable
+      // source facts and must neither add a receipt nor reject the key.
+      await repo.submitEvaluationAtomic(
+        beaconId: _beacon,
+        evaluatorId: _author,
+        evaluatedUserId: _reviewer,
+        value: 4,
+        reasonTags: const [],
+        note: 'edited',
+        ackTags: const [],
+      );
+      expect(await repo.getReviewUserStatus(_beacon, _author), 1);
+      await evaluationCase.evaluationFinalize(
+        beaconId: _beacon,
+        userId: _author,
+      );
+      expect(await _nudgeCount(writer, sourceEventKey), 1);
+      final status = await evaluationCase.reviewWindowStatus(
+        beaconId: _beacon,
+        userId: _author,
+      );
+      expect(status.canCloseNow, isTrue);
+      expect((await repo.getReviewWindow(_beacon))!.status, 0);
+    });
+
+    test('dispatch failure rolls back the last package send', () async {
+      await _seedRequiredPackages(writer);
+      await repo.setReviewUserStatus(
+        beaconId: _beacon,
+        userId: _author,
+        status: 2,
+        markSent: true,
+      );
+      final evaluationCase = _buildEvaluationCase(database, repo, target);
+      final window = (await repo.getReviewWindow(_beacon))!;
+      final sourceEventKey =
+          'review_all_in:$_beacon:${window.openedAt.toUtc().toIso8601String()}';
+      // NOT VALID leaves historical occurrences alone but rejects the new one.
+      await writer.execute('''
+        ALTER TABLE public.attention_occurrence
+        ADD CONSTRAINT unit05_reject_nudge
+        CHECK (event_type <> 'reviewAllPackagesIn') NOT VALID
+      ''');
+      try {
+        await expectLater(
+          evaluationCase.evaluationFinalize(
+            beaconId: _beacon,
+            userId: _reviewer,
+          ),
+          throwsA(
+            predicate<Object>(
+              (error) => error.toString().contains('unit05_reject_nudge'),
+            ),
+          ),
+        );
+        expect(await _status(writer), 1);
+        expect(await _sentAt(writer), isNull);
+        expect(await _nudgeCount(writer, sourceEventKey), 0);
+      } finally {
+        await writer.execute(
+          'ALTER TABLE public.attention_occurrence DROP CONSTRAINT unit05_reject_nudge',
+        );
+      }
     });
 
     test(
@@ -217,4 +331,104 @@ INSERT INTO public.beacon_review_status (beacon_id, user_id, status)
 VALUES ('Bcrvst1abcn01', 'Ucrvst1arevw01', 0)
 ON CONFLICT (beacon_id, user_id) DO UPDATE SET status = EXCLUDED.status
 ''');
+}
+
+class _NoDueWindows extends Fake implements AttentionExpiryRepositoryPort {
+  @override
+  Future<List<String>> lockExpiredReviewWindowBeaconIds(DateTime now) async =>
+      [];
+}
+
+class _UnusedFinalization extends Fake implements ReviewFinalizationPort {}
+
+EvaluationCase _buildEvaluationCase(
+  TenturaDb database,
+  EvaluationRepository repo,
+  DisposablePgTarget target,
+) {
+  final logger = Logger('ReviewAllPackagesInPgTest');
+  final attention = TestAttentionHarness();
+  final transactional = TransactionalAttentionCase(
+    MutatingUnitOfWork(database),
+    AttentionDispatchRepository(database, logger),
+  );
+  final offers = EmptyGraphHelpOfferRepository();
+  final forwards = EmptyGraphForwardEdgeRepository();
+  final commitments = NoOpCommitmentRepository();
+  final finalization = _UnusedFinalization();
+  return EvaluationCase(
+    BeaconRepository(database),
+    forwards,
+    repo,
+    StubUserProfileBatchLookup('User'),
+    EvaluationParticipantGraphBuilder(
+      commitments,
+      offers,
+      forwards,
+      StubUserRepository('User'),
+    ),
+    EvaluationDraftPurger(repo),
+    CommitmentQueryCase(
+      commitments,
+      offers,
+      env: target.databaseEnv,
+      logger: logger,
+    ),
+    commitments,
+    offers,
+    FakeBeaconHierarchyRepository(),
+    buildLifecycleEffectsCase(),
+    attentionIntents: attention.intents,
+    attention: transactional,
+    attentionExpirySweep: AttentionExpirySweepCase(
+      _NoDueWindows(),
+      finalization,
+      attention.intents,
+      transactional,
+    ),
+    reviewFinalization: finalization,
+    env: target.databaseEnv,
+    logger: logger,
+  );
+}
+
+Future<int> _nudgeCount(Connection writer, String sourceEventKey) async {
+  final rows = await writer.execute(
+    r'''SELECT count(*) FROM public.attention_occurrence
+        WHERE source_event_key = $1 AND event_type = 'reviewAllPackagesIn'
+        ''',
+    parameters: [sourceEventKey],
+  );
+  return rows.single.single! as int;
+}
+
+Future<void> _seedRequiredPackages(Connection writer) async {
+  await writer.execute(
+    r'UPDATE public.beacon SET status = $1 WHERE id = $2',
+    parameters: [BeaconStatus.reviewOpen.smallintValue, _beacon],
+  );
+  await writer.execute(r'''
+    INSERT INTO public.beacon_evaluation_participant
+      (beacon_id, user_id, role, contribution_summary, causal_hint)
+    VALUES ('Bcrvst1abcn01', 'Ucrvst1aauth01', 0, 'author', 'h'),
+           ('Bcrvst1abcn01', 'Ucrvst1arevw01', 1, 'reviewer', 'h')
+  ''');
+  await writer.execute(r'''
+    INSERT INTO public.beacon_evaluation_visibility
+      (beacon_id, evaluator_id, participant_id)
+    VALUES ('Bcrvst1abcn01', 'Ucrvst1aauth01', 'Ucrvst1arevw01'),
+           ('Bcrvst1abcn01', 'Ucrvst1arevw01', 'Ucrvst1aauth01')
+  ''');
+  await writer.execute(r'''
+    INSERT INTO public.beacon_review_status (beacon_id, user_id, status)
+    VALUES ('Bcrvst1abcn01', 'Ucrvst1aauth01', 1),
+           ('Bcrvst1abcn01', 'Ucrvst1arevw01', 1)
+    ON CONFLICT (beacon_id, user_id) DO UPDATE SET status = EXCLUDED.status
+  ''');
+  await writer.execute(r'''
+    INSERT INTO public.beacon_evaluation
+      (beacon_id, evaluator_id, evaluated_user_id, value, reason_tags, note, status)
+    VALUES ('Bcrvst1abcn01', 'Ucrvst1aauth01', 'Ucrvst1arevw01', 4, '', '', 0),
+           ('Bcrvst1abcn01', 'Ucrvst1arevw01', 'Ucrvst1aauth01', 4, '', '', 0)
+  ''');
 }
