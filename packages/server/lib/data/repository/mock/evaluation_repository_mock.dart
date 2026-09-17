@@ -48,6 +48,10 @@ class EvaluationRepositoryMock implements EvaluationRepositoryPort {
       null;
 
   @override
+  Future<DateTime?> getReviewSentAt(String beaconId, String userId) async =>
+      null;
+
+  @override
   Future<List<BeaconEvaluationRecord>> listEvaluationsForEvaluatedUser({
     required String beaconId,
     required String evaluatedUserId,

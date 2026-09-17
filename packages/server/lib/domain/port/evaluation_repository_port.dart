@@ -60,6 +60,9 @@ abstract class EvaluationRepositoryPort {
 
   Future<int?> getReviewUserStatus(String beaconId, String userId);
 
+  /// When this reviewer's package was sent, or null when it never was.
+  Future<DateTime?> getReviewSentAt(String beaconId, String userId);
+
   /// Sets the per-user review status. When [markSent] is true the package's
   /// `sent_at` is stamped; `sent_at` is never cleared (D11).
   Future<void> setReviewUserStatus({

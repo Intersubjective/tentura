@@ -725,6 +725,9 @@ final class EvaluationCase extends UseCaseBase {
               (ev.status == BeaconEvaluationRowStatus.draft ||
                   ev.status == BeaconEvaluationRowStatus.submitted ||
                   ev.status == BeaconEvaluationRowStatus.final_),
+          isOptional: EvaluationParticipantRole.fromDb(row.role) ==
+              EvaluationParticipantRole.formerCommitter,
+          rowStatus: ev?.status ?? -1,
         ),
       );
     }
@@ -832,6 +835,8 @@ final class EvaluationCase extends UseCaseBase {
           acknowledgeableHelpTags: const [],
           maxAcknowledgedHelpTags: 0,
           isSubmitted: false,
+          isOptional: row.role == EvaluationParticipantRole.formerCommitter,
+          rowStatus: ev?.status ?? -1,
         ),
       );
     }
@@ -1041,16 +1046,63 @@ final class EvaluationCase extends UseCaseBase {
       beaconId: beaconId,
       evaluatorId: userId,
     );
+    final parts = await _evaluationRepository.listParticipants(beaconId);
+    final partByUser = {for (final p in parts) p.userId: p};
     var reviewed = 0;
+    var requiredTotal = 0;
+    var requiredReviewed = 0;
+    var optionalTotal = 0;
+    var optionalReviewed = 0;
     for (final v in vis) {
-      if (evByTarget[v.participantId] != null) {
+      final hasRow = evByTarget[v.participantId] != null;
+      if (hasRow) {
         reviewed++;
       }
+      final target = partByUser[v.participantId];
+      if (target == null) {
+        continue;
+      }
+      final isOptional =
+          EvaluationParticipantRole.fromDb(target.role) ==
+          EvaluationParticipantRole.formerCommitter;
+      if (isOptional) {
+        optionalTotal++;
+        if (hasRow) {
+          optionalReviewed++;
+        }
+      } else {
+        requiredTotal++;
+        if (hasRow) {
+          requiredReviewed++;
+        }
+      }
     }
+    final viewerRow = partByUser[userId];
+    final viewerPackageOptional =
+        viewerRow != null &&
+        EvaluationParticipantRole.fromDb(viewerRow.role) ==
+            EvaluationParticipantRole.formerCommitter;
+    final statuses = await _evaluationRepository.listReviewStatusesForBeacon(
+      beaconId,
+    );
+    var unsentStartedPackages = 0;
+    var sentReviewerCount = 0;
+    for (final st in statuses.values) {
+      if (st == 1) {
+        unsentStartedPackages++;
+      } else if (st == 2) {
+        sentReviewerCount++;
+      }
+    }
+    final sentAt = await _evaluationRepository.getReviewSentAt(
+      beaconId,
+      userId,
+    );
+    final allRequiredSent = await _canCloseNow(beaconId: beaconId);
     final canCloseNow =
         w.status == 0 &&
         beacon.status == BeaconStatus.reviewOpen &&
-        await _canCloseNow(beaconId: beaconId);
+        allRequiredSent;
     final reopenCount = await _beaconRepository.reviewReopenCount(beaconId);
     final canReopen =
         w.status == 0 &&
@@ -1069,6 +1121,15 @@ final class EvaluationCase extends UseCaseBase {
       extensionsUsed: w.extensionsUsed,
       canCloseNow: canCloseNow,
       canReopen: canReopen,
+      requiredTotal: requiredTotal,
+      requiredReviewed: requiredReviewed,
+      optionalTotal: optionalTotal,
+      optionalReviewed: optionalReviewed,
+      viewerPackageOptional: viewerPackageOptional,
+      sentAt: sentAt,
+      allRequiredSent: allRequiredSent,
+      unsentStartedPackages: unsentStartedPackages,
+      sentReviewerCount: sentReviewerCount,
     );
   }
 
@@ -1468,7 +1529,18 @@ final class EvaluationCase extends UseCaseBase {
       beaconId: beaconId,
       evaluatorId: userId,
     );
+    final participantRows =
+        await _evaluationRepository.listParticipants(beaconId);
+    final partByUser = {for (final p in participantRows) p.userId: p};
     for (final v in vis) {
+      final target = partByUser[v.participantId];
+      if (target == null) {
+        continue; // stale visibility row: nothing to require
+      }
+      if (EvaluationParticipantRole.fromDb(target.role) ==
+          EvaluationParticipantRole.formerCommitter) {
+        continue; // D6/D7: optional target never gates the package
+      }
       final ev = byTarget[v.participantId];
       final ready = ev != null &&
           (ev.status == BeaconEvaluationRowStatus.draft ||

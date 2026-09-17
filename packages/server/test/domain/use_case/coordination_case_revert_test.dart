@@ -71,6 +71,10 @@ class _TrackingEvaluationRepository implements EvaluationRepositoryPort {
       null;
 
   @override
+  Future<DateTime?> getReviewSentAt(String beaconId, String userId) async =>
+      null;
+
+  @override
   Future<void> insertParticipant({
     required String beaconId,
     required String userId,

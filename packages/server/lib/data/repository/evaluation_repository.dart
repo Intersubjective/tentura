@@ -120,6 +120,16 @@ class EvaluationRepository implements EvaluationRepositoryPort {
   }
 
   @override
+  Future<DateTime?> getReviewSentAt(String beaconId, String userId) async {
+    final row = await _db.managers.beaconReviewStatuses
+        .filter(
+          (e) => e.beaconId.id(beaconId) & e.userId.id(userId),
+        )
+        .getSingleOrNull();
+    return row?.sentAt?.dateTime;
+  }
+
+  @override
   Future<void> setReviewUserStatus({
     required String beaconId,
     required String userId,

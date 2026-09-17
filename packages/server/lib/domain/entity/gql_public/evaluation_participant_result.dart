@@ -14,6 +14,8 @@ class EvaluationParticipantResult {
     required this.reasonTags,
     required this.note,
     required this.promptVariant,
+    required this.isOptional,
+    required this.rowStatus,
     this.acknowledgedHelpTags = const [],
     this.acknowledgeableHelpTags = const [],
     this.maxAcknowledgedHelpTags = 0,
@@ -35,4 +37,11 @@ class EvaluationParticipantResult {
   final List<String> acknowledgeableHelpTags;
   final int maxAcknowledgedHelpTags;
   final bool isSubmitted;
+
+  /// True when this target's role is formerCommitter: reviewing them is optional
+  /// and never gates the package (#180).
+  final bool isOptional;
+
+  /// BeaconEvaluationRowStatus of the stored row, or -1 when there is no row.
+  final int rowStatus;
 }
