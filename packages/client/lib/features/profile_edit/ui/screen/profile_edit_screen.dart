@@ -325,12 +325,13 @@ class _ProfileAvatarActions extends StatelessWidget {
   }
 }
 
-/// Web cropper area: fits viewport so the default dialog layout does not overflow.
+/// Web cropper area: fits viewport so AppBar / tool chrome stay tappable.
 int _avatarCropperWebSide(BuildContext context) {
   final mq = MediaQuery.sizeOf(context);
   const padding = 24.0;
   final topChrome = MediaQuery.paddingOf(context).top + kToolbarHeight;
-  const bottomChrome = 220.0;
+  // Tool bar only (footer commit removed; LayoutBuilder caps further).
+  const bottomChrome = 100.0;
   final bottom = MediaQuery.paddingOf(context).bottom + bottomChrome;
   final maxByHeight = (mq.height - topChrome - bottom).floor();
   final maxByWidth = (mq.width - 2 * padding).floor();
@@ -357,6 +358,8 @@ List<PlatformUiSettings> _avatarCropUiSettings(
       aspectRatioPickerButtonHidden: true,
       resetAspectRatioEnabled: false,
       aspectRatioPresets: const [CropAspectRatioPreset.square],
+      doneButtonTitle: l10n.buttonSave,
+      cancelButtonTitle: l10n.buttonCancel,
     ),
     WebUiSettings(
       context: context,
@@ -370,7 +373,7 @@ List<PlatformUiSettings> _avatarCropUiSettings(
         rotateLeftTooltip: l10n.cropRotateLeftTooltip,
         rotateRightTooltip: l10n.cropRotateRightTooltip,
         cancelButton: l10n.buttonCancel,
-        cropButton: l10n.buttonSaveAvatar,
+        cropButton: l10n.buttonSave,
       ),
     ),
   ];

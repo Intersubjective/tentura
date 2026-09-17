@@ -6,6 +6,7 @@ class CropperActionBar extends StatefulWidget {
   final Function(num) onScale;
   final WebTranslations translations;
   final WebThemeData? themeData;
+  final bool enabled;
 
   const CropperActionBar({
     super.key,
@@ -13,6 +14,7 @@ class CropperActionBar extends StatefulWidget {
     required this.onScale,
     required this.translations,
     this.themeData,
+    this.enabled = true,
   });
 
   @override
@@ -36,6 +38,7 @@ class _CropperActionBarState extends State<CropperActionBar> {
             ),
           )
         : Theme.of(context);
+    final enabled = widget.enabled;
     return Theme(
       data: themeData,
       child: Row(
@@ -44,9 +47,11 @@ class _CropperActionBarState extends State<CropperActionBar> {
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
           IconButton(
-            onPressed: () {
-              widget.onRotate(RotationAngle.counterClockwise90);
-            },
+            onPressed: enabled
+                ? () {
+                    widget.onRotate(RotationAngle.counterClockwise90);
+                  }
+                : null,
             tooltip: widget.translations.rotateLeftTooltip,
             icon: Icon(
               widget.themeData?.rotateLeftIcon ??
@@ -60,18 +65,22 @@ class _CropperActionBarState extends State<CropperActionBar> {
               max: widget.themeData?.scaleSliderMaxValue ?? 3.0,
               divisions: widget.themeData?.scaleSliderDivisions,
               label: _scaleValue.toStringAsFixed(1),
-              onChanged: (value) {
-                setState(() {
-                  _scaleValue = value;
-                });
-                widget.onScale(value);
-              },
+              onChanged: enabled
+                  ? (value) {
+                      setState(() {
+                        _scaleValue = value;
+                      });
+                      widget.onScale(value);
+                    }
+                  : null,
             ),
           ),
           IconButton(
-            onPressed: () {
-              widget.onRotate(RotationAngle.clockwise90);
-            },
+            onPressed: enabled
+                ? () {
+                    widget.onRotate(RotationAngle.clockwise90);
+                  }
+                : null,
             tooltip: widget.translations.rotateRightTooltip,
             icon: Icon(
               widget.themeData?.rotateRightIcon ??

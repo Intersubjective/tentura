@@ -3,10 +3,10 @@ import 'package:web/web.dart' as web;
 
 import 'package:image_cropper_platform_interface/image_cropper_platform_interface.dart';
 
-import 'cropper_actionbar.dart';
+import 'cropper_editor_scaffold.dart';
 import 'cropper_overlay_anchor.dart';
 
-class CropperPage extends StatefulWidget {
+class CropperPage extends StatelessWidget {
   final web.HTMLDivElement overlayElement;
   final Function() initCropper;
   final Future<String?> Function() crop;
@@ -31,112 +31,23 @@ class CropperPage extends StatefulWidget {
   });
 
   @override
-  State<CropperPage> createState() => _CropperPageState();
-}
-
-class _CropperPageState extends State<CropperPage> {
-  bool _processing = false;
-
-  @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        title: Text(widget.translations.title),
-        leading: widget.themeData?.backIcon != null
-            ? IconButton(
-                onPressed: () {
-                  Navigator.of(context).pop();
-                },
-                icon: Icon(widget.themeData!.backIcon!),
-              )
-            : null,
-      ),
-      body: Column(
-        mainAxisSize: MainAxisSize.max,
-        crossAxisAlignment: CrossAxisAlignment.center,
-        children: [
-          Expanded(
-            child: Center(
-              child: CropperOverlayAnchor(
-                overlayElement: widget.overlayElement,
-                width: widget.cropperContainerWidth,
-                height: widget.cropperContainerHeight,
-                onLayoutReady: widget.initCropper,
-              ),
-            ),
-          ),
-          Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: 48.0,
-              vertical: 24.0,
-            ),
-            child: CropperActionBar(
-              onRotate: (angle) {
-                widget.rotate(angle);
-              },
-              onScale: (value) {
-                widget.scale(value);
-              },
-              translations: widget.translations,
-              themeData: widget.themeData,
-            ),
-          ),
-          _footer(context),
-        ],
+    final maxSide = cropperContainerWidth < cropperContainerHeight
+        ? cropperContainerWidth
+        : cropperContainerHeight;
+    return CropperEditorScaffold(
+      translations: translations,
+      maxCanvasSide: maxSide,
+      themeData: themeData,
+      onCrop: crop,
+      onRotate: rotate,
+      onScale: scale,
+      canvasBuilder: (context, side) => CropperOverlayAnchor(
+        overlayElement: overlayElement,
+        width: side,
+        height: side,
+        onLayoutReady: initCropper,
       ),
     );
-  }
-
-  Widget _footer(BuildContext context) {
-    if (_processing) {
-      return const Align(
-        alignment: Alignment.centerRight,
-        child: Padding(
-          padding: EdgeInsets.symmetric(horizontal: 24.0, vertical: 20.0),
-          child: SizedBox(
-            width: 24.0,
-            height: 24.0,
-            child: CircularProgressIndicator(
-              strokeWidth: 2.0,
-            ),
-          ),
-        ),
-      );
-    }
-
-    return OverflowBar(
-      alignment: MainAxisAlignment.end,
-      spacing: 16.0,
-      children: [
-        TextButton(
-          onPressed: () {
-            Navigator.of(context).pop();
-          },
-          child: Text(widget.translations.cancelButton),
-        ),
-        FilledButton(
-          onPressed: () => _doCrop(),
-          child: Text(widget.translations.cropButton),
-        ),
-      ],
-    );
-  }
-
-  Future<void> _doCrop() async {
-    if (_processing) return;
-    setState(() {
-      _processing = true;
-    });
-    try {
-      final result = await widget.crop();
-      if (!mounted) return;
-      Navigator.of(context).pop(result);
-      return;
-    } catch (e) {
-      debugPrint(e.toString());
-    }
-    setState(() {
-      _processing = false;
-    });
   }
 }
