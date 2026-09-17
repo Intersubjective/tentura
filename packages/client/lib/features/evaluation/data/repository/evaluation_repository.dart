@@ -46,8 +46,6 @@ class EvaluationRepository {
     required String displayName,
     required String imageId,
     required int role,
-    required String contributionSummary,
-    required String causalHint,
     required String promptVariant,
     required int? value,
     required List<String>? reasonTags,
@@ -56,6 +54,11 @@ class EvaluationRepository {
     required List<String> acknowledgeableHelpTags,
     required int maxAcknowledgedHelpTags,
     required bool isSubmitted,
+    required bool isOptional,
+    required int rowStatus,
+    required String? committedAt,
+    required String offerMessage,
+    required String? forwarderDisplayName,
   }) {
     final tags = reasonTags ?? const <String>[];
     return EvaluationParticipant(
@@ -63,8 +66,6 @@ class EvaluationRepository {
       displayName: displayName,
       imageId: imageId,
       role: _roleFromInt(role),
-      contributionSummary: contributionSummary,
-      causalHint: causalHint,
       promptVariant: promptVariant,
       currentValue: EvaluationValue.fromWire(value),
       reasonTags: tags,
@@ -73,6 +74,11 @@ class EvaluationRepository {
       acknowledgeableHelpTags: acknowledgeableHelpTags,
       maxAcknowledgedHelpTags: maxAcknowledgedHelpTags,
       isSubmitted: isSubmitted,
+      isOptional: isOptional,
+      rowStatus: rowStatus,
+      committedAt: committedAt == null ? null : _parseUtcDateTime(committedAt),
+      offerMessage: offerMessage,
+      forwarderDisplayName: forwarderDisplayName,
     );
   }
 
@@ -84,8 +90,6 @@ class EvaluationRepository {
         displayName: e.displayName,
         imageId: e.imageId,
         role: e.role,
-        contributionSummary: e.contributionSummary,
-        causalHint: e.causalHint,
         promptVariant: e.promptVariant,
         value: e.value,
         reasonTags: e.reasonTags?.toList(),
@@ -94,6 +98,11 @@ class EvaluationRepository {
         acknowledgeableHelpTags: e.acknowledgeableHelpTags.toList(),
         maxAcknowledgedHelpTags: e.maxAcknowledgedHelpTags,
         isSubmitted: e.isSubmitted,
+        isOptional: e.isOptional,
+        rowStatus: e.rowStatus,
+        committedAt: e.committedAt,
+        offerMessage: e.offerMessage,
+        forwarderDisplayName: e.forwarderDisplayName,
       );
 
   EvaluationParticipant _mapDraftParticipant(
@@ -104,8 +113,6 @@ class EvaluationRepository {
         displayName: e.displayName,
         imageId: e.imageId,
         role: e.role,
-        contributionSummary: e.contributionSummary,
-        causalHint: e.causalHint,
         promptVariant: e.promptVariant,
         value: e.value,
         reasonTags: e.reasonTags?.toList(),
@@ -114,6 +121,11 @@ class EvaluationRepository {
         acknowledgeableHelpTags: e.acknowledgeableHelpTags.toList(),
         maxAcknowledgedHelpTags: e.maxAcknowledgedHelpTags,
         isSubmitted: e.isSubmitted,
+        isOptional: e.isOptional,
+        rowStatus: e.rowStatus,
+        committedAt: e.committedAt,
+        offerMessage: e.offerMessage,
+        forwarderDisplayName: e.forwarderDisplayName,
       );
 
   Future<List<EvaluationParticipant>> fetchParticipants(String beaconId) =>
@@ -494,5 +506,6 @@ EvaluationParticipantRole _roleFromInt(int v) => switch (v) {
       0 => EvaluationParticipantRole.author,
       1 => EvaluationParticipantRole.committer,
       2 => EvaluationParticipantRole.forwarder,
+      3 => EvaluationParticipantRole.formerCommitter,
       _ => EvaluationParticipantRole.committer,
     };

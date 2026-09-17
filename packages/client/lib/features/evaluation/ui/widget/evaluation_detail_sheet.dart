@@ -139,19 +139,23 @@ class _EvaluationDetailSheetBodyState
 
   String _roleLabel() => switch (widget.participant.role) {
     EvaluationParticipantRole.author => widget.l10n.evaluationRoleAuthor,
-    EvaluationParticipantRole.committer =>
+    EvaluationParticipantRole.committer ||
+    EvaluationParticipantRole.formerCommitter =>
       widget.l10n.evaluationRoleHelpOfferer,
     EvaluationParticipantRole.forwarder => widget.l10n.evaluationRoleForwarder,
   };
 
   String _promptText() =>
-      widget.participant.role == EvaluationParticipantRole.committer &&
+      (widget.participant.role == EvaluationParticipantRole.committer ||
+              widget.participant.role ==
+                  EvaluationParticipantRole.formerCommitter) &&
           widget.participant.promptVariant == 'handoff'
       ? widget.l10n.evaluationPromptHelpOffererHandoff
       : switch (widget.participant.role) {
           EvaluationParticipantRole.author =>
             widget.l10n.evaluationPromptAuthor,
-          EvaluationParticipantRole.committer =>
+          EvaluationParticipantRole.committer ||
+          EvaluationParticipantRole.formerCommitter =>
             widget.l10n.evaluationPromptHelpOfferer,
           EvaluationParticipantRole.forwarder =>
             widget.l10n.evaluationPromptForwarder,

@@ -422,4 +422,19 @@ void main() {
       expect(saveCalls, 0);
     },
   );
+
+  testWidgets('renders a former committer without crashing', (tester) async {
+    await pumpEvaluationDetailSheet(
+      tester: tester,
+      participant: const EvaluationParticipant(
+        userId: 'u9',
+        displayName: 'Bob',
+        role: EvaluationParticipantRole.formerCommitter,
+        isOptional: true,
+      ),
+      onSave: (_, __, ___) async => true,
+    );
+    expect(find.byType(BottomSheet), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
 }
