@@ -299,7 +299,7 @@ Future<void> _dispatchStatusMenuAction(
         context: context,
         builder: (ctx) => AlertDialog.adaptive(
           title: Text(l10n.beaconReviewReopenTitle),
-          content: Text(l10n.beaconReviewReopenBody),
+          content: Text(l10n.beaconReviewReopenBodyNoSent),
           actions: [
             TextButton(
               onPressed: () => Navigator.of(ctx).pop(true),
