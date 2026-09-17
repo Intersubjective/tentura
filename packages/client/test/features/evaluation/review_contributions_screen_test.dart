@@ -237,6 +237,7 @@ void main() {
           causalHint: '',
           currentValue: EvaluationValue.pos1,
           isSubmitted: true,
+          rowStatus: 1,
           note: 'Keep this note',
         ),
       ];
@@ -275,6 +276,7 @@ void main() {
         participant.copyWith(
           currentValue: EvaluationValue.pos1,
           isSubmitted: true,
+          rowStatus: 1,
           note: 'kept note',
         ),
       ];
@@ -368,6 +370,7 @@ void main() {
         participant.copyWith(
           currentValue: EvaluationValue.noBasis,
           isSubmitted: true,
+          rowStatus: 1,
         ),
       ];
     final (test, _, cubit) = await pump(tester, repositoryArg: repository);
@@ -400,6 +403,7 @@ void main() {
         participant.copyWith(
           currentValue: EvaluationValue.pos1,
           isSubmitted: true,
+          rowStatus: 1,
         ),
       ];
     final (test, _, cubit) = await pump(

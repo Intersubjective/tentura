@@ -25,11 +25,20 @@ abstract class EvaluationState extends StateBase with _$EvaluationState {
 
   int get totalCount => participants.length;
 
+  Iterable<EvaluationParticipant> get requiredParticipants =>
+      participants.where((p) => !p.isOptional);
+
+  Iterable<EvaluationParticipant> get optionalParticipants =>
+      participants.where((p) => p.isOptional);
+
+  /// A package whose targets are all optional is finalizable with nothing
+  /// answered: intended, because sending settles the reviewer's own
+  /// obligation (#180).
   bool get canFinalize {
     if (participants.isEmpty) return false;
     if (isDraftMode) {
       return participants.every((p) => p.hasAnswered);
     }
-    return participants.every((p) => p.isSubmitted);
+    return requiredParticipants.every((p) => p.hasAnswer);
   }
 }
