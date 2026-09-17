@@ -891,3 +891,101 @@ Verdict: **accepted**. Opus-low inner + Composer verify pass. Independent termin
 UNIT_BASE: `f6da84625`
 Inner: Opus 5 low. Not Astra.
 
+### scout — 2026-09-18 — UNIT 08
+
+STATUS: complete
+
+BRIEF: Add **pure domain** `ReviewPackageState` enum + `deriveReviewPackageState(...)` at `packages/client/lib/features/evaluation/domain/review_package_state.dart` (sibling to `evaluation_exception.dart`, **not** under `entity/` — matches other feature roots like `forward/domain/forward_draft_policy.dart`). **Both Owns paths are absent** on `UNIT_BASE` `c5b920e87` (live `git rev-parse --short HEAD`; journal header `f6da84625` is stale vs tree). **No** `ReviewPackageState` / `deriveReviewPackageState` symbols anywhere in `packages/client` yet. Production file must be **plan-literal** (comments included): frozen **if-chain order**, no `switch`, no new parameters, **no Flutter import**. D10/D11: `sentAt` distinguishes sent-then-edited from first-save `status == 1`; `userReviewStatus == 2` short-circuits to `sent` before `sentAt`/completeness (server demotes to `1` on edit). Status codes align with server `beacon_review_statuses.dart:14` (`0` not started, `1` in progress, `2` submitted, `3` skipped, `4` expired unsent). `beaconIsInReview` / `beaconIsClosed` are **derivation inputs only** — not on client yet (UNIT 10/11 add `EvaluationState` fields); tests pass them explicitly.
+
+STEPS (commit-sized; **test-first** — red is meaningful while types missing):
+1. **`review_package_state_test.dart` (red)** — `import package:tentura/features/evaluation/domain/review_package_state.dart`; table-driven rows via named records + `for (final c in cases) test(c.name, …)` (mirror `forward_draft_policy_test.dart`). **One named `test` per plan oracle row** (groups optional). Suggested groups/rows:
+   - **`all nine enum values are reachable`** — nine rows, one `ReviewPackageState.*` each (use distinct inputs; see traps below).
+   - **`status 1 without sentAt never yields changedNotSent`** — at least two rows: `(requiredAnswered < requiredTotal → inProgress)`, `(requiredAnswered >= requiredTotal → readyToSend)`; all with `userReviewStatus: 1`, `sentAt: null`, live window (`hasWindow: true`, `windowComplete: false`, `beaconIsClosed: false`).
+   - **`status 3 matches status 0 for derivation`** — pair rows: same inputs except `userReviewStatus` `0` vs `3`, same expected state (e.g. incomplete → `inProgress`, complete → `readyToSend`).
+   - **`requiredTotal zero with targets present`** — `requiredTotal: 0`, `requiredAnswered: 0`, `totalTargets: 2`, enrolled `userReviewStatus: 0`, no `sentAt` → `readyToSend`.
+   - **`zero targets`** — `totalTargets: 0`, enrolled (`userReviewStatus: 1`), `hasWindow: true` → `empty` (not `readyToSend`).
+   - **`sentAt set but required incomplete`** — `sentAt: DateTime.utc(2026, 1, 1)`, `requiredTotal: 2`, `requiredAnswered: 1`, `userReviewStatus: 1` → `inProgress`.
+   - **`lost window while request still in review`** — `hasWindow: false`, `beaconIsInReview: true`, `beaconIsClosed: false`, `windowComplete: false`, enrolled `userReviewStatus: 0` → `notEnrolled`.
+   - **`lost window after reopen (not in review)`** — `hasWindow: false`, `beaconIsInReview: false` → `paused` (keep `windowComplete`/`beaconIsClosed` false, `userReviewStatus` enrolled e.g. `1`, so earlier branches do not fire).
+   - **`windowComplete or beaconIsClosed`** — four rows: `(windowComplete: true, sentAt set → closed)`, `(windowComplete: true, sentAt null → closedUnsent)`, `(beaconIsClosed: true, sentAt set → closed)`, `(beaconIsClosed: true, sentAt null → closedUnsent)`; use `hasWindow: true`, `userReviewStatus: 1` so status-2/sent path is not taken before close branch.
+   - Optional extra row: **`userReviewStatus 4 → closedUnsent`** with live window flags (documents check before `!hasWindow`).
+   - **Default “live checklist” baseline** for rows that need an open window: `beaconIsInReview: true`, `beaconIsClosed: false`, `hasWindow: true`, `windowComplete: false`, `sentAt: null`, `requiredTotal: 1`, `requiredAnswered: 0`, `totalTargets: 1`, `userReviewStatus: 0` — override only fields under test.
+   - **Reachability cheat sheet**: `notEnrolled` (`userReviewStatus: -1`); `empty` (`totalTargets: 0`); `inProgress` (incomplete, no `sentAt`); `readyToSend` (complete, no `sentAt`, status `0`/`1`); `sent` (`userReviewStatus: 2`); `changedNotSent` (`sentAt` set, complete, status `1`); `paused` (no window, not in review); `closed` / `closedUnsent` (complete/closed flags + `sentAt`).
+2. **`review_package_state.dart` (green)** — paste **exact** plan UNIT 08 step-1 block (lines 1078–1164 in plan md); no edits, no reorder, no switchify.
+3. **Verify** — run TEST_CMD; then `check-custom-lints.sh packages/client` (domain-only change should not move baseline).
+
+TEST_CMD:
+```bash
+cd packages/client && ../../scripts/run_with_test_cleanup.sh --timeout 10m -- flutter test test/features/evaluation/review_package_state_test.dart --dart-define=ENV=test --dart-define-from-file=env/test.env
+```
+
+UNTOUCHABLE: pre-existing dirty/untracked; generated; other units; UI wiring (`EvaluationState.packageState` is UNIT 10); `review_window_info.dart` getters remain until UNIT 12.
+
+RISKS:
+- **Frozen order traps**: `windowComplete || beaconIsClosed` runs before `userReviewStatus == 2` — tests for `sent` must keep both false; close-oracle rows must not use `userReviewStatus: 2` expecting `sent`.
+- **`status 4` before `!hasWindow`**: expired unsent is `closedUnsent` even if `hasWindow` would otherwise apply — do not conflate with `paused`.
+- **`!hasWindow && beaconIsInReview` → `notEnrolled`**, not `paused` — first-time / never-window visitors vs reopen loss (plan comment literal).
+- **`userReviewStatus == 2` ignores `sentAt` and completeness** — only valid while server status is submitted; post-edit client path is `1` + `sentAt` → `changedNotSent` or `inProgress`.
+- **D11 regression row is the unit’s reason** — never expect `changedNotSent` when `sentAt == null` regardless of `status == 1`.
+- **`requiredTotal == 0`**: `allRequiredAnswered` is vacuously true → `readyToSend` when no `sentAt` and status not `2` (all-optional package).
+- **Journal UNIT_BASE header** (`f6da84625`) vs overseer `c5b920e87` — inner should record actual commit parent when committing.
+- **No semver bump** in this unit (domain-only; release is UNIT 15).
+
+COMMITS (expected): `feat(client): derive review package state` — sources only: the two Owns files + journal inner/verify.
+
+---
+### inner — 2026-09-18 — UNIT 08 (Opus 5 low)
+
+STATUS: complete — green, committed `703b607ea` (parent `c5b920e87`, i.e. the
+overseer UNIT_BASE; the journal's `f6da84625` header was stale vs the tree).
+
+STEPS:
+1. **RED** — wrote `test/features/evaluation/review_package_state_test.dart`
+   first (table-driven, one named `test` per plan oracle row, `_row(...)` helper
+   with the scout's live-checklist baseline). TEST_CMD failed at load with
+   `Undefined name 'ReviewPackageState'` / `Undefined name
+   'deriveReviewPackageState'` — `00:00 +0 -1: Some tests failed.`
+2. **GREEN** — created
+   `lib/features/evaluation/domain/review_package_state.dart` by extracting the
+   plan's UNIT 08 step-1 dart block **programmatically** (python slice of the
+   fenced block) so the file is byte-identical to the plan literal: same comments,
+   same frozen if-chain order, no switch, no extra inputs, no Flutter import.
+   TEST_CMD: `00:00 +25: All tests passed!`
+3. `scripts/check-custom-lints.sh packages/client` → `total: 30 (baseline: 30)`,
+   `OK`. Baseline did not move.
+4. Single commit `feat(client): derive review package state` with both Owns files
+   only. Not pushed. No semver bump, no UI wiring, no generated files.
+
+FILES:
+- `packages/client/lib/features/evaluation/domain/review_package_state.dart` (new, plan-literal)
+- `packages/client/test/features/evaluation/review_package_state_test.dart` (new, 25 tests)
+
+TEST COVERAGE (groups → rows):
+- `all nine states are reachable` — 9 rows, one per enum value.
+- `status 1 without sentAt never yields changedNotSent` — 2 rows (D11 regression).
+- `status 3 behaves like status 0` — 4 paired rows.
+- `completeness edges` — `requiredTotal == 0` + targets → `readyToSend`;
+  `totalTargets == 0` → `empty`; `sentAt` set with a required answer removed →
+  `inProgress`.
+- `missing window` — in-review → `notEnrolled`; not-in-review → `paused`.
+- `closed windows` — `windowComplete`/`beaconIsClosed` × `sentAt` (4 rows) plus
+  `status 4` in a live window → `closedUnsent`.
+
+FINDINGS:
+- The scout's frozen-order traps all held in practice: close rows use
+  `userReviewStatus: 1` (not `2`) so the close branch is what fires, and the
+  `sent` row keeps `windowComplete`/`beaconIsClosed` false.
+- `analysis_options` flagged `DateTime.utc(2026, 1, 1)` as
+  `avoid_redundant_argument_values`; the shared `_sentAt` sentinel is
+  `DateTime.utc(2026, 3, 14)` instead. Five remaining info-level
+  `avoid_redundant_argument_values` hits in the test are **deliberate** — they
+  spell out the field under test (`userReviewStatus: 0`, `requiredAnswered: 0`,
+  `beaconIsInReview: true`) even where it matches the baseline, because the plan
+  oracle names those values. Info severity only; tentura_lints baseline unaffected.
+- `beaconIsInReview` / `beaconIsClosed` have no client producer yet — tests pass
+  them explicitly, as the scout noted. Wiring is UNIT 10/11.
+
+REMAINING:
+- Nothing for UNIT 08. `EvaluationState.packageState` and every UI switch over
+  this enum stay with UNIT 10+; `review_window_info.dart` getters untouched
+  (UNIT 12). Nothing pushed.
