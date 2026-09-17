@@ -112,4 +112,26 @@ void main() {
     expect(copy.headline, 'Trust in Alex increased');
     expect(copy.body, 'Move help this weekend');
   });
+
+  test('help_offer_submitted keeps personal-note excerpt as body', () {
+    final withNote = resolveUpdatesFeedRowCopy(
+      title: 'Vadim',
+      body: 'I can sew the costume',
+      presentationKey: 'help_offer_submitted',
+      presentationPayloadJson: '{}',
+      l10n: l10n,
+    );
+    expect(withNote.headline, 'Vadim');
+    expect(withNote.body, 'I can sew the costume');
+
+    final emptyNote = resolveUpdatesFeedRowCopy(
+      title: 'Vadim',
+      body: '',
+      presentationKey: 'help_offer_submitted',
+      presentationPayloadJson: '{}',
+      l10n: l10n,
+    );
+    expect(emptyNote.headline, 'Vadim');
+    expect(emptyNote.body, l10n.updatesFallbackBodyHelpOfferSubmitted);
+  });
 }

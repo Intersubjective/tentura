@@ -19,6 +19,7 @@ AttentionReceipt _event({
   required String id,
   String? actorUserId,
   String title = 'Offered help',
+  String body = 'Body',
 }) =>
     AttentionReceipt(
       id: id,
@@ -26,7 +27,7 @@ AttentionReceipt _event({
       kind: 'helpOfferSubmitted',
       priority: 'normal',
       title: title,
-      body: 'Body',
+      body: body,
       actionUrl: '/#/',
       createdAt: DateTime.utc(2026, 1, 2),
       collapsedCount: 1,
@@ -134,5 +135,26 @@ void main() {
     );
 
     expect(find.textContaining('Anna'), findsOneWidget);
+    expect(find.textContaining('Body'), findsOneWidget);
+  });
+
+  testWidgets('shows offer note when headline is actor name', (tester) async {
+    final marked = <String>[];
+    await _pump(
+      tester,
+      events: [
+        _event(
+          id: 'e1',
+          actorUserId: 'u1',
+          title: 'Vadim',
+          body: 'I can sew the costume',
+        ),
+      ],
+      actors: const {'u1': Profile(id: 'u1', displayName: 'Vadim')},
+      marked: marked,
+    );
+
+    expect(find.textContaining('Vadim'), findsOneWidget);
+    expect(find.textContaining('I can sew the costume'), findsOneWidget);
   });
 }

@@ -625,6 +625,19 @@ void main() {
       expect(attention.recorded.single.body, 'Actor offered help');
     });
 
+    test('open notification uses offer message as body excerpt', () async {
+      stubNewOffer(BeaconStatus.open);
+
+      await case_.offerHelp(
+        beaconId: 'B1',
+        userId: 'U1',
+        message: 'I can sew the costume',
+      );
+
+      expect(attention.recorded.single.eventType.name, 'helpOfferSubmitted');
+      expect(attention.recorded.single.body, 'I can sew the costume');
+    });
+
     test('re-upsert preserves original offerKind when beacon status changed',
         () async {
       stubBeacon(beacon(id: 'B1', status: BeaconStatus.enoughHelp));

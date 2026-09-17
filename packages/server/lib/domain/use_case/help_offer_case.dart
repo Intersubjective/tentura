@@ -160,6 +160,7 @@ final class HelpOfferCase extends UseCaseBase {
                 authorId: lockedBeacon.author.id,
                 sourceEventKey: 'help_offer:${generateId('A')}',
                 isBackupOffer: offerKind == 1,
+                message: message,
               ),
             );
           },

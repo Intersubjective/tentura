@@ -17,13 +17,14 @@ import 'my_work_test_support.dart';
 AttentionReceipt _offer({
   required String id,
   required String offererId,
+  String body = 'I can sew',
 }) => AttentionReceipt(
   id: id,
   category: 'coordination',
   kind: 'helpOfferSubmitted',
   priority: 'normal',
   title: 'Anna',
-  body: 'Offered help',
+  body: body,
   actionUrl: '/#/',
   createdAt: DateTime.utc(2026, 9, 1),
   collapsedCount: 1,
@@ -111,6 +112,8 @@ void main() {
       obligations: [_offer(id: 'r1', offererId: 'u1')],
       onRespondHelpOffer: (_) => respondCount++,
     );
+
+    expect(find.textContaining('I can sew'), findsOneWidget);
 
     final respond = find.widgetWithText(TenturaTextAction, 'Respond');
     final done = find.bySemanticsIdentifier(TestIds.myWorkObligationDone('r1'));

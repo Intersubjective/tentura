@@ -331,4 +331,29 @@ void main() {
 
     expect(platform.launchedUserLink, Uri.parse('https://example.com'));
   });
+
+  testWidgets('author view shows personal note without opening Chat (#160)', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _wrap(
+        HelpOfferTile(
+          helpOffer: _helpOffer(
+            userId: 'c1',
+            message: 'I can sew the costume',
+          ),
+          beaconId: 'B1',
+          beaconAuthor: const Profile(id: 'auth', displayName: 'Author'),
+          beaconAuthorId: 'auth',
+          isAuthorView: true,
+          onAccept: () {},
+          onDecline: () {},
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('I can sew the costume'), findsOneWidget);
+    expect(find.byType(ShowMoreText), findsOneWidget);
+  });
 }

@@ -136,6 +136,33 @@ void main() {
     );
   });
 
+  test('commitmentEvent prefers body excerpt over offered-help fallback', () {
+    final copy = builder.build(
+      intent: intent(
+        kind: NotificationKind.commitmentEvent,
+        bodyExcerpt: 'I can sew the costume',
+      ),
+      actorDisplayName: 'Vadim',
+    );
+
+    expect(copy.title, 'Vadim');
+    expect(copy.body, 'I can sew the costume');
+  });
+
+  test('commitmentEvent backup prefers body excerpt over backup fallback', () {
+    final copy = builder.build(
+      intent: intent(
+        kind: NotificationKind.commitmentEvent,
+        isBackupOffer: true,
+        bodyExcerpt: 'I can sew as spare',
+      ),
+      actorDisplayName: 'Vadim',
+    );
+
+    expect(copy.title, 'Vadim');
+    expect(copy.body, 'I can sew as spare');
+  });
+
   test('commitmentAccepted distinguishes ask and promise nouns', () {
     final askCopy = builder.build(
       intent: intent(

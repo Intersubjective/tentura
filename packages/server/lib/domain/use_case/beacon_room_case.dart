@@ -969,6 +969,7 @@ final class BeaconRoomCase extends UseCaseBase {
             authorId: author ?? '',
             moderatorUserIds: moderators,
             sourceEventKey: 'room_help_offer:${generateId('A')}',
+            message: note,
           ),
         );
       },
