@@ -979,13 +979,12 @@ class _ConstellationMapNodeState extends State<_ConstellationMapNode> {
             start: -overhang,
             child: widget.statusBadge!,
           ),
-        if (pinBadge != null)
-          if (pinBadge != null && _detail == ConstellationDetailLevel.normal)
-            PositionedDirectional(
-              top: -overhang,
-              end: -overhang,
-              child: pinBadge,
-            ),
+        if (pinBadge != null && _detail == ConstellationDetailLevel.normal)
+          PositionedDirectional(
+            top: -overhang,
+            end: -overhang,
+            child: pinBadge,
+          ),
       ],
     );
   }
