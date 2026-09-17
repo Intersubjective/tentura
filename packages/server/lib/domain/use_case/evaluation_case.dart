@@ -1490,66 +1490,7 @@ final class EvaluationCase extends UseCaseBase {
       beaconId: beaconId,
       reviewerAccountId: userId,
     );
-    if (await _canCloseNow(beaconId: beaconId)) {
-      await _autoCloseReviewWindow(beaconId: beaconId, actorUserId: userId);
-    }
     return true;
-  }
-
-  /// Shared close path when all required reviewers have sent (or author Close now).
-  Future<void> _autoCloseReviewWindow({
-    required String beaconId,
-    required String? actorUserId,
-  }) async {
-    await _runStatusAction(
-      actorUserId: actorUserId,
-      action: (transaction) async {
-        final intent = transaction == null
-            ? null
-            : await _attentionIntents!.requestStatusChanged(
-                beaconId: beaconId,
-                fromStatus: BeaconStatus.reviewOpen.name,
-                toStatus: BeaconStatus.closed.name,
-                actorUserId: actorUserId,
-                sourceEventKey: 'request_status:${generateId('A')}',
-              );
-        final result = await _reviewFinalization!.closeAndFinalize(
-          beaconId,
-          reason: actorUserId == null
-              ? BeaconLifecycleChangeReason.reviewExpired
-              : BeaconLifecycleChangeReason.authorCloseNow,
-          actorUserId: actorUserId,
-          requireAllRequiredPackagesSent: true,
-        );
-        if (intent != null && result.didClose) {
-          await transaction!.record(intent);
-        }
-        if (transaction != null && result.didClose) {
-          final beaconTitle = result.beaconTitle ?? '';
-          for (final pair in result.pairs) {
-            if (pair.bin == TrustBin.noEffect) continue;
-            final given = await _attentionIntents!.trustGivenChanged(
-              beaconId: beaconId,
-              beaconTitle: beaconTitle,
-              evaluatorId: pair.evaluatorId,
-              evaluatedUserId: pair.evaluatedUserId,
-              bin: pair.bin,
-              sourceEventKey: 'trust_given:${generateId('A')}',
-            );
-            await transaction!.record(given);
-            final received = await _attentionIntents!.trustReceivedChanged(
-              beaconId: beaconId,
-              beaconTitle: beaconTitle,
-              evaluatorId: pair.evaluatorId,
-              evaluatedUserId: pair.evaluatedUserId,
-              bin: pair.bin,
-              sourceEventKey: 'trust_received:${generateId('A')}',
-            );
-            await transaction!.record(received);
-          }
-        }
-      },
-    );
   }
 
   Future<bool> evaluationSkip({

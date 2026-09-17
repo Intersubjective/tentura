@@ -53,6 +53,17 @@ class _NoopAttentionExpiryRepository extends Fake
       const [];
 }
 
+class _DueAttentionExpiryRepository extends Fake
+    implements AttentionExpiryRepositoryPort {
+  _DueAttentionExpiryRepository(this.due);
+
+  final List<String> due;
+
+  @override
+  Future<List<String>> lockExpiredReviewWindowBeaconIds(DateTime now) async =>
+      due;
+}
+
 class _RecordingPackageSendSettlement extends Fake
     implements AttentionSystemSettlementPort {
   final packageSendCalls =
@@ -1057,6 +1068,163 @@ void main() {
         );
       },
     );
+
+    group('no auto-close on the last required send', () {
+      const helperId = 'helper1';
+
+      List<BeaconEvaluationParticipantRecord> requiredParticipants() => const [
+        BeaconEvaluationParticipantRecord(
+          beaconId: beaconId,
+          userId: userId,
+          role: 0,
+          contributionSummary: 'author',
+          causalHint: 'h',
+        ),
+        BeaconEvaluationParticipantRecord(
+          beaconId: beaconId,
+          userId: helperId,
+          role: 1,
+          contributionSummary: 'helper',
+          causalHint: 'h',
+        ),
+      ];
+
+      EvaluationCase buildCase({
+        _TransactionStubBeaconRepo? beaconRepo,
+        AttentionExpirySweepCase? sweep,
+      }) {
+        final forwardRepo = EmptyGraphForwardEdgeRepository();
+        final helpOfferRepo = EmptyGraphHelpOfferRepository();
+        final graphBuilder = EvaluationParticipantGraphBuilder(
+          NoOpCommitmentRepository(),
+          helpOfferRepo,
+          forwardRepo,
+          StubUserRepository('User'),
+        );
+        return buildTestEvaluationCase(
+          beaconRepo: beaconRepo ?? _TransactionStubBeaconRepo(
+            defaultReviewBeacon(),
+          ),
+          forwardRepo: forwardRepo,
+          evalRepo: evalRepo,
+          userProfileBatchLookup: StubUserProfileBatchLookup('User'),
+          graphBuilder: graphBuilder,
+          attention: attention,
+          expirySweep: sweep ?? expirySweep,
+          commitmentRepo: NoOpCommitmentRepository(),
+          helpOfferRepo: helpOfferRepo,
+          reviewFinalization: reviewFinalization,
+        );
+      }
+
+      setUp(() {
+        evalRepo
+          ..reviewWindowResult = openWindow()
+          ..reviewUserStatusResult = 1
+          ..participantsResult = requiredParticipants()
+          // A real DB would already read 2 for both rows at the moment
+          // `_canCloseNow` runs inside the last send; the fake's
+          // `setReviewUserStatus` does not update this map.
+          ..reviewStatusesResult = {userId: 2, helperId: 2};
+      });
+
+      test(
+        'finalize by the last required reviewer leaves the window open',
+        () async {
+          final localCase = buildCase();
+
+          expect(
+            await localCase.evaluationFinalize(
+              beaconId: beaconId,
+              userId: helperId,
+            ),
+            isTrue,
+          );
+
+          expect(reviewFinalization.closeAndFinalizeCalls, isEmpty);
+          expect(evalRepo.closeReviewWindowCalls, isEmpty);
+          expect(evalRepo.reviewWindowResult!.status, 0);
+          final beacon = await localCase.reviewWindowStatus(
+            beaconId: beaconId,
+            userId: userId,
+          );
+          expect(beacon.windowComplete, isFalse);
+        },
+      );
+
+      test('canCloseNow becomes true after the last required package', () async {
+        final localCase = buildCase();
+
+        await localCase.evaluationFinalize(
+          beaconId: beaconId,
+          userId: helperId,
+        );
+        // Mirror the real DB state after the send (the fake does not).
+        evalRepo.reviewStatusesResult = {userId: 2, helperId: 2};
+
+        final status = await localCase.reviewWindowStatus(
+          beaconId: beaconId,
+          userId: userId,
+        );
+
+        expect(status.canCloseNow, isTrue);
+        expect(status.windowComplete, isFalse);
+        expect(reviewFinalization.closeAndFinalizeCalls, isEmpty);
+      });
+
+      test('author closeNow still closes and finalizes', () async {
+        final beaconRepo = _TransactionStubBeaconRepo(defaultReviewBeacon());
+        final localCase = buildCase(beaconRepo: beaconRepo);
+
+        await localCase.evaluationFinalize(
+          beaconId: beaconId,
+          userId: helperId,
+        );
+        evalRepo.reviewStatusesResult = {userId: 2, helperId: 2};
+
+        final result = await localCase.closeNow(
+          beaconId: beaconId,
+          userId: userId,
+        );
+
+        expect(result.status, BeaconStatus.closed.smallintValue);
+        expect(reviewFinalization.closeAndFinalizeCalls, [
+          (
+            beaconId: beaconId,
+            reason: BeaconLifecycleChangeReason.authorCloseNow,
+            actorUserId: userId,
+            requireAllRequiredPackagesSent: true,
+          ),
+        ]);
+      });
+
+      test(
+        'finalize after the deadline still closes through the expiry sweep',
+        () async {
+          final now = DateTime.timestamp();
+          evalRepo.reviewWindowResult = openWindow(
+            closesAt: now.subtract(const Duration(days: 1)),
+          );
+          final sweep = AttentionExpirySweepCase(
+            _DueAttentionExpiryRepository(const [beaconId]),
+            reviewFinalization,
+            attention.intents,
+            attention.transactional,
+          );
+          final localCase = buildCase(sweep: sweep);
+
+          await localCase.evaluationFinalize(
+            beaconId: beaconId,
+            userId: helperId,
+          );
+
+          expect(
+            reviewFinalization.closeAndFinalizeCalls.map((c) => c.reason),
+            contains(BeaconLifecycleChangeReason.reviewExpired),
+          );
+        },
+      );
+    });
   });
 
   group('evaluationSubmit', () {
