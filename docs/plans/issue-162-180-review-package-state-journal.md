@@ -66,7 +66,7 @@ If Opus is unavailable: routine units degrade to Composer-only implement+verify;
 - [x] UNIT 00 journal and baseline — routine — overseer — complete
 - [x] UNIT 01 drop auto-close — hard (close paths) — Opus inner — verify pass 2026-09-18
 - [x] UNIT 02 m0176 `sent_at` + context — hard (many hops, PG) — Opus inner — verify pass 2026-09-18
-- [ ] UNIT 03 optional targets / counters — hard (D6/D7) — Opus inner; Astra review later
+- [x] UNIT 03 optional targets / counters — hard (D6/D7) — Opus inner — verify pass 2026-09-18
 - [ ] UNIT 04 GraphQL + client schema — routine — Opus inner
 - [ ] UNIT 05 author nudge — hard (races, idempotency) — **ASTRA inner**
 - [ ] UNIT 06 reopen announces — hard (tx order) — Opus inner
@@ -194,13 +194,56 @@ ACCEPTANCE: all plan UNIT 01 + scout criteria met (see user-facing verify summar
 
 GAPS: none material (`reviewOpen` not named on stub beacon in unit test; PG `finalizeTrustPairCount` still literal 0).
 
+### manager — UNIT 03 accepted — 2026-09-18T00:45:00+02:00
+
+Overseer independently re-ran `evaluation_case_test.dart --exclude-tags pg` → `+82 All tests passed!`. Finalize loop matches plan literal. Both participant endpoints fill isOptional/rowStatus. `_canCloseNow` body unchanged. Follow-up: `a7feea820` ratchets the UNIT 01 attention-inventory count 4→3.
+
+---
+
+## UNIT 04 — in progress
+
+UNIT_BASE: `a7feea820`
+Inner: Opus-low (not Astra)
+
+### scout — 2026-09-18 — UNIT 04
+
+STATUS: complete
+
+BRIEF: Expose UNIT 03 domain fields on the V2 GraphQL types and hand-sync `packages/client/lib/data/gql/schema.graphql` (D18). **Participant:** add `isOptional`, `rowStatus`, `committedAt`, `offerMessage`, `forwarderDisplayName` on `gqlTypeEvaluationParticipant` (`custom_types.dart` ~924) and in `evaluationParticipantToGqlMap` (`gql_v2_dto_maps.dart` ~103). **Window status:** add the nine UNIT 03 counters/flags + `sentAt` on `gqlTypeReviewWindowStatus` (~971) and in `reviewWindowStatusToGqlMap` (~130). Date fields: `committedAt` / `sentAt` → `dto.x?.toUtc().toIso8601String()` (same pattern as `openedAt`/`closesAt`). **Compile gap:** `EvaluationParticipantResult` at `a7feea820` has `isOptional`/`rowStatus` only — **not** `committedAt`/`offerMessage`/`forwarderDisplayName`. Data already lives on `BeaconEvaluationParticipantRecord` / `EvaluationParticipantDraft` and is filled at DB/graph (UNIT 02) but never copied into the gql_public DTO or `evaluation_case.dart` participant constructors (~703, ~816). Strict UNIT 04 Owns cannot compile `dto.committedAt` in the mapper. **Overseer must widen Owns** (recommended minimal slice, literal) before or in the same commit as GraphQL: `evaluation_participant_result.dart` — add `DateTime? committedAt`, `String offerMessage` (default `''`), `String? forwarderDisplayName`; `evaluation_case.dart` — pass `row.committedAt`, `row.offerMessage`, `row.forwarderDisplayName` in **both** `evaluationParticipants` and `evaluationDraftParticipants` (`row` types already expose the three fields). Without that widen, write `BLOCKED` per plan §0 — do not stub constants in the mapper. `ReviewWindowStatusResult` already carries all nine fields + `sentAt`; mapper-only work suffices for window status.
+
+STEPS (commit-sized):
+1. **(If widened)** DTO + case wire — three participant context fields on `EvaluationParticipantResult` and both participant endpoints (see BRIEF). Red meaningful: compile of `gql_v2_dto_maps.dart` after step 3.
+2. **`custom_types.dart`** — append plan-literal `field(...)` entries to `gqlTypeEvaluationParticipant` and `gqlTypeReviewWindowStatus` (nullability exactly as plan §UNIT 04 steps 1–2: participant `isOptional`/`rowStatus`/`offerMessage` non-null; `committedAt`/`forwarderDisplayName` nullable `graphQLString`; status ints/bools nullable like existing `reviewedCount`/`canCloseNow`; `sentAt` nullable `graphQLString`).
+3. **`gql_v2_dto_maps.dart`** — extend both map functions with matching keys; ISO only on `committedAt` and `sentAt`.
+4. **`schema.graphql`** — on `v2_EvaluationParticipant` (~7756) and `v2_ReviewWindowStatus` (~8028), add the same fields with GraphQL nullability mirroring step 2 (use `Boolean!` / `Int!` / `String!` where server uses `.nonNullable()`). Keep alphabetical field order within each type to match file style. Do **not** edit any `packages/client/**/*.graphql` query documents (UNIT 09).
+5. **Grep acceptance** — second Verify command must hit all three symbol names in `schema.graphql`.
+
+TEST_CMD:
+```bash
+cd packages/server && ../../scripts/run_with_test_cleanup.sh --timeout 20m -- dart test --exclude-tags pg
+```
+```bash
+cd /home/vader/MY_SRC/tentura && grep -n "viewerPackageOptional\|unsentStartedPackages\|rowStatus" packages/client/lib/data/gql/schema.graphql
+```
+
+UNTOUCHABLE: pre-existing dirty/untracked; generated `*.g.dart` / `_g/`; client `.graphql` documents; do not `git add -f` generated; do not push.
+
+RISKS:
+- **Owns vs compile (primary):** mapper references `dto.committedAt`/`offerMessage`/`forwarderDisplayName` — requires overseer-widened DTO + `evaluation_case.dart` fills or `BLOCKED`.
+- **`offerMessage` non-null on wire:** GraphQL map must always emit a string (`''` when empty); DTO default `''` matches `BeaconEvaluationParticipantRecord`.
+- **Draft vs live source:** draft path reads `EvaluationParticipantDraft`; live path reads `BeaconEvaluationParticipantRecord` from `listParticipants` — same three property names.
+- **`query_evaluation_test.dart`:** contract test only asserts ack-tag additive fields (`containsAll`); no change required unless someone tightens it — new fields are additive.
+- **No manual map constructors** elsewhere — only `evaluationParticipantToGqlMap` / `reviewWindowStatusToGqlMap` in `query_evaluation.dart`; no test map literals listing all participant keys.
+- **Full-package `dart test --exclude-tags pg`:** mandatory per plan; journal UNIT 03 noted a pre-existing inventory red — **re-checked at scout:** `transactional_attention_producer_inventory_test.dart` is **green** (`evaluation_case.dart` expects 3 `requestStatusChanged` sites, live count 3). Full suite should be viable for first green; if red, likely unrelated architecture/pg-less drift — fix only if this unit’s diff caused it.
+- **Client codegen:** ferry not run in this unit; only `schema.graphql` hand edit — UNIT 09 runs documents + codegen.
+
 ### manager — UNIT 02 accepted — 2026-09-18T00:32:00+02:00
 
 Overseer independently re-ran `dart test test/domain/evaluation --exclude-tags pg` → `+120 All tests passed!`. Verifier PG `+3`. Demotion SQL still `status = 1, updated_at = now()` only. `markSent: true` only on finalize. Extra Owns files are +14 signature lines. Legacy context columns still written. No generated files committed.
 
 ---
 
-## UNIT 03 — in progress
+## UNIT 03 — complete (verify pass 2026-09-18)
 
 UNIT_BASE: `700bc8b2c`
 Inner: Opus-low (not Astra); overseer will read the optionality/finalize diff line-by-line. Astra review after 06:00 if messy.
@@ -368,3 +411,64 @@ FINDINGS:
 - The `a softened committer is optional` fixture reuses the `beaconClose everHadCommitter` shape (`acknowledgedCommitterCommitmentRepo(withdrawAfterAck: 30h)` + a withdrawn `HelpOfferEntity`) against an **open** beacon, so the role really comes out of the graph builder rather than being hand-fed as `role: 3`.
 
 REMAINING: none for UNIT 03. The nine `ReviewWindowStatus` fields and the two participant fields are not on the GraphQL surface yet (UNIT 04) and have no client reader (UNIT 09), both by design. The pre-existing producer-inventory red above is unowned.
+
+### verify — 2026-09-18 — UNIT 03
+
+STATUS: pass
+
+TEST_OUTPUT:
+- `dart test test/domain/evaluation/evaluation_case_test.dart --exclude-tags pg` (via `run_with_test_cleanup.sh`, 20m) — **+82, −0** (~4.2s).
+
+RANGE: `700bc8b2c..6cbf6789d` (3 commits: tests `8a2165cf2`, production `4a520e422`, journal `6cbf6789d`). Worktree: only pre-existing UNTOUCHABLE dirty/untracked; no uncommitted UNIT 03 code.
+
+SCOPE: Plan Owns + overseer-authorised widening (`getReviewSentAt` on port/repo/mock; `coordination_case_revert_test.dart` fake stub). No generated files committed. `_canCloseNow` body byte-identical to `700bc8b2c`; `_requiredPackagesAllSentLocked` unchanged in `evaluation_repository.dart`. `evaluationFinalize` readiness loop matches plan revision 3 literal (participant lookup, stale-vis skip, `formerCommitter` skip, same ready predicate and error). `reviewedCount` / `totalCount` still emitted (`reviewed` loop + `vis.length`). `getReviewSentAt` is a single Drift read of `sentAt` on the review-status row.
+
+ACCEPTANCE (plan UNIT 03 + user criteria):
+- **Package with untouched leaver can be sent** — **met** — `finalize succeeds with an untouched former committer`; production skips `formerCommitter` in readiness loop.
+- **Untouched current committer cannot** — **met** — `finalize still fails with an untouched current committer`.
+- **Both participant endpoints return `isOptional` and `rowStatus`** — **met in production** (`evaluationParticipants` ~728–730, `evaluationDraftParticipants` ~838–839); **tests** cover `evaluationDraftParticipants` (+ softened/rowStatus/-1); **no dedicated test** calls `evaluationParticipants` for the two new fields on a live review window.
+- **Counters split required/optional** — **met** — `counters split required and optional` asserts split fields and legacy `reviewedCount`/`totalCount` preserved.
+- **`viewerPackageOptional` true only for former committer** — **met** — named test for author/committer/former viewer roles.
+- **Plan tests (7 named)** — **met** — all seven present; inner added an eighth (`a draft target without a stored row reports rowStatus -1`) — acceptable tightening.
+- **`former committer finalize does not change canCloseNow`** — **met** — named test asserts `canCloseNow` and `allRequiredSent` stay false when required committer still unsent.
+
+GAPS:
+- **Test coverage:** `evaluationParticipants` `isOptional`/`rowStatus` not asserted (implementation present).
+- **`a softened committer is optional`:** uses withdraw-after-grace graph fixture, not `acknowledgementSoftened` event — still yields `formerCommitter` per D6; minor oracle gap vs plan prose.
+- **`sentAt` DTO type:** domain entity uses `DateTime?` (UNIT 04 GraphQL will ISO-string); wired via `getReviewSentAt` (outside strict Owns, justified).
+- **Pre-existing:** `transactional_attention_producer_inventory_test` still expects 4 `requestStatusChanged` sites (3 since UNIT 01); not in UNIT 03 TEST_CMD — unowned leftover.
+
+## UNIT 04 — Server: GraphQL surface and the client schema
+
+### inner — 2026-09-18 — Opus 5
+
+STATUS: complete
+
+COMMITS (UNIT_BASE `a7feea820`):
+- `c289b3e2f feat(server): carry commitment context on evaluation participants`
+- `6cbe53dec feat(server): expose review package state on the V2 GraphQL surface`
+
+STEPS:
+1. **DTO + case wire (overseer-authorised widening).** `EvaluationParticipantResult` gained `committedAt` (`DateTime?`), `offerMessage` (`String`, default `''`), `forwarderDisplayName` (`String?`). Both endpoints in `evaluation_case.dart` pass them from the row they already hold — `evaluationParticipants` from `BeaconEvaluationParticipantRecord`, `evaluationDraftParticipants` from `EvaluationParticipantDraft`. No stubbed constants.
+   - **Red first:** two new tests — `participants carry the commitment context fields` (in the optional-targets group; also the first test that calls `evaluationParticipants` on a live window for the new-field surface, closing part of the UNIT 03 gap) and `draft participants carry the commitment context fields` (in the softened-committer group, asserting the real `'helped out'` offer message flows through the graph builder). RED: compile errors on all three getters → GREEN `+84`.
+2. `custom_types.dart`: five fields on `gqlTypeEvaluationParticipant` (plan literal — `isOptional`/`rowStatus` non-nullable, `committedAt` nullable String, `offerMessage` non-nullable String, `forwarderDisplayName` nullable String).
+3. `gql_v2_dto_maps.dart`: both maps mirror every field; `committedAt` and `sentAt` as `dto.x?.toUtc().toIso8601String()` like `openedAt`/`closesAt`.
+4. `schema.graphql`: same fields on `v2_EvaluationParticipant` and `v2_ReviewWindowStatus`, inserted in the file's alphabetical field order, nullability matching steps 2–3. No client `.graphql` document touched (UNIT 09 owns those).
+
+TESTS:
+- `dart test --exclude-tags pg` (full server suite, via `run_with_test_cleanup.sh`) — **+1638, −0**.
+- `dart analyze` on both edited GraphQL files — no issues.
+- Grep gate `grep -n "viewerPackageOptional\|unsentStartedPackages\|rowStatus" packages/client/lib/data/gql/schema.graphql` — prints `7773: rowStatus: Int!`, `8051: unsentStartedPackages: Int`, `8053: viewerPackageOptional: Boolean`. **Acceptance met.**
+
+FILES: `packages/server/lib/domain/entity/gql_public/evaluation_participant_result.dart`, `packages/server/lib/domain/use_case/evaluation_case.dart`, `packages/server/test/domain/evaluation/evaluation_case_test.dart`, `packages/server/lib/api/controllers/graphql/custom_types.dart`, `packages/server/lib/api/controllers/graphql/mappers/gql_v2_dto_maps.dart`, `packages/client/lib/data/gql/schema.graphql`.
+
+FINDINGS:
+- `ReviewWindowStatusResult` already carried all nine UNIT 03 fields, so step 2/3 for `ReviewWindowStatus` was purely additive — no domain change needed there.
+- `offerMessage` is non-nullable `String!` on the wire but the DTO defaults it to `''`, matching `contributionSummary`/`note`; a participant with no offer row serialises as `""`, never `null`. Client code must treat empty-string as "no offer message".
+- `committedAt` is only populated for rows written since m0176 (UNIT 02). Pre-m0176 participant rows return `null` — the client must tolerate a missing timestamp on old beacons, though per the no-legacy-data posture this is only a local-dev concern.
+- Both `v2_` types in `schema.graphql` keep fields alphabetically sorted; the new fields were interleaved rather than appended to preserve that (the file is hand-synced, D18, so nothing regenerates the order).
+
+REMAINING:
+- Client `.graphql` query documents still do not select any of the new fields — deliberate, UNIT 09.
+- The UNIT 03 gap "`evaluationParticipants` `isOptional`/`rowStatus` not asserted" is now only partly closed: the new test asserts the three context fields on that endpoint but still does not assert `isOptional`/`rowStatus` there.
+- Pre-existing `transactional_attention_producer_inventory_test` leftover noted in UNIT 03 is not reproducing in the full suite run (all 1638 green) — no action taken.
