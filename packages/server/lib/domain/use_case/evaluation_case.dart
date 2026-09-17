@@ -440,6 +440,11 @@ final class EvaluationCase extends UseCaseBase {
               description: 'Reopen limit reached',
             );
           }
+          final statuses = await _evaluationRepository
+              .listReviewStatusesForBeacon(beaconId);
+          final recipientUserIds = statuses.keys
+              .where((id) => id != userId)
+              .toSet();
           final intent = transaction == null
               ? null
               : await _attentionIntents!.requestStatusChanged(
@@ -448,6 +453,17 @@ final class EvaluationCase extends UseCaseBase {
                   toStatus: BeaconStatus.open.name,
                   actorUserId: userId,
                   sourceEventKey: 'request_status:${generateId('A')}',
+                );
+          final cancelIntent = transaction == null
+              ? null
+              : await _attentionIntents!.reviewWindowCancelled(
+                  beaconId: beaconId,
+                  beaconTitle: beacon.title,
+                  recipientUserIds: recipientUserIds,
+                  actorUserId: userId,
+                  sourceEventKey:
+                      'review_window_cancelled:$beaconId:'
+                      '${w.openedAt.toUtc().toIso8601String()}',
                 );
           await _evaluationRepository.downgradeSubmittedReviewsToDraft(
             beaconId,
@@ -468,6 +484,9 @@ final class EvaluationCase extends UseCaseBase {
           await _beaconRepository.incrementReviewReopenCount(beaconId);
           if (intent != null) {
             await transaction!.record(intent);
+          }
+          if (cancelIntent != null) {
+            await transaction!.record(cancelIntent);
           }
           return BeaconCloseReviewResult(
             id: beaconId,

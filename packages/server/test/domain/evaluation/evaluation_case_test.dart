@@ -134,6 +134,17 @@ class _RecordingPackageSendSettlement extends Fake
   Future<List<String>> listBeaconIdsWithClosedReviewWindows() async => [];
 }
 
+
+class _CountingReopenSettlement extends _RecordingPackageSendSettlement {
+  final supersedeCalls = <String>[];
+
+  @override
+  Future<int> supersedeReviewObligationsOnReopen(String beaconId) async {
+    supersedeCalls.add(beaconId);
+    return 1;
+  }
+}
+
 class MockBeaconRepository extends Mock implements BeaconRepositoryPort {}
 
 class _StubBeaconRepository implements BeaconRepositoryPort {
@@ -2657,6 +2668,99 @@ void main() {
           ),
         ),
       );
+    });
+
+    test('reopen notifies every enrolled reviewer', () async {
+      evalRepo.reviewWindowResult = openWindow();
+      final window = evalRepo.reviewWindowResult!;
+      evalRepo.reviewStatusesResult = {'helper1': 2, 'helper2': 0};
+
+      await evaluationCase.reopenFromReview(
+        beaconId: beaconId,
+        userId: userId,
+      );
+
+      expect(attention.recorded, hasLength(2));
+      expect(
+        attention.recorded.map((n) => n.eventType),
+        containsAll([
+          AttentionEventType.requestStatusChanged,
+          AttentionEventType.reviewWindowCancelled,
+        ]),
+      );
+      final cancelled = attention.recorded.singleWhere(
+        (n) => n.eventType == AttentionEventType.reviewWindowCancelled,
+      );
+      expect(cancelled.beaconId, beaconId);
+      expect(
+        cancelled.recipients.map((r) => r.recipientId).toSet(),
+        {'helper1', 'helper2'},
+      );
+      expect(
+        cancelled.sourceEventKey,
+        'review_window_cancelled:$beaconId:'
+        '${window.openedAt.toUtc().toIso8601String()}',
+      );
+      for (final recipient in cancelled.recipients) {
+        final projection = const AttentionPolicy().project(
+          eventType: cancelled.eventType,
+          recipientId: recipient.recipientId,
+          recipientReasons: recipient.reasons,
+          role: recipient.role,
+        );
+        expect(projection.presentationKey, 'review_window_cancelled');
+        expect(projection.requiresAction, isFalse);
+        expect(projection.destination.kind, AttentionDestinationKind.beacon);
+        expect(projection.destination.targetEntityId, beaconId);
+      }
+    });
+
+    test('reopen does not notify the acting author', () async {
+      evalRepo.reviewWindowResult = openWindow();
+      evalRepo.reviewStatusesResult = {userId: 2, 'helper1': 0};
+
+      await evaluationCase.reopenFromReview(
+        beaconId: beaconId,
+        userId: userId,
+      );
+
+      final cancelled = attention.recorded.singleWhere(
+        (n) => n.eventType == AttentionEventType.reviewWindowCancelled,
+      );
+      expect(
+        cancelled.recipients.map((r) => r.recipientId),
+        ['helper1'],
+      );
+    });
+
+    test('reopen still supersedes the one outstanding obligation', () async {
+      evalRepo.reviewWindowResult = openWindow();
+      evalRepo.reviewStatusesResult = {'helper1': 0};
+      final settlement = _CountingReopenSettlement();
+      final forwardRepo = EmptyGraphForwardEdgeRepository();
+      evaluationCase = buildTestEvaluationCase(
+        beaconRepo: beaconRepo,
+        forwardRepo: forwardRepo,
+        evalRepo: evalRepo,
+        userProfileBatchLookup: StubUserProfileBatchLookup('User'),
+        graphBuilder: EvaluationParticipantGraphBuilder(
+          NoOpCommitmentRepository(),
+          EmptyGraphHelpOfferRepository(),
+          forwardRepo,
+          StubUserRepository('User'),
+        ),
+        attention: attention,
+        expirySweep: expirySweep,
+        attentionSystemSettlement: settlement,
+      );
+
+      await evaluationCase.reopenFromReview(
+        beaconId: beaconId,
+        userId: userId,
+      );
+
+      expect(settlement.supersedeCalls, [beaconId]);
+      expect(evalRepo.deleteScaffoldingCalls, 1);
     });
   });
 
