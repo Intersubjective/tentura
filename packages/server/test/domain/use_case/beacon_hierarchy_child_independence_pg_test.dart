@@ -328,14 +328,33 @@ final class _ChildIndependenceHarness {
       userId: recipientId,
     );
 
+    // The last required send must not close anything: the window is still open
+    // and the author may now close explicitly.
+    final afterLastSend = await evaluationCase.reviewWindowStatus(
+      beaconId: beaconId,
+      userId: ownerId,
+    );
+    expect(afterLastSend.hasWindow, isTrue);
+    expect(afterLastSend.windowComplete ?? false, isFalse);
+    expect(afterLastSend.canCloseNow, isTrue);
+
+    final closed = await evaluationCase.closeNow(
+      beaconId: beaconId,
+      userId: ownerId,
+    );
+    final afterClose = await evaluationCase.reviewWindowStatus(
+      beaconId: beaconId,
+      userId: ownerId,
+    );
+
     return LifecycleOutcomeShape(
       forwardDeliveredCount: forward.deliveredRecipientIds.length,
       forwardSkippedCount: forward.availabilitySkippedRecipientIds.length,
       acceptStatus: accepted.status,
       closeReviewStatus: closeReview.status,
       closeReviewHasClosesAt: closeReview.closesAt != null,
-      finalizeStatus: BeaconStatus.closed.smallintValue,
-      finalizeDidClose: true,
+      finalizeStatus: closed.status,
+      finalizeDidClose: afterClose.windowComplete ?? false,
       finalizeTrustPairCount: 0,
     );
   }
