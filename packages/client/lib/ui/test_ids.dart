@@ -148,6 +148,10 @@ abstract final class TestIds {
   static const evaluationCapabilityInfo = 'evaluation.capability.info';
   static String evaluationCannotEvaluate(String userId) =>
       'evaluation.cannot_evaluate.$userId';
+  static String evaluationReviewAction(String userId) =>
+      'evaluation.review_action.$userId';
+  static String evaluationUndoCannotEvaluate(String userId) =>
+      'evaluation.undo_cannot_evaluate.$userId';
 
   /// Trust graph node tap target, keyed by user id.
   static String graphNode(String userId) => 'graph.node.$userId';

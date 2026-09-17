@@ -105,6 +105,7 @@ class ReviewContributionsScreen extends StatelessWidget
               }
               final items = _participantItems(context, state);
               final canSend = !state.isLoading && state.canFinalize;
+              final remaining = state.totalCount - state.reviewedCount;
               return Column(
                 children: [
                   Expanded(
@@ -130,7 +131,7 @@ class ReviewContributionsScreen extends StatelessWidget
                         if (!canSend && !state.isDraftMode) ...[
                           SizedBox(height: tt.tightGap),
                           Text(
-                            l10n.evaluationProgressIncompleteHint,
+                            l10n.evaluationProgressRemainingHint(remaining),
                             textAlign: TextAlign.center,
                             style: TenturaText.status(
                               Theme.of(context).colorScheme.onSurfaceVariant,
@@ -180,15 +181,25 @@ class ReviewContributionsScreen extends StatelessWidget
     output.add(
       Padding(
         padding: EdgeInsets.only(bottom: context.tt.rowGap),
+        child: Text(
+          l10n.evaluationListIntro,
+          style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+            color: Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
+        ),
+      ),
+    );
+
+    output.add(
+      Padding(
+        padding: EdgeInsets.only(bottom: context.tt.rowGap),
         child: EvaluationPrivacyInfoRow(
           shortLabel: state.isDraftMode
               ? l10n.evaluationReviewListPrivacyTitleDraft
               : l10n.evaluationReviewListPrivacyTitle,
           fullText: state.isDraftMode
               ? l10n.evaluationReviewListPrivacyDraft
-              : l10n.evaluationReviewListPrivacyLive(
-                  l10n.evaluationCanEvaluate,
-                ),
+              : l10n.evaluationReviewListPrivacyLive,
         ),
       ),
     );
@@ -232,8 +243,9 @@ class ReviewContributionsScreen extends StatelessWidget
             isDraftMode: state.isDraftMode,
             isLoading: state.isLoading,
             onTap: () => _openDetail(context, participant),
-            onCannotEvaluateToggle: () =>
-                _toggleCannotEvaluate(context, participant),
+            onCannotEvaluate: () => _markCannotEvaluate(context, participant),
+            onUndoCannotEvaluate: () =>
+                _undoCannotEvaluate(context, participant),
           ),
         );
       }
@@ -269,17 +281,18 @@ class ReviewContributionsScreen extends StatelessWidget
     );
   }
 
-  Future<void> _toggleCannotEvaluate(
+  Future<void> _undoCannotEvaluate(
+    BuildContext context,
+    EvaluationParticipant participant,
+  ) => context.read<EvaluationCubit>().clearOne(
+    evaluatedUserId: participant.userId,
+  );
+
+  Future<void> _markCannotEvaluate(
     BuildContext context,
     EvaluationParticipant participant,
   ) async {
     final cubit = context.read<EvaluationCubit>();
-    final selected = participant.currentValue == EvaluationValue.noBasis &&
-        (draft || participant.isSubmitted || participant.hasAnswered);
-    if (selected) {
-      await cubit.clearOne(evaluatedUserId: participant.userId);
-      return;
-    }
     final hasExistingWork =
         (participant.currentValue != null &&
             participant.currentValue != EvaluationValue.noBasis) ||
@@ -332,14 +345,16 @@ class _ParticipantTile extends StatelessWidget {
     required this.isDraftMode,
     required this.isLoading,
     required this.onTap,
-    required this.onCannotEvaluateToggle,
+    required this.onCannotEvaluate,
+    required this.onUndoCannotEvaluate,
   });
 
   final EvaluationParticipant participant;
   final bool isDraftMode;
   final bool isLoading;
   final VoidCallback onTap;
-  final VoidCallback onCannotEvaluateToggle;
+  final VoidCallback onCannotEvaluate;
+  final VoidCallback onUndoCannotEvaluate;
 
   @override
   Widget build(BuildContext context) {
@@ -366,100 +381,190 @@ class _ParticipantTile extends StatelessWidget {
         ? l10n.evaluationBannerDraftReview
         : presentation?.label ?? l10n.evaluationNotReviewed;
 
-    return Opacity(
-      opacity: cannotEvaluateSelected ? 0.55 : 1,
-      child: Card(
-        margin: EdgeInsets.only(bottom: tt.rowGap),
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            final subtitleStatus =
-                constraints.maxWidth < 500 ||
-                MediaQuery.textScalerOf(context).scale(1) >= 2;
-            final subtitle = <Widget>[];
-            if (participant.contributionSummary.isNotEmpty) {
-              subtitle.add(Text(participant.contributionSummary));
-            }
-            if (participant.note.trim().isNotEmpty && ready) {
-              subtitle.add(Text(participant.note.trim()));
-            }
-            if (subtitleStatus) {
-              subtitle.add(
-                Text(statusLabel, style: theme.textTheme.labelLarge),
-              );
-            }
-            return Column(
-              children: [
-                ListTile(
-                  key: TestIds.key(
-                    TestIds.evaluationParticipant(participant.userId),
-                  ),
-                  leading: SelfAwareAvatar.small(profile: profile),
-                  title: BlocBuilder<ProfileCubit, ProfileState>(
-                    builder: (context, state) => Text(
-                      SelfUserHighlight.displayName(
-                        l10n,
-                        profile,
-                        state.profile.id,
-                      ),
-                      style: SelfUserHighlight.nameStyle(
-                        theme,
-                        theme.textTheme.bodyLarge,
-                        SelfUserHighlight.profileIsSelf(
-                          profile,
-                          state.profile.id,
-                        ),
-                      ),
-                    ),
-                  ),
-                  subtitle: subtitle.isEmpty
-                      ? null
-                      : Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: subtitle,
-                        ),
-                  trailing: subtitleStatus
-                      ? null
-                      : Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            if (presentation != null)
-                              Text(
-                                presentation.emoji,
-                                style: TextStyle(
-                                  fontSize: tt.iconSize,
-                                  height: 1,
-                                ),
-                              ),
-                            SizedBox(width: tt.tightGap),
-                            Text(
-                              statusLabel,
-                              style: theme.textTheme.labelLarge,
-                              overflow: TextOverflow.ellipsis,
-                            ),
-                          ],
-                        ),
-                  onTap: isLoading || cannotEvaluateSelected ? null : onTap,
+    return Card(
+      margin: EdgeInsets.only(bottom: tt.rowGap),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final subtitleStatus =
+              constraints.maxWidth < 500 ||
+              MediaQuery.textScalerOf(context).scale(1) >= 2;
+          final subtitle = <Widget>[];
+          if (participant.contributionSummary.isNotEmpty) {
+            subtitle.add(Text(participant.contributionSummary));
+          }
+          if (participant.note.trim().isNotEmpty && ready) {
+            subtitle.add(Text(participant.note.trim()));
+          }
+          if (subtitleStatus) {
+            subtitle.add(Text(statusLabel, style: theme.textTheme.labelLarge));
+          }
+          final header = ListTile(
+            key: TestIds.key(
+              TestIds.evaluationParticipant(participant.userId),
+            ),
+            leading: SelfAwareAvatar.small(profile: profile),
+            title: BlocBuilder<ProfileCubit, ProfileState>(
+              builder: (context, state) => Text(
+                SelfUserHighlight.displayName(l10n, profile, state.profile.id),
+                style: SelfUserHighlight.nameStyle(
+                  theme,
+                  theme.textTheme.bodyLarge,
+                  SelfUserHighlight.profileIsSelf(profile, state.profile.id),
                 ),
-                const TenturaHairlineDivider(),
-                Padding(
-                  padding: tt.cardPadding,
-                  child: SwitchListTile(
-                    key: TestIds.key(
-                      TestIds.evaluationCannotEvaluate(participant.userId),
-                    ),
-                    contentPadding: EdgeInsets.zero,
-                    title: Text(l10n.evaluationCanEvaluate),
-                    value: !cannotEvaluateSelected,
-                    onChanged: isLoading
-                        ? null
-                        : (_) => onCannotEvaluateToggle(),
+              ),
+            ),
+            subtitle: subtitle.isEmpty
+                ? null
+                : Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: subtitle,
                   ),
-                ),
-              ],
-            );
-          },
-        ),
+            trailing: subtitleStatus
+                ? null
+                : Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (presentation != null)
+                        Text(
+                          presentation.emoji,
+                          style: TextStyle(fontSize: tt.iconSize, height: 1),
+                        ),
+                      SizedBox(width: tt.tightGap),
+                      Text(
+                        statusLabel,
+                        style: theme.textTheme.labelLarge,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ],
+                  ),
+            onTap: isLoading || cannotEvaluateSelected ? null : onTap,
+          );
+          return Column(
+            children: [
+              // Muted only in the header: the undo action below must keep
+              // full contrast while the card reads as set aside.
+              cannotEvaluateSelected
+                  ? Opacity(opacity: 0.55, child: header)
+                  : header,
+              const TenturaHairlineDivider(),
+              Padding(
+                padding: tt.cardPadding,
+                child: cannotEvaluateSelected
+                    ? _CannotEvaluateFooter(
+                        userId: participant.userId,
+                        isLoading: isLoading,
+                        onUndo: onUndoCannotEvaluate,
+                      )
+                    : _ReviewActions(
+                        userId: participant.userId,
+                        isLoading: isLoading,
+                        stacked: subtitleStatus,
+                        hasReview:
+                            value != null && value != EvaluationValue.noBasis,
+                        onReview: onTap,
+                        onCannotEvaluate: onCannotEvaluate,
+                      ),
+              ),
+            ],
+          );
+        },
       ),
+    );
+  }
+}
+
+/// Card actions while the participant can still be reviewed: the review CTA is
+/// the primary affordance, opting out is a demoted text action (issue #161).
+class _ReviewActions extends StatelessWidget {
+  const _ReviewActions({
+    required this.userId,
+    required this.isLoading,
+    required this.stacked,
+    required this.hasReview,
+    required this.onReview,
+    required this.onCannotEvaluate,
+  });
+
+  final String userId;
+  final bool isLoading;
+
+  /// Compact width or large text scale: full-width buttons on their own rows
+  /// instead of a side-by-side pair that would overflow.
+  final bool stacked;
+  final bool hasReview;
+  final VoidCallback onReview;
+  final VoidCallback onCannotEvaluate;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = L10n.of(context)!;
+    final tt = context.tt;
+    final review = FilledButton(
+      key: TestIds.key(TestIds.evaluationReviewAction(userId)),
+      onPressed: isLoading ? null : onReview,
+      child: Text(
+        hasReview
+            ? l10n.evaluationCardActionEdit
+            : l10n.evaluationCardActionReview,
+        textAlign: TextAlign.center,
+      ),
+    );
+    final optOut = TextButton(
+      key: TestIds.key(TestIds.evaluationCannotEvaluate(userId)),
+      onPressed: isLoading ? null : onCannotEvaluate,
+      child: Text(l10n.evaluationCannotEvaluate, textAlign: TextAlign.center),
+    );
+    if (stacked) {
+      return Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [review, SizedBox(height: tt.tightGap), optOut],
+      );
+    }
+    return Wrap(
+      spacing: tt.rowGap,
+      runSpacing: tt.tightGap,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      children: [review, optOut],
+    );
+  }
+}
+
+/// Card footer once the reviewer opted out: states the consequence in words
+/// and offers the way back.
+class _CannotEvaluateFooter extends StatelessWidget {
+  const _CannotEvaluateFooter({
+    required this.userId,
+    required this.isLoading,
+    required this.onUndo,
+  });
+
+  final String userId;
+  final bool isLoading;
+  final VoidCallback onUndo;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = L10n.of(context)!;
+    final tt = context.tt;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          l10n.evaluationCannotEvaluateExplanation,
+          style: TenturaText.bodySmall(
+            Theme.of(context).colorScheme.onSurfaceVariant,
+          ),
+        ),
+        SizedBox(height: tt.tightGap),
+        Align(
+          alignment: AlignmentDirectional.centerEnd,
+          child: TextButton(
+            key: TestIds.key(TestIds.evaluationUndoCannotEvaluate(userId)),
+            onPressed: isLoading ? null : onUndo,
+            child: Text(l10n.evaluationCannotEvaluateUndo),
+          ),
+        ),
+      ],
     );
   }
 }

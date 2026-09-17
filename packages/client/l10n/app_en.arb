@@ -4056,14 +4056,7 @@
   "evaluationAcknowledgeTitleDraft": "Draft review notes",
   "evaluationReviewListPrivacyTitle": "Review privacy",
   "evaluationReviewListPrivacyTitleDraft": "Draft privacy",
-  "evaluationReviewListPrivacyLive": "Reviews are pairwise-private. After the review window closes, only the person you evaluate will see your name, impact choice, capability acknowledgements, and note. Reviews are never public and are not visible to unrelated participants. If you cannot judge this contribution, turn off \"{action}\" on that participant's card.",
-  "@evaluationReviewListPrivacyLive": {
-    "placeholders": {
-      "action": {
-        "type": "String"
-      }
-    }
-  },
+  "evaluationReviewListPrivacyLive": "Reviews are pairwise-private. After the review window closes, only the person you evaluate will see your name, impact choice, capability acknowledgements, and note. Reviews are never public and are not visible to unrelated participants.",
   "evaluationReviewListPrivacyDraft": "These are private draft notes. They are not shared during the review window; save them to submit after the request closes.",
   "evaluationPrivacyBlock": "Your feedback here is private. It will not be shown publicly, and other people in this request will not see your answers by default. It is only used to improve your own local trust view: who you may want to trust more, trust less, or route requests through next time. In simple terms: your answers help Tentura make better personal recommendations and matching for you around the people involved here and the people connected to them. Please judge only what you actually saw in this request. If you are not sure, choose \"No basis\".",
   "evaluationPrivacyShort": "Your feedback is private.",
@@ -4194,10 +4187,21 @@
   "evaluationImpactNoRealEffect": "No real effect",
   "evaluationImpactHurtSomewhat": "Hurt somewhat",
   "evaluationImpactHurtALot": "Hurt a lot",
-  "evaluationCanEvaluate": "Can evaluate",
   "evaluationCannotEvaluate": "Cannot evaluate",
-  "evaluationCannotEvaluateReplacement": "Your current impact, capability acknowledgements, and note will be cleared.",
-  "evaluationProgressIncompleteHint": "Send stays unavailable until every participant is reviewed or Can evaluate is turned off.",
+  "evaluationCannotEvaluateReplacement": "Your current impact, capability acknowledgements, and note will be cleared. No review will be sent for this person and your trust in them will not change.",
+  "evaluationCannotEvaluateExplanation": "You marked that you did not see this contribution. No review will be sent and your trust in this person will not change.",
+  "evaluationCannotEvaluateUndo": "Undo",
+  "evaluationCardActionReview": "Review",
+  "evaluationCardActionEdit": "Edit",
+  "evaluationListIntro": "Tap Review on each person to rate their contribution.",
+  "evaluationProgressRemainingHint": "Left to review: {count}. Did not see someone's contribution? Mark \"Cannot evaluate\" on their card.",
+  "@evaluationProgressRemainingHint": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "evaluationCapabilityChoose": "What exactly?",
   "evaluationCapabilityChooseInfo": "This list combines this request's needs, the types of help in this person's active help offer, and any tags you already saved for them. Mark what they specifically helped with in this request. After the review window closes, only they see these marks. Tentura uses them as private cues for your future routing suggestions — not a public rating.",
   "evaluationCapabilityDone": "Done",

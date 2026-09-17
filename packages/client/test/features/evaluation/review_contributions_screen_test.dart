@@ -196,23 +196,21 @@ void main() {
         find.textContaining('Reviews are pairwise-private'),
         findsWidgets,
       );
+      // Issue #161: reviewing is the primary card action; opting out is a
+      // demoted text action, never a switch.
+      expect(find.byType(SwitchListTile), findsNothing);
       expect(
-        find.byKey(TestIds.key(TestIds.evaluationCannotEvaluate('u1'))),
-        findsOneWidget,
+        tester.widget(
+          find.byKey(TestIds.key(TestIds.evaluationReviewAction('u1'))),
+        ),
+        isA<FilledButton>(),
       );
+      expect(find.text('Review'), findsOneWidget);
       expect(
         tester.widget(
           find.byKey(TestIds.key(TestIds.evaluationCannotEvaluate('u1'))),
         ),
-        isA<SwitchListTile>(),
-      );
-      expect(
-        tester
-            .widget<SwitchListTile>(
-              find.byKey(TestIds.key(TestIds.evaluationCannotEvaluate('u1'))),
-            )
-            .value,
-        isTrue,
+        isA<TextButton>(),
       );
       await result.$3.close();
     },
@@ -225,7 +223,7 @@ void main() {
       final action = find.byKey(
         TestIds.key(TestIds.evaluationCannotEvaluate('u1')),
       );
-      expect(tester.widget<SwitchListTile>(action).value, isTrue);
+      expect(find.text('Review'), findsOneWidget);
       await test.tap(action);
       await test.pumpAndSettle();
       expect(repository.submitCalls, 1);
@@ -260,7 +258,11 @@ void main() {
       expect(repository.lastSubmit?.note, '');
       expect(cubit.state.participants.single.isSubmitted, isTrue);
       expect(cubit.state.participants.single.note, '');
-      expect(tester.widget<SwitchListTile>(action).value, isFalse);
+      expect(find.text('Undo'), findsOneWidget);
+      expect(
+        find.textContaining('No review will be sent and your trust'),
+        findsOneWidget,
+      );
       await cubit.close();
     },
   );
@@ -296,13 +298,13 @@ void main() {
     expect(cubit.state.participants.single.currentValue, EvaluationValue.pos1);
     expect(cubit.state.participants.single.isSubmitted, isTrue);
     expect(cubit.state.participants.single.note, 'kept note');
-    expect(tester.widget<SwitchListTile>(action).onChanged, isNull);
+    expect(tester.widget<TextButton>(action).onPressed, isNull);
 
     repository.submitGate!.complete();
     await test.pumpAndSettle();
     expect(repository.submitCalls, 1);
     expect(test.widget<ListTile>(participantTile).onTap, isNotNull);
-    expect(tester.widget<SwitchListTile>(action).onChanged, isNotNull);
+    expect(tester.widget<TextButton>(action).onPressed, isNotNull);
     repository.submitError = null;
     await test.tap(action);
     await test.pumpAndSettle();
@@ -319,8 +321,17 @@ void main() {
     );
     expect(cubit.state.participants.single.note, '');
     expect(test.widget<ListTile>(participantTile).onTap, isNull);
-    expect(tester.widget<SwitchListTile>(action).onChanged, isNotNull);
-    expect(tester.widget<SwitchListTile>(action).value, isFalse);
+    expect(
+      tester
+          .widget<TextButton>(
+            find.byKey(
+              TestIds.key(TestIds.evaluationUndoCannotEvaluate('u1')),
+            ),
+          )
+          .onPressed,
+      isNotNull,
+    );
+    expect(find.text('Undo'), findsOneWidget);
     await cubit.close();
   });
 
@@ -330,14 +341,28 @@ void main() {
       find.byKey(TestIds.key(TestIds.evaluationSubmit)),
     );
     expect(submit.onPressed, isNull);
-    expect(
-      find.textContaining('Send stays unavailable'),
-      findsOneWidget,
-    );
+    // Issue #161: the blocker is stated as remaining work, never as a control
+    // the reviewer has to switch off.
+    expect(find.textContaining('Left to review: 1.'), findsOneWidget);
+    expect(find.textContaining('Send stays unavailable'), findsNothing);
     await cubit.close();
   });
 
-  testWidgets('turning Can evaluate back on clears noBasis', (tester) async {
+  testWidgets('blocked footer fits narrow large text without overflow', (
+    tester,
+  ) async {
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final (_, _, cubit) = await pump(
+      tester,
+      surfaceSize: const Size(320, 700),
+      textScaler: const TextScaler.linear(2),
+    );
+    expect(find.textContaining('Left to review: 1.'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+    await cubit.close();
+  });
+
+  testWidgets('Undo on a Cannot evaluate card clears noBasis', (tester) async {
     final repository = FakeEvaluationRepository()
       ..participantsResult = [
         participant.copyWith(
@@ -346,16 +371,17 @@ void main() {
         ),
       ];
     final (test, _, cubit) = await pump(tester, repositoryArg: repository);
-    final action = find.byKey(
-      TestIds.key(TestIds.evaluationCannotEvaluate('u1')),
+    final undo = find.byKey(
+      TestIds.key(TestIds.evaluationUndoCannotEvaluate('u1')),
     );
-    expect(tester.widget<SwitchListTile>(action).value, isFalse);
-    await test.tap(action);
+    expect(find.text('Undo'), findsOneWidget);
+    await test.tap(undo);
     await test.pumpAndSettle();
     expect(repository.draftDeleteCalls, 1);
     expect(cubit.state.participants.single.currentValue, isNull);
     expect(cubit.state.participants.single.isSubmitted, isFalse);
-    expect(tester.widget<SwitchListTile>(action).value, isTrue);
+    expect(find.text('Undo'), findsNothing);
+    expect(find.text('Review'), findsOneWidget);
     await cubit.close();
   });
 
@@ -394,7 +420,8 @@ void main() {
       scrollable: find.byType(Scrollable),
     );
     expect(find.text('Helped somewhat'), findsOneWidget);
-    expect(find.text('Can evaluate'), findsOneWidget);
+    expect(find.text('Edit'), findsOneWidget);
+    expect(find.text('Cannot evaluate'), findsOneWidget);
     expect(tester.takeException(), isNull);
     await cubit.close();
   });

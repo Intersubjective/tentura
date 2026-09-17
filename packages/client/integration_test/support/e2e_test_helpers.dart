@@ -1070,11 +1070,17 @@ Future<void> sendCompleteReviewPackage(WidgetTester tester) async {
     if (submit.onPressed != null) {
       break;
     }
-    final canEvaluateOn = find.byWidgetPredicate(
-      (widget) => widget is SwitchListTile && widget.value,
+    final cannotEvaluate = find.byWidgetPredicate(
+      (widget) =>
+          widget is TextButton &&
+          widget.key is ValueKey<String> &&
+          (widget.key! as ValueKey<String>).value.startsWith(
+            'evaluation.cannot_evaluate.',
+          ) &&
+          widget.onPressed != null,
     );
-    expect(canEvaluateOn, findsWidgets);
-    await tapAndSettle(tester, canEvaluateOn.first);
+    expect(cannotEvaluate, findsWidgets);
+    await tapAndSettle(tester, cannotEvaluate.first);
     final confirm = find.text('Cannot evaluate');
     if (confirm.evaluate().isNotEmpty) {
       await tapAndSettle(tester, confirm.last);
