@@ -366,6 +366,9 @@ class _FakeEvaluationRepository implements EvaluationRepositoryPort {
     required int role,
     required String contributionSummary,
     required String causalHint,
+    DateTime? committedAt,
+    String offerMessage = '',
+    String? forwarderDisplayName,
   }) async {}
 
   @override
@@ -497,6 +500,7 @@ class _FakeEvaluationRepository implements EvaluationRepositoryPort {
     required String beaconId,
     required String userId,
     required int status,
+    bool markSent = false,
   }) async {
     setReviewUserStatusCalls.add(_SetStatusCall(beaconId, userId, status));
   }
@@ -595,6 +599,9 @@ final class _ParticipantPkeyEnforcingEvaluationRepository
     required int role,
     required String contributionSummary,
     required String causalHint,
+    DateTime? committedAt,
+    String offerMessage = '',
+    String? forwarderDisplayName,
   }) async {
     insertParticipantCalls.add((beaconId: beaconId, userId: userId));
     final key = _participantRowKey(beaconId, userId);

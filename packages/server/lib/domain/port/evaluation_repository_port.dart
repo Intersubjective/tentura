@@ -41,6 +41,9 @@ abstract class EvaluationRepositoryPort {
     required int role,
     required String contributionSummary,
     required String causalHint,
+    DateTime? committedAt,
+    String offerMessage = '',
+    String? forwarderDisplayName,
   });
 
   Future<void> insertVisibility({
@@ -57,10 +60,13 @@ abstract class EvaluationRepositoryPort {
 
   Future<int?> getReviewUserStatus(String beaconId, String userId);
 
+  /// Sets the per-user review status. When [markSent] is true the package's
+  /// `sent_at` is stamped; `sent_at` is never cleared (D11).
   Future<void> setReviewUserStatus({
     required String beaconId,
     required String userId,
     required int status,
+    bool markSent = false,
   });
 
   Future<List<BeaconEvaluationParticipantRecord>> listParticipants(

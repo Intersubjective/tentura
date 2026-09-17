@@ -24,6 +24,9 @@ BeaconEvaluationParticipantRecord beaconEvaluationParticipantToRecord(
   role: r.role,
   contributionSummary: r.contributionSummary,
   causalHint: r.causalHint,
+  committedAt: r.committedAt?.dateTime,
+  offerMessage: r.offerMessage,
+  forwarderDisplayName: r.forwarderDisplayName,
 );
 
 BeaconEvaluationVisibilityRecord beaconEvaluationVisibilityToRecord(

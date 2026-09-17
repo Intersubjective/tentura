@@ -120,6 +120,9 @@ class EvaluationRepositoryMock implements EvaluationRepositoryPort {
     required int role,
     required String contributionSummary,
     required String causalHint,
+    DateTime? committedAt,
+    String offerMessage = '',
+    String? forwarderDisplayName,
   }) async {}
 
   @override
@@ -148,6 +151,7 @@ class EvaluationRepositoryMock implements EvaluationRepositoryPort {
     required String beaconId,
     required String userId,
     required int status,
+    bool markSent = false,
   }) async {}
 
   @override

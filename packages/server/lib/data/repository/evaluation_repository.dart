@@ -59,6 +59,9 @@ class EvaluationRepository implements EvaluationRepositoryPort {
     required int role,
     required String contributionSummary,
     required String causalHint,
+    DateTime? committedAt,
+    String offerMessage = '',
+    String? forwarderDisplayName,
   }) => _db
       .into(_db.beaconEvaluationParticipants)
       .insertOnConflictUpdate(
@@ -68,6 +71,11 @@ class EvaluationRepository implements EvaluationRepositoryPort {
           role: role,
           contributionSummary: contributionSummary,
           causalHint: causalHint,
+          committedAt: Value(
+            committedAt == null ? null : PgDateTime(committedAt),
+          ),
+          offerMessage: Value(offerMessage),
+          forwarderDisplayName: Value(forwarderDisplayName),
         ),
       );
 
@@ -116,6 +124,7 @@ class EvaluationRepository implements EvaluationRepositoryPort {
     required String beaconId,
     required String userId,
     required int status,
+    bool markSent = false,
   }) => _db.managers.beaconReviewStatuses
       .filter(
         (e) => e.beaconId.id(beaconId) & e.userId.id(userId),
@@ -124,6 +133,9 @@ class EvaluationRepository implements EvaluationRepositoryPort {
         (o) => o(
           status: Value(status),
           updatedAt: Value(PgDateTime(DateTime.timestamp())),
+          sentAt: markSent
+              ? Value(PgDateTime(DateTime.timestamp()))
+              : const Value.absent(),
         ),
       );
 

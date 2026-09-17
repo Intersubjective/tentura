@@ -296,6 +296,9 @@ final class GateScenarioEvaluationRepository extends Fake
     required int role,
     required String contributionSummary,
     required String causalHint,
+    DateTime? committedAt,
+    String offerMessage = '',
+    String? forwarderDisplayName,
   }) async {}
 
   @override

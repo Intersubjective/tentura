@@ -298,6 +298,9 @@ final class EvaluationCase extends UseCaseBase {
               role: p.role.dbValue,
               contributionSummary: p.contributionSummary,
               causalHint: p.causalHint,
+              committedAt: p.committedAt,
+              offerMessage: p.offerMessage,
+              forwarderDisplayName: p.forwarderDisplayName,
             );
           }
 
@@ -1482,6 +1485,7 @@ final class EvaluationCase extends UseCaseBase {
         beaconId: beaconId,
         userId: userId,
         status: 2,
+        markSent: true,
       );
     }
     // Always settle this reviewer's reviewOpened receipt (including already-2
