@@ -72,7 +72,7 @@ If Opus is unavailable: routine units degrade to Composer-only implement+verify;
 - [x] UNIT 06 reopen announces — hard (tx order) — Opus inner — verify pass 2026-09-18 — overseer accepted (`4577edd2d`)
 - [x] UNIT 07 l10n keys — routine — Opus inner — verify pass 2026-09-18 — overseer accepted (`f6da84625`)
 - [x] UNIT 08 `ReviewPackageState` — routine — Opus inner — verify pass 2026-09-18 — overseer accepted (`996724eec`)
-- [ ] UNIT 09 client data/role/context — hard (DTO hops, codegen) — Opus inner
+- [x] UNIT 09 client data/role/context — hard (DTO hops, codegen) — Opus inner (quota stop; overseer finished step 4) — verify pass 2026-09-18 — overseer accepted (`432d2839d`)
 - [ ] UNIT 10 checklist UI — hard (Flutter, #162) — **ASTRA inner**
 - [ ] UNIT 11 paused/closed classify — hard (D12) — Opus inner
 - [ ] UNIT 12 HUD + banner — hard (#162 loop) — **ASTRA inner**
@@ -1083,5 +1083,44 @@ Uncommitted at death: presenter + context tests (date-init added; tests +9) and 
 Small local finish of the dead inner: committed `432d2839d feat(client): localize evaluation participant context on the sheet`. Sheet uses `presentParticipantContext` (D9), not `contributionSummary`. Independent TEST_CMD `flutter test test/features/evaluation` **+135**. contributionSummary/causalHint kept on entity (D17) for UNIT 10 screen.
 
 Next: Composer verify on scout chat `07232140-54cd-4019-8db2-e8996a830838`.
+
+### verify — 2026-09-18 — UNIT 09
+
+STATUS: pass
+
+TEST_OUTPUT:
+- `flutter test test/features/evaluation` (via `run_with_test_cleanup.sh`, 15m) — **+135, −0** (~11.2s).
+
+RANGE: `02db0c811..2a2d29593` — product commits `d912677c4`, `d1f5264ed`, `c8fede875`, `432d2839d`; journal `2a2d29593`. Worktree: no uncommitted changes under `packages/client/lib/features/evaluation/**` or UNIT 09 test paths; only pre-existing UNTOUCHABLE dirty/untracked elsewhere.
+
+ACCEPTANCE (plan UNIT 09 + hard-unit checks + overseer correction):
+- **formerCommitter / db `3`** — **met** — `_roleFromInt` maps `3 => formerCommitter` (`evaluation_repository.dart:518`); sheet exhaustive switches include `formerCommitter`; test `renders a former committer without crashing`.
+- **`hasAnswer` is 0/1/2 only** — **met** — entity getter `:46`; test `hasAnswer covers draft, submitted and final only`.
+- **`canFinalize` plan step 5** — **met** — `evaluation_state.dart`: draft `hasAnswered`, live `requiredParticipants.every(hasAnswer)`; tests `canFinalize ignores optional targets`, `canFinalize still requires every required target`, `empty participants are not finalizable`, plus `a package of only optional targets is finalizable unanswered`.
+- **Presenter rule order (D9)** — **met** — `evaluation_participant_context.dart` matches plan step 4 order; EN/RU tests per rule including no-date fallback and optional ended line.
+- **GraphQL plumb, no legacy selection** — **met** — both participant `.graphql` + `review_window_status.graphql` select new fields; no `contributionSummary`/`causalHint` in queries; repo maps structured fields + `sentAt` parse.
+- **ReviewWindowInfo nine fields + getters kept** — **met** — entity `:20–28`; `fetchReviewWindowStatus` `:188–196`; `viewerHasOutstandingReviewWork` / `viewerCanOpenReviewScreen` unchanged (`:34–47`).
+- **No `packageState`** — **met** — no import/use in `evaluation_state.dart`.
+- **No checklist screen edits (UNIT 10)** — **met** — `git diff 02db0c811..HEAD` empty for `review_contributions_screen.dart`.
+- **Sheet uses presenter, not server English** — **met** — `evaluation_detail_sheet.dart` `presentParticipantContext` at `:243+`; no `contributionSummary` read in sheet.
+- **No generated committed (D18)** — **met** — commit file lists contain no `_g/` or `*.g.dart`/`*.freezed.dart`.
+- **Plan acceptance (leaver vs helper + localized context on new paths)** — **met** — `isOptional` + `formerCommitter` + finalize gate; sheet/list-card path for sheet localized; repo leaves `contributionSummary`/`causalHint` at entity defaults (not fetched).
+- **TEST_CMD** — **met** — independent run matches overseer **+135**.
+
+GAPS:
+- **Plan step 2 literal** — entity still carries `@Default('') contributionSummary`/`causalHint` (overseer D17 waiver); GraphQL/repo no longer populate — **intentional**, not a verify fail.
+- **`review_contributions_screen.dart`** still displays `participant.contributionSummary` for list subtitles (UNIT 10); live fetches leave it empty — checklist may show role-only subtitles until UNIT 10 wires `presentParticipantContext`.
+- **`review_contributions_screen_test.dart`** — four `rowStatus: 1` fixture lines in range (not in plan Owns; keeps screen tests aligned with live `canFinalize`).
+- **`reviewedCount` / tile `ready`** still use `isSubmitted`/`hasAnswered` on checklist — scout-predicted drift until UNIT 10; not UNIT 09 scope.
+
+### overseer — UNIT 09 accepted — 2026-09-18
+
+Verdict: **accepted**. Opus-low steps 1–3, overseer step 4 after Opus spend limit, Composer verify pass. Independent TEST_CMD **+135**. D17: kept `contributionSummary`/`causalHint` on the entity; GraphQL no longer selects them. Screen list subtitles stay UNIT 10.
+
+## UNIT 10 — Checklist: sections, progress, sent states
+
+UNIT_BASE: `2a2d29593` (will be this journal commit's parent until journal lands; inner re-reads HEAD)
+Inner: **ASTRA** slot A2. Opus is at spend limit until 02:00 Europe/Amsterdam — do not use Opus for this unit.
+
 
 
