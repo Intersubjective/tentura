@@ -771,3 +771,86 @@ Verdict: **accepted**. Opus-low inner + Composer verify pass. Independent overse
 UNIT_BASE: `4577edd2d`
 Inner: Opus 5 low. Not Astra.
 
+### scout — 2026-09-18 — UNIT 07
+
+STATUS: complete
+
+BRIEF: **D17 additive l10n only** — add every §2 copy-table key to `packages/client/l10n/app_en.arb` and `app_ru.arb` with plan-literal RU/EN (authoritative RU; user-facing **запрос** / **оценк***, never product-noun beacon/room). **35 new keys**, **3 changed** (`evaluationSubmitFinish`, `beaconHudActReviewContributions`, `beaconReviewReopenBody`). None of the new symbols exist in the repo yet (`grep` clean). **Live changed values** (must match §2 after edit):
+
+| Key | Current EN | Target EN |
+|-----|------------|-----------|
+| `evaluationSubmitFinish` | `Submit and finish` | `Send reviews` |
+| `beaconHudActReviewContributions` | `Review contributions` | `Review contributions` (unchanged EN; RU `Проверить вклад` → `Оценить вклад`) |
+| `beaconReviewReopenBody` | no placeholders | `{sent}` int + new copy; add sibling `beaconReviewReopenBodyNoSent` |
+
+**Placeholder metadata:** mirror `evaluationProgress` (`app_en.arb:4077–4086`): string keys get `@key` with `"placeholders": { "name": {"type": "String"} }`; ints use `"type": "int"`. Keys needing metadata: `evaluationPackageSentAt` (`date`), `evaluationProgressSplit` (`req`, `reqTotal`, `opt`, `optTotal`), `evaluationContextCommitted` / `Via` / `Offer`, `beaconHudActEffectReviewProgress` (`count`, `total`), `beaconReviewCloseNowDiscardNote` (`count`), `beaconReviewReopenBody` (`sent`), `updatesFallbackBodyReviewAllIn` / `ReviewCancelled` (`title`). **No** `@beaconReviewReopenBody` exists today.
+
+**Regenerate:** `cd packages/client && flutter gen-l10n` → `lib/ui/l10n/**` per `l10n.yaml` (`output-dir: lib/ui/l10n`). **`packages/client/.gitignore:65`** ignores `/lib/ui/l10n/*` — do not commit generated dart (D18); CI/local tests need gen-l10n before `flutter test`.
+
+**D17 compile hazard (primary):** sole consumer `beacon_view_status_bottom_sheet.dart:302` calls `l10n.beaconReviewReopenBody` with **no args**. Adding `{sent}` changes generated API to `beaconReviewReopenBody(int sent)` → **analyzer error** until call site updates. `sentReviewerCount` is on `schema.graphql` only (UNIT 09); `ReviewWindowInfo` / menu snapshot do not expose it yet. **Overseer must widen Owns** for a one-file compile bridge in the same commit as the arb change, e.g. `Text(l10n.beaconReviewReopenBodyNoSent)` until UNIT 14 plumbs count + conditional, or pass a stub `0` to `beaconReviewReopenBody(0)` (wrong copy when senders exist — avoid). Value-only changes to `evaluationSubmitFinish` / `beaconHudActReviewContributions` are safe (`review_contributions_screen.dart:149`, `beacon_hud_author_action.dart:182`).
+
+**Terminology gates:** `scripts/check-user-facing-terminology.sh` scans arb values (beacon/room/входящие). §2 strings use request/запрос — should pass. `packages/client/test/l10n/request_terminology_contract_test.dart` asserts en/ru **key parity**, bans beacon/room in values, snake_case values — run as smallest arb proof (`flutter test test/l10n/...`); plan Verify `test/ui` does not cover l10n dir but is still required regression.
+
+**Insertion hints (style):** keep JSON valid; place `evaluation*` block near existing evaluation strings (~4075+); `beaconHud*` / `beaconReview*` near `beaconHudActReviewContributions` (~4657) and `beaconReviewReopen*` (~4590); four `updatesFallback*Review*` after `updatesFallbackBodyReviewOpened` (~5839).
+
+STEPS (commit-sized):
+1. **`app_en.arb` + `app_ru.arb` — evaluation package copy** — add all `evaluation*` keys from §2 except defer reopen/HUD/updates clusters if splitting; update `evaluationSubmitFinish` values; each placeholder key + `@` block in both locales.
+2. **Same files — HUD + author dialog copy** — add `beaconHudActEffectReviewProgress`, `beaconHudReviewSent`, `beaconHudReviewEdit`, `beaconHudWaitingFor*`, `beaconReviewCloseNowBody`, `beaconReviewCloseNowDiscardNote`, `beaconReviewReopenBodyNoSent`; change `beaconHudActReviewContributions` (RU); change `beaconReviewReopenBody` + `@beaconReviewReopenBody` (`sent`).
+3. **Same files — Updates fallbacks** — `updatesFallbackTitle/BodyReviewAllIn` and `ReviewCancelled` with `title` placeholder; verify en/ru key sets still identical.
+4. **Codegen + D17 bridge** — `flutter gen-l10n`; **(widened)** fix `beacon_view_status_bottom_sheet.dart` reopen dialog body to compile; journal inner records widen. Red meaningful: `dart analyze` / `flutter test test/l10n` fails on step 2 without step 4.
+
+TEST_CMD:
+```bash
+cd packages/client && ../../scripts/run_with_test_cleanup.sh --timeout 15m -- flutter test test/ui --dart-define=ENV=test --dart-define-from-file=env/test.env
+```
+```bash
+bash scripts/check-user-facing-terminology.sh
+```
+```bash
+cd packages/client && ../../scripts/run_with_test_cleanup.sh --timeout 10m -- flutter test test/l10n/request_terminology_contract_test.dart --dart-define=ENV=test --dart-define-from-file=env/test.env
+```
+(third line: smallest proof of arb parity/terminology — not in strict plan Verify but recommended)
+
+UNTOUCHABLE: pre-existing dirty/untracked; generated `lib/ui/l10n/*` (gitignored — regenerate locally only); no hand-edit `l10n_*.dart`; no consumer/UI wiring beyond overseer-approved compile bridge; other units; keys/secrets; do not delete any arb key (D17).
+
+RISKS:
+- **Owns vs D17:** `beaconReviewReopenBody` placeholder without sheet fix → **BLOCKED** compile; widen `beacon_view_status_bottom_sheet.dart` or defer reopen-body change to a unit that owns UNIT 14 entry points (plan assigns change to UNIT 07 — widen expected).
+- **Interim reopen copy:** using only `beaconReviewReopenBodyNoSent` at the sheet until UNIT 14 misstates reopen when `sentReviewerCount > 0` — acceptable short window if documented in inner.
+- **Curly quotes:** §2 `evaluationContextOffer` / updates bodies use typographic quotes — paste literally; terminology script does not validate quote style.
+- **RU «Помогал(а)»** gender-neutral parenthetical — plan literal; do not paraphrase.
+- **`beaconHudActReviewContributions` EN** unchanged text — only RU changes per §2; do not "improve" EN.
+- **gen-l10n omitted:** `flutter test` imports `package:tentura/ui/l10n/l10n_en.dart` — missing gen step fails entire client test suite.
+- **UNIT_BASE:** journal header still `4577edd2d`; live `git rev-parse --short HEAD` is `5b3f4f6b9` (post–UNIT 06 journal commit) — inner should record actual base.
+
+
+### inner — 2026-09-18 — UNIT 07 (Opus 5 low)
+
+STATUS: complete
+
+UNIT_BASE (actual): `5b3f4f6b9` (journal header says `4577edd2d`, the pre-announcement commit — scout-flagged).
+
+STEPS:
+1–3 (merged into one commit `b9c269598`, arb JSON cannot be left valid-but-half-written across separate edits, and the `{sent}` placeholder breaks compilation until the D17 bridge lands with it): all 35 new §2 keys added to **both** `app_en.arb` and `app_ru.arb` — 23 `evaluation*`, 7 HUD/close-now, `beaconReviewReopenBodyNoSent`, 4 `updatesFallback*Review{AllIn,Cancelled}` — plus the 3 changed keys (`evaluationSubmitFinish` EN `Submit and finish` → `Send reviews`, RU → `Отправить оценки`; `beaconHudActReviewContributions` RU `Проверить вклад` → `Оценить вклад`, EN untouched; `beaconReviewReopenBody` new copy + `{sent}`). `@key` blocks mirror `evaluationProgress` style; `date`/`name`/`message`/`title` `String`, `count`/`total`/`sent`/`req`/`reqTotal`/`opt`/`optTotal` `int`. Typographic quotes (`«»`, `“”`) and `Помогал(а)` pasted literally. **Additive — no key deleted.**
+4. `flutter gen-l10n` run; `lib/ui/l10n/*` is gitignored and **not** committed; no `l10n_*.dart` hand-edited.
+
+**D17 widen (overseer-authorized, documented here):** `packages/client/lib/features/beacon_view/ui/widget/beacon_view_status_bottom_sheet.dart:302` called `l10n.beaconReviewReopenBody` with no args; after `{sent}` the generated API is `beaconReviewReopenBody(int sent)`. RED captured: `dart analyze` on that file → `error … The argument type 'String Function(int)' can't be assigned to the parameter type 'String'`. Bridged to `l10n.beaconReviewReopenBodyNoSent` (**not** a stub `0`, which would misstate the reopen when senders exist). **UNIT 14 must plumb `sentReviewerCount` and restore the conditional** — until then the reopen dialog always shows the no-sent copy. No other UI wiring touched.
+
+TESTS:
+- `flutter test test/l10n/request_terminology_contract_test.dart` (via `run_with_test_cleanup.sh`, 10m) — **+4, −0** (key parity, no beacon/room nouns, no snake_case values, Request/запрос core labels).
+- `bash scripts/check-user-facing-terminology.sh` — `ok`, exit 0.
+- `flutter test test/ui` (via wrapper, 15m) — **+314, −0**.
+- `dart analyze` on the bridged sheet — 0 errors (pre-existing warning/info untouched).
+- Post-edit parity check: both arb files contain all 35 new keys; the only en/ru key asymmetry is the pre-existing set of unrelated `@…` metadata blocks.
+
+COMMITS: `b9c269598 feat(client): add review package state copy to the arb files`
+
+FILES: `packages/client/l10n/app_en.arb`, `packages/client/l10n/app_ru.arb`, `packages/client/lib/features/beacon_view/ui/widget/beacon_view_status_bottom_sheet.dart`.
+
+FINDINGS:
+- Steps 1–3 could not be split into separate green commits without leaving the client uncompilable mid-way (placeholder change). Red was still captured explicitly on the analyzer before the bridge.
+- No name collisions: none of the 35 new keys existed; nearby lookalikes (`evaluationSectionAuthor`, `beaconHudReviewOpen`, `beaconReviewCloseNowAction/Success/Blocked`, `beaconHudWaitingForReviews`) are distinct keys and were left alone.
+- The old `beaconReviewReopenBody` EN/RU copy ("Returns to Open. Review notes are kept as drafts…") is fully replaced per §2, not kept as a variant.
+
+REMAINING:
+- **UNIT 14 owes the reopen-body restore** (`sentReviewerCount` → `beaconReviewReopenBody(sent)` when `sent > 0`, else `…NoSent`).
+- All 35 keys are unreferenced by UI so far — consumers land in UNIT 08–14. Nothing pushed.
