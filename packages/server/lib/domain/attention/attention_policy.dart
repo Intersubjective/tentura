@@ -63,7 +63,6 @@ class AttentionPolicy {
     AttentionEventType.offerRemoved ||
     AttentionEventType.commitmentReleased ||
     AttentionEventType.reviewOpened ||
-    AttentionEventType.reviewAllPackagesIn ||
     AttentionEventType.needsMe ||
     AttentionEventType.staleReminder => AttentionSuppressionClass.mandatory,
     AttentionEventType.blockerOpened =>
