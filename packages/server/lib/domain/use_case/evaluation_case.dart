@@ -1484,6 +1484,12 @@ final class EvaluationCase extends UseCaseBase {
         status: 2,
       );
     }
+    // Always settle this reviewer's reviewOpened receipt (including already-2
+    // retries after a failed prior settle). Idempotent when already settled.
+    await _attentionSystemSettlement?.settleReviewerObligationOnPackageSend(
+      beaconId: beaconId,
+      reviewerAccountId: userId,
+    );
     if (await _canCloseNow(beaconId: beaconId)) {
       await _autoCloseReviewWindow(beaconId: beaconId, actorUserId: userId);
     }

@@ -1268,6 +1268,33 @@ class AttentionSettlementRepository implements AttentionSettlementPort {
 
   final TenturaDb _database;
 
+  static const _reviewOpenedEventType = 'reviewOpened';
+
+  @override
+  Future<String?> liveObligationEventType({
+    required String accountId,
+    required String receiptId,
+  }) async {
+    final row = await _database
+        .customSelect(
+          r'''
+SELECT occ.event_type AS event_type
+FROM public.notification_outbox AS outbox
+JOIN public.attention_occurrence AS occ ON occ.id = outbox.occurrence_id
+WHERE outbox.id = $2
+  AND outbox.account_id = $1
+  AND outbox.requires_action
+  AND outbox.settlement_kind IS NULL
+''',
+          variables: [
+            Variable<String>(accountId),
+            Variable<String>(receiptId),
+          ],
+        )
+        .getSingleOrNull();
+    return row?.read<String>('event_type');
+  }
+
   @override
   Future<int> settle({
     required String accountId,
@@ -1281,7 +1308,9 @@ SET
   settled_at = now(),
   settled_by_user_id = $1,
   settled_by_occurrence_id = NULL
-WHERE outbox.id = $2
+FROM public.attention_occurrence AS occ
+WHERE outbox.occurrence_id = occ.id
+  AND outbox.id = $2
   AND outbox.account_id = $1
   AND outbox.requires_action
   AND outbox.settlement_kind IS NULL
@@ -1290,11 +1319,13 @@ WHERE outbox.id = $2
     FROM public.visible_attention_receipts($1)
   )
   AND ($3 <> 'dismissed' OR outbox.suppression_class <> 'mandatory')
+  AND occ.event_type IS DISTINCT FROM $4
 ''',
     variables: [
       Variable<String>(accountId),
       Variable<String>(receiptId),
       Variable<String>(kind.wireName),
+      Variable<String>(_reviewOpenedEventType),
     ],
     updateKind: UpdateKind.update,
   );

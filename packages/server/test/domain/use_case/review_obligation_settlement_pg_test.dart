@@ -15,6 +15,7 @@ import 'package:tentura_server/data/database/migration/_migrations.dart';
 import 'package:tentura_server/data/database/tentura_db.dart'
     hide isNotNull, isNull;
 import 'package:tentura_server/data/repository/attention_dispatch_repository.dart';
+import 'package:tentura_server/data/repository/attention_repository.dart';
 import 'package:tentura_server/data/repository/attention_system_settlement_repository.dart';
 import 'package:tentura_server/data/repository/beacon_access_repository.dart';
 import 'package:tentura_server/data/repository/beacon_repository.dart';
@@ -26,6 +27,7 @@ import 'package:tentura_server/data/repository/help_offer_repository.dart';
 import 'package:tentura_server/data/repository/mock/invite_seed_prompt_repository_mock.dart';
 import 'package:tentura_server/data/repository/mutating_unit_of_work.dart';
 import 'package:tentura_server/data/repository/user_repository.dart';
+import 'package:tentura_server/domain/attention/attention_models.dart';
 import 'package:tentura_server/domain/evaluation/beacon_evaluation_value.dart';
 import 'package:tentura_server/domain/evaluation/evaluation_participant_role.dart';
 import 'package:tentura_server/domain/entity/user_entity.dart';
@@ -36,6 +38,7 @@ import 'package:tentura_server/domain/port/user_repository_port.dart';
 import 'package:tentura_server/domain/port/attention_expiry_repository_port.dart';
 import 'package:tentura_server/domain/use_case/attention_expiry_sweep_case.dart';
 import 'package:tentura_server/domain/use_case/attention_intent_case.dart';
+import 'package:tentura_server/domain/use_case/attention_settlement_case.dart';
 import 'package:tentura_server/domain/use_case/commitment_query_case.dart';
 import 'package:tentura_server/domain/use_case/evaluation/evaluation_draft_purger.dart';
 import 'package:tentura_server/domain/use_case/evaluation/evaluation_participant_graph_builder.dart';
@@ -236,6 +239,49 @@ Future<void> main() async {
 
       expect(await _settlementKind(writer, _reviewer1), 'resolved');
       expect(await _settlementKind(writer, _reviewer2), 'expired');
+    }, skip: skipReason);
+
+    test('evaluationFinalize settles sender receipt immediately', () async {
+      await _dispatchReviewOpened(dispatch, intents);
+      await evalRepo.submitEvaluationAtomic(
+        beaconId: _beaconId,
+        evaluatorId: _reviewer1,
+        evaluatedUserId: _subjectId,
+        value: BeaconEvaluationValue.pos1,
+        reasonTags: const ['quality'],
+        note: 'r1',
+        ackTags: const [],
+      );
+
+      await evaluationCase.evaluationFinalize(
+        beaconId: _beaconId,
+        userId: _reviewer1,
+      );
+
+      expect(await _settlementKind(writer, _reviewer1), 'resolved');
+      expect(await _settlementKind(writer, _reviewer2), isNull);
+    }, skip: skipReason);
+
+    test('user settle of reviewOpened throws and leaves receipt live', () async {
+      await _dispatchReviewOpened(dispatch, intents);
+      final receiptId = await _reviewReceiptId(writer, _reviewer1);
+      expect(receiptId, isNotNull);
+
+      final settlementCase = AttentionSettlementCase(
+        AttentionSettlementRepository(database),
+        env: target.databaseEnv,
+        logger: Logger('ReviewObligationSettlementPgTest'),
+      );
+
+      expect(
+        () => settlementCase.settle(
+          accountId: _reviewer1,
+          receiptId: receiptId!,
+          kind: AttentionSettlementKind.resolved,
+        ),
+        throwsA(isA<ArgumentError>()),
+      );
+      expect(await _settlementKind(writer, _reviewer1), isNull);
     }, skip: skipReason);
 
     test('help-offer obligation on same beacon survives review close settlement',
@@ -515,6 +561,23 @@ WHERE beacon_id = '$_beaconId'
   AND account_id = '$accountId'
   AND requires_action
 ORDER BY created_at DESC
+LIMIT 1
+''');
+  if (rows.isEmpty) return null;
+  return rows.single[0] as String?;
+}
+
+Future<String?> _reviewReceiptId(Connection writer, String accountId) async {
+  final rows = await writer.execute('''
+SELECT outbox.id
+FROM public.notification_outbox AS outbox
+JOIN public.attention_occurrence AS occ ON occ.id = outbox.occurrence_id
+WHERE outbox.beacon_id = '$_beaconId'
+  AND outbox.account_id = '$accountId'
+  AND occ.event_type = 'reviewOpened'
+  AND outbox.requires_action
+  AND outbox.settlement_kind IS NULL
+ORDER BY outbox.created_at DESC
 LIMIT 1
 ''');
   if (rows.isEmpty) return null;

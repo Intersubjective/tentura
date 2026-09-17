@@ -171,6 +171,37 @@ void main() {
     expect(reviewCount, 1);
   });
 
+  testWidgets('Review sub-card has Review CTA but no Done', (tester) async {
+    await _pumpBlock(
+      tester,
+      obligations: [
+        AttentionReceipt(
+          id: 'rev-1',
+          category: 'coordination',
+          kind: 'reviewOpened',
+          priority: 'normal',
+          title: 'Review',
+          body: 'Contributions ready',
+          actionUrl: '/#/',
+          createdAt: DateTime.utc(2026, 9, 1),
+          collapsedCount: 1,
+          presentationKey: 'review_opened',
+          presentationPayloadJson: '{}',
+          surface: AttentionSurface.myWork,
+          beaconId: 'beacon-1',
+          requiresAction: true,
+        ),
+      ],
+      onReviewContributions: () {},
+    );
+
+    expect(find.text('Review'), findsWidgets);
+    expect(
+      find.bySemanticsIdentifier(TestIds.myWorkObligationDone('rev-1')),
+      findsNothing,
+    );
+  });
+
   test('block visible when only showReviewCta and no live receipts', () {
     expect(
       myWorkObligationBlockVisible(

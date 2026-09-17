@@ -290,15 +290,16 @@ class _ObligationSubCard extends StatelessWidget {
                     minInteractive: true,
                     onPressed: onReview,
                   ),
-                TenturaTextAction(
-                  label: l10n.myWorkObligationDone,
-                  tone: TenturaTone.neutral,
-                  minInteractive: true,
-                  semanticsIdentifier: TestIds.myWorkObligationDone(
-                    receipt.id,
+                if (!group.isReview)
+                  TenturaTextAction(
+                    label: l10n.myWorkObligationDone,
+                    tone: TenturaTone.neutral,
+                    minInteractive: true,
+                    semanticsIdentifier: TestIds.myWorkObligationDone(
+                      receipt.id,
+                    ),
+                    onPressed: onDone,
                   ),
-                  onPressed: onDone,
-                ),
               ],
             ),
           ],

@@ -12,7 +12,7 @@ class TrustChangeReceiptCard extends StatelessWidget {
     required this.onTap,
     required this.onMarkSeen,
     required this.onMarkUnseen,
-    required this.onSettle,
+    this.onSettle,
     this.actor,
     super.key,
   });
@@ -21,7 +21,7 @@ class TrustChangeReceiptCard extends StatelessWidget {
   final VoidCallback onTap;
   final VoidCallback onMarkSeen;
   final VoidCallback onMarkUnseen;
-  final VoidCallback onSettle;
+  final VoidCallback? onSettle;
   final Profile? actor;
 
   @override

@@ -35,6 +35,7 @@ import 'package:tentura_server/domain/use_case/commitment_query_case.dart';
 import 'package:tentura_server/domain/commitment/commitment_event.dart';
 import 'package:tentura_server/domain/commitment/commitment_event_kind.dart';
 import 'package:tentura_server/domain/port/commitment_repository_port.dart';
+import 'package:tentura_server/domain/port/attention_system_settlement_port.dart';
 import 'package:tentura_server/domain/trust/trust_bin.dart';
 
 import '../../support/fake_beacon_hierarchy_repository.dart';
@@ -50,6 +51,42 @@ class _NoopAttentionExpiryRepository extends Fake
   @override
   Future<List<String>> lockExpiredReviewWindowBeaconIds(DateTime now) async =>
       const [];
+}
+
+class _RecordingPackageSendSettlement extends Fake
+    implements AttentionSystemSettlementPort {
+  final packageSendCalls =
+      <({String beaconId, String reviewerAccountId})>[];
+
+  @override
+  Future<int> settleReviewerObligationOnPackageSend({
+    required String beaconId,
+    required String reviewerAccountId,
+  }) async {
+    packageSendCalls.add((
+      beaconId: beaconId,
+      reviewerAccountId: reviewerAccountId,
+    ));
+    return 1;
+  }
+
+  @override
+  Future<int> settleReviewObligationsAfterWindowClose(String beaconId) async =>
+      0;
+
+  @override
+  Future<int> supersedeReviewObligationsOnReopen(String beaconId) async => 0;
+
+  @override
+  Future<int> settleAuthorHelpOfferSubmitted({
+    required String beaconId,
+    required String authorAccountId,
+    required String helpOffererUserId,
+  }) async =>
+      0;
+
+  @override
+  Future<List<String>> listBeaconIdsWithClosedReviewWindows() async => [];
 }
 
 class MockBeaconRepository extends Mock implements BeaconRepositoryPort {}
@@ -182,6 +219,7 @@ EvaluationCase buildTestEvaluationCase({
   CommitmentRepositoryPort? commitmentRepo,
   HelpOfferRepositoryPort? helpOfferRepo,
   ReviewFinalizationPort? reviewFinalization,
+  AttentionSystemSettlementPort? attentionSystemSettlement,
   RecordingBeaconHierarchyOutbox? lifecycleOutbox,
 }) {
   final commitment = commitmentRepo ?? NoOpCommitmentRepository();
@@ -208,6 +246,7 @@ EvaluationCase buildTestEvaluationCase({
     attention: attention.transactional,
     attentionExpirySweep: expirySweep,
     reviewFinalization: reviewFinalization,
+    attentionSystemSettlement: attentionSystemSettlement,
     env: Env(environment: Environment.test),
     logger: Logger('EvaluationCaseTest'),
   );
@@ -840,6 +879,51 @@ void main() {
           isTrue,
         );
         expect(evalRepo.setReviewUserStatusCalls, isEmpty);
+      },
+    );
+
+    test(
+      'settles reviewOpened obligation on package send including already-2',
+      () async {
+        final settlement = _RecordingPackageSendSettlement();
+        final helpOfferRepo = EmptyGraphHelpOfferRepository();
+        final forwardRepo = EmptyGraphForwardEdgeRepository();
+        final userRepo = StubUserRepository('User');
+        final userProfileBatchLookup = StubUserProfileBatchLookup('User');
+        final graphBuilder = EvaluationParticipantGraphBuilder(
+          NoOpCommitmentRepository(),
+          helpOfferRepo,
+          forwardRepo,
+          userRepo,
+        );
+        final localCase = buildTestEvaluationCase(
+          beaconRepo: _TransactionStubBeaconRepo(defaultReviewBeacon()),
+          forwardRepo: forwardRepo,
+          evalRepo: evalRepo,
+          userProfileBatchLookup: userProfileBatchLookup,
+          graphBuilder: graphBuilder,
+          attention: attention,
+          expirySweep: expirySweep,
+          commitmentRepo: NoOpCommitmentRepository(),
+          helpOfferRepo: helpOfferRepo,
+          reviewFinalization: reviewFinalization,
+          attentionSystemSettlement: settlement,
+        );
+        evalRepo
+          ..reviewWindowResult = openWindow()
+          ..reviewUserStatusResult = 2;
+
+        expect(
+          await localCase.evaluationFinalize(
+            beaconId: beaconId,
+            userId: userId,
+          ),
+          isTrue,
+        );
+        expect(evalRepo.setReviewUserStatusCalls, isEmpty);
+        expect(settlement.packageSendCalls, [
+          (beaconId: beaconId, reviewerAccountId: userId),
+        ]);
       },
     );
 

@@ -191,6 +191,15 @@ class _FakeSettlement implements AttentionSettlementPort {
   String? accountId;
   String? receiptId;
   AttentionSettlementKind? kind;
+  String? liveEventType;
+  int settleCalls = 0;
+
+  @override
+  Future<String?> liveObligationEventType({
+    required String accountId,
+    required String receiptId,
+  }) async =>
+      liveEventType;
 
   @override
   Future<int> settle({
@@ -198,6 +207,7 @@ class _FakeSettlement implements AttentionSettlementPort {
     required String receiptId,
     required AttentionSettlementKind kind,
   }) async {
+    settleCalls++;
     this.accountId = accountId;
     this.receiptId = receiptId;
     this.kind = kind;
@@ -415,6 +425,24 @@ void main() {
     expect(settlement.accountId, 'U1');
     expect(settlement.receiptId, 'N1');
     expect(settlement.kind, AttentionSettlementKind.resolved);
+  });
+
+  test('attentionSettle rejects reviewOpened live obligations', () async {
+    final settlement = _FakeSettlement()..liveEventType = 'reviewOpened';
+    final field = MutationAttention(
+      ack: _FakeAck(),
+      settlement: _settlementCase(settlement),
+    ).all.last;
+
+    expect(
+      () => field.resolve!(null, {
+        ...auth,
+        'receiptId': 'N1',
+        'kind': 'resolved',
+      }),
+      throwsA(isA<ArgumentError>()),
+    );
+    expect(settlement.settleCalls, 0);
   });
 
   test('attentionSettle rejects non-user settlement kinds', () async {

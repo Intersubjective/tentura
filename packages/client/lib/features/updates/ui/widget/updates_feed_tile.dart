@@ -180,7 +180,7 @@ class _UpdatesFeedTileState extends State<UpdatesFeedTile> {
         '${dateFormatYMD(localCreatedAt)} ${timeFormatHm(localCreatedAt)}';
     final rowAction =
         widget.action ??
-        (widget.receipt.isLiveObligation && widget.onSettle != null
+        (widget.receipt.isUserSettleable && widget.onSettle != null
             ? TenturaTextAction(
                 label: l10n.updatesMarkDone,
                 flushStart: true,

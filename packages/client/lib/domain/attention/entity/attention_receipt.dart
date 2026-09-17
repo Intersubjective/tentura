@@ -72,4 +72,9 @@ abstract class AttentionReceipt with _$AttentionReceipt {
 
   bool get isSeen => seenAt != null;
   bool get isLiveObligation => requiresAction && settlementKind == null;
+
+  /// Live obligations the user may clear with Done / Mark done.
+  /// Review reminders stay until the package is sent or the window ends.
+  bool get isUserSettleable =>
+      isLiveObligation && presentationKey != 'review_opened';
 }
