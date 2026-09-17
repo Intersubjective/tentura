@@ -1,4 +1,5 @@
 import 'package:drift/drift.dart';
+import 'package:drift_postgres/drift_postgres.dart';
 
 import 'beacons.dart';
 import 'users.dart';
@@ -16,6 +17,15 @@ class BeaconEvaluationParticipants extends Table {
   late final contributionSummary = text()();
 
   late final causalHint = text()();
+
+  /// Structured context so the client can localize instead of printing
+  /// server-built English (the legacy text columns above stay written).
+  late final committedAt =
+      customType(PgTypes.timestampWithTimezone).nullable()();
+
+  late final offerMessage = text().withDefault(const Constant(''))();
+
+  late final forwarderDisplayName = text().nullable()();
 
   @override
   Set<Column<Object>> get primaryKey => {beaconId, userId};

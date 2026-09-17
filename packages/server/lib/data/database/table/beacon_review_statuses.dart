@@ -22,6 +22,9 @@ class BeaconReviewStatuses extends Table {
     PgTypes.timestampWithTimezone,
   ).clientDefault(() => PgDateTime(DateTime.timestamp()))();
 
+  /// First time this package was sent. Never cleared once set.
+  late final sentAt = customType(PgTypes.timestampWithTimezone).nullable()();
+
   @override
   Set<Column<Object>> get primaryKey => {beaconId, userId};
 
