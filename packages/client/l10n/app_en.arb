@@ -2888,17 +2888,25 @@
   "@forwardRestorePersonalNote": {
     "context": "ForwardBeaconScreen per-recipient note"
   },
-  "forwardUncoveredRecipientsTitle": "No personal note yet",
+  "forwardUncoveredRecipientsTitle": "Shared note",
   "@forwardUncoveredRecipientsTitle": {
-    "context": "ForwardBeaconScreen uncovered recipients sheet"
+    "context": "ForwardBeaconScreen uncovered recipients sheet title"
   },
-  "forwardUncoveredSharedNoteInfo": "A shared note is sent to everyone who still has no personal note.",
+  "forwardUncoveredSharedNoteInfo": "Sent to anyone who doesn't have a personal note.",
   "@forwardUncoveredSharedNoteInfo": {
-    "context": "ForwardBeaconScreen uncovered recipients sheet"
+    "context": "ForwardBeaconScreen uncovered recipients sheet visible helper"
+  },
+  "forwardUncoveredRecipientsListCaption": "People without a personal note",
+  "@forwardUncoveredRecipientsListCaption": {
+    "context": "ForwardBeaconScreen uncovered recipients sheet list caption"
+  },
+  "forwardUncoveredSharedNoteFieldHint": "Optional",
+  "@forwardUncoveredSharedNoteFieldHint": {
+    "context": "ForwardBeaconScreen uncovered recipients sheet field hint"
   },
   "forwardSendWithoutSharedNote": "Send without a shared note",
   "@forwardSendWithoutSharedNote": {
-    "context": "ForwardBeaconScreen uncovered recipients sheet"
+    "context": "Deprecated — removed from uncovered sheet in #172; keep key until callers are gone"
   },
   "forwardMrSortShort": "MR sort",
   "@forwardMrSortShort": {

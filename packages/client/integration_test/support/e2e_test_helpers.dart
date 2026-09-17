@@ -565,13 +565,23 @@ Future<String> createRequestReachRecipientsTab(
 }
 
 Future<void> confirmUncoveredForwardNoteIfPresent(WidgetTester tester) async {
-  final withoutNote = find.text('Send without a shared note');
+  final sheetTitle = find.text('Shared note');
   if (await tryPumpUntilVisible(
     tester,
-    withoutNote,
+    sheetTitle,
     timeout: const Duration(seconds: 3),
   )) {
-    await tapAndSettle(tester, withoutNote);
+    // Empty optional note: primary Forward commits without a skip-send CTA.
+    final primary = find.descendant(
+      of: find.byType(FilledButton),
+      matching: find.textContaining('Forward to'),
+    );
+    expect(
+      primary,
+      findsWidgets,
+      reason: 'Uncovered sheet must expose an always-enabled Forward CTA',
+    );
+    await tapAndSettle(tester, primary.first);
   }
 }
 

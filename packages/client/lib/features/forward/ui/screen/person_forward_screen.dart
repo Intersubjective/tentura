@@ -12,12 +12,9 @@ import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/utils/availability_line.dart';
 import 'package:tentura/ui/widget/focus_flash_highlight.dart';
-import 'package:tentura/ui/widget/tentura_info_hint_button.dart';
-import 'package:tentura/ui/widget/unfocus_sheet_body.dart';
 
 import '../../domain/entity/person_forward_row.dart';
 import '../bloc/person_forward_cubit.dart';
-import '../widget/forward_input_decoration.dart';
 
 @RoutePage()
 class PersonForwardScreen extends StatelessWidget implements AutoRouteWrapper {
@@ -384,22 +381,7 @@ class _NoteAndSend extends StatelessWidget {
   final PersonForwardState state;
 
   Future<void> _handleSend(BuildContext context) async {
-    final cubit = context.read<PersonForwardCubit>();
-    final trimmedNote = state.note.trim();
-    if (trimmedNote.isEmpty && !state.noteSkipped) {
-      final personName = state.person?.shownName;
-      if (personName == null) return;
-      final sent = await _showUncoveredNoteSheet(
-        context: context,
-        personName: personName,
-        onSendWithNote: (note) {
-          cubit.setNote(note);
-        },
-        onSendWithoutNote: cubit.skipNote,
-      );
-      if (!sent || !context.mounted) return;
-    }
-    await cubit.send();
+    await context.read<PersonForwardCubit>().send();
   }
 
   @override
@@ -516,138 +498,3 @@ String _lifecycleLabel(L10n l10n, Beacon beacon) => switch (beacon.status) {
   BeaconStatus.draft => l10n.beaconLifecycleDraft,
   BeaconStatus.reviewOpen => l10n.beaconLifecycleReviewOpen,
 };
-
-enum _PersonForwardUncoveredSheetResult { sent, dismissed }
-
-Future<bool> _showUncoveredNoteSheet({
-  required BuildContext context,
-  required String personName,
-  required void Function(String note) onSendWithNote,
-  required VoidCallback onSendWithoutNote,
-}) async {
-  final result = await showTenturaAdaptiveSheet<_PersonForwardUncoveredSheetResult>(
-    context: context,
-    isScrollControlled: true,
-    showDragHandle: true,
-    useRootNavigator: true,
-    builder: (ctx) => _PersonForwardUncoveredNoteSheet(
-      personName: personName,
-      onSendWithNote: onSendWithNote,
-      onSendWithoutNote: onSendWithoutNote,
-    ),
-  );
-  return result == _PersonForwardUncoveredSheetResult.sent;
-}
-
-class _PersonForwardUncoveredNoteSheet extends StatefulWidget {
-  const _PersonForwardUncoveredNoteSheet({
-    required this.personName,
-    required this.onSendWithNote,
-    required this.onSendWithoutNote,
-  });
-
-  final String personName;
-  final void Function(String note) onSendWithNote;
-  final VoidCallback onSendWithoutNote;
-
-  @override
-  State<_PersonForwardUncoveredNoteSheet> createState() =>
-      _PersonForwardUncoveredNoteSheetState();
-}
-
-class _PersonForwardUncoveredNoteSheetState
-    extends State<_PersonForwardUncoveredNoteSheet> {
-  final _noteController = TextEditingController();
-
-  @override
-  void dispose() {
-    _noteController.dispose();
-    super.dispose();
-  }
-
-  bool get _isDirty => _noteController.text.trim().isNotEmpty;
-
-  bool get _canSendWithNote => _noteController.text.trim().isNotEmpty;
-
-  void _sendWithNote() {
-    if (!_canSendWithNote) return;
-    widget.onSendWithNote(_noteController.text.trim());
-    Navigator.of(context).pop(_PersonForwardUncoveredSheetResult.sent);
-  }
-
-  void _sendWithoutNote() {
-    widget.onSendWithoutNote();
-    Navigator.of(context).pop(_PersonForwardUncoveredSheetResult.sent);
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    final l10n = L10n.of(context)!;
-    final tt = context.tt;
-    final bottom = MediaQuery.viewInsetsOf(context).bottom;
-
-    return UnfocusSheetBody(
-      child: TenturaSheetDismissGuard(
-        isDirty: _isDirty,
-        useRootNavigator: true,
-        child: Padding(
-          padding: EdgeInsets.only(
-            left: tt.screenHPadding,
-            right: tt.screenHPadding,
-            top: tt.sectionGap,
-            bottom: bottom + tt.sectionGap,
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      l10n.forwardUncoveredRecipientsTitle,
-                      style: TenturaText.title(tt.text),
-                    ),
-                  ),
-                  TenturaInfoHintButton(
-                    fullText: l10n.forwardUncoveredSharedNoteInfo,
-                    semanticsLabel: l10n.forwardUncoveredSharedNoteInfo,
-                  ),
-                ],
-              ),
-              SizedBox(height: tt.rowGap),
-              Text(
-                widget.personName,
-                style: TenturaText.body(tt.text),
-              ),
-              SizedBox(height: tt.rowGap),
-              TextField(
-                controller: _noteController,
-                onChanged: (_) => setState(() {}),
-                minLines: 2,
-                maxLines: 4,
-                decoration: forwardNoteInputDecoration(
-                  context,
-                  hintText: l10n.forwardSharedNoteHint,
-                ),
-              ),
-              SizedBox(height: tt.rowGap),
-              SizedBox(
-                height: tt.buttonHeight,
-                child: FilledButton(
-                  onPressed: _canSendWithNote ? _sendWithNote : null,
-                  child: Text(l10n.forwardToCount(1)),
-                ),
-              ),
-              SizedBox(height: tt.rowGap),
-              TextButton(
-                onPressed: _sendWithoutNote,
-                child: Text(l10n.forwardSendWithoutSharedNote),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}

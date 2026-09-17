@@ -628,7 +628,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(sendPressed, isTrue);
-    expect(find.text('No personal note yet'), findsNothing);
+    expect(find.text('Shared note'), findsNothing);
     expect(cubit.state.skippedPersonalNoteIds, {'u1'});
   });
 
@@ -663,6 +663,7 @@ void main() {
           ),
         ],
         selectedIds: {'u1', 'u2'},
+        note: 'already typed shared',
         candidatesLoad: const ForwardCandidatesReady(),
       ),
     );
@@ -671,9 +672,115 @@ void main() {
     await tester.tap(find.text('Forward to 2'));
     await tester.pumpAndSettle();
 
-    expect(find.text('No personal note yet'), findsOneWidget);
-    expect(find.text('Send without a shared note'), findsOneWidget);
+    expect(find.text('Shared note'), findsWidgets);
+    expect(
+      find.text("Sent to anyone who doesn't have a personal note."),
+      findsWidgets,
+    );
+    expect(find.text('People without a personal note'), findsOneWidget);
+    expect(find.text('Cancel'), findsOneWidget);
+    expect(find.text('Send without a shared note'), findsNothing);
+    expect(find.text('already typed shared'), findsOneWidget);
+    expect(find.widgetWithText(FilledButton, 'Forward to 2'), findsOneWidget);
+
+    await tester.tap(find.widgetWithText(FilledButton, 'Forward to 2'));
+    await tester.pumpAndSettle();
+
+    expect(cubit.state.note, 'already typed shared');
+    expect(cubit.state.skippedPersonalNoteIds, {'u1', 'u2'});
   });
+
+  testWidgets(
+    'uncovered sheet empty Forward clears shared note and skips',
+    (tester) async {
+      final cubit = ForwardCubit(
+        beaconId: 'draft-1',
+        debugSkipInitialLoad: true,
+        effects: FakeUiEffectPort(),
+      );
+      cubit.emit(
+        ForwardState(
+          beaconId: 'draft-1',
+          beacon: Beacon.empty.copyWith(id: 'b1', title: 'Open request'),
+          candidates: const [
+            ForwardCandidate(
+              profile: Profile(
+                id: 'u1',
+                displayName: 'Alex',
+                score: 10,
+                rScore: 1,
+              ),
+            ),
+          ],
+          selectedIds: {'u1'},
+          note: 'composer shared',
+          candidatesLoad: const ForwardCandidatesReady(),
+        ),
+      );
+
+      await pumpPicker(tester, cubit: cubit);
+      await tester.tap(find.text('Forward to 1'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('composer shared'), findsOneWidget);
+      await tester.enterText(find.byType(TextField).last, '');
+      await tester.pump();
+      await tester.tap(find.widgetWithText(FilledButton, 'Forward to 1'));
+      await tester.pumpAndSettle();
+
+      expect(cubit.state.note, '');
+      expect(cubit.state.skippedPersonalNoteIds, {'u1'});
+    },
+  );
+
+  testWidgets(
+    'uncovered sheet Cancel abandons without sending',
+    (tester) async {
+      final cubit = ForwardCubit(
+        beaconId: 'draft-1',
+        debugSkipInitialLoad: true,
+        embedded: true,
+        effects: FakeUiEffectPort(),
+      );
+      cubit.emit(
+        ForwardState(
+          beaconId: 'draft-1',
+          beacon: Beacon.empty.copyWith(id: 'draft-1', title: 'Draft'),
+          candidates: const [
+            ForwardCandidate(
+              profile: Profile(
+                id: 'u1',
+                displayName: 'Alex',
+                score: 10,
+                rScore: 1,
+              ),
+            ),
+          ],
+          selectedIds: {'u1'},
+          candidatesLoad: const ForwardCandidatesReady(),
+        ),
+      );
+      var sendPressed = false;
+
+      await pumpPicker(
+        tester,
+        cubit: cubit,
+        embedded: true,
+        onSendPressed: () => sendPressed = true,
+        sendEnabled: true,
+      );
+      await tester.tap(find.text('Forward to 1'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('Shared note'), findsWidgets);
+      await tester.tap(find.text('Cancel'));
+      await tester.pumpAndSettle();
+
+      expect(sendPressed, isFalse);
+      expect(cubit.state.skippedPersonalNoteIds, isEmpty);
+      expect(cubit.state.note, '');
+    },
+  );
 
   testWidgets(
     'recipient avatar on forward screen does not navigate on tap',

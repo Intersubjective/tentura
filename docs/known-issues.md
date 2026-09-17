@@ -68,5 +68,5 @@ These failed before harness + beacon-create fixes in `8bd40b51e` and now pass:
 | Area | Cause | Fix |
 |------|--------|-----|
 | Create / forward flows | Web `enterText` did not sync `BeaconCreateCubit`; forward publish stayed disabled | `Form.save()`, `onSaved`, `syncBeaconCreateDraftFields`, wait for enabled forward submit |
-| Uncovered forward note | “Send without a shared note” sheet blocked send | `confirmUncoveredForwardNoteIfPresent()` |
+| Uncovered forward note | Shared-note coverage sheet before send | `confirmUncoveredForwardNoteIfPresent()` |
 | Close-after-review | HUD shows “Close now” vs My Work “Close request”; Archive CTA on list only | `triggerCloseNow()`, `showMyWorkList()` |

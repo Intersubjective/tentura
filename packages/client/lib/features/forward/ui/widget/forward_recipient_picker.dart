@@ -181,14 +181,10 @@ class _ForwardRecipientPickerState extends State<ForwardRecipientPicker> {
       useRootNavigator: true,
       builder: (ctx) => _UncoveredRecipientsSheet(
         recipientNames: names,
-        uncoveredIds: uncoveredIds,
-        onSendWithSharedNote: (sharedNote) {
+        selectedCount: cubit.state.selectedIds.length,
+        initialSharedNote: cubit.state.note,
+        onForward: (sharedNote) {
           cubit.setNote(sharedNote);
-          for (final id in uncoveredIds) {
-            cubit.skipPersonalNote(id);
-          }
-        },
-        onSendWithoutSharedNote: () {
           for (final id in uncoveredIds) {
             cubit.skipPersonalNote(id);
           }
@@ -912,15 +908,15 @@ enum _UncoveredSheetResult { sent }
 class _UncoveredRecipientsSheet extends StatefulWidget {
   const _UncoveredRecipientsSheet({
     required this.recipientNames,
-    required this.uncoveredIds,
-    required this.onSendWithSharedNote,
-    required this.onSendWithoutSharedNote,
+    required this.selectedCount,
+    required this.initialSharedNote,
+    required this.onForward,
   });
 
   final List<String> recipientNames;
-  final Set<String> uncoveredIds;
-  final void Function(String sharedNote) onSendWithSharedNote;
-  final VoidCallback onSendWithoutSharedNote;
+  final int selectedCount;
+  final String initialSharedNote;
+  final void Function(String sharedNote) onForward;
 
   @override
   State<_UncoveredRecipientsSheet> createState() =>
@@ -928,7 +924,15 @@ class _UncoveredRecipientsSheet extends StatefulWidget {
 }
 
 class _UncoveredRecipientsSheetState extends State<_UncoveredRecipientsSheet> {
-  final _sharedNoteController = TextEditingController();
+  late final TextEditingController _sharedNoteController;
+  late final String _initialSnapshot;
+
+  @override
+  void initState() {
+    super.initState();
+    _initialSnapshot = widget.initialSharedNote;
+    _sharedNoteController = TextEditingController(text: _initialSnapshot);
+  }
 
   @override
   void dispose() {
@@ -936,19 +940,17 @@ class _UncoveredRecipientsSheetState extends State<_UncoveredRecipientsSheet> {
     super.dispose();
   }
 
-  bool get _isDirty => _sharedNoteController.text.trim().isNotEmpty;
+  bool get _isDirty =>
+      _sharedNoteController.text.trim() != _initialSnapshot.trim();
 
-  bool get _canSendWithSharedNote =>
-      _sharedNoteController.text.trim().isNotEmpty;
+  Future<void> _requestClose() => TenturaSheetDismissGuard.requestClose(
+    context,
+    isDirty: _isDirty,
+    useRootNavigator: true,
+  );
 
-  void _sendWithSharedNote() {
-    if (!_canSendWithSharedNote) return;
-    widget.onSendWithSharedNote(_sharedNoteController.text.trim());
-    Navigator.of(context).pop(_UncoveredSheetResult.sent);
-  }
-
-  void _sendWithoutSharedNote() {
-    widget.onSendWithoutSharedNote();
+  void _forward() {
+    widget.onForward(_sharedNoteController.text.trim());
     Navigator.of(context).pop(_UncoveredSheetResult.sent);
   }
 
@@ -956,74 +958,103 @@ class _UncoveredRecipientsSheetState extends State<_UncoveredRecipientsSheet> {
   Widget build(BuildContext context) {
     final l10n = L10n.of(context)!;
     final tt = context.tt;
-    final bottom = MediaQuery.viewInsetsOf(context).bottom;
 
     return UnfocusSheetBody(
       child: TenturaSheetDismissGuard(
         isDirty: _isDirty,
         useRootNavigator: true,
-        child: Padding(
-          padding: EdgeInsets.only(
-            left: tt.screenHPadding,
-            right: tt.screenHPadding,
-            top: tt.sectionGap,
-            bottom: bottom + tt.sectionGap,
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      l10n.forwardUncoveredRecipientsTitle,
-                      style: TenturaText.title(tt.text),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final mediaHeight = MediaQuery.sizeOf(context).height;
+            final viewInsets = MediaQuery.viewInsetsOf(context).bottom;
+            final maxHeight = constraints.maxHeight.isFinite
+                ? constraints.maxHeight
+                : mediaHeight * 0.9;
+            return ConstrainedBox(
+              constraints: BoxConstraints(maxHeight: maxHeight),
+              child: Padding(
+                padding: EdgeInsets.only(
+                  left: tt.screenHPadding,
+                  right: tt.screenHPadding,
+                  top: tt.sectionGap,
+                  bottom: viewInsets + tt.sectionGap,
+                ),
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: [
+                    Row(
+                      children: [
+                        Expanded(
+                          child: Text(
+                            l10n.forwardUncoveredRecipientsTitle,
+                            style: TenturaText.title(tt.text),
+                          ),
+                        ),
+                        TenturaInfoHintButton(
+                          fullText: l10n.forwardUncoveredSharedNoteInfo,
+                          semanticsLabel: l10n.forwardUncoveredSharedNoteInfo,
+                        ),
+                      ],
                     ),
-                  ),
-                  TenturaInfoHintButton(
-                    fullText: l10n.forwardUncoveredSharedNoteInfo,
-                    semanticsLabel: l10n.forwardUncoveredSharedNoteInfo,
-                  ),
-                ],
-              ),
-              SizedBox(height: tt.rowGap),
-              for (final name in widget.recipientNames)
-                Padding(
-                  padding: EdgeInsets.only(bottom: tt.tightGap),
-                  child: Text(
-                    name,
-                    style: TenturaText.body(tt.text),
-                  ),
+                    SizedBox(height: tt.rowGap),
+                    Flexible(
+                      child: SingleChildScrollView(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            Text(
+                              l10n.forwardUncoveredSharedNoteInfo,
+                              style: TenturaText.bodySmall(tt.textMuted),
+                            ),
+                            SizedBox(height: tt.rowGap),
+                            Text(
+                              l10n.forwardUncoveredRecipientsListCaption,
+                              style: TenturaText.bodySmall(tt.textMuted),
+                            ),
+                            SizedBox(height: tt.tightGap),
+                            for (final name in widget.recipientNames)
+                              Padding(
+                                padding: EdgeInsets.only(bottom: tt.tightGap),
+                                child: Text(
+                                  name,
+                                  style: TenturaText.body(tt.text),
+                                ),
+                              ),
+                            SizedBox(height: tt.rowGap),
+                            TextField(
+                              controller: _sharedNoteController,
+                              autofocus: false,
+                              onChanged: (_) => setState(() {}),
+                              minLines: 2,
+                              maxLines: 4,
+                              decoration: forwardNoteInputDecoration(
+                                context,
+                                hintText:
+                                    l10n.forwardUncoveredSharedNoteFieldHint,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    SizedBox(height: tt.rowGap),
+                    TextButton(
+                      onPressed: _requestClose,
+                      child: Text(l10n.buttonCancel),
+                    ),
+                    SizedBox(
+                      height: tt.buttonHeight,
+                      child: FilledButton(
+                        onPressed: _forward,
+                        child: Text(l10n.forwardToCount(widget.selectedCount)),
+                      ),
+                    ),
+                  ],
                 ),
-              SizedBox(height: tt.rowGap),
-              TextField(
-                controller: _sharedNoteController,
-                onChanged: (_) => setState(() {}),
-                minLines: 2,
-                maxLines: 4,
-                decoration: forwardNoteInputDecoration(
-                  context,
-                  hintText: l10n.forwardSharedNoteHint,
-                ),
               ),
-              SizedBox(height: tt.rowGap),
-              SizedBox(
-                height: tt.buttonHeight,
-                child: FilledButton(
-                  onPressed: _canSendWithSharedNote
-                      ? _sendWithSharedNote
-                      : null,
-                  child: Text(l10n.forwardToCount(widget.uncoveredIds.length)),
-                ),
-              ),
-              SizedBox(height: tt.rowGap),
-              TextButton(
-                onPressed: _sendWithoutSharedNote,
-                child: Text(l10n.forwardSendWithoutSharedNote),
-              ),
-            ],
-          ),
+            );
+          },
         ),
       ),
     );

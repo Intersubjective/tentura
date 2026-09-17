@@ -187,16 +187,13 @@ class PersonForwardCubit extends Cubit<PersonForwardState> {
     }
 
     final trimmedNote = state.note.trim();
-    if (trimmedNote.isEmpty && !state.noteSkipped) {
-      return;
-    }
 
     emit(state.copyWith(status: StateStatus.isLoading));
     try {
       final result = await case_.send(
         beaconId: row.beacon.id,
         personId: person.id,
-        note: state.noteSkipped ? null : trimmedNote,
+        note: trimmedNote.isEmpty ? null : trimmedNote,
       );
       if (result.deliveredRecipientIds.contains(person.id)) {
         _effects.emit(ShowMessage(PersonForwardSentMessage(person.shownName)));

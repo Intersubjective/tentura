@@ -2879,17 +2879,25 @@
   "@forwardRestorePersonalNote": {
     "context": "ForwardBeaconScreen per-recipient note"
   },
-  "forwardUncoveredRecipientsTitle": "Нет личной заметки",
+  "forwardUncoveredRecipientsTitle": "Общая заметка",
   "@forwardUncoveredRecipientsTitle": {
-    "context": "ForwardBeaconScreen uncovered recipients sheet"
+    "context": "ForwardBeaconScreen uncovered recipients sheet title"
   },
-  "forwardUncoveredSharedNoteInfo": "Общая заметка отправляется всем, у кого ещё нет личной заметки.",
+  "forwardUncoveredSharedNoteInfo": "Отправляется всем, у кого нет личной заметки.",
   "@forwardUncoveredSharedNoteInfo": {
-    "context": "ForwardBeaconScreen uncovered recipients sheet"
+    "context": "ForwardBeaconScreen uncovered recipients sheet visible helper"
+  },
+  "forwardUncoveredRecipientsListCaption": "Без личной заметки",
+  "@forwardUncoveredRecipientsListCaption": {
+    "context": "ForwardBeaconScreen uncovered recipients sheet list caption"
+  },
+  "forwardUncoveredSharedNoteFieldHint": "Необязательно",
+  "@forwardUncoveredSharedNoteFieldHint": {
+    "context": "ForwardBeaconScreen uncovered recipients sheet field hint"
   },
   "forwardSendWithoutSharedNote": "Отправить без общей заметки",
   "@forwardSendWithoutSharedNote": {
-    "context": "ForwardBeaconScreen uncovered recipients sheet"
+    "context": "Deprecated — removed from uncovered sheet in #172; keep key until callers are gone"
   },
   "forwardMrSortShort": "MR сорт.",
   "@forwardMrSortShort": {
@@ -5273,7 +5281,7 @@
     }
   },
   "helpOfferRolePrompt": "Как вы помогаете?",
-  "helpOfferSelectionLimit": "Выберите до 4 способов помочь.",
+  "helpOfferSelectionLimit": "Выберите до 2 способов помочь.",
   "helpOfferSearchLabel": "Поиск способов помочь",
   "helpOfferSubmit": "Предложить помощь ({count}/{limit})",
   "@helpOfferSubmit": {
@@ -5288,7 +5296,7 @@
   },
   "helpOfferSubmitAction": "Предложить помощь",
   "helpOfferOptionalEnrichmentLabel": "Чем можете помочь (необязательно)",
-  "helpOfferOptionalEnrichmentHelper": "Необязательно — помогает другим найти ваше предложение. До 4 категорий.",
+  "helpOfferOptionalEnrichmentHelper": "Необязательно — помогает другим найти ваше предложение. До 2 категорий.",
   "helpOfferBrowseCategories": "Все категории",
   "helpOfferHideCategories": "Скрыть категории",
   "helpOfferSearchEmpty": "Ничего не найдено — выберите «Другое» или оставьте только текст",
