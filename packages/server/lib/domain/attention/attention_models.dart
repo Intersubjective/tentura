@@ -17,6 +17,7 @@ enum AttentionEventType {
   beaconHierarchyStatusChanged,
   reviewOpened,
   reviewAllPackagesIn,
+  reviewWindowCancelled,
   mutualConnectionFormed,
   inviteAccepted,
   needsMe,

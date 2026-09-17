@@ -359,6 +359,26 @@ class AttentionIntentCase {
     resolveContext: false,
   );
 
+  Future<AttentionDispatchIntent> reviewWindowCancelled({
+    required String beaconId,
+    required String beaconTitle,
+    required Set<String> recipientUserIds,
+    required String actorUserId,
+    required String sourceEventKey,
+  }) => fromBeaconNotification(
+    notification: BeaconNotificationIntent(
+      kind: NotificationKind.reviewReady,
+      priority: NotificationPriority.high,
+      beaconId: beaconId,
+      actorUserId: actorUserId,
+      beaconTitle: beaconTitle,
+      admittedUserIds: recipientUserIds.toList(),
+    ),
+    eventType: AttentionEventType.reviewWindowCancelled,
+    sourceEventKey: sourceEventKey,
+    resolveContext: false,
+  );
+
   /// [NotificationKind.reviewReady] — legacy outbox/push plumbing only; Updates
   /// cards dispatch on [AttentionEventType] presentation keys.
   Future<AttentionDispatchIntent> trustGivenChanged({
