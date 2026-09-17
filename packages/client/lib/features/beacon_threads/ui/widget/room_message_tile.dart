@@ -413,7 +413,10 @@ class RoomMessageTile extends StatelessWidget {
         : null;
     final isGroupStart =
         breakGroupAbove || _groupBreak(previousMessage, message);
-    final isGroupEnd = _groupBreak(message, nextMessage);
+    // A promoted-source footer ends the visual cluster so the next same-author
+    // message (if any) starts fresh rather than merging through the footer.
+    final isGroupEnd =
+        promotedChildBeaconId != null || _groupBreak(message, nextMessage);
 
     final topPad = isGroupStart ? tt.bubbleRowTop : 0.0;
     final bottomPad = tt.tightGap;
@@ -1388,11 +1391,25 @@ class RoomMessageTile extends StatelessWidget {
       child: childBeaconId == null
           ? row
           : Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
+              crossAxisAlignment: isMine
+                  ? CrossAxisAlignment.end
+                  : CrossAxisAlignment.start,
               children: [
                 row,
                 SizedBox(height: tt.tightGap),
-                BeaconChildPromotionFooter(childBeaconId: childBeaconId),
+                if (isMine)
+                  BeaconChildPromotionFooter(childBeaconId: childBeaconId)
+                else
+                  Row(
+                    children: [
+                      SizedBox(width: tt.avatarGutter),
+                      Flexible(
+                        child: BeaconChildPromotionFooter(
+                          childBeaconId: childBeaconId,
+                        ),
+                      ),
+                    ],
+                  ),
               ],
             ),
     );

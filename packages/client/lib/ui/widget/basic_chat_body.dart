@@ -561,7 +561,13 @@ class BasicChatBodyState extends State<BasicChatBody> {
                             nextMessage: next,
                             promotedChildBeaconId:
                                 promotedChildBySourceMessageId[m.id],
-                            breakGroupAbove: dateChanged || showUnreadBand,
+                            breakGroupAbove:
+                                dateChanged ||
+                                showUnreadBand ||
+                                (prev != null &&
+                                    promotedChildBySourceMessageId.containsKey(
+                                      prev.id,
+                                    )),
                             onActionsPressed: widget.onMessageActions,
                             onReplyPressed: widget.onReply,
                             onJumpToReply: widget.onJumpToReply,

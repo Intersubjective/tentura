@@ -1,22 +1,19 @@
 import 'dart:async';
 
 import 'package:flutter/material.dart';
-import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:get_it/get_it.dart';
 import 'package:tentura_root/domain/entity/beacon_hierarchy_summary.dart';
 
 import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/use_case/beacon_hierarchy_case.dart';
-import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
-import 'package:tentura/ui/widget/beacon_card_primitives.dart';
-import 'package:tentura/ui/widget/beacon_request_preview_identity.dart';
 
-/// Footer / notice card for a promoted child — same projection as Now list.
+/// Compact Chat link to a promoted child under its source bubble.
 ///
 /// Resolves via [BeaconHierarchyCase.fetchChildPreview] (not involvement).
 /// Refetches on hierarchy invalidation / catch-up; evicts when access is lost.
+/// Full request cards stay on NOW ([BeaconChildRequestCard]).
 class BeaconChildPromotionFooter extends StatefulWidget {
   const BeaconChildPromotionFooter({required this.childBeaconId, super.key});
 
@@ -127,16 +124,25 @@ class _BeaconChildPromotionFooterState
     }
   }
 
+  void _openChild(String beaconId) {
+    context.router.push(BeaconViewRoute(id: beaconId));
+  }
+
   @override
   Widget build(BuildContext context) {
     final l10n = L10n.of(context)!;
-    final tt = context.tt;
     final theme = Theme.of(context);
     final scheme = theme.colorScheme;
-    final currentUserId = context.read<ProfileCubit>().state.profile.id;
 
     if (!_loaded) {
-      return const SizedBox.shrink();
+      // Stable compact height while loading — avoid shrink → expand jump.
+      return TenturaTextAction(
+        label: l10n.beaconHierarchyNoticeChildCreated,
+        tone: TenturaTone.neutral,
+        icon: const Icon(Icons.subdirectory_arrow_right_outlined),
+        flushStart: true,
+        onPressed: null,
+      );
     }
 
     final summary = _summary;
@@ -144,35 +150,27 @@ class _BeaconChildPromotionFooterState
       return Semantics(
         container: true,
         label: l10n.beaconChildFooterUnavailable,
-        child: BeaconCardShell(
-          muted: true,
-          child: Padding(
-            padding: EdgeInsets.symmetric(vertical: tt.tightGap),
-            child: Text(
-              l10n.beaconChildFooterUnavailable,
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: scheme.onSurfaceVariant,
-              ),
-            ),
+        child: Text(
+          l10n.beaconChildFooterUnavailable,
+          style: theme.textTheme.bodySmall?.copyWith(
+            color: scheme.onSurfaceVariant,
           ),
+          maxLines: 1,
+          overflow: TextOverflow.ellipsis,
         ),
       );
     }
 
-    final data = BeaconRequestPreviewData.fromHierarchySummary(
-      l10n,
-      summary,
-      now: DateTime.now(),
-    );
-    return BeaconCardShell(
-      onTap: () => context.router.push(BeaconViewRoute(id: summary.beaconId)),
-      tapSemanticsLabel: data.title,
-      child: BeaconRequestPreviewIdentity(
-        data: data,
-        currentUserId: currentUserId,
-        showDescription: true,
-        titleMaxLines: 2,
-      ),
+    final title = summary.title?.trim().isNotEmpty == true
+        ? summary.title!.trim()
+        : l10n.beaconUntitled;
+
+    return TenturaTextAction(
+      label: title,
+      tone: TenturaTone.info,
+      icon: const Icon(Icons.subdirectory_arrow_right_outlined),
+      flushStart: true,
+      onPressed: () => _openChild(summary.beaconId),
     );
   }
 }
