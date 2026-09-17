@@ -472,3 +472,59 @@ REMAINING:
 - Client `.graphql` query documents still do not select any of the new fields — deliberate, UNIT 09.
 - The UNIT 03 gap "`evaluationParticipants` `isOptional`/`rowStatus` not asserted" is now only partly closed: the new test asserts the three context fields on that endpoint but still does not assert `isOptional`/`rowStatus` there.
 - Pre-existing `transactional_attention_producer_inventory_test` leftover noted in UNIT 03 is not reproducing in the full suite run (all 1638 green) — no action taken.
+
+
+### checkpoint — UNIT 05 — 2026-09-18 — Astra inner
+
+HEAD confirmed `9b98de071`. Journal read fully; pre-existing changes preserved. Scope includes user-authorized policy fixture, stateful evaluation fake, and PG concurrency test. Step 1 adds the event, six policy cases, and plan-literal author-only builder; compilation/lint verification follows. No push.
+
+### checkpoint — UNIT 05 — 2026-09-18 — Astra inner
+
+Steps 1–2 committed: `3c769e4d3`, `66ffb2d7a`. Contract expectation RED before JSON additions; contract + policy GREEN (+23). Policy fixture caught a mistakenly duplicated mandatory suppression branch; removed in step 2. Four evaluation tests RED (+85 -4), all missing notification assertions, before production wrap. Fake status writes now update the status map; per-user reads enabled for the new group. Step 4 implementation underway. SDK wrapper/cache and analyzer plugin setup need sandbox escalation; no application environment settings changed.
+
+### checkpoint — UNIT 05 — 2026-09-18 — Astra inner
+
+Production and required focused gates are green. `f3f557f70` implements the transaction plus the four regression tests; `d16c98b8d` adds real PG concurrency, changed-last-sender replay, and dispatch-failure rollback proof. `_canCloseNow` is byte-identical to UNIT_BASE. Focused evaluation + contract: +89. Contract + policy: +23. PG: +5; disabling the nudge temporarily makes the named concurrency test fail (expected 1 occurrence, actual 0), then production restored byte-for-byte. Server custom-lint gate passes at 0/0.
+
+Full non-PG server run: +1642 -1, sole failure `attention_intent_case_test.dart: every non-pending compact-contract type has a migrated fixture`. This additional test inventory was absent from scout/user widening. Plan §0 explicitly forbids edits outside Owns. Requested user authorization to add one 11-line `reviewAllPackagesIn` builder fixture; patch prepared at `/tmp/unit05-intent-fixture.patch`, file not edited pending approval.
+
+Live-code finding: the plan-literal builder initially yielded zero recipients because `BeaconNotificationRecipientResolver` always excludes the actor. Fixed within owned `attention_intent_case.dart`: only `reviewAllPackagesIn` resolves its author actor explicitly with `authorOfBeacon`. Builder stays plan-literal, stable author actor, no triggering sender/time in source facts. New unit and real PG receipt assertions cover this case.
+
+### inner — UNIT 05 — 2026-09-18 — Astra
+
+STATUS: partial / BLOCKED on one additional fixture ownership approval; UNIT 05 implementation and all explicitly requested gates pass.
+
+STEPS / COMMITS (UNIT_BASE `9b98de071`):
+1. `3c769e4d3` — enum, all six policy cases, plan-literal intent builder; compile/custom-lint gate green.
+2. `66ffb2d7a` — contract eventTypes + producers, exact event expectation, policy fixture. Contract RED first; contract/policy GREEN +23. Fixture exposed and corrected the mistakenly duplicated mandatory suppression branch.
+3–4. `f3f557f70` — four plan-named tests RED (+85 -4, missing notification), then transactional finalize and author self-recipient exception GREEN (+89). Red tests committed together with the green implementation, not as a failing commit.
+5. `d16c98b8d` — PG simultaneous sends, real occurrence/author receipt, re-send with a different last sender, and status/sent_at rollback when dispatch fails. GREEN +5. Mutation RED: disabled nudge produced 0 instead of 1 occurrence; source restored exactly.
+
+TESTS (all test/analyzer invocations through cleanup wrapper; SDK/cache/network access required sandbox escalation):
+- `cd packages/server && ../../scripts/run_with_test_cleanup.sh --timeout 20m -- dart test test/domain/evaluation/evaluation_case_test.dart test/architecture/updates_event_contract_test.dart --exclude-tags pg` — GREEN +89, final repeat green.
+- `cd packages/server && ../../scripts/run_with_test_cleanup.sh --timeout 10m -- dart test test/architecture/updates_event_contract_test.dart test/domain/attention/attention_policy_test.dart --exclude-tags pg` — GREEN +23.
+- `cd packages/server && ../../scripts/run_with_test_cleanup.sh --timeout 20m -- dart test test/data/repository/evaluation_repository_review_status_pg_test.dart --tags pg` — GREEN +5, disposable database proof logged, no skips.
+- `cd packages/server && ../../scripts/run_with_test_cleanup.sh --timeout 20m -- dart test --exclude-tags pg` — +1642 -1; only missing migrated-intent fixture listed below.
+- `./scripts/run_with_test_cleanup.sh --timeout 10m -- ./scripts/check-custom-lints.sh packages/server` — GREEN, 0 custom violations / baseline 0. Existing analyzer warnings remain outside changed lines.
+- `git diff --check` — clean; `_canCloseNow` compared byte-for-byte with UNIT_BASE, unchanged.
+
+FILES:
+- `packages/server/lib/domain/attention/attention_models.dart`
+- `packages/server/lib/domain/attention/attention_policy.dart`
+- `packages/server/lib/domain/use_case/attention_intent_case.dart`
+- `packages/server/lib/domain/use_case/evaluation_case.dart`
+- `docs/contracts/updates-event-contract.json`
+- `packages/server/test/architecture/updates_event_contract_test.dart`
+- `packages/server/test/domain/attention/attention_policy_test.dart`
+- `packages/server/test/domain/evaluation/evaluation_case_test.dart`
+- `packages/server/test/data/repository/evaluation_repository_review_status_pg_test.dart`
+- this journal (append-only session entries; pre-existing journal edits preserved unstaged).
+
+FINDINGS:
+- Actor exclusion in the legacy recipient resolver would suppress every plan-literal nudge; new event-specific branch in the owned intent file explicitly addresses the author. No shared resolver behavior changed.
+- PG proof uses concurrent actions serialized on the shared Drift database connection, as requested; it does not claim cross-process/multiple-connection serialization.
+- Dispatch settlement remains after the transaction. New event is standard/unblocksMe/review, requiresAction false, author-only, source key uses window openedAt, no last-sender/time payload.
+- Full-suite migrated-intent fixture inventory needs an additional owned file beyond the explicit widening. Proposed patch is `/tmp/unit05-intent-fixture.patch` (+11 lines); no edit to that file yet.
+- Four implementation/test commits are local. No push. No generated/client/environment/UNTOUCHABLE files changed by this executor.
+
+REMAINING: approve widening to `packages/server/test/domain/attention/attention_intent_case_test.dart`, apply the prepared author-recipient builder fixture, rerun full non-PG server suite and lint, commit green. Scope approval requested asynchronously under plan §0 ("Never edit a file outside the current unit’s Owns"). Do not mark UNIT 05 fully accepted until this gate is green.
