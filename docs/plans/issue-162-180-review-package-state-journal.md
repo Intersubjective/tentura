@@ -70,7 +70,7 @@ If Opus is unavailable: routine units degrade to Composer-only implement+verify;
 - [x] UNIT 04 GraphQL + client schema — routine — Opus inner — verify pass 2026-09-18
 - [x] UNIT 05 author nudge — hard (races, idempotency) — **ASTRA inner** A1 — verify pass 2026-09-18 — overseer accepted (`d98a2e50b`)
 - [x] UNIT 06 reopen announces — hard (tx order) — Opus inner — verify pass 2026-09-18 — overseer accepted (`4577edd2d`)
-- [ ] UNIT 07 l10n keys — routine — Opus inner
+- [x] UNIT 07 l10n keys — routine — Opus inner — verify pass 2026-09-18 — overseer accepted (`f6da84625`)
 - [ ] UNIT 08 `ReviewPackageState` — routine — Opus inner
 - [ ] UNIT 09 client data/role/context — hard (DTO hops, codegen) — Opus inner
 - [ ] UNIT 10 checklist UI — hard (Flutter, #162) — **ASTRA inner**
@@ -854,3 +854,40 @@ FINDINGS:
 REMAINING:
 - **UNIT 14 owes the reopen-body restore** (`sentReviewerCount` → `beaconReviewReopenBody(sent)` when `sent > 0`, else `…NoSent`).
 - All 35 keys are unreferenced by UI so far — consumers land in UNIT 08–14. Nothing pushed.
+
+### verify — 2026-09-18 — UNIT 07
+
+STATUS: pass
+
+TEST_OUTPUT:
+- `flutter test test/l10n/request_terminology_contract_test.dart` (via `run_with_test_cleanup.sh`, 10m) — **+4, −0** (~4.2s).
+- `bash scripts/check-user-facing-terminology.sh` — **ok**, exit **0**.
+- `flutter test test/ui` (via wrapper, 15m) — **+314, −0** (~27s).
+
+RANGE: `5b3f4f6b9..f6da84625` (2 commits: `b9c269598` arb + D17 sheet bridge, `f6da84625` journal). Worktree: only pre-existing UNTOUCHABLE dirty/untracked outside this range; **no** uncommitted UNIT 07 product code.
+
+SCOPE: `git diff 5b3f4f6b9..HEAD` touches exactly `app_en.arb`, `app_ru.arb`, `beacon_view_status_bottom_sheet.dart` (+ journal). **No** `lib/ui/l10n/*` in commit range. Sheet diff is one line: `beaconReviewReopenBody` → `beaconReviewReopenBodyNoSent` at `:302`.
+
+ACCEPTANCE (plan UNIT 07 + overseer checks):
+- **§2 keys in both locales with placeholders** — **met** — Python parity: 35 new keys present in EN/RU; en/ru message key sets identical (1944 each); `@beaconReviewReopenBody` `{sent}` and other `@` blocks present.
+- **Three changed keys** — **met** — `evaluationSubmitFinish` EN `Send reviews`, RU `Отправить оценки`; `beaconHudActReviewContributions` EN unchanged, RU `Оценить вклад`; `beaconReviewReopenBody` plan copy + placeholder; sibling `beaconReviewReopenBodyNoSent` added.
+- **Additive only (D17)** — **met** — vs `5b3f4f6b9`: **0** arb keys deleted, **35** added per locale.
+- **Do not hand-edit generated l10n** — **met** — no `l10n_*.dart` in commits; tests green imply local `flutter gen-l10n` was run (gitignored output).
+- **Terminology script** — **met** — exit 0; contract test bans beacon/room in arb values.
+- **§2 literals (spot-check)** — **met** — EN/RU samples including `Помогал(а)`, typographic `“{message}”` / `«{message}»`, `updatesFallbackBodyReviewAllIn` curly title quotes match plan table.
+- **D17 widen** — **met** — sole non-arb production change is sheet `NoSent` bridge; no stub `beaconReviewReopenBody(0)`; no other UI wiring.
+- **Plan Verify commands** — **met** — all three TEST_CMD green.
+
+GAPS:
+- **Known interim product gap (documented):** reopen confirm always shows `beaconReviewReopenBodyNoSent` until UNIT 14 plumbs `sentReviewerCount` — not a UNIT 07 defect.
+- **None material** for UNIT 07 acceptance.
+
+### overseer — UNIT 07 accepted — 2026-09-18
+
+Verdict: **accepted**. Opus-low inner + Composer verify pass. Independent terminology script ok and l10n contract **+4**. D17 sheet `NoSent` bridge is required compile fix; UNIT 14 must restore sent-count copy. No generated l10n committed.
+
+## UNIT 08 — Client domain: ReviewPackageState
+
+UNIT_BASE: `f6da84625`
+Inner: Opus 5 low. Not Astra.
+
