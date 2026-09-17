@@ -71,7 +71,7 @@ If Opus is unavailable: routine units degrade to Composer-only implement+verify;
 - [x] UNIT 05 author nudge — hard (races, idempotency) — **ASTRA inner** A1 — verify pass 2026-09-18 — overseer accepted (`d98a2e50b`)
 - [x] UNIT 06 reopen announces — hard (tx order) — Opus inner — verify pass 2026-09-18 — overseer accepted (`4577edd2d`)
 - [x] UNIT 07 l10n keys — routine — Opus inner — verify pass 2026-09-18 — overseer accepted (`f6da84625`)
-- [ ] UNIT 08 `ReviewPackageState` — routine — Opus inner
+- [x] UNIT 08 `ReviewPackageState` — routine — Opus inner — verify pass 2026-09-18 — overseer accepted (`996724eec`)
 - [ ] UNIT 09 client data/role/context — hard (DTO hops, codegen) — Opus inner
 - [ ] UNIT 10 checklist UI — hard (Flutter, #162) — **ASTRA inner**
 - [ ] UNIT 11 paused/closed classify — hard (D12) — Opus inner
@@ -989,3 +989,36 @@ REMAINING:
 - Nothing for UNIT 08. `EvaluationState.packageState` and every UI switch over
   this enum stay with UNIT 10+; `review_window_info.dart` getters untouched
   (UNIT 12). Nothing pushed.
+
+### verify — 2026-09-18 — UNIT 08
+
+STATUS: pass
+
+TEST_OUTPUT:
+- `flutter test test/features/evaluation/review_package_state_test.dart` (via `run_with_test_cleanup.sh`, 10m) — **+25, −0** (~4.3s).
+
+RANGE: `c5b920e87..996724eec` — `703b607ea` `feat(client): derive review package state` (both Owns dart files only); `996724eec` journal inner. Worktree: no uncommitted changes to UNIT 08 product paths; only pre-existing UNTOUCHABLE dirty/untracked outside range.
+
+SCOPE: `grep ReviewPackageState|deriveReviewPackageState` under `packages/client` hits **only** `review_package_state.dart` + `review_package_state_test.dart` — no UI/`lib/` consumers.
+
+ACCEPTANCE (plan UNIT 08 + overseer checks):
+- **Plan-literal production file** — **met** — `review_package_state.dart` matches plan § UNIT 08 step-1 block (enum, doc comments, frozen if-chain, same parameters); **no** `import` lines; **no** `switch`; `rg switch|import` on file is empty.
+- **All nine states reachable** — **met** — test group `all nine states are reachable` has 9 named rows covering each enum value.
+- **D11: status 1 + `sentAt == null` never `changedNotSent`** — **met** — dedicated group with `inProgress` + `readyToSend` rows only; no `changedNotSent` expectation with `sentAt: null`.
+- **Plan oracle rows** — **met** — status 3 ≡ 0 (4 rows); `requiredTotal == 0` → `readyToSend`; `totalTargets == 0` → `empty`; `sentAt` + incomplete → `inProgress`; missing-window pair; `windowComplete`/`beaconIsClosed` × `sentAt` (4) + status `4` row (25 tests total).
+- **No Flutter import in domain** — **met** — production file is pure Dart; test uses `flutter_test` only.
+- **No UI wiring** — **met** — no `packageState`, no imports from `ui/`; `EvaluationState` unchanged.
+- **Verify command** — **met** — TEST_CMD green.
+- **Owns exclusive** — **met** — feat commit touches only the two new dart paths (+ journal in follow-up commit).
+
+GAPS: none material for UNIT 08 acceptance.
+
+### overseer — UNIT 08 accepted — 2026-09-18
+
+Verdict: **accepted**. Opus-low inner + Composer verify pass. Independent TEST_CMD **+25**. Production file is plan-literal; D11 regression covered; no UI wiring.
+
+## UNIT 09 — Client data: role, optionality, context, sheet
+
+UNIT_BASE: `996724eec`
+Inner: Opus 5 low. Not Astra. Do not parallelize with UNIT 10.
+
