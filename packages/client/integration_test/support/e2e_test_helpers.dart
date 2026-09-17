@@ -869,7 +869,7 @@ Future<RoomMessage> sendRoomMessage(WidgetTester tester, String text) async {
 Future<void> _forceMyWorkDesk(WidgetTester tester) async {
   final router = GetIt.I<RootRouter>();
   final spec = HomeTabSpec.forTab(HomeTab.work);
-  // Root BeaconView overlays survive popUntil/navigatePath after auto-close.
+  // Root BeaconView overlays survive popUntil/navigatePath after a close.
   // Pop what we can, hard-reset the stack, and align the browser URL so a
   // stale /beacon/view deep link cannot resurrect the detail.
   for (var i = 0; i < 8 && router.canPop(); i++) {
@@ -1016,10 +1016,9 @@ Future<void> closeRequestAndOpenReview(WidgetTester tester) async {
 /// via My Work's "Close request" card CTA when visible, otherwise the beacon
 /// detail HUD `closeNow` action (and its confirm sheet).
 ///
-/// Sending the last required review package auto-closes the review window on
-/// the server (`EvaluationCase` → `_autoCloseReviewWindow`). In that case the
-/// desk already shows the Finished card with Archive — do not wait for a Close
-/// CTA that will never appear.
+/// Sending the last required review package never closes the window: the author
+/// must close explicitly. So the request is still in review here, and the
+/// Finished card with Archive only appears after the close this helper performs.
 Future<void> triggerCloseNow(WidgetTester tester) async {
   await _forceMyWorkDesk(tester);
   final myWorkClose = find.byWidgetPredicate(
@@ -1028,17 +1027,20 @@ Future<void> triggerCloseNow(WidgetTester tester) async {
         (w.key! as ValueKey<String>).value.startsWith('my_work.close_now.'),
   );
   final hudCloseNow = _hudAction('closeNow');
-  final finishedArchive = find.widgetWithText(TextButton, 'Archive');
   await _awaitMyWorkDeskAction(
     tester,
-    () =>
-        finderHasMatch(myWorkClose) ||
-        finderHasMatch(hudCloseNow) ||
-        finderHasMatch(finishedArchive),
+    () => finderHasMatch(myWorkClose) || finderHasMatch(hudCloseNow),
+  );
+  // The last send must not have closed anything: the request is still in
+  // review, so no Finished/Archive card may be on the desk yet.
+  expect(
+    finderHasMatch(find.widgetWithText(TextButton, 'Archive')),
+    isFalse,
+    reason: 'Request closed without an explicit author close',
   );
   if (finderHasMatch(myWorkClose)) {
     await tapAndSettle(tester, myWorkClose.first);
-  } else if (finderHasMatch(hudCloseNow)) {
+  } else {
     await tapAndSettle(tester, hudCloseNow.first);
     await pumpUntilVisible(
       tester,
