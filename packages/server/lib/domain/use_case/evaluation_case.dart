@@ -1517,55 +1517,81 @@ final class EvaluationCase extends UseCaseBase {
     required String userId,
   }) async {
     await _ensureExpiredClosed();
-    await _requireLiveReview(beaconId);
-    final st = await _evaluationRepository.getReviewUserStatus(
-      beaconId,
-      userId,
-    );
-    if (st == null) {
-      throw EvaluationException(
-        evaluationCode: EvaluationExceptionCode.notEligible,
-      );
-    }
-    final vis = await _evaluationRepository.listVisibilityForEvaluator(
-      beaconId,
-      userId,
-    );
-    final byTarget = await _evaluationsByTargetForEvaluator(
-      beaconId: beaconId,
-      evaluatorId: userId,
-    );
-    final participantRows =
-        await _evaluationRepository.listParticipants(beaconId);
-    final partByUser = {for (final p in participantRows) p.userId: p};
-    for (final v in vis) {
-      final target = partByUser[v.participantId];
-      if (target == null) {
-        continue; // stale visibility row: nothing to require
-      }
-      if (EvaluationParticipantRole.fromDb(target.role) ==
-          EvaluationParticipantRole.formerCommitter) {
-        continue; // D6/D7: optional target never gates the package
-      }
-      final ev = byTarget[v.participantId];
-      final ready = ev != null &&
-          (ev.status == BeaconEvaluationRowStatus.draft ||
-              ev.status == BeaconEvaluationRowStatus.submitted);
-      if (!ready) {
-        throw EvaluationException(
-          evaluationCode: EvaluationExceptionCode.notEligible,
-          description: 'All review targets must be ready before send',
+    await _attention!.runAction(
+      actorUserId: userId,
+      action: (transaction) async {
+        await _requireLiveReview(beaconId);
+        final st = await _evaluationRepository.getReviewUserStatus(
+          beaconId,
+          userId,
         );
-      }
-    }
-    if (st != 2) {
-      await _evaluationRepository.setReviewUserStatus(
-        beaconId: beaconId,
-        userId: userId,
-        status: 2,
-        markSent: true,
-      );
-    }
+        if (st == null) {
+          throw EvaluationException(
+            evaluationCode: EvaluationExceptionCode.notEligible,
+          );
+        }
+        final wasCloseableBefore = await _canCloseNow(beaconId: beaconId);
+        final vis = await _evaluationRepository.listVisibilityForEvaluator(
+          beaconId,
+          userId,
+        );
+        final byTarget = await _evaluationsByTargetForEvaluator(
+          beaconId: beaconId,
+          evaluatorId: userId,
+        );
+        final participantRows = await _evaluationRepository.listParticipants(
+          beaconId,
+        );
+        final partByUser = {for (final p in participantRows) p.userId: p};
+        for (final v in vis) {
+          final target = partByUser[v.participantId];
+          if (target == null) {
+            continue; // stale visibility row: nothing to require
+          }
+          if (EvaluationParticipantRole.fromDb(target.role) ==
+              EvaluationParticipantRole.formerCommitter) {
+            continue; // D6/D7: optional target never gates the package
+          }
+          final ev = byTarget[v.participantId];
+          final ready =
+              ev != null &&
+              (ev.status == BeaconEvaluationRowStatus.draft ||
+                  ev.status == BeaconEvaluationRowStatus.submitted);
+          if (!ready) {
+            throw EvaluationException(
+              evaluationCode: EvaluationExceptionCode.notEligible,
+              description: 'All review targets must be ready before send',
+            );
+          }
+        }
+        if (st != 2) {
+          await _evaluationRepository.setReviewUserStatus(
+            beaconId: beaconId,
+            userId: userId,
+            status: 2,
+            markSent: true,
+          );
+        }
+        final isCloseableNow = await _canCloseNow(beaconId: beaconId);
+        if (!wasCloseableBefore && isCloseableNow) {
+          final window = (await _evaluationRepository.getReviewWindow(
+            beaconId,
+          ))!;
+          final beacon = await _beaconRepository.getBeaconById(
+            beaconId: beaconId,
+          );
+          await transaction.record(
+            await _attentionIntents!.reviewAllPackagesIn(
+              beaconId: beaconId,
+              beaconTitle: beacon.title,
+              authorUserId: beacon.author.id,
+              sourceEventKey:
+                  'review_all_in:$beaconId:${window.openedAt.toUtc().toIso8601String()}',
+            ),
+          );
+        }
+      },
+    );
     // Always settle this reviewer's reviewOpened receipt (including already-2
     // retries after a failed prior settle). Idempotent when already settled.
     await _attentionSystemSettlement?.settleReviewerObligationOnPackageSend(

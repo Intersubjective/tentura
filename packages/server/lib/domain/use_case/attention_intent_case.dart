@@ -6,6 +6,7 @@ import 'package:tentura_root/domain/entity/beacon_status.dart';
 import 'package:tentura_server/domain/attention/attention_models.dart';
 import 'package:tentura_server/domain/entity/beacon_notification_context.dart';
 import 'package:tentura_server/domain/entity/beacon_notification_intent.dart';
+import 'package:tentura_server/domain/entity/beacon_notification_recipient.dart';
 import 'package:tentura_server/domain/entity/invite_accepted_notification_intent.dart';
 import 'package:tentura_server/domain/entity/notification_kind.dart';
 import 'package:tentura_server/domain/entity/notification_priority.dart';
@@ -895,10 +896,21 @@ class AttentionIntentCase {
     final context = resolveContext
         ? await _context.loadContextForBeacon(notification.beaconId)
         : const BeaconNotificationContext();
-    final resolvedRecipients = _resolver.resolveRecipients(
-      intent: notification,
-      ctx: context,
-    );
+    // This informational event is addressed to its stable author actor. The
+    // general notification resolver deliberately excludes actors.
+    final resolvedRecipients =
+        eventType == AttentionEventType.reviewAllPackagesIn
+        ? [
+            BeaconNotificationRecipient(
+              userId: notification.actorUserId,
+              reasons: const {NotificationRecipientReason.authorOfBeacon},
+              priority: notification.priority,
+            ),
+          ]
+        : _resolver.resolveRecipients(
+            intent: notification,
+            ctx: context,
+          );
     final hiddenPeerIds = await _userBlocks.hiddenPeerIds(
       viewerId: notification.actorUserId,
       peerIds: resolvedRecipients.map((recipient) => recipient.userId),

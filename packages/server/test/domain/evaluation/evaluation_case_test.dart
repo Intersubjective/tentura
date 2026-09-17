@@ -1,3 +1,8 @@
+import 'package:tentura_server/domain/attention/attention_policy.dart';
+import 'package:tentura_server/domain/entity/notification_category.dart';
+import 'package:tentura_server/domain/port/attention_dispatch_port.dart';
+import 'package:tentura_server/domain/port/mutating_unit_of_work_port.dart';
+import 'package:tentura_server/domain/use_case/transactional_attention_case.dart';
 import 'package:injectable/injectable.dart' show Environment;
 import 'package:logging/logging.dart';
 import 'package:meta/meta.dart';
@@ -45,6 +50,35 @@ import '../../support/recording_commitment_repository.dart';
 import 'evaluation_graph_test_repos.dart';
 import '../../support/test_attention_harness.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
+
+// Model the dispatch port's source-key idempotency; PG tests exercise the real
+// occurrence/receipt uniqueness and payload equality checks.
+class _IdempotentReviewDispatch extends Fake implements AttentionDispatchPort {
+  final byKey = <String, AttentionDispatchIntent>{};
+  final attempts = <AttentionDispatchIntent>[];
+
+  @override
+  Future<void> record(AttentionDispatchIntent intent) async {
+    attempts.add(intent);
+    final previous = byKey[intent.sourceEventKey];
+    if (previous != null) {
+      expect(
+        intent,
+        previous,
+        reason: 'Retries must preserve all source facts',
+      );
+    }
+    byKey.putIfAbsent(intent.sourceEventKey, () => intent);
+  }
+}
+
+class _ReviewUnitOfWork extends Fake implements MutatingUnitOfWorkPort {
+  @override
+  Future<T> run<T>({
+    required Future<T> Function() action,
+    String? actorUserId,
+  }) => action();
+}
 
 class _NoopAttentionExpiryRepository extends Fake
     implements AttentionExpiryRepositoryPort {
@@ -226,6 +260,7 @@ EvaluationCase buildTestEvaluationCase({
   required UserProfileBatchLookup userProfileBatchLookup,
   required EvaluationParticipantGraphBuilder graphBuilder,
   required TestAttentionHarness attention,
+  TransactionalAttentionCase? transactionalAttention,
   required AttentionExpirySweepCase expirySweep,
   CommitmentRepositoryPort? commitmentRepo,
   HelpOfferRepositoryPort? helpOfferRepo,
@@ -254,7 +289,7 @@ EvaluationCase buildTestEvaluationCase({
     FakeBeaconHierarchyRepository(),
     buildLifecycleEffectsCase(outbox: outbox),
     attentionIntents: attention.intents,
-    attention: attention.transactional,
+    attention: transactionalAttention ?? attention.transactional,
     attentionExpirySweep: expirySweep,
     reviewFinalization: reviewFinalization,
     attentionSystemSettlement: attentionSystemSettlement,
@@ -309,6 +344,7 @@ class _FakeEvaluationRepository implements EvaluationRepositoryPort {
 
   BeaconReviewWindowRecord? reviewWindowResult;
   int? reviewUserStatusResult;
+  bool useReviewStatusMap = false;
   DateTime? reviewSentAtResult;
   List<BeaconEvaluationParticipantRecord> participantsResult = [];
   List<BeaconEvaluationVisibilityRecord> visibilityResult = [];
@@ -358,7 +394,7 @@ class _FakeEvaluationRepository implements EvaluationRepositoryPort {
 
   @override
   Future<int?> getReviewUserStatus(String beaconId, String userId) async =>
-      reviewUserStatusResult;
+      useReviewStatusMap ? reviewStatusesResult[userId] : reviewUserStatusResult;
 
   @override
   Future<DateTime?> getReviewSentAt(String beaconId, String userId) async =>
@@ -508,6 +544,7 @@ class _FakeEvaluationRepository implements EvaluationRepositoryPort {
     bool markSent = false,
   }) async {
     setReviewUserStatusCalls.add(_SetStatusCall(beaconId, userId, status));
+    reviewStatusesResult[userId] = status;
   }
 
   @override
@@ -1080,6 +1117,190 @@ void main() {
         );
       },
     );
+
+    group('all required packages author nudge', () {
+      const helperId = 'helper1';
+      late _IdempotentReviewDispatch dispatch;
+      late EvaluationCase localCase;
+
+      BeaconEvaluationRecord readyRow(String evaluator, String target) =>
+          BeaconEvaluationRecord(
+            beaconId: beaconId,
+            evaluatorId: evaluator,
+            evaluatedUserId: target,
+            value: BeaconEvaluationValue.pos1,
+            reasonTags: '',
+            note: '',
+            status: BeaconEvaluationRowStatus.draft,
+            createdAt: DateTime.utc(2026),
+            updatedAt: DateTime.utc(2026),
+          );
+
+      setUp(() {
+        dispatch = _IdempotentReviewDispatch();
+        evalRepo
+          ..reviewWindowResult = openWindow()
+          ..useReviewStatusMap = true
+          ..reviewStatusesResult = {userId: 2, helperId: 1}
+          ..participantsResult = const [
+            BeaconEvaluationParticipantRecord(
+              beaconId: beaconId,
+              userId: userId,
+              role: 0,
+              contributionSummary: 'author',
+              causalHint: 'h',
+            ),
+            BeaconEvaluationParticipantRecord(
+              beaconId: beaconId,
+              userId: helperId,
+              role: 1,
+              contributionSummary: 'helper',
+              causalHint: 'h',
+            ),
+          ]
+          ..visibilityResult = const [
+            BeaconEvaluationVisibilityRecord(
+              beaconId: beaconId,
+              evaluatorId: helperId,
+              participantId: userId,
+            ),
+            BeaconEvaluationVisibilityRecord(
+              beaconId: beaconId,
+              evaluatorId: userId,
+              participantId: helperId,
+            ),
+          ]
+          ..listEvaluationsForEvaluatorResult = [
+            readyRow(helperId, userId),
+            readyRow(userId, helperId),
+          ];
+        final offers = EmptyGraphHelpOfferRepository();
+        final forwards = EmptyGraphForwardEdgeRepository();
+        localCase = buildTestEvaluationCase(
+          beaconRepo: _TransactionStubBeaconRepo(defaultReviewBeacon()),
+          forwardRepo: forwards,
+          evalRepo: evalRepo,
+          userProfileBatchLookup: StubUserProfileBatchLookup('User'),
+          graphBuilder: EvaluationParticipantGraphBuilder(
+            NoOpCommitmentRepository(),
+            offers,
+            forwards,
+            StubUserRepository('User'),
+          ),
+          attention: attention,
+          transactionalAttention: TransactionalAttentionCase(
+            _ReviewUnitOfWork(),
+            dispatch,
+          ),
+          expirySweep: expirySweep,
+          reviewFinalization: reviewFinalization,
+        );
+      });
+
+      Future<void> send(String sender) async {
+        evalRepo.visibilityResult = [
+          BeaconEvaluationVisibilityRecord(
+            beaconId: beaconId,
+            evaluatorId: sender,
+            participantId: sender == userId ? helperId : userId,
+          ),
+        ];
+        await localCase.evaluationFinalize(beaconId: beaconId, userId: sender);
+      }
+
+      Future<void> editHelperPackage() async {
+        evalRepo.evaluationResult = readyRow(helperId, userId);
+        await localCase.evaluationDraftDelete(
+          beaconId: beaconId,
+          evaluatorId: helperId,
+          evaluatedUserId: userId,
+        );
+      }
+
+      test(
+        'the last required package notifies the author exactly once',
+        () async {
+          evalRepo.reviewStatusesResult[userId] = 1;
+          await send(userId);
+          expect(dispatch.byKey, isEmpty);
+          await send(helperId);
+          await send(helperId);
+          final intent = dispatch.byKey.values.single;
+          expect(dispatch.attempts, hasLength(1));
+          expect(intent.eventType, AttentionEventType.reviewAllPackagesIn);
+          expect(
+            intent.sourceEventKey,
+            'review_all_in:$beaconId:${evalRepo.reviewWindowResult!.openedAt.toUtc().toIso8601String()}',
+          );
+          expect(intent.actorUserId, userId);
+          expect(intent.beaconId, beaconId);
+          expect(intent.recipients.map((r) => r.recipientId), [userId]);
+          final recipient = intent.recipients.single;
+          final projection = const AttentionPolicy().project(
+            eventType: intent.eventType,
+            recipientId: recipient.recipientId,
+            recipientReasons: recipient.reasons,
+            role: recipient.role,
+          );
+          expect(projection.requiresAction, isFalse);
+          expect(projection.category, NotificationCategory.unblocksMe);
+          expect(
+            projection.suppressionClass,
+            AttentionSuppressionClass.standard,
+          );
+          expect(projection.destination.kind, AttentionDestinationKind.review);
+          expect(projection.destination.targetEntityId, beaconId);
+          expect(projection.presentationKey, 'review_all_packages_in');
+          expect(projection.presentationPayload, {
+            'eventType': 'reviewAllPackagesIn',
+            'actorUserId': userId,
+            'beaconId': beaconId,
+            'beaconTitle': 't',
+          });
+        },
+      );
+
+      test(
+        'an edit and re-send after that emits no second notification',
+        () async {
+          await send(helperId);
+          expect(dispatch.byKey, hasLength(1));
+          await editHelperPackage();
+          expect(evalRepo.reviewStatusesResult[helperId], 1);
+          await send(helperId);
+          expect(dispatch.attempts, hasLength(2));
+          expect(dispatch.byKey, hasLength(1));
+        },
+      );
+
+      test('the author as last sender still gets the notification', () async {
+        evalRepo.reviewStatusesResult = {userId: 1, helperId: 2};
+        await send(userId);
+        final intent = dispatch.byKey.values.single;
+        expect(intent.eventType, AttentionEventType.reviewAllPackagesIn);
+        expect(intent.recipients.map((r) => r.recipientId), [userId]);
+      });
+
+      test(
+        'a required reviewer editing after the nudge makes canCloseNow false again',
+        () async {
+          await send(helperId);
+          expect(dispatch.byKey, hasLength(1));
+          final before = await localCase.reviewWindowStatus(
+            beaconId: beaconId,
+            userId: userId,
+          );
+          expect(before.canCloseNow, isTrue);
+          await editHelperPackage();
+          final after = await localCase.reviewWindowStatus(
+            beaconId: beaconId,
+            userId: userId,
+          );
+          expect(after.canCloseNow, isFalse);
+          expect(dispatch.byKey, hasLength(1));
+        },
+      );
+    });
 
     group('no auto-close on the last required send', () {
       const helperId = 'helper1';
