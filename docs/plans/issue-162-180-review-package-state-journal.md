@@ -65,7 +65,7 @@ If Opus is unavailable: routine units degrade to Composer-only implement+verify;
 
 - [x] UNIT 00 journal and baseline — routine — overseer — complete
 - [x] UNIT 01 drop auto-close — hard (close paths) — Opus inner — verify pass 2026-09-18
-- [ ] UNIT 02 m0176 `sent_at` + context — hard (many hops, PG) — Opus inner
+- [x] UNIT 02 m0176 `sent_at` + context — hard (many hops, PG) — Opus inner — verify pass 2026-09-18
 - [ ] UNIT 03 optional targets / counters — hard (D6/D7) — Opus inner; Astra review later
 - [ ] UNIT 04 GraphQL + client schema — routine — Opus inner
 - [ ] UNIT 05 author nudge — hard (races, idempotency) — **ASTRA inner**
@@ -194,15 +194,54 @@ ACCEPTANCE: all plan UNIT 01 + scout criteria met (see user-facing verify summar
 
 GAPS: none material (`reviewOpen` not named on stub beacon in unit test; PG `finalizeTrustPairCount` still literal 0).
 
+### manager — UNIT 02 accepted — 2026-09-18T00:32:00+02:00
+
+Overseer independently re-ran `dart test test/domain/evaluation --exclude-tags pg` → `+120 All tests passed!`. Verifier PG `+3`. Demotion SQL still `status = 1, updated_at = now()` only. `markSent: true` only on finalize. Extra Owns files are +14 signature lines. Legacy context columns still written. No generated files committed.
+
+---
+
+## UNIT 03 — in progress
+
+UNIT_BASE: `700bc8b2c`
+Inner: Opus-low (not Astra); overseer will read the optionality/finalize diff line-by-line. Astra review after 06:00 if messy.
+
 ### manager — UNIT 01 accepted — 2026-09-18T00:24:00+02:00
 
 Overseer independently re-ran `evaluation_case_test.dart --exclude-tags pg` → `+74 All tests passed!` (4.2s). Grep empty. Production diff is a 59-line delete of the auto-close tail + `_autoCloseReviewWindow`; `closeNow` / `_canCloseNow` / `closeAndFinalize` untouched. Untouchables preserved. Tests-folded-into-fix is a process miss, not a product miss — red was recorded before the delete.
 
+### scout — 2026-09-18 — UNIT 03
+
+STATUS: complete
+
+BRIEF: D6/D7 — `formerCommitter` (db role `3`) is optional for package send and for progress counters; required targets still gate `evaluationFinalize`. Add `isOptional` + `rowStatus` to `EvaluationParticipantResult` (leave `isSubmitted`). Fill both in `evaluationParticipants` (~612) and `evaluationDraftParticipants` (~762, ctor ~813): `isOptional` ⇔ `EvaluationParticipantRole.fromDb(role) == formerCommitter` (draft: `row.role == formerCommitter`); `rowStatus` ⇔ `ev?.status ?? -1` (live participants: use full `ev`, not draft-only `useEv`). Replace `evaluationFinalize` readiness loop (~1471–1482) with the plan’s literal block (`listParticipants` + skip `formerCommitter` + skip stale vis without participant). Extend `ReviewWindowStatusResult` with nine fields; implement in `reviewWindowStatus` (~1017): viewer-scoped split counters mirror today’s `reviewedCount`/`totalCount` loop but partition by participant role from `listParticipants`; `reviewed*` = visible target has **any** stored eval row (`evByTarget[id] != null`); keep legacy `reviewedCount`/`totalCount` unchanged. `viewerPackageOptional` = viewer’s participant row role is `formerCommitter`. Beacon-scoped: `allRequiredSent` = `_canCloseNow(beaconId)` (do **not** edit `_canCloseNow` ~594); `unsentStartedPackages` / `sentReviewerCount` from `listReviewStatusesForBeacon` counting status `1` / `2` for enrolled reviewers (same participant list semantics as close). **Do not** touch `_requiredPackagesAllSentLocked` (lives in `evaluation_repository.dart:820`, not `evaluation_case.dart`).
+
+STEPS (commit-sized):
+1. **DTOs** — `evaluation_participant_result.dart`: add `required bool isOptional`, `required int rowStatus` + fields on ctor. `review_window_status_result.dart`: add nine nullable fields (`int?`/`bool?`/`String?` for `sentAt`, matching existing `reviewedCount` style).
+2. **Tests (red)** — seven named tests in `evaluation_case_test.dart` per plan. Fixture notes: default `_FakeEvaluationRepository` has **empty** `visibilityResult` — today’s `evaluationFinalize` tests pass without eval rows; new finalize tests **must** set `visibilityResult`, `participantsResult`, and `listEvaluationsForEvaluatorResult` (draft/submitted rows for required targets only). Reuse `no auto-close` group patterns (`requiredParticipants()`, `openWindow()`, status maps). `a softened committer is optional`: build commitment history with `CommitmentEventKind.acknowledgementSoftened` (see `commitment_state_test.dart` / graph builder withdraw fixture) + active offer → `evaluationParticipants` or `evaluationDraftParticipants` on open beacon. `counters split…`: 3 visibility rows (2× role 1, 1× role 3), eval rows on all three, assert `reviewWindowStatus` split fields **and** legacy counts still `reviewedCount == 3`, `totalCount == 3`. `draft participants carry…`: open-beacon `evaluationDraftParticipants` with graph builder + commitment repo (copy `beaconClose everHadCommitter` setup ~2499).
+3. **Production** — `evaluation_case.dart`: participant endpoints + `reviewWindowStatus` + finalize loop literal. For `hasWindow: false` early return, new status fields stay null (no behavior change for absent window).
+4. **sentAt gap** — Plan field `sentAt` needs DB `beacon_review_status.sent_at`, but `EvaluationRepositoryPort` has no read API (only `getReviewUserStatus` → `int?`). **Not in UNIT 03 Owns.** Implementer: add `sentAt` to `ReviewWindowStatusResult` and wire `null` in production until overseer widens Owns for `getReviewPackageSentAt` (port + repo + mock) **or** write `BLOCKED` if tests require non-null. Plan’s UNIT 03 test list does **not** name a `sentAt` test; user acceptance omits it — nullable stub is acceptable for this unit if documented in journal inner.
+
+TEST_CMD:
+```bash
+cd packages/server && ../../scripts/run_with_test_cleanup.sh --timeout 20m -- dart test test/domain/evaluation/evaluation_case_test.dart --exclude-tags pg
+```
+
+UNTOUCHABLE: journal pre-existing dirty/untracked; generated files; client; GraphQL (UNIT 04); `evaluation_repository.dart` / port unless overseer widens for `sentAt` read; do not change `_canCloseNow` or `_requiredPackagesAllSentLocked`.
+
+RISKS:
+- **Line drift (OK):** `evaluationParticipants` 612, `evaluationDraftParticipants` 762/813, `reviewWindowStatus` 1017, `evaluationFinalize` 1448, `_canCloseNow` 594 — plan §636 line refs are ~3 lines early.
+- **Plan symbol drift:** `_requiredPackagesAllSentLocked` is **not** in `evaluation_case.dart` (plan §636 “:591” pairs it with `_canCloseNow`); real symbol is `evaluation_repository.dart:820` — constraint still “do not change”.
+- **Finalize loop delta:** Live loop (~1471) iterates `vis` only, no `listParticipants`, no stale-vis skip; replacement is plan-literal — verify diff matches block exactly.
+- **`rowStatus` vs `isSubmitted`:** Live `isSubmitted` is true for draft/submitted/final_; `rowStatus` is raw `ev?.status ?? -1` (can be `3` responded) — do not conflate.
+- **`evaluationDraftParticipants`:** `rowStatus` should use `ev?.status ?? -1` even when `useEv` nulls draft-only display fields (plan: “draft row it already loads”).
+- **Fake `setReviewUserStatus`:** ignores `markSent` — irrelevant unless `sentAt` read is added to fake later.
+
 ---
 
-## UNIT 02 — in progress
+## UNIT 02 — complete (verify pass 2026-09-18)
 
 UNIT_BASE: `e136ba450`
+HEAD: `700bc8b2c`
 Inner: Opus-low (not Astra)
 Owns: m0176 + Drift tables + port/mapper/repo/draft/graph builder/evaluation_case + pg test (see plan UNIT 02)
 
@@ -279,3 +318,53 @@ FINDINGS:
 - No generated file was committed; `*.g.dart` is gitignored in this package, so `git add` of the source tables staged sources only.
 
 REMAINING: none for UNIT 02. `markSent` reaches the DB but is not yet exposed over GraphQL (UNIT 04) and the structured participant columns have no reader yet (UNIT 09) — both are later units by design.
+
+### verify — 2026-09-18
+
+STATUS: pass
+
+TEST_OUTPUT:
+- `dart test test/domain/evaluation --exclude-tags pg` (via `run_with_test_cleanup.sh`, 20m) — **+120, −0** (all passed, ~4.1s).
+- `dart test test/data/repository/evaluation_repository_review_status_pg_test.dart --tags pg` (via wrapper, 20m) — **+3, −0** (all passed, ~6.3s). First run printed `All tests passed!` then exited **255** with a post-suite `PathNotFoundException` copying `dart_test.kernel.*` into `.dart_tool/test/` (test-cleanup race); immediate re-run exited **0** with the same **+3**.
+
+RANGE: `e136ba450..700bc8b2c` (7 commits: `c5e01afe4` … `c86667048`, journal `700bc8b2c`). Worktree: only pre-existing UNTOUCHABLE dirty/untracked; no uncommitted UNIT 02 code.
+
+SCOPE: Diff touches plan Owns + journal + three signature-only test fakes (`evaluation_case_test.dart`, `coordination_case_revert_test.dart`, `commitment_gates_harness.dart`); no `*.g.dart` in commit range (`**.g.dart` gitignored). Demotion SQL at `evaluation_repository.dart:404–408` still `SET status = 1, updated_at = now()` only. `setReviewUserStatus` uses `Value.absent()` for `sentAt` unless `markSent`; no code path sets `sent_at` null. `_committerParticipant` still builds `contributionSummary` / `causalHint`; `beaconClose` still passes them to `insertParticipant`.
+
+ACCEPTANCE:
+- **DB can answer “was this package ever sent, and when”** — **met** — `m0176` adds `sent_at`; `evaluationFinalize` passes `markSent: true`; PG tests stamp, demote-with-preserved-`sent_at`, and assert column via disposable migrations.
+- **Legacy context columns still written** — **met** — graph builder unchanged English legacy strings (+ participation-ended suffix); four new unit tests assert structured fields alongside legacy columns; `insertParticipant` persists both.
+
+GAPS: none material. PG first-run exit 255 is environmental/flaky teardown, not a test failure — re-run green. API exposure of `sentAt` / structured participant fields deferred to UNIT 04/09 (by design).
+
+### inner — 2026-09-18 — Opus 5 low — UNIT 03
+
+STATUS: complete
+
+COMMITS (UNIT_BASE `700bc8b2c`):
+- `8a2165cf2 test(server): pin optional former-committer targets and split counters`
+- `4a520e422 feat(server): make former-committer targets optional and split counters`
+
+TESTS:
+- RED before the fix: `dart test test/domain/evaluation/evaluation_case_test.dart --exclude-tags pg` → `+0 -1`, load failure (`Required named parameter 'isOptional' must be provided` at `evaluation_case.dart:703` and `:813`) — the new DTO fields and the new assertions did not exist in production.
+- GREEN after the fix: same TEST_CMD → **+82, −0** (baseline was +74; eight new tests).
+- `dart analyze lib test` → zero errors/warnings (2204 `info` lints, all pre-existing style).
+- Whole-package sweep `dart test --exclude-tags pg` → `+1635 -1`; the single failure is **pre-existing**, see FINDINGS.
+
+FILES:
+- `packages/server/lib/domain/entity/gql_public/evaluation_participant_result.dart` — `required bool isOptional`, `required int rowStatus`.
+- `packages/server/lib/domain/entity/gql_public/review_window_status_result.dart` — the nine new nullable fields, matching the existing `reviewedCount` style.
+- `packages/server/lib/domain/use_case/evaluation_case.dart` — both participant endpoints fill the two new fields; `evaluationFinalize` uses the plan's literal readiness loop; `reviewWindowStatus` computes the nine fields.
+- `packages/server/lib/domain/port/evaluation_repository_port.dart`, `.../data/repository/evaluation_repository.dart`, `.../data/repository/mock/evaluation_repository_mock.dart` — `getReviewSentAt` (overseer-authorised widening).
+- `packages/server/test/domain/evaluation/evaluation_case_test.dart` — two new groups, eight tests, plus `reviewSentAtResult` on the fake.
+- `packages/server/test/domain/use_case/coordination_case_revert_test.dart` — signature-only `getReviewSentAt` stub (returns null).
+
+FINDINGS:
+- **Pre-existing red, not UNIT 03.** `test/architecture/transactional_attention_producer_inventory_test.dart` → `all interactive and time-driven status transition sites are covered` expects 4 `.requestStatusChanged(` sites in `evaluation_case.dart` but finds 3. `git show 700bc8b2c:…evaluation_case.dart | grep -c` prints **3** as well, so the count was already wrong at UNIT_BASE — UNIT 01's auto-close deletion removed a site without updating the inventory. UNIT 03's diff adds no `requestStatusChanged` call. Needs an owner (UNIT 01 remediation or the closeout unit); the UNIT 03 TEST_CMD does not compile that file, which is why it went unnoticed.
+- Only **one** extra `implements EvaluationRepositoryPort` fake needed widening for `getReviewSentAt` (`coordination_case_revert_test.dart`); the other nine either `extends Fake` or already use `noSuchMethod`.
+- `reviewWindowStatus` previously called `_canCloseNow` lazily inside the `canCloseNow` `&&` chain. `allRequiredSent` needs it unconditionally, so it is now computed once up front and `canCloseNow` reuses that local. `_canCloseNow`'s body is untouched; the only behaviour delta is that the query runs even when the window is already finalized or the beacon is no longer `reviewOpen` — one extra read, same answer.
+- `rowStatus` is the raw `ev?.status ?? -1` and deliberately diverges from `isSubmitted`: on the draft endpoint the existing `useEv` gate nulls display fields for non-draft rows, but `rowStatus` still reports the real stored status (test `draft participants carry isOptional and rowStatus` pins `submitted` = 1 through that gate, and a third test pins `-1` with no row).
+- `unsentStartedPackages` / `sentReviewerCount` count every entry in `listReviewStatusesForBeacon` at status 1 / 2 — that map is already beacon-scoped to enrolled reviewers, so no participant join is needed.
+- The `a softened committer is optional` fixture reuses the `beaconClose everHadCommitter` shape (`acknowledgedCommitterCommitmentRepo(withdrawAfterAck: 30h)` + a withdrawn `HelpOfferEntity`) against an **open** beacon, so the role really comes out of the graph builder rather than being hand-fed as `role: 3`.
+
+REMAINING: none for UNIT 03. The nine `ReviewWindowStatus` fields and the two participant fields are not on the GraphQL surface yet (UNIT 04) and have no client reader (UNIT 09), both by design. The pre-existing producer-inventory red above is unowned.
