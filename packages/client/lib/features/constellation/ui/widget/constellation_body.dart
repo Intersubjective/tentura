@@ -73,6 +73,39 @@ class _ConstellationBodyState extends State<ConstellationBody> {
   String? _selectionUnavailableMessage;
   final _internalFrameHolder = ConstellationPresentationFrameHolder();
 
+  // Single owner of pin zoom detail: per-node history would diverge when a
+  // node is recreated inside the hysteresis band.
+  late final GraphController<NodeDetails, EdgeDetails> _graphController;
+  late ConstellationDetailLevel _detail;
+
+  @override
+  void initState() {
+    super.initState();
+    _graphController = context.read<ConstellationCubit>().graphController;
+    _detail = nextConstellationDetailLevel(
+      _graphController.cameraScale,
+      ConstellationDetailLevel.normal,
+    );
+    _graphController.cameraRevision.addListener(_onCamera);
+  }
+
+  @override
+  void dispose() {
+    _graphController.cameraRevision.removeListener(_onCamera);
+    super.dispose();
+  }
+
+  // Only the pin badge is zoom-gated; rebuild solely on detail-level change.
+  void _onCamera() {
+    final next = nextConstellationDetailLevel(
+      _graphController.cameraScale,
+      _detail,
+    );
+    if (next != _detail) {
+      setState(() => _detail = next);
+    }
+  }
+
   ConstellationPresentationFrameHolder get _frameHolder =>
       widget.presentationFrameHolder ?? _internalFrameHolder;
 
@@ -709,7 +742,7 @@ class _ConstellationBodyState extends State<ConstellationBody> {
             final scheme = Theme.of(context).colorScheme;
             final mapNode = switch (node) {
               FieldPersonNode(:final ring, :final person) => _ConstellationMapNode(
-                graphController: cubit.graphController,
+                detail: _detail,
                 child: GraphNodeWidget(
                   key: TestIds.key(TestIds.graphNode(node.id)),
                   nodeDetails: node,
@@ -732,7 +765,7 @@ class _ConstellationBodyState extends State<ConstellationBody> {
                 statusBadge: null,
               ),
               FieldRequestNode(:final request) => _ConstellationMapNode(
-                graphController: cubit.graphController,
+                detail: _detail,
                 child: GraphNodeWidget(
                   key: TestIds.key(TestIds.graphNode(node.id)),
                   nodeDetails: node,
@@ -907,79 +940,37 @@ class _ConstellationBodyState extends State<ConstellationBody> {
   }
 }
 
-class _ConstellationMapNode extends StatefulWidget {
+class _ConstellationMapNode extends StatelessWidget {
   const _ConstellationMapNode({
     required this.child,
-    required this.graphController,
+    required this.detail,
     this.pinBadge,
     this.statusBadge,
   });
 
   final Widget child;
-  final GraphController<NodeDetails, EdgeDetails> graphController;
+  final ConstellationDetailLevel detail;
   final Widget? pinBadge;
   final Widget? statusBadge;
-
-  @override
-  State<_ConstellationMapNode> createState() => _ConstellationMapNodeState();
-}
-
-class _ConstellationMapNodeState extends State<_ConstellationMapNode> {
-  late ConstellationDetailLevel _detail = nextConstellationDetailLevel(
-    widget.graphController.cameraScale,
-    ConstellationDetailLevel.normal,
-  );
-
-  @override
-  void initState() {
-    super.initState();
-    widget.graphController.cameraRevision.addListener(_onCamera);
-  }
-
-  @override
-  void didUpdateWidget(_ConstellationMapNode oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.graphController != widget.graphController) {
-      oldWidget.graphController.cameraRevision.removeListener(_onCamera);
-      widget.graphController.cameraRevision.addListener(_onCamera);
-      _onCamera();
-    }
-  }
-
-  @override
-  void dispose() {
-    widget.graphController.cameraRevision.removeListener(_onCamera);
-    super.dispose();
-  }
-
-  // Only the pin badge is zoom-gated; rebuild solely on detail-level change.
-  void _onCamera() {
-    final next = nextConstellationDetailLevel(
-      widget.graphController.cameraScale,
-      _detail,
-    );
-    if (next != _detail) {
-      setState(() => _detail = next);
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
     final tt = context.tt;
     final overhang = constellationMarkerBadgeOverhang(tt);
-    final pinBadge = widget.pinBadge;
+    final pinBadge = this.pinBadge;
+    final statusBadge = this.statusBadge;
     return Stack(
       clipBehavior: Clip.none,
       alignment: Alignment.center,
       children: [
-        widget.child,
-        if (widget.statusBadge != null)
+        child,
+        if (statusBadge != null)
           PositionedDirectional(
             top: -overhang,
             start: -overhang,
-            child: widget.statusBadge!,
+            child: statusBadge,
           ),
-        if (pinBadge != null && _detail == ConstellationDetailLevel.normal)
+        if (pinBadge != null && detail == ConstellationDetailLevel.normal)
           PositionedDirectional(
             top: -overhang,
             end: -overhang,
