@@ -309,6 +309,7 @@ class _FakeEvaluationRepository implements EvaluationRepositoryPort {
 
   BeaconReviewWindowRecord? reviewWindowResult;
   int? reviewUserStatusResult;
+  DateTime? reviewSentAtResult;
   List<BeaconEvaluationParticipantRecord> participantsResult = [];
   List<BeaconEvaluationVisibilityRecord> visibilityResult = [];
   List<BeaconEvaluationRecord> listEvaluationsForEvaluatorResult = [];
@@ -358,6 +359,10 @@ class _FakeEvaluationRepository implements EvaluationRepositoryPort {
   @override
   Future<int?> getReviewUserStatus(String beaconId, String userId) async =>
       reviewUserStatusResult;
+
+  @override
+  Future<DateTime?> getReviewSentAt(String beaconId, String userId) async =>
+      reviewSentAtResult;
 
   @override
   Future<void> insertParticipant({
@@ -1231,6 +1236,299 @@ void main() {
           );
         },
       );
+    });
+  });
+
+  group('optional former-committer targets (#180)', () {
+    const committerId = 'helper1';
+    const formerId = 'leaver1';
+
+    BeaconEvaluationRecord evalRow({
+      required String evaluatorId,
+      required String evaluatedUserId,
+      int status = BeaconEvaluationRowStatus.draft,
+    }) => BeaconEvaluationRecord(
+      beaconId: beaconId,
+      evaluatorId: evaluatorId,
+      evaluatedUserId: evaluatedUserId,
+      value: BeaconEvaluationValue.pos1,
+      reasonTags: '',
+      note: '',
+      status: status,
+      createdAt: DateTime.utc(2026),
+      updatedAt: DateTime.utc(2026),
+    );
+
+    List<BeaconEvaluationParticipantRecord> mixedParticipants() => const [
+      BeaconEvaluationParticipantRecord(
+        beaconId: beaconId,
+        userId: userId,
+        role: 0,
+        contributionSummary: 'author',
+        causalHint: 'h',
+      ),
+      BeaconEvaluationParticipantRecord(
+        beaconId: beaconId,
+        userId: committerId,
+        role: 1,
+        contributionSummary: 'committer',
+        causalHint: 'h',
+      ),
+      BeaconEvaluationParticipantRecord(
+        beaconId: beaconId,
+        userId: formerId,
+        role: 3,
+        contributionSummary: 'former committer',
+        causalHint: 'h',
+      ),
+    ];
+
+    List<BeaconEvaluationVisibilityRecord> visibilityFor(
+      String evaluatorId,
+      List<String> targets,
+    ) => [
+      for (final t in targets)
+        BeaconEvaluationVisibilityRecord(
+          beaconId: beaconId,
+          evaluatorId: evaluatorId,
+          participantId: t,
+        ),
+    ];
+
+    setUp(() {
+      evalRepo
+        ..reviewWindowResult = openWindow()
+        ..reviewUserStatusResult = 1
+        ..participantsResult = mixedParticipants();
+    });
+
+    test('finalize succeeds with an untouched former committer', () async {
+      evalRepo
+        ..visibilityResult = visibilityFor(userId, [committerId, formerId])
+        ..listEvaluationsForEvaluatorResult = [
+          evalRow(evaluatorId: userId, evaluatedUserId: committerId),
+        ];
+
+      expect(
+        await evaluationCase.evaluationFinalize(
+          beaconId: beaconId,
+          userId: userId,
+        ),
+        isTrue,
+      );
+    });
+
+    test('finalize still fails with an untouched current committer', () async {
+      evalRepo
+        ..visibilityResult = visibilityFor(userId, [committerId, formerId])
+        ..listEvaluationsForEvaluatorResult = [
+          evalRow(evaluatorId: userId, evaluatedUserId: formerId),
+        ];
+
+      await expectLater(
+        evaluationCase.evaluationFinalize(
+          beaconId: beaconId,
+          userId: userId,
+        ),
+        throwsA(isA<EvaluationException>()),
+      );
+    });
+
+    test('former committer finalize does not change canCloseNow', () async {
+      evalRepo
+        ..visibilityResult = visibilityFor(formerId, [userId, committerId])
+        ..listEvaluationsForEvaluatorResult = [
+          evalRow(evaluatorId: formerId, evaluatedUserId: userId),
+          evalRow(evaluatorId: formerId, evaluatedUserId: committerId),
+        ]
+        // Author sent, the current committer has not.
+        ..reviewStatusesResult = {userId: 2, committerId: 1, formerId: 1};
+
+      expect(
+        await evaluationCase.evaluationFinalize(
+          beaconId: beaconId,
+          userId: formerId,
+        ),
+        isTrue,
+      );
+      // Mirror the real DB state after the optional send (the fake does not).
+      evalRepo.reviewStatusesResult = {
+        userId: 2,
+        committerId: 1,
+        formerId: 2,
+      };
+
+      final status = await evaluationCase.reviewWindowStatus(
+        beaconId: beaconId,
+        userId: userId,
+      );
+
+      expect(status.canCloseNow, isFalse);
+      expect(status.allRequiredSent, isFalse);
+    });
+
+    test('counters split required and optional', () async {
+      evalRepo
+        ..reviewSentAtResult = DateTime.utc(2026, 5, 4, 3, 2, 1)
+        ..visibilityResult = visibilityFor(userId, [
+          committerId,
+          'helper2',
+          formerId,
+        ])
+        ..participantsResult = [
+          ...mixedParticipants(),
+          const BeaconEvaluationParticipantRecord(
+            beaconId: beaconId,
+            userId: 'helper2',
+            role: 1,
+            contributionSummary: 'committer',
+            causalHint: 'h',
+          ),
+        ]
+        ..listEvaluationsForEvaluatorResult = [
+          evalRow(evaluatorId: userId, evaluatedUserId: committerId),
+          evalRow(evaluatorId: userId, evaluatedUserId: 'helper2'),
+          evalRow(evaluatorId: userId, evaluatedUserId: formerId),
+        ]
+        ..reviewStatusesResult = {userId: 2, committerId: 1, 'helper2': 2};
+
+      final status = await evaluationCase.reviewWindowStatus(
+        beaconId: beaconId,
+        userId: userId,
+      );
+
+      expect(status.requiredTotal, 2);
+      expect(status.requiredReviewed, 2);
+      expect(status.optionalTotal, 1);
+      expect(status.optionalReviewed, 1);
+      // Legacy counters stay as they were (#162 menu snapshot still reads them).
+      expect(status.reviewedCount, 3);
+      expect(status.totalCount, 3);
+      expect(status.unsentStartedPackages, 1);
+      expect(status.sentReviewerCount, 2);
+      expect(status.sentAt, DateTime.utc(2026, 5, 4, 3, 2, 1));
+    });
+
+    test('viewerPackageOptional is true only for the former committer', () async {
+      evalRepo.visibilityResult = visibilityFor(formerId, [
+        userId,
+        committerId,
+      ]);
+
+      final formerStatus = await evaluationCase.reviewWindowStatus(
+        beaconId: beaconId,
+        userId: formerId,
+      );
+      expect(formerStatus.viewerPackageOptional, isTrue);
+
+      evalRepo.visibilityResult = visibilityFor(committerId, [
+        userId,
+        formerId,
+      ]);
+      final committerStatus = await evaluationCase.reviewWindowStatus(
+        beaconId: beaconId,
+        userId: committerId,
+      );
+      expect(committerStatus.viewerPackageOptional, isFalse);
+
+      final authorStatus = await evaluationCase.reviewWindowStatus(
+        beaconId: beaconId,
+        userId: userId,
+      );
+      expect(authorStatus.viewerPackageOptional, isFalse);
+    });
+  });
+
+  group('softened committers in the draft graph (#180)', () {
+    const helperId = 'helper1';
+
+    setUp(() {
+      evalRepo = _FakeEvaluationRepository();
+      final now = DateTime.utc(2025);
+      final withdrawnOffer = HelpOfferEntity(
+        beaconId: beaconId,
+        userId: helperId,
+        createdAt: now,
+        updatedAt: now.add(const Duration(hours: 31)),
+        status: 1,
+        message: 'helped out',
+      );
+      final helpOfferRepo = ConfigurableGraphHelpOfferRepository([
+        withdrawnOffer,
+      ]);
+      final commitmentRepo = acknowledgedCommitterCommitmentRepo(
+        beaconId: beaconId,
+        helperId: helperId,
+        authorId: userId,
+        baseTime: now,
+        withdrawAfterAck: const Duration(hours: 30),
+      );
+      final forwardRepo = EmptyGraphForwardEdgeRepository();
+      final graphBuilder = EvaluationParticipantGraphBuilder(
+        commitmentRepo,
+        helpOfferRepo,
+        forwardRepo,
+        StubUserRepository('User'),
+      );
+      evaluationCase = buildTestEvaluationCase(
+        beaconRepo: _TransactionStubBeaconRepo(
+          defaultReviewBeacon(status: BeaconStatus.open),
+        ),
+        forwardRepo: forwardRepo,
+        evalRepo: evalRepo,
+        userProfileBatchLookup: StubUserProfileBatchLookup('User'),
+        graphBuilder: graphBuilder,
+        attention: attention,
+        expirySweep: expirySweep,
+        commitmentRepo: commitmentRepo,
+        helpOfferRepo: helpOfferRepo,
+        reviewFinalization: reviewFinalization,
+      );
+    });
+
+    test('a softened committer is optional', () async {
+      final rows = await evaluationCase.evaluationDraftParticipants(
+        beaconId: beaconId,
+        evaluatorId: userId,
+      );
+
+      final target = rows.singleWhere((r) => r.userId == helperId);
+      expect(target.role, EvaluationParticipantRole.formerCommitter.dbValue);
+      expect(target.isOptional, isTrue);
+    });
+
+    test('draft participants carry isOptional and rowStatus', () async {
+      evalRepo.listEvaluationsForEvaluatorResult = [
+        BeaconEvaluationRecord(
+          beaconId: beaconId,
+          evaluatorId: userId,
+          evaluatedUserId: helperId,
+          value: BeaconEvaluationValue.pos1,
+          reasonTags: '',
+          note: '',
+          status: BeaconEvaluationRowStatus.submitted,
+          createdAt: DateTime.utc(2026),
+          updatedAt: DateTime.utc(2026),
+        ),
+      ];
+
+      final rows = await evaluationCase.evaluationDraftParticipants(
+        beaconId: beaconId,
+        evaluatorId: userId,
+      );
+
+      final target = rows.singleWhere((r) => r.userId == helperId);
+      expect(target.isOptional, isTrue);
+      expect(target.rowStatus, BeaconEvaluationRowStatus.submitted);
+    });
+
+    test('a draft target without a stored row reports rowStatus -1', () async {
+      final rows = await evaluationCase.evaluationDraftParticipants(
+        beaconId: beaconId,
+        evaluatorId: userId,
+      );
+
+      expect(rows.singleWhere((r) => r.userId == helperId).rowStatus, -1);
     });
   });
 
