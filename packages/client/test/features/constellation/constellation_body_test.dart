@@ -264,10 +264,10 @@ void main() {
       ),
     ];
 
-    Finder inRequestNode(String key) => find.descendant(
+    Finder inNode(String nodeId, String key) => find.descendant(
       of: find
           .ancestor(
-            of: find.byKey(TestIds.key(TestIds.graphNode('req-in-2'))),
+            of: find.byKey(TestIds.key(TestIds.graphNode(nodeId))),
             matching: find.byWidgetPredicate(
               (widget) =>
                   widget is Stack &&
@@ -278,6 +278,8 @@ void main() {
           .first,
       matching: find.byKey(TestIds.key(key)),
     );
+
+    Finder inRequestNode(String key) => inNode('req-in-2', key);
 
     Future<void> zoomUntil(
       WidgetTester tester,
@@ -329,6 +331,76 @@ void main() {
       );
       expect(pin, findsOneWidget);
       expect(status, findsOneWidget);
+    });
+
+    testWidgets('node recreated inside the hysteresis band keeps shared detail', (
+      tester,
+    ) async {
+      final cubit = await loadReferenceCubit(
+        field: constellationReferenceField(
+          anchors: [
+            ...pinnedAnchors(),
+            ConstellationAnchor(
+              target: ConstellationAnchorTarget.person('am'),
+              position: const ConstellationAnchorPosition(
+                xUnits: 4,
+                yUnits: -2,
+                coordinateSpaceVersion: 1,
+              ),
+              revision: ConstellationAnchorRevision(BigInt.one),
+              placedAt: DateTime.utc(2026, 9, 9, 12),
+            ),
+          ],
+        ),
+      );
+      addTearDown(cubit.close);
+      await pumpConstellationBody(tester, cubit);
+      await tester.pumpAndSettle();
+
+      final requestPin = inRequestNode(TestIds.constellationPinMarker);
+      final personPin = inNode('am', TestIds.constellationPinMarker);
+      expect(requestPin, findsOneWidget);
+      expect(personPin, findsOneWidget);
+
+      await zoomUntil(
+        tester,
+        cubit,
+        0.8,
+        (s) => s < kConstellationOverviewDetailScale,
+      );
+      expect(requestPin, findsNothing);
+      expect(personPin, findsNothing);
+
+      bool inBand(double s) =>
+          s >= kConstellationOverviewDetailScale &&
+          s < kConstellationNormalDetailScale;
+      await zoomUntil(tester, cubit, 1.02, inBand);
+      expect(requestPin, findsNothing);
+      expect(personPin, findsNothing);
+
+      // Filter the request out so its node widget is destroyed, then restore.
+      cubit
+        ..setFilterIncludeUnspecified(false)
+        ..setFilterCapabilitySlugs({'tools'});
+      await tester.pump();
+      expect(
+        find.byKey(TestIds.key(TestIds.graphNode('req-in-2'))),
+        findsNothing,
+      );
+      expect(
+        find.byKey(TestIds.key(TestIds.graphNode('am'))),
+        findsOneWidget,
+      );
+
+      await cubit.clearFilters();
+      await tester.pumpAndSettle();
+      expect(inBand(cubit.graphController.cameraScale), isTrue);
+      expect(
+        find.byKey(TestIds.key(TestIds.graphNode('req-in-2'))),
+        findsOneWidget,
+      );
+      expect(personPin, findsNothing);
+      expect(requestPin, findsNothing);
     });
   });
 
