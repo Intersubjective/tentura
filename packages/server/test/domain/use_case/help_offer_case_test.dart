@@ -281,6 +281,40 @@ void main() {
       expect(attention.recorded, isEmpty);
     });
 
+    test('rejects more than two help types', () async {
+      stubBeacon(beacon(id: 'B1', status: BeaconStatus.open));
+      when(
+        helpOfferRepo.hasActiveHelpOffer(
+          beaconId: 'B1',
+          userId: 'U1',
+        ),
+      ).thenAnswer((_) async => false);
+
+      await expectLater(
+        case_.offerHelp(
+          beaconId: 'B1',
+          userId: 'U1',
+          helpTypes: const ['money', 'time', 'transport'],
+        ),
+        throwsA(
+          isA<HelpOfferCoordinationException>().having(
+            (e) =>
+                (e.code as HelpOfferCoordinationExceptionCodes).exceptionCode,
+            'code',
+            HelpOfferCoordinationExceptionCode.invalidHelpType,
+          ),
+        ),
+      );
+      verifyNever(
+        helpOfferRepo.upsert(
+          beaconId: anyNamed('beaconId'),
+          userId: anyNamed('userId'),
+        ),
+      );
+      expect(commitmentRepo.recordCalls, isEmpty);
+      expect(attention.recorded, isEmpty);
+    });
+
     test('rejects author on initial offer', () async {
       stubBeacon(beacon(id: 'B1', status: BeaconStatus.open));
       when(

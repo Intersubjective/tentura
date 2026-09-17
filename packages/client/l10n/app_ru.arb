@@ -5054,6 +5054,18 @@
   "beaconRoomReactionPickerSemantic": "Выбор реакции",
   "beaconRoomReactionSendersSheetTitle": "Реакции",
   "beaconRoomReactionSendersSheetSemantic": "Кто отреагировал",
+  "roomAuthorCommitmentSheetTitle": "Детали обязательства",
+  "roomAuthorCommitmentGlyphsSemantic": "Детали обязательства — {name}: {tags}",
+  "@roomAuthorCommitmentGlyphsSemantic": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "tags": {
+        "type": "String"
+      }
+    }
+  },
   "beaconRoomActionReply": "Ответить",
   "beaconRoomReplyingTo": "Ответ: {name}",
   "beaconRoomReplyAttachmentExcerpt": "Вложение",

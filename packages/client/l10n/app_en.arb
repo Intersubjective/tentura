@@ -5117,6 +5117,22 @@
   "@beaconRoomReactionSendersSheetSemantic": {
     "description": "Accessibility label for the who-reacted bottom sheet"
   },
+  "roomAuthorCommitmentSheetTitle": "Commitment details",
+  "@roomAuthorCommitmentSheetTitle": {
+    "description": "Accessibility label for the read-only author commitment sheet opened from chat glyphs"
+  },
+  "roomAuthorCommitmentGlyphsSemantic": "Commitment details for {name}: {tags}",
+  "@roomAuthorCommitmentGlyphsSemantic": {
+    "description": "Accessibility / tooltip for the capability glyph cluster under a chat avatar",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "tags": {
+        "type": "String"
+      }
+    }
+  },
   "beaconRoomActionReply": "Reply",
   "beaconRoomReplyingTo": "Reply to {name}",
   "@beaconRoomReplyingTo": {
@@ -5369,7 +5385,7 @@
     }
   },
   "helpOfferRolePrompt": "How are you helping?",
-  "helpOfferSelectionLimit": "Choose up to 4 ways you can help.",
+  "helpOfferSelectionLimit": "Choose up to 2 ways you can help.",
   "helpOfferSearchLabel": "Search ways to help",
   "helpOfferSubmit": "Offer help ({count}/{limit})",
   "@helpOfferSubmit": {
@@ -5384,7 +5400,7 @@
   },
   "helpOfferSubmitAction": "Offer help",
   "helpOfferOptionalEnrichmentLabel": "Ways you can help (optional)",
-  "helpOfferOptionalEnrichmentHelper": "Optional — helps others find your offer. Choose up to 4.",
+  "helpOfferOptionalEnrichmentHelper": "Optional — helps others find your offer. Choose up to 2.",
   "helpOfferBrowseCategories": "Browse all categories",
   "helpOfferHideCategories": "Hide categories",
   "helpOfferSearchEmpty": "No match — try Other or keep text only",

@@ -55,6 +55,12 @@ final class HelpOfferCase extends UseCaseBase {
     int? expectedOfferKind,
   }) async {
     if (helpTypes != null) {
+      if (helpTypes.length > 2) {
+        throw HelpOfferCoordinationException(
+          coordinationCode:
+              HelpOfferCoordinationExceptionCode.invalidHelpType,
+        );
+      }
       for (final type in helpTypes) {
         if (!isAllowedHelpType(type)) {
           throw HelpOfferCoordinationException(

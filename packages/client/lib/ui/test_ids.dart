@@ -82,6 +82,8 @@ abstract final class TestIds {
 
   /// Press-scale wrapper around a room message bubble (long-press grow).
   static const roomMessageBubblePressScale = 'room.message.bubble_press_scale';
+  static const roomAuthorCommitmentGlyphs =
+      'room.message.author_commitment_glyphs';
   static String roomMentionSuggestion(String handle) =>
       'room.mention.suggestion.${handle.trim().toLowerCase()}';
   static const beaconForward = 'beacon.forward';
