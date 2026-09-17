@@ -42,6 +42,7 @@ import 'inbox_case_test.dart'
         FakeInboxRepository,
         buildTestBeaconThreadsCase,
         buildTestInboxCase;
+import '../../support/noop_attention_actor_profiles.dart';
 
 class _HarnessRouter extends Mock implements StackRouter {
   PageRouteInfo? lastPush;
@@ -223,6 +224,7 @@ Future<void> _pumpInbox(
     GetIt.I.unregister<AttentionCase>();
   }
   GetIt.I.registerSingleton<AttentionCase>(attention);
+  ensureNoopAttentionActorProfilesRegistered();
   GetIt.I.registerSingleton(inboxCase);
   GetIt.I.registerSingleton<InviteAcceptedSetupPort>(
     NoopInviteAcceptedSetupPort(),

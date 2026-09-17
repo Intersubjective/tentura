@@ -20,6 +20,7 @@ import '../features/block/support/controllable_block_case.dart';
 import '../features/my_work/my_work_test_support.dart';
 import '../features/updates/support/noop_invite_setup_port.dart';
 import '../support/test_realtime_sync.dart';
+import '../support/noop_attention_actor_profiles.dart';
 
 /// U7 evidence guard: the four #102 surfaces expose the shared realtime /
 /// attention boundaries documented in the plan journal.
@@ -81,6 +82,7 @@ void main() {
         setup: NoopInviteAcceptedSetupPort(),
         realtime: sync.case_,
         logger: Logger('cross-surface-feed'),
+        actorProfiles: buildNoopAttentionActorProfiles(),
       );
       addTearDown(cubit.close);
 
@@ -184,7 +186,6 @@ void main() {
       );
     });
   });
-
 }
 
 Future<void> _pump({int milliseconds = 8}) async {
@@ -221,8 +222,7 @@ final class _RecordingAttentionRepository extends AttentionRepositoryFake {
   }
 
   @override
-  Future<Set<String>> unreadForBeacons(Set<String> beaconIds) async =>
-      const {};
+  Future<Set<String>> unreadForBeacons(Set<String> beaconIds) async => const {};
 
   @override
   Future<Set<String>> liveObligationBeacons() async => const {};

@@ -25,6 +25,7 @@ import 'package:tentura/ui/test_ids.dart';
 
 import '../../features/block/support/controllable_block_case.dart';
 import '../../support/test_realtime_sync.dart';
+import '../../support/noop_attention_actor_profiles.dart';
 
 final class _Accounts implements AttentionAccountPort {
   final _changes = StreamController<String>.broadcast();
@@ -49,8 +50,7 @@ final class _Repository extends AttentionRepositoryFake {
     String? search,
     int limit = 50,
     AttentionSurface? surface,
-  }) async =>
-      feed;
+  }) async => feed;
 
   @override
   Future<Set<String>> unreadForBeacons(Set<String> beaconIds) async => {};
@@ -80,8 +80,7 @@ final class _FakeSetupPort implements InviteAcceptedSetupPort {
   @override
   Future<Map<String, InviteSeedPromptState>> fetchPrompts(
     Set<String> subjectIds,
-  ) async =>
-      Map<String, InviteSeedPromptState>.from(batchResult);
+  ) async => Map<String, InviteSeedPromptState>.from(batchResult);
 
   @override
   dynamic noSuchMethod(Invocation invocation) => super.noSuchMethod(invocation);
@@ -91,40 +90,37 @@ AttentionReceipt _inviteReceipt({
   required String id,
   required String subjectId,
   DateTime? createdAt,
-}) =>
-    AttentionReceipt(
-      id: id,
-      category: 'connections',
-      kind: 'inviteAccepted',
-      priority: 'normal',
-      title: 'Joined $subjectId',
-      body: 'Body',
-      actionUrl: '/profile/view/$subjectId',
-      createdAt: createdAt ?? DateTime.now().subtract(const Duration(days: 1)),
-      collapsedCount: 1,
-      presentationKey: 'invite_accepted',
-      presentationPayloadJson: '{"inviteOrigin":"new_account"}',
-      surface: AttentionSurface.activity,
-      actorUserId: subjectId,
-      targetEntityId: subjectId,
-    );
+}) => AttentionReceipt(
+  id: id,
+  category: 'connections',
+  kind: 'inviteAccepted',
+  priority: 'normal',
+  title: 'Joined $subjectId',
+  body: 'Body',
+  actionUrl: '/profile/view/$subjectId',
+  createdAt: createdAt ?? DateTime.now().subtract(const Duration(days: 1)),
+  collapsedCount: 1,
+  presentationKey: 'invite_accepted',
+  presentationPayloadJson: '{"inviteOrigin":"new_account"}',
+  surface: AttentionSurface.activity,
+  actorUserId: subjectId,
+  targetEntityId: subjectId,
+);
 
-InviteSeedPromptState _pendingPrompt(String subjectId) =>
-    InviteSeedPromptState(
-      inviterUserId: 'inviter-1',
-      inviteeUserId: subjectId,
-      state: PromptStateValue.pending,
-    );
+InviteSeedPromptState _pendingPrompt(String subjectId) => InviteSeedPromptState(
+  inviterUserId: 'inviter-1',
+  inviteeUserId: subjectId,
+  state: PromptStateValue.pending,
+);
 
 UpdatesFeedState _stateWithProjections({
   required List<AttentionReceipt> items,
   required Map<String, PromptProjection> projections,
-}) =>
-    UpdatesFeedState(
-      items: items,
-      promptProjections: projections,
-      summary: AttentionSummary(unreadTotal: items.length),
-    );
+}) => UpdatesFeedState(
+  items: items,
+  promptProjections: projections,
+  summary: AttentionSummary(unreadTotal: items.length),
+);
 
 Future<void> _drain([int turns = 12]) async {
   for (var i = 0; i < turns; i++) {
@@ -333,6 +329,7 @@ void main() {
         setup: setup,
         realtime: sync.case_,
         logger: Logger('prompt-pinning-cubit'),
+        actorProfiles: buildNoopAttentionActorProfiles(),
       );
       await _drain(24);
 
@@ -394,7 +391,10 @@ void main() {
         find.byKey(TestIds.key(TestIds.activityPromptCollapsed)),
         findsOneWidget,
       );
-      expect(find.byKey(const ValueKey<String>('activity-prompt-pin-r1')), findsNothing);
+      expect(
+        find.byKey(const ValueKey<String>('activity-prompt-pin-r1')),
+        findsNothing,
+      );
       expect(find.textContaining('3 people joined'), findsOneWidget);
 
       await tester.pumpWidget(const SizedBox.shrink());

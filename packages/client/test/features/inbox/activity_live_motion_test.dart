@@ -39,6 +39,7 @@ import '../updates/support/noop_invite_setup_port.dart';
 import 'activity_offers_test_support.dart';
 import 'inbox_case_test.dart'
     show FakeInboxRepository, buildTestBeaconThreadsCase, buildTestInboxCase;
+import '../../support/noop_attention_actor_profiles.dart';
 
 class _HarnessRouter extends Mock implements StackRouter {}
 
@@ -99,8 +100,7 @@ class _MotionFeedRepo extends ConfigurableActivityOffersAttentionRepo {
     if (cursor == null || cursor.isEmpty) {
       final items = <AttentionReceipt>[
         ...streamHead,
-        if (forwardBeaconId != null)
-          _forwardReceipt(forwardBeaconId!),
+        if (forwardBeaconId != null) _forwardReceipt(forwardBeaconId!),
       ];
       return AttentionFeed(
         summary: const AttentionSummary(),
@@ -193,7 +193,6 @@ class _TestInboxCubit extends Cubit<InboxState> implements InboxCubit {
   final _ControllableForwardRepo? forwardRepo;
   final _MotionFeedRepo? feedRepo;
 
-
   @override
   void clearPendingMovedNudge() {}
 
@@ -275,6 +274,7 @@ Future<_Boot> _boot({
     inboxCase: inboxCase,
     attentionCase: attention,
     pageSize: 20,
+    actorProfiles: buildNoopAttentionActorProfiles(),
   );
   await offers.loadFirst();
   final stream = UpdatesFeedCubit(
@@ -283,6 +283,7 @@ Future<_Boot> _boot({
     setup: NoopInviteAcceptedSetupPort(),
     realtime: sync.case_,
     logger: Logger('activity-live-motion-test'),
+    actorProfiles: buildNoopAttentionActorProfiles(),
   );
   return _Boot(
     offers: offers,
@@ -308,7 +309,8 @@ Future<void> _pumpMotionView(
   addTearDown(tester.view.resetPhysicalSize);
   addTearDown(tester.view.resetDevicePixelRatio);
 
-  final inboxCubit = inbox ??
+  final inboxCubit =
+      inbox ??
       _TestInboxCubit(
         const InboxState(status: StateIsSuccess(), projectionLoaded: true),
         inboxRepo: boot.inboxRepo,
@@ -320,6 +322,7 @@ Future<void> _pumpMotionView(
     GetIt.I.unregister<AttentionCase>();
   }
   GetIt.I.registerSingleton<AttentionCase>(boot.attention);
+  ensureNoopAttentionActorProfilesRegistered();
   if (!GetIt.I.isRegistered<RootRouter>()) {
     GetIt.I.registerSingleton<RootRouter>(_MockRootRouter());
   }
@@ -407,63 +410,66 @@ void main() {
     );
   });
 
-  testWidgets('arrival while scrolled away shows pill without shifting layout', (
-    tester,
-  ) async {
-    final forwardRepo = _ControllableForwardRepo();
-    final inboxRepo = FakeInboxRepository();
-    final fillOffers = [
-      _offerItem('B1'),
-      for (var i = 0; i < 25; i++) _offerItem('fill-$i'),
-    ];
-    final feedRepo = _MotionFeedRepo(
-      streamHead: [for (var i = 0; i < 30; i++) _streamReceipt('s$i')],
-    );
-    wireActivityOffersV2(
-      inbox: inboxRepo,
-      attention: feedRepo,
-      items: fillOffers,
-      totalCount: 26,
-    );
-    final boot = await _boot(
-      inboxRepo: inboxRepo,
-      feedRepo: feedRepo,
-      forwardRepo: forwardRepo,
-    );
-    addTearDown(boot.dispose);
+  testWidgets(
+    'arrival while scrolled away shows pill without shifting layout',
+    (
+      tester,
+    ) async {
+      final forwardRepo = _ControllableForwardRepo();
+      final inboxRepo = FakeInboxRepository();
+      final fillOffers = [
+        _offerItem('B1'),
+        for (var i = 0; i < 25; i++) _offerItem('fill-$i'),
+      ];
+      final feedRepo = _MotionFeedRepo(
+        streamHead: [for (var i = 0; i < 30; i++) _streamReceipt('s$i')],
+      );
+      wireActivityOffersV2(
+        inbox: inboxRepo,
+        attention: feedRepo,
+        items: fillOffers,
+        totalCount: 26,
+      );
+      final boot = await _boot(
+        inboxRepo: inboxRepo,
+        feedRepo: feedRepo,
+        forwardRepo: forwardRepo,
+      );
+      addTearDown(boot.dispose);
 
-    await _pumpMotionView(tester, boot: boot);
+      await _pumpMotionView(tester, boot: boot);
 
-    // The "for you" header scrolls out of view by construction of this test
-    // (we drag past scrolledAwayThreshold), so it can't serve as the stable
-    // reference widget — use an offer card that stays on screen instead.
-    final reference = find.bySemanticsIdentifier(
-      TestIds.activityOffer('fill-2'),
-    );
-    await tester.drag(
-      find.byType(CustomScrollView),
-      const Offset(0, -ActivityStreamView.scrolledAwayThreshold - 40),
-    );
-    for (var i = 0; i < 5; i++) {
-      await tester.pump(const Duration(milliseconds: 100));
-    }
-    expect(boot.offers.state.heldBackIds, isEmpty);
+      // The "for you" header scrolls out of view by construction of this test
+      // (we drag past scrolledAwayThreshold), so it can't serve as the stable
+      // reference widget — use an offer card that stays on screen instead.
+      final reference = find.bySemanticsIdentifier(
+        TestIds.activityOffer('fill-2'),
+      );
+      await tester.drag(
+        find.byType(CustomScrollView),
+        const Offset(0, -ActivityStreamView.scrolledAwayThreshold - 40),
+      );
+      for (var i = 0; i < 5; i++) {
+        await tester.pump(const Duration(milliseconds: 100));
+      }
+      expect(boot.offers.state.heldBackIds, isEmpty);
 
-    final before = _globalRect(reference, tester);
+      final before = _globalRect(reference, tester);
 
-    final arrival = _offerItem('B-held');
-    inboxRepo.openForwardByBeacon['B-held'] = arrival;
-    forwardRepo.emitDeskChange('B-held');
-    await _pumpDeskDebounce(tester, frames: 5);
+      final arrival = _offerItem('B-held');
+      inboxRepo.openForwardByBeacon['B-held'] = arrival;
+      forwardRepo.emitDeskChange('B-held');
+      await _pumpDeskDebounce(tester, frames: 5);
 
-    final after = _globalRect(reference, tester);
-    expect(after, equals(before));
-    expect(
-      find.bySemanticsIdentifier(TestIds.activityNewItemsPill),
-      findsOneWidget,
-    );
-    expect(boot.offers.state.heldBackIds, {'B-held'});
-  });
+      final after = _globalRect(reference, tester);
+      expect(after, equals(before));
+      expect(
+        find.bySemanticsIdentifier(TestIds.activityNewItemsPill),
+        findsOneWidget,
+      );
+      expect(boot.offers.state.heldBackIds, {'B-held'});
+    },
+  );
 
   testWidgets('watch demotion shows forward row with watching outcome (ru)', (
     tester,
@@ -631,8 +637,10 @@ void main() {
     final snackBar = tester.widget<SnackBar>(find.byType(SnackBar));
     expect(snackBar.action, isNotNull);
     final scrollable = find.byType(Scrollable).first;
-    final beforeScroll =
-        tester.state<ScrollableState>(scrollable).position.pixels;
+    final beforeScroll = tester
+        .state<ScrollableState>(scrollable)
+        .position
+        .pixels;
     // Snack bar lays out below the 400px test surface; fire the action directly.
     snackBar.action!.onPressed();
     final forwardRow = find.bySemanticsIdentifier(
@@ -642,8 +650,10 @@ void main() {
       await tester.pump(const Duration(milliseconds: 50));
       if (forwardRow.evaluate().isNotEmpty) break;
     }
-    final afterScroll =
-        tester.state<ScrollableState>(scrollable).position.pixels;
+    final afterScroll = tester
+        .state<ScrollableState>(scrollable)
+        .position
+        .pixels;
     expect(afterScroll, greaterThan(beforeScroll));
     if (forwardRow.evaluate().isEmpty) {
       await tester.scrollUntilVisible(

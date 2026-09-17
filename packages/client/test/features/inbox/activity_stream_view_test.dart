@@ -51,10 +51,8 @@ import '../block/support/controllable_block_case.dart';
 import '../updates/support/noop_invite_setup_port.dart';
 import 'activity_offers_test_support.dart';
 import 'inbox_case_test.dart'
-    show
-        FakeInboxRepository,
-        buildTestBeaconThreadsCase,
-        buildTestInboxCase;
+    show FakeInboxRepository, buildTestBeaconThreadsCase, buildTestInboxCase;
+import '../../support/noop_attention_actor_profiles.dart';
 
 class _HarnessRouter extends Mock implements StackRouter {}
 
@@ -62,7 +60,6 @@ class _MockRootRouter extends Mock implements RootRouter {}
 
 class _TestInboxCubit extends Cubit<InboxState> implements InboxCubit {
   _TestInboxCubit(super.initial);
-
 
   @override
   void clearPendingMovedNudge() {}
@@ -245,26 +242,25 @@ AttentionReceipt _streamReceipt({
   int? digestCount,
   int? eventTotal,
   List<AttentionReceipt> eventsPreview = const [],
-}) =>
-    AttentionReceipt(
-      id: id,
-      category: 'requestProgress',
-      kind: 'relayReceived',
-      priority: 'normal',
-      title: 'Title $id',
-      body: 'Body',
-      actionUrl: '/#/',
-      createdAt: DateTime.utc(2026, 9, 10, 12),
-      collapsedCount: 1,
-      presentationPayloadJson: '{}',
-      surface: AttentionSurface.activity,
-      itemKind: itemKind,
-      forwardOutcome: forwardOutcome,
-      digestCount: digestCount,
-      eventTotal: eventTotal,
-      eventsPreview: eventsPreview,
-      beaconId: 'beacon-$id',
-    );
+}) => AttentionReceipt(
+  id: id,
+  category: 'requestProgress',
+  kind: 'relayReceived',
+  priority: 'normal',
+  title: 'Title $id',
+  body: 'Body',
+  actionUrl: '/#/',
+  createdAt: DateTime.utc(2026, 9, 10, 12),
+  collapsedCount: 1,
+  presentationPayloadJson: '{}',
+  surface: AttentionSurface.activity,
+  itemKind: itemKind,
+  forwardOutcome: forwardOutcome,
+  digestCount: digestCount,
+  eventTotal: eventTotal,
+  eventsPreview: eventsPreview,
+  beaconId: 'beacon-$id',
+);
 
 AttentionReceipt _promptReceipt() => AttentionReceipt(
   id: 'prompt-1',
@@ -340,6 +336,7 @@ Future<_Boot> _boot({
     inboxCase: inboxCase,
     attentionCase: attention,
     pageSize: 20,
+    actorProfiles: buildNoopAttentionActorProfiles(),
   );
   await offers.loadFirst();
   final stream = UpdatesFeedCubit(
@@ -348,6 +345,7 @@ Future<_Boot> _boot({
     setup: setup ?? NoopInviteAcceptedSetupPort(),
     realtime: sync.case_,
     logger: Logger('activity-stream-test'),
+    actorProfiles: buildNoopAttentionActorProfiles(),
   );
   await attention.refresh(
     destinationId: AttentionFeedDestinationId.activityStream,
@@ -374,7 +372,8 @@ Future<void> _pumpStreamView(
   addTearDown(tester.view.resetPhysicalSize);
   addTearDown(tester.view.resetDevicePixelRatio);
 
-  final inboxCubit = inbox ??
+  final inboxCubit =
+      inbox ??
       _TestInboxCubit(
         const InboxState(status: StateIsSuccess(), projectionLoaded: true),
       );
@@ -383,6 +382,7 @@ Future<void> _pumpStreamView(
     GetIt.I.unregister<AttentionCase>();
   }
   GetIt.I.registerSingleton<AttentionCase>(boot.attention);
+  ensureNoopAttentionActorProfilesRegistered();
   if (!GetIt.I.isRegistered<RootRouter>()) {
     GetIt.I.registerSingleton<RootRouter>(_MockRootRouter());
   }
@@ -429,13 +429,16 @@ double _top(Finder finder, WidgetTester tester) {
   return tester.getRect(finder).top;
 }
 
-
 void main() {
-
-  testWidgets('render order: header, prompt, offer, then stream', (tester) async {
+  testWidgets('render order: header, prompt, offer, then stream', (
+    tester,
+  ) async {
     final inboxRepo = FakeInboxRepository();
     final attentionRepo = _FeedAttentionRepo(
-      firstPage: [_promptReceipt(), _streamReceipt(id: 'stream-1')],
+      firstPage: [
+        _promptReceipt(),
+        _streamReceipt(id: 'stream-1'),
+      ],
     );
     wireActivityOffersV2(
       inbox: inboxRepo,
@@ -496,7 +499,10 @@ void main() {
     attentionRepo.secondOfferRows = [
       for (var i = 20; i < 25; i++) activityOfferSortRow(_offerItem('p$i')),
     ];
-    final boot = await _boot(inboxRepo: inboxRepo, attentionRepo: attentionRepo);
+    final boot = await _boot(
+      inboxRepo: inboxRepo,
+      attentionRepo: attentionRepo,
+    );
     addTearDown(boot.dispose);
 
     await _pumpStreamView(
@@ -557,7 +563,10 @@ void main() {
       items: const [],
       totalCount: 0,
     );
-    final boot = await _boot(inboxRepo: inboxRepo, attentionRepo: attentionRepo);
+    final boot = await _boot(
+      inboxRepo: inboxRepo,
+      attentionRepo: attentionRepo,
+    );
     addTearDown(boot.dispose);
 
     await _pumpStreamView(tester, boot: boot);
@@ -568,7 +577,9 @@ void main() {
     expect(find.byType(ActivityEventSubcardBlock), findsOneWidget);
   });
 
-  testWidgets('360x640 at 1.3x: first offer card fully visible', (tester) async {
+  testWidgets('360x640 at 1.3x: first offer card fully visible', (
+    tester,
+  ) async {
     final inboxRepo = FakeInboxRepository();
     final attentionRepo = _FeedAttentionRepo(
       firstPage: [_streamReceipt(id: 'below')],
@@ -609,8 +620,9 @@ void main() {
     expect(rect.bottom, lessThanOrEqualTo(640));
   });
 
-  testWidgets('60 offers and 120 stream items scroll without duplicate keys',
-      (tester) async {
+  testWidgets('60 offers and 120 stream items scroll without duplicate keys', (
+    tester,
+  ) async {
     final inboxRepo = FakeInboxRepository();
     final offers = [for (var i = 0; i < 60; i++) _offerItem('b$i')];
     final attentionRepo = _FeedAttentionRepo(
@@ -622,7 +634,10 @@ void main() {
       items: offers,
       totalCount: 60,
     );
-    final boot = await _boot(inboxRepo: inboxRepo, attentionRepo: attentionRepo);
+    final boot = await _boot(
+      inboxRepo: inboxRepo,
+      attentionRepo: attentionRepo,
+    );
     addTearDown(boot.dispose);
 
     await _pumpStreamView(
@@ -665,7 +680,6 @@ void main() {
     expect(seenOffers.length, lessThanOrEqualTo(60));
     expect(seenStream.length, 120);
   });
-
 }
 
 final class _Accounts implements AttentionAccountPort {
@@ -687,11 +701,10 @@ class _EmptyFeedRepo extends AttentionRepositoryFake {
     String? search,
     int limit = 50,
     AttentionSurface? surface,
-  }) async =>
-      const AttentionFeed(
-        summary: AttentionSummary(),
-        page: AttentionFeedPage(),
-      );
+  }) async => const AttentionFeed(
+    summary: AttentionSummary(),
+    page: AttentionFeedPage(),
+  );
 
   @override
   Future<Set<String>> unreadForBeacons(Set<String> beaconIds) async => {};

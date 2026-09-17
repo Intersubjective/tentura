@@ -18,6 +18,7 @@ import 'package:tentura/ui/bloc/state_base.dart';
 import '../../support/test_realtime_sync.dart';
 import '../block/support/controllable_block_case.dart';
 import 'support/noop_invite_setup_port.dart';
+import '../../support/noop_attention_actor_profiles.dart';
 
 final class _Accounts implements AttentionAccountPort {
   final _changes = StreamController<String>.broadcast();
@@ -118,42 +119,46 @@ void main() {
     await accounts.close();
   });
 
-  test('failed refresh keeps loaded items and exposes a retryable error', () async {
-    final initial = Completer<AttentionFeed>();
-    final failing = Completer<AttentionFeed>();
-    final retry = Completer<AttentionFeed>();
-    repository.pendingFetches.addAll([initial, failing, retry]);
-    cubit = UpdatesFeedCubit(
-      destinationId: AttentionFeedDestinationId.activityStream,
-      attention: attention,
-      setup: NoopInviteAcceptedSetupPort(),
-      realtime: realtimeCase,
-      logger: Logger('updates-feed-cubit-test'),
-    );
-    accounts.emit('account-a');
-    await _settle();
-    initial.complete(_feed(items: [_receipt()]));
-    await _settle();
+  test(
+    'failed refresh keeps loaded items and exposes a retryable error',
+    () async {
+      final initial = Completer<AttentionFeed>();
+      final failing = Completer<AttentionFeed>();
+      final retry = Completer<AttentionFeed>();
+      repository.pendingFetches.addAll([initial, failing, retry]);
+      cubit = UpdatesFeedCubit(
+        destinationId: AttentionFeedDestinationId.activityStream,
+        attention: attention,
+        setup: NoopInviteAcceptedSetupPort(),
+        realtime: realtimeCase,
+        logger: Logger('updates-feed-cubit-test'),
+        actorProfiles: buildNoopAttentionActorProfiles(),
+      );
+      accounts.emit('account-a');
+      await _settle();
+      initial.complete(_feed(items: [_receipt()]));
+      await _settle();
 
-    expect(cubit.state.items, hasLength(1));
-    expect(cubit.state.hasRefreshError, isFalse);
+      expect(cubit.state.items, hasLength(1));
+      expect(cubit.state.hasRefreshError, isFalse);
 
-    final refresh = cubit.refresh();
-    await _settle();
-    failing.completeError(StateError('offline'));
-    await refresh;
-    await _settle();
+      final refresh = cubit.refresh();
+      await _settle();
+      failing.completeError(StateError('offline'));
+      await refresh;
+      await _settle();
 
-    expect(cubit.state.hasRefreshError, isTrue);
-    expect(cubit.state.items, hasLength(1));
-    expect(cubit.state.status, isA<StateIsSuccess>());
+      expect(cubit.state.hasRefreshError, isTrue);
+      expect(cubit.state.items, hasLength(1));
+      expect(cubit.state.status, isA<StateIsSuccess>());
 
-    retry.complete(_feed(items: [_receipt(id: 'r2')]));
-    await cubit.refresh();
-    await _settle();
+      retry.complete(_feed(items: [_receipt(id: 'r2')]));
+      await cubit.refresh();
+      await _settle();
 
-    expect(cubit.state.hasRefreshError, isFalse);
-    expect(cubit.state.items, hasLength(1));
-    expect(cubit.state.items.single.id, 'r2');
-  });
+      expect(cubit.state.hasRefreshError, isFalse);
+      expect(cubit.state.items, hasLength(1));
+      expect(cubit.state.items.single.id, 'r2');
+    },
+  );
 }

@@ -17,6 +17,7 @@ import 'package:tentura/features/updates/ui/bloc/updates_feed_cubit.dart';
 import '../../features/block/support/controllable_block_case.dart';
 import '../../support/test_realtime_sync.dart';
 import 'support/noop_invite_setup_port.dart';
+import '../../support/noop_attention_actor_profiles.dart';
 
 final class _Accounts implements AttentionAccountPort {
   final _changes = StreamController<String>.broadcast();
@@ -124,146 +125,163 @@ void main() {
     await accounts.close();
   });
 
-  test('destinations keep independent view and search but share unread total',
-      () async {
-    const destA = AttentionFeedDestinationId.activityStream;
-    const destB = AttentionFeedDestinationId.history;
+  test(
+    'destinations keep independent view and search but share unread total',
+    () async {
+      const destA = AttentionFeedDestinationId.activityStream;
+      const destB = AttentionFeedDestinationId.history;
 
-    accounts.emit('account-a');
-    await _pump();
-    final bootA = Completer<AttentionFeed>();
-    final bootB = Completer<AttentionFeed>();
-    final unreadA = Completer<AttentionFeed>();
-    final searchB = Completer<AttentionFeed>();
-    repository.pendingFetches.addAll([bootA, bootB, unreadA, searchB]);
+      accounts.emit('account-a');
+      await _pump();
+      final bootA = Completer<AttentionFeed>();
+      final bootB = Completer<AttentionFeed>();
+      final unreadA = Completer<AttentionFeed>();
+      final searchB = Completer<AttentionFeed>();
+      repository.pendingFetches.addAll([bootA, bootB, unreadA, searchB]);
 
-    final cubitA = UpdatesFeedCubit(
-      destinationId: destA,
-      attention: attention,
-      setup: setup,
-      realtime: realtimeSync,
-      logger: Logger('session-a'),
-    );
-    final cubitB = UpdatesFeedCubit(
-      destinationId: destB,
-      attention: attention,
-      setup: setup,
-      realtime: realtimeSync,
-      logger: Logger('session-b'),
-    );
+      final cubitA = UpdatesFeedCubit(
+        destinationId: destA,
+        attention: attention,
+        setup: setup,
+        realtime: realtimeSync,
+        logger: Logger('session-a'),
+        actorProfiles: buildNoopAttentionActorProfiles(),
+      );
+      final cubitB = UpdatesFeedCubit(
+        destinationId: destB,
+        attention: attention,
+        setup: setup,
+        realtime: realtimeSync,
+        logger: Logger('session-b'),
+        actorProfiles: buildNoopAttentionActorProfiles(),
+      );
 
-    await _pump();
-    bootA.complete(_feed(receiptId: 'shared-a'));
-    bootB.complete(_feed(receiptId: 'shared-b'));
-    await _pump();
+      await _pump();
+      bootA.complete(_feed(receiptId: 'shared-a'));
+      bootB.complete(_feed(receiptId: 'shared-b'));
+      await _pump();
 
-    expect(cubitA.state.summary.unreadTotal, 1);
-    expect(cubitB.state.summary.unreadTotal, 1);
-    expect(cubitA.state.items.single.id, 'shared-a');
-    expect(cubitB.state.items.single.id, 'shared-b');
+      expect(cubitA.state.summary.unreadTotal, 1);
+      expect(cubitB.state.summary.unreadTotal, 1);
+      expect(cubitA.state.items.single.id, 'shared-a');
+      expect(cubitB.state.items.single.id, 'shared-b');
 
-    cubitA.setView(AttentionView.unread);
-    await _pump();
-    unreadA.complete(_feed(receiptId: 'unread-a'));
-    await _pump();
-    expect(cubitA.state.view, AttentionView.unread);
-    expect(cubitB.state.view, AttentionView.all);
+      cubitA.setView(AttentionView.unread);
+      await _pump();
+      unreadA.complete(_feed(receiptId: 'unread-a'));
+      await _pump();
+      expect(cubitA.state.view, AttentionView.unread);
+      expect(cubitB.state.view, AttentionView.all);
 
-    cubitB.setSearch('needle');
-    await _pump();
-    searchB.complete(_feed(receiptId: 'needle-b'));
-    await _pump();
-    expect(cubitB.state.searchText, 'needle');
-    expect(cubitA.state.searchText, isEmpty);
+      cubitB.setSearch('needle');
+      await _pump();
+      searchB.complete(_feed(receiptId: 'needle-b'));
+      await _pump();
+      expect(cubitB.state.searchText, 'needle');
+      expect(cubitA.state.searchText, isEmpty);
 
-    await cubitA.close();
-    await cubitB.close();
-  });
+      await cubitA.close();
+      await cubitB.close();
+    },
+  );
 
-  test('dispose and remount restores prior view and search for a destination',
-      () async {
-    const dest = AttentionFeedDestinationId.activityStream;
+  test(
+    'dispose and remount restores prior view and search for a destination',
+    () async {
+      const dest = AttentionFeedDestinationId.activityStream;
 
-    accounts.emit('account-a');
-    await _pump();
-    final initial = Completer<AttentionFeed>();
-    final needsYou = Completer<AttentionFeed>();
-    final searched = Completer<AttentionFeed>();
-    final remounted = Completer<AttentionFeed>();
-    repository.pendingFetches.addAll([initial, needsYou, searched, remounted]);
+      accounts.emit('account-a');
+      await _pump();
+      final initial = Completer<AttentionFeed>();
+      final needsYou = Completer<AttentionFeed>();
+      final searched = Completer<AttentionFeed>();
+      final remounted = Completer<AttentionFeed>();
+      repository.pendingFetches.addAll([
+        initial,
+        needsYou,
+        searched,
+        remounted,
+      ]);
 
-    var cubit = UpdatesFeedCubit(
-      destinationId: dest,
-      attention: attention,
-      setup: setup,
-      realtime: realtimeSync,
-      logger: Logger('session-remount'),
-    );
-    await _pump();
-    initial.complete(_feed(receiptId: 'initial'));
-    await _pump();
+      var cubit = UpdatesFeedCubit(
+        destinationId: dest,
+        attention: attention,
+        setup: setup,
+        realtime: realtimeSync,
+        logger: Logger('session-remount'),
+        actorProfiles: buildNoopAttentionActorProfiles(),
+      );
+      await _pump();
+      initial.complete(_feed(receiptId: 'initial'));
+      await _pump();
 
-    await cubit.setView(AttentionView.needsYou);
-    await _pump();
-    needsYou.complete(_feed(receiptId: 'needs'));
-    await _pump();
-    cubit.setSearch('keep-me');
-    await _pump();
-    searched.complete(_feed(receiptId: 'searched'));
-    await _pump();
+      await cubit.setView(AttentionView.needsYou);
+      await _pump();
+      needsYou.complete(_feed(receiptId: 'needs'));
+      await _pump();
+      cubit.setSearch('keep-me');
+      await _pump();
+      searched.complete(_feed(receiptId: 'searched'));
+      await _pump();
 
-    await cubit.close();
+      await cubit.close();
 
-    cubit = UpdatesFeedCubit(
-      destinationId: dest,
-      attention: attention,
-      setup: setup,
-      realtime: realtimeSync,
-      logger: Logger('session-remount-2'),
-    );
-    await _pump();
-    remounted.complete(_feed(receiptId: 'remounted'));
-    await _pump();
+      cubit = UpdatesFeedCubit(
+        destinationId: dest,
+        attention: attention,
+        setup: setup,
+        realtime: realtimeSync,
+        logger: Logger('session-remount-2'),
+        actorProfiles: buildNoopAttentionActorProfiles(),
+      );
+      await _pump();
+      remounted.complete(_feed(receiptId: 'remounted'));
+      await _pump();
 
-    expect(cubit.state.view, AttentionView.needsYou);
-    expect(cubit.state.searchText, 'keep-me');
+      expect(cubit.state.view, AttentionView.needsYou);
+      expect(cubit.state.searchText, 'keep-me');
 
-    await cubit.close();
-  });
+      await cubit.close();
+    },
+  );
 
-  test('stale fetch does not apply after view changes bump generation', () async {
-    const dest = AttentionFeedDestinationId.activityStream;
+  test(
+    'stale fetch does not apply after view changes bump generation',
+    () async {
+      const dest = AttentionFeedDestinationId.activityStream;
 
-    final initial = Completer<AttentionFeed>();
-    final staleUnread = Completer<AttentionFeed>();
-    final freshAll = Completer<AttentionFeed>();
-    repository.pendingFetches.addAll([initial, staleUnread, freshAll]);
+      final initial = Completer<AttentionFeed>();
+      final staleUnread = Completer<AttentionFeed>();
+      final freshAll = Completer<AttentionFeed>();
+      repository.pendingFetches.addAll([initial, staleUnread, freshAll]);
 
-    final cubit = UpdatesFeedCubit(
-      destinationId: dest,
-      attention: attention,
-      setup: setup,
-      realtime: realtimeSync,
-      logger: Logger('session-stale'),
-    );
-    accounts.emit('account-a');
-    await _pump();
-    initial.complete(_feed(receiptId: 'first'));
-    await _pump();
+      final cubit = UpdatesFeedCubit(
+        destinationId: dest,
+        attention: attention,
+        setup: setup,
+        realtime: realtimeSync,
+        logger: Logger('session-stale'),
+        actorProfiles: buildNoopAttentionActorProfiles(),
+      );
+      accounts.emit('account-a');
+      await _pump();
+      initial.complete(_feed(receiptId: 'first'));
+      await _pump();
 
-    await cubit.setView(AttentionView.unread);
-    await _pump();
-    await cubit.setView(AttentionView.all);
-    await _pump();
-    freshAll.complete(_feed(receiptId: 'fresh-all'));
-    await _pump();
+      await cubit.setView(AttentionView.unread);
+      await _pump();
+      await cubit.setView(AttentionView.all);
+      await _pump();
+      freshAll.complete(_feed(receiptId: 'fresh-all'));
+      await _pump();
 
-    staleUnread.complete(_feed(receiptId: 'stale-unread'));
-    await _pump();
+      staleUnread.complete(_feed(receiptId: 'stale-unread'));
+      await _pump();
 
-    expect(cubit.state.view, AttentionView.all);
-    expect(cubit.state.items.single.id, 'fresh-all');
+      expect(cubit.state.view, AttentionView.all);
+      expect(cubit.state.items.single.id, 'fresh-all');
 
-    await cubit.close();
-  });
+      await cubit.close();
+    },
+  );
 }

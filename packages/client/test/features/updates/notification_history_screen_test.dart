@@ -27,6 +27,7 @@ import '../../support/attention_repository_fake_base.dart';
 import '../../support/test_realtime_sync.dart';
 import '../block/support/controllable_block_case.dart';
 import 'support/noop_invite_setup_port.dart';
+import '../../support/noop_attention_actor_profiles.dart';
 
 class _HarnessRouter extends Mock implements StackRouter {
   @override
@@ -141,6 +142,7 @@ Future<void> _pumpHistory(
     GetIt.I.unregister<AttentionCase>();
   }
   GetIt.I.registerSingleton<AttentionCase>(attention);
+  ensureNoopAttentionActorProfilesRegistered();
   GetIt.I.registerSingleton<InviteAcceptedSetupPort>(
     NoopInviteAcceptedSetupPort(),
   );

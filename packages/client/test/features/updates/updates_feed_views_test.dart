@@ -24,6 +24,7 @@ import 'package:tentura/ui/test_ids.dart';
 import '../../features/block/support/controllable_block_case.dart';
 import '../../support/test_realtime_sync.dart';
 import 'support/noop_invite_setup_port.dart';
+import '../../support/noop_attention_actor_profiles.dart';
 
 final class _Accounts implements AttentionAccountPort {
   final _changes = StreamController<String>.broadcast();
@@ -125,6 +126,7 @@ void main() {
       setup: NoopInviteAcceptedSetupPort(),
       realtime: sync.case_,
       logger: Logger('activity-views'),
+      actorProfiles: buildNoopAttentionActorProfiles(),
     );
     await _drain();
 
@@ -140,7 +142,10 @@ void main() {
     await tester.pump();
 
     expect(find.byKey(const ValueKey<String>('updates-all')), findsOneWidget);
-    expect(find.byKey(const ValueKey<String>('updates-unread')), findsOneWidget);
+    expect(
+      find.byKey(const ValueKey<String>('updates-unread')),
+      findsOneWidget,
+    );
     expect(
       find.byKey(const ValueKey<String>('updates-needs-you')),
       findsNothing,
@@ -179,6 +184,7 @@ void main() {
         setup: NoopInviteAcceptedSetupPort(),
         realtime: sync.case_,
         logger: Logger('activity-unread-badge'),
+        actorProfiles: buildNoopAttentionActorProfiles(),
       );
       await _drain();
 
@@ -204,5 +210,4 @@ void main() {
       unawaited(accounts.close());
     },
   );
-
 }

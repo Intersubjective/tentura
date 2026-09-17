@@ -178,7 +178,6 @@ class _ForwardOfferCard extends StatelessWidget {
     final showOfferHelp = inboxCardAllowsOfferHelp(item);
     final allowsForward = beacon.allowsForward;
 
-    final attention = GetIt.I<AttentionCase>();
     final eventsBlock = eventsMeta == null ||
             eventsMeta!.eventsPreview.isEmpty
         ? null
@@ -187,7 +186,8 @@ class _ForwardOfferCard extends StatelessWidget {
             eventsPreview: eventsMeta!.eventsPreview,
             beaconId: item.beaconId,
             actors: actors,
-            onMarkSeen: (id) => unawaited(attention.markSeen([id])),
+            onMarkSeen: (id) =>
+                unawaited(GetIt.I<AttentionCase>().markSeen([id])),
           );
 
     final actions = Padding(

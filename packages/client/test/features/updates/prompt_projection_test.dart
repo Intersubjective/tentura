@@ -22,6 +22,7 @@ import 'package:tentura/ui/bloc/state_base.dart';
 
 import '../../support/test_realtime_sync.dart';
 import '../block/support/controllable_block_case.dart';
+import '../../support/noop_attention_actor_profiles.dart';
 
 final class _Accounts implements AttentionAccountPort {
   final _changes = StreamController<String>.broadcast();
@@ -44,8 +45,7 @@ final class _Repository extends AttentionRepositoryFake {
     String? search,
     int limit = 50,
     AttentionSurface? surface,
-  }) =>
-      pendingFetches.removeAt(0).future;
+  }) => pendingFetches.removeAt(0).future;
 
   @override
   Future<Set<String>> unreadForBeacons(Set<String> beaconIds) async => {};
@@ -173,6 +173,7 @@ void main() {
         setup: setup,
         realtime: realtimeSync,
         logger: Logger('prompt-projection-test'),
+        actorProfiles: buildNoopAttentionActorProfiles(),
       );
       accounts.emit('account-a');
       await _pump();
@@ -204,6 +205,7 @@ void main() {
         setup: setup,
         realtime: realtimeSync,
         logger: Logger('prompt-projection-test'),
+        actorProfiles: buildNoopAttentionActorProfiles(),
       );
       accounts.emit('account-a');
       await _pump();
@@ -241,6 +243,7 @@ void main() {
         setup: setup,
         realtime: realtimeSync,
         logger: Logger('prompt-projection-test'),
+        actorProfiles: buildNoopAttentionActorProfiles(),
       );
       accounts.emit('account-a');
       await _pump();

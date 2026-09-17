@@ -21,6 +21,7 @@ import '../block/support/controllable_block_case.dart';
 import 'activity_offers_test_support.dart';
 import 'inbox_case_test.dart'
     show FakeInboxRepository, buildTestBeaconThreadsCase, buildTestInboxCase;
+import '../../support/noop_attention_actor_profiles.dart';
 
 Future<void> _settle([int turns = 12]) async {
   for (var i = 0; i < turns; i++) {
@@ -138,6 +139,7 @@ void main() {
       inboxCase: inboxCase,
       attentionCase: attentionCase,
       pageSize: pageSize,
+      actorProfiles: buildNoopAttentionActorProfiles(),
     );
   }
 
@@ -310,7 +312,10 @@ void main() {
       await _settle(20);
 
       expect(cubit.state.items.single.beaconId, 'B3');
-      expect(cubit.state.items.single.latestForwardAt, restored.latestForwardAt);
+      expect(
+        cubit.state.items.single.latestForwardAt,
+        restored.latestForwardAt,
+      );
     });
   });
 

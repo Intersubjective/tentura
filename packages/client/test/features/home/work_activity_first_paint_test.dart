@@ -58,6 +58,7 @@ import '../inbox/inbox_case_test.dart'
         buildTestInboxCase;
 import '../my_work/my_work_test_support.dart' hide buildTestBeaconThreadsCase;
 import '../updates/support/noop_invite_setup_port.dart';
+import '../../support/noop_attention_actor_profiles.dart';
 
 const _accountId = 'first-paint-user';
 const _beaconTop = 'beacon-first-paint';
@@ -295,6 +296,7 @@ Future<void> _pumpMyWorkShell(WidgetTester tester) async {
     Logger('work-activity-first-paint'),
   );
   GetIt.I.registerSingleton<AttentionCase>(attention);
+  ensureNoopAttentionActorProfilesRegistered();
   GetIt.I.registerSingleton<InviteAcceptedSetupPort>(
     NoopInviteAcceptedSetupPort(),
   );
@@ -433,6 +435,7 @@ Future<void> _pumpActivityShell(WidgetTester tester) async {
     GetIt.I.unregister<AttentionCase>();
   }
   GetIt.I.registerSingleton<AttentionCase>(attention);
+  ensureNoopAttentionActorProfilesRegistered();
   GetIt.I.registerSingleton<InboxCase>(inboxCase);
   GetIt.I.registerSingleton<InviteAcceptedSetupPort>(
     NoopInviteAcceptedSetupPort(),

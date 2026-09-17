@@ -43,6 +43,7 @@ import 'inbox_case_test.dart'
         buildTestBeaconThreadsCase,
         buildTestInboxCase;
 import 'package:tentura/features/inbox/domain/use_case/inbox_case.dart';
+import '../../support/noop_attention_actor_profiles.dart';
 
 class _HarnessRouter extends Mock implements StackRouter {
   int pushCount = 0;
@@ -235,6 +236,7 @@ Future<void> _pumpInboxOverflow(
     GetIt.I.unregister<AttentionCase>();
   }
   GetIt.I.registerSingleton<AttentionCase>(attentionCase);
+  ensureNoopAttentionActorProfilesRegistered();
   final inboxCase = buildTestInboxCase(
     FakeInboxRepository(),
     buildTestBeaconThreadsCase(),
