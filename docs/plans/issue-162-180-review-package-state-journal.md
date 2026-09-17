@@ -67,7 +67,7 @@ If Opus is unavailable: routine units degrade to Composer-only implement+verify;
 - [x] UNIT 01 drop auto-close — hard (close paths) — Opus inner — verify pass 2026-09-18
 - [x] UNIT 02 m0176 `sent_at` + context — hard (many hops, PG) — Opus inner — verify pass 2026-09-18
 - [x] UNIT 03 optional targets / counters — hard (D6/D7) — Opus inner — verify pass 2026-09-18
-- [ ] UNIT 04 GraphQL + client schema — routine — Opus inner
+- [x] UNIT 04 GraphQL + client schema — routine — Opus inner — verify pass 2026-09-18
 - [ ] UNIT 05 author nudge — hard (races, idempotency) — **ASTRA inner**
 - [ ] UNIT 06 reopen announces — hard (tx order) — Opus inner
 - [ ] UNIT 07 l10n keys — routine — Opus inner
@@ -205,6 +205,47 @@ Overseer independently re-ran `evaluation_case_test.dart --exclude-tags pg` → 
 UNIT_BASE: `a7feea820`
 Inner: Opus-low (not Astra)
 
+## UNIT 05 — in progress
+
+UNIT_BASE: `9b98de071`
+Inner: **ASTRA** (slot A1 of current quota). Fallback: Opus-high if Astra unavailable.
+
+### scout — 2026-09-18 — UNIT 05
+
+STATUS: complete
+
+BRIEF: D14 — when the **last required** reviewer send makes `_canCloseNow` flip false→true, notify the **author once per window** via new `AttentionEventType.reviewAllPackagesIn` (not `reviewOpened`). Live `evaluationFinalize` (`evaluation_case.dart:1515–1575` at `9b98de071`) only writes `setReviewUserStatus(..., status: 2, markSent: true)` and calls `settleReviewerObligationOnPackageSend` **outside** any `TransactionalAttentionCase` boundary — no nudge exists yet. Wrap finalize’s status write + intent in `_attention!.runAction` (same pattern as `beaconClose` `:169` and `closeNow` `:508`). **Inside the transaction:** (1) `wasCloseableBefore = await _canCloseNow(beaconId)` **before** readiness loop + status write; (2) existing readiness loop unchanged; (3) if `st != 2`, `setReviewUserStatus` with `markSent: true`; (4) `isCloseableNow = await _canCloseNow(beaconId)` **after** write; (5) if `!wasCloseableBefore && isCloseableNow`, load `getReviewWindow` + `getBeaconById`, then `transaction.record(await _attentionIntents!.reviewAllPackagesIn(...))` with `authorUserId: beacon.author.id`, `beaconTitle: beacon.title`, `sourceEventKey: 'review_all_in:$beaconId:${window.openedAt.toUtc().toIso8601String()}'`, `actorUserId` = author (via builder’s `BeaconNotificationIntent.actorUserId`). Keep `settleReviewerObligationOnPackageSend` **after** the transaction (plan ties crash-safety to the nudge, not settlement). **Policy:** six switches follow `reviewOpened` branches except `_suppression → standard` (not mandatory), `_requiresAction → false`, `_presentationKey → 'review_all_packages_in'`; `_category → unblocksMe`; `_accessPolicy` + `_destination → review` like `:160`/`:231`. **Intent:** plan-literal `reviewAllPackagesIn` in `attention_intent_case.dart` — `NotificationPriority.normal`, `admittedUserIds: [authorUserId]`, `resolveContext: false`. **Contract:** append `eventTypes` row + matching `_expectedEventTypes` entry in `updates_event_contract_test.dart`; use `producer: 'EvaluationCase.evaluationFinalize'`, `recipientCategory: 'beacon_author'` (contract test does not validate category vocabulary — plan literal), `destinationFamily: 'review'`, `muteability: 'standard'`. Add a **second** `producers[]` row for `packages/server/lib/domain/use_case/evaluation_case.dart` with `eventType: reviewAllPackagesIn` (file already has one row for `reviewOpened`; coverage test only enforces uniqueness for `coordination_item/`). **Idempotency:** transition guard prevents redundant work on `st == 2` retries when already closeable; same `sourceEventKey` per window dedups edit→re-send (`attention_dispatch_repository.dart:40–65`). Former committers excluded from `_canCloseNow` (`:594–609`) — last required send is author + active committers only (UNIT 03).
+
+STEPS (commit-sized):
+1. **Attention surface** — `attention_models.dart`: insert `reviewAllPackagesIn` immediately after `reviewOpened`. `attention_policy.dart`: add the new enum to all six switches per BRIEF (exhaustive compile gate). `attention_intent_case.dart`: add `reviewAllPackagesIn` builder (plan block ~866–883).
+2. **Contract** — `updates-event-contract.json` `eventTypes` + `producers`; mirror row into `updates_event_contract_test.dart` `_expectedEventTypes` (insert after `reviewOpened` row ~99–105).
+3. **Tests (red)** — new group in `evaluation_case_test.dart` (reuse `no auto-close on the last required send` fixture: `requiredParticipants()`, `openWindow()`, `reviewStatusesResult` seeding). Four plan-named tests asserting `attention.recorded` filtered by `AttentionEventType.reviewAllPackagesIn`: single intent, correct `sourceEventKey` from `evalRepo.reviewWindowResult!.openedAt`, recipient author only, no `requiresAction`/no last-sender in payload (inspect `recipients` + stable fields only). **Fake fix (in Owns):** teach `_FakeEvaluationRepository.setReviewUserStatus` to set `reviewStatusesResult[userId] = status` so in-transaction `_canCloseNow` works without manual post-hoc map patches; optional `Map<String,int>? reviewUserStatusByUser` override for author-as-last-sender (`getReviewUserStatus` is currently one global `reviewUserStatusResult` for all users — author-last test needs per-user status or a dedicated fake subclass in-test).
+4. **Production** — `evaluationFinalize`: refactor body into `_attention!.runAction(actorUserId: userId, action: (transaction) async { ... })`; null `_attention`/`_attentionIntents` must not ship in prod — match existing `_attention!` discipline. Red meaningful: steps 3 fails with zero `reviewAllPackagesIn` intents before step 4.
+5. **PG concurrency (overseer widen)** — plan requires `two simultaneous last sends emit one notification` tagged `pg`; **not** in strict Owns. Add to `evaluation_repository_review_status_pg_test.dart` or sibling, cloning `review_obligation_settlement_pg_test.dart` `_buildEvaluationCase` + real `AttentionDispatchRepository`, two writers/serial transactions, count `attention_occurrence` rows for `event_type = 'reviewAllPackagesIn'` and matching `source_event_key`. Skip if disposable DB unreachable (same harness as UNIT 02).
+
+TEST_CMD:
+```bash
+cd packages/server && ../../scripts/run_with_test_cleanup.sh --timeout 20m -- dart test test/domain/evaluation/evaluation_case_test.dart test/architecture/updates_event_contract_test.dart --exclude-tags pg
+```
+```bash
+cd packages/server && ../../scripts/run_with_test_cleanup.sh --timeout 20m -- dart test test/data/repository/evaluation_repository_review_status_pg_test.dart --tags pg
+```
+(second command only after overseer widens Owns for PG file + test is written)
+
+UNTOUCHABLE: pre-existing dirty/untracked; generated; **client**; do not push.
+
+RISKS:
+- **Owns vs CI (attention_policy_test):** `attention_policy_test.dart` iterates every contract `eventTypes` row and `_fixtureFor` throws on unknown names — **not** in UNIT 05 Owns. Adding `reviewAllPackagesIn` to the contract without a fixture breaks `dart test test/domain/attention/attention_policy_test.dart` on full-package CI even when unit Verify passes. **Overseer must widen Owns** for a `'reviewAllPackagesIn'` fixture (reason `authorOfBeacon`, role `_baseRole`) or authorize a minimal cross-file fix before merge.
+- **Owns vs PG concurrency:** PG test file absent from Owns — `BLOCKED` on strict plan until widened; scenario matrix row 13 depends on it.
+- **Plan `producers` JSON shape:** live `producers[]` uses `useCase` file paths; plan snippet uses `"producer": "EvaluationCase.evaluationFinalize"` in `eventTypes` only — mirror **`eventTypes`** six-field shape in Dart; add **`producers`** row with `useCase: packages/server/lib/domain/use_case/evaluation_case.dart`, `eventType: reviewAllPackagesIn`, same `recipientCategory`/`destinationFamily`/`muteability`/`coveringTest`.
+- **`recipientCategory`:** plan says `beacon_author` (not an existing token in `_expectedEventTypes`); contract test accepts any non-empty string — use plan literal and journal the choice.
+- **Fake `getReviewUserStatus`:** single scalar breaks multi-actor finalize tests unless widened; `_canCloseNow` already uses `reviewStatusesResult` map — keep map authoritative and align `setReviewUserStatus` writes (scout-recommended).
+- **`st == 2` retry:** no status write; if map already all-2, `wasCloseableBefore` true → no second intent (transition guard).
+- **Edit after nudge:** `canCloseNow` false again; re-send triggers transition true again but **same** `sourceEventKey` → DB/idempotent record; unit harness `_RecordingDispatch` may append duplicates unless test filters by key or simulates dispatch dedup — assert **one** intent with the window key or count distinct keys.
+- **Author-as-last-sender:** include author in `requiredParticipants` with role 0; seed `{author: 1, helper: 2}` statuses, finalize as author — recipient must still be author (`admittedUserIds: [authorUserId]`).
+- **Line drift:** `evaluationFinalize` ~1515; `_canCloseNow` ~594; `reviewOpened` intent ~322; policy switches ~65/120/160/231/274/312 — OK.
+- **Inventory test:** no new `requestStatusChanged` site expected; do not add `.reviewAllPackagesIn` to `transactional_attention_producer_inventory_test.dart` migrated list unless overseer widens (optional hygiene, not in Verify).
+
 ### scout — 2026-09-18 — UNIT 04
 
 STATUS: complete
@@ -236,6 +277,29 @@ RISKS:
 - **No manual map constructors** elsewhere — only `evaluationParticipantToGqlMap` / `reviewWindowStatusToGqlMap` in `query_evaluation.dart`; no test map literals listing all participant keys.
 - **Full-package `dart test --exclude-tags pg`:** mandatory per plan; journal UNIT 03 noted a pre-existing inventory red — **re-checked at scout:** `transactional_attention_producer_inventory_test.dart` is **green** (`evaluation_case.dart` expects 3 `requestStatusChanged` sites, live count 3). Full suite should be viable for first green; if red, likely unrelated architecture/pg-less drift — fix only if this unit’s diff caused it.
 - **Client codegen:** ferry not run in this unit; only `schema.graphql` hand edit — UNIT 09 runs documents + codegen.
+
+### verify — 2026-09-18 — UNIT 04
+
+STATUS: pass
+
+TEST_OUTPUT:
+- `dart test --exclude-tags pg` (via `run_with_test_cleanup.sh`, 20m) — **+1638, −0** (~10.3s).
+- `grep -n "viewerPackageOptional\|unsentStartedPackages\|rowStatus" packages/client/lib/data/gql/schema.graphql` — lines **7773** (`rowStatus`), **8051** (`unsentStartedPackages`), **8053** (`viewerPackageOptional`).
+
+RANGE: `a7feea820..9b98de071` (3 commits: `c289b3e2f` DTO+case context, `6cbe53dec` GraphQL+schema, `9b98de071` journal). Worktree: only pre-existing UNTOUCHABLE dirty/untracked; no uncommitted UNIT 04 code.
+
+SCOPE: Commits touch plan Owns (`custom_types.dart`, `gql_v2_dto_maps.dart`, `schema.graphql`) plus scout-authorised widen (`evaluation_participant_result.dart`, `evaluation_case.dart`, `evaluation_case_test.dart`). No `packages/client/**/*.graphql` query documents; no `*.g.dart` / `_g/` in range. `evaluationParticipantToGqlMap` adds all five participant fields; `reviewWindowStatusToGqlMap` adds all nine window fields; `committedAt`/`sentAt` use `?.toUtc().toIso8601String()` matching `openedAt`/`closesAt`. `gqlType*` nullability matches plan (participant `isOptional`/`rowStatus`/`offerMessage` non-null; context strings nullable except `offerMessage`).
+
+ACCEPTANCE (plan UNIT 04):
+- **Server tests green** — **met** — +1638 non-pg.
+- **Grep prints new fields from client schema** — **met** — three symbols present on `v2_EvaluationParticipant` / `v2_ReviewWindowStatus`.
+- **Both participant endpoints pass context fields** — **met in production** (`evaluationParticipants` ~731–733, `evaluationDraftParticipants` ~843–845); **tests** — `participants carry the commitment context fields` (`evaluationParticipants`), `draft participants carry the commitment context fields` (`evaluationDraftParticipants`).
+- **No client `.graphql` documents yet** — **met** — only `schema.graphql` (+14 lines).
+
+GAPS:
+- **No API-layer test** asserts GraphQL resolver maps emit ISO strings for `committedAt`/`sentAt` (domain DTO tests only).
+- **Widen beyond strict Owns** — DTO/case/tests in `c289b3e2f`; required for mapper compile (scout-predicted); acceptable.
+- **Client ferry codegen / query field selection** — deferred UNIT 09 (inner REMAINING).
 
 ### manager — UNIT 02 accepted — 2026-09-18T00:32:00+02:00
 
@@ -528,3 +592,9 @@ FINDINGS:
 - Four implementation/test commits are local. No push. No generated/client/environment/UNTOUCHABLE files changed by this executor.
 
 REMAINING: approve widening to `packages/server/test/domain/attention/attention_intent_case_test.dart`, apply the prepared author-recipient builder fixture, rerun full non-PG server suite and lint, commit green. Scope approval requested asynchronously under plan §0 ("Never edit a file outside the current unit’s Owns"). Do not mark UNIT 05 fully accepted until this gate is green.
+
+### checkpoint — UNIT 05 — 2026-09-18 — overseer
+
+Astra inner `STATUS: partial` on fixture Owns only. Production wrap inspected line-by-line: `evaluationFinalize` records `wasCloseableBefore` before status 2, emits only on `!wasCloseableBefore && isCloseableNow`, `sourceEventKey` uses window `openedAt`, settlement stays after `runAction`, `_canCloseNow` untouched, `requiresAction` false, payload is generic envelope plus beacon id/title (no last-sender, no send timestamp). Policy six switches match the plan. Actor-exclusion bypass is event-specific in `fromBeaconNotification`.
+
+Astra's `/tmp/unit05-intent-fixture.patch` would have duplicated `sourceEventKey` inside the `reviewOpened` fixture. Overseer-applied D17 widen instead: insert a separate `reviewAllPackagesIn` fixture after `reviewOpened` in `attention_intent_case_test.dart`, recipient `actor`. Independent TEST_CMD + that inventory test running next.

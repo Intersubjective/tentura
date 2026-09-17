@@ -155,6 +155,17 @@ void main() {
           ),
         ),
         (
+          eventType: AttentionEventType.reviewAllPackagesIn,
+          legacyKind: 'reviewReady',
+          recipient: actor,
+          build: (intents) => intents.reviewAllPackagesIn(
+            beaconId: beacon,
+            beaconTitle: 'Request title',
+            authorUserId: actor,
+            sourceEventKey: eventKey,
+          ),
+        ),
+        (
           eventType: AttentionEventType.mutualConnectionFormed,
           legacyKind: 'inviteAccepted',
           recipient: target,
