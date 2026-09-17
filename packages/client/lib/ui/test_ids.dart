@@ -78,6 +78,7 @@ abstract final class TestIds {
       'capability.$slug.summary';
 
   static const roomMessageInput = 'room.message.input';
+  static const roomMessagePaste = 'room.message.paste';
   static const roomMessageSend = 'room.message.send';
 
   /// Press-scale wrapper around a room message bubble (long-press grow).

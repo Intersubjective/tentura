@@ -1281,6 +1281,24 @@ class _BeaconRoomComposerState extends State<BeaconRoomComposer> {
     return editable;
   }
 
+  Widget _pasteImageButton(L10n l10n, ThemeData theme, bool busy) {
+    final readOnly = widget.readOnlyHint != null;
+    final enabled = !busy && !readOnly && _remainingSlots > 0;
+    return Semantics(
+      identifier: TestIds.roomMessagePaste,
+      button: true,
+      child: IconButton(
+        key: const ValueKey('paste'),
+        tooltip: l10n.beaconRoomAttachPasteImage,
+        onPressed: enabled ? () => unawaited(_pasteImage()) : null,
+        icon: Icon(
+          Icons.content_paste_rounded,
+          color: theme.colorScheme.onSurfaceVariant,
+        ),
+      ),
+    );
+  }
+
   Widget _attachMenuButton(L10n l10n, ThemeData theme, bool busy) {
     final readOnly = widget.readOnlyHint != null;
     return PopupMenuButton<String>(
@@ -1295,8 +1313,6 @@ class _BeaconRoomComposerState extends State<BeaconRoomComposer> {
           await _pickImages();
         } else if (v == 'file') {
           await _pickFiles();
-        } else if (v == 'paste') {
-          await _pasteImage();
         }
       },
       itemBuilder: (ctx) => [
@@ -1308,15 +1324,22 @@ class _BeaconRoomComposerState extends State<BeaconRoomComposer> {
           value: 'file',
           child: Text(l10n.beaconRoomAttachPickFiles),
         ),
-        PopupMenuItem(
-          value: 'paste',
-          child: Text(l10n.beaconRoomAttachPasteImage),
-        ),
       ],
       icon: Icon(
         Icons.attach_file_rounded,
         color: theme.colorScheme.onSurfaceVariant,
       ),
+    );
+  }
+
+  Widget _attachSuffixActions(L10n l10n, ThemeData theme, bool busy) {
+    return Row(
+      key: const ValueKey('attach-actions'),
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        _pasteImageButton(l10n, theme, busy),
+        _attachMenuButton(l10n, theme, busy),
+      ],
     );
   }
 
@@ -1440,13 +1463,17 @@ class _BeaconRoomComposerState extends State<BeaconRoomComposer> {
                     decoration: InputDecoration(
                       hintText:
                           widget.readOnlyHint ?? l10n.beaconRoomMessageHint,
+                      suffixIconConstraints: const BoxConstraints(
+                        minWidth: 2 * kMinInteractiveDimension,
+                        minHeight: kMinInteractiveDimension,
+                      ),
                       suffixIcon: widget.enableAttachments && !readOnly
                           ? AnimatedSwitcher(
                               duration: const Duration(milliseconds: 180),
                               switchInCurve: Curves.easeOut,
                               switchOutCurve: Curves.easeIn,
                               child: showAttach
-                                  ? _attachMenuButton(l10n, theme, busy)
+                                  ? _attachSuffixActions(l10n, theme, busy)
                                   : const SizedBox.shrink(
                                       key: ValueKey('attach-hidden'),
                                     ),

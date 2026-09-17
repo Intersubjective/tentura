@@ -451,9 +451,7 @@ void main() {
       ),
     );
 
-    await tester.tap(find.byKey(const ValueKey('attach')));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Paste image'));
+    await tester.tap(find.byKey(const ValueKey('paste')));
     await tester.pumpAndSettle();
 
     expect(
@@ -476,9 +474,7 @@ void main() {
       ),
     );
 
-    await tester.tap(find.byKey(const ValueKey('attach')));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Paste image'));
+    await tester.tap(find.byKey(const ValueKey('paste')));
     await tester.pumpAndSettle();
 
     expect(find.text('No image on clipboard'), findsOneWidget);
@@ -507,9 +503,7 @@ void main() {
       ),
     );
 
-    await tester.tap(find.byKey(const ValueKey('attach')));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Paste image'));
+    await tester.tap(find.byKey(const ValueKey('paste')));
     await tester.pumpAndSettle();
 
     const mb = kMaxRoomMessageAttachmentBytes ~/ (1024 * 1024);
@@ -537,9 +531,7 @@ void main() {
       ),
     );
 
-    await tester.tap(find.byKey(const ValueKey('attach')));
-    await tester.pumpAndSettle();
-    await tester.tap(find.text('Paste image'));
+    await tester.tap(find.byKey(const ValueKey('paste')));
     await tester.pumpAndSettle();
 
     expect(find.text('Could not read clipboard'), findsOneWidget);
@@ -550,6 +542,39 @@ void main() {
       ),
       findsNothing,
     );
+  });
+
+  testWidgets('paste button is visible without opening attach menu', (
+    tester,
+  ) async {
+    await pumpComposerBody(
+      tester,
+      onSend: (_, _) async => true,
+      clipboardImageRepository: _FakeClipboardImageRepository.result(
+        const ClipboardImageReadResult.notFound(),
+      ),
+    );
+
+    expect(find.byKey(const ValueKey('paste')), findsOneWidget);
+    expect(find.byKey(const ValueKey('attach')), findsOneWidget);
+    expect(find.text('Paste image'), findsNothing);
+  });
+
+  testWidgets('attach menu lists Photos and Files only', (tester) async {
+    await pumpComposerBody(
+      tester,
+      onSend: (_, _) async => true,
+      clipboardImageRepository: _FakeClipboardImageRepository.result(
+        const ClipboardImageReadResult.notFound(),
+      ),
+    );
+
+    await tester.tap(find.byKey(const ValueKey('attach')));
+    await tester.pumpAndSettle();
+
+    expect(find.text('Photos'), findsOneWidget);
+    expect(find.text('Files'), findsOneWidget);
+    expect(find.text('Paste image'), findsNothing);
   });
 
   testWidgets(
