@@ -93,7 +93,7 @@ None at start. Product decisions D1–D19 are frozen.
 
 ## UNIT 00 — complete — 2026-09-18T00:15:00+02:00
 
-COMMITS: (pending this file)
+COMMITS: `d34fb0a9f docs: start issue 162/180 journal`
 TESTS: n/a — journal + baseline only; commands recorded above
 FILES: `docs/plans/issue-162-180-review-package-state-journal.md`
 FINDINGS: baseline matches §3; `_autoCloseReviewWindow` still live; no `m0176`; client dirty files from an earlier snapshot (`beacon_fact_composer_sheet.dart`, `test_ids.dart`, `basic_chat_body.dart`) are **not** dirty now — current `git status --short -- packages/client packages/server` is empty
@@ -101,8 +101,76 @@ REMAINING: none for UNIT 00; next is UNIT 01 sandwich
 
 ---
 
+## UNIT 01 — in progress
+
+UNIT_BASE: `d34fb0a9f`
+Inner: Opus-low (not Astra)
+Owns (exclusive): `evaluation_case.dart`, `evaluation_case_test.dart`, `e2e_test_helpers.dart`, `beacon_hierarchy_child_independence_pg_test.dart`, `docs/beacon-evaluation-principles.md`
+
+### scout — 2026-09-18
+
+STATUS: complete
+
+BRIEF: Remove the `evaluationFinalize` tail that calls `_autoCloseReviewWindow` when `_canCloseNow` is true, then delete `_autoCloseReviewWindow` entirely (~lines 1493–1553 in live `evaluation_case.dart`). Observable acceptance: (1) a successful package send before deadline leaves beacon `reviewOpen`, review window row `status == 0`, and does not invoke `ReviewFinalizationPort.closeAndFinalize`; (2) `reviewWindowStatus(author).canCloseNow == true` once all required author/committer packages are sent (status 2) while the window stays open; (3) `closeNow` still gates on `_canCloseNow` and calls `closeAndFinalize` with `authorCloseNow` — unchanged (`closeNow` group ~2610); (4) `evaluationFinalize` still calls `_ensureExpiredClosed` first — when `AttentionExpiryRepositoryPort.lockExpiredReviewWindowBeaconIds` returns the beacon, sweep closes via `closeAndFinalize` with `reviewExpired` (D2); (5) `grep -rn "_autoCloseReviewWindow" packages/server/lib packages/server/test` is empty post-edit.
+
+Approach: Literal plan edits. Callers of `closeAndFinalize` from evaluation paths after delete: `closeNow` (~543), `AttentionExpirySweepCase.runDue` (~43). Only caller of `_autoCloseReviewWindow` was `evaluationFinalize` (~1494). Do not touch `_canCloseNow`, `closeAndFinalize`, or add a close flag to `evaluationFinalize`.
+
+STEPS (commit-sized):
+1. **Tests (red)** — `evaluation_case_test.dart` `group('evaluationFinalize')`: add four tests per plan; mirror `closeNow` fixture (`participantsResult`, `reviewStatusesResult`, `_TransactionStubBeaconRepo` with `BeaconStatus.reviewOpen`, `openWindow()`). Red meaningful: yes — today last-send triggers `closeAndFinalize` via auto-close. `canCloseNow` test: `_FakeEvaluationRepository.setReviewUserStatus` does **not** update `reviewStatusesResult`; after helper `evaluationFinalize`, set map to `{author: 2, helper: 2}` before `reviewWindowStatus` (real DB would already be 2). Deadline test: reuse `attention_expiry_sweep_case_test.dart` `_ExpiryRepository` pattern (`due = [beaconId]`), wire into `AttentionExpirySweepCase` in a local `buildTestEvaluationCase`; assert `closeAndFinalizeCalls` includes `reviewExpired` — `_FakeReviewFinalization` does not mutate beacon/window, so do not expect `_requireLiveReview` to throw unless you add a mutating fake. `author closeNow still closes`: optional duplicate of `closeNow` group test or one-line pointer — plan lists it; minimal `closeNow` call in finalize group is fine. Red meaningful for deadline: partial (sweep invocation is the behavior under test).
+2. **Production delete** — `evaluation_case.dart`: remove `if (await _canCloseNow...) { _autoCloseReviewWindow... }` block; delete `_autoCloseReviewWindow` method + doc comment. Red meaningful: n/a (makes step 1 green). Run grep gate.
+3. **E2E helper** — `e2e_test_helpers.dart` `triggerCloseNow` (~1015–1058): remove doc/behavior that treats `finishedArchive` as success without explicit close; drop `finishedArchive` from `_awaitMyWorkDeskAction` predicate; always tap My Work close or HUD `closeNow` before waiting for Archive; update comment at ~872 if it still implies auto-close-only navigation. Red meaningful: no (integration; not in UNIT verify).
+4. **PG lifecycle shape** — `beacon_hierarchy_child_independence_pg_test.dart` `runGenericLifecycle`: after last `evaluationFinalize`, read real beacon/window status (expect `reviewOpen`), call `evaluationCase.closeNow(owner)`, then build `LifecycleOutcomeShape` from actual close outcome. Red meaningful: yes on PG after step 2 (today constants hide regression). Verify separately: `dart test ... beacon_hierarchy_child_independence_pg_test.dart` (pg tag).
+5. **Docs** — `docs/beacon-evaluation-principles.md` line 28: replace “timeout, early close, or auto-close” with author close-now + deadline; keep unsent-rows-discarded sentence. Red meaningful: no.
+
+TEST_CMD:
+```bash
+cd packages/server && ../../scripts/run_with_test_cleanup.sh --timeout 20m -- dart test test/domain/evaluation/evaluation_case_test.dart --exclude-tags pg
+```
+```bash
+cd /home/vader/MY_SRC/tentura && grep -rn "_autoCloseReviewWindow" packages/server/lib packages/server/test
+```
+(Optional PG owns file: `cd packages/server && ../../scripts/run_with_test_cleanup.sh --timeout 20m -- dart test test/domain/use_case/beacon_hierarchy_child_independence_pg_test.dart`)
+
+UNTOUCHABLE: journal pre-existing dirty/untracked list (`.serena/project.yml`, constellation journal, other `docs/plans/*`, keys, `image_cropper_for_web/build`, etc.); generated files; files outside UNIT 01 Owns.
+
+RISKS:
+- Live line numbers match plan (~1445 finalize, ~1497 auto-close, ~499 closeNow, ~148 `_ensureExpiredClosed`) — no blocker.
+- Plan prose “closeNow and expiry sweep call `closeAndFinalize` directly” is correct; `_autoCloseReviewWindow` doc falsely claims shared path with author close-now — `closeNow` never called it.
+- Historical quirk: `_autoCloseReviewWindow` used `authorCloseNow` reason with the **reviewer’s** `userId` as actor when triggered from last send — deleted with method.
+- `_requireLiveReview` does not check `closesAt`; only `evaluationSubmit` throws `reviewWindowExpired`. Deadline close on finalize is **only** via `_ensureExpiredClosed` sweep, not in-finalize `_canCloseNow`.
+- `triggerCloseNow` currently waits on Archive without tapping close when auto-close already happened — must change or e2e flakes after step 2.
+- `nested-requests-implementation-plan.md` still names `_autoCloseReviewWindow` — out of Owns; do not edit in UNIT 01.
+
 ## Manager notes
 
 Workers: read this journal fully before inspecting or editing. Append a checkpoint after meaningful progress. Append a final entry tagged `scout` / `inner` / `verify` / `finisher` before exit. Do not touch UNTOUCHABLE paths. Do not push. Do not invent user-facing strings. Owns lists in the plan are exclusive.
 
 Prompt/log scratchpad (outside repo): `/tmp/overseer-162-180/`
+
+### inner — 2026-09-18 — Opus 5 low
+
+STATUS: complete
+
+COMMITS (UNIT_BASE `d34fb0a9f`):
+- `a17b5a773 fix(server): stop closing the review window on the last send`
+- `4b34b5282 test(e2e): require an explicit author close after the last review send`
+- `9862a4759 test(server): assert the real close outcome in the PG lifecycle shape`
+- `7723de02e docs(evaluation): close paths are author close-now or the deadline`
+
+TESTS:
+- step 1/2 `dart test test/domain/evaluation/evaluation_case_test.dart --exclude-tags pg` — RED `+71 -3` (the three behavioural tests; the deadline-sweep test passes as a guard) → GREEN `+74`.
+- grep gate `grep -rn "_autoCloseReviewWindow" packages/server/lib packages/server/test` — empty (exit 1).
+- step 3 red n/a (integration wiring, not in unit Verify); `dart analyze integration_test/support/e2e_test_helpers.dart` — no errors.
+- step 4 `dart test test/domain/use_case/beacon_hierarchy_child_independence_pg_test.dart` — GREEN `+2`.
+- step 5 red n/a (docs).
+
+FILES: `packages/server/lib/domain/use_case/evaluation_case.dart`, `packages/server/test/domain/evaluation/evaluation_case_test.dart`, `packages/client/integration_test/support/e2e_test_helpers.dart`, `packages/server/test/domain/use_case/beacon_hierarchy_child_independence_pg_test.dart`, `docs/beacon-evaluation-principles.md`.
+
+FINDINGS:
+- The four new tests live in a nested group `no auto-close on the last required send` inside `group('evaluationFinalize')`, so full names are `evaluationFinalize no auto-close on the last required send <name>`.
+- Scout's fake-gap warning confirmed: `_FakeEvaluationRepository.setReviewUserStatus` does not touch `reviewStatusesResult`, so the group's `setUp` seeds `{author: 2, helper: 2}` (what a real DB would read inside the send) — that is what makes the red meaningful.
+- `ReviewWindowStatusResult.windowComplete` is `bool?`, not `bool`; the PG shape needs `?? false`.
+- PG shape now derives `finalizeStatus` from `closeNow(...).status` and `finalizeDidClose` from a post-close `reviewWindowStatus`; `finalizeTrustPairCount` stays the literal `0` (no outcome field carries it).
+- `nested-requests-implementation-plan.md` still mentions `_autoCloseReviewWindow` — out of Owns, untouched.
+
+REMAINING: none for UNIT 01.
