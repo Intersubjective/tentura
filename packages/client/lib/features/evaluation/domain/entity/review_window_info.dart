@@ -17,6 +17,15 @@ abstract class ReviewWindowInfo with _$ReviewWindowInfo {
     @Default(0) int extensionsUsed,
     bool? canCloseNow,
     bool? canReopen,
+    DateTime? sentAt,
+    @Default(0) int requiredTotal,
+    @Default(0) int requiredReviewed,
+    @Default(0) int optionalTotal,
+    @Default(0) int optionalReviewed,
+    @Default(false) bool viewerPackageOptional,
+    @Default(false) bool allRequiredSent,
+    @Default(0) int sentReviewerCount,
+    @Default(0) int unsentStartedPackages,
   }) = _ReviewWindowInfo;
 
   const ReviewWindowInfo._();

@@ -185,6 +185,15 @@ class EvaluationRepository {
               extensionsUsed: s.extensionsUsed ?? 0,
               canCloseNow: s.canCloseNow,
               canReopen: s.canReopen,
+              sentAt: s.sentAt == null ? null : _parseUtcDateTime(s.sentAt!),
+              requiredTotal: s.requiredTotal ?? 0,
+              requiredReviewed: s.requiredReviewed ?? 0,
+              optionalTotal: s.optionalTotal ?? 0,
+              optionalReviewed: s.optionalReviewed ?? 0,
+              viewerPackageOptional: s.viewerPackageOptional ?? false,
+              allRequiredSent: s.allRequiredSent ?? false,
+              sentReviewerCount: s.sentReviewerCount ?? 0,
+              unsentStartedPackages: s.unsentStartedPackages ?? 0,
             );
           });
 
