@@ -29,6 +29,7 @@ import '../../domain/entity/constellation_anchor.dart';
 import '../../domain/entity/constellation_field.dart';
 import '../bloc/constellation_cubit.dart';
 import '../utils/constellation_edge_style.dart';
+import '../utils/constellation_presentation_frame.dart';
 import '../utils/constellation_tap_resolver.dart';
 import 'constellation_anchor_controls.dart';
 import 'constellation_camera_controls.dart';
@@ -708,6 +709,7 @@ class _ConstellationBodyState extends State<ConstellationBody> {
             final scheme = Theme.of(context).colorScheme;
             final mapNode = switch (node) {
               FieldPersonNode(:final ring, :final person) => _ConstellationMapNode(
+                graphController: cubit.graphController,
                 child: GraphNodeWidget(
                   key: TestIds.key(TestIds.graphNode(node.id)),
                   nodeDetails: node,
@@ -730,6 +732,7 @@ class _ConstellationBodyState extends State<ConstellationBody> {
                 statusBadge: null,
               ),
               FieldRequestNode(:final request) => _ConstellationMapNode(
+                graphController: cubit.graphController,
                 child: GraphNodeWidget(
                   key: TestIds.key(TestIds.graphNode(node.id)),
                   nodeDetails: node,
@@ -904,38 +907,85 @@ class _ConstellationBodyState extends State<ConstellationBody> {
   }
 }
 
-class _ConstellationMapNode extends StatelessWidget {
+class _ConstellationMapNode extends StatefulWidget {
   const _ConstellationMapNode({
     required this.child,
+    required this.graphController,
     this.pinBadge,
     this.statusBadge,
   });
 
   final Widget child;
+  final GraphController<NodeDetails, EdgeDetails> graphController;
   final Widget? pinBadge;
   final Widget? statusBadge;
+
+  @override
+  State<_ConstellationMapNode> createState() => _ConstellationMapNodeState();
+}
+
+class _ConstellationMapNodeState extends State<_ConstellationMapNode> {
+  late ConstellationDetailLevel _detail = nextConstellationDetailLevel(
+    widget.graphController.cameraScale,
+    ConstellationDetailLevel.normal,
+  );
+
+  @override
+  void initState() {
+    super.initState();
+    widget.graphController.cameraRevision.addListener(_onCamera);
+  }
+
+  @override
+  void didUpdateWidget(_ConstellationMapNode oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.graphController != widget.graphController) {
+      oldWidget.graphController.cameraRevision.removeListener(_onCamera);
+      widget.graphController.cameraRevision.addListener(_onCamera);
+      _onCamera();
+    }
+  }
+
+  @override
+  void dispose() {
+    widget.graphController.cameraRevision.removeListener(_onCamera);
+    super.dispose();
+  }
+
+  // Only the pin badge is zoom-gated; rebuild solely on detail-level change.
+  void _onCamera() {
+    final next = nextConstellationDetailLevel(
+      widget.graphController.cameraScale,
+      _detail,
+    );
+    if (next != _detail) {
+      setState(() => _detail = next);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
     final tt = context.tt;
     final overhang = constellationMarkerBadgeOverhang(tt);
+    final pinBadge = widget.pinBadge;
     return Stack(
       clipBehavior: Clip.none,
       alignment: Alignment.center,
       children: [
-        child,
-        if (statusBadge != null)
+        widget.child,
+        if (widget.statusBadge != null)
           PositionedDirectional(
             top: -overhang,
             start: -overhang,
-            child: statusBadge!,
+            child: widget.statusBadge!,
           ),
         if (pinBadge != null)
-          PositionedDirectional(
-            top: -overhang,
-            end: -overhang,
-            child: pinBadge!,
-          ),
+          if (pinBadge != null && _detail == ConstellationDetailLevel.normal)
+            PositionedDirectional(
+              top: -overhang,
+              end: -overhang,
+              child: pinBadge,
+            ),
       ],
     );
   }

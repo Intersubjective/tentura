@@ -19,7 +19,11 @@ import 'package:tentura/ui/effect/ui_effect.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/test_ids.dart';
 
+import 'package:tentura/features/constellation/domain/entity/constellation_anchor.dart';
+import 'package:tentura/features/constellation/ui/utils/constellation_presentation_frame.dart';
+
 import '../../ui/effect/fake_ui_effect_port.dart';
+import 'fixtures/constellation_reference_fixture.dart';
 
 class _StubContextCubit extends Cubit<GraphPersonContextState>
     implements GraphPersonContextCubit {
@@ -243,6 +247,88 @@ void main() {
           ConstellationEdgeKind.tier2Path,
         )),
       );
+    });
+  });
+
+  group('Constellation pin badge zoom LOD', () {
+    List<ConstellationAnchor> pinnedAnchors() => [
+      ConstellationAnchor(
+        target: ConstellationAnchorTarget.beacon('req-in-2'),
+        position: const ConstellationAnchorPosition(
+          xUnits: -3,
+          yUnits: 4,
+          coordinateSpaceVersion: 1,
+        ),
+        revision: ConstellationAnchorRevision(BigInt.one),
+        placedAt: DateTime.utc(2026, 9, 9, 12),
+      ),
+    ];
+
+    Finder inRequestNode(String key) => find.descendant(
+      of: find
+          .ancestor(
+            of: find.byKey(TestIds.key(TestIds.graphNode('req-in-2'))),
+            matching: find.byWidgetPredicate(
+              (widget) =>
+                  widget is Stack &&
+                  widget.clipBehavior == Clip.none &&
+                  widget.alignment == Alignment.center,
+            ),
+          )
+          .first,
+      matching: find.byKey(TestIds.key(key)),
+    );
+
+    Future<void> zoomUntil(
+      WidgetTester tester,
+      ConstellationCubit cubit,
+      double factor,
+      bool Function(double scale) done,
+    ) async {
+      for (var i = 0; i < 20 && !done(cubit.graphController.cameraScale); i++) {
+        cubit.graphController.zoomBy(factor);
+        await tester.pump();
+      }
+      await tester.pump(const Duration(milliseconds: 400));
+      expect(done(cubit.graphController.cameraScale), isTrue);
+    }
+
+    testWidgets('pin hides at overview zoom and returns at normal zoom', (
+      tester,
+    ) async {
+      final cubit = await loadReferenceCubit(
+        field: constellationReferenceField(anchors: pinnedAnchors()),
+      );
+      addTearDown(cubit.close);
+      await pumpConstellationBody(tester, cubit);
+      await tester.pumpAndSettle();
+
+      final pin = inRequestNode(TestIds.constellationPinMarker);
+      final status = inRequestNode(TestIds.constellationRequestStatusMarker);
+      expect(
+        cubit.graphController.cameraScale,
+        greaterThanOrEqualTo(kConstellationNormalDetailScale),
+      );
+      expect(pin, findsOneWidget);
+      expect(status, findsOneWidget);
+
+      await zoomUntil(
+        tester,
+        cubit,
+        0.8,
+        (s) => s < kConstellationOverviewDetailScale,
+      );
+      expect(pin, findsNothing);
+      expect(status, findsOneWidget);
+
+      await zoomUntil(
+        tester,
+        cubit,
+        1.25,
+        (s) => s >= kConstellationNormalDetailScale,
+      );
+      expect(pin, findsOneWidget);
+      expect(status, findsOneWidget);
     });
   });
 
