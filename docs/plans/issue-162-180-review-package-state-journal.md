@@ -68,7 +68,7 @@ If Opus is unavailable: routine units degrade to Composer-only implement+verify;
 - [x] UNIT 02 m0176 `sent_at` + context — hard (many hops, PG) — Opus inner — verify pass 2026-09-18
 - [x] UNIT 03 optional targets / counters — hard (D6/D7) — Opus inner — verify pass 2026-09-18
 - [x] UNIT 04 GraphQL + client schema — routine — Opus inner — verify pass 2026-09-18
-- [ ] UNIT 05 author nudge — hard (races, idempotency) — **ASTRA inner**
+- [x] UNIT 05 author nudge — hard (races, idempotency) — **ASTRA inner** A1 — verify pass 2026-09-18 — overseer accepted (`d98a2e50b`)
 - [ ] UNIT 06 reopen announces — hard (tx order) — Opus inner
 - [ ] UNIT 07 l10n keys — routine — Opus inner
 - [ ] UNIT 08 `ReviewPackageState` — routine — Opus inner
@@ -598,3 +598,48 @@ REMAINING: approve widening to `packages/server/test/domain/attention/attention_
 Astra inner `STATUS: partial` on fixture Owns only. Production wrap inspected line-by-line: `evaluationFinalize` records `wasCloseableBefore` before status 2, emits only on `!wasCloseableBefore && isCloseableNow`, `sourceEventKey` uses window `openedAt`, settlement stays after `runAction`, `_canCloseNow` untouched, `requiresAction` false, payload is generic envelope plus beacon id/title (no last-sender, no send timestamp). Policy six switches match the plan. Actor-exclusion bypass is event-specific in `fromBeaconNotification`.
 
 Astra's `/tmp/unit05-intent-fixture.patch` would have duplicated `sourceEventKey` inside the `reviewOpened` fixture. Overseer-applied D17 widen instead: insert a separate `reviewAllPackagesIn` fixture after `reviewOpened` in `attention_intent_case_test.dart`, recipient `actor`. Independent TEST_CMD + that inventory test running next.
+
+### verify — 2026-09-18 — UNIT 05
+
+STATUS: pass
+
+TEST_OUTPUT:
+- `dart test test/domain/evaluation/evaluation_case_test.dart test/architecture/updates_event_contract_test.dart --exclude-tags pg` (via wrapper, 20m) — **+89, −0** (~3.2s).
+- `dart test test/data/repository/evaluation_repository_review_status_pg_test.dart --tags pg` (via wrapper, 20m) — first run **+5** then post-suite `PathNotFoundException` exit **255** (test-cleanup race, same class as UNIT 02); immediate re-run **+5, −0**, exit **0** (~5.2s).
+- `dart test test/domain/attention/attention_intent_case_test.dart --exclude-tags pg` (via wrapper, 10m) — **+33, −0** (~3.8s).
+- Supplemental (not in scout TEST_CMD): `attention_policy_test.dart` — **+22**; `transactional_attention_producer_inventory_test.dart` — **+5** — both green.
+
+RANGE: `9b98de071..d98a2e50b` (6 commits: `3c769e4d3`, `66ffb2d7a`, `f3f557f70`, `d16c98b8d`, `f326b74fa`, `d98a2e50b`). Worktree: only pre-existing UNTOUCHABLE dirty/untracked; **no** uncommitted UNIT 05 code.
+
+SCOPE: 11 paths in range (+726/−57 lines): plan Owns + overseer D17 widen (`attention_intent_case_test.dart` +11). No `packages/client/**`; no `*.g.dart` / generated. No deleted `test(` lines in `evaluation_case_test.dart` diff. PG file extended (+214) with concurrency, rollback, and prior UNIT 02 tests retained.
+
+COMMITS: Six focused commits match inner steps 1–5 + overseer fixture (`d98a2e50b`). **Process:** `f3f557f70` folds four RED notification tests with production (same pattern as UNIT 01) — inner recorded RED +85 −4 before green; not a separate failing commit.
+
+ACCEPTANCE (plan UNIT 05 + scout):
+- **Author nudge when all required packages in (D14)** — **met** — `evaluationFinalize` wraps in `_attention!.runAction`; `reviewAllPackagesIn` intent + four named unit tests + PG occurrence count.
+- **Exactly once per window** — **met** — transition guard + deterministic `sourceEventKey`; tests `the last required package notifies the author exactly once`, `an edit and re-send…`, PG `two simultaneous last sends emit one notification`.
+- **Transactional with status write** — **met** — `wasCloseableBefore` at `:1533` before `setReviewUserStatus` `:1567–1573`; `transaction.record` inside same `runAction` before return.
+- **Emit only on closeable transition** — **met** — `:1575–1576` `!wasCloseableBefore && isCloseableNow`.
+- **sourceEventKey uses window openedAt** — **met** — `:1588–1589`; unit tests assert against `reviewWindowResult!.openedAt`.
+- **requiresAction false, not reviewOpened** — **met** — policy `:280`; enum `reviewAllPackagesIn`; presentation `review_all_packages_in`.
+- **Author recipient including author-as-last-sender** — **met** — `fromBeaconNotification` event-specific author branch `:901–909`; test `the author as last sender still gets the notification`.
+- **Payload: beacon id/title only (no last-sender, no send time)** — **met** — intent uses stable author actor + generic projector envelope; PG/unit receipt assertions per inner.
+- **Settlement after transaction** — **met** — `settleReviewerObligationOnPackageSend` at `:1597–1600` after `runAction` closes.
+- **_canCloseNow unchanged** — **met** — `sed -n '594,610p'` identical `9b98de071` vs `HEAD`.
+- **Contract** — **met** — `updates-event-contract.json` + `_expectedEventTypes` row; contract test +1 in +89 run.
+- **Do not reuse reviewOpened / no generation id** — **met**.
+
+GAPS:
+- **Process:** RED tests not isolated in their own commit (`f3f557f70`) — acceptable product-wise (inner documented RED first).
+- **PG teardown:** intermittent exit 255 after green suite — environmental; re-run confirms **+5**.
+- **None material** for UNIT acceptance after `d98a2e50b`.
+
+### overseer — UNIT 05 accepted — 2026-09-18
+
+Verdict: **accepted**. Astra inner (slot A1) + overseer D17 fixture widen `d98a2e50b` + Composer verify pass. Independent overseer tests: evaluation+contract+intent+policy `--exclude-tags pg` **+144**. Line-by-line review of `evaluationFinalize` wrap and policy switches matches D14. Process miss (red tests folded into `f3f557f70`) does not affect product. Remaining Astra slots: A2 UNIT 10, A3 UNIT 12, A4 emergency.
+
+## UNIT 06 — Server: reopen announces itself
+
+UNIT_BASE: `d98a2e50b`
+Inner: Opus 5 low. Not Astra.
+Live-code note: `reopenFromReview` currently builds `requestStatusChanged` then `downgradeSubmittedReviewsToDraft` → `deleteReviewScaffoldingForBeacon` → `supersedeReviewObligationsOnReopen`. Status list must be read **before** the delete.
