@@ -7757,15 +7757,20 @@ type v2_EvaluationParticipant {
   acknowledgeableHelpTags: [String!]!
   acknowledgedHelpTags: [String!]!
   causalHint: String!
+  committedAt: String
   contributionSummary: String!
   displayName: String!
+  forwarderDisplayName: String
   imageId: String!
+  isOptional: Boolean!
   isSubmitted: Boolean!
   maxAcknowledgedHelpTags: Int!
   note: String!
+  offerMessage: String!
   promptVariant: String!
   reasonTags: [String!]
   role: Int!
+  rowStatus: Int!
   userId: String!
   value: Int
 }
@@ -8026,6 +8031,7 @@ type v2_PersonSharedContext {
 }
 
 type v2_ReviewWindowStatus {
+  allRequiredSent: Boolean
   beaconId: String!
   beaconTitle: String!
   canCloseNow: Boolean
@@ -8034,9 +8040,17 @@ type v2_ReviewWindowStatus {
   extensionsUsed: Int
   hasWindow: Boolean!
   openedAt: String
+  optionalReviewed: Int
+  optionalTotal: Int
+  requiredReviewed: Int
+  requiredTotal: Int
   reviewedCount: Int
+  sentAt: String
+  sentReviewerCount: Int
   totalCount: Int
+  unsentStartedPackages: Int
   userReviewStatus: Int
+  viewerPackageOptional: Boolean
   windowComplete: Boolean
 }
 
