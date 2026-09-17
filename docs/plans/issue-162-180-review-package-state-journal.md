@@ -64,7 +64,7 @@ If Opus is unavailable: routine units degrade to Composer-only implement+verify;
 ## Unit checklist
 
 - [x] UNIT 00 journal and baseline — routine — overseer — complete
-- [ ] UNIT 01 drop auto-close — hard (close paths) — Opus inner
+- [x] UNIT 01 drop auto-close — hard (close paths) — Opus inner — verify pass 2026-09-18
 - [ ] UNIT 02 m0176 `sent_at` + context — hard (many hops, PG) — Opus inner
 - [ ] UNIT 03 optional targets / counters — hard (D6/D7) — Opus inner; Astra review later
 - [ ] UNIT 04 GraphQL + client schema — routine — Opus inner
@@ -101,7 +101,7 @@ REMAINING: none for UNIT 00; next is UNIT 01 sandwich
 
 ---
 
-## UNIT 01 — in progress
+## UNIT 01 — complete (verify pass 2026-09-18)
 
 UNIT_BASE: `d34fb0a9f`
 Inner: Opus-low (not Astra)
@@ -174,3 +174,108 @@ FINDINGS:
 - `nested-requests-implementation-plan.md` still mentions `_autoCloseReviewWindow` — out of Owns, untouched.
 
 REMAINING: none for UNIT 01.
+
+### verify — 2026-09-18
+
+STATUS: pass
+
+TEST_OUTPUT:
+- `dart test test/domain/evaluation/evaluation_case_test.dart --exclude-tags pg` (via `run_with_test_cleanup.sh`, 20m) — **+74, −0** (all passed).
+- `grep -rn "_autoCloseReviewWindow" packages/server/lib packages/server/test` — **no matches** (exit 1).
+- `dart test test/domain/use_case/beacon_hierarchy_child_independence_pg_test.dart` (via wrapper, 20m) — **+2, −0** (all passed).
+
+RANGE: `d34fb0a9f..e136ba450` (6 commits: production+unit tests `a17b5a773`, e2e `4b34b5282`, PG `9862a4759`, docs `7723de02e`, journal inner `e136ba450`). Worktree: only pre-existing UNTOUCHABLE dirty/untracked; no uncommitted UNIT 01 code.
+
+SCOPE: Diff touches only Owns files + this journal. No generated files; `_canCloseNow`, `closeNow`, and `closeAndFinalize` unchanged in production. No deleted or skipped tests; PG assertions tightened. `nested-requests-implementation-plan.md` still references removed symbol (out of Owns).
+
+COMMITS: Steps 3–5 one commit each; unit tests folded into `a17b5a773` — **acceptable** (inner recorded RED `+71 −3` before delete in same session; four behavioural tests are real).
+
+ACCEPTANCE: all plan UNIT 01 + scout criteria met (see user-facing verify summary in chat).
+
+GAPS: none material (`reviewOpen` not named on stub beacon in unit test; PG `finalizeTrustPairCount` still literal 0).
+
+### manager — UNIT 01 accepted — 2026-09-18T00:24:00+02:00
+
+Overseer independently re-ran `evaluation_case_test.dart --exclude-tags pg` → `+74 All tests passed!` (4.2s). Grep empty. Production diff is a 59-line delete of the auto-close tail + `_autoCloseReviewWindow`; `closeNow` / `_canCloseNow` / `closeAndFinalize` untouched. Untouchables preserved. Tests-folded-into-fix is a process miss, not a product miss — red was recorded before the delete.
+
+---
+
+## UNIT 02 — in progress
+
+UNIT_BASE: `e136ba450`
+Inner: Opus-low (not Astra)
+Owns: m0176 + Drift tables + port/mapper/repo/draft/graph builder/evaluation_case + pg test (see plan UNIT 02)
+
+### scout — 2026-09-18
+
+STATUS: complete
+
+BRIEF: Add migration `m0176` (`beacon_review_status.sent_at`; participant `committed_at`, `offer_message`, `forwarder_display_name`), Drift columns + local codegen (not committed). `setReviewUserStatus(..., markSent: true)` sets `sent_at` once on finalize (`evaluationFinalize` ~1481 when `st != 2`); demotion SQL at `evaluation_repository.dart:392–398` and all other status writes must not touch `sent_at`. Graph builder still writes legacy `contributionSummary` / `causalHint` (incl. ` — participation ended`); new draft fields from `offer.createdAt`, `offer.message`, forwarder display name. Observable acceptance: SQL can read non-null `sent_at` after send while status may be `1` after edit; participant rows carry structured columns; legacy text columns still populated on close.
+
+Approach: Plan literals match live code (no `m0176`; latest `m0175`; `sentAt` absent from `beacon_review_statuses.dart`; port/repo `setReviewUserStatus` has no `markSent`; `insertParticipant` six-arg only; `BeaconEvaluationParticipantRecord` four fields; `_committerParticipant` ~173–196 builds English legacy strings only). Follow `m0175` migration shape; register `part` + list entry after `m0175`. PG harness: clone `evaluation_repository_submit_atomic_pg_test.dart` (`DisposablePgTarget`, `setUpDisposablePgWriter`, `openDisposablePgDatabase`, per-test SQL seed).
+
+STEPS (commit-sized):
+1. **Migration + register** — `m0176.dart` (plan SQL verbatim); `_migrations.dart` `part 'm0176.dart';` after `m0175`, `m0176,` after `m0175,`. Red meaningful: no (schema only until Drift/code paths land).
+2. **Drift tables + codegen** — `beacon_review_statuses.dart` `sentAt`; `beacon_evaluation_participants.dart` three columns; `cd packages/server && dart run build_runner build --delete-conflicting-outputs` (do not commit `*.g.dart`). Red meaningful: no.
+3. **Port + repo `sent_at`** — `evaluation_repository_port.dart` `bool markSent = false`; `evaluation_repository.dart` `setReviewUserStatus` `sentAt: markSent ? Value(PgDateTime(...)) : const Value.absent()`; `evaluation_case.dart` finalize call `status: 2, markSent: true`. Confirm demotion `UPDATE` stays `status` + `updated_at` only. Red meaningful: PG test `finalize stamps sent_at` (after step 6) — yes.
+4. **Participant context round trip** — `evaluation_participant_draft.dart` three fields; `_committerParticipant` sets `committedAt: offer.createdAt`, `offerMessage: offer.message`, `forwarderDisplayName`; forwarder/author drafts per plan; `insertParticipant` + repo companion; `beacon_evaluation_record.dart`; `evaluation_mapper.dart`; `beaconClose` loop ~294 passes draft fields; `evaluation_repository_mock.dart`. Red meaningful: graph builder tests (step 5) — yes.
+5. **Unit tests (non-pg)** — `evaluation_participant_graph_builder_test.dart`: four named tests per plan (`committedAt` vs `updatedAt` for former committer with `withdrawAfterAck` + stale `updatedAt`; empty message; forwarder `committedAt` null). Red meaningful: yes before step 4.
+6. **PG tests** — new `evaluation_repository_review_status_pg_test.dart` `@Tags(['pg'])`, own `TENTURA_*_TEST_DB` prefix: (a) `setReviewUserStatus(status: 2, markSent: true)` or thin `EvaluationCase.evaluationFinalize` → `sent_at` not null; (b) seed `status=2` + `sent_at`, open window, `submitEvaluationAtomic` → `status=1`, `sent_at` unchanged; (c) seed status row + window, `deleteReviewScaffoldingForBeacon` → no `beacon_review_status` row (reopen path). Red meaningful: yes before steps 3–4 for (a)(b); (c) after repo method exists. Optional commit split: schema+drift | domain+repo+case | tests.
+
+TEST_CMD:
+```bash
+cd packages/server && ../../scripts/run_with_test_cleanup.sh --timeout 20m -- dart test test/domain/evaluation --exclude-tags pg
+```
+```bash
+cd packages/server && ../../scripts/run_with_test_cleanup.sh --timeout 20m -- dart test test/data/repository/evaluation_repository_review_status_pg_test.dart --tags pg
+```
+
+UNTOUCHABLE: journal pre-existing dirty/untracked (`.serena/project.yml`, constellation journal, other `docs/plans/*`, keys, `image_cropper_for_web/build`, etc.); generated `*.g.dart` / `_g/`; client; GraphQL; UNIT 03+ files.
+
+RISKS:
+- **Owns vs compile:** `dart test test/domain/evaluation` compiles `evaluation_case_test.dart`, whose `_FakeEvaluationRepository` / `_ParticipantPkeyEnforcingEvaluationRepository` override `setReviewUserStatus` and `insertParticipant` — must add new optional params or verify fails analyze. File is **not** in UNIT 02 Owns; strict plan ⇒ `BLOCKED` until overseer widens Owns for signature-only fake updates (or allows minimal cross-file compile fix). Other `EvaluationRepositoryPort` fakes (coordination, commitment_gates) not compiled by this Verify but break full `dart test`.
+- **Finalize idempotency:** When `st == 2`, finalize skips `setReviewUserStatus` (~1480) — `sent_at` not rewritten on retry (intended).
+- **`clearOne` / `evaluationSubmit`** call `setReviewUserStatus(status: 1)` without `markSent` — must not clear `sent_at` (Drift absent + demotion SQL unchanged).
+- **Backfill:** m0176 sets `sent_at = updated_at` for legacy `status = 2` only; new sends use `markSent` timestamp.
+- **Former-committer date test:** assert `committedAt == offer.createdAt`, not `offer.updatedAt` (reopen/grace scenario).
+- **insertOnConflictUpdate:** new participant columns must be in `BeaconEvaluationParticipantsCompanion.insert` or reopen rematerialization drops structured fields.
+- Live `evaluationFinalize` readiness loop unchanged in this unit (optional-target skip is UNIT 03).
+
+### inner — 2026-09-18 — Opus 5 low
+
+STATUS: complete
+
+COMMITS (UNIT_BASE `e136ba450`):
+- `c5e01afe4 feat(server): add m0176 for review sent_at and participant context`
+- `fcd9a25a2 feat(server): add Drift columns for sent_at and participant context`
+- `d5a0a2336 test(server): pin structured participant context on evaluation drafts`
+- `697f43160 feat(server): fill structured participant context on evaluation drafts`
+- `c88674d5c feat(server): stamp sent_at on package send and persist participant context`
+- `c86667048 test(server): pin sent_at stamping, demotion and reopen deletion on PG`
+
+TESTS:
+- step 1 (migration) red n/a — schema only, unreachable from Dart until Drift lands; `dart analyze _migrations.dart` clean.
+- step 2 (Drift + codegen) red n/a — generated code only; `build_runner build --delete-conflicting-outputs` wrote 636 outputs, `sentAt` present in `tentura_db.g.dart` (not committed, gitignored).
+- step 3 `dart test test/domain/evaluation --exclude-tags pg` — RED `+111 -1` (graph-builder test file failed to *load*: `EvaluationParticipantDraft` had no `committedAt`/`offerMessage`/`forwarderDisplayName`) → GREEN `+120`.
+- step 4 same TEST_CMD — GREEN `+120`; `dart analyze lib test` has zero errors/warnings after the signature-only fake widening.
+- step 5 `dart test test/data/repository/evaluation_repository_review_status_pg_test.dart --tags pg` — GREEN `+3`. Red proven by temporarily forcing `sentAt: const Value.absent()` in `setReviewUserStatus`: `+1 -2` (`finalize stamps sent_at`, `editing a card after send demotes status to 1 and keeps sent_at`). Implementation restored byte-for-byte before commit (`git diff -- packages/server/lib` empty).
+
+FILES:
+- new: `packages/server/lib/data/database/migration/m0176.dart`, `packages/server/test/data/repository/evaluation_repository_review_status_pg_test.dart`
+- `packages/server/lib/data/database/migration/_migrations.dart`, `.../table/beacon_review_statuses.dart`, `.../table/beacon_evaluation_participants.dart`
+- `packages/server/lib/domain/port/evaluation_repository_port.dart`, `.../domain/entity/evaluation/beacon_evaluation_record.dart`, `.../data/mapper/evaluation_mapper.dart`, `.../data/repository/evaluation_repository.dart`, `.../data/repository/mock/evaluation_repository_mock.dart`
+- `packages/server/lib/domain/use_case/evaluation/evaluation_participant_draft.dart`, `.../evaluation_participant_graph_builder.dart`, `.../domain/use_case/evaluation_case.dart`
+- `packages/server/test/domain/evaluation/evaluation_participant_graph_builder_test.dart`
+- signature-only widening (overseer-authorised, D17): `packages/server/test/domain/evaluation/evaluation_case_test.dart`, `packages/server/test/domain/use_case/coordination_case_revert_test.dart`, `packages/server/test/support/commitment_gates_harness.dart`
+
+FINDINGS:
+- **Widening was narrower than the scout predicted.** Only three extra files needed the new optional params. `query_evaluation_test.dart`, `beacon_hierarchy_visibility_pg_support.dart` and the Mockito `extends Fake` classes did **not** need overrides — the analyzer accepted them unchanged. Inside `evaluation_case_test.dart` two classes needed `insertParticipant` widened (`_FakeEvaluationRepository` and `_ParticipantPkeyEnforcingEvaluationRepository`) but only `_FakeEvaluationRepository` needed `setReviewUserStatus`. Total widening: **+14 lines, all parameter declarations**; no assertion, no body, no behaviour touched.
+- `beacon_evaluation_participants.dart` had no `drift_postgres` import (it had no timestamp column before) — adding `committedAt` required adding `import 'package:drift_postgres/drift_postgres.dart';`. `beacon_review_statuses.dart` already imported it.
+- The graph builder already resolved the forwarder's display name for the legacy `causalHint`; `_committerParticipant` now also stores it as `forwarderDisplayName`, so no new repository round trip was introduced.
+- `offer.createdAt` is the only date on the offer that survives a withdraw/reopen; `offer.updatedAt` moves. The former-committer test asserts `committedAt == offer.createdAt` **and** `isNot(offer.updatedAt)` with a 9-day gap, so a future switch to `updatedAt` cannot pass silently.
+- Confirmed the two non-finalize `setReviewUserStatus` call sites (`evaluation_case.dart:989` clear-one, `:1366` submit) both write `status: 1` with `markSent` defaulted false, and the `2 → 1` demotion SQL at `evaluation_repository.dart:392–398` is untouched — `sent_at` survives both paths.
+- `deleteReviewScaffoldingForBeacon` already deleted `beacon_review_status` rows wholesale, so the reopen acceptance needed no production change; the PG test now pins it.
+- The PG suite uses its own `TENTURA_EVAL_REVIEW_STATUS_TEST_DB` env var / `tentura_test_eval_review_status` prefix, and its `setUpAll` asserts `sent_at` exists in `information_schema` — the disposable target runs the full migration list, which is the only automated proof that m0176 is reachable.
+- No generated file was committed; `*.g.dart` is gitignored in this package, so `git add` of the source tables staged sources only.
+
+REMAINING: none for UNIT 02. `markSent` reaches the DB but is not yet exposed over GraphQL (UNIT 04) and the structured participant columns have no reader yet (UNIT 09) — both are later units by design.
