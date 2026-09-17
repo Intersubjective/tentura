@@ -10,6 +10,7 @@ import 'package:tentura/features/capability/ui/widget/forward_capability_chips.d
 import 'package:tentura/features/evaluation/domain/entity/evaluation_participant.dart';
 import 'package:tentura/features/evaluation/domain/entity/evaluation_value.dart';
 import 'package:tentura/features/evaluation/ui/presenter/evaluation_capability_presenter.dart';
+import 'package:tentura/features/evaluation/ui/presenter/evaluation_participant_context.dart';
 import 'package:tentura/features/evaluation/ui/widget/evaluation_capability_picker_sheet.dart';
 import 'package:tentura/features/evaluation/ui/widget/evaluation_impact_control.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
@@ -239,10 +240,14 @@ class _EvaluationDetailSheetBodyState
           : ImageEntity(id: participant.imageId, authorId: participant.userId),
     );
     final roleLine = _roleLabel();
-    final contributionLine = participant.contributionSummary.trim();
-    final roleContribution = contributionLine.isEmpty
-        ? roleLine
-        : '$roleLine · $contributionLine';
+    final participantContext = presentParticipantContext(
+      l10n: widget.l10n,
+      locale: Localizations.localeOf(context),
+      participant: participant,
+    );
+    final metaStyle = theme.textTheme.bodySmall?.copyWith(
+      color: theme.colorScheme.onSurfaceVariant,
+    );
 
     return TenturaSheetDismissGuard(
       isDirty: _isDirty,
@@ -275,11 +280,23 @@ class _EvaluationDetailSheetBodyState
                           ),
                           SizedBox(height: tt.tightGap),
                           Text(
-                            roleContribution,
-                            style: theme.textTheme.bodySmall?.copyWith(
-                              color: theme.colorScheme.onSurfaceVariant,
-                            ),
+                            '$roleLine · ${participantContext.line}',
+                            style: metaStyle,
                           ),
+                          if (participantContext.endedLine != null) ...[
+                            SizedBox(height: tt.tightGap),
+                            Text(
+                              participantContext.endedLine!,
+                              style: metaStyle,
+                            ),
+                          ],
+                          if (participantContext.offerLine != null) ...[
+                            SizedBox(height: tt.tightGap),
+                            Text(
+                              participantContext.offerLine!,
+                              style: metaStyle,
+                            ),
+                          ],
                         ],
                       ),
                     ),
