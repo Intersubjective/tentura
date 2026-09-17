@@ -339,6 +339,25 @@ class AttentionIntentCase {
     resolveContext: false,
   );
 
+  Future<AttentionDispatchIntent> reviewAllPackagesIn({
+    required String beaconId,
+    required String beaconTitle,
+    required String authorUserId,
+    required String sourceEventKey,
+  }) => fromBeaconNotification(
+    notification: BeaconNotificationIntent(
+      kind: NotificationKind.reviewReady,
+      priority: NotificationPriority.normal,
+      beaconId: beaconId,
+      actorUserId: authorUserId,
+      beaconTitle: beaconTitle,
+      admittedUserIds: [authorUserId],
+    ),
+    eventType: AttentionEventType.reviewAllPackagesIn,
+    sourceEventKey: sourceEventKey,
+    resolveContext: false,
+  );
+
   /// [NotificationKind.reviewReady] — legacy outbox/push plumbing only; Updates
   /// cards dispatch on [AttentionEventType] presentation keys.
   Future<AttentionDispatchIntent> trustGivenChanged({
