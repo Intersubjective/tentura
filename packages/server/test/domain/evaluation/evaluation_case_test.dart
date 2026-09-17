@@ -1409,6 +1409,40 @@ void main() {
       expect(status.sentAt, DateTime.utc(2026, 5, 4, 3, 2, 1));
     });
 
+    test('participants carry the commitment context fields', () async {
+      evalRepo
+        ..visibilityResult = visibilityFor(userId, [committerId])
+        ..participantsResult = [
+          const BeaconEvaluationParticipantRecord(
+            beaconId: beaconId,
+            userId: userId,
+            role: 0,
+            contributionSummary: 'author',
+            causalHint: 'h',
+          ),
+          BeaconEvaluationParticipantRecord(
+            beaconId: beaconId,
+            userId: committerId,
+            role: 1,
+            contributionSummary: 'committer',
+            causalHint: 'h',
+            committedAt: DateTime.utc(2026, 3, 2, 1),
+            offerMessage: 'I can help',
+            forwarderDisplayName: 'Bridget',
+          ),
+        ];
+
+      final rows = await evaluationCase.evaluationParticipants(
+        beaconId: beaconId,
+        evaluatorId: userId,
+      );
+
+      final target = rows.singleWhere((r) => r.userId == committerId);
+      expect(target.committedAt, DateTime.utc(2026, 3, 2, 1));
+      expect(target.offerMessage, 'I can help');
+      expect(target.forwarderDisplayName, 'Bridget');
+    });
+
     test('viewerPackageOptional is true only for the former committer', () async {
       evalRepo.visibilityResult = visibilityFor(formerId, [
         userId,
@@ -1520,6 +1554,18 @@ void main() {
       final target = rows.singleWhere((r) => r.userId == helperId);
       expect(target.isOptional, isTrue);
       expect(target.rowStatus, BeaconEvaluationRowStatus.submitted);
+    });
+
+    test('draft participants carry the commitment context fields', () async {
+      final rows = await evaluationCase.evaluationDraftParticipants(
+        beaconId: beaconId,
+        evaluatorId: userId,
+      );
+
+      final target = rows.singleWhere((r) => r.userId == helperId);
+      expect(target.offerMessage, 'helped out');
+      expect(target.committedAt, isNotNull);
+      expect(target.forwarderDisplayName, isNull);
     });
 
     test('a draft target without a stored row reports rowStatus -1', () async {

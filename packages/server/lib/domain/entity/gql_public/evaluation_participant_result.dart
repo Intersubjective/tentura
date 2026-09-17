@@ -16,6 +16,9 @@ class EvaluationParticipantResult {
     required this.promptVariant,
     required this.isOptional,
     required this.rowStatus,
+    this.committedAt,
+    this.offerMessage = '',
+    this.forwarderDisplayName,
     this.acknowledgedHelpTags = const [],
     this.acknowledgeableHelpTags = const [],
     this.maxAcknowledgedHelpTags = 0,
@@ -44,4 +47,13 @@ class EvaluationParticipantResult {
 
   /// BeaconEvaluationRowStatus of the stored row, or -1 when there is no row.
   final int rowStatus;
+
+  /// When this target committed to the request, or null (m0176).
+  final DateTime? committedAt;
+
+  /// The target's help-offer message, or empty (m0176).
+  final String offerMessage;
+
+  /// Display name of whoever forwarded the request to this target (m0176).
+  final String? forwarderDisplayName;
 }

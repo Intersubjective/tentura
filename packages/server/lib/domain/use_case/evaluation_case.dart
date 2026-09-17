@@ -728,6 +728,9 @@ final class EvaluationCase extends UseCaseBase {
           isOptional: EvaluationParticipantRole.fromDb(row.role) ==
               EvaluationParticipantRole.formerCommitter,
           rowStatus: ev?.status ?? -1,
+          committedAt: row.committedAt,
+          offerMessage: row.offerMessage,
+          forwarderDisplayName: row.forwarderDisplayName,
         ),
       );
     }
@@ -837,6 +840,9 @@ final class EvaluationCase extends UseCaseBase {
           isSubmitted: false,
           isOptional: row.role == EvaluationParticipantRole.formerCommitter,
           rowStatus: ev?.status ?? -1,
+          committedAt: row.committedAt,
+          offerMessage: row.offerMessage,
+          forwarderDisplayName: row.forwarderDisplayName,
         ),
       );
     }
