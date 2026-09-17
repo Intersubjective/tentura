@@ -193,5 +193,8 @@ EvaluationParticipantDraft _committerParticipant({
         : baseSummary,
     causalHint:
         isFormer ? '$baseHint$_participationEndedSuffix' : baseHint,
+    committedAt: offer.createdAt,
+    offerMessage: offer.message,
+    forwarderDisplayName: forwarderDisplayName,
   );
 }
