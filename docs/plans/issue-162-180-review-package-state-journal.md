@@ -1019,6 +1019,69 @@ Verdict: **accepted**. Opus-low inner + Composer verify pass. Independent TEST_C
 
 ## UNIT 09 — Client data: role, optionality, context, sheet
 
-UNIT_BASE: `996724eec`
+UNIT_BASE: `02db0c811` (journal header `996724eec` was stale; live `git rev-parse --short HEAD` at scout time)
 Inner: Opus 5 low. Not Astra. Do not parallelize with UNIT 10.
+
+### scout — 2026-09-18 — UNIT 09
+
+STATUS: ready (hard DTO hop) — **compile trap** if plan step 2 removes `contributionSummary`/`causalHint` from `EvaluationParticipant` while `review_contributions_screen.dart` (UNIT 10, untouchable) still reads `participant.contributionSummary` at `:392–393`. Strict Owns + untouchable screen ⇒ **BLOCKED** on literal entity removal unless overseer waives a one-line screen stub or mechanical constructor fixes in non-Owns tests (~6 files). Pragmatic fallback (journal FINDING, not plan text): stop selecting legacy fields in `.graphql`/repo, wire sheet via `presentParticipantContext`, keep deprecated `@Default('')` entity fields until UNIT 10 deletes consumers.
+
+BRIEF: Plumb UNIT 04 GraphQL fields into client domain + repository; add `EvaluationParticipantRole.formerCommitter` (`db 3` at `_roleFromInt` `:493–497`, today `_ => committer`); extend `EvaluationParticipant` with `isOptional`, `rowStatus`, `committedAt`, `offerMessage`, `forwarderDisplayName`, and `hasAnswer` getter (draft/submitted/final only); extend `ReviewWindowInfo` with nine window fields + parse `sentAt` via existing `_parseUtcDateTime` (`:491`); update three `.graphql` documents (drop legacy participant columns per plan, add new ones; extend `review_window_status.graphql`); run `dart run build_runner build --delete-conflicting-outputs` (D18, commit sources only); add `evaluation_participant_context.dart` presenter (l10n keys from UNIT 07); update `evaluation_state.dart` with `requiredParticipants`/`optionalParticipants` and **live** `canFinalize` over `hasAnswer` on required rows only; fix exhaustive role switches in `evaluation_detail_sheet.dart` `:140–145`, `:151–158`, replace `:238` `contributionSummary` with presenter (D9); **do not** add `packageState` / `deriveReviewPackageState` (UNIT 10); **do not** delete `ReviewWindowInfo.viewerHasOutstandingReviewWork` / `viewerCanOpenReviewScreen` (UNIT 12, D17).
+
+**Live vs plan — `canFinalize` / `hasAnswered` / `hasAnswer`:** Plan step 5 mixes **`hasAnswered`** (draft: `currentValue != null`, unchanged on entity `:35`) and **`hasAnswer`** (live: `rowStatus ∈ {0,1,2}`, new). That is intentional, not a typo. **Contradiction is vs live `evaluation_state.dart` `:28–34`**, which uses **`isSubmitted` for live mode**, not `hasAnswered` and not `hasAnswer`. Inner must implement plan step 5 (#180). **`reviewedCount` still counts `isSubmitted` in live mode** after this unit — progress UI may disagree with finalize gate until UNIT 10; do not “fix” reviewedCount here unless plan adds it.
+
+**Schema (UNIT 04 done):** `v2_EvaluationParticipant` / `v2_ReviewWindowStatus` in `schema.graphql` `:7756–7776`, `:8033–8055` already expose all new fields. Client queries still legacy-only (`evaluation_participants.graphql`, `evaluation_draft_participants.graphql`, `review_window_status.graphql`).
+
+**Repository:** `_participantFromGraphqlRow` / `_mapParticipant` / `_mapDraftParticipant` `:44–117` pass `contributionSummary`, `causalHint`, `isSubmitted` only. `fetchReviewWindowStatus` `:163–176` maps 11 legacy fields; batch `fetchReviewWindowStatuses` `:198–202` minimal stub unchanged (My Work UNIT 13).
+
+**Sheet:** `_promptText` treats handoff only for `committer` (`:147–149`); `formerCommitter` must follow committer prompt paths. `_roleLabel` / inner switch need new enum case (same l10n as committer per plan).
+
+**Tests — patterns:** `evaluation_state_test.dart` — small `EvaluationState`/`EvaluationParticipant` const fixtures with `contributionSummary`/`causalHint` today; replace live finalize oracle (`live canFinalize requires every row ready`) with `rowStatus`/`isOptional`/`hasAnswer`. `evaluation_presenter_test.dart` — `lookupL10n` + EN/RU for presenter tests. `evaluation_detail_sheet_test.dart` — `evaluation_sheet_test_support.dart`, const `participant` with legacy summary; add `renders a former committer without crashing` with `role: formerCommitter`. New `evaluation_participant_context_test.dart` — one named test per presenter rule × EN/RU (mirror `evaluation_presenter_test.dart`).
+
+STEPS (4 commits, test-first; red meaningful on state/context/sheet before codegen green):
+
+1. **`feat(client): evaluation participant DTO and role`** — RED: extend `evaluation_state_test.dart` (three plan test names; use `rowStatus`/`isOptional`, keep draft tests on `hasAnswered`); RED: `evaluation_detail_sheet_test.dart` former-committer crash test (fails on non-exhaustive switch). GREEN: add `formerCommitter` to enum; expand `evaluation_participant.dart` (+ `hasAnswer` getter); edit both participant `.graphql` (remove `contributionSummary`/`causalHint`, add `isOptional`, `rowStatus`, `committedAt`, `offerMessage`, `forwarderDisplayName`; keep `isSubmitted` on wire for now); `build_runner`; update `evaluation_repository.dart` `_roleFromInt` + `_participantFromGraphqlRow` mapping; run `dart run build_runner` / freezed regen. **Resolve compile trap** (see STATUS) before committing. Fix sheet switches only if former-committer test is in this commit.
+
+2. **`feat(client): review window status fields on client`** — Extend `review_window_info.dart` (nine fields, `sentAt` as `DateTime?`); `review_window_status.graphql` selections; map in `fetchReviewWindowStatus` (nullable ints/bools with `??` defaults matching entity `@Default`s); `build_runner`. No getter deletion.
+
+3. **`feat(client): canFinalize respects optional targets`** — `evaluation_state.dart` plan getters + `canFinalize`; adjust/replace existing live finalize test; optional-target + all-optional-package rows (#180 / scenario 25).
+
+4. **`feat(client): localized participant context and sheet`** — RED: `evaluation_participant_context_test.dart`; GREEN: `evaluation_participant_context.dart` (`intl` `DateFormat.yMMMd(locale.toLanguageTag())`, rules order per plan step 4, never server English); `evaluation_detail_sheet.dart` replace `:238–241` with presenter output (keep #76 layout minimal); update Owns sheet tests off legacy summary strings.
+
+After each commit: `check-custom-lints.sh packages/client`. Final: full TEST_CMD.
+
+TEST_CMD:
+```bash
+cd packages/client && ../../scripts/run_with_test_cleanup.sh --timeout 15m -- flutter test test/features/evaluation --dart-define=ENV=test --dart-define-from-file=env/test.env
+```
+
+UNTOUCHABLE: pre-existing dirty/untracked; generated `_g/`/`*.g.dart`/`*.freezed.dart`; do not push; do not start UNIT 10 (`review_contributions_screen.dart`, cubit finalize/`packageState`, screen tests) except **`evaluation_state.dart` Owns**; do not delete `viewerHasOutstandingReviewWork` / `viewerCanOpenReviewScreen`; journal/doc/plan edits only for scout.
+
+RISKS:
+- **D17 vs Owns vs entity field removal** — highest risk; see STATUS.
+- **Codegen order** — `.graphql` + freezed entity + ferry must land before repository compiles; one `build_runner` pass at end of step 1/2 may be needed twice.
+- **`hasAnswer` vs `currentValue`/`isSubmitted`** — live finalize uses row status; a card with `currentValue` but `rowStatus == -1` is not finalizable (matches server readiness); tests must set `rowStatus` explicitly.
+- **`reviewedCount` / screen `ready` tile** (`review_contributions_screen.dart:373`) still use `isSubmitted`/`hasAnswered` — UX drift until UNIT 10.
+- **Batch `fetchReviewWindowStatuses`** still omits new fields — OK for this unit; My Work UNIT 13 widens query.
+- **`evaluation_case_test.dart` / other evaluation tests** outside Owns still pass legacy constructor args — break if entity removes required legacy fields without mechanical fixes.
+- **Handoff `promptVariant`** — extend committer condition to `formerCommitter` in `_promptText`.
+- **Do not wire `packageState`** — UNIT 10 owns `deriveReviewPackageState` on state.
+
+### inner — 2026-09-18 — UNIT 09 (Opus 5 low, incomplete)
+
+STATUS: partial — steps 1–3 committed; step 4 presenter tests written then Opus hit monthly spend limit (resets 02:00 Europe/Amsterdam). Did not retry Opus. Did not spend Astra.
+
+COMMITS:
+1. `d912677c4 feat(client): evaluation participant DTO and role`
+2. `d1f5264ed feat(client): review window status fields on client`
+3. `c8fede875 feat(client): canFinalize respects optional targets`
+
+Uncommitted at death: presenter + context tests (date-init added; tests +9) and un-wired sheet still using `contributionSummary`.
+
+### overseer — UNIT 09 step 4 finish — 2026-09-18
+
+Small local finish of the dead inner: committed `432d2839d feat(client): localize evaluation participant context on the sheet`. Sheet uses `presentParticipantContext` (D9), not `contributionSummary`. Independent TEST_CMD `flutter test test/features/evaluation` **+135**. contributionSummary/causalHint kept on entity (D17) for UNIT 10 screen.
+
+Next: Composer verify on scout chat `07232140-54cd-4019-8db2-e8996a830838`.
+
 
