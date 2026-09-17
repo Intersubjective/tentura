@@ -69,7 +69,7 @@ If Opus is unavailable: routine units degrade to Composer-only implement+verify;
 - [x] UNIT 03 optional targets / counters — hard (D6/D7) — Opus inner — verify pass 2026-09-18
 - [x] UNIT 04 GraphQL + client schema — routine — Opus inner — verify pass 2026-09-18
 - [x] UNIT 05 author nudge — hard (races, idempotency) — **ASTRA inner** A1 — verify pass 2026-09-18 — overseer accepted (`d98a2e50b`)
-- [ ] UNIT 06 reopen announces — hard (tx order) — Opus inner
+- [x] UNIT 06 reopen announces — hard (tx order) — Opus inner — verify pass 2026-09-18 — overseer accepted (`4577edd2d`)
 - [ ] UNIT 07 l10n keys — routine — Opus inner
 - [ ] UNIT 08 `ReviewPackageState` — routine — Opus inner
 - [ ] UNIT 09 client data/role/context — hard (DTO hops, codegen) — Opus inner
@@ -728,3 +728,46 @@ FINDINGS:
 REMAINING:
 - Empty-enrolled-set case (only the author in the status map → cancel intent with zero recipients) still uncovered by the three named tests — scout-flagged risk, no plan requirement.
 - Nothing pushed; no PG-tagged coverage added for this unit.
+
+### verify — 2026-09-18 — UNIT 06
+
+STATUS: pass
+
+TEST_OUTPUT:
+- `dart test test/domain/evaluation/evaluation_case_test.dart test/architecture/updates_event_contract_test.dart --exclude-tags pg` (via `run_with_test_cleanup.sh`, 20m) — **+92, −0** (~3.2s).
+- `dart test test/domain/attention/attention_policy_test.dart test/domain/attention/attention_intent_case_test.dart --exclude-tags pg` (via wrapper, 10m) — **+57, −0** (~3.2s).
+- Combined four-file set (evaluation + contract + policy + intent): **+149, −0** (matches inner/overseer).
+
+RANGE: `6a1306bbe..4577edd2d` (5 commits: `cffaa7652`, `95589a22d`, `4fc40f415`, `83a9ac601`, `4577edd2d`). Worktree: only pre-existing UNTOUCHABLE dirty/untracked; **no** uncommitted UNIT 06 code beyond committed range.
+
+SCOPE: 10 paths in range (+280/−1 lines): plan Owns + D17 fixture widen (`attention_policy_test.dart` in `95589a22d`, `attention_intent_case_test.dart` in `83a9ac601`). No `packages/client/**`; no `*.g.dart` / generated. No deleted `test(` lines in `evaluation_case_test.dart` diff — three additions only in `reopenFromReview`. Production `evaluation_case.dart` +19 lines on `reopenFromReview` only; `_canCloseNow` body **byte-identical** `6a1306bbe` vs `HEAD` (Python extract compare).
+
+COMMITS: Five focused commits match inner steps 1–5 + journal. **Process:** `4fc40f415` folds three RED notification tests with production (inner recorded `+90 −2` first); same acceptable pattern as UNIT 01/05.
+
+ACCEPTANCE (plan UNIT 06 + scout + hard-unit checks):
+- **D15 — reopen announces cancellation to enrolled reviewers** — **met** — `reopen notifies every enrolled reviewer`: one `reviewWindowCancelled` intent, recipients `{helper1, helper2}` with statuses 2 and 0; `attention.recorded` length 2 with `requestStatusChanged`.
+- **Acting author not notified** — **met** — `reopen does not notify the acting author`: author in status map, sole recipient `helper1`.
+- **Supersede outstanding obligation** — **met** — `reopen still supersedes the one outstanding obligation`: `_CountingReopenSettlement` records `supersedeCalls == [beaconId]`; production call remains after `deleteReviewScaffoldingForBeacon` (`evaluation_case.dart:471–475`).
+- **`listReviewStatusesForBeacon` before delete** — **met** — read at `:443–447`, delete at `:471–473`.
+- **Dual record + keep `requestStatusChanged`** — **met** — both intents built pre-mutation; `record` at `:485–490` (status then cancel).
+- **Policy: `requiresAction false`, `review_window_cancelled`, `unblocksMe`, standard suppression, beacon destination** — **met** — `attention_policy.dart` switches; unit test projects per recipient.
+- **Same access as `reviewOpened`** — **met** — `_accessPolicy` groups `reviewWindowCancelled` with `reviewOpened` (`:163–167`).
+- **No UNIT 05 `fromBeaconNotification` bypass** — **met** — only `reviewAllPackagesIn` branch at `attention_intent_case.dart:922–929`; `reviewWindowCancelled` uses default resolver + explicit `keys.where(id != userId)`.
+- **Contract** — **met** — `updates-event-contract.json` `eventTypes` + `producers`; `_expectedEventTypes` row; contract test in +92 run.
+- **Existing reopen scaffolding** — **met** — prior tests `downgrades submitted reviews…` and reopen-limit unchanged in behavior.
+- **Plan acceptance (“nobody’s completed work disappears silently”)** — **met** at server boundary (notification + supersede); client copy deferred UNIT 14.
+
+GAPS:
+- **Process:** RED tests not isolated in own commit (`4fc40f415`) — acceptable (inner documented RED first).
+- **Coverage:** empty enrolled set (author-only status map) still untested — scout risk, not plan-named.
+- **None material** for UNIT acceptance.
+
+### overseer — UNIT 06 accepted — 2026-09-18
+
+Verdict: **accepted**. Opus-low inner + Composer verify pass. Independent overseer four-file run **+149**. Line-by-line: statuses listed before delete, dual-record keeps `requestStatusChanged`, supersede after delete, author excluded, destination `beacon`, UNIT 05 author branch untouched. Process miss (red tests folded into `4fc40f415`) same as UNIT 01/05, product OK. Empty-enrolled-set uncovered — deferred, not plan-named.
+
+## UNIT 07 — Client: l10n keys
+
+UNIT_BASE: `4577edd2d`
+Inner: Opus 5 low. Not Astra.
+
