@@ -166,6 +166,18 @@ void main() {
           ),
         ),
         (
+          eventType: AttentionEventType.reviewWindowCancelled,
+          legacyKind: 'reviewReady',
+          recipient: target,
+          build: (intents) => intents.reviewWindowCancelled(
+            beaconId: beacon,
+            beaconTitle: 'Request title',
+            recipientUserIds: const {target},
+            actorUserId: actor,
+            sourceEventKey: eventKey,
+          ),
+        ),
+        (
           eventType: AttentionEventType.mutualConnectionFormed,
           legacyKind: 'inviteAccepted',
           recipient: target,
