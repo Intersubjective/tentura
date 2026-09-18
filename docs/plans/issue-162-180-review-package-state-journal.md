@@ -1348,3 +1348,77 @@ GAPS:
 Verdict: **accepted**. Opus-low inner; Composer verify **+155**. D12 classify-by-reread is correct; paused heuristic matches UNIT 08 `!hasWindow && !beaconIsInReview`. Screen uses `loadParticipantsOnly`, so unused `loadAll` snack is deferred.
 
 Astra A3 for UNIT 12 remains parked until ~05:51 (do not probe). Next: UNIT 12 scout (Composer, no Astra spend) so the brief is ready when quota returns; UNIT 13 waits on 12; UNIT 14 can run in the wait window (depends on 05/06/09 only).
+
+## UNIT 12 — HUD and banner by package state
+
+UNIT_BASE: `1eabfab62` (live `git rev-parse --short HEAD` at scout)
+
+### scout — 2026-09-18 — UNIT 12
+
+STATUS: ready (UNIT 08 `deriveReviewPackageState`, UNIT 09 nine window fields + getters still live, UNIT 07 l10n; UNIT 10/11 checklist done — do not touch checklist)
+
+BRIEF: **Kill #162 on the request HUD** by driving author review ACT from `ReviewPackageState`, not `viewerHasOutstandingReviewWork` / `viewerCanOpenReviewScreen` / raw `userReviewStatus`. After send, the author HUD must **not** offer a filled primary **review** CTA; close-now stays a separate primary when `canCloseNow == true` (i.e. `allRequiredSent`). **D17:** delete both getters from `review_window_info.dart` and every reference — post-edit grep must print nothing under `packages/client/lib` and `packages/client/test`.
+
+**§2.1 matrix (role × state × `allRequiredSent`) — normative surfaces:**
+
+| Viewer | State | `allRequiredSent` | HUD (author) | Banner |
+|---|---|---|---|---|
+| any | `inProgress` | — | primary `beaconHudActReviewContributions` + effect `beaconHudActEffectReviewProgress(remaining, requiredTotal)` where `remaining = requiredTotal - requiredReviewed` | non-author: primary review CTA + same progress effect; author in own work: banner empty (HUD owns ACT) |
+| any | `readyToSend`, `changedNotSent` | — | primary review CTA, effect `beaconHudActEffectReviewContributions` (neutral) | non-author: primary review CTA, no progress line |
+| author | `sent` | false | **no** review ACT; banner: `beaconHudReviewSent` + `beaconHudWaitingForRequiredReviews` + **TextButton** `beaconHudReviewEdit` | |
+| author | `sent` | true | **primary close-now** (outranks review) + banner status/edit as above (no second primary review button) | |
+| non-author | `sent` | — | n/a | `beaconHudReviewSent` + `beaconHudWaitingForAuthorClose` + **TextButton** `beaconHudReviewEdit` — **never** `FilledButton` |
+| any | `paused`, `closed`, `closedUnsent`, `notEnrolled`, `empty` | — | no review ACT | no review CTA (host already shrinks when `!hasWindow \|\| windowComplete`; lifecycle copy is checklist UNIT 11) |
+
+**Live bug (confirm at `beacon_hud_author_action.dart:138–158`):** `_reviewOpenAuthorAction` returns `reviewContributions` when `viewerHasOutstandingReviewWork` **or** `viewerCanOpenReviewScreen` — so **sent** (`userReviewStatus: 2`) still gets a filled “Review contributions” HUD ACT (`beacon_hud_author_action_test.dart:208–227` encodes the bug as expected). **Plan order:** after null-guard, **`if (review.canCloseNow == true) return closeNow` first**, then `switch (reviewPackageStateOf(state))` with review ACT only on `inProgress \| readyToSend \| changedNotSent`; all other states → `null` for review ACT.
+
+**`reviewPackageStateOf(BeaconViewState state)`** (export from `beacon_hud_author_action.dart` or same presenter file — banner may import it; **do not** put helpers on checklist cubit/screen): call `deriveReviewPackageState` with:
+
+```dart
+beaconIsInReview: state.beacon.status == BeaconStatus.reviewOpen && !(review?.windowComplete ?? false),
+beaconIsClosed: state.beacon.status == BeaconStatus.closed || (review?.windowComplete ?? false),
+hasWindow: review?.hasWindow ?? false,
+windowComplete: review?.windowComplete ?? false,
+userReviewStatus: review?.userReviewStatus,
+sentAt: review?.sentAt,
+requiredTotal: review?.requiredTotal ?? 0,
+requiredAnswered: review?.requiredReviewed ?? 0,
+totalTargets: review?.totalCount ?? 0,  // server: vis.length (evaluation_case.dart:1145)
+```
+
+No new GraphQL / `BeaconViewState` fields (mirror UNIT 11 inference, without checklist `participants.isNotEmpty` paused heuristic — beacon detail only mounts banner under `BeaconStatus.reviewOpen`, `fetchReviewWindowStatusIfReviewOpen`). **`BeaconViewState` has no `beaconIsInReview`/`beaconIsClosed` fields** — infer from beacon status + window snapshot only.
+
+**Effect line (plan step 3):** extend `deriveBeaconHudAuthorActSpec` (not only `effectLineForBeaconHudAuthorAction`) so `reviewContributions` + `inProgress` uses `beaconHudActEffectReviewProgress`; `readyToSend` / `changedNotSent` keep `beaconHudActEffectReviewContributions`.
+
+**Banner (`review_window_banner_host.dart:58–105`):** replace `viewerCanOpenReviewScreen` filled `ReviewBanner` and author branch using `beaconHudWaitingForReviews` + `viewerHasOutstandingReviewWork`. Implement §2.1 with `reviewPackageStateFromWindow(review, isAuthor: …)` sharing the same derive inputs as above (host only receives `ReviewWindowInfo?` + `isAuthor` — pass `beaconIsInReview`/`beaconIsClosed` derived assuming live `reviewOpen` mount, or add optional params if cleaner). Edit navigates via `ReviewContributionsRoute(id: review.beaconId)` like today. **`review_banner.dart`:** only caller is this host (`isDraftPhase: false`); refactor or inline — drop filled “Review” card for **sent**; non-author **unsent** states may still use a filled primary with `beaconHudActReviewContributions` label (not legacy `evaluationBannerReview`).
+
+STEPS (test-first; commit `fix(client): stop re-offering a review that was already sent`):
+
+1. **RED** — Replace/extend tests per plan names in `beacon_hud_author_action_test.dart` and `review_window_banner_host_test.dart`: table over nine `ReviewPackageState` values × `isAuthor` × `allRequiredSent` where applicable; four named oracles: `at most one primary review CTA per state`, `no primary review CTA in sent`, `the author keeps close-now in sent when allRequiredSent`, `the author waiting on others does not see the author-waiting copy` (assert non-author **never** finds `beaconHudWaitingForRequiredReviews`; author `sent` + `!allRequiredSent` **does**). Delete getter test groups (`review_window_banner_host_test.dart:57–94`). Fix `reviewOpen prefers review UI until server canCloseNow` — sent + `canCloseNow: false` must expect **null** HUD review ACT, not `reviewContributions`.
+2. **GREEN HUD** — Plan literal `_reviewOpenAuthorAction` + `reviewPackageStateOf`; dynamic effect in `deriveBeaconHudAuthorActSpec`.
+3. **GREEN banner** — Matrix-driven `ReviewWindowBannerHost`; remove getter usage.
+4. **GREEN D17** — Remove getters from `review_window_info.dart` (`:34–47`); run `build_runner` locally if freezed complains; **grep verification**:
+
+```bash
+cd /home/vader/MY_SRC/tentura && grep -rn "viewerHasOutstandingReviewWork\|viewerCanOpenReviewScreen" packages/client/lib packages/client/test
+```
+
+5. **Verify** — `check-custom-lints.sh packages/client` after `lib/` edits.
+
+TEST_CMD:
+```bash
+cd packages/client && ../../scripts/run_with_test_cleanup.sh --timeout 15m -- flutter test test/features/beacon_view test/features/evaluation --dart-define=ENV=test --dart-define-from-file=env/test.env
+```
+
+UNTOUCHABLE: pre-existing dirty/untracked (journal §UNTOUCHABLE); generated `_g/`/`*.g.dart`/`*.freezed.dart` (regen locally, do not commit); **UNIT 10/11 checklist** (`review_contributions_screen.dart`, `evaluation_cubit.dart` lifecycle except if accidentally touched — must not); **UNIT 13 My Work**; do not persist skip; do not push; HUD helper **must not** live on checklist screen/cubit.
+
+RISKS:
+- **Paused vs `notEnrolled` on beacon detail** — without checklist `participants.isNotEmpty` heuristic, `!hasWindow` while still `reviewOpen` maps to `notEnrolled`; banner already hidden when `!hasWindow`; low product impact.
+- **`totalCount` vs participant list** — HUD uses window `totalCount`/`requiredTotal`/`requiredReviewed`, not checklist rows; must match server visibility (UNIT 03); all-optional package: `requiredTotal == 0` → `readyToSend` when answered per UNIT 08 tests.
+- **Author `sent` + `canCloseNow: false`** — HUD null review ACT but banner shows waiting-for-others copy; ensure HUD filled button absent while TextButton Edit still opens checklist (edit is not a “primary review CTA”).
+- **Legacy `beaconHudWaitingForReviews`** — banner author-wait branch uses old key (`:92`); matrix requires `beaconHudWaitingForRequiredReviews` for author sent/waiting.
+- **Existing banner tests** — expect filled `Review` for sent non-author (`:110–116`); must flip to `Edit` text + status lines, no `ReviewBanner` filled child.
+- **`deriveBeaconHudAuthorActSpec` semantics** — `semanticsLabel` should include progress effect when shown; keep close-now `hiddenKeepSemantics`.
+- **Freezed regen** — removing custom getters on `ReviewWindowInfo` is source-only; do not commit generated files (D18).
+
+Park inner until Astra quota (~05:51 CEST). Do not probe Astra. Do not start UNIT 13. UNIT 14 shares `my_work_cards.dart` with UNIT 13 — do not implement 14 until 13 lands.
