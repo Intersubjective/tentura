@@ -1982,3 +1982,112 @@ SKIPPED.
 | `ee8c3ad46` | test(attention): retire the two collapse characterizations U05a invalidates |
 
 **STATUS:** complete
+
+---
+
+## UNIT U05a — Receipt identity · VERIFY (2026-09-19)
+
+**UNIT_BASE:** `8e3d82577`. **Range reviewed:** `8e3d82577..99e426e91` (+ worktree audit).
+
+### Replay dedup adjudication (scout vs inner)
+
+**The inner layer is right.** `source_event_key` replay dedup never rested on
+`notification_outbox__dedup_seen`. Live path: `attention_occurrence` INSERT with
+`ON CONFLICT (source_event_key) DO NOTHING`; empty result → matching-row check →
+**return at line 65** before any `notification_outbox` or channel write
+(`attention_dispatch_repository.dart:25–66`). The partial UNIQUE on `dedup_key`
+only constrained **second unseen rows in the same collapse family** for the
+old upsert contract; it did not participate in replay. After U05a, receipt-grain
+guard is m0178 `notification_outbox__occurrence_account` (duplicate
+`(occurrence_id, account_id)` would error, not merge). **No bypass path found:**
+the only production `INSERT INTO public.notification_outbox` is dispatch
+(`rg` over `packages/server/lib`).
+
+The scout brief conflated “removing collapse upsert” with “replay safety”; replay
+was always occurrence-grain. No P0 replay gap.
+
+### Independent execution (verifier, not inner tests only)
+
+- **Immutability:** throwaway DB script `/tmp/u05a_verify_immutability.dart`
+  (disposable PG, not committed) — two dispatches, same `collapseKey`, distinct
+  `source_event_key`; snapshot of `created_at`, `requires_action`,
+  `occurrence_id`, `source_event_key`, presentation columns for `verify-relay-1`
+  **unchanged** after second dispatch; `count(*) = 2`. **Pass.**
+- **Replay + concurrency:** `attention_dispatch_identity_pg_test.dart` (4 tests)
+  and `attention_receipt_identity_index_pg_test.dart` (6 tests) — all green on
+  verifier run.
+- **m0179:** upgrade group proves pre-0178 `23505` on `notification_outbox__dedup`,
+  post-0179 two unseen rows; occurrence-account UNIQUE still rejects duplicate
+  pair; double-apply m0179 no-op. Comment block in `m0179.dart` matches behaviour.
+- **Retired characterizations:** `attention_repository_pg_test` collapse test —
+  **required** (1→2 rows, `collapsed_count` stays 1). `claimDue` test **unchanged**
+  (still 2 delivery jobs — U05b scope preserved). `realtime_notification_migration_test`
+  — rewrite **required** (legacy upsert now `42P10`; plain inserts allow 3 rows);
+  **not weakened** beyond behaviour change.
+- **Realtime suite unrunnable:** `_skipHistoricalMigrationCoverage` lines 22–24
+  **byte-identical** to `8e3d82577`. Temp copy with `skip: false` → **2BP01** on
+  `_rollBackM0135ForTest` / `DROP FUNCTION block_hides` (views depend). Rewritten
+  assertion **not executed in CI** — pre-existing coverage gap.
+- **Push/email:** no diff on `beacon_notification_service.dart`,
+  `email_notification_service.dart`, `notification_outbox_repository.dart`,
+  `attention_repository.dart`, `attention_policy.dart`. `dedup_key` still
+  `recipient|attention-v1|collapseKey`; channel INSERT unchanged; `markUnseen`
+  sibling + `markEmailedByDedupKey` tests still pass in `attention_repository_pg_test`.
+- **Scope:** no `logical_task_key` / `lifecycle_generation` in dispatch. U05a
+  commit files only (8 paths). Pre-existing worktree dirt (`.serena`,
+  `force_directed_graphview`, secrets) **not** in U05a commits.
+
+### Verifier TEST_CMD (2026-09-19)
+
+```text
+server PG suites (incl. new identity + m0179 index tests): 00:32 +105, 0 skipped
+server attention_dispatch_telemetry_test.dart: 00:00 +2
+client attention regression: 00:17 +407
+realtime_notification_migration_test (unskipped temp copy): +0 -1 setUpAll 2BP01
+```
+
+**STATUS:** pass
+
+### Manager verdict — U05a · **ACCEPTED** (hard; scout ✓ / inner Opus-low ✓ / verify pass, no finisher)
+
+Overseer's own run: identity + index + 3 regression PG suites → **51 passed, 0 skipped**.
+Commits `23dfd68af` red tests · `2f344973f` m0179 · `a005bf9b0` dispatch insert · `ee8c3ad46` retirements ·
+`99e426e91` journal.
+
+**The unit's real result is that the inner layer corrected the brief and the verifier adjudicated it.** The scout
+warned that dropping the collapse upsert would break `source_event_key` replay dedup because the mechanism looked
+index-dependent. The inner layer traced it instead: replay is guarded by `attention_occurrence.source_event_key`
+UNIQUE at *occurrence* grain — which returns before any receipt is written — plus m0178's
+`notification_outbox__occurrence_account` at *receipt* grain. The verifier followed both paths and confirmed **no
+replay path bypasses the occurrence table**. The brief's risk was mis-attributed; had the inner layer believed
+it, it would have built a redundant guard around a non-problem.
+
+Verified by execution, not by reading:
+- immutability, via the verifier's own script on a disposable database (full column-map equality on the first
+  receipt after a second same-collapse-key dispatch);
+- replay dedup under concurrency — two simultaneous deliveries of one `source_event_key` insert once;
+- m0179: pre-migration schema rejects the second unseen receipt with 23505, post-migration accepts it,
+  `occurrence_account` still rejects true duplicates, double-apply is a no-op;
+- push/email untouched: `dedup_key` keeps its collapse-derived value, so `markEmailedByDedupKey` and
+  `markUnseen`'s sibling check are behaviourally identical. U05b remains a clean, separate unit.
+
+**Both retired characterizations are required, not weakened.** `attention_repository_pg_test` moved from
+"one row, `collapsed_count = 2`" to two independent receipts — that *is* the intended behaviour change. The
+`claimDue` test needed no edit at all, contradicting the scout's prediction that it would.
+
+**Accepted debt, recorded rather than glossed:** `realtime_notification_migration_test.dart` carries a rewritten
+collapse contract that **never executes** — the file is globally skipped because unskipping it fails in
+`setUpAll` with 2BP01 (`_rollBackM0135ForTest` drops `block_hides`, which `beacon_member` /
+`beacon_admitted_helper` depend on). Pre-existing, verified by both the inner layer and the verifier, skip
+constant byte-identical to `8e3d82577`. A rewritten assertion that cannot run is no better than a missing one;
+U19 should either repair that fixture or delete the file rather than leave it as decoration.
+
+### Overseer deviation — U05b runs without its own scout
+
+The U05 scout already analysed all six steps in depth, including U05b's two (channel pending-delivery dedupe and
+email marking by channel collapse key) with their risks. Commissioning a second scout would re-derive a brief
+that is already in this journal. U05b therefore goes straight to the inner layer, and its **verify pass reuses
+the same U05 chat**, so the verifier still judges against a brief it wrote itself — which is the property that
+matters in the sandwich, not the number of layers.
+
+---
