@@ -29,6 +29,10 @@ Uri attentionDestination(AttentionReceipt receipt) {
         kQueryMessageId: target,
       },
     ),
+    // All packages are in: the author's next move is closing the request.
+    'review' when receipt.presentationKey == 'review_all_packages_in' => Uri(
+      path: '$kPathBeaconView/${beaconId ?? target}',
+    ),
     'review' => Uri(path: '$kPathReviewContributions/$target'),
     'profile' => Uri(path: '$kPathProfileView/$target'),
     'received_reviews' when beaconId != null => Uri(

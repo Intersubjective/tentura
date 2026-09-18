@@ -66,4 +66,14 @@ void main() {
     expect(groups[0].receiptIds, ['rev']);
     expect(groups[1].receiptIds, ['unk']);
   });
+
+  test('review-complete and reopen rows are not review obligations', () {
+    final groups = groupMyWorkObligations([
+      _receipt(id: 'all', presentationKey: 'review_all_packages_in'),
+      _receipt(id: 'cxl', presentationKey: 'review_window_cancelled'),
+    ]);
+
+    expect(groups, hasLength(2));
+    expect(groups.any((g) => g.isReview || g.isHelpOffer), isFalse);
+  });
 }

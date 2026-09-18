@@ -13,7 +13,6 @@ import 'package:tentura/features/beacon_view/ui/widget/beacon_hud_author_confirm
 import 'package:tentura/features/beacon_view/ui/widget/beacon_view_app_bar_overflow.dart';
 import 'package:tentura/features/beacon_view/ui/widget/beacon_view_status_bottom_sheet.dart';
 import 'package:tentura/features/evaluation/domain/entity/review_window_info.dart';
-import 'package:tentura/ui/bloc/state_base.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
 final _l10n = lookupL10n(const Locale('en'));
@@ -43,7 +42,6 @@ BeaconViewState _state({
     unsentStartedPackages: unsentStartedPackages,
   ),
   beaconContextLoaded: true,
-  status: const StateIsSuccess(),
 );
 
 class _MockBeaconViewCubit extends Mock implements BeaconViewCubit {
@@ -111,7 +109,6 @@ void main() {
 
         final withoutNote = showBeaconCloseNowConfirmSheet(
           context: context,
-          unsentStartedPackages: 0,
         );
         await tester.pumpAndSettle();
         expect(find.text(_l10n.beaconReviewCloseNowBody), findsOneWidget);

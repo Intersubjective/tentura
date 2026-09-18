@@ -102,7 +102,8 @@ void main() {
   test('feed row copy keeps trust excerpt after stripping request title', () {
     final copy = resolveUpdatesFeedRowCopy(
       title: 'Trust in Alex increased',
-      body: 'Move help this weekend — After the request closed, your trust shifted.',
+      body:
+          'Move help this weekend — After the request closed, your trust shifted.',
       presentationKey: 'trust_given_changed_up',
       presentationPayloadJson:
           '{"beaconTitle":"Move help this weekend","eventType":"trustGivenChanged"}',
@@ -133,5 +134,58 @@ void main() {
     );
     expect(emptyNote.headline, 'Vadim');
     expect(emptyNote.body, l10n.updatesFallbackBodyHelpOfferSubmitted);
+  });
+
+  group('review package rows', () {
+    const payload = '{"beaconTitle":"Garden cleanup"}';
+
+    test(
+      'review_all_packages_in renders title and body with request title',
+      () {
+        final copy = resolveUpdatesReceiptDisplayCopy(
+          title: '',
+          body: '',
+          presentationKey: 'review_all_packages_in',
+          presentationPayloadJson: payload,
+          l10n: l10n,
+        );
+
+        expect(copy.title, l10n.updatesFallbackTitleReviewAllIn);
+        expect(
+          copy.body,
+          l10n.updatesFallbackBodyReviewAllIn('Garden cleanup'),
+        );
+      },
+    );
+
+    test(
+      'review_window_cancelled renders title and body with request title',
+      () {
+        final copy = resolveUpdatesReceiptDisplayCopy(
+          title: '',
+          body: '',
+          presentationKey: 'review_window_cancelled',
+          presentationPayloadJson: payload,
+          l10n: l10n,
+        );
+
+        expect(copy.title, l10n.updatesFallbackTitleReviewCancelled);
+        expect(
+          copy.body,
+          l10n.updatesFallbackBodyReviewCancelled('Garden cleanup'),
+        );
+      },
+    );
+
+    test('without a request title the body falls back to generic', () {
+      final copy = resolveUpdatesReceiptDisplayCopy(
+        title: '',
+        body: '',
+        presentationKey: 'review_all_packages_in',
+        l10n: l10n,
+      );
+
+      expect(copy.body, l10n.updatesFallbackBodyGeneric);
+    });
   });
 }
