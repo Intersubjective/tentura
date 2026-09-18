@@ -2190,7 +2190,7 @@
   "@inboxNeedsMe": {
     "context": "InboxScreen"
   },
-  "inboxWatching": "Наблюдаю",
+  "inboxWatching": "Слежу",
   "@inboxWatching": {
     "context": "InboxScreen"
   },
@@ -2202,7 +2202,7 @@
   "@inboxNeedsMeEmptyCalm": {
     "context": "InboxScreen"
   },
-  "inboxWatchingEmptyCalm": "Нечего отслеживать.",
+  "inboxWatchingEmptyCalm": "Пока не за чем следить.",
   "@inboxWatchingEmptyCalm": {
     "context": "InboxScreen"
   },
@@ -2239,7 +2239,7 @@
       }
     }
   },
-  "inboxTabWatching": "Наблюдаю",
+  "inboxTabWatching": "Слежу",
   "@inboxTabWatching": {
     "context": "InboxScreen"
   },
@@ -2260,7 +2260,7 @@
   "@inboxTabNeedsEmpty": {
     "context": "InboxScreen"
   },
-  "inboxTabWatchingEmpty": "Нет запросов в наблюдении",
+  "inboxTabWatchingEmpty": "Вы ни за чем не следите",
   "@inboxTabWatchingEmpty": {
     "context": "InboxScreen"
   },
@@ -2386,11 +2386,11 @@
   "@cancelBeacon": {
     "context": "BeaconOverflowMenu"
   },
-  "actionStopWatching": "Вернуть в «Нужно мне»",
+  "actionStopWatching": "Вернуть в «Ждёт меня»",
   "@actionStopWatching": {
     "context": "InboxItemTile"
   },
-  "actionWatch": "Переместить в «Наблюдение»",
+  "actionWatch": "Следить за запросом",
   "@actionWatch": {
     "context": "InboxItemTile"
   },
@@ -2789,7 +2789,7 @@
   "@forwardWithdrawn": {
     "context": "ForwardBeaconScreen"
   },
-  "forwardWatching": "Наблюдение",
+  "forwardWatching": "Слежу",
   "@forwardWatching": {
     "context": "ForwardBeaconScreen"
   },
@@ -3467,23 +3467,23 @@
       }
     }
   },
-  "activityForwardOutcomeHelping": "Вы помогаете",
+  "activityForwardOutcomeHelping": "Вы предложили помощь",
   "@activityForwardOutcomeHelping": {
     "context": "InboxScreen"
   },
-  "activityForwardOutcomeWatching": "Вы наблюдаете",
+  "activityForwardOutcomeWatching": "Вы начали следить",
   "@activityForwardOutcomeWatching": {
     "context": "InboxScreen"
   },
-  "activityForwardOutcomeNotInterested": "Не интересно",
+  "activityForwardOutcomeNotInterested": "Вы отказались",
   "@activityForwardOutcomeNotInterested": {
     "context": "InboxScreen"
   },
-  "activityForwardOutcomeClosed": "Закрыт до вашего ответа",
+  "activityForwardOutcomeClosed": "Автор закрыл запрос до вашего ответа",
   "@activityForwardOutcomeClosed": {
     "context": "InboxScreen"
   },
-  "activityForwardOutcomeDeleted": "Больше недоступен",
+  "activityForwardOutcomeDeleted": "Запрос удалён",
   "@activityForwardOutcomeDeleted": {
     "context": "InboxScreen"
   },
@@ -3516,7 +3516,7 @@
   "@notificationHistoryTitle": {
     "context": "UpdatesScreen"
   },
-  "activityWatchingDigest": "{count, plural, one{Обновился {count} запрос, за которым вы наблюдаете} few{Обновились {count} запроса, за которыми вы наблюдаете} many{Обновились {count} запросов, за которыми вы наблюдаете} other{Обновились {count} запроса, за которыми вы наблюдаете}}",
+  "activityWatchingDigest": "{count, plural, one{Обновился {count} запрос, за которым вы следите} few{Обновились {count} запроса, за которыми вы следите} many{Обновились {count} запросов, за которыми вы следите} other{Обновились {count} запроса, за которыми вы следите}}",
   "@activityWatchingDigest": {
     "context": "InboxScreen",
     "placeholders": {
@@ -3892,7 +3892,7 @@
     "context": "BeaconViewScreen",
     "description": "Label when a forward recipient offered help to the beacon"
   },
-  "forwardReactionWatching": "Наблюдает",
+  "forwardReactionWatching": "Следит",
   "@forwardReactionWatching": {
     "context": "BeaconViewScreen",
     "description": "Label when a forward recipient is watching the beacon"
@@ -4511,8 +4511,8 @@
   "beaconHudYouAuthorIdle": "Автор · обновите план при необходимости",
   "beaconHudYouAuthorResolveBlocker": "Снимите или обновите блокер",
   "beaconHudYouHelpOffered": "Вы предложили помощь — держите связь с помощниками",
-  "beaconHudYouAskedToHelp": "Вас просят помочь — ответьте или наблюдайте",
-  "beaconHudYouWatching": "Наблюдаете",
+  "beaconHudYouAskedToHelp": "Вас просят помочь — ответьте или следите",
+  "beaconHudYouWatching": "Слежу",
   "beaconHudYouCanOfferHelp": "Можете предложить помощь",
   "beaconHudYouNoAction": "Нет текущего действия",
   "beaconHudLifecycleActive": "АКТИВЕН",
@@ -4836,8 +4836,8 @@
       }
     }
   },
-  "beaconHeaderWatch": "Наблюдать",
-  "beaconHeaderStopWatching": "Не наблюдать",
+  "beaconHeaderWatch": "Следить",
+  "beaconHeaderStopWatching": "Не следить",
   "beaconHeaderUpdateHelpOffer": "Изменить предложение помощи",
   "beaconNeedSummaryTitle": "Потребность",
   "beaconCoordinationCardTitle": "Координация",
@@ -5207,9 +5207,9 @@
   "beaconPeopleRoleSteward": "Стюард",
   "beaconPeopleRoleHelper": "Помощник",
   "beaconPeopleRoleCandidate": "Кандидат",
-  "beaconPeopleRoleWatcher": "Наблюдатель",
+  "beaconPeopleRoleWatcher": "Следит за запросом",
   "beaconPeopleRoleForwarder": "Переславший",
-  "beaconPeopleStatusWatching": "Наблюдает",
+  "beaconPeopleStatusWatching": "Следит",
   "beaconPeopleStatusOfferedHelp": "Предложил помощь",
   "beaconPeopleStatusCandidate": "Кандидат",
   "beaconPeopleStatusAdmitted": "Принят",

@@ -2199,7 +2199,7 @@
   "@inboxNeedsMe": {
     "context": "InboxScreen"
   },
-  "inboxWatching": "Watching",
+  "inboxWatching": "Following",
   "@inboxWatching": {
     "context": "InboxScreen"
   },
@@ -2211,7 +2211,7 @@
   "@inboxNeedsMeEmptyCalm": {
     "context": "InboxScreen"
   },
-  "inboxWatchingEmptyCalm": "Nothing to watch.",
+  "inboxWatchingEmptyCalm": "Nothing to follow yet.",
   "@inboxWatchingEmptyCalm": {
     "context": "InboxScreen"
   },
@@ -2248,7 +2248,7 @@
       }
     }
   },
-  "inboxTabWatching": "Watching",
+  "inboxTabWatching": "Following",
   "@inboxTabWatching": {
     "context": "InboxScreen"
   },
@@ -2269,7 +2269,7 @@
   "@inboxTabNeedsEmpty": {
     "context": "InboxScreen"
   },
-  "inboxTabWatchingEmpty": "No requests on your watch list",
+  "inboxTabWatchingEmpty": "You are not following anything",
   "@inboxTabWatchingEmpty": {
     "context": "InboxScreen"
   },
@@ -2399,7 +2399,7 @@
   "@actionStopWatching": {
     "context": "InboxItemTile"
   },
-  "actionWatch": "Move to Watching",
+  "actionWatch": "Follow this request",
   "@actionWatch": {
     "context": "InboxItemTile"
   },
@@ -2798,7 +2798,7 @@
   "@forwardWithdrawn": {
     "context": "ForwardBeaconScreen"
   },
-  "forwardWatching": "Watching",
+  "forwardWatching": "Following",
   "@forwardWatching": {
     "context": "ForwardBeaconScreen"
   },
@@ -3476,23 +3476,23 @@
       }
     }
   },
-  "activityForwardOutcomeHelping": "You're helping",
+  "activityForwardOutcomeHelping": "You offered help",
   "@activityForwardOutcomeHelping": {
     "context": "InboxScreen"
   },
-  "activityForwardOutcomeWatching": "You're watching",
+  "activityForwardOutcomeWatching": "You started following",
   "@activityForwardOutcomeWatching": {
     "context": "InboxScreen"
   },
-  "activityForwardOutcomeNotInterested": "Not interested",
+  "activityForwardOutcomeNotInterested": "You declined",
   "@activityForwardOutcomeNotInterested": {
     "context": "InboxScreen"
   },
-  "activityForwardOutcomeClosed": "Closed before you answered",
+  "activityForwardOutcomeClosed": "The author closed it before you answered",
   "@activityForwardOutcomeClosed": {
     "context": "InboxScreen"
   },
-  "activityForwardOutcomeDeleted": "No longer available",
+  "activityForwardOutcomeDeleted": "The request was deleted",
   "@activityForwardOutcomeDeleted": {
     "context": "InboxScreen"
   },
@@ -3525,7 +3525,7 @@
   "@notificationHistoryTitle": {
     "context": "UpdatesScreen"
   },
-  "activityWatchingDigest": "{count, plural, one{{count} request you watch was updated} other{{count} requests you watch were updated}}",
+  "activityWatchingDigest": "{count, plural, one{{count} request you follow was updated} other{{count} requests you follow were updated}}",
   "activityEventMore": "{count, plural, one{1 more update} other{{count} more updates}}",
   "@activityEventMore": {
     "placeholders": {
@@ -3904,7 +3904,7 @@
     "context": "BeaconViewScreen",
     "description": "Label when a forward recipient offered help to the beacon"
   },
-  "forwardReactionWatching": "Watching",
+  "forwardReactionWatching": "Following",
   "@forwardReactionWatching": {
     "context": "BeaconViewScreen",
     "description": "Label when a forward recipient is watching the beacon"
@@ -4551,8 +4551,8 @@
   "beaconHudYouAuthorIdle": "Author · update plan if needed",
   "beaconHudYouAuthorResolveBlocker": "Resolve or update the blocker",
   "beaconHudYouHelpOffered": "You offered help — keep helpers aligned",
-  "beaconHudYouAskedToHelp": "Asked to help — respond or watch",
-  "beaconHudYouWatching": "Watching",
+  "beaconHudYouAskedToHelp": "Asked to help — respond or follow",
+  "beaconHudYouWatching": "Following",
   "beaconHudYouCanOfferHelp": "You can offer help",
   "beaconHudYouNoAction": "No current action",
   "beaconHudLifecycleActive": "ACTIVE",
@@ -4872,8 +4872,8 @@
       }
     }
   },
-  "beaconHeaderWatch": "Watch",
-  "beaconHeaderStopWatching": "Stop watching",
+  "beaconHeaderWatch": "Follow",
+  "beaconHeaderStopWatching": "Unfollow",
   "beaconHeaderUpdateHelpOffer": "Update help offer",
   "beaconNeedSummaryTitle": "Need",
   "beaconCoordinationCardTitle": "Coordination",
@@ -5299,9 +5299,9 @@
   "beaconPeopleRoleSteward": "Steward",
   "beaconPeopleRoleHelper": "Helper",
   "beaconPeopleRoleCandidate": "Candidate",
-  "beaconPeopleRoleWatcher": "Watcher",
+  "beaconPeopleRoleWatcher": "Follower",
   "beaconPeopleRoleForwarder": "Forwarder",
-  "beaconPeopleStatusWatching": "Watching",
+  "beaconPeopleStatusWatching": "Following",
   "beaconPeopleStatusOfferedHelp": "Offered help",
   "beaconPeopleStatusCandidate": "Candidate",
   "beaconPeopleStatusAdmitted": "Admitted",
