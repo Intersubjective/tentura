@@ -13,6 +13,8 @@ import 'package:tentura_server/domain/use_case/attention_expiry_sweep_case.dart'
 import 'package:tentura_server/domain/use_case/commitment_query_case.dart';
 import 'package:tentura_server/domain/use_case/evaluation/evaluation_draft_purger.dart';
 import 'package:tentura_server/domain/use_case/evaluation/evaluation_participant_graph_builder.dart';
+import 'package:tentura_server/consts/beacon_activity_event_consts.dart';
+import 'package:tentura_server/domain/evaluation/beacon_evaluation_row_status.dart';
 import 'package:tentura_server/domain/use_case/evaluation_case.dart';
 import 'package:tentura_server/domain/use_case/transactional_attention_case.dart';
 import '../../domain/evaluation/evaluation_graph_test_repos.dart';
@@ -33,6 +35,7 @@ const _beacon = 'Bcrvst1abcn01';
 const _author = 'Ucrvst1aauth01';
 const _reviewer = 'Ucrvst1arevw01';
 const _subject = 'Ucrvst1asubj01';
+const _former = 'Ucrvst1aform01';
 
 Future<void> main() async {
   final target = DisposablePgTarget.fromNamedEnvironment(
@@ -245,6 +248,108 @@ WHERE table_schema = 'public'
       },
       skip: skipReason,
     );
+
+    test(
+      'optional unsent package is discarded at close without becoming trust input',
+      () async {
+        await _seedRequiredPackages(writer);
+        await _seedOptionalUnsentPackage(writer);
+        await repo.setReviewUserStatus(
+          beaconId: _beacon,
+          userId: _author,
+          status: 2,
+          markSent: true,
+        );
+        await repo.setReviewUserStatus(
+          beaconId: _beacon,
+          userId: _reviewer,
+          status: 2,
+          markSent: true,
+        );
+
+        final snapshot = await repo.closeReviewWindow(
+          _beacon,
+          reason: BeaconLifecycleChangeReason.authorCloseNow,
+          actorUserId: _author,
+          requireAllRequiredPackagesSent: true,
+        );
+
+        expect(snapshot, isNotNull);
+        expect(
+          snapshot!.finalizedEvaluations.map((e) => e.evaluatorId),
+          isNot(contains(_former)),
+        );
+        expect(await _evalCount(writer, _former), 0);
+        expect(await _ackCount(writer, _former), 0);
+        expect(await _evalCount(writer, _author), 1);
+        expect(
+          await _evalStatus(writer, _author),
+          BeaconEvaluationRowStatus.final_,
+        );
+      },
+      skip: skipReason,
+    );
+
+    test(
+      'author close racing an edit yields one serial outcome',
+      () async {
+        await _seedRequiredPackages(writer);
+        await repo.setReviewUserStatus(
+          beaconId: _beacon,
+          userId: _author,
+          status: 2,
+          markSent: true,
+        );
+        await repo.setReviewUserStatus(
+          beaconId: _beacon,
+          userId: _reviewer,
+          status: 2,
+          markSent: true,
+        );
+
+        Object? closed;
+        Object? editError;
+        await Future.wait<void>([
+          repo
+              .closeReviewWindow(
+                _beacon,
+                reason: BeaconLifecycleChangeReason.authorCloseNow,
+                actorUserId: _author,
+                requireAllRequiredPackagesSent: true,
+              )
+              .then((value) => closed = value),
+          () async {
+            try {
+              await repo.submitEvaluationAtomic(
+                beaconId: _beacon,
+                evaluatorId: _author,
+                evaluatedUserId: _reviewer,
+                value: 3,
+                reasonTags: const [],
+                note: 'race edit',
+                ackTags: const [],
+              );
+            } catch (error) {
+              editError = error;
+            }
+          }(),
+        ]);
+
+        final window = await repo.getReviewWindow(_beacon);
+        expect(window, isNotNull);
+        if (closed != null) {
+          expect(window!.status, 1);
+          if (editError != null) {
+            expect('$editError', contains('Review window not open'));
+          }
+        } else {
+          expect(window!.status, 0);
+          expect(editError, isNull);
+          expect(await repo.getReviewUserStatus(_beacon, _author), 1);
+        }
+      },
+      skip: skipReason,
+    );
   });
 }
 
@@ -278,6 +383,72 @@ SELECT count(*) FROM public.beacon_review_status WHERE beacon_id = $1
     parameters: [_beacon],
   );
   return rows.single[0]! as int;
+}
+
+Future<int> _evalCount(Connection writer, String evaluatorId) async {
+  final rows = await writer.execute(
+    r'''
+SELECT count(*) FROM public.beacon_evaluation
+WHERE beacon_id = $1 AND evaluator_id = $2
+''',
+    parameters: [_beacon, evaluatorId],
+  );
+  return rows.single[0]! as int;
+}
+
+Future<int?> _evalStatus(Connection writer, String evaluatorId) async {
+  final rows = await writer.execute(
+    r'''
+SELECT status FROM public.beacon_evaluation
+WHERE beacon_id = $1 AND evaluator_id = $2
+''',
+    parameters: [_beacon, evaluatorId],
+  );
+  return rows.isEmpty ? null : rows.single[0] as int?;
+}
+
+Future<int> _ackCount(Connection writer, String evaluatorId) async {
+  final rows = await writer.execute(
+    r'''
+SELECT count(*) FROM public.beacon_evaluation_ack_tag
+WHERE beacon_id = $1 AND evaluator_id = $2
+''',
+    parameters: [_beacon, evaluatorId],
+  );
+  return rows.single[0]! as int;
+}
+
+Future<void> _seedOptionalUnsentPackage(Connection writer) async {
+  await writer.execute(r'''
+INSERT INTO public."user" (id, display_name, public_key)
+VALUES ('Ucrvst1aform01', 'Former', 'pk-rvst-form')
+ON CONFLICT DO NOTHING
+''');
+  await writer.execute(r'''
+INSERT INTO public.beacon_evaluation_participant
+  (beacon_id, user_id, role, contribution_summary, causal_hint)
+VALUES ('Bcrvst1abcn01', 'Ucrvst1aform01', 3, 'former', 'h')
+''');
+  await writer.execute(r'''
+INSERT INTO public.beacon_evaluation_visibility
+  (beacon_id, evaluator_id, participant_id)
+VALUES ('Bcrvst1abcn01', 'Ucrvst1aform01', 'Ucrvst1aauth01')
+''');
+  await writer.execute(r'''
+INSERT INTO public.beacon_review_status (beacon_id, user_id, status)
+VALUES ('Bcrvst1abcn01', 'Ucrvst1aform01', 1)
+ON CONFLICT (beacon_id, user_id) DO UPDATE SET status = EXCLUDED.status
+''');
+  await writer.execute(r'''
+INSERT INTO public.beacon_evaluation
+  (beacon_id, evaluator_id, evaluated_user_id, value, reason_tags, note, status)
+VALUES ('Bcrvst1abcn01', 'Ucrvst1aform01', 'Ucrvst1aauth01', 4, '', '', 0)
+''');
+  await writer.execute(r'''
+INSERT INTO public.beacon_evaluation_ack_tag
+  (beacon_id, evaluator_id, subject_id, tag_slug)
+VALUES ('Bcrvst1abcn01', 'Ucrvst1aform01', 'Ucrvst1aauth01', 'quality')
+''');
 }
 
 Future<void> _clean(Connection writer) async {

@@ -4733,7 +4733,6 @@
   "beaconHudConfirmMarkEnoughHelpBody": "Помощники увидят, что помощи достаточно. Запрос остаётся открытым, пока вы не завершите или не закроете его.",
   "beaconHudConfirmMarkEnoughHelpAction": "Помощи достаточно",
   "beaconHudConfirmCloseNowTitle": "Закрыть запрос сейчас?",
-  "beaconHudConfirmCloseNowBody": "Закрывает запрос немедленно. Обсуждение остаётся только для чтения.",
   "beaconHudConfirmCloseNowBlockedBody": "Закрытие доступно, когда все обязательные рецензенты завершили или пропустили отзыв.",
   "beaconHudConfirmCloseNowAction": "Закрыть сейчас",
   "beaconHudConfirmChangeLaterInStatus": "Изменить позже в «Статус запроса»",

@@ -1771,3 +1771,7 @@ flutter_bootstrap.js?v=7.16.0
 Also synced `.env.example` comments (versioning.mdc). No sandwich — three-line bump.
 
 REMAINING: UNIT 16 closeout (PG, terminology, updates_event_contract_test `reviewAllPackagesIn` fixture, e2e). Astra B1–B3 reviews of 12/10/05 still unused.
+
+## UNIT 16 — in progress (overseer) — 2026-09-18
+
+Deleted unused `beaconHudConfirmCloseNowBody` (replaced by `beaconReviewCloseNowBody`). Kept `evaluationListIntro` (still on the checklist). Client `updates_event_contract_test.dart` now includes `reviewAllPackagesIn` + `reviewWindowCancelled`. PG oracles for matrix #11 (optional unsent discarded at close) and #16 (close vs edit serialised by advisory lock).

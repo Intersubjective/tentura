@@ -4769,7 +4769,6 @@
   "beaconHudConfirmMarkEnoughHelpBody": "Helpers see that help is sufficient. The request stays open until you wrap up or close.",
   "beaconHudConfirmMarkEnoughHelpAction": "Mark enough help",
   "beaconHudConfirmCloseNowTitle": "Close request now?",
-  "beaconHudConfirmCloseNowBody": "Closes the request immediately. Discussion stays read-only.",
   "beaconHudConfirmCloseNowBlockedBody": "Close now is available when every required reviewer has finished or skipped.",
   "beaconHudConfirmCloseNowAction": "Close now",
   "beaconHudConfirmChangeLaterInStatus": "Change later in Request status",
