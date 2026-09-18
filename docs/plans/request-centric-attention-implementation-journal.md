@@ -443,3 +443,16 @@ U04's table shapes should be designed against the projections U02 has now pinned
 
 Independent verification totals at close: server PG 70/0 skipped · server non-PG 88 · client attention+features
 407 · client architecture 16 · server lints at baseline.
+
+### Overseer fixup after session close
+
+`a-posteriori` worktree audit found one line of U02's tagging pass left uncommitted:
+the second `// CHANGES IN U07b:` marker in
+`packages/client/test/features/my_work/my_work_attention_state_test.dart`. Committed by the overseer as a
+separate focused commit. Cause: the U02 acceptance checked that `packages/*/lib` was untouched but did not
+re-diff the worktree against the pre-worker snapshot, which the U06a acceptance did. Both checks belong in every
+acceptance from now on.
+
+Worktree integrity re-confirmed at close: 38 untracked files (44 at session open minus the 6 documentation files
+the overseer committed) and the 4 pre-existing modified files, with `key.fb`, `leo.key`, `out.key` and
+`dart-defines` present and unmodified.
