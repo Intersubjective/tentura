@@ -50,7 +50,8 @@ abstract class ConstellationState extends StateBase with _$ConstellationState {
     @Default(ConstellationPlacementPhase.idle)
     ConstellationPlacementPhase placementPhase,
     ConstellationAnchorTarget? activePlacementTarget,
-    ConstellationAnchorTarget? deferredRefreshTarget,
+    @Default(<ConstellationAnchorTarget>{})
+    Set<ConstellationAnchorTarget> deferredRefreshTargets,
     String? placementFailureMessage,
     String? graphLayoutFailureMessage,
     @Default(false) bool syncPending,

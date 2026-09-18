@@ -355,10 +355,14 @@ class _NodeDragGestureState extends State<NodeDragGesture> {
       return;
     }
 
-    final centre = scenePosition - _grabOffset;
+    var centre = scenePosition - _grabOffset;
     final payload = _controller.nodePayloadForId(nodeId);
     if (payload == null) {
       return;
+    }
+    final transform = _configuration.transformNodeDragPosition;
+    if (transform != null) {
+      centre = transform(payload, centre);
     }
 
     try {

@@ -7,28 +7,47 @@ import 'package:tentura/domain/entity/realtime/realtime_entity_change.dart';
 import 'package:tentura/domain/use_case/realtime_sync_case.dart';
 import 'package:tentura/domain/use_case/use_case_base.dart';
 
+import '../constellation_drag_cluster.dart';
 import '../entity/constellation_anchor.dart';
 import '../entity/constellation_anchor_projection.dart';
 import '../exception.dart';
 import '../port/constellation_anchor_repository_port.dart';
 import '../port/constellation_repository_port.dart';
 
-enum ConstellationAnchorWriteKind { upsert, delete }
+enum ConstellationAnchorWriteKind { upsert, delete, clusterUpsert }
 
 @immutable
 final class ConstellationAnchorPendingWrite {
   const ConstellationAnchorPendingWrite.upsert({
     required this.target,
     required this.position,
-  }) : kind = ConstellationAnchorWriteKind.upsert;
+  }) : kind = ConstellationAnchorWriteKind.upsert,
+       companionPositions = null;
+
+  const ConstellationAnchorPendingWrite.clusterUpsert({
+    required this.target,
+    required this.position,
+    required this.companionPositions,
+  }) : kind = ConstellationAnchorWriteKind.clusterUpsert;
 
   const ConstellationAnchorPendingWrite.delete({required this.target})
     : kind = ConstellationAnchorWriteKind.delete,
-      position = null;
+      position = null,
+      companionPositions = null;
 
   final ConstellationAnchorWriteKind kind;
   final ConstellationAnchorTarget target;
   final ConstellationAnchorPosition? position;
+  final Map<ConstellationAnchorTarget, ConstellationAnchorPosition>?
+      companionPositions;
+
+  Set<ConstellationAnchorTarget> get targetSet {
+    final companions = companionPositions?.keys;
+    if (companions == null || companions.isEmpty) {
+      return {target};
+    }
+    return {target, ...companions};
+  }
 }
 
 enum ConstellationAnchorWriteOutcomeKind {
@@ -118,6 +137,9 @@ final class ConstellationAnchorCase extends UseCaseBase {
   bool get hasPendingWrite => _pendingWrite != null;
 
   ConstellationAnchorTarget? get pendingWriteTarget => _pendingWrite?.target;
+
+  Set<ConstellationAnchorTarget> get pendingWriteTargets =>
+      _pendingWrite?.targetSet ?? const {};
 
   @visibleForTesting
   int get writeCount => _writeCount;
@@ -262,6 +284,192 @@ final class ConstellationAnchorCase extends UseCaseBase {
         return true;
       },
     );
+  }
+
+  /// One pending write: parent upsert first, then companions; abort companions
+  /// when the parent mutation is not adopted. Final success uses recovery
+  /// position match (not mutation revision alone).
+  Future<ConstellationAnchorWriteOutcome> upsertAll({
+    required ConstellationAnchorTarget parentTarget,
+    required ConstellationAnchorPosition parentPosition,
+    required List<({ConstellationAnchorTarget target, ConstellationAnchorPosition position})>
+        companions,
+    required int generation,
+    Map<String, String> companionTitles = const {},
+    ConstellationFieldMembershipFilters membershipFilters =
+        ConstellationFieldMembershipFilters.defaults,
+  }) async {
+    if (companions.isEmpty) {
+      return upsert(
+        target: parentTarget,
+        position: parentPosition,
+        generation: generation,
+        membershipFilters: membershipFilters,
+      );
+    }
+    if (generation != _loadGeneration || _pendingWrite != null) {
+      return const ConstellationAnchorWriteOutcome(
+        kind: ConstellationAnchorWriteOutcomeKind.staleResponseDiscarded,
+      );
+    }
+    final companionPositions = {
+      for (final companion in companions)
+        companion.target: companion.position,
+    };
+    final pending = ConstellationAnchorPendingWrite.clusterUpsert(
+      target: parentTarget,
+      position: parentPosition,
+      companionPositions: companionPositions,
+    );
+    final writeAccount = _viewerAccountId;
+    final writeToken = _loadGeneration;
+    _pendingWrite = pending;
+    _writeCount++;
+    Object? mutationError;
+    var parentAdopted = false;
+    try {
+      try {
+        final parentResult = await _anchorRepository.upsert(
+          target: parentTarget,
+          position: parentPosition,
+        );
+        if (writeAccount != _viewerAccountId || writeToken != _loadGeneration) {
+          return const ConstellationAnchorWriteOutcome(
+            kind: ConstellationAnchorWriteOutcomeKind.staleResponseDiscarded,
+          );
+        }
+        if (parentResult.revision.compareTo(_confirmed.revision) >= 0) {
+          _upsertConfirmedAnchor(parentResult.anchor);
+          _confirmed = ConstellationAnchorProjection(
+            revision: parentResult.revision,
+            anchors: _confirmed.anchors,
+            pinnedPeers: _confirmed.pinnedPeers,
+            pinnedRequests: _confirmed.pinnedRequests,
+            supportPeers: _confirmed.supportPeers,
+            supportEdges: _confirmed.supportEdges,
+            serverFilteredBeaconIds: _confirmed.serverFilteredBeaconIds,
+            serverFilteredBeaconCount: _confirmed.serverFilteredBeaconCount,
+          );
+          parentAdopted = true;
+        }
+        if (parentAdopted) {
+          for (final companion in companions) {
+            try {
+              final result = await _anchorRepository.upsert(
+                target: companion.target,
+                position: companion.position,
+              );
+              if (writeAccount != _viewerAccountId ||
+                  writeToken != _loadGeneration) {
+                return const ConstellationAnchorWriteOutcome(
+                  kind: ConstellationAnchorWriteOutcomeKind.staleResponseDiscarded,
+                );
+              }
+              if (result.revision.compareTo(_confirmed.revision) >= 0) {
+                _upsertConfirmedAnchor(result.anchor);
+                _confirmed = ConstellationAnchorProjection(
+                  revision: result.revision,
+                  anchors: _confirmed.anchors,
+                  pinnedPeers: _confirmed.pinnedPeers,
+                  pinnedRequests: _confirmed.pinnedRequests,
+                  supportPeers: _confirmed.supportPeers,
+                  supportEdges: _confirmed.supportEdges,
+                  serverFilteredBeaconIds: _confirmed.serverFilteredBeaconIds,
+                  serverFilteredBeaconCount:
+                      _confirmed.serverFilteredBeaconCount,
+                );
+              }
+            } on Object catch (error, stackTrace) {
+              mutationError ??= error;
+              logger.warning(
+                'Constellation companion anchor write failed',
+                error,
+                stackTrace,
+              );
+            }
+          }
+        }
+      } on Object catch (error, stackTrace) {
+        mutationError = error;
+        logger.warning('Constellation anchor write failed', error, stackTrace);
+        if (writeAccount != _viewerAccountId || writeToken != _loadGeneration) {
+          return const ConstellationAnchorWriteOutcome(
+            kind: ConstellationAnchorWriteOutcomeKind.staleResponseDiscarded,
+          );
+        }
+      }
+
+      var recoveryFailed = false;
+      try {
+        final projection = await _fetchAnchorsProjection(
+          membershipFilters: membershipFilters,
+        );
+        if (writeAccount == _viewerAccountId && writeToken == _loadGeneration) {
+          _applyIncomingProjection(
+            projection,
+            requestSeq: ++_anchorsRequestSeq,
+          );
+        }
+      } on Object catch (error, stackTrace) {
+        logger.warning(
+          'Constellation anchor recovery read failed',
+          error,
+          stackTrace,
+        );
+        recoveryFailed = true;
+      }
+
+      if (writeAccount != _viewerAccountId || writeToken != _loadGeneration) {
+        return ConstellationAnchorWriteOutcome(
+          kind: ConstellationAnchorWriteOutcomeKind.staleResponseDiscarded,
+          projection: _confirmed,
+        );
+      }
+
+      final parentOk = constellationAnchorAdoptedAt(
+        anchors: _confirmed.anchors,
+        target: parentTarget,
+        intended: parentPosition,
+      );
+      final missedTitles = <String>[];
+      for (final companion in companions) {
+        if (!constellationAnchorAdoptedAt(
+          anchors: _confirmed.anchors,
+          target: companion.target,
+          intended: companion.position,
+        )) {
+          missedTitles.add(
+            companionTitles[companion.target.id] ?? companion.target.id,
+          );
+        }
+      }
+
+      if (parentOk && missedTitles.isEmpty) {
+        _syncPending = recoveryFailed;
+        return ConstellationAnchorWriteOutcome(
+          kind: ConstellationAnchorWriteOutcomeKind.succeeded,
+          projection: _confirmed,
+        );
+      }
+
+      _syncPending = true;
+      final failureMessage = missedTitles.isEmpty
+          ? (mutationError is ConstellationException
+                ? (mutationError.message ??
+                    'Could not save constellation placement.')
+                : 'Could not save constellation placement.')
+          : 'Could not move ${missedTitles.join(', ')}. '
+              'Other placements were saved.';
+      return ConstellationAnchorWriteOutcome(
+        kind: ConstellationAnchorWriteOutcomeKind.failed,
+        projection: _confirmed,
+        failureMessage: failureMessage,
+      );
+    } finally {
+      if (identical(_pendingWrite, pending)) {
+        _pendingWrite = null;
+      }
+    }
   }
 
   Future<ConstellationAnchorWriteOutcome> deleteAnchor({

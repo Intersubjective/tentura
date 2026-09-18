@@ -677,6 +677,7 @@ class _ConstellationBodyState extends State<ConstellationBody> {
           layoutAlgorithm: layoutAlgorithm,
           layoutTransitionDuration: const Duration(milliseconds: 350),
           canDragNode: cubit.canDragNode,
+          transformNodeDragPosition: cubit.clampClusterDragPosition,
           onNodeDragStart: (node, position) {
             final target = cubit.anchorTargetForNode(node);
             if (target == null) {

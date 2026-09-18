@@ -31,6 +31,15 @@ typedef NodeDragUpdateCallback<N> = void Function(
   Offset scenePosition,
 );
 
+/// Optional transform applied to a proposed drag centre before presentation.
+///
+/// Return the centre that should be displayed and reported to drag callbacks.
+/// When null, the raw grab-offset centre is used unchanged.
+typedef NodeDragPositionTransform<N> = Offset Function(
+  N node,
+  Offset proposedSceneCentre,
+);
+
 /// Called when a captured node drag ends with all pointers released.
 typedef NodeDragEndCallback<N> = void Function(
   N node,
@@ -69,6 +78,7 @@ class GraphViewConfiguration {
     this.onNodeDragUpdate,
     this.onNodeDragEnd,
     this.onNodeDragCancel,
+    this.transformNodeDragPosition,
     this.onNodeTap,
     this.nodeTapHitTester,
     this.nodePaintOrder,
@@ -104,6 +114,9 @@ class GraphViewConfiguration {
 
   /// { @nodoc }
   final NodeDragCancelCallback<dynamic>? onNodeDragCancel;
+
+  /// Optional clamp/transform of the dragged node centre during pointer move.
+  final NodeDragPositionTransform<dynamic>? transformNodeDragPosition;
 
   /// Optional short-press selection hook using scene hit order.
   final NodeTapCallback<dynamic>? onNodeTap;

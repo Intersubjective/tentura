@@ -89,6 +89,9 @@ final class _FakeAnchorRepository implements ConstellationAnchorRepositoryPort {
   Object? deleteError;
   ConstellationAnchorUpsertResult? upsertResult;
   ConstellationAnchorDeleteResult? deleteResult;
+  int? failOnUpsertIndex;
+  Set<ConstellationAnchorTarget> failTargets = {};
+  final List<ConstellationAnchorTarget> upsertTargets = [];
 
   @override
   Future<ConstellationAnchorUpsertResult> upsert({
@@ -96,8 +99,17 @@ final class _FakeAnchorRepository implements ConstellationAnchorRepositoryPort {
     required ConstellationAnchorPosition position,
   }) async {
     upsertCount++;
+    upsertTargets.add(target);
     await upsertGate.future;
-    if (upsertError != null) {
+    if (failOnUpsertIndex != null && upsertCount == failOnUpsertIndex) {
+      throw upsertError ?? StateError('failed at $upsertCount');
+    }
+    if (failTargets.contains(target)) {
+      throw upsertError ?? StateError('failed for ${target.id}');
+    }
+    if (upsertError != null &&
+        failOnUpsertIndex == null &&
+        failTargets.isEmpty) {
       throw upsertError!;
     }
     return upsertResult ??
@@ -105,10 +117,10 @@ final class _FakeAnchorRepository implements ConstellationAnchorRepositoryPort {
           anchor: ConstellationAnchor(
             target: target,
             position: position,
-            revision: ConstellationAnchorRevision(BigInt.two),
+            revision: ConstellationAnchorRevision(BigInt.from(upsertCount + 1)),
             placedAt: DateTime.utc(2026, 9, 11, 1),
           ),
-          revision: ConstellationAnchorRevision(BigInt.two),
+          revision: ConstellationAnchorRevision(BigInt.from(upsertCount + 1)),
         );
   }
 
@@ -531,6 +543,97 @@ void main() {
       anchorRepo.upsertGate.complete();
       await first;
       expect(anchorRepo.upsertCount, 1);
+    });
+
+    test('upsertAll aborts companions when parent mutation fails', () async {
+      anchorRepo.failOnUpsertIndex = 1;
+      anchorRepo.upsertError = StateError('parent failed');
+      fieldRepo.projections.add(
+        _projection(
+          revision: BigInt.two,
+          anchors: [_anchor(personId: 'p1', revision: BigInt.two)],
+        ),
+      );
+      final outcome = await case_.upsertAll(
+        parentTarget: ConstellationAnchorTarget.person('p1'),
+        parentPosition: const ConstellationAnchorPosition(
+          xUnits: 3,
+          yUnits: 3,
+          coordinateSpaceVersion: 1,
+        ),
+        companions: [
+          (
+            target: ConstellationAnchorTarget.beacon('B1'),
+            position: const ConstellationAnchorPosition(
+              xUnits: 4,
+              yUnits: 4,
+              coordinateSpaceVersion: 1,
+            ),
+          ),
+        ],
+        generation: case_.lifecycleToken,
+      );
+      expect(outcome.kind, ConstellationAnchorWriteOutcomeKind.failed);
+      expect(anchorRepo.upsertCount, 1);
+      expect(case_.writeCount, 1);
+      expect(case_.pendingWriteTargets, isEmpty);
+    });
+
+    test('upsertAll mixed fail names missed companions after recovery', () async {
+      anchorRepo.failTargets = {ConstellationAnchorTarget.beacon('B1')};
+      fieldRepo.projections
+        ..clear()
+        ..add(
+          _projection(
+            revision: BigInt.from(3),
+            anchors: [
+              ConstellationAnchor(
+                target: ConstellationAnchorTarget.person('p1'),
+                position: const ConstellationAnchorPosition(
+                  xUnits: 3,
+                  yUnits: 3,
+                  coordinateSpaceVersion: 1,
+                ),
+                revision: ConstellationAnchorRevision(BigInt.from(3)),
+                placedAt: DateTime.utc(2026, 9, 11),
+              ),
+              ConstellationAnchor(
+                target: ConstellationAnchorTarget.beacon('B1'),
+                position: const ConstellationAnchorPosition(
+                  xUnits: 1,
+                  yUnits: 1,
+                  coordinateSpaceVersion: 1,
+                ),
+                revision: ConstellationAnchorRevision(BigInt.from(3)),
+                placedAt: DateTime.utc(2026, 9, 11),
+              ),
+            ],
+          ),
+        );
+      final outcome = await case_.upsertAll(
+        parentTarget: ConstellationAnchorTarget.person('p1'),
+        parentPosition: const ConstellationAnchorPosition(
+          xUnits: 3,
+          yUnits: 3,
+          coordinateSpaceVersion: 1,
+        ),
+        companions: [
+          (
+            target: ConstellationAnchorTarget.beacon('B1'),
+            position: const ConstellationAnchorPosition(
+              xUnits: 4,
+              yUnits: 4,
+              coordinateSpaceVersion: 1,
+            ),
+          ),
+        ],
+        companionTitles: const {'B1': 'Need help'},
+        generation: case_.lifecycleToken,
+      );
+      expect(outcome.kind, ConstellationAnchorWriteOutcomeKind.failed);
+      expect(outcome.failureMessage, contains('Need help'));
+      expect(anchorRepo.upsertCount, 2);
+      expect(case_.writeCount, 1);
     });
   });
 }

@@ -190,6 +190,38 @@ void main() {
     controller.dispose();
   });
 
+  testWidgets('transformNodeDragPosition clamps the presented centre',
+      (tester) async {
+    final controller = _TestHarness.newController();
+    final updates = <Offset>[];
+    await _pumpGraph(
+      tester,
+      controller: controller,
+      onNodeDragUpdate: (_, position) => updates.add(position),
+      transformNodeDragPosition: (_, proposed) {
+        // Cap x at the node's start scene x + 20.
+        final start = testNodePosition(controller, _TestHarness.bottom);
+        if (proposed.dx > start.dx + 20) {
+          return Offset(start.dx + 20, proposed.dy);
+        }
+        return proposed;
+      },
+    );
+    final sceneBefore = testNodePosition(controller, _TestHarness.bottom);
+    final gesture = await tester.createGesture(kind: PointerDeviceKind.touch);
+    await gesture.down(_nodeCenter(tester, _TestHarness.bottom));
+    await gesture.moveBy(const Offset(80, 0));
+    await tester.pump();
+    expect(updates, isNotEmpty);
+    expect(updates.last.dx, closeTo(sceneBefore.dx + 20, 0.5));
+    expect(
+      testNodePosition(controller, _TestHarness.bottom).dx,
+      closeTo(sceneBefore.dx + 20, 0.5),
+    );
+    await gesture.up();
+    controller.dispose();
+  });
+
   testWidgets('touch node drag does not emit a tap', (tester) async {
     final controller = _TestHarness.newController();
     var taps = 0;
@@ -759,6 +791,7 @@ Future<void> _pumpGraph(
   NodeDragUpdateCallback<Node<int>>? onNodeDragUpdate,
   NodeDragEndCallback<Node<int>>? onNodeDragEnd,
   NodeDragCancelCallback<Node<int>>? onNodeDragCancel,
+  NodeDragPositionTransform<Node<int>>? transformNodeDragPosition,
   NodeTapCallback<Node<int>>? onNodeTap,
   NodeTapHitTester? nodeTapHitTester,
   List<GraphNodeId>? nodePaintOrder,
@@ -783,6 +816,7 @@ Future<void> _pumpGraph(
           onNodeDragUpdate: onNodeDragUpdate,
           onNodeDragEnd: onNodeDragEnd,
           onNodeDragCancel: onNodeDragCancel,
+          transformNodeDragPosition: transformNodeDragPosition,
           onNodeTap: onNodeTap,
           nodeTapHitTester: nodeTapHitTester,
           nodeBuilder: (context, node) => SizedBox(
