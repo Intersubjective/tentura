@@ -1194,3 +1194,344 @@ coordination-item types remain unemittable.
 the source mutation and the settlement to commit together, and today's code deliberately does not.
 
 ---
+
+## UNIT U04 — Additive schema · SCOUT BRIEF (2026-09-19)
+
+**Scout:** read-only on `feature/events_refac` at `UNIT_BASE` `9b0dddf04` (`HEAD` matches). No production code, no
+tests, no commits beyond this journal entry.
+
+### Migration registry (verified live)
+
+| Fact | Live source |
+|---|---|
+| **Next id** | **`m0178`** — registry ends at `m0177` (`_migrations.dart:186–187`, `_allMigrations` … `m0177,` at `:369`). |
+| **Registration ritual** | 1) Add `part 'm0178.dart';` with the other `part` lines. 2) Create `m0178.dart` with `part of '_migrations.dart';` and `final m0178 = Migration('0178', [ … ]);`. 3) Append `m0178,` after `m0177` in `_allMigrations`. Version string is **four digits** (`'0178'`), matching neighbours (`m0177.dart` uses `'0177'`). |
+| **Apply entrypoint** | `migrateDbSchema(connection)` → `_upgradeLocked` → migrant `Database.upgrade` with advisory lock `tentura_schema_upgrade` (`_migrations.dart:415–416`, `:375–376`). |
+| **Partial apply (tests)** | `migrateDbSchemaThrough(connection, '0177')` then `migrateDbSchemaThrough(connection, '0178')` once `m0178` exists (`:425–443`). |
+| **“Table mappings”** | Manifest lists them, but **`notification_outbox` and all attention topology tables are not in `@DriftDatabase`** (`tentura_db.dart:92–150` — no outbox/occurrence tables). Attention persistence is **raw SQL** in repositories. **No server `build_runner` step** for this unit — only `_migrations.dart` + new part file. **Hasura** does not track `attention_occurrence` today; new §0.1 tables are server-internal until a later API unit exposes them. |
+| **Generated files** | Untouched (`*.g.dart` etc.). |
+
+Optional split: one migration file can hold multiple SQL strings (see `m0118`); a separate **`m0179`** only if review wants trigger isolation — not required by live convention.
+
+### §0.1 objects vs live schema
+
+#### Already exists (do not duplicate)
+
+| §0.1 concept | Live equivalent | Notes |
+|---|---|---|
+| Occurrence topology | **`m0121`** | `attention_occurrence`, `attention_occurrence_recipient` **PK `(occurrence_id, account_id)`**, `notification_outbox.occurrence_id` **nullable** `text` FK → `attention_occurrence`, index `notification_outbox__occurrence` **partial** `WHERE occurrence_id IS NOT NULL`. **`attention_channel_delivery` UNIQUE `(occurrence_id, account_id)`**. This is **not** receipt identity on `notification_outbox` — do not re-create m0121 tables. |
+| Obligation vs optional axis | **`m0118`** | `requires_action boolean NOT NULL DEFAULT false`; live obligation = **`requires_action AND settlement_kind IS NULL`** (partial indexes `notification_outbox__live_obligation*`). |
+| Settlement axis | **`m0118` + `m0166`** | `settlement_kind`, `settled_at`, `settled_by_user_id`, `settled_by_occurrence_id`; **`notification_outbox__settlement_obligation_chk`**: `settlement_kind IS NULL OR requires_action`; **`notification_outbox__settlement_facts_chk`**: settlement columns all-null or all-set together. Kinds include `'expired'` after m0166. |
+| Thread-scoped obligation key (legacy) | **`attention_thread_key`** | Required when `requires_action` (`notification_outbox__thread_key_chk`). **Not** the same column as frozen **`logical_task_key`** — add new columns; do not rename thread key in U04. |
+| Dedup / mutable receipt path | **`m0120` + dispatch** | Unique **`notification_outbox__dedup`** on `(dedup_key) WHERE seen_at IS NULL`. Dispatch **`ON CONFLICT (dedup_key) WHERE seen_at IS NULL DO UPDATE SET … occurrence_id = EXCLUDED.occurrence_id, created_at = now()`** (`attention_dispatch_repository.dart:125–147`). **U05** replaces this for identity; U04 must not change dispatch. |
+
+#### Missing (U04 adds)
+
+**`notification_outbox` columns** (match neighbours: `text` ids, `timestamptz` timestamps, nullable unless noted):
+
+| Column | Type / nullability | Neighbour pattern |
+|---|---|---|
+| `cleared_at` | `timestamptz` NULL, no default | Like `seen_at` / `settled_at` (`m0115` / `m0118`) |
+| `clear_reason` | `text` NULL | Like `settlement_kind` + CHECK enum |
+| `cleared_by_operation_id` | `text` NULL, FK → `attention_clear_operation(id)` after table exists | Like optional FK columns |
+| `logical_task_key` | `text` NULL | Like `attention_thread_key` |
+| `lifecycle_generation` | **`integer` NULL** (no default on existing rows) | Prefer nullable until U05 writes generations; obligation-only CHECK below |
+
+**New tables** (§0.1 names exact):
+
+1. **`attention_request_state`** — columns per manifest: `account_id`, `beacon_id`, `first_entry_at`, `outcome_generation`, `decision_revision`. **PK `(account_id, beacon_id)`** (infer from “per-viewer Request state”; FK `account_id` → `"user"`, `beacon_id` → `beacon`, **`ON DELETE CASCADE`** on account side to mirror outbox). Types: `first_entry_at timestamptz NOT NULL`; **`outcome_generation` / `decision_revision` `integer NOT NULL`** with **no backfill in U04** — table starts empty; first writer is later units.
+
+2. **`attention_clear_operation`** — `id text PRIMARY KEY` (client operation id, no default), `account_id text NOT NULL` → `"user"`, `surface text NOT NULL`, `status text NOT NULL`, `captured_at timestamptz NOT NULL DEFAULT now()`, `undo_deadline timestamptz`, **`applied` / `skipped` / `failed` `integer NOT NULL DEFAULT 0`**, CHECK on `surface` / `status` if manifest enums are fixed (else minimal `text` + document in migration COMMENT).
+
+3. **`attention_clear_operation_member`** — `operation_id` → `attention_clear_operation`, `receipt_id` → `notification_outbox`, `beacon_id`, `outcome_generation integer NOT NULL`, `state text NOT NULL`; **UNIQUE `(operation_id, receipt_id)`** for membership idempotency (plan §4.1 “operation membership uniqueness”).
+
+**Order inside migration:** create `attention_clear_operation` before adding `cleared_by_operation_id` FK on outbox.
+
+#### UNIQUE `(occurrence_id, account_id)` on receipts (dangerous)
+
+- **Not present today** on `notification_outbox` (only nullable `occurrence_id` + non-unique index).
+- **Legacy rows:** pre-dispatch receipts may have **`occurrence_id IS NULL`** — a **full** UNIQUE on `(occurrence_id, account_id)` would treat NULLs as distinct in PostgreSQL (multiple NULLs allowed) but is the wrong contract for “post-cutover receipts”.
+- **Required shape for additive land:** **`CREATE UNIQUE INDEX notification_outbox__occurrence_account ON public.notification_outbox (occurrence_id, account_id) WHERE occurrence_id IS NOT NULL`** (partial unique). Aligns with manifest U05 note and avoids rejecting NULL legacy rows.
+- **Dispatch interaction (pre-U05):** in-place upsert **updates** `occurrence_id` on one row — compatible with partial unique (one row per pair). **Risk:** if production already has **two rows** with the same non-null `(occurrence_id, account_id)` (bad data or test artifacts), **index creation fails**. Preflight: `SELECT occurrence_id, account_id, count(*) FROM notification_outbox WHERE occurrence_id IS NOT NULL GROUP BY 1,2 HAVING count(*) > 1` — should be empty; otherwise migration is **blocked** until data repair.
+- **U05** stops dedup-key rewrite from governing identity; U04 only installs the constraint so later code can rely on it.
+
+### CHECK constraints and partial indexes (SQL vocabulary)
+
+**Optional vs obligation in SQL today:**
+
+| Concept | Expression |
+|---|---|
+| **Optional receipt** | `requires_action = false` |
+| **Obligation receipt** | `requires_action = true` |
+| **Live obligation** | `requires_action = true AND settlement_kind IS NULL` |
+| **Settled obligation** | `requires_action = true AND settlement_kind IS NOT NULL` (with settlement facts CHECK) |
+
+**Clear metadata (new)** — mirror `notification_outbox__settlement_facts_chk` / optional-only settlement:
+
+- **`notification_outbox__clear_optional_only_chk`:** `(requires_action = false) OR (cleared_at IS NULL AND clear_reason IS NULL AND cleared_by_operation_id IS NULL)`.
+- **`notification_outbox__clear_facts_chk`:** all clear fields NULL **OR** (`NOT requires_action AND cleared_at IS NOT NULL AND clear_reason IS NOT NULL`) — allow **`cleared_by_operation_id` NULL** for `legacy_seen` (U18 backfill).
+- **`notification_outbox__clear_reason_chk`:** `clear_reason IS NULL OR clear_reason IN ('explicit','request_open','sweep','legacy_seen')`.
+
+**Settlement metadata (existing — do not weaken):** `notification_outbox__settlement_obligation_chk` already enforces settlement only on obligations.
+
+**Logical task columns (new CHECKs, additive):**
+
+- When `NOT requires_action`: `logical_task_key IS NULL AND lifecycle_generation IS NULL`.
+- When `requires_action`: allow NULL `logical_task_key` / `lifecycle_generation` on all **existing** rows until U05 populates (do not copy `attention_thread_key` NOT NULL requirement onto `logical_task_key` in U04).
+
+**Partial UNIQUE — one live obligation per logical task:**
+
+```sql
+CREATE UNIQUE INDEX notification_outbox__live_logical_task
+  ON public.notification_outbox (account_id, logical_task_key)
+  WHERE requires_action AND settlement_kind IS NULL AND logical_task_key IS NOT NULL;
+```
+
+**Partial indexes — `(account_id, beacon_id)`** (manifest U04 steps; not all exist today):
+
+- Active optional: `WHERE NOT requires_action AND cleared_at IS NULL` (and optionally `beacon_id IS NOT NULL`).
+- Live obligation: `WHERE requires_action AND settlement_kind IS NULL AND beacon_id IS NOT NULL` (complements m0118 time-ordered indexes).
+
+### Realtime trigger (`notify_notification_outbox_update`)
+
+- **Live definition:** `m0164.dart` replaces the function; compares a fixed **`ROW(...)`** tuple of outbox columns and emits `emit_realtime_entity_change('notification', account_id, 'update', …)` on change.
+- **Already in tuple:** settlement columns (`settlement_kind`, `settled_at`, `settled_by_user_id`, `settled_by_occurrence_id`) — this is why `settlement_notify_pg_test.dart` passes.
+- **Still omitted from tuple (pre-U04 gap):** `requires_action`, `attention_thread_key`, `occurrence_id` — changing only those **does not** emit realtime today. U04 manifest asks only for **new** clear/identity columns; implementer should **`CREATE OR REPLACE FUNCTION`** adding at minimum: **`cleared_at`, `clear_reason`, `cleared_by_operation_id`, `logical_task_key`, `lifecycle_generation`** to both OLD and NEW sides of the `ROW(...)` compare (same pattern as m0164 lines 19–75).
+- **If forgotten:** writes to clear state or logical-task columns succeed in DB but **no `entity_changes` notification** → clients keep stale Activity/My Desk indicators until reconnect or explicit refetch (same failure mode as pre-m0164 settlement blindness; covered by `settlement_notify_pg_test.dart` pattern — add parallel test for clear columns in U04).
+- **Trigger attachment:** unchanged since `m0116` — `notification_outbox_update_notify` AFTER UPDATE, transition tables `old_rows` / `new_rows`.
+
+### U18 backfill / cutover interaction (U04 must enable restart)
+
+- U18 sets **`cleared_at`** from **`seen_at`** for legacy **optional** rows with reason **`legacy_seen`** (manifest §0.1, U18 steps).
+- U04 must leave **`cleared_at` / `clear_reason` NULL** on all rows at migration end (no data migration in U04).
+- Backfill predicate will be restartable if it only updates rows matching  
+  `requires_action = false AND seen_at IS NOT NULL AND cleared_at IS NULL` (and sets `clear_reason = 'legacy_seen'`, leaves `cleared_by_operation_id` NULL) — compatible with CHECK above.
+- **`seen_at` meaning unchanged** (read axis); do not default `cleared_at` from `seen_at` in U04.
+
+### U06a retention note (do not fix in U04)
+
+`deleteSettledOlderThan` still deletes old **seen + emailed** rows without live obligations (`notification_outbox_repository.dart:121–131`); **`cleared_at` is not referenced** (journal U06a: uncleared optional exemption waits for U04 column, but **repository change is out of scope** for this storage-only unit). Schema add alone does not change retention behaviour.
+
+### Behaviour boundary (UNTOUCHABLE for implementer)
+
+No reads/writes in `attention_repository.dart`, `attention_dispatch_repository.dart`, GraphQL, or Hasura. Storage + constraints + trigger only.
+
+---
+
+STATUS: complete
+
+BRIEF: **Acceptance:** After `m0178`, a fresh disposable DB and a DB upgraded from `0177→0178` both have §0.1 columns/tables, CHECK/partial indexes, partial UNIQUE on `(occurrence_id, account_id)` where `occurrence_id IS NOT NULL`, partial UNIQUE on live `(account_id, logical_task_key)`, and an updated `notify_notification_outbox_update` that treats clear/logical-task column changes like settlement changes — with **zero** change to application SQL paths until later units. **Approach:** Single additive migration `m0178` (+ registry), optional dedicated PG test file mirroring `settlement_kind_constraint_pg_test.dart` / `settlement_notify_pg_test.dart`; preflight duplicate `(occurrence_id, account_id)` before creating partial unique index.
+
+STEPS:
+
+| # | Step | Files | Red meaningful? |
+|---|---|---|---|
+| 1 | Add `m0178.dart`: create `attention_clear_operation`, `attention_clear_operation_member`, `attention_request_state`; add outbox columns + CHECKs + partial indexes + partial uniques; extend notify function | `packages/server/lib/data/database/migration/m0178.dart`, `_migrations.dart` | no (schema-only until tests) |
+| 2 | PG tests: fresh `migrateDbSchema`; upgrade path `0177`→`0178`; constraint rejects clear metadata on obligations / settlement on optionals (existing); accepts optional clear shape; notify on `cleared_at` update; optional duplicate-key preflight helper | `packages/server/test/data/database/*_pg_test.dart` (new or extend) | **yes** — add failing assertions before migration lands, or test file in same commit as migration |
+| 3 | Journal inner with **real** `./scripts/run_with_test_cleanup.sh` output | this journal | n/a |
+
+TEST_CMD:
+
+```bash
+# Fresh database — full chain including m0178 (after step 1)
+cd packages/server && ../../scripts/run_with_test_cleanup.sh --timeout 20m -- \
+  dart test --tags pg -j 1 test/data/database/settlement_kind_constraint_pg_test.dart
+
+cd packages/server && ../../scripts/run_with_test_cleanup.sh --timeout 20m -- \
+  dart test --tags pg -j 1 test/data/database/settlement_notify_pg_test.dart
+
+# After adding U04-specific file (e.g. attention_additive_schema_pg_test.dart):
+cd packages/server && ../../scripts/run_with_test_cleanup.sh --timeout 20m -- \
+  dart test --tags pg -j 1 test/data/database/<u04_migration_test>.dart
+
+# Upgrade path from current production-shaped tip (0177 → 0178) — pattern from settlement_kind_constraint_pg_test.dart:50-62:
+# migrateDbSchemaThrough(writer, '0177'); migrateDbSchemaThrough(writer, '0178');
+
+# Regression smoke (uses migrateDbSchema on disposable DB — must stay green):
+cd packages/server && ../../scripts/run_with_test_cleanup.sh --timeout 20m -- \
+  dart test --tags pg -j 1 test/data/repository/attention_repository_pg_test.dart
+```
+
+(Wrapper script verified at `scripts/run_with_test_cleanup.sh`. PG tests skip when admin Postgres unreachable — treat skip as **blocked**, per manifest §1.)
+
+UNTOUCHABLE: `key.fb`, `leo.key`, `out.key`, `dart-defines`, `.serena/project.yml`, `packages/force_directed_graphview/**`, `docs/plans/constellation-*`, generated `*.g.dart` / client `_g/`; **`packages/server/lib/data/repository/attention_repository.dart`**, **`attention_dispatch_repository.dart`**, **`notification_outbox_repository.dart`** (behaviour unchanged in U04); secrets; unrelated worktree dirt.
+
+RISKS:
+
+| Hazard | Detail |
+|---|---|
+| **Partial UNIQUE `(occurrence_id, account_id)`** | Index build scans live rows; **fails** if duplicates exist; **must be partial** `WHERE occurrence_id IS NOT NULL` so NULL legacy rows and current dedup upsert path remain valid until U05. |
+| **Partial UNIQUE `(account_id, logical_task_key)`** | If multiple **live** obligations already share the same key with `logical_task_key` NULL, index is harmless; once U05 writes keys, duplicates become impossible — pre-U05 duplicates with non-null keys would block index creation. |
+| **CHECK vs legacy data** | All existing rows have clear columns NULL → safe. Obligations with settlement remain valid. Optional rows with `seen_at` set stay **uncleared** until U18 — intentional. |
+| **Locking** | Standard `ALTER TABLE` / `CREATE INDEX` (not `CONCURRENTLY`) — brief write lock per statement; acceptable for dev/staging pattern used in other migrations; large prod deploy should follow existing migration ops practice. |
+| **Restart** | Migrant records version `0178` once all statements in the migration succeed; re-run is idempotent at version level. Avoid non-idempotent DDL inside one version. |
+| **Trigger incomplete** | Missing new columns in `ROW(...)` → silent realtime staleness on clear/logical-task updates. |
+| **Manifest vs live “table mappings”** | No Drift mapping to update; do not invent Hasura metadata in U04. |
+| **Retention** | Without repository change, old seen optionals still deleted — not a migration failure but product gap until a later unit extends `deleteSettledOlderThan` (journal U06a follow-up). |
+
+---
+
+## UNIT U04 — Additive schema · INNER (2026-09-19)
+
+**Inner:** Claude Code Opus 5 on `feature/events_refac`, `UNIT_BASE` `9b0dddf04`. Followed the scout brief's STEPS
+and TEST_CMD plus the five overseer additions. No repository, read path or write path touched:
+`attention_repository.dart`, `attention_dispatch_repository.dart` and `notification_outbox_repository.dart` are
+byte-identical to `UNIT_BASE`.
+
+### Commits
+
+| Hash | Subject |
+|---|---|
+| `4a321f0b6` | `schema(attention): additive m0178 for clear state and obligation identity` |
+| `bfa45cf70` | `test(attention): prove the m0178 constraints reject offending writes` |
+
+### What landed
+
+`packages/server/lib/data/database/migration/m0178.dart` (new) + registry lines in `_migrations.dart`
+(`part 'm0178.dart';`, `m0178,` after `m0177`). No Drift mapping, no `build_runner`, no Hasura metadata — the
+scout's finding that these tables live outside `@DriftDatabase` held.
+
+- **Columns** on `notification_outbox`: `cleared_at timestamptz`, `clear_reason text`,
+  `cleared_by_operation_id text`, `logical_task_key text`, `lifecycle_generation integer` — all nullable, no
+  defaults, NULL on every existing row at migration end. `seen_at` untouched.
+- **CHECKs**: `notification_outbox__clear_optional_only_chk`, `…__clear_facts_chk`, `…__clear_reason_chk`,
+  `…__logical_task_chk`; FK `…__cleared_by_operation_fkey` → `attention_clear_operation(id) ON DELETE SET NULL`.
+- **Partial UNIQUE**: `notification_outbox__occurrence_account` (`WHERE occurrence_id IS NOT NULL`) and
+  `notification_outbox__live_logical_task`.
+- **Partial indexes**: `…__active_optional_beacon`, `…__live_obligation_beacon`, `…__cleared_by_operation`,
+  plus `attention_clear_operation__account`, `attention_clear_operation_member__receipt`.
+- **Tables**: `attention_clear_operation`, `attention_clear_operation_member`, `attention_request_state` — all
+  created empty, all with `COMMENT ON TABLE`.
+- **Trigger**: `CREATE OR REPLACE FUNCTION public.notify_notification_outbox_update()` re-issued from m0164 with
+  the five new columns added to both sides of the `ROW(...)` compare.
+
+### Overseer additions — how each was satisfied
+
+1. **Preflight.** Statement 1 of the migration is a `DO` block that aggregates duplicate non-null
+   `(occurrence_id, account_id)` pairs and, if any exist, `RAISE EXCEPTION … USING ERRCODE = 'unique_violation'`
+   with the offending pairs interpolated into the message. Proven by *"m0178 preflight aborts by naming duplicate
+   occurrence/account pairs"*, which seeds two receipts on one occurrence at `0177`, asserts the thrown
+   `ServerException.message` contains `m0178 preflight failed`, `occurrence_id=OCu04dup` and `account_id=Uu04`,
+   and then asserts `schema_version` is still `0177` — the failed version does not record.
+2. **Restartable.** Every statement carries `IF NOT EXISTS`; `ALTER TABLE … ADD CONSTRAINT` has no such form in
+   PostgreSQL 17, so the four CHECKs and the FK are added inside a `DO` block guarded by `pg_constraint` lookups.
+   Verified two ways. (a) *Structural:* `migrant_db_postgresql` 0.3.0 applies **all** statements of one migration
+   inside a single `runTx`, so an interruption rolls the whole version back — there is no half-applied state to
+   re-enter. (b) *Empirical:* the test *"re-applying every m0178 statement is a no-op"* pulls `m0178.statements`
+   out of `migrationsForTesting` and executes the entire list **twice** against the already-upgraded database,
+   then asserts no statement raised and that each new constraint appears exactly once and all five columns still
+   exist. Since migrant would never re-run a recorded version, replaying the statements is the only honest way to
+   exercise this.
+3. **Plain `CREATE INDEX`.** No `CONCURRENTLY` anywhere; the reasoning (single transaction per migration, single
+   release, no live users) is in the migration's doc comment so a future reader does not "fix" it.
+4. **Constraints proven to reject, by name.** `_expectConstraintViolation` asserts on
+   `ServerException.constraintName`, not on `information_schema`. Covered: clear metadata on an obligation →
+   `clear_optional_only_chk`; `cleared_at` with no reason and reason with no `cleared_at` →
+   `clear_facts_chk`; `clear_reason = 'because'` → `clear_reason_chk`; `logical_task_key` on an optional receipt
+   and `lifecycle_generation = -1` → `logical_task_chk`; a second receipt on one `(occurrence_id, account_id)` →
+   `notification_outbox__occurrence_account`; a second live obligation on one logical task →
+   `notification_outbox__live_logical_task`; duplicate sweep membership → `attention_clear_operation_member_pkey`;
+   negative sweep counter → `attention_clear_operation__counters_chk`; duplicate Request state and a negative
+   generation → `attention_request_state_pkey` / `attention_request_state__generations_chk`.
+5. **Both paths.** Group *"m0178 on a fresh database"* runs the full chain via `migrateDbSchema`. Group
+   *"m0178 upgrade path from 0177"* seeds production-shaped rows **at `0177`** — a legacy receipt with
+   `occurrence_id IS NULL` **and** `seen_at` set, a receipt carrying an occurrence, a live obligation and a
+   settled obligation — then `migrateDbSchemaThrough(writer, '0178')` and asserts all four rows survive with every
+   new column NULL.
+6. **U18 compatibility.** `clear_facts_chk` permits `cleared_by_operation_id IS NULL` on a cleared optional
+   receipt; the test runs the actual U18 predicate
+   (`NOT requires_action AND seen_at IS NOT NULL AND cleared_at IS NULL` → `clear_reason = 'legacy_seen'`) on both
+   the fresh and the upgraded database and it is accepted.
+7. **Trigger.** *"emits a realtime update when clear state changes"* clears a receipt and asserts exactly the
+   `{'event':'update','entity':'notification','id':'Uu04','user_ids':['Uu04']}` payload arrives on
+   `LISTEN entity_changes`, then repeats for a `logical_task_key` + `lifecycle_generation` update.
+8. **No behaviour change.** `git diff 9b0dddf04..HEAD --stat` touches only the migration, the registry, the new
+   test file and one line of an existing test.
+
+### Test evidence
+
+**RED** — same test file, with `m0178,` commented out of `_allMigrations` (registry restored immediately after):
+
+```
+$ cd packages/server && ../../scripts/run_with_test_cleanup.sh --timeout 20m -- \
+    dart test --tags pg -j 1 test/data/database/attention_additive_schema_pg_test.dart
+00:05 +1 -22: Some tests failed.
+```
+
+22 failures, 1 pass. The single pass is *"still allows many receipts with no occurrence"*, which is true before
+the migration too — kept as the NULL-tolerance guard for the partial unique.
+
+**GREEN** — registry restored:
+
+```
+$ cd packages/server && ../../scripts/run_with_test_cleanup.sh --timeout 20m -- \
+    dart test --tags pg -j 1 test/data/database/attention_additive_schema_pg_test.dart
+00:06 +25: All tests passed!
+```
+
+**Regression** (scout's TEST_CMD trio):
+
+```
+$ cd packages/server && ../../scripts/run_with_test_cleanup.sh --timeout 20m -- \
+    dart test --tags pg -j 1 test/data/database/settlement_kind_constraint_pg_test.dart \
+    test/data/database/settlement_notify_pg_test.dart \
+    test/data/repository/attention_repository_pg_test.dart
+00:08 +21: All tests passed!
+```
+
+No suite skipped: Postgres 17.9 reachable at `127.0.0.1:5432` (container `postgres`).
+
+### Findings
+
+- **Constraint ordering forced a design correction.** The first draft of `clear_facts_chk` carried
+  `NOT requires_action` in its satisfied branch, duplicating the optional-only rule. Clearing an obligation then
+  tripped `clear_facts_chk` instead of `clear_optional_only_chk` — both reject, but the error names the wrong
+  rule, which is exactly the diagnostic confusion the constraints exist to prevent. Split so each constraint owns
+  one responsibility: `clear_optional_only_chk` decides *whether* a receipt may be cleared,
+  `clear_facts_chk` only the internal coherence of the clear fields. Caught by the test asserting on
+  `constraintName`; a test asserting only "throws" would have shipped it.
+- **An additive FK broke an existing test.** `attention_clear_operation_member.receipt_id` references
+  `notification_outbox`, so the ad-hoc `TRUNCATE public.attention_channel_delivery, public.notification_outbox, …`
+  at `attention_repository_pg_test.dart:810` started failing with `0A000 cannot truncate a table referenced in a
+  foreign key constraint`. Fixed by adding `CASCADE`, matching that file's own `setUp` block at `:112`. This is
+  the only edit to pre-existing code in the unit. All other attention PG suites already use `CASCADE`.
+- **`surface` and `status` on `attention_clear_operation` are plain `text`, deliberately.** The manifest freezes
+  `clear_reason`'s vocabulary but not these two; inventing an enum here would bind a later unit to names this
+  unit made up. Documented in `COMMENT ON TABLE`. The counters, which *are* knowable, carry a CHECK.
+- **`attention_clear_operation_member.beacon_id` has no FK** (unlike `attention_request_state.beacon_id`, which
+  cascades from `beacon` per the `m0019` convention): membership is an audit snapshot of what a sweep touched and
+  must survive the deletion of the Request it referred to.
+- **Pre-U04 trigger gap left alone.** The scout noted `requires_action`, `attention_thread_key` and
+  `occurrence_id` are *still* absent from the change-detection tuple, so changing only those emits nothing. That
+  predates U04 and the manifest asks only for the new columns; widening the tuple is a behaviour change and
+  belongs with U05, which is the unit that starts writing those columns. **Carried forward.**
+- **Retention unchanged, as scoped.** `deleteSettledOlderThan` still ignores `cleared_at`; the column now exists
+  for the later unit that fixes it.
+
+**Full server PG sweep:**
+
+```
+$ cd packages/server && ../../scripts/run_with_test_cleanup.sh --timeout 45m -- \
+    dart test --tags pg -j 1
+11:31 +807 ~24: All tests passed!
+```
+
+The 24 skips are **not** unreachable-Postgres skips. All 24 come from the three suites carrying the
+unconditional constant `_skipHistoricalMigrationCoverage` — *"Disabled for the planned schema squash cutover;
+this only covers upgrades from retired schemas"* (`realtime_notification_migration_test.dart:22`,
+`beacon_cover_migration_test.dart:13`, `m0149_resolution_removal_migration_test.dart:13`). They are skipped at
+`UNIT_BASE` for the same reason and are unrelated to `m0178`.
+
+`git diff 9b0dddf04..HEAD --stat`: `_migrations.dart` (+2), `m0178.dart` (+388),
+`attention_additive_schema_pg_test.dart` (+708), `attention_repository_pg_test.dart` (1 line).
+
+### Remaining
+
+None for U04. Carried forward to their own units, not left undone here:
+
+- **U05** widens the change-detection tuple to `requires_action` / `attention_thread_key` / `occurrence_id`
+  (a pre-existing gap, and a behaviour change) and stops the `ON CONFLICT (dedup_key)` rewrite from governing
+  receipt identity; it is also the first writer of `logical_task_key` / `lifecycle_generation`.
+- **U18** runs the `legacy_seen` backfill the CHECKs were shaped to admit.
+- A later unit freezes the `surface` / `status` vocabularies on `attention_clear_operation` and extends
+  `deleteSettledOlderThan` to respect `cleared_at`.
