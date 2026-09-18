@@ -6,6 +6,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:logging/logging.dart';
 import 'package:mockito/mockito.dart';
 
+import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/env.dart';
 import 'package:tentura/features/evaluation/domain/entity/evaluation_participant.dart';
@@ -33,6 +34,8 @@ class _Effects implements UiEffectPort {
 }
 
 class _HarnessRouter extends Mock implements StackRouter {
+  final replaced = <PageRouteInfo<dynamic>>[];
+
   @override
   PagelessRoutesObserver get pagelessRoutesObserver => PagelessRoutesObserver();
 
@@ -42,6 +45,15 @@ class _HarnessRouter extends Mock implements StackRouter {
     bool ignoreParentRoutes = false,
     bool ignorePagelessRoutes = false,
   }) => false;
+
+  @override
+  Future<T?> replace<T extends Object?>(
+    PageRouteInfo<dynamic> route, {
+    OnNavigationFailure? onFailure,
+  }) async {
+    replaced.add(route);
+    return null;
+  }
 }
 
 class _ControllableEvaluationRepository extends FakeEvaluationRepository {
@@ -119,6 +131,8 @@ void main() {
     causalHint: '',
   );
 
+  late _HarnessRouter lastRouter;
+
   Future<(WidgetTester, FakeEvaluationRepository, EvaluationCubit)> pump(
     WidgetTester tester, {
     bool draft = false,
@@ -167,7 +181,7 @@ void main() {
       isDraftMode: draft,
       effects: _Effects(),
     );
-    final router = _HarnessRouter();
+    final router = lastRouter = _HarnessRouter();
     await tester.pumpWidget(
       RouterScope(
         controller: router,
@@ -588,6 +602,27 @@ void main() {
     );
     expect(find.textContaining('Reviews sent'), findsOneWidget);
     expect(find.byKey(TestIds.key(TestIds.evaluationDone)), findsOneWidget);
+    await cubit.close();
+  });
+
+  testWidgets('Done on a sent package opens the request when nothing can pop', (
+    tester,
+  ) async {
+    final repository = FakeEvaluationRepository()
+      ..participantsResult = [
+        participant.copyWith(rowStatus: 2, isSubmitted: true),
+      ];
+    final (test, _, cubit) = await pump(
+      tester,
+      repositoryArg: repository,
+      window: sentWindow,
+    );
+    await test.tap(find.byKey(TestIds.key(TestIds.evaluationDone)));
+    await test.pumpAndSettle();
+
+    expect(lastRouter.replaced, hasLength(1));
+    expect(lastRouter.replaced.single, isA<BeaconViewRoute>());
+    expect((lastRouter.replaced.single as BeaconViewRoute).args, isNotNull);
     await cubit.close();
   });
 
