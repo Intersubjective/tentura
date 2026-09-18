@@ -9,6 +9,7 @@ class ReviewBanner extends StatelessWidget {
     required this.onPrimary,
     required this.isDraftPhase,
     this.margin,
+    this.progressLine,
     super.key,
   });
 
@@ -20,10 +21,13 @@ class ReviewBanner extends StatelessWidget {
   /// Outer card margin; defaults to People-tab spacing when null.
   final EdgeInsetsGeometry? margin;
 
+  /// Required-package progress, shown only while answers are incomplete.
+  final String? progressLine;
+
   @override
   Widget build(BuildContext context) {
     final l10n = L10n.of(context)!;
-    final theme = Theme.of(context);
+    final tt = context.tt;
     if (isDraftPhase) {
       return Padding(
         padding: const EdgeInsets.only(bottom: TenturaSpacing.section),
@@ -49,22 +53,14 @@ class ReviewBanner extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
-            Text(
-              l10n.evaluationBannerTitle,
-              style: theme.textTheme.titleSmall,
-            ),
-            const SizedBox(height: 4),
-            Text(
-              l10n.evaluationBannerSubtitle,
-              style: theme.textTheme.bodySmall?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
-            ),
-            const SizedBox(height: 12),
             FilledButton(
               onPressed: onPrimary,
-              child: Text(l10n.evaluationBannerReview),
+              child: Text(l10n.beaconHudActReviewContributions),
             ),
+            if (progressLine != null) ...[
+              SizedBox(height: tt.tightGap),
+              Text(progressLine!, style: TenturaText.bodySmall(tt.textMuted)),
+            ],
           ],
         ),
       ),

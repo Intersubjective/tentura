@@ -83,9 +83,9 @@ BeaconViewState _packageState(
         ReviewPackageState.sent => 2,
         _ => 1,
       },
-      totalCount: package == ReviewPackageState.empty ? 0 : 3,
-      requiredTotal: 2,
-      requiredReviewed: package == ReviewPackageState.inProgress ? 1 : 2,
+      totalCount: package == ReviewPackageState.empty ? 0 : 4,
+      requiredTotal: 3,
+      requiredReviewed: package == ReviewPackageState.inProgress ? 1 : 3,
       // Legacy counts deliberately disagree: progress uses required counters.
       sentAt: sent ? DateTime.utc(2026, 9, 18) : null,
       allRequiredSent: allRequiredSent,
@@ -168,7 +168,7 @@ void main() {
           l10n: l10n,
           state: _packageState(ReviewPackageState.inProgress),
         )!;
-        final progress = l10n.beaconHudActEffectReviewProgress(1, 2);
+        final progress = l10n.beaconHudActEffectReviewProgress(2, 3);
         expect(spec.effectLine, progress);
         expect(spec.semanticsLabel, '${spec.label}. $progress');
         for (final package in [
