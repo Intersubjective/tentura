@@ -140,6 +140,7 @@ VALUES
       expect(forward.forwardOutcome, 'notInterested');
     });
 
+    // CHANGES IN U09/U10: cross-surface helping forward outcome duplicates My Work responsibility until projections apply D01/D08.
     test('active help offer produces helping forward outcome', () async {
       await _upsertInbox(
         writer,
@@ -150,6 +151,7 @@ VALUES
       await _insertHelpOffer(writer, beaconId: _foreignBeaconId, status: 0);
 
       final forward = await _singleActivityItem(query);
+      // CHANGES IN U09/U10: helping outcome row may become dismiss-only tombstone or leave Activity when live attention is My Work-only.
       expect(forward.forwardOutcome, 'helping');
       expect(forward.itemKind, AttentionItemKind.forward);
     });
@@ -534,6 +536,7 @@ ON CONFLICT DO NOTHING
       });
     });
 
+    // CHANGES IN U10: optional status events must not bump forward ordering; only live obligations promote.
     test('status event merges into forward and bumps created_at', () async {
       await _upsertInbox(
         writer,
@@ -568,6 +571,7 @@ ON CONFLICT DO NOTHING
           .where((item) => item.id == 'inbox:$_foreignBeaconId')
           .single;
       expect(forward.itemKind, AttentionItemKind.forward);
+      // CHANGES IN U10: forward created_at stays anchored; optional child events update preview/dot only.
       expect(
         forward.createdAt.toUtc().toIso8601String(),
         '2026-08-12T14:00:00.000Z',
@@ -584,6 +588,7 @@ ON CONFLICT DO NOTHING
       );
     });
 
+    // CHANGES IN U09/U10: helping forward row presentation and Activity grouping may change with outcome dismiss and active-only eligibility.
     test('helping forward has zero Activity event children', () async {
       await _upsertInbox(
         writer,
@@ -600,6 +605,7 @@ ON CONFLICT DO NOTHING
       );
 
       final forward = await _singleActivityItem(query);
+      // CHANGES IN U09/U10: event children eligibility may include uncleared optional updates under active-only grouping.
       expect(forward.forwardOutcome, 'helping');
       expect(forward.eventTotal, 0);
       expect(forward.eventsPreview, isEmpty);
@@ -642,6 +648,7 @@ WHERE user_id = @userId AND beacon_id = @beaconId
       expect(feed.page.items, isEmpty);
     });
 
+    // CHANGES IN U10: optional events must not reorder pinned Requests via effectiveActivityAt.
     test('activityOffers orders by effectiveActivityAt not latest_forward_at',
         () async {
       await _ensureForwardPath(writer, beaconId: _foreignBeaconId);
@@ -666,6 +673,7 @@ WHERE user_id = @userId AND beacon_id = @beaconId
       );
 
       final page = await query.activityOffers(accountId: _viewerId, limit: 10);
+      // CHANGES IN U10: status-driven effectiveActivityAt must not move pinned order ahead of stable first-entry keys.
       expect(page.items.map((e) => e.beaconId).toList(), [
         _foreignBeaconId,
         _closedBeaconId,

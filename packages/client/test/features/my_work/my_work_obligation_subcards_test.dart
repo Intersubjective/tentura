@@ -105,6 +105,7 @@ void main() {
     expect(find.text('Review'), findsOneWidget);
   });
 
+  // CHANGES IN U07b: generic Done settlement on help-offer obligations will be removed.
   testWidgets('Respond and Done are independent hit targets', (tester) async {
     var respondCount = 0;
     await _pumpBlock(
@@ -118,6 +119,7 @@ void main() {
     final respond = find.widgetWithText(TenturaTextAction, 'Respond');
     final done = find.bySemanticsIdentifier(TestIds.myWorkObligationDone('r1'));
     expect(respond, findsOneWidget);
+    // CHANGES IN U07b: Done control removed; obligations settle only via source actions/sheets.
     expect(done, findsOneWidget);
 
     expect(tester.getSize(respond).height, greaterThanOrEqualTo(48));

@@ -169,6 +169,7 @@ void main() {
     await cubit.close();
   });
 
+  // CHANGES IN U07b: generic user settlement path removed; obligations resolve via source transitions only.
   test('settleObligation removes receipt and calls settle', () async {
     final obligation = _receipt(id: 'r-settle', beaconId: 'b1');
     final attentionRepo = StubAttentionRepository()
