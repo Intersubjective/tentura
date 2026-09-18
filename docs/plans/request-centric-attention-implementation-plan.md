@@ -101,7 +101,7 @@ outcome row), `docs/features/new-stuff-indicators.md` (superseded banner), `work
 
 ---
 
-### U02 — Characterization tests
+### U02 — Characterization tests · **COMPLETE (2026-09-18)**
 
 **Goal.** Freeze today's behaviour in tests *before* changing it, and mark which assertions we intend to break.
 
@@ -125,7 +125,7 @@ outcome row), `docs/features/new-stuff-indicators.md` (superseded banner), `work
 
 ---
 
-### U03 — Exhaustive classification
+### U03 — Exhaustive classification · **COMPLETE (2026-09-18)**
 
 **Goal.** Make classification a declared, machine-checked function of (event type × recipient role × state).
 
@@ -186,7 +186,7 @@ arriving during a clear cannot be swallowed by it; no receipt's `created_at` mov
 
 ---
 
-### U06a — Retention defect · **no dependencies, ship independently**
+### U06a — Retention defect · **COMPLETE (2026-09-18)**
 
 **Goal.** Stop retention from deleting outstanding work.
 

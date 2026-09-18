@@ -384,3 +384,62 @@ settlement code; U10/U11: make SQL/grouping match declared `orderingEffect` and 
 | U03 exhaustive classification | **complete** (`b954d26c7`, `1c4f9c4ef`, `dcaf6edce`) |
 
 ---
+
+### Manager verdict — U03 · **ACCEPTED**
+
+Independently re-verified by the overseer after the worker exited:
+
+- Server non-PG (`test/architecture` + `test/domain/attention`) → **88 passed**.
+- Server PG, 7 attention files → **70 passed, 0 skipped** — *identical to the pre-unit count*. This is the
+  evidence that matters for this unit: the classification refactor changed declarations, not behaviour.
+- Client `test/architecture` → **16 passed**.
+- `check-custom-lints.sh packages/server` → `total: 0 (baseline: 0) OK`.
+
+**Design of the change, reviewed and endorsed.**
+- The contract gained a new top-level `eventClassifications` block with **29 entries — one per runtime
+  `AttentionEventType`** — while the legacy `eventTypes` (15) was left untouched. Additive, so existing consumers
+  and their tests are undisturbed.
+- Classification is expressed as `variants[]` keyed by `recipientPredicate`, not one value per type. This was the
+  non-negotiable shape: `helpOfferSubmitted` is an obligation for `reason:authorOfBeacon` and an optional update
+  for every other recipient, and a flat per-type field could not have expressed it.
+- `_requiresAction` now enumerates all 29 values instead of falling through `_ => false`, and each retains
+  today's outcome (obligations remain exactly `reviewOpened` and author-facing `helpOfferSubmitted`).
+  `AttentionEventTypeCatalog.assertDeclared` at the policy entry point makes an undeclared type fail loudly
+  instead of defaulting to silently optional.
+
+**Honest gaps, accepted as designed.** Five variants carry `recoverableVia: unverified` —
+`beaconHierarchyStatusChanged`, `staleReminder`, `commitmentResolved`, `deadlineChanged`, `deadlineReminder`.
+These are exactly the types whose surviving content cannot be established from code in one pass. The brief
+permitted `unverified` and forbade guessing; the worker used the permission rather than inventing a claim.
+**U19 must drive this count to zero** — it is the release gate for the dismissible-implies-derivable rule.
+
+**Carried forward to U07a — do not lose this.** The author-obligation variant declares
+`HelpOfferCase.withdrawHelpOffer` among its `resolutionTransitions`. The declaration states what *should* settle
+the obligation; the independent Astra review of this plan established that withdrawal today updates the offer,
+access, Inbox state and receipts **without** settling the author's obligation. So the contract now encodes an
+intent the code does not yet honour. That is the correct direction, but it means U07a's audit must treat this row
+as a known open gap, and U07b must close it.
+
+**Discipline.** The tests U02 wrote and tagged were not modified (verified by file list). Commits are split into
+three reviewable subjects — contract data `b954d26c7`, policy `1c4f9c4ef`, enforcement `dcaf6edce` — plus journal.
+No migrations, no SQL, no UI, no generated files. Pre-existing worktree changes and secrets untouched.
+
+---
+
+## Overseer session 1 — CLOSED
+
+Scope was U06a → U02 → U03, and all three are accepted. U04 and beyond were deliberately withheld pending U02's
+findings, which have now arrived (see the two carried-forward facts in the U02 verdict and the withdrawal gap
+above). The recommended next step is **U07a**, the obligation-transition audit — an investigation unit producing
+a transition matrix, not an implementation — because both U07b and U12 are unschedulable without it, and because
+U04's table shapes should be designed against the projections U02 has now pinned rather than against plan prose.
+
+| Unit | Status | Commits |
+|---|---|---|
+| U01 product contract | accepted | `d79ace257` |
+| U06a retention defect | accepted | `3df3d8eee` |
+| U02 characterization tests | accepted | `dc235c284`, `c51daa172` |
+| U03 exhaustive classification | accepted | `b954d26c7`, `1c4f9c4ef`, `dcaf6edce` |
+
+Independent verification totals at close: server PG 70/0 skipped · server non-PG 88 · client attention+features
+407 · client architecture 16 · server lints at baseline.
