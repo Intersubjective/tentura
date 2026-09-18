@@ -456,3 +456,45 @@ acceptance from now on.
 Worktree integrity re-confirmed at close: 38 untracked files (44 at session open minus the 6 documentation files
 the overseer committed) and the 4 pre-existing modified files, with `key.fb`, `leo.key`, `out.key` and
 `dart-defines` present and unmodified.
+
+## Overseer-sandwich session 2 — opened 2026-09-19 00:15
+
+**Objective.** Implement the remaining manifest autonomously: U0C, U03b, U07a, U04–U19.
+**Repository.** `feature/events_refac`, starting HEAD `8bc8114f6`.
+**Pre-existing worktree (must survive).** 4 modified (`.serena/project.yml`, constellation journal,
+`force_directed_graphview` ×2) and 37 untracked, including `key.fb`, `leo.key`, `out.key`, `dart-defines`.
+
+**Layers verified at open.** `cursor-agent` 2026.09.15 with non-fast `composer-2.5`; `claude` 2.1.277 probed —
+`init` reported `"model":"claude-opus-5"`, effort low, exit 0; `codex-cli` 0.154.0 installed.
+**Escalation path at open: SUBSTITUTE ONLY.** Astra returns at 04:00 local; until then any escalation runs
+`run_opus_worker.sh --effort high`. Owner's budget for Astra: 3–4 small parts *or* one whole-implementation
+review. Reserved for **one final review** unless a hard defect survives a remediation sandwich.
+MemAvailable at open: 45.6 GB.
+
+**Unit order and risk tags.**
+
+| # | Unit | Tag |
+|---|---|---|
+| 1 | U0C Following rename | routine |
+| 2 | U03b card contract fields | routine |
+| 3 | U07a obligation transition audit | investigation — read-only Composer, no sandwich |
+| 4 | U04 additive schema | hard (migration safety) |
+| 5 | U05 immutable dispatch identity | hard (identity, dedup, concurrency) |
+| 6 | U06b retention + history read | routine |
+| 7 | U07b obligation lifecycle | hard (transaction boundaries) |
+| 8 | U08 clear command | hard (races) |
+| 9 | U09 outcomes, sweep, undo | hard (concurrency, social side effects) |
+| 10 | U10 primary projections and ordering | hard (widest blast radius) |
+| 11 | U11 child propagation policy | routine |
+| 12 | U12 reconciliation | routine |
+| 13 | U13 client data/domain integration | hard (multi-device convergence) |
+| 14 | U14 shared event block + indicators | routine |
+| 15 | U15 My Desk integration | routine |
+| 16 | U16 For You integration + card | routine |
+| 17 | U17 detail, History, Settings, rewards | routine |
+| 18 | U18 backfill and activation | hard (cutover) |
+| 19 | U19 acceptance and release | final verification |
+
+**Blockers at open.** None.
+
+---
