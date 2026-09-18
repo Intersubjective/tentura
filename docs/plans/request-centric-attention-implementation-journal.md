@@ -1656,3 +1656,217 @@ U08 is the first unit to write that column and must prove it there, so the "ever
 rule keeps no exceptions.
 
 ---
+
+## UNIT U05 — Immutable dispatch identity · SCOUT BRIEF (2026-09-19)
+
+**UNIT_BASE:** `d17d52ca3`. **Mode:** read-only scout; no production edits.
+
+### Problem confirmation (live code)
+
+`AttentionDispatchRepository.record` (`attention_dispatch_repository.dart:22–213`) does three durable writes per
+successful new `source_event_key`:
+
+1. **`attention_occurrence`** — `ON CONFLICT (source_event_key) DO NOTHING` then equality check on
+   `{source_event_key, event_type, actor_user_id, immutable_payload}`; mismatch → `StateError`; match → **return
+   without writing receipts** (replay is occurrence-grain, not receipt-grain).
+2. **`attention_occurrence_recipient`** — always **INSERT** (PK `(occurrence_id, account_id)`); one row per
+   occurrence×recipient; stores `collapse_key` (not copied to `notification_outbox`).
+3. **`notification_outbox`** — `INSERT … ON CONFLICT (dedup_key) WHERE seen_at IS NULL DO UPDATE SET …` (lines
+   125–148).
+
+The conflict branch **rewrites** (does not touch `id`, `account_id`, `dedup_key`, `seen_at`, `read_at`,
+`emailed_at`, or settlement columns):
+
+| Column updated on conflict | Consumer / why it matters |
+|---|---|
+| `category`, `kind`, `priority` | Feed classification, preference gates, channel routing |
+| `title`, `body`, `action_url` | In-app copy, push/email payload (via frozen `attention_channel_delivery.payload`) |
+| `beacon_id`, `coordination_item_id`, `actor_user_id` | Scoping, mark-seen-for-beacon, GraphQL fields |
+| `source_event_key`, `occurrence_id` | Receipt identity, FK to occurrence topology, U18 backfill anchors |
+| `destination_kind`, `target_entity_id` | Navigation / destination map |
+| `presentation_key`, `presentation_payload` | Card rendering (immutable-after-insert target) |
+| `in_app_preference_class`, `suppression_class`, `access_policy` | Noisy vs standard, visibility |
+| **`requires_action`** | Obligation vs optional axis — **can flip class on one stable `id`** |
+| `attention_thread_key` | Legacy obligation thread identity (distinct from `logical_task_key`) |
+| **`created_at = now()`** | Feed ordering, forward/`requestActivity` `MAX(created_at)` projections (`attention_repository.dart:302–341`, `:426–433`) |
+| **`collapsed_count += 1`** | GraphQL `collapsedCount`; client “N more” when `>= 3` (`updates_feed_pane.dart`, `activity_stream_view.dart`) |
+
+**Not updated:** settlement fields, clear columns (m0178), `logical_task_key` / `lifecycle_generation` (never written yet).
+
+### `dedup_key` composition and readers
+
+**Computed** in dispatch only:
+
+```text
+dedup_key = '${recipientId}|attention-v1|${collapseKey}'
+collapseKey = recipient.collapseKey ?? intent.collapseKey
+```
+
+**`collapseKey` producers** — `AttentionIntentCase` + per-recipient overrides (`attention_intent_case.dart`):
+
+- `AttentionCollapseKey.none(sourceEventKey)` → `v1|none|<encoded sourceEventKey>` (default; deadlines, relays at intent level use family keys on intent).
+- `AttentionCollapseKey.family(name, subjects)` → `v1|<family>|<subjects…>` (e.g. `coordination_changed|beaconId`, `request_status|beaconId` for watcher-only status recipients, trust families).
+- Intent-level examples: `coordinationChanged` → family `coordination_changed|[beaconId]`; `requestStatusChanged` intent uses `none(sourceEventKey)` but **watcher-only** recipients override to `family('request_status', [beaconId])` (`:714–716`).
+- Tests/harness: `relay|beaconId` (`attention_repository_pg_test.dart:1118`).
+
+**Readers of `dedup_key`:**
+
+| Location | Use |
+|---|---|
+| `m0120` partial UNIQUE `(dedup_key) WHERE seen_at IS NULL` | **Blocks** a second unseen row with the same key — **in tension with immutable per-occurrence receipts** |
+| `attention_dispatch_repository.dart` | Upsert target |
+| `attention_repository.dart:1141–1147` | `markUnseen` refuses to resurrect a seen receipt if an **unseen sibling shares `dedup_key`** |
+| `notification_outbox_repository.markEmailedByDedupKey` | After immediate email, marks **all** unseen rows with that key emailed (`email_notification_service.dart:111`) |
+| `attention_channel_delivery` payload | `AttentionChannelDecision.dedupKey` copied into JSON (`_decisionPayload`) → push handoff + email |
+| PG tests | Retention harness selects receipt by computed dedup (`attention_retention_pg_test.dart:127–133`) |
+
+**`collapsed_count` on the outbox row** is a **write-time** artifact of the upsert. Activity forward ordering often uses **SQL `MAX(created_at)` across related receipts** (`attention_repository.dart:302–341`), which mimics collapse **without** requiring `collapsed_count` — the U02-tagged test `status event merges into forward and bumps created_at` is **projection**-driven (manual inserts, distinct `dedup-$id`), slated for **U10**, not U05.
+
+### Channel delivery vs in-app collapse (m0121)
+
+Topology (`m0121.dart`):
+
+- `attention_occurrence` ← 1:1 `source_event_key`
+- `attention_occurrence_recipient` ← audience snapshot + **`collapse_key`**
+- `notification_outbox` ← receipt; **`dedup_key` is collapse-derived today**
+- `attention_channel_delivery` ← **`UNIQUE (occurrence_id, account_id)`**, status machine, **`payload` json** (includes `dedupKey`, title/body, `receiptId`)
+
+**On dedup-key upsert today:** the **same `receipt_id`** is kept; `occurrence_id` on the outbox row moves to the **latest** occurrence; channel path still **INSERTs a new delivery row** per new occurrence (`attention_dispatch_repository.dart:195–205`). So push/email already get **one job per occurrence**, while in-app shows **one row**. `claimDue` throttles to **one lease per account** (`attention_channel_delivery_repository.dart:41–44`; PG test `claimDue with two pending jobs…` expects **2 pending** jobs, **1 leased** — `attention_repository_pg_test.dart:1064–1094`).
+
+**Channel aggregation today:** worker reads **frozen `payload`** (not live outbox join); `collapsed_count` on outbox is **not** read by the delivery worker. Email/push use **payload copy** + `dedupKey` for post-send outbox marking.
+
+**Smallest split (D03-aligned):**
+
+1. **In-app:** always **INSERT** a new outbox row per `(occurrence_id, account_id)`; satisfy m0178 `notification_outbox__occurrence_account`; stop using `ON CONFLICT (dedup_key) …` for identity.
+2. **`dedup_key` on outbox:** must become **receipt-unique** (e.g. include `occurrence_id` or receipt `id`) **or** drop/replace `notification_outbox__dedup_seen` — otherwise the second unseen event in the same collapse family **violates UNIQUE** before immutable identity is achieved.
+3. **Channel:** keep collapsing on **`collapse_key`** (already on `attention_occurrence_recipient`; optionally denormalize to delivery table). Replace “upsert outbox” semantics with **dedupe at delivery insert** — e.g. skip or `ON CONFLICT` update **pending** job keyed by `(account_id, channel_collapse_key)` while still attaching the **latest** payload for handoff. Preserves: one in-flight send per account (`claimDue`), fewer duplicate pushes for the same family, **without** rewriting receipt rows.
+4. **Email `markEmailedByDedupKey`:** after (2), must key off **channel collapse key** (or mark by `receipt_id`), not receipt-unique `dedup_key`, or immediate-email dedupe regresses.
+
+### `source_event_key` replay (must keep working)
+
+Handled **before** outbox write (`attention_dispatch_repository.dart:25–66`). Replayed key with identical facts → **no new occurrence, no recipient row, no receipt, no delivery**. U05 must **not** move replay dedup onto `dedup_key` upsert. Regression test: double `record` same intent → still one occurrence, one receipt.
+
+### Obligation identity: `logical_task_key` + `lifecycle_generation` (D03, §0.1)
+
+**Not written anywhere yet** (m0178 columns NULL; CHECK allows NULL on obligations until U05).
+
+| Concern | Where it should live |
+|---|---|
+| **Compute stable `logical_task_key`** (excludes generation) | New helper alongside `AttentionPolicy._threadKey` (`attention_policy.dart:316–331`) — D03: *event family + beaconId + subjectId + recipientId*; must **include beacon** (thread key today can omit beacon when subject is `coordinationItemId`). |
+| **Assign `lifecycle_generation` on insert** | Dispatch writer when `requires_action` (default `1` for first live gen). |
+| **One live row per `(account_id, logical_task_key)`** | m0178 `notification_outbox__live_logical_task` partial UNIQUE; writer must **settle/supersede predecessor** (`settlement_kind`, `settled_at`) in the **same transaction** before inserting new gen — D03 “semantic renewal supersedes transactionally”. |
+| **Bump generation** | Re-offer / new review window / source reconciliation (U07b, U18) — not on channel **retry** (`retryOrDeadLetter` only mutates `attention_channel_delivery`). |
+
+**`attention_thread_key`:** keep legacy meaning; do not rename to `logical_task_key` (U04 journal).
+
+### Tests pinning current collapse (intentional rewrites for overseer)
+
+**Not in U02 `CHANGES IN Uxx` list** — call out for pre-approval:
+
+| File | Test | Current assertion | After U05 |
+|---|---|---|---|
+| `attention_repository_pg_test.dart` | `delivery jobs are durable and duplicate recording collapses` | 1 outbox row, `collapsed_count` max 2 after two relays same collapse | **2 receipts**, stable `created_at` each; channel behavior per delivery dedupe policy |
+| `attention_repository_pg_test.dart` | `claimDue with two pending jobs for one account…` | 2 delivery rows for dup-a/dup-b same collapse | May become **1 pending** if channel dedupes by collapse key — **assert handoff count, not occurrence count** |
+| `realtime_notification_migration_test.dart` | `seen-only collapse SQL and partial unique index remain exact` | Documents raw SQL upsert + `collapsed_count` 2/3 | **Rewrite or relocate** to legacy migration fixture; production path must not use that upsert |
+| `attention_repository_pg_test.dart` | `markUnseen skips… shares dedup_key` | Sibling dedup semantics | Still valid if manual duplicate `dedup_key` possible; **invalid** if dedup unique per receipt — adjust to collapse-key or drop |
+
+**U02 doomed tests:** none tagged U05. `status event merges…` / `activityOffers orders by effectiveActivityAt` remain **U10**.
+
+**Manifest tests:** new **dispatch identity PG** file (concurrency + replay); keep `attention_dispatch_telemetry_test.dart` green (unit, no PG).
+
+### m0178 interaction / transition data states
+
+| Index / preflight | Pre-U05 live shape | When immutable INSERT lands |
+|---|---|---|
+| Preflight duplicate `(occurrence_id, account_id)` | **Empty** (collapse kept one row per pair) | Stays valid |
+| `notification_outbox__occurrence_account` | One row per pair | **Enforced** on each new receipt |
+| `notification_outbox__live_logical_task` | Harmless while `logical_task_key` NULL | **Violations** if U05 writes keys without superseding prior live obligation |
+| `notification_outbox__dedup_seen` | One unseen row per collapse `dedup_key` | **Violations** if multiple unseen receipts share collapse unless `dedup_key` changes or index dropped |
+
+**Reachable mid-rollout (server-only deploy before U18):** mixed receipts — legacy collapsed rows (possibly stale `occurrence_id`) plus new immutable rows; duplicate optional events visible in feed where one row existed before; obligations with NULL `logical_task_key` alongside new keyed rows until backfill/U07b. **U18** expects restartable backfill with fixed boundary — do not rely on rewriting old rows in U05.
+
+### Proposed commit-sized STEPS
+
+| # | Step | Files (primary) | Red test meaningful? |
+|---|---|---|---|
+| 1 | **Failing identity contract** — replay once; two source keys same collapse → two receipt ids, two `occurrence_id`s, `created_at` unchanged on re-read; concurrent duplicate `source_event_key` → one occurrence | `test/.../attention_dispatch_identity_pg_test.dart` (new) | **Yes** — asserts new behavior |
+| 2 | **Receipt-unique `dedup_key` + plain INSERT** — remove `ON CONFLICT` upsert; `collapsed_count` default 1 | `attention_dispatch_repository.dart`; optional `m0179` drop/replace `notification_outbox__dedup_seen` | **Yes** — step 1 goes green |
+| 3 | **Channel collapse dedupe** — pending delivery coalesced on `(account_id, collapse_key)`; payload refreshed; `receiptId` points at latest receipt or handoff uses latest copy | `attention_dispatch_repository.dart`, `attention_channel_delivery_repository.dart` and/or migration | **Yes** — adjust `claimDue` PG test expectations |
+| 4 | **`logical_task_key` + `lifecycle_generation` write** on `requires_action` | `attention_policy.dart` (new key helper), `attention_dispatch_repository.dart` | **Yes** — insert obligation rows; assert columns set |
+| 5 | **Supersede predecessor** in same transaction when renewal would violate `notification_outbox__live_logical_task` | dispatch + existing settlement port (minimal hook; full transitions U07b) | **Yes** — two help-offer gens → one live |
+| 6 | **Email mark path** — mark emailed by channel collapse key | `email_notification_service.dart`, `notification_outbox_repository.dart` | **Yes** — two receipts one collapse, one email mark |
+
+Do **not** change `_requiresAction` outcomes.
+
+### TEST_CMD (verify suites exist)
+
+**Dispatch / collapse / attention PG (U02 baseline + additive schema):**
+
+```bash
+cd /home/vader/MY_SRC/tentura/packages/server && ../../scripts/run_with_test_cleanup.sh --timeout 20m -- \
+  dart test --tags pg -j 1 \
+  test/data/repository/attention_repository_pg_test.dart \
+  test/data/repository/attention_activity_stream_pg_test.dart \
+  test/data/repository/attention_surface_pg_test.dart \
+  test/data/repository/attention_mark_seen_for_beacon_pg_test.dart \
+  test/data/repository/attention_live_obligations_pg_test.dart \
+  test/data/repository/attention_retention_pg_test.dart \
+  test/data/repository/my_work_attention_pg_test.dart \
+  test/data/database/attention_additive_schema_pg_test.dart
+```
+
+**Unit (telemetry):**
+
+```bash
+cd /home/vader/MY_SRC/tentura/packages/server && ../../scripts/run_with_test_cleanup.sh --timeout 10m -- \
+  dart test test/data/repository/attention_dispatch_telemetry_test.dart
+```
+
+**Migration collapse fixture (rewrite candidate):**
+
+```bash
+cd /home/vader/MY_SRC/tentura/packages/server && ../../scripts/run_with_test_cleanup.sh --timeout 20m -- \
+  dart test --tags pg -j 1 test/data/database/realtime_notification_migration_test.dart
+```
+
+**Attention regression (client, unchanged by U05 unless projections consume new receipt multiplicity):**
+
+```bash
+cd /home/vader/MY_SRC/tentura/packages/client && ../../scripts/run_with_test_cleanup.sh --timeout 45m -- \
+  flutter test --dart-define=ENV=test --dart-define-from-file=env/test.env \
+  test/domain/attention test/features/inbox test/features/my_work test/features/home
+```
+
+### UNTOUCHABLE
+
+`key.fb`, `leo.key`, `out.key`, `dart-defines`, `.serena/project.yml`, `packages/force_directed_graphview/**`,
+`docs/plans/constellation-*`, generated files, U02 tests except the **explicit U05 rewrite list above**,
+`_requiresAction` classification in `attention_policy.dart`.
+
+### RISKS
+
+| Hazard | Detail |
+|---|---|
+| **`notification_outbox__dedup_seen` vs immutable rows** | Second unseen insert with same collapse **fails** unless `dedup_key` or index changes — plan step 2 before enabling multi-receipt feeds. |
+| **Partial UNIQUE `(occurrence_id, account_id)`** | Safe if one INSERT per pair; **unsafe** if conflict upsert retained. |
+| **`notification_outbox__live_logical_task`** | Inserting keyed obligations without supersede → **unique_violation**; partial deploy with NULL keys still OK. |
+| **Push/email duplicate or stale** | Wrong channel dedupe → double push or payload pointing at superseded `receiptId`. |
+| **Email mark by wrong key** | Receipt-unique `dedup_key` breaks collapse-aware `markEmailedByDedupKey`. |
+| **Feed cardinality** | Optional events no longer collapse in outbox → more rows until U10 projection grouping; indicators may jump until read models adapt. |
+| **U18 backfill** | Legacy rows may have **wrong `occurrence_id`** on collapsed receipts; backfill must not assume outbox↔occurrence join for pre-cutover rows. |
+| **Rolling deploy** | Old writers collapse / new writers insert → duplicate or conflicting semantics; coordinate single server version or feature flag (not in manifest). |
+| **Realtime trigger** | m0178 already watches `logical_task_key` / `lifecycle_generation`; U04 carried gap on `requires_action` / `occurrence_id` — widening tuple is optional separate commit. |
+
+**STATUS:** complete
+
+**BRIEF:** After U05, each new `(occurrence_id, account_id)` yields a **new immutable receipt** (`created_at`, presentation, `requires_action`, `source_event_key` never rewritten by later events). Replaying the same `source_event_key` still creates **zero** additional receipts. Channel push/email keep **collapse-family** aggregation via `collapse_key` / delivery dedupe, not outbox upsert. Live obligations use **`logical_task_key` + `lifecycle_generation`** with at most one unsettled row per key; semantic renewal supersedes in-transaction; delivery retry does not bump generation.
+
+**STEPS:** See table above (6 commits: identity PG tests → dedup/INSERT → channel dedupe → logical task columns → supersede → email mark).
+
+**TEST_CMD:** See commands above (`attention_repository_pg_test.dart` + six sibling PG suites + `attention_additive_schema_pg_test.dart` + `attention_dispatch_telemetry_test.dart` + optional `realtime_notification_migration_test.dart` + client attention regression).
+
+**UNTOUCHABLE:** Listed above.
+
+**RISKS:** Listed above (`dedup` index, live logical task UNIQUE, channel/email, U18 legacy occurrence linkage, deploy ordering).
+
+---

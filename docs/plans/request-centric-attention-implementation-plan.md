@@ -239,6 +239,23 @@ arriving during a clear cannot be swallowed by it; no receipt's `created_at` mov
 
 ---
 
+**Split by the overseer after the U05 scout (2026-09-19).** The scout's brief decomposed U05 into six
+commit-sized steps — beyond what one low-effort inner pass handles reliably — so U05 runs as three sequential
+sandwiches:
+
+- **U05a — receipt identity**: stop the in-place `ON CONFLICT (dedup_key)` rewrite, give in-app receipts
+  immutable identity, preserve `source_event_key` replay dedup. Includes the schema change the scout found
+  necessary: the existing `notification_outbox__dedup_seen` unique index forbids two unseen rows per collapse
+  key and must change before plain INSERT is possible.
+- **U05b — channel split**: move collapsing to the channel layer (pending-delivery dedupe, email marked by the
+  channel collapse key instead of `dedup_key`) so push/email behaviour is unchanged.
+- **U05c — obligation identity**: write `logical_task_key` / `lifecycle_generation`, and supersede the
+  predecessor transactionally on a semantic renewal (a delivery retry must do neither).
+
+**Accepted consequence, deliberate:** after U05a the feed carries more receipts per Request until U10's
+projections absorb them. The U02 characterization tests that pin today's collapse behaviour are therefore
+approved for rewrite *in these units only*, and each rewrite must be named in the journal.
+
 ### U06a — Retention defect · **COMPLETE (2026-09-18)**
 
 **Goal.** Stop retention from deleting outstanding work.
@@ -319,6 +336,11 @@ the expiry explanation.
 ---
 
 ### U08 — Clear command (single and open)
+
+**Carried in from U04's verify (overseer):** this unit is the first writer of
+`cleared_by_operation_id`, so it must also prove the `notification_outbox__cleared_by_operation_fkey` FK
+rejects an unknown operation id. U04 added the FK but nothing exercises it yet.
+
 
 **Goal.** Explicit clearing with an exact, race-safe boundary.
 
