@@ -73,7 +73,7 @@ If Opus is unavailable: routine units degrade to Composer-only implement+verify;
 - [x] UNIT 07 l10n keys — routine — Opus inner — verify pass 2026-09-18 — overseer accepted (`f6da84625`)
 - [x] UNIT 08 `ReviewPackageState` — routine — Opus inner — verify pass 2026-09-18 — overseer accepted (`996724eec`)
 - [x] UNIT 09 client data/role/context — hard (DTO hops, codegen) — Opus inner (quota stop; overseer finished step 4) — verify pass 2026-09-18 — overseer accepted (`432d2839d`)
-- [ ] UNIT 10 checklist UI — hard (Flutter, #162) — **ASTRA inner**
+- [x] UNIT 10 checklist UI — hard (Flutter, #162) — Opus-high substitute (Astra A2 quota miss) — verify pass 2026-09-18 — overseer accepted (`0b27c5885`)
 - [ ] UNIT 11 paused/closed classify — hard (D12) — Opus inner
 - [ ] UNIT 12 HUD + banner — hard (#162 loop) — **ASTRA inner**
 - [ ] UNIT 13 My Work cards — hard — Opus inner
@@ -1201,3 +1201,47 @@ REMAINING / NOT DONE (out of unit scope):
 - The optional section is omitted entirely when every optional card is skipped (no dangling header + hint); the stored rows are untouched, so nothing is lost.
 
 PRE-EXISTING RED, NOT UNIT 10 (for the overseer): the full client suite (`flutter test packages/client`, **+3537 ~29 −1**) has one failure, `test/architecture/updates_event_contract_test.dart` — `Updates contract has the exact revision 4 semantic coverage`, row `[9]` is `reviewAllPackagesIn` where the fixture expects `mutualConnectionFormed`. That row arrives with the UNIT 05 nudge event (`3c769e4d3` / `f3f557f70`); the client contract fixture was never widened. Untouched by UNIT 10 (no file in this unit's commits feeds that test) — likely UNIT 14 or a UNIT 05 follow-up.
+
+### verify — 2026-09-18 — UNIT 10
+
+STATUS: pass
+
+TEST_OUTPUT:
+- `cd packages/client && ../../scripts/run_with_test_cleanup.sh --timeout 15m -- flutter test test/features/evaluation --dart-define=ENV=test --dart-define-from-file=env/test.env` — **+148, −0** (~10.3s). Matches overseer **+148**.
+
+RANGE: `578b72f07..0b27c5885` (5 commits: `c2a6bfe19`, `8b2887c11`, `e090142a5`, `0ee85b8a7`, `0b27c5885`). Owns-only diff: cubit, state, `review_contributions_screen.dart`, `test_ids.dart`, two test files, journal. No uncommitted changes under `packages/client/lib/features/evaluation/**` or UNIT 10 tests at verify time.
+
+ACCEPTANCE (plan UNIT 10 + hard-unit checks + overseer follow-up):
+
+| Criterion | Verdict | Evidence |
+|-----------|---------|----------|
+| Live `finalize()` does not `NavigateBack` | **met** | `evaluation_cubit.dart:248–261` — success path calls `_refreshAfterSend()` only; `evaluation_cubit_lifecycle_test.dart` `live finalize stays on screen…` asserts zero `NavigateBack`. |
+| Post-send refresh failure: sent locally, not loading | **met** | `_refreshAfterSend` catch patches `userReviewStatus: 2`, `sentAt`, `status: StateStatus.isSuccess` (`:291–303`); `0b27c5885` adds explicit success emit on that path; lifecycle test `refresh failure after a successful send…` asserts `packageState.sent`, `isLoading` false, `ShowError` once. |
+| Screen uses `packageState`, not numeric `userReviewStatus` | **met** | `review_contributions_screen.dart` — `switch (state.packageState)` in `_PackageBottomBar` (`:468`); ripgrep: no `userReviewStatus` in screen file. |
+| Local skip (D8), no cubit | **met** | `_skipped` + `setState` (`:60`, `:318`); widget test `skip hides an optional card without calling the cubit` — `submitCalls`/`draftDeleteCalls` 0, participants length unchanged. |
+| `contributionSummary` removed from checklist UI | **met** | No `contributionSummary` in screen; subtitles via `presentParticipantContext` (`:599+`). Entity field retained (D17). |
+| 360×2.0 builds participant card(s) | **met** | `sections render at 360px and textScaler 2.0` — `Required` `skipOffstage: false`, `scrollUntilVisible` to `evaluation.participant.u1` and `u2`. |
+| `TestIds.evaluationSubmit` on `readyToSend` and `changedNotSent` | **met** | `_PackageBottomBar` `cta()` always keys `evaluationSubmit` (`:438–442`); tests `first fill offers…`, `editing a card after a send offers Send changes` assert enabled submit button. |
+| Paused/closed bodies not implemented (UNIT 11) | **met** | No `evaluationPaused*` / `evaluationClosed*` in screen; lifecycle states fall through to progress-only bar (`:525–530`). |
+| `packageState` getter on state (plan step 1) | **met** | `evaluation_state.dart:27–37` literal `deriveReviewPackageState` inputs; `beaconIsInReview`/`beaconIsClosed` defaults present. |
+| Bottom bar matrix (inProgress / ready / sent / dirty) | **met** | `_PackageBottomBar` cases `:469–521`; sent uses `evaluationPackageSentAt` + tonal Done (`evaluation.done`). |
+| Sections + optional skip + own-package notice | **met** | `_participantItems` required/optional split; tests `viewerPackageOptional…`, `skipping an optional card with a stored row…`. |
+| Draft `finalize` still pops | **met** | `evaluation_cubit.dart:249–252`; lifecycle test `draft finalize still navigates back`. |
+| Eight plan-named screen tests | **met** | All present in `review_contributions_screen_test.dart` (`:536`–`:744` region). |
+| #162 acceptance (submit then stay sent) | **met** | `after a send the screen stays and shows the sent status` — no submit CTA, `evaluation.package_status` shows sent date. |
+| Plan Verify TEST_CMD | **met** | Independent run **+148**. |
+
+GAPS:
+- **`beaconIsInReview` / `beaconIsClosed` never set from reads** — defaults only until UNIT 11 (`_classifyLifecycleError`); not a UNIT 10 fail (scout + inner acknowledged).
+- **Lifecycle package states UI** — `paused` / `closed` / `closedUnsent` / `notEnrolled` show progress line only, not replacement body; UNIT 11 owns full copy.
+- **`reviewedCount` live mode still uses `isSubmitted`** (`evaluation_state.dart:39–41`); bar uses `hasAnswer` counts — HUD/My Work drift until UNIT 12/13 (inner FINDING).
+- **Optional section hidden when all optional cards skipped** — intentional inner behavior; stored rows remain in cubit state (tested).
+- **No generated files in commits** — `evaluation_state.freezed.dart` gitignored; suite green implies local regen OK (D18).
+
+### overseer — UNIT 10 accepted — 2026-09-18
+
+Verdict: **accepted**. Opus 5 high substitute for Astra A2; follow-up `0b27c5885` for loading after refresh failure. Composer verify **+148**. Checklist #162 primary surface met; UNIT 11/12 untouched as required.
+
+Independent overseer: TEST_CMD **+148**; `_refreshAfterSend` catch now emits `isSuccess`; skip is local `setState`; screen switches on `packageState`; `evaluationSubmit` on send CTAs.
+
+UNIT 11 UNIT_BASE: `0b27c5885` (journal commit of this accept will sit on top — scout uses HEAD after this commit). Inner: Opus-low. Astra reserved for UNIT 12 (A3). Do not probe Astra until 05:51.
