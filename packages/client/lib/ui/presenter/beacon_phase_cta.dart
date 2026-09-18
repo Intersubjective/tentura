@@ -18,7 +18,7 @@ String? myWorkPhasePrimaryCtaLabel({
   final input = beaconPhaseInputFromMyWorkCard(vm);
   final result = deriveBeaconCoordinationPhase(
     input,
-    viewerReviewPackageState: myWorkViewerReviewPackageState(vm),
+    offerReviewContributions: myWorkOfferReviewContributions(vm),
   );
   final isAuthor = vm.beacon.author.id == viewerUserId;
   final action = resolveEffectivePrimaryAction(
@@ -77,7 +77,7 @@ BeaconPhasePrimaryAction myWorkEffectivePrimaryAction({
   final input = beaconPhaseInputFromMyWorkCard(vm);
   final result = deriveBeaconCoordinationPhase(
     input,
-    viewerReviewPackageState: myWorkViewerReviewPackageState(vm),
+    offerReviewContributions: myWorkOfferReviewContributions(vm),
   );
   final isAuthor = vm.beacon.author.id == viewerUserId;
   return resolveEffectivePrimaryAction(
@@ -98,6 +98,13 @@ BeaconPhasePrimaryAction myWorkEffectivePrimaryAction({
 /// enriched them, so an unenriched card never flashes a review CTA.
 ReviewPackageState myWorkViewerReviewPackageState(MyWorkCardViewModel vm) =>
     vm.reviewPackageState ?? ReviewPackageState.notEnrolled;
+
+bool myWorkOfferReviewContributions(MyWorkCardViewModel vm) {
+  final state = myWorkViewerReviewPackageState(vm);
+  return state == ReviewPackageState.inProgress ||
+      state == ReviewPackageState.readyToSend ||
+      state == ReviewPackageState.changedNotSent;
+}
 
 OpenBlockerCue? openBlockerFromViewState(BeaconViewState state) =>
     beaconPhaseInputFromViewState(state).openBlocker;

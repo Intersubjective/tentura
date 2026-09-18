@@ -60,7 +60,7 @@ MyWorkStatusLineData myWorkStatusLine({
   final input = beaconPhaseInputFromMyWorkCard(vm, now: clock);
   final result = deriveBeaconCoordinationPhase(
     input,
-    viewerReviewPackageState: myWorkViewerReviewPackageState(vm),
+    offerReviewContributions: myWorkOfferReviewContributions(vm),
   );
   final pres = formatBeaconPhaseStatus(l10n, result, now: clock);
 

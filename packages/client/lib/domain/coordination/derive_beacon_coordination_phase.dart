@@ -1,5 +1,4 @@
 import 'package:tentura_root/domain/entity/beacon_status.dart';
-import 'package:tentura/features/evaluation/domain/review_package_state.dart';
 
 import '../entity/beacon.dart';
 import '../entity/beacon_coordination_phase.dart';
@@ -9,14 +8,14 @@ import 'beacon_has_unreviewed_offers.dart';
 
 /// Priority ladder: first match wins; floor is never blank ([phase] always set).
 ///
-/// [viewerReviewPackageState], when known, gates the reviewOpen
-/// `reviewContributions` proposal: a sent or terminal package is not offered
-/// again (#162). Null keeps the lifecycle-only behavior.
+/// [offerReviewContributions] gates the reviewOpen `reviewContributions`
+/// proposal: a sent or terminal package is not offered again (#162).
+/// Defaults to true so lifecycle-only callers keep the previous CTA.
 ///
 /// Deprecated: prefer server [BeaconDisplayStatusDto] when available.
 BeaconCoordinationPhaseResult deriveBeaconCoordinationPhase(
   BeaconCoordinationPhaseInput input, {
-  ReviewPackageState? viewerReviewPackageState,
+  bool offerReviewContributions = true,
 }) {
   final beacon = input.beacon;
   final status = beacon.status;
@@ -56,13 +55,13 @@ BeaconCoordinationPhaseResult deriveBeaconCoordinationPhase(
 
   return _deriveCoordinationTier(
     input,
-    viewerReviewPackageState: viewerReviewPackageState,
+    offerReviewContributions: offerReviewContributions,
   );
 }
 
 BeaconCoordinationPhaseResult _deriveCoordinationTier(
   BeaconCoordinationPhaseInput input, {
-  ReviewPackageState? viewerReviewPackageState,
+  required bool offerReviewContributions,
 }) {
   final beacon = input.beacon;
   final status = beacon.status;
@@ -72,7 +71,9 @@ BeaconCoordinationPhaseResult _deriveCoordinationTier(
     return BeaconCoordinationPhaseResult(
       phase: BeaconCoordinationPhase.wrappingUp,
       slot2Kind: _reviewSlot2(beacon),
-      suggestedAction: _reviewOpenAction(viewerReviewPackageState),
+      suggestedAction: offerReviewContributions
+          ? BeaconPhasePrimaryAction.reviewContributions
+          : BeaconPhasePrimaryAction.none,
       rowHarmony: const BeaconPhaseRowHarmony(suppressNowPlaceholder: true),
       reviewClosesAt: beacon.reviewClosesAt,
       lastActivityAt: activityAt,
@@ -193,16 +194,6 @@ BeaconCoordinationPhaseResult _derivePublicTier(
     lastActivityAt: activityAt,
   );
 }
-
-BeaconPhasePrimaryAction _reviewOpenAction(ReviewPackageState? package) =>
-    switch (package) {
-      null ||
-      ReviewPackageState.inProgress ||
-      ReviewPackageState.readyToSend ||
-      ReviewPackageState.changedNotSent =>
-        BeaconPhasePrimaryAction.reviewContributions,
-      _ => BeaconPhasePrimaryAction.none,
-    };
 
 BeaconPhaseSlot2Kind _reviewSlot2(Beacon beacon) {
   final closesAt = beacon.reviewClosesAt;
