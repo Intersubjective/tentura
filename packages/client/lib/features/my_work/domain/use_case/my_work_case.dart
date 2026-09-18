@@ -22,6 +22,7 @@ import '../../data/repository/archive_repository.dart';
 import '../../data/repository/my_work_repository.dart';
 import 'package:tentura/features/beacon_view/data/repository/beacon_display_repository.dart';
 import 'package:tentura/features/evaluation/data/repository/evaluation_repository.dart';
+import 'package:tentura/features/evaluation/domain/entity/review_window_info.dart';
 import 'package:tentura/domain/entity/beacon_display_status_dto.dart';
 import '../derive_my_work_cards.dart';
 import '../entity/my_work_card_view_model.dart';
@@ -135,29 +136,43 @@ final class MyWorkCase extends UseCaseBase {
     List<MyWorkCardViewModel> cards, {
     required String userId,
   }) async {
-    final reviewOpenAuthorIds = [
+    final reviewOpenIds = [
       for (final c in cards)
-        if (c.role == MyWorkCardRole.authored &&
-            c.beacon.status == BeaconStatus.reviewOpen)
-          c.beaconId,
+        if (c.beacon.status == BeaconStatus.reviewOpen) c.beaconId,
     ];
-    if (reviewOpenAuthorIds.isEmpty) {
+    if (reviewOpenIds.isEmpty) {
       return cards;
     }
     final windows = await _evaluationRepository.fetchReviewWindowStatuses(
-      reviewOpenAuthorIds,
+      reviewOpenIds,
     );
-    final canCloseByBeacon = {
-      for (final w in windows)
-        if (w.canCloseNow == true) w.beaconId: true,
-    };
+    final windowByBeacon = {for (final w in windows) w.beaconId: w};
     return [
       for (final card in cards)
-        canCloseByBeacon[card.beaconId] == true &&
-                card.role == MyWorkCardRole.authored
-            ? card.copyWith(showCloseNowCta: true)
-            : card,
+        if (card.beacon.status != BeaconStatus.reviewOpen)
+          card
+        else
+          _withReviewWindow(card, windowByBeacon[card.beaconId]),
     ];
+  }
+
+  MyWorkCardViewModel _withReviewWindow(
+    MyWorkCardViewModel card,
+    ReviewWindowInfo? window,
+  ) {
+    final package = deriveMyWorkReviewPackageState(
+      beaconStatus: card.beacon.status,
+      review: window,
+    );
+    return card.copyWith(
+      reviewPackageState: package,
+      reviewAllRequiredSent: window?.allRequiredSent ?? false,
+      showReviewCta: myWorkReviewPackageNeedsAction(package),
+      showCloseNowCta:
+          card.showCloseNowCta ||
+          (card.role == MyWorkCardRole.authored &&
+              window?.canCloseNow == true),
+    );
   }
 
   Future<Map<String, MyWorkBeaconAttention>> loadMyWorkAttention(

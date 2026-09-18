@@ -28,7 +28,7 @@ MyWorkCardViewModel _authoredCard(
     );
 
 void main() {
-  test('loadReviewWindows skips query when no reviewOpen authored cards', () async {
+  test('loadReviewWindows requests every reviewOpen card, not only authored', () async {
     final eval = FakeEvaluationRepository();
     final case_ = buildTestMyWorkCase(evaluationRepo: eval);
     final cards = [
@@ -43,7 +43,7 @@ void main() {
 
     final out = await case_.loadReviewWindows(cards, userId: 'Ua');
 
-    expect(eval.lastReviewWindowStatusesIds, isNull);
+    expect(eval.lastReviewWindowStatusesIds, ['B2']);
     expect(out.every((c) => !c.showCloseNowCta), isTrue);
   });
 

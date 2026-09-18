@@ -218,8 +218,17 @@ class EvaluationRepository {
             for (final s in rows)
               ReviewWindowInfo(
                 beaconId: s.beaconId,
-                hasWindow: true,
+                hasWindow: s.hasWindow,
+                windowComplete: s.windowComplete ?? false,
+                userReviewStatus: s.userReviewStatus,
+                totalCount: s.totalCount ?? 0,
                 canCloseNow: s.canCloseNow,
+                sentAt: s.sentAt == null ? null : _parseUtcDateTime(s.sentAt!),
+                requiredTotal: s.requiredTotal ?? 0,
+                requiredReviewed: s.requiredReviewed ?? 0,
+                optionalTotal: s.optionalTotal ?? 0,
+                optionalReviewed: s.optionalReviewed ?? 0,
+                allRequiredSent: s.allRequiredSent ?? false,
               ),
           ];
         });

@@ -4,6 +4,8 @@ import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/domain/entity/commitment_stake_state.dart';
 import 'package:tentura/domain/entity/coordination_response_type.dart';
 import 'package:tentura/domain/entity/profile.dart';
+import 'package:tentura/features/evaluation/domain/entity/review_window_info.dart';
+import 'package:tentura/features/evaluation/domain/review_package_state.dart';
 
 import 'entity/my_work_card_view_model.dart';
 import 'entity/my_work_fetch_types.dart';
@@ -23,6 +25,33 @@ int myWorkCardSortTier(MyWorkCardViewModel vm) {
   }
   return 200;
 }
+
+/// Viewer package state for a My Work card, from the lifecycle and the batch
+/// window row. Same inputs as the beacon HUD/banner inference; a missing row
+/// means the viewer has no window.
+ReviewPackageState deriveMyWorkReviewPackageState({
+  required BeaconStatus beaconStatus,
+  required ReviewWindowInfo? review,
+}) => deriveReviewPackageState(
+  beaconIsInReview:
+      beaconStatus == BeaconStatus.reviewOpen &&
+      !(review?.windowComplete ?? false),
+  beaconIsClosed:
+      beaconStatus == BeaconStatus.closed || (review?.windowComplete ?? false),
+  hasWindow: review?.hasWindow ?? false,
+  windowComplete: review?.windowComplete ?? false,
+  userReviewStatus: review?.userReviewStatus,
+  sentAt: review?.sentAt,
+  requiredTotal: review?.requiredTotal ?? 0,
+  requiredAnswered: review?.requiredReviewed ?? 0,
+  totalTargets: review?.totalCount ?? 0,
+);
+
+/// Whether [state] still asks the viewer to act on their review package.
+bool myWorkReviewPackageNeedsAction(ReviewPackageState? state) =>
+    state == ReviewPackageState.inProgress ||
+    state == ReviewPackageState.readyToSend ||
+    state == ReviewPackageState.changedNotSent;
 
 int compareMyWorkCards(MyWorkCardViewModel a, MyWorkCardViewModel b) {
   return compareMyWorkCardsForSort(MyWorkSort.recent, a, b);
@@ -168,8 +197,6 @@ MyWorkCardViewModel _deriveHelpOffered({
     );
   }
 
-  final reviewOpen = lc == BeaconStatus.reviewOpen;
-
   return MyWorkCardViewModel(
     beaconId: beacon.id,
     role: MyWorkCardRole.helpOffered,
@@ -179,7 +206,6 @@ MyWorkCardViewModel _deriveHelpOffered({
     authorResponseType: row.authorResponseType,
     stakeState: row.stakeState,
     forwarderSenders: row.forwarderSenders,
-    showReviewCta: reviewOpen,
     helpOfferRowUpdatedAt: row.helpOfferRowUpdatedAt,
     authorCoordinationUpdatedAt: row.authorCoordinationUpdatedAt,
     sources: {MyWorkMembershipSource.helpOffered},

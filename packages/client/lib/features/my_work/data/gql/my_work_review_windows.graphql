@@ -1,6 +1,16 @@
 query MyWorkReviewWindows($beaconIds: [String!]!) {
   reviewWindowStatuses(beaconIds: $beaconIds) {
     beaconId
+    hasWindow
+    windowComplete
+    userReviewStatus
+    totalCount
     canCloseNow
+    sentAt
+    requiredTotal
+    requiredReviewed
+    optionalTotal
+    optionalReviewed
+    allRequiredSent
   }
 }
