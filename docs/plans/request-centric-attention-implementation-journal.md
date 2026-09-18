@@ -1144,3 +1144,24 @@ and U19 should either wire it or retire it rather than leave a classified event 
 Commits: `11e0a5a2e` guard · `4634dc85b` data · `0b6b86897` journal.
 
 ---
+
+## UNIT U07a — Obligation transition audit · COMPLETE (2026-09-19)
+
+**WHAT.** Read-only audit at `UNIT_BASE` `d7a220a86`. Deliverable:
+[`request-centric-attention-obligation-transition-matrix.md`](request-centric-attention-obligation-transition-matrix.md)
+— two obligation variants, settlement chains with `file:line`, gaps, unemittable types, extra settle paths.
+
+**FINDINGS (carry to U07b).**
+- Confirmed U03 gap: `HelpOfferCase.withdraw` (`help_offer_case.dart:262–330`) does not call
+  `settleAuthorHelpOfferSubmitted`; accept/decline do (`coordination_case.dart:356–360`, `422–426`).
+- Contract symbols `withdrawHelpOffer` / `submitReviewPackage` map to `withdraw` and `evaluationFinalize`.
+- `reviewOpened` also settles via window close, reopen supersede, and backfill — not in contract
+  `resolutionTransitions`.
+- Generic `attentionSettle` still settles help-offer obligations (not review); client Done for non-review groups.
+- `staleReminder` and coordination-item event types remain without live producers (`coordination_item/` absent).
+
+**TESTS.** n/a — investigation only; no production or test edits.
+
+**STATUS:** complete
+
+---
