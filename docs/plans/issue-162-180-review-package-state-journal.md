@@ -75,9 +75,9 @@ If Opus is unavailable: routine units degrade to Composer-only implement+verify;
 - [x] UNIT 09 client data/role/context — hard (DTO hops, codegen) — Opus inner (quota stop; overseer finished step 4) — verify pass 2026-09-18 — overseer accepted (`432d2839d`)
 - [x] UNIT 10 checklist UI — hard (Flutter, #162) — Opus-high substitute (Astra A2 quota miss) — verify pass 2026-09-18 — overseer accepted (`0b27c5885`)
 - [x] UNIT 11 paused/closed classify — hard (D12) — Opus inner — verify pass 2026-09-18 — overseer accepted (`d2876e587`)
-- [ ] UNIT 12 HUD + banner — hard (#162 loop) — **ASTRA inner** A3 (park inner until Astra quota ~05:51)
+- [ ] UNIT 12 HUD + banner — hard (#162 loop) — **ASTRA inner** A3 (park inner until Astra quota ~05:51; brief ready at `2600af80c`)
 - [ ] UNIT 13 My Work cards — hard — Opus inner
-- [ ] UNIT 14 author dialogs + Updates — medium — Opus inner
+- [x] UNIT 14 author dialogs + Updates — medium — Opus inner — verify pass 2026-09-18 — overseer accepted (`cc99f6d21`)
 - [ ] UNIT 15 release 7.16.0 — routine — Opus inner
 - [ ] UNIT 16 closeout — hard (PG + web e2e) — overseer matrix; Astra only if red
 
@@ -1474,3 +1474,38 @@ STATUS: complete (Opus 5 low inner). Commits: `8625451b5` feat(client): state th
 - Overseer widen: `destination_map.dart` — `review` + presentationKey `review_all_packages_in` → beacon view; test in `test/domain/attention/destination_map_test.dart` (outside TEST_CMD dirs; ran it too).
 - Verify: TEST_CMD + `test/domain/attention` → `+664: All tests passed!`; `check-custom-lints.sh packages/client` → total 30 (baseline 30) OK.
 - FINDINGS: `beaconHudConfirmCloseNowBody` l10n key now unused in lib (arb cleanup left for later). Process slip: an `--amend -a` briefly swept `.serena/project.yml` + constellation journal into a commit; undone via soft reset before anything else — both files are back to unstaged, content unchanged.
+
+### verify — 2026-09-18
+
+STATUS: **accepted**
+
+TEST_OUTPUT:
+- `TEST_CMD` (beacon_view + updates + my_work): **+601, All tests passed!** (~35s).
+- `flutter test test/domain/attention/destination_map_test.dart` (overseer re-run): **+6, All tests passed!**
+- Inner-reported `+664` not reproduced on this verifier run (601+6=607); likely included a wider path or different slice — functionally green on plan scopes.
+
+ACCEPTANCE (independent diff + test read vs `2600af80c`):
+| Criterion | Verdict |
+|-----------|---------|
+| Four close/reopen entry points share one confirm | **Met** — `showBeaconCloseNowConfirmSheet` / `showBeaconReopenConfirmSheet` + `_showAuthorConfirmSheet`; HUD (`app_bar_overflow:241`), status close/reopen (`status_bottom_sheet:295–307`), My Work (`myWorkConfirmCloseNow` → `my_work_cards:413`). Tests cover HUD close, status close, status reopen; `my_work_close_now_confirm_test.dart` covers My Work. |
+| Discard uses `unsentStartedPackages`, not optional math | **Met** — grep: no `optionalTotal`/`optionalReviewed` in beacon_view confirm paths; discard gated `> 0` only. |
+| Reopen `sentReviewerCount` vs `NoSent` | **Met** — `showBeaconReopenConfirmSheet:107–110`; status sheet plumbs `sentReviewerCount`; restores sent body (UNIT 07 interim fixed). |
+| Updates keys + not obligations | **Met** — `_fallbackTitle`/`_fallbackBody` arms; payload title interpolation; `group_my_work_obligations_test` asserts neither key is `isReview`/`isHelpOffer`. `group_my_work_obligations.dart` unchanged. |
+| `review_all_packages_in` → beacon view | **Met** — `destination_map.dart:33–35` + test. |
+| UNIT 13 review CTAs untouched | **Met** — `hasReviewCta = false` stub retained; only close path + `myWorkConfirmCloseNow` added. No `derive_my_work_cards` / obligation_block edits. |
+| UNIT 12 HUD/banner untouched | **Met** — no files in `beacon_hud_author_action.dart`, `review_window_banner_host.dart`, `review_banner.dart` in `2600af80c..HEAD`. |
+| No untouchable in commits | **Met** — diff is journal + 10 client paths only; no `.serena`, keys, or UNIT 12/13 matrix files. |
+
+GAPS (non-blocking):
+- **Owns widen:** `destination_map.dart` + test not in plan UNIT 14 Owns; scout-authorized navigation fix — keep in UNIT 14 narrative.
+- **Two feat commits** (`8625451b5`, `cc99f6d21`) vs plan “one unit → one commit” — acceptable split (dialogs vs Updates/destination).
+- **Dead l10n:** `beaconHudConfirmCloseNowBody` unused after body switch to `beaconReviewCloseNowBody` — defer UNIT 16 arb cleanup.
+- **Updates body without `beaconTitle` in payload** falls through to `updatesFallbackBodyGeneric` (no dedicated no-title arm) — server contract assumes payload; low risk.
+- **Close confirm UX:** removed HUD “change later in Status” footnote; plan copy table did not require it — intentional per inner.
+- **Reopen UI:** inline `AlertDialog` → adaptive sheet like close — consistent, not plan-prescribed widget type.
+
+### overseer — UNIT 14 accepted — 2026-09-18
+
+Verdict: **accepted**. Opus-low inner; Composer verify TEST_CMD **+601**; overseer independent TEST_CMD+destination_map **+607**. Four entry points share confirms; discard note uses `unsentStartedPackages`; `review_all_packages_in` opens the request. My Work review CTAs left for UNIT 13.
+
+UNIT 12 inner remains parked until Astra (~05:51 CEST). UNIT 13 waits on 12. Unused `beaconHudConfirmCloseNowBody` deferred.
