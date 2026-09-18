@@ -1,5 +1,6 @@
 import 'dart:convert';
 import 'dart:io';
+import 'dart:math';
 
 import 'package:injectable/injectable.dart' show Environment;
 import 'package:postgres/postgres.dart';
@@ -96,7 +97,9 @@ final class BeaconHierarchyDisposablePgTarget {
     final databaseName =
         databaseNameOverride ??
         Platform.environment['TENTURA_BEACON_HIERARCHY_PG_TEST_DB'] ??
-        'tentura_test_bhier_${pid}_${DateTime.timestamp().microsecondsSinceEpoch}';
+        'tentura_test_bhier_${pid}_'
+            '${Random().nextInt(1 << 30)}_'
+            '${_nameSeq++}';
     if (!RegExp(r'^tentura_test_[a-z0-9_]+$').hasMatch(databaseName) ||
         databaseName.length > 63) {
       throw ArgumentError.value(
@@ -127,6 +130,8 @@ final class BeaconHierarchyDisposablePgTarget {
   final Env adminEnv;
   final Env databaseEnv;
   final String databaseName;
+
+  static int _nameSeq = Random().nextInt(1 << 20);
 
   Future<void> recreate() async {
     await withDisposablePgLifecycleLock(adminEnv, _recreateUnlocked);

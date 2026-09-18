@@ -173,11 +173,14 @@ INSERT INTO public.beacon_forward_edge (
         id: 'Nsurf05',
         beaconId: _foreignBeaconId,
       );
-      final item = await _singleReceipt(
-        query,
-        surface: AttentionSurface.activity,
+      // Open forwards are omitted from the Activity page stream; surface
+      // classification is on the unfiltered visible-receipts feed.
+      final feed = await query.attentionFeed(
+        accountId: _viewerId,
+        view: AttentionFeedView.all,
       );
-      expect(item.surface, AttentionSurface.activity);
+      expect(feed.page.items, hasLength(1));
+      expect(feed.page.items.single.surface, AttentionSurface.activity);
     });
 
     test('beacon-less invite_accepted is activity', () async {
@@ -211,11 +214,12 @@ INSERT INTO public.beacon_forward_edge (
         id: 'Nsurf07',
         beaconId: _foreignBeaconId,
       );
-      final item = await _singleReceipt(
-        query,
-        surface: AttentionSurface.activity,
+      final feed = await query.attentionFeed(
+        accountId: _viewerId,
+        view: AttentionFeedView.all,
       );
-      expect(item.surface, AttentionSurface.activity);
+      expect(feed.page.items, hasLength(1));
+      expect(feed.page.items.single.surface, AttentionSurface.activity);
     });
 
     test('per-surface unread totals and needsYouTotal stays global', () async {

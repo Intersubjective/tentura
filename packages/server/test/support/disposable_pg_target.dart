@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:math';
 
 import 'package:injectable/injectable.dart' show Environment;
 import 'package:migrant_db_postgresql/migrant_db_postgresql.dart';
@@ -16,7 +17,7 @@ const _lifecycleAdvisoryLockKey = 'tentura_disposable_pg_lifecycle';
 /// Disposable Postgres target for tagged PG tests.
 ///
 /// Resolves [databaseName] from [envVarName] when set; otherwise
-/// `[defaultNamePrefix]_<pid>_<micros>`.
+/// `[defaultNamePrefix]_<pid>_<random>_<seq>`.
 final class DisposablePgTarget {
   const DisposablePgTarget({
     required this.adminEnv,
@@ -40,7 +41,9 @@ final class DisposablePgTarget {
     final databaseName =
         databaseNameOverride ??
         Platform.environment[envVarName] ??
-        '${defaultNamePrefix}_${pid}_${DateTime.timestamp().microsecondsSinceEpoch}';
+        '${defaultNamePrefix}_${pid}_'
+            '${Random().nextInt(1 << 30)}_'
+            '${_nameSeq++}';
     validateDisposableDatabaseName(databaseName, envVarName);
 
     Env envFor(String database) => Env(
@@ -66,6 +69,8 @@ final class DisposablePgTarget {
   final Env databaseEnv;
   final String databaseName;
   final String envVarName;
+
+  static int _nameSeq = Random().nextInt(1 << 20);
 
   static void validateDisposableDatabaseName(
     String databaseName,

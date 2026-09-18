@@ -1,9 +1,6 @@
 @Tags(['pg'])
 library;
 
-import 'package:migrant/migrant.dart';
-import 'package:migrant/testing.dart';
-import 'package:migrant_db_postgresql/migrant_db_postgresql.dart';
 import 'package:postgres/postgres.dart';
 import 'package:test/test.dart';
 import 'package:tentura_server/data/database/migration/_migrations.dart';
@@ -73,9 +70,7 @@ WHERE tgname = 'vote_user_bump_direct_trust_version'
                 if (current == '0168') ...[m0164, m0165, m0166, m0167, m0168],
               ];
         await withDisposablePgLifecycleLock(target.adminEnv, () async {
-          await Database(
-            PostgreSQLGateway(connection),
-          ).upgrade(InMemory(legacy));
+          await migrateDbSchemaFrom(connection, legacy);
         });
         final before = await _versions(connection);
         expect(before.last, current);
@@ -96,7 +91,7 @@ WHERE tgname = 'vote_user_bump_direct_trust_version'
         });
         final after = await _versions(connection);
         expect(after.take(before.length), before);
-        expect(after.last, '0169');
+        expect(after.last, migrationsForTesting.last.version);
         if (current != '0162') {
           expect(after, isNot(contains('0162')));
           expect(after, isNot(contains('0163')));

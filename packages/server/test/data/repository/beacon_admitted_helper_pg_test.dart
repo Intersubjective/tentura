@@ -247,8 +247,8 @@ ON CONFLICT DO NOTHING
       await admit(id: 'Pahlblock01', beaconId: beaconId, userId: helper);
       await writer.execute(
         Sql.named(r'''
-INSERT INTO public.user_block (blocker_id, blocked_id, created_at)
-VALUES (@blocker, @blocked, now())
+INSERT INTO public.user_block (blocker_id, blocked_id, origin_id, created_at)
+VALUES (@blocker, @blocked, @blocked, now())
 ON CONFLICT DO NOTHING
 '''),
         parameters: {'blocker': author, 'blocked': helper},
