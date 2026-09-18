@@ -1119,8 +1119,85 @@ Verdict: **accepted**. Opus-low steps 1–3, overseer step 4 after Opus spend li
 
 ## UNIT 10 — Checklist: sections, progress, sent states
 
-UNIT_BASE: `2a2d29593` (will be this journal commit's parent until journal lands; inner re-reads HEAD)
+UNIT_BASE: `578b72f07` (`docs: accept UNIT 09…`; live `git rev-parse --short HEAD` at scout)
 Inner: **ASTRA** slot A2. Opus is at spend limit until 02:00 Europe/Amsterdam — do not use Opus for this unit.
 
+### scout — 2026-09-18 — UNIT 10
+
+STATUS: ready (#162 primary surface; dependencies UNIT 08/09 landed)
+
+BRIEF: Wire `deriveReviewPackageState` as `EvaluationState.packageState` (add `beaconIsInReview`/`beaconIsClosed` on state, defaults `@Default(true)`/`@Default(false)`; plan says “set from window read” but `ReviewWindowInfo` has no beacon lifecycle fields — leave defaults on happy-path loads in UNIT 10; UNIT 11 sets them in `_classifyLifecycleError`). Change live `finalize()` to **stay on screen**: remove post-success `_emitNavigateBack()`; add `_refreshAfterSend()` (refetch participants + window like `submitOne` `:176–191`); on refresh failure after successful send, **do not** revert UI — keep prior participants, locally set `windowInfo.userReviewStatus` to `2` (and `sentAt` if still null), snackbar only (scenario 5 / D16 date still from `sentAt` when present). Rebuild bottom bar from `state.packageState` only (never compare `userReviewStatus` to a number in the screen). Rebuild list: own-package notice (`viewerPackageOptional`), required section (`evaluationSectionRequired` + role grouping over `requiredParticipants` only), optional section (`evaluationSectionOptional` + hint + `optionalParticipants` minus in-memory `_skipped`); optional cards get `evaluationOptionalSkip` (local `setState`, no cubit, D8); required keep `evaluationCannotEvaluate`. Card subtitles: `presentParticipantContext` lines `line` → `offerLine` → `endedLine`; delete `contributionSummary` read (`:392–393`). Tile `ready` in live mode should align with `hasAnswer`/`rowStatus`, not only `isSubmitted` (`:373`), or CTA/progress drift vs `canFinalize` persists. `evaluationPackageDone`: tonal `FilledButton.tonal` + `TestIds.evaluationDone`; `pop` when `router.canPop()`, else `BeaconViewRoute(id: state.beaconId)`. Draft `finalize` still `_emitNavigateBack()` unchanged.
+
+**Live gaps vs plan (exact edit targets):**
+- `review_contributions_screen.dart` — `StatelessWidget`; single bottom bar always `evaluationProgress` + `evaluationSubmitFinish` (`:106–151`); empty body only when `participants.isEmpty` (`:82–104`), not `packageState.empty`; `_participantItems` groups all participants by role, no required/optional split (`:164–263`); no `formerCommitter` in `addRole` (optional leavers live under `isOptional`, not committer section).
+- `evaluation_cubit.dart` `finalize` `:248–265` — always `_emitNavigateBack()` after successful live send (`:260`).
+- `evaluation_state.dart` — no `packageState`, no beacon flags; `canFinalize` already correct (UNIT 09).
+- `test_ids.dart` `:140–154` — no `evaluation.package_status` / `evaluation.done`.
+- `review_contributions_screen_test.dart` — no UNIT 10 plan tests; fixtures use `contributionSummary: 'Helped'` and `rowStatus` where needed; `pump` sets minimal `ReviewWindowInfo` (no `userReviewStatus`/`sentAt`/`viewerPackageOptional`).
+- `evaluation_cubit_lifecycle_test.dart` — only draft dispose test; Owns allows adding live `finalize` / `NavigateBack` oracle.
+- `FakeEvaluationRepository.finalize` (`evaluation_case_test.dart:495–498`) does not bump `reviewWindowResult` — screen/cubit tests must stub post-send window (`userReviewStatus: 2`, `sentAt`) on refresh or in fake.
+
+STEPS (test-first; one commit subject per plan: `fix(client): show whether the review package was sent`):
+
+1. **RED state/cubit** — `evaluation_state.dart`: import `review_package_state.dart`; add `beaconIsInReview`, `beaconIsClosed`, `packageState` getter (plan literal); `dart run build_runner` for freezed. `evaluation_cubit.dart`: plan `finalize` + `_refreshAfterSend()`; optional `evaluation_cubit_lifecycle_test.dart`: `live finalize does not emit NavigateBack`; refresh-failure test with gated `fetchReviewWindowStatus` throw after `finalize` asserts local status 2 + no `NavigateBack`.
+2. **RED screen** — Add eight named widget tests from plan §UNIT 10 in `review_contributions_screen_test.dart`; extend `FakeEvaluationRepository` / `pump` helpers for `rowStatus`, `isOptional`, `sentAt`, `userReviewStatus`, multi-participant 360×`TextScaler.linear(2)` (`MediaQuery` already in harness — match plan `Size(360, 800)`).
+3. **GREEN screen** — Convert to `StatefulWidget` + `_skipped`; extract bottom bar widget switching on `packageState` (`inProgress`, `readyToSend`, `sent`, `changedNotSent`, `empty`; do not implement paused/closed bodies — UNIT 11); progress via `evaluationProgressSplit(req, reqTotal, opt, optTotal)` from `requiredParticipants`/`optionalParticipants` and `hasAnswer` counts; status key `TestIds.evaluationPackageStatus` (new const, value `evaluation.package_status`). Skip action on optional tiles only.
+4. **GREEN list/context** — Section rebuild + `presentParticipantContext` in `_ParticipantTile`; remove legacy summary.
+5. **Verify** — `check-custom-lints.sh packages/client` after `lib/` edits.
+
+TEST_CMD:
+```bash
+cd packages/client && ../../scripts/run_with_test_cleanup.sh --timeout 15m -- flutter test test/features/evaluation --dart-define=ENV=test --dart-define-from-file=env/test.env
+```
+
+UNTOUCHABLE: pre-existing dirty/untracked; generated `_g/`/`*.g.dart`/`*.freezed.dart` (regen locally, do not commit); UNIT 11/12 HUD/banner/My Work; do not persist skip set; do not push; do not add paused/closed full-body UI (UNIT 11); do not delete `viewerHasOutstandingReviewWork` / `viewerCanOpenReviewScreen` (UNIT 12).
+
+RISKS:
+- **`beaconIsInReview`/`beaconIsClosed` source** — not on GraphQL `reviewWindowStatus`; defaults suffice for UNIT 10 acceptance tests; wrong `paused`/`closed` derivation until UNIT 11 — do not test spontaneous lifecycle here.
+- **Existing screen tests** — copy expecting `evaluationProgress` / `0 of 1 reviewed` may need updating to `evaluationProgressSplit` and `hasAnswer`-based CTA; `Left to review` hint only for `inProgress`.
+- **Subtitle tests** — after presenter wiring, untouched cards show `evaluationContextCommittedNoDate` (not empty subtitle); scroll tests using `contributionSummary` text need fixture dates/messages.
+- **`TextStyle(fontSize: tt.iconSize)`** in tile `:430` — pre-existing; avoid drive-by unless linter flags on touch.
+- **360×2.0** — long header stack (title, intro, privacy, deadline, two section headers) can push first participant off viewport; plan requires asserting a participant **below** headers is built, not merely no overflow.
+- **Skip + stored row** — assert cubit `participants` length unchanged and optional `rowStatus` still present after hide (D8).
+- **Astra inner** — slot A2; do not spend Opus (spend limit).
+
+### checkpoint — UNIT 10 — 2026-09-18 — overseer
+
+Astra slot A2 **failed closed**: `codex` usage limit, retry at **05:51**. ~50k tokens spent reading, **no product commits**. Do not retry Astra until that reset. Opus-low is also at monthly spend (resets 02:00 Europe/Amsterdam). Skill substitute for unavailable Astra is Opus **high** once Claude is back; do not spend remaining post-06:00 Astra on a second UNIT 10 inner attempt if Opus-high already landed it.
 
 
+
+
+### inner — 2026-09-18 — UNIT 10 (Opus 5, Astra substitute)
+
+STATUS: complete — plan steps 1–6 landed, test-first, three commits, nothing pushed.
+
+COMMITS (on `fix/162-180-review-package-state`, base `578b72f07`):
+1. `c2a6bfe19 fix(client): keep the reviewer on the checklist after a send` — state flags + `packageState` + cubit `finalize`/`_refreshAfterSend`.
+2. `8b2887c11 fix(client): show whether the review package was sent` — bottom bar by package state, sections, local skip, presenter subtitles, two new `TestIds`.
+3. `e090142a5 test(client): Done opens the request on a deep-linked sent package`.
+
+TEST_OUTPUT: `flutter test test/features/evaluation` (wrapped, 15m) — **+148, −0** (~5s). `check-custom-lints.sh packages/client` — 30, baseline 30. `dart analyze lib test` — no errors. No `*.freezed.dart` / `_g/` committed (gitignored; regenerated locally).
+
+WHAT LANDED (plan §UNIT 10):
+- **Step 1** — `EvaluationState.beaconIsInReview` (`@Default(true)`) / `beaconIsClosed` (`@Default(false)`) + `packageState` getter, plan literal. No other feature's cubit is read; happy-path loads keep the defaults (UNIT 11 sets them).
+- **Step 2** — live `finalize()` no longer calls `_emitNavigateBack()`; it awaits `_refreshAfterSend()` (participants, then window). A refresh that throws after a successful send keeps the previous participants, patches `windowInfo` to `userReviewStatus: 2` (and `sentAt` if still null), and surfaces only a snackbar. Draft `finalize` still navigates back.
+- **Step 3** — `_PackageBottomBar` switches on `state.packageState`; `inProgress` / `readyToSend` / `sent` / `changedNotSent` per plan. `TestIds.evaluationSubmit` stays on the primary CTA in `readyToSend` and `changedNotSent`; new `TestIds.evaluationPackageStatus` (`evaluation.package_status`) and `TestIds.evaluationDone` (`evaluation.done`). `evaluationPackageDone` pops when `router.canPop()`, else `router.replace(BeaconViewRoute(id: state.beaconId))`. `empty` is the existing body with no CTA; the lifecycle states fall through to the progress line only — **no paused/closed bodies** (UNIT 11).
+- **Steps 4–5** — own-package notice (`viewerPackageOptional`), `Required` section over `requiredParticipants` with the existing role grouping (`formerCommitter` grouped with helpers), `Optional` section with the hint, minus a screen-local `_skipped` set on a `StatefulWidget`. Skip calls `setState` only.
+- **Step 6** — card subtitles are `presentParticipantContext` (`line` → `offerLine` → `endedLine`); the `contributionSummary` read is gone. Live tile readiness is now `participant.hasAnswer`, matching the send gate.
+
+FINDINGS (worth carrying):
+- **The bottom bar can eat the whole screen.** At 320×700 / `textScaler 2.0` the `readyToSend` bar (status + CTA + `evaluationPackageSentHint`, 350px of copy) left the `ListView` **44px** tall, so the checklist built one item and the pre-existing narrow/large-text tests failed with no overflow error. Fixed by capping the bar at `_maxBottomBarShare = 0.4` of the viewport and letting it scroll inside its share. Any future copy added to this bar inherits that budget.
+- **Two scrollables now.** The bar's `SingleChildScrollView` broke `scrollUntilVisible(scrollable: find.byType(Scrollable))` with `Bad state: Too many elements` in two pre-existing tests; they now pass `.first` (the list).
+- **`skipOffstage` hides cache-region items.** At 360×800 / 2.0 the header stack (intro 252px + privacy + deadline) is taller than the 444px viewport, so the sections are below the fold. Default finders skip items built into the cache region, so the plan's "assert the item is actually built" is written as `find.text('Required', skipOffstage: false)` plus a `scrollUntilVisible` to the card — a list that stops building items fails both, which is the trap the plan names.
+- **`reviewedCount` still counts `isSubmitted` in live mode** (`evaluation_state.dart`). The bar no longer uses it (it counts `hasAnswer` per section), but the getter is still live for other surfaces — UNIT 12/13 should decide whether it follows `hasAnswer`.
+- `FakeEvaluationRepository.finalize` still does not bump the window; screen tests model the server with a local `_PackageRepository` subclass (`windowAfterFinalize` / `windowAfterSubmit`).
+
+TESTS ADDED: the eight named plan tests in `review_contributions_screen_test.dart`, plus `Done on a sent package opens the request when nothing can pop`; in `evaluation_cubit_lifecycle_test.dart`: `live finalize stays on screen and refreshes the package`, `refresh failure after a successful send keeps the package sent`, `draft finalize still navigates back`, `packageState derives from the window and the required rows`.
+
+REMAINING / NOT DONE (out of unit scope):
+- `beaconIsInReview` / `beaconIsClosed` are never set from a read — UNIT 11.
+- `paused` / `closed` / `closedUnsent` / `notEnrolled` render only the progress line — UNIT 11.
+- The optional section is omitted entirely when every optional card is skipped (no dangling header + hint); the stored rows are untouched, so nothing is lost.
+
+PRE-EXISTING RED, NOT UNIT 10 (for the overseer): the full client suite (`flutter test packages/client`, **+3537 ~29 −1**) has one failure, `test/architecture/updates_event_contract_test.dart` — `Updates contract has the exact revision 4 semantic coverage`, row `[9]` is `reviewAllPackagesIn` where the fixture expects `mutualConnectionFormed`. That row arrives with the UNIT 05 nudge event (`3c769e4d3` / `f3f557f70`); the client contract fixture was never widened. Untouched by UNIT 10 (no file in this unit's commits feeds that test) — likely UNIT 14 or a UNIT 05 follow-up.
