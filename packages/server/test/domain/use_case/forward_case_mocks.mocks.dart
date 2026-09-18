@@ -1226,6 +1226,25 @@ class MockHelpOfferRepositoryPort extends _i1.Mock
             returnValue: _i3.Future<List<String>>.value(<String>[]),
           )
           as _i3.Future<List<String>>);
+
+  @override
+  _i3.Future<void> setRoleLabel({
+    required String? beaconId,
+    required String? offerUserId,
+    required String? actorUserId,
+    required String? roleLabel,
+  }) =>
+      (super.noSuchMethod(
+            Invocation.method(#setRoleLabel, [], {
+              #beaconId: beaconId,
+              #offerUserId: offerUserId,
+              #actorUserId: actorUserId,
+              #roleLabel: roleLabel,
+            }),
+            returnValue: _i3.Future<void>.value(),
+            returnValueForMissingStub: _i3.Future<void>.value(),
+          )
+          as _i3.Future<void>);
 }
 
 /// A class which mocks [InboxRepositoryPort].

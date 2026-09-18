@@ -5490,7 +5490,28 @@
     }
   },
   "helpOfferRolePrompt": "How are you helping?",
-  "helpOfferSelectionLimit": "Choose up to 2 ways you can help.",
+  "helpOfferRoleLabelField": "Role",
+  "@helpOfferRoleLabelField": {
+    "description": "Editable short role label on People help-offer card and chat peek sheet"
+  },
+  "helpOfferRoleLabelPlaceholder": "<role not selected>",
+  "@helpOfferRoleLabelPlaceholder": {
+    "description": "Shown under chat avatar / on People card when role_label is empty"
+  },
+  "helpOfferRoleLabelEditAction": "edit role",
+  "helpOfferRoleLabelTooLong": "Role must be at most 32 characters on one line.",
+  "roomAuthorRoleLabelSemantic": "Role for {name}: {role}",
+  "@roomAuthorRoleLabelSemantic": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "role": {
+        "type": "String"
+      }
+    }
+  },
+  "helpOfferSelectionLimit": "Choose up to 4 ways you can help.",
   "helpOfferSearchLabel": "Search ways to help",
   "helpOfferSubmit": "Offer help ({count}/{limit})",
   "@helpOfferSubmit": {
@@ -5505,7 +5526,7 @@
   },
   "helpOfferSubmitAction": "Offer help",
   "helpOfferOptionalEnrichmentLabel": "Ways you can help (optional)",
-  "helpOfferOptionalEnrichmentHelper": "Optional — helps others find your offer. Choose up to 2.",
+  "helpOfferOptionalEnrichmentHelper": "Optional — helps others find your offer. Choose up to 4.",
   "helpOfferBrowseCategories": "Browse all categories",
   "helpOfferHideCategories": "Hide categories",
   "helpOfferSearchEmpty": "No match — try Other or keep text only",

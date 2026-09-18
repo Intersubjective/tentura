@@ -774,10 +774,20 @@ class BeaconRoomRepository implements BeaconRoomRepositoryPort {
 
   /// Active help offer `help_type` wire per user id for this beacon (at most one row per user).
   Future<Map<String, String?>> helpTypesByUserId(String beaconId) async {
+    final hints = await activeHelpOfferHintsByUserId(beaconId);
+    return {for (final e in hints.entries) e.key: e.value.helpType};
+  }
+
+  /// Active help-offer fields per user. Key present ⇒ active offer.
+  Future<Map<String, ({String? helpType, String roleLabel})>>
+  activeHelpOfferHintsByUserId(String beaconId) async {
     final rows = await _db.managers.beaconHelpOffers
         .filter((e) => e.beaconId.id(beaconId) & e.status.equals(0))
         .get();
-    return {for (final r in rows) r.userId: r.helpType};
+    return {
+      for (final r in rows)
+        r.userId: (helpType: r.helpType, roleLabel: r.roleLabel ?? ''),
+    };
   }
 
   /// `user.displayName` for V2 row projections (missing users yield no map entry).

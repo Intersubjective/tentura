@@ -1608,6 +1608,7 @@
                     "created_at",
                     "updated_at",
                     "help_type",
+                    "role_label",
                     "withdraw_reason",
                     "offer_kind",
                     "stake_state"

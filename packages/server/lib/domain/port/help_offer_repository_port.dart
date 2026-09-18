@@ -36,4 +36,13 @@ abstract class HelpOfferRepositoryPort {
     required String beaconId,
     required String userId,
   });
+
+  /// Sets [roleLabel] on the active offer. Empty/null clears to SQL NULL.
+  /// Mutates as [actorUserId] (self, author, or steward).
+  Future<void> setRoleLabel({
+    required String beaconId,
+    required String offerUserId,
+    required String actorUserId,
+    required String? roleLabel,
+  });
 }

@@ -143,4 +143,34 @@ class HelpOfferTileSheetCubit extends Cubit<HelpOfferTileSheetState> {
       return false;
     }
   }
+
+  bool get canEditRole {
+    final offer = state.offer;
+    if (offer == null || offer.isWithdrawn) return false;
+    if (offer.user.id == state.beacon.author.id) return false;
+    return offer.user.id == state.myProfile.id || state.isAuthorOrSteward;
+  }
+
+  Future<bool> setRoleLabel(String roleLabel) async {
+    if (!canEditRole) return false;
+    try {
+      await _case.setRoleLabel(
+        beaconId: state.beaconId,
+        offerUserId: state.offerUserId,
+        roleLabel: roleLabel,
+      );
+      final offer = state.offer;
+      if (offer != null && !isClosed) {
+        emit(
+          state.copyWith(
+            offer: offer.copyWith(roleLabel: roleLabel),
+          ),
+        );
+      }
+      return true;
+    } catch (e) {
+      _effects.emit(ShowError(e));
+      return false;
+    }
+  }
 }

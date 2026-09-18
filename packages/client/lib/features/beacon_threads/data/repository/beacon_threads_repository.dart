@@ -85,9 +85,16 @@ class BeaconThreadsRepository {
         inv.entityType == BeaconRoomEntityType.participant ||
         inv.entityType == BeaconRoomEntityType.factCard ||
         inv.entityType == BeaconRoomEntityType.coordinationItem ||
-        inv.entityType == BeaconRoomEntityType.roomSeen) {
+        inv.entityType == BeaconRoomEntityType.roomSeen ||
+        inv.entityType == BeaconRoomEntityType.helpOffer) {
       _roomRefreshController.add(inv.beaconId);
     }
+  }
+
+  /// Local echo so RoomCubit refreshes participants after actor edits
+  /// (e.g. role label) when the actor is not in `realtime_beacon_recipients`.
+  void notifyLocalInvalidation(BeaconRoomInvalidation inv) {
+    _onRoomInvalidation(inv);
   }
 
   /// Parses V2 `reactorsJson`: `{ emoji: [{ id, title, hasPicture, imageId, blurHash, picHeight, picWidth }] }`.
@@ -539,6 +546,7 @@ class BeaconThreadsRepository {
             nextMoveSource: p.nextMoveSource,
             linkedMessageId: p.linkedMessageId,
             helpType: p.helpType,
+            roleLabel: p.roleLabel,
             lastSeenRoomAt:
                 p.lastSeenRoomAt == null || p.lastSeenRoomAt!.isEmpty
                 ? null

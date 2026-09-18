@@ -195,6 +195,7 @@ class _V2RoutingLink extends Link {
     'BeaconStageImage',
     'BeaconSetMedia',
     'BeaconOfferHelp',
+    'BeaconHelpOfferRoleLabelSet',
     'BeaconCreate',
     'BeaconChildCreate',
     'BeaconHierarchyCapabilities',

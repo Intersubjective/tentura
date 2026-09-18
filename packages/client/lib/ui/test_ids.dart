@@ -119,6 +119,10 @@ abstract final class TestIds {
 
   static const admissionReasonInput = 'help_offer.admission_reason.input';
   static const admissionReasonSubmit = 'help_offer.admission_reason.submit';
+  static const helpOfferRoleLabelInput = 'help_offer.role_label.input';
+  static const helpOfferRoleLabelSubmit = 'help_offer.role_label.submit';
+  static String helpOfferRoleLabelEdit(String userId) =>
+      'help_offer.$userId.role_label.edit';
 
   static const beaconOverflowMenu = 'beacon.overflow.menu';
   static const beaconOverflowClose = 'beacon.overflow.close';

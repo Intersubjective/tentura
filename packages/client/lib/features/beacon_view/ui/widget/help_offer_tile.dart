@@ -34,6 +34,7 @@ class HelpOfferTile extends StatelessWidget {
     required this.beaconAuthorId,
     this.isMine = false,
     this.onEdit,
+    this.onEditRole,
     this.onWithdraw,
     this.isAuthorView = false,
     this.onAccept,
@@ -50,6 +51,7 @@ class HelpOfferTile extends StatelessWidget {
   final String beaconAuthorId;
   final bool isMine;
   final VoidCallback? onEdit;
+  final VoidCallback? onEditRole;
   final VoidCallback? onWithdraw;
   final bool isAuthorView;
   final VoidCallback? onAccept;
@@ -208,6 +210,44 @@ class HelpOfferTile extends StatelessWidget {
           if (showHelpTypeChips) ...[
             const SizedBox(height: _rowGap),
             ForwardCapabilityChips(slugs: helpTypeSlugs),
+          ],
+          if (!showAuthorStar && helpOffer.roleLabel != null) ...[
+            const SizedBox(height: _rowGap),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        l10n.helpOfferRoleLabelField,
+                        style: TenturaText.status(
+                          theme.colorScheme.onSurfaceVariant,
+                        ),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        helpOffer.roleLabel!.trim().isEmpty
+                            ? l10n.helpOfferRoleLabelPlaceholder
+                            : helpOffer.roleLabel!.trim(),
+                        style: TenturaText.bodySmall(
+                          theme.colorScheme.onSurface,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                if (onEditRole != null)
+                  TenturaTextAction(
+                    key: TestIds.key(
+                      TestIds.helpOfferRoleLabelEdit(helpOffer.user.id),
+                    ),
+                    label: l10n.helpOfferRoleLabelEditAction,
+                    onPressed: onEditRole,
+                  ),
+              ],
+            ),
           ],
           if (isAuthorView && helpOffer.isDirectAuthorForward) ...[
             const SizedBox(height: _rowGap),

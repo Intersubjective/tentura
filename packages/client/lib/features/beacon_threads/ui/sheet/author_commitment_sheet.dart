@@ -51,7 +51,7 @@ class _AuthorCommitmentSheetBody extends StatelessWidget {
     final tt = context.tt;
     final scheme = theme.colorScheme;
     final tags = helpOfferTypeSlugs(participant.helpType)
-        .take(2)
+        .take(4)
         .map(CapabilityTag.fromSlug)
         .whereType<CapabilityTag>()
         .toList();
@@ -61,6 +61,12 @@ class _AuthorCommitmentSheetBody extends StatelessWidget {
         '${beaconPeopleRoleLabel(l10n, participant.role)} · '
         '${beaconPeopleStatusLabel(l10n, participant.status, null)}';
     final name = author.displayLabel(l10n.unknownPerson);
+    final roleLabel = participant.roleLabel;
+    final roleDisplay = roleLabel == null
+        ? null
+        : (roleLabel.trim().isEmpty
+              ? l10n.helpOfferRoleLabelPlaceholder
+              : roleLabel.trim());
 
     return SafeArea(
       child: Semantics(
@@ -87,6 +93,18 @@ class _AuthorCommitmentSheetBody extends StatelessWidget {
                 statusLine,
                 style: TenturaText.status(scheme.onSurfaceVariant),
               ),
+              if (roleDisplay != null) ...[
+                SizedBox(height: tt.rowGap),
+                Text(
+                  l10n.helpOfferRoleLabelField,
+                  style: TenturaText.status(scheme.onSurfaceVariant),
+                ),
+                SizedBox(height: tt.tightGap),
+                Text(
+                  roleDisplay,
+                  style: TenturaText.body(scheme.onSurface),
+                ),
+              ],
               if (tags.isNotEmpty) ...[
                 SizedBox(height: tt.rowGap),
                 for (final tag in tags) ...[

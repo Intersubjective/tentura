@@ -294,6 +294,18 @@ class MockBeaconRoomRepositoryPort extends _i1.Mock
           as _i3.Future<Map<String, String?>>);
 
   @override
+  _i3.Future<Map<String, ({String? helpType, String roleLabel})>>
+  activeHelpOfferHintsByUserId(String? beaconId) =>
+      (super.noSuchMethod(
+            Invocation.method(#activeHelpOfferHintsByUserId, [beaconId]),
+            returnValue:
+                _i3.Future<
+                  Map<String, ({String? helpType, String roleLabel})>
+                >.value(<String, ({String? helpType, String roleLabel})>{}),
+          )
+          as _i3.Future<Map<String, ({String? helpType, String roleLabel})>>);
+
+  @override
   _i3.Future<void> insertActivityEvent({
     required String? beaconId,
     required int? visibility,

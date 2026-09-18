@@ -23,6 +23,7 @@ FakeHelpOfferCoordinationRow _row({
     user: user,
     message: message,
     helpType: null,
+    roleLabel: '',
     status: status,
     withdrawReason: null,
     createdAt: now,

@@ -67,6 +67,7 @@ Widget _wrap(Widget child) {
 TimelineHelpOffer _helpOffer({
   required String userId,
   String? helpType,
+  String? roleLabel,
   String message = '',
   bool isWithdrawn = false,
   CoordinationResponseType? coordinationResponse,
@@ -82,6 +83,7 @@ TimelineHelpOffer _helpOffer({
     createdAt: t,
     updatedAt: t,
     helpType: helpType,
+    roleLabel: roleLabel,
     isWithdrawn: isWithdrawn,
     coordinationResponse: coordinationResponse,
     roomAccess: roomAccess,
@@ -355,5 +357,89 @@ void main() {
 
     expect(find.text('I can sew the costume'), findsOneWidget);
     expect(find.byType(ShowMoreText), findsOneWidget);
+  });
+
+  testWidgets('role editor shown for self when onEditRole set', (tester) async {
+    var edited = false;
+    await tester.pumpWidget(
+      _wrap(
+        HelpOfferTile(
+          helpOffer: _helpOffer(userId: 'me', roleLabel: 'driver'),
+          beaconId: 'B1',
+          beaconAuthor: const Profile(id: 'auth', displayName: 'Author'),
+          beaconAuthorId: 'auth',
+          isMine: true,
+          onEditRole: () => edited = true,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Role'), findsOneWidget);
+    expect(find.text('driver'), findsOneWidget);
+    await tester.tap(find.text('edit role'));
+    await tester.pumpAndSettle();
+    expect(edited, isTrue);
+  });
+
+  testWidgets('role editor shown for author view', (tester) async {
+    await tester.pumpWidget(
+      _wrap(
+        HelpOfferTile(
+          helpOffer: _helpOffer(userId: 'c1', roleLabel: ''),
+          beaconId: 'B1',
+          beaconAuthor: const Profile(id: 'auth', displayName: 'Author'),
+          beaconAuthorId: 'auth',
+          isAuthorView: true,
+          onEditRole: () {},
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('<role not selected>'), findsOneWidget);
+    expect(find.text('edit role'), findsOneWidget);
+  });
+
+  testWidgets('role editor hidden for observer without onEditRole', (
+    tester,
+  ) async {
+    await tester.pumpWidget(
+      _wrap(
+        HelpOfferTile(
+          helpOffer: _helpOffer(userId: 'c1', roleLabel: 'nav'),
+          beaconId: 'B1',
+          beaconAuthor: const Profile(id: 'auth', displayName: 'Author'),
+          beaconAuthorId: 'auth',
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('Role'), findsOneWidget);
+    expect(find.text('nav'), findsOneWidget);
+    expect(find.text('edit role'), findsNothing);
+  });
+
+  testWidgets('withdrawn offer shows role read-only', (tester) async {
+    await tester.pumpWidget(
+      _wrap(
+        HelpOfferTile(
+          helpOffer: _helpOffer(
+            userId: 'c1',
+            roleLabel: 'was driver',
+            isWithdrawn: true,
+          ),
+          beaconId: 'B1',
+          beaconAuthor: const Profile(id: 'auth', displayName: 'Author'),
+          beaconAuthorId: 'auth',
+          isMine: true,
+        ),
+      ),
+    );
+    await tester.pumpAndSettle();
+
+    expect(find.text('was driver'), findsOneWidget);
+    expect(find.text('edit role'), findsNothing);
   });
 }

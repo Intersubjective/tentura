@@ -153,6 +153,7 @@ enum HelpOfferCoordinationExceptionCode {
   admissionRequiresAcknowledgement,
   commitmentNotAcknowledged,
   offerKindChanged,
+  invalidRoleLabel,
 }
 
 class HelpOfferCoordinationExceptionCodes extends ExceptionCodes {

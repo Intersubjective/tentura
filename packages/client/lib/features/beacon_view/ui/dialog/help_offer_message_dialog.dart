@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:logging/logging.dart';
 
+import 'package:tentura/consts.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/capability/capability_group.dart';
 import 'package:tentura/domain/capability/capability_tag.dart';
@@ -90,7 +91,7 @@ class _HelpOfferMessageDialogState extends State<HelpOfferMessageDialog> {
   bool _browseOpen = false;
   bool _browsedFullTaxonomy = false;
 
-  static const _maxSelection = 2;
+  static const _maxSelection = kMaxHelpOfferHelpTypes;
 
   @override
   void initState() {

@@ -5398,7 +5398,28 @@
     }
   },
   "helpOfferRolePrompt": "Как вы помогаете?",
-  "helpOfferSelectionLimit": "Выберите до 2 способов помочь.",
+  "helpOfferRoleLabelField": "Роль",
+  "@helpOfferRoleLabelField": {
+    "description": "Editable short role label on People help-offer card and chat peek sheet"
+  },
+  "helpOfferRoleLabelPlaceholder": "<роль не выбрана>",
+  "@helpOfferRoleLabelPlaceholder": {
+    "description": "Shown under chat avatar / on People card when role_label is empty"
+  },
+  "helpOfferRoleLabelEditAction": "изменить роль",
+  "helpOfferRoleLabelTooLong": "Роль — не больше 32 символов в одной строке.",
+  "roomAuthorRoleLabelSemantic": "Роль {name}: {role}",
+  "@roomAuthorRoleLabelSemantic": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "role": {
+        "type": "String"
+      }
+    }
+  },
+  "helpOfferSelectionLimit": "Выберите до 4 способов помочь.",
   "helpOfferSearchLabel": "Поиск способов помочь",
   "helpOfferSubmit": "Предложить помощь ({count}/{limit})",
   "@helpOfferSubmit": {
@@ -5413,7 +5434,7 @@
   },
   "helpOfferSubmitAction": "Предложить помощь",
   "helpOfferOptionalEnrichmentLabel": "Чем можете помочь (необязательно)",
-  "helpOfferOptionalEnrichmentHelper": "Необязательно — помогает другим найти ваше предложение. До 2 категорий.",
+  "helpOfferOptionalEnrichmentHelper": "Необязательно — помогает другим найти ваше предложение. До 4 категорий.",
   "helpOfferBrowseCategories": "Все категории",
   "helpOfferHideCategories": "Скрыть категории",
   "helpOfferSearchEmpty": "Ничего не найдено — выберите «Другое» или оставьте только текст",

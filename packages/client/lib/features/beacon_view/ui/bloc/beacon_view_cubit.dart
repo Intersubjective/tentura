@@ -482,6 +482,41 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
     }
   }
 
+  Future<void> setRoleLabel({
+    required String offerUserId,
+    required String roleLabel,
+  }) async {
+    final optimisticOffers = [
+      for (final c in state.helpOffers)
+        if (c.user.id == offerUserId) c.copyWith(roleLabel: roleLabel) else c,
+    ];
+    final optimisticParticipants = [
+      for (final p in state.roomParticipants)
+        if (p.userId == offerUserId)
+          p.copyWith(roleLabel: roleLabel)
+        else
+          p,
+    ];
+    emit(
+      state.copyWith(
+        helpOffers: optimisticOffers,
+        roomParticipants: optimisticParticipants,
+      ),
+    );
+    try {
+      await _case.setRoleLabel(
+        beaconId: state.beacon.id,
+        offerUserId: offerUserId,
+        roleLabel: roleLabel,
+      );
+      unawaited(_fetchBeaconByIdWithTimeline());
+    } catch (e) {
+      await _fetchBeaconByIdWithTimeline();
+      if (!isClosed) _showSnackError(e);
+      rethrow;
+    }
+  }
+
   Future<void> declineHelpOffer({
     required String offerUserId,
     required String reason,
@@ -664,7 +699,8 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
     // lifecycle and its derived header context, not just the room slices.
     if (inv.entityType == BeaconRoomEntityType.coordinationItem ||
         inv.entityType == BeaconRoomEntityType.participant ||
-        inv.entityType == BeaconRoomEntityType.factCard) {
+        inv.entityType == BeaconRoomEntityType.factCard ||
+        inv.entityType == BeaconRoomEntityType.helpOffer) {
       _requestFullRefresh();
       return;
     }
@@ -717,6 +753,9 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
         needParticipants = true;
         needHelpOffers = true;
         needRoomState = true;
+      } else if (t == BeaconRoomEntityType.helpOffer) {
+        needParticipants = true;
+        needHelpOffers = true;
       } else if (t == BeaconRoomEntityType.factCard) {
         needFactCards = true;
       } else if (t == BeaconRoomEntityType.coordinationItem) {
@@ -771,6 +810,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
         Profile user,
         String message,
         String? helpType,
+        String? roleLabel,
         int status,
         String? withdrawReason,
         DateTime createdAt,
@@ -994,6 +1034,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
                   Profile user,
                   String message,
                   String? helpType,
+                  String? roleLabel,
                   int status,
                   String? withdrawReason,
                   DateTime createdAt,
@@ -1044,6 +1085,7 @@ class BeaconViewCubit extends Cubit<BeaconViewState> {
                   Profile user,
                   String message,
                   String? helpType,
+                  String? roleLabel,
                   int status,
                   String? withdrawReason,
                   DateTime createdAt,
@@ -1323,6 +1365,7 @@ List<TimelineEntry> helpOfferRowsToTimelineEntries({
     Profile user,
     String message,
     String? helpType,
+    String? roleLabel,
     int status,
     String? withdrawReason,
     DateTime createdAt,

@@ -341,6 +341,7 @@ final gqlTypeBeaconParticipantRow =
         field('linkedMessageId', graphQLString),
         field('lastSeenRoomAt', graphQLString),
         field('helpType', graphQLString),
+        field('roleLabel', graphQLString),
         field('createdAt', graphQLString.nonNullable()),
         field('updatedAt', graphQLString.nonNullable()),
       ]);
@@ -1139,6 +1140,7 @@ final gqlTypeHelpOfferWithCoordinationRow =
         field('userId', graphQLString.nonNullable()),
         field('message', graphQLString.nonNullable()),
         field('helpType', graphQLString),
+        field('roleLabel', graphQLString),
         field('status', graphQLInt.nonNullable()),
         field('withdrawReason', graphQLString),
         field('createdAt', graphQLString.nonNullable()),

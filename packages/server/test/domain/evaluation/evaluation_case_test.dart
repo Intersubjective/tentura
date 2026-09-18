@@ -4834,4 +4834,12 @@ final class _SingleCommitterHelpOfferRepo implements HelpOfferRepositoryPort {
     }
     return [raw];
   }
+
+  @override
+  Future<void> setRoleLabel({
+    required String beaconId,
+    required String offerUserId,
+    required String actorUserId,
+    required String? roleLabel,
+  }) => throw UnimplementedError();
 }

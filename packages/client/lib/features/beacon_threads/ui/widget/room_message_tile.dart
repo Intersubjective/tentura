@@ -7,11 +7,10 @@ import 'package:flutter/services.dart';
 
 import 'package:tentura/design_system/components/room_message_bubble_shape.dart';
 import 'package:tentura/design_system/components/tentura_avatar.dart';
-import 'package:tentura/design_system/components/tentura_capability_glyph.dart';
 import 'package:tentura/design_system/tentura_radii.dart';
+import 'package:tentura/design_system/tentura_text.dart';
 import 'package:tentura/design_system/tentura_tokens.dart';
 import 'package:tentura/design_system/tentura_window_class.dart';
-import 'package:tentura/domain/capability/capability_tag.dart';
 import 'package:tentura/domain/entity/beacon_fact_card.dart';
 import 'package:tentura/domain/entity/beacon_participant.dart';
 import 'package:tentura/domain/entity/beacon_room_consts.dart';
@@ -20,7 +19,6 @@ import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/domain/entity/room_message.dart';
 import 'package:tentura/domain/entity/room_message_attachment.dart';
 import 'package:tentura/domain/entity/room_poll_data.dart';
-import 'package:tentura/features/beacon/ui/widget/coordination_ui.dart';
 import 'package:tentura/features/beacon_threads/ui/bloc/room_cubit.dart';
 import 'package:tentura/features/beacon_threads/ui/coordination_room_navigation.dart';
 import 'package:tentura/features/beacon_threads/ui/sheet/author_commitment_sheet.dart';
@@ -38,7 +36,6 @@ import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/test_ids.dart';
-import 'package:tentura/ui/utils/capability_tag_presenter.dart';
 import 'package:tentura/ui/utils/ui_utils.dart';
 import 'package:tentura/ui/widget/coordination_item_card_chrome.dart';
 import 'package:tentura/ui/widget/coordination_item_presenter.dart';
@@ -640,12 +637,7 @@ class RoomMessageTile extends StatelessWidget {
         break;
       }
     }
-    final authorCapabilityTags = helpOfferTypeSlugs(
-      authorParticipant?.helpType,
-    ).take(2).map(CapabilityTag.fromSlug).whereType<CapabilityTag>().toList();
-    final glyphSize = tt.avatarTinySize < (tt.avatarGutter - tt.tightGap) / 2
-        ? tt.avatarTinySize
-        : (tt.avatarGutter - tt.tightGap) / 2;
+    final authorRoleLabel = authorParticipant?.roleLabel;
 
     final imageAttachments = message.attachments
         .where((a) => a.isImage && a.imageId.isNotEmpty)
@@ -1357,17 +1349,15 @@ class RoomMessageTile extends StatelessWidget {
                               size: tt.avatarGutter,
                             ),
                           ),
-                          if (authorCapabilityTags.isNotEmpty &&
-                              authorParticipant != null) ...[
+                          if (authorParticipant != null &&
+                              authorRoleLabel != null) ...[
                             SizedBox(height: tt.tightGap),
-                            _AuthorCapabilityGlyphCluster(
-                              tags: authorCapabilityTags,
-                              glyphSize: glyphSize,
+                            _AuthorRoleLabel(
+                              roleLabel: authorRoleLabel,
                               author: message.author,
                               participant: authorParticipant,
                               avatarGutter: tt.avatarGutter,
                               screenHPadding: tt.screenHPadding,
-                              tightGap: tt.tightGap,
                             ),
                           ],
                         ],
@@ -2384,55 +2374,33 @@ class _HoverActionToolbar extends StatelessWidget {
   }
 }
 
-/// Two tinted capability plates under a chat avatar; opens commitment sheet.
-class _AuthorCapabilityGlyphCluster extends StatelessWidget {
-  const _AuthorCapabilityGlyphCluster({
-    required this.tags,
-    required this.glyphSize,
+/// Short role label under a chat avatar; opens commitment sheet.
+class _AuthorRoleLabel extends StatelessWidget {
+  const _AuthorRoleLabel({
+    required this.roleLabel,
     required this.author,
     required this.participant,
     required this.avatarGutter,
     required this.screenHPadding,
-    required this.tightGap,
   });
 
-  final List<CapabilityTag> tags;
-  final double glyphSize;
+  final String roleLabel;
   final Profile author;
   final BeaconParticipant participant;
   final double avatarGutter;
   final double screenHPadding;
-  final double tightGap;
 
   @override
   Widget build(BuildContext context) {
     final l10n = L10n.of(context)!;
-    final tagLabels = tags.map((t) => t.labelOf(l10n)).join(', ');
+    final scheme = Theme.of(context).colorScheme;
+    final display = roleLabel.trim().isEmpty
+        ? l10n.helpOfferRoleLabelPlaceholder
+        : roleLabel.trim();
     final name = author.shownName.trim().isEmpty
         ? participant.displayLabel(l10n.unknownPerson)
         : author.shownName;
-    final semanticLabel = l10n.roomAuthorCommitmentGlyphsSemantic(
-      name,
-      tagLabels,
-    );
-    final clusterHeight = glyphSize > kMinInteractiveDimension
-        ? glyphSize
-        : kMinInteractiveDimension;
-
-    final glyphs = SizedBox(
-      width: avatarGutter,
-      child: Wrap(
-        alignment: WrapAlignment.center,
-        spacing: tightGap,
-        runSpacing: tightGap,
-        children: [
-          for (final tag in tags)
-            ExcludeSemantics(
-              child: TenturaCapabilityGlyph(tag: tag, size: glyphSize),
-            ),
-        ],
-      ),
-    );
+    final semanticLabel = l10n.roomAuthorRoleLabelSemantic(name, display);
 
     return Tooltip(
       message: semanticLabel,
@@ -2444,7 +2412,7 @@ class _AuthorCapabilityGlyphCluster extends StatelessWidget {
           key: TestIds.key(TestIds.roomAuthorCommitmentGlyphs),
           child: SizedBox(
             width: avatarGutter,
-            height: clusterHeight,
+            height: kMinInteractiveDimension,
             child: Stack(
               clipBehavior: Clip.none,
               children: [
@@ -2464,7 +2432,13 @@ class _AuthorCapabilityGlyphCluster extends StatelessWidget {
                     ),
                     child: Align(
                       alignment: Alignment.topCenter,
-                      child: glyphs,
+                      child: Text(
+                        display,
+                        textAlign: TextAlign.center,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: TenturaText.status(scheme.onSurfaceVariant),
+                      ),
                     ),
                   ),
                 ),

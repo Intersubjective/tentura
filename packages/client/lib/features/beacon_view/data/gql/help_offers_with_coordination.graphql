@@ -6,6 +6,7 @@ query HelpOffersWithCoordination($beaconId: String!) {
     userId
     message
     helpType
+    roleLabel
     status
     withdrawReason
     createdAt

@@ -157,6 +157,7 @@ void main() {
               user: myProfile,
               message: 'I can help',
               helpType: null,
+              roleLabel: '',
               status: 0,
               withdrawReason: null,
               createdAt: DateTime.utc(2026),

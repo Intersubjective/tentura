@@ -55,6 +55,7 @@ const _other = Profile(id: 'other', displayName: 'Alex River');
 
 BeaconParticipant _participant({
   required String helpType,
+  String? roleLabel = '',
   String offerNote = '',
   String? nextMoveText,
 }) => BeaconParticipant(
@@ -69,6 +70,7 @@ BeaconParticipant _participant({
   userTitle: 'Alex River',
   handle: 'alex',
   helpType: helpType,
+  roleLabel: roleLabel,
   offerNote: offerNote,
   nextMoveText: nextMoveText,
 );
@@ -137,33 +139,33 @@ void main() {
   }
 
   testWidgets(
-    'group-end incoming tile shows two glyphs for four legacy help types',
+    'group-end incoming tile shows role placeholder, not capability glyphs',
     (tester) async {
       await pumpTile(
         tester,
         participants: [
           _participant(
             helpType: '["transport","storage","tools","money"]',
+            roleLabel: '',
             offerNote: 'I can store the parts.',
           ),
         ],
       );
 
-      expect(find.byType(TenturaCapabilityGlyph), findsNWidgets(2));
-      expect(find.byIcon(Icons.directions_car_rounded), findsOneWidget);
-      expect(find.byIcon(Icons.warehouse_rounded), findsOneWidget);
-      expect(find.byIcon(Icons.build_rounded), findsNothing);
+      expect(find.byType(TenturaCapabilityGlyph), findsNothing);
+      expect(find.text('<role not selected>'), findsOneWidget);
     },
   );
 
-  testWidgets('glyph tap opens commitment sheet with note and labels', (
+  testWidgets('role label tap opens commitment sheet with role and caps', (
     tester,
   ) async {
     await pumpTile(
       tester,
       participants: [
         _participant(
-          helpType: '["transport","storage"]',
+          helpType: '["transport","storage","tools","money"]',
+          roleLabel: 'Pickup lead',
           offerNote: 'I can store the parts.',
           nextMoveText: 'Confirm pickup window',
         ),
@@ -174,8 +176,13 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Alex River'), findsWidgets);
+    expect(find.text('Role'), findsOneWidget);
+    expect(find.text('Pickup lead'), findsWidgets);
     expect(find.text('Transport'), findsOneWidget);
     expect(find.text('Storage'), findsOneWidget);
+    expect(find.text('Tools'), findsOneWidget);
+    expect(find.text('Money'), findsOneWidget);
+    expect(find.byType(TenturaCapabilityGlyph), findsNWidgets(4));
     expect(find.text('I can store the parts.'), findsOneWidget);
     expect(find.text('Confirm pickup window'), findsOneWidget);
     expect(effects.emitted, isEmpty);
@@ -187,7 +194,7 @@ void main() {
     await pumpTile(
       tester,
       participants: [
-        _participant(helpType: '["transport","storage"]'),
+        _participant(helpType: '["transport","storage"]', roleLabel: 'nav'),
       ],
     );
 
@@ -201,7 +208,7 @@ void main() {
     );
   });
 
-  testWidgets('glyphs hidden for mine messages', (tester) async {
+  testWidgets('role label hidden for mine messages', (tester) async {
     await pumpTile(
       tester,
       myProfile: _other,
@@ -214,10 +221,25 @@ void main() {
         createdAt: DateTime.utc(2026),
       ),
       participants: [
-        _participant(helpType: '["transport"]'),
+        _participant(helpType: '["transport"]', roleLabel: 'driver'),
       ],
     );
 
+    expect(find.text('driver'), findsNothing);
+    expect(find.byType(TenturaCapabilityGlyph), findsNothing);
+  });
+
+  testWidgets('no role slot when participant has no active offer', (
+    tester,
+  ) async {
+    await pumpTile(
+      tester,
+      participants: [
+        _participant(helpType: '["transport"]', roleLabel: null),
+      ],
+    );
+
+    expect(find.text('<role not selected>'), findsNothing);
     expect(find.byType(TenturaCapabilityGlyph), findsNothing);
   });
 }

@@ -123,6 +123,14 @@ final class EmptyGraphHelpOfferRepository implements HelpOfferRepositoryPort {
     required String beaconId,
     required String userId,
   }) async => [];
+
+  @override
+  Future<void> setRoleLabel({
+    required String beaconId,
+    required String offerUserId,
+    required String actorUserId,
+    required String? roleLabel,
+  }) => throw UnimplementedError();
 }
 
 final class EmptyGraphForwardEdgeRepository
@@ -491,6 +499,15 @@ final class ConfigurableGraphHelpOfferRepository
     }
     return const [];
   }
+
+  @override
+  Future<void> setRoleLabel({
+    required String beaconId,
+    required String offerUserId,
+    required String actorUserId,
+    required String? roleLabel,
+  }) =>
+      throw UnimplementedError();
 }
 
 final class ConfigurableGraphForwardEdgeRepository

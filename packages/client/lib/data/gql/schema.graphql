@@ -3792,6 +3792,7 @@ type mutation_root {
   beaconForward(attributionParentEdgeIds: [String!], context: String, id: String!, note: String, parentEdgeId: String, perRecipientNotes: String, reasons: [String!], recipientBandProvenance: [v2_ForwardRecipientBandProvenanceInput], recipientIds: [String!], recipientReasons: [v2_ForwardRecipientReasonInput]): v2_ForwardDeliveryResult!
   beaconForwardCancel(id: String!): Boolean!
   beaconForwardUpdate(id: String!, note: String, reasons: [String!]): Boolean!
+  beaconHelpOfferRoleLabelSet(id: String!, offerUserId: String!, roleLabel: String!): Boolean!
   beaconMuteClear(beaconId: String!): Boolean!
   beaconMuteSet(beaconId: String!, mutedUntil: String): Boolean!
   beaconOfferHelp(expectedOfferKind: Int, helpTypes: [String!], id: String!, message: String): Boolean!
@@ -7578,6 +7579,7 @@ type v2_BeaconParticipantRow {
   nextMoveText: String
   offerNote: String
   role: Int!
+  roleLabel: String
   roomAccess: Int!
   status: Int!
   updatedAt: String!
@@ -7897,6 +7899,7 @@ type v2_HelpOfferWithCoordinationRow {
   responseAuthorUserId: String
   responseType: Int
   responseUpdatedAt: String
+  roleLabel: String
   roomAccess: Int
   stakeState: Int!
   status: Int!

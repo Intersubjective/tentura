@@ -16,6 +16,7 @@ abstract class HelpOfferEntity with _$HelpOfferEntity {
     @Default(0) int offerKind,
     @Default(0) int stakeState,
     String? helpType,
+    String? roleLabel,
     String? withdrawReason,
     UserEntity? user,
   }) = _HelpOfferEntity;
