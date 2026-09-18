@@ -74,8 +74,8 @@ If Opus is unavailable: routine units degrade to Composer-only implement+verify;
 - [x] UNIT 08 `ReviewPackageState` — routine — Opus inner — verify pass 2026-09-18 — overseer accepted (`996724eec`)
 - [x] UNIT 09 client data/role/context — hard (DTO hops, codegen) — Opus inner (quota stop; overseer finished step 4) — verify pass 2026-09-18 — overseer accepted (`432d2839d`)
 - [x] UNIT 10 checklist UI — hard (Flutter, #162) — Opus-high substitute (Astra A2 quota miss) — verify pass 2026-09-18 — overseer accepted (`0b27c5885`)
-- [ ] UNIT 11 paused/closed classify — hard (D12) — Opus inner
-- [ ] UNIT 12 HUD + banner — hard (#162 loop) — **ASTRA inner**
+- [x] UNIT 11 paused/closed classify — hard (D12) — Opus inner — verify pass 2026-09-18 — overseer accepted (`d2876e587`)
+- [ ] UNIT 12 HUD + banner — hard (#162 loop) — **ASTRA inner** A3 (park inner until Astra quota ~05:51)
 - [ ] UNIT 13 My Work cards — hard — Opus inner
 - [ ] UNIT 14 author dialogs + Updates — medium — Opus inner
 - [ ] UNIT 15 release 7.16.0 — routine — Opus inner
@@ -1311,3 +1311,40 @@ NOTES:
 - Screen: `_LifecyclePackageBody` replaces the whole body for paused/closed/closedUnsent (no ListView, no bottom bar); paused button reuses `_onPackageDone`; closed link = TextButton → `ReceivedReviewsRoute`.
 
 VERIFY: TEST_CMD +155 all passed; check-custom-lints packages/client OK (30/30 baseline).
+
+### verify — 2026-09-18 — UNIT 11
+
+STATUS: pass
+
+TEST_OUTPUT:
+- `cd packages/client && ../../scripts/run_with_test_cleanup.sh --timeout 15m -- flutter test test/features/evaluation --dart-define=ENV=test --dart-define-from-file=env/test.env` — **+155, −0** (~11.3s). Matches inner/overseer **+155**.
+
+RANGE: `c9182d93f..dbb405fb3` (3 commits: scout journal, `23a408bce`, `d2876e587`, `dbb405fb3`). Owns diff: `evaluation_cubit.dart`, `review_contributions_screen.dart`, `evaluation_cubit_lifecycle_test.dart`, `review_contributions_screen_test.dart` (+ journal). No uncommitted changes under `packages/client/features/evaluation` at verify time. `evaluation_state.dart` unchanged (flags set via cubit `_withWindow`).
+
+ACCEPTANCE (plan UNIT 11 + hard-unit checks):
+
+| Criterion | Verdict | Evidence |
+|-----------|---------|----------|
+| D12: classify by re-read, not 1401 vs 1405 | **met** | `_classifyLifecycleError` only `fetchReviewWindowStatus` (`evaluation_cubit.dart:96–108`); `_onError` treats both exception types identically (`:115–122`). Closed vs paused from `windowComplete` / `hasWindow` + flags, not error type. |
+| Paused: non-empty participants + `!hasWindow` after lifecycle error | **met** | `_withWindow` `beaconIsInReview: !(afterLifecycleError && base.participants.isNotEmpty)` (`:87–91`); lifecycle test `submitOne on a vanished window…` stubs `hasWindow: false` with loaded participants → `packageState.paused`. |
+| Classify does not `fetchParticipants` | **met** | `_classifyLifecycleError` has no participants call; tests assert `participantsCalls` unchanged (`evaluation_cubit_lifecycle_test.dart:323–324`, `:411`). |
+| Classify-fail snacks original error, keeps state | **met** | `catch (_) { _emitSnackError(originalError); }` (`:109–111`); test `a failing classification read…` asserts `same(original)`, window/participants unchanged. |
+| Wire 1401/1405 in loadParticipantsOnly, submitOne, clearOne, finalize | **met** | All four use `await _onError(e)` in catch (`:189–191`, `:257–259`, `:306–308`, `:327–329`). |
+| Screen: whole-body replacement, no list/CTA | **met** | Early return `_LifecyclePackageBody` (`review_contributions_screen.dart:93–99`); widget tests assert no `ListView`, no `evaluationSubmit`, no participant tile. Closed uses `TextButton` + `ReceivedReviewsRoute` (`:594–598`). |
+| Plan five named cubit tests | **met** | All five in `lifecycle classification (D12)` group (`:302–414`). |
+| No polling / no spontaneous-transition test | **met** | No timer/subscription added; no test asserts idle transition. |
+| No second error mapper | **met** | Only existing `evaluation_error_mapper.dart`; cubit imports typed exceptions. |
+| UNIT 10 stay-after-send intact | **met** | Live `finalize` success → `_refreshAfterSend()` only (`:324–326`); draft still `_emitNavigateBack()` (`:314–317`); prior lifecycle tests for refresh failure unchanged in suite. |
+| Plan Verify TEST_CMD | **met** | Independent **+155**. |
+
+GAPS:
+- **`loadAll` still snacks on 1401/1405** (`:149–151`) — screen uses `loadParticipantsOnly` only; scout noted, not plan UNIT 11 Owns requirement.
+- **`_PackageBottomBar` dead lifecycle cases** (`:538–543`) — unreachable when body handles lifecycle first; harmless dead code, not acceptance fail.
+- **Two extra widget tests** (`review_contributions_screen_test.dart:630–691`) — added after screen (not red-first); assertions are substantive (copy, no checklist, navigation/link).
+- **`_refreshAfterSend` catch now calls `_onError`** — successful send then 1401 on refresh can classify to closed/paused instead of snack-only; extends UNIT 10 path, aligns with lifecycle handling, not required by plan text.
+
+### overseer — UNIT 11 accepted — 2026-09-18
+
+Verdict: **accepted**. Opus-low inner; Composer verify **+155**. D12 classify-by-reread is correct; paused heuristic matches UNIT 08 `!hasWindow && !beaconIsInReview`. Screen uses `loadParticipantsOnly`, so unused `loadAll` snack is deferred.
+
+Astra A3 for UNIT 12 remains parked until ~05:51 (do not probe). Next: UNIT 12 scout (Composer, no Astra spend) so the brief is ready when quota returns; UNIT 13 waits on 12; UNIT 14 can run in the wait window (depends on 05/06/09 only).
