@@ -1042,3 +1042,105 @@ the recoverability question.
 **Inner STATUS:** complete.
 
 ---
+
+## UNIT U03b — Card contract fields · VERIFY (2026-09-19)
+
+**Verifier:** read-only; `7b3771de6..HEAD` (`11e0a5a2e`, `4634dc85b`, `0b6b86897`). No code edits.
+
+### Deliberate divergences from scout brief — judged
+
+1. **`selfAuthored` all `false` (not `true` on `reviewAllPackagesIn`).** **Accept inner reasoning.** The firing
+   edge is `EvaluationCase.submitReviewPackage` when `!wasCloseableBefore && isCloseableNow`
+   (`evaluation_case.dart:1594–1610`); the acting user in that transaction is the **reviewer** (`userId` at
+   `:1540`), not the beacon author. `reviewAllPackagesIn` sets `actorUserId: authorUserId` only to route the
+   informational copy to the author (`attention_intent_case.dart:343–360`, special recipient at `:921–928`). That
+   is addressing, not “the viewer caused this.” `selfAuthored: true` would mean P3-style suppression/confirmation
+   semantics — wrong for a row the author must see. Scout conflated recipient slot with causal actor.
+
+2. **`beaconHierarchyStatusChanged` → `headlineTreatment: beacon` (not `system`).** **Accept inner reading of
+   §6.1.** The field governs the **card header title** (quoted request title + attribution), not the mini-card
+   event line. Both hierarchy variants are `scope: beacon`, `groupKey: beaconId`, `placement: timeline_only`, and
+   the producer supplies `actorUserId` when known (`attention_intent_case.dart:838–849`). System wording lives in
+   `BeaconHierarchyNoticeCopy` body/title for the event row, not the header identity slot.
+
+### Guard failure — independently proven (no test env override)
+
+`_contractFile()` only checks fixed relative paths; **no** `UPDATES_EVENT_CONTRACT` override. Method: backup
+tracked JSON → temporarily replace with `/tmp` mutants → run
+`dart test test/architecture/updates_event_contract_test.dart` → restore backup (`diff -q` clean).
+
+| Mutation | Failure |
+|---|---|
+| Delete `coalescible` on `relayReceived` variant | `containsAll` — `has no match for 'coalescible'` / *missing card contract fields* |
+| `headlineTreatment: invalid_enum` on same variant | `headlineTreatment must be one of {beacon, user, system}` |
+| `coalescible: true` on `relayReceived` / `forwardRecipient` | *carries a personal note; coalescing it destroys information (spec §7.3 K6)* |
+
+K6 is keyed on `_nonCoalescibleVariants` tuple `('relayReceived', 'reason:forwardRecipient')` — not merely key presence.
+
+### `headlineTreatment` vs `scope`/`groupKey` (33 variants)
+
+| Rule | Count | Event types |
+|---|---|---|
+| `scope: account` → `user` | 2 | `mutualConnectionFormed`, `inviteAccepted` |
+| Actor-less / system copy → `system` | 2 | `staleReminder`, `deadlineReminder` |
+| `scope: beacon`, `groupKey: beaconId` → `beacon` | 29 | all others (incl. both `beaconHierarchyStatusChanged` variants) |
+
+**Deviations from scout’s “actor-less system ⇒ system” shortcut:** only the two hierarchy variants (they have
+optional real `actorUserId` and §6.1 header semantics — inner choice documented above). Automated script over
+live JSON: **0** internal inconsistencies (account/user, K6, schema 4).
+
+### TEST_OUTPUT (re-run by verifier)
+
+```
+cd packages/server && ../../scripts/run_with_test_cleanup.sh --timeout 20m -- dart test --exclude-tags pg test/architecture
+→ 00:00 +20: All tests passed! exit 0
+
+cd packages/client && ../../scripts/run_with_test_cleanup.sh --timeout 20m -- flutter test --dart-define=ENV=test --dart-define-from-file=env/test.env test/architecture
+→ 00:01 +16: All tests passed! exit 0
+```
+
+### Scope / hygiene
+
+- `attention_policy.dart` / `_requiresAction`: **no diff** in `7b3771de6..HEAD`.
+- U02 characterization paths: **no diff** in commits.
+- Five `unverified` recoverability fields: **unchanged** (same paths as U03 journal).
+- `updates_event_coverage_test.dart`: **untouched**.
+- Commits: **3** focused (guard+schema → contract fill → journal).
+- Pre-existing worktree dirt (`.serena`, constellation journal, `force_directed_graphview` ×2, secrets) **not**
+  in U03b commits; secrets remain untracked.
+
+**VERIFY STATUS:** pass
+
+---
+
+### Manager verdict — U03b · **ACCEPTED** (scout ✓ / inner Opus-low ✓ / verify pass, no finisher)
+
+Overseer's own checks: server `test/architecture` **20 passed**, client `test/architecture` **16 passed**.
+Contract audited mechanically, not by eye: `schemaVersion 4`, 29 types / **33 variants**, zero variants missing
+any of the three new fields, `coalescible: false` on exactly `relayReceived`, `selfAuthored` empty, three legal
+`headlineTreatment` values.
+
+**The guard is real, and that was proven three ways.** The scout warned that today's contract tests validate a
+*subset*, so adding allow-list keys would never go red. The verifier then proved failure capability on a
+throwaway copy of the contract (restored immediately): a missing `coalescible` trips `containsAll`, an invalid
+`headlineTreatment` trips the enum check, and `coalescible: true` on a note-bearing forward trips the specific
+K6 assertion. Without that step this unit could have shipped an enforcement layer that cannot fail.
+
+**Two judgment calls, both resolved against the scout and in favour of the inner layer:**
+1. `selfAuthored` is `false` on all 33. The scout proposed `true` for the `reviewAllPackagesIn` author variant;
+   the inner layer read the call site and refused — the recipient equals `actorUserId`, but the author performed
+   no act (the producer fires on `!wasCloseableBefore && isCloseableNow`), so `actorUserId` is routing, not
+   authorship, and a `true` would suppress a row the author needs. The verifier confirmed at
+   `evaluation_case.dart:1594–1610`. The field is forward-looking for the §8 tombstone rows, which are not event
+   types — an honest empty set beats a plausible-looking `true`.
+2. `beaconHierarchyStatusChanged` is `beacon`, not `system`: `headlineTreatment` governs the card *header*, and
+   those rows are `scope: beacon` / `groupKey: beaconId` with a real actor. The system-ness lives in body copy,
+   which this field does not control.
+
+**Finding worth keeping:** `staleReminder` has **no producer at all** — the enum value never appears in
+`attention_intent_case.dart`. That is why its recipient predicate was `unverified` in U03. It is a dead branch,
+and U19 should either wire it or retire it rather than leave a classified event nothing can emit.
+
+Commits: `11e0a5a2e` guard · `4634dc85b` data · `0b6b86897` journal.
+
+---
