@@ -79,7 +79,7 @@ If Opus is unavailable: routine units degrade to Composer-only implement+verify;
 - [x] UNIT 13 My Work cards — hard — Opus inner — verify pass 2026-09-18 — overseer accepted (`dc56a0836`)
 - [x] UNIT 14 author dialogs + Updates — medium — Opus inner — verify pass 2026-09-18 — overseer accepted (`cc99f6d21`)
 - [x] UNIT 15 release 7.16.0 — routine — overseer (mechanical grep gate)
-- [ ] UNIT 16 closeout — hard (PG + web e2e) — overseer matrix; Astra only if red
+- [x] UNIT 16 closeout — hard (PG + web e2e) — overseer matrix; Astra only if red
 
 Never parallelize 02/03/04 or 09/10. Never skip or merge.
 
@@ -1772,6 +1772,46 @@ Also synced `.env.example` comments (versioning.mdc). No sandwich — three-line
 
 REMAINING: UNIT 16 closeout (PG, terminology, updates_event_contract_test `reviewAllPackagesIn` fixture, e2e). Astra B1–B3 reviews of 12/10/05 still unused.
 
-## UNIT 16 — in progress (overseer) — 2026-09-18
+## UNIT 16 — complete (overseer) — 2026-09-18
 
-Deleted unused `beaconHudConfirmCloseNowBody` (replaced by `beaconReviewCloseNowBody`). Kept `evaluationListIntro` (still on the checklist). Client `updates_event_contract_test.dart` now includes `reviewAllPackagesIn` + `reviewWindowCancelled`. PG oracles for matrix #11 (optional unsent discarded at close) and #16 (close vs edit serialised by advisory lock).
+COMMITS: `92a0e243b` contract + unused copy + PG #11/#16; `b7c935a18` coordination domain bool (UNIT 13 layer break).
+
+### Suites
+
+| Gate | Result |
+|---|---|
+| `check-custom-lints.sh` client | OK, tentura_lints 30/30 |
+| `check-custom-lints.sh` server | OK, 0/0 |
+| `check-user-facing-terminology.sh` | ok |
+| server `dart test --exclude-tags pg` | **+1649** |
+| owned PG (`evaluation_repository_review_status_pg_test` + finalization/ack/settlement) | **+26** including new #11/#16 |
+| full `dart test --tags pg` | **+716 ~24 −17** — failures are pre-existing (constellation stamp `0169`, `user_block.origin_id`, forward availability, Hasura helpers). None in evaluation review-status. |
+| client `flutter test` | first pass **+3633 −1** (`derive_beacon_coordination_phase` imported `features/`); after `b7c935a18` **+3634 ~29** |
+
+Web e2e **not run**: `127.0.0.1:8888` already bound by a local Flutter web server; `run_client_integration_web_local.sh` refuses that port. Existing `request_lifecycle_close_review_test.dart` only taps `evaluationSubmit` and does not assert stay/Edit/My Work (scenario #2). Widget coverage below stands in.
+
+l10n: deleted only `beaconHudConfirmCloseNowBody` (zero Dart consumers). `evaluationListIntro` still used.
+
+### #162 / #180 criteria → tests
+
+**#162** — after a complete checklist the CTA submits and stays submitted, or becomes Edit, and does not loop:
+
+- `after a send the screen stays and shows the sent status` — `review_contributions_screen_test.dart`
+- HUD/banner sent → `beaconHudReviewEdit` TextButton, never filled Review — `review_window_banner_host_test.dart`, `beacon_hud_author_action_test.dart`
+- My Work sent card demotes to Edit — `my_work_review_package_test.dart` (`a sent package shows no primary review CTA on the card`)
+- domain enum: `review_package_state_test.dart` (`sent`)
+
+**#180** — close by consensus while a leaver has not reviewed / has not been reviewed; optional reviews remain submittable until close:
+
+- `does not block closeNow when former committer review is incomplete` — `evaluation_case_test.dart`
+- `12 — incomplete formerCommitter review does not block closeNow` — `commitment_gates_test.dart`
+- `optional unsent package is discarded at close without becoming trust input` — `evaluation_repository_review_status_pg_test.dart` (matrix #11)
+- skip/local optional still on checklist — UNIT 10 `review_contributions_screen_test.dart`
+
+### GAPS
+
+- Full PG suite red on unrelated files; do not treat as this branch.
+- Scenario-matrix e2e #2 not executed (port busy) and not encoded in the existing close-review IT.
+- Astra B1–B3 read-only reviews of UNITs 12/10/05 not spent this closeout.
+
+HEAD: `b7c935a18`. Branch `fix/162-180-review-package-state`. Not pushed.
