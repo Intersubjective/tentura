@@ -12,6 +12,8 @@ class AttentionPolicy {
     required Set<AttentionRecipientReason> recipientReasons,
     required AttentionRecipientRoleFacts role,
   }) {
+    AttentionEventTypeCatalog.assertDeclared(eventType);
+
     if (recipientId.isEmpty || recipientReasons.isEmpty) {
       throw ArgumentError('recipientId and recipientReasons must be non-empty');
     }
@@ -281,14 +283,34 @@ class AttentionPolicy {
     AttentionEventType.helpOfferSubmitted => reasons.contains(
       AttentionRecipientReason.authorOfBeacon,
     ),
-    AttentionEventType.deadlineChanged ||
-    AttentionEventType.deadlineReminder => false,
     AttentionEventType.reviewOpened => true,
+    AttentionEventType.relayReceived => false,
+    AttentionEventType.offerAccepted => false,
+    AttentionEventType.offerDeclined => false,
+    AttentionEventType.offerRemoved => false,
+    AttentionEventType.roomMessagePosted => false,
+    AttentionEventType.requestStatusChanged => false,
+    AttentionEventType.beaconHierarchyStatusChanged => false,
     AttentionEventType.reviewAllPackagesIn => false,
     AttentionEventType.reviewWindowCancelled => false,
-    AttentionEventType.trustGivenChanged ||
+    AttentionEventType.mutualConnectionFormed => false,
+    AttentionEventType.inviteAccepted => false,
+    AttentionEventType.needsMe => false,
+    AttentionEventType.blockerOpened => false,
+    AttentionEventType.blockerResolved => false,
+    AttentionEventType.promiseMade => false,
+    AttentionEventType.promiseWithdrawn => false,
+    AttentionEventType.coordinationChanged => false,
+    AttentionEventType.staleReminder => false,
+    AttentionEventType.commitmentAccepted => false,
+    AttentionEventType.commitmentResolved => false,
+    AttentionEventType.commitmentCancelled => false,
+    AttentionEventType.commitmentRedirected => false,
+    AttentionEventType.commitmentReleased => false,
+    AttentionEventType.trustGivenChanged => false,
     AttentionEventType.trustReceivedChanged => false,
-    _ => false,
+    AttentionEventType.deadlineChanged => false,
+    AttentionEventType.deadlineReminder => false,
   };
 
   String _threadKey(

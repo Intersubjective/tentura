@@ -6,6 +6,62 @@ import 'package:tentura_server/domain/entity/notification_priority.dart';
 
 part 'attention_models.freezed.dart';
 
+/// Machine-checkable lifecycle for entries in `updates-event-contract.json`
+/// `eventClassifications` (schema ≥ 3).
+enum AttentionEventCatalogStatus {
+  supported,
+  deliberatelySilent,
+  retired,
+}
+
+AttentionEventCatalogStatus attentionEventCatalogStatusFromWireName(
+  String value,
+) => AttentionEventCatalogStatus.values.firstWhere(
+  (status) => status.name == value,
+);
+
+/// Runtime guard paired with exhaustive switches in [AttentionPolicy].
+abstract final class AttentionEventTypeCatalog {
+  AttentionEventTypeCatalog._();
+
+  static const int contractSchemaVersion = 3;
+
+  static void assertDeclared(AttentionEventType eventType) {
+    switch (eventType) {
+      case AttentionEventType.relayReceived:
+      case AttentionEventType.helpOfferSubmitted:
+      case AttentionEventType.offerAccepted:
+      case AttentionEventType.offerDeclined:
+      case AttentionEventType.offerRemoved:
+      case AttentionEventType.roomMessagePosted:
+      case AttentionEventType.requestStatusChanged:
+      case AttentionEventType.beaconHierarchyStatusChanged:
+      case AttentionEventType.reviewOpened:
+      case AttentionEventType.reviewAllPackagesIn:
+      case AttentionEventType.reviewWindowCancelled:
+      case AttentionEventType.mutualConnectionFormed:
+      case AttentionEventType.inviteAccepted:
+      case AttentionEventType.needsMe:
+      case AttentionEventType.blockerOpened:
+      case AttentionEventType.blockerResolved:
+      case AttentionEventType.promiseMade:
+      case AttentionEventType.promiseWithdrawn:
+      case AttentionEventType.coordinationChanged:
+      case AttentionEventType.staleReminder:
+      case AttentionEventType.commitmentAccepted:
+      case AttentionEventType.commitmentResolved:
+      case AttentionEventType.commitmentCancelled:
+      case AttentionEventType.commitmentRedirected:
+      case AttentionEventType.commitmentReleased:
+      case AttentionEventType.trustGivenChanged:
+      case AttentionEventType.trustReceivedChanged:
+      case AttentionEventType.deadlineChanged:
+      case AttentionEventType.deadlineReminder:
+        return;
+    }
+  }
+}
+
 enum AttentionEventType {
   relayReceived,
   helpOfferSubmitted,
