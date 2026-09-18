@@ -295,3 +295,92 @@ own journal status table. Harmless, but the status table should be written after
 | U03 exhaustive classification | worker 3 dispatched |
 
 ---
+
+## UNIT U03 — Exhaustive classification · COMPLETE (2026-09-18)
+
+**WHAT.** Bumped `updates-event-contract.json` to schema 3 with `eventClassifications` for all 29
+`AttentionEventType` values (33 recipient-specific variants). Removed the `_requiresAction` default-optional
+fallback; added compile-time/runtime declaration guard on `AttentionPolicy.project`. Upgraded server/client
+architecture tests for exhaustive enum coverage, obligation field obligations, optional non-bump ordering,
+hierarchy `timeline_only` placement, and `recoverableVia: none` retention exemption (soft-reported `unverified`
+gaps until U19).
+
+**FILES.**
+- `docs/contracts/updates-event-contract.json`
+- `packages/server/lib/domain/attention/attention_models.dart`
+- `packages/server/lib/domain/attention/attention_policy.dart`
+- `packages/server/test/architecture/updates_event_contract_test.dart`
+- `packages/client/test/architecture/updates_event_contract_test.dart`
+
+**TESTS.**
+
+```bash
+cd packages/server && ../../scripts/run_with_test_cleanup.sh --timeout 20m -- dart test --exclude-tags pg \
+  test/architecture test/domain/attention
+```
+
+→ `00:03 +88: All tests passed!` Exit 0.
+
+```bash
+cd packages/server && ../../scripts/run_with_test_cleanup.sh --timeout 20m -- dart test --tags pg -j 1 \
+  test/data/repository/attention_activity_stream_pg_test.dart \
+  test/data/repository/attention_surface_pg_test.dart \
+  test/data/repository/my_work_attention_pg_test.dart \
+  test/data/repository/attention_retention_pg_test.dart \
+  test/data/repository/attention_live_obligations_pg_test.dart \
+  test/data/repository/attention_mark_seen_for_beacon_pg_test.dart \
+  test/data/repository/attention_repository_pg_test.dart
+```
+
+→ `00:19 +70: All tests passed!` 0 skipped. Exit 0. (First run after parallel suites hit a RAM tmpfs kernel
+race at `+44 -3`; `./scripts/run_with_test_cleanup.sh --sweep-only` then rerun succeeded.)
+
+```bash
+cd packages/client && ../../scripts/run_with_test_cleanup.sh --timeout 20m -- flutter test \
+  --dart-define=ENV=test --dart-define-from-file=env/test.env test/architecture
+```
+
+→ `00:01 +16: All tests passed!` Exit 0.
+
+```bash
+./scripts/run_with_test_cleanup.sh --timeout 10m -- ./scripts/check-custom-lints.sh packages/server
+```
+
+→ `check-custom-lints: packages/server OK` (tentura_lints total 0). Exit 0.
+
+**Classification inventory (today's `AttentionPolicy` behaviour).**
+
+| Event type | Obligation (`requires_action`) | Suppression / preference highlights | Notes |
+|---|---|---|---|
+| `helpOfferSubmitted` | author only | author mandatory, steward standard | `attention_policy.dart` `_requiresAction`, `_suppression` |
+| `reviewOpened` | all recipients | mandatory | only other obligation type today |
+| All other 27 types | false | per-type switches in `_suppression`, `_category`, `_accessPolicy`, `_destination` | previously fell through `_ => false` in `_requiresAction` |
+
+**Declared variants:** 33 across 29 event types. **`unverified` fields (10 unique paths, 12 variant-field entries):**
+`beaconHierarchyStatusChanged.producerTests` (×2 variants), `staleReminder.recipientPredicate`,
+`staleReminder.recoverableVia`, `commitmentResolved.recipientPredicate`, `commitmentResolved.recoverableVia`,
+`deadlineChanged.recipientPredicate`, `deadlineChanged.recoverableVia`, `deadlineChanged.producerTests`,
+`deadlineReminder.recipientPredicate`, `deadlineReminder.recoverableVia`, `deadlineReminder.producerTests`.
+
+**FINDINGS.**
+- Mandatory suppression (`needsMe`, `deadlineReminder`, …) does not imply obligation — only
+  `helpOfferSubmitted` (author) and `reviewOpened` set `requires_action` today.
+- Contract declares `orderingEffect: stable` for optional types and `timeline_only` for
+  `beaconHierarchyStatusChanged`, while Activity SQL still bumps optional children and still surfaces propagated
+  hierarchy receipts on primary Activity — left unchanged per safety property; U10/U11 close the gap.
+- `reviewOpened` resolution in contract cites `EvaluationCase.submitReviewPackage` from settlement paths; exact
+  transition naming may need tightening in U07b when lifecycle audit completes.
+
+**DECISIONS.** Legacy six-field `eventTypes` producer rows kept for the original 15 producers; exhaustive
+semantics live in `eventClassifications`. Architecture tests report `unverified` gaps without failing (U19 gate).
+`AttentionEventTypeCatalog.assertDeclared` uses an exhaustive switch so a new enum value fails analysis until both
+the switch and contract row land.
+
+**REMAINING.** U19: drive `unverified` count to zero; U07b: align obligation `resolutionTransitions` with audited
+settlement code; U10/U11: make SQL/grouping match declared `orderingEffect` and hierarchy `placement`.
+
+| Unit | Status |
+|---|---|
+| U03 exhaustive classification | **complete** (commits pending this journal entry) |
+
+---

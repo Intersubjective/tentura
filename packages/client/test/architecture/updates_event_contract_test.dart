@@ -8,7 +8,60 @@ const _topLevelKeys = {
   'pendingProducerEventTypes',
   'eventTypes',
   'producers',
+  'eventClassifications',
 };
+
+const _contractSchemaVersion = 3;
+
+const _runtimeAttentionEventTypes = <String>[
+  'relayReceived',
+  'helpOfferSubmitted',
+  'offerAccepted',
+  'offerDeclined',
+  'offerRemoved',
+  'roomMessagePosted',
+  'requestStatusChanged',
+  'beaconHierarchyStatusChanged',
+  'reviewOpened',
+  'reviewAllPackagesIn',
+  'reviewWindowCancelled',
+  'mutualConnectionFormed',
+  'inviteAccepted',
+  'needsMe',
+  'blockerOpened',
+  'blockerResolved',
+  'promiseMade',
+  'promiseWithdrawn',
+  'coordinationChanged',
+  'staleReminder',
+  'commitmentAccepted',
+  'commitmentResolved',
+  'commitmentCancelled',
+  'commitmentRedirected',
+  'commitmentReleased',
+  'trustGivenChanged',
+  'trustReceivedChanged',
+  'deadlineChanged',
+  'deadlineReminder',
+];
+
+const _classificationVariantKeys = {
+  'recipientPredicate',
+  'scope',
+  'attentionClass',
+  'placement',
+  'groupKey',
+  'orderingEffect',
+  'accessPolicy',
+  'recoverableVia',
+  'clearPolicy',
+  'producerTests',
+  'transitionTests',
+};
+
+const _bumpingOrderingEffects = {'promote_on_obligation', 'bump'};
+
+const _hierarchyPropagatedEventTypes = {'beaconHierarchyStatusChanged'};
 
 const _entryKeys = {
   'eventType',
@@ -170,7 +223,7 @@ void main() {
     );
 
     expect(contract.keys.toSet(), _topLevelKeys);
-    expect(contract['schemaVersion'], 2);
+    expect(contract['schemaVersion'], _contractSchemaVersion);
 
     final pending = (contract['pendingProducerEventTypes'] as List)
         .cast<String>();
@@ -240,6 +293,135 @@ void main() {
       reason: 'inviteAccepted already has live producers',
     );
   });
+
+  test('event classifications cover every runtime AttentionEventType', () {
+    final contract = _loadContract();
+    final classifications = (contract['eventClassifications']! as List)
+        .map((entry) => Map<String, dynamic>.from(entry as Map))
+        .toList(growable: false);
+
+    final byType = {
+      for (final entry in classifications)
+        entry['eventType']! as String: entry,
+    };
+
+    expect(
+      byType.keys.toSet(),
+      _runtimeAttentionEventTypes.toSet(),
+      reason: 'each runtime enum value must have exactly one classification row',
+    );
+
+    final unverifiedGaps = <String>[];
+    for (final entry in classifications) {
+      final eventType = entry['eventType']! as String;
+      final status = entry['status']! as String;
+      expect(
+        {'supported', 'deliberatelySilent', 'retired'},
+        contains(status),
+        reason: '$eventType status',
+      );
+      expect(status, isNot('retired'), reason: '$eventType is still live');
+
+      final variants = (entry['variants']! as List)
+          .map((variant) => Map<String, dynamic>.from(variant as Map))
+          .toList(growable: false);
+      expect(variants, isNotEmpty, reason: '$eventType needs variants');
+
+      for (final variant in variants) {
+        final allowedKeys = {..._classificationVariantKeys};
+        if (variant['attentionClass'] == 'obligation') {
+          allowedKeys.addAll({
+            'actionDescriptor',
+            'logicalTaskKey',
+            'resolutionTransitions',
+          });
+        }
+        if (variant['recoverableVia'] == 'none') {
+          allowedKeys.add('retentionExemption');
+        }
+        expect(
+          variant.keys,
+          everyElement(isIn(allowedKeys)),
+          reason: '$eventType variant field shape',
+        );
+
+        _collectUnverified(variant, eventType, unverifiedGaps);
+        _enforceClassificationRules(eventType, variant);
+      }
+    }
+
+    expect(
+      unverifiedGaps,
+      unverifiedGaps,
+      reason:
+          'unverified classification gaps (must reach zero before U19):\n'
+          '${unverifiedGaps.join('\n')}',
+    );
+  });
+}
+
+Map<String, dynamic> _loadContract() => Map<String, dynamic>.from(
+  jsonDecode(_contractFile().readAsStringSync()) as Map,
+);
+
+void _collectUnverified(
+  Map<String, dynamic> variant,
+  String prefix,
+  List<String> gaps,
+) {
+  for (final key in variant.keys) {
+    final value = variant[key];
+    if (value == 'unverified') {
+      gaps.add('$prefix.$key');
+    } else if (value is List && value.contains('unverified')) {
+      gaps.add('$prefix.$key');
+    }
+  }
+}
+
+void _enforceClassificationRules(
+  String eventType,
+  Map<String, dynamic> variant,
+) {
+  final attentionClass = variant['attentionClass']! as String;
+  final orderingEffect = variant['orderingEffect']! as String;
+  final placement = variant['placement']! as String;
+  final recoverableVia = variant['recoverableVia']! as String;
+
+  if (attentionClass == 'obligation') {
+    expect(variant['actionDescriptor'], isA<String>());
+    expect((variant['actionDescriptor'] as String).trim(), isNotEmpty);
+    expect(variant['logicalTaskKey'], isA<String>());
+    expect((variant['logicalTaskKey'] as String).trim(), isNotEmpty);
+    final transitions = variant['resolutionTransitions']! as List;
+    expect(transitions, isNotEmpty);
+    expect(variant['clearPolicy'], 'forbidden');
+  }
+
+  if (attentionClass == 'optional') {
+    expect(
+      _bumpingOrderingEffects,
+      isNot(contains(orderingEffect)),
+      reason: '$eventType optional variant must not declare bump ordering',
+    );
+  }
+
+  if (_hierarchyPropagatedEventTypes.contains(eventType)) {
+    expect(
+      placement,
+      'timeline_only',
+      reason: '$eventType is hierarchy-propagated',
+    );
+  }
+
+  if (recoverableVia == 'none') {
+    expect(
+      variant['retentionExemption'],
+      isA<String>(),
+      reason: '$eventType recoverableVia none requires retentionExemption',
+    );
+    expect((variant['retentionExemption'] as String).trim(), isNotEmpty);
+  }
 }
 
 File _contractFile() {
