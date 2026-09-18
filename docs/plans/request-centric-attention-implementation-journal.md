@@ -782,3 +782,263 @@ Commits: `5d2776dea` arb · `bf87bb87b` hardcoded snackbars · `f83222d58` tests
 `2e0eaa8c7` journal.
 
 ---
+
+## UNIT U03b — Card contract fields · SCOUT BRIEF (2026-09-19)
+
+**Scout:** read-only on `feature/events_refac` at `UNIT_BASE` `7b3771de6`. No production code, no tests, no commits.
+
+### Live contract shape (extend, do not reinvent)
+
+**File:** `docs/contracts/updates-event-contract.json` — top-level keys frozen by tests:
+`schemaVersion`, `pendingProducerEventTypes`, `eventTypes`, `producers`, `eventClassifications`.
+
+**`eventClassifications`:** exactly **29** rows (one per `AttentionEventType`), **33** `variants[]` total.
+Each row: `{ eventType, status, variants }` where `status` is `supported` (all live today; no `deliberatelySilent` rows).
+
+**Per-variant fields today** (allow-list in architecture tests — extras fail, omissions do not):
+
+| Field | Notes |
+|---|---|
+| `recipientPredicate` | `reason:…` wire names; some `unverified` |
+| `scope` | `beacon` (31 variants) or `account` (2) |
+| `attentionClass` | `optional` \| `obligation` |
+| `placement` | `primary` \| `timeline_only` (`beaconHierarchyStatusChanged` only) |
+| `groupKey` | `beaconId` or `accountId` (tracks `scope`) |
+| `orderingEffect` | `stable` \| `promote_on_obligation` \| `bump` (none today) |
+| `accessPolicy` | e.g. `beacon_content`, `profile`, `history_only` |
+| `recoverableVia` | includes `unverified` on 5 variants (U19 gate) |
+| `clearPolicy` | `explicit_or_request_open` \| `forbidden` (obligations) |
+| `producerTests`, `transitionTests` | path strings; may contain `unverified` |
+| Obligation-only | `actionDescriptor`, `logicalTaskKey`, `resolutionTransitions` |
+| `recoverableVia: none` only | `retentionExemption` (none today) |
+
+**There is no `objectKeyKind` in the live contract** (only in `issue-171-activity-label-comprehension-analysis.md`).
+Derive `headlineTreatment` from **`scope` + `groupKey` + event-type producer semantics**; cross-check
+`destinationFamily` on the legacy 15-row `eventTypes` block where the event appears there.
+
+### Guard tests (where to add U03b enforcement)
+
+| File | Loads contract | Classification test | `schemaVersion` check |
+|---|---|---|---|
+| `packages/server/test/architecture/updates_event_contract_test.dart` | `_contractFile()` → `docs/contracts/updates-event-contract.json` | `event classifications cover every AttentionEventType` | `AttentionEventTypeCatalog.contractSchemaVersion` (currently **3** in `attention_models.dart`) |
+| `packages/client/test/architecture/updates_event_contract_test.dart` | same path resolution | `event classifications cover every runtime AttentionEventType` (duplicated enum list) | local `_contractSchemaVersion = 3` |
+
+**Why missing fields do not fail today:** the loop only asserts `variant.keys` ⊆ `allowedKeys` (no unknown keys).
+It does **not** require the U03 §4.3 keys. Adding the three names to `_classificationVariantKeys` alone stays green.
+
+**RED-first hook:** in both files, inside the per-variant loop, `expect(variant.keys, containsAll({'selfAuthored', 'headlineTreatment', 'coalescible'}))` plus typed value checks (`selfAuthored` bool; `headlineTreatment` ∈ `{beacon,user,system}`; `coalescible` bool). Add a dedicated rule: `relayReceived` + `reason:forwardRecipient` ⇒ `coalescible == false` (K6). Bump expected `schemaVersion` to **4** and `AttentionEventTypeCatalog.contractSchemaVersion` in the same commit as the guard (otherwise the first test fails on version alone).
+
+`packages/server/test/architecture/updates_event_coverage_test.dart` — producers inventory only; **no** classification variant shape. Do not modify U02 PG/client characterization tests.
+
+### `schemaVersion` bump to 4 — blast radius
+
+Grep (updates contract only): readers are the two `updates_event_contract_test.dart` files and
+`AttentionEventTypeCatalog.contractSchemaVersion`. No runtime Dart reads the JSON `schemaVersion` for dispatch.
+`issue-171-card-spec.md` D-171-3 still says “schemaVersion 3”; manifest U03b explicitly overrides to **4**.
+
+### Proposed `headlineTreatment` (33 variants)
+
+**Derivation rule (live fields):**
+
+| Rule | `headlineTreatment` | Variants |
+|---|---|---|
+| `scope == account` && `groupKey == accountId` | **`user`** | `mutualConnectionFormed` · `inviteAccepted` (1 each) |
+| `scope == beacon` && event type uses **system-generated** attention copy (no person as headline actor) | **`system`** | `deadlineReminder` (1); `staleReminder` (1); `beaconHierarchyStatusChanged` (2) — `deadlineReminder` uses `actorUserId: ''`; hierarchy uses `BeaconHierarchyNoticeCopy.*` |
+| All other `scope == beacon` && `groupKey == beaconId` | **`beacon`** | remaining **28** variants across 24 event types |
+
+**Cannot derive from `scope`/`groupKey` alone** (need event-type / producer): which beacon-scoped types are `system` vs `beacon` — only the three types above. `trustGivenChanged` has `accessPolicy: profile` but stays **`beacon`** (grouped under request, header is still quoted request title per §6.1). `roomMessagePosted` has a user actor but card header remains request identity ⇒ **`beacon`**.
+
+### Proposed `selfAuthored` (actor == recipient)
+
+Contract field is **boolean** per variant (manifest / user brief), not the analysis doc’s `suppress`/`obligation` enum.
+
+**Resolver default:** `BeaconNotificationRecipientResolver` skips `userId == actor` (`beacon_notification_recipient_resolver.dart:33–34`).
+
+| Variant | `selfAuthored` | Evidence |
+|---|---|---|
+| **`reviewAllPackagesIn` · `reason:authorOfBeacon`** | **`true`** | `fromBeaconNotification` special-case: sole recipient is `notification.actorUserId` (author) (`attention_intent_case.dart:921–928`, `reviewAllPackagesIn` sets `actorUserId: authorUserId`) |
+| **All other 32 variants** | **`false`** | Actor excluded from recipients or recipient is a different party (forwards, offers, coordination, invites, trust, etc.) |
+
+**Viewer-relative copy** (tombstones, confirmations) is **out of scope** for this unit — those are outcome rows / l10n, not these 29 dispatch event types.
+
+### Proposed `coalescible`
+
+| Rule | Value |
+|---|---|
+| **`relayReceived` · `reason:forwardRecipient`** | **`false`** — forward note is only on the mini-card (§7.3 K6); note-less forwards coalesce at **UI** by filtering empty `notePreview`, not by setting this variant `true`. |
+| **All other 32 variants** | **`true`** — including `roomMessagePosted` (same-kind «3 новых сообщения»), `helpOfferSubmitted` (offer message is not a forward note), obligations |
+
+Optional future guard: if `recoverableVia == 'none'` and content is not derivable, coalescing may be unsafe (U19 / dismissible-implies-derivable) — not asserted in U03b unless manifest adds it.
+
+### Multi-variant events (unchanged predicates; new fields usually constant per type)
+
+| Event type | # variants | Notes for implementer |
+|---|---|---|
+| `helpOfferSubmitted` | 2 | obligation vs optional — same headline/coalescible; both `selfAuthored: false` |
+| `requestStatusChanged`, `beaconHierarchyStatusChanged`, `blockerOpened` | 2 each | hierarchy: `timeline_only`; same `headlineTreatment` within type |
+| All others | 1 | |
+
+### Implementation steps (test-first)
+
+1. **Guard + schema 4 (RED)** — `packages/server/test/architecture/updates_event_contract_test.dart`, `packages/client/test/architecture/updates_event_contract_test.dart`, `packages/server/lib/domain/attention/attention_models.dart` (`contractSchemaVersion = 4`). Run server + client architecture tests → fail on missing fields / version.
+2. **Fill contract (GREEN)** — `docs/contracts/updates-event-contract.json`: `"schemaVersion": 4`; add three fields to all **33** variants per tables above.
+3. **Journal + verify** — record command output; re-run architecture suites.
+
+**Do not touch:** `_requiresAction` / `attention_policy.dart` obligation outcomes; U02-tagged tests; `updates_event_coverage_test` unless producer inventory changes (it should not).
+
+### TEST_CMD (paths verified)
+
+```bash
+cd packages/server && ../../scripts/run_with_test_cleanup.sh --timeout 20m -- dart test --exclude-tags pg test/architecture
+cd packages/client && ../../scripts/run_with_test_cleanup.sh --timeout 20m -- flutter test --dart-define=ENV=test --dart-define-from-file=env/test.env test/architecture
+```
+
+Optional narrow loop while iterating:
+
+```bash
+cd packages/server && ../../scripts/run_with_test_cleanup.sh --timeout 10m -- dart test test/architecture/updates_event_contract_test.dart
+cd packages/client && ../../scripts/run_with_test_cleanup.sh --timeout 10m -- flutter test --dart-define=ENV=test --dart-define-from-file=env/test.env test/architecture/updates_event_contract_test.dart
+```
+
+### Risks / contradictions
+
+- **`objectKeyKind` absent** — headline mapping is by manifest + §6.1/§8 prose, proxied through `scope`/`groupKey`/producer; document in commit message if D-171-3 “by objectKeyKind” wording is stale.
+- **`promiseWithdrawn` variant `reason:targetOfAsk`** vs **help withdrawal** notifying author/stewards (`commitmentEvent` resolver) — classification predicate may not match live recipients; U03 accepted; do not “fix” in U03b.
+- **`staleReminder` / `deadlineChanged` / `commitmentResolved`** still carry `unverified` predicates — new fields should still be filled with best-effort booleans/enums.
+- Adding keys only to the allow-list without `containsAll` **does not go red** — easy to ship a no-op guard.
+
+---
+
+## UNIT U03b — Card contract fields · INNER (2026-09-19)
+
+**Inner:** Claude Code Opus 5 on `feature/events_refac`, base `7b3771de6`. Three commits, test-first.
+
+### Step 1 — the guard, proven red (`11e0a5a2e`)
+
+The scout's key finding held: `variant.keys, everyElement(isIn(allowedKeys))` only rejects *unknown* keys, so
+adding the three names to `_classificationVariantKeys` alone is a no-op guard. The guard therefore asserts the
+fields as **mandatory** (`containsAll(_mandatoryCardContractKeys)`), with value types (`selfAuthored` /
+`coalescible` bool, `headlineTreatment` ∈ `{beacon,user,system}`) and two rules:
+
+- `relayReceived` · `reason:forwardRecipient` ⇒ `coalescible == false` (§7.3 K6), keyed on the
+  `(eventType, recipientPredicate)` pair so a future note-bearing forward variant must be added to the set
+  explicitly rather than inheriting a default;
+- `scope == 'account'` ⇒ `headlineTreatment != 'beacon'` — the account-scoped rows are headlined by a person,
+  and this catches a copy-paste of the beacon default onto them.
+
+Both readers of `schemaVersion` went to **4** in this same commit
+(`AttentionEventTypeCatalog.contractSchemaVersion`, client `_contractSchemaVersion`), so the version test is red
+in the same run.
+
+Real red output — server:
+
+```
+$ cd packages/server && ../../scripts/run_with_test_cleanup.sh --timeout 20m -- dart test --exclude-tags pg test/architecture
+00:00 +9 -2: test/architecture/updates_event_contract_test.dart: event classifications cover every AttentionEventType [E]
+  Expected: contains all of Set:['selfAuthored', 'headlineTreatment', 'coalescible']
+    Actual: _CompactKeysIterable<String>:[
+              'recipientPredicate', 'scope', 'attentionClass', 'placement', 'groupKey',
+              'orderingEffect', 'accessPolicy', 'recoverableVia', 'clearPolicy',
+              'producerTests', 'transitionTests'
+            ]
+     Which: has no match for 'selfAuthored' at index 0 along with 2 other unmatched
+  relayReceived variant is missing card contract fields
+00:00 +18 -2: Some tests failed.
+
+Failing tests:
+  test/architecture/updates_event_contract_test.dart: Updates contract has the exact revision 4 semantic coverage
+  test/architecture/updates_event_contract_test.dart: event classifications cover every AttentionEventType
+```
+
+Client, same two failures:
+
+```
+$ cd packages/client && ../../scripts/run_with_test_cleanup.sh --timeout 20m -- flutter test --dart-define=ENV=test --dart-define-from-file=env/test.env test/architecture
+00:00 +0 -2: .../updates_event_contract_test.dart: event classifications cover every runtime AttentionEventType [E]
+     Which: has no match for 'selfAuthored' at index 0 along with 2 other unmatched
+  relayReceived variant is missing card contract fields
+00:01 +14 -2: Some tests failed.
+```
+
+**Red counts: server 18 passed / 2 failed; client 14 passed / 2 failed.**
+
+### Step 2 — contract data (`4634dc85b`)
+
+`docs/contracts/updates-event-contract.json`: `schemaVersion` 3 → 4 and the three fields on all **33** variants.
+The diff is 100 insertions / 1 deletion — purely additive plus the version line; no existing field moved.
+
+Green:
+
+```
+$ cd packages/server && ../../scripts/run_with_test_cleanup.sh --timeout 20m -- dart test --exclude-tags pg test/architecture
+00:00 +20: All tests passed!
+
+$ cd packages/client && ../../scripts/run_with_test_cleanup.sh --timeout 20m -- flutter test --dart-define=ENV=test --dart-define-from-file=env/test.env test/architecture
+00:01 +16: All tests passed!
+```
+
+Distribution: `headlineTreatment` = `beacon` 29 · `user` 2 · `system` 2; `coalescible: false` on exactly one
+variant; `selfAuthored: true` on none.
+
+### Reasoning for the judgment calls
+
+**`headlineTreatment` is derived from `scope` + `groupKey` + producer, not from `objectKeyKind`** — that field
+does not exist in the live contract; the manifest's wording is loose and D-171-3's "schemaVersion 3" is stale.
+Rule applied: `scope == account` (⇒ `groupKey == accountId`) ⇒ `user`; actor-less system notice ⇒ `system`;
+otherwise ⇒ `beacon`.
+
+- **`deadlineReminder` ⇒ `system`.** `AttentionIntentCase.deadlineReminder` passes `actorUserId: ''` and
+  `_deadlineIntent` then sets `actorUserId: null` on the dispatch intent
+  (`attention_intent_case.dart:256–302`). There is no person to attribute the line to, so a bare system label is
+  the only truthful rendering. Its sibling `deadlineChanged` keeps a real actor and stays `beacon`.
+- **`staleReminder` ⇒ `system`.** It has **no producer at all** — the enum value appears only in
+  `attention_models.dart` and `attention_policy.dart`, never in `attention_intent_case.dart` — which is also why
+  its `recipientPredicate` is still `unverified`. An event nobody produces has no actor; `system` is the value
+  that will be correct when a producer is written, and a `beacon` value would have to be revisited then anyway.
+- **Both `beaconHierarchyStatusChanged` variants ⇒ `beacon`, diverging from the scout's `system`.** The scout's
+  argument was that the copy comes from `BeaconHierarchyNoticeCopy.*`, i.e. system-worded. But
+  `headlineTreatment` governs the **card header** (§6.1: "title … rendered per `headlineTreatment`"), not the
+  mini-card event line. These rows are `scope: beacon`, `groupKey: beaconId`, and `placement: timeline_only` —
+  they live *inside* a request card whose header is the quoted request title, and the producer does pass a real
+  `actorUserId` (`attention_intent_case.dart:838, 848`). Rendering that card's header as a bare system label
+  would be wrong; the system-ness is in the body copy, which this field does not control. Recorded as a
+  deliberate divergence in case the card work (U04+) shows otherwise.
+- `trustGivenChanged` stays `beacon` despite `accessPolicy: profile` — it groups under the request and §6.1 keeps
+  the quoted request title. `roomMessagePosted` likewise: a human actor on the mini-card, request identity in the
+  header.
+
+**`selfAuthored` is `false` on all 33, and that is a finding, not a default.** The overseer asked for a named
+producer call site per `true`; there is none, and the honest answer is that **no current event type is
+self-authored**. `BeaconNotificationRecipientResolver.resolveRecipients`'s inner `add()` returns early on
+`userId == actor` (`beacon_notification_recipient_resolver.dart:32–34`), so the actor is structurally excluded
+from recipients on every resolver-routed event.
+
+The one apparent exception is the scout's `reviewAllPackagesIn` · `reason:authorOfBeacon`, and it was checked
+rather than accepted. `AttentionIntentCase.fromBeaconNotification` does special-case it to a single recipient
+equal to `notification.actorUserId` (`attention_intent_case.dart:918–928`), and `reviewAllPackagesIn` sets
+`actorUserId: authorUserId` (`:343–360`). So recipient == "actor" *as a field value*. But the author **performed
+no act**: the producer is `EvaluationCase`'s `!wasCloseableBefore && isCloseableNow` edge
+(`evaluation_case.dart:1595–1611`) — the system observing that every package is in. `actorUserId` there is an
+addressing carrier that reuses the author slot, not an authorship claim. Per the field's governing semantics
+(analysis doc §9 / P3: "an event whose actor is the viewer produces a confirmation, not a row"), marking it
+`true` would suppress a row the author actually needs. Hence `false`, with the reasoning recorded here so nobody
+re-derives the scout's conclusion from the call site alone.
+
+The field is therefore **forward-looking**: its `true` consumers are the synthetic tombstone / confirmation rows
+of §8 and the analysis doc's confirmation table, which are not `AttentionEventType`s and do not appear in this
+contract.
+
+**`coalescible: false` on `relayReceived` · `reason:forwardRecipient` only**, asserted by rule and not merely
+present as data. Note-less forwards still collapse into «ещё N переслали», but that happens in the UI by
+filtering on an empty `notePreview` — it is not this variant flipping to `true`.
+
+### Not touched, deliberately
+
+`_requiresAction` / `attention_policy.dart` obligation outcomes; the U02 characterization tests;
+`updates_event_coverage_test.dart` (producer inventory unchanged); the five `unverified` `recoverableVia` values
+(U19 gate) — those five variants got the three new fields like everyone else, since the fields are independent of
+the recoverability question.
+
+**Inner STATUS:** complete.
+
+---
