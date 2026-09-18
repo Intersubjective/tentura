@@ -1165,3 +1165,32 @@ Commits: `11e0a5a2e` guard · `4634dc85b` data · `0b6b86897` journal.
 **STATUS:** complete
 
 ---
+
+### Manager verdict — U07a · **ACCEPTED** (investigation, read-only Composer, no sandwich)
+
+Deliverable: `request-centric-attention-obligation-transition-matrix.md` (134 lines, commit `cfd3968fb`).
+
+**Scoping fact that shrinks U07b:** the contract declares only **two** obligation variants — `helpOfferSubmitted`
+for the author and `reviewOpened` for reviewers. U07b is therefore a narrow unit, not the sprawling lifecycle
+sweep the plan's prose implied.
+
+Seven gaps, ranked. The audit found six beyond the one it was given, which is the whole point of running it:
+
+| # | Gap | Note |
+|---|---|---|
+| P0 | `HelpOfferCase.withdraw` leaves the author's `helpOfferSubmitted` live | the known one, confirmed |
+| P1 | generic `attentionSettle` / My Desk **Done** still resolves help-offer obligations | contradicts owner decision C |
+| P1 | terminal paths (`offerRemoved`, beacon close) never settle the author obligation | **new**; not even declared in the contract |
+| P2 | `reviewOpened` is settled by window close, reopen-supersede and backfill — **none of which the contract lists** | found by comparing code→contract as well as contract→code |
+| P2 | `settleReviewerObligationOnPackageSend` runs **outside** the attention transaction | **verified personally**: `evaluation_case.dart:1616`, after the transaction block closes, with a comment about retry idempotency — the author knew |
+| P3 | no optional explanation emitted after a review obligation settles as `expired` | this is the D-plan's "never silently decrement" rule, still unimplemented |
+| P3 | contract transition names (`withdrawHelpOffer`, `submitReviewPackage`) do not match live method names | cosmetic but it breaks grep-based tracing |
+
+Also confirmed: review obligations are blocked from user settlement at three layers (use case, SQL, client), not
+one — so owner decision C's review exemption is already enforced in depth. `staleReminder` and the
+coordination-item types remain unemittable.
+
+**Consequence for U07b:** its brief must carry the P2 transaction-boundary defect explicitly, because D04 requires
+the source mutation and the settlement to commit together, and today's code deliberately does not.
+
+---
