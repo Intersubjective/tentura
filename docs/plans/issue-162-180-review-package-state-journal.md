@@ -1509,3 +1509,112 @@ GAPS (non-blocking):
 Verdict: **accepted**. Opus-low inner; Composer verify TEST_CMD **+601**; overseer independent TEST_CMD+destination_map **+607**. Four entry points share confirms; discard note uses `unsentStartedPackages`; `review_all_packages_in` opens the request. My Work review CTAs left for UNIT 13.
 
 UNIT 12 inner remains parked until Astra (~05:51 CEST). UNIT 13 waits on 12. Unused `beaconHudConfirmCloseNowBody` deferred.
+
+### checkpoint — UNIT 12 — 2026-09-18 — Astra A3 inner
+
+Journal read fully before implementation. Actual HEAD / UNIT_BASE: `43c7ab43e`;
+UNIT 14 confirms, destination mapping and My Work close wrapping are preserved.
+The pre-existing journal launch-status edit and all UNTOUCHABLE paths remain
+unstaged. Owns: UNIT 12 HUD presenter, banner widgets, ReviewWindowInfo and their
+specified tests. Release version/cache-buster remain UNIT 15. Next: RED nine-state
+role/closeability matrix and four named regression oracles; green commits locally,
+no push.
+
+### checkpoint — UNIT 12 — 2026-09-18 — RED then HUD GREEN
+
+Two focused files RED before production edits: **+70 -25**, behavioral failures
+for sent HUD review, close-now priority, progress and banner status/edit/copy.
+Removed obsolete getter-test groups; replaced the sent-review ACT expectation.
+HUD GREEN: **+54**, including 36 state/role/closeability rows, lifecycle inference
+and EN/RU required-progress semantics. Custom-lint gate **30/30, OK**.
+The first test launch was blocked by the sandbox's read-only external Flutter
+cache; authorized escalation ran the same wrapped tests successfully.
+Banner RED tests remain unstaged until their green step. No UNIT 14 files edited.
+
+### checkpoint — UNIT 12 — 2026-09-18 — banner GREEN
+
+HUD commit: `90a8e2896`. Banner and combined HUD/banner matrix now GREEN **+96**:
+36 widget rows plus 36 HUD rows, four named oracles, EN/RU author-waiting copy,
+Edit navigation for both roles and localized deadline. Progress fixture uses
+3 required / 1 answered / 4 total so the expected effect is 2 remaining of 3.
+Sent is status plus TextButton Edit, never a filled review CTA. Author waiting
+copy appears only while required packages are outstanding; once all are sent,
+§2.1 shows status/Edit alongside the existing close-now HUD action.
+Final banner custom-lint gate **30/30, OK**, with no diagnostics in changed files.
+
+### checkpoint — UNIT 12 — 2026-09-18 — D17 and mandatory gate
+
+Banner commit: `46b1257d3`. Removed both obsolete getters; required grep prints
+nothing (exit 1). Mandatory TEST_CMD finished **+571 -2**. Both failures are
+stale integration-widget copy expectations in the unowned
+`test/features/beacon_view/beacon_operational_header_card_test.dart:753,767`:
+`Review` and `Waiting for reviews`. They are caused by the intentional UNIT 12
+copy change, not claimed as pre-existing failures. Prepared the exact two-oracle
+update at `/tmp/unit12-header-expectations.patch` using the required l10n keys;
+requested user permission because plan §0 forbids editing outside Owns. That
+file remains untouched pending approval. Final custom-lint check is running.
+
+### inner — UNIT 12 — 2026-09-18 — Astra A3
+
+STATUS: Owns implementation complete; mandatory suite BLOCKED on authorization
+for two expectation-only updates outside the exclusive Owns list. No push.
+
+STEPS / COMMITS (actual UNIT_BASE `43c7ab43e`):
+1. RED first: focused HUD/banner tests **+70 -25**, exercising the existing loop
+   and incorrect role/copy/priority behavior before production changes.
+2. `90a8e2896 fix(client): stop re-offering a review that was already sent` —
+   plan-literal guard → canCloseNow → package-state switch; shared request/window
+   inference; required-progress effect and semantics. HUD GREEN **+54**.
+3. `46b1257d3 fix(client): render review banner by package state` — sent status,
+   role-specific waiting, TextButton Edit, one review action for unsent packages,
+   required progress only for inProgress. Combined focused GREEN **+96**.
+4. `26ae0a955 refactor(client): remove obsolete review window action getters` —
+   D17 complete; obsolete getter test groups removed in step 3. No generated
+   files edited or committed; custom getter removal requires no codegen.
+5. Post-D17 focused GREEN **+96**; custom-lint gate **30/30, OK**; required grep
+   prints nothing (exit 1); `git diff --check` clean.
+
+TESTS:
+- Mandatory command (executed exactly through cleanup wrapper):
+  `cd packages/client && ../../scripts/run_with_test_cleanup.sh --timeout 15m -- flutter test test/features/beacon_view test/features/evaluation --dart-define=ENV=test --dart-define-from-file=env/test.env`
+  → **+571 -2**, exit 1. Log: `/tmp/unit12-mandatory-tests.log`.
+- Focused HUD/banner post-D17: **+96**, exit 0.
+  Log: `/tmp/unit12-d17-green.log`.
+- `./scripts/run_with_test_cleanup.sh --timeout 10m -- ./scripts/check-custom-lints.sh packages/client`
+  → **30 custom violations / baseline 30, OK**, exit 0; no new diagnostics in
+  owned files. Log: `/tmp/unit12-final-lints.log`.
+- `grep -rn "viewerHasOutstandingReviewWork\|viewerCanOpenReviewScreen" packages/client/lib packages/client/test`
+  → no output, exit 1.
+
+FILES (exclusive UNIT 12 sources/tests, plus this journal's appended entries):
+- `packages/client/lib/features/beacon_view/ui/presenter/beacon_hud_author_action.dart`
+- `packages/client/lib/features/evaluation/ui/widget/review_window_banner_host.dart`
+- `packages/client/lib/features/evaluation/ui/widget/review_banner.dart`
+- `packages/client/lib/features/evaluation/domain/entity/review_window_info.dart`
+- `packages/client/test/features/beacon_view/beacon_hud_author_action_test.dart`
+- `packages/client/test/features/evaluation/review_window_banner_host_test.dart`
+
+FINDINGS:
+- Both 36-row matrices cover all nine states × author/non-author ×
+  allRequiredSent. The widget harness mounts the real HUD ACT block and banner
+  together. All four named plan oracles are present; Edit navigation, required
+  versus legacy counters, localized deadline and EN/RU copy/semantics are tested.
+- Close-now retains UNIT 14's existing action shape and confirmation behavior;
+  canCloseNow outranks review work after the literal guard. The allRequiredSent
+  banner row omits waiting-for-required copy, as §2.1 specifies.
+- Mandatory failures are two obsolete copy expectations in
+  `test/features/beacon_view/beacon_operational_header_card_test.dart:753,767`.
+  They expect `Review` and `Waiting for reviews`; UNIT 12 requires
+  beaconHudActReviewContributions and beaconHudWaitingForRequiredReviews.
+  These failures are caused by the intended change, not pre-existing failures.
+- Exact minimal patch prepared at `/tmp/unit12-header-expectations.patch`;
+  `git apply --check` passes. File untouched pending the requested scope approval
+  under plan §0 item 4. No compatibility copy or hidden text added to pass it.
+- UNIT 14 confirms/destination map/My Work close wrap, UNIT 10/11 checklist,
+  UNIT 13 review matrix, generated files and all UNTOUCHABLE edits preserved.
+  Pre-existing journal launch-status edit stays unstaged. Version/cache-buster
+  intentionally remain UNIT 15, outside this unit's ownership.
+
+REMAINING: authorize and apply only the two prepared header-test expectations,
+rerun mandatory TEST_CMD, commit that green test update, append resolution.
+No browser/release acceptance claimed; this inner is not a remediation.
