@@ -135,3 +135,38 @@ optional-clear retention exemption until `cleared_at` lands in U04.
 (`requires_action = false` and `cleared_at IS NULL` once the column exists).
 
 ---
+
+### Manager verdict — U06a · **ACCEPTED**
+
+Independently re-verified, not taken from the worker's report:
+
+- `dart test --tags pg -j 1` over the four attention suites, run by the overseer after the worker exited →
+  **36 passed, 0 skipped, exit 0**, including the new
+  *"retains live obligations even when seen, emailed, and older than the retention window"*. The pre-worker
+  baseline was 35/0/0, so the delta is exactly the one new test.
+- Commit `3df3d8eee` contains exactly three files (repository, test, journal); `git diff --check` clean; no
+  migration, no schema change, no generated file, no secret.
+- Worktree audit: all 4 pre-existing modified files and ~40 untracked files (including `key.fb`, `leo.key`,
+  `out.key`, `dart-defines`) are byte-identical to the pre-worker snapshot.
+- The fix is total, not merely sufficient: `requires_action` is `boolean NOT NULL DEFAULT false` (m0118:9), so
+  `NOT (requires_action = true AND settlement_kind IS NULL)` has no NULL-semantics hole.
+- Leaked process check: one `worker-server` node process from this run survived the agent's exit and was killed.
+  The user's own Cursor IDE worker (a different install, version 2026.09.10) was left alone.
+
+Reviewer notes carried forward, neither blocking:
+1. The new test asserts `deleted == 0` for the whole retention run rather than asserting only its own row
+   survived. It passes today because no other fixture in the group is deletable at that point, but it couples the
+   test to its neighbours. If that group grows, tighten it to a per-row assertion.
+2. `requires_action = true` could be plain `requires_action`; cosmetic only.
+
+**Accepted scope boundary.** Retention still deletes old seen+emailed *optional* receipts, because `cleared_at`
+does not exist until U04. The worker correctly refused to invent the column and recorded the follow-up predicate
+instead. U04 must carry it.
+
+| Unit | Status |
+|---|---|
+| U06a retention defect | **accepted** (`3df3d8eee`) |
+| U02 characterization tests | worker 2 dispatched |
+| U03 exhaustive classification | pending |
+
+---
