@@ -23,7 +23,7 @@ class InboxBeaconMovedMessage extends LocalizableMessage {
 
   @override
   String get toEn => switch (toStatus) {
-        InboxItemStatus.watching => 'Request moved to Watching',
+        InboxItemStatus.watching => 'Request moved to Following',
         InboxItemStatus.rejected => 'Request moved to Rejected',
         _ => 'Request moved',
       };
@@ -31,7 +31,7 @@ class InboxBeaconMovedMessage extends LocalizableMessage {
   @override
   String get toRu => switch (toStatus) {
         InboxItemStatus.watching =>
-          'Запрос перемещён во вкладку «Наблюдаю»',
+          'Запрос перемещён во вкладку «Слежу»',
         InboxItemStatus.rejected =>
           'Запрос перемещён во вкладку «Отклонённые»',
         _ => 'Запрос перемещён',

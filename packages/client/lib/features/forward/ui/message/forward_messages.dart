@@ -38,7 +38,7 @@ String forwardLocationCopyEn({
   int? skippedCount,
 }) {
   final base = inWatching
-      ? 'Request forwarded. It\'s in Watching.'
+      ? 'Request forwarded. It\'s in Following.'
       : 'Request forwarded. It\'s in My Work.';
   return '$base${_forwardLocationPauseSuffixEn(skippedName: skippedName, skippedCount: skippedCount)}';
 }
@@ -49,7 +49,7 @@ String forwardLocationCopyRu({
   int? skippedCount,
 }) {
   final base = inWatching
-      ? 'Запрос переслан. Он во вкладке «Наблюдаю».'
+      ? 'Запрос переслан. Он во вкладке «Слежу».'
       : 'Запрос переслан. Он в «Моей работе».';
   return '$base${_forwardLocationPauseSuffixRu(skippedName: skippedName, skippedCount: skippedCount)}';
 }
@@ -186,10 +186,10 @@ final class _OpenInWatchingLabel extends LocalizableMessage {
   const _OpenInWatchingLabel();
 
   @override
-  String get toEn => 'Open in Watching';
+  String get toEn => 'Open in Following';
 
   @override
-  String get toRu => 'Открыть в «Наблюдаю»';
+  String get toRu => 'Открыть в «Слежу»';
 }
 
 /// Embedded beacon-create confirmation: delivered count against requested denominator.
