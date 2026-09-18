@@ -123,6 +123,7 @@ in_app_preference_class, suppression_class, access_policy
 WHERE seen_at IS NOT NULL
   AND emailed_at IS NOT NULL
   AND created_at < $1::timestamptz
+  AND NOT (requires_action = true AND settlement_kind IS NULL)
   AND NOT EXISTS (
     SELECT 1 FROM public.attention_channel_delivery delivery
     WHERE delivery.receipt_id = notification_outbox.id

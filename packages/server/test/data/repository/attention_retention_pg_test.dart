@@ -229,5 +229,45 @@ WHERE source_event_key IN (
         expect(occurrence.single.single, 3);
       },
     );
+
+    test(
+      'retains live obligations even when seen, emailed, and older than the retention window',
+      () async {
+        final oldAt = DateTime.parse('2020-01-01T00:00:00Z');
+
+        await writer.execute(
+          Sql.named('''
+INSERT INTO public.notification_outbox (
+  id, account_id, category, kind, priority,
+  title, body, action_url, dedup_key, created_at, seen_at, emailed_at,
+  beacon_id, source_event_key,
+  destination_kind, presentation_key, presentation_payload,
+  suppression_class, access_policy,
+  requires_action, attention_thread_key
+) VALUES (
+  'Nattretliveobl', 'Uattretactor', 'asksOfMe', 'needsMe', 'normal',
+  'Live obligation', 'Still owed', '/live-obligation',
+  'attention-retention-live-obligation', @oldAt, @oldAt, @oldAt,
+  'Battret', 'attention-retention-live-obligation',
+  'beacon', 'request_status_changed', '{"eventType":"fixture"}'::jsonb,
+  'standard', 'beacon_content',
+  true, 'v1|needsMe|Nattretliveobl|Uattretactor'
+)
+'''),
+          parameters: {'oldAt': oldAt},
+        );
+
+        final deleted = await outbox.deleteSettledOlderThan(
+          const Duration(days: 30),
+        );
+        expect(deleted, 0);
+
+        final remaining = await writer.execute('''
+SELECT count(*)::int FROM public.notification_outbox
+WHERE id = 'Nattretliveobl'
+''');
+        expect(remaining.single.single, 1);
+      },
+    );
   }, skip: skipReason);
 }
