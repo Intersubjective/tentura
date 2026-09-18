@@ -19,7 +19,7 @@ typedef _EmailConsider = ({
   String recipientUserId,
   NotificationKind kind,
   String beaconId,
-  String dedupKey,
+  String channelCollapseKey,
   bool pushDelivered,
 });
 
@@ -118,7 +118,7 @@ class _CapturingEmail implements EmailNotificationPort {
     required String recipientUserId,
     required NotificationKind kind,
     required String beaconId,
-    required String dedupKey,
+    required String channelCollapseKey,
     required String title,
     required String body,
     required String actionUrl,
@@ -128,7 +128,7 @@ class _CapturingEmail implements EmailNotificationPort {
       recipientUserId: recipientUserId,
       kind: kind,
       beaconId: beaconId,
-      dedupKey: dedupKey,
+      channelCollapseKey: channelCollapseKey,
       pushDelivered: pushDelivered,
     ));
   }
@@ -224,13 +224,10 @@ void main() {
       const dedupKey = 'recipient-1|asksOfMe|beacon-1|';
 
       await service.handOffChannels([
-        decision(
-          kind: NotificationKind.needsMe,
-          dedupKey: dedupKey,
-        ),
+        decision(kind: NotificationKind.needsMe, dedupKey: dedupKey),
       ]);
 
-      expect(email.considers.single.dedupKey, dedupKey);
+      expect(email.considers.single.channelCollapseKey, dedupKey);
     });
   });
 }

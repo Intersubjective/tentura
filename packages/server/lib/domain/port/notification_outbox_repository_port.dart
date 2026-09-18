@@ -4,7 +4,13 @@ import 'package:tentura_server/domain/entity/notification_outbox_item_entity.dar
 /// Durable per-recipient notification store (Notification Center + digest).
 abstract interface class NotificationOutboxRepositoryPort {
   /// Marks the matching unread row emailed (so the digest skips it).
-  Future<int> markEmailedByDedupKey(String dedupKey);
+  /// Marks every still-unemailed receipt of one channel collapse family for
+  /// one account. Since U05b the channel layer sends **one** notification per
+  /// family, so one send settles the whole family's digest debt.
+  Future<int> markEmailedByChannelCollapseKey({
+    required String accountId,
+    required String channelCollapseKey,
+  });
 
   /// Marks the given outbox ids emailed.
   Future<int> markEmailed(List<String> ids);

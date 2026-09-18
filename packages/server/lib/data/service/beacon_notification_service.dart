@@ -102,7 +102,7 @@ class BeaconNotificationService implements BeaconNotificationPort {
         unawaited(
           _emailNotification.considerImmediateByCategory(
             recipientUserId: decision.recipientId,
-            dedupKey: decision.dedupKey,
+            channelCollapseKey: decision.dedupKey,
             title: decision.title,
             body: decision.body,
             actionUrl: decision.actionUrl,
@@ -115,7 +115,7 @@ class BeaconNotificationService implements BeaconNotificationPort {
             recipientUserId: decision.recipientId,
             kind: decision.kind,
             beaconId: decision.beaconId ?? '',
-            dedupKey: decision.dedupKey,
+            channelCollapseKey: decision.dedupKey,
             title: decision.title,
             body: decision.body,
             actionUrl: decision.actionUrl,

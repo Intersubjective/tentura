@@ -27,7 +27,8 @@ part of '_migrations.dart';
 ///    thing that makes a receipt exist at most once.
 ///
 /// `dedup_key` keeps its collapse-derived value and its readers: the
-/// email-marking path (`markEmailedByDedupKey`) and `markUnseen`'s unseen
+/// email-marking path (`markEmailedByChannelCollapseKey`, retargeted in
+/// U05b) and `markUnseen`'s unseen
 /// sibling check both want *collapse-family* semantics, so the index is
 /// recreated with the same columns and predicate — only the uniqueness goes.
 /// Moving those paths onto a channel-level collapse key is U05b.

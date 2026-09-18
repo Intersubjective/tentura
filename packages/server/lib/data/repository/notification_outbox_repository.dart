@@ -29,11 +29,24 @@ presentation_key, presentation_payload::text AS presentation_payload,
 in_app_preference_class, suppression_class, access_policy
 ''';
 
+  /// [channelCollapseKey] is the persisted channel collapse key — the value
+  /// dispatch writes to `notification_outbox.dedup_key` and carries in the
+  /// frozen delivery payload. It is matched as stored rather than rebuilt
+  /// here, so there is exactly one place that composes it. The account is
+  /// nonetheless an explicit predicate: the marking is per-account by
+  /// definition, and it must not depend on the account id happening to be
+  /// embedded in that string.
   @override
-  Future<int> markEmailedByDedupKey(String dedupKey) => _database.customUpdate(
+  Future<int> markEmailedByChannelCollapseKey({
+    required String accountId,
+    required String channelCollapseKey,
+  }) => _database.customUpdate(
     'UPDATE public.notification_outbox SET emailed_at = now() '
-    r'WHERE dedup_key = $1 AND emailed_at IS NULL',
-    variables: [Variable<String>(dedupKey)],
+    r'WHERE dedup_key = $1 AND account_id = $2 AND emailed_at IS NULL',
+    variables: [
+      Variable<String>(channelCollapseKey),
+      Variable<String>(accountId),
+    ],
     updateKind: UpdateKind.update,
   );
 

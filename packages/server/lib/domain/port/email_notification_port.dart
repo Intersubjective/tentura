@@ -10,7 +10,7 @@ abstract interface class EmailNotificationPort {
     required String recipientUserId,
     required NotificationKind kind,
     required String beaconId,
-    required String dedupKey,
+    required String channelCollapseKey,
     required String title,
     required String body,
     required String actionUrl,
@@ -25,7 +25,7 @@ abstract interface class EmailNotificationPort {
   /// Returns whether an immediate email was sent.
   Future<bool> considerImmediateByCategory({
     required String recipientUserId,
-    required String dedupKey,
+    required String channelCollapseKey,
     required String title,
     required String body,
     required String actionUrl,

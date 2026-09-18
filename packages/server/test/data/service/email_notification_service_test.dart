@@ -69,8 +69,11 @@ class _FakeOutbox implements NotificationOutboxRepositoryPort {
       recentCount;
 
   @override
-  Future<int> markEmailedByDedupKey(String dedupKey) async {
-    markedEmailed.add(dedupKey);
+  Future<int> markEmailedByChannelCollapseKey({
+    required String accountId,
+    required String channelCollapseKey,
+  }) async {
+    markedEmailed.add('$accountId::$channelCollapseKey');
     return 1;
   }
 
@@ -149,7 +152,7 @@ void main() {
         recipientUserId: 'u1',
         kind: kind,
         beaconId: 'b1',
-        dedupKey: 'u1|asksOfMe|b1|',
+        channelCollapseKey: 'u1|asksOfMe|b1|',
         title: 'Asked of you',
         body: 'Please respond',
         actionUrl: '/#/beacon/view?id=b1&dest=room',
@@ -162,7 +165,9 @@ void main() {
     await consider(build(p: prefs(), sender: sender, outbox: outbox));
     expect(sender.notificationCount, 1);
     expect(sender.lastTo, 'u1@example.com');
-    expect(outbox.markedEmailed, ['u1|asksOfMe|b1|']);
+    // Account and channel collapse key, both — U05b scopes the marking to
+    // the recipient instead of trusting the key's prefix.
+    expect(outbox.markedEmailed, ['u1::u1|asksOfMe|b1|']);
   });
 
   test('no email for non-asksOfMe kind', () async {
