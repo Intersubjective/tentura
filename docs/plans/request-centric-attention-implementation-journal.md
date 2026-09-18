@@ -258,3 +258,40 @@ obligation settlement tests; U09 extends outcome dismiss to helping/watching row
 | U03 exhaustive classification | pending |
 
 ---
+
+### Manager verdict — U02 · **ACCEPTED**
+
+Independently re-verified by the overseer after the worker exited:
+
+- Server, 7 attention PG files → **70 passed, 0 skipped** (62 before this unit + 8 new).
+- Client, `domain/attention` + `features/{inbox,my_work,home}` → **407 passed, 0 skipped** (unchanged, as
+  expected: this unit added no client tests, only annotations).
+- `packages/*/lib` diff across the whole unit: **0 files**. The no-production-code rule held.
+- Commits are properly split: `dc235c284` annotations · `c51daa172` tests · `2aef2d9ae`/`45efdd878` journal.
+- Worktree audit: pre-existing modified and untracked files, including the secrets, untouched.
+- Leaked `worker-server` process killed; the user's own Cursor IDE worker (2026.09.10 install) left alone.
+
+**Quality above brief.** The instruction named four line numbers in one server file. The worker placed 12 tags
+across three files and, unprompted, found the **client-side** assertions that owner decision C will invalidate —
+`my_work_obligation_subcards_test.dart` and `my_work_attention_state_test.dart` both assert that a help-offer
+obligation settles through generic Done. Without those tags, removing the Done control in U07b would have looked
+like two broken client tests instead of an intended consequence.
+
+**Two findings worth carrying into U10** (both now pinned by tests):
+1. A forward receipt reports `surface: activity` on the unfiltered feed while the Activity *page* stream can be
+   empty, because of pinning and coalescing. "Which surface the receipt claims" and "what the tab renders" are
+   not the same question, and a projection rewrite can satisfy one while breaking the other.
+2. `needsYouTotal` counts obligation **receipts** (two obligations on one Request → 2) while
+   `liveObligationBeacons` dedupes by Request. Swapping one for the other during the rewrite would silently
+   desynchronise the badge from the section header.
+
+**Reviewer note, non-blocking.** `45efdd878` exists only to correct a commit hash the worker had written into its
+own journal status table. Harmless, but the status table should be written after the commit it references.
+
+| Unit | Status |
+|---|---|
+| U06a retention defect | **accepted** (`3df3d8eee`) |
+| U02 characterization tests | **accepted** (`dc235c284`, `c51daa172`) |
+| U03 exhaustive classification | worker 3 dispatched |
+
+---
