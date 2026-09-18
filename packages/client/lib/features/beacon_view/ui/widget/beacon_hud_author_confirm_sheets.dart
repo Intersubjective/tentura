@@ -69,10 +69,56 @@ Future<bool> showBeaconHudMarkEnoughHelpConfirmSheet({
   return confirmed;
 }
 
-/// Confirm before closing a request immediately from the author HUD.
-Future<bool> showBeaconHudCloseNowConfirmSheet({
+/// Shared close-now confirm for every author close entry (HUD, status sheet,
+/// My Work). [unsentStartedPackages] is the beacon-scoped count of packages
+/// started and not sent; they are discarded on close.
+Future<bool> showBeaconCloseNowConfirmSheet({
   required BuildContext context,
-  required bool canCloseNow,
+  bool canCloseNow = true,
+  int unsentStartedPackages = 0,
+}) {
+  final l10n = L10n.of(context)!;
+  return _showAuthorConfirmSheet(
+    context: context,
+    title: l10n.beaconHudConfirmCloseNowTitle,
+    body: [
+      if (canCloseNow) ...[
+        l10n.beaconReviewCloseNowBody,
+        if (unsentStartedPackages > 0)
+          l10n.beaconReviewCloseNowDiscardNote(unsentStartedPackages),
+      ] else
+        l10n.beaconHudConfirmCloseNowBlockedBody,
+    ],
+    action: l10n.beaconHudConfirmCloseNowAction,
+    enabled: canCloseNow,
+  );
+}
+
+/// Shared reopen confirm; names reviewers whose send is undone.
+Future<bool> showBeaconReopenConfirmSheet({
+  required BuildContext context,
+  required int sentReviewerCount,
+}) {
+  final l10n = L10n.of(context)!;
+  return _showAuthorConfirmSheet(
+    context: context,
+    title: l10n.beaconReviewReopenTitle,
+    body: [
+      if (sentReviewerCount > 0)
+        l10n.beaconReviewReopenBody(sentReviewerCount)
+      else
+        l10n.beaconReviewReopenBodyNoSent,
+    ],
+    action: l10n.beaconReviewReopenConfirm,
+  );
+}
+
+Future<bool> _showAuthorConfirmSheet({
+  required BuildContext context,
+  required String title,
+  required List<String> body,
+  required String action,
+  bool enabled = true,
 }) async {
   final l10n = L10n.of(context)!;
   var confirmed = false;
@@ -82,9 +128,7 @@ Future<bool> showBeaconHudCloseNowConfirmSheet({
     isScrollControlled: true,
     builder: (ctx) {
       final tt = ctx.tt;
-      final body = canCloseNow
-          ? l10n.beaconHudConfirmCloseNowBody
-          : l10n.beaconHudConfirmCloseNowBlockedBody;
+      final bodyStyle = TenturaText.body(Theme.of(ctx).colorScheme.onSurface);
       return SafeArea(
         child: Padding(
           padding: EdgeInsets.fromLTRB(
@@ -97,37 +141,25 @@ Future<bool> showBeaconHudCloseNowConfirmSheet({
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Text(
-                l10n.beaconHudConfirmCloseNowTitle,
-                style: Theme.of(ctx).textTheme.titleMedium,
-              ),
-              SizedBox(height: tt.rowGap),
-              Text(
-                body,
-                style: TenturaText.body(Theme.of(ctx).colorScheme.onSurface),
-              ),
+              Text(title, style: Theme.of(ctx).textTheme.titleMedium),
+              for (final paragraph in body) ...[
+                SizedBox(height: tt.rowGap),
+                Text(paragraph, style: bodyStyle),
+              ],
               SizedBox(height: tt.sectionGap),
               FilledButton(
-                onPressed: canCloseNow
+                onPressed: enabled
                     ? () {
                         confirmed = true;
                         Navigator.of(ctx).pop();
                       }
                     : null,
-                child: Text(l10n.beaconHudConfirmCloseNowAction),
+                child: Text(action),
               ),
               TextButton(
                 onPressed: () => Navigator.of(ctx).pop(),
                 child: Text(l10n.buttonCancel),
               ),
-              if (canCloseNow) ...[
-                SizedBox(height: tt.tightGap),
-                Text(
-                  l10n.beaconHudConfirmChangeLaterInStatus,
-                  style: TenturaText.bodySmall(tt.textMuted),
-                  textAlign: TextAlign.center,
-                ),
-              ],
             ],
           ),
         ),

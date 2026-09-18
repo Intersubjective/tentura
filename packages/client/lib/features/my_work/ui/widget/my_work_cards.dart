@@ -22,6 +22,7 @@ import 'package:tentura/features/beacon/ui/dialog/beacon_close_confirm_dialog.da
 import 'package:tentura/features/beacon/ui/util/beacon_lifecycle_ui.dart';
 import 'package:tentura/domain/attention/entity/attention_receipt.dart';
 import 'package:tentura/features/beacon_view/ui/sheet/help_offer_tile_sheet.dart';
+import 'package:tentura/features/beacon_view/ui/widget/beacon_hud_author_confirm_sheets.dart';
 import 'package:tentura/features/my_work/ui/bloc/my_work_cubit.dart';
 import 'package:tentura/features/my_work/ui/widget/my_work_obligation_block.dart';
 import 'package:tentura/features/my_work/ui/widget/my_work_whats_new_row.dart';
@@ -36,6 +37,21 @@ import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 
 bool myWorkCloseBeaconEnabled(MyWorkCardViewModel vm) =>
     vm.beacon.status == BeaconStatus.open && vm.displayStatus != null;
+
+/// Shared close confirm for a My Work card; the card carries no review
+/// counts, so the beacon-scoped unsent count is fetched first.
+Future<bool> myWorkConfirmCloseNow({
+  required BuildContext context,
+  required String beaconId,
+  required EvaluationRepository evaluationRepository,
+}) async {
+  final review = await evaluationRepository.fetchReviewWindowStatus(beaconId);
+  if (!context.mounted) return false;
+  return showBeaconCloseNowConfirmSheet(
+    context: context,
+    unsentStartedPackages: review.unsentStartedPackages,
+  );
+}
 
 /// Footer Forward CTA on authored My Work cards (gated by [Beacon.allowsForward]).
 bool myWorkNeedsForwardCta(MyWorkCardViewModel vm) => vm.beacon.allowsForward;
@@ -394,6 +410,12 @@ class _AuthoredActiveCard extends StatelessWidget {
                 label: l10n.beaconCloseNowCta,
                 onPressed: () async {
                   try {
+                    final confirmed = await myWorkConfirmCloseNow(
+                      context: context,
+                      beaconId: b.id,
+                      evaluationRepository: evaluationRepo,
+                    );
+                    if (!confirmed) return;
                     await evaluationRepo.beaconCloseNow(b.id);
                     if (context.mounted) {
                       await context.read<MyWorkCubit>().fetch(
