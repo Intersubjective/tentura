@@ -34,6 +34,16 @@ amends this section first, in its own commit.
 
 `primary_surface` is **never** stored. `seen_at` keeps its meaning: read, not cleared.
 
+### 0.1a Grouped-row provenance (frozen by `issue-171-card-spec.md` §4)
+
+Each grouped `beacon:<id>` row must carry, or the For You card cannot be built:
+`senders[]` → `{id, displayName, imageId, notePreview, reasonSlugs[], mr}` · `totalDistinctSenders` ·
+`strongestNotePreview` (already exists and is already MR-ranked server-side — plumbing, not new ranking) ·
+`beacon.{title,author,imageId,endAt}` · `allowsForward`.
+
+Reuse the existing `inbox_provenance_data` JSON shape verbatim so `InboxProvenance.parse` / `withoutViewer` work
+unchanged on the client. **Do not invent a second provenance DTO.**
+
 ### 0.2 API (additive; existing operations stay until U18)
 
 `attentionRequest(beaconId, cursor, limit)` · `attentionRequestHistory(beaconId, cursor, limit)` ·
@@ -144,6 +154,39 @@ outcome row), `docs/features/new-stuff-indicators.md` (superseded banner), `work
 **Acceptance.** Adding a new enum value without a declaration fails the build. No default-optional path exists.
 
 **Tests.** Server + client architecture suites; `attention_policy_test.dart`.
+
+---
+
+### U03b — Card contract fields · **depends U03**
+
+**Goal.** Add the three fields the For You card needs to the classification contract, test-first.
+
+**Owns.** `docs/contracts/updates-event-contract.json`, the server/client architecture contract tests, the journal.
+
+**Steps.** Add `selfAuthored`, `headlineTreatment` (`beacon` quoted+attributed · `user` bare+avatar · `system`
+bare) and `coalescible` per variant; write the failing guard first. **Deviation from the spec, deliberate:** the
+spec says "under schemaVersion 3", but U03 already shipped schemaVersion 3 with a different required field set, so
+adding newly-required fields bumps it to **schemaVersion 4**. Silently widening a shipped version would make the
+version number meaningless.
+
+**Acceptance.** Guard fails on a variant missing any of the three. `coalescible: false` on every note-bearing
+forward variant (spec §7.3 K6) — a note exists nowhere else on the card, so coalescing destroys information.
+
+---
+
+### U0C — "Following" rename · **independent, land early**
+
+**Goal.** Spec D-171-1 / §10: rename the Watching word family to «Следить / Слежу» / "Follow / Following".
+
+**Owns.** l10n `.arb` values only — **keys unchanged** — plus any test expecting the old strings.
+
+**Steps.** The §10 table, verbatim, including `actionStopWatching`, which today names «Нужно мне» while the
+destination tab is «Ждёт меня». One commit. Not unit-gated (E29 was dropped; Watching already has a permanent
+entry), but it should land **before the next testing session**, and it should sweep sibling #142 issues quoting
+the old word.
+
+**Acceptance.** No user-visible "наблюд*" / "watch*" stems left in the attention surfaces; keys untouched so no
+code churn.
 
 ---
 
@@ -328,6 +371,14 @@ omission/duplication tests (a group moving above the cursor must not vanish).
 
 ---
 
+**Card prerequisite (spec §4, blocking).** Extend the grouped projection with §0.1a provenance. Today forward
+notes and the relay chain come only from `InboxProvenance`, parsed from the Hasura computed field
+`inbox_item.inbox_provenance_data` — i.e. from the **Inbox** query — while `AttentionReceipt` carries no
+provenance at all. A grouped `beacon:` row therefore cannot render the note that is the whole premise of the
+card. This is server work and it gates U14 and U16.
+
+---
+
 ### U11 — Child propagation policy
 
 **Goal.** R7 enforced at the producer.
@@ -393,10 +444,27 @@ dismissing the last row does not shift the next × under the pointer (D32 mechan
 
 ---
 
+**Card components (spec §5, §7).** U14 also promotes the private `_EventSubcard` into a public
+`AttentionMiniCard` with a `forward` kind, and adds `TenturaRelationChip` to the **design system** (no generic
+chip primitive exists today; `ForwardCapabilityChips` uses `RawChip` directly, and raw visual constants in feature
+UI are lint-forbidden). Mini-card rules: one shape for every kind, quoted body left-aligned behind a rule,
+capability chips attached to the forwarder inside the mini-card and never in the header, first collapsed slot
+pinned to the latest note-bearing forward (D-171-5a), «ещё N» opens the Timeline and never expands in place
+(D-171-5b) — which is what gives the card a hard maximum height by construction.
+
+---
+
 ### U15 — My Desk integration · U16 — For You integration
 
 **U15 owns** `my_work_cubit.dart`, cards, section derivation: shared block replaces the obligation/what's-new
 split; source actions only; stable sorting; archived attention discoverable from the dot that counts it.
+
+**U16 also builds** `RequestAttentionCard` (spec §6, §9 state matrix) and `TombstoneRow` (spec §8, past-tense
+copy), and retires `ActivityOfferCard`, `ActivityOfferBoundedShell`, `ActivityForwardRow` and
+`inbox_forward_attribution_copy.dart` with their goldens. `InboxItemTile` / `InboxCardForwardsFold` retire in
+U17 — but port `_SenderNoteBlock`'s content into the forward mini-card **before** deleting it: it is the only
+place notes render today. The pinned card carries **no ×**; «Не могу помочь» lives in the overflow menu and opens
+the rejection dialog, because declining is a social act and must never wear the quiet private gesture.
 
 **U16 owns** `activity_stream_view.dart`, `activity_offers_cubit.dart`, `inbox_cubit.dart`, chrome: one
 representative per Request; × on every outcome; header **Dismiss all** replacing today's `markAllSeen`

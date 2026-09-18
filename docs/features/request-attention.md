@@ -193,6 +193,28 @@ meaning anything.
 
 _Avoid:_ child activity bumping or lighting up the parent; a review living anywhere other than on its Request.
 
+## 8a. How the surfaces speak
+
+Three rules govern copy on these surfaces. They are easy to "fix" back, so they are stated here rather than left
+in a plan.
+
+**Object headlines on For You, event headlines in History.** On For You the Request is the subject — the card is
+headed by what is being asked, and the events sit under it. Notification History is a chronological receipt log,
+so it keeps event headlines ("X offered help"). The same receipt legitimately reads differently on the two
+surfaces; this is not a duplication to be unified.
+
+**A tombstone speaks in the past tense.** An outcome row is a memory of an act, so it needs a subject, a verb and
+a tense: *"Вы предложили помощь"*, not *"Вы помогаете"*; *"Вы начали следить"*, not *"Вы наблюдаете"*;
+*"Автор закрыл запрос до вашего ответа"*, not *"Закрыт до вашего ответа"*. A bare state label reads as a
+mysterious status rather than as something the viewer or somebody else did.
+
+**Register.** Labels about me are first person or bare participle chips — «Помогаю», «Слежу» / "Helping",
+"Following". System sentences addressed to me stay second person — «Вы предложили помощь». Never «Вы помогаете»
+as a chip.
+
+_Avoid:_ carrying a state only in a chip that a screen reader reads out of context; naming a destination the app
+does not actually use (a "return to Needs me" action whose tab is called something else).
+
 ## 9. History, timeline and what survives clearing
 
 - **Notification history** is the separate, complete, chronological receipt log across both surfaces, with search.

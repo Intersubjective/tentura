@@ -35,6 +35,32 @@ draft. History: Astra's unedited original is `request-centric-attention-astra.md
 `recoverableVia` as a required contract field — dismissible implies derivable (§4.3); M3 legacy-client
 compatibility is not a constraint (D19, U18).
 
+**For You card spec (2026-09-19).** [`issue-171-card-spec.md`](issue-171-card-spec.md) rev 1 is **normative for
+the For You card**: its §1 decisions D-171-1…5b are closed by the owner and are not re-derived here. That spec was
+written against this plan's **revision 1** numbering (E1–E32, U01–U11); this plan is now revision 3 on a different
+base, so its references remap as follows:
+
+| Spec says | Actually lands in |
+|---|---|
+| "U02 grouped read model" (provenance prerequisite, §4) | **U10** — grouping already shipped in `75ce02327`, so this is *extending* the existing grouped projection, not building it |
+| "U05 grouped stream" (card, tombstone row) | **U16** For You integration |
+| "U06 event block + dismiss" (mini-cards) | **U14** shared event block |
+| "U09/U11 cross-surface consolidation" | **U16**/**U17** |
+| "E2 gains the private ×" (§3 A1) | already true here — owner decision **B**, D01 and D07 |
+| "plan §8 test 4 rewrite" (§3 A2) | §7.1 test row for D07, restated below |
+| "before U09, because E29 makes the word navigation furniture" | E29 was dropped in revision 2 — Watching already has a permanent entry (`inbox_screen.dart:313`). The rename is therefore **not unit-gated**; it should land before the next testing session |
+
+Three consequences of the spec are recorded as amendments here rather than left in the spec alone:
+- **A3 — tombstone copy is a past-tense event sentence** ("Вы предложили помощь", not "Вы помогаете"). A tombstone
+  is a memory of an act, so it needs a subject, a verb and a tense. This is the literal fix for #171's strings.
+- **Two-grammar rule** — For You uses *object* headlines (the Request is the subject); Notification History keeps
+  *event* headlines. Written into the product contract so it is not "fixed" back.
+- **Register rule** — labels about me are first person or bare participle chips ("Помогаю", "Слежу"); system
+  sentences addressed to me stay second person ("Вы предложили помощь").
+
+**Test restatement (spec §3 A2).** The D07 tombstone assertion reads: *tombstone rows never bump, never group,
+carry no dot and no sub-cards, and are removed by the private × only — never by a CTA, never silently.*
+
 **Folded in:** a pre-existing defect verified during this review — retention can delete live obligations today
 (D17, U06).
 
