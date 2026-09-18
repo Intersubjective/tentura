@@ -1463,3 +1463,14 @@ RISKS:
 - **Pre-existing red:** `updates_event_contract_test.dart` missing `reviewAllPackagesIn` row (journal UNIT 10 note) — outside Owns; do not fix in UNIT 14 unless verify fails and user widens.
 - **My Work graphql** only selects `canCloseNow` (`my_work_review_windows.graphql`) — counts require on-demand `fetchReviewWindowStatus` in close handler (in-scope for `my_work_cards.dart` only).
 - **UNIT 13 overlap:** `hasReviewCta = false` stub at `my_work_cards.dart:364` — do not implement review CTA while wrapping close.
+
+## UNIT 14 — inner — 2026-09-18
+
+STATUS: complete (Opus 5 low inner). Commits: `8625451b5` feat(client): state the consequences of closing and reopening; `cc99f6d21` feat(client): show review-complete and reopen Updates rows. Not pushed.
+
+- Shared APIs in `beacon_hud_author_confirm_sheets.dart`: `showBeaconCloseNowConfirmSheet({canCloseNow = true, unsentStartedPackages = 0})` (replaces `showBeaconHudCloseNowConfirmSheet`; body = `beaconReviewCloseNowBody` + discard note iff `unsentStartedPackages > 0`; `!canCloseNow` keeps blocked body + disabled action) and `showBeaconReopenConfirmSheet({sentReviewerCount})` (`beaconReviewReopenBody(n)` / `NoSent`). Both are sheets via private `_showAuthorConfirmSheet`. Dropped the "change later in Status" footnote from the close confirm (untrue for close).
+- Call sites: HUD (`beacon_view_app_bar_overflow.dart`), status sheet closeNow + reopen (inline AlertDialog removed; dispatcher now public `@visibleForTesting beaconViewDispatchStatusMenuAction`), My Work close via new `myWorkConfirmCloseNow` (always fetches `fetchReviewWindowStatus`; review CTAs untouched).
+- Updates: `resolveUpdatesReceiptDisplayCopy` gains optional `presentationPayloadJson` (threaded from invite + feed-row callers); both new keys have titles; bodies use payload `beaconTitle`, else generic body. Not added to obligation grouping (test asserts neither is review/help group).
+- Overseer widen: `destination_map.dart` — `review` + presentationKey `review_all_packages_in` → beacon view; test in `test/domain/attention/destination_map_test.dart` (outside TEST_CMD dirs; ran it too).
+- Verify: TEST_CMD + `test/domain/attention` → `+664: All tests passed!`; `check-custom-lints.sh packages/client` → total 30 (baseline 30) OK.
+- FINDINGS: `beaconHudConfirmCloseNowBody` l10n key now unused in lib (arb cleanup left for later). Process slip: an `--amend -a` briefly swept `.serena/project.yml` + constellation journal into a commit; undone via soft reset before anything else — both files are back to unstaged, content unchanged.
