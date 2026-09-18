@@ -339,7 +339,9 @@ void main() {
       expect(find.byTooltip(l10n.forwardEditAction), findsOneWidget);
     });
 
-    testWidgets('empty note send shows uncovered sheet', (tester) async {
+    testWidgets('empty note send proceeds without uncovered sheet', (
+      tester,
+    ) async {
       final cubit = PersonForwardCubit(
         personId: 'U-target',
         debugSkipInitialLoad: true,
@@ -361,8 +363,9 @@ void main() {
       await tester.tap(find.byType(FilledButton));
       await tester.pumpAndSettle();
 
-      expect(find.text('No personal note yet'), findsOneWidget);
-      expect(find.text('Send without a shared note'), findsOneWidget);
+      expect(find.text('Shared note'), findsNothing);
+      expect(find.text('Send without a shared note'), findsNothing);
+      expect(find.text('No personal note yet'), findsNothing);
     });
   });
 }

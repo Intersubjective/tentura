@@ -51,6 +51,7 @@ UpdatesReceiptDisplayCopy resolveUpdatesReceiptDisplayCopy({
   required String body,
   required String? presentationKey,
   required L10n l10n,
+  String presentationPayloadJson = '',
 }) {
   final trimmedTitle = title.trim();
   final trimmedBody = body.trim();
@@ -59,7 +60,11 @@ UpdatesReceiptDisplayCopy resolveUpdatesReceiptDisplayCopy({
         ? _fallbackTitle(presentationKey, l10n)
         : trimmedTitle,
     body: trimmedBody.isEmpty
-        ? _fallbackBody(presentationKey, l10n)
+        ? _fallbackBody(
+            presentationKey,
+            l10n,
+            beaconTitleFromPresentationPayload(presentationPayloadJson),
+          )
         : trimmedBody,
   );
 }
@@ -124,6 +129,7 @@ InviteAcceptedDisplayCopy resolveInviteAcceptedDisplayCopy({
     title: receiptTitle,
     body: receiptBody,
     presentationKey: presentationKey,
+    presentationPayloadJson: presentationPayloadJson,
     l10n: l10n,
   );
   if (profile == null) {
@@ -164,6 +170,8 @@ String _fallbackTitle(
   'room_message_posted' => l10n.updatesFallbackTitleRoomMessagePosted,
   'request_status_changed' => l10n.updatesFallbackTitleRequestStatusChanged,
   'review_opened' => l10n.updatesFallbackTitleReviewOpened,
+  'review_all_packages_in' => l10n.updatesFallbackTitleReviewAllIn,
+  'review_window_cancelled' => l10n.updatesFallbackTitleReviewCancelled,
   'mutual_connection_formed' => l10n.updatesFallbackTitleMutualConnectionFormed,
   'invite_accepted' => l10n.updatesFallbackTitleInviteAccepted,
   'needs_me' => l10n.updatesFallbackTitleNeedsMe,
@@ -192,6 +200,7 @@ String _fallbackTitle(
 String _fallbackBody(
   String? presentationKey,
   L10n l10n,
+  String? beaconTitle,
 ) => switch (presentationKey) {
   'relay_received' => l10n.updatesFallbackBodyRelayReceived,
   'help_offer_submitted' => l10n.updatesFallbackBodyHelpOfferSubmitted,
@@ -201,6 +210,10 @@ String _fallbackBody(
   'room_message_posted' => l10n.updatesFallbackBodyRoomMessagePosted,
   'request_status_changed' => l10n.updatesFallbackBodyRequestStatusChanged,
   'review_opened' => l10n.updatesFallbackBodyReviewOpened,
+  'review_all_packages_in' when beaconTitle != null =>
+    l10n.updatesFallbackBodyReviewAllIn(beaconTitle),
+  'review_window_cancelled' when beaconTitle != null =>
+    l10n.updatesFallbackBodyReviewCancelled(beaconTitle),
   'mutual_connection_formed' => l10n.updatesFallbackBodyMutualConnectionFormed,
   'invite_accepted' => l10n.updatesFallbackBodyInviteAccepted,
   'needs_me' => l10n.updatesFallbackBodyNeedsMe,
@@ -251,6 +264,7 @@ UpdatesFeedRowCopy resolveUpdatesFeedRowCopy({
     title: title,
     body: body,
     presentationKey: presentationKey,
+    presentationPayloadJson: presentationPayloadJson,
     l10n: l10n,
   );
   final beaconTitle = beaconTitleFromPresentationPayload(

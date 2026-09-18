@@ -336,10 +336,10 @@ void main() {
       expect(cubit.state.canSend, isFalse);
       cubit.selectBeacon('B-open');
       expect(cubit.state.canSend, isTrue);
-      cubit.skipNote();
       await cubit.send();
 
       expect(harness.forwardRepo.sent.single.recipientIds, ['U-target']);
+      expect(harness.forwardRepo.sent.single.note, isNull);
       expect(effects.emitted.whereType<NavigateBack>(), isEmpty);
       expect(cubit.state.lastDeliveredBeaconId, 'B-open');
       expect(cubit.state.note, isEmpty);

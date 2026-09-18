@@ -38,6 +38,7 @@ class TimelineHelpOffer {
     required this.updatedAt,
     this.isWithdrawn = false,
     this.helpType,
+    this.roleLabel,
     this.coordinationResponse,
     this.withdrawReason,
     this.roomAccess,
@@ -54,6 +55,7 @@ class TimelineHelpOffer {
   final DateTime updatedAt;
   final bool isWithdrawn;
   final String? helpType;
+  final String? roleLabel;
   final CoordinationResponseType? coordinationResponse;
   final String? withdrawReason;
 
@@ -76,6 +78,7 @@ class TimelineHelpOffer {
     DateTime? updatedAt,
     bool? isWithdrawn,
     String? helpType,
+    String? roleLabel,
     CoordinationResponseType? coordinationResponse,
     String? withdrawReason,
     int? roomAccess,
@@ -92,6 +95,7 @@ class TimelineHelpOffer {
     updatedAt: updatedAt ?? this.updatedAt,
     isWithdrawn: isWithdrawn ?? this.isWithdrawn,
     helpType: helpType ?? this.helpType,
+    roleLabel: roleLabel ?? this.roleLabel,
     coordinationResponse: coordinationResponse ?? this.coordinationResponse,
     withdrawReason: withdrawReason ?? this.withdrawReason,
     roomAccess: roomAccess ?? this.roomAccess,

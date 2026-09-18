@@ -155,6 +155,29 @@ void main() {
           ),
         ),
         (
+          eventType: AttentionEventType.reviewAllPackagesIn,
+          legacyKind: 'reviewReady',
+          recipient: actor,
+          build: (intents) => intents.reviewAllPackagesIn(
+            beaconId: beacon,
+            beaconTitle: 'Request title',
+            authorUserId: actor,
+            sourceEventKey: eventKey,
+          ),
+        ),
+        (
+          eventType: AttentionEventType.reviewWindowCancelled,
+          legacyKind: 'reviewReady',
+          recipient: target,
+          build: (intents) => intents.reviewWindowCancelled(
+            beaconId: beacon,
+            beaconTitle: 'Request title',
+            recipientUserIds: const {target},
+            actorUserId: actor,
+            sourceEventKey: eventKey,
+          ),
+        ),
+        (
           eventType: AttentionEventType.mutualConnectionFormed,
           legacyKind: 'inviteAccepted',
           recipient: target,

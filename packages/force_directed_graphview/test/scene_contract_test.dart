@@ -241,6 +241,41 @@ void main() {
       controller.clearPresentationForNodeId('1');
       expect(testNodePosition(controller, node), const Offset(10, 20));
     });
+
+    test('updatePresentations moves two nodes with one listener notify',
+        () async {
+      final controller = testIntGraphController();
+      const a = Node<int>(data: 1, size: 10);
+      const b = Node<int>(data: 2, size: 10);
+      testAddNode(controller, a);
+      testAddNode(controller, b);
+
+      final tokenA = controller.beginNodePresentationDragForId(
+        testIntNodeId(a),
+        const Offset(10, 10),
+      );
+      final tokenB = controller.beginNodePresentationDragForId(
+        testIntNodeId(b),
+        const Offset(20, 20),
+      );
+      // Flush begin-drag microtask notifies before counting the batch.
+      await Future<void>.delayed(Duration.zero);
+
+      var notifies = 0;
+      controller.addListener(() => notifies++);
+
+      final applied = controller.updateNodePresentationDrags({
+        tokenA: const Offset(100, 110),
+        tokenB: const Offset(200, 210),
+      });
+
+      expect(applied, 2);
+      await Future<void>.delayed(Duration.zero);
+      expect(notifies, 1);
+      expect(testNodePosition(controller, a), const Offset(100, 110));
+      expect(testNodePosition(controller, b), const Offset(200, 210));
+      controller.dispose();
+    });
   });
 
   group('camera preservation (current clear contract)', () {

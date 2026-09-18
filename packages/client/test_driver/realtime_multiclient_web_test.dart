@@ -162,11 +162,10 @@ Future<void> _runJourney({
 
   await author.setNetworkLatency(const Duration(milliseconds: 700));
   final submitStarted = author.clickTestId('forward.submit');
-  // A recipient with no personal note deliberately requires an explicit
-  // acknowledgement before the request is sent. Do not mistake the disabled
-  // control behind that sheet for an in-flight submission.
-  await author.waitForText('No personal note yet');
-  await author.clickText('Send without a shared note');
+  // A recipient with no personal note opens the shared-note coverage sheet.
+  // Empty optional note + primary Forward is enough; there is no skip-send CTA.
+  await author.waitForText('Shared note');
+  await author.clickText('Forward to 1');
   await author.waitForTestIdDisabled('forward.submit');
   await author.setNetworkLatency(Duration.zero);
   await submitStarted;

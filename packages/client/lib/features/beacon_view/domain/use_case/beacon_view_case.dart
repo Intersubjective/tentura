@@ -215,6 +215,20 @@ final class BeaconViewCase extends UseCaseBase {
     return result;
   }
 
+  Future<void> setRoleLabel({
+    required String beaconId,
+    required String offerUserId,
+    required String roleLabel,
+  }) async {
+    await _coordinationRepository.setRoleLabel(
+      beaconId: beaconId,
+      offerUserId: offerUserId,
+      roleLabel: roleLabel,
+    );
+    _forwardRepository.notifyHelpOfferChanged(HelpOfferInvalidated(beaconId));
+    _beaconRoomCase.notifyHelpOfferRoomInvalidation(beaconId);
+  }
+
   Future<({BeaconStatus status, DateTime? updatedAt})> declineHelpOffer({
     required String beaconId,
     required String offerUserId,
@@ -422,6 +436,7 @@ final class BeaconViewCase extends UseCaseBase {
         Profile user,
         String message,
         String? helpType,
+        String? roleLabel,
         int status,
         String? withdrawReason,
         DateTime createdAt,

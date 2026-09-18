@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:logging/logging.dart';
 
@@ -278,6 +280,12 @@ EvaluationSummary _summary() => const EvaluationSummary(
     );
 
 class FakeEvaluationRepository implements EvaluationRepository {
+  final reviewPackageChangesController = StreamController<void>.broadcast();
+
+  @override
+  Stream<void> get reviewPackageChanges =>
+      reviewPackageChangesController.stream;
+
   ReviewWindowInfo reviewWindowResult = ReviewWindowInfo(
     beaconId: '',
     hasWindow: false,
@@ -428,6 +436,9 @@ class FakeEvaluationRepository implements EvaluationRepository {
       reasonTags: reasonTags,
       note: note,
     );
+    if (!reviewPackageChangesController.isClosed) {
+      reviewPackageChangesController.add(null);
+    }
   }
 
   @override
@@ -489,12 +500,18 @@ class FakeEvaluationRepository implements EvaluationRepository {
         else
           p,
     ];
+    if (!reviewPackageChangesController.isClosed) {
+      reviewPackageChangesController.add(null);
+    }
   }
 
   @override
   Future<void> finalize(String beaconId) async {
     finalizeCalls++;
     lastFinalizeBeaconId = beaconId;
+    if (!reviewPackageChangesController.isClosed) {
+      reviewPackageChangesController.add(null);
+    }
   }
 
   @override

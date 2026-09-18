@@ -1,5 +1,7 @@
 // Repository test doubles for injectable [Environment.test].
 
+import 'dart:async';
+
 import 'package:injectable/injectable.dart';
 import 'package:mockito/mockito.dart';
 
@@ -60,7 +62,10 @@ class ForwardsGraphRepositoryMock extends Mock
 class InvitationRepositoryMock extends Mock implements InvitationRepository {}
 
 @Injectable(as: EvaluationRepository, env: [Environment.test], order: 1)
-class EvaluationRepositoryMock extends Mock implements EvaluationRepository {}
+class EvaluationRepositoryMock extends Mock implements EvaluationRepository {
+  @override
+  Stream<void> get reviewPackageChanges => const Stream.empty();
+}
 
 @Injectable(as: CoordinationRepository, env: [Environment.test], order: 1)
 class CoordinationRepositoryMock extends Mock

@@ -46,6 +46,7 @@ class GraphView<N, E> extends StatefulWidget {
     this.onNodeDragUpdate,
     this.onNodeDragEnd,
     this.onNodeDragCancel,
+    this.transformNodeDragPosition,
     this.onNodeTap,
     this.nodeTapHitTester,
     this.nodePaintOrder,
@@ -115,6 +116,9 @@ class GraphView<N, E> extends StatefulWidget {
 
   /// { @nodoc }
   final NodeDragCancelCallback<N>? onNodeDragCancel;
+
+  /// Optional clamp/transform of the dragged node centre during pointer move.
+  final NodeDragPositionTransform<N>? transformNodeDragPosition;
 
   /// Optional short-press hook using scene paint/hit order (not widget z-order).
   final NodeTapCallback<N>? onNodeTap;
@@ -217,6 +221,10 @@ class _GraphViewState<N, E> extends State<GraphView<N, E>>
         onNodeDragCancel: widget.onNodeDragCancel == null
             ? null
             : (node) => widget.onNodeDragCancel!(node as N),
+        transformNodeDragPosition: widget.transformNodeDragPosition == null
+            ? null
+            : (node, proposed) =>
+                widget.transformNodeDragPosition!(node as N, proposed),
         onNodeTap: widget.onNodeTap == null
             ? null
             : (node) => widget.onNodeTap!(node as N),

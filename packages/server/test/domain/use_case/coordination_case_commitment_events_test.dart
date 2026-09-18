@@ -49,6 +49,23 @@ class _RecordingAttentionSystemSettlement extends Fake
     ));
     return 1;
   }
+
+  @override
+  Future<int> settleReviewObligationsAfterWindowClose(String beaconId) async =>
+      0;
+
+  @override
+  Future<int> supersedeReviewObligationsOnReopen(String beaconId) async => 0;
+
+  @override
+  Future<int> settleReviewerObligationOnPackageSend({
+    required String beaconId,
+    required String reviewerAccountId,
+  }) async =>
+      0;
+
+  @override
+  Future<List<String>> listBeaconIdsWithClosedReviewWindows() async => [];
 }
 
 void main() {

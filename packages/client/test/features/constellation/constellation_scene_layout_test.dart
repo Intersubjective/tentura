@@ -218,6 +218,83 @@ void main() {
         expect(request.y, closeTo(baselineRequest.y, 1));
       },
     );
+
+    test(
+      'author-seat move invalidates satellite prior via satellite map '
+      '(empty requestAuthorById)',
+      () async {
+        final requestPaths = resolveConstellationPaths(
+          egoId: egoId,
+          visiblePeerIds: const {'peer-a'},
+          holderIds: {egoId, 'peer-a'},
+          edges: const [(src: egoId, dst: 'peer-a', tier: 1)],
+        );
+        final requestNode = FieldRequestNode(
+          request: const ConstellationRequest(
+            id: 'req-1',
+            authorId: 'peer-a',
+            title: 'Need tools',
+            status: 0,
+          ),
+        );
+        final farAuthorAnchor = ConstellationAnchorPosition(
+          xUnits: 5,
+          yUnits: 0,
+          coordinateSpaceVersion: 1,
+        );
+        final withPinnedAuthor = ConstellationSceneLayoutAlgorithm(
+          egoId: egoId,
+          paths: requestPaths,
+          keptPeerIds: const {'peer-a'},
+          maxHops: 3,
+          visibleRequestsByAuthor: const {
+            'peer-a': ['req-1'],
+          },
+          egoOwnRequestIds: const {},
+          pinnedPersonIds: const {'peer-a'},
+          anchorByNodeId: {'peer-a': farAuthorAnchor},
+        );
+        final cold = await layoutPositionsOnce(
+          withPinnedAuthor,
+          nodes: {egoNode, peerNode, requestNode},
+          edges: const {},
+          canvasSize: const Size(4200, 4200),
+        );
+        final ego = cold[tenturaGraphNodeId(egoNode)]!;
+        final coldAuthor = cold[tenturaGraphNodeId(peerNode)]!;
+        final coldRequest = cold[tenturaGraphNodeId(requestNode)]!;
+        // Previous layout: author near ego, satellite at the old fan seat.
+        final stalePrevious = sceneLayoutFromPositions({
+          tenturaGraphNodeId(egoNode): ego,
+          tenturaGraphNodeId(peerNode): ScenePoint(x: ego.x + 170, y: ego.y),
+          tenturaGraphNodeId(requestNode): ScenePoint(
+            x: ego.x + 170 + 56,
+            y: ego.y,
+          ),
+        });
+        final reflowed = await layoutPositionsOnce(
+          withPinnedAuthor,
+          nodes: {egoNode, peerNode, requestNode},
+          edges: const {},
+          previous: stalePrevious,
+          canvasSize: const Size(4200, 4200),
+        );
+        final author = reflowed[tenturaGraphNodeId(peerNode)]!;
+        final request = reflowed[tenturaGraphNodeId(requestNode)]!;
+        expect(author.x, closeTo(coldAuthor.x, 1));
+        expect(
+          (Offset(request.x, request.y) - Offset(author.x, author.y)).distance,
+          lessThan(150),
+        );
+        expect(
+          request.x,
+          isNot(closeTo(ego.x + 170 + 56, 1)),
+          reason: 'stale prior satellite seat must not win after author move',
+        );
+        expect(request.x, closeTo(coldRequest.x, 1));
+        expect(request.y, closeTo(coldRequest.y, 1));
+      },
+    );
   });
 
   group('constellation graph reconciliation', () {

@@ -20,6 +20,7 @@ query BeaconParticipantList($beaconId: String!) {
     linkedMessageId
     lastSeenRoomAt
     helpType
+    roleLabel
     createdAt
     updatedAt
   }

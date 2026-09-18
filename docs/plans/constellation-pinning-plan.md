@@ -67,10 +67,14 @@ ego.
 
 ### D4 — Person and Request anchors are independent
 
-Pinning or moving a person does not pin or move their Requests. A pinned Request
-has its own position relative to ego. Moving either endpoint only changes the
-rendered author-to-Request edge. Unpinned Requests remain satellites of their
-authors.
+Pinning a person does not pin their Requests. Each pinned Request keeps its own
+ego-relative coordinate. **On-graph** pinned Requests of a dragged person keep a
+rigid scene offset during that author's drag and commit new ego-relative coords
+on drop. Hidden or dormant (D5) pinned Requests keep their stored position and
+do not follow the drag. Unpinned Requests stay put during the drag, then reflow
+around the author's new seat after a fully adopted parent settle. Independent
+Request drag does not move the author. Moving either endpoint alone still only
+changes the rendered author-to-Request edge.
 
 ### D5 — Closed Requests are hidden by default, not forgotten
 
@@ -174,12 +178,16 @@ Request rather than graph placement.
 
 An already pinned person or Request can be dragged directly without first
 unpinning it. Dragging changes local presentation only; dropping performs one
-optimistic server upsert for the final coordinate. Intermediate pointer movement
-is not persisted.
+pending write (`writeCount` += 1) for the final coordinate. When the dragged
+target is a person with on-graph pinned Request satellites, that write upserts
+the parent first, then companions; if the parent is not confirmed, companions
+are not written. The wire may call `constellationAnchorUpsert` N times inside
+that single write. Intermediate pointer movement is not persisted.
 
 The pin remains active throughout. If persistence fails, the object returns to
 its last server-confirmed position and the viewer receives concise failure
-feedback. No separate Save or second Pin action is required.
+feedback. No separate Save or second Pin action is required. There is no
+mutation retry after an ambiguous failure (C7).
 
 ### D16 — Placement does not globally disable the camera
 
@@ -316,13 +324,14 @@ The last mutation accepted by the server wins, including unpin; ordering uses a
 server-assigned monotonic revision rather than client wall-clock time. A later
 move after an unpin recreates the anchor and is treated as an explicit repin.
 
-While a local node drag owns the gesture, an incoming update for the same anchor
-must not move the object under the viewer's pointer. The client defers that
-update until the gesture ends, submits the drop against current server state,
-then reconciles to the newest server revision. A successful mutation adopts
-the returned authoritative anchor. A failed mutation restores the newest
-server-confirmed position available, not necessarily the position captured at
-drag start. Ordinary updates for anchors not being dragged apply immediately.
+While a local node drag owns the gesture, or while that placement write is
+still pending, an incoming update for the typed target **set** (the dragged
+parent plus its current on-graph companions) must not move those objects under
+the viewer's pointer. The client defers presentation for that set until the
+gesture ends and the pending write finishes, then applies confirmed state
+(including a split after a mixed failure). Ordinary updates for anchors not in
+that set apply immediately. After the write ends, confirmed state is displayed;
+there is no keep-overlay or reconnect write-retry terminal.
 
 ### D27 — One anchor table retains target-specific foreign keys
 
@@ -414,6 +423,10 @@ soft layout hints when their semantic parent/ring is unchanged and they do not
 conflict with a hard anchor. This reduces avoidable movement without promising
 cross-device equality for automatic nodes.
 
+Satellite inertia for an unpinned Request is invalid when that author's placed
+seat changed since the previous accepted layout: the prior hint is skipped so
+the satellite reflows around the new seat.
+
 A just-unpinned node is **not** eligible for session inertia from its former
 anchor coordinate: layout forgets that node's prior hint until a layout
 outcome is accepted, so unpin immediately reflows it into the automatic layer.
@@ -425,10 +438,12 @@ including any explicit prior-layout hints.
 
 ### D34 — Dragging never continuously reflows the field
 
-During a node drag, only the dragged node and its incident edge geometry update;
-other nodes do not chase the pointer. Dropping a node — whether first pin or
-move of an existing pin — applies its new anchor optimistically and triggers
-one automatic-layer reconciliation (D15 / D17).
+During a node drag, automatic nodes do not chase the pointer. On-graph pinned
+Request satellites of a dragged person translate in lockstep with that person;
+unpinned satellites stay put and their attachment edges stretch. Dropping a
+node — whether first pin or move of an existing pin — applies its new anchor
+optimistically and triggers one automatic-layer reconciliation after the
+cluster write ends (success or D26 restore) (D15 / D17).
 
 If persistence fails, restoring the latest server-confirmed anchor under D15
 and D26 triggers one corresponding reconciliation. There is no continuous
@@ -500,9 +515,9 @@ D1–D37 remain binding. C1–C8 below resolve implementation details; execute P
 - Ego is fixed and cannot be pinned. Reject `PERSON` targeting the authenticated viewer with `invalidTarget` (wire code `"1700"`). A viewer's own published Beacon can be pinned.
 - `ConstellationAnchorPosition(xUnits, yUnits, coordinateSpaceVersion)` uses finite doubles, inclusive `[-10,10]`, version `1`. Reject unknown versions; never silently clamp server inputs.
 - V1 conversion is `renderCentre + (xUnits, yUnits) * 170`; inverse subtracts ego centre and divides by `170`. Positive x is right, positive y is down. Keep a `4096 × 4096` canvas and centre `(2048,2048)` on every viewport. Camera zoom is independent. Named geometry constants belong in `constellation_consts.dart`; these are coordinate units, not UI styling tokens.
-- Nodes remain reachable at all four envelope edges, with rendered bounds and a design-system spacing margin inside camera extent. Clamp the *dragged centre* during pointer movement, before displaying it; never snap on drop. Maintain pointer-to-centre grab offset.
+- Nodes remain reachable at all four envelope edges, with rendered bounds and a design-system spacing margin inside camera extent. Clamp the dragged **cluster** during pointer movement (limit the parent delta so the parent and every companion stay in ±10 and on canvas) before displaying it; never snap on drop. Maintain pointer-to-centre grab offset.
 - Server revision is an account-wide monotonically increasing PostgreSQL `bigint`, encoded as a decimal **String** on GraphQL and parsed as `BigInt` on clients (no GraphQL Int or JS-safe-number assumption). It orders updates and deletions; revision `0` means no mutations yet.
-- Stable ascending paint order: unanchored nodes, then confirmed anchors sorted by `(placedAt, targetKind, targetId)`; later entries paint/hit-test on top. Kind tie-break is lexical (`BEACON`, then `PERSON`), ID is lexical. Active drag/pending placement paints above confirmed anchors. Selection never reorders. Ego has no drag/pin action.
+- Stable ascending paint order: unanchored nodes, then confirmed anchors sorted by `(placedAt, targetKind, targetId)`; later entries paint/hit-test on top. Kind tie-break is lexical (`BEACON`, then `PERSON`), ID is lexical. Active drag **and** pending placement paint the parent plus companion graph ids above confirmed anchors. Selection never reorders. Ego has no drag/pin action.
 
 ### C2 — Authorization, filters and participation
 
@@ -625,16 +640,16 @@ Feature state stores `confirmedProjection`, `projectionRevision`, typed pending 
 | Touch long-press or mouse primary drag on non-ego node | Capture node after platform gesture slop/long-press rules; freeze current scene transform, preserve grab offset; `draggingExisting` if anchored, otherwise `draggingNew` |
 | Two-pointer scale wins before capture | Camera owns sequence; no node movement |
 | Extra pointer after node capture | Node retains ownership; ignore extra pointers for movement; keep camera gated until every pointer in that sequence lifts/cancels |
-| Existing-node drop | Upsert final position once, optimistic anchor/top order, one automatic reconciliation; restore camera when sequence is fully released |
-| New-node drop | Same as existing-node drop: upsert once at drop coordinates, optimistic anchor, one automatic reconciliation; camera resumes after sequence release |
-| Cancel / Escape / route leave / switch to Text / filter change during drag | Cancel unsent drag, restore newest confirmed/computed position, no write; suppress late gesture-end callback. While a write is in flight after drop, cancel/Escape/filters are no-ops for placement |
+| Existing-node drop | One pending write (`writeCount` += 1): parent upsert first; if parent is not confirmed, do not write companions; then companions. Wire may call `constellationAnchorUpsert` N times inside that write. Optimistic anchor/top order; one automatic reconciliation after the write ends; restore camera when sequence is fully released. No mutation retry |
+| New-node drop | Same as existing-node drop (including companion cluster when the person already has on-graph pinned Requests) |
+| Cancel / Escape / route leave / switch to Text / filter change during drag | Cancel unsent drag, clear the cluster graph-id set, restore newest confirmed/computed position, no write; suppress late gesture-end callback. While a write is in flight after drop, cancel/Escape/filters are no-ops for placement |
 | Pointer cancel / viewport geometry change during drag | Cancel drag safely and wait for pointer release before rearming camera; no write |
 | Unpin | Optimistic remove + forget that node's prior-layout hint + one reconciliation, submit one delete; never touch Favorites |
 | Text Pin | Use `computeConstellationPinPosition` below even if Map was never mounted; submit one upsert (the button is explicit confirmation). Never derive coordinates from list order |
 
-| Incoming anchor refresh during drag/pending write | Update confirmed cache/watermark, defer presentation for that target only; apply confirmed positions for other targets immediately, without automatic-layer reflow until placement ends |
-| Successful command | Adopt returned authoritative value only if not older than newest confirmed revision; fetch ANCHORS to settle concurrent deletion or remote movement |
-| Failed command | Fetch ANCHORS once, restore newest confirmed state, one rollback reconciliation, one localized failure message; if offline, restore last known confirmation and mark sync pending until reconnect |
+| Incoming anchor refresh during drag/pending write | Update confirmed cache/watermark; defer presentation for the typed target **set** (parent + current companions); apply confirmed positions for other targets immediately, without automatic-layer reflow until the write ends |
+| Successful command | Adopt from recovery when `_confirmed` holds each intended target at the intended position (epsilon). One automatic-layer reconciliation. Unrelated to mutation `revision < confirmed` alone |
+| Failed command | Fetch ANCHORS once, merge confirmed (split is D26 truth), clear every cluster token, one rollback reconciliation, localized failure message. If some companions did not move, name those Requests. Same ending for mixed and none-adopted. If offline, restore last known confirmation and mark sync pending until reconnect; do not replay the write |
 
 `computeConstellationPinPosition(target, layoutInput)` is a pure helper. If a composed position exists, return its normalized coordinate. Otherwise compute only this target as an **unanchored** candidate: use its current topology/author semantic ideal, the same sorted eligible satellite IDs, bounds, envelope and C6 candidate search against frozen existing positions. It returns a coordinate, not a changed layout; no other node moves and no anchor exists before the explicit Pin command. If necessary, derive an authorized absent author's semantic position in scratch input only; if required authorized target/author data is absent, disable Pin until a matching FULL refresh supplies it. Apply normal optimistic reconciliation once on submission. Test a target excluded by label density and Text opened before any graph-controller layout. The current Text view renders `visibleIds`/overflow, not every field Request; do not broaden its list solely to exercise this fallback.
 

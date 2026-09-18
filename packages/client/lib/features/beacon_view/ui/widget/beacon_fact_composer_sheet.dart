@@ -290,32 +290,42 @@ class _BeaconFactComposerBodyState extends State<_BeaconFactComposerBody> {
             SizedBox(height: tt.rowGap),
             Align(
               alignment: Alignment.centerLeft,
-              child: PopupMenuButton<String>(
-                tooltip: l10n.beaconRoomAttachMenuTooltip,
-                enabled: !_submitting && _remainingSlots > 0,
-                icon: Icon(Icons.attach_file_rounded, size: tt.iconSize),
-                onSelected: (v) async {
-                  if (_submitting) return;
-                  if (v == 'img') {
-                    await _pickImages();
-                  } else if (v == 'file') {
-                    await _pickFiles();
-                  } else if (v == 'paste') {
-                    await _pasteImage();
-                  }
-                },
-                itemBuilder: (ctx) => [
-                  PopupMenuItem(
-                    value: 'img',
-                    child: Text(l10n.beaconRoomAttachPickImages),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  IconButton(
+                    key: const ValueKey('paste'),
+                    tooltip: l10n.beaconRoomAttachPasteImage,
+                    icon: Icon(
+                      Icons.content_paste_rounded,
+                      size: tt.iconSize,
+                    ),
+                    onPressed: !_submitting && _remainingSlots > 0
+                        ? () => unawaited(_pasteImage())
+                        : null,
                   ),
-                  PopupMenuItem(
-                    value: 'file',
-                    child: Text(l10n.beaconRoomAttachPickFiles),
-                  ),
-                  PopupMenuItem(
-                    value: 'paste',
-                    child: Text(l10n.beaconRoomAttachPasteImage),
+                  PopupMenuButton<String>(
+                    tooltip: l10n.beaconRoomAttachMenuTooltip,
+                    enabled: !_submitting && _remainingSlots > 0,
+                    icon: Icon(Icons.attach_file_rounded, size: tt.iconSize),
+                    onSelected: (v) async {
+                      if (_submitting) return;
+                      if (v == 'img') {
+                        await _pickImages();
+                      } else if (v == 'file') {
+                        await _pickFiles();
+                      }
+                    },
+                    itemBuilder: (ctx) => [
+                      PopupMenuItem(
+                        value: 'img',
+                        child: Text(l10n.beaconRoomAttachPickImages),
+                      ),
+                      PopupMenuItem(
+                        value: 'file',
+                        child: Text(l10n.beaconRoomAttachPickFiles),
+                      ),
+                    ],
                   ),
                 ],
               ),

@@ -13,6 +13,7 @@ import 'package:tentura/features/beacon_view/domain/beacon_status_menu.dart';
 import 'package:tentura/features/beacon_view/domain/beacon_status_menu_presenter.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_cubit.dart';
 import 'package:tentura/features/beacon_view/ui/util/beacon_closure_readiness.dart';
+import 'package:tentura/features/beacon_view/ui/widget/beacon_hud_author_confirm_sheets.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/test_ids.dart';
 
@@ -94,7 +95,7 @@ Future<void> showBeaconViewUpdateStatusSheet(
                     isLoading: isLoading,
                     onTap: row.isEnabled && !isLoading
                         ? () => unawaited(
-                            _dispatchStatusMenuAction(
+                            beaconViewDispatchStatusMenuAction(
                               ctx,
                               action: row.action,
                               state: liveState,
@@ -111,7 +112,7 @@ Future<void> showBeaconViewUpdateStatusSheet(
                                 BeaconStatusMenuAction.none &&
                             !isLoading
                         ? () => unawaited(
-                            _dispatchStatusMenuAction(
+                            beaconViewDispatchStatusMenuAction(
                               ctx,
                               action: row.secondaryAction,
                               state: liveState,
@@ -166,9 +167,7 @@ class BeaconStatusMenuRowTile extends StatelessWidget {
         : beaconStatusMenuRowLabel(l10n, row.id);
     final hint = beaconStatusMenuDisabledReasonLabel(l10n, row.disabledReason);
     final outcome = beaconStatusMenuRowOutcomeLabel(l10n, row.id);
-    final subtitle = !row.isEnabled && hint.isNotEmpty
-        ? hint
-        : outcome;
+    final subtitle = !row.isEnabled && hint.isNotEmpty ? hint : outcome;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -220,7 +219,9 @@ class BeaconStatusMenuRowTile extends StatelessWidget {
   }
 }
 
-Future<void> _dispatchStatusMenuAction(
+/// Runs a status-sheet row action; public for entry-point confirm tests.
+@visibleForTesting
+Future<void> beaconViewDispatchStatusMenuAction(
   BuildContext context, {
   required BeaconStatusMenuAction action,
   required BeaconViewState state,
@@ -290,31 +291,22 @@ Future<void> _dispatchStatusMenuAction(
         onOpenGeneralThread: onOpenGeneralThread,
       );
     case BeaconStatusMenuAction.closeNow:
-      await cubit.closeBeaconNow();
+      if (!context.mounted) return;
+      final confirmed = await showBeaconCloseNowConfirmSheet(
+        context: context,
+        unsentStartedPackages:
+            state.reviewWindowInfo?.unsentStartedPackages ?? 0,
+      );
+      if (confirmed) await cubit.closeBeaconNow();
     case BeaconStatusMenuAction.extendReview:
       await cubit.extendReview();
     case BeaconStatusMenuAction.reopen:
       if (!context.mounted) return;
-      final ok = await showAdaptiveDialog<bool>(
+      final ok = await showBeaconReopenConfirmSheet(
         context: context,
-        builder: (ctx) => AlertDialog.adaptive(
-          title: Text(l10n.beaconReviewReopenTitle),
-          content: Text(l10n.beaconReviewReopenBody),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.of(ctx).pop(true),
-              child: Text(l10n.beaconReviewReopenConfirm),
-            ),
-            TextButton(
-              onPressed: () => Navigator.of(ctx).pop(false),
-              child: Text(l10n.buttonCancel),
-            ),
-          ],
-        ),
+        sentReviewerCount: state.reviewWindowInfo?.sentReviewerCount ?? 0,
       );
-      if (ok == true) {
-        await cubit.reopenBeacon();
-      }
+      if (ok) await cubit.reopenBeacon();
     case BeaconStatusMenuAction.cancel:
       if (!context.mounted) return;
       final ok = await showAdaptiveDialog<bool>(

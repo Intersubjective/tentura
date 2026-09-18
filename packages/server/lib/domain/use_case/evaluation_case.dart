@@ -298,6 +298,9 @@ final class EvaluationCase extends UseCaseBase {
               role: p.role.dbValue,
               contributionSummary: p.contributionSummary,
               causalHint: p.causalHint,
+              committedAt: p.committedAt,
+              offerMessage: p.offerMessage,
+              forwarderDisplayName: p.forwarderDisplayName,
             );
           }
 
@@ -437,6 +440,11 @@ final class EvaluationCase extends UseCaseBase {
               description: 'Reopen limit reached',
             );
           }
+          final statuses = await _evaluationRepository
+              .listReviewStatusesForBeacon(beaconId);
+          final recipientUserIds = statuses.keys
+              .where((id) => id != userId)
+              .toSet();
           final intent = transaction == null
               ? null
               : await _attentionIntents!.requestStatusChanged(
@@ -445,6 +453,17 @@ final class EvaluationCase extends UseCaseBase {
                   toStatus: BeaconStatus.open.name,
                   actorUserId: userId,
                   sourceEventKey: 'request_status:${generateId('A')}',
+                );
+          final cancelIntent = transaction == null
+              ? null
+              : await _attentionIntents!.reviewWindowCancelled(
+                  beaconId: beaconId,
+                  beaconTitle: beacon.title,
+                  recipientUserIds: recipientUserIds,
+                  actorUserId: userId,
+                  sourceEventKey:
+                      'review_window_cancelled:$beaconId:'
+                      '${w.openedAt.toUtc().toIso8601String()}',
                 );
           await _evaluationRepository.downgradeSubmittedReviewsToDraft(
             beaconId,
@@ -465,6 +484,9 @@ final class EvaluationCase extends UseCaseBase {
           await _beaconRepository.incrementReviewReopenCount(beaconId);
           if (intent != null) {
             await transaction!.record(intent);
+          }
+          if (cancelIntent != null) {
+            await transaction!.record(cancelIntent);
           }
           return BeaconCloseReviewResult(
             id: beaconId,
@@ -722,6 +744,12 @@ final class EvaluationCase extends UseCaseBase {
               (ev.status == BeaconEvaluationRowStatus.draft ||
                   ev.status == BeaconEvaluationRowStatus.submitted ||
                   ev.status == BeaconEvaluationRowStatus.final_),
+          isOptional: EvaluationParticipantRole.fromDb(row.role) ==
+              EvaluationParticipantRole.formerCommitter,
+          rowStatus: ev?.status ?? -1,
+          committedAt: row.committedAt,
+          offerMessage: row.offerMessage,
+          forwarderDisplayName: row.forwarderDisplayName,
         ),
       );
     }
@@ -829,6 +857,11 @@ final class EvaluationCase extends UseCaseBase {
           acknowledgeableHelpTags: const [],
           maxAcknowledgedHelpTags: 0,
           isSubmitted: false,
+          isOptional: row.role == EvaluationParticipantRole.formerCommitter,
+          rowStatus: ev?.status ?? -1,
+          committedAt: row.committedAt,
+          offerMessage: row.offerMessage,
+          forwarderDisplayName: row.forwarderDisplayName,
         ),
       );
     }
@@ -1038,16 +1071,63 @@ final class EvaluationCase extends UseCaseBase {
       beaconId: beaconId,
       evaluatorId: userId,
     );
+    final parts = await _evaluationRepository.listParticipants(beaconId);
+    final partByUser = {for (final p in parts) p.userId: p};
     var reviewed = 0;
+    var requiredTotal = 0;
+    var requiredReviewed = 0;
+    var optionalTotal = 0;
+    var optionalReviewed = 0;
     for (final v in vis) {
-      if (evByTarget[v.participantId] != null) {
+      final hasRow = evByTarget[v.participantId] != null;
+      if (hasRow) {
         reviewed++;
       }
+      final target = partByUser[v.participantId];
+      if (target == null) {
+        continue;
+      }
+      final isOptional =
+          EvaluationParticipantRole.fromDb(target.role) ==
+          EvaluationParticipantRole.formerCommitter;
+      if (isOptional) {
+        optionalTotal++;
+        if (hasRow) {
+          optionalReviewed++;
+        }
+      } else {
+        requiredTotal++;
+        if (hasRow) {
+          requiredReviewed++;
+        }
+      }
     }
+    final viewerRow = partByUser[userId];
+    final viewerPackageOptional =
+        viewerRow != null &&
+        EvaluationParticipantRole.fromDb(viewerRow.role) ==
+            EvaluationParticipantRole.formerCommitter;
+    final statuses = await _evaluationRepository.listReviewStatusesForBeacon(
+      beaconId,
+    );
+    var unsentStartedPackages = 0;
+    var sentReviewerCount = 0;
+    for (final st in statuses.values) {
+      if (st == 1) {
+        unsentStartedPackages++;
+      } else if (st == 2) {
+        sentReviewerCount++;
+      }
+    }
+    final sentAt = await _evaluationRepository.getReviewSentAt(
+      beaconId,
+      userId,
+    );
+    final allRequiredSent = await _canCloseNow(beaconId: beaconId);
     final canCloseNow =
         w.status == 0 &&
         beacon.status == BeaconStatus.reviewOpen &&
-        await _canCloseNow(beaconId: beaconId);
+        allRequiredSent;
     final reopenCount = await _beaconRepository.reviewReopenCount(beaconId);
     final canReopen =
         w.status == 0 &&
@@ -1066,6 +1146,15 @@ final class EvaluationCase extends UseCaseBase {
       extensionsUsed: w.extensionsUsed,
       canCloseNow: canCloseNow,
       canReopen: canReopen,
+      requiredTotal: requiredTotal,
+      requiredReviewed: requiredReviewed,
+      optionalTotal: optionalTotal,
+      optionalReviewed: optionalReviewed,
+      viewerPackageOptional: viewerPackageOptional,
+      sentAt: sentAt,
+      allRequiredSent: allRequiredSent,
+      unsentStartedPackages: unsentStartedPackages,
+      sentReviewerCount: sentReviewerCount,
     );
   }
 
@@ -1447,103 +1536,88 @@ final class EvaluationCase extends UseCaseBase {
     required String userId,
   }) async {
     await _ensureExpiredClosed();
-    await _requireLiveReview(beaconId);
-    final st = await _evaluationRepository.getReviewUserStatus(
-      beaconId,
-      userId,
-    );
-    if (st == null) {
-      throw EvaluationException(
-        evaluationCode: EvaluationExceptionCode.notEligible,
-      );
-    }
-    final vis = await _evaluationRepository.listVisibilityForEvaluator(
-      beaconId,
-      userId,
-    );
-    final byTarget = await _evaluationsByTargetForEvaluator(
-      beaconId: beaconId,
-      evaluatorId: userId,
-    );
-    for (final v in vis) {
-      final ev = byTarget[v.participantId];
-      final ready = ev != null &&
-          (ev.status == BeaconEvaluationRowStatus.draft ||
-              ev.status == BeaconEvaluationRowStatus.submitted);
-      if (!ready) {
-        throw EvaluationException(
-          evaluationCode: EvaluationExceptionCode.notEligible,
-          description: 'All review targets must be ready before send',
-        );
-      }
-    }
-    if (st != 2) {
-      await _evaluationRepository.setReviewUserStatus(
-        beaconId: beaconId,
-        userId: userId,
-        status: 2,
-      );
-    }
-    if (await _canCloseNow(beaconId: beaconId)) {
-      await _autoCloseReviewWindow(beaconId: beaconId, actorUserId: userId);
-    }
-    return true;
-  }
-
-  /// Shared close path when all required reviewers have sent (or author Close now).
-  Future<void> _autoCloseReviewWindow({
-    required String beaconId,
-    required String? actorUserId,
-  }) async {
-    await _runStatusAction(
-      actorUserId: actorUserId,
+    await _attention!.runAction(
+      actorUserId: userId,
       action: (transaction) async {
-        final intent = transaction == null
-            ? null
-            : await _attentionIntents!.requestStatusChanged(
-                beaconId: beaconId,
-                fromStatus: BeaconStatus.reviewOpen.name,
-                toStatus: BeaconStatus.closed.name,
-                actorUserId: actorUserId,
-                sourceEventKey: 'request_status:${generateId('A')}',
-              );
-        final result = await _reviewFinalization!.closeAndFinalize(
+        await _requireLiveReview(beaconId);
+        final st = await _evaluationRepository.getReviewUserStatus(
           beaconId,
-          reason: actorUserId == null
-              ? BeaconLifecycleChangeReason.reviewExpired
-              : BeaconLifecycleChangeReason.authorCloseNow,
-          actorUserId: actorUserId,
-          requireAllRequiredPackagesSent: true,
+          userId,
         );
-        if (intent != null && result.didClose) {
-          await transaction!.record(intent);
+        if (st == null) {
+          throw EvaluationException(
+            evaluationCode: EvaluationExceptionCode.notEligible,
+          );
         }
-        if (transaction != null && result.didClose) {
-          final beaconTitle = result.beaconTitle ?? '';
-          for (final pair in result.pairs) {
-            if (pair.bin == TrustBin.noEffect) continue;
-            final given = await _attentionIntents!.trustGivenChanged(
-              beaconId: beaconId,
-              beaconTitle: beaconTitle,
-              evaluatorId: pair.evaluatorId,
-              evaluatedUserId: pair.evaluatedUserId,
-              bin: pair.bin,
-              sourceEventKey: 'trust_given:${generateId('A')}',
-            );
-            await transaction!.record(given);
-            final received = await _attentionIntents!.trustReceivedChanged(
-              beaconId: beaconId,
-              beaconTitle: beaconTitle,
-              evaluatorId: pair.evaluatorId,
-              evaluatedUserId: pair.evaluatedUserId,
-              bin: pair.bin,
-              sourceEventKey: 'trust_received:${generateId('A')}',
-            );
-            await transaction!.record(received);
+        final wasCloseableBefore = await _canCloseNow(beaconId: beaconId);
+        final vis = await _evaluationRepository.listVisibilityForEvaluator(
+          beaconId,
+          userId,
+        );
+        final byTarget = await _evaluationsByTargetForEvaluator(
+          beaconId: beaconId,
+          evaluatorId: userId,
+        );
+        final participantRows = await _evaluationRepository.listParticipants(
+          beaconId,
+        );
+        final partByUser = {for (final p in participantRows) p.userId: p};
+        for (final v in vis) {
+          final target = partByUser[v.participantId];
+          if (target == null) {
+            continue; // stale visibility row: nothing to require
           }
+          if (EvaluationParticipantRole.fromDb(target.role) ==
+              EvaluationParticipantRole.formerCommitter) {
+            continue; // D6/D7: optional target never gates the package
+          }
+          final ev = byTarget[v.participantId];
+          final ready =
+              ev != null &&
+              (ev.status == BeaconEvaluationRowStatus.draft ||
+                  ev.status == BeaconEvaluationRowStatus.submitted);
+          if (!ready) {
+            throw EvaluationException(
+              evaluationCode: EvaluationExceptionCode.notEligible,
+              description: 'All review targets must be ready before send',
+            );
+          }
+        }
+        if (st != 2) {
+          await _evaluationRepository.setReviewUserStatus(
+            beaconId: beaconId,
+            userId: userId,
+            status: 2,
+            markSent: true,
+          );
+        }
+        final isCloseableNow = await _canCloseNow(beaconId: beaconId);
+        if (!wasCloseableBefore && isCloseableNow) {
+          final window = (await _evaluationRepository.getReviewWindow(
+            beaconId,
+          ))!;
+          final beacon = await _beaconRepository.getBeaconById(
+            beaconId: beaconId,
+          );
+          await transaction.record(
+            await _attentionIntents!.reviewAllPackagesIn(
+              beaconId: beaconId,
+              beaconTitle: beacon.title,
+              authorUserId: beacon.author.id,
+              sourceEventKey:
+                  'review_all_in:$beaconId:${window.openedAt.toUtc().toIso8601String()}',
+            ),
+          );
         }
       },
     );
+    // Always settle this reviewer's reviewOpened receipt (including already-2
+    // retries after a failed prior settle). Idempotent when already settled.
+    await _attentionSystemSettlement?.settleReviewerObligationOnPackageSend(
+      beaconId: beaconId,
+      reviewerAccountId: userId,
+    );
+    return true;
   }
 
   Future<bool> evaluationSkip({

@@ -35,6 +35,9 @@ final class BeaconEvaluationParticipantRecord {
     required this.role,
     required this.contributionSummary,
     required this.causalHint,
+    this.committedAt,
+    this.offerMessage = '',
+    this.forwarderDisplayName,
   });
 
   final String beaconId;
@@ -42,6 +45,11 @@ final class BeaconEvaluationParticipantRecord {
   final int role;
   final String contributionSummary;
   final String causalHint;
+
+  /// Structured context for client-side localization (m0176).
+  final DateTime? committedAt;
+  final String offerMessage;
+  final String? forwarderDisplayName;
 }
 
 /// Immutable snapshot of `beacon_evaluation_visibility`.

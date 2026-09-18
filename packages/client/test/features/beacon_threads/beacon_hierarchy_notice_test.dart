@@ -20,6 +20,7 @@ import 'package:tentura/features/beacon_threads/ui/widget/beacon_child_promotion
 import 'package:tentura/features/beacon_threads/ui/widget/beacon_hierarchy_notice.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/widget/beacon_card_primitives.dart';
 
 import '../../domain/use_case/fake_beacon_hierarchy_ports.dart';
 import '../../features/beacon_create/fake_beacon_ports.dart';
@@ -128,53 +129,59 @@ void main() {
       expect(find.text(dated), findsOneWidget);
     });
 
-    testWidgets('standalone creation notice renders the authorized preview card', (
-      tester,
-    ) async {
-      final port = FakeBeaconHierarchyRepositoryPort()
-        ..childPreviews['child-1'] = BeaconHierarchySummary(
-          beaconId: 'child-1',
-          title: 'Nested ask',
-          owner: const BeaconHierarchyOwnerSummary(
-            id: 'author-1',
-            displayName: 'Alice',
+    testWidgets(
+      'standalone creation notice is join-style chrome, not a request card',
+      (tester) async {
+        final port = FakeBeaconHierarchyRepositoryPort()
+          ..childPreviews['child-1'] = BeaconHierarchySummary(
+            beaconId: 'child-1',
+            title: 'Nested ask',
+            owner: const BeaconHierarchyOwnerSummary(
+              id: 'author-1',
+              displayName: 'Alice',
+            ),
+            status: BeaconStatus.open,
+            publishedAt: DateTime.utc(2026, 1, 1),
+            isTombstone: false,
+          );
+        GetIt.I.registerSingleton<BeaconHierarchyCase>(
+          buildBeaconHierarchyCaseForTest(
+            port,
+            createCase: BeaconCreateCase(
+              FakeBeaconWritePort(),
+              FakeBeaconImagePort(),
+            ),
+            beacons: FakeBeaconWritePort(),
+            commandStore: InMemoryBeaconChildCommandStore(),
           ),
-          status: BeaconStatus.open,
-          publishedAt: DateTime.utc(2026, 1, 1),
-          isTombstone: false,
         );
-      GetIt.I.registerSingleton<BeaconHierarchyCase>(
-        buildBeaconHierarchyCaseForTest(
-          port,
-          createCase: BeaconCreateCase(
-            FakeBeaconWritePort(),
-            FakeBeaconImagePort(),
-          ),
-          beacons: FakeBeaconWritePort(),
-          commandStore: InMemoryBeaconChildCommandStore(),
-        ),
-      );
 
-      await tester.pumpWidget(
-        _harness(
-          _message(
-            body: '',
-            systemMessageKind: BeaconRoomSystemMessageKind.childCreated,
-            payload: {
-              'version': 1,
-              'kind': 'childCreated',
-              'childBeaconId': 'child-1',
-            },
+        await tester.pumpWidget(
+          _harness(
+            _message(
+              body: '',
+              systemMessageKind: BeaconRoomSystemMessageKind.childCreated,
+              payload: {
+                'version': 1,
+                'kind': 'childCreated',
+                'childBeaconId': 'child-1',
+              },
+            ),
           ),
-        ),
-      );
-      await tester.pumpAndSettle();
+        );
+        await tester.pumpAndSettle();
 
-      expect(find.byType(BeaconChildPromotionFooter), findsOneWidget);
-      expect(find.text('Nested ask'), findsOneWidget);
-      final l10n = await L10n.delegate.load(const Locale('en'));
-      expect(find.text(l10n.beaconHierarchyNoticeChildCreated), findsNothing);
-    });
+        final l10n = await L10n.delegate.load(const Locale('en'));
+        expect(
+          find.text(l10n.beaconHierarchyNoticeChildCreated),
+          findsOneWidget,
+        );
+        // Optional muted title line may appear after preview fetch.
+        expect(find.text('Nested ask'), findsOneWidget);
+        expect(find.byType(BeaconChildPromotionFooter), findsNothing);
+        expect(find.byType(BeaconCardShell), findsNothing);
+      },
+    );
 
     testWidgets('unparseable payload falls back to generic, non-actionable text', (
       tester,

@@ -14,6 +14,7 @@ enum BeaconRoomEntityType {
   factCard,
   coordinationItem,
   roomSeen,
+  helpOffer,
 }
 
 /// One debounced invalidation for the current user's beacon room slice.
@@ -52,6 +53,7 @@ final class BeaconRoomInvalidation {
       RealtimeEntityKind.coordinationItem =>
         BeaconRoomEntityType.coordinationItem,
       RealtimeEntityKind.roomSeen => BeaconRoomEntityType.roomSeen,
+      RealtimeEntityKind.helpOffer => BeaconRoomEntityType.helpOffer,
       _ => null,
     };
     return entityType == null

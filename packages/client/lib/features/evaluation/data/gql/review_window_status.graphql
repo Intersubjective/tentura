@@ -12,5 +12,14 @@ query ReviewWindowStatus($id: String!) {
     extensionsUsed
     canCloseNow
     canReopen
+    sentAt
+    requiredTotal
+    requiredReviewed
+    optionalTotal
+    optionalReviewed
+    viewerPackageOptional
+    allRequiredSent
+    sentReviewerCount
+    unsentStartedPackages
   }
 }

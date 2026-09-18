@@ -13,6 +13,7 @@ import '../gql/_g/help_offers_with_coordination.data.gql.dart';
 import '../gql/_g/beacon_help_offer_accept.req.gql.dart';
 import '../gql/_g/beacon_help_offer_decline.req.gql.dart';
 import '../gql/_g/beacon_help_offer_remove.req.gql.dart';
+import '../gql/_g/beacon_help_offer_role_label_set.req.gql.dart';
 import '../gql/_g/beacon_release_commitment.req.gql.dart';
 import '../gql/_g/help_offers_with_coordination.req.gql.dart';
 import '../gql/_g/set_beacon_status.req.gql.dart';
@@ -34,6 +35,7 @@ class CoordinationRepository {
         Profile user,
         String message,
         String? helpType,
+        String? roleLabel,
         int status,
         String? withdrawReason,
         DateTime createdAt,
@@ -71,6 +73,7 @@ class CoordinationRepository {
                 user: _profileFromHelpOfferUser(e.user),
                 message: e.message,
                 helpType: e.helpType,
+                roleLabel: e.roleLabel ?? '',
                 status: e.status,
                 withdrawReason: e.withdrawReason,
                 createdAt: DateTime.parse(e.createdAt),
@@ -235,6 +238,22 @@ class CoordinationRepository {
               : DateTime.tryParse(res.statusChangedAt!),
         );
       });
+
+  Future<bool> setRoleLabel({
+    required String beaconId,
+    required String offerUserId,
+    required String roleLabel,
+  }) => _remoteApiService
+      .request(
+        GBeaconHelpOfferRoleLabelSetReq(
+          (r) => r
+            ..vars.beaconId = beaconId
+            ..vars.offerUserId = offerUserId
+            ..vars.roleLabel = roleLabel,
+        ),
+      )
+      .firstWhere((e) => e.dataSource == DataSource.Link)
+      .then((r) => r.dataOrThrow(label: _label).beaconHelpOfferRoleLabelSet);
 }
 
 Profile _profileFromHelpOfferUser(

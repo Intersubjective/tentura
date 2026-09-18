@@ -35,6 +35,10 @@ class MyWorkCubit extends Cubit<MyWorkState> {
       (_) => unawaited(fetch(showLoading: false)),
       cancelOnError: false,
     );
+    _reviewPackageChanges = _myWorkCase.reviewPackageChanges.listen(
+      (_) => unawaited(fetch(showLoading: false)),
+      cancelOnError: false,
+    );
     _forwardChanges = _myWorkCase.forwardChanges.listen(
       (_) => unawaited(fetch(showLoading: false)),
       cancelOnError: false,
@@ -106,6 +110,7 @@ class MyWorkCubit extends Cubit<MyWorkState> {
   late final StreamSubscription<RepositoryEvent<Beacon>> _beaconChanges;
 
   late final StreamSubscription<dynamic> _helpOfferChanges;
+  late final StreamSubscription<void> _reviewPackageChanges;
 
   late final StreamSubscription<String> _forwardChanges;
 
@@ -132,6 +137,7 @@ class MyWorkCubit extends Cubit<MyWorkState> {
     _roomMessageHintRetryTimers.clear();
     await _beaconChanges.cancel();
     await _helpOfferChanges.cancel();
+    await _reviewPackageChanges.cancel();
     await _forwardChanges.cancel();
     await _readWatermarkSub.cancel();
     await _deskRelevantChanges.cancel();
@@ -433,12 +439,20 @@ class MyWorkCubit extends Cubit<MyWorkState> {
     List<String> receiptIds,
   ) async {
     if (beaconId.isEmpty || receiptIds.isEmpty) return;
-    final ids = {
-      for (final id in receiptIds)
-        if (id.isNotEmpty) id,
-    };
-    if (ids.isEmpty) return;
     final current = state.attentionByBeacon[beaconId];
+    final ids = <String>{};
+    for (final id in receiptIds) {
+      if (id.isEmpty) continue;
+      if (current != null) {
+        final isReview = current.liveObligations.any(
+          (r) => r.id == id && r.presentationKey == 'review_opened',
+        );
+        // Review reminders stay until the package is sent / window ends.
+        if (isReview) continue;
+      }
+      ids.add(id);
+    }
+    if (ids.isEmpty) return;
     if (current != null) {
       emit(
         state.copyWith(

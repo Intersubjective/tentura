@@ -71,12 +71,19 @@ class _TrackingEvaluationRepository implements EvaluationRepositoryPort {
       null;
 
   @override
+  Future<DateTime?> getReviewSentAt(String beaconId, String userId) async =>
+      null;
+
+  @override
   Future<void> insertParticipant({
     required String beaconId,
     required String userId,
     required int role,
     required String contributionSummary,
     required String causalHint,
+    DateTime? committedAt,
+    String offerMessage = '',
+    String? forwarderDisplayName,
   }) async {}
 
   @override
@@ -169,6 +176,7 @@ class _TrackingEvaluationRepository implements EvaluationRepositoryPort {
     required String beaconId,
     required String userId,
     required int status,
+    bool markSent = false,
   }) async {}
 
   @override

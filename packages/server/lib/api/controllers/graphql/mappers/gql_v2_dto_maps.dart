@@ -117,6 +117,11 @@ Map<String, dynamic> evaluationParticipantToGqlMap(
   'acknowledgeableHelpTags': dto.acknowledgeableHelpTags,
   'maxAcknowledgedHelpTags': dto.maxAcknowledgedHelpTags,
   'isSubmitted': dto.isSubmitted,
+  'isOptional': dto.isOptional,
+  'rowStatus': dto.rowStatus,
+  'committedAt': dto.committedAt?.toUtc().toIso8601String(),
+  'offerMessage': dto.offerMessage,
+  'forwarderDisplayName': dto.forwarderDisplayName,
 };
 
 Map<String, dynamic> evaluationDraftRowToGqlMap(EvaluationDraftRowResult dto) =>
@@ -141,6 +146,15 @@ Map<String, dynamic> reviewWindowStatusToGqlMap(ReviewWindowStatusResult dto) =>
       'extensionsUsed': dto.extensionsUsed,
       'canCloseNow': dto.canCloseNow,
       'canReopen': dto.canReopen,
+      'requiredTotal': dto.requiredTotal,
+      'requiredReviewed': dto.requiredReviewed,
+      'optionalTotal': dto.optionalTotal,
+      'optionalReviewed': dto.optionalReviewed,
+      'viewerPackageOptional': dto.viewerPackageOptional,
+      'sentAt': dto.sentAt?.toUtc().toIso8601String(),
+      'allRequiredSent': dto.allRequiredSent,
+      'unsentStartedPackages': dto.unsentStartedPackages,
+      'sentReviewerCount': dto.sentReviewerCount,
     };
 
 Map<String, dynamic> evaluationSummaryToGqlMap(EvaluationSummaryResult dto) => {

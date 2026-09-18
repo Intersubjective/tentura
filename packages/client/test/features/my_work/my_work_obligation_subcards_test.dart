@@ -17,13 +17,14 @@ import 'my_work_test_support.dart';
 AttentionReceipt _offer({
   required String id,
   required String offererId,
+  String body = 'I can sew',
 }) => AttentionReceipt(
   id: id,
   category: 'coordination',
   kind: 'helpOfferSubmitted',
   priority: 'normal',
   title: 'Anna',
-  body: 'Offered help',
+  body: body,
   actionUrl: '/#/',
   createdAt: DateTime.utc(2026, 9, 1),
   collapsedCount: 1,
@@ -112,6 +113,8 @@ void main() {
       onRespondHelpOffer: (_) => respondCount++,
     );
 
+    expect(find.textContaining('I can sew'), findsOneWidget);
+
     final respond = find.widgetWithText(TenturaTextAction, 'Respond');
     final done = find.bySemanticsIdentifier(TestIds.myWorkObligationDone('r1'));
     expect(respond, findsOneWidget);
@@ -169,6 +172,37 @@ void main() {
     await tester.tap(find.text('Review').first);
     await tester.pump();
     expect(reviewCount, 1);
+  });
+
+  testWidgets('Review sub-card has Review CTA but no Done', (tester) async {
+    await _pumpBlock(
+      tester,
+      obligations: [
+        AttentionReceipt(
+          id: 'rev-1',
+          category: 'coordination',
+          kind: 'reviewOpened',
+          priority: 'normal',
+          title: 'Review',
+          body: 'Contributions ready',
+          actionUrl: '/#/',
+          createdAt: DateTime.utc(2026, 9, 1),
+          collapsedCount: 1,
+          presentationKey: 'review_opened',
+          presentationPayloadJson: '{}',
+          surface: AttentionSurface.myWork,
+          beaconId: 'beacon-1',
+          requiresAction: true,
+        ),
+      ],
+      onReviewContributions: () {},
+    );
+
+    expect(find.text('Review'), findsWidgets);
+    expect(
+      find.bySemanticsIdentifier(TestIds.myWorkObligationDone('rev-1')),
+      findsNothing,
+    );
   });
 
   test('block visible when only showReviewCta and no live receipts', () {

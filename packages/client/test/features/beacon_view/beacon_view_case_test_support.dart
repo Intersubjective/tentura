@@ -43,6 +43,7 @@ typedef FakeHelpOfferCoordinationRow = ({
   Profile user,
   String message,
   String? helpType,
+  String? roleLabel,
   int status,
   String? withdrawReason,
   DateTime createdAt,

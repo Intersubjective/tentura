@@ -910,7 +910,9 @@ final class BeaconRoomCase extends UseCaseBase {
             })
           >{}
         : await _room.userPicMetaByIds(userIds);
-    final helpTypesByUserId = await _room.helpTypesByUserId(beaconId);
+    final helpOfferHintsByUserId = await _room.activeHelpOfferHintsByUserId(
+      beaconId,
+    );
     return rows
         .map(
           (r) => <String, Object?>{
@@ -935,7 +937,10 @@ final class BeaconRoomCase extends UseCaseBase {
             'lastSeenRoomAt': lastSeenByUserId[r.userId]
                 ?.toUtc()
                 .toIso8601String(),
-            'helpType': helpTypesByUserId[r.userId],
+            'helpType': helpOfferHintsByUserId[r.userId]?.helpType,
+            'roleLabel': helpOfferHintsByUserId.containsKey(r.userId)
+                ? helpOfferHintsByUserId[r.userId]!.roleLabel
+                : null,
             'createdAt': r.createdAt.toIso8601String(),
             'updatedAt': r.updatedAt.toIso8601String(),
           },
@@ -969,6 +974,7 @@ final class BeaconRoomCase extends UseCaseBase {
             authorId: author ?? '',
             moderatorUserIds: moderators,
             sourceEventKey: 'room_help_offer:${generateId('A')}',
+            message: note,
           ),
         );
       },

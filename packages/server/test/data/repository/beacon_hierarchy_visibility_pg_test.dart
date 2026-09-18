@@ -30,22 +30,25 @@ Future<void> main() async {
     late BeaconHierarchyFixture fixture;
     late BeaconAccessRepository access;
     late BeaconHierarchyRepository hierarchy;
+    var sessionOpened = false;
+    BeaconHierarchyDisposablePgTarget? createdTarget;
 
     setUpAll(() async {
       if (skipReason != false) {
         return;
       }
       target = BeaconHierarchyDisposablePgTarget.fromEnvironment();
-      await target.recreate();
+      createdTarget = target;
       final session = await openBeaconHierarchyPgSession(target);
       writer = session.writer;
       fixture = BeaconHierarchyFixture(writer: writer, db: session.db);
       access = BeaconAccessRepository(session.db);
       hierarchy = BeaconHierarchyRepository(session.db);
+      sessionOpened = true;
     });
 
     tearDown(() async {
-      if (skipReason != false) {
+      if (skipReason != false || !sessionOpened) {
         return;
       }
       await writer.execute(
@@ -59,9 +62,11 @@ Future<void> main() async {
       if (skipReason != false) {
         return;
       }
-      await fixture.db.close();
-      await writer.close();
-      await target.drop();
+      if (sessionOpened) {
+        await fixture.db.close();
+        await writer.close();
+      }
+      await createdTarget?.drop();
     });
 
     Future<void> _reseedParticipantsAfterHierarchyTree(Connection writer) async {

@@ -64,7 +64,7 @@ Duration? _parseEnvDuration(String? raw) {
 /// private anchor invalidations, and the map/text controls ship as one
 /// coordinated contract. The release deliberately does not support an older
 /// client against the new anchor surface.
-const kDefaultMinClientVersion = '7.10.0';
+const kDefaultMinClientVersion = '7.16.0';
 
 class Env {
   Env({

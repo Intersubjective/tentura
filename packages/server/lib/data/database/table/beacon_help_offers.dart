@@ -18,6 +18,9 @@ class BeaconHelpOffers extends Table with TimestampsFields {
 
   late final helpType = text().nullable()();
 
+  /// Short free-text in-request role label (People tab / chat avatar).
+  late final roleLabel = text().nullable()();
+
   late final withdrawReason = text().nullable()();
 
   // 0=active, 1=withdrawn

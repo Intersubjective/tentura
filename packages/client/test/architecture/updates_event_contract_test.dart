@@ -105,6 +105,24 @@ const _expectedEventTypes = <Map<String, String>>[
         'packages/server/test/domain/evaluation/evaluation_case_test.dart',
   },
   {
+    'eventType': 'reviewAllPackagesIn',
+    'producer': 'EvaluationCase.evaluationFinalize',
+    'recipientCategory': 'beacon_author',
+    'destinationFamily': 'review',
+    'muteability': 'standard',
+    'coveringTest':
+        'packages/server/test/domain/evaluation/evaluation_case_test.dart',
+  },
+  {
+    'eventType': 'reviewWindowCancelled',
+    'producer': 'EvaluationCase.reopenFromReview',
+    'recipientCategory': 'review_participant',
+    'destinationFamily': 'beacon',
+    'muteability': 'standard',
+    'coveringTest':
+        'packages/server/test/domain/evaluation/evaluation_case_test.dart',
+  },
+  {
     'eventType': 'mutualConnectionFormed',
     'producer':
         'UserTrustEdgeCase.setUserVote|AuthCase.signUp(invite)|AuthCase.signUpWithInvite|CredentialAuthCase.resolveOrCreate(invite)|InvitationCase.accept|InvitationCase.acceptAsExisting(non-Beacon relationship-forming path)',

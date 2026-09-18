@@ -978,6 +978,134 @@ void main() {
       expect(withHint.positions['peer-a'], hintPoint);
       expect(withoutHint.positions['peer-a'], isNot(equals(hintPoint)));
     });
+
+    test(
+      'satellite prior hint is skipped when author seat moved '
+      '(empty requestAuthorById)',
+      () {
+        final paths = resolveConstellationPaths(
+          egoId: _ego,
+          visiblePeerIds: {'peer-a'},
+          holderIds: {_ego, 'peer-a'},
+          edges: [(src: _ego, dst: 'peer-a', tier: 1)],
+        );
+        // Prior session: author near ego ring, satellite just outside author.
+        final priorAuthor = (x: 2048.0 + 170.0, y: 2048.0);
+        final priorSatellite = (x: 2048.0 + 170.0 + 56.0, y: 2048.0);
+        // Author now hard-pinned far away (xUnits=5 → 2048+850).
+        final pinnedAuthorPos = ConstellationAnchorPosition(
+          xUnits: 5,
+          yUnits: 0,
+          coordinateSpaceVersion: kConstellationCoordinateSpaceVersionV1,
+        );
+        final newAuthorPoint = constellationV1AnchorToPoint(pinnedAuthorPos);
+
+        final moved = computeConstellationPlacedLayout(
+          input: (
+            egoId: _ego,
+            paths: paths,
+            automaticKeptPeerIds: {'peer-a'},
+            pinnedPersonIds: {'peer-a'},
+            pinnedRequestIds: const {},
+            supportPersonIds: const {},
+            anchorByNodeId: {'peer-a': pinnedAuthorPos},
+            priorHints: (
+              positions: {
+                'peer-a': priorAuthor,
+                'req-1': priorSatellite,
+              },
+              ring: {'peer-a': 1},
+              viewportClass: ConstellationViewportClass.expanded,
+            ),
+            nodeSizes: const {
+              'peer-a': (width: 64, height: 64),
+              'req-1': (width: 48, height: 48),
+            },
+            satelliteRequestIdsByAuthor: const {
+              'peer-a': ['req-1'],
+            },
+            // Scene path: empty author map — hint-skip must still resolve.
+            requestAuthorById: const <String, String>{},
+            egoOwnRequestIds: const {},
+            spacing: _spacing,
+            maxHops: 3,
+            viewportClass: ConstellationViewportClass.expanded,
+            footprints: const <String, ConstellationFootprint>{},
+          ),
+        );
+
+        final sat = moved.positions['req-1'];
+        expect(sat, isNotNull);
+        expect(sat, isNot(equals(priorSatellite)));
+        expect(
+          math.sqrt(
+            math.pow(sat!.x - newAuthorPoint.x, 2) +
+                math.pow(sat.y - newAuthorPoint.y, 2),
+          ),
+          lessThan(150),
+          reason: 'satellite must reflow near the new author seat',
+        );
+      },
+    );
+
+    test(
+      'satellite prior hint still wins when author seat is unchanged',
+      () {
+        final paths = resolveConstellationPaths(
+          egoId: _ego,
+          visiblePeerIds: {'peer-a'},
+          holderIds: {_ego, 'peer-a'},
+          edges: [(src: _ego, dst: 'peer-a', tier: 1)],
+        );
+        final authorPos = ConstellationAnchorPosition(
+          xUnits: 2,
+          yUnits: 0,
+          coordinateSpaceVersion: kConstellationCoordinateSpaceVersionV1,
+        );
+        final authorPoint = constellationV1AnchorToPoint(authorPos);
+        // Stale-looking satellite seat that is still envelope-valid and
+        // collision-free once the author is at the same prior seat.
+        final priorSatellite = (
+          x: authorPoint.x + 80.0,
+          y: authorPoint.y + 40.0,
+        );
+
+        final layout = computeConstellationPlacedLayout(
+          input: (
+            egoId: _ego,
+            paths: paths,
+            automaticKeptPeerIds: {'peer-a'},
+            pinnedPersonIds: {'peer-a'},
+            pinnedRequestIds: const {},
+            supportPersonIds: const {},
+            anchorByNodeId: {'peer-a': authorPos},
+            priorHints: (
+              positions: {
+                'peer-a': authorPoint,
+                'req-1': priorSatellite,
+              },
+              ring: {'peer-a': 1},
+              viewportClass: ConstellationViewportClass.expanded,
+            ),
+            nodeSizes: const {
+              'peer-a': (width: 64, height: 64),
+              'req-1': (width: 48, height: 48),
+            },
+            satelliteRequestIdsByAuthor: const {
+              'peer-a': ['req-1'],
+            },
+            requestAuthorById: const <String, String>{},
+            egoOwnRequestIds: const {},
+            spacing: _spacing,
+            maxHops: 3,
+            viewportClass: ConstellationViewportClass.expanded,
+            footprints: const <String, ConstellationFootprint>{},
+          ),
+        );
+
+        expect(layout.positions['req-1'], priorSatellite);
+      },
+    );
   });
 
   group('computeConstellationPinPosition', () {

@@ -8,6 +8,7 @@ import 'package:tentura_root/domain/entity/beacon_hierarchy_summary.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 
 import 'package:tentura/app/router/root_router.dart';
+import 'package:tentura/design_system/components/tentura_text_action.dart';
 import 'package:tentura/design_system/tentura_theme.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/domain/use_case/beacon_create_case.dart';
@@ -15,6 +16,7 @@ import 'package:tentura/domain/use_case/beacon_hierarchy_case.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/beacon_child_promotion_footer.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/widget/beacon_card_primitives.dart';
 
 import '../../domain/use_case/fake_beacon_hierarchy_ports.dart';
 import '../../features/beacon_create/fake_beacon_ports.dart';
@@ -126,6 +128,8 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('Fix the fence'), findsOneWidget);
+    expect(find.byType(TenturaTextAction), findsOneWidget);
+    expect(find.byType(BeaconCardShell), findsNothing);
     expect(registered.port.fetchChildPreviewCallCount, 1);
 
     await tester.tap(find.text('Fix the fence'));
@@ -153,6 +157,7 @@ void main() {
 
     final l10n = await L10n.delegate.load(const Locale('en'));
     expect(find.text(l10n.beaconChildFooterUnavailable), findsOneWidget);
+    expect(find.byType(BeaconCardShell), findsNothing);
     expect(find.text('child-hidden'), findsNothing);
 
     await tester.tap(find.text(l10n.beaconChildFooterUnavailable));

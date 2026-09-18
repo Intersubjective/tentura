@@ -38,7 +38,7 @@
       "clientKind": "helpOffer",
       "genericTriggerArgs": ["help_offer"],
       "specializedPublishers": ["notify_coordination_change", "notify_help_offer_admission_event_change"],
-      "impacts": ["request_people", "inbox", "my_work", "chat_access"],
+      "impacts": ["request_people", "inbox", "my_work", "chat_access", "chat"],
       "tests": ["packages/client/test/features/beacon_view/beacon_view_case_orchestration_test.dart"]
     },
     {

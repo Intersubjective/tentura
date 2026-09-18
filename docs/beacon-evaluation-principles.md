@@ -25,7 +25,7 @@ It is not a public reputation ritual, not a morality scoreboard, and not a perfo
 ### Draft pre-flow (Phase A)
 
 * While a beacon is still **open**, users who will later be eligible may save **private draft** notes (same structure as a review row) as **memory aids**.
-* Drafts are **not** shown to the person being described and **do not** count in summaries. In the review window, drafts are the working package until the evaluator explicitly **sends**; rows that were never sent are **discarded** when the window closes (timeout, early close, or auto-close).
+* Drafts are **not** shown to the person being described and **do not** count in summaries. In the review window, drafts are the working package until the evaluator explicitly **sends**; rows that were never sent are **discarded** when the window closes — the author closes the request early, or the review deadline passes.
 * This reduces forced-opinion noise after closure (“I forgot what happened”) without turning drafts into a shadow reputation layer.
 
 ## What evaluation is for

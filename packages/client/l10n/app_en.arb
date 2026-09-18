@@ -2888,17 +2888,25 @@
   "@forwardRestorePersonalNote": {
     "context": "ForwardBeaconScreen per-recipient note"
   },
-  "forwardUncoveredRecipientsTitle": "No personal note yet",
+  "forwardUncoveredRecipientsTitle": "Shared note",
   "@forwardUncoveredRecipientsTitle": {
-    "context": "ForwardBeaconScreen uncovered recipients sheet"
+    "context": "ForwardBeaconScreen uncovered recipients sheet title"
   },
-  "forwardUncoveredSharedNoteInfo": "A shared note is sent to everyone who still has no personal note.",
+  "forwardUncoveredSharedNoteInfo": "Sent to anyone who doesn't have a personal note.",
   "@forwardUncoveredSharedNoteInfo": {
-    "context": "ForwardBeaconScreen uncovered recipients sheet"
+    "context": "ForwardBeaconScreen uncovered recipients sheet visible helper"
+  },
+  "forwardUncoveredRecipientsListCaption": "People without a personal note",
+  "@forwardUncoveredRecipientsListCaption": {
+    "context": "ForwardBeaconScreen uncovered recipients sheet list caption"
+  },
+  "forwardUncoveredSharedNoteFieldHint": "Optional",
+  "@forwardUncoveredSharedNoteFieldHint": {
+    "context": "ForwardBeaconScreen uncovered recipients sheet field hint"
   },
   "forwardSendWithoutSharedNote": "Send without a shared note",
   "@forwardSendWithoutSharedNote": {
-    "context": "ForwardBeaconScreen uncovered recipients sheet"
+    "context": "Deprecated — removed from uncovered sheet in #172; keep key until callers are gone"
   },
   "forwardMrSortShort": "MR sort",
   "@forwardMrSortShort": {
@@ -4048,14 +4056,7 @@
   "evaluationAcknowledgeTitleDraft": "Draft review notes",
   "evaluationReviewListPrivacyTitle": "Review privacy",
   "evaluationReviewListPrivacyTitleDraft": "Draft privacy",
-  "evaluationReviewListPrivacyLive": "Reviews are pairwise-private. After the review window closes, only the person you evaluate will see your name, impact choice, capability acknowledgements, and note. Reviews are never public and are not visible to unrelated participants. If you cannot judge this contribution, turn off \"{action}\" on that participant's card.",
-  "@evaluationReviewListPrivacyLive": {
-    "placeholders": {
-      "action": {
-        "type": "String"
-      }
-    }
-  },
+  "evaluationReviewListPrivacyLive": "Reviews are pairwise-private. After the review window closes, only the person you evaluate will see your name, impact choice, capability acknowledgements, and note. Reviews are never public and are not visible to unrelated participants.",
   "evaluationReviewListPrivacyDraft": "These are private draft notes. They are not shared during the review window; save them to submit after the request closes.",
   "evaluationPrivacyBlock": "Your feedback here is private. It will not be shown publicly, and other people in this request will not see your answers by default. It is only used to improve your own local trust view: who you may want to trust more, trust less, or route requests through next time. In simple terms: your answers help Tentura make better personal recommendations and matching for you around the people involved here and the people connected to them. Please judge only what you actually saw in this request. If you are not sure, choose \"No basis\".",
   "evaluationPrivacyShort": "Your feedback is private.",
@@ -4071,7 +4072,77 @@
       }
     }
   },
-  "evaluationSubmitFinish": "Submit and finish",
+  "evaluationSubmitFinish": "Send reviews",
+  "evaluationSubmitChanges": "Send changes",
+  "evaluationPackageSentAt": "Reviews sent {date}",
+  "@evaluationPackageSentAt": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "evaluationPackageSentHint": "You can change them until the request closes. After a change the package must be sent again.",
+  "evaluationPackageDirtyTitle": "Changes not sent",
+  "evaluationPackageDirtyBody": "Until the package is sent, your reviews are not counted when the request closes.",
+  "evaluationPackageDone": "Done",
+  "evaluationPausedTitle": "The author reopened the request",
+  "evaluationPausedBody": "Nothing was shared. Your saved answers stayed drafts — you can send them when the author wraps the request up again.",
+  "evaluationPausedAction": "Open the request",
+  "evaluationClosedSentBody": "The request is closed. Your reviews were sent and counted.",
+  "evaluationClosedUnsentBody": "The request closed before you sent your package. Unsent reviews were not kept.",
+  "evaluationSectionRequired": "Required",
+  "evaluationSectionOptional": "Optional · participation ended",
+  "evaluationOptionalHint": "These reviews are optional and do not hold up closing.",
+  "evaluationOptionalSkip": "Skip",
+  "evaluationProgressSplit": "{req} of {reqTotal} required · {opt} of {optTotal} optional",
+  "@evaluationProgressSplit": {
+    "placeholders": {
+      "req": {
+        "type": "int"
+      },
+      "reqTotal": {
+        "type": "int"
+      },
+      "opt": {
+        "type": "int"
+      },
+      "optTotal": {
+        "type": "int"
+      }
+    }
+  },
+  "evaluationOwnPackageOptional": "You no longer take part in this request. A review is welcome but not required. If you do not send it before the request closes, it is discarded.",
+  "evaluationContextCommitted": "Helping since {date}",
+  "@evaluationContextCommitted": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "evaluationContextCommittedVia": "Helping since {date} · via {name}",
+  "@evaluationContextCommittedVia": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      },
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "evaluationContextCommittedNoDate": "Helped with this request",
+  "evaluationContextEnded": "Participation ended",
+  "evaluationContextForwarder": "Forwarded the request",
+  "evaluationContextOffer": "“{message}”",
+  "@evaluationContextOffer": {
+    "placeholders": {
+      "message": {
+        "type": "String"
+      }
+    }
+  },
   "evaluationSkipForNow": "Skip for now",
   "evaluationProgress": "{reviewed} of {total} reviewed",
   "@evaluationProgress": {
@@ -4186,10 +4257,21 @@
   "evaluationImpactNoRealEffect": "No real effect",
   "evaluationImpactHurtSomewhat": "Hurt somewhat",
   "evaluationImpactHurtALot": "Hurt a lot",
-  "evaluationCanEvaluate": "Can evaluate",
   "evaluationCannotEvaluate": "Cannot evaluate",
-  "evaluationCannotEvaluateReplacement": "Your current impact, capability acknowledgements, and note will be cleared.",
-  "evaluationProgressIncompleteHint": "Send stays unavailable until every participant is reviewed or Can evaluate is turned off.",
+  "evaluationCannotEvaluateReplacement": "Your current impact, capability acknowledgements, and note will be cleared. No review will be sent for this person and your trust in them will not change.",
+  "evaluationCannotEvaluateExplanation": "You marked that you did not see this contribution. No review will be sent and your trust in this person will not change.",
+  "evaluationCannotEvaluateUndo": "Undo",
+  "evaluationCardActionReview": "Review",
+  "evaluationCardActionEdit": "Edit",
+  "evaluationListIntro": "Tap Review on each person to rate their contribution.",
+  "evaluationProgressRemainingHint": "Left to review: {count}. Did not see someone's contribution? Mark \"Cannot evaluate\" on their card.",
+  "@evaluationProgressRemainingHint": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "evaluationCapabilityChoose": "What exactly?",
   "evaluationCapabilityChooseInfo": "This list combines this request's needs, the types of help in this person's active help offer, and any tags you already saved for them. Mark what they specifically helped with in this request. After the review window closes, only they see these marks. Tentura uses them as private cues for your future routing suggestions — not a public rating.",
   "evaluationCapabilityDone": "Done",
@@ -4576,7 +4658,15 @@
   "beaconReviewReopenSuccess": "Request reopened",
   "beaconReviewCloseNowSuccess": "Request closed",
   "beaconReviewReopenTitle": "Reopen request?",
-  "beaconReviewReopenBody": "Returns to Open. Review notes are kept as drafts where still relevant.",
+  "beaconReviewReopenBody": "The review window closes. {sent} people already sent their reviews — their send is undone and they must send again. A request can be reopened only once.",
+  "@beaconReviewReopenBody": {
+    "placeholders": {
+      "sent": {
+        "type": "int"
+      }
+    }
+  },
+  "beaconReviewReopenBodyNoSent": "The review window closes; saved answers stay drafts. A request can be reopened only once.",
   "beaconReviewReopenConfirm": "Reopen",
   "beaconNeedsMoreHelpRevertTitle": "Need more help?",
   "beaconNeedsMoreHelpRevertBody": "Returns to Open and marks more help needed. Review notes are kept as drafts where still relevant.",
@@ -4643,6 +4733,30 @@
   "beaconHudActMarkEnoughHelp": "We have enough help",
   "beaconHudActWrapUpForReview": "Wrap up for review",
   "beaconHudActReviewContributions": "Review contributions",
+  "beaconHudActEffectReviewProgress": "{count} of {total} left",
+  "@beaconHudActEffectReviewProgress": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "beaconHudReviewSent": "Your reviews are sent",
+  "beaconHudReviewEdit": "Edit",
+  "beaconHudWaitingForRequiredReviews": "Waiting for the other participants' reviews",
+  "beaconHudWaitingForAuthorClose": "Waiting for the author to close the request",
+  "beaconReviewCloseNowBody": "Reviews become visible to their recipients and can no longer be changed.",
+  "beaconReviewCloseNowDiscardNote": "{count} people started a review and did not send it — it will not be kept.",
+  "@beaconReviewCloseNowDiscardNote": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "beaconHudActEffectResolveBlocker": "Opens Items to clear the blocker",
   "beaconHudActEffectReviewOffers": "Opens People; accept adds helper to the discussion",
   "beaconHudActEffectMarkEnoughHelp": "Signals helpers; request stays open",
@@ -4655,7 +4769,6 @@
   "beaconHudConfirmMarkEnoughHelpBody": "Helpers see that help is sufficient. The request stays open until you wrap up or close.",
   "beaconHudConfirmMarkEnoughHelpAction": "Mark enough help",
   "beaconHudConfirmCloseNowTitle": "Close request now?",
-  "beaconHudConfirmCloseNowBody": "Closes the request immediately. Discussion stays read-only.",
   "beaconHudConfirmCloseNowBlockedBody": "Close now is available when every required reviewer has finished or skipped.",
   "beaconHudConfirmCloseNowAction": "Close now",
   "beaconHudConfirmChangeLaterInStatus": "Change later in Request status",
@@ -5109,6 +5222,22 @@
   "@beaconRoomReactionSendersSheetSemantic": {
     "description": "Accessibility label for the who-reacted bottom sheet"
   },
+  "roomAuthorCommitmentSheetTitle": "Commitment details",
+  "@roomAuthorCommitmentSheetTitle": {
+    "description": "Accessibility label for the read-only author commitment sheet opened from chat glyphs"
+  },
+  "roomAuthorCommitmentGlyphsSemantic": "Commitment details for {name}: {tags}",
+  "@roomAuthorCommitmentGlyphsSemantic": {
+    "description": "Accessibility / tooltip for the capability glyph cluster under a chat avatar",
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "tags": {
+        "type": "String"
+      }
+    }
+  },
   "beaconRoomActionReply": "Reply",
   "beaconRoomReplyingTo": "Reply to {name}",
   "@beaconRoomReplyingTo": {
@@ -5361,6 +5490,27 @@
     }
   },
   "helpOfferRolePrompt": "How are you helping?",
+  "helpOfferRoleLabelField": "Role",
+  "@helpOfferRoleLabelField": {
+    "description": "Editable short role label on People help-offer card and chat peek sheet"
+  },
+  "helpOfferRoleLabelPlaceholder": "<role not selected>",
+  "@helpOfferRoleLabelPlaceholder": {
+    "description": "Shown under chat avatar / on People card when role_label is empty"
+  },
+  "helpOfferRoleLabelEditAction": "edit role",
+  "helpOfferRoleLabelTooLong": "Role must be at most 32 characters on one line.",
+  "roomAuthorRoleLabelSemantic": "Role for {name}: {role}",
+  "@roomAuthorRoleLabelSemantic": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "role": {
+        "type": "String"
+      }
+    }
+  },
   "helpOfferSelectionLimit": "Choose up to 4 ways you can help.",
   "helpOfferSearchLabel": "Search ways to help",
   "helpOfferSubmit": "Offer help ({count}/{limit})",
@@ -5809,6 +5959,24 @@
   "updatesFallbackBodyRequestStatusChanged": "A request status changed.",
   "updatesFallbackTitleReviewOpened": "Close the loop",
   "updatesFallbackBodyReviewOpened": "A request is ready for review.",
+  "updatesFallbackTitleReviewAllIn": "All reviews are in",
+  "updatesFallbackBodyReviewAllIn": "The request “{title}” can be closed.",
+  "@updatesFallbackBodyReviewAllIn": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "updatesFallbackTitleReviewCancelled": "Review window cancelled",
+  "updatesFallbackBodyReviewCancelled": "The author reopened the request “{title}”.",
+  "@updatesFallbackBodyReviewCancelled": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
   "updatesFallbackTitleMutualConnectionFormed": "New connection",
   "updatesFallbackBodyMutualConnectionFormed": "You are now connected on Tentura.",
   "updatesFallbackTitleInviteAccepted": "Invitation accepted",

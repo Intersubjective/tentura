@@ -14,6 +14,7 @@ class HelpOfferWithCoordinationRow {
     required this.updatedAt,
     required this.user,
     this.helpType,
+    this.roleLabel,
     this.withdrawReason,
     this.responseType,
     this.responseUpdatedAt,
@@ -31,6 +32,7 @@ class HelpOfferWithCoordinationRow {
   final String userId;
   final String message;
   final String? helpType;
+  final String? roleLabel;
   final int status;
   final String? withdrawReason;
   final DateTime createdAt;
@@ -66,6 +68,7 @@ class HelpOfferWithCoordinationRow {
     updatedAt: updatedAt,
     user: user,
     helpType: helpType,
+    roleLabel: roleLabel,
     withdrawReason: withdrawReason,
     responseType: responseType,
     responseUpdatedAt: responseUpdatedAt,

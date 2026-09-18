@@ -117,6 +117,28 @@ void main() {
     expect(find.byIcon(Icons.task_alt_outlined), findsNothing);
   });
 
+  testWidgets('review_opened live obligation hides Mark done', (tester) async {
+    await tester.pumpWidget(
+      _wrap(
+        UpdatesReceiptCard(
+          receipt: _receipt(
+            requiresAction: true,
+            presentationKey: 'review_opened',
+            presentationPayloadJson:
+                '{"beaconTitle":"Garden cleanup","eventType":"reviewOpened"}',
+          ),
+          onTap: () {},
+          onMarkSeen: () {},
+          onMarkUnseen: () {},
+          onSettle: () {},
+        ),
+      ),
+    );
+    await tester.pump();
+
+    expect(find.text(L10nEn().updatesMarkDone), findsNothing);
+  });
+
   testWidgets('unread row marks seen; seen row unsees without opening', (
     tester,
   ) async {

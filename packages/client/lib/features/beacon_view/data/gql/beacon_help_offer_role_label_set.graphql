@@ -1,0 +1,11 @@
+mutation BeaconHelpOfferRoleLabelSet(
+  $beaconId: String!
+  $offerUserId: String!
+  $roleLabel: String!
+) {
+  beaconHelpOfferRoleLabelSet(
+    id: $beaconId
+    offerUserId: $offerUserId
+    roleLabel: $roleLabel
+  )
+}

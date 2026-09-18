@@ -142,6 +142,28 @@ class HelpOfferRepository implements HelpOfferRepositoryPort {
     return _decodeHelpTypes(row.helpType);
   }
 
+  @override
+  Future<void> setRoleLabel({
+    required String beaconId,
+    required String offerUserId,
+    required String actorUserId,
+    required String? roleLabel,
+  }) => _database.withMutatingUser(actorUserId, () async {
+    await _database.managers.beaconHelpOffers
+        .filter(
+          (e) =>
+              e.beaconId.id(beaconId) &
+              e.userId.id(offerUserId) &
+              e.status.equals(0),
+        )
+        .update(
+          (o) => o(
+            roleLabel: Value(roleLabel),
+            updatedAt: Value(PgDateTime(DateTime.timestamp())),
+          ),
+        );
+  });
+
   static List<String> _decodeHelpTypes(String? helpTypeJson) {
     if (helpTypeJson == null || helpTypeJson.isEmpty) {
       return const [];
@@ -162,6 +184,7 @@ class HelpOfferRepository implements HelpOfferRepositoryPort {
         offerKind: row.offerKind,
         stakeState: row.stakeState,
         helpType: row.helpType,
+        roleLabel: row.roleLabel,
         withdrawReason: row.withdrawReason,
         createdAt: row.createdAt.dateTime,
         updatedAt: row.updatedAt.dateTime,

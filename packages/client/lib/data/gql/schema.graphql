@@ -3792,6 +3792,7 @@ type mutation_root {
   beaconForward(attributionParentEdgeIds: [String!], context: String, id: String!, note: String, parentEdgeId: String, perRecipientNotes: String, reasons: [String!], recipientBandProvenance: [v2_ForwardRecipientBandProvenanceInput], recipientIds: [String!], recipientReasons: [v2_ForwardRecipientReasonInput]): v2_ForwardDeliveryResult!
   beaconForwardCancel(id: String!): Boolean!
   beaconForwardUpdate(id: String!, note: String, reasons: [String!]): Boolean!
+  beaconHelpOfferRoleLabelSet(id: String!, offerUserId: String!, roleLabel: String!): Boolean!
   beaconMuteClear(beaconId: String!): Boolean!
   beaconMuteSet(beaconId: String!, mutedUntil: String): Boolean!
   beaconOfferHelp(expectedOfferKind: Int, helpTypes: [String!], id: String!, message: String): Boolean!
@@ -7578,6 +7579,7 @@ type v2_BeaconParticipantRow {
   nextMoveText: String
   offerNote: String
   role: Int!
+  roleLabel: String
   roomAccess: Int!
   status: Int!
   updatedAt: String!
@@ -7757,15 +7759,20 @@ type v2_EvaluationParticipant {
   acknowledgeableHelpTags: [String!]!
   acknowledgedHelpTags: [String!]!
   causalHint: String!
+  committedAt: String
   contributionSummary: String!
   displayName: String!
+  forwarderDisplayName: String
   imageId: String!
+  isOptional: Boolean!
   isSubmitted: Boolean!
   maxAcknowledgedHelpTags: Int!
   note: String!
+  offerMessage: String!
   promptVariant: String!
   reasonTags: [String!]
   role: Int!
+  rowStatus: Int!
   userId: String!
   value: Int
 }
@@ -7892,6 +7899,7 @@ type v2_HelpOfferWithCoordinationRow {
   responseAuthorUserId: String
   responseType: Int
   responseUpdatedAt: String
+  roleLabel: String
   roomAccess: Int
   stakeState: Int!
   status: Int!
@@ -8026,6 +8034,7 @@ type v2_PersonSharedContext {
 }
 
 type v2_ReviewWindowStatus {
+  allRequiredSent: Boolean
   beaconId: String!
   beaconTitle: String!
   canCloseNow: Boolean
@@ -8034,9 +8043,17 @@ type v2_ReviewWindowStatus {
   extensionsUsed: Int
   hasWindow: Boolean!
   openedAt: String
+  optionalReviewed: Int
+  optionalTotal: Int
+  requiredReviewed: Int
+  requiredTotal: Int
   reviewedCount: Int
+  sentAt: String
+  sentReviewerCount: Int
   totalCount: Int
+  unsentStartedPackages: Int
   userReviewStatus: Int
+  viewerPackageOptional: Boolean
   windowComplete: Boolean
 }
 

@@ -78,10 +78,13 @@ abstract final class TestIds {
       'capability.$slug.summary';
 
   static const roomMessageInput = 'room.message.input';
+  static const roomMessagePaste = 'room.message.paste';
   static const roomMessageSend = 'room.message.send';
 
   /// Press-scale wrapper around a room message bubble (long-press grow).
   static const roomMessageBubblePressScale = 'room.message.bubble_press_scale';
+  static const roomAuthorCommitmentGlyphs =
+      'room.message.author_commitment_glyphs';
   static String roomMentionSuggestion(String handle) =>
       'room.mention.suggestion.${handle.trim().toLowerCase()}';
   static const beaconForward = 'beacon.forward';
@@ -116,6 +119,10 @@ abstract final class TestIds {
 
   static const admissionReasonInput = 'help_offer.admission_reason.input';
   static const admissionReasonSubmit = 'help_offer.admission_reason.submit';
+  static const helpOfferRoleLabelInput = 'help_offer.role_label.input';
+  static const helpOfferRoleLabelSubmit = 'help_offer.role_label.submit';
+  static String helpOfferRoleLabelEdit(String userId) =>
+      'help_offer.$userId.role_label.edit';
 
   static const beaconOverflowMenu = 'beacon.overflow.menu';
   static const beaconOverflowClose = 'beacon.overflow.close';
@@ -138,6 +145,12 @@ abstract final class TestIds {
       'evaluation.participant.$userId';
   static const evaluationSave = 'evaluation.save';
   static const evaluationSubmit = 'evaluation.submit';
+
+  /// The package status line in the checklist's bottom bar (#162).
+  static const evaluationPackageStatus = 'evaluation.package_status';
+
+  /// The tonal button offered once the package is sent.
+  static const evaluationDone = 'evaluation.done';
   static String evaluationImpact(String value) => 'evaluation.impact.$value';
   static const evaluationCapabilityDone = 'evaluation.capability.done';
   static const evaluationCapabilityCancel = 'evaluation.capability.cancel';
@@ -145,6 +158,10 @@ abstract final class TestIds {
   static const evaluationCapabilityInfo = 'evaluation.capability.info';
   static String evaluationCannotEvaluate(String userId) =>
       'evaluation.cannot_evaluate.$userId';
+  static String evaluationReviewAction(String userId) =>
+      'evaluation.review_action.$userId';
+  static String evaluationUndoCannotEvaluate(String userId) =>
+      'evaluation.undo_cannot_evaluate.$userId';
 
   /// Trust graph node tap target, keyed by user id.
   static String graphNode(String userId) => 'graph.node.$userId';

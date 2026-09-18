@@ -31,6 +31,9 @@ abstract class BeaconParticipant with _$BeaconParticipant {
 
     /// Active help-offer capability wire (`beacon_help_offers.help_type`), when any.
     String? helpType,
+
+    /// Active help-offer role label. `null` = no active offer; `''` = offer, unset.
+    String? roleLabel,
   }) = _BeaconParticipant;
 }
 

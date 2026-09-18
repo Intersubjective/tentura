@@ -5,11 +5,12 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
-import 'package:tentura/design_system/tentura_capability_colors.dart';
+import 'package:tentura/design_system/components/room_message_bubble_shape.dart';
+import 'package:tentura/design_system/components/tentura_avatar.dart';
 import 'package:tentura/design_system/tentura_radii.dart';
+import 'package:tentura/design_system/tentura_text.dart';
 import 'package:tentura/design_system/tentura_tokens.dart';
 import 'package:tentura/design_system/tentura_window_class.dart';
-import 'package:tentura/domain/capability/capability_tag.dart';
 import 'package:tentura/domain/entity/beacon_fact_card.dart';
 import 'package:tentura/domain/entity/beacon_participant.dart';
 import 'package:tentura/domain/entity/beacon_room_consts.dart';
@@ -18,32 +19,30 @@ import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/domain/entity/room_message.dart';
 import 'package:tentura/domain/entity/room_message_attachment.dart';
 import 'package:tentura/domain/entity/room_poll_data.dart';
-import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/features/beacon_threads/ui/bloc/room_cubit.dart';
+import 'package:tentura/features/beacon_threads/ui/coordination_room_navigation.dart';
+import 'package:tentura/features/beacon_threads/ui/sheet/author_commitment_sheet.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/beacon_child_promotion_footer.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/beacon_hierarchy_notice.dart';
-import 'package:tentura/features/beacon_threads/ui/widget/room_pinned_fact_visibility_mark.dart';
-import 'package:tentura/features/beacon_threads/ui/widget/room_attachment_widgets.dart';
-import 'package:tentura/features/beacon_threads/ui/widget/room_poll_card.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/reaction_senders_sheet.dart';
-import 'package:tentura/features/beacon/ui/widget/coordination_ui.dart';
-import 'package:tentura/design_system/components/tentura_avatar.dart';
-import 'package:tentura/design_system/components/room_message_bubble_shape.dart';
-import 'package:tentura/ui/widget/presence_avatar.dart';
-import 'package:tentura/features/beacon_threads/ui/coordination_room_navigation.dart';
-import 'package:tentura/ui/bloc/screen_cubit.dart';
-import 'package:tentura/ui/l10n/l10n.dart';
-import 'package:tentura/ui/test_ids.dart';
-import 'package:tentura/ui/utils/ui_utils.dart';
-import 'package:tentura/ui/widget/coordination_log_row_chrome.dart';
-import 'package:tentura/ui/widget/coordination_item_presenter.dart';
-import 'package:tentura/ui/widget/self_user_highlight.dart';
-import 'package:tentura/ui/widget/coordination_item_card_chrome.dart';
-import 'package:tentura/ui/widget/coordination_participant_lookup.dart';
+import 'package:tentura/features/beacon_threads/ui/widget/room_attachment_widgets.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/room_message_bubble_measure.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/room_message_reply_quote.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/room_message_text_body.dart';
 import 'package:tentura/features/beacon_threads/ui/widget/room_message_trailing_meta_layout.dart';
+import 'package:tentura/features/beacon_threads/ui/widget/room_pinned_fact_visibility_mark.dart';
+import 'package:tentura/features/beacon_threads/ui/widget/room_poll_card.dart';
+import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
+import 'package:tentura/ui/bloc/screen_cubit.dart';
+import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/test_ids.dart';
+import 'package:tentura/ui/utils/ui_utils.dart';
+import 'package:tentura/ui/widget/coordination_item_card_chrome.dart';
+import 'package:tentura/ui/widget/coordination_item_presenter.dart';
+import 'package:tentura/ui/widget/coordination_log_row_chrome.dart';
+import 'package:tentura/ui/widget/coordination_participant_lookup.dart';
+import 'package:tentura/ui/widget/presence_avatar.dart';
+import 'package:tentura/ui/widget/self_user_highlight.dart';
 import 'package:tentura/ui/widget/show_more_text.dart';
 import 'package:tentura/ui/widget/tentura_selection_area.dart';
 import 'package:tentura/ui/widget/url_link_annotations.dart';
@@ -413,7 +412,10 @@ class RoomMessageTile extends StatelessWidget {
         : null;
     final isGroupStart =
         breakGroupAbove || _groupBreak(previousMessage, message);
-    final isGroupEnd = _groupBreak(message, nextMessage);
+    // A promoted-source footer ends the visual cluster so the next same-author
+    // message (if any) starts fresh rather than merging through the footer.
+    final isGroupEnd =
+        promotedChildBeaconId != null || _groupBreak(message, nextMessage);
 
     final topPad = isGroupStart ? tt.bubbleRowTop : 0.0;
     final bottomPad = tt.tightGap;
@@ -628,16 +630,14 @@ class RoomMessageTile extends StatelessWidget {
 
     final viewerReactions = _viewerReactionEmojiSet(message);
 
-    String? authorHelpTypeWire;
+    BeaconParticipant? authorParticipant;
     for (final p in participants) {
       if (p.userId == message.authorId) {
-        authorHelpTypeWire = p.helpType;
+        authorParticipant = p;
         break;
       }
     }
-    final authorCapabilityTags = helpOfferTypeSlugs(
-      authorHelpTypeWire,
-    ).take(4).map(CapabilityTag.fromSlug).whereType<CapabilityTag>().toList();
+    final authorRoleLabel = authorParticipant?.roleLabel;
 
     final imageAttachments = message.attachments
         .where((a) => a.isImage && a.imageId.isNotEmpty)
@@ -1335,41 +1335,32 @@ class RoomMessageTile extends StatelessWidget {
               SizedBox(
                 width: tt.avatarGutter,
                 child: isGroupEnd
-                    ? GestureDetector(
-                        onTap: () => context.read<ScreenCubit>().showProfile(
-                          message.author.id,
-                        ),
-                        child: Column(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            PresenceAvatar.medium(
+                    ? Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          GestureDetector(
+                            onTap: () =>
+                                context.read<ScreenCubit>().showProfile(
+                                  message.author.id,
+                                ),
+                            child: PresenceAvatar.medium(
                               profile: message.author,
                               userId: message.author.id,
                               size: tt.avatarGutter,
                             ),
-                            if (authorCapabilityTags.isNotEmpty) ...[
-                              const SizedBox(height: 1),
-                              SizedBox(
-                                width: kTenturaAvatarDefaultMedium,
-                                child: Wrap(
-                                  alignment: WrapAlignment.center,
-                                  spacing: 2,
-                                  runSpacing: 2,
-                                  children: [
-                                    for (final tag in authorCapabilityTags)
-                                      Icon(
-                                        tag.icon,
-                                        size: 12,
-                                        color: context.capabilityColors
-                                            .swatchFor(tag.group)
-                                            .onContainer,
-                                      ),
-                                  ],
-                                ),
-                              ),
-                            ],
+                          ),
+                          if (authorParticipant != null &&
+                              authorRoleLabel != null) ...[
+                            SizedBox(height: tt.tightGap),
+                            _AuthorRoleLabel(
+                              roleLabel: authorRoleLabel,
+                              author: message.author,
+                              participant: authorParticipant,
+                              avatarGutter: tt.avatarGutter,
+                              screenHPadding: tt.screenHPadding,
+                            ),
                           ],
-                        ),
+                        ],
                       )
                     : const SizedBox.shrink(),
               ),
@@ -1388,11 +1379,25 @@ class RoomMessageTile extends StatelessWidget {
       child: childBeaconId == null
           ? row
           : Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
+              crossAxisAlignment: isMine
+                  ? CrossAxisAlignment.end
+                  : CrossAxisAlignment.start,
               children: [
                 row,
                 SizedBox(height: tt.tightGap),
-                BeaconChildPromotionFooter(childBeaconId: childBeaconId),
+                if (isMine)
+                  BeaconChildPromotionFooter(childBeaconId: childBeaconId)
+                else
+                  Row(
+                    children: [
+                      SizedBox(width: tt.avatarGutter),
+                      Flexible(
+                        child: BeaconChildPromotionFooter(
+                          childBeaconId: childBeaconId,
+                        ),
+                      ),
+                    ],
+                  ),
               ],
             ),
     );
@@ -2364,6 +2369,83 @@ class _HoverActionToolbar extends StatelessWidget {
               onPressed: onMore,
             ),
         ],
+      ),
+    );
+  }
+}
+
+/// Short role label under a chat avatar; opens commitment sheet.
+class _AuthorRoleLabel extends StatelessWidget {
+  const _AuthorRoleLabel({
+    required this.roleLabel,
+    required this.author,
+    required this.participant,
+    required this.avatarGutter,
+    required this.screenHPadding,
+  });
+
+  final String roleLabel;
+  final Profile author;
+  final BeaconParticipant participant;
+  final double avatarGutter;
+  final double screenHPadding;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = L10n.of(context)!;
+    final scheme = Theme.of(context).colorScheme;
+    final display = roleLabel.trim().isEmpty
+        ? l10n.helpOfferRoleLabelPlaceholder
+        : roleLabel.trim();
+    final name = author.shownName.trim().isEmpty
+        ? participant.displayLabel(l10n.unknownPerson)
+        : author.shownName;
+    final semanticLabel = l10n.roomAuthorRoleLabelSemantic(name, display);
+
+    return Tooltip(
+      message: semanticLabel,
+      child: Semantics(
+        button: true,
+        label: semanticLabel,
+        identifier: TestIds.roomAuthorCommitmentGlyphs,
+        child: KeyedSubtree(
+          key: TestIds.key(TestIds.roomAuthorCommitmentGlyphs),
+          child: SizedBox(
+            width: avatarGutter,
+            height: kMinInteractiveDimension,
+            child: Stack(
+              clipBehavior: Clip.none,
+              children: [
+                Positioned(
+                  left: -screenHPadding,
+                  right: 0,
+                  top: 0,
+                  bottom: 0,
+                  child: GestureDetector(
+                    behavior: HitTestBehavior.translucent,
+                    onTap: () => unawaited(
+                      showAuthorCommitmentSheet(
+                        context,
+                        author: author,
+                        participant: participant,
+                      ),
+                    ),
+                    child: Align(
+                      alignment: Alignment.topCenter,
+                      child: Text(
+                        display,
+                        textAlign: TextAlign.center,
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                        style: TenturaText.status(scheme.onSurfaceVariant),
+                      ),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }

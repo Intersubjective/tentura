@@ -12,9 +12,11 @@ import 'package:tentura/domain/entity/commitment_stake_state.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_cubit.dart';
 import 'package:tentura/features/beacon_view/ui/dialog/help_offer_admission_reason_dialog.dart';
 import 'package:tentura/features/beacon_view/ui/dialog/help_offer_message_dialog.dart';
+import 'package:tentura/features/beacon_view/ui/dialog/help_offer_role_label_dialog.dart';
 import 'package:tentura/features/beacon_view/ui/util/beacon_accordion_sections.dart';
 import 'package:tentura/features/beacon_view/ui/widget/beacon_view_app_bar_overflow.dart';
 import 'package:tentura/features/beacon_view/ui/widget/help_offer_tile.dart';
+import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_state.dart';
 import 'package:tentura/features/beacon_view/ui/widget/unified_forward_row.dart';
 import 'package:tentura/ui/bloc/screen_cubit.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
@@ -345,6 +347,24 @@ class BeaconPeopleTabBody extends StatelessWidget {
                 );
               }
             : null,
+        onEditRole:
+            !row.isAuthor &&
+                !c.isWithdrawn &&
+                (isMine || state.isAuthorOrSteward) &&
+                state.helpOffers.any((ho) => ho.user.id == row.userId)
+            ? () async {
+                final next = await HelpOfferRoleLabelDialog.show(
+                  context,
+                  initialText: c.roleLabel ?? '',
+                );
+                if (next != null && context.mounted) {
+                  await beaconViewCubit.setRoleLabel(
+                    offerUserId: row.userId,
+                    roleLabel: next,
+                  );
+                }
+              }
+            : null,
         onWithdraw:
             row.userId == state.myProfile.id &&
                 !c.isWithdrawn &&
@@ -547,6 +567,25 @@ class BeaconPeopleTabBody extends StatelessWidget {
                       beaconAuthorId: beacon.author.id,
                       isMine: backupOffers[k].user.id == state.myProfile.id,
                       isAuthorView: state.isAuthorOrSteward,
+                      onEditRole:
+                          !backupOffers[k].isWithdrawn &&
+                              (backupOffers[k].user.id ==
+                                      state.myProfile.id ||
+                                  state.isAuthorOrSteward)
+                          ? () async {
+                              final offer = backupOffers[k];
+                              final next = await HelpOfferRoleLabelDialog.show(
+                                context,
+                                initialText: offer.roleLabel ?? '',
+                              );
+                              if (next != null && context.mounted) {
+                                await beaconViewCubit.setRoleLabel(
+                                  offerUserId: offer.user.id,
+                                  roleLabel: next,
+                                );
+                              }
+                            }
+                          : null,
                     ),
                   ),
                 ],

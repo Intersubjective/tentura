@@ -2,6 +2,7 @@ import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/coordination/derive_beacon_coordination_phase.dart';
 import 'package:tentura/features/my_work/domain/entity/my_work_card_view_model.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
+import 'package:tentura/ui/presenter/beacon_phase_cta.dart';
 import 'package:tentura/ui/presenter/beacon_phase_input_builders.dart';
 import 'package:tentura/ui/presenter/beacon_phase_presenter.dart';
 
@@ -57,7 +58,10 @@ MyWorkStatusLineData myWorkStatusLine({
 }) {
   final clock = now ?? DateTime.now();
   final input = beaconPhaseInputFromMyWorkCard(vm, now: clock);
-  final result = deriveBeaconCoordinationPhase(input);
+  final result = deriveBeaconCoordinationPhase(
+    input,
+    offerReviewContributions: myWorkOfferReviewContributions(vm),
+  );
   final pres = formatBeaconPhaseStatus(l10n, result, now: clock);
 
   return MyWorkStatusLineData(

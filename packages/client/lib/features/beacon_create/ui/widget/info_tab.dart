@@ -430,7 +430,7 @@ class _InfoTabState extends State<InfoTab> with StringInputValidator {
                       ),
                     ),
                     IconButton(
-                      tooltip: l10n.buttonOk,
+                      tooltip: l10n.buttonClose,
                       onPressed: () => Navigator.of(ctx).pop(),
                       icon: const Icon(Icons.close_rounded),
                     ),

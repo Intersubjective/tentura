@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:migrant/migrant.dart';
 import 'package:migrant/testing.dart';
 import 'package:postgres/postgres.dart';
@@ -180,6 +182,8 @@ part 'm0172.dart';
 part 'm0173.dart';
 part 'm0174.dart';
 part 'm0175.dart';
+part 'm0176.dart';
+part 'm0177.dart';
 
 final _allMigrations = <Migration>[
   m0001,
@@ -361,13 +365,61 @@ final _allMigrations = <Migration>[
   m0173,
   m0174,
   m0175,
+  m0176,
+  m0177,
 ];
 
 /// Test inventory in the exact order passed to migrant.
 List<Migration> get migrationsForTesting => List.unmodifiable(_allMigrations);
 
+const _schemaUpgradeLockKey = 'tentura_schema_upgrade';
+final _upgradeBackoff = Random();
+
+/// Migrant's gateway uses `LOCK TABLE … NOWAIT` and a try-advisory lock, so
+/// parallel disposable-database upgrades throw [RaceCondition]. Serialize
+/// with a blocking lock and retry the leftover races.
+Future<void> _upgradeLocked(
+  Connection connection,
+  List<Migration> migrations,
+) async {
+  await connection.execute(
+    Sql.named('SELECT pg_advisory_lock(hashtext(@key))'),
+    parameters: {'key': _schemaUpgradeLockKey},
+  );
+  try {
+    RaceCondition? last;
+    for (var attempt = 0; attempt < 40; attempt++) {
+      try {
+        await Database(
+          PostgreSQLGateway(connection),
+        ).upgrade(InMemory(migrations));
+        return;
+      } on RaceCondition catch (error) {
+        last = error;
+        await Future<void>.delayed(
+          Duration(milliseconds: 40 + attempt * 25 + _upgradeBackoff.nextInt(40)),
+        );
+      }
+    }
+    throw StateError(
+      'schema upgrade raced after retries (${last?.message})',
+    );
+  } finally {
+    await connection.execute(
+      Sql.named('SELECT pg_advisory_unlock(hashtext(@key))'),
+      parameters: {'key': _schemaUpgradeLockKey},
+    );
+  }
+}
+
 Future<void> migrateDbSchema(Connection connection) =>
-    Database(PostgreSQLGateway(connection)).upgrade(InMemory(_allMigrations));
+    _upgradeLocked(connection, _allMigrations);
+
+/// Applies an explicit migration list (truncated/legacy registries in tests).
+Future<void> migrateDbSchemaFrom(
+  Connection connection,
+  List<Migration> migrations,
+) => _upgradeLocked(connection, migrations);
 
 /// Test helper: apply migrations through [lastInclusiveVersion] only.
 Future<void> migrateDbSchemaThrough(
@@ -388,5 +440,5 @@ Future<void> migrateDbSchemaThrough(
       'unknown migration version',
     );
   }
-  return Database(PostgreSQLGateway(connection)).upgrade(InMemory(selected));
+  return _upgradeLocked(connection, selected);
 }

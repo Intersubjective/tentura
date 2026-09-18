@@ -1,9 +1,13 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 
 import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
+import 'package:tentura/features/beacon_view/ui/presenter/beacon_hud_author_action.dart';
 import 'package:tentura/features/evaluation/domain/entity/review_window_info.dart';
+import 'package:tentura/features/evaluation/domain/review_package_state.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
 import 'review_banner.dart';
@@ -52,58 +56,80 @@ class ReviewWindowBannerHost extends StatelessWidget {
     }
 
     final l10n = L10n.of(context)!;
+    final tt = context.tt;
     final closesAtLabel = _formatClosesAt(context, review.closesAt);
     final scheme = Theme.of(context).colorScheme;
-
-    if (!isAuthor && review.viewerCanOpenReviewScreen) {
-      return Padding(
-        padding: _slotPadding,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            ReviewBanner(
-              isDraftPhase: false,
-              margin: EdgeInsets.zero,
-              onPrimary: () => context.router.push(
-                ReviewContributionsRoute(id: review.beaconId),
-              ),
-            ),
-            if (closesAtLabel != null) ...[
-              const SizedBox(height: 6),
-              Text(
-                l10n.beaconReviewWindowClosesAt(closesAtLabel),
-                style: TenturaText.status(scheme.onSurfaceVariant),
-              ),
-            ],
-          ],
-        ),
+    final package = reviewPackageStateFromWindow(review);
+    void openReview() {
+      unawaited(
+        context.router.push(ReviewContributionsRoute(id: review.beaconId)),
       );
     }
 
-    if (isAuthor &&
-        !review.viewerHasOutstandingReviewWork &&
-        review.canCloseNow != true) {
-      return Padding(
-        padding: _slotPadding,
-        child: Column(
+    final Widget content;
+    switch (package) {
+      case ReviewPackageState.inProgress:
+      case ReviewPackageState.readyToSend:
+      case ReviewPackageState.changedNotSent:
+        // The author's HUD owns the single primary ACT, including close-now.
+        if (isAuthor) return const SizedBox.shrink();
+        content = ReviewBanner(
+          isDraftPhase: false,
+          margin: EdgeInsets.zero,
+          onPrimary: openReview,
+          progressLine: package == ReviewPackageState.inProgress
+              ? l10n.beaconHudActEffectReviewProgress(
+                  review.requiredTotal - review.requiredReviewed,
+                  review.requiredTotal,
+                )
+              : null,
+        );
+      case ReviewPackageState.sent:
+        content = Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: [
             Text(
-              l10n.beaconHudWaitingForReviews,
+              l10n.beaconHudReviewSent,
               style: TenturaText.status(scheme.onSurfaceVariant),
             ),
-            if (closesAtLabel != null) ...[
-              const SizedBox(height: 6),
+            if (!isAuthor || !review.allRequiredSent) ...[
+              SizedBox(height: tt.tightGap),
               Text(
-                l10n.beaconReviewWindowClosesAt(closesAtLabel),
+                isAuthor
+                    ? l10n.beaconHudWaitingForRequiredReviews
+                    : l10n.beaconHudWaitingForAuthorClose,
                 style: TenturaText.status(scheme.onSurfaceVariant),
               ),
             ],
+            TextButton(
+              onPressed: openReview,
+              child: Text(l10n.beaconHudReviewEdit),
+            ),
           ],
-        ),
-      );
+        );
+      case ReviewPackageState.paused:
+      case ReviewPackageState.closed:
+      case ReviewPackageState.closedUnsent:
+      case ReviewPackageState.notEnrolled:
+      case ReviewPackageState.empty:
+        return const SizedBox.shrink();
     }
 
-    return const SizedBox.shrink();
+    return Padding(
+      padding: _slotPadding,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          content,
+          if (closesAtLabel != null) ...[
+            SizedBox(height: tt.rowGap),
+            Text(
+              l10n.beaconReviewWindowClosesAt(closesAtLabel),
+              style: TenturaText.status(scheme.onSurfaceVariant),
+            ),
+          ],
+        ],
+      ),
+    );
   }
 }

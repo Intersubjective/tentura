@@ -12,6 +12,12 @@ const kTitleMinLength = 3;
 
 const kTitleMaxLength = 32;
 
+/// Max capability slugs on a help offer (offer-help dialog / server validation).
+const kMaxHelpOfferHelpTypes = 4;
+
+/// Max UTF-16 length of `beacon_help_offer.role_label` after trim.
+const kMaxHelpOfferRoleLabelLength = kTitleMaxLength;
+
 /// Public @mention handle (`user.handle`): 3–30 chars, `[a-z0-9_]`, optional.
 const kUserHandleMinLength = 3;
 

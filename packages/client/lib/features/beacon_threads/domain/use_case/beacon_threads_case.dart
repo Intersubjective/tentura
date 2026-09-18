@@ -72,6 +72,16 @@ final class BeaconThreadsCase extends UseCaseBase {
         (inv) => _deskRelevantEntityTypes.contains(inv.entityType),
       );
 
+  /// Local room refresh for help-offer field edits (role label, etc.).
+  void notifyHelpOfferRoomInvalidation(String beaconId) {
+    _room.notifyLocalInvalidation(
+      BeaconRoomInvalidation(
+        beaconId: beaconId,
+        entityType: BeaconRoomEntityType.helpOffer,
+      ),
+    );
+  }
+
   Stream<String> get deskRelevantChanges =>
       deskRelevantInvalidations.map((inv) => inv.beaconId);
 

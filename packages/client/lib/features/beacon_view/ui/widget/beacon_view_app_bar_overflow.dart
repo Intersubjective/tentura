@@ -237,10 +237,11 @@ Future<void> beaconViewHandleAuthorHudAction({
         await cubit.refreshReviewWindowInfo();
       }
     case BeaconHudAuthorAction.closeNow:
-      final canClose = cubit.state.reviewWindowInfo?.canCloseNow == true;
-      final confirmed = await showBeaconHudCloseNowConfirmSheet(
+      final review = cubit.state.reviewWindowInfo;
+      final confirmed = await showBeaconCloseNowConfirmSheet(
         context: context,
-        canCloseNow: canClose,
+        canCloseNow: review?.canCloseNow == true,
+        unsentStartedPackages: review?.unsentStartedPackages ?? 0,
       );
       if (!context.mounted) return;
       if (!confirmed) return;

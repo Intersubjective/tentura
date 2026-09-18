@@ -200,10 +200,19 @@ class _EventSubcard extends StatelessWidget {
       now: DateTime.now(),
       l10n: l10n,
     );
-    final eventCopy = copy.headline.isNotEmpty ? copy.headline : copy.body;
     final profile = actor == null ? null : profileWithContactOverlay(actor!);
     final shownName = profile?.shownName.trim() ?? '';
     final showName = shownName.isNotEmpty;
+    final headline = copy.headline.trim();
+    final body = copy.body.trim();
+    // When the headline is just the actor name (server title for help-offer
+    // receipts), prefer the body so the personal note / event excerpt shows.
+    final eventCopy = showName &&
+            headline.isNotEmpty &&
+            headline == shownName &&
+            body.isNotEmpty
+        ? body
+        : (headline.isNotEmpty ? headline : body);
     final showEvent =
         eventCopy.isNotEmpty && (!showName || eventCopy != shownName);
 

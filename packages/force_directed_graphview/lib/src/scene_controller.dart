@@ -227,6 +227,44 @@ class GraphSceneController<N, E> with ChangeNotifier {
     return true;
   }
 
+  /// Updates multiple presentation overrides with a single [notifyListeners].
+  ///
+  /// Tokens that are no longer active or reference unknown nodes are skipped.
+  /// Returns the number of positions applied.
+  int updatePresentations(Map<GraphPresentationToken, ScenePoint> updates) {
+    _assertLive();
+    _assertNotNotifying();
+    if (updates.isEmpty) {
+      return 0;
+    }
+    final overrides = Map<GraphNodeId, ScenePoint>.from(_presentation.overrides);
+    var applied = 0;
+    for (final entry in updates.entries) {
+      final nodeId = _tokenNodes[entry.key];
+      if (nodeId == null) {
+        continue;
+      }
+      if (_activePresentationTokenByNode[nodeId] != entry.key) {
+        continue;
+      }
+      if (!_topology.nodesById.containsKey(nodeId)) {
+        continue;
+      }
+      overrides[nodeId] = entry.value;
+      applied++;
+    }
+    if (applied == 0) {
+      return 0;
+    }
+    _presentation = ScenePresentation(
+      overrides: overrides,
+      paintOrder: _presentation.paintOrder,
+      holds: _presentation.holds,
+    );
+    _commit();
+    return applied;
+  }
+
   /// Removes every presentation override and hold.
   void clearAllPresentationOverrides() {
     _assertLive();

@@ -6,6 +6,13 @@ abstract class AttentionSystemSettlementPort {
   /// When review returns to open: prior reviewOpened obligations on this beacon.
   Future<int> supersedeReviewObligationsOnReopen(String beaconId);
 
+  /// After one reviewer sends their package ([beacon_review_status] = 2): settle
+  /// that reviewer's own unsettled `reviewOpened` receipt as resolved.
+  Future<int> settleReviewerObligationOnPackageSend({
+    required String beaconId,
+    required String reviewerAccountId,
+  });
+
   /// After the author (or steward) admits or declines a help offer: settle that
   /// author's `helpOfferSubmitted` obligation and mark the matching receipt seen.
   /// [authorAccountId] is the request author, not necessarily the admitting actor.

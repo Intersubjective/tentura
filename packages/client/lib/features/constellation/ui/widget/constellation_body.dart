@@ -29,6 +29,7 @@ import '../../domain/entity/constellation_anchor.dart';
 import '../../domain/entity/constellation_field.dart';
 import '../bloc/constellation_cubit.dart';
 import '../utils/constellation_edge_style.dart';
+import '../utils/constellation_presentation_frame.dart';
 import '../utils/constellation_tap_resolver.dart';
 import 'constellation_anchor_controls.dart';
 import 'constellation_camera_controls.dart';
@@ -71,6 +72,39 @@ class _ConstellationBodyState extends State<ConstellationBody> {
   (Brightness, Locale, double)? _lastFootprintSyncKey;
   String? _selectionUnavailableMessage;
   final _internalFrameHolder = ConstellationPresentationFrameHolder();
+
+  // Single owner of pin zoom detail: per-node history would diverge when a
+  // node is recreated inside the hysteresis band.
+  late final GraphController<NodeDetails, EdgeDetails> _graphController;
+  late ConstellationDetailLevel _detail;
+
+  @override
+  void initState() {
+    super.initState();
+    _graphController = context.read<ConstellationCubit>().graphController;
+    _detail = nextConstellationDetailLevel(
+      _graphController.cameraScale,
+      ConstellationDetailLevel.normal,
+    );
+    _graphController.cameraRevision.addListener(_onCamera);
+  }
+
+  @override
+  void dispose() {
+    _graphController.cameraRevision.removeListener(_onCamera);
+    super.dispose();
+  }
+
+  // Only the pin badge is zoom-gated; rebuild solely on detail-level change.
+  void _onCamera() {
+    final next = nextConstellationDetailLevel(
+      _graphController.cameraScale,
+      _detail,
+    );
+    if (next != _detail) {
+      setState(() => _detail = next);
+    }
+  }
 
   ConstellationPresentationFrameHolder get _frameHolder =>
       widget.presentationFrameHolder ?? _internalFrameHolder;
@@ -643,6 +677,7 @@ class _ConstellationBodyState extends State<ConstellationBody> {
           layoutAlgorithm: layoutAlgorithm,
           layoutTransitionDuration: const Duration(milliseconds: 350),
           canDragNode: cubit.canDragNode,
+          transformNodeDragPosition: cubit.clampClusterDragPosition,
           onNodeDragStart: (node, position) {
             final target = cubit.anchorTargetForNode(node);
             if (target == null) {
@@ -708,6 +743,7 @@ class _ConstellationBodyState extends State<ConstellationBody> {
             final scheme = Theme.of(context).colorScheme;
             final mapNode = switch (node) {
               FieldPersonNode(:final ring, :final person) => _ConstellationMapNode(
+                detail: _detail,
                 child: GraphNodeWidget(
                   key: TestIds.key(TestIds.graphNode(node.id)),
                   nodeDetails: node,
@@ -730,6 +766,7 @@ class _ConstellationBodyState extends State<ConstellationBody> {
                 statusBadge: null,
               ),
               FieldRequestNode(:final request) => _ConstellationMapNode(
+                detail: _detail,
                 child: GraphNodeWidget(
                   key: TestIds.key(TestIds.graphNode(node.id)),
                   nodeDetails: node,
@@ -907,11 +944,13 @@ class _ConstellationBodyState extends State<ConstellationBody> {
 class _ConstellationMapNode extends StatelessWidget {
   const _ConstellationMapNode({
     required this.child,
+    required this.detail,
     this.pinBadge,
     this.statusBadge,
   });
 
   final Widget child;
+  final ConstellationDetailLevel detail;
   final Widget? pinBadge;
   final Widget? statusBadge;
 
@@ -919,6 +958,8 @@ class _ConstellationMapNode extends StatelessWidget {
   Widget build(BuildContext context) {
     final tt = context.tt;
     final overhang = constellationMarkerBadgeOverhang(tt);
+    final pinBadge = this.pinBadge;
+    final statusBadge = this.statusBadge;
     return Stack(
       clipBehavior: Clip.none,
       alignment: Alignment.center,
@@ -928,13 +969,13 @@ class _ConstellationMapNode extends StatelessWidget {
           PositionedDirectional(
             top: -overhang,
             start: -overhang,
-            child: statusBadge!,
+            child: statusBadge,
           ),
-        if (pinBadge != null)
+        if (pinBadge != null && detail == ConstellationDetailLevel.normal)
           PositionedDirectional(
             top: -overhang,
             end: -overhang,
-            child: pinBadge!,
+            child: pinBadge,
           ),
       ],
     );

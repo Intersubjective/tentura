@@ -281,6 +281,79 @@ void main() {
       expect(attention.recorded, isEmpty);
     });
 
+    test('rejects more than four help types', () async {
+      stubBeacon(beacon(id: 'B1', status: BeaconStatus.open));
+      when(
+        helpOfferRepo.hasActiveHelpOffer(
+          beaconId: 'B1',
+          userId: 'U1',
+        ),
+      ).thenAnswer((_) async => false);
+
+      await expectLater(
+        case_.offerHelp(
+          beaconId: 'B1',
+          userId: 'U1',
+          helpTypes: const [
+            'money',
+            'time',
+            'transport',
+            'storage',
+            'tools',
+          ],
+        ),
+        throwsA(
+          isA<HelpOfferCoordinationException>().having(
+            (e) =>
+                (e.code as HelpOfferCoordinationExceptionCodes).exceptionCode,
+            'code',
+            HelpOfferCoordinationExceptionCode.invalidHelpType,
+          ),
+        ),
+      );
+      verifyNever(
+        helpOfferRepo.upsert(
+          beaconId: anyNamed('beaconId'),
+          userId: anyNamed('userId'),
+        ),
+      );
+      expect(commitmentRepo.recordCalls, isEmpty);
+      expect(attention.recorded, isEmpty);
+    });
+
+    test('accepts four help types', () async {
+      stubBeacon(beacon(id: 'B1', status: BeaconStatus.open));
+      when(
+        helpOfferRepo.hasActiveHelpOffer(
+          beaconId: 'B1',
+          userId: 'U1',
+        ),
+      ).thenAnswer((_) async => false);
+      when(
+        helpOfferRepo.upsert(
+          beaconId: 'B1',
+          userId: 'U1',
+          helpTypes: anyNamed('helpTypes'),
+          offerKind: anyNamed('offerKind'),
+        ),
+      ).thenAnswer((_) async {});
+
+      await case_.offerHelp(
+        beaconId: 'B1',
+        userId: 'U1',
+        helpTypes: const ['money', 'time', 'transport', 'storage'],
+      );
+
+      verify(
+        helpOfferRepo.upsert(
+          beaconId: 'B1',
+          userId: 'U1',
+          helpTypes: ['money', 'time', 'transport', 'storage'],
+          offerKind: 0,
+        ),
+      ).called(1);
+    });
+
     test('rejects author on initial offer', () async {
       stubBeacon(beacon(id: 'B1', status: BeaconStatus.open));
       when(
@@ -625,6 +698,19 @@ void main() {
       expect(attention.recorded.single.body, 'Actor offered help');
     });
 
+    test('open notification uses offer message as body excerpt', () async {
+      stubNewOffer(BeaconStatus.open);
+
+      await case_.offerHelp(
+        beaconId: 'B1',
+        userId: 'U1',
+        message: 'I can sew the costume',
+      );
+
+      expect(attention.recorded.single.eventType.name, 'helpOfferSubmitted');
+      expect(attention.recorded.single.body, 'I can sew the costume');
+    });
+
     test('re-upsert preserves original offerKind when beacon status changed',
         () async {
       stubBeacon(beacon(id: 'B1', status: BeaconStatus.enoughHelp));
@@ -862,6 +948,253 @@ mutation BeaconOfferHelp($beaconId: String!, $message: String) {
               as Map<String, dynamic>;
       expect(result['errors'], isNull);
       expect(result['beaconOfferHelp'], isTrue);
+    });
+  });
+
+  group('setRoleLabel', () {
+    void stubActiveOffer({required String offerUserId}) {
+      when(
+        helpOfferRepo.hasActiveHelpOffer(
+          beaconId: 'B1',
+          userId: offerUserId,
+        ),
+      ).thenAnswer((_) async => true);
+      when(
+        helpOfferRepo.setRoleLabel(
+          beaconId: anyNamed('beaconId'),
+          offerUserId: anyNamed('offerUserId'),
+          actorUserId: anyNamed('actorUserId'),
+          roleLabel: anyNamed('roleLabel'),
+        ),
+      ).thenAnswer((_) async {});
+    }
+
+    test('self can set role label', () async {
+      stubBeacon(beacon(id: 'B1', status: BeaconStatus.open));
+      stubActiveOffer(offerUserId: 'U1');
+      when(
+        roomRepo.isBeaconSteward(beaconId: 'B1', userId: 'U1'),
+      ).thenAnswer((_) async => false);
+
+      await case_.setRoleLabel(
+        beaconId: 'B1',
+        actorUserId: 'U1',
+        offerUserId: 'U1',
+        roleLabel: 'driver',
+      );
+
+      verify(
+        helpOfferRepo.setRoleLabel(
+          beaconId: 'B1',
+          offerUserId: 'U1',
+          actorUserId: 'U1',
+          roleLabel: 'driver',
+        ),
+      ).called(1);
+    });
+
+    test('author can set helper role label', () async {
+      stubBeacon(beacon(id: 'B1', status: BeaconStatus.open));
+      stubActiveOffer(offerUserId: 'U1');
+      when(
+        roomRepo.isBeaconSteward(beaconId: 'B1', userId: 'Uauth'),
+      ).thenAnswer((_) async => false);
+
+      await case_.setRoleLabel(
+        beaconId: 'B1',
+        actorUserId: 'Uauth',
+        offerUserId: 'U1',
+        roleLabel: 'nav',
+      );
+
+      verify(
+        helpOfferRepo.setRoleLabel(
+          beaconId: 'B1',
+          offerUserId: 'U1',
+          actorUserId: 'Uauth',
+          roleLabel: 'nav',
+        ),
+      ).called(1);
+    });
+
+    test('steward can set helper role label', () async {
+      stubBeacon(beacon(id: 'B1', status: BeaconStatus.open));
+      stubActiveOffer(offerUserId: 'U1');
+      when(
+        roomRepo.isBeaconSteward(beaconId: 'B1', userId: 'Usteward'),
+      ).thenAnswer((_) async => true);
+
+      await case_.setRoleLabel(
+        beaconId: 'B1',
+        actorUserId: 'Usteward',
+        offerUserId: 'U1',
+        roleLabel: 'lead',
+      );
+
+      verify(
+        helpOfferRepo.setRoleLabel(
+          beaconId: 'B1',
+          offerUserId: 'U1',
+          actorUserId: 'Usteward',
+          roleLabel: 'lead',
+        ),
+      ).called(1);
+    });
+
+    test('other helper cannot set role label', () async {
+      stubBeacon(beacon(id: 'B1', status: BeaconStatus.open));
+      stubActiveOffer(offerUserId: 'U1');
+      when(
+        roomRepo.isBeaconSteward(beaconId: 'B1', userId: 'U2'),
+      ).thenAnswer((_) async => false);
+
+      await expectLater(
+        case_.setRoleLabel(
+          beaconId: 'B1',
+          actorUserId: 'U2',
+          offerUserId: 'U1',
+          roleLabel: 'x',
+        ),
+        throwsA(isA<UnauthorizedException>()),
+      );
+      verifyNever(
+        helpOfferRepo.setRoleLabel(
+          beaconId: anyNamed('beaconId'),
+          offerUserId: anyNamed('offerUserId'),
+          actorUserId: anyNamed('actorUserId'),
+          roleLabel: anyNamed('roleLabel'),
+        ),
+      );
+    });
+
+    test('author as target without active offer fails', () async {
+      stubBeacon(beacon(id: 'B1', status: BeaconStatus.open));
+      when(
+        helpOfferRepo.hasActiveHelpOffer(
+          beaconId: 'B1',
+          userId: 'Uauth',
+        ),
+      ).thenAnswer((_) async => false);
+
+      await expectLater(
+        case_.setRoleLabel(
+          beaconId: 'B1',
+          actorUserId: 'Uauth',
+          offerUserId: 'Uauth',
+          roleLabel: 'owner',
+        ),
+        throwsA(
+          isA<HelpOfferCoordinationException>().having(
+            (e) =>
+                (e.code as HelpOfferCoordinationExceptionCodes).exceptionCode,
+            'code',
+            HelpOfferCoordinationExceptionCode.helpOfferNotActive,
+          ),
+        ),
+      );
+    });
+
+    test('withdrawn / inactive offer fails', () async {
+      stubBeacon(beacon(id: 'B1', status: BeaconStatus.open));
+      when(
+        helpOfferRepo.hasActiveHelpOffer(
+          beaconId: 'B1',
+          userId: 'U1',
+        ),
+      ).thenAnswer((_) async => false);
+
+      await expectLater(
+        case_.setRoleLabel(
+          beaconId: 'B1',
+          actorUserId: 'U1',
+          offerUserId: 'U1',
+          roleLabel: 'gone',
+        ),
+        throwsA(
+          isA<HelpOfferCoordinationException>().having(
+            (e) =>
+                (e.code as HelpOfferCoordinationExceptionCodes).exceptionCode,
+            'code',
+            HelpOfferCoordinationExceptionCode.helpOfferNotActive,
+          ),
+        ),
+      );
+    });
+
+    test('rejects too long label', () async {
+      stubBeacon(beacon(id: 'B1', status: BeaconStatus.open));
+      stubActiveOffer(offerUserId: 'U1');
+
+      await expectLater(
+        case_.setRoleLabel(
+          beaconId: 'B1',
+          actorUserId: 'U1',
+          offerUserId: 'U1',
+          roleLabel: 'x' * 33,
+        ),
+        throwsA(
+          isA<HelpOfferCoordinationException>().having(
+            (e) =>
+                (e.code as HelpOfferCoordinationExceptionCodes).exceptionCode,
+            'code',
+            HelpOfferCoordinationExceptionCode.invalidRoleLabel,
+          ),
+        ),
+      );
+      verifyNever(
+        helpOfferRepo.setRoleLabel(
+          beaconId: anyNamed('beaconId'),
+          offerUserId: anyNamed('offerUserId'),
+          actorUserId: anyNamed('actorUserId'),
+          roleLabel: anyNamed('roleLabel'),
+        ),
+      );
+    });
+
+    test('rejects newline in label', () async {
+      stubBeacon(beacon(id: 'B1', status: BeaconStatus.open));
+      stubActiveOffer(offerUserId: 'U1');
+
+      await expectLater(
+        case_.setRoleLabel(
+          beaconId: 'B1',
+          actorUserId: 'U1',
+          offerUserId: 'U1',
+          roleLabel: 'line\nbreak',
+        ),
+        throwsA(
+          isA<HelpOfferCoordinationException>().having(
+            (e) =>
+                (e.code as HelpOfferCoordinationExceptionCodes).exceptionCode,
+            'code',
+            HelpOfferCoordinationExceptionCode.invalidRoleLabel,
+          ),
+        ),
+      );
+    });
+
+    test('empty string clears to null', () async {
+      stubBeacon(beacon(id: 'B1', status: BeaconStatus.open));
+      stubActiveOffer(offerUserId: 'U1');
+      when(
+        roomRepo.isBeaconSteward(beaconId: 'B1', userId: 'U1'),
+      ).thenAnswer((_) async => false);
+
+      await case_.setRoleLabel(
+        beaconId: 'B1',
+        actorUserId: 'U1',
+        offerUserId: 'U1',
+        roleLabel: '   ',
+      );
+
+      verify(
+        helpOfferRepo.setRoleLabel(
+          beaconId: 'B1',
+          offerUserId: 'U1',
+          actorUserId: 'U1',
+          roleLabel: null,
+        ),
+      ).called(1);
     });
   });
 }

@@ -341,6 +341,7 @@ final gqlTypeBeaconParticipantRow =
         field('linkedMessageId', graphQLString),
         field('lastSeenRoomAt', graphQLString),
         field('helpType', graphQLString),
+        field('roleLabel', graphQLString),
         field('createdAt', graphQLString.nonNullable()),
         field('updatedAt', graphQLString.nonNullable()),
       ]);
@@ -950,6 +951,11 @@ final gqlTypeEvaluationParticipant =
         ),
         field('maxAcknowledgedHelpTags', graphQLInt.nonNullable()),
         field('isSubmitted', graphQLBoolean.nonNullable()),
+        field('isOptional', graphQLBoolean.nonNullable()),
+        field('rowStatus', graphQLInt.nonNullable()),
+        field('committedAt', graphQLString),
+        field('offerMessage', graphQLString.nonNullable()),
+        field('forwarderDisplayName', graphQLString),
       ]);
 
 /// One saved draft row for `evaluationDrafts` query.
@@ -986,6 +992,15 @@ final gqlTypeReviewWindowStatus =
         field('extensionsUsed', graphQLInt),
         field('canCloseNow', graphQLBoolean),
         field('canReopen', graphQLBoolean),
+        field('requiredTotal', graphQLInt),
+        field('requiredReviewed', graphQLInt),
+        field('optionalTotal', graphQLInt),
+        field('optionalReviewed', graphQLInt),
+        field('viewerPackageOptional', graphQLBoolean),
+        field('sentAt', graphQLString),
+        field('allRequiredSent', graphQLBoolean),
+        field('unsentStartedPackages', graphQLInt),
+        field('sentReviewerCount', graphQLInt),
       ]);
 
 final gqlTypeEvaluationSummary =
@@ -1125,6 +1140,7 @@ final gqlTypeHelpOfferWithCoordinationRow =
         field('userId', graphQLString.nonNullable()),
         field('message', graphQLString.nonNullable()),
         field('helpType', graphQLString),
+        field('roleLabel', graphQLString),
         field('status', graphQLInt.nonNullable()),
         field('withdrawReason', graphQLString),
         field('createdAt', graphQLString.nonNullable()),

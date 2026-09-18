@@ -3,6 +3,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:tentura/domain/entity/beacon.dart';
 import 'package:tentura/features/my_work/ui/bloc/my_work_cubit.dart';
 
+import '../evaluation/evaluation_case_test.dart' show FakeEvaluationRepository;
 import 'my_work_test_support.dart';
 
 void main() {
@@ -101,4 +102,20 @@ void main() {
     await cubit.close();
   });
 
+  test('review package change refetches the desk', () async {
+    final repo = FakeMyWorkRepository();
+    final eval = FakeEvaluationRepository();
+    final cubit = MyWorkCubit(
+      userId: 'user-1',
+      myWorkCase: buildTestMyWorkCase(repo: repo, evaluationRepo: eval),
+    );
+    await cubit.stream.firstWhere((s) => s.isSuccess);
+    final afterInit = repo.fetchInitCallCount;
+
+    eval.reviewPackageChangesController.add(null);
+    await Future<void>.delayed(Duration.zero);
+    expect(repo.fetchInitCallCount, greaterThan(afterInit));
+
+    await cubit.close();
+  });
 }

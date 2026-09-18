@@ -6,6 +6,7 @@ import 'package:tentura_root/domain/entity/beacon_status.dart';
 import 'package:tentura_server/domain/attention/attention_models.dart';
 import 'package:tentura_server/domain/entity/beacon_notification_context.dart';
 import 'package:tentura_server/domain/entity/beacon_notification_intent.dart';
+import 'package:tentura_server/domain/entity/beacon_notification_recipient.dart';
 import 'package:tentura_server/domain/entity/invite_accepted_notification_intent.dart';
 import 'package:tentura_server/domain/entity/notification_kind.dart';
 import 'package:tentura_server/domain/entity/notification_priority.dart';
@@ -67,6 +68,7 @@ class AttentionIntentCase {
     required String sourceEventKey,
     List<String> moderatorUserIds = const [],
     bool isBackupOffer = false,
+    String message = '',
   }) => fromBeaconNotification(
     notification: BeaconNotificationIntent(
       kind: NotificationKind.commitmentEvent,
@@ -76,6 +78,7 @@ class AttentionIntentCase {
       targetPersonId: authorId,
       moderatorUserIds: moderatorUserIds,
       isBackupOffer: isBackupOffer,
+      bodyExcerpt: notificationExcerpt(message),
     ),
     eventType: AttentionEventType.helpOfferSubmitted,
     sourceEventKey: sourceEventKey,
@@ -333,6 +336,45 @@ class AttentionIntentCase {
       admittedUserIds: recipientUserIds.toList(),
     ),
     eventType: AttentionEventType.reviewOpened,
+    sourceEventKey: sourceEventKey,
+    resolveContext: false,
+  );
+
+  Future<AttentionDispatchIntent> reviewAllPackagesIn({
+    required String beaconId,
+    required String beaconTitle,
+    required String authorUserId,
+    required String sourceEventKey,
+  }) => fromBeaconNotification(
+    notification: BeaconNotificationIntent(
+      kind: NotificationKind.reviewReady,
+      priority: NotificationPriority.normal,
+      beaconId: beaconId,
+      actorUserId: authorUserId,
+      beaconTitle: beaconTitle,
+      admittedUserIds: [authorUserId],
+    ),
+    eventType: AttentionEventType.reviewAllPackagesIn,
+    sourceEventKey: sourceEventKey,
+    resolveContext: false,
+  );
+
+  Future<AttentionDispatchIntent> reviewWindowCancelled({
+    required String beaconId,
+    required String beaconTitle,
+    required Set<String> recipientUserIds,
+    required String actorUserId,
+    required String sourceEventKey,
+  }) => fromBeaconNotification(
+    notification: BeaconNotificationIntent(
+      kind: NotificationKind.reviewReady,
+      priority: NotificationPriority.high,
+      beaconId: beaconId,
+      actorUserId: actorUserId,
+      beaconTitle: beaconTitle,
+      admittedUserIds: recipientUserIds.toList(),
+    ),
+    eventType: AttentionEventType.reviewWindowCancelled,
     sourceEventKey: sourceEventKey,
     resolveContext: false,
   );
@@ -874,10 +916,21 @@ class AttentionIntentCase {
     final context = resolveContext
         ? await _context.loadContextForBeacon(notification.beaconId)
         : const BeaconNotificationContext();
-    final resolvedRecipients = _resolver.resolveRecipients(
-      intent: notification,
-      ctx: context,
-    );
+    // This informational event is addressed to its stable author actor. The
+    // general notification resolver deliberately excludes actors.
+    final resolvedRecipients =
+        eventType == AttentionEventType.reviewAllPackagesIn
+        ? [
+            BeaconNotificationRecipient(
+              userId: notification.actorUserId,
+              reasons: const {NotificationRecipientReason.authorOfBeacon},
+              priority: notification.priority,
+            ),
+          ]
+        : _resolver.resolveRecipients(
+            intent: notification,
+            ctx: context,
+          );
     final hiddenPeerIds = await _userBlocks.hiddenPeerIds(
       viewerId: notification.actorUserId,
       peerIds: resolvedRecipients.map((recipient) => recipient.userId),

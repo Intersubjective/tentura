@@ -13,6 +13,7 @@ FakeHelpOfferCoordinationRow _row({
   required String userId,
   int offerKind = 0,
   int status = 0,
+  String message = 'I can help',
 }) {
   final user = Profile(id: userId, displayName: 'Offerer');
   final now = DateTime.utc(2026, 9, 1);
@@ -20,8 +21,9 @@ FakeHelpOfferCoordinationRow _row({
     beaconId: 'b1',
     userId: userId,
     user: user,
-    message: 'I can help',
+    message: message,
     helpType: null,
+    roleLabel: '',
     status: status,
     withdrawReason: null,
     createdAt: now,
@@ -79,11 +81,41 @@ void main() {
 
     await cubit.load();
     expect(cubit.canManageOffer, isTrue);
+    expect(cubit.state.offer?.message, 'I can help');
     expect(await cubit.accept(), isTrue);
     expect(coordination.acceptHelpOfferCalls, [
       (beaconId: 'b1', offerUserId: offerer.id),
     ]);
     expect(effects.emitted.whereType<ShowError>(), isEmpty);
+
+    await cubit.close();
+  });
+
+  test('load exposes personal note for respond sheet (#160)', () async {
+    final beaconRepo = TrackingBeaconRepository()
+      ..fetchByIdHandler = (id) async => Beacon.empty.copyWith(
+        id: id,
+        status: BeaconStatus.open,
+        author: author,
+      );
+    final cubit = HelpOfferTileSheetCubit(
+      beaconId: 'b1',
+      offerUserId: offerer.id,
+      myProfile: author,
+      beaconViewCase: buildTestBeaconViewCase(
+        beaconRepo: beaconRepo,
+        coordinationRepo: FakeBeaconViewCoordinationRepository(
+          rows: [
+            _row(userId: offerer.id, message: 'I can sew the costume'),
+          ],
+        ),
+      ),
+      effects: FakeUiEffectPort(),
+    );
+
+    await cubit.load();
+    expect(cubit.state.offer, isNotNull);
+    expect(cubit.state.offer!.message, 'I can sew the costume');
 
     await cubit.close();
   });

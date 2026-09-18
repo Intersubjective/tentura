@@ -708,6 +708,29 @@ void main() {
       },
     );
 
+    test('settle no-ops review_opened live obligations', () async {
+      final initial = Completer<AttentionFeed>();
+      repository.pendingFetches.add(initial);
+      accounts.emit('account-a');
+      await _settle();
+      initial.complete(
+        _feed(
+          items: [
+            _receipt().copyWith(
+              requiresAction: true,
+              presentationKey: 'review_opened',
+              kind: 'reviewOpened',
+            ),
+          ],
+        ),
+      );
+      await _settle();
+
+      await attention.settle('receipt-1');
+      await _settle();
+      expect(repository.settles, isEmpty);
+    });
+
     test('search normalizes and survives pagination', () async {
       final initial = Completer<AttentionFeed>();
       final searched = Completer<AttentionFeed>();

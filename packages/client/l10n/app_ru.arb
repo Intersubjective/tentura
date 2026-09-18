@@ -2879,17 +2879,25 @@
   "@forwardRestorePersonalNote": {
     "context": "ForwardBeaconScreen per-recipient note"
   },
-  "forwardUncoveredRecipientsTitle": "Нет личной заметки",
+  "forwardUncoveredRecipientsTitle": "Общая заметка",
   "@forwardUncoveredRecipientsTitle": {
-    "context": "ForwardBeaconScreen uncovered recipients sheet"
+    "context": "ForwardBeaconScreen uncovered recipients sheet title"
   },
-  "forwardUncoveredSharedNoteInfo": "Общая заметка отправляется всем, у кого ещё нет личной заметки.",
+  "forwardUncoveredSharedNoteInfo": "Отправляется всем, у кого нет личной заметки.",
   "@forwardUncoveredSharedNoteInfo": {
-    "context": "ForwardBeaconScreen uncovered recipients sheet"
+    "context": "ForwardBeaconScreen uncovered recipients sheet visible helper"
+  },
+  "forwardUncoveredRecipientsListCaption": "Без личной заметки",
+  "@forwardUncoveredRecipientsListCaption": {
+    "context": "ForwardBeaconScreen uncovered recipients sheet list caption"
+  },
+  "forwardUncoveredSharedNoteFieldHint": "Необязательно",
+  "@forwardUncoveredSharedNoteFieldHint": {
+    "context": "ForwardBeaconScreen uncovered recipients sheet field hint"
   },
   "forwardSendWithoutSharedNote": "Отправить без общей заметки",
   "@forwardSendWithoutSharedNote": {
-    "context": "ForwardBeaconScreen uncovered recipients sheet"
+    "context": "Deprecated — removed from uncovered sheet in #172; keep key until callers are gone"
   },
   "forwardMrSortShort": "MR сорт.",
   "@forwardMrSortShort": {
@@ -4036,14 +4044,7 @@
   "evaluationAcknowledgeTitleDraft": "Черновик отзыва",
   "evaluationReviewListPrivacyTitle": "Приватность отзывов",
   "evaluationReviewListPrivacyTitleDraft": "Приватность черновика",
-  "evaluationReviewListPrivacyLive": "Отзывы приватны между двумя людьми. После закрытия окна отзывов только оцениваемый человек увидит ваше имя, выбранное влияние, подтверждения возможностей и заметку. Отзывы никогда не публичны и не видны другим участникам. Если вы не можете оценить этот вклад, выключите «{action}» на карточке участника.",
-  "@evaluationReviewListPrivacyLive": {
-    "placeholders": {
-      "action": {
-        "type": "String"
-      }
-    }
-  },
+  "evaluationReviewListPrivacyLive": "Отзывы приватны между двумя людьми. После закрытия окна отзывов только оцениваемый человек увидит ваше имя, выбранное влияние, подтверждения возможностей и заметку. Отзывы никогда не публичны и не видны другим участникам.",
   "evaluationReviewListPrivacyDraft": "Это приватные черновики. Они не передаются другим во время окна отзывов; сохраните их, чтобы отправить после закрытия запроса.",
   "evaluationPrivacyBlock": "Ваш отзыв здесь приватен. Он не будет показан публично, и другие участники запроса по умолчанию не увидят ваши ответы. Он используется только для улучшения вашего локального представления о доверии: кому вы можете больше доверять, кому меньше или через кого маршрутизировать запросы в следующий раз. Проще говоря: ответы помогают Tentura давать вам более точные персональные рекомендации и подбор относительно людей здесь и связанных с ними. Оценивайте только то, что вы реально видели в этом запросе. Если не уверены, выберите «Нет оснований».",
   "evaluationPrivacyShort": "Ваш отзыв приватен.",
@@ -4059,7 +4060,77 @@
       }
     }
   },
-  "evaluationSubmitFinish": "Отправить и завершить",
+  "evaluationSubmitFinish": "Отправить оценки",
+  "evaluationSubmitChanges": "Отправить изменения",
+  "evaluationPackageSentAt": "Оценки отправлены {date}",
+  "@evaluationPackageSentAt": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "evaluationPackageSentHint": "Изменить можно, пока запрос не закрыт. После изменения пакет придётся отправить заново.",
+  "evaluationPackageDirtyTitle": "Изменения не отправлены",
+  "evaluationPackageDirtyBody": "Пока пакет не отправлен, ваши оценки не будут учтены при закрытии запроса.",
+  "evaluationPackageDone": "Готово",
+  "evaluationPausedTitle": "Автор вернул запрос в работу",
+  "evaluationPausedBody": "Оценки никому не переданы. Сохранённые ответы остались черновиками — отправить их можно будет, когда автор снова свернёт запрос.",
+  "evaluationPausedAction": "К запросу",
+  "evaluationClosedSentBody": "Запрос закрыт. Ваши оценки отправлены и учтены.",
+  "evaluationClosedUnsentBody": "Запрос закрыт до того, как вы отправили пакет. Незавершённые оценки не сохранились.",
+  "evaluationSectionRequired": "Обязательные",
+  "evaluationSectionOptional": "Необязательные · участие завершилось",
+  "evaluationOptionalHint": "Эти оценки не обязательны и не задерживают закрытие запроса.",
+  "evaluationOptionalSkip": "Пропустить",
+  "evaluationProgressSplit": "{req} из {reqTotal} обязательных · {opt} из {optTotal} необязательных",
+  "@evaluationProgressSplit": {
+    "placeholders": {
+      "req": {
+        "type": "int"
+      },
+      "reqTotal": {
+        "type": "int"
+      },
+      "opt": {
+        "type": "int"
+      },
+      "optTotal": {
+        "type": "int"
+      }
+    }
+  },
+  "evaluationOwnPackageOptional": "Вы больше не участвуете в этом запросе. Оценку можно оставить, но она не обязательна. Если не отправите до закрытия, она не сохранится.",
+  "evaluationContextCommitted": "Помогал(а) с {date}",
+  "@evaluationContextCommitted": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      }
+    }
+  },
+  "evaluationContextCommittedVia": "Помогал(а) с {date} · через {name}",
+  "@evaluationContextCommittedVia": {
+    "placeholders": {
+      "date": {
+        "type": "String"
+      },
+      "name": {
+        "type": "String"
+      }
+    }
+  },
+  "evaluationContextCommittedNoDate": "Помогал(а) с этим запросом",
+  "evaluationContextEnded": "Участие завершилось",
+  "evaluationContextForwarder": "Передал(а) запрос дальше",
+  "evaluationContextOffer": "«{message}»",
+  "@evaluationContextOffer": {
+    "placeholders": {
+      "message": {
+        "type": "String"
+      }
+    }
+  },
   "evaluationSkipForNow": "Пропустить",
   "evaluationProgress": "{reviewed} из {total} оценено",
   "@evaluationProgress": {
@@ -4174,10 +4245,21 @@
   "evaluationImpactNoRealEffect": "Без заметного эффекта",
   "evaluationImpactHurtSomewhat": "Скорее навредило",
   "evaluationImpactHurtALot": "Сильно навредило",
-  "evaluationCanEvaluate": "Могу оценить",
   "evaluationCannotEvaluate": "Не могу оценить",
-  "evaluationCannotEvaluateReplacement": "Текущее влияние, подтверждения возможностей и заметка будут сброшены.",
-  "evaluationProgressIncompleteHint": "Отправка недоступна, пока по каждому участнику нет отзыва или выключено «Могу оценить».",
+  "evaluationCannotEvaluateReplacement": "Текущее влияние, подтверждения возможностей и заметка будут сброшены. Отзыв по этому человеку не отправится, и ваше доверие к нему не изменится.",
+  "evaluationCannotEvaluateExplanation": "Вы отметили, что не видели этот вклад. Отзыв не отправится, и ваше доверие к этому человеку не изменится.",
+  "evaluationCannotEvaluateUndo": "Вернуть",
+  "evaluationCardActionReview": "Оценить",
+  "evaluationCardActionEdit": "Изменить",
+  "evaluationListIntro": "Нажмите «Оценить» у каждого человека, чтобы оценить его вклад.",
+  "evaluationProgressRemainingHint": "Осталось оценить: {count}. Не видели чей-то вклад? Отметьте «Не могу оценить» на его карточке.",
+  "@evaluationProgressRemainingHint": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "evaluationCapabilityChoose": "Чем именно?",
   "evaluationCapabilityChooseInfo": "Список собран из потребностей этого запроса, типов помощи в активном предложении этого человека и тегов, которые вы уже отметили ранее. Отметьте, чем именно человек помог в этом запросе. После закрытия окна отзывов это увидит только он. Отметки помогают Tentura точнее подсказывать вам, через кого и с какими навыками маршрутизировать запросы — это не публичный рейтинг.",
   "evaluationCapabilityDone": "Готово",
@@ -4536,7 +4618,15 @@
   "beaconReviewReopenSuccess": "Запрос снова открыт",
   "beaconReviewCloseNowSuccess": "Запрос закрыт",
   "beaconReviewReopenTitle": "Открыть запрос снова?",
-  "beaconReviewReopenBody": "Возврат в «Открыт». Заметки отзыва сохраняются как черновики, где это ещё уместно.",
+  "beaconReviewReopenBody": "Окно оценки закроется. {sent} участников уже отправили оценки — их отправка будет отменена, и отправить придётся заново. Открыть снова можно только один раз.",
+  "@beaconReviewReopenBody": {
+    "placeholders": {
+      "sent": {
+        "type": "int"
+      }
+    }
+  },
+  "beaconReviewReopenBodyNoSent": "Окно оценки закроется, сохранённые ответы останутся черновиками. Открыть снова можно только один раз.",
   "beaconReviewReopenConfirm": "Открыть снова",
   "beaconNeedsMoreHelpRevertTitle": "Нужна ещё помощь?",
   "beaconNeedsMoreHelpRevertBody": "Возврат в «Открыт» и отметка, что нужна ещё помощь. Заметки отзыва сохраняются как черновики, где это ещё уместно.",
@@ -4606,7 +4696,31 @@
   "beaconCtaUpdateStatus": "Статус",
   "beaconHudActMarkEnoughHelp": "Помощи достаточно",
   "beaconHudActWrapUpForReview": "Завершить для отзыва",
-  "beaconHudActReviewContributions": "Проверить вклад",
+  "beaconHudActReviewContributions": "Оценить вклад",
+  "beaconHudActEffectReviewProgress": "Осталось {count} из {total}",
+  "@beaconHudActEffectReviewProgress": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      },
+      "total": {
+        "type": "int"
+      }
+    }
+  },
+  "beaconHudReviewSent": "Ваши оценки отправлены",
+  "beaconHudReviewEdit": "Изменить",
+  "beaconHudWaitingForRequiredReviews": "Ждём оценки от остальных участников",
+  "beaconHudWaitingForAuthorClose": "Ждём, пока автор закроет запрос",
+  "beaconReviewCloseNowBody": "Оценки станут видны адресатам, изменить их будет нельзя.",
+  "beaconReviewCloseNowDiscardNote": "{count} участников начали оценку и не отправили её — она не сохранится.",
+  "@beaconReviewCloseNowDiscardNote": {
+    "placeholders": {
+      "count": {
+        "type": "int"
+      }
+    }
+  },
   "beaconHudActEffectResolveBlocker": "Открывает «Элементы» для снятия блокера",
   "beaconHudActEffectReviewOffers": "Открывает «Люди»; принятие добавляет помощника в обсуждение",
   "beaconHudActEffectMarkEnoughHelp": "Сигнал помощникам; запрос остаётся открытым",
@@ -4619,7 +4733,6 @@
   "beaconHudConfirmMarkEnoughHelpBody": "Помощники увидят, что помощи достаточно. Запрос остаётся открытым, пока вы не завершите или не закроете его.",
   "beaconHudConfirmMarkEnoughHelpAction": "Помощи достаточно",
   "beaconHudConfirmCloseNowTitle": "Закрыть запрос сейчас?",
-  "beaconHudConfirmCloseNowBody": "Закрывает запрос немедленно. Обсуждение остаётся только для чтения.",
   "beaconHudConfirmCloseNowBlockedBody": "Закрытие доступно, когда все обязательные рецензенты завершили или пропустили отзыв.",
   "beaconHudConfirmCloseNowAction": "Закрыть сейчас",
   "beaconHudConfirmChangeLaterInStatus": "Изменить позже в «Статус запроса»",
@@ -5046,6 +5159,18 @@
   "beaconRoomReactionPickerSemantic": "Выбор реакции",
   "beaconRoomReactionSendersSheetTitle": "Реакции",
   "beaconRoomReactionSendersSheetSemantic": "Кто отреагировал",
+  "roomAuthorCommitmentSheetTitle": "Детали обязательства",
+  "roomAuthorCommitmentGlyphsSemantic": "Детали обязательства — {name}: {tags}",
+  "@roomAuthorCommitmentGlyphsSemantic": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "tags": {
+        "type": "String"
+      }
+    }
+  },
   "beaconRoomActionReply": "Ответить",
   "beaconRoomReplyingTo": "Ответ: {name}",
   "beaconRoomReplyAttachmentExcerpt": "Вложение",
@@ -5273,6 +5398,27 @@
     }
   },
   "helpOfferRolePrompt": "Как вы помогаете?",
+  "helpOfferRoleLabelField": "Роль",
+  "@helpOfferRoleLabelField": {
+    "description": "Editable short role label on People help-offer card and chat peek sheet"
+  },
+  "helpOfferRoleLabelPlaceholder": "<роль не выбрана>",
+  "@helpOfferRoleLabelPlaceholder": {
+    "description": "Shown under chat avatar / on People card when role_label is empty"
+  },
+  "helpOfferRoleLabelEditAction": "изменить роль",
+  "helpOfferRoleLabelTooLong": "Роль — не больше 32 символов в одной строке.",
+  "roomAuthorRoleLabelSemantic": "Роль {name}: {role}",
+  "@roomAuthorRoleLabelSemantic": {
+    "placeholders": {
+      "name": {
+        "type": "String"
+      },
+      "role": {
+        "type": "String"
+      }
+    }
+  },
   "helpOfferSelectionLimit": "Выберите до 4 способов помочь.",
   "helpOfferSearchLabel": "Поиск способов помочь",
   "helpOfferSubmit": "Предложить помощь ({count}/{limit})",
@@ -5576,6 +5722,24 @@
   "updatesFallbackBodyRequestStatusChanged": "Изменился статус запроса.",
   "updatesFallbackTitleReviewOpened": "Закройте цикл",
   "updatesFallbackBodyReviewOpened": "Запрос готов к оценке.",
+  "updatesFallbackTitleReviewAllIn": "Все оценки собраны",
+  "updatesFallbackBodyReviewAllIn": "Запрос «{title}» можно закрыть.",
+  "@updatesFallbackBodyReviewAllIn": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
+  "updatesFallbackTitleReviewCancelled": "Окно оценки отменено",
+  "updatesFallbackBodyReviewCancelled": "Автор вернул запрос «{title}» в работу.",
+  "@updatesFallbackBodyReviewCancelled": {
+    "placeholders": {
+      "title": {
+        "type": "String"
+      }
+    }
+  },
   "updatesFallbackTitleMutualConnectionFormed": "Новая связь",
   "updatesFallbackBodyMutualConnectionFormed": "Вы теперь связаны в Tentura.",
   "updatesFallbackTitleInviteAccepted": "Приглашение принято",

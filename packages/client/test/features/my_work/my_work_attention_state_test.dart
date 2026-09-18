@@ -244,4 +244,56 @@ void main() {
 
     await cubit.close();
   });
+
+  test('settleObligations does not drop review_opened receipts', () async {
+    final review = AttentionReceipt(
+      id: 'r-review',
+      category: 'unblocksMe',
+      kind: 'reviewOpened',
+      priority: 'normal',
+      title: 'Review',
+      body: 'Body',
+      actionUrl: '/#/',
+      createdAt: DateTime.utc(2026, 8, 5, 10),
+      collapsedCount: 1,
+      presentationKey: 'review_opened',
+      presentationPayloadJson: '{}',
+      surface: AttentionSurface.myWork,
+      beaconId: 'b1',
+      requiresAction: true,
+    );
+    final attentionRepo = StubAttentionRepository()
+      ..myWorkAttentionResult = [
+        MyWorkBeaconAttention(
+          beaconId: 'b1',
+          unseenCount: 0,
+          liveObligations: [review],
+        ),
+      ];
+    final repo = FakeMyWorkRepository()
+      ..initResult = (
+        authoredNonArchived: [Beacon.empty.copyWith(id: 'b1')],
+        helpOfferedNonArchived: const [],
+        obligationBeacons: const [],
+        archivedCountHint: 0,
+      );
+    final cubit = MyWorkCubit(
+      userId: 'user-1',
+      myWorkCase: buildTestMyWorkCase(
+        repo: repo,
+        attentionRepository: attentionRepo,
+      ),
+    );
+    await cubit.stream.firstWhere((s) => s.attentionLoaded);
+
+    await cubit.settleObligations('b1', ['r-review']);
+
+    expect(
+      cubit.state.attentionByBeacon['b1']!.liveObligations.map((r) => r.id),
+      ['r-review'],
+    );
+    expect(attentionRepo.settleCalls, isEmpty);
+
+    await cubit.close();
+  });
 }

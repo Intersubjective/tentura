@@ -358,6 +358,7 @@ ORDER BY beacon_id, offer_user_id, seq DESC
           updatedAt: row.updatedAt.dateTime.toUtc(),
           user: userPublic,
           helpType: row.helpType,
+          roleLabel: row.roleLabel,
           withdrawReason: row.withdrawReason,
           responseType: coord?.responseType,
           responseUpdatedAt: coord?.responseUpdatedAt.toUtc(),

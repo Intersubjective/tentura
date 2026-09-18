@@ -55,6 +55,12 @@ final class HelpOfferCase extends UseCaseBase {
     int? expectedOfferKind,
   }) async {
     if (helpTypes != null) {
+      if (helpTypes.length > kMaxHelpOfferHelpTypes) {
+        throw HelpOfferCoordinationException(
+          coordinationCode:
+              HelpOfferCoordinationExceptionCode.invalidHelpType,
+        );
+      }
       for (final type in helpTypes) {
         if (!isAllowedHelpType(type)) {
           throw HelpOfferCoordinationException(
@@ -160,11 +166,63 @@ final class HelpOfferCase extends UseCaseBase {
                 authorId: lockedBeacon.author.id,
                 sourceEventKey: 'help_offer:${generateId('A')}',
                 isBackupOffer: offerKind == 1,
+                message: message,
               ),
             );
           },
         );
       },
+    );
+  }
+
+  Future<void> setRoleLabel({
+    required String beaconId,
+    required String actorUserId,
+    required String offerUserId,
+    required String roleLabel,
+  }) async {
+    final trimmed = roleLabel.trim();
+    if (trimmed.contains('\n') ||
+        trimmed.contains('\r') ||
+        trimmed.length > kMaxHelpOfferRoleLabelLength) {
+      throw HelpOfferCoordinationException(
+        coordinationCode: HelpOfferCoordinationExceptionCode.invalidRoleLabel,
+      );
+    }
+    if (!await _guard.canReadContent(
+      beaconId: beaconId,
+      viewerId: actorUserId,
+    )) {
+      throw const UnauthorizedException(
+        description: 'Viewer cannot read request content',
+      );
+    }
+    final hasActive = await _helpOfferRepository.hasActiveHelpOffer(
+      beaconId: beaconId,
+      userId: offerUserId,
+    );
+    if (!hasActive) {
+      throw HelpOfferCoordinationException(
+        coordinationCode: HelpOfferCoordinationExceptionCode.helpOfferNotActive,
+      );
+    }
+    final beacon = await _beaconRepository.getBeaconById(beaconId: beaconId);
+    final isAuthor = beacon.author.id == actorUserId;
+    final isSelf = actorUserId == offerUserId;
+    final isSteward = await _roomRepository.isBeaconSteward(
+      beaconId: beaconId,
+      userId: actorUserId,
+    );
+    if (!isSelf && !isAuthor && !isSteward) {
+      throw const UnauthorizedException(
+        description: 'Not allowed to edit this role label',
+      );
+    }
+    await _helpOfferRepository.setRoleLabel(
+      beaconId: beaconId,
+      offerUserId: offerUserId,
+      actorUserId: actorUserId,
+      roleLabel: trimmed.isEmpty ? null : trimmed,
     );
   }
 

@@ -750,7 +750,10 @@ void main() {
         isAuthor: false,
       );
 
-      expect(find.text('Review'), findsOneWidget);
+      expect(
+        find.text(lookupL10n(const Locale('en')).beaconHudActReviewContributions),
+        findsOneWidget,
+      );
       expect(find.text('See the reviews you receive'), findsOneWidget);
     });
 
@@ -764,7 +767,10 @@ void main() {
         isAuthor: true,
       );
 
-      expect(find.text('Waiting for reviews'), findsOneWidget);
+      expect(
+        find.text(lookupL10n(const Locale('en')).beaconHudWaitingForRequiredReviews),
+        findsOneWidget,
+      );
       expect(find.text('See the reviews you receive'), findsOneWidget);
     });
 

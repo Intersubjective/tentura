@@ -8,10 +8,15 @@ import 'beacon_has_unreviewed_offers.dart';
 
 /// Priority ladder: first match wins; floor is never blank ([phase] always set).
 ///
+/// [offerReviewContributions] gates the reviewOpen `reviewContributions`
+/// proposal: a sent or terminal package is not offered again (#162).
+/// Defaults to true so lifecycle-only callers keep the previous CTA.
+///
 /// Deprecated: prefer server [BeaconDisplayStatusDto] when available.
 BeaconCoordinationPhaseResult deriveBeaconCoordinationPhase(
-  BeaconCoordinationPhaseInput input,
-) {
+  BeaconCoordinationPhaseInput input, {
+  bool offerReviewContributions = true,
+}) {
   final beacon = input.beacon;
   final status = beacon.status;
 
@@ -48,12 +53,16 @@ BeaconCoordinationPhaseResult deriveBeaconCoordinationPhase(
     return _derivePublicTier(input);
   }
 
-  return _deriveCoordinationTier(input);
+  return _deriveCoordinationTier(
+    input,
+    offerReviewContributions: offerReviewContributions,
+  );
 }
 
 BeaconCoordinationPhaseResult _deriveCoordinationTier(
-  BeaconCoordinationPhaseInput input,
-) {
+  BeaconCoordinationPhaseInput input, {
+  required bool offerReviewContributions,
+}) {
   final beacon = input.beacon;
   final status = beacon.status;
   final activityAt = _activityAt(input);
@@ -62,7 +71,9 @@ BeaconCoordinationPhaseResult _deriveCoordinationTier(
     return BeaconCoordinationPhaseResult(
       phase: BeaconCoordinationPhase.wrappingUp,
       slot2Kind: _reviewSlot2(beacon),
-      suggestedAction: BeaconPhasePrimaryAction.reviewContributions,
+      suggestedAction: offerReviewContributions
+          ? BeaconPhasePrimaryAction.reviewContributions
+          : BeaconPhasePrimaryAction.none,
       rowHarmony: const BeaconPhaseRowHarmony(suppressNowPlaceholder: true),
       reviewClosesAt: beacon.reviewClosesAt,
       lastActivityAt: activityAt,

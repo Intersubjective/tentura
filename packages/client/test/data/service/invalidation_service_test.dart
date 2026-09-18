@@ -589,6 +589,7 @@ void main() {
         wsMessages.add(_entityChange(entity: 'room_reaction', id: 'room-1'));
         wsMessages.add(_entityChange(entity: 'room_poll', id: 'room-1'));
         wsMessages.add(_entityChange(entity: 'room_seen', id: 'room-1'));
+        wsMessages.add(_entityChange(entity: 'help_offer', id: 'room-1'));
         async.elapse(const Duration(milliseconds: 16));
         async.elapse(const Duration(milliseconds: 100));
 
@@ -618,6 +619,11 @@ void main() {
             BeaconRoomInvalidation(
               beaconId: 'room-1',
               entityType: BeaconRoomEntityType.roomSeen,
+              operation: RealtimeOperation.update,
+            ),
+            BeaconRoomInvalidation(
+              beaconId: 'room-1',
+              entityType: BeaconRoomEntityType.helpOffer,
               operation: RealtimeOperation.update,
             ),
           },

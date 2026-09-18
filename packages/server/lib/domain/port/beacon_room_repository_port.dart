@@ -57,6 +57,11 @@ abstract class BeaconRoomRepositoryPort {
 
   Future<Map<String, String?>> helpTypesByUserId(String beaconId);
 
+  /// Active help-offer fields keyed by user id. Key present ⇒ active offer.
+  /// [roleLabel] is never null when the key is present (`''` if unset in DB).
+  Future<Map<String, ({String? helpType, String roleLabel})>>
+  activeHelpOfferHintsByUserId(String beaconId);
+
   Future<void> insertActivityEvent({
     required String beaconId,
     required int visibility,

@@ -3,6 +3,7 @@ import 'package:tentura_root/domain/entity/beacon_status.dart';
 import 'package:tentura/domain/entity/beacon_coordination_phase.dart';
 import 'package:tentura/domain/entity/open_blocker_cue.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_state.dart';
+import 'package:tentura/features/evaluation/domain/review_package_state.dart';
 import 'package:tentura/features/my_work/domain/entity/my_work_card_view_model.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 import 'package:tentura/ui/presenter/beacon_phase_input_builders.dart';
@@ -15,7 +16,10 @@ String? myWorkPhasePrimaryCtaLabel({
   required String viewerUserId,
 }) {
   final input = beaconPhaseInputFromMyWorkCard(vm);
-  final result = deriveBeaconCoordinationPhase(input);
+  final result = deriveBeaconCoordinationPhase(
+    input,
+    offerReviewContributions: myWorkOfferReviewContributions(vm),
+  );
   final isAuthor = vm.beacon.author.id == viewerUserId;
   final action = resolveEffectivePrimaryAction(
     suggested: result.suggestedAction,
@@ -71,7 +75,10 @@ BeaconPhasePrimaryAction myWorkEffectivePrimaryAction({
   required String viewerUserId,
 }) {
   final input = beaconPhaseInputFromMyWorkCard(vm);
-  final result = deriveBeaconCoordinationPhase(input);
+  final result = deriveBeaconCoordinationPhase(
+    input,
+    offerReviewContributions: myWorkOfferReviewContributions(vm),
+  );
   final isAuthor = vm.beacon.author.id == viewerUserId;
   return resolveEffectivePrimaryAction(
     suggested: result.suggestedAction,
@@ -85,6 +92,18 @@ BeaconPhasePrimaryAction myWorkEffectivePrimaryAction({
     canOfferHelp: false,
     canNavigateRoom: true,
   );
+}
+
+/// My Work cards hold no review affordance until the batch window read has
+/// enriched them, so an unenriched card never flashes a review CTA.
+ReviewPackageState myWorkViewerReviewPackageState(MyWorkCardViewModel vm) =>
+    vm.reviewPackageState ?? ReviewPackageState.notEnrolled;
+
+bool myWorkOfferReviewContributions(MyWorkCardViewModel vm) {
+  final state = myWorkViewerReviewPackageState(vm);
+  return state == ReviewPackageState.inProgress ||
+      state == ReviewPackageState.readyToSend ||
+      state == ReviewPackageState.changedNotSent;
 }
 
 OpenBlockerCue? openBlockerFromViewState(BeaconViewState state) =>

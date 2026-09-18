@@ -151,6 +151,21 @@ final class InMemoryHelpOfferRepository implements HelpOfferRepositoryPort {
     }
     return [raw];
   }
+
+  @override
+  Future<void> setRoleLabel({
+    required String beaconId,
+    required String offerUserId,
+    required String actorUserId,
+    required String? roleLabel,
+  }) async {
+    final existing = _offers[_key(beaconId, offerUserId)];
+    if (existing == null || !existing.isActive) return;
+    _offers[_key(beaconId, offerUserId)] = existing.copyWith(
+      roleLabel: roleLabel,
+      updatedAt: _clock(),
+    );
+  }
 }
 
 /// Beacon repo that mutates status on lifecycle transitions.
@@ -296,6 +311,9 @@ final class GateScenarioEvaluationRepository extends Fake
     required int role,
     required String contributionSummary,
     required String causalHint,
+    DateTime? committedAt,
+    String offerMessage = '',
+    String? forwarderDisplayName,
   }) async {}
 
   @override

@@ -415,6 +415,15 @@ class GraphController<N, E> with ChangeNotifier {
         ScenePoint(x: position.dx, y: position.dy),
       );
 
+  /// Updates multiple presentation drags with one scene commit.
+  int updateNodePresentationDrags(
+    Map<GraphPresentationToken, Offset> updates,
+  ) =>
+      _scene.updatePresentations({
+        for (final entry in updates.entries)
+          entry.key: ScenePoint(x: entry.value.dx, y: entry.value.dy),
+      });
+
   /// Cancels an active presentation drag identified by [token].
   bool cancelNodePresentationDrag(GraphPresentationToken token) =>
       _scene.cancelPresentation(token);

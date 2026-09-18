@@ -16,6 +16,8 @@ enum AttentionEventType {
   requestStatusChanged,
   beaconHierarchyStatusChanged,
   reviewOpened,
+  reviewAllPackagesIn,
+  reviewWindowCancelled,
   mutualConnectionFormed,
   inviteAccepted,
   needsMe,
@@ -330,10 +332,13 @@ abstract class AttentionReceipt with _$AttentionReceipt {
     String? forwardOutcome,
     int? forwardCount,
     int? digestCount,
+
     /// Total represented Activity child events (grouped rows only).
     int? eventTotal,
+
     /// Unseen count among represented Activity children (grouped rows only).
     int? eventUnseenCount,
+
     /// Newest-first preview of child events (cap [kActivityEventPreviewCap]).
     @Default(<AttentionReceipt>[]) List<AttentionReceipt> eventsPreview,
   }) = _AttentionReceipt;

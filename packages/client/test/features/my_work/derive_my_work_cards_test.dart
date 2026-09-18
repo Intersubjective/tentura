@@ -69,7 +69,7 @@ void main() {
     },
   );
 
-  test('committed active shows review CTA in reviewOpen', () {
+  test('committed reviewOpen holds the review CTA until windows load', () {
     final row = (
       beacon: _b(id: 'c', status: BeaconStatus.reviewOpen),
       offerHelpMessage: 'note',
@@ -84,7 +84,7 @@ void main() {
       authoredNonArchived: const [],
       helpOfferedNonArchived: [row],
     );
-    expect(vms.single.showReviewCta, isTrue);
+    expect(vms.single.showReviewCta, isFalse);
   });
 
   test('authored beacon drops duplicate committed row for same id', () {

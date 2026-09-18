@@ -40,6 +40,8 @@ class BeaconCoverCropUi implements ImageCropUiPort {
         aspectRatioPickerButtonHidden: true,
         resetAspectRatioEnabled: false,
         aspectRatioPresets: const [CropAspectRatioPreset.square],
+        doneButtonTitle: _l10n.buttonSave,
+        cancelButtonTitle: _l10n.buttonCancel,
       ),
       WebUiSettings(
         context: _context,
@@ -53,17 +55,18 @@ class BeaconCoverCropUi implements ImageCropUiPort {
           rotateLeftTooltip: _l10n.cropRotateLeftTooltip,
           rotateRightTooltip: _l10n.cropRotateRightTooltip,
           cancelButton: _l10n.buttonCancel,
-          cropButton: _l10n.buttonCrop,
+          cropButton: _l10n.buttonSave,
         ),
       ),
     ];
   }
 
-  /// Fits the viewport so the default web dialog layout does not overflow.
+  /// Fits the viewport so AppBar / tool chrome stay tappable.
   int _webSide() {
     final size = MediaQuery.sizeOf(_context);
     const horizontalPadding = 24.0;
-    const bottomChrome = 220.0;
+    // Tool bar only (footer commit removed; LayoutBuilder caps further).
+    const bottomChrome = 100.0;
     final top = MediaQuery.paddingOf(_context).top + kToolbarHeight;
     final bottom = MediaQuery.paddingOf(_context).bottom + bottomChrome;
     final byHeight = (size.height - top - bottom).floor();

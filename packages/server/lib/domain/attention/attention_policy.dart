@@ -79,7 +79,10 @@ class AttentionPolicy {
           ? AttentionSuppressionClass.standard
           : AttentionSuppressionClass.noisy,
     AttentionEventType.coordinationChanged => AttentionSuppressionClass.noisy,
-    AttentionEventType.deadlineChanged => AttentionSuppressionClass.standard,
+    AttentionEventType.deadlineChanged ||
+    AttentionEventType.reviewAllPackagesIn ||
+    AttentionEventType.reviewWindowCancelled =>
+      AttentionSuppressionClass.standard,
     AttentionEventType.deadlineReminder => AttentionSuppressionClass.mandatory,
     AttentionEventType.relayReceived ||
     AttentionEventType.roomMessagePosted ||
@@ -118,6 +121,8 @@ class AttentionPolicy {
     AttentionEventType.needsMe ||
     AttentionEventType.staleReminder => NotificationCategory.asksOfMe,
     AttentionEventType.reviewOpened ||
+    AttentionEventType.reviewAllPackagesIn ||
+    AttentionEventType.reviewWindowCancelled ||
     AttentionEventType.blockerResolved => NotificationCategory.unblocksMe,
     AttentionEventType.commitmentAccepted ||
     AttentionEventType.commitmentResolved => NotificationCategory.unblocksMe,
@@ -158,6 +163,8 @@ class AttentionPolicy {
     AttentionEventType.requestStatusChanged ||
     AttentionEventType.beaconHierarchyStatusChanged ||
     AttentionEventType.reviewOpened ||
+    AttentionEventType.reviewAllPackagesIn ||
+    AttentionEventType.reviewWindowCancelled ||
     AttentionEventType.needsMe ||
     AttentionEventType.blockerOpened ||
     AttentionEventType.blockerResolved ||
@@ -228,8 +235,13 @@ class AttentionPolicy {
         kind: AttentionDestinationKind.beaconRoomMessage,
         targetEntityId: role.messageId,
       ),
-      AttentionEventType.reviewOpened => AttentionDestination(
+      AttentionEventType.reviewOpened ||
+      AttentionEventType.reviewAllPackagesIn => AttentionDestination(
         kind: AttentionDestinationKind.review,
+        targetEntityId: role.beaconId,
+      ),
+      AttentionEventType.reviewWindowCancelled => AttentionDestination(
+        kind: AttentionDestinationKind.beacon,
         targetEntityId: role.beaconId,
       ),
       AttentionEventType.mutualConnectionFormed ||
@@ -272,6 +284,8 @@ class AttentionPolicy {
     AttentionEventType.deadlineChanged ||
     AttentionEventType.deadlineReminder => false,
     AttentionEventType.reviewOpened => true,
+    AttentionEventType.reviewAllPackagesIn => false,
+    AttentionEventType.reviewWindowCancelled => false,
     AttentionEventType.trustGivenChanged ||
     AttentionEventType.trustReceivedChanged => false,
     _ => false,
@@ -310,6 +324,8 @@ class AttentionPolicy {
     AttentionEventType.beaconHierarchyStatusChanged =>
       'beacon_hierarchy_status_changed',
     AttentionEventType.reviewOpened => 'review_opened',
+    AttentionEventType.reviewAllPackagesIn => 'review_all_packages_in',
+    AttentionEventType.reviewWindowCancelled => 'review_window_cancelled',
     AttentionEventType.mutualConnectionFormed => 'mutual_connection_formed',
     AttentionEventType.inviteAccepted => 'invite_accepted',
     AttentionEventType.needsMe => 'needs_me',

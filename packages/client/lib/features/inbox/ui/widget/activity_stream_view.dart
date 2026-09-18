@@ -940,7 +940,7 @@ class _ActivityStreamCell extends StatelessWidget {
           onTap: () => unawaited(onOpenParent()),
           onMarkSeen: () => streamCubit.markSeen(receipt.id),
           onMarkUnseen: () => streamCubit.markUnseen(receipt.id),
-          onSettle: receipt.isLiveObligation
+          onSettle: receipt.isUserSettleable
               ? () => streamCubit.settle(receipt.id)
               : null,
         );

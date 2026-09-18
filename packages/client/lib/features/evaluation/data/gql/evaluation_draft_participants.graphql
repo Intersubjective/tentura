@@ -4,8 +4,6 @@ query EvaluationDraftParticipants($id: String!) {
     displayName
     imageId
     role
-    contributionSummary
-    causalHint
     value
     reasonTags
     note
@@ -14,5 +12,10 @@ query EvaluationDraftParticipants($id: String!) {
     acknowledgeableHelpTags
     maxAcknowledgedHelpTags
     isSubmitted
+    isOptional
+    rowStatus
+    committedAt
+    offerMessage
+    forwarderDisplayName
   }
 }

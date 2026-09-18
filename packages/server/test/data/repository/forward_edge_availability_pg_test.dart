@@ -35,7 +35,12 @@ Future<void> main() async {
     const authorId = 'Ufwdaauth01';
     const senderId = 'Ufwdasend01';
     const recipientId = 'Ufwdarecip01';
-    final futureResumeOn = DateTime.utc(2026, 9, 15);
+    final todayUtc = DateTime.now().toUtc();
+    final futureResumeOn = DateTime.utc(
+      todayUtc.year,
+      todayUtc.month,
+      todayUtc.day + 30,
+    );
 
     setUpAll(() async {
       if (skipReason != false) {

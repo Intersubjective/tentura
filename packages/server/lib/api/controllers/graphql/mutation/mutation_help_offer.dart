@@ -17,7 +17,15 @@ final class MutationHelpOffer extends GqlNodeBase {
 
   final _withdrawReason = InputFieldString(fieldName: 'withdrawReason');
 
-  List<GraphQLObjectField<dynamic, dynamic>> get all => [offerHelp, withdraw];
+  final _offerUserId = InputFieldString(fieldName: 'offerUserId');
+
+  final _roleLabel = InputFieldString(fieldName: 'roleLabel');
+
+  List<GraphQLObjectField<dynamic, dynamic>> get all => [
+    offerHelp,
+    withdraw,
+    setRoleLabel,
+  ];
 
   GraphQLObjectField<dynamic, dynamic> get offerHelp => GraphQLObjectField(
     'beaconOfferHelp',
@@ -53,6 +61,24 @@ final class MutationHelpOffer extends GqlNodeBase {
           userId: getCredentials(args).sub,
           message: _message.fromArgs(args) ?? '',
           withdrawReason: _withdrawReason.fromArgsNonNullable(args),
+        )
+        .then((_) => true),
+  );
+
+  GraphQLObjectField<dynamic, dynamic> get setRoleLabel => GraphQLObjectField(
+    'beaconHelpOfferRoleLabelSet',
+    graphQLBoolean.nonNullable(),
+    arguments: [
+      InputFieldId.field,
+      _offerUserId.field,
+      _roleLabel.field,
+    ],
+    resolve: (_, args) => _helpOfferCase
+        .setRoleLabel(
+          beaconId: InputFieldId.fromArgsNonNullable(args),
+          actorUserId: getCredentials(args).sub,
+          offerUserId: _offerUserId.fromArgsNonNullable(args),
+          roleLabel: _roleLabel.fromArgsNonNullable(args),
         )
         .then((_) => true),
   );

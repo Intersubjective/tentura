@@ -343,10 +343,22 @@ ConstellationLayout computeConstellationPlacedLayout({
     final requestFootprint = isRequest
         ? (input.footprints[nodeId] ?? _symmetricBodyFootprint(size))
         : null;
+    // Attachment-crossing still uses requestAuthorById only (may be empty on
+    // the scene path). Hint-skip resolves author from satellite maps separately
+    // so we do not turn on crossing preference for every satellite.
     final requestAuthorId = isRequest
         ? (input.egoOwnRequestIds.contains(nodeId)
             ? input.egoId
             : input.requestAuthorById[nodeId])
+        : null;
+    final hintSkipAuthorId = isRequest
+        ? _requestAuthorForHintSkip(
+            nodeId: nodeId,
+            egoId: input.egoId,
+            egoOwnRequestIds: input.egoOwnRequestIds,
+            satelliteRequestIdsByAuthor: input.satelliteRequestIdsByAuthor,
+            requestAuthorById: input.requestAuthorById,
+          )
         : null;
     final chosen = _chooseAutomaticPosition(
       nodeId: nodeId,
@@ -363,6 +375,7 @@ ConstellationLayout computeConstellationPlacedLayout({
       requestFootprint: requestFootprint,
       obstacles: obstacles,
       requestAuthorId: requestAuthorId,
+      hintSkipAuthorId: hintSkipAuthorId,
     );
     positions[nodeId] = chosen.point;
     if (chosen.ring != null) {
@@ -453,6 +466,54 @@ bool _isAutomaticRequestNode({
   return false;
 }
 
+/// Resolves a request's author for prior-hint invalidation only.
+///
+/// Prefers [requestAuthorById] when present; otherwise scans
+/// [satelliteRequestIdsByAuthor] / [egoOwnRequestIds] so the scene path
+/// (which passes an empty author map) still invalidates stale satellite seats.
+String? _requestAuthorForHintSkip({
+  required String nodeId,
+  required String egoId,
+  required Set<String> egoOwnRequestIds,
+  required Map<String, List<String>> satelliteRequestIdsByAuthor,
+  required Map<String, String> requestAuthorById,
+}) {
+  if (egoOwnRequestIds.contains(nodeId)) {
+    return egoId;
+  }
+  final mapped = requestAuthorById[nodeId];
+  if (mapped != null) {
+    return mapped;
+  }
+  for (final entry in satelliteRequestIdsByAuthor.entries) {
+    if (entry.value.contains(nodeId)) {
+      return entry.key;
+    }
+  }
+  return null;
+}
+
+/// Scene-space epsilon for "author seat moved" prior-hint invalidation.
+const _kAuthorSeatMovedEpsilon = 1.0;
+
+bool _authorSeatMovedSincePrior({
+  required String? authorId,
+  required Map<String, ConstellationPoint> placed,
+  required ConstellationLayoutPriorHints? priorHints,
+}) {
+  if (authorId == null || priorHints == null) {
+    return false;
+  }
+  final priorAuthor = priorHints.positions[authorId];
+  final currentAuthor = placed[authorId];
+  if (priorAuthor == null || currentAuthor == null) {
+    return false;
+  }
+  final dx = currentAuthor.x - priorAuthor.x;
+  final dy = currentAuthor.y - priorAuthor.y;
+  return math.sqrt(dx * dx + dy * dy) > _kAuthorSeatMovedEpsilon;
+}
+
 ({ConstellationPoint point, int? ring}) _chooseAutomaticPosition({
   required String nodeId,
   required ConstellationPoint ideal,
@@ -468,6 +529,7 @@ bool _isAutomaticRequestNode({
   ConstellationFootprint? requestFootprint,
   Map<String, ConstellationBounds> obstacles = const {},
   String? requestAuthorId,
+  String? hintSkipAuthorId,
 }) {
   final effectiveSize = isRequest && requestFootprint != null
       ? (
@@ -478,7 +540,14 @@ bool _isAutomaticRequestNode({
   final candidates = <ConstellationPoint>[];
 
   final hint = priorHints?.positions[nodeId];
+  final skipHintForMovedAuthor = isRequest &&
+      _authorSeatMovedSincePrior(
+        authorId: hintSkipAuthorId,
+        placed: placed,
+        priorHints: priorHints,
+      );
   if (hint != null &&
+      !skipHintForMovedAuthor &&
       priorHints!.viewportClass == viewportClass &&
       _priorHintEligible(
         nodeId: nodeId,

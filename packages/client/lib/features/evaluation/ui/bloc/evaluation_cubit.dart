@@ -4,6 +4,8 @@ import 'package:tentura/features/evaluation/domain/entity/evaluation_participant
 import 'package:tentura/features/evaluation/domain/use_case/evaluation_case.dart';
 import 'package:tentura/features/evaluation/domain/entity/evaluation_summary.dart';
 import 'package:tentura/features/evaluation/domain/entity/evaluation_value.dart';
+import 'package:tentura/features/evaluation/domain/entity/review_window_info.dart';
+import 'package:tentura/features/evaluation/domain/evaluation_exception.dart';
 import 'package:tentura/ui/bloc/state_base.dart';
 import 'package:tentura/ui/effect/ui_effect.dart';
 import 'package:tentura/ui/effect/ui_effect_port.dart';
@@ -58,6 +60,68 @@ class EvaluationCubit extends Cubit<EvaluationState> {
     }
   }
 
+  /// Emits [window] with lifecycle flags derived from it.
+  ///
+  /// `ReviewWindowInfo` carries no beacon lifecycle, so the flags come from
+  /// the window read. A missing window only means "paused" right after a
+  /// lifecycle error for a viewer who had a package ([afterLifecycleError]).
+  EvaluationState _withWindow(
+    EvaluationState base,
+    ReviewWindowInfo window, {
+    bool afterLifecycleError = false,
+  }) {
+    if (window.windowComplete) {
+      return base.copyWith(
+        windowInfo: window,
+        beaconIsClosed: true,
+        beaconIsInReview: false,
+      );
+    }
+    if (window.hasWindow) {
+      return base.copyWith(
+        windowInfo: window,
+        beaconIsClosed: false,
+        beaconIsInReview: true,
+      );
+    }
+    return base.copyWith(
+      windowInfo: window,
+      beaconIsClosed: false,
+      beaconIsInReview: !(afterLifecycleError && base.participants.isNotEmpty),
+    );
+  }
+
+  /// 1401 and 1405 are ambiguous (D12): the server raises them after a reopen
+  /// and after a final close. Re-read the window once to tell them apart.
+  Future<void> _classifyLifecycleError(Object originalError) async {
+    try {
+      final window = await _evaluationCase.fetchReviewWindowStatus(
+        state.beaconId,
+      );
+      if (isClosed) return;
+      emit(
+        _withWindow(
+          state,
+          window,
+          afterLifecycleError: true,
+        ).copyWith(status: StateStatus.isSuccess),
+      );
+    } catch (_) {
+      // The classifying read failed: keep what we had and report normally.
+      if (!isClosed) _emitSnackError(originalError);
+    }
+  }
+
+  Future<void> _onError(Object e) async {
+    if (!state.isDraftMode &&
+        (e is EvaluationReviewWindowNotOpenException ||
+            e is EvaluationReviewWindowExpiredException)) {
+      await _classifyLifecycleError(e);
+    } else {
+      _emitSnackError(e);
+    }
+  }
+
   Future<void> loadAll() async {
     emit(state.copyWith(status: StateStatus.isLoading));
     try {
@@ -75,8 +139,7 @@ class EvaluationCubit extends Cubit<EvaluationState> {
         if (isClosed) return;
       }
       emit(
-        state.copyWith(
-          windowInfo: window,
+        _withWindow(state, window).copyWith(
           beaconTitle: window.beaconTitle,
           participants: participants,
           summary: summary,
@@ -115,16 +178,17 @@ class EvaluationCubit extends Cubit<EvaluationState> {
       );
       if (isClosed) return;
       emit(
-        state.copyWith(
-          participants: participants,
-          windowInfo: window,
+        _withWindow(
+          state.copyWith(participants: participants),
+          window,
+        ).copyWith(
           beaconTitle: window.beaconTitle,
           status: StateStatus.isSuccess,
         ),
       );
     } catch (e) {
       if (isClosed) return;
-      _emitSnackError(e);
+      await _onError(e);
     }
   }
 
@@ -139,8 +203,7 @@ class EvaluationCubit extends Cubit<EvaluationState> {
     }
     emit(state.copyWith(status: StateStatus.isLoading));
     try {
-      final effectiveNote =
-          value == EvaluationValue.noBasis ? '' : note;
+      final effectiveNote = value == EvaluationValue.noBasis ? '' : note;
       if (state.isDraftMode) {
         await _evaluationCase.draftSave(
           beaconId: state.beaconId,
@@ -182,9 +245,10 @@ class EvaluationCubit extends Cubit<EvaluationState> {
       );
       if (isClosed) return true;
       emit(
-        state.copyWith(
-          participants: participants,
-          windowInfo: window,
+        _withWindow(
+          state.copyWith(participants: participants),
+          window,
+        ).copyWith(
           beaconTitle: window.beaconTitle,
           status: StateStatus.isSuccess,
         ),
@@ -192,7 +256,7 @@ class EvaluationCubit extends Cubit<EvaluationState> {
       return true;
     } catch (e) {
       if (isClosed) return false;
-      _emitSnackError(e);
+      await _onError(e);
       return false;
     }
   }
@@ -229,9 +293,10 @@ class EvaluationCubit extends Cubit<EvaluationState> {
         );
         if (isClosed) return true;
         emit(
-          state.copyWith(
-            participants: participants,
-            windowInfo: window,
+          _withWindow(
+            state.copyWith(participants: participants),
+            window,
+          ).copyWith(
             beaconTitle: window.beaconTitle,
             status: StateStatus.isSuccess,
           ),
@@ -240,13 +305,14 @@ class EvaluationCubit extends Cubit<EvaluationState> {
       return true;
     } catch (e) {
       if (isClosed) return false;
-      _emitSnackError(e);
+      await _onError(e);
       return false;
     }
   }
 
   Future<void> finalize() async {
     if (state.isDraftMode) {
+      // Draft mode has no package to stay with: the sheet is the whole flow.
       _emitNavigateBack();
       return;
     }
@@ -257,10 +323,52 @@ class EvaluationCubit extends Cubit<EvaluationState> {
     try {
       await _evaluationCase.finalize(state.beaconId);
       if (isClosed) return;
-      _emitNavigateBack();
+      await _refreshAfterSend();
     } catch (e) {
       if (isClosed) return;
-      _emitSnackError(e);
+      await _onError(e);
+    }
+  }
+
+  /// Re-reads the package after a send that already succeeded (#162).
+  ///
+  /// A failure here is a read failure, never a send failure: the UI must not
+  /// fall back to the pre-send state. Keep the participants we have, mark the
+  /// window sent locally, and surface the read failure as a snackbar.
+  Future<void> _refreshAfterSend() async {
+    try {
+      final participants = await _evaluationCase.fetchParticipants(
+        state.beaconId,
+      );
+      if (isClosed) return;
+      final window = await _evaluationCase.fetchReviewWindowStatus(
+        state.beaconId,
+      );
+      if (isClosed) return;
+      emit(
+        _withWindow(
+          state.copyWith(participants: participants),
+          window,
+        ).copyWith(
+          beaconTitle: window.beaconTitle,
+          status: StateStatus.isSuccess,
+        ),
+      );
+    } catch (e) {
+      if (isClosed) return;
+      final window = state.windowInfo;
+      if (window != null) {
+        emit(
+          state.copyWith(
+            windowInfo: window.copyWith(
+              userReviewStatus: 2,
+              sentAt: window.sentAt ?? DateTime.now().toUtc(),
+            ),
+            status: StateStatus.isSuccess,
+          ),
+        );
+      }
+      await _onError(e);
     }
   }
 }

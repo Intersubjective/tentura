@@ -201,5 +201,156 @@ void main() {
         expect(graph.latestEdgeToCommitter[helperId], edge);
       },
     );
+
+    test(
+      'committer draft carries the offer date and message',
+      () async {
+        final offer = HelpOfferEntity(
+          beaconId: beaconId,
+          userId: helperId,
+          createdAt: offerCreatedAt,
+          updatedAt: offerCreatedAt,
+          message: 'I can help',
+        );
+        builder = EvaluationParticipantGraphBuilder(
+          acknowledgedCommitterCommitmentRepo(
+            beaconId: beaconId,
+            helperId: helperId,
+            authorId: authorId,
+          ),
+          ConfigurableGraphHelpOfferRepository([offer]),
+          EmptyGraphForwardEdgeRepository(),
+          StubUserRepository('User'),
+        );
+
+        final graph = await builder.build(
+          beaconId: beaconId,
+          authorId: authorId,
+          preClosure: false,
+        );
+
+        final helper = graph.participants.singleWhere((p) => p.userId == helperId);
+        expect(helper.committedAt, offerCreatedAt);
+        expect(helper.offerMessage, 'I can help');
+        expect(helper.forwarderDisplayName, isNull);
+      },
+    );
+
+    test(
+      'former committer keeps the original offer date, not the reopen time',
+      () async {
+        final offer = HelpOfferEntity(
+          beaconId: beaconId,
+          userId: helperId,
+          createdAt: offerCreatedAt,
+          updatedAt: offerCreatedAt.add(const Duration(days: 9)),
+          status: 1,
+          message: 'helped out',
+        );
+        builder = EvaluationParticipantGraphBuilder(
+          acknowledgedCommitterCommitmentRepo(
+            beaconId: beaconId,
+            helperId: helperId,
+            authorId: authorId,
+            withdrawAfterAck: const Duration(hours: 30),
+          ),
+          ConfigurableGraphHelpOfferRepository([offer]),
+          EmptyGraphForwardEdgeRepository(),
+          StubUserRepository('User'),
+        );
+
+        final graph = await builder.build(
+          beaconId: beaconId,
+          authorId: authorId,
+          preClosure: false,
+        );
+
+        final helper = graph.participants.singleWhere((p) => p.userId == helperId);
+        expect(helper.role, EvaluationParticipantRole.formerCommitter);
+        expect(helper.committedAt, offerCreatedAt);
+        expect(helper.committedAt, isNot(offer.updatedAt));
+        // The legacy columns keep their marker; the structured fields do not.
+        expect(helper.contributionSummary, endsWith(' — participation ended'));
+        expect(helper.offerMessage, 'helped out');
+      },
+    );
+
+    test(
+      'offer without a message yields an empty offerMessage',
+      () async {
+        final offer = HelpOfferEntity(
+          beaconId: beaconId,
+          userId: helperId,
+          createdAt: offerCreatedAt,
+          updatedAt: offerCreatedAt,
+        );
+        builder = EvaluationParticipantGraphBuilder(
+          acknowledgedCommitterCommitmentRepo(
+            beaconId: beaconId,
+            helperId: helperId,
+            authorId: authorId,
+          ),
+          ConfigurableGraphHelpOfferRepository([offer]),
+          EmptyGraphForwardEdgeRepository(),
+          StubUserRepository('User'),
+        );
+
+        final graph = await builder.build(
+          beaconId: beaconId,
+          authorId: authorId,
+          preClosure: false,
+        );
+
+        final helper = graph.participants.singleWhere((p) => p.userId == helperId);
+        expect(helper.offerMessage, isEmpty);
+      },
+    );
+
+    test(
+      'forwarder draft has no committedAt',
+      () async {
+        final offer = HelpOfferEntity(
+          beaconId: beaconId,
+          userId: helperId,
+          createdAt: offerCreatedAt,
+          updatedAt: offerCreatedAt,
+          message: 'on it',
+        );
+        final edge = ForwardEdgeEntity(
+          id: 'F1',
+          beaconId: beaconId,
+          senderId: forwarderId,
+          recipientId: helperId,
+          createdAt: offerCreatedAt,
+        );
+        builder = EvaluationParticipantGraphBuilder(
+          acknowledgedCommitterCommitmentRepo(
+            beaconId: beaconId,
+            helperId: helperId,
+            authorId: authorId,
+          ),
+          ConfigurableGraphHelpOfferRepository([offer]),
+          ConfigurableGraphForwardEdgeRepository([edge]),
+          StubUserRepository('Forwarder'),
+        );
+
+        final graph = await builder.build(
+          beaconId: beaconId,
+          authorId: authorId,
+          preClosure: false,
+        );
+
+        final forwarder = graph.participants.singleWhere(
+          (p) => p.userId == forwarderId,
+        );
+        expect(forwarder.role, EvaluationParticipantRole.forwarder);
+        expect(forwarder.committedAt, isNull);
+        expect(forwarder.offerMessage, isEmpty);
+        expect(forwarder.forwarderDisplayName, isNull);
+
+        final helper = graph.participants.singleWhere((p) => p.userId == helperId);
+        expect(helper.forwarderDisplayName, 'Forwarder');
+      },
+    );
   });
 }

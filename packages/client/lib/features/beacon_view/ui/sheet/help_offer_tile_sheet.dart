@@ -11,6 +11,7 @@ import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/beacon_view/domain/use_case/beacon_view_case.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/help_offer_tile_sheet_cubit.dart';
 import 'package:tentura/features/beacon_view/ui/dialog/help_offer_admission_reason_dialog.dart';
+import 'package:tentura/features/beacon_view/ui/dialog/help_offer_role_label_dialog.dart';
 import 'package:tentura/features/beacon_view/ui/widget/help_offer_tile.dart';
 import 'package:tentura/features/profile/ui/bloc/profile_cubit.dart';
 import 'package:tentura/ui/effect/ui_effect_port.dart';
@@ -88,7 +89,18 @@ class _HelpOfferTileSheetBody extends StatelessWidget {
                 beaconAuthor: state.beacon.author,
                 beaconAuthorId: state.beacon.author.id,
                 isAuthorView: state.isAuthorOrSteward,
+                isMine: offer.user.id == state.myProfile.id,
                 participant: state.participant,
+                onEditRole: cubit.canEditRole
+                    ? () async {
+                        final next = await HelpOfferRoleLabelDialog.show(
+                          context,
+                          initialText: offer.roleLabel ?? '',
+                        );
+                        if (next == null || !context.mounted) return;
+                        await cubit.setRoleLabel(next);
+                      }
+                    : null,
                 onAccept: canManage
                     ? () async {
                         final ok = await cubit.accept();

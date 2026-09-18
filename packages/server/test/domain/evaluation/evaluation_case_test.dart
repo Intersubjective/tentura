@@ -1,3 +1,8 @@
+import 'package:tentura_server/domain/attention/attention_policy.dart';
+import 'package:tentura_server/domain/entity/notification_category.dart';
+import 'package:tentura_server/domain/port/attention_dispatch_port.dart';
+import 'package:tentura_server/domain/port/mutating_unit_of_work_port.dart';
+import 'package:tentura_server/domain/use_case/transactional_attention_case.dart';
 import 'package:injectable/injectable.dart' show Environment;
 import 'package:logging/logging.dart';
 import 'package:meta/meta.dart';
@@ -35,6 +40,7 @@ import 'package:tentura_server/domain/use_case/commitment_query_case.dart';
 import 'package:tentura_server/domain/commitment/commitment_event.dart';
 import 'package:tentura_server/domain/commitment/commitment_event_kind.dart';
 import 'package:tentura_server/domain/port/commitment_repository_port.dart';
+import 'package:tentura_server/domain/port/attention_system_settlement_port.dart';
 import 'package:tentura_server/domain/trust/trust_bin.dart';
 
 import '../../support/fake_beacon_hierarchy_repository.dart';
@@ -45,11 +51,98 @@ import 'evaluation_graph_test_repos.dart';
 import '../../support/test_attention_harness.dart';
 import 'package:tentura_root/domain/entity/beacon_status.dart';
 
+// Model the dispatch port's source-key idempotency; PG tests exercise the real
+// occurrence/receipt uniqueness and payload equality checks.
+class _IdempotentReviewDispatch extends Fake implements AttentionDispatchPort {
+  final byKey = <String, AttentionDispatchIntent>{};
+  final attempts = <AttentionDispatchIntent>[];
+
+  @override
+  Future<void> record(AttentionDispatchIntent intent) async {
+    attempts.add(intent);
+    final previous = byKey[intent.sourceEventKey];
+    if (previous != null) {
+      expect(
+        intent,
+        previous,
+        reason: 'Retries must preserve all source facts',
+      );
+    }
+    byKey.putIfAbsent(intent.sourceEventKey, () => intent);
+  }
+}
+
+class _ReviewUnitOfWork extends Fake implements MutatingUnitOfWorkPort {
+  @override
+  Future<T> run<T>({
+    required Future<T> Function() action,
+    String? actorUserId,
+  }) => action();
+}
+
 class _NoopAttentionExpiryRepository extends Fake
     implements AttentionExpiryRepositoryPort {
   @override
   Future<List<String>> lockExpiredReviewWindowBeaconIds(DateTime now) async =>
       const [];
+}
+
+class _DueAttentionExpiryRepository extends Fake
+    implements AttentionExpiryRepositoryPort {
+  _DueAttentionExpiryRepository(this.due);
+
+  final List<String> due;
+
+  @override
+  Future<List<String>> lockExpiredReviewWindowBeaconIds(DateTime now) async =>
+      due;
+}
+
+class _RecordingPackageSendSettlement extends Fake
+    implements AttentionSystemSettlementPort {
+  final packageSendCalls =
+      <({String beaconId, String reviewerAccountId})>[];
+
+  @override
+  Future<int> settleReviewerObligationOnPackageSend({
+    required String beaconId,
+    required String reviewerAccountId,
+  }) async {
+    packageSendCalls.add((
+      beaconId: beaconId,
+      reviewerAccountId: reviewerAccountId,
+    ));
+    return 1;
+  }
+
+  @override
+  Future<int> settleReviewObligationsAfterWindowClose(String beaconId) async =>
+      0;
+
+  @override
+  Future<int> supersedeReviewObligationsOnReopen(String beaconId) async => 0;
+
+  @override
+  Future<int> settleAuthorHelpOfferSubmitted({
+    required String beaconId,
+    required String authorAccountId,
+    required String helpOffererUserId,
+  }) async =>
+      0;
+
+  @override
+  Future<List<String>> listBeaconIdsWithClosedReviewWindows() async => [];
+}
+
+
+class _CountingReopenSettlement extends _RecordingPackageSendSettlement {
+  final supersedeCalls = <String>[];
+
+  @override
+  Future<int> supersedeReviewObligationsOnReopen(String beaconId) async {
+    supersedeCalls.add(beaconId);
+    return 1;
+  }
 }
 
 class MockBeaconRepository extends Mock implements BeaconRepositoryPort {}
@@ -178,10 +271,12 @@ EvaluationCase buildTestEvaluationCase({
   required UserProfileBatchLookup userProfileBatchLookup,
   required EvaluationParticipantGraphBuilder graphBuilder,
   required TestAttentionHarness attention,
+  TransactionalAttentionCase? transactionalAttention,
   required AttentionExpirySweepCase expirySweep,
   CommitmentRepositoryPort? commitmentRepo,
   HelpOfferRepositoryPort? helpOfferRepo,
   ReviewFinalizationPort? reviewFinalization,
+  AttentionSystemSettlementPort? attentionSystemSettlement,
   RecordingBeaconHierarchyOutbox? lifecycleOutbox,
 }) {
   final commitment = commitmentRepo ?? NoOpCommitmentRepository();
@@ -205,9 +300,10 @@ EvaluationCase buildTestEvaluationCase({
     FakeBeaconHierarchyRepository(),
     buildLifecycleEffectsCase(outbox: outbox),
     attentionIntents: attention.intents,
-    attention: attention.transactional,
+    attention: transactionalAttention ?? attention.transactional,
     attentionExpirySweep: expirySweep,
     reviewFinalization: reviewFinalization,
+    attentionSystemSettlement: attentionSystemSettlement,
     env: Env(environment: Environment.test),
     logger: Logger('EvaluationCaseTest'),
   );
@@ -259,6 +355,8 @@ class _FakeEvaluationRepository implements EvaluationRepositoryPort {
 
   BeaconReviewWindowRecord? reviewWindowResult;
   int? reviewUserStatusResult;
+  bool useReviewStatusMap = false;
+  DateTime? reviewSentAtResult;
   List<BeaconEvaluationParticipantRecord> participantsResult = [];
   List<BeaconEvaluationVisibilityRecord> visibilityResult = [];
   List<BeaconEvaluationRecord> listEvaluationsForEvaluatorResult = [];
@@ -307,7 +405,11 @@ class _FakeEvaluationRepository implements EvaluationRepositoryPort {
 
   @override
   Future<int?> getReviewUserStatus(String beaconId, String userId) async =>
-      reviewUserStatusResult;
+      useReviewStatusMap ? reviewStatusesResult[userId] : reviewUserStatusResult;
+
+  @override
+  Future<DateTime?> getReviewSentAt(String beaconId, String userId) async =>
+      reviewSentAtResult;
 
   @override
   Future<void> insertParticipant({
@@ -316,6 +418,9 @@ class _FakeEvaluationRepository implements EvaluationRepositoryPort {
     required int role,
     required String contributionSummary,
     required String causalHint,
+    DateTime? committedAt,
+    String offerMessage = '',
+    String? forwarderDisplayName,
   }) async {}
 
   @override
@@ -447,8 +552,10 @@ class _FakeEvaluationRepository implements EvaluationRepositoryPort {
     required String beaconId,
     required String userId,
     required int status,
+    bool markSent = false,
   }) async {
     setReviewUserStatusCalls.add(_SetStatusCall(beaconId, userId, status));
+    reviewStatusesResult[userId] = status;
   }
 
   @override
@@ -545,6 +652,9 @@ final class _ParticipantPkeyEnforcingEvaluationRepository
     required int role,
     required String contributionSummary,
     required String causalHint,
+    DateTime? committedAt,
+    String offerMessage = '',
+    String? forwarderDisplayName,
   }) async {
     insertParticipantCalls.add((beaconId: beaconId, userId: userId));
     final key = _participantRowKey(beaconId, userId);
@@ -844,6 +954,51 @@ void main() {
     );
 
     test(
+      'settles reviewOpened obligation on package send including already-2',
+      () async {
+        final settlement = _RecordingPackageSendSettlement();
+        final helpOfferRepo = EmptyGraphHelpOfferRepository();
+        final forwardRepo = EmptyGraphForwardEdgeRepository();
+        final userRepo = StubUserRepository('User');
+        final userProfileBatchLookup = StubUserProfileBatchLookup('User');
+        final graphBuilder = EvaluationParticipantGraphBuilder(
+          NoOpCommitmentRepository(),
+          helpOfferRepo,
+          forwardRepo,
+          userRepo,
+        );
+        final localCase = buildTestEvaluationCase(
+          beaconRepo: _TransactionStubBeaconRepo(defaultReviewBeacon()),
+          forwardRepo: forwardRepo,
+          evalRepo: evalRepo,
+          userProfileBatchLookup: userProfileBatchLookup,
+          graphBuilder: graphBuilder,
+          attention: attention,
+          expirySweep: expirySweep,
+          commitmentRepo: NoOpCommitmentRepository(),
+          helpOfferRepo: helpOfferRepo,
+          reviewFinalization: reviewFinalization,
+          attentionSystemSettlement: settlement,
+        );
+        evalRepo
+          ..reviewWindowResult = openWindow()
+          ..reviewUserStatusResult = 2;
+
+        expect(
+          await localCase.evaluationFinalize(
+            beaconId: beaconId,
+            userId: userId,
+          ),
+          isTrue,
+        );
+        expect(evalRepo.setReviewUserStatusCalls, isEmpty);
+        expect(settlement.packageSendCalls, [
+          (beaconId: beaconId, reviewerAccountId: userId),
+        ]);
+      },
+    );
+
+    test(
       'sets status to 2 when legacy skipped status (3) sends package',
       () async {
         evalRepo
@@ -973,6 +1128,686 @@ void main() {
         );
       },
     );
+
+    group('all required packages author nudge', () {
+      const helperId = 'helper1';
+      late _IdempotentReviewDispatch dispatch;
+      late EvaluationCase localCase;
+
+      BeaconEvaluationRecord readyRow(String evaluator, String target) =>
+          BeaconEvaluationRecord(
+            beaconId: beaconId,
+            evaluatorId: evaluator,
+            evaluatedUserId: target,
+            value: BeaconEvaluationValue.pos1,
+            reasonTags: '',
+            note: '',
+            status: BeaconEvaluationRowStatus.draft,
+            createdAt: DateTime.utc(2026),
+            updatedAt: DateTime.utc(2026),
+          );
+
+      setUp(() {
+        dispatch = _IdempotentReviewDispatch();
+        evalRepo
+          ..reviewWindowResult = openWindow()
+          ..useReviewStatusMap = true
+          ..reviewStatusesResult = {userId: 2, helperId: 1}
+          ..participantsResult = const [
+            BeaconEvaluationParticipantRecord(
+              beaconId: beaconId,
+              userId: userId,
+              role: 0,
+              contributionSummary: 'author',
+              causalHint: 'h',
+            ),
+            BeaconEvaluationParticipantRecord(
+              beaconId: beaconId,
+              userId: helperId,
+              role: 1,
+              contributionSummary: 'helper',
+              causalHint: 'h',
+            ),
+          ]
+          ..visibilityResult = const [
+            BeaconEvaluationVisibilityRecord(
+              beaconId: beaconId,
+              evaluatorId: helperId,
+              participantId: userId,
+            ),
+            BeaconEvaluationVisibilityRecord(
+              beaconId: beaconId,
+              evaluatorId: userId,
+              participantId: helperId,
+            ),
+          ]
+          ..listEvaluationsForEvaluatorResult = [
+            readyRow(helperId, userId),
+            readyRow(userId, helperId),
+          ];
+        final offers = EmptyGraphHelpOfferRepository();
+        final forwards = EmptyGraphForwardEdgeRepository();
+        localCase = buildTestEvaluationCase(
+          beaconRepo: _TransactionStubBeaconRepo(defaultReviewBeacon()),
+          forwardRepo: forwards,
+          evalRepo: evalRepo,
+          userProfileBatchLookup: StubUserProfileBatchLookup('User'),
+          graphBuilder: EvaluationParticipantGraphBuilder(
+            NoOpCommitmentRepository(),
+            offers,
+            forwards,
+            StubUserRepository('User'),
+          ),
+          attention: attention,
+          transactionalAttention: TransactionalAttentionCase(
+            _ReviewUnitOfWork(),
+            dispatch,
+          ),
+          expirySweep: expirySweep,
+          reviewFinalization: reviewFinalization,
+        );
+      });
+
+      Future<void> send(String sender) async {
+        evalRepo.visibilityResult = [
+          BeaconEvaluationVisibilityRecord(
+            beaconId: beaconId,
+            evaluatorId: sender,
+            participantId: sender == userId ? helperId : userId,
+          ),
+        ];
+        await localCase.evaluationFinalize(beaconId: beaconId, userId: sender);
+      }
+
+      Future<void> editHelperPackage() async {
+        evalRepo.evaluationResult = readyRow(helperId, userId);
+        await localCase.evaluationDraftDelete(
+          beaconId: beaconId,
+          evaluatorId: helperId,
+          evaluatedUserId: userId,
+        );
+      }
+
+      test(
+        'the last required package notifies the author exactly once',
+        () async {
+          evalRepo.reviewStatusesResult[userId] = 1;
+          await send(userId);
+          expect(dispatch.byKey, isEmpty);
+          await send(helperId);
+          await send(helperId);
+          final intent = dispatch.byKey.values.single;
+          expect(dispatch.attempts, hasLength(1));
+          expect(intent.eventType, AttentionEventType.reviewAllPackagesIn);
+          expect(
+            intent.sourceEventKey,
+            'review_all_in:$beaconId:${evalRepo.reviewWindowResult!.openedAt.toUtc().toIso8601String()}',
+          );
+          expect(intent.actorUserId, userId);
+          expect(intent.beaconId, beaconId);
+          expect(intent.recipients.map((r) => r.recipientId), [userId]);
+          final recipient = intent.recipients.single;
+          final projection = const AttentionPolicy().project(
+            eventType: intent.eventType,
+            recipientId: recipient.recipientId,
+            recipientReasons: recipient.reasons,
+            role: recipient.role,
+          );
+          expect(projection.requiresAction, isFalse);
+          expect(projection.category, NotificationCategory.unblocksMe);
+          expect(
+            projection.suppressionClass,
+            AttentionSuppressionClass.standard,
+          );
+          expect(projection.destination.kind, AttentionDestinationKind.review);
+          expect(projection.destination.targetEntityId, beaconId);
+          expect(projection.presentationKey, 'review_all_packages_in');
+          expect(projection.presentationPayload, {
+            'eventType': 'reviewAllPackagesIn',
+            'actorUserId': userId,
+            'beaconId': beaconId,
+            'beaconTitle': 't',
+          });
+        },
+      );
+
+      test(
+        'an edit and re-send after that emits no second notification',
+        () async {
+          await send(helperId);
+          expect(dispatch.byKey, hasLength(1));
+          await editHelperPackage();
+          expect(evalRepo.reviewStatusesResult[helperId], 1);
+          await send(helperId);
+          expect(dispatch.attempts, hasLength(2));
+          expect(dispatch.byKey, hasLength(1));
+        },
+      );
+
+      test('the author as last sender still gets the notification', () async {
+        evalRepo.reviewStatusesResult = {userId: 1, helperId: 2};
+        await send(userId);
+        final intent = dispatch.byKey.values.single;
+        expect(intent.eventType, AttentionEventType.reviewAllPackagesIn);
+        expect(intent.recipients.map((r) => r.recipientId), [userId]);
+      });
+
+      test(
+        'a required reviewer editing after the nudge makes canCloseNow false again',
+        () async {
+          await send(helperId);
+          expect(dispatch.byKey, hasLength(1));
+          final before = await localCase.reviewWindowStatus(
+            beaconId: beaconId,
+            userId: userId,
+          );
+          expect(before.canCloseNow, isTrue);
+          await editHelperPackage();
+          final after = await localCase.reviewWindowStatus(
+            beaconId: beaconId,
+            userId: userId,
+          );
+          expect(after.canCloseNow, isFalse);
+          expect(dispatch.byKey, hasLength(1));
+        },
+      );
+    });
+
+    group('no auto-close on the last required send', () {
+      const helperId = 'helper1';
+
+      List<BeaconEvaluationParticipantRecord> requiredParticipants() => const [
+        BeaconEvaluationParticipantRecord(
+          beaconId: beaconId,
+          userId: userId,
+          role: 0,
+          contributionSummary: 'author',
+          causalHint: 'h',
+        ),
+        BeaconEvaluationParticipantRecord(
+          beaconId: beaconId,
+          userId: helperId,
+          role: 1,
+          contributionSummary: 'helper',
+          causalHint: 'h',
+        ),
+      ];
+
+      EvaluationCase buildCase({
+        _TransactionStubBeaconRepo? beaconRepo,
+        AttentionExpirySweepCase? sweep,
+      }) {
+        final forwardRepo = EmptyGraphForwardEdgeRepository();
+        final helpOfferRepo = EmptyGraphHelpOfferRepository();
+        final graphBuilder = EvaluationParticipantGraphBuilder(
+          NoOpCommitmentRepository(),
+          helpOfferRepo,
+          forwardRepo,
+          StubUserRepository('User'),
+        );
+        return buildTestEvaluationCase(
+          beaconRepo: beaconRepo ?? _TransactionStubBeaconRepo(
+            defaultReviewBeacon(),
+          ),
+          forwardRepo: forwardRepo,
+          evalRepo: evalRepo,
+          userProfileBatchLookup: StubUserProfileBatchLookup('User'),
+          graphBuilder: graphBuilder,
+          attention: attention,
+          expirySweep: sweep ?? expirySweep,
+          commitmentRepo: NoOpCommitmentRepository(),
+          helpOfferRepo: helpOfferRepo,
+          reviewFinalization: reviewFinalization,
+        );
+      }
+
+      setUp(() {
+        evalRepo
+          ..reviewWindowResult = openWindow()
+          ..reviewUserStatusResult = 1
+          ..participantsResult = requiredParticipants()
+          // A real DB would already read 2 for both rows at the moment
+          // `_canCloseNow` runs inside the last send; the fake's
+          // `setReviewUserStatus` does not update this map.
+          ..reviewStatusesResult = {userId: 2, helperId: 2};
+      });
+
+      test(
+        'finalize by the last required reviewer leaves the window open',
+        () async {
+          final localCase = buildCase();
+
+          expect(
+            await localCase.evaluationFinalize(
+              beaconId: beaconId,
+              userId: helperId,
+            ),
+            isTrue,
+          );
+
+          expect(reviewFinalization.closeAndFinalizeCalls, isEmpty);
+          expect(evalRepo.closeReviewWindowCalls, isEmpty);
+          expect(evalRepo.reviewWindowResult!.status, 0);
+          final beacon = await localCase.reviewWindowStatus(
+            beaconId: beaconId,
+            userId: userId,
+          );
+          expect(beacon.windowComplete, isFalse);
+        },
+      );
+
+      test('canCloseNow becomes true after the last required package', () async {
+        final localCase = buildCase();
+
+        await localCase.evaluationFinalize(
+          beaconId: beaconId,
+          userId: helperId,
+        );
+        // Mirror the real DB state after the send (the fake does not).
+        evalRepo.reviewStatusesResult = {userId: 2, helperId: 2};
+
+        final status = await localCase.reviewWindowStatus(
+          beaconId: beaconId,
+          userId: userId,
+        );
+
+        expect(status.canCloseNow, isTrue);
+        expect(status.windowComplete, isFalse);
+        expect(reviewFinalization.closeAndFinalizeCalls, isEmpty);
+      });
+
+      test('author closeNow still closes and finalizes', () async {
+        final beaconRepo = _TransactionStubBeaconRepo(defaultReviewBeacon());
+        final localCase = buildCase(beaconRepo: beaconRepo);
+
+        await localCase.evaluationFinalize(
+          beaconId: beaconId,
+          userId: helperId,
+        );
+        evalRepo.reviewStatusesResult = {userId: 2, helperId: 2};
+
+        final result = await localCase.closeNow(
+          beaconId: beaconId,
+          userId: userId,
+        );
+
+        expect(result.status, BeaconStatus.closed.smallintValue);
+        expect(reviewFinalization.closeAndFinalizeCalls, [
+          (
+            beaconId: beaconId,
+            reason: BeaconLifecycleChangeReason.authorCloseNow,
+            actorUserId: userId,
+            requireAllRequiredPackagesSent: true,
+          ),
+        ]);
+      });
+
+      test(
+        'finalize after the deadline still closes through the expiry sweep',
+        () async {
+          final now = DateTime.timestamp();
+          evalRepo.reviewWindowResult = openWindow(
+            closesAt: now.subtract(const Duration(days: 1)),
+          );
+          final sweep = AttentionExpirySweepCase(
+            _DueAttentionExpiryRepository(const [beaconId]),
+            reviewFinalization,
+            attention.intents,
+            attention.transactional,
+          );
+          final localCase = buildCase(sweep: sweep);
+
+          await localCase.evaluationFinalize(
+            beaconId: beaconId,
+            userId: helperId,
+          );
+
+          expect(
+            reviewFinalization.closeAndFinalizeCalls.map((c) => c.reason),
+            contains(BeaconLifecycleChangeReason.reviewExpired),
+          );
+        },
+      );
+    });
+  });
+
+  group('optional former-committer targets (#180)', () {
+    const committerId = 'helper1';
+    const formerId = 'leaver1';
+
+    BeaconEvaluationRecord evalRow({
+      required String evaluatorId,
+      required String evaluatedUserId,
+      int status = BeaconEvaluationRowStatus.draft,
+    }) => BeaconEvaluationRecord(
+      beaconId: beaconId,
+      evaluatorId: evaluatorId,
+      evaluatedUserId: evaluatedUserId,
+      value: BeaconEvaluationValue.pos1,
+      reasonTags: '',
+      note: '',
+      status: status,
+      createdAt: DateTime.utc(2026),
+      updatedAt: DateTime.utc(2026),
+    );
+
+    List<BeaconEvaluationParticipantRecord> mixedParticipants() => const [
+      BeaconEvaluationParticipantRecord(
+        beaconId: beaconId,
+        userId: userId,
+        role: 0,
+        contributionSummary: 'author',
+        causalHint: 'h',
+      ),
+      BeaconEvaluationParticipantRecord(
+        beaconId: beaconId,
+        userId: committerId,
+        role: 1,
+        contributionSummary: 'committer',
+        causalHint: 'h',
+      ),
+      BeaconEvaluationParticipantRecord(
+        beaconId: beaconId,
+        userId: formerId,
+        role: 3,
+        contributionSummary: 'former committer',
+        causalHint: 'h',
+      ),
+    ];
+
+    List<BeaconEvaluationVisibilityRecord> visibilityFor(
+      String evaluatorId,
+      List<String> targets,
+    ) => [
+      for (final t in targets)
+        BeaconEvaluationVisibilityRecord(
+          beaconId: beaconId,
+          evaluatorId: evaluatorId,
+          participantId: t,
+        ),
+    ];
+
+    setUp(() {
+      evalRepo
+        ..reviewWindowResult = openWindow()
+        ..reviewUserStatusResult = 1
+        ..participantsResult = mixedParticipants();
+    });
+
+    test('finalize succeeds with an untouched former committer', () async {
+      evalRepo
+        ..visibilityResult = visibilityFor(userId, [committerId, formerId])
+        ..listEvaluationsForEvaluatorResult = [
+          evalRow(evaluatorId: userId, evaluatedUserId: committerId),
+        ];
+
+      expect(
+        await evaluationCase.evaluationFinalize(
+          beaconId: beaconId,
+          userId: userId,
+        ),
+        isTrue,
+      );
+    });
+
+    test('finalize still fails with an untouched current committer', () async {
+      evalRepo
+        ..visibilityResult = visibilityFor(userId, [committerId, formerId])
+        ..listEvaluationsForEvaluatorResult = [
+          evalRow(evaluatorId: userId, evaluatedUserId: formerId),
+        ];
+
+      await expectLater(
+        evaluationCase.evaluationFinalize(
+          beaconId: beaconId,
+          userId: userId,
+        ),
+        throwsA(isA<EvaluationException>()),
+      );
+    });
+
+    test('former committer finalize does not change canCloseNow', () async {
+      evalRepo
+        ..visibilityResult = visibilityFor(formerId, [userId, committerId])
+        ..listEvaluationsForEvaluatorResult = [
+          evalRow(evaluatorId: formerId, evaluatedUserId: userId),
+          evalRow(evaluatorId: formerId, evaluatedUserId: committerId),
+        ]
+        // Author sent, the current committer has not.
+        ..reviewStatusesResult = {userId: 2, committerId: 1, formerId: 1};
+
+      expect(
+        await evaluationCase.evaluationFinalize(
+          beaconId: beaconId,
+          userId: formerId,
+        ),
+        isTrue,
+      );
+      // Mirror the real DB state after the optional send (the fake does not).
+      evalRepo.reviewStatusesResult = {
+        userId: 2,
+        committerId: 1,
+        formerId: 2,
+      };
+
+      final status = await evaluationCase.reviewWindowStatus(
+        beaconId: beaconId,
+        userId: userId,
+      );
+
+      expect(status.canCloseNow, isFalse);
+      expect(status.allRequiredSent, isFalse);
+    });
+
+    test('counters split required and optional', () async {
+      evalRepo
+        ..reviewSentAtResult = DateTime.utc(2026, 5, 4, 3, 2, 1)
+        ..visibilityResult = visibilityFor(userId, [
+          committerId,
+          'helper2',
+          formerId,
+        ])
+        ..participantsResult = [
+          ...mixedParticipants(),
+          const BeaconEvaluationParticipantRecord(
+            beaconId: beaconId,
+            userId: 'helper2',
+            role: 1,
+            contributionSummary: 'committer',
+            causalHint: 'h',
+          ),
+        ]
+        ..listEvaluationsForEvaluatorResult = [
+          evalRow(evaluatorId: userId, evaluatedUserId: committerId),
+          evalRow(evaluatorId: userId, evaluatedUserId: 'helper2'),
+          evalRow(evaluatorId: userId, evaluatedUserId: formerId),
+        ]
+        ..reviewStatusesResult = {userId: 2, committerId: 1, 'helper2': 2};
+
+      final status = await evaluationCase.reviewWindowStatus(
+        beaconId: beaconId,
+        userId: userId,
+      );
+
+      expect(status.requiredTotal, 2);
+      expect(status.requiredReviewed, 2);
+      expect(status.optionalTotal, 1);
+      expect(status.optionalReviewed, 1);
+      // Legacy counters stay as they were (#162 menu snapshot still reads them).
+      expect(status.reviewedCount, 3);
+      expect(status.totalCount, 3);
+      expect(status.unsentStartedPackages, 1);
+      expect(status.sentReviewerCount, 2);
+      expect(status.sentAt, DateTime.utc(2026, 5, 4, 3, 2, 1));
+    });
+
+    test('participants carry the commitment context fields', () async {
+      evalRepo
+        ..visibilityResult = visibilityFor(userId, [committerId])
+        ..participantsResult = [
+          const BeaconEvaluationParticipantRecord(
+            beaconId: beaconId,
+            userId: userId,
+            role: 0,
+            contributionSummary: 'author',
+            causalHint: 'h',
+          ),
+          BeaconEvaluationParticipantRecord(
+            beaconId: beaconId,
+            userId: committerId,
+            role: 1,
+            contributionSummary: 'committer',
+            causalHint: 'h',
+            committedAt: DateTime.utc(2026, 3, 2, 1),
+            offerMessage: 'I can help',
+            forwarderDisplayName: 'Bridget',
+          ),
+        ];
+
+      final rows = await evaluationCase.evaluationParticipants(
+        beaconId: beaconId,
+        evaluatorId: userId,
+      );
+
+      final target = rows.singleWhere((r) => r.userId == committerId);
+      expect(target.committedAt, DateTime.utc(2026, 3, 2, 1));
+      expect(target.offerMessage, 'I can help');
+      expect(target.forwarderDisplayName, 'Bridget');
+    });
+
+    test('viewerPackageOptional is true only for the former committer', () async {
+      evalRepo.visibilityResult = visibilityFor(formerId, [
+        userId,
+        committerId,
+      ]);
+
+      final formerStatus = await evaluationCase.reviewWindowStatus(
+        beaconId: beaconId,
+        userId: formerId,
+      );
+      expect(formerStatus.viewerPackageOptional, isTrue);
+
+      evalRepo.visibilityResult = visibilityFor(committerId, [
+        userId,
+        formerId,
+      ]);
+      final committerStatus = await evaluationCase.reviewWindowStatus(
+        beaconId: beaconId,
+        userId: committerId,
+      );
+      expect(committerStatus.viewerPackageOptional, isFalse);
+
+      final authorStatus = await evaluationCase.reviewWindowStatus(
+        beaconId: beaconId,
+        userId: userId,
+      );
+      expect(authorStatus.viewerPackageOptional, isFalse);
+    });
+  });
+
+  group('softened committers in the draft graph (#180)', () {
+    const helperId = 'helper1';
+
+    setUp(() {
+      evalRepo = _FakeEvaluationRepository();
+      final now = DateTime.utc(2025);
+      final withdrawnOffer = HelpOfferEntity(
+        beaconId: beaconId,
+        userId: helperId,
+        createdAt: now,
+        updatedAt: now.add(const Duration(hours: 31)),
+        status: 1,
+        message: 'helped out',
+      );
+      final helpOfferRepo = ConfigurableGraphHelpOfferRepository([
+        withdrawnOffer,
+      ]);
+      final commitmentRepo = acknowledgedCommitterCommitmentRepo(
+        beaconId: beaconId,
+        helperId: helperId,
+        authorId: userId,
+        baseTime: now,
+        withdrawAfterAck: const Duration(hours: 30),
+      );
+      final forwardRepo = EmptyGraphForwardEdgeRepository();
+      final graphBuilder = EvaluationParticipantGraphBuilder(
+        commitmentRepo,
+        helpOfferRepo,
+        forwardRepo,
+        StubUserRepository('User'),
+      );
+      evaluationCase = buildTestEvaluationCase(
+        beaconRepo: _TransactionStubBeaconRepo(
+          defaultReviewBeacon(status: BeaconStatus.open),
+        ),
+        forwardRepo: forwardRepo,
+        evalRepo: evalRepo,
+        userProfileBatchLookup: StubUserProfileBatchLookup('User'),
+        graphBuilder: graphBuilder,
+        attention: attention,
+        expirySweep: expirySweep,
+        commitmentRepo: commitmentRepo,
+        helpOfferRepo: helpOfferRepo,
+        reviewFinalization: reviewFinalization,
+      );
+    });
+
+    test('a softened committer is optional', () async {
+      final rows = await evaluationCase.evaluationDraftParticipants(
+        beaconId: beaconId,
+        evaluatorId: userId,
+      );
+
+      final target = rows.singleWhere((r) => r.userId == helperId);
+      expect(target.role, EvaluationParticipantRole.formerCommitter.dbValue);
+      expect(target.isOptional, isTrue);
+    });
+
+    test('draft participants carry isOptional and rowStatus', () async {
+      evalRepo.listEvaluationsForEvaluatorResult = [
+        BeaconEvaluationRecord(
+          beaconId: beaconId,
+          evaluatorId: userId,
+          evaluatedUserId: helperId,
+          value: BeaconEvaluationValue.pos1,
+          reasonTags: '',
+          note: '',
+          status: BeaconEvaluationRowStatus.submitted,
+          createdAt: DateTime.utc(2026),
+          updatedAt: DateTime.utc(2026),
+        ),
+      ];
+
+      final rows = await evaluationCase.evaluationDraftParticipants(
+        beaconId: beaconId,
+        evaluatorId: userId,
+      );
+
+      final target = rows.singleWhere((r) => r.userId == helperId);
+      expect(target.isOptional, isTrue);
+      expect(target.rowStatus, BeaconEvaluationRowStatus.submitted);
+    });
+
+    test('draft participants carry the commitment context fields', () async {
+      final rows = await evaluationCase.evaluationDraftParticipants(
+        beaconId: beaconId,
+        evaluatorId: userId,
+      );
+
+      final target = rows.singleWhere((r) => r.userId == helperId);
+      expect(target.offerMessage, 'helped out');
+      expect(target.committedAt, isNotNull);
+      expect(target.forwarderDisplayName, isNull);
+    });
+
+    test('a draft target without a stored row reports rowStatus -1', () async {
+      final rows = await evaluationCase.evaluationDraftParticipants(
+        beaconId: beaconId,
+        evaluatorId: userId,
+      );
+
+      expect(rows.singleWhere((r) => r.userId == helperId).rowStatus, -1);
+    });
   });
 
   group('evaluationSubmit', () {
@@ -1833,6 +2668,99 @@ void main() {
           ),
         ),
       );
+    });
+
+    test('reopen notifies every enrolled reviewer', () async {
+      evalRepo.reviewWindowResult = openWindow();
+      final window = evalRepo.reviewWindowResult!;
+      evalRepo.reviewStatusesResult = {'helper1': 2, 'helper2': 0};
+
+      await evaluationCase.reopenFromReview(
+        beaconId: beaconId,
+        userId: userId,
+      );
+
+      expect(attention.recorded, hasLength(2));
+      expect(
+        attention.recorded.map((n) => n.eventType),
+        containsAll([
+          AttentionEventType.requestStatusChanged,
+          AttentionEventType.reviewWindowCancelled,
+        ]),
+      );
+      final cancelled = attention.recorded.singleWhere(
+        (n) => n.eventType == AttentionEventType.reviewWindowCancelled,
+      );
+      expect(cancelled.beaconId, beaconId);
+      expect(
+        cancelled.recipients.map((r) => r.recipientId).toSet(),
+        {'helper1', 'helper2'},
+      );
+      expect(
+        cancelled.sourceEventKey,
+        'review_window_cancelled:$beaconId:'
+        '${window.openedAt.toUtc().toIso8601String()}',
+      );
+      for (final recipient in cancelled.recipients) {
+        final projection = const AttentionPolicy().project(
+          eventType: cancelled.eventType,
+          recipientId: recipient.recipientId,
+          recipientReasons: recipient.reasons,
+          role: recipient.role,
+        );
+        expect(projection.presentationKey, 'review_window_cancelled');
+        expect(projection.requiresAction, isFalse);
+        expect(projection.destination.kind, AttentionDestinationKind.beacon);
+        expect(projection.destination.targetEntityId, beaconId);
+      }
+    });
+
+    test('reopen does not notify the acting author', () async {
+      evalRepo.reviewWindowResult = openWindow();
+      evalRepo.reviewStatusesResult = {userId: 2, 'helper1': 0};
+
+      await evaluationCase.reopenFromReview(
+        beaconId: beaconId,
+        userId: userId,
+      );
+
+      final cancelled = attention.recorded.singleWhere(
+        (n) => n.eventType == AttentionEventType.reviewWindowCancelled,
+      );
+      expect(
+        cancelled.recipients.map((r) => r.recipientId),
+        ['helper1'],
+      );
+    });
+
+    test('reopen still supersedes the one outstanding obligation', () async {
+      evalRepo.reviewWindowResult = openWindow();
+      evalRepo.reviewStatusesResult = {'helper1': 0};
+      final settlement = _CountingReopenSettlement();
+      final forwardRepo = EmptyGraphForwardEdgeRepository();
+      evaluationCase = buildTestEvaluationCase(
+        beaconRepo: beaconRepo,
+        forwardRepo: forwardRepo,
+        evalRepo: evalRepo,
+        userProfileBatchLookup: StubUserProfileBatchLookup('User'),
+        graphBuilder: EvaluationParticipantGraphBuilder(
+          NoOpCommitmentRepository(),
+          EmptyGraphHelpOfferRepository(),
+          forwardRepo,
+          StubUserRepository('User'),
+        ),
+        attention: attention,
+        expirySweep: expirySweep,
+        attentionSystemSettlement: settlement,
+      );
+
+      await evaluationCase.reopenFromReview(
+        beaconId: beaconId,
+        userId: userId,
+      );
+
+      expect(settlement.supersedeCalls, [beaconId]);
+      expect(evalRepo.deleteScaffoldingCalls, 1);
     });
   });
 
@@ -3906,4 +4834,12 @@ final class _SingleCommitterHelpOfferRepo implements HelpOfferRepositoryPort {
     }
     return [raw];
   }
+
+  @override
+  Future<void> setRoleLabel({
+    required String beaconId,
+    required String offerUserId,
+    required String actorUserId,
+    required String? roleLabel,
+  }) => throw UnimplementedError();
 }

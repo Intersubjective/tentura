@@ -174,7 +174,12 @@ Future<void> main() async {
     const limitedRecipient = 'Ufwdrglim0001';
     const pausedRecipient2 = 'Ufwdrgpauz002';
     const dedupRecipient = 'Ufwdrgdup0001';
-    final futureResumeOn = DateTime.utc(2026, 9, 15);
+    final todayUtc = DateTime.now().toUtc();
+    final futureResumeOn = DateTime.utc(
+      todayUtc.year,
+      todayUtc.month,
+      todayUtc.day + 30,
+    );
 
     setUpAll(() async {
       if (skipReason != false) {

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:logging/logging.dart';
 
+import 'package:tentura/consts.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/capability/capability_group.dart';
 import 'package:tentura/domain/capability/capability_tag.dart';
@@ -90,7 +91,7 @@ class _HelpOfferMessageDialogState extends State<HelpOfferMessageDialog> {
   bool _browseOpen = false;
   bool _browsedFullTaxonomy = false;
 
-  static const _maxSelection = 4;
+  static const _maxSelection = kMaxHelpOfferHelpTypes;
 
   @override
   void initState() {
@@ -98,7 +99,13 @@ class _HelpOfferMessageDialogState extends State<HelpOfferMessageDialog> {
     _controller = TextEditingController(text: widget.initialText);
     _searchController = TextEditingController();
     _scrollController = ScrollController();
-    _helpTypeSlugs = Set<String>.from(widget.initialHelpTypeSlugs);
+    _helpTypeSlugs = () {
+      final initial = widget.initialHelpTypeSlugs.toList();
+      if (initial.length <= _maxSelection) {
+        return Set<String>.from(initial);
+      }
+      return Set<String>.from(initial.take(_maxSelection));
+    }();
   }
 
   @override

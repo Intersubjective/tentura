@@ -81,6 +81,7 @@ Map<String, dynamic> helpOfferWithCoordinationToGqlMap(
   'userId': row.userId,
   'message': row.message,
   'helpType': row.helpType,
+  'roleLabel': row.roleLabel ?? '',
   'status': row.status,
   'withdrawReason': row.withdrawReason,
   'createdAt': row.createdAt.toUtc().toIso8601String(),

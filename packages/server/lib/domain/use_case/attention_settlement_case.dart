@@ -19,13 +19,24 @@ final class AttentionSettlementCase extends UseCaseBase {
     required String accountId,
     required String receiptId,
     required AttentionSettlementKind kind,
-  }) {
+  }) async {
     if (receiptId.trim().isEmpty || receiptId.length > 256) {
       throw ArgumentError.value(receiptId, 'receiptId', 'must be a receipt id');
     }
     if (kind != AttentionSettlementKind.resolved &&
         kind != AttentionSettlementKind.dismissed) {
       throw ArgumentError.value(kind, 'kind', 'must be user-settleable');
+    }
+    final eventType = await _settlements.liveObligationEventType(
+      accountId: accountId,
+      receiptId: receiptId,
+    );
+    if (eventType == AttentionEventType.reviewOpened.name) {
+      throw ArgumentError.value(
+        receiptId,
+        'receiptId',
+        'reviewOpened obligations are not user-settleable',
+      );
     }
     return _settlements.settle(
       accountId: accountId,

@@ -10,6 +10,7 @@ void main() {
     required String destinationKind,
     required String targetEntityId,
     String? beaconId,
+    String? presentationKey,
     String actionUrl = '/beacon/view/Bfallback',
   }) => AttentionReceipt(
     id: 'N1',
@@ -21,6 +22,7 @@ void main() {
     actionUrl: actionUrl,
     createdAt: DateTime.utc(2026),
     collapsedCount: 1,
+    presentationKey: presentationKey,
     presentationPayloadJson: '{}',
     surface: AttentionSurface.activity,
     beaconId: beaconId,
@@ -84,5 +86,31 @@ void main() {
       ).toString(),
       '/profile/view/U1',
     );
+  });
+
+  test('review_all_packages_in opens the request, not the checklist', () {
+    final uri = attentionDestination(
+      receipt(
+        destinationKind: 'review',
+        targetEntityId: 'B1',
+        beaconId: 'B1',
+        presentationKey: 'review_all_packages_in',
+      ),
+    );
+
+    expect(uri.path, '$kPathBeaconView/B1');
+  });
+
+  test('review_opened still opens the checklist', () {
+    final uri = attentionDestination(
+      receipt(
+        destinationKind: 'review',
+        targetEntityId: 'B1',
+        beaconId: 'B1',
+        presentationKey: 'review_opened',
+      ),
+    );
+
+    expect(uri.path, '$kPathReviewContributions/B1');
   });
 }
