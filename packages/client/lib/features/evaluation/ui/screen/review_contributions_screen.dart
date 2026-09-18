@@ -2,16 +2,18 @@ import 'dart:async';
 
 import 'package:intl/intl.dart';
 
-import 'package:auto_route/auto_route.dart';
 import 'package:flutter/material.dart';
 
+import 'package:tentura/app/router/root_router.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/contacts/contact_name_overlay.dart';
 import 'package:tentura/domain/entity/image_entity.dart';
 import 'package:tentura/domain/entity/profile.dart';
 import 'package:tentura/features/evaluation/domain/entity/evaluation_participant.dart';
 import 'package:tentura/features/evaluation/domain/entity/evaluation_value.dart';
+import 'package:tentura/features/evaluation/domain/review_package_state.dart';
 import 'package:tentura/features/evaluation/ui/bloc/evaluation_cubit.dart';
+import 'package:tentura/features/evaluation/ui/presenter/evaluation_participant_context.dart';
 import 'package:tentura/features/evaluation/ui/presenter/evaluation_value_presenter.dart';
 import 'package:tentura/features/evaluation/ui/widget/evaluation_detail_sheet.dart';
 import 'package:tentura/features/evaluation/ui/widget/evaluation_privacy_info_row.dart';
@@ -22,7 +24,7 @@ import 'package:tentura/ui/widget/self_aware_profile_avatar.dart';
 import 'package:tentura/ui/widget/self_user_highlight.dart';
 
 @RoutePage()
-class ReviewContributionsScreen extends StatelessWidget
+class ReviewContributionsScreen extends StatefulWidget
     implements AutoRouteWrapper {
   const ReviewContributionsScreen({
     @PathParam('id') required this.id,
@@ -47,13 +49,22 @@ class ReviewContributionsScreen extends StatelessWidget
   );
 
   @override
+  State<ReviewContributionsScreen> createState() =>
+      _ReviewContributionsScreenState();
+}
+
+class _ReviewContributionsScreenState extends State<ReviewContributionsScreen> {
+  /// Optional cards the reviewer chose to hide (D8). Screen-local on purpose:
+  /// it is never persisted, never told to the cubit, and the stored rows stay
+  /// in the package.
+  final _skipped = <String>{};
+
+  bool get draft => widget.draft;
+
+  @override
   Widget build(BuildContext context) {
     final l10n = L10n.of(context)!;
     final tt = context.tt;
-    final cubit = context.read<EvaluationCubit>();
-    final actionButtonStyle = FilledButton.styleFrom(
-      minimumSize: Size.fromHeight(tt.buttonHeight),
-    );
 
     return Scaffold(
       appBar: TenturaTopBar.of(
@@ -80,6 +91,7 @@ class ReviewContributionsScreen extends StatelessWidget
                 );
               }
               if (state.participants.isEmpty) {
+                // Also the `empty` package state: nothing to review, no CTA.
                 return Center(
                   child: Padding(
                     padding: tt.cardPadding,
@@ -104,55 +116,37 @@ class ReviewContributionsScreen extends StatelessWidget
                 );
               }
               final items = _participantItems(context, state);
-              final canSend = !state.isLoading && state.canFinalize;
-              final remaining = state.totalCount - state.reviewedCount;
-              return Column(
-                children: [
-                  Expanded(
-                    child: ListView.builder(
-                      padding: tt.cardPadding,
-                      itemCount: items.length,
-                      itemBuilder: (_, index) => items[index],
+              return LayoutBuilder(
+                builder: (context, constraints) => Column(
+                  children: [
+                    Expanded(
+                      child: ListView.builder(
+                        padding: tt.cardPadding,
+                        itemCount: items.length,
+                        itemBuilder: (_, index) => items[index],
+                      ),
                     ),
-                  ),
-                  Padding(
-                    padding: tt.cardPadding,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        Text(
-                          l10n.evaluationProgress(
-                            state.reviewedCount,
-                            state.totalCount,
-                          ),
-                          textAlign: TextAlign.center,
-                          style: Theme.of(context).textTheme.bodySmall,
-                        ),
-                        if (!canSend && !state.isDraftMode) ...[
-                          SizedBox(height: tt.tightGap),
-                          Text(
-                            l10n.evaluationProgressRemainingHint(remaining),
-                            textAlign: TextAlign.center,
-                            style: TenturaText.status(
-                              Theme.of(context).colorScheme.onSurfaceVariant,
-                            ),
-                          ),
-                        ],
-                        SizedBox(height: tt.rowGap),
-                        FilledButton(
-                          key: TestIds.key(TestIds.evaluationSubmit),
-                          style: actionButtonStyle,
-                          onPressed: canSend ? cubit.finalize : null,
-                          child: Text(
-                            draft
-                                ? l10n.evaluationDraftDone
-                                : l10n.evaluationSubmitFinish,
+                    // At large text scales the status copy alone can be taller
+                    // than the screen. The checklist keeps the majority of the
+                    // viewport; the bar scrolls inside its share instead of
+                    // squeezing the list down to nothing.
+                    ConstrainedBox(
+                      constraints: BoxConstraints(
+                        maxHeight: constraints.maxHeight * _maxBottomBarShare,
+                      ),
+                      child: SingleChildScrollView(
+                        child: Padding(
+                          padding: tt.cardPadding,
+                          child: _PackageBottomBar(
+                            state: state,
+                            onSend: context.read<EvaluationCubit>().finalize,
+                            onDone: () => _onPackageDone(context, state),
                           ),
                         ),
-                      ],
+                      ),
                     ),
-                  ),
-                ],
+                  ],
+                ),
               );
             },
           ),
@@ -167,7 +161,7 @@ class ReviewContributionsScreen extends StatelessWidget
   ) {
     final l10n = L10n.of(context)!;
     final byRole = <EvaluationParticipantRole, List<EvaluationParticipant>>{};
-    for (final participant in state.participants) {
+    for (final participant in state.requiredParticipants) {
       byRole.putIfAbsent(participant.role, () => []).add(participant);
     }
     final output = <Widget>[];
@@ -222,11 +216,7 @@ class ReviewContributionsScreen extends StatelessWidget
         ),
       );
     }
-    void addRole(EvaluationParticipantRole role, String title) {
-      final participants = byRole[role];
-      if (participants == null || participants.isEmpty) {
-        return;
-      }
+    void addHeader(String title) {
       output.add(
         Padding(
           padding: EdgeInsets.only(top: context.tt.rowGap),
@@ -236,31 +226,105 @@ class ReviewContributionsScreen extends StatelessWidget
           ),
         ),
       );
-      for (final participant in participants) {
-        output.add(
-          _ParticipantTile(
-            participant: participant,
-            isDraftMode: state.isDraftMode,
-            isLoading: state.isLoading,
-            onTap: () => _openDetail(context, participant),
-            onCannotEvaluate: () => _markCannotEvaluate(context, participant),
-            onUndoCannotEvaluate: () =>
-                _undoCannotEvaluate(context, participant),
+    }
+
+    void addTile(EvaluationParticipant participant, {required bool optional}) {
+      output.add(
+        _ParticipantTile(
+          participant: participant,
+          isDraftMode: state.isDraftMode,
+          isLoading: state.isLoading,
+          onTap: () => _openDetail(context, participant),
+          onCannotEvaluate: optional
+              ? null
+              : () => _markCannotEvaluate(context, participant),
+          onSkip: optional ? () => _skip(participant) : null,
+          onUndoCannotEvaluate: () => _undoCannotEvaluate(context, participant),
+        ),
+      );
+    }
+
+    if (state.windowInfo?.viewerPackageOptional ?? false) {
+      output.add(
+        Padding(
+          padding: EdgeInsets.only(bottom: context.tt.rowGap),
+          child: Text(
+            l10n.evaluationOwnPackageOptional,
+            style: TenturaText.bodySmall(
+              Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
           ),
-        );
+        ),
+      );
+    }
+
+    void addRole(EvaluationParticipantRole role, String title) {
+      final participants = byRole[role];
+      if (participants == null || participants.isEmpty) {
+        return;
+      }
+      addHeader(title);
+      for (final participant in participants) {
+        addTile(participant, optional: false);
       }
     }
 
-    addRole(EvaluationParticipantRole.author, l10n.evaluationSectionAuthor);
-    addRole(
-      EvaluationParticipantRole.committer,
-      l10n.evaluationSectionHelpOfferer,
-    );
-    addRole(
-      EvaluationParticipantRole.forwarder,
-      l10n.evaluationSectionForwarder,
-    );
+    if (byRole.isNotEmpty) {
+      addHeader(l10n.evaluationSectionRequired);
+      addRole(EvaluationParticipantRole.author, l10n.evaluationSectionAuthor);
+      addRole(
+        EvaluationParticipantRole.committer,
+        l10n.evaluationSectionHelpOfferer,
+      );
+      // A leaver who is still a required target reads as a helper: same
+      // section, same prompt (UNIT 09).
+      addRole(
+        EvaluationParticipantRole.formerCommitter,
+        l10n.evaluationSectionHelpOfferer,
+      );
+      addRole(
+        EvaluationParticipantRole.forwarder,
+        l10n.evaluationSectionForwarder,
+      );
+    }
+
+    final optional = [
+      for (final participant in state.optionalParticipants)
+        if (!_skipped.contains(participant.userId)) participant,
+    ];
+    if (optional.isNotEmpty) {
+      addHeader(l10n.evaluationSectionOptional);
+      output.add(
+        Padding(
+          padding: EdgeInsets.only(bottom: context.tt.rowGap),
+          child: Text(
+            l10n.evaluationOptionalHint,
+            style: TenturaText.bodySmall(
+              Theme.of(context).colorScheme.onSurfaceVariant,
+            ),
+          ),
+        ),
+      );
+      for (final participant in optional) {
+        addTile(participant, optional: true);
+      }
+    }
     return output;
+  }
+
+  /// Hides an optional card for this visit only (D8): the stored row, if any,
+  /// stays in the package and is still sent.
+  void _skip(EvaluationParticipant participant) =>
+      setState(() => _skipped.add(participant.userId));
+
+  void _onPackageDone(BuildContext context, EvaluationState state) {
+    final router = context.router;
+    if (router.canPop()) {
+      unawaited(router.maybePop());
+    } else {
+      // Deep-link entry: there is no checklist to pop back from.
+      unawaited(router.replace(BeaconViewRoute(id: state.beaconId)));
+    }
   }
 
   Future<void> _openDetail(
@@ -332,6 +396,142 @@ class ReviewContributionsScreen extends StatelessWidget
   }
 }
 
+/// The share of the viewport the bottom bar may take before it scrolls itself.
+const _maxBottomBarShare = 0.4;
+
+/// The bottom bar states the package state in words and offers exactly one
+/// action for it (#162). Checklist completeness is progress, never the gate.
+class _PackageBottomBar extends StatelessWidget {
+  const _PackageBottomBar({
+    required this.state,
+    required this.onSend,
+    required this.onDone,
+  });
+
+  final EvaluationState state;
+  final VoidCallback onSend;
+  final VoidCallback onDone;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = L10n.of(context)!;
+    final theme = Theme.of(context);
+    final tt = context.tt;
+    final buttonStyle = FilledButton.styleFrom(
+      minimumSize: Size.fromHeight(tt.buttonHeight),
+    );
+    final canSend = !state.isLoading && state.canFinalize;
+
+    Widget status(String text) => Text(
+      text,
+      key: TestIds.key(TestIds.evaluationPackageStatus),
+      textAlign: TextAlign.center,
+      style: theme.textTheme.bodySmall,
+    );
+
+    Widget muted(String text) => Text(
+      text,
+      textAlign: TextAlign.center,
+      style: TenturaText.status(theme.colorScheme.onSurfaceVariant),
+    );
+
+    Widget cta(String label, {required bool enabled}) => FilledButton(
+      key: TestIds.key(TestIds.evaluationSubmit),
+      style: buttonStyle,
+      onPressed: enabled ? onSend : null,
+      child: Text(label),
+    );
+
+    Widget column(List<Widget> children) => Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: children,
+    );
+
+    if (state.isDraftMode) {
+      return column([
+        status(l10n.evaluationProgress(state.reviewedCount, state.totalCount)),
+        SizedBox(height: tt.rowGap),
+        cta(l10n.evaluationDraftDone, enabled: canSend),
+      ]);
+    }
+
+    final required = state.requiredParticipants.toList();
+    final optional = state.optionalParticipants.toList();
+    final requiredAnswered = required.where((p) => p.hasAnswer).length;
+    final progress = l10n.evaluationProgressSplit(
+      requiredAnswered,
+      required.length,
+      optional.where((p) => p.hasAnswer).length,
+      optional.length,
+    );
+
+    switch (state.packageState) {
+      case ReviewPackageState.inProgress:
+        return column([
+          status(progress),
+          SizedBox(height: tt.tightGap),
+          muted(
+            l10n.evaluationProgressRemainingHint(
+              required.length - requiredAnswered,
+            ),
+          ),
+          SizedBox(height: tt.rowGap),
+          cta(l10n.evaluationSubmitFinish, enabled: false),
+        ]);
+
+      case ReviewPackageState.readyToSend:
+        return column([
+          status(progress),
+          SizedBox(height: tt.rowGap),
+          cta(l10n.evaluationSubmitFinish, enabled: canSend),
+          SizedBox(height: tt.tightGap),
+          muted(l10n.evaluationPackageSentHint),
+        ]);
+
+      case ReviewPackageState.sent:
+        final sentAt = state.windowInfo?.sentAt;
+        return column([
+          status(
+            sentAt == null
+                ? progress
+                : l10n.evaluationPackageSentAt(
+                    DateFormat.yMMMd(
+                      Localizations.localeOf(context).toLanguageTag(),
+                    ).format(sentAt.toLocal()),
+                  ),
+          ),
+          SizedBox(height: tt.tightGap),
+          muted(l10n.evaluationPackageSentHint),
+          SizedBox(height: tt.rowGap),
+          FilledButton.tonal(
+            key: TestIds.key(TestIds.evaluationDone),
+            style: buttonStyle,
+            onPressed: onDone,
+            child: Text(l10n.evaluationPackageDone),
+          ),
+        ]);
+
+      case ReviewPackageState.changedNotSent:
+        return column([
+          status(l10n.evaluationPackageDirtyTitle),
+          SizedBox(height: tt.tightGap),
+          muted(l10n.evaluationPackageDirtyBody),
+          SizedBox(height: tt.rowGap),
+          cta(l10n.evaluationSubmitChanges, enabled: canSend),
+        ]);
+
+      // `empty` never reaches here: the body states it instead. The lifecycle
+      // states get their own bodies in the paused/closed unit.
+      case ReviewPackageState.empty:
+      case ReviewPackageState.notEnrolled:
+      case ReviewPackageState.paused:
+      case ReviewPackageState.closed:
+      case ReviewPackageState.closedUnsent:
+        return column([status(progress)]);
+    }
+  }
+}
+
 class _EvaluationLeadingButton extends StatelessWidget {
   const _EvaluationLeadingButton();
 
@@ -346,6 +546,7 @@ class _ParticipantTile extends StatelessWidget {
     required this.isLoading,
     required this.onTap,
     required this.onCannotEvaluate,
+    required this.onSkip,
     required this.onUndoCannotEvaluate,
   });
 
@@ -353,7 +554,12 @@ class _ParticipantTile extends StatelessWidget {
   final bool isDraftMode;
   final bool isLoading;
   final VoidCallback onTap;
-  final VoidCallback onCannotEvaluate;
+
+  /// Required cards only: opting out of reviewing this person.
+  final VoidCallback? onCannotEvaluate;
+
+  /// Optional cards only: hiding the card for this visit (D8).
+  final VoidCallback? onSkip;
   final VoidCallback onUndoCannotEvaluate;
 
   @override
@@ -370,7 +576,8 @@ class _ParticipantTile extends StatelessWidget {
           ? null
           : ImageEntity(id: participant.imageId, authorId: participant.userId),
     );
-    final ready = isDraftMode ? participant.hasAnswered : participant.isSubmitted;
+    // Live readiness is the stored row, the same predicate the send gate uses.
+    final ready = isDraftMode ? participant.hasAnswered : participant.hasAnswer;
     final presentation = value == null || !ready || value == EvaluationValue.noBasis
         ? null
         : presentEvaluationValue(value, l10n);
@@ -389,9 +596,16 @@ class _ParticipantTile extends StatelessWidget {
               constraints.maxWidth < 500 ||
               MediaQuery.textScalerOf(context).scale(1) >= 2;
           final subtitle = <Widget>[];
-          if (participant.contributionSummary.isNotEmpty) {
-            subtitle.add(Text(participant.contributionSummary));
-          }
+          final participantContext = presentParticipantContext(
+            l10n: l10n,
+            locale: Localizations.localeOf(context),
+            participant: participant,
+          );
+          subtitle.add(Text(participantContext.line));
+          final offerLine = participantContext.offerLine;
+          if (offerLine != null) subtitle.add(Text(offerLine));
+          final endedLine = participantContext.endedLine;
+          if (endedLine != null) subtitle.add(Text(endedLine));
           if (participant.note.trim().isNotEmpty && ready) {
             subtitle.add(Text(participant.note.trim()));
           }
@@ -463,6 +677,7 @@ class _ParticipantTile extends StatelessWidget {
                             value != null && value != EvaluationValue.noBasis,
                         onReview: onTap,
                         onCannotEvaluate: onCannotEvaluate,
+                        onSkip: onSkip,
                       ),
               ),
             ],
@@ -483,6 +698,7 @@ class _ReviewActions extends StatelessWidget {
     required this.hasReview,
     required this.onReview,
     required this.onCannotEvaluate,
+    required this.onSkip,
   });
 
   final String userId;
@@ -493,7 +709,10 @@ class _ReviewActions extends StatelessWidget {
   final bool stacked;
   final bool hasReview;
   final VoidCallback onReview;
-  final VoidCallback onCannotEvaluate;
+  final VoidCallback? onCannotEvaluate;
+
+  /// Optional cards hide instead of opting out: skipping keeps the stored row.
+  final VoidCallback? onSkip;
 
   @override
   Widget build(BuildContext context) {
@@ -509,11 +728,23 @@ class _ReviewActions extends StatelessWidget {
         textAlign: TextAlign.center,
       ),
     );
-    final optOut = TextButton(
-      key: TestIds.key(TestIds.evaluationCannotEvaluate(userId)),
-      onPressed: isLoading ? null : onCannotEvaluate,
-      child: Text(l10n.evaluationCannotEvaluate, textAlign: TextAlign.center),
-    );
+    final skip = onSkip;
+    final optOut = skip == null
+        ? TextButton(
+            key: TestIds.key(TestIds.evaluationCannotEvaluate(userId)),
+            onPressed: isLoading ? null : onCannotEvaluate,
+            child: Text(
+              l10n.evaluationCannotEvaluate,
+              textAlign: TextAlign.center,
+            ),
+          )
+        : TextButton(
+            onPressed: isLoading ? null : skip,
+            child: Text(
+              l10n.evaluationOptionalSkip,
+              textAlign: TextAlign.center,
+            ),
+          );
     if (stacked) {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,

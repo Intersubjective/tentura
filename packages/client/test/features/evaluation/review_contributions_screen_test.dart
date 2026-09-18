@@ -11,6 +11,7 @@ import 'package:tentura/env.dart';
 import 'package:tentura/features/evaluation/domain/entity/evaluation_participant.dart';
 import 'package:tentura/features/evaluation/domain/entity/evaluation_value.dart';
 import 'package:tentura/features/evaluation/domain/entity/review_window_info.dart';
+import 'package:tentura/features/evaluation/domain/review_package_state.dart';
 import 'package:tentura/features/evaluation/domain/use_case/evaluation_case.dart';
 import 'package:tentura/features/evaluation/ui/bloc/evaluation_cubit.dart';
 import 'package:tentura/features/evaluation/ui/screen/review_contributions_screen.dart';
@@ -71,6 +72,44 @@ class _ControllableEvaluationRepository extends FakeEvaluationRepository {
   }
 }
 
+/// Models the server side of a package send: `finalize` marks the window sent,
+/// a later edit demotes it back to "changed, not sent".
+class _PackageRepository extends FakeEvaluationRepository {
+  ReviewWindowInfo? windowAfterFinalize;
+  ReviewWindowInfo? windowAfterSubmit;
+  List<EvaluationParticipant>? participantsAfterFinalize;
+
+  @override
+  Future<void> finalize(String beaconId) async {
+    await super.finalize(beaconId);
+    final window = windowAfterFinalize;
+    if (window != null) reviewWindowResult = window;
+    final participants = participantsAfterFinalize;
+    if (participants != null) participantsResult = participants;
+  }
+
+  @override
+  Future<void> submit({
+    required String beaconId,
+    required String evaluatedUserId,
+    required int value,
+    List<String>? reasonTags,
+    String note = '',
+    List<String>? acknowledgedHelpTags,
+  }) async {
+    await super.submit(
+      beaconId: beaconId,
+      evaluatedUserId: evaluatedUserId,
+      value: value,
+      reasonTags: reasonTags,
+      note: note,
+      acknowledgedHelpTags: acknowledgedHelpTags,
+    );
+    final window = windowAfterSubmit;
+    if (window != null) reviewWindowResult = window;
+  }
+}
+
 void main() {
   const participant = EvaluationParticipant(
     userId: 'u1',
@@ -86,6 +125,7 @@ void main() {
     FakeEvaluationRepository? repositoryArg,
     Size? surfaceSize,
     TextScaler textScaler = TextScaler.noScaling,
+    ReviewWindowInfo? window,
   }) async {
     if (surfaceSize != null) {
       await tester.binding.setSurfaceSize(surfaceSize);
@@ -103,11 +143,16 @@ void main() {
         participants: draftParticipants,
       )
       ..draftParticipantsResult = draftParticipants
-      ..reviewWindowResult = const ReviewWindowInfo(
-        beaconId: 'b1',
-        hasWindow: true,
-        closesAt: '2026-08-30T12:00:00Z',
-      );
+      ..reviewWindowResult =
+          window ??
+          const ReviewWindowInfo(
+            beaconId: 'b1',
+            hasWindow: true,
+            closesAt: '2026-08-30T12:00:00Z',
+            userReviewStatus: 1,
+            totalCount: 1,
+            requiredTotal: 1,
+          );
     if (repositoryArg == null) {
       repository.participantsResult = draftParticipants;
     }
@@ -421,7 +466,7 @@ void main() {
     await test.scrollUntilVisible(
       find.text('Helped somewhat'),
       400,
-      scrollable: find.byType(Scrollable),
+      scrollable: find.byType(Scrollable).first,
     );
     expect(find.text('Helped somewhat'), findsOneWidget);
     expect(find.text('Edit'), findsOneWidget);
@@ -444,7 +489,7 @@ void main() {
     await test.scrollUntilVisible(
       find.byKey(TestIds.key(TestIds.evaluationParticipant('u1'))),
       300,
-      scrollable: find.byType(Scrollable),
+      scrollable: find.byType(Scrollable).first,
     );
     final tile = test.widget<ListTile>(
       find.byKey(TestIds.key(TestIds.evaluationParticipant('u1'))),
@@ -452,6 +497,253 @@ void main() {
     expect(tile.trailing, isNull);
     expect(find.text('Not reviewed'), findsOneWidget);
     expect(test.takeException(), isNull);
+    await cubit.close();
+  });
+
+  const liveWindow = ReviewWindowInfo(
+    beaconId: 'b1',
+    hasWindow: true,
+    closesAt: '2026-08-30T12:00:00Z',
+    userReviewStatus: 1,
+    totalCount: 1,
+    requiredTotal: 1,
+  );
+  final sentWindow = liveWindow.copyWith(
+    userReviewStatus: 2,
+    sentAt: DateTime.utc(2026, 8, 20),
+  );
+  const optional = EvaluationParticipant(
+    userId: 'u2',
+    displayName: 'Bob',
+    role: EvaluationParticipantRole.formerCommitter,
+    isOptional: true,
+  );
+
+  testWidgets('first fill offers Send reviews, not Send changes', (
+    tester,
+  ) async {
+    final repository = FakeEvaluationRepository()
+      ..participantsResult = [participant.copyWith(rowStatus: 1)];
+    final (_, _, cubit) = await pump(tester, repositoryArg: repository);
+    expect(cubit.state.packageState, ReviewPackageState.readyToSend);
+    expect(find.text('Send reviews'), findsOneWidget);
+    expect(find.text('Send changes'), findsNothing);
+    expect(
+      tester
+          .widget<FilledButton>(find.byKey(TestIds.key(TestIds.evaluationSubmit)))
+          .onPressed,
+      isNotNull,
+    );
+    await cubit.close();
+  });
+
+  testWidgets('required complete and optional untouched enables the CTA', (
+    tester,
+  ) async {
+    final repository = FakeEvaluationRepository()
+      ..participantsResult = [participant.copyWith(rowStatus: 1), optional];
+    final (_, _, cubit) = await pump(
+      tester,
+      repositoryArg: repository,
+      window: liveWindow.copyWith(totalCount: 2, optionalTotal: 1),
+    );
+    expect(cubit.state.packageState, ReviewPackageState.readyToSend);
+    expect(
+      tester
+          .widget<FilledButton>(find.byKey(TestIds.key(TestIds.evaluationSubmit)))
+          .onPressed,
+      isNotNull,
+    );
+    expect(find.text('1 of 1 required · 0 of 1 optional'), findsOneWidget);
+    await cubit.close();
+  });
+
+  testWidgets('after a send the screen stays and shows the sent status', (
+    tester,
+  ) async {
+    final repository = _PackageRepository()
+      ..participantsResult = [participant.copyWith(rowStatus: 1)]
+      ..windowAfterFinalize = sentWindow
+      ..participantsAfterFinalize = [
+        participant.copyWith(rowStatus: 2, isSubmitted: true),
+      ];
+    final (test, _, cubit) = await pump(tester, repositoryArg: repository);
+    await test.tap(find.byKey(TestIds.key(TestIds.evaluationSubmit)));
+    await test.pumpAndSettle();
+
+    expect(repository.finalizeCalls, 1);
+    expect(cubit.state.packageState, ReviewPackageState.sent);
+    // The screen stayed: the checklist is still on screen.
+    expect(
+      find.byKey(TestIds.key(TestIds.evaluationParticipant('u1'))),
+      findsOneWidget,
+    );
+    final submit = find.byKey(TestIds.key(TestIds.evaluationSubmit));
+    if (submit.evaluate().isNotEmpty) {
+      expect(tester.widget<FilledButton>(submit).onPressed, isNull);
+    }
+    expect(
+      find.byKey(TestIds.key(TestIds.evaluationPackageStatus)),
+      findsOneWidget,
+    );
+    expect(find.textContaining('Reviews sent'), findsOneWidget);
+    expect(find.byKey(TestIds.key(TestIds.evaluationDone)), findsOneWidget);
+    await cubit.close();
+  });
+
+  testWidgets('editing a card after a send offers Send changes', (tester) async {
+    final repository = _PackageRepository()
+      ..participantsResult = [
+        participant.copyWith(
+          rowStatus: 2,
+          isSubmitted: true,
+          currentValue: EvaluationValue.pos1,
+        ),
+      ]
+      ..windowAfterSubmit = liveWindow.copyWith(
+        userReviewStatus: 1,
+        sentAt: DateTime.utc(2026, 8, 20),
+      );
+    final (test, _, cubit) = await pump(
+      tester,
+      repositoryArg: repository,
+      window: sentWindow,
+    );
+    expect(cubit.state.packageState, ReviewPackageState.sent);
+
+    await test.tap(find.byKey(TestIds.key(TestIds.evaluationCannotEvaluate('u1'))));
+    await test.pumpAndSettle();
+    await test.tap(find.text('Cannot evaluate').last);
+    await test.pumpAndSettle();
+
+    expect(cubit.state.packageState, ReviewPackageState.changedNotSent);
+    expect(find.text('Send changes'), findsOneWidget);
+    expect(find.text('Changes not sent'), findsOneWidget);
+    expect(
+      tester
+          .widget<FilledButton>(find.byKey(TestIds.key(TestIds.evaluationSubmit)))
+          .onPressed,
+      isNotNull,
+    );
+    await cubit.close();
+  });
+
+  testWidgets('skip hides an optional card without calling the cubit', (
+    tester,
+  ) async {
+    final repository = FakeEvaluationRepository()
+      ..participantsResult = [participant.copyWith(rowStatus: 1), optional];
+    final (test, _, cubit) = await pump(
+      tester,
+      repositoryArg: repository,
+      window: liveWindow.copyWith(totalCount: 2, optionalTotal: 1),
+    );
+    expect(
+      find.byKey(TestIds.key(TestIds.evaluationParticipant('u2'))),
+      findsOneWidget,
+    );
+    final skip = find.widgetWithText(TextButton, 'Skip');
+    await test.ensureVisible(skip);
+    await test.pumpAndSettle();
+    await test.tap(skip);
+    await test.pumpAndSettle();
+
+    expect(
+      find.byKey(TestIds.key(TestIds.evaluationParticipant('u2'))),
+      findsNothing,
+    );
+    expect(repository.submitCalls, 0);
+    expect(repository.draftDeleteCalls, 0);
+    expect(cubit.state.participants, hasLength(2));
+    await cubit.close();
+  });
+
+  testWidgets('skipping an optional card with a stored row keeps it in the package', (
+    tester,
+  ) async {
+    final repository = FakeEvaluationRepository()
+      ..participantsResult = [
+        participant.copyWith(rowStatus: 1),
+        optional.copyWith(rowStatus: 1, currentValue: EvaluationValue.pos1),
+      ];
+    final (test, _, cubit) = await pump(
+      tester,
+      repositoryArg: repository,
+      window: liveWindow.copyWith(totalCount: 2, optionalTotal: 1),
+    );
+    final skip = find.widgetWithText(TextButton, 'Skip');
+    await test.ensureVisible(skip);
+    await test.pumpAndSettle();
+    await test.tap(skip);
+    await test.pumpAndSettle();
+
+    expect(
+      find.byKey(TestIds.key(TestIds.evaluationParticipant('u2'))),
+      findsNothing,
+    );
+    final stored = cubit.state.participants.firstWhere((p) => p.userId == 'u2');
+    expect(stored.rowStatus, 1);
+    expect(stored.currentValue, EvaluationValue.pos1);
+    expect(repository.submitCalls, 0);
+    expect(repository.draftDeleteCalls, 0);
+    await cubit.close();
+  });
+
+  testWidgets('viewerPackageOptional renders the own-package notice', (
+    tester,
+  ) async {
+    final repository = FakeEvaluationRepository()
+      ..participantsResult = [participant.copyWith(rowStatus: 1)];
+    final (_, _, cubit) = await pump(
+      tester,
+      repositoryArg: repository,
+      window: liveWindow.copyWith(viewerPackageOptional: true),
+    );
+    expect(
+      find.textContaining('You no longer take part in this request'),
+      findsOneWidget,
+    );
+    await cubit.close();
+  });
+
+  testWidgets('sections render at 360px and textScaler 2.0', (tester) async {
+    addTearDown(() => tester.binding.setSurfaceSize(null));
+    final repository = FakeEvaluationRepository()
+      ..participantsResult = [participant.copyWith(rowStatus: 1), optional];
+    final (_, _, cubit) = await pump(
+      tester,
+      repositoryArg: repository,
+      surfaceSize: const Size(360, 800),
+      textScaler: const TextScaler.linear(2),
+      window: liveWindow.copyWith(totalCount: 2, optionalTotal: 1),
+    );
+    // A long header block can silently stop the list from building its items:
+    // assert the card itself, not just the absence of an overflow.
+    // The header stack is taller than the viewport at this combination, so the
+    // sections live below the fold. They must still be reachable: a list that
+    // silently stops building its items fails here, with no overflow error.
+    expect(find.text('Required', skipOffstage: false), findsOneWidget);
+    final card = find.byKey(TestIds.key(TestIds.evaluationParticipant('u1')));
+    await tester.scrollUntilVisible(
+      card,
+      300,
+      scrollable: find.byType(Scrollable).first,
+    );
+    expect(card, findsOneWidget);
+    final optionalCard = find.byKey(
+      TestIds.key(TestIds.evaluationParticipant('u2')),
+    );
+    await tester.scrollUntilVisible(
+      optionalCard,
+      300,
+      scrollable: find.byType(Scrollable).first,
+    );
+    expect(optionalCard, findsOneWidget);
+    expect(
+      find.text('Optional · participation ended', skipOffstage: false),
+      findsOneWidget,
+    );
+    expect(tester.takeException(), isNull);
     await cubit.close();
   });
 }

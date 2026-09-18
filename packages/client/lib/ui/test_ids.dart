@@ -141,6 +141,12 @@ abstract final class TestIds {
       'evaluation.participant.$userId';
   static const evaluationSave = 'evaluation.save';
   static const evaluationSubmit = 'evaluation.submit';
+
+  /// The package status line in the checklist's bottom bar (#162).
+  static const evaluationPackageStatus = 'evaluation.package_status';
+
+  /// The tonal button offered once the package is sent.
+  static const evaluationDone = 'evaluation.done';
   static String evaluationImpact(String value) => 'evaluation.impact.$value';
   static const evaluationCapabilityDone = 'evaluation.capability.done';
   static const evaluationCapabilityCancel = 'evaluation.capability.cancel';
