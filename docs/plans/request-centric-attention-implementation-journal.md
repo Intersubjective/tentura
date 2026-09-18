@@ -677,6 +677,54 @@ All 28 diffs were opened before regenerating. Every one is confined to the text 
 No layout shift and no overflow, including the 1.3x text-scale cases, which still soft-wrap inside the existing
 height bound.
 
+---
+
+## UNIT U0C — "Following" rename · VERIFY (2026-09-19)
+
+**Verifier:** read-only pass on `0c691d132..HEAD` (`2e0eaa8c7`) plus worktree spot-check. Judged against overseer overrides (widened Dart literals, §8 tombstones, no version bump, golden inspection).
+
+### Commits vs steps
+
+Five commits on branch; four implementation + one docs (`2e0eaa8c7` journal). Implementation chain matches focused steps: l10n → messages → tests → goldens. No `pubspec.yaml` / `web/index.html` diff in range. No edits to `.serena/project.yml`, `packages/force_directed_graphview/**`, or `docs/plans/constellation-*` in `0c691d132..HEAD` (worktree still shows pre-existing local mods on those paths — not introduced by U0C).
+
+### TEST_OUTPUT (re-run by verifier)
+
+| Command | Result |
+|---|---|
+| `bash scripts/check-user-facing-terminology.sh` | exit 0 — `check-user-facing-terminology: ok` |
+| Focused client list (terminology + forward + inbox motion/watching) | **38 passed**, 0 failed (~9s) |
+| `flutter test … test/features/inbox test/features/my_work` | **261 passed**, 0 failed (~18s) |
+
+No deleted tests, no `@Skip`, no loosened matchers in U0C test diffs — assertion string updates only.
+
+### Golden audit (28 PNGs, commit `9d66fca8a`)
+
+**Method:** For every PNG in the golden commit, `git show 9d66fca8a^:path` vs working tree; PIL RGBA per-pixel compare; record canvas size and diff bounding box. **Sample of 7** named files cross-checked manually (watching/helping/closed/deleted/offer rows, EN/RU, 1.3x helping).
+
+**Findings:** `dim_mismatch: 0` across all 28. Canvas sizes unchanged (e.g. forward row 360×82, offer card 360×156). Pixel diffs confined to single horizontal text bands (e.g. watching EN outcome line y=54–66 on h=82; offer card Follow button y=123–139 on h=156). Max changed-pixel ratio ~4.85% on forward-row watching EN — still only the second-line tombstone string (§8), not header/avatar/actions. All 28 forward-row outcome variants shifted because **all five** `activityForwardOutcome*` tombstone strings changed, not only watching — expected per override 2. **No GAP** for layout/overflow from golden analysis.
+
+### Stem grep (user-visible)
+
+**ARB values:** No «наблюд*»; no user-facing `Watching` / `Watcher` / bare `watch` in EN/RU values (uses Following/Follow/Unfollow/follow/след*). `@forwardReactionWatching` **description** still says “watching the beacon” — developer metadata only, not shipped copy.
+
+**Dart user strings (`toEn`/`toRu`, l10n-backed UI):** Product copy uses Following/Слежу/follow family; hardcoded snackbars updated in three message files. **No remaining user-visible Watching/наблюд** in those paths.
+
+**Internal identifiers left (expected):** `InboxWatchingRoute`, `kPathInboxWatching`, `moveToWatching`, `involvementWatchingIds`, `AttentionForwardOutcome.watching` / wire `'watching'`, `TestIds.activityWatchingDigest`, `stop_watch` menu id, code comments, generated `l10n.dart` **key names** (`inboxWatching`, etc.).
+
+### Register §8a spot-check
+
+| Surface | New copy | Register |
+|---|---|---|
+| HUD/tab chips (`beaconHudYouWatching`, `inboxWatching`, `forwardWatching`) | Following / Слежу | First-person chip — met |
+| Forward reaction chip (`forwardReactionWatching`) | Following / Следит | Third-person on others’ row — met (spec) |
+| Tombstone outcomes (`activityForwardOutcome*`) | e.g. You started following / Вы начали следить | Past-tense event to viewer — met |
+| Empty/digest (`inboxTabWatchingEmpty`, `activityWatchingDigest`) | Second-person system sentences | met |
+| `beaconHudYouAskedToHelp` | respond or follow / следите | met |
+
+**Verifier STATUS:** pass
+
+---
+
 ### Findings
 
 1. **`beaconPeopleRoleWatcher` did not overflow** (override 6), so the spec value «Следит за запросом» was kept
@@ -705,3 +753,32 @@ height bound.
 
 **Acceptance.** No user-visible "наблюд*" / "watch*" stem remains on the attention surfaces; every l10n key is
 unchanged, so there is no code churn.
+
+### Manager verdict — U0C · **ACCEPTED** (sandwich: scout ✓ / inner Opus-low ✓ / verify pass, no finisher)
+
+Overseer's own checks, independent of both workers:
+- `flutter test test/features/inbox test/features/my_work test/l10n` → **273 passed**; terminology gate ok.
+- **Keys provably unchanged**: in the `.arb` diff every touched key appears exactly twice (once removed, once
+  added), so no key was renamed or dropped — checked mechanically, not by eye.
+- **Tests replaced 1:1, not weakened**: 10 assertions removed, 10 added, all literal string swaps
+  (`find.text('Наблюдать')` → `'Следить'`, `'Вы наблюдаете'` → `'Вы начали следить'`); zero `skip:` /
+  `isNotNull` / `isNotEmpty` additions.
+- Leaked `worker-server` killed after the inner layer.
+
+**The sandwich earned its cost here.** The scout found the spec's §10 table was incomplete (three missed keys)
+and that the unit as written was unmeetable because ~6 user-facing strings are hardcoded outside l10n — which is
+why the overseer widened the scope before the inner layer ran, instead of discovering it after. The inner layer
+then found one more the scout missed (a bare `find.text('Watch')`), reverted `dart format` noise to keep the copy
+commit at 8 lines, and verified golden byte-identity instead of assuming it. The verifier audited the 28
+regenerated goldens with an RGBA pixel diff — 0/28 canvas-size changes, all deltas confined to the outcome text
+line and the button label — which is the check that would have caught a layout regression hiding inside a
+"just text" regeneration.
+
+**Carried forward, not fixed (correctly):** the People tab now reads «Следит за запросом · Следит» — redundant,
+but shortening it would contradict the §10 table this unit exists to land. Fix it when the People row is next
+touched.
+
+Commits: `5d2776dea` arb · `bf87bb87b` hardcoded snackbars · `f83222d58` tests · `9d66fca8a` goldens ·
+`2e0eaa8c7` journal.
+
+---

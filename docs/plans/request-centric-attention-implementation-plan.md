@@ -178,7 +178,17 @@ forward variant (spec §7.3 K6) — a note exists nowhere else on the card, so c
 
 **Goal.** Spec D-171-1 / §10: rename the Watching word family to «Следить / Слежу» / "Follow / Following".
 
-**Owns.** l10n `.arb` values only — **keys unchanged** — plus any test expecting the old strings.
+**Owns.** l10n `.arb` values — **keys unchanged** — plus user-facing string *literals* hardcoded outside l10n
+(`forward_messages.dart`, `inbox_messages.dart`, `help_offer_messages.dart` carry ~6 of them, e.g.
+«Он во вкладке "Наблюдаю"»), plus any test expecting the old strings.
+
+**Scope widened by the overseer after the U0C scout (2026-09-19).** "Values only" means no key renames and no
+behaviour change — not "`.arb` only". Excluding the hardcoded literals would leave the rename half-done and make
+this unit's own acceptance unmeetable. The scout also found three keys the spec table missed
+(`beaconPeopleStatusWatching`, `beaconHudYouAskedToHelp`, `activityForwardOutcomeWatching`), and this unit
+additionally lands the **§8 tombstone past-tense copy table** — those keys would otherwise be edited twice, and
+the past-tense copy is the literal fix #171 reported. No version bump and no cache-buster here: this is not a
+release.
 
 **Steps.** The §10 table, verbatim, including `actionStopWatching`, which today names «Нужно мне» while the
 destination tab is «Ждёт меня». One commit. Not unit-gated (E29 was dropped; Watching already has a permanent
