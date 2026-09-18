@@ -350,8 +350,8 @@ void main() {
 
     await tester.tap(find.byIcon(Icons.more_vert));
     await tester.pumpAndSettle();
-    expect(find.text('Watching (2)'), findsOneWidget);
-    await tester.tap(find.text('Watching (2)'));
+    expect(find.text('Following (2)'), findsOneWidget);
+    await tester.tap(find.text('Following (2)'));
     await tester.pumpAndSettle();
 
     expect(router.pushCount, 1);

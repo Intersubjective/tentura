@@ -522,7 +522,7 @@ void main() {
     expect(message, isA<ForwardLocationMessage>());
     expect(
       (message as ForwardLocationMessage).toEn,
-      'Request forwarded. It\'s in Watching.',
+      'Request forwarded. It\'s in Following.',
     );
   });
 

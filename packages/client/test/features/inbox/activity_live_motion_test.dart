@@ -506,12 +506,12 @@ void main() {
     );
 
     expect(find.byType(ActivityOfferCard), findsOneWidget);
-    await tester.tap(find.text('Наблюдать'));
+    await tester.tap(find.text('Следить'));
     await _pumpDeskDebounce(tester, frames: 20);
 
     expect(find.byType(ActivityOfferCard), findsNothing);
     expect(find.byType(ActivityForwardRow), findsOneWidget);
-    expect(find.text('Вы наблюдаете'), findsOneWidget);
+    expect(find.text('Вы начали следить'), findsOneWidget);
     expect(
       find.bySemanticsIdentifier(TestIds.activityForwardRow(beaconId)),
       findsOneWidget,
@@ -552,7 +552,7 @@ void main() {
       disableAnimations: true,
     );
 
-    await tester.tap(find.text('Watch'));
+    await tester.tap(find.text('Follow'));
     await _pumpDeskDebounce(tester, frames: 10);
 
     expect(find.byType(ActivityOfferCard), findsNothing);
@@ -611,7 +611,7 @@ void main() {
     await tester.tap(
       find.descendant(
         of: find.bySemanticsIdentifier(TestIds.activityOffer(beaconId)),
-        matching: find.text('Наблюдать'),
+        matching: find.text('Следить'),
       ),
     );
     for (var i = 0; i < 30; i++) {

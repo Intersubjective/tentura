@@ -7,10 +7,10 @@ void main() {
   group('ForwardLocationMessage', () {
     test('watching copy without pause', () {
       const message = ForwardLocationMessage(beaconId: 'B1');
-      expect(message.toEn, 'Request forwarded. It\'s in Watching.');
-      expect(message.toRu, 'Запрос переслан. Он во вкладке «Наблюдаю».');
-      expect(message.label.toEn, 'Open in Watching');
-      expect(message.label.toRu, 'Открыть в «Наблюдаю»');
+      expect(message.toEn, 'Request forwarded. It\'s in Following.');
+      expect(message.toRu, 'Запрос переслан. Он во вкладке «Слежу».');
+      expect(message.label.toEn, 'Open in Following');
+      expect(message.label.toRu, 'Открыть в «Слежу»');
       expect(message.onPressed, isNotNull);
     });
 
@@ -21,11 +21,11 @@ void main() {
       );
       expect(
         message.toEn,
-        'Request forwarded. It\'s in Watching. — Alice isn\'t taking new requests right now.',
+        'Request forwarded. It\'s in Following. — Alice isn\'t taking new requests right now.',
       );
       expect(
         message.toRu,
-        'Запрос переслан. Он во вкладке «Наблюдаю». — Alice сейчас не принимает новые запросы.',
+        'Запрос переслан. Он во вкладке «Слежу». — Alice сейчас не принимает новые запросы.',
       );
     });
 
@@ -36,7 +36,7 @@ void main() {
       );
       expect(
         message.toEn,
-        'Request forwarded. It\'s in Watching. — 2 people aren\'t taking new requests right now.',
+        'Request forwarded. It\'s in Following. — 2 people aren\'t taking new requests right now.',
       );
     });
 

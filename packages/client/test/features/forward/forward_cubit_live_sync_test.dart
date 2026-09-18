@@ -282,7 +282,7 @@ void main() {
         expect(showMessage.message, isA<ForwardLocationMessage>());
         expect(
           (showMessage.message as ForwardLocationMessage).toEn,
-          'Request forwarded. It\'s in Watching.',
+          'Request forwarded. It\'s in Following.',
         );
         expect(effects.emitted.whereType<NavigateBack>(), isEmpty);
         expect(effects.emitted.whereType<ShowError>(), isEmpty);
