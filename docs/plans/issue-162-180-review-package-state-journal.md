@@ -75,7 +75,7 @@ If Opus is unavailable: routine units degrade to Composer-only implement+verify;
 - [x] UNIT 09 client data/role/context — hard (DTO hops, codegen) — Opus inner (quota stop; overseer finished step 4) — verify pass 2026-09-18 — overseer accepted (`432d2839d`)
 - [x] UNIT 10 checklist UI — hard (Flutter, #162) — Opus-high substitute (Astra A2 quota miss) — verify pass 2026-09-18 — overseer accepted (`0b27c5885`)
 - [x] UNIT 11 paused/closed classify — hard (D12) — Opus inner — verify pass 2026-09-18 — overseer accepted (`d2876e587`)
-- [ ] UNIT 12 HUD + banner — hard (#162 loop) — **ASTRA inner** A3 (park inner until Astra quota ~05:51; brief ready at `2600af80c`)
+- [x] UNIT 12 HUD + banner — hard (#162 loop) — **ASTRA inner** A3 — verify pass 2026-09-18 — overseer accepted (`2d3bdfeed`)
 - [ ] UNIT 13 My Work cards — hard — Opus inner
 - [x] UNIT 14 author dialogs + Updates — medium — Opus inner — verify pass 2026-09-18 — overseer accepted (`cc99f6d21`)
 - [ ] UNIT 15 release 7.16.0 — routine — Opus inner
@@ -1618,3 +1618,40 @@ FINDINGS:
 REMAINING: authorize and apply only the two prepared header-test expectations,
 rerun mandatory TEST_CMD, commit that green test update, append resolution.
 No browser/release acceptance claimed; this inner is not a remediation.
+
+### verify — 2026-09-18 — UNIT 12
+
+STATUS: **accepted**
+
+TEST_OUTPUT:
+- Mandatory TEST_CMD (independent): `flutter test test/features/beacon_view test/features/evaluation` (wrapped, 15m) — **+573, −0** (~26s). Matches overseer after header widen (`2d3bdfeed`).
+- `grep -rn "viewerHasOutstandingReviewWork\|viewerCanOpenReviewScreen" packages/client/lib packages/client/test` — **no matches** (exit 1).
+- `git diff 43c7ab43e..2d3bdfeed --name-only` — journal + 7 client paths; **no** `*.g.dart` / `*.freezed.dart` in commits; UNIT 10/11 checklist, My Work, UNIT 14 confirm paths **unchanged** in range.
+
+RANGE: `43c7ab43e..2d3bdfeed` — `90a8e2896`, `46b1257d3`, `26ae0a955`, `3e579bdc9`, `2d3bdfeed` (+ journal checkpoints).
+
+ACCEPTANCE (plan UNIT 12 + hard-unit checks):
+
+| Criterion | Verdict | Evidence |
+|-----------|---------|----------|
+| #162: no primary **review** CTA after send | **met** | `_reviewOpenAuthorAction` `:165–182` — `sent` → `null`; test `reviewOpen has no sent review ACT…` expects `null` when `userReviewStatus: 2` && `!canCloseNow`; banner `no primary review CTA in sent` asserts no `FilledButton`. |
+| Close-now outranks review work | **met** | `:168–169` before package switch; matrix + `the author keeps close-now in sent when allRequiredSent` (OutlinedButton close + TextButton Edit). |
+| §2.1 banner: sent + TextButton Edit | **met** | `review_window_banner_host.dart:87–108` — `TextButton` + `beaconHudReviewEdit`; never filled for `sent`. |
+| §2.1 author waiting copy | **met** | Author `sent` && `!allRequiredSent` → `beaconHudWaitingForRequiredReviews`; non-author → `beaconHudWaitingForAuthorClose`; author `allRequiredSent` omits required-wait line (`:95`). |
+| Effect: required progress in `inProgress` only | **met** | `deriveBeaconHudAuthorActSpec` `:238–245`; banner `progressLine` `:80–84`; EN/RU semantics test in HUD suite. |
+| D17: getters removed, grep clean | **met** | `review_window_info.dart` ends at factory only (`:31`); no getter references in lib/test. |
+| Four named plan oracles | **met** | `review_window_banner_host_test.dart`: `at most one primary review CTA per state` (36 rows), `no primary review CTA in sent`, `the author keeps close-now…`, `the author waiting on others…` (legacy `beaconHudWaitingForReviews` absent). HUD table: 36 rows in `beacon_hud_author_action_test.dart` `review package HUD matrix`. |
+| Plan Verify TEST_CMD scope | **met** | Independent **+573**. |
+| UNIT 10/11 checklist untouched | **met** | No diff on `review_contributions_screen.dart`, `evaluation_cubit.dart`, `evaluation_state.dart` in range. |
+| UNIT 13 / UNIT 14 product untouched | **met** | No `my_work/**`, confirm sheets, or destination edits in range. |
+
+GAPS (non-blocking):
+- **Owns widen (plan §0):** `beacon_operational_header_card_test.dart` (+8/−2) in `2d3bdfeed` — required so mandatory suite stays green after banner label/copy change; not in UNIT 12 Owns list.
+- **Commit count:** five commits (HUD, banner, D17 refactor, docs checkpoint, header test) vs plan “one unit → one commit” — acceptable for inner + overseer finish.
+- **Cross-feature import:** `review_window_banner_host.dart` imports `beacon_hud_author_action.dart` for `reviewPackageStateFromWindow` — shared inference, no checklist coupling.
+- **Plan oracle name vs behavior:** `the author waiting on others does not see author-waiting copy` asserts author sees `beaconHudWaitingForRequiredReviews` and not `beaconHudWaitingForAuthorClose` / legacy `beaconHudWaitingForReviews` — correct product outcome, slightly opaque test title.
+- **Inner BLOCKED narrative** resolved by overseer header commit; no remaining REMAINING for UNIT 12 acceptance.
+
+### overseer — UNIT 12 accepted — 2026-09-18
+
+Verdict: **accepted**. Astra A3 inner; overseer D17-widened header oracles `2d3bdfeed`. Composer verify **+573**. Getters gone; sent has no filled review CTA; close-now outranks. UNIT 13 next (Opus). Remaining Astra slots reserved for post-landing review of 12/10/05, not UNIT 13 inner.
