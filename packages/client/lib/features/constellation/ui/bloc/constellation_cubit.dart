@@ -790,6 +790,8 @@ final class ConstellationCubit extends Cubit<ConstellationState> {
       _placementClusterTargets.remove(graphId);
       _clusterStartCentres.remove(graphId);
     }
+    _placementClusterGraphIds.add(parentGraphId);
+    _placementClusterTargets.putIfAbsent(parentGraphId, () => target);
     _placementHandoffGraphIds = Set<GraphNodeId>.from(_placementClusterGraphIds);
     _draggingNodeId = null;
     // The pointer drag has ended; the write may still be pending or fail.
