@@ -31,7 +31,8 @@ Short pointers for agents — read only what your task needs.
 |-----|-----------|
 | [`features/beacon_room.md`](features/beacon_room.md) | Threads tab, General/semantic threads, discussion admission, People/Log |
 | [`features/constellation.md`](features/constellation.md) | Constellation map/text field, discoverability, personal pins, filters, and limitations |
-| [`features/new-stuff-indicators.md`](features/new-stuff-indicators.md) | Inbox/My Work “new since last visit” dots and pills |
+| [`features/request-attention.md`](features/request-attention.md) | **Request attention contract**: one primary surface, obligations vs optional updates, read/clear/settle, the clearing ritual, indicator formulas — read before touching My desk / For you |
+| [`features/new-stuff-indicators.md`](features/new-stuff-indicators.md) | Retired client-side marker mechanism; superseded by `features/request-attention.md` — kept for history |
 | [`features/trust_edges.md`](features/trust_edges.md) | Per-context trust source edges, effective projection, MeritRank publish |
 | [`features/mutual-friends.md`](features/mutual-friends.md) | Mutual-friends query on profiles / invite accept |
 
@@ -47,6 +48,8 @@ Short pointers for agents — read only what your task needs.
 | [`plans/availability-request-receptiveness-architecture.md`](plans/availability-request-receptiveness-architecture.md) | Availability / request-receptiveness signal (profile + Forward) — architecture rev 3, awaiting sign-off (reviews: [grok](plans/availability-review-grok46.md), [kimi](plans/availability-review-kimik3.md), [codex](plans/availability-review-codex.md)) |
 | [`plans/issue-110-forward-explicit-architecture.md`](plans/issue-110-forward-explicit-architecture.md) | Explicit forwarding UX (#110): note coverage, stay-on-send, Watching confirm, `allowsForward` gate — architecture rev 1 |
 | [`plans/issue-97-invite-identity-plan.md`](plans/issue-97-invite-identity-plan.md) | Invite identity + canonical name (#97) — private nickname, dual-purpose People invite, Updates origin |
+| [`plans/request-centric-attention-plan.md`](plans/request-centric-attention-plan.md) | Request-centric attention execution plan (rev 3): clearing ritual, obligation lifecycle, sweep, 19 ordered units — product contract lives in [`features/request-attention.md`](features/request-attention.md) |
+| [`plans/request-centric-attention-implementation-plan.md`](plans/request-centric-attention-implementation-plan.md) | Executable manifest for the above: frozen names (§0), executor rules (§1), units U01–U19 with acceptance and gates — U01 complete, see [journal](plans/request-centric-attention-implementation-journal.md) |
 | [`plans/beacon-cross-screen-invalidation-refactor.md`](plans/beacon-cross-screen-invalidation-refactor.md) | Sync My Work/Inbox after local room mutations |
 | [`plans/beacon-location-google-maps-plan.md`](plans/beacon-location-google-maps-plan.md) | Google Maps picker + external Maps hand-off |
 | [`plans/google-maps-server-proxy-plan.md`](plans/google-maps-server-proxy-plan.md) | Server-side Geocoding/Places proxy |

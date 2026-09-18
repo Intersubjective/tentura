@@ -1,5 +1,11 @@
 # Attention Indicators (Inbox & My Work)
 
+> **Superseded (2026-09-18).** This describes the retired client-side marker mechanism (`NewStuffCubit`, removed
+> from the client). The current contract — including the rule that indicators do **not** hide on the active tab,
+> and that the dot and the obligation count are independent — is
+> [`request-attention.md`](request-attention.md). Kept for history.
+
+
 **User-facing:** bottom-navigation dots and per-Request card markers indicate unread
 attention only when the Request belongs to a successfully loaded Inbox or My Work
 projection.

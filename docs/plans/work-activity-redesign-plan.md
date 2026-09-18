@@ -2,6 +2,8 @@
 
 Status: design plan, revision 5. All product questions are closed (§10); D12–D13 were added with the implementation plan.
 
+**Refined (2026-09-18).** This plan remains the record of the shipped responsibility split. Its decisions D1–D13 are refined by [`request-centric-attention-plan.md`](request-centric-attention-plan.md) and the product contract [`../features/request-attention.md`](../features/request-attention.md): D10 outcome rows become dismissible tombstones, D1's watching digest is no longer the sole entry to Watching, D5's dot-only rule now coexists with an independent My desk dot, and D7's archived-silence rule is re-stated as “the indicator predicate is the list predicate”.
+
 Execution: [`work-activity-redesign-implementation-plan.md`](work-activity-redesign-implementation-plan.md) holds the unit manifest, the frozen contracts and the executor rules. The phase and unit tables in §8 here are a summary; the implementation plan is authoritative for order and names.
 
 Date: 2026-09-12. Baseline: `21716a9d1` on `feature/pin_constellation`.

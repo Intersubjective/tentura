@@ -206,7 +206,7 @@ The signed-in user's work tab — beacons they **authored**, **help-offered** on
 _Avoid_: mixing with **Activity** (offers to you; internally `inbox`).
 
 **Responsibility split** (My desk vs Activity):
-The home tabs divide information by *responsibility*, not by object type. A beacon is in the viewer's **responsibility scope** when they authored it (any status except draft, **archived included**), hold an active help offer on it, or hold a live obligation on it. A notification receipt about a beacon in scope belongs to **My desk**; everything else addressed to the viewer belongs to **Activity**. Scope is evaluated when the receipt is read, never stored: offering help moves a forwarded request from Activity to My desk, and withdrawing moves it back. On overlap, My desk wins. Plan: [`docs/plans/work-activity-redesign-plan.md`](docs/plans/work-activity-redesign-plan.md).
+The home tabs divide information by *responsibility*, not by object type. A beacon is in the viewer's **responsibility scope** when they authored it (any status except draft, **archived included**), hold an active help offer on it, or hold a live obligation on it. A notification receipt about a beacon in scope belongs to **My desk**; everything else addressed to the viewer belongs to **Activity**. Scope is evaluated when the receipt is read, never stored: offering help moves a forwarded request from Activity to My desk, and withdrawing moves it back. On overlap, My desk wins. Contract: [`docs/features/request-attention.md`](docs/features/request-attention.md); shipped split: [`docs/plans/work-activity-redesign-plan.md`](docs/plans/work-activity-redesign-plan.md).
 _Avoid_: showing a receipt about an in-scope beacon on Activity; rendering receipt rows on My desk instead of on the beacon's card; naming this concept `destination_kind` (that column is the deep-link target kind).
 
 **Needs you** / «Требует вас» (My desk section):
@@ -218,6 +218,22 @@ _Avoid_: «Предложения» / "Offers" as an Activity label — it colli
 
 **Notification history** / «История уведомлений»:
 A secondary screen reached from Activity's overflow menu: the global chronological receipt list across both tabs, with All / Unread and search. Not a primary surface of either tab.
+
+**Obligation** / «требует действия» (`requires_action`, unsettled):
+An event where somebody is waiting on the viewer. Shown as a **numeric** badge on the Request card, the **Needs you** section and the My desk nav icon (counting receipts, not Requests). It has no dismiss control: it carries a **CTA that captures a decision** (a sheet asking for a choice or an input) and leaves only when the underlying domain transition happens, or when it expires/is cancelled — in which case it is replaced by an optional update explaining the drop. Obligations exist only on My desk: holding one is itself a reason the Request is there. Contract: [`docs/features/request-attention.md`](docs/features/request-attention.md).
+_Avoid_: a bare "Done" button — nothing in the product can be honestly resolved by acknowledgment; promoting mandatory-delivery notifications into obligations; classifying by event type alone (a help offer obliges the author and merely informs everybody else); letting an obligation disappear with no explanation.
+
+**Optional update**:
+An informational event about a Request. Shown as a **dot**, never counted. Cleared by an explicit **×**, or by opening the Request (which clears a snapshot taken at open, after it successfully displays). Never cleared by scrolling, rebuilding, switching tabs or background refresh.
+_Avoid_: using "seen" as storage for "cleared" — reading, clearing and settling are three independent states, and reading never clears.
+
+**Dismiss all** (For you):
+A surface-level sweep that clears every row carrying its own × — optional updates, answered-forward outcome rows, non-Request notices — across the whole authorized surface, including pages not yet loaded. It never applies a decision on the viewer's behalf: unanswered forwards, pending prompts and obligations are left untouched. Consequently a *cleared* For you may still show its pinned decision zone.
+_Avoid_: a sweep that silently rejects forwards or skips prompts; clearing only what happens to be loaded on screen; celebrating "all clear" while decisions are pending, offline, or after a partial sweep.
+
+**Outcome row** / tombstone (For you):
+The dated row an answered forward leaves in the stream («Ты помогаешь», «Смотришь», «Не интересно»). Non-bumping, non-grouped, no sub-cards, no dot — and always **dismissible**, otherwise the surface can never reach zero. "You're helping" is the one deliberate exception to one-Request-one-surface: live attention is on My desk while the trace stays in For you.
+_Avoid_: leaving any outcome kind without a × (today `helping`/`watching` have none — a known defect).
 
 **Active filter** (default):
 Non-archived cards (excluding **drafts** and deleted). Beacons of any lifecycle the user has not archived — including review-window and finished beacons — appear here until the user archives them.
