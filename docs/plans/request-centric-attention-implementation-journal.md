@@ -381,6 +381,6 @@ settlement code; U10/U11: make SQL/grouping match declared `orderingEffect` and 
 
 | Unit | Status |
 |---|---|
-| U03 exhaustive classification | **complete** (commits pending this journal entry) |
+| U03 exhaustive classification | **complete** (`b954d26c7`, `1c4f9c4ef`, `dcaf6edce`) |
 
 ---
