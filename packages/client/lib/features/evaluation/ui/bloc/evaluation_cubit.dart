@@ -247,6 +247,7 @@ class EvaluationCubit extends Cubit<EvaluationState> {
 
   Future<void> finalize() async {
     if (state.isDraftMode) {
+      // Draft mode has no package to stay with: the sheet is the whole flow.
       _emitNavigateBack();
       return;
     }
@@ -257,9 +258,49 @@ class EvaluationCubit extends Cubit<EvaluationState> {
     try {
       await _evaluationCase.finalize(state.beaconId);
       if (isClosed) return;
-      _emitNavigateBack();
+      await _refreshAfterSend();
     } catch (e) {
       if (isClosed) return;
+      _emitSnackError(e);
+    }
+  }
+
+  /// Re-reads the package after a send that already succeeded (#162).
+  ///
+  /// A failure here is a read failure, never a send failure: the UI must not
+  /// fall back to the pre-send state. Keep the participants we have, mark the
+  /// window sent locally, and surface the read failure as a snackbar.
+  Future<void> _refreshAfterSend() async {
+    try {
+      final participants = await _evaluationCase.fetchParticipants(
+        state.beaconId,
+      );
+      if (isClosed) return;
+      final window = await _evaluationCase.fetchReviewWindowStatus(
+        state.beaconId,
+      );
+      if (isClosed) return;
+      emit(
+        state.copyWith(
+          participants: participants,
+          windowInfo: window,
+          beaconTitle: window.beaconTitle,
+          status: StateStatus.isSuccess,
+        ),
+      );
+    } catch (e) {
+      if (isClosed) return;
+      final window = state.windowInfo;
+      if (window != null) {
+        emit(
+          state.copyWith(
+            windowInfo: window.copyWith(
+              userReviewStatus: 2,
+              sentAt: window.sentAt ?? DateTime.now().toUtc(),
+            ),
+          ),
+        );
+      }
       _emitSnackError(e);
     }
   }
