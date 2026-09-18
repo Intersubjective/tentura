@@ -298,6 +298,7 @@ class EvaluationCubit extends Cubit<EvaluationState> {
               userReviewStatus: 2,
               sentAt: window.sentAt ?? DateTime.now().toUtc(),
             ),
+            status: StateStatus.isSuccess,
           ),
         );
       }

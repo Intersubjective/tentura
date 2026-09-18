@@ -176,6 +176,7 @@ void main() {
     expect(cubit.state.windowInfo?.userReviewStatus, 2);
     expect(cubit.state.windowInfo?.sentAt, isNotNull);
     expect(cubit.state.packageState, ReviewPackageState.sent);
+    expect(cubit.state.isLoading, isFalse);
     await cubit.close();
   });
 
