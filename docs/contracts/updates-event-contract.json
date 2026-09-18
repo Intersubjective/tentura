@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 3,
+  "schemaVersion": 4,
   "pendingProducerEventTypes": [],
   "eventTypes": [
     {
@@ -471,6 +471,9 @@
           "accessPolicy": "beacon_content",
           "recoverableVia": "request_timeline",
           "clearPolicy": "explicit_or_request_open",
+          "selfAuthored": false,
+          "headlineTreatment": "beacon",
+          "coalescible": false,
           "producerTests": [
             "packages/server/test/domain/use_case/forward_case_test.dart"
           ],
@@ -492,6 +495,9 @@
           "accessPolicy": "beacon_content",
           "recoverableVia": "people",
           "clearPolicy": "forbidden",
+          "selfAuthored": false,
+          "headlineTreatment": "beacon",
+          "coalescible": true,
           "producerTests": [
             "packages/server/test/domain/use_case/help_offer_case_test.dart"
           ],
@@ -516,6 +522,9 @@
           "accessPolicy": "beacon_content",
           "recoverableVia": "people",
           "clearPolicy": "explicit_or_request_open",
+          "selfAuthored": false,
+          "headlineTreatment": "beacon",
+          "coalescible": true,
           "producerTests": [
             "packages/server/test/domain/use_case/help_offer_case_test.dart"
           ],
@@ -537,6 +546,9 @@
           "accessPolicy": "beacon_content_or_recipient_safe",
           "recoverableVia": "people",
           "clearPolicy": "explicit_or_request_open",
+          "selfAuthored": false,
+          "headlineTreatment": "beacon",
+          "coalescible": true,
           "producerTests": [
             "packages/server/test/domain/use_case/beacon_room_admission_matrix_test.dart"
           ],
@@ -558,6 +570,9 @@
           "accessPolicy": "beacon_content_or_recipient_safe",
           "recoverableVia": "people",
           "clearPolicy": "explicit_or_request_open",
+          "selfAuthored": false,
+          "headlineTreatment": "beacon",
+          "coalescible": true,
           "producerTests": [
             "packages/server/test/domain/use_case/beacon_room_admission_matrix_test.dart"
           ],
@@ -579,6 +594,9 @@
           "accessPolicy": "beacon_content_or_recipient_safe",
           "recoverableVia": "people",
           "clearPolicy": "explicit_or_request_open",
+          "selfAuthored": false,
+          "headlineTreatment": "beacon",
+          "coalescible": true,
           "producerTests": [
             "packages/server/test/domain/use_case/beacon_room_admission_matrix_test.dart"
           ],
@@ -600,6 +618,9 @@
           "accessPolicy": "beacon_content_or_recipient_safe",
           "recoverableVia": "people",
           "clearPolicy": "explicit_or_request_open",
+          "selfAuthored": false,
+          "headlineTreatment": "beacon",
+          "coalescible": true,
           "producerTests": [
             "packages/server/test/domain/use_case/coordination_case_release_test.dart"
           ],
@@ -621,6 +642,9 @@
           "accessPolicy": "beacon_content",
           "recoverableVia": "room",
           "clearPolicy": "explicit_or_request_open",
+          "selfAuthored": false,
+          "headlineTreatment": "beacon",
+          "coalescible": true,
           "producerTests": [
             "packages/server/test/domain/use_case/beacon_room_case_message_mutations_test.dart"
           ],
@@ -642,6 +666,9 @@
           "accessPolicy": "beacon_content",
           "recoverableVia": "request_timeline",
           "clearPolicy": "explicit_or_request_open",
+          "selfAuthored": false,
+          "headlineTreatment": "beacon",
+          "coalescible": true,
           "producerTests": [
             "packages/server/test/domain/use_case/coordination_case_revert_test.dart"
           ],
@@ -657,6 +684,9 @@
           "accessPolicy": "beacon_content",
           "recoverableVia": "request_timeline",
           "clearPolicy": "explicit_or_request_open",
+          "selfAuthored": false,
+          "headlineTreatment": "beacon",
+          "coalescible": true,
           "producerTests": [
             "packages/server/test/domain/use_case/coordination_case_revert_test.dart"
           ],
@@ -678,6 +708,9 @@
           "accessPolicy": "beacon_content",
           "recoverableVia": "request_timeline",
           "clearPolicy": "explicit_or_request_open",
+          "selfAuthored": false,
+          "headlineTreatment": "beacon",
+          "coalescible": true,
           "producerTests": [
             "unverified"
           ],
@@ -693,6 +726,9 @@
           "accessPolicy": "beacon_content",
           "recoverableVia": "request_timeline",
           "clearPolicy": "explicit_or_request_open",
+          "selfAuthored": false,
+          "headlineTreatment": "beacon",
+          "coalescible": true,
           "producerTests": [
             "unverified"
           ],
@@ -714,6 +750,9 @@
           "accessPolicy": "beacon_content",
           "recoverableVia": "request_timeline",
           "clearPolicy": "forbidden",
+          "selfAuthored": false,
+          "headlineTreatment": "beacon",
+          "coalescible": true,
           "producerTests": [
             "packages/server/test/domain/evaluation/evaluation_case_test.dart"
           ],
@@ -742,6 +781,9 @@
           "accessPolicy": "beacon_content",
           "recoverableVia": "request_timeline",
           "clearPolicy": "explicit_or_request_open",
+          "selfAuthored": false,
+          "headlineTreatment": "beacon",
+          "coalescible": true,
           "producerTests": [
             "packages/server/test/domain/evaluation/evaluation_case_test.dart"
           ],
@@ -763,6 +805,9 @@
           "accessPolicy": "beacon_content",
           "recoverableVia": "request_timeline",
           "clearPolicy": "explicit_or_request_open",
+          "selfAuthored": false,
+          "headlineTreatment": "beacon",
+          "coalescible": true,
           "producerTests": [
             "packages/server/test/domain/evaluation/evaluation_case_test.dart"
           ],
@@ -784,6 +829,9 @@
           "accessPolicy": "profile",
           "recoverableVia": "people",
           "clearPolicy": "explicit_or_request_open",
+          "selfAuthored": false,
+          "headlineTreatment": "user",
+          "coalescible": true,
           "producerTests": [
             "packages/server/test/domain/use_case/user_trust_edge_case_test.dart"
           ],
@@ -805,6 +853,9 @@
           "accessPolicy": "profile",
           "recoverableVia": "people",
           "clearPolicy": "explicit_or_request_open",
+          "selfAuthored": false,
+          "headlineTreatment": "user",
+          "coalescible": true,
           "producerTests": [
             "packages/server/test/domain/use_case/invitation_case_test.dart"
           ],
@@ -826,6 +877,9 @@
           "accessPolicy": "beacon_content",
           "recoverableVia": "room",
           "clearPolicy": "explicit_or_request_open",
+          "selfAuthored": false,
+          "headlineTreatment": "beacon",
+          "coalescible": true,
           "producerTests": [
             "packages/server/test/domain/use_case/coordination_item/ask_lifecycle_case_test.dart"
           ],
@@ -847,6 +901,9 @@
           "accessPolicy": "beacon_content",
           "recoverableVia": "room",
           "clearPolicy": "explicit_or_request_open",
+          "selfAuthored": false,
+          "headlineTreatment": "beacon",
+          "coalescible": true,
           "producerTests": [
             "packages/server/test/domain/use_case/coordination_item/blocker_lifecycle_case_test.dart"
           ],
@@ -862,6 +919,9 @@
           "accessPolicy": "beacon_content",
           "recoverableVia": "room",
           "clearPolicy": "explicit_or_request_open",
+          "selfAuthored": false,
+          "headlineTreatment": "beacon",
+          "coalescible": true,
           "producerTests": [
             "packages/server/test/domain/use_case/coordination_item/blocker_lifecycle_case_test.dart"
           ],
@@ -883,6 +943,9 @@
           "accessPolicy": "beacon_content",
           "recoverableVia": "room",
           "clearPolicy": "explicit_or_request_open",
+          "selfAuthored": false,
+          "headlineTreatment": "beacon",
+          "coalescible": true,
           "producerTests": [
             "packages/server/test/domain/use_case/coordination_item/blocker_lifecycle_case_test.dart"
           ],
@@ -904,6 +967,9 @@
           "accessPolicy": "beacon_content",
           "recoverableVia": "room",
           "clearPolicy": "explicit_or_request_open",
+          "selfAuthored": false,
+          "headlineTreatment": "beacon",
+          "coalescible": true,
           "producerTests": [
             "packages/server/test/domain/use_case/coordination_item/create_promise_case_test.dart"
           ],
@@ -925,6 +991,9 @@
           "accessPolicy": "beacon_content",
           "recoverableVia": "room",
           "clearPolicy": "explicit_or_request_open",
+          "selfAuthored": false,
+          "headlineTreatment": "beacon",
+          "coalescible": true,
           "producerTests": [
             "packages/server/test/domain/use_case/coordination_item/cancel_promise_case_test.dart"
           ],
@@ -946,6 +1015,9 @@
           "accessPolicy": "beacon_content",
           "recoverableVia": "room",
           "clearPolicy": "explicit_or_request_open",
+          "selfAuthored": false,
+          "headlineTreatment": "beacon",
+          "coalescible": true,
           "producerTests": [
             "packages/server/test/domain/use_case/coordination_item/update_coordination_item_case_test.dart"
           ],
@@ -967,6 +1039,9 @@
           "accessPolicy": "beacon_content",
           "recoverableVia": "unverified",
           "clearPolicy": "explicit_or_request_open",
+          "selfAuthored": false,
+          "headlineTreatment": "system",
+          "coalescible": true,
           "producerTests": [
             "packages/server/test/domain/use_case/coordination_item/remind_coordination_item_case_test.dart"
           ],
@@ -988,6 +1063,9 @@
           "accessPolicy": "beacon_content",
           "recoverableVia": "room",
           "clearPolicy": "explicit_or_request_open",
+          "selfAuthored": false,
+          "headlineTreatment": "beacon",
+          "coalescible": true,
           "producerTests": [
             "packages/server/test/domain/use_case/coordination_item/commitment_attention_pg_test.dart"
           ],
@@ -1009,6 +1087,9 @@
           "accessPolicy": "beacon_content",
           "recoverableVia": "unverified",
           "clearPolicy": "explicit_or_request_open",
+          "selfAuthored": false,
+          "headlineTreatment": "beacon",
+          "coalescible": true,
           "producerTests": [
             "packages/server/test/domain/use_case/coordination_item/resolve_ask_case_test.dart"
           ],
@@ -1030,6 +1111,9 @@
           "accessPolicy": "beacon_content",
           "recoverableVia": "room",
           "clearPolicy": "explicit_or_request_open",
+          "selfAuthored": false,
+          "headlineTreatment": "beacon",
+          "coalescible": true,
           "producerTests": [
             "packages/server/test/domain/use_case/coordination_item/ask_lifecycle_case_test.dart"
           ],
@@ -1051,6 +1135,9 @@
           "accessPolicy": "beacon_content",
           "recoverableVia": "room",
           "clearPolicy": "explicit_or_request_open",
+          "selfAuthored": false,
+          "headlineTreatment": "beacon",
+          "coalescible": true,
           "producerTests": [
             "packages/server/test/domain/use_case/coordination_item/ask_lifecycle_case_test.dart"
           ],
@@ -1072,6 +1159,9 @@
           "accessPolicy": "profile",
           "recoverableVia": "history_only",
           "clearPolicy": "explicit_or_request_open",
+          "selfAuthored": false,
+          "headlineTreatment": "beacon",
+          "coalescible": true,
           "producerTests": [
             "packages/server/test/domain/evaluation/evaluation_case_test.dart"
           ],
@@ -1093,6 +1183,9 @@
           "accessPolicy": "beacon_content",
           "recoverableVia": "history_only",
           "clearPolicy": "explicit_or_request_open",
+          "selfAuthored": false,
+          "headlineTreatment": "beacon",
+          "coalescible": true,
           "producerTests": [
             "packages/server/test/domain/evaluation/evaluation_case_test.dart"
           ],
@@ -1114,6 +1207,9 @@
           "accessPolicy": "beacon_content",
           "recoverableVia": "unverified",
           "clearPolicy": "explicit_or_request_open",
+          "selfAuthored": false,
+          "headlineTreatment": "beacon",
+          "coalescible": true,
           "producerTests": [
             "unverified"
           ],
@@ -1135,6 +1231,9 @@
           "accessPolicy": "beacon_content",
           "recoverableVia": "unverified",
           "clearPolicy": "explicit_or_request_open",
+          "selfAuthored": false,
+          "headlineTreatment": "system",
+          "coalescible": true,
           "producerTests": [
             "unverified"
           ],
