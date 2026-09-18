@@ -1655,3 +1655,56 @@ GAPS (non-blocking):
 ### overseer — UNIT 12 accepted — 2026-09-18
 
 Verdict: **accepted**. Astra A3 inner; overseer D17-widened header oracles `2d3bdfeed`. Composer verify **+573**. Getters gone; sent has no filled review CTA; close-now outranks. UNIT 13 next (Opus). Remaining Astra slots reserved for post-landing review of 12/10/05, not UNIT 13 inner.
+
+## UNIT 13 — My Work: package state on review cards
+
+UNIT_BASE: `a2efd74e0` (matches live `git rev-parse --short HEAD`)
+
+### scout — 2026-09-18 — UNIT 13
+
+STATUS: ready (UNIT 08 `deriveReviewPackageState`, UNIT 09 window DTO fields, UNIT 12 `reviewPackageStateFromWindow` at `beacon_hud_author_action.dart:147–163`; UNIT 14 `myWorkConfirmCloseNow` at `my_work_cards.dart:43–54` / close handler `:413–417` — do not regress)
+
+BRIEF: **#162 on My Work** — today `reviewOpen` always surfaces a **filled primary** “review contributions” path via `deriveBeaconCoordinationPhase` (`derive_beacon_coordination_phase.dart:61–69` → `reviewContributions`) and help-offered derive sets `showReviewCta: reviewOpen` (`derive_my_work_cards.dart:171–182`). Authored `reviewOpen` cards never set `showReviewCta`, but `myWorkEffectivePrimaryAction` / `myWorkPhasePrimaryCtaLabel` (`beacon_phase_cta.dart:69–87`, `:12–32`) still emit the same primary review button. UNIT 14 left `hasReviewCta = false` (`my_work_cards.dart:380`) so footer review is **phase-only**; obligation tonal fallback still keys off `vm.showReviewCta` (`my_work_obligation_block.dart:96–99`, label `myWorkReviewCta`). Batch window read is **author-only** and **two fields**: `loadReviewWindows` (`my_work_case.dart:138–160`) + `my_work_review_windows.graphql` (`canCloseNow` only); `fetchReviewWindowStatuses` maps only `beaconId`/`canCloseNow` (`evaluation_repository.dart:217–224`). Mirror UNIT 12 sent UX: **no filled primary review CTA** when package is `sent`; show `beaconHudReviewSent` + role-appropriate waiting line + **TextButton** `beaconHudReviewEdit` (copy `review_window_banner_host.dart:87–108`). `showCloseNowCta` stays independent (authored + `canCloseNow` only, existing tests in `my_work_load_review_windows_test.dart`).
+
+**Package inference (do not use deleted getters):** duplicate the literals from `reviewPackageStateFromWindow` in `my_work_case.dart` or `derive_my_work_cards.dart` calling `deriveReviewPackageState` — **`my_work/domain/use_case` must not import** `beacon_view/ui/presenter`. Inputs: `beaconStatus: card.beacon.status`, `ReviewWindowInfo` row (`hasWindow`, `windowComplete`, `userReviewStatus`, `sentAt`, `requiredTotal`/`requiredReviewed`, `totalCount` for targets). Missing batch row ⇒ treat as `hasWindow: false` for that beacon.
+
+**Card IDs to batch-fetch:** every desk card with `beacon.status == BeaconStatus.reviewOpen` and active membership (at minimum `authored` + `helpOffered` active kinds; include `obligation` if product treats them as reviewers — none in current derive tests). **Update** `my_work_load_review_windows_test.dart:31–47` — help-offered `reviewOpen` must **request** windows after widen.
+
+**View model:** add `ReviewPackageState? reviewPackageState` on `MyWorkCardViewModel` (`my_work_card_view_model.dart` — freezed regen local, D18). In `loadReviewWindows`, set `reviewPackageState` and sync `showReviewCta` to true only for `inProgress|readyToSend|changedNotSent` (obligation block + sort key `derive_my_work_cards.dart:15`). Optional: stop setting `showReviewCta: reviewOpen` at derive time for help-offered; enrichment is authoritative post-fetch.
+
+**UI matrix (`my_work_cards.dart` + `my_work_obligation_block.dart`):**
+
+| `ReviewPackageState` | Footer primary review | Obligation fallback |
+|---|---|---|
+| `inProgress`, `readyToSend` | Filled `TenturaCommandButton` — label `beaconHudActReviewContributions` (phase label today uses `beaconHudCtaReviewContributions`; align with HUD/banner primary copy) | tonal `myWorkReviewCta` when `showReviewCta` |
+| `changedNotSent` | Filled CTA `evaluationSubmitChanges` | same label |
+| `sent` | **No** filled review; status lines + `TextButton` `beaconHudReviewEdit` | hidden (`showReviewCta` false) |
+| `paused`, `closed`, `closedUnsent`, `empty`, `notEnrolled` | none | none |
+
+Gate **phase** `reviewContributions` when `reviewPackageState` is `sent` or terminal: plan step 4 — add optional `ReviewPackageState? viewerReviewPackageState` on **`deriveBeaconCoordinationPhase`** (`derive_beacon_coordination_phase.dart`, owned) and pass from **`beacon_phase_input_builders.dart` / `beacon_phase_cta.dart` only if overseer widens** (not in Owns). **Pragmatic within Owns:** post-gate in `my_work_cards.dart` before `phaseCtaLabel` / `suppressReviewFallback` (`:510–511`); **and** implement step 4 in owned `derive_beacon_coordination_phase.dart` with optional param default `null` (unchanged for inbox/beacon tile). Wire param from `my_work_status_line.dart` + `beacon_phase_cta.dart` requires **BLOCKED or widen** — inner may ship card footer gating first, then widen presenters if verify demands status/phase consistency.
+
+**GraphQL:** extend `my_work_review_windows.graphql` to match `review_window_status.graphql` fields needed for derive (plan list + `hasWindow` if API returns it on batch type — confirm `v2_ReviewWindowStatus` in `schema.graphql`). Update `fetchReviewWindowStatuses` mapping to full `ReviewWindowInfo` like `fetchReviewWindowStatus` (`evaluation_repository.dart:175–197`). Commit `.graphql` only; run `build_runner` locally.
+
+STEPS (test-first; commit `fix(client): stop re-offering a sent review in My Work`):
+
+1. **RED** — four plan-named tests under `test/features/my_work/` (widget pump `MyWorkAuthoredCard` / help-offered shell with mocked VM or `loadReviewWindows` + `FakeEvaluationRepository`): sent → no `TenturaCommandButton` with review-contributions label; `changedNotSent` → `evaluationSubmitChanges`; authored `canCloseNow` → close still visible + `myWorkConfirmCloseNow` path untouched; `hasWindow: false` / `windowComplete` / paused ⇒ no review affordance. Extend `my_work_load_review_windows_test.dart` for widen + `reviewPackageState` on VM.
+2. **GREEN data** — graphql + repository batch map + `loadReviewWindows` merge by `beaconId`.
+3. **GREEN VM/UI** — freezed field; `my_work_cards` replace `hasReviewCta` stub with state matrix; `my_work_obligation_block` labels for `changedNotSent` if fallback still used; mirror banner sent layout with design tokens (`TenturaText.status`, `context.tt` gaps).
+4. **GREEN phase gate** — optional param on `deriveBeaconCoordinationPhase` for `reviewOpen` branch; document if presenter wiring deferred.
+5. **Verify** — `check-custom-lints.sh packages/client` after `lib/` edits.
+
+TEST_CMD:
+```bash
+cd packages/client && ../../scripts/run_with_test_cleanup.sh --timeout 15m -- flutter test test/features/my_work --dart-define=ENV=test --dart-define-from-file=env/test.env
+```
+
+UNTOUCHABLE: journal §UNTOUCHABLE; generated `_g/`/`*.g.dart`/`*.freezed.dart`; UNIT 12 HUD/banner; UNIT 15 version; **UNIT 14** close confirm (`myWorkConfirmCloseNow`, discard note fetch) — only touch close block on regression fix; pre-existing dirty/untracked; do not push.
+
+RISKS:
+- **Owns vs `beacon_phase_cta.dart` / `beacon_phase_input_builders.dart`** — step 4 fully needs presenter pass-through of `vm.reviewPackageState`; card-only gating fixes #162 footer but `my_work_status_line` may still imply `reviewContributions` until widened.
+- **`totalTargets`:** batch row uses `totalCount` (visibility length), not checklist `participants.length` — same as UNIT 12 HUD (`reviewPackageStateFromWindow` uses `totalCount`).
+- **Author `sent` waiting copy** — use `beaconHudWaitingForRequiredReviews` when `!allRequiredSent`, else status+edit only (`review_window_banner_host.dart:95–102`).
+- **Flash before `loadReviewWindows`** — derive sets `showReviewCta: true` for help-offered until batch returns; brief wrong CTA unless derive defaults `showReviewCta: false` until enriched.
+- **Freezed field** — requires local codegen; do not commit generated files.
+- **`evaluation_repository.dart` not in Owns** — plan lists only `my_work_review_windows.graphql`; batch mapping fix is **required** for new fields to arrive — if strict §0 blocks, `BLOCKED` with journal note (repository change is unavoidable).
+- **Existing `my_work_close_now_confirm_test.dart`** — must stay green with UNIT 14 behavior.
