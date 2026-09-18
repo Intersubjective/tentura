@@ -76,9 +76,9 @@ If Opus is unavailable: routine units degrade to Composer-only implement+verify;
 - [x] UNIT 10 checklist UI — hard (Flutter, #162) — Opus-high substitute (Astra A2 quota miss) — verify pass 2026-09-18 — overseer accepted (`0b27c5885`)
 - [x] UNIT 11 paused/closed classify — hard (D12) — Opus inner — verify pass 2026-09-18 — overseer accepted (`d2876e587`)
 - [x] UNIT 12 HUD + banner — hard (#162 loop) — **ASTRA inner** A3 — verify pass 2026-09-18 — overseer accepted (`2d3bdfeed`)
-- [ ] UNIT 13 My Work cards — hard — Opus inner
+- [x] UNIT 13 My Work cards — hard — Opus inner — verify pass 2026-09-18 — overseer accepted (`dc56a0836`)
 - [x] UNIT 14 author dialogs + Updates — medium — Opus inner — verify pass 2026-09-18 — overseer accepted (`cc99f6d21`)
-- [ ] UNIT 15 release 7.16.0 — routine — Opus inner
+- [x] UNIT 15 release 7.16.0 — routine — overseer (mechanical grep gate)
 - [ ] UNIT 16 closeout — hard (PG + web e2e) — overseer matrix; Astra only if red
 
 Never parallelize 02/03/04 or 09/10. Never skip or merge.
@@ -1723,3 +1723,51 @@ FINDINGS:
 - Phase `suggestedAction` for reviewOpen on My Work is `none` for sent/terminal/unenriched; beacon HUD/inbox callers pass nothing → unchanged.
 
 REMAINING: verify pass; UNIT 15/16.
+
+### verify — 2026-09-18 — UNIT 13
+
+STATUS: **accepted**
+
+TEST_OUTPUT:
+- Mandatory TEST_CMD (independent): `flutter test test/features/my_work` (wrapped, 15m) → **+161, All tests passed!** (~12s). Matches inner/overseer **+161**.
+
+RANGE: `a2efd74e0..8d3f5aa6a` — `27eda39d2`, `cbda5bda5`, `dc56a0836`, `8d3f5aa6a`. No `*.g.dart` / `*.freezed.dart` / `_g/` in commit diff.
+
+ACCEPTANCE (plan UNIT 13 + hard checks):
+
+| Criterion | Verdict | Evidence |
+|-----------|---------|----------|
+| Sent: no filled primary review CTA on My Work | **met** | `MyWorkReviewAffordance` sent branch uses `TextButton` + status (`my_work_review_affordance.dart:53–77`); test asserts no `TenturaCommandButton`/`FilledButton` (`my_work_review_package_test.dart:103–147`). |
+| `changedNotSent` → send-changes affordance | **met** | Primary label `evaluationSubmitChanges` (`my_work_review_affordance.dart:47–48`); obligation fallback same (`my_work_obligation_block.dart:116–117`); named widget test `:150–161`. |
+| Close-now independent of package state | **met** | `loadReviewWindows` still sets `showCloseNowCta` for authored + `canCloseNow` (`my_work_case.dart:171–174`); test `:177–195`; close handler still calls `myWorkConfirmCloseNow` (`my_work_cards.dart:419`). |
+| Vanished / terminal window: no review affordance | **met** | Missing batch row ⇒ `deriveMyWorkReviewPackageState` with null review → `notEnrolled` (`my_work_case.dart:155`, test `:97–99`); widget test loops paused/closed/empty/null (`:198–220`). |
+| Batch widen + GraphQL fields | **met** | All `reviewOpen` card ids fetched (`my_work_case.dart:139–141`); `my_work_review_windows.graphql` lists plan fields; `fetchReviewWindowStatuses` maps full `ReviewWindowInfo` (`evaluation_repository.dart:218–232`). |
+| Phase gate on package state | **met** | `deriveBeaconCoordinationPhase(..., viewerReviewPackageState:)` + `_reviewOpenAction` (`derive_beacon_coordination_phase.dart:197–205`); `myWorkEffectivePrimaryAction` passes `myWorkViewerReviewPackageState` (`beacon_phase_cta.dart:78–80`); sent ⇒ not `reviewContributions` in test `:116–118`. |
+| #162 acceptance (My Work surface) | **met** | No repeat filled review after send; edit demoted to `beaconHudReviewEdit`. |
+| UNIT 14 close confirm intact | **met** | `myWorkConfirmCloseNow` unchanged shape; `my_work_close_now_confirm_test.dart` in suite (green). |
+| No beacon_view presenter import in my_work domain | **met** | `grep` on `packages/client/lib/features/my_work/domain` — no `beacon_hud_author_action` / `beacon_view/ui/presenter`; inference in `derive_my_work_cards.dart:32–48` calls `deriveReviewPackageState` directly. |
+| UNIT 12 HUD/banner untouched in range | **met** | Diff excludes `beacon_hud_author_action.dart`, `review_window_banner_host.dart`, `review_banner.dart`. |
+
+GAPS (non-blocking):
+- **Owns widen:** `evaluation_repository.dart`, `beacon_phase_cta.dart`, `my_work_status_line.dart`, new `my_work_review_affordance.dart` — required for batch plumbing and phase pass-through; not all listed in plan §UNIT 13 Owns.
+- **Commit shape:** feat + fix + two docs commits vs plan “one unit → one commit” — acceptable.
+- **Plan oracle coverage:** four named tests live in `my_work_review_package_test.dart` (affordance widget + case), not full `BeaconCardShell` pump — sufficient for matrix; e2e scenario #2 deferred to UNIT 16.
+- **Custom-lint:** not re-run on this verify pass (inner reported 30/30); only TEST_CMD executed.
+
+### overseer — UNIT 13 accepted — 2026-09-18
+
+Verdict: **accepted**. Opus-low inner; Composer verify **+161**. Sent cards demote to Edit; close-now independent; UNIT 14 confirm intact. Next: UNIT 15 (7.16.0) then UNIT 16 closeout.
+
+## UNIT 15 — complete (overseer) — 2026-09-18
+
+Mechanical release metadata. Verify grep:
+
+```
+version: 7.16.0
+flutter_bootstrap.js?v=7.16.0
+67:const kDefaultMinClientVersion = '7.16.0';
+```
+
+Also synced `.env.example` comments (versioning.mdc). No sandwich — three-line bump.
+
+REMAINING: UNIT 16 closeout (PG, terminology, updates_event_contract_test `reviewAllPackagesIn` fixture, e2e). Astra B1–B3 reviews of 12/10/05 still unused.
