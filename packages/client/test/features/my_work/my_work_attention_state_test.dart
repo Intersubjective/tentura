@@ -202,6 +202,7 @@ void main() {
       cubit.state.attentionByBeacon['b1']!.liveObligations,
       isEmpty,
     );
+    // CHANGES IN U07b: settleCalls from generic Done must not remain the resolution path for help-offer obligations.
     expect(attentionRepo.settleCalls, ['r-settle']);
 
     await cubit.close();
