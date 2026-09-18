@@ -12,6 +12,7 @@ import 'package:tentura/env.dart';
 import 'package:tentura/features/evaluation/domain/entity/evaluation_participant.dart';
 import 'package:tentura/features/evaluation/domain/entity/evaluation_value.dart';
 import 'package:tentura/features/evaluation/domain/entity/review_window_info.dart';
+import 'package:tentura/features/evaluation/domain/evaluation_exception.dart';
 import 'package:tentura/features/evaluation/domain/review_package_state.dart';
 import 'package:tentura/features/evaluation/domain/use_case/evaluation_case.dart';
 import 'package:tentura/features/evaluation/ui/bloc/evaluation_cubit.dart';
@@ -623,6 +624,69 @@ void main() {
     expect(lastRouter.replaced, hasLength(1));
     expect(lastRouter.replaced.single, isA<BeaconViewRoute>());
     expect((lastRouter.replaced.single as BeaconViewRoute).args, isNotNull);
+    await cubit.close();
+  });
+
+  testWidgets('a reopened request replaces the checklist with paused copy', (
+    tester,
+  ) async {
+    final repository = FakeEvaluationRepository()
+      ..participantsResult = [participant.copyWith(rowStatus: 1)];
+    final (test, _, cubit) = await pump(tester, repositoryArg: repository);
+    repository
+      ..submitError = const EvaluationReviewWindowNotOpenException()
+      ..reviewWindowResult = const ReviewWindowInfo(
+        beaconId: 'b1',
+        hasWindow: false,
+      );
+    await cubit.submitOne(evaluatedUserId: 'u1', value: EvaluationValue.pos1);
+    await test.pumpAndSettle();
+
+    expect(cubit.state.packageState, ReviewPackageState.paused);
+    expect(find.text('The author reopened the request'), findsOneWidget);
+    expect(find.byKey(TestIds.key(TestIds.evaluationSubmit)), findsNothing);
+    expect(
+      find.byKey(TestIds.key(TestIds.evaluationParticipant('u1'))),
+      findsNothing,
+    );
+    expect(find.byType(ListView), findsNothing);
+
+    await test.tap(find.text('Open the request'));
+    await test.pumpAndSettle();
+    expect(lastRouter.replaced.single, isA<BeaconViewRoute>());
+    await cubit.close();
+  });
+
+  testWidgets('a closed window shows the closed copy and no checklist', (
+    tester,
+  ) async {
+    final repository = FakeEvaluationRepository()
+      ..participantsResult = [
+        participant.copyWith(rowStatus: 2, isSubmitted: true),
+      ];
+    final (_, _, cubit) = await pump(
+      tester,
+      repositoryArg: repository,
+      window: ReviewWindowInfo(
+        beaconId: 'b1',
+        hasWindow: true,
+        windowComplete: true,
+        userReviewStatus: 2,
+        sentAt: DateTime.utc(2026, 9, 18),
+      ),
+    );
+
+    expect(cubit.state.packageState, ReviewPackageState.closed);
+    expect(
+      find.text('The request is closed. Your reviews were sent and counted.'),
+      findsOneWidget,
+    );
+    expect(find.byType(TextButton), findsOneWidget);
+    expect(find.byKey(TestIds.key(TestIds.evaluationSubmit)), findsNothing);
+    expect(
+      find.byKey(TestIds.key(TestIds.evaluationParticipant('u1'))),
+      findsNothing,
+    );
     await cubit.close();
   });
 

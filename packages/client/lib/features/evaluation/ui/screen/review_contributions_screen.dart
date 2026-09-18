@@ -90,6 +90,14 @@ class _ReviewContributionsScreenState extends State<ReviewContributionsScreen> {
                   child: CircularProgressIndicator.adaptive(),
                 );
               }
+              if (!draft && _isLifecycleEnd(state.packageState)) {
+                // The window vanished or closed (D12/D13): there is no
+                // read-only checklist, so the whole body explains why.
+                return _LifecyclePackageBody(
+                  state: state,
+                  onOpenRequest: () => _onPackageDone(context, state),
+                );
+              }
               if (state.participants.isEmpty) {
                 // Also the `empty` package state: nothing to review, no CTA.
                 return Center(
@@ -317,6 +325,11 @@ class _ReviewContributionsScreenState extends State<ReviewContributionsScreen> {
   void _skip(EvaluationParticipant participant) =>
       setState(() => _skipped.add(participant.userId));
 
+  static bool _isLifecycleEnd(ReviewPackageState packageState) =>
+      packageState == ReviewPackageState.paused ||
+      packageState == ReviewPackageState.closed ||
+      packageState == ReviewPackageState.closedUnsent;
+
   void _onPackageDone(BuildContext context, EvaluationState state) {
     final router = context.router;
     if (router.canPop()) {
@@ -520,8 +533,8 @@ class _PackageBottomBar extends StatelessWidget {
           cta(l10n.evaluationSubmitChanges, enabled: canSend),
         ]);
 
-      // `empty` never reaches here: the body states it instead. The lifecycle
-      // states get their own bodies in the paused/closed unit.
+      // `empty` and the lifecycle states never reach here: the body states
+      // them instead.
       case ReviewPackageState.empty:
       case ReviewPackageState.notEnrolled:
       case ReviewPackageState.paused:
@@ -529,6 +542,65 @@ class _PackageBottomBar extends StatelessWidget {
       case ReviewPackageState.closedUnsent:
         return column([status(progress)]);
     }
+  }
+}
+
+/// Replaces the checklist once the window is paused or closed: no list, no
+/// send action (D13).
+class _LifecyclePackageBody extends StatelessWidget {
+  const _LifecyclePackageBody({
+    required this.state,
+    required this.onOpenRequest,
+  });
+
+  final EvaluationState state;
+  final VoidCallback onOpenRequest;
+
+  @override
+  Widget build(BuildContext context) {
+    final l10n = L10n.of(context)!;
+    final tt = context.tt;
+    final textTheme = Theme.of(context).textTheme;
+    final paused = state.packageState == ReviewPackageState.paused;
+    return Center(
+      child: SingleChildScrollView(
+        padding: tt.cardPadding,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (paused) ...[
+              Text(
+                l10n.evaluationPausedTitle,
+                style: textTheme.titleMedium,
+                textAlign: TextAlign.center,
+              ),
+              SizedBox(height: tt.tightGap),
+            ],
+            Text(
+              switch (state.packageState) {
+                ReviewPackageState.paused => l10n.evaluationPausedBody,
+                ReviewPackageState.closed => l10n.evaluationClosedSentBody,
+                _ => l10n.evaluationClosedUnsentBody,
+              },
+              textAlign: TextAlign.center,
+            ),
+            SizedBox(height: tt.rowGap),
+            if (paused)
+              FilledButton.tonal(
+                onPressed: onOpenRequest,
+                child: Text(l10n.evaluationPausedAction),
+              )
+            else
+              TextButton(
+                onPressed: () => context.router.push(
+                  ReceivedReviewsRoute(id: state.beaconId),
+                ),
+                child: Text(l10n.reviewWindowViewReceivedReviewsAction),
+              ),
+          ],
+        ),
+      ),
+    );
   }
 }
 
@@ -578,7 +650,8 @@ class _ParticipantTile extends StatelessWidget {
     );
     // Live readiness is the stored row, the same predicate the send gate uses.
     final ready = isDraftMode ? participant.hasAnswered : participant.hasAnswer;
-    final presentation = value == null || !ready || value == EvaluationValue.noBasis
+    final presentation =
+        value == null || !ready || value == EvaluationValue.noBasis
         ? null
         : presentEvaluationValue(value, l10n);
     final cannotEvaluateSelected = value == EvaluationValue.noBasis && ready;
@@ -748,7 +821,11 @@ class _ReviewActions extends StatelessWidget {
     if (stacked) {
       return Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [review, SizedBox(height: tt.tightGap), optOut],
+        children: [
+          review,
+          SizedBox(height: tt.tightGap),
+          optOut,
+        ],
       );
     }
     return Wrap(
