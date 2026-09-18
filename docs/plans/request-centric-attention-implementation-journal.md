@@ -1535,3 +1535,124 @@ None for U04. Carried forward to their own units, not left undone here:
 - **U18** runs the `legacy_seen` backfill the CHECKs were shaped to admit.
 - A later unit freezes the `surface` / `status` vocabularies on `attention_clear_operation` and extends
   `deleteSettledOlderThan` to respect `cleared_at`.
+
+---
+
+## UNIT U04 — Additive schema · VERIFY (2026-09-19)
+
+**Verify:** read-only on `feature/events_refac`, range `9b0dddf04..HEAD` (`f46648709` journal · `bfa45cf70` tests ·
+`4a321f0b6` schema). Re-ran scout TEST_CMD; independently checked migrant source and git scope.
+
+### Inner claims — confirmed or refuted
+
+1. **`clear_facts_chk` / `clear_optional_only_chk` split** — **Confirmed.** Live DDL (`m0178.dart:145–175`) matches:
+   `clear_optional_only_chk` owns `requires_action OR all clear fields NULL`; `clear_facts_chk` only
+   `(all NULL) OR (cleared_at AND clear_reason NOT NULL)` with optional `cleared_by_operation_id`. Re-ran
+   `attention_additive_schema_pg_test.dart`: obligation clear → `notification_outbox__clear_optional_only_chk`;
+   optional `cleared_at` without reason → `clear_facts_chk`; optional reason without timestamp →
+   `clear_facts_chk`; bad enum → `clear_reason_chk`; partial uniques → index names
+   `notification_outbox__occurrence_account`, `notification_outbox__live_logical_task`; table CHECKs/PKs as
+   listed in inner journal. **Not exercised in suite:** invalid `cleared_by_operation_id` FK (would raise FK
+   name, not a CHECK).
+2. **Restartability** — **Confirmed (framework + replay).** `migrant_db_postgresql` 0.3.0 `_apply` wraps
+   `INSERT schema_version` + every statement in one `_db.runTx` (`…/migrant_db_postgresql.dart:43–64`); failure
+   rolls back version row and DDL together. Test *"re-applying every m0178 statement is a no-op"* executed all
+   `m0178.statements` twice after full migrate; **+25 suite green**.
+3. **Trigger** — **Confirmed by runtime, not DDL review.** Upgrade-path test `LISTEN entity_changes`, `UPDATE`
+   `cleared_at`/`clear_reason` on `Nu04modern` → payload
+   `{event: update, entity: notification, id: Uu04, user_ids: [Uu04]}`; second update on
+   `logical_task_key`/`lifecycle_generation` → one update notification. (Settlement-only path still covered by
+   `settlement_notify_pg_test.dart`.)
+4. **`attention_repository_pg_test.dart:810` CASCADE** — **Confirmed necessary and minimal.** Only change in range:
+   append ` CASCADE` to existing multi-table `TRUNCATE` (FK from `attention_clear_operation_member.receipt_id` →
+   `notification_outbox`). No other pre-existing file in `9b0dddf04..HEAD`.
+
+### Scope / process
+
+- **Repositories:** `git diff 9b0dddf04..HEAD` empty for `attention_repository.dart`,
+  `attention_dispatch_repository.dart`, `notification_outbox_repository.dart`.
+- **Commits:** three focused (`4a321f0b6`, `bfa45cf70`, `f46648709`); no loosened/deleted tests in diff.
+- **Worktree:** pre-existing dirt on `.serena/project.yml`, `force_directed_graphview/**` — **not** introduced by
+  U04 commits; secrets still untracked.
+
+### TEST_CMD re-run (verify agent, 2026-09-19)
+
+| Command | Result |
+|---|---|
+| `settlement_kind_constraint_pg_test.dart` | **+2**, 0 skip |
+| `settlement_notify_pg_test.dart` | **+2**, 0 skip |
+| `attention_additive_schema_pg_test.dart` | **+25**, 0 skip |
+| `attention_repository_pg_test.dart` | **+17**, 0 skip |
+
+Postgres reachable at `127.0.0.1:5432`; no unreachable-Postgres skips in this set. (Full-server **~24 skips** from
+`_skipHistoricalMigrationCoverage` in three historical migration suites — pre-existing at `UNIT_BASE`, commit
+`5fb343ec5`; not run as part of scout TEST_CMD.)
+
+**Migration paths in U04 suite:** fresh DB via `setUpDisposablePgWriter` (full chain); `0177 → 0178` with
+`Nu04legacy` (`occurrence_id NULL`, `seen_at` set) + modern occurrence row + obligations — tests *preserves…*,
+*backfills U18 shape*, *emits realtime…*. **Preflight:** duplicate pairs abort, message names pairs, `schema_version`
+stays `0177`.
+
+**U18 shape:** test *accepts the U18 legacy_seen shape with no operation id* — executed UPDATE, not DDL-only.
+
+STATUS: pass
+
+TEST_OUTPUT: see table above — **+46** total across four scout commands, **0 skips**, all passed.
+
+ACCEPTANCE:
+
+| Criterion | Verdict | Evidence |
+|---|---|---|
+| §0.1 storage additive, no row rewrite at migrate | met | Upgrade test: four seeded rows, all new columns NULL after `0178` |
+| CHECK/partial UNIQUE reject with blameable names | met | 25 PG tests assert `ServerException.constraintName` (FK on bad operation id not covered) |
+| Restart / idempotent replay | met | migrant `runTx`; double replay test green |
+| Trigger propagates clear/logical-task changes | met | LISTEN test on upgrade path |
+| Fresh + `0177→0178` paths | met | Two test groups + preflight |
+| `legacy_seen` without operation id | met | Fresh + upgrade backfill tests |
+| No repository behaviour change | met | git diff empty on three repos |
+| Preflight abort with useful message | met | `m0178 preflight failed` + pair detail; version `0177` |
+| TEST_CMD green, no PG blocker skips | met | Re-run counts above |
+| Untouchables / focused commits | met | Diff scope; worktree pre-existing only |
+
+GAPS: none blocking acceptance — optional follow-up: add one PG test that invalid `cleared_by_operation_id` raises
+`notification_outbox__cleared_by_operation_fkey` (diagnostic completeness only).
+
+---
+
+### Manager verdict — U04 · **ACCEPTED** (hard; scout ✓ / inner Opus-low ✓ / verify pass, no finisher)
+
+Overseer's own run: 5 PG suites → **48 passed, 0 skipped**. Migration `m0178.dart`, 388 lines, commits
+`4a321f0b6` schema · `bfa45cf70` constraint-rejection tests · `f46648709` journal.
+
+**The unit's most valuable output was a caught mistake, not the schema.** The inner layer's first
+`clear_facts_chk` repeated `NOT requires_action`, so clearing an obligation tripped *that* constraint instead of
+`clear_optional_only_chk`. Both rejected the write, so a `throwsA(isA<ServerException>())` test would have shipped
+it — and a maintainer debugging a production rejection would have been sent to the wrong rule. Only the
+name-asserting test caught it. This is the concrete payoff of requiring constraints to prove *which* rule
+rejects, not merely that something did.
+
+Independently confirmed by the verifier, each by execution rather than by reading:
+- every m0178 CHECK and partial UNIQUE raises the name a maintainer would expect;
+- the trigger fires on clear-column updates (observed `entity_changes` payload, not DDL inspection);
+- the duplicate preflight aborts with `m0178 preflight failed` **and leaves `schema_version` at 0177**, so the
+  migration is not recorded and re-runs cleanly after the data is fixed;
+- `legacy_seen` with a NULL operation id is accepted, so U18's backfill can run;
+- both paths tested: fresh database, and `0177→0178` over a legacy row with `occurrence_id IS NULL`;
+- the three repository files are untouched — no behaviour change.
+
+**Judgment I endorse:** no CHECK on `attention_clear_operation.surface`/`status`. The manifest freezes
+`clear_reason` and not those, so inventing an enum now would bind U08/U09 to names the inner layer made up. It
+documented the omission in `COMMENT ON TABLE` instead of guessing.
+
+**One pre-existing file edited, justified:** ` CASCADE` appended to the `TRUNCATE` at
+`attention_repository_pg_test.dart:810`, forced by the new FK and matching that file's own `setUp`.
+
+**Skip discipline held.** The ~24 skips visible on a full PG sweep come from the pre-existing
+`_skipHistoricalMigrationCoverage` constant (commit `5fb343ec5`, schema-squash cutover) — verified by the
+overseer, not accepted on report. No suite skipped for an unreachable Postgres.
+
+**Carried into U08:** the verifier's one optional gap — no test proves the `cleared_by_operation_id` FK rejects.
+U08 is the first unit to write that column and must prove it there, so the "every constraint proves it rejects"
+rule keeps no exceptions.
+
+---
