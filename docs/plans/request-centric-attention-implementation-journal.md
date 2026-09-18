@@ -254,7 +254,7 @@ obligation settlement tests; U09 extends outcome dismiss to helping/watching row
 | Unit | Status |
 |---|---|
 | U06a retention defect | **accepted** (`3df3d8eee`) |
-| U02 characterization tests | **complete** (`dc235c284`, `c51daa172`, journal commit pending) |
+| U02 characterization tests | **complete** (`dc235c284`, `c51daa172`, `2aef2d9ae`) |
 | U03 exhaustive classification | pending |
 
 ---
