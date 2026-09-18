@@ -1422,3 +1422,44 @@ RISKS:
 - **Freezed regen** — removing custom getters on `ReviewWindowInfo` is source-only; do not commit generated files (D18).
 
 Park inner until Astra quota (~05:51 CEST). Do not probe Astra. Do not start UNIT 13. UNIT 14 shares `my_work_cards.dart` with UNIT 13 — do not implement 14 until 13 lands.
+
+---
+
+## UNIT 14 — scout — 2026-09-18
+
+UNIT_BASE: `2600af80c` (current HEAD = UNIT_BASE). Dependencies 05/06/07/09 present on branch (`ReviewWindowInfo.sentReviewerCount` / `unsentStartedPackages` at `review_window_info.dart:27–28`; l10n `beaconReviewCloseNow*` / `beaconReviewReopenBody(sent)` / `updatesFallback*` keys in arbs).
+
+STATUS: complete
+
+BRIEF: Wire **four** author paths through **one** shared close confirm and **one** shared reopen confirm in `beacon_hud_author_confirm_sheets.dart` (plan step 1). **Close body:** `beaconReviewCloseNowBody` + when `unsentStartedPackages > 0` append `beaconReviewCloseNowDiscardNote(unsentStartedPackages)` — **never** `optionalTotal - optionalReviewed`. **Reopen body:** `sentReviewerCount > 0` → `beaconReviewReopenBody(sentReviewerCount)`; else `beaconReviewReopenBodyNoSent` (restore UNIT 07 interim at `beacon_view_status_bottom_sheet.dart:302`). **Updates:** add `review_all_packages_in` / `review_window_cancelled` to `_fallbackTitle` / `_fallbackBody` in `updates_receipt_display_copy.dart`; bodies need `{title}` from `beaconTitleFromPresentationPayload` — thread `presentationPayloadJson` through `resolveUpdatesReceiptDisplayCopy` (today `_fallbackBody` is key-only; feed already has payload in `resolveUpdatesFeedRowCopy`). **Do not** add new keys to `group_my_work_obligations.dart` (`isReview` remains `review_opened` only). **My Work:** wrap `my_work_cards.dart:395–413` close handler only — fetch `ReviewWindowInfo` via `EvaluationRepository.fetchReviewWindowStatus(b.id)` before confirm if vm lacks counts; do **not** touch `hasReviewCta` / review CTA matrix (UNIT 13).
+
+**Live entry points (pre-change):**
+| # | Surface | File:line | Today |
+|---|---------|-----------|--------|
+| 1 | HUD close | `beacon_view_app_bar_overflow.dart:239–251` | `showBeaconHudCloseNowConfirmSheet` — **old** `beaconHudConfirmCloseNowBody` / blocked body (`beacon_hud_author_confirm_sheets.dart:72–137`) |
+| 2 | Status sheet close | `beacon_view_status_bottom_sheet.dart:292–293` | **No confirm** → `cubit.closeBeaconNow()` |
+| 3 | My Work close | `my_work_cards.dart:395–397` | **No confirm** → `evaluationRepo.beaconCloseNow` |
+| 4 | Status sheet reopen | `beacon_view_status_bottom_sheet.dart:296–317` | Inline `AlertDialog` + **only** `beaconReviewReopenBodyNoSent` |
+
+Counts for (1)(2): `cubit.state.reviewWindowInfo?.unsentStartedPackages` / `sentReviewerCount` (beacon view already loads full window via `fetchReviewWindowStatusIfReviewOpen`). `ReviewWindowMenuSnapshot` (`beacon_status_menu.dart:49–75`) does **not** carry the two beacon-scoped fields — do not widen menu DTO unless necessary; read from `ReviewWindowInfo` in handlers.
+
+STEPS (test-first; commit `feat(client): state the consequences of closing and reopening`):
+1. **RED — shared confirms** — New `beacon_author_review_confirm_sheets_test.dart` (or split): pump `showBeaconReviewCloseNowConfirm` / `showBeaconReviewReopenConfirm` with `lookupL10n`; assert close body contains `beaconReviewCloseNowBody`; with `unsentStartedPackages: 2` assert `beaconReviewCloseNowDiscardNote(2)`; with `unsentStartedPackages: 0` assert discard absent; reopen `sentReviewerCount: 3` → `beaconReviewReopenBody(3)`; `0` → `NoSent`. Keep `canCloseNow: false` blocked path using existing `beaconHudConfirmCloseNowBlockedBody` (HUD still passes `canCloseNow`).
+2. **RED — entry points** — One widget test per path: HUD (`beacon_view_app_bar_overflow` / harness + mock cubit with `canCloseNow` + counts); status menu `closeNow` / `reopen` via `_dispatchStatusMenuAction` (private — either export thin `beaconViewDispatchStatusMenuAction` for tests **only if** needed, or integration through `BeaconStatusMenuRowTile` + sheet harness); My Work card with `showCloseNowCta: true` + mocked `fetchReviewWindowStatus`. Assert confirm visible before mutation (mock `closeBeaconNow` / `beaconCloseNow` not called until confirm).
+3. **GREEN — production** — Implement shared APIs in `beacon_hud_author_confirm_sheets.dart`; replace HUD call; wrap `beacon_view_status_bottom_sheet.dart:292–317`; wrap My Work close. Reopen: replace inline dialog with shared reopen confirm. Close: unify on **plan** copy (`beaconReviewCloseNowBody` + discard), not legacy HUD consequence text. Title/action: keep `beaconHudConfirmCloseNowTitle` / `beaconHudConfirmCloseNowAction` and `beaconReviewReopenTitle` / `beaconReviewReopenConfirm` unless product wants sheet-style vs dialog-style — status sheet today uses `AlertDialog.adaptive`; HUD uses `showTenturaAdaptiveSheet` — shared function may take `useSheet: bool` or standardize on adaptive dialog for all four (inner choice; avoid duplicate copy).
+4. **RED/GREEN — Updates** — `updates_receipt_display_copy_test.dart`: both keys title+body with payload `'{"beaconTitle":"Garden cleanup"}'`; `group_my_work_obligations_test.dart` or sibling: `review_all_packages_in` / `review_window_cancelled` → one group each, `isReview` false. Optional: `attentionDestination` test for `review_all_packages_in` — **see risk**.
+5. **Verify** — `check-custom-lints.sh packages/client` after `lib/` edits.
+
+TEST_CMD:
+```bash
+cd packages/client && ../../scripts/run_with_test_cleanup.sh --timeout 15m -- flutter test test/features/beacon_view test/features/updates test/features/my_work --dart-define=ENV=test --dart-define-from-file=env/test.env
+```
+
+UNTOUCHABLE: journal §UNTOUCHABLE; generated; **UNIT 12** HUD/banner (parked); **UNIT 13** `showReviewCta` / review affordances / `derive_my_work_cards` review matrix (close-wrap on `my_work_cards.dart` only is allowed); do not push.
+
+RISKS:
+- **Plan vs server navigation:** UNIT 14 text says `review_all_packages_in` navigates to the **request**; server policy sets `AttentionDestinationKind.review` (`attention_policy.dart:239–241`) → `destination_map.dart:32` opens **checklist**, not beacon view. **Not in plan Owns.** Options: overseer-widen `destination_map.dart` with `presentationKey == 'review_all_packages_in'` → `Uri(path: '$kPathBeaconView/$beaconId')`, or accept server `review` destination until a follow-up. `review_window_cancelled` already `beacon` — tap OK.
+- **`resolveUpdatesReceiptDisplayCopy` API:** adding optional `presentationPayloadJson` changes signature — update internal callers (`resolveInviteAcceptedDisplayCopy`, `resolveUpdatesFeedRowCopy` pass-through).
+- **Pre-existing red:** `updates_event_contract_test.dart` missing `reviewAllPackagesIn` row (journal UNIT 10 note) — outside Owns; do not fix in UNIT 14 unless verify fails and user widens.
+- **My Work graphql** only selects `canCloseNow` (`my_work_review_windows.graphql`) — counts require on-demand `fetchReviewWindowStatus` in close handler (in-scope for `my_work_cards.dart` only).
+- **UNIT 13 overlap:** `hasReviewCta = false` stub at `my_work_cards.dart:364` — do not implement review CTA while wrapping close.
