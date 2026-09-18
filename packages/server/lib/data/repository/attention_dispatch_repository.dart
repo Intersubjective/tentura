@@ -102,6 +102,21 @@ WHERE source_event_key = $1 AND immutable_payload = $2::jsonb
           recipient.channelEligible,
         ],
       );
+      // A receipt is inserted, never rewritten. Until U05a this was an
+      // `ON CONFLICT (dedup_key) WHERE seen_at IS NULL DO UPDATE` that
+      // repointed an existing unseen row at the newest occurrence and reset
+      // its `created_at`, so two distinct occurrences in one collapse family
+      // shared a single mutable row. Now each `(occurrence_id, account_id)`
+      // pair is its own immutable receipt; `dedup_key` keeps its
+      // collapse-derived value purely as a lookup key, and m0179 removed the
+      // uniqueness that used to forbid a second unseen row per family.
+      //
+      // Replay of a `source_event_key` is still dedupped above, at the
+      // occurrence grain, and never reaches this statement. The remaining
+      // guard against a duplicate receipt is m0178's UNIQUE
+      // `notification_outbox__occurrence_account`, which raises rather than
+      // silently overwriting — that is deliberate: a duplicate here would be
+      // a producer bug, not a replay.
       final row = await _database
           .customSelect(
             r'''
@@ -122,30 +137,6 @@ INSERT INTO public.notification_outbox (
   $18, $19, $20,
   $21, $22
 )
-ON CONFLICT (dedup_key) WHERE seen_at IS NULL
-DO UPDATE SET
-  category                = EXCLUDED.category,
-  kind                    = EXCLUDED.kind,
-  priority                = EXCLUDED.priority,
-  title                   = EXCLUDED.title,
-  body                    = EXCLUDED.body,
-  action_url              = EXCLUDED.action_url,
-  beacon_id               = EXCLUDED.beacon_id,
-  coordination_item_id    = EXCLUDED.coordination_item_id,
-  actor_user_id           = EXCLUDED.actor_user_id,
-  source_event_key        = EXCLUDED.source_event_key,
-  occurrence_id           = EXCLUDED.occurrence_id,
-  destination_kind        = EXCLUDED.destination_kind,
-  target_entity_id        = EXCLUDED.target_entity_id,
-  presentation_key        = EXCLUDED.presentation_key,
-  presentation_payload    = EXCLUDED.presentation_payload,
-  in_app_preference_class = EXCLUDED.in_app_preference_class,
-  suppression_class       = EXCLUDED.suppression_class,
-  access_policy           = EXCLUDED.access_policy,
-  requires_action         = EXCLUDED.requires_action,
-  attention_thread_key    = EXCLUDED.attention_thread_key,
-  created_at              = now(),
-  collapsed_count         = notification_outbox.collapsed_count + 1
 RETURNING id
 ''',
             variables: [
@@ -219,11 +210,13 @@ RETURNING id
     required int recipientCount,
     required DateTime occurrenceAt,
   }) {
-    logger.info(formatReceiptCreatedTelemetry(
-      eventType: eventType,
-      recipientCount: recipientCount,
-      occurrenceAt: occurrenceAt,
-    ));
+    logger.info(
+      formatReceiptCreatedTelemetry(
+        eventType: eventType,
+        recipientCount: recipientCount,
+        occurrenceAt: occurrenceAt,
+      ),
+    );
   }
 
   @visibleForTesting
