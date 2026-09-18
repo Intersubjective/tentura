@@ -1245,3 +1245,53 @@ Verdict: **accepted**. Opus 5 high substitute for Astra A2; follow-up `0b27c5885
 Independent overseer: TEST_CMD **+148**; `_refreshAfterSend` catch now emits `isSuccess`; skip is local `setState`; screen switches on `packageState`; `evaluationSubmit` on send CTAs.
 
 UNIT 11 UNIT_BASE: `0b27c5885` (journal commit of this accept will sit on top — scout uses HEAD after this commit). Inner: Opus-low. Astra reserved for UNIT 12 (A3). Do not probe Astra until 05:51.
+
+## UNIT 11 — Checklist: paused / closed classification
+
+UNIT_BASE: `c9182d93f` (live `git rev-parse --short HEAD` at scout)
+
+### scout — 2026-09-18 — UNIT 11
+
+STATUS: ready (UNIT 10 accepted; `packageState` wired; lifecycle UI deferred)
+
+BRIEF: On `EvaluationReviewWindowNotOpenException` (1401) or `EvaluationReviewWindowExpiredException` (1405) in **live** `loadParticipantsOnly`, `submitOne`, `clearOne`, and `finalize`, call `_classifyLifecycleError(originalError)` instead of `_emitSnackError` — **never** map 1401→paused vs 1405→closed by code (D12). Classify = single `fetchReviewWindowStatus` only; **do not** refetch participants (plan: stale list not rebuilt in paused). On success: `emit(copyWith(windowInfo: window, beaconIsInReview: …, beaconIsClosed: …, status: isSuccess))`. On classify failure: `_emitSnackError(originalError)`; leave prior state.
+
+**Close the plan “from window read” gap (no GraphQL/repo edits in this unit):** `ReviewWindowInfo` has no beacon lifecycle fields. Derive flags from the classify snapshot + enrollment context:
+
+| Classify read | `beaconIsClosed` | `beaconIsInReview` |
+|---|---|---|
+| `windowComplete == true` | `true` | `false` |
+| `hasWindow && !windowComplete` | `false` | `true` |
+| `!hasWindow && !windowComplete` after lifecycle error **and** `state.participants.isNotEmpty` (enrolled viewer, author **reopen** — server deletes window row, `reviewWindowStatus` returns `hasWindow: false` only) | `false` | **`false`** → `deriveReviewPackageState` → **`paused`** |
+| `!hasWindow && !windowComplete` with empty participants (never enrolled / no stale package) | `false` | keep default **`true`** → **`notEnrolled`** |
+
+With UNIT 10 defaults (`beaconIsInReview: true`, `beaconIsClosed: false`), `!hasWindow` alone yields **`notEnrolled`**, not **`paused`** — the enrolled+reopen row is mandatory.
+
+Also set the same flags whenever a happy-path emit already sets `windowInfo` (`loadAll`, `loadParticipantsOnly` success, `submitOne`/`clearOne` refresh, `_refreshAfterSend` success) using the first three rows only (no `participants.isNotEmpty` heuristic on happy path).
+
+**Server truth (for fakes):** `reviewWindowStatus` when `getReviewWindow == null` → `hasWindow: false`, title only (`evaluation_case.dart:1055–1060`). When window `status == 1` → `hasWindow: true`, `windowComplete: true`, `sentAt` still readable (`:1142–1158`). Mutations use `_requireLiveReview` → same **1401** after reopen **and** after final close (`:1161–1173`); only the classify read distinguishes. `evaluationParticipants` requires live window (D13) — `loadParticipantsOnly` fetches participants **before** window (`evaluation_cubit.dart:109–115`), so a vanished window often throws **1401 on participants**; that catch must classify too.
+
+**Screen (`review_contributions_screen.dart`):** Before list/empty/bottom-bar branch, if `!draft && packageState` is `paused` | `closed` | `closedUnsent`, replace **entire** `body` (no `ListView`, no `_PackageBottomBar`, no send CTA). Copy: `evaluationPausedTitle` + `evaluationPausedBody` + primary `evaluationPausedAction` → same navigation as `_onPackageDone` (`BeaconViewRoute` when cannot pop). `closed` / `closedUnsent`: `evaluationClosedSentBody` / `evaluationClosedUnsentBody` + **text link** (not filled CTA) using existing key `reviewWindowViewReceivedReviewsAction` → `context.router.push(ReceivedReviewsRoute(id: state.beaconId))` (pattern: `beacon_operational_header_card.dart:129–132`). Remove lifecycle cases from `_PackageBottomBar` progress fallback (`:525–530`) once body handles them. Design system: `context.tt`, `TenturaText.*`, no raw colors/sizes.
+
+**Cubit catch shape:** `} on EvaluationReviewWindowNotOpenException catch (e) { await _classifyLifecycleError(e); }` (and 1405); other errors unchanged. Draft mode: keep generic snack on errors. `finalize` after failed send: classify, not `_refreshAfterSend`.
+
+STEPS (test-first; commit `fix(client): explain a review window cancelled by the author`):
+
+1. **RED** — `evaluation_cubit_lifecycle_test.dart`: five plan-named tests; extend `FakeEvaluationRepository` with `submitError` / `participantsError` typed throws + classify `reviewWindowResult` stubs (`hasWindow: false` for paused; `windowComplete: true` + `sentAt` for closed; without `sentAt` for closedUnsent; failing second `fetchReviewWindowStatus` for classify failure; assert `participantsResult` fetch count unchanged across classify).
+2. **GREEN cubit** — `_classifyLifecycleError(Object originalError)` + `_lifecycleFlagsForWindow(ReviewWindowInfo window, {required bool afterLifecycleError})`; wire four methods; optional happy-path flag updates on existing `windowInfo` emits.
+3. **GREEN screen** — `_LifecyclePackageBody` (or inline) early in `build`; hide bottom bar for lifecycle states.
+4. **Verify** — `check-custom-lints.sh packages/client` after `lib/` edits.
+
+TEST_CMD:
+```bash
+cd packages/client && ../../scripts/run_with_test_cleanup.sh --timeout 15m -- flutter test test/features/evaluation --dart-define=ENV=test --dart-define-from-file=env/test.env
+```
+
+UNTOUCHABLE: pre-existing dirty/untracked (journal §UNTOUCHABLE); generated `_g/`/`*.g.dart`/`*.freezed.dart`; UNIT 12 HUD/banner/`review_window_banner_host.dart`; no second error mapper; no polling; no spontaneous-transition test; do not revert UNIT 10 stay-after-send; do not edit `review_window_info.dart` / repository / GraphQL in this unit unless BLOCKED (prefer cubit inference above).
+
+RISKS:
+- **`loadParticipantsOnly` order** — participants-first means classify runs with stale participants (intended); empty participants + `!hasWindow` shows `notEnrolled` not `paused` — tests must seed non-empty participants for paused oracle.
+- **1405 vs 1401** — same classify path; closed outcome must come from `windowComplete`/`sentAt`, not exception type.
+- **`_refreshAfterSend` on window closed after send** — if finalize succeeds then refresh throws 1401, today snacks; UNIT 11 may need classify on that catch too if in scope — plan lists `finalize` catch only on `finalize()` try, not `_refreshAfterSend` inner catch (leave refresh path as UNIT 10 unless product asks).
+- **Closed UI link copy** — plan §2 names only bodies; reuse `reviewWindowViewReceivedReviewsAction` (already EN/RU), not new strings.
+- **`notEnrolled` on checklist** — rare; no dedicated copy in UNIT 11; do not add strings.
