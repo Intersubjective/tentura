@@ -1870,3 +1870,115 @@ cd /home/vader/MY_SRC/tentura/packages/client && ../../scripts/run_with_test_cle
 **RISKS:** Listed above (`dedup` index, live logical task UNIQUE, channel/email, U18 legacy occurrence linkage, deploy ordering).
 
 ---
+
+## UNIT U05a — Receipt identity · INNER (2026-09-19)
+
+**UNIT_BASE:** `8e3d82577`. **Scope:** scout steps 1 and 2 plus the index change they require.
+Steps 3–6 (channel dedupe, email retargeting, logical task key, supersede-on-renewal) untouched — U05b/U05c.
+
+### What changed
+
+1. **`m0179`** — `notification_outbox__dedup` loses its uniqueness. m0120 created it as
+   `notification_outbox__dedup_seen`, UNIQUE on `(dedup_key) WHERE seen_at IS NULL`, then renamed it; that
+   uniqueness *was* the old collapse contract and a plain INSERT could not land while it stood. The index is
+   recreated with the same columns and predicate — only `indisunique` goes — because `dedup_key` keeps its
+   collapse-derived value and its two readers (`markEmailedByDedupKey`, `markUnseen`'s unseen-sibling check)
+   still want collapse-family semantics. Moving those onto a channel key is U05b. The migration comment says at
+   length why the uniqueness is not coming back.
+2. **`AttentionDispatchRepository.record`** — the `ON CONFLICT (dedup_key) WHERE seen_at IS NULL DO UPDATE`
+   branch is gone. The statement is a plain INSERT, so `created_at`, `presentation_*`, `source_event_key`,
+   `occurrence_id`, `requires_action` and the rest are fixed at insert, and `collapsed_count` stays at its
+   schema default of 1 instead of being a write-time counter.
+
+Nothing in the channel or email path was touched. `_requiresAction` classification, `logical_task_key` and
+`lifecycle_generation` were not touched.
+
+### Where replay dedup lives now (overseer addition 3)
+
+It never lived on the index that changed, and it still does not:
+
+- **Occurrence grain.** `attention_occurrence.source_event_key` is UNIQUE. `record` inserts
+  `ON CONFLICT (source_event_key) DO NOTHING`, and on a replay it checks the four idempotency facts and returns
+  *before* any recipient or receipt row is written. A replay therefore never reaches the outbox statement.
+- **Receipt grain.** m0178's UNIQUE `notification_outbox__occurrence_account` on
+  `(occurrence_id, account_id)`. Before U05a it was merely satisfied by collapse; it is now the only thing
+  standing between a producer bug and a duplicate receipt, and it raises rather than silently overwriting.
+
+Both are asserted by writes in the new suites rather than left implicit. The concurrent replay case passes
+because the losing transaction blocks on the `source_event_key` index until the winner commits, then takes the
+`DO NOTHING` path.
+
+### Characterization tests rewritten (overseer addition 4)
+
+Two, both pre-approved in the scout brief. No other test's expectations were changed.
+
+| File · test | Asserted before | Asserts now | Why intended |
+|---|---|---|---|
+| `attention_repository_pg_test.dart` · *delivery jobs are durable and duplicate recording collapses* → *…and a second occurrence adds a receipt* | Two relays sharing collapse key `relay\|<beaconId>` leave **1** outbox row with `max(collapsed_count) = 2` | **2** receipts, **2** distinct `occurrence_id`, **1** shared `dedup_key`, `max(collapsed_count) = 1` | Receipt-grain collapse is exactly what U05a removes. The old numbers pinned the rewrite-in-place behaviour; the new ones pin immutable identity. Delivery-job assertions in the same test are unchanged and still pass. |
+| `realtime_notification_migration_test.dart` · *seen-only collapse SQL and partial unique index remain exact* → *the legacy collapse upsert no longer has an arbiter to collapse onto* | The retired `enqueue()` upsert yields `collapsed_count` 2, then 3 on a `read_at`-only row, then a second row once `seen_at` is set; sibling assertion: `notification_outbox__dedup` `startsWith('CREATE UNIQUE INDEX')` | The legacy statement raises **42P10** (no matching ON CONFLICT arbiter); three plain inserts leave **3** unseen receipts with `collapsed_count` 1; index is `CREATE INDEX`, not UNIQUE | The SQL it documented is unrunnable after m0179. Asserting the retirement, rather than deleting the test, keeps the legacy upsert from creeping back. The helper `_insertOutboxRow` became a plain INSERT and the upsert moved to `_insertOutboxRowWithLegacyCollapse`, used only by that negative assertion. |
+
+The `markUnseen skips a seen sibling when another unread shares dedup_key` test the scout flagged as a possible
+casualty needed **no** change: `dedup_key` keeps collapse semantics, so sibling logic is still meaningful.
+`claimDue with two pending jobs for one account` also needed no change — the channel path is untouched, so it
+still sees 2 pending jobs and leases 1.
+
+### Feed cardinality (overseer addition 5)
+
+No projection test failed on row count. The only regression-list failure in the whole sweep was the one
+characterization test above. The accepted rise in receipts per Request is therefore currently visible only in
+that test's numbers; U10 absorbs it.
+
+### Findings
+
+- **The scout's "optional m0179" is not optional.** With the UNIQUE index in place the second unseen receipt in
+  a collapse family fails with 23505 — proven directly by the `m0179 upgrade path from 0178` group, which
+  migrates to 0178, shows the rejection, applies 0179, and shows the same two writes succeed.
+- **`realtime_notification_migration_test.dart` cannot be run at all.** Temporarily disabling
+  `_skipHistoricalMigrationCoverage` to verify the rewrite fails in `setUpAll`, before any test body:
+  `_rollBackM0135ForTest` runs `DROP FUNCTION block_hides(text,text)`, which `beacon_member` and
+  `beacon_admitted_helper` now depend on (2BP01). Pre-existing and unrelated to U05a; the skip constant was
+  restored unchanged. That rewrite is verified by reading only.
+- **`dart format` would reformat `attention_repository_pg_test.dart` wholesale** (it is not formatter-clean at
+  HEAD). The edit was reapplied by hand to keep the diff at 9 insertions / 5 deletions instead of 39/33.
+
+### Commands
+
+```
+$ dart test --tags pg -j 1 test/data/repository/attention_dispatch_identity_pg_test.dart   # before step 2
+00:02 +2 -2: Some tests failed.
+  a second occurrence in the same collapse family adds a receipt instead of rewriting the first  [E] Expected: <2> Actual: <1>
+  two concurrent occurrences in one collapse family both land                                     [E] Expected: <2> Actual: <1>
+
+$ dart test --tags pg -j 1 test/data/repository/attention_dispatch_identity_pg_test.dart   # after
+00:02 +4: All tests passed!
+
+$ dart test --tags pg -j 1 test/data/database/attention_receipt_identity_index_pg_test.dart
+00:03 +6: All tests passed!
+
+$ dart test --tags pg -j 1 <the eight regression suites>   # after the dispatch change, before the rewrites
+00:27 +94 -1: Some tests failed.
+  attention_repository_pg_test.dart: delivery jobs are durable and duplicate recording collapses
+
+$ dart test --tags pg -j 1 <both new suites + the eight regression suites>   # after the rewrites
+00:31 +105: All tests passed!
+
+$ dart test test/data/repository/attention_dispatch_telemetry_test.dart
+00:00 +2: All tests passed!
+
+$ dart test --exclude-tags pg
+00:08 +1660: All tests passed!
+```
+
+Every command ran through `scripts/run_with_test_cleanup.sh` from `packages/server`. No PG suite reported
+SKIPPED.
+
+### Commits
+
+| Hash | Subject |
+|---|---|
+| `23dfd68af` | test(attention): pin immutable receipt identity and replay dedup |
+| `2f344973f` | schema(attention): m0179 drops uniqueness from the collapse index |
+| `a005bf9b0` | feat(attention): insert in-app receipts instead of rewriting them |
+| `ee8c3ad46` | test(attention): retire the two collapse characterizations U05a invalidates |
+
+**STATUS:** complete
