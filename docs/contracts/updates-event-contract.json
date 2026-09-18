@@ -1,5 +1,5 @@
 {
-  "schemaVersion": 2,
+  "schemaVersion": 3,
   "pendingProducerEventTypes": [],
   "eventTypes": [
     {
@@ -454,6 +454,693 @@
       "destinationFamily": "profile",
       "muteability": "standard",
       "coveringTest": "packages/server/test/domain/use_case/user_trust_edge_case_test.dart"
+    }
+  ],
+  "eventClassifications": [
+    {
+      "eventType": "relayReceived",
+      "status": "supported",
+      "variants": [
+        {
+          "recipientPredicate": "reason:forwardRecipient",
+          "scope": "beacon",
+          "attentionClass": "optional",
+          "placement": "primary",
+          "groupKey": "beaconId",
+          "orderingEffect": "stable",
+          "accessPolicy": "beacon_content",
+          "recoverableVia": "request_timeline",
+          "clearPolicy": "explicit_or_request_open",
+          "producerTests": [
+            "packages/server/test/domain/use_case/forward_case_test.dart"
+          ],
+          "transitionTests": []
+        }
+      ]
+    },
+    {
+      "eventType": "helpOfferSubmitted",
+      "status": "supported",
+      "variants": [
+        {
+          "recipientPredicate": "reason:authorOfBeacon",
+          "scope": "beacon",
+          "attentionClass": "obligation",
+          "placement": "primary",
+          "groupKey": "beaconId",
+          "orderingEffect": "promote_on_obligation",
+          "accessPolicy": "beacon_content",
+          "recoverableVia": "people",
+          "clearPolicy": "forbidden",
+          "producerTests": [
+            "packages/server/test/domain/use_case/help_offer_case_test.dart"
+          ],
+          "transitionTests": [
+            "packages/server/test/domain/use_case/beacon_room_admission_matrix_test.dart"
+          ],
+          "actionDescriptor": "respondToHelpOffer",
+          "logicalTaskKey": "v1|helpOfferSubmitted|{targetEntityId}|{recipientId}",
+          "resolutionTransitions": [
+            "CoordinationCase.acceptHelpOffer",
+            "CoordinationCase.declineHelpOffer",
+            "HelpOfferCase.withdrawHelpOffer"
+          ]
+        },
+        {
+          "recipientPredicate": "reason:roomModeratorOrSteward",
+          "scope": "beacon",
+          "attentionClass": "optional",
+          "placement": "primary",
+          "groupKey": "beaconId",
+          "orderingEffect": "stable",
+          "accessPolicy": "beacon_content",
+          "recoverableVia": "people",
+          "clearPolicy": "explicit_or_request_open",
+          "producerTests": [
+            "packages/server/test/domain/use_case/help_offer_case_test.dart"
+          ],
+          "transitionTests": []
+        }
+      ]
+    },
+    {
+      "eventType": "offerAccepted",
+      "status": "supported",
+      "variants": [
+        {
+          "recipientPredicate": "reason:affectedParticipant",
+          "scope": "beacon",
+          "attentionClass": "optional",
+          "placement": "primary",
+          "groupKey": "beaconId",
+          "orderingEffect": "stable",
+          "accessPolicy": "beacon_content_or_recipient_safe",
+          "recoverableVia": "people",
+          "clearPolicy": "explicit_or_request_open",
+          "producerTests": [
+            "packages/server/test/domain/use_case/beacon_room_admission_matrix_test.dart"
+          ],
+          "transitionTests": []
+        }
+      ]
+    },
+    {
+      "eventType": "offerDeclined",
+      "status": "supported",
+      "variants": [
+        {
+          "recipientPredicate": "reason:affectedParticipant",
+          "scope": "beacon",
+          "attentionClass": "optional",
+          "placement": "primary",
+          "groupKey": "beaconId",
+          "orderingEffect": "stable",
+          "accessPolicy": "beacon_content_or_recipient_safe",
+          "recoverableVia": "people",
+          "clearPolicy": "explicit_or_request_open",
+          "producerTests": [
+            "packages/server/test/domain/use_case/beacon_room_admission_matrix_test.dart"
+          ],
+          "transitionTests": []
+        }
+      ]
+    },
+    {
+      "eventType": "offerRemoved",
+      "status": "supported",
+      "variants": [
+        {
+          "recipientPredicate": "reason:affectedParticipant",
+          "scope": "beacon",
+          "attentionClass": "optional",
+          "placement": "primary",
+          "groupKey": "beaconId",
+          "orderingEffect": "stable",
+          "accessPolicy": "beacon_content_or_recipient_safe",
+          "recoverableVia": "people",
+          "clearPolicy": "explicit_or_request_open",
+          "producerTests": [
+            "packages/server/test/domain/use_case/beacon_room_admission_matrix_test.dart"
+          ],
+          "transitionTests": []
+        }
+      ]
+    },
+    {
+      "eventType": "commitmentReleased",
+      "status": "supported",
+      "variants": [
+        {
+          "recipientPredicate": "reason:affectedParticipant",
+          "scope": "beacon",
+          "attentionClass": "optional",
+          "placement": "primary",
+          "groupKey": "beaconId",
+          "orderingEffect": "stable",
+          "accessPolicy": "beacon_content_or_recipient_safe",
+          "recoverableVia": "people",
+          "clearPolicy": "explicit_or_request_open",
+          "producerTests": [
+            "packages/server/test/domain/use_case/coordination_case_release_test.dart"
+          ],
+          "transitionTests": []
+        }
+      ]
+    },
+    {
+      "eventType": "roomMessagePosted",
+      "status": "supported",
+      "variants": [
+        {
+          "recipientPredicate": "reason:directedChatTarget",
+          "scope": "beacon",
+          "attentionClass": "optional",
+          "placement": "primary",
+          "groupKey": "beaconId",
+          "orderingEffect": "stable",
+          "accessPolicy": "beacon_content",
+          "recoverableVia": "room",
+          "clearPolicy": "explicit_or_request_open",
+          "producerTests": [
+            "packages/server/test/domain/use_case/beacon_room_case_message_mutations_test.dart"
+          ],
+          "transitionTests": []
+        }
+      ]
+    },
+    {
+      "eventType": "requestStatusChanged",
+      "status": "supported",
+      "variants": [
+        {
+          "recipientPredicate": "reason:authorOfBeacon|activeParticipant|affectedParticipant|admittedRoomMember|roomModeratorOrSteward",
+          "scope": "beacon",
+          "attentionClass": "optional",
+          "placement": "primary",
+          "groupKey": "beaconId",
+          "orderingEffect": "stable",
+          "accessPolicy": "beacon_content",
+          "recoverableVia": "request_timeline",
+          "clearPolicy": "explicit_or_request_open",
+          "producerTests": [
+            "packages/server/test/domain/use_case/coordination_case_revert_test.dart"
+          ],
+          "transitionTests": []
+        },
+        {
+          "recipientPredicate": "reason:inboxStanceHolder",
+          "scope": "beacon",
+          "attentionClass": "optional",
+          "placement": "primary",
+          "groupKey": "beaconId",
+          "orderingEffect": "stable",
+          "accessPolicy": "beacon_content",
+          "recoverableVia": "request_timeline",
+          "clearPolicy": "explicit_or_request_open",
+          "producerTests": [
+            "packages/server/test/domain/use_case/coordination_case_revert_test.dart"
+          ],
+          "transitionTests": []
+        }
+      ]
+    },
+    {
+      "eventType": "beaconHierarchyStatusChanged",
+      "status": "supported",
+      "variants": [
+        {
+          "recipientPredicate": "reason:authorOfBeacon|activeParticipant|affectedParticipant|admittedRoomMember|roomModeratorOrSteward",
+          "scope": "beacon",
+          "attentionClass": "optional",
+          "placement": "timeline_only",
+          "groupKey": "beaconId",
+          "orderingEffect": "stable",
+          "accessPolicy": "beacon_content",
+          "recoverableVia": "request_timeline",
+          "clearPolicy": "explicit_or_request_open",
+          "producerTests": [
+            "unverified"
+          ],
+          "transitionTests": []
+        },
+        {
+          "recipientPredicate": "reason:inboxStanceHolder",
+          "scope": "beacon",
+          "attentionClass": "optional",
+          "placement": "timeline_only",
+          "groupKey": "beaconId",
+          "orderingEffect": "stable",
+          "accessPolicy": "beacon_content",
+          "recoverableVia": "request_timeline",
+          "clearPolicy": "explicit_or_request_open",
+          "producerTests": [
+            "unverified"
+          ],
+          "transitionTests": []
+        }
+      ]
+    },
+    {
+      "eventType": "reviewOpened",
+      "status": "supported",
+      "variants": [
+        {
+          "recipientPredicate": "reason:reviewParticipant",
+          "scope": "beacon",
+          "attentionClass": "obligation",
+          "placement": "primary",
+          "groupKey": "beaconId",
+          "orderingEffect": "promote_on_obligation",
+          "accessPolicy": "beacon_content",
+          "recoverableVia": "request_timeline",
+          "clearPolicy": "forbidden",
+          "producerTests": [
+            "packages/server/test/domain/evaluation/evaluation_case_test.dart"
+          ],
+          "transitionTests": [
+            "packages/server/test/domain/evaluation/evaluation_case_test.dart"
+          ],
+          "actionDescriptor": "openReview",
+          "logicalTaskKey": "v1|reviewOpened|{beaconId}|{recipientId}",
+          "resolutionTransitions": [
+            "EvaluationCase.submitReviewPackage"
+          ]
+        }
+      ]
+    },
+    {
+      "eventType": "reviewAllPackagesIn",
+      "status": "supported",
+      "variants": [
+        {
+          "recipientPredicate": "reason:authorOfBeacon",
+          "scope": "beacon",
+          "attentionClass": "optional",
+          "placement": "primary",
+          "groupKey": "beaconId",
+          "orderingEffect": "stable",
+          "accessPolicy": "beacon_content",
+          "recoverableVia": "request_timeline",
+          "clearPolicy": "explicit_or_request_open",
+          "producerTests": [
+            "packages/server/test/domain/evaluation/evaluation_case_test.dart"
+          ],
+          "transitionTests": []
+        }
+      ]
+    },
+    {
+      "eventType": "reviewWindowCancelled",
+      "status": "supported",
+      "variants": [
+        {
+          "recipientPredicate": "reason:reviewParticipant",
+          "scope": "beacon",
+          "attentionClass": "optional",
+          "placement": "primary",
+          "groupKey": "beaconId",
+          "orderingEffect": "stable",
+          "accessPolicy": "beacon_content",
+          "recoverableVia": "request_timeline",
+          "clearPolicy": "explicit_or_request_open",
+          "producerTests": [
+            "packages/server/test/domain/evaluation/evaluation_case_test.dart"
+          ],
+          "transitionTests": []
+        }
+      ]
+    },
+    {
+      "eventType": "mutualConnectionFormed",
+      "status": "supported",
+      "variants": [
+        {
+          "recipientPredicate": "reason:reciprocalCounterpart",
+          "scope": "account",
+          "attentionClass": "optional",
+          "placement": "primary",
+          "groupKey": "accountId",
+          "orderingEffect": "stable",
+          "accessPolicy": "profile",
+          "recoverableVia": "people",
+          "clearPolicy": "explicit_or_request_open",
+          "producerTests": [
+            "packages/server/test/domain/use_case/user_trust_edge_case_test.dart"
+          ],
+          "transitionTests": []
+        }
+      ]
+    },
+    {
+      "eventType": "inviteAccepted",
+      "status": "supported",
+      "variants": [
+        {
+          "recipientPredicate": "reason:inviter",
+          "scope": "account",
+          "attentionClass": "optional",
+          "placement": "primary",
+          "groupKey": "accountId",
+          "orderingEffect": "stable",
+          "accessPolicy": "profile",
+          "recoverableVia": "people",
+          "clearPolicy": "explicit_or_request_open",
+          "producerTests": [
+            "packages/server/test/domain/use_case/invitation_case_test.dart"
+          ],
+          "transitionTests": []
+        }
+      ]
+    },
+    {
+      "eventType": "needsMe",
+      "status": "supported",
+      "variants": [
+        {
+          "recipientPredicate": "reason:targetOfAsk",
+          "scope": "beacon",
+          "attentionClass": "optional",
+          "placement": "primary",
+          "groupKey": "beaconId",
+          "orderingEffect": "stable",
+          "accessPolicy": "beacon_content",
+          "recoverableVia": "room",
+          "clearPolicy": "explicit_or_request_open",
+          "producerTests": [
+            "packages/server/test/domain/use_case/coordination_item/ask_lifecycle_case_test.dart"
+          ],
+          "transitionTests": []
+        }
+      ]
+    },
+    {
+      "eventType": "blockerOpened",
+      "status": "supported",
+      "variants": [
+        {
+          "recipientPredicate": "reason:affectedParticipant|targetOfAsk",
+          "scope": "beacon",
+          "attentionClass": "optional",
+          "placement": "primary",
+          "groupKey": "beaconId",
+          "orderingEffect": "stable",
+          "accessPolicy": "beacon_content",
+          "recoverableVia": "room",
+          "clearPolicy": "explicit_or_request_open",
+          "producerTests": [
+            "packages/server/test/domain/use_case/coordination_item/blocker_lifecycle_case_test.dart"
+          ],
+          "transitionTests": []
+        },
+        {
+          "recipientPredicate": "reason:admittedRoomMember|roomModeratorOrSteward|activeParticipant",
+          "scope": "beacon",
+          "attentionClass": "optional",
+          "placement": "primary",
+          "groupKey": "beaconId",
+          "orderingEffect": "stable",
+          "accessPolicy": "beacon_content",
+          "recoverableVia": "room",
+          "clearPolicy": "explicit_or_request_open",
+          "producerTests": [
+            "packages/server/test/domain/use_case/coordination_item/blocker_lifecycle_case_test.dart"
+          ],
+          "transitionTests": []
+        }
+      ]
+    },
+    {
+      "eventType": "blockerResolved",
+      "status": "supported",
+      "variants": [
+        {
+          "recipientPredicate": "reason:admittedRoomMember",
+          "scope": "beacon",
+          "attentionClass": "optional",
+          "placement": "primary",
+          "groupKey": "beaconId",
+          "orderingEffect": "stable",
+          "accessPolicy": "beacon_content",
+          "recoverableVia": "room",
+          "clearPolicy": "explicit_or_request_open",
+          "producerTests": [
+            "packages/server/test/domain/use_case/coordination_item/blocker_lifecycle_case_test.dart"
+          ],
+          "transitionTests": []
+        }
+      ]
+    },
+    {
+      "eventType": "promiseMade",
+      "status": "supported",
+      "variants": [
+        {
+          "recipientPredicate": "reason:targetOfAsk",
+          "scope": "beacon",
+          "attentionClass": "optional",
+          "placement": "primary",
+          "groupKey": "beaconId",
+          "orderingEffect": "stable",
+          "accessPolicy": "beacon_content",
+          "recoverableVia": "room",
+          "clearPolicy": "explicit_or_request_open",
+          "producerTests": [
+            "packages/server/test/domain/use_case/coordination_item/create_promise_case_test.dart"
+          ],
+          "transitionTests": []
+        }
+      ]
+    },
+    {
+      "eventType": "promiseWithdrawn",
+      "status": "supported",
+      "variants": [
+        {
+          "recipientPredicate": "reason:targetOfAsk",
+          "scope": "beacon",
+          "attentionClass": "optional",
+          "placement": "primary",
+          "groupKey": "beaconId",
+          "orderingEffect": "stable",
+          "accessPolicy": "beacon_content",
+          "recoverableVia": "room",
+          "clearPolicy": "explicit_or_request_open",
+          "producerTests": [
+            "packages/server/test/domain/use_case/coordination_item/cancel_promise_case_test.dart"
+          ],
+          "transitionTests": []
+        }
+      ]
+    },
+    {
+      "eventType": "coordinationChanged",
+      "status": "supported",
+      "variants": [
+        {
+          "recipientPredicate": "reason:admittedRoomMember",
+          "scope": "beacon",
+          "attentionClass": "optional",
+          "placement": "primary",
+          "groupKey": "beaconId",
+          "orderingEffect": "stable",
+          "accessPolicy": "beacon_content",
+          "recoverableVia": "room",
+          "clearPolicy": "explicit_or_request_open",
+          "producerTests": [
+            "packages/server/test/domain/use_case/coordination_item/update_coordination_item_case_test.dart"
+          ],
+          "transitionTests": []
+        }
+      ]
+    },
+    {
+      "eventType": "staleReminder",
+      "status": "supported",
+      "variants": [
+        {
+          "recipientPredicate": "reason:unverified",
+          "scope": "beacon",
+          "attentionClass": "optional",
+          "placement": "primary",
+          "groupKey": "beaconId",
+          "orderingEffect": "stable",
+          "accessPolicy": "beacon_content",
+          "recoverableVia": "unverified",
+          "clearPolicy": "explicit_or_request_open",
+          "producerTests": [
+            "packages/server/test/domain/use_case/coordination_item/remind_coordination_item_case_test.dart"
+          ],
+          "transitionTests": []
+        }
+      ]
+    },
+    {
+      "eventType": "commitmentAccepted",
+      "status": "supported",
+      "variants": [
+        {
+          "recipientPredicate": "reason:targetOfAsk|authorOfBeacon|activeParticipant",
+          "scope": "beacon",
+          "attentionClass": "optional",
+          "placement": "primary",
+          "groupKey": "beaconId",
+          "orderingEffect": "stable",
+          "accessPolicy": "beacon_content",
+          "recoverableVia": "room",
+          "clearPolicy": "explicit_or_request_open",
+          "producerTests": [
+            "packages/server/test/domain/use_case/coordination_item/commitment_attention_pg_test.dart"
+          ],
+          "transitionTests": []
+        }
+      ]
+    },
+    {
+      "eventType": "commitmentResolved",
+      "status": "supported",
+      "variants": [
+        {
+          "recipientPredicate": "reason:unverified",
+          "scope": "beacon",
+          "attentionClass": "optional",
+          "placement": "primary",
+          "groupKey": "beaconId",
+          "orderingEffect": "stable",
+          "accessPolicy": "beacon_content",
+          "recoverableVia": "unverified",
+          "clearPolicy": "explicit_or_request_open",
+          "producerTests": [
+            "packages/server/test/domain/use_case/coordination_item/resolve_ask_case_test.dart"
+          ],
+          "transitionTests": []
+        }
+      ]
+    },
+    {
+      "eventType": "commitmentCancelled",
+      "status": "supported",
+      "variants": [
+        {
+          "recipientPredicate": "reason:affectedParticipant",
+          "scope": "beacon",
+          "attentionClass": "optional",
+          "placement": "primary",
+          "groupKey": "beaconId",
+          "orderingEffect": "stable",
+          "accessPolicy": "beacon_content",
+          "recoverableVia": "room",
+          "clearPolicy": "explicit_or_request_open",
+          "producerTests": [
+            "packages/server/test/domain/use_case/coordination_item/ask_lifecycle_case_test.dart"
+          ],
+          "transitionTests": []
+        }
+      ]
+    },
+    {
+      "eventType": "commitmentRedirected",
+      "status": "supported",
+      "variants": [
+        {
+          "recipientPredicate": "reason:targetOfAsk",
+          "scope": "beacon",
+          "attentionClass": "optional",
+          "placement": "primary",
+          "groupKey": "beaconId",
+          "orderingEffect": "stable",
+          "accessPolicy": "beacon_content",
+          "recoverableVia": "room",
+          "clearPolicy": "explicit_or_request_open",
+          "producerTests": [
+            "packages/server/test/domain/use_case/coordination_item/ask_lifecycle_case_test.dart"
+          ],
+          "transitionTests": []
+        }
+      ]
+    },
+    {
+      "eventType": "trustGivenChanged",
+      "status": "supported",
+      "variants": [
+        {
+          "recipientPredicate": "reason:reviewParticipant",
+          "scope": "beacon",
+          "attentionClass": "optional",
+          "placement": "primary",
+          "groupKey": "beaconId",
+          "orderingEffect": "stable",
+          "accessPolicy": "profile",
+          "recoverableVia": "history_only",
+          "clearPolicy": "explicit_or_request_open",
+          "producerTests": [
+            "packages/server/test/domain/evaluation/evaluation_case_test.dart"
+          ],
+          "transitionTests": []
+        }
+      ]
+    },
+    {
+      "eventType": "trustReceivedChanged",
+      "status": "supported",
+      "variants": [
+        {
+          "recipientPredicate": "reason:reviewParticipant",
+          "scope": "beacon",
+          "attentionClass": "optional",
+          "placement": "primary",
+          "groupKey": "beaconId",
+          "orderingEffect": "stable",
+          "accessPolicy": "beacon_content",
+          "recoverableVia": "history_only",
+          "clearPolicy": "explicit_or_request_open",
+          "producerTests": [
+            "packages/server/test/domain/evaluation/evaluation_case_test.dart"
+          ],
+          "transitionTests": []
+        }
+      ]
+    },
+    {
+      "eventType": "deadlineChanged",
+      "status": "supported",
+      "variants": [
+        {
+          "recipientPredicate": "reason:unverified",
+          "scope": "beacon",
+          "attentionClass": "optional",
+          "placement": "primary",
+          "groupKey": "beaconId",
+          "orderingEffect": "stable",
+          "accessPolicy": "beacon_content",
+          "recoverableVia": "unverified",
+          "clearPolicy": "explicit_or_request_open",
+          "producerTests": [
+            "unverified"
+          ],
+          "transitionTests": []
+        }
+      ]
+    },
+    {
+      "eventType": "deadlineReminder",
+      "status": "supported",
+      "variants": [
+        {
+          "recipientPredicate": "reason:unverified",
+          "scope": "beacon",
+          "attentionClass": "optional",
+          "placement": "primary",
+          "groupKey": "beaconId",
+          "orderingEffect": "stable",
+          "accessPolicy": "beacon_content",
+          "recoverableVia": "unverified",
+          "clearPolicy": "explicit_or_request_open",
+          "producerTests": [
+            "unverified"
+          ],
+          "transitionTests": []
+        }
+      ]
     }
   ]
 }
