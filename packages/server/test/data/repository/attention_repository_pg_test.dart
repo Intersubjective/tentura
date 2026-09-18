@@ -807,7 +807,7 @@ ORDER BY phase
 
         await writer.execute('TRUNCATE public.attention_uow_probe');
         await writer.execute(
-          'TRUNCATE public.attention_channel_delivery, public.notification_outbox, public.attention_occurrence_recipient, public.attention_occurrence',
+          'TRUNCATE public.attention_channel_delivery, public.notification_outbox, public.attention_occurrence_recipient, public.attention_occurrence CASCADE',
         );
         await unitOfWork.run(
           actorUserId: _viewerId,
