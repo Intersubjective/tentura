@@ -1295,3 +1295,19 @@ RISKS:
 - **`_refreshAfterSend` on window closed after send** — if finalize succeeds then refresh throws 1401, today snacks; UNIT 11 may need classify on that catch too if in scope — plan lists `finalize` catch only on `finalize()` try, not `_refreshAfterSend` inner catch (leave refresh path as UNIT 10 unless product asks).
 - **Closed UI link copy** — plan §2 names only bodies; reuse `reviewWindowViewReceivedReviewsAction` (already EN/RU), not new strings.
 - **`notEnrolled` on checklist** — rare; no dedicated copy in UNIT 11; do not add strings.
+
+### inner — 2026-09-18 — UNIT 11 — Opus 5 low
+
+STATUS: complete
+
+COMMITS (UNIT_BASE `c9182d93f`):
+- `23a408bce fix(client): classify vanished review windows by re-reading status`
+- `fix(client): explain a review window cancelled by the author` (screen + 2 widget tests)
+
+NOTES:
+- Red run first: 4/5 plan-named lifecycle tests failed; the classify-failure test already passed (current code snacks the original error) and stays as a regression guard.
+- `_withWindow(base, window, afterLifecycleError:)` derives flags: windowComplete → closed; hasWindow → in review; !hasWindow → paused only after a 1401/1405 with non-empty participants. Used on all happy-path windowInfo emits (loadAll, loadParticipantsOnly, submit/clear refresh, _refreshAfterSend).
+- `_onError` routes 1401/1405 (live only) to `_classifyLifecycleError` in loadParticipantsOnly, submitOne, clearOne, finalize, and `_refreshAfterSend` catch (after the UNIT 10 optimistic-sent emit, so non-lifecycle errors are unchanged). loadAll still snacks (not in brief).
+- Screen: `_LifecyclePackageBody` replaces the whole body for paused/closed/closedUnsent (no ListView, no bottom bar); paused button reuses `_onPackageDone`; closed link = TextButton → `ReceivedReviewsRoute`.
+
+VERIFY: TEST_CMD +155 all passed; check-custom-lints packages/client OK (30/30 baseline).
