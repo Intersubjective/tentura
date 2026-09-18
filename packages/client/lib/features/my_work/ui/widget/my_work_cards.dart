@@ -25,6 +25,7 @@ import 'package:tentura/features/beacon_view/ui/sheet/help_offer_tile_sheet.dart
 import 'package:tentura/features/beacon_view/ui/widget/beacon_hud_author_confirm_sheets.dart';
 import 'package:tentura/features/my_work/ui/bloc/my_work_cubit.dart';
 import 'package:tentura/features/my_work/ui/widget/my_work_obligation_block.dart';
+import 'package:tentura/features/my_work/ui/widget/my_work_review_affordance.dart';
 import 'package:tentura/features/my_work/ui/widget/my_work_whats_new_row.dart';
 import 'package:tentura/features/beacon/ui/dialog/beacon_delete_dialog.dart';
 import 'package:tentura/features/beacon/ui/util/beacon_delete_ui.dart';
@@ -377,7 +378,11 @@ class _AuthoredActiveCard extends StatelessWidget {
       roomSubtitle: vm.roomInboxSubtitle.isEmpty ? null : vm.roomInboxSubtitle,
     );
 
-    final hasReviewCta = false;
+    // The package state owns the review affordance; the phase CTA never
+    // duplicates it.
+    final hasReviewCta =
+        myWorkReviewAffordanceKind(vm.reviewPackageState) !=
+        MyWorkReviewAffordanceKind.none;
     final needsForwardCta = myWorkNeedsForwardCta(vm);
     final showCloseNowCta = vm.showCloseNowCta;
     final phaseAction = myWorkEffectivePrimaryAction(
@@ -385,7 +390,8 @@ class _AuthoredActiveCard extends StatelessWidget {
       viewerUserId: currentUserId,
     );
     final phaseCtaLabel =
-        phaseAction == BeaconPhasePrimaryAction.forward && !b.allowsForward
+        (phaseAction == BeaconPhasePrimaryAction.forward && !b.allowsForward) ||
+            phaseAction == BeaconPhasePrimaryAction.reviewContributions
         ? null
         : myWorkPhasePrimaryCtaLabel(
             l10n: l10n,
@@ -438,6 +444,16 @@ class _AuthoredActiveCard extends StatelessWidget {
             if (hasReviewCta || needsForwardCta || phaseCtaLabel != null)
               const SizedBox(height: kSpacingSmall),
           ],
+          if (hasReviewCta) ...[
+            MyWorkReviewAffordance(
+              vm: vm,
+              isAuthor: true,
+              onOpenReview: () =>
+                  _openReviewContributions(context, vm.beaconId),
+            ),
+            if (needsForwardCta || phaseCtaLabel != null)
+              const SizedBox(height: kSpacingSmall),
+          ],
           if (phaseCtaLabel != null)
             Align(
               alignment: Alignment.centerRight,
@@ -463,34 +479,16 @@ class _AuthoredActiveCard extends StatelessWidget {
                 },
               ),
             )
-          else if (hasReviewCta || needsForwardCta)
-            Column(
-              mainAxisSize: MainAxisSize.min,
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                if (hasReviewCta)
-                  Align(
-                    alignment: Alignment.centerRight,
-                    child: TenturaCommandButton(
-                      label: l10n.myWorkReviewHelpOffersCta,
-                      onPressed: () =>
-                          _openBeaconReviewHelpOffers(context, vm),
-                    ),
-                  ),
-                if (hasReviewCta && needsForwardCta)
-                  const SizedBox(height: kSpacingSmall),
-                if (needsForwardCta)
-                  SizedBox(
-                    width: double.infinity,
-                    child: TenturaCommandButton(
-                      label: l10n.inboxCardOpenBeacon,
-                      icon: const Icon(Icons.arrow_forward),
-                      onPressed: () => unawaited(
-                        context.router.push(ForwardBeaconRoute(beaconId: b.id)),
-                      ),
-                    ),
-                  ),
-              ],
+          else if (needsForwardCta)
+            SizedBox(
+              width: double.infinity,
+              child: TenturaCommandButton(
+                label: l10n.inboxCardOpenBeacon,
+                icon: const Icon(Icons.arrow_forward),
+                onPressed: () => unawaited(
+                  context.router.push(ForwardBeaconRoute(beaconId: b.id)),
+                ),
+              ),
             ),
         ],
       );
@@ -507,8 +505,7 @@ class _AuthoredActiveCard extends StatelessWidget {
         existingFooter: footerActions,
         suppressReviewHelpOffersFallback:
             phaseAction == BeaconPhasePrimaryAction.reviewOffers,
-        suppressReviewFallback:
-            phaseAction == BeaconPhasePrimaryAction.reviewContributions,
+        suppressReviewFallback: hasReviewCta,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -631,10 +628,26 @@ class _HelpOfferedActiveCard extends StatelessWidget {
       roomSubtitle: vm.roomInboxSubtitle.isEmpty ? null : vm.roomInboxSubtitle,
     );
 
+    final hasReviewCta =
+        myWorkReviewAffordanceKind(vm.reviewPackageState) !=
+        MyWorkReviewAffordanceKind.none;
+
     return BeaconCardShell(
       onTap: () => _openBeaconOrSelect(context, vm),
       marker: _myWorkAttentionMarker(attentionMarked: attentionMarked),
-      footer: _composeMyWorkFooter(context, vm: vm),
+      footer: _composeMyWorkFooter(
+        context,
+        vm: vm,
+        existingFooter: hasReviewCta
+            ? MyWorkReviewAffordance(
+                vm: vm,
+                isAuthor: false,
+                onOpenReview: () =>
+                    _openReviewContributions(context, vm.beaconId),
+              )
+            : null,
+        suppressReviewFallback: hasReviewCta,
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [

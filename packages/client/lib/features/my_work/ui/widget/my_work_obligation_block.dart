@@ -6,6 +6,7 @@ import 'package:flutter_bloc/flutter_bloc.dart';
 import 'package:tentura/design_system/tentura_design_system.dart';
 import 'package:tentura/domain/attention/entity/attention_receipt.dart';
 import 'package:tentura/domain/entity/profile.dart';
+import 'package:tentura/features/evaluation/domain/review_package_state.dart';
 import 'package:tentura/features/my_work/domain/entity/my_work_card_view_model.dart';
 import 'package:tentura/features/my_work/domain/group_my_work_obligations.dart';
 import 'package:tentura/features/my_work/ui/bloc/my_work_cubit.dart';
@@ -112,7 +113,9 @@ class _MyWorkObligationBlockState extends State<MyWorkObligationBlock> {
     final primaryCtaLabel = showAggregateReviewOffers
         ? l10n.myWorkReviewHelpOffersCta
         : showReviewFallback
-        ? l10n.myWorkReviewCta
+        ? (widget.vm.reviewPackageState == ReviewPackageState.changedNotSent
+              ? l10n.evaluationSubmitChanges
+              : l10n.myWorkReviewCta)
         : null;
     final primaryOnPressed = showAggregateReviewOffers
         ? widget.onReviewHelpOffers
