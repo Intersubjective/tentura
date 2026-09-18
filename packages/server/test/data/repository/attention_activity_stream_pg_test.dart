@@ -648,6 +648,122 @@ WHERE user_id = @userId AND beacon_id = @beaconId
       expect(feed.page.items, isEmpty);
     });
 
+    test('beacon-less activity receipt stays a standalone receipt row', () async {
+      await _insertProfileReceipt(writer, id: 'Nactgrp01');
+
+      final feed = await query.attentionFeed(
+        accountId: _viewerId,
+        view: AttentionFeedView.all,
+        surface: AttentionSurface.activity,
+      );
+      expect(feed.page.items, hasLength(1));
+      expect(feed.page.items.single.itemKind, AttentionItemKind.receipt);
+      expect(feed.page.items.single.beaconId, isNull);
+    });
+
+    test(
+      'beacon status receipt coalesces under open pinned forward not standalone',
+      () async {
+        await _upsertInbox(
+          writer,
+          beaconId: _foreignBeaconId,
+          status: 0,
+          latestForwardAt: '2026-08-16T08:00:00Z',
+        );
+        await _insertStatusReceipt(
+          writer,
+          id: 'Nactgrp02',
+          beaconId: _foreignBeaconId,
+          createdAt: '2026-08-16T09:00:00Z',
+        );
+
+        final feed = await query.attentionFeed(
+          accountId: _viewerId,
+          view: AttentionFeedView.all,
+          surface: AttentionSurface.activity,
+        );
+        expect(
+          feed.page.items.where(
+            (item) => item.itemKind == AttentionItemKind.receipt,
+          ),
+          isEmpty,
+        );
+
+        final offers = await query.activityOffers(
+          accountId: _viewerId,
+          limit: 10,
+        );
+        expect(offers.totalCount, 1);
+        expect(offers.items.single.beaconId, _foreignBeaconId);
+        expect(offers.items.single.eventTotal, 1);
+      },
+    );
+
+    test('unanswered open forward appears only in activityOffers pinned set',
+        () async {
+      await _upsertInbox(
+        writer,
+        beaconId: _foreignBeaconId,
+        status: 0,
+        latestForwardAt: '2026-08-17T08:00:00Z',
+      );
+
+      final feed = await query.attentionFeed(
+        accountId: _viewerId,
+        view: AttentionFeedView.all,
+        surface: AttentionSurface.activity,
+      );
+      expect(
+        feed.page.items.where(
+          (item) => item.itemKind == AttentionItemKind.forward,
+        ),
+        isEmpty,
+      );
+
+      final offers = await query.activityOffers(
+        accountId: _viewerId,
+        limit: 10,
+      );
+      expect(offers.totalCount, 1);
+      expect(offers.items.single.beaconId, _foreignBeaconId);
+    });
+
+    test('watching status removes beacon from activityOffers pinned set', () async {
+      await _upsertInbox(
+        writer,
+        beaconId: _foreignBeaconId,
+        status: 1,
+        latestForwardAt: '2026-08-18T08:00:00Z',
+      );
+
+      final offers = await query.activityOffers(
+        accountId: _viewerId,
+        limit: 10,
+      );
+      expect(offers.totalCount, 0);
+
+      final forward = await _singleActivityItem(query);
+      expect(forward.itemKind, AttentionItemKind.forward);
+      expect(forward.forwardOutcome, 'watching');
+    });
+
+    test('active help offer removes beacon from activityOffers pinned set',
+        () async {
+      await _upsertInbox(
+        writer,
+        beaconId: _foreignBeaconId,
+        status: 0,
+        latestForwardAt: '2026-08-19T08:00:00Z',
+      );
+      await _insertHelpOffer(writer, beaconId: _foreignBeaconId, status: 0);
+
+      final offers = await query.activityOffers(
+        accountId: _viewerId,
+        limit: 10,
+      );
+      expect(offers.totalCount, 0);
+    });
+
     // CHANGES IN U10: optional events must not reorder pinned Requests via effectiveActivityAt.
     test('activityOffers orders by effectiveActivityAt not latest_forward_at',
         () async {

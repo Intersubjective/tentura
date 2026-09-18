@@ -222,6 +222,132 @@ INSERT INTO public.beacon_forward_edge (
       expect(feed.page.items.single.surface, AttentionSurface.activity);
     });
 
+    test(
+      'help offer transition moves foreign receipt from activity to myWork',
+      () async {
+        await writer.execute(
+          Sql.named('''
+INSERT INTO public.beacon_forward_edge (
+  id, beacon_id, sender_id, recipient_id, created_at, cancelled_at
+) VALUES (
+  'FEattnsurf04', @beaconId, @authorId, @viewerId, now(), NULL
+)
+'''),
+          parameters: {
+            'beaconId': _foreignBeaconId,
+            'authorId': _authorId,
+            'viewerId': _viewerId,
+          },
+        );
+        await _insertBeaconReceipt(
+          writer,
+          id: 'Nsurf12',
+          beaconId: _foreignBeaconId,
+        );
+
+        final before = await query.attentionFeed(
+          accountId: _viewerId,
+          view: AttentionFeedView.all,
+        );
+        expect(before.page.items, hasLength(1));
+        expect(before.page.items.single.surface, AttentionSurface.activity);
+
+        await _insertHelpOffer(writer, beaconId: _foreignBeaconId, status: 0);
+
+        final myWorkAfter = await query.attentionFeed(
+          accountId: _viewerId,
+          view: AttentionFeedView.all,
+          surface: AttentionSurface.myWork,
+        );
+        expect(myWorkAfter.page.items, hasLength(1));
+        expect(myWorkAfter.page.items.single.id, 'Nsurf12');
+        expect(myWorkAfter.page.items.single.surface, AttentionSurface.myWork);
+
+        final allAfter = await query.attentionFeed(
+          accountId: _viewerId,
+          view: AttentionFeedView.all,
+        );
+        expect(allAfter.page.items, hasLength(1));
+        expect(allAfter.page.items.single.surface, AttentionSurface.myWork);
+      },
+    );
+
+    test(
+      'withdrawn help offer transition restores foreign receipt to activity',
+      () async {
+        await writer.execute(
+          Sql.named('''
+INSERT INTO public.beacon_forward_edge (
+  id, beacon_id, sender_id, recipient_id, created_at, cancelled_at
+) VALUES (
+  'FEattnsurf05', @beaconId, @authorId, @viewerId, now(), NULL
+)
+'''),
+          parameters: {
+            'beaconId': _foreignBeaconId,
+            'authorId': _authorId,
+            'viewerId': _viewerId,
+          },
+        );
+        await _insertHelpOffer(writer, beaconId: _foreignBeaconId, status: 0);
+        await _insertBeaconReceipt(
+          writer,
+          id: 'Nsurf13',
+          beaconId: _foreignBeaconId,
+        );
+
+        expect(
+          (await query.attentionFeed(
+            accountId: _viewerId,
+            view: AttentionFeedView.all,
+            surface: AttentionSurface.myWork,
+          ))
+              .page
+              .items,
+          hasLength(1),
+        );
+
+        await writer.execute(
+          Sql.named('''
+UPDATE public.beacon_help_offer
+SET status = 1, updated_at = now()
+WHERE beacon_id = @beaconId AND user_id = @userId
+'''),
+          parameters: {
+            'beaconId': _foreignBeaconId,
+            'userId': _viewerId,
+          },
+        );
+
+        final feed = await query.attentionFeed(
+          accountId: _viewerId,
+          view: AttentionFeedView.all,
+        );
+        expect(feed.page.items, hasLength(1));
+        expect(feed.page.items.single.surface, AttentionSurface.activity);
+        expect(feed.page.items.single.id, 'Nsurf13');
+      },
+    );
+
+    test(
+      'needsYouTotal counts obligation receipts not distinct beacons',
+      () async {
+        await _insertLiveObligationReceipt(
+          writer,
+          id: 'Nsurf14a',
+          beaconId: _ownedBeaconId,
+        );
+        await _insertLiveObligationReceipt(
+          writer,
+          id: 'Nsurf14b',
+          beaconId: _ownedBeaconId,
+        );
+
+        final summary = await query.surfaceSummary(accountId: _viewerId);
+        expect(summary.needsYouTotal, 2);
+      },
+    );
+
     test('per-surface unread totals and needsYouTotal stays global', () async {
       await _insertBeaconReceipt(
         writer,
