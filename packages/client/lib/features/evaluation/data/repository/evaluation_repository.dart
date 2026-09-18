@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:built_collection/built_collection.dart';
 import 'package:injectable/injectable.dart';
 
@@ -38,6 +40,16 @@ class EvaluationRepository {
   EvaluationRepository(this._remoteApiService);
 
   final RemoteApiService _remoteApiService;
+  final _reviewPackageChanges = StreamController<void>.broadcast();
+
+  /// Fires after the viewer's package is sent or a saved card demotes it.
+  Stream<void> get reviewPackageChanges => _reviewPackageChanges.stream;
+
+  void _notifyReviewPackageChanged() {
+    if (!_reviewPackageChanges.isClosed) {
+      _reviewPackageChanges.add(null);
+    }
+  }
 
   static const _label = 'EvaluationRepository';
 
@@ -335,6 +347,7 @@ class EvaluationRepository {
         )
         .firstWhere((e) => e.dataSource == DataSource.Link)
         .then((r) => r.dataOrThrow(label: _label));
+    _notifyReviewPackageChanged();
   }
 
   Future<void> draftSave({
@@ -359,6 +372,7 @@ class EvaluationRepository {
         )
         .firstWhere((e) => e.dataSource == DataSource.Link)
         .then((r) => r.dataOrThrow(label: _label));
+    _notifyReviewPackageChanged();
   }
 
   Future<void> draftDelete({
@@ -384,6 +398,7 @@ class EvaluationRepository {
         )
         .firstWhere((e) => e.dataSource == DataSource.Link)
         .then((r) => r.dataOrThrow(label: _label));
+    _notifyReviewPackageChanged();
   }
 
   Future<void> skip(String beaconId) async {

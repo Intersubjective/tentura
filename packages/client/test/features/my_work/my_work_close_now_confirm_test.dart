@@ -13,6 +13,9 @@ class _FakeEvaluationRepository extends Mock implements EvaluationRepository {
   int closeCalls = 0;
 
   @override
+  Stream<void> get reviewPackageChanges => const Stream.empty();
+
+  @override
   Future<ReviewWindowInfo> fetchReviewWindowStatus(String beaconId) async =>
       ReviewWindowInfo(
         beaconId: beaconId,

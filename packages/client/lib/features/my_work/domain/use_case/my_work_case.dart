@@ -78,6 +78,9 @@ final class MyWorkCase extends UseCaseBase {
   Stream<HelpOfferEvent> get helpOfferChanges =>
       _forwardRepository.helpOfferChanges;
 
+  Stream<void> get reviewPackageChanges =>
+      _evaluationRepository.reviewPackageChanges;
+
   Stream<String> get forwardChanges => _forwardRepository.forwardChanges;
 
   Stream<String> get readWatermarkChanges =>

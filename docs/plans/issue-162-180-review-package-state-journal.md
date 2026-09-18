@@ -1815,3 +1815,24 @@ l10n: deleted only `beaconHudConfirmCloseNowBody` (zero Dart consumers). `evalua
 - Astra B1–B3 read-only reviews of UNITs 12/10/05 not spent this closeout.
 
 HEAD: `b7c935a18`. Branch `fix/162-180-review-package-state`. Not pushed.
+
+### UNIT 16 e2e — 2026-09-18
+
+STATUS: **pass** (`request_lifecycle_close_review_test.dart`)
+
+First drive (ports busy, then user freed :8888) **failed** at My Work: after send the desk still showed filled “Review contributions” because `MyWorkCubit` only refetched on beacon / help-offer / forward events, and `evaluationFinalize` does not mutate beacon.
+
+Product fix: `EvaluationRepository.reviewPackageChanges` fires after successful `submit`, `finalize`, and `draftSave`. `MyWorkCase` exposes it; `MyWorkCubit` listens and `fetch(showLoading: false)`. Cubit test: `review package change refetches the desk`.
+
+Re-run after ports free:
+
+```
+./scripts/run_client_integration_web_local.sh integration_test/request_lifecycle_close_review_test.dart
+→ PASS (~128s). All tests passed.
+```
+
+IT now covers scenario #2: send → stay/`Reviews sent` → Done (no HUD `reviewContributions`) → My Work “Your reviews are sent” / Edit, not filled Review → re-enter sent → dirty helper → “Changes not sent” / “Send changes” on checklist and My Work.
+
+Widget coverage from closeout still stands. Astra B1–B3 unused.
+
+HEAD after this commit: see git. Branch `fix/162-180-review-package-state`. Not pushed.
