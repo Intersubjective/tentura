@@ -1708,3 +1708,18 @@ RISKS:
 - **Freezed field** — requires local codegen; do not commit generated files.
 - **`evaluation_repository.dart` not in Owns** — plan lists only `my_work_review_windows.graphql`; batch mapping fix is **required** for new fields to arrive — if strict §0 blocks, `BLOCKED` with journal note (repository change is unavoidable).
 - **Existing `my_work_close_now_confirm_test.dart`** — must stay green with UNIT 14 behavior.
+
+### inner — 2026-09-18 — UNIT 13 — Opus 5 low
+
+STATUS: complete. Commits: `cbda5bda5` feat(client): load review package state for every My Work review card; `dc56a0836` fix(client): stop re-offering a sent review in My Work. Not pushed.
+
+TESTS: RED confirmed (new `my_work_review_package_test.dart` failed to compile on missing API). GREEN: TEST_CMD `flutter test test/features/my_work` → **+161 All tests passed**. `check-custom-lints.sh packages/client` → OK (30/30 baseline). `dart analyze` on touched dirs: no new warnings (pre-existing only).
+
+FILES: `my_work_review_windows.graphql` (package fields); `evaluation_repository.dart` `fetchReviewWindowStatuses` full map (D17 widen); `my_work_card_view_model.dart` (+`reviewPackageState`, `reviewAllRequiredSent`; freezed regen local, not committed); `derive_my_work_cards.dart` (`deriveMyWorkReviewPackageState` — same literals as `reviewPackageStateFromWindow`, no beacon_view import; `myWorkReviewPackageNeedsAction`; help-offered no longer sets `showReviewCta` at derive); `my_work_case.dart` `loadReviewWindows` widened to every reviewOpen card, missing row ⇒ `notEnrolled`, `showCloseNowCta` still authored+`canCloseNow` only; new `my_work_review_affordance.dart` (matrix widget); `my_work_cards.dart` (authored + help-offered footers; phase CTA suppressed for `reviewContributions`; UNIT 14 close confirm untouched); `my_work_obligation_block.dart` (`changedNotSent` fallback label); `derive_beacon_coordination_phase.dart` optional `viewerReviewPackageState` (null = unchanged); `beacon_phase_cta.dart` + `my_work_status_line.dart` pass `vm.reviewPackageState ?? notEnrolled` (D17 widen). Tests: new `my_work_review_package_test.dart`; updated `derive_my_work_cards_test.dart`, `my_work_load_review_windows_test.dart` to the widened semantics.
+
+FINDINGS:
+- Sort tier: authored cards with an actionable package now also get `showReviewCta` → tier 400 (was 390 via chip). Intended (viewer has review work).
+- Plan tests are presenter/widget-level (`MyWorkReviewAffordance`, `myWorkEffectivePrimaryAction`, `myWorkObligationBlockVisible`, `loadReviewWindows`), not a full card pump (card needs MyWorkCubit/GetIt/router).
+- Phase `suggestedAction` for reviewOpen on My Work is `none` for sent/terminal/unenriched; beacon HUD/inbox callers pass nothing → unchanged.
+
+REMAINING: verify pass; UNIT 15/16.
