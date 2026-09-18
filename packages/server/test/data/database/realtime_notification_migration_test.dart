@@ -479,9 +479,12 @@ ORDER BY c.relname
             ),
         };
         expect(indexes, hasLength(5));
+        // U05a/m0179: the collapse index is a lookup index, not a
+        // uniqueness constraint. Two unseen receipts may now share a
+        // dedup_key because they are two distinct occurrences.
         expect(
           indexes['notification_outbox__dedup']?.definition,
-          startsWith('CREATE UNIQUE INDEX'),
+          allOf(startsWith('CREATE INDEX'), isNot(contains('UNIQUE'))),
         );
         expect(
           indexes['notification_outbox__dedup']?.predicate,
@@ -856,10 +859,36 @@ WHERE id = 'Nt01legacy'
     );
 
     test(
-      'seen-only collapse SQL and partial unique index remain exact',
+      'the legacy collapse upsert no longer has an arbiter to collapse onto',
       () async {
+        // Until U05a this test pinned the opposite contract: three inserts
+        // sharing `t01-collapse` produced one row with collapsed_count 3
+        // while unseen, and a fresh row only once `seen_at` was set. m0179
+        // dropped the uniqueness that made that upsert possible, because a
+        // receipt is now inserted per occurrence and never rewritten. The
+        // retirement is asserted here rather than deleted so the legacy SQL
+        // cannot quietly come back.
         const dedupKey = 't01-collapse';
-        for (var i = 0; i < 2; i++) {
+        await expectLater(
+          _insertOutboxRowWithLegacyCollapse(
+            writer,
+            accountId: 'Ut01migration',
+            title: 'Legacy collapse',
+            body: 'Body',
+            actionUrl: '/collapse',
+            dedupKey: dedupKey,
+            sourceEventKey: 'event:collapse-legacy',
+          ),
+          throwsA(
+            isA<ServerException>().having(
+              (error) => '${error.code}',
+              'no matching ON CONFLICT arbiter',
+              '42P10',
+            ),
+          ),
+        );
+
+        for (var i = 0; i < 3; i++) {
           await _insertOutboxRow(
             writer,
             accountId: 'Ut01migration',
@@ -870,55 +899,12 @@ WHERE id = 'Nt01legacy'
             sourceEventKey: 'event:collapse-$i',
           );
         }
-        final collapsed = await writer.execute(r'''
-SELECT count(*)::int, max(collapsed_count)::int,
-       min(suppression_class), min(access_policy), min(seen_at)
-FROM public.notification_outbox
-WHERE dedup_key = 't01-collapse'
-''');
-        expect(collapsed.single, [1, 2, 'standard', 'profile', null]);
-
-        await writer.execute(r'''
-UPDATE public.notification_outbox
-SET read_at = now()
-WHERE dedup_key = 't01-collapse'
-''');
-        await _insertOutboxRow(
-          writer,
-          accountId: 'Ut01migration',
-          title: 'Read-at-only stays collapsed',
-          body: 'New body',
-          actionUrl: '/collapse/read-at-only',
-          dedupKey: dedupKey,
-          sourceEventKey: 'event:collapse-read-at',
-        );
         final rows = await writer.execute(r'''
-SELECT count(*)::int, max(collapsed_count)::int
+SELECT count(*)::int, max(collapsed_count)::int, min(seen_at)
 FROM public.notification_outbox
 WHERE dedup_key = 't01-collapse'
 ''');
-        expect(rows.single, [1, 3]);
-
-        await writer.execute(r'''
-UPDATE public.notification_outbox
-SET seen_at = now()
-WHERE dedup_key = 't01-collapse'
-''');
-        await _insertOutboxRow(
-          writer,
-          accountId: 'Ut01migration',
-          title: 'Seen receipt opens a new collapse window',
-          body: 'New body',
-          actionUrl: '/collapse/seen',
-          dedupKey: dedupKey,
-          sourceEventKey: 'event:collapse-seen',
-        );
-        final reopened = await writer.execute(r'''
-SELECT count(*)::int, max(collapsed_count)::int
-FROM public.notification_outbox
-WHERE dedup_key = 't01-collapse'
-''');
-        expect(reopened.single, [2, 3]);
+        expect(rows.single, [3, 1, null]);
       },
     );
 
@@ -1764,8 +1750,8 @@ Future<void> _waitUntil(
 Future<void> _settle() =>
     Future<void>.delayed(const Duration(milliseconds: 100));
 
-/// Inserts a receipt row via the same collapse-on-conflict SQL the
-/// removed `NotificationOutboxRepository.enqueue()` used to run.
+/// Inserts one receipt row, the way dispatch does since U05a: plain INSERT,
+/// no collapse arbiter.
 Future<void> _insertOutboxRow(
   Connection writer, {
   required String accountId,
@@ -1788,14 +1774,6 @@ INSERT INTO public.notification_outbox (
   @title, @body, @actionUrl, @dedupKey,
   @sourceEventKey, @destinationKind, @presentationKey, @accessPolicy
 )
-ON CONFLICT (dedup_key) WHERE seen_at IS NULL
-DO UPDATE SET
-  created_at      = now(),
-  collapsed_count = notification_outbox.collapsed_count + 1,
-  title           = EXCLUDED.title,
-  body            = EXCLUDED.body,
-  action_url      = EXCLUDED.action_url,
-  priority        = EXCLUDED.priority
 '''),
   parameters: {
     'accountId': accountId,
@@ -1807,6 +1785,44 @@ DO UPDATE SET
     'destinationKind': destinationKind,
     'presentationKey': presentationKey,
     'accessPolicy': accessPolicy,
+  },
+);
+
+/// The collapse-on-conflict SQL the removed
+/// `NotificationOutboxRepository.enqueue()` used to run. Kept only so a test
+/// can prove it no longer has an arbiter after m0179 — never call it to
+/// insert a fixture.
+Future<void> _insertOutboxRowWithLegacyCollapse(
+  Connection writer, {
+  required String accountId,
+  required String title,
+  required String body,
+  required String actionUrl,
+  required String dedupKey,
+  required String sourceEventKey,
+}) => writer.execute(
+  Sql.named(r'''
+INSERT INTO public.notification_outbox (
+  id, account_id, category, kind, priority,
+  title, body, action_url, dedup_key,
+  source_event_key, destination_kind, presentation_key, access_policy
+) VALUES (
+  gen_random_uuid()::text, @accountId, 'asksOfMe', 'needsMe', 'normal',
+  @title, @body, @actionUrl, @dedupKey,
+  @sourceEventKey, 'profile', 'needs_me', 'profile'
+)
+ON CONFLICT (dedup_key) WHERE seen_at IS NULL
+DO UPDATE SET
+  created_at      = now(),
+  collapsed_count = notification_outbox.collapsed_count + 1
+'''),
+  parameters: {
+    'accountId': accountId,
+    'title': title,
+    'body': body,
+    'actionUrl': actionUrl,
+    'dedupKey': dedupKey,
+    'sourceEventKey': sourceEventKey,
   },
 );
 

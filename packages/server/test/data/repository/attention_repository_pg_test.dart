@@ -778,7 +778,7 @@ ORDER BY phase
     });
 
     test(
-      'delivery jobs are durable and duplicate recording collapses',
+      'delivery jobs are durable and a second occurrence adds a receipt',
       () async {
         final useCase = TransactionalAttentionCase(unitOfWork, dispatch);
         expect(
@@ -817,12 +817,16 @@ ORDER BY phase
             await dispatch.record(_dispatchIntent(sourceEventKey: 'relay-2'));
           },
         );
-        final collapsed = await writer.execute('''
-SELECT count(*)::int, max(collapsed_count)::int
+        // U05a: the two relays share a collapse key but are distinct
+        // occurrences, so they are two immutable receipts rather than one
+        // rewritten row with collapsed_count = 2. Feed cardinality rises
+        // until U10's projections group them again.
+        final receipts = await writer.execute('''
+SELECT count(*)::int, max(collapsed_count)::int,
+       count(DISTINCT occurrence_id)::int, count(DISTINCT dedup_key)::int
 FROM public.notification_outbox
 ''');
-        expect(collapsed.single[0], 1);
-        expect(collapsed.single[1], 2);
+        expect(receipts.single, [2, 1, 2, 1]);
       },
     );
 
