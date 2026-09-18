@@ -170,3 +170,91 @@ instead. U04 must carry it.
 | U03 exhaustive classification | pending |
 
 ---
+
+## UNIT U02 — Characterization tests · COMPLETE (2026-09-18)
+
+**WHAT.** Ran the full attention PG and client suites; tagged assertions the manifest will deliberately break;
+added PG characterization tests for surface transitions, Activity grouping eligibility, pinned-zone membership,
+and receipt-based obligation counting. No production code.
+
+**FILES.**
+- `packages/server/test/data/repository/attention_activity_stream_pg_test.dart` — `// CHANGES IN Uxx:` tags + 5
+  new grouping/pinned tests.
+- `packages/server/test/data/repository/attention_surface_pg_test.dart` — help-offer transition + `needsYouTotal`
+  characterization tests.
+- `packages/client/test/features/my_work/my_work_obligation_subcards_test.dart` — U07b tags on generic Done.
+- `packages/client/test/features/my_work/my_work_attention_state_test.dart` — U07b tags on `settleObligation`.
+
+**TESTS.**
+
+Baseline (before edits):
+
+```bash
+cd packages/server && ../../scripts/run_with_test_cleanup.sh --timeout 20m -- dart test --tags pg -j 1 \
+  test/data/repository/attention_activity_stream_pg_test.dart \
+  test/data/repository/attention_surface_pg_test.dart \
+  test/data/repository/my_work_attention_pg_test.dart \
+  test/data/repository/attention_retention_pg_test.dart \
+  test/data/repository/attention_live_obligations_pg_test.dart \
+  test/data/repository/attention_mark_seen_for_beacon_pg_test.dart \
+  test/data/repository/attention_repository_pg_test.dart
+```
+
+→ `00:20 +62: All tests passed!` 0 skipped. Exit 0.
+
+```bash
+cd packages/client && ../../scripts/run_with_test_cleanup.sh --timeout 45m -- flutter test \
+  --dart-define=ENV=test --dart-define-from-file=env/test.env \
+  test/domain/attention test/features/inbox test/features/my_work test/features/home
+```
+
+→ `00:19 +407: All tests passed!` Exit 0. MemAvailable 23200388 kB at client suite start.
+
+After all U02 commits (same server command as baseline):
+
+→ `00:21 +70: All tests passed!` 0 skipped. Exit 0 (+8 characterization tests vs 62 baseline).
+
+Touched client files:
+
+```bash
+cd packages/client && ../../scripts/run_with_test_cleanup.sh --timeout 10m -- flutter test \
+  --dart-define=ENV=test --dart-define-from-file=env/test.env \
+  test/features/my_work/my_work_obligation_subcards_test.dart \
+  test/features/my_work/my_work_attention_state_test.dart
+```
+
+→ `00:00 +13: All tests passed!` Exit 0.
+
+**Intentionally doomed assertions (`// CHANGES IN Uxx:`)**
+
+| File | Test / assertion | Unit | Expected after change |
+|---|---|---|---|
+| `attention_activity_stream_pg_test.dart` | `active help offer produces helping forward outcome` (test + `forwardOutcome == helping`) | U09/U10 | No cross-surface duplicate: live attention stays My Work-only; helping row in Activity becomes dismiss tombstone only or leaves Activity per D01/D08. |
+| `attention_activity_stream_pg_test.dart` | `helping forward has zero Activity event children` (`eventTotal == 0`, empty preview) | U09/U10 | Active-only grouping may attach uncleared optional children to the outcome row or suppress differently once eligibility tightens. |
+| `attention_activity_stream_pg_test.dart` | `status event merges into forward and bumps created_at` (`createdAt` equals latest status time) | U10 | Optional status events update preview/dot only; forward sort key stays anchored; obligation creation promotes. |
+| `attention_activity_stream_pg_test.dart` | `activityOffers orders by effectiveActivityAt not latest_forward_at` (beacon order + status bump) | U10 | Optional events must not reorder pinned Requests; stable first-entry / obligation-driven ordering replaces `effectiveActivityAt` bumping. |
+| `my_work_obligation_subcards_test.dart` | `Respond and Done are independent hit targets` (`Done` semantics id present) | U07b | Generic Done removed for non-review obligations; resolution only via source actions/sheets (owner decision C). |
+| `my_work_attention_state_test.dart` | `settleObligation removes receipt and calls settle` (`settleCalls` records generic settle) | U07b | Cubit must not call generic settlement for help-offer obligations; server rejects bare acknowledge settlement. |
+
+**FINDINGS.**
+- Surface derivation for forward-only foreign receipts is visible on the **unfiltered** feed (`surface: null`);
+  `surface: activity` page stream can be empty while the receipt is still classified `activity` (pinned/coalescing).
+  Transition characterization uses the unfiltered feed for before/after surface checks.
+- `liveObligationBeacons` deduplicates beacon ids, but `surfaceSummary.needsYouTotal` counts **receipts** (two live
+  obligations on one owned Request → `2`). Characterized explicitly; not a defect.
+- Retention live-obligation guard from U06a left unchanged; no duplicate retention tests added here.
+
+**DECISIONS.** Did not tag `two status events without inbox coalesce to requestActivity` — coalescing structure
+survives U10; only optional-event **ordering/bumping** tags were required. Client doom tags limited to generic
+Done/settle paths slated for U07b.
+
+**REMAINING.** None for U02. U10 should rewrite tagged server assertions; U07b should rewrite tagged client
+obligation settlement tests; U09 extends outcome dismiss to helping/watching rows.
+
+| Unit | Status |
+|---|---|
+| U06a retention defect | **accepted** (`3df3d8eee`) |
+| U02 characterization tests | **complete** (`dc235c284`, `c51daa172`, journal commit pending) |
+| U03 exhaustive classification | pending |
+
+---
