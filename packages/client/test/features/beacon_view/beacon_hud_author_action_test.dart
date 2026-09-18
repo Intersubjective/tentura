@@ -12,6 +12,7 @@ import 'package:tentura/domain/entity/beacon_room_state.dart';
 import 'package:tentura/features/beacon_view/ui/bloc/beacon_view_state.dart';
 import 'package:tentura/features/beacon_view/ui/presenter/beacon_hud_author_action.dart';
 import 'package:tentura/features/evaluation/domain/entity/review_window_info.dart';
+import 'package:tentura/features/evaluation/domain/review_package_state.dart';
 import 'package:tentura/ui/bloc/state_base.dart';
 import 'package:tentura/ui/l10n/l10n.dart';
 
@@ -22,43 +23,170 @@ BeaconViewState _authorState({
   ReviewWindowInfo? reviewWindowInfo,
   bool beaconContextLoaded = true,
   bool isLoading = false,
-}) =>
-    BeaconViewState(
-      beacon: Beacon(
-        id: 'b1',
-        title: 'T',
-        author: const Profile(id: 'uAuthor', displayName: 'Author'),
-        createdAt: DateTime.utc(2026, 6, 20),
-        updatedAt: DateTime.utc(2026, 6, 20),
-        status: status,
-      ),
-      myProfile: const Profile(id: 'uAuthor', displayName: 'Author'),
-      helpOffers: helpOffers,
-      roomParticipants: roomParticipants,
-      reviewWindowInfo: reviewWindowInfo,
-      beaconContextLoaded: beaconContextLoaded,
-      status: isLoading ? StateStatus.isLoading : const StateIsSuccess(),
-    );
+}) => BeaconViewState(
+  beacon: Beacon(
+    id: 'b1',
+    title: 'T',
+    author: const Profile(id: 'uAuthor', displayName: 'Author'),
+    createdAt: DateTime.utc(2026, 6, 20),
+    updatedAt: DateTime.utc(2026, 6, 20),
+    status: status,
+  ),
+  myProfile: const Profile(id: 'uAuthor', displayName: 'Author'),
+  helpOffers: helpOffers,
+  roomParticipants: roomParticipants,
+  reviewWindowInfo: reviewWindowInfo,
+  beaconContextLoaded: beaconContextLoaded,
+  status: isLoading ? StateStatus.isLoading : const StateIsSuccess(),
+);
 
 TimelineHelpOffer _offer({
   String id = 'h1',
   CoordinationResponseType? response,
   int roomAccess = 0,
-}) =>
-    TimelineHelpOffer(
-      user: Profile(id: id, displayName: 'Helper $id'),
-      message: 'help',
-      createdAt: DateTime.utc(2026, 6, 20),
-      updatedAt: DateTime.utc(2026, 6, 20),
-      coordinationResponse: response,
-      roomAccess: roomAccess,
-      stakeState: response == CoordinationResponseType.useful ||
-              response == CoordinationResponseType.needCoordination
-          ? CommitmentStakeState.acknowledged
-          : CommitmentStakeState.none,
-    );
+}) => TimelineHelpOffer(
+  user: Profile(id: id, displayName: 'Helper $id'),
+  message: 'help',
+  createdAt: DateTime.utc(2026, 6, 20),
+  updatedAt: DateTime.utc(2026, 6, 20),
+  coordinationResponse: response,
+  roomAccess: roomAccess,
+  stakeState:
+      response == CoordinationResponseType.useful ||
+          response == CoordinationResponseType.needCoordination
+      ? CommitmentStakeState.acknowledged
+      : CommitmentStakeState.none,
+);
+
+BeaconViewState _packageState(
+  ReviewPackageState package, {
+  bool isAuthor = true,
+  bool allRequiredSent = false,
+}) {
+  final sent =
+      package == ReviewPackageState.sent ||
+      package == ReviewPackageState.changedNotSent ||
+      package == ReviewPackageState.closed;
+  final complete =
+      package == ReviewPackageState.closed ||
+      package == ReviewPackageState.closedUnsent;
+  return _authorState(
+    status: package == ReviewPackageState.paused
+        ? BeaconStatus.open
+        : BeaconStatus.reviewOpen,
+    reviewWindowInfo: ReviewWindowInfo(
+      beaconId: 'b1',
+      hasWindow: package != ReviewPackageState.paused,
+      windowComplete: complete,
+      userReviewStatus: switch (package) {
+        ReviewPackageState.notEnrolled => -1,
+        ReviewPackageState.sent => 2,
+        _ => 1,
+      },
+      totalCount: package == ReviewPackageState.empty ? 0 : 3,
+      requiredTotal: 2,
+      requiredReviewed: package == ReviewPackageState.inProgress ? 1 : 2,
+      // Legacy counts deliberately disagree: progress uses required counters.
+      sentAt: sent ? DateTime.utc(2026, 9, 18) : null,
+      allRequiredSent: allRequiredSent,
+      canCloseNow: allRequiredSent,
+    ),
+  ).copyWith(
+    myProfile: Profile(id: isAuthor ? 'uAuthor' : 'helper'),
+  );
+}
 
 void main() {
+  group('review package HUD matrix', () {
+    test(
+      'missing window uses request lifecycle; closed request outranks sent',
+      () {
+        expect(
+          reviewPackageStateOf(_authorState(status: BeaconStatus.reviewOpen)),
+          ReviewPackageState.notEnrolled,
+        );
+        expect(reviewPackageStateOf(_authorState()), ReviewPackageState.paused);
+        final sent = _packageState(ReviewPackageState.sent);
+        expect(
+          reviewPackageStateOf(
+            sent.copyWith(
+              beacon: sent.beacon.copyWith(status: BeaconStatus.closed),
+            ),
+          ),
+          ReviewPackageState.closed,
+        );
+        final unsent = _packageState(ReviewPackageState.inProgress);
+        expect(
+          reviewPackageStateOf(
+            unsent.copyWith(
+              beacon: unsent.beacon.copyWith(status: BeaconStatus.closed),
+            ),
+          ),
+          ReviewPackageState.closedUnsent,
+        );
+      },
+    );
+
+    for (final package in ReviewPackageState.values) {
+      for (final isAuthor in [true, false]) {
+        for (final allRequiredSent in [false, true]) {
+          test(
+            '$package author=$isAuthor allRequiredSent=$allRequiredSent',
+            () {
+              final state = _packageState(
+                package,
+                isAuthor: isAuthor,
+                allRequiredSent: allRequiredSent,
+              );
+              final guarded =
+                  package == ReviewPackageState.paused ||
+                  package == ReviewPackageState.closed ||
+                  package == ReviewPackageState.closedUnsent;
+              final needsReview = [
+                ReviewPackageState.inProgress,
+                ReviewPackageState.readyToSend,
+                ReviewPackageState.changedNotSent,
+              ].contains(package);
+              final expected = !isAuthor || guarded
+                  ? null
+                  : allRequiredSent
+                  ? BeaconHudAuthorAction.closeNow
+                  : needsReview
+                  ? BeaconHudAuthorAction.reviewContributions
+                  : null;
+              expect(reviewPackageStateOf(state), package);
+              expect(deriveBeaconHudAuthorAction(state), expected);
+            },
+          );
+        }
+      }
+    }
+    for (final locale in ['en', 'ru']) {
+      test('required progress and semantics use package state ($locale)', () {
+        final l10n = lookupL10n(Locale(locale));
+        final spec = deriveBeaconHudAuthorActSpec(
+          l10n: l10n,
+          state: _packageState(ReviewPackageState.inProgress),
+        )!;
+        final progress = l10n.beaconHudActEffectReviewProgress(1, 2);
+        expect(spec.effectLine, progress);
+        expect(spec.semanticsLabel, '${spec.label}. $progress');
+        for (final package in [
+          ReviewPackageState.readyToSend,
+          ReviewPackageState.changedNotSent,
+        ]) {
+          expect(
+            deriveBeaconHudAuthorActSpec(
+              l10n: l10n,
+              state: _packageState(package),
+            )!.effectLine,
+            l10n.beaconHudActEffectReviewContributions,
+          );
+        }
+      });
+    }
+  });
+
   group('deriveBeaconHudAuthorAction', () {
     test('returns null before context loaded', () {
       expect(
@@ -205,11 +333,11 @@ void main() {
       );
     });
 
-    test('reviewOpen prefers review UI until server canCloseNow', () {
+    test('reviewOpen has no sent review ACT until server canCloseNow', () {
       final withoutSnapshot = _authorState(status: BeaconStatus.reviewOpen);
       expect(deriveBeaconHudAuthorAction(withoutSnapshot), isNull);
 
-      // Package already sent (status 2) but window still open: keep review ACT.
+      // A sent package must not be offered as primary review work again.
       final waiting = _authorState(
         status: BeaconStatus.reviewOpen,
         reviewWindowInfo: const ReviewWindowInfo(
@@ -221,10 +349,7 @@ void main() {
           canCloseNow: false,
         ),
       );
-      expect(
-        deriveBeaconHudAuthorAction(waiting),
-        BeaconHudAuthorAction.reviewContributions,
-      );
+      expect(deriveBeaconHudAuthorAction(waiting), isNull);
 
       final canClose = _authorState(
         status: BeaconStatus.reviewOpen,
