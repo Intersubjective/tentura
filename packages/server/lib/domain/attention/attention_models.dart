@@ -24,7 +24,7 @@ AttentionEventCatalogStatus attentionEventCatalogStatusFromWireName(
 abstract final class AttentionEventTypeCatalog {
   AttentionEventTypeCatalog._();
 
-  static const int contractSchemaVersion = 3;
+  static const int contractSchemaVersion = 4;
 
   static void assertDeclared(AttentionEventType eventType) {
     switch (eventType) {

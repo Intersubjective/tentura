@@ -11,7 +11,7 @@ const _topLevelKeys = {
   'eventClassifications',
 };
 
-const _contractSchemaVersion = 3;
+const _contractSchemaVersion = 4;
 
 const _runtimeAttentionEventTypes = <String>[
   'relayReceived',
@@ -57,6 +57,23 @@ const _classificationVariantKeys = {
   'clearPolicy',
   'producerTests',
   'transitionTests',
+  ..._mandatoryCardContractKeys,
+};
+
+/// U03b / spec D-171-3: every variant must carry these. The allow-list above
+/// only rejects *unknown* keys, so these are asserted as mandatory separately.
+const _mandatoryCardContractKeys = {
+  'selfAuthored',
+  'headlineTreatment',
+  'coalescible',
+};
+
+const _headlineTreatments = {'beacon', 'user', 'system'};
+
+/// Spec §7.3 K6: a forward's note exists nowhere else on the card, so a
+/// note-bearing forward variant must never coalesce.
+const _nonCoalescibleVariants = {
+  ('relayReceived', 'reason:forwardRecipient'),
 };
 
 const _bumpingOrderingEffects = {'promote_on_obligation', 'bump'};
@@ -344,6 +361,11 @@ void main() {
           everyElement(isIn(allowedKeys)),
           reason: '$eventType variant field shape',
         );
+        expect(
+          variant.keys,
+          containsAll(_mandatoryCardContractKeys),
+          reason: '$eventType variant is missing card contract fields',
+        );
 
         _collectUnverified(variant, eventType, unverifiedGaps);
         _enforceClassificationRules(eventType, variant);
@@ -379,10 +401,54 @@ void _collectUnverified(
   }
 }
 
+/// U03b / spec D-171-3 + §6.1 + §7.3 K6.
+void _enforceCardContractRules(
+  String eventType,
+  Map<String, dynamic> variant,
+) {
+  expect(
+    variant['selfAuthored'],
+    isA<bool>(),
+    reason: '$eventType selfAuthored must be a bool',
+  );
+  expect(
+    variant['coalescible'],
+    isA<bool>(),
+    reason: '$eventType coalescible must be a bool',
+  );
+  expect(
+    variant['headlineTreatment'],
+    isIn(_headlineTreatments),
+    reason: '$eventType headlineTreatment must be one of $_headlineTreatments',
+  );
+
+  final key = (eventType, variant['recipientPredicate']);
+  if (_nonCoalescibleVariants.contains(key)) {
+    expect(
+      variant['coalescible'],
+      isFalse,
+      reason:
+          '$eventType ${variant['recipientPredicate']} carries a personal note; '
+          'coalescing it destroys information (spec §7.3 K6)',
+    );
+  }
+
+  // Header identity follows the grouping object (§6.1): account-scoped rows
+  // are headlined by a person, beacon-scoped rows by the quoted request title.
+  if (variant['scope'] == 'account') {
+    expect(
+      variant['headlineTreatment'],
+      isNot('beacon'),
+      reason: '$eventType is account-scoped; its headline is not a request',
+    );
+  }
+}
+
 void _enforceClassificationRules(
   String eventType,
   Map<String, dynamic> variant,
 ) {
+  _enforceCardContractRules(eventType, variant);
   final attentionClass = variant['attentionClass']! as String;
   final orderingEffect = variant['orderingEffect']! as String;
   final placement = variant['placement']! as String;
