@@ -1072,8 +1072,17 @@ WHERE id = '${retry.single.id}'
         await unitOfWork.run(
           actorUserId: _viewerId,
           action: () async {
-            await dispatch.record(_dispatchIntent(sourceEventKey: 'dup-a'));
-            await dispatch.record(_dispatchIntent(sourceEventKey: 'dup-b'));
+            // Two *different* collapse families: since U05b the channel
+            // layer coalesces a second pending job for the same family, so
+            // two jobs for one account only exist across families. The
+            // subject of this test is the throttle CTE's ON CONFLICT guard,
+            // not collapse.
+            await dispatch.record(
+              _dispatchIntent(sourceEventKey: 'dup-a', collapseKey: 'dup|a'),
+            );
+            await dispatch.record(
+              _dispatchIntent(sourceEventKey: 'dup-b', collapseKey: 'dup|b'),
+            );
           },
         );
         expect(await _deliveryCount(writer), 2);
@@ -1110,6 +1119,7 @@ const _hiddenBeaconId = 'Battentionhidden';
 AttentionDispatchIntent _dispatchIntent({
   String recipientId = _otherId,
   String sourceEventKey = 'relay-1',
+  String collapseKey = 'relay|$_contentBeaconId',
 }) => AttentionDispatchIntent(
   eventType: AttentionEventType.relayReceived,
   sourceEventKey: sourceEventKey,
@@ -1119,7 +1129,7 @@ AttentionDispatchIntent _dispatchIntent({
   title: 'Forwarded Request',
   body: 'A Request was forwarded to you',
   actionUrl: '/#/view?id=$_contentBeaconId',
-  collapseKey: 'relay|$_contentBeaconId',
+  collapseKey: collapseKey,
   recipients: [
     AttentionRecipientSnapshot(
       recipientId: recipientId,

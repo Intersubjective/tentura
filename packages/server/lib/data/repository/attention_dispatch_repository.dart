@@ -183,15 +183,63 @@ RETURNING id
         beaconId: intent.beaconId,
         coordinationItemId: intent.coordinationItemId,
       );
+      // U05b — collapsing lives here, at the channel layer, and nowhere else.
+      //
+      // In-app receipts are one per occurrence and immutable (U05a). Push and
+      // email must not be: a family of events sharing a collapse key is one
+      // notification, and sending it twice is the user-visible defect that a
+      // receipt-row count cannot see. So a new job coalesces into the
+      // account's existing **pending** job for the same collapse family
+      // instead of queueing a second send.
+      //
+      // The key is `attention_occurrence_recipient.collapse_key` — the one
+      // that already exists, at the same `(occurrence_id, account_id)` grain
+      // a delivery job has. Nothing is denormalised onto the delivery table;
+      // m0180 adds the index that makes the join cheap.
+      //
+      // The coalesced job is repointed at the newest receipt and carries the
+      // newest copy, so the `receiptId` the notification hands back always
+      // resolves to a receipt that exists and has just been written — an
+      // older sibling may have been cleared or settled by the time the worker
+      // runs.
+      //
+      // Only `pending` is collapsed into. A `leased` send is already on its
+      // way out and a `delivered`/`dead` one has left, so absorbing a later
+      // event into either would drop a notification outright.
+      //
+      // Not atomic against a concurrent dispatch in the same family: two
+      // transactions that both see no pending job both insert one. That is
+      // the pre-existing behaviour for simultaneous events and is bounded by
+      // `claimDue`'s per-account throttle; it is not made worse here.
       await _database.customStatement(
-        r'''INSERT INTO public.attention_channel_delivery (
+        r'''WITH target AS (
+  SELECT job.id
+  FROM public.attention_channel_delivery job
+  JOIN public.attention_occurrence_recipient recipient
+    ON recipient.occurrence_id = job.occurrence_id
+   AND recipient.account_id = job.account_id
+  WHERE job.account_id = $3
+    AND job.status = 'pending'
+    AND recipient.collapse_key = $5
+  ORDER BY job.created_at DESC, job.id DESC
+  LIMIT 1
+), collapsed AS (
+  UPDATE public.attention_channel_delivery job
+  SET occurrence_id = $1, receipt_id = $2, payload = $4::jsonb
+  WHERE job.id = (SELECT id FROM target)
+  RETURNING job.id
+)
+INSERT INTO public.attention_channel_delivery (
   occurrence_id, receipt_id, account_id, payload
-) VALUES ($1, $2, $3, $4::jsonb)''',
+)
+SELECT $1, $2, $3, $4::jsonb
+WHERE NOT EXISTS (SELECT 1 FROM collapsed)''',
         [
           occurrenceId,
           decision.receiptId,
           decision.recipientId,
           jsonEncode(_decisionPayload(decision)),
+          collapseKey,
         ],
       );
     }
