@@ -498,3 +498,210 @@ MemAvailable at open: 45.6 GB.
 **Blockers at open.** None.
 
 ---
+
+## UNIT U0C — "Following" rename · SCOUT BRIEF (2026-09-19)
+
+**Scout:** read-only pass on `feature/events_refac` at `UNIT_BASE` `0c691d132`. No code touched.
+
+### l10n format and paths
+
+- **Source (git-tracked):** `packages/client/l10n/app_en.arb`, `packages/client/l10n/app_ru.arb` — JSON ARB, `@@locale` + `@key` metadata blocks.
+- **Config:** `packages/client/l10n.yaml` — `arb-dir: l10n`, `template-arb-file: app_en.arb`, `output-class: L10n`, `output-dir: lib/ui/l10n`, `output-localization-file: l10n.dart`.
+- **Locales:** EN + RU only (two ARB files).
+- **Generated (gitignored:** `packages/client/.gitignore` → `/lib/ui/l10n/*`): run `cd packages/client && flutter gen-l10n` after ARB edits; tests/CI load generated `L10n` / `L10nEn` / `L10nRu`.
+
+### §10 table — key existence, live values, UI fit
+
+All §10 keys **exist** in both ARBs today. Current values match spec “RU now / EN now” columns.
+
+| Key | Live RU | Live EN | Where used (live) | Spec new value vs UI |
+|---|---|---|---|---|
+| `beaconHeaderWatch` | Наблюдать | Watch | `beacon_operational_header_card.dart`, `activity_offer_card.dart` — primary **button** | **Follow / Следить** — short verb fits button. |
+| `beaconHeaderStopWatching` | Не наблюдать | Stop watching | Same header — **button** when `inboxStatus == watching` | **Unfollow / Не следить** — fits. |
+| `inboxWatching` | Наблюдаю | Watching | `inbox_watching_screen.dart` AppBar title; `inbox_screen.dart` overflow `'${l10n.inboxWatching} ($count)'` | **Following / Слежу** — first-person label; overflow becomes `Following (2)` (see `inbox_watching_route_test.dart`). |
+| `inboxTabWatching` | Наблюдаю | Watching | **No `l10n.inboxTabWatching` reference in `lib/`** (dead key today; still update for parity). | **Following / Слежу** — tab label when wired. |
+| `inboxWatchingEmptyCalm` | Нечего отслеживать. | Nothing to watch. | `inbox_watching_screen.dart` empty state **sentence** | **Nothing to follow yet. / Пока не за чем следить.** — calm empty copy fits. |
+| `inboxTabWatchingEmpty` | Нет запросов в наблюдении | No requests on your watch list | **Unused in `lib/`** (screen uses `inboxWatchingEmptyCalm` instead). | **You are not following anything / Вы ни за чем не следите** — second-person sentence OK per §8a for system copy. |
+| `actionWatch` | Переместить в «Наблюдение» | Move to Watching | `beacon_overflow_menu.dart` overflow **menu row** | **Follow this request / Следить за запросом** — action phrase fits menu (longer than chip). |
+| `actionStopWatching` | Вернуть в «**Нужно мне**» | Return to Needs me | `beacon_overflow_menu.dart`, `inbox_item_tile.dart` overflow when watching | RU fix **Вернуть в «Ждёт меня»** matches live destination label `inboxNeedsMe` = **«Ждёт меня»** / EN **Needs me** (unchanged EN per §10). **Confirmed:** `inboxNeedsMe` is in ARB but **not referenced in `lib/` for display**; it is the canonical tab name for the return target per product docs. |
+| `beaconHudYouWatching` | Наблюдаете | Watching | `beacon_hud_derivation.dart` — HUD **chip** | **Following / Слежу** — fixes register (§8a: first-person chip, not «Вы …»). |
+| `beaconPeopleRoleWatcher` | Наблюдатель | Watcher | `beacon_people_labels.dart` — people tab **role** label | **Follower / Следит за запросом** — longer role string; verify layout in people tab. |
+| `forwardWatching` | Наблюдение | Watching | `forward_recipient_row_host.dart` — recipient involvement **badge** | **Following / Слежу** — chip-like; spec uses same as tab (first person). |
+| `forwardReactionWatching` | Наблюдает | Watching | `unified_forward_row.dart`, `profile_shared_beacons_sliver.dart` — **chip** on forward row | **Following / Следит** — third-person «Следит» for someone else’s reaction fits chip on another user’s forward. |
+| `activityWatchingDigest` | …за которыми вы наблюдаете (ICU plural) | …you watch (ICU plural) | `activity_watching_digest_row.dart` — full **summary sentence** | **…you follow / …за которыми вы следите** — second-person system sentence OK. |
+| `activityForwardOutcomeWatching` | Вы наблюдаете | You're watching | `activity_forward_outcome_copy.dart` → `activity_forward_row.dart` **outcome line** (not §10 literal row; §10 points to §8) | §8 tombstone: **You started following / Вы начали следить** — past-tense **event sentence**, not chip register; fixes #171 «Вы наблюдаете» complaint. |
+
+**Not in §10 but same word family (ARB):**
+
+| Key | Live RU | Live EN | Used? |
+|---|---|---|---|
+| `beaconPeopleStatusWatching` | Наблюдает | Watching | `beacon_people_labels.dart` status line — **missed by §10**; align with `forwardReactionWatching` (**Following / Следит**). |
+| `beaconHudYouAskedToHelp` | …ответьте или **наблюдайте** | …respond or **watch** | `beacon_hud_derivation.dart` — **missed**; needs follow-family wording (e.g. «следите» / “follow”) if acceptance is “no watch/наблюд stems on attention surfaces”. |
+
+### Hardcoded user copy outside ARB (same word family)
+
+These are **not** l10n keys; **values-only U0C cannot satisfy manifest acceptance** without editing Dart (report as RISK, not a silent step):
+
+| File | Strings |
+|---|---|
+| `packages/client/lib/features/forward/ui/message/forward_messages.dart` | `Request forwarded. It's in Watching.`; RU «…«Наблюдаю»»; `Open in Watching` / «Открыть в «Наблюдаю»» |
+| `packages/client/lib/features/inbox/ui/message/inbox_messages.dart` | `Request moved to Watching`; RU «…«Наблюдаю»» |
+| `packages/client/lib/features/beacon_view/ui/message/help_offer_messages.dart` | EN `…in Watching (not in Needs me).`; RU «…в «Наблюдении», не в «Нужно мне»» (also wrong Needs-me name vs «Ждёт меня») |
+
+`scripts/check-user-facing-terminology.sh` does **not** scan for watch/наблюд — only beacon/room/inbox banned terms in ARB + selected message paths for beacon.
+
+### Tests that hardcode old strings (will go red)
+
+| Test file | What breaks |
+|---|---|
+| `test/features/inbox/activity_live_motion_test.dart` | `find.text('Наблюдать')`; `expect(find.text('Вы наблюдаете'), …)` |
+| `test/features/inbox/inbox_watching_route_test.dart` | `find.text('Watching (2)')` (default EN locale) |
+| `test/features/forward/forward_messages_test.dart` | Full `ForwardLocationMessage` EN/RU + label strings |
+| `test/features/forward/forward_delivery_result_test.dart` | `'Request forwarded. It\'s in Watching.'` |
+| `test/features/forward/forward_cubit_live_sync_test.dart` | same snackbar EN string |
+
+**Not product l10n (optional / out of unit unless acceptance expanded):** `test/design_system/tentura_top_bar_test.dart` hardcodes `Tab(text: 'Watching')` for DS golden fixture; `coordination_target_candidates_test.dart` uses `userTitle: 'Watching'` as fixture data.
+
+`test/l10n/request_terminology_contract_test.dart` — **does not** assert watch-family strings.
+
+### Goldens
+
+- `test/features/inbox/activity_forward_row_golden_test.dart` renders all `AttentionForwardOutcome` values including **watching** via live l10n → **`activity_forward_row_watching_{light,dark}_{en,ru}.png`** will drift when `activityForwardOutcomeWatching` changes (PNG files not present in workspace listing — may be local/CI artifacts; still run with `--update-goldens` only after visual review).
+- `inbox_item_tile_golden_test.dart` / `activity_offer_card_golden_test.dart` — use EN l10n but default tiles **without** watch CTAs in fixtures; **unlikely** to change unless overflow/watch actions added to golden setup.
+
+### Register rule (§8a / P7)
+
+Chip/HUD/tab labels → first person (**Слежу / Following**). System sentences (empty states, digest, tombstone outcomes) → second person or past-tense event (**Вы начали следить**, **Вы ни за чем не следите**). Do not use «Вы наблюдаете»-style present state on outcome rows.
+
+### Versioning
+
+User-visible copy change → **patch bump** `packages/client/pubspec.yaml` + sync `web/index.html` `flutter_bootstrap.js?v=` per `AGENTS.md` / `versioning.mdc`.
+
+---
+
+STATUS: complete
+
+BRIEF: After ARB value renames + `flutter gen-l10n`, every surface that today shows the Watching/наблюд-* family uses Follow/Following/Следить/Слежу per issue-171 §10 (plus missed ARB keys and §8 outcome for `activityForwardOutcomeWatching`); overflow menu shows `Following (N)`; stop-watching menu cites «Ждёт меня» in RU; no Dart key or call-site renames. **Partial acceptance risk:** hardcoded snackbar/message classes still expose Watching/Наблюдаю until a follow-up Dart copy edit (blocked for strict values-only unit).
+
+STEPS:
+1. Edit `packages/client/l10n/app_en.arb` + `app_ru.arb` — all §10 keys + `activityForwardOutcomeWatching` (§8) + missed `beaconPeopleStatusWatching`, `beaconHudYouAskedToHelp` — **red:** no (strings not asserted until gen-l10n).
+2. `cd packages/client && flutter gen-l10n` — **red:** no (generated output gitignored).
+3. Patch `packages/client/pubspec.yaml` (+ `web/index.html` cache-buster if version changes) — **red:** no.
+4. Update tests: `forward_messages_test.dart`, `forward_delivery_result_test.dart`, `forward_cubit_live_sync_test.dart`, `inbox_watching_route_test.dart`, `activity_live_motion_test.dart` — **red:** yes (meaningful).
+5. If forward-row goldens exist locally: `flutter test --update-goldens test/features/inbox/activity_forward_row_golden_test.dart` after visual check — **red:** golden diff only.
+6. **Escalation (not values-only):** align `forward_messages.dart`, `inbox_messages.dart`, `help_offer_messages.dart` with new tab names — **red:** forward message tests; **requires Dart edits** — treat as RISK/decision unless manifest amends U0C scope.
+
+TEST_CMD:
+```bash
+bash scripts/check-user-facing-terminology.sh
+cd packages/client && ../../scripts/run_with_test_cleanup.sh --timeout 10m -- flutter test \
+  test/l10n/request_terminology_contract_test.dart \
+  test/features/forward/forward_messages_test.dart \
+  test/features/forward/forward_delivery_result_test.dart \
+  test/features/forward/forward_cubit_live_sync_test.dart \
+  test/features/inbox/inbox_watching_route_test.dart \
+  test/features/inbox/activity_live_motion_test.dart
+```
+
+UNTOUCHABLE: `key.fb`, `leo.key`, `out.key`, `dart-defines`, `.serena/project.yml`, `packages/force_directed_graphview/**`, `docs/plans/constellation-*`, all generated artifacts (`*.g.dart`, `*.freezed.dart`, `_g/`, `packages/client/lib/ui/l10n/*` — regenerate only).
+
+RISKS:
+- **Scope vs acceptance:** Manifest U0C acceptance says no user-visible watch/наблюд on attention surfaces; **~6 hardcoded strings in three `*messages.dart` files** remain if only ARB is edited — values-only unit cannot fully meet acceptance without Dart changes (or manifest must narrow acceptance to ARB-only).
+- **`activityForwardOutcomeWatching`:** §10 delegates to §8 tombstone copy (past tense), not a simple synonym swap — still ARB-only but changes semantics/tests/goldens; other `activityForwardOutcome*` keys are **out of §10 watch rename** (broader §8 tombstone work lands in later units unless bundled here intentionally).
+- **`beaconPeopleRoleWatcher` → «Следит за запросом»:** long string in people tab — layout overflow on compact width.
+- **`inboxTabWatching` / `inboxTabWatchingEmpty`:** unused in UI today; updating still correct for future tab wiring.
+- **`actionStopWatching` EN** stays “Needs me” while RU moves to «Ждёт меня» — intentional per §10; EN tab label `inboxNeedsMe` is still “Needs me” (not “Waiting for me”).
+- **`help_offer_messages.dart` RU** cites «Нужно мне» and «Наблюдении» — doubly stale vs `inboxNeedsMe` / rename; needs Dart edit outside strict U0C.
+- **Goldens:** `activity_forward_row_*_watching_*.png` not in repo tree from scout glob — CI/local may fail until updated.
+
+---
+
+## UNIT U0C — "Following" rename · INNER (2026-09-19)
+
+**Inner:** Claude Opus 5, `feature/events_refac`, base `0c691d132`. Four commits, all green.
+
+### Commits
+
+| # | Hash | Subject |
+|---|---|---|
+| 1 | `5d2776dea` | `copy(l10n)`: §10 rename + §8 tombstone table, 20 keys per locale |
+| 2 | `bf87bb87b` | `copy(messages)`: 6 hardcoded literals in three `*_messages.dart` |
+| 3 | `f83222d58` | `test`: expectation updates in 5 files |
+| 4 | `9d66fca8a` | `test(goldens)`: 28 re-recorded inbox goldens |
+
+### Test evidence
+
+Focused set **RED** after commit 1 (copy landed, expectations not yet):
+
+```
+00:14 +34 -4: Some tests failed.
+Failing tests:
+  activity_live_motion_test.dart: reduced motion completes demotion without animation frames
+  activity_live_motion_test.dart: watch demotion shows forward row with watching outcome (ru)
+  activity_live_motion_test.dart: Показать on moved snackbar scrolls to demoted forward row
+  inbox_watching_route_test.dart: overflow opens Watching and shows the count
+```
+
+Focused set **GREEN** after commit 3: `00:03 +38: All tests passed!`
+
+Wide subset after commit 4 —
+`flutter test --dart-define=ENV=test --dart-define-from-file=env/test.env test/features/inbox test/features/my_work`:
+`00:12 +261: All tests passed!` (was `+233 -28`, all 28 golden diffs).
+
+**Full client suite** (not required, run to catch unanticipated assertions):
+`02:20 +3655 ~29: All tests passed!`
+
+Gates: `check-user-facing-terminology: ok` · `check-custom-lints: packages/client OK` (`total: 30 (baseline: 30)`,
+unchanged). `MemAvailable: 44704732 kB` before the wide runs.
+
+### Scope as executed
+
+All four overseer overrides applied: hardcoded Dart literals included (override 1), §8 tombstone table landed
+(override 2), **no version bump and `web/index.html` untouched** (override 3), the three missed keys included
+(override 4).
+
+Re-grepping the "наблюд" / "watch" / "Watching" stems across `packages/client/lib` and both ARBs myself
+(override 4) turned up **no further user-visible hits** beyond the scout's list. Every remaining match is an
+internal identifier and was deliberately left alone: `kPathInboxWatching`, the `'watching'` wire value in
+`attention_receipt.dart`, `watchingDigestWire`, `InboxWatchingRoute`, `TestIds.activityWatchingDigest`, the
+`inboxWatchingOpenCount` state fields, and GraphQL `watchingIds`. Keys are untouched, so no call site moved.
+
+### Goldens (override 5 — inspected, not blind-updated)
+
+All 28 diffs were opened before regenerating. Every one is confined to the text run that changed:
+
+- `activity_forward_row` (19) — only the second line moves, e.g. RU master `[Вы][наблюдаете]` → test
+  `[Вы][начали][следить]`; avatar, header line and trailing action pixel-identical.
+- `activity_offer_card` (9) — only the Watch button label.
+
+No layout shift and no overflow, including the 1.3x text-scale cases, which still soft-wrap inside the existing
+height bound.
+
+### Findings
+
+1. **`beaconPeopleRoleWatcher` did not overflow** (override 6), so the spec value «Следит за запросом» was kept
+   and the shorter fallback «Следит» was **not** needed. The only render site,
+   `help_offer_tile.dart:158`, is an unconstrained soft-wrapping `Text` in a vertical `Column`, so a longer role
+   label wraps rather than overflows. The full suite confirms no overflow anywhere.
+   *But* that site prints `'<role> · <status>'`, which now reads **«Следит за запросом · Следит»**. It is not a
+   regression — it read «Наблюдатель · Наблюдает» before — but it is redundant, and a future unit touching the
+   people tab should probably shorten the role to «Следит» there. Flagged, not fixed: changing it now would
+   contradict the §10 table this unit exists to land.
+2. **`activityForwardOutcomeNotInterested`'s EN goldens did not change.** "Not interested" and "You declined"
+   lay out identically in the test font; both `..._not_interested_{dark,light}_en.png` are byte-identical to
+   `0c691d132`. Only the two RU variants moved. Verified rather than assumed.
+3. **`dart format` is not clean on the message files at base.** Running it on `forward_messages.dart` and
+   `inbox_messages.dart` reflowed ~30 unrelated lines (old-style switch-expression indentation). That noise was
+   reverted and the copy edits re-applied in place, so commit 2 is 8 lines — pure copy. Anyone formatting these
+   files later will produce a large unrelated diff.
+4. **Two §10 keys are dead code today**: `inboxTabWatching` and `inboxTabWatchingEmpty` have no reference in
+   `lib/` (the screen uses `inboxWatchingEmptyCalm`). Updated anyway for parity, as the scout recommended.
+5. `actionStopWatching` EN is unchanged at "Return to Needs me" per the §10 table; only the RU value moved off
+   the wrong destination name to «Вернуть в «Ждёт меня»». `help_offer_messages.dart` RU carried the same
+   «Нужно мне» bug and was fixed with it.
+6. Left alone as fixture data, not product copy: `tentura_top_bar_test.dart`'s `Tab(text: 'Watching')` design
+   system fixture, `coordination_target_candidates_test.dart`'s `userTitle: 'Watching'`, and
+   `forward_repository_involvement_test.dart`'s `'Watching note'`.
+
+**Acceptance.** No user-visible "наблюд*" / "watch*" stem remains on the attention surfaces; every l10n key is
+unchanged, so there is no code churn.
