@@ -135,6 +135,108 @@ void main() {
       expect(cubit.state.items.single.tombstoneDismissedAt, isNotNull);
       await cubit.close();
     });
+
+    // Owner decision B: answered-forward outcomes stay in For You as
+    // dismissible tombstones, and m0183 made **every** outcome kind
+    // dismissible server-side. The guard used to read `isTombstoneVisible`,
+    // which is statuses 3 and 4 only — so helping, following and declined
+    // rows wore a × that did nothing. Each kind is asserted on its own: a
+    // guard widened for the one kind that happened to be tested is the shape
+    // of defect this plan has hit seven times.
+    for (final outcome in const [
+      (status: InboxItemStatus.watching, name: 'watching'),
+      (status: InboxItemStatus.rejected, name: 'notInterested'),
+      (status: InboxItemStatus.closedBeforeResponse, name: 'closed'),
+      (status: InboxItemStatus.deletedBeforeResponse, name: 'deleted'),
+    ]) {
+      test('dismisses the ${outcome.name} outcome', () async {
+        repo.fetchResult = [
+          InboxItem(
+            beaconId: 'b-${outcome.name}',
+            latestForwardAt: DateTime.utc(2026),
+            status: outcome.status,
+          ),
+        ];
+        final cubit = InboxCubit(
+          userId: 'u1',
+          inboxCase: case_,
+          effects: FakeUiEffectPort(),
+        );
+        await cubit.stream.firstWhere((s) => s.isSuccess);
+
+        await cubit.dismissTombstone('b-${outcome.name}');
+
+        expect(repo.lastDismissTombstone?.beaconId, 'b-${outcome.name}');
+        expect(cubit.state.items.single.tombstoneDismissedAt, isNotNull);
+        await cubit.close();
+      });
+    }
+
+    // The helping outcome has no `InboxItemStatus` of its own: the server
+    // reads it off the help-offer scope, and `HelpOfferCreated` *removes* the
+    // row from this cubit's state. So the × on a helping tombstone lands on a
+    // beaconId the cubit does not hold, and the old `indexWhere(...) < 0`
+    // early return swallowed it silently.
+    test('dismisses the helping outcome, whose row this cubit does not hold',
+        () async {
+      repo.fetchResult = const [];
+      final cubit = InboxCubit(
+        userId: 'u1',
+        inboxCase: case_,
+        effects: FakeUiEffectPort(),
+      );
+      await cubit.stream.firstWhere((s) => s.isSuccess);
+      expect(cubit.state.items, isEmpty);
+
+      await cubit.dismissTombstone('b-helping');
+
+      expect(repo.lastDismissTombstone?.beaconId, 'b-helping');
+      await cubit.close();
+    });
+
+    test('an unanswered forward is not a tombstone and is never dismissed',
+        () async {
+      repo.fetchResult = [
+        InboxItem(
+          beaconId: 'b-pinned',
+          latestForwardAt: DateTime.utc(2026),
+        ),
+      ];
+      final cubit = InboxCubit(
+        userId: 'u1',
+        inboxCase: case_,
+        effects: FakeUiEffectPort(),
+      );
+      await cubit.stream.firstWhere((s) => s.isSuccess);
+
+      await cubit.dismissTombstone('b-pinned');
+
+      expect(repo.lastDismissTombstone, isNull);
+      expect(cubit.state.items.single.tombstoneDismissedAt, isNull);
+      await cubit.close();
+    });
+
+    test('a tombstone already put away is not dismissed twice', () async {
+      repo.fetchResult = [
+        InboxItem(
+          beaconId: 'b-gone',
+          latestForwardAt: DateTime.utc(2026),
+          status: InboxItemStatus.watching,
+          tombstoneDismissedAt: DateTime.utc(2026, 5),
+        ),
+      ];
+      final cubit = InboxCubit(
+        userId: 'u1',
+        inboxCase: case_,
+        effects: FakeUiEffectPort(),
+      );
+      await cubit.stream.firstWhere((s) => s.isSuccess);
+
+      await cubit.dismissTombstone('b-gone');
+
+      expect(repo.lastDismissTombstone, isNull);
+      await cubit.close();
+    });
   });
 
   group('InboxCase.resolveRoomUnread', () {

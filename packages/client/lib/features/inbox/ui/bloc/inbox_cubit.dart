@@ -293,27 +293,42 @@ class InboxCubit extends Cubit<InboxState> {
     );
   }
 
+  /// Puts an outcome's tombstone away (card spec §8, amendment A1).
+  ///
+  /// Two things widened here against the pre-U16b version, both because For
+  /// You now shows a × on every outcome kind rather than on statuses 3 and 4
+  /// alone:
+  ///
+  /// * the guard is [InboxItem.isDismissibleOutcome], not
+  ///   `isTombstoneVisible` — m0183 made the whole outcome set dismissible
+  ///   server-side, so a helping, following or declined row's × must act;
+  /// * a beaconId this cubit does not hold is still sent. `helping` is the
+  ///   case that forces it: `HelpOfferCreated` removes the row from this
+  ///   state, so its tombstone's × would otherwise hit an `indexWhere` miss
+  ///   and do nothing at all, silently.
   Future<void> dismissTombstone(String beaconId) async {
+    if (beaconId.isEmpty) return;
     final idx = state.items.indexWhere((e) => e.beaconId == beaconId);
-    if (idx < 0) return;
-    final item = state.items[idx];
-    if (!item.isTombstoneVisible) return;
+    final item = idx < 0 ? null : state.items[idx];
+    if (item != null && !item.isDismissibleOutcome) return;
     final dismissedAt = DateTime.now().toUtc();
     try {
       await _inboxCase.dismissTombstone(
         beaconId: beaconId,
         dismissedAt: dismissedAt,
       );
-      emit(
-        state.copyWith(
-          items: [
-            ...state.items.sublist(0, idx),
-            item.copyWith(tombstoneDismissedAt: dismissedAt),
-            ...state.items.sublist(idx + 1),
-          ],
-          status: const StateIsSuccess(),
-        ),
-      );
+      if (item != null) {
+        emit(
+          state.copyWith(
+            items: [
+              ...state.items.sublist(0, idx),
+              item.copyWith(tombstoneDismissedAt: dismissedAt),
+              ...state.items.sublist(idx + 1),
+            ],
+            status: const StateIsSuccess(),
+          ),
+        );
+      }
       _reportInboxActivity();
     } catch (e) {
       _emitSnackError(e);
