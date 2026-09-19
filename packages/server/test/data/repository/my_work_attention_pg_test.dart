@@ -116,7 +116,13 @@ VALUES
         expect(result, hasLength(1));
         final projection = result.single;
         expect(projection.beaconId, _ownedBeaconId);
-        expect(projection.unseenCount, 5);
+        // CHANGED IN U10b (was 5 — every unseen receipt, obligations
+        // included). `unseenCount` is now the *optional* axis only: three
+        // uncleared news rows. The two obligations are not lost, they are
+        // counted by `liveObligations` below — D09 keeps the dot (optional)
+        // and the number (obligations) independent, and a field that summed
+        // both could only ever drive one of them correctly.
+        expect(projection.unseenCount, 3);
         expect(projection.latestUnseen?.id, 'Nmw01n3');
         expect(
           projection.liveObligations.map((receipt) => receipt.id).toList(),

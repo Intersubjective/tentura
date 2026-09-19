@@ -523,8 +523,18 @@ ORDER BY id
           accountId: _viewerId,
           view: AttentionFeedView.unread,
         );
-        expect(result.summary.unreadTotal, 0);
-        expect(result.page.items, isEmpty);
+        // CHANGED IN U10b (was 0 / empty). `markAllSeen` moves the *read*
+        // axis; the default list and its total now read *active attention*
+        // (D02). Reading a receipt no longer retires it — clearing does — so
+        // both uncleared receipts are still there, and still counted. The
+        // assertion that matters has not weakened: the number and the list
+        // agree (M1).
+        expect(result.summary.unreadTotal, 2);
+        expect(result.page.items.map((item) => item.id).toSet(), {
+          'Nvisible',
+          'Nvisible2',
+        });
+        expect(result.summary.unreadTotal, result.page.items.length);
       },
     );
 
