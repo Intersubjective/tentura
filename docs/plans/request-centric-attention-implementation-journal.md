@@ -10428,3 +10428,122 @@ harness artefact, not a regression, and it looks exactly like one.
 - **E11 same-kind coalescing** («3 новых сообщения») — issue #189, untouched and untested here.
 - **«Очистить всё» has an API and is wired on the grouped card only.** The pinned card has no clearable
   optional events by construction, so it passes no `onClearAll`.
+
+---
+
+## verify — U16b · For You stream integration (read-only) · 2026-09-20
+
+**Layer:** verify. **Range:** `0db36b78a..e42ea033c` (UNIT_BASE `76b0a4a56` not in tree; equivalent tip
+`0db36b78a` = pre-U16b journal). **Gates:** not re-run — manager and implementer both reported **3890 / 29
+skipped**, lints **30/30**.
+
+### DECISION_B
+
+Owner decision B (dismissible outcome tombstones) is **satisfied when the tombstone is the stream
+representative** — five independent widget tests in `activity_stream_view_test.dart` plus cubit-layer tests in
+`inbox_case_test.dart` (four status kinds + separate **helping** with empty cubit state). `InboxCubit.dismissTombstone`
+widened to `isDismissibleOutcome` and calls `InboxCase` even when `HelpOfferCreated` removed the inbox row.
+
+**Tension (documented, not a test gap):** when `forward` + `requestActivity` collide, `forYouStreamEntries`
+suppresses the tombstone and surfaces `RequestAttentionRelation` on the grouped card (issue-171 §9 matrix:
+grouped + «Слежу»/«Помогаю»). There is **no × on that outcome memory while the card is the representative**;
+dismissal is only on the standalone `TombstoneRow` path. That is an explicit product trade (correction 2), not
+an accident — but it is **not** integration-tested (no test taps × after suppression). `clearBeacon` on «Очистить
+всё» clears optional receipts, not `tombstone_dismissed_at`.
+
+### PER_KIND ×
+
+**Yes — five kinds, five named tests**, not one parameterised assertion body:
+
+- `activity_stream_view_test.dart`: `the helping tombstone has a × and it acts` … `the deleted tombstone has a ×
+  and it acts` (loop at ~766–817).
+- `inbox_case_test.dart`: `dismisses the watching/notInterested/closed/deleted outcome` + `dismisses the helping
+  outcome, whose row this cubit does not hold`.
+
+Mutations `the × no longer reaches the cubit` / guard revert are recorded in the inner journal and target all five.
+
+### CHANGED assertions (9 `// CHANGES IN U16b:`)
+
+| Location | Cited clause | Verdict |
+| --- | --- | --- |
+| `activity_stream_view_test.dart` pagination scroll | §5 Retire / taller card | **Stronger** — `scrollToEnd` loop replaces single fling that no longer reaches offers tail. |
+| `activity_stream_view_test.dart` itemKind dispatch | §5 Retire, correction 1(a), D-171-5b §6.2 | **Justified** — widget types + single `timeline` block. |
+| `activity_stream_view_test.dart` 1.3× first paint | §5 Retire §9 | **Stronger** — positive header, mini-card, note text before rect (scout trap). |
+| `activity_live_motion_test.dart` demotion ×2 | §5 Retire §8/§9 | **Justified** — type swaps only. |
+| `activity_live_motion_test.dart` snackbar scroll | §8 tombstone height | **Stronger** — settle scroll before measuring rect; old test could pass mid-animation on short row. |
+| `work_activity_first_paint_test.dart` | §5 Retire §9 | **Justified** — adds `RequestAttentionCard` assert; semantics id unchanged. |
+
+None fitted to implementation without spec hook.
+
+### VACUOUS
+
+**None found** in new/changed tests reviewed. `for_you_stream_entries_test.dart` pairs digest absence (positive
+`['r1']`) with `isInUnreadView(digest)` true. `request_attention_card_mapper_test.dart` asserts concrete beacon
+fields and note text. `one representative per Request across the whole surface` fails if suppression removed
+(`TombstoneRow` would appear).
+
+### SCOPE
+
+Diff touches only listed client paths + journal; **no** `inbox_screen.dart:261–283`, **no** retirement deletes,
+**no** E11 coalescing, **no** untouchables. Stream still imports `ActivityOfferCard` for **prompt** pins only.
+
+### GAPS
+
+1. **Suppressed outcome ×:** while grouped card represents a watching/helping Request, outcome dismissal has no UI
+   (chip is not dismiss). Accept if §9 grouped row supersedes B's separate tombstone; flag for owner if strict B
+   requires × even when chip visible.
+2. **Digest half in widget tests:** `isInUnreadView` pin lives in unit test only; widget dispatch cites it — OK
+   if both tests stay coupled in CI.
+
+**STATUS:** pass
+
+## manager — U16b accepted; one owner decision now needs the owner
+
+**Verdict: accepted.** Verify returned `pass` on the scout's chat. My independent gate: client **3890 passed,
+29 skipped** (baseline 3852/29 — +38 tests, skip count unmoved), `check-custom-lints.sh packages/client` at
+**30 (baseline 30)**. 19 mutations applied by the implementer, none survived.
+
+### The three corrections each earned their place
+
+**Correction 2 found a real server-contract gap.** I required the "one representative per Request" question to
+be *determined*, not left to "if needed". The answer: the server rules out three of the four collisions by
+explicit clauses and the fourth — `forward` + `requestActivity` — by nothing. I verified this against the stream
+union myself: a watching Request (`status = 1`, unpinned, not in scope) satisfies `eligible_forward` and passes
+both guards on the `requestActivity` branch. Resolved client-side with the collision matrix documented in
+`for_you_stream_entries.dart`, citing the server source.
+
+**Correction 3 was too narrow, and the implementer said so.** I framed it as widening a guard. In fact the
+helping outcome was unreachable under *any* guard: `HelpOfferCreated` removes the row from `InboxCubit` state,
+so its × hit an `indexWhere` miss and returned silently. Widening alone would have left it broken. Requiring
+all five kinds tested — rather than one representative — is what exposed it. Five widget tests plus five cubit
+tests now cover helping, watching, notInterested, closed and deleted independently.
+
+**Correction 1 landed as option (a)**, pinned by two unit tests: the digest is not drawn in the primary stream
+**and** keeps `isInUnreadView == true`. Placement, not a silent drop.
+
+### The thing this unit cannot decide for itself — issue #190
+
+Owner decision B and the card spec's one-representative rule now meet and disagree. When a Request is both
+watched/helped **and** active, U16b keeps the card and folds the outcome into the relation chip — so that
+outcome memory has **no ×**. The chip carries the information; it does not carry the affordance. With no
+grouped card, the tombstone and its × appear exactly as B describes, and all five outcome kinds are tested
+there.
+
+I accepted the unit rather than blocking it, because the alternative — rendering both — directly violates this
+unit's acceptance criterion, and nothing is lost that cannot be restored by a later choice. But **which of the
+two rules yields is the owner's call, not mine**, so it is filed as #190 with three options (accept as-is;
+strict B with a × in the card's overflow menu, since the pinned card deliberately carries no list-row ×; or a
+server-side exclusion making the collision impossible). This is the same handling as #189: scope decisions get
+escalated, not closed quietly.
+
+### Smaller notes
+
+- The implementer reported "the scout's CHANGED_TESTS table does not exist anywhere in the repo". That is
+  **wrong** — the scout's checkpoint is in this journal and the tests it named are real. No harm: the changes
+  were derived from the spec directly and all nine carry `// CHANGES IN U16b:` with a clause.
+- Two of the changed assertions were **latent weaknesses, not widget swaps**: a snackbar-scroll test that
+  measured mid-animation and passed only because the old row happened to be short, and a pagination test that
+  assumed one fling reaches the bottom. Both are genuinely stronger now, confirmed by verify.
+- **Harness trap, worth remembering:** the client suite must run with `packages/client` as the working
+  directory. From the repo root, 34 architecture/DI tests fail with `PathNotFoundException` and look exactly
+  like a regression.
