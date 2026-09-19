@@ -40,10 +40,10 @@ AttentionReceipt _event(int index) => AttentionReceipt(
 /// ignored it would repeat the head forever and the dedupe assertions below
 /// would fail rather than pass quietly.
 final class _PagingRepository extends AttentionRepositoryFake {
-  _PagingRepository({required this.total, this.pageSize = 20});
+  _PagingRepository({required this.total});
 
   final int total;
-  final int pageSize;
+  static const pageSize = 20;
   final List<({String? cursor, int limit})> calls = [];
 
   @override

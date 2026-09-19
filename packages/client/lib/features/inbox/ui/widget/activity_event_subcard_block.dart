@@ -127,6 +127,9 @@ class _ActivityEventSubcardBlockState extends State<ActivityEventSubcardBlock> {
     final moreCount = widget.eventTotal - visible.length;
 
     return Column(
+      // The block hugs its rows: under loose constraints a `max` column ate
+      // the whole viewport, which is not a height ceiling at all.
+      mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         for (final receipt in visible)
