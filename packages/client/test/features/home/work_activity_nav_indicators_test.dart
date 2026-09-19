@@ -452,7 +452,7 @@ void main() {
     });
   });
 
-  group('tab icons — one badge slot, count first (§6)', () {
+  group('tab icons — dot and number are independent (§6, D09)', () {
     late _Accounts accounts;
     late _SurfaceRepository repository;
 
@@ -499,7 +499,11 @@ void main() {
       return boot.home;
     }
 
-    testWidgets('the count takes the slot while obligations are live', (
+    // CHANGES IN U15R-c (was: "the count takes the slot while obligations
+    // are live", asserting the dot was suppressed). That came from the U14c
+    // brief's paraphrase, not from the contract: §6 and D09 both say the dot
+    // and the number are independent and appear together (R7).
+    testWidgets('the dot and the number appear together', (
       tester,
     ) async {
       repository.surfaceSummaryValue = const AttentionSurfaceSummary(
@@ -510,14 +514,14 @@ void main() {
       final home = await pumpNav(tester, activeTab: HomeTab.work);
 
       expect(find.text('3'), findsOneWidget);
+      expect(find.byKey(MyWorkNavbarItem.countKey), findsOneWidget);
+      expect(find.byKey(MyWorkNavbarItem.dotKey), findsOneWidget);
       expect(
         find.bySemanticsLabel(
-          lookupL10n(const Locale('en')).myWorkNavBadgeObligations(3),
+          RegExp(lookupL10n(const Locale('en')).myWorkNavBadgeObligations(3)),
         ),
         findsOneWidget,
       );
-      // The Request-level dot is not lost — the state still reports it, which
-      // is what the card indicators render (D09). The tab has one slot.
       expect(home.state.showRedesignMyWorkUnreadDot, isTrue);
     });
 
@@ -534,6 +538,8 @@ void main() {
       expect(home.state.showRedesignMyWorkUnreadDot, isTrue);
       // My Work carries the dot; Activity is clear, so exactly one Badge.
       expect(find.byType(Badge), findsOneWidget);
+      expect(find.byKey(MyWorkNavbarItem.dotKey), findsOneWidget);
+      expect(find.byKey(MyWorkNavbarItem.countKey), findsNothing);
     });
 
     testWidgets('the Activity dot shows while Activity is the open tab', (

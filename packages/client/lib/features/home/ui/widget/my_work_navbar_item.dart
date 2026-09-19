@@ -10,9 +10,22 @@ typedef _MyWorkNavBadgeView = ({
   bool showUnreadDot,
 });
 
-/// My Work tab icon with live-obligation count or unread dot.
+/// My Work tab icon: live-obligation count **and** unread dot.
+///
+/// R7 — this used to `return` as soon as it had a number to show, so a
+/// Request with both indicators lit only one of them on the tab above it.
+/// `docs/features/request-attention.md` §6 and design-plan D09 both say the
+/// two are independent and appear together; the same rule already holds one
+/// level down in `RequestAttentionIndicators`, and a tab that disagreed with
+/// the cards under it is the M1 failure in miniature.
+///
+/// The two slots are placed apart rather than stacked: the number keeps the
+/// conventional trailing corner, the dot takes the leading one.
 class MyWorkNavbarItem extends StatelessWidget {
   const MyWorkNavbarItem({super.key, this.selected = false});
+
+  static const dotKey = ValueKey('my-work-nav-dot');
+  static const countKey = ValueKey('my-work-nav-count');
 
   final bool selected;
 
@@ -27,37 +40,41 @@ class MyWorkNavbarItem extends StatelessWidget {
       ),
       builder: (context, view) {
         final scheme = Theme.of(context).colorScheme;
-        final icon = Icon(selected ? Icons.work : Icons.work_outline);
+        final count = view.obligationCount;
+        Widget badged = Icon(selected ? Icons.work : Icons.work_outline);
 
+        if (view.showUnreadDot) {
+          badged = Badge(
+            key: dotKey,
+            alignment: AlignmentDirectional.topStart,
+            isLabelVisible: true,
+            backgroundColor: scheme.primary,
+            child: badged,
+          );
+        }
         if (view.showObligationBadge) {
-          final count = view.obligationCount;
-          final badge = Badge(
+          badged = Badge(
+            key: countKey,
             label: Text('$count'),
             isLabelVisible: true,
             backgroundColor: selected ? scheme.onPrimary : scheme.primary,
             textColor: selected ? scheme.primary : scheme.onPrimary,
-            child: icon,
-          );
-          return Semantics(
-            label: l10n.myWorkNavBadgeObligations(count),
-            excludeSemantics: true,
-            child: badge,
+            child: badged,
           );
         }
-
-        if (view.showUnreadDot) {
-          return Semantics(
-            label: l10n.activityNavBadgeNewActivity,
-            identifier: 'my-work-surface-unread-dot',
-            child: Badge(
-              isLabelVisible: true,
-              backgroundColor: scheme.primary,
-              child: icon,
-            ),
-          );
+        if (!view.showUnreadDot && !view.showObligationBadge) {
+          return badged;
         }
 
-        return icon;
+        return Semantics(
+          label: [
+            if (view.showObligationBadge) l10n.myWorkNavBadgeObligations(count),
+            if (view.showUnreadDot) l10n.activityNavBadgeNewActivity,
+          ].join(', '),
+          identifier: view.showUnreadDot ? 'my-work-surface-unread-dot' : null,
+          excludeSemantics: true,
+          child: badged,
+        );
       },
     );
   }

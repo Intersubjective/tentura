@@ -129,7 +129,9 @@ Future<void> _pumpNavItem(
 }
 
 String? _badgeLabelText(WidgetTester tester) {
-  final badge = tester.widget<Badge>(find.byType(Badge));
+  final badge = tester.widget<Badge>(
+    find.byKey(MyWorkNavbarItem.countKey),
+  );
   final label = badge.label;
   if (label is Text) return label.data;
   return null;
@@ -164,6 +166,7 @@ void main() {
 
     expect(find.byType(Badge), findsOneWidget);
     expect(_badgeLabelText(tester), '4');
+    expect(find.byKey(MyWorkNavbarItem.dotKey), findsNothing);
     await tester.pumpWidget(const SizedBox.shrink());
     unawaited(home.close());
   });
@@ -184,6 +187,53 @@ void main() {
 
     expect(find.byType(Badge), findsOneWidget);
     expect(_badgeLabelText(tester), '2');
+    await tester.pumpWidget(const SizedBox.shrink());
+    unawaited(home.close());
+  });
+
+  /// R7 — §6 and D09: "Dot and number are independent: a Request with both
+  /// shows both, and a tab shows its dot whether or not it also shows a
+  /// number." The navbar used to return as soon as it had a number.
+  testWidgets('shows the dot and the number together', (tester) async {
+    repository.surfaceSummaryValue = const AttentionSurfaceSummary(
+      activityUnreadTotal: 0,
+      myWorkUnreadTotal: 5,
+      needsYouTotal: 2,
+    );
+    final home = await _bootHome(
+      accounts: accounts,
+      repository: repository,
+      tester: tester,
+    );
+    home.setActiveHomeTab(HomeTab.work);
+    await _pumpNavItem(tester, home);
+
+    expect(find.byKey(MyWorkNavbarItem.countKey), findsOneWidget);
+    expect(_badgeLabelText(tester), '2');
+    expect(
+      find.byKey(MyWorkNavbarItem.dotKey),
+      findsOneWidget,
+      reason: 'the dot does not hide behind the number (§6, D09)',
+    );
+    await tester.pumpWidget(const SizedBox.shrink());
+    unawaited(home.close());
+  });
+
+  testWidgets('shows the dot alone when nothing is owed', (tester) async {
+    repository.surfaceSummaryValue = const AttentionSurfaceSummary(
+      activityUnreadTotal: 0,
+      myWorkUnreadTotal: 3,
+      needsYouTotal: 0,
+    );
+    final home = await _bootHome(
+      accounts: accounts,
+      repository: repository,
+      tester: tester,
+    );
+    await _pumpNavItem(tester, home);
+
+    expect(find.byKey(MyWorkNavbarItem.dotKey), findsOneWidget);
+    expect(find.byKey(MyWorkNavbarItem.countKey), findsNothing);
     await tester.pumpWidget(const SizedBox.shrink());
     unawaited(home.close());
   });
