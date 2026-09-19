@@ -6539,3 +6539,65 @@ deterministic (a 60 ms listener delay) instead of hoping to reproduce it, fixed 
 Net effect on the remaining plan: the gate drops from ~12.6 to ~4.2 minutes, about **75 minutes** saved over the
 remaining units.
 
+---
+
+## UNIT U10d — VERIFY (2026-09-19)
+
+**Layer:** verify (read-only). **UNIT_BASE:** `0319588bc`. **Range:** `ac7134e37` · `eadb255fa` ·
+`ba70e6f5f` · `287447d62` · `f2d92342b` · `3c79b56d1` · `ce69b7159`.
+
+**Privacy (executed).** Authz PG suite green at `-j 4` (5 cases). Throwaway mutation script (not
+committed) re-applied `m0188` without the `block_hides` senders-CTE clause → `totalDistinctSenders` and
+`senders[]` leaked the blocked id; the live authz assertions would fail (non-vacuous). Patched
+`beacon_can_read_content` to always true → unreadable tombstone row gained `provenanceJson`; live unreadable
+case would fail. **Inbox gap confirmed in execution:** `inbox_item_inbox_provenance_data` (delegation
+`p_exclude_blocked = false`) still returns the blocked sender’s name, note, and count 2 while the attention
+attach path (`true`) returns count 1 — not a misread; product decision still required.
+
+**Inbox byte-identical.** `inbox_repository_test.dart` → `+9` at `-j 4`; both m0100/m0103 provenance cases
+run (not skipped); `_provenanceImplSource` follows delegation.
+
+**Gate.** Combined U10d attention + inbox + m0187 + constellation anchor PG files at `-j 4` → `00:40 +237`.
+Full `dart test --tags pg -j 4` → `04:10 +1011 ~24` (24 = historical migration skips only).
+
+**Verifier verdict:** pass. **Gap (product, not U10d defect):** Inbox forward provenance still does not apply
+`block_hides`; attention does.
+
+
+### Manager verdict — U10d · **ACCEPTED** (hard; no scout by design / inner Opus-low ✓ / verify pass / one remediation) — U10 complete
+
+Overseer's gate: **1688 non-PG**, **1011 PG / 24 known skips** (4m09s at `-j 4`). Commits `ac7134e37` ·
+`eadb255fa` · `ba70e6f5f` · `287447d62` · `f2d92342b` · `3c79b56d1` · `ce69b7159`. New migration **m0188**.
+
+**Privacy held, and was proven able to fail.** A blocked forwarder and a forwarder on an unreadable Request are
+absent from `senders[]` **and** from `totalDistinctSenders` — filtered inside the `senders` CTE rather than in
+the projection, so the list and the count cannot disagree. Loosening the block wall in a throwaway copy
+reproduces the leak (count 2, blocked id present), and forcing `beacon_can_read_content` true yields provenance
+on a tombstone row. The exclusions are real, not vacuous.
+
+**A pre-existing privacy defect was found and correctly *not* fixed here.** `inbox_item_inbox_provenance_data`
+has never applied `block_hides` — m0100 introduced it, m0103 extended it, neither filters blocked senders, and
+the block wall used in m0170–m0174 was simply never wired to this path. The inner layer preserved Inbox
+behaviour byte-identical and exposed the choice as `p_exclude_blocked` (Inbox `false`, attention `true`) rather
+than changing what users see inside a plumbing refactor. Demonstrated on one fixture: Inbox returns the blocked
+sender's name, note and `totalDistinctSenders: 2`; attention returns 1. **Filed as
+[#188](https://github.com/Intersubjective/tentura/issues/188)** at the owner's instruction, with the list/count
+question separated because they are separable decisions.
+
+**The most instructive failure of the session happened here, and it was not a test going red.** The m0188
+delegation broke two probes — `_hasM0100Provenance` and `_hasM0103Provenance` grep the *text* of the SQL
+function body — which **silently skipped** the two tests that U10d's own journal cited as proof the Inbox path
+was unchanged. Nothing failed; a claim simply lost its evidence. It was caught only because the full-sweep skip
+count moved 24 → 26. The remediation fixed both probes, the un-skipped tests **pass** (so the claim holds), and
+`_hasM0102TombstoneFunction` is flagged as the same shape awaiting the same fate.
+
+**A new deployment dependency:** the attention read path now reaches MeritRank (`mr_mutual_scores`) for note
+ranking. Three existing suites had never installed pgmer2 because nothing in that path previously needed it.
+Environments without pgmer2 will not serve the For You card.
+
+**Why this unit existed at all:** the overseer dropped the §0.1a card prerequisite when splitting U10 into
+predicate / axis / ordering. Third orchestrator error of the session, same mechanism as the other two — context
+lost in a bulk or structural operation. Rule adopted: after splitting a unit, re-read the original text for
+themes, never rely on memory of what it contained.
+
+---
