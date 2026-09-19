@@ -57,6 +57,22 @@ final class FeedSessionRegistry {
     }
   }
 
+  /// Commits several sessions as **one** move: every session is in place
+  /// before any listener is notified, so no observer can see a Request
+  /// already dropped by one destination and not yet gained by another.
+  void updateAll(Map<String, AttentionFeedSession> next) {
+    for (final entry in next.entries) {
+      _ensureSession(entry.key);
+      _sessions[entry.key] = entry.value;
+    }
+    for (final entry in next.entries) {
+      final controller = _streams[entry.key];
+      if (controller != null && !controller.isClosed) {
+        controller.add(entry.value);
+      }
+    }
+  }
+
   AttentionFeedSession _ensureSession(
     String destinationId, [
     AttentionFeedSession? seed,

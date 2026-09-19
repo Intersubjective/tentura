@@ -86,6 +86,12 @@ final class AttentionCase {
       );
   final Map<String, AttentionReceipt> _receiptsById = {};
 
+  /// Requests whose projections a **projection owner** outside this case (My
+  /// Desk cards, the Activity pinned zone) must re-read. The case owns
+  /// attention state; it does not own those screens' rows, so a move or an
+  /// outcome is announced here rather than guessed at by each screen.
+  final _requestInvalidations = StreamController<String>.broadcast();
+
   /// Children carried inside a grouped row's `eventsPreview`. They are kept
   /// apart from [_receiptsById] on purpose: a child is addressable (a × can
   /// clear it, a delta can be attributed to its surface) but it is not a
@@ -128,6 +134,11 @@ final class AttentionCase {
 
   Stream<AttentionFeedSnapshot> get feedPages => _snapshot.stream;
 
+  Stream<String> get requestInvalidations => _requestInvalidations.stream;
+
+  AttentionSurfaceSummary get surfaceSummarySnapshot =>
+      _surfaceSummarySubject.value;
+
   AttentionFeedSnapshot get snapshot => _snapshot.value;
 
   AttentionFeedSession feedSession(String destinationId) =>
@@ -151,6 +162,9 @@ final class AttentionCase {
           RealtimeEntityKind.notification,
           RealtimeEntityKind.helpOffer,
           RealtimeEntityKind.inboxItem,
+          // A Request can change hands, and with it the surface it belongs
+          // to. That is a beacon-level fact, not a receipt-level one (D14).
+          RealtimeEntityKind.beacon,
         })
         .listen(_onRealtimeEntityChange);
     _catchUpSub = _realtime.catchUps.listen((_) {
@@ -164,13 +178,103 @@ final class AttentionCase {
   }
 
   void _onRealtimeEntityChange(RealtimeEntityChange change) {
-    unawaited(_requestSurfaceSummaryRefresh());
-    if (change.kind == RealtimeEntityKind.helpOffer ||
-        change.kind == RealtimeEntityKind.inboxItem) {
-      _requestHeadRefreshForAttachedActivityStream();
-    } else {
-      _requestHeadRefreshForAllAttached();
+    switch (change.kind) {
+      case RealtimeEntityKind.beacon:
+        // A surface move: the feed page and the surface counters have to
+        // change together, so they are fetched together and committed once.
+        _invalidateRequest(change.aggregateId);
+        unawaited(_refreshAcrossSurfaces());
+      case RealtimeEntityKind.helpOffer:
+      case RealtimeEntityKind.inboxItem:
+        // Responsibility can flip either way here, so My Desk owners are
+        // told even though only the Activity stream has a feed session.
+        _invalidateRequest(change.aggregateId);
+        unawaited(_requestSurfaceSummaryRefresh());
+        _requestHeadRefreshForAttachedActivityStream();
+      // ignore: no_default_cases
+      default:
+        // Clear state and outcome generation arrive as notification hints;
+        // the affected Request rides on the NOTIFY extras.
+        _invalidateRequest(change.childId);
+        unawaited(_requestSurfaceSummaryRefresh());
+        _requestHeadRefreshForAllAttached();
     }
+  }
+
+  void _invalidateRequest(String? beaconId) {
+    if (beaconId == null || beaconId.isEmpty) return;
+    if (_requestInvalidations.isClosed) return;
+    _requestInvalidations.add(beaconId);
+  }
+
+  /// Re-reads every attached feed destination **and** the surface summary,
+  /// then commits them in one synchronous move.
+  ///
+  /// Doing it in two steps is what would produce the state D14 forbids: a
+  /// moment where the Request is still on the old surface and already counted
+  /// on the new one, or gone from one and not yet in the other.
+  Future<void> _refreshAcrossSurfaces() async {
+    if (_accountId.isEmpty) return;
+    final destinations = _feedSessions.attachedDestinationIds.toList(
+      growable: false,
+    );
+    if (destinations.isEmpty) {
+      unawaited(_requestSurfaceSummaryRefresh());
+      _requestHeadRefreshForAllAttached();
+      return;
+    }
+    final accountGeneration = _accountGeneration;
+    final mutationSerial = _mutationSerial;
+    final summarySerial = ++_surfaceSummaryRequestSerial;
+    final requested = [
+      for (final destinationId in destinations)
+        (
+          destinationId: destinationId,
+          session: _feedSessions.session(destinationId),
+        ),
+    ];
+    final summaryFuture = _repository.surfaceSummary();
+    final pageFutures = [
+      for (final request in requested)
+        _repository.fetch(
+          view: request.session.activeView,
+          search: request.session.normalizedSearch,
+          surface: surfaceForDestination(request.destinationId),
+        ),
+    ];
+    final AttentionSurfaceSummary summary;
+    final List<AttentionFeed> feeds;
+    try {
+      summary = await summaryFuture;
+      feeds = await Future.wait(pageFutures);
+    } catch (error, stackTrace) {
+      _logger.warning('Attention surface move refresh failed', error, stackTrace);
+      return;
+    }
+    if (accountGeneration != _accountGeneration) return;
+    if (mutationSerial != _mutationSerial) return;
+    if (summarySerial != _surfaceSummaryRequestSerial) return;
+    final next = <String, AttentionFeedSession>{};
+    AttentionSummary? feedSummary;
+    for (var i = 0; i < requested.length; i++) {
+      final request = requested[i];
+      final landed = _feedSessions.session(request.destinationId);
+      if (landed.requestGeneration != request.session.requestGeneration) {
+        continue;
+      }
+      next[request.destinationId] = _composePage(
+        landed,
+        feeds[i],
+        view: request.session.activeView,
+        replaceHead: true,
+      );
+      feedSummary ??= feeds[i].summary;
+    }
+    _feedSessions.updateAll(next);
+    if (!_surfaceSummarySubject.isClosed) {
+      _surfaceSummarySubject.add(summary);
+    }
+    if (feedSummary != null) _emitFeedSummary(feedSummary);
   }
 
   void _onAccountChanged(String accountId) {
@@ -599,6 +703,9 @@ final class AttentionCase {
     } finally {
       _mutationSerial++;
       if (generation == _accountGeneration) {
+        _invalidateRequest(
+          beaconId ?? (receiptId == null ? null : _knownReceipt(receiptId)?.beaconId),
+        );
         _requestHeadRefreshForAllAttached();
         unawaited(_requestSurfaceSummaryRefresh());
       }
@@ -877,6 +984,27 @@ final class AttentionCase {
     required bool replaceHead,
   }) {
     final session = _feedSessions.session(destinationId);
+    _feedSessions.update(
+      destinationId,
+      _composePage(session, feed, view: view, replaceHead: replaceHead),
+    );
+    _emitFeedSummary(feed.summary);
+    if (replaceHead) {
+      _recordQaHeadRefreshLatency(
+        _feedSessions.session(destinationId).pages[view]?.items ?? const [],
+        DateTime.now().toUtc(),
+      );
+    }
+  }
+
+  /// Builds the next session for one destination **without** committing it,
+  /// so several destinations can be committed together.
+  AttentionFeedSession _composePage(
+    AttentionFeedSession session,
+    AttentionFeed feed, {
+    required AttentionView view,
+    required bool replaceHead,
+  }) {
     final oldPage = session.pages[view];
     for (final receipt in feed.page.items) {
       _receiptsById[receipt.id] = receipt;
@@ -893,26 +1021,23 @@ final class AttentionCase {
         items: items,
         nextCursor: feed.page.nextCursor,
       );
-    _feedSessions.update(
-      destinationId,
-      session.copyWith(
-        pages: pages,
-        headRefreshError: null,
-      ),
+    return session.copyWith(
+      pages: pages,
+      headRefreshError: null,
     );
+  }
+
+  void _emitFeedSummary(AttentionSummary summary) {
     _emit(
       snapshot.copyWith(
-        summary: feed.summary.copyWith(
+        summary: summary.copyWith(
           unreadTotal: math.max(
             0,
-            feed.summary.unreadTotal + _acks.pendingUnreadDelta(_receiptsById),
+            summary.unreadTotal + _acks.pendingUnreadDelta(_receiptsById),
           ),
         ),
       ),
     );
-    if (replaceHead) {
-      _recordQaHeadRefreshLatency(items, DateTime.now().toUtc());
-    }
   }
 
   Future<void> _runAfterAckBarriers(
@@ -1147,6 +1272,7 @@ final class AttentionCase {
     await _catchUpSub?.cancel();
     await _blockSub?.cancel();
     await _qaLatencySamples?.close();
+    await _requestInvalidations.close();
     await _snapshot.close();
     await _surfaceSummarySubject.close();
   }
