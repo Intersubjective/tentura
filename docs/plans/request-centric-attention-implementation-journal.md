@@ -4178,3 +4178,391 @@ is blocked), and m0182 corrects m0178's `COMMENT`, which claimed `cleared_by_ope
 and open clears — every clear is operation-backed, which is what makes replay idempotent and U09's undo possible.
 
 ---
+
+## UNIT U09 — Outcomes, sweep, undo · SCOUT BRIEF (2026-09-19)
+
+**Layer:** scout (read-only). **Base:** `062c4e872` (U08 accepted). **Tag:** hard.
+
+### Live baseline (what U08 already gives U09)
+
+| Piece | Location | Reuse for U09 |
+|---|---|---|
+| Operation header + counters | `attention_clear_operation` (`m0178`) | Same table; `surface` = `'activity'` (or frozen string) for sweep; set `undo_deadline` on first commit |
+| Fixed membership + replay | `attention_clear_operation_member` + `AttentionClearRepository._replay` | Same idempotency story (`INSERT … ON CONFLICT DO NOTHING` on op id; membership never extended) |
+| Optional receipt clear | `UPDATE notification_outbox SET cleared_at, clear_reason='sweep', cleared_by_operation_id` | Same apply primitive; U08 uses `explicit` / `request_open` |
+| Capture predicate (receipts) | `AttentionClearRepository._eligibleReceipts` | **Subset** of sweep receipt members: activity-surface optionals only (see SQL below) |
+| Token capture | `AttentionClearSnapshotToken` + `captureEligible` | **Single-Request / finite list only** — sweep does **not** use this token; server-side capture at `attentionDismissAll` start |
+| Outcome identity (read) | `attention_request_state.outcome_generation`, `decision_revision` | Read at capture; **U09 is first writer** — must bump `decision_revision` on inbox stance transitions and maintain `outcome_generation` when the visible outcome identity changes |
+| Outcome hide (read path) | `inbox_item.tombstone_dismissed_at` + `dismissed_tombstone` CTE in `attention_repository.dart:286–291` | Feed already hides dismissed **closed/deleted** tombstones; trigger `inbox_item_guard_tombstone` **only allows** `tombstone_dismissed_at` when `status IN (3,4)` (`m0024.dart:44–47`) — **blocks helping/watching/notInterested dismissal today** |
+| Client tombstone dismiss | Hasura `InboxTombstoneDismiss` → `update_inbox_item` (`inbox_tombstone_dismiss.graphql`) | **Not** a v2 attention mutation; U09 should add **server** dismiss path (D11) — client wiring is U16 |
+| `attentionDismissAll` / `attentionUndo` | — | **Not implemented** (manifest §0.2 names only) |
+
+**U08 vs sweep — what generalises, what must differ**
+
+| Concern | U08 `attentionClear` | U09 sweep |
+|---|---|---|
+| Capture | Client-held token; ≤500 receipt ids (`maxMembers`) | **Server** scans full authorized **activity** surface (no page cursor); may exceed 500 → **batched member insert + batched apply** |
+| Members | Receipt ids only | **Two member kinds:** (1) optional `notification_outbox` rows, (2) **outcome rows** keyed by `beacon_id` (synthetic `inbox:<beacon_id>` stream items) |
+| Scope | One `beaconId` (or one receipt) | All dismissible attention on surface; **skip** My Desk–owned Requests' obligations and **unanswered** pinned forwards |
+| `surface` column | `explicit`, `request_open`, or `beacon:<id>` | Constant e.g. `activity` for dismiss-all |
+| Resume | Single transaction today | **Required:** re-enter by `operationId`; process members in `pending`/`failed` batches; counters `applied/skipped/failed` authoritative |
+| Outcome clear | **Not applied** in U08 | Must clear captured **outcome generation** per Request (D07), not only receipts |
+
+### Owner decision A in SQL — “rows that carry their own ×”
+
+Express as the **union** of two dismissible sets minus hard exclusions. This is the safety margin; implement as one shared SQL function or CTE used by **capture**, **apply re-check**, and (later U10) **eligibility** — do not fork predicates.
+
+**Shared prelude** (mirror `attention_repository.dart` `_visibleWithSurfaceCte` + `_activityGroupingCtes`):
+
+- `visible` = authorized receipts + `surface` (`myWork` vs `activity`) via `responsibility_scope_base_beacons` + live obligations in `scope`.
+- `eligible_pinned` = **unanswered forward awaiting decision** = `inbox_item` with `status = 0`, `tombstone_dismissed_at IS NULL`, `beacon_id NOT IN scope`, readable (`attention_repository.dart:246–254`).
+
+**Set R — dismissible optional receipts (receipt axis)**
+
+```sql
+-- Pseudonym: activity_optional_dismissible
+SELECT o.id AS receipt_id, o.beacon_id
+FROM visible v
+JOIN notification_outbox o ON o.id = v.id
+WHERE v.surface = 'activity'
+  AND NOT o.requires_action
+  AND o.cleared_at IS NULL
+  -- Exclude synthetic forward shell: relay_received rows are inbox-synthesized, not outbox
+  AND o.presentation_key IS DISTINCT FROM 'relay_received'
+```
+
+Includes: standalone activity receipts (`beacon_id IS NULL`), child optional events on grouped cards, profile/network optionals on For You, timeline-only items that surface on activity. **Excludes:** all obligations (`requires_action`), anything already `cleared_at`.
+
+**Set O — dismissible outcome tombstones (inbox axis, decision B)**
+
+```sql
+-- Pseudonym: activity_outcome_dismissible
+SELECT ii.beacon_id,
+       COALESCE(ars.outcome_generation, 0) AS outcome_generation,
+       COALESCE(ars.decision_revision, 0) AS decision_revision
+FROM inbox_item ii
+JOIN … -- same visibility rules as eligible_forward (attention_repository.dart:255–279)
+LEFT JOIN attention_request_state ars
+  ON ars.account_id = ii.user_id AND ars.beacon_id = ii.beacon_id
+WHERE ii.user_id = $account
+  AND ii.tombstone_dismissed_at IS NULL
+  AND ii.beacon_id NOT IN (SELECT beacon_id FROM eligible_pinned)  -- NOT unanswered forward
+  AND (
+    ii.beacon_id IN (SELECT beacon_id FROM scope)           -- helping (status 0 in scope)
+    OR ii.status IN (1, 2, 3, 4)                            -- watching, notInterested, terminals
+  )
+```
+
+**Hard exclusions (never in capture, never cleared on apply even if tampered into a token)**
+
+| Exclusion | SQL / rule |
+|---|---|
+| Unanswered forward | `beacon_id IN eligible_pinned` |
+| Live obligation receipts | `requires_action AND settlement_kind IS NULL` |
+| Request now My Desk–owned | At apply: `beacon_id IN scope` ⇒ **skip** optional clears that would hide work owned on My Desk (D07: “Request now owned by My Desk — skip”) — *optional* receipts on that beacon may still be skipped as a unit with the card |
+| Pending prompt (no ×) | **No dedicated prompt row in `attention_repository.dart` today.** Until classified events exist, predicate is “nothing that is `requires_action` or `eligible_pinned`.” When prompts ship, contract must mark them `clearPolicy: forbidden` and they fall out of Set R automatically |
+
+**Predicate precision:** The margin between unanswered forward and answered outcome is **exactly** `eligible_pinned` vs `eligible_forward` minus pinned. If a beacon is both “needs me” (`status=0`, not in scope) and has optional child receipts, only the **forward row** is non-dismissible; card optionals remain in Set R.
+
+**Watching digest** (`watching-digest` item, `attention_repository.dart:465–515`): not a separate stance change; dismissible members are the **underlying uncleared optional receipts** on watching beacons (Set R), not the digest shell id.
+
+### `tombstone_dismissed_at` vs `cleared_at` — keep both axes
+
+| Axis | Stores | Used for |
+|---|---|---|
+| `notification_outbox.cleared_at` | Optional **receipt** attention (D02) | Event ×, card optional set, network optionals, sweep receipt members |
+| `inbox_item.tombstone_dismissed_at` | **Outcome row** hide (presentation trace of inbox stance) | Answered-forward tombstones in stream SQL |
+
+**Do not** move outcome dismissal onto `cleared_at` — there is no outbox row for `inbox:<beacon_id>`. Sweep must **commit both** in one operation per Request batch: receipt clears + outcome dismiss for captured beacon ids.
+
+**Migration required:** relax `inbox_item_guard_tombstone` so `tombstone_dismissed_at` can be set for **all** outcome statuses in Set O (not only 3/4). Index `ii_user_tombstone_visible` may need widening (currently `status IN (3,4)` only, `m0024.dart:136–138`).
+
+### `attention_request_state` — first writer (U09) vs U10
+
+| Field | U09 responsibility | U10 consumption |
+|---|---|---|
+| `outcome_generation` | Bump when visible outcome identity changes (stance transition, terminal tombstone, new forward generation that replaces outcome row). Capture stores generation on each outcome member; apply dismisses only if live generation **equals** captured | Dot / “uncleared outcome” predicate (D09) |
+| `decision_revision` | Bump on every inbox **decision** (`setStatus`, restore, help-offer path that changes forward stance). Undo/skip if live revision ≠ captured | Conservative undo + “someone else decided” detection |
+| `first_entry_at` | May **lazy-init** on first For You appearance or first state write; stable ordering anchor | D08 ordering — **U10 owns sort keys**, but needs this column populated |
+
+U09 does **not** rewrite `attention_repository.dart` feed projections (UNTOUCHABLE for indicator work); it **must** still write state so U10 predicates and undo have data. Tests assert DB + mutations; feed omission for outcomes can be tested via existing `attention_activity_stream_pg_test.dart` patterns once dismissal works for status 1/2/helping.
+
+### Operation members without a receipt — manifest tension
+
+`attention_clear_operation_member.receipt_id` is **NOT NULL** with FK → `notification_outbox` (`m0178`). Outcome-only members have **no** receipt id. **Stop-and-amend §0.1** unless implementer chooses one of:
+
+1. **Recommended:** amend member table: nullable `receipt_id`, add `member_kind` (`receipt` \| `outcome`), CHECK one of (`receipt_id`, `beacon_id`) for outcomes, partial unique `(operation_id, beacon_id)` for outcome members.
+2. **Alternative:** store outcome undo only on `attention_request_state` + operation audit json — **conflicts** with frozen member shape.
+
+Denied ids stay **unstored** (U08); outcome members use `beacon_id` + generations on the member row.
+
+### Undo (D13) — what to store; do not use `markUnseen`
+
+**Window:** set `attention_clear_operation.undo_deadline` = now() + 30s on first successful apply (server-enforced).
+
+**Restore payload per member kind:**
+
+| Kind | Apply | Undo (if guards pass) |
+|---|---|---|
+| Receipt | Sets `cleared_at`, `clear_reason`, `cleared_by_operation_id` | `cleared_at/clear_reason/cleared_by_operation_id` → NULL **only if** `cleared_by_operation_id = operationId` and receipt still visible + optional |
+| Outcome | Sets `inbox_item.tombstone_dismissed_at` | Set `tombstone_dismissed_at` → NULL **only if** `decision_revision` and `outcome_generation` still match member snapshot |
+
+**Guards (skip member, report partial):** authorization lost; live `decision_revision` ≠ captured; live `outcome_generation` ≠ captured for outcomes; another operation cleared the same receipt; obligation settled; domain transition (help accepted elsewhere, review submitted, terminal state change).
+
+**`markUnseen`** (`attention_repository.dart:1182–1222`) is the **read** axis and refuses when an unseen sibling shares `dedup_key`. **Wrong tool for undo** after U05a immutable receipts — undo must reverse **`cleared_*`**, not `seen_at`. Do not call `markUnseen` from undo.
+
+**Undo token:** return opaque `undoToken` bound to `operationId` + account (same philosophy as snapshot token: bind account, do not trust client).
+
+### Extend U08 apply path vs new case
+
+- **Single outcome dismiss** (replaces Hasura for D11): extend `AttentionClearPort` / repository with `captureOutcome(beaconId)` + apply branch, or `attentionClear` token with **empty `receiptIds`** but `beaconId` + generations — must still write operation + members.
+- **`attentionDismissAll(surface, operationId)`:** new case method: phase 1 capture all Set R ∪ Set O into operation + members (chunked); phase 2 batch apply with per-beacon recheck; return `{applied, skipped, failed, status, undoToken?, undoDeadline?}`; resume if header exists.
+- **`attentionUndo(operationId, undoToken)`:** reverse eligible members only.
+
+GraphQL: `mutation_attention.dart` + types in `custom_types.dart` / `query_attention.dart` for progress poll if needed.
+
+Wire **`decision_revision` bumps** into server inbox write paths (`inbox_repository.setStatus`, forward/help flows) — otherwise undo cannot detect Restore / re-pin.
+
+### Race scenarios — observable outcomes
+
+| Scenario | Outcome |
+|---|---|
+| Forward **answered** after capture listed unanswered forward | **Impossible** if capture excludes `eligible_pinned` — forward was not a member |
+| Forward **answered** after capture listed outcome tombstone | At apply, outcome generation/revision changed → **skip** outcome member; pinned forward **appears** (correct) |
+| **Restore** notInterested during sweep | `decision_revision` bump → outcome member **skipped**; restore stands |
+| Request gains **My Desk** responsibility during sweep | Receipt/outcome members for that beacon **skipped** at apply (D07) |
+| New optional receipt after capture | Not in membership → **stays uncleared** |
+| Resumed sweep after timeout | **Same** membership; ineligible members → `skipped`; never extend set |
+| Undo after another device cleared same receipt | `cleared_by_operation_id` ≠ op → **skip** receipt |
+| Undo after another user’s stance change | revision mismatch → **skip** outcome |
+| Undo after expired deadline | **Denied** whole or per-member |
+
+### TEST_CMD (implementer — affected suites only)
+
+```bash
+cd /home/vader/MY_SRC/tentura/packages/server && ../../scripts/run_with_test_cleanup.sh --timeout 25m -- \
+  dart test --tags pg -j 1 \
+    test/data/repository/attention_clear_operation_pg_test.dart \
+    test/data/repository/attention_dismiss_sweep_pg_test.dart
+
+cd /home/vader/MY_SRC/tentura/packages/server && ../../scripts/run_with_test_cleanup.sh --timeout 15m -- \
+  dart test --tags pg -j 1 test/data/repository/attention_activity_stream_pg_test.dart
+
+cd /home/vader/MY_SRC/tentura/packages/server && ../../scripts/run_with_test_cleanup.sh --timeout 10m -- \
+  dart test test/api/controllers/graphql/attention_graphql_test.dart
+```
+
+(`attention_dismiss_sweep_pg_test.dart` — **new** — sweep ≥3 pages, all outcome kinds, resume, undo conflicts; extend clear PG suite for outcome dismiss + undo.)
+
+Overseer runs full server suite independently.
+
+### UNTOUCHABLE (scout)
+
+`key.fb`, `leo.key`, `out.key`, `dart-defines`, `.serena/project.yml`, `packages/force_directed_graphview/**`, `docs/plans/constellation-*`, generated files, **all client code** (U16), channel/email path, obligation identity / dispatch, `docs/contracts/updates-event-contract.json`, **indicator/projection rewrites** in `attention_repository.dart` (U10) — U09 may add **outcome dismissal side effects** and shared SQL helpers **outside** that file or via migration/trigger only.
+
+---
+
+## UNIT U09a — dismissible foundations · INNER (2026-09-19)
+
+**Layer:** inner (implementer), tagged hard. `UNIT_BASE` `19fd71abd`. Scope: the scout brief's steps 1–4 only.
+No sweep, no `attentionDismissAll`, no undo, no GraphQL — those are U09b and U09c.
+
+### What landed
+
+| Step | Commit | What |
+|---|---|---|
+| 1 + overseer addition 4 | `68b170d48` | **m0183** — the tombstone guard stops restricting `tombstone_dismissed_at` to statuses 3/4; `attention_clear_operation_member` takes an outcome instead of a receipt |
+| 2 | `c3408619d` | `attention_dismissible_sql.dart` — the one "rows that carry their own ×" predicate |
+| 3 | `83605cd56` | **m0184** — `attention_request_state` acquires its first writer, as a trigger |
+| journal | this entry | |
+
+### Step 1 — the defect was in the database, not the client
+
+The scout was right and it is worth restating plainly: `inbox_item_guard_tombstone` (m0024) refused any write to
+`tombstone_dismissed_at` unless `status IN (3, 4)`. So `helping` (0, in scope), `watching` (1) and
+`notInterested` (2) could not be dismissed **at all** — not "the client has no × yet", but "the write is
+rejected". The earlier plan text describing the mechanism as present-but-unwired was true only for
+`closed`/`deletedBeforeResponse`. m0183 removes the status list and says in its comment why the old restriction
+was wrong, so nobody restores it while "tidying".
+
+What the guard still refuses is unchanged, and the tests name each refusal: a tombstone row may not change
+`status` or `rejection_message` (even with the beacon trigger's flag borrowed — the freeze rule fires first);
+a row may not be inserted into, or transitioned into, a tombstone status without that flag. Dismissal is a
+presentation fact; stance transitions stay the beacon trigger's business.
+
+m0183 also adds `ii_user_outcome_undismissed (user_id, status) WHERE tombstone_dismissed_at IS NULL`, because
+the m0024 index only covers statuses 3/4 and the new predicate scans every status of one viewer. The old index
+stays — it still serves the tombstone card's `before_response_terminal_at` ordering.
+
+### Overseer addition 4 — §0.1's amended member shape
+
+`attention_clear_operation_member` gained `outcome_beacon_id`, `receipt_id` became nullable, and
+`attention_clear_operation_member__member_target_chk` requires `num_nonnulls(receipt_id, outcome_beacon_id) = 1`
+— proved by name in both directions, neither set and both set.
+
+Two consequences worth knowing before U09b:
+
+- **The primary key had to go.** A PK column cannot be nullable, so `(operation_id, receipt_id)` is replaced by
+  two partial UNIQUE indexes, `__receipt_once` and `__outcome_once`. The capture-once guarantee is identical;
+  only the constraint enforcing it is renamed. U08's member insert therefore now names the index predicate in
+  its `ON CONFLICT (…) WHERE … IS NOT NULL` — without that the whole U08 suite fails to infer an arbiter, which
+  is how I found it. One assertion in `attention_additive_schema_pg_test.dart` moved to the new name.
+- **`outcome_beacon_id` is deliberately not a foreign key**, for the same reason the existing `beacon_id`
+  snapshot is not: the operation audit and its counters must survive deletion of the Request. `ON DELETE
+  CASCADE` would silently delete members and make the counters lie; `ON DELETE SET NULL` would violate the new
+  CHECK. Undo of a member whose Request is gone has nothing to restore and is skipped. **Flagging this as a
+  judgement call** in case the overseer meant a literal FK.
+
+### Step 2 — the predicate, and what the test had to do to be worth anything (addition 2, in my own words)
+
+`AttentionDismissibleSql` (in `data/repository/`, **not** in `attention_repository.dart`, which U10 owns) holds
+three SQL fragments: a `prelude` (visibility, responsibility scope, surface, `eligible_pinned`), **Set R**
+`activity_optional_dismissible` and **Set O** `activity_outcome_dismissible`. U09b composes these; it must not
+write its own copy, because owner decision A is only as strong as the *weakest* place the question gets asked,
+and capture, apply re-check and button-eligibility are three places.
+
+Proving an exclusion is harder than proving an inclusion: a test that asserts "the obligation is absent" passes
+just as happily when the predicate has been deleted and the set is empty for some unrelated reason. So each
+exclusion is asserted twice — the row is absent from the real predicate, and a **deliberately loosened copy**
+(the exact string a careless refactor would leave behind) puts it back. The loosened assertion is what fails if
+someone widens the predicate.
+
+Two findings came out of insisting on that:
+
+- **An obligation on a Request is excluded twice over.** The first version of the obligation test failed its
+  loosened half: deleting `NOT requires_action` still did not admit the row, because a live obligation puts its
+  Request into the responsibility scope, so the surface filter rejects it anyway. Defence in depth, but it
+  means a beacon-scoped obligation proves nothing about the obligation exclusion itself. The load-bearing case
+  now uses a **Request-less** obligation (profile axis), and the double exclusion is a separate, explicitly
+  named test.
+- **Forwarding already creates the inbox row** (`inbox_item_on_forward_insert`), so fixtures set a stance on the
+  row that is there rather than inserting one.
+
+For Set O, `NOT IN eligible_pinned` is written as the single load-bearing exclusion rather than the
+projection's `status <> 0 OR beacon_id IN scope`. For rows that pass the readability clause the two are
+equivalent, and stating it as the pinned-zone exclusion is what makes both the intent and its test legible —
+deleting that line is what the loosened test detects.
+
+**Pending prompts, and exactly what will need revisiting.** There is no prompt row in the feed today — no
+`inbox_item` status and no `presentation_key` corresponds to "pending invite / setup prompt". So the predicate
+cannot exclude prompts by name, and it does not pretend to: "awaits a decision" is expressed entirely as two
+exclusions, unanswered forwards (Set O) and obligations (Set R). **When prompts gain a live row they will not
+fall out of these predicates by themselves.** Whatever carries them has to be excluded explicitly: if a prompt
+arrives as a `notification_outbox` receipt it will be optional and uncleared and will therefore land in Set R
+unless its `presentation_key` is excluded there, or the contract marks it `clearPolicy: forbidden` and the
+predicate learns to read that. This is written in the class doc too, not only here.
+
+### Step 3 — what the two counters mean and who reads them next (addition 3, in my own words)
+
+`outcome_generation` and `decision_revision` had no writer; every reader coalesced them to 0. Undo is *defined*
+against them, so until now U09c was undefined.
+
+- **`decision_revision` — "the viewer decided something."** Bumped when `status` changes, or the
+  `rejection_message` that carries a decision changes. **U09b** skips a member whose Request was decided between
+  capture and apply; **U09c** refuses an undo whose stance moved underneath it; **U10** has no direct use but
+  inherits the honesty of the field.
+- **`outcome_generation` — "the visible outcome row is a different row now."** Every decision, plus a new
+  forward generation (`latest_forward_at` advancing, which replaces the outcome row's content), plus arrival of
+  a before-response terminal state. **U09b** captures it per outcome member; **U09c** compares it before
+  restoring; **U10** reads it for the "uncleared outcome" predicate (D09).
+- **`first_entry_at`** is lazily initialised on the viewer's first inbox row for a Request. U10 owns the sort
+  keys; this only guarantees the column is populated.
+
+**`tombstone_dismissed_at` bumps neither, on purpose:** a sweep that bumped the generation would refuse to undo
+itself. There is a test with exactly that name.
+
+**Why a trigger rather than a repository method.** This is the part I would most want a reviewer to check.
+`InboxRepository.setStatus` has **no server-side caller at all** — the client changes stance through Hasura
+(`update_inbox_item`), which is also how **Restore** works; the m0024/m0097 beacon trigger writes terminal
+statuses in pure SQL; `inbox_item_apply_tombstone_after_withdraw` likewise. A Dart-level writer would have
+missed precisely the transition undo cares about most. m0184 puts an `AFTER INSERT OR UPDATE` trigger on
+`inbox_item` so every writer is seen. Two tests pin the paths Dart cannot reach: Restore through a bare
+`UPDATE`, and a terminal status produced by updating `beacon.status`.
+
+### Addition 5 — the two axes stay separate, and why
+
+`notification_outbox.cleared_at` and `inbox_item.tombstone_dismissed_at` remain **different axes**, and this
+unit did not merge them. The reason is structural, not stylistic: there is no `notification_outbox` row for an
+outcome. An outcome row is synthesised from `inbox_item` by the feed projection; `inbox:<beacon_id>` is not a
+receipt id and has no receipt to carry a `cleared_at`. Moving outcome dismissal onto the receipt axis would mean
+manufacturing receipts for outcomes, which is a design change — and per the overseer's instruction it belongs in
+a decision, not in a step. I am not proposing it.
+
+What this unit did instead is make **one operation able to span both axes**, which is what U09b needs: the
+member table now holds receipt members (`receipt_id`) and outcome members (`outcome_beacon_id`) side by side
+under one `attention_clear_operation`. A sweep therefore captures Set R ∪ Set O into one operation and commits
+receipt clears and outcome dismissals per Request batch — one operation id, one undo, two axes. Nothing in this
+unit forces U09b to make two passes or two operations.
+
+### Addition 6 — the feed is unchanged, deliberately
+
+No projection was touched. `attentionFeed` and `surfaceSummary` still read the read-axis; U10 moves them. Every
+assertion in this unit is on database or predicate state — `tombstone_dismissed_at`, constraint names, counter
+values, predicate membership — and never on "the dot went away". The existing
+`attention_activity_stream_pg_test.dart` (26 tests) passes unchanged, which is the evidence that the feed did
+not move.
+
+### Tests actually run
+
+```
+# RED — step 1 + addition 4, with m0183 unregistered from the migration list
+dart test --tags pg -j 1 attention_outcome_dismissible_pg_test.dart     00:02 +7 -8: Some tests failed.
+  (helping/watching/notInterested dismissal + un-dismissal + all four member-shape cases)
+  e.g. "column \"outcome_beacon_id\" of relation \"attention_clear_operation_member\" does not exist"
+
+# RED — step 2, before attention_dismissible_sql.dart existed (file moved aside)
+dart test --tags pg -j 1 attention_dismissible_predicate_pg_test.dart   00:00 +0 -1: compile: Undefined name 'AttentionDismissibleSql'
+
+# RED — step 3, with m0184 unregistered
+dart test --tags pg -j 1 attention_request_state_writer_pg_test.dart    00:01 +0 -7: Some tests failed.
+
+# RED found by the migration itself, not by me: U08's member insert
+dart test --tags pg -j 1 attention_clear_operation_pg_test.dart         00:0x +5 -10  (no arbiter for ON CONFLICT)
+
+# GREEN
+dart test --tags pg -j 1 attention_outcome_dismissible_pg_test.dart     00:02 +15: All tests passed!
+dart test --tags pg -j 1 attention_dismissible_predicate_pg_test.dart   00:02 +12: All tests passed!
+dart test --tags pg -j 1 attention_request_state_writer_pg_test.dart    00:01  +7: All tests passed!
+
+# GREEN — every affected suite together (the scout's list plus the three new files)
+dart test --tags pg -j 1 \
+  attention_outcome_dismissible_pg_test.dart attention_dismissible_predicate_pg_test.dart \
+  attention_request_state_writer_pg_test.dart attention_clear_operation_pg_test.dart \
+  attention_activity_stream_pg_test.dart ../database/attention_additive_schema_pg_test.dart \
+  attention_repository_pg_test.dart attention_surface_pg_test.dart \
+  attention_request_history_pg_test.dart attention_mark_seen_for_beacon_pg_test.dart
+                                                                        00:33 +137: All tests passed!
+dart test attention_graphql_test.dart                                   00:00 +22: All tests passed!
+./scripts/check-custom-lints.sh packages/server                         total: 0 (baseline: 0) — OK
+```
+
+All through `scripts/run_with_test_cleanup.sh`, PG with `--tags pg -j 1`. Full server suite not run — the
+overseer owns it.
+
+### Findings
+
+- **The migration found a live caller before any test did.** Dropping the member primary key broke U08's
+  `ON CONFLICT (operation_id, receipt_id)` arbiter inference — Postgres will not infer a *partial* index unless
+  the statement repeats its predicate. Ten U08 tests went red on the first run after m0183 and were green again
+  once the insert named `WHERE receipt_id IS NOT NULL`. This is a good argument for keeping the U08 suite in
+  every U09 run.
+- **`beacon.state` does not exist; it is `beacon.status`** (renamed before m0097, and the tombstone trigger
+  moved with it). The scout brief and m0024's original text both say `state`.
+- **A Request-less obligation needs the `profile` access policy** to be visible at all —
+  `visible_attention_receipts` admits a beacon-less receipt only under `profile` with
+  `destination_kind = 'profile'` and a `mutual_connection_formed` / `invite_accepted` presentation key. Anything
+  else with `beacon_id IS NULL` is invisible, and `beacon_content` with a null beacon violates
+  `notification_outbox__beacon_policy_chk`.
+- **`AttentionDismissibleSql.prelude` duplicates `AttentionRepository`'s private `_visibleWithSurfaceCte`.** The
+  duplication is deliberate — that file is U10's and private — but it is real, and the two must be unified once
+  U10 settles, behind the shared name, since the shared copy is the authorization-critical one.
+
+### Out of scope, confirmed untouched
+
+No `attentionDismissAll`, no sweep, no undo, no GraphQL change, no client code. No Hasura tombstone-dismiss path
+(it stays parallel until U16). No projection change in `attention_repository.dart`, no contract JSON, no
+channel/email path, no obligation identity. The only non-test production file outside a migration is the shared
+SQL helper, plus the one-line `ON CONFLICT` arbiter fix m0183 forced in `attention_clear_repository.dart`.
+
+STATUS: complete
+
