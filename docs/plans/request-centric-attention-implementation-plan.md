@@ -526,6 +526,24 @@ destructive-looking sweep; no second attention cache exists (architecture test).
 
 ---
 
+**Split by the overseer after the U13 scout (2026-09-19).** Nine steps, and three findings that change the
+shape of the work: the client `schema.graphql` is **behind** the server (no `clearedAt`, `listPositionAt`, none
+of the new mutations); `ActivityOffersCubit` keeps a **shadow cache of hydrated offers beside `AttentionCase`**,
+which is exactly what §0.3 forbids; and `markAllSeen` is still the read axis, not the clear axis. U13 runs as
+three sandwiches:
+
+- **U13a — transport**: sync the client schema, add the GraphQL documents, run codegen, and extend the domain
+  entities (`clearedAt`, `clearReason`, the ordering fields, `provenanceJson`, the clear/sweep/undo result
+  shapes). Mechanical, and nothing consumes it yet.
+- **U13b — repository and case**: ports and repository methods for clear / sweep / undo / reconcile / history /
+  snapshot, plus optimistic application with correct rollback and a mutation serial so a stale fetch cannot
+  overwrite a newer mutation result. A server `partial` must not commit skipped members.
+- **U13c — projections, realtime and single ownership**: normalized group/child projections so child-level
+  dismissal updates previews and counts; **page-merge dedupe by Request id** (the duplicate-page property U10c
+  handed to the client, which the server physically cannot test); realtime invalidation for clear state,
+  outcome generation and surface moves; and an architecture test that there is exactly **one** attention owner —
+  which `ActivityOffersCubit` currently violates.
+
 ### U14 — Shared event block and indicators
 
 **Owns.** `activity_event_subcard_block.dart` → shared component, `my_work_obligation_block.dart`,
