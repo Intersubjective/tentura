@@ -6792,3 +6792,40 @@ The implementation needs no change; only this record does. Correcting it matters
 remaining units read as established fact, and a wrong fact propagates into their briefs — which is precisely how
 the U05 scout's mis-attributed dedup risk reached an inner layer that had to disprove it.
 
+
+### Manager verdict — U11 · **ACCEPTED** (no scout by design / inner Opus-low ✓ / verify pass, no finisher)
+
+Overseer's gate: **1688 non-PG**, **1015 PG / 24 known skips**. Commits `6d06ad779` (m0189, producer placement) ·
+`bb1f76d87` (read path honours `timeline_only`) · `bbc32114b` (depth tests) · `330937630` journal.
+
+**`timeline_only` was a declaration with no implementation.** U03b put `placement` in the contract; **nothing in
+`packages/server/lib` read or wrote it** until this unit. The contract had been describing behaviour the code
+did not have — which is exactly what the "honoured by the read path, not just declared" requirement was written
+to catch. m0189 adds the column defaulting to `'primary'`, so no historical row changes meaning.
+
+**The premise of my own instruction was wrong, and the work corrected it.** I asked for depth tests to catch
+propagation "merely delayed by one hop". There is no second hop to delay: `insertTopologyDeliveryTargets`
+recurses **downwards only**, and its `ancestor` CTE is a single non-recursive join to `parent_beacon_id`, so a
+grandparent receives nothing today. R7 therefore means *classify what you address*, not *stop addressing
+ancestors*. The suite now pins the one-hop shape, so a future recursive fan-out fails here rather than silently
+propagating.
+
+**The inner layer disclosed that its own first fingerprint could not falsify the main exclusion** — capturing
+`id|isActiveAttention|createdAt` stayed green with the grouped-row filter removed, and the mandated loosening
+probe caught it, not review. The final fingerprint does fail under that probe; the verifier re-ran it.
+
+**Copy cannot leak a source title by construction**, not by a branch: `BeaconHierarchyNoticeCopy` takes only
+direction, status, date and `sourceDeleted`, so there is no readable/unreadable path that could carry one.
+
+**A contradiction between two journal entries was adjudicated and the wrong one corrected.** U11 claimed
+`inbox_item` is not trigger-populated from `beacon_forward_edge`; U10a's remediation had established the
+opposite. Verified: **U10a is right**, m0014's trigger fires on every forward insert. The correction is recorded
+above. This is the third inter-layer contradiction of the session, and all three shared one shape — a claim
+about live code inferred from an *absence* (an empty set, no callers, no trigger) rather than from the mechanism
+itself.
+
+**Deferred deliberately:** no backfill for pre-m0189 `beaconHierarchyStatusChanged` receipts (they default to
+`'primary'`) — U18 owns cutover data; and `attentionRequestHistory` was verified to still pass but not asserted
+to positively *contain* a timeline-only notice, which belongs with U12.
+
+---
