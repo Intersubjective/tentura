@@ -313,6 +313,58 @@ class AttentionPolicy {
     AttentionEventType.deadlineReminder => false,
   };
 
+  /// The stable identity of the *task* an obligation is about, excluding the
+  /// generation — D03: `event family + beaconId + subjectId + recipientId`.
+  ///
+  /// Deliberately not [_threadKey]: that one keeps its legacy meaning and can
+  /// omit the Request when the subject is a coordination item. Here the
+  /// Request is always part of the key, so the same person offering help on
+  /// two Requests holds two distinct tasks.
+  ///
+  /// The subject is what a *generation* is allowed to vary over, so it differs
+  /// per obligation variant (U07a: there are exactly two):
+  ///
+  /// * `helpOfferSubmitted` — subject is the **helper**, so withdrawing and
+  ///   offering again is a new generation of the author's one standing task,
+  ///   not a second obligation.
+  /// * `reviewOpened` — subject is the **Request**, so a reopened review
+  ///   window is a new generation of the reviewer's one standing task.
+  ///
+  /// Returns `null` for anything that is not a live obligation; those receipts
+  /// must leave both columns NULL (m0178 `notification_outbox__logical_task_chk`).
+  String? logicalTaskKey({
+    required AttentionEventType eventType,
+    required String recipientId,
+    required Set<AttentionRecipientReason> recipientReasons,
+    required AttentionRecipientRoleFacts role,
+  }) {
+    if (!_requiresAction(eventType, recipientReasons)) return null;
+    final beaconId = role.beaconId;
+    if (beaconId == null || beaconId.isEmpty) {
+      throw ArgumentError('Live obligation requires a Request');
+    }
+    final subject = switch (eventType) {
+      AttentionEventType.helpOfferSubmitted => role.targetEntityId,
+      AttentionEventType.reviewOpened => beaconId,
+      // A new obligation variant must declare what its generations vary over
+      // before it can be written; silently reusing the Request would collapse
+      // unrelated tasks onto one key.
+      _ => null,
+    };
+    if (subject == null || subject.isEmpty) {
+      throw ArgumentError(
+        'No logical task subject declared for ${eventType.name}',
+      );
+    }
+    return [
+      'v1',
+      eventType.name,
+      Uri.encodeComponent(beaconId),
+      Uri.encodeComponent(subject),
+      Uri.encodeComponent(recipientId),
+    ].join('|');
+  }
+
   String _threadKey(
     AttentionEventType eventType,
     String recipientId,

@@ -117,6 +117,17 @@ WHERE source_event_key = $1 AND immutable_payload = $2::jsonb
       // `notification_outbox__occurrence_account`, which raises rather than
       // silently overwriting — that is deliberate: a duplicate here would be
       // a producer bug, not a replay.
+      // U05c — obligation identity. An obligation receipt names the *task* it
+      // is about (`logical_task_key`, stable across renewals) and which
+      // generation of that task it is. Optional receipts leave both NULL;
+      // m0178's `notification_outbox__logical_task_chk` enforces that pairing.
+      final logicalTaskKey = _policy.logicalTaskKey(
+        eventType: intent.eventType,
+        recipientId: recipient.recipientId,
+        recipientReasons: recipient.reasons,
+        role: role,
+      );
+      final lifecycleGeneration = logicalTaskKey == null ? null : 1;
       final row = await _database
           .customSelect(
             r'''
@@ -127,7 +138,8 @@ INSERT INTO public.notification_outbox (
   source_event_key, occurrence_id, destination_kind, target_entity_id,
   presentation_key, presentation_payload,
   in_app_preference_class, suppression_class, access_policy,
-  requires_action, attention_thread_key
+  requires_action, attention_thread_key,
+  logical_task_key, lifecycle_generation
 ) VALUES (
   gen_random_uuid()::text, $1, $2, $3, $4,
   $5, $6, $7, $8,
@@ -135,7 +147,8 @@ INSERT INTO public.notification_outbox (
   $12, $13, $14, $15,
   $16, $17::jsonb,
   $18, $19, $20,
-  $21, $22
+  $21, $22,
+  $23, $24
 )
 RETURNING id
 ''',
@@ -162,6 +175,8 @@ RETURNING id
               Variable<String>(projection.accessPolicy.wireName),
               Variable<bool>(projection.requiresAction),
               Variable<String>(projection.attentionThreadKey),
+              Variable<String>(logicalTaskKey),
+              Variable<int>(lifecycleGeneration),
             ],
           )
           .getSingle();
