@@ -195,10 +195,13 @@ void main() {
   /// shows both, and a tab shows its dot whether or not it also shows a
   /// number." The navbar used to return as soon as it had a number.
   testWidgets('shows the dot and the number together', (tester) async {
+    // CHANGES IN U15R-d: §6 `my desk.dot` is its own field; the unread total
+    // beside it includes obligations and never was the dot's rule.
     repository.surfaceSummaryValue = const AttentionSurfaceSummary(
       activityUnreadTotal: 0,
       myWorkUnreadTotal: 5,
       needsYouTotal: 2,
+      myDeskDot: true,
     );
     final home = await _bootHome(
       accounts: accounts,
@@ -220,10 +223,12 @@ void main() {
   });
 
   testWidgets('shows the dot alone when nothing is owed', (tester) async {
+    // CHANGES IN U15R-d: §6 `my desk.dot` is its own field.
     repository.surfaceSummaryValue = const AttentionSurfaceSummary(
       activityUnreadTotal: 0,
       myWorkUnreadTotal: 3,
       needsYouTotal: 0,
+      myDeskDot: true,
     );
     final home = await _bootHome(
       accounts: accounts,

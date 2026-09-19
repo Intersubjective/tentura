@@ -7484,6 +7484,8 @@ type v2_AttentionSurfaceSummary {
   activityUnreadTotal: Int!
   myWorkUnreadTotal: Int!
   needsYouTotal: Int!
+  myDeskDot: Boolean!
+  forYouDot: Boolean!
 }
 
 type v2_AuthResponse {

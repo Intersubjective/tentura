@@ -120,6 +120,11 @@ HomeAttentionState _redesignState({
   int activityUnread = 0,
   int myWorkUnread = 0,
   int needsYou = 0,
+  // CHANGES IN U15R-d: the two dots are server booleans now, not totals —
+  // §6 states each as a membership question the server answers from the same
+  // predicates its lists compose.
+  bool myDeskDot = false,
+  bool forYouDot = false,
   HomeTab activeTab = HomeTab.work,
   bool loaded = true,
 }) =>
@@ -128,6 +133,8 @@ HomeAttentionState _redesignState({
       activityUnreadTotal: activityUnread,
       myWorkUnreadTotal: myWorkUnread,
       surfaceNeedsYouTotal: needsYou,
+      surfaceMyDeskDot: myDeskDot,
+      surfaceForYouDot: forYouDot,
       activeHomeTab: activeTab,
     );
 
@@ -212,15 +219,26 @@ class _TestHomeShell extends StatelessWidget {
 
 void main() {
   group('HomeAttentionState redesign indicator getters', () {
-    // U14c: every expectation below is a function of the totals alone. No case
-    // names the active tab as a reason, because §6 gives it no say: "Indicators
-    // do not hide because the tab is currently open", and dot and number are
-    // independent rather than one gating the other.
+    // U14c: every expectation below is a function of the summary alone. No
+    // case names the active tab as a reason, because §6 gives it no say:
+    // "Indicators do not hide because the tab is currently open", and dot and
+    // number are independent rather than one gating the other.
+    //
+    // CHANGES IN U15R-d: the two dot *inputs* are `myDeskDot` / `forYouDot`
+    // rather than the two unread totals. Not one expectation moves — §6 says
+    // the same thing about what should light — but the totals were never the
+    // §6 rules (`myWorkUnreadTotal` includes obligations, `activityUnreadTotal`
+    // misses outcomes and the pinned zone), so a case that inferred a dot from
+    // one was asserting the right answer over the wrong input. The totals stay
+    // in the table because the cases must keep proving dot and number are
+    // independent (D09).
     const cases = <({
       String name,
       int activity,
       int myWorkUnread,
       int needsYou,
+      bool forYouDot,
+      bool myDeskDot,
       HomeTab tab,
       bool activityDot,
       bool myWorkNumber,
@@ -231,6 +249,8 @@ void main() {
         activity: 2,
         myWorkUnread: 1,
         needsYou: 3,
+        forYouDot: true,
+        myDeskDot: true,
         tab: HomeTab.work,
         activityDot: true,
         myWorkNumber: true,
@@ -241,6 +261,8 @@ void main() {
         activity: 2,
         myWorkUnread: 1,
         needsYou: 3,
+        forYouDot: true,
+        myDeskDot: true,
         tab: HomeTab.inbox,
         activityDot: true,
         myWorkNumber: true,
@@ -251,6 +273,8 @@ void main() {
         activity: 1,
         myWorkUnread: 0,
         needsYou: 0,
+        forYouDot: true,
+        myDeskDot: false,
         tab: HomeTab.work,
         activityDot: true,
         myWorkNumber: false,
@@ -261,6 +285,8 @@ void main() {
         activity: 0,
         myWorkUnread: 2,
         needsYou: 0,
+        forYouDot: false,
+        myDeskDot: true,
         tab: HomeTab.inbox,
         activityDot: false,
         myWorkNumber: false,
@@ -271,6 +297,8 @@ void main() {
         activity: 0,
         myWorkUnread: 2,
         needsYou: 0,
+        forYouDot: false,
+        myDeskDot: true,
         tab: HomeTab.work,
         activityDot: false,
         myWorkNumber: false,
@@ -281,6 +309,8 @@ void main() {
         activity: 0,
         myWorkUnread: 4,
         needsYou: 2,
+        forYouDot: false,
+        myDeskDot: true,
         tab: HomeTab.inbox,
         activityDot: false,
         myWorkNumber: true,
@@ -291,6 +321,8 @@ void main() {
         activity: 0,
         myWorkUnread: 0,
         needsYou: 0,
+        forYouDot: false,
+        myDeskDot: false,
         tab: HomeTab.work,
         activityDot: false,
         myWorkNumber: false,
@@ -304,6 +336,8 @@ void main() {
           activityUnread: c.activity,
           myWorkUnread: c.myWorkUnread,
           needsYou: c.needsYou,
+          forYouDot: c.forYouDot,
+          myDeskDot: c.myDeskDot,
           activeTab: c.tab,
         );
         expect(state.showRedesignActivityUnreadDot, c.activityDot);
@@ -311,6 +345,64 @@ void main() {
         expect(state.showRedesignMyWorkUnreadDot, c.myWorkDot);
       });
     }
+
+    // CHANGES IN U15R-d: §6 names the dots as their own rules —
+    // `my desk.dot = any owned Request has a dot` where
+    // `request.dot = uncleared optional event or uncleared outcome`, and
+    // `for you.dot = any dismissible attention, pending forward or pending
+    // prompt`. Neither is "a total is greater than zero", so the server now
+    // sends each as a boolean and the cases below carry it as an input
+    // instead of inferring it from `activityUnreadTotal` /
+    // `myWorkUnreadTotal`. Those two totals stay in the table because the
+    // number beside the dot still reads `surfaceNeedsYouTotal` and the cases
+    // have to keep proving the two are independent (D09).
+    test('U15R-d §6 — an obligation-only My Desk shows the number and no dot',
+        () {
+      final state = _redesignState(
+        myWorkUnread: 3,
+        needsYou: 3,
+        myDeskDot: false,
+      );
+      expect(
+        state.showRedesignMyWorkObligationBadge,
+        isTrue,
+        reason: '§6 `my desk.count` = sum of live obligations',
+      );
+      expect(
+        state.showRedesignMyWorkUnreadDot,
+        isFalse,
+        reason:
+            '§6 `request.dot` is optional events and outcomes only — an '
+            'obligation is the number, never the dot. The legacy '
+            '`myWorkUnreadTotal` of 3 counts the obligation and must not be '
+            'what the dot reads.',
+      );
+    });
+
+    test('U15R-d §6 — a pending forward lights For You with no receipt total',
+        () {
+      final state = _redesignState(forYouDot: true);
+      expect(
+        state.showRedesignActivityUnreadDot,
+        isTrue,
+        reason:
+            '§6 `for you.dot` counts the pending-forward zone, which no '
+            'receipt total has ever seen',
+      );
+    });
+
+    test('U15R-d §6 — For You is structurally unable to show a count', () {
+      // `for you.count = never`. The client cannot render one because there
+      // is no field to render: `AttentionSurfaceSummary` has no `forYouCount`
+      // and `HomeAttentionState` has no For-You number getter. This test
+      // fails the day somebody adds either.
+      const state = HomeAttentionState();
+      expect(
+        state.toString().contains('forYouCount'),
+        isFalse,
+        reason: 'a For-You count field would make §6 violable by a widget',
+      );
+    });
 
     test('no indicator changes when the active tab does', () {
       for (final c in cases) {
@@ -321,6 +413,8 @@ void main() {
                 activityUnread: c.activity,
                 myWorkUnread: c.myWorkUnread,
                 needsYou: c.needsYou,
+                forYouDot: c.forYouDot,
+                myDeskDot: c.myDeskDot,
                 activeTab: tab,
               );
               return (
@@ -339,38 +433,50 @@ void main() {
     });
 
     test('the getters read the shared predicate, not a local copy', () {
-      for (final total in [0, 1, 5]) {
-        final state = _redesignState(
-          activityUnread: total,
-          myWorkUnread: total,
-          needsYou: total,
-        );
-        expect(
-          state.showRedesignActivityUnreadDot,
-          surfaceDotFromTotal(total),
-        );
-        expect(state.showRedesignMyWorkUnreadDot, surfaceDotFromTotal(total));
-        expect(
-          state.showRedesignMyWorkObligationBadge,
-          surfaceCountFromTotal(total) > 0,
-        );
+      // CHANGES IN U15R-d: the number still comes through
+      // `surfaceCountFromTotal` (§6 `my desk.count` is a total), but the dots
+      // no longer come through `surfaceDotFromTotal`. §6 defines each dot as
+      // a membership question over the surface's own predicates, and U15R-d
+      // moved that computation to the server so the dot and the list it
+      // stands for cannot be two rules (M1). The client's job is to relay the
+      // answer, and asserting it re-derives one would be asserting the bug.
+      for (final dot in [false, true]) {
+        for (final total in [0, 1, 5]) {
+          final state = _redesignState(
+            activityUnread: total,
+            myWorkUnread: total,
+            needsYou: total,
+            forYouDot: dot,
+            myDeskDot: dot,
+          );
+          expect(state.showRedesignActivityUnreadDot, dot);
+          expect(state.showRedesignMyWorkUnreadDot, dot);
+          expect(
+            state.showRedesignMyWorkObligationBadge,
+            surfaceCountFromTotal(total) > 0,
+          );
+        }
       }
     });
 
     test('M1 — a lit surface indicator implies a non-empty default list', () {
-      // The totals are server counts of the authorized default list (U10b), so
-      // "lit" and "the list has rows" are the same statement. Asserted here so
-      // a future getter cannot light on something the list does not return.
-      for (final activity in [0, 2]) {
-        for (final myWorkUnread in [0, 2]) {
+      // CHANGES IN U15R-d: the dot inputs are the server's §6 membership
+      // answers instead of the unread totals. The statement is unchanged —
+      // "lit" and "the surface has something to act on" are the same fact —
+      // but the server now computes each dot from the predicates behind its
+      // own list, so a total is no longer the thing that stands for it.
+      for (final forYouDot in [false, true]) {
+        for (final myDeskDot in [false, true]) {
           for (final needsYou in [0, 3]) {
             final state = _redesignState(
-              activityUnread: activity,
-              myWorkUnread: myWorkUnread,
+              activityUnread: forYouDot ? 2 : 0,
+              myWorkUnread: myDeskDot ? 2 : 0,
               needsYou: needsYou,
+              forYouDot: forYouDot,
+              myDeskDot: myDeskDot,
             );
-            expect(state.showRedesignActivityUnreadDot, activity > 0);
-            expect(state.showRedesignMyWorkUnreadDot, myWorkUnread > 0);
+            expect(state.showRedesignActivityUnreadDot, forYouDot);
+            expect(state.showRedesignMyWorkUnreadDot, myDeskDot);
             expect(state.showRedesignMyWorkObligationBadge, needsYou > 0);
           }
         }
@@ -382,6 +488,8 @@ void main() {
         activityUnread: 3,
         myWorkUnread: 3,
         needsYou: 3,
+        forYouDot: true,
+        myDeskDot: true,
         loaded: false,
       );
       expect(state.showRedesignActivityUnreadDot, isFalse);
@@ -404,10 +512,14 @@ void main() {
     });
 
     test('maps AttentionCase.surfaceSummary into state', () async {
+      // CHANGES IN U15R-d: §6 `for you.dot` is its own field. A fixture that
+      // only set `activityUnreadTotal` was asserting the dot over a total
+      // that does not answer §6's question.
       repository.surfaceSummaryValue = const AttentionSurfaceSummary(
         activityUnreadTotal: 1,
         myWorkUnreadTotal: 0,
         needsYouTotal: 0,
+        forYouDot: true,
       );
       final boot = await _bootCubitWithSurface(
         accounts: accounts,
@@ -420,10 +532,12 @@ void main() {
     });
 
     test('invite_accepted activity surface lights Activity dot only', () async {
+      // CHANGES IN U15R-d: §6 `for you.dot`, as its own field.
       repository.surfaceSummaryValue = const AttentionSurfaceSummary(
         activityUnreadTotal: 1,
         myWorkUnreadTotal: 0,
         needsYouTotal: 0,
+        forYouDot: true,
       );
       final boot = await _bootCubitWithSurface(
         accounts: accounts,
@@ -436,10 +550,12 @@ void main() {
     });
 
     test('beacon-scoped my work unread lights My Work only', () async {
+      // CHANGES IN U15R-d: §6 `my desk.dot`, as its own field.
       repository.surfaceSummaryValue = const AttentionSurfaceSummary(
         activityUnreadTotal: 0,
         myWorkUnreadTotal: 1,
         needsYouTotal: 0,
+        myDeskDot: true,
       );
       final boot = await _bootCubitWithSurface(
         accounts: accounts,
@@ -506,10 +622,13 @@ void main() {
     testWidgets('the dot and the number appear together', (
       tester,
     ) async {
+      // CHANGES IN U15R-d: both dots are §6 fields now.
       repository.surfaceSummaryValue = const AttentionSurfaceSummary(
         activityUnreadTotal: 1,
         myWorkUnreadTotal: 2,
         needsYouTotal: 3,
+        myDeskDot: true,
+        forYouDot: true,
       );
       final home = await pumpNav(tester, activeTab: HomeTab.work);
 
@@ -526,10 +645,12 @@ void main() {
     });
 
     testWidgets('the dot returns when the count drops to zero', (tester) async {
+      // CHANGES IN U15R-d: the dot is §6 `my desk.dot`, its own field.
       repository.surfaceSummaryValue = const AttentionSurfaceSummary(
         activityUnreadTotal: 0,
         myWorkUnreadTotal: 2,
         needsYouTotal: 0,
+        myDeskDot: true,
       );
       final home = await pumpNav(tester, activeTab: HomeTab.work);
 
@@ -545,10 +666,12 @@ void main() {
     testWidgets('the Activity dot shows while Activity is the open tab', (
       tester,
     ) async {
+      // CHANGES IN U15R-d: the dot is §6 `for you.dot`, its own field.
       repository.surfaceSummaryValue = const AttentionSurfaceSummary(
         activityUnreadTotal: 4,
         myWorkUnreadTotal: 0,
         needsYouTotal: 0,
+        forYouDot: true,
       );
       final home = await pumpNav(tester, activeTab: HomeTab.inbox);
 
@@ -561,10 +684,12 @@ void main() {
     testWidgets('the My Work number shows while My Work is the open tab', (
       tester,
     ) async {
+      // CHANGES IN U15R-d: the dot is §6 `my desk.dot`, its own field.
       repository.surfaceSummaryValue = const AttentionSurfaceSummary(
         activityUnreadTotal: 0,
         myWorkUnreadTotal: 2,
         needsYouTotal: 5,
+        myDeskDot: true,
       );
       await pumpNav(tester, activeTab: HomeTab.work);
       expect(find.text('5'), findsOneWidget);

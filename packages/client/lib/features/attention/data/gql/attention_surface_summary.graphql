@@ -3,5 +3,7 @@ query AttentionSurfaceSummary {
     activityUnreadTotal
     myWorkUnreadTotal
     needsYouTotal
+    myDeskDot
+    forYouDot
   }
 }

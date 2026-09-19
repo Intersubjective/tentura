@@ -16,5 +16,18 @@ abstract class AttentionSurfaceSummary with _$AttentionSurfaceSummary {
     required int activityUnreadTotal,
     required int myWorkUnreadTotal,
     required int needsYouTotal,
+
+    /// §6 `my desk.dot` — an owned Request has an uncleared optional event or
+    /// uncleared outcome. Computed by the server from the same predicates its
+    /// lists compose (M1); never re-derived here from a total.
+    @Default(false) bool myDeskDot,
+
+    /// §6 `for you.dot` — dismissible attention, a pending forward or a
+    /// pending prompt.
+    ///
+    /// There is no `forYouCount` and there must not be one: §6 says
+    /// `for you.count = never`, and the absent field is what makes that
+    /// structural instead of a convention a widget can break.
+    @Default(false) bool forYouDot,
   }) = _AttentionSurfaceSummary;
 }

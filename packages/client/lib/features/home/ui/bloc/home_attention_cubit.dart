@@ -112,6 +112,8 @@ final class HomeAttentionCubit extends Cubit<HomeAttentionState> {
     if (state.activityUnreadTotal == summary.activityUnreadTotal &&
         state.myWorkUnreadTotal == summary.myWorkUnreadTotal &&
         state.surfaceNeedsYouTotal == summary.needsYouTotal &&
+        state.surfaceMyDeskDot == summary.myDeskDot &&
+        state.surfaceForYouDot == summary.forYouDot &&
         state.surfaceSummaryLoaded) {
       return;
     }
@@ -120,6 +122,8 @@ final class HomeAttentionCubit extends Cubit<HomeAttentionState> {
         activityUnreadTotal: summary.activityUnreadTotal,
         myWorkUnreadTotal: summary.myWorkUnreadTotal,
         surfaceNeedsYouTotal: summary.needsYouTotal,
+        surfaceMyDeskDot: summary.myDeskDot,
+        surfaceForYouDot: summary.forYouDot,
         surfaceSummaryLoaded: true,
       ),
     );

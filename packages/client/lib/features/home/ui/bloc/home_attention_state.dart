@@ -22,6 +22,13 @@ abstract class HomeAttentionState with _$HomeAttentionState {
     @Default(0) int activityUnreadTotal,
     @Default(0) int myWorkUnreadTotal,
     @Default(0) int surfaceNeedsYouTotal,
+
+    /// §6 `my desk.dot` / `for you.dot`, as the server computed them from the
+    /// predicates behind the lists (M1). They are booleans and not totals on
+    /// purpose: §6 states a dot as a membership question, and a total is the
+    /// answer to a different one.
+    @Default(false) bool surfaceMyDeskDot,
+    @Default(false) bool surfaceForYouDot,
     @Default(false) bool surfaceSummaryLoaded,
   }) = _HomeAttentionState;
 
@@ -55,16 +62,31 @@ abstract class HomeAttentionState with _$HomeAttentionState {
 
   bool get hasMyWorkDot => myWorkMarkerIds.isNotEmpty;
 
-  /// Activity nav is a dot only — For You never carries a count (§6).
+  /// §6 `for you.dot` — any dismissible attention, pending forward or pending
+  /// prompt. Activity nav is a dot only; For You never carries a count (§6),
+  /// and there is no state field one could be rendered from.
+  ///
+  /// Until U15R-d this read `activityUnreadTotal`, which is neither: it
+  /// counted Activity-surface obligations and saw neither the outcome rows
+  /// nor the pinned decision zone.
   bool get showRedesignActivityUnreadDot =>
-      surfaceSummaryLoaded && surfaceDotFromTotal(activityUnreadTotal);
+      surfaceSummaryLoaded && surfaceForYouDot;
 
-  /// Live obligation receipts on My Work (§6 `my desk.count`).
+  /// §6 `my desk.count` — live obligations on owned Requests.
+  ///
+  /// Still the legacy unscoped total: U15R-d found that scoping it to the
+  /// myWork surface would drop beacon-less live obligations out of every
+  /// indicator §6 defines, and left the gap for the contract owner rather
+  /// than widening a predicate to absorb it.
   bool get showRedesignMyWorkObligationBadge =>
       surfaceSummaryLoaded && surfaceCountFromTotal(surfaceNeedsYouTotal) > 0;
 
-  /// Active optional attention on My Work (§6 `my desk.dot`). Independent of
-  /// the number beside it: a Request with both contributes to both.
+  /// §6 `my desk.dot` — an owned Request has an uncleared optional event or
+  /// uncleared outcome. Independent of the number beside it: a Request with
+  /// both contributes to both.
+  ///
+  /// Until U15R-d this read `myWorkUnreadTotal`, which includes live
+  /// obligations — so an obligation-only Request lit the optional dot.
   bool get showRedesignMyWorkUnreadDot =>
-      surfaceSummaryLoaded && surfaceDotFromTotal(myWorkUnreadTotal);
+      surfaceSummaryLoaded && surfaceMyDeskDot;
 }
